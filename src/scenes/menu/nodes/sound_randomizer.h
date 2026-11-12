@@ -81,12 +81,15 @@ namespace deluge::scenes::menu::nodes {
 	    with_title(setting_item(sid(deluge::l10n::String::name_id), Kind::Int, arp_row(path, false), hint),            \
 	               sid(deluge::l10n::String::title_id)))
 
-/// @brief One sound-side randomizer column: an unpatched `ParamRef`.
+/// @brief One sound-side randomizer column: an unpatched `ParamRef`, never with a MIDI or gate drum selected, which
+///        the kit's own effects keep selected (`RandomizerUnpatchedParam::isRelevant`'s `editingNonAudioDrumRow()`).
 #define DELUGE_RANDOMIZER_PARAM(node_name, name_id, title_id, param_id, rel, hint)                                     \
-	inline constexpr Node node_name = with_short_column_label(                                                         \
-	    param(sid(deluge::l10n::String::name_id),                                                                      \
-	          {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::param_id}, hint, rel,    \
-	          sid(deluge::l10n::String::title_id)))
+	inline constexpr Node node_name =                                                                                  \
+	    with_relevant(with_short_column_label(param(                                                                   \
+	                      sid(deluge::l10n::String::name_id),                                                          \
+	                      {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::param_id},   \
+	                      hint, rel, sid(deluge::l10n::String::title_id))),                                            \
+	                  relevance::not_non_audio_drum_row)
 
 inline constexpr Node randomizer_lock =
     with_affect_entire(with_column_art(with_short_column_label(with_flips_in_list(with_selection_is_toggle(with_title(

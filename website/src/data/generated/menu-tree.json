@@ -407,6 +407,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_gate_drum_row",
                 "id": 31,
                 "name": "Step Repeat",
                 "title": "Arp step repeat",
@@ -477,6 +478,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 36,
                 "name": "Rhythm",
                 "title": "Arp rhythm",
@@ -489,6 +491,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 38,
                 "name": "Sequence Length",
                 "title": "Arp seq length",
@@ -555,6 +558,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 45,
             "name": "Gate Spread",
             "title": "Arp gate spread",
@@ -567,6 +571,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 47,
             "name": "Octave Spread",
             "title": "Arp octa spread",
@@ -592,6 +597,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 51,
             "name": "Ratchet Amount",
             "title": "Arp ratc amount",
@@ -604,6 +610,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 53,
             "name": "Ratchet Probability",
             "title": "Arp ratc prob",
@@ -616,6 +623,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 55,
             "name": "Chord Polyphony",
             "title": "Arp chord poly",
@@ -628,6 +636,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 57,
             "name": "Chord Probability",
             "title": "Arp chord prob",
@@ -640,6 +649,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 59,
             "name": "Note Probability",
             "title": "Note prob",
@@ -652,6 +662,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 61,
             "name": "Swap Probability",
             "title": "Arp swap prob",
@@ -664,6 +675,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 63,
             "name": "Bass Probability",
             "title": "Arp bass prob",
@@ -676,6 +688,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 65,
             "name": "Glide Probability",
             "title": "Arp glide prob",
@@ -688,6 +701,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 67,
             "name": "Reverse Probability",
             "title": "Reverse prob",
@@ -4646,6 +4660,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_gate_drum_row",
                 "id": 31,
                 "name": "Step Repeat",
                 "title": "Arp step repeat",
@@ -4716,6 +4731,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 36,
                 "name": "Rhythm",
                 "title": "Arp rhythm",
@@ -4728,6 +4744,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 38,
                 "name": "Sequence Length",
                 "title": "Arp seq length",
@@ -4794,6 +4811,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 45,
             "name": "Gate Spread",
             "title": "Arp gate spread",
@@ -4806,6 +4824,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 47,
             "name": "Octave Spread",
             "title": "Arp octa spread",
@@ -4831,6 +4850,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 51,
             "name": "Ratchet Amount",
             "title": "Arp ratc amount",
@@ -4843,6 +4863,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 53,
             "name": "Ratchet Probability",
             "title": "Arp ratc prob",
@@ -4855,6 +4876,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 55,
             "name": "Chord Polyphony",
             "title": "Arp chord poly",
@@ -4867,6 +4889,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 57,
             "name": "Chord Probability",
             "title": "Arp chord prob",
@@ -4879,6 +4902,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 59,
             "name": "Note Probability",
             "title": "Note prob",
@@ -4891,6 +4915,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 61,
             "name": "Swap Probability",
             "title": "Arp swap prob",
@@ -4903,6 +4928,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 63,
             "name": "Bass Probability",
             "title": "Arp bass prob",
@@ -4915,6 +4941,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 65,
             "name": "Glide Probability",
             "title": "Arp glide prob",
@@ -4927,6 +4954,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 67,
             "name": "Reverse Probability",
             "title": "Reverse prob",
@@ -8706,6 +8734,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_gate_drum_row",
                 "id": 31,
                 "name": "Step Repeat",
                 "title": "Arp step repeat",
@@ -8776,6 +8805,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 36,
                 "name": "Rhythm",
                 "title": "Arp rhythm",
@@ -8788,6 +8818,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 38,
                 "name": "Sequence Length",
                 "title": "Arp seq length",
@@ -8854,6 +8885,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 45,
             "name": "Gate Spread",
             "title": "Arp gate spread",
@@ -8866,6 +8898,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 47,
             "name": "Octave Spread",
             "title": "Arp octa spread",
@@ -8891,6 +8924,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 51,
             "name": "Ratchet Amount",
             "title": "Arp ratc amount",
@@ -8903,6 +8937,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 53,
             "name": "Ratchet Probability",
             "title": "Arp ratc prob",
@@ -8915,6 +8950,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 55,
             "name": "Chord Polyphony",
             "title": "Arp chord poly",
@@ -8927,6 +8963,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 57,
             "name": "Chord Probability",
             "title": "Arp chord prob",
@@ -8939,6 +8976,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 59,
             "name": "Note Probability",
             "title": "Note prob",
@@ -8951,6 +8989,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 61,
             "name": "Swap Probability",
             "title": "Arp swap prob",
@@ -8963,6 +9002,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 63,
             "name": "Bass Probability",
             "title": "Arp bass prob",
@@ -8975,6 +9015,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 65,
             "name": "Glide Probability",
             "title": "Arp glide prob",
@@ -8987,6 +9028,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 67,
             "name": "Reverse Probability",
             "title": "Reverse prob",
@@ -9246,6 +9288,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_gate_drum_row",
                 "id": 31,
                 "name": "Step Repeat",
                 "title": "Arp step repeat",
@@ -9316,6 +9359,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 36,
                 "name": "Rhythm",
                 "title": "Arp rhythm",
@@ -9328,6 +9372,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 38,
                 "name": "Sequence Length",
                 "title": "Arp seq length",
@@ -9394,6 +9439,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 45,
             "name": "Gate Spread",
             "title": "Arp gate spread",
@@ -9406,6 +9452,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 47,
             "name": "Octave Spread",
             "title": "Arp octa spread",
@@ -9431,6 +9478,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 51,
             "name": "Ratchet Amount",
             "title": "Arp ratc amount",
@@ -9443,6 +9491,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 53,
             "name": "Ratchet Probability",
             "title": "Arp ratc prob",
@@ -9455,6 +9504,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 55,
             "name": "Chord Polyphony",
             "title": "Arp chord poly",
@@ -9467,6 +9517,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 57,
             "name": "Chord Probability",
             "title": "Arp chord prob",
@@ -9479,6 +9530,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 59,
             "name": "Note Probability",
             "title": "Note prob",
@@ -9491,6 +9543,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 61,
             "name": "Swap Probability",
             "title": "Arp swap prob",
@@ -9503,6 +9556,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 63,
             "name": "Bass Probability",
             "title": "Arp bass prob",
@@ -9515,6 +9569,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 65,
             "name": "Glide Probability",
             "title": "Arp glide prob",
@@ -9527,6 +9582,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 67,
             "name": "Reverse Probability",
             "title": "Reverse prob",
@@ -9703,6 +9759,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_gate_drum_row",
                 "id": 31,
                 "name": "Step Repeat",
                 "title": "Arp step repeat",
@@ -9773,6 +9830,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 36,
                 "name": "Rhythm",
                 "title": "Arp rhythm",
@@ -9785,6 +9843,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 38,
                 "name": "Sequence Length",
                 "title": "Arp seq length",
@@ -9851,6 +9910,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 45,
             "name": "Gate Spread",
             "title": "Arp gate spread",
@@ -9863,6 +9923,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 47,
             "name": "Octave Spread",
             "title": "Arp octa spread",
@@ -9888,6 +9949,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 51,
             "name": "Ratchet Amount",
             "title": "Arp ratc amount",
@@ -9900,6 +9962,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 53,
             "name": "Ratchet Probability",
             "title": "Arp ratc prob",
@@ -9912,6 +9975,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 55,
             "name": "Chord Polyphony",
             "title": "Arp chord poly",
@@ -9924,6 +9988,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 57,
             "name": "Chord Probability",
             "title": "Arp chord prob",
@@ -9936,6 +10001,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 59,
             "name": "Note Probability",
             "title": "Note prob",
@@ -9948,6 +10014,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 61,
             "name": "Swap Probability",
             "title": "Arp swap prob",
@@ -9960,6 +10027,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 63,
             "name": "Bass Probability",
             "title": "Arp bass prob",
@@ -9972,6 +10040,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 65,
             "name": "Glide Probability",
             "title": "Arp glide prob",
@@ -9984,6 +10053,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 67,
             "name": "Reverse Probability",
             "title": "Reverse prob",
@@ -11868,6 +11938,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_gate_drum_row",
                 "id": 31,
                 "name": "Step Repeat",
                 "title": "Arp step repeat",
@@ -11938,6 +12009,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 36,
                 "name": "Rhythm",
                 "title": "Arp rhythm",
@@ -11950,6 +12022,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 38,
                 "name": "Sequence Length",
                 "title": "Arp seq length",
@@ -11980,6 +12053,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 45,
                 "name": "Gate Spread",
                 "title": "Arp gate spread",
@@ -11992,6 +12066,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 47,
                 "name": "Octave Spread",
                 "title": "Arp octa spread",
@@ -12017,6 +12092,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 51,
                 "name": "Ratchet Amount",
                 "title": "Arp ratc amount",
@@ -12029,6 +12105,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 53,
                 "name": "Ratchet Probability",
                 "title": "Arp ratc prob",
@@ -12041,6 +12118,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 55,
                 "name": "Chord Polyphony",
                 "title": "Arp chord poly",
@@ -12053,6 +12131,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 57,
                 "name": "Chord Probability",
                 "title": "Arp chord prob",
@@ -12065,6 +12144,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 59,
                 "name": "Note Probability",
                 "title": "Note prob",
@@ -12077,6 +12157,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 61,
                 "name": "Swap Probability",
                 "title": "Arp swap prob",
@@ -12089,6 +12170,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 63,
                 "name": "Bass Probability",
                 "title": "Arp bass prob",
@@ -12101,6 +12183,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 65,
                 "name": "Glide Probability",
                 "title": "Arp glide prob",
@@ -12113,6 +12196,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 67,
                 "name": "Reverse Probability",
                 "title": "Reverse prob",
@@ -14439,6 +14523,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_gate_drum_row",
                 "id": 31,
                 "name": "Step Repeat",
                 "title": "Arp step repeat",
@@ -14509,6 +14594,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 36,
                 "name": "Rhythm",
                 "title": "Arp rhythm",
@@ -14521,6 +14607,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 38,
                 "name": "Sequence Length",
                 "title": "Arp seq length",
@@ -14587,6 +14674,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 45,
             "name": "Gate Spread",
             "title": "Arp gate spread",
@@ -14599,6 +14687,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 47,
             "name": "Octave Spread",
             "title": "Arp octa spread",
@@ -14624,6 +14713,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 51,
             "name": "Ratchet Amount",
             "title": "Arp ratc amount",
@@ -14636,6 +14726,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 53,
             "name": "Ratchet Probability",
             "title": "Arp ratc prob",
@@ -14648,6 +14739,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 55,
             "name": "Chord Polyphony",
             "title": "Arp chord poly",
@@ -14660,6 +14752,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 57,
             "name": "Chord Probability",
             "title": "Arp chord prob",
@@ -14672,6 +14765,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 59,
             "name": "Note Probability",
             "title": "Note prob",
@@ -14684,6 +14778,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 61,
             "name": "Swap Probability",
             "title": "Arp swap prob",
@@ -14696,6 +14791,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 63,
             "name": "Bass Probability",
             "title": "Arp bass prob",
@@ -14708,6 +14804,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 65,
             "name": "Glide Probability",
             "title": "Arp glide prob",
@@ -14720,6 +14817,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 67,
             "name": "Reverse Probability",
             "title": "Reverse prob",

@@ -110,6 +110,9 @@ bool not_non_audio_drum_or_kit_fx(const MenuContext& ctx);
 ///        the first test of `randomizer::RandomizerUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h`),
 ///        `!editingNonAudioDrumRow()`. Their `!editingCVOrMIDIClip()` is the param target's own.
 bool not_non_audio_drum_row(const MenuContext& ctx);
+/// @brief Not a gate drum row: `arpeggiator::StepRepeat::isRelevant` (`arpeggiator/step_repeat.h`),
+///        `!editingGateDrumRow()`, the kit's selected drum whatever the menu edits.
+bool not_gate_drum_row(const MenuContext& ctx);
 
 /// @brief Is reverb ducking set to something other than AUTO? `reverb::sidechain::Shape::isRelevant`
 ///        (`reverb/sidechain/shape.h`), `sidechain::Attack` / `Release` / `Sync` in their
