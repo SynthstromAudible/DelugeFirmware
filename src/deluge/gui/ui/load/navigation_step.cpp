@@ -62,4 +62,47 @@ NavigationDecision decideNavigation(const NavigationWindow& window, int32_t offs
 	}
 }
 
+PileDecision movePile(const NavigationWindow& window, int32_t i, int32_t offset, bool skipInSong) {
+	const auto size = static_cast<int32_t>(window.items.size());
+	int32_t wrapped = 0;
+	for (;;) {
+		if (i < 0) {
+			if (window.deletedAtStart > 0) {
+				return ReadAgain{};
+			}
+			wrapped++;
+			if (window.deletedAtEnd > 0) {
+				return FromEnd{.wraps = wrapped};
+			}
+			i = size - 1;
+		}
+		else if (i >= size) {
+			if (window.deletedAtEnd > 0) {
+				return ReadAgain{};
+			}
+			wrapped++;
+			if (window.deletedAtStart > 0) {
+				return FromEnd{.wraps = wrapped};
+			}
+			i = 0;
+		}
+		if (skipInSong && window.items[i].inSong && wrapped < 2) {
+			i += offset;
+			continue;
+		}
+		return Land{.index = i, .wraps = wrapped};
+	}
+}
+
+PileDecision startPileWindow(const NavigationWindow& window, int32_t offset, bool skipInSong, bool haveName) {
+	const auto size = static_cast<int32_t>(window.items.size());
+	if (size == 0 || (size == 1 && window.items[0].isOld)) {
+		if (haveName) {
+			return FromEnd{.wraps = 1};
+		}
+		return GetOut{};
+	}
+	return movePile(window, (offset >= 0) ? 0 : size - 1, offset, skipInSong);
+}
+
 } // namespace deluge::gui

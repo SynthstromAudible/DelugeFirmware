@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/file_listing.h"
+#include "gui/ui/load/navigation_step.h"
 #include "storage/preset_acquisition.h"
 
 #include <cstdint>
@@ -38,6 +39,9 @@ namespace deluge::gui {
 /// The walk's wraps are summed here, across windows, which is what bounds it: a page only moves forward, and a
 /// read from the far end is a wrap.
 ///
+/// A pile (the detents of a turn made while one of the same output loaded) reads the window the earlier turn landed
+/// in again, finds its landing there and moves from it by the whole pile, by main's rules (movePile).
+///
 /// @note The FileItem* handed back points into this walk's own listing and stays valid until it is armed again.
 class PresetNavigation {
 public:
@@ -45,7 +49,7 @@ public:
 	/// that alone. Hitting it gets out and is counted.
 	static constexpr int32_t kMaxNavigationReads = 64;
 
-	/// @brief Start a scroll from @p spec's preset, @p spec's steps on in its direction.
+	/// @brief Start a scroll from @p spec's preset, one preset on in its direction, or by its pile.
 	void arm(LoadInstrumentPresetUI& ui, const deluge::storage::AcquireWalkSpec& spec);
 	/// @return Whether it is still waiting on a folder open.
 	bool tick();
@@ -53,22 +57,32 @@ public:
 	/// The folder it read: where the landed preset lives.
 	[[nodiscard]] const std::string& dir() const { return dir_; }
 	[[nodiscard]] int32_t giveUps() const { return giveUps_; }
+	/// @return Where a walk that landed did: what a pile turned meanwhile moves on from. Valid once result() holds.
+	[[nodiscard]] const deluge::storage::NavigationPile& landing() const { return landing_; }
 
 private:
 	enum class Phase : uint8_t { Idle, Read, Done };
+	/// One preset on (decideNavigation); finding a pile's earlier landing in its window; moving a pile on after a read.
+	enum class Mode : uint8_t { Step, FindLanding, MovePile };
 
 	void finish(std::expected<FileItem*, Error> result);
+	void land(int32_t index);
+	/// @brief Act on a pile's decision for the window just read.
+	void followPile(const PileDecision& decision);
 
 	Phase phase_{Phase::Idle};
+	Mode mode_{Mode::Step};
 	deluge::gui::browser::FileListing listing_;
 	LoadInstrumentPresetUI* ui_{};
 	std::string dir_;
 	std::string searchName_; ///< with its extension; empty once a read from the far end has cleared it
+	bool searchRight_{true}; ///< the next read's direction
 	int32_t offset_{};
-	int32_t steps_{1}; ///< presets still to move on, counting the one being looked for
 	Instrument* oldInstrument_{};
 	OutputType outputType_{OutputType::SYNTH};
 	bool skipInSong_{};
+	deluge::storage::NavigationPile pile_; ///< FindLanding/MovePile: the earlier landing; its oldName follows main's
+	deluge::storage::NavigationPile landing_;
 	int32_t wraps_{};
 	int32_t reads_{};
 	int32_t giveUps_{};

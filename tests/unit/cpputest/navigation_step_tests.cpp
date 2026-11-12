@@ -132,3 +132,62 @@ TEST(NavigationStepTests, wholeFolderInSongLandsAfterTwoWraps) {
 	const std::array items{S, S, S};
 	checkLand(decideNavigation(window(items), -1, true, true, 0), 2, 2);
 }
+
+// ── A pile of detents, moved from the landed entry as main's moveAgain does ───
+
+namespace {
+void checkPileLand(const PileDecision& d, int32_t index) {
+	const Land* land = std::get_if<Land>(&d);
+	CHECK(land != nullptr);
+	CHECK_EQUAL(index, land->index);
+}
+} // namespace
+
+TEST(NavigationStepTests, aPileMovesByAllItsDetentsInsideTheWindow) {
+	const std::array items{F, F, F, F, F};
+	checkPileLand(movePile(window(items, 3, 4), 0 + 3, 3, false), 3);
+	checkPileLand(movePile(window(items, 3, 4), 4 - 2, -2, false), 2);
+}
+
+TEST(NavigationStepTests, aPilePastATrimmedEdgeReadsAgainFromTheName) {
+	const std::array items{F, F, F};
+	CHECK(std::holds_alternative<ReadAgain>(movePile(window(items, 0, 4), 1 + 5, 5, false)));
+	CHECK(std::holds_alternative<ReadAgain>(movePile(window(items, 4, 0), 1 - 5, -5, false)));
+}
+
+TEST(NavigationStepTests, aPilePastTheFolderEndReadsFromTheFarEnd) {
+	// NAV23 landed in the window read from NAV22 (NAV23, NAV24; NAV00..NAV22 behind it): three on is past the end.
+	const std::array items{F, F};
+	const auto d = movePile(window(items, 23, 0), 0 + 3, 3, false);
+	CHECK(std::holds_alternative<FromEnd>(d));
+}
+
+TEST(NavigationStepTests, aPilePastTheEndOfAWholeFolderWrapsToItsStartNotOnByTheRest) {
+	const std::array items{F, F, F, F};
+	checkPileLand(movePile(window(items), 2 + 5, 5, false), 0);
+	checkPileLand(movePile(window(items), 1 - 5, -5, false), 3);
+}
+
+TEST(NavigationStepTests, aPresetInTheSongIsSkippedByTheWholePileAgain) {
+	// From index 0, a pile of 2 lands on 2, which is in the song: main moves on by 2 again, to 4.
+	const std::array items{F, F, S, F, F, F};
+	checkPileLand(movePile(window(items), 0 + 2, 2, true), 4);
+}
+
+TEST(NavigationStepTests, aPileSkipsInSongPresetsOnlyUntilItHasWrappedTwice) {
+	// 1, 2, past the end (one wrap), 0, 1, 2, past the end again (two): it stops at 0.
+	const std::array items{S, S, S};
+	checkPileLand(movePile(window(items), 1, 1, true), 0);
+}
+
+TEST(NavigationStepTests, aReadForAPileStartsAtTheNearEnd) {
+	const std::array items{F, F, F};
+	checkPileLand(startPileWindow(window(items, 2, 2), 4, false, true), 0);
+	checkPileLand(startPileWindow(window(items, 2, 2), -4, false, true), 2);
+}
+
+TEST(NavigationStepTests, anEmptyReadForAPileReadsFromTheFarEndOnceThenGetsOut) {
+	const std::array<NavigationItem, 0> items{};
+	CHECK(std::holds_alternative<FromEnd>(startPileWindow(window(items), 3, false, true)));
+	CHECK(std::holds_alternative<GetOut>(startPileWindow(window(items), 3, false, false)));
+}

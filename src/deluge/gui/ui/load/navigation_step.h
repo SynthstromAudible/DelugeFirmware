@@ -70,4 +70,30 @@ using NavigationDecision = std::variant<Land, PageOn, FromEnd, GetOut>;
 [[nodiscard]] NavigationDecision decideNavigation(const NavigationWindow& window, int32_t offset, bool skipInSong,
                                                   bool haveName, int32_t wrapsSoFar);
 
+/// Read again from the walk's search name, the position reset to the window's near end (main's `readAgain`).
+struct ReadAgain {};
+
+using PileDecision = std::variant<Land, ReadAgain, FromEnd, GetOut>;
+
+/// @brief Main's `moveAgain` loop in `LoadInstrumentPresetUI::doPresetNavigation`, over one window: the detents that
+///        piled up while a preset loaded, moved by all at once from where it landed.
+///
+/// Past a trimmed edge on the side it moves to, it reads again from the walk's name (`ReadAgain`), which starts over
+/// at that window's near end and drops what is left of the pile. Past the folder's end it wraps: to the window's far
+/// end when the window holds the whole folder, else to a read from the folder's far end (`FromEnd`), which drops the
+/// rest of the pile too. A preset in the song, when those are skipped, moves it on by the whole pile again, until it
+/// has wrapped twice.
+/// @param window The window the position is in.
+/// @param i The position: the landed entry's index plus the pile, or a near end after a read.
+/// @param offset The pile, signed.
+/// @param skipInSong Step past presets already in the song (Availability::INSTRUMENT_UNUSED).
+[[nodiscard]] PileDecision movePile(const NavigationWindow& window, int32_t i, int32_t offset, bool skipInSong);
+
+/// @brief Main's `doPresetNavigation` after a read that a pile's move asked for: an empty window, or one holding only
+///        the instrument moved on from, reads from the folder's far end, or gets out when it was already that read;
+///        anything else moves from the window's near end (@ref movePile).
+/// @param haveName Whether this window was read from a search name.
+[[nodiscard]] PileDecision startPileWindow(const NavigationWindow& window, int32_t offset, bool skipInSong,
+                                           bool haveName);
+
 } // namespace deluge::gui

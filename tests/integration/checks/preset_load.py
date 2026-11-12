@@ -47,6 +47,13 @@ The acquisition legs pick presets without the browser, by the gestures a user ma
                while it waits: they add up, as main's detents do, and land on NAV02. Then on, on and back: the turn back
                cancels the waiting one, and the first turn's NAV03 is where they land. A two-detent turn with nothing
                loading moves one preset, as main's first move does.
+    AQ-NAV-PILE
+               turns of the synth clip before a kit turn: the kit turn replaces the synth turn waiting rather than
+               adding to it, a two-detent kit turn behind the synth's moves one preset, and the synth keeps its preset.
+               Piles move as main's pending detents do: from NAV22, on and three more lands on NAV00 (past the folder's
+               end, its first preset); from NAV00, on and seventy more lands on NAV02 (past the landing window's edge,
+               the first preset past the landing); from NAV10, back and three more back lands on NAV06 (moved from the
+               landing at the window's far end).
     AQ-NAV-STALL
                a navigate with its folder open held past the bound: SD_CARD, clip kept, nothing in flight.
     AQ-SUPERSEDE

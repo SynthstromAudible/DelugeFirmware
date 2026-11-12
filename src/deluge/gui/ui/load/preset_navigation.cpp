@@ -24,6 +24,8 @@
 #include "storage/file_item.h"
 #include "util/functions.h" // getThingName
 
+#include <algorithm>
+#include <iterator>
 #include <variant>
 #include <vector>
 
@@ -31,13 +33,23 @@ namespace deluge::gui {
 
 void PresetNavigation::arm(LoadInstrumentPresetUI& ui, const deluge::storage::AcquireWalkSpec& spec) {
 	ui_ = &ui;
-	dir_ = spec.dirPath;
-	searchName_ = spec.name + ".XML";
 	offset_ = spec.offset;
-	steps_ = spec.steps;
 	oldInstrument_ = spec.oldInstrument;
 	outputType_ = spec.outputType;
 	skipInSong_ = spec.availability == Availability::INSTRUMENT_UNUSED;
+	if (spec.pile.has_value()) {
+		pile_ = *spec.pile;
+		dir_ = pile_.dirPath;
+		searchName_ = pile_.listedFrom;
+		searchRight_ = pile_.listedRight;
+		mode_ = Mode::FindLanding;
+	}
+	else {
+		dir_ = spec.dirPath;
+		searchName_ = spec.name + ".XML";
+		searchRight_ = offset_ >= 0;
+		mode_ = Mode::Step;
+	}
 	wraps_ = 0;
 	reads_ = 0;
 	listing_.clear();
@@ -53,6 +65,38 @@ void PresetNavigation::finish(std::expected<FileItem*, Error> result) {
 	phase_ = Phase::Done;
 }
 
+void PresetNavigation::land(int32_t index) {
+	FileItem& item = listing_.item(index);
+	landing_ = {.dirPath = dir_,
+	            .listedFrom = searchName_,
+	            .listedRight = searchRight_,
+	            .landed = std::string{item.displayName()},
+	            .landedInstrument = item.instrument,
+	            .oldName = item.instrument != nullptr ? searchName_ : std::string{item.displayName()}};
+	finish(&item);
+}
+
+void PresetNavigation::followPile(const PileDecision& decision) {
+	if (const Land* landed = std::get_if<Land>(&decision)) {
+		land(landed->index);
+	}
+	else if (std::holds_alternative<ReadAgain>(decision)) {
+		searchName_ = pile_.oldName;
+		searchRight_ = offset_ >= 0;
+		mode_ = Mode::MovePile;
+	}
+	else if (std::holds_alternative<FromEnd>(decision)) {
+		// Main's `searchFromOneEnd`: the name is cleared for good, so a later read past an edge starts there too.
+		pile_.oldName.clear();
+		searchName_.clear();
+		searchRight_ = offset_ >= 0;
+		mode_ = Mode::MovePile;
+	}
+	else {
+		finish(std::unexpected{Error::NO_ERROR_BUT_GET_OUT});
+	}
+}
+
 bool PresetNavigation::tick() {
 	while (phase_ == Phase::Read) {
 		if (reads_ >= kMaxNavigationReads) {
@@ -64,7 +108,7 @@ bool PresetNavigation::tick() {
 		const Error error = ui_->readFileItemsForFolder(
 		    listing_, dir_, getThingName(outputType_), false, allowedFileExtensionsXML,
 		    searchName_.empty() ? nullptr : searchName_.c_str(), FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION,
-		    (offset_ >= 0) ? deluge::gui::browser::CatalogSearch::Right : deluge::gui::browser::CatalogSearch::Left);
+		    searchRight_ ? deluge::gui::browser::CatalogSearch::Right : deluge::gui::browser::CatalogSearch::Left);
 		if (error == Error::LISTING_DEFERRED) {
 			return true;
 		}
@@ -90,20 +134,36 @@ bool PresetNavigation::tick() {
 			                 .inSong = item.instrument != nullptr && item.instrumentAlreadyInSong,
 			                 .name = item.displayName()});
 		}
-		const NavigationDecision decision = decideNavigation({.items = items,
-		                                                      .deletedAtStart = listing_.numDeletedAtStart(),
-		                                                      .deletedAtEnd = listing_.numDeletedAtEnd()},
-		                                                     offset_, skipInSong_, !searchName_.empty(), wraps_);
+		const NavigationWindow window{
+		    .items = items, .deletedAtStart = listing_.numDeletedAtStart(), .deletedAtEnd = listing_.numDeletedAtEnd()};
 
-		if (const Land* land = std::get_if<Land>(&decision)) {
-			wraps_ += land->wraps;
-			if (steps_ > 1) {
-				// Further on: the next preset past this one, read from its name as a page past a trimmed edge is.
-				steps_--;
-				searchName_ = std::string{listing_.item(land->index).displayName()};
+		if (mode_ == Mode::FindLanding) {
+			const auto found = std::ranges::find_if(listing_.items(), [&](const FileItem& item) {
+				return pile_.landedInstrument != nullptr
+				           ? item.instrument == pile_.landedInstrument
+				           : item.instrument == nullptr && item.displayName() == pile_.landed;
+			});
+			if (found == listing_.items().end()) {
+				// The earlier landing is gone from its window (a file removed meanwhile): one preset on from it.
+				searchName_ = pile_.landed;
+				searchRight_ = offset_ >= 0;
+				mode_ = Mode::Step;
 				continue;
 			}
-			finish(&listing_.item(land->index));
+			const auto index = static_cast<int32_t>(std::distance(listing_.items().begin(), found));
+			followPile(movePile(window, index + offset_, offset_, skipInSong_));
+			continue;
+		}
+		if (mode_ == Mode::MovePile) {
+			followPile(startPileWindow(window, offset_, skipInSong_, !searchName_.empty()));
+			continue;
+		}
+
+		const NavigationDecision decision =
+		    decideNavigation(window, offset_, skipInSong_, !searchName_.empty(), wraps_);
+		if (const Land* landed = std::get_if<Land>(&decision)) {
+			wraps_ += landed->wraps;
+			land(landed->index);
 		}
 		else if (const PageOn* page = std::get_if<PageOn>(&decision)) {
 			wraps_ += page->wraps;

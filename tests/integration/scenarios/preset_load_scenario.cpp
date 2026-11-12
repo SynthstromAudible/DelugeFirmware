@@ -245,6 +245,25 @@ constexpr const char* kNavThreeOn = "NAV02";
 constexpr const char* kNavOnAndBack = "NAV03";
 /// On from kNavOnAndBack by a two-detent turn with nothing loading: one preset on, as main's first move is.
 constexpr const char* kNavOneOn = "NAV04";
+/// The synth clip turned twice, the second turn waiting behind the first, and the kit turned: the kit turn replaces the
+/// synth's waiting one rather than adding to it, and moves one preset on from kNavOneOn.
+constexpr const char* kNavPastOtherOutput = "NAV05";
+/// A two-detent turn made while the synth clip's turn loads: main's detents pile up only behind a turn of the same
+/// output, so it moves one preset, from kNavPastOtherOutput.
+constexpr const char* kNavBehindOther = "NAV06";
+/// The pile's edges. From kNavPileFrom, on and then three more at once: the first lands on NAV23, in a window read from
+/// NAV22 that ends at the folder's end, and three past that is past the end, which main answers with the folder's
+/// first preset.
+constexpr const char* kNavPileFrom = "NAV22";
+constexpr const char* kNavPileWrapped = "NAV00";
+/// From kNavPileWrapped, on and then seventy more at once: past the landing window's trimmed edge main reads again from
+/// the landed NAV01 and takes the first preset past it, whatever is left of the pile.
+constexpr const char* kNavPileReadAgain = "NAV02";
+constexpr int32_t kNavLongPile = 70;
+/// From kNavPileBackFrom, back and then three more back at once: the first lands on NAV09, the last entry of the window
+/// read leftwards from NAV10, and the pile moves from there.
+constexpr const char* kNavPileBackFrom = "NAV10";
+constexpr const char* kNavPileBack = "NAV06";
 /// AqChangeCases' remembered kit presets: one there, one absent (sorting just after NAV05), one in a folder that
 /// does not exist.
 constexpr const char* kChangeNamed = "NAV05";
@@ -1305,6 +1324,8 @@ Output* g_slotStallOutputBefore = nullptr;
 /// managers, read as the gesture is made.
 std::vector<Clip*> g_aqClipsBefore{};
 std::string g_aqNameBefore{};
+/// AQ-NAV-PILE: the synth clip's preset before its turn, which a kit turn made behind it supersedes.
+std::string g_navOtherNameBefore{};
 int32_t g_aqRunsBefore = 0;
 int32_t g_aqSupersessionsBefore = 0;
 int32_t g_aqGiveUpsBefore = 0;
@@ -1346,7 +1367,7 @@ bool isAcquireLeg(Leg leg) {
 int32_t acquireActs(Leg leg) {
 	return leg == Leg::AqChangeCases ? 6
 	       : leg == Leg::AqTap       ? 5
-	       : leg == Leg::AqNavWrap   ? 5
+	       : leg == Leg::AqNavWrap   ? 10
 	       : leg == Leg::AqNavigate  ? 3
 	       : leg == Leg::AqNew       ? 2
 	                                 : 1;
@@ -1657,6 +1678,31 @@ bool actAcquire() {
 		}
 		if (g_aqAct == 4) {
 			instrumentClipView.selectEncoderAction(2);
+			return true;
+		}
+		if (g_aqAct == 5 || g_aqAct == 6) {
+			if (g_synthClip == nullptr || g_synthClip->output == nullptr) {
+				return fail(leg, "the synth clip is missing");
+			}
+			g_navOtherNameBefore = g_synthClip->output->name;
+			(void)focusClip(g_synthClip);
+			instrumentClipView.selectEncoderAction(1);
+			if (g_aqAct == 5) {
+				instrumentClipView.selectEncoderAction(1);
+			}
+			(void)focusClip(g_aqClip);
+			instrumentClipView.selectEncoderAction(g_aqAct == 5 ? 1 : 2);
+			return true;
+		}
+		if (g_aqAct >= 7) {
+			const char* from = g_aqAct == 7 ? kNavPileFrom : g_aqAct == 9 ? kNavPileBackFrom : nullptr;
+			if (from != nullptr) {
+				static_cast<Instrument*>(g_aqClip->output)->name = from;
+				g_aqNameBefore = from;
+			}
+			const int32_t way = g_aqAct == 9 ? -1 : 1;
+			instrumentClipView.selectEncoderAction(way);
+			instrumentClipView.selectEncoderAction(g_aqAct == 8 ? kNavLongPile : 3 * way);
 			return true;
 		}
 		instrumentClipView.selectEncoderAction(g_aqAct == 0 ? 1 : -1);
@@ -1992,6 +2038,21 @@ void checkAcquireAct() {
 		break;
 	}
 	case Leg::AqNavWrap: {
+		if (g_aqAct >= 5) {
+			static constexpr const char* kTurns[] = {"other-other-on", "two-behind-other", "pile-past-end",
+			                                         "pile-past-window", "pile-back"};
+			static constexpr const char* kWants[] = {kNavPastOtherOutput, kNavBehindOther, kNavPileWrapped,
+			                                         kNavPileReadAgain, kNavPileBack};
+			const char* want = kWants[g_aqAct - 5];
+			const bool otherKept =
+			    g_aqAct >= 7 || (g_synthClip != nullptr && g_synthClip->output->name == g_navOtherNameBefore);
+			printf("AQ-NAV-PILE turns=%s before=%s name=%s want=%s other-kept=%d runs=%d\n", kTurns[g_aqAct - 5],
+			       g_aqNameBefore.c_str(), name.c_str(), want, otherKept ? 1 : 0, runs);
+			if (name != want || !otherKept) {
+				aqFail("AQ-NAV-PILE", "a turn's pile did not move as main's pending detents do");
+			}
+			break;
+		}
 		if (g_aqAct >= 2) {
 			static constexpr const char* kTurns[] = {"on-on-on", "on-on-back", "two-detents"};
 			static constexpr const char* kWants[] = {kNavThreeOn, kNavOnAndBack, kNavOneOn};
