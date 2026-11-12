@@ -419,6 +419,62 @@ describe rename_open("scenes::rename::RenameScene opening", $ {
 		expect(rename_scene().cursor()).to_equal(0);
 	});
 
+	it("blinks BACK when nothing beneath does", _ {
+		// Opened straight over a view that declares no BACK blink (the clip view's rename shortcut).
+		select_language();
+		spec::SongFixture f = kit_fixture();
+		kit_of(f)->selectedDrum->setName("Snare");
+		Rig r;
+		r.open_rename(context_of(f), TargetId::Drum);
+		constexpr uint8_t kBackLed = 16;
+		bool lit = false;
+		for (uint32_t t = 1000; t <= 1240; t += 10) {
+			r.tick(t);
+		}
+		for (const auto& [led, on] : r.fake.led_writes) {
+			if (led == kBackLed) {
+				lit = on;
+			}
+		}
+		expect(lit).to_be_true();
+		expect(r.fake.leds().desired_declared[static_cast<size_t>(deluge::ui::shell::ButtonId::Back)]).to_be_true();
+	});
+
+	it("restarts BACK's blink where it opens, as QwertyUI::opened does: lit 250 ms, then off", _ {
+		// `indicator_leds::blinkLed(IndicatorLED::BACK)`: the normal blink, restarted at the open even when the menu
+		// beneath already blinks BACK. BACK is board LED 16 on the Deluge profile.
+		select_language();
+		spec::SongFixture f = kit_fixture();
+		kit_of(f)->selectedDrum->setName("Snare");
+		Rig r;
+		constexpr uint8_t kBackLed = 16;
+		const auto back_lit = [&r] {
+			bool lit = false;
+			for (const auto& [led, on] : r.fake.led_writes) {
+				if (led == kBackLed) {
+					lit = on;
+				}
+			}
+			return lit;
+		};
+		r.open_menu(nodes::drum_actions, nodes::drum_actions, context_of(f));
+		for (uint32_t t = 1000; t <= 1300; t += 10) {
+			r.tick(t);
+		}
+		expect(back_lit()).to_be_false(); // the menu's blink, past its first 250 ms lit
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 1310);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 1310);
+		for (uint32_t t = 1310; t <= 1540; t += 10) {
+			r.tick(t);
+		}
+		expect(&r.shell.stack().input_top() == &rename_scene()).to_be_true();
+		expect(back_lit()).to_be_true(); // restarted at the open, inside its lit 250 ms
+		for (uint32_t t = 1570; t <= 1600; t += 10) {
+			r.tick(t);
+		}
+		expect(back_lit()).to_be_false();
+	});
+
 	it("forgets its context on exit, so a re-entry without open() refuses", _ {
 		select_language();
 		spec::SongFixture f = kit_fixture();

@@ -36,6 +36,7 @@
 
 #include <algorithm>
 #include <array>
+#include <utility>
 
 namespace deluge::scenes::rename {
 
@@ -230,7 +231,16 @@ bool RenameScene::on_enter(const SceneId& id) {
 	cursor_blink_ = deluge::ui::Blink{};
 	repeat_armed_ = false;
 	repeat_at_ms_ = 0;
+	blink_restart_ = true;
 	return true;
+}
+
+void RenameScene::leds(deluge::ui::LedFrame& frame) {
+	if (std::exchange(blink_restart_, false)) {
+		frame.restart(deluge::ui::BlinkRate::Normal);
+	}
+	(void)frame.set(static_cast<deluge::ui::LedId>(ButtonId::Back),
+	                deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal));
 }
 
 void RenameScene::on_exit() {

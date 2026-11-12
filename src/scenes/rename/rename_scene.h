@@ -114,6 +114,8 @@ public:
 	bool on_enter(const deluge::ui::shell::SceneId& id) override;
 	void on_exit() override;
 	std::optional<uint32_t> next_timer() const override;
+	/// @brief `QwertyUI::opened`'s `blinkLed(IndicatorLED::BACK)`: BACK blinks, restarted where the editor opens.
+	void leds(deluge::ui::LedFrame& frame) override;
 
 	/// @brief True: the keyboard is painted over whatever grid is beneath, and the sidebar
 	///        columns the keyboard does not own keep showing the view underneath -- exactly what
@@ -180,6 +182,8 @@ private:
 	/// @{
 	bool repeat_armed_ = false;
 	uint32_t repeat_at_ms_ = 0;
+	/// Whether the next `leds()` restarts the shared normal blink: the editor has just opened.
+	bool blink_restart_ = false;
 	/// @}
 
 	/// What this tick's `render_grid` observed, for `after_render` to act on -- the same
