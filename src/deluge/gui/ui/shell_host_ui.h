@@ -481,7 +481,7 @@ private:
 	///
 	/// A `std::nullopt` deadline means "nothing is armed; sleep until the next input" -- so nothing
 	/// is armed here either, and the timer stays inactive (`UITimerManager::routine` cleared it
-	/// before calling, `gui/ui_timer_manager.cpp:67`). **With one exception**: while the lowering
+	/// before calling, `gui/ui_timer_manager.cpp:68`). **With one exception**: while the lowering
 	/// holds the SD-routine lock its deferred queue is waiting on a fact no scene can express as a
 	/// deadline, so the guest keeps polling. That is what makes the release time-driven rather than
 	/// input-driven.

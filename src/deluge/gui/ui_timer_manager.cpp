@@ -18,6 +18,7 @@
 #include "gui/ui_timer_manager.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/pad_shortcut_blink.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -119,7 +120,7 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::SHORTCUT_BLINK:
-					soundEditor.blinkShortcut();
+					padShortcutBlink.blink();
 					break;
 
 				case TimerName::INTERPOLATION_SHORTCUT_BLINK:

@@ -190,7 +190,7 @@ std::optional<ActionResult> forwardNoteButton(deluge::hid::Button b, bool on) {
 	if (mode == NoteModeKind::NoteEditor) {
 		return calls.noteEditorButton(b, on); // `sound_editor.cpp:617-619`
 	}
-	return calls.noteRowEditorButton(b, on); // `sound_editor.cpp:621-623`
+	return calls.noteRowEditorButton(b, on); // `sound_editor.cpp:619-623`
 }
 
 std::optional<ActionResult> forwardNoteHorizontalEncoder(int32_t offset) {

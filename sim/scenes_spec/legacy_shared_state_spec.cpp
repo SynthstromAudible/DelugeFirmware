@@ -4,6 +4,7 @@
 /// The legacy editor reaches the kit-global-FX latch, the shortcut blink, flash byte 60 and the DX7 bank through
 /// reference members, so the two menus can never hold different values. This file goes with the legacy editor.
 
+#include "gui/ui/pad_shortcut_blink.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
@@ -58,6 +59,34 @@ describe legacy_shared_latch("the legacy editor's setupKitGlobalFXMenu is the po
 		expect(entry::shellKitGlobalFx()).to_be_false();
 	});
 });
+
+describe legacy_shared_blink("the legacy editor's shortcut-blink members are the shared blink engine's", $ {
+	it("reads a parameter blink the automation view set up", _ {
+		padShortcutBlink.setup(3, 4, 10, 2);
+		expect(static_cast<int32_t>(soundEditor.currentParamShortcutX)).to_equal(3);
+		expect(static_cast<int32_t>(soundEditor.currentParamShortcutY)).to_equal(4);
+		expect(static_cast<int32_t>(soundEditor.paramShortcutBlinkFrequency)).to_equal(10);
+		expect(static_cast<int32_t>(soundEditor.currentParamColour)).to_equal(2);
+		padShortcutBlink.setup(kNoSelection, 0, 0);
+	});
+
+	it("is what the engine blinks after the legacy editor set it up", _ {
+		soundEditor.setupShortcutBlink(5, 6, 1);
+		expect(static_cast<int32_t>(padShortcutBlink.paramX)).to_equal(5);
+		expect(static_cast<int32_t>(padShortcutBlink.paramY)).to_equal(6);
+		padShortcutBlink.setup(kNoSelection, 0, 0);
+	});
+
+	it("shares the patching-source blinks", _ {
+		padShortcutBlink.resetSources();
+		padShortcutBlink.sourceFrequencies[1][2] = 7;
+		padShortcutBlink.sourceColours[1][2] = 3;
+		expect(static_cast<int32_t>(soundEditor.sourceShortcutBlinkFrequency(1, 2))).to_equal(7);
+		expect(static_cast<int32_t>(soundEditor.sourceShortcutBlinkColour(1, 2))).to_equal(3);
+		soundEditor.resetSourceBlinks();
+		expect(static_cast<int32_t>(padShortcutBlink.sourceFrequencies[1][2])).to_equal(255);
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(legacy_shared_state_spec, legacy_shared_latch)
+DELUGE_SPEC(legacy_shared_state_spec, legacy_shared_latch, legacy_shared_blink)

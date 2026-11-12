@@ -335,7 +335,7 @@ void GlobalControls::handle_settings_menu(const UiContext& ctx, Result& result) 
 	// `:461-462` `soundEditor.setup(); openUI(&soundEditor);`.
 	//
 	// `SoundEditor::setup`'s default `clip` argument is `nullptr` (`gui/ui/sound_editor.h`), so
-	// this call always takes the `else` at `sound_editor.cpp:1815`, and both of that branch's
+	// this call always takes the `else` at `sound_editor.cpp:1773`, and both of that branch's
 	// view tests are `&& !Buttons::isShiftButtonPressed()` (`:1761`, `:1764`) -- which is false
 	// here by construction, because this arm's own condition is `b == SELECT_ENC &&
 	// Buttons::isShiftButtonPressed()` (`view.cpp:451`). So the root is `settingsRootMenu`

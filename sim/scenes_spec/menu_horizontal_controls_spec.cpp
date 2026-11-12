@@ -975,7 +975,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	});
 
 	it("the BACK and LEARN blinks start at the open and restart together on a LEARN-blinking item", _ {
-		// `blinkLed(IndicatorLED::BACK)` when the editor opens (`sound_editor.cpp:571`) and `blinkLed(LEARN)` in
+		// `blinkLed(IndicatorLED::BACK)` when the editor opens (`sound_editor.cpp:569`) and `blinkLed(LEARN)` in
 		// `beginScreen` for an item that wants it (`:1167-1169`): both reset the shared `ledBlinkState[0]` and its
 		// timer, so BACK restarts with LEARN (`indicator_leds.cpp:54-95`).
 		select_language();

@@ -28,6 +28,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/menus.h"
+#include "gui/ui/pad_shortcut_blink.h"
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/rename/rename_midi_cc_ui.h"
 #include "gui/ui/sample_marker_editor.h"
@@ -383,7 +384,7 @@ void AutomationView::focusRegained() {
 		padSelectionShortcutBlinking = false;
 		instrumentClipView.noteRowBlinking = false;
 		// remove patch cable blink frequencies
-		soundEditor.resetSourceBlinks();
+		padShortcutBlink.resetSources();
 		// possibly restablish parameter shortcut blinking (if parameter is selected)
 		blinkShortcuts();
 	}
@@ -3100,8 +3101,8 @@ void AutomationView::blinkShortcuts() {
 		// if a Param has been selected for editing, blink its shortcut pad
 		if (lastSelectedParamShortcutX != kNoSelection) {
 			if (!parameterShortcutBlinking) {
-				soundEditor.setupShortcutBlink(lastSelectedParamShortcutX, lastSelectedParamShortcutY, 10);
-				soundEditor.blinkShortcut();
+				padShortcutBlink.setup(lastSelectedParamShortcutX, lastSelectedParamShortcutY, 10);
+				padShortcutBlink.blink();
 
 				parameterShortcutBlinking = true;
 			}
@@ -3136,7 +3137,7 @@ void AutomationView::blinkShortcuts() {
 }
 
 void AutomationView::resetShortcutBlinking() {
-	soundEditor.resetSourceBlinks();
+	padShortcutBlink.resetSources();
 	resetParameterShortcutBlinking();
 	resetInterpolationShortcutBlinking();
 	resetPadSelectionShortcutBlinking();

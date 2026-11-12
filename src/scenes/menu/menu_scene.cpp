@@ -95,7 +95,7 @@ void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	pending_transition_.reset();
 	transition_.reset();
 	cable_edge_until_ms_ = 0;
-	visit_ = {}; // `blinkLed(IndicatorLED::BACK)` as the editor opens (`sound_editor.cpp:571`), among the rest
+	visit_ = {}; // `blinkLed(IndicatorLED::BACK)` as the editor opens (`sound_editor.cpp:569`), among the rest
 	holding_affect_entire_ = false;
 	pads_.forget_landing();
 	retarget(root);
@@ -239,7 +239,7 @@ bool MenuScene::on_enter(const SceneId& id) {
 		walk_.focus_column(core(), *target);
 		return true;
 	}
-	// `beginScreen`: a new screen, with `blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:571`). Reset only on a
+	// `beginScreen`: a new screen, with `blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:569`). Reset only on a
 	// screen that opens: a refused id leaves the menu the visit it was, as the shell rolls the move back.
 	visit_ = {};
 	retarget(*target);

@@ -1194,7 +1194,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.shell.tick(0);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 
-		// `handle()` directly, so the `Result` itself is the assertion (`sound_editor.cpp:456` ->
+		// `handle()` directly, so the `Result` itself is the assertion (`sound_editor.cpp:454` ->
 		// `:433` `goUpOneLevel()` -> `:678` `exitCompletely()`). `Remove`, not `Pop`:
 		// `Pop{.pop_to = kind}` still pops everything ABOVE `kind` too
 		// (`SceneStack::pop`), which is wrong for "close just me" the moment a `Notices`

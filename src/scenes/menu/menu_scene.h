@@ -329,7 +329,7 @@ public:
 	/// @brief Does the focused item want the LEARN LED blinking? `MenuItem::shouldBlinkLearnLed`.
 	///
 	/// Read by `leds()`, which is the port of `SoundEditor::beginScreen`'s own tail
-	/// (`sound_editor.cpp:949-954`). Public because the LED is also legacy's own answer at `:488`,
+	/// (`sound_editor.cpp:949-954`). Public because the LED is also legacy's own answer at `:486`,
 	/// on the way *out* of learn mode -- **not** because it is the gate into it. See the second
 	/// `@warning` above: that gate is `allowsLearnMode()`, which this is not a synonym for.
 	bool wants_learn_blink() const;
@@ -766,7 +766,7 @@ public:
 	/// this never replaces `ctx_`.
 	///
 	/// @note **A recorded divergence: the focus the entered page lands on.** Legacy's `beginScreen`
-	///       begins the entered item's session (`gui/ui/sound_editor.cpp:959`), and the toggle names no
+	///       begins the entered item's session (`gui/ui/sound_editor.cpp:957`), and the toggle names no
 	///       item to navigate back from (`:1968`). For a `HorizontalMenu` that is
 	///       `HorizontalMenu::beginSession` (`gui/menu_item/horizontal_menu.cpp:40-48`) ->
 	///       `Submenu::beginSession` (`gui/menu_item/submenu.cpp:11-19`) -> `focusChild(nullptr)`

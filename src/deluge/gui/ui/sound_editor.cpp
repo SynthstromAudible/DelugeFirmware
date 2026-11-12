@@ -401,9 +401,7 @@ SoundEditor::SoundEditor() {
 }
 
 void SoundEditor::resetSourceBlinks() {
-	memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
-	memset(sourceShortcutBlinkColours, 0, sizeof(sourceShortcutBlinkColours));
-	memset(source_shortcut_blink_alternates, 0, sizeof(source_shortcut_blink_alternates));
+	padShortcutBlink.resetSources();
 }
 
 bool SoundEditor::editingKit() {
@@ -1240,55 +1238,15 @@ void SoundEditor::possibleChangeToCurrentRangeDisplay() {
 }
 
 void SoundEditor::setupShortcutBlink(int32_t x, int32_t y, int32_t frequency, int32_t colour) {
-	currentParamShortcutX = x;
-	currentParamShortcutY = y;
-	currentParamColour = colour;
-
-	shortcutBlinkCounter = 0;
-	paramShortcutBlinkFrequency = frequency;
+	padShortcutBlink.setup(x, y, frequency, colour);
 }
 
 void SoundEditor::setupExclusiveShortcutBlink(int32_t x, int32_t y) {
-	resetSourceBlinks();
-	setupShortcutBlink(x, y, 1);
-	blinkShortcut();
+	padShortcutBlink.setupExclusive(x, y);
 }
 
 void SoundEditor::blinkShortcut() {
-	// We have to blink params and shortcuts at slightly different times, because blinking two pads on the same row
-	// at same time doesn't work
-
-	uint32_t counterForNow = shortcutBlinkCounter >> 1;
-
-	if (shortcutBlinkCounter & 1) {
-		// Blink param
-		if ((counterForNow & paramShortcutBlinkFrequency) == 0) {
-			PadLEDs::flashMainPad(currentParamShortcutX, currentParamShortcutY, currentParamColour);
-		}
-		uiTimerManager.setTimer(TimerName::SHORTCUT_BLINK, 180);
-	}
-
-	else {
-		// Blink source
-		for (int32_t x = 0; x < 2; x++) {
-			for (int32_t y = 0; y < kDisplayHeight; y++) {
-				if (sourceShortcutBlinkFrequencies[x][y] != 255
-				    && (counterForNow & sourceShortcutBlinkFrequencies[x][y]) == 0) {
-					auto colour = sourceShortcutBlinkColours[x][y];
-					// The frequency is a mask of low counter bits. The next bit alternates
-					// on successive flashes, including when the source blinks slowly.
-					if (source_shortcut_blink_alternates[x][y]
-					    && (counterForNow & (sourceShortcutBlinkFrequencies[x][y] + 1)) != 0) {
-						colour = 0b00000011; // second layer
-					}
-					PadLEDs::flashMainPad(x + 14, y, colour);
-				}
-			}
-		}
-		uiTimerManager.setTimer(TimerName::SHORTCUT_BLINK, 20);
-	}
-
-	shortcutBlinkCounter++;
+	padShortcutBlink.blink();
 }
 
 bool SoundEditor::editingReverbSidechain() {

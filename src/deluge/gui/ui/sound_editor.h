@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/menu_item.h"
+#include "gui/ui/pad_shortcut_blink.h"
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "modulation/arpeggiator.h"
@@ -115,11 +116,14 @@ public:
 
 	uint8_t navigationDepth{};
 	uint8_t patchingParamSelected{};
-	uint8_t currentParamShortcutX;
-	uint8_t currentParamShortcutY{};
-	uint8_t currentParamColour{};
-	uint8_t paramShortcutBlinkFrequency{};
-	uint32_t shortcutBlinkCounter{};
+	/// @name The shared shortcut blink (`padShortcutBlink`), in this editor's names.
+	/// @{
+	uint8_t& currentParamShortcutX{padShortcutBlink.paramX};
+	uint8_t& currentParamShortcutY{padShortcutBlink.paramY};
+	uint8_t& currentParamColour{padShortcutBlink.paramColour};
+	uint8_t& paramShortcutBlinkFrequency{padShortcutBlink.paramFrequency};
+	uint32_t& shortcutBlinkCounter{padShortcutBlink.counter};
+	/// @}
 
 	uint32_t timeLastAttemptedAutomatedParamEdit;
 
@@ -250,9 +254,9 @@ private:
 	void handlePotentialParamMenuChange(deluge::hid::Button b, MenuItem* previousItem, MenuItem* currentItem,
 	                                    bool isHorizontalMenu);
 
-	uint8_t sourceShortcutBlinkFrequencies[2][kDisplayHeight]{};
-	uint8_t sourceShortcutBlinkColours[2][kDisplayHeight]{};
-	bool source_shortcut_blink_alternates[2][kDisplayHeight]{};
+	uint8_t (&sourceShortcutBlinkFrequencies)[2][kDisplayHeight]{padShortcutBlink.sourceFrequencies};
+	uint8_t (&sourceShortcutBlinkColours)[2][kDisplayHeight]{padShortcutBlink.sourceColours};
+	bool (&source_shortcut_blink_alternates)[2][kDisplayHeight]{padShortcutBlink.sourceAlternates};
 };
 
 extern SoundEditor soundEditor;
