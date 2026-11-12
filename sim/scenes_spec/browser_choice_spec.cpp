@@ -639,6 +639,8 @@ struct ImportSpy {
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 constexpr uint8_t kSelectEncoder = 3;
 constexpr uint8_t kBackButtonX = 7, kBackButtonY = 1;
+constexpr uint8_t kShiftButtonX = 8, kShiftButtonY = 0;
+constexpr uint8_t kCrossScreenButtonX = 6, kCrossScreenButtonY = 2;
 
 /// @brief Hold Select on @p shell until the long press answers, then let go.
 void long_press(Shell& shell, uint32_t& clock) {
@@ -746,6 +748,37 @@ menu::MenuState state_on(const Node& submenu, int32_t focused) {
 	st.columns[0].focused = static_cast<int8_t>(focused);
 	st.list[0].cursor = static_cast<int16_t>(focused);
 	return st;
+}
+
+/// @brief Press and release the button at (@p x, @p y), past the page buttons' shared 140 ms debounce, with SHIFT held
+///        around it when @p shift.
+void press_button(Shell& shell, uint32_t& clock, uint8_t x, uint8_t y, bool shift) {
+	clock += 200;
+	const auto send = [&](uint8_t bx, uint8_t by, int16_t v) {
+		clock += 10;
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, bx, by, v}, clock);
+		shell.tick(clock);
+	};
+	if (shift) {
+		send(kShiftButtonX, kShiftButtonY, 255);
+	}
+	send(x, y, 255);
+	send(x, y, 0);
+	if (shift) {
+		send(kShiftButtonX, kShiftButtonY, 0);
+	}
+}
+
+/// @brief Open the menu on @p page with @p column focused, as a shortcut pad's page landing does, on @p ctx.
+void open_page_at(ShellRig& r, const Node& page, const Node& column, const MenuContext& ctx) {
+	select_language();
+	(void)menu::assign_node_ids(nodes::kAllRoots);
+	menu_scene().open(page, ctx);
+	const uint16_t arg = menu_scene().arm_page_landing(page, column);
+	r.shell.init(SceneId{SceneKind::FirstApp, arg});
+	for (int32_t i = 0; i < 4; i++) {
+		r.step();
+	}
 }
 
 /// @brief A kit whose one drum is on row 0, with the sample browser opened over it directly, as the long press
@@ -2061,6 +2094,24 @@ describe browser_choice_submenu_range("menu::begin_submenu_range, Submenu::begin
 		MenuContext ctx = model.ctx(); // one range, range_index 0
 		menu::begin_submenu_range(ctx, state_on(nodes::source_group, 0), nullptr);
 		expect(static_cast<int32_t>(ctx.range_index)).to_equal(0);
+	});
+
+	it("drops it when SHIFT + CROSS SCREEN switches to the next chained page, as switchHorizontalMenu begins it", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		ShellRig r;
+		give_three_ranges(r.model);
+		MenuContext ctx = r.model.ctx();
+		ctx.range_index = 1; // picked through the transpose column's picker
+		open_page_at(r, nodes::source_group, nodes::source0_transpose, ctx);
+		expect(menu_scene().state().path[0] == &nodes::source_group).to_be_true();
+		expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(1);
+
+		press_button(r.shell, r.clock, kCrossScreenButtonX, kCrossScreenButtonY, /*shift=*/true);
+		r.step();
+
+		expect(menu_scene().state().path[0] != &nodes::source_group).to_be_true();
+		expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(-1);
 	});
 
 	it("keeps the picked range when the picker's SELECT enters its item on the item's page, as main's select arm does", _ {

@@ -71,6 +71,10 @@ the import left current.
 then KIT twice), lands back on the page, and presses MIDI, the transpose column's button. The page's begin drops
 `main`'s selected range (`Submenu::beginSession`), so with several ranges the button opens the note-range picker.
 
+`c46-page-switch-range` picks a range on the OSC1 page through MIDI's note-range picker (SELECT, transpose, BACK
+twice) on c20's multisample, then switches pages with SHIFT + CROSS SCREEN and back with SHIFT + SCALE. The switch
+begins the page, which drops `main`'s range, so MIDI opens the picker again.
+
 `c37-recorder-threshold` sets the song's threshold to LOW with RECORD held and two Select turns (the first only
 shows the mode) and opens the recorder from its page, which draws the level meter.
 

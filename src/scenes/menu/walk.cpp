@@ -562,6 +562,9 @@ bool MenuWalk::switch_chained_page(MenuCore core, ValueSession& session, int32_t
 			continue; // no relevant items: on to the next menu
 		}
 		retarget(core, session, target);
+		// `switchHorizontalMenu` begins the page before it moves the focus: the column the page remembers decides
+		// whether the range stays (`HorizontalMenu::beginSession`).
+		begin_submenu_range(ctx, st, nullptr);
 		st.columns[0] = deluge::ui::ColumnsState{};
 		// Mod FX opens on its second page, the selected effect's controls (`:383`).
 		if (&target == &nodes::mod_fx || &target == &nodes::global_mod_fx) {

@@ -1,0 +1,45 @@
+# A range picked on the OSC1 page (MIDI's picker, SELECT, transpose, BACK twice) on c20's multisample, then SHIFT +
+# CROSS SCREEN to the next chained page and SHIFT + SCALE back. The switch begins the page, which drops main's
+# selected range, so MIDI opens the note-range picker again.
+100   snapshot boot
+5000  button Shift down
+5100  pad 0 5 down
+5150  pad 0 5 up
+5200  button Shift up
+7500  encoder Select +2
+8500  button SelectEnc down
+8520  button SelectEnc up
+11000 button SelectEnc down
+11800 button SelectEnc up
+12500 button SelectEnc down
+12520 button SelectEnc up
+31000 button Shift down
+31100 pad 2 2 down
+31150 pad 2 2 up
+31200 button Shift up
+32000 snapshot page
+32500 button Midi down
+32520 button Midi up
+33500 snapshot picker
+34000 button SelectEnc down
+34020 button SelectEnc up
+35000 snapshot transpose
+35500 button Back down
+35520 button Back up
+36300 snapshot back-picker
+36800 button Back down
+36820 button Back up
+37600 snapshot back-page
+38100 button Shift down
+38200 button CrossScreen down
+38220 button CrossScreen up
+38300 button Shift up
+39100 snapshot next-page
+39600 button Shift down
+39700 button Scale down
+39720 button Scale up
+39800 button Shift up
+40600 snapshot osc1-again
+41100 button Midi down
+41120 button Midi up
+42000 snapshot transpose-button
