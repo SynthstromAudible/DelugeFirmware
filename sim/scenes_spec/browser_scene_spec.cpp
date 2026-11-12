@@ -931,8 +931,8 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 		const browser::Descriptor& sample = browser::descriptor(BrowserId::Sample);
 		const browser::Descriptor& midi = browser::descriptor(BrowserId::MidiDeviceDefinition);
 
-		// `allowedFileExtensionsAudio` (`sample_browser.cpp:86`) vs the base's
-		// `allowedFileExtensionsXML` (`browser.cpp:181`).
+		// `allowedFileExtensionsAudio` (`SampleBrowser`'s constructor) vs the base's
+		// `allowedFileExtensionsXML` (`Browser::opened`).
 		expect(std::string{sample.extensions[0]}).to_equal(std::string{"WAV"});
 		expect(std::string{sample.extensions[1]}).to_equal(std::string{"AIFF"});
 		expect(std::string{sample.extensions[2]}).to_equal(std::string{"AIF"});
@@ -948,7 +948,7 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 		expect(midi.interpret_note_names).to_be_false();
 
 		// `SampleBrowser::opened` sets `allowFoldersSharingNameWithFile = true`
-		// (`sample_browser.cpp:113`); `Browser::opened` leaves it false (`browser.cpp:182`).
+		// (`SampleBrowser`'s constructor); `Browser::opened` leaves it false.
 		expect(sample.allow_folders_sharing_name_with_file).to_be_true();
 		expect(midi.allow_folders_sharing_name_with_file).to_be_false();
 

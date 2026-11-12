@@ -1616,9 +1616,9 @@ void setForegroundRecording(SampleRecorder* recorder, AudioInputChannel source) 
 	// The invariant, and the two fences that hold it: **the pointer's visible window strictly
 	// contains the channel's.** Publishing writes the pointer first; clearing writes the channel
 	// first. Either way a reader that finds `recordingSource` naming a live capture has already
-	// been able to see a non-null `recorder`, so `setMonitoringMode`'s branch (`:1037`) can never
+	// been able to see a non-null `recorder`, so `setMonitoringMode`'s branch can never
 	// dereference a pointer that is about to be freed. Legacy nulls the pointer first in
-	// `finishRecording` (`gui/ui/audio_recorder.cpp:250-251`) and gets away with it only because of
+	// `finishRecording` and gets away with it only because of
 	// that line's `&& audioRecorder.recorder` double-check; this seam does not lean on it.
 	//
 	// `std::atomic_signal_fence` and not `atomic_thread_fence`, and no `dmb`: the reader is

@@ -282,7 +282,7 @@ Result RecorderScene::after_render() {
 		return r;
 	}
 
-	// `process()`'s completion arm (`:207-223`).
+	// `AudioRecorder::tick`'s completion arm.
 	// A card error ends the take: stop capturing, then wait, as for any take, until the recorder has closed its file
 	// and the driver holds nothing of it. Freeing it any earlier frees memory a write may still be reading.
 	if (recorder_->hadCardError) {
@@ -291,15 +291,15 @@ Result RecorderScene::after_render() {
 	if (recorder_->settled()) {
 		// **Not from inside the card routine.** `finish_recording()` below frees the recorder
 		// through `AudioEngine::discardRecorder`, and legacy states the hazard on its *other*
-		// caller, `AudioRecorder::slowRoutine` (`:168-176`): the recorder may be suspended part-way
+		// caller, `AudioRecorder::slowRoutine`: the recorder may be suspended part-way
 		// through its own `cardRoutine()`, so freeing it there leaves that `cardRoutine()` running
 		// on freed memory and then frees it a second time. `slowRoutine` is registered
-		// `RESOURCE_SD | RESOURCE_SD_ROUTINE` (`deluge.cpp:574-576`) *and* carries this same
+		// `RESOURCE_SD | RESOURCE_SD_ROUTINE` *and* carries this same
 		// explicit test, for the one call path that bypasses the scheduler.
 		//
-		// `process()` (`:194-243`) is NOT a precedent for going unguarded, though it calls
+		// `AudioRecorder::process` is NOT a precedent for going unguarded, though it calls
 		// `finishRecording` with no test: it pumps `AudioEngine::routineWithClusterLoading()`
-		// itself (`:195`) as the first statement of its own loop, so it is the outermost thing on
+		// itself as the first statement of its own loop, so it is the outermost thing on
 		// the stack and can never be re-entered while a card routine is suspended part-way.
 		// `after_render()` has neither property -- it runs from `Shell::tick`, which has no
 		// scheduler registration of its own and which UI code demonstrably reaches while
@@ -312,13 +312,13 @@ Result RecorderScene::after_render() {
 		if (AudioEngine::sdRoutineBusy()) {
 			return r;
 		}
-		// The `if (status == ABORTED || hadCardError) {}` empty arm at `:209` is legacy's way of
+		// The `if (status == ABORTED || hadCardError) {}` empty arm is legacy's way of
 		// saying "attach nothing"; spelled as the condition on the attach instead.
 		if (recorder_->status != RecorderStatus::ABORTED && !recorder_->hadCardError) {
 			attach_sample();
 		}
 		finish_recording();
-		// `close()` (`:221`). `Remove` and not `Pop`: a `Working` or `Popup` overlay can legally be
+		// `close()`. `Remove` and not `Pop`: a `Working` or `Popup` overlay can legally be
 		// on top of this scene by the time the router applies the action -- the `Working` this very
 		// scene raised on the way to stopping, in fact -- and a blind `Pop` would take that instead.
 		// See the note on `Action::Kind::Pop` in `shell/scene.h`.

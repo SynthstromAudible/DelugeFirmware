@@ -1069,7 +1069,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 	it("attaches nothing when the card errored, even though the status says complete", _ {
 		// The other half of the same condition: `hadCardError` alone is enough to refuse the
-		// attach, and it is also enough on its own to end the recording (`:207`).
+		// attach, and it also ends the take: the scene stops the capture, then frees the recorder once it has settled.
 		Guards g;
 		Rig r;
 		r.open();
