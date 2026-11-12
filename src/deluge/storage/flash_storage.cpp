@@ -219,7 +219,8 @@ enum Entries {
 192-195: GlobalMIDICommand::SHIFT product / vendor ids
 196: screensaver mode
 197: screensaver timeout minutes
-198: USB audio disabled - stored inverted, so a unit that has never saved it (all zeros) has USB audio on
+198: USB audio mode (usb_audio::Mode): 0 stereo, 1 off, 2 multitrack - so a unit that has never saved it (all zeros)
+     has stereo USB audio on, and firmware from before multitrack reads multitrack as stereo
 199: USB input not mixed to outputs (usb_audio::directMonitoring) - stored inverted, so it defaults to on
 200: USB audio output source (usb_audio::OutputSource)
 */
@@ -291,7 +292,7 @@ Polarity defaultPatchCablePolarity = Polarity::BIPOLAR;
 
 bool defaultUseSharps = true;
 
-bool usbAudioEnabled = true;
+usb_audio::Mode usbAudioMode = usb_audio::Mode::STEREO;
 
 void resetSettings() {
 
@@ -401,7 +402,7 @@ void resetSettings() {
 
 	defaultUseSharps = true;
 
-	usbAudioEnabled = true;
+	usbAudioMode = usb_audio::Mode::STEREO;
 	usb_audio::directMonitoring = true;
 	usb_audio::outputSource = usb_audio::OutputSource::MAIN_MIX;
 }
@@ -882,7 +883,8 @@ void readSettings() {
 		    (buffer[196] < kNumScreensaverModes) ? static_cast<ScreensaverMode>(buffer[196]) : kDefaultScreensaverMode;
 	}
 
-	usbAudioEnabled = (buffer[198] != 1);
+	usbAudioMode =
+	    (buffer[198] < usb_audio::kNumModes) ? static_cast<usb_audio::Mode>(buffer[198]) : usb_audio::Mode::STEREO;
 	usb_audio::directMonitoring = (buffer[199] != 1);
 	usb_audio::outputSource = (buffer[200] < usb_audio::kNumOutputSources)
 	                              ? static_cast<usb_audio::OutputSource>(buffer[200])
@@ -1155,7 +1157,7 @@ void writeSettings() {
 	buffer[196] = util::to_underlying(screensaverMode);
 	buffer[197] = screensaverTimeoutMinutes;
 
-	buffer[198] = usbAudioEnabled ? 0 : 1;
+	buffer[198] = util::to_underlying(usbAudioMode);
 	buffer[199] = usb_audio::directMonitoring ? 0 : 1;
 	buffer[200] = util::to_underlying(usb_audio::outputSource);
 

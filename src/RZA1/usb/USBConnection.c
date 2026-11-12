@@ -41,7 +41,7 @@ Includes   <System Includes> , "Project Includes"
 extern uint8_t g_midi_device[];
 extern uint8_t g_midi_configuration[];
 extern uint8_t* g_midi_string_table[];
-uint8_t* usbPeripheralConfigurationDescriptor(bool withAudio);
+uint8_t* usbPeripheralConfigurationDescriptor(uint8_t which); // USB_PAUDIO_CONFIG_*
 
 static usb_descriptor_t usb_descriptor = {
     (uint8_t*)g_midi_device,        /* Pointer to the device descriptor */
@@ -99,7 +99,7 @@ void openUSBPeripheral(void)
     cfg.usb_mode  = USB_PERI;
     cfg.p_usb_reg = &usb_descriptor;
 
-    // With or without USB audio, as the user's set - fixed until the next time we open as a peripheral
+    // MIDI only, stereo or multitrack audio, as the user's set - fixed until the next time we open as a peripheral
     usb_descriptor.p_config_f = usbPeripheralConfigurationDescriptor(usbAudioStartPeripheral());
     usb_err_t ret_code        = R_USB_Open(&ctrl, &cfg); /* Initializes the USB module */
 
