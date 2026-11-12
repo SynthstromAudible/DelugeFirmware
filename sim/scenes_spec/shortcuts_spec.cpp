@@ -1,29 +1,27 @@
 /// @file
-/// @brief The seven shortcut tables, cross-checked cell by cell against the legacy arrays they were
-///        transcribed from.
+/// @brief The seven shortcut tables, the blink plans, the SHIFT overlay colours and the pages the pads land on, checked
+///        against the reference rows of upstream `main`'s menu (`tests/golden/ui/menu_oracle/shortcuts.tsv`).
 ///
-/// Transcription is where errors hide, so nothing here trusts the port's own table: every `(x, y)`
-/// of every legacy array is compared with the cell `shortcut_layer` reports, **and** every non-null
-/// port cell is compared back the other way, so neither a dropped cell nor an invented one can
-/// pass. On top of that:
+/// Transcription is where errors hide, so nothing here trusts the port's own table: every cell of every layer is
+/// compared with the row that names the item `main` holds there, by the tree paths the item sits at (so a swap of two
+/// numbered sibling columns is not hidden by their identical names) and by name, **and** every row is asked, so
+/// neither a dropped cell nor an invented one can pass. On top of that:
 ///
 ///   * the layers' shape and bounds (`shortcut_node` outside 16x8 is null);
 ///   * which roots share a table, and which two have a distinct second layer;
-///   * the name-editor swap the two drum roots carry (`drumNameEditMenu`);
-///   * `shortcut_node`'s second-layer fallback (legacy replaces a cell only where the second layer
-///     has one);
+///   * the name-editor swap the two drum roots carry;
+///   * `shortcut_node`'s second-layer fallback (the second layer replaces a cell only where it has one);
 ///   * `shortcut_pos` round-trips every cell of every layer;
-///   * `validate_tree` over `nodes::kAllRoots` with the shortcut sweep **on** -- the
-///     `ShortcutToNothing` rule's real run, which is what says every cell points at a node some
-///     root actually reaches;
-///   * a `Shell` built with `scenes::deluge_profile()` still runs with no `BoardProfile::shortcuts`
-///     field (the removal's regression net).
+///   * `validate_tree` over `nodes::kAllRoots` with the shortcut sweep **on** -- the `ShortcutToNothing` rule's real
+///     run, which is what says every cell points at a node some root actually reaches;
+///   * a `Shell` built with `scenes::deluge_profile()` still runs with no `BoardProfile::shortcuts` field;
+///   * the blink plans, the overlay colours and the landing pages, against rows.
 ///
-/// @note The SPEC may include `gui/menu_item/` and `gui/ui/menus.h`; the library may not
-///       (`scripts/check_layer_rules.py`'s `scenes-includes-outside`). Same rule the `tables_*`
-///       specs run under.
+/// A cell's node identity is its tree path: the key the reference tables give every node under the ten roots
+/// (`tables3::roots()`), so a row names an item the way `tables_3.tsv` does.
+///
+/// The last group asks that every row of the table was asked (`OracleTable::unasked`).
 
-#include "effects/reverb.h"
 #include "gui/ui/menu_view_of.h"
 #include "processing/engines/audio_engine.h"
 #include "scenes/menu/context.h"
@@ -41,25 +39,8 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
-#include "gui/l10n/l10n.h"
-#include "gui/l10n/strings.h"
-#include "gui/menu_item/file_selector.h"
-#include "gui/menu_item/horizontal_menu.h"
-#include "gui/menu_item/horizontal_menu_group.h"
-#include "gui/menu_item/patch_cable_strength/range.h"
-#include "gui/menu_item/patch_cable_strength/regular.h"
-#include "gui/menu_item/patch_cables.h"
-#include "gui/menu_item/source_selection/range.h"
-#include "gui/menu_item/source_selection/regular.h"
-#include "gui/menu_item/submenu.h"
-#include "gui/ui/menus.h"
-#include "gui/ui/sound_editor.h"
-#include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
-#include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
-#include "scenes/bind/write_sink.h"
-#include "scenes/menu/nodes/patch_cables.h"
 
 #include "model/clip/instrument_clip.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -67,9 +48,12 @@
 #include "processing/sound/sound_instrument.h"
 
 #include "support/global_guest_menu.h"
-#include "support/legacy_menu_order.h"
 #include "support/menu_engine.h"
+#include "support/oracle_table.h"
+#include "support/oracle_tree.h"
+#include "support/shortcuts_fixtures.h"
 #include "support/song_fixture.h"
+#include "support/tables_3_fixtures.h"
 
 #include "spec/shell/support/fake_surfaces.h"
 #include "spec/ui/support/frames.h"
@@ -90,323 +74,212 @@
 using namespace deluge::scenes;
 using deluge::scenes::menu::MenuContext;
 using deluge::scenes::menu::MenuState;
-using deluge::scenes::spec::UiStackGuard;
-namespace legacy = deluge::gui::menu_item;
 using deluge::scenes::menu::Node;
 using deluge::scenes::menu::ShortcutPos;
-
-// The per-root horizontal-menu chains `SoundEditor::getCurrentHorizontalMenusChain` picks from,
-// file-scope globals of `gui/ui/menus.cpp` named in no header.
-extern deluge::vector<deluge::gui::menu_item::HorizontalMenu*> horizontalMenusChainForSound;
-extern deluge::vector<deluge::gui::menu_item::HorizontalMenu*> horizontalMenusChainForKit;
-extern deluge::vector<deluge::gui::menu_item::HorizontalMenu*> horizontalMenusChainForSong;
-extern deluge::vector<deluge::gui::menu_item::HorizontalMenu*> horizontalMenusChainForAudioClip;
-extern deluge::vector<deluge::gui::menu_item::HorizontalMenu*> horizontalMenusChainForMidiOrCv;
-
-// The menu groups the chains name, file-scope globals of `gui/ui/menus.cpp`; `sourceMenuGroup` is in `menus.h`.
-extern deluge::gui::menu_item::HorizontalMenuGroup arpMenuGroup;
-extern deluge::gui::menu_item::HorizontalMenuGroup arpMenuGroupKit;
-extern deluge::gui::menu_item::HorizontalMenuGroup arpMenuGroupMIDIOrCV;
-extern deluge::gui::menu_item::HorizontalMenuGroup voiceMenuGroup;
-extern deluge::gui::menu_item::HorizontalMenuGroup envMenuGroup;
-extern deluge::gui::menu_item::HorizontalMenuGroup lfoMenuGroup;
-extern deluge::gui::menu_item::HorizontalMenuGroup reverbMenuGroup;
-extern deluge::gui::menu_item::HorizontalMenuGroup filtersMenuGroup;
-extern deluge::gui::menu_item::HorizontalMenuGroup globalFiltersMenuGroup;
-extern deluge::gui::menu_item::HorizontalMenuGroup globalReverbMenuGroup;
-
-// `modSourceShortcuts` is a file-scope global in `sound_editor.cpp:66` and named in no header;
-// `LegacyVersion1` below has to restore the two cells the V1 arm writes.
-extern "C++" PatchSource modSourceShortcuts[2][8];
+using deluge::scenes::spec::UiStackGuard;
+using deluge::scenes::spec::shortcuts::FreeverbModel;
+using deluge::scenes::spec::shortcuts::install_sound_context;
+using deluge::scenes::spec::shortcuts::seed_blink_cables;
+using deluge::scenes::spec::shortcuts::select_language;
+using deluge::scenes::spec::shortcuts::text_of;
 
 namespace {
-
-/// @brief The reverb at its original model for the scope, put back after. Legacy names its width and room-size
-/// items by the active model (Diffusion and Time under MUTABLE and DIGITAL, `reverb/width.h`, `reverb/room_size.h`);
-/// the port's nodes carry the model-independent names, so the transcription compares them at FREEVERB.
-struct FreeverbModel {
-	deluge::effects::ReverbModel saved = AudioEngine::reverb.model();
-	FreeverbModel() { AudioEngine::setReverbModel(deluge::effects::ReverbModel::FREEVERB); }
-	~FreeverbModel() { AudioEngine::setReverbModel(saved); }
-	FreeverbModel(const FreeverbModel&) = delete;
-	FreeverbModel& operator=(const FreeverbModel&) = delete;
-};
 
 namespace nodes = deluge::scenes::menu::nodes;
 
 using Root = MenuContext::Root;
 
-/// @brief `menus.cpp:2171`'s `comingSoonMenu` sentinel. It is a `#define` local to that translation
-///        unit, so the spec spells the same value: a cell holding it is "not implemented", which
-///        legacy answers with a popup and no navigation (`sound_editor.cpp:1385-1388`) and the port
-///        transcribes as `nullptr`.
-::MenuItem* coming_soon() {
-	return reinterpret_cast<::MenuItem*>(0xFFFFFFFFu);
+spec::OracleTable& table() {
+	return spec::OracleTable::named("shortcuts");
 }
 
-bool is_empty_cell(const ::MenuItem* item) {
-	return item == nullptr || item == coming_soon();
-}
-
-void select_language() {
-	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-}
-
-/// @brief Point the `soundEditor` globals at a real synth clip, and pick a language.
-///
-/// Several legacy items build `getName()` out of live state rather than returning the l10n id the
-/// constructor was given -- `filter::FilterParam::getName` reads
-/// `soundEditor.currentModControllable->lpfMode` (`gui/menu_item/filter/info.h:44`), which is a null
-/// dereference with nothing installed. `tables_2_spec` / `tables_3_spec` install the same globals
-/// for the same reason; the fixture is built once and never torn down (`song_fixture.h`'s ownership
-/// note).
-const MenuContext& install_sound_context() {
-	select_language();
-	static spec::SongFixture fixture = spec::make_synth_song();
-	static const MenuContext ctx =
-	    menu::context_for(*fixture.song, deluge::gui::menuViewOf(fixture.clip), 0, false, false, false,
-	                      /*kit_global_fx=*/false);
-	currentSong = fixture.song;
-	const spec::MenuEngine engine = spec::menu_engine(ctx);
-	fixture.song->setCurrentClip(engine.clip);
-	soundEditor.currentSound = engine.sound;
-	soundEditor.currentModControllable = deluge::scenes::spec::menu_engine(ctx).mod;
-	soundEditor.currentParamManager = engine.params;
-	soundEditor.currentSourceIndex = ctx.source_index;
-	soundEditor.currentSource = engine.source;
-	soundEditor.currentMultiRange = engine.range;
-	soundEditor.currentMultiRangeIndex = ctx.range_index;
-	soundEditor.currentArpSettings = engine.arp;
-	soundEditor.setupKitGlobalFXMenu = false;
-	soundEditor.navigationDepth = 0;
-	return ctx;
-}
-
-std::string text_of(uint16_t id) {
-	deluge::ui::shell::TextScratch scratch;
-	return std::string{deluge_profile().text_or_digits(id, scratch)};
-}
-
-/// @brief Read a `Submenu`'s protected child list -- `tables_2_spec`'s `SubmenuPeek`, verbatim and
-///        for the same [class.protected] reason.
-struct SubmenuPeek : deluge::gui::menu_item::Submenu {
-	static deluge::vector<::MenuItem*> items_of(deluge::gui::menu_item::Submenu& menu) {
-		return spec::in_menu_order(menu, menu.*(&SubmenuPeek::items));
-	}
-};
-
-/// @brief Walk the legacy sound root and the port's in lockstep by child index, recording which
-///        `Node` each legacy `MenuItem*` is.
-///
-/// The anchor the name comparison cannot provide. Legacy gives numbered siblings
-/// *identical* names, identical titles and, for several of them, the same constructor `params::`
-/// id with only an index argument to tell them apart -- `env1AttackMenu` and `env2AttackMenu` are
-/// both `{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, LOCAL_ENV_0_ATTACK, <i>}`
-/// (`menus.cpp:415,424`), and `source0VolumeMenu` / `source1VolumeMenu` are both
-/// `{STRING_FOR_OSC_LEVEL_MENU_TITLE, LOCAL_OSC_A_VOLUME, <i>}` (`:401,402`). Nothing about the
-/// items themselves distinguishes them; only their **position in the tree** does. So this walks
-/// both trees together and keys on the legacy pointer.
-///
-/// Deliberately conservative: it descends only where both sides are submenus with the same static
-/// child count, and stops (rather than failing) anywhere they diverge. The lockstep property itself
-/// is `tables_2_spec`'s subject, not this file's -- here the map only has to be *right* about what
-/// it does contain, and the example asserts it covered enough cells to be meaningful.
-void map_tree(::MenuItem& item, const Node& node, std::map<const ::MenuItem*, const Node*>& out, int depth = 0) {
-	if (depth > 16 || !out.emplace(&item, &node).second) {
-		return;
-	}
-	auto* sub = dynamic_cast<deluge::gui::menu_item::Submenu*>(&item);
-	if (sub == nullptr) {
-		return;
-	}
-	const deluge::vector<::MenuItem*>& kids = SubmenuPeek::items_of(*sub);
-	if (node.children.size() != kids.size()) {
-		return;
-	}
-	for (size_t i = 0; i < kids.size(); i++) {
-		if (kids[i] != nullptr && node.children[i] != nullptr) {
-			map_tree(*kids[i], *node.children[i], out, depth + 1);
+/// @brief Every tree path of every root at which @p node sits, joined by spaces, as the cell rows name an item.
+///        `-` for no node, and `name:<its name>` for a node no root reaches. With @p root, only the paths in that
+///        root's own tree where the node sits in it.
+std::string node_paths(const Node* node, std::string_view root = {}) {
+	static const std::map<const Node*, std::vector<std::string>> paths = [] {
+		std::map<const Node*, std::vector<std::string>> out;
+		for (const auto& root : deluge::scenes::spec::tables3::roots()) {
+			for (const auto& e : deluge::scenes::spec::tree_entries(root.name, *root.node)) {
+				out[e.node].push_back(e.path);
+			}
 		}
-	}
-}
-
-const std::map<const ::MenuItem*, const Node*>& sound_tree_identity() {
-	static const std::map<const ::MenuItem*, const Node*> map = [] {
-		std::map<const ::MenuItem*, const Node*> m;
-		map_tree(soundEditorRootMenu, nodes::sound_root, m);
-		return m;
+		return out;
 	}();
-	return map;
+	if (node == nullptr) {
+		return "-";
+	}
+	const auto found = paths.find(node);
+	if (found == paths.end()) {
+		return "name:" + text_of(node->name);
+	}
+	return root.empty() ? deluge::scenes::spec::shortcuts::join_paths(found->second)
+	                    : deluge::scenes::spec::shortcuts::paths_in_root(found->second, root);
 }
 
-/// @brief Nodes whose legacy item builds `getName()` out of live state rather than returning the
-///        l10n id its constructor was given, so one static `Node::name` cannot equal it.
+/// @brief The key of a cell's rows: `cell/<table>/<version>/<x>,<y>`.
+std::string cell_key(std::string_view table_name, std::string_view version, uint8_t x, uint8_t y) {
+	return "cell/" + std::string{table_name} + "/" + std::string{version} + "/" + std::to_string(x) + ","
+	       + std::to_string(y);
+}
+
+/// @brief Nodes whose name is built out of live state rather than being one static string, so one `Node::name` cannot
+///        equal the reference row.
 ///
-/// The four filter morph items only: `filter::FilterParam::getName` asks
-/// `FilterInfo::getMorphNameOr` (`gui/menu_item/filter/info.h`), which answers "Drive" or "FM"
-/// depending on the *current* filter mode. `tables_3_spec`'s `has_dynamic_name` holds the same two
-/// sound-root entries for the same reason; these tables add the song/global-FX twins. Their cells
-/// are still checked for presence, and their identity is covered where the trees are walked in
-/// lockstep (`tables_2_spec`, `tables_3_spec`).
+/// The four filter morph items only: they answer "Drive" or "FM" depending on the *current* filter mode.
+/// `tables_3_spec`'s `has_dynamic_name` holds the same two sound-root entries for the same reason; these tables add the
+/// song and global-FX twins. Their cells are still checked for presence, and their identity by tree path.
 bool has_dynamic_name(const Node& node) {
 	return &node == &nodes::lpf_morph || &node == &nodes::hpf_morph || &node == &nodes::global_lpf_morph
 	       || &node == &nodes::global_hpf_morph;
 }
 
-/// @brief Describe a mismatch between @p node and the legacy item @p item, or an empty string when
+/// @brief Describe a mismatch between the port's @p node at one cell and the rows of that cell, or an empty string when
 ///        they agree.
 ///
-/// A free function rather than an inline `expect`: CppSpec's `expect` is only available inside an
-/// example's own lambda, so the sweep collects descriptions and the example asserts on them.
+/// A free function rather than an inline `expect`: CppSpec's `expect` is only available inside an example's own lambda,
+/// so the sweep collects descriptions and the example asserts on them.
 ///
-/// The comparison is the legacy item's own `getName()`, which is what `tables_2_spec` /
-/// `tables_3_spec` compare a node's name against everywhere else. A resolved name containing `*` is
-/// a `FormattedTitle` placeholder legacy substitutes an index into at render time
-/// (`gui/menu_item/formatted_title.h`) -- one static `uint16_t Node::name` cannot express it, which
-/// is batch 1's recorded gap -- so those cells assert only that both sides are present.
-std::string diff_cell(const Node* node, const ::MenuItem* item, const char* table, uint8_t x, uint8_t y) {
-	const std::string where = std::string{table} + " (" + std::to_string(x) + ", " + std::to_string(y) + "): ";
-	if (is_empty_cell(item)) {
-		return node == nullptr ? std::string{} : where + "port has " + text_of(node->name) + ", legacy has nothing";
+/// The item is compared by tree path, and by name where the cell holds one. A name containing `*` is a placeholder the
+/// menu substitutes an index into at render time -- one static `uint16_t Node::name` cannot express it -- so those
+/// cells assert only that both sides are present.
+std::string diff_cell(const Node* node, std::string_view table_name, std::string_view version, uint8_t x, uint8_t y) {
+	spec::OracleTable& t = table();
+	const std::string key = cell_key(table_name, version, x, y);
+	const std::string where = std::string{table_name} + " " + std::string{version} + " (" + std::to_string(x) + ", "
+	                          + std::to_string(y) + "): ";
+	const std::string want = t.value(key, "item");
+	const std::string got = node_paths(node);
+	if (want != got) {
+		return where + "port has " + got + ", main has " + want + "\n";
 	}
-	const std::string legacy_name{item->getName()};
-	if (node == nullptr) {
-		return where + "port has nothing, legacy has " + legacy_name;
+	if (node == nullptr || version != "v3") {
+		return {};
+	}
+	const std::vector<std::string>* name_row = t.find(key, "name");
+	if (name_row == nullptr || name_row->empty()) {
+		return where + "no name row\n";
 	}
 	const std::string name = text_of(node->name);
 	if (has_dynamic_name(*node) || name.find('*') != std::string::npos) {
-		return (name.empty() || legacy_name.empty()) ? where + "empty formatted name" : std::string{};
+		return (name.empty() || name_row->front().empty()) ? where + "empty formatted name\n" : std::string{};
 	}
-	return name == legacy_name ? std::string{} : where + "port has " + name + ", legacy has " + legacy_name;
+	return name == name_row->front() ? std::string{}
+	                                 : where + "port has " + name + ", main has " + name_row->front() + "\n";
 }
 
-/// @brief One legacy 16x8 array against the port layer it was transcribed into, both ways.
+/// @brief One reference table's 16x8 cells against the port layer, both ways: every row is asked of a cell, and every
+///        cell of the layer answers a row.
 /// @return Every disagreement, one per line; empty when the transcription is exact.
-std::string diff_table(const char* table, ::MenuItem* legacy[kDisplayWidth][kDisplayHeight],
-                       std::span<const Node* const> layer) {
+std::string diff_table(std::string_view table_name, std::string_view version, std::span<const Node* const> layer) {
 	std::string out;
 	if (layer.size() != size_t(menu::kShortcutCols) * menu::kShortcutRows) {
-		return std::string{table} + ": layer is the wrong size\n";
+		return std::string{table_name} + ": layer is the wrong size\n";
 	}
 	for (uint8_t x = 0; x < menu::kShortcutCols; x++) {
 		for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
-			const std::string d =
-			    diff_cell(layer[static_cast<size_t>(y) * menu::kShortcutCols + x], legacy[x][y], table, x, y);
-			if (!d.empty()) {
-				out += d + "\n";
+			out += diff_cell(layer[static_cast<size_t>(y) * menu::kShortcutCols + x], table_name, version, x, y);
+		}
+	}
+	return out;
+}
+
+/// @brief A one-dimensional reference table against the port layer, which holds it in column 11: every other column
+///        is empty.
+std::string diff_column(std::string_view table_name, std::span<const Node* const> layer) {
+	std::string out;
+	if (layer.size() != size_t(menu::kShortcutCols) * menu::kShortcutRows) {
+		return std::string{table_name} + ": layer is the wrong size\n";
+	}
+	for (uint8_t x = 0; x < menu::kShortcutCols; x++) {
+		for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
+			const Node* cell = layer[static_cast<size_t>(y) * menu::kShortcutCols + x];
+			if (x == 11) {
+				out += diff_cell(cell, table_name, "v3", x, y);
+			}
+			else if (cell != nullptr) {
+				out += std::string{table_name} + " (" + std::to_string(x) + ", " + std::to_string(y)
+				       + "): port has a cell outside column 11\n";
 			}
 		}
 	}
 	return out;
 }
 
-/// @brief One legacy one-dimensional array against the port layer, which holds it in column 11.
-std::string diff_column(const char* table, ::MenuItem* legacy[kDisplayHeight], std::span<const Node* const> layer) {
-	std::string out;
-	if (layer.size() != size_t(menu::kShortcutCols) * menu::kShortcutRows) {
-		return std::string{table} + ": layer is the wrong size\n";
-	}
-	for (uint8_t x = 0; x < menu::kShortcutCols; x++) {
-		for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
-			const ::MenuItem* item = x == 11 ? legacy[y] : nullptr;
-			const std::string d = diff_cell(layer[static_cast<size_t>(y) * menu::kShortcutCols + x], item, table, x, y);
-			if (!d.empty()) {
-				out += d + "\n";
-			}
-		}
-	}
-	return out;
-}
-
-/// @brief Select `SHORTCUTS_VERSION_1` on both sides for the scope, and put everything back.
-///
-/// `SoundEditor::setShortcutsVersion` (`gui/ui/sound_editor.cpp`) *writes into* the legacy
-/// arrays -- and its `SHORTCUTS_VERSION_3` arm is a comment, not an undo, so nothing but
-/// this guard restores them. Twelve cells are snapshotted: the six of `paramShortcutsForSounds` and
-/// four of `paramShortcutsForAudioClips` the V1 arm assigns, plus the two `modSourceShortcuts` ones
-/// (`:134-135`), which is patching-source data the port does not carry but other examples in this
-/// process would still see corrupted.
-struct LegacyVersion1 {
-	::MenuItem* sounds[6];
-	::MenuItem* clips[4];
-	PatchSource sources[2];
-	uint8_t legacy_version;
-	menu::ShortcutsVersion port_version;
-
-	LegacyVersion1() {
-		const std::pair<uint8_t, uint8_t> sound_cells[6] = {{0, 6}, {1, 6}, {2, 6}, {3, 6}, {2, 7}, {3, 7}};
-		for (size_t i = 0; i < 6; i++) {
-			sounds[i] = paramShortcutsForSounds[sound_cells[i].first][sound_cells[i].second];
-		}
-		const std::pair<uint8_t, uint8_t> clip_cells[4] = {{0, 7}, {1, 7}, {0, 6}, {1, 6}};
-		for (size_t i = 0; i < 4; i++) {
-			clips[i] = paramShortcutsForAudioClips[clip_cells[i].first][clip_cells[i].second];
-		}
-		sources[0] = modSourceShortcuts[0][7];
-		sources[1] = modSourceShortcuts[1][7];
-		legacy_version = soundEditor.shortcutsVersion;
-		port_version = menu::shortcuts_version();
-
-		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_1);
-		menu::set_shortcuts_version(menu::ShortcutsVersion::V1);
-	}
-
-	~LegacyVersion1() {
-		const std::pair<uint8_t, uint8_t> sound_cells[6] = {{0, 6}, {1, 6}, {2, 6}, {3, 6}, {2, 7}, {3, 7}};
-		for (size_t i = 0; i < 6; i++) {
-			paramShortcutsForSounds[sound_cells[i].first][sound_cells[i].second] = sounds[i];
-		}
-		const std::pair<uint8_t, uint8_t> clip_cells[4] = {{0, 7}, {1, 7}, {0, 6}, {1, 6}};
-		for (size_t i = 0; i < 4; i++) {
-			paramShortcutsForAudioClips[clip_cells[i].first][clip_cells[i].second] = clips[i];
-		}
-		modSourceShortcuts[0][7] = sources[0];
-		modSourceShortcuts[1][7] = sources[1];
-		soundEditor.shortcutsVersion = legacy_version;
-		menu::set_shortcuts_version(port_version);
-	}
+/// @brief Select `SHORTCUTS_VERSION_1` for the scope, and put the version back.
+struct PortVersion1 {
+	menu::ShortcutsVersion saved = menu::shortcuts_version();
+	PortVersion1() { menu::set_shortcuts_version(menu::ShortcutsVersion::V1); }
+	~PortVersion1() { menu::set_shortcuts_version(saved); }
+	PortVersion1(const PortVersion1&) = delete;
+	PortVersion1& operator=(const PortVersion1&) = delete;
 };
 
-/// @brief `SoundEditor::maybeGetParentMenu`'s answer for @p item against @p chain: null for the
-///        start markers, the audio clip's end marker and the file selectors, else the first chain
-///        menu that lists it.
-deluge::gui::menu_item::HorizontalMenu* legacy_parent(std::span<deluge::gui::menu_item::HorizontalMenu* const> chain,
-                                                      ::MenuItem* item) {
-	if (item == &sample0StartMenu || item == &sample1StartMenu || item == &audioClipSampleMarkerEditorMenuEnd) {
-		return nullptr;
-	}
-	const auto listing =
-	    std::ranges::find_if(chain, [&](deluge::gui::menu_item::HorizontalMenu* m) { return m->hasItem(item); });
-	if (listing == chain.end()) {
-		return nullptr;
-	}
-	if (item == &deluge::gui::menu_item::file0SelectorMenu || item == &deluge::gui::menu_item::file1SelectorMenu) {
-		return nullptr;
-	}
-	return *listing;
-}
-
-/// @brief A port root, the legacy root it was transcribed from, and the chain legacy searches for it.
+/// @brief A root and the label its landing rows carry.
 struct LandingRoot {
 	Root root;
-	deluge::gui::menu_item::Submenu* legacy;
-	deluge::vector<deluge::gui::menu_item::HorizontalMenu*>* chain;
+	const char* label;
+	const char* pages_in; ///< the root whose tree the chain's pages are named in
 };
 
-/// @brief Every root with shortcut cells, paired as `getCurrentHorizontalMenusChain` pairs them: a
-///        kit row and its MIDI/gate drums take the sound chain, the session roots the song chain.
-std::vector<LandingRoot> landing_roots() {
-	return {
-	    {Root::Sound, &soundEditorRootMenu, &horizontalMenusChainForSound},
-	    {Root::Drum, &soundEditorRootMenuDrum, &horizontalMenusChainForSound},
-	    {Root::MidiDrum, &soundEditorRootMenuMidiDrum, &horizontalMenusChainForSound},
-	    {Root::GateDrum, &soundEditorRootMenuGateDrum, &horizontalMenusChainForSound},
-	    {Root::KitGlobalFx, &soundEditorRootMenuKitGlobalFX, &horizontalMenusChainForKit},
-	    {Root::Song, &soundEditorRootMenuSongView, &horizontalMenusChainForSong},
-	    {Root::Performance, &soundEditorRootMenuPerformanceView, &horizontalMenusChainForSong},
-	    {Root::AudioClip, &soundEditorRootMenuAudioClip, &horizontalMenusChainForAudioClip},
-	    {Root::MidiOrCv, &soundEditorRootMenuMIDIOrCV, &horizontalMenusChainForMidiOrCv},
+/// @brief Every root with shortcut cells.
+constexpr LandingRoot kLandingRoots[] = {
+    {Root::Sound, "sound", "sound"},
+    {Root::Drum, "drum", "drum"},
+    {Root::MidiDrum, "midi drum", "midi drum"},
+    {Root::GateDrum, "gate drum", "gate drum"},
+    {Root::KitGlobalFx, "kit global fx", "kit global fx"},
+    {Root::Song, "song", "song"},
+    {Root::Performance, "performance", "song"},
+    {Root::AudioClip, "audio clip", "audio clip"},
+    {Root::MidiOrCv, "midi/cv", "midi/cv"},
+};
+
+/// @brief The reference table a root's layer was transcribed from, or null for a root with no shortcuts.
+const char* table_of(Root root) {
+	switch (root) {
+	case Root::Sound:
+	case Root::Drum:
+		return "sounds";
+	case Root::AudioClip:
+		return "audio_clips";
+	case Root::Song:
+	case Root::Performance:
+		return "song_view";
+	case Root::KitGlobalFx:
+		return "kit_global_fx";
+	case Root::MidiOrCv:
+	case Root::MidiDrum:
+		return "midi_cv";
+	case Root::GateDrum:
+		return "gate_drum";
+	default:
+		return nullptr;
+	}
+}
+
+/// @brief How the landing rows name @p page: its tree paths in the landing root's own tree, `-` for none, and
+///        `group:<node>` for one of the menu groups the chains name, which no tree lists and whose own name is "None".
+std::string page_label(const Node* page, std::string_view root) {
+	const std::pair<const Node*, const char*> groups[] = {
+	    {&nodes::arp_group, "group:arp_group"},
+	    {&nodes::arp_group_kit, "group:arp_group_kit"},
+	    {&nodes::arp_group_midi, "group:arp_group_midi"},
+	    {&nodes::voice_group, "group:voice_group"},
+	    {&nodes::env_group, "group:env_group"},
+	    {&nodes::lfo_group, "group:lfo_group"},
+	    {&nodes::reverb_group, "group:reverb_group"},
+	    {&nodes::filters_group, "group:filters_group"},
+	    {&nodes::global_filters_group, "group:global_filters_group"},
+	    {&nodes::global_reverb_group, "group:global_reverb_group"},
+	    {&nodes::source_group, "group:source_group"},
 	};
+	for (const auto& [group, label] : groups) {
+		if (page == group) {
+			return label;
+		}
+	}
+	return node_paths(page, root);
 }
 
 /// @brief Every root, so a shape rule can be stated once over all of them.
@@ -425,100 +298,83 @@ const std::vector<Root>& all_roots() {
 
 // clang-format off
 describe shortcuts_transcription("scenes::menu shortcut tables: transcription", $ {
-	it("is transcribed from the default SHORTCUTS_VERSION_3 layout", _ {
-		// `SoundEditor::setShortcutsVersion` *mutates* the legacy arrays
-		// in place for the pre-3.0 layout; the port transcribes them as written. If anything in this
-		// process ever selects version 1, every cross-check below would be comparing against a
-		// different table -- so say so here, once, rather than failing ten cells at a time.
-		// `SHORTCUTS_VERSION_1` moves this cell to `audioClipSampleMarkerEditorMenuStart`
-		// (`sound_editor.cpp:157`), so its still holding the end marker is the version's fingerprint.
-		expect(paramShortcutsForAudioClips[0][7] == &audioClipSampleMarkerEditorMenuEnd).to_be_true();
-	});
-
 	it("matches paramShortcutsForSounds cell for cell", _ {
 		const FreeverbModel freeverb;
 		install_sound_context();
-		expect(diff_table("paramShortcutsForSounds", paramShortcutsForSounds,
-		                  menu::shortcut_layer(Root::Sound, /*second_layer=*/false)))
+		expect(diff_table("sounds", "v3", menu::shortcut_layer(Root::Sound, /*second_layer=*/false)))
 		    .to_equal(std::string{});
 	});
 
 	it("matches paramShortcutsForSoundsSecondLayer cell for cell", _ {
 		const FreeverbModel freeverb;
 		install_sound_context();
-		expect(diff_table("paramShortcutsForSoundsSecondLayer", paramShortcutsForSoundsSecondLayer,
-		                  menu::shortcut_layer(Root::Sound, /*second_layer=*/true)))
+		expect(diff_table("sounds_second", "v3", menu::shortcut_layer(Root::Sound, /*second_layer=*/true)))
 		    .to_equal(std::string{});
 	});
 
 	it("matches paramShortcutsForAudioClips cell for cell", _ {
 		const FreeverbModel freeverb;
 		install_sound_context();
-		expect(diff_table("paramShortcutsForAudioClips", paramShortcutsForAudioClips,
-		                  menu::shortcut_layer(Root::AudioClip, /*second_layer=*/false)))
+		expect(diff_table("audio_clips", "v3", menu::shortcut_layer(Root::AudioClip, /*second_layer=*/false)))
 		    .to_equal(std::string{});
 	});
 
 	it("matches paramShortcutsForSongView cell for cell, for both session roots", _ {
 		const FreeverbModel freeverb;
 		install_sound_context();
-		expect(diff_table("paramShortcutsForSongView", paramShortcutsForSongView,
-		                  menu::shortcut_layer(Root::Song, /*second_layer=*/false)))
+		expect(diff_table("song_view", "v3", menu::shortcut_layer(Root::Song, /*second_layer=*/false)))
 		    .to_equal(std::string{});
-		expect(diff_table("paramShortcutsForSongView", paramShortcutsForSongView,
-		                  menu::shortcut_layer(Root::Performance, /*second_layer=*/false)))
+		expect(diff_table("song_view", "v3", menu::shortcut_layer(Root::Performance, /*second_layer=*/false)))
 		    .to_equal(std::string{});
 	});
 
 	it("matches paramShortcutsForKitGlobalFX cell for cell", _ {
 		const FreeverbModel freeverb;
 		install_sound_context();
-		expect(diff_table("paramShortcutsForKitGlobalFX", paramShortcutsForKitGlobalFX,
-		                  menu::shortcut_layer(Root::KitGlobalFx, /*second_layer=*/false)))
+		expect(diff_table("kit_global_fx", "v3", menu::shortcut_layer(Root::KitGlobalFx, /*second_layer=*/false)))
 		    .to_equal(std::string{});
 	});
 
 	it("matches midiOrCVParamShortcuts, in column 11", _ {
 		select_language();
-		// Column 11 is where `potentialShortcutPadAction` and
-		// `updatePadLightsFor` index this table.
-		expect(diff_column("midiOrCVParamShortcuts", midiOrCVParamShortcuts,
-		                   menu::shortcut_layer(Root::MidiOrCv, /*second_layer=*/false)))
+		// Column 11 is where a pad press and the blink index this table.
+		expect(diff_column("midi_cv", menu::shortcut_layer(Root::MidiOrCv, /*second_layer=*/false)))
 		    .to_equal(std::string{});
 	});
 
 	it("matches gateDrumParamShortcuts, in column 11", _ {
 		install_sound_context();
-		expect(diff_column("gateDrumParamShortcuts", gateDrumParamShortcuts,
-		                   menu::shortcut_layer(Root::GateDrum, /*second_layer=*/false)))
+		expect(diff_column("gate_drum", menu::shortcut_layer(Root::GateDrum, /*second_layer=*/false)))
 		    .to_equal(std::string{});
 	});
 
 	it("names legacy's coming-soon cells, which shortcut_node leaves empty, and no others", _ {
+		// A coming-soon cell answers with a popup and no navigation; the port transcribes it as an empty cell that
+		// `shortcut_coming_soon` names. Roots with no table (settings, the note editors) have none.
+		spec::OracleTable& t = table();
 		std::string diffs;
-		for (uint8_t x = 0; x < menu::kShortcutCols; x++) {
-			for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
-				const bool sound = x < std::size(paramShortcutsForSounds) && paramShortcutsForSounds[x][y] == coming_soon();
-				const bool audio = paramShortcutsForAudioClips[x][y] == coming_soon();
-				if (menu::shortcut_coming_soon(Root::Sound, x, y) != sound
-				    || menu::shortcut_coming_soon(Root::Drum, x, y) != sound
-				    || menu::shortcut_coming_soon(Root::AudioClip, x, y) != audio) {
-					diffs += "(" + std::to_string(x) + "," + std::to_string(y) + ") ";
-				}
-				for (const Root r : {Root::MidiOrCv, Root::MidiDrum, Root::GateDrum, Root::Performance, Root::Song,
-				                     Root::KitGlobalFx, Root::Settings, Root::NoteEditor, Root::NoteRowEditor}) {
-					if (menu::shortcut_coming_soon(r, x, y)) {
-						diffs += "root(" + std::to_string(static_cast<int>(r)) + ") ";
+		size_t soon = 0;
+		for (const Root root : all_roots()) {
+			const char* table_name = table_of(root);
+			for (uint8_t x = 0; x < menu::kShortcutCols; x++) {
+				for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
+					const bool want = table_name != nullptr && t.find(cell_key(table_name, "v3", x, y), "soon") != nullptr;
+					soon += want ? 1 : 0;
+					if (menu::shortcut_coming_soon(root, x, y) != want
+					    || (want && menu::shortcut_node(root, false, x, y) != nullptr)) {
+						diffs += "root(" + std::to_string(static_cast<int>(root)) + ") (" + std::to_string(x) + ","
+						         + std::to_string(y) + ") ";
 					}
 				}
 			}
 		}
 		expect(diffs).to_equal(std::string{});
-		expect(menu::shortcut_coming_soon(Root::Sound, 4, 2)).to_be_true(); // the scan found the cells at all
+		expect(soon > size_t(0)).to_be_true(); // the rows named cells at all
+		expect(menu::shortcut_coming_soon(Root::Sound, 4, 2)).to_be_true();
 	});
 
 	it("resolves the four inline MIDI/CV cells that are in no legacy table", _ {
-		// `potentialShortcutPadAction`'s own `else if` chain (`sound_editor.cpp:1337-1357`), in the
+		// `potentialShortcutPadAction`'s own `else if` chain, in the
 		// arm `editingCVOrMIDIClip() || editingNonAudioDrumRow()` takes -- so all three of the roots
 		// that arm covers, and none of the others.
 		for (Root root : {Root::MidiOrCv, Root::MidiDrum, Root::GateDrum}) {
@@ -540,7 +396,7 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 
 	it("keeps those four cells out of the layers, so the blink never reports them", _ {
 		// The asymmetry is the point: `updatePadLightsFor`'s MIDI/CV and gate-drum arms
-		// (`sound_editor.cpp:871-891`) scan column 11 and nothing else, so legacy navigates from
+		// (`SoundEditor::updatePadLightsFor`) scan column 11 and nothing else, so legacy navigates from
 		// these pads and never lights them. Removing the resolve-only split would fail here.
 		for (Root root : {Root::MidiOrCv, Root::MidiDrum, Root::GateDrum}) {
 			const auto layer = menu::shortcut_layer(root, false);
@@ -555,42 +411,38 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 		}
 	});
 
-	it("pins every sound cell by legacy MenuItem identity, not by name", _ {
+
+	it("pins every sound cell by the tree path of its item, not by name", _ {
 		install_sound_context();
-		// The name comparison above is blind to a swap of two numbered sibling columns: legacy gives
-		// `env1ReleaseMenu`/`env2ReleaseMenu` (x = 8 / 9), `lfo1RateMenu`/`lfo2RateMenu` (12 / 13),
-		// `osc0TypeMenu`/`osc1TypeMenu` (2 / 3) and `sample0RepeatMenu`/`sample1RepeatMenu` (0 / 1)
-		// the same name, and `source0VolumeMenu`/`source1VolumeMenu` the same *formatted* name, which
-		// the `*` tolerance downgrades to a presence check. This keys on the legacy pointer instead,
-		// through the position each item holds in the legacy tree -- so swapping any two columns
-		// fails here even though every name still matches.
-		const auto& identity = sound_tree_identity();
+		// The name comparison is blind to a swap of two numbered sibling columns: `env1Release`/`env2Release`
+		// (x = 8 / 9), `lfo1Rate`/`lfo2Rate` (12 / 13), `osc0Type`/`osc1Type` (2 / 3) and
+		// `sample0Repeat`/`sample1Repeat` (0 / 1) have the same name, and `source0Volume`/`source1Volume` the same
+		// *formatted* name, which the `*` tolerance downgrades to a presence check. The rows name the item by the
+		// tree paths it sits at, so swapping any two columns fails here even though every name still matches.
+		spec::OracleTable& t = table();
 		const auto layer = menu::shortcut_layer(Root::Sound, false);
 		const auto second = menu::shortcut_layer(Root::Sound, true);
 		std::string bad;
 		size_t pinned = 0;
-		size_t unreachable = 0;
+		size_t pinned_in_column[menu::kShortcutCols]{};
 		for (uint8_t x = 0; x < menu::kShortcutCols; x++) {
 			for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
 				const size_t i = size_t(y) * menu::kShortcutCols + x;
-				for (const auto& [legacy_cell, port_cell] :
-				     {std::pair{paramShortcutsForSounds[x][y], layer[i]},
-				      std::pair{paramShortcutsForSoundsSecondLayer[x][y], second[i]}}) {
-					if (is_empty_cell(legacy_cell)) {
+				for (const auto& [name, port_cell] : {std::pair<const char*, const Node*>{"sounds", layer[i]},
+				                                      std::pair<const char*, const Node*>{"sounds_second", second[i]}}) {
+					const std::string item = t.value(cell_key(name, "v3", x, y), "item");
+					if (item == "-") {
 						continue;
 					}
-					const auto found = identity.find(legacy_cell);
-					if (found == identity.end()) {
-						// Not reachable from `soundEditorRootMenu` by static children alone (a
-						// dynamic submenu's child, say). Counted, not asserted -- the name
-						// comparison already covers it.
-						unreachable++;
+					// An item no root reaches by static children (`name:...`) is covered by the name column alone.
+					if (item.starts_with("name:")) {
 						continue;
 					}
 					pinned++;
-					if (found->second != port_cell) {
-						bad += "(" + std::to_string(x) + ", " + std::to_string(y) + "): "
-						       + std::string{legacy_cell->getName()} + " is a different node in the tree\n";
+					pinned_in_column[x]++;
+					if (item != node_paths(port_cell)) {
+						bad += std::string{name} + " (" + std::to_string(x) + ", " + std::to_string(y) + "): port has "
+						       + node_paths(port_cell) + ", main has " + item + "\n";
 					}
 				}
 			}
@@ -598,22 +450,16 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 		expect(bad).to_equal(std::string{});
 		// Not vacuous, and it reaches the columns that matter.
 		expect(pinned > size_t(80)).to_be_true();
-		for (uint8_t x : {uint8_t{0}, uint8_t{1}, uint8_t{2}, uint8_t{3}, uint8_t{8}, uint8_t{9}, uint8_t{12},
-		                  uint8_t{13}}) {
-			size_t in_column = 0;
-			for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
-				::MenuItem* legacy_cell = paramShortcutsForSounds[x][y];
-				in_column += size_t(!is_empty_cell(legacy_cell) && identity.count(legacy_cell) != 0);
-			}
-			expect(in_column >= size_t(4)).to_be_true();
+		for (const uint8_t x : {uint8_t{0}, uint8_t{1}, uint8_t{2}, uint8_t{3}, uint8_t{8}, uint8_t{9}, uint8_t{12},
+		                        uint8_t{13}}) {
+			expect(pinned_in_column[x] >= size_t(4)).to_be_true();
 		}
-		(void)unreachable;
 	});
 
 	it("refuses the two kit global-FX cells legacy's own guard never let it press", _ {
 		// The mirror of the four inline cells above. `paramShortcutsForKitGlobalFX` holds
 		// `randomizerLockMenu` at (15, 2) and `randomizerNoteProbabilityMenu` at (15, 3), but the arm
-		// is gated `(x <= kDisplayWidth - 2) || (x == 15 && y == 1)` (`sound_editor.cpp:1208-1212`),
+		// is gated `(x <= kDisplayWidth - 2) || (x == 15 && y == 1)` (`SoundEditor::potentialShortcutPadAction`),
 		// so legacy can only ever press column 15 at y == 1.
 		expect(menu::shortcut_node(Root::KitGlobalFx, false, 15, 1) == &nodes::spread_velocity).to_be_true();
 		expect(menu::shortcut_node(Root::KitGlobalFx, false, 15, 2) == nullptr).to_be_true();
@@ -697,7 +543,7 @@ describe shortcuts_shape("scenes::menu shortcut tables: shape", $ {
 	});
 
 	it("falls back to the first layer where the second has no cell", _ {
-		// Legacy's own rule (`sound_editor.cpp:1375-1378`): the second layer *replaces* a cell only
+		// Legacy's own rule (`SoundEditor::potentialShortcutPadAction`): the second layer *replaces* a cell only
 		// where it has one, so a second press of a pad without a second-layer item re-opens the
 		// first-layer one rather than nothing.
 		expect(menu::shortcut_node(Root::Sound, true, 8, 0) == &nodes::env3_release).to_be_true();
@@ -722,7 +568,7 @@ describe shortcuts_shape("scenes::menu shortcut tables: shape", $ {
 						expect(pos.valid).to_be_true();
 						// ... and a press finds it again, EXCEPT where the arm's own guard excluded
 						// the pad from the press path in the first place: legacy's kit global-FX arm
-						// admits column 15 only at y == 1 (`sound_editor.cpp:1208-1212`), while the
+						// admits column 15 only at y == 1 (`SoundEditor::potentialShortcutPadAction`), while the
 						// blink side scans the whole table. Spelled out here rather than skipped, so
 						// this fails if the gate's shape changes.
 						const bool pressable = root != Root::KitGlobalFx || pos.x <= 14 || pos.y == 1;
@@ -937,36 +783,44 @@ describe shortcuts_profile("shell::BoardProfile without the shortcuts field", $ 
 
 // clang-format off
 describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSION_1 layer", $ {
-	it("matches paramShortcutsForSounds cell for cell once legacy has been switched to it", _ {
+	it("matches paramShortcutsForSounds cell for cell once switched to it", _ {
 		const FreeverbModel freeverb;
 		install_sound_context();
-		const LegacyVersion1 guard;
-		// The same cell-for-cell sweep the V3 group runs, against the array `setShortcutsVersion`
-		// has just rewritten. This is what makes `nodes::shortcuts_version` a setting that selects
-		// something: E1 recorded it as one that "selects nothing", because only the V3 layer existed.
-		expect(diff_table("paramShortcutsForSounds (v1)", paramShortcutsForSounds,
-		                  menu::shortcut_layer(Root::Sound, /*second_layer=*/false)))
+		const PortVersion1 guard;
+		// The same cell-for-cell sweep the V3 group runs, against the cells main's `setShortcutsVersion` rewrites. This
+		// is what makes `nodes::shortcuts_version` a setting that selects something.
+		expect(diff_table("sounds", "v1", menu::shortcut_layer(Root::Sound, /*second_layer=*/false)))
 		    .to_equal(std::string{});
 	});
 
 	it("moves exactly the two sound cells that carry a different item under V1", _ {
 		install_sound_context();
-		// Legacy's V1 arm assigns six cells of this table (`sound_editor.cpp:163-170`) but four of
-		// them write the value it already held -- so naming the two that move, and asserting the
-		// other four did not, is the difference between transcribing the *arm* and transcribing its
-		// *effect*. Interpolation gives way to the sample end point; nothing else changes.
+		// Main's V1 arm assigns six cells of this table but four of them write the value they already held -- so naming
+		// the two that move, and asserting the other four did not, is the difference between transcribing the *arm*
+		// and transcribing its *effect*. Interpolation gives way to the sample end point; nothing else changes.
+		spec::OracleTable& t = table();
+		std::string moved;
+		for (uint8_t x = 0; x < menu::kShortcutCols; x++) {
+			for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
+				if (t.value(cell_key("sounds", "v1", x, y), "item") != t.value(cell_key("sounds", "v3", x, y), "item")) {
+					moved += "(" + std::to_string(x) + "," + std::to_string(y) + ") ";
+				}
+			}
+		}
+		expect(moved).to_equal(std::string{"(0,6) (1,6) "});
+
 		const Node* before_0_6 = menu::shortcut_node(Root::Sound, false, 0, 6);
 		const Node* before_1_6 = menu::shortcut_node(Root::Sound, false, 1, 6);
 		expect(before_0_6 == &nodes::sample0_interpolation).to_be_true();
 		expect(before_1_6 == &nodes::sample1_interpolation).to_be_true();
 
-		const LegacyVersion1 guard;
+		const PortVersion1 guard;
 		expect(menu::shortcut_node(Root::Sound, false, 0, 6) == &nodes::sample0_end).to_be_true();
 		expect(menu::shortcut_node(Root::Sound, false, 1, 6) == &nodes::sample1_end).to_be_true();
-		expect(paramShortcutsForSounds[0][6] == &sample0EndMenu).to_be_true();
-		expect(paramShortcutsForSounds[1][6] == &sample1EndMenu).to_be_true();
+		expect(t.value(cell_key("sounds", "v1", 0, 6), "item")).to_equal(node_paths(&nodes::sample0_end));
+		expect(t.value(cell_key("sounds", "v1", 1, 6), "item")).to_equal(node_paths(&nodes::sample1_end));
 
-		// The four no-op assignments, on both sides.
+		// The four no-op assignments.
 		expect(menu::shortcut_node(Root::Sound, false, 2, 6) == &nodes::source0_wave_index).to_be_true();
 		expect(menu::shortcut_node(Root::Sound, false, 3, 6) == &nodes::source1_wave_index).to_be_true();
 		expect(menu::shortcut_node(Root::Sound, false, 2, 7) == &nodes::noise).to_be_true();
@@ -980,13 +834,12 @@ describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSIO
 	it("matches paramShortcutsForAudioClips apart from the marker cell the port collapses", _ {
 		const FreeverbModel freeverb;
 		install_sound_context();
-		const LegacyVersion1 guard;
-		// V1 puts the marker editor's *start* item at `(0..1, 7)` and its *end* item at `(0..1, 6)`
-		// (`sound_editor.cpp:157-162`). The port has ONE node for the marker editor,
-		// `audio_clip_waveform`, so both pairs resolve to it -- which is right for the end pair and
-		// as close as this table can get for the start pair. `diff_cell` compares by name and
-		// `audioClipSampleMarkerEditorMenuStart` is constructed with `EMPTY_STRING`
-		// (`gui/ui/menus.cpp:1182`), so those two cells are excluded by hand and asserted directly.
+		const PortVersion1 guard;
+		// V1 puts the marker editor's *start* item at `(0..1, 7)` and its *end* item at `(0..1, 6)`. The port has ONE
+		// node for the marker editor, `audio_clip_waveform`, so both pairs resolve to it -- which is right for the end
+		// pair and as close as this table can get for the start pair. The start item is a nameless one no root
+		// reaches, so those two cells are excluded from the sweep and asserted directly.
+		spec::OracleTable& t = table();
 		std::span<const Node* const> layer = menu::shortcut_layer(Root::AudioClip, /*second_layer=*/false);
 		std::string diffs;
 		for (uint8_t x = 0; x < menu::kShortcutCols; x++) {
@@ -994,19 +847,14 @@ describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSIO
 				if (y == 7 && x < 2) {
 					continue; // the start-marker pair, asserted below
 				}
-				const std::string d = diff_cell(layer[static_cast<size_t>(y) * menu::kShortcutCols + x],
-				                                paramShortcutsForAudioClips[x][y], "paramShortcutsForAudioClips (v1)",
-				                                x, y);
-				if (!d.empty()) {
-					diffs += d + "\n";
-				}
+				diffs += diff_cell(layer[static_cast<size_t>(y) * menu::kShortcutCols + x], "audio_clips", "v1", x, y);
 			}
 		}
 		expect(diffs).to_equal(std::string{});
 
 		for (uint8_t x = 0; x < 2; x++) {
-			expect(paramShortcutsForAudioClips[x][7] == &audioClipSampleMarkerEditorMenuStart).to_be_true();
-			expect(paramShortcutsForAudioClips[x][6] == &audioClipSampleMarkerEditorMenuEnd).to_be_true();
+			expect(t.value(cell_key("audio_clips", "v1", x, 7), "item")).to_equal(std::string{"name:"});
+			expect(t.value(cell_key("audio_clips", "v1", x, 6), "item")).to_equal(node_paths(&nodes::audio_clip_waveform));
 			expect(menu::shortcut_node(Root::AudioClip, false, x, 7) == &nodes::audio_clip_waveform).to_be_true();
 			expect(menu::shortcut_node(Root::AudioClip, false, x, 6) == &nodes::audio_clip_waveform).to_be_true();
 		}
@@ -1014,18 +862,15 @@ describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSIO
 
 	it("leaves every other root's layer alone, and restores V3 when the version goes back", _ {
 		install_sound_context();
-		// The version selects a layer here rather than editing one, so the round trip is total --
-		// which is the one place the port deliberately does NOT reproduce legacy, whose V3 arm is a
-		// no-op comment. Recorded on `menu::set_shortcuts_version`.
+		// The version selects a layer here rather than editing one, so the round trip is total.
 		const Node* song_before = menu::shortcut_node(Root::Song, false, 0, 7);
 		const Node* second_before = menu::shortcut_node(Root::Sound, true, 8, 0);
+		const Node* midi_before = menu::shortcut_node(Root::MidiOrCv, false, 11, 0);
 		{
-			const LegacyVersion1 guard;
+			const PortVersion1 guard;
 			expect(menu::shortcut_node(Root::Song, false, 0, 7) == song_before).to_be_true();
 			expect(menu::shortcut_node(Root::Sound, true, 8, 0) == second_before).to_be_true();
-			expect(menu::shortcut_node(Root::MidiOrCv, false, 11, 0)
-			       == menu::shortcut_node(Root::MidiOrCv, false, 11, 0))
-			    .to_be_true();
+			expect(menu::shortcut_node(Root::MidiOrCv, false, 11, 0) == midi_before).to_be_true();
 		}
 		expect(menu::shortcut_node(Root::Sound, false, 0, 6) == &nodes::sample0_interpolation).to_be_true();
 		expect(menu::shortcut_node(Root::AudioClip, false, 0, 6) == &nodes::audio_clip_interpolation).to_be_true();
@@ -1034,9 +879,9 @@ describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSIO
 
 	it("finds the V1 pad through shortcut_pos too, so the blink follows the version", _ {
 		install_sound_context();
-		const LegacyVersion1 guard;
-		// The reverse lookup reads the same layers, so it must move with them -- otherwise the pad a
-		// press opens and the pad that blinks for the item it opened would disagree.
+		const PortVersion1 guard;
+		// The reverse lookup reads the same layers, so it must move with them -- otherwise the pad a press opens and
+		// the pad that blinks for the item it opened would disagree.
 		const ShortcutPos pos = menu::shortcut_pos(Root::Sound, nodes::sample0_end);
 		expect(pos.valid).to_be_true();
 		expect(pos.x).to_equal(uint8_t(0));
@@ -1134,48 +979,15 @@ describe shortcut_blink_cadence("scenes::menu shortcut blink: legacy's counter",
 		}
 	});
 });
+// clang-format on
+
 namespace {
 
-/// @brief A legacy flash colour byte as the grid names it.
-std::string colour_name(uint8_t legacy) {
-	switch (legacy) {
-	case 0:
-		return "white";
-	case 0b11:
-		return "yellow";
-	case 0b110:
-		return "palette6";
-	default:
-		return "colour" + std::to_string(legacy);
-	}
-}
-
 std::string colour_name(deluge::ui::grid::FlashColour c) {
-	return colour_name(static_cast<uint8_t>(c));
+	return deluge::scenes::spec::shortcuts::colour_name(static_cast<uint8_t>(c));
 }
 
-/// @brief Everything `updatePadLightsFor` planned, spelled so two plans compare as text.
-std::string legacy_plan() {
-	std::string out;
-	if (soundEditor.currentParamShortcutX != kNoSelection) {
-		out += "param " + std::to_string(soundEditor.currentParamShortcutX) + ","
-		       + std::to_string(soundEditor.currentParamShortcutY) + " f"
-		       + std::to_string(soundEditor.paramShortcutBlinkFrequency) + " "
-		       + colour_name(soundEditor.currentParamColour) + ";";
-		for (int32_t sx = 0; sx < 2; sx++) {
-			for (int32_t y = 0; y < kDisplayHeight; y++) {
-				const uint8_t f = soundEditor.sourceShortcutBlinkFrequency(sx, y);
-				if (f != 255) {
-					out += " src " + std::to_string(sx) + "," + std::to_string(y) + " f" + std::to_string(f) + " "
-					       + colour_name(soundEditor.sourceShortcutBlinkColour(sx, y))
-					       + (soundEditor.sourceShortcutBlinkAlternates(sx, y) ? " alt" : "");
-				}
-			}
-		}
-	}
-	return out;
-}
-
+/// @brief The port's blink plan, spelled as the rows spell main's.
 std::string port_plan(const menu::BlinkPlan& plan) {
 	std::string out;
 	if (plan.param.valid) {
@@ -1194,77 +1006,44 @@ std::string port_plan(const menu::BlinkPlan& plan) {
 	return out;
 }
 
-/// @brief Write a cable through the app's sink, as the strength page writes one.
-bool seed_cable(const MenuContext& ctx, deluge::synth::CableTarget learn, int32_t menu_value) {
-	const std::optional<deluge::scenes::bind::WriteRequest> request =
-	    menu::nodes::cable_request(ctx, learn, menu_value, PatchCable::getDefaultPolarity(learn.bottom_source()));
-	return request.has_value() && ctx.sink->write(*request);
-}
-
-/// @brief Seed, once, cables on the fixture's sound for the source blinks to find: both layers of one pad pair, a volume cable the
-///        volume triple folds, a cable on a second-layer param, and one on another cable's depth.
-bool seed_blink_cables(const MenuContext& ctx) {
-	namespace p = deluge::modulation::params;
-	using deluge::synth::CableTarget;
-	static bool seeded = false;
-	if (seeded) {
-		return true;
-	}
-	seeded = true;
-	bool ok = true;
-	ok = seed_cable(ctx, CableTarget::depth_of(p::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1), 1000) && ok;
-	ok = seed_cable(ctx, CableTarget::depth_of(p::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_3), 1000) && ok;
-	ok = seed_cable(ctx, CableTarget::depth_of(p::LOCAL_LPF_FREQ, PatchSource::LFO_GLOBAL_1), 900) && ok;
-	ok = seed_cable(ctx, CableTarget::depth_of(p::LOCAL_VOLUME, PatchSource::AFTERTOUCH), 800) && ok;
-	ok = seed_cable(ctx, CableTarget::depth_of(p::LOCAL_ENV_2_ATTACK, PatchSource::RANDOM), 700) && ok;
-	ok = seed_cable(ctx,
-	                  CableTarget::depth_of_depth(p::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1, PatchSource::LFO_LOCAL_1),
-	                  600) && ok;
-	return ok;
-}
-
-/// @brief Legacy's plan for @p item, from a clean slate.
-std::string legacy_plan_for(::MenuItem* item) {
-	soundEditor.currentParamShortcutX = kNoSelection;
-	soundEditor.updatePadLightsFor(item);
-	return legacy_plan();
-}
-
 } // namespace
 
 // clang-format off
-describe shortcut_blink_plan("scenes::menu shortcut blink plan against SoundEditor::updatePadLightsFor", $ {
+describe shortcut_blink_plan("scenes::menu shortcut blink plan against main's shortcut blink plans", $ {
 	it("plans the blinks main's updatePadLightsFor plans, for every patched and patch-cable item", _ {
 		const MenuContext& ctx = install_sound_context();
 		UiStackGuard ui;
 		setRootUILowLevel(&instrumentClipView);
 		expect(seed_blink_cables(ctx)).to_be_true();
-		soundEditor.currentSourceIndex = 0;
 		namespace p = deluge::modulation::params;
+		spec::OracleTable& t = table();
 		std::string bad;
 		size_t compared = 0;
 		size_t with_sources = 0;
-		const auto check = [&](const std::string& where, ::MenuItem* item, const Node& node, const MenuState& st) {
-			const std::string want = legacy_plan_for(item);
+		const auto check = [&](const std::string& where, const Node& node, const MenuState& st) {
+			const std::vector<std::string>* row = t.find("blink/" + where, "plan");
 			const std::string got = port_plan(menu::plan_blinks(ctx, st, node));
 			compared++;
+			if (row == nullptr || row->empty()) {
+				bad += where + "\n  no row\n";
+				return;
+			}
+			const std::string& want = row->front();
 			with_sources += want.find(" src ") != std::string::npos ? 1 : 0;
 			if (want != got) {
-				bad += where + "\n  legacy: " + want + "\n  port:   " + got + "\n";
+				bad += where + "\n  main: " + want + "\n  port: " + got + "\n";
 			}
 		};
 
 		// Every leaf of the sound root.
-		std::map<const ::MenuItem*, const Node*> identity;
-		map_tree(soundEditorRootMenu, nodes::sound_root, identity);
-		for (const auto& [item, node] : identity) {
+		for (const auto& e : spec::tree_entries("sound", nodes::sound_root)) {
 			// The patch cables page plans from its own timer, compared below.
-			if (node->kind == menu::Kind::Submenu || node == &nodes::patch_cables) {
+			if (e.node->kind == menu::Kind::Submenu || e.node == &nodes::patch_cables) {
 				continue;
 			}
 			MenuState st{};
-			st.path[0] = node;
-			check("leaf " + text_of(node->name), const_cast<::MenuItem*>(item), *node, st);
+			st.path[0] = e.node;
+			check("leaf " + e.path, *e.node, st);
 		}
 
 		// The source pickers and strength pages, over params on both layers and the volume triple.
@@ -1273,47 +1052,33 @@ describe shortcut_blink_plan("scenes::menu shortcut blink plan against SoundEdit
 		const PatchSource kSources[] = {PatchSource::ENVELOPE_1, PatchSource::ENVELOPE_3, PatchSource::LFO_GLOBAL_1,
 		                                PatchSource::AFTERTOUCH, PatchSource::RANDOM};
 		for (const uint8_t param : kParams) {
-			soundEditor.patchingParamSelected = param;
 			MenuState st{};
 			st.walk.patching_param = param;
 			st.path[0] = &nodes::source_selection_regular;
-			check("regular source list p" + std::to_string(param), &legacy::source_selection::regularMenu,
-			      nodes::source_selection_regular, st);
+			check("regular source list p" + std::to_string(param), nodes::source_selection_regular, st);
 			for (const PatchSource source : kSources) {
-				legacy::source_selection::regularMenu.s = source;
 				st.walk.patch_source = source;
 				const std::string tag = " p" + std::to_string(param) + " s" + std::to_string(static_cast<int>(source));
 				st.path[0] = &nodes::patch_cable_strength_regular;
-				check("regular strength" + tag, &legacy::patch_cable_strength::regularMenu,
-				      nodes::patch_cable_strength_regular, st);
+				check("regular strength" + tag, nodes::patch_cable_strength_regular, st);
 				st.path[0] = &nodes::source_selection_range;
-				check("range source list" + tag, &legacy::source_selection::rangeMenu, nodes::source_selection_range,
-				      st);
+				check("range source list" + tag, nodes::source_selection_range, st);
 				for (const PatchSource range : {PatchSource::LFO_LOCAL_1, PatchSource::VELOCITY}) {
-					legacy::source_selection::rangeMenu.s = range;
 					st.walk.patch_range_source = range;
 					st.path[0] = &nodes::patch_cable_strength_range;
 					check("range strength" + tag + " r" + std::to_string(static_cast<int>(range)),
-					      &legacy::patch_cable_strength::rangeMenu, nodes::patch_cable_strength_range, st);
+					      nodes::patch_cable_strength_range, st);
 				}
 			}
 		}
 
-		// The patch cables page, on every cable: legacy plans it from its own throttled timer.
+		// The patch cables page, on every cable: it plans from its own throttled timer.
 		PatchCableSet* set = spec::menu_engine(ctx).params->getPatchCableSetAllowJibberish();
 		for (int32_t i = 0; i < set->numPatchCables; i++) {
-			patchCablesMenu.currentValue = i;
-			soundEditor.currentParamShortcutX = kNoSelection;
-			patchCablesMenu.blinkShortcuts();
-			const std::string want = legacy_plan();
 			MenuState st{};
 			st.path[0] = &nodes::patch_cables;
 			st.list[0].cursor = static_cast<int16_t>(i);
-			const std::string got = port_plan(menu::plan_blinks(ctx, st, nodes::patch_cables));
-			compared++;
-			if (want != got) {
-				bad += "patch cables row " + std::to_string(i) + "\n  legacy: " + want + "\n  port:   " + got + "\n";
-			}
+			check("patch cables row " + std::to_string(i), nodes::patch_cables, st);
 		}
 		expect(bad).to_equal(std::string{});
 		expect(compared > size_t(100)).to_be_true();
@@ -1323,12 +1088,10 @@ describe shortcut_blink_plan("scenes::menu shortcut blink plan against SoundEdit
 	it("never blinks a source without a param pad", _ {
 		const MenuContext& ctx = install_sound_context();
 		expect(seed_blink_cables(ctx)).to_be_true();
-		std::map<const ::MenuItem*, const Node*> identity;
-		map_tree(soundEditorRootMenu, nodes::sound_root, identity);
-		for (const auto& [item, node] : identity) {
+		for (const auto& e : spec::tree_entries("sound", nodes::sound_root)) {
 			MenuState st{};
-			st.path[0] = node;
-			const menu::BlinkPlan plan = menu::plan_blinks(ctx, st, *node);
+			st.path[0] = e.node;
+			const menu::BlinkPlan plan = menu::plan_blinks(ctx, st, *e.node);
 			if (!plan.param.valid) {
 				expect(plan.any_source()).to_be_false();
 			}
@@ -1351,32 +1114,31 @@ describe shortcut_blink_plan("scenes::menu shortcut blink plan against SoundEdit
 		}
 	});
 });
-// clang-format on
 
-namespace {} // namespace
-
-// clang-format off
-describe shortcut_overlay_colours("scenes::menu SHIFT overlay colours against SoundEditor::renderMainShortcutsOnly", $ {
+describe shortcut_overlay_colours("scenes::menu SHIFT overlay colours against main's shortcut colours", $ {
 	it("paints main's shortcut colours cell by cell for the sound root", _ {
 		const MenuContext& ctx = install_sound_context();
 		UiStackGuard ui;
 		setRootUILowLevel(&instrumentClipView); // the sound tables are a clip view's
-		RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
-		uint8_t occupancy[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
-		SoundEditor::renderMainShortcutsOnly(soundEditor.currentModControllable, image, occupancy, false);
+		spec::OracleTable& t = table();
 		deluge::ui::test::GridRig rig;
 		menu::paint_shortcut_colours(rig.frame, ctx);
 		std::string bad;
 		size_t lit = 0;
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
-				const RGB want = image[y][x];
+				const std::string key = "overlay/sound/" + std::to_string(x) + "," + std::to_string(y);
+				const std::vector<std::string>* row = t.find(key, "rgb");
 				const RGB got = rig.frame.peek(x, y);
-				lit += want == RGB{0, 0, 0} ? 0 : 1;
-				if (!(want == got)) {
-					bad += "(" + std::to_string(x) + "," + std::to_string(y) + ") main " + std::to_string(want.r) + ","
-					       + std::to_string(want.g) + "," + std::to_string(want.b) + " ours " + std::to_string(got.r)
-					       + "," + std::to_string(got.g) + "," + std::to_string(got.b) + "\n";
+				const std::string ours = std::to_string(got.r) + "," + std::to_string(got.g) + "," + std::to_string(got.b);
+				if (row == nullptr || row->size() != 3) {
+					bad += "(" + std::to_string(x) + "," + std::to_string(y) + ") no row\n";
+					continue;
+				}
+				const std::string main_rgb = (*row)[0] + "," + (*row)[1] + "," + (*row)[2];
+				lit += main_rgb == "0,0,0" ? 0 : 1;
+				if (main_rgb != ours) {
+					bad += "(" + std::to_string(x) + "," + std::to_string(y) + ") main " + main_rgb + " ours " + ours + "\n";
 				}
 			}
 		}
@@ -1384,108 +1146,63 @@ describe shortcut_overlay_colours("scenes::menu SHIFT overlay colours against So
 		expect(lit > size_t(60)).to_be_true();
 	});
 });
-// clang-format on
 
-describe shortcut_landing(
-    "scenes::menu shortcut landing against SoundEditor::maybeGetParentMenu", $ {
-	    it(
-	        "lands every shortcut cell of every root on the page legacy's chain search finds", _ {
-		        const bool was_on = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus);
-		        runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);
-		        std::string bad;
-		        size_t compared = 0;
-		        size_t on_a_page = 0;
-		        // Every root's legacy-to-port identity together: a chain may name a page the root's own tree
-		        // does not hold (a MIDI drum's chain is the sound chain).
-		        std::map<const ::MenuItem*, const Node*> all_identity;
-		        for (const LandingRoot& lr : landing_roots()) {
-			        map_tree(*lr.legacy, *menu::MenuScene::roots()[static_cast<size_t>(lr.root)], all_identity);
-		        }
-		        // No tree lists a group; the chains name them, so each answers for itself.
-		        all_identity[&arpMenuGroup] = &nodes::arp_group;
-		        all_identity[&arpMenuGroupKit] = &nodes::arp_group_kit;
-		        all_identity[&arpMenuGroupMIDIOrCV] = &nodes::arp_group_midi;
-		        all_identity[&voiceMenuGroup] = &nodes::voice_group;
-		        all_identity[&envMenuGroup] = &nodes::env_group;
-		        all_identity[&lfoMenuGroup] = &nodes::lfo_group;
-		        all_identity[&reverbMenuGroup] = &nodes::reverb_group;
-		        all_identity[&filtersMenuGroup] = &nodes::filters_group;
-		        all_identity[&globalFiltersMenuGroup] = &nodes::global_filters_group;
-		        all_identity[&globalReverbMenuGroup] = &nodes::global_reverb_group;
-		        all_identity[&sourceMenuGroup] = &nodes::source_group;
-		        for (const LandingRoot& lr : landing_roots()) {
-			        const Node* port_root = menu::MenuScene::roots()[static_cast<size_t>(lr.root)];
-			        std::map<const ::MenuItem*, const Node*> identity;
-			        map_tree(*lr.legacy, *port_root, identity);
-			        std::map<const Node*, ::MenuItem*> legacy_of;
-			        for (const auto& [item, node] : identity) {
-				        legacy_of.emplace(node, const_cast<::MenuItem*>(item));
-			        }
-			        std::set<const Node*> seen;
-			        for (bool second : {false, true}) {
-				        for (uint8_t x = 0; x < menu::kShortcutCols; x++) {
-					        for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
-						        const Node* node = menu::shortcut_node(lr.root, second, x, y);
-						        if (node == nullptr || !seen.insert(node).second) {
-							        continue;
-						        }
-						        const auto found = legacy_of.find(node);
-						        if (found == legacy_of.end()) {
-							        continue;
-						        }
-						        compared++;
-						        auto* legacy_page = legacy_parent(*lr.chain, found->second);
-						        const Node* port_page = menu::shortcut_landing_page(lr.root, *node);
-						        const std::string where = "root " + std::to_string(static_cast<int>(lr.root)) + " ("
-						                                  + std::to_string(x) + ", " + std::to_string(y) + ") "
-						                                  + text_of(node->name) + ": ";
-						        if (legacy_page == nullptr) {
-							        if (port_page != nullptr) {
-								        bad += where + "legacy opens it alone, the port on " + text_of(port_page->name)
-								               + "\n";
-							        }
-							        continue;
-						        }
-						        on_a_page++;
-						        if (port_page == nullptr) {
-							        bad += where + "legacy opens it on a page, the port alone\n";
-							        continue;
-						        }
-						        // A group answers for the member menu that lists the item; any legacy
-						        // horizontal menu listing it that maps to the port page agrees.
-						        bool agrees = false;
-						        for (const auto& [item, mapped] : all_identity) {
-							        auto* menu = dynamic_cast<deluge::gui::menu_item::HorizontalMenu*>(
-							            const_cast<::MenuItem*>(item));
-							        if (menu != nullptr && mapped == port_page && menu->hasItem(found->second)
-							            && (menu == legacy_page || legacy_page->hasItem(found->second))) {
-								        agrees = true;
-							        }
-						        }
-						        // A chain page outside the root's tree (the recorder page): by name.
-						        if (!agrees
-						            && dynamic_cast<deluge::gui::menu_item::HorizontalMenuGroup*>(legacy_page)
-						                   == nullptr
-						            && std::string{legacy_page->getName()} == text_of(port_page->name)
-						            && std::ranges::contains(port_page->children, node)) {
-							        agrees = true;
-						        }
-						        if (!agrees) {
-							        bad += where + "the port lands on " + text_of(port_page->name) + "\n";
-						        }
-					        }
-				        }
-			        }
-		        }
-		        runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus,
-		                                   was_on ? RuntimeFeatureStateToggle::On : RuntimeFeatureStateToggle::Off);
-		        expect(bad).to_equal(std::string{});
-		        expect(compared > size_t(150)).to_be_true();
-		        expect(on_a_page > size_t(80)).to_be_true();
-	        });
-    });
+describe shortcut_landing("scenes::menu shortcut landing against main's chain search", $ {
+	it("lands every shortcut cell of every root on the page legacy's chain search finds", _ {
+		const bool was_on = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);
+		spec::OracleTable& t = table();
+		std::string bad;
+		size_t compared = 0;
+		size_t on_a_page = 0;
+		for (const LandingRoot& lr : kLandingRoots) {
+			for (const bool second : {false, true}) {
+				if (second && menu::shortcut_layer(lr.root, true).data() == menu::shortcut_layer(lr.root, false).data()) {
+					continue; // the root has no second layer of its own
+				}
+				for (uint8_t x = 0; x < menu::kShortcutCols; x++) {
+					for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
+						const Node* node =
+						    menu::shortcut_layer(lr.root, second)[static_cast<size_t>(y) * menu::kShortcutCols + x];
+						if (node == nullptr) {
+							continue;
+						}
+						const std::string key = "land/" + std::string{lr.label} + (second ? "/2/" : "/")
+						                        + std::to_string(x) + "," + std::to_string(y);
+						const std::string where = key + " " + text_of(node->name) + ": ";
+						const std::vector<std::string>* row = t.find(key, "page");
+						if (row == nullptr || row->empty()) {
+							bad += where + "no row\n";
+							continue;
+						}
+						compared++;
+						const std::string got = page_label(menu::shortcut_landing_page(lr.root, *node), lr.pages_in);
+						on_a_page += row->front() == "-" ? 0 : 1;
+						if (row->front() != got) {
+							bad += where + "main lands on " + row->front() + ", the port on " + got + "\n";
+						}
+					}
+				}
+			}
+		}
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus,
+		                           was_on ? RuntimeFeatureStateToggle::On : RuntimeFeatureStateToggle::Off);
+		expect(bad).to_equal(std::string{});
+		expect(compared > size_t(150)).to_be_true();
+		expect(on_a_page > size_t(80)).to_be_true();
+	});
+});
+
+describe shortcuts_reference_rows("shortcuts: the reference rows", $ {
+	it("parses shortcuts.tsv clean and asks every row of it", _ {
+		spec::OracleTable& t = spec::OracleTable::named("shortcuts");
+		expect(t.problems().size()).to_equal(size_t{0});
+		expect(t.size() > size_t{2000}).to_be_true();
+		expect(t.unasked()).to_equal(std::string{});
+	});
+});
 // clang-format on
 
 DELUGE_SPEC(shortcuts_spec, shortcuts_transcription, shortcuts_shape, shortcuts_validation, shortcuts_profile,
             shortcuts_version_1, shortcut_blink_cadence, shortcut_blink_plan, shortcut_overlay_colours,
-            shortcut_landing)
+            shortcut_landing, shortcuts_reference_rows)

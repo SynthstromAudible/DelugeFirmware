@@ -14,7 +14,6 @@
 /// @note This file may include `gui/menu_item/`, `gui/ui/menus.h` and `gui/ui/sound_editor.h`; the specs that read
 ///       the tables do not.
 
-#include "support/legacy_menu_order.h"
 #include "support/menu_over_root.h"
 #include "support/oracle_table.h"
 #include "support/oracle_tree.h"
@@ -30,6 +29,7 @@
 #include "scenes/menu/nodes/dynamic.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/relevance.h"
+#include "scenes/menu/shortcuts.h"
 
 // The legacy headers below render through an unqualified `OLED::main`, which resolves inside `gui/ui/menus.cpp` only
 // because that file has a file-scope `using namespace deluge::hid::display`.
@@ -312,6 +312,8 @@ using deluge::hid::display::OLED;
 #include "storage/flash_storage.h"
 
 #include "support/descriptor_fixtures.h"
+#include "support/global_guest_menu.h"
+#include "support/shortcuts_fixtures.h"
 
 #include "cppspec.hpp"
 
@@ -495,6 +497,27 @@ extern deluge::gui::menu_item::Submenu soundEditorRootMenuKitGlobalFX;
 extern deluge::gui::menu_item::HorizontalMenu noteRowEditorRootMenu;
 /// @}
 
+/// @name What the shortcut family reads: the per-root horizontal-menu chains and the menu groups they name, and the
+///       patch-source shortcut table, all file-scope globals no header declares.
+/// @{
+extern deluge::vector<deluge::gui::menu_item::HorizontalMenu*> horizontalMenusChainForSound;
+extern deluge::vector<deluge::gui::menu_item::HorizontalMenu*> horizontalMenusChainForKit;
+extern deluge::vector<deluge::gui::menu_item::HorizontalMenu*> horizontalMenusChainForSong;
+extern deluge::vector<deluge::gui::menu_item::HorizontalMenu*> horizontalMenusChainForAudioClip;
+extern deluge::vector<deluge::gui::menu_item::HorizontalMenu*> horizontalMenusChainForMidiOrCv;
+extern "C++" PatchSource modSourceShortcuts[2][8];
+extern deluge::gui::menu_item::HorizontalMenuGroup arpMenuGroup;
+extern deluge::gui::menu_item::HorizontalMenuGroup arpMenuGroupKit;
+extern deluge::gui::menu_item::HorizontalMenuGroup arpMenuGroupMIDIOrCV;
+extern deluge::gui::menu_item::HorizontalMenuGroup voiceMenuGroup;
+extern deluge::gui::menu_item::HorizontalMenuGroup envMenuGroup;
+extern deluge::gui::menu_item::HorizontalMenuGroup lfoMenuGroup;
+extern deluge::gui::menu_item::HorizontalMenuGroup reverbMenuGroup;
+extern deluge::gui::menu_item::HorizontalMenuGroup filtersMenuGroup;
+extern deluge::gui::menu_item::HorizontalMenuGroup globalFiltersMenuGroup;
+extern deluge::gui::menu_item::HorizontalMenuGroup globalReverbMenuGroup;
+/// @}
+
 namespace {
 
 using deluge::scenes::spec::oracle_escape;
@@ -598,11 +621,32 @@ void check(bool ok, const std::string& what) {
 	}
 }
 
+/// @brief @p items, the children of @p menu, in the order `menu` shows them.
+///
+/// `eq::EqMenu` reorders its four items on its first render, to bass, bass frequency, treble frequency, treble -- the
+/// graph's handles left to right -- and the port's `nodes::eq` lists them in that order. Every other menu's order is
+/// its constructor's.
+deluge::vector<::MenuItem*> in_menu_order(::MenuItem& menu, const deluge::vector<::MenuItem*>& items) {
+	deluge::vector<::MenuItem*> out = items;
+	if (dynamic_cast<legacy::eq::EqMenu*>(&menu) == nullptr) {
+		return out;
+	}
+	namespace params = deluge::modulation::params;
+	constexpr std::array kOrder{params::UNPATCHED_BASS, params::UNPATCHED_BASS_FREQ, params::UNPATCHED_TREBLE_FREQ,
+	                            params::UNPATCHED_TREBLE};
+	const auto rank = [&](::MenuItem* item) {
+		const auto p = static_cast<legacy::UnpatchedParam*>(item)->getP();
+		return std::distance(kOrder.begin(), std::ranges::find(kOrder, p));
+	};
+	std::ranges::stable_sort(out, {}, rank);
+	return out;
+}
+
 /// @brief Read a `Submenu`'s protected child list: the pointer-to-member is formed inside a derived class, which
 ///        [class.protected] permits.
 struct SubmenuPeek : legacy::Submenu {
 	static deluge::vector<::MenuItem*> items_of(legacy::Submenu& menu) {
-		return spec::in_menu_order(menu, menu.*(&SubmenuPeek::items));
+		return in_menu_order(menu, menu.*(&SubmenuPeek::items));
 	}
 };
 
@@ -2593,6 +2637,382 @@ void freeze(OracleWriter& out) {
 
 } // namespace descriptors
 
+// ---------------------------------------------------------------------------------------------------------------
+// Family `shortcuts`: the shortcut layouts, the blink plans, the overlay colours and the landing pages.
+
+namespace shortcuts {
+
+namespace fx = spec::shortcuts;
+namespace t3 = spec::tables3;
+
+/// @brief The sentinel the shortcut tables hold in a cell that is "not implemented": a popup and no navigation.
+::MenuItem* coming_soon() {
+	return reinterpret_cast<::MenuItem*>(0xFFFFFFFFu);
+}
+
+bool is_empty_cell(const ::MenuItem* item) {
+	return item == nullptr || item == coming_soon();
+}
+
+/// @brief One legacy shortcut array: a 16x8 grid, or the one-dimensional table that lives in column 11.
+struct Layout {
+	const char* name;
+	::MenuItem* (*grid)[kDisplayHeight];
+	::MenuItem** column;
+};
+
+const Layout kLayouts[] = {
+    {"sounds", paramShortcutsForSounds, nullptr},
+    {"sounds_second", paramShortcutsForSoundsSecondLayer, nullptr},
+    {"audio_clips", paramShortcutsForAudioClips, nullptr},
+    {"song_view", paramShortcutsForSongView, nullptr},
+    {"kit_global_fx", paramShortcutsForKitGlobalFX, nullptr},
+    {"midi_cv", nullptr, midiOrCVParamShortcuts},
+    {"gate_drum", nullptr, gateDrumParamShortcuts},
+};
+
+const Layout& layout_named(std::string_view name) {
+	for (const Layout& l : kLayouts) {
+		if (name == l.name) {
+			return l;
+		}
+	}
+	std::abort();
+}
+
+::MenuItem* cell_of(const Layout& l, int32_t x, int32_t y) {
+	if (l.grid != nullptr) {
+		return l.grid[x][y];
+	}
+	return x == 11 ? l.column[y] : nullptr;
+}
+
+/// @brief Every tree path of every root at which each legacy item sits, joined by spaces, in the order the roots and
+///        their children are walked.
+const std::map<const ::MenuItem*, std::vector<std::string>>& item_paths() {
+	static const std::map<const ::MenuItem*, std::vector<std::string>> paths = [] {
+		std::map<const ::MenuItem*, std::vector<std::string>> out;
+		for (const t3::TablesRoot& root : t3::roots()) {
+			t3::install(root.ctx, root.song);
+			std::vector<Pair> pairs;
+			std::string where;
+			check(walk(*root.node, *legacy_root_for(root.name), root.name, pairs, where), "walk: " + where);
+			for (const auto& [e, item] : pairs) {
+				out[item].push_back(e.path);
+			}
+		}
+		return out;
+	}();
+	return paths;
+}
+
+/// @brief The menu groups the chains name. No tree lists a group and every group's name is "None", so the rows name
+///        each by the port node that stands for it.
+std::string group_label(const ::MenuItem* item) {
+	const std::pair<const ::MenuItem*, const char*> groups[] = {
+	    {&arpMenuGroup, "group:arp_group"},
+	    {&arpMenuGroupKit, "group:arp_group_kit"},
+	    {&arpMenuGroupMIDIOrCV, "group:arp_group_midi"},
+	    {&voiceMenuGroup, "group:voice_group"},
+	    {&envMenuGroup, "group:env_group"},
+	    {&lfoMenuGroup, "group:lfo_group"},
+	    {&reverbMenuGroup, "group:reverb_group"},
+	    {&filtersMenuGroup, "group:filters_group"},
+	    {&globalFiltersMenuGroup, "group:global_filters_group"},
+	    {&globalReverbMenuGroup, "group:global_reverb_group"},
+	    {&sourceMenuGroup, "group:source_group"},
+	};
+	for (const auto& [group, label] : groups) {
+		if (item == group) {
+			return label;
+		}
+	}
+	return {};
+}
+
+/// @brief How the cell rows name @p item: its tree paths, `-` for no item, `group:<node>` for a menu group, or
+///        `name:<its name>` for an item no root reaches. With @p root, only the paths in that root's own tree where the
+///        item sits in it.
+std::string paths_of(::MenuItem* item, std::string_view root = {}) {
+	if (is_empty_cell(item)) {
+		return "-";
+	}
+	if (std::string group = group_label(item); !group.empty()) {
+		return group;
+	}
+	const auto found = item_paths().find(item);
+	if (found == item_paths().end()) {
+		return "name:" + std::string{item->getName()};
+	}
+	return root.empty() ? fx::join_paths(found->second) : fx::paths_in_root(found->second, root);
+}
+
+/// @brief Select `SHORTCUTS_VERSION_1` on both sides for the scope, and put everything back.
+///
+/// `SoundEditor::setShortcutsVersion` writes into the legacy arrays, and its `SHORTCUTS_VERSION_3` arm is a comment,
+/// not an undo, so nothing but this guard restores them. Twelve cells are snapshotted: the six of
+/// `paramShortcutsForSounds` and four of `paramShortcutsForAudioClips` the V1 arm assigns, plus the two
+/// `modSourceShortcuts` ones.
+struct LegacyVersion1 {
+	::MenuItem* sounds[6];
+	::MenuItem* clips[4];
+	PatchSource sources[2];
+	uint8_t legacy_version;
+	menu::ShortcutsVersion port_version;
+
+	LegacyVersion1() {
+		const std::pair<uint8_t, uint8_t> sound_cells[6] = {{0, 6}, {1, 6}, {2, 6}, {3, 6}, {2, 7}, {3, 7}};
+		for (size_t i = 0; i < 6; i++) {
+			sounds[i] = paramShortcutsForSounds[sound_cells[i].first][sound_cells[i].second];
+		}
+		const std::pair<uint8_t, uint8_t> clip_cells[4] = {{0, 7}, {1, 7}, {0, 6}, {1, 6}};
+		for (size_t i = 0; i < 4; i++) {
+			clips[i] = paramShortcutsForAudioClips[clip_cells[i].first][clip_cells[i].second];
+		}
+		sources[0] = modSourceShortcuts[0][7];
+		sources[1] = modSourceShortcuts[1][7];
+		legacy_version = soundEditor.shortcutsVersion;
+		port_version = menu::shortcuts_version();
+
+		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_1);
+		menu::set_shortcuts_version(menu::ShortcutsVersion::V1);
+	}
+
+	~LegacyVersion1() {
+		const std::pair<uint8_t, uint8_t> sound_cells[6] = {{0, 6}, {1, 6}, {2, 6}, {3, 6}, {2, 7}, {3, 7}};
+		for (size_t i = 0; i < 6; i++) {
+			paramShortcutsForSounds[sound_cells[i].first][sound_cells[i].second] = sounds[i];
+		}
+		const std::pair<uint8_t, uint8_t> clip_cells[4] = {{0, 7}, {1, 7}, {0, 6}, {1, 6}};
+		for (size_t i = 0; i < 4; i++) {
+			paramShortcutsForAudioClips[clip_cells[i].first][clip_cells[i].second] = clips[i];
+		}
+		modSourceShortcuts[0][7] = sources[0];
+		modSourceShortcuts[1][7] = sources[1];
+		soundEditor.shortcutsVersion = legacy_version;
+		menu::set_shortcuts_version(port_version);
+	}
+	LegacyVersion1(const LegacyVersion1&) = delete;
+	LegacyVersion1& operator=(const LegacyVersion1&) = delete;
+};
+
+std::string cell_key(std::string_view table, std::string_view version, int32_t x, int32_t y) {
+	return "cell/" + std::string{table} + "/" + std::string{version} + "/" + std::to_string(x) + ","
+	       + std::to_string(y);
+}
+
+/// @brief Every cell of @p table: which item it holds, and, on the V3 layout, the item's name and whether the cell is a
+///        coming-soon one.
+void emit_layout(OracleWriter& out, const Layout& table, std::string_view version) {
+	for (int32_t x = 0; x < kDisplayWidth; x++) {
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			if (table.grid == nullptr && x != 11) {
+				continue;
+			}
+			::MenuItem* item = cell_of(table, x, y);
+			const std::string key = cell_key(table.name, version, x, y);
+			out.row(key, "item", paths_of(item));
+			if (version != "v3") {
+				continue;
+			}
+			if (item == coming_soon()) {
+				out.row(key, "soon");
+			}
+			else if (item != nullptr) {
+				out.row(key, "name", std::string{item->getName()});
+			}
+		}
+	}
+}
+
+/// @brief Everything `updatePadLightsFor` planned, spelled so two plans compare as text.
+std::string legacy_plan() {
+	std::string out;
+	if (soundEditor.currentParamShortcutX != kNoSelection) {
+		out += "param " + std::to_string(soundEditor.currentParamShortcutX) + ","
+		       + std::to_string(soundEditor.currentParamShortcutY) + " f"
+		       + std::to_string(soundEditor.paramShortcutBlinkFrequency) + " "
+		       + fx::colour_name(soundEditor.currentParamColour) + ";";
+		for (int32_t sx = 0; sx < 2; sx++) {
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				const uint8_t f = soundEditor.sourceShortcutBlinkFrequency(sx, y);
+				if (f != 255) {
+					out += " src " + std::to_string(sx) + "," + std::to_string(y) + " f" + std::to_string(f) + " "
+					       + fx::colour_name(soundEditor.sourceShortcutBlinkColour(sx, y))
+					       + (soundEditor.sourceShortcutBlinkAlternates(sx, y) ? " alt" : "");
+				}
+			}
+		}
+	}
+	return out;
+}
+
+/// @brief Legacy's plan for @p item, from a clean slate.
+std::string legacy_plan_for(::MenuItem* item) {
+	soundEditor.currentParamShortcutX = kNoSelection;
+	soundEditor.updatePadLightsFor(item);
+	return legacy_plan();
+}
+
+void emit_blinks(OracleWriter& out, const MenuContext& ctx) {
+	check(fx::seed_blink_cables(ctx), "seeding the blink cables");
+	soundEditor.currentSourceIndex = 0;
+	namespace p = deluge::modulation::params;
+	const auto plan = [&](const std::string& where, ::MenuItem* item) {
+		out.row("blink/" + where, "plan", legacy_plan_for(item));
+	};
+
+	// Every leaf of the sound root; the patch cables page plans from its own timer, below.
+	std::vector<Pair> pairs;
+	std::string problem;
+	check(walk(nodes::sound_root, soundEditorRootMenu, "sound", pairs, problem), "walk: " + problem);
+	for (const auto& [e, item] : pairs) {
+		if (e.node->kind != menu::Kind::Submenu && e.node != &nodes::patch_cables) {
+			plan("leaf " + e.path, item);
+		}
+	}
+
+	// The source pickers and strength pages, over params on both layers and the volume triple.
+	const uint8_t kParams[] = {p::LOCAL_LPF_FREQ,     p::GLOBAL_VOLUME_POST_FX,
+	                           p::LOCAL_VOLUME,       p::GLOBAL_VOLUME_POST_REVERB_SEND,
+	                           p::LOCAL_ENV_2_ATTACK, p::LOCAL_PITCH_ADJUST};
+	const PatchSource kSources[] = {PatchSource::ENVELOPE_1, PatchSource::ENVELOPE_3, PatchSource::LFO_GLOBAL_1,
+	                                PatchSource::AFTERTOUCH, PatchSource::RANDOM};
+	for (const uint8_t param : kParams) {
+		soundEditor.patchingParamSelected = param;
+		plan("regular source list p" + std::to_string(param), &legacy::source_selection::regularMenu);
+		for (const PatchSource source : kSources) {
+			legacy::source_selection::regularMenu.s = source;
+			const std::string tag = " p" + std::to_string(param) + " s" + std::to_string(static_cast<int>(source));
+			plan("regular strength" + tag, &legacy::patch_cable_strength::regularMenu);
+			plan("range source list" + tag, &legacy::source_selection::rangeMenu);
+			for (const PatchSource range : {PatchSource::LFO_LOCAL_1, PatchSource::VELOCITY}) {
+				legacy::source_selection::rangeMenu.s = range;
+				plan("range strength" + tag + " r" + std::to_string(static_cast<int>(range)),
+				     &legacy::patch_cable_strength::rangeMenu);
+			}
+		}
+	}
+
+	PatchCableSet* set = spec::menu_engine(ctx).params->getPatchCableSetAllowJibberish();
+	for (int32_t i = 0; i < set->numPatchCables; i++) {
+		patchCablesMenu.currentValue = i;
+		soundEditor.currentParamShortcutX = kNoSelection;
+		patchCablesMenu.blinkShortcuts();
+		out.row("blink/patch cables row " + std::to_string(i), "plan", legacy_plan());
+	}
+}
+
+/// @brief The colour main paints on each of the sound root's 128 main pads while SHIFT is held.
+void emit_overlay(OracleWriter& out) {
+	RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+	uint8_t occupancy[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+	SoundEditor::renderMainShortcutsOnly(soundEditor.currentModControllable, image, occupancy, false);
+	for (int32_t x = 0; x < kDisplayWidth; x++) {
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			const RGB c = image[y][x];
+			out.row("overlay/sound/" + std::to_string(x) + "," + std::to_string(y), "rgb",
+			        {std::to_string(c.r), std::to_string(c.g), std::to_string(c.b)});
+		}
+	}
+}
+
+/// @brief `SoundEditor::maybeGetParentMenu`'s answer for @p item against @p chain: null for the start markers, the
+/// audio
+///        clip's end marker and the file selectors, else the first chain menu that lists it.
+legacy::HorizontalMenu* legacy_parent(const deluge::vector<legacy::HorizontalMenu*>& chain, ::MenuItem* item) {
+	if (item == &sample0StartMenu || item == &sample1StartMenu || item == &audioClipSampleMarkerEditorMenuEnd) {
+		return nullptr;
+	}
+	const auto listing = std::ranges::find_if(chain, [&](legacy::HorizontalMenu* m) { return m->hasItem(item); });
+	if (listing == chain.end()) {
+		return nullptr;
+	}
+	if (item == &legacy::file0SelectorMenu || item == &legacy::file1SelectorMenu) {
+		return nullptr;
+	}
+	return *listing;
+}
+
+/// @brief A port root's label, the shortcut arrays it presses, and the chain legacy searches for it.
+struct LandingRoot {
+	const char* label;
+	const char* pages_in; ///< the root whose tree the chain's pages are named in
+	const char* table;
+	const char* second_table; ///< null where the root has no distinct second layer
+	bool drum_name_editor;    ///< a kit row swaps the name editor for the drum's
+	deluge::vector<legacy::HorizontalMenu*>* chain;
+};
+
+/// @brief Every root with shortcut cells, paired as `getCurrentHorizontalMenusChain` pairs them: a kit row and its
+///        MIDI/gate drums take the sound chain, the session roots the song chain.
+std::vector<LandingRoot> landing_roots() {
+	return {
+	    {"sound", "sound", "sounds", "sounds_second", false, &horizontalMenusChainForSound},
+	    {"drum", "drum", "sounds", "sounds_second", true, &horizontalMenusChainForSound},
+	    {"midi drum", "midi drum", "midi_cv", nullptr, true, &horizontalMenusChainForSound},
+	    {"gate drum", "gate drum", "gate_drum", nullptr, true, &horizontalMenusChainForSound},
+	    {"kit global fx", "kit global fx", "kit_global_fx", nullptr, false, &horizontalMenusChainForKit},
+	    {"song", "song", "song_view", nullptr, false, &horizontalMenusChainForSong},
+	    {"performance", "song", "song_view", nullptr, false, &horizontalMenusChainForSong},
+	    {"audio clip", "audio clip", "audio_clips", nullptr, false, &horizontalMenusChainForAudioClip},
+	    {"midi/cv", "midi/cv", "midi_cv", nullptr, false, &horizontalMenusChainForMidiOrCv},
+	};
+}
+
+/// @brief The page each pressable cell of each root opens on: where the chain search finds the item's menu.
+void emit_landings(OracleWriter& out) {
+	const bool was_on = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus);
+	runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);
+	for (const LandingRoot& lr : landing_roots()) {
+		for (const char* table : {lr.table, lr.second_table}) {
+			if (table == nullptr) {
+				continue;
+			}
+			const bool second = table == lr.second_table;
+			const Layout& layout = layout_named(table);
+			for (int32_t x = 0; x < kDisplayWidth; x++) {
+				for (int32_t y = 0; y < kDisplayHeight; y++) {
+					::MenuItem* item = cell_of(layout, x, y);
+					if (is_empty_cell(item)) {
+						continue;
+					}
+					if (lr.drum_name_editor && item == &editNameMenu) {
+						item = &drumNameEditMenu;
+					}
+					out.row("land/" + std::string{lr.label} + (second ? "/2/" : "/") + std::to_string(x) + ","
+					            + std::to_string(y),
+					        "page", paths_of(legacy_parent(*lr.chain, item), lr.pages_in));
+				}
+			}
+		}
+	}
+	runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus,
+	                           was_on ? RuntimeFeatureStateToggle::On : RuntimeFeatureStateToggle::Off);
+}
+
+void freeze(OracleWriter& out) {
+	const fx::FreeverbModel freeverb;
+	(void)item_paths();
+	const MenuContext& ctx = fx::install_sound_context();
+	soundEditor.navigationDepth = 0;
+	for (const Layout& table : kLayouts) {
+		emit_layout(out, table, "v3");
+	}
+	{
+		const LegacyVersion1 guard;
+		emit_layout(out, layout_named("sounds"), "v1");
+		emit_layout(out, layout_named("audio_clips"), "v1");
+	}
+	spec::UiStackGuard ui;
+	setRootUILowLevel(&instrumentClipView);
+	emit_blinks(out, ctx);
+	emit_overlay(out);
+	emit_landings(out);
+}
+
+} // namespace shortcuts
+
 } // namespace
 
 // clang-format off
@@ -2607,7 +3027,7 @@ describe freeze_frame("menu oracle freezer: its run", $ {
 // clang-format on
 
 // clang-format off
-describe freeze_tables("menu oracle freezer: the batch-1 roots, the sound root, the ten roots and the setting rows", $ {
+describe freeze_tables("menu oracle freezer: the batch-1 roots, the sound root, the ten roots, the setting rows and the shortcut layouts", $ {
 	it("writes tables_1.tsv", _ {
 		if (!writes("tables_1")) {
 			return;
@@ -2644,6 +3064,19 @@ describe freeze_tables("menu oracle freezer: the batch-1 roots, the sound root, 
 		expect(freeze_problems()).to_equal(std::string{});
 		expect(out.duplicates()).to_equal(std::string{});
 		expect(out.size() > size_t{3000}).to_be_true();
+		expect(out.flush()).to_be_true();
+	});
+
+	it("writes shortcuts.tsv", _ {
+		if (!writes("shortcuts")) {
+			return;
+		}
+		freeze_problems().clear();
+		OracleWriter out{"shortcuts"};
+		shortcuts::freeze(out);
+		expect(freeze_problems()).to_equal(std::string{});
+		expect(out.duplicates()).to_equal(std::string{});
+		expect(out.size() > size_t{2000}).to_be_true();
 		expect(out.flush()).to_be_true();
 	});
 
