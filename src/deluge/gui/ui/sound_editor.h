@@ -22,6 +22,7 @@
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "modulation/arpeggiator.h"
+#include "util/shell_menu_entry.h"
 
 #define SHORTCUTS_VERSION_1 0
 #define SHORTCUTS_VERSION_3 1
@@ -143,7 +144,8 @@ public:
 	bool editingReverbSidechain();
 	MenuItem* getCurrentMenuItem();
 	bool inSettingsMenu();
-	bool setupKitGlobalFXMenu;
+	/// The kit-global-FX latch, which the ported menu reads and writes too (`deluge::gui::ui::shellKitGlobalFxLatch`).
+	bool& setupKitGlobalFXMenu{deluge::gui::ui::shellKitGlobalFxLatch()};
 	ActionResult exitUI() override { return exitCompletely(); };
 	ActionResult exitCompletely();
 	void goUpOneLevel();

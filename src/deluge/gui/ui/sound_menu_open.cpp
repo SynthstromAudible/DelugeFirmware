@@ -39,7 +39,7 @@ bool soundMenuOpen() {
 }
 
 bool soundMenuKitGlobalFx() {
-	return shellSoundMenuOpen() ? shellKitGlobalFx() : soundEditor.setupKitGlobalFXMenu;
+	return shellKitGlobalFx();
 }
 
 bool soundMenuCurrent() {

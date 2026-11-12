@@ -251,6 +251,10 @@ void clearShellKitGlobalFx() {
 	kitGlobalFxLatch = false;
 }
 
+bool& shellKitGlobalFxLatch() {
+	return kitGlobalFxLatch;
+}
+
 void latchShellKitGlobalFxOnReentry() {
 	kitGlobalFxLatch = kitGlobalFxLatch
 	                   || (currentSong != nullptr && kitAffectEntireNow(getCurrentClip())

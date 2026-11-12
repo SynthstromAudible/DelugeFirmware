@@ -136,9 +136,7 @@ void setViewStates(GuestServices& services) {
 } // namespace
 
 void handOffGuestOverlays(uint32_t now_ms) {
-	// The menu's kit context goes with it (`adoptShellMenuContext` wrote it at open), as legacy's `exitCompletely`
-	// clears it; a legacy menu opened afterwards sets it only when it means it.
-	soundEditor.setupKitGlobalFXMenu = false;
+	// The kit-global-FX latch goes with the menu, as `exitCompletely` clears it.
 	clearShellKitGlobalFx();
 	// The automation view's follow of the closing menu's last move goes with the menu (`closeGuest` has applied the
 	// flush's settings already). On the tick's close path the drain after `Shell::tick` has emptied it.

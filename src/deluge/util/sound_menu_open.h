@@ -38,8 +38,7 @@ bool soundMenuOpen();
 /// @brief Legacy's `getCurrentUI() == &soundEditor`, or the ported menu frontmost on a root other than the settings.
 bool soundMenuCurrent();
 
-/// @brief Legacy's `soundEditor.setupKitGlobalFXMenu`, or under the ported menu its latch (`shellKitGlobalFx`), the one
-///        source the menu's own shortcut presses read too.
+/// @brief The kit-global-FX latch (`shellKitGlobalFx`), which both menus' shortcut presses read and write.
 bool soundMenuKitGlobalFx();
 
 /// @brief Legacy's `getCurrentUI() == &soundEditor`, whatever its root, or the ported menu frontmost on any root.

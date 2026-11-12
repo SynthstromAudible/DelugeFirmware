@@ -5675,7 +5675,6 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 
 	// This operation targets the new drum, even if a previous grid-pad action left
 	// the editor configured for kit-global FX while Affect Entire was enabled.
-	soundEditor.setupKitGlobalFXMenu = false;
 	deluge::gui::ui::clearShellKitGlobalFx();
 
 	// Under the shell menu the ported browser, or for a take the ported recorder, opens on the new drum

@@ -230,6 +230,10 @@ bool shellKitGlobalFx();
 ///        `setupKitGlobalFXMenu`.
 void clearShellKitGlobalFx();
 
+/// @brief The kit-global-FX latch itself. The legacy editor's `setupKitGlobalFXMenu` is a reference onto it, so the
+///        two menus read and write one latch.
+bool& shellKitGlobalFxLatch();
+
 /// @brief `SoundEditor::enterOrUpdateSoundEditor`'s write, for the menu re-entered from a UI over it (the browser's
 ///        claim, the marker editor's shortcut jump): a kit clip with affect-entire on, with SHIFT held and no audition,
 ///        sets the latch `shellKitGlobalFx` reads.
