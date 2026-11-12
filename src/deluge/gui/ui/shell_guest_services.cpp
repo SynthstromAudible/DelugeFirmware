@@ -34,6 +34,7 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
@@ -54,6 +55,7 @@
 #include "scenes/services/global_controls.h"
 #include "scenes/services/midi_learn.h"
 #include "scenes/services/mod_knobs.h"
+#include "scenes/services/view_state.h"
 #include "scenes/slicing/slicer_scene.h"
 #include "util/shell_menu_entry.h"
 #include "util/sound_menu_open.h"
@@ -431,6 +433,14 @@ void wireShellGuestServices() {
 	// second call neither double-ticks nor strands a slot (`shell/shell.h`'s `set_services`).
 	shellHostUI.shell().set_services(
 	    {.mod_knobs = &services.knobs, .global_controls = &services.controls, .midi_learn = &services.learn});
+}
+
+void wireShellClipCloneViews() {
+	deluge::model::setAudioClipCloneFollower([](uint32_t from, uint32_t to) {
+		using deluge::scenes::services::ViewKey;
+		deluge::scenes::services::view_state().copy_view(ViewKey{.kind = ViewKey::Kind::AUDIO_CLIP, .id = from},
+		                                                 ViewKey{.kind = ViewKey::Kind::AUDIO_CLIP, .id = to});
+	});
 }
 
 } // namespace deluge::gui::ui

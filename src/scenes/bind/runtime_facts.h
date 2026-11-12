@@ -122,6 +122,16 @@ public:
 		(void)source;
 		return std::nullopt;
 	}
+	/// @brief The identity of range @p range of source @p source of the sound at @p slot (`MultiRange::identity`). It
+	/// names the range itself: it moves with the range as ranges are inserted or deleted before it, and stays while
+	/// another file is loaded into it. None where the address names no range.
+	[[nodiscard]] virtual std::optional<uint64_t> range_identity(project::SlotAddress slot, uint8_t source,
+	                                                             uint16_t range) const {
+		(void)slot;
+		(void)source;
+		(void)range;
+		return std::nullopt;
+	}
 	/// @brief The DX7 bank the last `.syx` read loaded, which the cartridge page lists; none before one has loaded or
 	/// for a host that reads none.
 	[[nodiscard]] virtual std::optional<DxCartridgeNames> dx_cartridge() const { return std::nullopt; }

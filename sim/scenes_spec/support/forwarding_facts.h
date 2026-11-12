@@ -34,6 +34,10 @@ public:
 	                                                    uint8_t source) const override {
 		return real_.default_range(slot, source);
 	}
+	[[nodiscard]] std::optional<uint64_t> range_identity(deluge::project::SlotAddress slot, uint8_t source,
+	                                                     uint16_t range) const override {
+		return real_.range_identity(slot, source, range);
+	}
 	[[nodiscard]] std::optional<deluge::scenes::bind::DxCartridgeNames> dx_cartridge() const override {
 		return real_.dx_cartridge();
 	}

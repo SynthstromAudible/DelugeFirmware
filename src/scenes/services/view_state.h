@@ -2,8 +2,8 @@
 
 /// @file
 /// @brief What the scenes remember of how they were last looking at something: a waveform's scroll, zoom and loop
-///        lock, the range last edited. View state, keyed by address; never written to the song or a sound, and not
-///        saved.
+///        lock, the range last edited. View state, keyed by what it belongs to; never written to the song or a sound,
+///        and not saved.
 
 #include "deluge-project/clip_address.h"
 #include "deluge-project/drum_type.h"
@@ -36,12 +36,25 @@ struct MenuView {
 	bool operator==(const MenuView&) const = default;
 };
 
+/// @brief Whose a remembered view is: a sound's source range, by the range's identity
+///        (`bind::RuntimeFacts::range_identity`), or an audio clip, by its id. A range's view stays with the range
+///        whatever file is loaded into it and wherever it moves among its source's ranges, as main keeps it on the
+///        range's sample holder.
+struct ViewKey {
+	enum class Kind : uint8_t {
+		RANGE,      ///< @ref id is the range's identity
+		AUDIO_CLIP, ///< @ref id is the clip's id
+	};
+	Kind kind{Kind::RANGE};
+	uint64_t id{0};
+	bool operator==(const ViewKey&) const = default;
+};
+
 /// @brief How a waveform was last viewed.
 struct SampleView {
 	int64_t scroll{0};
 	int64_t zoom{0};
 	bool loop_locked{false};
-	std::string file; ///< the file it was viewing, which the view belongs to
 };
 
 /// @brief The scenes' view state for one song: a lookup for another song finds nothing.
@@ -54,27 +67,31 @@ public:
 			song_ = song;
 		}
 	}
-	/// @brief The view remembered at @p address while it showed @p file, or nullopt.
-	[[nodiscard]] std::optional<SampleView> sample_view(const WaveformAddress& address, std::string_view file) const {
-		const std::optional<SampleView> view = sample_view(address);
-		return view && view->file == file ? view : std::nullopt;
-	}
-	[[nodiscard]] std::optional<SampleView> sample_view(const WaveformAddress& address) const {
+	/// @brief The view remembered for @p key, or nullopt.
+	[[nodiscard]] std::optional<SampleView> sample_view(const ViewKey& key) const {
 		for (const auto& [at, view] : sample_views_) {
-			if (at == address) {
+			if (at == key) {
 				return view;
 			}
 		}
 		return std::nullopt;
 	}
-	void set_sample_view(const WaveformAddress& address, SampleView view) {
+	void set_sample_view(const ViewKey& key, SampleView view) {
 		for (auto& [at, held] : sample_views_) {
-			if (at == address) {
+			if (at == key) {
 				held = view;
 				return;
 			}
 		}
-		sample_views_.emplace_back(address, view);
+		sample_views_.emplace_back(key, view);
+	}
+	/// @brief Give @p to the scroll and zoom remembered for @p from, as a cloned audio clip's sample holder takes the
+	///        original's; nothing when none is remembered. The loop lock is not copied: main's clone copies the view
+	///        alone.
+	void copy_view(const ViewKey& from, const ViewKey& to) {
+		if (const std::optional<SampleView> view = sample_view(from)) {
+			set_sample_view(to, {.scroll = view->scroll, .zoom = view->zoom});
+		}
 	}
 	/// @brief The clip the views have open, as a menu would open over it: what the global buttons and MIDI learn ask
 	///        of "the current clip". The app tells the store; none until it does.
@@ -83,7 +100,7 @@ public:
 
 private:
 	uint64_t song_{0};
-	std::vector<std::pair<WaveformAddress, SampleView>> sample_views_;
+	std::vector<std::pair<ViewKey, SampleView>> sample_views_;
 	MenuView current_view_{};
 };
 

@@ -228,3 +228,13 @@ private:
 	/// Priority for loading our Clusters: ahead of every Voice of the same VoicePriority (lower = more urgent).
 	[[nodiscard]] int32_t getClusterPriority() const;
 };
+
+namespace deluge::model {
+
+/// @brief Told of every audio clip cloned, with the original's id and the clone's: what remembers a clip's view
+///        copies it, as the clone's sample holder takes the original's (`SampleHolder::beenClonedFrom`).
+using AudioClipCloneFollower = void (*)(uint32_t from, uint32_t to);
+/// @brief Install @p follower, the one `AudioClip::clone` tells; null installs none.
+void setAudioClipCloneFollower(AudioClipCloneFollower follower);
+
+} // namespace deluge::model

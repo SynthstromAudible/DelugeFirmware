@@ -162,16 +162,24 @@ bool MarkerScene::reversed() const {
 	return source != nullptr && source->reversed;
 }
 
-std::string MarkerScene::file() const {
-	const deluge::instrument::RangeState* range = range_state();
-	return range != nullptr ? range->file_path : std::string{};
+std::optional<services::ViewKey> MarkerScene::view_key_of() const {
+	// Main keeps the view and the lock on the sample holder: the audio clip's own, or the range's. The range's
+	// identity names that range object, so its view stays with it whatever file is loaded into it and wherever it
+	// moves among its source's ranges.
+	if (where_.kind == services::WaveformAddress::Kind::AUDIO_CLIP) {
+		return services::ViewKey{.kind = services::ViewKey::Kind::AUDIO_CLIP, .id = where_.clip.clip_id};
+	}
+	const std::optional<uint64_t> range =
+	    ctx_.facts != nullptr ? ctx_.facts->range_identity(where_.slot, where_.source, where_.range) : std::nullopt;
+	if (!range) {
+		return std::nullopt;
+	}
+	return services::ViewKey{.kind = services::ViewKey::Kind::RANGE, .id = *range};
 }
 
 services::SampleView MarkerScene::view() const {
-	// A view remembered for another file -- the range now holds a different sample -- is not this one's.
-	services::SampleView v = services::view_state().sample_view(where_, file()).value_or(services::SampleView{});
-	v.file = file();
-	return v;
+	return view_key_ ? services::view_state().sample_view(*view_key_).value_or(services::SampleView{})
+	                 : services::SampleView{};
 }
 
 void MarkerScene::follow_waveform(const services::WaveformInfo& info) {
@@ -239,6 +247,7 @@ bool MarkerScene::on_enter(const SceneId& id) {
 	                   : MarkerType::START;
 
 	where_ = *address_of(ctx_);
+	view_key_ = view_key_of();
 	services::view_state().forget_unless(ctx_.model != nullptr ? ctx_.model->identity() : 0);
 	nav_.sample = nullptr;
 	waveform_identity_ = 0;
@@ -327,11 +336,11 @@ int32_t end_pos_from_col(const deluge::sample::WaveformNav& nav, int32_t col) {
 
 void MarkerScene::record_scroll_and_zoom() {
 	// `SampleMarkerEditor::recordScrollAndZoom` (`:140`), into the view-state store.
-	if (marker_type_ != MarkerType::NONE) {
+	if (marker_type_ != MarkerType::NONE && view_key_) {
 		services::SampleView v = view();
 		v.scroll = nav_.xScroll;
 		v.zoom = nav_.xZoom;
-		services::view_state().set_sample_view(where_, v);
+		services::view_state().set_sample_view(*view_key_, v);
 	}
 }
 
@@ -352,9 +361,11 @@ void MarkerScene::set_loop_locked(bool locked, bool announce) {
 	if (ctx_.is_audio_clip) {
 		return;
 	}
-	services::SampleView v = view();
-	v.loop_locked = locked;
-	services::view_state().set_sample_view(where_, v);
+	if (view_key_) {
+		services::SampleView v = view();
+		v.loop_locked = locked;
+		services::view_state().set_sample_view(*view_key_, v);
+	}
 	if (announce) {
 		pending_popup_ = locked ? String::STRING_FOR_LOOP_LOCKED : String::STRING_FOR_LOOP_FREE;
 	}

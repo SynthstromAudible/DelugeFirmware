@@ -706,6 +706,9 @@ static void deluge_boot(const DelugeBoard* board) {
 	// kind, so whichever of the two pops a horizontal-menu notification, legacy's popup slot holds it.
 	deluge::gui::ui::wireShellNotificationSink();
 
+	// Install the audio clip clone follower: a cloned clip's marker-editor view starts as the original's.
+	deluge::gui::ui::wireShellClipCloneViews();
+
 	// Build the three real services over the guest's `Shell` and install them. After
 	// `setupBlankSong()` above: all three take `currentSong`, and `ModKnobs` also mirrors `View`'s
 	// active mod controllable, neither of which exists earlier. `ShellHostUI::opened()` calls it

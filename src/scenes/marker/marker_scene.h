@@ -33,7 +33,8 @@
 /// source's record (`RuntimeFacts::sound_state`), an audio clip's are rows of the clip's record.
 /// A move goes to the menu's sink: a sound's as its source's ranges with the marker named, an
 /// audio clip's as a marker request. The view (scroll, zoom) and the loop lock are the scene's
-/// own, kept in the view-state store (`scenes/services/view_state.h`) by waveform address.
+/// own, kept in the view-state store (`scenes/services/view_state.h`) under the range's identity or the audio clip's
+/// id (`services::ViewKey`), so they stay with that range or clip as main keeps them on its sample holder.
 ///
 /// @par The waveform is on the pads only
 ///
@@ -277,9 +278,10 @@ private:
 	Zone zone() const;
 	/// @brief Is the sample played reversed?
 	bool reversed() const;
-	/// @brief The file the range plays, which a remembered view belongs to; empty on an audio clip.
-	std::string file() const;
-	/// @brief The view the store remembers for the waveform while it shows file(), or an empty one for it.
+	/// @brief The key the waveform's view is remembered under: the audio clip's id, or the range's identity; none
+	///        where the host names no range there.
+	std::optional<services::ViewKey> view_key_of() const;
+	/// @brief The view the store remembers for the waveform's range or clip, or an empty one.
 	services::SampleView view() const;
 	/// @brief Follow the waveform @p info describes: its length, and a fresh cache when it is another waveform.
 	void follow_waveform(const services::WaveformInfo& info);
@@ -288,6 +290,8 @@ private:
 	/// The popup `set_loop_locked` queued during the pad press being handled, filed when `handle` returns.
 	std::optional<l10n::String> pending_popup_{};
 	services::WaveformAddress where_{};
+	/// Whose view the editor shows and records, resolved as it opens.
+	std::optional<services::ViewKey> view_key_{};
 	/// The identity of the waveform nav_'s cache holds.
 	uint64_t waveform_identity_ = 0;
 	deluge::sample::WaveformNav nav_{};

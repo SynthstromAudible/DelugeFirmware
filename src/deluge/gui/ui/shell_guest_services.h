@@ -67,6 +67,11 @@ namespace deluge::gui::ui {
 /// uncovered.
 void wireShellGuestServices();
 
+/// @brief Install the audio clip clone follower: a cloned clip's marker-editor view starts as the original's, as main's
+///        clone copies its sample holder's. It holds no `Song` (the store forgets another song's views itself), so it
+///        has no ordering constraint of its own; call it at boot.
+void wireShellClipCloneViews();
+
 /// @brief Re-read the facts about the root UI that the open menu and the knobs hold: the menu's greyout arm and
 ///        whether the root is the keyboard screen or the automation view (`MenuScene::set_root_facts`), and the two
 ///        `ViewState` blocks. Called whenever the root, or the automation view's editor, changes under the menu.

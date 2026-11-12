@@ -308,6 +308,14 @@ public:
 		}
 		return static_cast<uint16_t>(i);
 	}
+	[[nodiscard]] std::optional<uint64_t> range_identity(deluge::project::SlotAddress slot, uint8_t source,
+	                                                     uint16_t range) const override {
+		const ::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
+		if (sound == nullptr || source >= kNumSources || range >= std::ssize(sound->sources[source].ranges)) {
+			return std::nullopt;
+		}
+		return sound->sources[source].ranges.getElement(range)->identity();
+	}
 	[[nodiscard]] uint8_t loaded_sources(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] const deluge::instrument::SoundState* sound_state(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] const deluge::effects::EffectStates*

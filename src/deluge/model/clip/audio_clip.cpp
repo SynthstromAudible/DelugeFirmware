@@ -53,6 +53,15 @@
 
 namespace params = deluge::modulation::params;
 
+namespace {
+/// The follower `AudioClip::clone` tells, if one is installed.
+deluge::model::AudioClipCloneFollower cloneFollower = nullptr;
+} // namespace
+
+void deluge::model::setAudioClipCloneFollower(AudioClipCloneFollower follower) {
+	cloneFollower = follower;
+}
+
 extern "C" {}
 
 AudioClip::AudioClip(Song& song, uint32_t loadedId) : Clip(ClipType::AUDIO, song, loadedId) {
@@ -136,6 +145,9 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 	newClip->setVoicePriority(voicePriority());
 
 	newClip->sampleHolder.beenClonedFrom(&sampleHolder, sampleControls.isCurrentlyReversed());
+	if (cloneFollower != nullptr) {
+		cloneFollower(id(), newClip->id());
+	}
 
 	return Error::NONE;
 }
