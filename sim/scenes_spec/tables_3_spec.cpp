@@ -993,7 +993,8 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			const SynthMode before = spec::menu_engine(sound.ctx).sound->getSynthMode();
 			// The model refuses RINGMOD unless both oscillators can be ring-modulated, as legacy's
 			// relevance does; SAW on both, and the fixture's own types put back after.
-			const OscType before_osc[] = {spec::menu_engine(sound.ctx).sound->sources[0].getOscType(), spec::menu_engine(sound.ctx).sound->sources[1].getOscType()};
+			const OscType before_osc[] = {spec::menu_engine(sound.ctx).sound->sources[0].getOscType(),
+			                              spec::menu_engine(sound.ctx).sound->sources[1].getOscType()};
 			spec::menu_engine(sound.ctx).sound->sources[0].setOscType(OscType::SAW);
 			spec::menu_engine(sound.ctx).sound->sources[1].setOscType(OscType::SAW);
 			menu::bindings::write(nodes::synth_mode, sound.ctx, static_cast<int32_t>(SynthMode::RINGMOD));
@@ -1581,7 +1582,8 @@ describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* ite
 
 		   // The community-features reset's field of the reset witness, moved where `kPerturbed` moves it, so the
 		   // port starts here, through the menu node, where main's frozen reset started.
-		   runtimeFeatureSettings.set(RuntimeFeatureSettingType::DrumRandomizer, spec::reset::kPerturbed.drum_randomizer);
+		   runtimeFeatureSettings.set(RuntimeFeatureSettingType::DrumRandomizer,
+		                              spec::reset::kPerturbed.drum_randomizer);
 
 		   Rig r;
 		   r.open(nodes::reset_settings, settings.ctx);
@@ -1612,7 +1614,8 @@ describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* ite
 		   // Main's community-features reset from the same sentinel, as `context_menu_scene.tsv` holds it
 		   // (`context_menu_scene_spec` asks every row of that table; this example reads one).
 		   expect(std::to_string(ported))
-		       .to_equal(spec::OracleTable::named("context_menu_scene").value("reset/community_features", "drum_randomizer"));
+		       .to_equal(spec::OracleTable::named("context_menu_scene")
+		                     .value("reset/community_features", "drum_randomizer"));
 		   expect(ported != spec::reset::kPerturbed.drum_randomizer).to_be_true(); // the reset ran
 	   });
 });
