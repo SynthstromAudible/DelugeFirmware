@@ -390,6 +390,14 @@ enum class BrowseBlink : uint8_t {
 };
 
 /// @brief The file browser. One instance for the whole application (`registry.h`).
+/// @brief What the preview waveform's renders came to, for a harness that drives the browser as a user does.
+struct WaveformDrawStats {
+	int32_t draws = 0;    ///< renders of a newly previewed sample
+	int32_t redraws = 0;  ///< renders of the same sample while it was unfinished
+	int32_t complete = 0; ///< renders that finished the sample's waveform
+	int32_t give_ups = 0; ///< unfinished waveforms left after `kWaveformRedrawGiveUpMs` with no column resolved
+};
+
 class BrowserScene final : public deluge::ui::shell::Scene {
 public:
 	/// @brief Point the scene at what @p ctx resolved.
@@ -492,6 +500,10 @@ public:
 	bool auto_load() const { return auto_load_; }
 	/// @brief The previewed waveform's scroll and zoom.
 	const deluge::sample::WaveformNav& waveform_nav() const { return nav_; }
+	/// @brief The preview waveform's render counts since the process began.
+	const WaveformDrawStats& waveform_draw_stats() const { return draw_stats_; }
+	/// @brief Whether an unfinished waveform is still being repainted as its clusters land.
+	bool waveform_redraw_pending() const { return redraw_resolved_cols_ >= 0 && !redraw_given_up_; }
 	/// @brief The navigator the preview drew @p sample's waveform through, or null when the preview shows another
 	///        waveform or none. `main`'s slicer renders through this view, `waveformBasicNavigator`, which only
 	///        `SampleBrowser::showPreview` sets up.
@@ -820,6 +832,9 @@ private:
 	/// The incomplete render's progress: the columns it had resolved, and when that last grew (-1: none pending).
 	int32_t redraw_resolved_cols_ = -1;
 	uint32_t redraw_progress_ms_ = 0;
+	/// The unfinished render stopped being repainted for want of progress.
+	bool redraw_given_up_ = false;
+	WaveformDrawStats draw_stats_{};
 	/// The BROWSE pad's blink: which one runs, the cycle's start (reset whenever one is armed), and the last step
 	/// flashed.
 	BrowseBlink browse_blink_ = BrowseBlink::Off;

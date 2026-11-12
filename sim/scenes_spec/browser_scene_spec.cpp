@@ -1073,6 +1073,66 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(r.shell.next_wake().has_value() && *r.shell.next_wake() - r.clock <= kListingPollMs).to_be_false();
 	});
 
+	it("counts one draw per previewed sample, a redraw per unfinished repaint, and the completed render", _ {
+		// A render the card has not caught up with is repainted as its clusters land: one draw, then a redraw that
+		// finishes it.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Sample* sample = make_overview_sample(16);
+		PreviewHeld held(sample);
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		const browser::WaveformDrawStats before = browser_scene().waveform_draw_stats();
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+		expect(browser_scene().waveform_redraw_pending()).to_be_true();
+		for (int32_t i = 16; i < 32; i++) {
+			sample->overviewCacheEntry(static_cast<uint32_t>(i)).investigated = true;
+		}
+		run_until(r, r.clock + 50);
+		const browser::WaveformDrawStats& s = browser_scene().waveform_draw_stats();
+		expect(s.draws - before.draws).to_equal(1);
+		expect(s.redraws - before.redraws >= 1).to_be_true();
+		expect(s.complete - before.complete).to_equal(1);
+		expect(s.give_ups - before.give_ups).to_equal(0);
+		expect(browser_scene().waveform_redraw_pending()).to_be_false();
+	});
+
+	it("counts one give-up when the card stops resolving columns for the give-up time", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample(16));
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		const browser::WaveformDrawStats before = browser_scene().waveform_draw_stats();
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+		expect(browser_scene().waveform_redraw_pending()).to_be_true();
+		run_until(r, r.clock + 400);
+		const browser::WaveformDrawStats& s = browser_scene().waveform_draw_stats();
+		expect(s.give_ups - before.give_ups).to_equal(1);
+		expect(s.complete - before.complete).to_equal(0);
+		expect(browser_scene().waveform_redraw_pending()).to_be_false();
+	});
+
+	it("drops a pending redraw when the preview gives its sample up", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample(16));
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+		expect(browser_scene().waveform_redraw_pending()).to_be_true();
+		held.range->sampleHolder.audioFile = nullptr;
+		deluge::notify::raise(deluge::notify::Dirty::GridMain);
+		run_until(r, r.clock + 50);
+		expect(browser_scene().waveform_redraw_pending()).to_be_false();
+	});
+
 	it("returns to the root state, blinking again, when the preview settles with no sample", _ {
 		CleanBrowser clean;
 		ScratchCard card;

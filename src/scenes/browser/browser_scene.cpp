@@ -1487,7 +1487,9 @@ void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
 	const int32_t rows = std::min<int32_t>(f.bounds().h, kDisplayHeight);
 	if (!info) {
 		// The preview stopped and gave its sample up (Shift+SAVE frees the file): `main`'s pads keep the waveform they
-		// were last sent, so these keep the last one painted.
+		// were last sent, so these keep the last one painted. A redraw still waiting on that sample's clusters is
+		// dropped with it.
+		redraw_resolved_cols_ = -1;
 		for (int32_t y = 0; y < rows; y++) {
 			for (int32_t x = 0; x < main_cols; x++) {
 				(void)f.pad(x, y, waveform_shown_[y][x]);
@@ -1496,7 +1498,11 @@ void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
 		return;
 	}
 	const uint32_t now = f.now_ms();
+	bool first = false;
 	if (info->identity != nav_identity_) {
+		first = true;
+		draw_stats_.draws++;
+		redraw_given_up_ = false;
 		nav_identity_ = info->identity;
 		nav_.sample = nullptr;
 		nav_.length_samples = info->length_samples;
@@ -1512,8 +1518,15 @@ void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
 			waveform_shown_[y][x] = f.peek(x, y);
 		}
 	}
+	if (!first && redraw_resolved_cols_ >= 0) {
+		draw_stats_.redraws++;
+	}
 	if (complete) {
+		if (first || redraw_resolved_cols_ >= 0) {
+			draw_stats_.complete++;
+		}
 		redraw_resolved_cols_ = -1;
+		redraw_given_up_ = false;
 		return;
 	}
 	// `tickPreviewRedraw`: a render the card has not caught up with yet is drawn again as its clusters land, until it
@@ -1528,6 +1541,10 @@ void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
 	}
 	if (static_cast<int32_t>(now - redraw_progress_ms_) < static_cast<int32_t>(kWaveformRedrawGiveUpMs)) {
 		f.grid_gate().request_repaint_after(kListingPollMs, now);
+	}
+	else if (!redraw_given_up_) {
+		redraw_given_up_ = true;
+		draw_stats_.give_ups++;
 	}
 }
 
@@ -1989,6 +2006,7 @@ Result BrowserScene::horizontal_turn(int32_t delta) {
 		if (!holding_ && !backspace_due_ms_.has_value() && (xenc_held_ ? nav_.zoom(delta) : nav_.scroll(delta))) {
 			pads_ = BrowserPads::Waveform;
 			redraw_resolved_cols_ = -1; // a new view: its redraw counts its own columns
+			redraw_given_up_ = false;
 			(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 		}
 		return r;
