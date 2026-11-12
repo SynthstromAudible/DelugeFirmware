@@ -190,3 +190,34 @@ TEST(MultisampleRoundRobinStaleState, cycleAfterRandomModeStaysInPool) {
 	CHECK_EQUAL(3, slot);
 	CHECK_EQUAL(0, rrIndex); // wrapped
 }
+
+TEST_GROUP(MultisampleRoundRobinUnloadedSlots){};
+
+TEST(MultisampleRoundRobinUnloadedSlots, loadedSlotIsKept) {
+	for (uint8_t slot = 0; slot <= 3; slot++) {
+		CHECK_EQUAL(slot, MultisampleRange::nextLoadedSlotIndex(3, slot, 0b1111));
+	}
+}
+
+TEST(MultisampleRoundRobinUnloadedSlots, unloadedSlotGivesWayToTheNextLoadedOne) {
+	// Slot 2 has no sample.
+	CHECK_EQUAL(2, MultisampleRange::nextLoadedSlotIndex(3, 1, 0b1101));
+	// Slots 2 and 3 have none.
+	CHECK_EQUAL(3, MultisampleRange::nextLoadedSlotIndex(3, 1, 0b1001));
+}
+
+TEST(MultisampleRoundRobinUnloadedSlots, wrapsRoundToAnEarlierSlot) {
+	// The last slot has no sample, so it wraps to slot 1.
+	CHECK_EQUAL(0, MultisampleRange::nextLoadedSlotIndex(3, 3, 0b0111));
+	// Only slot 2 has one.
+	CHECK_EQUAL(1, MultisampleRange::nextLoadedSlotIndex(2, 2, 0b010));
+}
+
+TEST(MultisampleRoundRobinUnloadedSlots, neverPicksASlotPastTheCount) {
+	// Two slots in use; a stray bit for slot 4 must not be chosen.
+	CHECK_EQUAL(0, MultisampleRange::nextLoadedSlotIndex(1, 1, 0b1001));
+}
+
+TEST(MultisampleRoundRobinUnloadedSlots, nothingLoadedLeavesTheSlotAsItWas) {
+	CHECK_EQUAL(2, MultisampleRange::nextLoadedSlotIndex(3, 2, 0));
+}

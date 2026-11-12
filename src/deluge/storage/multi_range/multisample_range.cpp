@@ -179,6 +179,26 @@ SampleHolderForVoice* MultisampleRange::resolveVariant(uint8_t* resolvedSlotInde
 		}
 	}
 
+	// A slot whose file didn't load - missing from the card, say - has nothing to play. Take the next slot that
+	// does rather than sound a silent hit, and let the cycle carry on from the one that played. An auditioned
+	// slot is left alone: that's for hearing exactly the slot being edited.
+	if (rrCount > 0 && this != auditionRange_) {
+		uint8_t loadedSlots = 0;
+		for (uint8_t slot = 0; slot <= rrCount; slot++) {
+			SampleHolderForVoice* slotHolder = getVariantHolder(slot);
+			if (slotHolder != nullptr && slotHolder->audioFile != nullptr) {
+				loadedSlots |= (1 << slot);
+			}
+		}
+		uint8_t playableSlotIndex = nextLoadedSlotIndex(rrCount, slotIndex, loadedSlots);
+		if (playableSlotIndex != slotIndex) {
+			slotIndex = playableSlotIndex;
+			if (rrMode == RRMode::Cycle) {
+				rrIndex = (slotIndex + 1) % (rrCount + 1);
+			}
+		}
+	}
+
 	lastResolvedSlotIndex = slotIndex;
 	if (resolvedSlotIndex != nullptr) {
 		*resolvedSlotIndex = slotIndex;
