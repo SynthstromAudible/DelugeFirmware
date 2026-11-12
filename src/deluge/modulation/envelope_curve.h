@@ -119,13 +119,15 @@ enum class EnvelopeMode : uint8_t {
 	/// going down, then releases to zero on note-off. With the level at full it's a plain attack-release envelope;
 	/// automating or patching the level makes it a slew limiter for that modulation.
 	AR,
-	/// Like AR, plus an expression input (see EnvelopeFollow): the target is level + (1 - level) * input.
+	/// Like AR, plus an expression input (see EnvelopeFollow): the target is level + (1 - level) * input, kept within
+	/// 0 to 1.
 	MPE,
 };
 constexpr int32_t kNumEnvelopeModes = 4;
 
-/// What an MPE-mode envelope follows. Both are read as unipolar: mod wheel covers the full range, while per-note MPE
-/// Y (CC74), which is bipolar, only moves the level in its upper half.
+/// What an MPE-mode envelope follows. Inputs are read as they're stored, the same way patch cables read them: pressure
+/// and mod wheel run from 0 to 1, while per-note MPE Y (CC74) is centred, running from -1 to 1, so below centre it
+/// pulls the envelope under its level.
 enum class EnvelopeFollow : uint8_t {
 	Z, ///< Pressure: MPE Z, channel or polyphonic aftertouch
 	Y, ///< Mod wheel or MPE Y

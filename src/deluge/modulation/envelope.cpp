@@ -165,9 +165,11 @@ int32_t Envelope::follow(uint32_t numSamples, uint32_t attack, uint32_t sustain,
 		setState(EnvelopeStage::SUSTAIN);
 	}
 
+	// The input is read as stored: 0 to 1 for pressure and mod wheel, -1 to 1 for per-note MPE Y, which below centre
+	// pulls the target under the level
 	float level = q31_to_float(static_cast<int32_t>(sustain));
-	float input = std::clamp(q31_to_float(followInput), 0.f, 1.f);
-	float target = level + (1.f - level) * input;
+	float input = q31_to_float(followInput);
+	float target = std::clamp(level + (1.f - level) * input, 0.f, 1.f);
 
 	// How far through a full-scale stage this render takes us, at the rate for the direction we're going
 	uint32_t rate = (target > lastValue) ? attack : release;
