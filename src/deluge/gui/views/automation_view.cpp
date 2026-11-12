@@ -2098,9 +2098,8 @@ ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentC
 			bool auditioningSilently = Buttons::isShiftButtonPressed();
 			if (inNoteEditor()) {
 				if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
-					// special handling for note editor and holding a note and we changed row selection
-					// don't process audition pad action as it leads to stuck notes
-					if (instrumentClipView.lastAuditionedYDisplay != y) {
+					// Don't change row selection while holding a note, but always release held audition pads.
+					if (velocity && instrumentClipView.lastAuditionedYDisplay != y) {
 						return ActionResult::DEALT_WITH;
 					}
 				}
@@ -2203,7 +2202,10 @@ ActionResult AutomationView::auditionPadAction(InstrumentClip* clip, Output* out
 
 	// Or if auditioning this NoteRow just finished...
 	else {
-		instrumentClipView.finishAuditioningRow(yDisplay, modelStackWithNoteRowOnCurrentClip, noteRowOnActiveClip);
+		// Keep the held note edit attached to its row even if other audition pads remain held.
+		bool changeRowSelection = !inNoteEditor() || !isUIModeActive(UI_MODE_NOTES_PRESSED);
+		instrumentClipView.finishAuditioningRow(yDisplay, modelStackWithNoteRowOnCurrentClip, noteRowOnActiveClip,
+		                                        changeRowSelection);
 		if (display->have7SEG()) {
 			renderDisplay();
 		}
