@@ -45,7 +45,7 @@ public:
 	/// that alone. Hitting it gets out and is counted.
 	static constexpr int32_t kMaxNavigationReads = 64;
 
-	/// @brief Start a scroll from @p spec's preset, in @p spec's direction.
+	/// @brief Start a scroll from @p spec's preset, @p spec's steps on in its direction.
 	void arm(LoadInstrumentPresetUI& ui, const deluge::storage::AcquireWalkSpec& spec);
 	/// @return Whether it is still waiting on a folder open.
 	bool tick();
@@ -65,6 +65,7 @@ private:
 	std::string dir_;
 	std::string searchName_; ///< with its extension; empty once a read from the far end has cleared it
 	int32_t offset_{};
+	int32_t steps_{1}; ///< presets still to move on, counting the one being looked for
 	Instrument* oldInstrument_{};
 	OutputType outputType_{OutputType::SYNTH};
 	bool skipInSong_{};

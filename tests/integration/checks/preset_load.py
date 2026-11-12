@@ -43,6 +43,10 @@ The acquisition legs pick presets without the browser, by the gestures a user ma
                folder alone.
     AQ-NAV-WRAP
                a 25-kit subfolder, past its window: forward from NAV24 wraps to NAV00, back from NAV00 to NAV24.
+    AQ-NAV-ADD three turns on from NAV24 made at once, the second queued behind the first's load and the third made
+               while it waits: they add up, as main's detents do, and land on NAV02. Then on, on and back: the turn back
+               cancels the waiting one, and the first turn's NAV03 is where they land. A two-detent turn with nothing
+               loading moves one preset, as main's first move does.
     AQ-NAV-STALL
                a navigate with its folder open held past the bound: SD_CARD, clip kept, nothing in flight.
     AQ-SUPERSEDE

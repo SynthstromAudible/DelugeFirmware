@@ -237,6 +237,14 @@ constexpr const char* kNavDir = "KITS/AQNAV";
 constexpr int32_t kNavCount = 25;
 constexpr const char* kNavFirst = "NAV00";
 constexpr const char* kNavLast = "NAV24";
+/// Three turns on from kNavLast made at once: the first loading, the second waiting behind it and the third added to
+/// the second, they land three on, round the end.
+constexpr const char* kNavThreeOn = "NAV02";
+/// On from kNavThreeOn, on again and back, at once: the turn back cancels the one waiting, and the first turn's preset
+/// is where they land.
+constexpr const char* kNavOnAndBack = "NAV03";
+/// On from kNavOnAndBack by a two-detent turn with nothing loading: one preset on, as main's first move is.
+constexpr const char* kNavOneOn = "NAV04";
 /// AqChangeCases' remembered kit presets: one there, one absent (sorting just after NAV05), one in a folder that
 /// does not exist.
 constexpr const char* kChangeNamed = "NAV05";
@@ -1336,11 +1344,12 @@ bool isAcquireLeg(Leg leg) {
 
 /// How many gestures the leg makes, one after another.
 int32_t acquireActs(Leg leg) {
-	return leg == Leg::AqChangeCases                      ? 6
-	       : leg == Leg::AqTap                            ? 5
-	       : leg == Leg::AqNavigate                       ? 3
-	       : (leg == Leg::AqNew || leg == Leg::AqNavWrap) ? 2
-	                                                      : 1;
+	return leg == Leg::AqChangeCases ? 6
+	       : leg == Leg::AqTap       ? 5
+	       : leg == Leg::AqNavWrap   ? 5
+	       : leg == Leg::AqNavigate  ? 3
+	       : leg == Leg::AqNew       ? 2
+	                                 : 1;
 }
 
 /// What the acquisition legs count: InstrumentLoad's own reads and loads, which is all there is to count now.
@@ -1632,6 +1641,23 @@ bool actAcquire() {
 			auto* kit = static_cast<Instrument*>(g_aqClip->output);
 			kit->dirPath = kNavDir;
 			kit->name = kNavLast;
+		}
+		if (g_aqAct == 2) {
+			// A quick turn of three detents, each its own dispatch, as the encoder task hands them over one by one.
+			for (int32_t i = 0; i < 3; i++) {
+				instrumentClipView.selectEncoderAction(1);
+			}
+			return true;
+		}
+		if (g_aqAct == 3) {
+			instrumentClipView.selectEncoderAction(1);
+			instrumentClipView.selectEncoderAction(1);
+			instrumentClipView.selectEncoderAction(-1);
+			return true;
+		}
+		if (g_aqAct == 4) {
+			instrumentClipView.selectEncoderAction(2);
+			return true;
 		}
 		instrumentClipView.selectEncoderAction(g_aqAct == 0 ? 1 : -1);
 		return true;
@@ -1966,6 +1992,17 @@ void checkAcquireAct() {
 		break;
 	}
 	case Leg::AqNavWrap: {
+		if (g_aqAct >= 2) {
+			static constexpr const char* kTurns[] = {"on-on-on", "on-on-back", "two-detents"};
+			static constexpr const char* kWants[] = {kNavThreeOn, kNavOnAndBack, kNavOneOn};
+			const char* want = kWants[g_aqAct - 2];
+			printf("AQ-NAV-ADD turns=%s before=%s name=%s want=%s runs=%d\n", kTurns[g_aqAct - 2],
+			       g_aqNameBefore.c_str(), name.c_str(), want, runs);
+			if (name != want) {
+				aqFail("AQ-NAV-ADD", "turns made while a navigate loaded did not move on by their detents' sum");
+			}
+			break;
+		}
 		// Pinned: the far-end reads land on the folder's first and last entries.
 		const char* want = (g_aqAct == 0) ? kNavFirst : kNavLast;
 		printf("AQ-NAV-WRAP turn=%s before=%s name=%s want=%s runs=%d\n", g_aqAct == 0 ? "forward" : "back",

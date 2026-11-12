@@ -34,6 +34,7 @@ void PresetNavigation::arm(LoadInstrumentPresetUI& ui, const deluge::storage::Ac
 	dir_ = spec.dirPath;
 	searchName_ = spec.name + ".XML";
 	offset_ = spec.offset;
+	steps_ = spec.steps;
 	oldInstrument_ = spec.oldInstrument;
 	outputType_ = spec.outputType;
 	skipInSong_ = spec.availability == Availability::INSTRUMENT_UNUSED;
@@ -96,6 +97,12 @@ bool PresetNavigation::tick() {
 
 		if (const Land* land = std::get_if<Land>(&decision)) {
 			wraps_ += land->wraps;
+			if (steps_ > 1) {
+				// Further on: the next preset past this one, read from its name as a page past a trimmed edge is.
+				steps_--;
+				searchName_ = std::string{listing_.item(land->index).displayName()};
+				continue;
+			}
 			finish(&listing_.item(land->index));
 		}
 		else if (const PageOn* page = std::get_if<PageOn>(&decision)) {

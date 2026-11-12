@@ -35,6 +35,7 @@
 #include "util/functions.h"
 
 #include <algorithm>
+#include <cstdlib>
 
 namespace deluge::gui {
 
@@ -64,6 +65,14 @@ bool isCreation(const InstrumentLoadRequest& request) {
 /// device definition.
 bool neverSuperseded(const InstrumentLoadRequest& request) {
 	return isCreation(request) || request.kind == Kind::Revert || request.kind == Kind::MidiDefinition;
+}
+
+/// Whether @p request is a preset turn on the output a turn still queued as @p queued was made on, and so adds to it.
+bool addsToQueuedTurn(const InstrumentLoadRequest& request, const InstrumentLoadRequest& queued) {
+	return request.kind == Kind::Acquire && queued.kind == Kind::Acquire
+	       && deluge::storage::isNavigateConsumer(request.preset.consumer)
+	       && request.preset.consumer == queued.preset.consumer && request.preset.clip == queued.preset.clip
+	       && request.preset.oldInstrument == queued.preset.oldInstrument;
 }
 
 /// Whether a request is a plain commit of the file @p active is already loading, and so promotes it.
@@ -99,6 +108,18 @@ LoadTicket InstrumentLoad::request(const InstrumentLoadRequest& request) {
 	}
 	InstrumentLoadRequest ticketed = request;
 	ticketed.generation = ticket.generation;
+	ticketed.preset.behindLoad = coalescer_.in_flight();
+	if (const std::optional<InstrumentLoadRequest>& queued = coalescer_.queued();
+	    queued.has_value() && addsToQueuedTurn(ticketed, *queued)) {
+		// A turn made while the one before it waits behind a load moves on by both, as main's detents pile up in the
+		// encoder until `doPresetNavigation` takes them all: replacing the queued turn would lose its detents.
+		ticketed.preset.offset += queued->preset.offset;
+		if (ticketed.preset.offset == 0) {
+			// Turned back to where the load in flight is going: that load is the one wanted.
+			coalescer_.clear_queued();
+			return ticket;
+		}
+	}
 	if (!coalescer_.request(ticketed)) {
 		// Queued: the load in flight is cancelled at its next phase boundary, unless it is a creation.
 		deluge::runtime::appLoop.request(jobId);
@@ -307,6 +328,9 @@ bool InstrumentLoad::stepWalk() {
 				return finish(Error::NONE, false);
 			}
 			if (walk_.walk == deluge::storage::AcquireWalk::Navigate) {
+				// Main's `doPresetNavigation` moves one preset on whatever the turn, then by every detent that piled up
+				// while it read: the detents of a turn made behind a load.
+				walk_.steps = active_.preset.behindLoad ? std::max(1, std::abs(walk_.offset)) : 1;
 				if (originValid_) {
 					// A navigate superseding a navigate walks on from where that one's walk landed.
 					walk_.name = originName_;

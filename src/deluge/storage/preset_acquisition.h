@@ -142,6 +142,17 @@ constexpr bool isCreationConsumer(PresetConsumer consumer) {
 	return false;
 }
 
+/// @brief Whether `consumer`'s gesture is a preset turn, to the preset `PresetRequest::offset` detents along.
+///
+/// Turns made while one loads add up rather than replace each other, as main's select detents do: they pile up in the
+/// encoder while `LoadInstrumentPresetUI::doPresetNavigation` reads, and it moves on by all of them at once.
+/// @param consumer The gesture's consumer.
+/// @return true for the three preset-turn gestures.
+constexpr bool isNavigateConsumer(PresetConsumer consumer) {
+	return consumer == PresetConsumer::ArrangerNavigate || consumer == PresetConsumer::SessionNavigate
+	       || consumer == PresetConsumer::ViewNavigateClipPreset;
+}
+
 /// @brief Everything an acquisition needs, captured at dispatch time.
 ///
 /// @note This is the snapshot. Once dispatched, the op reads ONLY these fields for anything that
@@ -153,7 +164,12 @@ struct PresetRequest {
 	OutputType outputType{OutputType::SYNTH};
 	Availability availability{Availability::ANY};
 
-	int32_t offset{};   ///< Navigate only: scroll direction.
+	/// @brief Navigate only: the detents turned, signed. A turn moves one preset whatever its detents, as main's first
+	///        move does; one made while another acquisition is out (@ref behindLoad) moves by every detent.
+	int32_t offset{};
+	/// @brief Navigate only: made while another acquisition was out, so it moves @ref offset presets on, as main's
+	///        `doPresetNavigation` moves by the detents that piled up while it read. Set by `InstrumentLoad::request`.
+	bool behindLoad{};
 	bool doBlink{};     ///< Navigate and ViewChangeType/SessionRowsChangeType: whether the redrawn name
 	                    ///< should blink.
 	int32_t yPressed{}; ///< The view row the gesture was made on, captured before any yield.
@@ -238,6 +254,7 @@ struct AcquireWalkSpec {
 	std::string dirPath; ///< The folder the walk starts in.
 	std::string name;    ///< Confirm: the preset asked for. Navigate: the preset moved on from, without extension.
 	int32_t offset{};    ///< Navigate: which way to move.
+	int32_t steps{1};    ///< Navigate: how many presets on it lands, each found as the first one past the last.
 	/// Navigate: the Instrument moved on from. The walk compares it and never reads through it.
 	Instrument* oldInstrument{};
 	bool blink{}; ///< Navigate: whether the name shown when the walk lands blinks.
