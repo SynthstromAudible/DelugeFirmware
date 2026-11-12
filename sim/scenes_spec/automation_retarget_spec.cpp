@@ -55,7 +55,6 @@ using deluge::ui::shell::Shell;
 using spec::GlobalGuestGuard;
 using spec::open_shortcut_over;
 using spec::open_shortcut_over_automation;
-using spec::ShellMenuOn;
 using spec::UiStackGuard;
 
 namespace {
@@ -169,7 +168,6 @@ struct Rig {
 // clang-format off
 describe automation_root_facts("the menu's root facts under the automation view", $ {
 	it("are the automation view's overview at open", _ {
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -184,7 +182,6 @@ describe automation_root_facts("the menu's root facts under the automation view"
 	it("follow the view into its editor, for the menu's greyout and the knobs", _ {
 		// `SoundEditor::getGreyoutColsAndRows` re-reads `automationView.inAutomationEditor()` every time
 		// (`sound_editor.cpp:497-500`): the editor greys nothing.
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -201,7 +198,6 @@ describe automation_root_facts("the menu's root facts under the automation view"
 	});
 
 	it("follow a new root", _ {
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -292,7 +288,6 @@ describe automation_retarget("the automation view follows the menu's param", $ {
 describe automation_menu_view("CLIP, X_ENC and KEYBOARD reach the automation view from the menu", $ {
 	it("enters the view on the menu's param in menu view on CLIP, and leaves it on a second CLIP", _ {
 		// `Automation::buttonAction`'s CLIP arm, on a horizontal page's param column.
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -313,7 +308,6 @@ describe automation_menu_view("CLIP, X_ENC and KEYBOARD reach the automation vie
 	});
 
 	it("leaves CLIP on an item with no param to the menu", _ {
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -326,7 +320,6 @@ describe automation_menu_view("CLIP, X_ENC and KEYBOARD reach the automation vie
 	});
 
 	it("gives X_ENC on a param to the view under it, and not over another root", _ {
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -340,7 +333,6 @@ describe automation_menu_view("CLIP, X_ENC and KEYBOARD reach the automation vie
 
 	it("leaves menu view for the keyboard on KEYBOARD", _ {
 		// `SoundEditor::buttonAction`'s KEYBOARD arm over the automation view.
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -360,7 +352,6 @@ describe automation_menu_view("CLIP, X_ENC and KEYBOARD reach the automation vie
 	it("leaves KEYBOARD to the sound editor's own arm, over every root", _ {
 		// `SoundEditor::buttonAction`'s KEYBOARD arm covers the clip view, the keyboard screen and the automation view
 		// alike (`forwardMenuViewButton`); the automation item's forward takes only CLIP and X_ENC.
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -411,7 +402,6 @@ describe automation_encoders("the knobs and encoders under the menu", $ {
 	it("turns a gold knob into the view's param in its editor", _ {
 		// `SoundEditor::modEncoderAction` hands the turn to the view, which edits its selected param (HPF frequency, no
 		// knob's) rather than the knob's own.
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -427,7 +417,6 @@ describe automation_encoders("the knobs and encoders under the menu", $ {
 	});
 
 	it("leaves the gold knobs to the menu's knobs on the view's overview", _ {
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -442,7 +431,6 @@ describe automation_encoders("the knobs and encoders under the menu", $ {
 
 	it("passes a vertical turn to the root, and keeps it with SHIFT held", _ {
 		// `SoundEditor::verticalEncoderAction`: the root's, unless SHIFT or X_ENC is held.
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -461,7 +449,6 @@ describe automation_encoders("the knobs and encoders under the menu", $ {
 });
 describe automation_sound_menu("the legacy views see the ported menu as the sound menu", $ {
 	it("reads the ported menu over the automation view as the open sound menu, and not once it is gone", _ {
-		ShellMenuOn on;
 		spec::SongFixture fx = spec::make_synth_song();
 		on_overview(fx.clip);
 		{
@@ -477,7 +464,6 @@ describe automation_sound_menu("the legacy views see the ported menu as the soun
 	it("takes a kit's context from the menu open over it, not from the clip's affect-entire", _ {
 		// `AutomationView::getAffectEntire`: in a kit's sound menu, the kit's effects menu reads as affect-entire and
 		// a row's menu as not, whatever the clip says -- so a row's shortcut, then CLIP, edits the row.
-		ShellMenuOn on;
 		spec::SongFixture fx = spec::make_kit_song();
 		(void)spec::add_drum<SoundDrum>(fx);
 		on_overview(fx.clip);

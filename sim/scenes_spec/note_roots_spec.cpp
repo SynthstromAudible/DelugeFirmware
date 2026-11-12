@@ -23,7 +23,6 @@
 #include "model/clip/instrument_clip.h"
 #include "model/edits/setting_edit.h"
 #include "model/note/note_row.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
 
@@ -56,22 +55,6 @@ bool all_null(std::span<const menu::Node* const> layer) {
 	}
 	return true;
 }
-
-/// @brief ShellMenu on (`On`) or off for the scope, through the Legacy Menu setting it is the inverse of; put back --
-///        `menu_entry_spec.cpp`'s `ToggleGuard`.
-struct ToggleGuard {
-	RuntimeFeatureStateToggle saved =
-	    static_cast<RuntimeFeatureStateToggle>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu));
-
-	explicit ToggleGuard(RuntimeFeatureStateToggle on) {
-		runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, on == RuntimeFeatureStateToggle::On
-		                                                                      ? RuntimeFeatureStateToggle::Off
-		                                                                      : RuntimeFeatureStateToggle::On);
-	}
-	~ToggleGuard() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, saved); }
-	ToggleGuard(const ToggleGuard&) = delete;
-	ToggleGuard& operator=(const ToggleGuard&) = delete;
-};
 
 /// @brief `menu_entry_spec.cpp`'s `closeGuest`: put the UI hierarchy back to "nothing open".
 void closeGuest() {
@@ -254,7 +237,6 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 
 describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 	it("opens with menu_context().root == NoteEditor", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		spec::SongFixture fx = spec::make_synth_song();
 
 		expect(entry::openShellMenu(fx.clip, 0, false, false, false, false, entry::ShellMenuNode::ContextRoot,
@@ -266,7 +248,6 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 	});
 
 	it("opens with menu_context().root == NoteRowEditor", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		spec::SongFixture fx = spec::make_synth_song();
 
 		expect(entry::openShellMenu(fx.clip, 0, false, false, false, false, entry::ShellMenuNode::ContextRoot,
@@ -291,7 +272,6 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 		// `true` left in the installed context would make `bindings::individual_note_row`
 		// keep reading/writing the kit's own mode instead of the selected
 		// drum's row -- see the dedicated example below.
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		spec::SongFixture fx = spec::make_kit_song();
 		(void)spec::add_drum<SoundDrum>(fx);
 		fx.clip->affectEntire = true;
@@ -307,7 +287,6 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 
 	it("the same kit affectEntire clear applies to NoteRowEditor too", _ {
 		// Legacy does the identical clear in `InstrumentClipView::enterNoteRowEditor`, after `soundEditor.setup` and before `openUI`.
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		spec::SongFixture fx = spec::make_kit_song();
 		(void)spec::add_drum<SoundDrum>(fx);
 		fx.clip->affectEntire = true;
@@ -330,7 +309,6 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 		// (`!ctx.affect_entire && ctx.is_kit`) -- which only takes the SELECTED
 		// DRUM's row when `ctx.affect_entire` is false, exactly as legacy's live
 		// `clip->affectEntire` read does after its own clear.
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		spec::SongFixture fx = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(fx);
 		fx.clip->affectEntire = true;
@@ -367,7 +345,6 @@ describe note_roots_undo_log("openShellMenu's NoteMode must not wipe the undo lo
 	// its own `ShellMenuNode`), so without the third it would wipe where legacy does not.
 
 	it("NoteMode::NoteEditor leaves an existing undo log intact", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		spec::SongFixture fx = spec::make_synth_song();
 
 		// Seed a real logged action while SOME guest is open -- `ActionLogger::getNewAction` refuses
@@ -388,7 +365,6 @@ describe note_roots_undo_log("openShellMenu's NoteMode must not wipe the undo lo
 	});
 
 	it("NoteMode::NoteRowEditor leaves an existing undo log intact", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		spec::SongFixture fx = spec::make_synth_song();
 
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
@@ -407,7 +383,6 @@ describe note_roots_undo_log("openShellMenu's NoteMode must not wipe the undo lo
 	it("NoteMode::None on the same shape still wipes it -- the pre-existing behaviour, pinned", _ {
 		// The control: identical seed, identical clip, only `noteMode` different. Without it, "the
 		// two examples above pass because nothing ever wipes" would also pass.
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		spec::SongFixture fx = spec::make_synth_song();
 
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();

@@ -1,8 +1,8 @@
 #pragma once
 
 /// @file
-/// @brief The ported menu opened over a chosen legacy root UI through the real shortcut entry, and the two pieces of
-///        legacy state the examples that do so hold for their length: the `ShellMenu` toggle and Shift.
+/// @brief The ported menu opened over a chosen legacy root UI through the real shortcut entry, and the legacy Shift
+///        state the examples that do so hold for their length.
 ///
 /// Shared by `pad_forward_spec.cpp` and `automation_retarget_spec.cpp`. Pair each with `GlobalGuestGuard` and
 /// `UiStackGuard` (`global_guest_menu.h`): the entry opens the menu on the singleton guest and puts the guest on
@@ -11,7 +11,6 @@
 #include "gui/ui/ui.h" // setRootUILowLevel
 #include "gui/views/automation_view.h"
 #include "model/clip/instrument_clip.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "util/shell_menu_entry.h" // openShellMenuAtShortcut
@@ -28,16 +27,6 @@ extern bool shiftCurrentlyStuck;
 /// @}
 
 namespace deluge::scenes::spec {
-
-/// @brief ShellMenu on for an example (the Legacy Menu setting Off), and put back however it ends.
-struct ShellMenuOn {
-	RuntimeFeatureStateToggle saved =
-	    static_cast<RuntimeFeatureStateToggle>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu));
-	ShellMenuOn() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, RuntimeFeatureStateToggle::Off); }
-	~ShellMenuOn() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, saved); }
-	ShellMenuOn(const ShellMenuOn&) = delete;
-	ShellMenuOn& operator=(const ShellMenuOn&) = delete;
-};
 
 /// @brief Hold Shift on legacy's side for an example, and let go however it ends.
 struct ShiftHeld {

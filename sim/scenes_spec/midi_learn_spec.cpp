@@ -78,7 +78,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/setting_group.h"
 #include "gui/ui/root_ui.h"
-#include "gui/ui/sound_editor.h"
+#include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -1353,9 +1353,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		slot.clear();
 		view.startMIDILearn();
 		expect(currentUIMode == UI_MODE_MIDI_LEARN).to_be_true(); // the base answer reaches `view` only in learn mode
-		// `getCurrentUI()` is `StubRootUI`, not `&soundEditor`, so the base answer -- `view.ccReceivedForMIDILearn` --
-		// is the branch this example is about. Asserted, because if it were `soundEditor` this would compare nothing.
-		expect(getCurrentUI() == static_cast<UI*>(&soundEditor)).to_be_false();
+		// The current UI is `StubRootUI`, not the menu, so the base answer, `view.ccReceivedForMIDILearn`, is the branch
+		// this example is about. Asserted, because under the menu this would compare nothing.
+		expect(getCurrentUI() == static_cast<UI*>(&shellHostUI)).to_be_false();
 		view.sectionMidiLearnPadPressed(true, 6);
 		bool thru = false;
 		playbackHandler.midiCCReceived(cables().a, 2, 74, 100, &thru);

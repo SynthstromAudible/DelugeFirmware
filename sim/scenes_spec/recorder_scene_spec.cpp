@@ -34,7 +34,6 @@
 #include "gui/ui/shell_drum_creator.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "scenes/bind/target.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h"
@@ -553,16 +552,6 @@ struct Guards {
 	NoForegroundRecording publication;
 };
 
-/// @brief ShellMenu on for the scope (the Legacy Menu setting Off), and put back.
-struct ShellMenuOn {
-	RuntimeFeatureStateToggle saved =
-	    static_cast<RuntimeFeatureStateToggle>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu));
-	ShellMenuOn() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, RuntimeFeatureStateToggle::Off); }
-	~ShellMenuOn() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, saved); }
-	ShellMenuOn(const ShellMenuOn&) = delete;
-	ShellMenuOn& operator=(const ShellMenuOn&) = delete;
-};
-
 /// @brief Whether the recorder is on @p shell's stack.
 bool recorder_on_stack(deluge::ui::shell::Shell& shell) {
 	return std::ranges::any_of(shell.stack().scenes(),
@@ -925,7 +914,6 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// `enterDrumCreator`'s `setup(clip, &file0SelectorMenu, 0)` and `openUI(&audioRecorder)`: no page above the
 		// recorder, so the take's end leaves the menu and the clip view is in front again.
 		Guards g;
-		ShellMenuOn on;
 		KitRig k;
 		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
 		expect(menu_scene().state().depth).to_equal(0);
@@ -938,7 +926,6 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// `file0SelectorMenu`, whose `FileSelector::beginSession` opens the sample browser. A take already running
 		// (here an output recording) is the refusal `RecorderScene::can` makes.
 		Guards g;
-		ShellMenuOn on;
 		deluge::scenes::spec::UiStackGuard ui_guard;
 		deluge::scenes::spec::GlobalGuestGuard guest_guard;
 		KitRig k;
@@ -963,7 +950,6 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 	it("leaves the menu when the creator's take that did begin closes, as legacy's recorder leaves the clip view", _ {
 		Guards g;
-		ShellMenuOn on;
 		deluge::scenes::spec::UiStackGuard ui_guard;
 		deluge::scenes::spec::GlobalGuestGuard guest_guard;
 		KitRig k;
@@ -987,7 +973,6 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 	it("goes up from a refused recorder no creator opened, as legacy's editor does from its recorder item", _ {
 		Guards g;
-		ShellMenuOn on;
 		deluge::scenes::spec::UiStackGuard ui_guard;
 		deluge::scenes::spec::GlobalGuestGuard guest_guard;
 		KitRig k;

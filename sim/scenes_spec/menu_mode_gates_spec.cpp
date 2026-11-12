@@ -118,7 +118,6 @@ bool menu_on_guest() {
 // clang-format off
 describe menu_mode_gates_horizontal("gui::ui::ShellHostUI::horizontalEncoderAction -- the keyboard's arm", $ {
 	it("with a keyboard note held, a turn on a horizontal page scrolls the keyboard", _ {
-		spec::ShellMenuOn on;
 		spec::GlobalGuestGuard guest_guard;
 		spec::UiStackGuard ui_guard;
 		spec::UiModeGuard mode_guard;
@@ -138,7 +137,6 @@ describe menu_mode_gates_horizontal("gui::ui::ShellHostUI::horizontalEncoderActi
 	});
 
 	it("with no note held, the turn stays with the menu", _ {
-		spec::ShellMenuOn on;
 		spec::GlobalGuestGuard guest_guard;
 		spec::UiStackGuard ui_guard;
 		spec::UiModeGuard mode_guard;
@@ -153,7 +151,6 @@ describe menu_mode_gates_horizontal("gui::ui::ShellHostUI::horizontalEncoderActi
 
 	it("only the audition alone: with the horizontal encoder's button also held, the turn stays with the menu", _ {
 		// `currentUIMode == UI_MODE_AUDITIONING`, an equality.
-		spec::ShellMenuOn on;
 		spec::GlobalGuestGuard guest_guard;
 		spec::UiStackGuard ui_guard;
 		spec::UiModeGuard mode_guard;
@@ -167,7 +164,6 @@ describe menu_mode_gates_horizontal("gui::ui::ShellHostUI::horizontalEncoderActi
 	});
 
 	it("over the clip view an audition leaves the keyboard alone", _ {
-		spec::ShellMenuOn on;
 		spec::GlobalGuestGuard guest_guard;
 		spec::UiStackGuard ui_guard;
 		spec::UiModeGuard mode_guard;
@@ -185,7 +181,6 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 	it("moves a transpose's cursor a place a detent, clamped at both ends, and a select turn then steps by that place", _ {
 		// `Transpose` takes `Decimal::horizontalEncoderAction`; only `Param::horizontalEncoderAction` hands the turn to
 		// the root, so the guest feeds this one to the menu.
-		spec::ShellMenuOn on;
 		spec::GlobalGuestGuard guest_guard;
 		spec::UiStackGuard ui_guard;
 		spec::UiModeGuard mode_guard;
@@ -231,7 +226,6 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 	});
 
 	it("a turn fed just before a direct close does not reach the next menu opened", _ {
-		spec::ShellMenuOn on;
 		spec::GlobalGuestGuard guest_guard;
 		spec::UiStackGuard ui_guard;
 		spec::UiModeGuard mode_guard;
@@ -259,7 +253,6 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 	});
 
 	it("a select turn fed just before a long-BACK close is applied to the closing menu, as main applies it at once", _ {
-		spec::ShellMenuOn on;
 		spec::GlobalGuestGuard guest_guard;
 		spec::UiStackGuard ui_guard;
 		spec::UiModeGuard mode_guard;
@@ -281,7 +274,6 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 	});
 
 	it("a shortcuts VERSION turn fed just before a long-BACK close is applied whole, both halves", _ {
-		spec::ShellMenuOn on;
 		spec::GlobalGuestGuard guest_guard;
 		spec::UiStackGuard ui_guard;
 		spec::UiModeGuard mode_guard;
@@ -305,7 +297,6 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 	});
 
 	it("a BACK fed just before a long-BACK close closes the menu once", _ {
-		spec::ShellMenuOn on;
 		spec::GlobalGuestGuard guest_guard;
 		spec::UiStackGuard ui_guard;
 		spec::UiModeGuard mode_guard;
@@ -334,7 +325,6 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 	});
 
 	it("a Shift + pad fed before a teardown that skips the close does not jump the next menu opened", _ {
-		spec::ShellMenuOn on;
 		spec::GlobalGuestGuard guest_guard;
 		spec::UiStackGuard ui_guard;
 		spec::UiModeGuard mode_guard;
@@ -367,7 +357,6 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 	});
 
 	it("nor does one fed before a teardown that skips the close: the next open starts with nothing pending", _ {
-		spec::ShellMenuOn on;
 		spec::GlobalGuestGuard guest_guard;
 		spec::UiStackGuard ui_guard;
 		spec::UiModeGuard mode_guard;
@@ -395,7 +384,6 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 
 describe menu_mode_gates_buttons("gui::ui::ShellHostUI::buttonAction -- SoundEditor::buttonAction's UI-mode gates", $ {
 	it("LEARN with a note auditioning enters no learn mode", _ {
-		spec::ShellMenuOn on;
 		spec::GlobalGuestGuard guest_guard;
 		spec::UiStackGuard ui_guard;
 		spec::UiModeGuard mode_guard;
@@ -410,7 +398,6 @@ describe menu_mode_gates_buttons("gui::ui::ShellHostUI::buttonAction -- SoundEdi
 	});
 
 	it("LEARN with no UI mode enters learn mode", _ {
-		spec::ShellMenuOn on;
 		spec::GlobalGuestGuard guest_guard;
 		spec::UiStackGuard ui_guard;
 		spec::UiModeGuard mode_guard;
@@ -425,7 +412,6 @@ describe menu_mode_gates_buttons("gui::ui::ShellHostUI::buttonAction -- SoundEdi
 	});
 
 	it("SHIFT + LEARN with a note auditioning forgets nothing", _ {
-		spec::ShellMenuOn on;
 		spec::GlobalGuestGuard guest_guard;
 		spec::UiStackGuard ui_guard;
 		spec::UiModeGuard mode_guard;
@@ -451,7 +437,6 @@ describe menu_mode_gates_buttons("gui::ui::ShellHostUI::buttonAction -- SoundEdi
 	});
 
 	it("SHIFT + LEARN with a shortcut pad held still unlearns: a pad fed to the menu sets no UI mode on main", _ {
-		spec::ShellMenuOn on;
 		spec::GlobalGuestGuard guest_guard;
 		spec::UiStackGuard ui_guard;
 		spec::UiModeGuard mode_guard;
