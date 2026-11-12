@@ -36,6 +36,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "notify/notice_queue.h"
 #include "processing/engines/audio_engine.h" // audioSampleTimer
+#include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/marker/marker_scene.h"
 #include "scenes/profile.h"
 #include "scenes/recorder/recorder_scene.h"
@@ -1272,6 +1273,11 @@ ActionResult ShellHostUI::exitUI() {
 	// A turn or press fed since the last tick is the scene's that is up now, as legacy gives it to the current UI at
 	// once; a BACK among them may leave nothing for this exit to remove.
 	flushPendingInput();
+	// No context menu overrides `exitUI` in main: `UI::exitUI` does nothing, so a long BACK leaves the menu up.
+	if (shell_.stack().has_input_scene()
+	    && shell_.stack().input_top().kind() == deluge::scenes::context_menu::kContextMenuSceneKind) {
+		return ActionResult::DEALT_WITH;
+	}
 	if (shell_.stack().has_input_scene()) {
 		(void)shell_.stack().remove(shell_.stack().input_top().kind());
 	}

@@ -9,6 +9,7 @@
 #include "hid/led/pad_leds.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "notify/dirty_set.h"
+#include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/marker/marker_scene.h"
 #include "shell/profiles/deluge.h"
 #include "storage/flash_storage.h"
@@ -241,6 +242,8 @@ MIDICable& fake_cable() {
 struct Rig {
 	PatternScene base{kBase};
 	PatternScene over{kOver};
+	/// Registered under the context menu's kind, which the long-press exit leaves alone.
+	PatternScene menu{deluge::scenes::context_menu::kContextMenuSceneKind};
 	/// Registered under the marker editor's kind, which the guest's sidebar answer keys on.
 	PatternScene marker{deluge::scenes::marker::kMarkerSceneKind};
 	std::array<Scene*, kMaxSceneKinds> table{};
@@ -268,6 +271,7 @@ struct Rig {
 	const SceneRegistry& fill() {
 		table[static_cast<size_t>(kBase)] = &base;
 		table[static_cast<size_t>(kOver)] = &over;
+		table[static_cast<size_t>(deluge::scenes::context_menu::kContextMenuSceneKind)] = &menu;
 		table[static_cast<size_t>(deluge::scenes::marker::kMarkerSceneKind)] = &marker;
 		return reg;
 	}
@@ -1236,6 +1240,20 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// Consumed, and the guest is still on legacy's hierarchy: closing here would pop it a level
 		// early, taking the whole guest down for a Back that only left one scene inside it.
 		expect(result == ActionResult::DEALT_WITH).to_be_true();
+		expect(fakelegacyui::closed.empty()).to_be_true();
+	});
+
+	it("leaves a context menu up on a long BACK, as UI::exitUI does", _ {
+		// No context menu overrides `exitUI` in main, so the long-press timer's call does nothing there.
+		Rig r;
+		expect(r.open()).to_be_true();
+		expect(r.guest.shell().stack().push(SceneId{deluge::scenes::context_menu::kContextMenuSceneKind, 0}))
+		    .to_be_true();
+		const ActionResult result = r.guest.exitUI();
+		expect(result == ActionResult::DEALT_WITH).to_be_true();
+		expect(r.guest.shell().stack().input_top().kind() == deluge::scenes::context_menu::kContextMenuSceneKind)
+		    .to_be_true();
+		expect(r.guest.shell().stack().depth()).to_equal(size_t(2));
 		expect(fakelegacyui::closed.empty()).to_be_true();
 	});
 

@@ -349,9 +349,12 @@ size_t sample_browser_synth_options_now(const menu::MenuContext& ctx, std::span<
 	return sample_browser_synth_options(ctx, browser::browser_scene().current_is_folder(), out);
 }
 
-/// `Kit::padAction` and `Synth::padAction` hand the pad to the browser beneath. Its keyboard reads the press itself
-/// as it draws under this menu, so the menu keeps the pad from closing it and does nothing more.
-Result sample_browser_pad(const UiEvent&, const UiContext&) {
+/// `Kit::padAction` and `Synth::padAction` return `SampleBrowser::padAction`. The mute column is the browser's exit,
+/// whose close takes this menu with it; every other pad does nothing here.
+Result sample_browser_pad(const UiEvent& event, const UiContext& ctx) {
+	if (event.x == kDisplayWidth) {
+		return browser::browser_scene().handle(event, ctx);
+	}
 	Result r;
 	r.handled = true;
 	return r;
@@ -563,6 +566,15 @@ void ContextMenuScene::leds(deluge::ui::LedFrame& f) {
 
 Result ContextMenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	const Descriptor& desc = descriptor(id_);
+	// `ContextMenu::buttonAction` / `padAction` act only in `buttonAndPadActionUIModes`; an audition held under a
+	// sample-browser menu (its audition column is the clip view's) is not one of them.
+	if (desc.pad != nullptr && ctx_.facts != nullptr && ctx_.facts->auditioning()
+	    && (event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton
+	        || event.kind == UiEvent::Kind::Pad)) {
+		Result r;
+		r.handled = true;
+		return r;
+	}
 	const bool button_or_pad = event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton
 	                           || event.kind == UiEvent::Kind::Pad;
 	if (button_or_pad && desc.busy != nullptr && desc.busy(ctx_)) {

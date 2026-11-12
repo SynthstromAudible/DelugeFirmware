@@ -493,6 +493,59 @@ describe cm_open("scenes::context_menu::ContextMenuScene opening", $ {
 	});
 });
 
+describe cm_sidebar("scenes::context_menu::ContextMenuScene beneath a sample browser", $ {
+	it("leaves the audition column to the clip view under a sample-browser menu", _ {
+		// `Kit::padAction` and `Synth::padAction` hand the pad to the browser beneath, whose audition column is the clip
+		// view's; every other menu's pad closes it and takes every pad.
+		reset_globals();
+		spec::SongFixture f = spec::make_synth_song();
+		{
+			Rig r;
+			r.open(context_of(f), DescriptorId::SampleBrowserKit);
+			expect(context_menu_scene().grid_pad_claim() == deluge::ui::shell::GridPadClaim::AllButAudition)
+			    .to_be_true();
+		}
+		{
+			Rig r;
+			r.open(context_of(f), DescriptorId::DeleteFile);
+			expect(context_menu_scene().grid_pad_claim() == deluge::ui::shell::GridPadClaim::All).to_be_true();
+		}
+	});
+
+	it("restarts the BACK blink when a scene above it closes, as focusRegained does", _ {
+		reset_globals();
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open(context_of(f), DescriptorId::ResetMidiFollow);
+		constexpr uint8_t kBackLed = 16;
+		const auto back_lit = [&r] {
+			bool lit = false;
+			for (const auto& [led, on] : r.fake.led_writes) {
+				if (led == kBackLed) {
+					lit = on;
+				}
+			}
+			return lit;
+		};
+		for (uint32_t t = 1000; t <= 1300; t += 10) {
+			r.tick(t);
+		}
+		expect(back_lit()).to_be_false(); // past the first 250 ms lit phase
+		// The stack fires this hook when the input top comes back to the menu. A scene that blinks BACK itself restarts
+		// the shared phase on its own, so the hook is called as the stack calls it.
+		context_menu_scene().on_resume();
+		for (uint32_t t = 1320; t <= 1540; t += 10) {
+			r.tick(t);
+		}
+		expect(r.shell.stack().input_top().kind() == context_menu::kContextMenuSceneKind).to_be_true();
+		expect(back_lit()).to_be_true(); // restarted on the resume, inside its lit 250 ms
+		for (uint32_t t = 1550; t <= 1600; t += 10) {
+			r.tick(t);
+		}
+		expect(back_lit()).to_be_false();
+	});
+});
+
 describe cm_input("scenes::context_menu::ContextMenuScene input", $ {
 	it("closes on BACK without acting", _ {
 		reset_globals();
@@ -931,5 +984,5 @@ describe cm_reference_rows("scenes::context_menu: the reference rows", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(context_menu_scene_spec, cm_descriptors, cm_window, cm_composition, cm_open, cm_input, cm_actions,
-            cm_pixels, cm_live_settings, cm_reference_rows)
+DELUGE_SPEC(context_menu_scene_spec, cm_descriptors, cm_window, cm_composition, cm_open, cm_sidebar, cm_input,
+            cm_actions, cm_pixels, cm_live_settings, cm_reference_rows)

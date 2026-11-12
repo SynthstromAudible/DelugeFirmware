@@ -244,6 +244,14 @@ public:
 	/// @brief True for a descriptor with a `pad` hook: the sample browser's menus hand a pad press to the browser's
 	///        keyboard beneath (`Kit::padAction`/`Synth::padAction` -> `SampleBrowser`), which reads it as it draws.
 	bool passes_pads_beneath() const override { return descriptor(id_).pad != nullptr; }
+	/// @brief `Kit::padAction` / `Synth::padAction` hand pads to the browser beneath, whose audition column is the clip
+	///        view's; every other menu takes every pad.
+	deluge::ui::shell::GridPadClaim grid_pad_claim() const override {
+		return descriptor(id_).pad != nullptr ? deluge::ui::shell::GridPadClaim::AllButAudition
+		                                      : deluge::ui::shell::GridPadClaim::All;
+	}
+	/// @brief `ContextMenu::focusRegained`: the BACK blink restarts when the menu is the input top again.
+	void on_resume() override { blink_restart_ = true; }
 
 	/// @brief Which descriptor the last `on_enter` selected.
 	DescriptorId descriptor_id() const { return id_; }
