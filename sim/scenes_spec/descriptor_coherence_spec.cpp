@@ -24,6 +24,7 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/nodes.h"
+#include "scenes/menu/present.h"
 #include "scenes/profile.h"
 
 #include "support/oracle_tree.h"
@@ -146,14 +147,7 @@ const UnsetProbe* unset_probe_of(std::string_view path) {
 }
 
 const std::vector<NodeException>& node_exceptions() {
-	static const std::vector<NodeException> list{
-	    {Family::SONG, "reverb/roomSize", NAMES | TITLE,
-	     "legacy renames the item Time under the MUTABLE and DIGITAL reverb models and the table gives that one name; "
-	     "the node always shows the Freeverb name, Room Size (`tables_3_spec.cpp` parks it)"},
-	    {Family::SONG, "reverb/width", NAMES | TITLE,
-	     "legacy renames the item Diffusion under the MUTABLE and DIGITAL reverb models and the table gives that one "
-	     "name; the node always shows the Freeverb name, Width (`tables_3_spec.cpp` parks it)"},
-	};
+	static const std::vector<NodeException> list{};
 	return list;
 }
 
@@ -269,12 +263,19 @@ Findings compare(const Case& c, const Node& node, const NodeException* exception
 		if (names == nullptr) {
 			continue;
 		}
-		const std::string have_name = node_text(node.name);
+		// The name and title the menu shows in this context, as `getName()`/`getTitle()` answer them.
+		deluge::scenes::menu::NodeText name_scratch;
+		const std::string have_name{
+		    deluge::scenes::menu::display_text(node, deluge::scenes::menu::ValueTextUse::Name, ctx, name_scratch)};
 		const std::string want_name = text(names->name);
 		if (have_name != want_name) {
 			f.names.push_back(std::string{c.path} + " name node '" + have_name + "' row '" + want_name + "'");
 		}
-		const std::string have_title = node_title(node, c.path);
+		deluge::scenes::menu::NodeText title_scratch;
+		const std::string shown_title{
+		    deluge::scenes::menu::display_text(node, deluge::scenes::menu::ValueTextUse::Title, ctx, title_scratch)};
+		const std::string have_title =
+		    shown_title.find('*') != std::string::npos ? node_title(node, c.path) : shown_title;
 		const std::string want_title = title_of(*names, c.path);
 		if (have_title != want_title) {
 			f.title.push_back(std::string{c.path} + " title node '" + have_title + "' row '" + want_title + "'");

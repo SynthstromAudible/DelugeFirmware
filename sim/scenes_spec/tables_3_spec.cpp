@@ -35,6 +35,7 @@
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/dynamic.h"
 #include "scenes/menu/nodes/nodes.h"
+#include "scenes/menu/present.h"
 #include "scenes/menu/relevance.h"
 #include "scenes/menu/shortcuts.h"
 #include "scenes/menu/validate.h"
@@ -399,28 +400,42 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 		expect(std::to_string(nodes::root_settings.children.size())).to_equal(table().value("settings", "kids"));
 	});
 
-	it("parks the reverb width and room size names and titles: main renames them under MUTABLE, the port does not yet", _ {
-		// `reverb::Width` and `reverb::RoomSize` answer Diffusion and Time under the MUTABLE and DIGITAL models; the
-		// port's node names are fixed ids (`src/scenes/README.md`, "Legacy features not yet ported"). Porting the
-		// dynamic names fails the MUTABLE half here until this example goes.
+	it("names and titles the reverb width and room size as main does under each reverb model", _ {
+		// `reverb::Width` and `reverb::RoomSize` answer Diffusion and Time under the MUTABLE and DIGITAL models, Width
+		// and Room Size under FREEVERB; the nodes' name hooks answer the same (`column_hooks.cpp`).
 		const deluge::effects::ReverbModel saved = AudioEngine::reverb.model();
-		size_t parked = 0;
+		size_t asked = 0;
 		for (const auto& [root, e] : every_entry()) {
 			if (e.node != &nodes::reverb_width && e.node != &nodes::reverb_room_size) {
 				continue;
 			}
 			install(root->ctx, root->song);
-			const std::string port = shown(e.node->name, *e.node, root->ctx);
-			const std::string port_title = shown(e.node->title, *e.node, root->ctx);
-			AudioEngine::setReverbModel(deluge::effects::ReverbModel::FREEVERB);
-			expect(port).to_equal(table().value(e.path, "name@freeverb"));
-			expect(port_title).to_equal(table().value(e.path, "title@freeverb"));
-			AudioEngine::setReverbModel(deluge::effects::ReverbModel::MUTABLE);
-			expect(port == table().value(e.path, "name@mutable")).to_be_false();
-			expect(port_title == table().value(e.path, "title@mutable")).to_be_false();
-			parked++;
+			size_t models_seen = 0;
+			const int32_t was = menu::bindings::read(nodes::reverb_model, root->ctx);
+			const menu::IntRange models = menu::bindings::range(nodes::reverb_model, root->ctx);
+			for (int32_t v = models.min; v <= models.max; v++) {
+				// The model as the menu sets it, through the song's own setting.
+				menu::bindings::write(nodes::reverb_model, root->ctx, v);
+				const deluge::effects::ReverbModel model = AudioEngine::reverb.model();
+				const char* const suffix = model == deluge::effects::ReverbModel::FREEVERB  ? "@freeverb"
+				                           : model == deluge::effects::ReverbModel::MUTABLE ? "@mutable"
+				                                                                            : nullptr;
+				if (suffix == nullptr) {
+					continue;
+				}
+				models_seen++;
+				menu::NodeText name_scratch;
+				menu::NodeText title_scratch;
+				expect(std::string{menu::display_text(*e.node, menu::ValueTextUse::Name, root->ctx, name_scratch)})
+				    .to_equal(table().value(e.path, std::string{"name"} + suffix));
+				expect(std::string{menu::display_text(*e.node, menu::ValueTextUse::Title, root->ctx, title_scratch)})
+				    .to_equal(table().value(e.path, std::string{"title"} + suffix));
+			}
+			menu::bindings::write(nodes::reverb_model, root->ctx, was);
+			expect(models_seen).to_equal(size_t(2));
+			asked++;
 		}
-		expect(parked > size_t(0)).to_be_true();
+		expect(asked > size_t(0)).to_be_true();
 		AudioEngine::setReverbModel(saved);
 	});
 
