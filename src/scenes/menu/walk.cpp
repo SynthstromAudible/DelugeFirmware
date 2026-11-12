@@ -272,9 +272,15 @@ bool MenuWalk::enter_range_picker_if_needed(MenuCore core, ValueSession& session
                                             bool suppress_when_allowed) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
-	if (child.range_specific && !ensure_first_range(ctx)) {
-		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));
-		return true;
+	// The first range goes to the source the item's own rule is about (`range_rule_context`): REC 2's oscillator, not
+	// the menu's. A refusal is `main`'s `displayError(INSUFFICIENT_RAM)` and `MenuPermission::NO`: the menu stays put.
+	if (child.range_specific) {
+		MenuContext own = range_rule_context(child, ctx);
+		if (!ensure_first_range(own.source_index == ctx.source_index ? ctx : own)) {
+			deluge::notify::notice_string(
+			    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));
+			return true;
+		}
 	}
 	// `handleInstrumentButtonPress`'s own suppression (`horizontal_menu.cpp:427-428`):
 	// `MUST_SELECT_RANGE && !allowToBeginSessionFromHorizontalMenu()`. Only that ONE caller passes

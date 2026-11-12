@@ -1561,6 +1561,37 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(menu_scene().state().path[1] == &menu::nodes::sample0_recorder).to_be_true();
 	});
 
+	it("opens REC 2 from that page on oscillator 2's own range, with oscillator 1 multisampled and none picked", _ {
+		// `osc::AudioRecorder::checkPermissionToBeginSession` asks about its own `source_id_`: oscillator 2 gets its
+		// first range and, having one, needs no picker, whatever oscillator 1 holds.
+		Guards g;
+		Rig r;
+		r.source->ranges.insertMultiRange(1);
+		deluge::edits::recordRanges(*r.sound, 0);
+		MenuContext c = r.ctx();
+		c.horizontal_menus = true;
+		c.range_index = -1;
+		menu_scene().open(menu::nodes::recorder, c);
+		r.shell.init(SceneId{deluge::ui::shell::SceneKind::FirstApp, menu::node_id(menu::nodes::recorder)});
+		r.tick(0);
+		// The third slot is REC 2's, each recorder being two slots wide; past the page buttons' 140 ms debounce.
+		r.press(ButtonId::Midi, 300);
+		r.tick(300);
+		r.release(ButtonId::Midi, 310);
+		r.tick(310);
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
+		r.press(ButtonId::SelectEnc, 320);
+		r.tick(320);
+		r.release(ButtonId::SelectEnc, 330);
+		for (uint32_t at = 330; at <= 360; at += 10) {
+			r.tick(at);
+		}
+		expect(menu_scene().state().path[1] == &menu::nodes::sample1_recorder).to_be_true();
+		expect(r.on_stack()).to_be_true();
+		expect(r.sound->sources[1].ranges.size()).to_equal(size_t{1});
+		expect(r.sound->sources[0].ranges.size()).to_equal(size_t{2});
+	});
+
 	it("returns a take begun on the SAMPLE RECORDER page to its source page, the file selector focused", _ {
 		// `osc::AudioRecorder::beginSession` re-roots onto `sourceMenuGroup`, focused on the file selector, before it
 		// opens the recorder, so the take lands there.

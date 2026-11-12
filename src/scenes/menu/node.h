@@ -555,6 +555,12 @@ struct CustomItem {
 	///        redeclares the frame, so leaving the screen puts them out with no hook.
 	virtual void leds(deluge::ui::LedFrame& /*f*/, const MenuContext& /*ctx*/, const MenuState& /*state*/) const {}
 
+	/// @brief The source a range-specific item's range rule is about: its own `source_id_` in `main`'s
+	///        `checkPermissionToBeginSessionForRangeSpecificParam(sound, source_id_, ...)`, which can differ from the
+	///        menu's (the SAMPLE RECORDER page's REC 2 under oscillator 1's context).
+	/// @return Negative for the menu's own source.
+	virtual int8_t range_source() const { return -1; }
+
 	/// @par The focus hooks: three names, two questions
 	///
 	/// **`on_focus`, `on_focus_backward` and `FocusCause` look like three spellings of one

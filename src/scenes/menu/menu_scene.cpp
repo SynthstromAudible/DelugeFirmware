@@ -195,7 +195,11 @@ bool MenuScene::on_enter(const SceneId& id) {
 		// fresh source (0 ranges becomes 1, so the item just opens) and fires the moment a user
 		// presses LOAD on a multisampled oscillator.
 		if (target != nullptr && target->range_specific) {
-			if (!ensure_first_range(ctx_)) {
+			// About the item's own source (`range_rule_context`): a recorder for oscillator 2 under oscillator 1's
+			// context makes oscillator 2's range, and its picker test reads oscillator 2.
+			MenuContext own = range_rule_context(*target, ctx_);
+			MenuContext& rule_ctx = own.source_index == ctx_.source_index ? ctx_ : own;
+			if (!ensure_first_range(rule_ctx)) {
 				deluge::notify::notice_string(
 				    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));
 				return false;
@@ -208,7 +212,7 @@ bool MenuScene::on_enter(const SceneId& id) {
 			// than by calling `permission_for`, whose first statement is the relevance fold above.
 			// A context with no sound took `ensure_first_range`'s no-op success and must not land on a
 			// picker.
-			if (ctx_.addresses.slot && ctx_.range_index < 0) {
+			if (rule_ctx.addresses.slot && rule_ctx.range_index < 0) {
 				// `SoundEditor::setup`: `multiRangeMenu.menuItemHeadingTo =
 				// horizontal_menu_child; newItem = &multiRangeMenu;` -- the picker is opened
 				// *instead of* the item, and the item is remembered for the picker's own select

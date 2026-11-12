@@ -253,6 +253,11 @@ enum class Permission : uint8_t {
 /// @return `Yes`, `No`, or `MustSelectRange`.
 Permission permission_for(const Node& node, const MenuContext& ctx);
 
+/// @brief @p ctx as @p node's range rule reads it: about the item's own source (`CustomItem::range_source`) when that
+///        is not the menu's, with no range of that source remembered (`main`'s `currentSourceIndex == whichThing`
+///        fails); @p ctx itself otherwise.
+MenuContext range_rule_context(const Node& node, const MenuContext& ctx);
+
 /// @brief How many ranges the addressed source records.
 ///
 /// The range picker draws one row per range and has to know how many there are; a context with no

@@ -337,6 +337,16 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 	return ctx;
 }
 
+MenuContext range_rule_context(const Node& node, const MenuContext& ctx) {
+	MenuContext own = ctx;
+	const int8_t source = node.custom != nullptr ? node.custom->range_source() : int8_t{-1};
+	if (source >= 0 && source != ctx.source_index && ctx.addresses.slot) {
+		own.source_index = source;
+		own.range_index = -1;
+	}
+	return own;
+}
+
 Permission permission_for(const Node& node, const MenuContext& ctx) {
 	// The base implementation, `MenuItem::checkPermissionToBeginSession`
 	// (`gui/menu_item/menu_item.cpp:27-31`): relevance, and nothing else. The `relevant`
@@ -358,10 +368,12 @@ Permission permission_for(const Node& node, const MenuContext& ctx) {
 	if (!node.range_specific || !ctx.addresses.slot) {
 		return Permission::Yes;
 	}
+	// `main` asks about the item's own source (`whichThing`), which a per-oscillator item names itself.
+	const MenuContext rule_ctx = range_rule_context(node, ctx);
 
 	// `:1950` -- a kit row is always range-unambiguous (one range per drum), and so is a source
 	// with exactly one range. `context_for` has already pointed `ctx.range_index` at that range.
-	if (ctx.is_kit || range_count(ctx) <= 1) {
+	if (rule_ctx.is_kit || range_count(rule_ctx) <= 1) {
 		return Permission::Yes;
 	}
 
@@ -375,7 +387,7 @@ Permission permission_for(const Node& node, const MenuContext& ctx) {
 	// Unreachable for a context straight out of `context_for`: the only cases that set `ctx.range_index`
 	// (kit row, single range) already returned `Yes` above. This is the entry point for a picker: once it
 	// writes a chosen range back into the context, this is the arm that lets the item open.
-	if (ctx.range_index >= 0) {
+	if (rule_ctx.range_index >= 0) {
 		return Permission::Yes;
 	}
 

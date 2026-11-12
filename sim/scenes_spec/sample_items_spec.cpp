@@ -45,6 +45,7 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "model/clip/audio_clip.h"
+#include "model/edits/setting_edit.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
@@ -682,6 +683,64 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		expect(recorder::recorder_scene().recording()).to_be_true();
 		expect(r.sound->sources[1].ranges.size()).to_equal(size_t{1});
 		expect(r.sound->sources[0].ranges.size()).to_equal(size_t{1});
+	});
+
+	it("sample1_recorder asks about source 1's ranges, not the menu's multisampled source 0, as main's whichThing", _ {
+		// `checkPermissionToBeginSessionForRangeSpecificParam(sound, source_id_, ...)`: oscillator 2 has one range once
+		// it is made, so REC 2 opens with no picker, however many ranges oscillator 1 has and whether one is picked.
+		spec::QuietAudio quiet;
+		CleanScenes clean;
+		ScratchCard card;
+		SoundRig r{/*second_source=*/false};
+		r.source[0]->ranges.insertMultiRange(1);
+		deluge::edits::recordRanges(*r.sound, 0);
+		MenuContext c = r.ctx();
+		c.range_index = -1; // oscillator 1 multisampled, no range picked
+		expect(menu::permission_for(nodes::sample0_recorder, c) == menu::Permission::MustSelectRange).to_be_true();
+		expect(menu::permission_for(nodes::sample1_recorder, c) == menu::Permission::Yes).to_be_true();
+
+		focus_in(r.shell, c, nodes::sample1_recorder);
+		expect(r.on_stack(recorder::kRecorderSceneKind)).to_be_true();
+		expect(r.sound->sources[1].ranges.size()).to_equal(size_t{1});
+		expect(r.sound->sources[0].ranges.size()).to_equal(size_t{2});
+	});
+
+	it("sample1_recorder makes a range on source 1 alone, never on the menu's source 0", _ {
+		// `main` allocates in the item's own permission check, on `source_id_`; oscillator 1 here has no range and
+		// gets none.
+		spec::QuietAudio quiet;
+		CleanScenes clean;
+		ScratchCard card;
+		SoundRig r{/*second_source=*/false};
+		r.range[0]->sampleHolder.audioFile = nullptr; // the rig placed the sample without a reason to drop
+		r.source[0]->ranges.clear();
+		r.range[0] = nullptr;
+		deluge::edits::recordRanges(*r.sound, 0);
+		MenuContext c = r.ctx();
+		c.range_index = -1;
+
+		focus_in(r.shell, c, nodes::sample1_recorder);
+		expect(r.on_stack(recorder::kRecorderSceneKind)).to_be_true();
+		expect(r.sound->sources[1].ranges.size()).to_equal(size_t{1});
+		expect(r.sound->sources[0].ranges.size()).to_equal(size_t{0});
+	});
+
+	it("sample1_recorder whose first range cannot be made refuses to open, as main's refused permission", _ {
+		// `checkPermissionToBeginSessionForRangeSpecificParam`'s `displayError(INSUFFICIENT_RAM)` and `NO`: `setup`
+		// refuses, so the menu does not open on the item and the recorder does not open at all. The menu's refusal is
+		// `on_enter` answering false, which the shell rolls back. A context with no sink is one whose range request is
+		// refused.
+		spec::QuietAudio quiet;
+		CleanScenes clean;
+		SoundRig r{/*second_source=*/false};
+		MenuContext c = r.ctx();
+		c.sink = nullptr;
+		select_language();
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::sample1_recorder, c);
+		expect(menu_scene().on_enter(SceneId{menu::kMenuSceneKind, menu::node_id(nodes::sample1_recorder)})).to_be_false();
+		expect(r.on_stack(recorder::kRecorderSceneKind)).to_be_false();
+		expect(r.sound->sources[1].ranges.size()).to_equal(size_t{0});
 	});
 
 	it("does not leave source 0's range behind when it selects source 1", _ {

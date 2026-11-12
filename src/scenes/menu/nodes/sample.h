@@ -39,10 +39,15 @@
 ///
 /// @note **No refusal is spelled here, deliberately.** Legacy refuses in
 ///       `checkPermissionToBeginSession`, which `SoundEditor::setup` consults *before* navigating;
-///       the port splits that in two. The range half is `menu::permission_for` +
-///       `MenuScene::enter_child` (`Node::range_specific`, which all but `audio_clip_waveform`
-///       carry -- exactly as legacy, whose `audio_clip::SampleMarkerEditor` does not route through
-///       `checkPermissionToBeginSessionForRangeSpecificParam`). The rest -- `LoopPoint`'s "make sure a Sample is
+///       the port splits that in two. The range half is `menu::permission_for` and the walk's range
+///       gate (`MenuWalk::enter_range_picker_if_needed`, `MenuScene::on_enter`'s deep link), which
+///       make the first range and refuse with INSUFFICIENT_RAM before the item is focused, so
+///       `on_focus` never meets a source without one. They ask about the item's own source
+///       (`CustomItem::range_source`, `menu::range_rule_context`), as `main`'s overrides pass their
+///       own `source_id_`: REC 2 under oscillator 1's context is about oscillator 2.
+///       `Node::range_specific` is carried by all but `audio_clip_waveform` -- exactly as legacy,
+///       whose `audio_clip::SampleMarkerEditor` does not route through
+///       `checkPermissionToBeginSessionForRangeSpecificParam`. The rest -- `LoopPoint`'s "make sure a Sample is
 ///       loaded" (`sample/loop_point.cpp:50-55`), `audio_clip::SampleMarkerEditor`'s null
 ///       `sampleHolder.audioFile` (`audio_clip/sample_marker_editor.cpp:35-38`), `AudioRecorder`'s
 ///       "already recording" (`AudioRecorder::opened`) -- is each scene's own `can()`,
@@ -73,6 +78,7 @@ public:
 	///        (the audio clip's waveform view). Exposed so a spec can assert the item-to-source
 	///        mapping by identity rather than re-deriving it.
 	int8_t source_index() const { return source_index_; }
+	int8_t range_source() const final { return source_index_; }
 
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const final;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,

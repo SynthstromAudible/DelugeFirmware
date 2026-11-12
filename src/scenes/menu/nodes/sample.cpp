@@ -31,8 +31,6 @@
 #include "scenes/recorder/recorder_scene.h" // AudioRecorderItem::on_focus opens this
 
 #include "definitions_cxx.hpp" // MarkerType, for the numbering static_asserts below
-#include "gui/l10n/strings.h"
-#include "notify/notice_queue.h"
 #include "shell/profile.h"
 #include "ui/oled/text.h"
 
@@ -133,15 +131,9 @@ void AudioRecorderItem::on_focus(const MenuContext& ctx, MenuState& state) const
 	// there is exactly one recorder screen and `RecorderScene::on_enter` ignores it -- and legacy's `process()` loop is
 	// the shell's own tick (`recorder_scene.h`).
 	//
-	// `osc::AudioRecorder::checkPermissionToBeginSession` asks `checkPermissionToBeginSessionForRangeSpecificParam`
-	// about the item's own source, not the menu's: that source gets its first range, so an oscillator with none (a
-	// square wave) records into one. The walk's own allocation was for the menu's source. A refused allocation leaves
-	// no range, which `RecorderScene::can` refuses.
-	MenuContext source_ctx = with_source(ctx);
-	if (!ensure_first_range(source_ctx)) {
-		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));
-	}
-	recorder::recorder_scene().open(source_ctx);
+	// The source's first range is already there: `osc::AudioRecorder::checkPermissionToBeginSession` makes it, on the
+	// item's own source, before the item is entered, and the walk's range gate is that check (`range_rule_context`).
+	recorder::recorder_scene().open(with_source(ctx));
 	state.walk.pending_scene = deluge::ui::shell::SceneId{recorder::kRecorderSceneKind, 0};
 	// `beginSession`'s heading-pair arm. `SoundEditor::maybeGetParentMenu` gives a recorder on the chain's SAMPLE
 	// RECORDER page its source's file selector on `sourceMenuGroup`, and `beginSession` re-roots there before it opens
