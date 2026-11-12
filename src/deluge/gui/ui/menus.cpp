@@ -304,6 +304,11 @@ sample::SlotPicker* getSlotPickerForShortcut(MenuItem* item, ModControllableAudi
 	if (item == nullptr || modControllable == nullptr) {
 		return nullptr;
 	}
+	// An audio clip shares the FILE pad with the oscillators, but what it hands us is the clip's own
+	// ModControllableAudio, not a Sound - and the pickers below cast it to one.
+	if (Clip* clip = getCurrentClip(); clip == nullptr || clip->type == ClipType::AUDIO) {
+		return nullptr;
+	}
 	for (const Route& route : routes) {
 		if (route.pad != item) {
 			continue;
