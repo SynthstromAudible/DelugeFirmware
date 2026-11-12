@@ -17,12 +17,12 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/arpeggiator/midi_cv/arp_integer.h"
-#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
 #include "model/edits/arp_setting_for.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator_rhythms.h"
+#include "util/value_scaling.h"
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
 

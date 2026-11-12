@@ -72,7 +72,7 @@ namespace {
 // `sample::Transpose` (`gui/menu_item/sample/transpose.h:31-175`) -- "this is actually the
 // Oscillator transpose" (`sample/transpose.h:31`).
 
-/// @brief `computeCurrentValueForTranspose` (`gui/menu_item/value_scaling.cpp`).
+/// @brief `computeCurrentValueForTranspose` (`util/value_scaling.cpp`).
 constexpr int32_t transpose_to_menu(int32_t transpose, int32_t cents) {
 	return transpose * 100 + cents;
 }

@@ -17,7 +17,6 @@
 
 #include "unpatched_param.h"
 #include "deluge-project/param_automation.h"
-#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
@@ -36,6 +35,7 @@
 #include "plugin-api/types/param.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
+#include "util/value_scaling.h"
 
 namespace deluge::gui::menu_item {
 

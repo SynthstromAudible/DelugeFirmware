@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/param_curve.h"
-#include "gui/menu_item/value_scaling.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/arp_ratchet.h"
@@ -29,6 +28,7 @@
 #include "storage/flash_storage.h"
 #include "synth/matrix/param_format.h"
 #include "util/functions.h"
+#include "util/value_scaling.h"
 #include <cstdint>
 
 #define MIN_MPE_MODULATED_VELOCITY 10

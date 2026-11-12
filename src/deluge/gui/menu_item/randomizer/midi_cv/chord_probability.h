@@ -16,11 +16,11 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
 #include "model/edits/arp_setting_for.h"
 #include "model/song/song.h"
 #include "randomizer_integer.h"
+#include "util/value_scaling.h"
 
 namespace deluge::gui::menu_item::randomizer::midi_cv {
 class ChordProbability final : public RandomizerNonSoundInteger {

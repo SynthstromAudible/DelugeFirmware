@@ -115,7 +115,7 @@ using IntRange = deluge::ui::oled::Range;
 
 /// @brief Which arithmetic converts a `ParamRef`'s stored `int32_t` to and from the menu units the
 ///        user sees, i.e. which of legacy's `readCurrentValue`/`getFinalValue` pairs a param item
-///        used (`gui/menu_item/value_scaling.cpp`).
+///        used (`util/value_scaling.cpp`).
 ///
 /// Legacy encoded this in the *class* of the menu item; as plain data it is one enumerator on the
 /// `Binding`. Only a `ParamRef` binding is scaled at all -- a `get`/`set` hook owns its own units --

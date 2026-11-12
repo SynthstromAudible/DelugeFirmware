@@ -966,7 +966,7 @@ void set_cv_volts(const MenuContext& ctx, int32_t value) {
 
 int32_t get_cv_transpose(const MenuContext& ctx) {
 	// `cv::Transpose::readCurrentValue` (`cv/transpose.h:34-37`), over
-	// `computeCurrentValueForTranspose` (`gui/menu_item/value_scaling.cpp`) -- the same
+	// `computeCurrentValueForTranspose` (`util/value_scaling.cpp`) -- the same
 	// packing `sound_osc.cpp` and `roots.cpp` transcribe for the other transposes.
 	const CVChannel& channel = cvEngine.cvChannels[output_index(ctx, NUM_PHYSICAL_CV_CHANNELS)];
 	return channel.transpose * 100 + channel.cents;

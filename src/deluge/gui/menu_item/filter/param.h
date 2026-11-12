@@ -20,8 +20,8 @@
 #include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/patched_param/integer_non_fm.h"
 #include "gui/menu_item/unpatched_param.h"
-#include "gui/menu_item/value_scaling.h"
 #include "modulation/params/param.h"
+#include "util/value_scaling.h"
 
 #include <util/comparison.h>
 

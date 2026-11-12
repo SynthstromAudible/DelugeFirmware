@@ -17,7 +17,6 @@
 #pragma once
 #include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/transpose.h"
-#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
@@ -25,6 +24,7 @@
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
+#include "util/value_scaling.h"
 
 namespace deluge::gui::menu_item {
 class MasterTranspose final : public Transpose {

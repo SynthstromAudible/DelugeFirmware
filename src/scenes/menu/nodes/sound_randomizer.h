@@ -45,7 +45,7 @@
 ///
 /// @note **The `midi_cv` items use the *unsigned* value scaling** --
 ///       `computeCurrentValueForUnsignedMenuItem` / `computeFinalValueForUnsignedMenuItem`
-///       (`gui/menu_item/value_scaling.cpp`) -- because the `ArpeggiatorSettings`
+///       (`util/value_scaling.cpp`) -- because the `ArpeggiatorSettings`
 ///       fields they read are `uint32_t` (`modulation/arpeggiator.h:139-147`). That is a *third*
 ///       scaling, distinct from `Scaling::Standard` and `Scaling::HalfPrecision`, but it is not a
 ///       new `Scaling` enumerator: `Scaling` only ever applies to a `ParamRef` binding

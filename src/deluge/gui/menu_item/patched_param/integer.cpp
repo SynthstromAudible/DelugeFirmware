@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "integer.h"
-#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
@@ -32,6 +31,7 @@
 #include "modulation/params/param_set.h"
 #include "plugin-api/types/param.h"
 #include "processing/sound/sound_drum.h"
+#include "util/value_scaling.h"
 
 namespace deluge::gui::menu_item::patched_param {
 plugin::MappingKind Integer::mapping() const {

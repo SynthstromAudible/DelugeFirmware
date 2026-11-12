@@ -1,8 +1,8 @@
 #include "CppUTest/TestHarness.h"
 
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/value_scaling.h"
 #include "modulation/arpeggiator_rhythms.h"
+#include "util/value_scaling.h"
 
 TEST_GROUP(ValueScalingTest){};
 

@@ -30,7 +30,7 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../../src/deluge/util/lookuptables.cpp
         ../../../src/deluge/util/synth_noise.cpp
         # For value scaling
-        ../../../src/deluge/gui/menu_item/value_scaling.cpp
+        ../../../src/deluge/util/value_scaling.cpp
         # For scale tests
         ../../../src/music-theory/musical_key.cpp
         ../../../src/music-theory/note_set.cpp

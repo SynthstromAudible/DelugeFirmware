@@ -17,9 +17,9 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/unpatched_param.h"
-#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
 #include "modulation/params/param_set.h"
+#include "util/value_scaling.h"
 
 namespace deluge::gui::menu_item::audio_compressor {
 
