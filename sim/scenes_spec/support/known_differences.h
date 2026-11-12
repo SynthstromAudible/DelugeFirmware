@@ -16,18 +16,6 @@
 
 namespace deluge::scenes::spec {
 
-/// @brief The sample repeat items' titles: the row holds legacy's item's title with its source's number formatted into
-///        it ("Samp1 repeat"); the port's node carries the placeholder unfilled ("Samp* repeat", no `title_arg`).
-///        DIFFERENCES row D149 (open for Kate: `main` shows neither, its title reads empty).
-/// @return The digit the row has where the port's title has `*`, or 0 where the titles are not excused.
-inline char title_placeholder_digit(const menu::Node& node) {
-	namespace nodes = deluge::scenes::menu::nodes;
-	return &node == &nodes::sample0_repeat ? '1' : &node == &nodes::sample1_repeat ? '2' : '\0';
-}
-
-/// @brief How many batch-1 leaves that is.
-inline constexpr size_t kTitlePlaceholderDifferences = 2;
-
 /// @brief The kit's own effects with a MIDI or gate drum selected: main lists the MIDI/CV arp and randomizer columns
 ///        there (`editingNonAudioDrumRow()` and `editingMidiDrumRow()` read the selected drum, whatever the menu
 ///        edits), editing the kit arp's own fields, which the kit's render overwrites from its params; the port's

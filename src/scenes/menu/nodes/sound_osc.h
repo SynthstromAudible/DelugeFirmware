@@ -81,9 +81,8 @@
 ///
 /// @note `submenu::ActualSource::getTitle()` swaps to `STRING_FOR_OSC_SAMPLE_MENU_TITLE` once the source is a sample
 ///       and the page is past the first (`submenu/actual_source.h:29-40`): `source<i>_page_title`.
-///       `sample::Repeat` is a `FormattedTitle` given no argument (`sample/repeat.h:35`), so
-///       `sample<i>_repeat` carries no `title_arg`; every other `FormattedTitle` here carries its
-///       source number.
+///       Every `FormattedTitle` here carries its source number. `sample::Repeat` is given none on `main`, whose
+///       title then reads empty; `sample<i>_repeat` fills the digit as the reverse items do (DIFFERENCES D149).
 ///       `sample::PitchSpeed::isToggle()` is true (`sample/pitch_speed.h:80`): `Node::selection_is_toggle`,
 ///       so a select press or an already-focused button press flips the two-option `Kind::Enum` in place.
 ///
@@ -254,11 +253,13 @@ constexpr Node retrigger_phase_screen(Node n) {
 	        sid(deluge::l10n::String::STRING_FOR_PLAY)),                                                               \
 	    reverse_always));                                                                                              \
 	inline constexpr Node sample##i##_repeat = with_affect_entire(with_value_text(                                     \
-	    with_column_art(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_REPEAT_MODE), Kind::Enum,         \
-	                                            {.kind = deluge::scenes::bind::Target::Kind::SOUND,                    \
-	                                             .path = osc_path "/loopMode"}),                                       \
-	                               sid(deluge::l10n::String::STRING_FOR_SAMP_REPEAT_MENU_TITLE)),                      \
-	                    repeat_art),                                                                                   \
+	    with_column_art(                                                                                               \
+	        with_title_arg(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_REPEAT_MODE), Kind::Enum,      \
+	                                               {.kind = deluge::scenes::bind::Target::Kind::SOUND,                 \
+	                                                .path = osc_path "/loopMode"}),                                    \
+	                                  sid(deluge::l10n::String::STRING_FOR_SAMP_REPEAT_MENU_TITLE)),                   \
+	                       (i) + 1),                                                                                   \
+	        repeat_art),                                                                                               \
 	    repeat_text));                                                                                                 \
 	inline constexpr Node sample##i##_time_stretch = with_affect_entire(with_column_name(                              \
 	    with_title_arg(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SPEED), Kind::Int,                 \

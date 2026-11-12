@@ -199,28 +199,14 @@ describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 	it("gives every node main's own title", _ {
 		const Fixture& f = fixture();
 		size_t compared = 0;
-		size_t placeholders = 0;
 		for (const spec::TreeEntry& e : t1::entries()) {
 			if (t1::has_dynamic_name(*e.node)) {
 				continue; // the same classes build their *title* from the name, at render time
 			}
 			const std::string title = shown(e.node->title, *e.node, f.ctx);
-			// A placeholder the port leaves unfilled is an excused difference (`spec::title_placeholder_digit`): the
-			// row is the same title with the digit in its place.
-			if (const size_t star = title.find('*'); star != std::string::npos) {
-				expect(e.node->title_arg).to_equal(uint8_t{0});
-				const char digit = spec::title_placeholder_digit(*e.node);
-				std::string filled = title;
-				filled[star] = digit;
-				expect(e.path + " excused " + std::to_string(digit != '\0') + " " + filled)
-				    .to_equal(e.path + " excused 1 " + table().value(e.path, "title"));
-				placeholders++;
-				continue;
-			}
 			expect(e.path + " " + title).to_equal(e.path + " " + table().value(e.path, "title"));
 			compared++;
 		}
-		expect(placeholders).to_equal(spec::kTitlePlaceholderDifferences);
 		expect(compared > size_t(80)).to_be_true();
 	});
 
