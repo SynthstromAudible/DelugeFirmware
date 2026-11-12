@@ -160,7 +160,7 @@ bool MenuScene::on_enter(const SceneId& id) {
 		// **The allocation legacy's permission check performs before it opens a named item.**
 		// `SoundEditor::setup(clip, item, sourceIndex)` runs
 		// `item->checkPermissionToBeginSession(...)` on the item it was asked for
-		// (`SoundEditor::setup`'s item arm), and for every range-dependent item that lands in
+		// (`SoundEditor::setup`'s item arm), and for every range-specific item that lands in
 		// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`, whose **first
 		// statement** is `source->getOrCreateFirstRange()` -- a *create*, not a read,
 		// which fails only with `INSUFFICIENT_RAM`.
@@ -203,7 +203,7 @@ bool MenuScene::on_enter(const SceneId& id) {
 			// `:2005-2014`, the two arms after that allocation. `ensure_first_range` has already
 			// applied the first -- a kit row or a single range is unambiguous, so it points
 			// `ctx_.range_index` at range 0 (`:2005-2007`). What is left is legacy's own
-			// `MUST_SELECT_RANGE` (`:2014`): a range-dependent item on a source with more than one
+			// `MUST_SELECT_RANGE` (`:2014`): a range-specific item on a source with more than one
 			// range and none remembered. Spelled as "the allocation did not resolve one" rather
 			// than by calling `permission_for`, whose first statement is the relevance fold above.
 			// A context with no sound took `ensure_first_range`'s no-op success and must not land on a

@@ -108,7 +108,7 @@ std::optional<Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSes
 						// `switchVisiblePage` runs `initializeItem(*current_item_)` on the newly
 						// landed item and discards the result entirely (`:359`) -- not even
 						// `MUST_SELECT_RANGE` is acted on here, only the allocation side effect a
-						// range-dependent item's permission check performs matters.
+						// range-specific item's permission check performs matters.
 						if (kids[target]->range_specific) {
 							(void)ensure_first_range(ctx);
 						}

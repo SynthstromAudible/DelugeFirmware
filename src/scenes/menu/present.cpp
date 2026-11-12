@@ -474,9 +474,7 @@ std::string_view column_notification(const Node& column, const MenuContext& ctx,
 		// (`MenuItem::getNotificationValue`).
 		return {};
 	case Kind::Custom:
-		// A custom item with a value says so through `Binding::value_text` above; the rest (`FileSelector`,
-		// `LoopPoint`, `SampleMarkerEditor`) keep `MenuItem::getNotificationValue`'s empty value, so the banner is
-		// the name alone.
+		// A custom item with a value must supply `Binding::value_text` (above); the rest keep main's empty value.
 		return {};
 	default:
 		// `Number::getNotificationValue` (`number.cpp:429-431`): the value, doubled for the PERCENT style.

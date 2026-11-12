@@ -593,7 +593,7 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 		expect(label_of(f.ctx, 1)).to_equal(std::string("B-4    - B-3"));
 	});
 
-	it("chains to the node it stood in for, and its chain_targets are the range-dependent set", _ {
+	it("chains to the node it stood in for, and its chain_targets are the range-specific set", _ {
 		// `MultiRange::selectButtonPress` returns the item the picker was heading to; the port's equivalent pair is
 		// `MenuWalkState::pending_after_range` and this hook.
 		RangeFixture f{2};

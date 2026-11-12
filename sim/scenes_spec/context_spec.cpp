@@ -30,8 +30,8 @@ namespace {
 constexpr menu::Node param_node =
     menu::param(1, {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ});
 
-/// @brief The same node marked range-dependent -- legacy's `MenuItem::isRangeDependent()`,
-///        the actual discriminator for the range-dependence rule.
+/// @brief The same node marked range-specific (and range-dependent) -- an item whose permission routes through
+///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`, the discriminator for the range rule.
 constexpr menu::Node range_dependent_node = menu::with_range_dependent(param_node);
 
 /// @brief A node with neither a bound param nor the range flag.

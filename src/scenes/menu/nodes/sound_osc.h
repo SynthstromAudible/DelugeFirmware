@@ -58,9 +58,11 @@
 /// @note **`range_specific` and `range_dependent`.** Four legacy classes in this subtree override
 ///       `checkPermissionToBeginSession` to route through
 ///       `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`: `sample::Transpose`
-///       (`sample/transpose.h:120-135`, which also overrides `isRangeDependent()` at `:137`),
-///       `LoopPoint` (`sample/loop_point.cpp:38-58`, `loop_point.h:31`), `FileSelector`
-///       (`file_selector.cpp:68-86`) and `osc::AudioRecorder` (`osc/audio_recorder.h:65-74`). Ten nodes
+///       (`origin/main:src/deluge/gui/menu_item/sample/transpose.h`, which also overrides `isRangeDependent()`),
+///       `LoopPoint` (`origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp`, also `isRangeDependent()`),
+///       `FileSelector` (`origin/main:src/deluge/gui/menu_item/file_selector.cpp`) and `osc::AudioRecorder`
+///       (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`), each in its
+///       `checkPermissionToBeginSession`. Ten nodes
 ///       here carry `range_specific` (`nodes.h`'s `kRangeSpecificNodes`; the validator's
 ///       `Flag::RangeSpecific` audit re-checks it). Only the transposes and the loop points
 ///       override `isRangeDependent()`, so only they carry `range_dependent` (`with_range_dependent`

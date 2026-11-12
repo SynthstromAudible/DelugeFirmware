@@ -2240,7 +2240,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(menu::nodes::arp_preset.chain_falls_back_to_selection).to_be_false();
 	});
 
-	it("button focus onto a range_dependent column runs the MustSelectRange check", _ {
+	it("button focus onto a range-specific column runs the MustSelectRange check", _ {
 		// `handleInstrumentButtonPress`'s `initializeItem` arm (`:424-433`), ported through
 		// `enter_range_picker_if_needed`.
 		select_language();
