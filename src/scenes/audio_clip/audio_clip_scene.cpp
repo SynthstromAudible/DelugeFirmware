@@ -494,7 +494,7 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 	// ---- SELECT_ENC without shift (`audio_clip_view.cpp:401-432`) ----
 	if (b == ButtonId::SelectEnc && !ctx.shift) {
 		// `soundEditor.setup(getCurrentClip())` + `openUI(&soundEditor)` (`audio_clip_view.cpp:423-426`).
-		// `soundEditor` is a `scenes-no-root-ui` global; its port is `menu::MenuScene`, but nothing
+		// The legacy menu driver is gone; its port is `menu::MenuScene`, but nothing
 		// in this library pushes that scene -- resolving a `MenuContext` for a clip and filing a
 		// `Push` is the application's wiring, exactly as `MarkerScene` records for its own shortcut jump
 		// (`scenes/marker/marker_scene.h`). **Not ported**, and therefore not claimed: the event

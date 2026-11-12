@@ -592,7 +592,7 @@ private:
 
 } // namespace deluge::gui::ui
 
-/// @brief The one guest, named the way legacy names its UIs (`extern SoundEditor soundEditor;`).
+/// @brief The one guest, named the way legacy names its UIs (`extern SessionView sessionView;`).
 ///
 /// Constructed over `deluge::scenes::scene_registry()`. The menu entry points push it with
 /// `openUI(&shellHostUI)`.

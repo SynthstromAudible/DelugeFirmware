@@ -64,7 +64,7 @@ nothing.
   (`scenes-no-engine-pointers`). `currentSong` is never named (`scenes-currentSong`): the song
   arrives through `MenuContext` or `Services`.
 * **No legacy UI.** No root-UI global or UI-stack call (`scenes-no-root-ui`: `getRootUI(`,
-  `openUI(`, `soundEditor`, `slicer`, …), no `display->` (`scenes-no-display`), no legacy output
+  `openUI(`, `sessionView`, `sampleBrowser`, …), no `display->` (`scenes-no-display`), no legacy output
   driver (`scenes-no-legacy-hid-drivers`: `uiNeedsRendering(`, `PadLEDs::`, `indicator_leds::`,
   `uiTimerManager.`), no legacy waveform renderer or navigator (`scenes-no-legacy-waveform`), no
   stem-export process call (`scenes-no-stem-export-process`). Where a ported item has to run a
