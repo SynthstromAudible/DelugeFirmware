@@ -24,7 +24,6 @@
 #include "gui/ui/shell_action_dispatch.h" // closePortedMenu()
 #include "gui/ui/shell_guest_services.h"  // shellMenuFrontmost
 #include "gui/ui/shell_host_ui.h"         // shellHostUI
-#include "gui/ui/sound_editor.h"          // soundEditor
 #include "gui/ui/ui.h"                    // uiNeedsRendering
 #include "gui/views/instrument_clip_view.h"
 #include "model/settings/runtime_feature_settings.h"

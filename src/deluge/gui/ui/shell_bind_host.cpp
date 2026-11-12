@@ -3,6 +3,7 @@
 #include "gui/ui/shell_slice_ops.h"
 #include "gui/ui/ui.h"
 #include "hid/led/pad_leds.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/voice/voice_sample.h"
 #include "model/voice/voice_slot.h"
 
@@ -554,7 +555,7 @@ namespace {
 
 /// Whether another of @p owner's siblings already has @p name: another clip of the clip's track, another audio track,
 /// another drum of the lane's kit, as legacy's rename editors refuse a name (`rename_clip_ui.cpp:35`,
-/// `rename_output_ui.cpp:35`, `rename_drum_ui.cpp:52`). Letter case does not count.
+/// `rename_output_ui.cpp:35`, `RenameDrumUI`). Letter case does not count.
 bool name_taken(const deluge::project::SettingAddress& owner, std::string_view name) {
 	if (const auto* clip_at = std::get_if<deluge::project::ClipAddress>(&owner.owner)) {
 		::Clip* clip = currentSong->clipForId(clip_at->clip_id);

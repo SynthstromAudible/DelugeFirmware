@@ -19,7 +19,6 @@
 #include "modulation/patch/patch_cable.h"
 
 #include "support/menu_engine.h"
-#include "support/menu_globals.h"
 #include "support/song_fixture.h"
 
 #include <cstdint>
@@ -63,7 +62,7 @@ inline const menu::MenuContext& install_sound_context() {
 	                      /*kit_global_fx=*/false);
 	currentSong = fixture.song;
 	fixture.song->setCurrentClip(menu_engine(ctx).clip);
-	install_editor_carrier(ctx, sound_allows_note_tails(ctx));
+	context_installed(ctx);
 	return ctx;
 }
 

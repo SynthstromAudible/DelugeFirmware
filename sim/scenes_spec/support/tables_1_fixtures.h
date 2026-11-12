@@ -20,7 +20,6 @@
 #include "processing/source.h"
 
 #include "support/menu_engine.h"
-#include "support/menu_globals.h"
 #include "support/oracle_tree.h"
 #include "support/song_fixture.h"
 #include "support/tables_2_fixtures.h"
@@ -37,7 +36,7 @@ namespace nodes = deluge::scenes::menu::nodes;
 using deluge::scenes::menu::MenuContext;
 using deluge::scenes::menu::Node;
 
-/// The song, clip and editor-carrier install every root's comparison starts from, and the text helpers around it, are
+/// The song and clip install every root's comparison starts from, and the text helpers around it, are
 /// the sound root's.
 using tables2::install;
 using tables2::shown;
@@ -120,7 +119,7 @@ struct RangeFixture {
 		install(ctx, song.song);
 	}
 	~RangeFixture() {
-		// Put the shared fixture back: every other group reads through the same context members.
+		// Put the shared fixture back: every other group reads the same fixture.
 		(void)fixture();
 	}
 	RangeFixture(const RangeFixture&) = delete;

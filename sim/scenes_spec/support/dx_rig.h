@@ -25,7 +25,7 @@
 #include "processing/source.h"
 
 #include "spec/shell/support/fake_surfaces.h"
-#include "support/menu_globals.h"
+#include "support/menu_engine.h"
 #include "support/oracle_table.h"
 #include "support/song_fixture.h"
 
@@ -49,8 +49,7 @@ namespace nodes = deluge::scenes::menu::nodes;
 
 /// @brief A synth whose first oscillator is DX7.
 ///
-/// `setOscType` gives the source its patch, as it does on the device; the editor's context members app code outside the
-/// menu still reads are pointed at it.
+/// `setOscType` gives the source its patch, as it does on the device.
 struct DxRig {
 	spec::SongFixture song = spec::make_synth_song();
 	Song* saved = currentSong;
@@ -60,7 +59,7 @@ struct DxRig {
 		currentSong = song.song;
 		sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
 		sound->sources[0].setOscType(OscType::DX7);
-		install_editor_carrier(
+		context_installed(
 		    menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false), false);
 	}
 	~DxRig() { currentSong = saved; }

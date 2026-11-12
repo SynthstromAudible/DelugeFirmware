@@ -31,7 +31,6 @@
 #include "processing/sound/sound_drum.h"
 
 #include "support/menu_engine.h"
-#include "support/menu_globals.h"
 #include "support/oracle_tree.h"
 #include "support/song_fixture.h"
 
@@ -50,12 +49,12 @@ namespace nodes = deluge::scenes::menu::nodes;
 using deluge::scenes::menu::MenuContext;
 using deluge::scenes::menu::Node;
 
-/// @brief Point the context members app code reads at whatever @p ctx is editing, and the song, clip and UI mode with
-///        them. A write leaves the model where it wrote, so every comparison installs the fixture it reads.
+/// @brief Make the song, clip and UI mode those @p ctx is read over. A write leaves the model where it wrote, so every
+/// comparison installs the fixture it reads.
 inline void install(const MenuContext& ctx, Song* song) {
 	currentSong = song;
 	song->setCurrentClip(menu_engine(ctx).clip);
-	install_editor_carrier(ctx, sound_allows_note_tails(ctx));
+	context_installed(ctx);
 	currentUIMode = ctx.affect_entire_held ? UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR : 0;
 }
 

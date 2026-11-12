@@ -633,7 +633,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		// The two fallbacks have two reachability rules, and the service holds both --
 		// `Scene::is_root()`'s doc has the proof. `View::buttonAction` is reached only from a
 		// `RootUI` (`gui/views/timeline_view.cpp:119-121`,
-		// `gui/ui/keyboard/keyboard_screen.cpp:591`, and those two classes are the entire result of
+		// `KeyboardScreen::buttonAction`, and those two classes are the entire result of
 		// `grep "public RootUI"`); `Buttons::buttonAction`'s tail runs for any current UI that
 		// returned `NOT_DEALT_WITH` (`hid/buttons.cpp:139-141`), root or not.
 		static spec::SongFixture fixture = spec::make_synth_song();

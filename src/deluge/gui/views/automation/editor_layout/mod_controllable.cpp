@@ -16,6 +16,7 @@
  */
 
 #include "gui/views/automation/editor_layout/mod_controllable.h"
+#include "gui/l10n/l10n.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"

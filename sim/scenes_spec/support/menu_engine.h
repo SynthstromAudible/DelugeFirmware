@@ -19,6 +19,7 @@
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/source.h"
+#include <optional>
 
 namespace deluge::scenes::spec {
 
@@ -119,6 +120,19 @@ inline bool sound_allows_note_tails(const deluge::scenes::menu::MenuContext& ctx
 	ModelStackWithThreeMainThings* stack = setupModelStackWithThreeMainThingsIncludingNoteRow(
 	    memory, ctx.song, e.clip, note_row_index, note_row, e.mod, e.params);
 	return e.sound->allowNoteTails(stack->addSoundFlags(), /*disregardSampleLoop=*/true);
+}
+
+/// @brief What the fixtures tell the one reader that needs legacy state: the freezer, which asks legacy items about the
+///        sound a fixture just made current. Null everywhere else, so a port-only spec never touches legacy state.
+inline void (*legacy_context_hook)(const deluge::scenes::menu::MenuContext& ctx, bool allows_note_tails) = nullptr;
+
+/// @brief A fixture made @p ctx current. @p allows_note_tails is `sound_allows_note_tails(ctx)` unless the fixture
+///        names the value.
+inline void context_installed(const deluge::scenes::menu::MenuContext& ctx,
+                              std::optional<bool> allows_note_tails = {}) {
+	if (legacy_context_hook != nullptr) {
+		legacy_context_hook(ctx, allows_note_tails.value_or(sound_allows_note_tails(ctx)));
+	}
 }
 
 } // namespace deluge::scenes::spec

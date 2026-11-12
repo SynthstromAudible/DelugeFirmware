@@ -21,7 +21,6 @@
 #include "gui/colour/colour.h"
 #include "gui/colour/palette.h"
 #include "gui/context_menu/clip_settings/launch_style.h"
-#include "gui/menu_item/unpatched_param.h"
 #include "gui/ui/menus.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"

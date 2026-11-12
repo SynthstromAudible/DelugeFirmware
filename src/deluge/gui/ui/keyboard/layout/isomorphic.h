@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
 
 namespace deluge::gui::ui::keyboard::layout {

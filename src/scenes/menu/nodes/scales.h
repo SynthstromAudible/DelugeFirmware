@@ -10,7 +10,7 @@
 /// | node | legacy global | `ActiveScaleMenu::Kind` | the bitset it edits |
 /// |---|---|---|---|
 /// | `default_active_scale` | `defaultActiveScaleMenu` (`gui/ui/menus.cpp:1670`) | `DEFAULT` | `FlashStorage::defaultDisabledPresetScales` (`storage/flash_storage.h:74`) |
-/// | `active_scales` | `activeScaleMenu` (`gui/ui/menus.cpp`) | `SONG` | `currentSong->disabledPresetScales` (`model/song/song.h:223`) |
+/// | `active_scales` | `activeScaleMenu` (`gui/ui/menus.cpp`) | `SONG` | `currentSong->disabledPresetScales` (`Song::disabledPresetScales`) |
 // clang-format on
 ///
 /// One row per `PresetScale` from 0 to `LAST_PRESET_SCALE` (`model/scale/preset_scales.h`),

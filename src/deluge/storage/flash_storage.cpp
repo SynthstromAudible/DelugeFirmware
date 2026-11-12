@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "gui/colour/pad_colour.h"
 #include "gui/l10n/l10n.h"
-#include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/display/oled_canvas/canvas.h"
 #include "hid/led/pad_leds.h"

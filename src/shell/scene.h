@@ -612,7 +612,7 @@ public:
 	///     (`gui/ui/ui.cpp:35-45`). `grep "public RootUI"` finds exactly two classes in the tree,
 	///     `TimelineView` (`gui/views/timeline_view.h:27`) and `KeyboardScreen`
 	///     (`gui/ui/keyboard/keyboard_screen.h:35`), and **both** forward to `View::buttonAction`
-	///     (`gui/views/timeline_view.cpp:119-121`, `gui/ui/keyboard/keyboard_screen.cpp:591`). So
+	///     (`gui/views/timeline_view.cpp:119-121`, `KeyboardScreen::buttonAction`). So
 	///     "is the current UI the root UI" is not an approximation of that reachability rule -- it
 	///     **is** the rule, exactly.
 	///

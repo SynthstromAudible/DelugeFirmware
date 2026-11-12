@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/browser/dx_cartridge_bank.h"
+#include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
 #include "io/file.hpp"
 #include "memory/allocate_unique.h"

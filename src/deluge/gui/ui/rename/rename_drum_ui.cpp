@@ -18,7 +18,6 @@
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"

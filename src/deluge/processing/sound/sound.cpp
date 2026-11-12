@@ -26,7 +26,6 @@
 #include "effects/filter_slots.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"

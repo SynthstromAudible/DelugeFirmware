@@ -1,6 +1,7 @@
 #include "gui/menu_item/sample/utils.h"
 
 #include "gui/menu_item/setting_edit.h"
+#include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 

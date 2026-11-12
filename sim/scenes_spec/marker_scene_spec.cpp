@@ -42,6 +42,7 @@
 ///       `browser_scene_spec.cpp` runs under.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/sound_editor.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/marker/marker_scene.h"
 #include "scenes/menu/bind_host.h"

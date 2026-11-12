@@ -333,7 +333,6 @@ using deluge::hid::display::OLED;
 #include "support/global_guest_menu.h"
 #include "support/host_flash.h"
 #include "support/menu_engine.h"
-#include "support/menu_globals.h"
 #include "support/menu_scales_fixtures.h"
 #include "support/midi_device_fixtures.h"
 #include "support/reset_witness.h"
@@ -573,10 +572,30 @@ namespace {
 
 using deluge::scenes::spec::oracle_escape;
 
+/// @brief Point `soundEditor`'s context members at what @p ctx edits, as a legacy menu open sets them: the legacy
+///        items the freezer reads resolve the sound they edit through these.
+void install_legacy_context(const deluge::scenes::menu::MenuContext& ctx, bool allows_note_tails) {
+	const deluge::scenes::spec::MenuEngine e = deluge::scenes::spec::menu_engine(ctx);
+	soundEditor.currentSound = e.sound;
+	soundEditor.currentModControllable = e.mod;
+	soundEditor.currentParamManager = e.params;
+	soundEditor.currentSourceIndex = ctx.source_index;
+	soundEditor.currentSource = e.source;
+	soundEditor.currentMultiRange = e.range;
+	soundEditor.currentMultiRangeIndex = ctx.range_index;
+	soundEditor.currentArpSettings = e.arp;
+	soundEditor.currentSidechain = e.mod != nullptr ? &e.mod->core().sidechain() : nullptr;
+	soundEditor.allowsNoteTails = allows_note_tails;
+	soundEditor.setupKitGlobalFXMenu = ctx.is_kit_global_fx;
+}
+
 /// @brief The rows one family writes, in the order it asks them.
 class OracleWriter {
 public:
-	explicit OracleWriter(std::string name) : name_(std::move(name)) {}
+	explicit OracleWriter(std::string name) : name_(std::move(name)) {
+		// The fixtures report each context they make current; legacy reads the sound it edits through `soundEditor`.
+		deluge::scenes::spec::legacy_context_hook = &install_legacy_context;
+	}
 
 	void row(std::string_view path, std::string_view column, std::vector<std::string> values = {}) {
 		std::string key{path};
@@ -4240,13 +4259,13 @@ describe freeze_clip_shortcut_overview("menu oracle freezer: the clip view's sho
 				// `currentModControllable`, `editingKitAffectEntire` reads `setupKitGlobalFXMenu`, the kit-global latch),
 				// which hold what the menu last edited: here this clip as the clip view's own affect-entire resolves it.
 				// The latch is each case's own (the `kit_affect_entire` cases with it set, as a pad press leaves it; the
-				// `_unlatched` ones with it clear, as a menu close leaves it), kept across the carrier's write.
+				// `_unlatched` ones with it clear, as a menu close leaves it), kept across the legacy context's write.
 				const bool latch = deluge::gui::ui::shellKitGlobalFx();
 				const menu::MenuContext ctx =
 				    menu::context_for(*currentSong, deluge::gui::menuViewOf(getCurrentClip()), 0, false, false, false,
 				                      SoundEditor::shouldEditKitAffectEntire());
-				spec::install_editor_carrier(ctx, spec::sound_allows_note_tails(ctx));
-				deluge::gui::ui::shellKitGlobalFxLatch() = latch; // the carrier writes `setupKitGlobalFXMenu`, the latch
+				install_legacy_context(ctx, spec::sound_allows_note_tails(ctx));
+				deluge::gui::ui::shellKitGlobalFxLatch() = latch; // the legacy context writes `setupKitGlobalFXMenu`, the latch
 			}
 			SoundEditor::renderMainShortcutsOnly(forThing, image, occupancy, SoundEditor::shouldEditKitAffectEntire());
 			const std::string path = "overview/" + std::string{c.name};

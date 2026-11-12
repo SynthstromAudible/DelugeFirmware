@@ -18,7 +18,6 @@
 #include "io/midi/midi_engine.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
-#include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/hid_sysex.h"
 #include "hid/led/indicator_leds.h"

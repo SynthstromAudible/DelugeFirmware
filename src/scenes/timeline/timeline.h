@@ -152,7 +152,7 @@ struct TimelineState {
 	/// (`audio_clip_view.h:38`), `ArrangerView` too (`arranger_view.h:78`), everything else takes
 	/// the base's true.
 	bool supports_triplets = true;
-	/// @brief Legacy's `Song::tripletsOn` (`song.h:200`).
+	/// @brief Legacy's `Song::tripletsOn`.
 	bool triplets_on = false;
 	/// @brief Legacy's `Song::tripletsLevel` (`model/song/song.h`) -- ticks in one of the three triplets.
 	uint32_t triplets_level = 0;

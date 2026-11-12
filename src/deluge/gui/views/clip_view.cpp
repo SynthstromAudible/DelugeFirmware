@@ -32,6 +32,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/set_clip_length.h"
 #include "model/edits/shift_clip.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/mode/session.h"

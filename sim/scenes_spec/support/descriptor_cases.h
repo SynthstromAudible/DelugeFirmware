@@ -40,7 +40,6 @@
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
 #include "support/menu_engine.h"
-#include "support/menu_globals.h"
 #include "support/oracle_table.h"
 #include "support/song_fixture.h"
 
@@ -81,14 +80,14 @@ using Range = std::pair<int32_t, int32_t>;
 // ---------------------------------------------------------------------------------------------
 // The fixtures and the contexts.
 
-/// Point the song, the clip and the context carrier at what @p ctx edits, as the sound editor's setup does.
+/// Point the song and the clip at what @p ctx edits.
 inline void install(const MenuContext& ctx, Song* song) {
 	currentSong = song;
 	const spec::MenuEngine engine = spec::menu_engine(ctx);
 	if (engine.clip != nullptr) {
 		song->setCurrentClip(engine.clip);
 	}
-	spec::install_editor_carrier(ctx, true);
+	spec::context_installed(ctx, true);
 	currentUIMode = 0;
 }
 

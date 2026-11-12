@@ -19,7 +19,6 @@
 #include "dsp-next/fixed/dx7/algorithms.h"
 #include "gui/menu_item/dx/param.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
-#include "gui/ui/sound_editor.h"
 #include "hid/buttons.h"
 #include "model/edits/setting_edit.h"
 #include "processing/dx7/dx_patch.h"
