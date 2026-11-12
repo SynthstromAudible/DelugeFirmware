@@ -10,6 +10,9 @@ through SelectEnc, which opens the ported menu.
 
 The emulator's ShellMenu cards still carry the old `shellMenu=1`, which the firmware ignores.
 
+`.superpowers/emu-card/card.img` keeps the old `legacyMenu=1`, which the firmware keeps as an unknown key and ignores:
+the basic scripts run on it as well as on a bare card, and both must agree, so the stale key stays inert.
+
 `sm00-select-turn` checks the emulator's encoder input before anything leans on it: of five separate single Select
 detents, the first moves nothing and each of the others moves the sound menu's list one row, on both images. A black
 encoder drops the first detent of its first turn after boot and of any turn that reverses its
