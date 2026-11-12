@@ -50,9 +50,6 @@
 #include <cstring>
 #include <iterator>
 #include <utility>
-#undef __GNU_VISIBLE
-#define __GNU_VISIBLE 1 // Makes strcasestr visible.
-#include <strings.h>
 
 namespace params = deluge::modulation::params;
 

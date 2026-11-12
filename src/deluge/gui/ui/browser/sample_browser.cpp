@@ -15,18 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "gui/ui/browser/sample_browser.h"
 #include "definitions_cxx.hpp"
-#include "hid/button.h"
-#include "io/file.hpp"
-#include "model/sample/sample.h"
-#include "modulation/patch/patch_cable_set.h"
-#include "util/try.h"
-#include <iterator>
-#include <optional>
-#include <ranges>
-#include <utility>
-#undef __GNU_VISIBLE
-#define __GNU_VISIBLE 1 // Makes strcasestr visible. Might already be the reason for the define above
 #include "extern.h"
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"
@@ -35,7 +25,6 @@
 #include "gui/menu_item/multi_range.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/folder_import.h"
-#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/browser/sample_preview.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -48,12 +37,14 @@
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "gui/waveform/waveform_renderer.h"
+#include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "io/debug/log.h"
+#include "io/file.hpp"
 #include "libdeluge/clock.h" // deluge_clock_now
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -67,11 +58,13 @@
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/sample/sample.h"
 #include "model/sample/waveform_render_data.h" // COL_STATUS_*
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -86,8 +79,13 @@
 #include "util/c_string.h"
 #include "util/functions.h"
 #include "util/string.h"
+#include "util/try.h"
 #include "util/volume_param_gain.h"
 #include <cstring>
+#include <iterator>
+#include <optional>
+#include <ranges>
+#include <utility>
 
 namespace params = deluge::modulation::params;
 using namespace deluge;
