@@ -179,9 +179,9 @@ int32_t AudioClipScene::audio_mode() const {
 
 bool AudioClipScene::on_enter(const SceneId& id) {
 	(void)id;
-	// `AudioClipView::opened` (`audio_clip_view.cpp:69-77`). `uiNeedsRendering(this)` (`:71`) is the
+	// `AudioClipView::opened` (`audio_clip_view.cpp`). `uiNeedsRendering(this)` is the
 	// shell's business in immediate mode, and `getCurrentClip()->onAutomationClipView = false`
-	// (`:72`) is a flag `AutomationView` reads -- not ported, because `automationView` is on
+	// is a flag `AutomationView` reads -- not ported, because `automationView` is on
 	// `scenes-no-root-ui`'s forbidden list and nothing in this layer reads the flag either. What is
 	// left is the tick-square latch and `focusRegained`, in legacy's own order.
 	must_redraw_tick_squares_ = true;
@@ -446,7 +446,7 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 		// resolves through `TimelineView::buttonAction`'s `else` (`timeline_view.cpp:119-121`) to
 		// `view.buttonAction` -- `services::GlobalControls`. Unhandled is exactly that hand-off,
 		// **and the marker is deliberately not deactivated**: that is what the `dontDeactivateMarker`
-		// label buys, since these three return before the tail at `audio_clip_view.cpp:474`.
+		// label buys, since these three return before the tail of `AudioClipView::padAction`'s marker arm.
 		return Result::unhandled();
 	}
 
@@ -579,7 +579,7 @@ Result AudioClipScene::pad_action(const UiEvent& event, const UiContext& ctx) {
 	// `InputLowering::set_sd_busy`, which defers and retries rather than asking a scene
 	// (`shell/scene.h`'s `Action` warning names that split).
 	//
-	// `:485`'s `soundEditor.potentialShortcutPadAction(x, y, on)` is **not ported**, for
+	// The shortcut call (`menuShortcutPadAction`) is **not ported**, for
 	// `MarkerScene`'s reason (`scenes/marker/marker_scene.h`): `MenuScene` owns the shortcut
 	// tables, and jumping into a menu item from here means filing navigation nothing yet consumes.
 	// The consequence is behavioural and worth stating plainly: on a pad that IS a shortcut, legacy

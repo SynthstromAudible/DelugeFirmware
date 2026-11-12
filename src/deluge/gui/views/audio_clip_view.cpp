@@ -56,6 +56,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
 #include "util/shell_menu_entry.h"
+#include "util/sound_menu_open.h"
 
 extern "C" {}
 
@@ -480,15 +481,15 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 		}
 		else {
 			// Maybe go to SoundEditor
-			ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, on);
-			if (soundEditorResult != ActionResult::NOT_DEALT_WITH) {
-				if (soundEditorResult == ActionResult::DEALT_WITH) {
+			ActionResult shortcutResult = deluge::gui::ui::menuShortcutPadAction(x, y, on);
+			if (shortcutResult != ActionResult::NOT_DEALT_WITH) {
+				if (shortcutResult == ActionResult::DEALT_WITH) {
 					endMarkerVisible = false;
 					startMarkerVisible = false;
 					uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 					uiNeedsRendering(this, 0xFFFFFFFF, 0);
 				}
-				return soundEditorResult;
+				return shortcutResult;
 			}
 			else if (on && !currentUIMode) {
 				AudioClip* clip = getCurrentAudioClip();

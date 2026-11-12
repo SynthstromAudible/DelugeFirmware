@@ -450,7 +450,7 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on) 
 				// then read; the open edits what the clip's affect-entire says now. The root is then one of six, and
 				// `context_for` runs the same six tests in the same order; the two UI-mode roots legacy could otherwise
 				// pick are unreachable because this arm is `currentUIMode == UI_MODE_NONE`.
-				const bool kitGlobalFx = SoundEditor::shouldEditKitAffectEntire();
+				const bool kitGlobalFx = deluge::gui::ui::editKitAffectEntire();
 				if (!deluge::gui::ui::openShellMenu(getCurrentClip(), /*sourceIndex=*/0,
 				                                    /*performanceView=*/false,
 				                                    /*sessionOrArrangerRoot=*/false,
@@ -460,7 +460,7 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on) 
 			}
 			else {
 				// todo: this should probably be inside the sound editor but I don't want to deal with it right now
-				if (SoundEditor::shouldEditKitAffectEntire()) {
+				if (deluge::gui::ui::editKitAffectEntire()) {
 					soundEditor.setupKitGlobalFXMenu = true;
 				}
 

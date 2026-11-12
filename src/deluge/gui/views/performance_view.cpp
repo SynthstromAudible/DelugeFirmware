@@ -54,6 +54,7 @@
 #include "util/c_string.h"
 #include "util/functions.h"
 #include "util/shell_menu_entry.h"
+#include "util/sound_menu_open.h"
 
 #include "scenes/menu/action.h" // set_performance_editing_mode -- see syncEditingModeMirror below
 
@@ -1046,7 +1047,7 @@ ActionResult PerformanceView::padAction(int32_t xDisplay, int32_t yDisplay, int3
 					return ActionResult::DEALT_WITH;
 				}
 				else {
-					return soundEditor.potentialShortcutPadAction(xDisplay, yDisplay, on);
+					return deluge::gui::ui::menuShortcutPadAction(xDisplay, yDisplay, on);
 				}
 			}
 		}

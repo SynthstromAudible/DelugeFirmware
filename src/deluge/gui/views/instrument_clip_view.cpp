@@ -1889,13 +1889,13 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 			}
 			// otherwise let's check for another shortcut pad action
 			else {
-				ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, velocity);
+				ActionResult shortcutResult = deluge::gui::ui::menuShortcutPadAction(x, y, velocity);
 
-				if (soundEditorResult == ActionResult::NOT_DEALT_WITH) {
+				if (shortcutResult == ActionResult::NOT_DEALT_WITH) {
 					goto doRegularEditPadActionProbably;
 				}
 				else {
-					return soundEditorResult;
+					return shortcutResult;
 				}
 			}
 		}

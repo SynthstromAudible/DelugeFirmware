@@ -36,6 +36,7 @@
 #include "playback/mode/playback_mode.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
+#include "util/shell_menu_entry.h"
 
 uint32_t ClipView::getMaxZoom() {
 	return getCurrentClip()->getMaxZoom();
@@ -424,7 +425,7 @@ bool ClipView::maybeRenderShortcutsOverview(uint32_t whichRows, RGB image[][kDis
 		renderedShortcutOverview = true;
 		D_PRINTLN("rendering shortcuts for %x", getModControllableAudioOrNone());
 		SoundEditor::renderMainShortcutsOnly(getModControllableAudioOrNone(), image, occupancyMask,
-		                                     SoundEditor::shouldEditKitAffectEntire());
+		                                     deluge::gui::ui::editKitAffectEntire());
 		return true;
 	}
 	if (renderedShortcutOverview) {

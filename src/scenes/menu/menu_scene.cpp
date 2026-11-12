@@ -1227,8 +1227,8 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 	// A custom item owns its input while it is focused: it sees every event first and, if it
 	// consumes it, the scene does nothing else this call -- the same precedence legacy gives a
 	// `MenuItem`'s own `buttonAction` override over the rest of `SoundEditor::buttonAction`
-	// (`gui/ui/sound_editor.cpp:636`: `currentMenuItem->buttonAction(...)` runs before anything else
-	// in that branch looks at the result). Checked before the shortcut-pad jump and the root `Back`
+	// (`SoundEditor::buttonAction` in `gui/ui/sound_editor.cpp`: `currentMenuItem->buttonAction(...)` runs before
+	// anything else in that branch looks at the result). Checked before the shortcut-pad jump and the root `Back`
 	// below, not after: a bespoke item's own input (the patch-cable pages' pad presses, a file browser's
 	// scroll) is exactly the kind of thing this layer cannot interpret generically, so it must not
 	// be shadowed by a case that happens to match the same event shape.

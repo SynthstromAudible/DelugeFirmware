@@ -402,9 +402,7 @@ bool SoundEditor::editingKitAffectEntire() const {
 }
 
 bool SoundEditor::shouldEditKitAffectEntire() {
-	// Null when the current clip is an audio clip, which the sample browser reaches this with after loading a file.
-	InstrumentClip* clip = getCurrentInstrumentClip();
-	return getCurrentOutputType() == OutputType::KIT && clip != nullptr && clip->affectEntire;
+	return deluge::gui::ui::editKitAffectEntire();
 }
 
 bool SoundEditor::editingKitRow() {
@@ -1413,11 +1411,6 @@ std::tuple<MenuItem*, bool> SoundEditor::get_basic_shortcut_action(int32_t x, in
 static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, 0};
 
 ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
-	// The ported menu answers the press whole, its refusals included, unless legacy's own open editor or marker editor
-	// is asking.
-	if (getCurrentUI() != this && getCurrentUI() != &sampleMarkerEditor && deluge::gui::ui::shellOwnsShortcutPads()) {
-		return deluge::gui::ui::shellShortcutPadAction(x, y, on);
-	}
 	// a bunch of other views call this, in which case we actually want to know if we *would* edit kit affect entire
 	// if we were to open a menu. There's a weird edge case in kits otherwise where trying to open a kit param that
 	// doesn't exist in the current selected drum row (like if a filter is off or different modfx) otherwise

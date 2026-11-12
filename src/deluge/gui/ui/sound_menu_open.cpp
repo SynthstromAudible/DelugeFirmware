@@ -134,4 +134,11 @@ void legacyRangesRetyped(Source& source, bool cleared) {
 	}
 }
 
+ActionResult menuShortcutPadAction(int32_t x, int32_t y, bool on) {
+	if (getCurrentUI() != &soundEditor && getCurrentUI() != &sampleMarkerEditor && shellOwnsShortcutPads()) {
+		return shellShortcutPadAction(x, y, on);
+	}
+	return soundEditor.potentialShortcutPadAction(x, y, on);
+}
+
 } // namespace deluge::gui::ui

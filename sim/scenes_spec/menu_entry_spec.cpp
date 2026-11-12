@@ -798,7 +798,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		{
 			ToggleGuard off{RuntimeFeatureStateToggle::Off};
 			setRootUILowLevel(&instrumentClipView);
-			(void)soundEditor.potentialShortcutPadAction(8, 7, true);
+			(void)entry::menuShortcutPadAction(8, 7, true);
 			expect(getCurrentUI() == &soundEditor).to_be_true();
 			// Legacy's own close, which ends the item's session and clears the navigation record.
 			soundEditor.exitCompletely();
@@ -807,7 +807,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		{
 			ToggleGuard on{RuntimeFeatureStateToggle::On};
 			setRootUILowLevel(&instrumentClipView);
-			(void)soundEditor.potentialShortcutPadAction(8, 7, true);
+			(void)entry::menuShortcutPadAction(8, 7, true);
 			expect(getCurrentUI() == &shellHostUI).to_be_true();
 			expect(deluge::scenes::menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
 			nullifyUIs();
@@ -1884,7 +1884,7 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 		setRootUILowLevel(&instrumentClipView);
 		{
 			HeldShift shift;
-			expect(soundEditor.potentialShortcutPadAction(4, 0, true) == ActionResult::DEALT_WITH).to_be_true();
+			expect(entry::menuShortcutPadAction(4, 0, true) == ActionResult::DEALT_WITH).to_be_true();
 		}
 		expect(isUIOpen(&soundEditor)).to_be_false();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
@@ -1905,7 +1905,7 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 		setRootUILowLevel(&instrumentClipView);
 		{
 			HeldShift shift;
-			expect(soundEditor.potentialShortcutPadAction(4, 2, true) == ActionResult::DEALT_WITH).to_be_true();
+			expect(entry::menuShortcutPadAction(4, 2, true) == ActionResult::DEALT_WITH).to_be_true();
 		}
 		expect(isUIOpen(&soundEditor)).to_be_false();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
@@ -1923,7 +1923,7 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 		setRootUILowLevel(&instrumentClipView);
 		{
 			HeldShift shift;
-			expect(soundEditor.potentialShortcutPadAction(4, 2, true) == ActionResult::DEALT_WITH).to_be_true();
+			expect(entry::menuShortcutPadAction(4, 2, true) == ActionResult::DEALT_WITH).to_be_true();
 		}
 		expect(isUIOpen(&soundEditor)).to_be_false();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
@@ -1939,7 +1939,7 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 		setRootUILowLevel(&performanceView);
 		{
 			HeldShift shift;
-			(void)soundEditor.potentialShortcutPadAction(8, 7, true);
+			(void)entry::menuShortcutPadAction(8, 7, true);
 		}
 		expect(isUIOpen(&soundEditor)).to_be_false();
 		expect(getCurrentUI() == &shellHostUI).to_be_true();
@@ -1981,7 +1981,7 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 4, 7) == &nodes::sequence_direction)
 		    .to_be_true();
 
-		expect(soundEditor.potentialShortcutPadAction(4, 7, true) == ActionResult::DEALT_WITH).to_be_true();
+		expect(entry::menuShortcutPadAction(4, 7, true) == ActionResult::DEALT_WITH).to_be_true();
 		expect(isUIOpen(&soundEditor)).to_be_false();
 		expect(getCurrentUI() == &shellHostUI).to_be_true();
 		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::NoteRowEditor)
@@ -2017,7 +2017,7 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 		setRootUILowLevel(&instrumentClipView);
 		currentUIMode = UI_MODE_AUDITIONING;
 
-		expect(soundEditor.potentialShortcutPadAction(4, 7, true) == ActionResult::DEALT_WITH).to_be_true();
+		expect(entry::menuShortcutPadAction(4, 7, true) == ActionResult::DEALT_WITH).to_be_true();
 		expect(deluge::scenes::menu_scene().focused_value() == &nodes::sequence_direction).to_be_true();
 		closeGuest();
 	});
@@ -2090,7 +2090,7 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 		HeldAudition audition{2};
 		HeldShift shift;
 
-		expect(soundEditor.potentialShortcutPadAction(4, 7, true) == ActionResult::DEALT_WITH).to_be_true();
+		expect(entry::menuShortcutPadAction(4, 7, true) == ActionResult::DEALT_WITH).to_be_true();
 		expect(getCurrentUI() == &shellHostUI).to_be_true();
 		expect(deluge::scenes::menu_scene().menu_context().root == before).to_be_true();
 		closeGuest();
@@ -2103,10 +2103,10 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		(void)f;
 		setRootUILowLevel(&instrumentClipView);
-		expect(soundEditor.potentialShortcutPadAction(8, 7, true) == ActionResult::NOT_DEALT_WITH).to_be_true();
+		expect(entry::menuShortcutPadAction(8, 7, true) == ActionResult::NOT_DEALT_WITH).to_be_true();
 		HeldShift shift;
-		expect(soundEditor.potentialShortcutPadAction(8, 7, false) == ActionResult::NOT_DEALT_WITH).to_be_true();
-		expect(soundEditor.potentialShortcutPadAction(kDisplayWidth, 3, true) == ActionResult::NOT_DEALT_WITH).to_be_true();
+		expect(entry::menuShortcutPadAction(8, 7, false) == ActionResult::NOT_DEALT_WITH).to_be_true();
+		expect(entry::menuShortcutPadAction(kDisplayWidth, 3, true) == ActionResult::NOT_DEALT_WITH).to_be_true();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 	});
 });
@@ -2227,9 +2227,30 @@ describe menu_entry_published_target("the ported menu's owner and params, which 
 		closeGuest();
 	});
 });
+
+describe menu_entry_kit_affect_entire("editKitAffectEntire: a menu opened now edits the kit's own effects", $ {
+	it("is true for a kit clip with affect-entire on, and false with it off", _ {
+		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
+		static_cast<InstrumentClip*>(kit.clip)->affectEntire = true;
+		expect(entry::editKitAffectEntire()).to_be_true();
+		static_cast<InstrumentClip*>(kit.clip)->affectEntire = false;
+		expect(entry::editKitAffectEntire()).to_be_false();
+	});
+
+	it("is false for a synth clip with affect-entire set, and for an audio clip", _ {
+		deluge::scenes::spec::SongFixture synth = deluge::scenes::spec::make_synth_song();
+		static_cast<InstrumentClip*>(synth.clip)->affectEntire = true;
+		expect(entry::editKitAffectEntire()).to_be_false();
+		deluge::scenes::spec::AudioSongFixture audio = deluge::scenes::spec::make_audio_clip_song();
+		(void)audio;
+		expect(entry::editKitAffectEntire()).to_be_false();
+	});
+});
+
 // clang-format on
 
 DELUGE_SPEC(menu_entry_spec, menu_entry_toggle, menu_entry_roots, menu_entry_node_arg, menu_entry_shortcut,
             menu_entry_refusal, menu_entry_undo_log, menu_entry_screensaver, menu_entry_tick_rate,
             menu_entry_midi_learn, menu_entry_automation_notes, menu_entry_close_mode, menu_entry_reopen,
-            menu_entry_shortcut_whole, menu_entry_legacy_closed, menu_entry_published_target)
+            menu_entry_shortcut_whole, menu_entry_legacy_closed, menu_entry_published_target,
+            menu_entry_kit_affect_entire)

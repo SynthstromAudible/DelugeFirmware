@@ -99,9 +99,9 @@ void KeyboardScreen::killColumnSwitchKey(int32_t column) {
 }
 ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 	// Handle overruling shortcut presses
-	ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, velocity);
-	if (soundEditorResult != ActionResult::NOT_DEALT_WITH) {
-		return soundEditorResult;
+	ActionResult shortcutResult = deluge::gui::ui::menuShortcutPadAction(x, y, velocity);
+	if (shortcutResult != ActionResult::NOT_DEALT_WITH) {
+		return shortcutResult;
 	}
 
 	int32_t markDead = -1;

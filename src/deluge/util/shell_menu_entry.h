@@ -246,6 +246,10 @@ void wireShellKitGlobalShortcuts();
 ///        guest open, which re-roots itself whichever menu the setting now selects.
 bool shellOwnsShortcutPads();
 
+/// @brief Whether a menu opened now would edit the current kit's own effects: the current clip is a kit's, with
+///        affect-entire on.
+bool editKitAffectEntire();
+
 /// @brief `SoundEditor::potentialShortcutPadAction` for the ported menu, whole: what the clip views, the keyboard
 ///        screen and the performance view ask of a main-grid press.
 ///

@@ -263,7 +263,7 @@ void ensure_display() {
 	}
 	// `l10n::chosenLanguage` is null until the app constructs its `Display` (`gui/l10n/l10n.cpp:6`),
 	// and legacy's clip-clear arm calls `deluge::l10n::get(...)` unconditionally
-	// (`audio_clip_view.cpp:456`, `:459`) -- which dereferences it. Every other scenes spec that
+	// (`AudioClipView::padAction`'s clip-clear arm) -- which dereferences it. Every other scenes spec that
 	// drives a legacy popup sets it the same way (`context_menu_scene_spec.cpp`).
 	if (deluge::l10n::chosenLanguage == nullptr) {
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
@@ -1137,7 +1137,7 @@ describe audio_clip_scene_spec_body(
 		        expect(raise_legacy_end_marker(r)).to_be_true();
 		        r.scene().set_end_marker_visible(true);
 		        // Both start on the bright half: legacy's `padAction` sets `blinkOn = true`
-		        // (`audio_clip_view.cpp:571`), the port's setter does the same.
+		        // (`AudioClipView::padAction`), the port's setter does the same.
 		        expect(r.scene().blink_on()).to_be_true();
 		        r.tick(0);
 		        // The end column at scroll 0, zoom 48 and length 768 is `(768 - 1) / 48` = 15, and on
