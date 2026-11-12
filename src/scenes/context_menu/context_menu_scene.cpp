@@ -566,11 +566,13 @@ void ContextMenuScene::leds(deluge::ui::LedFrame& f) {
 
 Result ContextMenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	const Descriptor& desc = descriptor(id_);
-	// `ContextMenu::buttonAction` / `padAction` act only in `buttonAndPadActionUIModes`; an audition held under a
-	// sample-browser menu (its audition column is the clip view's) is not one of them.
+	// `ContextMenu::buttonAction` refuses BACK and SELECT, and `padAction` every pad, outside
+	// `buttonAndPadActionUIModes`; an audition held under a sample-browser menu (its audition column is the clip
+	// view's) is not one of them. Every other button falls through, as in main.
+	const bool back_or_select = (event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton)
+	                            && (event.button == ButtonId::Back || event.button == ButtonId::SelectEnc);
 	if (desc.pad != nullptr && ctx_.facts != nullptr && ctx_.facts->auditioning()
-	    && (event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton
-	        || event.kind == UiEvent::Kind::Pad)) {
+	    && (back_or_select || event.kind == UiEvent::Kind::Pad)) {
 		Result r;
 		r.handled = true;
 		return r;

@@ -2488,6 +2488,29 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		r.step();
 		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
 		expect(r.browser_on_stack()).to_be_true();
+		expect(browser_scene().take_choice().has_value()).to_be_false(); // the refused SELECT started no import
+		facts.set({.auditioning = false});
+	});
+
+	it("leaves every other button to the UI beneath under the folder menu while an audition pad is held", _ {
+		// `ContextMenu::buttonAction` refuses only BACK and SELECT; PLAY returns NOT_DEALT_WITH and falls through.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		MenuContext ctx = sound_context(f);
+		spec::ForwardingFacts facts{*ctx.facts, {.auditioning = false}};
+		ctx.facts = &facts;
+		Rig r;
+		r.open_and_land(ctx, BrowserId::Sample);
+		const uint32_t down = press_select(r);
+		run_until(r, down + 410);
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		facts.set({.auditioning = true});
+		DirectCtx d;
+		const Result play = context_menu_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Play}, d.ctx);
+		expect(play.handled).to_be_false();
 		facts.set({.auditioning = false});
 	});
 

@@ -125,10 +125,35 @@ constexpr uint8_t kSelectEncoder = 3;
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 constexpr uint8_t kBackX = 7, kBackY = 1;
 
+/// @brief An opaque scene that declares no LED and does nothing: what goes over a menu and comes off again.
+constexpr SceneKind kBlinklessKind = static_cast<SceneKind>(static_cast<uint8_t>(SceneKind::FirstApp) + 30);
+
+class BlinklessScene final : public deluge::ui::shell::Scene {
+public:
+	SceneKind kind() const override { return kBlinklessKind; }
+	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
+	void render_oled(deluge::ui::shell::SurfaceRole, deluge::ui::oled::OledFrame&) override {}
+};
+
+/// @brief The application's registry with the blinkless scene added.
+deluge::ui::shell::SceneRegistry registry_with_blinkless() {
+	static BlinklessScene scene;
+	static const std::array<deluge::ui::shell::Scene*, deluge::ui::shell::kMaxSceneKinds> table = [] {
+		std::array<deluge::ui::shell::Scene*, deluge::ui::shell::kMaxSceneKinds> t{};
+		const auto app = scene_registry().by_kind;
+		for (size_t i = 0; i < app.size() && i < t.size(); i++) {
+			t[i] = app[i];
+		}
+		t[static_cast<size_t>(kBlinklessKind)] = &scene;
+		return t;
+	}();
+	return deluge::ui::shell::SceneRegistry{std::span<deluge::ui::shell::Scene* const>{table}};
+}
+
 /// @brief A `Shell` over `FakeSurfaceSet` with the application's own scene registry installed.
 struct Rig {
 	const BoardProfile& profile;
-	deluge::ui::shell::SceneRegistry reg = scene_registry();
+	deluge::ui::shell::SceneRegistry reg = registry_with_blinkless();
 	uitest::FakeSurfaceSet fake;
 	Shell shell{fake, profile, reg, deluge::ui::shell::Services{}, ShellConfig{}};
 
@@ -531,9 +556,10 @@ describe cm_sidebar("scenes::context_menu::ContextMenuScene beneath a sample bro
 			r.tick(t);
 		}
 		expect(back_lit()).to_be_false(); // past the first 250 ms lit phase
-		// The stack fires this hook when the input top comes back to the menu. A scene that blinks BACK itself restarts
-		// the shared phase on its own, so the hook is called as the stack calls it.
-		context_menu_scene().on_resume();
+		// A scene that draws no BACK blink of its own goes over the menu and comes off: the stack fires `on_resume`.
+		expect(r.shell.stack().push(SceneId{kBlinklessKind, 0})).to_be_true();
+		r.tick(1310);
+		expect(r.shell.stack().remove(kBlinklessKind)).to_be_true();
 		for (uint32_t t = 1320; t <= 1540; t += 10) {
 			r.tick(t);
 		}
