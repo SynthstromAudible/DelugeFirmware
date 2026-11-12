@@ -5002,8 +5002,13 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 
 			int32_t numRanges = source->ranges.getNumElements();
 
+			// A single range with variants holds several samples too, and they needn't all have the same number
+			// of channels.
+			bool singleRangeHasVariants = numRanges == 1 && source->hasMultisampleRanges()
+			                              && static_cast<MultisampleRange*>(source->ranges.getElement(0))->rrCount > 0;
+
 			// If multiple ranges, we have to come back and examine Voices to see which are in use
-			if (numRanges > 1) {
+			if (numRanges > 1 || singleRangeHasVariants) {
 				mustExamineSourceInEachVoice |= (1 << s);
 			}
 
