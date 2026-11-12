@@ -270,7 +270,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 	it("draws the main pads only, leaving the sidebar to the view beneath", _ {
 		// `SampleMarkerEditor::renderMainPads` fills the main pads and `renderSidebar` defers to the
-		// root (`gui/ui/sample_marker_editor.cpp:875-881`); `getGreyoutColsAndRows` is `0b10` (`:104-107`).
+		// root (`SampleMarkerEditor::renderSidebar`); `getGreyoutColsAndRows` is `0b10`.
 		const deluge::ui::shell::Scene& s = marker_scene();
 		expect(s.pad_regions() == deluge::ui::shell::PadRegions::Main).to_be_true();
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0b10});
@@ -278,7 +278,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	});
 
 	it("claims every pad but the audition column, which the host hands to the clip view", _ {
-		// `SampleMarkerEditor::padAction`'s audition arm (`gui/ui/sample_marker_editor.cpp:358-364`).
+		// `SampleMarkerEditor::padAction`'s audition arm (`gui/ui/sample_marker_editor.cpp`).
 		expect(marker_scene().grid_pad_claim() == deluge::ui::shell::GridPadClaim::AllButClipAudition).to_be_true();
 	});
 
@@ -701,7 +701,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		// START at column 4, END at column 5 (`endPos - 1` floors there): one detent right would
 		// land START on END's column, and main's "don't drive one marker into the other" loop
-		// (`sample_marker_editor.cpp:281-288`) refuses it outright.
+		// (`SampleMarkerEditor::selectEncoderAction`) refuses it outright.
 		r.range->sampleHolder.startPos = 4 * kZoomMax;
 		r.range->sampleHolder.endPos = 6 * kZoomMax;
 		r.open(MarkerType::START);
@@ -1594,7 +1594,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 	it("gives the selected marker the wider slice when three share a column, as main does", _ {
 		// `numMarkers == 3` is the ONE case where `baseIncrement` (1) and `selectedIncrement` (2)
-		// differ (`sample_marker_editor.cpp:1310-1313`); with two or four sharing they are equal and
+		// differ (`SampleMarkerEditor::renderColumn`); with two or four sharing they are equal and
 		// swapping them changes nothing. Without this example a port that swapped the two passes.
 		Rig r;
 		r.range->sampleHolder.startPos = 4 * kZoomMax;
@@ -1608,7 +1608,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 	it("suppresses the same markers as renderMainPads does at every blink phase", _ {
 		// The suppression mask is `blinkPhase >= 1` and the phase-1 flood is `blinkPhase == 1`
-		// (`sample_marker_editor.cpp:1376-1398`). With the selected marker SHARING a column the two
+		// (`SampleMarkerEditor::renderMainPads`). With the selected marker SHARING a column the two
 		// are distinguishable, which is exactly what the port-only blink example above says a
 		// one-marker column cannot show.
 		Rig r;
@@ -1697,7 +1697,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	});
 
 	it("removes the loop end where main's hold-and-tap removes it", _ {
-		// The LOOP_END arm (`sample_marker_editor.cpp:509-522`), which the LOOP_START one above does
+		// The LOOP_END arm of `SampleMarkerEditor::padAction`, which the LOOP_START one above does
 		// not reach: a different marker held, a different column tapped, and a different write.
 		Rig r;
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
@@ -1718,7 +1718,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	});
 
 	it("toggles the loop lock where main's hold-and-tap toggles it", _ {
-		// `markerHeld == LOOP_START && markerPressed == LOOP_END` (`:480-489`).
+		// `markerHeld == LOOP_START && markerPressed == LOOP_END` (`SampleMarkerEditor::padAction`).
 		Rig r;
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
@@ -1757,6 +1757,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.turn_horizontal(1, 30);
 		r.tick(30);
 		const int32_t ported_second = static_cast<int32_t>(marker_scene().x_zoom());
+		const bool ported_second_refused_by_slide = marker_scene().sliding();
 
 		expect(std::vector<std::string>{std::to_string(ported_scroll), std::to_string(ported_zoom)})
 		    .to_equal(frozen("zoom", "view"));
@@ -1784,9 +1785,11 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 		// A successful zoom leaves main's `currentUIMode == UI_MODE_HORIZONTAL_ZOOM` until the slide finishes, and
 		// `horizontalEncoderAction`'s `isUIModeWithinRange(zoomUIModes)` gate refuses the next detent; the port's
-		// slide refuses it the same way. The row's second value is that mode, as main's second detent found it. Nothing
-		// ran main's slide to completion, so a detent after it is the port's alone ("slides a zoom ...").
-		expect(std::vector<std::string>{std::to_string(ported_second), "1"}).to_equal(frozen("zoom", "second"));
+		// slide refuses it the same way: the row's second value is that mode as main's second detent found it, and the
+		// port's is its slide still running. Nothing ran main's slide to completion, so a detent after it is the port's
+		// alone ("slides a zoom ...").
+		expect(std::vector<std::string>{std::to_string(ported_second), ported_second_refused_by_slide ? "1" : "0"})
+		    .to_equal(frozen("zoom", "second"));
 	});
 
 	it("scrolls to the same position main's horizontalEncoderAction scrolls to", _ {
@@ -1831,7 +1834,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	});
 
 	it("labels a reversed sample's marker the same way reverseRemap does", _ {
-		// `reverseRemap` (`sample_marker_editor.cpp:83-104`) is read by BOTH renderers; with the
+		// `reverseRemap` (`sample_marker_editor.cpp`) is read by BOTH renderers; with the
 		// sample reversed, START must draw main's "End point" page.
 		Rig r;
 		r.source->sampleControls.reversed = true;
@@ -1896,7 +1899,7 @@ describe marker_scene_reference_rows("marker_scene: the reference rows", $ {
 	it("parses marker_scene.tsv clean and asks every row of it", _ {
 		spec::OracleTable& t = spec::OracleTable::named("marker_scene");
 		expect(t.problems().size()).to_equal(size_t{0});
-		expect(t.size() > size_t{19}).to_be_true();
+		expect(t.size()).to_equal(size_t{20});
 		expect(t.unasked()).to_equal(std::string{});
 	});
 

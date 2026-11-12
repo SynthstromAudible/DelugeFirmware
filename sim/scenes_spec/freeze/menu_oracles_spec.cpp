@@ -5879,7 +5879,7 @@ describe freeze_marker_scene("menu oracle freezer: the sample marker editor", $ 
 		expect(files).to_be_true();
 		expect(freeze_problems()).to_equal(std::string{});
 		expect(out.duplicates()).to_equal(std::string{});
-		expect(out.size() > size_t{19}).to_be_true();
+		expect(out.size()).to_equal(size_t{20});
 		expect(out.flush()).to_be_true();
 	});
 });
@@ -5929,7 +5929,7 @@ describe freeze_slicer_scene("menu oracle freezer: the slicer", $ {
 		expect(files).to_be_true();
 		expect(freeze_problems()).to_equal(std::string{});
 		expect(out.duplicates()).to_equal(std::string{});
-		expect(out.size() > size_t{100}).to_be_true();
+		expect(out.size()).to_equal(size_t{123});
 		expect(out.flush()).to_be_true();
 	});
 });

@@ -1959,7 +1959,7 @@ describe browser_main_pixels("scenes::browser::BrowserScene against main's brows
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::Sample);
 		// One detent backwards from row 0: `selectEncoderAction`'s `newFileIndex < 0` arm
-		// (`browser.cpp:637-660`). With nothing culled at either end it wraps to the last entry and
+		// (`Browser::selectEncoderAction`). With nothing culled at either end it wraps to the last entry and
 		// `clampFileSelectionAndScroll` re-derives the window -- the arm neither example above
 		// reaches.
 		r.turn(-1, r.clock + 10);
@@ -1983,13 +1983,13 @@ describe browser_main_pixels("scenes::browser::BrowserScene against main's brows
 		r.settle();
 		const BrowserState port = port_state(r);
 		// Cursor mid-string is `drawTextForOLEDEditing`'s OTHER arm -- the inversion from the cursor
-		// to the panel's right edge (`qwerty_ui.cpp:156-170`) -- so this compares a code path the
+		// to the panel's right edge (`QwertyUI::drawTextForOLEDEditing`) -- so this compares a code path the
 		// examples above do not reach.
 		expect(port.cursor).to_equal(1);
 		expect(static_cast<int>(port.text.size())).to_equal(5);
 
 		// The SAME pad, by coordinate. Legacy maps it through `keyboardChars`
-		// (`qwerty_ui.cpp:267-268`) and the port through `text_keyboard_char_at`; feeding both the
+		// (`QwertyUI::padAction`) and the port through `text_keyboard_char_at`; feeding both the
 		// coordinate rather than the character is what puts that mapping under the comparison too.
 		expect_same(self, port, "type_s");
 	});
@@ -2015,7 +2015,7 @@ describe browser_main_pixels("scenes::browser::BrowserScene against main's brows
 		const BrowserState port = port_state(r);
 		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"SAMPLES"});
 		// `goUpOneDirectoryLevelImpl` assigns the segment it dropped to `enteredText` and lists
-		// starting at it (`browser.cpp:1385-1392`), so the folder just left is the selection.
+		// starting at it (`Browser::goUpOneDirectoryLevelImpl`), so the folder just left is the selection.
 		expect(port.text).to_equal(std::string{"KICKS"});
 
 		expect_same(self, port, "ascend");

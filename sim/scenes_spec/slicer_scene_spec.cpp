@@ -843,7 +843,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 	// --- the buttons, against main's buttonAction ----------------------------------------------
 
 	it("switches mode on the X encoder button, as main's buttonAction does", _ {
-		// `:284-294`.
+		// Main's X_ENC arm of `Slicer::buttonAction`.
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);
@@ -1309,7 +1309,7 @@ describe slicer_scene_reference_rows("slicer_scene: the reference rows", $ {
 	it("parses slicer_scene.tsv clean and asks every row of it", _ {
 		spec::OracleTable& t = spec::OracleTable::named("slicer_scene");
 		expect(t.problems().size()).to_equal(size_t{0});
-		expect(t.size() > size_t{100}).to_be_true();
+		expect(t.size()).to_equal(size_t{123});
 		expect(t.unasked()).to_equal(std::string{});
 	});
 

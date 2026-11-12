@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <istream>
 #include <optional>
 #include <set>
 #include <sstream>
