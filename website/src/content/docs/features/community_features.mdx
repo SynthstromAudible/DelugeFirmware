@@ -1152,6 +1152,14 @@ For a detailed description of this feature, please refer to the feature document
   - `DEFAULTS > SCALE > ACTIVE SCALES` sets the active scales for new songs. When `RANDOM` is set as
     `DEFAULTS > SCALE > INIT SCALE`, the random scale is selected from default active scales.
 
+### 4.4.3 - Freeze Arpeggiator <Badge text="c1.4" variant="tip" />
+
+- Turns what the arpeggiator of a `SYNTH`, `MIDI` or `CV` clip, or the `KIT ARPEGGIATOR` of a `KIT` clip, plays into
+  the notes of the clip, and switches the arpeggiator off. It's instant and can be undone with :key[Undo].
+  - `FREEZE` is at the end of the arpeggiator `PATTERN` menu, and asks for confirmation.
+- See [Arpeggiator Documentation](/features/arpeggiator) (`Freezing the Arpeggiator`) for details.
+- Can be disabled in the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) (`Arp Freeze (FREZ)`).
+
 ## 4.5 - Instrument Clip View - Synth/Kit Clip Features
 
 ### 4.5.1 - Mod Matrix
@@ -1254,6 +1262,10 @@ For a detailed description of this feature, please refer to the feature document
   confirmation message will appear: "DELETE UNUSED ROWS". This command is not executed if there are no notes at all in
   the kit.
   - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES > DELETE UNUSED KIT ROWS`.
+
+### 4.6.5 - Freeze Kit Arpeggiator <Badge text="c1.4" variant="tip" />
+
+- The `KIT ARPEGGIATOR` can be frozen into the kit rows. See section 4.4.3 - Freeze Arpeggiator.
 
 ## 4.7 Instrument Clip View - Midi Clip Features
 
@@ -1405,6 +1417,9 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
   - `Off` disables the coloured shortcut overlay.
   - `On - Menu only (MENU)` (default) shows it while holding Shift in a sound editing menu.
   - `On - Menu + Clip (FULL)` also shows it while holding Shift in instrument and audio clip views.
+- `Arp Freeze (FREZ)` <Badge text="c1.4" variant="tip" />
+  - When On (default), `FREEZE` is on the arpeggiator `PATTERN` menu of synth, MIDI, CV and kit clips. See section
+    4.4.3 - Freeze Arpeggiator.
 
 ## 6. Sysex Handling
 
