@@ -419,6 +419,10 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	if (!descriptor(id_).can(ctx_)) {
 		return false;
 	}
+	if (id_ == BrowserId::Sample) {
+		// `SampleBrowser::opened`: a held audition ends as the browser opens.
+		menu::host_end_audition(menu::AuditionEnd::ClipViewWhenAuditioning);
+	}
 
 	entered_len_ = 0;
 	file_index_ = -1;

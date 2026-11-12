@@ -10,6 +10,7 @@
 
 #include "scenes/bind/target.h"
 #include "scenes/bind/write_sink.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/shortcut_blink.h"
 #include "ui/grid/frame.h"
 
@@ -190,6 +191,8 @@ bool RecorderScene::on_enter(const SceneId& id) {
 	}
 	// `beginRecording`'s `blinkLed(BACK)` and `blinkLed(RECORD, 255, 1)` (`AudioRecorder::opened`) on success.
 	blink_restart_ = setup_recording();
+	// `opened()`'s last statement, whether the take began or not.
+	menu::host_end_audition(menu::AuditionEnd::ClipViewWhenAuditioning);
 	last_enter_refused_ = !blink_restart_;
 	return blink_restart_;
 }

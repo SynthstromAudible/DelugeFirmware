@@ -15,6 +15,7 @@
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "instruments/deluge/settings.h"
@@ -1382,6 +1383,26 @@ deluge::scenes::services::Favourites& host_favourites() {
 bool host_release_sample_file(std::string_view path) {
 	AudioEngine::stopAnyPreviewing();
 	return audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(std::string{path}.c_str());
+}
+
+void host_end_audition(AuditionEnd how) {
+	switch (how) {
+	case AuditionEnd::ClipViewWhenAuditioning:
+		if (currentUIMode == UI_MODE_AUDITIONING) {
+			instrumentClipView.cancelAllAuditioning();
+		}
+		break;
+	case AuditionEnd::ClipViewForInstrumentClip:
+		if (::Clip* clip = getCurrentClip(); clip != nullptr && clip->type == ClipType::INSTRUMENT) {
+			instrumentClipView.cancelAllAuditioning();
+		}
+		break;
+	case AuditionEnd::KeyboardWhenAuditioning:
+		if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) {
+			keyboardScreen.exitAuditionMode();
+		}
+		break;
+	}
 }
 
 const deluge::scenes::bind::RuntimeFacts& host_runtime_facts() {

@@ -22,6 +22,7 @@
 
 #include "scenes/browser/browser_scene.h" // FileBrowserItem::on_focus opens this
 #include "scenes/marker/marker_scene.h"   // MarkerItem::on_focus opens this
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/chains.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -108,6 +109,10 @@ void FileBrowserItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 }
 
 void MarkerItem::on_focus(const MenuContext& ctx, MenuState& state) const {
+	// `LoopPoint::beginSession` (a sound's markers; the audio clip's opener has no such arm): a keyboard audition ends.
+	if (source_index() >= 0) {
+		host_end_audition(AuditionEnd::KeyboardWhenAuditioning);
+	}
 	// `LoopPoint::beginSession` (`gui/menu_item/sample/loop_point.cpp:60-74`) and
 	// `audio_clip::SampleMarkerEditor::beginSession`
 	// (`gui/menu_item/audio_clip/sample_marker_editor.cpp`). Both end in

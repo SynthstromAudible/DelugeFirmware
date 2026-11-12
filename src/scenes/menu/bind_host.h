@@ -9,6 +9,7 @@
 #include "scenes/services/favourites.h"
 #include "scenes/services/waveforms.h"
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -40,6 +41,15 @@ std::string host_last_sample_path();
 ///        browser's Shift+SAVE, before it offers to delete the file (`SampleBrowser::buttonAction`).
 /// @return False when the song uses the file, which may then not be deleted.
 bool host_release_sample_file(std::string_view path);
+/// @brief How an opener ends a held audition, each as its legacy opener does.
+enum class AuditionEnd : uint8_t {
+	ClipViewWhenAuditioning,   ///< `AudioRecorder::opened`, `SampleBrowser::opened`
+	ClipViewForInstrumentClip, ///< `EditName::beginSession`
+	KeyboardWhenAuditioning,   ///< `LoopPoint::beginSession`
+};
+/// @brief End a held audition the way @p how names, before a scene opens over it: the scene claims every pad, so the
+///        held pad's release never reaches the view that started the note.
+void host_end_audition(AuditionEnd how);
 /// @brief The favourites bank the app's browsers share.
 deluge::scenes::services::Favourites& host_favourites();
 

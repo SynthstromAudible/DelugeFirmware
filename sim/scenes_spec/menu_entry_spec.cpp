@@ -307,8 +307,8 @@ Sample* make_marker_sample() {
 	return s;
 }
 
-/// @brief Give @p drum's source 0 one range holding @p sample, recorded as a load records it.
-void give_drum_a_sample(deluge::scenes::spec::SongFixture& f, SoundDrum& drum, Sample* sample) {
+/// @brief Give @p drum's (any sound's) source 0 one range holding @p sample, recorded as a load records it.
+void give_drum_a_sample(deluge::scenes::spec::SongFixture& f, Sound& drum, Sample* sample) {
 	Source& source = drum.sources[0];
 	source.oscType = OscType::SAMPLE;
 	source.repeatMode = SampleRepeatMode::ONCE;
@@ -2247,10 +2247,82 @@ describe menu_entry_kit_affect_entire("editKitAffectEntire: a menu opened now ed
 	});
 });
 
+describe menu_entry_audition_end("a scene opened over an audition ends it, as main's opener does", $ {
+	it("ends the clip view's audition as the recorder opens", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		(void)quiet_audio();
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_AUDITIONING; // a row held as SELECT reaches the recorder item
+		expect(entry::openShellMenu(f.clip, 0, false, false, false, false, entry::ShellMenuNode::Osc0Recorder))
+		    .to_be_true();
+		(void)shellHostUI.timerCallback();
+		expect(currentUIMode).to_equal(uint32_t{UI_MODE_NONE});
+	});
+
+	it("ends it as the sample browser opens", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		(void)quiet_audio();
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_AUDITIONING;
+		expect(entry::openShellMenuAtShortcut(f.clip, 0, 5, false, false, false, false)).to_be_true(); // BROWSE
+		(void)shellHostUI.timerCallback();
+		expect(currentUIMode).to_equal(uint32_t{UI_MODE_NONE});
+	});
+
+	it("ends it as the drum rename opens on an instrument clip, held or not", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
+		(void)deluge::scenes::spec::add_drum<SoundDrum>(kit);
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_AUDITIONING;
+		expect(entry::openShellMenuAtShortcut(kit.clip, 11, 5, false, false, false, false)).to_be_true(); // drum name
+		(void)shellHostUI.timerCallback();
+		expect(currentUIMode).to_equal(uint32_t{UI_MODE_NONE});
+	});
+
+	it("ends the keyboard's audition as a sound's marker editor opens over the keyboard", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		(void)quiet_audio();
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		Sound* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
+		give_drum_a_sample(f, *sound, make_marker_sample());
+		setRootUILowLevel(&keyboardScreen);
+		currentUIMode = UI_MODE_AUDITIONING;
+		expect(entry::openShellMenuAtShortcut(f.clip, 0, 7, false, false, false, false)).to_be_true(); // START
+		(void)shellHostUI.timerCallback();
+		expect(currentUIMode).to_equal(uint32_t{UI_MODE_NONE});
+	});
+
+	it("leaves an audition alone when the marker editor opens over the clip view", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		(void)quiet_audio();
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		Sound* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
+		give_drum_a_sample(f, *sound, make_marker_sample());
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_AUDITIONING;
+		expect(entry::openShellMenuAtShortcut(f.clip, 0, 7, false, false, false, false)).to_be_true();
+		(void)shellHostUI.timerCallback();
+		expect(currentUIMode).to_equal(uint32_t{UI_MODE_AUDITIONING});
+	});
+});
+
 // clang-format on
 
 DELUGE_SPEC(menu_entry_spec, menu_entry_toggle, menu_entry_roots, menu_entry_node_arg, menu_entry_shortcut,
             menu_entry_refusal, menu_entry_undo_log, menu_entry_screensaver, menu_entry_tick_rate,
             menu_entry_midi_learn, menu_entry_automation_notes, menu_entry_close_mode, menu_entry_reopen,
             menu_entry_shortcut_whole, menu_entry_legacy_closed, menu_entry_published_target,
-            menu_entry_kit_affect_entire)
+            menu_entry_kit_affect_entire, menu_entry_audition_end)
