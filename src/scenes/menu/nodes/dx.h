@@ -24,7 +24,9 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
 
+#include <cstddef>
 #include <span>
+#include <string_view>
 
 namespace deluge::scenes::menu::nodes {
 
@@ -169,9 +171,11 @@ inline constexpr Node dx_browse = custom(sid(deluge::l10n::String::STRING_FOR_DX
 /// it
 ///        (`MenuScene::land_dx_cartridge`), so it has a place in `kAllRoots`.
 inline constexpr Node dx_cartridge = custom(sid(deluge::l10n::String::STRING_FOR_DX_CARTRIDGE), &kDxCartridge);
+/// @brief The words "engine version" lists for its values (`with_value_names`).
+size_t dx_engine_names(const MenuContext& ctx, std::span<std::string_view> out);
 /// @brief "engine version" -- `dxEngineSelect`.
 inline constexpr Node dx_engine_select =
-    custom(sid(deluge::l10n::String::STRING_FOR_DX_ENGINE_SELECT), &kDxEngineSelect);
+    with_value_names(custom(sid(deluge::l10n::String::STRING_FOR_DX_ENGINE_SELECT), &kDxEngineSelect), dx_engine_names);
 
 inline constexpr const Node* kDxMenuChildren[] = {&dx_browse, &dx_global_params, &dx_engine_select};
 /// @brief "DX7 source" -- `dxMenu` (`gui/ui/menus.cpp`).

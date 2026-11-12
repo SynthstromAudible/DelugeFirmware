@@ -383,6 +383,48 @@ test("a page's drawn rows are its reference rows in place of its select chain; t
   assert.deepEqual(labels(modMatrix.children[0].children[1]), ["Strength"])
 })
 
+test("the page the Dx7 value opens is listed under that value in every type list, as main's", () => {
+  const dxSource = submenu(9, "DX7 source", [
+    leaf(10, "load DX7 .syx file"),
+    leaf(11, "engine version"),
+  ])
+  const type = (id) =>
+    leaf(id, "Type", { options: ["Saw", "Dx7"], select_chain: [dxSource] })
+  const tree = convertTree(
+    submenu(1, "Sound", [
+      submenu(2, "Oscillator 1", [type(3)]),
+      submenu(4, "Oscillator 2", [type(5)]),
+    ]),
+    "s",
+    noTags,
+  )
+  for (const osc of tree.children) {
+    const [typeRow] = osc.children
+    assert.deepEqual(labels(typeRow), ["Saw", "Dx7"])
+    assert.deepEqual(labels(typeRow.children[1]), [
+      "load DX7 .syx file",
+      "engine version",
+    ])
+    assert.equal(typeRow.children[1].option, true)
+    assert.equal(
+      typeRow.children[1].children[0].key,
+      `${typeRow.key}-dx7-load-dx7-syx-file`,
+    )
+  }
+})
+
+test("a page a value opens stays a page row of a list that does not offer the value", () => {
+  const dxSource = submenu(9, "DX7 source", [leaf(10, "engine version")])
+  const tree = convertTree(
+    submenu(1, "Sound", [
+      leaf(2, "Type", { options: ["Saw"], select_chain: [dxSource] }),
+    ]),
+    "s",
+    noTags,
+  )
+  assert.deepEqual(labels(tree.children[0]), ["Saw", "DX7 source"])
+})
+
 test("every root of the committed dump is placed, the nameless start marker editor as undocumented", () => {
   assert.equal(placeRoots(committedDump).length, MENU_TREES.length)
   assert.ok(committedDump.some((root) => root.name === ""))
@@ -404,6 +446,11 @@ test("the committed dump names the values a custom page or a worded number lists
   assert.deepEqual(
     at(["MIDI instr", "Device Definition", "File Linked"]).options,
     ["Disabled", "Enabled"],
+  )
+  assert.deepEqual(
+    at(["Sound", "Oscillator 1", "Type", "DX7 source", "engine version"])
+      .options,
+    ["auto", "modern", "vintage"],
   )
   assert.deepEqual(at(["Perform FX", "Editing Mode"]).options, [
     "Disabled",

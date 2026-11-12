@@ -2642,6 +2642,11 @@
                   {
                     "id": 144,
                     "name": "engine version",
+                    "options": [
+                      "auto",
+                      "modern",
+                      "vintage"
+                    ],
                     "title": "engine version",
                     "type": "basic"
                   }
@@ -3796,6 +3801,11 @@
                   {
                     "id": 144,
                     "name": "engine version",
+                    "options": [
+                      "auto",
+                      "modern",
+                      "vintage"
+                    ],
                     "title": "engine version",
                     "type": "basic"
                   }
@@ -8505,6 +8515,11 @@
                   {
                     "id": 144,
                     "name": "engine version",
+                    "options": [
+                      "auto",
+                      "modern",
+                      "vintage"
+                    ],
                     "title": "engine version",
                     "type": "basic"
                   }
@@ -9659,6 +9674,11 @@
                   {
                     "id": 144,
                     "name": "engine version",
+                    "options": [
+                      "auto",
+                      "modern",
+                      "vintage"
+                    ],
                     "title": "engine version",
                     "type": "basic"
                   }

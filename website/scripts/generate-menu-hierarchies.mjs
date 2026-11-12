@@ -97,6 +97,15 @@ export const PAGE_ROWS = {
 }
 
 /**
+ * Pages a select press opens for one value only, by the page's name: the value. Main's reference lists such a page's
+ * rows under that value's row in every list that offers it (main's generator reads the condition in
+ * `osc::Type::selectButtonPress`, `origin/main:src/deluge/gui/menu_item/osc/type.h`), not as a page of its own.
+ */
+export const VALUE_PAGES = {
+  "DX7 source": "Dx7",
+}
+
+/**
  * A page's drawn rows (the dump's `rows`, or PAGE_ROWS) in the dump's node shape: each row's values and the rows under
  * it.
  */
@@ -137,6 +146,14 @@ function shapeOf(node) {
   return JSON.stringify(node, (field, value) =>
     field === "id" || field === "available_when" ? undefined : value,
   )
+}
+
+/** The value of `node` whose select press opens `target` (VALUE_PAGES), if `node` offers it. */
+function valuePage(node, target) {
+  const value = VALUE_PAGES[target.name]
+  return value !== undefined && (node.options ?? []).includes(value)
+    ? value
+    : undefined
 }
 
 /** Ids of every node the tree under `root` lists as a child: the place the reference shows those nodes. */
@@ -198,6 +215,7 @@ export function convertTree(root, rootKey, tags, hides = []) {
       return rows
     }
     for (const target of node.select_chain ?? []) {
+      if (valuePage(node, target)) continue
       if (listed.has(target.id) || chained.has(target.id)) continue
       chained.add(target.id)
       add(target)
@@ -206,11 +224,12 @@ export function convertTree(root, rootKey, tags, hides = []) {
   }
 
   const convertRows = (node, parentKey) => {
-    const values = (node.options ?? []).map((value) => ({
-      name: value,
-      title: value,
-      option: true,
-    }))
+    const values = (node.options ?? []).map((value) => {
+      const page = (node.select_chain ?? []).find(
+        (target) => valuePage(node, target) === value,
+      )
+      return { ...page, name: value, title: value, option: true }
+    })
     const rows = [...values, ...rowsOf(node)]
     const counts = new Map()
     for (const row of rows)
