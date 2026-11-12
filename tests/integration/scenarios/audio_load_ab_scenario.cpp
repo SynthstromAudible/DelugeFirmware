@@ -23,6 +23,7 @@
 #include "gui/waveform/waveform_basic_navigator.h" // proof the preview actually DREW
 #include "io/file.hpp"                             // the card swap's unlink + rename
 #include "libdeluge/audio_load.h"                  // deluge_audio_load_set_latency_ms
+#include "model/sample/last_file_path_loaded.h"
 #include "model/sample/sample.h"
 #include "runtime/app_loop.h"                // nowUs, the stall bounds' clock
 #include "scenarios/load_invariants.h"       // checkLoadInvariants -- shared with load_policy
@@ -835,7 +836,7 @@ bool cancelledHasDrawn() {
 /// `cancelledHasDrawn()` misses while the load is still in flight. `AudioEngine::soundPreview`,
 /// called when that load ends, is what starts the note.
 bool cancelledWasLoaded() {
-	return sampleBrowser.lastFilePathLoaded == kCancelPath;
+	return deluge::model::lastFilePathLoaded() == kCancelPath;
 }
 
 /// One tick of the cancellation stage. See the block comment above kCancelPath.
@@ -1027,7 +1028,8 @@ void runOneDrawStallTick() {
 		return;
 	case DrawStallStep::MoveWait:
 		g_dsMovedDrawn = sampleBrowser.previewDraws() > g_dsMoveDrawsBefore
-		                 && sampleBrowser.lastFilePathLoaded == kPreviewPath && !sampleBrowser.previewRedrawPending();
+		                 && deluge::model::lastFilePathLoaded() == kPreviewPath
+		                 && !sampleBrowser.previewRedrawPending();
 		if (!g_dsMovedDrawn && g_drawStallTicks < kMaxPreviewTicks) {
 			g_drawStallTicks++;
 			sampleBrowser.graphicsRoutine();

@@ -25,7 +25,6 @@
 #include "gui/l10n/strings.h"
 #include "gui/ui/browser/dx_cartridge_read.h"
 #include "gui/ui/browser/folder_import.h"
-#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/browser/sample_preview.h"
 #include "gui/ui/load/instrument_load.h"
@@ -41,6 +40,7 @@
 #include "model/output.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
+#include "model/sample/last_file_path_loaded.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
@@ -277,7 +277,7 @@ void requestMidiDefinitionLoad(std::string_view path) {
 /// @brief The ported browser's preview. Its own previewer (the legacy browser keeps one too; only one browser is up at
 ///        a time), recording each load's path as legacy's browser's last file loaded, which both browsers open beside.
 SamplePreviewer& shellPreviewer() {
-	static SamplePreviewer previewer{&sampleBrowser.lastFilePathLoaded};
+	static SamplePreviewer previewer{&deluge::model::lastFilePathLoaded()};
 	return previewer;
 }
 

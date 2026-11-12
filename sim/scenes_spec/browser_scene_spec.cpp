@@ -56,6 +56,7 @@
 #include "hid/display/oled.h"
 #include "model/clip/audio_clip.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/sample/last_file_path_loaded.h"
 #include "model/sample/sample.h"
 #include "model/sample/waveform_navigator.h"
 #include "processing/engines/audio_engine.h"
@@ -371,7 +372,7 @@ struct CleanBrowser {
 		// Drops the stop that exit filed, and the last file an example previewed, which a fresh browser opens beside.
 		(void)browser_scene().take_preview();
 		browser_scene().preview_settled(false);
-		sampleBrowser.lastFilePathLoaded.clear();
+		deluge::model::lastFilePathLoaded().clear();
 		Deferred::reset();
 		FileCatalogue::emptyFileItems();
 		FileCatalogue::numFileItemsDeletedAtStart = 0;
@@ -1425,7 +1426,7 @@ describe browser_preview("scenes::browser::BrowserScene asking for previews", $ 
 		ScratchCard card;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		expect(blank_start_path(f)).to_be_true();
-		sampleBrowser.lastFilePathLoaded = "SAMPLES/KICKS/KICK1.WAV";
+		deluge::model::lastFilePathLoaded() = "SAMPLES/KICKS/KICK1.WAV";
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::Sample);
 		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"SAMPLES/KICKS"});
@@ -3077,7 +3078,7 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
-		sampleBrowser.lastFilePathLoaded = "SAMPLES/KICKS/KICK2 WITH A LONG ROOM TAIL.WAV";
+		deluge::model::lastFilePathLoaded() = "SAMPLES/KICKS/KICK2 WITH A LONG ROOM TAIL.WAV";
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"KICK2 WITH A LONG ROOM TAIL"});

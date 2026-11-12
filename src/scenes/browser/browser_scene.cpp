@@ -181,7 +181,7 @@ bool sample_can(const menu::MenuContext& ctx) {
 
 void sample_start_at(const menu::MenuContext& ctx, std::string& dir, std::string& name) {
 	// `SampleBrowser::opened` (`sample_browser.cpp:136-171`): take the holder's path; one that is blank or outside
-	// SAMPLES/ gives way to the file last previewed or loaded (`SampleBrowser::lastFilePathLoaded`, which the host
+	// SAMPLES/ gives way to the file last previewed or loaded (`deluge::model::lastFilePathLoaded`, which the host
 	// answers), and only when that is blank too to the default folder. Then dissect it into a directory and the
 	// filename to select.
 	const std::optional<std::string> held = sample_path(ctx);

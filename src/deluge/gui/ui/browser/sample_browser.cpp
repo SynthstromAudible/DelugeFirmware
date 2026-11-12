@@ -172,7 +172,7 @@ bool SampleBrowser::opened() {
 	// If currentPath is blank, or is somewhere outside of the SAMPLES folder, then default to previously manually
 	// loaded sample
 	if (currentPath.empty() || memcasecmp(currentPath.c_str(), "SAMPLES/", 8)) {
-		currentPath = lastFilePathLoaded;
+		currentPath = deluge::model::lastFilePathLoaded();
 
 		// If that's blank too, then default to SAMPLES folder.
 		if (currentPath.empty()) {

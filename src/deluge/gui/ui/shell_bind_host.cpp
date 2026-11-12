@@ -12,7 +12,6 @@
 #include "effects/settings.h"
 #include "gui/ui/browser/dx_cartridge_bank.h"
 #include "gui/ui/browser/folder_import.h"
-#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/shell_host_ui.h"
@@ -62,6 +61,7 @@
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/setting_projection.h"
 #include "model/project_bridge/slot_bridge.h"
+#include "model/sample/last_file_path_loaded.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "model/sample/waveform_scan.h"
@@ -1334,7 +1334,7 @@ const deluge::scenes::services::Waveforms& host_waveforms() {
 }
 
 std::string host_last_sample_path() {
-	return sampleBrowser.lastFilePathLoaded;
+	return deluge::model::lastFilePathLoaded();
 }
 
 namespace {

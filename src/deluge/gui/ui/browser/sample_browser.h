@@ -21,6 +21,7 @@
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/browser/sample_preview.h"
 #include "hid/button.h"
+#include "model/sample/last_file_path_loaded.h"
 #include "model/sample/recorder_write_policy.h" // UnproductiveSpan, kMaxUnproductiveUs
 #include <cstdint>
 #include <optional>
@@ -143,7 +144,6 @@ public:
 	[[nodiscard]] bool previewRedrawPending() const { return previewRedrawPending_; }
 	/// @}
 
-	std::string lastFilePathLoaded{};
 	/// Set by the file selector around its `openUI` when `SoundEditor::beginScreen` opens the browser: that arms the
 	/// item's BROWSE blink after `openUI` returns, and the browser leaves it to run.
 	bool openingFromSoundEditor{false};
@@ -199,8 +199,9 @@ private:
 	///        waveform's end).
 	[[nodiscard]] int32_t previewResolvedColumns() const;
 
-	/// @brief The preview's load and sound. Records each load's path in lastFilePathLoaded as it starts.
-	deluge::gui::ui::SamplePreviewer previewer_{&lastFilePathLoaded};
+	/// @brief The preview's load and sound. Records each load's path in `deluge::model::lastFilePathLoaded` as it
+	/// starts.
+	deluge::gui::ui::SamplePreviewer previewer_{&deluge::model::lastFilePathLoaded()};
 
 	int32_t previewDraws_{0};
 	int32_t previewRedraws_{0};

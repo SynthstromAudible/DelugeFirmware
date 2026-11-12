@@ -76,6 +76,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/slot_bridge.h"
+#include "model/sample/last_file_path_loaded.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -180,7 +181,7 @@ struct CleanBrowser {
 		check("a browser singleton was still busy when an example started");
 		// A file an earlier example previewed is the browsers' last file loaded, which a fresh browser opens beside, as
 		// legacy's does; each example starts from none, and with no preview waiting.
-		sampleBrowser.lastFilePathLoaded.clear();
+		deluge::model::lastFilePathLoaded().clear();
 		(void)browser::browser_scene().take_preview();
 	}
 	~CleanBrowser() { check("an example finished with a browser singleton still busy"); }
@@ -1341,10 +1342,10 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 		ShellRig r;
 		r.open_browser();
 		expect(browser::browser_scene().preview_outstanding()).to_be_true();
-		expect(sampleBrowser.lastFilePathLoaded.empty()).to_be_true();
+		expect(deluge::model::lastFilePathLoaded().empty()).to_be_true();
 		deluge::gui::ui::dispatchShellChoices();
 		expect(browser::browser_scene().take_preview().has_value()).to_be_false();
-		expect(sampleBrowser.lastFilePathLoaded).to_equal(std::string{kChosenPath});
+		expect(deluge::model::lastFilePathLoaded()).to_equal(std::string{kChosenPath});
 		expect(spy.dispatches).to_equal(0);
 		// No load ends in a spec process: the browser still waits for the answer.
 		expect(browser::browser_scene().preview_outstanding()).to_be_true();

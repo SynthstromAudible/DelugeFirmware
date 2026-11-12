@@ -442,7 +442,7 @@ menu tree reaches: `BrowserId::Sample`, `BrowserId::MidiDeviceDefinition` and `B
   a `PreviewRequest` in `take_preview()`: the file's path, or an empty path to stop. The host drains it
   after `take_choice()` and previews it with the shared `gui::ui::SamplePreviewer` (the legacy
   browser's own load and sound), answering through `preview_settled`; `next_timer` polls while the
-  answer is owed. Each load's path becomes `SampleBrowser::lastFilePathLoaded`, which the browser
+  answer is owed. Each load's path becomes `deluge::model::lastFilePathLoaded`, which the browser
   opens beside when its holder names no file in SAMPLES/ (`menu::host_last_sample_path`).
 * **The pads.** `BrowserPads` is what the main pads show: `Root` (the root view greyed), `Waveform` (the preview's, zoomed and scrolled with X_ENC) or `Keyboard`. Beside it the scene keeps
   legacy's own flags (`qwertyVisible`, the keys drawn, the preview showing, KEYBOARD's always-visible), because
