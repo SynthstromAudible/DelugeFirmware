@@ -255,6 +255,15 @@ constexpr const Node* kOtherSourceChildren[] = {
     &enum_col, &menu::nodes::file1_selector, &toggle_col, &filler_col, &chain_col, &session_plain_col};
 constexpr Node other_source_page =
     menu::submenu(sid(String::STRING_FOR_OSCILLATOR_2), kOtherSourceChildren, menu::Layout::Horizontal);
+/// A range-specific submenu, second on the page: an item whose entry is a level deeper, so whether it was entered
+/// past a refused first range shows in the depth. (The recorder is range-specific too, but the port's recorder
+/// itself refuses a source with no range, so its entry leaves the depth as it was either way.)
+constexpr const Node* kRangeSubmenuChildren[] = {&filler_col};
+constexpr Node range_submenu =
+    menu::with_range_specific(menu::submenu(sid(String::STRING_FOR_SAMPLE_RECORDER), kRangeSubmenuChildren));
+constexpr const Node* kRangeSubmenuPageChildren[] = {&enum_col, &range_submenu};
+constexpr Node range_submenu_page =
+    menu::submenu(sid(String::STRING_FOR_OSCILLATOR_2), kRangeSubmenuPageChildren, menu::Layout::Horizontal);
 constexpr const Node* kSyntheticGroupMembers[] = {&group_page_a, &group_page_empty, &group_page_b};
 constexpr Node synthetic_group = menu::group(sid(String::STRING_FOR_FILTERS), kSyntheticGroupMembers);
 
@@ -285,6 +294,7 @@ constexpr const Node* kRoots[] = {&horiz_page,
                                   &menu::nodes::filters_group,
                                   &session_page,
                                   &other_source_page,
+                                  &range_submenu_page,
                                   &stay_parent};
 
 // ---------------------------------------------------------------------------------------------
@@ -2312,8 +2322,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(sound->sources[0].ranges.size()).to_equal(size_t{0});
 	});
 
-	it("a refused first range on entering oscillator 2's file browser says INSUFFICIENT_RAM and stays on the list",
-	   _ {
+	it("a refused first range on entering a range-specific item says INSUFFICIENT_RAM and stays on the list", _ {
 		// `Submenu::selectButtonPress` asks `checkPermissionToBeginSession`, whose `getOrCreateFirstRange` failure is
 		// `displayError(INSUFFICIENT_RAM)` and `MenuPermission::NO`: nothing is entered. A context with no sink is one
 		// whose range request is refused.
@@ -2331,20 +2340,64 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		ctx.horizontal_menus = false; // a list, entered row by row
 		ctx.sink = nullptr;
 		(void)menu::assign_node_ids(kRoots);
-		menu_scene().open(other_source_page, ctx);
-		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(other_source_page)});
+		menu_scene().open(range_submenu_page, ctx);
+		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(range_submenu_page)});
 		r.shell.tick(0);
-		r.turn(1, 100); // onto the file browser's row
+		r.turn(1, 100); // onto the range-specific item's row
 		r.shell.tick(110);
 		(void)raised_notices(); // drain
 		r.enter(200);
 		r.shell.tick(205); // the press is handled at the tick
 		const auto raised = raised_notices();
+		r.shell.tick(215);
 		expect(std::ranges::any_of(raised, [](const deluge::notify::Notice& n) {
 			return n.string_id == static_cast<uint16_t>(String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
 		})).to_be_true();
 		expect(depth_of()).to_equal(0);
-		expect(sound->sources[1].ranges.size()).to_equal(size_t{0});
+		for (const Source& source : sound->sources) {
+			expect(source.ranges.size()).to_equal(size_t{0}); // no range was made
+		}
+	});
+
+	it("a refused first range on the focused column's button says INSUFFICIENT_RAM and enters the item, as main's "
+	   "handleItemAction",
+	   _ {
+		// `handleItemAction`'s else-path reads only `MUST_SELECT_RANGE` from `initializeItem`: a `NO` after
+		// `displayError(INSUFFICIENT_RAM)` still reaches `soundEditor.enterSubmenu(menuItem)`.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		for (Source& source : sound->sources) {
+			source.oscType = OscType::SQUARE;
+			source.ranges.clear();
+		}
+		deluge::bridge::recordLoadedSound(*sound, *r.song.song);
+		MenuContext ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false,
+		                                    /*kit_global_fx=*/false);
+		ctx.sink = nullptr; // the range request is refused
+		(void)menu::assign_node_ids(kRoots);
+		menu_scene().open(range_submenu_page, ctx);
+		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(range_submenu_page)});
+		r.shell.tick(0);
+		r.button(kKitX, kKitY, true, 300); // focus the range-specific item
+		r.shell.tick(305);
+		r.button(kKitX, kKitY, false, 310);
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
+		expect(depth_of()).to_equal(0);
+		(void)raised_notices(); // drain
+		r.button(kKitX, kKitY, true, 700); // its button again, past the buttons' debounce, on the focused column
+		r.shell.tick(705);
+		const auto raised = raised_notices();
+		r.button(kKitX, kKitY, false, 710);
+		r.shell.tick(720);
+		expect(std::ranges::any_of(raised, [](const deluge::notify::Notice& n) {
+			return n.string_id == static_cast<uint16_t>(String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
+		})).to_be_true();
+		expect(depth_of()).to_equal(1);
+		for (const Source& source : sound->sources) {
+			expect(source.ranges.size()).to_equal(size_t{0}); // no range was made
+		}
 	});
 
 	it("a refused first range on a button focus says INSUFFICIENT_RAM, then the column's notification, as main's "

@@ -67,12 +67,12 @@ deluge::ui::oled::Paging horizontal_paging(const MenuContext& ctx, const MenuSta
 /// @return The title text.
 std::string_view page_title(const MenuContext& ctx, const MenuState& st, NodeText& scratch);
 
-/// @brief The menu's moves through its tree: re-rooting, descending, ascending, the range picker's substitution, the
-///        chained pages, and the rows each submenu was last left on. A move that lands on a leaf begins its value
-///        session through the `ValueSession` it is handed; the session never calls back.
 /// @brief What `MenuWalk::enter_range_picker_if_needed` did about an item's range rule.
 enum class RangeGate : uint8_t { Proceed, Picker, Refused };
 
+/// @brief The menu's moves through its tree: re-rooting, descending, ascending, the range picker's substitution, the
+///        chained pages, and the rows each submenu was last left on. A move that lands on a leaf begins its value
+///        session through the `ValueSession` it is handed; the session never calls back.
 class MenuWalk {
 public:
 	/// @brief Re-root the path at @p node (the shortcut jump and `on_enter`'s re-target).
@@ -109,9 +109,9 @@ public:
 	/// @param session             The value session the picker or the child would open.
 	/// @param child               The node a session is about to begin on.
 	/// @param suppress_when_allowed When true, and `child.allow_session_from_horizontal` is set,
-	///         skip the `MUST_SELECT_RANGE` check entirely and answer false -- the port of
+	///         skip the `MUST_SELECT_RANGE` check entirely and answer `RangeGate::Proceed` -- the port of
 	///         `handleInstrumentButtonPress`'s own extra condition
-	///         (`!(*current_item_)->allowToBeginSessionFromHorizontalMenu()`, `:427-428`), which
+	///         (`!(*current_item_)->allowToBeginSessionFromHorizontalMenu()`), which
 	///         no other caller of this helper has. See `Node::allow_session_from_horizontal`'s own
 	///         doc for the two legacy call sites and why only one of them suppresses.
 	/// @return `Picker` when the range picker was opened in @p child's place; `Refused` when the first range could not
