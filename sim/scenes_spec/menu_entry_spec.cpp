@@ -44,6 +44,7 @@
 #include "shell/shell.h"
 
 #include "gui/ui/shell_choice_dispatch.h"
+#include "gui/ui/shell_drum_creator.h"
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/shell_note_bridge.h"
@@ -72,6 +73,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/setting_edit.h"
+#include "model/instrument/kit.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -516,6 +518,35 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 		nullifyUIs();
 		expect(shellHostUI.shell().stack().depth()).to_equal(size_t{0});
 		expect(deluge::scenes::menu_scene().menu_context().song == nullptr).to_be_true();
+		closeGuest();
+	});
+
+	it("a UI teardown forgets the drum creator's drum, so no later close deletes it", _ {
+		// The drum belongs to the kit a song load may be about to free: the guest's close arm, run after the teardown,
+		// must find no drum of the creator's to delete.
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
+		(void)deluge::scenes::spec::add_drum<SoundDrum>(f);
+		// The creator's new drum, which no row plays yet: the close arm deletes such a drum when no file was chosen.
+		auto* const kit = static_cast<Kit*>(f.instrument);
+		auto* const drum = deluge::scenes::spec::detail::place<SoundDrum>();
+		ParamManagerForTimeline params;
+		params.setupWithPatching();
+		Sound::initParams(&params);
+		drum->setupAsSample(&params);
+		f.song->live.param_backup.backUp(drum, f.clip, &params, true);
+		kit->addDrum(drum);
+		expect(kit->getFirstUnassignedDrum(static_cast<InstrumentClip*>(f.clip)) == drum).to_be_true();
+		setRootUILowLevel(&instrumentClipView);
+		expect(entry::openShellDrumCreator(static_cast<InstrumentClip*>(f.clip), drum)).to_be_true();
+		nullifyUIs();
+		entry::discardShellDrumCreatorBeforeClose();
+		bool held = false;
+		for (const Drum* d = kit->firstDrum; d != nullptr; d = d->next) {
+			held = held || d == drum;
+		}
+		expect(held).to_be_true();
 		closeGuest();
 	});
 });

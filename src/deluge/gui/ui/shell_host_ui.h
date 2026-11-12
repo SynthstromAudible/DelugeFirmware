@@ -368,8 +368,9 @@ public:
 
 	/// @brief Every UI is being taken down under the guest (`nullifyUIs`, a song load or a clear): end every scene
 	///        it holds, so each scene's `on_exit` runs (a recorder's take ends, attached to nothing), and forget the
-	///        menu's song. Nothing ticks a guest that is no longer open, so this cannot wait for one. Installed as
-	///        `nullifyUIs`'s hook by `opened()`.
+	///        menu's song. Nothing ticks a guest that is no longer open, so this cannot wait for one. The slicer's held
+	///        audition and the drum creator's drum are dropped whether the guest is open or not. Installed as
+	///        `nullifyUIs`'s hook by `wireShellGuestServices()`, at boot and on every open.
 	void uisTakenDown();
 	bool opened() override;
 	void focusRegained() override;

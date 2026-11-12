@@ -37,6 +37,8 @@
 #include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/led/pad_leds.h"
+#include "io/midi/midi_device_manager.h"
+#include "io/midi/midi_engine.h"
 #include "libdeluge/audio_load.h" // deluge_audio_load_set_latency_ms
 #include "libdeluge/control_surface.h"
 #include "libdeluge/file_directory.h" // deluge_file_directory_set_latency_ms
@@ -57,6 +59,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
+#include "playback/playback_handler.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
@@ -328,6 +331,19 @@ bool g_imEmptySucceeded = false;
 bool g_shellCommitBegun = false;
 bool g_shellEnded = false;
 bool g_shellBackKept = false;
+
+/// The region leg's song-load checks. A teardown of every UI (a song load) must drop the slicer's held audition, whose
+/// load names the outgoing kit's first drum; and a MIDI next-song that arrives while the slice is out must wait for it.
+bool g_teardownHeld = false;
+bool g_teardownRootKept = false;
+bool g_teardownDropped = false;
+bool g_nextHeld = false;
+bool g_nextHeldThrough = true;
+/// The channel and note the next-song command is learned on for the check, a channel nothing else here listens on,
+/// and the command as the scenario found it.
+constexpr uint8_t kNextSongChannel = 15;
+constexpr uint8_t kNextSongNote = 0x31;
+LearnedMIDI g_nextCommandBefore{};
 
 bool isShellSlice() {
 	return g_leg == Leg::ShellSlice || g_leg == Leg::ShellSliceManual || g_leg == Leg::ShellSliceBack
@@ -1354,6 +1370,8 @@ void actShellSlice() {
 	g_shellCommitBegun = false;
 	g_shellEnded = false;
 	g_shellBackKept = false;
+	g_teardownHeld = g_teardownRootKept = g_teardownDropped = g_nextHeld = false;
+	g_nextHeldThrough = true;
 	// What the ported menu edits: the kit's drum, as the browser it was opened from names it.
 	const deluge::scenes::menu::MenuContext ctx = deluge::scenes::menu::context_for(
 	    *currentSong, deluge::gui::menuViewOf(g_kitClip), 0, false, false, false, /*kit_global_fx=*/false);
@@ -1387,6 +1405,45 @@ void actShellSlice() {
 	deluge::gui::ui::openShellSlice(legFile());
 }
 
+/// A press on the slicer before the slice, which holds a load for the first drum, then every UI taken down as a song
+/// load takes them, and the root put back for the rest of the leg.
+void checkTeardownDropsAudition(deluge::scenes::slicing::SlicerScene& scene) {
+	if (scene.ops() == nullptr) {
+		return;
+	}
+	scene.ops()->audition({.start_point = 0, .end_point = -1, .transpose = 0, .on = 64});
+	g_teardownHeld = deluge::gui::ui::shellSlicerBusy();
+	UI* const root = getRootUI();
+	g_teardownRootKept = getCurrentUI() == root;
+	nullifyUIs();
+	g_teardownDropped = !deluge::gui::ui::shellSlicerBusy();
+	if (g_teardownRootKept) {
+		setRootUILowLevel(root);
+	}
+}
+
+/// A learned MIDI next-song while the slice is out, the way a DIN note reaches it; the command is put back after.
+void sendNextSongDuringSlice() {
+	if (!deluge::gui::ui::shellSliceOut()) {
+		return;
+	}
+	auto& command = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)];
+	g_nextCommandBefore = command;
+	command.cable = nullptr;
+	command.channelOrZone = kNextSongChannel;
+	command.noteOrCC = kNextSongNote;
+	bool thru = false;
+	playbackHandler.noteMessageReceived(MIDIDeviceManager::dinMIDIPorts, true, kNextSongChannel, kNextSongNote, 64,
+	                                    &thru);
+	g_nextHeld = playbackHandler.nextSongPending_;
+	// The job that lets it go, run while the slice is still out: it must keep holding it.
+	playbackHandler.slowRoutine();
+	g_nextHeldThrough = playbackHandler.nextSongPending_;
+	playbackHandler.noteMessageReceived(MIDIDeviceManager::dinMIDIPorts, false, kNextSongChannel, kNextSongNote, 0,
+	                                    &thru);
+	command = g_nextCommandBefore;
+}
+
 /// The ported slicer's legs, a tick at a time: once the host has opened the slicer on the file, begin the slice; the
 /// leg ends when nothing of the slicer's is out.
 void tickShellSlice() {
@@ -1404,6 +1461,9 @@ void tickShellSlice() {
 		if (!scene.has_sample()) {
 			return;
 		}
+		if (g_leg == Leg::ShellSlice) {
+			checkTeardownDropsAudition(scene);
+		}
 		deluge::scenes::slicing::SliceCommit commit{};
 		commit.is_manual = g_leg == Leg::ShellSliceManual;
 		commit.slice_count = commit.is_manual ? kManualSliceCount : kSliceRegions;
@@ -1416,12 +1476,22 @@ void tickShellSlice() {
 			g_shellEnded = true;
 			return;
 		}
+		if (g_leg == Leg::ShellSlice) {
+			sendNextSongDuringSlice();
+		}
 		// The slicer stays open on its sample if the slice fails, so the preview's holder has to keep it loaded.
 		const auto* range =
 		    static_cast<const MultisampleRange*>(AudioEngine::sampleForPreview->sources[0].ranges.getElement(0));
 		if (range->sampleHolder.audioFile == nullptr || range->sampleHolder.filePath != legFile()) {
 			fail(legName(g_leg), "the slice let go of the sample the slicer shows");
 		}
+		return;
+	}
+	if (g_leg == Leg::ShellSlice) {
+		// Held for as long as the slice is out, and loaded (here: let go, nothing playing) once it is in.
+		g_nextHeldThrough =
+		    g_nextHeldThrough && (!deluge::gui::ui::shellSliceOut() || playbackHandler.nextSongPending_);
+		g_shellEnded = !deluge::gui::ui::shellSlicerBusy() && !playbackHandler.nextSongPending_;
 		return;
 	}
 	g_shellEnded = !deluge::gui::ui::shellSlicerBusy();
@@ -1945,6 +2015,27 @@ void checkLeg() {
 		break;
 	case Leg::ShellSlice:
 		checkRegionSlice("SC-SHELL-SLICE");
+		printf("SC-SHELL-SLICE teardown held=%d rootOnly=%d dropped=%d next held=%d heldThrough=%d pending=%d\n",
+		       g_teardownHeld ? 1 : 0, g_teardownRootKept ? 1 : 0, g_teardownDropped ? 1 : 0, g_nextHeld ? 1 : 0,
+		       g_nextHeldThrough ? 1 : 0, playbackHandler.nextSongPending_ ? 1 : 0);
+		if (!g_teardownHeld || !g_teardownRootKept) {
+			printf("SC-SHELL-SLICE FAIL no audition load was out under the root alone at the teardown, so nothing was "
+			       "tested\n");
+			g_failures++;
+		}
+		else if (!g_teardownDropped) {
+			printf("SC-SHELL-SLICE FAIL a teardown of every UI left the slicer's held audition out\n");
+			g_failures++;
+		}
+		if (!g_nextHeld) {
+			printf("SC-SHELL-SLICE FAIL a MIDI next-song during the slice was not held back for it\n");
+			g_failures++;
+		}
+		else if (!g_nextHeldThrough || playbackHandler.nextSongPending_) {
+			printf("SC-SHELL-SLICE FAIL a next-song held back for the slice did not wait for it to land, then go\n");
+			g_failures++;
+		}
+		playbackHandler.nextSongPending_ = false;
 		break;
 	case Leg::SliceManual:
 		checkManualSlice("SC-SLICE-MANUAL");

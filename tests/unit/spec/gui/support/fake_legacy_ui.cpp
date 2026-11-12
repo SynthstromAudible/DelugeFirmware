@@ -314,10 +314,6 @@ bool isUIOpen(UI* ui) {
 	return ui == fakelegacyui::current_ui;
 }
 
-// The teardown hook `ShellHostUI::opened` installs; this suite runs no `nullifyUIs`.
-void setUITeardownHook(UITeardownHook /*hook*/) {
-}
-
 void exitUIMode(uint32_t uiMode) {
 	fakelegacyui::modes_exited.push_back(uiMode);
 }
@@ -561,6 +557,10 @@ bool shellSlicerBusy() {
 bool shellSliceOut() {
 	return fakelegacyui::slice_out;
 }
+
+void forgetShellDrumCreator() {
+}
+
 void releaseShellSlicerBeforeClose() {
 	fakelegacyui::slicer_releases++;
 	fakelegacyui::slicer_release_saw_close = !fakelegacyui::closed.empty();

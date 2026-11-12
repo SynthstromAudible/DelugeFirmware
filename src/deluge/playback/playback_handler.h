@@ -83,13 +83,14 @@ public:
 	void setMidiInClockEnabled(bool newValue);
 	int32_t getActualArrangementRecordPos();
 	int32_t getArrangementRecordPosAtLastActionedSwungTick();
-	/// @brief Action a MIDI command that had to wait: a next-song held back by an input take once the take is over,
-	///        and an undo or redo unless the card is busy, in which case it asks for the job's run again in
-	///        @ref kSlowRetryUs.
+	/// @brief Action a MIDI command that had to wait: a next-song held back by an input take or a slice once it is
+	///        over (a slice is polled every @ref kSlowRetryUs), and an undo or redo unless the card is busy, in which
+	///        case it asks for the job's run again in @ref kSlowRetryUs.
 	void slowRoutine();
 	/// @brief The job slowRoutine() runs on: requested where a command is made to wait.
 	deluge::runtime::JobId slowJob{deluge::runtime::kNoJob};
-	/// @brief A MIDI next-song arrived during an audio-input take: @ref slowRoutine loads it once the take is over.
+	/// @brief A MIDI next-song arrived during an audio-input take or a slice: @ref slowRoutine loads it once that is
+	///        over.
 	bool nextSongPending_{false};
 	/// @brief How soon a command held back by a busy card is tried again, in µs.
 	static constexpr deluge::runtime::Micros kSlowRetryUs = 1'000;

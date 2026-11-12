@@ -179,7 +179,6 @@ bool ShellHostUI::opened() {
 	// writes to this object's own state and reading flash twice is cheaper than the reader having
 	// to check where the boundary is.
 	wireShellGuestServices();
-	setUITeardownHook([] { shellHostUI.uisTakenDown(); });
 
 	// `SoundEditor::opened` asks for the root's pads (`SoundEditor::opened`): while the guest
 	// owns none they are the UI underneath's, greyed by the mask `openUI` read before the scene was
@@ -1186,6 +1185,12 @@ void ShellHostUI::tickShell(uint32_t now) {
 void ShellHostUI::uisTakenDown() {
 	// At once: both takers-down (`LoadSongUI`'s load job and `ClearSong`'s accept) run outside the guest's tick, and
 	// a guest no longer open is never ticked again to do it later.
+	//
+	// The slicer's held audition names a row of the outgoing song's kit, and the drum creator's drum is in it: both are
+	// dropped whether the guest is up or not (a close has already dropped them). A slice out cannot be dropped, which
+	// is why a MIDI next-song waits for it (`PlaybackHandler::tryGlobalMIDICommands`).
+	releaseShellSlicerBeforeClose();
+	forgetShellDrumCreator();
 	if (!isUIOpen(this)) {
 		return;
 	}

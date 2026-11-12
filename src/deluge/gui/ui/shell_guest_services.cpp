@@ -415,6 +415,9 @@ bool guestKnobsSeeAutomationEditor() {
 void wireShellGuestServices() {
 	GuestServices& services = guestServices();
 	ShellHostUI::setCloseHook(&handOffGuestOverlays);
+	// From boot on, not from the first open: the slicer's and the drum creator's state is dropped on a teardown
+	// whether the guest is up or not.
+	setUITeardownHook([] { shellHostUI.uisTakenDown(); });
 	wireShellKitGlobalShortcuts();
 
 	// `currentSong`, which `src/scenes` may not read for itself (`check_layer_rules.py`'s
