@@ -116,5 +116,6 @@ Recording a sample from a synth or kit's sample menu still uses the line input o
 ## Latency
 
 Audio from the computer is buffered by about 6 ms (256 samples) on the Deluge before it's played or recorded, which
-keeps it smooth when the Deluge is busy. Audio going to the computer is buffered by about 2 ms. Your computer adds its
+keeps it smooth when the Deluge is busy. Audio going to the computer is buffered by about 3 ms, which includes a
+spare packet that covers the Deluge being too busy to send one in time. Your computer adds its
 own buffering on top of both, which you can usually set in your DAW.

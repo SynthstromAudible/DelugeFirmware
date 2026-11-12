@@ -271,6 +271,65 @@ uint32_t framesForNextPacket(int32_t backlog) {
 	return numFrames;
 }
 
+// The pipe is double buffered, and we keep both buffers full: one going out this USB frame, the next waiting for the
+// one after. The SOF interrupt queues a packet when the host's taken one, then the DMA-complete interrupt another if
+// there's still room - so a late SOF interrupt doesn't cost a packet. Song::renderAudio() holds interrupts off while
+// each output renders, which with a lot of voices can be well over a millisecond: long enough to miss a SOF entirely.
+// With only one packet queued, the host got nothing that frame - our audio lost a packet, and with implicit feedback,
+// so did the host's audio to us. With two, the host takes the waiting one, and the next SOF fills both again, covering
+// interrupts being held off for up to about 2ms. It costs a frame (1ms) of latency to the host.
+//
+// framesForNextPacket() is still called once per packet the host takes - one a USB frame, on average - so its rate
+// steering is unchanged
+void queueToHostPacket() {
+	uint32_t read = toHostRead.load(std::memory_order_relaxed);
+	uint32_t written = toHostWritten.load(std::memory_order_acquire);
+	int32_t txOffset = toHostTxOffset.load(std::memory_order_relaxed);
+	if (txOffset < 0) {
+		return; // Nothing's been rendered for the host yet - it gets a zero-length packet
+	}
+	uint32_t fill = written - read;
+	uint32_t txQueued = txFramesQueued(written + txOffset); // Of what's in the ring, how much the codec's yet to play
+	if (fill > kToHostRingFrames * 3 / 4) {
+		// Way behind - the host's been ignoring us. Skip ahead rather than send stale audio
+		fill = txQueued + kToHostTargetBacklog;
+		read = written - fill;
+	}
+
+	uint32_t numFrames = framesForNextPacket((int32_t)fill - (int32_t)txQueued);
+	if (numFrames == 0) {
+		toHostRead.store(read, std::memory_order_release);
+		return; // The host gets a zero-length packet
+	}
+
+	// We keep sending a steady 44 or 45 frames even if the audio routine's fallen behind (when it's so busy the codec's
+	// run out), padding with silence - a host doing implicit feedback takes its timing from these, so stopping to
+	// catch up would throw that, and the audio coming back from it, into disarray
+	uint32_t numToCopy = std::min(numFrames, fill);
+	auto* staging = uncached(reinterpret_cast<StereoSample*>(toHostStaging));
+	copyFromRing(toHostRing, read, staging, numToCopy);
+	std::memset(&staging[numToCopy], 0, (numFrames - numToCopy) * sizeof(StereoSample));
+	toHostRead.store(read + numToCopy, std::memory_order_release);
+
+	toHostDmaBusy = true;
+	toHostDmaFrames = 0;
+	startDma(USB_AUDIO_TX_DMA_CHANNEL, reinterpret_cast<uint32_t>(toHostStaging),
+	         reinterpret_cast<uint32_t>(&USB200.D0FIFO.UINT32), numFrames * kBytesPerFrame);
+	USB200.D0FIFOSEL |= USB_DREQE;
+}
+
+// Whether the to-host pipe has a buffer free to write a packet to. Just after BVAL commits one, the controller takes a
+// moment to switch to the pipe's other buffer, and FRDY reads as 0 until it has - so, like the Renesas driver's
+// usb_cstd_is_set_frdy(), give it a few reads to show up. If the other buffer's full, it never does
+bool toHostBufferFree() {
+	for (int32_t i = 0; i < 4; i++) {
+		if (USB200.D0FIFOCTR & USB_FRDY) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void toHostDmaComplete(uint32_t) {
 	if (!toHostDmaBusy || !dmaFinished(USB_AUDIO_TX_DMA_CHANNEL)) {
 		return; // Late - the watchdog's already dealt with this transfer
@@ -279,6 +338,9 @@ void toHostDmaComplete(uint32_t) {
 	// Packets are always shorter than the max packet size, so we have to tell the controller this one's done
 	USB200.D0FIFOCTR = USB_BVAL;
 	toHostDmaBusy = false;
+	if (toHostStreaming && toHostBufferFree()) {
+		queueToHostPacket(); // The other buffer's free too - fill it for the frame after
+	}
 }
 
 void setUpInterrupts() {
@@ -646,40 +708,7 @@ extern "C" void usbAudioHandleSof(void) {
 		return; // Both buffers already hold packets the host hasn't collected
 	}
 
-	uint32_t read = toHostRead.load(std::memory_order_relaxed);
-	uint32_t written = toHostWritten.load(std::memory_order_acquire);
-	int32_t txOffset = toHostTxOffset.load(std::memory_order_relaxed);
-	if (txOffset < 0) {
-		return; // Nothing's been rendered for the host yet - it gets a zero-length packet
-	}
-	uint32_t fill = written - read;
-	uint32_t txQueued = txFramesQueued(written + txOffset); // Of what's in the ring, how much the codec's yet to play
-	if (fill > kToHostRingFrames * 3 / 4) {
-		// Way behind - the host's been ignoring us. Skip ahead rather than send stale audio
-		fill = txQueued + kToHostTargetBacklog;
-		read = written - fill;
-	}
-
-	uint32_t numFrames = framesForNextPacket((int32_t)fill - (int32_t)txQueued);
-	if (numFrames == 0) {
-		toHostRead.store(read, std::memory_order_release);
-		return; // The host gets a zero-length packet
-	}
-
-	// We keep sending a steady 44 or 45 frames even if the audio routine's fallen behind (when it's so busy the codec's
-	// run out), padding with silence - a host doing implicit feedback takes its timing from these, so stopping to
-	// catch up would throw that, and the audio coming back from it, into disarray
-	uint32_t numToCopy = std::min(numFrames, fill);
-	auto* staging = uncached(reinterpret_cast<StereoSample*>(toHostStaging));
-	copyFromRing(toHostRing, read, staging, numToCopy);
-	std::memset(&staging[numToCopy], 0, (numFrames - numToCopy) * sizeof(StereoSample));
-	toHostRead.store(read + numToCopy, std::memory_order_release);
-
-	toHostDmaBusy = true;
-	toHostDmaFrames = 0;
-	startDma(USB_AUDIO_TX_DMA_CHANNEL, reinterpret_cast<uint32_t>(toHostStaging),
-	         reinterpret_cast<uint32_t>(&USB200.D0FIFO.UINT32), numFrames * kBytesPerFrame);
-	USB200.D0FIFOSEL |= USB_DREQE;
+	queueToHostPacket();
 }
 
 /*********************************************************************************************************************
