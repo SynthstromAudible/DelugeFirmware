@@ -4,7 +4,8 @@
 /// @brief Where a node's own answer differs from what upstream `main`'s menu item answers, pinned by identity and by
 ///        count so a difference that is fixed, or that grows, shows.
 ///
-/// The reference rows say what `main` answers; these are the questions the port answers differently today. A spec that
+/// The reference rows say what `main` answers, except the rows `tests/golden/README.md` names as differing on purpose;
+/// these are the questions the port answers differently today. A spec that
 /// compares an answer to its row excuses exactly the nodes these predicates name, requires the excused difference to be
 /// there (the port's answer is the one stated here, the row is main's), and requires the number of excused nodes to be
 /// the count below. Fixing the port, or breaking another node the same way, turns the example red.

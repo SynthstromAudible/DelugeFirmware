@@ -108,6 +108,12 @@ Fields are raw bytes: only tab, newline and backslash are escaped, so a glyph by
 These are reference data, not recordings: nothing in the tree regenerates them. Change a row only to follow `main`,
 reading its source with `git show origin/main:<path>`, and name that source in the commit.
 
+The rows were frozen from `next`'s legacy menu at 16b2d012b, before it was deleted, and audited against `origin/main`
+96c002803 item by item over the menu code `next` changed. They hold `main`'s answer except where `next`'s menu
+differs from `main` on purpose, each a row of `tests/ui-scripts/parity/DIFFERENCES.md`: the sample repeat titles
+(D149, accepted), the delay's three types (D155), the community features `main` has and `next` removed (D156) and the
+audio clip attack's write (D157).
+
 Where an answer is a model value main's item left behind rather than text the item returned, the row is that value as
 the port's `bindings::read` reads it after main's write: the first value of every `write/<v>` row, and the
 `sweep/<path>` rows (each drum's value after main's affect-entire sweep). The second value of a `write/<v>` row is
