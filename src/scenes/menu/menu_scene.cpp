@@ -234,10 +234,13 @@ bool MenuScene::on_enter(const SceneId& id) {
 	if (target == nullptr) {
 		return false;
 	}
+	// A shortcut's page: `beginScreen` begins it, which keeps a range only for a range-dependent column
+	// (`HorizontalMenu::beginSession`).
 	if (page != nullptr) {
 		visit_ = {};
 		retarget(*page);
 		walk_.focus_column(core(), *target);
+		begin_submenu_range(ctx_, st_, nullptr);
 		return true;
 	}
 	// `beginScreen`: a new screen, with `blinkLed(LEARN)` as `SoundEditor::updatePadLightsFor` runs. Reset only on a

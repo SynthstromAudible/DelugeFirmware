@@ -1671,6 +1671,44 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().focused_value() == &nodes::source0_transpose).to_be_true();
 	});
 
+	it("a jump to a page whose column is not range-dependent drops the picked range, as main's beginSession", _ {
+		// `setup()` keeps `currentMultiRange` in the open editor, then `beginScreen` begins the landing's page:
+		// `HorizontalMenu::beginSession` keeps the range only for a range-dependent column, so a jump to the LPF page
+		// drops it and a later jump to the transpose asks for a range again.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		sound->sources[0].ranges.insertMultiRange(0);
+		sound->sources[0].ranges.insertMultiRange(1);
+		deluge::edits::recordRanges(*sound, 0);
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		const auto jump = [&](int32_t x, int32_t y, uint32_t at) {
+			r.button(kShiftX, kShiftY, true, at);
+			r.pad(x, y, 64, at + 10);
+			r.shell.tick(at + 20);
+			r.pad(x, y, 0, at + 25);
+			r.button(kShiftX, kShiftY, false, at + 30);
+			r.shell.tick(at + 40);
+		};
+		jump(2, 1, 10);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 60);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 60);
+		r.shell.tick(70);
+		r.shell.tick(90);
+		expect(menu_scene().focused_value() == &nodes::source0_transpose).to_be_true();
+		expect(menu_scene().menu_context().range_index >= 0).to_be_true();
+
+		jump(kLpfFreqX, kLpfFreqY, 200);
+		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().menu_context().range_index).to_equal(-1);
+
+		jump(2, 1, 400);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+	});
+
 	it("lands on the leaf itself with the HorizontalMenus feature off", _ {
 		// `getCurrentHorizontalMenusChain` answers nothing with the feature off, so `setup()` opens
 		// the item alone.
