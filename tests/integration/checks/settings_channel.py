@@ -5,6 +5,8 @@ while counting every settings operation that began on the interaction tier.
 
     SC-ROUNDTRIP  the settings survive. The safety half: it catches a change that moved the I/O and broke the
                   settings on the way.
+    SC-UNKNOWN    a key no setting has any more (a stale `legacyMenu=1`) is kept as an unknown setting through the same
+                  round trip, once.
     SC-TIER       that no settings operation ran on the interaction tier. The evidence half.
     SC-BURST      a burst of three writes, the first already in flight, lands the last value in exactly two card
                   writes: the waiting write is replaced, the in-flight one never is.

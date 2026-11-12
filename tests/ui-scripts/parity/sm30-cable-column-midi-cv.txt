@@ -1,8 +1,7 @@
 # ShellMenu: MIDI and CV pressed while a horizontal page's patch-cable column is focused. On the SIDECHAIN page with
 # DUCK focused, `main` moves the page's cursor (MIDI to SHAPE, CV to ATTACK) and the SELECT that follows leaves the
 # menu; on the MASTER page with VIBRATO focused, MIDI and CV change nothing, and the cable's strength page still reads
-# BI, as it does with no press (`sm24`). Neither column switches the cable's polarity. Run on the ShellMenu card, and
-# once with ShellMenu off as the control.
+# BI, as it does with no press (`sm24`). Neither column switches the cable's polarity. Run on the ShellMenu card.
 100   snapshot boot
 300   button Shift down
 400   pad 10 2 down

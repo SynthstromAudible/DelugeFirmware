@@ -703,7 +703,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// itself, which is why the port runs the shared write for it after the extras rather than
 		// inside them.
 		static spec::SongFixture fixture = spec::make_synth_song();
-		give_active_clip(fixture); // learning an instrument's input reads its param manager (`View::clearMelodicInstrumentMonoExpressionIfPossible`)
+		// Learning an instrument's input reads its param manager
+		// (`View::clearMelodicInstrumentMonoExpressionIfPossible`).
+		give_active_clip(fixture);
 		::LearnedMIDI& slot = fixture.instrument->midiInput;
 
 		expect(reset_legacy_learn()).to_be_true();
@@ -1577,7 +1579,9 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 
 	it("INSTRUMENT_INPUT: a learn writes the track's input entry, and a bare press and release unlearns it", _ {
 		static spec::SongFixture fixture = spec::make_synth_song();
-		give_active_clip(fixture); // learning an instrument's input reads its param manager (`View::clearMelodicInstrumentMonoExpressionIfPossible`)
+		// Learning an instrument's input reads its param manager
+		// (`View::clearMelodicInstrumentMonoExpressionIfPossible`).
+		give_active_clip(fixture);
 		const deluge::project::TrackInputTarget target{*fixture.instrument->id()};
 
 		expect(reset_legacy_learn()).to_be_true();

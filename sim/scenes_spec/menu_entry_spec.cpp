@@ -774,6 +774,27 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 	});
 
+	it("Shift + (8,7) from the clip view, menu closed, opens the ported menu through menuShortcutPadAction", _ {
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		(void)f;
+		deluge::hid::display::OLED oled_display;
+		deluge::hid::Display* const saved_display = display;
+		display = &oled_display;
+		const int32_t saved_mode = currentUIMode;
+		currentUIMode = UI_MODE_NONE;
+		RootUIGuard root_guard;
+		HeldShift shift;
+
+		setRootUILowLevel(&instrumentClipView);
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		(void)entry::menuShortcutPadAction(8, 7, true);
+		expect(getCurrentUI() == &shellHostUI).to_be_true();
+		expect(deluge::scenes::menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		nullifyUIs();
+		deluge::hid::display::OLED::removePopup();
+		display = saved_display;
+		currentUIMode = saved_mode;
+	});
 });
 
 describe menu_entry_refusal("openShellMenu refuses where SoundEditor::setup refuses", $ {

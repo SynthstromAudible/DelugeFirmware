@@ -50,6 +50,15 @@ struct SettingsChannelProbe {
 		runtimeFeatureSettings.unknownSettings.push_back(UnknownSetting{.name = std::move(name), .value = value});
 	}
 	static size_t unknownSettingCount() { return runtimeFeatureSettings.unknownSettings.size(); }
+	/// How many kept unknown settings, from index @p from on, have this name and value.
+	static size_t unknownSettingsNamed(size_t from, std::string_view name, uint32_t value) {
+		size_t n = 0;
+		const auto& unknown = runtimeFeatureSettings.unknownSettings;
+		for (size_t i = from; i < unknown.size(); i++) {
+			n += static_cast<size_t>(unknown[i].name == name && unknown[i].value == value);
+		}
+		return n;
+	}
 	static void truncateUnknownSettings(size_t count) { runtimeFeatureSettings.unknownSettings.resize(count); }
 	/// Everything a factory reset throws away, so the scenario can put it back for the gates that read the card image
 	/// after it.
@@ -195,6 +204,8 @@ int32_t g_orderServed = 0;
 bool g_oversizeHadFile = false;
 std::vector<uint8_t> g_oversizeBefore;
 size_t g_unknownBefore = 0;
+/// The unknown-setting count before the round trip added its stale key.
+size_t g_roundTripUnknownBase = 0;
 int32_t g_tierBefore = 0;
 /// What the reset stage's factory reset discards, kept for the restore.
 std::optional<SettingsChannelProbe::Saved> g_beforeReset;
@@ -282,6 +293,10 @@ void runTick() {
 		// would test a path the product never takes.
 		g_wrote = kProbeValue;
 		runtimeFeatureSettings.set(kProbeSetting, g_wrote);
+		// A key no setting has any more (a card that still says `legacyMenu=1`) rides the same round trip: it is
+		// kept as an unknown setting, written back, and read back as one.
+		g_roundTripUnknownBase = SettingsChannelProbe::unknownSettingCount();
+		SettingsChannelProbe::addUnknownSetting("legacyMenu", 1);
 		runtimeFeatureSettings.writeSettingsToFile();
 		g_stage = Stage::WriteCheck;
 		break;
@@ -299,6 +314,7 @@ void runTick() {
 		// comparison below would still pass -- a round trip that compares a file against itself
 		// passes vacuously.
 		runtimeFeatureSettings.set(kProbeSetting, kProbeValue + 1);
+		SettingsChannelProbe::truncateUnknownSettings(g_roundTripUnknownBase);
 		runtimeFeatureSettings.readSettingsFromFile();
 		g_stage = Stage::ReadCheck;
 		break;
@@ -314,6 +330,15 @@ void runTick() {
 		if (g_read != g_wrote) {
 			printf("SC-ROUNDTRIP FAIL the value did not survive the write/read pair\n");
 			g_failures++;
+		}
+		{
+			const size_t kept = SettingsChannelProbe::unknownSettingsNamed(g_roundTripUnknownBase, "legacyMenu", 1);
+			printf("SC-UNKNOWN name=legacyMenu kept=%zu\n", kept);
+			if (kept != 1) {
+				printf("SC-UNKNOWN FAIL a setting no longer known did not survive the write/read pair once\n");
+				g_failures++;
+			}
+			SettingsChannelProbe::truncateUnknownSettings(g_roundTripUnknownBase);
 		}
 		g_stage = Stage::BurstFirst;
 		break;

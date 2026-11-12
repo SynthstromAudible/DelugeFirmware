@@ -1,7 +1,7 @@
 # ShellMenu: SHIFT under a sound menu shows main's shortcut colour overlay over a greyed grid -- every shortcut pad
 # coloured by what it edits, the patching-source column blue where a source may patch to the focused param, the
 # range rule while a source pad is held on a cable page -- and hands the pads back on release, on BACK, and not at
-# all in the settings menu. Run on the ShellMenu card, and once with ShellMenu off as the control.
+# all in the settings menu. Run on the ShellMenu card.
 100   snapshot boot
 300   button SelectEnc down
 340   button SelectEnc up

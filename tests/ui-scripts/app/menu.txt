@@ -25,16 +25,13 @@
 # fourteen in `gui/ui/shell_menu_entry.cpp`'s table, the site whose root is `soundEditorRootMenu` /
 # `MenuContext::Root::Sound`.
 #
-# **The four null-clip sites cannot be scripted here, and it is not the port's fault.**
-# `SoundEditor::setup` assigns `newSound` only inside its `else if (clip)` arm, so a `setup()` with a
-# null clip leaves `currentSound` null and the function dereferences null. **Measured** for site 1
-# (`gui/views/view.cpp:478`, SHIFT+SELECT) and site 2 (`gui/views/session_view.cpp:569`, SELECT from
-# the session view): both SIGSEGV at that line under gdb, in the ShellMenu-off leg, on an unmodified
-# tree. Sites 3 (`gui/views/arranger_view.cpp`) and 4 (`gui/views/performance_view.cpp`)
-# pass the same null clip into the same function and so reach the same line, but were not driven --
-# that is inspection, not a measurement. Pre-existing, and latent rather than fatal on the device,
-# where address 0 is mapped. This script stays on a clip-carrying
-# site so that the leg it would crash is the one that has to run.
+# **Why a clip-carrying site.** `main`'s `SoundEditor::setup` assigns `newSound` only inside its
+# `else if (clip)` arm, so a `setup()` with a null clip leaves `currentSound` null and dereferences
+# null -- measured under gdb for site 1 (SHIFT+SELECT) and site 2 (SELECT from the session view) on the
+# host sim; sites 3 and 4 pass the same null clip, by inspection. Latent rather than fatal on the
+# device, where address 0 is mapped. The menu has no such crash, but this script stays on gestures
+# `main` survives too, so its panels can be compared with `main`'s; the null-clip sites' roots are
+# `menu_entry_spec`'s (`menu_entry_roots`).
 #
 # The shape: boot into a scene, one navigation, one edit gesture, one popup, back out.
 #
@@ -52,16 +49,15 @@
 900    snapshot menu-scrolled
 
 # One edit gesture, and the popup it raises. `GoldUpper` is encoder index 4 = mod1 = the UPPER gold
-# knob (`tests/harness/level3/host_script_tables.c`'s `k_encoder_roles`). With ShellMenu off it reaches
-# legacy's `View::modEncoderAction` through `SoundEditor::modEncoderAction`'s innermost `else`
-# (`gui/ui/sound_editor.cpp`); with ShellMenu on `ShellHostUI::modEncoderAction` routes legacy's lowered
-# turn to `services::ModKnobs` (`Shell::route_lowered_turn`), on the focus both share. The panels match.
+# knob (`tests/harness/level3/host_script_tables.c`'s `k_encoder_roles`). `ShellHostUI::modEncoderAction`
+# routes the lowered turn to `services::ModKnobs` (`Shell::route_lowered_turn`), as `main`'s
+# `SoundEditor::modEncoderAction` hands it to `View::modEncoderAction`.
 1000   encoder GoldUpper +2
 1200   snapshot gold-turn
 
 # Back out. A SHORT Back, which is the exit a user actually performs: the long press goes through
 # `TimerName::BACK_MENU_EXIT` -> `exitUI()` (`hid/buttons.cpp:114-121`,
-# `gui/ui_timer_manager.cpp:150-156`), and the short one does not. A ShellMenu-on leg that mishandles it is
+# `gui/ui_timer_manager.cpp:150-156`), and the short one does not. A menu that mishandles it is
 # left wedged here with an empty shell stack and every later press swallowed.
 1300   button Back down
 1320   button Back up
@@ -72,20 +68,13 @@
 #
 # Everything above is the *shape* of a menu visit. Everything below drives
 # `MenuAction::SetClipLengthToSampleLength` through `gui::ui::dispatchShellActions`'s arm
-# (`gui/ui/shell_action_dispatch.cpp`) and photographs the popup it raises -- and the ShellMenu-off
-# leg performs the same verb through `audio_clip::SetClipLengthEqualToSampleLength::selectButtonPress`
-# (`gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h:26-29`). The two popups are
-# byte-identical, which is the claim.
+# (`gui/ui/shell_action_dispatch.cpp`) and photographs the popup it raises, the popup `main`'s
+# `audio_clip::SetClipLengthEqualToSampleLength::selectButtonPress` raises for the same verb.
 #
 # **Why this verb.** Of `MenuAction`'s seven enumerators,
-# six cannot be reached by any script, and five of those for one reason: `SoundEditor::setup`
-# is left with a null `currentSound` and dereferences null when it is passed no clip, so every `soundEditor.setup()` call that passes no clip
-# SIGSEGVs the OFF leg on the host sim. That is sites 1 (SHIFT+SELECT -> Settings), 2 and 3
-# (SELECT from the session view / arranger -> Song) and 4 (performance view), i.e. every root that
-# holds `SetShortcutsVersion`, `ScreensaverSettingsChanged`, `OpenSongMidiLearn`, `OpenSongMacros`
-# and `OpenPerformanceView`. Measured under gdb, in the ShellMenu-off leg, on an unmodified tree --
-# the same pre-existing legacy bug noted above, which is why
-# the script had stayed on `InstrumentClipMinder`'s clip-carrying site 6. `StartStemExport` is
+# five sit in roots only the null-clip sites open (sites 1-4: Settings, Song, Performance), which
+# `main` crashes on as noted above: `SetShortcutsVersion`, `ScreensaverSettingsChanged`,
+# `OpenSongMidiLearn`, `OpenSongMacros` and `OpenPerformanceView`. `StartStemExport` is
 # reachable only from the song root (the same crash) or the kit-global-FX root, which needs a kit
 # this empty card cannot create ("NO MORE PRESETS FOUND"), and would write stems to the fixture.
 # That leaves this one.
@@ -109,12 +98,11 @@
 #     follows then reaches `session_view.cpp:569`'s no-clip `soundEditor.setup()` -- site 2, i.e.
 #     the crash above.
 #   * **6000 -> 6350, the whole tail.** `SET CLIP LENGTH EQUAL TO SAMPLE LENGTH` is wider than the
-#     panel, so the selected row's label side-scrolls, and the two legs scroll it with different
-#     code: legacy registers `OLED::setupSideScroller` (`gui/menu_item/submenu.cpp:123-124`) and
-#     the port animates `ui::oled::scroll_text` inside `list` (`ui/oled/list.h`). **They stay in
-#     step for the first ~400 ms and drift apart after it** -- measured at 50 ms granularity: the
-#     two legs are byte-identical at 100/250/300/350/400 ms past the turn and differ at 500 ms and
-#     beyond. So the press and its snapshot both happen inside that window. This is a real
+#     panel, so the selected row's label side-scrolls: the menu animates `ui::oled::scroll_text`
+#     inside `list` (`ui/oled/list.h`) where `main` registers `OLED::setupSideScroller`
+#     (`gui/menu_item/submenu.cpp:123-124`). **They stay in step for the first ~400 ms and drift
+#     apart after it** -- measured at 50 ms granularity: byte-identical at 100/250/300/350/400 ms past
+#     the turn, different at 500 ms and beyond. So the press and its snapshot both happen inside that window. This is a real
 #     divergence and it is recorded rather than dodged: it is the same
 #     `setupSideScroller`-has-no-port gap `scenes/menu/nodes/output_items.h` already lists, seen
 #     here on a menu row instead of an output name.
@@ -124,7 +112,7 @@
 
 # Hold the clip's pad and press the select encoder: `UI_MODE_CLIP_PRESSED_IN_SONG_VIEW`
 # (`session_view.cpp`) plus SELECT is legacy's convert-to-audio-clip gesture.
-# Both legs run the same legacy code here -- ShellMenu only reaches menus.
+# No menu is involved here.
 3100   pad 0 7 down
 3300   button SelectEnc down
 3320   button SelectEnc up
@@ -138,22 +126,21 @@
 4800   snapshot audio-clip-view
 
 # Site 5 of the fourteen (`gui/ui/shell_menu_entry.cpp`): SELECT from the audio clip view ->
-# `soundEditorRootMenuAudioClip` / `MenuContext::Root::AudioClip`. The A/B has never covered this
-# root before -- every snapshot above it is `Root::Sound`.
+# `soundEditorRootMenuAudioClip` / `MenuContext::Root::AudioClip`. No snapshot above covers this
+# root -- every one is `Root::Sound`.
 5000   button SelectEnc down
 5020   button SelectEnc up
 5300   snapshot audio-root
 
-# ACTIONS is the root's first child on both sides, so this press needs no turn.
+# ACTIONS is the root's first child, as on `main`, so this press needs no turn.
 5500   button SelectEnc down
 5520   button SelectEnc up
 5800   snapshot audio-actions
 
 # One detent onto SET CLIP LENGTH EQUAL TO SAMPLE LENGTH (RENAME is first), then the press that
-# performs the verb. With ShellMenu on that press is `MenuScene`'s `ActionItem` filing
-# `MenuAction::SetClipLengthToSampleLength` (`scenes/menu/nodes/actions.h`) and
-# `dispatchShellActions` calling `audioClipView.setClipLengthEqualToSampleLength()`; with it off it
-# is legacy's `selectButtonPress` calling the same method.
+# performs the verb: `MenuScene`'s `ActionItem` files `MenuAction::SetClipLengthToSampleLength`
+# (`scenes/menu/nodes/actions.h`) and `dispatchShellActions` calls
+# `audioClipView.setClipLengthEqualToSampleLength()`, the method `main`'s `selectButtonPress` calls.
 6000   encoder Select +1
 6100   snapshot set-clip-length
 6150   button SelectEnc down
@@ -162,18 +149,16 @@
 # The popup is the verb's own output: `AudioClipView::setClipLengthEqualToSampleLength`
 # (`gui/views/audio_clip_view.cpp:758-769`) ends in one of two `displayPopup`s, and this clip has a
 # sample holder, so it is the CLIP LENGTH ADJUSTED arm (`:764`). Break the dispatcher's
-# `SetClipLengthToSampleLength` arm and this panel loses the popup while the OFF leg keeps it,
-# which is what makes the A/B red -- proven.
+# `SetClipLengthToSampleLength` arm and this panel loses the popup, which reds the golden.
 6350   snapshot verb-done
 
 # ---------------------------------------------------------------------------------------------
 # **The ported file selector, opened by a real press, over a real card.**
 #
-# Everything above drives menus. This drives **site 8**
-# (`gui/views/instrument_clip_view.cpp:503-520`), the only one of the eight gated
-# `openUI(&soundEditor)` sites that names a *leaf* rather than a root -- legacy
-# `soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)` at `:515`, the
-# guest's `openShellMenu(..., ShellMenuNode::Osc0FileSelector)` at `:507-511`. It is reachable from
+# Everything above drives menus. This drives **site 8** (`InstrumentClipView::buttonAction`), the only
+# entry site that names a *leaf* rather than a root -- `main`'s
+# `soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)`, here
+# `openShellMenu(..., ShellMenuNode::Osc0FileSelector)`. It is reachable from
 # the boot view with no SHIFT, so it does NOT hit the null-`Clip*` `SoundEditor::setup` crash that
 # confines the MenuAction verb above to one arm of seven.
 #
@@ -192,15 +177,14 @@
 # **The card fixture holds a sample now** -- `SAMPLES/TONE.WAV`, generated by
 # `scripts/make_fixture_sample.py` and byte-identical in both SD roots -- because a browser over a
 # real `DELUGE_SD_ROOT` with nothing to list would compare two empty lists. Both roots also carry
-# `SETTINGS/FAVOURITES/SAMPLES_Bank0.xml`, the file `SampleBrowser::opened`'s
-# `favouritesManager.setCategory("SAMPLES")` (`gui/ui/browser/sample_browser.cpp`) would
-# otherwise write into the fixture on the OFF leg alone.
+# `SETTINGS/FAVOURITES/SAMPLES_Bank0.xml`, so the browser's favourites category finds its bank and
+# writes nothing into the fixture.
 #
 # **Two port defects this script caught, both fixed:**
 # `MenuScene::on_enter` did not run the `Source::getOrCreateFirstRange()` that legacy's permission
 # check runs (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`), so the ported browser refused to open at all; and
-# `SampleBrowser::claimCurrentFile` read `soundEditor.currentSound` (`sample_claim.cpp`) which
-# no `setup()` had ever written with ShellMenu on, so the claim SIGSEGVed the ON leg.
+# `SampleBrowser::claimCurrentFile` read `soundEditor.currentSound` (`sample_claim.cpp`), which
+# nothing the menu opens writes, so the claim SIGSEGVed.
 6500   button Back down
 6520   button Back up
 6700   button Back down
@@ -232,9 +216,8 @@
 # `sample_browser.cpp`) against the ported `browser::BrowserScene` on the `Sample` descriptor
 # (the same title, `scenes/browser/browser_scene.cpp`'s audio descriptor), both listing the fixture's one file.
 #
-# **`file-selector.state`'s pads are the same on both legs**: the sample browser opens with no keyboard and no
-# preview, so the root view shows through, greyed (`SampleBrowser::renderMainPads` answers false). The LED lines
-# differ by LOAD: the press before the snapshot turns legacy's auto-load on, which the ported browser does not take yet.
+# **`file-selector.state`'s pads**: the sample browser opens with no keyboard and no preview, so the root view shows
+# through, greyed, as `main`'s `SampleBrowser::renderMainPads` answers false.
 9900   pad 17 4 down
 10200  snapshot auditioning
 10400  button Load down
@@ -242,15 +225,14 @@
 11100  snapshot file-selector
 11300  pad 17 4 up
 
-# **The claim.** A select press on the file is `SampleBrowser::enterKeyPress`'s file arm
-# (`sample_browser.cpp`) with ShellMenu off, and with it on it is `BrowserScene`'s deferred
-# choice going through `gui::ui::dispatchShellChoices` -> `claimSampleFile` ->
+# **The claim.** A select press on the file is `BrowserScene`'s deferred choice (`main`'s
+# `SampleBrowser::enterKeyPress` file arm) going through `gui::ui::dispatchShellChoices` -> `claimSampleFile` ->
 # `runShellSampleClaimOp` -> the same `SampleBrowser::claimCurrentFile`, whose
 # success arm re-roots the ported menu onto the source page.
 #
 # **The landing page is deliberately NOT photographed, and that is a finding rather than a gap.**
-# Both legs land on the same page with the same column focused -- measured -- but they draw it
-# differently, for reasons that are undiagnosed: `FileSelector::renderInHorizontalMenu`
+# The menu lands on the page and column `main` lands on -- measured -- but drew it differently, for
+# reasons that are undiagnosed: `FileSelector::renderInHorizontalMenu`
 # (`gui/menu_item/file_selector.cpp:88-91`) and `FileSelector::getColumnLabel` (`:93-114`, which
 # shows the loaded sample's folder, "SAMPLES", where the port shows the node's own name "FILE")
 # have no port, and the fourth visible column differs (legacy PLAY MODE, port REVERSE). Recording
@@ -260,13 +242,12 @@
 12000  button SelectEnc down
 12020  button SelectEnc up
 
-# What IS photographed: where the two legs stand once the menu is closed again. **`claim-exited` is
+# What IS photographed: where the app stands once the menu is closed again. **`claim-exited` is
 # byte-identical to `synth-clip-made`, and that equality IS the assertion** -- the whole round trip
 # (open the selector, list the card, claim a file, re-root, close) leaves the clip view exactly
-# where it was, on both legs. It is deliberately not a *load* golden: the same script with the
+# where it was. It is deliberately not a *load* golden: the same script with the
 # claim press removed produces the same bytes here, checked. Its two teeth are that a claim which
-# SIGSEGVs writes no snapshot at all and fails the ShellMenu-on run outright (which is what
-# the ON leg did before `SoundEditor::adoptResolvedContext`), and that a menu left wedged with a
+# SIGSEGVs writes no snapshot at all and fails the run outright, and that a menu left wedged with a
 # non-empty shell stack swallows these two Backs -- the failure mode of the short-Back exit
 # above.
 14000  button Back down
@@ -308,11 +289,10 @@
 
 # ---------------------------------------------------------------------------------------------
 # **Sites 12 and 13 of `gui/ui/shell_menu_entry.cpp`'s table, the note editor
-# and the note-row editor.** Both are gated, and the ported leg reaches each
-# one here.
+# and the note-row editor.** The menu reaches each one here.
 #
 # Root here is `InstrumentClipView` with no menu open, and the clip has no notes: `pad-menu-closed`
-# lights only the sidebar (x=16 on every row, x=17 on rows 0 and 7), identically on both legs.
+# lights only the sidebar (x=16 on every row, x=17 on rows 0 and 7).
 #
 # 1. Hold an empty main-grid pad -- the press creates the note -- and press SELECT with it still
 # held. `InstrumentClipView::buttonAction`'s SELECT_ENC arm, under `UI_MODE_NOTES_PRESSED`
@@ -336,14 +316,14 @@
 # (`:1122`); the probability leaf edits the held note (`gui/menu_item/note/probability.h:52-55`),
 # and the notification spells legacy's string (`:81-89`). **Down, not up:** the note is created at
 # 100%, which is `kNumProbabilityValues`, the ceiling `adjustNoteProbabilityWithOffset` passes
-# (`gui/views/instrument_clip_view.cpp`). Measured: `+1` left the column and the banner at 100%
-# on both legs, so the snapshot showed no edit. `-1` takes the decrement arm (`:3171-3187`).
+# (`gui/views/instrument_clip_view.cpp`). Measured: `+1` left the column and the banner at 100%,
+# so the snapshot showed no edit. `-1` takes the decrement arm (`:3171-3187`).
 21200  encoder Select -1
 21500  snapshot note-editor-probability
 
-# 4. One upper gold detent, still holding the note. Not a menu input: with ShellMenu off it reaches
-# legacy's `View::modEncoderAction`, and with ShellMenu on `services::ModKnobs`, whose popup takes the
-# notification slot from the probability notification above, as legacy's does.
+# 4. One upper gold detent, still holding the note. Not a menu input: it reaches `services::ModKnobs`
+# (`main`'s `View::modEncoderAction`), whose popup takes the notification slot from the probability
+# notification above, as `main`'s does.
 22000  encoder GoldUpper +1
 22300  snapshot note-editor-gold
 
@@ -373,8 +353,8 @@
 
 # 8. Shift + pad (6, 5) from the clip view: `SoundEditor::potentialShortcutPadAction` resolves
 # `srrMenu` from `paramShortcutsForSounds` and `setup()` opens it on the DISTORTION page, focused on
-# it (`maybeGetParentMenu`, `parent->focusChild`). With ShellMenu on the ported menu opens on the
-# same page. A short BACK closes it.
+# it (`maybeGetParentMenu`, `parent->focusChild`); the menu opens on the same page. A short BACK
+# closes it.
 25800  button Shift down
 25850  pad 6 5 down
 25870  pad 6 5 up
@@ -387,12 +367,10 @@
 # 9. The drum creator. A tap on pad (2, 4) deletes the note step 1 made, so the clip is empty and Shift + KIT gives it a
 # new, empty kit (with a note in it, KIT refuses: "CLIP NOT EMPTY"). A new kit runs
 # `InstrumentClipView::enterDrumCreator` on its row 0 (`completeNewInstrument`): a new drum and the sample browser open
-# on it, with the sound editor set up but not open -- the "NEW KIT CREATED" popup over "AUDIO FILES". With ShellMenu on
-# the ported browser opens on the new drum's file selector. The legs' pads differ: legacy's root view shows its sidebar
-# columns only, the ported leg's greyed main pads too (open; the emulator's `c12` runs against `main`), and the new
-# drum's audition-pad colour is random on each leg (D11). BACK with no file chosen is `SampleBrowser::exitAction`'s
-# drum-creator arm, which deletes the drum only while the kit holds another drum no row uses -- this kit holds none,
-# so the drum stays on both legs and the clip view shows KIT 1.
+# on it -- the "NEW KIT CREATED" popup over "AUDIO FILES"; here the ported browser opens on the new drum's file
+# selector. The new drum's audition-pad colour is random (D11). BACK with no file chosen is `main`'s
+# `SampleBrowser::exitAction` drum-creator arm, which deletes the drum only while the kit holds another drum no row
+# uses -- this kit holds none, so the drum stays and the clip view shows KIT 1.
 27200  pad 2 4 down
 27300  pad 2 4 up
 27800  button Shift down

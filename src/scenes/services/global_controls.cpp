@@ -688,8 +688,8 @@ void GlobalControls::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 
 	if (clip_arm_flash_deadline_ms_.has_value() && static_cast<int32_t>(now_ms - *clip_arm_flash_deadline_ms_) >= 0) {
 		// `View::flashPlayRoutine`: toggle the phase, then ask for a render.
-		// The re-arm is `SessionView::flashPlayRoutine`'s (`gui/views/session_view.cpp`,
-		// `:2441-2444`) and is view-side, so this fires once per `flash_play_enable()`.
+		// The re-arm is `SessionView::flashPlayRoutine`'s call of `View::flashPlayEnable`
+		// (`gui/views/session_view.cpp`) and is view-side, so this fires once per `flash_play_enable()`.
 		clip_arm_flash_on_ = !clip_arm_flash_on_;
 		clip_arm_flash_deadline_ms_.reset();
 	}

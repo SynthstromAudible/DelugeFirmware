@@ -5,7 +5,7 @@
 # (the hold mode), a turn under it edits every drum, and the release ends the blink (the LED shows the clip's setting
 # again). BACK leaves the menu (a shortcut opened the page); SELECT then opens the kit's own root (affect-entire is
 # on), where AFFECT ENTIRE toggles the clip's setting off again. Every snapshot has a 1 s window. Run on the content
-# card with ShellMenu on (sweep-shellmenu.img).
+# card (sweep-shellmenu.img).
 1300  button Clip down
 1320  button Clip up
 2300  button Kit down

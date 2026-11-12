@@ -3,9 +3,10 @@
 Every app script in tests/ui-scripts/app runs and each of its snapshots must match the golden in tests/golden/ui/app.
 The menu script runs again on two cards that still carry a menu setting this firmware no longer has
 (tests/fixtures/card-old-shell-menu says shellMenu=0, tests/fixtures/card-old-legacy-menu says legacyMenu=1): each is
-an unknown setting, so every snapshot must equal the default leg's. The runner's own self-tests (tests/ui-scripts/selftest) pin what it does with a press due
-in a snapshot's millisecond, a snapshot before the first frame and a script that never quits. A script with a `board`
-step needs more panels than the Deluge has and is skipped, named.
+an unknown setting, so every snapshot must equal the default leg's. The runner's own self-tests
+(tests/ui-scripts/selftest) pin what it does with a press due in a snapshot's millisecond, a snapshot before the first
+frame and a script that never quits. A script with a `board` step needs more panels than the Deluge has and is
+skipped, named.
 """
 
 import re
