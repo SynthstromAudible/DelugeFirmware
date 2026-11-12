@@ -31,6 +31,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <string_view>
 
 namespace deluge::scenes::rename {
@@ -80,14 +81,6 @@ struct Target {
 /// @return The target's read/write/refuse rules.
 const Target& target(TargetId id);
 
-/// @brief The longest name this editor will build.
-///
-/// Legacy's `QwertyUI::enteredText` is an unbounded `std::string`; this layer allocates nothing, so
-/// the buffer is fixed. 64 is well past anything the model actually carries -- the box shows 17
-/// characters and every name in a shipped song is a handful -- and past it a keypress simply types
-/// nothing, which is the same outcome legacy's own `resize`+`append` would reach on a full heap.
-inline constexpr size_t kMaxNameChars = 64;
-
 /// @brief The `SceneKind` this scene is registered under: `FirstApp + 1` (`registry.h`).
 inline constexpr deluge::ui::shell::SceneKind kRenameSceneKind =
     static_cast<deluge::ui::shell::SceneKind>(static_cast<uint8_t>(deluge::ui::shell::SceneKind::FirstApp) + 1);
@@ -134,7 +127,7 @@ public:
 
 	/// @brief The name being edited. Exposed for specs and for whoever needs to see the in-flight
 	///        text; nothing outside may write it.
-	std::string_view entered_text() const { return std::string_view{buf_, len_}; }
+	std::string_view entered_text() const { return text_; }
 	/// @brief Which target the last `on_enter` selected.
 	TargetId target_id() const { return target_; }
 	/// @brief The insertion point (`QwertyUI::enteredTextEditPos`).
@@ -161,8 +154,8 @@ private:
 	menu::MenuContext ctx_{};
 	TargetId target_ = TargetId::Clip;
 
-	char buf_[kMaxNameChars] = {};
-	uint16_t len_ = 0;
+	/// `QwertyUI::enteredText`, as unbounded as main's.
+	std::string text_;
 
 	deluge::ui::oled::TextEditState edit_{};
 	deluge::ui::grid::TextKeyboardState kb_{};

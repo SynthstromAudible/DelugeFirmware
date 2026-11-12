@@ -217,8 +217,7 @@ bool RenameScene::on_enter(const SceneId& id) {
 	// *whole* existing name to its right, which is what makes typing a character that matches the
 	// one under the cursor simply step over it (see `type_char`).
 	const std::string current = t.read(ctx_);
-	len_ = static_cast<uint16_t>(std::min(current.size(), kMaxNameChars));
-	std::copy_n(current.data(), len_, buf_);
+	text_ = current;
 	edit_ = deluge::ui::oled::TextEditState{};
 	kb_ = deluge::ui::grid::TextKeyboardState{};
 	resp_ = {};
@@ -279,7 +278,7 @@ void RenameScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 	// "Render-only"). Without `Shell::tick`'s step 8b the host would wake on `next_timer()` while
 	// `RepaintGate` still said no, and the bar would be computed correctly and never drawn. Only while
 	// the bar exists at all: mid-string `cursor_lit` gates nothing.
-	if (edit_.cursor == static_cast<int16_t>(len_)) {
+	if (edit_.cursor == static_cast<int16_t>(text_.size())) {
 		f.gate().request_repaint_after(deluge::ui::blink_next_flip_in(cursor_blink_, now), now);
 	}
 
@@ -467,7 +466,8 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 			// do-nothing `return true` for everything but `Browser` (`QwertyUI::predictExtendedText`), so on a
 			// rename the right-hand arm is exactly "already at the far right end, get out".
 			const int32_t at = edit_.cursor;
-			if ((event.delta > 0 && at >= len_) || (event.delta < 0 && at == 0) || event.delta == 0) {
+			if ((event.delta > 0 && at >= static_cast<int32_t>(text_.size())) || (event.delta < 0 && at == 0)
+			    || event.delta == 0) {
 				Result r;
 				r.handled = true;
 				return r;
@@ -475,7 +475,8 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 			// Legacy adds the offset unclamped, which an accelerated turn can push past the end of
 			// the string -- `enteredText.c_str()[enteredTextEditPos]` would then read past the
 			// terminator. Clamped here; every in-range turn lands where legacy's does.
-			edit_.cursor = static_cast<int16_t>(std::clamp<int32_t>(at + event.delta, 0, len_));
+			edit_.cursor =
+			    static_cast<int16_t>(std::clamp<int32_t>(at + event.delta, 0, static_cast<int32_t>(text_.size())));
 			Result r;
 			r.handled = true;
 			(void)r.actions.push_back(Action{.kind = Action::Kind::Repaint, .surface = SurfaceRole::Main});
@@ -517,7 +518,7 @@ void RenameScene::type_char(char c) {
 	// (`qwerty_ui.cpp:305-317`). On a rename there is no prediction, but the editor opens with the
 	// existing name to the right of the cursor, so this is what lets a user retype the prefix of a
 	// name they are only partly changing and keep the tail.
-	if (pos < len_ && char_case_equal(buf_[pos], c)) {
+	if (pos < static_cast<int32_t>(text_.size()) && char_case_equal(text_[pos], c)) {
 		edit_.cursor = static_cast<int16_t>(pos + 1);
 		return;
 	}
@@ -525,18 +526,15 @@ void RenameScene::type_char(char c) {
 	char nc = c;
 	// "If char is a letter... If following another letter, make it lowercase"
 	// (`qwerty_ui.cpp:334-343`).
-	if (nc >= 'A' && nc <= 'Z' && pos > 0 && is_ascii_letter(buf_[pos - 1])) {
+	if (nc >= 'A' && nc <= 'Z' && pos > 0 && is_ascii_letter(text_[pos - 1])) {
 		nc = static_cast<char>(nc + 32);
 	}
 
-	if (pos >= static_cast<int32_t>(kMaxNameChars)) {
-		return; // the buffer's own ceiling; see `kMaxNameChars`
-	}
 	// `enteredText.resize(enteredTextEditPos); enteredText.append(...)` (`qwerty_ui.cpp:350-353`):
 	// typing mid-string truncates the tail rather than inserting.
-	len_ = static_cast<uint16_t>(pos);
-	buf_[len_++] = nc;
-	edit_.cursor = static_cast<int16_t>(len_);
+	text_.resize(static_cast<size_t>(pos));
+	text_ += nc;
+	edit_.cursor = static_cast<int16_t>(text_.size());
 }
 
 void RenameScene::backspace() {
@@ -546,8 +544,8 @@ void RenameScene::backspace() {
 	if (edit_.cursor > 0) {
 		edit_.cursor--;
 	}
-	if (len_ != 0) {
-		len_ = static_cast<uint16_t>(edit_.cursor);
+	if (!text_.empty()) {
+		text_.resize(static_cast<size_t>(edit_.cursor));
 	}
 }
 
@@ -560,7 +558,7 @@ Result RenameScene::enter_key_press() {
 	// "if (enteredText.empty() && !allowEmpty()) return;" -- silently, with no popup. Only the
 	// drum target refuses an empty name, and legacy tells the user nothing about it, so neither
 	// does this.
-	if (len_ == 0 && !t.allow_empty) {
+	if (text_.empty() && !t.allow_empty) {
 		return r;
 	}
 
@@ -601,7 +599,7 @@ std::optional<uint32_t> RenameScene::next_timer() const {
 	// The cursor bar moves without input, but only while the cursor sits at the end of the string
 	// (`text_edit`: `cursor_lit` gates that arm and nothing else). Mid-string there is nothing to
 	// flash, so nothing to wake for.
-	if (cursor_blink_.armed() && edit_.cursor == static_cast<int16_t>(len_)) {
+	if (cursor_blink_.armed() && edit_.cursor == static_cast<int16_t>(text_.size())) {
 		next = deluge::ui::blink_next_flip_in(cursor_blink_, last_render_ms_);
 	}
 

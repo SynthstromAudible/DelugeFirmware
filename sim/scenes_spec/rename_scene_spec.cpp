@@ -532,6 +532,35 @@ describe rename_open("scenes::rename::RenameScene opening", $ {
 });
 
 describe rename_typing("scenes::rename::RenameScene typing", $ {
+	it("keeps a long existing name whole and types a long one, as QwertyUI's unbounded enteredText", _ {
+		// A drum named from a long sample file name: `QwertyUI::enteredText` is a `std::string`, so neither the open
+		// nor the commit cuts it, and a key typed at its end appends.
+		select_language();
+		spec::SongFixture f = kit_fixture();
+		const std::string long_name(200, 'a');
+		kit_of(f)->selectedDrum->setName(long_name.c_str());
+		Rig r;
+		r.open_rename(context_of(f), TargetId::Drum);
+		r.tick(0);
+		r.clock = 10;
+		expect(std::string{rename_scene().entered_text()}).to_equal(long_name);
+		(void)commit(rename_scene());
+		expect(std::string{kit_of(f)->selectedDrum->name()}).to_equal(long_name);
+
+		// And a typed name runs past 64 characters too.
+		kit_of(f)->selectedDrum->setName("");
+		Rig typed;
+		typed.open_rename(context_of(f), TargetId::Drum);
+		typed.tick(0);
+		typed.clock = 10;
+		std::string digits;
+		for (int i = 0; i < 7; i++) {
+			digits += "1234567890";
+		}
+		typed.type(std::string_view{digits});
+		expect(std::string{rename_scene().entered_text()}).to_equal(digits);
+	});
+
 	it("types a name on the grid and commits it on enter", _ {
 		select_language();
 		spec::SongFixture f = kit_fixture();
