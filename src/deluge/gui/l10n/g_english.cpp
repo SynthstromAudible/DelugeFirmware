@@ -1026,6 +1026,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CHOICE_UNAVAILABLE, "n/a"},
         {STRING_FOR_LOOP_LOCKED, "LOCK"},
         {STRING_FOR_LOOP_FREE, "FREE"},
+        {STRING_FOR_NEXT_SONG_AFTER_TAKE, "Next song after take"},
+        {STRING_FOR_NEXT_SONG_AFTER_SLICE, "Next song after slice"},
     },
 };
 } // namespace deluge::l10n::built_in

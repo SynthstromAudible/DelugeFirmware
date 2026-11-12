@@ -1164,6 +1164,9 @@ enum class String : size_t {
 	// The sample marker editor's loop lock popups, which show the loop lock as a state.
 	STRING_FOR_LOOP_LOCKED,
 	STRING_FOR_LOOP_FREE,
+	// A MIDI next song held back until an input take or a slice has landed.
+	STRING_FOR_NEXT_SONG_AFTER_TAKE,
+	STRING_FOR_NEXT_SONG_AFTER_SLICE,
 
 	STRING_LAST
 };

@@ -74,8 +74,10 @@
 
 #include "../../dsp/wavetable_band_crc.h"
 
+#include "gui/l10n/strings.h"
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_slice_ops.h"
+#include "notify/notice_queue.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/context.h"
@@ -343,6 +345,8 @@ bool g_teardownRootKept = false;
 bool g_teardownDropped = false;
 bool g_nextHeld = false;
 bool g_nextHeldThrough = true;
+/// Whether the held next-song said so: the "Next song after slice" notice, as the take's hold says its own.
+bool g_nextNoticed = false;
 /// The channel and note the next-song command is learned on for the check, a channel nothing else here listens on,
 /// and the command as the scenario found it.
 constexpr uint8_t kNextSongChannel = 15;
@@ -1395,7 +1399,7 @@ void actShellSlice() {
 	g_shellCommitBegun = false;
 	g_shellEnded = false;
 	g_shellBackKept = false;
-	g_teardownHeld = g_teardownRootKept = g_teardownDropped = g_nextHeld = false;
+	g_teardownHeld = g_teardownRootKept = g_teardownDropped = g_nextHeld = g_nextNoticed = false;
 	g_nextHeldThrough = true;
 	// What the ported menu edits: the kit's drum, as the clip view selected it.
 	const deluge::scenes::menu::MenuContext ctx = deluge::scenes::menu::context_for(
@@ -1481,9 +1485,22 @@ void sendNextSongDuringSlice() {
 	command.channelOrZone = kNextSongChannel;
 	command.noteOrCC = kNextSongNote;
 	bool thru = false;
+	const size_t queuedBefore = deluge::notify::notices().size();
 	playbackHandler.noteMessageReceived(MIDIDeviceManager::dinMIDIPorts, true, kNextSongChannel, kNextSongNote, 64,
 	                                    &thru);
 	g_nextHeld = playbackHandler.nextSongPending_;
+	// Read the notices the command raised and put every one back, in order, for the UI to drain as it would.
+	std::vector<deluge::notify::Notice> queued;
+	for (deluge::notify::Notice n; deluge::notify::notices().pop(n);) {
+		queued.push_back(n);
+	}
+	for (size_t i = 0; i < queued.size(); i++) {
+		g_nextNoticed = g_nextNoticed
+		                || (i >= queuedBefore
+		                    && queued[i].string_id
+		                           == static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_NEXT_SONG_AFTER_SLICE));
+		(void)deluge::notify::notices().push(queued[i]);
+	}
 	// The job that lets it go, run while the slice is still out: it must keep holding it.
 	playbackHandler.slowRoutine();
 	g_nextHeldThrough = playbackHandler.nextSongPending_;
@@ -2039,9 +2056,10 @@ void checkLeg() {
 	}
 	case Leg::ShellSlice:
 		checkRegionSlice("SC-SHELL-SLICE");
-		printf("SC-SHELL-SLICE teardown held=%d rootOnly=%d dropped=%d next held=%d heldThrough=%d pending=%d\n",
+		printf("SC-SHELL-SLICE teardown held=%d rootOnly=%d dropped=%d next held=%d noticed=%d heldThrough=%d "
+		       "pending=%d\n",
 		       g_teardownHeld ? 1 : 0, g_teardownRootKept ? 1 : 0, g_teardownDropped ? 1 : 0, g_nextHeld ? 1 : 0,
-		       g_nextHeldThrough ? 1 : 0, playbackHandler.nextSongPending_ ? 1 : 0);
+		       g_nextNoticed ? 1 : 0, g_nextHeldThrough ? 1 : 0, playbackHandler.nextSongPending_ ? 1 : 0);
 		if (!g_teardownHeld || !g_teardownRootKept) {
 			printf("SC-SHELL-SLICE FAIL no audition load was out under the root alone at the teardown, so nothing was "
 			       "tested\n");
@@ -2053,6 +2071,10 @@ void checkLeg() {
 		}
 		if (!g_nextHeld) {
 			printf("SC-SHELL-SLICE FAIL a MIDI next-song during the slice was not held back for it\n");
+			g_failures++;
+		}
+		else if (!g_nextNoticed) {
+			printf("SC-SHELL-SLICE FAIL a MIDI next-song held back for the slice did not say so\n");
 			g_failures++;
 		}
 		else if (!g_nextHeldThrough || playbackHandler.nextSongPending_) {
