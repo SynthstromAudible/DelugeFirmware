@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/l10n/l10n.h"
-#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
@@ -37,6 +36,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
@@ -459,13 +459,13 @@ void AudioRecorder::finishInputTake() {
 	if (recorder->status != RecorderStatus::ABORTED && !recorder->hadCardError && targetStillHeld()) {
 		// Attach the Sample to the Source right away.
 		soundEditor.currentSound->killAllVoices();
-		deluge::gui::menu_item::settingFor(
-		    *soundEditor.currentSound, deluge::gui::menu_item::oscSettingPath(soundEditor.currentSourceIndex, "type"),
-		    deluge::serialization::Value::makeScalar("sample"));
+		deluge::edits::settingFor(*soundEditor.currentSound,
+		                          deluge::edits::oscSettingPath(soundEditor.currentSourceIndex, "type"),
+		                          deluge::serialization::Value::makeScalar("sample"));
 		soundEditor.currentMultiRange->getAudioFileHolder()->filePath = recorder->sample->filePath;
 		soundEditor.currentMultiRange->getAudioFileHolder()->setAudioFile(
 		    recorder->sample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true);
-		deluge::gui::menu_item::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
+		deluge::edits::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
 	}
 	finishRecording();
 	target_ = {};

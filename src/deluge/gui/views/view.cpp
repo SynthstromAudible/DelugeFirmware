@@ -24,7 +24,6 @@
 #include "gui/context_menu/clear_song.h"
 #include "gui/context_menu/clip_settings/clip_settings.h"
 #include "gui/l10n/l10n.h"
-#include "gui/menu_item/setting_edit.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -69,6 +68,7 @@
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_mod_knob_mode.h"
 #include "model/edits/set_param_value.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
@@ -1354,7 +1354,7 @@ void View::modEncoderButtonAction_changeModControllable(uint8_t whichModEncoder,
 	ModControllable* owner = stack->modControllable;
 	bool anyEditingDone = owner->modEncoderButtonAction(whichModEncoder, on, stack, knobCompToMove());
 	// A press may cycle a knob to its next param (LPF, HPF, EQ): its owner's mappings are the record's.
-	deluge::gui::menu_item::recordControlsOf(*owner);
+	deluge::edits::recordControlsOf(*owner);
 	if (anyEditingDone) {
 		instrumentBeenEdited();
 	}

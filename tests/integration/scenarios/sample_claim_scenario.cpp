@@ -21,7 +21,6 @@
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"
 #include "gui/menu_item/file_selector.h"
-#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -48,6 +47,7 @@
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -559,7 +559,7 @@ SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 	}
 	holder->filePath = samplePath;
 	// The fixture stands in for a claim, and records the drum's ranges as a claim does.
-	deluge::gui::menu_item::recordRanges(*drum, 0);
+	deluge::edits::recordRanges(*drum, 0);
 	currentSong->live.param_backup.backUp(drum, nullptr, &paramManager, true);
 	return drum;
 }
@@ -861,7 +861,7 @@ void prepareLeg() {
 			}
 			holder->setAudioFile(nullptr);
 			holder->filePath = kRandomizeFirstSample;
-			deluge::gui::menu_item::recordRanges(*drum, 0);
+			deluge::edits::recordRanges(*drum, 0);
 			drum->setName(kRandomizeDrums[0].name);
 		});
 		break;
@@ -875,7 +875,7 @@ void prepareLeg() {
 			}
 			holder->setAudioFile(nullptr);
 			holder->filePath = kRandomizeGateSample;
-			deluge::gui::menu_item::recordRanges(*drum, 0);
+			deluge::edits::recordRanges(*drum, 0);
 		});
 		break;
 	case Leg::RandomizeStall:
@@ -913,7 +913,7 @@ void prepareLeg() {
 			    after->loadFile(/*reversed=*/false, /*manuallySelected=*/true, /*mayActuallyReadFile=*/true);
 			// The fixture stands in for three claims, and records each row's ranges as a claim does.
 			for (Drum* row : {first, second, third}) {
-				deluge::gui::menu_item::recordRanges(*static_cast<SoundDrum*>(row), 0);
+				deluge::edits::recordRanges(*static_cast<SoundDrum*>(row), 0);
 			}
 			afterRow->setMuted(false);
 			printf("SC-PROBE leg=randomize-stall prepared keptBound=%d error=%d afterBound=%d afterError=%d\n",

@@ -33,7 +33,6 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/multi_range.h"
-#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -62,6 +61,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -906,8 +906,7 @@ void SampleBrowser::autoDetectSideChainSending(SoundDrum* drum, Source* source, 
 
 	// If this looks like a kick, make it send to sidechain. Otherwise, no change
 	if (source->repeatMode == SampleRepeatMode::ONCE && (strcasestr(fileName, "kick") || strcasestr(fileName, "bd"))) {
-		deluge::gui::menu_item::settingFor(*drum, "sideChainSend",
-		                                   deluge::serialization::Value::makeNumber(2147483647));
+		deluge::edits::settingFor(*drum, "sideChainSend", deluge::serialization::Value::makeNumber(2147483647));
 	}
 }
 

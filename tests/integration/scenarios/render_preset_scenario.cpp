@@ -18,11 +18,11 @@
 #include "scenarios/render_preset_scenario.h"
 #include "scenarios/follow_channel.h"
 
-#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/load/instrument_load.h"
 #include "libdeluge/tier.h"
 #include "memory/heaps.h"
 #include "model/clip/clip.h"
+#include "model/edits/setting_edit.h"
 #include "model/model_stack.h"
 #include "model/output.h"
 #include "model/project_bridge/setting_apply.h"
@@ -160,7 +160,7 @@ void moveZoneEnd() {
 	auto& sound = *static_cast<SoundInstrument*>(clip->output);
 	std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(sound.sources[0]);
 	ranges[0].end_pos = g_zoneMoveEnd;
-	deluge::gui::menu_item::rangesFor(sound, 0, std::move(ranges));
+	deluge::edits::rangesFor(sound, 0, std::move(ranges));
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithSoundFlags* modelStack = setupModelStackWithSong(modelStackMemory, currentSong)
 	                                           ->addTimelineCounter(clip)

@@ -22,7 +22,6 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/multi_range.h"
-#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
@@ -32,6 +31,7 @@
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
 #include "model/edits/set_mod_knob_mode.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -85,21 +85,21 @@ void closeGate() {
 
 /// Set the sound editor's current source's oscillator type through its setting Edit.
 void setClaimOscType(OscType type) {
-	deluge::gui::menu_item::settingFor(
-	    *soundEditor.currentSound, deluge::gui::menu_item::oscSettingPath(soundEditor.currentSourceIndex, "type"),
+	deluge::edits::settingFor(
+	    *soundEditor.currentSound, deluge::edits::oscSettingPath(soundEditor.currentSourceIndex, "type"),
 	    deluge::serialization::Value::makeScalar(std::string(deluge::instrument::to_string(type))));
 }
 
 /// Set the sound editor's current source's repeat mode through its setting Edit.
 void setClaimRepeatMode(SampleRepeatMode mode) {
-	deluge::gui::menu_item::settingFor(
-	    *soundEditor.currentSound, deluge::gui::menu_item::oscSettingPath(soundEditor.currentSourceIndex, "loopMode"),
-	    deluge::serialization::Value::makeNumber(std::to_underlying(mode)));
+	deluge::edits::settingFor(*soundEditor.currentSound,
+	                          deluge::edits::oscSettingPath(soundEditor.currentSourceIndex, "loopMode"),
+	                          deluge::serialization::Value::makeNumber(std::to_underlying(mode)));
 }
 
 /// Record the sound editor's current source's ranges as the claim left them.
 void recordClaimRanges() {
-	deluge::gui::menu_item::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
+	deluge::edits::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
 }
 
 void openGate() {
@@ -507,7 +507,7 @@ bool SampleClaim::stepDecideWavetable() {
 		}
 		(void)deluge::edits::modKnobModeFor(
 		    deluge::project::TrackAddress{currentSong->outputIdFor(*getCurrentOutput())}, 7);
-		deluge::gui::menu_item::recordControlsOf(*soundEditor.currentSound); // the wavetable knobs it assigned
+		deluge::edits::recordControlsOf(*soundEditor.currentSound); // the wavetable knobs it assigned
 	}
 	view.setKnobIndicatorLevels(); // Visually update.
 	view.setModLedStates();
@@ -641,7 +641,7 @@ void SampleClaim::removeWaveTableKnobs() {
 		view.setKnobIndicatorLevels(); // Visually update.
 		view.setModLedStates();
 		// The knobs it put back are its record's.
-		deluge::gui::menu_item::recordControlsOf(*soundEditor.currentSound);
+		deluge::edits::recordControlsOf(*soundEditor.currentSound);
 	}
 }
 

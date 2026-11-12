@@ -11,7 +11,6 @@
 #include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "gui/menu_item/multi_range.h"
-#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -43,6 +42,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/drum/non_audio_drum.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -2180,7 +2180,7 @@ MenuPermission SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(S
 		display->displayError(Error::INSUFFICIENT_RAM);
 		return MenuPermission::NO;
 	}
-	deluge::gui::menu_item::recordRanges(*sound, whichThing);
+	deluge::edits::recordRanges(*sound, whichThing);
 
 	// NOTE: This function used to have automaticallySelectIfOnlyOne-parameter, for which FileSelector
 	// and AudioRecorder passed false, and and which was checked in the second half of the OR below.

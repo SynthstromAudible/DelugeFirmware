@@ -17,7 +17,6 @@
 
 #include "gui/ui/slice_core.h"
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"
@@ -26,6 +25,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
@@ -94,7 +94,7 @@ void SliceCore::audition(const Sample& sample, const AuditionTarget& target) {
 		audition_load_.cancel();
 		// A press may have pointed the row at the slicer's file for a load this release drops: its record and slot say
 		// what it holds.
-		deluge::gui::menu_item::recordRanges(*static_cast<SoundDrum*>(getCurrentKit()->firstDrum), 0);
+		deluge::edits::recordRanges(*static_cast<SoundDrum*>(getCurrentKit()->firstDrum), 0);
 		sound_audition(target);
 		return;
 	}
@@ -103,8 +103,8 @@ void SliceCore::audition(const Sample& sample, const AuditionTarget& target) {
 	SoundDrum* drum = (SoundDrum*)kit->firstDrum;
 	MultisampleRange* range = (MultisampleRange*)drum->sources[0].getOrCreateFirstRange();
 	deluge::edits::laneSettingFor(*drum, "name", deluge::serialization::Value::makeScalar("1"));
-	deluge::gui::menu_item::settingFor(
-	    *drum, "osc1/loopMode", deluge::serialization::Value::makeNumber(std::to_underlying(SampleRepeatMode::ONCE)));
+	deluge::edits::settingFor(*drum, "osc1/loopMode",
+	                          deluge::serialization::Value::makeNumber(std::to_underlying(SampleRepeatMode::ONCE)));
 
 	// The path is what says "a different sample is being sliced now"; the null audioFile is what says "its load hasn't
 	// landed yet". Both have to ask: a held load leaves the holder naming a file it does not hold yet.
@@ -139,7 +139,7 @@ void SliceCore::sound_audition(const AuditionTarget& target) {
 		range->sampleHolder.transpose = target.transpose;
 		// The preview-audition zone edits above changed the range's file/zone/transpose: reflect them into the
 		// record.
-		deluge::gui::menu_item::recordRanges(*drum, 0);
+		deluge::edits::recordRanges(*drum, 0);
 
 		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
@@ -167,7 +167,7 @@ void SliceCore::tick_audition() {
 			display->displayError(Error::SD_CARD);
 		}
 		// The press pointed the first drum at the file: its record says so, landed or not.
-		deluge::gui::menu_item::recordRanges(*static_cast<SoundDrum*>(getCurrentKit()->firstDrum), 0);
+		deluge::edits::recordRanges(*static_cast<SoundDrum*>(getCurrentKit()->firstDrum), 0);
 		return;
 	}
 	// Bound, or Empty: a holder the lookup left empty sounds nothing, as it always has, with no error.
@@ -182,7 +182,7 @@ void SliceCore::unbind_first_drum() {
 		MultisampleRange* range = (MultisampleRange*)drum->sources[0].ranges.getElement(0);
 		range->sampleHolder.setAudioFile(nullptr);
 		// Reflect the cleared audio file into the record.
-		deluge::gui::menu_item::recordRanges(*drum, 0);
+		deluge::edits::recordRanges(*drum, 0);
 	}
 }
 
@@ -204,7 +204,7 @@ bool SliceCore::restore_full_range() {
 	range->sampleHolder.endPos = sample->lengthInSamples;
 	range->sampleHolder.transpose = 0;
 	// The zone reset above changed the range: reflect it into the record.
-	deluge::gui::menu_item::recordRanges(*soundDrum, 0);
+	deluge::edits::recordRanges(*soundDrum, 0);
 	return true;
 }
 
@@ -302,7 +302,7 @@ std::optional<SliceCore::SliceEnd> SliceCore::tick_slice() {
 				    (i == pending_.sliceCount - 1) ? length : pending_.manualPoints[i + 1].startPos;
 				range->sampleHolder.transpose = pending_.manualPoints[i].transpose;
 				// The manual-slice zone edits above overwrote this drum's range: reflect them into the record.
-				deluge::gui::menu_item::recordRanges(*soundDrum, 0);
+				deluge::edits::recordRanges(*soundDrum, 0);
 			}
 		}
 		return SliceEnd{.landed = true, .error = Error::NONE};
@@ -310,7 +310,7 @@ std::optional<SliceCore::SliceEnd> SliceCore::tick_slice() {
 	// No drums were made, so nothing is painted: Kit::getDrumFromIndex() answers the first drum for an index past the
 	// end, so a paint loop here would write every slice's points onto that one drum. The first drum names the file,
 	// landed or not, and its record says so.
-	deluge::gui::menu_item::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
+	deluge::edits::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
 	return SliceEnd{.landed = false, .error = (outcome->result == Result::Empty) ? outcome->error : Error::SD_CARD};
 }
 
@@ -322,9 +322,9 @@ Error SliceCore::do_slice(int32_t sliceCount) {
 	// Ensure osc type is "sample"
 	if (soundEditor.currentSource->oscType != OscType::SAMPLE) {
 		soundEditor.currentSound->killAllVoices();
-		deluge::gui::menu_item::settingFor(
-		    *soundEditor.currentSound, deluge::gui::menu_item::oscSettingPath(soundEditor.currentSourceIndex, "type"),
-		    deluge::serialization::Value::makeScalar("sample"));
+		deluge::edits::settingFor(*soundEditor.currentSound,
+		                          deluge::edits::oscSettingPath(soundEditor.currentSourceIndex, "type"),
+		                          deluge::serialization::Value::makeScalar("sample"));
 	}
 
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -365,10 +365,10 @@ Error SliceCore::do_slice(int32_t sliceCount) {
 
 		const SampleRepeatMode sliceMode =
 		    (lengthMSPerSlice < 2002) ? SampleRepeatMode::ONCE : FlashStorage::defaultSliceMode;
-		deluge::gui::menu_item::settingFor(*firstDrum, "osc1/loopMode",
-		                                   deluge::serialization::Value::makeNumber(std::to_underlying(sliceMode)));
+		deluge::edits::settingFor(*firstDrum, "osc1/loopMode",
+		                          deluge::serialization::Value::makeNumber(std::to_underlying(sliceMode)));
 
-		deluge::gui::menu_item::settingFor(*firstDrum, "osc1/reversed", deluge::serialization::Value::makeNumber(0));
+		deluge::edits::settingFor(*firstDrum, "osc1/reversed", deluge::serialization::Value::makeNumber(0));
 		firstDrum->sources[0].sampleControls.invertReversed = false;
 
 		if (!firstRange->sampleHolder.audioFile) {
@@ -378,7 +378,7 @@ Error SliceCore::do_slice(int32_t sliceCount) {
 		firstRange->sampleHolder.claimClusterReasons(firstDrum->sources[0].sampleControls.isCurrentlyReversed(),
 		                                             CLUSTER_ENQUEUE);
 		// The zone edits above set up the first drum's slice range: record them.
-		deluge::gui::menu_item::recordRanges(*firstDrum, 0);
+		deluge::edits::recordRanges(*firstDrum, 0);
 		if (doEnvelopes) {
 			setUpSoundParam(*modelStack, params::LOCAL_ENV_0_RELEASE, deluge::plugin::preset_word(1));
 		}
@@ -420,14 +420,14 @@ Error SliceCore::do_slice(int32_t sliceCount) {
 			nextDrumStart = (uint64_t)lengthInSamples * (i + 1) / sliceCount;
 			range->sampleHolder.endPos = nextDrumStart;
 
-			deluge::gui::menu_item::settingFor(*newDrum, "osc1/loopMode",
-			                                   deluge::serialization::Value::makeNumber(std::to_underlying(sliceMode)));
+			deluge::edits::settingFor(*newDrum, "osc1/loopMode",
+			                          deluge::serialization::Value::makeNumber(std::to_underlying(sliceMode)));
 
 			range->sampleHolder.filePath = sample->filePath;
 			// The first drum's load bound this sample already: every other slice binds the same one, from memory.
 			range->sampleHolder.setAudioFile(sample, false, false, CLUSTER_ENQUEUE);
 			// This new drum's slice range was just populated (zone + file): reflect it into the record.
-			deluge::gui::menu_item::recordRanges(*newDrum, 0);
+			deluge::edits::recordRanges(*newDrum, 0);
 
 			if (doEnvelopes) {
 				paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_ATTACK].setBase(

@@ -20,7 +20,6 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
-#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
@@ -35,6 +34,7 @@
 #include "libdeluge/control_surface.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/instrument.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
@@ -204,7 +204,7 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 		else if (markerTypeNow == MarkerType::END) {
 			range.end_pos = value;
 		}
-		deluge::gui::menu_item::rangesFor(*soundEditor.currentSound, soundEditor.currentSourceIndex, std::move(ranges));
+		deluge::edits::rangesFor(*soundEditor.currentSound, soundEditor.currentSourceIndex, std::move(ranges));
 	}
 
 	if (clipType != ClipType::AUDIO) {

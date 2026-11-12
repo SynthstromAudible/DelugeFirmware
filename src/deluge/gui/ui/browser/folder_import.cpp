@@ -16,7 +16,7 @@
  */
 
 #include "gui/ui/browser/folder_import.h"
-#include "gui/menu_item/setting_edit.h"
+#include "model/edits/setting_edit.h"
 
 #include "libdeluge/clock.h" // deluge_clock_now
 
@@ -67,9 +67,9 @@ namespace {
 
 /// Set the sound editor's current source's repeat mode through its setting Edit.
 void setImportRepeatMode(SampleRepeatMode mode) {
-	deluge::gui::menu_item::settingFor(
-	    *soundEditor.currentSound, deluge::gui::menu_item::oscSettingPath(soundEditor.currentSourceIndex, "loopMode"),
-	    deluge::serialization::Value::makeNumber(std::to_underlying(mode)));
+	deluge::edits::settingFor(*soundEditor.currentSound,
+	                          deluge::edits::oscSettingPath(soundEditor.currentSourceIndex, "loopMode"),
+	                          deluge::serialization::Value::makeNumber(std::to_underlying(mode)));
 }
 
 #define NOTE_CHECK_ERROR_MARGIN 0.75
@@ -696,7 +696,7 @@ bool FolderImport::finishMulti() {
 				thisSample->removeReason("E393"); // Remove that temporary reason we added above
 			}
 			display->displayError(Error::INSUFFICIENT_RAM);
-			deluge::gui::menu_item::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
+			deluge::edits::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
 			return false;
 		}
 	}
@@ -766,9 +766,9 @@ skipOctaveCorrection:
 
 	if (soundEditor.currentSource->oscType != OscType::SAMPLE) {
 		soundEditor.currentSound->killAllVoices();
-		deluge::gui::menu_item::settingFor(
-		    *soundEditor.currentSound, deluge::gui::menu_item::oscSettingPath(soundEditor.currentSourceIndex, "type"),
-		    deluge::serialization::Value::makeScalar("sample"));
+		deluge::edits::settingFor(*soundEditor.currentSound,
+		                          deluge::edits::oscSettingPath(soundEditor.currentSourceIndex, "type"),
+		                          deluge::serialization::Value::makeScalar("sample"));
 	}
 
 	D_PRINTLN("creating ranges");
@@ -841,14 +841,14 @@ skipOctaveCorrection:
 	if (!numSamples) {
 		display->displayPopup(
 		    deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_CREATING_MULTISAMPLED_INSTRUMENT));
-		deluge::gui::menu_item::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
+		deluge::edits::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
 		return false;
 	}
 
 	D_PRINTLN("distinct ranges: %d", numSamples);
 
 	// The builder above rebuilt the whole range collection: record it.
-	deluge::gui::menu_item::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
+	deluge::edits::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
 
 	delugeDealloc(sortArea);
 
@@ -921,10 +921,9 @@ getOut:
 				// Ensure osc type is "sample". For the later drums, calling setupAsSample() does this same thing
 				if (soundEditor.currentSource->oscType != OscType::SAMPLE) {
 					soundEditor.currentSound->killAllVoices();
-					deluge::gui::menu_item::settingFor(
-					    *soundEditor.currentSound,
-					    deluge::gui::menu_item::oscSettingPath(soundEditor.currentSourceIndex, "type"),
-					    deluge::serialization::Value::makeScalar("sample"));
+					deluge::edits::settingFor(*soundEditor.currentSound,
+					                          deluge::edits::oscSettingPath(soundEditor.currentSourceIndex, "type"),
+					                          deluge::serialization::Value::makeScalar("sample"));
 				}
 
 				ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
@@ -991,7 +990,7 @@ getOut:
 			holder->filePath = thisSample->filePath;
 			holder->setAudioFile(thisSample, source->sampleControls.isCurrentlyReversed(), true);
 
-			deluge::gui::menu_item::recordRanges(*drum, 0);
+			deluge::edits::recordRanges(*drum, 0);
 
 			sampleBrowser.autoDetectSideChainSending(drum, source, thisSample->filePath.c_str());
 
@@ -1019,7 +1018,7 @@ getOut:
 			}
 skipNameStuff:
 
-			deluge::gui::menu_item::settingFor(
+			deluge::edits::settingFor(
 			    *drum, "osc1/loopMode",
 			    deluge::serialization::Value::makeNumber(std::to_underlying(
 			        (thisSample->getLengthInMSec() < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT)));
