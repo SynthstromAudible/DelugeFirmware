@@ -1199,6 +1199,9 @@ void ShellHostUI::uisTakenDown() {
 	// is why a MIDI next-song waits for it (`PlaybackHandler::tryGlobalMIDICommands`).
 	releaseShellSlicerBeforeClose();
 	forgetShellDrumCreator();
+	// The menu's context outlives the guest (its close paths read the root), so it names the outgoing song whether the
+	// guest is up or not.
+	forgetShellMenuContext();
 	if (!isUIOpen(this)) {
 		return;
 	}
@@ -1212,7 +1215,6 @@ void ShellHostUI::uisTakenDown() {
 	padsAnswered_ = deluge::ui::shell::PadRegions::None;
 	visitWithoutEditor_ = false;
 	refreshShellSamplePreviewSounds();
-	forgetShellMenuContext();
 }
 
 void ShellHostUI::flushPendingInput() {

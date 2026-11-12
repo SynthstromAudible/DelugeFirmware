@@ -478,6 +478,20 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 		closeGuest();
 	});
 
+	it("a UI teardown with the guest closed still forgets the song the menu was last open on", _ {
+		// The context outlives the stack (the close paths read its root), so a song load or a clear made after the
+		// menu closed -- a MIDI NEXT_SONG from the clip view -- must not leave it naming the retired song.
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		setRootUILowLevel(&instrumentClipView);
+		expect(entry::openShellMenu(f.clip, 0, false, false, false, false)).to_be_true();
+		shellHostUI.closeNow(); // the guest's own close, the clip view beneath
+		expect(isUIOpen(&shellHostUI)).to_be_false();
+		expect(deluge::scenes::menu_scene().menu_context().song == f.song).to_be_true();
+		nullifyUIs();
+		expect(deluge::scenes::menu_scene().menu_context().song == nullptr).to_be_true();
+		entry::clearShellKitGlobalFx();
+	});
+
 	it("a UI teardown forgets the drum creator's drum, so no later close deletes it", _ {
 		// The drum belongs to the kit a song load may be about to free: the guest's close arm, run after the teardown,
 		// must find no drum of the creator's to delete.
