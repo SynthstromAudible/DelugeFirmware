@@ -19,6 +19,24 @@
 #include "storage/multi_range/multisample_range.h"
 #include <cstring>
 
+/// Reads a zone's "rrMode", returning Cycle (0) for a value this firmware has no mode for.
+///
+/// Read into a full int before validating, so a hand-edited 256 can't wrap to a legal-looking 0. An unknown
+/// value isn't only a corrupt file: a preset saved by newer firmware can carry a mode this one predates.
+/// Playback already treats anything unknown as Cycle, but the MODE menu indexes its option list with the
+/// stored value, so it has to be a real one by the time it's stored.
+///
+/// Templated on the deserializer for host tests - see tests/unit/round_robin_parser_tests.cpp.
+template <typename DeserializerT>
+uint8_t readRRModeFromFile(DeserializerT& reader, char const* tagName) {
+	int32_t value = reader.readTagOrAttributeValueInt();
+	reader.exitTag(tagName);
+	if (value < 0 || value >= MultisampleRange::kNumRRModes) {
+		return 0;
+	}
+	return (uint8_t)value;
+}
+
 /// Reads a "roundRobinAlternates" array into the given range. Deliberately does NOT touch rrMode -
 /// that's stored in its own sibling tag which may appear before this one in the file.
 ///
