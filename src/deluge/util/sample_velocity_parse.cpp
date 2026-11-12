@@ -30,6 +30,20 @@ bool isAsciiAlpha(char c) {
 bool isSeparator(char c) {
 	return c == '_' || c == '-' || c == ' ';
 }
+
+bool isAsciiLower(char c) {
+	return c >= 'a' && c <= 'z';
+}
+
+/// Whether a "vel" at `p` starts a word of its own, rather than sitting inside one - the "vel" in "Level 3"
+/// or "Novel2" is no velocity tag. It does at the start of the name, after anything that isn't a letter,
+/// and at a lower-to-upper case change ("SnareVel100").
+bool startsAWord(char const* filename, char const* p) {
+	if (p == filename || !isAsciiAlpha(p[-1])) {
+		return true;
+	}
+	return isAsciiLower(p[-1]) && p[0] == 'V';
+}
 } // namespace
 
 bool tryParseVelocityFromFilename(char const* filename, uint8_t* outVelocity) {
@@ -38,6 +52,9 @@ bool tryParseVelocityFromFilename(char const* filename, uint8_t* outVelocity) {
 
 	for (char const* p = filename; *p != '\0'; p++) {
 		if (toLowerAscii(p[0]) != 'v' || toLowerAscii(p[1]) != 'e' || toLowerAscii(p[2]) != 'l') {
+			continue;
+		}
+		if (!startsAWord(filename, p)) {
 			continue;
 		}
 
