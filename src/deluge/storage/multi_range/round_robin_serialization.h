@@ -37,6 +37,21 @@ uint8_t readRRModeFromFile(DeserializerT& reader, char const* tagName) {
 	return (uint8_t)value;
 }
 
+/// Reads a slot's "variantVolume", returning unity for anything outside 0-50.
+///
+/// Read into a full int before validating: narrowed straight to uint8_t, a hand-edited 300 would become a
+/// believable 44. A value above unity can't boost - the render path only ever attenuates - but the VOL item
+/// would show it, so it gets the same treatment as a value this firmware can't act on at all.
+template <typename DeserializerT>
+uint8_t readVariantVolumeFromFile(DeserializerT& reader, char const* tagName) {
+	int32_t value = reader.readTagOrAttributeValueInt();
+	reader.exitTag(tagName);
+	if (value < 0 || value > kVariantVolumeUnity) {
+		return kVariantVolumeUnity;
+	}
+	return (uint8_t)value;
+}
+
 /// Reads a "roundRobinAlternates" array into the given range. Deliberately does NOT touch rrMode -
 /// that's stored in its own sibling tag which may appear before this one in the file.
 ///
@@ -88,8 +103,7 @@ Error readRoundRobinAlternates(DeserializerT& reader, RangeT* range) {
 					reader.exitTag("cents");
 				}
 				else if (!strcmp(tagName, "variantVolume")) {
-					alternateHolder->volume = reader.readTagOrAttributeValueInt();
-					reader.exitTag("variantVolume");
+					alternateHolder->volume = readVariantVolumeFromFile(reader, tagName);
 				}
 				else if (!strcmp(tagName, "zone")) {
 					reader.match('{');

@@ -3411,12 +3411,14 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 		// Deliberately not called "volume": at this level that name is already the oscillator's own
 		// LOCAL_OSC_x_VOLUME param, read a few branches above.
 		else if (!strcmp(tagName, "variantVolume")) {
-			if (source->hasMultisampleRanges()) {
-				if (MultiRange* range = source->getOrCreateFirstRange(); range != nullptr) {
-					((SampleHolderForVoice*)range->getAudioFileHolder())->volume = reader.readTagOrAttributeValueInt();
-				}
+			MultiRange* range = source->hasMultisampleRanges() ? source->getOrCreateFirstRange() : nullptr;
+			if (range != nullptr) {
+				((SampleHolderForVoice*)range->getAudioFileHolder())->volume =
+				    readVariantVolumeFromFile(reader, tagName);
 			}
-			reader.exitTag("variantVolume");
+			else {
+				reader.exitTag(tagName);
+			}
 		}
 		else if (!strcmp(tagName, "loopMode")) {
 			source->repeatMode = static_cast<SampleRepeatMode>(reader.readTagOrAttributeValueInt());
@@ -3645,8 +3647,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 								reader.exitTag("cents");
 							}
 							else if (!strcmp(tagName, "variantVolume")) {
-								((SampleHolderForVoice*)holder)->volume = reader.readTagOrAttributeValueInt();
-								reader.exitTag("variantVolume");
+								((SampleHolderForVoice*)holder)->volume = readVariantVolumeFromFile(reader, tagName);
 							}
 							else if (!strcmp(tagName, "roundRobinAlternates")) {
 								Error error = readRoundRobinAlternates(reader, (MultisampleRange*)tempRange);

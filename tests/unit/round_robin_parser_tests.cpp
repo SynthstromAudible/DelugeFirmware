@@ -354,3 +354,21 @@ TEST(RoundRobinParser, rrModeFallsBackToCycleForAnUnknownMode) {
 		CHECK_EQUAL(1, reader.exitTagCalls);
 	}
 }
+
+TEST(RoundRobinParser, variantVolumeKeepsTheWholeScale) {
+	for (int32_t volume : {0, 1, 25, (int32_t)kVariantVolumeUnity}) {
+		MockDeserializer reader;
+		reader.ints = {volume};
+		CHECK_EQUAL(volume, readVariantVolumeFromFile(reader, "variantVolume"));
+		CHECK_EQUAL(1, reader.exitTagCalls);
+	}
+}
+
+TEST(RoundRobinParser, variantVolumeOutsideTheScaleReadsAsUnity) {
+	// 300 would wrap to 44 if it were narrowed before being checked.
+	for (int32_t volume : {(int32_t)kVariantVolumeUnity + 1, 127, 300, -1}) {
+		MockDeserializer reader;
+		reader.ints = {volume};
+		CHECK_EQUAL(kVariantVolumeUnity, readVariantVolumeFromFile(reader, "variantVolume"));
+	}
+}
