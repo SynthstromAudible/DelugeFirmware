@@ -64,7 +64,7 @@ struct RecorderDisplay final : deluge::hid::Display {
 	void cancelPopup() override {}
 	void freezeWithError(char const*) override {}
 	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
+	void removeWorkingAnimation() override { loading = false; } // one animation on the OLED (`oled.h`)
 	void displayLoadingAnimationText(char const*, bool, bool) override { loading = true; }
 	void removeLoadingAnimation() override { loading = false; }
 	bool hasPopup() override { return false; }

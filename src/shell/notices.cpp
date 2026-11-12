@@ -483,6 +483,11 @@ void Notices::tick(uint32_t now_ms, uint32_t dt_ms) {
 	}
 }
 
+void Notices::disarm_working() {
+	working_.clear();
+	stack_.remove(SceneKind::Working);
+}
+
 std::optional<uint32_t> Notices::next_timer() const {
 	std::optional<uint32_t> next;
 	const auto consider = [&next](std::optional<uint32_t> in) {

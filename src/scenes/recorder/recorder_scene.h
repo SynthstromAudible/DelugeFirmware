@@ -86,7 +86,7 @@
 /// Both directions go through `AudioEngine::setForegroundRecording` /
 /// `AudioEngine::foregroundRecordingSource` (`processing/engines/audio_engine.h`) -- **the same
 /// storage every other writer and reader uses**. `setup_recording` publishes and `finish_recording`
-/// clears; `on_exit` hands a take still running to `deluge::recording::orphanInputTake`, which
+/// clears; `on_exit` and `taken_down` hand a take still running to `deluge::recording::orphanInputTake`, which
 /// clears once the recorder has settled; and `can()` reads it for legacy's own "already recording"
 /// refusal in `AudioRecorder::opened`.
 ///
@@ -228,6 +228,10 @@ public:
 	bool on_enter(const deluge::ui::shell::SceneId& id) override;
 	void on_exit() override;
 	std::optional<uint32_t> next_timer() const override;
+	/// @brief Every UI is being taken down with this scene up: end a running take as `on_exit` does, but post no
+	///        `ClearWorking`. The host disarms the shell's working animation itself (`Notices::disarm_working`), and
+	///        whatever animation the legacy display shows is the taker-down's own.
+	void taken_down();
 
 	/// @brief `AudioRecorder::getGreyoutColsAndRows`: every column of the grid, sidebar included, greyed.
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0xFFFFFFFFu, 0}; }
@@ -269,6 +273,9 @@ private:
 	void end_recording_soon();
 	/// @brief `deluge::recording`'s `finishRecording`.
 	void finish_recording();
+	/// @brief End a running take with its screen gone: its file stays on the card, attached to nothing
+	///        (`deluge::recording::orphanInputTake`). Forgets the target and the stop either way.
+	void orphan_take();
 	/// @brief `opened()`'s kit arm (`:74-88`): name the drum being recorded into "REC".
 	/// @return False on the error legacy shows and refuses on.
 	bool name_drum();

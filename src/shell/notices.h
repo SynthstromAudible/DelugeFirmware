@@ -428,6 +428,13 @@ public:
 	/// @param now_ms The tick's wall clock.
 	void drain(notify::NoticeQueue& queue, uint32_t now_ms);
 
+	/// @brief Disarm the working animation and take it off the stack, with no notice.
+	///
+	/// For a host taking every scene down: what armed the animation went with them, and a `ClearWorking` posted for
+	/// it would reach whichever consumer shows notices next. Left armed, it would hold the next session's popups and
+	/// banners up (`next_timer`).
+	void disarm_working();
+
 	/// @brief Show (or update) the popup scene at the ordinary (non-persistent) timeout computed
 	///        from \p popup_type.
 	///

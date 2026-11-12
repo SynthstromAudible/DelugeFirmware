@@ -213,14 +213,28 @@ bool RecorderScene::on_enter(const SceneId& id) {
 }
 
 void RecorderScene::on_exit() {
-	// The screen is going while its take runs: removed from outside, or the whole stack taken down by a song load or a
-	// clear. What the take was for may be going too, so the take ends and its file stays on the card, attached to
-	// nothing; the foreground recording frees the recorder once it has settled (`deluge::recording::slowRoutine`). The
-	// ordinary close never gets here with a recorder: `after_render`'s completion arm has already finished it.
+	// The screen is removed from outside while its take runs. What the take was for may be going too, so the take ends
+	// and its file stays on the card, attached to nothing; the foreground recording frees the recorder once it has
+	// settled (`deluge::recording::slowRoutine`). The ordinary close never gets here with a recorder:
+	// `after_render`'s completion arm has already finished it. Only the "Working" this scene showed is taken down.
+	const bool showed_working = recorder_ != nullptr && stopping_;
+	orphan_take();
+	if (showed_working) {
+		notify::notice_kind(notify::Notice::Kind::ClearWorking);
+	}
+}
+
+void RecorderScene::taken_down() {
+	// The whole stack is going (a song load or a clear), outside the guest's tick. A "Working" this scene showed is the
+	// shell's, which the host disarms with the rest of the guest; a `ClearWorking` posted now would reach the legacy
+	// display instead and take down the animation the taker-down put up ("Loading").
+	orphan_take();
+}
+
+void RecorderScene::orphan_take() {
 	if (recorder_ != nullptr) {
 		deluge::recording::orphanInputTake();
 		recorder_ = nullptr;
-		notify::notice_kind(notify::Notice::Kind::ClearWorking);
 	}
 	target_ = {};
 	stopping_ = false;

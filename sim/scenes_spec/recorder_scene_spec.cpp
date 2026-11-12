@@ -31,6 +31,7 @@
 ///       `marker_scene_spec.cpp` run under.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/notify_drain.h"
 #include "gui/ui/shell_drum_creator.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
@@ -56,6 +57,7 @@
 
 #include "deluge-project/setting_group.h"
 #include "gui/l10n/l10n.h"
+#include "hid/button.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
 #include "integration/scenarios/slot_coherence.h"
@@ -380,6 +382,13 @@ struct NothingPluggedIn {
 bool recorder_on_stack(deluge::ui::shell::Shell& shell) {
 	return std::ranges::any_of(shell.stack().scenes(),
 	                           [](const deluge::ui::shell::Scene* s) { return s->kind() == kRecorderSceneKind; });
+}
+
+/// @brief Whether the working animation is on @p shell's stack.
+bool working_on_stack(deluge::ui::shell::Shell& shell) {
+	return std::ranges::any_of(shell.stack().scenes(), [](const deluge::ui::shell::Scene* s) {
+		return s->kind() == deluge::ui::shell::SceneKind::Working;
+	});
 }
 
 /// @brief Whether a notice of @p kind, saying @p text when one is given, is queued; empties the queue.
@@ -879,6 +888,68 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(AudioEngine::foregroundRecorder() == nullptr).to_be_true();
 		expect(static_cast<int32_t>(AudioEngine::foregroundRecordingSource()))
 		    .to_equal(static_cast<int32_t>(AudioInputChannel::NONE));
+	});
+
+	it("leaves the song load's animation up when a UI teardown takes a running take's guest down", _ {
+		// `LoadSongUI` shows "Loading" and then takes every UI down: the take that ends with its screen showed no
+		// animation, so the one up is the load's, and it stays until the load takes it down.
+		Guards g;
+		RecorderDisplay shown;
+		DisplayAs as{shown};
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		KitRig k;
+		setRootUILowLevel(&instrumentClipView);
+		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
+		for (int32_t i = 0; i < 4 && !recorder_on_stack(shellHostUI.shell()); i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(recorder_scene().recording()).to_be_true();
+		display->displayLoadingAnimationText("Loading");
+		nullifyUIs();
+		drain_notifications();
+		expect(recorder_scene().recording()).to_be_false();
+		expect(shown.loading).to_be_true();
+	});
+
+	it("leaves no working animation behind when a UI teardown takes a stopping take's guest down", _ {
+		// The stop showed the guest's own "Working"; the teardown takes that down with the guest and leaves the song
+		// load's animation alone. The next guest's popups expire on time: an animation still armed would hold them
+		// up (`Notices::next_timer`).
+		Guards g;
+		RecorderDisplay shown;
+		DisplayAs as{shown};
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		KitRig k;
+		setRootUILowLevel(&instrumentClipView);
+		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
+		for (int32_t i = 0; i < 4 && !recorder_on_stack(shellHostUI.shell()); i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		recorder_scene().recorder()->numSamplesCaptured = 44100;
+		(void)shellHostUI.buttonAction(deluge::hid::button::BACK, true);
+		// One tick routes the press, which posts the "Working"; the next shows it.
+		(void)shellHostUI.timerCallback();
+		(void)shellHostUI.timerCallback();
+		expect(recorder_scene().stopping()).to_be_true();
+		expect(working_on_stack(shellHostUI.shell())).to_be_true();
+
+		display->displayLoadingAnimationText("Loading");
+		nullifyUIs();
+		drain_notifications();
+		expect(shown.loading).to_be_true();
+
+		deluge::scenes::spec::settle_torn_down_take();
+		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
+		for (int32_t i = 0; i < 4 && !recorder_on_stack(shellHostUI.shell()); i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(working_on_stack(shellHostUI.shell())).to_be_false();
+		deluge::notify::notice_text("POPUP");
+		(void)shellHostUI.timerCallback();
+		expect(shellHostUI.shell().notices().next_timer().has_value()).to_be_true();
+		nullifyUIs();
 	});
 
 	it("goes up from a refused recorder no creator opened, as legacy's editor does from its recorder item", _ {
