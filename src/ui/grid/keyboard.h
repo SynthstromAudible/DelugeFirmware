@@ -120,6 +120,12 @@ std::optional<RGB> text_keyboard_key_colour(int32_t x, int32_t y, int32_t home_r
 /// @return True if the pad is a shift pad.
 bool text_keyboard_is_shift_pad(int32_t x, int32_t y, int32_t home_row);
 
+/// @brief Is a backspace pad down, wherever the frame's pads are showing something else?
+/// @param f        Frame whose held-pad level is read.
+/// @param home_row Row the keyboard is centred on.
+/// @return True if either backspace pad is held.
+bool text_keyboard_backspace_held(const GridFrame& f, int32_t home_row = kTextKeyboardHomeRow);
+
 /// @brief Paint the on-pad keyboard for one frame and report this tick's key press.
 ///
 /// Paints columns `[0, min(f.bounds().w, kTextKeyboardCols))` of every row, black where

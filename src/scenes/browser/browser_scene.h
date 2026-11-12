@@ -715,7 +715,7 @@ private:
 	/// (`UI_MODE_HOLDING_BACKSPACE`). The buttons that legacy
 	///        gates on `currentUIMode` (BACK, Select's press, RECORD, Shift+SAVE, X_ENC) do nothing meanwhile.
 	bool mode_up() const {
-		return holding_ || xenc_held_ || backspace_hold_since_ms_.has_value()
+		return holding_ || xenc_held_ || backspace_due_ms_.has_value()
 		       || (ctx_.facts != nullptr && ctx_.facts->auditioning());
 	}
 	/// @brief The sample browser's gate (`SampleBrowser::buttonAction` and `padAction`): an explicit sample load or a
@@ -724,12 +724,14 @@ private:
 		return id_ == BrowserId::Sample && ctx_.facts != nullptr && ctx_.facts->sample_load_in_flight();
 	}
 
-	/// The tick a backspace pad went down, while it is still down: `QwertyUI::padAction`'s
-	/// `UI_MODE_HOLDING_BACKSPACE`. The repeats due since then are counted in `backspace_repeats_`.
+	/// `QwertyUI::padAction`'s `UI_MODE_HOLDING_BACKSPACE`: set by a backspace press, holding the tick the next repeat
+	/// is due, and reset when the pad lifts. `backspace_pad_down_` is the pad's level as the last grid pass read it.
 	/// @{
-	std::optional<uint32_t> backspace_hold_since_ms_{};
-	uint32_t backspace_repeats_ = 0;
+	std::optional<uint32_t> backspace_due_ms_{};
+	bool backspace_pad_down_ = false;
 	/// @}
+	/// @brief Enter the hold: the first repeat is due `kBackspaceRepeatDelayMs` from this tick.
+	void arm_backspace_hold();
 
 	menu::MenuContext ctx_{};
 	BrowserId id_ = BrowserId::Sample;

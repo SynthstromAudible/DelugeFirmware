@@ -131,6 +131,17 @@ std::optional<RGB> text_keyboard_key_colour(int32_t x, int32_t y, int32_t home_r
 	return std::nullopt;
 }
 
+bool text_keyboard_backspace_held(const GridFrame& f, int32_t home_row) {
+	for (int32_t x = 14; x < 16; x++) {
+		const int32_t ax = f.rect.x + x;
+		const int32_t ay = f.rect.y + home_row + 2;
+		if (ax >= 0 && ay >= 0 && f.held_pads().test(static_cast<uint8_t>(ax), static_cast<uint8_t>(ay))) {
+			return true;
+		}
+	}
+	return false;
+}
+
 Response text_keyboard(GridFrame& f, TextKeyboardState& state, KeyboardLayoutKind layout, int32_t home_row) {
 	const int32_t w = keyboard_cols(f);
 	const int32_t h = f.bounds().h;
@@ -142,7 +153,6 @@ Response text_keyboard(GridFrame& f, TextKeyboardState& state, KeyboardLayoutKin
 	int32_t held_x = -1;
 	int32_t held_y = -1;
 	bool shift_held = false;
-	bool backspace_held = false;
 
 	for (int32_t y = 0; y < h; y++) {
 		for (int32_t x = 0; x < w; x++) {
@@ -152,9 +162,6 @@ Response text_keyboard(GridFrame& f, TextKeyboardState& state, KeyboardLayoutKin
 
 			if ((r.held || r.pressed) && text_keyboard_is_shift_pad(x, y, home_row)) {
 				shift_held = true;
-			}
-			if (r.held && text_keyboard_char_at(layout, x, y, home_row, false) == kTextKeyboardBackspace) {
-				backspace_held = true;
 			}
 			if (r.pressed) {
 				out.pressed = true;
@@ -184,7 +191,7 @@ Response text_keyboard(GridFrame& f, TextKeyboardState& state, KeyboardLayoutKin
 	}
 
 	state.shift = shift_held;
-	state.backspace_held = backspace_held;
+	state.backspace_held = text_keyboard_backspace_held(f, home_row);
 	if (pressed_x >= 0) {
 		// The typed character travels in `index` (ui/core/response.h); `velocity` stays the key
 		// pad's own press velocity, so a caller can have both without decoding one from the other.

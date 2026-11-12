@@ -638,6 +638,26 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		expect(r.shell.stack().depth()).to_equal(size_t(0));
 	});
 
+	it("re-arms the repeat 80 ms after the callback that ran it, not after the schedule", _ {
+		select_language();
+		spec::SongFixture f = kit_fixture();
+		Rig r;
+		r.open_rename(context_of(f), TargetId::Drum);
+		r.tick(0);
+		r.clock = 10;
+		r.type(std::string_view{"ABCDE"});
+		r.press(deluge::ui::grid::kTextKeyboardBackspace, 1000);
+		r.tick(1000);
+		r.tick(1530); // 30 ms late
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abc"});
+		r.tick(1580);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abc"});
+		r.tick(1610);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Ab"});
+		r.release(deluge::ui::grid::kTextKeyboardBackspace, 1620);
+		r.tick(1620);
+	});
+
 	it("stops repeating the moment the backspace pad goes up", _ {
 		select_language();
 		spec::SongFixture f = kit_fixture();

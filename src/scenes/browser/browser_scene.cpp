@@ -409,7 +409,8 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	}
 	id_ = static_cast<BrowserId>(id.arg);
 	holding_ = false;
-	backspace_hold_since_ms_.reset();
+	backspace_due_ms_.reset();
+	backspace_pad_down_ = false;
 	keyboard_led_touched_ = false;
 	load_led_touched_ = false;
 	hold_deadline_ms_.reset();
@@ -1075,6 +1076,10 @@ void BrowserScene::type_char(char c) {
 	run_search_after_typing(pos);
 }
 
+void BrowserScene::arm_backspace_hold() {
+	backspace_due_ms_ = last_render_ms_ + deluge::ui::grid::kBackspaceRepeatDelayMs;
+}
+
 void BrowserScene::backspace() {
 	// `QwertyUI::processBackspace`, including its asymmetry: the edit
 	// position steps back whether or not there is any text, and the string is only truncated -- and
@@ -1413,6 +1418,8 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f)
 void BrowserScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	grid_pass_ = true;
 	last_render_ms_ = f.now_ms();
+	// Read off the pads whatever they show: the hold outlasts a waveform landing over the keys.
+	backspace_pad_down_ = deluge::ui::grid::text_keyboard_backspace_held(f, deluge::ui::grid::kTextKeyboardHomeRow);
 	if (pads_ != BrowserPads::Keyboard || !keyboard_visible_) {
 		// `SampleBrowser::padAction`'s main-pad arm with the keyboard hidden, or with keys on the pads that are not
 		// `qwertyVisible`, acted on by `after_render`.
@@ -1676,26 +1683,17 @@ Result BrowserScene::after_render() {
 		}
 	}
 
-	// 5b. A held backspace repeats: `QwertyUI::timerCallback`, 500 ms after the press and every 80 ms after that.
-	//     The hold ends when the pad lifts, or when the pads are no longer the keyboard's.
-	if (backspace_hold_since_ms_.has_value() && grid_pass) {
-		if (pads_ != BrowserPads::Keyboard || !kb_.backspace_held) {
-			backspace_hold_since_ms_.reset();
+	// 5b. A held backspace repeats: `QwertyUI::timerCallback` deletes once and re-arms 80 ms from the callback. The
+	//     hold lasts until the pad lifts, whatever the pads are showing meanwhile.
+	if (backspace_due_ms_.has_value() && grid_pass) {
+		if (!backspace_pad_down_) {
+			backspace_due_ms_.reset();
 		}
-		else {
-			const uint32_t held = last_render_ms_ - *backspace_hold_since_ms_;
-			const uint32_t due =
-			    held < deluge::ui::grid::kBackspaceRepeatDelayMs
-			        ? 0
-			        : 1 + (held - deluge::ui::grid::kBackspaceRepeatDelayMs) / deluge::ui::grid::kBackspaceRepeatMs;
-			if (backspace_repeats_ < due) {
-				while (backspace_repeats_ < due) {
-					backspace();
-					++backspace_repeats_;
-				}
-				r.handled = true;
-				(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
-			}
+		else if (static_cast<int32_t>(last_render_ms_ - *backspace_due_ms_) >= 0) {
+			backspace();
+			backspace_due_ms_ = last_render_ms_ + deluge::ui::grid::kBackspaceRepeatMs;
+			r.handled = true;
+			(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 		}
 	}
 
@@ -1751,6 +1749,9 @@ Result BrowserScene::after_render() {
 		                                                             deluge::ui::grid::kTextKeyboardHomeRow, shift_)
 		                   : 0;
 		const Result typed = c != 0 ? press_key(c) : repaint_all();
+		if (c == deluge::ui::grid::kTextKeyboardBackspace) {
+			arm_backspace_hold();
+		}
 		r.handled = true;
 		for (const Action& a : typed.actions) {
 			(void)r.actions.push_back(a);
@@ -1770,8 +1771,7 @@ Result BrowserScene::after_render() {
 		}
 		(void)press_key(c);
 		if (c == deluge::ui::grid::kTextKeyboardBackspace) {
-			backspace_hold_since_ms_ = last_render_ms_;
-			backspace_repeats_ = 0;
+			arm_backspace_hold();
 		}
 		changed = true;
 	}
@@ -1960,7 +1960,7 @@ Result BrowserScene::horizontal_turn(int32_t delta) {
 	if (id_ == BrowserId::Sample && showing_preview_ && nav_identity_ != 0 && (xenc_held_ || nav_.is_zoomed_in())) {
 		// `SampleBrowser::horizontalEncoderAction`: X_ENC held zooms, and zoomed in a turn scrolls, with no other
 		// mode up. Either draws the waveform over whatever the pads showed.
-		if (!holding_ && (xenc_held_ ? nav_.zoom(delta) : nav_.scroll(delta))) {
+		if (!holding_ && !backspace_due_ms_.has_value() && (xenc_held_ ? nav_.zoom(delta) : nav_.scroll(delta))) {
 			pads_ = BrowserPads::Waveform;
 			redraw_resolved_cols_ = -1; // a new view: its redraw counts its own columns
 			(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
@@ -2200,13 +2200,9 @@ std::optional<uint32_t> BrowserScene::next_timer() const {
 	}
 
 	// The held backspace's next repeat renders the scene.
-	if (backspace_hold_since_ms_.has_value()) {
-		const uint32_t held = last_render_ms_ - *backspace_hold_since_ms_;
-		const uint32_t next_at =
-		    backspace_repeats_ == 0
-		        ? deluge::ui::grid::kBackspaceRepeatDelayMs
-		        : deluge::ui::grid::kBackspaceRepeatDelayMs + backspace_repeats_ * deluge::ui::grid::kBackspaceRepeatMs;
-		const uint32_t in = held >= next_at ? 0 : next_at - held;
+	if (backspace_due_ms_.has_value()) {
+		const int32_t left = static_cast<int32_t>(*backspace_due_ms_ - last_render_ms_);
+		const uint32_t in = left > 0 ? static_cast<uint32_t>(left) : 0;
 		next = next.has_value() ? std::min(*next, in) : in;
 	}
 

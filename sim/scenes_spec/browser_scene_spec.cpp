@@ -2003,6 +2003,125 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 		r.tick(1520);
 	});
 
+	it("keeps repeating when a preview lands mid-hold, until the pad lifts", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		r.type(std::string_view{"SNARE"});
+		r.turn(1, r.clock + 10);
+		r.step();
+		r.horizontal(5);
+		const int32_t start = browser_scene().cursor();
+		expect(start).to_equal(3);
+		r.pad_backspace(true, r.clock + 1000);
+		const uint32_t at = r.clock + 1000;
+		r.tick(at);
+		browser_scene().preview_settled(true);
+		r.tick(at + 10);
+		expect(browser_scene().pads() == BrowserPads::Waveform).to_be_true();
+		r.tick(at + 500);
+		expect(browser_scene().cursor()).to_equal(start - 2); // the waveform over the keys does not end the hold
+		r.pad_backspace(false, at + 520);
+		r.tick(at + 520);
+		r.tick(at + 1200);
+		expect(browser_scene().cursor()).to_equal(start - 2);
+	});
+
+	it("arms the hold from a blind backspace under a waveform", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		r.type(std::string_view{"SNARE"});
+		r.turn(1, r.clock + 10);
+		r.step();
+		r.horizontal(5);
+		browser_scene().preview_settled(true);
+		r.step();
+		expect(browser_scene().pads() == BrowserPads::Waveform).to_be_true();
+		const int32_t start = browser_scene().cursor();
+		const uint32_t at = r.clock + 1000;
+		r.pad_backspace(true, at);
+		r.tick(at);
+		expect(browser_scene().cursor()).to_equal(start - 1);
+		r.tick(at + 500);
+		expect(browser_scene().cursor()).to_equal(start - 2);
+		r.pad_backspace(false, at + 520);
+		r.tick(at + 520);
+
+	});
+
+	it("enters the hold from a first backspace press on keys that are not drawn", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig hidden;
+		hidden.open_and_land(sound_context(f), BrowserId::Sample);
+		hidden.pad_backspace(true, hidden.clock + 100);
+		hidden.step();
+		const std::string dir{browser_scene().current_dir()};
+		hidden.button(kBackX, kBackY, true, hidden.clock + 10);
+		hidden.step();
+		hidden.button(kBackX, kBackY, false, hidden.clock + 10);
+		hidden.step();
+		expect(std::string{browser_scene().current_dir()}).to_equal(dir);
+		expect(hidden.browser_on_stack()).to_be_true();
+		hidden.pad_backspace(false, hidden.clock + 10);
+		hidden.step();
+	});
+
+	it("re-arms the repeat 80 ms after the callback that ran it, not after the schedule", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		r.type(std::string_view{"SNARE"});
+		const int32_t start = browser_scene().cursor();
+		const uint32_t at = r.clock + 1000;
+		r.pad_backspace(true, at);
+		r.tick(at);
+		r.tick(at + 530); // 30 ms late
+		expect(browser_scene().cursor()).to_equal(start - 2);
+		r.tick(at + 580); // the schedule said now; the callback said 610
+		expect(browser_scene().cursor()).to_equal(start - 2);
+		r.tick(at + 610);
+		expect(browser_scene().cursor()).to_equal(start - 3);
+		r.pad_backspace(false, at + 620);
+		r.tick(at + 620);
+	});
+
+	it("neither scrolls nor zooms a waveform while backspace is held", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+		r.button(kXEncX, kXEncY, true, r.clock + 10);
+		r.step();
+		r.horizontal(1);
+		r.button(kXEncX, kXEncY, false, r.clock + 10);
+		r.step();
+		expect(browser_scene().waveform_nav().is_zoomed_in()).to_be_true();
+		r.pad_backspace(true, r.clock + 10);
+		r.step();
+		const int64_t scroll = browser_scene().waveform_nav().xScroll;
+		r.horizontal(1);
+		expect(browser_scene().waveform_nav().xScroll).to_equal(scroll);
+		r.pad_backspace(false, r.clock + 10);
+		r.step();
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+	});
+
 	it("types across folders and files alike, and moves the viewport to the match", _ {
 		CleanBrowser clean;
 		ScratchCard card;
