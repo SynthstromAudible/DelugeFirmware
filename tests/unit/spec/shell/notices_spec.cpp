@@ -582,6 +582,30 @@ describe shell_notices("shell::Notices", $ {
 		expect(stacked(r, SceneKind::Notification)).to_be_false();
 	});
 
+	it("asks for a wake at the popup's expiry, measured from the last tick, and none once it is down", _ {
+		Rig r;
+		expect(r.notices.next_timer().has_value()).to_be_false();
+		(void)r.queue.push(make_notice(Notice::Kind::Text, "SAVED"));
+		r.notices.drain(r.queue, 100);
+		r.notices.tick(300, 0);
+		expect(r.notices.next_timer().has_value()).to_be_true();
+		expect(*r.notices.next_timer()).to_equal(r.notices.timeout_for(1) - 200);
+
+		r.notices.tick(100 + r.notices.timeout_for(1), 0);
+		expect(r.notices.next_timer().has_value()).to_be_false();
+	});
+
+	it("asks for no wake while the working animation holds a popup past its expiry", _ {
+		// The held popup's remaining time is 0, which would pin the shell's wake to every tick.
+		Rig r;
+		(void)r.queue.push(make_notice(Notice::Kind::Working, "Loading"));
+		(void)r.queue.push(make_notice(Notice::Kind::Text, "SAVED"));
+		r.notices.drain(r.queue, 0);
+		r.notices.tick(r.notices.timeout_for(1) + 500, 0);
+		expect(stacked(r, SceneKind::Popup)).to_be_true();
+		expect(r.notices.next_timer().has_value()).to_be_false();
+	});
+
 	it("a popup raised while the working animation runs outlives its timeout until the animation ends", _ {
 		// `OLED::timerRoutine` (`oled.cpp`): while a working animation runs, the `DISPLAY` timer animates
 		// instead of calling `removePopup()`.

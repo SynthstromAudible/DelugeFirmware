@@ -208,6 +208,12 @@ bool NotificationScene::expired(uint32_t now_ms) const {
 	return static_cast<int32_t>(now_ms - deadline_ms_) >= 0;
 }
 
+uint32_t NotificationScene::remaining_ms(uint32_t now_ms) const {
+	// Difference form, as `expired`.
+	const auto left = static_cast<int32_t>(deadline_ms_ - now_ms);
+	return left > 0 ? static_cast<uint32_t>(left) : 0U;
+}
+
 void NotificationScene::render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {
 	if (role != SurfaceRole::Main) {
 		return;
@@ -430,6 +436,7 @@ void Notices::show_popup_with_timeout(std::string_view text, uint8_t popup_type,
 
 void Notices::tick(uint32_t now_ms, uint32_t dt_ms) {
 	(void)dt_ms;
+	now_ms_ = now_ms;
 	// All three are `remove(kind)` rather than "pop while it is the top" or "pop by kind": a popup,
 	// the working animation and the console strip are all `input_transparent()`, so a scene pushed
 	// over any of them got there legitimately and must not be taken down just because the notice
@@ -460,6 +467,25 @@ void Notices::tick(uint32_t now_ms, uint32_t dt_ms) {
 	if (!working_.armed() && notification_.expired(now_ms)) {
 		stack_.remove(SceneKind::Notification);
 	}
+}
+
+std::optional<uint32_t> Notices::next_timer() const {
+	if (working_.armed()) {
+		return std::nullopt;
+	}
+	std::optional<uint32_t> next;
+	const auto consider = [&next](uint32_t in) { next = next.has_value() ? std::min(*next, in) : in; };
+	for (const Scene* scene : stack_.scenes()) {
+		if (scene->kind() == SceneKind::Popup) {
+			if (const std::optional<uint32_t> in = popup_.remaining_ms(now_ms_); in.has_value()) {
+				consider(*in);
+			}
+		}
+		else if (scene->kind() == SceneKind::Notification) {
+			consider(notification_.remaining_ms(now_ms_));
+		}
+	}
+	return next;
 }
 
 std::optional<Notices::ShownPopup> Notices::shown_popup(uint32_t now_ms) const {

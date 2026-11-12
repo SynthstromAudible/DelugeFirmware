@@ -313,6 +313,11 @@ public:
 	/// @return True once @p now_ms reaches the deadline the last `show()` computed.
 	bool expired(uint32_t now_ms) const;
 
+	/// @brief How long the banner has left.
+	/// @param now_ms The tick's wall clock.
+	/// @return Milliseconds until `expired()` turns true; 0 once it has.
+	uint32_t remaining_ms(uint32_t now_ms) const;
+
 	/// @return The title last shown, NUL-terminated.
 	const char* title() const { return title_; }
 	/// @return The value last shown, NUL-terminated; empty for a title-only notification.
@@ -446,6 +451,14 @@ public:
 	///               accumulators -- there is nothing to integrate.
 	void tick(uint32_t now_ms, uint32_t dt_ms) override;
 
+	/// @brief When `tick()` next has a notice to take down: the stacked popup's or banner's expiry.
+	///
+	/// Legacy's `TimerName::DISPLAY` fires `OLED::timerRoutine` at the expiry whatever else is armed, so the shell
+	/// must wake for it too; without this the notice stays up until an unrelated wake. Nothing while the working
+	/// animation runs, which holds both up until `ClearWorking`, itself a notice that wakes the shell.
+	/// @return Milliseconds from the last `tick()`'s clock, or `std::nullopt` when nothing is due.
+	std::optional<uint32_t> next_timer() const override;
+
 	/// @brief How long a popup of \p popup_type should stay up before `tick()` pops it.
 	///
 	/// Ported from `OLED::popupText`: every non-persistent popup gets the
@@ -513,6 +526,8 @@ private:
 	NotificationScene& notification_;
 	/// What raised the popup `popup_` currently holds; see `last_notice_kind()`.
 	notify::Notice::Kind last_notice_kind_ = notify::Notice::Kind::Text;
+	/// The clock of the last `tick()`, which `next_timer()` measures from.
+	uint32_t now_ms_ = 0;
 	bool popup_retargeted_ = false;
 };
 

@@ -1227,6 +1227,39 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(r.fake.pbm(0) != first).to_be_true();
 	});
 
+	it("a popup's timeout is a wake: the shell comes back when it expires and takes it down", _ {
+		// Legacy's `TimerName::DISPLAY` fires `OLED::timerRoutine` 800 ms after `OLED::popupText`, whatever else is
+		// armed; with no wake of its own the popup stays up until an unrelated one (a blink, a pad timer).
+		deluge::notify::dirty().drain();
+		deluge::notify::Notice discard;
+		while (deluge::notify::notices().pop(discard)) {}
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		deluge::notify::notice_text("LEARNED");
+		r.shell.tick(100);
+		expect(r.shell.stack().top().kind() == SceneKind::Popup).to_be_true();
+		expect(r.shell.next_wake().has_value()).to_be_true();
+		expect(*r.shell.next_wake()).to_equal(uint32_t(100 + 800));
+
+		r.shell.tick(900);
+		expect(r.shell.stack().top().kind() == SceneKind::Popup).to_be_false();
+	});
+
+	it("a notification banner's 2000 ms is a wake too", _ {
+		deluge::notify::dirty().drain();
+		deluge::notify::Notice discard;
+		while (deluge::notify::notices().pop(discard)) {}
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		deluge::notify::notice_notification("Probability", "100%");
+		r.shell.tick(100);
+		expect(r.shell.stack().top().kind() == SceneKind::Notification).to_be_true();
+		expect(r.shell.next_wake().has_value()).to_be_true();
+		expect(*r.shell.next_wake()).to_equal(uint32_t(100 + 2000));
+	});
+
 	it("drains the notice queue only while it owns it", _ {
 		deluge::notify::dirty().drain();
 		deluge::notify::Notice discard;
