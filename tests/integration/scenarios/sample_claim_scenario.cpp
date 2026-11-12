@@ -80,6 +80,7 @@
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
+#include "scenes/menu/nodes/sample.h"
 #include "scenes/menu/nodes/sound_root.h"
 #include "scenes/registry.h"
 #include "scenes/slicing/slicer_scene.h"
@@ -400,8 +401,10 @@ RandomizeMark g_randomizeMark{};
 /// Each randomizer row's path when the leg acted: a row the gesture must not touch keeps it.
 std::string g_randomizeRowPaths[kRandomizeDrumCount];
 
-/// Whether the gate leg's select-encoder turn moved the browser's selection while its claim was in flight.
+/// Whether the gate leg's select-encoder turn moved the browser's selection, and whether its claim was out when the
+/// encoder turned.
 bool g_gateMoved = false;
+bool g_gateClaimOut = false;
 
 /// Whether the supersede leg has moved the cursor on, which it does the moment the first auto-load claim is waiting
 /// on its pitch detection.
@@ -1444,6 +1447,26 @@ void checkTeardownDropsAudition(deluge::scenes::slicing::SlicerScene& scene) {
 	}
 }
 
+/// A slice auditioned and released before its load lands: the press names the slicer's file for the first drum, and
+/// once the release drops the load, that drum's record and slot must say what it holds.
+void checkAuditionReleaseCoherent(deluge::scenes::slicing::SlicerScene& scene) {
+	if (scene.ops() == nullptr) {
+		return;
+	}
+	const int32_t failuresBefore = g_failures;
+	deluge_audio_load_set_latency_ms(kGateHoldMs);
+	scene.ops()->audition({.start_point = 0, .end_point = -1, .transpose = 0, .on = 64});
+	const bool held = deluge::gui::ui::shellSlicerBusy();
+	scene.ops()->audition({.start_point = 0, .end_point = -1, .transpose = 0, .on = 0});
+	deluge_audio_load_set_latency_ms(0);
+	g_failures += deluge::harness::expectSongCoherent(*currentSong, "slice-audition-release");
+	printf("SC-PROBE leg=%s auditionReleased held=%d coherent=%d\n", legName(g_leg), held ? 1 : 0,
+	       g_failures == failuresBefore ? 1 : 0);
+	if (!held) {
+		fail(legName(g_leg), "the slice's audition load was not out when it was released, so nothing was tested");
+	}
+}
+
 /// A learned MIDI next-song while the slice is out, the way a DIN note reaches it; the command is put back after.
 void sendNextSongDuringSlice() {
 	if (!deluge::gui::ui::shellSliceOut()) {
@@ -1485,6 +1508,9 @@ void tickShellSlice() {
 		}
 		if (g_leg == Leg::ShellSlice) {
 			checkTeardownDropsAudition(scene);
+		}
+		if (g_leg == Leg::ShellSliceManual) {
+			checkAuditionReleaseCoherent(scene);
 		}
 		deluge::scenes::slicing::SliceCommit commit{};
 		commit.is_manual = g_leg == Leg::ShellSliceManual;
@@ -1586,8 +1612,9 @@ void actLeg() {
 		guestTick();
 		const std::string after = guestSelectedName();
 		g_gateMoved = (after != before);
+		g_gateClaimOut = deluge::gui::sampleClaim.explicitInFlight();
 		printf("SC-PROBE leg=gate before=%s after=%s claimOut=%d\n", before.c_str(), after.c_str(),
-		       deluge::gui::sampleClaim.explicitInFlight() ? 1 : 0);
+		       g_gateClaimOut ? 1 : 0);
 		return;
 	}
 	if (g_leg == Leg::ImportEmpty) {
@@ -1777,11 +1804,24 @@ void checkLeg() {
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
 		// The browser closes itself once its claim lands (`shellSampleClaimDone`).
 		const bool browserClosed = !browserOnTop();
-		printf("SC-SYNTH bound=%d path=%s osc=%d repeat=%d transpose=%d browserClosed=%d ticks=%d\n", bound ? 1 : 0,
-		       holder != nullptr ? holder->filePath.c_str() : "", static_cast<int>(g_synth->sources[0].oscType),
-		       static_cast<int>(g_synth->sources[0].repeatMode),
+		// ...and the menu beneath re-enters on the page that lists the file selector, focused on it, as main's claim
+		// re-enters on `parentMenuHeadingTo` with `menuItemHeadingTo` focused: with horizontal menus on, a page of the
+		// source's group; with them off, the file selector the menu was opened on.
+		const auto& menu = deluge::scenes::menu_scene();
+		const bool horizontal = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus);
+		const bool onPage = guestTop(deluge::scenes::menu::kMenuSceneKind)
+		                    && menu.focused_value() == &deluge::scenes::menu::nodes::file0_selector
+		                    && (menu.state().path[0] != &deluge::scenes::menu::nodes::file0_selector) == horizontal;
+		printf("SC-SYNTH bound=%d path=%s osc=%d repeat=%d transpose=%d browserClosed=%d onPage=%d horizontal=%d "
+		       "ticks=%d\n",
+		       bound ? 1 : 0, holder != nullptr ? holder->filePath.c_str() : "",
+		       static_cast<int>(g_synth->sources[0].oscType), static_cast<int>(g_synth->sources[0].repeatMode),
 		       holder != nullptr ? static_cast<SampleHolderForVoice*>(holder)->transpose : 0, browserClosed ? 1 : 0,
-		       g_waitTicks);
+		       onPage ? 1 : 0, horizontal ? 1 : 0, g_waitTicks);
+		if (!onPage) {
+			printf("SC-SYNTH FAIL the menu did not re-enter on the page that lists the file selector\n");
+			g_failures++;
+		}
 		if (!bound) {
 			printf("SC-SYNTH FAIL the claim bound no file\n");
 			g_failures++;
@@ -1796,8 +1836,12 @@ void checkLeg() {
 		deluge_audio_load_set_latency_ms(0);
 		// Released is the gate's own mode gone: a preview's scroll may hold a mode of its own.
 		const bool released = (currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES);
-		printf("SC-GATE input=selectEncoder refused=%d released=%d ticks=%d\n", g_gateMoved ? 0 : 1, released ? 1 : 0,
-		       g_waitTicks);
+		printf("SC-GATE input=selectEncoder claimOut=%d refused=%d released=%d ticks=%d\n", g_gateClaimOut ? 1 : 0,
+		       g_gateMoved ? 0 : 1, released ? 1 : 0, g_waitTicks);
+		if (!g_gateClaimOut) {
+			printf("SC-GATE FAIL the claim was not out when the encoder turned, so nothing was tested\n");
+			g_failures++;
+		}
 		if (g_gateMoved) {
 			printf("SC-GATE FAIL the select encoder moved the browser's selection while an explicit claim was in "
 			       "flight\n");
@@ -2186,7 +2230,8 @@ void checkLeg() {
 					matched++;
 				}
 			}
-			// The menu is left on the middle range, as the import tells its opener (`rangeChosen`).
+			// The range the import made current (`rangeChosen`), as the menu context keeps it: the guest has closed, so
+			// no menu is open on it.
 			const int32_t menuRange = deluge::scenes::menu_scene().menu_context().range_index;
 			const int32_t editorRange = menuRange >= 0 && menuRange < ranges ? menuRange : -1;
 			printf(
@@ -2194,7 +2239,7 @@ void checkLeg() {
 			    ranges, matched, static_cast<int>(source.repeatMode), static_cast<int>(source.oscType),
 			    synth->editedByUser ? 1 : 0, browserClosed ? 1 : 0, editorRange, g_waitTicks);
 			if (editorRange != kImportMultiCount / 2) {
-				printf("IM-MULTI FAIL the menu was not left on the middle range\n");
+				printf("IM-MULTI FAIL the menu context was not left on the middle range\n");
 				g_failures++;
 			}
 			if (ranges != kImportMultiCount || matched != kImportMultiCount
@@ -2658,6 +2703,7 @@ void deluge_scenario_sample_claim_begin(void) {
 	g_audioClip = nullptr;
 	g_tierMark = {};
 	g_gateMoved = false;
+	g_gateClaimOut = false;
 	g_supersedeFired = false;
 }
 

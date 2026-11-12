@@ -38,6 +38,7 @@
 #include "processing/engines/audio_engine.h" // audioSampleTimer
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/marker/marker_scene.h"
+#include "scenes/menu/menu_scene.h"
 #include "scenes/profile.h"
 #include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
@@ -1158,7 +1159,7 @@ void ShellHostUI::selectEncoderAction(int8_t offset) {
 	// (`MenuScene::learn_mode`). The press's gate, a different test, is the menu's (`MenuScene::set_host_mode_gates`).
 	// Only the menu is a sound editor screen; a scene it opened takes its turns as before.
 	const deluge::ui::shell::Scene& top = shell_.stack().input_top();
-	if (top.kind() == deluge::ui::shell::SceneKind::FirstApp
+	if (top.kind() == deluge::scenes::menu::kMenuSceneKind
 	    && (!isUIModeWithinRange(selectEncoderUIModes) || shellMenuLearnMode())) {
 		return;
 	}
