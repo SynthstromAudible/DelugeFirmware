@@ -315,30 +315,6 @@ class SongStateWrites(unittest.TestCase):
             )
             self.assertEqual(len(csm.song_state_writes((root,), allowed={})), 2)
 
-    def test_the_menu_items_allowance_passes_its_line_and_no_other_learn(self):
-        allowed_file = "deluge/gui/menu_item/menu_item_with_cc_learning.cpp"
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            path = root / allowed_file
-            path.parent.mkdir(parents=True)
-            path.write_text(
-                "void learn() {\n"
-                "\tcurrentModControllable->learnKnob(cable, whichKnob, mode, channel);\n"
-                "}\n"
-            )
-            self.assertEqual(
-                csm.song_state_writes((root,), allowed=csm.SONG_STATE_ALLOWED), []
-            )
-            path.write_text(
-                "void learn() {\n"
-                "\tcurrentModControllable->learnKnob(cable, whichKnob, mode, channel);\n"
-                "\tsound->learnKnob(cable, param, 0, 0, channel, song);\n"
-                "}\n"
-            )
-            found = csm.song_state_writes((root,), allowed=csm.SONG_STATE_ALLOWED)
-            self.assertEqual(len(found), 1, found)
-            self.assertIn(":3:", found[0])
-
     def test_the_reverb_sync_hooks_allowance_passes_its_line_and_no_other_sync_type(
         self,
     ):

@@ -30,8 +30,7 @@ NON_UI = "src/deluge/{model,playback,processing,storage,io,modulation,memory,syn
 #
 # `view` (`View view`, `gui/views/view.h`) is deliberately NOT here: as a whole-word pattern it
 # would match the English word in prose and any local named `view`, and its false-positive rate
-# would make the row unusable. `soundEditor` is here even though it is not a root UI, because it
-# is the legacy menu driver this whole library replaces; naming it is always a mistake.
+# would make the row unusable.
 ROOT_UI_GLOBALS = (
     # the root views (`gui/views/`)
     "sessionView",
@@ -41,21 +40,12 @@ ROOT_UI_GLOBALS = (
     "instrumentClipView",
     "audioClipView",
     "keyboardScreen",
-    # the legacy menu driver (`gui/ui/sound_editor.h:189`)
-    "soundEditor",
     # the rename UIs `rename::RenameScene` replaces (`gui/ui/rename/`)
     "renameClipUI",
     "renameOutputUI",
-    "renameDrumUI",
     "renameMidiCCUI",
-    # the browsers, savers and recorders the file/sample scenes replace (`gui/ui/browser/`,
-    # `gui/ui/save/`, `gui/ui/load/`, `gui/ui/audio_recorder.h`, `gui/ui/sample_marker_editor.h`,
-    # `gui/ui/slicer.h`) -- the group a scene is most likely to reach for.
-    "sampleBrowser",
-    "audioRecorder",
-    "sampleMarkerEditor",
-    "dxBrowser",
-    "slicer",
+    # the browsers and savers the file scenes replace (`gui/ui/browser/`, `gui/ui/save/`,
+    # `gui/ui/load/`) -- the group a scene is most likely to reach for.
     "loadSongUI",
     "saveSongUI",
     "loadInstrumentPresetUI",
@@ -81,14 +71,14 @@ ROOT_UI_GLOBALS = (
 #
 # Why this needs a row of its own, and why it is the only arm of `dispatchShellActions` that does.
 # Every other verb's legacy target is already unreachable from `src/scenes`: `performanceView`,
-# `audioClipView`, `soundEditor`, `midiLearnMode` and `configureSongMacros` are `ROOT_UI_GLOBALS`
+# `audioClipView`, `midiLearnMode` and `configureSongMacros` are `ROOT_UI_GLOBALS`
 # above, and `Screensaver::settingsChanged` lives in `hid/display/screensaver.h`, which
 # `scenes-includes-gui` and `scenes-includes-outside` BOTH refuse (probed: adding that include to
 # `menu/nodes/settings.cpp` raises two regressions). `stemExport` is the exception --
 # `processing/**` is on `scenes-includes-outside`' allow-list on purpose, and the scenes layer
 # *does* legitimately reach `stemExport`'s members: the seven `ToggleBool`s at
 # `menu/nodes/roots.cpp:354-360` read and write `allowNormalization`, `exportMixdown` and five more
-# through one macro (`:348`, `:351`), exactly as `menus.cpp:2020-2036` does. So
+# through one macro (`:348`, `:351`). So
 # `MenuAction::StartStemExport` is the one
 # verb whose target the scenes layer could reach through an allowed include, and nothing saw it.
 #
@@ -171,7 +161,7 @@ LEGACY_HID_DRIVERS = (
 #
 # `PadLEDs::flashCursor` is excluded BY NAME, on exactly the argument that keeps `fileItems` out
 # of `CATALOGUE_DISPATCH_CALLS`: it is not a driver call, it is the persisted SETTING BYTE that
-# `flash::Status::readCurrentValue`/`writeCurrentValue` (`gui/menu_item/flash/status.h:26-32`)
+# `flash::Status::readCurrentValue`/`writeCurrentValue`
 # read and write, ported as a value in `menu/nodes/settings.cpp` and recorded there
 # (`nodes/settings.h:320-322`). Excluding the spelling rather than the file keeps the other four
 # drivers -- and every other `PadLEDs::` member -- gated inside `settings.cpp` too.
@@ -188,48 +178,6 @@ UI_STACK_CALLS = (
     "getCurrentUI",
     "swapOutRootUILowLevel",
 )
-
-# The two legacy methods that exist FOR the guest and for nothing else -- the claim seam's
-# legacy-side half -- and the invariant that keeps them dead with ShellMenu off.
-#
-# `SampleBrowser::selectFileForClaim` (`gui/ui/browser/sample_browser.h:99`, defined
-# `sample_browser.cpp:401`) points the legacy browser at a directory and a filename, because
-# `claimCurrentFile` reads `currentDir` and the selected `FileItem` rather than taking a path.
-# `SoundEditor::adoptResolvedContext` (`gui/ui/sound_editor.h:220`, defined
-# `sound_editor.cpp:2152`) writes the editor context legacy's own `setup()` would have resolved --
-# which with ShellMenu on nothing calls; without it the claim dereferences a null context. Eleven assignments;
-# ten cite a `setup()` line and the eleventh is argued at the write.
-#
-# Why this needs a row rather than review. Both are additive and BOTH ARE DEAD WITH SHELLMENU
-# OFF -- the property the whole guest rests on (with ShellMenu off the firmware runs the exact
-# legacy statements it ran before), and it holds for exactly one
-# reason: their only caller is `shell_choice_dispatch.cpp`, which only `ShellHostUI::timerCallback`
-# reaches. A second caller anywhere under `src/deluge/**` -- inside `SampleBrowser` itself, in a
-# view, in a future save browser -- would make them live on the OFF leg silently, and nothing
-# today would say so. This is `legacy-names-port`'s own argument (`the second edge is a decision
-# somebody writes down`) applied to the seam pointing the other way: `legacy-names-port` counts
-# legacy files that name PORT symbols; these two are legacy symbols that exist only to be named
-# BY the seam, and no existing row can see them.
-#
-# Spelled as a member-access CALL rather than a bare name, deliberately, and it is what keeps the
-# baseline at zero without excluding the files that own the methods: `\.name\(` matches
-# `sampleBrowser.selectFileForClaim(` and `soundEditor.adoptResolvedContext(` and does NOT match
-# the declaration (`bool selectFileForClaim(`), the definition
-# (`void SoundEditor::adoptResolvedContext(`), or a `::`-qualified mention in prose. So the row's
-# scope needs exactly one exclusion -- the dispatcher -- and it names the one edge that is argued.
-#
-# Same ratchet-not-proof caveat as every symbol row here: a reference or pointer receiver
-# (`browser.selectFileForClaim(`) still matches because the match is on the member, not the
-# object, but a call through a `SampleBrowser*` written `->` would not. `->` is deliberately not
-# in the pattern: both objects are global singletons this tree only ever spells with a `.`
-# (`gui/ui/browser/sample_browser.h:184 extern SampleBrowser sampleBrowser`,
-# `gui/ui/sound_editor.h:239 extern SoundEditor soundEditor`), and adding `->` would be widening
-# the row past the mechanism that makes it checkable.
-CLAIM_SEAM_CALLS = (
-    "selectFileForClaim",
-    "adoptResolvedContext",
-)
-CLAIM_SEAM_RE = r"\.(selectFileForClaim|adoptResolvedContext)\("
 
 # The legacy files authorised to reach into the ported UI -- the `legacy-includes-port` and
 # `legacy-names-port` rows' exclusion list, one entry per argued seam. Everything else under
@@ -255,29 +203,13 @@ CLAIM_SEAM_RE = r"\.(selectFileForClaim|adoptResolvedContext)\("
 # * `gui/ui/shell_menu_entry.cpp` -- `openShellMenu`, the one door the fourteen entry points use.
 #   Its DECLARATION (`util/shell_menu_entry.h`) is likewise not excluded, and must stay includable
 #   from `model/clip/instrument_clip_minder.cpp`, which is why it names no port type.
-# * `gui/ui/sound_editor.cpp` -- `SoundEditor::setShortcutsVersion` mirrors flash byte 60 into
-#   `menu::set_shortcuts_version`, covering all four legacy writers in one call. The one seam that is not part of the guest.
 # * `gui/views/performance_view.cpp` -- `syncEditingModeMirror`, the four calls into
-#   `menu::set_performance_editing_mode`. The SECOND seam that is not part of the guest,
-#   and it is `sound_editor.cpp`'s exactly: a piece of legacy state the ported menu has to display
-#   but may not read, mirrored by its writers. `PerformEditorItem` shows
-#   `performanceView.defaultEditingMode`/`editingParam` (`gui/menu_item/performance_session_view/
-#   editing_mode.h:35-46`), which are members of a class `scenes-includes-gui` forbids -- and unlike
-#   `shortcutsVersion` there is no bare-`extern` escape from a class member, which is what makes the
-#   mirror the only shape available rather than the convenient one. Four call sites in one file,
-#   each writing nothing but the mirror; `scenes/menu/action.h` is the contract they answer to.
-# * `gui/menu_item/performance_session_view/editing_mode.h` -- the FIFTH call into
-#   `menu::set_performance_editing_mode`, and the only one outside
-#   `PerformanceView`. It is here because the mirror has to survive ShellMenu being turned on:
-#   `EditingMode::selectButtonPress` is legacy's own way into an editing mode, it runs with
-#   ShellMenu off, and it writes both bools. Without this call the mirror rots while the port is off
-#   and `PerformEditorItem` seeds its cursor from the rot at the next flip-on.
-#
-#   A HEADER rather than a `.cpp`, like `shell_host_ui.h` and `shell_guest_surfaces.h`. Exactly
-#   two translation units include it (`gui/ui/menus.cpp` and `sim/scenes_spec/menu_actions_spec.cpp`,
-#   with no transitive includers), so the port include it carries is not smuggled into the tree at
-#   large. If it ever gains a `.cpp`, the call
-#   belongs there and this entry should move with it.
+#   `menu::set_performance_editing_mode`. A piece of legacy state the ported menu has to display
+#   but may not read, mirrored by its writers: `performanceView.defaultEditingMode`/`editingParam`
+#   are members of a class `scenes-includes-gui` forbids, and there is no bare-`extern` escape from
+#   a class member, which is what makes the mirror the only shape available rather than the
+#   convenient one. Four call sites in one file, each writing nothing but the mirror;
+#   `scenes/menu/action.h` is the contract they answer to.
 LEGACY_PORT_SEAMS = (
     "src/deluge/deluge.cpp",
     "src/deluge/gui/ui/shell_host_ui.h",
@@ -289,21 +221,21 @@ LEGACY_PORT_SEAMS = (
     # The noun half of the same seam. It names
     # `deluge::scenes::browser::browser_scene()` for exactly the reason the row above does -- the
     # scene parks a chosen file it may not load, and this is the side of the wall that gets to name
-    # `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and `instrumentClipView`. Its HEADER
+    # `AudioEngine`, `PadLEDs` and `instrumentClipView`. Its HEADER
     # (`shell_choice_dispatch.h`) is deliberately NOT listed: it names no `scenes/` type, taking
     # `std::string_view` where the choice's path would go, so the seam is one translation unit wide.
     "src/deluge/gui/ui/shell_choice_dispatch.cpp",
     # The pad half of the same seam. It names `keyboardScreen`,
-    # `instrumentClipView` and `performanceView` -- the legacy views `SoundEditor::padAction`
-    # forwards to -- for the same reason the row above names
-    # `soundEditor`/`AudioEngine`/`slicer`/`PadLEDs`/`instrumentClipView`: this is the side of the
+    # `instrumentClipView` and `performanceView` -- the legacy views the pad grid forwards to --
+    # for the same reason the row above names
+    # `AudioEngine`/`PadLEDs`/`instrumentClipView`: this is the side of the
     # wall that gets to name them. Its HEADER (`shell_pad_forward.h`) is deliberately NOT listed: it
     # names no `scenes/` or `shell/` type, taking plain `int32_t` coordinates, so this seam is one
     # translation unit wide -- exactly the line `shell_choice_dispatch.h` draws above.
     #
     # The sixth arm, `automationView`, is the one arm that cannot be a bare
-    # forward: `SoundEditor::isEditingAutomationViewParam` reads `SoundEditor` state no guest path
-    # writes, so the question is ported rather than called.
+    # forward: whether the menu is editing an automation-view param is state no legacy object
+    # holds, so the question is ported rather than called.
     # That port is why this `.cpp` now also names `deluge::scenes::menu_scene()`
     # (`scenes/registry.h`) and reads a focused node's `deluge::scenes::menu::ParamRef`
     # (`scenes/menu/node.h`) -- both `scenes/` names, both covered by this same entry.
@@ -329,9 +261,7 @@ LEGACY_PORT_SEAMS = (
     "src/deluge/gui/ui/menu_view_of.h",
     "src/deluge/gui/ui/menu_view_of.cpp",
     "src/deluge/gui/ui/shell_menu_entry.cpp",
-    "src/deluge/gui/ui/sound_editor.cpp",
     "src/deluge/gui/views/performance_view.cpp",
-    "src/deluge/gui/menu_item/performance_session_view/editing_mode.h",
     # The note bridge's installer. `src/scenes` may include `model/**`
     # (`src/scenes/CMakeLists.txt`), so `Note`/`NoteRow` are not what earns this file its place
     # here -- it is `gui/views/instrument_clip_view.h`, which `src/scenes` may NOT include, and the
@@ -350,12 +280,12 @@ LEGACY_PORT_SEAMS = (
     # The note modes' routing through the guest. It names
     # `deluge::scenes::menu_scene()` (`scenes/registry.h`) and reads its `menu_context().root`
     # (`scenes/menu/menu_scene.h`), and walks `shellHostUI`'s `deluge::ui::shell::SceneStack` for the
-    # menu's identity -- the port's side of `SoundEditor::inNoteEditor()` / `inNoteRowEditor()`
-    # And it names `instrumentClipView`, whose note handlers `SoundEditor::buttonAction`, its two
-    # encoder hooks and `exitCompletely` forward to. That is the same pair of names
+    # menu's identity -- whether the note editor or a note-row editor is open.
+    # And it names `instrumentClipView`, whose note handlers the buttons, the two
+    # encoder hooks and the exit forward to. That is the same pair of names
     # `shell_pad_forward.cpp` above is listed for, and the same side of the wall.
     #
-    # What it names on each side. Legacy side: `soundEditor`,
+    # What it names on each side. Legacy side:
     # `closePortedMenu()` (`gui/ui/shell_action_dispatch.h`) and `runtimeFeatureSettings` (the toggle's `HorizontalMenus`
     # read). Port side: the `deluge::scenes::menu::nodes::*` note and row nodes plus
     # `sequence_direction` (`scenes/menu/nodes/note.h`), and `MenuScene::focused`, `read_value_again`,
@@ -420,16 +350,6 @@ RULES = [
         ("src/deluge/**", *LEGACY_PORT_SEAMS),
         "symbol",
         r"\bdeluge::(scenes|ui::shell)\b",
-        "2026-08-26-ui-migration-design.md",
-    ),
-    (
-        # The third row of the same wall, and the only one that points at legacy symbols rather
-        # than port ones: `CLAIM_SEAM_CALLS` above is the argument, and the scope is the whole of
-        # `src/deluge/**` less the one translation unit the seam was added for.
-        "legacy-calls-claim-seam",
-        ("src/deluge/**", "src/deluge/gui/ui/shell_choice_dispatch.cpp"),
-        "symbol",
-        CLAIM_SEAM_RE,
         "2026-08-26-ui-migration-design.md",
     ),
     (
@@ -566,7 +486,7 @@ RULES = [
         # of happen to live: `Sound` (`processing/sound/sound.h`) and `Source`
         # (`processing/source.h`). `menu/context.cpp` cannot resolve `sound->sources[i]`,
         # `source->ranges` or `sound->voicePriority` from a forward declaration, so without this
-        # the ported `SoundEditor::setup` could not be written at all.
+        # the menu's context could not be written at all.
         # NOTE: the pattern's `(?:.*/)` tail means this row only
         # ever inspects include paths that contain a `/`. A ROOT-LEVEL header -- `definitions_cxx.hpp`,
         # `deluge.h`, `<version.h>` -- is therefore not gated here at all, whether or not it is
@@ -762,11 +682,11 @@ RULES = [
     (
         # Same rule, `src/shell/**` side -- one glob per row, as `shell-no-clock` is three rows and
         # `scenes-no-legacy-waveform` two. `deluge_app` links `deluge_ui_shell` `PUBLIC`
-        # (`src/deluge/CMakeLists.txt`), so a bare `extern SoundEditor soundEditor;` in `src/shell`
+        # (`src/deluge/CMakeLists.txt`), so a bare `extern SessionView sessionView;` in `src/shell`
         # resolves, and `shell-includes-outside` is an INCLUDE row that a bare `extern` walks
         # straight past -- the same gap `scenes-no-root-ui` closes one layer up. The shell runs
         # inside the shipping firmware as `ShellHostUI`'s guest, so a shell file naming
-        # `soundEditor` would be naming the very object the guest replaces, in the same image.
+        # `sessionView` would be naming the very object the guest replaces, in the same image.
         "scenes-no-root-ui",
         "src/shell/**",
         "symbol",
@@ -1111,10 +1031,6 @@ AUDITED_SYMBOLS = (
     # `renderUIsForOled` are `gui/ui/ui.h`. No single directory declares all five, and a root
     # that covered only some of them would report the rest as "declared nowhere".
     ("scenes-no-legacy-hid-drivers", LEGACY_HID_DRIVERS, "src/deluge"),
-    # `src/deluge/gui/ui` rather than a narrower root: the two are declared in different
-    # subtrees of it (`browser/sample_browser.h` and `sound_editor.h`), and no directory below
-    # that declares both.
-    ("legacy-calls-claim-seam", CLAIM_SEAM_CALLS, "src/deluge/gui/ui"),
 )
 
 
