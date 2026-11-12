@@ -69,6 +69,9 @@ public:
 		return canPopulateAlternateSlot(alternateSlotIndex, rrCount);
 	}
 	void clearAlternateSlot(uint8_t alternateSlotIndex);
+	/// Removes every alternate and goes back to Cycle, leaving just the zone's own sample. For when the zone is
+	/// about to be given a whole new job, such as becoming one slice of a kit. Kill the sound's voices first.
+	void clearAllAlternates();
 	/// Computes which slot to play next and advances rrIndex in read-then-advance order.
 	/// rrCount is number of alternates (0..3), so pool size is rrCount + 1.
 	static uint8_t resolveNextSlotIndex(uint8_t rrCount, uint8_t& rrIndex) {

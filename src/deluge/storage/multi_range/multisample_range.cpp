@@ -142,6 +142,13 @@ void MultisampleRange::clearAlternateSlot(uint8_t alternateSlotIndex) {
 	}
 }
 
+void MultisampleRange::clearAllAlternates() {
+	while (rrCount > 0) {
+		clearAlternateSlot(0);
+	}
+	rrMode = RRMode::Cycle;
+}
+
 SampleHolderForVoice* MultisampleRange::getVariantHolder(uint8_t slotIndex) {
 	if (slotIndex == 0) {
 		return &sampleHolder;
