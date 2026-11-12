@@ -91,8 +91,9 @@ public:
 		return canPopulateAlternateSlot(alternateSlotIndex, rrCount);
 	}
 	void clearAlternateSlot(uint8_t alternateSlotIndex);
-	/// Removes every alternate and goes back to Cycle, leaving just the zone's own sample. For when the zone is
-	/// about to be given a whole new job, such as becoming one slice of a kit. Kill the sound's voices first.
+	/// Removes every alternate, goes back to Cycle and puts slot 1 back on the full velocity range, leaving the
+	/// zone as one without variants has it. For when the zone is about to be given a whole new job, such as
+	/// becoming one slice of a kit. Kill the sound's voices first.
 	void clearAllAlternates();
 	/// Shifts each velocity range down to follow the sample that clearAlternateSlot() just moved
 	/// into its position, and resets the vacated top slot to the full default range. The ranges are
@@ -275,8 +276,8 @@ public:
 	// --- Memory layout notes ---
 	// sampleHolder stays at offsetof(MultiRange)+padding = 8, identical to the pre-round-robin layout.
 	// alternates pointer (4) + rrCount (1) + rrIndex (1) + rrMode (1) + lastResolvedSlotIndex (1) = 8 bytes per zone.
-	// RoundRobinAlternates is a 12-byte pointer table. Each alternate holder (~88 bytes) is
-	// allocated independently only when that specific slot is populated.
+	// RoundRobinAlternates is 20 bytes: a 12-byte pointer table and two 4-byte arrays of velocity range ends.
+	// Each alternate holder (~88 bytes) is allocated independently only when that specific slot is populated.
 
 	SampleHolderForVoice sampleHolder;
 	/// nullptr until the first alternate sample is loaded into this zone.

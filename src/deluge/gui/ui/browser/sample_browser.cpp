@@ -1959,24 +1959,8 @@ skipOctaveCorrection:
 	// The first range may already carry round-robin alternates and a mode/velocity configuration
 	// from earlier manual use (only ranges[1..] got deleted above) - the loop below is about to
 	// repopulate it from the folder's contents, so start from a clean slate rather than mixing stale
-	// alternate data with the newly imported set. clearAlternateSlot() is reused here rather than
-	// hand-rolling deallocation again, since it already correctly destructs and frees each holder.
-	{
-		auto* firstRange = (MultisampleRange*)soundEditor.currentMultiRange;
-		while (firstRange->rrCount > 0) {
-			firstRange->clearAlternateSlot(0);
-		}
-		firstRange->rrMode = MultisampleRange::RRMode::Cycle;
-		// clearAlternateSlot() walks each alternate's velocity band back to the default as it
-		// compacts, but slot 0's band is never touched by that. Reset it too, so a re-import doesn't
-		// inherit a band from whatever was loaded here before. Only when the table already exists -
-		// if it doesn't, the getters return the defaults anyway and allocating one just to write
-		// them would be waste.
-		if (firstRange->alternates != nullptr) {
-			firstRange->setVelocityRange(0, MultisampleRange::kDefaultVelocityMin,
-			                             MultisampleRange::kDefaultVelocityMax);
-		}
-	}
+	// alternate data with the newly imported set.
+	static_cast<MultisampleRange*>(soundEditor.currentMultiRange)->clearAllAlternates();
 
 	// Samples that share a note become round-robin alternates of one shared range instead of each
 	// getting - or, as used to happen, silently losing - their own range. A group holds at most
