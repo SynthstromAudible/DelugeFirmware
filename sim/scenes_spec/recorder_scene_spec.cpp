@@ -62,6 +62,7 @@
 #include "hid/led/pad_leds.h"
 #include "integration/scenarios/slot_coherence.h"
 #include "memory/heaps.h"
+#include "model/action/action_logger.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/project_bridge/slot_bridge.h"
@@ -70,19 +71,24 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/recording/foreground_recording.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
+#include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 #include "runtime/app_loop.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multisample_range.h"
+#include "storage/storage_manager.h"
 
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
 
+#include "support/forwarding_facts.h"
 #include "support/menu_engine.h"
 #include "support/song_fixture.h"
+#include "support/torn_down_take.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
 // headers this drags in.
@@ -100,6 +106,7 @@
 #include <cstdlib>
 #include <functional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -193,6 +200,7 @@ struct Rig {
 		while (on_stack()) {
 			shell.stack().pop(deluge::ui::shell::SceneKind::Null);
 		}
+		spec::settle_torn_down_take(); // a take ended with its screen keeps the next one out until it is freed
 		currentSong = saved_song;
 		menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	}
@@ -221,6 +229,12 @@ struct Rig {
 		if (sink != nullptr) {
 			c.sink = sink;
 		}
+		recorder_scene().open(c);
+		shell.init(SceneId{kRecorderSceneKind, 0});
+	}
+
+	/// @brief Open the recorder on @p c, a context the example has changed.
+	void open_on(const MenuContext& c) {
 		recorder_scene().open(c);
 		shell.init(SceneId{kRecorderSceneKind, 0});
 	}
@@ -413,6 +427,7 @@ struct KitRig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(deluge::ui::shell::SceneKind::Null);
 		}
+		spec::settle_torn_down_take(); // a take ended with its screen keeps the next one out until it is freed
 		currentSong = saved_song;
 		menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	}
@@ -579,6 +594,13 @@ struct NothingPluggedIn {
 /// order and the `Rig` (declared after) tears the scene stack down, so `RecorderScene::on_exit` has
 /// already run by the time `NoForegroundRecording` checks.
 struct Guards {
+	/// Runs after every later local has torn its stack down (the global guest's among them), and before
+	/// `publication` checks.
+	~Guards() { spec::settle_torn_down_take(); }
+	Guards() = default;
+	Guards(const Guards&) = delete;
+	Guards& operator=(const Guards&) = delete;
+
 	deluge::scenes::spec::QuietAudio quiet;
 	deluge::scenes::spec::NoSdRoot no_card;
 	DrainedNotices notices;
@@ -590,6 +612,25 @@ struct Guards {
 bool recorder_on_stack(deluge::ui::shell::Shell& shell) {
 	return std::ranges::any_of(shell.stack().scenes(),
 	                           [](const deluge::ui::shell::Scene* s) { return s->kind() == kRecorderSceneKind; });
+}
+
+/// @brief Whether a notice of @p kind, saying @p text when one is given, is queued; empties the queue.
+bool drained_notice(deluge::notify::Notice::Kind kind, std::string_view text = {}) {
+	bool seen = false;
+	deluge::notify::Notice notice;
+	while (deluge::notify::notices().pop(notice)) {
+		seen = seen || (notice.kind == kind && (text.empty() || std::string_view{notice.text} == text));
+	}
+	return seen;
+}
+
+/// @brief A synth built the way a preset load builds one, its params backed up with the song, not yet in it.
+SoundInstrument* loose_synth(::Song& song) {
+	ParamManagerForTimeline params;
+	auto* synth = static_cast<SoundInstrument*>(StorageManager::createNewInstrument(OutputType::SYNTH, &params));
+	synth->setupAsDefaultSynth(&params);
+	song.live.param_backup.backUp(synth, nullptr, &params, true);
+	return synth;
 }
 
 /// @brief Hold `AudioEngine::audioSampleTimer`, the clock legacy's threshold screen blinks by, at a time in
@@ -1040,7 +1081,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		}
 		expect(recorder_on_stack(shellHostUI.shell())).to_be_true();
 		expect(recorder_scene().last_enter_refused()).to_be_false();
-		// The take ends from outside (its `on_exit` aborts the recorder); the menu resumes and goes up, out.
+		// The take ends from outside (its `on_exit` ends it and keeps its file); the menu resumes and goes up, out.
 		(void)shellHostUI.shell().stack().remove(kRecorderSceneKind);
 		for (int32_t i = 0; i < 8 && isUIOpen(&shellHostUI); i++) {
 			(void)shellHostUI.timerCallback();
@@ -1199,9 +1240,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.tick(20);
 	});
 
-	it("throws an armed recorder away when it is removed from outside", _ {
-		// The divergence `on_exit` exists for: legacy's `process()` blocks until it has closed
-		// itself, so legacy never reaches this. A scene can be popped by a song load.
+	it("ends a take torn down under it and keeps its file, attached to nothing, freed once it has settled", _ {
+		// `AudioRecorder::tick`'s `!isUIOpen(this)` arm: the screen is gone, so what the take was for may be too.
 		Guards g;
 		Rig r;
 		r.open();
@@ -1212,16 +1252,124 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.shell.stack().pop(deluge::ui::shell::SceneKind::Null);
 		r.tick(10);
 		expect(recorder_scene().recording()).to_be_false();
-		expect(static_cast<int32_t>(rec->status.load())).to_equal(static_cast<int32_t>(RecorderStatus::ABORTED));
-		expect(rec->pointerHeldElsewhere).to_be_false();
-		// ...and the foreground-recording publication is cleared, so the nine subsystems that gate
-		// on it do not keep seeing a recording that is over. Without this the leak is invisible:
-		// `before_each` clears the pair defensively, so the next example would not notice either.
+		// Ended, not aborted: an abort deletes the part-written file.
+		expect(rec->status.load() != RecorderStatus::ABORTED).to_be_true();
+		expect(rec->status.load() != RecorderStatus::CAPTURING_DATA).to_be_true();
+		// Still the foreground recording until it settles: freed any earlier, a write could still be reading it.
+		expect(AudioEngine::foregroundRecorder() == rec).to_be_true();
+		deluge::recording::slowRoutine();
+		expect(AudioEngine::foregroundRecorder() == rec).to_be_true();
+
+		rec->status = RecorderStatus::COMPLETE; // what the card routine leaves once the file is closed
+		deluge::recording::slowRoutine();
 		expect(static_cast<int32_t>(AudioEngine::foregroundRecordingSource()))
 		    .to_equal(static_cast<int32_t>(AudioInputChannel::NONE));
 		expect(AudioEngine::foregroundRecorder() == nullptr).to_be_true();
-		// Nothing was attached on the way out.
 		expect(r.range->getAudioFileHolder()->audioFile == nullptr).to_be_true();
+		expect(static_cast<int32_t>(r.source->oscType)).to_equal(static_cast<int32_t>(OscType::SQUARE));
+	});
+
+	it("refuses a take with a Loading popup while a load may replace its sound, and keeps the undo log", _ {
+		Guards g;
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		Rig r;
+		setRootUILowLevel(&instrumentClipView); // `getNewAction` logs only with a view on top
+		actionLogger.deleteAllLogs();
+		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
+		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+
+		MenuContext c = r.ctx();
+		const deluge::scenes::spec::ForwardingFacts loading{*c.facts, {.output_may_be_replaced = true}};
+		c.facts = &loading;
+		r.open_on(c); // `on_enter` runs as the scene is pushed
+		expect(drained_notice(deluge::notify::Notice::Kind::Text, "Loading")).to_be_true();
+		r.tick(0);
+		expect(r.on_stack()).to_be_false();
+		expect(recorder_scene().recording()).to_be_false();
+		expect(recorder_scene().last_enter_refused()).to_be_true();
+		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		actionLogger.deleteAllLogs();
+	});
+
+	it("attaches the take to the range it began on after a range is inserted before it", _ {
+		Guards g;
+		Rig r;
+		r.open();
+		r.tick(0);
+		SampleRecorder* rec = recorder_scene().recorder();
+		const Take take{*rec, "SAMPLES/RECORD/REC020.WAV"};
+		// A range below the one the take is for: that range is now the source's second.
+		expect(menu::host_write_sink().insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
+		rec->status = RecorderStatus::COMPLETE;
+		r.tick(10);
+		expect(r.on_stack()).to_be_false();
+		expect(r.source->ranges.size()).to_equal(size_t{2});
+		expect(r.source->ranges.getElement(1)->getAudioFileHolder()->audioFile == static_cast<AudioFile*>(take.sample))
+		    .to_be_true();
+		expect(r.source->ranges.getElement(0)->getAudioFileHolder()->audioFile == nullptr).to_be_true();
+	});
+
+	it("keeps the take unattached, silently, when its range was replaced by another at the same place", _ {
+		Guards g;
+		Rig r;
+		r.open();
+		r.tick(0);
+		SampleRecorder* rec = recorder_scene().recorder();
+		const Take take{*rec, "SAMPLES/RECORD/REC021.WAV"};
+		expect(menu::host_write_sink().insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
+		expect(menu::host_write_sink().delete_range(r.slot(), 0, 1, std::nullopt)).to_be_true();
+		(void)drained_notice(deluge::notify::Notice::Kind::Error);
+		rec->status = RecorderStatus::COMPLETE;
+		r.tick(10);
+		expect(r.on_stack()).to_be_false();
+		expect(r.source->ranges.getElement(0)->getAudioFileHolder()->audioFile == nullptr).to_be_true();
+		expect(static_cast<int32_t>(r.source->oscType)).to_equal(static_cast<int32_t>(OscType::SQUARE));
+		expect(drained_notice(deluge::notify::Notice::Kind::Error)).to_be_false();
+	});
+
+	it("keeps the take unattached, silently, when its edited synth is replaced under it and only sleeps in the song", _ {
+		Guards g;
+		Rig r;
+		r.open();
+		r.tick(0);
+		SampleRecorder* rec = recorder_scene().recorder();
+		const Take take{*rec, "SAMPLES/RECORD/REC022.WAV"};
+		// A preset change under the take: the edited synth hibernates under its own output id. The clip plays it first,
+		// as a loaded song's does: `Song::replaceInstrument` reads its params through the active clip.
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		r.song.instrument->setActiveClip(setupModelStackWithTimelineCounter(memory, r.song.song, r.song.clip));
+		r.song.instrument->editedByUser = true;
+		SoundInstrument* replacement = loose_synth(*r.song.song);
+		r.song.song->replaceInstrument(r.song.instrument, replacement);
+		expect(r.song.song->live.media.first_hibernating_instrument == r.song.instrument).to_be_true();
+		rec->status = RecorderStatus::COMPLETE;
+		r.tick(10);
+		expect(r.on_stack()).to_be_false();
+		expect(static_cast<int32_t>(r.source->oscType)).to_equal(static_cast<int32_t>(OscType::SQUARE));
+		expect(replacement->sources[0].oscType != OscType::SAMPLE).to_be_true();
+		expect(drained_notice(deluge::notify::Notice::Kind::Error)).to_be_false();
+	});
+
+	it("keeps the take unattached, silently, in another song, even one with a sound at its slot", _ {
+		Guards g;
+		Rig r;
+		r.open();
+		r.tick(0);
+		SampleRecorder* rec = recorder_scene().recorder();
+		const Take take{*rec, "SAMPLES/RECORD/REC023.WAV"};
+		spec::SongFixture other = spec::make_synth_song();
+		other.instrument->setId(r.slot().id); // another song's first track can have the same output id
+		auto* other_sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(other.instrument->toModControllable()));
+		(void)other_sound->sources[0].getOrCreateFirstRange();
+		const OscType before = other_sound->sources[0].oscType;
+		currentSong = other.song;
+		rec->status = RecorderStatus::COMPLETE;
+		r.tick(10);
+		currentSong = r.song.song;
+		expect(r.on_stack()).to_be_false();
+		expect(static_cast<int32_t>(other_sound->sources[0].oscType)).to_equal(static_cast<int32_t>(before));
+		expect(static_cast<int32_t>(r.source->oscType)).to_equal(static_cast<int32_t>(OscType::SQUARE));
+		expect(drained_notice(deluge::notify::Notice::Kind::Error)).to_be_false();
 	});
 
 	it("greys out every column of the grid, exactly as getGreyoutColsAndRows does", _ {
@@ -1609,7 +1757,10 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.open();
 		r.tick(0);
 		expect(recorder_scene().threshold_take()).to_be_false();
-		expect(recorder_scene().recorder()->monitorInputLevels.load()).to_be_false();
+		// Armed only once the first take is freed: a take still live refuses the second.
+		expect(recorder_scene().recorder() != nullptr).to_be_true();
+		expect(recorder_scene().recorder() != nullptr && recorder_scene().recorder()->monitorInputLevels.load())
+		    .to_be_false();
 	});
 
 	it("releases a next song held for the take as the take ends, as finishRecording does", _ {

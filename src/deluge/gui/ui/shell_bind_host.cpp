@@ -14,8 +14,13 @@
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/load/instrument_load.h"
+#include "gui/ui/load/load_pattern_ui.h"
+#include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/reversion.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/randomize_drums.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "instruments/deluge/settings.h"
@@ -256,6 +261,13 @@ public:
 		return deluge::gui::sampleClaim.explicitInFlight() || deluge::gui::folderImport.inFlight()
 		       || deluge::gui::ui::shellSlicerBusy();
 	}
+	[[nodiscard]] bool output_may_be_replaced() const override {
+		using namespace deluge::gui;
+		return instrumentLoad.inFlight() || loadPatternUI.loadInFlight() || reversion.inFlight()
+		       || loadSongUI.isLoadInFlight() || randomizeDrums.inFlight() || sampleClaim.inFlight()
+		       || folderImport.inFlight();
+	}
+	[[nodiscard]] std::optional<uint16_t> take_range(const deluge::scenes::bind::TakeTarget& target) const override;
 	[[nodiscard]] bool auditioning() const override { return isUIModeActive(UI_MODE_AUDITIONING); }
 	[[nodiscard]] deluge::scenes::bind::FlashCursor flash_cursor() const override {
 		return static_cast<deluge::scenes::bind::FlashCursor>(PadLEDs::flashCursor);
@@ -350,6 +362,51 @@ public:
 ::AudioClip* audioClipAt(deluge::project::ClipAddress clip) {
 	::Clip* found = currentSong != nullptr ? currentSong->clipForId(clip.clip_id) : nullptr;
 	return found != nullptr && found->type == ClipType::AUDIO ? static_cast<::AudioClip*>(found) : nullptr;
+}
+
+/// Whether @p clip plays the sound @p slot names: a synth clip its own track, a kit clip one of its kit's sound rows. A
+/// replaced synth kept hibernating under its id is not one: no clip plays it.
+bool clipPlaysSlot(const ::Clip& clip, deluge::project::SlotAddress slot) {
+	using Kind = deluge::project::SlotAddress::Kind;
+	if (clip.output == nullptr) {
+		return false;
+	}
+	if (slot.kind == Kind::OUTPUT) {
+		return clip.output->type == OutputType::SYNTH && clip.output->id() == slot.id;
+	}
+	if (clip.output->type != OutputType::KIT) {
+		return false;
+	}
+	for (const Drum* drum = static_cast<const Kit*>(clip.output)->firstDrum; drum != nullptr; drum = drum->next) {
+		if (drum->type == DrumType::SOUND && drum->id() == slot.id) {
+			return true;
+		}
+	}
+	return false;
+}
+
+std::optional<uint16_t> ShellRuntimeFacts::take_range(const deluge::scenes::bind::TakeTarget& target) const {
+	// `AudioRecorder::targetStillHeld`, by identity: the song, then the clip and what it plays, then the range
+	// wherever it now sits.
+	if (currentSong == nullptr || currentSong->project.identity() != target.song || !target.clip || !target.range
+	    || target.source >= kNumSources) {
+		return std::nullopt;
+	}
+	::Clip* clip = currentSong->clipForId(target.clip->clip_id);
+	if (clip == nullptr || !clipPlaysSlot(*clip, target.slot)) {
+		return std::nullopt;
+	}
+	const ::Sound* sound = deluge::bridge::soundAt(*currentSong, target.slot);
+	if (sound == nullptr) {
+		return std::nullopt;
+	}
+	const MultiRangeArray& ranges = sound->sources[target.source].ranges;
+	for (int32_t i = 0; i < std::ssize(ranges); i++) {
+		if (ranges.getElement(i)->identity() == *target.range) {
+			return static_cast<uint16_t>(i);
+		}
+	}
+	return std::nullopt;
 }
 
 static_assert(kMaxNumPatchCables <= deluge::scenes::bind::kMaxCables);

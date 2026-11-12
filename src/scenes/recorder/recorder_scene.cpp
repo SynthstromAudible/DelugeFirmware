@@ -21,6 +21,7 @@
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/recording/foreground_recording.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -65,6 +66,9 @@ constexpr std::string_view kRecording = "Recording";
 /// raises the same thing: `Notices::drain` turns a `Working` notice into `SceneKind::Working` over
 /// this scene (`shell/notices.cpp`), and `ClearWorking` takes it away again.
 constexpr std::string_view kWorking = "Working";
+
+/// `opened()`'s `display->displayPopup("Loading")`: a literal, as legacy's is.
+constexpr std::string_view kLoading = "Loading";
 
 /// How many numbers `name_drum` tries after "REC" before it gives up: more than a kit has rows.
 constexpr int32_t kMaxRecNumber = 1000;
@@ -167,6 +171,12 @@ bool RecorderScene::setup_recording() {
 bool RecorderScene::on_enter(const SceneId& id) {
 	(void)id;                   // No instance argument: there is exactly one recorder screen.
 	last_enter_refused_ = true; // until the take has begun
+	// `opened()`'s first refusal, ahead of the undo-log wipe so a refused take leaves the history intact: a load is
+	// running that may swap out what the take would attach to.
+	if (ctx_.facts != nullptr && ctx_.facts->output_may_be_replaced()) {
+		notify::notice_text(kLoading);
+		return false;
+	}
 	if (!can(ctx_)) {
 		return false;
 	}
@@ -193,6 +203,9 @@ bool RecorderScene::on_enter(const SceneId& id) {
 	menu::host_clear_tick_squares();
 	// `beginRecording`'s `blinkLed(BACK)` and `blinkLed(RECORD, 255, 1)` (`AudioRecorder::opened`) on success.
 	blink_restart_ = setup_recording();
+	if (blink_restart_) {
+		target_ = take_target();
+	}
 	// `opened()`'s last statement, whether the take began or not.
 	menu::host_end_audition(menu::AuditionEnd::ClipViewWhenAuditioning);
 	last_enter_refused_ = !blink_restart_;
@@ -200,28 +213,16 @@ bool RecorderScene::on_enter(const SceneId& id) {
 }
 
 void RecorderScene::on_exit() {
-	// **A divergence with no legacy counterpart, because legacy cannot reach it.** `process()`
-	// blocks inside the menu item until it has called `close()` itself, so the recorder UI is never
-	// torn down from outside. A scene can be: an external `Pop`, a `replace_root`, a song load. A
-	// recorder left armed there would keep capturing into a file nothing owns, and
-	// `finishRecording`'s `discardRecorder` would never run.
-	//
-	// So an armed recorder is thrown away exactly as `AudioClip::abortRecording` throws one away
-	// (`model/clip/audio_clip.cpp:120-132`): clear `pointerHeldElsewhere` *before* `abort()`, which
-	// is that function's own load-bearing comment, and drop the pointer. `abort()` deletes the
-	// part-written file; `doRecorderCardRoutines` reaps the object.
-	//
-	// The ordinary close path never gets here with a recorder: `after_render`'s completion arm has
-	// already run `finish_recording()`.
+	// The screen is going while its take runs: removed from outside, or the whole stack taken down by a song load or a
+	// clear. What the take was for may be going too, so the take ends and its file stays on the card, attached to
+	// nothing; the foreground recording frees the recorder once it has settled (`deluge::recording::slowRoutine`). The
+	// ordinary close never gets here with a recorder: `after_render`'s completion arm has already finished it.
 	if (recorder_ != nullptr) {
-		recorder_->pointerHeldElsewhere = false;
-		// Unpublished before the abort, for `finish_recording`'s reason: nine subsystems read the
-		// pair, and none of them wants to see an aborted recording still described as live.
-		AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);
-		recorder_->abort();
+		deluge::recording::orphanInputTake();
 		recorder_ = nullptr;
 		notify::notice_kind(notify::Notice::Kind::ClearWorking);
 	}
+	target_ = {};
 	stopping_ = false;
 }
 
@@ -253,11 +254,32 @@ void RecorderScene::attach_sample() {
 	if (ctx_.sink == nullptr) {
 		return;
 	}
-	if (!ctx_.sink->attach_recording(*ctx_.addresses.slot, static_cast<uint8_t>(ctx_.source_index),
-	                                 static_cast<uint16_t>(ctx_.range_index), recorder_->sample->filePath.c_str())) {
+	// `targetStillHeld`: the take lands only on the range it began on, wherever that range now sits, and only while
+	// the same clip of the same song still plays its sound. Otherwise it stays on the card, attached to nothing, with
+	// no popup.
+	const std::optional<uint16_t> range = ctx_.facts != nullptr ? ctx_.facts->take_range(target_) : std::nullopt;
+	if (!range) {
+		return;
+	}
+	if (!ctx_.sink->attach_recording(target_.slot, target_.source, *range, recorder_->sample->filePath.c_str())) {
 		// The take is on the card, but the sound did not get it.
 		notify::notice_error_code(static_cast<int16_t>(Error::UNSPECIFIED));
 	}
+}
+
+bind::TakeTarget RecorderScene::take_target() const {
+	// The clip, the sound, its source and its range as the take begins, each by the identity that names that object
+	// alone, so a sound or a range that later takes its place is not mistaken for it.
+	const auto source = static_cast<uint8_t>(ctx_.source_index);
+	return bind::TakeTarget{
+	    .song = ctx_.model != nullptr ? ctx_.model->identity() : 0,
+	    .clip = ctx_.addresses.clip,
+	    .slot = *ctx_.addresses.slot,
+	    .source = source,
+	    .range = ctx_.facts != nullptr
+	                 ? ctx_.facts->range_identity(*ctx_.addresses.slot, source, static_cast<uint16_t>(ctx_.range_index))
+	                 : std::nullopt,
+	};
 }
 
 void RecorderScene::finish_recording() {

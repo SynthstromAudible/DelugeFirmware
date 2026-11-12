@@ -85,9 +85,10 @@
 ///
 /// Both directions go through `AudioEngine::setForegroundRecording` /
 /// `AudioEngine::foregroundRecordingSource` (`processing/engines/audio_engine.h`) -- **the same
-/// storage every other writer and reader uses**. `setup_recording` publishes, `finish_recording`
-/// and `on_exit` clear, and `can()` reads it for legacy's own "already recording" refusal in
-/// `AudioRecorder::opened`.
+/// storage every other writer and reader uses**. `setup_recording` publishes and `finish_recording`
+/// clears; `on_exit` hands a take still running to `deluge::recording::orphanInputTake`, which
+/// clears once the recorder has settled; and `can()` reads it for legacy's own "already recording"
+/// refusal in `AudioRecorder::opened`.
 ///
 /// The first version of this scene did none of that: it guessed at legacy's refusal with
 /// `AudioEngine::isAnyInternalRecordingHappening()` (which does not see an external recording at
@@ -143,6 +144,7 @@
 ///          scene's to file. `LockInput` would *drop* those presses instead, and could not be
 ///          released from `on_exit()`.
 
+#include "scenes/bind/runtime_facts.h"
 #include "scenes/menu/context.h"
 #include "shell/scene.h"
 #include "ui/grid/effects.h"
@@ -272,6 +274,8 @@ private:
 	bool name_drum();
 	/// @brief `process()`'s success arm (`:212-218`): hand the finished sample to the source.
 	void attach_sample();
+	/// @brief `opened()`'s `target_`: what the take is for, each part by its identity.
+	bind::TakeTarget take_target() const;
 
 	menu::MenuContext ctx_{};
 
@@ -288,6 +292,8 @@ private:
 	bool blink_restart_ = false;
 	/// Whether the last `on_enter` refused; see `last_enter_refused`.
 	bool last_enter_refused_ = false;
+	/// What the take is for: it attaches there or nowhere (`RuntimeFacts::take_range`).
+	bind::TakeTarget target_{};
 	/// When the shortcut blink's counter started: the take's first grid pass.
 	std::optional<uint32_t> blink_anchor_ms_{};
 	/// The counter step last fired, so two repaints inside one step flash once.

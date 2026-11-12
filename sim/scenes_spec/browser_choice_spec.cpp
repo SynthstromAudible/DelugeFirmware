@@ -92,6 +92,7 @@
 
 #include "support/global_guest_menu.h"
 #include "support/song_fixture.h"
+#include "support/torn_down_take.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
 // headers this drags in (`audio_engine.h` -> `util/container/ordered_pos_vector.h`).
@@ -1592,11 +1593,13 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, true) == ActionResult::DEALT_WITH).to_be_true();
 		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, false) == ActionResult::NOT_DEALT_WITH)
 		    .to_be_true();
-		// The press ended the take; tear the stack down so the recorder is thrown away rather than left armed.
+		// The press ended the take; tear the stack down so the recorder is ended rather than left armed, and settle it.
 		while (shellHostUI.shell().stack().depth() > 0) {
 			shellHostUI.shell().stack().pop(SceneKind::Null);
 		}
 		expect(deluge::scenes::recorder::recorder_scene().recording()).to_be_false();
+		spec::settle_torn_down_take();
+		expect(AudioEngine::foregroundRecorder() == nullptr).to_be_true();
 	});
 
 	it("hands a vertical turn to the instrument clip view beneath, and keeps it with X_ENC held", _ {

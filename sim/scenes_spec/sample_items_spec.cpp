@@ -58,6 +58,7 @@
 #include "support/oracle_table.h"
 #include "support/sample_items_fixtures.h"
 #include "support/song_fixture.h"
+#include "support/torn_down_take.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
 // headers this drags in (`audio_engine.h` -> `util/container/ordered_pos_vector.h`).
@@ -221,6 +222,7 @@ struct SoundRig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
+		spec::settle_torn_down_take();      // a take ended with its screen keeps the next one out until it is freed
 		menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	}
 

@@ -28,6 +28,9 @@ namespace deluge::recording {
 
 namespace {
 
+/// Whether the input take has no screen: slowRoutine() frees its recorder once it has settled.
+bool inputTakeOrphaned = false;
+
 bool setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels, AudioRecordingFolder folderID,
                           bool writeLoopPoints = false, bool shouldNormalize = true) {
 
@@ -116,6 +119,17 @@ void slowRoutine() {
 			finishRecording();
 		}
 	}
+	else if (inputTakeOrphaned) {
+		// An input take whose screen went under it: freed once settled, attached to nothing.
+		SampleRecorder* recorder = AudioEngine::foregroundRecorder();
+		if (!inputTakeInProgress() || recorder == nullptr) {
+			inputTakeOrphaned = false;
+		}
+		else if (recorder->settled()) {
+			inputTakeOrphaned = false;
+			finishRecording();
+		}
+	}
 }
 
 bool isCurrentlyResampling() {
@@ -128,6 +142,18 @@ bool inputTakeInProgress() {
 	return AudioEngine::foregroundRecorder() != nullptr
 	       && AudioEngine::foregroundRecordingSource() > AudioInputChannel::NONE
 	       && AudioEngine::foregroundRecordingSource() < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION;
+}
+
+void orphanInputTake() {
+	SampleRecorder* recorder = AudioEngine::foregroundRecorder();
+	if (!inputTakeInProgress() || recorder == nullptr) {
+		return;
+	}
+	// Nothing is drawn for the take: the screen that showed it is gone.
+	if (recorder->status == RecorderStatus::CAPTURING_DATA) {
+		recorder->endSyncedRecording(kInternalButtonPressLatency);
+	}
+	inputTakeOrphaned = true;
 }
 
 bool beginInputRecording(AudioInputChannel channel, int32_t numChannels) {

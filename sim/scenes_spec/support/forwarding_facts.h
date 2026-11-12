@@ -22,12 +22,14 @@ public:
 		bool popup_showing = false;                            ///< a popup said to be up
 		bool auditioning = false;                              ///< legacy's `UI_MODE_AUDITIONING` said to be up
 		std::optional<deluge::scenes::bind::CableList> cables; ///< the sound's cables said to be these
+		bool output_may_be_replaced = false;                   ///< a load that can replace an output said to be running
 	};
 	ForwardingFacts(const deluge::scenes::bind::RuntimeFacts& real, Overrides overrides)
 	    : real_(real), overrides_(overrides) {}
 	[[nodiscard]] bool sample_load_in_flight() const override { return overrides_.sample_load_in_flight; }
 	[[nodiscard]] bool popup_showing() const override { return overrides_.popup_showing; }
 	[[nodiscard]] bool auditioning() const override { return overrides_.auditioning; }
+	[[nodiscard]] bool output_may_be_replaced() const override { return overrides_.output_may_be_replaced; }
 	/// @brief Answer @p overrides from now on, for an example whose state changes part-way.
 	void set(Overrides overrides) { overrides_ = overrides; }
 	[[nodiscard]] std::optional<uint16_t> default_range(deluge::project::SlotAddress slot,
@@ -37,6 +39,9 @@ public:
 	[[nodiscard]] std::optional<uint64_t> range_identity(deluge::project::SlotAddress slot, uint8_t source,
 	                                                     uint16_t range) const override {
 		return real_.range_identity(slot, source, range);
+	}
+	[[nodiscard]] std::optional<uint16_t> take_range(const deluge::scenes::bind::TakeTarget& target) const override {
+		return real_.take_range(target);
 	}
 	[[nodiscard]] std::optional<deluge::scenes::bind::DxCartridgeNames> dx_cartridge() const override {
 		return real_.dx_cartridge();

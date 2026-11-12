@@ -32,12 +32,15 @@ bool beginOutputRecording(AudioRecordingFolder folder = AudioRecordingFolder::RE
                           bool shouldNormalize = true);
 /// @brief Stops a capturing recording @p buttonLatency samples back and shows "Working" until it is finished.
 void endRecordingSoon(int32_t buttonLatency = 0);
-/// @brief Finishes a settled internal-source take. Never touches an input take, which the recorder UI finishes.
+/// @brief Finishes a settled internal-source take, and a settled input take orphanInputTake() handed over.
 void slowRoutine();
 /// Whether an internal-source recording (resampling, stem export) is capturing.
 bool isCurrentlyResampling();
 /// Whether an audio-input take is in progress: a recorder published on `LEFT` or `STEREO`.
 bool inputTakeInProgress();
+/// @brief Ends the input take whose screen is gone and keeps its file, attached to nothing: the take stops capturing
+///        and stays the foreground recording until its recorder has settled, when slowRoutine() frees it.
+void orphanInputTake();
 
 // Only the legacy `AudioRecorder` UI's input take calls these two, and they go with it.
 
