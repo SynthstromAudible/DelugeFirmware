@@ -258,6 +258,15 @@ Permission permission_for(const Node& node, const MenuContext& ctx);
 ///        fails); @p ctx itself otherwise.
 MenuContext range_rule_context(const Node& node, const MenuContext& ctx);
 
+/// @brief The context @p node's first range is made in and its picker test reads: @p ctx itself when the rule is
+///        about the menu's own source, so the range it resolves stays the menu's; @p own, filled with
+///        `range_rule_context`'s answer, when it is about another source.
+/// @param node The range-specific item.
+/// @param ctx  The menu's context.
+/// @param own  Storage for the other source's context; must outlive the returned reference.
+/// @return @p ctx or @p own.
+MenuContext& range_rule_target(const Node& node, MenuContext& ctx, MenuContext& own);
+
 /// @brief How many ranges the addressed source records.
 ///
 /// The range picker draws one row per range and has to know how many there are; a context with no

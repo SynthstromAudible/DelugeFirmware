@@ -268,18 +268,18 @@ std::string_view page_title(const MenuContext& ctx, const MenuState& st, NodeTex
 	return display_text(titled, ValueTextUse::Title, ctx, scratch);
 }
 
-bool MenuWalk::enter_range_picker_if_needed(MenuCore core, ValueSession& session, const Node& child,
-                                            bool suppress_when_allowed) {
+RangeGate MenuWalk::enter_range_picker_if_needed(MenuCore core, ValueSession& session, const Node& child,
+                                                 bool suppress_when_allowed) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	// The first range goes to the source the item's own rule is about (`range_rule_context`): REC 2's oscillator, not
-	// the menu's. A refusal is `main`'s `displayError(INSUFFICIENT_RAM)` and `MenuPermission::NO`: the menu stays put.
+	// the menu's. A refusal is `main`'s `displayError(INSUFFICIENT_RAM)` and `MenuPermission::NO`.
 	if (child.range_specific) {
-		MenuContext own = range_rule_context(child, ctx);
-		if (!ensure_first_range(own.source_index == ctx.source_index ? ctx : own)) {
+		MenuContext own;
+		if (!ensure_first_range(range_rule_target(child, ctx, own))) {
 			deluge::notify::notice_string(
 			    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));
-			return true;
+			return RangeGate::Refused;
 		}
 	}
 	// `handleInstrumentButtonPress`'s own suppression (`horizontal_menu.cpp:427-428`):
@@ -289,15 +289,15 @@ bool MenuWalk::enter_range_picker_if_needed(MenuCore core, ValueSession& session
 	// unconditionally, exactly as their own legacy call sites do (`:424`, `:669-677`, neither reads
 	// `allowToBeginSessionFromHorizontalMenu` at all).
 	if (suppress_when_allowed && child.allow_session_from_horizontal) {
-		return false;
+		return RangeGate::Proceed;
 	}
 	if (permission_for(child, ctx) != Permission::MustSelectRange) {
-		return false;
+		return RangeGate::Proceed;
 	}
 	st.walk.range_picker_pending = true;
 	st.walk.pending_after_range = &child;
 	descend_to(core, session, nodes::multi_range);
-	return true;
+	return RangeGate::Picker;
 }
 
 void MenuWalk::enter_horizontal_item(MenuCore core, ValueSession& session, const Node& child) {
@@ -307,7 +307,7 @@ void MenuWalk::enter_horizontal_item(MenuCore core, ValueSession& session, const
 	// answer -- `Yes`, and `No`, which `handleItemAction` never even reads -- enters unconditionally
 	// (`soundEditor.enterSubmenu(menuItem)`, no `shouldEnterSubmenu()`/`Permission::No` gate at all,
 	// unlike `enter_child`'s general descend).
-	if (!enter_range_picker_if_needed(core, session, child, /*suppress_when_allowed=*/false)) {
+	if (enter_range_picker_if_needed(core, session, child, /*suppress_when_allowed=*/false) != RangeGate::Picker) {
 		descend_to(core, session, child);
 	}
 }
@@ -356,7 +356,7 @@ void MenuWalk::enter_child(MenuCore core, ValueSession& session, const Node& chi
 	// `MUST_SELECT_RANGE` substitution (`:1857-1858`): both factored into
 	// `enter_range_picker_if_needed`, which `handle()`'s button-focus code shares -- see its own
 	// doc for why the two callers need the same piece.
-	if (enter_range_picker_if_needed(core, session, child, /*suppress_when_allowed=*/false)) {
+	if (enter_range_picker_if_needed(core, session, child, /*suppress_when_allowed=*/false) != RangeGate::Proceed) {
 		return;
 	}
 	if (permission_for(child, ctx) == Permission::No) {

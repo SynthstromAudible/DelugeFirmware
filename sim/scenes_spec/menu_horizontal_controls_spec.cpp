@@ -39,6 +39,7 @@
 #include "gui/l10n/strings.h"
 #include "model/edits/setting_edit.h"
 #include "model/mod_controllable/mod_fx_names.h"
+#include "model/project_bridge/slot_bridge.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator_rhythms.h"
@@ -57,6 +58,7 @@
 
 #include "cppspec.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <span>
 #include <string>
@@ -248,6 +250,11 @@ constexpr Node session_plain_col = menu::with_allow_session_from_horizontal(menu
 constexpr const Node* kSessionPageChildren[] = {&enum_col, &session_plain_col};
 constexpr Node session_page =
     menu::submenu(sid(String::STRING_FOR_SAMPLE_RECORDER), kSessionPageChildren, menu::Layout::Horizontal);
+/// Oscillator 2's own file browser, second on page 1, under a menu whose source is oscillator 1; two columns on page 2.
+constexpr const Node* kOtherSourceChildren[] = {
+    &enum_col, &menu::nodes::file1_selector, &toggle_col, &filler_col, &chain_col, &session_plain_col};
+constexpr Node other_source_page =
+    menu::submenu(sid(String::STRING_FOR_OSCILLATOR_2), kOtherSourceChildren, menu::Layout::Horizontal);
 constexpr const Node* kSyntheticGroupMembers[] = {&group_page_a, &group_page_empty, &group_page_b};
 constexpr Node synthetic_group = menu::group(sid(String::STRING_FOR_FILTERS), kSyntheticGroupMembers);
 
@@ -277,6 +284,7 @@ constexpr const Node* kRoots[] = {&horiz_page,
                                   &synthetic_group,
                                   &menu::nodes::filters_group,
                                   &session_page,
+                                  &other_source_page,
                                   &stay_parent};
 
 // ---------------------------------------------------------------------------------------------
@@ -2273,6 +2281,107 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// And the page's own focus was still assigned to RANGE_COL first, exactly as
 		// `handleInstrumentButtonPress` assigns `current_item_` before the range check.
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(4);
+	});
+
+	it("a page switch landing on oscillator 2's file browser makes oscillator 2's first range, as main's "
+	   "switchVisiblePage",
+	   _ {
+		// `HorizontalMenu::switchVisiblePage` runs `initializeItem` on the landed item, whose
+		// `FileSelector::checkPermissionToBeginSession` asks `checkPermissionToBeginSessionForRangeSpecificParam` about
+		// its own `sourceId_`: that makes the source's first range. The menu's source stays oscillator 1, which nothing
+		// re-resolves on the way into oscillator 2's page, and gets no range.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		for (Source& source : sound->sources) {
+			source.oscType = OscType::SQUARE; // no range until something asks for one
+			source.ranges.clear();
+		}
+		deluge::bridge::recordLoadedSound(*sound, *r.song.song);
+		(void)r.open(other_source_page);
+		r.shell.tick(0);
+
+		r.press(kCrossScreenX, kCrossScreenY, 300); // page 2, its first column
+		r.press(kKitX, kKitY, 600);                 // page 2's second column, which has no range rule
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(5);
+		r.press(kScaleX, kScaleY, 900); // back to page 1 at the same position: the file browser
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
+		expect(depth_of()).to_equal(0);
+		expect(sound->sources[1].ranges.size()).to_equal(size_t{1});
+		expect(sound->sources[0].ranges.size()).to_equal(size_t{0});
+	});
+
+	it("a refused first range on entering oscillator 2's file browser says INSUFFICIENT_RAM and stays on the list",
+	   _ {
+		// `Submenu::selectButtonPress` asks `checkPermissionToBeginSession`, whose `getOrCreateFirstRange` failure is
+		// `displayError(INSUFFICIENT_RAM)` and `MenuPermission::NO`: nothing is entered. A context with no sink is one
+		// whose range request is refused.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		for (Source& source : sound->sources) {
+			source.oscType = OscType::SQUARE;
+			source.ranges.clear();
+		}
+		deluge::bridge::recordLoadedSound(*sound, *r.song.song);
+		MenuContext ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false,
+		                                    /*kit_global_fx=*/false);
+		ctx.horizontal_menus = false; // a list, entered row by row
+		ctx.sink = nullptr;
+		(void)menu::assign_node_ids(kRoots);
+		menu_scene().open(other_source_page, ctx);
+		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(other_source_page)});
+		r.shell.tick(0);
+		r.turn(1, 100); // onto the file browser's row
+		r.shell.tick(110);
+		(void)raised_notices(); // drain
+		r.enter(200);
+		r.shell.tick(205); // the press is handled at the tick
+		const auto raised = raised_notices();
+		expect(std::ranges::any_of(raised, [](const deluge::notify::Notice& n) {
+			return n.string_id == static_cast<uint16_t>(String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
+		})).to_be_true();
+		expect(depth_of()).to_equal(0);
+		expect(sound->sources[1].ranges.size()).to_equal(size_t{0});
+	});
+
+	it("a refused first range on a button focus says INSUFFICIENT_RAM, then the column's notification, as main's "
+	   "handleInstrumentButtonPress",
+	   _ {
+		// `initializeItem` answers `NO` after `displayError(INSUFFICIENT_RAM)`, and `handleInstrumentButtonPress` reads
+		// only `MUST_SELECT_RANGE`: the item stays focused and `displayNotification` runs.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		for (Source& source : sound->sources) {
+			source.oscType = OscType::SQUARE;
+			source.ranges.clear();
+		}
+		deluge::bridge::recordLoadedSound(*sound, *r.song.song);
+		MenuContext ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false,
+		                                    /*kit_global_fx=*/false);
+		ctx.sink = nullptr; // the range request is refused
+		(void)menu::assign_node_ids(kRoots);
+		menu_scene().open(other_source_page, ctx);
+		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(other_source_page)});
+		r.shell.tick(0);
+		(void)raised_notices(); // drain
+		r.button(kKitX, kKitY, true, 300); // onto the file browser
+		r.shell.tick(305);
+		const auto raised = raised_notices();
+		r.button(kKitX, kKitY, false, 310);
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
+		expect(depth_of()).to_equal(0);
+		const auto error = std::ranges::find_if(raised, [](const deluge::notify::Notice& n) {
+			return n.string_id == static_cast<uint16_t>(String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
+		});
+		expect(error != raised.end()).to_be_true();
+		expect(std::any_of(error, raised.end(), [](const deluge::notify::Notice& n) {
+			return n.kind == deluge::notify::Notice::Kind::Notification;
+		})).to_be_true();
 	});
 
 	it("allow_session_from_horizontal: new focus skips MustSelectRange, an already-focused press "

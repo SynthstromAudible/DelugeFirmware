@@ -197,8 +197,8 @@ bool MenuScene::on_enter(const SceneId& id) {
 		if (target != nullptr && target->range_specific) {
 			// About the item's own source (`range_rule_context`): a recorder for oscillator 2 under oscillator 1's
 			// context makes oscillator 2's range, and its picker test reads oscillator 2.
-			MenuContext own = range_rule_context(*target, ctx_);
-			MenuContext& rule_ctx = own.source_index == ctx_.source_index ? ctx_ : own;
+			MenuContext own;
+			MenuContext& rule_ctx = range_rule_target(*target, ctx_, own);
 			if (!ensure_first_range(rule_ctx)) {
 				deluge::notify::notice_string(
 				    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));

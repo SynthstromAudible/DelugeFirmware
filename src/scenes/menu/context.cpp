@@ -347,6 +347,11 @@ MenuContext range_rule_context(const Node& node, const MenuContext& ctx) {
 	return own;
 }
 
+MenuContext& range_rule_target(const Node& node, MenuContext& ctx, MenuContext& own) {
+	own = range_rule_context(node, ctx);
+	return own.source_index == ctx.source_index ? ctx : own;
+}
+
 Permission permission_for(const Node& node, const MenuContext& ctx) {
 	// The base implementation, `MenuItem::checkPermissionToBeginSession`
 	// (`gui/menu_item/menu_item.cpp:27-31`): relevance, and nothing else. The `relevant`

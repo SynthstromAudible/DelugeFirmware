@@ -70,6 +70,9 @@ std::string_view page_title(const MenuContext& ctx, const MenuState& st, NodeTex
 /// @brief The menu's moves through its tree: re-rooting, descending, ascending, the range picker's substitution, the
 ///        chained pages, and the rows each submenu was last left on. A move that lands on a leaf begins its value
 ///        session through the `ValueSession` it is handed; the session never calls back.
+/// @brief What `MenuWalk::enter_range_picker_if_needed` did about an item's range rule.
+enum class RangeGate : uint8_t { Proceed, Picker, Refused };
+
 class MenuWalk {
 public:
 	/// @brief Re-root the path at @p node (the shortcut jump and `on_enter`'s re-target).
@@ -111,12 +114,12 @@ public:
 	///         (`!(*current_item_)->allowToBeginSessionFromHorizontalMenu()`, `:427-428`), which
 	///         no other caller of this helper has. See `Node::allow_session_from_horizontal`'s own
 	///         doc for the two legacy call sites and why only one of them suppresses.
-	/// @return True if @p child must not be entered/focused as itself this tick -- the range
-	///         picker was opened instead, or the allocation failed and a notice was shown. False
-	///         (permission `Yes` or `No`, or the range check was suppressed) means the caller
-	///         proceeds with its own next step.
-	bool enter_range_picker_if_needed(MenuCore core, ValueSession& session, const Node& child,
-	                                  bool suppress_when_allowed);
+	/// @return `Picker` when the range picker was opened in @p child's place; `Refused` when the first range could not
+	///         be made (`INSUFFICIENT_RAM` raised, `main`'s `MenuPermission::NO`), which only a descent refuses on --
+	///         the horizontal page's two callers read nothing but `MUST_SELECT_RANGE` and carry on; `Proceed`
+	///         otherwise (permission `Yes` or `No`, or the range check suppressed).
+	RangeGate enter_range_picker_if_needed(MenuCore core, ValueSession& session, const Node& child,
+	                                       bool suppress_when_allowed);
 	/// @brief `HorizontalMenu::handleItemAction`'s else-path: a
 	///        submenu, or an `allow_session_from_horizontal` value column, pressed while already
 	///        focused. Runs the range check unconditionally (unlike the button-focus arm) and then
