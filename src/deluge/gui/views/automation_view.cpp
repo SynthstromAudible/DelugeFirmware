@@ -119,6 +119,9 @@ const uint32_t auditionPadActionUIModes[] = {UI_MODE_NOTES_PRESSED,
 
 const uint32_t editPadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, 0};
 
+const uint32_t editPadReleaseUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING,
+                                          UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
+
 const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, 0};
 
 const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0};
@@ -1835,7 +1838,9 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 	}
 
 	// regular automation / note editing action
-	if (isUIModeWithinRange(editPadActionUIModes) && isSquareDefined(x, xScroll, xZoom)) {
+	// Holding the horizontal encoder blocks new presses, but must not swallow releases of existing ones.
+	const uint32_t* allowedModes = velocity ? editPadActionUIModes : editPadReleaseUIModes;
+	if (isUIModeWithinRange(allowedModes) && isSquareDefined(x, xScroll, xZoom)) {
 		if (inAutomationEditor()) {
 			automationEditorLayoutModControllable.automationEditPadAction(modelStackWithParam, clip, x, y, velocity,
 			                                                              effectiveLength, xScroll, xZoom);
