@@ -2,12 +2,19 @@ import type { XrefTerm } from "./link-terms.ts"
 
 export const MENU_PAGE = "/reference/menu_hierarchies"
 
-type MenuNode = { varName: string; oled: string; children?: MenuNode[] }
+type MenuNode = {
+  key: string
+  oled: string
+  title: string
+  /** A value the item above offers (POLY, LEGATO, FORWARD...), not a menu or setting name. */
+  option?: boolean
+  children?: MenuNode[]
+}
 export type MenuData = { trees: Record<string, MenuNode> }
 
 /** Anchor id of a menu item on the menu hierarchy page (see FirmwareMenuSection.astro). */
-export const menuAnchor = (treeKey: string, varName: string) =>
-  `menu-${treeKey}-${varName}`
+export const menuAnchor = (treeKey: string, key: string) =>
+  `menu-${treeKey}-${key}`
 
 export type TermsFile = {
   /** Concept term -> guidebook page (optionally #heading). Matched in any case. */
@@ -22,12 +29,9 @@ export type TermsFile = {
     /** Names never auto-linked as menus: hardware labels and acronyms. */
     exclude: string[]
     /** Explicit menu links for names that are ambiguous in the menu data. */
-    pin: { phrases: string[]; tree: string; varName: string }[]
+    pin: { phrases: string[]; tree: string; key: string }[]
   }
 }
-
-/** Choices and placeholders in the generated menus (`virtualSelector...`, `virtualLaunchMode0`, ...). */
-const isOptionValue = (varName: string) => varName.startsWith("virtual")
 
 /** 7SEG-style spellings the book uses for menu names: INTErpolation, OCTAves. */
 function sevenSegForms(name: string): string[] {
@@ -38,15 +42,22 @@ function sevenSegForms(name: string): string[] {
 /**
  * Menu names that identify exactly one menu item, written as the book writes them (capitals,
  * or 7SEG-style). Ambiguous names (MODE, TYPE, ...) are left out unless pinned.
+ *
+ * An item is a name and its page title: the same page under several menus, or one setting listed
+ * for each kind of owner, is one item; two settings that share a short name have different titles.
  */
 export function menuTerms(data: MenuData, file: TermsFile["menu"]): XrefTerm[] {
-  const firstTree = new Map<string, string>() // varName -> tree it first appears in
-  const itemsByName = new Map<string, Set<string>>() // NAME -> varNames
+  const firstAnchor = new Map<string, string>() // item -> anchor of the row it first appears as
+  const itemsByName = new Map<string, Set<string>>() // NAME -> items
+  const values = new Set<string>() // items that are option values
   const walk = (tree: string, node: MenuNode) => {
-    if (!firstTree.has(node.varName)) firstTree.set(node.varName, tree)
     const name = node.oled.trim().toUpperCase()
+    const item = `${name}\n${node.title}`
+    if (!firstAnchor.has(item))
+      firstAnchor.set(item, menuAnchor(tree, node.key))
+    if (node.option) values.add(item)
     const items = itemsByName.get(name) ?? new Set<string>()
-    items.add(node.varName)
+    items.add(item)
     itemsByName.set(name, items)
     node.children?.forEach((c) => walk(tree, c))
   }
@@ -64,14 +75,13 @@ export function menuTerms(data: MenuData, file: TermsFile["menu"]): XrefTerm[] {
       !/\p{L}/u.test(name)
     )
       continue
-    const varName = [...items][0]
-    // Option values (POLY, LEGATO, FORWARD...) still count towards ambiguity, but are not linked:
-    // the links are for menu and setting names.
-    const tree = firstTree.get(varName)
-    if (isOptionValue(varName) || !tree) continue
+    const item = [...items][0]
+    const anchor = firstAnchor.get(item)
+    // Option values still count towards ambiguity, but are not linked: the links are for menu and setting names.
+    if (!anchor || values.has(item)) continue
     terms.push({
       phrases: [name, ...sevenSegForms(name)],
-      href: `${MENU_PAGE}#${menuAnchor(tree, varName)}`,
+      href: `${MENU_PAGE}#${anchor}`,
       kind: "menu",
       caseSensitive: true,
     })
@@ -79,7 +89,7 @@ export function menuTerms(data: MenuData, file: TermsFile["menu"]): XrefTerm[] {
   for (const pin of file.pin) {
     terms.push({
       phrases: pin.phrases,
-      href: `${MENU_PAGE}#${menuAnchor(pin.tree, pin.varName)}`,
+      href: `${MENU_PAGE}#${menuAnchor(pin.tree, pin.key)}`,
       kind: "menu",
       caseSensitive: true,
     })

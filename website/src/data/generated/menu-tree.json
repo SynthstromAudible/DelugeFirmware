@@ -49,6 +49,11 @@
             "available_when": "setting:mode",
             "id": 9,
             "name": "Synth Mode",
+            "options": [
+              "Subtractive",
+              "Fm",
+              "Ringmod"
+            ],
             "title": "Synth Mode",
             "type": "basic"
           },
@@ -235,6 +240,10 @@
           {
             "id": 19,
             "name": "Enabled",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Arp enabled",
             "type": "basic"
           },
@@ -243,14 +252,41 @@
               {
                 "id": 21,
                 "name": "Preset",
+                "options": [
+                  "Off",
+                  "Up",
+                  "Down",
+                  "Both",
+                  "Random",
+                  "Walk",
+                  "Custom"
+                ],
                 "select_chain": [
                   {
                     "id": 22,
                     "name": "Octave Mode",
+                    "options": [
+                      "Up",
+                      "Down",
+                      "Up & Down",
+                      "Alternate",
+                      "Random"
+                    ],
                     "select_chain": [
                       {
                         "id": 23,
                         "name": "Note Mode",
+                        "options": [
+                          "Up",
+                          "Down",
+                          "Up & Down",
+                          "Random",
+                          "Walk1",
+                          "Walk2",
+                          "Walk3",
+                          "Played Order",
+                          "Pattern"
+                        ],
                         "title": "Arp note mode",
                         "type": "basic"
                       }
@@ -261,10 +297,28 @@
                   {
                     "id": 24,
                     "name": "Octave Mode",
+                    "options": [
+                      "Up",
+                      "Down",
+                      "Up & Down",
+                      "Alternate",
+                      "Random"
+                    ],
                     "select_chain": [
                       {
                         "id": 25,
                         "name": "Note Mode",
+                        "options": [
+                          "Up",
+                          "Down",
+                          "Up & Down",
+                          "Random",
+                          "Walk1",
+                          "Walk2",
+                          "Walk3",
+                          "Played Order",
+                          "Pattern"
+                        ],
                         "title": "Arp note mode",
                         "type": "basic"
                       }
@@ -361,24 +415,64 @@
               {
                 "id": 32,
                 "name": "Octave Mode",
+                "options": [
+                  "Up",
+                  "Down",
+                  "Up & Down",
+                  "Alternate",
+                  "Random"
+                ],
                 "title": "Arp octave mode",
                 "type": "basic"
               },
               {
                 "id": 33,
                 "name": "Note Mode",
+                "options": [
+                  "Up",
+                  "Down",
+                  "Up & Down",
+                  "Random",
+                  "Walk1",
+                  "Walk2",
+                  "Walk3",
+                  "Played Order",
+                  "Pattern"
+                ],
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
                 "id": 34,
                 "name": "Note Mode",
+                "options": [
+                  "Up",
+                  "Down",
+                  "Up & Down",
+                  "Random",
+                  "Walk1",
+                  "Walk2",
+                  "Walk3",
+                  "Played Order",
+                  "Pattern"
+                ],
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
                 "id": 35,
                 "name": "Chord Simulator",
+                "options": [
+                  "None",
+                  "5th",
+                  "Sus2",
+                  "Min",
+                  "Maj",
+                  "Sus4",
+                  "Min7",
+                  "Dom7",
+                  "Maj7"
+                ],
                 "title": "Arp chord sim",
                 "type": "basic"
               },
@@ -418,6 +512,11 @@
               {
                 "id": 41,
                 "name": "Velocity",
+                "options": [
+                  "Disabled",
+                  "Aftertouch",
+                  "MPE Y"
+                ],
                 "title": "Velocity",
                 "type": "basic"
               }
@@ -430,6 +529,10 @@
           {
             "id": 42,
             "name": "Include in Kit Arp",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Include in Kit Arp",
             "type": "basic"
           }
@@ -444,6 +547,10 @@
           {
             "id": 44,
             "name": "Lock Randomizer",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Arp lock rand",
             "type": "basic"
           },
@@ -648,6 +755,14 @@
               {
                 "id": 77,
                 "name": "Mode",
+                "options": [
+                  "12dB Ladder",
+                  "24dB Ladder",
+                  "Drive",
+                  "SVF Bandpass",
+                  "SVF Notch",
+                  "Off"
+                ],
                 "title": "LPF mode",
                 "type": "basic"
               },
@@ -803,6 +918,12 @@
               {
                 "id": 82,
                 "name": "Mode",
+                "options": [
+                  "SVF Bandpass",
+                  "SVF Notch",
+                  "HP Ladder",
+                  "Off"
+                ],
                 "title": "HPF mode",
                 "type": "basic"
               },
@@ -956,6 +1077,11 @@
           {
             "id": 86,
             "name": "Filter Route",
+            "options": [
+              "Hpf > Lpf",
+              "Lpf > Hpf",
+              "Parallel"
+            ],
             "title": "Filter Route",
             "type": "basic"
           }
@@ -1051,6 +1177,10 @@
               {
                 "id": 95,
                 "name": "Pingpong",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Delay pingpong",
                 "type": "basic"
               },
@@ -1110,6 +1240,11 @@
               {
                 "id": 98,
                 "name": "Type",
+                "options": [
+                  "Off",
+                  "Digital",
+                  "Analog"
+                ],
                 "title": "Delay type",
                 "type": "basic"
               }
@@ -1189,6 +1324,11 @@
               {
                 "id": 104,
                 "name": "Model",
+                "options": [
+                  "Freeverb",
+                  "Mutable",
+                  "Digital"
+                ],
                 "title": "Model",
                 "type": "basic"
               },
@@ -1266,6 +1406,12 @@
               {
                 "id": 116,
                 "name": "Direction",
+                "options": [
+                  "Forward",
+                  "Reversed",
+                  "Forw-Ping",
+                  "Rvrs-Ping"
+                ],
                 "title": "Direction",
                 "type": "basic"
               },
@@ -1273,6 +1419,10 @@
                 "available_when": "stutter_quantize_allowed",
                 "id": 117,
                 "name": "Quantize",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Quantize",
                 "type": "basic"
               }
@@ -1287,6 +1437,16 @@
               {
                 "id": 119,
                 "name": "Type",
+                "options": [
+                  "Disabled",
+                  "Flanger",
+                  "Chorus",
+                  "Phaser",
+                  "Stereo Chorus",
+                  "Warble",
+                  "Dimension",
+                  "Grain"
+                ],
                 "title": "MOD-FX type",
                 "type": "basic"
               },
@@ -1608,6 +1768,21 @@
             "available_when": "setting:osc1/type",
             "id": 138,
             "name": "Type",
+            "options": [
+              "Sine",
+              "Triangle",
+              "Square",
+              "Analog square",
+              "Saw",
+              "Analog saw",
+              "Supersaw",
+              "Wavetable",
+              "Sample",
+              "Dx7",
+              "Input (left)",
+              "Input (right)",
+              "Input (stereo)"
+            ],
             "select_chain": [
               {
                 "children": [
@@ -1868,6 +2043,10 @@
             "available_when": "setting:osc1/reversed",
             "id": 151,
             "name": "Reverse",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Samp* reverse",
             "type": "basic"
           },
@@ -1875,6 +2054,12 @@
             "available_when": "setting:osc1/loopMode",
             "id": 152,
             "name": "Repeat Mode",
+            "options": [
+              "Cut",
+              "Once",
+              "Loop",
+              "Stretch"
+            ],
             "title": "Samp* repeat",
             "type": "basic"
           },
@@ -1889,6 +2074,10 @@
             "available_when": "setting:osc1/timeStretchEnable",
             "id": 154,
             "name": "Pitch/Speed",
+            "options": [
+              "Linked",
+              "Independent"
+            ],
             "title": "Pitch/Speed",
             "type": "basic"
           },
@@ -1896,6 +2085,10 @@
             "available_when": "setting:osc1/linearInterpolation",
             "id": 155,
             "name": "Interpolation",
+            "options": [
+              "Linear",
+              "Sinc"
+            ],
             "title": "Samp* interp",
             "type": "basic"
           },
@@ -1925,6 +2118,21 @@
             "available_when": "setting:osc2/type",
             "id": 159,
             "name": "Type",
+            "options": [
+              "Sine",
+              "Triangle",
+              "Square",
+              "Analog square",
+              "Saw",
+              "Analog saw",
+              "Supersaw",
+              "Wavetable",
+              "Sample",
+              "Dx7",
+              "Input (left)",
+              "Input (right)",
+              "Input (stereo)"
+            ],
             "select_chain": [
               {
                 "children": [
@@ -2185,6 +2393,10 @@
             "available_when": "setting:osc2/reversed",
             "id": 166,
             "name": "Reverse",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Samp* reverse",
             "type": "basic"
           },
@@ -2192,6 +2404,12 @@
             "available_when": "setting:osc2/loopMode",
             "id": 167,
             "name": "Repeat Mode",
+            "options": [
+              "Cut",
+              "Once",
+              "Loop",
+              "Stretch"
+            ],
             "title": "Samp* repeat",
             "type": "basic"
           },
@@ -2206,6 +2424,10 @@
             "available_when": "setting:osc2/timeStretchEnable",
             "id": 169,
             "name": "Pitch/Speed",
+            "options": [
+              "Linked",
+              "Independent"
+            ],
             "title": "Pitch/Speed",
             "type": "basic"
           },
@@ -2213,6 +2435,10 @@
             "available_when": "setting:osc2/linearInterpolation",
             "id": 170,
             "name": "Interpolation",
+            "options": [
+              "Linear",
+              "Sinc"
+            ],
             "title": "Samp* interp",
             "type": "basic"
           },
@@ -2456,6 +2682,10 @@
             "available_when": "setting:modulator2/toModulator1",
             "id": 181,
             "name": "Destination",
+            "options": [
+              "Carriers",
+              "Modulator 1"
+            ],
             "title": "FM Mod2 dest",
             "type": "basic"
           }
@@ -2706,6 +2936,10 @@
             "available_when": "setting:osc2/oscillatorSync",
             "id": 187,
             "name": "Oscillator sync",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Oscillator sync",
             "type": "basic"
           }
@@ -3504,6 +3738,15 @@
           {
             "id": 209,
             "name": "Shape",
+            "options": [
+              "Sine",
+              "Triangle",
+              "Square",
+              "Saw",
+              "S&H",
+              "Random Walk",
+              "Warble"
+            ],
             "title": "LFO* shape",
             "type": "basic"
           },
@@ -3571,6 +3814,15 @@
           {
             "id": 213,
             "name": "Shape",
+            "options": [
+              "Sine",
+              "Triangle",
+              "Square",
+              "Saw",
+              "S&H",
+              "Random Walk",
+              "Warble"
+            ],
             "title": "LFO* shape",
             "type": "basic"
           },
@@ -3638,6 +3890,15 @@
           {
             "id": 217,
             "name": "Shape",
+            "options": [
+              "Sine",
+              "Triangle",
+              "Square",
+              "Saw",
+              "S&H",
+              "Random Walk",
+              "Warble"
+            ],
             "title": "LFO* shape",
             "type": "basic"
           },
@@ -3705,6 +3966,15 @@
           {
             "id": 221,
             "name": "Shape",
+            "options": [
+              "Sine",
+              "Triangle",
+              "Square",
+              "Saw",
+              "S&H",
+              "Random Walk",
+              "Warble"
+            ],
             "title": "LFO* shape",
             "type": "basic"
           },
@@ -3772,12 +4042,24 @@
           {
             "id": 225,
             "name": "Priority",
+            "options": [
+              "Low",
+              "Medium",
+              "High"
+            ],
             "title": "Priority",
             "type": "basic"
           },
           {
             "id": 226,
             "name": "Polyphony",
+            "options": [
+              "Auto",
+              "Polyphonic",
+              "Monophonic",
+              "Legato",
+              "Choke"
+            ],
             "select_chain": [
               {
                 "available_when": "setting:maxVoices",
@@ -3935,6 +4217,11 @@
       {
         "id": 238,
         "name": "Play direction",
+        "options": [
+          "Forward",
+          "Reversed",
+          "Ping-Pong"
+        ],
         "title": "Play direction",
         "type": "basic"
       },
@@ -4001,6 +4288,11 @@
             "available_when": "setting:mode",
             "id": 9,
             "name": "Synth Mode",
+            "options": [
+              "Subtractive",
+              "Fm",
+              "Ringmod"
+            ],
             "title": "Synth Mode",
             "type": "basic"
           },
@@ -4187,6 +4479,10 @@
           {
             "id": 19,
             "name": "Enabled",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Arp enabled",
             "type": "basic"
           },
@@ -4195,14 +4491,41 @@
               {
                 "id": 21,
                 "name": "Preset",
+                "options": [
+                  "Off",
+                  "Up",
+                  "Down",
+                  "Both",
+                  "Random",
+                  "Walk",
+                  "Custom"
+                ],
                 "select_chain": [
                   {
                     "id": 22,
                     "name": "Octave Mode",
+                    "options": [
+                      "Up",
+                      "Down",
+                      "Up & Down",
+                      "Alternate",
+                      "Random"
+                    ],
                     "select_chain": [
                       {
                         "id": 23,
                         "name": "Note Mode",
+                        "options": [
+                          "Up",
+                          "Down",
+                          "Up & Down",
+                          "Random",
+                          "Walk1",
+                          "Walk2",
+                          "Walk3",
+                          "Played Order",
+                          "Pattern"
+                        ],
                         "title": "Arp note mode",
                         "type": "basic"
                       }
@@ -4213,10 +4536,28 @@
                   {
                     "id": 24,
                     "name": "Octave Mode",
+                    "options": [
+                      "Up",
+                      "Down",
+                      "Up & Down",
+                      "Alternate",
+                      "Random"
+                    ],
                     "select_chain": [
                       {
                         "id": 25,
                         "name": "Note Mode",
+                        "options": [
+                          "Up",
+                          "Down",
+                          "Up & Down",
+                          "Random",
+                          "Walk1",
+                          "Walk2",
+                          "Walk3",
+                          "Played Order",
+                          "Pattern"
+                        ],
                         "title": "Arp note mode",
                         "type": "basic"
                       }
@@ -4313,24 +4654,64 @@
               {
                 "id": 32,
                 "name": "Octave Mode",
+                "options": [
+                  "Up",
+                  "Down",
+                  "Up & Down",
+                  "Alternate",
+                  "Random"
+                ],
                 "title": "Arp octave mode",
                 "type": "basic"
               },
               {
                 "id": 33,
                 "name": "Note Mode",
+                "options": [
+                  "Up",
+                  "Down",
+                  "Up & Down",
+                  "Random",
+                  "Walk1",
+                  "Walk2",
+                  "Walk3",
+                  "Played Order",
+                  "Pattern"
+                ],
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
                 "id": 34,
                 "name": "Note Mode",
+                "options": [
+                  "Up",
+                  "Down",
+                  "Up & Down",
+                  "Random",
+                  "Walk1",
+                  "Walk2",
+                  "Walk3",
+                  "Played Order",
+                  "Pattern"
+                ],
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
                 "id": 35,
                 "name": "Chord Simulator",
+                "options": [
+                  "None",
+                  "5th",
+                  "Sus2",
+                  "Min",
+                  "Maj",
+                  "Sus4",
+                  "Min7",
+                  "Dom7",
+                  "Maj7"
+                ],
                 "title": "Arp chord sim",
                 "type": "basic"
               },
@@ -4370,6 +4751,11 @@
               {
                 "id": 41,
                 "name": "Velocity",
+                "options": [
+                  "Disabled",
+                  "Aftertouch",
+                  "MPE Y"
+                ],
                 "title": "Velocity",
                 "type": "basic"
               }
@@ -4382,6 +4768,10 @@
           {
             "id": 42,
             "name": "Include in Kit Arp",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Include in Kit Arp",
             "type": "basic"
           }
@@ -4396,6 +4786,10 @@
           {
             "id": 44,
             "name": "Lock Randomizer",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Arp lock rand",
             "type": "basic"
           },
@@ -4600,6 +4994,14 @@
               {
                 "id": 77,
                 "name": "Mode",
+                "options": [
+                  "12dB Ladder",
+                  "24dB Ladder",
+                  "Drive",
+                  "SVF Bandpass",
+                  "SVF Notch",
+                  "Off"
+                ],
                 "title": "LPF mode",
                 "type": "basic"
               },
@@ -4755,6 +5157,12 @@
               {
                 "id": 82,
                 "name": "Mode",
+                "options": [
+                  "SVF Bandpass",
+                  "SVF Notch",
+                  "HP Ladder",
+                  "Off"
+                ],
                 "title": "HPF mode",
                 "type": "basic"
               },
@@ -4908,6 +5316,11 @@
           {
             "id": 86,
             "name": "Filter Route",
+            "options": [
+              "Hpf > Lpf",
+              "Lpf > Hpf",
+              "Parallel"
+            ],
             "title": "Filter Route",
             "type": "basic"
           }
@@ -5003,6 +5416,10 @@
               {
                 "id": 95,
                 "name": "Pingpong",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Delay pingpong",
                 "type": "basic"
               },
@@ -5062,6 +5479,11 @@
               {
                 "id": 98,
                 "name": "Type",
+                "options": [
+                  "Off",
+                  "Digital",
+                  "Analog"
+                ],
                 "title": "Delay type",
                 "type": "basic"
               }
@@ -5141,6 +5563,11 @@
               {
                 "id": 104,
                 "name": "Model",
+                "options": [
+                  "Freeverb",
+                  "Mutable",
+                  "Digital"
+                ],
                 "title": "Model",
                 "type": "basic"
               },
@@ -5218,6 +5645,12 @@
               {
                 "id": 116,
                 "name": "Direction",
+                "options": [
+                  "Forward",
+                  "Reversed",
+                  "Forw-Ping",
+                  "Rvrs-Ping"
+                ],
                 "title": "Direction",
                 "type": "basic"
               },
@@ -5225,6 +5658,10 @@
                 "available_when": "stutter_quantize_allowed",
                 "id": 117,
                 "name": "Quantize",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Quantize",
                 "type": "basic"
               }
@@ -5239,6 +5676,16 @@
               {
                 "id": 119,
                 "name": "Type",
+                "options": [
+                  "Disabled",
+                  "Flanger",
+                  "Chorus",
+                  "Phaser",
+                  "Stereo Chorus",
+                  "Warble",
+                  "Dimension",
+                  "Grain"
+                ],
                 "title": "MOD-FX type",
                 "type": "basic"
               },
@@ -5560,6 +6007,21 @@
             "available_when": "setting:osc1/type",
             "id": 138,
             "name": "Type",
+            "options": [
+              "Sine",
+              "Triangle",
+              "Square",
+              "Analog square",
+              "Saw",
+              "Analog saw",
+              "Supersaw",
+              "Wavetable",
+              "Sample",
+              "Dx7",
+              "Input (left)",
+              "Input (right)",
+              "Input (stereo)"
+            ],
             "select_chain": [
               {
                 "children": [
@@ -5820,6 +6282,10 @@
             "available_when": "setting:osc1/reversed",
             "id": 151,
             "name": "Reverse",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Samp* reverse",
             "type": "basic"
           },
@@ -5827,6 +6293,12 @@
             "available_when": "setting:osc1/loopMode",
             "id": 152,
             "name": "Repeat Mode",
+            "options": [
+              "Cut",
+              "Once",
+              "Loop",
+              "Stretch"
+            ],
             "title": "Samp* repeat",
             "type": "basic"
           },
@@ -5841,6 +6313,10 @@
             "available_when": "setting:osc1/timeStretchEnable",
             "id": 154,
             "name": "Pitch/Speed",
+            "options": [
+              "Linked",
+              "Independent"
+            ],
             "title": "Pitch/Speed",
             "type": "basic"
           },
@@ -5848,6 +6324,10 @@
             "available_when": "setting:osc1/linearInterpolation",
             "id": 155,
             "name": "Interpolation",
+            "options": [
+              "Linear",
+              "Sinc"
+            ],
             "title": "Samp* interp",
             "type": "basic"
           },
@@ -5877,6 +6357,21 @@
             "available_when": "setting:osc2/type",
             "id": 159,
             "name": "Type",
+            "options": [
+              "Sine",
+              "Triangle",
+              "Square",
+              "Analog square",
+              "Saw",
+              "Analog saw",
+              "Supersaw",
+              "Wavetable",
+              "Sample",
+              "Dx7",
+              "Input (left)",
+              "Input (right)",
+              "Input (stereo)"
+            ],
             "select_chain": [
               {
                 "children": [
@@ -6137,6 +6632,10 @@
             "available_when": "setting:osc2/reversed",
             "id": 166,
             "name": "Reverse",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Samp* reverse",
             "type": "basic"
           },
@@ -6144,6 +6643,12 @@
             "available_when": "setting:osc2/loopMode",
             "id": 167,
             "name": "Repeat Mode",
+            "options": [
+              "Cut",
+              "Once",
+              "Loop",
+              "Stretch"
+            ],
             "title": "Samp* repeat",
             "type": "basic"
           },
@@ -6158,6 +6663,10 @@
             "available_when": "setting:osc2/timeStretchEnable",
             "id": 169,
             "name": "Pitch/Speed",
+            "options": [
+              "Linked",
+              "Independent"
+            ],
             "title": "Pitch/Speed",
             "type": "basic"
           },
@@ -6165,6 +6674,10 @@
             "available_when": "setting:osc2/linearInterpolation",
             "id": 170,
             "name": "Interpolation",
+            "options": [
+              "Linear",
+              "Sinc"
+            ],
             "title": "Samp* interp",
             "type": "basic"
           },
@@ -6408,6 +6921,10 @@
             "available_when": "setting:modulator2/toModulator1",
             "id": 181,
             "name": "Destination",
+            "options": [
+              "Carriers",
+              "Modulator 1"
+            ],
             "title": "FM Mod2 dest",
             "type": "basic"
           }
@@ -6658,6 +7175,10 @@
             "available_when": "setting:osc2/oscillatorSync",
             "id": 187,
             "name": "Oscillator sync",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Oscillator sync",
             "type": "basic"
           }
@@ -7456,6 +7977,15 @@
           {
             "id": 209,
             "name": "Shape",
+            "options": [
+              "Sine",
+              "Triangle",
+              "Square",
+              "Saw",
+              "S&H",
+              "Random Walk",
+              "Warble"
+            ],
             "title": "LFO* shape",
             "type": "basic"
           },
@@ -7523,6 +8053,15 @@
           {
             "id": 213,
             "name": "Shape",
+            "options": [
+              "Sine",
+              "Triangle",
+              "Square",
+              "Saw",
+              "S&H",
+              "Random Walk",
+              "Warble"
+            ],
             "title": "LFO* shape",
             "type": "basic"
           },
@@ -7590,6 +8129,15 @@
           {
             "id": 217,
             "name": "Shape",
+            "options": [
+              "Sine",
+              "Triangle",
+              "Square",
+              "Saw",
+              "S&H",
+              "Random Walk",
+              "Warble"
+            ],
             "title": "LFO* shape",
             "type": "basic"
           },
@@ -7657,6 +8205,15 @@
           {
             "id": 221,
             "name": "Shape",
+            "options": [
+              "Sine",
+              "Triangle",
+              "Square",
+              "Saw",
+              "S&H",
+              "Random Walk",
+              "Warble"
+            ],
             "title": "LFO* shape",
             "type": "basic"
           },
@@ -7724,12 +8281,24 @@
           {
             "id": 225,
             "name": "Priority",
+            "options": [
+              "Low",
+              "Medium",
+              "High"
+            ],
             "title": "Priority",
             "type": "basic"
           },
           {
             "id": 226,
             "name": "Polyphony",
+            "options": [
+              "Auto",
+              "Polyphonic",
+              "Monophonic",
+              "Legato",
+              "Choke"
+            ],
             "select_chain": [
               {
                 "available_when": "setting:maxVoices",
@@ -7887,6 +8456,11 @@
       {
         "id": 238,
         "name": "Play direction",
+        "options": [
+          "Forward",
+          "Reversed",
+          "Ping-Pong"
+        ],
         "title": "Play direction",
         "type": "basic"
       },
@@ -7960,6 +8534,10 @@
           {
             "id": 249,
             "name": "Hide Unlabeled CC",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Hide Unlabeled CC",
             "type": "basic"
           }
@@ -8000,6 +8578,10 @@
           {
             "id": 19,
             "name": "Enabled",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Arp enabled",
             "type": "basic"
           },
@@ -8008,14 +8590,41 @@
               {
                 "id": 21,
                 "name": "Preset",
+                "options": [
+                  "Off",
+                  "Up",
+                  "Down",
+                  "Both",
+                  "Random",
+                  "Walk",
+                  "Custom"
+                ],
                 "select_chain": [
                   {
                     "id": 22,
                     "name": "Octave Mode",
+                    "options": [
+                      "Up",
+                      "Down",
+                      "Up & Down",
+                      "Alternate",
+                      "Random"
+                    ],
                     "select_chain": [
                       {
                         "id": 23,
                         "name": "Note Mode",
+                        "options": [
+                          "Up",
+                          "Down",
+                          "Up & Down",
+                          "Random",
+                          "Walk1",
+                          "Walk2",
+                          "Walk3",
+                          "Played Order",
+                          "Pattern"
+                        ],
                         "title": "Arp note mode",
                         "type": "basic"
                       }
@@ -8026,10 +8635,28 @@
                   {
                     "id": 24,
                     "name": "Octave Mode",
+                    "options": [
+                      "Up",
+                      "Down",
+                      "Up & Down",
+                      "Alternate",
+                      "Random"
+                    ],
                     "select_chain": [
                       {
                         "id": 25,
                         "name": "Note Mode",
+                        "options": [
+                          "Up",
+                          "Down",
+                          "Up & Down",
+                          "Random",
+                          "Walk1",
+                          "Walk2",
+                          "Walk3",
+                          "Played Order",
+                          "Pattern"
+                        ],
                         "title": "Arp note mode",
                         "type": "basic"
                       }
@@ -8083,24 +8710,64 @@
               {
                 "id": 32,
                 "name": "Octave Mode",
+                "options": [
+                  "Up",
+                  "Down",
+                  "Up & Down",
+                  "Alternate",
+                  "Random"
+                ],
                 "title": "Arp octave mode",
                 "type": "basic"
               },
               {
                 "id": 33,
                 "name": "Note Mode",
+                "options": [
+                  "Up",
+                  "Down",
+                  "Up & Down",
+                  "Random",
+                  "Walk1",
+                  "Walk2",
+                  "Walk3",
+                  "Played Order",
+                  "Pattern"
+                ],
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
                 "id": 34,
                 "name": "Note Mode",
+                "options": [
+                  "Up",
+                  "Down",
+                  "Up & Down",
+                  "Random",
+                  "Walk1",
+                  "Walk2",
+                  "Walk3",
+                  "Played Order",
+                  "Pattern"
+                ],
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
                 "id": 35,
                 "name": "Chord Simulator",
+                "options": [
+                  "None",
+                  "5th",
+                  "Sus2",
+                  "Min",
+                  "Maj",
+                  "Sus4",
+                  "Min7",
+                  "Dom7",
+                  "Maj7"
+                ],
                 "title": "Arp chord sim",
                 "type": "basic"
               },
@@ -8140,6 +8807,11 @@
               {
                 "id": 41,
                 "name": "Velocity",
+                "options": [
+                  "Disabled",
+                  "Aftertouch",
+                  "MPE Y"
+                ],
                 "title": "Velocity",
                 "type": "basic"
               }
@@ -8152,6 +8824,10 @@
           {
             "id": 42,
             "name": "Include in Kit Arp",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Include in Kit Arp",
             "type": "basic"
           }
@@ -8166,6 +8842,10 @@
           {
             "id": 44,
             "name": "Lock Randomizer",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Arp lock rand",
             "type": "basic"
           },
@@ -8338,12 +9018,22 @@
       {
         "id": 258,
         "name": "CV 2 Source",
+        "options": [
+          "Off",
+          "MPE Y",
+          "Aftertouch",
+          "Velocity"
+        ],
         "title": "CV 2 Source",
         "type": "basic"
       },
       {
         "id": 259,
         "name": "Send Y as CC1",
+        "options": [
+          "Off",
+          "On"
+        ],
         "title": "Send Y as CC1",
         "type": "basic"
       },
@@ -8353,12 +9043,20 @@
           {
             "id": 261,
             "name": "Aftertouch",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Aftertouch",
             "type": "basic"
           },
           {
             "id": 262,
             "name": "MPE",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "MPE",
             "type": "basic"
           }
@@ -8371,6 +9069,11 @@
       {
         "id": 238,
         "name": "Play direction",
+        "options": [
+          "Forward",
+          "Reversed",
+          "Ping-Pong"
+        ],
         "title": "Play direction",
         "type": "basic"
       }
@@ -8415,6 +9118,10 @@
           {
             "id": 19,
             "name": "Enabled",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Arp enabled",
             "type": "basic"
           },
@@ -8423,14 +9130,41 @@
               {
                 "id": 21,
                 "name": "Preset",
+                "options": [
+                  "Off",
+                  "Up",
+                  "Down",
+                  "Both",
+                  "Random",
+                  "Walk",
+                  "Custom"
+                ],
                 "select_chain": [
                   {
                     "id": 22,
                     "name": "Octave Mode",
+                    "options": [
+                      "Up",
+                      "Down",
+                      "Up & Down",
+                      "Alternate",
+                      "Random"
+                    ],
                     "select_chain": [
                       {
                         "id": 23,
                         "name": "Note Mode",
+                        "options": [
+                          "Up",
+                          "Down",
+                          "Up & Down",
+                          "Random",
+                          "Walk1",
+                          "Walk2",
+                          "Walk3",
+                          "Played Order",
+                          "Pattern"
+                        ],
                         "title": "Arp note mode",
                         "type": "basic"
                       }
@@ -8441,10 +9175,28 @@
                   {
                     "id": 24,
                     "name": "Octave Mode",
+                    "options": [
+                      "Up",
+                      "Down",
+                      "Up & Down",
+                      "Alternate",
+                      "Random"
+                    ],
                     "select_chain": [
                       {
                         "id": 25,
                         "name": "Note Mode",
+                        "options": [
+                          "Up",
+                          "Down",
+                          "Up & Down",
+                          "Random",
+                          "Walk1",
+                          "Walk2",
+                          "Walk3",
+                          "Played Order",
+                          "Pattern"
+                        ],
                         "title": "Arp note mode",
                         "type": "basic"
                       }
@@ -8498,24 +9250,64 @@
               {
                 "id": 32,
                 "name": "Octave Mode",
+                "options": [
+                  "Up",
+                  "Down",
+                  "Up & Down",
+                  "Alternate",
+                  "Random"
+                ],
                 "title": "Arp octave mode",
                 "type": "basic"
               },
               {
                 "id": 33,
                 "name": "Note Mode",
+                "options": [
+                  "Up",
+                  "Down",
+                  "Up & Down",
+                  "Random",
+                  "Walk1",
+                  "Walk2",
+                  "Walk3",
+                  "Played Order",
+                  "Pattern"
+                ],
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
                 "id": 34,
                 "name": "Note Mode",
+                "options": [
+                  "Up",
+                  "Down",
+                  "Up & Down",
+                  "Random",
+                  "Walk1",
+                  "Walk2",
+                  "Walk3",
+                  "Played Order",
+                  "Pattern"
+                ],
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
                 "id": 35,
                 "name": "Chord Simulator",
+                "options": [
+                  "None",
+                  "5th",
+                  "Sus2",
+                  "Min",
+                  "Maj",
+                  "Sus4",
+                  "Min7",
+                  "Dom7",
+                  "Maj7"
+                ],
                 "title": "Arp chord sim",
                 "type": "basic"
               },
@@ -8555,6 +9347,11 @@
               {
                 "id": 41,
                 "name": "Velocity",
+                "options": [
+                  "Disabled",
+                  "Aftertouch",
+                  "MPE Y"
+                ],
                 "title": "Velocity",
                 "type": "basic"
               }
@@ -8567,6 +9364,10 @@
           {
             "id": 42,
             "name": "Include in Kit Arp",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Include in Kit Arp",
             "type": "basic"
           }
@@ -8581,6 +9382,10 @@
           {
             "id": 44,
             "name": "Lock Randomizer",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Arp lock rand",
             "type": "basic"
           },
@@ -8770,6 +9575,10 @@
           {
             "id": 19,
             "name": "Enabled",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Arp enabled",
             "type": "basic"
           },
@@ -8778,14 +9587,41 @@
               {
                 "id": 21,
                 "name": "Preset",
+                "options": [
+                  "Off",
+                  "Up",
+                  "Down",
+                  "Both",
+                  "Random",
+                  "Walk",
+                  "Custom"
+                ],
                 "select_chain": [
                   {
                     "id": 22,
                     "name": "Octave Mode",
+                    "options": [
+                      "Up",
+                      "Down",
+                      "Up & Down",
+                      "Alternate",
+                      "Random"
+                    ],
                     "select_chain": [
                       {
                         "id": 23,
                         "name": "Note Mode",
+                        "options": [
+                          "Up",
+                          "Down",
+                          "Up & Down",
+                          "Random",
+                          "Walk1",
+                          "Walk2",
+                          "Walk3",
+                          "Played Order",
+                          "Pattern"
+                        ],
                         "title": "Arp note mode",
                         "type": "basic"
                       }
@@ -8796,10 +9632,28 @@
                   {
                     "id": 24,
                     "name": "Octave Mode",
+                    "options": [
+                      "Up",
+                      "Down",
+                      "Up & Down",
+                      "Alternate",
+                      "Random"
+                    ],
                     "select_chain": [
                       {
                         "id": 25,
                         "name": "Note Mode",
+                        "options": [
+                          "Up",
+                          "Down",
+                          "Up & Down",
+                          "Random",
+                          "Walk1",
+                          "Walk2",
+                          "Walk3",
+                          "Played Order",
+                          "Pattern"
+                        ],
                         "title": "Arp note mode",
                         "type": "basic"
                       }
@@ -8853,24 +9707,64 @@
               {
                 "id": 32,
                 "name": "Octave Mode",
+                "options": [
+                  "Up",
+                  "Down",
+                  "Up & Down",
+                  "Alternate",
+                  "Random"
+                ],
                 "title": "Arp octave mode",
                 "type": "basic"
               },
               {
                 "id": 33,
                 "name": "Note Mode",
+                "options": [
+                  "Up",
+                  "Down",
+                  "Up & Down",
+                  "Random",
+                  "Walk1",
+                  "Walk2",
+                  "Walk3",
+                  "Played Order",
+                  "Pattern"
+                ],
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
                 "id": 34,
                 "name": "Note Mode",
+                "options": [
+                  "Up",
+                  "Down",
+                  "Up & Down",
+                  "Random",
+                  "Walk1",
+                  "Walk2",
+                  "Walk3",
+                  "Played Order",
+                  "Pattern"
+                ],
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
                 "id": 35,
                 "name": "Chord Simulator",
+                "options": [
+                  "None",
+                  "5th",
+                  "Sus2",
+                  "Min",
+                  "Maj",
+                  "Sus4",
+                  "Min7",
+                  "Dom7",
+                  "Maj7"
+                ],
                 "title": "Arp chord sim",
                 "type": "basic"
               },
@@ -8910,6 +9804,11 @@
               {
                 "id": 41,
                 "name": "Velocity",
+                "options": [
+                  "Disabled",
+                  "Aftertouch",
+                  "MPE Y"
+                ],
                 "title": "Velocity",
                 "type": "basic"
               }
@@ -8922,6 +9821,10 @@
           {
             "id": 42,
             "name": "Include in Kit Arp",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Include in Kit Arp",
             "type": "basic"
           }
@@ -8936,6 +9839,10 @@
           {
             "id": 44,
             "name": "Lock Randomizer",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Arp lock rand",
             "type": "basic"
           },
@@ -9215,6 +10122,14 @@
               {
                 "id": 77,
                 "name": "Mode",
+                "options": [
+                  "12dB Ladder",
+                  "24dB Ladder",
+                  "Drive",
+                  "SVF Bandpass",
+                  "SVF Notch",
+                  "Off"
+                ],
                 "title": "LPF mode",
                 "type": "basic"
               },
@@ -9247,6 +10162,12 @@
               {
                 "id": 82,
                 "name": "Mode",
+                "options": [
+                  "SVF Bandpass",
+                  "SVF Notch",
+                  "HP Ladder",
+                  "Off"
+                ],
                 "title": "HPF mode",
                 "type": "basic"
               },
@@ -9277,6 +10198,11 @@
           {
             "id": 86,
             "name": "Filter Route",
+            "options": [
+              "Hpf > Lpf",
+              "Lpf > Hpf",
+              "Parallel"
+            ],
             "title": "Filter Route",
             "type": "basic"
           }
@@ -9331,6 +10257,10 @@
               {
                 "id": 95,
                 "name": "Pingpong",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Delay pingpong",
                 "type": "basic"
               },
@@ -9349,6 +10279,11 @@
               {
                 "id": 98,
                 "name": "Type",
+                "options": [
+                  "Off",
+                  "Digital",
+                  "Analog"
+                ],
                 "title": "Delay type",
                 "type": "basic"
               }
@@ -9387,6 +10322,11 @@
               {
                 "id": 104,
                 "name": "Model",
+                "options": [
+                  "Freeverb",
+                  "Mutable",
+                  "Digital"
+                ],
                 "title": "Model",
                 "type": "basic"
               },
@@ -9464,6 +10404,12 @@
               {
                 "id": 116,
                 "name": "Direction",
+                "options": [
+                  "Forward",
+                  "Reversed",
+                  "Forw-Ping",
+                  "Rvrs-Ping"
+                ],
                 "title": "Direction",
                 "type": "basic"
               },
@@ -9471,6 +10417,10 @@
                 "available_when": "stutter_quantize_allowed",
                 "id": 117,
                 "name": "Quantize",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Quantize",
                 "type": "basic"
               }
@@ -9485,6 +10435,16 @@
               {
                 "id": 119,
                 "name": "Type",
+                "options": [
+                  "Disabled",
+                  "Flanger",
+                  "Chorus",
+                  "Phaser",
+                  "Stereo Chorus",
+                  "Warble",
+                  "Dimension",
+                  "Grain"
+                ],
                 "title": "MOD-FX type",
                 "type": "basic"
               },
@@ -9610,6 +10570,10 @@
           {
             "id": 296,
             "name": "Reverse",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Reverse",
             "type": "basic"
           },
@@ -9617,6 +10581,10 @@
             "available_when": "setting:osc1/timeStretchEnable",
             "id": 154,
             "name": "Pitch/Speed",
+            "options": [
+              "Linked",
+              "Independent"
+            ],
             "title": "Pitch/Speed",
             "type": "basic"
           },
@@ -9630,6 +10598,10 @@
           {
             "id": 298,
             "name": "Interpolation",
+            "options": [
+              "Linear",
+              "Sinc"
+            ],
             "title": "AUDIO INTERP.",
             "type": "basic"
           }
@@ -9648,6 +10620,11 @@
       {
         "id": 225,
         "name": "Priority",
+        "options": [
+          "Low",
+          "Medium",
+          "High"
+        ],
         "title": "Priority",
         "type": "basic"
       }
@@ -9672,6 +10649,14 @@
               {
                 "id": 77,
                 "name": "Mode",
+                "options": [
+                  "12dB Ladder",
+                  "24dB Ladder",
+                  "Drive",
+                  "SVF Bandpass",
+                  "SVF Notch",
+                  "Off"
+                ],
                 "title": "LPF mode",
                 "type": "basic"
               },
@@ -9704,6 +10689,12 @@
               {
                 "id": 82,
                 "name": "Mode",
+                "options": [
+                  "SVF Bandpass",
+                  "SVF Notch",
+                  "HP Ladder",
+                  "Off"
+                ],
                 "title": "HPF mode",
                 "type": "basic"
               },
@@ -9734,6 +10725,11 @@
           {
             "id": 86,
             "name": "Filter Route",
+            "options": [
+              "Hpf > Lpf",
+              "Lpf > Hpf",
+              "Parallel"
+            ],
             "title": "Filter Route",
             "type": "basic"
           }
@@ -9788,6 +10784,10 @@
               {
                 "id": 95,
                 "name": "Pingpong",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Delay pingpong",
                 "type": "basic"
               },
@@ -9806,6 +10806,11 @@
               {
                 "id": 98,
                 "name": "Type",
+                "options": [
+                  "Off",
+                  "Digital",
+                  "Analog"
+                ],
                 "title": "Delay type",
                 "type": "basic"
               }
@@ -9844,6 +10849,11 @@
               {
                 "id": 104,
                 "name": "Model",
+                "options": [
+                  "Freeverb",
+                  "Mutable",
+                  "Digital"
+                ],
                 "title": "Model",
                 "type": "basic"
               },
@@ -9921,6 +10931,12 @@
               {
                 "id": 116,
                 "name": "Direction",
+                "options": [
+                  "Forward",
+                  "Reversed",
+                  "Forw-Ping",
+                  "Rvrs-Ping"
+                ],
                 "title": "Direction",
                 "type": "basic"
               },
@@ -9928,6 +10944,10 @@
                 "available_when": "stutter_quantize_allowed",
                 "id": 117,
                 "name": "Quantize",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Quantize",
                 "type": "basic"
               }
@@ -9942,6 +10962,16 @@
               {
                 "id": 119,
                 "name": "Type",
+                "options": [
+                  "Disabled",
+                  "Flanger",
+                  "Chorus",
+                  "Phaser",
+                  "Stereo Chorus",
+                  "Warble",
+                  "Dimension",
+                  "Grain"
+                ],
                 "title": "MOD-FX type",
                 "type": "basic"
               },
@@ -10036,6 +11066,14 @@
               {
                 "id": 77,
                 "name": "Mode",
+                "options": [
+                  "12dB Ladder",
+                  "24dB Ladder",
+                  "Drive",
+                  "SVF Bandpass",
+                  "SVF Notch",
+                  "Off"
+                ],
                 "title": "LPF mode",
                 "type": "basic"
               },
@@ -10068,6 +11106,12 @@
               {
                 "id": 82,
                 "name": "Mode",
+                "options": [
+                  "SVF Bandpass",
+                  "SVF Notch",
+                  "HP Ladder",
+                  "Off"
+                ],
                 "title": "HPF mode",
                 "type": "basic"
               },
@@ -10098,6 +11142,11 @@
           {
             "id": 86,
             "name": "Filter Route",
+            "options": [
+              "Hpf > Lpf",
+              "Lpf > Hpf",
+              "Parallel"
+            ],
             "title": "Filter Route",
             "type": "basic"
           }
@@ -10152,6 +11201,10 @@
               {
                 "id": 95,
                 "name": "Pingpong",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Delay pingpong",
                 "type": "basic"
               },
@@ -10170,6 +11223,11 @@
               {
                 "id": 98,
                 "name": "Type",
+                "options": [
+                  "Off",
+                  "Digital",
+                  "Analog"
+                ],
                 "title": "Delay type",
                 "type": "basic"
               }
@@ -10208,6 +11266,11 @@
               {
                 "id": 104,
                 "name": "Model",
+                "options": [
+                  "Freeverb",
+                  "Mutable",
+                  "Digital"
+                ],
                 "title": "Model",
                 "type": "basic"
               },
@@ -10285,6 +11348,12 @@
               {
                 "id": 116,
                 "name": "Direction",
+                "options": [
+                  "Forward",
+                  "Reversed",
+                  "Forw-Ping",
+                  "Rvrs-Ping"
+                ],
                 "title": "Direction",
                 "type": "basic"
               },
@@ -10292,6 +11361,10 @@
                 "available_when": "stutter_quantize_allowed",
                 "id": 117,
                 "name": "Quantize",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Quantize",
                 "type": "basic"
               }
@@ -10306,6 +11379,16 @@
               {
                 "id": 119,
                 "name": "Type",
+                "options": [
+                  "Disabled",
+                  "Flanger",
+                  "Chorus",
+                  "Phaser",
+                  "Stereo Chorus",
+                  "Warble",
+                  "Dimension",
+                  "Grain"
+                ],
                 "title": "MOD-FX type",
                 "type": "basic"
               },
@@ -10382,6 +11465,12 @@
           {
             "id": 308,
             "name": "Mode",
+            "options": [
+              "Disabled",
+              "Low",
+              "Medium",
+              "High"
+            ],
             "title": "Mode",
             "type": "basic"
           }
@@ -10418,30 +11507,50 @@
               {
                 "id": 314,
                 "name": "Normalization",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Normalization",
                 "type": "basic"
               },
               {
                 "id": 315,
                 "name": "Export to Silence",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Export to Silence",
                 "type": "basic"
               },
               {
                 "id": 316,
                 "name": "Song FX",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Song FX",
                 "type": "basic"
               },
               {
                 "id": 317,
                 "name": "Offline Rendering",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Offline Rendering",
                 "type": "basic"
               },
               {
                 "id": 318,
                 "name": "Export Mixdown",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Export Mixdown",
                 "type": "basic"
               }
@@ -10500,30 +11609,50 @@
                   {
                     "id": 323,
                     "name": "Kit FX",
+                    "options": [
+                      "Off",
+                      "On"
+                    ],
                     "title": "Kit FX",
                     "type": "basic"
                   },
                   {
                     "id": 324,
                     "name": "Normalization",
+                    "options": [
+                      "Off",
+                      "On"
+                    ],
                     "title": "Normalization",
                     "type": "basic"
                   },
                   {
                     "id": 315,
                     "name": "Export to Silence",
+                    "options": [
+                      "Off",
+                      "On"
+                    ],
                     "title": "Export to Silence",
                     "type": "basic"
                   },
                   {
                     "id": 316,
                     "name": "Song FX",
+                    "options": [
+                      "Off",
+                      "On"
+                    ],
                     "title": "Song FX",
                     "type": "basic"
                   },
                   {
                     "id": 317,
                     "name": "Offline Rendering",
+                    "options": [
+                      "Off",
+                      "On"
+                    ],
                     "title": "Offline Rendering",
                     "type": "basic"
                   }
@@ -10576,6 +11705,10 @@
           {
             "id": 19,
             "name": "Enabled",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Arp enabled",
             "type": "basic"
           },
@@ -10584,14 +11717,41 @@
               {
                 "id": 21,
                 "name": "Preset",
+                "options": [
+                  "Off",
+                  "Up",
+                  "Down",
+                  "Both",
+                  "Random",
+                  "Walk",
+                  "Custom"
+                ],
                 "select_chain": [
                   {
                     "id": 22,
                     "name": "Octave Mode",
+                    "options": [
+                      "Up",
+                      "Down",
+                      "Up & Down",
+                      "Alternate",
+                      "Random"
+                    ],
                     "select_chain": [
                       {
                         "id": 23,
                         "name": "Note Mode",
+                        "options": [
+                          "Up",
+                          "Down",
+                          "Up & Down",
+                          "Random",
+                          "Walk1",
+                          "Walk2",
+                          "Walk3",
+                          "Played Order",
+                          "Pattern"
+                        ],
                         "title": "Arp note mode",
                         "type": "basic"
                       }
@@ -10602,10 +11762,28 @@
                   {
                     "id": 24,
                     "name": "Octave Mode",
+                    "options": [
+                      "Up",
+                      "Down",
+                      "Up & Down",
+                      "Alternate",
+                      "Random"
+                    ],
                     "select_chain": [
                       {
                         "id": 25,
                         "name": "Note Mode",
+                        "options": [
+                          "Up",
+                          "Down",
+                          "Up & Down",
+                          "Random",
+                          "Walk1",
+                          "Walk2",
+                          "Walk3",
+                          "Played Order",
+                          "Pattern"
+                        ],
                         "title": "Arp note mode",
                         "type": "basic"
                       }
@@ -10660,24 +11838,64 @@
               {
                 "id": 32,
                 "name": "Octave Mode",
+                "options": [
+                  "Up",
+                  "Down",
+                  "Up & Down",
+                  "Alternate",
+                  "Random"
+                ],
                 "title": "Arp octave mode",
                 "type": "basic"
               },
               {
                 "id": 33,
                 "name": "Note Mode",
+                "options": [
+                  "Up",
+                  "Down",
+                  "Up & Down",
+                  "Random",
+                  "Walk1",
+                  "Walk2",
+                  "Walk3",
+                  "Played Order",
+                  "Pattern"
+                ],
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
                 "id": 34,
                 "name": "Note Mode",
+                "options": [
+                  "Up",
+                  "Down",
+                  "Up & Down",
+                  "Random",
+                  "Walk1",
+                  "Walk2",
+                  "Walk3",
+                  "Played Order",
+                  "Pattern"
+                ],
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
                 "id": 35,
                 "name": "Chord Simulator",
+                "options": [
+                  "None",
+                  "5th",
+                  "Sus2",
+                  "Min",
+                  "Maj",
+                  "Sus4",
+                  "Min7",
+                  "Dom7",
+                  "Maj7"
+                ],
                 "title": "Arp chord sim",
                 "type": "basic"
               },
@@ -10716,6 +11934,10 @@
               {
                 "id": 44,
                 "name": "Lock Randomizer",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Arp lock rand",
                 "type": "basic"
               },
@@ -10926,6 +12148,14 @@
               {
                 "id": 77,
                 "name": "Mode",
+                "options": [
+                  "12dB Ladder",
+                  "24dB Ladder",
+                  "Drive",
+                  "SVF Bandpass",
+                  "SVF Notch",
+                  "Off"
+                ],
                 "title": "LPF mode",
                 "type": "basic"
               },
@@ -10958,6 +12188,12 @@
               {
                 "id": 82,
                 "name": "Mode",
+                "options": [
+                  "SVF Bandpass",
+                  "SVF Notch",
+                  "HP Ladder",
+                  "Off"
+                ],
                 "title": "HPF mode",
                 "type": "basic"
               },
@@ -10988,6 +12224,11 @@
           {
             "id": 86,
             "name": "Filter Route",
+            "options": [
+              "Hpf > Lpf",
+              "Lpf > Hpf",
+              "Parallel"
+            ],
             "title": "Filter Route",
             "type": "basic"
           }
@@ -11042,6 +12283,10 @@
               {
                 "id": 95,
                 "name": "Pingpong",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Delay pingpong",
                 "type": "basic"
               },
@@ -11060,6 +12305,11 @@
               {
                 "id": 98,
                 "name": "Type",
+                "options": [
+                  "Off",
+                  "Digital",
+                  "Analog"
+                ],
                 "title": "Delay type",
                 "type": "basic"
               }
@@ -11098,6 +12348,11 @@
               {
                 "id": 104,
                 "name": "Model",
+                "options": [
+                  "Freeverb",
+                  "Mutable",
+                  "Digital"
+                ],
                 "title": "Model",
                 "type": "basic"
               },
@@ -11175,6 +12430,12 @@
               {
                 "id": 116,
                 "name": "Direction",
+                "options": [
+                  "Forward",
+                  "Reversed",
+                  "Forw-Ping",
+                  "Rvrs-Ping"
+                ],
                 "title": "Direction",
                 "type": "basic"
               },
@@ -11182,6 +12443,10 @@
                 "available_when": "stutter_quantize_allowed",
                 "id": 117,
                 "name": "Quantize",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Quantize",
                 "type": "basic"
               }
@@ -11196,6 +12461,16 @@
               {
                 "id": 119,
                 "name": "Type",
+                "options": [
+                  "Disabled",
+                  "Flanger",
+                  "Chorus",
+                  "Phaser",
+                  "Stereo Chorus",
+                  "Warble",
+                  "Dimension",
+                  "Grain"
+                ],
                 "title": "MOD-FX type",
                 "type": "basic"
               },
@@ -11385,6 +12660,10 @@
           {
             "id": 343,
             "name": "Gate out* mode",
+            "options": [
+              "V-Trig",
+              "S-Trig"
+            ],
             "title": "Gate out* mode",
             "type": "basic"
           },
@@ -11411,6 +12690,10 @@
               {
                 "id": 348,
                 "name": "Auto-Start",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Auto-Start",
                 "type": "basic"
               }
@@ -11447,18 +12730,30 @@
               {
                 "id": 353,
                 "name": "Output",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "MIDI clock out",
                 "type": "basic"
               },
               {
                 "id": 354,
                 "name": "Input",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "MIDI clock in",
                 "type": "basic"
               },
               {
                 "id": 355,
                 "name": "Tempo Magnitude Matching",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Tempo Magnitude Matching",
                 "type": "basic"
               }
@@ -11603,18 +12898,38 @@
                   {
                     "id": 379,
                     "name": "Channel",
+                    "options": [
+                      "None",
+                      "Channel A",
+                      "Channel B",
+                      "Channel C",
+                      "Channel Track",
+                      "Channel Track + Channel A",
+                      "Channel Track + Channel B",
+                      "Channel Track + Channel C"
+                    ],
                     "title": "Channel",
                     "type": "basic"
                   },
                   {
                     "id": 380,
                     "name": "Automation Feedback",
+                    "options": [
+                      "Disabled",
+                      "Low",
+                      "Medium",
+                      "High"
+                    ],
                     "title": "Automation Feedback",
                     "type": "basic"
                   },
                   {
                     "id": 381,
                     "name": "Filter Responses",
+                    "options": [
+                      "Off",
+                      "On"
+                    ],
                     "title": "Filter Responses",
                     "type": "basic"
                   }
@@ -11627,6 +12942,10 @@
               {
                 "id": 382,
                 "name": "Display Param",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Display Param",
                 "type": "basic"
               }
@@ -11639,24 +12958,42 @@
           {
             "id": 383,
             "name": "Select Kit Row",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Select Kit Row",
             "type": "basic"
           },
           {
             "id": 384,
             "name": "MIDI-Thru",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "MIDI-Thru",
             "type": "basic"
           },
           {
             "id": 385,
             "name": "Transpose",
+            "options": [
+              "In Key",
+              "Chromatic"
+            ],
             "title": "Transpose",
             "type": "basic"
           },
           {
             "id": 386,
             "name": "Takeover",
+            "options": [
+              "Jump",
+              "Pickup",
+              "Scale",
+              "Relative"
+            ],
             "title": "Takeover",
             "type": "basic"
           },
@@ -11743,6 +13080,10 @@
           {
             "id": 400,
             "name": "Differentiate inputs",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Differentiate inputs",
             "type": "basic"
           },
@@ -11783,24 +13124,40 @@
                   {
                     "id": 407,
                     "name": "Clock Out",
+                    "options": [
+                      "Off",
+                      "On"
+                    ],
                     "title": "Clock Out",
                     "type": "basic"
                   },
                   {
                     "id": 408,
                     "name": "Clock In",
+                    "options": [
+                      "Off",
+                      "On"
+                    ],
                     "title": "Clock In",
                     "type": "basic"
                   },
                   {
                     "id": 409,
                     "name": "Use Relative CC",
+                    "options": [
+                      "Off",
+                      "On"
+                    ],
                     "title": "Use Relative CC",
                     "type": "basic"
                   },
                   {
                     "id": 410,
                     "name": "MIDI-Thru",
+                    "options": [
+                      "Off",
+                      "On"
+                    ],
                     "title": "MIDI-Thru",
                     "type": "basic"
                   }
@@ -11825,18 +13182,30 @@
           {
             "id": 412,
             "name": "Enabled",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "USB audio",
             "type": "basic"
           },
           {
             "id": 413,
             "name": "Input",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "USB input",
             "type": "basic"
           },
           {
             "id": 414,
             "name": "Output",
+            "options": [
+              "Main mix",
+              "Line in"
+            ],
             "title": "USB output",
             "type": "basic"
           }
@@ -11855,12 +13224,21 @@
                   {
                     "id": 418,
                     "name": "Shortcuts",
+                    "options": [
+                      "Off",
+                      "On"
+                    ],
                     "title": "Shortcuts",
                     "type": "basic"
                   },
                   {
                     "id": 419,
                     "name": "Menu Highlighting",
+                    "options": [
+                      "Full inversion",
+                      "Partial inversion",
+                      "No inversion"
+                    ],
                     "title": "Menu Highlighting",
                     "type": "basic"
                   }
@@ -11875,6 +13253,10 @@
                   {
                     "id": 421,
                     "name": "Layout",
+                    "options": [
+                      "Rows",
+                      "Grid"
+                    ],
                     "title": "Layout",
                     "type": "basic"
                   },
@@ -11883,12 +13265,21 @@
                       {
                         "id": 423,
                         "name": "Default active mode",
+                        "options": [
+                          "Selection",
+                          "Green",
+                          "Blue"
+                        ],
                         "title": "Default active mode",
                         "type": "basic"
                       },
                       {
                         "id": 424,
                         "name": "Select in green mode",
+                        "options": [
+                          "Off",
+                          "On"
+                        ],
                         "title": "Select in green mode",
                         "type": "basic"
                       },
@@ -11897,12 +13288,20 @@
                           {
                             "id": 426,
                             "name": "Unarm",
+                            "options": [
+                              "Off",
+                              "On"
+                            ],
                             "title": "Unarm",
                             "type": "basic"
                           },
                           {
                             "id": 427,
                             "name": "Create + Record",
+                            "options": [
+                              "Off",
+                              "On"
+                            ],
                             "title": "Create + Record",
                             "type": "basic"
                           }
@@ -11929,6 +13328,11 @@
                   {
                     "id": 429,
                     "name": "Layout",
+                    "options": [
+                      "Isomorphic",
+                      "In-Key",
+                      "Piano"
+                    ],
                     "title": "Layout",
                     "type": "basic"
                   },
@@ -11937,12 +13341,20 @@
                       {
                         "id": 431,
                         "name": "Momentary Velocity",
+                        "options": [
+                          "Off",
+                          "On"
+                        ],
                         "title": "Momentary Velocity",
                         "type": "basic"
                       },
                       {
                         "id": 432,
                         "name": "Momentary Modwheel",
+                        "options": [
+                          "Off",
+                          "On"
+                        ],
                         "title": "Momentary Modwheel",
                         "type": "basic"
                       }
@@ -11955,6 +13367,11 @@
                   {
                     "id": 433,
                     "name": "Favourites",
+                    "options": [
+                      "Favourites Only",
+                      "Favourites and Banks",
+                      "Off"
+                    ],
                     "title": "Favourites",
                     "type": "basic"
                   }
@@ -11969,12 +13386,23 @@
                   {
                     "id": 435,
                     "name": "New Clip Type",
+                    "options": [
+                      "SYNTH",
+                      "KIT",
+                      "MIDI",
+                      "CV",
+                      "AUDIO"
+                    ],
                     "title": "New Clip Type",
                     "type": "basic"
                   },
                   {
                     "id": 436,
                     "name": "Use Last Clip Type",
+                    "options": [
+                      "Off",
+                      "On"
+                    ],
                     "title": "Use Last Clip Type",
                     "type": "basic"
                   }
@@ -11987,6 +13415,10 @@
               {
                 "id": 437,
                 "name": "Use Sharps (#)",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Use Sharps (#)",
                 "type": "basic"
               }
@@ -12001,30 +13433,50 @@
               {
                 "id": 439,
                 "name": "Interpolation",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Interpolation",
                 "type": "basic"
               },
               {
                 "id": 440,
                 "name": "Clear",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Clear",
                 "type": "basic"
               },
               {
                 "id": 441,
                 "name": "Shift",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Shift",
                 "type": "basic"
               },
               {
                 "id": 442,
                 "name": "Nudge Note",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Nudge Note",
                 "type": "basic"
               },
               {
                 "id": 443,
                 "name": "Disable Audition Pad Shortcuts",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Disable Audition Pad Shortcuts",
                 "type": "basic"
               }
@@ -12063,6 +13515,26 @@
               {
                 "id": 449,
                 "name": "Init Scale",
+                "options": [
+                  "MAJOR",
+                  "MINOR",
+                  "DORIAN",
+                  "PHRYGIAN",
+                  "LYDIAN",
+                  "MIXOLYDIAN",
+                  "LOCRIAN",
+                  "MELODIC MINOR",
+                  "HARMONIC MINOR",
+                  "HUNGARIAN MINOR",
+                  "MARVA",
+                  "ARABIAN",
+                  "WHOLE TONE",
+                  "BLUES",
+                  "PENTATONIC MINOR",
+                  "HIRAJOSHI",
+                  "RANDOM",
+                  "NONE"
+                ],
                 "title": "Init Scale",
                 "type": "basic"
               },
@@ -12105,12 +13577,22 @@
           {
             "id": 455,
             "name": "Patch cable polarity",
+            "options": [
+              "unipolar",
+              "bipolar"
+            ],
             "title": "Patch cable polarity",
             "type": "basic"
           },
           {
             "id": 456,
             "name": "Startup Song",
+            "options": [
+              "New song",
+              "Template song (Default.xml)",
+              "Last opened song",
+              "Last saved song"
+            ],
             "title": "Startup Song",
             "type": "basic"
           },
@@ -12123,12 +13605,22 @@
           {
             "id": 458,
             "name": "Sample Slice Mode",
+            "options": [
+              "Cut",
+              "Once",
+              "Loop",
+              "Stretch"
+            ],
             "title": "Sample Slice Mode",
             "type": "basic"
           },
           {
             "id": 459,
             "name": "High CPU Indicator",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "High CPU Indicator",
             "type": "basic"
           },
@@ -12143,6 +13635,12 @@
               {
                 "id": 462,
                 "name": "Mode",
+                "options": [
+                  "Off",
+                  "Blank",
+                  "Starscape",
+                  "Deluge"
+                ],
                 "title": "Mode",
                 "type": "basic"
               },
@@ -12169,12 +13667,21 @@
           {
             "id": 465,
             "name": "Shortcut Version",
+            "options": [
+              "1.0",
+              "3.0"
+            ],
             "title": "Shortcuts vers",
             "type": "basic"
           },
           {
             "id": 466,
             "name": "Keyboard for Text",
+            "options": [
+              "QWERTY",
+              "AZERTY",
+              "QWERTZ"
+            ],
             "title": "Key layout",
             "type": "basic"
           },
@@ -12183,36 +13690,102 @@
               {
                 "id": 468,
                 "name": "Active",
+                "options": [
+                  "Red",
+                  "Green",
+                  "Blue",
+                  "Yellow",
+                  "Cyan",
+                  "Purple",
+                  "Amber",
+                  "White",
+                  "Pink"
+                ],
                 "title": "Active",
                 "type": "basic"
               },
               {
                 "id": 469,
                 "name": "Stopped",
+                "options": [
+                  "Red",
+                  "Green",
+                  "Blue",
+                  "Yellow",
+                  "Cyan",
+                  "Purple",
+                  "Amber",
+                  "White",
+                  "Pink"
+                ],
                 "title": "Stopped",
                 "type": "basic"
               },
               {
                 "id": 470,
                 "name": "Muted",
+                "options": [
+                  "Red",
+                  "Green",
+                  "Blue",
+                  "Yellow",
+                  "Cyan",
+                  "Purple",
+                  "Amber",
+                  "White",
+                  "Pink"
+                ],
                 "title": "Muted",
                 "type": "basic"
               },
               {
                 "id": 471,
                 "name": "Soloed",
+                "options": [
+                  "Red",
+                  "Green",
+                  "Blue",
+                  "Yellow",
+                  "Cyan",
+                  "Purple",
+                  "Amber",
+                  "White",
+                  "Pink"
+                ],
                 "title": "Soloed",
                 "type": "basic"
               },
               {
                 "id": 472,
                 "name": "Fill",
+                "options": [
+                  "Red",
+                  "Green",
+                  "Blue",
+                  "Yellow",
+                  "Cyan",
+                  "Purple",
+                  "Amber",
+                  "White",
+                  "Pink"
+                ],
                 "title": "Fill",
                 "type": "basic"
               },
               {
                 "id": 473,
                 "name": "Once",
+                "options": [
+                  "Red",
+                  "Green",
+                  "Blue",
+                  "Yellow",
+                  "Cyan",
+                  "Purple",
+                  "Amber",
+                  "White",
+                  "Pink"
+                ],
                 "title": "Once",
                 "type": "basic"
               }
@@ -12231,12 +13804,22 @@
       {
         "id": 474,
         "name": "Sample Preview",
+        "options": [
+          "Disabled",
+          "Conditional",
+          "Enabled"
+        ],
         "title": "Sample Preview",
         "type": "basic"
       },
       {
         "id": 475,
         "name": "Play-Cursor",
+        "options": [
+          "Fast",
+          "Disabled",
+          "Slow"
+        ],
         "title": "Play-Cursor",
         "type": "basic"
       },
@@ -12257,12 +13840,21 @@
           {
             "id": 479,
             "name": "Loop margins",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Loop margins",
             "type": "basic"
           },
           {
             "id": 480,
             "name": "Sampling monitoring",
+            "options": [
+              "Conditional",
+              "Enabled",
+              "Disabled"
+            ],
             "title": "Monitoring",
             "type": "basic"
           },
@@ -12271,6 +13863,12 @@
               {
                 "id": 482,
                 "name": "Mode",
+                "options": [
+                  "Disabled",
+                  "Low",
+                  "Medium",
+                  "High"
+                ],
                 "title": "Mode",
                 "type": "basic"
               }
@@ -12291,138 +13889,231 @@
           {
             "id": 484,
             "name": "Drum Randomizer",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Drum Randomizer",
             "type": "basic"
           },
           {
             "id": 485,
             "name": "Fine Tempo Knob",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Fine Tempo Knob",
             "type": "basic"
           },
           {
             "id": 486,
             "name": "Quantize",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Quantize",
             "type": "basic"
           },
           {
             "id": 487,
             "name": "Catch Notes",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Catch Notes",
             "type": "basic"
           },
           {
             "id": 488,
             "name": "Delete Unused Kit Rows",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Delete Unused Kit Rows",
             "type": "basic"
           },
           {
             "id": 489,
             "name": "Alternative Golden Knob Delay Params",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Alternative Golden Knob Delay Params",
             "type": "basic"
           },
           {
             "id": 490,
             "name": "Sync Scaling Action",
+            "options": [
+              "Sync Scaling",
+              "Fill mode"
+            ],
             "title": "Sync Scaling Action",
             "type": "basic"
           },
           {
             "id": 491,
             "name": "Highlight Incoming Notes",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Highlight Incoming Notes",
             "type": "basic"
           },
           {
             "id": 492,
             "name": "Display Norns Layout",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Display Norns Layout",
             "type": "basic"
           },
           {
             "id": 493,
             "name": "Sticky Shift",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Sticky Shift",
             "type": "basic"
           },
           {
             "id": 494,
             "name": "Light Shift",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Light Shift",
             "type": "basic"
           },
           {
             "id": 495,
             "name": "DX7 Engine",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "DX7 Engine",
             "type": "basic"
           },
           {
             "id": 496,
             "name": "KB View Sidebar Menu Exit",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "KB View Sidebar Menu Exit",
             "type": "basic"
           },
           {
             "id": 497,
             "name": "Launch Event Playhead",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Launch Event Playhead",
             "type": "basic"
           },
           {
             "id": 498,
             "name": "Chord Keyboards",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Chord Keyboards",
             "type": "basic"
           },
           {
             "id": 499,
             "name": "Alternative Playback Start Behaviour",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Alternative Playback Start Behaviour",
             "type": "basic"
           },
           {
             "id": 500,
             "name": "Grid View Loop Layer Pads",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Grid View Loop Layer Pads",
             "type": "basic"
           },
           {
             "id": 501,
             "name": "Alternative Tap Tempo Behaviour",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Alternative Tap Tempo Behaviour",
             "type": "basic"
           },
           {
             "id": 502,
             "name": "Horizontal Menus",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Horizontal Menus",
             "type": "basic"
           },
           {
             "id": 503,
             "name": "Rounded Corners",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Rounded Corners",
             "type": "basic"
           },
           {
             "id": 504,
             "name": "Trim From Start Of Audio Clips",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Trim From Start Of Audio Clips",
             "type": "basic"
           },
           {
             "id": 505,
             "name": "Show Battery Level",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Show Battery Level",
             "type": "basic"
           },
           {
             "id": 506,
             "name": "Shortcut Overlay",
+            "options": [
+              "Off",
+              "On - Menu only",
+              "On - Menu + Clip"
+            ],
             "title": "Shortcut Overlay",
             "type": "basic"
           }
@@ -12520,6 +14211,10 @@
           {
             "id": 249,
             "name": "Hide Unlabeled CC",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Hide Unlabeled CC",
             "type": "basic"
           }
@@ -12560,6 +14255,10 @@
           {
             "id": 19,
             "name": "Enabled",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Arp enabled",
             "type": "basic"
           },
@@ -12568,14 +14267,41 @@
               {
                 "id": 21,
                 "name": "Preset",
+                "options": [
+                  "Off",
+                  "Up",
+                  "Down",
+                  "Both",
+                  "Random",
+                  "Walk",
+                  "Custom"
+                ],
                 "select_chain": [
                   {
                     "id": 22,
                     "name": "Octave Mode",
+                    "options": [
+                      "Up",
+                      "Down",
+                      "Up & Down",
+                      "Alternate",
+                      "Random"
+                    ],
                     "select_chain": [
                       {
                         "id": 23,
                         "name": "Note Mode",
+                        "options": [
+                          "Up",
+                          "Down",
+                          "Up & Down",
+                          "Random",
+                          "Walk1",
+                          "Walk2",
+                          "Walk3",
+                          "Played Order",
+                          "Pattern"
+                        ],
                         "title": "Arp note mode",
                         "type": "basic"
                       }
@@ -12586,10 +14312,28 @@
                   {
                     "id": 24,
                     "name": "Octave Mode",
+                    "options": [
+                      "Up",
+                      "Down",
+                      "Up & Down",
+                      "Alternate",
+                      "Random"
+                    ],
                     "select_chain": [
                       {
                         "id": 25,
                         "name": "Note Mode",
+                        "options": [
+                          "Up",
+                          "Down",
+                          "Up & Down",
+                          "Random",
+                          "Walk1",
+                          "Walk2",
+                          "Walk3",
+                          "Played Order",
+                          "Pattern"
+                        ],
                         "title": "Arp note mode",
                         "type": "basic"
                       }
@@ -12643,24 +14387,64 @@
               {
                 "id": 32,
                 "name": "Octave Mode",
+                "options": [
+                  "Up",
+                  "Down",
+                  "Up & Down",
+                  "Alternate",
+                  "Random"
+                ],
                 "title": "Arp octave mode",
                 "type": "basic"
               },
               {
                 "id": 33,
                 "name": "Note Mode",
+                "options": [
+                  "Up",
+                  "Down",
+                  "Up & Down",
+                  "Random",
+                  "Walk1",
+                  "Walk2",
+                  "Walk3",
+                  "Played Order",
+                  "Pattern"
+                ],
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
                 "id": 34,
                 "name": "Note Mode",
+                "options": [
+                  "Up",
+                  "Down",
+                  "Up & Down",
+                  "Random",
+                  "Walk1",
+                  "Walk2",
+                  "Walk3",
+                  "Played Order",
+                  "Pattern"
+                ],
                 "title": "Arp note mode",
                 "type": "basic"
               },
               {
                 "id": 35,
                 "name": "Chord Simulator",
+                "options": [
+                  "None",
+                  "5th",
+                  "Sus2",
+                  "Min",
+                  "Maj",
+                  "Sus4",
+                  "Min7",
+                  "Dom7",
+                  "Maj7"
+                ],
                 "title": "Arp chord sim",
                 "type": "basic"
               },
@@ -12700,6 +14484,11 @@
               {
                 "id": 41,
                 "name": "Velocity",
+                "options": [
+                  "Disabled",
+                  "Aftertouch",
+                  "MPE Y"
+                ],
                 "title": "Velocity",
                 "type": "basic"
               }
@@ -12712,6 +14501,10 @@
           {
             "id": 42,
             "name": "Include in Kit Arp",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Include in Kit Arp",
             "type": "basic"
           }
@@ -12726,6 +14519,10 @@
           {
             "id": 44,
             "name": "Lock Randomizer",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Arp lock rand",
             "type": "basic"
           },
@@ -12898,12 +14695,22 @@
       {
         "id": 258,
         "name": "CV 2 Source",
+        "options": [
+          "Off",
+          "MPE Y",
+          "Aftertouch",
+          "Velocity"
+        ],
         "title": "CV 2 Source",
         "type": "basic"
       },
       {
         "id": 259,
         "name": "Send Y as CC1",
+        "options": [
+          "Off",
+          "On"
+        ],
         "title": "Send Y as CC1",
         "type": "basic"
       },
@@ -12913,12 +14720,20 @@
           {
             "id": 261,
             "name": "Aftertouch",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "Aftertouch",
             "type": "basic"
           },
           {
             "id": 262,
             "name": "MPE",
+            "options": [
+              "Off",
+              "On"
+            ],
             "title": "MPE",
             "type": "basic"
           }
@@ -12931,6 +14746,11 @@
       {
         "id": 238,
         "name": "Play direction",
+        "options": [
+          "Forward",
+          "Reversed",
+          "Ping-Pong"
+        ],
         "title": "Play direction",
         "type": "basic"
       }
@@ -13130,6 +14950,10 @@
                 "available_when": "nodes::relevant_note_iterance_step_1",
                 "id": 521,
                 "name": "Iteration 1",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Iteration 1",
                 "type": "basic"
               },
@@ -13137,6 +14961,10 @@
                 "available_when": "nodes::relevant_note_iterance_step_2",
                 "id": 522,
                 "name": "Iteration 2",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Iteration 2",
                 "type": "basic"
               },
@@ -13144,6 +14972,10 @@
                 "available_when": "nodes::relevant_note_iterance_step_3",
                 "id": 523,
                 "name": "Iteration 3",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Iteration 3",
                 "type": "basic"
               },
@@ -13151,6 +14983,10 @@
                 "available_when": "nodes::relevant_note_iterance_step_4",
                 "id": 524,
                 "name": "Iteration 4",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Iteration 4",
                 "type": "basic"
               },
@@ -13158,6 +14994,10 @@
                 "available_when": "nodes::relevant_note_iterance_step_5",
                 "id": 525,
                 "name": "Iteration 5",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Iteration 5",
                 "type": "basic"
               },
@@ -13165,6 +15005,10 @@
                 "available_when": "nodes::relevant_note_iterance_step_6",
                 "id": 526,
                 "name": "Iteration 6",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Iteration 6",
                 "type": "basic"
               },
@@ -13172,6 +15016,10 @@
                 "available_when": "nodes::relevant_note_iterance_step_7",
                 "id": 527,
                 "name": "Iteration 7",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Iteration 7",
                 "type": "basic"
               },
@@ -13179,6 +15027,10 @@
                 "available_when": "nodes::relevant_note_iterance_step_8",
                 "id": 528,
                 "name": "Iteration 8",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Iteration 8",
                 "type": "basic"
               }
@@ -13209,6 +15061,11 @@
       {
         "id": 238,
         "name": "Play direction",
+        "options": [
+          "Forward",
+          "Reversed",
+          "Ping-Pong"
+        ],
         "title": "Play direction",
         "type": "basic"
       },
@@ -13234,6 +15091,10 @@
                 "available_when": "nodes::relevant_note_row_iterance_step_1",
                 "id": 535,
                 "name": "Iteration 1",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Iteration 1",
                 "type": "basic"
               },
@@ -13241,6 +15102,10 @@
                 "available_when": "nodes::relevant_note_row_iterance_step_2",
                 "id": 536,
                 "name": "Iteration 2",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Iteration 2",
                 "type": "basic"
               },
@@ -13248,6 +15113,10 @@
                 "available_when": "nodes::relevant_note_row_iterance_step_3",
                 "id": 537,
                 "name": "Iteration 3",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Iteration 3",
                 "type": "basic"
               },
@@ -13255,6 +15124,10 @@
                 "available_when": "nodes::relevant_note_row_iterance_step_4",
                 "id": 538,
                 "name": "Iteration 4",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Iteration 4",
                 "type": "basic"
               },
@@ -13262,6 +15135,10 @@
                 "available_when": "nodes::relevant_note_row_iterance_step_5",
                 "id": 539,
                 "name": "Iteration 5",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Iteration 5",
                 "type": "basic"
               },
@@ -13269,6 +15146,10 @@
                 "available_when": "nodes::relevant_note_row_iterance_step_6",
                 "id": 540,
                 "name": "Iteration 6",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Iteration 6",
                 "type": "basic"
               },
@@ -13276,6 +15157,10 @@
                 "available_when": "nodes::relevant_note_row_iterance_step_7",
                 "id": 541,
                 "name": "Iteration 7",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Iteration 7",
                 "type": "basic"
               },
@@ -13283,6 +15168,10 @@
                 "available_when": "nodes::relevant_note_row_iterance_step_8",
                 "id": 542,
                 "name": "Iteration 8",
+                "options": [
+                  "Off",
+                  "On"
+                ],
                 "title": "Iteration 8",
                 "type": "basic"
               }

@@ -2,10 +2,11 @@
 import data from "../data/generated/menu-hierarchies.json"
 
 type MenuNode = {
-  varName: string
-  token: string
+  key: string
   oled: string
+  title: string
   code: string
+  option?: boolean
   tag?: string
   children: MenuNode[]
 }
@@ -21,12 +22,9 @@ const root = trees[treeKey]
 const rootTag = root?.tag ?? ""
 
 // Anchor ids for cross-links from the Guidebook (see remark-cross-links/terms.ts menuAnchor):
-// menu-<treeKey>-<varName>, on the first appearance of each item in this tree.
-const anchored = new Set<string>()
+// menu-<treeKey>-<key>. A row's key is unique in its tree.
 function anchorAttr(node: MenuNode): string {
-  if (anchored.has(node.varName)) return ""
-  anchored.add(node.varName)
-  return ` id="menu-${escapeHtml(treeKey)}-${escapeHtml(node.varName)}"`
+  return ` id="menu-${escapeHtml(treeKey)}-${escapeHtml(node.key)}"`
 }
 
 function escapeHtml(value: string): string {
@@ -81,18 +79,6 @@ function renderNestedBranch(node: MenuNode, labelOverride?: string): string {
 function renderNestedList(node: MenuNode, labelOverride?: string): string {
   const label = renderNodeLabel(node, labelOverride)
   const tags = renderTagBadges(node)
-
-  if (node.varName === "delayAnalogMenu" && node.children.length === 3) {
-    const [digitalMenu, analogShortMenu, analogFullMenu] = node.children
-
-    const digital = renderNestedList(digitalMenu)
-    const analog = renderNestedList(
-      analogFullMenu,
-      `${analogFullMenu.oled} (${analogShortMenu.code})`,
-    )
-
-    return `<li class="menu-hierarchy-tree-node">${renderBranch(label, tags, `${digital}${analog}`, anchorAttr(node))}</li>`
-  }
 
   if (!node.children.length) {
     return `<li class="menu-hierarchy-tree-leaf"${anchorAttr(node)}>${renderRowContent(label, tags)}</li>`

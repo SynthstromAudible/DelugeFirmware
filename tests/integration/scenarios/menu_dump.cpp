@@ -68,8 +68,11 @@
 ///     `text_of()` below -- the tool segfaults without it) reproduced this dump's output
 ///     byte-for-byte. So the fixture builder (`sim/scenes_spec/menu_dump_contexts.{h,cpp}`, and
 ///     the `scenes-includes-outside` layer-rule workaround that existed only to let it reach
-///     `sim/scenes_spec/support/song_fixture.h` from outside `src/scenes/`) is gone; this dump
-///     never touches a `MenuContext` at all now, only `Node`'s own static fields.
+///     `sim/scenes_spec/support/song_fixture.h` from outside `src/scenes/`) is gone. The one
+///     `MenuContext` the dump makes is an empty one, for the names hooks `option_names` asks.
+///   * a node that offers values -> `"options"`, its value names in list order (`option_names`):
+///     a target row's name table, static `bind.names`, a `bind.dynamic_names` hook asked with an
+///     empty context, or a toggle's Off and On, as its own page lists them. A node with none gets no key.
 ///   * a node with `Node::chain_targets` set -> a `"select_chain"` array of nested entries, in the
 ///     same shape as `"children"`: the pages a select press on that node opens instead of going up
 ///     a level (legacy's `MenuItem::selectButtonPress`). Seven nodes have one, and seven pages
@@ -114,7 +117,7 @@
 /// Root order is `kAllRoots`'s own compile-time order; child order is `Node::children`'s own
 /// declaration order (a `std::span` over a `constexpr` array, never reordered). JSON object keys
 /// are written in a fixed alphabetical order (`available_when`, `children`, `id`, `name`,
-/// `select_chain`, `title`, `type`) baked into `emit_node`'s own field-by-field writes rather than
+/// `options`, `select_chain`, `title`, `type`) baked into `emit_node`'s own field-by-field writes rather than
 /// sorted at runtime --
 /// there is no hash-map/set iteration anywhere on the emission path. `text_of` resolves through
 /// `l10n::chosenLanguage`, pinned at the start of `dump_menu_tree` to the built-in English table before the walk
@@ -125,6 +128,9 @@
 #include "scenarios/menu_dump.h"
 
 #include "gui/l10n/l10n.h"
+#include "gui/l10n/setting_names.h"
+#include "gui/l10n/strings.h"
+#include "scenes/menu/context.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
@@ -132,12 +138,14 @@
 #include "scenes/profile.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
 
 #include "instruments/deluge/settings.h"
+#include "plugin-api/types/plugin_id.h"
 #include "plugin-api/types/setting.h"
 #include <string_view>
 #include <vector>
@@ -210,6 +218,90 @@ void write_json_string(std::string& out, std::string_view s) {
 std::string text_of(uint16_t id) {
 	deluge::ui::shell::TextScratch scratch;
 	return std::string{deluge::scenes::deluge_profile().text_or_digits(id, scratch)};
+}
+
+/// @brief The names @p target's row table gives its values: every choice it names, in the row's order.
+///
+/// A sound's settings and effects are named as the Deluge instrument names them, a host chain's effects as the global
+/// effectable names them where the instrument has no entry, and a model row as its setting group names it. A param or
+/// a cable has no values to name.
+std::vector<std::string> target_option_names(const deluge::scenes::bind::Target& target) {
+	using Kind = deluge::scenes::bind::Target::Kind;
+	const deluge::l10n::SettingNames* names = nullptr;
+	switch (target.kind) {
+	case Kind::SOUND:
+		names = deluge::l10n::setting_names(deluge::plugin::kDelugeInstrument, target.path);
+		break;
+	case Kind::EFFECT:
+		names = deluge::l10n::setting_names(deluge::plugin::kDelugeInstrument, target.path);
+		if (names == nullptr) {
+			names = deluge::l10n::setting_names(deluge::plugin::kGlobalEffectable, target.path);
+		}
+		break;
+	case Kind::MODEL:
+		names = deluge::l10n::setting_names(target.group, target.path);
+		break;
+	default:
+		break;
+	}
+	std::vector<std::string> out;
+	if (names != nullptr) {
+		for (const deluge::l10n::String id : names->choices) {
+			out.push_back(text_of(static_cast<uint16_t>(id)));
+		}
+	}
+	return out;
+}
+
+/// @brief The values @p node offers, as its list spells them; empty for a node that offers none.
+///
+/// A target's come from its row's name table, all of them (in a context the menu may leave some out); static `names`
+/// are the list itself; a `dynamic_names` hook is asked with an empty context, so it gives the values it offers every
+/// owner (not a note row's NONE direction, not the clock output's CLOCK mode). A toggle's two values are Off and On,
+/// the words its own page lists (`MenuView::render_leaf_toggle`).
+std::vector<std::string> option_names(const menu::Node& node) {
+	using deluge::l10n::String;
+	switch (node.kind) {
+	case menu::Kind::Toggle:
+		return {text_of(static_cast<uint16_t>(String::STRING_FOR_OFF)),
+		        text_of(static_cast<uint16_t>(String::STRING_FOR_ON))};
+	case menu::Kind::Submenu:
+	case menu::Kind::Custom:
+		return {};
+	default:
+		break;
+	}
+	if (node.bind.target.valid()) {
+		return target_option_names(node.bind.target);
+	}
+	std::vector<std::string> out;
+	if (node.bind.dynamic_names != nullptr) {
+		std::array<std::string_view, menu::kMaxDynamicNames> names{};
+		const size_t count = std::min(node.bind.dynamic_names(menu::MenuContext{}, names), names.size());
+		for (size_t i = 0; i < count; ++i) {
+			out.emplace_back(names[i]);
+		}
+		return out;
+	}
+	for (const uint16_t id : node.bind.names) {
+		out.push_back(text_of(id));
+	}
+	return out;
+}
+
+/// @brief @p node's `"options"` key, one name per line, or nothing for a node that offers no values.
+void emit_options(std::string& out, const menu::Node& node, int field_level) {
+	const std::vector<std::string> options = option_names(node);
+	if (options.empty()) {
+		return;
+	}
+	out += spaces(field_level) + "\"options\": [\n";
+	for (size_t i = 0; i < options.size(); ++i) {
+		out += spaces(field_level + 1);
+		write_json_string(out, options[i]);
+		out += i + 1 < options.size() ? ",\n" : "\n";
+	}
+	out += spaces(field_level) + "],\n";
 }
 
 /// @brief The nodes whose `emit_node` call is still open, innermost last.
@@ -367,7 +459,7 @@ void emit_chain_targets(std::string& out, const menu::Node& node, int elem_level
 }
 
 /// @brief One node, as the schema the file header documents -- object keys in fixed alphabetical
-///        order (`available_when`, `children`, `id`, `name`, `select_chain`, `title`, `type`),
+///        order (`available_when`, `children`, `id`, `name`, `options`, `select_chain`, `title`, `type`),
 ///        regardless of which optional fields this particular node has.
 void emit_node(std::string& out, const menu::Node& node, int brace_level) {
 	if (node.dynamic_children != nullptr) {
@@ -410,6 +502,7 @@ void emit_node(std::string& out, const menu::Node& node, int brace_level) {
 	out += spaces(field_level) + "\"name\": ";
 	write_json_string(out, text_of(node.name));
 	out += ",\n";
+	emit_options(out, node, field_level);
 	// A node with no chain gets no `"select_chain"` key at all, the same way a node with no
 	// `relevant` gets no `"available_when"`: absent means "a select press here goes up a level",
 	// which is every node but seven.

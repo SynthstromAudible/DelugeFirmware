@@ -1,8 +1,16 @@
 # Generated menu data
 
 `menu-hierarchies.json` is the website's menu reference, written by
-`website/scripts/generate-menu-hierarchies.mjs` (`npm run generate:menu-hierarchy`) from the legacy
-menu sources. The rest of this file is about `menu-tree.json`.
+`website/scripts/generate-menu-hierarchies.mjs` (`pnpm run generate:menu-hierarchy`) from `menu-tree.json` below,
+`website/src/data/menu-hierarchy-tags.json` (each row's version tag, by key or by `<section>/<key>`) and
+`src/deluge/gui/l10n/english.json` (the clip settings context menu, which is not part of the menu tree).
+`pnpm run check` fails when the file is not what those give, so a change that regenerates `menu-tree.json`
+regenerates this file too. Each row is `{"key", "oled", "title", "code", "option"?, "tag"?, "children"}`: `key` is
+the row's labels from its section's top level down, slugged (`midi-commands`), and names its anchor on the reference
+page, `menu-<section>-<key>`; `oled` and `code` are the row's name, which a 7SEG display scrolls in full; `title` is the
+title its page shows. A page a select press opens (`"select_chain"` below) is a row of the first item that opens it.
+A node's values (the dump's `"options"`) are leaf rows marked `"option": true`. The rest of this file is about
+`menu-tree.json`.
 
 ## `menu-tree.json`
 
@@ -32,6 +40,11 @@ than just diffing it:
   static l10n string id, and a MIDI device's row label is a runtime string. All three ship as
   self-drawing custom items instead, so the count of `dynamic_children` nodes in the tree is still
   zero and is pinned by a spec.)
+- **`"options"` lists the values a node offers**, in its list's order: a target row's name table (every choice it
+  names; in a context the menu may leave some out), the node's static names, its names hook asked with an empty
+  context (so not the values a particular owner adds, such as a note row's NONE direction), or a toggle's Off and On,
+  as its own page lists them. A node that offers none (a submenu, a number, a custom page) has no key. The file is not
+  formatted by prettier (`website/.prettierignore`): `ui-menu-dump` compares it byte for byte.
 - **`"select_chain"` is a second nesting key, beside `"children"`.** It appears on every node whose
   select press opens another menu instead of going up a level (legacy's
   `MenuItem::selectButtonPress`), and holds full nested entries in the same shape `"children"`

@@ -47,6 +47,11 @@ card's presets: run it on `.superpowers/emu-card/content-shellmenu` and on a cop
 is `.superpowers/emu-card/shellmenu-vertical`'s. The OLED, LEDs and UI stack agree at every snapshot; `claimed`, `back1`
 and `back2` differ only in the colour of the waveform row (y 4, 16 pads), the new audio clip's random hue (D11).
 
+`sm35-toggle-words` covers the words a toggle draws, on `tests/fixtures/card-shell-menu-vertical` (HorizontalMenus
+off, where a shortcut opens its item alone): a Community Feature's row is a checkbox SELECT flips in place, OSC
+SYNC's page lists Off and On where `main`'s lists Disabled and Enabled (D134, accepted), and PING-PONG's lists its
+options.
+
 `sm16-automation-retarget`, `sm17-automation-menu-view` and `sm18-automation-kit` cover the automation view under the
 menu: the param it follows as the menu moves (SELECT, BACK, column buttons, shortcuts), the pads, knobs and encoders
 that reach it, CLIP's "menu view" and KEYBOARD from it, a patch cable's page, and a kit's rows and affect-entire. Every

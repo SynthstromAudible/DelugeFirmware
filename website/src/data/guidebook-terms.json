@@ -469,7 +469,7 @@
       {
         "phrases": ["INTErpolation"],
         "tree": "synthSoundMenu",
-        "varName": "sample0InterpolationMenu"
+        "key": "oscillator-1-interpolation"
       }
     ]
   }
