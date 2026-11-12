@@ -316,13 +316,11 @@ inline constexpr Node midi_or_cv_actions = submenu(sid(String::STRING_FOR_ACTION
 /// `midiDeviceLinkedMenu` (`gui/ui/menus.cpp`), a `midi::device_definition::Linked` -- a
 /// `Toggle` whose ON arm opens `loadMidiDeviceDefinitionUI` and whose OFF arm clears the linked
 /// file name (`midi/device_definition/linked.h:37-49`). Both arms are `nodes::kMidiDeviceLinked`.
-/// `Toggle::getNameFor`: Disabled and Enabled, the words `main` names the linked toggle's states with.
-inline constexpr uint16_t kMidiDeviceLinkedNames[] = {sid(String::STRING_FOR_DISABLED),
-                                                      sid(String::STRING_FOR_ENABLED)};
+/// Its row is a checkbox and it has no page of its own, so its values are a toggle's: the words a toggle's page lists.
 inline constexpr Node midi_device_linked =
     with_value_names(with_relevant(custom(sid(String::STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED), &kMidiDeviceLinked),
                                    relevance::is_midi_out),
-                     kMidiDeviceLinkedNames);
+                     kToggleWords);
 inline constexpr Node midi_hide_unlabeled =
     setting_item(sid(String::STRING_FOR_MIDI_DEVICE_DEFINITION_HIDE), Kind::Toggle,
                  {.kind = deluge::scenes::bind::Target::Kind::MODEL,

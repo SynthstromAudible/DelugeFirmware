@@ -277,10 +277,10 @@ test("the committed dump names the values a custom page or a worded number lists
     "NOT FILL",
     "FILL",
   ])
-  // custom pages
+  // custom pages; File Linked's row is a checkbox, so its words are a toggle's
   assert.deepEqual(
     at(["MIDI instr", "Device Definition", "File Linked"]).options,
-    ["Disabled", "Enabled"],
+    ["Off", "On"],
   )
   assert.deepEqual(at(["Perform FX", "Editing Mode"]).options, [
     "Disabled",

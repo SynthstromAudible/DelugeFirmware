@@ -23,6 +23,7 @@
 #include "scenes/menu/walk.h"
 
 #include "scenes/menu/bindings.h"
+#include "scenes/menu/nodes/detail.h"
 
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
@@ -459,8 +460,8 @@ void MenuView::render_leaf_toggle(MenuCore core, deluge::ui::oled::OledFrame& f,
 
 	TextScratch off_scratch;
 	TextScratch on_scratch;
-	const std::string_view off = text_of(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_OFF), off_scratch);
-	const std::string_view on = text_of(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ON), on_scratch);
+	const std::string_view off = text_of(nodes::kToggleWords[0], off_scratch);
+	const std::string_view on = text_of(nodes::kToggleWords[1], on_scratch);
 
 	// A `bool&`, no `focused`; a select press reports `entered` and leaves `changed` false
 	// (`toggle` in `ui/oled/values.h`).

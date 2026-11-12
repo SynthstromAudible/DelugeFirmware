@@ -521,6 +521,17 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx()) == &deluge::gfx::oled::icons::submenuArrow).to_be_false();
 	});
 
+	it("names its two states with the words a toggle's own page lists, its row being a checkbox", _ {
+		// The page draws no words (its row is a checkbox, `row_icon` above), so the menu dump and the website's
+		// reference spell it as every toggle: the table `MenuView::render_leaf_toggle` draws, Off then On.
+		expect(nodes::midi_device_linked.bind.names.data() == nodes::kToggleWords).to_be_true();
+		expect(nodes::midi_device_linked.bind.names.size()).to_equal(std::size(nodes::kToggleWords));
+		expect(std::string{deluge::scenes::text_lookup(nodes::midi_device_linked.bind.names[0])})
+		    .to_equal(std::string{"Off"});
+		expect(std::string{deluge::scenes::text_lookup(nodes::midi_device_linked.bind.names[1])})
+		    .to_equal(std::string{"On"});
+	});
+
 	it("notes the linked file's name, without its folders, as Linked::renderSubmenuItemTypeForOled does", _ {
 		// `strrchr(fullPath, '/') + 1`; a name with no folder is noted whole.
 		MidiRig rig;

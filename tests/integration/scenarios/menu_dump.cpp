@@ -262,11 +262,9 @@ std::vector<std::string> target_option_names(const deluge::scenes::bind::Target&
 /// the words its own page lists (`MenuView::render_leaf_toggle`). A custom page or a number spelled as words names
 /// its values the same two ways (`with_value_names`); one that names none offers nothing here.
 std::vector<std::string> option_names(const menu::Node& node) {
-	using deluge::l10n::String;
 	switch (node.kind) {
 	case menu::Kind::Toggle:
-		return {text_of(static_cast<uint16_t>(String::STRING_FOR_OFF)),
-		        text_of(static_cast<uint16_t>(String::STRING_FOR_ON))};
+		return {text_of(nodes::kToggleWords[0]), text_of(nodes::kToggleWords[1])};
 	case menu::Kind::Submenu:
 		return {};
 	default:

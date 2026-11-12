@@ -6449,18 +6449,18 @@
               "tag": "c1.3",
               "children": [
                 {
-                  "key": "device-definition-file-linked-disabled",
-                  "oled": "Disabled",
-                  "title": "Disabled",
-                  "code": "Disabled",
+                  "key": "device-definition-file-linked-off",
+                  "oled": "Off",
+                  "title": "Off",
+                  "code": "Off",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "device-definition-file-linked-enabled",
-                  "oled": "Enabled",
-                  "title": "Enabled",
-                  "code": "Enabled",
+                  "key": "device-definition-file-linked-on",
+                  "oled": "On",
+                  "title": "On",
+                  "code": "On",
                   "option": true,
                   "children": []
                 }

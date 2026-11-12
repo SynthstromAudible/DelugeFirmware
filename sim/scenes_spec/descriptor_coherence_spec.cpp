@@ -208,11 +208,6 @@ std::vector<std::string> node_names(const Node& node, const deluge::scenes::menu
 }
 
 bool node_lists_names(const Node& node) {
-	// A custom page or a number spelled as words carries its page's words for the menu dump (`with_value_names`); the
-	// menu lists no names for either, so there is no list to compare.
-	if (node.kind == Kind::Custom || node.kind == Kind::Int) {
-		return false;
-	}
 	// A target node shown as a list takes its names from the name table: compare them like any other list's.
 	return node.bind.dynamic_names != nullptr || !node.bind.names.empty()
 	       || (node.bind.target.valid() && node.kind == Kind::Enum);
@@ -285,6 +280,12 @@ Findings compare(const Case& c, const Node& node, const NodeException* exception
 			f.title.push_back(std::string{c.path} + " title node '" + have_title + "' row '" + want_title + "'");
 		}
 		if (!node_lists_names(node)) {
+			continue;
+		}
+		// A custom page's or a worded number's words (`with_value_names`) are compared where its row names choices; a
+		// row naming none (a file name, or one of two rows the audio source list spans) has nothing to compare them
+		// with.
+		if ((node.kind == Kind::Custom || node.kind == Kind::Int) && names->choices.empty()) {
 			continue;
 		}
 		std::vector<std::string> have = node_names(node, ctx);

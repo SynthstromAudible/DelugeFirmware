@@ -8529,8 +8529,8 @@
             "id": 248,
             "name": "File Linked",
             "options": [
-              "Disabled",
-              "Enabled"
+              "Off",
+              "On"
             ],
             "title": "File Linked",
             "type": "basic"
@@ -14262,8 +14262,8 @@
             "id": 248,
             "name": "File Linked",
             "options": [
-              "Disabled",
-              "Enabled"
+              "Off",
+              "On"
             ],
             "title": "File Linked",
             "type": "basic"
