@@ -1973,8 +1973,8 @@ std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
 		if (ctx_.is_audio_clip) {
 			return std::nullopt;
 		}
-		load_led_touched_ = true;
 		if (!on) {
+			load_led_touched_ = true;
 			auto_load_ = !auto_load_;
 		}
 		return r;

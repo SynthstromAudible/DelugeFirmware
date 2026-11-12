@@ -3325,6 +3325,8 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		r.click(kKeyboardX, kKeyboardY);
 		const std::string typed{browser_scene().entered_text()};
 		r.type('T');
+		r.backspace();
+		r.enter();
 		expect(std::string{browser_scene().entered_text()}).to_equal(typed);
 		expect(std::string{browser_scene().current_dir()}).to_equal(dir);
 		expect(browser_scene().file_index()).to_equal(index);
@@ -3363,6 +3365,7 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		expect(pressed.handled).to_be_false();
 		expect(pressed.actions.empty()).to_be_true();
 		expect(r.browser_on_stack()).to_be_true();
+		expect(recorder::recorder_scene().recording()).to_be_false();
 	});
 
 	it("forgets the undo log as it opens, as SampleBrowser::opened does", _ {
@@ -3370,11 +3373,17 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
 		// `getNewAction` refuses unless the current UI is the root, so a root is set for the seed and taken down again.
-		setRootUILowLevel(&instrumentClipView);
-		actionLogger.deleteAllLogs();
-		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
-		nullifyUIs();
-		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		{
+			struct RootGuard {
+				RootGuard() { setRootUILowLevel(&instrumentClipView); }
+				~RootGuard() { nullifyUIs(); }
+				RootGuard(const RootGuard&) = delete;
+				RootGuard& operator=(const RootGuard&) = delete;
+			} root;
+			actionLogger.deleteAllLogs();
+			(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
+			expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		}
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
 		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
@@ -3392,7 +3401,12 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		r.click(kKeyboardX, kKeyboardY);
 		expect(r.fake.leds().desired_declared[static_cast<size_t>(ButtonId::Keyboard)]).to_be_true();
 		expect(r.fake.leds().desired_declared[static_cast<size_t>(ButtonId::Load)]).to_be_false();
-		r.click(kLoadX, kLoadY);
+		// `buttonAction` sets the LOAD LED on the release only: held, it is still the view's.
+		r.button(kLoadX, kLoadY, true, r.clock + 10);
+		r.step();
+		expect(r.fake.leds().desired_declared[static_cast<size_t>(ButtonId::Load)]).to_be_false();
+		r.button(kLoadX, kLoadY, false, r.clock + 10);
+		r.step();
 		expect(r.fake.leds().desired_declared[static_cast<size_t>(ButtonId::Load)]).to_be_true();
 	});
 
