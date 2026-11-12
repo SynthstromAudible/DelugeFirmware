@@ -1,20 +1,12 @@
-# Level 3: **the acceptance test for the ported menu.** One script, run on three SD-card fixtures
+# Level 3: **the acceptance test for the menu.** One script, run on three SD-card fixtures
 # (the `ui-scripts` gate, `tests/integration/checks/ui_scripts.py`):
 #
-#   menu         SD root tests/fixtures/card                -> ShellMenu on (the default): ported MenuScene
-#   menu_legacy  SD root tests/fixtures/card-legacy-menu    -> ShellMenu off (Legacy Menu on): legacy SoundEditor
-#   (no golden)  SD root tests/fixtures/card-old-shell-menu -> the replaced `shellMenu` key, ignored: equals `menu`
+#   menu         SD root tests/fixtures/card                  -> the golden
+#   (no golden)  SD root tests/fixtures/card-old-shell-menu   -> a stale `shellMenu=0`, unknown: equals `menu`
+#   (no golden)  SD root tests/fixtures/card-old-legacy-menu  -> a stale `legacyMenu=1`, unknown: equals `menu`
 #
-# `scripts/ui_app_ab_check.py` compares the first two runs: every panel identical, at least one .state different,
-# and the two cards differing by exactly SETTINGS/CommunityFeatures.XML.
-#
-# There is no env var and no new script verb for the setting, and that is deliberate.
-# `shellMenuEnabled()` is true while `runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu)`
-# is Off (`gui/ui/shell_menu_entry.cpp`); the setting is registered with xmlName "legacyMenu" and
-# default Off (`RuntimeFeatureSettings::init`) and read from
-# `SETTINGS/CommunityFeatures.XML` on the card (`RuntimeFeatureSettings::readSettingsFromFile`).
-# So the Legacy Menu leg is a genuine boot-from-settings on the mechanism the device itself uses,
-# not a test-only door.
+# The stale legs are a genuine boot-from-settings on the mechanism the device uses
+# (`RuntimeFeatureSettings::readSettingsFromFile`), not a test-only door.
 #
 # **No leg mutates its own input**, which matters because a test that edits its input is not
 # reproducible. With the file present `bootstrap_action` returns `Bootstrap::Load`
@@ -107,7 +99,7 @@
 # **The timings below are not padding, and three of them are load-bearing.**
 #
 #   * **1700 -> 2900 before the first pad.** `SessionView::padAction`'s clip arm is gated on
-#     `currentUIMode == UI_MODE_NONE` (`session_view.cpp:739`), and the clip-view -> song-view
+#     `currentUIMode == UI_MODE_NONE` (`SessionView::padAction`), and the clip-view -> song-view
 #     transition holds `UI_MODE_ANIMATION_FADE` (44, `gui/ui/ui.h:60`) for about a second. A pad
 #     pressed inside that window is swallowed silently -- measured: `currentUIMode == 44` at a
 #     `padAction` breakpoint 400 ms after the SESSION press.
@@ -224,7 +216,7 @@
 # photographs went.
 #
 # Back to the song grid. Same 1.2 s settling as the first Session press above, and for the same
-# reason: `UI_MODE_ANIMATION_FADE` swallows a pad pressed inside it (`session_view.cpp:739`).
+# reason: `UI_MODE_ANIMATION_FADE` swallows a pad pressed inside it (`SessionView::padAction`).
 7300   button Session down
 7320   button Session up
 

@@ -494,26 +494,16 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 			if (getCurrentOutputType() == OutputType::SYNTH) {
 				cancelAllAuditioning();
 
-				// One of the shell menu's entry sites (`gui/ui/shell_menu_entry.cpp`'s table), and the only one
-				// that names a node rather than a root. The `else` is the legacy path.
-				if (deluge::gui::ui::shellMenuEnabled()) {
-					// `file0SelectorMenu`'s port is `nodes::file0_selector`
-					// (`scenes/menu/nodes/sound_osc.h:17`), reached by its stable node id. The
-					// context is a SYNTH instrument clip under a clip-minder root, i.e.
-					// `Root::Sound`, which is the root that node lives under.
-					(void)deluge::gui::ui::openShellMenu(getCurrentInstrumentClip(), /*sourceIndex=*/0,
-					                                     /*performanceView=*/false,
-					                                     /*sessionOrArrangerRoot=*/false,
-					                                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false,
-					                                     deluge::gui::ui::ShellMenuNode::Osc0FileSelector);
-				}
-				else {
-					// Can't fail because we just set the selected Drum
-					bool success = soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0);
-					if (success) {
-						openUI(&soundEditor);
-					}
-				}
+				// Site 8 of `gui/ui/shell_menu_entry.cpp`'s table, the only one that names a node rather than a root.
+				// `file0SelectorMenu`'s port is `nodes::file0_selector`
+				// (`scenes/menu/nodes/sound_osc.h:17`), reached by its stable node id. The
+				// context is a SYNTH instrument clip under a clip-minder root, i.e.
+				// `Root::Sound`, which is the root that node lives under.
+				(void)deluge::gui::ui::openShellMenu(getCurrentInstrumentClip(), /*sourceIndex=*/0,
+				                                     /*performanceView=*/false,
+				                                     /*sessionOrArrangerRoot=*/false,
+				                                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false,
+				                                     deluge::gui::ui::ShellMenuNode::Osc0FileSelector);
 			}
 		}
 	}
@@ -3569,41 +3559,19 @@ bool InstrumentClipView::enterNoteEditor() {
 	if (numEditPadPresses > 0 && getLeftMostNotePressed()) {
 		dontDeleteNotesOnDepress();
 		InstrumentClip* clip = getCurrentInstrumentClip();
-		// One of the shell menu's entry sites (`gui/ui/shell_menu_entry.cpp`'s table). The ported leg names the note
-		// editor as `NoteMode::NoteEditor` (the root `setup()` picks under `UI_MODE_NOTES_PRESSED`, a UI mode
-		// `src/scenes` may not read), and `openShellMenu` does the kit `affectEntire` clear itself. Both legs then do
-		// what follows legacy's open.
-		if (deluge::gui::ui::shellMenuEnabled()) {
-			if (deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
-			                                   /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
-			                                   /*kitGlobalFx=*/false, deluge::gui::ui::ShellMenuNode::ContextRoot,
-			                                   deluge::gui::ui::NoteMode::NoteEditor)) {
-				// entering the note editor while holding notes: there are no selections to "remember" yet
-				remembered_note_count = 0;
-				stopSelectedNotePulsing();
-				// refresh grid to potentially highlight already edited notes
-				uiNeedsRendering(this, 0xFFFFFFFF, 0);
-				return true;
-			}
-		}
-		else {
-			if (soundEditor.setup(clip, &noteEditorRootMenu)) {
-				// if you're entering the note editor, you're currently holding one or more notes
-				// so there are no note pad selections to "remember" yet
-				remembered_note_count = 0;
-				// if it's a kit with affect entire enabled, toggle it off when entering note editor
-				if (clip->output->type == OutputType::KIT) {
-					if (clip->affectEntire) {
-						clip->affectEntire = false;
-						view.setActiveModControllableTimelineCounter(clip);
-					}
-				}
-				openUI(&soundEditor);
-				stopSelectedNotePulsing();
-				// refresh grid to potentially highlight already edited notes
-				uiNeedsRendering(this, 0xFFFFFFFF, 0);
-				return true;
-			}
+		// Site 12 of `gui/ui/shell_menu_entry.cpp`'s table. The open names the note editor as `NoteMode::NoteEditor`
+		// (the root `setup()` picks under `UI_MODE_NOTES_PRESSED`, a UI mode `src/scenes` may not read), and
+		// `openShellMenu` does the kit `affectEntire` clear itself. What follows is what follows legacy's open.
+		if (deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
+		                                   /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
+		                                   /*kitGlobalFx=*/false, deluge::gui::ui::ShellMenuNode::ContextRoot,
+		                                   deluge::gui::ui::NoteMode::NoteEditor)) {
+			// entering the note editor while holding notes: there are no selections to "remember" yet
+			remembered_note_count = 0;
+			stopSelectedNotePulsing();
+			// refresh grid to potentially highlight already edited notes
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
+			return true;
 		}
 	}
 	else {
@@ -3784,41 +3752,17 @@ bool InstrumentClipView::enterNoteRowEditor(bool onPlayDirection) {
 		// does note row exist?
 		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 			InstrumentClip* clip = getCurrentInstrumentClip();
-			// One of the shell menu's entry sites (`gui/ui/shell_menu_entry.cpp`'s table). The ported leg names the
-			// note row editor as `NoteMode::NoteRowEditor` (the root `setup()` picks under `UI_MODE_AUDITIONING`).
-			// Not while the legacy `soundEditor` is the current UI, which this is also called from inside. With the
-			// guest open it re-roots the open menu (`openShellNoteRowEditor`). Both legs then do what follows legacy's
-			// open.
-			if (deluge::gui::ui::shellMenuEnabled() && getCurrentUI() != &soundEditor) {
-				if (deluge::gui::ui::openShellNoteRowEditor(clip, onPlayDirection)) {
-					if (!auditioningSilently) { // see the legacy leg below
-						auditionPadAction(0, lastAuditionedYDisplay, true);
-						auditionPadAction(1, lastAuditionedYDisplay, true);
-					}
-					blinkSelectedNoteRow();
-					return true;
+			// Site 13 of `gui/ui/shell_menu_entry.cpp`'s table. The open names the note row editor as
+			// `NoteMode::NoteRowEditor` (the root `setup()` picks under `UI_MODE_AUDITIONING`). With the guest open it
+			// re-roots the open menu (`openShellNoteRowEditor`). What follows is what follows legacy's open.
+			if (deluge::gui::ui::openShellNoteRowEditor(clip, onPlayDirection)) {
+				// Not auditioning silently: cancel the audition and re-audition silently, so nothing re-auditions.
+				if (!auditioningSilently) {
+					auditionPadAction(0, lastAuditionedYDisplay, true);
+					auditionPadAction(1, lastAuditionedYDisplay, true);
 				}
-			}
-			else {
-				if (soundEditor.setup(clip, &noteRowEditorRootMenu)) {
-					// if it's a kit with affect entire enabled, toggle it off when entering note row editor
-					if (clip->output->type == OutputType::KIT) {
-						if (clip->affectEntire) {
-							clip->affectEntire = false;
-							view.setActiveModControllableTimelineCounter(clip);
-						}
-					}
-					openUI(&soundEditor);
-					// if we weren't auditioning silently when we entered note row editor
-					// let's cancel the previous audition and re-audition silently
-					// this prevents any re-auditioning from happening
-					if (!auditioningSilently) {
-						auditionPadAction(0, lastAuditionedYDisplay, true);
-						auditionPadAction(1, lastAuditionedYDisplay, true);
-					}
-					blinkSelectedNoteRow();
-					return true;
-				}
+				blinkSelectedNoteRow();
+				return true;
 			}
 		}
 		else {
@@ -5679,41 +5623,13 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 	// the editor configured for kit-global FX while Affect Entire was enabled.
 	deluge::gui::ui::clearShellKitGlobalFx();
 
-	// Under the shell menu the ported browser, or for a take the ported recorder, opens on the new drum
-	// (`gui/ui/shell_drum_creator.h`). A guest that refuses to open says `setup()`'s refusal below, and nothing legacy
-	// opens; the new drum stays in the kit as an ordinary empty drum.
-	if (deluge::gui::ui::shellMenuEnabled()) {
-		InstrumentClip* clip = getCurrentInstrumentClip();
-		if (!(doRecording ? deluge::gui::ui::openShellDrumRecorder(clip)
-		                  : deluge::gui::ui::openShellDrumCreator(clip, newDrum))) {
-			display->displayError(Error::UNSPECIFIED);
-		}
-		return;
-	}
-
-	if (!soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)) {
-		// The new drum stays in the kit as an ordinary empty drum, but say why the browser didn't open
+	// Site 14 of `gui/ui/shell_menu_entry.cpp`'s table. The ported browser, or for a take the ported recorder, opens on
+	// the new drum (`gui/ui/shell_drum_creator.h`). A guest that refuses to open says `setup()`'s refusal, and the new
+	// drum stays in the kit as an ordinary empty drum.
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (!(doRecording ? deluge::gui::ui::openShellDrumRecorder(clip)
+	                  : deluge::gui::ui::openShellDrumCreator(clip, newDrum))) {
 		display->displayError(Error::UNSPECIFIED);
-		return;
-	}
-
-	bool success;
-	if (doRecording) {
-		success = openUI(&audioRecorder);
-	}
-	else {
-		success = openUI(&sampleBrowser);
-		if (success) {
-			PadLEDs::skipGreyoutFade(); // Greyout can't be done at same time as horizontal scroll, which is now
-			                            // happening probably.
-			PadLEDs::sendOutSidebarColoursSoon();
-		}
-	}
-
-	if (!success) {
-		// The recorder or the browser refused: `main` opens the editor on the file selector, whose own session opens
-		// the browser again (`FileSelector::beginSession`).
-		openUI(&soundEditor);
 	}
 }
 

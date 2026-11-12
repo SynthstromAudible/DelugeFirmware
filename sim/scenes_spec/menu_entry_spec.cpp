@@ -1,9 +1,9 @@
 /// @file
-/// @brief The gate in front of the fifteen `openUI(&soundEditor)` sites, driven
+/// @brief The ported menu's entry, in place of the fifteen `openUI(&soundEditor)` sites, driven
 ///        against the real application globals.
 ///
-/// `gui/ui/shell_menu_entry.cpp` carries the fifteen-site table; this file drives the gated
-/// ones, one example per *argument shape*, plus the setting itself. It is at this level and not
+/// `gui/ui/shell_menu_entry.cpp` carries the fifteen-site table; this file drives the routed
+/// ones, one example per *argument shape*. It is at this level and not
 /// in `tests/spec/gui/` for the reason `boot_wiring_spec.cpp` gives: the host suite deliberately
 /// never builds the `deluge_scenes` closure, and everything under test here is the join between the
 /// two layers -- `menu::context_for`'s root against `MenuScene::roots()`, a stable node id against
@@ -119,21 +119,6 @@ namespace entry = deluge::gui::ui;
 namespace spec = deluge::scenes::spec;
 
 namespace {
-
-/// @brief ShellMenu on (`On`) or off for the scope, through the Legacy Menu setting it is the inverse of; put back.
-struct ToggleGuard {
-	RuntimeFeatureStateToggle saved =
-	    static_cast<RuntimeFeatureStateToggle>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu));
-
-	explicit ToggleGuard(RuntimeFeatureStateToggle on) {
-		runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, on == RuntimeFeatureStateToggle::On
-		                                                                      ? RuntimeFeatureStateToggle::Off
-		                                                                      : RuntimeFeatureStateToggle::On);
-	}
-	~ToggleGuard() { runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, saved); }
-	ToggleGuard(const ToggleGuard&) = delete;
-	ToggleGuard& operator=(const ToggleGuard&) = delete;
-};
 
 /// @brief Put the UI hierarchy back to "nothing open" after an example opened the guest.
 ///
@@ -393,27 +378,8 @@ void press_learn(bool on) {
 } // namespace
 
 // clang-format off
-describe menu_entry_toggle("the Legacy Menu setting", $ {
-	it("opens the ported menu by default (Legacy Menu Off), and shellMenuEnabled() follows the setting both ways", _ {
-		expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu)
-		       == RuntimeFeatureStateToggle::Off)
-		    .to_be_true();
-		expect(entry::shellMenuEnabled()).to_be_true();
-		{
-			ToggleGuard off{RuntimeFeatureStateToggle::Off};
-			expect(entry::shellMenuEnabled()).to_be_false();
-			expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu)
-			       == RuntimeFeatureStateToggle::On)
-			    .to_be_true();
-		}
-		// And the guard put it back, which is what the other examples depend on.
-		expect(entry::shellMenuEnabled()).to_be_true();
-	});
-});
-
 describe menu_entry_roots("openShellMenu resolves the root each site's arguments name", $ {
 	it("site 1 (View::buttonAction, SHIFT + SELECT) opens the settings root", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		(void)f;
 
@@ -428,7 +394,6 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 	});
 
 	it("sites 2 and 3 (session and arranger) open the SAME song root, differing only in is_session_view", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		(void)f;
 
@@ -451,7 +416,6 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 	});
 
 	it("site 4 (PerformanceView) opens the performance root", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		(void)f;
 
@@ -464,7 +428,6 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 	});
 
 	it("site 5 (AudioClipView) opens the audio-clip root", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::AudioSongFixture f = deluge::scenes::spec::make_audio_clip_song();
 
 		expect(entry::openShellMenu(f.clip, 0, false, false, false, false)).to_be_true();
@@ -473,7 +436,6 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 	});
 
 	it("site 6 (InstrumentClipMinder) picks the root from the clip, not from the site", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 
 		// **The clip is what varies.** Same call shape, three different songs -- so "always the
 		// sound root" and "always whatever the last call resolved" both fail.
@@ -496,7 +458,6 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 	});
 
 	it("site 7 (AutomationView on the arranger) opens the song root from a null clip", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		(void)f;
 
@@ -510,7 +471,6 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 	});
 
 	it("a UI teardown empties the guest and forgets the song the menu was open on", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		expect(entry::openShellMenu(f.clip, 0, false, false, false, false)).to_be_true();
 		expect(deluge::scenes::menu_scene().menu_context().song != nullptr).to_be_true();
@@ -524,7 +484,6 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 	it("a UI teardown forgets the drum creator's drum, so no later close deletes it", _ {
 		// The drum belongs to the kit a song load may be about to free: the guest's close arm, run after the teardown,
 		// must find no drum of the creator's to delete.
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
 		(void)deluge::scenes::spec::add_drum<SoundDrum>(f);
@@ -556,7 +515,6 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 		// The first example in this file that reads the card: the item's `on_focus` pushes
 		// `BrowserScene`, which lists `SAMPLES/`. See `quiet_audio()` for why that needs the latch.
 		(void)quiet_audio();
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		(void)f;
 
@@ -586,11 +544,10 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 		closeGuest();
 	});
 
-	it("site 14 with ShellMenu on never falls back to the legacy recorder or browser: a refused guest says setup()'s refusal", _ {
+	it("site 14 never falls back to the legacy recorder or browser: a refused guest says setup()'s refusal", _ {
 		// A boot numbers every node, so the only way to a refused guest is an id missing: numbered over the song root
 		// alone, neither the recorder item nor the file selector has one.
 		(void)quiet_audio();
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		PopupSpy spy;
@@ -620,7 +577,6 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 	it("cancels the popup legacy's display holds as it opens, as setup() does", _ {
 		// An audition leaves the drum's name up as a persistent popup (`InstrumentClipView::drawDrumName`); RECORD then
 		// opens the recorder over it, and `setup()`'s `display->cancelPopup()` takes it down.
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		deluge::hid::display::OLED oled_display;
 		deluge::hid::Display* const saved_display = display;
@@ -635,7 +591,6 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 
 	it("site 11 opens DX7 source on the new FM synth, keeping the undo log", _ {
 		// `InstrumentClipMinder::createNewInstrument`'s `soundEditor.setup(clip, &dxMenu, 0)`: a named item, so no wipe.
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		Sound* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
 		sound->sources[0].setOscType(OscType::DX7);
@@ -654,7 +609,6 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 
 	it("site 15 opens the DX7 parameter page on the column's operator, its pad blinking, keeping the undo log", _ {
 		// `DXColumn::handlePad`'s Shift arm: `openForOpOrGlobal`'s `setup(getCurrentClip(), &dxParam, 0)`.
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		Sound* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
 		sound->sources[0].setOscType(OscType::DX7);
@@ -690,7 +644,6 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 	it("the same arguments without the node open the sound root instead", _ {
 		// The control for the example above: everything but `node` held fixed, so "the file
 		// selector is where a synth clip always lands" fails.
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 
 		expect(entry::openShellMenu(f.clip, 0, false, false, false, false)).to_be_true();
@@ -704,7 +657,6 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 	it("Shift + (8,7) on a synth clip opens the filters group focused on nodes::lpf_freq through SceneId::arg", _ {
 		// `SoundEditor::setup(clip, item, …)` lands a named item on the horizontal page that lists it,
 		// focused on it (`maybeGetParentMenu` and `parent->focusChild`, `gui/ui/sound_editor.cpp`).
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 8, 7) == &nodes::lpf_freq).to_be_true();
 
@@ -719,7 +671,6 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 	});
 
 	it("an odd column addresses source 1", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		const menu::Node* node = menu::shortcut_node(menu::MenuContext::Root::Sound, false, 3, 2);
 		expect(node != nullptr).to_be_true();
@@ -732,7 +683,6 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 	});
 
 	it("a cell with no shortcut opens nothing", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 15, 0) == nullptr).to_be_true();
 
@@ -741,7 +691,6 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 	});
 
 	it("a node that does not apply opens nothing and says PARAMETER NOT APPLICABLE, as setup() does", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		PopupSpy spy;
 		DisplayGuard shown{spy};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
@@ -768,7 +717,6 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 	});
 
 	it("does not wipe the undo log", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 
 		// Seeded with the guest open, because `getNewAction` refuses otherwise.
@@ -784,7 +732,6 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 	});
 
 	it("marks a keyboard-screen root", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 
@@ -807,7 +754,6 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 	it("Shift + (4,0) on a DX7 sound opens the DX7 parameter page alone, on the param it showed last", _ {
 		// `potentialShortcutPadAction`'s fallback: modulator 1's volume does not apply to a sound that is not FM, so
 		// `setup()` refuses it, and on a DX7 source `setup(clip, &dxParam, 0)` opens the page as `dxParam.param` stands.
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		Sound* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
 		sound->sources[0].setOscType(OscType::DX7);
@@ -828,43 +774,10 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 	});
 
-	it("with ShellMenu off, the pad opens the legacy SoundEditor", _ {
-		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
-		(void)f;
-		deluge::hid::display::OLED oled_display;
-		deluge::hid::Display* const saved_display = display;
-		display = &oled_display;
-		const int32_t saved_mode = currentUIMode;
-		currentUIMode = UI_MODE_NONE;
-		RootUIGuard root_guard;
-		HeldShift shift;
-
-		{
-			ToggleGuard off{RuntimeFeatureStateToggle::Off};
-			setRootUILowLevel(&instrumentClipView);
-			(void)entry::menuShortcutPadAction(8, 7, true);
-			expect(getCurrentUI() == &soundEditor).to_be_true();
-			// Legacy's own close, which ends the item's session and clears the navigation record.
-			soundEditor.exitCompletely();
-			nullifyUIs();
-		}
-		{
-			ToggleGuard on{RuntimeFeatureStateToggle::On};
-			setRootUILowLevel(&instrumentClipView);
-			(void)entry::menuShortcutPadAction(8, 7, true);
-			expect(getCurrentUI() == &shellHostUI).to_be_true();
-			expect(deluge::scenes::menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
-			nullifyUIs();
-		}
-		deluge::hid::display::OLED::removePopup();
-		display = saved_display;
-		currentUIMode = saved_mode;
-	});
 });
 
 describe menu_entry_refusal("openShellMenu refuses where SoundEditor::setup refuses", $ {
 	it("a kit with neither affect-entire nor a selected drum opens nothing", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
 
 		// `MenuContext::resolved` is `setup()`'s own `return false` at
@@ -889,7 +802,6 @@ describe menu_entry_refusal("openShellMenu refuses where SoundEditor::setup refu
 
 describe menu_entry_undo_log("the undo-log wipe SoundEditor::setup does on every menu open", $ {
 	it("is done for a clip-rooted open and NOT for a settings-rooted one", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 
 		// In `SoundEditor::setup` the undo-log wipe sits inside `if (item) ... else if (clip)`, so the wipe follows the
@@ -930,7 +842,6 @@ describe menu_entry_screensaver("legacy's screensaver stands down while the gues
 		// `arm()`'s full `screensaverTimeoutMinutes * 60000`. A silent `return` would arm neither,
 		// which is the third outcome and the one the note warned against, so the timer is cleared
 		// before each call and the arm is read back rather than assumed.
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		(void)f;
 
@@ -996,7 +907,6 @@ describe menu_entry_screensaver("legacy's screensaver stands down while the gues
 
 describe menu_entry_tick_rate("the guest's tick rate with MenuScene as its tenant", $ {
 	it("never asks to be woken at now_ms, so the 1 kHz cost stays latent", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 
 		// `Shell::next_wake()`'s own warning: a scene whose `next_timer()` answers 0 makes the
@@ -1047,7 +957,6 @@ describe menu_entry_midi_learn("MIDI from PlaybackHandler learns into the ported
 	// like one that worked.
 
 	it("a note-on, a program change and a CC while LEARN is held write the focused command's slot", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		Song* const saved_song = currentSong;
 		currentSong = f.song;
@@ -1090,7 +999,6 @@ describe menu_entry_midi_learn("MIDI from PlaybackHandler learns into the ported
 		// `input_top()`, not `top()`: a passive overlay is drawn over the menu without taking its input
 		// (`Scene::input_transparent`). The negative half removes the menu rather than covering it, because every
 		// opaque scene in the registry refuses `on_enter` without setup this file does not build.
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		Song* const saved_song = currentSong;
 		currentSong = f.song;
@@ -1122,7 +1030,6 @@ describe menu_entry_midi_learn("MIDI from PlaybackHandler learns into the ported
 	});
 
 	it("a menu closed with LEARN held and opened again is not learning", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		Song* const saved_song = currentSong;
 		currentSong = f.song;
@@ -1144,7 +1051,7 @@ describe menu_entry_midi_learn("MIDI from PlaybackHandler learns into the ported
 	});
 });
 namespace {
-/// @brief The automation view as the root, a pad held with pad selection on, and ShellMenu on; all put back.
+/// @brief The automation view as the root, a pad held with pad selection on; all put back.
 struct HeldPadInAutomation {
 	deluge::hid::display::OLED oled_display;
 	deluge::hid::Display* saved_display = display;
@@ -1177,7 +1084,6 @@ describe menu_entry_automation_notes("site 7 under UI_MODE_NOTES_PRESSED: what s
 	before_all([] { deluge::gui::ui::wireShellNoteBridge(); });
 
 	it("opens the note editor on an instrument clip, wiping the undo log as setup() does with no item", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		HeldPadInAutomation held;
 		// `ActionLogger::getNewAction` takes an action only while the root is the current UI, which it is here.
@@ -1196,7 +1102,6 @@ describe menu_entry_automation_notes("site 7 under UI_MODE_NOTES_PRESSED: what s
 	});
 
 	it("leaves a kit's affect-entire on, where enterNoteEditor clears it", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
 		auto* clip = static_cast<InstrumentClip*>(kit.clip);
 		clip->affectEntire = true;
@@ -1212,7 +1117,6 @@ describe menu_entry_automation_notes("site 7 under UI_MODE_NOTES_PRESSED: what s
 	});
 
 	it("opens an audio clip's root, and the arranger's song root, as setup() does under the same mode", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::AudioSongFixture f = deluge::scenes::spec::make_audio_clip_song();
 		{
 			HeldPadInAutomation held;
@@ -1237,7 +1141,6 @@ describe menu_entry_automation_notes("site 7 under UI_MODE_NOTES_PRESSED: what s
 
 describe menu_entry_close_mode("leaving the ported menu ends the UI mode it was left under, as exitCompletely does", $ {
 	it("clears AFFECT ENTIRE held on a kit row's menu when the long-press exit closes it", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
@@ -1254,7 +1157,6 @@ describe menu_entry_close_mode("leaving the ported menu ends the UI mode it was 
 	});
 
 	it("clears it when a short BACK at the menu's root closes it, which legacy accepts with AFFECT ENTIRE held", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
@@ -1271,7 +1173,6 @@ describe menu_entry_close_mode("leaving the ported menu ends the UI mode it was 
 	});
 
 	it("clears the non-exclusive modes too: an audition the menu was opened under", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
@@ -1285,7 +1186,6 @@ describe menu_entry_close_mode("leaving the ported menu ends the UI mode it was 
 	});
 
 	it("keeps a stem export the menu started, and only its mode: legacy resets first and the export engages after", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
@@ -1303,7 +1203,6 @@ describe menu_entry_close_mode("leaving the ported menu ends the UI mode it was 
 		// A take already running: the recorder refuses, and the menu lands on the file selector, whose hook pushes the
 		// browser, as legacy's `openUI(&soundEditor)` does. That is an editor visit now: its exit is `exitCompletely`.
 		(void)quiet_audio();
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
@@ -1338,7 +1237,6 @@ describe menu_entry_close_mode("leaving the ported menu ends the UI mode it was 
 
 	it("leaves the mode alone when the drum creator's browser ends the visit: legacy opened no editor there", _ {
 		(void)quiet_audio();
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
@@ -1365,7 +1263,6 @@ describe menu_entry_close_mode("leaving the ported menu ends the UI mode it was 
 
 	it("forgets that mark when the visit is torn down without its close: the next visit's close resets", _ {
 		(void)quiet_audio();
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
@@ -1390,7 +1287,6 @@ describe menu_entry_close_mode("leaving the ported menu ends the UI mode it was 
 
 describe menu_entry_reopen("an entry that reaches the open guest re-roots it in place, as setup() re-sets the open editor", $ {
 	it("re-roots the Settings menu on the pad's node when Shift + a pad is forwarded to the keyboard screen", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
@@ -1416,7 +1312,6 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 	});
 
 	it("keeps the kit-global-FX fact the menu was opened with, so Shift + a pad edits the selected drum", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
@@ -1442,7 +1337,6 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 
 	it("edits the kit's own effects when a pad was played since the last close, as legacy's sticky fact does", _ {
 		(void)quiet_audio();
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
@@ -1470,7 +1364,6 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 
 	it("edits the selected drum when the menu closed after that pad: the close clears the fact", _ {
 		(void)quiet_audio();
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
@@ -1501,7 +1394,6 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 
 	it("SELECT opens the drum's own menu once affect-entire is off, whatever a pad left the fact at", _ {
 		(void)quiet_audio();
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
@@ -1529,7 +1421,6 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 
 	it("a Shift + pad on the drum menu SELECT opened takes the kit's own item while the latch is set", _ {
 		(void)quiet_audio();
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		LatchedKit k;
@@ -1551,7 +1442,6 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 
 	it("the note editor opened after edit pads takes no shortcut press, as legacy's padAction skips it there", _ {
 		(void)quiet_audio();
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		LatchedKit k;
@@ -1570,7 +1460,6 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 
 	it("the automation view reads the latch under the drum menu, and the kit's context before it follows a jump", _ {
 		(void)quiet_audio();
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		LatchedKit k;
@@ -1595,7 +1484,6 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 
 	it("SHIFT + CROSS SCREEN on a drum page steps the kit's own chain while the latch is set", _ {
 		(void)quiet_audio();
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::FeatureSetting horizontal{RuntimeFeatureSettingType::HorizontalMenus,
@@ -1628,7 +1516,6 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 
 	it("the SHIFT overlay on the drum menu shows the kit's own map while the latch is set, the drum's once it clears", _ {
 		(void)quiet_audio();
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::FeatureSetting overlay{
@@ -1659,7 +1546,6 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 
 	it("opens the drum creator on the new drum, whatever a pad left the fact at", _ {
 		(void)quiet_audio();
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
@@ -1686,7 +1572,6 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 
 	it("sets the fact on the browser's return to the menu only with SHIFT held and no audition, as legacy's re-entry",
 	   _ {
-		   ToggleGuard on{RuntimeFeatureStateToggle::On};
 		   deluge::scenes::spec::UiModeGuard mode;
 		   deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
 		   (void)deluge::scenes::spec::add_drum<SoundDrum>(f);
@@ -1716,7 +1601,6 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 	it("a second Shift + pad after the marker editor's jump opens the kit's own item, as legacy's re-entry latched",
 	   _ {
 		   (void)quiet_audio();
-		   ToggleGuard on{RuntimeFeatureStateToggle::On};
 		   RootUIGuard root_guard;
 		   deluge::scenes::spec::UiModeGuard mode;
 		   deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
@@ -1765,7 +1649,6 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 
 	it("a Shift + pad after a browser claim made with SHIFT held opens the kit's own item", _ {
 		(void)quiet_audio();
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
@@ -1808,7 +1691,6 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 	it("a browser claim made without SHIFT while the fact is latched leaves the page the file selector was pressed on",
 	   _ {
 		   (void)quiet_audio();
-		   ToggleGuard on{RuntimeFeatureStateToggle::On};
 		   RootUIGuard root_guard;
 		   deluge::scenes::spec::UiModeGuard mode;
 		   deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
@@ -1856,7 +1738,6 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 	   });
 
 	it("re-roots for a direct shortcut open too, keeping one guest", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
@@ -1911,10 +1792,9 @@ struct HeldAudition {
 };
 } // namespace
 
-describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers the press whole, and legacy never opens", $ {
+describe menu_entry_shortcut_whole("site 9: the port answers the press whole, and legacy never opens", $ {
 	it("says PARAMETER NOT APPLICABLE for a pad that does not apply, and the DX7 test reads the pad's own source", _ {
 		// A DX7 source an earlier menu left in legacy's mirror: legacy's fallback tests it and opens its `dxParam`.
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		PopupSpy spy;
@@ -1939,7 +1819,6 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 	});
 
 	it("says Feature not (yet?) implemented for a coming-soon cell and opens nothing", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		PopupSpy spy;
@@ -1957,7 +1836,6 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 	});
 
 	it("says nothing at all on a kit with neither affect-entire nor a selected row, even on a coming-soon cell", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		PopupSpy spy;
@@ -1975,7 +1853,6 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 	});
 
 	it("reads the song view's table from the performance view and edits the song, as legacy's call does", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
@@ -1992,8 +1869,7 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 		closeGuest();
 	});
 
-	it("is the open guest's to answer even once the setting selects the legacy menu: it re-roots, legacy stays shut", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
+	it("is the open guest's to answer: it re-roots, and nothing else opens", _ {
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
@@ -2001,7 +1877,6 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 		setRootUILowLevel(&keyboardScreen);
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		{
-			ToggleGuard off{RuntimeFeatureStateToggle::Off};
 			HeldShift shift;
 			(void)shellHostUI.padAction(8, 7, 64);
 		}
@@ -2013,7 +1888,6 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 	it("an audition pad and the sequence-direction pad open the note-row editor on PLAY DIRECTION from a closed menu", _ {
 		// `noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu)`, then `enterNoteRowEditor`.
 		deluge::gui::ui::wireShellNoteBridge();
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		HorizontalMenusGuard horizontal{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
@@ -2038,7 +1912,6 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 
 	it("lands on PLAY DIRECTION even when the note-row editor last sat on another row", _ {
 		deluge::gui::ui::wireShellNoteBridge();
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		HorizontalMenusGuard horizontal{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
@@ -2070,7 +1943,6 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 		// `enterNoteRowEditor` with the sound editor open: `focusChild(&sequenceDirectionMenu)`, then `setup()`, which
 		// ends with `display->cancelPopup()`.
 		deluge::gui::ui::wireShellNoteBridge();
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		HorizontalMenusGuard horizontal{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
@@ -2102,7 +1974,6 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 
 	it("a range-dependent pad on a multisampled source opens the range picker first, as setup() does", _ {
 		// `setup()`'s MUST_SELECT_RANGE arm: `multiRangeMenu.menuItemHeadingTo = item; newItem = &multiRangeMenu`.
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		auto* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
 		sound->sources[0].ranges.insertMultiRange(0);
@@ -2121,7 +1992,6 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 		// `getCurrentUI() == &soundEditor` with the automation view as root and a kind-NONE item: DEALT_WITH, before
 		// the sequence-direction arm.
 		deluge::gui::ui::wireShellNoteBridge();
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		HorizontalMenusGuard horizontal{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
@@ -2141,7 +2011,6 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 	});
 
 	it("passes a release, a sidebar pad and an ungated press back to the view", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
@@ -2155,14 +2024,13 @@ describe menu_entry_shortcut_whole("site 9 with ShellMenu on: the port answers t
 	});
 });
 
-describe menu_entry_legacy_closed("with ShellMenu on the legacy editor cannot open", $ {
-	it("refuses SoundEditor's open and leaves the hierarchy as it was; with ShellMenu off it opens", _ {
+describe menu_entry_legacy_closed("the legacy editor cannot open", $ {
+	it("refuses SoundEditor's open and leaves the hierarchy as it was", _ {
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		setRootUILowLevel(&instrumentClipView);
 		{
-			ToggleGuard on{RuntimeFeatureStateToggle::On};
 			expect(soundEditor.setup(f.clip)).to_be_true();
 			const bool opened = openUI(&soundEditor);
 			if (opened) {
@@ -2172,19 +2040,11 @@ describe menu_entry_legacy_closed("with ShellMenu on the legacy editor cannot op
 			expect(isUIOpen(&soundEditor)).to_be_false();
 			expect(getCurrentUI() == &instrumentClipView).to_be_true();
 		}
-		{
-			ToggleGuard off{RuntimeFeatureStateToggle::Off};
-			expect(soundEditor.setup(f.clip)).to_be_true();
-			expect(openUI(&soundEditor)).to_be_true();
-			expect(getCurrentUI() == &soundEditor).to_be_true();
-			soundEditor.exitCompletely();
-		}
 		nullifyUIs();
 	});
 });
 describe menu_entry_published_target("the ported menu's owner and params, which the automation view and the kit's stacks read", $ {
 	it("names a kit row's drum and its note row's params, not what the legacy editor last held", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
@@ -2200,7 +2060,6 @@ describe menu_entry_published_target("the ported menu's owner and params, which 
 	});
 
 	it("builds the kit's automation stack under the menu on the published row", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
@@ -2226,7 +2085,6 @@ describe menu_entry_published_target("the ported menu's owner and params, which 
 	it("with the latch set under the drum menu, the automation view's kit-wide stack is the drum's row", _ {
 		// Pins the port's current value: `main`'s `SoundEditor::setup` with `setupKitGlobalFXMenu` set edits the kit's own FX.
 		(void)quiet_audio();
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		LatchedKit k;
@@ -2250,7 +2108,6 @@ describe menu_entry_published_target("the ported menu's owner and params, which 
 	});
 
 	it("arms the automation display when playback automates the published params", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
@@ -2293,7 +2150,6 @@ describe menu_entry_kit_affect_entire("editKitAffectEntire: a menu opened now ed
 
 describe menu_entry_audition_end("a scene opened over an audition ends it, as main's opener does", $ {
 	it("ends the clip view's audition as the recorder opens", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		(void)quiet_audio();
@@ -2307,7 +2163,6 @@ describe menu_entry_audition_end("a scene opened over an audition ends it, as ma
 	});
 
 	it("ends it as the sample browser opens", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		(void)quiet_audio();
@@ -2320,7 +2175,6 @@ describe menu_entry_audition_end("a scene opened over an audition ends it, as ma
 	});
 
 	it("ends it as the drum rename opens on an instrument clip, held", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
@@ -2333,7 +2187,6 @@ describe menu_entry_audition_end("a scene opened over an audition ends it, as ma
 	});
 
 	it("leaves a pad's audition state alone as the drum rename opens with nothing held", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
@@ -2348,7 +2201,6 @@ describe menu_entry_audition_end("a scene opened over an audition ends it, as ma
 	});
 
 	it("leaves an audition alone as the clip rename opens on an audio clip", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		deluge::scenes::spec::AudioSongFixture audio = deluge::scenes::spec::make_audio_clip_song();
@@ -2369,7 +2221,6 @@ describe menu_entry_audition_end("a scene opened over an audition ends it, as ma
 	});
 
 	it("ends the keyboard's audition as a sound's marker editor opens over the keyboard", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		(void)quiet_audio();
@@ -2384,7 +2235,6 @@ describe menu_entry_audition_end("a scene opened over an audition ends it, as ma
 	});
 
 	it("leaves an audition alone when the marker editor opens over the clip view", _ {
-		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
 		(void)quiet_audio();
@@ -2401,8 +2251,8 @@ describe menu_entry_audition_end("a scene opened over an audition ends it, as ma
 
 // clang-format on
 
-DELUGE_SPEC(menu_entry_spec, menu_entry_toggle, menu_entry_roots, menu_entry_node_arg, menu_entry_shortcut,
-            menu_entry_refusal, menu_entry_undo_log, menu_entry_screensaver, menu_entry_tick_rate,
-            menu_entry_midi_learn, menu_entry_automation_notes, menu_entry_close_mode, menu_entry_reopen,
-            menu_entry_shortcut_whole, menu_entry_legacy_closed, menu_entry_published_target,
-            menu_entry_kit_affect_entire, menu_entry_audition_end)
+DELUGE_SPEC(menu_entry_spec, menu_entry_roots, menu_entry_node_arg, menu_entry_shortcut, menu_entry_refusal,
+            menu_entry_undo_log, menu_entry_screensaver, menu_entry_tick_rate, menu_entry_midi_learn,
+            menu_entry_automation_notes, menu_entry_close_mode, menu_entry_reopen, menu_entry_shortcut_whole,
+            menu_entry_legacy_closed, menu_entry_published_target, menu_entry_kit_affect_entire,
+            menu_entry_audition_end)

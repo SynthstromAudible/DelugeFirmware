@@ -21,7 +21,7 @@
 #include "gui/colour/colour.h"
 #include "gui/colour/palette.h"
 #include "gui/context_menu/clip_settings/launch_style.h"
-#include "gui/ui/menus.h"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
@@ -31,6 +31,7 @@
 #include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "io/file.hpp"
@@ -87,13 +88,11 @@ namespace {
 /// the spec that runs both on the real `performanceView`
 /// (`sim/scenes_spec/menu_actions_spec.cpp`, `menu_action_perform`) reddens.
 ///
-/// **Why this is unconditional, whichever menu the Legacy Menu setting selects.**
-/// Nothing may change with ShellMenu off, and this call is not gated. It is safe because of what it writes: a single
+/// **Why this is unconditional.** It is safe because of what it writes: a single
 /// `static` inside `libdeluge_scenes` (`g_perform_mode`, `scenes/menu/nodes/actions.cpp:45`) whose
 /// only readers are `performance_editing_mode()` and, through it, `PerformEditorItem` -- a node in
-/// the ported menu, which nothing opens with ShellMenu off (`openShellMenu`,
-/// `gui/ui/shell_menu_entry.cpp`). It reads nothing, calls nothing else, touches no legacy state and
-/// cannot fail. With ShellMenu off it is a store to a byte no one loads.
+/// the ported menu (`openShellMenu`, `gui/ui/shell_menu_entry.cpp`). It writes that one byte, reads nothing, calls
+/// nothing else, touches no legacy state and cannot fail.
 void syncEditingModeMirror(const PerformanceView& v) {
 	PerformanceEditingMode mode = PerformanceEditingMode::DISABLED;
 	if (v.defaultEditingMode) {
@@ -891,25 +890,17 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on) {
 			}
 
 			if (!defaultEditingMode) {
-				// One of the shell menu's entry sites (`gui/ui/shell_menu_entry.cpp`'s table). The `else`
-				// is the legacy path.
-				if (deluge::gui::ui::shellMenuEnabled()) {
-					// Legacy names the root by pointer here; the port names it by the fact that
-					// picks it. They agree because this arm is `SELECT_ENC && !shift` inside
-					// `PerformanceView`, which is exactly `setup()`'s
-					// `currentUI == &performanceView && !Buttons::isShiftButtonPressed()`
-					// (`gui/ui/sound_editor.cpp:1799-1801`) and `context_for`'s `performance_view`
-					// (`scenes/menu/context.cpp:365-367`).
-					(void)deluge::gui::ui::openShellMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
-					                                     /*performanceView=*/true,
-					                                     /*sessionOrArrangerRoot=*/false,
-					                                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false);
-				}
-				else {
-					if (soundEditor.setup(nullptr, &soundEditorRootMenuPerformanceView)) {
-						openUI(&soundEditor);
-					}
-				}
+				// Site 4 of `gui/ui/shell_menu_entry.cpp`'s table.
+				// Legacy names the root by pointer here; the port names it by the fact that
+				// picks it. They agree because this arm is `SELECT_ENC && !shift` inside
+				// `PerformanceView`, which is exactly `setup()`'s
+				// `currentUI == &performanceView && !Buttons::isShiftButtonPressed()`
+				// (`gui/ui/sound_editor.cpp:1799-1801`) and `context_for`'s `performance_view`
+				// (`scenes/menu/context.cpp:365-367`).
+				(void)deluge::gui::ui::openShellMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
+				                                     /*performanceView=*/true,
+				                                     /*sessionOrArrangerRoot=*/false,
+				                                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false);
 			}
 		}
 	}

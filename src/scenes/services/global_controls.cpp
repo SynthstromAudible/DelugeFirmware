@@ -338,7 +338,7 @@ void GlobalControls::handle_settings_menu(const UiContext& ctx, Result& result) 
 	// this call always takes the `else` in `SoundEditor::setup`, and both of that branch's
 	// view tests are `&& !Buttons::isShiftButtonPressed()` (`:1761`, `:1764`) -- which is false
 	// here by construction, because this arm's own condition is `b == SELECT_ENC &&
-	// Buttons::isShiftButtonPressed()` (`view.cpp:451`). So the root is `settingsRootMenu`
+	// Buttons::isShiftButtonPressed()` (`View::buttonAction`). So the root is `settingsRootMenu`
 	// (`:1769`) whatever view is on screen, and `context_for`'s two matching arguments are passed
 	// false for exactly that reason rather than because the view is unknown here.
 	menu::MenuContext menu_ctx = menu::context_for(*song_, services::MenuView{}, /*source_index=*/0,
@@ -688,7 +688,7 @@ void GlobalControls::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 
 	if (clip_arm_flash_deadline_ms_.has_value() && static_cast<int32_t>(now_ms - *clip_arm_flash_deadline_ms_) >= 0) {
 		// `View::flashPlayRoutine`: toggle the phase, then ask for a render.
-		// The re-arm is `SessionView::flashPlayRoutine`'s (`gui/views/session_view.cpp:2441-2442`,
+		// The re-arm is `SessionView::flashPlayRoutine`'s (`gui/views/session_view.cpp`,
 		// `:2441-2444`) and is view-side, so this fires once per `flash_play_enable()`.
 		clip_arm_flash_on_ = !clip_arm_flash_on_;
 		clip_arm_flash_deadline_ms_.reset();

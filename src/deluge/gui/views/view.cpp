@@ -439,21 +439,14 @@ possiblyRevert:
 				return ActionResult::DEALT_WITH;
 			}
 
-			// One of the shell menu's entry sites (`gui/ui/shell_menu_entry.cpp`'s table). The `else` is the legacy
-			// path.
-			if (deluge::gui::ui::shellMenuEnabled()) {
-				// SHIFT is held, so both of `setup()`'s view tests (`&& !shift`) are false and the root is
-				// `settingsRootMenu` whatever is on screen. All four UI facts therefore go in false -- the same
-				// reading `services::GlobalControls::handle_settings_menu` makes of this arm.
-				(void)deluge::gui::ui::openShellMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
-				                                     /*performanceView=*/false,
-				                                     /*sessionOrArrangerRoot=*/false,
-				                                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false);
-			}
-			else {
-				soundEditor.setup();
-				openUI(&soundEditor);
-			}
+			// Site 1 of `gui/ui/shell_menu_entry.cpp`'s table.
+			// SHIFT is held, so both of `setup()`'s view tests (`&& !shift`) are false and the root is
+			// `settingsRootMenu` whatever is on screen. All four UI facts therefore go in false -- the same
+			// reading `services::GlobalControls::handle_settings_menu` makes of this arm.
+			(void)deluge::gui::ui::openShellMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
+			                                     /*performanceView=*/false,
+			                                     /*sessionOrArrangerRoot=*/false,
+			                                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false);
 		}
 	}
 	else {

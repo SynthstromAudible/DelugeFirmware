@@ -22,12 +22,10 @@
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_midi_device_definition_ui.h"
 #include "gui/ui/load/load_pattern_ui.h"
-#include "gui/ui/menus.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/save/save_kit_row_ui.h"
 #include "gui/ui/save/save_midi_device_definition_ui.h"
 #include "gui/ui/save/save_pattern_ui.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -57,6 +55,7 @@
 #include "playback/mode/arrangement.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "processing/stem_export/stem_export.h"
 #include "util/etl_string.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/shell_menu_entry.h"
@@ -293,17 +292,10 @@ gotError:
 	                               deluge::serialization::Value::makeScalar(std::string{newName}));
 
 	if (is_dx) {
-		// Site 11 of `gui/ui/shell_menu_entry.cpp`'s table: "DX7 source" on the new FM synth. The `else` is legacy's
-		// two statements unchanged.
-		if (deluge::gui::ui::shellMenuEnabled()) {
-			(void)deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
-			                                     /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
-			                                     /*kitGlobalFx=*/false, deluge::gui::ui::ShellMenuNode::Dx);
-		}
-		else {
-			soundEditor.setup(clip, &dxMenu, 0);
-			openUI(&soundEditor);
-		}
+		// Site 11 of `gui/ui/shell_menu_entry.cpp`'s table: "DX7 source" on the new FM synth.
+		(void)deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
+		                                     /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
+		                                     /*kitGlobalFx=*/false, deluge::gui::ui::ShellMenuNode::Dx);
 	}
 
 	renderUIsForOled();
@@ -441,33 +433,17 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on) 
 	// Select button, without shift
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			// Site 6 of `gui/ui/shell_menu_entry.cpp`'s table. The `else` is the legacy three statements unchanged --
-			// including the `setupKitGlobalFXMenu` write, which is deliberately inside it: that member is
-			// `SoundEditor`'s state, cleared on its exit (`SoundEditor::exitCompletely`), and setting it on a path that
-			// never opens the legacy editor would leave it latched for whoever opens one next.
-			if (deluge::gui::ui::shellMenuEnabled()) {
-				// The same write to the ported menu's own latch (`shellKitGlobalFx`), which the shortcut presses
-				// then read; the open edits what the clip's affect-entire says now. The root is then one of six, and
-				// `context_for` runs the same six tests in the same order; the two UI-mode roots legacy could otherwise
-				// pick are unreachable because this arm is `currentUIMode == UI_MODE_NONE`.
-				const bool kitGlobalFx = deluge::gui::ui::editKitAffectEntire();
-				if (!deluge::gui::ui::openShellMenu(getCurrentClip(), /*sourceIndex=*/0,
-				                                    /*performanceView=*/false,
-				                                    /*sessionOrArrangerRoot=*/false,
-				                                    /*sessionViewRoot=*/false, kitGlobalFx)) {
-					return ActionResult::DEALT_WITH;
-				}
-			}
-			else {
-				// todo: this should probably be inside the sound editor but I don't want to deal with it right now
-				if (deluge::gui::ui::editKitAffectEntire()) {
-					soundEditor.setupKitGlobalFXMenu = true;
-				}
-
-				if (!soundEditor.setup(getCurrentClip())) {
-					return ActionResult::DEALT_WITH;
-				}
-				openUI(&soundEditor);
+			// Site 6 of `gui/ui/shell_menu_entry.cpp`'s table. Legacy's `setupKitGlobalFXMenu` write is made to the
+			// ported menu's own latch (`shellKitGlobalFx`), which the shortcut presses then read; the open edits what
+			// the clip's affect-entire says now. The root is then one of six, and `context_for` runs the same six tests
+			// in the same order; the two UI-mode roots legacy could otherwise pick are unreachable because this arm is
+			// `currentUIMode == UI_MODE_NONE`.
+			const bool kitGlobalFx = deluge::gui::ui::editKitAffectEntire();
+			if (!deluge::gui::ui::openShellMenu(getCurrentClip(), /*sourceIndex=*/0,
+			                                    /*performanceView=*/false,
+			                                    /*sessionOrArrangerRoot=*/false,
+			                                    /*sessionViewRoot=*/false, kitGlobalFx)) {
+				return ActionResult::DEALT_WITH;
 			}
 		}
 	}

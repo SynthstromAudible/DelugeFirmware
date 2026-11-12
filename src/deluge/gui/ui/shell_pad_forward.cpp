@@ -50,7 +50,7 @@ namespace {
 /// `menuItemNavigationRecord[navigationDepth]` (`SoundEditor::getCurrentMenuItem`) -- a zero-initialised member
 /// (`menuItemNavigationRecord` in `gui/ui/sound_editor.h`) written only by `SoundEditor::setup`/`navigate`, neither of
 /// which runs under the guest. So legacy's copy dereferences null here on any boot that never opened a
-/// legacy menu, and the state cannot be supplied here, because with ShellMenu on the open menu
+/// legacy menu, and the state cannot be supplied here, because the open menu
 /// genuinely is `MenuScene`.
 ///
 /// The param compared is the one `focused_value()` edits: on a horizontal page the focused column, as legacy's

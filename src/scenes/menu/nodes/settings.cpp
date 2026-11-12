@@ -881,7 +881,7 @@ int32_t get_shortcuts_version(const MenuContext&) {
 void set_shortcuts_version(const MenuContext&, int32_t value) {
 	// `shortcuts::Version::writeCurrentValue`. The first statement is the write that persists: flash byte 60
 	// (`FlashStorage::shortcutsVersion`), which the shortcut lookups read and `FlashStorage::writeSettings` stores. The
-	// action lets the legacy editor's own tables follow, which they need while the Legacy Menu setting exists.
+	// action lets the legacy editor's own tables follow.
 	menu::set_shortcuts_version(value == static_cast<int32_t>(ShortcutsVersion::V1) ? ShortcutsVersion::V1
 	                                                                                : ShortcutsVersion::V3);
 	menu_scene().request_action(

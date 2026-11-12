@@ -2146,8 +2146,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// shortcut-pad jump, which re-enters through `Action::Kind::Replace` carrying the same
 		// `arg`. Measured at level 3 before the fix: the ported file selector's browser refused to
 		// open on a fresh synth clip -- `browser::sample_can` wants a non-null `AudioFileHolder`
-		// (`sample_can` in `scenes/browser/browser_scene.cpp`) and `ctx.range` was still null -- while the
-		// ShellMenu-off leg opened it. `tests/ui-scripts/app/menu.txt`'s `file-selector` snapshot is
+		// (`sample_can` in `scenes/browser/browser_scene.cpp`) and `ctx.range` was still null -- while
+		// legacy opened it. `tests/ui-scripts/app/menu.txt`'s `file-selector` snapshot is
 		// that measurement; this is the same claim at fixture level.
 		select_language();
 		deluge::notify::dirty().drain();

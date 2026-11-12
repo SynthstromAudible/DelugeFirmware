@@ -511,13 +511,13 @@ bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 }
 
 bool SoundEditor::opened() {
-	// With ShellMenu on every entry point opens the ported menu, and this editor may not open: the sites that still
-	// could (the legacy browser's claim, the note-row editor and shortcut pads asked from inside this editor, the
-	// legacy marker editor's return) are reached only through it. A session opened before the setting changed is never
-	// re-opened, so it carries on. `openUI` and `changeUIAtLevel` roll a refused open back.
-	if (deluge::gui::ui::shellMenuEnabled()) {
-		return false;
-	}
+	// Every entry point opens the ported menu, and this editor may not open: the sites that still could (the legacy
+	// browser's claim, the note-row editor and shortcut pads asked from inside this editor, the legacy marker editor's
+	// return) are reached only through it. `openUI` and `changeUIAtLevel` roll a refused open back.
+	//
+	// Nothing below this return runs. It is legacy's own open, left in place so that the line numbers other files cite
+	// in this one stay where they were.
+	return false;
 
 	// we don't want to process select button release when entering menu
 	Buttons::selectButtonPressUsedUp = true;

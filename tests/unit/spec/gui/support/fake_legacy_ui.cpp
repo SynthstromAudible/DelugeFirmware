@@ -357,9 +357,9 @@ const deluge::ui::shell::BoardProfile& deluge_profile() {
 // model/settings/runtime_feature_settings.cpp's share: the one global, and the
 // one out-of-line member. `ShellHostUI::opened()` reads `ShiftIsSticky` out of
 // it to seed the shell's own copy of the setting, and `get()` is already inline
-// in the header (`model/settings/runtime_feature_settings.h:100`), so all this
+// in the header (`RuntimeFeatureSettings::get`), so all this
 // suite needs is storage plus a constructor -- the real one reads a file.
-// A spec sets the value through `set()`, which is inline too (`:108`).
+// A spec sets the value through `set()`, which is inline too.
 // ---------------------------------------------------------------------------
 RuntimeFeatureSettings runtimeFeatureSettings;
 

@@ -871,7 +871,7 @@ struct NavProbe : ClipNavigationTimelineView {
 /// `AudioClipView::endMarkerVisible` is **private** and the class is `final`, so there is no probe
 /// subclass to reach it with (the trick `timeline_spec.cpp`'s `TickProbe` uses for
 /// `ClipView::getTickSquare` needs a protected member). What there IS is `padAction`
-/// (`audio_clip_view.cpp:566-574`), which sets it, and `getMaxLength` (`:875-880`), which is
+/// (`audio_clip_view.cpp`), which sets it, and `getMaxLength`, which is
 /// **public** and returns `loopLength + 1` if and only if it is set. So the flag is raised by
 /// legacy's own gesture and read back through legacy's own accessor; the caller asserts on the
 /// return.
@@ -1129,7 +1129,7 @@ describe audio_clip_scene_spec_body(
 
 		        // Both sides raise the marker through their own front door, BEFORE the first tick:
 		        // `set_end_marker_visible` is a state write, not an event, so it dirties no repaint gate --
-		        // legacy's own `uiNeedsRendering(this, 0xFFFFFFFF, 0)` (`audio_clip_view.cpp:573`) is the
+		        // legacy's own `uiNeedsRendering(this, 0xFFFFFFFF, 0)` (`AudioClipView::padAction`) is the
 		        // half of that arm the shell owns rather than the scene. Found by writing the tick after
 		        // the setter and watching the port render the frame from before it.
 		        // `raise_legacy_end_marker` asserts legacy's flag took, by reading legacy's own
@@ -1926,7 +1926,7 @@ describe audio_clip_scene_spec_body(
 	        "writes the same start marker as legacy when the start marker is dragged", _ {
 		        spec_fixture::QuietAudio quiet;
 		        // The start-marker gesture is behind `RuntimeFeatureSettingType::TrimFromStartOfAudioClip`
-		        // (`audio_clip_view.cpp:578`), which is off by default; both sides read the same global,
+		        // (`AudioClipView::padAction`), which is off by default; both sides read the same global,
 		        // so it is turned on once, for both, and put back.
 		        const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::TrimFromStartOfAudioClip);
 		        runtimeFeatureSettings.set(RuntimeFeatureSettingType::TrimFromStartOfAudioClip,

@@ -21,7 +21,6 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
@@ -401,24 +400,15 @@ dontDeactivateMarker:
 	// Select button, without shift
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			// One of the shell menu's entry sites (`gui/ui/shell_menu_entry.cpp`'s table). The `else` is the legacy
-			// refusal and open.
-			if (deluge::gui::ui::shellMenuEnabled()) {
-				// An `AudioClip` under a clip-minder root: `setup()` lands on `soundEditorRootMenuAudioClip` and
-				// `context_for` on `Root::AudioClip`. `openShellMenu` returning false stands in for `setup()`
-				// returning false.
-				if (!deluge::gui::ui::openShellMenu(getCurrentClip(), /*sourceIndex=*/0,
-				                                    /*performanceView=*/false,
-				                                    /*sessionOrArrangerRoot=*/false,
-				                                    /*sessionViewRoot=*/false, /*kitGlobalFx=*/false)) {
-					return ActionResult::DEALT_WITH;
-				}
-			}
-			else {
-				if (!soundEditor.setup(getCurrentClip())) {
-					return ActionResult::DEALT_WITH;
-				}
-				openUI(&soundEditor);
+			// Site 5 of `gui/ui/shell_menu_entry.cpp`'s table.
+			// An `AudioClip` under a clip-minder root: `setup()` lands on `soundEditorRootMenuAudioClip` and
+			// `context_for` on `Root::AudioClip`. `openShellMenu` returning false stands in for `setup()`
+			// returning false.
+			if (!deluge::gui::ui::openShellMenu(getCurrentClip(), /*sourceIndex=*/0,
+			                                    /*performanceView=*/false,
+			                                    /*sessionOrArrangerRoot=*/false,
+			                                    /*sessionViewRoot=*/false, /*kitGlobalFx=*/false)) {
+				return ActionResult::DEALT_WITH;
 			}
 
 			result = ActionResult::DEALT_WITH;

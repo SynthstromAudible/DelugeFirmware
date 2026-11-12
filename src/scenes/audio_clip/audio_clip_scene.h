@@ -516,7 +516,7 @@ private:
 	/// @return What the shell should do.
 	deluge::ui::shell::Result pad_action(const deluge::ui::shell::UiEvent& event,
 	                                     const deluge::ui::shell::UiContext& ctx);
-	/// @brief `AudioClipView::horizontalEncoderAction` (`audio_clip_view.cpp:805-814`).
+	/// @brief `AudioClipView::horizontalEncoderAction` (`audio_clip_view.cpp`).
 	/// @param offset Signed detents.
 	/// @param ctx    The world around the turn.
 	/// @return What the shell should do.

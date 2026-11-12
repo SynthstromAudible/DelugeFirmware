@@ -101,8 +101,8 @@ void legacyRangesRetyped(Source& source, bool cleared);
 void changeRangeForNote(int32_t note);
 
 /// @brief A Shift + main-pad press that a clip view, the keyboard screen or the performance view offers as a menu
-///        shortcut. The ported menu answers it whole (`shellShortcutPadAction`) while it owns the shortcut pads, unless
-///        the legacy editor or the legacy marker editor is current; otherwise legacy's `potentialShortcutPadAction`.
+///        shortcut. The ported menu answers it whole (`shellShortcutPadAction`) unless the legacy editor or the legacy
+///        marker editor is current; then legacy's `potentialShortcutPadAction`.
 ActionResult menuShortcutPadAction(int32_t x, int32_t y, bool on);
 
 } // namespace deluge::gui::ui

@@ -40,7 +40,7 @@ namespace deluge::scenes::menu {
 namespace {
 /// @brief The mirror `action.h` documents. Seeded to legacy's own start-of-day state:
 ///        `PerformanceView::defaultEditingMode` starts `false` in its constructor
-///        (`gui/views/performance_view.cpp:239`) and `focusRegained` never touches it, which
+///        (`PerformanceView::PerformanceView`) and `focusRegained` never touches it, which
 ///        `EditingMode::readCurrentValue` maps to
 ///        `DISABLED` (`performance_session_view/editing_mode.h:36-38`).
 PerformanceEditingMode g_perform_mode = PerformanceEditingMode::DISABLED;

@@ -895,32 +895,6 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 
 });
 describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
-	it("defaults the Legacy Menu to Off, straight from the settings loader: the ported menu is the default", _ {
-		// The real loader (`RuntimeFeatureSettings::init()`'s `SetupOnOffSetting` table), read back through `get`:
-		// a check against the enum alone would pass with the loader's default changed by mistake.
-		runtimeFeatureSettings.init();
-		expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu))
-		    .to_equal(util::to_underlying(RuntimeFeatureStateToggle::Off));
-		expect(deluge::gui::ui::shellMenuEnabled()).to_be_true();
-	});
-
-	it("reads a stored legacyMenu from the settings file, under that name", _ {
-		// `parseSettings` matches each stored entry against the loader's xml names; a misspelt name would leave the
-		// entry unknown and the default in force.
-		const auto parse = [](std::string xml) {
-			RuntimeFeatureSettings::parseSettingsBytes(&runtimeFeatureSettings, xml.data(),
-			                                           static_cast<uint32_t>(xml.size()));
-		};
-		runtimeFeatureSettings.init();
-		parse(std::string{StorageManager::kXmlDocumentHead}
-		      + "<runtimeFeatureSettings>\n<setting name=\"legacyMenu\" value=\"0\" />\n</runtimeFeatureSettings>\n");
-		expect(deluge::gui::ui::shellMenuEnabled()).to_be_true();
-		parse(std::string{StorageManager::kXmlDocumentHead}
-		      + "<runtimeFeatureSettings>\n<setting name=\"legacyMenu\" value=\"1\" />\n</runtimeFeatureSettings>\n");
-		expect(deluge::gui::ui::shellMenuEnabled()).to_be_false();
-		runtimeFeatureSettings.init();
-	});
-
 	it("leaves the model where main's menu leaves it, for every set hook", _ {
 		// Every `set` hook is driven for the values the row names (the range's ends and its middle). Each starts from a
 		// sentinel that is not the value, so a hook that stores nothing shows: the port's read after its own write is

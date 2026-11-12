@@ -259,8 +259,7 @@ LED starts blinking on it.
 ## The firmware host
 
 `gui::ui::ShellHostUI` (`gui/ui/shell_host_ui.h`) is a legacy `UI` holding one `Shell` over a
-`GuestSurfaceSet`, opened by `openShellMenu` (`util/shell_menu_entry.h`) unless the Legacy Menu
-runtime setting is on.
+`GuestSurfaceSet`, opened by `openShellMenu` (`util/shell_menu_entry.h`).
 
 | shell | guest |
 |---|---|
@@ -304,9 +303,8 @@ and both overwrite, so the host polls every tick:
 The shell's specs are in `tests/unit/spec/shell/` (`./dbt test unit`). `uitest::FakeSurfaceSet`
 records every sink call; `tests/golden/shell/*.pbm` pin the popup at both panel heights and an
 overlay's composition. `Shell::state_lines()` is the shell's half of the UI scripts' `.state`
-snapshot. At firmware level, `tests/ui-scripts/app/menu.txt` runs on two cards that differ only in
-the Legacy Menu setting, ShellMenu on and off (`tests/fixtures/card`, `tests/fixtures/card-legacy-menu`), and
-`scripts/ui_app_ab_check.py` requires every OLED panel of the two runs to be byte-identical.
+snapshot. At firmware level,
+`tests/ui-scripts/app/menu.txt` drives the menu through the whole app (`tests/golden/ui/app/menu`).
 
 ## Not yet ported
 

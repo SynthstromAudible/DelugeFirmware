@@ -35,7 +35,7 @@
 /// (`gui/menu_item/shortcuts/version.h:27`) is `soundEditor.setShortcutsVersion(this->getValue())`,
 /// and `SoundEditor::shortcutsVersion` is the byte `FlashStorage::writeSettings` stores at flash
 /// byte 60. The ported hook writes that byte itself (`menu::set_shortcuts_version`). It files the action so that the
-/// legacy editor's in-place shortcut tables follow while the Legacy Menu setting exists.
+/// legacy editor's in-place shortcut tables follow.
 ///
 /// Two consequences follow from "a write, not a press", and both are load-bearing below:
 ///
@@ -147,8 +147,8 @@ enum class MenuAction : uint8_t {
 	///        `shortcuts_version` item's write. `arg` is the value the item was set to.
 	///
 	/// The ported item has written the byte itself (`menu::set_shortcuts_version`). The dispatcher calls the legacy
-	/// editor's `SoundEditor::setShortcutsVersion`, which mutates its in-place tables to match; that only matters while
-	/// the Legacy Menu setting exists. It does not loop: the callee writes no byte and files no request.
+	/// editor's `SoundEditor::setShortcutsVersion`, which mutates its in-place tables to match. It
+	/// does not loop: the callee writes no byte and files no request.
 	SetShortcutsVersion,
 
 	/// @brief `hid::display::Screensaver::settingsChanged()` -- the notify half of **both** ported
@@ -252,13 +252,10 @@ struct MenuActionRequest {
 /// `:60-61`, the call at `:84`) -- **the legacy menu item this node ports**, and the only writer outside the view.
 ///
 /// **Why the fifth is a sync site like the four.** "Behind the menu's
-/// back" reads like it excludes the menu's own item, but it does not. An exclusion holds only with
-/// **ShellMenu on**. With ShellMenu off, this item is the way into an editing mode from a menu
-/// (the `else` branch of `PerformanceView::buttonAction`'s SELECT_ENC arm), it writes both bools, and a mirror it
-/// does not maintain sits stale until ShellMenu is turned on -- at which point `PerformEditorItem`
-/// seeds its cursor from the rot (`PerformEditorItem::on_focus`). That is the same flip-on staleness
-/// that makes gating the other four calls a bug, so the same answer applies: the mirror is
-/// maintained by **every** writer, ShellMenu on and off alike, or it is not maintained at all. The call
+/// back" reads like it excludes the menu's own item, but it does not: the item writes both bools, and a mirror it
+/// does not maintain would sit stale, and `PerformEditorItem` seeds its cursor from it
+/// (`PerformEditorItem::on_focus`). So the mirror is maintained by **every** writer, or it is not maintained at
+/// all. The call
 /// passes `currentMode` rather than re-deriving, because the branch above it set the bools *from*
 /// that value; and it sits after the `if`/`else` chain so the `DISABLED` arm -- which returns at
 /// `:52` without writing either bool -- does not reach it, matching what `PerformEditorItem` does.
@@ -270,7 +267,7 @@ struct MenuActionRequest {
 /// the `OpenPerformanceView` arm of `gui/ui/shell_action_dispatch.cpp`, this seam's own arm, which runs *from* a mirror
 /// the node has already set. Nothing else in the tree writes either bool. Every one of those either syncs or is a pair
 /// that starts in agreement -- the constructor's `defaultEditingMode = false`
-/// (`gui/views/performance_view.cpp:239`) against this mirror's own `DISABLED` initialiser
+/// (`PerformanceView::PerformanceView`) against this mirror's own `DISABLED` initialiser
 /// (the mirror's initialiser in `menu/nodes/actions.cpp`). That constructor write is deliberately **not** a sync site:
 /// it runs at static init, the two already agree, and a call there would only add a dependency on two translation
 /// units' initialisation order. The reasoning is repeated at that line, so a reader who counts four calls against nine
@@ -279,14 +276,12 @@ struct MenuActionRequest {
 /// `PerformanceView::focusRegained` writes neither bool, so it is not a sync site; the one write
 /// near it is the constructor's.
 ///
-/// With all five the mirror and the view agree at every point the menu can observe, **ShellMenu on
-/// and off alike**. This is the single node excluded from the generic port-vs-legacy value
-/// comparison, for the same reason and with the same name as `shortcuts_version`.
+/// With all five the mirror and the view agree at every point the menu can observe. This is the single node excluded
+/// from the generic port-vs-legacy value comparison, for the same reason and with the same name as `shortcuts_version`.
 ///
-/// All five calls are **ungated**, in legacy files, whichever menu the Legacy Menu setting selects.
-/// `syncEditingModeMirror`'s own comment carries the argument at length; the short form is that they
-/// write one `static` inside `libdeluge_scenes`, read nothing, and cannot fail, so with ShellMenu
-/// off each is a store to a byte no one loads. Both files are in `LEGACY_PORT_SEAMS`
+/// All five calls are **ungated**, in legacy files. `syncEditingModeMirror`'s own comment carries the argument at
+/// length; the short form is that they write one `static` inside `libdeluge_scenes`, read nothing, and cannot fail.
+/// Both files are in `LEGACY_PORT_SEAMS`
 /// (`scripts/check_layer_rules.py`), which is where that kind of decision is recorded.
 ///
 /// @warning Nothing in this repository can check that list stays complete: a sixth writer, or a

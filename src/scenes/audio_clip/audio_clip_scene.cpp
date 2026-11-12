@@ -263,7 +263,7 @@ uint32_t AudioClipScene::max_zoom() const {
 }
 
 bool AudioClipScene::scrollable_and_zoomable() const {
-	// `AudioClipView::setupScroll`'s guard (`audio_clip_view.cpp:869-871`): `currentlyScrollableAndZoomable`, a take
+	// `AudioClipView::setupScroll`'s guard (`audio_clip_view.cpp`): `currentlyScrollableAndZoomable`, a take
 	// recorded without the clock (or in the arranger) locks the view.
 	return clip_.has_value()
 	       && !(recording_linearly()
@@ -704,7 +704,7 @@ Result AudioClipScene::vertical_encoder_action(int32_t offset, const UiContext& 
 }
 
 Result AudioClipScene::horizontal_encoder_action(int32_t offset, const UiContext& ctx) {
-	// `AudioClipView::horizontalEncoderAction` (`audio_clip_view.cpp:805-814`).
+	// `AudioClipView::horizontalEncoderAction` (`audio_clip_view.cpp`).
 	if (no_ui_mode_active() && ctx.held.has(ButtonId::XEnc) && ctx.shift) { // `:789`
 		return edit_clip_length_without_timestretching(offset);             // `:790`
 	}

@@ -22,10 +22,10 @@
 #include "gui/colour/pad_colour.h"
 #include "gui/context_menu/audio_input_selector.h"
 #include "gui/context_menu/stem_export/cancel_stem_export.h"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/rename/rename_output_ui.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/audio_clip_view.h"
@@ -332,22 +332,15 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on) {
 		}
 		// open Song FX menu
 		else if (on && currentUIMode == UI_MODE_NONE) {
-			// Site 3 of `gui/ui/shell_menu_entry.cpp`'s table. The `else` is the two
-			// legacy statements unchanged.
-			if (deluge::gui::ui::shellMenuEnabled()) {
-				// No shift (`:324`) and the arranger is the root: the same
-				// `soundEditorRootMenuSongView` site 2 opens (`gui/ui/sound_editor.cpp:1802-1805`),
-				// but `sessionViewRoot` is false -- `getRootUI()` is the arranger, not the session
-				// view, and two items in that root read exactly that difference.
-				(void)deluge::gui::ui::openShellMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
-				                                     /*performanceView=*/false,
-				                                     /*sessionOrArrangerRoot=*/true,
-				                                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false);
-			}
-			else {
-				soundEditor.setup();
-				openUI(&soundEditor);
-			}
+			// Site 3 of `gui/ui/shell_menu_entry.cpp`'s table.
+			// No shift (`:324`) and the arranger is the root: the same
+			// `soundEditorRootMenuSongView` site 2 opens (`gui/ui/sound_editor.cpp:1802-1805`),
+			// but `sessionViewRoot` is false -- `getRootUI()` is the arranger, not the session
+			// view, and two items in that root read exactly that difference.
+			(void)deluge::gui::ui::openShellMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
+			                                     /*performanceView=*/false,
+			                                     /*sessionOrArrangerRoot=*/true,
+			                                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false);
 		}
 	}
 

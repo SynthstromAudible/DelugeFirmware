@@ -12425,12 +12425,6 @@
             "name": "Shortcut Overlay",
             "title": "Shortcut Overlay",
             "type": "basic"
-          },
-          {
-            "id": 507,
-            "name": "Legacy Menu",
-            "title": "Legacy Menu",
-            "type": "basic"
           }
         ],
         "id": 483,
@@ -12440,7 +12434,7 @@
       },
       {
         "available_when": "battery_shown",
-        "id": 508,
+        "id": 507,
         "name": "Battery level",
         "title": "Battery level",
         "type": "basic"
@@ -12448,31 +12442,31 @@
       {
         "children": [
           {
-            "id": 510,
+            "id": 509,
             "name": "Live Voice Count",
             "title": "Live Voice Count",
             "type": "basic"
           },
           {
-            "id": 511,
+            "id": 510,
             "name": "Avg Voice Count",
             "title": "Avg Voice Count",
             "type": "basic"
           },
           {
-            "id": 512,
+            "id": 511,
             "name": "Max Voice Count",
             "title": "Max Voice Count",
             "type": "basic"
           }
         ],
-        "id": 509,
+        "id": 508,
         "name": "Voice usage",
         "title": "Voice usage",
         "type": "submenu"
       },
       {
-        "id": 513,
+        "id": 512,
         "name": "Firmware Version",
         "title": "Firmware vers",
         "type": "basic"
@@ -12941,13 +12935,13 @@
         "type": "basic"
       }
     ],
-    "id": 514,
+    "id": 513,
     "name": "CV instrument",
     "title": "CV instrument",
     "type": "submenu"
   },
   {
-    "id": 515,
+    "id": 514,
     "name": "Note range",
     "select_chain": [
       {
@@ -13109,87 +13103,87 @@
   {
     "children": [
       {
-        "id": 517,
+        "id": 516,
         "name": "Velocity",
         "title": "Velocity",
         "type": "basic"
       },
       {
-        "id": 518,
+        "id": 517,
         "name": "Probability",
         "title": "Probability",
         "type": "basic"
       },
       {
-        "id": 519,
+        "id": 518,
         "name": "Iterance",
         "select_chain": [
           {
             "children": [
               {
-                "id": 521,
+                "id": 520,
                 "name": "Divisor",
                 "title": "Divisor",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_1",
-                "id": 522,
+                "id": 521,
                 "name": "Iteration 1",
                 "title": "Iteration 1",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_2",
-                "id": 523,
+                "id": 522,
                 "name": "Iteration 2",
                 "title": "Iteration 2",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_3",
-                "id": 524,
+                "id": 523,
                 "name": "Iteration 3",
                 "title": "Iteration 3",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_4",
-                "id": 525,
+                "id": 524,
                 "name": "Iteration 4",
                 "title": "Iteration 4",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_5",
-                "id": 526,
+                "id": 525,
                 "name": "Iteration 5",
                 "title": "Iteration 5",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_6",
-                "id": 527,
+                "id": 526,
                 "name": "Iteration 6",
                 "title": "Iteration 6",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_7",
-                "id": 528,
+                "id": 527,
                 "name": "Iteration 7",
                 "title": "Iteration 7",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_8",
-                "id": 529,
+                "id": 528,
                 "name": "Iteration 8",
                 "title": "Iteration 8",
                 "type": "basic"
               }
             ],
-            "id": 520,
+            "id": 519,
             "name": "Custom",
             "title": "Custom",
             "type": "submenu"
@@ -13199,13 +13193,13 @@
         "type": "basic"
       },
       {
-        "id": 530,
+        "id": 529,
         "name": "Fill",
         "title": "Fill",
         "type": "basic"
       }
     ],
-    "id": 516,
+    "id": 515,
     "name": "Note Editor",
     "title": "Note Editor",
     "type": "submenu"
@@ -13219,81 +13213,81 @@
         "type": "basic"
       },
       {
-        "id": 532,
+        "id": 531,
         "name": "Probability",
         "title": "Probability",
         "type": "basic"
       },
       {
-        "id": 533,
+        "id": 532,
         "name": "Iterance",
         "select_chain": [
           {
             "children": [
               {
-                "id": 535,
+                "id": 534,
                 "name": "Divisor",
                 "title": "Divisor",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_1",
-                "id": 536,
+                "id": 535,
                 "name": "Iteration 1",
                 "title": "Iteration 1",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_2",
-                "id": 537,
+                "id": 536,
                 "name": "Iteration 2",
                 "title": "Iteration 2",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_3",
-                "id": 538,
+                "id": 537,
                 "name": "Iteration 3",
                 "title": "Iteration 3",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_4",
-                "id": 539,
+                "id": 538,
                 "name": "Iteration 4",
                 "title": "Iteration 4",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_5",
-                "id": 540,
+                "id": 539,
                 "name": "Iteration 5",
                 "title": "Iteration 5",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_6",
-                "id": 541,
+                "id": 540,
                 "name": "Iteration 6",
                 "title": "Iteration 6",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_7",
-                "id": 542,
+                "id": 541,
                 "name": "Iteration 7",
                 "title": "Iteration 7",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_8",
-                "id": 543,
+                "id": 542,
                 "name": "Iteration 8",
                 "title": "Iteration 8",
                 "type": "basic"
               }
             ],
-            "id": 534,
+            "id": 533,
             "name": "Custom",
             "title": "Custom",
             "type": "submenu"
@@ -13303,19 +13297,19 @@
         "type": "basic"
       },
       {
-        "id": 544,
+        "id": 543,
         "name": "Fill",
         "title": "Fill",
         "type": "basic"
       }
     ],
-    "id": 531,
+    "id": 530,
     "name": "Row Editor",
     "title": "Row Editor",
     "type": "submenu"
   },
   {
-    "id": 560,
+    "id": 559,
     "name": "DX7 presets",
     "title": "DX7 presets",
     "type": "basic"
@@ -13337,14 +13331,14 @@
         "type": "basic"
       }
     ],
-    "id": 561,
+    "id": 560,
     "name": "Sample recorder",
     "title": "Sample recorder",
     "type": "submenu"
   },
   {
     "available_when": "audio_clip_has_sample",
-    "id": 562,
+    "id": 561,
     "name": "",
     "title": "",
     "type": "basic"

@@ -6192,7 +6192,7 @@ settings/10/4/0	slots	1
 settings/10/4/0	range_dep	0
 settings/11	name	Community Features
 settings/11	title	Community feat
-settings/11	kids	24
+settings/11	kids	23
 settings/11/0	name	Drum Randomizer
 settings/11/0	title	Drum Randomizer
 settings/11/0	ae	0
@@ -6331,12 +6331,6 @@ settings/11/22	ae	0
 settings/11/22	edits	1
 settings/11/22	slots	1
 settings/11/22	range_dep	0
-settings/11/23	name	Legacy Menu
-settings/11/23	title	Legacy Menu
-settings/11/23	ae	0
-settings/11/23	edits	1
-settings/11/23	slots	1
-settings/11/23	range_dep	0
 settings/12	name	Battery level
 settings/12	title	Battery level
 settings/12	ae	0
@@ -8588,8 +8582,6 @@ settings/11/21	read	1
 settings/11/22	rel	1
 settings/11/22	read	1
 settings/11/22	options	Off	On - Menu only	On - Menu + Clip
-settings/11/23	rel	1
-settings/11/23	read	0
 settings/12	rel	1
 settings/13	rel	1
 settings/13/0	rel	1
@@ -8959,8 +8951,6 @@ settings/11/21	write/1	1	1
 settings/11/22	write/0	0	0
 settings/11/22	write/1	1	1
 settings/11/22	write/2	2	2
-settings/11/23	write/0	0	0
-settings/11/23	write/1	1	1
 settings/13/0	write/0	0	0
 settings/13/0	write/1073741823	0	0
 settings/13/0	write/2147483647	0	0

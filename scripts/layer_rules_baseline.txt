@@ -26,8 +26,8 @@ src/deluge/model/clip/instrument_clip.cpp	model-calls-ui	4
 src/deluge/model/clip/instrument_clip.cpp	model-includes-ui	7
 src/deluge/model/clip/instrument_clip.h	model-includes-ui	2
 src/deluge/model/clip/instrument_clip_minder.cpp	model-calls-display	15
-src/deluge/model/clip/instrument_clip_minder.cpp	model-calls-ui	54
-src/deluge/model/clip/instrument_clip_minder.cpp	model-includes-ui	17
+src/deluge/model/clip/instrument_clip_minder.cpp	model-calls-ui	52
+src/deluge/model/clip/instrument_clip_minder.cpp	model-includes-ui	15
 src/deluge/model/clip/instrument_clip_minder.h	model-includes-ui	2
 src/deluge/model/consequence/consequence_clip_begin_linear_record.cpp	model-calls-ui	1
 src/deluge/model/consequence/consequence_clip_begin_linear_record.cpp	model-includes-ui	1

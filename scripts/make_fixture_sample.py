@@ -43,7 +43,7 @@ AMPLITUDE = 16383.5
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TARGETS = (
     REPO_ROOT / "tests/fixtures/card/SAMPLES/TONE.WAV",
-    REPO_ROOT / "tests/fixtures/card-legacy-menu/SAMPLES/TONE.WAV",
+    REPO_ROOT / "tests/fixtures/card-old-legacy-menu/SAMPLES/TONE.WAV",
     REPO_ROOT / "tests/fixtures/card-old-shell-menu/SAMPLES/TONE.WAV",
 )
 

@@ -186,12 +186,8 @@ void RuntimeFeatureSettings::init() {
 	     static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuAndClip)},
 	};
 
-	// Legacy Menu: the escape hatch back to legacy's `SoundEditor` at every gated entry point
-	// (`deluge::gui::ui::shellMenuEnabled`). Default Off: the ported menu is the default. A card that still says
-	// `shellMenu` (the setting this one replaced) keeps that entry as an unknown setting, written back untouched, so
-	// it chooses nothing.
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::LegacyMenu], STRING_FOR_COMMUNITY_FEATURE_LEGACY_MENU,
-	                  "legacyMenu", RuntimeFeatureStateToggle::Off);
+	// A card may still say `legacyMenu` or `shellMenu`, names of settings that chose between two menus. No setting
+	// here has either name, so `parseSettings` keeps each as an unknown setting and writes it back untouched.
 }
 
 void RuntimeFeatureSettings::factoryReset(bool showPopup) {

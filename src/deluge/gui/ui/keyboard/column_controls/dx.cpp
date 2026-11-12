@@ -17,7 +17,6 @@
 
 #include "dx.h"
 #include "dsp-next/fixed/dx7/algorithms.h"
-#include "gui/menu_item/dx/param.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
 #include "hid/buttons.h"
 #include "model/edits/setting_edit.h"
@@ -98,12 +97,7 @@ void DXColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCo
 
 	int op = 8 - pad.y - 1; // op 0-5
 	if (Buttons::isShiftButtonPressed()) {
-		if (deluge::gui::ui::shellMenuEnabled()) {
-			(void)deluge::gui::ui::openShellDxColumn(op);
-		}
-		else {
-			menu_item::dxParam.openForOpOrGlobal(op);
-		}
+		(void)deluge::gui::ui::openShellDxColumn(op);
 	}
 	else if (op < 6) {
 		// The column's patch is the current synth's first source's (getCurrentDxPatch).

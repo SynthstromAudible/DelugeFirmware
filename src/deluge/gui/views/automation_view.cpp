@@ -20,18 +20,15 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/colour/palette.h"
-#include "gui/menu_item/file_selector.h"
-#include "gui/menu_item/multi_range.h"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
-#include "gui/ui/menus.h"
 #include "gui/ui/pad_shortcut_blink.h"
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/rename/rename_midi_cc_ui.h"
 #include "gui/ui/sample_marker_editor.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
@@ -45,6 +42,7 @@
 #include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
@@ -1457,31 +1455,19 @@ void AutomationView::handleSelectEncoderButtonAction(bool on) {
 		// held) `setup(clip)` opens the note editor on an instrument clip; `src/scenes` may not read the UI mode, so
 		// the mode is named here, as `setup()` infers it: the undo log wiped, a kit's affect-entire left on. An audio
 		// clip, or the arranger's null clip, opens the root it opens under `UI_MODE_NONE`.
-		if (deluge::gui::ui::shellMenuEnabled()) {
-			// `onArrangerView` is both halves of the mapping at once: it is why the clip is null, and it is
-			// `!rootUIIsClipMinderScreen()` -- the automation view is a clip minder only when it is over a clip. With a
-			// null clip `setup()` opens the song root, and `sessionViewRoot` stays false because `getRootUI()` is the
-			// automation view, not the session view.
-			Clip* clip = onArrangerView ? nullptr : getCurrentClip();
-			const bool kitGlobalFx =
-			    (getCurrentOutputType() == OutputType::KIT) && getCurrentInstrumentClip()->affectEntire;
-			const bool noteEditor =
-			    currentUIMode == UI_MODE_NOTES_PRESSED && clip != nullptr && clip->type == ClipType::INSTRUMENT;
-			(void)deluge::gui::ui::openShellMenu(
-			    clip, /*sourceIndex=*/0, /*performanceView=*/false, /*sessionOrArrangerRoot=*/onArrangerView,
-			    /*sessionViewRoot=*/false, kitGlobalFx, deluge::gui::ui::ShellMenuNode::ContextRoot,
-			    noteEditor ? deluge::gui::ui::NoteMode::NoteEditorFromUiMode : deluge::gui::ui::NoteMode::None);
-		}
-		else {
-			if ((getCurrentOutputType() == OutputType::KIT) && (getCurrentInstrumentClip()->affectEntire)) {
-				soundEditor.setupKitGlobalFXMenu = true;
-			}
-
-			Clip* clip = onArrangerView ? nullptr : getCurrentClip();
-			if (soundEditor.setup(clip)) {
-				openUI(&soundEditor);
-			}
-		}
+		// `onArrangerView` is both halves of the mapping at once: it is why the clip is null, and it is
+		// `!rootUIIsClipMinderScreen()` -- the automation view is a clip minder only when it is over a clip. With a
+		// null clip `setup()` opens the song root, and `sessionViewRoot` stays false because `getRootUI()` is the
+		// automation view, not the session view.
+		Clip* clip = onArrangerView ? nullptr : getCurrentClip();
+		const bool kitGlobalFx =
+		    (getCurrentOutputType() == OutputType::KIT) && getCurrentInstrumentClip()->affectEntire;
+		const bool noteEditor =
+		    currentUIMode == UI_MODE_NOTES_PRESSED && clip != nullptr && clip->type == ClipType::INSTRUMENT;
+		(void)deluge::gui::ui::openShellMenu(
+		    clip, /*sourceIndex=*/0, /*performanceView=*/false, /*sessionOrArrangerRoot=*/onArrangerView,
+		    /*sessionViewRoot=*/false, kitGlobalFx, deluge::gui::ui::ShellMenuNode::ContextRoot,
+		    noteEditor ? deluge::gui::ui::NoteMode::NoteEditorFromUiMode : deluge::gui::ui::NoteMode::None);
 	}
 }
 

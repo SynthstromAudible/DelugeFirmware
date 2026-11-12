@@ -39,7 +39,7 @@
 ///     `MidiLearn::unported_calls(UnportedCall::ClearMonoExpression)`.
 ///   * **`iterateAndCallSpecificDeviceHook(HOOK_ON_MIDI_LEARN)`** (`View::endMidiLearnPressSession`). Same shape:
 ///     counted, not called, and nothing in this layer's model reach could observe it anyway.
-///   * **`FlashStorage::writeSettings()`** (`view.cpp:503`). Both sides guard it on
+///   * **`FlashStorage::writeSettings()`** (`View::endMIDILearn`). Both sides guard it on
 ///     `!AudioEngine::audioRoutineLocked`, and `spec::QuietAudio` holds that latch for the whole
 ///     process -- so on both sides the call is skipped and the `shouldSaveSettingsAfterMidiLearn`
 ///     decision is what the button examples assert, not the write. (Driving it would put a spec
@@ -703,7 +703,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// itself, which is why the port runs the shared write for it after the extras rather than
 		// inside them.
 		static spec::SongFixture fixture = spec::make_synth_song();
-		give_active_clip(fixture); // learning an instrument's input reads its param manager (view.cpp:726)
+		give_active_clip(fixture); // learning an instrument's input reads its param manager (`View::clearMelodicInstrumentMonoExpressionIfPossible`)
 		::LearnedMIDI& slot = fixture.instrument->midiInput;
 
 		expect(reset_legacy_learn()).to_be_true();
@@ -1577,7 +1577,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 
 	it("INSTRUMENT_INPUT: a learn writes the track's input entry, and a bare press and release unlearns it", _ {
 		static spec::SongFixture fixture = spec::make_synth_song();
-		give_active_clip(fixture); // learning an instrument's input reads its param manager (view.cpp:726)
+		give_active_clip(fixture); // learning an instrument's input reads its param manager (`View::clearMelodicInstrumentMonoExpressionIfPossible`)
 		const deluge::project::TrackInputTarget target{*fixture.instrument->id()};
 
 		expect(reset_legacy_learn()).to_be_true();

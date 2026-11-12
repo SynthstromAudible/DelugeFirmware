@@ -244,7 +244,7 @@ void exitNoteModeBeforeClose() {
 	case NoteModeKind::NoteEditor:
 		noteModeLegacyCalls().exitNoteEditor(); // `SoundEditor::exitCompletely`, `gui/ui/sound_editor.cpp`
 		// `exitCompletely`'s "refresh grid to potentially unhighlight edited notes" step is `uiNeedsRendering(this,
-		// 0xFFFFFFFF, 0)`, where `this` is the menu UI about to close -- with ShellMenu on, this guest.
+		// 0xFFFFFFFF, 0)`, where `this` is the menu UI about to close -- this guest.
 		// `uiNeedsRendering` queues every main row against the guest's place in the hierarchy,
 		// and legacy's `close()` follows with the rows still pending (`SoundEditor::exitCompletely`), as
 		// `closeGuest`'s does here.

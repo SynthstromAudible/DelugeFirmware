@@ -1897,7 +1897,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("blinks the volume mod LED when the VU meter is on, and only in the song context", _ {
-		// `view.cpp:1684-1685` -- the one row of the table that is not "on iff selected", and the
+		// `View::setModLedStates` -- the one row of the table that is not "on iff selected", and the
 		// only reason the VU meter is ported at all. It needs three things at once: the song
 		// context, mod button 0 selected, and the meter on. Each side toggles the meter through its
 		// own `modButtonAction` -- pressing the already-selected button 0 outside a clip minder

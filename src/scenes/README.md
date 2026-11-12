@@ -8,10 +8,7 @@ Everything on screen comes from the `src/ui` toolkit; the shell (`src/shell`) ow
 tick, input lowering and the flush. This layer is what knows about songs, sounds and clips, and it
 reaches them through `scenes/bind` and a `MenuContext` rather than through legacy's globals.
 
-The library is linked into the firmware and the host app and is the default menu. The **Legacy Menu** community
-feature (default Off) brings back legacy's `SoundEditor` and its `MenuItem` classes (`src/deluge/gui/menu_item/`) at
-every gated entry point until 3d; with it off, every gated `openUI(&soundEditor)` site opens this tree,
-inside `ShellHostUI` (see "Coexistence with legacy" below).
+The library is linked into the firmware and the host app and is the menu.
 
 > **Read this before adding a menu item.** A menu item users must be able to open goes into
 > `gui/menu_item/` + `gui/ui/menus.cpp`, the legacy tree, *and* a node goes here. A node is a port
@@ -324,7 +321,7 @@ same file, as are the sound editor's KEYBOARD, SESSION and Fill arms (`forwardMe
 
 `nodes::PerformEditorItem` shows a mirror of two `PerformanceView` bools; every site that moves them
 calls `syncEditingModeMirror`, including legacy's own `EditingMode::selectButtonPress`, so the
-mirror holds with ShellMenu on and off. `menu/action.h` has the writer list.
+mirror holds. `menu/action.h` has the writer list.
 
 ### The note-range picker (`menu/nodes/multi_range.h`)
 
@@ -658,9 +655,8 @@ The shell's tick is described in `src/shell/README.md`; what a scene needs from 
 ## Coexistence with legacy
 
 The guest is `deluge::gui::ui::ShellHostUI`, a legacy `UI` holding a `Shell` built over this
-registry. `openShellMenu` (`util/shell_menu_entry.h`) is the door: every gated
-`openUI(&soundEditor)` site routes through it when `shellMenuEnabled()`, and runs its exact legacy statements
-otherwise. Site 10, the legacy browser's own, is unreachable with ShellMenu on. `gui/ui/shell_menu_entry.cpp`'s table names all fifteen.
+registry. `openShellMenu` (`util/shell_menu_entry.h`) is the door: every entry site routes through it.
+`gui/ui/shell_menu_entry.cpp`'s table names all fifteen.
 
 * **Pads.** `ShellHostUI::claimsGridPad` asks the input top's `grid_pad_claim()`: `All` (the shell
   takes every pad), `ShortcutsOnly` (shift-held main-grid pads; the rest go to the legacy root view
