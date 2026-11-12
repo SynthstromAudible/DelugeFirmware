@@ -313,4 +313,11 @@ test("the committed dump names the values a custom page or a worded number lists
     "Gate Output 4",
     "Minimum Off-Time",
   ])
+  // a names hook asked for each output: gate outputs 3 and 4 add RUN SIGNAL and CLOCK
+  assert.deepEqual(at(["Settings", "Gate", "Gate out* mode"]).options, [
+    "V-Trig",
+    "S-Trig",
+    "Run signal",
+    "Clock",
+  ])
 })

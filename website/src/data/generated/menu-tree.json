@@ -12795,7 +12795,9 @@
             "name": "Gate out* mode",
             "options": [
               "V-Trig",
-              "S-Trig"
+              "S-Trig",
+              "Run signal",
+              "Clock"
             ],
             "title": "Gate out* mode",
             "type": "basic"

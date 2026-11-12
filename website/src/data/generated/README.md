@@ -42,8 +42,8 @@ than just diffing it:
   zero and is pinned by a spec.)
 - **`"options"` lists the values a node offers**, in its list's order: a target row's name table (every choice it
   names; in a context the menu may leave some out), the node's static names, its names hook asked with an empty
-  context (so not the values a particular owner adds, such as a note row's NONE direction), or a toggle's Off and On,
-  as its own page lists them. A node that offers none (a submenu, a number, a custom page) has no key. The file is not
+  context once per output a selector picks (so a gate output's CLOCK and RUN SIGNAL, but not the values a particular
+  owner adds, such as a note row's NONE direction), or a toggle's two words, as its own page lists them. A node that offers none (a submenu, a number, a custom page) has no key. The file is not
   formatted by prettier (`website/.prettierignore`): `ui-menu-dump` compares it byte for byte.
 - **`"select_chain"` is a second nesting key, beside `"children"`.** It appears on every node whose
   select press opens another menu instead of going up a level (legacy's

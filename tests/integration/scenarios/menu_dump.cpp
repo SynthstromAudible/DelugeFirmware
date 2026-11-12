@@ -68,12 +68,12 @@
 ///     `text_of()` below -- the tool segfaults without it) reproduced this dump's output
 ///     byte-for-byte. So the fixture builder (`sim/scenes_spec/menu_dump_contexts.{h,cpp}`, and
 ///     the `scenes-includes-outside` layer-rule workaround that existed only to let it reach
-///     `sim/scenes_spec/support/song_fixture.h` from outside `src/scenes/`) is gone. The one
-///     `MenuContext` the dump makes is an empty one, for the names hooks `option_names` asks.
+///     `sim/scenes_spec/support/song_fixture.h` from outside `src/scenes/`) is gone. The only
+///     `MenuContext`s the dump makes are empty ones with a source index, for the names hooks `option_names` asks.
 ///   * a node that offers values -> `"options"`, its value names in list order (`option_names`):
 ///     a target row's name table, static `bind.names`, a `bind.dynamic_names` hook asked with an
-///     empty context, or a toggle's Off and On, as its own page lists them. A custom page or a number
-///     spelled as words names its values through the same two fields. A node with none gets no key.
+///     empty context once per source index, or a toggle's two words, as its own page lists them. A custom page or a
+///     number spelled as words names its values through the same two fields. A node with none gets no key.
 ///   * a node with `Node::chain_targets` set -> a `"select_chain"` array of nested entries, in the
 ///     same shape as `"children"`: the pages a select press on that node opens instead of going up
 ///     a level (legacy's `MenuItem::selectButtonPress`). Seven nodes have one, and seven pages
@@ -254,11 +254,16 @@ std::vector<std::string> target_option_names(const deluge::scenes::bind::Target&
 	return out;
 }
 
+/// The source indices a names hook is asked under: every output the CV and gate selectors pick (`NUM_GATE_CHANNELS`
+/// gate outputs, which covers the two CV outputs and the two oscillators).
+constexpr int8_t kDumpedSourceIndices = NUM_GATE_CHANNELS;
+
 /// @brief The values @p node offers, as its list spells them; empty for a node that offers none.
 ///
 /// A target's come from its row's name table, all of them (in a context the menu may leave some out); static `names`
-/// are the list itself; a `dynamic_names` hook is asked with an empty context, so it gives the values it offers every
-/// owner (not a note row's NONE direction, not the clock output's CLOCK mode). A toggle's two values are Off and On,
+/// are the list itself; a `dynamic_names` hook is asked with an otherwise empty context once per source index, so it
+/// gives the values it offers every owner and those one output adds (the clock output's CLOCK mode), but not those an
+/// owner adds (a note row's NONE direction). A toggle's two values are Disabled and Enabled,
 /// the words its own page lists (`MenuView::render_leaf_toggle`). A custom page or a number spelled as words names
 /// its values the same two ways (`with_value_names`); one that names none offers nothing here.
 std::vector<std::string> option_names(const menu::Node& node) {
@@ -275,10 +280,18 @@ std::vector<std::string> option_names(const menu::Node& node) {
 	}
 	std::vector<std::string> out;
 	if (node.bind.dynamic_names != nullptr) {
-		std::array<std::string_view, menu::kMaxDynamicNames> names{};
-		const size_t count = std::min(node.bind.dynamic_names(menu::MenuContext{}, names), names.size());
-		for (size_t i = 0; i < count; ++i) {
-			out.emplace_back(names[i]);
+		// Asked once per output a selector can address, so a page that adds a value on one output (a gate output's
+		// CLOCK or RUN SIGNAL) lists it; each value once, in the order the outputs first offer it.
+		for (int8_t source = 0; source < kDumpedSourceIndices; ++source) {
+			menu::MenuContext ctx{};
+			ctx.source_index = source;
+			std::array<std::string_view, menu::kMaxDynamicNames> names{};
+			const size_t count = std::min(node.bind.dynamic_names(ctx, names), names.size());
+			for (size_t i = 0; i < count; ++i) {
+				if (std::ranges::find(out, names[i]) == out.end()) {
+					out.emplace_back(names[i]);
+				}
+			}
 		}
 		return out;
 	}

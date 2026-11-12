@@ -13674,6 +13674,22 @@
                   "code": "S-Trig",
                   "option": true,
                   "children": []
+                },
+                {
+                  "key": "gate-gate-out-mode-run-signal",
+                  "oled": "Run signal",
+                  "title": "Run signal",
+                  "code": "Run signal",
+                  "option": true,
+                  "children": []
+                },
+                {
+                  "key": "gate-gate-out-mode-clock",
+                  "oled": "Clock",
+                  "title": "Clock",
+                  "code": "Clock",
+                  "option": true,
+                  "children": []
                 }
               ]
             },
