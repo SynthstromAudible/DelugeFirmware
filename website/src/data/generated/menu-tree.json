@@ -1434,8 +1434,8 @@
                 "id": 117,
                 "name": "Quantize",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Quantize",
                 "type": "basic"
@@ -2058,8 +2058,8 @@
             "id": 151,
             "name": "Reverse",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Samp* reverse",
             "type": "basic"
@@ -2408,8 +2408,8 @@
             "id": 166,
             "name": "Reverse",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Samp* reverse",
             "type": "basic"
@@ -2951,8 +2951,8 @@
             "id": 187,
             "name": "Oscillator sync",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Oscillator sync",
             "type": "basic"
@@ -5687,8 +5687,8 @@
                 "id": 117,
                 "name": "Quantize",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Quantize",
                 "type": "basic"
@@ -6311,8 +6311,8 @@
             "id": 151,
             "name": "Reverse",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Samp* reverse",
             "type": "basic"
@@ -6661,8 +6661,8 @@
             "id": 166,
             "name": "Reverse",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Samp* reverse",
             "type": "basic"
@@ -7204,8 +7204,8 @@
             "id": 187,
             "name": "Oscillator sync",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Oscillator sync",
             "type": "basic"
@@ -8557,8 +8557,8 @@
             "id": 248,
             "name": "File Linked",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "File Linked",
             "type": "basic"
@@ -8567,8 +8567,8 @@
             "id": 249,
             "name": "Hide Unlabeled CC",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Hide Unlabeled CC",
             "type": "basic"
@@ -9077,8 +9077,8 @@
         "id": 259,
         "name": "Send Y as CC1",
         "options": [
-          "Off",
-          "On"
+          "Disabled",
+          "Enabled"
         ],
         "title": "Send Y as CC1",
         "type": "basic"
@@ -9090,8 +9090,8 @@
             "id": 261,
             "name": "Aftertouch",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Aftertouch",
             "type": "basic"
@@ -9100,8 +9100,8 @@
             "id": 262,
             "name": "MPE",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "MPE",
             "type": "basic"
@@ -10503,8 +10503,8 @@
                 "id": 117,
                 "name": "Quantize",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Quantize",
                 "type": "basic"
@@ -10656,8 +10656,8 @@
             "id": 296,
             "name": "Reverse",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Reverse",
             "type": "basic"
@@ -11035,8 +11035,8 @@
                 "id": 117,
                 "name": "Quantize",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Quantize",
                 "type": "basic"
@@ -11452,8 +11452,8 @@
                 "id": 117,
                 "name": "Quantize",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Quantize",
                 "type": "basic"
@@ -11616,8 +11616,8 @@
                 "id": 314,
                 "name": "Normalization",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Normalization",
                 "type": "basic"
@@ -11626,8 +11626,8 @@
                 "id": 315,
                 "name": "Export to Silence",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Export to Silence",
                 "type": "basic"
@@ -11636,8 +11636,8 @@
                 "id": 316,
                 "name": "Song FX",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Song FX",
                 "type": "basic"
@@ -11646,8 +11646,8 @@
                 "id": 317,
                 "name": "Offline Rendering",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Offline Rendering",
                 "type": "basic"
@@ -11656,8 +11656,8 @@
                 "id": 318,
                 "name": "Export Mixdown",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Export Mixdown",
                 "type": "basic"
@@ -11718,8 +11718,8 @@
                     "id": 323,
                     "name": "Kit FX",
                     "options": [
-                      "Off",
-                      "On"
+                      "Disabled",
+                      "Enabled"
                     ],
                     "title": "Kit FX",
                     "type": "basic"
@@ -11728,8 +11728,8 @@
                     "id": 324,
                     "name": "Normalization",
                     "options": [
-                      "Off",
-                      "On"
+                      "Disabled",
+                      "Enabled"
                     ],
                     "title": "Normalization",
                     "type": "basic"
@@ -11738,8 +11738,8 @@
                     "id": 315,
                     "name": "Export to Silence",
                     "options": [
-                      "Off",
-                      "On"
+                      "Disabled",
+                      "Enabled"
                     ],
                     "title": "Export to Silence",
                     "type": "basic"
@@ -11748,8 +11748,8 @@
                     "id": 316,
                     "name": "Song FX",
                     "options": [
-                      "Off",
-                      "On"
+                      "Disabled",
+                      "Enabled"
                     ],
                     "title": "Song FX",
                     "type": "basic"
@@ -11758,8 +11758,8 @@
                     "id": 317,
                     "name": "Offline Rendering",
                     "options": [
-                      "Off",
-                      "On"
+                      "Disabled",
+                      "Enabled"
                     ],
                     "title": "Offline Rendering",
                     "type": "basic"
@@ -12566,8 +12566,8 @@
                 "id": 117,
                 "name": "Quantize",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Quantize",
                 "type": "basic"
@@ -12813,8 +12813,8 @@
                 "id": 348,
                 "name": "Auto-Start",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Auto-Start",
                 "type": "basic"
@@ -12853,8 +12853,8 @@
                 "id": 353,
                 "name": "Output",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "MIDI clock out",
                 "type": "basic"
@@ -12863,8 +12863,8 @@
                 "id": 354,
                 "name": "Input",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "MIDI clock in",
                 "type": "basic"
@@ -12873,8 +12873,8 @@
                 "id": 355,
                 "name": "Tempo Magnitude Matching",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Tempo Magnitude Matching",
                 "type": "basic"
@@ -13049,8 +13049,8 @@
                     "id": 381,
                     "name": "Filter Responses",
                     "options": [
-                      "Off",
-                      "On"
+                      "Disabled",
+                      "Enabled"
                     ],
                     "title": "Filter Responses",
                     "type": "basic"
@@ -13065,8 +13065,8 @@
                 "id": 382,
                 "name": "Display Param",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Display Param",
                 "type": "basic"
@@ -13081,8 +13081,8 @@
             "id": 383,
             "name": "Select Kit Row",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Select Kit Row",
             "type": "basic"
@@ -13091,8 +13091,8 @@
             "id": 384,
             "name": "MIDI-Thru",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "MIDI-Thru",
             "type": "basic"
@@ -13203,8 +13203,8 @@
             "id": 400,
             "name": "Differentiate inputs",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Differentiate inputs",
             "type": "basic"
@@ -13247,8 +13247,8 @@
                     "id": 407,
                     "name": "Clock Out",
                     "options": [
-                      "Off",
-                      "On"
+                      "Disabled",
+                      "Enabled"
                     ],
                     "title": "Clock Out",
                     "type": "basic"
@@ -13257,8 +13257,8 @@
                     "id": 408,
                     "name": "Clock In",
                     "options": [
-                      "Off",
-                      "On"
+                      "Disabled",
+                      "Enabled"
                     ],
                     "title": "Clock In",
                     "type": "basic"
@@ -13267,8 +13267,8 @@
                     "id": 409,
                     "name": "Use Relative CC",
                     "options": [
-                      "Off",
-                      "On"
+                      "Disabled",
+                      "Enabled"
                     ],
                     "title": "Use Relative CC",
                     "type": "basic"
@@ -13277,8 +13277,8 @@
                     "id": 410,
                     "name": "MIDI-Thru",
                     "options": [
-                      "Off",
-                      "On"
+                      "Disabled",
+                      "Enabled"
                     ],
                     "title": "MIDI-Thru",
                     "type": "basic"
@@ -13305,8 +13305,8 @@
             "id": 412,
             "name": "Enabled",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "USB audio",
             "type": "basic"
@@ -13315,8 +13315,8 @@
             "id": 413,
             "name": "Input",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "USB input",
             "type": "basic"
@@ -13347,8 +13347,8 @@
                     "id": 418,
                     "name": "Shortcuts",
                     "options": [
-                      "Off",
-                      "On"
+                      "Disabled",
+                      "Enabled"
                     ],
                     "title": "Shortcuts",
                     "type": "basic"
@@ -13399,8 +13399,8 @@
                         "id": 424,
                         "name": "Select in green mode",
                         "options": [
-                          "Off",
-                          "On"
+                          "Disabled",
+                          "Enabled"
                         ],
                         "title": "Select in green mode",
                         "type": "basic"
@@ -13411,8 +13411,8 @@
                             "id": 426,
                             "name": "Unarm",
                             "options": [
-                              "Off",
-                              "On"
+                              "Disabled",
+                              "Enabled"
                             ],
                             "title": "Unarm",
                             "type": "basic"
@@ -13421,8 +13421,8 @@
                             "id": 427,
                             "name": "Create + Record",
                             "options": [
-                              "Off",
-                              "On"
+                              "Disabled",
+                              "Enabled"
                             ],
                             "title": "Create + Record",
                             "type": "basic"
@@ -13464,8 +13464,8 @@
                         "id": 431,
                         "name": "Momentary Velocity",
                         "options": [
-                          "Off",
-                          "On"
+                          "Disabled",
+                          "Enabled"
                         ],
                         "title": "Momentary Velocity",
                         "type": "basic"
@@ -13474,8 +13474,8 @@
                         "id": 432,
                         "name": "Momentary Modwheel",
                         "options": [
-                          "Off",
-                          "On"
+                          "Disabled",
+                          "Enabled"
                         ],
                         "title": "Momentary Modwheel",
                         "type": "basic"
@@ -13522,8 +13522,8 @@
                     "id": 436,
                     "name": "Use Last Clip Type",
                     "options": [
-                      "Off",
-                      "On"
+                      "Disabled",
+                      "Enabled"
                     ],
                     "title": "Use Last Clip Type",
                     "type": "basic"
@@ -13538,8 +13538,8 @@
                 "id": 437,
                 "name": "Use Sharps (#)",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Use Sharps (#)",
                 "type": "basic"
@@ -13556,8 +13556,8 @@
                 "id": 439,
                 "name": "Interpolation",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Interpolation",
                 "type": "basic"
@@ -13566,8 +13566,8 @@
                 "id": 440,
                 "name": "Clear",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Clear",
                 "type": "basic"
@@ -13576,8 +13576,8 @@
                 "id": 441,
                 "name": "Shift",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Shift",
                 "type": "basic"
@@ -13586,8 +13586,8 @@
                 "id": 442,
                 "name": "Nudge Note",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Nudge Note",
                 "type": "basic"
@@ -13596,8 +13596,8 @@
                 "id": 443,
                 "name": "Disable Audition Pad Shortcuts",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Disable Audition Pad Shortcuts",
                 "type": "basic"
@@ -13758,8 +13758,8 @@
             "id": 459,
             "name": "High CPU Indicator",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "High CPU Indicator",
             "type": "basic"
@@ -13981,8 +13981,8 @@
             "id": 479,
             "name": "Loop margins",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Loop margins",
             "type": "basic"
@@ -14030,8 +14030,8 @@
             "id": 484,
             "name": "Drum Randomizer",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Drum Randomizer",
             "type": "basic"
@@ -14040,8 +14040,8 @@
             "id": 485,
             "name": "Fine Tempo Knob",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Fine Tempo Knob",
             "type": "basic"
@@ -14050,8 +14050,8 @@
             "id": 486,
             "name": "Quantize",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Quantize",
             "type": "basic"
@@ -14060,8 +14060,8 @@
             "id": 487,
             "name": "Catch Notes",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Catch Notes",
             "type": "basic"
@@ -14070,8 +14070,8 @@
             "id": 488,
             "name": "Delete Unused Kit Rows",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Delete Unused Kit Rows",
             "type": "basic"
@@ -14080,8 +14080,8 @@
             "id": 489,
             "name": "Alternative Golden Knob Delay Params",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Alternative Golden Knob Delay Params",
             "type": "basic"
@@ -14100,8 +14100,8 @@
             "id": 491,
             "name": "Highlight Incoming Notes",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Highlight Incoming Notes",
             "type": "basic"
@@ -14110,8 +14110,8 @@
             "id": 492,
             "name": "Display Norns Layout",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Display Norns Layout",
             "type": "basic"
@@ -14120,8 +14120,8 @@
             "id": 493,
             "name": "Sticky Shift",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Sticky Shift",
             "type": "basic"
@@ -14130,8 +14130,8 @@
             "id": 494,
             "name": "Light Shift",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Light Shift",
             "type": "basic"
@@ -14140,8 +14140,8 @@
             "id": 495,
             "name": "DX7 Engine",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "DX7 Engine",
             "type": "basic"
@@ -14150,8 +14150,8 @@
             "id": 496,
             "name": "KB View Sidebar Menu Exit",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "KB View Sidebar Menu Exit",
             "type": "basic"
@@ -14160,8 +14160,8 @@
             "id": 497,
             "name": "Launch Event Playhead",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Launch Event Playhead",
             "type": "basic"
@@ -14170,8 +14170,8 @@
             "id": 498,
             "name": "Chord Keyboards",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Chord Keyboards",
             "type": "basic"
@@ -14180,8 +14180,8 @@
             "id": 499,
             "name": "Alternative Playback Start Behaviour",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Alternative Playback Start Behaviour",
             "type": "basic"
@@ -14190,8 +14190,8 @@
             "id": 500,
             "name": "Grid View Loop Layer Pads",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Grid View Loop Layer Pads",
             "type": "basic"
@@ -14200,8 +14200,8 @@
             "id": 501,
             "name": "Alternative Tap Tempo Behaviour",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Alternative Tap Tempo Behaviour",
             "type": "basic"
@@ -14210,8 +14210,8 @@
             "id": 502,
             "name": "Horizontal Menus",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Horizontal Menus",
             "type": "basic"
@@ -14220,8 +14220,8 @@
             "id": 503,
             "name": "Rounded Corners",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Rounded Corners",
             "type": "basic"
@@ -14230,8 +14230,8 @@
             "id": 504,
             "name": "Trim From Start Of Audio Clips",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Trim From Start Of Audio Clips",
             "type": "basic"
@@ -14240,8 +14240,8 @@
             "id": 505,
             "name": "Show Battery Level",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Show Battery Level",
             "type": "basic"
@@ -14346,8 +14346,8 @@
             "id": 248,
             "name": "File Linked",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "File Linked",
             "type": "basic"
@@ -14356,8 +14356,8 @@
             "id": 249,
             "name": "Hide Unlabeled CC",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Hide Unlabeled CC",
             "type": "basic"
@@ -14866,8 +14866,8 @@
         "id": 259,
         "name": "Send Y as CC1",
         "options": [
-          "Off",
-          "On"
+          "Disabled",
+          "Enabled"
         ],
         "title": "Send Y as CC1",
         "type": "basic"
@@ -14879,8 +14879,8 @@
             "id": 261,
             "name": "Aftertouch",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "Aftertouch",
             "type": "basic"
@@ -14889,8 +14889,8 @@
             "id": 262,
             "name": "MPE",
             "options": [
-              "Off",
-              "On"
+              "Disabled",
+              "Enabled"
             ],
             "title": "MPE",
             "type": "basic"
@@ -15109,8 +15109,8 @@
                 "id": 521,
                 "name": "Iteration 1",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Iteration 1",
                 "type": "basic"
@@ -15120,8 +15120,8 @@
                 "id": 522,
                 "name": "Iteration 2",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Iteration 2",
                 "type": "basic"
@@ -15131,8 +15131,8 @@
                 "id": 523,
                 "name": "Iteration 3",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Iteration 3",
                 "type": "basic"
@@ -15142,8 +15142,8 @@
                 "id": 524,
                 "name": "Iteration 4",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Iteration 4",
                 "type": "basic"
@@ -15153,8 +15153,8 @@
                 "id": 525,
                 "name": "Iteration 5",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Iteration 5",
                 "type": "basic"
@@ -15164,8 +15164,8 @@
                 "id": 526,
                 "name": "Iteration 6",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Iteration 6",
                 "type": "basic"
@@ -15175,8 +15175,8 @@
                 "id": 527,
                 "name": "Iteration 7",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Iteration 7",
                 "type": "basic"
@@ -15186,8 +15186,8 @@
                 "id": 528,
                 "name": "Iteration 8",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Iteration 8",
                 "type": "basic"
@@ -15255,8 +15255,8 @@
                 "id": 535,
                 "name": "Iteration 1",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Iteration 1",
                 "type": "basic"
@@ -15266,8 +15266,8 @@
                 "id": 536,
                 "name": "Iteration 2",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Iteration 2",
                 "type": "basic"
@@ -15277,8 +15277,8 @@
                 "id": 537,
                 "name": "Iteration 3",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Iteration 3",
                 "type": "basic"
@@ -15288,8 +15288,8 @@
                 "id": 538,
                 "name": "Iteration 4",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Iteration 4",
                 "type": "basic"
@@ -15299,8 +15299,8 @@
                 "id": 539,
                 "name": "Iteration 5",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Iteration 5",
                 "type": "basic"
@@ -15310,8 +15310,8 @@
                 "id": 540,
                 "name": "Iteration 6",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Iteration 6",
                 "type": "basic"
@@ -15321,8 +15321,8 @@
                 "id": 541,
                 "name": "Iteration 7",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Iteration 7",
                 "type": "basic"
@@ -15332,8 +15332,8 @@
                 "id": 542,
                 "name": "Iteration 8",
                 "options": [
-                  "Off",
-                  "On"
+                  "Disabled",
+                  "Enabled"
                 ],
                 "title": "Iteration 8",
                 "type": "basic"

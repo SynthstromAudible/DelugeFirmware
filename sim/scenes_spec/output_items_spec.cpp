@@ -523,13 +523,13 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 
 	it("names its two states with the words a toggle's own page lists, its row being a checkbox", _ {
 		// The page draws no words (its row is a checkbox, `row_icon` above), so the menu dump and the website's
-		// reference spell it as every toggle: the table `MenuView::render_leaf_toggle` draws, Off then On.
+		// reference spell it as every toggle: the table `MenuView::render_leaf_toggle` draws, Disabled then Enabled.
 		expect(nodes::midi_device_linked.bind.names.data() == nodes::kToggleWords).to_be_true();
 		expect(nodes::midi_device_linked.bind.names.size()).to_equal(std::size(nodes::kToggleWords));
 		expect(std::string{deluge::scenes::text_lookup(nodes::midi_device_linked.bind.names[0])})
-		    .to_equal(std::string{"Off"});
+		    .to_equal(std::string{"Disabled"});
 		expect(std::string{deluge::scenes::text_lookup(nodes::midi_device_linked.bind.names[1])})
-		    .to_equal(std::string{"On"});
+		    .to_equal(std::string{"Enabled"});
 	});
 
 	it("notes the linked file's name, without its folders, as Linked::renderSubmenuItemTypeForOled does", _ {

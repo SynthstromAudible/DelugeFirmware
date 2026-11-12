@@ -1464,18 +1464,18 @@
                   "tag": "c1.3",
                   "children": [
                     {
-                      "key": "fx-stutter-quantize-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "fx-stutter-quantize-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "fx-stutter-quantize-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "fx-stutter-quantize-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -1903,18 +1903,18 @@
               "code": "Reverse",
               "children": [
                 {
-                  "key": "oscillator-1-reverse-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "oscillator-1-reverse-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "oscillator-1-reverse-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "oscillator-1-reverse-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -2198,18 +2198,18 @@
               "code": "Reverse",
               "children": [
                 {
-                  "key": "oscillator-2-reverse-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "oscillator-2-reverse-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "oscillator-2-reverse-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "oscillator-2-reverse-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -2457,18 +2457,18 @@
               "code": "Oscillator sync",
               "children": [
                 {
-                  "key": "osc-mixer-oscillator-sync-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "osc-mixer-oscillator-sync-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "osc-mixer-oscillator-sync-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "osc-mixer-oscillator-sync-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -4652,18 +4652,18 @@
                   "tag": "c1.3",
                   "children": [
                     {
-                      "key": "fx-stutter-quantize-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "fx-stutter-quantize-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "fx-stutter-quantize-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "fx-stutter-quantize-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -5091,18 +5091,18 @@
               "code": "Reverse",
               "children": [
                 {
-                  "key": "oscillator-1-reverse-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "oscillator-1-reverse-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "oscillator-1-reverse-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "oscillator-1-reverse-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -5386,18 +5386,18 @@
               "code": "Reverse",
               "children": [
                 {
-                  "key": "oscillator-2-reverse-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "oscillator-2-reverse-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "oscillator-2-reverse-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "oscillator-2-reverse-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -5645,18 +5645,18 @@
               "code": "Oscillator sync",
               "children": [
                 {
-                  "key": "osc-mixer-oscillator-sync-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "osc-mixer-oscillator-sync-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "osc-mixer-oscillator-sync-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "osc-mixer-oscillator-sync-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -6449,18 +6449,18 @@
               "tag": "c1.3",
               "children": [
                 {
-                  "key": "device-definition-file-linked-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "device-definition-file-linked-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "device-definition-file-linked-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "device-definition-file-linked-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -6474,18 +6474,18 @@
               "tag": "c1.3",
               "children": [
                 {
-                  "key": "device-definition-hide-unlabeled-cc-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "device-definition-hide-unlabeled-cc-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "device-definition-hide-unlabeled-cc-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "device-definition-hide-unlabeled-cc-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -7312,18 +7312,18 @@
           "tag": "c1.2",
           "children": [
             {
-              "key": "send-y-as-cc1-off",
-              "oled": "Off",
-              "title": "Off",
-              "code": "Off",
+              "key": "send-y-as-cc1-disabled",
+              "oled": "Disabled",
+              "title": "Disabled",
+              "code": "Disabled",
               "option": true,
               "children": []
             },
             {
-              "key": "send-y-as-cc1-on",
-              "oled": "On",
-              "title": "On",
-              "code": "On",
+              "key": "send-y-as-cc1-enabled",
+              "oled": "Enabled",
+              "title": "Enabled",
+              "code": "Enabled",
               "option": true,
               "children": []
             }
@@ -7344,18 +7344,18 @@
               "tag": "c1.1",
               "children": [
                 {
-                  "key": "poly-expression-to-mono-aftertouch-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "poly-expression-to-mono-aftertouch-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "poly-expression-to-mono-aftertouch-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "poly-expression-to-mono-aftertouch-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -7369,18 +7369,18 @@
               "tag": "c1.1",
               "children": [
                 {
-                  "key": "poly-expression-to-mono-mpe-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "poly-expression-to-mono-mpe-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "poly-expression-to-mono-mpe-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "poly-expression-to-mono-mpe-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -9684,18 +9684,18 @@
                   "tag": "c1.3",
                   "children": [
                     {
-                      "key": "fx-stutter-quantize-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "fx-stutter-quantize-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "fx-stutter-quantize-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "fx-stutter-quantize-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -9916,18 +9916,18 @@
               "code": "Reverse",
               "children": [
                 {
-                  "key": "sample-reverse-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "sample-reverse-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "sample-reverse-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "sample-reverse-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -10602,18 +10602,18 @@
                   "tag": "c1.3",
                   "children": [
                     {
-                      "key": "fx-stutter-quantize-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "fx-stutter-quantize-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "fx-stutter-quantize-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "fx-stutter-quantize-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -11319,18 +11319,18 @@
                   "tag": "c1.3",
                   "children": [
                     {
-                      "key": "fx-stutter-quantize-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "fx-stutter-quantize-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "fx-stutter-quantize-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "fx-stutter-quantize-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -11714,18 +11714,18 @@
                   "tag": "c1.2",
                   "children": [
                     {
-                      "key": "export-audio-configure-export-normalization-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "export-audio-configure-export-normalization-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "export-audio-configure-export-normalization-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "export-audio-configure-export-normalization-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -11739,18 +11739,18 @@
                   "tag": "c1.2",
                   "children": [
                     {
-                      "key": "export-audio-configure-export-export-to-silence-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "export-audio-configure-export-export-to-silence-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "export-audio-configure-export-export-to-silence-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "export-audio-configure-export-export-to-silence-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -11764,18 +11764,18 @@
                   "tag": "c1.2",
                   "children": [
                     {
-                      "key": "export-audio-configure-export-song-fx-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "export-audio-configure-export-song-fx-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "export-audio-configure-export-song-fx-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "export-audio-configure-export-song-fx-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -11789,18 +11789,18 @@
                   "tag": "c1.2",
                   "children": [
                     {
-                      "key": "export-audio-configure-export-offline-rendering-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "export-audio-configure-export-offline-rendering-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "export-audio-configure-export-offline-rendering-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "export-audio-configure-export-offline-rendering-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -11814,18 +11814,18 @@
                   "tag": "c1.3",
                   "children": [
                     {
-                      "key": "export-audio-configure-export-export-mixdown-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "export-audio-configure-export-export-mixdown-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "export-audio-configure-export-export-mixdown-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "export-audio-configure-export-export-mixdown-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -11904,18 +11904,18 @@
                       "tag": "c1.3",
                       "children": [
                         {
-                          "key": "actions-export-audio-configure-export-kit-fx-off",
-                          "oled": "Off",
-                          "title": "Off",
-                          "code": "Off",
+                          "key": "actions-export-audio-configure-export-kit-fx-disabled",
+                          "oled": "Disabled",
+                          "title": "Disabled",
+                          "code": "Disabled",
                           "option": true,
                           "children": []
                         },
                         {
-                          "key": "actions-export-audio-configure-export-kit-fx-on",
-                          "oled": "On",
-                          "title": "On",
-                          "code": "On",
+                          "key": "actions-export-audio-configure-export-kit-fx-enabled",
+                          "oled": "Enabled",
+                          "title": "Enabled",
+                          "code": "Enabled",
                           "option": true,
                           "children": []
                         }
@@ -11929,18 +11929,18 @@
                       "tag": "c1.3",
                       "children": [
                         {
-                          "key": "actions-export-audio-configure-export-normalization-off",
-                          "oled": "Off",
-                          "title": "Off",
-                          "code": "Off",
+                          "key": "actions-export-audio-configure-export-normalization-disabled",
+                          "oled": "Disabled",
+                          "title": "Disabled",
+                          "code": "Disabled",
                           "option": true,
                           "children": []
                         },
                         {
-                          "key": "actions-export-audio-configure-export-normalization-on",
-                          "oled": "On",
-                          "title": "On",
-                          "code": "On",
+                          "key": "actions-export-audio-configure-export-normalization-enabled",
+                          "oled": "Enabled",
+                          "title": "Enabled",
+                          "code": "Enabled",
                           "option": true,
                           "children": []
                         }
@@ -11954,18 +11954,18 @@
                       "tag": "c1.2",
                       "children": [
                         {
-                          "key": "actions-export-audio-configure-export-export-to-silence-off",
-                          "oled": "Off",
-                          "title": "Off",
-                          "code": "Off",
+                          "key": "actions-export-audio-configure-export-export-to-silence-disabled",
+                          "oled": "Disabled",
+                          "title": "Disabled",
+                          "code": "Disabled",
                           "option": true,
                           "children": []
                         },
                         {
-                          "key": "actions-export-audio-configure-export-export-to-silence-on",
-                          "oled": "On",
-                          "title": "On",
-                          "code": "On",
+                          "key": "actions-export-audio-configure-export-export-to-silence-enabled",
+                          "oled": "Enabled",
+                          "title": "Enabled",
+                          "code": "Enabled",
                           "option": true,
                           "children": []
                         }
@@ -11979,18 +11979,18 @@
                       "tag": "c1.2",
                       "children": [
                         {
-                          "key": "actions-export-audio-configure-export-song-fx-off",
-                          "oled": "Off",
-                          "title": "Off",
-                          "code": "Off",
+                          "key": "actions-export-audio-configure-export-song-fx-disabled",
+                          "oled": "Disabled",
+                          "title": "Disabled",
+                          "code": "Disabled",
                           "option": true,
                           "children": []
                         },
                         {
-                          "key": "actions-export-audio-configure-export-song-fx-on",
-                          "oled": "On",
-                          "title": "On",
-                          "code": "On",
+                          "key": "actions-export-audio-configure-export-song-fx-enabled",
+                          "oled": "Enabled",
+                          "title": "Enabled",
+                          "code": "Enabled",
                           "option": true,
                           "children": []
                         }
@@ -12004,18 +12004,18 @@
                       "tag": "c1.2",
                       "children": [
                         {
-                          "key": "actions-export-audio-configure-export-offline-rendering-off",
-                          "oled": "Off",
-                          "title": "Off",
-                          "code": "Off",
+                          "key": "actions-export-audio-configure-export-offline-rendering-disabled",
+                          "oled": "Disabled",
+                          "title": "Disabled",
+                          "code": "Disabled",
                           "option": true,
                           "children": []
                         },
                         {
-                          "key": "actions-export-audio-configure-export-offline-rendering-on",
-                          "oled": "On",
-                          "title": "On",
-                          "code": "On",
+                          "key": "actions-export-audio-configure-export-offline-rendering-enabled",
+                          "oled": "Enabled",
+                          "title": "Enabled",
+                          "code": "Enabled",
                           "option": true,
                           "children": []
                         }
@@ -13297,18 +13297,18 @@
                   "tag": "c1.3",
                   "children": [
                     {
-                      "key": "fx-stutter-quantize-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "fx-stutter-quantize-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "fx-stutter-quantize-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "fx-stutter-quantize-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -13656,18 +13656,18 @@
                   "code": "Auto-Start",
                   "children": [
                     {
-                      "key": "trigger-clock-input-auto-start-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "trigger-clock-input-auto-start-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "trigger-clock-input-auto-start-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "trigger-clock-input-auto-start-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -13711,18 +13711,18 @@
                   "code": "Output",
                   "children": [
                     {
-                      "key": "midi-clock-output-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "midi-clock-output-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "midi-clock-output-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "midi-clock-output-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -13735,18 +13735,18 @@
                   "code": "Input",
                   "children": [
                     {
-                      "key": "midi-clock-input-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "midi-clock-input-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "midi-clock-input-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "midi-clock-input-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -13759,18 +13759,18 @@
                   "code": "Tempo Magnitude Matching",
                   "children": [
                     {
-                      "key": "midi-clock-tempo-magnitude-matching-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "midi-clock-tempo-magnitude-matching-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "midi-clock-tempo-magnitude-matching-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "midi-clock-tempo-magnitude-matching-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -14083,18 +14083,18 @@
                       "tag": "c1.1",
                       "children": [
                         {
-                          "key": "midi-midi-follow-feedback-filter-responses-off",
-                          "oled": "Off",
-                          "title": "Off",
-                          "code": "Off",
+                          "key": "midi-midi-follow-feedback-filter-responses-disabled",
+                          "oled": "Disabled",
+                          "title": "Disabled",
+                          "code": "Disabled",
                           "option": true,
                           "children": []
                         },
                         {
-                          "key": "midi-midi-follow-feedback-filter-responses-on",
-                          "oled": "On",
-                          "title": "On",
-                          "code": "On",
+                          "key": "midi-midi-follow-feedback-filter-responses-enabled",
+                          "oled": "Enabled",
+                          "title": "Enabled",
+                          "code": "Enabled",
                           "option": true,
                           "children": []
                         }
@@ -14110,18 +14110,18 @@
                   "tag": "c1.1",
                   "children": [
                     {
-                      "key": "midi-midi-follow-display-param-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "midi-midi-follow-display-param-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "midi-midi-follow-display-param-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "midi-midi-follow-display-param-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -14137,18 +14137,18 @@
               "tag": "c1.1",
               "children": [
                 {
-                  "key": "midi-select-kit-row-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "midi-select-kit-row-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "midi-select-kit-row-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "midi-select-kit-row-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -14161,18 +14161,18 @@
               "code": "MIDI-Thru",
               "children": [
                 {
-                  "key": "midi-midi-thru-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "midi-midi-thru-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "midi-midi-thru-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "midi-midi-thru-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -14344,18 +14344,18 @@
               "code": "Differentiate inputs",
               "children": [
                 {
-                  "key": "midi-differentiate-inputs-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "midi-differentiate-inputs-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "midi-differentiate-inputs-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "midi-differentiate-inputs-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -14410,18 +14410,18 @@
                       "code": "Clock Out",
                       "children": [
                         {
-                          "key": "midi-devices-midi-devices-clock-out-off",
-                          "oled": "Off",
-                          "title": "Off",
-                          "code": "Off",
+                          "key": "midi-devices-midi-devices-clock-out-disabled",
+                          "oled": "Disabled",
+                          "title": "Disabled",
+                          "code": "Disabled",
                           "option": true,
                           "children": []
                         },
                         {
-                          "key": "midi-devices-midi-devices-clock-out-on",
-                          "oled": "On",
-                          "title": "On",
-                          "code": "On",
+                          "key": "midi-devices-midi-devices-clock-out-enabled",
+                          "oled": "Enabled",
+                          "title": "Enabled",
+                          "code": "Enabled",
                           "option": true,
                           "children": []
                         }
@@ -14434,18 +14434,18 @@
                       "code": "Clock In",
                       "children": [
                         {
-                          "key": "midi-devices-midi-devices-clock-in-off",
-                          "oled": "Off",
-                          "title": "Off",
-                          "code": "Off",
+                          "key": "midi-devices-midi-devices-clock-in-disabled",
+                          "oled": "Disabled",
+                          "title": "Disabled",
+                          "code": "Disabled",
                           "option": true,
                           "children": []
                         },
                         {
-                          "key": "midi-devices-midi-devices-clock-in-on",
-                          "oled": "On",
-                          "title": "On",
-                          "code": "On",
+                          "key": "midi-devices-midi-devices-clock-in-enabled",
+                          "oled": "Enabled",
+                          "title": "Enabled",
+                          "code": "Enabled",
                           "option": true,
                           "children": []
                         }
@@ -14459,18 +14459,18 @@
                       "tag": "c1.3",
                       "children": [
                         {
-                          "key": "midi-devices-midi-devices-use-relative-cc-off",
-                          "oled": "Off",
-                          "title": "Off",
-                          "code": "Off",
+                          "key": "midi-devices-midi-devices-use-relative-cc-disabled",
+                          "oled": "Disabled",
+                          "title": "Disabled",
+                          "code": "Disabled",
                           "option": true,
                           "children": []
                         },
                         {
-                          "key": "midi-devices-midi-devices-use-relative-cc-on",
-                          "oled": "On",
-                          "title": "On",
-                          "code": "On",
+                          "key": "midi-devices-midi-devices-use-relative-cc-enabled",
+                          "oled": "Enabled",
+                          "title": "Enabled",
+                          "code": "Enabled",
                           "option": true,
                           "children": []
                         }
@@ -14484,18 +14484,18 @@
                       "tag": "c1.3",
                       "children": [
                         {
-                          "key": "midi-devices-midi-devices-midi-thru-off",
-                          "oled": "Off",
-                          "title": "Off",
-                          "code": "Off",
+                          "key": "midi-devices-midi-devices-midi-thru-disabled",
+                          "oled": "Disabled",
+                          "title": "Disabled",
+                          "code": "Disabled",
                           "option": true,
                           "children": []
                         },
                         {
-                          "key": "midi-devices-midi-devices-midi-thru-on",
-                          "oled": "On",
-                          "title": "On",
-                          "code": "On",
+                          "key": "midi-devices-midi-devices-midi-thru-enabled",
+                          "oled": "Enabled",
+                          "title": "Enabled",
+                          "code": "Enabled",
                           "option": true,
                           "children": []
                         }
@@ -14522,18 +14522,18 @@
               "tag": "c1.4",
               "children": [
                 {
-                  "key": "usb-audio-enabled-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "usb-audio-enabled-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "usb-audio-enabled-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "usb-audio-enabled-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -14547,18 +14547,18 @@
               "tag": "c1.4",
               "children": [
                 {
-                  "key": "usb-audio-input-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "usb-audio-input-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "usb-audio-input-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "usb-audio-input-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -14619,18 +14619,18 @@
                       "tag": "c1.3",
                       "children": [
                         {
-                          "key": "defaults-ui-accessibility-shortcuts-off",
-                          "oled": "Off",
-                          "title": "Off",
-                          "code": "Off",
+                          "key": "defaults-ui-accessibility-shortcuts-disabled",
+                          "oled": "Disabled",
+                          "title": "Disabled",
+                          "code": "Disabled",
                           "option": true,
                           "children": []
                         },
                         {
-                          "key": "defaults-ui-accessibility-shortcuts-on",
-                          "oled": "On",
-                          "title": "On",
-                          "code": "On",
+                          "key": "defaults-ui-accessibility-shortcuts-enabled",
+                          "oled": "Enabled",
+                          "title": "Enabled",
+                          "code": "Enabled",
                           "option": true,
                           "children": []
                         }
@@ -14751,18 +14751,18 @@
                           "tag": "c1.0",
                           "children": [
                             {
-                              "key": "defaults-ui-song-grid-select-in-green-mode-off",
-                              "oled": "Off",
-                              "title": "Off",
-                              "code": "Off",
+                              "key": "defaults-ui-song-grid-select-in-green-mode-disabled",
+                              "oled": "Disabled",
+                              "title": "Disabled",
+                              "code": "Disabled",
                               "option": true,
                               "children": []
                             },
                             {
-                              "key": "defaults-ui-song-grid-select-in-green-mode-on",
-                              "oled": "On",
-                              "title": "On",
-                              "code": "On",
+                              "key": "defaults-ui-song-grid-select-in-green-mode-enabled",
+                              "oled": "Enabled",
+                              "title": "Enabled",
+                              "code": "Enabled",
                               "option": true,
                               "children": []
                             }
@@ -14783,18 +14783,18 @@
                               "tag": "c1.0",
                               "children": [
                                 {
-                                  "key": "defaults-ui-song-grid-empty-pads-unarm-off",
-                                  "oled": "Off",
-                                  "title": "Off",
-                                  "code": "Off",
+                                  "key": "defaults-ui-song-grid-empty-pads-unarm-disabled",
+                                  "oled": "Disabled",
+                                  "title": "Disabled",
+                                  "code": "Disabled",
                                   "option": true,
                                   "children": []
                                 },
                                 {
-                                  "key": "defaults-ui-song-grid-empty-pads-unarm-on",
-                                  "oled": "On",
-                                  "title": "On",
-                                  "code": "On",
+                                  "key": "defaults-ui-song-grid-empty-pads-unarm-enabled",
+                                  "oled": "Enabled",
+                                  "title": "Enabled",
+                                  "code": "Enabled",
                                   "option": true,
                                   "children": []
                                 }
@@ -14808,18 +14808,18 @@
                               "tag": "c1.0",
                               "children": [
                                 {
-                                  "key": "defaults-ui-song-grid-empty-pads-create-record-off",
-                                  "oled": "Off",
-                                  "title": "Off",
-                                  "code": "Off",
+                                  "key": "defaults-ui-song-grid-empty-pads-create-record-disabled",
+                                  "oled": "Disabled",
+                                  "title": "Disabled",
+                                  "code": "Disabled",
                                   "option": true,
                                   "children": []
                                 },
                                 {
-                                  "key": "defaults-ui-song-grid-empty-pads-create-record-on",
-                                  "oled": "On",
-                                  "title": "On",
-                                  "code": "On",
+                                  "key": "defaults-ui-song-grid-empty-pads-create-record-enabled",
+                                  "oled": "Enabled",
+                                  "title": "Enabled",
+                                  "code": "Enabled",
                                   "option": true,
                                   "children": []
                                 }
@@ -14889,18 +14889,18 @@
                           "tag": "c1.1",
                           "children": [
                             {
-                              "key": "defaults-ui-keyboard-sidebar-controls-momentary-velocity-off",
-                              "oled": "Off",
-                              "title": "Off",
-                              "code": "Off",
+                              "key": "defaults-ui-keyboard-sidebar-controls-momentary-velocity-disabled",
+                              "oled": "Disabled",
+                              "title": "Disabled",
+                              "code": "Disabled",
                               "option": true,
                               "children": []
                             },
                             {
-                              "key": "defaults-ui-keyboard-sidebar-controls-momentary-velocity-on",
-                              "oled": "On",
-                              "title": "On",
-                              "code": "On",
+                              "key": "defaults-ui-keyboard-sidebar-controls-momentary-velocity-enabled",
+                              "oled": "Enabled",
+                              "title": "Enabled",
+                              "code": "Enabled",
                               "option": true,
                               "children": []
                             }
@@ -14914,18 +14914,18 @@
                           "tag": "c1.1",
                           "children": [
                             {
-                              "key": "defaults-ui-keyboard-sidebar-controls-momentary-modwheel-off",
-                              "oled": "Off",
-                              "title": "Off",
-                              "code": "Off",
+                              "key": "defaults-ui-keyboard-sidebar-controls-momentary-modwheel-disabled",
+                              "oled": "Disabled",
+                              "title": "Disabled",
+                              "code": "Disabled",
                               "option": true,
                               "children": []
                             },
                             {
-                              "key": "defaults-ui-keyboard-sidebar-controls-momentary-modwheel-on",
-                              "oled": "On",
-                              "title": "On",
-                              "code": "On",
+                              "key": "defaults-ui-keyboard-sidebar-controls-momentary-modwheel-enabled",
+                              "oled": "Enabled",
+                              "title": "Enabled",
+                              "code": "Enabled",
                               "option": true,
                               "children": []
                             }
@@ -15032,18 +15032,18 @@
                       "tag": "c1.2",
                       "children": [
                         {
-                          "key": "defaults-ui-clip-type-use-last-clip-type-off",
-                          "oled": "Off",
-                          "title": "Off",
-                          "code": "Off",
+                          "key": "defaults-ui-clip-type-use-last-clip-type-disabled",
+                          "oled": "Disabled",
+                          "title": "Disabled",
+                          "code": "Disabled",
                           "option": true,
                           "children": []
                         },
                         {
-                          "key": "defaults-ui-clip-type-use-last-clip-type-on",
-                          "oled": "On",
-                          "title": "On",
-                          "code": "On",
+                          "key": "defaults-ui-clip-type-use-last-clip-type-enabled",
+                          "oled": "Enabled",
+                          "title": "Enabled",
+                          "code": "Enabled",
                           "option": true,
                           "children": []
                         }
@@ -15059,18 +15059,18 @@
                   "tag": "c1.3",
                   "children": [
                     {
-                      "key": "defaults-ui-use-sharps-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "defaults-ui-use-sharps-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "defaults-ui-use-sharps-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "defaults-ui-use-sharps-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -15093,18 +15093,18 @@
                   "tag": "c1.1",
                   "children": [
                     {
-                      "key": "defaults-automation-interpolation-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "defaults-automation-interpolation-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "defaults-automation-interpolation-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "defaults-automation-interpolation-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -15118,18 +15118,18 @@
                   "tag": "c1.1",
                   "children": [
                     {
-                      "key": "defaults-automation-clear-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "defaults-automation-clear-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "defaults-automation-clear-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "defaults-automation-clear-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -15143,18 +15143,18 @@
                   "tag": "c1.1",
                   "children": [
                     {
-                      "key": "defaults-automation-shift-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "defaults-automation-shift-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "defaults-automation-shift-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "defaults-automation-shift-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -15168,18 +15168,18 @@
                   "tag": "c1.1",
                   "children": [
                     {
-                      "key": "defaults-automation-nudge-note-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "defaults-automation-nudge-note-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "defaults-automation-nudge-note-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "defaults-automation-nudge-note-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -15193,18 +15193,18 @@
                   "tag": "c1.1",
                   "children": [
                     {
-                      "key": "defaults-automation-disable-audition-pad-shortcuts-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "defaults-automation-disable-audition-pad-shortcuts-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "defaults-automation-disable-audition-pad-shortcuts-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "defaults-automation-disable-audition-pad-shortcuts-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -15697,18 +15697,18 @@
               "tag": "c1.1",
               "children": [
                 {
-                  "key": "defaults-high-cpu-indicator-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "defaults-high-cpu-indicator-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "defaults-high-cpu-indicator-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "defaults-high-cpu-indicator-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -16426,18 +16426,18 @@
               "code": "Loop margins",
               "children": [
                 {
-                  "key": "recording-loop-margins-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "recording-loop-margins-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "recording-loop-margins-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "recording-loop-margins-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -16541,18 +16541,18 @@
               "tag": "c1.0",
               "children": [
                 {
-                  "key": "community-features-drum-randomizer-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "community-features-drum-randomizer-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "community-features-drum-randomizer-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "community-features-drum-randomizer-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -16566,18 +16566,18 @@
               "tag": "c1.0",
               "children": [
                 {
-                  "key": "community-features-fine-tempo-knob-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "community-features-fine-tempo-knob-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "community-features-fine-tempo-knob-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "community-features-fine-tempo-knob-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -16591,18 +16591,18 @@
               "tag": "c1.0",
               "children": [
                 {
-                  "key": "community-features-quantize-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "community-features-quantize-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "community-features-quantize-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "community-features-quantize-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -16616,18 +16616,18 @@
               "tag": "c1.0",
               "children": [
                 {
-                  "key": "community-features-catch-notes-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "community-features-catch-notes-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "community-features-catch-notes-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "community-features-catch-notes-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -16641,18 +16641,18 @@
               "tag": "c1.0",
               "children": [
                 {
-                  "key": "community-features-delete-unused-kit-rows-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "community-features-delete-unused-kit-rows-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "community-features-delete-unused-kit-rows-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "community-features-delete-unused-kit-rows-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -16666,18 +16666,18 @@
               "tag": "c1.0",
               "children": [
                 {
-                  "key": "community-features-alternative-golden-knob-delay-params-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "community-features-alternative-golden-knob-delay-params-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "community-features-alternative-golden-knob-delay-params-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "community-features-alternative-golden-knob-delay-params-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -16716,18 +16716,18 @@
               "tag": "c1.0",
               "children": [
                 {
-                  "key": "community-features-highlight-incoming-notes-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "community-features-highlight-incoming-notes-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "community-features-highlight-incoming-notes-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "community-features-highlight-incoming-notes-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -16741,18 +16741,18 @@
               "tag": "c1.0",
               "children": [
                 {
-                  "key": "community-features-display-norns-layout-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "community-features-display-norns-layout-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "community-features-display-norns-layout-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "community-features-display-norns-layout-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -16766,18 +16766,18 @@
               "tag": "c1.0",
               "children": [
                 {
-                  "key": "community-features-sticky-shift-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "community-features-sticky-shift-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "community-features-sticky-shift-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "community-features-sticky-shift-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -16791,18 +16791,18 @@
               "tag": "c1.0",
               "children": [
                 {
-                  "key": "community-features-light-shift-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "community-features-light-shift-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "community-features-light-shift-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "community-features-light-shift-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -16816,18 +16816,18 @@
               "tag": "c1.2",
               "children": [
                 {
-                  "key": "community-features-dx7-engine-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "community-features-dx7-engine-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "community-features-dx7-engine-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "community-features-dx7-engine-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -16841,18 +16841,18 @@
               "tag": "c1.1",
               "children": [
                 {
-                  "key": "community-features-kb-view-sidebar-menu-exit-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "community-features-kb-view-sidebar-menu-exit-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "community-features-kb-view-sidebar-menu-exit-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "community-features-kb-view-sidebar-menu-exit-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -16866,18 +16866,18 @@
               "tag": "c1.2",
               "children": [
                 {
-                  "key": "community-features-launch-event-playhead-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "community-features-launch-event-playhead-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "community-features-launch-event-playhead-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "community-features-launch-event-playhead-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -16891,18 +16891,18 @@
               "tag": "c1.2",
               "children": [
                 {
-                  "key": "community-features-chord-keyboards-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "community-features-chord-keyboards-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "community-features-chord-keyboards-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "community-features-chord-keyboards-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -16916,18 +16916,18 @@
               "tag": "c1.2",
               "children": [
                 {
-                  "key": "community-features-alternative-playback-start-behaviour-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "community-features-alternative-playback-start-behaviour-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "community-features-alternative-playback-start-behaviour-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "community-features-alternative-playback-start-behaviour-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -16941,18 +16941,18 @@
               "tag": "c1.2",
               "children": [
                 {
-                  "key": "community-features-grid-view-loop-layer-pads-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "community-features-grid-view-loop-layer-pads-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "community-features-grid-view-loop-layer-pads-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "community-features-grid-view-loop-layer-pads-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -16966,18 +16966,18 @@
               "tag": "c1.3",
               "children": [
                 {
-                  "key": "community-features-alternative-tap-tempo-behaviour-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "community-features-alternative-tap-tempo-behaviour-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "community-features-alternative-tap-tempo-behaviour-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "community-features-alternative-tap-tempo-behaviour-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -16991,18 +16991,18 @@
               "tag": "c1.3",
               "children": [
                 {
-                  "key": "community-features-horizontal-menus-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "community-features-horizontal-menus-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "community-features-horizontal-menus-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "community-features-horizontal-menus-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -17016,18 +17016,18 @@
               "tag": "c1.3",
               "children": [
                 {
-                  "key": "community-features-rounded-corners-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "community-features-rounded-corners-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "community-features-rounded-corners-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "community-features-rounded-corners-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -17041,18 +17041,18 @@
               "tag": "c1.3",
               "children": [
                 {
-                  "key": "community-features-trim-from-start-of-audio-clips-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "community-features-trim-from-start-of-audio-clips-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "community-features-trim-from-start-of-audio-clips-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "community-features-trim-from-start-of-audio-clips-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -17066,18 +17066,18 @@
               "tag": "c1.3",
               "children": [
                 {
-                  "key": "community-features-show-battery-level-off",
-                  "oled": "Off",
-                  "title": "Off",
-                  "code": "Off",
+                  "key": "community-features-show-battery-level-disabled",
+                  "oled": "Disabled",
+                  "title": "Disabled",
+                  "code": "Disabled",
                   "option": true,
                   "children": []
                 },
                 {
-                  "key": "community-features-show-battery-level-on",
-                  "oled": "On",
-                  "title": "On",
-                  "code": "On",
+                  "key": "community-features-show-battery-level-enabled",
+                  "oled": "Enabled",
+                  "title": "Enabled",
+                  "code": "Enabled",
                   "option": true,
                   "children": []
                 }
@@ -18021,18 +18021,18 @@
           "code": "Send Y as CC1",
           "children": [
             {
-              "key": "send-y-as-cc1-off",
-              "oled": "Off",
-              "title": "Off",
-              "code": "Off",
+              "key": "send-y-as-cc1-disabled",
+              "oled": "Disabled",
+              "title": "Disabled",
+              "code": "Disabled",
               "option": true,
               "children": []
             },
             {
-              "key": "send-y-as-cc1-on",
-              "oled": "On",
-              "title": "On",
-              "code": "On",
+              "key": "send-y-as-cc1-enabled",
+              "oled": "Enabled",
+              "title": "Enabled",
+              "code": "Enabled",
               "option": true,
               "children": []
             }
@@ -18124,18 +18124,18 @@
                   "code": "Iteration 1",
                   "children": [
                     {
-                      "key": "iterance-custom-iteration-1-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "iterance-custom-iteration-1-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "iterance-custom-iteration-1-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "iterance-custom-iteration-1-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -18148,18 +18148,18 @@
                   "code": "Iteration 2",
                   "children": [
                     {
-                      "key": "iterance-custom-iteration-2-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "iterance-custom-iteration-2-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "iterance-custom-iteration-2-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "iterance-custom-iteration-2-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -18172,18 +18172,18 @@
                   "code": "Iteration 3",
                   "children": [
                     {
-                      "key": "iterance-custom-iteration-3-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "iterance-custom-iteration-3-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "iterance-custom-iteration-3-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "iterance-custom-iteration-3-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -18196,18 +18196,18 @@
                   "code": "Iteration 4",
                   "children": [
                     {
-                      "key": "iterance-custom-iteration-4-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "iterance-custom-iteration-4-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "iterance-custom-iteration-4-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "iterance-custom-iteration-4-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -18220,18 +18220,18 @@
                   "code": "Iteration 5",
                   "children": [
                     {
-                      "key": "iterance-custom-iteration-5-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "iterance-custom-iteration-5-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "iterance-custom-iteration-5-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "iterance-custom-iteration-5-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -18244,18 +18244,18 @@
                   "code": "Iteration 6",
                   "children": [
                     {
-                      "key": "iterance-custom-iteration-6-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "iterance-custom-iteration-6-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "iterance-custom-iteration-6-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "iterance-custom-iteration-6-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -18268,18 +18268,18 @@
                   "code": "Iteration 7",
                   "children": [
                     {
-                      "key": "iterance-custom-iteration-7-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "iterance-custom-iteration-7-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "iterance-custom-iteration-7-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "iterance-custom-iteration-7-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -18292,18 +18292,18 @@
                   "code": "Iteration 8",
                   "children": [
                     {
-                      "key": "iterance-custom-iteration-8-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "iterance-custom-iteration-8-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "iterance-custom-iteration-8-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "iterance-custom-iteration-8-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -18424,18 +18424,18 @@
                   "code": "Iteration 1",
                   "children": [
                     {
-                      "key": "iterance-custom-iteration-1-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "iterance-custom-iteration-1-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "iterance-custom-iteration-1-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "iterance-custom-iteration-1-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -18448,18 +18448,18 @@
                   "code": "Iteration 2",
                   "children": [
                     {
-                      "key": "iterance-custom-iteration-2-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "iterance-custom-iteration-2-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "iterance-custom-iteration-2-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "iterance-custom-iteration-2-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -18472,18 +18472,18 @@
                   "code": "Iteration 3",
                   "children": [
                     {
-                      "key": "iterance-custom-iteration-3-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "iterance-custom-iteration-3-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "iterance-custom-iteration-3-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "iterance-custom-iteration-3-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -18496,18 +18496,18 @@
                   "code": "Iteration 4",
                   "children": [
                     {
-                      "key": "iterance-custom-iteration-4-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "iterance-custom-iteration-4-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "iterance-custom-iteration-4-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "iterance-custom-iteration-4-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -18520,18 +18520,18 @@
                   "code": "Iteration 5",
                   "children": [
                     {
-                      "key": "iterance-custom-iteration-5-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "iterance-custom-iteration-5-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "iterance-custom-iteration-5-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "iterance-custom-iteration-5-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -18544,18 +18544,18 @@
                   "code": "Iteration 6",
                   "children": [
                     {
-                      "key": "iterance-custom-iteration-6-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "iterance-custom-iteration-6-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "iterance-custom-iteration-6-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "iterance-custom-iteration-6-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -18568,18 +18568,18 @@
                   "code": "Iteration 7",
                   "children": [
                     {
-                      "key": "iterance-custom-iteration-7-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "iterance-custom-iteration-7-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "iterance-custom-iteration-7-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "iterance-custom-iteration-7-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
@@ -18592,18 +18592,18 @@
                   "code": "Iteration 8",
                   "children": [
                     {
-                      "key": "iterance-custom-iteration-8-off",
-                      "oled": "Off",
-                      "title": "Off",
-                      "code": "Off",
+                      "key": "iterance-custom-iteration-8-disabled",
+                      "oled": "Disabled",
+                      "title": "Disabled",
+                      "code": "Disabled",
                       "option": true,
                       "children": []
                     },
                     {
-                      "key": "iterance-custom-iteration-8-on",
-                      "oled": "On",
-                      "title": "On",
-                      "code": "On",
+                      "key": "iterance-custom-iteration-8-enabled",
+                      "oled": "Enabled",
+                      "title": "Enabled",
+                      "code": "Enabled",
                       "option": true,
                       "children": []
                     }
