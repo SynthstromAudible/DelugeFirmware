@@ -59,6 +59,14 @@ struct FolderImportRequest;
 
 namespace deluge::gui::ui {
 
+class SamplePreviewer;
+
+/// @brief The ported browser's preview. Its own previewer (the legacy browser keeps one too; only one browser is up at
+///        a time), recording each load's path as the last file loaded (`deluge::model::lastFilePathLoaded`), which
+///        both browsers open beside.
+/// @return The one previewer, made on first use.
+SamplePreviewer& shellPreviewer();
+
 /// @brief A chosen file split into a directory and a filename.
 ///
 /// This is `SampleBrowser::getCurrentFilePath()` run backwards: `currentDir`, a separator when

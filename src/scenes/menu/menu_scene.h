@@ -72,6 +72,9 @@ struct AutomationParam {
 	[[nodiscard]] constexpr bool operator==(const AutomationParam&) const = default;
 };
 
+/// @brief The `SceneKind` this scene is registered under: `FirstApp` (`registry.h`).
+inline constexpr deluge::ui::shell::SceneKind kMenuSceneKind = deluge::ui::shell::SceneKind::FirstApp;
+
 /// @brief The menu interpreter. One instance for the whole application (`registry.h`'s
 ///        `menu_scene()`).
 class MenuScene final : public deluge::ui::shell::Scene {

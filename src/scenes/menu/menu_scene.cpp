@@ -103,7 +103,7 @@ void MenuScene::open(const Node& root, const MenuContext& ctx) {
 }
 
 SceneKind MenuScene::kind() const {
-	return SceneKind::FirstApp;
+	return kMenuSceneKind;
 }
 
 std::span<const Node* const> MenuScene::roots() {

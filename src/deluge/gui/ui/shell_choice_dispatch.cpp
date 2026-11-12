@@ -283,12 +283,14 @@ void requestMidiDefinitionLoad(std::string_view path) {
 	}
 }
 
-/// @brief The ported browser's preview. Its own previewer (the legacy browser keeps one too; only one browser is up at
-///        a time), recording each load's path as legacy's browser's last file loaded, which both browsers open beside.
+} // namespace
+
 SamplePreviewer& shellPreviewer() {
 	static SamplePreviewer previewer{&deluge::model::lastFilePathLoaded()};
 	return previewer;
 }
+
+namespace {
 
 /// @brief The sound a ported preview is headed for: the menu's resolved sound and params (a kit row's, for a drum), and
 ///        for a kit its clip, whose output volume the preview folds in -- what the legacy browser reads from the sound

@@ -18,22 +18,18 @@
 #include "scenarios/sample_claim_scenario.h"
 
 #include "definitions_cxx.hpp"
-#include "gui/context_menu/sample_browser/kit.h"
-#include "gui/context_menu/sample_browser/synth.h"
-#include "gui/menu_item/file_selector.h"
-#include "gui/ui/browser/browser.h"
 #include "gui/ui/browser/folder_import.h"
-#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
+#include "gui/ui/browser/sample_preview.h"
 #include "gui/ui/load/instrument_load.h"
-#include "gui/ui/slicer.h"
-#include "gui/ui/sound_editor.h"
+#include "gui/ui/shell_choice_dispatch.h"
+#include "gui/ui/shell_host_ui.h"
+#include "gui/ui/slice_core.h"
 #include "gui/ui/ui.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/randomize_drums.h"
 #include "gui/views/session_view.h"
-#include "gui/waveform/waveform_basic_navigator.h"
 #include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/led/pad_leds.h"
@@ -60,9 +56,11 @@
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
+#include "scenarios/guest_drive.h"
 #include "scenarios/preset_fixture_loader.h"
 #include "scenarios/slot_coherence.h"
 #include "storage/audio/audio_file.h"
@@ -78,15 +76,19 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_slice_ops.h"
+#include "scenes/browser/browser_scene.h"
+#include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/nodes/sound_root.h"
 #include "scenes/registry.h"
 #include "scenes/slicing/slicer_scene.h"
+#include "util/shell_menu_entry.h"
 
 #include <cstdio>
 #include <iterator>
 #include <string>
+#include <string_view>
 #include <vector>
 
 // The GUI headers above reach `src/lib/printf.h`, which soft-aliases printf to an implementation this harness has no
@@ -158,10 +160,8 @@ constexpr const char* kSliceSample = "SAMPLES/SCSLICE.WAV";
 /// The ported slicer's stalled open: a file nothing has loaded, so its load reaches the held card.
 constexpr const char* kShellStallSample = "SAMPLES/SCSLCF.WAV";
 
-/// The one-drum kit presets the new-kit-track gesture loads: the kit leg's, then the manual slice leg's. The region
-/// slice leaves the first kit with four drums, and a slice indexes the drums it makes from the kit's first.
+/// The kit leg's one-drum kit preset, which the new-kit-track gesture loads.
 constexpr const char* kKitPresetPath = "KITS/SCKIT.XML";
-constexpr const char* kManualKitPresetPath = "KITS/SCKIT2.XML";
 /// The ported slicer's legs' one-drum kits, one each: every slice leaves its kit with the drums it made.
 constexpr const char* kShellKitPresetPaths[] = {"KITS/SCSKA.XML", "KITS/SCSKB.XML", "KITS/SCSKC.XML", "KITS/SCSKD.XML"};
 constexpr const char* kKitDrumName = "SCD1";
@@ -265,6 +265,9 @@ constexpr int32_t kManualSliceCount = 3;
 
 /// Scenario ticks a browser listing may take before it is called wedged.
 constexpr int32_t kMaxListingTicks = 20000;
+/// Steps a leg may take to bring the browser to its item (a favourite recalled, a folder left, a turn) before the
+/// browser is called lost.
+constexpr int32_t kMaxBrowseSteps = 4;
 /// Scenario ticks a claim or a slice may take before it is called wedged.
 constexpr int32_t kMaxLegTicks = 2000;
 /// Scenario ticks the stall leg's claim may take to give up before it is called wedged: far past its stall bound.
@@ -283,8 +286,6 @@ enum class Leg : uint8_t {
 	Pitch,
 	Kit,
 	AudioClip,
-	Slice,
-	SliceManual,
 	// The ported slicer's host, through the same SliceCore: a region slice, a manual slice, and BACK out of manual
 	// mode on a first drum that holds no file. Its held open is ShellSliceFail, with the other loader-hold legs.
 	ShellSlice,
@@ -306,7 +307,7 @@ enum class Leg : uint8_t {
 	ShellSliceFail,
 	Done
 };
-enum class Step : uint8_t { Prepare, Open, Listing, Select, SelectWait, PreviewWait, ResidentWait, Act, Wait };
+enum class Step : uint8_t { Prepare, Open, Listing, Select, PreviewWait, ResidentWait, Act, Wait };
 
 Leg g_leg = Leg::Synth;
 Step g_step = Step::Prepare;
@@ -314,6 +315,8 @@ bool g_stepDone = false;
 bool g_summaryPrinted = false;
 int32_t g_failures = 0;
 int32_t g_waitTicks = 0;
+/// The steps the current leg has taken to bring the browser to its item.
+int32_t g_browseSteps = 0;
 SoundInstrument* g_synth = nullptr;
 Clip* g_kitClip = nullptr;
 Clip* g_audioClip = nullptr;
@@ -431,10 +434,6 @@ const char* legName(Leg leg) {
 		return "kit";
 	case Leg::AudioClip:
 		return "audioclip";
-	case Leg::Slice:
-		return "slice";
-	case Leg::SliceManual:
-		return "slice-manual";
 	case Leg::ShellSlice:
 		return "shell-slice";
 	case Leg::ShellSliceManual:
@@ -631,13 +630,21 @@ bool writeSynthPreset(const char* path) {
 
 // ── Driving the browser ──────────────────────────────────────────────────────
 
-/// Tick the current UI while a browser listing runs, and say whether it still is. Nothing else in the headless harness
-/// ticks a browser.
+using deluge::harness::browserOnTop;
+using deluge::harness::guestBack;
+using deluge::harness::guestClose;
+using deluge::harness::guestLongPressSelect;
+using deluge::harness::guestPickOption;
+using deluge::harness::guestSelect;
+using deluge::harness::guestSelectedName;
+using deluge::harness::guestSelectedPath;
+using deluge::harness::guestTick;
+using deluge::harness::guestTop;
+
+/// Tick the guest while a browser listing runs, and say whether it still is.
 bool listingBusy() {
-	if (Browser::isListingInProgress()) {
-		getCurrentUI()->graphicsRoutine();
-	}
-	return Browser::isListingInProgress();
+	guestTick();
+	return deluge::scenes::browser::browser_scene().listing_in_flight();
 }
 
 /// Step a pad scroll the browser started (a preview's entry animation) to its end, as PadLEDs::timerRoutine() does on
@@ -652,16 +659,10 @@ void finishScroll() {
 	printf("SC-PROBE leg=%s scroll steps=%d modeAfter=%d\n", legName(g_leg), steps, currentUIMode);
 }
 
-/// The Select encoder's press and release on the current UI, as a user's short press delivers them.
-void pressSelect() {
-	using namespace deluge::hid::button;
-	(void)getCurrentUI()->buttonAction(SELECT_ENC, true);
-	(void)getCurrentUI()->buttonAction(SELECT_ENC, false);
-}
-
-/// Make @p clip current under @p rootUI, set the sound editor up on its first source's file selector, and open the
-/// sample browser: the gesture a user makes to pick a sample.
-bool openBrowser(const char* leg, Clip* clip, UI* rootUI, SoundDrum* drum = nullptr) {
+/// Make @p clip current under @p rootUI alone, with @p drum selected when one is given; a guest a leg before left open
+/// is closed first, as its user would close it.
+void frontClip(const char* leg, Clip* clip, UI* rootUI, SoundDrum* drum) {
+	guestClose();
 	currentSong->setCurrentClip(clip);
 	changeRootUI(rootUI);
 	if (drum != nullptr) {
@@ -673,18 +674,41 @@ bool openBrowser(const char* leg, Clip* clip, UI* rootUI, SoundDrum* drum = null
 		printf("SC-PROBE leg=%s rootOnTop=%d selected=%d\n", leg, getCurrentUI() == rootUI ? 1 : 0,
 		       kit->selectedDrum == drum ? 1 : 0);
 	}
-	const bool setup = soundEditor.setup(clip, &deluge::gui::menu_item::file0SelectorMenu, 0);
-	if (setup && clip->type != ClipType::AUDIO && soundEditor.currentMultiRange == nullptr
-	    && !soundEditor.currentSource->ranges.empty()) {
-		// A sound with several ranges sends its file selector to the range menu first; a user picks a range there
-		// before the browser opens, and the browser reads the range it opens on.
-		soundEditor.setCurrentMultiRange(0);
-		printf("SC-PROBE leg=%s rangePicked=0\n", leg);
+}
+
+/// Make @p clip current under @p rootUI and open the menu on its first source's file selector, whose hook pushes the
+/// browser: the gesture a user makes to pick a sample. The browser opens beside the file the source holds, or the
+/// last one loaded; the leg's Select step brings it to the leg's item from there.
+bool openBrowser(const char* leg, Clip* clip, UI* rootUI, SoundDrum* drum = nullptr) {
+	frontClip(leg, clip, rootUI, drum);
+	const bool opened =
+	    deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
+	                                   /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
+	                                   /*kitGlobalFx=*/false, deluge::gui::ui::ShellMenuNode::Osc0FileSelector);
+	for (int32_t t = 0; opened && t < 16 && !browserOnTop(); t++) {
+		guestTick();
+		if (t > 0 && guestTop(deluge::scenes::menu::kMenuSceneKind)) {
+			// A sound with several ranges sends its file selector to the range menu first; a user picks a range
+			// there before the browser opens, and the browser reads the range it opens on: the first row, range 0.
+			guestSelect();
+			printf("SC-PROBE leg=%s rangePicked=0\n", leg);
+		}
 	}
-	const bool opened = setup && openUI(&sampleBrowser);
-	printf("SC-SETUP leg=%s setup=%d opened=%d browserOnTop=%d\n", leg, setup ? 1 : 0, opened ? 1 : 0,
-	       getCurrentUI() == &sampleBrowser ? 1 : 0);
-	return opened || fail(leg, "the sample browser could not be opened");
+	printf("SC-SETUP leg=%s opened=%d browserOnTop=%d\n", leg, opened ? 1 : 0, browserOnTop() ? 1 : 0);
+	return browserOnTop() || fail(leg, "the sample browser could not be opened");
+}
+
+/// The sample the browser's preview holds once its load has landed, or null while it loads or holds none.
+Sample* previewedSample() {
+	if (deluge::gui::ui::shellPreviewer().pending()) {
+		return nullptr;
+	}
+	Source& source = AudioEngine::sampleForPreview->sources[0];
+	if (source.ranges.empty()) {
+		return nullptr;
+	}
+	AudioFile* file = static_cast<MultisampleRange*>(source.ranges.getElement(0))->sampleHolder.audioFile;
+	return (file != nullptr && file->type == AudioFileType::SAMPLE) ? static_cast<Sample*>(file) : nullptr;
 }
 
 /// Remember every randomizer row's path, so a row the gesture must leave alone can be shown to still hold it.
@@ -711,6 +735,7 @@ bool openRandomizeLeg(const char* leg, SoundDrum* drum) {
 	if (g_kitClip == nullptr || g_kitClip->output == nullptr || g_kitClip->output->type != OutputType::KIT) {
 		return fail(leg, "the randomizer kit clip is missing");
 	}
+	guestClose();
 	currentSong->setCurrentClip(g_kitClip);
 	changeRootUI(&instrumentClipView);
 	auto* kit = static_cast<Kit*>(g_kitClip->output);
@@ -1019,24 +1044,6 @@ void prepareLeg() {
 			printf("SC-PROBE leg=%s prepared kitClip=%d\n", legName(g_leg), g_kitClip != nullptr ? 1 : 0);
 		});
 		break;
-	case Leg::SliceManual:
-		buildFixture([] {
-			// A kit of its own: the region slice left the first with four drums.
-			const KitPresetDrum presetDrum{.name = kKitDrumName, .samplePath = kKitPresetSample};
-			if (writeKitPreset(kManualKitPresetPath, &presetDrum, 1)) {
-				g_kitClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 3, kManualKitPresetPath);
-			}
-			const SoundDrum* drum = kitDrum();
-			int32_t drums = 0;
-			if (g_kitClip != nullptr && g_kitClip->output != nullptr && g_kitClip->output->type == OutputType::KIT) {
-				for (Drum* d = static_cast<Kit*>(g_kitClip->output)->firstDrum; d != nullptr; d = d->next) {
-					drums++;
-				}
-			}
-			printf("SC-PROBE leg=slice-manual prepared kitClip=%d drums=%d name=%s\n", g_kitClip != nullptr ? 1 : 0,
-			       drums, drum != nullptr ? drum->name().c_str() : "");
-		});
-		break;
 	default:
 		break;
 	}
@@ -1079,13 +1086,19 @@ bool openLeg() {
 		armPitchLeg(kPitchStallHoldMs);
 		return openBrowserOnSynth("pitch-stall", OscType::SAMPLE);
 	case Leg::Kit:
-	case Leg::Slice:
-	case Leg::SliceManual:
+		return openBrowserOnKitDrum(legName(g_leg));
 	case Leg::ShellSlice:
 	case Leg::ShellSliceManual:
 	case Leg::ShellSliceBack:
-	case Leg::ShellSliceFail:
-		return openBrowserOnKitDrum(legName(g_leg));
+	case Leg::ShellSliceFail: {
+		// No browser: the ported slicer's host opens the slicer on the file itself, for the kit's first drum.
+		SoundDrum* drum = kitDrum();
+		if (drum == nullptr) {
+			return fail(legName(g_leg), "the kit clip has no sound drum");
+		}
+		frontClip(legName(g_leg), g_kitClip, &instrumentClipView, drum);
+		return true;
+	}
 	case Leg::RandomizeOne:
 		// The first drum, as a user selects a row before randomizing just that one.
 		return openRandomizeLeg("randomize-one", kitDrum());
@@ -1193,13 +1206,11 @@ const char* legFile() {
 	case Leg::ImportGate:
 		return kImportGateFile;
 	case Leg::ImportEmpty:
-		return kKitPresetSample; // the browser opens on the kit's own file, in memory since the kit loaded
+		return kImportEmptyFolder; // the folder item itself, which the kit menu's Load All imports
 	case Leg::ImportStall:
 		return kImportStallKept;
 	case Leg::AudioClip:
 		return kClipSample;
-	case Leg::Slice:
-	case Leg::SliceManual:
 	case Leg::ShellSlice:
 	case Leg::ShellSliceManual:
 	case Leg::ShellSliceBack:
@@ -1219,7 +1230,6 @@ const char* legFile() {
 	return "";
 }
 
-/// The claim's Select press, or for the slice leg the slicer opened on the selected file and its commit.
 /// Whether the current leg is one of the randomizer legs.
 bool isRandomize() {
 	return g_leg == Leg::RandomizeOne || g_leg == Leg::RandomizeAll || g_leg == Leg::RandomizeGate
@@ -1334,16 +1344,12 @@ void tickImportGate() {
 	if (!g_imGateWhileRunning) {
 		return;
 	}
-	using namespace deluge::hid::button;
-	auto& menu = deluge::gui::context_menu::sample_browser::kit;
 	// Requests that reached the import: what the gate stops. (A listing count cannot tell -- a second import would not
 	// have listed yet in this window.)
 	const int32_t requestsBefore = deluge::gui::folderImport.requestsReceived();
-	(void)getCurrentUI()->buttonAction(BACK, true);
-	(void)getCurrentUI()->buttonAction(BACK, false);
-	g_imGateBackRefused = getCurrentUI() == &menu;
-	(void)getCurrentUI()->buttonAction(SELECT_ENC, true);
-	(void)getCurrentUI()->buttonAction(SELECT_ENC, false);
+	guestBack();
+	g_imGateBackRefused = guestTop(deluge::scenes::context_menu::kContextMenuSceneKind);
+	guestSelect();
 	g_imGateSecondRefused = deluge::gui::folderImport.requestsReceived() == requestsBefore;
 }
 
@@ -1363,16 +1369,32 @@ void pressRandomize(bool affectEntire) {
 	(void)Buttons::buttonAction(LOAD, false);
 }
 
+/// The completion the empty import leg's request came with, which the leg's own completion passes the end on to.
+void (*g_imEmptyCompletion)(bool success) = nullptr;
+
+void emptyImportDone(bool success) {
+	g_imEmptyTold = true;
+	g_imEmptySucceeded = success;
+	if (g_imEmptyCompletion != nullptr) {
+		g_imEmptyCompletion(success);
+	}
+}
+
+/// The empty import leg's folder import, requested as the browser asked for it with the leg's completion in front.
+void observeEmptyImport(deluge::gui::FolderImportRequest request) {
+	g_imEmptyCompletion = request.completion;
+	request.completion = &emptyImportDone;
+	printf("SC-PROBE leg=import-empty requested folder=%s\n", request.folder.c_str());
+	deluge::gui::folderImport.request(std::move(request));
+}
+
 void actShellSlice() {
-	// The ported route needs no legacy browser: it was opened only to reach the kit's drum, and closing it gives back
-	// its listing's handles, as a legacy slice's exit does.
-	sampleBrowser.exitAndNeverDeleteDrum();
 	g_shellCommitBegun = false;
 	g_shellEnded = false;
 	g_shellBackKept = false;
 	g_teardownHeld = g_teardownRootKept = g_teardownDropped = g_nextHeld = false;
 	g_nextHeldThrough = true;
-	// What the ported menu edits: the kit's drum, as the browser it was opened from names it.
+	// What the ported menu edits: the kit's drum, as the clip view selected it.
 	const deluge::scenes::menu::MenuContext ctx = deluge::scenes::menu::context_for(
 	    *currentSong, deluge::gui::menuViewOf(g_kitClip), 0, false, false, false, /*kit_global_fx=*/false);
 	deluge::scenes::menu_scene().open(deluge::scenes::menu::nodes::sound_root, ctx);
@@ -1532,11 +1554,16 @@ void actLeg() {
 	g_finishesBefore = deluge::gui::sampleClaim.finishes();
 	if (isSupersede()) {
 		using namespace deluge::hid::button;
-		// Auto-load on (the Load button toggles it as it is released), then the file's preview asked for again, as the
-		// cursor arriving on it asks: its landing asks for the auto-load claim.
+		// Auto-load on (the Load button toggles it as it is released), then the cursor brought onto the file again by
+		// its favourite: the preview of it that lands asks for the auto-load claim.
 		g_supersedeFired = false;
-		(void)getCurrentUI()->buttonAction(LOAD, false);
-		sampleBrowser.previewFile(legFile(), 0);
+		deluge::harness::guestPress(LOAD);
+		const bool recalled = deluge::harness::guestRecallFavourite(legFile());
+		printf("SC-PROBE leg=%s autoLoad=%d recalled=%d\n", legName(g_leg),
+		       deluge::scenes::browser::browser_scene().auto_load() ? 1 : 0, recalled ? 1 : 0);
+		if (!recalled) {
+			fail(legName(g_leg), "the leg's file could not be recalled with auto-load on");
+		}
 		return;
 	}
 	if (g_leg == Leg::CancelLoading) {
@@ -1544,48 +1571,40 @@ void actLeg() {
 		g_cancelLoadingFired = false;
 		g_cancelLoadingInFlight = false;
 		g_cancelLoadingTicks = 0;
-		// The legacy browser's request: the sound its editor resolved, and its own tail.
+		// The ported browser's auto-load request (`dispatchShellChoices`): the sound its menu resolved, no completion.
 		deluge::gui::sampleClaim.request({.path = legFile(),
 		                                  .loadWithoutExiting = true,
 		                                  .origin = deluge::gui::ClaimOrigin::AutoLoad,
-		                                  .target = soundEditor.soundTarget(),
-		                                  .legacyFinish = &SampleBrowser::finishLegacyClaim});
+		                                  .target = deluge::gui::ui::shellMenuTarget()});
 		return;
 	}
 	if (g_leg == Leg::Gate) {
-		const auto selected = [] {
-			const FileItem* item = sampleBrowser.getCurrentFileItem();
-			return std::string{item != nullptr ? item->filename.c_str() : ""};
-		};
-		const std::string before = selected();
-		pressSelect();
+		const std::string before = guestSelectedName();
+		guestSelect();
 		// Browser input while the claim is in flight: the select encoder, turned back one file.
-		getCurrentUI()->selectEncoderAction(-1);
-		const std::string after = selected();
+		shellHostUI.selectEncoderAction(-1);
+		guestTick();
+		const std::string after = guestSelectedName();
 		g_gateMoved = (after != before);
-		printf("SC-PROBE leg=gate before=%s after=%s\n", before.c_str(), after.c_str());
+		printf("SC-PROBE leg=gate before=%s after=%s claimOut=%d\n", before.c_str(), after.c_str(),
+		       deluge::gui::sampleClaim.explicitInFlight() ? 1 : 0);
 		return;
 	}
 	if (g_leg == Leg::ImportEmpty) {
-		// The kit menu's Load All on a folder item, as `sampleBrowser` snapshots it (`FolderImportRequest::folder` is
-		// the item when it is a folder); the menu's own path to the request is the import kit leg's.
+		// The kit menu's Load All on the folder item the cursor is on, as a user asks for it; the request goes out
+		// through the scenario, which hears how it ended.
 		g_imEmptyTold = false;
 		g_imEmptySucceeded = false;
-		const FileItem* item = sampleBrowser.getCurrentFileItem();
-		deluge::gui::folderImport.request({.kind = deluge::gui::FolderImportKind::Kit,
-		                                   .folder = kImportEmptyFolder,
-		                                   .previouslyViewedFilename = item != nullptr ? item->filename.c_str() : "",
-		                                   .completion =
-		                                       [](bool success) {
-			                                       g_imEmptyTold = true;
-			                                       g_imEmptySucceeded = success;
-		                                       },
-		                                   .target = soundEditor.soundTarget()});
-		printf("SC-SETUP leg=import-empty inFlight=%d\n", deluge::gui::folderImport.inFlight() ? 1 : 0);
+		deluge::gui::ui::setFolderImportDispatch(&observeEmptyImport);
+		guestLongPressSelect();
+		const bool menuOnTop = guestTop(deluge::scenes::context_menu::kContextMenuSceneKind);
+		const bool picked = guestPickOption(kImportOption);
+		deluge::gui::ui::setFolderImportDispatch(nullptr);
+		printf("SC-SETUP leg=import-empty menuOnTop=%d picked=%d inFlight=%d\n", menuOnTop ? 1 : 0, picked ? 1 : 0,
+		       deluge::gui::folderImport.inFlight() ? 1 : 0);
 		return;
 	}
 	if (isImport()) {
-		using namespace deluge::hid::button;
 		g_importMark = markImport();
 		g_imGateTried = false;
 		g_imGateWhileRunning = false;
@@ -1599,73 +1618,33 @@ void actLeg() {
 			deluge_audio_load_set_latency_ms(kStallHoldMs);
 		}
 		// A long press on Select opens the context menu for the kind of instrument the browser is choosing for.
-		(void)getCurrentUI()->buttonAction(SELECT_ENC, true);
-		(void)static_cast<UI&>(sampleBrowser).timerCallback();
-		deluge::gui::ContextMenu* menu =
-		    (g_leg == Leg::ImportKit || g_leg == Leg::ImportGate)
-		        ? static_cast<deluge::gui::ContextMenu*>(&deluge::gui::context_menu::sample_browser::kit)
-		        : &deluge::gui::context_menu::sample_browser::synth;
-		const bool menuOnTop = getCurrentUI() == menu;
-		menu->currentOption = kImportOption;
+		guestLongPressSelect();
+		const bool menuOnTop = guestTop(deluge::scenes::context_menu::kContextMenuSceneKind);
 		printf("SC-SETUP leg=%s menuOnTop=%d\n", legName(g_leg), menuOnTop ? 1 : 0);
-		(void)getCurrentUI()->buttonAction(SELECT_ENC, true);
+		(void)guestPickOption(kImportOption);
 		return;
 	}
 	if (g_leg == Leg::WaveTable || g_leg == Leg::WaveTableResident || g_leg == Leg::WaveTableConverted) {
-		using namespace deluge::hid::button;
-		// A long press on Select: the press, then what the UI timer's callback does once it has been held.
-		(void)getCurrentUI()->buttonAction(SELECT_ENC, true);
-		(void)static_cast<UI&>(sampleBrowser).timerCallback();
-		auto& menu = deluge::gui::context_menu::sample_browser::synth;
-		const bool menuOnTop = getCurrentUI() == &menu;
-		menu.currentOption = kWaveTableOption;
+		guestLongPressSelect();
+		const bool menuOnTop = guestTop(deluge::scenes::context_menu::kContextMenuSceneKind);
 		printf("SC-SETUP leg=%s menuOnTop=%d\n", legName(g_leg), menuOnTop ? 1 : 0);
-		(void)getCurrentUI()->buttonAction(SELECT_ENC, true);
+		(void)guestPickOption(kWaveTableOption);
 		return;
 	}
-	if (g_leg == Leg::SliceManual) {
-		using namespace deluge::hid::button;
-		const bool opened = openUI(&slicer);
-		// The mode button, as a user switches the slicer to manual; the points as pad presses on a playing voice add
-		// them, which a scenario cannot sound.
-		(void)slicer.buttonAction(X_ENC, true);
-		for (int32_t i = 0; i < kManualSliceCount; i++) {
-			slicer.manualSlicePoints[i] = kManualSlices[i];
-		}
-		slicer.numManualSlice = kManualSliceCount;
-		slicer.currentSlice = 0;
-		printf("SC-SETUP leg=slice-manual slicerOpened=%d slicerOnTop=%d manual=%d\n", opened ? 1 : 0,
-		       getCurrentUI() == &slicer ? 1 : 0, slicer.slicerMode == SLICER_MODE_MANUAL ? 1 : 0);
-		// A slice auditioned and released before its load lands: the row named the slicer's file for the audition,
-		// and its record and slot say what it holds once the release drops the load.
-		const int32_t failuresBefore = g_failures;
-		deluge_audio_load_set_latency_ms(kGateHoldMs);
-		slicer.preview(0, -1, 0, 1);
-		slicer.preview(0, -1, 0, 0);
-		deluge_audio_load_set_latency_ms(0);
-		g_failures += deluge::harness::expectSongCoherent(*currentSong, "slice-audition-release");
-		printf("SC-PROBE leg=slice-manual auditionReleased coherent=%d\n", g_failures == failuresBefore ? 1 : 0);
-		(void)slicer.buttonAction(SELECT_ENC, true);
-		// The live points change before the slice runs, as an encoder turn or a pad press can while its load is out:
-		// the drums must still be painted from the points as they were when Select was pressed.
-		slicer.manualSlicePoints[0].transpose = 24;
-		slicer.manualSlicePoints[1].startPos = 5;
-		slicer.numManualSlice = 1;
-		return;
-	}
-	if (g_leg != Leg::Slice) {
-		pressSelect();
-		return;
-	}
-	// What the browser's Shift+Select does for a brand-new kit (see SampleBrowser::enterKeyPress).
-	const bool opened = openUI(&slicer);
-	slicer.numClips = kSliceRegions;
-	printf("SC-SETUP leg=slice slicerOpened=%d slicerOnTop=%d\n", opened ? 1 : 0, getCurrentUI() == &slicer ? 1 : 0);
-	using namespace deluge::hid::button;
-	(void)slicer.buttonAction(SELECT_ENC, true);
+	guestSelect();
 }
 
-/// Whether the leg's claim or slice has ended: a claim that succeeds closes the browser, and a slice closes the slicer.
+/// The file the randomizer's stall leg's second row was given, whose load the loader holds: any file of its folder,
+/// as the randomizer picks one at random.
+std::string randomizeStallHeldPath() {
+	Drum* first = static_cast<Kit*>(g_kitClip->output)->firstDrum;
+	Drum* second = (first != nullptr) ? first->next : nullptr;
+	AudioFileHolder* holder = (second != nullptr) ? firstHolder(static_cast<SoundDrum*>(second)->sources[0]) : nullptr;
+	return (holder != nullptr) ? holder->filePath : std::string{kRandomizeStallSample};
+}
+
+/// Whether the leg's claim or slice has ended: a claim that succeeds closes the browser, and a slice lets go of the
+/// slicer's loads.
 bool legEnded() {
 	if (g_leg == Leg::CancelLoading) {
 		return g_cancelLoadingFired && !deluge::gui::sampleClaim.inFlight();
@@ -1674,13 +1653,15 @@ bool legEnded() {
 		return g_imGateTried && currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	}
 	if (g_leg == Leg::ImportEmpty) {
-		// Told either way: an abort tells the completion too, and leaves the browser open.
-		return g_imEmptyTold && currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+		// Told either way: an abort tells the completion too, and leaves the browser open. A success closes the guest
+		// onto the clip view.
+		return g_imEmptyTold && currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES
+		       && (!g_imEmptySucceeded || !isUIOpen(&shellHostUI));
 	}
 	if (g_leg == Leg::ImportStall) {
 		// An import that aborts closes just the menu and releases the gate; one that finishes closes the browser too.
 		return currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES
-		       && getCurrentUI() != &deluge::gui::context_menu::sample_browser::synth;
+		       && !guestTop(deluge::scenes::context_menu::kContextMenuSceneKind);
 	}
 	if (g_leg == Leg::RandomizeCancelScan) {
 		// Every round releases the gate as it cancels, so the mode says nothing until the ordinary randomize the
@@ -1692,24 +1673,21 @@ bool legEnded() {
 		// once its presses have been tried. The stall leg's walk gives up on a load the loader still holds under the
 		// leg's latency; the loader is single-flight, so that load has to finish before the next leg's own can start.
 		return (g_leg != Leg::RandomizeGate || g_rdGateTried) && currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES
-		       && (g_leg != Leg::RandomizeStall || deluge_audio_load_can_progress(kRandomizeStallSample));
+		       && (g_leg != Leg::RandomizeStall || deluge_audio_load_can_progress(randomizeStallHeldPath().c_str()));
 	}
 	if (isSupersede()) {
 		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
 		return g_supersedeFired && !deluge::gui::sampleClaim.inFlight() && holder != nullptr
 		       && holder->audioFile != nullptr && holder->filePath == supersedeSecond();
 	}
-	if (g_leg == Leg::Slice || g_leg == Leg::SliceManual) {
-		return !isUIOpen(&slicer);
-	}
 	if (isShellSlice()) {
 		return g_shellEnded;
 	}
 	if (g_leg == Leg::Stall) {
 		// A claim that gives up leaves the browser open and releases the gate; one that binds closes the browser.
-		return !isUIOpen(&sampleBrowser) || currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+		return !browserOnTop() || currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	}
-	return !isUIOpen(&sampleBrowser);
+	return !browserOnTop();
 }
 
 /// The region slice's end: @p marker reports the kit's drums, how many are bound to the sliced sample, and the
@@ -1797,8 +1775,8 @@ void checkLeg() {
 	case Leg::Synth: {
 		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
-		// The legacy browser's own tail (`SampleBrowser::finishLegacyClaim`) closes it once its claim lands.
-		const bool browserClosed = !isUIOpen(&sampleBrowser);
+		// The browser closes itself once its claim lands (`shellSampleClaimDone`).
+		const bool browserClosed = !browserOnTop();
 		printf("SC-SYNTH bound=%d path=%s osc=%d repeat=%d transpose=%d browserClosed=%d ticks=%d\n", bound ? 1 : 0,
 		       holder != nullptr ? holder->filePath.c_str() : "", static_cast<int>(g_synth->sources[0].oscType),
 		       static_cast<int>(g_synth->sources[0].repeatMode),
@@ -1809,7 +1787,7 @@ void checkLeg() {
 			g_failures++;
 		}
 		if (!browserClosed) {
-			printf("SC-SYNTH FAIL the legacy browser stayed open after its claim\n");
+			printf("SC-SYNTH FAIL the browser stayed open after its claim\n");
 			g_failures++;
 		}
 		break;
@@ -1835,7 +1813,7 @@ void checkLeg() {
 		deluge_audio_load_set_latency_ms(0);
 		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
-		const bool browserOpen = isUIOpen(&sampleBrowser);
+		const bool browserOpen = browserOnTop();
 		const bool released = (currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES);
 		const int32_t giveUps = deluge::gui::sampleClaim.giveUps() - g_giveUpsBefore;
 		printf("SC-STALL bound=%d browserOpen=%d released=%d giveUps=%d ticks=%d\n", bound ? 1 : 0, browserOpen ? 1 : 0,
@@ -1870,7 +1848,7 @@ void checkLeg() {
 			printf("SC-CANCEL-LOADING FAIL the auto-load claim had ended before the browser's exit could cancel it\n");
 			g_failures++;
 		}
-		sampleBrowser.exitAndNeverDeleteDrum();
+		guestClose();
 		break;
 	case Leg::Supersede:
 	case Leg::SupersedeLoading: {
@@ -1893,8 +1871,11 @@ void checkLeg() {
 			g_failures++;
 		}
 		// Auto-load off again, and out of the browser, which auto-load leaves open.
-		(void)getCurrentUI()->buttonAction(deluge::hid::button::LOAD, false);
-		sampleBrowser.exitAndNeverDeleteDrum();
+		deluge::harness::guestHideKeyboard();
+		if (browserOnTop()) {
+			deluge::harness::guestPress(deluge::hid::button::LOAD);
+		}
+		guestClose();
 		break;
 	}
 	case Leg::WaveTableConverted: {
@@ -2010,9 +1991,6 @@ void checkLeg() {
 		}
 		break;
 	}
-	case Leg::Slice:
-		checkRegionSlice("SC-SLICE");
-		break;
 	case Leg::ShellSlice:
 		checkRegionSlice("SC-SHELL-SLICE");
 		printf("SC-SHELL-SLICE teardown held=%d rootOnly=%d dropped=%d next held=%d heldThrough=%d pending=%d\n",
@@ -2036,9 +2014,6 @@ void checkLeg() {
 			g_failures++;
 		}
 		playbackHandler.nextSongPending_ = false;
-		break;
-	case Leg::SliceManual:
-		checkManualSlice("SC-SLICE-MANUAL");
 		break;
 	case Leg::ShellSliceManual:
 		checkManualSlice("SC-SHELL-SLICE-MANUAL");
@@ -2073,7 +2048,7 @@ void checkLeg() {
 		for (Drum* drum = static_cast<Kit*>(g_importGateClip->output)->firstDrum; drum != nullptr; drum = drum->next) {
 			drums++;
 		}
-		const bool completed = drums == kImportGateCount && !isUIOpen(&sampleBrowser);
+		const bool completed = drums == kImportGateCount && !browserOnTop();
 		printf("IM-GATE whileRunning=%d secondRefused=%d backRefused=%d released=%d completed=%d ticks=%d\n",
 		       g_imGateWhileRunning ? 1 : 0, g_imGateSecondRefused ? 1 : 0, g_imGateBackRefused ? 1 : 0,
 		       released ? 1 : 0, completed ? 1 : 0, g_waitTicks);
@@ -2098,7 +2073,7 @@ void checkLeg() {
 		for (Drum* drum = static_cast<Kit*>(g_importEmptyClip->output)->firstDrum; drum != nullptr; drum = drum->next) {
 			drums++;
 		}
-		const bool browserClosed = !isUIOpen(&sampleBrowser);
+		const bool browserClosed = !browserOnTop();
 		const bool onClipView = getCurrentUI() == &instrumentClipView;
 		const bool released = currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 		printf("IM-EMPTY succeeded=%d drums=%d browserClosed=%d onClipView=%d released=%d listings=%d\n",
@@ -2124,8 +2099,8 @@ void checkLeg() {
 			reasonsKept =
 			    reasonsKept && g_imStallKept[i] != nullptr && g_imStallKept[i]->leaseCount() == g_imStallKeptLeases[i];
 		}
-		const bool menuClosed = !isUIOpen(&deluge::gui::context_menu::sample_browser::synth);
-		const bool browserOpen = isUIOpen(&sampleBrowser);
+		const bool menuClosed = !guestTop(deluge::scenes::context_menu::kContextMenuSceneKind);
+		const bool browserOpen = browserOnTop();
 		const bool released = currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 		// How the import ended: on the async sample load's stall bound, not on some other failure.
 		printf("SC-PROBE leg=import-stall giveUps=%d\n", deluge::gui::folderImport.giveUps());
@@ -2156,7 +2131,7 @@ void checkLeg() {
 			printf("IM-TIER FAIL leg=%s no folder listing ran at all\n", legName(g_leg));
 			g_failures++;
 		}
-		const bool browserClosed = !isUIOpen(&sampleBrowser);
+		const bool browserClosed = !browserOnTop();
 		if (g_leg == Leg::ImportKit) {
 			auto* kit = static_cast<Kit*>(g_importKitClip->output);
 			int32_t drums = 0;
@@ -2211,18 +2186,15 @@ void checkLeg() {
 					matched++;
 				}
 			}
-			// The legacy editor is left on the middle range, as the import tells its opener (`rangeChosen`).
-			const int32_t editorRange =
-			    soundEditor.currentMultiRangeIndex >= 0 && soundEditor.currentMultiRangeIndex < ranges
-			            && soundEditor.currentMultiRange == source.ranges.getElement(soundEditor.currentMultiRangeIndex)
-			        ? soundEditor.currentMultiRangeIndex
-			        : -1;
+			// The menu is left on the middle range, as the import tells its opener (`rangeChosen`).
+			const int32_t menuRange = deluge::scenes::menu_scene().menu_context().range_index;
+			const int32_t editorRange = menuRange >= 0 && menuRange < ranges ? menuRange : -1;
 			printf(
 			    "IM-MULTI ranges=%d matched=%d repeat=%d osc=%d edited=%d browserClosed=%d editorRange=%d ticks=%d\n",
 			    ranges, matched, static_cast<int>(source.repeatMode), static_cast<int>(source.oscType),
 			    synth->editedByUser ? 1 : 0, browserClosed ? 1 : 0, editorRange, g_waitTicks);
 			if (editorRange != kImportMultiCount / 2) {
-				printf("IM-MULTI FAIL the legacy editor was not left on the middle range\n");
+				printf("IM-MULTI FAIL the menu was not left on the middle range\n");
 				g_failures++;
 			}
 			if (ranges != kImportMultiCount || matched != kImportMultiCount
@@ -2397,22 +2369,20 @@ void checkLeg() {
 /// One tick of a supersede leg: the browser ticked, and the moment the first auto-load claim's pitch detection is out,
 /// the cursor moved on to the second file, which cancels that claim.
 void tickSupersede() {
-	sampleBrowser.graphicsRoutine();
 	if (g_supersedeFired || !deluge::gui::sampleClaim.pitchPending()) {
 		return;
 	}
 	g_supersedeFired = true;
-	if (g_leg == Leg::Supersede) {
-		// In memory, so its preview lands in this same tick with the detection still waiting for its cluster -- as on
-		// the device, where detection reads the card for longer than a graphics tick -- and asks for the next claim at
-		// once.
-		sampleBrowser.previewFile(kSupersedeLanded, 0);
-		sampleBrowser.graphicsRoutine();
-	}
-	else {
+	if (g_leg == Leg::SupersedeLoading) {
 		// Its preview held: the claim the cursor left must go now, not when this preview lands.
 		deluge_audio_load_set_latency_ms(kSupersedeHoldMs);
-		sampleBrowser.previewFile(kSupersedeLoading, 0);
+	}
+	// The landed leg's second file is in memory, so its preview lands in the turn's own tick with the detection still
+	// waiting for its cluster -- as on the device, where detection reads the card for longer than a graphics tick --
+	// and asks for the next claim at once.
+	const std::string_view second = supersedeSecond();
+	if (!deluge::harness::guestTurnTo(second.substr(second.rfind('/') + 1))) {
+		fail(legName(g_leg), "the cursor could not be moved onto the second file");
 	}
 }
 
@@ -2422,7 +2392,7 @@ void tickCancelLoading() {
 		return;
 	}
 	g_cancelLoadingInFlight = deluge::gui::sampleClaim.inFlight();
-	sampleBrowser.cancelPreview();
+	guestBack();
 	g_cancelLoadingFired = true;
 }
 
@@ -2465,6 +2435,49 @@ void tickRandomizeCancel() {
 	deluge_file_directory_set_latency_ms(0);
 	pressRandomize(/*affectEntire=*/false);
 	g_rdCancelFinalPressed = true;
+}
+
+/// Whether the leg's item is a folder, which no favourite can hold (a favourite names a file).
+bool legItemIsFolder() {
+	return g_leg == Leg::ImportEmpty;
+}
+
+/// The file a leg's favourite holds: the leg's own, or for a folder item a file in the folder beside it, whose own
+/// folder BACK leaves for the one the item is in.
+const char* recallFile() {
+	return legItemIsFolder() ? kImportKitFile : legFile();
+}
+
+/// One step of bringing the browser to the leg's item, which it opened beside the file the sound holds: a favourite
+/// holding the file recalled, and for a folder item BACK out of the file's folder and a turn onto the item.
+/// @return Whether the leg is done with it, the browser on the item or never to get there; false while a step waits, or
+///         after one that started a listing (the step goes back to the listing wait).
+bool landStep() {
+	const std::string target = legFile();
+	if (guestSelectedPath() == target || g_browseSteps >= kMaxBrowseSteps) {
+		return true;
+	}
+	const std::string_view dir = std::string_view{target}.substr(0, target.rfind('/'));
+	const std::string_view current = deluge::scenes::browser::browser_scene().current_dir();
+	if (legItemIsFolder() && current == dir
+	    && deluge::harness::guestTurnTo(std::string_view{target}.substr(dir.size() + 1))) {
+		g_browseSteps++;
+		return true;
+	}
+	if (legItemIsFolder() && current.size() > dir.size() && current.starts_with(dir) && current[dir.size()] == '/') {
+		g_browseSteps++;
+		guestBack();
+		g_step = Step::Listing;
+		return false;
+	}
+	if (!deluge::harness::guestRecallFavourite(recallFile())) {
+		// The favourites bank is still loading.
+		return ++g_waitTicks > kMaxLegTicks;
+	}
+	g_browseSteps++;
+	g_waitTicks = 0;
+	g_step = Step::Listing;
+	return false;
 }
 
 void nextLeg() {
@@ -2512,16 +2525,17 @@ void runTick() {
 			break;
 		}
 		g_waitTicks = 0;
+		g_browseSteps = 0;
 		if (openLeg()) {
-			// The randomizer legs press a pad in the clip view: no listing, no file to select, no preview to draw.
-			g_step = isRandomize() ? Step::Act : Step::Listing;
+			// The randomizer legs press a pad in the clip view, and the ported slicer's host opens the file itself: no
+			// listing, no file to select, no preview to draw.
+			g_step = (isRandomize() || isShellSlice()) ? Step::Act : Step::Listing;
 		}
 		else {
 			nextLeg();
 		}
 		break;
 	case Step::Listing:
-	case Step::SelectWait:
 		if (listingBusy()) {
 			if (++g_waitTicks > kMaxListingTicks) {
 				fail(legName(g_leg), "a browser listing never finished");
@@ -2529,39 +2543,47 @@ void runTick() {
 			}
 			break;
 		}
-		if (g_step == Step::Listing) {
-			g_step = Step::Select;
+		g_waitTicks = 0;
+		g_step = Step::Select;
+		break;
+	case Step::Select: {
+		if (!landStep()) {
 			break;
 		}
-		printf("SC-SELECT leg=%s file=%s/%s\n", legName(g_leg), Browser::currentDir.c_str(),
-		       sampleBrowser.getCurrentFileItem() != nullptr ? sampleBrowser.getCurrentFileItem()->filename.c_str()
-		                                                     : "");
+		deluge::harness::guestHideKeyboard();
+		const std::string selected = guestSelectedPath();
+		printf("SC-SELECT leg=%s file=%s steps=%d\n", legName(g_leg), selected.c_str(), g_browseSteps);
+		if (selected != legFile()) {
+			fail(legName(g_leg), "the browser could not be brought to the leg's item");
+			nextLeg();
+			break;
+		}
 		g_waitTicks = 0;
 		// The resident-wavetable leg claims a file the preview has made resident as a Sample.
-		g_step = (g_leg == Leg::Slice || g_leg == Leg::SliceManual || isSupersede() || g_leg == Leg::WaveTableResident
-		          || g_leg == Leg::WaveTableConverted)
+		g_step = (isSupersede() || g_leg == Leg::WaveTableResident || g_leg == Leg::WaveTableConverted)
 		             ? Step::PreviewWait
 		             : Step::Act;
 		break;
+	}
 	case Step::PreviewWait: {
-		// The slicer draws the browser's previewed waveform, so a user opens it only once the preview shows the file.
-		const Sample* drawn = waveformBasicNavigator.sample;
-		if (drawn != nullptr && drawn->filePath == legFile()) {
-			printf("SC-PROBE leg=%s preview drawn ticks=%d\n", legName(g_leg), g_waitTicks);
+		// The legs that claim a previewed file wait for the browser's preview of it to land.
+		const Sample* landed = previewedSample();
+		if (landed != nullptr && landed->filePath == legFile()) {
+			printf("SC-PROBE leg=%s preview landed ticks=%d\n", legName(g_leg), g_waitTicks);
 			g_step = (g_leg == Leg::WaveTableConverted) ? Step::ResidentWait : Step::Act;
 			g_waitTicks = 0;
 			break;
 		}
-		sampleBrowser.graphicsRoutine();
+		guestTick();
 		if (++g_waitTicks > kMaxLegTicks) {
-			fail(legName(g_leg), "the browser's preview never drew the file");
+			fail(legName(g_leg), "the browser's preview never landed on the file");
 			nextLeg();
 		}
 		break;
 	}
 	case Step::ResidentWait: {
 		// The converted leg claims a file every cluster of which is cached: ask for each until all are there at once.
-		Sample* previewed = waveformBasicNavigator.sample;
+		Sample* previewed = previewedSample();
 		if (previewed != nullptr && previewed->filePath == legFile() && acquireAllClusters(*previewed)) {
 			printf("SC-PROBE leg=%s fully resident ticks=%d\n", legName(g_leg), g_waitTicks);
 			g_step = Step::Act;
@@ -2573,17 +2595,17 @@ void runTick() {
 		}
 		break;
 	}
-	case Step::Select:
-		(void)sampleBrowser.setFileByFullPath(OutputType::NONE, legFile());
-		g_waitTicks = 0;
-		g_step = Step::SelectWait;
-		break;
 	case Step::Act:
 		actLeg();
 		g_waitTicks = 0;
 		g_step = Step::Wait;
 		break;
 	case Step::Wait:
+		// The guest's own clock: a scene files what its load's end asks for (a browser closing) from its render, which
+		// a frozen clock never asks for.
+		if (isUIOpen(&shellHostUI)) {
+			guestTick();
+		}
 		if (isSupersede()) {
 			tickSupersede();
 		}
@@ -2606,10 +2628,6 @@ void runTick() {
 		}
 		if (isShellSlice()) {
 			tickShellSlice();
-		}
-		if ((g_leg == Leg::Slice || g_leg == Leg::SliceManual) && getCurrentUI() == &slicer) {
-			// The slice ends on the slicer's graphics routine: ticked here, as the preview wait ticks the browser's.
-			slicer.graphicsRoutine();
 		}
 		if (legEnded()
 		    || ++g_waitTicks > ((g_leg == Leg::Stall || g_leg == Leg::RandomizeStall || g_leg == Leg::ImportStall
