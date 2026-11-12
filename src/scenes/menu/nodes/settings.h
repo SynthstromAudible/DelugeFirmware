@@ -37,7 +37,7 @@
 ///               port hold separately; `tables_3_spec.cpp`'s `value_is_port_owned` says so.
 ///           `battery_level` and `firmware_version` do not reach behind the `hid/` wall either --
 ///           `batteryMV` is a plain global set from `deluge.cpp`'s main loop, the same one
-///           `sound_editor.cpp:1458` reads with its own bare `extern` -- so they are real, finished
+///           `sound_editor.cpp` reads with its own bare `extern` -- so they are real, finished
 ///           `CustomItem`s; see "12-13. Battery and firmware" below.
 ///         * **UI navigation.** `cv_selection` / `gate_selection` (`cv/selection.h:27-55`,
 ///           `gate/selection.h:29-72`: `Selection`s whose select press *navigates* to a page rather than

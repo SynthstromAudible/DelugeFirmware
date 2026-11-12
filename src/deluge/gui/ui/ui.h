@@ -273,8 +273,8 @@ void renderUIsForOled();
 bool isUIModeActive(uint32_t uiMode);
 bool isUIModeActiveExclusively(uint32_t uiMode);
 bool isUIModeWithinRange(const uint32_t* modes);
-/// @brief The UI modes `SoundEditor::selectEncoderAction` edits in, zero-terminated (defined beside it, in
-///        `sound_editor.cpp`); the ported menu's guest gates its select turns on the same list.
+/// @brief The UI modes in which the menu's select encoder edits, zero-terminated. The ported menu's guest and the
+///        legacy editor both gate their select turns on it.
 extern const uint32_t selectEncoderUIModes[];
 bool isNoUIModeActive();
 void exitUIMode(uint32_t uiMode);

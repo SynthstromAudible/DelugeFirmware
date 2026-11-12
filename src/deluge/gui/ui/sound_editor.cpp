@@ -1318,9 +1318,6 @@ void SoundEditor::scrollFinished() {
 	uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0);
 }
 
-const uint32_t selectEncoderUIModes[] = {UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, UI_MODE_NOTES_PRESSED,
-                                         UI_MODE_AUDITIONING, UI_MODE_STUTTERING, 0};
-
 void SoundEditor::selectEncoderAction(int8_t offset) {
 	int8_t scaledOffset = offset;
 	// 5x acceleration of select encoder when holding the shift button

@@ -281,7 +281,8 @@ bool shouldEnterSubmenu(const Node& item, const MenuContext& ctx) {
 
 bool noteModeCurrentMenuItemIs(NoteModeMenuItem item) {
 	// `getCurrentMenuItem()` is `menuItemNavigationRecord[navigationDepth]`
-	// (`gui/ui/sound_editor.cpp:1906-1908`); `MenuScene::focused()` is `path[depth]`, its port.
+	// (`SoundEditor::getCurrentMenuItem` in `gui/ui/sound_editor.cpp`); `MenuScene::focused()` is `path[depth]`, its
+	// port.
 	const Node* const focused = deluge::scenes::menu_scene().focused();
 	switch (item) {
 	case NoteModeMenuItem::NoteEditorRoot:

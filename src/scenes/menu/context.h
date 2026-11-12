@@ -129,7 +129,7 @@ struct MenuContext {
 	///        `gui/menu_item/song/configure_macros.h:35-37`)?
 	///
 	/// `is_song_view` above is the *other* legacy expression, `!rootUIIsClipMinderScreen()`
-	/// (`sound_editor.cpp:1687`), and one song root serves three views: `setup()` picks
+	/// (`SoundEditor::setup` in `sound_editor.cpp`), and one song root serves three views: `setup()` picks
 	/// `soundEditorRootMenuSongView` for `sessionView`, `arrangerView` **and** `automationView`
 	/// alike (`sound_editor.cpp:1819-1822`). Only two items in that root care which of the three it
 	/// is, and they are the two `getRootUI()` reads above; `relevance::is_session_view` is what
