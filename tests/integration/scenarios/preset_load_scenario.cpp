@@ -283,6 +283,11 @@ constexpr const char* kNavFailDir = "KITS/AQNAVFAIL";
 constexpr int32_t kNavFailCount = 5;
 constexpr const char* kNavFailFrom = "FAIL0";
 constexpr const char* kNavFailBroken = "KITS/AQNAVFAIL/FAIL1.XML";
+/// A pile behind a turn whose document loads: main's `doPresetNavigation` takes the pending detents once the document
+/// is read and before `loadAllAudioFiles`, so the preset turned past never loads its samples. From kNavLoadedFrom, a
+/// turn on onto FAIL3, and one more made while its document is read, land on kNavLoadedLands with one sample load.
+constexpr const char* kNavLoadedFrom = "FAIL2";
+constexpr const char* kNavLoadedLands = "FAIL4";
 /// Each folder open of that act held this long, so the second turn's walk is still reading when the first's preset
 /// lands, and the third turn can be made behind it.
 constexpr uint32_t kNavReadHoldMs = 50;
@@ -1358,8 +1363,10 @@ int32_t g_aqLoadsBefore = 0;
 bool g_aqTurned = false;
 /// AQ-NAV-PILE pile-from-instrument: whether its third turn was made while the second's walk was out.
 bool g_navThirdBehindWalk = false;
-/// AQ-NAV-PILE pile-behind-failed: the document reads before it, and whether its second turn was made during the load.
+/// AQ-NAV-PILE pile-behind-failed and pile-behind-loaded: the document reads and sample loads before it, and whether
+/// its second turn was made during the load.
 int32_t g_navDocumentReadsBefore = 0;
+int32_t g_navSampleLoadsBefore = 0;
 bool g_navSecondDuringLoad = false;
 bool g_aqHeavySwapped = false;
 TierMark g_aqTierMark{};
@@ -1394,7 +1401,7 @@ bool isAcquireLeg(Leg leg) {
 int32_t acquireActs(Leg leg) {
 	return leg == Leg::AqChangeCases ? 6
 	       : leg == Leg::AqTap       ? 5
-	       : leg == Leg::AqNavWrap   ? 13
+	       : leg == Leg::AqNavWrap   ? 14
 	       : leg == Leg::AqNavigate  ? 3
 	       : leg == Leg::AqNew       ? 2
 	                                 : 1;
@@ -1745,14 +1752,16 @@ bool actAcquire() {
 			instrumentClipView.selectEncoderAction(-1);
 			return true;
 		}
-		if (g_aqAct == 12) {
+		if (g_aqAct == 12 || g_aqAct == 13) {
+			const char* from = g_aqAct == 12 ? kNavFailFrom : kNavLoadedFrom;
 			auto* kit = static_cast<Instrument*>(g_aqClip->output);
 			kit->dirPath = kNavFailDir;
-			kit->name = kNavFailFrom;
-			g_aqNameBefore = kNavFailFrom;
+			kit->name = from;
+			g_aqNameBefore = from;
 			g_aqTurned = false;
 			g_navSecondDuringLoad = false;
 			g_navDocumentReadsBefore = deluge::gui::instrumentLoad.documentReads();
+			g_navSampleLoadsBefore = markAcquireTier().sampleLoads;
 			deluge_file_bytes_set_latency_ms(kDocumentHoldMs);
 			instrumentClipView.selectEncoderAction(1);
 			return true; // the second turn waits for the first's load to begin (runAcquireTick)
@@ -2112,12 +2121,12 @@ void checkAcquireAct() {
 	}
 	case Leg::AqNavWrap: {
 		if (g_aqAct >= 5) {
-			static constexpr const char* kTurns[] = {"other-other-on",       "two-behind-other",  "pile-past-end",
-			                                         "pile-past-window",     "pile-back",         "hibernate-one",
-			                                         "pile-from-instrument", "pile-behind-failed"};
+			static constexpr const char* kTurns[] = {
+			    "other-other-on", "two-behind-other",     "pile-past-end",      "pile-past-window",  "pile-back",
+			    "hibernate-one",  "pile-from-instrument", "pile-behind-failed", "pile-behind-loaded"};
 			static constexpr const char* kWants[] = {kNavPastOtherOutput, kNavBehindOther, kNavPileWrapped,
 			                                         kNavPileReadAgain,   kNavPileBack,    kNavHibernateTurn,
-			                                         kNavFromInstrument,  kNavFailFrom};
+			                                         kNavFromInstrument,  kNavFailFrom,    kNavLoadedLands};
 			const char* want = kWants[g_aqAct - 5];
 			const bool otherKept =
 			    g_aqAct >= 7 || (g_synthClip != nullptr && g_synthClip->output->name == g_navOtherNameBefore);
@@ -2131,6 +2140,17 @@ void checkAcquireAct() {
 			}
 			if (g_aqAct == 11) {
 				deluge_file_directory_set_latency_ms(0);
+			}
+			if (g_aqAct == 13) {
+				deluge_file_bytes_set_latency_ms(0);
+				const int32_t loads = markAcquireTier().sampleLoads - g_navSampleLoadsBefore;
+				printf("AQ-NAV-PILE pile-behind-loaded sampleLoads=%d\n", loads);
+				if (!g_navSecondDuringLoad) {
+					aqFail("AQ-NAV-PILE", "the second turn was not made while the first's preset loaded");
+				}
+				if (loads != 1) {
+					aqFail("AQ-NAV-PILE", "the preset a pile turned past loaded its samples");
+				}
 			}
 			if (g_aqAct == 12) {
 				deluge_file_bytes_set_latency_ms(0);
@@ -2264,12 +2284,13 @@ void runAcquireTick() {
 			g_aqTurned = true;
 			break;
 		}
-		if (g_leg == Leg::AqNavWrap && g_aqAct == 12 && !g_aqTurned
+		if (g_leg == Leg::AqNavWrap && (g_aqAct == 12 || g_aqAct == 13) && !g_aqTurned
 		    && deluge::gui::instrumentLoad.documentReads() > g_navDocumentReadsBefore) {
-			// The first turn has landed and is reading its broken document: two more, behind that load.
+			// The first turn has landed and is reading its document (a broken one in pile-behind-failed): more, behind
+			// that load.
 			g_navSecondDuringLoad = deluge::gui::instrumentLoad.inFlight();
 			(void)focusClip(g_aqClip);
-			instrumentClipView.selectEncoderAction(2);
+			instrumentClipView.selectEncoderAction(g_aqAct == 12 ? 2 : 1);
 			g_aqTurned = true;
 			break;
 		}

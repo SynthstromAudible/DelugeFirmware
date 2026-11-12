@@ -276,6 +276,11 @@ void InstrumentLoad::start(const InstrumentLoadRequest& request) {
 	                                                  : Phase::Decide;
 }
 
+bool InstrumentLoad::pileQueued() const {
+	const std::optional<InstrumentLoadRequest>& queued = coalescer_.queued();
+	return queued.has_value() && queued->preset.behindLoad && turnsTheSameOutput(*queued, active_);
+}
+
 bool InstrumentLoad::supersede() {
 	const bool commit = active_.commit;
 	abandon();
@@ -294,8 +299,7 @@ bool InstrumentLoad::step() {
 	// it, so a turn queued behind a navigate of its own output waits out the document: one that fails to load ends the
 	// navigation with its error, and the detents arrive as a turn of their own.
 	const std::optional<InstrumentLoadRequest>& queued = coalescer_.queued();
-	const bool pileWaitsForDocument = phase_ == Phase::Stage && queued.has_value() && queued->preset.behindLoad
-	                                  && turnsTheSameOutput(*queued, active_);
+	const bool pileWaitsForDocument = phase_ == Phase::Stage && pileQueued();
 	if ((phase_ == Phase::Stage || phase_ == Phase::Samples) && queued.has_value() && !neverSuperseded(active_)
 	    && !pileWaitsForDocument) {
 		return supersede();
@@ -648,6 +652,11 @@ bool InstrumentLoad::stepParse() {
 	}
 	else {
 		if (acquire) {
+			// Main's `doPresetNavigation` takes the detents that piled up once the document is read, before
+			// `loadAllAudioFiles`: the preset turned past never loads its samples.
+			if (pileQueued()) {
+				return supersede();
+			}
 			acquired_.instrument = newInstrument_;
 			acquired_.loadedFromFile = true;
 		}

@@ -268,6 +268,9 @@ private:
 
 	/// @brief Start @p request's load from its prologue.
 	void start(const InstrumentLoadRequest& request);
+	/// @brief Whether the request queued behind the load in flight is a turn of the same output made behind it: the
+	///        detents main's `doPresetNavigation` finds pending once the landed preset's document is read.
+	[[nodiscard]] bool pileQueued() const;
 	/// @brief Cancel the load in flight for the request queued behind it, and start that.
 	/// @return true: step again.
 	bool supersede();

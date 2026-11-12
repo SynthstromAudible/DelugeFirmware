@@ -56,7 +56,9 @@ The acquisition legs pick presets without the browser, by the gestures a user ma
                landing at the window's far end). A pile landing on a hibernating kit keeps the file landed on before it
                as the name a later pile reads again from: from NAV02, on, two more behind it onto the hibernating
                NAV05, and thirty more behind that land on NAV04. A turn made while a turn's broken preset loads waits
-               for the load to fail and moves one preset from the clip's own kit: the clip keeps FAIL0.
+               for the load to fail and moves one preset from the clip's own kit: the clip keeps FAIL0. One made while
+               a good preset's document is read moves on from it before its samples load: from FAIL2, on, and one
+               more behind it land on FAIL4 with one sample load.
     AQ-NAV-STALL
                a navigate with its folder open held past the bound: SD_CARD, clip kept, nothing in flight.
     AQ-SUPERSEDE
