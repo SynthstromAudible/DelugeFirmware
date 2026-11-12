@@ -2127,6 +2127,12 @@ getOut:
 				}
 
 				drum->killAllVoices();
+
+				// This drum is reused for the first sample of the new kit. Any round-robin variants it had
+				// would otherwise stay, and it would alternate between the new sample and them.
+				if (source->hasMultisampleRanges()) {
+					static_cast<MultisampleRange*>(range)->clearAllAlternates();
+				}
 			}
 
 			// Or, for subsequent samples...
