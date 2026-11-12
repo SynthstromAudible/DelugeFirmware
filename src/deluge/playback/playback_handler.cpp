@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/fixed_point.h"
 #include "gui/l10n/l10n.h"
-#include "gui/ui/audio_recorder.h"
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/reversion.h"
@@ -75,6 +74,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/metronome/metronome.h"
+#include "processing/recording/foreground_recording.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
@@ -174,9 +174,9 @@ void PlaybackHandler::routine() {
 }
 
 void PlaybackHandler::slowRoutine() {
-	// A next-song held back by an input take goes once the take is over: the recorder asks for this job's run as it
-	// finishes one.
-	if (nextSongPending_ && !audioRecorder.inputTakeInProgress()) {
+	// A next-song held back by an input take goes once the take is over: clearing the foreground recording asks for
+	// this job's run (AudioEngine::setForegroundRecording).
+	if (nextSongPending_ && !deluge::recording::inputTakeInProgress()) {
 		nextSongPending_ = false;
 		currentSong->loadNextSong();
 	}
@@ -2621,7 +2621,7 @@ void PlaybackHandler::setLedStates() {
 
 	indicator_leds::setLedState(IndicatorLED::PLAY, playbackState);
 
-	if (audioRecorder.recordingSource < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION
+	if (AudioEngine::foregroundRecordingSource() < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION
 	    && recording != RecordingMode::ARRANGEMENT) {
 		indicator_leds::setLedState(IndicatorLED::RECORD, recording == RecordingMode::NORMAL);
 	}
@@ -2942,7 +2942,7 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDICable& cable, int32_t channel, i
 				// A song load takes down every UI over the song, the recorder's included, and arms the swap
 				// that retires the song an input take attaches to: held back until the take ends, the take
 				// attaches where it was recorded and the next song follows (see slowRoutine()).
-				if (audioRecorder.inputTakeInProgress()) {
+				if (deluge::recording::inputTakeInProgress()) {
 					nextSongPending_ = true;
 					deluge::notify::notice("Next song after take");
 				}

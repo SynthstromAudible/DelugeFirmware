@@ -18,7 +18,6 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/l10n/l10n.h"
-#include "gui/ui/audio_recorder.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
@@ -39,6 +38,7 @@
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/recording/foreground_recording.h"
 #include "processing/sound/sound_instrument.h"
 #include "util/sound_menu_open.h"
 #include <cstring>
@@ -292,8 +292,8 @@ void KeyboardScreen::updateActiveNotes() {
 
 			// Begin resampling
 			if (Buttons::isButtonPressed(deluge::hid::button::RECORD)
-			    && audioRecorder.recordingSource == AudioInputChannel::NONE) {
-				audioRecorder.beginOutputRecording();
+			    && AudioEngine::foregroundRecordingSource() == AudioInputChannel::NONE) {
+				deluge::recording::beginOutputRecording();
 				Buttons::recordButtonPressUsedUp = true;
 			}
 		}

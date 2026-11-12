@@ -466,9 +466,8 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 			return r;
 		}
 		const bool record_held = ctx.held.has(ButtonId::Record);
-		// `:147` `audioRecorder.recordingSource > AudioInputChannel::NONE`, read through the one
-		// seam that exists for it (`AudioEngine::foregroundRecordingSource`, the same storage --
-		// see `scenes/recorder/recorder_scene.h`).
+		// `AudioEngine::foregroundRecordingSource() > AudioInputChannel::NONE`, the same test
+		// legacy's PLAY arm makes on the same storage (see `scenes/recorder/recorder_scene.h`).
 		const bool output_recording = AudioEngine::foregroundRecordingSource() > AudioInputChannel::NONE;
 		if (output_recording && record_held) {
 			// `:149-151` -- stop output-recording at end of loop.
@@ -481,12 +480,12 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 			playbackHandler.playButtonPressed(kInternalButtonPressLatency); // `:157`
 			if (record_held && playbackHandler.playbackState != 0
 			    && !lowering_.press_used_up(ButtonId::Record)) { // `:160`
-				// `:161` `audioRecorder.beginOutputRecording()`.
+				// Legacy's `deluge::recording::beginOutputRecording()`.
 				//
-				// @warning **Not ported** -- `audioRecorder` is a `gui/` global this layer may not
-				//          name and the output recorder deliberately stayed on it (see the class
-				//          doc). The *decision* is ported: this is the RECORD-held-while-PLAY
-				//          combo, and its other, observable half -- the used-up bit below -- is.
+				// @warning **Not ported** -- the output recording is the engine's and this layer
+				//          does not start it (see the class doc). The *decision* is ported: this is
+				//          the RECORD-held-while-PLAY combo, and its other, observable half -- the
+				//          used-up bit below -- is.
 				count_unported(UnportedOpen::OutputRecordFromPlay);
 			}
 		}
@@ -516,8 +515,8 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 			// every button on its own press.
 			if (AudioEngine::foregroundRecordingSource() == AudioInputChannel::NONE) { // `:180`
 				if (ctx.shift) {                                                       // `:181`
-					// `:182` `audioRecorder.beginOutputRecording()` -- @warning not ported, as
-					// above.
+					// Legacy's `deluge::recording::beginOutputRecording()` -- @warning not ported,
+					// as above.
 					count_unported(UnportedOpen::OutputRecordFromShift);
 					lowering_.mark_press_used_up(ButtonId::Record); // `:183`
 				}
@@ -538,11 +537,9 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 			    record_press_ms_.has_value() && record_press_ms_ == lowering_.last_press_ms(ButtonId::Record);
 			if (own_press && !lowering_.press_used_up(ButtonId::Record)
 			    && lowering_.was_short_press(ButtonId::Record, ctx.now_ms)) {
-				// `:195-197` `audioRecorder.isCurrentlyResampling()` ->
-				// `audioRecorder.endRecordingSoon(kInternalButtonPressLatency)` -- @warning not
-				// ported; `isCurrentlyResampling` reads `audioRecorder.recorder`'s status
-				// (`gui/ui/audio_recorder.cpp:424-427`), which no seam exposes. The port always
-				// takes the `else`.
+				// Legacy's `deluge::recording::isCurrentlyResampling()` ->
+				// `deluge::recording::endRecordingSoon(kInternalButtonPressLatency)` -- @warning not
+				// ported, as above: the port always takes the `else`.
 				playbackHandler.recordButtonPressed(); // `:199`
 			}
 		}

@@ -115,15 +115,15 @@
 ///     (`scenes/context_menu/`), but the *clear-song* menu is not among the ported context
 ///     menus, and its `setupAndCheckAvailability()` is a `gui/` call. Decision ported, open
 ///     missing.
-///   * **`audioRecorder.beginOutputRecording()`** (`Buttons::buttonAction`'s PLAY/RECORD arms),
-///     **`audioRecorder.isCurrentlyResampling()`** (same tail) and
-///     **`audioRecorder.endRecordingSoon()`** (`:196`). `audioRecorder` is on
-///     `scenes-no-root-ui`'s list, and `RecorderScene`'s own class doc records the split this sits
-///     on the wrong side of: *"`AudioRecorder` the object is also the output recorder ... none of
-///     that is a UI ... all of it stays on the legacy `audioRecorder` object"*
-///     (`scenes/recorder/recorder_scene.h`). `AudioEngine::foregroundRecordingSource()` is the one
-///     seam that already exists and it is read-only, so the two *tests* legacy makes on
-///     `recordingSource` (`Buttons::buttonAction`'s PLAY and RECORD arms) ARE ported; the three verbs are not.
+///   * **`deluge::recording::beginOutputRecording()`** (`Buttons::buttonAction`'s PLAY/RECORD arms),
+///     **`deluge::recording::isCurrentlyResampling()`** (same tail) and
+///     **`deluge::recording::endRecordingSoon()`** (the RECORD release). These are the engine's
+///     foreground recording (`processing/recording/foreground_recording.h`), which `RecorderScene`'s
+///     own class doc keeps off the scene side: *"None of that is a UI ... this scene does not touch
+///     it"* (`scenes/recorder/recorder_scene.h`). This layer does not call them, so the output
+///     recording's three verbs are still the legacy tail's. `AudioEngine::foregroundRecordingSource()`
+///     is read-only, so the two *tests* legacy makes on the channel (`Buttons::buttonAction`'s PLAY
+///     and RECORD arms) ARE ported; the three verbs are not.
 ///   * **`display->hasPopupOfType(PopupType::THRESHOLD_RECORDING_MODE)`** and the `cancelPopup()`
 ///     it guards (`hid/buttons.cpp:190-192`). `scenes-no-display` forbids `display->`, and the
 ///     seam that would replace it does not reach: that popup is raised by *model* code straight to

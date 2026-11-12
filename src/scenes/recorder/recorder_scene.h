@@ -62,32 +62,32 @@
 ///
 /// @par What this scene is NOT
 ///
-/// `AudioRecorder` the object is also the **output recorder**: `beginOutputRecording` (`:143`) is
-/// called by `playbackHandler` and `StemExport` for resampling and stem export, `slowRoutine`
-/// (`:168`) reaps that recording, and `isCurrentlyResampling` (`:282`) is read from eight places.
-/// **None of that is a UI**, none of it is opened from a menu item, and all of it stays on the
-/// legacy `audioRecorder` object. This scene ports only the menu-driven mic/line capture:
-/// `opened()`, `process()`, `renderOLED`, `buttonAction`, `endRecordingSoon`, `finishRecording` and
+/// The **output recording** -- resampling and stem export, started from `Buttons::buttonAction`,
+/// `StemExport` and the views -- is the engine's foreground recording (`deluge::recording`,
+/// `processing/recording/foreground_recording.h`): `beginOutputRecording` starts it,
+/// `slowRoutine` reaps it, and `isCurrentlyResampling` is read from several places. **None of that
+/// is a UI**, none of it is opened from a menu item, and this scene does not touch it. This scene
+/// ports only the menu-driven mic/line capture: `AudioRecorder`'s `opened()`, `process()`,
+/// `renderOLED`, `buttonAction`, `endRecordingSoon`, `finishRecording` and
 /// `getGreyoutColsAndRows`.
 ///
-/// @par `recordingSource` is not bookkeeping, and this scene publishes it
+/// @par The foreground recording is not bookkeeping, and this scene publishes it
 ///
-/// `AudioRecorder::recordingSource` and `::recorder` (`audio_recorder.h`) are read by **nine
-/// subsystems** as "a foreground recording is live". Most consequentially
-/// `AudioEngine::setMonitoringMode` (`audio_engine.cpp`) enables input monitoring only
-/// when `recordingSource` is `STEREO` or `LEFT` -- exactly the two values `opened()` sets -- and
-/// derives `monitoringAction` (differential / no-right-channel) from the recorder pointer. The
-/// other eight are `hid/buttons.cpp:147,180` (shift+RECORD must not start an *output* recording on
-/// top of a live mic one), `processing/stem_export/stem_export.cpp:195,412,460,594,716`,
-/// `playback/playback_handler.cpp` (the RECORD LED), `playback/mode/arrangement.cpp:328`,
-/// `gui/ui/keyboard/keyboard_screen.cpp:305`, `gui/views/instrument_clip_view.cpp:355,5535` and
-/// `gui/ui/browser/sample_browser.cpp`.
+/// The foreground recording's channel and recorder (`AudioEngine::foregroundRecordingSource()`,
+/// `AudioEngine::foregroundRecorder()`) are read by **many subsystems** as "a foreground recording
+/// is live". Most consequentially `AudioEngine::setMonitoringMode` (`audio_engine.cpp`) enables
+/// input monitoring only when the channel is `STEREO` or `LEFT` -- exactly the two values
+/// `opened()` sets -- and derives `monitoringAction` (differential / no-right-channel) from the
+/// recorder pointer. The others are `Buttons::buttonAction` (shift+RECORD must not start an
+/// *output* recording on top of a live mic one), `StemExport`, `PlaybackHandler::setLedStates`
+/// (the RECORD LED), the arrangement's tick, the keyboard screen, the instrument clip view's
+/// RECORD and audition arms and the sample browser's RECORD arm.
 ///
-/// This layer may not name `audioRecorder` (`check_layer_rules.py`, `scenes-no-root-ui`), so both
-/// directions go through `AudioEngine::setForegroundRecording` /
+/// Both directions go through `AudioEngine::setForegroundRecording` /
 /// `AudioEngine::foregroundRecordingSource` (`processing/engines/audio_engine.h`) -- **the same
-/// storage, not a proxy for it**. `setup_recording` publishes, `finish_recording` and `on_exit`
-/// clear, and `can()` reads it for legacy's own `recordingSource > NONE` refusal (`:69-71`).
+/// storage every other writer and reader uses**. `setup_recording` publishes, `finish_recording`
+/// and `on_exit` clear, and `can()` reads it for legacy's own "already recording" refusal in
+/// `AudioRecorder::opened`.
 ///
 /// The first version of this scene did none of that: it guessed at legacy's refusal with
 /// `AudioEngine::isAnyInternalRecordingHappening()` (which does not see an external recording at
@@ -276,8 +276,8 @@ private:
 
 	menu::MenuContext ctx_{};
 
-	/// The armed recorder. Legacy's `AudioRecorder::recorder` (`audio_recorder.h:42`), except that
-	/// this one is not shared with the output-recording path -- see the class docstring.
+	/// The armed recorder, as published to `AudioEngine::foregroundRecorder()` while the take runs --
+	/// see the class docstring.
 	SampleRecorder* recorder_ = nullptr;
 
 	/// Legacy has no member for this: `endRecordingSoon` is idempotent by testing

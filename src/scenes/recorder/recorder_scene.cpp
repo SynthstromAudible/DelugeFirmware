@@ -52,7 +52,7 @@ constexpr uint16_t sid(String s) {
 	return static_cast<uint16_t>(s);
 }
 
-/// The two words `renderOLED` draws (`audio_recorder.cpp:193`). Literals, not l10n ids, because
+/// The two words `AudioRecorder::renderOLED` draws. Literals, not l10n ids, because
 /// neither is in `gui/l10n/strings.h` -- exactly `BrowserScene::Descriptor::title`'s and
 /// `MarkerScene`'s situation and answer.
 /// @{
@@ -82,10 +82,9 @@ bool RecorderScene::can(const menu::MenuContext& ctx) {
 	if (!ctx.addresses.slot || ctx.range_index < 0) {
 		return false;
 	}
-	// `opened()`'s "If we're already recording (probably the output) then no!" (`:69-71`), which is
-	// exactly `recordingSource > AudioInputChannel::NONE`. `recordingSource` is a member of a
-	// `gui/` global this layer may not name (`scenes-no-root-ui`), so it is read through
-	// `AudioEngine::foregroundRecordingSource()` -- the same storage, not a proxy for it.
+	// `AudioRecorder::opened`'s "If we're already recording (probably the output) then no!", which
+	// is exactly `AudioEngine::foregroundRecordingSource() > AudioInputChannel::NONE`: the same
+	// storage every recording publishes to.
 	//
 	// Fix round 1: this used to be `AudioEngine::isAnyInternalRecordingHappening()`, which is NOT
 	// the same predicate -- it misses an external (mic/line) recording entirely, and, far worse,
@@ -263,10 +262,10 @@ void RecorderScene::finish_recording() {
 	// **The caller must have checked `AudioEngine::sdRoutineBusy()` first** -- this frees, and
 	// `after_render()` is the one call site. See the guard there for why.
 	recorder_->pointerHeldElsewhere = false;
-	// DIVERGENCE, deliberate and narrow: legacy clears the published pair *after*
-	// `discardRecorder` (`:248-251`), so for the length of that call `audioRecorder.recorder` names
-	// a freed object while `recordingSource` still says a recording is live -- and
-	// `setMonitoringMode`, which dereferences that pointer, runs from the audio routine. Clearing
+	// Cleared before `discardRecorder`, as `deluge::recording`'s `finishRecording` does (`main`'s
+	// `AudioRecorder::finishRecording` clears after it, so for the length of that call the published
+	// recorder names a freed object while the channel still says a recording is live -- and
+	// `setMonitoringMode`, which dereferences that pointer, runs from the audio routine). Clearing
 	// first closes the window and changes nothing else: no reader wants either value *during* the
 	// discard.
 	AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);

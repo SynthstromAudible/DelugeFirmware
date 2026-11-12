@@ -104,6 +104,7 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "processing/recording/foreground_recording.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
@@ -363,7 +364,8 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 
 	// Record button if holding audition pad
 	else if (b == RECORD && (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING)) {
-		if (on && getCurrentOutputType() == OutputType::KIT && audioRecorder.recordingSource == AudioInputChannel::NONE
+		if (on && getCurrentOutputType() == OutputType::KIT
+		    && AudioEngine::foregroundRecordingSource() == AudioInputChannel::NONE
 		    && playbackHandler.recording == RecordingMode::OFF
 		    && (!playbackHandler.isEitherClockActive() || !playbackHandler.ticksLeftInCountIn)) {
 
@@ -5527,8 +5529,8 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 
 	// Begin resampling / output-recording
 	if (Buttons::isButtonPressed(deluge::hid::button::RECORD)
-	    && audioRecorder.recordingSource == AudioInputChannel::NONE) {
-		audioRecorder.beginOutputRecording();
+	    && AudioEngine::foregroundRecordingSource() == AudioInputChannel::NONE) {
+		deluge::recording::beginOutputRecording();
 		Buttons::recordButtonPressUsedUp = true;
 	}
 

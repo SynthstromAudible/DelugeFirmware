@@ -41,8 +41,8 @@
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
-#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/recording/foreground_recording.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
@@ -51,18 +51,12 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
-#include "sync/sd_access.h"
 #include "util/c_string.h"
 #include <algorithm>
 #include <iterator>
 #include <string.h>
 
 PLACE_SDRAM_BSS AudioRecorder audioRecorder{};
-
-AudioRecorder::AudioRecorder() {
-	recordingSource = AudioInputChannel::NONE;
-	recorder = nullptr;
-}
 
 bool AudioRecorder::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0xFFFFFFFF;
@@ -82,7 +76,7 @@ bool AudioRecorder::opened() {
 	actionLogger.deleteAllLogs();
 
 	// If we're already recording (probably the output) then no!
-	if (recordingSource > AudioInputChannel::NONE) {
+	if (AudioEngine::foregroundRecordingSource() > AudioInputChannel::NONE) {
 		return false;
 	}
 
@@ -108,10 +102,10 @@ bool AudioRecorder::opened() {
 
 	bool inStereo = (AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn);
 	int32_t newNumChannels = inStereo ? 2 : 1;
-	bool success = setupRecordingToFile(inStereo ? AudioInputChannel::STEREO : AudioInputChannel::LEFT, newNumChannels,
-	                                    AudioRecordingFolder::RECORD);
+	bool success = deluge::recording::beginInputRecording(
+	    inStereo ? AudioInputChannel::STEREO : AudioInputChannel::LEFT, newNumChannels);
 	if (success) {
-		recorder->monitorInputLevels.store(isThresholdRecording(), std::memory_order_relaxed);
+		AudioEngine::foregroundRecorder()->monitorInputLevels.store(isThresholdRecording(), std::memory_order_relaxed);
 		soundEditor.setupShortcutBlink(soundEditor.currentSourceIndex, 4, 0);
 		soundEditor.blinkShortcut();
 
@@ -171,6 +165,7 @@ AudioRecorder::ThresholdMeterState AudioRecorder::getThresholdMeterState() {
 	const uint32_t animationTime = static_cast<uint64_t>(AudioEngine::audioSampleTimer) * 1000 / kSampleRate;
 
 	// A mono take shows its one channel on both meters
+	SampleRecorder* recorder = AudioEngine::foregroundRecorder();
 	const deluge::dsp::fp::StereoLevel level = recorder->getInputLevels();
 	const float right = recorder->recordingNumChannels == 2 ? level.r : level.l;
 
@@ -227,7 +222,7 @@ void AudioRecorder::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas
 
 	// While waiting, a dotted line blinks at the threshold
 	if (!state.recording && state.blinkOn) {
-		const int32_t thresholdPosition = levelPosition(recorder->startValueThreshold);
+		const int32_t thresholdPosition = levelPosition(AudioEngine::foregroundRecorder()->startValueThreshold);
 		for (int32_t row = top_y + 18; row <= top_y + 34; row += 2) {
 			canvas.drawPixel(thresholdPosition, row);
 		}
@@ -255,89 +250,14 @@ void AudioRecorder::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas
 
 bool AudioRecorder::isThresholdRecording() const {
 	// The recorder's own flag clears once the input triggers the take; the threshold it was given does not.
+	const SampleRecorder* recorder = AudioEngine::foregroundRecorder();
 	return recorder != nullptr && recorder->startValueThreshold > 0;
 }
 
 void AudioRecorder::graphicsRoutine() {
-	if (isThresholdRecording() && recorder->status == RecorderStatus::CAPTURING_DATA
+	if (isThresholdRecording() && AudioEngine::foregroundRecorder()->status == RecorderStatus::CAPTURING_DATA
 	    && getThresholdMeterState() != lastRenderedThresholdMeterState) {
 		renderUIsForOled();
-	}
-}
-
-bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels,
-                                         AudioRecordingFolder folderID, bool writeLoopPoints, bool shouldNormalize) {
-
-	// Already recording - don't orphan the running recorder by overwriting it
-	if (recordingSource > AudioInputChannel::NONE) {
-#if ALPHA_OR_BETA_VERSION
-		FREEZE_WITH_ERROR("E242");
-#endif
-		return false;
-	}
-
-	recorder = AudioEngine::getNewRecorder(newNumChannels, folderID, newMode, false, writeLoopPoints,
-	                                       kInternalButtonPressLatency, false, nullptr, {false});
-	if (!recorder) {
-		display->displayError(Error::INSUFFICIENT_RAM);
-		return false;
-	}
-
-	recorder->allowFileAlterationAfter = true;
-	recorder->allowNormalization = shouldNormalize;
-
-	recordingSource = newMode; // This sets recording to begin happening even as the file is created, below
-
-	return true;
-}
-
-bool AudioRecorder::beginOutputRecording(AudioRecordingFolder folder, AudioInputChannel channel, bool writeLoopPoints,
-                                         bool shouldNormalize) {
-	bool success = setupRecordingToFile(channel, 2, folder, writeLoopPoints, shouldNormalize);
-
-	if (success) {
-		indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
-	}
-
-	// Rohan: Not 100% sure if this will help. Leo was getting culled voices right on beginning resampling
-	// via an audition pad. But I'd more expect it to happen after the first render-window, which this
-	// won't help. Anyway, I suppose this can't do any harm here.
-	AudioEngine::bypassCulling = true;
-
-	return success;
-}
-
-void AudioRecorder::endRecordingSoon(int32_t buttonLatency) {
-
-	// Make sure we don't call the same thing multiple times - I think there's a few scenarios where this could happen
-	if (recorder && recorder->status == RecorderStatus::CAPTURING_DATA) {
-		display->displayLoadingAnimationText("Working");
-		recorder->endSyncedRecording(buttonLatency);
-	}
-}
-
-void AudioRecorder::slowRoutine() {
-	// finishRecording() frees the SampleRecorder, which discardRecorder() forbids doing from inside the SD card
-	// routine - the recorder may be suspended part-way through its own cardRoutine(), and freeing it there leaves
-	// that cardRoutine() running on freed memory (then freeing it a second time). The Embassy scheduler runs
-	// cardRoutine() inline and to completion, so it is never suspended part-way; this guard covers the rest.
-	if (deluge::sync::sd_busy()) {
-		return;
-	}
-
-	if (recordingSource >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
-		// setupRecordingToFile() always assigns recorder before recordingSource, so this can't happen - but don't let
-		// it become a silent hang: StemExport's yield loop waits on recordingSource, which only finishRecording()
-		// clears, so quietly skipping would wedge the export forever with nothing on screen.
-		if (recorder == nullptr) {
-			FREEZE_WITH_ERROR("E250");
-			return;
-		}
-		// Settled, not merely terminal: an aborted recorder may still be closing its file.
-		if (recorder->settled()) {
-			indicator_leds::setLedState(IndicatorLED::RECORD, (playbackHandler.recording == RecordingMode::NORMAL));
-			finishRecording();
-		}
 	}
 }
 
@@ -402,30 +322,26 @@ bool AudioRecorder::targetStillHeld() const {
 	return false;
 }
 
-bool AudioRecorder::inputTakeInProgress() const {
-	return recorder != nullptr && recordingSource > AudioInputChannel::NONE
-	       && recordingSource < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION;
-}
-
 void AudioRecorder::tick() {
-	if (!inputTakeInProgress()) {
+	if (!deluge::recording::inputTakeInProgress()) {
 		return;
 	}
+	SampleRecorder* recorder = AudioEngine::foregroundRecorder();
 
 	// A card error ends the take, whichever UI is on top. Stop capturing, then wait for the recorder to close its
 	// file and for the driver to answer anything it was given: freeing it any earlier frees memory the driver may
 	// still be writing from.
 	if (recorder->hadCardError) {
-		endRecordingSoon(kInternalButtonPressLatency);
+		deluge::recording::endRecordingSoon(kInternalButtonPressLatency);
 	}
 
 	if (!isUIOpen(this)) {
 		// The recorder UI was closed under the take, or the whole stack taken down by a song load or clear, so the
 		// sound editor's source may no longer be the one it was recording for: end the take and keep it on the card,
 		// attached to nothing.
-		endRecordingSoon(kInternalButtonPressLatency);
+		deluge::recording::endRecordingSoon(kInternalButtonPressLatency);
 		if (recorder->settled()) {
-			finishRecording();
+			deluge::recording::finishInputRecording();
 			target_ = {};
 			return;
 		}
@@ -455,6 +371,7 @@ void AudioRecorder::tick() {
 }
 
 void AudioRecorder::finishInputTake() {
+	const SampleRecorder* recorder = AudioEngine::foregroundRecorder();
 	// A take whose sound was replaced or freed under it stays on the card, attached to nothing.
 	if (recorder->status != RecorderStatus::ABORTED && !recorder->hadCardError && targetStillHeld()) {
 		// Attach the Sample to the Source right away.
@@ -467,44 +384,10 @@ void AudioRecorder::finishInputTake() {
 		    recorder->sample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true);
 		deluge::edits::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
 	}
-	finishRecording();
+	deluge::recording::finishInputRecording();
 	target_ = {};
 
 	close();
-}
-
-// Returns error code
-//
-// WARNING -- USE-AFTER-FREE, live in shipping firmware. Found by the E3 scenes port (2026-09), which
-// takes the correct order in its own replacement but deliberately does not patch this copy; recorded
-// here and in `src/scenes/README.md`, "Defects this port found in shipping firmware".
-//
-// `discardRecorder` destroys and frees the object (`~SampleRecorder` + `delugeDealloc`) and only
-// THEN do the two members stop advertising it. In that window `recorder` is dangling while
-// `recordingSource` still says LEFT/STEREO -- and `AudioEngine::setMonitoringMode`, reached from
-// `renderAudio`, tests exactly that pair and dereferences `audioRecorder.recorder`
-// (`processing/engines/audio_engine.cpp` `setMonitoringMode`). The audio task is priority 0
-// (`deluge.cpp` `main`), which the Rust scheduler routes onto the PREEMPTIVE SGI executor
-// (`src/bsp/rust/.../scheduler.rs`), so the interrupt can land on any instruction inside
-// `discardRecorder`. `audio_engine.cpp`'s output/stem-recording paths read the same member the same
-// way. The `recorder != nullptr` double-check in `setMonitoringMode` does not help: the pointer is
-// non-null and freed for the whole window.
-//
-// The fix is the order the port uses -- clear `recordingSource` FIRST, then `recorder`, then free --
-// so the pointer's visible window strictly contains the channel's, with a compiler barrier between
-// the two stores (`AudioEngine::setForegroundRecording`, whose header states that invariant). It is
-// not applied here because these members are written from five other legacy sites this port is not
-// entitled to re-order; doing it properly is a small, separate, device-tested change.
-void AudioRecorder::finishRecording() {
-	recorder->pointerHeldElsewhere = false;
-
-	AudioEngine::discardRecorder(recorder);
-
-	recorder = nullptr;
-	recordingSource = AudioInputChannel::NONE;
-	display->removeLoadingAnimation();
-	// Every take ends here, so a MIDI next-song held back for it goes now (PlaybackHandler::slowRoutine()).
-	deluge::runtime::appLoop.request(playbackHandler.slowJob);
 }
 
 ActionResult AudioRecorder::buttonAction(deluge::hid::Button b, bool on) {
@@ -522,16 +405,11 @@ ActionResult AudioRecorder::buttonAction(deluge::hid::Button b, bool on) {
 	// they wait - that'd be a tangle.
 	if ((b == BACK) || (b == SELECT_ENC) || (b == RECORD)) {
 
-		endRecordingSoon(kInternalButtonPressLatency);
+		deluge::recording::endRecordingSoon(kInternalButtonPressLatency);
 	}
 	else {
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
 	return ActionResult::DEALT_WITH;
-}
-
-bool AudioRecorder::isCurrentlyResampling() {
-	return (recordingSource >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && recorder
-	        && recorder->status == RecorderStatus::CAPTURING_DATA);
 }

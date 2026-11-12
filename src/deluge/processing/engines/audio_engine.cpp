@@ -33,7 +33,6 @@
 #include "effects/reverb.h"
 #include "effects/sidechain.h"
 #include "extern.h"
-#include "gui/ui/audio_recorder.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
@@ -395,6 +394,13 @@ void renderRetirementStep() {
 } // namespace
 
 namespace AudioEngine {
+
+namespace {
+/// The app's one foreground recording: the channel it captures and its recorder. Published in the order
+/// `setForegroundRecording` documents: the pointer's visible window strictly contains the channel's.
+AudioInputChannel foregroundSource = AudioInputChannel::NONE;
+SampleRecorder* foregroundRecorderPtr = nullptr;
+} // namespace
 
 // used for culling. This can be high now since it's decoupled from the time between renders, and
 // will spill into a second render and output if needed so as long as we always render 128 samples in under 128/44100
@@ -1400,7 +1406,7 @@ void renderAudioForStemExport(size_t numSamples) {
 	// above differs. Without feeding the MIX recorder, a TRACK export's recorder never
 	// reaches its loop-end, never finalises (recordingSource stays MIX), and the export
 	// loops forever rendering silence past the arrangement end.
-	SampleRecorder* recorder = audioRecorder.recorder;
+	SampleRecorder* recorder = foregroundRecorderPtr;
 	if (recorder && (recorder->mode == AudioInputChannel::OFFLINE_OUTPUT || recorder->mode == AudioInputChannel::MIX)) {
 		// continue feeding audio if we're not finished recording
 		if (recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
@@ -1589,9 +1595,9 @@ void setMonitoringMode() {
 	// `std::atomic_signal_fence`, not `atomic_thread_fence`, and no `dmb`, for the writer's reason:
 	// the two contexts are a handler and a thread on the SAME core, so what can reorder these
 	// dependency-free loads is the compiler. It emits no instructions.
-	const AudioInputChannel recordingSource = audioRecorder.recordingSource;
+	const AudioInputChannel recordingSource = foregroundSource;
 	std::atomic_signal_fence(std::memory_order_acquire);
-	SampleRecorder* const recorder = audioRecorder.recorder;
+	SampleRecorder* const recorder = foregroundRecorderPtr;
 	const bool capturing =
 	    recorder != nullptr
 	    && (recordingSource == AudioInputChannel::STEREO || recordingSource == AudioInputChannel::LEFT);
@@ -1608,23 +1614,19 @@ void setMonitoringMode() {
 	});
 }
 
-// The foreground-recording seam. See the doc comment on these two in audio_engine.h: they exist so
-// a recorder UI that is not `AudioRecorder` can publish the pair `setMonitoringMode()` above -- and
-// eight other subsystems -- read. They live in this file because this file already names
-// `audioRecorder`; a new one would add a `model-includes-ui` row to the layer baseline.
+// The foreground-recording seam: the one writer of the pair `setMonitoringMode()` above, and the
+// other subsystems, read. See the doc comment on these in audio_engine.h.
 void setForegroundRecording(SampleRecorder* recorder, AudioInputChannel source) {
 	// The invariant, and the two fences that hold it: **the pointer's visible window strictly
 	// contains the channel's.** Publishing writes the pointer first; clearing writes the channel
-	// first. Either way a reader that finds `recordingSource` naming a live capture has already
-	// been able to see a non-null `recorder`, so `setMonitoringMode`'s branch can never
-	// dereference a pointer that is about to be freed. Legacy nulls the pointer first in
-	// `finishRecording` and gets away with it only because of
-	// that line's `&& audioRecorder.recorder` double-check; this seam does not lean on it.
+	// first. Either way a reader that finds the channel naming a live capture has already been
+	// able to see a non-null recorder, so `setMonitoringMode`'s branch can never dereference a
+	// pointer that is about to be freed.
 	//
 	// `std::atomic_signal_fence` and not `atomic_thread_fence`, and no `dmb`: the reader is
-	// `setMonitoringMode()` called from `renderAudio`, i.e. the priority-0 audio task, which
-	// `registerTask` routes onto the preemptive SGI interrupt-executor
-	// (`src/bsp/rust/src/scheduler.rs:536-548`, `deluge.cpp:542`) -- a handler on the SAME core.
+	// `setMonitoringMode()` called from `renderAudio`, i.e. the priority-0 audio task, which the
+	// Rust scheduler routes onto the preemptive SGI interrupt-executor (`src/bsp/rust/src/scheduler.rs`)
+	// -- a handler on the SAME core.
 	// A PE observes its own memory accesses in program order and exception entry is a context
 	// synchronisation point, so no hardware barrier is needed; what can reorder two plain,
 	// dependency-free stores is the COMPILER, and a signal fence is exactly the "ordered against a
@@ -1632,18 +1634,17 @@ void setForegroundRecording(SampleRecorder* recorder, AudioInputChannel source) 
 	//
 	// The house convention for state genuinely shared with the audio side is `std::atomic`
 	// (`SampleRecorder::status`, `AudioEngine::cull_alert_pending`, both with their reasoning at
-	// the declaration). These two are `AudioRecorder` members written from five other places in
-	// legacy, so retyping them is a change this seam is not entitled to make; the fences give the
-	// seam the ordering it needs without touching the type.
+	// the declaration). These two stay plain because every write goes through this function, whose
+	// fences give the pair the ordering it needs.
 	if (source > AudioInputChannel::NONE) {
-		audioRecorder.recorder = recorder;
+		foregroundRecorderPtr = recorder;
 		std::atomic_signal_fence(std::memory_order_release);
-		audioRecorder.recordingSource = source;
+		foregroundSource = source;
 	}
 	else {
-		audioRecorder.recordingSource = source;
+		foregroundSource = source;
 		std::atomic_signal_fence(std::memory_order_release);
-		audioRecorder.recorder = recorder;
+		foregroundRecorderPtr = recorder;
 		// A MIDI next song held back while an input take ran (`PlaybackHandler::tryGlobalMIDICommands`) goes now that
 		// the take is over: its job runs only on request.
 		if (playbackHandler.nextSongPending_) {
@@ -1653,7 +1654,11 @@ void setForegroundRecording(SampleRecorder* recorder, AudioInputChannel source) 
 }
 
 AudioInputChannel foregroundRecordingSource() {
-	return audioRecorder.recordingSource;
+	return foregroundSource;
+}
+
+SampleRecorder* foregroundRecorder() {
+	return foregroundRecorderPtr;
 }
 
 void scheduleMidiGateOutISR(size_t numSamples) {
@@ -1784,7 +1789,7 @@ uint32_t routine() {
 			// between stems, and one that has hit a card error or been aborted (RAM exhaustion) will never
 			// advance firstUnwrittenClusterIndex again, because cardRoutine() early-returns in both cases -
 			// so bail on those, and bound the loop regardless rather than trusting that list to be complete.
-			SampleRecorder* recorder = audioRecorder.recorder;
+			SampleRecorder* recorder = foregroundRecorderPtr;
 			if (recorder != nullptr) {
 				// Each call writes at most one cluster, and we don't render (so can't produce new ones) until
 				// the drain finishes. The slack covers calls that return without reaching this recorder at all:
@@ -1800,7 +1805,7 @@ uint32_t routine() {
 					doRecorderCardRoutines();
 
 					// doRecorderCardRoutines() can finish and free recorders - don't trust the pointer after it
-					if (audioRecorder.recorder != recorder) {
+					if (foregroundRecorderPtr != recorder) {
 						break;
 					}
 				}
@@ -1843,7 +1848,7 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 
 	// Monitored input - normally the codec's, but the USB input if that's what we're sampling
 	AudioInputChannel const monitoringSource =
-	    (audioRecorder.recordingSource == AudioInputChannel::USB) ? AudioInputChannel::USB : AudioInputChannel::STEREO;
+	    (foregroundSource == AudioInputChannel::USB) ? AudioInputChannel::USB : AudioInputChannel::STEREO;
 	int32_t* __restrict__ inputReadPos = getInputReadPos(monitoringSource);
 	int32_t const* const inputBufferEnd = getInputBufferEnd(monitoringSource);
 

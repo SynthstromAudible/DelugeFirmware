@@ -31,7 +31,6 @@ class Sound;
 
 class AudioRecorder final : public UI {
 public:
-	AudioRecorder();
 	bool opened() override;
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 
@@ -43,25 +42,14 @@ public:
 	void selectEncoderAction(int8_t offset) override {}
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override {}
 
-	bool beginOutputRecording(AudioRecordingFolder folder = AudioRecordingFolder::RESAMPLE,
-	                          AudioInputChannel channel = AudioInputChannel::OUTPUT, bool writeLoopPoints = false,
-	                          bool shouldNormalize = true);
 	/// @brief One step of an audio-input take, run by its own job (@ref jobId).
 	///
 	/// While the recorder UI is on top it ends a take that hit a card error, attaches a settled take's sample to the
 	/// sound editor's source and closes, and otherwise shows clipping and the Waiting to Recording change. It asks for
 	/// its own next run every @ref kTickUs until the take is over, so it costs nothing while no input take runs.
-	/// Internal-source takes (resampling, stem export) are slowRoutine()'s, and this never touches them.
+	/// Internal-source takes (resampling, stem export) are `deluge::recording::slowRoutine()`'s, and this never
+	/// touches them.
 	void tick();
-	/// @brief Finishes a settled internal-source take. Never touches an input take, which tick() finishes.
-	void slowRoutine();
-	bool isCurrentlyResampling();
-
-	AudioInputChannel recordingSource;
-
-	SampleRecorder* recorder;
-
-	void endRecordingSoon(int32_t buttonLatency = 0);
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 	/// @brief Whether this take waits for the input to pass a threshold, so the screen shows the level meter. True
@@ -80,9 +68,6 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::AUDIO_RECORDER; }
-
-	/// Whether an audio-input take is in progress: the takes tick() owns.
-	[[nodiscard]] bool inputTakeInProgress() const;
 
 private:
 	/// Everything that can change the threshold screen, so graphicsRoutine() redraws only when the image would.
@@ -116,9 +101,6 @@ private:
 	void finishInputTake();
 
 	TakeTarget target_{};
-	void finishRecording();
-	bool setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels, AudioRecordingFolder folderID,
-	                          bool writeLoopPoints = false, bool shouldNormalize = true);
 };
 
 extern AudioRecorder audioRecorder;

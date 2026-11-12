@@ -81,6 +81,7 @@
 #include "playback/render_requests.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "processing/recording/foreground_recording.h"
 #include "processing/stem_export/stem_export.h"
 #include "runtime/app_loop.h"
 #include "storage/audio/audio_file_manager.h"
@@ -538,7 +539,7 @@ void registerJobs() {
 	appLoop.add("audio file slow", [] { audioFileManager.slowRoutine(); }, us(0.2), 0);
 	// It can call finishRecording(), which frees the SampleRecorder. Jobs run one at a time on this tier, so no other
 	// job is part-way through using that recorder when it does.
-	appLoop.add("audio recorder slow", [] { audioRecorder.slowRoutine(); }, us(0.1), 0);
+	appLoop.add("audio recorder slow", [] { deluge::recording::slowRoutine(); }, us(0.1), 0);
 	// An audio-input take: ends it on a card error, attaches its sample once it settles, and keeps the recorder's
 	// status line current. Requested when a take starts, and asks for its own next run while the take is in progress
 	// -- see AudioRecorder::tick. It and the job above never finish the same take: each owns one kind of source.

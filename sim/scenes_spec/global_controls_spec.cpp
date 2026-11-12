@@ -26,8 +26,8 @@
 ///
 /// @par What this spec counts as uncovered (oracle discipline)
 ///
-///   * **Everything behind `audioRecorder`** -- `beginOutputRecording` (`hid/buttons.cpp:161`,
-///     `:182`), `isCurrentlyResampling` (`:195`) and `endRecordingSoon` (`:196`). Not ported (see
+///   * **The output recording's verbs** -- `deluge::recording::beginOutputRecording`,
+///     `isCurrentlyResampling` and `endRecordingSoon` (`Buttons::buttonAction`). Not ported (see
 ///     `global_controls.h`), so there is nothing on the port side to compare; the *decisions* that
 ///     reach them are covered through `GlobalControls::unported_opens(UnportedOpen)`, which is a
 ///     tally per SITE so an assertion about one arm cannot be satisfied by another.
@@ -502,7 +502,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(port_result == RecordingMode::OFF).to_be_true();
 		expect(port_result == legacy_result).to_be_true();
 		// And the arm really did reach the one statement that is not ported --
-		// `audioRecorder.beginOutputRecording()` at `:161`, guarded by
+		// `deluge::recording::beginOutputRecording()` in the PLAY arm, guarded by
 		// `playbackHandler.playbackState` -- or did not, depending on whether PLAY started
 		// playback. Whichever it was, no OTHER site may have fired.
 		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::OutputRecordFromPlay)

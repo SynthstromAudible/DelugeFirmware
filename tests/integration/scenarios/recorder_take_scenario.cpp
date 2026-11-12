@@ -161,19 +161,19 @@ void fail(const char* marker, const char* what) {
 }
 
 bool inputTake() {
-	return audioRecorder.recordingSource == AudioInputChannel::LEFT
-	       || audioRecorder.recordingSource == AudioInputChannel::STEREO;
+	return AudioEngine::foregroundRecordingSource() == AudioInputChannel::LEFT
+	       || AudioEngine::foregroundRecordingSource() == AudioInputChannel::STEREO;
 }
 
 bool takeOver() {
-	return !isUIOpen(&audioRecorder) && audioRecorder.recordingSource == AudioInputChannel::NONE;
+	return !isUIOpen(&audioRecorder) && AudioEngine::foregroundRecordingSource() == AudioInputChannel::NONE;
 }
 
 /// The recording's file path, once the recorder has made the file.
 void notePath() {
-	if (audioRecorder.recorder != nullptr && audioRecorder.recorder->sample != nullptr
-	    && !audioRecorder.recorder->sample->filePath.empty()) {
-		g_recordingPath = audioRecorder.recorder->sample->filePath;
+	const SampleRecorder* recorder = AudioEngine::foregroundRecorder();
+	if (recorder != nullptr && recorder->sample != nullptr && !recorder->sample->filePath.empty()) {
+		g_recordingPath = recorder->sample->filePath;
 	}
 }
 
@@ -225,7 +225,7 @@ bool startTake(const char* marker) {
 	openRecorder();
 	const bool recorderOnTop = getCurrentUI() == &audioRecorder;
 	printf("%s-OPEN recorderOnTop=%d source=%d\n", marker, recorderOnTop ? 1 : 0,
-	       static_cast<int>(audioRecorder.recordingSource));
+	       static_cast<int>(AudioEngine::foregroundRecordingSource()));
 	if (!recorderOnTop || !inputTake() || g_sound == nullptr || g_range == nullptr) {
 		fail(marker, "the recorder item did not leave an input take running under the recorder UI");
 		return false;
@@ -341,8 +341,8 @@ void stepMidiTake() {
 	g_recordingShown = g_recordingShown || audioRecorder.updatedRecordingStatus;
 	// The render raises the clipping flag and only the recorder's own step lowers it, so a flag seen raised and then
 	// lowered shows that step ran mid-take.
-	if (audioRecorder.recorder != nullptr) {
-		const bool clipped = audioRecorder.recorder->recordingClippedRecently;
+	if (AudioEngine::foregroundRecorder() != nullptr) {
+		const bool clipped = AudioEngine::foregroundRecorder()->recordingClippedRecently;
 		g_clipConsumed = g_clipConsumed || (g_clipSeen && !clipped);
 		g_clipSeen = g_clipSeen || clipped;
 	}
@@ -423,7 +423,7 @@ void stepRefuseStart() {
 	const bool recorderOnTop = getCurrentUI() == &audioRecorder;
 	const bool logKept = loggedBefore != nullptr && actionLogger.firstAction[BEFORE] == loggedBefore;
 	printf("RT-REFUSED loadInFlight=%d recorderOnTop=%d source=%d undoLogKept=%d\n", loading ? 1 : 0,
-	       recorderOnTop ? 1 : 0, static_cast<int>(audioRecorder.recordingSource), logKept ? 1 : 0);
+	       recorderOnTop ? 1 : 0, static_cast<int>(AudioEngine::foregroundRecordingSource()), logKept ? 1 : 0);
 	if (loggedBefore == nullptr) {
 		fail("RT-REFUSED", "no undo-log entry could be made before the recorder was opened, so nothing was tested");
 	}
@@ -433,7 +433,7 @@ void stepRefuseStart() {
 	if (!loading) {
 		fail("RT-REFUSED", "the acquisition was not in flight when the recorder was opened, so nothing was tested");
 	}
-	if (recorderOnTop || audioRecorder.recordingSource != AudioInputChannel::NONE) {
+	if (recorderOnTop || AudioEngine::foregroundRecordingSource() != AudioInputChannel::NONE) {
 		fail("RT-REFUSED", "the recorder started a take while a preset load that can replace its sound was in flight");
 		if (recorderOnTop) {
 			pressBack();
@@ -472,8 +472,9 @@ void stepClosedWait() {
 	}
 	const Source& source = g_sound->sources[0];
 	const int64_t leases = leasesOn(g_recordingPath);
-	printf("RT-CLOSED source=%d osc=%d path=%s leases=%lld steps=%d\n", static_cast<int>(audioRecorder.recordingSource),
-	       static_cast<int>(source.oscType), g_recordingPath.c_str(), static_cast<long long>(leases), g_steps);
+	printf("RT-CLOSED source=%d osc=%d path=%s leases=%lld steps=%d\n",
+	       static_cast<int>(AudioEngine::foregroundRecordingSource()), static_cast<int>(source.oscType),
+	       g_recordingPath.c_str(), static_cast<long long>(leases), g_steps);
 	if (source.oscType == OscType::SAMPLE) {
 		fail("RT-CLOSED", "a take whose recorder UI was closed under it switched the source to SAMPLE");
 	}
@@ -523,8 +524,9 @@ void stepNulledWait() {
 	}
 	const Source& source = g_sound->sources[0];
 	const int64_t leases = leasesOn(g_recordingPath);
-	printf("RT-NULLED source=%d osc=%d path=%s leases=%lld steps=%d\n", static_cast<int>(audioRecorder.recordingSource),
-	       static_cast<int>(source.oscType), g_recordingPath.c_str(), static_cast<long long>(leases), g_steps);
+	printf("RT-NULLED source=%d osc=%d path=%s leases=%lld steps=%d\n",
+	       static_cast<int>(AudioEngine::foregroundRecordingSource()), static_cast<int>(source.oscType),
+	       g_recordingPath.c_str(), static_cast<long long>(leases), g_steps);
 	if (g_recordingPath.empty() || leases > 0) {
 		fail("RT-NULLED", "a take whose UI stack was nullified under it was attached to something");
 	}

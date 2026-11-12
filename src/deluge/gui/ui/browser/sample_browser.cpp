@@ -535,7 +535,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on) {
 	}
 
 	// Record button
-	else if (b == RECORD && audioRecorder.recordingSource == AudioInputChannel::NONE
+	else if (b == RECORD && AudioEngine::foregroundRecordingSource() == AudioInputChannel::NONE
 	         && getCurrentClip()->type != ClipType::AUDIO) {
 		if (!on || currentUIMode != UI_MODE_NONE) {
 			return ActionResult::DEALT_WITH;

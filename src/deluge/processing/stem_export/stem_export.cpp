@@ -21,7 +21,6 @@
 #include "extern.h"
 #include "gui/context_menu/stem_export/done_stem_export.h"
 #include "gui/l10n/l10n.h"
-#include "gui/ui/audio_recorder.h"
 #include "gui/views/arranger_view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
@@ -42,6 +41,7 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/recording/foreground_recording.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h"
 #include "storage/existence_policy.h"
@@ -252,7 +252,7 @@ void StemExport::driveElement() {
 			exportAwaitingDrain = false;
 
 			AudioEngine::slowRoutine();
-			audioRecorder.slowRoutine();
+			deluge::recording::slowRoutine();
 			// Rendering on while the export waits on the card only buffers more audio in RAM: end the batch here,
 			// between two whole render iterations, and resume once the channel has answered.
 			if (cardHold() != CardHold::NotHeld) {
@@ -286,7 +286,7 @@ StemExport::CardHold StemExport::cardHold() const {
 	if (stemSearchActive_) {
 		return CardHold::WaitsOnCard;
 	}
-	const SampleRecorder* recorder = audioRecorder.recorder;
+	const SampleRecorder* recorder = AudioEngine::foregroundRecorder();
 	if (recorder == nullptr || recorder->hadCardError || recorder->settled()) {
 		return CardHold::NotHeld;
 	}
@@ -366,8 +366,8 @@ void StemExport::startOutputRecordingUntilLoopEndAndSilence() {
 		}
 		bool normalization =
 		    currentStemExportType == StemExportType::DRUM ? allowNormalizationForDrums : allowNormalization;
-		audioRecorder.beginOutputRecording(AudioRecordingFolder::STEMS, channel, writeLoopEndPos(), normalization);
-		if (audioRecorder.recordingSource > AudioInputChannel::NONE) {
+		deluge::recording::beginOutputRecording(AudioRecordingFolder::STEMS, channel, writeLoopEndPos(), normalization);
+		if (AudioEngine::foregroundRecordingSource() > AudioInputChannel::NONE) {
 			stopRecording = true;
 		}
 	}
@@ -390,7 +390,7 @@ void StemExport::stopOutputRecording() {
 		// if not exporting to silence, stop recording soon
 		// if you cancelled stem export and exited out of UI mode, stop recording soon
 		if (!isUIModeActive(UI_MODE_STEM_EXPORT) || !exportToSilence || (exportToSilence && checkForSilence())) {
-			audioRecorder.endRecordingSoon();
+			deluge::recording::endRecordingSoon();
 			stopRecording = false;
 		}
 	}
@@ -667,7 +667,8 @@ bool StemExport::elementFinished() {
 	if (stemExport.stopRecording) {
 		stemExport.stopOutputRecording();
 	}
-	return !(playbackHandler.recording != RecordingMode::OFF || audioRecorder.recordingSource > AudioInputChannel::NONE
+	return !(playbackHandler.recording != RecordingMode::OFF
+	         || AudioEngine::foregroundRecordingSource() > AudioInputChannel::NONE
 	         || playbackHandler.isEitherClockActive());
 }
 

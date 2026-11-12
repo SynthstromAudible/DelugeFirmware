@@ -487,7 +487,8 @@ struct NoForegroundRecording {
 	NoForegroundRecording(const NoForegroundRecording&) = delete;
 	NoForegroundRecording& operator=(const NoForegroundRecording&) = delete;
 	static void check(const char* what) {
-		if (audioRecorder.recordingSource != AudioInputChannel::NONE || audioRecorder.recorder != nullptr) {
+		if (AudioEngine::foregroundRecordingSource() != AudioInputChannel::NONE
+		    || AudioEngine::foregroundRecorder() != nullptr) {
 			spec_bail(what);
 		}
 	}
@@ -1123,9 +1124,9 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// ...and the foreground-recording publication is cleared, so the nine subsystems that gate
 		// on it do not keep seeing a recording that is over. Without this the leak is invisible:
 		// `before_each` clears the pair defensively, so the next example would not notice either.
-		expect(static_cast<int32_t>(audioRecorder.recordingSource))
+		expect(static_cast<int32_t>(AudioEngine::foregroundRecordingSource()))
 		    .to_equal(static_cast<int32_t>(AudioInputChannel::NONE));
-		expect(audioRecorder.recorder == nullptr).to_be_true();
+		expect(AudioEngine::foregroundRecorder() == nullptr).to_be_true();
 		// Nothing was attached on the way out.
 		expect(r.range->getAudioFileHolder()->audioFile == nullptr).to_be_true();
 	});
@@ -1213,11 +1214,11 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	// --- the foreground-recording publication ---------------------------------------------------
 
 	it("publishes the recording where the nine subsystems that gate on it can see it", _ {
-		// **Fix round 1's critical finding.** `opened()` sets `AudioRecorder::recordingSource` and
-		// `::recorder` (`audio_recorder.cpp:137-140`), and those are not private bookkeeping: nine
-		// subsystems read them. The port publishes them through
-		// `AudioEngine::setForegroundRecording`, which writes the same storage -- so this example
-		// reads the LEGACY members, which is the path all nine readers take.
+		// `AudioRecorder::opened` publishes the take's channel and recorder, and those are not
+		// private bookkeeping: the subsystems that gate on a live recording read them through
+		// `AudioEngine::foregroundRecordingSource()` / `AudioEngine::foregroundRecorder()`. The port
+		// publishes through `AudioEngine::setForegroundRecording`, the one writer of that storage --
+		// so this example reads them back the way every reader does.
 		Guards g;
 		NothingPluggedIn unplugged;
 		Rig r;
@@ -1225,19 +1226,19 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.tick(0);
 		SampleRecorder* rec = recorder_scene().recorder();
 
-		// Nothing plugged in, so `opened()`'s stereo test is false and the channel is LEFT
-		// (`audio_recorder.cpp:93-96`).
-		expect(static_cast<int32_t>(audioRecorder.recordingSource))
+		// Nothing plugged in, so `AudioRecorder::opened`'s stereo test is false and the channel is
+		// LEFT.
+		expect(static_cast<int32_t>(AudioEngine::foregroundRecordingSource()))
 		    .to_equal(static_cast<int32_t>(AudioInputChannel::LEFT));
-		expect(audioRecorder.recorder == rec).to_be_true();
+		expect(AudioEngine::foregroundRecorder() == rec).to_be_true();
 
 		// ...and cleared once the recording is over.
 		rec->status = RecorderStatus::COMPLETE;
 		rec->hadCardError = true; // refuse the attach; this example is about the publication
 		r.tick(10);
-		expect(static_cast<int32_t>(audioRecorder.recordingSource))
+		expect(static_cast<int32_t>(AudioEngine::foregroundRecordingSource()))
 		    .to_equal(static_cast<int32_t>(AudioInputChannel::NONE));
-		expect(audioRecorder.recorder == nullptr).to_be_true();
+		expect(AudioEngine::foregroundRecorder() == nullptr).to_be_true();
 	});
 
 	it("keeps input monitoring alive for the whole recording", _ {
