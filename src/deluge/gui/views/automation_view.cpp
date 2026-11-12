@@ -1300,6 +1300,11 @@ passToOthers:
 void AutomationView::handleSessionButtonAction(Clip* clip, bool on) {
 	// if shift is pressed, go back to automation overview
 	if (on && Buttons::isShiftButtonPressed()) {
+		// Note edits store the selected note row, not the physical pad row used by overview releases.
+		// End them while leaving the editor, before discarding that context.
+		if (inNoteEditor()) {
+			instrumentClipView.endAllEditPadPresses();
+		}
 		initParameterSelection();
 		blinkShortcuts();
 		uiNeedsRendering(&automationView);
@@ -1344,6 +1349,11 @@ void AutomationView::handleKeyboardButtonAction(bool on) {
 void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 	// if audition pad or shift is pressed, go back to automation overview
 	if (on && (currentUIMode == UI_MODE_AUDITIONING || Buttons::isShiftButtonPressed())) {
+		// Note edits store the selected note row, not the physical pad row used by overview releases.
+		// End them while leaving the editor, before discarding that context.
+		if (inNoteEditor()) {
+			instrumentClipView.endAllEditPadPresses();
+		}
 		initParameterSelection();
 		blinkShortcuts();
 		uiNeedsRendering(&automationView);
