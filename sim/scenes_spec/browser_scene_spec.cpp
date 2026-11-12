@@ -29,6 +29,7 @@
 ///       may not. Same rule `menu_scene_spec.cpp` and `context_menu_scene_spec.cpp` run under.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_slice_ops.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/context.h"
@@ -2602,6 +2603,23 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		select_folder(r, true);
 		expect(kit.options_now != nullptr ? kit.options_now(sound_context(f), out) : 0).to_equal(size_t(1));
 		expect(static_cast<int>(out[0])).to_equal(0);
+	});
+
+	it("opens the slicer on the file the preview already holds without stopping it, as main's openUI(&slicer)", _ {
+		// `SampleBrowser`'s SLICE door is `openUI(&slicer)` with the preview left sounding: nothing stops it.
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		// The spec's sample has no lease, so a stop's unbind would freeze on it (E220): the open must not unbind.
+		Sample* const sample = make_overview_sample();
+		PreviewHeld held{sample};
+		held.range->sampleHolder.filePath = "SAMPLES/HELD.WAV";
+		deluge::gui::ui::openShellSlice("SAMPLES/HELD.WAV");
+		expect(held.range->sampleHolder.audioFile == sample).to_be_true();
+		expect(deluge::gui::ui::shellSlicerBusy()).to_be_false();
+		expect(deluge::scenes::slicing::slicer_scene().has_sample()).to_be_true();
+		deluge::gui::ui::releaseShellSlicerBeforeClose();
+		deluge::scenes::slicing::slicer_scene().open(nullptr);
+		held.range->sampleHolder.filePath.clear();
 	});
 
 	it("SLICE parks a slice of the selected file and keeps the menu", _ {

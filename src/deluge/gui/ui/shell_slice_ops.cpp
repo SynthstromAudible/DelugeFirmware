@@ -81,10 +81,20 @@ public:
 		return true;
 	}
 
-	/// @brief Start loading @p path into the preview's drum, for the slicer to open on.
+	/// @brief Open the slicer on @p path: at once, with the preview left sounding, when the preview's drum already
+	/// holds
+	///        that file (main's `openUI(&slicer)` stops nothing); else start loading it into the preview's drum.
 	void open(std::string_view path) {
 		path_ = std::string{path};
 		sample_ = nullptr;
+		if (const auto* held = heldPreview(); held != nullptr && held->sampleHolder.filePath == path_) {
+			if (auto* sample = static_cast<Sample*>(held->sampleHolder.audioFile); sample != nullptr) {
+				sample_ = sample;
+				slicer_scene().open(sample, deluge::scenes::browser::browser_scene().shown_waveform(sample));
+				deluge::scenes::browser::browser_scene().slice_ready(true);
+				return;
+			}
+		}
 		AudioEngine::stopAnyPreviewing(); // also unbinds the preview's holder, so the load looks the path up
 		MultisampleRange* range =
 		    static_cast<MultisampleRange*>(AudioEngine::sampleForPreview->sources[0].getOrCreateFirstRange());
@@ -126,12 +136,13 @@ public:
 		play_position_ = sample_ != nullptr ? core_.play_position() : std::nullopt;
 	}
 
-	/// @brief Drop what the guest's close leaves behind: a pending open and a held audition, which would otherwise
-	///        land in whatever the next guest edits. A slice that is out cannot be dropped; the close is refused
-	///        while one is (`slicing`).
+	/// @brief Drop what the guest's close leaves behind: a pending open, the sample the slicer was open on and a held
+	///        audition, which would otherwise land in whatever the next guest edits. A slice that is out cannot be
+	///        dropped; the close is refused while one is (`slicing`).
 	void release() {
 		open_load_.cancel();
 		core_.cancel_audition();
+		sample_ = nullptr;
 		play_position_.reset();
 	}
 
@@ -139,6 +150,17 @@ public:
 	[[nodiscard]] bool busy() const { return open_load_.pending() || core_.slicing() || core_.audition_pending(); }
 
 private:
+	/// @brief The preview drum's range while it holds a sample file, else null.
+	static const MultisampleRange* heldPreview() {
+		Source& source = AudioEngine::sampleForPreview->sources[0];
+		if (source.ranges.empty()) {
+			return nullptr;
+		}
+		const auto* range = static_cast<const MultisampleRange*>(source.ranges.getElement(0));
+		const AudioFile* file = range->sampleHolder.audioFile;
+		return file != nullptr && file->type == AudioFileType::SAMPLE ? range : nullptr;
+	}
+
 	void poll_open() {
 		using Result = deluge::storage::LatestSampleLoad<uint32_t>::Result;
 		using Reason = deluge::storage::AsyncSampleLoad::Reason;
