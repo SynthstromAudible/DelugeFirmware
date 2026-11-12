@@ -297,7 +297,7 @@ Result RecorderScene::after_render() {
 		// `RESOURCE_SD | RESOURCE_SD_ROUTINE` *and* carries this same
 		// explicit test, for the one call path that bypasses the scheduler.
 		//
-		// `AudioRecorder::process` is NOT a precedent for going unguarded, though it calls
+		// `AudioRecorder::tick` is NOT a precedent for going unguarded, though it calls
 		// `finishRecording` with no test: it pumps `AudioEngine::routineWithClusterLoading()`
 		// itself as the first statement of its own loop, so it is the outermost thing on
 		// the stack and can never be re-entered while a card routine is suspended part-way.
