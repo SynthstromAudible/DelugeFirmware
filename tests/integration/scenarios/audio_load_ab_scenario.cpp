@@ -210,10 +210,9 @@ bool g_summaryPrinted = false;
 // because the gate's driver IS the handler that caller lacks.
 //
 // This stage removes the harness from that role. It calls the production entry
-// (`SamplePreviewer::request`) ONCE, and from then on drives only
-// the guest's tick -- the per-tick surface, with no further
-// "user input" of any kind. If the browser ever stops re-asking for a deferred
-// preview, it simply never lands and this fails.
+// (`SamplePreviewer::request`) ONCE, and from then on drives only the guest's tick -- the per-tick surface, with no
+// further "user input" of any kind. If the browser ever stops re-asking for a deferred preview, it simply never lands
+// and this fails.
 
 /// The file the preview stage loads. Exists only at its regular path, and is
 /// asked for by nothing above, so it is never resident when this stage starts.

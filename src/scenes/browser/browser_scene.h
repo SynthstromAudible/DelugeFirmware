@@ -389,7 +389,6 @@ enum class BrowseBlink : uint8_t {
 	Browser, ///< The browser's own, every other cycle (`possiblySetUpBlinking`'s `setupExclusiveShortcutBlink`).
 };
 
-/// @brief The file browser. One instance for the whole application (`registry.h`).
 /// @brief What the preview waveform's renders came to, for a harness that drives the browser as a user does.
 struct WaveformDrawStats {
 	int32_t draws = 0;    ///< renders of a newly previewed sample
@@ -398,6 +397,7 @@ struct WaveformDrawStats {
 	int32_t give_ups = 0; ///< unfinished waveforms left after `kWaveformRedrawGiveUpMs` with no column resolved
 };
 
+/// @brief The file browser. One instance for the whole application (`registry.h`).
 class BrowserScene final : public deluge::ui::shell::Scene {
 public:
 	/// @brief Point the scene at what @p ctx resolved.
