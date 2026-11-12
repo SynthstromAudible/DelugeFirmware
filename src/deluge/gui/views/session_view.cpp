@@ -634,7 +634,7 @@ doActualSimpleChange:
 							if (instrument->type != newOutputType) {
 								Instrument* newInstrument = currentSong->changeOutputType(instrument, newOutputType);
 								if (newInstrument) {
-									view.displayOutputName(newInstrument);
+									view.displayOutputName(newInstrument, true, clip);
 									view.setActiveModControllableTimelineCounter(newInstrument->getActiveClip());
 								}
 							}
@@ -1331,7 +1331,7 @@ void SessionView::commandChangeClipPreset(int8_t offset) {
 		}
 		case SessionLayoutType::SessionLayoutTypeGrid: {
 			Output* oldOutput = clip->output;
-			Output* newOutput = currentSong->navigateThroughPresetsForInstrument(oldOutput, offset);
+			Output* newOutput = currentSong->navigateThroughPresetsForInstrument(oldOutput, offset, clip);
 			if (oldOutput != newOutput) {
 				view.setActiveModControllableTimelineCounter(newOutput->getActiveClip());
 				requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);

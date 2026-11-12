@@ -2521,7 +2521,7 @@ gotAnInstrument:
 			}
 		}
 
-		displayOutputName(newInstrument, doBlink);
+		displayOutputName(newInstrument, doBlink, clip);
 
 		// Special case: when it is a saved MIDI preset (with a name), then we need to show the channel in a popup, as
 		// the name will print over the midi channel and we can't see it while changing it
@@ -2544,7 +2544,7 @@ gotAnInstrument:
 	else {
 
 		PresetNavigationResult results =
-		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, availabilityRequirement, false);
+		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, availabilityRequirement, false, clip);
 		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
 getOut:
 			display->removeWorkingAnimation();
