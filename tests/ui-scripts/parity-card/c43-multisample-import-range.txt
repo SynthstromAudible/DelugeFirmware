@@ -1,0 +1,37 @@
+# A MULTISAMPLES import made through the note-range picker. c18's import builds a multisample; Shift + (0,5) then opens
+# the picker in front of the file selector, which is turned down to the bottom range, and SELECT opens the browser on
+# it. A long press on the browser's file imports its folder again, and the browser closes onto the picker, which main
+# opens on the middle range the import left current.
+100   snapshot boot
+5000  button Shift down
+5100  pad 0 5 down
+5150  pad 0 5 up
+5200  button Shift up
+7500  encoder Select +2
+8500  button SelectEnc down
+8520  button SelectEnc up
+11000 button SelectEnc down
+11800 button SelectEnc up
+12500 button SelectEnc down
+12520 button SelectEnc up
+31000 button Shift down
+31100 pad 0 5 down
+31150 pad 0 5 up
+31200 button Shift up
+32500 snapshot picker
+33000 encoder Select -1
+33200 encoder Select -1
+33400 encoder Select -1
+33600 encoder Select -1
+33800 encoder Select -1
+34000 encoder Select -1
+34800 snapshot bottom
+35300 button SelectEnc down
+35320 button SelectEnc up
+38000 snapshot browser
+38500 button SelectEnc down
+39200 snapshot file-menu
+39300 button SelectEnc up
+40000 button SelectEnc down
+40020 button SelectEnc up
+58000 snapshot reimported

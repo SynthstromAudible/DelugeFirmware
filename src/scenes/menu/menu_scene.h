@@ -441,6 +441,11 @@ public:
 	///        browser read a bank. `DxSyxBrowser`'s `enterSubmenu(&dxCartridge)` then cleared
 	///        `shouldGoUpOneLevelOnBegin`, so the page sits under "load DX7 .syx file", whose BACK reopens the browser.
 	void land_dx_cartridge() { land_dx_cartridge_ = true; }
+	/// @brief A folder import from the browser this menu opened made range @p index of the menu's source current, as
+	///        `SoundEditor::setCurrentMultiRange` does. The resume that brings the menu back applies it when its step
+	///        up lands on the note-range picker, which opens on it (`MultiRange::beginSession`); any other landing
+	///        begins a submenu, which drops main's selected range (`Submenu::beginSession`). Dropped by `open`.
+	void import_chose_range(int32_t index) { import_range_ = static_cast<int16_t>(index); }
 	/// @brief Shift + the keyboard's DX column pad for operator @p op with the menu open: `openForOpOrGlobal`. On the
 	///        parameter page it moves the param (`dx::column_param`'s toggle and carry); anywhere else the menu moves
 	///        to the page on the operator's param, as legacy's `setup()` re-roots, on its next tick. Either way the
@@ -686,6 +691,8 @@ private:
 	bool landing_survives_resume_ = false;
 	/// The `.syx` browser over the menu read a bank: its resume lands on the cartridge page (`land_dx_cartridge`).
 	bool land_dx_cartridge_ = false;
+	/// `import_chose_range`'s range, until the next resume spends it; -1 for none.
+	int16_t import_range_ = -1;
 	/// `arm_refused_recorder_landing`'s node, until the next resume from a push spends it.
 	const Node* refused_recorder_landing_ = nullptr;
 	/// The kind of the scene the last `pending_scene` drain pushed, until the resume that follows it.

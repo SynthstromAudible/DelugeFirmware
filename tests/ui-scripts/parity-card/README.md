@@ -62,6 +62,11 @@ it, empty; a Select turn and SELECT on the empty list do nothing, and BACK leave
 `c39-browser-record-audition` opens the sample browser with Shift + (0,5) and presses RECORD with the audition pad
 (17,3) held, which the browser refuses, then without it, which opens the recorder.
 
+`c43-multisample-import-range` builds c20's multisample, opens the note-range picker with Shift + (0,5) (the file
+selector waits on it), turns it to the bottom range and opens the browser from it. A long press on the browser's file
+imports its folder again (MULTISAMPLES), and the browser closes onto the picker, which `main` opens on the middle range
+the import left current.
+
 `c37-recorder-threshold` sets the song's threshold to LOW with RECORD held and two Select turns (the first only
 shows the mode) and opens the recorder from its page, which draws the level meter.
 

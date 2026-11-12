@@ -89,6 +89,7 @@ void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	refused_recorder_landing_ = nullptr;
 	pushed_kind_ = SceneKind::Null;
 	pushed_scene_refused_ = false;
+	import_range_ = -1;
 	const DxState dx = st_.dx;
 	st_ = MenuState{};
 	st_.dx = dx;
@@ -257,6 +258,8 @@ uint16_t MenuScene::arm_page_landing(const Node& page, const Node& column) {
 void MenuScene::on_resume() {
 	// Input went elsewhere, and so did LEARN's release: the menu is not learning when it comes back.
 	visit_.learn.cancel();
+	// A folder import's range is this resume's to apply (on the step up below) or to drop.
+	const int16_t imported = std::exchange(import_range_, int16_t{-1});
 	visit_.blink_restart = true; // `focusRegained`'s `setLedStates` -> `blinkLed(IndicatorLED::BACK)`
 	                             // (`SoundEditor::focusRegained` in `sound_editor.cpp`)
 	// `SoundEditor::focusRegained` (`gui/ui/sound_editor.cpp`): "If just came back from a
@@ -298,6 +301,12 @@ void MenuScene::on_resume() {
 			retarget(*landing);
 		}
 		else {
+			// The note-range picker the step lands on opens on the range a folder import left current, as
+			// `MultiRange::beginSession` reads `currentMultiRangeIndex`. Any other landing begins a submenu, which
+			// drops main's selected range (`Submenu::beginSession`): the import's range is not applied there.
+			if (imported >= 0 && st_.depth > 0 && st_.path[st_.depth - 1] == &nodes::multi_range) {
+				select_range(ctx_, imported);
+			}
 			walk_.ascend(core(), visit_.session);
 		}
 	}

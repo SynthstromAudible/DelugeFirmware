@@ -409,10 +409,13 @@ struct ShellRig {
 	/// (`scenes/menu/menu_scene.cpp`'s `on_enter`), which is exactly what the jump's `Action::Kind::
 	/// Replace` produces (`handle`'s pad arm) -- and today the pad is the only way to focus a file
 	/// selector at all (see the group's own note).
-	void open_menu_at(const Node& node) {
+	void open_menu_at(const Node& node) { open_menu_at(node, model.ctx()); }
+
+	/// @brief `open_menu_at` on @p ctx instead of the model's single-range context.
+	void open_menu_at(const Node& node, const MenuContext& ctx) {
 		select_language();
 		(void)menu::assign_node_ids(nodes::kAllRoots);
-		menu_scene().open(node, model.ctx());
+		menu_scene().open(node, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(node)});
 		for (int32_t i = 0; i < 4; i++) {
 			step();
@@ -635,6 +638,7 @@ struct ImportSpy {
 
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 constexpr uint8_t kSelectEncoder = 3;
+constexpr uint8_t kBackButtonX = 7, kBackButtonY = 1;
 
 /// @brief Hold Select on @p shell until the long press answers, then let go.
 void long_press(Shell& shell, uint32_t& clock) {
@@ -664,6 +668,75 @@ void pick(Shell& shell, uint32_t& clock, int32_t detents) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, kSelectEncButtonX, kSelectEncButtonY, v}, clock);
 		shell.tick(clock);
 	}
+}
+
+/// @brief Turn the select encoder @p detents one detent at a time, each its own event and tick, as a hand turns it.
+void turn_detents(Shell& shell, uint32_t& clock, int32_t detents) {
+	const int16_t edges = detents < 0 ? -2 : 2;
+	for (int32_t i = 0; i < std::abs(detents); i++) {
+		clock += 10;
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, kSelectEncoder, 0, edges}, clock);
+		shell.tick(clock);
+	}
+}
+
+/// @brief Press and release BACK, a tick after each.
+void press_back(Shell& shell, uint32_t& clock) {
+	for (const int16_t v : {int16_t{255}, int16_t{0}}) {
+		clock += 10;
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, kBackButtonX, kBackButtonY, v}, clock);
+		shell.tick(clock);
+	}
+}
+
+/// @brief BACK out of the browser the menu opened inside `SAMPLES/OSC_A`: up to `SAMPLES`, then out
+///        (`BrowserScene::back`), letting each listing land.
+void leave_browser(ShellRig& r) {
+	for (int32_t press = 0; press < 2; press++) {
+		press_back(r.shell, r.clock);
+		for (int32_t i = 0; i < 4; i++) {
+			r.step();
+		}
+	}
+}
+
+/// @brief Give @p model's oscillator 0 three ranges, each on a sample at `kChosenPath`, recorded as a load records
+///        them: the shape a MULTISAMPLES import of three pitches leaves.
+void give_three_ranges(SongRig& model) {
+	auto* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(model.song.instrument->toModControllable()));
+	model.range->topNote = 59;
+	for (int32_t i = 1; i < 3; i++) {
+		auto* range = static_cast<MultisampleRange*>(model.source->ranges.insertMultiRange(i));
+		if (range == nullptr) {
+			spec_bail("no memory for a range");
+		}
+		Sample* sample = make_sample();
+		sample->filePath = std::string{kChosenPath};
+		range->topNote = i == 1 ? 71 : 32767;
+		range->sampleHolder.audioFile = sample;
+		range->sampleHolder.filePath = std::string{kChosenPath};
+		range->sampleHolder.startPos = 0;
+		range->sampleHolder.endPos = sample->lengthInSamples;
+	}
+	model.range = static_cast<MultisampleRange*>(model.source->ranges.getElement(0));
+	deluge::bridge::recordLoadedSound(*sound, *model.song.song);
+}
+
+/// @brief Shift + (0,5) on @p r's several ranges: the note-range picker, standing in for the file selector. Turn it to
+///        the bottom range, SELECT to open the browser from it, and ask for a MULTISAMPLES import of the browser's
+///        file's folder from its long-press menu.
+void import_from_picker(ShellRig& r) {
+	MenuContext ctx = r.model.ctx();
+	ctx.range_index = -1; // several ranges and none chosen, as `context_for` leaves them
+	r.open_menu_at(nodes::file0_selector, ctx);
+	turn_detents(r.shell, r.clock, -3);
+	pick(r.shell, r.clock, 0); // the picker heads to the file selector, which pushes the browser
+	for (int32_t i = 0; i < 4; i++) {
+		r.step();
+	}
+	long_press(r.shell, r.clock);
+	pick(r.shell, r.clock, 0); // MULTISAMPLES
+	deluge::gui::ui::dispatchShellChoices();
 }
 
 /// @brief A kit whose one drum is on row 0, with the sample browser opened over it directly, as the long press
@@ -1708,7 +1781,7 @@ describe browser_choice_long_press(
 	        });
 
 	    it(
-	        "names the menu's source in a MULTISAMPLES import, and tells no legacy editor which range it chose", _ {
+	        "names the menu's source in a MULTISAMPLES import, and hands the ranges it makes current to the menu", _ {
 		        CleanBrowser clean;
 		        ImportSpy spy;
 		        ScratchCard card;
@@ -1720,7 +1793,128 @@ describe browser_choice_long_press(
 		        deluge::gui::ui::dispatchShellChoices();
 		        expect(spy.dispatches).to_equal(1);
 		        expect(ImportSpy::last.target.source == r.model.source).to_be_true();
-		        expect(ImportSpy::last.rangeChosen == nullptr).to_be_true();
+		        expect(ImportSpy::last.rangeChosen != nullptr).to_be_true();
+	        });
+
+	    it(
+	        "lands the picker the import's browser closes onto on the middle range the import left current", _ {
+		        CleanBrowser clean;
+		        ImportSpy spy;
+		        ScratchCard card;
+		        ShellRig r;
+		        give_three_ranges(r.model);
+		        import_from_picker(r);
+		        expect(spy.dispatches).to_equal(1);
+		        expect(menu_scene().state().path[0] == &nodes::multi_range).to_be_true();
+		        expect(static_cast<int32_t>(menu_scene().state().depth)).to_equal(1);
+		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(0);
+
+		        // `FolderImport::finishMulti`: range 0 current while it builds, then `numSamples >> 1`.
+		        expect(ImportSpy::last.rangeChosen != nullptr).to_be_true();
+		        if (ImportSpy::last.rangeChosen != nullptr) {
+			        ImportSpy::last.rangeChosen(0);
+			        ImportSpy::last.rangeChosen(1);
+		        }
+		        ImportSpy::last.completion(true);
+		        for (int32_t i = 0; i < 4; i++) {
+			        r.step();
+		        }
+
+		        expect(r.browser_on_stack()).to_be_false();
+		        expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(1);
+		        expect(static_cast<int32_t>(menu_scene().state().list[0].cursor)).to_equal(1);
+	        });
+
+	    it(
+	        "keeps the menu's range when the import's browser closes onto a page, which drops main's range", _ {
+		        CleanBrowser clean;
+		        ImportSpy spy;
+		        ScratchCard card;
+		        ShellRig r;
+		        r.open_menu_at(nodes::sound_root);
+		        menu_scene().enter_submenu(nodes::source_group);
+		        menu_scene().enter_submenu(nodes::file0_selector);
+		        // `enter_submenu` runs outside a tick and asks for no frame, so the item's push waits for the shell's
+		        // next one: tick until the browser is up, then twice more for its listing.
+		        for (int32_t i = 0; i < 40 && !r.browser_on_stack(); i++) {
+			        r.step();
+		        }
+		        r.step();
+		        r.step();
+		        expect(r.browser_on_stack()).to_be_true();
+		        long_press(r.shell, r.clock);
+		        pick(r.shell, r.clock, 0); // MULTISAMPLES
+		        deluge::gui::ui::dispatchShellChoices();
+		        expect(spy.dispatches).to_equal(1);
+
+		        give_three_ranges(r.model); // what the import built
+		        if (ImportSpy::last.rangeChosen != nullptr) {
+			        ImportSpy::last.rangeChosen(0);
+			        ImportSpy::last.rangeChosen(1);
+		        }
+		        ImportSpy::last.completion(true);
+		        for (int32_t i = 0; i < 4; i++) {
+			        r.step();
+		        }
+
+		        expect(r.browser_on_stack()).to_be_false();
+		        expect(static_cast<int32_t>(menu_scene().state().depth)).to_equal(1);
+		        expect(menu_scene().state().path[1] == &nodes::source_group).to_be_true();
+		        // `Submenu::beginSession` nulls main's range there, so its transpose column reads range 0.
+		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(0);
+	        });
+
+	    it(
+	        "spends the import's range on the resume it lands: the picker's next trip to the browser keeps its own", _ {
+		        CleanBrowser clean;
+		        ImportSpy spy;
+		        ScratchCard card;
+		        ShellRig r;
+		        give_three_ranges(r.model);
+		        import_from_picker(r);
+		        if (ImportSpy::last.rangeChosen != nullptr) {
+			        ImportSpy::last.rangeChosen(0);
+			        ImportSpy::last.rangeChosen(1);
+		        }
+		        ImportSpy::last.completion(true);
+		        for (int32_t i = 0; i < 4; i++) {
+			        r.step();
+		        }
+
+		        turn_detents(r.shell, r.clock, -2);
+		        pick(r.shell, r.clock, 0); // the browser again, from the bottom range
+		        for (int32_t i = 0; i < 4; i++) {
+			        r.step();
+		        }
+		        expect(r.browser_on_stack()).to_be_true();
+		        leave_browser(r);
+
+		        expect(r.browser_on_stack()).to_be_false();
+		        expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(0);
+		        expect(static_cast<int32_t>(menu_scene().state().list[0].cursor)).to_equal(0);
+	        });
+
+	    it(
+	        "applies no range an earlier visit was told, when a failed import's browser is left with BACK", _ {
+		        CleanBrowser clean;
+		        ImportSpy spy;
+		        ScratchCard card;
+		        ShellRig r;
+		        give_three_ranges(r.model);
+		        menu_scene().import_chose_range(2); // told to a visit that closed before its browser returned
+		        import_from_picker(r);
+		        ImportSpy::last.completion(false); // the listing failed: no range was made current
+		        for (int32_t i = 0; i < 3; i++) {
+			        r.step();
+		        }
+		        expect(r.browser_on_stack()).to_be_true();
+		        leave_browser(r);
+
+		        expect(r.browser_on_stack()).to_be_false();
+		        expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(0);
 	        });
 
 	    it(

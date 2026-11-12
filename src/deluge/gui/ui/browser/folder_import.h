@@ -51,8 +51,8 @@ struct FolderImportRequest {
 	bool exitBrowser = true;
 	/// The sound the import fills: the menu's resolved sound and source.
 	SoundTarget target{};
-	/// Told each range the import makes current, for an opener that keeps its own current range. Null for the ported
-	/// browser, whose menu keeps its own.
+	/// Told each range the import makes current, as `SoundEditor::setCurrentMultiRange` is: the legacy browser's
+	/// request tells the legacy editor, the ported browser's tells the menu (`MenuScene::import_chose_range`).
 	void (*rangeChosen)(int32_t index) = nullptr;
 };
 

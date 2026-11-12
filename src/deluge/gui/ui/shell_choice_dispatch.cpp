@@ -222,6 +222,12 @@ void claimSampleFile(std::string_view path, const SampleClaimTarget& target, con
 	});
 }
 
+/// @brief `FolderImportRequest::rangeChosen` for an import the ported browser asked for: the range the import makes
+///        current goes to the menu beneath, as `SoundEditor::setCurrentMultiRange` makes it the legacy editor's.
+void shellImportRangeChosen(int32_t index) {
+	deluge::scenes::menu_scene().import_chose_range(index);
+}
+
 /// @brief `SampleBrowser::requestFolderImport` for a folder menu's choice: the item's
 ///        own folder, or the folder it is in, starting from it. The ported browser closes itself, so the import does
 ///        not.
@@ -231,8 +237,11 @@ void importFolder(const BrowserChoice& choice, deluge::gui::FolderImportKind kin
 	}
 	// An auto-load claim would bind into the sound the import is replacing.
 	claimCancel();
-	deluge::gui::FolderImportRequest request{
-	    .kind = kind, .completion = &shellLongPressImportDone, .exitBrowser = false, .target = shellMenuTarget()};
+	deluge::gui::FolderImportRequest request{.kind = kind,
+	                                         .completion = &shellLongPressImportDone,
+	                                         .exitBrowser = false,
+	                                         .target = shellMenuTarget(),
+	                                         .rangeChosen = &shellImportRangeChosen};
 	if (choice.is_folder) {
 		request.folder = choice.path;
 	}
