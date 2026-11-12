@@ -335,10 +335,10 @@ void build_names_contexts() {
 /// @brief The values @p node offers, as its list spells them; empty for a node that offers none.
 ///
 /// A target's come from its row's name table, all of them (in a context the menu may leave some out); static `names`
-/// are the list itself; a `dynamic_names` hook is asked with an otherwise empty context once per source index, so it
-/// gives the values it offers every owner and those one output adds (the clock output's CLOCK mode), but not those an
-/// owner adds (a note row's NONE direction). A toggle's two values are Disabled and Enabled,
-/// the words its own page lists (`MenuView::render_leaf_toggle`). A custom page or a number spelled as words names
+/// are the list itself; a `dynamic_names` hook is asked in each of `g_names_contexts`, so it gives the values it offers
+/// every owner, those one output adds (the clock output's CLOCK mode) and those the booted song's clip adds (a note
+/// row's NONE direction), each once, in list order. A toggle's two values are Disabled and Enabled, the words its own
+/// page lists (`MenuView::render_leaf_toggle`). A custom page or a number spelled as words names
 /// its values the same two ways (`with_value_names`); one that names none offers nothing here.
 std::vector<std::string> option_names(const menu::Node& node) {
 	switch (node.kind) {
@@ -379,18 +379,6 @@ struct DrawnRow {
 
 namespace dx = deluge::scenes::menu::dx;
 
-/// An operator param's long name, by its index in the operator (`desc_op_long`,
-/// `origin/main:src/deluge/gui/menu_item/dx/param.cpp`).
-constexpr std::array<std::string_view, dx::kOperatorParams> kDxOperatorParamNames{
-    "env rate1",  "env rate2",     "env rate3",  "env rate4",   "env level1", "env level2",  "env level3",
-    "env level4", "breakpoint",    "left depth", "right depth", "left curve", "right curve", "rate scale",
-    "ampmod",     "velocity sens", "level",      "mode",        "coarse",     "fine",        "detune"};
-/// A global param's long name, by its index past the operators (`desc_global_long`, the same file).
-constexpr std::array<std::string_view, 18> kDxGlobalParamNames{
-    "DX7 pitch R1",  "DX7 pitch R2",  "DX7 pitch R3", "DX7 pitch R4", "DX7 pitch l1",     "DX7 pitch l2",
-    "DX7 pitch l3",  "DX7 pitch l4",  "algorithm",    "DX7 feedback", "DX7 osc Sync",     "DX7 LFO rate",
-    "DX7 LFO delay", "DX7 LFO pitch", "DX7 LFO amp",  "DX7 LFO sync", "DX7 LFO waveform", "DX7 pitch sens"};
-
 /// @brief The params a DX7 row lists, by the param its select press opens, as main's website reference lists them
 ///        (`extractDxParamDescriptorContext` and `selectDescriptorIndicesForItem`,
 ///        `origin/main:website/scripts/generate-menu-hierarchies.mjs`): the descriptor group the param is in, narrowed
@@ -424,7 +412,7 @@ std::vector<int16_t> dx_row_params(int16_t index, bool global) {
 /// @brief A DX7 param as a row: its long name, and the values it offers by name (the curves, ratio or fixed, the LFO
 ///        waveforms; `DxParam::renderOLED`'s words).
 DrawnRow dx_param_row(int16_t index, bool global) {
-	DrawnRow row{.name = std::string{global ? kDxGlobalParamNames[index] : kDxOperatorParamNames[index]}};
+	DrawnRow row{.name = std::string{global ? dx::global_param_name(index) : dx::operator_param_name(index)}};
 	if (!global && (index == 11 || index == 12)) {
 		for (uint8_t curve = 0; curve < 4; ++curve) {
 			row.options.emplace_back(dx::curve_name(curve));

@@ -60,6 +60,13 @@ int16_t global_row_param(int32_t row);
 /// @param row The row.
 int16_t operator_row_param(int32_t op, int32_t row);
 
+/// @brief An operator param's long name, by its index in the operator (`desc_op_long`,
+///        `origin/main:src/deluge/gui/menu_item/dx/param.cpp`); empty past the last.
+std::string_view operator_param_name(int16_t index);
+/// @brief A global param's long name, by its index past the operators (`desc_global_long`, the same file); empty past
+///        the last.
+std::string_view global_param_name(int16_t index);
+
 /// @brief A keyboard scaling curve's name (`curves`, `origin/main:src/deluge/gui/menu_item/dx/param.cpp`), values
 ///        past the four curves named "????".
 std::string_view curve_name(uint8_t value);
