@@ -49,9 +49,9 @@
 /// **The load-bearing fact:** `src/deluge/util` is *itself* inside `check_layer_rules.py`'s
 /// `NON_UI` glob (`src/deluge/{model,playback,processing,storage,io,modulation,memory,sync,util,
 /// dsp}/**`). So this header is judged by the very rule the split is about, and it passes on its
-/// own terms -- it includes nothing but `<cstdint>` and forward-declares `class Clip`. Every
-/// `src/scenes` and `gui/` dependency stays in `gui/ui/shell_menu_entry.cpp`, where the rule would
-/// judge it if it moved.
+/// own terms -- it includes only `definitions_cxx.hpp`, `gfx/grid/rgb.h` and `<cstdint>`, and forward-declares `class
+/// Clip`. Every `src/scenes` and `gui/` dependency stays in `gui/ui/shell_menu_entry.cpp`, where the rule would judge
+/// it if it moved.
 ///
 /// @note `check_citations.py`'s `SCAN_ROOTS` includes `src/deluge/util`, so this file's citations
 ///       are gate-read.
