@@ -79,9 +79,9 @@ bool tryParseVelocityFromFilename(char const* filename, uint8_t* outVelocity) {
 	return found;
 }
 
-void computeVelocityLayerBoundaries(const uint8_t* velocities, int32_t count, uint8_t* outMin, uint8_t* outMax) {
+int32_t computeVelocityLayerBoundaries(const uint8_t* velocities, int32_t count, uint8_t* outMin, uint8_t* outMax) {
 	if (count <= 1) {
-		return;
+		return count;
 	}
 
 	// count is at most kMaxRoundRobinAlternates + 1 (4) - a plain insertion sort is simplest and
@@ -100,12 +100,28 @@ void computeVelocityLayerBoundaries(const uint8_t* velocities, int32_t count, ui
 		order[j + 1] = key;
 	}
 
-	for (int32_t rank = 0; rank < count; rank++) {
-		int32_t memberIndex = order[rank];
-		outMin[memberIndex] = (rank == 0) ? MultisampleRange::kDefaultVelocityMin
-		                                  : (uint8_t)((velocities[order[rank - 1]] + velocities[memberIndex]) / 2 + 1);
-		outMax[memberIndex] = (rank == count - 1)
-		                          ? MultisampleRange::kDefaultVelocityMax
-		                          : (uint8_t)((velocities[memberIndex] + velocities[order[rank + 1]]) / 2);
+	// Walk the sorted order a layer at a time: a run of equal values is one layer, and every slot in
+	// it gets that layer's band.
+	int32_t numLayers = 0;
+	int32_t runStart = 0;
+	while (runStart < count) {
+		uint8_t layerVelocity = velocities[order[runStart]];
+		int32_t runEnd = runStart;
+		while (runEnd + 1 < count && velocities[order[runEnd + 1]] == layerVelocity) {
+			runEnd++;
+		}
+
+		uint8_t layerMin = (runStart == 0) ? MultisampleRange::kDefaultVelocityMin
+		                                   : (uint8_t)((velocities[order[runStart - 1]] + layerVelocity) / 2 + 1);
+		uint8_t layerMax = (runEnd == count - 1) ? MultisampleRange::kDefaultVelocityMax
+		                                         : (uint8_t)((layerVelocity + velocities[order[runEnd + 1]]) / 2);
+		for (int32_t rank = runStart; rank <= runEnd; rank++) {
+			outMin[order[rank]] = layerMin;
+			outMax[order[rank]] = layerMax;
+		}
+
+		numLayers++;
+		runStart = runEnd + 1;
 	}
+	return numLayers;
 }

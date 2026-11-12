@@ -35,13 +35,15 @@
 bool tryParseVelocityFromFilename(char const* filename, uint8_t* outVelocity);
 
 /// Given `count` (1..kMaxRoundRobinAlternates + 1) velocity values - one per round-robin slot, in
-/// slot order - fills outMin/outMax (each `count` entries, indexed the same as `velocities`) with a
-/// partition of the full 1-127 range: sorted ascending by value, with boundaries at the midpoint
-/// between each consecutive pair (rounded down, the slot below keeps the boundary value itself), so
-/// the resulting ranges are contiguous and non-overlapping regardless of the input order. Ties are
-/// broken by giving the boundary to the lower-indexed (in sorted order) of the two - still produces
-/// a valid, non-overlapping partition, just with one of the tied slots effectively unreachable.
+/// slot order - fills outMin/outMax (each `count` entries, indexed the same as `velocities`) with
+/// each slot's band, and returns how many distinct layers there are.
+///
+/// Each distinct value is one layer. The layers partition 1-127: sorted ascending, with a boundary
+/// at the midpoint between each neighbouring pair (rounded down, the layer below keeps the boundary
+/// value itself), so they are contiguous and don't overlap whatever order the input is in. Slots
+/// with the same value are takes of the same layer and get the same band, which Velocity mode then
+/// alternates between.
 ///
 /// Used to turn folder-import velocity tags into round-robin slot ranges (see
-/// MultisampleRange::setVelocityRange()). `count` <= 1 is a no-op (nothing to partition).
-void computeVelocityLayerBoundaries(const uint8_t* velocities, int32_t count, uint8_t* outMin, uint8_t* outMax);
+/// MultisampleRange::setVelocityRange()). `count` <= 1 leaves the outputs alone and returns `count`.
+int32_t computeVelocityLayerBoundaries(const uint8_t* velocities, int32_t count, uint8_t* outMin, uint8_t* outMax);
