@@ -1,5 +1,5 @@
 /// @file
-/// @brief The nine menu items that open a card-backed scene (`scenes/menu/nodes/sample.h`): which
+/// @brief The ten menu items that open a card-backed scene (`scenes/menu/nodes/sample.h`): which
 ///        node carries which item, and what each one actually opens when the menu focuses it.
 ///
 /// Two groups, and they are deliberately different kinds of claim:
@@ -32,6 +32,7 @@
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/nodes/sample.h"
 #include "scenes/menu/relevance.h"
+#include "scenes/menu/shortcuts.h"
 #include "scenes/menu/validate.h"
 #include "scenes/profile.h"
 #include "scenes/recorder/recorder_scene.h"
@@ -436,7 +437,7 @@ describe sample_items_mapping("scenes::menu the sample items: the mapping", $ {
 
 	it("puts these items on those ten nodes and on nothing else in the tree", _ {
 		// By identity over the whole reachable tree, not by a count: an item accidentally attached to
-		// a tenth node somewhere else would leave every assertion above passing.
+		// an eleventh node somewhere else would leave every assertion above passing.
 		select_language();
 		const uint16_t assigned = menu::assign_node_ids(nodes::kAllRoots);
 
@@ -576,6 +577,66 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		expect(r.on_stack(marker::kMarkerSceneKind)).to_be_true();
 		expect(static_cast<int>(marker::marker_scene().marker_type())).to_equal(static_cast<int>(MarkerType::END));
 		expect(static_cast<int64_t>(marker::marker_scene().x_zoom())).to_equal(zoom_max(48));
+	});
+
+	it("audio_clip_waveform_start opens the marker editor on the clip's own holder, on START", _ {
+		// `audioClipSampleMarkerEditorMenuStart`: the START spelling, reached by the V1 shortcut cells.
+		spec::QuietAudio quiet;
+		CleanScenes clean;
+		ClipRig r;
+		r.focus(nodes::audio_clip_waveform_start);
+
+		expect(r.on_stack(marker::kMarkerSceneKind)).to_be_true();
+		expect(static_cast<int>(marker::marker_scene().marker_type())).to_equal(static_cast<int>(MarkerType::START));
+		expect(static_cast<int64_t>(marker::marker_scene().x_zoom())).to_equal(zoom_max(48));
+	});
+
+	it("opens the marker editor over the keyboard root with the greyout shown at once", _ {
+		// `MarkerItem::on_focus` hands the menu's context to the editor, `root_is_keyboard` included.
+		spec::QuietAudio quiet;
+		CleanScenes clean;
+		ClipRig r;
+		MenuContext c = r.ctx();
+		c.root_is_keyboard = true;
+		focus_in(r.shell, c, nodes::audio_clip_waveform);
+		expect(r.on_stack(marker::kMarkerSceneKind)).to_be_true();
+		expect(marker::marker_scene().greyout_changes_instantly()).to_be_true();
+	});
+
+	it("lands the V1 shortcut (0, 7) on the marker editor's START through the shell, and BACK leaves the menu too", _ {
+		spec::QuietAudio quiet;
+		CleanScenes clean;
+		ClipRig r;
+		const menu::ShortcutsVersion saved = menu::shortcuts_version();
+		menu::set_shortcuts_version(menu::ShortcutsVersion::V1);
+		// The menu is open on an audio clip item; SHIFT + pad (0, 7) is the START item's shortcut.
+		focus_in(r.shell, r.ctx(), nodes::audio_clip_reverse);
+		expect(r.on_stack(marker::kMarkerSceneKind)).to_be_false();
+		uint32_t at = 100;
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 8, 0, 255}, at += 10);
+		r.shell.tick(at += 10);
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, 0, 7, 255}, at += 10);
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, 0, 7, 0}, at += 10);
+		for (int i = 0; i < 4; i++) {
+			r.shell.tick(at += 10);
+		}
+		const bool landed = r.on_stack(marker::kMarkerSceneKind);
+		const int type = static_cast<int>(marker::marker_scene().marker_type());
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 8, 0, 0}, at += 10);
+		// BACK (matrix (7, 1)).
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 7, 1, 255}, at += 10);
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 7, 1, 0}, at += 10);
+		for (int i = 0; i < 4; i++) {
+			r.shell.tick(at += 10);
+		}
+		const bool still = r.on_stack(marker::kMarkerSceneKind);
+		const size_t depth = r.shell.stack().depth();
+		menu::set_shortcuts_version(saved);
+		expect(landed).to_be_true();
+		expect(type).to_equal(static_cast<int>(MarkerType::START));
+		expect(still).to_be_false();
+		// The item sat at depth 0 (main opens it so), so BACK leaves the menu with the editor.
+		expect(depth).to_equal(size_t(0));
 	});
 
 	it("refuses to open the marker editor when the clip has no sample, as legacy refuses", _ {
