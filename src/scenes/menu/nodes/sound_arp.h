@@ -210,10 +210,13 @@ inline constexpr Node arp_preset = with_affect_entire(with_column_art(
                                                       sid(deluge::l10n::String::STRING_FOR_ARP_PRESET_MENU_TITLE)),
                                            arp_preset_chain, kArpPresetChain)),
     arp_preset_art));
-inline constexpr Node arp_gate =
+/// Not on a MIDI or gate drum row (`arpeggiator::ArpUnpatchedParam::isRelevant`), which the kit's own effects keep
+/// selected.
+inline constexpr Node arp_gate = with_relevant(
     param(sid(deluge::l10n::String::STRING_FOR_GATE),
           {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_ARP_GATE},
-          Hint::LengthSlider, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_GATE_MENU_TITLE));
+          Hint::LengthSlider, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_GATE_MENU_TITLE)),
+    relevance::not_non_audio_drum_row);
 inline constexpr Node arp_sync = with_affect_entire(with_title(
     setting_item(sid(deluge::l10n::String::STRING_FOR_SYNC), Kind::SyncLevel, arp_row("arpeggiator/syncLevel")),
     sid(deluge::l10n::String::STRING_FOR_ARP_SYNC_MENU_TITLE)));
@@ -234,9 +237,14 @@ inline constexpr Node arp_basic =
 
 // `Octaves::getMinValue`/`getMaxValue` and `StepRepeat`'s; both render a plain NUMBER
 // (`getRenderingStyle`), hence `Hint::None`.
-inline constexpr Node arp_octaves = with_affect_entire(with_short_column_label(with_title(
-    setting_item(sid(deluge::l10n::String::STRING_FOR_NUMBER_OF_OCTAVES), Kind::Int, arp_row("arpeggiator/numOctaves")),
-    sid(deluge::l10n::String::STRING_FOR_ARP_OCTAVES_MENU_TITLE))));
+/// Relevant by `arpeggiator::Octaves::isRelevant` alone, which asks only the latch and the selected row: on the kit's
+/// own shortcut table it shows while the latch is clear, though the kit's own chain holds no octaves.
+inline constexpr Node arp_octaves =
+    with_own_relevance(with_affect_entire(with_short_column_label(
+                           with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_NUMBER_OF_OCTAVES), Kind::Int,
+                                                   arp_row("arpeggiator/numOctaves")),
+                                      sid(deluge::l10n::String::STRING_FOR_ARP_OCTAVES_MENU_TITLE)))),
+                       relevance::not_gate_drum_or_kit_fx);
 inline constexpr Node arp_step_repeat = with_affect_entire(with_short_column_label(with_title(
     setting_item(sid(deluge::l10n::String::STRING_FOR_STEP_REPEAT), Kind::Int, arp_row("arpeggiator/stepRepeat")),
     sid(deluge::l10n::String::STRING_FOR_ARP_STEP_REPEAT_MENU_TITLE))));

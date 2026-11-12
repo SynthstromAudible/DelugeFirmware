@@ -6,7 +6,6 @@
 #include "util/shell_menu_entry.h"
 
 #include "support/clip_overview_cases.h"
-#include "support/known_differences.h"
 #include "support/oracle_table.h"
 
 #include "cppspec.hpp"
@@ -28,10 +27,7 @@ spec::OracleTable& table() {
 
 /// @brief Every main-grid cell where the overview of @p c differs from main's, as
 ///        "(x,y) main <r,g,b>/<occupancy> ours <r,g,b>/<occupancy>" lines; and how many cells main lit, through @p lit.
-///
-/// A cell `spec::clip_overview_cell_differs_from_main` pins is excused only while it still differs as pinned (main lit,
-/// ours black); one that no longer does is a line of its own. @p excused counts the excused cells.
-std::string differences(clip_overview::Case c, int32_t& lit, size_t& excused) {
+std::string differences(clip_overview::Case c, int32_t& lit) {
 	clip_overview::RootGuard root;
 	(void)clip_overview::set_up(c);
 	RGB got[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
@@ -40,7 +36,6 @@ std::string differences(clip_overview::Case c, int32_t& lit, size_t& excused) {
 	const std::string path = "overview/" + std::string{clip_overview::name_of(c)};
 	std::string bad;
 	lit = 0;
-	excused = 0;
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		const std::vector<std::string>* colours = table().find(path, "rgb/" + std::to_string(y));
 		const std::vector<std::string>* occupied = table().find(path, "occupancy/" + std::to_string(y));
@@ -55,16 +50,6 @@ std::string differences(clip_overview::Case c, int32_t& lit, size_t& excused) {
 			const std::string ours = clip_overview::rgb_text(got[y][x]);
 			const std::string oursOccupancy = std::to_string(gotOccupancy[y][x]);
 			lit += want == "0,0,0" ? 0 : 1;
-			if (spec::clip_overview_cell_differs_from_main(clip_overview::name_of(c), x, y)) {
-				if (want != "0,0,0" && ours == "0,0,0" && wantOccupancy == oursOccupancy) {
-					excused++;
-				}
-				else {
-					bad += "(" + std::to_string(x) + "," + std::to_string(y) + ") pinned as differing, main " + want
-					       + " ours " + ours + "\n";
-				}
-				continue;
-			}
 			if (want != ours || wantOccupancy != oursOccupancy) {
 				bad += "(" + std::to_string(x) + "," + std::to_string(y) + ") main " + want + "/" + wantOccupancy
 				       + " ours " + ours + "/" + oursOccupancy + "\n";
@@ -72,11 +57,6 @@ std::string differences(clip_overview::Case c, int32_t& lit, size_t& excused) {
 		}
 	}
 	return bad;
-}
-
-std::string differences(clip_overview::Case c, int32_t& lit) {
-	size_t excused = 0;
-	return differences(c, lit, excused);
 }
 
 } // namespace
@@ -104,6 +84,30 @@ describe clip_shortcut_overview("the clip view's SHIFT shortcut overview paints 
 	it("for a kit with affect-entire on and no row selected, the latch clear: the kit's own table", _ {
 		int32_t lit = 0;
 		expect(differences(clip_overview::Case::KitAffectEntireNoRowUnlatched, lit)).to_equal(std::string{});
+		expect(lit > 0).to_be_true();
+	});
+
+	it("for a kit with affect-entire on and a gate drum selected, the latch clear: the kit's own table", _ {
+		int32_t lit = 0;
+		expect(differences(clip_overview::Case::KitAffectEntireGateDrumUnlatched, lit)).to_equal(std::string{});
+		expect(lit > 0).to_be_true();
+	});
+
+	it("for a kit with affect-entire on and a gate drum selected, latched by a press: the kit's own table", _ {
+		int32_t lit = 0;
+		expect(differences(clip_overview::Case::KitAffectEntireGateDrum, lit)).to_equal(std::string{});
+		expect(lit > 0).to_be_true();
+	});
+
+	it("for a kit with affect-entire on and a MIDI drum selected, the latch clear: the kit's own table", _ {
+		int32_t lit = 0;
+		expect(differences(clip_overview::Case::KitAffectEntireMidiDrumUnlatched, lit)).to_equal(std::string{});
+		expect(lit > 0).to_be_true();
+	});
+
+	it("for a kit with affect-entire on and a MIDI drum selected, latched by a press: the kit's own table", _ {
+		int32_t lit = 0;
+		expect(differences(clip_overview::Case::KitAffectEntireMidiDrum, lit)).to_equal(std::string{});
 		expect(lit > 0).to_be_true();
 	});
 
@@ -164,19 +168,6 @@ describe clip_shortcut_overview("the clip view's SHIFT shortcut overview paints 
 	});
 });
 
-describe clip_shortcut_overview_pinned("the clip view's shortcut overview: the cells pinned as differing from main", $ {
-	it("excuses exactly the pinned cells, each still differing as pinned", _ {
-		size_t total = 0;
-		for (const clip_overview::CaseInfo& c : clip_overview::kCases) {
-			int32_t lit = 0;
-			size_t excused = 0;
-			(void)differences(c.id, lit, excused);
-			total += excused;
-		}
-		expect(total).to_equal(spec::kClipOverviewCellDifferences);
-	});
-});
-
 describe clip_shortcut_overview_reference_rows("the clip view's shortcut overview: the reference rows", $ {
 	it("parses clip_shortcut_overview.tsv clean and asks every row of it", _ {
 		spec::OracleTable& t = table();
@@ -187,5 +178,4 @@ describe clip_shortcut_overview_reference_rows("the clip view's shortcut overvie
 });
 // clang-format on
 
-DELUGE_SPEC(clip_shortcut_overview_spec, clip_shortcut_overview, clip_shortcut_overview_pinned,
-            clip_shortcut_overview_reference_rows)
+DELUGE_SPEC(clip_shortcut_overview_spec, clip_shortcut_overview, clip_shortcut_overview_reference_rows)

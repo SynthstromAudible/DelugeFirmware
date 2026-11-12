@@ -886,6 +886,10 @@ struct Node {
 	Binding bind{};
 	std::span<const Node* const> children{};
 	RelevantFn relevant = nullptr;
+	/// @brief On a target node, `relevant` answers alone instead of narrowing where the descriptor applies: for a
+	///        legacy `isRelevant` that asks only what the editor edits, where the target's owner may not hold the
+	///        setting (`with_own_relevance`).
+	bool relevance_replaces_target = false;
 	DynamicChildrenFn dynamic_children = nullptr;
 	const CustomItem* custom = nullptr;
 
@@ -1120,6 +1124,13 @@ constexpr bool flips_in_place(const Node& n) {
 ///        every `Kind::Enum` is a `Selection`, whose `selectButtonPress` from a page answers `NO_NAVIGATION`.
 constexpr bool stays_on_page(const Node& n) {
 	return n.kind == Kind::Enum && (n.select_chain == nullptr || n.chain_falls_back_to_selection);
+}
+
+/// @brief `n` with @p rel as its whole relevance (`relevance_replaces_target`).
+constexpr Node with_own_relevance(Node n, RelevantFn rel) {
+	n.relevant = rel;
+	n.relevance_replaces_target = true;
+	return n;
 }
 
 /// @brief `n` with `uses_affect_entire` set.

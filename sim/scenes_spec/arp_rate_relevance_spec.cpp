@@ -7,6 +7,7 @@
 #include "scenes/menu/chains.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/nodes/sound_arp.h"
+#include "scenes/menu/nodes/sound_randomizer.h"
 #include "scenes/menu/shortcut_overlay.h"
 #include "scenes/menu/shortcuts.h"
 
@@ -119,6 +120,57 @@ describe arp_rate_relevance("the sound arpeggiator's rate: where it is relevant"
 		expect(arp_rate_relevant(context_of(spec::make_cv_song()))).to_be_false();
 	});
 });
+
+/// @brief @p f's kit, affect-entire on, as the clip view's overview asks it: the kit's own chain, with whether it
+///        edits the kit's own effects the latch's @p latched.
+MenuContext kit_table_context(spec::SongFixture& f, bool latched) {
+	f.clip->affectEntire = true;
+	MenuContext ctx = context_of(f, /*kit_global_fx=*/true);
+	ctx.is_kit_global_fx = latched;
+	return ctx;
+}
+
+describe arp_kit_table_relevance("the kit's own shortcut table's arp and randomizer items: where they are relevant", $ {
+	it("asks the arp octaves of the latch: relevant with it clear, not with it set", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		expect(menu::bindings::relevant(menu::nodes::arp_octaves, kit_table_context(f, false))).to_be_true();
+		expect(menu::bindings::relevant(menu::nodes::arp_octaves, kit_table_context(f, true))).to_be_false();
+		// The kit's own menu is latched: its overlay paints (11,3) black and Shift + pad refuses it.
+		const MenuContext menu_ctx = kit_table_context(f, true);
+		expect(menu::shortcut_node(menu_ctx.root, false, 11, 3) == &menu::nodes::arp_octaves).to_be_true();
+		const RGB pad = menu::shortcut_colour(menu_ctx, 11, 3);
+		expect(pad.r == 0 && pad.g == 0 && pad.b == 0).to_be_true();
+		expect(menu::shortcut_applies(menu::nodes::arp_octaves, menu_ctx)).to_be_false();
+	});
+
+	it("does not ask the arp octaves on a gate drum row, latched or not", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<GateDrum>(f);
+		expect(menu::bindings::relevant(menu::nodes::arp_octaves, kit_table_context(f, false))).to_be_false();
+		expect(menu::bindings::relevant(menu::nodes::arp_octaves, context_of(f))).to_be_false();
+	});
+
+	it("asks the arp octaves on a MIDI drum row with the latch clear", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<MIDIDrum>(f);
+		expect(menu::bindings::relevant(menu::nodes::arp_octaves, kit_table_context(f, false))).to_be_true();
+	});
+
+	it("keeps the arp gate and the velocity spread off with a MIDI drum selected", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<MIDIDrum>(f);
+		expect(menu::bindings::relevant(menu::nodes::arp_gate, kit_table_context(f, true))).to_be_false();
+		expect(menu::bindings::relevant(menu::nodes::spread_velocity, kit_table_context(f, true))).to_be_false();
+	});
+
+	it("keeps the arp gate and the velocity spread on with a sound drum selected", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		expect(menu::bindings::relevant(menu::nodes::arp_gate, kit_table_context(f, true))).to_be_true();
+		expect(menu::bindings::relevant(menu::nodes::spread_velocity, kit_table_context(f, true))).to_be_true();
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(arp_rate_relevance_spec, arp_rate_relevance)
+DELUGE_SPEC(arp_rate_relevance_spec, arp_rate_relevance, arp_kit_table_relevance)

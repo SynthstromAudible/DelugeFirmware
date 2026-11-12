@@ -4239,8 +4239,8 @@ describe freeze_clip_shortcut_overview("menu oracle freezer: the clip view's sho
 				// Legacy's relevance also reads the editor's own members (`FilterInfo::getMode` reads
 				// `currentModControllable`, `editingKitAffectEntire` reads `setupKitGlobalFXMenu`, the kit-global latch),
 				// which hold what the menu last edited: here this clip as the clip view's own affect-entire resolves it.
-				// The latch is each case's own (`kit_affect_entire` with it set, as a pad press leaves it; the
-				// `_unlatched` cases with it clear, as a menu close leaves it), kept across the carrier's write.
+				// The latch is each case's own (the `kit_affect_entire` cases with it set, as a pad press leaves it; the
+				// `_unlatched` ones with it clear, as a menu close leaves it), kept across the carrier's write.
 				const bool latch = deluge::gui::ui::shellKitGlobalFx();
 				const menu::MenuContext ctx =
 				    menu::context_for(*currentSong, deluge::gui::menuViewOf(getCurrentClip()), 0, false, false, false,

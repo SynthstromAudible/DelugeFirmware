@@ -106,6 +106,10 @@ bool not_gate_drum_or_kit_fx(const MenuContext& ctx);
 ///        (`arpeggiator/rate.h`), `!editingNonAudioDrumRow() && !editingKitAffectEntire()`. Its third term,
 ///        `!editingCVOrMIDIClip()`, is the param target's own: a MIDI or CV clip has no sound to hold the rate.
 bool not_non_audio_drum_or_kit_fx(const MenuContext& ctx);
+/// @brief Not a MIDI or gate drum row: `arpeggiator::ArpUnpatchedParam::isRelevant` (`arp_unpatched_param.h`) and
+///        the first test of `randomizer::RandomizerUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h`),
+///        `!editingNonAudioDrumRow()`. Their `!editingCVOrMIDIClip()` is the param target's own.
+bool not_non_audio_drum_row(const MenuContext& ctx);
 
 /// @brief Is reverb ducking set to something other than AUTO? `reverb::sidechain::Shape::isRelevant`
 ///        (`reverb/sidechain/shape.h`), `sidechain::Attack` / `Release` / `Sync` in their

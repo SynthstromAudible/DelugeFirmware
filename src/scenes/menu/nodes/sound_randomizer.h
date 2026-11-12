@@ -108,8 +108,13 @@ DELUGE_RANDOMIZER_PARAM(spread_octave, STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_
 DELUGE_RANDOMIZER_MIDI(spread_octave_midi, STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE,
                        "arpeggiator/spreadOctave", Hint::Bar);
 
-DELUGE_RANDOMIZER_PARAM(spread_velocity, STRING_FOR_SPREAD_VELOCITY, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE,
-                        UNPATCHED_SPREAD_VELOCITY, ParamShows{}, Hint::Bar);
+/// A global id, so with the arp off too; not on a MIDI or gate drum row, which the kit's own effects keep selected.
+inline constexpr Node spread_velocity = with_relevant(
+    with_short_column_label(param(
+        sid(deluge::l10n::String::STRING_FOR_SPREAD_VELOCITY),
+        {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_SPREAD_VELOCITY},
+        Hint::Bar, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_SPREAD_VELOCITY_MENU_TITLE))),
+    relevance::not_non_audio_drum_row);
 DELUGE_RANDOMIZER_MIDI(spread_velocity_midi, STRING_FOR_SPREAD_VELOCITY, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE,
                        "arpeggiator/spreadVelocity", Hint::Bar);
 

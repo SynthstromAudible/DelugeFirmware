@@ -13,8 +13,6 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/nodes.h"
 
-#include <cstddef>
-#include <cstdint>
 #include <string_view>
 
 namespace deluge::scenes::spec {
@@ -96,23 +94,6 @@ inline constexpr size_t kLandingOutsideRootCells = 2;
 
 /// @brief Landing cells whose page is in no tree, so the rows name it: the sample recorder page.
 inline constexpr size_t kLandingUnlistedPageCells = 4;
-
-/// @}
-
-/// @name The clip view's shortcut overview
-/// @{
-
-/// @brief The arp octaves pad on a kit's own table while the kit-global latch is clear (the clip view's overview right
-///        after a menu close): main's `arpeggiator::Octaves::isRelevant` asks only `editingGateDrumRow()` and
-///        `editingKitAffectEntire()`, the latch, and lights it; the port's `arp_octaves` is a setting target, which a
-///        kit's own chain does not hold, and leaves it black. Pressing it latches, and main then refuses it too.
-inline bool clip_overview_cell_differs_from_main(std::string_view case_name, int32_t x, int32_t y) {
-	return (case_name == "kit_affect_entire_unlatched" || case_name == "kit_affect_entire_no_row_unlatched") && x == 11
-	       && y == 3;
-}
-
-/// @brief How many cells that is, over every case.
-inline constexpr size_t kClipOverviewCellDifferences = 2;
 
 /// @}
 

@@ -30,6 +30,10 @@ enum class Case : uint8_t {
 	KitAffectEntire,
 	KitAffectEntireUnlatched,
 	KitAffectEntireNoRowUnlatched,
+	KitAffectEntireGateDrumUnlatched,
+	KitAffectEntireGateDrum,
+	KitAffectEntireMidiDrumUnlatched,
+	KitAffectEntireMidiDrum,
 	KitSoundDrum,
 	KitMidiDrum,
 	KitGateDrum,
@@ -50,6 +54,10 @@ inline constexpr CaseInfo kCases[] = {
     {Case::KitAffectEntire, "kit_affect_entire"},
     {Case::KitAffectEntireUnlatched, "kit_affect_entire_unlatched"},
     {Case::KitAffectEntireNoRowUnlatched, "kit_affect_entire_no_row_unlatched"},
+    {Case::KitAffectEntireGateDrumUnlatched, "kit_affect_entire_gate_drum_unlatched"},
+    {Case::KitAffectEntireGateDrum, "kit_affect_entire_gate_drum"},
+    {Case::KitAffectEntireMidiDrumUnlatched, "kit_affect_entire_midi_drum_unlatched"},
+    {Case::KitAffectEntireMidiDrum, "kit_affect_entire_midi_drum"},
     {Case::KitSoundDrum, "kit_sound_drum"},
     {Case::KitMidiDrum, "kit_midi_drum"},
     {Case::KitGateDrum, "kit_gate_drum"},
@@ -87,11 +95,12 @@ struct RootGuard {
 /// @brief Build @p c's song (its clip is the current clip), set the kit-global latch, and make its clip view the root
 /// UI.
 ///
-/// The latch is set only for `KitAffectEntire`, as a pad press on that clip leaves it; the `_unlatched` cases are the
-/// same clip with it clear, as a menu close leaves it.
+/// The latch is set for the kit affect-entire cases without `Unlatched`, as a pad press on that clip leaves it; the
+/// `Unlatched` cases are the same clip with it clear, as a menu close leaves it.
 /// @return The clip view the overview is drawn under.
 inline ClipView& set_up(Case c) {
-	deluge::gui::ui::shellKitGlobalFxLatch() = c == Case::KitAffectEntire;
+	deluge::gui::ui::shellKitGlobalFxLatch() =
+	    c == Case::KitAffectEntire || c == Case::KitAffectEntireGateDrum || c == Case::KitAffectEntireMidiDrum;
 	switch (c) {
 	case Case::Synth:
 		(void)make_synth_song();
@@ -105,6 +114,20 @@ inline ClipView& set_up(Case c) {
 	}
 	case Case::KitAffectEntireNoRowUnlatched: {
 		SongFixture f = make_kit_song();
+		f.clip->affectEntire = true;
+		break;
+	}
+	case Case::KitAffectEntireGateDrumUnlatched:
+	case Case::KitAffectEntireGateDrum: {
+		SongFixture f = make_kit_song();
+		(void)add_drum<GateDrum>(f);
+		f.clip->affectEntire = true;
+		break;
+	}
+	case Case::KitAffectEntireMidiDrumUnlatched:
+	case Case::KitAffectEntireMidiDrum: {
+		SongFixture f = make_kit_song();
+		(void)add_drum<MIDIDrum>(f);
 		f.clip->affectEntire = true;
 		break;
 	}

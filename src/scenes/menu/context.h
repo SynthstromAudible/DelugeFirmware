@@ -125,6 +125,8 @@ struct MenuContext {
 	/// @brief `SoundEditor::editingNonAudioDrumRow`: the kit's selected drum is a MIDI or gate drum, whatever the menu
 	///        edits -- set on the kit's own effects too, where `is_drum` is not.
 	bool non_audio_drum_row = false;
+	/// @brief `SoundEditor::editingGateDrumRow`: the kit's selected drum is a gate drum, whatever the menu edits.
+	bool gate_drum_row = false;
 	bool is_audio_clip = false;
 	bool is_song_view = false;
 

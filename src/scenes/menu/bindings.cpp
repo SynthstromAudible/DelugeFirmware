@@ -142,6 +142,9 @@ void write_song(const MenuContext& ctx, std::string_view path, int32_t value) {
 }
 
 bool relevant(const Node& node, const MenuContext& ctx) {
+	if (node.bind.target.valid() && node.relevance_replaces_target) {
+		return node.relevant == nullptr || node.relevant(ctx);
+	}
 	if (node.bind.target.valid()) {
 		const std::optional<deluge::scenes::bind::View> shown = target_view(node, ctx);
 		return shown && shown->applies && (node.relevant == nullptr || node.relevant(ctx));
