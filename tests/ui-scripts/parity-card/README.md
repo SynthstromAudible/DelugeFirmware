@@ -75,6 +75,10 @@ then KIT twice), lands back on the page, and presses MIDI, the transpose column'
 twice) on c20's multisample, then switches pages with SHIFT + CROSS SCREEN and back with SHIFT + SCALE. The switch
 begins the page, which drops `main`'s range, so MIDI opens the picker again.
 
+`c47-file-column-select` presses SELECT on the OSC1 page's focused file column (Shift + (2,2), KIT) on c20's
+multisample, with no range selected. `main` runs the range check and opens the note-range picker, heading to the file
+selector.
+
 `c37-recorder-threshold` sets the song's threshold to LOW with RECORD held and two Select turns (the first only
 shows the mode) and opens the recorder from its page, which draws the level meter.
 

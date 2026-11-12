@@ -641,6 +641,7 @@ constexpr uint8_t kSelectEncoder = 3;
 constexpr uint8_t kBackButtonX = 7, kBackButtonY = 1;
 constexpr uint8_t kShiftButtonX = 8, kShiftButtonY = 0;
 constexpr uint8_t kCrossScreenButtonX = 6, kCrossScreenButtonY = 2;
+constexpr uint8_t kKitButtonX = 5, kKitButtonY = 1;
 
 /// @brief Hold Select on @p shell until the long press answers, then let go.
 void long_press(Shell& shell, uint32_t& clock) {
@@ -1976,6 +1977,56 @@ describe browser_choice_long_press(
 		        expect(r.browser_on_stack()).to_be_false();
 		        expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
 		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(0);
+	        });
+
+	    it(
+	        "asks for a range when SELECT lands on a focused file column of a multisample, as main's select arm does",
+	        _ {
+		        CleanBrowser clean;
+		        ScratchCard card;
+		        ShellRig r;
+		        give_three_ranges(r.model);
+		        MenuContext ctx = r.model.ctx();
+		        ctx.range_index = -1; // several ranges, none chosen
+		        // Shift + (2,2), then KIT: the file column takes the focus with no picker
+		        // (`handleInstrumentButtonPress`'s `allowToBeginSessionFromHorizontalMenu` suppression).
+		        open_page_at(r, nodes::source_group, nodes::osc0_type, ctx);
+		        press_button(r.shell, r.clock, kKitButtonX, kKitButtonY, /*shift=*/false);
+		        r.step();
+		        expect(r.browser_on_stack()).to_be_false();
+		        expect(menu_scene().focused() == &nodes::source_group).to_be_true();
+		        expect(static_cast<int32_t>(menu_scene().state().columns[0].focused))
+		            .to_equal(visible_index_of(ctx, nodes::source_group, nodes::file0_selector));
+
+		        pick(r.shell, r.clock, 0); // SELECT
+		        for (int32_t i = 0; i < 4; i++) {
+			        r.step();
+		        }
+
+		        expect(r.browser_on_stack()).to_be_false();
+		        expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		        expect(menu_scene().state().walk.pending_after_range == &nodes::file0_selector).to_be_true();
+	        });
+
+	    it(
+	        "opens the browser when SELECT lands on a focused file column of a single sample", _ {
+		        CleanBrowser clean;
+		        ScratchCard card;
+		        ShellRig r;
+		        open_page_at(r, nodes::source_group, nodes::osc0_type, r.model.ctx());
+		        press_button(r.shell, r.clock, kKitButtonX, kKitButtonY, /*shift=*/false);
+		        r.step();
+		        expect(r.browser_on_stack()).to_be_false();
+		        expect(static_cast<int32_t>(menu_scene().state().columns[0].focused))
+		            .to_equal(visible_index_of(r.model.ctx(), nodes::source_group, nodes::file0_selector));
+
+		        pick(r.shell, r.clock, 0); // SELECT
+		        for (int32_t i = 0; i < 4; i++) {
+			        r.step();
+		        }
+
+		        expect(r.browser_on_stack()).to_be_true();
+		        expect(menu_scene().state().path[1] == &nodes::file0_selector).to_be_true();
 	        });
 
 	    it(

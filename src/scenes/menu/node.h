@@ -730,24 +730,6 @@ struct CustomItem {
 	///       firing a one-shot verb.
 	virtual bool on_focus_is_press() const { return false; }
 
-	/// @brief Does a select-encoder press on this item, while it is the focused column of a
-	///        horizontal page, open it directly -- no permission check, no range check, no
-	///        notification?
-	///
-	/// The port of `FileSelector::selectButtonPress` (`gui/menu_item/file_selector.cpp`):
-	/// `beginSession(nullptr); return NO_NAVIGATION;`, called by `Submenu::selectButtonPress`'s
-	/// horizontal forward (`submenu.cpp`) with **no call to `checkPermissionToBeginSession`
-	/// at all** -- unlike every other way into this item (a button focus, an already-focused button
-	/// press) which does check it (`horizontal_menu.cpp:427-428`, `:663-668`). `Node::
-	/// allow_session_from_horizontal`'s own doc says how a select press reads that bit; whether the
-	/// column opens without entering is the one place its answer differs by item, so it is a hook
-	/// rather than a second `Node` flag.
-	///
-	/// Only `FileBrowserItem` overrides this to true. A select press enters every other
-	/// `allow_session_from_horizontal` column (`Submenu::selectButtonPress` returns the column itself,
-	/// `submenu.cpp`), through `enter_child` with its permission and range checks.
-	virtual bool opens_directly_on_horizontal_select() const { return false; }
-
 	/// @name MIDI-learn hooks -- the port of `MenuItem`'s own learn overrides.
 	///
 	/// Legacy declares these on `MenuItem` itself (`gui/menu_item/menu_item.h:194-199`:
@@ -963,8 +945,7 @@ struct Node {
 	///
 	/// A select press reads it too: `Submenu::selectButtonPress`'s horizontal forward (`submenu.cpp`, #4854)
 	/// returns the focused column itself when this is true, and the select arm enters it the general way, which is
-	/// `MenuScene::after_render_navigation`'s `column_press` arm calling `enter_child`. `FileSelector` alone opens
-	/// without entering (`CustomItem::opens_directly_on_horizontal_select`).
+	/// `MenuScene::after_render_navigation`'s `column_press` arm calling `enter_child`.
 	bool allow_session_from_horizontal = false;
 
 	/// @brief Does a select press or an already-focused button press flip this column's value in

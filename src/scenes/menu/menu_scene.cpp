@@ -991,13 +991,6 @@ Result MenuScene::after_render_navigation() {
 				flip_in_place(*column);
 				repaint = true;
 			}
-			else if (column->custom != nullptr && column->custom->opens_directly_on_horizontal_select()) {
-				// `FileBrowserItem` (`nodes/sample.h`): `FileSelector::selectButtonPress` opens the
-				// browser outright with no permission or range check at all (`file_selector.cpp:
-				// 49-52`) -- `enter_child`/`enter_range_picker_if_needed` must not run for this one,
-				// see `CustomItem::opens_directly_on_horizontal_select`'s doc.
-				walk_.descend_to(core(), visit_.session, *column);
-			}
 			else if (column->allow_session_from_horizontal) {
 				// `Submenu::selectButtonPress` returns the item itself when it begins its own session from the
 				// horizontal page (`submenu.cpp:191-193`), and the select arm enters it the general way.

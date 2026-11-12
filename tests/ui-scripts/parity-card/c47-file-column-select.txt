@@ -1,0 +1,25 @@
+# SELECT on the OSC1 page's focused file column with c20's multisample and no range selected: main's select arm runs
+# the range check, so the note-range picker opens, heading to the file selector.
+100   snapshot boot
+5000  button Shift down
+5100  pad 0 5 down
+5150  pad 0 5 up
+5200  button Shift up
+7500  encoder Select +2
+8500  button SelectEnc down
+8520  button SelectEnc up
+11000 button SelectEnc down
+11800 button SelectEnc up
+12500 button SelectEnc down
+12520 button SelectEnc up
+31000 button Shift down
+31100 pad 2 2 down
+31150 pad 2 2 up
+31200 button Shift up
+32000 snapshot page
+32500 button Kit down
+32520 button Kit up
+33300 snapshot file-column
+33800 button SelectEnc down
+33820 button SelectEnc up
+35000 snapshot select-file-column
