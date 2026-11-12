@@ -4886,10 +4886,11 @@ Output* SessionView::getOutputFromPad(int32_t x, int32_t y) {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		return gridTrackFromX(x, gridTrackCount());
 	}
-	else {
-		return getClipOnScreen(y)->output;
-	}
-	return nullptr;
+
+	// row layout
+	Clip* clip = getClipOnScreen(y);
+	// ensure there's actually a clip on this row
+	return clip ? clip->output : nullptr;
 }
 
 Cartesian SessionView::gridXYFromClip(Clip& clip) {
