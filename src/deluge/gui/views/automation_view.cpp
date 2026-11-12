@@ -1708,9 +1708,12 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 	// if we're in a midi clip, with a midi cc selected and we press the name shortcut
 	// while holding shift, then enter the rename midi cc UI
 	if (outputType == OutputType::MIDI_OUT) {
-		if (Buttons::isShiftButtonPressed() && x == 11 && y == 5) {
+		if (velocity && Buttons::isShiftButtonPressed() && x == 11 && y == 5) {
 			if (!onAutomationOverview()) {
-				openUI(&renameMidiCCUI);
+				// Keep releases in Automation View until all held edits and other UI modes have ended.
+				if (isNoUIModeActive()) {
+					openUI(&renameMidiCCUI);
+				}
 				return ActionResult::DEALT_WITH;
 			}
 		}
