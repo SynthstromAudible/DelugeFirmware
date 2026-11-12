@@ -15,9 +15,16 @@
 #include "scenes/menu/shortcut_overlay.h"
 #include "scenes/menu/shortcuts.h"
 
+#include "gui/ui/ui.h"
+#include "gui/views/session_view.h"
+#include "model/action/action.h"
+#include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
+#include "model/instrument/kit.h"
+#include "model/model_stack.h"
+#include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_drum.h"
@@ -26,6 +33,7 @@
 #include "cppspec.hpp"
 
 #include <array>
+#include <cstring>
 #include <string>
 
 #include "spec/support/spec_main.h"
@@ -307,18 +315,39 @@ describe arp_kit_global_drum_kinds("the kit's own arp and randomizer columns wit
 		// Main's `midi_cv` items write the kit arp's fields, which `Kit::setupAndRenderArpPreOutput` overwrites from
 		// the kit's params on the next render; the port writes the param itself, so the edit is what the render reads.
 		spec::SongFixture f = spec::make_kit_song();
-		(void)spec::add_drum<MIDIDrum>(f);
+		MIDIDrum* drum = spec::add_drum<MIDIDrum>(f);
+		const ArpeggiatorSettings drum_before = *drum->getArpSettings();
 		const MenuContext ctx = kit_table_context(f, /*latched=*/true);
 		menu::bindings::write(menu::nodes::arp_mode, ctx, 1);
+		changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
+		actionLogger.deleteAllLogs();
 		menu::bindings::write(menu::nodes::spread_gate_midi, ctx, 30);
+		Action* action = actionLogger.firstAction[BEFORE];
+		expect(action != nullptr && action->nextAction == nullptr).to_be_true();
 		menu::bindings::write(menu::nodes::note_probability_midi, ctx, 20);
-		// The kit's params are its clip's, which the render hands `setupAndRenderArpPreOutput`.
-		ArpeggiatorSettings rendered;
-		rendered.updateParamsFromUnpatchedParamSet(f.clip->paramManager.getUnpatchedParamSet());
+
+		// The kit's own render: `Kit::renderOutput` hands its clip's params to `setupAndRenderArpPreOutput`.
+		auto* kit = static_cast<Kit*>(f.instrument);
+		std::array<StereoSample, 16> buffer{};
+		alignas(ModelStack) char memory[MODEL_STACK_MAX_SIZE];
+		expect(kit->setActiveClip(setupModelStackWithSong(memory, f.song)->addTimelineCounter(f.clip),
+		                          PgmChangeSend::NEVER))
+		    .to_be_true();
+		kit->renderOutput(setupModelStackWithSong(memory, f.song), buffer, nullptr, 0, 0, false, true);
+		// The kit's arp is its active clip's (`Kit::getArpSettings`).
+		const ArpeggiatorSettings& rendered = f.clip->arpSettings;
 		expect(rendered.spreadGate == menu::bindings::menu_to_unsigned(30)).to_be_true();
 		expect(rendered.noteProbability == menu::bindings::menu_to_unsigned(20)).to_be_true();
 		expect(menu::bindings::read(menu::nodes::spread_gate_midi, ctx)).to_equal(30);
 		expect(menu::bindings::read(menu::nodes::note_probability_midi, ctx)).to_equal(20);
+		// The MIDI drum's own arp is not the kit's: its settings are untouched.
+		expect(std::memcmp(&drum_before, drum->getArpSettings(), sizeof(ArpeggiatorSettings))).to_equal(0);
+
+		// The spread gate write is one undo step, which restores the column.
+		expect(actionLogger.revert(BEFORE, false, false)).to_be_true();
+		expect(menu::bindings::read(menu::nodes::spread_gate_midi, ctx) != 30).to_be_true();
+		actionLogger.deleteAllLogs();
+		nullifyUIs();
 	});
 });
 // clang-format on

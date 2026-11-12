@@ -446,7 +446,10 @@ Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
 	// (`grid_pad_claim`). Its keyboard would move the file under a slicer slicing another: swallowed instead
 	// (DIFFERENCES D57).
 	r.handled = true;
-	// `possiblyExit`'s `!currentUIMode`: with an audition held the press does nothing.
+	// `possiblyExit`'s `!currentUIMode`. Under `main`'s slicer only two UI modes can be up: an audition held on the
+	// view beneath (`UI_MODE_AUDITIONING`) and a slice commit (`UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES`, this scene's
+	// `committing_`, whose pads `handle` swallows before they reach here). The browser's own modes (a held Select or
+	// X_ENC, a held backspace, a scroll) need inputs the slicer takes for itself or swallows.
 	if (x == kDisplayWidth && on && !facts().auditioning()) {
 		if (ops_ != nullptr) {
 			ops_->stop_previewing();

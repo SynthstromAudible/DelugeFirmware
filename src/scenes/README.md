@@ -734,7 +734,7 @@ What a user can see differ between the two menus today, beyond the not-yet-porte
 listed here, and the specs over the frozen legacy rows pin each divergence by identity
 (`sim/scenes_spec/support/known_differences.h`), so porting it fails that spec until the pin goes.
 
-| legacy | gap | what porting it takes |
+| `main` | gap | what porting it takes |
 |---|---|---|
 | an item's own `checkPermissionToBeginSession` | `permission_for` is the base rule (relevance) plus the range rule; the five scene-opener items override it and skip relevance (`FileSelector` opens on any subtractive sound). `MenuScene::on_enter` asks only the range half, so nothing diverges until something asks `permission_for` about one of them | a per-item permission hook consulted ahead of `relevant` |
 | the load/save browsers | the song, preset, pattern and kit-row browsers, and `SlotBrowser`'s brand-new-name machinery; they are reached from root UIs, so the menu walk cannot exercise them | `Descriptor`s or a second scene, a `SlotBrowser` equivalent, and an oracle that is not the menu walk |
