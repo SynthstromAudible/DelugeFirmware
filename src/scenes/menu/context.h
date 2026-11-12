@@ -122,6 +122,9 @@ struct MenuContext {
 	///        Latched by `MenuScene` when the item is entered or its column focused; cleared by a re-root.
 	bool selected_note_row = false;
 	bool is_drum = false;
+	/// @brief `SoundEditor::editingNonAudioDrumRow`: the kit's selected drum is a MIDI or gate drum, whatever the menu
+	///        edits -- set on the kit's own effects too, where `is_drum` is not.
+	bool non_audio_drum_row = false;
 	bool is_audio_clip = false;
 	bool is_song_view = false;
 

@@ -143,6 +143,9 @@ bool not_gate_drum_or_kit_fx(const MenuContext& ctx) {
 	// answers false whatever row is selected, so the selected row's kind matters only off it, where the root names it.
 	return ctx.root != MenuContext::Root::GateDrum && !(ctx.is_kit && ctx.is_kit_global_fx);
 }
+bool not_non_audio_drum_or_kit_fx(const MenuContext& ctx) {
+	return !ctx.non_audio_drum_row && !(ctx.is_kit && ctx.is_kit_global_fx);
+}
 
 bool reverb_sidechain_on(const MenuContext& ctx) {
 	return ctx.model != nullptr && ctx.model->reverb.sidechain_volume >= 0; // `reverb/sidechain/shape.h:32`
@@ -268,7 +271,7 @@ namespace {
 		&fn, #fn                                                                                                       \
 	}
 
-constexpr std::array<NamedPredicate, 34> kRegistry{
+constexpr std::array<NamedPredicate, 35> kRegistry{
     DELUGE_RELEVANCE_ROW(is_fm),
     DELUGE_RELEVANCE_ROW(is_subtractive),
     DELUGE_RELEVANCE_ROW(osc0_file_selector),
@@ -279,6 +282,7 @@ constexpr std::array<NamedPredicate, 34> kRegistry{
     DELUGE_RELEVANCE_ROW(osc1_is_sample),
     DELUGE_RELEVANCE_ROW(is_kit_row),
     DELUGE_RELEVANCE_ROW(not_gate_drum_or_kit_fx),
+    DELUGE_RELEVANCE_ROW(not_non_audio_drum_or_kit_fx),
     DELUGE_RELEVANCE_ROW(reverb_sidechain_on),
     DELUGE_RELEVANCE_ROW(stutter_quantize_allowed),
     DELUGE_RELEVANCE_ROW(bend_submenu),
@@ -311,7 +315,7 @@ constexpr std::array<NamedPredicate, 34> kRegistry{
 // One row per predicate declared in `relevance.h` (18), plus the sixteen
 // `nodes::relevant_*_iterance_step_*` rows: declared in `nodes/note.h`, not `relevance.h`, but
 // registered here for the reason this section's own note gives. 18 + 16 = 34.
-static_assert(kRegistry.size() == 34);
+static_assert(kRegistry.size() == 35);
 
 } // namespace
 

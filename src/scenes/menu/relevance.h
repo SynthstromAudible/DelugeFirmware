@@ -102,6 +102,10 @@ bool is_kit_row(const MenuContext& ctx);
 ///        (`octaves.h`), `OctaveMode` (`octave_mode.h:44-46`) and `submenu::ArpMpeSubmenu`
 ///        (`submenu/arp_mpe_submenu.h:22-24`) -- one predicate, three items.
 bool not_gate_drum_or_kit_fx(const MenuContext& ctx);
+/// @brief Neither a MIDI or gate drum row nor a kit's own effects: `arpeggiator::Rate::isRelevant`
+///        (`arpeggiator/rate.h`), `!editingNonAudioDrumRow() && !editingKitAffectEntire()`. Its third term,
+///        `!editingCVOrMIDIClip()`, is the param target's own: a MIDI or CV clip has no sound to hold the rate.
+bool not_non_audio_drum_or_kit_fx(const MenuContext& ctx);
 
 /// @brief Is reverb ducking set to something other than AUTO? `reverb::sidechain::Shape::isRelevant`
 ///        (`reverb/sidechain/shape.h`), `sidechain::Attack` / `Release` / `Sync` in their

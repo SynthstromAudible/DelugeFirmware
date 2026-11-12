@@ -112,10 +112,12 @@ enum class Flag : uint16_t {
 	/// of one node, like the two flags just above.
 	AdjustWithoutGet,
 	/// @brief A node with a `Binding::target` that also sets a hook the target replaces: `get`, `set`, `range`,
-	///        `fixed_range`, `names`, `dynamic_names`, `relevant`, `adjust` or `range_spec`. A target node's value,
-	///        range, choices and relevance come from its descriptor; a hook beside it would be a second, silently
-	///        ignored, source. A `param` beside a target is learn-only (what `learn_target` binds), as beside a `get`;
-	///        `value_text` and `permitted` stay the node's own (how the value reads, and when it may be edited).
+	///        `fixed_range`, `names`, `dynamic_names`, `adjust` or `range_spec`. A target node's value, range, choices
+	///        and relevance come from its descriptor; a hook beside it would be a second, silently ignored, source. A
+	///        `param` beside a target is learn-only (what `learn_target` binds), as beside a `get`; `value_text` and
+	///        `permitted` stay the node's own (how the value reads, and when it may be edited). A `relevant` beside a
+	///        target narrows where the descriptor applies, for a legacy `isRelevant` that asks what the editor edits
+	///        rather than the owner's rows (`bindings::relevant` asks both).
 	TargetWithHooks,
 };
 

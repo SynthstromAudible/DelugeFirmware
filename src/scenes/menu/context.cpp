@@ -190,6 +190,8 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 			chain = project::ChainAddress{.kind = project::ChainAddress::Kind::OUTPUT, .id = track};
 		}
 		else if (ctx.is_kit) {
+			ctx.non_audio_drum_row =
+			    view.selected_row.has_value() && view.selected_row_type != project::DrumType::SOUND;
 			// `:1708-1713` -- affect-entire ("kit global FX"), which the caller says (`setupKitGlobalFXMenu`): the
 			// kit's own chain. Not the clip's affect-entire: the kit-row grid shortcut enters with it on and edits the
 			// row.

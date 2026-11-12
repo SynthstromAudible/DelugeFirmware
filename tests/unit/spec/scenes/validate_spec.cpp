@@ -370,9 +370,10 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 		expect(mismatches).to_equal(size_t(0));
 	});
 
-	it("flags a target node that also sets a hook, and passes a bare one", _ {
+	it("flags a target node that also sets a hook, and passes a bare one and one whose relevance narrows it", _ {
 		// `Flag::TargetWithHooks`: a target's descriptor gives its value, range, names and relevance, so a hook
-		// beside it is a second source of the same thing.
+		// beside it is a second source of the same thing. A `relevant` beside it narrows where it applies, and is
+		// asked too.
 		set_shortcut_table_for_test({}, 0, 0);
 		static constexpr deluge::scenes::bind::Target kTarget{.kind = deluge::scenes::bind::Target::Kind::SOUND,
 		                                                       .path = "polyphonic"};
@@ -383,7 +384,12 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 			return n;
 		}();
 		static constexpr Node adjusted = with_adjust(setting_item(447, Kind::Int, kTarget), discard_offset);
-		static constexpr const Node* kids[] = {&bare, &hooked, &adjusted};
+		static constexpr Node narrowed = [] {
+			Node n = setting_item(448, Kind::Enum, kTarget);
+			n.relevant = [](const MenuContext&) { return true; };
+			return n;
+		}();
+		static constexpr const Node* kids[] = {&bare, &hooked, &adjusted, &narrowed};
 		static constexpr Node root = submenu(446, kids);
 		static constexpr const Node* roots[] = {&root};
 
@@ -393,6 +399,7 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 				flagged.push_back(i.node->name);
 			}
 			expect(i.node != &bare).to_be_true();
+			expect(i.node != &narrowed).to_be_true();
 		}
 		expect(flagged).to_equal(std::vector<uint16_t>{445, 447});
 	});
