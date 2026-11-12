@@ -115,6 +115,10 @@
 
 class Sample;
 
+namespace deluge::scenes::bind {
+class RuntimeFacts;
+} // namespace deluge::scenes::bind
+
 namespace deluge::scenes::slicing {
 
 /// @brief Legacy's `SLICER_MODE_REGION` / `SLICER_MODE_MANUAL` (`gui/ui/slicer.h:24-25`), as an
@@ -259,6 +263,10 @@ public:
 	/// @param ops The implementation, or null to run with the model side unwired. Borrowed, not
 	///            owned; it must outlive the scene's use of it.
 	void set_ops(SliceOps* ops) { ops_ = ops; }
+
+	/// @brief Answer the runtime facts from @p facts instead of the host's, for a spec that needs a state the host
+	///        cannot be put into on demand; null goes back to the host's.
+	void set_facts(const bind::RuntimeFacts* facts) { facts_ = facts; }
 
 	/// @brief The host's answer to `SliceOps::begin_commit`, once the slice has ended.
 	///
@@ -408,6 +416,11 @@ private:
 
 	/// The audio/model/card boundary; null until an application wires one. See `SliceOps`.
 	SliceOps* ops_ = nullptr;
+
+	/// The runtime facts `set_facts` installed, or null for the host's (`facts`).
+	const bind::RuntimeFacts* facts_ = nullptr;
+	/// @brief The runtime facts the scene reads: the installed ones, or the host's.
+	[[nodiscard]] const bind::RuntimeFacts& facts() const;
 
 	/// The gesture the commit out was begun with, snapshotted at Select.
 	SliceCommit pending_commit_{};

@@ -3,6 +3,7 @@
 
 #include "scenes/slicing/slicer_scene.h"
 
+#include "scenes/bind/runtime_facts.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/services/waveform_paint.h"
@@ -361,6 +362,10 @@ bool SlicerScene::add_slice_at(int32_t sample_pos) {
 	return true;
 }
 
+const bind::RuntimeFacts& SlicerScene::facts() const {
+	return facts_ != nullptr ? *facts_ : menu::host_runtime_facts();
+}
+
 Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
 	Result r;
 	const bool on = velocity != 0;
@@ -441,7 +446,8 @@ Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
 	// (`grid_pad_claim`). Its keyboard would move the file under a slicer slicing another: swallowed instead
 	// (DIFFERENCES D57).
 	r.handled = true;
-	if (x == kDisplayWidth && on) {
+	// `possiblyExit`'s `!currentUIMode`: with an audition held the press does nothing.
+	if (x == kDisplayWidth && on && !facts().auditioning()) {
 		if (ops_ != nullptr) {
 			ops_->stop_previewing();
 		}
@@ -661,7 +667,7 @@ void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 			}
 		}
 	}
-	const bind::FlashCursor cursor = menu::host_runtime_facts().flash_cursor();
+	const bind::FlashCursor cursor = facts().flash_cursor();
 	if (cursor == bind::FlashCursor::Slow) {
 		deluge::ui::grid::tick_squares(f, per_row, deluge::gui::colours::black);
 	}

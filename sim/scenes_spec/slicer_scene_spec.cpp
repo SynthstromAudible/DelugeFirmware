@@ -53,6 +53,7 @@
 #include "model/sample/waveform_scan.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 #include "scenes/slicing/slicer_scene.h"
@@ -70,6 +71,7 @@
 #include "model/song/song.h"
 #include "storage/cluster/cluster.h"
 
+#include "support/forwarding_facts.h"
 #include "support/oracle_files.h"
 #include "support/oracle_table.h"
 #include "support/slicer_scene_fixtures.h"
@@ -871,6 +873,22 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.pad(kDisplayWidth, 3, 64, 10);
 		r.settle(10);
 		expect(r.on_stack()).to_be_false();
+	});
+
+	it("keeps a REGION mute-column press while an audition is held, as SampleBrowser::padAction's !currentUIMode", _ {
+		Rig r;
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		const deluge::scenes::spec::ForwardingFacts auditioning{deluge::scenes::menu::host_runtime_facts(),
+		                                                        {.auditioning = true}};
+		slicer_scene().set_facts(&auditioning);
+		r.open();
+		r.tick(0);
+		r.pad(kDisplayWidth, 3, 64, 10);
+		r.settle(10);
+		slicer_scene().set_facts(nullptr);
+		expect(r.on_stack()).to_be_true();
+		expect(ops.stop_previewing_calls).to_equal(0);
 	});
 
 	it("keeps a MANUAL mute-column press, as main's MANUAL arm deals with every pad", _ {
