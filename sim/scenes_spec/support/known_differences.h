@@ -46,15 +46,6 @@ inline constexpr size_t kRangeDependenceDifferencesTen = 13;
 inline constexpr size_t kRangeDependenceDifferencesSound = 4;
 inline constexpr size_t kRangeDependenceDifferencesBatch1 = 4;
 
-/// @brief `reverb::Width::getTitle()` returns its name ("Width"); the port's node carries its own title id ("Reverb
-///        width"). The room size title matches.
-inline bool title_differs_from_main(const menu::Node& node) {
-	return &node == &deluge::scenes::menu::nodes::reverb_width;
-}
-
-/// @brief The root fixtures reaching the width node.
-inline constexpr size_t kReverbWidthTitleDifferences = 6;
-
 /// @brief The sample repeat items' titles: the row holds legacy's item's title with its source's number formatted into
 ///        it ("Samp1 repeat"); the port's node carries the placeholder unfilled ("Samp* repeat", no `title_arg`).
 ///        DIFFERENCES row D149 (open for Kate: `main` shows neither, its title reads empty).

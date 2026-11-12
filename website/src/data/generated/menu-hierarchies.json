@@ -1295,7 +1295,7 @@
                 {
                   "key": "fx-reverb-width",
                   "oled": "Width",
-                  "title": "Reverb width",
+                  "title": "Width",
                   "code": "Width",
                   "children": []
                 },
@@ -4483,7 +4483,7 @@
                 {
                   "key": "fx-reverb-width",
                   "oled": "Width",
-                  "title": "Reverb width",
+                  "title": "Width",
                   "code": "Width",
                   "children": []
                 },
@@ -9515,7 +9515,7 @@
                 {
                   "key": "fx-reverb-width",
                   "oled": "Width",
-                  "title": "Reverb width",
+                  "title": "Width",
                   "code": "Width",
                   "children": []
                 },
@@ -10433,7 +10433,7 @@
                 {
                   "key": "fx-reverb-width",
                   "oled": "Width",
-                  "title": "Reverb width",
+                  "title": "Width",
                   "code": "Width",
                   "children": []
                 },
@@ -11150,7 +11150,7 @@
                 {
                   "key": "fx-reverb-width",
                   "oled": "Width",
-                  "title": "Reverb width",
+                  "title": "Width",
                   "code": "Width",
                   "children": []
                 },
@@ -13128,7 +13128,7 @@
                 {
                   "key": "fx-reverb-width",
                   "oled": "Width",
-                  "title": "Reverb width",
+                  "title": "Width",
                   "code": "Width",
                   "children": []
                 },

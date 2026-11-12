@@ -404,9 +404,7 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 		// port's node names are fixed ids (`src/scenes/README.md`, "Legacy features not yet ported"). Porting the
 		// dynamic names fails the MUTABLE half here until this example goes.
 		const deluge::effects::ReverbModel saved = AudioEngine::reverb.model();
-		// The width node's title is a known difference even under FREEVERB: main's title is its name.
 		size_t parked = 0;
-		size_t title_differs = 0;
 		for (const auto& [root, e] : every_entry()) {
 			if (e.node != &nodes::reverb_width && e.node != &nodes::reverb_room_size) {
 				continue;
@@ -416,20 +414,13 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 			const std::string port_title = shown(e.node->title, *e.node, root->ctx);
 			AudioEngine::setReverbModel(deluge::effects::ReverbModel::FREEVERB);
 			expect(port).to_equal(table().value(e.path, "name@freeverb"));
-			if (spec::title_differs_from_main(*e.node)) {
-				expect(port_title == table().value(e.path, "title@freeverb")).to_be_false();
-				title_differs++;
-			}
-			else {
-				expect(port_title).to_equal(table().value(e.path, "title@freeverb"));
-			}
+			expect(port_title).to_equal(table().value(e.path, "title@freeverb"));
 			AudioEngine::setReverbModel(deluge::effects::ReverbModel::MUTABLE);
 			expect(port == table().value(e.path, "name@mutable")).to_be_false();
 			expect(port_title == table().value(e.path, "title@mutable")).to_be_false();
 			parked++;
 		}
 		expect(parked > size_t(0)).to_be_true();
-		expect(title_differs).to_equal(spec::kReverbWidthTitleDifferences);
 		AudioEngine::setReverbModel(saved);
 	});
 
