@@ -504,13 +504,6 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.on_encoder_edges(5, 1, 2010);
 		in.end_tick(2010);
 		expect(in.snapshot().edit[1]).to_equal(int8_t(1));
-
-		// A knob backdated as untouched acts on its next turn too.
-		in.pretend_knob_untouched(EncoderRole::GoldUpper, 3000);
-		in.begin_tick(3000);
-		in.on_encoder_edges(4, 1, 3000);
-		in.end_tick(3000);
-		expect(in.snapshot().edit[0]).to_equal(int8_t(1));
 	});
 
 	it("maps each widget-owned shape onto the claim that owns it", _ {

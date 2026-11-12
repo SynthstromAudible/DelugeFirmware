@@ -141,8 +141,7 @@ two slots is ticked once but routed to once per slot.
 
 The real services (`src/scenes/services/`) are built over the shell's own `stack()` and
 `lowering()`, so the application builds the `Shell` with `Services{}`, constructs them, then calls
-`Shell::set_services`; re-installing is safe. A service may also reach shared lowering state
-directly (`ModKnobs` calls `InputLowering::pretend_knob_untouched`).
+`Shell::set_services`; re-installing is safe.
 
 `Service::timer_repaints()` defaults to `{false, false}`: a service timer is a wake only. A service
 has no stack position, so a claim is honoured unconditionally, and an OLED claim is an unconditional

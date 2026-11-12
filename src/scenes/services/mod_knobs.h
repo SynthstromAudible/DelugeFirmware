@@ -40,11 +40,10 @@
 ///
 /// @note **Not inert before it is bound.** `leds()` drives the eight mod LEDs every frame and, with no bound
 ///       owner, clears both gold knobs' indicator levels to 0 (`declare_indicators`). Installing the service takes
-///       those LEDs from legacy whether or not a `ModTarget` is set. `pretend_knobs_untouched()` also reaches shared
-///       `InputLowering` state outside the router: it backdates a turn time that, as on `main`, no turn reads.
+///       those LEDs from legacy whether or not a `ModTarget` is set.
 ///
 /// @warning **No wall clock.** `Service::tick(now_ms, dt_ms)` is the only place a clock arrives; the `set_*` entry
-///          points backdate against the last `now_ms` the service was ticked with (`pretend_knobs_untouched()`).
+///          points use the last `now_ms` the service was ticked with.
 
 #include "effects/state.h"
 #include "scenes/bind/knob_focus.h"
@@ -166,9 +165,6 @@ public:
 	/// @brief Is the VU meter shown? (the focus's, which View keeps too), which pressing the selected mod button 0
 	///        outside a clip minder toggles; its one effect here is the blinking volume mod LED.
 	bool display_vu_meter() const { return focus_->vu_meter; }
-
-	/// @brief Backdate both knobs' "last turned" clocks -- `View::pretendModKnobsUntouchedForAWhile`.
-	void pretend_knobs_untouched();
 
 	/// @brief A param was automated -- `View::notifyParamAutomationOccurred`: arms the
 	///        automation display and the MIDI-follow feedback deadlines when it is the knobs' owner's.

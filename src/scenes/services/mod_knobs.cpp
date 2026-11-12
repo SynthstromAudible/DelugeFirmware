@@ -171,7 +171,6 @@ bool ModKnobs::owner_stutter_quantized() const {
 }
 
 void ModKnobs::set_focus(const bind::KnobFocus& focus, bool send_midi_feedback) {
-	pretend_knobs_untouched(); // `:1871`, `:1903`
 	// The mod region, the compressor view and the VU meter are the knobs' own view state, which a new focus keeps.
 	focus_->owner = focus.owner;
 	if (focus_changed_) {
@@ -188,7 +187,6 @@ void ModKnobs::set_mod_region(uint32_t pos, uint32_t length, int32_t note_row_id
 	if (focus_changed_) {
 		focus_changed_();
 	}
-	pretend_knobs_untouched(); // `:1929`
 	// `:1931-1935` -- holding a note on a stopped clip grabs its params' values from there.
 	if (length != 0 && is_clip_context(*focus_) && !playbackHandler.isEitherClockActive() && bound()) {
 		(void)menu::host_write_sink().grab_region(*focus_, pos);
@@ -205,12 +203,6 @@ int32_t ModKnobs::mode() const {
 		return -1;
 	}
 	return bind::knob_mode(song_->project, *focus_);
-}
-
-void ModKnobs::pretend_knobs_untouched() {
-	// `View::pretendModKnobsUntouchedForAWhile`, both knobs at once.
-	lowering_.pretend_knob_untouched(EncoderRole::GoldLower, now_ms_);
-	lowering_.pretend_knob_untouched(EncoderRole::GoldUpper, now_ms_);
 }
 
 void ModKnobs::notify_param_automation_occurred(const ParamAddress& owner, bool update_mod_levels) {
@@ -457,10 +449,8 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 		blink_indicator_start_ms_[which_encoder] = now_ms_;
 		// `:1074` `indicator_leds::blinkKnobIndicator(whichModEncoder, isBipolar)` -- recorded here,
 		// declared by `leds()`.
-		//
-		// `:1077` -- "Make it harder to turn that knob away from its centred position". The write is inert, as on
-		// `main`, where nothing reads `timeModEncoderLastTurned`. See `InputLowering::pretend_knob_untouched`.
-		lowering_.pretend_knob_untouched(role_of(which_encoder), now_ms_);
+		// `main`'s `pretendModKnobsUntouchedForAWhile` here writes `timeModEncoderLastTurned`, which nothing reads,
+		// so it has no port.
 	}
 	else {
 		blink_indicator_[which_encoder] = false; // `:1080` `stopBlinkingKnobIndicator`
@@ -478,7 +468,6 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 	if (view_.in_automation_editor && !(view_.automation_on_arranger && which_button == 0)) {
 		return;
 	}
-	pretend_knobs_untouched();                                               // `:1508`
 	if (std::holds_alternative<std::monostate>(focus_->owner) || !bound()) { // `:1510`
 		return;
 	}

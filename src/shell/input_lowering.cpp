@@ -573,18 +573,6 @@ double InputLowering::calc_next_knob_speed(EncoderRole role, int8_t delta, uint3
 	return knob_acceleration_[r].advance(delta, static_cast<double>(now_ms) / 1000.0, ui::kGoldEncoderAcceleration);
 }
 
-void InputLowering::pretend_knob_untouched(EncoderRole role, uint32_t now_ms) {
-	// `View::pretendModKnobsUntouchedForAWhile`:
-	// `timeModEncoderLastTurned[i] = AudioEngine::audioSampleTimer - kSampleRate`. Unsigned wrap is
-	// the same wrap `turned_recently`'s own `now_ms - last_turn_ms_` does, so backdating past zero
-	// is well defined and still reads as "a second ago".
-	const size_t r = static_cast<size_t>(role);
-	if (r >= kEncoderCount) {
-		return;
-	}
-	last_turn_ms_[r] = now_ms - kPretendUntouchedMs;
-}
-
 // -- UiContext's lowering-backed queries (declared in scene.h) --------------------------------
 
 bool UiContext::press_used_up(ButtonId b) const {

@@ -67,7 +67,6 @@ struct RealServices {
 				// Where legacy's view points the knobs at the clip, as the guest seeds them.
 				view.setActiveModControllableTimelineCounter(mod_target, false);
 				knobs->use_focus(view.knobFocus(), [] { view.knobFocusChanged(); });
-				knobs->pretend_knobs_untouched();
 			}
 			shell.set_services({&*knobs, &*controls, &*learn});
 		};

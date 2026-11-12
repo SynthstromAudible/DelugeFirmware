@@ -624,10 +624,7 @@ shell's; every model-aware implementation is here, as with `Scene`.
   construct the services over `shell.stack()`/`shell.lowering()`, then `Shell::set_services`.
 * **Installing is not sufficient.** A `ModKnobs` with no focus declares all eight mod LEDs off and
   both indicators at 0 every tick, so the application's reads and moves `View::knobFocus()`
-  (`use_focus`), and the wiring re-seeds the song and the view state on every open. A service can
-  also reach shared shell state out of band: `ModKnobs::pretend_knobs_untouched()` writes
-  `InputLowering`'s `last_turn_ms_` (which no turn reads, as on `main`). Check for that before installing a fourth
-  service.
+  (`use_focus`), and the wiring re-seeds the song and the view state on every open.
 
 ## Repaint and timers
 

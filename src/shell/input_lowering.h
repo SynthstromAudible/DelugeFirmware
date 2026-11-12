@@ -389,20 +389,7 @@ public:
 	/// @return A multiplier in [1.0, 3.0].
 	double calc_next_knob_speed(EncoderRole role, int8_t delta, uint32_t now_ms);
 
-	/// @brief Backdate \p role's "last turned" clock -- `View::pretendModKnobsUntouchedForAWhile`.
-	///
-	/// The state it writes is `last_turn_ms_`, `main`'s `timeModEncoderLastTurned`, which nothing reads on `main`
-	/// either: the call is kept where `main` makes it, and changes nothing a turn does.
-	/// @param role   Which encoder to backdate; anything but `GoldUpper`/`GoldLower` is still
-	///               accepted (the array is per role) but only the gold pair is ever consulted.
-	/// @param now_ms The wall clock to backdate from.
-	void pretend_knob_untouched(EncoderRole role, uint32_t now_ms);
-
 private:
-	/// @brief How far `pretend_knob_untouched` backdates: legacy subtracts a whole `kSampleRate`
-	///        worth of `audioSampleTimer` ticks, i.e. one second (`view.cpp:1970-1972`).
-	static constexpr uint32_t kPretendUntouchedMs = 1000;
-
 	/// @brief One board event waiting out the SD routine, with the clock it arrived at.
 	struct DeferredEvent {
 		DelugeInputEvent ev{};
@@ -473,7 +460,6 @@ private:
 	int8_t tick_delta_[kEncoderCount]{};                         ///< What each encoder contributed to this tick.
 	uint32_t acceleration_clock_ms_ = 0;                         ///< See set_acceleration_clock_ms().
 	ui::EncoderAcceleration knob_acceleration_[kEncoderCount]{}; ///< `ContinuousEncoder`'s acceleration, per role.
-	uint32_t last_turn_ms_[kEncoderCount]{};                     ///< `timeModEncoderLastTurned`, per role.
 	/// @}
 
 	/// @name Queues

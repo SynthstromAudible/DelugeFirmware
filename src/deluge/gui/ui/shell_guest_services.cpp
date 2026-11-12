@@ -430,8 +430,6 @@ void wireShellGuestServices() {
 	services.learn.set_song(currentSong);
 	services.knobs.set_song(currentSong);
 	services.controls.set_song(currentSong);
-	// A guest opens with the knobs untouched, so its first turn is not taken as a repeat of the last.
-	services.knobs.pretend_knobs_untouched();
 	// The clip the views have open, which the global buttons and MIDI learn ask about.
 	deluge::scenes::services::view_state().set_current_view(currentSong != nullptr
 	                                                            ? deluge::gui::menuViewOf(currentSong->getCurrentClip())
