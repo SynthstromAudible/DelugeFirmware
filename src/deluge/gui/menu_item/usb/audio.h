@@ -18,7 +18,10 @@
 #include "drivers/usb/usb_audio.h"
 #include "gui/menu_item/selection.h"
 #include "gui/menu_item/toggle.h"
+#include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
+#include "model/output.h"
+#include "model/song/song.h"
 #include "storage/flash_storage.h"
 #include <algorithm>
 #include <array>
@@ -75,6 +78,26 @@ public:
 		(void)optType;
 		using enum l10n::String;
 		return {l10n::getView(STRING_FOR_MAIN_MIX), l10n::getView(STRING_FOR_LINE_IN)};
+	}
+};
+
+/// Which multitrack USB bus the current track goes to instead of the main mix - or none. Per track, so shared by all
+/// its clips. Only there while multitrack USB audio is on - and not for a kit's row, whose menu is the synth's: the
+/// whole kit is routed, from its affect-entire menu
+class TrackBus final : public Selection {
+public:
+	using Selection::Selection;
+	void readCurrentValue() override { this->setValue(getCurrentOutput()->getUSBBus()); }
+	void writeCurrentValue() override { getCurrentOutput()->setUSBBus(this->getValue()); }
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
+		return usb_audio::multitrackActive() && !soundEditor.editingKitRow();
+	}
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
+		using enum l10n::String;
+		static_assert(usb_audio::kNumTrackBuses == 3);
+		return {l10n::getView(STRING_FOR_MAIN_MIX), l10n::getView(STRING_FOR_USB_BUS_1),
+		        l10n::getView(STRING_FOR_USB_BUS_2), l10n::getView(STRING_FOR_USB_BUS_3)};
 	}
 };
 

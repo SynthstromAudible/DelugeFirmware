@@ -1047,6 +1047,8 @@ PLACE_SDRAM_BSS sample::browser_preview::Mode sampleBrowserPreviewModeMenu{STRIN
 
 PLACE_SDRAM_BSS flash::Status flashStatusMenu{STRING_FOR_PLAY_CURSOR};
 PLACE_SDRAM_BSS usb::Audio usbAudioEnabledMenu{STRING_FOR_MODE, STRING_FOR_USB_AUDIO};
+// Per track, in the synth, kit and audio clip menus. Only shown while multitrack USB audio is on
+PLACE_SDRAM_BSS usb::TrackBus usbTrackBusMenu{STRING_FOR_USB_BUS};
 PLACE_SDRAM_BSS usb::DirectMonitoring usbAudioInputMenu{STRING_FOR_INPUT, STRING_FOR_USB_INPUT};
 PLACE_SDRAM_BSS usb::OutputSource usbAudioOutputMenu{STRING_FOR_OUTPUT, STRING_FOR_USB_OUTPUT};
 PLACE_SDRAM_BSS Submenu usbAudioMenu{
@@ -1558,6 +1560,7 @@ PLACE_SDRAM_BSS Submenu soundEditorRootMenu{
         &patchCablesMenu,
         &sequenceDirectionMenu,
         &outputMidiSubmenu,
+        &usbTrackBusMenu,
     },
 };
 
@@ -1755,6 +1758,7 @@ PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuAudioClip{
         &audioClipSampleMenu,
         &audioClipAttackMenu,
         &priorityMenu,
+        &usbTrackBusMenu,
     },
 };
 
@@ -1902,6 +1906,7 @@ PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuKitGlobalFX{
         &globalFiltersMenu,
         &globalFXMenu,
         &globalSidechainMenu,
+        &usbTrackBusMenu,
     },
 };
 
