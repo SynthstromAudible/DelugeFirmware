@@ -141,7 +141,7 @@ enum class Stage : uint8_t {
 	Listing,       ///< The load browser lists SONGS, as a song loaded from it leaves it.
 	InertRun,      ///< inert_while_empty: a probe UI on top, MIDI NEXT_SONG, input and timers during the load.
 	EditorSetup,   ///< retired_song: the loaded song is given a synth clip.
-	EditorRun,     ///< ...the sound editor on top, NEXT_SONG, and the swap watched.
+	EditorRun,     ///< ...the ported menu on top, NEXT_SONG, and the swap watched.
 	AuditionSetup, ///< held_audition: an audition pad held on the clip view when NEXT_SONG arrives.
 	AuditionRun,   ///< ...the note must end when the UIs are taken down, not at the swap.
 	NoteSetup,     ///< tapped_note: a note pad tapped on the clip view when NEXT_SONG arrives.
