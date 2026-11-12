@@ -1204,7 +1204,7 @@ void ShellHostUI::uisTakenDown() {
 	}
 	// The recorder's take ends with no `ClearWorking`: the legacy display, which shows notices once the guest is gone,
 	// would take the taker-down's own animation down with it. The shell's animation goes here instead.
-	deluge::scenes::recorder::recorder_scene().taken_down();
+	endShellRecorderTakeForTeardown();
 	shell_.stack().reset();
 	shell_.notices().disarm_working();
 	shell_.discard_pending_input();

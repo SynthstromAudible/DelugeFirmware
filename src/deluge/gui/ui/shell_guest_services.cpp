@@ -345,6 +345,10 @@ void forgetShellMenuContext() {
 	deluge::scenes::menu_scene().forget_context();
 }
 
+void endShellRecorderTakeForTeardown() {
+	deluge::scenes::recorder::recorder_scene().taken_down();
+}
+
 bool shellSamplePreviewSounds() {
 	return getCurrentUI() == &shellHostUI && guestPreviewSounds.load(std::memory_order_relaxed);
 }

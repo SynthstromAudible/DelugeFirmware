@@ -125,6 +125,10 @@ void refreshShellSamplePreviewSounds();
 ///        guest (`ShellHostUI::uisTakenDown`): the song may go next.
 void forgetShellMenuContext();
 
+/// @brief End the recorder's running take for a teardown of every UI under the guest (`ShellHostUI::uisTakenDown`),
+///        posting no `ClearWorking` (`RecorderScene::taken_down`). A no-op with no take running.
+void endShellRecorderTakeForTeardown();
+
 /// @brief Whether the guest is the current UI and, at its last tick, its frontmost scene was the sample browser, one of
 ///        the sample browser's long-press menus or the slicer: the guest's half of "does the sample preview sound"
 ///        (`util/sample_preview_open.h`), read on the audio tier.
