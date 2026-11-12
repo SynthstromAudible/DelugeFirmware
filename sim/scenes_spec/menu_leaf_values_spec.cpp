@@ -570,6 +570,17 @@ describe leaf_sync_names("scenes::menu sync-level names", $ {
 		expect(std::string{menu::column_notification(nodes::record_quantize, r.ctx, 7, buf)})
 		    .to_equal(std::string{"16th-notes"});
 	});
+
+	it("notifies a custom column with its name alone", _ {
+		// `MenuItem::getNotificationValue` is empty, and `FileSelector`, `LoopPoint` and `SampleMarkerEditor` keep it:
+		// the banner reads "FILE BROWSER", with no value after it.
+		Rig r;
+		char buf[32];
+		for (const Node* node : {&nodes::file0_selector, &nodes::file1_selector, &nodes::sample0_start,
+		                         &nodes::sample0_end, &nodes::audio_clip_waveform}) {
+			expect(std::string{menu::column_notification(*node, r.ctx, 0, buf)}).to_equal(std::string{});
+		}
+	});
 });
 // clang-format on
 

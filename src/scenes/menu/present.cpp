@@ -470,7 +470,13 @@ std::string_view column_notification(const Node& column, const MenuContext& ctx,
 		// `Enumeration::getNotificationValue` is `getShortOption`, which `SyncLevel` spells as its note length, or OFF.
 		return sync_level_name(column, ctx, value, out);
 	case Kind::Toggle:
-		// `Toggle` has no `getNotificationValue`, so the base class's empty one stands (`menu_item.h:324`).
+		// `Toggle` has no `getNotificationValue`, so the base class's empty one stands
+		// (`MenuItem::getNotificationValue`).
+		return {};
+	case Kind::Custom:
+		// A custom item with a value says so through `Binding::value_text` above; the rest (`FileSelector`,
+		// `LoopPoint`, `SampleMarkerEditor`) keep `MenuItem::getNotificationValue`'s empty value, so the banner is
+		// the name alone.
 		return {};
 	default:
 		// `Number::getNotificationValue` (`number.cpp:429-431`): the value, doubled for the PERCENT style.
