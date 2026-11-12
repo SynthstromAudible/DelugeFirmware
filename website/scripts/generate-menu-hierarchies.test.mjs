@@ -240,11 +240,11 @@ test("the committed dump names the values each kind of list offers", () => {
   // toggles, a Community Feature's and any other, as our toggle page draws them
   assert.deepEqual(
     at(["Settings", "Community Features", "Drum Randomizer"]).options,
-    ["Off", "On"],
+    ["Disabled", "Enabled"],
   )
   assert.deepEqual(at(["Sound", "Osc mixer", "Oscillator sync"]).options, [
-    "Off",
-    "On",
+    "Disabled",
+    "Enabled",
   ])
   // a names hook, asked with no owner
   assert.deepEqual(at(["Sound", "Play direction"]).options, [
@@ -280,7 +280,7 @@ test("the committed dump names the values a custom page or a worded number lists
   // custom pages; File Linked's row is a checkbox, so its words are a toggle's
   assert.deepEqual(
     at(["MIDI instr", "Device Definition", "File Linked"]).options,
-    ["Off", "On"],
+    ["Disabled", "Enabled"],
   )
   assert.deepEqual(at(["Perform FX", "Editing Mode"]).options, [
     "Disabled",
@@ -301,4 +301,16 @@ test("the committed dump names the values a custom page or a worded number lists
     assert.deepEqual(scales.options.slice(0, 2), ["MAJOR", "MINOR"])
     assert.equal(scales.options[15], "HIRAJOSHI")
   }
+  // the output selectors list the outputs; Gate's last row opens the off-time page
+  assert.deepEqual(at(["Settings", "CV"]).options, [
+    "CV Output 1",
+    "CV Output 2",
+  ])
+  assert.deepEqual(at(["Settings", "Gate"]).options, [
+    "Gate Output 1",
+    "Gate Output 2",
+    "Gate Output 3",
+    "Gate Output 4",
+    "Minimum Off-Time",
+  ])
 })

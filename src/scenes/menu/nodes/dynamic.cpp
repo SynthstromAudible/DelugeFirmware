@@ -176,11 +176,11 @@ void CvSelectionItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) con
 }
 
 void CvSelectionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
-	// `cv::Selection::getOptions` (`cv/selection.h:47-54`): one row per physical CV output.
-	static_assert(NUM_PHYSICAL_CV_CHANNELS == 2, "cv::Selection::getOptions names exactly two outputs");
+	static_assert(std::size(kCvOutputNames) == NUM_PHYSICAL_CV_CHANNELS,
+	              "cv::Selection::getOptions names one row per physical CV output");
 	const std::string_view names[] = {
-	    deluge::scenes::text_lookup(sid(String::STRING_FOR_CV_OUTPUT_1)),
-	    deluge::scenes::text_lookup(sid(String::STRING_FOR_CV_OUTPUT_2)),
+	    deluge::scenes::text_lookup(kCvOutputNames[0]),
+	    deluge::scenes::text_lookup(kCvOutputNames[1]),
 	};
 	render_output_selection(f, state, names, std::size(names)); // both rows are real outputs
 }
@@ -227,15 +227,12 @@ void GateSelectionItem::on_focus_backward(const MenuContext& /*ctx*/, MenuState&
 }
 
 void GateSelectionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
-	// `gate::Selection::getOptions` (`gate/selection.h:56-71`): the four gate outputs, then the
-	// minimum-off-time page -- the one-past-the-last option `gate_selection_chain` tests for.
-	static_assert(NUM_GATE_CHANNELS == 4, "gate::Selection::getOptions names exactly four outputs");
+	static_assert(std::size(kGateOutputNames) == NUM_GATE_CHANNELS + 1,
+	              "gate::Selection::getOptions names every gate output, then the off-time page");
 	const std::string_view names[] = {
-	    deluge::scenes::text_lookup(sid(String::STRING_FOR_GATE_OUTPUT_1)),
-	    deluge::scenes::text_lookup(sid(String::STRING_FOR_GATE_OUTPUT_2)),
-	    deluge::scenes::text_lookup(sid(String::STRING_FOR_GATE_OUTPUT_3)),
-	    deluge::scenes::text_lookup(sid(String::STRING_FOR_GATE_OUTPUT_4)),
-	    deluge::scenes::text_lookup(sid(String::STRING_FOR_MINIMUM_OFF_TIME)),
+	    deluge::scenes::text_lookup(kGateOutputNames[0]), deluge::scenes::text_lookup(kGateOutputNames[1]),
+	    deluge::scenes::text_lookup(kGateOutputNames[2]), deluge::scenes::text_lookup(kGateOutputNames[3]),
+	    deluge::scenes::text_lookup(kGateOutputNames[4]),
 	};
 	// `NUM_GATE_CHANNELS` (4), not `names.size()` (5): row 4 is the minimum-off-time page, not a
 	// real output, so a press on it must not become `real_output_choice` -- see

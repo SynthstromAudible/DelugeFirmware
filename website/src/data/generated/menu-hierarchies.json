@@ -13568,6 +13568,22 @@
           "code": "CV",
           "children": [
             {
+              "key": "cv-cv-output-1",
+              "oled": "CV Output 1",
+              "title": "CV Output 1",
+              "code": "CV Output 1",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "cv-cv-output-2",
+              "oled": "CV Output 2",
+              "title": "CV Output 2",
+              "code": "CV Output 2",
+              "option": true,
+              "children": []
+            },
+            {
               "key": "cv-cv-output",
               "oled": "CV output *",
               "title": "CV output *",
@@ -13598,6 +13614,46 @@
           "code": "Gate",
           "children": [
             {
+              "key": "gate-gate-output-1",
+              "oled": "Gate Output 1",
+              "title": "Gate Output 1",
+              "code": "Gate Output 1",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "gate-gate-output-2",
+              "oled": "Gate Output 2",
+              "title": "Gate Output 2",
+              "code": "Gate Output 2",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "gate-gate-output-3",
+              "oled": "Gate Output 3",
+              "title": "Gate Output 3",
+              "code": "Gate Output 3",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "gate-gate-output-4",
+              "oled": "Gate Output 4",
+              "title": "Gate Output 4",
+              "code": "Gate Output 4",
+              "option": true,
+              "children": []
+            },
+            {
+              "key": "gate-minimum-off-time",
+              "oled": "Minimum Off-Time",
+              "title": "Minimum Off-Time",
+              "code": "Minimum Off-Time",
+              "option": true,
+              "children": []
+            },
+            {
               "key": "gate-gate-out-mode",
               "oled": "Gate out* mode",
               "title": "Gate out* mode",
@@ -13622,7 +13678,7 @@
               ]
             },
             {
-              "key": "gate-minimum-off-time",
+              "key": "gate-minimum-off-time-2",
               "oled": "Minimum Off-Time",
               "title": "Minimum Off-Time",
               "code": "Minimum Off-Time",

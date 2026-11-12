@@ -501,12 +501,16 @@ inline const Node* cv_selection_chain(const MenuContext&, const MenuState&) {
 const Node* gate_selection_chain(const MenuContext& ctx, const MenuState& state);
 /// @}
 
-inline constexpr Node cv_selection = with_select_chain(
-    with_title(custom(sid(String::STRING_FOR_CV), &kCvSelectionItem), sid(String::STRING_FOR_CV_OUTPUTS)),
-    cv_selection_chain, kCvSelectionChain);
-inline constexpr Node gate_selection = with_select_chain(
-    with_title(custom(sid(String::STRING_FOR_GATE), &kGateSelectionItem), sid(String::STRING_FOR_GATE_OUTPUTS)),
-    gate_selection_chain, kGateSelectionChain);
+inline constexpr Node cv_selection =
+    with_value_names(with_select_chain(with_title(custom(sid(String::STRING_FOR_CV), &kCvSelectionItem),
+                                                  sid(String::STRING_FOR_CV_OUTPUTS)),
+                                       cv_selection_chain, kCvSelectionChain),
+                     kCvOutputNames);
+inline constexpr Node gate_selection =
+    with_value_names(with_select_chain(with_title(custom(sid(String::STRING_FOR_GATE), &kGateSelectionItem),
+                                                  sid(String::STRING_FOR_GATE_OUTPUTS)),
+                                       gate_selection_chain, kGateSelectionChain),
+                     kGateOutputNames);
 
 // ---------------------------------------------------------------------------------------------
 // 4. Trigger clock

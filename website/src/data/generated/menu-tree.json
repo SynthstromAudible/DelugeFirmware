@@ -12750,6 +12750,10 @@
       {
         "id": 338,
         "name": "CV",
+        "options": [
+          "CV Output 1",
+          "CV Output 2"
+        ],
         "select_chain": [
           {
             "children": [
@@ -12778,6 +12782,13 @@
       {
         "id": 342,
         "name": "Gate",
+        "options": [
+          "Gate Output 1",
+          "Gate Output 2",
+          "Gate Output 3",
+          "Gate Output 4",
+          "Minimum Off-Time"
+        ],
         "select_chain": [
           {
             "id": 343,

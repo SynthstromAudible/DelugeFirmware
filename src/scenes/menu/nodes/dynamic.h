@@ -52,6 +52,7 @@
 ///     simplification `MultiRangeItem` and `PatchCablesItem` make.
 
 #include "scenes/menu/node.h"
+#include "scenes/menu/nodes/detail.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -90,6 +91,20 @@ MIDICable* cable_at(int32_t index);
 /// `Devices::selectEncoderAction` skips its way along (`devices.cpp:86-104`).
 /// @return How many were written.
 size_t connected_cables(std::span<MIDICable*> out);
+
+/// `cv::Selection::getOptions`: one row per physical CV output. The page draws these and the menu dump lists them.
+inline constexpr uint16_t kCvOutputNames[] = {
+    sid(deluge::l10n::String::STRING_FOR_CV_OUTPUT_1),
+    sid(deluge::l10n::String::STRING_FOR_CV_OUTPUT_2),
+};
+
+/// `gate::Selection::getOptions`: the four gate outputs, then the minimum-off-time page -- the one-past-the-last
+/// option `gate_selection_chain` tests for. The page draws these and the menu dump lists them.
+inline constexpr uint16_t kGateOutputNames[] = {
+    sid(deluge::l10n::String::STRING_FOR_GATE_OUTPUT_1),    sid(deluge::l10n::String::STRING_FOR_GATE_OUTPUT_2),
+    sid(deluge::l10n::String::STRING_FOR_GATE_OUTPUT_3),    sid(deluge::l10n::String::STRING_FOR_GATE_OUTPUT_4),
+    sid(deluge::l10n::String::STRING_FOR_MINIMUM_OFF_TIME),
+};
 
 /// @brief `cv::Selection` -- pick which CV output the `cv_submenu` pages address.
 class CvSelectionItem final : public CustomItem {
