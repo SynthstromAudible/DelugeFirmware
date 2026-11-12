@@ -117,6 +117,64 @@ std::vector<std::string> twenty() {
 
 const std::string kFixtureCard = std::string(DELUGE_REPO_ROOT) + "/tests/fixtures/card";
 
+/// Thirty entries, N00.WAV .. N29.WAV in sorted order: more than one window of `FILE_ITEMS_MAX_NUM_ELEMENTS`.
+std::vector<std::string> thirty() {
+	std::vector<std::string> out;
+	for (int32_t i = 0; i < 30; i++) {
+		out.push_back("N" + std::string(1, static_cast<char>('0' + i / 10))
+		              + std::string(1, static_cast<char>('0' + i % 10)) + ".WAV");
+	}
+	return out;
+}
+
+/// The thirty in a directory order of their own (every seventh, wrapping), so entries that sort inside a range a
+/// cull has already deleted keep arriving after it.
+std::vector<std::string> thirty_in_card_order() {
+	const std::vector<std::string> sorted = thirty();
+	std::vector<std::string> out;
+	for (size_t i = 0; i < sorted.size(); i++) {
+		out.push_back(sorted[(i * 7) % sorted.size()]);
+	}
+	return out;
+}
+
+/// @brief A folder read as `readFileItemsForFolder`'s loop reads it -- each entry through `getNewFileItem`, which culls
+///        once the window is full -- then sorted, as the browser's listing sorts it.
+/// @param order       The entries, in the order the card hands them over.
+/// @param start       The name the read centres on (`filenameToStartSearchAt`), or null.
+/// @param direction   `catalogSearchDirection`.
+void read_in_order(const std::vector<std::string>& order, char const* start, int32_t direction) {
+	FileCatalogue::emptyFileItems();
+	FileCatalogue::numFileItemsDeletedAtStart = 0;
+	FileCatalogue::numFileItemsDeletedAtEnd = 0;
+	FileCatalogue::firstFileItemRemaining.clear();
+	FileCatalogue::lastFileItemRemaining.clear();
+	catalogSearchDirection = direction;
+	maxNumFileItemsNow = FILE_ITEMS_MAX_NUM_ELEMENTS;
+	FileCatalogue::filenameToStartSearchAt = start;
+	for (const std::string& name : order) {
+		FileItem* item = FileCatalogue::getNewFileItem(false);
+		item->filename = name;
+	}
+	FileCatalogue::sortFileItems(false);
+}
+
+/// @brief Whether the window is one unbroken run of @p sorted, its deletion counts accounting for the rest.
+bool window_is_contiguous(const std::vector<std::string>& sorted) {
+	const auto& items = FileCatalogue::fileItems;
+	const int32_t start = FileCatalogue::numFileItemsDeletedAtStart;
+	if (start + static_cast<int32_t>(items.size()) + FileCatalogue::numFileItemsDeletedAtEnd
+	    != static_cast<int32_t>(sorted.size())) {
+		return false;
+	}
+	for (size_t i = 0; i < items.size(); i++) {
+		if (items[i].displayName() != sorted[static_cast<size_t>(start) + i]) {
+			return false;
+		}
+	}
+	return true;
+}
+
 /// @name Pinning the one parameter the extraction invented.
 ///
 /// `interpretNoteNames` is new: in `Browser` the listing read the per-browser
@@ -295,7 +353,7 @@ describe file_catalogue("the browser's file catalogue", $ {
 		expect(FileCatalogue::numFileItemsDeletedAtStart).to_equal(10);
 		expect(FileCatalogue::numFileItemsDeletedAtEnd).to_equal(5);
 		// The two survivors that bracket the window that is left. These are owning copies on
-		// purpose (`file_catalogue.h:109 firstFileItemRemaining`): they name entries the very next erase
+		// purpose (`file_catalogue.h`'s `FileCatalogue::firstFileItemRemaining`): they name entries the very next erase
 		// destroys.
 		expect(FileCatalogue::firstFileItemRemaining).to_equal(std::string("A10.XML"));
 		expect(FileCatalogue::lastFileItemRemaining).to_equal(std::string("A14.XML"));
@@ -407,6 +465,111 @@ describe file_catalogue("the browser's file catalogue", $ {
 		expect(FileCatalogue::numFileItemsDeletedAtEnd).to_equal(0);
 		expect(FileCatalogue::firstFileItemRemaining).to_equal(std::string("A07.XML"));
 		expect(catalogue_order().substr(0, 7)).to_equal(std::string("A07.XML"));
+	});
+
+	// ---- the trims after the sort, as main's `Browser::sortFileItems` makes them --------------------
+
+	it("keeps only the left of the search name, and every entry equal to it, on a left-inclusive read", _ {
+		CleanCatalogue clean;
+		SpecBrowser browser;
+		seed({"E.WAV", "C.WAV", "A.WAV", "C.WAV", "B.WAV", "D.WAV"});
+		catalogSearchDirection = CATALOG_SEARCH_LEFT_INCLUSIVE;
+		FileCatalogue::filenameToStartSearchAt = "C.WAV";
+		browser.sortFileItems();
+		expect(catalogue_order()).to_equal(std::string("A.WAV,B.WAV,C.WAV,C.WAV"));
+		expect(FileCatalogue::numFileItemsDeletedAtEnd).to_equal(2);
+	});
+
+	it("keeps only the right of the search name, and every entry equal to it, on a right-inclusive read", _ {
+		CleanCatalogue clean;
+		SpecBrowser browser;
+		seed({"E.WAV", "C.WAV", "A.WAV", "C.WAV", "B.WAV", "D.WAV"});
+		catalogSearchDirection = CATALOG_SEARCH_RIGHT_INCLUSIVE;
+		FileCatalogue::filenameToStartSearchAt = "C.WAV";
+		browser.sortFileItems();
+		expect(catalogue_order()).to_equal(std::string("C.WAV,C.WAV,D.WAV,E.WAV"));
+		expect(FileCatalogue::numFileItemsDeletedAtStart).to_equal(2);
+	});
+
+	it("keeps only what sorts before the search name on a left read", _ {
+		CleanCatalogue clean;
+		SpecBrowser browser;
+		seed({"E.WAV", "C.WAV", "A.WAV", "B.WAV", "D.WAV"});
+		catalogSearchDirection = CATALOG_SEARCH_LEFT;
+		FileCatalogue::filenameToStartSearchAt = "C.WAV";
+		browser.sortFileItems();
+		expect(catalogue_order()).to_equal(std::string("A.WAV,B.WAV"));
+		expect(FileCatalogue::numFileItemsDeletedAtEnd).to_equal(3);
+	});
+
+	it("keeps only what sorts after the search name on a right read", _ {
+		CleanCatalogue clean;
+		SpecBrowser browser;
+		seed({"E.WAV", "C.WAV", "A.WAV", "B.WAV", "D.WAV"});
+		catalogSearchDirection = CATALOG_SEARCH_RIGHT;
+		FileCatalogue::filenameToStartSearchAt = "C.WAV";
+		browser.sortFileItems();
+		expect(catalogue_order()).to_equal(std::string("D.WAV,E.WAV"));
+		expect(FileCatalogue::numFileItemsDeletedAtStart).to_equal(3);
+	});
+
+	it("drops an entry read after a cull that sorts past the last one the cull kept", _ {
+		CleanCatalogue clean;
+		SpecBrowser browser;
+		seed({"E.WAV", "C.WAV", "A.WAV", "B.WAV", "D.WAV"});
+		catalogSearchDirection = CATALOG_SEARCH_BOTH;
+		FileCatalogue::lastFileItemRemaining = "C.WAV";
+		browser.sortFileItems();
+		expect(catalogue_order()).to_equal(std::string("A.WAV,B.WAV,C.WAV"));
+		expect(FileCatalogue::numFileItemsDeletedAtEnd).to_equal(2);
+	});
+
+	it("drops an entry read after a cull that sorts before the first one the cull kept", _ {
+		CleanCatalogue clean;
+		SpecBrowser browser;
+		seed({"E.WAV", "C.WAV", "A.WAV", "B.WAV", "D.WAV"});
+		catalogSearchDirection = CATALOG_SEARCH_BOTH;
+		FileCatalogue::firstFileItemRemaining = "C.WAV";
+		browser.sortFileItems();
+		expect(catalogue_order()).to_equal(std::string("C.WAV,D.WAV,E.WAV"));
+		expect(FileCatalogue::numFileItemsDeletedAtStart).to_equal(2);
+	});
+
+	it("reads a folder of more than one window into one unbroken run around the search name", _ {
+		CleanCatalogue clean;
+		const std::vector<std::string> sorted = thirty();
+		read_in_order(thirty_in_card_order(), "N15.WAV", CATALOG_SEARCH_BOTH);
+		expect(window_is_contiguous(sorted)).to_be_true();
+		expect(FileCatalogue::searchFileItems("N15.WAV") < static_cast<int32_t>(FileCatalogue::fileItems.size()))
+		    .to_be_true();
+	});
+
+	it("reaches every file of a folder of more than one window, one turn at a time across its reloads", _ {
+		CleanCatalogue clean;
+		const std::vector<std::string> sorted = thirty();
+		const std::vector<std::string> order = thirty_in_card_order();
+		// The browser's turn past the window's end (`BrowserScene::step_selection`): a reload centred on the
+		// current file, then the file after it.
+		read_in_order(order, nullptr, CATALOG_SEARCH_RIGHT);
+		std::vector<std::string> visited{FileCatalogue::fileItems.front().displayName()};
+		std::string current = visited.back();
+		std::string centre; // outlives each reload's read, which keeps a pointer to it
+		for (size_t turn = 1; turn < sorted.size(); turn++) {
+			int32_t index = FileCatalogue::searchFileItems(current.c_str()) + 1;
+			if (index >= static_cast<int32_t>(FileCatalogue::fileItems.size())
+			    && FileCatalogue::numFileItemsDeletedAtEnd != 0) {
+				centre = current;
+				read_in_order(order, centre.c_str(), CATALOG_SEARCH_BOTH);
+				index = FileCatalogue::searchFileItems(centre.c_str()) + 1;
+			}
+			if (index >= static_cast<int32_t>(FileCatalogue::fileItems.size())) {
+				break;
+			}
+			current = FileCatalogue::fileItems[static_cast<size_t>(index)].displayName();
+			visited.push_back(current);
+		}
+		FileCatalogue::filenameToStartSearchAt = nullptr;
+		expect(visited == sorted).to_be_true();
 	});
 
 	it("survives a cull whose deletions would reallocate the vector out from under a name", _ {

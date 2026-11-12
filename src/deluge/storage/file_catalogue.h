@@ -26,6 +26,9 @@
 #define CATALOG_SEARCH_LEFT 0
 #define CATALOG_SEARCH_RIGHT 1
 #define CATALOG_SEARCH_BOTH 2
+/// A one-sided search that keeps every entry equal to the search name.
+#define CATALOG_SEARCH_LEFT_INCLUSIVE 3
+#define CATALOG_SEARCH_RIGHT_INCLUSIVE 4
 
 #define FILE_ITEMS_MAX_NUM_ELEMENTS 20
 #define FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION 20 // It "should" be able to be way less than this.
@@ -80,8 +83,13 @@ public:
 	/// @return `Error::NONE`, or the card's error.
 	static Error makeFolder(std::string_view path);
 
-	/// @brief Sort `fileItems` by `displayName()` per `strcmpspecial`. Pins `octaveStartsFromA`
-	///        false, as legacy did.
+	/// @brief Sort `fileItems` by `displayName()` per `strcmpspecial`, then trim as `main`'s `Browser::sortFileItems`
+	///        does. Pins `octaveStartsFromA` false, as legacy did.
+	///
+	/// A one-sided search keeps only its side of `filenameToStartSearchAt`; and once a cull has deleted entries
+	/// from an end, an entry read afterwards that sorts past `lastFileItemRemaining` or before
+	/// `firstFileItemRemaining` goes too, each counted where the cull counts its own. Without that the window
+	/// holds a hole the edge reloads never cross, and a turn skips the files in it.
 	static void sortFileItems(bool interpretNoteNames);
 
 	/// Mirrors CStringArray::search(): binary search by displayName using strcmpspecial; returns the matching

@@ -415,6 +415,86 @@ void FileCatalogue::sortFileItems(bool interpretNoteNames) {
 	std::sort(fileItems.begin(), fileItems.end(), [](FileItem const& a, FileItem const& b) {
 		return strcmpspecial(a.displayName().c_str(), b.displayName().c_str()) < 0;
 	});
+
+	const auto size = [] { return static_cast<int32_t>(fileItems.size()); };
+	const auto nameAt = [](int32_t i) { return fileItems[i].displayName().c_str(); };
+
+	// If we're just wanting to look to one side or the other of a given filename, then delete everything in the other
+	// direction.
+	if (filenameToStartSearchAt != nullptr && *filenameToStartSearchAt != '\0') {
+		if (catalogSearchDirection == CATALOG_SEARCH_LEFT_INCLUSIVE) {
+			int32_t end = searchFileItems(filenameToStartSearchAt);
+			// Keep all equal keys until folder/instrument duplicate cleanup has run.
+			while (end < size() && !strcmpspecial(nameAt(end), filenameToStartSearchAt)) {
+				end++;
+			}
+			if (end < size()) {
+				numFileItemsDeletedAtEnd += size() - end;
+				deleteSomeFileItems(end, size());
+			}
+		}
+		else if (catalogSearchDirection == CATALOG_SEARCH_RIGHT_INCLUSIVE) {
+			int32_t start = searchFileItems(filenameToStartSearchAt);
+			while (start > 0 && !strcmpspecial(nameAt(start - 1), filenameToStartSearchAt)) {
+				start--;
+			}
+			if (start > 0) {
+				numFileItemsDeletedAtStart += start;
+				deleteSomeFileItems(0, start);
+			}
+		}
+		else if (catalogSearchDirection == CATALOG_SEARCH_LEFT) {
+			bool foundExact = false;
+			int32_t searchIndex = searchFileItems(filenameToStartSearchAt, &foundExact);
+			// Check for duplicates.
+			if (foundExact) {
+				const int32_t prevIndex = searchIndex - 1;
+				if (prevIndex >= 0 && !strcmpspecial(nameAt(prevIndex), filenameToStartSearchAt)) {
+					searchIndex = prevIndex;
+				}
+			}
+			const int32_t numToDelete = size() - searchIndex;
+			if (numToDelete > 0) {
+				deleteSomeFileItems(searchIndex, size());
+				numFileItemsDeletedAtEnd += numToDelete;
+			}
+		}
+		else if (catalogSearchDirection == CATALOG_SEARCH_RIGHT) {
+			bool foundExact = false;
+			int32_t searchIndex = searchFileItems(filenameToStartSearchAt, &foundExact);
+			// Check for duplicates.
+			if (foundExact) {
+				const int32_t nextIndex = searchIndex + 1;
+				if (nextIndex < size() && !strcmpspecial(nameAt(nextIndex), filenameToStartSearchAt)) {
+					searchIndex = nextIndex;
+				}
+			}
+			const int32_t numToDelete = searchIndex + static_cast<int32_t>(foundExact);
+			if (numToDelete > 0) {
+				deleteSomeFileItems(0, numToDelete);
+				numFileItemsDeletedAtStart += numToDelete;
+			}
+		}
+	}
+
+	// If we'd previously deleted items from either end of the list (apart from due to search direction as above),
+	// we need to now delete any items which would have fallen in that region.
+	if (!lastFileItemRemaining.empty()) {
+		const int32_t searchIndex = searchFileItems(lastFileItemRemaining.c_str());
+		const int32_t itemsToDeleteAtEnd = size() - searchIndex - 1;
+		if (itemsToDeleteAtEnd > 0) {
+			deleteSomeFileItems(searchIndex + 1, size());
+			numFileItemsDeletedAtEnd += itemsToDeleteAtEnd;
+		}
+	}
+
+	if (!firstFileItemRemaining.empty()) {
+		const int32_t itemsToDeleteAtStart = searchFileItems(firstFileItemRemaining.c_str());
+		if (itemsToDeleteAtStart != 0) {
+			deleteSomeFileItems(0, itemsToDeleteAtStart);
+			numFileItemsDeletedAtStart += itemsToDeleteAtStart;
+		}
+	}
 }
 
 int32_t FileCatalogue::searchFileItems(char const* searchString, bool* foundExact) {
