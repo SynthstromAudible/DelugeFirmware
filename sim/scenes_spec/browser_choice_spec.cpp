@@ -66,6 +66,7 @@
 #include "gui/ui/shell_choice_dispatch.h"
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/sound_editor.h"
 #include "gui/ui/sound_target.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/button.h"
@@ -86,6 +87,7 @@
 #include "storage/file_item.h"
 #include "storage/multi_range/multisample_range.h"
 #include "util/sample_preview_open.h"
+#include "util/shell_menu_entry.h"
 
 #include "support/global_guest_menu.h"
 #include "support/song_fixture.h"
@@ -949,6 +951,27 @@ describe browser_choice_claim(
 		        expect(static_cast<int32_t>(ClaimSpy::last.target.rangeIndex)).to_equal(0);
 		        expect(static_cast<int32_t>(ClaimSpy::last.target.sourceIndex)).to_equal(0);
 		        expect(ClaimSpy::last.legacyFinish == nullptr).to_be_true();
+	        });
+
+	    it(
+	        "names the kit-global-FX latch in the menu's target as the legacy editor's target does", _ {
+		        CleanBrowser clean;
+		        ScratchCard card;
+		        ShellRig r;
+		        r.open_browser();
+		        bool& latch = deluge::gui::ui::shellKitGlobalFxLatch();
+		        const bool saved = latch;
+		        latch = true;
+		        const bool menuOn = deluge::gui::ui::shellMenuTarget().kitGlobalFx;
+		        const bool legacyOn = soundEditor.soundTarget().kitGlobalFx;
+		        latch = false;
+		        const bool menuOff = deluge::gui::ui::shellMenuTarget().kitGlobalFx;
+		        const bool legacyOff = soundEditor.soundTarget().kitGlobalFx;
+		        latch = saved;
+		        expect(menuOn).to_be_true();
+		        expect(legacyOn).to_be_true();
+		        expect(menuOff).to_be_false();
+		        expect(legacyOff).to_be_false();
 	        });
 
 	    it(

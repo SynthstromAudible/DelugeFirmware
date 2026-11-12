@@ -1128,7 +1128,8 @@ bool openLeg() {
 		    || g_importSynthClip->output->type != OutputType::SYNTH) {
 			return fail("import-multi", "no synth clip could be created");
 		}
-		static_cast<SoundInstrument*>(g_importSynthClip->output)->sources[0].setOscType(OscType::SAMPLE);
+		// A wavetable oscillator: the import makes it a sample one, and finds the range it fills again.
+		static_cast<SoundInstrument*>(g_importSynthClip->output)->sources[0].setOscType(OscType::WAVETABLE);
 		return openBrowser("import-multi", g_importSynthClip, &instrumentClipView);
 	case Leg::AudioClip:
 		if (g_audioClip == nullptr || g_audioClip->type != ClipType::AUDIO) {
@@ -1726,12 +1727,19 @@ void checkLeg() {
 	case Leg::Synth: {
 		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
-		printf("SC-SYNTH bound=%d path=%s osc=%d repeat=%d transpose=%d ticks=%d\n", bound ? 1 : 0,
+		// The legacy browser's own tail (`SampleBrowser::finishLegacyClaim`) closes it once its claim lands.
+		const bool browserClosed = !isUIOpen(&sampleBrowser);
+		printf("SC-SYNTH bound=%d path=%s osc=%d repeat=%d transpose=%d browserClosed=%d ticks=%d\n", bound ? 1 : 0,
 		       holder != nullptr ? holder->filePath.c_str() : "", static_cast<int>(g_synth->sources[0].oscType),
 		       static_cast<int>(g_synth->sources[0].repeatMode),
-		       holder != nullptr ? static_cast<SampleHolderForVoice*>(holder)->transpose : 0, g_waitTicks);
+		       holder != nullptr ? static_cast<SampleHolderForVoice*>(holder)->transpose : 0, browserClosed ? 1 : 0,
+		       g_waitTicks);
 		if (!bound) {
 			printf("SC-SYNTH FAIL the claim bound no file\n");
+			g_failures++;
+		}
+		if (!browserClosed) {
+			printf("SC-SYNTH FAIL the legacy browser stayed open after its claim\n");
 			g_failures++;
 		}
 		break;
@@ -2112,11 +2120,22 @@ void checkLeg() {
 					matched++;
 				}
 			}
-			printf("IM-MULTI ranges=%d matched=%d repeat=%d osc=%d edited=%d browserClosed=%d ticks=%d\n", ranges,
-			       matched, static_cast<int>(source.repeatMode), static_cast<int>(source.oscType),
-			       synth->editedByUser ? 1 : 0, browserClosed ? 1 : 0, g_waitTicks);
+			// The legacy editor is left on the middle range, as the import tells its opener (`rangeChosen`).
+			const int32_t editorRange =
+			    soundEditor.currentMultiRangeIndex >= 0 && soundEditor.currentMultiRangeIndex < ranges
+			            && soundEditor.currentMultiRange == source.ranges.getElement(soundEditor.currentMultiRangeIndex)
+			        ? soundEditor.currentMultiRangeIndex
+			        : -1;
+			printf(
+			    "IM-MULTI ranges=%d matched=%d repeat=%d osc=%d edited=%d browserClosed=%d editorRange=%d ticks=%d\n",
+			    ranges, matched, static_cast<int>(source.repeatMode), static_cast<int>(source.oscType),
+			    synth->editedByUser ? 1 : 0, browserClosed ? 1 : 0, editorRange, g_waitTicks);
+			if (editorRange != kImportMultiCount / 2) {
+				printf("IM-MULTI FAIL the legacy editor was not left on the middle range\n");
+				g_failures++;
+			}
 			if (ranges != kImportMultiCount || matched != kImportMultiCount
-			    || source.repeatMode != SampleRepeatMode::ONCE || !browserClosed) {
+			    || source.repeatMode != SampleRepeatMode::ONCE || source.oscType != OscType::SAMPLE || !browserClosed) {
 				printf("IM-MULTI FAIL the multisample import did not end with one range per file in pitch order, each "
 				       "bound to its file with the top note today's importer gives it and the transpose its detection "
 				       "gives "

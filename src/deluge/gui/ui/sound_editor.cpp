@@ -2329,8 +2329,8 @@ void SoundEditor::adoptResolvedContext(const ResolvedContext& resolved) {
 	currentSourceIndex = resolved.sourceIndex;
 	currentSource = resolved.source;
 
-	// `setup()` never writes this, but a sample claim reads it through `Source::setOscType`, which picks the range
-	// the new type applies to by it. Left unwritten, a stale index from an earlier legacy session would select the
-	// wrong range.
+	// `setup()` never writes this. Only this editor's own current range reads it: `Source::setOscType` finds that
+	// range again by it (`legacyRangesRetyped`). Left unwritten, a stale index from an earlier legacy session would
+	// select the wrong one.
 	currentMultiRangeIndex = resolved.rangeIndex;
 }

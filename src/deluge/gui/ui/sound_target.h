@@ -29,6 +29,10 @@ class SampleControls;
 class Sound;
 class Source;
 
+namespace deluge::instrument {
+enum class OscType : uint8_t;
+} // namespace deluge::instrument
+
 namespace deluge::gui {
 
 /// @brief The sound a sample claim, a folder import or a slice acts on, taken when it is asked for and carried with
@@ -47,10 +51,41 @@ struct SoundTarget {
 	bool kitGlobalFx = false;
 };
 
-/// @brief Point @p target's range at the one its index names, after an oscillator-type change reallocated the source's
-///        ranges. A change that had to empty the list (it holds fewer ranges than @p rangesBefore) starts again from
-///        range 0, as `Source::setOscType` does.
-void retargetRangeAfterRetype(SoundTarget& target, int32_t rangesBefore);
+/// @brief What an oscillator-type change did to a source's ranges, as `Source::setOscType` reports it.
+struct RangesRetype {
+	bool reallocated = false; ///< The ranges were rebuilt as the new type's ranges.
+	bool cleared = false;     ///< The rebuild had to empty them first: range 0 is the only one left.
+};
+
+/// @brief What `Source::setOscType` does to one source's ranges while this is alive. A claim or an import watches the
+///        type change it makes through the source's setting Edit, which reports nothing back. One at a time, on the
+///        interaction tier.
+class RangesRetypeWatch {
+public:
+	explicit RangesRetypeWatch(const Source& source);
+	~RangesRetypeWatch();
+	RangesRetypeWatch(const RangesRetypeWatch&) = delete;
+	RangesRetypeWatch& operator=(const RangesRetypeWatch&) = delete;
+
+	/// @return What happened to the watched source's ranges so far.
+	[[nodiscard]] RangesRetype result() const { return result_; }
+
+	/// @brief `Source::setOscType`'s report: @p source's ranges were rebuilt, emptied first when @p cleared.
+	static void rangesRetyped(const Source& source, bool cleared);
+
+private:
+	const Source* source_;
+	RangesRetype result_{};
+};
+
+/// @brief Point @p target's range at the one its index names after @p retype, by `Source::setOscType`'s rule for the
+///        legacy editor's range: nothing moves unless the ranges were reallocated, and a reallocation that had to
+///        clear them starts again from range 0. An index past the end leaves the range as it is.
+void retargetRangeAfterRetype(SoundTarget& target, RangesRetype retype);
+
+/// @brief Change @p target's source to @p type through its setting Edit, watching the change, and find @p target's
+///        range again by `retargetRangeAfterRetype`'s rule. What a claim and an import change a source's type with.
+void setOscTypeFor(SoundTarget& target, deluge::instrument::OscType type);
 
 /// @brief The model stack @p target edits: the song's off a clip minder, the kit's own with affect-entire on, else the
 ///        current clip's with the kit's selected row.

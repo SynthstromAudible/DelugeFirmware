@@ -17,6 +17,7 @@
 
 #include "processing/source.h"
 #include "definitions_cxx.hpp"
+#include "gui/ui/sound_target.h"
 #include "instruments/deluge/sound_state.h"
 #include "libdeluge/system.h" // AudioExcludedSection
 #include "memory/memory_allocator_interface.h"
@@ -384,6 +385,7 @@ doChangeType:
 			getOrCreateFirstRange(); // Ensure there's at least 1. If this returns NULL and we're in the SoundEditor or
 			                         // something, we're screwed.
 			deluge::gui::ui::legacyRangesRetyped(*this, cleared);
+			deluge::gui::RangesRetypeWatch::rangesRetyped(*this, cleared);
 		}
 	}
 	else if (newType == OscType::WAVETABLE) {

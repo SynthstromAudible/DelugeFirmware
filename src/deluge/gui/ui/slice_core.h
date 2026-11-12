@@ -44,7 +44,7 @@ namespace deluge::gui::ui {
 /// loads are asynchronous; the caller ticks them (`tick_audition`, `tick_slice`) while its slicer is up.
 ///
 /// @pre Everything reads the current kit (`getCurrentKit()`); the slice and the first drum's audition read the sound
-/// the caller last named (`retarget`).
+///      the caller last named (`retarget`).
 class SliceCore {
 public:
 	/// @brief One audition: play the first drum from @p startPoint to @p endPoint (-1 keeps the end), transposed.

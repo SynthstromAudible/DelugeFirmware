@@ -80,16 +80,6 @@ void closeGate() {
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 }
 
-/// Set the target source's oscillator type through its setting Edit, and find the target's range again in the ranges
-/// the change reallocated.
-void setClaimOscType(SoundTarget& target, OscType type) {
-	const int32_t rangesBefore = std::ssize(target.source->ranges);
-	deluge::edits::settingFor(
-	    *target.sound, deluge::edits::oscSettingPath(target.sourceIndex, "type"),
-	    deluge::serialization::Value::makeScalar(std::string(deluge::instrument::to_string(type))));
-	retargetRangeAfterRetype(target, rangesBefore);
-}
-
 /// Set the target source's repeat mode through its setting Edit.
 void setClaimRepeatMode(const SoundTarget& target, SampleRepeatMode mode) {
 	deluge::edits::settingFor(*target.sound, deluge::edits::oscSettingPath(target.sourceIndex, "loopMode"),
@@ -269,7 +259,7 @@ bool SampleClaim::stepPrepareSample() {
 		reversed = getCurrentAudioClip()->sampleControls.isCurrentlyReversed();
 	}
 	else {
-		setClaimOscType(current_.target, OscType::SAMPLE);
+		setOscTypeFor(current_.target, OscType::SAMPLE);
 		reversed = current_.target.source->sampleControls.isCurrentlyReversed();
 	}
 	AudioFileHolder* holder = prepareHolder(current_.target, current_.path);
@@ -450,7 +440,7 @@ bool SampleClaim::stepDecideSample() {
 bool SampleClaim::stepPrepareWavetable() {
 	numTypesTried_++;
 	oldOscType_ = current_.target.source->getOscType();
-	setClaimOscType(current_.target, OscType::WAVETABLE);
+	setOscTypeFor(current_.target, OscType::WAVETABLE);
 	waveTableHolder_ = prepareHolder(current_.target, current_.path);
 	// A wavetable still loads synchronously. Blocking on the storage tier is permitted here, and song load's
 	// AsyncSampleLoad makes this same lookup on this tier.

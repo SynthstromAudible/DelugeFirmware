@@ -18,11 +18,13 @@
 #include "gui/ui/sound_target.h"
 
 #include "gui/ui/ui.h"
+#include "instruments/deluge/words.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -37,19 +39,55 @@
 
 #include <iterator>
 #include <optional>
+#include <string>
 
 namespace params = deluge::modulation::params;
 
 namespace deluge::gui {
 
-void retargetRangeAfterRetype(SoundTarget& target, int32_t rangesBefore) {
-	const int32_t ranges = std::ssize(target.source->ranges);
-	if (ranges < rangesBefore) {
+namespace {
+
+/// The watch `Source::setOscType`'s report goes to, if one is alive.
+RangesRetypeWatch* activeWatch = nullptr;
+
+} // namespace
+
+RangesRetypeWatch::RangesRetypeWatch(const Source& source) : source_{&source} {
+	activeWatch = this;
+}
+
+RangesRetypeWatch::~RangesRetypeWatch() {
+	if (activeWatch == this) {
+		activeWatch = nullptr;
+	}
+}
+
+void RangesRetypeWatch::rangesRetyped(const Source& source, bool cleared) {
+	if (activeWatch == nullptr || activeWatch->source_ != &source) {
+		return;
+	}
+	activeWatch->result_.reallocated = true;
+	activeWatch->result_.cleared = activeWatch->result_.cleared || cleared;
+}
+
+void retargetRangeAfterRetype(SoundTarget& target, RangesRetype retype) {
+	if (!retype.reallocated) {
+		return;
+	}
+	if (retype.cleared) {
 		target.rangeIndex = 0;
 	}
-	if (target.rangeIndex >= 0 && target.rangeIndex < ranges) {
+	if (target.rangeIndex >= 0 && target.rangeIndex < std::ssize(target.source->ranges)) {
 		target.range = target.source->ranges.getElement(target.rangeIndex);
 	}
+}
+
+void setOscTypeFor(SoundTarget& target, deluge::instrument::OscType type) {
+	const RangesRetypeWatch watch{*target.source};
+	deluge::edits::settingFor(
+	    *target.sound, deluge::edits::oscSettingPath(target.sourceIndex, "type"),
+	    deluge::serialization::Value::makeScalar(std::string{deluge::instrument::to_string(type)}));
+	retargetRangeAfterRetype(target, watch.result());
 }
 
 ModelStackWithThreeMainThings* modelStackFor(const SoundTarget& target, void* memory) {

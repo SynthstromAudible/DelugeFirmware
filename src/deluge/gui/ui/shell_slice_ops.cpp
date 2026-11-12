@@ -43,8 +43,7 @@ using deluge::scenes::slicing::SliceCommit;
 using deluge::scenes::slicing::slicer_scene;
 
 /// @brief `SlicerScene`'s host: every call names the sound the ported menu edits (`shellMenuTarget`), then does what
-/// the
-///        legacy `Slicer` does through the same `SliceCore`.
+///        the legacy `Slicer` does through the same `SliceCore`.
 class HostSliceOps final : public deluge::scenes::slicing::SliceOps {
 public:
 	/// The preview's sound stops, as `AudioEngine::stopAnyPreviewing`'s does; its holder stays bound, because it is

@@ -95,6 +95,17 @@ using namespace gui;
 
 PLACE_SDRAM_BSS SampleBrowser sampleBrowser{};
 
+namespace {
+
+/// @p request as this browser asks for it: the sound its editor resolved, and its own tail as the claim finishes.
+ClaimRequest claimOfThisBrowser(ClaimRequest request) {
+	request.target = soundEditor.soundTarget();
+	request.legacyFinish = &SampleBrowser::finishLegacyClaim;
+	return request;
+}
+
+} // namespace
+
 char const* allowedFileExtensionsAudio[] = {"WAV", "AIFF", "AIF", NULL};
 
 SampleBrowser::SampleBrowser() {
@@ -433,7 +444,7 @@ void SampleBrowser::enterKeyPress() {
 
 void SampleBrowser::requestClaim(int32_t mayDoPitchDetection, int32_t mayDoSingleCycle, int32_t mayDoWaveTable,
                                  void (*completion)(bool success)) {
-	sampleClaim.request({
+	sampleClaim.request(claimOfThisBrowser({
 	    .path = getCurrentFilePath(),
 	    .enteredText = enteredText,
 	    .mayDoPitchDetection = mayDoPitchDetection,
@@ -442,9 +453,7 @@ void SampleBrowser::requestClaim(int32_t mayDoPitchDetection, int32_t mayDoSingl
 	    .loadWithoutExiting = false,
 	    .origin = ClaimOrigin::Explicit,
 	    .completion = completion,
-	    .target = soundEditor.soundTarget(),
-	    .legacyFinish = &SampleBrowser::finishLegacyClaim,
-	});
+	}));
 }
 
 void SampleBrowser::requestFolderImport(FolderImportKind kind, void (*completion)(bool success)) {
@@ -666,14 +675,12 @@ void SampleBrowser::tickPreview() {
 	if (autoLoadEnabled && getCurrentClip()->type != ClipType::AUDIO) {
 		// Feature: if Load has been toggled on, then the file will be auto-loaded into the current instrument
 		// as if you had confirmed with the Select encoder, but keeping the browser open.
-		sampleClaim.request({
+		sampleClaim.request(claimOfThisBrowser({
 		    .path = landed->target.path,
 		    .enteredText = enteredText,
 		    .loadWithoutExiting = true,
 		    .origin = ClaimOrigin::AutoLoad,
-		    .target = soundEditor.soundTarget(),
-		    .legacyFinish = &SampleBrowser::finishLegacyClaim,
-		});
+		}));
 	}
 
 	// Drawn here, on the interaction tier. A cluster not yet resident does not block: with the async streaming loader

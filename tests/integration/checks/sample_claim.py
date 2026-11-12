@@ -7,7 +7,8 @@ file, and the Select encoder claims it.
 What the checks cover (tests/integration/scenarios/sample_claim_scenario.cpp writes the lines):
     SC-SETUP   per leg: whether the sound editor could be set up and the sample browser opened on it.
     SC-SELECT  per leg: the file the by-path listing selected.
-    SC-SYNTH   the synth claim: the file bound, the oscillator type, the repeat mode and the transpose.
+    SC-SYNTH   the synth claim: the file bound, the oscillator type, the repeat mode and the transpose, and the legacy
+               browser closed by its own tail.
     SC-WAVETABLE
                the synth context menu's WaveTable claim of a single-cycle file: bound, as a wavetable oscillator.
     SC-FALLBACK
@@ -55,8 +56,9 @@ What the checks cover (tests/integration/scenarios/sample_claim_scenario.cpp wri
     IM-KIT     the kit context menu's "Load All" over a folder of its own: one drum per file in filename order, each
                named after its file without the folder's shared prefix, bound to it and with a NoteRow; the kit
                edited and the browser closed.
-    IM-MULTI   the synth context menu's "Multisamples" over three sines an octave apart: one range per file in pitch
-               order, each bound to its file with the transpose its detection gives it, and the browser closed.
+    IM-MULTI   the synth context menu's "Multisamples" over three sines an octave apart, into a wavetable oscillator:
+               a sample oscillator with one range per file in pitch order, each bound to its file with the transpose
+               its detection gives it, the browser closed, and the legacy editor left on the middle range.
     IM-TIER    per folder import: a listing ran, and no sample was read from the card on the interaction tier.
     IM-GATE    a kit import whose loads the loader holds: while it is out, BACK and a second Select on the menu must be
                refused; once it ends, the gate released and the kit holding its drums.

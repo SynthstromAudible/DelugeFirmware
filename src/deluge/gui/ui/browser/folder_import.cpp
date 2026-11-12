@@ -774,11 +774,7 @@ skipOctaveCorrection:
 
 	if (request_.target.source->oscType != OscType::SAMPLE) {
 		request_.target.sound->killAllVoices();
-		const int32_t rangesBefore = std::ssize(request_.target.source->ranges);
-		deluge::edits::settingFor(*request_.target.sound,
-		                          deluge::edits::oscSettingPath(request_.target.sourceIndex, "type"),
-		                          deluge::serialization::Value::makeScalar("sample"));
-		retargetRangeAfterRetype(request_.target, rangesBefore);
+		setOscTypeFor(request_.target, OscType::SAMPLE);
 	}
 
 	D_PRINTLN("creating ranges");
