@@ -247,8 +247,7 @@ enum class AcquireWalk : uint8_t {
 };
 
 /// @brief Where a preset turn's walk landed: what main's `doPresetNavigation` still holds when it takes the detents
-/// that
-///        piled up meanwhile and moves on by them.
+///        that piled up meanwhile and moves on by them.
 struct NavigationPile {
 	std::string dirPath;    ///< The folder the landing is in.
 	std::string listedFrom; ///< The search name (extension included) of the read that held the landing; empty for a
@@ -258,8 +257,11 @@ struct NavigationPile {
 	/// The landed entry's Instrument, when it is one already in memory: it is found by that, not by name.
 	Instrument* landedInstrument{};
 	/// Main's `oldNameString` after the landing, which a move past the window's trimmed edge reads again from: the
-	/// landed file's name, or @ref listedFrom when it landed on an Instrument.
+	/// landed file's name, or, on an Instrument, the name the walk held before it (the last file landed on, the
+	/// preset moved on from, or empty after a read from the far end).
 	std::string oldName;
+	/// Main's `wrapped` at the landing: the wraps made in its window, which a pile moved from it keeps.
+	int32_t wraps{};
 };
 
 /// @brief The walk an acquisition asks for, fixed by its gesture's prologue before the walk is queued.

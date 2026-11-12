@@ -66,7 +66,8 @@ private:
 	enum class Mode : uint8_t { Step, FindLanding, MovePile };
 
 	void finish(std::expected<FileItem*, Error> result);
-	void land(int32_t index);
+	/// @param wraps The wraps made in the window it landed in, which a pile moved from it keeps.
+	void land(int32_t index, int32_t wraps);
 	/// @brief Act on a pile's decision for the window just read.
 	void followPile(const PileDecision& decision);
 
@@ -76,12 +77,16 @@ private:
 	LoadInstrumentPresetUI* ui_{};
 	std::string dir_;
 	std::string searchName_; ///< with its extension; empty once a read from the far end has cleared it
+	/// Main's `oldNameString`: the preset moved on from, then each file landed on, which a pile past a trimmed edge
+	/// reads again from; cleared by a read from the far end, and kept by a landing on an Instrument.
+	std::string oldName_;
+	int32_t pileWraps_{};    ///< MovePile/FindLanding: the wraps already made in the window being moved in
 	bool searchRight_{true}; ///< the next read's direction
 	int32_t offset_{};
 	Instrument* oldInstrument_{};
 	OutputType outputType_{OutputType::SYNTH};
 	bool skipInSong_{};
-	deluge::storage::NavigationPile pile_; ///< FindLanding/MovePile: the earlier landing; its oldName follows main's
+	deluge::storage::NavigationPile pile_; ///< FindLanding/MovePile: the earlier landing
 	deluge::storage::NavigationPile landing_;
 	int32_t wraps_{};
 	int32_t reads_{};

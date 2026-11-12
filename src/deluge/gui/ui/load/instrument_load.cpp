@@ -290,8 +290,14 @@ bool InstrumentLoad::supersede() {
 bool InstrumentLoad::step() {
 	// A newer request cancels this one at a phase boundary. The swap runs in one pass, so it never is one; a walk's is
 	// once it has landed (stepWalk()).
-	if ((phase_ == Phase::Stage || phase_ == Phase::Samples) && coalescer_.queued().has_value()
-	    && !neverSuperseded(active_)) {
+	// Main's `doPresetNavigation` reads the landed preset's document before it takes the detents that piled up behind
+	// it, so a turn queued behind a navigate of its own output waits out the document: one that fails to load ends the
+	// navigation with its error, and the detents arrive as a turn of their own.
+	const std::optional<InstrumentLoadRequest>& queued = coalescer_.queued();
+	const bool pileWaitsForDocument = phase_ == Phase::Stage && queued.has_value() && queued->preset.behindLoad
+	                                  && turnsTheSameOutput(*queued, active_);
+	if ((phase_ == Phase::Stage || phase_ == Phase::Samples) && queued.has_value() && !neverSuperseded(active_)
+	    && !pileWaitsForDocument) {
 		return supersede();
 	}
 	switch (phase_) {
@@ -748,11 +754,12 @@ bool InstrumentLoad::finish(Error error, bool deliver) {
 	}
 	abandon();
 	phase_ = Phase::Idle;
-	if (error != Error::NONE) {
-		// Main's `doPresetNavigation` returns the error; the detents that piled up arrive as a turn of their own.
+	std::optional<InstrumentLoadRequest> next = coalescer_.complete();
+	if (error != Error::NONE || !next.has_value()) {
+		// Main's `doPresetNavigation` returns the error, after which the detents that piled up arrive as a turn of
+		// their own; or it returns with none pending, and a later turn is a new navigation.
 		pileOrigin_.reset();
 	}
-	std::optional<InstrumentLoadRequest> next = coalescer_.complete();
 	if (commit) {
 		openGate();
 	}

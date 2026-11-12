@@ -42,12 +42,16 @@ void PresetNavigation::arm(LoadInstrumentPresetUI& ui, const deluge::storage::Ac
 		dir_ = pile_.dirPath;
 		searchName_ = pile_.listedFrom;
 		searchRight_ = pile_.listedRight;
+		oldName_ = pile_.oldName;
+		pileWraps_ = pile_.wraps;
 		mode_ = Mode::FindLanding;
 	}
 	else {
 		dir_ = spec.dirPath;
 		searchName_ = spec.name + ".XML";
 		searchRight_ = offset_ >= 0;
+		oldName_ = searchName_;
+		pileWraps_ = 0;
 		mode_ = Mode::Step;
 	}
 	wraps_ = 0;
@@ -65,29 +69,32 @@ void PresetNavigation::finish(std::expected<FileItem*, Error> result) {
 	phase_ = Phase::Done;
 }
 
-void PresetNavigation::land(int32_t index) {
+void PresetNavigation::land(int32_t index, int32_t wraps) {
 	FileItem& item = listing_.item(index);
 	landing_ = {.dirPath = dir_,
 	            .listedFrom = searchName_,
 	            .listedRight = searchRight_,
 	            .landed = std::string{item.displayName()},
 	            .landedInstrument = item.instrument,
-	            .oldName = item.instrument != nullptr ? searchName_ : std::string{item.displayName()}};
+	            .oldName = item.instrument != nullptr ? oldName_ : std::string{item.displayName()},
+	            .wraps = wraps};
 	finish(&item);
 }
 
 void PresetNavigation::followPile(const PileDecision& decision) {
 	if (const Land* landed = std::get_if<Land>(&decision)) {
-		land(landed->index);
+		land(landed->index, landed->wraps);
+		return;
 	}
-	else if (std::holds_alternative<ReadAgain>(decision)) {
-		searchName_ = pile_.oldName;
+	pileWraps_ = 0; // main's `wrapped` starts again with each read
+	if (std::holds_alternative<ReadAgain>(decision)) {
+		searchName_ = oldName_;
 		searchRight_ = offset_ >= 0;
 		mode_ = Mode::MovePile;
 	}
 	else if (std::holds_alternative<FromEnd>(decision)) {
 		// Main's `searchFromOneEnd`: the name is cleared for good, so a later read past an edge starts there too.
-		pile_.oldName.clear();
+		oldName_.clear();
 		searchName_.clear();
 		searchRight_ = offset_ >= 0;
 		mode_ = Mode::MovePile;
@@ -151,7 +158,7 @@ bool PresetNavigation::tick() {
 				continue;
 			}
 			const auto index = static_cast<int32_t>(std::distance(listing_.items().begin(), found));
-			followPile(movePile(window, index + offset_, offset_, skipInSong_));
+			followPile(movePile(window, index + offset_, offset_, skipInSong_, pileWraps_));
 			continue;
 		}
 		if (mode_ == Mode::MovePile) {
@@ -163,7 +170,7 @@ bool PresetNavigation::tick() {
 		    decideNavigation(window, offset_, skipInSong_, !searchName_.empty(), wraps_);
 		if (const Land* landed = std::get_if<Land>(&decision)) {
 			wraps_ += landed->wraps;
-			land(landed->index);
+			land(landed->index, landed->wraps);
 		}
 		else if (const PageOn* page = std::get_if<PageOn>(&decision)) {
 			wraps_ += page->wraps;
@@ -172,6 +179,7 @@ bool PresetNavigation::tick() {
 		else if (const FromEnd* end = std::get_if<FromEnd>(&decision)) {
 			wraps_ += end->wraps;
 			searchName_.clear();
+			oldName_.clear(); // main's `reachedEnd` and `searchFromOneEnd`
 		}
 		else {
 			finish(std::unexpected{Error::NO_ERROR_BUT_GET_OUT});

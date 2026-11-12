@@ -62,9 +62,8 @@ NavigationDecision decideNavigation(const NavigationWindow& window, int32_t offs
 	}
 }
 
-PileDecision movePile(const NavigationWindow& window, int32_t i, int32_t offset, bool skipInSong) {
+PileDecision movePile(const NavigationWindow& window, int32_t i, int32_t offset, bool skipInSong, int32_t wrapped) {
 	const auto size = static_cast<int32_t>(window.items.size());
-	int32_t wrapped = 0;
 	for (;;) {
 		if (i < 0) {
 			if (window.deletedAtStart > 0) {
@@ -102,7 +101,7 @@ PileDecision startPileWindow(const NavigationWindow& window, int32_t offset, boo
 		}
 		return GetOut{};
 	}
-	return movePile(window, (offset >= 0) ? 0 : size - 1, offset, skipInSong);
+	return movePile(window, (offset >= 0) ? 0 : size - 1, offset, skipInSong, 0);
 }
 
 } // namespace deluge::gui

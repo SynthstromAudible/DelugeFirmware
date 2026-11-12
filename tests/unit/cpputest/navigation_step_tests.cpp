@@ -145,39 +145,47 @@ void checkPileLand(const PileDecision& d, int32_t index) {
 
 TEST(NavigationStepTests, aPileMovesByAllItsDetentsInsideTheWindow) {
 	const std::array items{F, F, F, F, F};
-	checkPileLand(movePile(window(items, 3, 4), 0 + 3, 3, false), 3);
-	checkPileLand(movePile(window(items, 3, 4), 4 - 2, -2, false), 2);
+	checkPileLand(movePile(window(items, 3, 4), 0 + 3, 3, false, 0), 3);
+	checkPileLand(movePile(window(items, 3, 4), 4 - 2, -2, false, 0), 2);
 }
 
 TEST(NavigationStepTests, aPilePastATrimmedEdgeReadsAgainFromTheName) {
 	const std::array items{F, F, F};
-	CHECK(std::holds_alternative<ReadAgain>(movePile(window(items, 0, 4), 1 + 5, 5, false)));
-	CHECK(std::holds_alternative<ReadAgain>(movePile(window(items, 4, 0), 1 - 5, -5, false)));
+	CHECK(std::holds_alternative<ReadAgain>(movePile(window(items, 0, 4), 1 + 5, 5, false, 0)));
+	CHECK(std::holds_alternative<ReadAgain>(movePile(window(items, 4, 0), 1 - 5, -5, false, 0)));
 }
 
 TEST(NavigationStepTests, aPilePastTheFolderEndReadsFromTheFarEnd) {
 	// NAV23 landed in the window read from NAV22 (NAV23, NAV24; NAV00..NAV22 behind it): three on is past the end.
 	const std::array items{F, F};
-	const auto d = movePile(window(items, 23, 0), 0 + 3, 3, false);
+	const auto d = movePile(window(items, 23, 0), 0 + 3, 3, false, 0);
 	CHECK(std::holds_alternative<FromEnd>(d));
 }
 
 TEST(NavigationStepTests, aPilePastTheEndOfAWholeFolderWrapsToItsStartNotOnByTheRest) {
 	const std::array items{F, F, F, F};
-	checkPileLand(movePile(window(items), 2 + 5, 5, false), 0);
-	checkPileLand(movePile(window(items), 1 - 5, -5, false), 3);
+	checkPileLand(movePile(window(items), 2 + 5, 5, false, 0), 0);
+	checkPileLand(movePile(window(items), 1 - 5, -5, false, 0), 3);
 }
 
 TEST(NavigationStepTests, aPresetInTheSongIsSkippedByTheWholePileAgain) {
 	// From index 0, a pile of 2 lands on 2, which is in the song: main moves on by 2 again, to 4.
 	const std::array items{F, F, S, F, F, F};
-	checkPileLand(movePile(window(items), 0 + 2, 2, true), 4);
+	checkPileLand(movePile(window(items), 0 + 2, 2, true, 0), 4);
 }
 
 TEST(NavigationStepTests, aPileSkipsInSongPresetsOnlyUntilItHasWrappedTwice) {
 	// 1, 2, past the end (one wrap), 0, 1, 2, past the end again (two): it stops at 0.
 	const std::array items{S, S, S};
-	checkPileLand(movePile(window(items), 1, 1, true), 0);
+	checkPileLand(movePile(window(items), 1, 1, true, 0), 0);
+}
+
+TEST(NavigationStepTests, aPileKeepsTheWrapsItsLandingMadeInTheSameWindow) {
+	// Main's `wrapped` is reset only by a read. From 2, past the end is a landing's second wrap when it had wrapped
+	// once already, so the pile stops on 0 there; with none made it skips on to 1.
+	const std::array items{S, F, S};
+	checkPileLand(movePile(window(items), 2, 1, true, 1), 0);
+	checkPileLand(movePile(window(items), 2, 1, true, 0), 1);
 }
 
 TEST(NavigationStepTests, aReadForAPileStartsAtTheNearEnd) {

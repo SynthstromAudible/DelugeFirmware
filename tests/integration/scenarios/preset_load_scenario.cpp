@@ -264,6 +264,28 @@ constexpr int32_t kNavLongPile = 70;
 /// read leftwards from NAV10, and the pile moves from there.
 constexpr const char* kNavPileBackFrom = "NAV10";
 constexpr const char* kNavPileBack = "NAV06";
+/// A pile landing on an Instrument in memory keeps main's oldNameString, the file landed on before it. The clip's kit,
+/// renamed kNavHibernateName and edited, hibernates when a turn back replaces it with kNavHibernateTurn. Then from
+/// kNavInstrumentFrom, on lands on NAV03; two more, made behind it, land on the hibernating kit; thirty
+/// more, made behind that, run past the window's trimmed edge, which reads again from NAV03 and takes the
+/// first preset past it.
+constexpr const char* kNavHibernateName = "NAV05";
+constexpr const char* kNavHibernateTurn = "NAV04";
+constexpr const char* kNavInstrumentFrom = "NAV02";
+constexpr int32_t kNavInstrumentPile = 2;
+constexpr int32_t kNavPastWindowPile = 30;
+constexpr const char* kNavFromInstrument = "NAV04";
+/// A pile behind a turn whose load fails: main's `doPresetNavigation` returns the error, and the detents that piled up
+/// arrive as a turn of their own, which moves one preset from the clip's own kit. kNavFailDir holds FAIL0..FAIL4, of
+/// which kNavFailBroken is no preset at all: from kNavFailFrom, a turn on, and two more made while its load reads the
+/// broken document, both reach it, and the clip keeps its kit.
+constexpr const char* kNavFailDir = "KITS/AQNAVFAIL";
+constexpr int32_t kNavFailCount = 5;
+constexpr const char* kNavFailFrom = "FAIL0";
+constexpr const char* kNavFailBroken = "KITS/AQNAVFAIL/FAIL1.XML";
+/// Each folder open of that act held this long, so the second turn's walk is still reading when the first's preset
+/// lands, and the third turn can be made behind it.
+constexpr uint32_t kNavReadHoldMs = 50;
 /// AqChangeCases' remembered kit presets: one there, one absent (sorting just after NAV05), one in a folder that
 /// does not exist.
 constexpr const char* kChangeNamed = "NAV05";
@@ -1334,6 +1356,11 @@ int32_t g_aqOrphansBefore = 0;
 /// heavy kit was ever the clip's.
 int32_t g_aqLoadsBefore = 0;
 bool g_aqTurned = false;
+/// AQ-NAV-PILE pile-from-instrument: whether its third turn was made while the second's walk was out.
+bool g_navThirdBehindWalk = false;
+/// AQ-NAV-PILE pile-behind-failed: the document reads before it, and whether its second turn was made during the load.
+int32_t g_navDocumentReadsBefore = 0;
+bool g_navSecondDuringLoad = false;
 bool g_aqHeavySwapped = false;
 TierMark g_aqTierMark{};
 /// AQ-TAP: the synth presets written for its tracks, one per track its acts make.
@@ -1367,7 +1394,7 @@ bool isAcquireLeg(Leg leg) {
 int32_t acquireActs(Leg leg) {
 	return leg == Leg::AqChangeCases ? 6
 	       : leg == Leg::AqTap       ? 5
-	       : leg == Leg::AqNavWrap   ? 10
+	       : leg == Leg::AqNavWrap   ? 13
 	       : leg == Leg::AqNavigate  ? 3
 	       : leg == Leg::AqNew       ? 2
 	                                 : 1;
@@ -1479,6 +1506,22 @@ void prepareAcquire() {
 			snprintf(path, sizeof(path), "%s/NAV%02d.XML", kNavDir, static_cast<int>(i));
 			const char* drumName = "NAVD";
 			ok = writeKitPreset(path, &drumName, &kAqKitSamples[0], 1);
+		}
+		(void)deluge::io::mkdir(kNavFailDir);
+		for (int32_t i = 0; ok && i < kNavFailCount; i++) {
+			char path[48];
+			snprintf(path, sizeof(path), "%s/FAIL%d.XML", kNavFailDir, static_cast<int>(i));
+			const char* drumName = "FAILD";
+			ok = writeKitPreset(path, &drumName, &kAqKitSamples[0], 1);
+		}
+		if (ok) {
+			// Overwritten with text that is no preset document, so its load fails.
+			constexpr std::string_view kBroken = "not a preset";
+			auto opened = deluge::io::File::open(kNavFailBroken, DELUGE_FILE_WRITE_CREATE);
+			ok = opened.has_value() && opened->write(std::as_bytes(std::span{kBroken})).has_value();
+			if (opened.has_value()) {
+				std::ignore = opened->close();
+			}
 		}
 		printf("AQ-PROBE prepared presets=%d\n", ok ? 1 : 0);
 	});
@@ -1693,6 +1736,36 @@ bool actAcquire() {
 			(void)focusClip(g_aqClip);
 			instrumentClipView.selectEncoderAction(g_aqAct == 5 ? 1 : 2);
 			return true;
+		}
+		if (g_aqAct == 10) {
+			auto* kit = static_cast<Instrument*>(g_aqClip->output);
+			kit->name = kNavHibernateName;
+			kit->editedByUser = true; // an edited Instrument hibernates when it is replaced
+			g_aqNameBefore = kNavHibernateName;
+			instrumentClipView.selectEncoderAction(-1);
+			return true;
+		}
+		if (g_aqAct == 12) {
+			auto* kit = static_cast<Instrument*>(g_aqClip->output);
+			kit->dirPath = kNavFailDir;
+			kit->name = kNavFailFrom;
+			g_aqNameBefore = kNavFailFrom;
+			g_aqTurned = false;
+			g_navSecondDuringLoad = false;
+			g_navDocumentReadsBefore = deluge::gui::instrumentLoad.documentReads();
+			deluge_file_bytes_set_latency_ms(kDocumentHoldMs);
+			instrumentClipView.selectEncoderAction(1);
+			return true; // the second turn waits for the first's load to begin (runAcquireTick)
+		}
+		if (g_aqAct == 11) {
+			static_cast<Instrument*>(g_aqClip->output)->name = kNavInstrumentFrom;
+			g_aqNameBefore = kNavInstrumentFrom;
+			g_aqTurned = false;
+			g_navThirdBehindWalk = false;
+			deluge_file_directory_set_latency_ms(kNavReadHoldMs);
+			instrumentClipView.selectEncoderAction(1);
+			instrumentClipView.selectEncoderAction(kNavInstrumentPile);
+			return true; // the third turn waits for the first to land (runAcquireTick)
 		}
 		if (g_aqAct >= 7) {
 			const char* from = g_aqAct == 7 ? kNavPileFrom : g_aqAct == 9 ? kNavPileBackFrom : nullptr;
@@ -2039,10 +2112,12 @@ void checkAcquireAct() {
 	}
 	case Leg::AqNavWrap: {
 		if (g_aqAct >= 5) {
-			static constexpr const char* kTurns[] = {"other-other-on", "two-behind-other", "pile-past-end",
-			                                         "pile-past-window", "pile-back"};
+			static constexpr const char* kTurns[] = {"other-other-on",       "two-behind-other",  "pile-past-end",
+			                                         "pile-past-window",     "pile-back",         "hibernate-one",
+			                                         "pile-from-instrument", "pile-behind-failed"};
 			static constexpr const char* kWants[] = {kNavPastOtherOutput, kNavBehindOther, kNavPileWrapped,
-			                                         kNavPileReadAgain, kNavPileBack};
+			                                         kNavPileReadAgain,   kNavPileBack,    kNavHibernateTurn,
+			                                         kNavFromInstrument,  kNavFailFrom};
 			const char* want = kWants[g_aqAct - 5];
 			const bool otherKept =
 			    g_aqAct >= 7 || (g_synthClip != nullptr && g_synthClip->output->name == g_navOtherNameBefore);
@@ -2050,6 +2125,24 @@ void checkAcquireAct() {
 			       g_aqNameBefore.c_str(), name.c_str(), want, otherKept ? 1 : 0, runs);
 			if (name != want || !otherKept) {
 				aqFail("AQ-NAV-PILE", "a turn's pile did not move as main's pending detents do");
+			}
+			if (g_aqAct == 10 && instrumentsNamed(kNavHibernateName) != 1) {
+				aqFail("AQ-NAV-PILE", "the edited kit turned away from did not hibernate");
+			}
+			if (g_aqAct == 11) {
+				deluge_file_directory_set_latency_ms(0);
+			}
+			if (g_aqAct == 12) {
+				deluge_file_bytes_set_latency_ms(0);
+				if (!g_navSecondDuringLoad) {
+					aqFail("AQ-NAV-PILE", "the second turn was not made while the first's preset loaded");
+				}
+				if (deluge::gui::instrumentLoad.lastError() == Error::NONE) {
+					aqFail("AQ-NAV-PILE", "the turn behind the failed load did not move one, onto the broken preset");
+				}
+			}
+			if (g_aqAct == 11 && !g_navThirdBehindWalk) {
+				aqFail("AQ-NAV-PILE", "the third turn was not made behind the second's walk, after the first landed");
 			}
 			break;
 		}
@@ -2161,6 +2254,25 @@ void runAcquireTick() {
 		g_aqStep = AqStep::Wait;
 		break;
 	case AqStep::Wait: {
+		if (g_leg == Leg::AqNavWrap && g_aqAct == 11 && !g_aqTurned
+		    && LoadInstrumentPresetUI::presetAcquisitionsRun() - g_aqRunsBefore == 2) {
+			// The first turn has landed and the pile behind it is walking: thirty more, behind that walk.
+			g_navThirdBehindWalk = loadInstrumentPresetUI.presetAcquisitionInFlight()
+			                       && static_cast<Instrument*>(g_aqClip->output)->name == kNavInstrumentFrom;
+			(void)focusClip(g_aqClip);
+			instrumentClipView.selectEncoderAction(kNavPastWindowPile);
+			g_aqTurned = true;
+			break;
+		}
+		if (g_leg == Leg::AqNavWrap && g_aqAct == 12 && !g_aqTurned
+		    && deluge::gui::instrumentLoad.documentReads() > g_navDocumentReadsBefore) {
+			// The first turn has landed and is reading its broken document: two more, behind that load.
+			g_navSecondDuringLoad = deluge::gui::instrumentLoad.inFlight();
+			(void)focusClip(g_aqClip);
+			instrumentClipView.selectEncoderAction(2);
+			g_aqTurned = true;
+			break;
+		}
 		if (g_leg == Leg::AqSupersede) {
 			if (g_aqClip->output->name == kAqHeavyName) {
 				g_aqHeavySwapped = true;

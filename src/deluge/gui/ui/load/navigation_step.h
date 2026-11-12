@@ -87,7 +87,10 @@ using PileDecision = std::variant<Land, ReadAgain, FromEnd, GetOut>;
 /// @param i The position: the landed entry's index plus the pile, or a near end after a read.
 /// @param offset The pile, signed.
 /// @param skipInSong Step past presets already in the song (Availability::INSTRUMENT_UNUSED).
-[[nodiscard]] PileDecision movePile(const NavigationWindow& window, int32_t i, int32_t offset, bool skipInSong);
+/// @param wrapped The wraps already made in this window (main's `wrapped`, which a pending move keeps and a read
+///                resets): what the landing being moved from had made.
+[[nodiscard]] PileDecision movePile(const NavigationWindow& window, int32_t i, int32_t offset, bool skipInSong,
+                                    int32_t wrapped);
 
 /// @brief Main's `doPresetNavigation` after a read that a pile's move asked for: an empty window, or one holding only
 ///        the instrument moved on from, reads from the folder's far end, or gets out when it was already that read;

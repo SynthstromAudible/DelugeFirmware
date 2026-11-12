@@ -355,8 +355,8 @@ private:
 	/// The turn that landed there: only a turn of the same gesture and output walks on from it.
 	deluge::storage::PresetRequest originTurn_{};
 	/// Where that walk landed, for a turn made behind it to move on from by all its detents (main's pending detents).
-	/// Kept once its preset is delivered, as main takes the detents that piled up during the load; dropped when the
-	/// turn fails or is cancelled, after which main's pile arrives as a turn of its own.
+	/// Held for the request queued behind it; dropped when the turn is delivered with none queued, fails or is
+	/// cancelled, after which main's pile arrives as a turn of its own.
 	std::optional<deluge::storage::NavigationPile> pileOrigin_{};
 	/// @}
 
