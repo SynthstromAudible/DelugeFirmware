@@ -325,12 +325,15 @@ using deluge::hid::display::OLED;
 #include "processing/sound/sound_drum.h"
 #include "storage/flash_storage.h"
 
+#include "support/clip_overview_cases.h"
 #include "support/descriptor_fixtures.h"
 #include "support/dx_cartridge_fixtures.h"
 #include "support/dx_pages_fixtures.h"
 #include "support/dx_rig.h"
 #include "support/global_guest_menu.h"
 #include "support/host_flash.h"
+#include "support/menu_engine.h"
+#include "support/menu_globals.h"
 #include "support/menu_scales_fixtures.h"
 #include "support/midi_device_fixtures.h"
 #include "support/reset_witness.h"
@@ -4215,5 +4218,55 @@ describe freeze_context_menu_scene("menu oracle freezer: the settings resets", $
 });
 // clang-format on
 
-DELUGE_SPEC(freeze_menu_oracles_spec, freeze_frame, freeze_tables,
-            freeze_context_menu_scene /*, one family per later task, appended in task order */)
+// clang-format off
+describe freeze_clip_shortcut_overview("menu oracle freezer: the clip view's shortcut overview", $ {
+	it("writes clip_shortcut_overview.tsv", _ {
+		if (!writes("clip_shortcut_overview")) {
+			return;
+		}
+		namespace co = deluge::scenes::spec::clip_overview;
+		OracleWriter out{"clip_shortcut_overview"};
+		for (const co::CaseInfo& c : co::kCases) {
+			co::RootGuard root;
+			ClipView& view = co::set_up(c.id);
+			RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+			uint8_t occupancy[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+			// What `ClipView::maybeRenderShortcutsOverview` draws while SHIFT is held. `getModControllableAudioOrNone` is
+			// protected on `ClipView` and public on `InstrumentClipView`; the audio clip view keeps `ClipView`'s null.
+			ModControllableAudio* forThing =
+			    &view == &instrumentClipView ? instrumentClipView.getModControllableAudioOrNone() : nullptr;
+			if (forThing != nullptr) {
+				// Legacy's relevance also reads the editor's own members (`FilterInfo::getMode` reads
+				// `currentModControllable`, `editingKitAffectEntire` reads `setupKitGlobalFXMenu`, the kit-global latch),
+				// which hold what the menu last edited: here this clip as the clip view's own affect-entire resolves it.
+				// The latch is each case's own (`kit_affect_entire` with it set, as a pad press leaves it; the
+				// `_unlatched` cases with it clear, as a menu close leaves it), kept across the carrier's write.
+				const bool latch = deluge::gui::ui::shellKitGlobalFx();
+				const menu::MenuContext ctx =
+				    menu::context_for(*currentSong, deluge::gui::menuViewOf(getCurrentClip()), 0, false, false, false,
+				                      SoundEditor::shouldEditKitAffectEntire());
+				spec::install_editor_carrier(ctx, spec::sound_allows_note_tails(ctx));
+				deluge::gui::ui::shellKitGlobalFxLatch() = latch; // the carrier writes `setupKitGlobalFXMenu`, the latch
+			}
+			SoundEditor::renderMainShortcutsOnly(forThing, image, occupancy, SoundEditor::shouldEditKitAffectEntire());
+			const std::string path = "overview/" + std::string{c.name};
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				std::vector<std::string> colours;
+				std::vector<std::string> occupied;
+				for (int32_t x = 0; x < kDisplayWidth; x++) {
+					colours.push_back(co::rgb_text(image[y][x]));
+					occupied.push_back(std::to_string(occupancy[y][x]));
+				}
+				out.row(path, "rgb/" + std::to_string(y), std::move(colours));
+				out.row(path, "occupancy/" + std::to_string(y), std::move(occupied));
+			}
+		}
+		expect(out.duplicates()).to_equal(std::string{});
+		expect(out.size() > size_t{143}).to_be_true();
+		expect(out.flush()).to_be_true();
+	});
+});
+// clang-format on
+
+DELUGE_SPEC(freeze_menu_oracles_spec, freeze_frame, freeze_tables, freeze_context_menu_scene,
+            freeze_clip_shortcut_overview /*, one family per later task, appended in task order */)

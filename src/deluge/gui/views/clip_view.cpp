@@ -424,8 +424,7 @@ bool ClipView::maybeRenderShortcutsOverview(uint32_t whichRows, RGB image[][kDis
 	if (shouldRenderShortcutsOverview()) {
 		renderedShortcutOverview = true;
 		D_PRINTLN("rendering shortcuts for %x", getModControllableAudioOrNone());
-		SoundEditor::renderMainShortcutsOnly(getModControllableAudioOrNone(), image, occupancyMask,
-		                                     deluge::gui::ui::editKitAffectEntire());
+		deluge::gui::ui::renderClipShortcutsOverview(image, occupancyMask);
 		return true;
 	}
 	if (renderedShortcutOverview) {

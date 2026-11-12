@@ -98,6 +98,7 @@
 ///     ShellMenu-off leg; site 10, the one row `shell_menu_entry.cpp`'s table does not gate, is that browser's own.
 
 #include "definitions_cxx.hpp" // ActionResult
+#include "gfx/grid/rgb.h"
 
 #include <cstdint>
 
@@ -249,6 +250,14 @@ bool shellOwnsShortcutPads();
 /// @brief Whether a menu opened now would edit the current kit's own effects: the current clip is a kit's, with
 ///        affect-entire on.
 bool editKitAffectEntire();
+
+/// @brief The clip view's SHIFT shortcut overview: every main-grid pad its shortcut colour for the current clip, as the
+///        ported menu's overlay paints it. A kit with neither affect-entire nor a selected drum names none, and only a
+///        sound (a synth, a kit's own effects, a kit row with a sound drum) is asked whether each item is relevant.
+///        The clip's affect-entire picks the table; whether an item is asked as on the kit's own effects is the
+///        kit-global latch (`shellKitGlobalFx`), clear right after a menu close and set once a pad press latches.
+void renderClipShortcutsOverview(RGB image[][kDisplayWidth + kSideBarWidth],
+                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 
 /// @brief `SoundEditor::potentialShortcutPadAction` for the ported menu, whole: what the clip views, the keyboard
 ///        screen and the performance view ask of a main-grid press.

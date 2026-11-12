@@ -18,6 +18,7 @@
 #include "util/shell_menu_entry.h"
 #include "gui/ui/menu_view_of.h"
 
+#include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/shell_choice_dispatch.h" // publishShellMenuTarget
@@ -32,6 +33,7 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/led/pad_leds.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
@@ -43,6 +45,7 @@
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/dx_tables.h"
 #include "scenes/menu/nodes/nodes.h"
+#include "scenes/menu/shortcut_overlay.h"
 #include "scenes/menu/shortcuts.h"
 #include "scenes/registry.h"
 #include "shell/scene.h"
@@ -382,6 +385,31 @@ bool editKitAffectEntire() {
 	// Null when the current clip is an audio clip, which a claim reaches this with after loading a file.
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	return getCurrentOutputType() == OutputType::KIT && clip != nullptr && clip->affectEntire;
+}
+
+void renderClipShortcutsOverview(RGB image[][kDisplayWidth + kSideBarWidth],
+                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+	// Grey-out before the overlay, cancelling any fade in either direction.
+	PadLEDs::doGreyoutInstantly();
+	PadLEDs::sendOutSidebarColoursSoon();
+	const menu::MenuContext ctx =
+	    resolveContext(getCurrentClip(), 0, /*performanceView=*/false,
+	                   /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false, editKitAffectEntire());
+	const bool editingNothing = !ctx.resolved && !ctx.is_drum;
+	const bool askRelevance = ctx.root == menu::MenuContext::Root::Sound || ctx.root == menu::MenuContext::Root::Drum
+	                          || ctx.root == menu::MenuContext::Root::KitGlobalFx;
+	// The clip's affect-entire picks the table and what is asked; whether the menu edits the kit's own effects is the
+	// latch, as legacy's items ask `editingKitAffectEntire()` (`setupKitGlobalFXMenu`) and not the clip.
+	menu::MenuContext asked = ctx;
+	asked.is_kit_global_fx = ctx.is_kit && kitGlobalFxLatch;
+	for (int32_t y = 0; y < kDisplayHeight; y++) {
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			image[y][x] = editingNothing ? deluge::gui::colours::black
+			                             : menu::shortcut_colour(asked, static_cast<uint8_t>(x),
+			                                                     static_cast<uint8_t>(y), askRelevance);
+			occupancyMask[y][x] = 64;
+		}
+	}
 }
 
 ActionResult shellShortcutPadAction(int32_t x, int32_t y, bool on) {
