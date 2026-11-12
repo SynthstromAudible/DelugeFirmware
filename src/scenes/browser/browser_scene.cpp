@@ -1921,8 +1921,9 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 		break;
 
 	case UiEvent::Kind::Encoder:
-		if (event.encoder == deluge::ui::EncoderRole::Select && mode_up()) {
-			// `Browser::selectEncoderAction` turns only with no UI mode set, and a hold is one.
+		if (event.encoder == deluge::ui::EncoderRole::Select && (mode_up() || load_running())) {
+			// `Browser::selectEncoderAction` turns only with no UI mode set: a hold is one, and so is the loading mode
+			// an explicit sample load or a folder import holds while it runs.
 			Result r;
 			r.handled = true;
 			return r;

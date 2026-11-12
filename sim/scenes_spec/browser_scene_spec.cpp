@@ -2290,6 +2290,23 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		expect(browser_scene().cursor()).to_equal(before);
 	});
 
+	it("refuses a Select turn while a sample load runs", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		MenuContext ctx = sound_context(f);
+		const spec::ForwardingFacts loading{*ctx.facts, {.sample_load_in_flight = true}};
+		ctx.facts = &loading;
+		Rig r;
+		r.open_and_land(ctx, BrowserId::Sample);
+		const int32_t before = browser_scene().file_index();
+		expect(static_cast<int32_t>(FileCatalogue::fileItems.size())).to_be_greater_than(1);
+		// `Browser::selectEncoderAction` turns only with no UI mode set, and the load holds one.
+		r.turn(1, r.clock + 10);
+		r.settle();
+		expect(browser_scene().file_index()).to_equal(before);
+	});
+
 	it("ignores a key typed while Select is held", _ {
 		CleanBrowser clean;
 		ScratchCard card;
