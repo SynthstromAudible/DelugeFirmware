@@ -1840,7 +1840,8 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 	// regular automation / note editing action
 	// Holding the horizontal encoder blocks new presses, but must not swallow releases of existing ones.
 	const uint32_t* allowedModes = velocity ? editPadActionUIModes : editPadReleaseUIModes;
-	if (isUIModeWithinRange(allowedModes) && isSquareDefined(x, xScroll, xZoom)) {
+	// Enabling triplets can make a held pad's column undefined; its release must still end the press.
+	if (isUIModeWithinRange(allowedModes) && (!velocity || isSquareDefined(x, xScroll, xZoom))) {
 		if (inAutomationEditor()) {
 			automationEditorLayoutModControllable.automationEditPadAction(modelStackWithParam, clip, x, y, velocity,
 			                                                              effectiveLength, xScroll, xZoom);
