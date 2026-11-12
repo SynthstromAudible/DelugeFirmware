@@ -477,12 +477,12 @@ bool isUIModeActiveExclusively(uint32_t uiMode) {
 	return (currentUIMode == uiMode);
 }
 
-// Checks that all of the currently active UI modes are within the list of modes provided. As well as making things
-// tidy, the main point of this is to still return true when more than one of the modes on the list provided is active.
-// Terminate the list with a 0.
 const uint32_t selectEncoderUIModes[] = {UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, UI_MODE_NOTES_PRESSED,
                                          UI_MODE_AUDITIONING, UI_MODE_STUTTERING, 0};
 
+// Checks that all of the currently active UI modes are within the list of modes provided. As well as making things
+// tidy, the main point of this is to still return true when more than one of the modes on the list provided is active.
+// Terminate the list with a 0.
 bool isUIModeWithinRange(const uint32_t* modes) {
 	uint32_t exclusivesOnly = currentUIMode & EXCLUSIVE_UI_MODES_MASK;
 	uint32_t nonExclusivesOnly = currentUIMode & ~EXCLUSIVE_UI_MODES_MASK;

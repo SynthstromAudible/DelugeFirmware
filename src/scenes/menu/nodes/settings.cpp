@@ -68,9 +68,9 @@
 
 // `battery::Level::isRelevant` reads `runtimeFeatureSettings` (`relevance::battery_shown`, this
 // file's own relevance.cpp); the value itself is `batteryMV`, a plain global the main loop sets
-// (`deluge.cpp:93,150`) -- declared bare and at global scope, exactly as `sound_editor.cpp`
-// and `battery/level.h:26` both do (a namespaced `extern` here would name a *different*,
-// unlinked variable rather than referring to the one `deluge.cpp` defines).
+// (`deluge.cpp:93,150`) -- declared bare and at global scope, exactly as `sound_editor.cpp`'s `extern uint16_t
+// batteryMV` and `battery/level.h:26` both do (a namespaced `extern` here would name a *different*, unlinked variable
+// rather than referring to the one `deluge.cpp` defines).
 extern uint16_t batteryMV;
 
 // `PadLEDs::flashCursor` (`hid/led/pad_leds.h:47`), the one byte the play-cursor item edits. Named
