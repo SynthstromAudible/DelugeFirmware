@@ -74,6 +74,9 @@ void LoopPoint::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	soundEditor.shouldGoUpOneLevelOnBegin = true;
 	soundEditor.setCurrentSource(sourceId_);
+	// This is the oscillator's own marker item, so it edits the zone's own sample. The editor doesn't always get
+	// to reset this itself: a shortcut pad pressed from inside it swaps it out without exitUI().
+	sampleMarkerEditor.targetRoundRobinSlot = 0;
 	sampleMarkerEditor.markerType = markerType;
 
 	if (const bool success = openUI(&sampleMarkerEditor); !success) {
