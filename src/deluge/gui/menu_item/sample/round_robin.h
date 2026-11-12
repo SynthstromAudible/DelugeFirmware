@@ -581,8 +581,8 @@ public:
 	}
 
 	// setVelocityRange() takes both ends, so read the other one back off the model and push the
-	// pair. It keeps min <= max itself, and readCurrentValue() picks up any correction next time
-	// either column is drawn.
+	// pair. Moving one end past the other drags the other along, so min <= max always holds, and
+	// readCurrentValue() picks up the dragged end next time either column is drawn.
 	void writeCurrentValue() override {
 		MultisampleRange* range = getRoundRobinRange(sourceId_);
 		if (range == nullptr) {
