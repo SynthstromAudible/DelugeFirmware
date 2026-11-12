@@ -1099,7 +1099,10 @@ skipAutoRelease: {}
 		// the feature existed. The stored value is untouched, so turning it back on restores the trim.
 		if (runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)) {
 			for (int32_t s = 0; s < kNumSources; s++) {
-				if (sound.sources[s].oscType != OscType::SAMPLE || guides[s].audioFileHolder == nullptr) {
+				// hasMultisampleRanges() as well as the type, as at note-on: it's what says the holder really is
+				// a sample's.
+				if (sound.sources[s].oscType != OscType::SAMPLE || !sound.sources[s].hasMultisampleRanges()
+				    || guides[s].audioFileHolder == nullptr) {
 					continue;
 				}
 				uint8_t trim = static_cast<SampleHolderForVoice*>(guides[s].audioFileHolder)->volume;
