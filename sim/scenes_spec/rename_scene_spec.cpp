@@ -294,6 +294,15 @@ std::string last_notice() {
 	return text;
 }
 
+/// @brief Is the pixel at (@p x, @p y) lit in the P1 PBM @p pbm?
+bool pbm_lit(const std::string& pbm, int32_t x, int32_t y) {
+	size_t pos = 0;
+	for (int line = 0; line < 2 + y; line++) {
+		pos = pbm.find('\n', pos) + 1;
+	}
+	return pbm[pos + static_cast<size_t>(x) * 2] == '1';
+}
+
 } // namespace
 
 // clang-format off
@@ -985,6 +994,32 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		// ...and it stays closed.
 		r.tick(110);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
+	});
+
+	it("draws no menu title beneath the drum rename opened from its shortcut pad", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		spec::SongFixture f = kit_fixture();
+		kit_of(f)->selectedDrum->setName("Snare");
+		const MenuContext ctx = context_of(f);
+		const menu::Node* node = menu::shortcut_node(MenuContext::Root::Drum, false, 11, 5);
+		expect(node == &nodes::drum_name_edit).to_be_true();
+
+		// Shift + (11,5) opens the menu ON the name item, so the item is the menu's root and
+		// `SoundEditor::renderOLED` returns before drawing anything beneath the rename window.
+		Rig r;
+		r.open_menu(*node, *node, ctx);
+		r.tick(0);
+		r.tick(10);
+		expect(&r.shell.stack().input_top() == &rename_scene()).to_be_true();
+		expect(static_cast<int>(menu_scene().state().depth)).to_equal(0);
+
+		// The title's rule runs the panel's width on its last title row; the rename window covers
+		// only the middle, so its two ends show whatever the menu beneath drew.
+		const std::string pbm = r.fake.pbm(0);
+		constexpr int32_t kRuleRow = 5 + deluge::ui::kTitleSeparatorY; // the 48-row panel's top bezel is 5 rows
+		expect(pbm_lit(pbm, 1, kRuleRow)).to_be_false();
+		expect(pbm_lit(pbm, 126, kRuleRow)).to_be_false();
 	});
 
 	it("reopens the editor when a menu parked on the item is restored", _ {
