@@ -120,6 +120,8 @@ public:
 	SampleHolderForVoice* ensureAlternateHolder(uint8_t alternateSlotIndex);
 
 	enum class RRMode : uint8_t { Cycle = 0, Random = 1, NoRepeat = 2 };
+	/// One past the highest RRMode. Anything read from a file at or above this isn't a mode this firmware has.
+	static constexpr uint8_t kNumRRModes = 3;
 
 	/// Picks a random slot from [0, rrCount], updating rrIndex.
 	/// randomSlot must be in [0, rrCount] (caller passes random(rrCount)).
