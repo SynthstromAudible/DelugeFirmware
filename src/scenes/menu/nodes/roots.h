@@ -486,11 +486,11 @@ inline constexpr Node audio_clip_reverse = with_reverse_in_horizontal(
     reverse_always);
 
 inline constexpr Node audio_clip_interpolation =
-    with_title(setting_item(sid(String::STRING_FOR_INTERPOLATION), Kind::Enum,
-                            {.kind = deluge::scenes::bind::Target::Kind::MODEL,
-                             .path = "linearInterpolation",
-                             .group = deluge::project::SettingGroupId::AUDIO_CLIP}),
-               sid(String::STRING_FOR_AUDIO_INTERPOLATION));
+    with_affect_entire(with_title(setting_item(sid(String::STRING_FOR_INTERPOLATION), Kind::Enum,
+                                               {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                .path = "linearInterpolation",
+                                                .group = deluge::project::SettingGroupId::AUDIO_CLIP}),
+                                  sid(String::STRING_FOR_AUDIO_INTERPOLATION)));
 
 inline constexpr const Node* kAudioClipSampleChildren[] = {&file0_selector,      &audio_clip_transpose,
                                                            &audio_clip_reverse,  &sample0_pitch_speed,

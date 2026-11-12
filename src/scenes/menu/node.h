@@ -1007,7 +1007,7 @@ struct Node {
 
 	/// @brief Legacy's `MenuItem::usesAffectEntire()` for an item whose binding does not say so: AFFECT ENTIRE held on
 	///        it in a kit row's menu is the hold mode that writes every drum, not the clip's own toggle. A PATCHED or
-	///        UNPATCHED_SOUND param answers true without it (`node_uses_affect_entire`).
+	///        unpatched param answers true without it (`node_uses_affect_entire`).
 	bool uses_affect_entire = false;
 
 	/// @brief The column is the item's full option list across the page under a rule, as its leaf screen draws it:
@@ -1139,11 +1139,17 @@ constexpr Node with_affect_entire(Node n) {
 }
 
 /// @brief Legacy's `usesAffectEntire()` for one item: every `patched_param::Integer` and `UnpatchedParam` (the
-///        PATCHED and UNPATCHED_SOUND bindings, the learn-only ones of the transposes included), and the items marked
-///        with `with_affect_entire`.
+///        PATCHED and UNPATCHED_SOUND bindings, the learn-only ones of the transposes included, and the
+///        UNPATCHED_GLOBAL bindings whose param is what they edit), and the items marked with `with_affect_entire`.
+///        The audio clip's transpose only learns its global param: its legacy item is no `UnpatchedParam`.
 constexpr bool node_uses_affect_entire(const Node& n) {
-	return n.uses_affect_entire || n.bind.param.kind == deluge::modulation::params::Kind::PATCHED
-	       || n.bind.param.kind == deluge::modulation::params::Kind::UNPATCHED_SOUND;
+	namespace params = deluge::modulation::params;
+	const bool edits_its_param =
+	    n.bind.get == nullptr
+	    && (!n.bind.target.valid() || n.bind.target.kind == deluge::scenes::bind::Target::Kind::PARAM);
+	return n.uses_affect_entire || n.bind.param.kind == params::Kind::PATCHED
+	       || n.bind.param.kind == params::Kind::UNPATCHED_SOUND
+	       || (n.bind.param.kind == params::Kind::UNPATCHED_GLOBAL && edits_its_param);
 }
 
 /// @brief `n` with `option_list_column` set.

@@ -506,7 +506,6 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 
 	it("gives every leaf main's own param, AFFECT ENTIRE use, edit marking, slot count and range dependence", _ {
 		size_t learned = 0;
-		size_t ae_differs = 0;
 		for (const auto& [root, e] : every_entry()) {
 			if (e.node->kind == menu::Kind::Submenu) {
 				continue;
@@ -515,15 +514,8 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 			menu::MenuState st{};
 			st.path[0] = e.node;
 			install(root->ctx, root->song);
-			// Main's `UnpatchedParam` answers true for the global params too; the port's answer is a known difference.
 			const std::string ae = std::to_string(menu::node_uses_affect_entire(*e.node) ? 1 : 0);
-			if (spec::affect_entire_differs_from_main(root->name, *e.node) && ae == "0"
-			    && table().value(e.path, "ae") == "1") {
-				ae_differs++;
-			}
-			else {
-				expect(at + " ae " + ae).to_equal(at + " ae " + table().value(e.path, "ae"));
-			}
+			expect(at + " ae " + ae).to_equal(at + " ae " + table().value(e.path, "ae"));
 			expect(at + " edits " + std::to_string(menu::select_turn_edits_instrument(root->ctx, st) ? 1 : 0))
 			    .to_equal(at + " edits " + table().value(e.path, "edits"));
 			expect(at + " slots " + std::to_string(e.node->slots))
@@ -568,7 +560,6 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 			    .to_be_true();
 		}
 		expect(learned > size_t(0)).to_be_true();
-		expect(ae_differs).to_equal(spec::kAffectEntireDifferences);
 	});
 });
 

@@ -9,29 +9,12 @@
 /// there (the port's answer is the one stated here, the row is main's), and requires the number of excused nodes to be
 /// the count below. Fixing the port, or breaking another node the same way, turns the example red.
 
-#include "modulation/params/param.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/nodes.h"
 
-#include <string_view>
+#include <cstddef>
 
 namespace deluge::scenes::spec {
-
-/// @brief `main`'s `UnpatchedParam::usesAffectEntire()` is true for every unpatched param, and so is the audio clip's
-///        interpolation item's; `node_uses_affect_entire` answers false for the global params and the interpolation
-///        node carries no marking. Excused only on the roots whose menu has no AFFECT ENTIRE hold of its own (the
-///        song's, the performance view's, the audio clip's and the kit's global effects), where the answer cannot
-///        change what a hold writes.
-inline bool affect_entire_differs_from_main(std::string_view root, const menu::Node& node) {
-	const bool root_has_no_hold =
-	    root == "audio clip" || root == "performance" || root == "song" || root == "kit global fx";
-	return root_has_no_hold
-	       && (node.bind.param.kind == deluge::modulation::params::Kind::UNPATCHED_GLOBAL
-	           || &node == &deluge::scenes::menu::nodes::audio_clip_interpolation);
-}
-
-/// @brief How many leaves of the ten roots that is: the `ae` rows main has at 1 and the port at 0.
-inline constexpr size_t kAffectEntireDifferences = 55;
 
 /// @brief The sample repeat items' titles: the row holds legacy's item's title with its source's number formatted into
 ///        it ("Samp1 repeat"); the port's node carries the placeholder unfilled ("Samp* repeat", no `title_arg`).
