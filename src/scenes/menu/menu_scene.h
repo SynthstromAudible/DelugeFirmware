@@ -543,6 +543,8 @@ public:
 	///
 	/// Arms the landing exactly as the menu's own Shift + pad does, so the `Replace` the caller files lands the
 	/// same way (`on_enter`). An item the context refuses raises "PARAMETER NOT APPLICABLE", as legacy's `setup`.
+	/// Unlike the menu's own Shift + pad, a non-param item is taken over the automation view too: main makes that
+	/// refusal only while its editor is the current UI.
 	/// @param x,y The pad.
 	/// @return The menu `SceneId` to replace with, or nothing: no item there, not this root's, or refused.
 	std::optional<deluge::ui::shell::SceneId> shortcut_jump(uint8_t x, uint8_t y);

@@ -317,10 +317,13 @@ struct Rig {
 	void tick(uint32_t at_ms) { shell.tick(at_ms); }
 
 	/// @brief Open the menu at the sample start item, whose entry opens the editor over it: a shortcut's real door.
-	void open_through_menu() {
+	/// @param root_is_automation Whether the root under the menu is the automation view, as the host's opener says.
+	void open_through_menu(bool root_is_automation = false) {
 		deluge::bridge::recordLoadedSound(*sound, *song.song);
 		(void)menu::assign_node_ids(menu::nodes::kAllRoots);
-		menu_scene().open(menu::nodes::sample0_start, ctx());
+		MenuContext c = ctx();
+		c.root_is_automation = root_is_automation;
+		menu_scene().open(menu::nodes::sample0_start, c);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(menu::nodes::sample0_start)});
 	}
 	/// @brief The scene on top of the stack.
@@ -1279,6 +1282,83 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(180);
 		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(SceneKind::FirstApp));
 		expect(menu::focused_value(menu_scene().menu_context(), menu_scene().state()) == &menu::nodes::lpf_freq)
+		    .to_be_true();
+	});
+
+	it("takes SHIFT + (0,7) and (0,6) over the automation view as its own presses, a marker held or not", _ {
+		// `potentialShortcutPadAction`'s `ignoreAction`: with SHIFT and the automation view as the root, its
+		// interpolation and pad-selection pads are no shortcut, so `padAction` goes on to the marker's own arms.
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 5 * kZoomMax;
+		r.open_through_menu(/*root_is_automation=*/true);
+		for (uint32_t t = 0; t <= 40; t += 10) {
+			r.tick(t);
+		}
+		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(kMarkerSceneKind));
+		r.shift(true, 50);
+		r.pad(0, 7, true, 60); // START is selected and column 0 is empty: START moves there
+		r.tick(60);
+		r.pad(0, 7, false, 65);
+		r.shift(false, 70);
+		r.tick(70);
+		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(kMarkerSceneKind));
+		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(0);
+		r.pad(5, 3, true, 80); // hold LOOP_START
+		r.tick(80);
+		expect(marker_scene().holding_marker()).to_be_true();
+		r.shift(true, 90);
+		r.pad(0, 6, true, 100); // START's column under the LOOP_START hold: the loop start goes
+		r.tick(100);
+		r.pad(0, 6, false, 105);
+		r.pad(5, 3, false, 105);
+		r.shift(false, 110);
+		r.tick(110);
+		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(kMarkerSceneKind));
+		expect(static_cast<int32_t>(r.range->sampleHolder.loopStartPos)).to_equal(0);
+		expect(static_cast<int32_t>(marker_scene().marker_type())).to_equal(static_cast<int32_t>(MarkerType::START));
+	});
+
+	it("jumps from SHIFT + (0,6) to its item when the root is not the automation view", _ {
+		Rig r;
+		r.open_through_menu();
+		for (uint32_t t = 0; t <= 40; t += 10) {
+			r.tick(t);
+		}
+		r.shift(true, 50);
+		r.pad(0, 6, true, 60);
+		for (uint32_t t = 60; t <= 100; t += 10) {
+			r.tick(t);
+		}
+		r.pad(0, 6, false, 105);
+		r.shift(false, 105);
+		r.tick(110);
+		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(SceneKind::FirstApp));
+		expect(menu::focused_value(menu_scene().menu_context(), menu_scene().state())
+		       == &menu::nodes::sample0_interpolation)
+		    .to_be_true();
+	});
+
+	it("jumps over the automation view to an item that is no param, as main's shortcut from outside the editor", _ {
+		// `potentialShortcutPadAction` refuses a non-param item over the automation view only while the editor itself
+		// is the current UI; from the marker editor it is not.
+		expect(menu::is_automation_item(menu::nodes::polyphony)).to_be_false();
+		Rig r;
+		r.open_through_menu(/*root_is_automation=*/true);
+		for (uint32_t t = 0; t <= 40; t += 10) {
+			r.tick(t);
+		}
+		r.shift(true, 50);
+		r.pad(7, 1, true, 60); // POLYPHONY
+		for (uint32_t t = 60; t <= 100; t += 10) {
+			r.tick(t);
+		}
+		r.pad(7, 1, false, 105);
+		r.shift(false, 105);
+		r.tick(110);
+		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(SceneKind::FirstApp));
+		expect(menu::focused_value(menu_scene().menu_context(), menu_scene().state()) == &menu::nodes::polyphony)
 		    .to_be_true();
 	});
 

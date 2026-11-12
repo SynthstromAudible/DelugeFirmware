@@ -13,6 +13,10 @@ load: a marker is held by pressing its own column (the start marker is column 0 
 holding can end the hold, so BACK and the mute column are pressed before any such tap. `c18-synth-multisamples` imports
 a folder as ranges; `c19-kit-load-all-empty` runs LOAD ALL on `SAMPLES/Artists`, which holds only folders (D54).
 
+`c41-marker-automation` opens the marker editor from the sound menu over the automation view (OSCILLATOR 1, two CROSS
+SCREEN pages, then the SYNTH button on START): Shift + (0,6) is the editor's own press there, and Shift + (7,1),
+POLYPHONY, jumps although it is no param.
+
 `c20` to `c22` build a multisample as c18 does (MULTISAMPLES on the drums folder, the import landing on the clip view)
 and open the note-range picker with Shift + pad (2,1), OSC1's transpose: `c20` the picker, its memory of the played
 range and the root's range highlight; `c21` the edge, insert and delete edits and SAVE; `c22` the keyboard screen,

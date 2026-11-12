@@ -315,8 +315,10 @@ std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
 		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
 		return std::nullopt;
 	}
+	// Over the automation view any item is taken: `potentialShortcutPadAction` refuses a non-param one only while
+	// the editor itself is the current UI, and here the scene over the menu is.
 	const Node* target = shortcut_node(press.root, false, x, y);
-	if (target == nullptr || (press.root_is_automation && !is_automation_item(*target))) {
+	if (target == nullptr) {
 		return std::nullopt;
 	}
 	if (!shortcut_applies(*target, press)) {

@@ -901,7 +901,11 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 		// no mode up a shortcut with an item leaves the editor for that item's page (`changeUIAtLevel(&soundEditor,
 		// 1)`), and any other is swallowed, the editor staying.
 		const bool only_auditioning = auditioning() && !holding_ && !xenc_held_ && !sliding();
-		if (event.on && ctx.shift && x < kDisplayWidth && !only_auditioning) {
+		// With the automation view as the root, its interpolation and pad-selection pads (x 0, y 6 and 7) are no
+		// shortcut (`potentialShortcutPadAction`'s `ignoreAction`): with SHIFT they go on to the editor's own arms
+		// below, under any mode.
+		const bool root_keeps_pad = ctx_.root_is_automation && x == 0 && (event.y == 6 || event.y == 7);
+		if (event.on && ctx.shift && !root_keeps_pad && x < kDisplayWidth && !only_auditioning) {
 			r.handled = true;
 			if (!mode_up()) {
 				if (const std::optional<SceneId> page =
