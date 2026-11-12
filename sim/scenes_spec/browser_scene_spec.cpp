@@ -2643,6 +2643,24 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		held.range->sampleHolder.filePath.clear();
 	});
 
+	it("drops an open still loading when the slicer opens on the file the preview holds", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		// An open of another file, its load not yet run: the slicer waits on it.
+		deluge::gui::ui::openShellSlice("SAMPLES/OTHER.WAV");
+		expect(deluge::gui::ui::shellSlicerBusy()).to_be_true();
+		Sample* const sample = make_overview_sample();
+		PreviewHeld held{sample};
+		held.range->sampleHolder.filePath = "SAMPLES/HELD.WAV";
+		deluge::gui::ui::openShellSlice("SAMPLES/HELD.WAV");
+		// The slicer is open on the held file, and nothing is left to land over it.
+		expect(deluge::scenes::slicing::slicer_scene().has_sample()).to_be_true();
+		expect(deluge::gui::ui::shellSlicerBusy()).to_be_false();
+		deluge::gui::ui::releaseShellSlicerBeforeClose();
+		deluge::scenes::slicing::slicer_scene().open(nullptr);
+		held.range->sampleHolder.filePath.clear();
+	});
+
 	it("SLICE parks a slice of the selected file and keeps the menu", _ {
 		CleanBrowser clean;
 		ScratchCard card;

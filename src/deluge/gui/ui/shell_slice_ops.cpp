@@ -87,6 +87,8 @@ public:
 		sample_ = nullptr;
 		if (const auto* held = heldPreview(); held != nullptr && held->sampleHolder.filePath == path_) {
 			if (auto* sample = static_cast<Sample*>(held->sampleHolder.audioFile); sample != nullptr) {
+				// An earlier open still loading would land over this one.
+				open_load_.cancel();
 				sample_ = sample;
 				slicer_scene().open(sample, deluge::scenes::browser::browser_scene().shown_waveform(sample));
 				deluge::scenes::browser::browser_scene().slice_ready(true);
