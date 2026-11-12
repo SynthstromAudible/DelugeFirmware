@@ -38,6 +38,7 @@
 #include "scenes/menu/shortcuts.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
+#include "scenes/rename/rename_scene.h"
 
 #include "shell/scene.h"
 #include "shell/shell.h"
@@ -307,9 +308,9 @@ Sample* make_marker_sample() {
 	return s;
 }
 
-/// @brief Give @p drum's (any sound's) source 0 one range holding @p sample, recorded as a load records it.
-void give_drum_a_sample(deluge::scenes::spec::SongFixture& f, Sound& drum, Sample* sample) {
-	Source& source = drum.sources[0];
+/// @brief Give @p sound's source 0 one range holding @p sample, recorded as a load records it.
+void give_drum_a_sample(deluge::scenes::spec::SongFixture& f, Sound& sound, Sample* sample) {
+	Source& source = sound.sources[0];
 	source.oscType = OscType::SAMPLE;
 	source.repeatMode = SampleRepeatMode::ONCE;
 	auto* range = static_cast<MultisampleRange*>(source.getOrCreateFirstRange());
@@ -318,7 +319,7 @@ void give_drum_a_sample(deluge::scenes::spec::SongFixture& f, Sound& drum, Sampl
 	range->sampleHolder.endPos = sample->lengthInSamples;
 	range->sampleHolder.waveformViewZoom = 0;
 	range->sampleHolder.waveformViewScroll = 0;
-	deluge::bridge::recordLoadedSound(drum, *f.song);
+	deluge::bridge::recordLoadedSound(sound, *f.song);
 }
 
 /// @brief A kit clip with affect-entire on, one sound drum selected, and the latch set by a clip-view edit pad pressed
@@ -2275,7 +2276,7 @@ describe menu_entry_audition_end("a scene opened over an audition ends it, as ma
 		expect(currentUIMode).to_equal(uint32_t{UI_MODE_NONE});
 	});
 
-	it("ends it as the drum rename opens on an instrument clip, held or not", _ {
+	it("ends it as the drum rename opens on an instrument clip, held", _ {
 		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
@@ -2286,6 +2287,42 @@ describe menu_entry_audition_end("a scene opened over an audition ends it, as ma
 		expect(entry::openShellMenuAtShortcut(kit.clip, 11, 5, false, false, false, false)).to_be_true(); // drum name
 		(void)shellHostUI.timerCallback();
 		expect(currentUIMode).to_equal(uint32_t{UI_MODE_NONE});
+	});
+
+	it("leaves a pad's audition state alone as the drum rename opens with nothing held", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
+		(void)deluge::scenes::spec::add_drum<SoundDrum>(kit);
+		setRootUILowLevel(&instrumentClipView);
+		instrumentClipView.auditionPadIsPressed[0] = 1; // `cancelAllAuditioning` clears it only in the mode
+		expect(entry::openShellMenuAtShortcut(kit.clip, 11, 5, false, false, false, false)).to_be_true();
+		(void)shellHostUI.timerCallback();
+		expect(currentUIMode).to_equal(uint32_t{UI_MODE_NONE});
+		expect(instrumentClipView.auditionPadIsPressed[0]).to_equal(uint8_t{1});
+		instrumentClipView.auditionPadIsPressed[0] = 0;
+	});
+
+	it("leaves an audition alone as the clip rename opens on an audio clip", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		RootUIGuard root_guard;
+		deluge::scenes::spec::UiModeGuard mode;
+		deluge::scenes::spec::AudioSongFixture audio = deluge::scenes::spec::make_audio_clip_song();
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_AUDITIONING;
+		expect(entry::openShellMenuAtShortcut(audio.clip, 11, 5, false, false, false, false)).to_be_true();
+		for (int i = 0; i < 3; i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(deluge::scenes::menu_scene().focused() == &nodes::edit_name).to_be_true();
+		(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, true);
+		(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, false);
+		for (int i = 0; i < 3; i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(shellHostUI.shell().stack().input_top().kind() == deluge::scenes::rename::kRenameSceneKind).to_be_true();
+		expect(currentUIMode).to_equal(uint32_t{UI_MODE_AUDITIONING});
 	});
 
 	it("ends the keyboard's audition as a sound's marker editor opens over the keyboard", _ {
