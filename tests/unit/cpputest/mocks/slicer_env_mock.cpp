@@ -249,11 +249,6 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 	deluge::test::lastAuditionOn = on ? 1 : 0;
 }
 
-namespace PadLEDs {
-void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
-}
-} // namespace PadLEDs
-
 // ---------------------------------------------------------------------------------------------
 // Everything else `slice_core.cpp` references. None of it runs in the audition specs -- these exist so
 // the real translation unit links. Value-returning symbols use DELUGE_STUB_RET, so a future spec
@@ -300,26 +295,17 @@ DELUGE_STUB_FN(stub_soundDrumKillAllVoices, "_ZN9SoundDrum13killAllVoicesEv")
 
 DELUGE_STUB_RET(stub_multisampleRangeGetAudioFileHolder, "_ZN16MultisampleRange18getAudioFileHolderEv",
                 AudioFileHolder*, &g_range.get()->sampleHolder)
-DELUGE_STUB_RET(stub_getUIUpOneLevel, "_Z15getUIUpOneLeveli", UI*, nullptr)
-DELUGE_STUB_FN(stub_renderUIsForOled, "_Z16renderUIsForOledv")
-DELUGE_STUB_FN(stub_uiNeedsRendering, "_Z16uiNeedsRenderingP2UIjj")
 DELUGE_STUB_RET(stub_getCurrentInstrument, "_Z20getCurrentInstrumentv", Instrument*, nullptr)
 DELUGE_STUB_RET(stub_getCurrentInstrumentClip, "_Z24getCurrentInstrumentClipv", InstrumentClip*, nullptr)
 DELUGE_STUB_FN(stub_audioEngineStopAnyPreviewing, "_ZN11AudioEngine17stopAnyPreviewingEv")
 DELUGE_STUB_RET(stub_voiceSampleGetPlaySample, "_ZN11VoiceSample13getPlaySampleEP6SampleP19SamplePlaybackGuide",
                 int32_t, 0)
-DELUGE_STUB_FN(stub_actionLoggerDeleteAllLogs, "_ZN12ActionLogger13deleteAllLogsEv")
-DELUGE_STUB_RET(stub_matrixDriverIsPadPressed, "_ZN12MatrixDriver12isPadPressedEii", bool, false)
 DELUGE_STUB_RET(stub_paramManagerSetupWithPatching, "_ZN12ParamManager17setupWithPatchingEv", Error, Error::NONE)
 DELUGE_STUB_FN(stub_paramManagerDtor, "_ZN12ParamManagerD2Ev")
 DELUGE_STUB_FN(stub_sampleHolderSetAudioFile, "_ZN12SampleHolder12setAudioFileEP9AudioFilebbi")
 
 DELUGE_STUB_FN(stub_instrumentClipAssignDrums,
                "_ZN14InstrumentClip21assignDrumsToNoteRowsEP29ModelStackWithTimelineCounterbi")
-DELUGE_STUB_RET(stub_waveformRendererRenderFullScreen,
-                "_ZN16WaveformRenderer16renderFullScreenEP6SampleyyPA18_3RGBP18WaveformRenderDataP14SampleRecorderSt8"
-                "optionalIS2_Ebi",
-                bool, false)
 DELUGE_STUB_FN(stub_instrumentClipViewRecalculateColours, "_ZN18InstrumentClipView18recalculateColoursEv")
 DELUGE_STUB_FN(stub_modControllableAudioDtor, "_ZN20ModControllableAudioD2Ev")
 // ~Sound gives its delay's tapes back, ends the song's stutter if its chain plays it, and destroys its chain, whose mod
@@ -330,16 +316,6 @@ DELUGE_STUB_FN(stub_modFxDtor, "_ZN6deluge7effects5ModFxD1Ev")
 DELUGE_STUB_FN(stub_granularDtor, "_ZN6deluge7effects8GranularD1Ev")
 DELUGE_STUB_FN(stub_sampleHolderForVoiceClaimClusterReasons, "_ZN20SampleHolderForVoice19claimClusterReasonsEbi")
 DELUGE_STUB_FN(stub_paramManagerForTimelineCtor, "_ZN23ParamManagerForTimelineC1Ev")
-DELUGE_STUB_FN(stub_uiModButtonAction, "_ZN2UI15modButtonActionEhb")
-DELUGE_STUB_FN(stub_uiModEncoderAction, "_ZN2UI16modEncoderActionEii")
-DELUGE_STUB_FN(stub_uiModEncoderButtonAction, "_ZN2UI22modEncoderButtonActionEhb")
-DELUGE_STUB_FN(stub_uiDisplayOrLanguageChanged, "_ZN2UI24displayOrLanguageChangedEv")
-DELUGE_STUB_FN(stub_uiClose, "_ZN2UI5closeEv")
-DELUGE_STUB_FN(stub_uiCtor, "_ZN2UIC2Ev")
-DELUGE_STUB_RET(stub_uiNoteOnForMidiLearn, "_ZN2UI26noteOnReceivedForMidiLearnER9MIDICableiii", bool, false)
-DELUGE_STUB_RET(stub_uiPcForMidiLearn, "_ZN2UI22pcReceivedForMidiLearnER9MIDICableii", bool, false)
-DELUGE_STUB_RET(stub_uiCcForMidiLearn, "_ZN2UI22ccReceivedForMidiLearnER9MIDICableiii", bool, false)
-DELUGE_STUB_RET(stub_uiPitchBendForMidiLearn, "_ZN2UI29pitchBendReceivedForMidiLearnER9MIDICableihh", bool, false)
 DELUGE_STUB_RET(stub_kitGetDrumFromIndex, "_ZN3Kit16getDrumFromIndexEi", Drum*, static_cast<Drum*>(g_drum.get()))
 DELUGE_STUB_FN(stub_kitResetDrumTempValues, "_ZN3Kit19resetDrumTempValuesEv")
 DELUGE_STUB_FN(stub_kitAddDrum, "_ZN3Kit7addDrumEP4DrumP4Song")
@@ -385,35 +361,24 @@ DELUGE_STUB_FN(stub_sourceSetReversed, "_ZN6Source11setReversedEb")
 // Re-seeds the source's DOM range records from its engine ranges; the mock source has no DOM to seed.
 DELUGE_STUB_FN(stub_sourceSeedDocRanges, "_ZN6Source13seedDocRangesEv")
 DELUGE_STUB_FN(stub_sourceDtor, "_ZN6SourceD1Ev")
-DELUGE_STUB_RET(stub_buttonsIsShiftButtonPressed, "_ZN7Buttons20isShiftButtonPressedEv", bool, false)
 DELUGE_STUB_RET(stub_sampleControlsIsCurrentlyReversed, "_ZNK14SampleControls19isCurrentlyReversedEv", bool, false)
-DELUGE_STUB_FN(stub_delugeDealloc, "delugeDealloc")
 DELUGE_STUB_FN(stub_intToString, "intToString")
-DELUGE_STUB_RET(stub_snprintf, "snprintf_", int, 0)
 
 // Globals. Only `waveformBasicNavigator` is read for its contents (its `sample`); the rest are
 // merely addressed.
-DELUGE_STUB_DATA(stub_currentUIMode, "currentUIMode", sizeof(uint32_t))
 DELUGE_STUB_DATA(stub_waveformBasicNavigator, "waveformBasicNavigator", sizeof(WaveformBasicNavigator))
-DELUGE_STUB_DATA(stub_actionLogger, "actionLogger", 1024)
-DELUGE_STUB_DATA(stub_matrixDriver, "matrixDriver", 1024)
 // `SliceCore::begin_slice`'s Keep arm reads it; the legacy slicer these specs drive takes the Release arm.
 DELUGE_STUB_DATA(stub_sampleForPreview, "_ZN11AudioEngine16sampleForPreviewE", sizeof(void*))
 DELUGE_STUB_DATA(stub_instrumentClipView, "instrumentClipView", 8192)
-DELUGE_STUB_DATA(stub_waveformRenderer, "waveformRenderer", 1024)
 DELUGE_STUB_DATA(stub_audioEngineSounds, "_ZN11AudioEngine6soundsE", 64)
-DELUGE_STUB_DATA(stub_padLedsImage, "_ZN7PadLEDs5imageE", 8 * 18 * 4)
 DELUGE_STUB_DATA(stub_flashStorageDefaultSliceMode, "_ZN12FlashStorage16defaultSliceModeE", 4)
 
-// Vtables and the UI typeinfo. Reached only by the slice-commit path (`new SoundDrum`), which the
-// audition specs never enter, and by the UI typeinfo, which nothing queries.
+// Vtables. Reached only by the slice-commit path (`new SoundDrum`), which the audition specs never enter.
 DELUGE_STUB_DATA(stub_vtableSoundDrum, "_ZTV9SoundDrum", 4096)
 DELUGE_STUB_DATA(stub_vttSoundDrum, "_ZTT9SoundDrum", 512)
 DELUGE_STUB_DATA(stub_vtableArpeggiatorBase, "_ZTV15ArpeggiatorBase", 512)
 DELUGE_STUB_DATA(stub_vtableArpeggiatorForDrum, "_ZTV18ArpeggiatorForDrum", 512)
 DELUGE_STUB_DATA(stub_vtableParamManagerForTimeline, "_ZTV23ParamManagerForTimeline", 512)
-DELUGE_STUB_DATA(stub_vtableUI, "_ZTV2UI", 1024)
-DELUGE_STUB_DATA(stub_typeinfoUI, "_ZTI2UI", 64)
 
 // `ParamCollection`'s own out-of-line members, so `FakeParamCollection` above has a base to build on
 // without linking the real collection hierarchy.
