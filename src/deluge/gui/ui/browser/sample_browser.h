@@ -71,8 +71,6 @@ public:
 	/// @brief A claim this browser asked for, finishing: the range-menu step, the exit and the editor's re-root it
 	///        runs on the way out (`ClaimRequest::legacyFinish`).
 	static void finishLegacyClaim(const deluge::gui::ClaimRequest& request);
-	/// @brief Send @p drum to side-chain when its file, named @p fileName, looks like a kick and plays once.
-	void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName);
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
 	void exitAndNeverDeleteDrum();

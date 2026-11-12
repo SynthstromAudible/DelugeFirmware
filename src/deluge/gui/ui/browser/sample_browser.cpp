@@ -917,14 +917,6 @@ possiblyExit:
 	return ActionResult::DEALT_WITH;
 }
 
-void SampleBrowser::autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName) {
-
-	// If this looks like a kick, make it send to sidechain. Otherwise, no change
-	if (source->repeatMode == SampleRepeatMode::ONCE && (strcasestr(fileName, "kick") || strcasestr(fileName, "bd"))) {
-		deluge::edits::settingFor(*drum, "sideChainSend", deluge::serialization::Value::makeNumber(2147483647));
-	}
-}
-
 void SampleBrowser::finishLegacyClaim(const ClaimRequest& request) {
 	if (getCurrentClip()->type != ClipType::AUDIO) {
 		// If there was only one MultiRange, don't go back to the range menu (that's the BOT-TOP thing).

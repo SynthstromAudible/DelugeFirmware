@@ -23,6 +23,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/sample_browser.h"
+#include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/sound_target.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
@@ -998,7 +999,7 @@ getOut:
 
 			deluge::edits::recordRanges(*drum, 0);
 
-			sampleBrowser.autoDetectSideChainSending(drum, source, thisSample->filePath.c_str());
+			deluge::gui::autoDetectSideChainSending(drum, source, thisSample->filePath.c_str());
 
 			std::string newName;
 			newName = &thisSample->filePath.c_str()[prefixAndDirLength];

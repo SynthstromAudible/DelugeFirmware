@@ -47,8 +47,12 @@
 #include "storage/audio/sample_load_walk.h"
 #include "storage/multi_range/multisample_range.h"
 
+#include <cstring>
 #include <iterator>
 #include <utility>
+#undef __GNU_VISIBLE
+#define __GNU_VISIBLE 1 // Makes strcasestr visible.
+#include <strings.h>
 
 namespace params = deluge::modulation::params;
 
@@ -98,6 +102,13 @@ void openGate() {
 }
 
 } // namespace
+
+void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName) {
+	// A one-shot that looks like a kick sends to the sidechain. Otherwise, no change.
+	if (source->repeatMode == SampleRepeatMode::ONCE && (strcasestr(fileName, "kick") || strcasestr(fileName, "bd"))) {
+		deluge::edits::settingFor(*drum, "sideChainSend", deluge::serialization::Value::makeNumber(2147483647));
+	}
+}
 
 bool SampleClaim::explicitInFlight() const {
 	return (phase_ != Phase::Idle && current_.origin == ClaimOrigin::Explicit)
@@ -399,7 +410,7 @@ bool SampleClaim::stepDecideSample() {
 	if (getCurrentOutputType() == OutputType::KIT) {
 		SoundDrum* drum = (SoundDrum*)current_.target.sound;
 
-		sampleBrowser.autoDetectSideChainSending(drum, current_.target.source, current_.enteredText.c_str());
+		autoDetectSideChainSending(drum, current_.target.source, current_.enteredText.c_str());
 
 		// Give Drum no name, momentarily. We don't want it to show up when we're searching for duplicates
 		deluge::edits::laneSettingFor(*drum, "name", deluge::serialization::Value::makeScalar(""));

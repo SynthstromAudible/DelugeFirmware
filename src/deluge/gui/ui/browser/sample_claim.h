@@ -30,6 +30,8 @@
 class AudioFile;
 class AudioFileHolder;
 class Sample;
+class SoundDrum;
+class Source;
 
 namespace deluge::gui {
 
@@ -183,5 +185,12 @@ private:
 };
 
 extern SampleClaim sampleClaim;
+
+/// @brief Make a kit drum whose one-shot sample's name says kick or bd send to the sidechain at full level, as a sample
+///        browser load does.
+/// @param drum     The drum that took the sample.
+/// @param source   The source holding the sample; only a ONCE repeat mode qualifies.
+/// @param fileName The sample's file name or path.
+void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName);
 
 } // namespace deluge::gui
