@@ -1,24 +1,24 @@
 /// @file
-/// @brief The batch-1 menu tables, cross-checked against the legacy menu items they replace.
+/// @brief The batch-1 menu tables, checked against the reference rows of upstream `main`'s menu
+///        (`tests/golden/ui/menu_oracle/tables_1.tsv`).
 ///
-/// The six subtrees the retired Python generator produced are now `constexpr Node` literals
-/// (`src/scenes/menu/nodes/*.cpp`). The legacy objects they were transcribed from are still linked
-/// into this binary -- they are `gui/ui/menus.cpp`'s globals -- so every claim in that
-/// transcription can be checked against the original rather than against a second hand-written
-/// list:
+/// The six subtrees the retired Python generator produced are `constexpr Node` literals
+/// (`src/scenes/menu/nodes/*.cpp`). The rows hold what main's items answer on a synth clip, so every claim in that
+/// transcription is checked against the original rather than against a second hand-written list:
 ///
-///   * the children of each subtree are the same items, in the same order, with the same names;
-///   * each node's `ParamRef` is the legacy item's own `getParamKind()` / `getParamIndex()`;
-///   * `bindings::read(node, ctx)` equals the legacy item's `readCurrentValue()` + `getValue()` on
-///     the same fixture sound;
-///   * each `Kind::Enum`'s names are the legacy `Selection::getOptions()` strings;
-///   * each node's `relevant` predicate agrees with the legacy `isRelevant()` override.
+///   * the children of each of the seventeen roots are the same items, in the same order, with the same names and
+///     titles;
+///   * each node's `ParamRef` index and kind, AFFECT ENTIRE use, edit marking, slot count, range dependence and learn
+///     target are main's;
+///   * `bindings::read(node, ctx)` equals what main's item reads on the same fixture sound;
+///   * each `Kind::Enum`'s names are main's option strings;
+///   * each node's `relevant` predicate agrees with main's `isRelevant()`;
+///   * the note-range picker labels, edits, inserts, deletes and scrolls its ranges as main's `MultiRange` does;
 ///
 /// plus `validate_tree` over the seventeen roots, and one `MenuScene` render of the LPF page.
 ///
-/// @note The SPEC may include `gui/menu_item/` and `gui/ui/menus.h`; the library may not
-///       (`scripts/check_layer_rules.py`'s `scenes-includes-outside`). Same rule
-///       `bindings_spec.cpp` and `menu_scene_spec.cpp` run under.
+/// @note The answers are rows of a reference table, not live calls: the spec includes no legacy menu header, and the
+///       last group asks that it asked every row (`OracleTable::unasked`).
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/menu/bindings.h"
@@ -35,52 +35,35 @@
 #include "scenes/services/view_state.h"
 #include "spec/ui/support/frames.h"
 #include "support/forwarding_facts.h"
-#include "support/menu_over_root.h"
 
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "gui/menu_item/envelope/envelope_menu.h"
-#include "gui/menu_item/horizontal_menu.h"
-#include "gui/menu_item/menu_item_with_cc_learning.h"
-#include "gui/menu_item/multi_range.h" // the range picker's legacy counterpart
-#include "gui/menu_item/range.h"
-#include "gui/menu_item/selection.h"
-#include "gui/menu_item/submenu.h"
-#include "gui/menu_item/submenu/actual_source.h"
-#include "gui/menu_item/submenu/modulator.h"
-#include "gui/menu_item/toggle.h"
-#include "gui/ui/sound_editor.h"
-#include "gui/views/instrument_clip_view.h"
-#include "hid/display/oled.h"
-
-// `gui/menu_item/filter_route.h` renders through an unqualified `OLED::main`, which resolves inside
-// `gui/ui/menus.cpp` only because that file has a file-scope `using namespace deluge::hid::display`.
-// This spec has no such directive, so name the type in the namespace the header is compiled in.
-namespace deluge::gui::menu_item {
-using deluge::hid::display::OLED;
-} // namespace deluge::gui::menu_item
-#include "gui/menu_item/filter_route.h"
+#include "hid/display/display.h"
 
 #include "model/clip/instrument_clip.h"
-#include "model/edits/setting_edit.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 
+#include "support/known_differences.h"
 #include "support/menu_engine.h"
+#include "support/oracle_table.h"
+#include "support/oracle_tree.h"
 #include "support/song_fixture.h"
+#include "support/tables_1_fixtures.h"
 
 #include "spec/gfx/support/golden.h"
 #include "spec/shell/support/fake_surfaces.h"
 
 #include "cppspec.hpp"
 
-#include <array>
+#include <algorithm>
 #include <cstdint>
-#include <span>
+#include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -90,269 +73,58 @@ using namespace deluge::scenes;
 using deluge::l10n::String;
 using deluge::scenes::menu::MenuContext;
 using deluge::scenes::menu::Node;
-namespace legacy = deluge::gui::menu_item;
 
-// ---------------------------------------------------------------------------------------------
-// The legacy globals `g_menus.inc` declares (now pasted into `gui/ui/menus.cpp` verbatim). Only
-// the horizontal submenus are named here: every leaf is reached through
-// `HorizontalMenu::getItems()`. `soundFiltersMenu` itself is a plain vertical `Submenu` whose
-// `items` are protected with no public accessor, so its three children are named directly: the two
-// horizontal pages below, plus `filterRoutingMenu` (it is a whole node with a
-// bespoke enum, `get`/`set` and `slots = 4`, so it must be in the net too).
-
-extern legacy::HorizontalMenu lpfMenu;
-extern legacy::HorizontalMenu hpfMenu;
-extern legacy::FilterRouting filterRoutingMenu;
-extern legacy::HorizontalMenu audioCompMenu;
-extern legacy::HorizontalMenu unisonMenu;
-extern legacy::HorizontalMenu recorderMenu;
-extern legacy::submenu::ActualSource source0Menu;
-extern legacy::submenu::ActualSource source1Menu;
-extern legacy::submenu::Modulator modulator0Menu;
-extern legacy::submenu::Modulator modulator1Menu;
-extern legacy::HorizontalMenu oscMixerMenu;
-extern legacy::envelope::EnvelopeMenu env1Menu;
-extern legacy::envelope::EnvelopeMenu env2Menu;
-extern legacy::envelope::EnvelopeMenu env3Menu;
-extern legacy::envelope::EnvelopeMenu env4Menu;
-extern legacy::HorizontalMenu lfo1Menu;
-extern legacy::HorizontalMenu lfo2Menu;
-extern legacy::HorizontalMenu lfo3Menu;
-extern legacy::HorizontalMenu lfo4Menu;
+namespace t1 = deluge::scenes::spec::tables1;
 
 namespace {
 
 namespace nodes = deluge::scenes::menu::nodes;
 namespace bindings = deluge::scenes::menu::bindings;
 
-/// @brief The real app picks a language during boot; this spec renders text without booting.
-void select_language() {
-	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
+using t1::Fixture;
+using t1::fixture;
+using t1::RangeFixture;
+using t1::shown;
+using t1::text_of;
+
+spec::OracleTable& table() {
+	return spec::OracleTable::named("tables_1");
 }
 
-/// @brief The fixture, plus the `soundEditor` globals the legacy items read instead of a context.
-///
-/// A legacy `readCurrentValue()` reaches `soundEditor.currentSound` / `currentModControllable` /
-/// `currentParamManager` / `currentSourceIndex` / `currentMultiRange`
-/// (`gui/ui/sound_editor.h:62-73`); `bindings::read` reaches the same objects through the
-/// `MenuContext` `context_for` resolved. Pointing both at the same fixture is what makes the two
-/// comparable.
-struct Fixture {
-	spec::SongFixture song = spec::make_synth_song();
-	MenuContext ctx{};
-
-	Fixture() {
-		select_language();
-		ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                        /*kit_global_fx=*/false);
-		soundEditor.currentSound = spec::menu_engine(ctx).sound;
-		soundEditor.currentModControllable = deluge::scenes::spec::menu_engine(ctx).mod;
-		soundEditor.currentParamManager = spec::menu_engine(ctx).params;
-		soundEditor.currentSourceIndex = ctx.source_index;
-		soundEditor.currentSource = spec::menu_engine(ctx).source;
-		soundEditor.currentMultiRange = spec::menu_engine(ctx).range;
-		soundEditor.currentMultiRangeIndex = ctx.range_index;
+/// @brief The rows' text for a list of values, `|`-separated, so a mismatch prints the whole list.
+std::string joined(const std::vector<std::string>& values) {
+	std::string out;
+	for (const std::string& v : values) {
+		out += v + "|";
 	}
-};
-
-Fixture& fixture() {
-	static Fixture f;
-	return f;
+	return out;
 }
 
-std::string text_of(uint16_t id) {
+/// @brief The values of the row (@p path, @p column), joined; `<no row>` when there is none.
+std::string frozen(const std::string& path, const std::string& column) {
+	const std::vector<std::string>* values = table().find(path, column);
+	return values == nullptr ? std::string{"<no row>"} : joined(*values);
+}
+
+/// @brief The top notes of @p ranges.
+std::vector<int32_t> tops_of(const std::vector<deluge::instrument::RangeState>& ranges) {
+	std::vector<int32_t> tops;
+	for (const deluge::instrument::RangeState& r : ranges) {
+		tops.push_back(r.top_note);
+	}
+	return tops;
+}
+
+/// @brief The ranges as the picker rows record them.
+std::string spans(const std::vector<deluge::instrument::RangeState>& ranges) {
+	return joined(t1::spans_of(tops_of(ranges)));
+}
+
+/// @brief One picker row's label, as the port builds it.
+std::string label_of(const MenuContext& ctx, int32_t index) {
+	char buf[32];
 	deluge::ui::shell::TextScratch scratch;
-	return std::string{deluge_profile().text_or_digits(id, scratch)};
-}
-
-/// @brief @p id as @p node shows it: its placeholder filled (`menu::node_text`).
-std::string shown(uint16_t id, const Node& node, const MenuContext& ctx) {
-	menu::NodeText scratch;
-	return std::string{menu::node_text(id, node, ctx, scratch)};
-}
-
-/// @brief Legacy items whose `getName()` is not the l10n string the constructor was given.
-///
-/// Five classes override it to build a name at render time -- something a `Node::name` (one static
-/// string id) cannot express, and the reason these rows are exempt from the name comparison rather
-/// than the comparison being weakened for everyone:
-///
-///   * `filter::FilterParam` on a MORPH item -> the filter mode's own morph name
-///     (`gui/menu_item/filter/param.h:38`, `filter/info.h:62-69`);
-///   * `submenu::ActualSource` -> "OSC1"/"OSC2" via `asterixToInt` (`submenu/actual_source.h:26-38`).
-///
-/// A `FormattedTitle` name is compared as shown, its `title_arg` filled in.
-bool has_dynamic_name(const Node& node) {
-	switch (node.name) {
-	case static_cast<uint16_t>(String::STRING_FOR_LPF_MORPH):
-	case static_cast<uint16_t>(String::STRING_FOR_HPF_MORPH):
-	case static_cast<uint16_t>(String::STRING_FOR_OSCILLATOR_1):
-	case static_cast<uint16_t>(String::STRING_FOR_OSCILLATOR_2):
-		return true;
-	default:
-		return false;
-	}
-}
-
-/// @brief One `(node, legacy item)` pair to compare.
-struct Pair {
-	const Node* node;
-	::MenuItem* item;
-};
-
-/// @brief Pair a subtree's node children against a legacy horizontal menu's items, in order.
-///
-/// @return Empty when the two lists are not even the same length -- the caller asserts that first,
-///         so a size mismatch is reported once rather than as N confusing per-item failures.
-std::vector<Pair> pair_with(std::span<const Node* const> kids, legacy::HorizontalMenu& menu) {
-	std::vector<Pair> out;
-	auto& items = menu.getItems();
-	if (kids.size() != items.size()) {
-		return out;
-	}
-	for (size_t i = 0; i < kids.size(); i++) {
-		out.push_back(Pair{kids[i], items[i]});
-	}
-	return out;
-}
-
-/// @brief The batch-1 tree, one subtree at a time: `{node subtree root, legacy horizontal menu}`.
-struct Subtree {
-	const char* name;
-	const Node* root;
-	legacy::HorizontalMenu* legacy;
-};
-
-/// @brief Every horizontal page in batch 1, in `main.py`'s order (the filters submenu's own two
-///        pages first, since it is the only *vertical* root and its children are the pages).
-std::vector<Subtree> subtrees() {
-	const Node* filters = nodes::kSoundFiltersChildren[0];
-	return {
-	    {"lpf", filters->children[0], &lpfMenu},
-	    {"hpf", filters->children[1], &hpfMenu},
-	    {"compressor", nodes::kSoundCompressorChildren[0], &audioCompMenu},
-	    {"unison", nodes::kSoundUnisonChildren[0], &unisonMenu},
-	    {"recorder", nodes::kSoundOscChildren[0], &recorderMenu},
-	    {"source0", nodes::kSoundOscChildren[1], &source0Menu},
-	    {"source1", nodes::kSoundOscChildren[2], &source1Menu},
-	    {"modulator0", nodes::kSoundOscChildren[3], &modulator0Menu},
-	    {"modulator1", nodes::kSoundOscChildren[4], &modulator1Menu},
-	    {"osc mixer", nodes::kSoundOscChildren[5], &oscMixerMenu},
-	    {"env1", nodes::kSoundEnvChildren[0], &env1Menu},
-	    {"env2", nodes::kSoundEnvChildren[1], &env2Menu},
-	    {"env3", nodes::kSoundEnvChildren[2], &env3Menu},
-	    {"env4", nodes::kSoundEnvChildren[3], &env4Menu},
-	    {"lfo1", nodes::kSoundLfoChildren[0], &lfo1Menu},
-	    {"lfo2", nodes::kSoundLfoChildren[1], &lfo2Menu},
-	    {"lfo3", nodes::kSoundLfoChildren[2], &lfo3Menu},
-	    {"lfo4", nodes::kSoundLfoChildren[3], &lfo4Menu},
-	};
-}
-
-std::vector<Pair> all_pairs() {
-	std::vector<Pair> out;
-	for (const Subtree& s : subtrees()) {
-		for (const Pair& p : pair_with(s.root->children, *s.legacy)) {
-			out.push_back(p);
-		}
-	}
-	// `soundFiltersMenu`'s third child, which no horizontal page contains.
-	out.push_back(Pair{nodes::kSoundFiltersChildren[0]->children[2], &filterRoutingMenu});
-	return out;
-}
-
-/// @brief The legacy item's current value, read the way legacy reads it, or `std::nullopt` for an
-///        item that holds no value at all (the four bespoke `Kind::Custom` ones).
-std::optional<int32_t> legacy_value(::MenuItem* item) {
-	if (auto* v = dynamic_cast<legacy::Value<int32_t>*>(item); v != nullptr) {
-		v->readCurrentValue();
-		return v->getValue();
-	}
-	if (auto* v = dynamic_cast<legacy::Value<bool>*>(item); v != nullptr) {
-		v->readCurrentValue();
-		return v->getValue() ? 1 : 0;
-	}
-	return std::nullopt;
-}
-
-/// @brief Call a legacy item's own `writeCurrentValue()`.
-///
-/// `Value<T>::writeCurrentValue` is `protected` (`gui/menu_item/value.h:52`) and the only public
-/// route to it is `selectEncoderAction`, which also calls `renderUIsForOled()` -- a UI path this
-/// spec has no business entering. Naming the member through a derived class is the
-/// [class.protected]-blessed route: the pointer-to-member is formed inside a class derived from
-/// `Value<T>`, and its type is still `void (Value<T>::*)()`.
-template <typename T>
-struct ValuePeek : legacy::Value<T> {
-	static void write(legacy::Value<T>& value) { (value.*(&ValuePeek::writeCurrentValue))(); }
-};
-
-/// @brief Drive @p item's legacy write path with @p v.
-/// @return False for an item that holds no value (a submenu, or a bespoke `Kind::Custom` one).
-bool legacy_write(::MenuItem* item, int32_t v) {
-	if (auto* n = dynamic_cast<legacy::Value<int32_t>*>(item); n != nullptr) {
-		n->setValue(v);
-		ValuePeek<int32_t>::write(*n);
-		return true;
-	}
-	if (auto* b = dynamic_cast<legacy::Value<bool>*>(item); b != nullptr) {
-		b->setValue(v != 0);
-		ValuePeek<bool>::write(*b);
-		return true;
-	}
-	return false;
-}
-
-/// @brief Three values spanning @p r: the two endpoints and the middle.
-/// @brief A sentinel value inside @p r that is not @p v, or nothing when the range is a point.
-///
-/// Fix round 1, I2: the write comparison needs a starting state the value under test is *not*
-/// already at, or a port hook that stores nothing looks identical to one that stores correctly.
-std::optional<int32_t> sentinel_for(const menu::IntRange& r, int32_t v) {
-	if (r.min == r.max) {
-		return std::nullopt;
-	}
-	return v == r.min ? r.max : r.min;
-}
-
-/// @brief What the two write paths leave behind, each driven from the same starting state.
-struct WriteProbe {
-	bool ran = false;
-	int32_t got_port = 0;
-	int32_t want_port = 0;
-	std::optional<int32_t> got_legacy{};
-	std::optional<int32_t> want_legacy{};
-};
-
-/// @brief Drive @p node's `set` hook and @p item's `writeCurrentValue()` **independently**, each
-///        from @p sentinel, and report what each left behind.
-///
-/// Fix round 1, I2. The original shape ran `legacy_write(v)` first and `bindings::write(v)` second,
-/// then asserted the second changed nothing -- which a port hook that stores *nothing at all* also
-/// satisfies, because legacy had already moved the model to `v`. Here each path starts from a state
-/// that is not `v`, so a no-op port hook leaves `got_*` at the sentinel while `want_*` is at `v`.
-///
-/// @return `ran == false` for an item that holds no value at all (a submenu, or a bespoke one).
-WriteProbe probe_write(const Node& node, ::MenuItem* item, const MenuContext& ctx, int32_t v, int32_t sentinel) {
-	WriteProbe out;
-	if (!legacy_write(item, sentinel)) {
-		return out;
-	}
-	menu::bindings::write(node, ctx, v);
-	out.got_port = menu::bindings::read(node, ctx);
-	out.got_legacy = legacy_value(item);
-
-	if (!legacy_write(item, sentinel) || !legacy_write(item, v)) {
-		return out;
-	}
-	out.want_port = menu::bindings::read(node, ctx);
-	out.want_legacy = legacy_value(item);
-	out.ran = true;
-	return out;
-}
-
-std::array<int32_t, 3> probe_values(const menu::IntRange& r) {
-	return {r.min, static_cast<int32_t>((static_cast<int64_t>(r.min) + r.max) / 2), r.max};
+	return std::string{nodes::range_row_label(ctx, index, buf, sizeof(buf), scratch)};
 }
 
 /// @brief A `Shell` over `FakeSurfaceSet` with the application's scene registry, for the golden.
@@ -388,648 +160,270 @@ struct Rig {
 	}
 };
 
-/// @brief Reach `Range::getText`, which is `protected`.
-///
-/// The same `[class.protected]` move `tables_2_spec`'s `SubmenuPeek` makes, one class further up:
-/// `MultiRange` is `final` so nothing can derive from it, but `getText` is declared on `Range`
-/// (`gui/menu_item/range.h:38-39`) and `MultiRange` merely overrides it. A pointer-to-member formed
-/// inside a class derived from `Range` therefore has type `void (Range::*)(...)`, applies to the
-/// `multiRangeMenu` global, and dispatches virtually to `MultiRange::getText`.
-///
-/// The alternative -- writing the expected note-range strings out in this file -- would make the
-/// spec a second copy of the thing under test rather than a check of it.
-struct RangePeek : legacy::Range {
-	static std::string text_of_range(legacy::Range& r, int32_t value) {
-		static_cast<legacy::MultiRange&>(r).setValue(value);
-		char buf[32] = {};
-		(r.*(&RangePeek::getText))(buf, nullptr, nullptr, /*mayShowJustOne=*/false); // `MultiRange::getText`
-		return std::string{buf};
-	}
-};
-
-/// @brief A synth fixture whose source 0 carries @p n `MultiRange`s, with the `soundEditor` globals
-///        pointed at it.
-///
-/// Its own fixture rather than the shared one: inserting ranges changes what every other example
-/// reads off source 0 (`transpose_range`, `sample_start`, ...), and the shared `Fixture` is a
-/// function-local static every group in this file uses.
-struct RangeFixture {
-	spec::SongFixture song = spec::make_synth_song();
-	MenuContext ctx{};
-
-	explicit RangeFixture(int32_t n) {
-		select_language();
-		auto* sound = static_cast<SoundInstrument*>(song.instrument);
-		for (int32_t i = 0; i < n; i++) {
-			(void)sound->sources[0].ranges.insertMultiRange(i);
-		}
-		if (n > 0) {
-			deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
-		}
-		ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                        /*kit_global_fx=*/false);
-		currentSong = song.song;
-		song.song->setCurrentClip(song.clip);
-		soundEditor.currentSound = spec::menu_engine(ctx).sound;
-		soundEditor.currentModControllable = deluge::scenes::spec::menu_engine(ctx).mod;
-		soundEditor.currentParamManager = spec::menu_engine(ctx).params;
-		soundEditor.currentSourceIndex = ctx.source_index;
-		soundEditor.currentSource = spec::menu_engine(ctx).source;
-		soundEditor.currentMultiRange = spec::menu_engine(ctx).range;
-		soundEditor.currentMultiRangeIndex = ctx.range_index;
-	}
-	~RangeFixture() {
-		// Put the shared fixture's pointers back: `fixture()` is a static and every other group in
-		// this file reads through the same `soundEditor` globals.
-		(void)fixture();
-	}
-	RangeFixture(const RangeFixture&) = delete;
-	RangeFixture& operator=(const RangeFixture&) = delete;
-};
-
 } // namespace
 
-/// @brief `MultiRange::currentScroll`, which is protected on a `final` class: an explicit instantiation may name it
-///        (access is not checked there), and the friend it defines hands the member pointer out.
-auto multi_range_scroll();
-template <int32_t legacy::MultiRange::* Member>
-struct MultiRangeScrollPeek {
-	friend auto multi_range_scroll() { return Member; }
-};
-template struct MultiRangeScrollPeek<&legacy::MultiRange::currentScroll>;
-
-/// @brief Make @p root legacy's root UI for an example, and put the old one back: `MultiRange` re-renders the root
-/// after a
-///        range change (`SoundEditor::possibleChangeToCurrentRangeDisplay`), which reads it.
-struct RootUiFor {
-	explicit RootUiFor(RootUI* root) : previous_(getRootUI()) { setRootUILowLevel(root); }
-	~RootUiFor() {
-		if (previous_ != nullptr) {
-			setRootUILowLevel(previous_);
-		}
-		else {
-			nullifyUIs();
-		}
-	}
-	RootUiFor(const RootUiFor&) = delete;
-	RootUiFor& operator=(const RootUiFor&) = delete;
-
-private:
-	RootUI* previous_;
-};
-
 // clang-format off
-describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range picker", $ {
-	it("labels every row exactly as MultiRange::getText labels it, on the same fixture", _ {
-		// Driven from an independent sentinel on each side: the port reads the ranges out of its own
-		// `MenuContext` while legacy reads them out of `soundEditor.currentSource` and its own
-		// `Value<int32_t>` cursor, which this sets explicitly per row. A port label built from
-		// nothing (an empty string, say) fails against a legacy label that is not empty.
-		RangeFixture f{3};
-		// Give the three ranges distinct, realistic top notes so the labels are not all the same
-		// string -- an all-"top" list would pass a comparison that only ever looked at one arm.
-		spec::menu_engine(f.ctx).source->ranges.getElement(0)->topNote = 47;  // B2
-		spec::menu_engine(f.ctx).source->ranges.getElement(1)->topNote = 71;  // B4
-		spec::menu_engine(f.ctx).source->ranges.getElement(2)->topNote = 32767;
-		deluge::edits::recordRanges(*static_cast<SoundInstrument*>(f.song.instrument), 0);
-
-		expect(menu::range_count(f.ctx)).to_equal(int32_t(3));
-		size_t compared = 0;
-		for (int32_t i = 0; i < 3; i++) {
-			char buf[32];
-			deluge::ui::shell::TextScratch scratch;
-			const std::string got{nodes::range_row_label(f.ctx, i, buf, sizeof(buf), scratch)};
-			const std::string want = RangePeek::text_of_range(legacy::multiRangeMenu, i);
-			expect(got).to_equal(want);
-			compared++;
-		}
-		expect(compared).to_equal(size_t(3));
-		// And they really are three different strings -- so the comparison above is about the labels
-		// rather than about one string repeated.
-		char b0[32], b1[32], b2[32];
-		deluge::ui::shell::TextScratch s0, s1, s2;
-		const std::string l0{nodes::range_row_label(f.ctx, 0, b0, sizeof(b0), s0)};
-		const std::string l1{nodes::range_row_label(f.ctx, 1, b1, sizeof(b1), s1)};
-		const std::string l2{nodes::range_row_label(f.ctx, 2, b2, sizeof(b2), s2)};
-		expect(l0 != l1 && l1 != l2 && l0 != l2).to_be_true();
-	});
-
-	it("labels a note below C-2 in the octave under it, as MultiRange::getText does", _ {
-		// A range's top note can sit below note code 0 once a clip is transposed down. The octave is the floor of
-		// the twelfths, not their truncation: note -1 is B-3, a line below note 11's B-2.
-		RangeFixture f{3};
-		spec::menu_engine(f.ctx).source->ranges.getElement(0)->topNote = -14; // A#-4
-		spec::menu_engine(f.ctx).source->ranges.getElement(1)->topNote = -1;  // B-3
-		spec::menu_engine(f.ctx).source->ranges.getElement(2)->topNote = 32767;
-		deluge::edits::recordRanges(*static_cast<SoundInstrument*>(f.song.instrument), 0);
-
-		for (int32_t i = 0; i < 3; i++) {
-			char buf[32];
-			deluge::ui::shell::TextScratch scratch;
-			const std::string got{nodes::range_row_label(f.ctx, i, buf, sizeof(buf), scratch)};
-			expect(got).to_equal(RangePeek::text_of_range(legacy::multiRangeMenu, i));
-		}
-		char buf[32];
-		deluge::ui::shell::TextScratch scratch;
-		expect(std::string{nodes::range_row_label(f.ctx, 1, buf, sizeof(buf), scratch)}).to_equal(std::string("B-4    - B-3"));
-	});
-
-	it("chains to the node it stood in for, and its chain_targets are the range-dependent set", _ {
-		// `MultiRange::selectButtonPress` is `return menuItemHeadingTo` (`multi_range.cpp:334-336`),
-		// and `menuItemHeadingTo` is what `SoundEditor::setup` wrote there (`:1804`). The port's
-		// equivalent pair is `MenuWalkState::pending_after_range` and this hook.
-		RangeFixture f{2};
-		menu::MenuState st{};
-		expect(nodes::multi_range_chain(f.ctx, st) == nullptr).to_be_true(); // nothing pending -> ascend
-		st.walk.pending_after_range = &nodes::source0_transpose;
-		expect(nodes::multi_range_chain(f.ctx, st) == &nodes::source0_transpose).to_be_true();
-
-		// The span has to be the whole `range_dependent` set, because any one of them can be what
-		// `permission_for` refused. Asserted against `nodes::kRangeDependentNodes` itself so the two
-		// lists cannot drift (`multi_range.h` says why it is spelled twice).
-		expect(nodes::kMultiRangeChain.size()).to_equal(nodes::kRangeDependentNodes.size());
-		for (const Node* n : nodes::kRangeDependentNodes) {
-			expect(std::find(nodes::kMultiRangeChain.begin(), nodes::kMultiRangeChain.end(), n)
-			       != nodes::kMultiRangeChain.end())
-			    .to_be_true();
-		}
-		// And the picker itself is NOT range-dependent -- see `multi_range.h`: it would recurse.
-		expect(nodes::multi_range.range_dependent).to_be_false();
-	});
-
-	it("getOrCreateFirstRange is run for a zero-range source", _ {
-		// `checkPermissionToBeginSessionForRangeSpecificParam` creates the source's first range
-		// before answering anything; `permission_for` is a pure predicate and does not.
-		// `menu::ensure_first_range` does it, and
-		// `MenuScene::enter_child` is what calls it.
-		RangeFixture f{0};
-		expect(menu::range_count(f.ctx)).to_equal(int32_t(0));
-		expect(spec::menu_engine(f.ctx).range == nullptr).to_be_true();
-
-		expect(menu::ensure_first_range(f.ctx)).to_be_true();
-		// One range now exists, and -- the second half of `:1952-1954`'s `*previouslySelectedRange =
-		// firstRange` -- the context points at it, so a range-dependent item opens rather than
-		// bouncing to a one-row picker.
-		expect(menu::range_count(f.ctx)).to_equal(int32_t(1));
-		expect(spec::menu_engine(f.ctx).range != nullptr).to_be_true();
-		expect(static_cast<int>(f.ctx.range_index)).to_equal(0);
-		expect(menu::permission_for(nodes::source0_transpose, f.ctx) == menu::Permission::Yes).to_be_true();
-		// `Source::getOrCreateFirstRange` gives the new range the top of the keyboard (`source.cpp:165`).
-		expect(menu::range_top_note(f.ctx, 0)).to_equal(int32_t(32767));
-
-		// Idempotent: a second call must not add a second range.
-		expect(menu::ensure_first_range(f.ctx)).to_be_true();
-		expect(menu::range_count(f.ctx)).to_equal(int32_t(1));
-	});
-
-	it("moves an edge one note per turn, clamped, exactly as MultiRange's edge arm does", _ {
-		// `MultiRange::selectEncoderAction` with `editingRangeEdge` on, on the same four ranges, against the port's
-		// arithmetic: every range, both edges, both directions, turned far enough to reach every clamp.
-		using deluge::ui::oled::RangeEdge;
-		RangeFixture f{4};
-		auto* sound = static_cast<SoundInstrument*>(f.song.instrument);
-		const int16_t tops[] = {40, 41, 60, 32767};
-		const auto reset = [&] {
-			for (int32_t i = 0; i < 4; i++) {
-				sound->sources[0].ranges.getElement(i)->topNote = tops[i];
-			}
-			deluge::edits::recordRanges(*sound, 0);
-		};
-		int32_t compared = 0;
-		for (int32_t index = 0; index < 4; index++) {
-			for (const RangeEdge edge : {RangeEdge::Left, RangeEdge::Right}) {
-				if (!nodes::may_edit_range_edge(f.ctx, index, edge)) {
-					continue;
-				}
-				for (const int32_t offset : {1, -1}) {
-					reset();
-					std::vector<deluge::instrument::RangeState> ported = menu::ranges_of(f.ctx);
-					for (int32_t k = 0; k < 130; k++) {
-						nodes::step_range_edge(ported, index, edge, offset);
-					}
-					legacy::multiRangeMenu.setValue(index);
-					soundEditor.editingRangeEdge = edge == RangeEdge::Left ? legacy::RangeEdit::LEFT : legacy::RangeEdit::RIGHT;
-					for (int32_t k = 0; k < 130; k++) {
-						legacy::multiRangeMenu.selectEncoderAction(offset);
-					}
-					soundEditor.editingRangeEdge = legacy::RangeEdit::OFF;
-					for (int32_t i = 0; i < 4; i++) {
-						expect(static_cast<int32_t>(ported[static_cast<size_t>(i)].top_note))
-						    .to_equal(static_cast<int32_t>(sound->sources[0].ranges.getElement(i)->topNote));
-					}
-					compared++;
-				}
-			}
-		}
-		expect(compared).to_equal(12); // three left edges and three right edges, each both ways
-		reset();
-	});
-
-	it("picks an edge on a horizontal turn exactly as Range::horizontalEncoderAction does", _ {
-		using deluge::ui::oled::RangeEdge;
-		RangeFixture f{3};
-		const auto to_legacy = [](RangeEdge e) {
-			return e == RangeEdge::Left ? legacy::RangeEdit::LEFT : e == RangeEdge::Right ? legacy::RangeEdit::RIGHT : legacy::RangeEdit::OFF;
-		};
-		for (int32_t index = 0; index < 3; index++) {
-			for (const RangeEdge start : {RangeEdge::Off, RangeEdge::Left, RangeEdge::Right}) {
-				for (const int32_t offset : {1, -1}) {
-					legacy::multiRangeMenu.setValue(index);
-					soundEditor.editingRangeEdge = to_legacy(start);
-					legacy::multiRangeMenu.horizontalEncoderAction(offset);
-					const RangeEdge ported = nodes::next_range_edge(f.ctx, index, start, offset);
-					expect(static_cast<int32_t>(to_legacy(ported)))
-					    .to_equal(static_cast<int32_t>(soundEditor.editingRangeEdge));
-				}
-			}
-		}
-		soundEditor.editingRangeEdge = legacy::RangeEdit::OFF;
-	});
-
-	it("inserts a range beside the current one exactly as MultiRange's Shift arm does, and refuses one of one note", _ {
-		// `MultiRange::selectEncoderAction` with Shift held, on four ranges whose second holds a single note (41).
-		const RootUiFor root{&instrumentClipView};
-		const int16_t tops[] = {40, 41, 60, 32767};
-		int32_t inserts = 0;
-		int32_t refusals = 0;
-		for (int32_t index = 0; index < 4; index++) {
-			for (const int32_t offset : {1, -1}) {
-				RangeFixture f{4};
-				auto* sound = static_cast<SoundInstrument*>(f.song.instrument);
-				for (int32_t i = 0; i < 4; i++) {
-					sound->sources[0].ranges.getElement(i)->topNote = tops[i];
-				}
-				deluge::edits::recordRanges(*sound, 0);
-				std::vector<deluge::instrument::RangeState> ported = menu::ranges_of(f.ctx);
-				const std::optional<nodes::RangeInsert> plan = nodes::plan_range_insert(ported, index, offset);
-
-				legacy::multiRangeMenu.setValue(index);
-				soundEditor.setCurrentMultiRange(index);
-				{
-					spec::ShiftHeld shift;
-					legacy::multiRangeMenu.selectEncoderAction(offset);
-				}
-				display->cancelPopup();
-
-				if (!plan) {
-					refusals++;
-					expect(index).to_equal(1);
-					expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(4);
-					continue;
-				}
-				inserts++;
-				ported.insert(ported.begin() + plan->at, deluge::instrument::RangeState{.top_note = plan->top_note});
-				if (plan->previous_top) {
-					ported[static_cast<size_t>(plan->at - 1)].top_note = *plan->previous_top;
-				}
-				expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(5);
-				for (int32_t i = 0; i < 5; i++) {
-					expect(static_cast<int32_t>(ported[static_cast<size_t>(i)].top_note))
-					    .to_equal(static_cast<int32_t>(sound->sources[0].ranges.getElement(i)->topNote));
-				}
-				expect(plan->at).to_equal(static_cast<int32_t>(legacy::multiRangeMenu.getValue()));
-			}
-		}
-		expect(inserts).to_equal(6);
-		expect(refusals).to_equal(2);
-	});
-
-	it("deletes a range exactly as MultiRange::deletePress does, and refuses the last", _ {
-		const RootUiFor root{&instrumentClipView};
-		const int16_t tops[] = {40, 50, 60, 32767};
-		for (int32_t index = 0; index < 4; index++) {
-			RangeFixture f{4};
-			auto* sound = static_cast<SoundInstrument*>(f.song.instrument);
-			for (int32_t i = 0; i < 4; i++) {
-				sound->sources[0].ranges.getElement(i)->topNote = tops[i];
-			}
-			deluge::edits::recordRanges(*sound, 0);
-			std::vector<deluge::instrument::RangeState> ported = menu::ranges_of(f.ctx);
-			const std::optional<nodes::RangeDelete> plan = nodes::plan_range_delete(ported, index);
-			expect(plan.has_value()).to_be_true();
-			if (!plan) {
-				continue;
-			}
-			ported.erase(ported.begin() + index);
-			if (plan->lower_top) {
-				ported[static_cast<size_t>(index - 1)].top_note = *plan->lower_top;
-			}
-
-			legacy::multiRangeMenu.setValue(index);
-			soundEditor.setCurrentMultiRange(index);
-			legacy::multiRangeMenu.deletePress();
-			display->cancelPopup();
-
-			expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(3);
-			for (int32_t i = 0; i < 3; i++) {
-				expect(static_cast<int32_t>(ported[static_cast<size_t>(i)].top_note))
-				    .to_equal(static_cast<int32_t>(sound->sources[0].ranges.getElement(i)->topNote));
-			}
-			expect(plan->cursor).to_equal(static_cast<int32_t>(legacy::multiRangeMenu.getValue()));
-		}
-		RangeFixture last{1};
-		expect(nodes::plan_range_delete(menu::ranges_of(last.ctx), 0).has_value()).to_be_false();
-	});
-
-	it("deletes through the sink, the cursor going to the range below, and not while a popup is up", _ {
-		// `deletePress` (`multi_range.cpp:236-241`): nothing while an edge is edited or a popup is up.
-		RangeFixture f{3};
-		auto* sound = static_cast<SoundInstrument*>(f.song.instrument);
-		menu::MenuState state{};
-		state.list[0].cursor = 2;
-		MenuContext gated = f.ctx;
-		const spec::ForwardingFacts popup{*f.ctx.facts, {.popup_showing = true}};
-		gated.facts = &popup;
-		nodes::range_delete_press(gated, state);
-		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(3);
-		state.edit_edge = deluge::ui::oled::RangeEdge::Left;
-		nodes::range_delete_press(f.ctx, state);
-		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(3);
-		state.edit_edge = deluge::ui::oled::RangeEdge::Off;
-		nodes::range_delete_press(f.ctx, state);
-		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(2);
-		expect(static_cast<int32_t>(state.list[0].cursor)).to_equal(1);
-		expect(static_cast<int32_t>(state.walk.range_choice)).to_equal(1);
-		display->cancelPopup();
-
-		// `selectEncoderAction` is refused whole while a popup is up (`:71-73`): the turn moves no cursor.
-		menu::MenuState picker{};
-		picker.list[0].cursor = 0;
-		{
-			deluge::ui::test::Rig48 rig;
-			rig.input.turn = 1;
-			nodes::kMultiRangeItem.render(rig.frame, gated, picker);
-			expect(static_cast<int32_t>(picker.list[0].cursor)).to_equal(0);
-		}
-		{
-			deluge::ui::test::Rig48 rig;
-			rig.input.turn = 1;
-			nodes::kMultiRangeItem.render(rig.frame, f.ctx, picker);
-			expect(static_cast<int32_t>(picker.list[0].cursor)).to_equal(1);
-		}
-	});
-
-	it("keeps its window where MultiRange's currentScroll keeps it: on opening, on a flick, and on an insert before", _ {
-		const RootUiFor root{&instrumentClipView};
-		const int16_t tops[] = {20, 30, 40, 50, 60, 32767};
-		const auto fixture = [&](RangeFixture& f) {
-			auto* sound = static_cast<SoundInstrument*>(f.song.instrument);
-			for (int32_t i = 0; i < 6; i++) {
-				sound->sources[0].ranges.getElement(i)->topNote = tops[i];
-			}
-			deluge::edits::recordRanges(*sound, 0);
-			sound->sources[0].defaultRangeI = 4;
-		};
-		// Each step: open, a flick of -1, a flick of -2, a flick of +1 (the range mid-window), and a Shift turn of -1
-		// (inserted before, which moves the window with the old range).
-		std::vector<int32_t> want;
-		{
-			RangeFixture f{6};
-			fixture(f);
-			soundEditor.currentMultiRange = nullptr;
-			legacy::multiRangeMenu.beginSession(nullptr);
-			want.push_back(legacy::multiRangeMenu.*multi_range_scroll());
-			legacy::multiRangeMenu.selectEncoderAction(-1);
-			want.push_back(legacy::multiRangeMenu.*multi_range_scroll());
-			legacy::multiRangeMenu.selectEncoderAction(-1);
-			legacy::multiRangeMenu.selectEncoderAction(-1);
-			want.push_back(legacy::multiRangeMenu.*multi_range_scroll());
-			legacy::multiRangeMenu.selectEncoderAction(1);
-			want.push_back(legacy::multiRangeMenu.*multi_range_scroll());
-			{
-				spec::ShiftHeld shift;
-				legacy::multiRangeMenu.selectEncoderAction(-1);
-			}
-			display->cancelPopup();
-			want.push_back(legacy::multiRangeMenu.*multi_range_scroll());
-		}
-		std::vector<int32_t> got;
-		{
-			RangeFixture f{6};
-			fixture(f);
-			menu::MenuState picker{};
-			picker.edit_edge = deluge::ui::oled::RangeEdge::Left; // `beginSession` ends in `Range::beginSession`
-			nodes::kMultiRangeItem.on_focus(f.ctx, picker);
-			expect(static_cast<int>(picker.edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
-			const auto frame = [&](int8_t turn, bool shift) {
-				deluge::ui::test::Rig48 rig;
-				rig.input.turn = turn;
-				rig.input.shift = shift;
-				nodes::kMultiRangeItem.render(rig.frame, f.ctx, picker);
-				got.push_back(picker.list[0].scroll);
-			};
-			frame(0, false);
-			frame(-1, false);
-			frame(-2, false);
-			frame(1, false);
-			frame(-1, true);
-			display->cancelPopup();
-		}
-		expect(got == want).to_be_true();
-		expect(want.size()).to_equal(size_t{5});
-	});
-
-	it("moves to a played note's range as noteOnToChangeRange does, a note at a range's top inside it, and not mid-edge", _ {
-		// `MultiRange::noteOnToChangeRange` and `Source::getRangeIndex`: the first range whose top is at or above the note.
-		RangeFixture f{3};
-		auto* sound = static_cast<SoundInstrument*>(f.song.instrument);
-		const int16_t tops[] = {40, 60, 32767};
-		for (int32_t i = 0; i < 3; i++) {
-			sound->sources[0].ranges.getElement(i)->topNote = tops[i];
-		}
-		deluge::edits::recordRanges(*sound, 0);
-		MenuContext ctx = menu::context_for(*f.song.song, deluge::gui::menuViewOf(f.song.clip), 0, false, false, false,
-		                                    /*kit_global_fx=*/false);
-		menu::MenuState picker{};
-		picker.list[0].cursor = 2;
-		expect(nodes::range_note_press(ctx, picker, 40)).to_be_true();
-		expect(static_cast<int32_t>(picker.list[0].cursor)).to_equal(0);
-		expect(static_cast<int32_t>(ctx.range_index)).to_equal(0);
-		expect(static_cast<int32_t>(sound->sources[0].getRangeIndex(40))).to_equal(0);
-		picker.edit_edge = deluge::ui::oled::RangeEdge::Right;
-		expect(nodes::range_note_press(ctx, picker, 70)).to_be_false();
-		expect(static_cast<int32_t>(picker.list[0].cursor)).to_equal(0);
-	});
-
-	it("selects a range the way setCurrentMultiRange does", _ {
-		RangeFixture f{3};
-		menu::select_range(f.ctx, 2);
-		expect(static_cast<int>(f.ctx.range_index)).to_equal(2);
-		expect(spec::menu_engine(f.ctx).range == spec::menu_engine(f.ctx).source->ranges.getElement(2)).to_be_true();
-		// Out of range is ignored rather than clamped -- every caller has clamped already.
-		menu::select_range(f.ctx, 7);
-		expect(static_cast<int>(f.ctx.range_index)).to_equal(2);
-	});
-});
-
 describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 	it("declares seventeen roots, one per legacy top-level menu", _ {
 		expect(nodes::kBatch1Roots.size()).to_equal(size_t(17));
 	});
 
-	it("gives every subtree the same children, in the same order, as its legacy menu", _ {
+	it("lists, under every root, the children main's menu lists, and nothing it does not", _ {
 		(void)fixture();
-		for (const Subtree& s : subtrees()) {
-			expect(s.root->children.size() == s.legacy->getItems().size()).to_be_true();
+		size_t submenus = 0;
+		for (const spec::TreeEntry& e : t1::entries()) {
+			if (!t1::has_dynamic_name(*e.node)) {
+				expect(e.path + (table().find(e.path, "name") != nullptr ? " has a name row" : " has none"))
+				    .to_equal(e.path + " has a name row");
+			}
+			if (e.node->kind == menu::Kind::Submenu) {
+				expect(e.path + " kids " + std::to_string(e.node->children.size()))
+				    .to_equal(e.path + " kids " + table().value(e.path, "kids"));
+				submenus++;
+			}
 		}
+		expect(submenus > size_t(15)).to_be_true();
 	});
 
-	it("gives every node the legacy item's own name", _ {
+	it("gives every node main's own name", _ {
 		const Fixture& f = fixture();
-		for (const Pair& p : all_pairs()) {
-			if (has_dynamic_name(*p.node)) {
+		for (const spec::TreeEntry& e : t1::entries()) {
+			if (t1::has_dynamic_name(*e.node)) {
 				continue; // see has_dynamic_name's own note
 			}
-			expect(shown(p.node->name, *p.node, f.ctx)).to_equal(std::string{p.item->getName()});
+			expect(e.path + " " + shown(e.node->name, *e.node, f.ctx))
+			    .to_equal(e.path + " " + table().value(e.path, "name"));
 		}
 	});
 
-	it("binds MIDI/CC learn to exactly the param legacy would have learned", _ {
-		Fixture& f = fixture();
-		size_t learnable = 0;
-		for (const Pair& p : all_pairs()) {
-			// `MenuItemWithCCLearning::getLearningThing()` (`menu_item_with_cc_learning.h:27`) is
-			// the authority, and it is what catches the four `menu_item::Transpose` derivatives:
-			// they are a `Decimal` with their own read/write AND a
-			// `PatchedParam` with a real id, so `getParamKind()` reports NONE for them
-			// (`transpose.h:26-51` bridges only `getParamIndex`) while their learn target is real.
-			// The nodes carry that id as a learn-only `ParamRef` beside their `get`/`set`
-			// (`detail.h`'s `with_learn_param`, `node.h`'s precedence note).
-			auto* learner = dynamic_cast<::MenuItemWithCCLearning*>(p.item);
-			if (learner == nullptr) {
+	it("gives every node main's own title", _ {
+		const Fixture& f = fixture();
+		size_t compared = 0;
+		for (const spec::TreeEntry& e : t1::entries()) {
+			if (t1::has_dynamic_name(*e.node)) {
+				continue; // the same classes build their *title* from the name, at render time
+			}
+			const std::string title = shown(e.node->title, *e.node, f.ctx);
+			// A placeholder left unfilled is a `FormattedTitle` main gives no argument, so its title is empty until
+			// something formats it.
+			if (title.find('*') != std::string::npos) {
+				expect(e.node->title_arg).to_equal(uint8_t{0});
+				(void)table().find(e.path, "title");
 				continue;
 			}
+			expect(e.path + " " + title).to_equal(e.path + " " + table().value(e.path, "title"));
+			compared++;
+		}
+		expect(compared > size_t(80)).to_be_true();
+	});
+
+	it("binds MIDI/CC learn to exactly the param main would have learned", _ {
+		const Fixture& f = fixture();
+		size_t learnable = 0;
+		for (const spec::TreeEntry& e : t1::entries()) {
+			const std::vector<std::string>* want = table().find(e.path, "learn");
+			if (want == nullptr) {
+				// A leaf with a `ParamRef` is one main's item learns.
+				if (e.node->kind != menu::Kind::Submenu && e.node->kind != menu::Kind::Custom
+				    && e.node->bind.param.valid()) {
+					expect(e.path + " has none").to_equal(e.path + " has a learn row");
+				}
+				continue;
+			}
+			const std::optional<deluge::project::OwnerParamTarget> got = menu::bindings::learn_target(*e.node, f.ctx);
+			const std::string at = e.path + " " + text_of(e.node->name) + " learns ";
+			expect(at + (got ? std::to_string(got->param.value) : std::string{"none"}))
+			    .to_equal(at + (want->empty() ? std::string{"<no value>"} : want->front()));
+			expect(!got || got->owner == menu::bindings::controls_owner(f.ctx)).to_be_true();
 			learnable++;
-			expect(deluge::scenes::spec::learns_as(menu::bindings::learn_target(*p.node, f.ctx), learner->getLearningThing(), f.ctx)).to_be_true();
 		}
 		// The four transposes plus every `ParamRef` leaf; a drop to 0 would make the loop vacuous.
 		expect(learnable > size_t(40)).to_be_true();
 	});
 
-	it("gives every node the legacy item's own ParamRef, or none where legacy has none", _ {
+	it("gives every node main's own ParamRef, or none where main has none", _ {
 		(void)fixture();
-		for (const Pair& p : all_pairs()) {
-			const auto kind = p.item->getParamKind();
-			if (kind == deluge::modulation::params::Kind::NONE) {
+		size_t compared = 0;
+		for (const spec::TreeEntry& e : t1::entries()) {
+			// A submenu reports the kind of its first param child, not one of its own; a leaf with a hook or a
+			// non-param target owns its value, and its learn-only `ParamRef` is the learn rows' to check.
+			if (!spec::param_comparable(*e.node)) {
+				expect(table().find(e.path, "param_index") == nullptr).to_be_true();
+				expect(table().find(e.path, "param_kind") == nullptr).to_be_true();
 				continue;
 			}
-			// A `Submenu` reports the kind of its first param child, not one of its own
-			// (`gui/menu_item/submenu.cpp`'s getParamKind); only leaves are compared.
-			if (p.node->kind == menu::Kind::Submenu) {
+			const std::optional<int32_t> index = spec::int_of(table().find(e.path, "param_index"));
+			const std::string at = e.path + " " + text_of(e.node->name);
+			expect(at + " index " + std::to_string(e.node->bind.param.index))
+			    .to_equal(at + " index " + (index ? std::to_string(*index) : std::string{"<no row>"}));
+			const std::optional<int32_t> kind = spec::int_of(table().find(e.path, "param_kind"));
+			expect(at + (kind ? " has a kind" : " has none")).to_equal(at + " has a kind");
+			if (!kind || *kind == static_cast<int32_t>(deluge::modulation::params::Kind::NONE)) {
 				continue;
 			}
-			expect(uint32_t(p.node->bind.param.index) == p.item->getParamIndex()).to_be_true();
-			// The *index* is the item's own; the *kind* is not. `UnpatchedParam::getParamKind`
-			// (`gui/menu_item/unpatched_param.cpp`) reports whatever param collection
-			// `SoundEditor::getCurrentModelStack` lands on, and with no root UI open that function
-			// takes its `!rootUIIsClipMinderScreen()` arm (`SoundEditor::getCurrentModelStack`) and
-			// returns the *song's* stack -- so an unpatched item reports UNPATCHED_GLOBAL here and
-			// UNPATCHED_SOUND on a real sound-editor screen. A `ParamRef` states one kind
-			// statically, and the node's PARAM target names the param by id either way, so both
-			// spellings are accepted for an unpatched node.
-			const bool unpatched = kind == deluge::modulation::params::Kind::UNPATCHED_SOUND
-			                       || kind == deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
+			// The *index* is the item's own; the *kind* is not, for an unpatched item: main's
+			// `UnpatchedParam::getParamKind` reports whatever collection the editor's model stack lands on, and with
+			// no root UI open that is the song's. A `ParamRef` states one kind statically, so both spellings are
+			// accepted for an unpatched node.
+			const auto want = static_cast<deluge::modulation::params::Kind>(*kind);
+			const bool unpatched = want == deluge::modulation::params::Kind::UNPATCHED_SOUND
+			                       || want == deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
 			if (unpatched) {
-				expect(p.node->bind.param.kind == deluge::modulation::params::Kind::UNPATCHED_SOUND
-				       || p.node->bind.param.kind == deluge::modulation::params::Kind::UNPATCHED_GLOBAL)
+				expect(e.node->bind.param.kind == deluge::modulation::params::Kind::UNPATCHED_SOUND
+				       || e.node->bind.param.kind == deluge::modulation::params::Kind::UNPATCHED_GLOBAL)
 				    .to_be_true();
 			}
 			else {
-				expect(p.node->bind.param.kind == kind).to_be_true();
+				expect(e.node->bind.param.kind == want).to_be_true();
 			}
+			compared++;
 		}
+		expect(compared > size_t(30)).to_be_true();
 	});
 
-	it("marks exactly the legacy range-dependent items as range_dependent", _ {
+	it("says a node uses AFFECT ENTIRE exactly where main's item does", _ {
+		std::string wrong;
+		size_t compared = 0;
+		for (const spec::TreeEntry& e : t1::entries()) {
+			if (e.node->kind == menu::Kind::Submenu) {
+				continue; // a submenu's answer depends on its cursor (`menu::uses_affect_entire` ports that)
+			}
+			const std::string want = table().value(e.path, "ae");
+			if (std::to_string(menu::node_uses_affect_entire(*e.node) ? 1 : 0) != want) {
+				wrong += e.path + " " + text_of(e.node->name) + " main-" + want + "; ";
+			}
+			compared++;
+		}
+		expect(wrong).to_equal(std::string{});
+		expect(compared > size_t(80)).to_be_true();
+	});
+
+	it("marks the select turn as editing the instrument exactly where main's item does", _ {
+		const Fixture& f = fixture();
+		size_t edits = 0;
+		for (const spec::TreeEntry& e : t1::entries()) {
+			if (e.node->kind == menu::Kind::Submenu) {
+				continue;
+			}
+			menu::MenuState st{};
+			st.path[0] = e.node;
+			const bool port = menu::select_turn_edits_instrument(f.ctx, st);
+			expect(e.path + " edits " + std::to_string(port ? 1 : 0))
+			    .to_equal(e.path + " edits " + table().value(e.path, "edits"));
+			edits += port ? 1 : 0;
+		}
+		expect(edits > size_t(30)).to_be_true();
+	});
+
+	it("marks exactly main's range-dependent items as range_dependent, but for the recorders and file selectors", _ {
 		(void)fixture();
-		for (const Pair& p : all_pairs()) {
-			// One direction only, deliberately: a node that is NOT flagged must not correspond to a
-			// legacy item that overrides `isRangeDependent()`. The converse does not hold, because
-			// two of the four legacy classes reach the same rule *without* the override -- through
-			// `checkPermissionToBeginSessionForRangeSpecificParam` in their own
-			// `checkPermissionToBeginSession` (`FileSelector::checkPermissionToBeginSession`,
-			// `osc/audio_recorder.h:65-74`) -- which is exactly what `node.h`'s own list says.
-			if (!p.node->range_dependent) {
-				expect(p.item->isRangeDependent()).to_be_false();
+		size_t range_differs = 0;
+		for (const spec::TreeEntry& e : t1::entries()) {
+			if (e.node->kind == menu::Kind::Submenu) {
+				continue;
+			}
+			// Main flags no recorder or file selector range dependent; the port does (a known difference).
+			if (spec::range_dependence_differs_from_main(*e.node) && e.node->range_dependent
+			    && table().value(e.path, "range_dep") == "0") {
+				range_differs++;
+			}
+			else {
+				expect(e.path + " range_dep " + std::to_string(e.node->range_dependent ? 1 : 0))
+				    .to_equal(e.path + " range_dep " + table().value(e.path, "range_dep"));
 			}
 		}
-		// The four legacy classes that route through
-		// `checkPermissionToBeginSessionForRangeSpecificParam` are ten nodes here.
+		expect(range_differs).to_equal(spec::kRangeDependenceDifferencesBatch1);
+		// The four classes that route through `checkPermissionToBeginSessionForRangeSpecificParam` are ten nodes here.
 		expect(nodes::kRangeDependentNodes.size()).to_equal(size_t(10));
 		expect(nodes::kHalfPrecisionNodes.size()).to_equal(size_t(3));
 	});
 });
 
 describe tables_1_values("scenes::menu batch-1 tables: values", $ {
-	it("reads what the legacy item reads, for every node that holds a value", _ {
-		Fixture& f = fixture();
-		for (const Pair& p : all_pairs()) {
-			const std::optional<int32_t> want = legacy_value(p.item);
-			if (!want.has_value()) {
-				continue; // a bespoke Kind::Custom item -- nothing to read
+	it("reads what main's menu reads, for every node that holds a value", _ {
+		const Fixture& f = fixture();
+		size_t compared = 0;
+		for (const spec::TreeEntry& e : t1::entries()) {
+			// Every leaf main's item holds a value for has a row, but a target-bound one the fixture does not show
+			// (which answers nothing readable), a bespoke `Kind::Custom` one and a two-ended range.
+			const bool shown_here = (e.parent == nullptr || menu::bindings::relevant(*e.parent, f.ctx))
+			                        && menu::bindings::relevant(*e.node, f.ctx);
+			const bool asked = e.node->kind != menu::Kind::Submenu && e.node->kind != menu::Kind::Custom
+			                   && e.node->kind != menu::Kind::Range && !(e.node->bind.target.valid() && !shown_here);
+			const std::vector<std::string>* want = table().find(e.path, "read");
+			if (want == nullptr) {
+				expect(e.path + (asked ? " has none" : " has a row")).to_equal(e.path + " has a row");
+				continue;
 			}
-			expect(menu::bindings::read(*p.node, f.ctx) == *want).to_be_true();
+			const std::string at = e.path + " " + text_of(e.node->name) + " reads ";
+			expect(at + std::to_string(menu::bindings::read(*e.node, f.ctx)))
+			    .to_equal(at + (want->empty() ? std::string{"<no value>"} : want->front()));
+			compared++;
 		}
+		expect(compared > size_t(50)).to_be_true();
 	});
 
-	it("names every enum option exactly as the legacy Selection does", _ {
-		Fixture& f = fixture();
-		for (const Pair& p : all_pairs()) {
-			if (p.node->kind != menu::Kind::Enum) {
+	it("names every enum option exactly as main's list does", _ {
+		const Fixture& f = fixture();
+		size_t compared = 0;
+		for (const spec::TreeEntry& e : t1::entries()) {
+			if (e.node->kind != menu::Kind::Enum) {
 				continue;
 			}
-			auto* selection = dynamic_cast<legacy::Selection*>(p.item);
-			expect(selection != nullptr).to_be_true();
-			if (selection == nullptr) {
+			const std::vector<std::string>* want = table().find(e.path, "options");
+			if (want == nullptr) {
+				// Every enum but the lane-only ones has a row, shown on this fixture or not.
+				const bool lane_only = e.node->bind.target.shown_on == deluge::scenes::bind::Target::ShownOn::ON_LANE;
+				expect(e.path + (lane_only ? " has options" : " has none")).to_equal(e.path + " has options");
 				continue;
 			}
-			const auto want = selection->getOptions(legacy::Selection::OptType::FULL);
-
 			std::string_view got[menu::kMaxDynamicNames];
 			deluge::ui::shell::TextScratch scratch[menu::kMaxDynamicNames];
-			const size_t n = menu::bindings::names(*p.node, f.ctx, got, scratch);
-			const std::string node = "node " + std::to_string(p.node->name) + ": ";
-			expect(node + std::to_string(n)).to_equal(node + std::to_string(want.size()));
-			for (size_t i = 0; i < n && i < want.size(); i++) {
-				expect(node + std::string{got[i]}).to_equal(node + std::string{want[i]});
+			const size_t n = menu::bindings::names(*e.node, f.ctx, got, scratch);
+			std::string port;
+			for (size_t i = 0; i < n; i++) {
+				port += std::string{got[i]} + "|";
 			}
+			expect(e.path + " " + port).to_equal(e.path + " " + joined(*want));
+			compared++;
 		}
+		expect(compared > size_t(10)).to_be_true();
 	});
 
-	it("agrees with the legacy isRelevant on the fixture sound", _ {
-		Fixture& f = fixture();
-		for (const Pair& p : all_pairs()) {
-			const bool want = p.item->isRelevant(deluge::scenes::spec::menu_engine(f.ctx).mod, f.ctx.source_index);
-			const bool got = menu::bindings::relevant(*p.node, f.ctx);
-			expect(got == want).to_be_true();
+	it("shows each node exactly where main's menu shows it, on the fixture sound", _ {
+		const Fixture& f = fixture();
+		size_t ever_true = 0;
+		for (const spec::TreeEntry& e : t1::entries()) {
+			const bool got = menu::bindings::relevant(*e.node, f.ctx);
+			const std::string at = e.path + " " + text_of(e.node->name) + " ";
+			expect(at + (got ? "shows" : "hides")).to_equal(at + (table().value(e.path, "rel") == "1" ? "shows" : "hides"));
+			ever_true += got ? 1 : 0;
 		}
+		expect(ever_true > size_t(60)).to_be_true();
 	});
 
-	it("carries the legacy occupied-slot counts", _ {
+	it("carries main's occupied-slot counts for every leaf", _ {
 		(void)fixture();
-		// `MenuItem::getOccupiedSlots()` is protected, so the two overridden counts are asserted
-		// against the values their sources state: `FilterRouting` draws the whole four-slot page
-		// (`filter_route.h:62`) and `osc::AudioRecorder` takes two (`osc/audio_recorder.h:77`).
-		// Everything else keeps `menu_item.h:304`'s default of one.
+		// The wide batch-1 items, by their sources: `FilterRouting` draws the whole four-slot page and the audio
+		// recorder takes two.
 		expect(int(nodes::kSoundFiltersChildren[0]->children[2]->slots)).to_equal(4);
 		expect(int(nodes::kSoundOscChildren[0]->children[0]->slots)).to_equal(2);
 		expect(int(nodes::kSoundOscChildren[0]->children[1]->slots)).to_equal(2);
-		for (const Pair& p : all_pairs()) {
-			const bool wide = p.node == nodes::kSoundFiltersChildren[0]->children[2]
-			                  || p.node == nodes::kSoundOscChildren[0]->children[0]
-			                  || p.node == nodes::kSoundOscChildren[0]->children[1];
-			if (!wide) {
-				expect(int(p.node->slots)).to_equal(1);
+		for (const spec::TreeEntry& e : t1::entries()) {
+			if (e.node->kind == menu::Kind::Submenu) {
+				continue;
 			}
+			expect(e.path + " slots " + std::to_string(e.node->slots))
+			    .to_equal(e.path + " slots " + table().value(e.path, "slots"));
 		}
 	});
 
 	it("has a registered name for every predicate the tables use", _ {
-		for (const Pair& p : all_pairs()) {
-			if (p.node->relevant == nullptr) {
+		for (const spec::TreeEntry& e : t1::entries()) {
+			if (e.node->relevant == nullptr) {
 				continue;
 			}
-			expect(menu::relevance::name_of(p.node->relevant) != std::string_view{"?"}).to_be_true();
+			expect(menu::relevance::name_of(e.node->relevant) != std::string_view{"?"}).to_be_true();
 		}
 		// The registry is hand-maintained (see `relevance.cpp`'s note): C++ cannot enumerate a
 		// header's declarations, so what is checkable is that it has the documented number of rows,
@@ -1122,50 +516,47 @@ describe tables_1_pixels("scenes::menu batch-1 tables: pixels", $ {
 		expect_golden(self, "../ui/menu/tables1_lpf_48.pbm", r.fake.pbm(0));
 	});
 });
+
 describe tables_1_writes("scenes::menu batch-1 tables: writes", $ {
-	it("leaves the model where the legacy item leaves it, for every set hook", _ {
-		// Reads, names, params, enums, learn targets and relevance are compared elsewhere; this
-		// drives the `set` hooks. Every batch-1 hook is driven here, the same way `tables_2_spec` and
-		// `tables_3_spec` drive batches 2 and 3: for three values spanning the node's range, each
-		// write path is run **from its own copy of a common starting state** (`probe_write`) and the
-		// two results are compared through both readers. Running legacy first and the port
-		// second and asserting the port changed nothing would be satisfied by a port hook that stores
-		// nothing.
+	it("leaves the model where main's menu leaves it, for every set hook", _ {
+		// Reads, names, params, enums, learn targets and relevance are compared elsewhere; this drives the `set`
+		// hooks. Every batch-1 hook is driven here for the three values spanning the node's range: each write starts
+		// from a sentinel that is not the value, so a hook that stores nothing shows, and the port's read after its own
+		// write is compared with the frozen read after main's.
 		//
-		// `ParamRef` nodes are not here, for the reason `tables_2_spec` spells out: with no root UI
-		// open, legacy's `UnpatchedParam::writeCurrentValue` resolves the *song's* param collection
-		// (`SoundEditor::getCurrentModelStack`'s `!rootUIIsClipMinderScreen()` arm) where the port resolves the clip's. `bindings_spec` covers that
-		// path directly.
-		Fixture& f = fixture();
+		// `ParamRef` nodes are not here, for the reason `tables_2_spec` spells out: with no root UI open, main's
+		// `UnpatchedParam::writeCurrentValue` resolves the *song's* param collection where the port resolves the
+		// clip's. `bindings_spec` covers that path directly.
+		const Fixture& f = fixture();
 		size_t exercised = 0;
-		// A probe count with slack ("> 45") cannot tell a node that left the table
-		// from one that never had a hook. What is asserted is the **set of distinct nodes driven**,
-		// against a set derived from the table itself -- every node in the walk carrying a `set`
-		// hook -- so dropping a node, or a relevance predicate going false in the fixture, fails
-		// here rather than being absorbed by the slack. Only `tables_3_spec` pinned a node set
-		// before; batches 1 and 2 now do the same.
+		// A probe count with slack cannot tell a node that left the table from one that never had a hook. What is
+		// asserted is the **set of distinct nodes driven**, against a set derived from the table itself -- every node
+		// in the walk carrying a `set` hook.
 		std::set<const Node*> covered;
 		std::set<const Node*> with_hook;
-		for (const Pair& p : all_pairs()) {
-			if (p.node->bind.set == nullptr) {
+		for (const spec::TreeEntry& e : t1::entries()) {
+			if (e.node->bind.set == nullptr) {
 				continue;
 			}
-			with_hook.insert(p.node);
-			const menu::IntRange r = menu::bindings::range(*p.node, f.ctx);
-			for (int32_t v : probe_values(r)) {
-				const std::optional<int32_t> sentinel = sentinel_for(r, v);
+			with_hook.insert(e.node);
+			const menu::IntRange r = menu::bindings::range(*e.node, f.ctx);
+			std::string probed;
+			for (const int32_t v : spec::probe_values(r)) {
+				const std::optional<int32_t> sentinel = spec::sentinel_for(r, v);
 				if (!sentinel.has_value()) {
 					continue; // a one-value range has no state to start from that is not `v`
 				}
-				const WriteProbe probe = probe_write(*p.node, p.item, f.ctx, v, *sentinel);
-				if (!probe.ran) {
-					break; // holds no value at all
-				}
-				expect(probe.got_port == probe.want_port).to_be_true();
-				expect(probe.got_legacy == probe.want_legacy).to_be_true();
+				const std::string column = "write/" + std::to_string(v);
+				const std::vector<std::string>* want = table().find(e.path, column);
+				menu::bindings::write(*e.node, f.ctx, *sentinel);
+				menu::bindings::write(*e.node, f.ctx, v);
+				const std::string at = e.path + " " + text_of(e.node->name) + " write " + std::to_string(v) + " reads ";
+				expect(at + std::to_string(menu::bindings::read(*e.node, f.ctx)))
+				    .to_equal(at + (want == nullptr || want->empty() ? std::string{"<no row>"} : want->front()));
 				exercised++;
-				covered.insert(p.node);
+				covered.insert(e.node);
 			}
+			expect(table().columns(e.path, "write/").size()).to_equal(spec::distinct_probe_values(r).size());
 		}
 		// Every batch-1 node with a `set` hook is driven -- no exceptions in this batch.
 		expect(covered.size()).to_equal(with_hook.size());
@@ -1176,7 +567,348 @@ describe tables_1_writes("scenes::menu batch-1 tables: writes", $ {
 		expect(exercised).to_equal(size_t(3) * with_hook.size());
 	});
 });
+
+describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range picker", $ {
+	it("labels every row exactly as MultiRange::getText labels it, on the same fixture", _ {
+		// The port reads the ranges out of its own `MenuContext`; the rows are what main's `getText` wrote for the
+		// same three ranges. A port label built from nothing (an empty string, say) fails against a label that is not
+		// empty.
+		RangeFixture f{3};
+		// Distinct, realistic top notes, so the labels are not all the same string -- an all-"top" list would pass a
+		// comparison that only ever looked at one arm.
+		const int16_t tops[] = {47, 71, 32767}; // B2, B4, the top
+		f.set_tops(tops);
+
+		expect(menu::range_count(f.ctx)).to_equal(int32_t(3));
+		size_t compared = 0;
+		for (int32_t i = 0; i < 3; i++) {
+			const std::string path = "picker/r3/" + std::to_string(i);
+			expect(path + " " + label_of(f.ctx, i)).to_equal(path + " " + table().value(path, "label"));
+			compared++;
+		}
+		expect(compared).to_equal(size_t(3));
+		// And they really are three different strings -- so the comparison above is about the labels rather than about
+		// one string repeated.
+		const std::string l0 = label_of(f.ctx, 0);
+		const std::string l1 = label_of(f.ctx, 1);
+		const std::string l2 = label_of(f.ctx, 2);
+		expect(l0 != l1 && l1 != l2 && l0 != l2).to_be_true();
+	});
+
+	it("labels a note below C-2 in the octave under it, as MultiRange::getText does", _ {
+		// A range's top note can sit below note code 0 once a clip is transposed down. The octave is the floor of
+		// the twelfths, not their truncation: note -1 is B-3, a line below note 11's B-2.
+		RangeFixture f{3};
+		const int16_t tops[] = {-14, -1, 32767}; // A#-4, B-3, the top
+		f.set_tops(tops);
+
+		for (int32_t i = 0; i < 3; i++) {
+			const std::string path = "picker/low/" + std::to_string(i);
+			expect(path + " " + label_of(f.ctx, i)).to_equal(path + " " + table().value(path, "label"));
+		}
+		expect(label_of(f.ctx, 1)).to_equal(std::string("B-4    - B-3"));
+	});
+
+	it("chains to the node it stood in for, and its chain_targets are the range-dependent set", _ {
+		// `MultiRange::selectButtonPress` returns the item the picker was heading to; the port's equivalent pair is
+		// `MenuWalkState::pending_after_range` and this hook.
+		RangeFixture f{2};
+		menu::MenuState st{};
+		expect(nodes::multi_range_chain(f.ctx, st) == nullptr).to_be_true(); // nothing pending -> ascend
+		st.walk.pending_after_range = &nodes::source0_transpose;
+		expect(nodes::multi_range_chain(f.ctx, st) == &nodes::source0_transpose).to_be_true();
+
+		// The span has to be the whole `range_dependent` set, because any one of them can be what
+		// `permission_for` refused. Asserted against `nodes::kRangeDependentNodes` itself so the two
+		// lists cannot drift (`multi_range.h` says why it is spelled twice).
+		expect(nodes::kMultiRangeChain.size()).to_equal(nodes::kRangeDependentNodes.size());
+		for (const Node* n : nodes::kRangeDependentNodes) {
+			expect(std::find(nodes::kMultiRangeChain.begin(), nodes::kMultiRangeChain.end(), n)
+			       != nodes::kMultiRangeChain.end())
+			    .to_be_true();
+		}
+		// And the picker itself is NOT range-dependent -- see `multi_range.h`: it would recurse.
+		expect(nodes::multi_range.range_dependent).to_be_false();
+	});
+
+	it("getOrCreateFirstRange is run for a zero-range source", _ {
+		// `checkPermissionToBeginSessionForRangeSpecificParam` creates the source's first range
+		// before answering anything; `permission_for` is a pure predicate and does not.
+		// `menu::ensure_first_range` does it, and
+		// `MenuScene::enter_child` is what calls it.
+		RangeFixture f{0};
+		expect(menu::range_count(f.ctx)).to_equal(int32_t(0));
+		expect(spec::menu_engine(f.ctx).range == nullptr).to_be_true();
+
+		expect(menu::ensure_first_range(f.ctx)).to_be_true();
+		// One range now exists, and the context points at it, so a range-dependent item opens rather than
+		// bouncing to a one-row picker.
+		expect(menu::range_count(f.ctx)).to_equal(int32_t(1));
+		expect(spec::menu_engine(f.ctx).range != nullptr).to_be_true();
+		expect(static_cast<int>(f.ctx.range_index)).to_equal(0);
+		expect(menu::permission_for(nodes::source0_transpose, f.ctx) == menu::Permission::Yes).to_be_true();
+		// `Source::getOrCreateFirstRange` gives the new range the top of the keyboard.
+		expect(menu::range_top_note(f.ctx, 0)).to_equal(int32_t(32767));
+
+		// Idempotent: a second call must not add a second range.
+		expect(menu::ensure_first_range(f.ctx)).to_be_true();
+		expect(menu::range_count(f.ctx)).to_equal(int32_t(1));
+	});
+
+	it("moves an edge one note per turn, clamped, exactly as MultiRange's edge arm does", _ {
+		// Main's edge arm on four ranges, against the port's arithmetic: every range, both edges, both directions,
+		// turned far enough to reach every clamp. The row holds all four ranges, since a left edge moves the range
+		// below's top.
+		using deluge::ui::oled::RangeEdge;
+		RangeFixture f{4};
+		const int16_t tops[] = {40, 41, 60, 32767};
+		int32_t compared = 0;
+		for (int32_t index = 0; index < 4; index++) {
+			for (const RangeEdge edge : {RangeEdge::Left, RangeEdge::Right}) {
+				const bool editable = nodes::may_edit_range_edge(f.ctx, index, edge);
+				for (const int32_t offset : {1, -1}) {
+					const std::string path = "picker/edge/" + std::to_string(index) + "/"
+					                         + (edge == RangeEdge::Left ? "L" : "R") + "/" + std::to_string(offset);
+					if (!editable) {
+						expect(path + (table().find(path, "range") != nullptr ? " has a row" : " has none"))
+						    .to_equal(path + " has none");
+						continue;
+					}
+					f.set_tops(tops);
+					std::vector<deluge::instrument::RangeState> ported = menu::ranges_of(f.ctx);
+					for (int32_t k = 0; k < 130; k++) {
+						nodes::step_range_edge(ported, index, edge, offset);
+					}
+					expect(path + " " + spans(ported)).to_equal(path + " " + frozen(path, "range"));
+					compared++;
+				}
+			}
+		}
+		expect(compared).to_equal(12); // three left edges and three right edges, each both ways
+	});
+
+	it("picks an edge on a horizontal turn exactly as Range::horizontalEncoderAction does", _ {
+		using deluge::ui::oled::RangeEdge;
+		RangeFixture f{3};
+		const auto name_of = [](RangeEdge e) { return e == RangeEdge::Left ? "left" : e == RangeEdge::Right ? "right" : "off"; };
+		size_t compared = 0;
+		for (int32_t index = 0; index < 3; index++) {
+			for (const RangeEdge start : {RangeEdge::Off, RangeEdge::Left, RangeEdge::Right}) {
+				for (const int32_t offset : {1, -1}) {
+					const std::string path = "picker/hedge/" + std::to_string(index) + "/" + name_of(start) + "/"
+					                         + std::to_string(offset);
+					const RangeEdge ported = nodes::next_range_edge(f.ctx, index, start, offset);
+					expect(path + " " + name_of(ported)).to_equal(path + " " + table().value(path, "edge"));
+					compared++;
+				}
+			}
+		}
+		expect(compared).to_equal(size_t(18));
+	});
+
+	it("inserts a range beside the current one exactly as MultiRange's Shift arm does, and refuses one of one note", _ {
+		// Shift and a select turn on four ranges whose second holds a single note (41): the planner's answer applied by
+		// hand, and the picker driven through the sink, both against main's.
+		const int16_t tops[] = {40, 41, 60, 32767};
+		int32_t inserts = 0;
+		int32_t refusals = 0;
+		for (int32_t index = 0; index < 4; index++) {
+			for (const int32_t offset : {1, -1}) {
+				RangeFixture f{4};
+				f.set_tops(tops);
+				const std::string path = "picker/insert/" + std::to_string(index) + "/" + std::to_string(offset);
+				const bool refused = table().value(path, "ranges") == "refused";
+				std::vector<deluge::instrument::RangeState> ported = menu::ranges_of(f.ctx);
+				const std::optional<nodes::RangeInsert> plan = nodes::plan_range_insert(ported, index, offset);
+
+				menu::MenuState picker{};
+				nodes::kMultiRangeItem.on_focus(f.ctx, picker);
+				picker.list[0].cursor = static_cast<int16_t>(index);
+				{
+					deluge::ui::test::Rig48 rig;
+					rig.input.turn = static_cast<int8_t>(offset);
+					rig.input.shift = true;
+					nodes::kMultiRangeItem.render(rig.frame, f.ctx, picker);
+				}
+				display->cancelPopup();
+				const std::vector<deluge::instrument::RangeState> driven = menu::ranges_of(f.ctx);
+
+				expect(path + (plan ? " inserts" : " refuses")).to_equal(path + (refused ? " refuses" : " inserts"));
+				if (!plan) {
+					refusals++;
+					expect(path + " " + spans(driven)).to_equal(path + " " + spans(ported));
+					continue;
+				}
+				inserts++;
+				ported.insert(ported.begin() + plan->at, deluge::instrument::RangeState{.top_note = plan->top_note});
+				if (plan->previous_top) {
+					ported[static_cast<size_t>(plan->at - 1)].top_note = *plan->previous_top;
+				}
+				expect(path + " " + spans(ported)).to_equal(path + " " + frozen(path, "ranges"));
+				expect(path + " " + spans(driven)).to_equal(path + " " + frozen(path, "ranges"));
+				expect(path + " cursor " + std::to_string(plan->at)).to_equal(path + " cursor " + table().value(path, "cursor"));
+				expect(path + " cursor " + std::to_string(picker.list[0].cursor))
+				    .to_equal(path + " cursor " + table().value(path, "cursor"));
+			}
+		}
+		expect(inserts).to_equal(6);
+		expect(refusals).to_equal(2);
+	});
+
+	it("deletes a range exactly as MultiRange::deletePress does, and refuses the last", _ {
+		const int16_t tops[] = {40, 50, 60, 32767};
+		for (int32_t index = 0; index < 4; index++) {
+			RangeFixture f{4};
+			f.set_tops(tops);
+			const std::string path = "picker/delete/4/" + std::to_string(index);
+			std::vector<deluge::instrument::RangeState> ported = menu::ranges_of(f.ctx);
+			const std::optional<nodes::RangeDelete> plan = nodes::plan_range_delete(ported, index);
+			expect(path + (plan ? " deletes" : " refuses")).to_equal(path + " deletes");
+			expect(table().value(path, "ranges") != "refused").to_be_true();
+			if (!plan) {
+				continue;
+			}
+			ported.erase(ported.begin() + index);
+			if (plan->lower_top) {
+				ported[static_cast<size_t>(index - 1)].top_note = *plan->lower_top;
+			}
+			expect(path + " " + spans(ported)).to_equal(path + " " + frozen(path, "ranges"));
+			expect(path + " cursor " + std::to_string(plan->cursor)).to_equal(path + " cursor " + table().value(path, "cursor"));
+
+			// And through the sink, as SAVE with Shift reaches it.
+			menu::MenuState state{};
+			state.list[0].cursor = static_cast<int16_t>(index);
+			nodes::range_delete_press(f.ctx, state);
+			display->cancelPopup();
+			expect(path + " " + spans(menu::ranges_of(f.ctx))).to_equal(path + " " + frozen(path, "ranges"));
+			expect(path + " cursor " + std::to_string(state.list[0].cursor))
+			    .to_equal(path + " cursor " + table().value(path, "cursor"));
+		}
+		RangeFixture last{1};
+		const std::string path = "picker/delete/1/0";
+		expect(nodes::plan_range_delete(menu::ranges_of(last.ctx), 0).has_value()).to_be_false();
+		menu::MenuState state{};
+		nodes::range_delete_press(last.ctx, state);
+		display->cancelPopup();
+		expect(path + " " + std::to_string(menu::range_count(last.ctx))).to_equal(path + " 1");
+		expect(table().value(path, "ranges")).to_equal(std::string{"refused"});
+	});
+
+	it("keeps its window where MultiRange's currentScroll keeps it: on opening, on a flick, and on an insert before", _ {
+		// Each step: open, a flick of -1, a flick of -2 more, a flick of +1 (the range mid-window), and a Shift turn of
+		// -1 (inserted before, which moves the window with the old range). The rows hold main's scroll after each.
+		const char* const steps[] = {"open", "down1", "down3", "up1", "insert_before"};
+		RangeFixture f{6};
+		const int16_t tops[] = {20, 30, 40, 50, 60, 32767};
+		f.set_tops(tops);
+		static_cast<SoundInstrument*>(f.song.instrument)->sources[0].defaultRangeI = 4;
+		std::vector<int32_t> got;
+		menu::MenuState picker{};
+		picker.edit_edge = deluge::ui::oled::RangeEdge::Left; // opening ends in `Range::beginSession`
+		nodes::kMultiRangeItem.on_focus(f.ctx, picker);
+		expect(static_cast<int>(picker.edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
+		const auto frame = [&](int8_t turn, bool shift) {
+			deluge::ui::test::Rig48 rig;
+			rig.input.turn = turn;
+			rig.input.shift = shift;
+			nodes::kMultiRangeItem.render(rig.frame, f.ctx, picker);
+			got.push_back(picker.list[0].scroll);
+		};
+		frame(0, false);
+		frame(-1, false);
+		frame(-2, false);
+		frame(1, false);
+		frame(-1, true);
+		display->cancelPopup();
+		expect(got.size()).to_equal(std::size(steps));
+		for (size_t i = 0; i < got.size() && i < std::size(steps); i++) {
+			const std::string path = std::string{"picker/scroll/"} + steps[i];
+			expect(path + " " + std::to_string(got[i])).to_equal(path + " " + table().value(path, "scroll"));
+		}
+	});
+
+	it("deletes through the sink, the cursor going to the range below, and not while a popup is up", _ {
+		// `deletePress` (`multi_range.cpp:236-241`): nothing while an edge is edited or a popup is up.
+		RangeFixture f{3};
+		auto* sound = static_cast<SoundInstrument*>(f.song.instrument);
+		menu::MenuState state{};
+		state.list[0].cursor = 2;
+		MenuContext gated = f.ctx;
+		const spec::ForwardingFacts popup{*f.ctx.facts, {.popup_showing = true}};
+		gated.facts = &popup;
+		nodes::range_delete_press(gated, state);
+		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(3);
+		state.edit_edge = deluge::ui::oled::RangeEdge::Left;
+		nodes::range_delete_press(f.ctx, state);
+		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(3);
+		state.edit_edge = deluge::ui::oled::RangeEdge::Off;
+		nodes::range_delete_press(f.ctx, state);
+		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(2);
+		expect(static_cast<int32_t>(state.list[0].cursor)).to_equal(1);
+		expect(static_cast<int32_t>(state.walk.range_choice)).to_equal(1);
+		display->cancelPopup();
+
+		// `selectEncoderAction` is refused whole while a popup is up (`:71-73`): the turn moves no cursor.
+		menu::MenuState picker{};
+		picker.list[0].cursor = 0;
+		{
+			deluge::ui::test::Rig48 rig;
+			rig.input.turn = 1;
+			nodes::kMultiRangeItem.render(rig.frame, gated, picker);
+			expect(static_cast<int32_t>(picker.list[0].cursor)).to_equal(0);
+		}
+		{
+			deluge::ui::test::Rig48 rig;
+			rig.input.turn = 1;
+			nodes::kMultiRangeItem.render(rig.frame, f.ctx, picker);
+			expect(static_cast<int32_t>(picker.list[0].cursor)).to_equal(1);
+		}
+	});
+
+	it("moves to a played note's range as noteOnToChangeRange does, a note at a range's top inside it, and not mid-edge", _ {
+		// `MultiRange::noteOnToChangeRange` and `Source::getRangeIndex`: the first range whose top is at or above the note.
+		RangeFixture f{3};
+		auto* sound = static_cast<SoundInstrument*>(f.song.instrument);
+		const int16_t tops[] = {40, 60, 32767};
+		for (int32_t i = 0; i < 3; i++) {
+			sound->sources[0].ranges.getElement(i)->topNote = tops[i];
+		}
+		deluge::edits::recordRanges(*sound, 0);
+		MenuContext ctx = menu::context_for(*f.song.song, deluge::gui::menuViewOf(f.song.clip), 0, false, false, false,
+		                                    /*kit_global_fx=*/false);
+		menu::MenuState picker{};
+		picker.list[0].cursor = 2;
+		expect(nodes::range_note_press(ctx, picker, 40)).to_be_true();
+		expect(static_cast<int32_t>(picker.list[0].cursor)).to_equal(0);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(0);
+		expect(static_cast<int32_t>(sound->sources[0].getRangeIndex(40))).to_equal(0);
+		picker.edit_edge = deluge::ui::oled::RangeEdge::Right;
+		expect(nodes::range_note_press(ctx, picker, 70)).to_be_false();
+		expect(static_cast<int32_t>(picker.list[0].cursor)).to_equal(0);
+	});
+
+	it("selects a range the way setCurrentMultiRange does", _ {
+		RangeFixture f{3};
+		menu::select_range(f.ctx, 2);
+		expect(static_cast<int>(f.ctx.range_index)).to_equal(2);
+		expect(spec::menu_engine(f.ctx).range == spec::menu_engine(f.ctx).source->ranges.getElement(2)).to_be_true();
+		// Out of range is ignored rather than clamped -- every caller has clamped already.
+		menu::select_range(f.ctx, 7);
+		expect(static_cast<int>(f.ctx.range_index)).to_equal(2);
+	});
+});
+// clang-format on
+
+// clang-format off
+describe tables_1_reference_rows("tables_1: the reference rows", $ {
+	it("parses tables_1.tsv clean and asks every row of it", _ {
+		spec::OracleTable& t = spec::OracleTable::named("tables_1");
+		expect(t.problems().size()).to_equal(size_t{0});
+		expect(t.size() > size_t{800}).to_be_true();
+		expect(t.unasked()).to_equal(std::string{});
+	});
+});
 // clang-format on
 
 DELUGE_SPEC(tables_1_spec, tables_1_shape, tables_1_values, tables_1_validation, tables_1_pixels, tables_1_writes,
-            tables_1_range_picker)
+            tables_1_range_picker, tables_1_reference_rows)

@@ -15,8 +15,10 @@
 ///       the tables do not.
 
 #include "support/legacy_menu_order.h"
+#include "support/menu_over_root.h"
 #include "support/oracle_table.h"
 #include "support/oracle_tree.h"
+#include "support/tables_1_fixtures.h"
 #include "support/tables_2_fixtures.h"
 #include "support/tables_3_fixtures.h"
 
@@ -40,7 +42,9 @@ using deluge::hid::display::OLED;
 #include "gui/menu_item/arpeggiator/preset_mode.h"
 #include "gui/menu_item/automation/automation.h"
 #include "gui/menu_item/colour.h"
+#include "gui/menu_item/envelope/envelope_menu.h"
 #include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/menu_item_with_cc_learning.h"
 #include "gui/menu_item/midi/command.h"
 #include "gui/menu_item/midi/devices.h"
@@ -48,6 +52,8 @@ using deluge::hid::display::OLED;
 #include "gui/menu_item/midi/follow/follow_kit_root_note.h"
 #include "gui/menu_item/selection.h"
 #include "gui/menu_item/submenu.h"
+#include "gui/menu_item/submenu/actual_source.h"
+#include "gui/menu_item/submenu/modulator.h"
 #include "gui/menu_item/unison/count.h"
 #include "gui/menu_item/unison/stereoSpread.h"
 #include "gui/menu_item/voice/polyphony.h"
@@ -56,6 +62,7 @@ using deluge::hid::display::OLED;
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
+#include "gui/views/instrument_clip_view.h"
 #include "hid/buttons.h"
 #include "hid/display/oled.h"
 
@@ -77,6 +84,10 @@ using deluge::hid::display::OLED;
 #include "gui/menu_item/sidechain/volume.h"
 #include "gui/menu_item/source_selection/range.h"
 #include "gui/menu_item/source_selection/regular.h"
+
+// After the patch-cable headers: they spell `MultiRange` unqualified, which `multi_range.h` redirects.
+#include "gui/menu_item/multi_range.h"
+#include "gui/menu_item/range.h"
 
 #include "effects/reverb.h"
 #include "io/midi/cable_types/usb_hosted.h"
@@ -125,6 +136,23 @@ extern deluge::gui::menu_item::cv::Selection cvSelectionMenu;
 extern deluge::gui::menu_item::gate::Selection gateSelectionMenu;
 extern deluge::gui::menu_item::cv::Volts cvVoltsMenu;
 extern deluge::gui::menu_item::cv::Transpose cvTransposeMenu;
+extern deluge::gui::menu_item::Submenu soundFiltersMenu;
+extern deluge::gui::menu_item::HorizontalMenu audioCompMenu;
+extern deluge::gui::menu_item::HorizontalMenu unisonMenu;
+extern deluge::gui::menu_item::HorizontalMenu recorderMenu;
+extern deluge::gui::menu_item::submenu::ActualSource source0Menu;
+extern deluge::gui::menu_item::submenu::ActualSource source1Menu;
+extern deluge::gui::menu_item::submenu::Modulator modulator0Menu;
+extern deluge::gui::menu_item::submenu::Modulator modulator1Menu;
+extern deluge::gui::menu_item::HorizontalMenu oscMixerMenu;
+extern deluge::gui::menu_item::envelope::EnvelopeMenu env1Menu;
+extern deluge::gui::menu_item::envelope::EnvelopeMenu env2Menu;
+extern deluge::gui::menu_item::envelope::EnvelopeMenu env3Menu;
+extern deluge::gui::menu_item::envelope::EnvelopeMenu env4Menu;
+extern deluge::gui::menu_item::HorizontalMenu lfo1Menu;
+extern deluge::gui::menu_item::HorizontalMenu lfo2Menu;
+extern deluge::gui::menu_item::HorizontalMenu lfo3Menu;
+extern deluge::gui::menu_item::HorizontalMenu lfo4Menu;
 /// @}
 
 namespace {
@@ -347,6 +375,16 @@ bool walk(const Node& root, ::MenuItem& legacy_root, std::string_view label, std
 	if (label == "settings") {
 		return &settingsRootMenu;
 	}
+	// The batch-1 roots, in `nodes::kBatch1Roots` order.
+	::MenuItem* const batch_1[] = {&soundFiltersMenu, &audioCompMenu,  &unisonMenu,     &recorderMenu, &source0Menu,
+	                               &source1Menu,      &modulator0Menu, &modulator1Menu, &oscMixerMenu, &env1Menu,
+	                               &env2Menu,         &env3Menu,       &env4Menu,       &lfo1Menu,     &lfo2Menu,
+	                               &lfo3Menu,         &lfo4Menu};
+	for (size_t i = 0; i < std::size(batch_1); i++) {
+		if (label == spec::tables1::root_label(i)) {
+			return batch_1[i];
+		}
+	}
 	return nullptr;
 }
 
@@ -408,9 +446,6 @@ struct TreeKit {
 	void (*install)(const MenuContext&, Song*);
 	bool (*dynamic_name)(const Node&);
 	bool (*write_needs_ui)(const Node&);
-	/// Whether the synth fixture's reads, options, learn targets and param kinds are taken on every leaf, as the sound
-	/// root's spec always compared them, rather than only where the node is shown.
-	bool ask_hidden;
 };
 
 /// @brief One fixture a root's answers are recorded on: its name in the column (empty: the root's own), its context and
@@ -420,6 +455,11 @@ struct TreeFixture {
 	MenuContext ctx;
 	Song* song;
 	UI* root_ui = nullptr;
+	/// Whether this fixture's reads, options, learn targets and param kinds are taken on every leaf, as the sound
+	/// root's spec always compared them, rather than only where the node is shown.
+	bool ask_hidden = false;
+	/// Whether relevance is asked of the children of a page this fixture never opens too.
+	bool ask_hidden_relevance = false;
 };
 
 /// @brief A root walked against its legacy tree.
@@ -477,15 +517,16 @@ void emit_static(OracleWriter& out, const TreeEntry& e, ::MenuItem& item, bool d
 
 /// @brief What an item answers on one fixture: shown or not, its value, its options, its learn target, and its param
 ///        kind. Only where the node is shown on a page the fixture opens, except that the sound root's synth fixture
-///        (`TreeKit::ask_hidden`) is asked of every leaf.
+///        (`TreeFixture::ask_hidden`) is asked of every leaf, and relevance is asked under a page the fixture never
+///        opens where `TreeFixture::ask_hidden_relevance` says so.
 void emit_fixture(OracleWriter& out, const TreeKit& kit, const TreeEntry& e, ::MenuItem& item, const TreeFixture& f) {
 	freezer_install(kit, f.ctx, f.song);
 	const bool page_opens = e.parent == nullptr || menu::bindings::relevant(*e.parent, f.ctx);
-	const bool wide = kit.ask_hidden && f.name == "synth";
+	const bool wide = f.ask_hidden;
 	if (!page_opens && !wide) {
 		return; // a page this fixture never opens
 	}
-	if (page_opens) {
+	if (page_opens || f.ask_hidden_relevance) {
 		soundEditor.navigationDepth = static_cast<uint8_t>(e.navigation_depth());
 		if (f.root_ui != nullptr) {
 			setRootUILowLevel(f.root_ui);
@@ -676,7 +717,7 @@ struct LegacyLearnScope {
 	LegacyLearnScope& operator=(const LegacyLearnScope&) = delete;
 };
 
-const TreeKit kKit{&t3::install, &t3::has_dynamic_name, &t3::write_needs_booted_ui, /*ask_hidden=*/false};
+const TreeKit kKit{&t3::install, &t3::has_dynamic_name, &t3::write_needs_booted_ui};
 
 const t3::TablesRoot& settings_root() {
 	return t3::roots().back();
@@ -1049,14 +1090,15 @@ namespace tables_2 {
 
 namespace t2 = spec::tables2;
 
-const TreeKit kKit{&t2::install, &t2::has_dynamic_name, &t2::write_needs_booted_ui, /*ask_hidden=*/true};
+const TreeKit kKit{&t2::install, &t2::has_dynamic_name, &t2::write_needs_booted_ui};
 
 /// @brief The two fixtures the sound root's answers are recorded on, the kit row with its first drum selected.
 std::vector<TreeFixture> fixtures() {
 	t2::Rigged& synth = t2::fixture();
 	t2::KitRig& kit = t2::kit_fixture();
 	const MenuContext kit_ctx = t2::select_drum(kit, kit.drum_a);
-	return {TreeFixture{"synth", synth.ctx, synth.song.song}, TreeFixture{"kit row", kit_ctx, kit.song.song}};
+	return {TreeFixture{"synth", synth.ctx, synth.song.song, nullptr, /*ask_hidden=*/true},
+	        TreeFixture{"kit row", kit_ctx, kit.song.song}};
 }
 
 /// @brief The page a chain case is recorded under: its tree path, or `chain/<name>` for a chain-only page.
@@ -1300,6 +1342,256 @@ void freeze(OracleWriter& out) {
 
 } // namespace tables_2
 
+// ---------------------------------------------------------------------------------------------------------------
+// Family `tables_1`: the seventeen batch-1 roots, and the note-range picker.
+
+namespace tables_1 {
+
+namespace t1 = spec::tables1;
+
+bool no_booted_ui(const Node&) {
+	return false;
+}
+
+const TreeKit kKit{&t1::install, &t1::has_dynamic_name, &no_booted_ui};
+
+/// @brief Reach `Range::getText`, which is `protected`.
+///
+/// The same `[class.protected]` move `SubmenuPeek` makes, one class further up: `MultiRange` is `final` so nothing can
+/// derive from it, but `getText` is declared on `Range` and `MultiRange` merely overrides it. A pointer-to-member
+/// formed inside a class derived from `Range` therefore has type `void (Range::*)(...)`, applies to the
+/// `multiRangeMenu` global, and dispatches virtually to `MultiRange::getText`.
+struct RangePeek : legacy::Range {
+	static std::string text_of_range(legacy::Range& r, int32_t value) {
+		static_cast<legacy::MultiRange&>(r).setValue(value);
+		char buf[32] = {};
+		(r.*(&RangePeek::getText))(buf, nullptr, nullptr, /*mayShowJustOne=*/false); // `MultiRange::getText`
+		return std::string{buf};
+	}
+};
+
+/// @brief `MultiRange::currentScroll`, which is protected on a `final` class: an explicit instantiation may name it
+///        (access is not checked there), and the friend it defines hands the member pointer out.
+auto multi_range_scroll();
+template <int32_t legacy::MultiRange::* Member>
+struct MultiRangeScrollPeek {
+	friend auto multi_range_scroll() { return Member; }
+};
+template struct MultiRangeScrollPeek<&legacy::MultiRange::currentScroll>;
+
+/// @brief Make @p root legacy's root UI for an example, and put the old one back: `MultiRange` re-renders the root
+///        after a range change (`SoundEditor::possibleChangeToCurrentRangeDisplay`), which reads it.
+struct RootUiFor {
+	explicit RootUiFor(RootUI* root) : previous_(getRootUI()) { setRootUILowLevel(root); }
+	~RootUiFor() {
+		if (previous_ != nullptr) {
+			setRootUILowLevel(previous_);
+		}
+		else {
+			nullifyUIs();
+		}
+	}
+	RootUiFor(const RootUiFor&) = delete;
+	RootUiFor& operator=(const RootUiFor&) = delete;
+
+private:
+	RootUI* previous_;
+};
+
+/// @brief The top notes of source 0's ranges, as the fixture's sound holds them.
+std::vector<int32_t> tops_of(t1::RangeFixture& f) {
+	const auto& ranges = static_cast<SoundInstrument*>(f.song.instrument)->sources[0].ranges;
+	std::vector<int32_t> tops;
+	for (int32_t i = 0; i < std::ssize(ranges); i++) {
+		tops.push_back(ranges.getElement(i)->topNote);
+	}
+	return tops;
+}
+
+/// @brief The picker's label of every range, on a fixture with the given top notes.
+void emit_labels(OracleWriter& out, std::string_view prefix, std::span<const int16_t> tops) {
+	t1::RangeFixture f{static_cast<int32_t>(tops.size())};
+	f.set_tops(tops);
+	for (size_t i = 0; i < tops.size(); i++) {
+		out.row(std::string{prefix} + "/" + std::to_string(i), "label",
+		        RangePeek::text_of_range(legacy::multiRangeMenu, static_cast<int32_t>(i)));
+	}
+}
+
+/// @brief Every editable edge of the four ranges turned far enough to reach every clamp: the ranges left after 130
+///        turns of one note each.
+void emit_edges(OracleWriter& out) {
+	using deluge::ui::oled::RangeEdge;
+	t1::RangeFixture f{4};
+	const int16_t tops[] = {40, 41, 60, 32767};
+	for (int32_t index = 0; index < 4; index++) {
+		for (const RangeEdge edge : {RangeEdge::Left, RangeEdge::Right}) {
+			if (!nodes::may_edit_range_edge(f.ctx, index, edge)) {
+				continue;
+			}
+			for (const int32_t offset : {1, -1}) {
+				f.set_tops(tops);
+				legacy::multiRangeMenu.setValue(index);
+				soundEditor.editingRangeEdge =
+				    edge == RangeEdge::Left ? legacy::RangeEdit::LEFT : legacy::RangeEdit::RIGHT;
+				for (int32_t k = 0; k < 130; k++) {
+					legacy::multiRangeMenu.selectEncoderAction(offset);
+				}
+				soundEditor.editingRangeEdge = legacy::RangeEdit::OFF;
+				const std::vector<int32_t> after = tops_of(f);
+				out.row("picker/edge/" + std::to_string(index) + "/" + (edge == RangeEdge::Left ? "L" : "R") + "/"
+				            + std::to_string(offset),
+				        "range", t1::spans_of(after));
+			}
+		}
+	}
+}
+
+/// @brief The edge a horizontal turn leaves edited, from each edge and each direction.
+void emit_horizontal_edges(OracleWriter& out) {
+	using deluge::ui::oled::RangeEdge;
+	t1::RangeFixture f{3};
+	const std::pair<RangeEdge, legacy::RangeEdit> starts[] = {{RangeEdge::Off, legacy::RangeEdit::OFF},
+	                                                          {RangeEdge::Left, legacy::RangeEdit::LEFT},
+	                                                          {RangeEdge::Right, legacy::RangeEdit::RIGHT}};
+	const auto name_of = [](legacy::RangeEdit e) {
+		return e == legacy::RangeEdit::LEFT ? "left" : e == legacy::RangeEdit::RIGHT ? "right" : "off";
+	};
+	for (int32_t index = 0; index < 3; index++) {
+		for (const auto& [start, legacy_start] : starts) {
+			for (const int32_t offset : {1, -1}) {
+				legacy::multiRangeMenu.setValue(index);
+				soundEditor.editingRangeEdge = legacy_start;
+				legacy::multiRangeMenu.horizontalEncoderAction(offset);
+				out.row("picker/hedge/" + std::to_string(index) + "/" + name_of(legacy_start) + "/"
+				            + std::to_string(offset),
+				        "edge", std::string{name_of(soundEditor.editingRangeEdge)});
+			}
+		}
+	}
+	soundEditor.editingRangeEdge = legacy::RangeEdit::OFF;
+}
+
+/// @brief Shift and a select turn on four ranges whose second holds a single note: the ranges left, or a refusal.
+void emit_inserts(OracleWriter& out) {
+	const RootUiFor root{&instrumentClipView};
+	const int16_t tops[] = {40, 41, 60, 32767};
+	int32_t inserts = 0;
+	int32_t refusals = 0;
+	for (int32_t index = 0; index < 4; index++) {
+		for (const int32_t offset : {1, -1}) {
+			t1::RangeFixture f{4};
+			f.set_tops(tops);
+			legacy::multiRangeMenu.setValue(index);
+			soundEditor.setCurrentMultiRange(index);
+			{
+				spec::ShiftHeld shift;
+				legacy::multiRangeMenu.selectEncoderAction(offset);
+			}
+			display->cancelPopup();
+			const std::string path = "picker/insert/" + std::to_string(index) + "/" + std::to_string(offset);
+			const std::vector<int32_t> after = tops_of(f);
+			if (after.size() == 4) {
+				refusals++;
+				out.row(path, "ranges", std::string{"refused"});
+				continue;
+			}
+			inserts++;
+			out.row(path, "ranges", t1::spans_of(after));
+			out.row(path, "cursor", static_cast<int64_t>(legacy::multiRangeMenu.getValue()));
+		}
+	}
+	check(inserts == 6 && refusals == 2, "six ranges inserted and two refused");
+}
+
+/// @brief A range deleted from four, at each index, and from one.
+void emit_deletes(OracleWriter& out) {
+	const RootUiFor root{&instrumentClipView};
+	const int16_t tops[] = {40, 50, 60, 32767};
+	for (int32_t index = 0; index < 4; index++) {
+		t1::RangeFixture f{4};
+		f.set_tops(tops);
+		legacy::multiRangeMenu.setValue(index);
+		soundEditor.setCurrentMultiRange(index);
+		legacy::multiRangeMenu.deletePress();
+		display->cancelPopup();
+		const std::vector<int32_t> after = tops_of(f);
+		check(after.size() == 3, "a delete from four leaves three");
+		const std::string path = "picker/delete/4/" + std::to_string(index);
+		out.row(path, "ranges", t1::spans_of(after));
+		out.row(path, "cursor", static_cast<int64_t>(legacy::multiRangeMenu.getValue()));
+	}
+	t1::RangeFixture last{1};
+	legacy::multiRangeMenu.setValue(0);
+	soundEditor.setCurrentMultiRange(0);
+	legacy::multiRangeMenu.deletePress();
+	display->cancelPopup();
+	check(tops_of(last).size() == 1, "the last range is not deleted");
+	out.row("picker/delete/1/0", "ranges", std::string{"refused"});
+}
+
+/// @brief The window's scroll on opening, after flicks, and after an insert before the current range.
+void emit_scrolls(OracleWriter& out) {
+	const RootUiFor root{&instrumentClipView};
+	const int16_t tops[] = {20, 30, 40, 50, 60, 32767};
+	t1::RangeFixture f{6};
+	f.set_tops(tops);
+	static_cast<SoundInstrument*>(f.song.instrument)->sources[0].defaultRangeI = 4;
+	soundEditor.currentMultiRange = nullptr;
+	const auto scroll = [&](std::string_view name) {
+		out.row("picker/scroll/" + std::string{name}, "scroll",
+		        static_cast<int64_t>(legacy::multiRangeMenu.*multi_range_scroll()));
+	};
+	legacy::multiRangeMenu.beginSession(nullptr);
+	scroll("open");
+	legacy::multiRangeMenu.selectEncoderAction(-1);
+	scroll("down1");
+	legacy::multiRangeMenu.selectEncoderAction(-1);
+	legacy::multiRangeMenu.selectEncoderAction(-1);
+	scroll("down3");
+	legacy::multiRangeMenu.selectEncoderAction(1);
+	scroll("up1");
+	{
+		spec::ShiftHeld shift;
+		legacy::multiRangeMenu.selectEncoderAction(-1);
+	}
+	display->cancelPopup();
+	scroll("insert_before");
+}
+
+void emit_picker(OracleWriter& out) {
+	const int16_t spread[] = {47, 71, 32767};
+	emit_labels(out, "picker/r3", spread);
+	const int16_t below_c_minus_2[] = {-14, -1, 32767};
+	emit_labels(out, "picker/low", below_c_minus_2);
+	emit_edges(out);
+	emit_horizontal_edges(out);
+	emit_inserts(out);
+	emit_deletes(out);
+	emit_scrolls(out);
+}
+
+void freeze(OracleWriter& out) {
+	t1::Fixture& f = t1::fixture();
+	const std::span<const Node* const> roots = nodes::kBatch1Roots;
+	std::vector<TreeWalk> walks(roots.size());
+	for (size_t i = 0; i < roots.size(); i++) {
+		if (!begin_tree(out, kKit, t1::root_label(i), *roots[i], walks[i])) {
+			return;
+		}
+	}
+	const TreeFixture fixture{"", f.ctx, f.song.song, nullptr, /*ask_hidden=*/true, /*ask_hidden_relevance=*/true};
+	for (const TreeWalk& walked : walks) {
+		emit_reads(out, kKit, walked, std::span{&fixture, 1});
+	}
+	for (const TreeWalk& walked : walks) {
+		emit_tree_writes(out, kKit, walked, std::span{&fixture, 1});
+	}
+	emit_picker(out);
+}
+
+} // namespace tables_1
+
 } // namespace
 
 // clang-format off
@@ -1314,7 +1606,20 @@ describe freeze_frame("menu oracle freezer: its run", $ {
 // clang-format on
 
 // clang-format off
-describe freeze_tables("menu oracle freezer: the sound root and the ten roots", $ {
+describe freeze_tables("menu oracle freezer: the batch-1 roots, the sound root and the ten roots", $ {
+	it("writes tables_1.tsv", _ {
+		if (!writes("tables_1")) {
+			return;
+		}
+		freeze_problems().clear();
+		OracleWriter out{"tables_1"};
+		tables_1::freeze(out);
+		expect(freeze_problems()).to_equal(std::string{});
+		expect(out.duplicates()).to_equal(std::string{});
+		expect(out.size() > size_t{800}).to_be_true();
+		expect(out.flush()).to_be_true();
+	});
+
 	it("writes tables_3.tsv", _ {
 		if (!writes("tables_3")) {
 			return;

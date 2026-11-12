@@ -41,9 +41,10 @@ inline bool range_dependence_differs_from_main(const menu::Node& node) {
 	       || &node == &nodes::file1_selector;
 }
 
-/// @brief How many leaves that is: across the ten roots, and in the sound root alone.
+/// @brief How many leaves that is: across the ten roots, in the sound root, and in the seventeen batch-1 roots.
 inline constexpr size_t kRangeDependenceDifferencesTen = 13;
 inline constexpr size_t kRangeDependenceDifferencesSound = 4;
+inline constexpr size_t kRangeDependenceDifferencesBatch1 = 4;
 
 /// @brief `reverb::Width::getTitle()` returns its name ("Width"); the port's node carries its own title id ("Reverb
 ///        width"). The room size title matches.
