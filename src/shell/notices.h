@@ -157,6 +157,21 @@ public:
 	/// @return True if at least one line is `active` and not yet past its `expire_ms`.
 	bool any_active(uint32_t now_ms) const;
 
+	/// @brief How long until the earliest line still showing expires.
+	/// @param now_ms The tick's wall clock.
+	/// @return Milliseconds until that line's `expire_ms`; `std::nullopt` when no line is still showing.
+	std::optional<uint32_t> remaining_ms(uint32_t now_ms) const;
+
+	/// @brief Move the clock `next_timer()` measures from; `Notices::tick` calls it every tick.
+	/// @param now_ms The tick's wall clock.
+	void set_now(uint32_t now_ms) { now_ms_ = now_ms; }
+
+	/// @brief The next line's expiry, legacy's `TimerName::OLED_CONSOLE`. A scene timer rather than a `Notices` one
+	///        because it repaints: a line can expire while a later one keeps the strip stacked, and only the timer's
+	///        repaint erases it.
+	/// @return Milliseconds from the last `set_now()` or `append()`, or `std::nullopt` when no line is showing.
+	std::optional<uint32_t> next_timer() const override { return remaining_ms(now_ms_); }
+
 	void render_oled(SurfaceRole role, ui::oled::OledFrame& frame) override;
 	/// @brief Always transparent: the console draws only its own strip and leaves the rest of the
 	///        surface for the scene beneath, which must still be drawn.
@@ -189,6 +204,8 @@ private:
 	};
 	/// Index 0 is the most recently appended line; `append` shifts the rest down.
 	Line lines_[kMaxLines]{};
+	/// The clock `next_timer()` measures from.
+	uint32_t now_ms_ = 0;
 };
 
 /// @brief The "busy, please wait" corner animation: legacy's `updateWorkingAnimation`/

@@ -595,6 +595,43 @@ describe shell_notices("shell::Notices", $ {
 		expect(r.notices.next_timer().has_value()).to_be_false();
 	});
 
+	it("a console's remaining time is its earliest live line's, never an expired line's, and none once all are gone", _ {
+		// An expired line answering 0 would pin the shell's wake to every tick while a later line is still up.
+		ConsoleScene console;
+		expect(console.remaining_ms(0).has_value()).to_be_false();
+		console.append("A", 0, 0);
+		console.append("B", 500, 0);
+		expect(*console.remaining_ms(100)).to_equal(uint32_t(1179 - 100));
+		expect(*console.remaining_ms(1179 + 10)).to_equal(uint32_t(500 + 1179 - (1179 + 10)));
+		expect(console.remaining_ms(500 + 1179).has_value()).to_be_false();
+	});
+
+	it("the console's timer is its next line's expiry, measured from the tick Notices last saw", _ {
+		Rig r;
+		(void)r.queue.push(make_notice(Notice::Kind::Console, "UNDO"));
+		r.notices.drain(r.queue, 100);
+		expect(*r.console.next_timer()).to_equal(uint32_t(1179));
+		r.notices.tick(200, 0);
+		expect(stacked(r, SceneKind::Console)).to_be_true();
+		expect(*r.console.next_timer()).to_equal(uint32_t(100 + 1179 - 200));
+
+		r.notices.tick(100 + 1179, 0);
+		expect(stacked(r, SceneKind::Console)).to_be_false();
+		expect(r.console.next_timer().has_value()).to_be_false();
+	});
+
+	it("the console's timer runs while the working animation runs, which holds no console line", _ {
+		Rig r;
+		(void)r.queue.push(make_notice(Notice::Kind::Working, "Loading"));
+		(void)r.queue.push(make_notice(Notice::Kind::Console, "UNDO"));
+		r.notices.drain(r.queue, 0);
+		r.notices.tick(0, 0);
+		expect(r.working.armed()).to_be_true();
+		expect(*r.console.next_timer()).to_equal(uint32_t(1179));
+		r.notices.tick(1179, 0);
+		expect(stacked(r, SceneKind::Console)).to_be_false();
+	});
+
 	it("asks for no wake while the working animation holds a popup past its expiry", _ {
 		// The held popup's remaining time is 0, which would pin the shell's wake to every tick.
 		Rig r;
