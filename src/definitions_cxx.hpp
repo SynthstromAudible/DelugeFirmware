@@ -869,7 +869,8 @@ enum class AudioInputChannel {
 	RIGHT,
 	STEREO,
 	BALANCED,
-	USB, // Stereo audio from a USB host (drivers/usb/usb_audio.h)
+	USB,   // Stereo audio from a USB host (drivers/usb/usb_audio.h) - with multitrack, its channels 1/2
+	USB_2, // With multitrack, channels 3/4 from a USB host. Otherwise the same as USB
 	MIX,
 	OUTPUT,
 	SPECIFIC_OUTPUT,

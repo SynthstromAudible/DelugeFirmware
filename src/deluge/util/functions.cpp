@@ -1212,6 +1212,9 @@ char const* inputChannelToString(AudioInputChannel inputChannel) {
 	case AudioInputChannel::USB:
 		return "usb";
 
+	case AudioInputChannel::USB_2:
+		return "usb2";
+
 	case AudioInputChannel::MIX:
 		return "mix";
 
@@ -1241,6 +1244,9 @@ AudioInputChannel stringToInputChannel(char const* string) {
 	}
 	else if (!strcmp(string, "usb")) {
 		return AudioInputChannel::USB;
+	}
+	else if (!strcmp(string, "usb2")) {
+		return AudioInputChannel::USB_2;
 	}
 	else if (!strcmp(string, "mix")) {
 		return AudioInputChannel::MIX;
