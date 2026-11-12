@@ -1,6 +1,8 @@
 /// @file
-/// @brief The sound arpeggiator's rate is relevant where main's `arpeggiator::Rate::isRelevant` says: not on a MIDI or
-///        CV clip, not on a MIDI or gate drum row, and not on a kit's own effects.
+/// @brief The arpeggiator and randomizer items the kit's own shortcut table names, relevant where main's say: the rate
+///        (`arpeggiator::Rate`) not on a MIDI or CV clip, a MIDI or gate drum row or a kit's own effects; the octaves
+///        (`arpeggiator::Octaves`) by the latch and the selected row alone; the gate and the velocity spread not with a
+///        MIDI or gate drum selected.
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/menu/bindings.h"
@@ -34,6 +36,15 @@ MenuContext context_of(const spec::SongFixture& f, bool kit_global_fx = false) {
 
 bool arp_rate_relevant(const MenuContext& ctx) {
 	return menu::bindings::relevant(menu::nodes::arp_rate, ctx);
+}
+
+/// @brief @p f's kit, affect-entire on, as the clip view's overview asks it: the kit's own chain, with whether it
+///        edits the kit's own effects the latch's @p latched.
+MenuContext kit_table_context(spec::SongFixture& f, bool latched) {
+	f.clip->affectEntire = true;
+	MenuContext ctx = context_of(f, /*kit_global_fx=*/true);
+	ctx.is_kit_global_fx = latched;
+	return ctx;
 }
 
 } // namespace
@@ -120,15 +131,6 @@ describe arp_rate_relevance("the sound arpeggiator's rate: where it is relevant"
 		expect(arp_rate_relevant(context_of(spec::make_cv_song()))).to_be_false();
 	});
 });
-
-/// @brief @p f's kit, affect-entire on, as the clip view's overview asks it: the kit's own chain, with whether it
-///        edits the kit's own effects the latch's @p latched.
-MenuContext kit_table_context(spec::SongFixture& f, bool latched) {
-	f.clip->affectEntire = true;
-	MenuContext ctx = context_of(f, /*kit_global_fx=*/true);
-	ctx.is_kit_global_fx = latched;
-	return ctx;
-}
 
 describe arp_kit_table_relevance("the kit's own shortcut table's arp and randomizer items: where they are relevant", $ {
 	it("asks the arp octaves of the latch: relevant with it clear, not with it set", _ {

@@ -1,9 +1,9 @@
 #pragma once
 
 /// @file
-/// @brief The clips the clip view's SHIFT shortcut overview is checked on: one per kind of clip and kit row, and a
-/// kit's
-///        own effects with the kit-global latch set and clear, each drawn under its own clip view.
+/// @brief The clips the clip view's SHIFT shortcut overview is checked on: one per kind of clip and kit row, a kit's
+///        own effects with the kit-global latch set and clear, and a kit row under a stale set latch, each drawn under
+///        its own clip view.
 
 #include "gfx/grid/rgb.h"
 #include "gui/ui/ui.h"
@@ -35,6 +35,7 @@ enum class Case : uint8_t {
 	KitAffectEntireMidiDrumUnlatched,
 	KitAffectEntireMidiDrum,
 	KitSoundDrum,
+	KitSoundDrumLatched,
 	KitMidiDrum,
 	KitGateDrum,
 	KitNothing,
@@ -59,6 +60,7 @@ inline constexpr CaseInfo kCases[] = {
     {Case::KitAffectEntireMidiDrumUnlatched, "kit_affect_entire_midi_drum_unlatched"},
     {Case::KitAffectEntireMidiDrum, "kit_affect_entire_midi_drum"},
     {Case::KitSoundDrum, "kit_sound_drum"},
+    {Case::KitSoundDrumLatched, "kit_sound_drum_latched"},
     {Case::KitMidiDrum, "kit_midi_drum"},
     {Case::KitGateDrum, "kit_gate_drum"},
     {Case::KitNothing, "kit_nothing"},
@@ -92,15 +94,16 @@ struct RootGuard {
 	}
 };
 
-/// @brief Build @p c's song (its clip is the current clip), set the kit-global latch, and make its clip view the root
-/// UI.
+/// @brief Build @p c's song (its clip is the current clip), set the kit-global latch, and make its clip view the
+///        root UI.
 ///
 /// The latch is set for the kit affect-entire cases without `Unlatched`, as a pad press on that clip leaves it; the
-/// `Unlatched` cases are the same clip with it clear, as a menu close leaves it.
+/// `Unlatched` cases are the same clip with it clear, as a menu close leaves it. `KitSoundDrumLatched` is a sound
+/// row with affect-entire off under a latch a press set while it was on, which nothing has cleared since.
 /// @return The clip view the overview is drawn under.
 inline ClipView& set_up(Case c) {
-	deluge::gui::ui::shellKitGlobalFxLatch() =
-	    c == Case::KitAffectEntire || c == Case::KitAffectEntireGateDrum || c == Case::KitAffectEntireMidiDrum;
+	deluge::gui::ui::shellKitGlobalFxLatch() = c == Case::KitAffectEntire || c == Case::KitAffectEntireGateDrum
+	                                           || c == Case::KitAffectEntireMidiDrum || c == Case::KitSoundDrumLatched;
 	switch (c) {
 	case Case::Synth:
 		(void)make_synth_song();
@@ -131,7 +134,8 @@ inline ClipView& set_up(Case c) {
 		f.clip->affectEntire = true;
 		break;
 	}
-	case Case::KitSoundDrum: {
+	case Case::KitSoundDrum:
+	case Case::KitSoundDrumLatched: {
 		SongFixture f = make_kit_song();
 		(void)add_drum<SoundDrum>(f);
 		break;

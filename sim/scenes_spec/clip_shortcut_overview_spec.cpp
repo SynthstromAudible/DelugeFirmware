@@ -11,6 +11,7 @@
 #include "cppspec.hpp"
 
 #include <cstddef>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -125,6 +126,12 @@ describe clip_shortcut_overview("the clip view's SHIFT shortcut overview paints 
 		expect(arp_rate_pad(clip_overview::Case::KitAffectEntire)).to_equal(std::string{"0,0,0"});
 	});
 
+	it("for a kit row with a sound drum under a latch a press set, not since cleared: the row's table, asked as on the kit's own effects", _ {
+		int32_t lit = 0;
+		expect(differences(clip_overview::Case::KitSoundDrumLatched, lit)).to_equal(std::string{});
+		expect(lit > 0).to_be_true();
+	});
+
 	it("for a kit row with a sound drum", _ {
 		int32_t lit = 0;
 		expect(differences(clip_overview::Case::KitSoundDrum, lit)).to_equal(std::string{});
@@ -172,7 +179,8 @@ describe clip_shortcut_overview_reference_rows("the clip view's shortcut overvie
 	it("parses clip_shortcut_overview.tsv clean and asks every row of it", _ {
 		spec::OracleTable& t = table();
 		expect(t.problems().size()).to_equal(size_t{0});
-		expect(t.size() > size_t{143}).to_be_true();
+		// Sixteen rows per case: eight of colours, eight of occupancy.
+		expect(t.size()).to_equal(std::size(clip_overview::kCases) * size_t{16});
 		expect(t.unasked()).to_equal(std::string{});
 	});
 });

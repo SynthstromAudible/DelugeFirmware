@@ -4262,7 +4262,7 @@ describe freeze_clip_shortcut_overview("menu oracle freezer: the clip view's sho
 			}
 		}
 		expect(out.duplicates()).to_equal(std::string{});
-		expect(out.size() > size_t{143}).to_be_true();
+		expect(out.size()).to_equal(std::size(co::kCases) * size_t{16}); // eight colour and eight occupancy rows each
 		expect(out.flush()).to_be_true();
 	});
 });

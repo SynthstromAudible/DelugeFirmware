@@ -315,9 +315,9 @@ constexpr std::array<NamedPredicate, 36> kRegistry{
 
 #undef DELUGE_RELEVANCE_ROW
 
-// One row per predicate declared in `relevance.h` (18), plus the sixteen
+// One row per predicate declared in `relevance.h` (20), plus the sixteen
 // `nodes::relevant_*_iterance_step_*` rows: declared in `nodes/note.h`, not `relevance.h`, but
-// registered here for the reason this section's own note gives. 18 + 16 = 34.
+// registered here for the reason this section's own note gives. 20 + 16 = 36.
 static_assert(kRegistry.size() == 36);
 
 } // namespace
