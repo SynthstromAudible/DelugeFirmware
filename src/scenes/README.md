@@ -507,8 +507,8 @@ The playhead is the newest voice's column on every row, painted with the flash c
 the voices (`Waveforms::play_position`). A vertical turn reaches the clip view beneath through the host
 (`forwardMarkerVertical`), and SHIFT + a main pad with no mode up is the menu's shortcut jump
 (`MenuScene::shortcut_jump`), leaving the editor for that item's page, any item even over the automation view. With
-the automation view as the root, SHIFT + (0,6) and (0,7) are the editor's own presses. The audition column is the host's
-(`GridPadClaim::AllButClipAudition`), and auditioning is a UI mode the editor's gates read
+the automation view as the root, SHIFT + (0,6) and (0,7) are the editor's own presses. The audition column is the
+host's (`GridPadClaim::AllButClipAudition`), and auditioning is a UI mode the editor's gates read
 (`RuntimeFacts::auditioning`).
 
 ### The audio recorder (`recorder/`)
