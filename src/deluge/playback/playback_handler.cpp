@@ -2949,15 +2949,14 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDICable& cable, int32_t channel, i
 				// A song load takes down every UI over the song, the recorder's included, and arms the swap
 				// that retires the song an input take attaches to: held back until the take ends, the take
 				// attaches where it was recorded and the next song follows (see slowRoutine()). A slice out is
-				// held the same way: it lands its drums in the outgoing song's kit, and only the guest it would
-				// take down finishes it.
+				// held the same way, with no popup, as `main`'s card-busy hold of a MIDI command is: it lands its
+				// drums in the outgoing song's kit, and only the guest it would take down finishes it.
 				if (deluge::recording::inputTakeInProgress()) {
 					nextSongPending_ = true;
 					deluge::notify::notice("Next song after take");
 				}
 				else if (deluge::gui::ui::shellSliceOut()) {
 					nextSongPending_ = true;
-					deluge::notify::notice("Next song after slice");
 					deluge::runtime::appLoop.request(slowJob);
 				}
 				else {
