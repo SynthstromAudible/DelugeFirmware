@@ -337,13 +337,14 @@ Result RenameScene::after_render() {
 	// **Only on a tick the grid pass actually ran.** `resp_` is `render_grid`'s observation, and the
 	// shell calls `after_render()` for every scene that drew on any surface -- so on an OLED-only
 	// tick (the cursor blink's own repaint, or the menu underneath this overlay asking for one)
-	// `resp` is default-constructed and `held_index` is -1. Feeding that to `advance_repeat` reads
-	// as "the pad went up" and disarms the hold; see `RenameScene::grid_pass_`.
+	// the pads were not read at all; see `RenameScene::grid_pass_`.
 	const bool grid_pass = grid_pass_;
 	grid_pass_ = false;
-	bool changed = grid_pass && advance_repeat(resp.held_index, last_render_ms_);
+	bool changed = grid_pass && advance_repeat(kb_.backspace_held, last_render_ms_);
 
-	if (resp.index >= 0) {
+	// Keys and Enter are refused while the hold is up, backspace included: `QwertyUI::padAction` acts
+	// on them only with no UI mode set.
+	if (resp.index >= 0 && !repeat_armed_) {
 		const char c = static_cast<char>(resp.index);
 
 		if (c == deluge::ui::grid::kTextKeyboardEnter) {
@@ -353,12 +354,12 @@ Result RenameScene::after_render() {
 
 		if (c == deluge::ui::grid::kTextKeyboardBackspace) {
 			// `qwerty_ui.cpp:204-229`: delete one character now, then arm the hold at
-			// `kBackspaceRepeatDelayMs` -- legacy's `processBackspace()` followed by
+			// `deluge::ui::grid::kBackspaceRepeatDelayMs` -- legacy's `processBackspace()` followed by
 			// `setTimer(UI_SPECIFIC, 500)`, with `repeat_armed_` standing in for
 			// `currentUIMode = UI_MODE_HOLDING_BACKSPACE`.
 			backspace();
 			repeat_armed_ = true;
-			repeat_at_ms_ = last_render_ms_ + kBackspaceRepeatDelayMs;
+			repeat_at_ms_ = last_render_ms_ + deluge::ui::grid::kBackspaceRepeatDelayMs;
 		}
 		else {
 			type_char(c);
@@ -378,25 +379,14 @@ Result RenameScene::after_render() {
 	return r;
 }
 
-bool RenameScene::advance_repeat(int16_t held_char, uint32_t now) {
+bool RenameScene::advance_repeat(bool backspace_held, uint32_t now) {
 	if (!repeat_armed_) {
 		return false;
 	}
-	// `padAction`'s release arm (`qwerty_ui.cpp:223-228`): leaving `UI_MODE_HOLDING_BACKSPACE`
-	// unsets the timer. Here the hold is a *level* rather than a mode -- `held_index` is what the
-	// keyboard reports is still down (`ui/core/response.h`) -- so letting go, or sliding onto any
-	// other key, ends the repeat with no release event to catch.
-	//
-	// One named difference from legacy, in the two-handed case. `held_index` is the first *held*
-	// pad that types a character in the keyboard's bottom-up sweep, and every letter row sits below
-	// the backspace row -- so pressing a letter while backspace is still down reports the letter
-	// here and ends the repeat, and the letter is typed. Legacy instead swallows that press
-	// outright: its "normal keys" arm is gated on `!currentUIMode` (`QwertyUI::padAction`) and
-	// `currentUIMode` is `UI_MODE_HOLDING_BACKSPACE`, so the keystroke is simply lost while the
-	// repeat carries on. Keeping the keystroke and stopping the repeat is the friendlier of the two
-	// and needs no per-pad hold reporting; reproducing the swallow would mean `text_keyboard`
-	// answering "is *this* pad held", which no other caller wants.
-	if (held_char != deluge::ui::grid::kTextKeyboardBackspace) {
+	// `QwertyUI::padAction`'s release arm leaves `UI_MODE_HOLDING_BACKSPACE` and unsets the timer. Here the
+	// hold is a level: the keyboard reports whether a backspace pad is still down, so a letter pressed
+	// beside it does not end the repeat, as in `main`, where the press is swallowed.
+	if (!backspace_held) {
 		repeat_armed_ = false;
 		return false;
 	}
@@ -409,7 +399,7 @@ bool RenameScene::advance_repeat(int16_t held_char, uint32_t now) {
 	// cadence. Re-armed from `now` rather than from `repeat_at_ms_`, so a tick that arrived late
 	// (a long render, a card access) deletes one character and not a burst catching up.
 	backspace();
-	repeat_at_ms_ = now + kBackspaceRepeatMs;
+	repeat_at_ms_ = now + deluge::ui::grid::kBackspaceRepeatMs;
 	return true;
 }
 
@@ -423,6 +413,15 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 		// (`UI_MODE_HOLDING_BACKSPACE`, the prediction modes) are all QwertyUI's own and none of
 		// them survive the port.
 		if (!event.on) {
+			break;
+		}
+		if (repeat_armed_) {
+			// `RenameUI::buttonAction`: BACK and SELECT act only with no UI mode set.
+			if (event.button == ButtonId::Back || event.button == ButtonId::SelectEnc) {
+				Result r;
+				r.handled = true;
+				return r;
+			}
 			break;
 		}
 		if (event.button == ButtonId::Back) {
@@ -442,6 +441,11 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 		// which, in this stack, already claimed it while `render_grid` painted it, so anything
 		// arriving here is by definition outside the keyboard's columns. "Otherwise, exit."
 		if (event.on && event.x >= deluge::ui::grid::kTextKeyboardCols) {
+			if (repeat_armed_) {
+				Result r; // `RenameUI::padAction` exits only with no UI mode set
+				r.handled = true;
+				return r;
+			}
 			return close();
 		}
 		break;

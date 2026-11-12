@@ -585,6 +585,12 @@ struct Rig {
 	void enter() { type(deluge::ui::grid::kTextKeyboardEnter); }
 	void backspace() { type(deluge::ui::grid::kTextKeyboardBackspace); }
 
+	/// @brief Press or release the backspace pad at @p at, without ticking.
+	void pad_backspace(bool on, uint32_t at) {
+		const Pad p = pad_for(deluge::ui::grid::kTextKeyboardBackspace);
+		pad(static_cast<uint8_t>(p.x), static_cast<uint8_t>(p.y), on ? 64 : 0, at);
+	}
+
 	/// @brief Is a `SceneKind::Working` scene on the stack right now?
 	bool working_shown() {
 		for (const deluge::ui::shell::Scene* scene : shell.stack().scenes()) {
@@ -1912,6 +1918,89 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 		r.backspace();
 		expect(browser_scene().cursor()).to_equal(1);
 		expect(browser_scene().file_index()).to_equal(3);
+	});
+
+	it("repeats backspace every 80 ms after a 500 ms hold, and refuses other input meanwhile", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		r.type(std::string_view{"SNARE"});
+		const int32_t start = browser_scene().cursor();
+		expect(start).to_equal(5);
+		// `QwertyUI::padAction` deletes at the press and arms a 500 ms timer; `timerCallback` repeats every 80 ms.
+		r.pad_backspace(true, 1000);
+		r.tick(1000);
+		expect(browser_scene().cursor()).to_equal(start - 1);
+		r.tick(1499);
+		expect(browser_scene().cursor()).to_equal(start - 1);
+		r.tick(1500);
+		expect(browser_scene().cursor()).to_equal(start - 2);
+		r.tick(1579);
+		expect(browser_scene().cursor()).to_equal(start - 2);
+		r.tick(1580);
+		expect(browser_scene().cursor()).to_equal(start - 3); // the press, then 500 and 580 ms
+		r.tick(1650);
+		expect(browser_scene().cursor()).to_equal(start - 3);
+		// UI_MODE_HOLDING_BACKSPACE refuses a key, Enter, BACK, SELECT and the sidebar.
+		const std::string dir{browser_scene().current_dir()};
+		DirectCtx d;
+		const Result back = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Back}, d.ctx);
+		const Result select = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::SelectEnc}, d.ctx);
+		const Result sidebar = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Pad, .x = kDisplayWidth, .y = 3, .velocity = 64}, d.ctx);
+		expect(back.handled && back.actions.empty()).to_be_true();
+		expect(select.handled && select.actions.empty()).to_be_true();
+		expect(sidebar.handled && sidebar.actions.empty()).to_be_true();
+		const Pad key = pad_for('A');
+		r.pad(static_cast<uint8_t>(key.x), static_cast<uint8_t>(key.y), 64, 1651);
+		r.tick(1651);
+		r.pad(static_cast<uint8_t>(key.x), static_cast<uint8_t>(key.y), 0, 1652);
+		r.tick(1652);
+		const Pad enter = pad_for(deluge::ui::grid::kTextKeyboardEnter);
+		r.pad(static_cast<uint8_t>(enter.x), static_cast<uint8_t>(enter.y), 64, 1653);
+		r.tick(1653);
+		r.pad(static_cast<uint8_t>(enter.x), static_cast<uint8_t>(enter.y), 0, 1654);
+		r.tick(1654);
+		expect(browser_scene().cursor()).to_equal(start - 3); // neither the key nor Enter acted
+		r.button(kBackX, kBackY, true, 1655);
+		r.tick(1655);
+		r.button(kBackX, kBackY, false, 1656);
+		r.tick(1656);
+		expect(browser_scene().current_dir()).to_equal(dir);
+		expect(r.browser_on_stack()).to_be_true();
+		// The repeat stops when the pad lifts.
+		r.pad_backspace(false, 1700);
+		r.tick(1700);
+		const int32_t stopped = browser_scene().cursor();
+		r.tick(2500);
+		expect(browser_scene().cursor()).to_equal(stopped);
+		// ...and the keys type again.
+		r.type('A');
+		expect(browser_scene().cursor()).to_equal(stopped + 1);
+	});
+
+	it("asks to be woken for the next backspace repeat", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		r.type(std::string_view{"SNARE"});
+		r.pad_backspace(true, 1000);
+		r.tick(1000);
+		const std::optional<uint32_t> first = browser_scene().next_timer();
+		expect(first.has_value()).to_be_true();
+		expect(first.value() <= deluge::ui::grid::kBackspaceRepeatDelayMs).to_be_true();
+		r.tick(1500);
+		const std::optional<uint32_t> next = browser_scene().next_timer();
+		expect(next.has_value()).to_be_true();
+		expect(next.value() <= deluge::ui::grid::kBackspaceRepeatMs).to_be_true();
+		r.pad_backspace(false, 1520);
+		r.tick(1520);
 	});
 
 	it("types across folders and files alike, and moves the viewport to the match", _ {

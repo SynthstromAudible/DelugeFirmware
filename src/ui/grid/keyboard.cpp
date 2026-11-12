@@ -142,6 +142,7 @@ Response text_keyboard(GridFrame& f, TextKeyboardState& state, KeyboardLayoutKin
 	int32_t held_x = -1;
 	int32_t held_y = -1;
 	bool shift_held = false;
+	bool backspace_held = false;
 
 	for (int32_t y = 0; y < h; y++) {
 		for (int32_t x = 0; x < w; x++) {
@@ -151,6 +152,9 @@ Response text_keyboard(GridFrame& f, TextKeyboardState& state, KeyboardLayoutKin
 
 			if ((r.held || r.pressed) && text_keyboard_is_shift_pad(x, y, home_row)) {
 				shift_held = true;
+			}
+			if (r.held && text_keyboard_char_at(layout, x, y, home_row, false) == kTextKeyboardBackspace) {
+				backspace_held = true;
 			}
 			if (r.pressed) {
 				out.pressed = true;
@@ -180,6 +184,7 @@ Response text_keyboard(GridFrame& f, TextKeyboardState& state, KeyboardLayoutKin
 	}
 
 	state.shift = shift_held;
+	state.backspace_held = backspace_held;
 	if (pressed_x >= 0) {
 		// The typed character travels in `index` (ui/core/response.h); `velocity` stays the key
 		// pad's own press velocity, so a caller can have both without decoding one from the other.

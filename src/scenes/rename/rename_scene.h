@@ -88,18 +88,6 @@ const Target& target(TargetId id);
 /// nothing, which is the same outcome legacy's own `resize`+`append` would reach on a full heap.
 inline constexpr size_t kMaxNameChars = 64;
 
-/// @brief How long a held backspace pad waits before it starts repeating, and how fast it repeats
-///        after that.
-///
-/// Legacy's own two numbers: `QwertyUI::padAction` arms `TimerName::UI_SPECIFIC` at **500 ms** on
-/// the press (`QwertyUI::padAction`) and `QwertyUI::timerCallback` re-arms it at **80 ms**
-/// after each repeat. The press itself deletes one character immediately, so a
-/// tap is one deletion and a hold is one, a half-second pause, then twelve and a half a second.
-/// @{
-inline constexpr uint32_t kBackspaceRepeatDelayMs = 500;
-inline constexpr uint32_t kBackspaceRepeatMs = 80;
-/// @}
-
 /// @brief The `SceneKind` this scene is registered under: `FirstApp + 1` (`registry.h`).
 inline constexpr deluge::ui::shell::SceneKind kRenameSceneKind =
     static_cast<deluge::ui::shell::SceneKind>(static_cast<uint8_t>(deluge::ui::shell::SceneKind::FirstApp) + 1);
@@ -158,10 +146,11 @@ private:
 	void backspace();
 	/// @brief `QwertyUI::timerCallback`'s `UI_MODE_HOLDING_BACKSPACE` arm:
 	///        delete another character if the pad is still down and the cadence says it is due.
-	/// @param held_char This tick's `Response::held_index`.
-	/// @param now       This tick's clock.
+	/// @param backspace_held Whether this tick's grid pass saw a backspace pad down
+	///                       (`TextKeyboardState::backspace_held`).
+	/// @param now            This tick's clock.
 	/// @return True if a character was deleted, so the caller can ask for a repaint.
-	bool advance_repeat(int16_t held_char, uint32_t now);
+	bool advance_repeat(bool backspace_held, uint32_t now);
 	/// @brief `RenameUI::enterKeyPress` (`rename_ui.cpp:45-52`).
 	deluge::ui::shell::Result enter_key_press();
 	/// @brief `RenameUI::exitUI` -> `close()` (`rename_ui.cpp:99-102`), as an `Action`.
@@ -186,7 +175,8 @@ private:
 
 	/// Legacy's `UI_MODE_HOLDING_BACKSPACE` (`QwertyUI::padAction`), as a deadline rather than a mode:
 	/// the tick the next repeat is due. `repeat_armed_` is the mode bit itself -- set by the press,
-	/// cleared the moment `Response::held_index` stops naming the backspace key.
+	/// cleared the moment the backspace pad lifts. While it is set the keys, Enter, BACK, SELECT and the
+	/// sidebar do nothing, as `QwertyUI::padAction` and `RenameUI::buttonAction` refuse them in that mode.
 	/// @{
 	bool repeat_armed_ = false;
 	uint32_t repeat_at_ms_ = 0;
@@ -201,14 +191,8 @@ private:
 	/// **The shell calls `after_render()` for every scene that drew on ANY surface**
 	/// (`Shell::render_oled` and `Shell::render_grid` both `append_rendered`, and step 7 walks that
 	/// one list -- `shell/shell.cpp`), so an OLED-only tick reaches `after_render` with `resp_`
-	/// default-constructed, i.e. `held_index == -1`. Without this flag `advance_repeat` reads that
-	/// as "the backspace pad is no longer down" and disarms the hold on the very first such tick.
-	///
-	/// With a level-2 script and a 10 ms tick the OLED repaints on its own for the cursor blink (and
-	/// again for whatever is drawn underneath this overlay), so a disarming tick would arrive ~10 ms
-	/// after the press and the auto-repeat would never fire on the real path. A single-frame or
-	/// sparse-tick test cannot see that failure; `rename_scene_spec.cpp`'s repeat example lands its
-	/// ticks on grid passes.
+	/// default-constructed. The repeat and the key it drops are acted on only on a tick whose grid pass
+	/// read the pads.
 	bool grid_pass_ = false;
 };
 

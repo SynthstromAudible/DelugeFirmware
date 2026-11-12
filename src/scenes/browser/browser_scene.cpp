@@ -409,6 +409,7 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	}
 	id_ = static_cast<BrowserId>(id.arg);
 	holding_ = false;
+	backspace_hold_since_ms_.reset();
 	keyboard_led_touched_ = false;
 	load_led_touched_ = false;
 	hold_deadline_ms_.reset();
@@ -1675,6 +1676,29 @@ Result BrowserScene::after_render() {
 		}
 	}
 
+	// 5b. A held backspace repeats: `QwertyUI::timerCallback`, 500 ms after the press and every 80 ms after that.
+	//     The hold ends when the pad lifts, or when the pads are no longer the keyboard's.
+	if (backspace_hold_since_ms_.has_value() && grid_pass) {
+		if (pads_ != BrowserPads::Keyboard || !kb_.backspace_held) {
+			backspace_hold_since_ms_.reset();
+		}
+		else {
+			const uint32_t held = last_render_ms_ - *backspace_hold_since_ms_;
+			const uint32_t due =
+			    held < deluge::ui::grid::kBackspaceRepeatDelayMs
+			        ? 0
+			        : 1 + (held - deluge::ui::grid::kBackspaceRepeatDelayMs) / deluge::ui::grid::kBackspaceRepeatMs;
+			if (backspace_repeats_ < due) {
+				while (backspace_repeats_ < due) {
+					backspace();
+					++backspace_repeats_;
+				}
+				r.handled = true;
+				(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+			}
+		}
+	}
+
 	// 6. A key typed while Select is held is dropped: `QwertyUI::padAction` types only with no UI mode set. So is one
 	//    typed while a sample load runs (`SampleBrowser::padAction`'s gate).
 	if (mode_up() || load_running()) {
@@ -1745,6 +1769,10 @@ Result BrowserScene::after_render() {
 			return r;
 		}
 		(void)press_key(c);
+		if (c == deluge::ui::grid::kTextKeyboardBackspace) {
+			backspace_hold_since_ms_ = last_render_ms_;
+			backspace_repeats_ = 0;
+		}
 		changed = true;
 	}
 
@@ -2169,6 +2197,17 @@ std::optional<uint32_t> BrowserScene::next_timer() const {
 	// guest is woken.
 	if (preview_outstanding_ || awaiting_deferred_) {
 		next = next.has_value() ? std::min(*next, kListingPollMs) : kListingPollMs;
+	}
+
+	// The held backspace's next repeat renders the scene.
+	if (backspace_hold_since_ms_.has_value()) {
+		const uint32_t held = last_render_ms_ - *backspace_hold_since_ms_;
+		const uint32_t next_at =
+		    backspace_repeats_ == 0
+		        ? deluge::ui::grid::kBackspaceRepeatDelayMs
+		        : deluge::ui::grid::kBackspaceRepeatDelayMs + backspace_repeats_ * deluge::ui::grid::kBackspaceRepeatMs;
+		const uint32_t in = held >= next_at ? 0 : next_at - held;
+		next = next.has_value() ? std::min(*next, in) : in;
 	}
 
 	// A folder menu's load that ended, or a slice the host opened, is acted on by `after_render`, on the next render.

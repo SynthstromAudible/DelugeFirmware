@@ -582,23 +582,60 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		// the ticks below, which is the assertion a wrong constant fails.)
 		const std::optional<uint32_t> armed = rename_scene().next_timer();
 		expect(armed.has_value()).to_be_true();
-		expect(armed.value() <= rename::kBackspaceRepeatDelayMs).to_be_true();
+		expect(armed.value() <= deluge::ui::grid::kBackspaceRepeatDelayMs).to_be_true();
 
 		// One millisecond short of the delay: still four characters.
-		r.tick(1000 + rename::kBackspaceRepeatDelayMs - 1);
+		r.tick(1000 + deluge::ui::grid::kBackspaceRepeatDelayMs - 1);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcd"});
 		// On the delay: the first repeat.
-		r.tick(1000 + rename::kBackspaceRepeatDelayMs);
+		r.tick(1000 + deluge::ui::grid::kBackspaceRepeatDelayMs);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abc"});
 
 		// Then every 80 ms, not every 500.
-		const uint32_t first = 1000 + rename::kBackspaceRepeatDelayMs;
-		r.tick(first + rename::kBackspaceRepeatMs - 1);
+		const uint32_t first = 1000 + deluge::ui::grid::kBackspaceRepeatDelayMs;
+		r.tick(first + deluge::ui::grid::kBackspaceRepeatMs - 1);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abc"});
-		r.tick(first + rename::kBackspaceRepeatMs);
+		r.tick(first + deluge::ui::grid::kBackspaceRepeatMs);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Ab"});
-		r.tick(first + 2 * rename::kBackspaceRepeatMs);
+		r.tick(first + 2 * deluge::ui::grid::kBackspaceRepeatMs);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"A"});
+	});
+
+	it("ignores a key, Enter, BACK, SELECT and the sidebar while backspace is held, and keeps repeating", _ {
+		select_language();
+		spec::SongFixture f = kit_fixture();
+		Rig r;
+		r.open_rename(context_of(f), TargetId::Drum);
+		r.tick(0);
+		r.clock = 10;
+		r.type(std::string_view{"ABCDEFG"});
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcdefg"});
+		r.press(deluge::ui::grid::kTextKeyboardBackspace, 1000);
+		r.tick(1000);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcdef"});
+		// A letter pressed beside the hold: swallowed, and the hold carries on (`QwertyUI::padAction`).
+		r.press('A', 1100);
+		r.tick(1100);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcdef"});
+		r.press(deluge::ui::grid::kTextKeyboardEnter, 1150);
+		r.tick(1150);
+		expect(r.shell.stack().depth()).to_equal(size_t(1));
+		r.button(kBackX, kBackY, true, 1200);
+		r.tick(1200);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 1250);
+		r.tick(1250);
+		r.pad(16, 3, 64, 1300);
+		r.tick(1300);
+		expect(r.shell.stack().depth()).to_equal(size_t(1));
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcdef"});
+		r.tick(1000 + deluge::ui::grid::kBackspaceRepeatDelayMs);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcde"});
+		// Once the pad lifts, BACK closes again.
+		r.release(deluge::ui::grid::kTextKeyboardBackspace, 1600);
+		r.tick(1600);
+		r.button(kBackX, kBackY, true, 1700);
+		r.tick(1700);
+		expect(r.shell.stack().depth()).to_equal(size_t(0));
 	});
 
 	it("stops repeating the moment the backspace pad goes up", _ {
@@ -612,7 +649,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 
 		r.press(deluge::ui::grid::kTextKeyboardBackspace, 1000);
 		r.tick(1000);
-		r.tick(1000 + rename::kBackspaceRepeatDelayMs); // one repeat
+		r.tick(1000 + deluge::ui::grid::kBackspaceRepeatDelayMs); // one repeat
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abc"});
 
 		// `padAction`'s release arm unsets the timer (`qwerty_ui.cpp:223-228`); here the hold is a

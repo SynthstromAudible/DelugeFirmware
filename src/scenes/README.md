@@ -402,7 +402,8 @@ three virtuals; those are a `rename::Target` row indexed by `SceneId::arg`. Thre
 `Clip`, `Output`, `Drum` — because those are what the tree reaches; `renameMidiCCUI` is opened only
 by the automation view. The pixels are the toolkit's (`ui::grid::text_keyboard`,
 `ui::oled::text_edit`); the scene owns the typing rules and legacy's backspace auto-repeat
-(`kBackspaceRepeatDelayMs` 500, then `kBackspaceRepeatMs` 80), read from `Response::held_index`.
+(`kBackspaceRepeatDelayMs` 500, then `kBackspaceRepeatMs` 80), read from `TextKeyboardState::backspace_held`.
+While the hold is up, the keys, Enter, BACK, SELECT and the sidebar do nothing.
 
 ### The context menu (`context_menu/`)
 
