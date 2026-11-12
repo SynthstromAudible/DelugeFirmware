@@ -16,24 +16,6 @@
 
 namespace deluge::scenes::spec {
 
-/// @brief The kit's own effects with a MIDI or gate drum selected: main lists the MIDI/CV arp and randomizer columns
-///        there (`editingNonAudioDrumRow()` and `editingMidiDrumRow()` read the selected drum, whatever the menu
-///        edits), editing the kit arp's own fields, which the kit's render overwrites from its params; the port's
-///        MIDI/CV columns bind a MIDI or CV arp's settings, which the kit's arp record does not hold, so they stay
-///        hidden. DIFFERENCES row D151 (open for Kate).
-inline bool kit_global_midi_column_hidden(const menu::Node& node) {
-	namespace nodes = deluge::scenes::menu::nodes;
-	return &node == &nodes::spread_gate_midi || &node == &nodes::spread_octave_midi
-	       || &node == &nodes::spread_velocity_midi || &node == &nodes::ratchet_amount_midi
-	       || &node == &nodes::ratchet_probability_midi || &node == &nodes::note_probability_midi
-	       || &node == &nodes::swap_probability_midi || &node == &nodes::bass_probability_midi
-	       || &node == &nodes::glide_probability_midi || &node == &nodes::arp_rhythm_midi
-	       || &node == &nodes::arp_sequence_length_midi;
-}
-
-/// @brief How many columns that is.
-inline constexpr size_t kKitGlobalMidiColumnsHidden = 11;
-
 /// @name The shortcut layouts' excusals
 /// Where a shortcut cell's port node cannot be compared with main's reference row by plain equality, pinned by identity
 /// and by count so a fix, or a new excused cell, turns the example red.

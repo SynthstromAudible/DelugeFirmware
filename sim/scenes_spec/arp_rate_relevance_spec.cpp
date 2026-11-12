@@ -18,14 +18,14 @@
 #include "model/clip/instrument_clip.h"
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
+#include "modulation/arpeggiator.h"
+#include "modulation/params/param_manager.h"
 #include "processing/sound/sound_drum.h"
-#include "support/known_differences.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
 
 #include <array>
-#include <set>
 #include <string>
 
 #include "spec/support/spec_main.h"
@@ -278,22 +278,11 @@ describe arp_kit_global_drum_kinds("the kit's own arp and randomizer columns wit
 		    Column{"arp_note_mode", &nodes::arp_note_mode, [](const Facts&) { return true; }},
 		};
 		std::string wrong;
-		std::set<const menu::Node*> excused;
 		const auto check = [&](spec::SongFixture& f, Facts facts, const char* kind) {
 			const MenuContext ctx = kit_table_context(f, /*latched=*/true);
 			menu::bindings::write(nodes::arp_mode, ctx, facts.arp ? 1 : 0);
 			for (const Column& c : columns) {
 				const bool ours = menu::bindings::relevant(*c.node, ctx);
-				if (spec::kit_global_midi_column_hidden(*c.node)) {
-					// Pinned: hidden, where main lists it.
-					if (ours) {
-						wrong += std::string{c.name} + " (" + kind + "): pinned hidden, ours relevant\n";
-					}
-					if (c.main(facts)) {
-						excused.insert(c.node);
-					}
-					continue;
-				}
 				if (ours != c.main(facts)) {
 					wrong += std::string{c.name} + " (" + kind + (facts.arp ? ", arp on" : ", arp off") + "): ours "
 					         + (ours ? "relevant" : "hidden") + "\n";
@@ -312,7 +301,24 @@ describe arp_kit_global_drum_kinds("the kit's own arp and randomizer columns wit
 			check(gate, Facts{true, false, true, arp}, "gate drum");
 		}
 		expect(wrong).to_equal(std::string{});
-		expect(excused.size()).to_equal(spec::kKitGlobalMidiColumnsHidden);
+	});
+
+	it("keeps an edit to the kit's own MIDI/CV columns, which the kit's arp reads from its params on every render", _ {
+		// Main's `midi_cv` items write the kit arp's fields, which `Kit::setupAndRenderArpPreOutput` overwrites from
+		// the kit's params on the next render; the port writes the param itself, so the edit is what the render reads.
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<MIDIDrum>(f);
+		const MenuContext ctx = kit_table_context(f, /*latched=*/true);
+		menu::bindings::write(menu::nodes::arp_mode, ctx, 1);
+		menu::bindings::write(menu::nodes::spread_gate_midi, ctx, 30);
+		menu::bindings::write(menu::nodes::note_probability_midi, ctx, 20);
+		// The kit's params are its clip's, which the render hands `setupAndRenderArpPreOutput`.
+		ArpeggiatorSettings rendered;
+		rendered.updateParamsFromUnpatchedParamSet(f.clip->paramManager.getUnpatchedParamSet());
+		expect(rendered.spreadGate == menu::bindings::menu_to_unsigned(30)).to_be_true();
+		expect(rendered.noteProbability == menu::bindings::menu_to_unsigned(20)).to_be_true();
+		expect(menu::bindings::read(menu::nodes::spread_gate_midi, ctx)).to_equal(30);
+		expect(menu::bindings::read(menu::nodes::note_probability_midi, ctx)).to_equal(20);
 	});
 });
 // clang-format on
