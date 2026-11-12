@@ -37,6 +37,7 @@
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/recording/foreground_recording.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
 
@@ -480,13 +481,8 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 			playbackHandler.playButtonPressed(kInternalButtonPressLatency); // `:157`
 			if (record_held && playbackHandler.playbackState != 0
 			    && !lowering_.press_used_up(ButtonId::Record)) { // `:160`
-				// `Buttons::buttonAction`'s `deluge::recording::beginOutputRecording()`.
-				//
-				// @warning **Not ported** -- the output recording is the engine's and this layer
-				//          does not start it (see the class doc). The *decision* is ported: this is
-				//          the RECORD-held-while-PLAY combo, and its other, observable half -- the
-				//          used-up bit below -- is.
-				count_unported(UnportedOpen::OutputRecordFromPlay);
+				// Begin output-recording simultaneously with playback.
+				(void)deluge::recording::beginOutputRecording();
 			}
 		}
 		// `:165` `recordButtonPressUsedUp = true`, INSIDE `if (on)` and OUTSIDE the if/else above
@@ -515,9 +511,7 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 			// every button on its own press.
 			if (AudioEngine::foregroundRecordingSource() == AudioInputChannel::NONE) { // `:180`
 				if (ctx.shift) {                                                       // `:181`
-					// `Buttons::buttonAction`'s `deluge::recording::beginOutputRecording()` -- @warning not ported,
-					// as above.
-					count_unported(UnportedOpen::OutputRecordFromShift);
+					(void)deluge::recording::beginOutputRecording();
 					lowering_.mark_press_used_up(ButtonId::Record); // `:183`
 				}
 			}
@@ -537,10 +531,12 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 			    record_press_ms_.has_value() && record_press_ms_ == lowering_.last_press_ms(ButtonId::Record);
 			if (own_press && !lowering_.press_used_up(ButtonId::Record)
 			    && lowering_.was_short_press(ButtonId::Record, ctx.now_ms)) {
-				// `Buttons::buttonAction`'s `deluge::recording::isCurrentlyResampling()` ->
-				// `deluge::recording::endRecordingSoon(kInternalButtonPressLatency)` -- @warning not
-				// ported, as above: the port always takes the `else`.
-				playbackHandler.recordButtonPressed(); // `:199`
+				if (deluge::recording::isCurrentlyResampling()) {
+					deluge::recording::endRecordingSoon(kInternalButtonPressLatency);
+				}
+				else {
+					playbackHandler.recordButtonPressed();
+				}
 			}
 		}
 		r.handled = true;

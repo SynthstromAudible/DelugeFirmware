@@ -26,14 +26,10 @@
 ///
 /// @par What this spec counts as uncovered (oracle discipline)
 ///
-///   * **The output recording's verbs** -- `deluge::recording::beginOutputRecording`,
-///     `isCurrentlyResampling` and `endRecordingSoon` (`Buttons::buttonAction`). Not ported (see
-///     `global_controls.h`), so there is nothing on the port side to compare; the *decisions* that
-///     reach them are covered through `GlobalControls::unported_opens(UnportedOpen)`, which is a
-///     tally per SITE so an assertion about one arm cannot be satisfied by another.
 ///   * **`openUI(&saveSongUI)` / `openUI(&loadSongUI)` / `context_menu::clearSong`**
-///     (`View::buttonAction`'s SAVE and LOAD arms, `:291-294`). Same shape: the arm's decision is compared, the open
-///     is counted.
+///     (`View::buttonAction`'s SAVE and LOAD arms). Not ported (see `global_controls.h`): the arm's decision is
+///     compared, and the open is counted through `GlobalControls::unported_opens(UnportedOpen)`, a tally per SITE so an
+///     assertion about one arm cannot be satisfied by another.
 ///   * **The `THRESHOLD_RECORDING_MODE` popup arm** (`hid/buttons.cpp:190-192`). Not ported, and
 ///     it is a behaviour difference rather than a missing call; there is no port-side state that
 ///     could be driven into it.
@@ -88,6 +84,7 @@
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/recording/foreground_recording.h"
 
 #include "support/card_access.h" // before <cppspec.hpp> -- see its @warning
 #include "support/song_fixture.h"
@@ -501,14 +498,99 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 
 		expect(port_result == RecordingMode::OFF).to_be_true();
 		expect(port_result == legacy_result).to_be_true();
-		// And the arm really did reach the one statement that is not ported --
-		// `deluge::recording::beginOutputRecording()` in the PLAY arm, guarded by
-		// `playbackHandler.playbackState` -- or did not, depending on whether PLAY started
-		// playback. Whichever it was, no OTHER site may have fired.
-		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::OutputRecordFromPlay)
-		       == rig.gc.unported_opens_total())
-		    .to_be_true();
-		expect(rig.gc.unported_opens_total() <= uint32_t(1)).to_be_true();
+		expect(rig.gc.unported_opens_total() == uint32_t(0)).to_be_true();
+	});
+
+	it("transport tail: shift+RECORD begins an output recording, both sides", _ {
+		// `Buttons::buttonAction`'s RECORD press with no recording running and shift held
+		// (`origin/main:src/deluge/hid/buttons.cpp`, `audioRecorder.beginOutputRecording()`).
+		static spec::SongFixture fixture = spec::make_synth_song();
+
+		release_all_legacy_buttons();
+		expect(reset_transport(100'000)).to_be_true();
+		Buttons::commandToggleShift(true);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), true);
+		const AudioInputChannel legacy_source = AudioEngine::foregroundRecordingSource();
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), false);
+		Buttons::commandToggleShift(false);
+		Buttons::clearShiftSticky();
+		expect(legacy_source == AudioInputChannel::OUTPUT).to_be_true();
+
+		release_all_legacy_buttons();
+		GcRig rig;
+		rig.gc.set_song(fixture.song);
+		expect(reset_transport(100'000)).to_be_true();
+		rig.press(ButtonId::Shift, true, 3'000);
+		rig.press(ButtonId::Record, true, 3'005);
+		expect(AudioEngine::foregroundRecordingSource() == legacy_source).to_be_true();
+		rig.press(ButtonId::Record, false, 3'010);
+		rig.press(ButtonId::Shift, false, 3'015);
+		// The press was used up, so its release did not also arm recording.
+		expect(playbackHandler.recording == RecordingMode::OFF).to_be_true();
+		expect(reset_transport(100'000)).to_be_true();
+	});
+
+	it("transport tail: PLAY with RECORD held starts playback and an output recording, both sides", _ {
+		// `Buttons::buttonAction`'s PLAY arm: no recording running, so `playButtonPressed`, then
+		// `audioRecorder.beginOutputRecording()` once playback is running.
+		static spec::SongFixture fixture = spec::make_synth_song();
+
+		release_all_legacy_buttons();
+		expect(reset_transport(100'000)).to_be_true();
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), true);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Play), true);
+		const bool legacy_playing = playbackHandler.playbackState != 0;
+		const AudioInputChannel legacy_source = AudioEngine::foregroundRecordingSource();
+		release_all_legacy_buttons();
+		if (playbackHandler.playbackState != 0) {
+			playbackHandler.endPlayback();
+		}
+		expect(legacy_playing).to_be_true();
+		expect(legacy_source == AudioInputChannel::OUTPUT).to_be_true();
+
+		GcRig rig;
+		rig.gc.set_song(fixture.song);
+		expect(reset_transport(100'000)).to_be_true();
+		rig.press(ButtonId::Record, true, 4'000);
+		rig.press(ButtonId::Play, true, 4'005);
+		const bool port_playing = playbackHandler.playbackState != 0;
+		expect(port_playing == legacy_playing).to_be_true();
+		expect(AudioEngine::foregroundRecordingSource() == legacy_source).to_be_true();
+		rig.press(ButtonId::Play, false, 4'010);
+		rig.press(ButtonId::Record, false, 4'015);
+		if (playbackHandler.playbackState != 0) {
+			playbackHandler.endPlayback();
+		}
+		expect(reset_transport(100'000)).to_be_true();
+	});
+
+	it("transport tail: a RECORD tap while resampling ends the recording instead of arming, both sides", _ {
+		// `Buttons::buttonAction`'s RECORD release: `audioRecorder.isCurrentlyResampling()` ->
+		// `audioRecorder.endRecordingSoon(kInternalButtonPressLatency)`, else `recordButtonPressed()`.
+		static spec::SongFixture fixture = spec::make_synth_song();
+
+		release_all_legacy_buttons();
+		expect(reset_transport(100'000)).to_be_true();
+		expect(deluge::recording::beginOutputRecording()).to_be_true();
+		expect(deluge::recording::isCurrentlyResampling()).to_be_true();
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), true);
+		(void)Buttons::buttonAction(legacy_button(ButtonId::Record), false);
+		const bool legacy_still_capturing = deluge::recording::isCurrentlyResampling();
+		const RecordingMode legacy_mode = playbackHandler.recording;
+		expect(legacy_still_capturing).to_be_false();
+		expect(legacy_mode == RecordingMode::OFF).to_be_true();
+
+		release_all_legacy_buttons();
+		GcRig rig;
+		rig.gc.set_song(fixture.song);
+		expect(reset_transport(100'000)).to_be_true();
+		expect(deluge::recording::beginOutputRecording()).to_be_true();
+		expect(deluge::recording::isCurrentlyResampling()).to_be_true();
+		rig.press(ButtonId::Record, true, 5'000);
+		rig.press(ButtonId::Record, false, 5'010);
+		expect(deluge::recording::isCurrentlyResampling() == legacy_still_capturing).to_be_true();
+		expect(playbackHandler.recording == legacy_mode).to_be_true();
+		expect(reset_transport(100'000)).to_be_true();
 	});
 
 	it("transport tail: does not toggle recording on a LONG press, both sides", _ {

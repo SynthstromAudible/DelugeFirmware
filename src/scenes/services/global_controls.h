@@ -115,15 +115,6 @@
 ///     (`scenes/context_menu/`), but the *clear-song* menu is not among the ported context
 ///     menus, and its `setupAndCheckAvailability()` is a `gui/` call. Decision ported, open
 ///     missing.
-///   * **`deluge::recording::beginOutputRecording()`** (`Buttons::buttonAction`'s PLAY/RECORD arms),
-///     **`deluge::recording::isCurrentlyResampling()`** (same tail) and
-///     **`deluge::recording::endRecordingSoon()`** (the RECORD release). These are the engine's
-///     foreground recording (`processing/recording/foreground_recording.h`), which `RecorderScene`'s
-///     own class doc keeps off the scene side: *"None of that is a UI ... this scene does not touch
-///     it"* (`scenes/recorder/recorder_scene.h`). This layer does not call them, so the output
-///     recording's three verbs are still the legacy tail's. `AudioEngine::foregroundRecordingSource()`
-///     is read-only, so the two *tests* legacy makes on the channel (`Buttons::buttonAction`'s PLAY
-///     and RECORD arms) ARE ported; the three verbs are not.
 ///   * **`display->hasPopupOfType(PopupType::THRESHOLD_RECORDING_MODE)`** and the `cancelPopup()`
 ///     it guards (`hid/buttons.cpp:190-192`). `scenes-no-display` forbids `display->`, and the
 ///     seam that would replace it does not reach: that popup is raised by *model* code straight to
@@ -386,14 +377,14 @@ public:
 	/// @brief Is the LOAD button being held down? `UI_MODE_HOLDING_LOAD_BUTTON` (`View::buttonAction` in `view.cpp`,
 	///        which also clears it).
 	bool holding_load() const { return holding_load_; }
-	/// @brief The five call sites this port reaches but cannot make -- see the class doc's
+	/// @brief The three call sites this port reaches but cannot make -- see the class doc's
 	///        "deliberately NOT ported".
 	///
-	/// One enumerator per *site*, not one per kind of thing: `beginOutputRecording` is reached from
-	/// two different arms with two different conditions, and a single total cannot tell them apart.
-	/// Fix round 1, minor 5: a spec asserting `unported_opens() == 1` after a SAVE gesture could be
-	/// satisfied by a PLAY+RECORD combo instead, which would make the counter's only claim -- "the
-	/// arm's decision reached the point legacy opens a UI at" -- unfalsifiable.
+	/// One enumerator per *site*, not one per kind of thing: the LOAD arm reaches two different opens
+	/// under two different conditions, and a single total could not tell them apart -- a spec
+	/// asserting one open after a LOAD gesture could be satisfied by the other, which would make the
+	/// counter's only claim -- "the arm's decision reached the point legacy opens a UI at" --
+	/// unfalsifiable.
 	///
 	/// @note The doc for each enumerator is on its own line above it, not trailing: a trailing
 	///       `///<` shares a line with code, and `scripts/check_layer_rules.py`'s `is_comment_line`
@@ -406,10 +397,6 @@ public:
 		LoadSong,
 		/// The clear-song context menu's open (`View::buttonAction`'s LOAD arm).
 		ClearSong,
-		/// Output recording begun from the PLAY arm (`hid/buttons.cpp:161`).
-		OutputRecordFromPlay,
-		/// Output recording begun from shift+RECORD (`Buttons::buttonAction`).
-		OutputRecordFromShift,
 		Count,
 	};
 
