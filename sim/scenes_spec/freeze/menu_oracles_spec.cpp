@@ -14,6 +14,7 @@
 /// @note This file may include `gui/menu_item/`, `gui/ui/menus.h` and `gui/ui/sound_editor.h`; the specs that read
 ///       the tables do not.
 
+#include "support/legacy_menu_order.h"
 #include "support/oracle_table.h"
 #include "support/oracle_tree.h"
 #include "support/tables_2_fixtures.h"
@@ -229,32 +230,11 @@ void check(bool ok, const std::string& what) {
 	}
 }
 
-/// @brief @p items, the children of @p menu, in the order `menu` shows them.
-///
-/// `eq::EqMenu::ensureCorrectItemsOrderAndGetValues` reorders its four items on its first render, to bass, bass
-/// frequency, treble frequency, treble -- the graph's handles left to right -- and the port's `nodes::eq` lists them in
-/// that order. Every other menu's order is its constructor's.
-deluge::vector<::MenuItem*> in_menu_order(::MenuItem& menu, const deluge::vector<::MenuItem*>& items) {
-	deluge::vector<::MenuItem*> out = items;
-	if (dynamic_cast<deluge::gui::menu_item::eq::EqMenu*>(&menu) == nullptr) {
-		return out;
-	}
-	namespace params = deluge::modulation::params;
-	constexpr std::array kOrder{params::UNPATCHED_BASS, params::UNPATCHED_BASS_FREQ, params::UNPATCHED_TREBLE_FREQ,
-	                            params::UNPATCHED_TREBLE};
-	const auto rank = [&](::MenuItem* item) {
-		const auto p = static_cast<deluge::gui::menu_item::UnpatchedParam*>(item)->getP();
-		return std::distance(kOrder.begin(), std::ranges::find(kOrder, p));
-	};
-	std::ranges::stable_sort(out, {}, rank);
-	return out;
-}
-
 /// @brief Read a `Submenu`'s protected child list: the pointer-to-member is formed inside a derived class, which
 ///        [class.protected] permits.
 struct SubmenuPeek : legacy::Submenu {
 	static deluge::vector<::MenuItem*> items_of(legacy::Submenu& menu) {
-		return in_menu_order(menu, menu.*(&SubmenuPeek::items));
+		return spec::in_menu_order(menu, menu.*(&SubmenuPeek::items));
 	}
 };
 
@@ -291,11 +271,6 @@ bool legacy_write(::MenuItem* item, int32_t v) {
 	}
 	return false;
 }
-
-/// @brief Reach `Output::activeClip`, which is `protected`; never instantiated.
-struct OutputPeek : ::Output {
-	static Clip*& active_clip_of(::Output& out) { return out.*(&OutputPeek::activeClip); }
-};
 
 using Pair = std::pair<TreeEntry, ::MenuItem*>;
 
@@ -433,6 +408,9 @@ struct TreeKit {
 	void (*install)(const MenuContext&, Song*);
 	bool (*dynamic_name)(const Node&);
 	bool (*write_needs_ui)(const Node&);
+	/// Whether the synth fixture's reads, options, learn targets and param kinds are taken on every leaf, as the sound
+	/// root's spec always compared them, rather than only where the node is shown.
+	bool ask_hidden;
 };
 
 /// @brief One fixture a root's answers are recorded on: its name in the column (empty: the root's own), its context and
@@ -492,39 +470,50 @@ void emit_static(OracleWriter& out, const TreeEntry& e, ::MenuItem& item, bool d
 	out.row(e.path, "edits", item.selectEncoderActionEditsInstrument() ? 1 : 0);
 	out.row(e.path, "slots", item.getOccupiedSlots());
 	out.row(e.path, "range_dep", item.isRangeDependent() ? 1 : 0);
-	if (e.node->kind != menu::Kind::Custom) {
+	if (spec::param_comparable(*e.node)) {
 		out.row(e.path, "param_index", static_cast<int64_t>(item.getParamIndex()));
 	}
 }
 
-/// @brief What an item answers on one fixture, under exactly the guards the spec applies: shown or not, its value,
-///        its options, its learn target, and its param kind.
+/// @brief What an item answers on one fixture: shown or not, its value, its options, its learn target, and its param
+///        kind. Only where the node is shown on a page the fixture opens, except that the sound root's synth fixture
+///        (`TreeKit::ask_hidden`) is asked of every leaf.
 void emit_fixture(OracleWriter& out, const TreeKit& kit, const TreeEntry& e, ::MenuItem& item, const TreeFixture& f) {
 	freezer_install(kit, f.ctx, f.song);
-	if (e.parent != nullptr && !menu::bindings::relevant(*e.parent, f.ctx)) {
+	const bool page_opens = e.parent == nullptr || menu::bindings::relevant(*e.parent, f.ctx);
+	const bool wide = kit.ask_hidden && f.name == "synth";
+	if (!page_opens && !wide) {
 		return; // a page this fixture never opens
 	}
-	soundEditor.navigationDepth = static_cast<uint8_t>(e.navigation_depth());
-	if (f.root_ui != nullptr) {
-		setRootUILowLevel(f.root_ui);
+	if (page_opens) {
+		soundEditor.navigationDepth = static_cast<uint8_t>(e.navigation_depth());
+		if (f.root_ui != nullptr) {
+			setRootUILowLevel(f.root_ui);
+		}
+		if (!spec::tables3::recorder_on_soundless_row(e, f.ctx)) {
+			out.row(e.path, at("rel", f.name),
+			        item.isRelevant(spec::menu_engine(f.ctx).mod, f.ctx.source_index) ? 1 : 0);
+		}
+		if (f.root_ui != nullptr) {
+			nullifyUIs();
+		}
+		soundEditor.navigationDepth = 0;
 	}
-	if (!spec::tables3::recorder_on_soundless_row(e, f.ctx)) {
-		out.row(e.path, at("rel", f.name), item.isRelevant(spec::menu_engine(f.ctx).mod, f.ctx.source_index) ? 1 : 0);
-	}
-	if (f.root_ui != nullptr) {
-		nullifyUIs();
-	}
-	soundEditor.navigationDepth = 0;
-	if (e.node->kind == menu::Kind::Custom || !menu::bindings::relevant(*e.node, f.ctx)) {
+	const bool shown = page_opens && menu::bindings::relevant(*e.node, f.ctx);
+	if (e.node->kind == menu::Kind::Custom || (!shown && !wide)) {
 		return;
 	}
-	if (!spec::tables3::value_is_port_owned(*e.node) && !spec::tables3::value_is_two_ended(*e.node)) {
+	// A target this fixture does not show answers nothing readable.
+	const bool target_hidden = e.node->bind.target.valid() && !shown;
+	if (!spec::tables3::value_is_port_owned(*e.node) && !spec::tables3::value_is_two_ended(*e.node) && !target_hidden) {
 		if (const std::optional<int32_t> v = legacy_value(&item)) {
 			out.row(e.path, at("read", f.name), *v);
 		}
 	}
+	// A page main keeps only for kit rows (the drums' note mode) shows on a kit row alone.
+	const bool lane_only = e.node->bind.target.shown_on == deluge::scenes::bind::Target::ShownOn::ON_LANE;
 	if (auto* selection = dynamic_cast<legacy::Selection*>(&item);
-	    selection != nullptr && e.node->kind == menu::Kind::Enum) {
+	    selection != nullptr && e.node->kind == menu::Kind::Enum && !(wide && lane_only)) {
 		std::vector<std::string> names;
 		for (const std::string_view o : selection->getOptions(legacy::Selection::OptType::FULL)) {
 			names.emplace_back(o);
@@ -538,7 +527,7 @@ void emit_fixture(OracleWriter& out, const TreeKit& kit, const TreeEntry& e, ::M
 		out.row(e.path, at("learn", f.name),
 		        thing ? std::to_string(deluge::bridge::controlTargetOf(thing, unpatched).value) : std::string{"none"});
 	}
-	if (spec::menu_engine(f.ctx).clip != nullptr && e.node->kind != menu::Kind::Submenu) {
+	if (spec::menu_engine(f.ctx).clip != nullptr && spec::param_comparable(*e.node)) {
 		out.row(e.path, at("param_kind", f.name), static_cast<int64_t>(item.getParamKind()));
 	}
 }
@@ -633,15 +622,6 @@ std::vector<std::string> options_of(legacy::Selection& selection) {
 	return names;
 }
 
-/// @brief A cppspec-free stand-in for `std::string_view` joined with commas, for failure messages.
-std::string joined(const std::vector<std::string>& v) {
-	std::string out;
-	for (const std::string& s : v) {
-		out += s + ",";
-	}
-	return out;
-}
-
 // ---------------------------------------------------------------------------------------------------------------
 // Family `tables_3`: the settings root and the nine others.
 
@@ -696,7 +676,7 @@ struct LegacyLearnScope {
 	LegacyLearnScope& operator=(const LegacyLearnScope&) = delete;
 };
 
-const TreeKit kKit{&t3::install, &t3::has_dynamic_name, &t3::write_needs_booted_ui};
+const TreeKit kKit{&t3::install, &t3::has_dynamic_name, &t3::write_needs_booted_ui, /*ask_hidden=*/false};
 
 const t3::TablesRoot& settings_root() {
 	return t3::roots().back();
@@ -713,8 +693,10 @@ void emit_reverb_titles(OracleWriter& out, const std::vector<TreeWalk>& walks) {
 			}
 			AudioEngine::setReverbModel(deluge::effects::ReverbModel::FREEVERB);
 			out.row(e.path, "name@freeverb", std::string{item->getName()});
+			out.row(e.path, "title@freeverb", std::string{item->getTitle()});
 			AudioEngine::setReverbModel(deluge::effects::ReverbModel::MUTABLE);
 			out.row(e.path, "name@mutable", std::string{item->getName()});
+			out.row(e.path, "title@mutable", std::string{item->getTitle()});
 		}
 	}
 	AudioEngine::setReverbModel(saved);
@@ -797,6 +779,7 @@ void emit_chaining(OracleWriter& out, const TreeWalk& settings) {
 	soundEditor.currentSourceIndex = root.ctx.source_index;
 	gateOffTimeMenu.readCurrentValue();
 	out.row("chain/gate_off_time", "read", gateOffTimeMenu.getValue());
+	out.row("chain/gate_off_time", "title", std::string{gateOffTimeMenu.getTitle()});
 }
 
 /// @brief The twelve MIDI-command learn items, against the legacy `midi::Command` in the same position.
@@ -1066,7 +1049,7 @@ namespace tables_2 {
 
 namespace t2 = spec::tables2;
 
-const TreeKit kKit{&t2::install, &t2::has_dynamic_name, &t2::write_needs_booted_ui};
+const TreeKit kKit{&t2::install, &t2::has_dynamic_name, &t2::write_needs_booted_ui, /*ask_hidden=*/true};
 
 /// @brief The two fixtures the sound root's answers are recorded on, the kit row with its first drum selected.
 std::vector<TreeFixture> fixtures() {
@@ -1197,6 +1180,9 @@ void emit_patch_cables(OracleWriter& out, const TreeWalk& walked) {
 		check(t2::seed_cable(f.ctx, learn, 1234), "the cable is created");
 		legacy::patch_cable_strength::regularMenu.readCurrentValue();
 		out.row("strength/seed", "read", legacy::patch_cable_strength::regularMenu.getValue());
+		out.row("strength/seed", "learn",
+		        std::to_string(
+		            deluge::modulation::knobWord(legacy::patch_cable_strength::regularMenu.getLearningThing()).word));
 		check(t2::seed_cable(f.ctx, learn, -2500), "the cable is moved");
 		legacy::patch_cable_strength::regularMenu.readCurrentValue();
 		out.row("strength/sentinel", "read", legacy::patch_cable_strength::regularMenu.getValue());
@@ -1351,7 +1337,7 @@ describe freeze_tables("menu oracle freezer: the sound root and the ten roots", 
 		tables_2::freeze(out);
 		expect(freeze_problems()).to_equal(std::string{});
 		expect(out.duplicates()).to_equal(std::string{});
-		expect(out.size() > size_t{2500}).to_be_true();
+		expect(out.size() > size_t{2400}).to_be_true();
 		expect(out.flush()).to_be_true();
 	});
 });

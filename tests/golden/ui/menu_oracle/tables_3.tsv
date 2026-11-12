@@ -42,7 +42,6 @@ sound/1/0	ae	1
 sound/1/0	edits	1
 sound/1/0	slots	1
 sound/1/0	range_dep	0
-sound/1/0	param_index	255
 sound/1/1	name	Volume
 sound/1/1	title	Master level
 sound/1/1	ae	1
@@ -63,7 +62,6 @@ sound/1/3	ae	1
 sound/1/3	edits	1
 sound/1/3	slots	1
 sound/1/3	range_dep	0
-sound/1/3	param_index	25
 sound/1/4	name	Vibrato
 sound/1/4	title	Vibrato
 sound/1/4	ae	0
@@ -79,7 +77,6 @@ sound/2/0	ae	1
 sound/2/0	edits	1
 sound/2/0	slots	1
 sound/2/0	range_dep	0
-sound/2/0	param_index	255
 sound/2/1	name	Basic
 sound/2/1	title	Arp basic
 sound/2/1	kids	4
@@ -89,7 +86,6 @@ sound/2/1/0	ae	1
 sound/2/1/0	edits	1
 sound/2/1/0	slots	1
 sound/2/1/0	range_dep	0
-sound/2/1/0	param_index	255
 sound/2/1/1	name	Gate
 sound/2/1/1	title	Arp gate
 sound/2/1/1	ae	1
@@ -103,7 +99,6 @@ sound/2/1/2	ae	1
 sound/2/1/2	edits	1
 sound/2/1/2	slots	1
 sound/2/1/2	range_dep	0
-sound/2/1/2	param_index	255
 sound/2/1/3	name	Rate
 sound/2/1/3	title	Arp rate
 sound/2/1/3	ae	1
@@ -120,42 +115,36 @@ sound/2/2/0	ae	1
 sound/2/2/0	edits	1
 sound/2/2/0	slots	1
 sound/2/2/0	range_dep	0
-sound/2/2/0	param_index	255
 sound/2/2/1	name	Step Repeat
 sound/2/2/1	title	Arp step repeat
 sound/2/2/1	ae	1
 sound/2/2/1	edits	1
 sound/2/2/1	slots	1
 sound/2/2/1	range_dep	0
-sound/2/2/1	param_index	255
 sound/2/2/2	name	Octave Mode
 sound/2/2/2	title	Arp octave mode
 sound/2/2/2	ae	1
 sound/2/2/2	edits	1
 sound/2/2/2	slots	1
 sound/2/2/2	range_dep	0
-sound/2/2/2	param_index	255
 sound/2/2/3	name	Note Mode
 sound/2/2/3	title	Arp note mode
 sound/2/2/3	ae	0
 sound/2/2/3	edits	1
 sound/2/2/3	slots	1
 sound/2/2/3	range_dep	0
-sound/2/2/3	param_index	255
 sound/2/2/4	name	Note Mode
 sound/2/2/4	title	Arp note mode
 sound/2/2/4	ae	1
 sound/2/2/4	edits	1
 sound/2/2/4	slots	1
 sound/2/2/4	range_dep	0
-sound/2/2/4	param_index	255
 sound/2/2/5	name	Chord Simulator
 sound/2/2/5	title	Arp chord sim
 sound/2/2/5	ae	1
 sound/2/2/5	edits	1
 sound/2/2/5	slots	1
 sound/2/2/5	range_dep	0
-sound/2/2/5	param_index	255
 sound/2/2/6	name	Rhythm
 sound/2/2/6	title	Arp rhythm
 sound/2/2/6	ae	1
@@ -169,7 +158,6 @@ sound/2/2/7	ae	0
 sound/2/2/7	edits	1
 sound/2/2/7	slots	2
 sound/2/2/7	range_dep	0
-sound/2/2/7	param_index	255
 sound/2/2/8	name	Sequence Length
 sound/2/2/8	title	Arp seq length
 sound/2/2/8	ae	1
@@ -183,7 +171,6 @@ sound/2/2/9	ae	0
 sound/2/2/9	edits	1
 sound/2/2/9	slots	1
 sound/2/2/9	range_dep	0
-sound/2/2/9	param_index	255
 sound/2/3	name	MPE
 sound/2/3	title	MPE
 sound/2/3	kids	1
@@ -193,14 +180,12 @@ sound/2/3/0	ae	1
 sound/2/3/0	edits	1
 sound/2/3/0	slots	1
 sound/2/3/0	range_dep	0
-sound/2/3/0	param_index	255
 sound/2/4	name	Include in Kit Arp
 sound/2/4	title	Include in Kit Arp
 sound/2/4	ae	1
 sound/2/4	edits	1
 sound/2/4	slots	1
 sound/2/4	range_dep	0
-sound/2/4	param_index	255
 sound/3	name	Randomizer
 sound/3	title	Randomizer
 sound/3	kids	24
@@ -210,7 +195,6 @@ sound/3/0	ae	1
 sound/3/0	edits	1
 sound/3/0	slots	1
 sound/3/0	range_dep	0
-sound/3/0	param_index	255
 sound/3/1	name	Gate Spread
 sound/3/1	title	Arp gate spread
 sound/3/1	ae	1
@@ -224,7 +208,6 @@ sound/3/2	ae	0
 sound/3/2	edits	1
 sound/3/2	slots	1
 sound/3/2	range_dep	0
-sound/3/2	param_index	255
 sound/3/3	name	Octave Spread
 sound/3/3	title	Arp octa spread
 sound/3/3	ae	1
@@ -238,7 +221,6 @@ sound/3/4	ae	0
 sound/3/4	edits	1
 sound/3/4	slots	1
 sound/3/4	range_dep	0
-sound/3/4	param_index	255
 sound/3/5	name	Velocity Spread
 sound/3/5	title	Velocity spread
 sound/3/5	ae	1
@@ -252,7 +234,6 @@ sound/3/6	ae	0
 sound/3/6	edits	1
 sound/3/6	slots	1
 sound/3/6	range_dep	0
-sound/3/6	param_index	255
 sound/3/7	name	Ratchet Amount
 sound/3/7	title	Arp ratc amount
 sound/3/7	ae	1
@@ -266,7 +247,6 @@ sound/3/8	ae	0
 sound/3/8	edits	1
 sound/3/8	slots	1
 sound/3/8	range_dep	0
-sound/3/8	param_index	255
 sound/3/9	name	Ratchet Probability
 sound/3/9	title	Arp ratc prob
 sound/3/9	ae	1
@@ -280,7 +260,6 @@ sound/3/10	ae	0
 sound/3/10	edits	1
 sound/3/10	slots	1
 sound/3/10	range_dep	0
-sound/3/10	param_index	255
 sound/3/11	name	Chord Polyphony
 sound/3/11	title	Arp chord poly
 sound/3/11	ae	1
@@ -294,7 +273,6 @@ sound/3/12	ae	0
 sound/3/12	edits	1
 sound/3/12	slots	1
 sound/3/12	range_dep	0
-sound/3/12	param_index	255
 sound/3/13	name	Chord Probability
 sound/3/13	title	Arp chord prob
 sound/3/13	ae	1
@@ -308,7 +286,6 @@ sound/3/14	ae	0
 sound/3/14	edits	1
 sound/3/14	slots	1
 sound/3/14	range_dep	0
-sound/3/14	param_index	255
 sound/3/15	name	Note Probability
 sound/3/15	title	Note prob
 sound/3/15	ae	1
@@ -322,7 +299,6 @@ sound/3/16	ae	0
 sound/3/16	edits	1
 sound/3/16	slots	1
 sound/3/16	range_dep	0
-sound/3/16	param_index	255
 sound/3/17	name	Swap Probability
 sound/3/17	title	Arp swap prob
 sound/3/17	ae	1
@@ -336,7 +312,6 @@ sound/3/18	ae	0
 sound/3/18	edits	1
 sound/3/18	slots	1
 sound/3/18	range_dep	0
-sound/3/18	param_index	255
 sound/3/19	name	Bass Probability
 sound/3/19	title	Arp bass prob
 sound/3/19	ae	1
@@ -350,7 +325,6 @@ sound/3/20	ae	0
 sound/3/20	edits	1
 sound/3/20	slots	1
 sound/3/20	range_dep	0
-sound/3/20	param_index	255
 sound/3/21	name	Glide Probability
 sound/3/21	title	Arp glide prob
 sound/3/21	ae	1
@@ -364,7 +338,6 @@ sound/3/22	ae	0
 sound/3/22	edits	1
 sound/3/22	slots	1
 sound/3/22	range_dep	0
-sound/3/22	param_index	255
 sound/3/23	name	Reverse Probability
 sound/3/23	title	Reverse prob
 sound/3/23	ae	1
@@ -388,35 +361,30 @@ sound/4/1	ae	0
 sound/4/1	edits	1
 sound/4/1	slots	1
 sound/4/1	range_dep	0
-sound/4/1	param_index	255
 sound/4/2	name	Blend
 sound/4/2	title	Blend
 sound/4/2	ae	0
 sound/4/2	edits	1
 sound/4/2	slots	1
 sound/4/2	range_dep	0
-sound/4/2	param_index	255
 sound/4/3	name	Attack
 sound/4/3	title	Attack
 sound/4/3	ae	0
 sound/4/3	edits	1
 sound/4/3	slots	1
 sound/4/3	range_dep	0
-sound/4/3	param_index	255
 sound/4/4	name	Release
 sound/4/4	title	Release
 sound/4/4	ae	0
 sound/4/4	edits	1
 sound/4/4	slots	1
 sound/4/4	range_dep	0
-sound/4/4	param_index	255
 sound/4/5	name	Hpf
 sound/4/5	title	Hpf
 sound/4/5	ae	0
 sound/4/5	edits	1
 sound/4/5	slots	1
 sound/4/5	range_dep	0
-sound/4/5	param_index	255
 sound/5	name	Filters
 sound/5	title	Filters
 sound/5	kids	3
@@ -429,7 +397,6 @@ sound/5/0/0	ae	1
 sound/5/0/0	edits	1
 sound/5/0/0	slots	1
 sound/5/0/0	range_dep	0
-sound/5/0/0	param_index	255
 sound/5/0/1	name	Frequency
 sound/5/0/1	title	LPF frequency
 sound/5/0/1	ae	1
@@ -458,7 +425,6 @@ sound/5/1/0	ae	1
 sound/5/1/0	edits	1
 sound/5/1/0	slots	1
 sound/5/1/0	range_dep	0
-sound/5/1/0	param_index	255
 sound/5/1/1	name	Frequency
 sound/5/1/1	title	HPF frequency
 sound/5/1/1	ae	1
@@ -484,7 +450,6 @@ sound/5/2	ae	1
 sound/5/2	edits	1
 sound/5/2	slots	4
 sound/5/2	range_dep	0
-sound/5/2	param_index	255
 sound/6	name	FX
 sound/6	title	FX
 sound/6	kids	7
@@ -535,14 +500,12 @@ sound/6/1/1	ae	1
 sound/6/1/1	edits	1
 sound/6/1/1	slots	1
 sound/6/1/1	range_dep	0
-sound/6/1/1	param_index	255
 sound/6/1/2	name	Sync
 sound/6/1/2	title	Delay sync
 sound/6/1/2	ae	1
 sound/6/1/2	edits	1
 sound/6/1/2	slots	1
 sound/6/1/2	range_dep	0
-sound/6/1/2	param_index	255
 sound/6/1/3	name	Rate
 sound/6/1/3	title	Delay rate
 sound/6/1/3	ae	1
@@ -556,7 +519,6 @@ sound/6/1/4	ae	1
 sound/6/1/4	edits	1
 sound/6/1/4	slots	1
 sound/6/1/4	range_dep	0
-sound/6/1/4	param_index	255
 sound/6/2	name	Reverb
 sound/6/2	title	Reverb
 sound/6/2	kids	9
@@ -571,47 +533,40 @@ sound/6/2/1	ae	0
 sound/6/2/1	edits	1
 sound/6/2/1	slots	1
 sound/6/2/1	range_dep	0
-sound/6/2/1	param_index	255
 sound/6/2/2	name	Damping
 sound/6/2/2	title	Damping
 sound/6/2/2	ae	0
 sound/6/2/2	edits	1
 sound/6/2/2	slots	1
 sound/6/2/2	range_dep	0
-sound/6/2/2	param_index	255
 sound/6/2/3	ae	0
 sound/6/2/3	edits	1
 sound/6/2/3	slots	1
 sound/6/2/3	range_dep	0
-sound/6/2/3	param_index	255
 sound/6/2/4	name	Model
 sound/6/2/4	title	Model
 sound/6/2/4	ae	0
 sound/6/2/4	edits	1
 sound/6/2/4	slots	1
 sound/6/2/4	range_dep	0
-sound/6/2/4	param_index	255
 sound/6/2/5	name	Pan
 sound/6/2/5	title	Reverb pan
 sound/6/2/5	ae	0
 sound/6/2/5	edits	1
 sound/6/2/5	slots	1
 sound/6/2/5	range_dep	0
-sound/6/2/5	param_index	255
 sound/6/2/6	name	Hpf
 sound/6/2/6	title	Hpf
 sound/6/2/6	ae	0
 sound/6/2/6	edits	1
 sound/6/2/6	slots	1
 sound/6/2/6	range_dep	0
-sound/6/2/6	param_index	255
 sound/6/2/7	name	Lpf
 sound/6/2/7	title	Lpf
 sound/6/2/7	ae	0
 sound/6/2/7	edits	1
 sound/6/2/7	slots	1
 sound/6/2/7	range_dep	0
-sound/6/2/7	param_index	255
 sound/6/2/8	name	Sidechain
 sound/6/2/8	title	Reverb sidech
 sound/6/2/8	kids	5
@@ -621,35 +576,30 @@ sound/6/2/8/0	ae	0
 sound/6/2/8/0	edits	1
 sound/6/2/8/0	slots	1
 sound/6/2/8/0	range_dep	0
-sound/6/2/8/0	param_index	255
 sound/6/2/8/1	name	Shape
 sound/6/2/8/1	title	Sidech shape
 sound/6/2/8/1	ae	0
 sound/6/2/8/1	edits	1
 sound/6/2/8/1	slots	1
 sound/6/2/8/1	range_dep	0
-sound/6/2/8/1	param_index	255
 sound/6/2/8/2	name	Attack
 sound/6/2/8/2	title	Sidech attack
 sound/6/2/8/2	ae	1
 sound/6/2/8/2	edits	1
 sound/6/2/8/2	slots	1
 sound/6/2/8/2	range_dep	0
-sound/6/2/8/2	param_index	255
 sound/6/2/8/3	name	Release
 sound/6/2/8/3	title	Sidech release
 sound/6/2/8/3	ae	1
 sound/6/2/8/3	edits	1
 sound/6/2/8/3	slots	1
 sound/6/2/8/3	range_dep	0
-sound/6/2/8/3	param_index	255
 sound/6/2/8/4	name	Sync
 sound/6/2/8/4	title	Sidechain sync
 sound/6/2/8/4	ae	1
 sound/6/2/8/4	edits	1
 sound/6/2/8/4	slots	1
 sound/6/2/8/4	range_dep	0
-sound/6/2/8/4	param_index	255
 sound/6/3	name	Stutter
 sound/6/3	title	Stutter
 sound/6/3	kids	3
@@ -666,14 +616,12 @@ sound/6/3/1	ae	1
 sound/6/3/1	edits	1
 sound/6/3/1	slots	1
 sound/6/3/1	range_dep	0
-sound/6/3/1	param_index	255
 sound/6/3/2	name	Quantize
 sound/6/3/2	title	Quantize
 sound/6/3/2	ae	1
 sound/6/3/2	edits	1
 sound/6/3/2	slots	1
 sound/6/3/2	range_dep	0
-sound/6/3/2	param_index	255
 sound/6/4	name	Mod-FX
 sound/6/4	title	Mod-FX
 sound/6/4	kids	5
@@ -683,7 +631,6 @@ sound/6/4/0	ae	1
 sound/6/4/0	edits	1
 sound/6/4/0	slots	4
 sound/6/4/0	range_dep	0
-sound/6/4/0	param_index	255
 sound/6/4/1	ae	1
 sound/6/4/1	edits	1
 sound/6/4/1	slots	1
@@ -715,7 +662,6 @@ sound/6/5/0	ae	1
 sound/6/5/0	edits	1
 sound/6/5/0	slots	1
 sound/6/5/0	range_dep	0
-sound/6/5/0	param_index	255
 sound/6/5/1	name	Bitcrush
 sound/6/5/1	title	Bitcrush
 sound/6/5/1	ae	1
@@ -759,7 +705,6 @@ sound/7/1	ae	1
 sound/7/1	edits	1
 sound/7/1	slots	1
 sound/7/1	range_dep	0
-sound/7/1	param_index	255
 sound/7/2	name	Shape
 sound/7/2	title	Sidech shape
 sound/7/2	ae	1
@@ -773,21 +718,18 @@ sound/7/3	ae	1
 sound/7/3	edits	1
 sound/7/3	slots	1
 sound/7/3	range_dep	0
-sound/7/3	param_index	255
 sound/7/4	name	Attack
 sound/7/4	title	Sidech attack
 sound/7/4	ae	1
 sound/7/4	edits	1
 sound/7/4	slots	1
 sound/7/4	range_dep	0
-sound/7/4	param_index	255
 sound/7/5	name	Release
 sound/7/5	title	Sidech release
 sound/7/5	ae	1
 sound/7/5	edits	1
 sound/7/5	slots	1
 sound/7/5	range_dep	0
-sound/7/5	param_index	255
 sound/8	kids	14
 sound/8/0	name	Type
 sound/8/0	title	Osc1 type
@@ -795,7 +737,6 @@ sound/8/0	ae	0
 sound/8/0	edits	1
 sound/8/0	slots	1
 sound/8/0	range_dep	0
-sound/8/0	param_index	255
 sound/8/1	name	File browser
 sound/8/1	title	File browser
 sound/8/1	ae	0
@@ -808,7 +749,6 @@ sound/8/2	ae	1
 sound/8/2	edits	1
 sound/8/2	slots	1
 sound/8/2	range_dep	1
-sound/8/2	param_index	26
 sound/8/3	name	Wave-index
 sound/8/3	title	Osc1 wave-index
 sound/8/3	ae	1
@@ -836,42 +776,36 @@ sound/8/6	ae	0
 sound/8/6	edits	1
 sound/8/6	slots	1
 sound/8/6	range_dep	0
-sound/8/6	param_index	255
 sound/8/7	name	Reverse
 sound/8/7	title	Samp1 reverse
 sound/8/7	ae	1
 sound/8/7	edits	1
 sound/8/7	slots	1
 sound/8/7	range_dep	0
-sound/8/7	param_index	255
 sound/8/8	name	Repeat Mode
 sound/8/8	title	Samp1 repeat
 sound/8/8	ae	1
 sound/8/8	edits	1
 sound/8/8	slots	1
 sound/8/8	range_dep	0
-sound/8/8	param_index	255
 sound/8/9	name	Speed
 sound/8/9	title	Samp1 speed
 sound/8/9	ae	1
 sound/8/9	edits	1
 sound/8/9	slots	1
 sound/8/9	range_dep	0
-sound/8/9	param_index	255
 sound/8/10	name	Pitch/Speed
 sound/8/10	title	Pitch/Speed
 sound/8/10	ae	1
 sound/8/10	edits	1
 sound/8/10	slots	1
 sound/8/10	range_dep	0
-sound/8/10	param_index	255
 sound/8/11	name	Interpolation
 sound/8/11	title	Samp1 interp
 sound/8/11	ae	1
 sound/8/11	edits	1
 sound/8/11	slots	1
 sound/8/11	range_dep	0
-sound/8/11	param_index	255
 sound/8/12	name	Start-point
 sound/8/12	title	Start-point
 sound/8/12	ae	0
@@ -891,7 +825,6 @@ sound/9/0	ae	0
 sound/9/0	edits	1
 sound/9/0	slots	1
 sound/9/0	range_dep	0
-sound/9/0	param_index	255
 sound/9/1	name	File browser
 sound/9/1	title	File browser
 sound/9/1	ae	0
@@ -904,7 +837,6 @@ sound/9/2	ae	1
 sound/9/2	edits	1
 sound/9/2	slots	1
 sound/9/2	range_dep	1
-sound/9/2	param_index	27
 sound/9/3	name	Wave-index
 sound/9/3	title	Osc2 wave-index
 sound/9/3	ae	1
@@ -932,42 +864,36 @@ sound/9/6	ae	0
 sound/9/6	edits	1
 sound/9/6	slots	1
 sound/9/6	range_dep	0
-sound/9/6	param_index	255
 sound/9/7	name	Reverse
 sound/9/7	title	Samp2 reverse
 sound/9/7	ae	1
 sound/9/7	edits	1
 sound/9/7	slots	1
 sound/9/7	range_dep	0
-sound/9/7	param_index	255
 sound/9/8	name	Repeat Mode
 sound/9/8	title	Samp2 repeat
 sound/9/8	ae	1
 sound/9/8	edits	1
 sound/9/8	slots	1
 sound/9/8	range_dep	0
-sound/9/8	param_index	255
 sound/9/9	name	Speed
 sound/9/9	title	Samp2 speed
 sound/9/9	ae	1
 sound/9/9	edits	1
 sound/9/9	slots	1
 sound/9/9	range_dep	0
-sound/9/9	param_index	255
 sound/9/10	name	Pitch/Speed
 sound/9/10	title	Pitch/Speed
 sound/9/10	ae	1
 sound/9/10	edits	1
 sound/9/10	slots	1
 sound/9/10	range_dep	0
-sound/9/10	param_index	255
 sound/9/11	name	Interpolation
 sound/9/11	title	Samp2 interp
 sound/9/11	ae	1
 sound/9/11	edits	1
 sound/9/11	slots	1
 sound/9/11	range_dep	0
-sound/9/11	param_index	255
 sound/9/12	name	Start-point
 sound/9/12	title	Start-point
 sound/9/12	ae	0
@@ -989,7 +915,6 @@ sound/10/0	ae	1
 sound/10/0	edits	1
 sound/10/0	slots	1
 sound/10/0	range_dep	0
-sound/10/0	param_index	28
 sound/10/1	name	Feedback
 sound/10/1	title	FM Mod1 feedb
 sound/10/1	ae	1
@@ -1003,7 +928,6 @@ sound/10/2	ae	0
 sound/10/2	edits	1
 sound/10/2	slots	1
 sound/10/2	range_dep	0
-sound/10/2	param_index	255
 sound/11	name	FM mod 2
 sound/11	title	FM mod 2
 sound/11	kids	4
@@ -1013,7 +937,6 @@ sound/11/0	ae	1
 sound/11/0	edits	1
 sound/11/0	slots	1
 sound/11/0	range_dep	0
-sound/11/0	param_index	29
 sound/11/1	name	Feedback
 sound/11/1	title	FM Mod2 feedb
 sound/11/1	ae	1
@@ -1027,14 +950,12 @@ sound/11/2	ae	0
 sound/11/2	edits	1
 sound/11/2	slots	1
 sound/11/2	range_dep	0
-sound/11/2	param_index	255
 sound/11/3	name	Destination
 sound/11/3	title	FM Mod2 dest
 sound/11/3	ae	1
 sound/11/3	edits	1
 sound/11/3	slots	1
 sound/11/3	range_dep	0
-sound/11/3	param_index	255
 sound/12	name	Osc mixer
 sound/12	title	Osc mixer
 sound/12	kids	6
@@ -1079,7 +1000,6 @@ sound/12/5	ae	1
 sound/12/5	edits	1
 sound/12/5	slots	1
 sound/12/5	range_dep	0
-sound/12/5	param_index	255
 sound/13	name	Envelope 1
 sound/13	title	Envelope 1
 sound/13	kids	4
@@ -1213,14 +1133,12 @@ sound/17/0	ae	1
 sound/17/0	edits	1
 sound/17/0	slots	1
 sound/17/0	range_dep	0
-sound/17/0	param_index	255
 sound/17/1	name	Sync
 sound/17/1	title	LFO1 sync
 sound/17/1	ae	1
 sound/17/1	edits	1
 sound/17/1	slots	1
 sound/17/1	range_dep	0
-sound/17/1	param_index	255
 sound/17/2	name	Rate
 sound/17/2	title	LFO1 rate
 sound/17/2	ae	1
@@ -1237,14 +1155,12 @@ sound/18/0	ae	1
 sound/18/0	edits	1
 sound/18/0	slots	1
 sound/18/0	range_dep	0
-sound/18/0	param_index	255
 sound/18/1	name	Sync
 sound/18/1	title	LFO2 sync
 sound/18/1	ae	1
 sound/18/1	edits	1
 sound/18/1	slots	1
 sound/18/1	range_dep	0
-sound/18/1	param_index	255
 sound/18/2	name	Rate
 sound/18/2	title	LFO2 rate
 sound/18/2	ae	1
@@ -1261,14 +1177,12 @@ sound/19/0	ae	1
 sound/19/0	edits	1
 sound/19/0	slots	1
 sound/19/0	range_dep	0
-sound/19/0	param_index	255
 sound/19/1	name	Sync
 sound/19/1	title	LFO3 sync
 sound/19/1	ae	1
 sound/19/1	edits	1
 sound/19/1	slots	1
 sound/19/1	range_dep	0
-sound/19/1	param_index	255
 sound/19/2	name	Rate
 sound/19/2	title	LFO3 rate
 sound/19/2	ae	1
@@ -1285,14 +1199,12 @@ sound/20/0	ae	1
 sound/20/0	edits	1
 sound/20/0	slots	1
 sound/20/0	range_dep	0
-sound/20/0	param_index	255
 sound/20/1	name	Sync
 sound/20/1	title	LFO4 sync
 sound/20/1	ae	1
 sound/20/1	edits	1
 sound/20/1	slots	1
 sound/20/1	range_dep	0
-sound/20/1	param_index	255
 sound/20/2	name	Rate
 sound/20/2	title	LFO4 rate
 sound/20/2	ae	1
@@ -1309,21 +1221,18 @@ sound/21/0	ae	1
 sound/21/0	edits	1
 sound/21/0	slots	1
 sound/21/0	range_dep	0
-sound/21/0	param_index	255
 sound/21/1	name	Polyphony
 sound/21/1	title	Polyphony
 sound/21/1	ae	1
 sound/21/1	edits	1
 sound/21/1	slots	1
 sound/21/1	range_dep	0
-sound/21/1	param_index	255
 sound/21/2	name	Max Voices
 sound/21/2	title	Max Voices
 sound/21/2	ae	1
 sound/21/2	edits	1
 sound/21/2	slots	1
 sound/21/2	range_dep	0
-sound/21/2	param_index	255
 sound/21/3	name	Portamento
 sound/21/3	title	Portamento
 sound/21/3	ae	1
@@ -1340,21 +1249,18 @@ sound/21/4/0	ae	1
 sound/21/4/0	edits	1
 sound/21/4/0	slots	1
 sound/21/4/0	range_dep	0
-sound/21/4/0	param_index	255
 sound/21/4/1	name	Detune
 sound/21/4/1	title	Unison detune
 sound/21/4/1	ae	1
 sound/21/4/1	edits	1
 sound/21/4/1	slots	1
 sound/21/4/1	range_dep	0
-sound/21/4/1	param_index	255
 sound/21/4/2	name	Spread
 sound/21/4/2	title	Unison stereo spread
 sound/21/4/2	ae	1
 sound/21/4/2	edits	1
 sound/21/4/2	slots	1
 sound/21/4/2	range_dep	0
-sound/21/4/2	param_index	255
 sound/22	name	Bend range
 sound/22	title	Bend range
 sound/22	kids	2
@@ -1364,21 +1270,18 @@ sound/22/0	ae	0
 sound/22/0	edits	1
 sound/22/0	slots	1
 sound/22/0	range_dep	0
-sound/22/0	param_index	255
 sound/22/1	name	Poly / Finger / MPE
 sound/22/1	title	Poly / Finger / MPE
 sound/22/1	ae	0
 sound/22/1	edits	1
 sound/22/1	slots	1
 sound/22/1	range_dep	0
-sound/22/1	param_index	255
 sound/23	name	Bend range
 sound/23	title	Bend range
 sound/23	ae	0
 sound/23	edits	1
 sound/23	slots	1
 sound/23	range_dep	0
-sound/23	param_index	255
 sound/24	name	Mod matrix
 sound/24	title	Mod matrix
 sound/24	ae	0
@@ -1391,7 +1294,6 @@ sound/25	ae	0
 sound/25	edits	1
 sound/25	slots	1
 sound/25	range_dep	0
-sound/25	param_index	255
 sound/26	name	MIDI
 sound/26	title	MIDI
 sound/26	kids	2
@@ -1401,14 +1303,12 @@ sound/26/0	ae	1
 sound/26/0	edits	1
 sound/26/0	slots	1
 sound/26/0	range_dep	0
-sound/26/0	param_index	255
 sound/26/1	name	Note
 sound/26/1	title	Note
 sound/26/1	ae	1
 sound/26/1	edits	1
 sound/26/1	slots	1
 sound/26/1	range_dep	0
-sound/26/1	param_index	255
 drum	name	Sound
 drum	title	Sound
 drum	kids	27
@@ -1442,7 +1342,6 @@ drum/1/0	ae	1
 drum/1/0	edits	1
 drum/1/0	slots	1
 drum/1/0	range_dep	0
-drum/1/0	param_index	255
 drum/1/1	name	Volume
 drum/1/1	title	Master level
 drum/1/1	ae	1
@@ -1463,7 +1362,6 @@ drum/1/3	ae	1
 drum/1/3	edits	1
 drum/1/3	slots	1
 drum/1/3	range_dep	0
-drum/1/3	param_index	25
 drum/1/4	name	Vibrato
 drum/1/4	title	Vibrato
 drum/1/4	ae	0
@@ -1479,7 +1377,6 @@ drum/2/0	ae	1
 drum/2/0	edits	1
 drum/2/0	slots	1
 drum/2/0	range_dep	0
-drum/2/0	param_index	255
 drum/2/1	name	Basic
 drum/2/1	title	Arp basic
 drum/2/1	kids	4
@@ -1489,7 +1386,6 @@ drum/2/1/0	ae	1
 drum/2/1/0	edits	1
 drum/2/1/0	slots	1
 drum/2/1/0	range_dep	0
-drum/2/1/0	param_index	255
 drum/2/1/1	name	Gate
 drum/2/1/1	title	Arp gate
 drum/2/1/1	ae	1
@@ -1503,7 +1399,6 @@ drum/2/1/2	ae	1
 drum/2/1/2	edits	1
 drum/2/1/2	slots	1
 drum/2/1/2	range_dep	0
-drum/2/1/2	param_index	255
 drum/2/1/3	name	Rate
 drum/2/1/3	title	Arp rate
 drum/2/1/3	ae	1
@@ -1520,42 +1415,36 @@ drum/2/2/0	ae	1
 drum/2/2/0	edits	1
 drum/2/2/0	slots	1
 drum/2/2/0	range_dep	0
-drum/2/2/0	param_index	255
 drum/2/2/1	name	Step Repeat
 drum/2/2/1	title	Arp step repeat
 drum/2/2/1	ae	1
 drum/2/2/1	edits	1
 drum/2/2/1	slots	1
 drum/2/2/1	range_dep	0
-drum/2/2/1	param_index	255
 drum/2/2/2	name	Octave Mode
 drum/2/2/2	title	Arp octave mode
 drum/2/2/2	ae	1
 drum/2/2/2	edits	1
 drum/2/2/2	slots	1
 drum/2/2/2	range_dep	0
-drum/2/2/2	param_index	255
 drum/2/2/3	name	Note Mode
 drum/2/2/3	title	Arp note mode
 drum/2/2/3	ae	0
 drum/2/2/3	edits	1
 drum/2/2/3	slots	1
 drum/2/2/3	range_dep	0
-drum/2/2/3	param_index	255
 drum/2/2/4	name	Note Mode
 drum/2/2/4	title	Arp note mode
 drum/2/2/4	ae	1
 drum/2/2/4	edits	1
 drum/2/2/4	slots	1
 drum/2/2/4	range_dep	0
-drum/2/2/4	param_index	255
 drum/2/2/5	name	Chord Simulator
 drum/2/2/5	title	Arp chord sim
 drum/2/2/5	ae	1
 drum/2/2/5	edits	1
 drum/2/2/5	slots	1
 drum/2/2/5	range_dep	0
-drum/2/2/5	param_index	255
 drum/2/2/6	name	Rhythm
 drum/2/2/6	title	Arp rhythm
 drum/2/2/6	ae	1
@@ -1569,7 +1458,6 @@ drum/2/2/7	ae	0
 drum/2/2/7	edits	1
 drum/2/2/7	slots	2
 drum/2/2/7	range_dep	0
-drum/2/2/7	param_index	255
 drum/2/2/8	name	Sequence Length
 drum/2/2/8	title	Arp seq length
 drum/2/2/8	ae	1
@@ -1583,7 +1471,6 @@ drum/2/2/9	ae	0
 drum/2/2/9	edits	1
 drum/2/2/9	slots	1
 drum/2/2/9	range_dep	0
-drum/2/2/9	param_index	255
 drum/2/3	name	MPE
 drum/2/3	title	MPE
 drum/2/3	kids	1
@@ -1593,14 +1480,12 @@ drum/2/3/0	ae	1
 drum/2/3/0	edits	1
 drum/2/3/0	slots	1
 drum/2/3/0	range_dep	0
-drum/2/3/0	param_index	255
 drum/2/4	name	Include in Kit Arp
 drum/2/4	title	Include in Kit Arp
 drum/2/4	ae	1
 drum/2/4	edits	1
 drum/2/4	slots	1
 drum/2/4	range_dep	0
-drum/2/4	param_index	255
 drum/3	name	Randomizer
 drum/3	title	Randomizer
 drum/3	kids	24
@@ -1610,7 +1495,6 @@ drum/3/0	ae	1
 drum/3/0	edits	1
 drum/3/0	slots	1
 drum/3/0	range_dep	0
-drum/3/0	param_index	255
 drum/3/1	name	Gate Spread
 drum/3/1	title	Arp gate spread
 drum/3/1	ae	1
@@ -1624,7 +1508,6 @@ drum/3/2	ae	0
 drum/3/2	edits	1
 drum/3/2	slots	1
 drum/3/2	range_dep	0
-drum/3/2	param_index	255
 drum/3/3	name	Octave Spread
 drum/3/3	title	Arp octa spread
 drum/3/3	ae	1
@@ -1638,7 +1521,6 @@ drum/3/4	ae	0
 drum/3/4	edits	1
 drum/3/4	slots	1
 drum/3/4	range_dep	0
-drum/3/4	param_index	255
 drum/3/5	name	Velocity Spread
 drum/3/5	title	Velocity spread
 drum/3/5	ae	1
@@ -1652,7 +1534,6 @@ drum/3/6	ae	0
 drum/3/6	edits	1
 drum/3/6	slots	1
 drum/3/6	range_dep	0
-drum/3/6	param_index	255
 drum/3/7	name	Ratchet Amount
 drum/3/7	title	Arp ratc amount
 drum/3/7	ae	1
@@ -1666,7 +1547,6 @@ drum/3/8	ae	0
 drum/3/8	edits	1
 drum/3/8	slots	1
 drum/3/8	range_dep	0
-drum/3/8	param_index	255
 drum/3/9	name	Ratchet Probability
 drum/3/9	title	Arp ratc prob
 drum/3/9	ae	1
@@ -1680,7 +1560,6 @@ drum/3/10	ae	0
 drum/3/10	edits	1
 drum/3/10	slots	1
 drum/3/10	range_dep	0
-drum/3/10	param_index	255
 drum/3/11	name	Chord Polyphony
 drum/3/11	title	Arp chord poly
 drum/3/11	ae	1
@@ -1694,7 +1573,6 @@ drum/3/12	ae	0
 drum/3/12	edits	1
 drum/3/12	slots	1
 drum/3/12	range_dep	0
-drum/3/12	param_index	255
 drum/3/13	name	Chord Probability
 drum/3/13	title	Arp chord prob
 drum/3/13	ae	1
@@ -1708,7 +1586,6 @@ drum/3/14	ae	0
 drum/3/14	edits	1
 drum/3/14	slots	1
 drum/3/14	range_dep	0
-drum/3/14	param_index	255
 drum/3/15	name	Note Probability
 drum/3/15	title	Note prob
 drum/3/15	ae	1
@@ -1722,7 +1599,6 @@ drum/3/16	ae	0
 drum/3/16	edits	1
 drum/3/16	slots	1
 drum/3/16	range_dep	0
-drum/3/16	param_index	255
 drum/3/17	name	Swap Probability
 drum/3/17	title	Arp swap prob
 drum/3/17	ae	1
@@ -1736,7 +1612,6 @@ drum/3/18	ae	0
 drum/3/18	edits	1
 drum/3/18	slots	1
 drum/3/18	range_dep	0
-drum/3/18	param_index	255
 drum/3/19	name	Bass Probability
 drum/3/19	title	Arp bass prob
 drum/3/19	ae	1
@@ -1750,7 +1625,6 @@ drum/3/20	ae	0
 drum/3/20	edits	1
 drum/3/20	slots	1
 drum/3/20	range_dep	0
-drum/3/20	param_index	255
 drum/3/21	name	Glide Probability
 drum/3/21	title	Arp glide prob
 drum/3/21	ae	1
@@ -1764,7 +1638,6 @@ drum/3/22	ae	0
 drum/3/22	edits	1
 drum/3/22	slots	1
 drum/3/22	range_dep	0
-drum/3/22	param_index	255
 drum/3/23	name	Reverse Probability
 drum/3/23	title	Reverse prob
 drum/3/23	ae	1
@@ -1788,35 +1661,30 @@ drum/4/1	ae	0
 drum/4/1	edits	1
 drum/4/1	slots	1
 drum/4/1	range_dep	0
-drum/4/1	param_index	255
 drum/4/2	name	Blend
 drum/4/2	title	Blend
 drum/4/2	ae	0
 drum/4/2	edits	1
 drum/4/2	slots	1
 drum/4/2	range_dep	0
-drum/4/2	param_index	255
 drum/4/3	name	Attack
 drum/4/3	title	Attack
 drum/4/3	ae	0
 drum/4/3	edits	1
 drum/4/3	slots	1
 drum/4/3	range_dep	0
-drum/4/3	param_index	255
 drum/4/4	name	Release
 drum/4/4	title	Release
 drum/4/4	ae	0
 drum/4/4	edits	1
 drum/4/4	slots	1
 drum/4/4	range_dep	0
-drum/4/4	param_index	255
 drum/4/5	name	Hpf
 drum/4/5	title	Hpf
 drum/4/5	ae	0
 drum/4/5	edits	1
 drum/4/5	slots	1
 drum/4/5	range_dep	0
-drum/4/5	param_index	255
 drum/5	name	Filters
 drum/5	title	Filters
 drum/5	kids	3
@@ -1829,7 +1697,6 @@ drum/5/0/0	ae	1
 drum/5/0/0	edits	1
 drum/5/0/0	slots	1
 drum/5/0/0	range_dep	0
-drum/5/0/0	param_index	255
 drum/5/0/1	name	Frequency
 drum/5/0/1	title	LPF frequency
 drum/5/0/1	ae	1
@@ -1858,7 +1725,6 @@ drum/5/1/0	ae	1
 drum/5/1/0	edits	1
 drum/5/1/0	slots	1
 drum/5/1/0	range_dep	0
-drum/5/1/0	param_index	255
 drum/5/1/1	name	Frequency
 drum/5/1/1	title	HPF frequency
 drum/5/1/1	ae	1
@@ -1884,7 +1750,6 @@ drum/5/2	ae	1
 drum/5/2	edits	1
 drum/5/2	slots	4
 drum/5/2	range_dep	0
-drum/5/2	param_index	255
 drum/6	name	FX
 drum/6	title	FX
 drum/6	kids	7
@@ -1935,14 +1800,12 @@ drum/6/1/1	ae	1
 drum/6/1/1	edits	1
 drum/6/1/1	slots	1
 drum/6/1/1	range_dep	0
-drum/6/1/1	param_index	255
 drum/6/1/2	name	Sync
 drum/6/1/2	title	Delay sync
 drum/6/1/2	ae	1
 drum/6/1/2	edits	1
 drum/6/1/2	slots	1
 drum/6/1/2	range_dep	0
-drum/6/1/2	param_index	255
 drum/6/1/3	name	Rate
 drum/6/1/3	title	Delay rate
 drum/6/1/3	ae	1
@@ -1956,7 +1819,6 @@ drum/6/1/4	ae	1
 drum/6/1/4	edits	1
 drum/6/1/4	slots	1
 drum/6/1/4	range_dep	0
-drum/6/1/4	param_index	255
 drum/6/2	name	Reverb
 drum/6/2	title	Reverb
 drum/6/2	kids	9
@@ -1971,47 +1833,40 @@ drum/6/2/1	ae	0
 drum/6/2/1	edits	1
 drum/6/2/1	slots	1
 drum/6/2/1	range_dep	0
-drum/6/2/1	param_index	255
 drum/6/2/2	name	Damping
 drum/6/2/2	title	Damping
 drum/6/2/2	ae	0
 drum/6/2/2	edits	1
 drum/6/2/2	slots	1
 drum/6/2/2	range_dep	0
-drum/6/2/2	param_index	255
 drum/6/2/3	ae	0
 drum/6/2/3	edits	1
 drum/6/2/3	slots	1
 drum/6/2/3	range_dep	0
-drum/6/2/3	param_index	255
 drum/6/2/4	name	Model
 drum/6/2/4	title	Model
 drum/6/2/4	ae	0
 drum/6/2/4	edits	1
 drum/6/2/4	slots	1
 drum/6/2/4	range_dep	0
-drum/6/2/4	param_index	255
 drum/6/2/5	name	Pan
 drum/6/2/5	title	Reverb pan
 drum/6/2/5	ae	0
 drum/6/2/5	edits	1
 drum/6/2/5	slots	1
 drum/6/2/5	range_dep	0
-drum/6/2/5	param_index	255
 drum/6/2/6	name	Hpf
 drum/6/2/6	title	Hpf
 drum/6/2/6	ae	0
 drum/6/2/6	edits	1
 drum/6/2/6	slots	1
 drum/6/2/6	range_dep	0
-drum/6/2/6	param_index	255
 drum/6/2/7	name	Lpf
 drum/6/2/7	title	Lpf
 drum/6/2/7	ae	0
 drum/6/2/7	edits	1
 drum/6/2/7	slots	1
 drum/6/2/7	range_dep	0
-drum/6/2/7	param_index	255
 drum/6/2/8	name	Sidechain
 drum/6/2/8	title	Reverb sidech
 drum/6/2/8	kids	5
@@ -2021,35 +1876,30 @@ drum/6/2/8/0	ae	0
 drum/6/2/8/0	edits	1
 drum/6/2/8/0	slots	1
 drum/6/2/8/0	range_dep	0
-drum/6/2/8/0	param_index	255
 drum/6/2/8/1	name	Shape
 drum/6/2/8/1	title	Sidech shape
 drum/6/2/8/1	ae	0
 drum/6/2/8/1	edits	1
 drum/6/2/8/1	slots	1
 drum/6/2/8/1	range_dep	0
-drum/6/2/8/1	param_index	255
 drum/6/2/8/2	name	Attack
 drum/6/2/8/2	title	Sidech attack
 drum/6/2/8/2	ae	1
 drum/6/2/8/2	edits	1
 drum/6/2/8/2	slots	1
 drum/6/2/8/2	range_dep	0
-drum/6/2/8/2	param_index	255
 drum/6/2/8/3	name	Release
 drum/6/2/8/3	title	Sidech release
 drum/6/2/8/3	ae	1
 drum/6/2/8/3	edits	1
 drum/6/2/8/3	slots	1
 drum/6/2/8/3	range_dep	0
-drum/6/2/8/3	param_index	255
 drum/6/2/8/4	name	Sync
 drum/6/2/8/4	title	Sidechain sync
 drum/6/2/8/4	ae	1
 drum/6/2/8/4	edits	1
 drum/6/2/8/4	slots	1
 drum/6/2/8/4	range_dep	0
-drum/6/2/8/4	param_index	255
 drum/6/3	name	Stutter
 drum/6/3	title	Stutter
 drum/6/3	kids	3
@@ -2066,14 +1916,12 @@ drum/6/3/1	ae	1
 drum/6/3/1	edits	1
 drum/6/3/1	slots	1
 drum/6/3/1	range_dep	0
-drum/6/3/1	param_index	255
 drum/6/3/2	name	Quantize
 drum/6/3/2	title	Quantize
 drum/6/3/2	ae	1
 drum/6/3/2	edits	1
 drum/6/3/2	slots	1
 drum/6/3/2	range_dep	0
-drum/6/3/2	param_index	255
 drum/6/4	name	Mod-FX
 drum/6/4	title	Mod-FX
 drum/6/4	kids	5
@@ -2083,7 +1931,6 @@ drum/6/4/0	ae	1
 drum/6/4/0	edits	1
 drum/6/4/0	slots	4
 drum/6/4/0	range_dep	0
-drum/6/4/0	param_index	255
 drum/6/4/1	ae	1
 drum/6/4/1	edits	1
 drum/6/4/1	slots	1
@@ -2115,7 +1962,6 @@ drum/6/5/0	ae	1
 drum/6/5/0	edits	1
 drum/6/5/0	slots	1
 drum/6/5/0	range_dep	0
-drum/6/5/0	param_index	255
 drum/6/5/1	name	Bitcrush
 drum/6/5/1	title	Bitcrush
 drum/6/5/1	ae	1
@@ -2159,7 +2005,6 @@ drum/7/1	ae	1
 drum/7/1	edits	1
 drum/7/1	slots	1
 drum/7/1	range_dep	0
-drum/7/1	param_index	255
 drum/7/2	name	Shape
 drum/7/2	title	Sidech shape
 drum/7/2	ae	1
@@ -2173,21 +2018,18 @@ drum/7/3	ae	1
 drum/7/3	edits	1
 drum/7/3	slots	1
 drum/7/3	range_dep	0
-drum/7/3	param_index	255
 drum/7/4	name	Attack
 drum/7/4	title	Sidech attack
 drum/7/4	ae	1
 drum/7/4	edits	1
 drum/7/4	slots	1
 drum/7/4	range_dep	0
-drum/7/4	param_index	255
 drum/7/5	name	Release
 drum/7/5	title	Sidech release
 drum/7/5	ae	1
 drum/7/5	edits	1
 drum/7/5	slots	1
 drum/7/5	range_dep	0
-drum/7/5	param_index	255
 drum/8	kids	14
 drum/8/0	name	Type
 drum/8/0	title	Osc1 type
@@ -2195,7 +2037,6 @@ drum/8/0	ae	0
 drum/8/0	edits	1
 drum/8/0	slots	1
 drum/8/0	range_dep	0
-drum/8/0	param_index	255
 drum/8/1	name	File browser
 drum/8/1	title	File browser
 drum/8/1	ae	0
@@ -2208,7 +2049,6 @@ drum/8/2	ae	1
 drum/8/2	edits	1
 drum/8/2	slots	1
 drum/8/2	range_dep	1
-drum/8/2	param_index	26
 drum/8/3	name	Wave-index
 drum/8/3	title	Osc1 wave-index
 drum/8/3	ae	1
@@ -2236,42 +2076,36 @@ drum/8/6	ae	0
 drum/8/6	edits	1
 drum/8/6	slots	1
 drum/8/6	range_dep	0
-drum/8/6	param_index	255
 drum/8/7	name	Reverse
 drum/8/7	title	Samp1 reverse
 drum/8/7	ae	1
 drum/8/7	edits	1
 drum/8/7	slots	1
 drum/8/7	range_dep	0
-drum/8/7	param_index	255
 drum/8/8	name	Repeat Mode
 drum/8/8	title	Samp1 repeat
 drum/8/8	ae	1
 drum/8/8	edits	1
 drum/8/8	slots	1
 drum/8/8	range_dep	0
-drum/8/8	param_index	255
 drum/8/9	name	Speed
 drum/8/9	title	Samp1 speed
 drum/8/9	ae	1
 drum/8/9	edits	1
 drum/8/9	slots	1
 drum/8/9	range_dep	0
-drum/8/9	param_index	255
 drum/8/10	name	Pitch/Speed
 drum/8/10	title	Pitch/Speed
 drum/8/10	ae	1
 drum/8/10	edits	1
 drum/8/10	slots	1
 drum/8/10	range_dep	0
-drum/8/10	param_index	255
 drum/8/11	name	Interpolation
 drum/8/11	title	Samp1 interp
 drum/8/11	ae	1
 drum/8/11	edits	1
 drum/8/11	slots	1
 drum/8/11	range_dep	0
-drum/8/11	param_index	255
 drum/8/12	name	Start-point
 drum/8/12	title	Start-point
 drum/8/12	ae	0
@@ -2291,7 +2125,6 @@ drum/9/0	ae	0
 drum/9/0	edits	1
 drum/9/0	slots	1
 drum/9/0	range_dep	0
-drum/9/0	param_index	255
 drum/9/1	name	File browser
 drum/9/1	title	File browser
 drum/9/1	ae	0
@@ -2304,7 +2137,6 @@ drum/9/2	ae	1
 drum/9/2	edits	1
 drum/9/2	slots	1
 drum/9/2	range_dep	1
-drum/9/2	param_index	27
 drum/9/3	name	Wave-index
 drum/9/3	title	Osc2 wave-index
 drum/9/3	ae	1
@@ -2332,42 +2164,36 @@ drum/9/6	ae	0
 drum/9/6	edits	1
 drum/9/6	slots	1
 drum/9/6	range_dep	0
-drum/9/6	param_index	255
 drum/9/7	name	Reverse
 drum/9/7	title	Samp2 reverse
 drum/9/7	ae	1
 drum/9/7	edits	1
 drum/9/7	slots	1
 drum/9/7	range_dep	0
-drum/9/7	param_index	255
 drum/9/8	name	Repeat Mode
 drum/9/8	title	Samp2 repeat
 drum/9/8	ae	1
 drum/9/8	edits	1
 drum/9/8	slots	1
 drum/9/8	range_dep	0
-drum/9/8	param_index	255
 drum/9/9	name	Speed
 drum/9/9	title	Samp2 speed
 drum/9/9	ae	1
 drum/9/9	edits	1
 drum/9/9	slots	1
 drum/9/9	range_dep	0
-drum/9/9	param_index	255
 drum/9/10	name	Pitch/Speed
 drum/9/10	title	Pitch/Speed
 drum/9/10	ae	1
 drum/9/10	edits	1
 drum/9/10	slots	1
 drum/9/10	range_dep	0
-drum/9/10	param_index	255
 drum/9/11	name	Interpolation
 drum/9/11	title	Samp2 interp
 drum/9/11	ae	1
 drum/9/11	edits	1
 drum/9/11	slots	1
 drum/9/11	range_dep	0
-drum/9/11	param_index	255
 drum/9/12	name	Start-point
 drum/9/12	title	Start-point
 drum/9/12	ae	0
@@ -2389,7 +2215,6 @@ drum/10/0	ae	1
 drum/10/0	edits	1
 drum/10/0	slots	1
 drum/10/0	range_dep	0
-drum/10/0	param_index	28
 drum/10/1	name	Feedback
 drum/10/1	title	FM Mod1 feedb
 drum/10/1	ae	1
@@ -2403,7 +2228,6 @@ drum/10/2	ae	0
 drum/10/2	edits	1
 drum/10/2	slots	1
 drum/10/2	range_dep	0
-drum/10/2	param_index	255
 drum/11	name	FM mod 2
 drum/11	title	FM mod 2
 drum/11	kids	4
@@ -2413,7 +2237,6 @@ drum/11/0	ae	1
 drum/11/0	edits	1
 drum/11/0	slots	1
 drum/11/0	range_dep	0
-drum/11/0	param_index	29
 drum/11/1	name	Feedback
 drum/11/1	title	FM Mod2 feedb
 drum/11/1	ae	1
@@ -2427,14 +2250,12 @@ drum/11/2	ae	0
 drum/11/2	edits	1
 drum/11/2	slots	1
 drum/11/2	range_dep	0
-drum/11/2	param_index	255
 drum/11/3	name	Destination
 drum/11/3	title	FM Mod2 dest
 drum/11/3	ae	1
 drum/11/3	edits	1
 drum/11/3	slots	1
 drum/11/3	range_dep	0
-drum/11/3	param_index	255
 drum/12	name	Osc mixer
 drum/12	title	Osc mixer
 drum/12	kids	6
@@ -2479,7 +2300,6 @@ drum/12/5	ae	1
 drum/12/5	edits	1
 drum/12/5	slots	1
 drum/12/5	range_dep	0
-drum/12/5	param_index	255
 drum/13	name	Envelope 1
 drum/13	title	Envelope 1
 drum/13	kids	4
@@ -2613,14 +2433,12 @@ drum/17/0	ae	1
 drum/17/0	edits	1
 drum/17/0	slots	1
 drum/17/0	range_dep	0
-drum/17/0	param_index	255
 drum/17/1	name	Sync
 drum/17/1	title	LFO1 sync
 drum/17/1	ae	1
 drum/17/1	edits	1
 drum/17/1	slots	1
 drum/17/1	range_dep	0
-drum/17/1	param_index	255
 drum/17/2	name	Rate
 drum/17/2	title	LFO1 rate
 drum/17/2	ae	1
@@ -2637,14 +2455,12 @@ drum/18/0	ae	1
 drum/18/0	edits	1
 drum/18/0	slots	1
 drum/18/0	range_dep	0
-drum/18/0	param_index	255
 drum/18/1	name	Sync
 drum/18/1	title	LFO2 sync
 drum/18/1	ae	1
 drum/18/1	edits	1
 drum/18/1	slots	1
 drum/18/1	range_dep	0
-drum/18/1	param_index	255
 drum/18/2	name	Rate
 drum/18/2	title	LFO2 rate
 drum/18/2	ae	1
@@ -2661,14 +2477,12 @@ drum/19/0	ae	1
 drum/19/0	edits	1
 drum/19/0	slots	1
 drum/19/0	range_dep	0
-drum/19/0	param_index	255
 drum/19/1	name	Sync
 drum/19/1	title	LFO3 sync
 drum/19/1	ae	1
 drum/19/1	edits	1
 drum/19/1	slots	1
 drum/19/1	range_dep	0
-drum/19/1	param_index	255
 drum/19/2	name	Rate
 drum/19/2	title	LFO3 rate
 drum/19/2	ae	1
@@ -2685,14 +2499,12 @@ drum/20/0	ae	1
 drum/20/0	edits	1
 drum/20/0	slots	1
 drum/20/0	range_dep	0
-drum/20/0	param_index	255
 drum/20/1	name	Sync
 drum/20/1	title	LFO4 sync
 drum/20/1	ae	1
 drum/20/1	edits	1
 drum/20/1	slots	1
 drum/20/1	range_dep	0
-drum/20/1	param_index	255
 drum/20/2	name	Rate
 drum/20/2	title	LFO4 rate
 drum/20/2	ae	1
@@ -2709,21 +2521,18 @@ drum/21/0	ae	1
 drum/21/0	edits	1
 drum/21/0	slots	1
 drum/21/0	range_dep	0
-drum/21/0	param_index	255
 drum/21/1	name	Polyphony
 drum/21/1	title	Polyphony
 drum/21/1	ae	1
 drum/21/1	edits	1
 drum/21/1	slots	1
 drum/21/1	range_dep	0
-drum/21/1	param_index	255
 drum/21/2	name	Max Voices
 drum/21/2	title	Max Voices
 drum/21/2	ae	1
 drum/21/2	edits	1
 drum/21/2	slots	1
 drum/21/2	range_dep	0
-drum/21/2	param_index	255
 drum/21/3	name	Portamento
 drum/21/3	title	Portamento
 drum/21/3	ae	1
@@ -2740,21 +2549,18 @@ drum/21/4/0	ae	1
 drum/21/4/0	edits	1
 drum/21/4/0	slots	1
 drum/21/4/0	range_dep	0
-drum/21/4/0	param_index	255
 drum/21/4/1	name	Detune
 drum/21/4/1	title	Unison detune
 drum/21/4/1	ae	1
 drum/21/4/1	edits	1
 drum/21/4/1	slots	1
 drum/21/4/1	range_dep	0
-drum/21/4/1	param_index	255
 drum/21/4/2	name	Spread
 drum/21/4/2	title	Unison stereo spread
 drum/21/4/2	ae	1
 drum/21/4/2	edits	1
 drum/21/4/2	slots	1
 drum/21/4/2	range_dep	0
-drum/21/4/2	param_index	255
 drum/22	name	Bend range
 drum/22	title	Bend range
 drum/22	kids	2
@@ -2764,21 +2570,18 @@ drum/22/0	ae	0
 drum/22/0	edits	1
 drum/22/0	slots	1
 drum/22/0	range_dep	0
-drum/22/0	param_index	255
 drum/22/1	name	Poly / Finger / MPE
 drum/22/1	title	Poly / Finger / MPE
 drum/22/1	ae	0
 drum/22/1	edits	1
 drum/22/1	slots	1
 drum/22/1	range_dep	0
-drum/22/1	param_index	255
 drum/23	name	Bend range
 drum/23	title	Bend range
 drum/23	ae	0
 drum/23	edits	1
 drum/23	slots	1
 drum/23	range_dep	0
-drum/23	param_index	255
 drum/24	name	Mod matrix
 drum/24	title	Mod matrix
 drum/24	ae	0
@@ -2791,7 +2594,6 @@ drum/25	ae	0
 drum/25	edits	1
 drum/25	slots	1
 drum/25	range_dep	0
-drum/25	param_index	255
 drum/26	name	MIDI
 drum/26	title	MIDI
 drum/26	kids	2
@@ -2801,14 +2603,12 @@ drum/26/0	ae	1
 drum/26/0	edits	1
 drum/26/0	slots	1
 drum/26/0	range_dep	0
-drum/26/0	param_index	255
 drum/26/1	name	Note
 drum/26/1	title	Note
 drum/26/1	ae	1
 drum/26/1	edits	1
 drum/26/1	slots	1
 drum/26/1	range_dep	0
-drum/26/1	param_index	255
 midi/cv	name	MIDI instr
 midi/cv	title	MIDI instr
 midi/cv	kids	10
@@ -2845,7 +2645,6 @@ midi/cv/1/1	ae	0
 midi/cv/1/1	edits	1
 midi/cv/1/1	slots	1
 midi/cv/1/1	range_dep	0
-midi/cv/1/1	param_index	255
 midi/cv/2	name	MIDI Program
 midi/cv/2	title	MIDI Program
 midi/cv/2	kids	3
@@ -2855,21 +2654,18 @@ midi/cv/2/0	ae	0
 midi/cv/2/0	edits	1
 midi/cv/2/0	slots	1
 midi/cv/2/0	range_dep	0
-midi/cv/2/0	param_index	255
 midi/cv/2/1	name	Sub
 midi/cv/2/1	title	MIDI sub-bank
 midi/cv/2/1	ae	0
 midi/cv/2/1	edits	1
 midi/cv/2/1	slots	1
 midi/cv/2/1	range_dep	0
-midi/cv/2/1	param_index	255
 midi/cv/2/2	name	Pgm
 midi/cv/2/2	title	MIDI PGM number
 midi/cv/2/2	ae	0
 midi/cv/2/2	edits	1
 midi/cv/2/2	slots	1
 midi/cv/2/2	range_dep	0
-midi/cv/2/2	param_index	255
 midi/cv/3	name	Arpeggiator
 midi/cv/3	title	Arpeggiator
 midi/cv/3	kids	5
@@ -2879,7 +2675,6 @@ midi/cv/3/0	ae	1
 midi/cv/3/0	edits	1
 midi/cv/3/0	slots	1
 midi/cv/3/0	range_dep	0
-midi/cv/3/0	param_index	255
 midi/cv/3/1	name	Basic
 midi/cv/3/1	title	Arp basic
 midi/cv/3/1	kids	4
@@ -2889,28 +2684,24 @@ midi/cv/3/1/0	ae	1
 midi/cv/3/1/0	edits	1
 midi/cv/3/1/0	slots	1
 midi/cv/3/1/0	range_dep	0
-midi/cv/3/1/0	param_index	255
 midi/cv/3/1/1	name	Gate
 midi/cv/3/1/1	title	Arp gate
 midi/cv/3/1/1	ae	0
 midi/cv/3/1/1	edits	1
 midi/cv/3/1/1	slots	1
 midi/cv/3/1/1	range_dep	0
-midi/cv/3/1/1	param_index	255
 midi/cv/3/1/2	name	Sync
 midi/cv/3/1/2	title	Arp sync
 midi/cv/3/1/2	ae	1
 midi/cv/3/1/2	edits	1
 midi/cv/3/1/2	slots	1
 midi/cv/3/1/2	range_dep	0
-midi/cv/3/1/2	param_index	255
 midi/cv/3/1/3	name	Rate
 midi/cv/3/1/3	title	Arp rate
 midi/cv/3/1/3	ae	0
 midi/cv/3/1/3	edits	1
 midi/cv/3/1/3	slots	1
 midi/cv/3/1/3	range_dep	0
-midi/cv/3/1/3	param_index	255
 midi/cv/3/2	name	Pattern
 midi/cv/3/2	title	Arp pattern
 midi/cv/3/2	kids	10
@@ -2920,42 +2711,36 @@ midi/cv/3/2/0	ae	1
 midi/cv/3/2/0	edits	1
 midi/cv/3/2/0	slots	1
 midi/cv/3/2/0	range_dep	0
-midi/cv/3/2/0	param_index	255
 midi/cv/3/2/1	name	Step Repeat
 midi/cv/3/2/1	title	Arp step repeat
 midi/cv/3/2/1	ae	1
 midi/cv/3/2/1	edits	1
 midi/cv/3/2/1	slots	1
 midi/cv/3/2/1	range_dep	0
-midi/cv/3/2/1	param_index	255
 midi/cv/3/2/2	name	Octave Mode
 midi/cv/3/2/2	title	Arp octave mode
 midi/cv/3/2/2	ae	1
 midi/cv/3/2/2	edits	1
 midi/cv/3/2/2	slots	1
 midi/cv/3/2/2	range_dep	0
-midi/cv/3/2/2	param_index	255
 midi/cv/3/2/3	name	Note Mode
 midi/cv/3/2/3	title	Arp note mode
 midi/cv/3/2/3	ae	0
 midi/cv/3/2/3	edits	1
 midi/cv/3/2/3	slots	1
 midi/cv/3/2/3	range_dep	0
-midi/cv/3/2/3	param_index	255
 midi/cv/3/2/4	name	Note Mode
 midi/cv/3/2/4	title	Arp note mode
 midi/cv/3/2/4	ae	1
 midi/cv/3/2/4	edits	1
 midi/cv/3/2/4	slots	1
 midi/cv/3/2/4	range_dep	0
-midi/cv/3/2/4	param_index	255
 midi/cv/3/2/5	name	Chord Simulator
 midi/cv/3/2/5	title	Arp chord sim
 midi/cv/3/2/5	ae	1
 midi/cv/3/2/5	edits	1
 midi/cv/3/2/5	slots	1
 midi/cv/3/2/5	range_dep	0
-midi/cv/3/2/5	param_index	255
 midi/cv/3/2/6	name	Rhythm
 midi/cv/3/2/6	title	Arp rhythm
 midi/cv/3/2/6	ae	1
@@ -2969,7 +2754,6 @@ midi/cv/3/2/7	ae	0
 midi/cv/3/2/7	edits	1
 midi/cv/3/2/7	slots	2
 midi/cv/3/2/7	range_dep	0
-midi/cv/3/2/7	param_index	255
 midi/cv/3/2/8	name	Sequence Length
 midi/cv/3/2/8	title	Arp seq length
 midi/cv/3/2/8	ae	1
@@ -2983,7 +2767,6 @@ midi/cv/3/2/9	ae	0
 midi/cv/3/2/9	edits	1
 midi/cv/3/2/9	slots	1
 midi/cv/3/2/9	range_dep	0
-midi/cv/3/2/9	param_index	255
 midi/cv/3/3	name	MPE
 midi/cv/3/3	title	MPE
 midi/cv/3/3	kids	1
@@ -2993,14 +2776,12 @@ midi/cv/3/3/0	ae	1
 midi/cv/3/3/0	edits	1
 midi/cv/3/3/0	slots	1
 midi/cv/3/3/0	range_dep	0
-midi/cv/3/3/0	param_index	255
 midi/cv/3/4	name	Include in Kit Arp
 midi/cv/3/4	title	Include in Kit Arp
 midi/cv/3/4	ae	1
 midi/cv/3/4	edits	1
 midi/cv/3/4	slots	1
 midi/cv/3/4	range_dep	0
-midi/cv/3/4	param_index	255
 midi/cv/4	name	Randomizer
 midi/cv/4	title	Randomizer
 midi/cv/4	kids	24
@@ -3010,7 +2791,6 @@ midi/cv/4/0	ae	1
 midi/cv/4/0	edits	1
 midi/cv/4/0	slots	1
 midi/cv/4/0	range_dep	0
-midi/cv/4/0	param_index	255
 midi/cv/4/1	name	Gate Spread
 midi/cv/4/1	title	Arp gate spread
 midi/cv/4/1	ae	1
@@ -3024,7 +2804,6 @@ midi/cv/4/2	ae	0
 midi/cv/4/2	edits	1
 midi/cv/4/2	slots	1
 midi/cv/4/2	range_dep	0
-midi/cv/4/2	param_index	255
 midi/cv/4/3	name	Octave Spread
 midi/cv/4/3	title	Arp octa spread
 midi/cv/4/3	ae	1
@@ -3038,7 +2817,6 @@ midi/cv/4/4	ae	0
 midi/cv/4/4	edits	1
 midi/cv/4/4	slots	1
 midi/cv/4/4	range_dep	0
-midi/cv/4/4	param_index	255
 midi/cv/4/5	name	Velocity Spread
 midi/cv/4/5	title	Velocity spread
 midi/cv/4/5	ae	1
@@ -3052,7 +2830,6 @@ midi/cv/4/6	ae	0
 midi/cv/4/6	edits	1
 midi/cv/4/6	slots	1
 midi/cv/4/6	range_dep	0
-midi/cv/4/6	param_index	255
 midi/cv/4/7	name	Ratchet Amount
 midi/cv/4/7	title	Arp ratc amount
 midi/cv/4/7	ae	1
@@ -3066,7 +2843,6 @@ midi/cv/4/8	ae	0
 midi/cv/4/8	edits	1
 midi/cv/4/8	slots	1
 midi/cv/4/8	range_dep	0
-midi/cv/4/8	param_index	255
 midi/cv/4/9	name	Ratchet Probability
 midi/cv/4/9	title	Arp ratc prob
 midi/cv/4/9	ae	1
@@ -3080,7 +2856,6 @@ midi/cv/4/10	ae	0
 midi/cv/4/10	edits	1
 midi/cv/4/10	slots	1
 midi/cv/4/10	range_dep	0
-midi/cv/4/10	param_index	255
 midi/cv/4/11	name	Chord Polyphony
 midi/cv/4/11	title	Arp chord poly
 midi/cv/4/11	ae	1
@@ -3094,7 +2869,6 @@ midi/cv/4/12	ae	0
 midi/cv/4/12	edits	1
 midi/cv/4/12	slots	1
 midi/cv/4/12	range_dep	0
-midi/cv/4/12	param_index	255
 midi/cv/4/13	name	Chord Probability
 midi/cv/4/13	title	Arp chord prob
 midi/cv/4/13	ae	1
@@ -3108,7 +2882,6 @@ midi/cv/4/14	ae	0
 midi/cv/4/14	edits	1
 midi/cv/4/14	slots	1
 midi/cv/4/14	range_dep	0
-midi/cv/4/14	param_index	255
 midi/cv/4/15	name	Note Probability
 midi/cv/4/15	title	Note prob
 midi/cv/4/15	ae	1
@@ -3122,7 +2895,6 @@ midi/cv/4/16	ae	0
 midi/cv/4/16	edits	1
 midi/cv/4/16	slots	1
 midi/cv/4/16	range_dep	0
-midi/cv/4/16	param_index	255
 midi/cv/4/17	name	Swap Probability
 midi/cv/4/17	title	Arp swap prob
 midi/cv/4/17	ae	1
@@ -3136,7 +2908,6 @@ midi/cv/4/18	ae	0
 midi/cv/4/18	edits	1
 midi/cv/4/18	slots	1
 midi/cv/4/18	range_dep	0
-midi/cv/4/18	param_index	255
 midi/cv/4/19	name	Bass Probability
 midi/cv/4/19	title	Arp bass prob
 midi/cv/4/19	ae	1
@@ -3150,7 +2921,6 @@ midi/cv/4/20	ae	0
 midi/cv/4/20	edits	1
 midi/cv/4/20	slots	1
 midi/cv/4/20	range_dep	0
-midi/cv/4/20	param_index	255
 midi/cv/4/21	name	Glide Probability
 midi/cv/4/21	title	Arp glide prob
 midi/cv/4/21	ae	1
@@ -3164,7 +2934,6 @@ midi/cv/4/22	ae	0
 midi/cv/4/22	edits	1
 midi/cv/4/22	slots	1
 midi/cv/4/22	range_dep	0
-midi/cv/4/22	param_index	255
 midi/cv/4/23	name	Reverse Probability
 midi/cv/4/23	title	Reverse prob
 midi/cv/4/23	ae	1
@@ -3181,28 +2950,24 @@ midi/cv/5/0	ae	0
 midi/cv/5/0	edits	1
 midi/cv/5/0	slots	1
 midi/cv/5/0	range_dep	0
-midi/cv/5/0	param_index	255
 midi/cv/5/1	name	Poly / Finger / MPE
 midi/cv/5/1	title	Poly / Finger / MPE
 midi/cv/5/1	ae	0
 midi/cv/5/1	edits	1
 midi/cv/5/1	slots	1
 midi/cv/5/1	range_dep	0
-midi/cv/5/1	param_index	255
 midi/cv/6	name	CV 2 Source
 midi/cv/6	title	CV 2 Source
 midi/cv/6	ae	0
 midi/cv/6	edits	1
 midi/cv/6	slots	1
 midi/cv/6	range_dep	0
-midi/cv/6	param_index	255
 midi/cv/7	name	Send Y as CC1
 midi/cv/7	title	Send Y as CC1
 midi/cv/7	ae	0
 midi/cv/7	edits	1
 midi/cv/7	slots	1
 midi/cv/7	range_dep	0
-midi/cv/7	param_index	255
 midi/cv/8	name	Poly Expression to Mono
 midi/cv/8	title	Poly Expression to Mono
 midi/cv/8	kids	2
@@ -3212,21 +2977,18 @@ midi/cv/8/0	ae	0
 midi/cv/8/0	edits	1
 midi/cv/8/0	slots	1
 midi/cv/8/0	range_dep	0
-midi/cv/8/0	param_index	255
 midi/cv/8/1	name	MPE
 midi/cv/8/1	title	MPE
 midi/cv/8/1	ae	0
 midi/cv/8/1	edits	1
 midi/cv/8/1	slots	1
 midi/cv/8/1	range_dep	0
-midi/cv/8/1	param_index	255
 midi/cv/9	name	Play direction
 midi/cv/9	title	Play direction
 midi/cv/9	ae	0
 midi/cv/9	edits	1
 midi/cv/9	slots	1
 midi/cv/9	range_dep	0
-midi/cv/9	param_index	255
 midi drum	name	MIDI
 midi drum	title	MIDI
 midi drum	kids	3
@@ -3260,7 +3022,6 @@ midi drum/1/0	ae	1
 midi drum/1/0	edits	1
 midi drum/1/0	slots	1
 midi drum/1/0	range_dep	0
-midi drum/1/0	param_index	255
 midi drum/1/1	name	Basic
 midi drum/1/1	title	Arp basic
 midi drum/1/1	kids	4
@@ -3270,28 +3031,24 @@ midi drum/1/1/0	ae	1
 midi drum/1/1/0	edits	1
 midi drum/1/1/0	slots	1
 midi drum/1/1/0	range_dep	0
-midi drum/1/1/0	param_index	255
 midi drum/1/1/1	name	Gate
 midi drum/1/1/1	title	Arp gate
 midi drum/1/1/1	ae	0
 midi drum/1/1/1	edits	1
 midi drum/1/1/1	slots	1
 midi drum/1/1/1	range_dep	0
-midi drum/1/1/1	param_index	255
 midi drum/1/1/2	name	Sync
 midi drum/1/1/2	title	Arp sync
 midi drum/1/1/2	ae	1
 midi drum/1/1/2	edits	1
 midi drum/1/1/2	slots	1
 midi drum/1/1/2	range_dep	0
-midi drum/1/1/2	param_index	255
 midi drum/1/1/3	name	Rate
 midi drum/1/1/3	title	Arp rate
 midi drum/1/1/3	ae	0
 midi drum/1/1/3	edits	1
 midi drum/1/1/3	slots	1
 midi drum/1/1/3	range_dep	0
-midi drum/1/1/3	param_index	255
 midi drum/1/2	name	Pattern
 midi drum/1/2	title	Arp pattern
 midi drum/1/2	kids	10
@@ -3301,42 +3058,36 @@ midi drum/1/2/0	ae	1
 midi drum/1/2/0	edits	1
 midi drum/1/2/0	slots	1
 midi drum/1/2/0	range_dep	0
-midi drum/1/2/0	param_index	255
 midi drum/1/2/1	name	Step Repeat
 midi drum/1/2/1	title	Arp step repeat
 midi drum/1/2/1	ae	1
 midi drum/1/2/1	edits	1
 midi drum/1/2/1	slots	1
 midi drum/1/2/1	range_dep	0
-midi drum/1/2/1	param_index	255
 midi drum/1/2/2	name	Octave Mode
 midi drum/1/2/2	title	Arp octave mode
 midi drum/1/2/2	ae	1
 midi drum/1/2/2	edits	1
 midi drum/1/2/2	slots	1
 midi drum/1/2/2	range_dep	0
-midi drum/1/2/2	param_index	255
 midi drum/1/2/3	name	Note Mode
 midi drum/1/2/3	title	Arp note mode
 midi drum/1/2/3	ae	0
 midi drum/1/2/3	edits	1
 midi drum/1/2/3	slots	1
 midi drum/1/2/3	range_dep	0
-midi drum/1/2/3	param_index	255
 midi drum/1/2/4	name	Note Mode
 midi drum/1/2/4	title	Arp note mode
 midi drum/1/2/4	ae	1
 midi drum/1/2/4	edits	1
 midi drum/1/2/4	slots	1
 midi drum/1/2/4	range_dep	0
-midi drum/1/2/4	param_index	255
 midi drum/1/2/5	name	Chord Simulator
 midi drum/1/2/5	title	Arp chord sim
 midi drum/1/2/5	ae	1
 midi drum/1/2/5	edits	1
 midi drum/1/2/5	slots	1
 midi drum/1/2/5	range_dep	0
-midi drum/1/2/5	param_index	255
 midi drum/1/2/6	name	Rhythm
 midi drum/1/2/6	title	Arp rhythm
 midi drum/1/2/6	ae	1
@@ -3350,7 +3101,6 @@ midi drum/1/2/7	ae	0
 midi drum/1/2/7	edits	1
 midi drum/1/2/7	slots	2
 midi drum/1/2/7	range_dep	0
-midi drum/1/2/7	param_index	255
 midi drum/1/2/8	name	Sequence Length
 midi drum/1/2/8	title	Arp seq length
 midi drum/1/2/8	ae	1
@@ -3364,7 +3114,6 @@ midi drum/1/2/9	ae	0
 midi drum/1/2/9	edits	1
 midi drum/1/2/9	slots	1
 midi drum/1/2/9	range_dep	0
-midi drum/1/2/9	param_index	255
 midi drum/1/3	name	MPE
 midi drum/1/3	title	MPE
 midi drum/1/3	kids	1
@@ -3374,14 +3123,12 @@ midi drum/1/3/0	ae	1
 midi drum/1/3/0	edits	1
 midi drum/1/3/0	slots	1
 midi drum/1/3/0	range_dep	0
-midi drum/1/3/0	param_index	255
 midi drum/1/4	name	Include in Kit Arp
 midi drum/1/4	title	Include in Kit Arp
 midi drum/1/4	ae	1
 midi drum/1/4	edits	1
 midi drum/1/4	slots	1
 midi drum/1/4	range_dep	0
-midi drum/1/4	param_index	255
 midi drum/2	name	Randomizer
 midi drum/2	title	Randomizer
 midi drum/2	kids	24
@@ -3391,7 +3138,6 @@ midi drum/2/0	ae	1
 midi drum/2/0	edits	1
 midi drum/2/0	slots	1
 midi drum/2/0	range_dep	0
-midi drum/2/0	param_index	255
 midi drum/2/1	name	Gate Spread
 midi drum/2/1	title	Arp gate spread
 midi drum/2/1	ae	1
@@ -3405,7 +3151,6 @@ midi drum/2/2	ae	0
 midi drum/2/2	edits	1
 midi drum/2/2	slots	1
 midi drum/2/2	range_dep	0
-midi drum/2/2	param_index	255
 midi drum/2/3	name	Octave Spread
 midi drum/2/3	title	Arp octa spread
 midi drum/2/3	ae	1
@@ -3419,7 +3164,6 @@ midi drum/2/4	ae	0
 midi drum/2/4	edits	1
 midi drum/2/4	slots	1
 midi drum/2/4	range_dep	0
-midi drum/2/4	param_index	255
 midi drum/2/5	name	Velocity Spread
 midi drum/2/5	title	Velocity spread
 midi drum/2/5	ae	1
@@ -3433,7 +3177,6 @@ midi drum/2/6	ae	0
 midi drum/2/6	edits	1
 midi drum/2/6	slots	1
 midi drum/2/6	range_dep	0
-midi drum/2/6	param_index	255
 midi drum/2/7	name	Ratchet Amount
 midi drum/2/7	title	Arp ratc amount
 midi drum/2/7	ae	1
@@ -3447,7 +3190,6 @@ midi drum/2/8	ae	0
 midi drum/2/8	edits	1
 midi drum/2/8	slots	1
 midi drum/2/8	range_dep	0
-midi drum/2/8	param_index	255
 midi drum/2/9	name	Ratchet Probability
 midi drum/2/9	title	Arp ratc prob
 midi drum/2/9	ae	1
@@ -3461,7 +3203,6 @@ midi drum/2/10	ae	0
 midi drum/2/10	edits	1
 midi drum/2/10	slots	1
 midi drum/2/10	range_dep	0
-midi drum/2/10	param_index	255
 midi drum/2/11	name	Chord Polyphony
 midi drum/2/11	title	Arp chord poly
 midi drum/2/11	ae	1
@@ -3475,7 +3216,6 @@ midi drum/2/12	ae	0
 midi drum/2/12	edits	1
 midi drum/2/12	slots	1
 midi drum/2/12	range_dep	0
-midi drum/2/12	param_index	255
 midi drum/2/13	name	Chord Probability
 midi drum/2/13	title	Arp chord prob
 midi drum/2/13	ae	1
@@ -3489,7 +3229,6 @@ midi drum/2/14	ae	0
 midi drum/2/14	edits	1
 midi drum/2/14	slots	1
 midi drum/2/14	range_dep	0
-midi drum/2/14	param_index	255
 midi drum/2/15	name	Note Probability
 midi drum/2/15	title	Note prob
 midi drum/2/15	ae	1
@@ -3503,7 +3242,6 @@ midi drum/2/16	ae	0
 midi drum/2/16	edits	1
 midi drum/2/16	slots	1
 midi drum/2/16	range_dep	0
-midi drum/2/16	param_index	255
 midi drum/2/17	name	Swap Probability
 midi drum/2/17	title	Arp swap prob
 midi drum/2/17	ae	1
@@ -3517,7 +3255,6 @@ midi drum/2/18	ae	0
 midi drum/2/18	edits	1
 midi drum/2/18	slots	1
 midi drum/2/18	range_dep	0
-midi drum/2/18	param_index	255
 midi drum/2/19	name	Bass Probability
 midi drum/2/19	title	Arp bass prob
 midi drum/2/19	ae	1
@@ -3531,7 +3268,6 @@ midi drum/2/20	ae	0
 midi drum/2/20	edits	1
 midi drum/2/20	slots	1
 midi drum/2/20	range_dep	0
-midi drum/2/20	param_index	255
 midi drum/2/21	name	Glide Probability
 midi drum/2/21	title	Arp glide prob
 midi drum/2/21	ae	1
@@ -3545,7 +3281,6 @@ midi drum/2/22	ae	0
 midi drum/2/22	edits	1
 midi drum/2/22	slots	1
 midi drum/2/22	range_dep	0
-midi drum/2/22	param_index	255
 midi drum/2/23	name	Reverse Probability
 midi drum/2/23	title	Reverse prob
 midi drum/2/23	ae	1
@@ -3586,7 +3321,6 @@ gate drum/1/0	ae	1
 gate drum/1/0	edits	1
 gate drum/1/0	slots	1
 gate drum/1/0	range_dep	0
-gate drum/1/0	param_index	255
 gate drum/1/1	name	Basic
 gate drum/1/1	title	Arp basic
 gate drum/1/1	kids	4
@@ -3596,28 +3330,24 @@ gate drum/1/1/0	ae	1
 gate drum/1/1/0	edits	1
 gate drum/1/1/0	slots	1
 gate drum/1/1/0	range_dep	0
-gate drum/1/1/0	param_index	255
 gate drum/1/1/1	name	Gate
 gate drum/1/1/1	title	Arp gate
 gate drum/1/1/1	ae	0
 gate drum/1/1/1	edits	1
 gate drum/1/1/1	slots	1
 gate drum/1/1/1	range_dep	0
-gate drum/1/1/1	param_index	255
 gate drum/1/1/2	name	Sync
 gate drum/1/1/2	title	Arp sync
 gate drum/1/1/2	ae	1
 gate drum/1/1/2	edits	1
 gate drum/1/1/2	slots	1
 gate drum/1/1/2	range_dep	0
-gate drum/1/1/2	param_index	255
 gate drum/1/1/3	name	Rate
 gate drum/1/1/3	title	Arp rate
 gate drum/1/1/3	ae	0
 gate drum/1/1/3	edits	1
 gate drum/1/1/3	slots	1
 gate drum/1/1/3	range_dep	0
-gate drum/1/1/3	param_index	255
 gate drum/1/2	name	Pattern
 gate drum/1/2	title	Arp pattern
 gate drum/1/2	kids	10
@@ -3627,42 +3357,36 @@ gate drum/1/2/0	ae	1
 gate drum/1/2/0	edits	1
 gate drum/1/2/0	slots	1
 gate drum/1/2/0	range_dep	0
-gate drum/1/2/0	param_index	255
 gate drum/1/2/1	name	Step Repeat
 gate drum/1/2/1	title	Arp step repeat
 gate drum/1/2/1	ae	1
 gate drum/1/2/1	edits	1
 gate drum/1/2/1	slots	1
 gate drum/1/2/1	range_dep	0
-gate drum/1/2/1	param_index	255
 gate drum/1/2/2	name	Octave Mode
 gate drum/1/2/2	title	Arp octave mode
 gate drum/1/2/2	ae	1
 gate drum/1/2/2	edits	1
 gate drum/1/2/2	slots	1
 gate drum/1/2/2	range_dep	0
-gate drum/1/2/2	param_index	255
 gate drum/1/2/3	name	Note Mode
 gate drum/1/2/3	title	Arp note mode
 gate drum/1/2/3	ae	0
 gate drum/1/2/3	edits	1
 gate drum/1/2/3	slots	1
 gate drum/1/2/3	range_dep	0
-gate drum/1/2/3	param_index	255
 gate drum/1/2/4	name	Note Mode
 gate drum/1/2/4	title	Arp note mode
 gate drum/1/2/4	ae	1
 gate drum/1/2/4	edits	1
 gate drum/1/2/4	slots	1
 gate drum/1/2/4	range_dep	0
-gate drum/1/2/4	param_index	255
 gate drum/1/2/5	name	Chord Simulator
 gate drum/1/2/5	title	Arp chord sim
 gate drum/1/2/5	ae	1
 gate drum/1/2/5	edits	1
 gate drum/1/2/5	slots	1
 gate drum/1/2/5	range_dep	0
-gate drum/1/2/5	param_index	255
 gate drum/1/2/6	name	Rhythm
 gate drum/1/2/6	title	Arp rhythm
 gate drum/1/2/6	ae	1
@@ -3676,7 +3400,6 @@ gate drum/1/2/7	ae	0
 gate drum/1/2/7	edits	1
 gate drum/1/2/7	slots	2
 gate drum/1/2/7	range_dep	0
-gate drum/1/2/7	param_index	255
 gate drum/1/2/8	name	Sequence Length
 gate drum/1/2/8	title	Arp seq length
 gate drum/1/2/8	ae	1
@@ -3690,7 +3413,6 @@ gate drum/1/2/9	ae	0
 gate drum/1/2/9	edits	1
 gate drum/1/2/9	slots	1
 gate drum/1/2/9	range_dep	0
-gate drum/1/2/9	param_index	255
 gate drum/1/3	name	MPE
 gate drum/1/3	title	MPE
 gate drum/1/3	kids	1
@@ -3700,14 +3422,12 @@ gate drum/1/3/0	ae	1
 gate drum/1/3/0	edits	1
 gate drum/1/3/0	slots	1
 gate drum/1/3/0	range_dep	0
-gate drum/1/3/0	param_index	255
 gate drum/1/4	name	Include in Kit Arp
 gate drum/1/4	title	Include in Kit Arp
 gate drum/1/4	ae	1
 gate drum/1/4	edits	1
 gate drum/1/4	slots	1
 gate drum/1/4	range_dep	0
-gate drum/1/4	param_index	255
 gate drum/2	name	Randomizer
 gate drum/2	title	Randomizer
 gate drum/2	kids	24
@@ -3717,7 +3437,6 @@ gate drum/2/0	ae	1
 gate drum/2/0	edits	1
 gate drum/2/0	slots	1
 gate drum/2/0	range_dep	0
-gate drum/2/0	param_index	255
 gate drum/2/1	name	Gate Spread
 gate drum/2/1	title	Arp gate spread
 gate drum/2/1	ae	1
@@ -3731,7 +3450,6 @@ gate drum/2/2	ae	0
 gate drum/2/2	edits	1
 gate drum/2/2	slots	1
 gate drum/2/2	range_dep	0
-gate drum/2/2	param_index	255
 gate drum/2/3	name	Octave Spread
 gate drum/2/3	title	Arp octa spread
 gate drum/2/3	ae	1
@@ -3745,7 +3463,6 @@ gate drum/2/4	ae	0
 gate drum/2/4	edits	1
 gate drum/2/4	slots	1
 gate drum/2/4	range_dep	0
-gate drum/2/4	param_index	255
 gate drum/2/5	name	Velocity Spread
 gate drum/2/5	title	Velocity spread
 gate drum/2/5	ae	1
@@ -3759,7 +3476,6 @@ gate drum/2/6	ae	0
 gate drum/2/6	edits	1
 gate drum/2/6	slots	1
 gate drum/2/6	range_dep	0
-gate drum/2/6	param_index	255
 gate drum/2/7	name	Ratchet Amount
 gate drum/2/7	title	Arp ratc amount
 gate drum/2/7	ae	1
@@ -3773,7 +3489,6 @@ gate drum/2/8	ae	0
 gate drum/2/8	edits	1
 gate drum/2/8	slots	1
 gate drum/2/8	range_dep	0
-gate drum/2/8	param_index	255
 gate drum/2/9	name	Ratchet Probability
 gate drum/2/9	title	Arp ratc prob
 gate drum/2/9	ae	1
@@ -3787,7 +3502,6 @@ gate drum/2/10	ae	0
 gate drum/2/10	edits	1
 gate drum/2/10	slots	1
 gate drum/2/10	range_dep	0
-gate drum/2/10	param_index	255
 gate drum/2/11	name	Chord Polyphony
 gate drum/2/11	title	Arp chord poly
 gate drum/2/11	ae	1
@@ -3801,7 +3515,6 @@ gate drum/2/12	ae	0
 gate drum/2/12	edits	1
 gate drum/2/12	slots	1
 gate drum/2/12	range_dep	0
-gate drum/2/12	param_index	255
 gate drum/2/13	name	Chord Probability
 gate drum/2/13	title	Arp chord prob
 gate drum/2/13	ae	1
@@ -3815,7 +3528,6 @@ gate drum/2/14	ae	0
 gate drum/2/14	edits	1
 gate drum/2/14	slots	1
 gate drum/2/14	range_dep	0
-gate drum/2/14	param_index	255
 gate drum/2/15	name	Note Probability
 gate drum/2/15	title	Note prob
 gate drum/2/15	ae	1
@@ -3829,7 +3541,6 @@ gate drum/2/16	ae	0
 gate drum/2/16	edits	1
 gate drum/2/16	slots	1
 gate drum/2/16	range_dep	0
-gate drum/2/16	param_index	255
 gate drum/2/17	name	Swap Probability
 gate drum/2/17	title	Arp swap prob
 gate drum/2/17	ae	1
@@ -3843,7 +3554,6 @@ gate drum/2/18	ae	0
 gate drum/2/18	edits	1
 gate drum/2/18	slots	1
 gate drum/2/18	range_dep	0
-gate drum/2/18	param_index	255
 gate drum/2/19	name	Bass Probability
 gate drum/2/19	title	Arp bass prob
 gate drum/2/19	ae	1
@@ -3857,7 +3567,6 @@ gate drum/2/20	ae	0
 gate drum/2/20	edits	1
 gate drum/2/20	slots	1
 gate drum/2/20	range_dep	0
-gate drum/2/20	param_index	255
 gate drum/2/21	name	Glide Probability
 gate drum/2/21	title	Arp glide prob
 gate drum/2/21	ae	1
@@ -3871,7 +3580,6 @@ gate drum/2/22	ae	0
 gate drum/2/22	edits	1
 gate drum/2/22	slots	1
 gate drum/2/22	range_dep	0
-gate drum/2/22	param_index	255
 gate drum/2/23	name	Reverse Probability
 gate drum/2/23	title	Reverse prob
 gate drum/2/23	ae	1
@@ -3951,35 +3659,30 @@ audio clip/4/1	ae	0
 audio clip/4/1	edits	1
 audio clip/4/1	slots	1
 audio clip/4/1	range_dep	0
-audio clip/4/1	param_index	255
 audio clip/4/2	name	Blend
 audio clip/4/2	title	Blend
 audio clip/4/2	ae	0
 audio clip/4/2	edits	1
 audio clip/4/2	slots	1
 audio clip/4/2	range_dep	0
-audio clip/4/2	param_index	255
 audio clip/4/3	name	Attack
 audio clip/4/3	title	Attack
 audio clip/4/3	ae	0
 audio clip/4/3	edits	1
 audio clip/4/3	slots	1
 audio clip/4/3	range_dep	0
-audio clip/4/3	param_index	255
 audio clip/4/4	name	Release
 audio clip/4/4	title	Release
 audio clip/4/4	ae	0
 audio clip/4/4	edits	1
 audio clip/4/4	slots	1
 audio clip/4/4	range_dep	0
-audio clip/4/4	param_index	255
 audio clip/4/5	name	Hpf
 audio clip/4/5	title	Hpf
 audio clip/4/5	ae	0
 audio clip/4/5	edits	1
 audio clip/4/5	slots	1
 audio clip/4/5	range_dep	0
-audio clip/4/5	param_index	255
 audio clip/5	name	Filters
 audio clip/5	title	Filters
 audio clip/5	kids	3
@@ -3992,7 +3695,6 @@ audio clip/5/0/0	ae	1
 audio clip/5/0/0	edits	1
 audio clip/5/0/0	slots	1
 audio clip/5/0/0	range_dep	0
-audio clip/5/0/0	param_index	255
 audio clip/5/0/1	name	Frequency
 audio clip/5/0/1	title	LPF frequency
 audio clip/5/0/1	ae	1
@@ -4021,7 +3723,6 @@ audio clip/5/1/0	ae	1
 audio clip/5/1/0	edits	1
 audio clip/5/1/0	slots	1
 audio clip/5/1/0	range_dep	0
-audio clip/5/1/0	param_index	255
 audio clip/5/1/1	name	Frequency
 audio clip/5/1/1	title	HPF frequency
 audio clip/5/1/1	ae	1
@@ -4047,7 +3748,6 @@ audio clip/5/2	ae	1
 audio clip/5/2	edits	1
 audio clip/5/2	slots	4
 audio clip/5/2	range_dep	0
-audio clip/5/2	param_index	255
 audio clip/6	name	FX
 audio clip/6	title	FX
 audio clip/6	kids	6
@@ -4098,14 +3798,12 @@ audio clip/6/1/1	ae	1
 audio clip/6/1/1	edits	1
 audio clip/6/1/1	slots	1
 audio clip/6/1/1	range_dep	0
-audio clip/6/1/1	param_index	255
 audio clip/6/1/2	name	Sync
 audio clip/6/1/2	title	Delay sync
 audio clip/6/1/2	ae	1
 audio clip/6/1/2	edits	1
 audio clip/6/1/2	slots	1
 audio clip/6/1/2	range_dep	0
-audio clip/6/1/2	param_index	255
 audio clip/6/1/3	name	Rate
 audio clip/6/1/3	title	Delay rate
 audio clip/6/1/3	ae	1
@@ -4119,7 +3817,6 @@ audio clip/6/1/4	ae	1
 audio clip/6/1/4	edits	1
 audio clip/6/1/4	slots	1
 audio clip/6/1/4	range_dep	0
-audio clip/6/1/4	param_index	255
 audio clip/6/2	name	Reverb
 audio clip/6/2	title	Reverb
 audio clip/6/2	kids	9
@@ -4134,47 +3831,40 @@ audio clip/6/2/1	ae	0
 audio clip/6/2/1	edits	1
 audio clip/6/2/1	slots	1
 audio clip/6/2/1	range_dep	0
-audio clip/6/2/1	param_index	255
 audio clip/6/2/2	name	Damping
 audio clip/6/2/2	title	Damping
 audio clip/6/2/2	ae	0
 audio clip/6/2/2	edits	1
 audio clip/6/2/2	slots	1
 audio clip/6/2/2	range_dep	0
-audio clip/6/2/2	param_index	255
 audio clip/6/2/3	ae	0
 audio clip/6/2/3	edits	1
 audio clip/6/2/3	slots	1
 audio clip/6/2/3	range_dep	0
-audio clip/6/2/3	param_index	255
 audio clip/6/2/4	name	Model
 audio clip/6/2/4	title	Model
 audio clip/6/2/4	ae	0
 audio clip/6/2/4	edits	1
 audio clip/6/2/4	slots	1
 audio clip/6/2/4	range_dep	0
-audio clip/6/2/4	param_index	255
 audio clip/6/2/5	name	Pan
 audio clip/6/2/5	title	Reverb pan
 audio clip/6/2/5	ae	0
 audio clip/6/2/5	edits	1
 audio clip/6/2/5	slots	1
 audio clip/6/2/5	range_dep	0
-audio clip/6/2/5	param_index	255
 audio clip/6/2/6	name	Hpf
 audio clip/6/2/6	title	Hpf
 audio clip/6/2/6	ae	0
 audio clip/6/2/6	edits	1
 audio clip/6/2/6	slots	1
 audio clip/6/2/6	range_dep	0
-audio clip/6/2/6	param_index	255
 audio clip/6/2/7	name	Lpf
 audio clip/6/2/7	title	Lpf
 audio clip/6/2/7	ae	0
 audio clip/6/2/7	edits	1
 audio clip/6/2/7	slots	1
 audio clip/6/2/7	range_dep	0
-audio clip/6/2/7	param_index	255
 audio clip/6/2/8	name	Sidechain
 audio clip/6/2/8	title	Reverb sidech
 audio clip/6/2/8	kids	5
@@ -4184,35 +3874,30 @@ audio clip/6/2/8/0	ae	0
 audio clip/6/2/8/0	edits	1
 audio clip/6/2/8/0	slots	1
 audio clip/6/2/8/0	range_dep	0
-audio clip/6/2/8/0	param_index	255
 audio clip/6/2/8/1	name	Shape
 audio clip/6/2/8/1	title	Sidech shape
 audio clip/6/2/8/1	ae	0
 audio clip/6/2/8/1	edits	1
 audio clip/6/2/8/1	slots	1
 audio clip/6/2/8/1	range_dep	0
-audio clip/6/2/8/1	param_index	255
 audio clip/6/2/8/2	name	Attack
 audio clip/6/2/8/2	title	Sidech attack
 audio clip/6/2/8/2	ae	1
 audio clip/6/2/8/2	edits	1
 audio clip/6/2/8/2	slots	1
 audio clip/6/2/8/2	range_dep	0
-audio clip/6/2/8/2	param_index	255
 audio clip/6/2/8/3	name	Release
 audio clip/6/2/8/3	title	Sidech release
 audio clip/6/2/8/3	ae	1
 audio clip/6/2/8/3	edits	1
 audio clip/6/2/8/3	slots	1
 audio clip/6/2/8/3	range_dep	0
-audio clip/6/2/8/3	param_index	255
 audio clip/6/2/8/4	name	Sync
 audio clip/6/2/8/4	title	Sidechain sync
 audio clip/6/2/8/4	ae	1
 audio clip/6/2/8/4	edits	1
 audio clip/6/2/8/4	slots	1
 audio clip/6/2/8/4	range_dep	0
-audio clip/6/2/8/4	param_index	255
 audio clip/6/3	name	Stutter
 audio clip/6/3	title	Stutter
 audio clip/6/3	kids	3
@@ -4229,14 +3914,12 @@ audio clip/6/3/1	ae	1
 audio clip/6/3/1	edits	1
 audio clip/6/3/1	slots	1
 audio clip/6/3/1	range_dep	0
-audio clip/6/3/1	param_index	255
 audio clip/6/3/2	name	Quantize
 audio clip/6/3/2	title	Quantize
 audio clip/6/3/2	ae	1
 audio clip/6/3/2	edits	1
 audio clip/6/3/2	slots	1
 audio clip/6/3/2	range_dep	0
-audio clip/6/3/2	param_index	255
 audio clip/6/4	name	Mod-FX
 audio clip/6/4	title	Mod-FX
 audio clip/6/4	kids	5
@@ -4246,7 +3929,6 @@ audio clip/6/4/0	ae	1
 audio clip/6/4/0	edits	1
 audio clip/6/4/0	slots	4
 audio clip/6/4/0	range_dep	0
-audio clip/6/4/0	param_index	255
 audio clip/6/4/1	ae	1
 audio clip/6/4/1	edits	1
 audio clip/6/4/1	slots	1
@@ -4278,7 +3960,6 @@ audio clip/6/5/0	ae	1
 audio clip/6/5/0	edits	1
 audio clip/6/5/0	slots	1
 audio clip/6/5/0	range_dep	0
-audio clip/6/5/0	param_index	255
 audio clip/6/5/1	name	Bitcrush
 audio clip/6/5/1	title	Bitcrush
 audio clip/6/5/1	ae	1
@@ -4309,7 +3990,6 @@ audio clip/7/1	ae	1
 audio clip/7/1	edits	1
 audio clip/7/1	slots	1
 audio clip/7/1	range_dep	0
-audio clip/7/1	param_index	255
 audio clip/7/2	name	Shape
 audio clip/7/2	title	Sidech shape
 audio clip/7/2	ae	1
@@ -4323,14 +4003,12 @@ audio clip/7/3	ae	1
 audio clip/7/3	edits	1
 audio clip/7/3	slots	1
 audio clip/7/3	range_dep	0
-audio clip/7/3	param_index	255
 audio clip/7/4	name	Release
 audio clip/7/4	title	Sidech release
 audio clip/7/4	ae	1
 audio clip/7/4	edits	1
 audio clip/7/4	slots	1
 audio clip/7/4	range_dep	0
-audio clip/7/4	param_index	255
 audio clip/8	name	Sample
 audio clip/8	title	Sample
 audio clip/8	kids	6
@@ -4346,21 +4024,18 @@ audio clip/8/1	ae	0
 audio clip/8/1	edits	1
 audio clip/8/1	slots	1
 audio clip/8/1	range_dep	0
-audio clip/8/1	param_index	255
 audio clip/8/2	name	Reverse
 audio clip/8/2	title	Reverse
 audio clip/8/2	ae	0
 audio clip/8/2	edits	1
 audio clip/8/2	slots	1
 audio clip/8/2	range_dep	0
-audio clip/8/2	param_index	255
 audio clip/8/3	name	Pitch/Speed
 audio clip/8/3	title	Pitch/Speed
 audio clip/8/3	ae	1
 audio clip/8/3	edits	1
 audio clip/8/3	slots	1
 audio clip/8/3	range_dep	0
-audio clip/8/3	param_index	255
 audio clip/8/4	name	Waveform
 audio clip/8/4	title	Waveform
 audio clip/8/4	ae	0
@@ -4373,21 +4048,18 @@ audio clip/8/5	ae	1
 audio clip/8/5	edits	1
 audio clip/8/5	slots	1
 audio clip/8/5	range_dep	0
-audio clip/8/5	param_index	255
 audio clip/9	name	Attack
 audio clip/9	title	Attack
 audio clip/9	ae	0
 audio clip/9	edits	1
 audio clip/9	slots	1
 audio clip/9	range_dep	0
-audio clip/9	param_index	255
 audio clip/10	name	Priority
 audio clip/10	title	Priority
 audio clip/10	ae	1
 audio clip/10	edits	1
 audio clip/10	slots	1
 audio clip/10	range_dep	0
-audio clip/10	param_index	255
 performance	name	Perform FX
 performance	title	Perform FX
 performance	kids	3
@@ -4409,7 +4081,6 @@ performance/1/0/0	ae	1
 performance/1/0/0	edits	1
 performance/1/0/0	slots	1
 performance/1/0/0	range_dep	0
-performance/1/0/0	param_index	255
 performance/1/0/1	name	Frequency
 performance/1/0/1	title	LPF frequency
 performance/1/0/1	ae	1
@@ -4438,7 +4109,6 @@ performance/1/1/0	ae	1
 performance/1/1/0	edits	1
 performance/1/1/0	slots	1
 performance/1/1/0	range_dep	0
-performance/1/1/0	param_index	255
 performance/1/1/1	name	Frequency
 performance/1/1/1	title	HPF frequency
 performance/1/1/1	ae	1
@@ -4464,7 +4134,6 @@ performance/1/2	ae	1
 performance/1/2	edits	1
 performance/1/2	slots	4
 performance/1/2	range_dep	0
-performance/1/2	param_index	255
 performance/2	name	FX
 performance/2	title	FX
 performance/2	kids	6
@@ -4515,14 +4184,12 @@ performance/2/1/1	ae	1
 performance/2/1/1	edits	1
 performance/2/1/1	slots	1
 performance/2/1/1	range_dep	0
-performance/2/1/1	param_index	255
 performance/2/1/2	name	Sync
 performance/2/1/2	title	Delay sync
 performance/2/1/2	ae	1
 performance/2/1/2	edits	1
 performance/2/1/2	slots	1
 performance/2/1/2	range_dep	0
-performance/2/1/2	param_index	255
 performance/2/1/3	name	Rate
 performance/2/1/3	title	Delay rate
 performance/2/1/3	ae	1
@@ -4536,7 +4203,6 @@ performance/2/1/4	ae	1
 performance/2/1/4	edits	1
 performance/2/1/4	slots	1
 performance/2/1/4	range_dep	0
-performance/2/1/4	param_index	255
 performance/2/2	name	Reverb
 performance/2/2	title	Reverb
 performance/2/2	kids	9
@@ -4551,47 +4217,40 @@ performance/2/2/1	ae	0
 performance/2/2/1	edits	1
 performance/2/2/1	slots	1
 performance/2/2/1	range_dep	0
-performance/2/2/1	param_index	255
 performance/2/2/2	name	Damping
 performance/2/2/2	title	Damping
 performance/2/2/2	ae	0
 performance/2/2/2	edits	1
 performance/2/2/2	slots	1
 performance/2/2/2	range_dep	0
-performance/2/2/2	param_index	255
 performance/2/2/3	ae	0
 performance/2/2/3	edits	1
 performance/2/2/3	slots	1
 performance/2/2/3	range_dep	0
-performance/2/2/3	param_index	255
 performance/2/2/4	name	Model
 performance/2/2/4	title	Model
 performance/2/2/4	ae	0
 performance/2/2/4	edits	1
 performance/2/2/4	slots	1
 performance/2/2/4	range_dep	0
-performance/2/2/4	param_index	255
 performance/2/2/5	name	Pan
 performance/2/2/5	title	Reverb pan
 performance/2/2/5	ae	0
 performance/2/2/5	edits	1
 performance/2/2/5	slots	1
 performance/2/2/5	range_dep	0
-performance/2/2/5	param_index	255
 performance/2/2/6	name	Hpf
 performance/2/2/6	title	Hpf
 performance/2/2/6	ae	0
 performance/2/2/6	edits	1
 performance/2/2/6	slots	1
 performance/2/2/6	range_dep	0
-performance/2/2/6	param_index	255
 performance/2/2/7	name	Lpf
 performance/2/2/7	title	Lpf
 performance/2/2/7	ae	0
 performance/2/2/7	edits	1
 performance/2/2/7	slots	1
 performance/2/2/7	range_dep	0
-performance/2/2/7	param_index	255
 performance/2/2/8	name	Sidechain
 performance/2/2/8	title	Reverb sidech
 performance/2/2/8	kids	5
@@ -4601,35 +4260,30 @@ performance/2/2/8/0	ae	0
 performance/2/2/8/0	edits	1
 performance/2/2/8/0	slots	1
 performance/2/2/8/0	range_dep	0
-performance/2/2/8/0	param_index	255
 performance/2/2/8/1	name	Shape
 performance/2/2/8/1	title	Sidech shape
 performance/2/2/8/1	ae	0
 performance/2/2/8/1	edits	1
 performance/2/2/8/1	slots	1
 performance/2/2/8/1	range_dep	0
-performance/2/2/8/1	param_index	255
 performance/2/2/8/2	name	Attack
 performance/2/2/8/2	title	Sidech attack
 performance/2/2/8/2	ae	1
 performance/2/2/8/2	edits	1
 performance/2/2/8/2	slots	1
 performance/2/2/8/2	range_dep	0
-performance/2/2/8/2	param_index	255
 performance/2/2/8/3	name	Release
 performance/2/2/8/3	title	Sidech release
 performance/2/2/8/3	ae	1
 performance/2/2/8/3	edits	1
 performance/2/2/8/3	slots	1
 performance/2/2/8/3	range_dep	0
-performance/2/2/8/3	param_index	255
 performance/2/2/8/4	name	Sync
 performance/2/2/8/4	title	Sidechain sync
 performance/2/2/8/4	ae	1
 performance/2/2/8/4	edits	1
 performance/2/2/8/4	slots	1
 performance/2/2/8/4	range_dep	0
-performance/2/2/8/4	param_index	255
 performance/2/3	name	Stutter
 performance/2/3	title	Stutter
 performance/2/3	kids	3
@@ -4646,14 +4300,12 @@ performance/2/3/1	ae	1
 performance/2/3/1	edits	1
 performance/2/3/1	slots	1
 performance/2/3/1	range_dep	0
-performance/2/3/1	param_index	255
 performance/2/3/2	name	Quantize
 performance/2/3/2	title	Quantize
 performance/2/3/2	ae	1
 performance/2/3/2	edits	1
 performance/2/3/2	slots	1
 performance/2/3/2	range_dep	0
-performance/2/3/2	param_index	255
 performance/2/4	name	Mod-FX
 performance/2/4	title	Mod-FX
 performance/2/4	kids	5
@@ -4663,7 +4315,6 @@ performance/2/4/0	ae	1
 performance/2/4/0	edits	1
 performance/2/4/0	slots	4
 performance/2/4/0	range_dep	0
-performance/2/4/0	param_index	255
 performance/2/4/1	ae	1
 performance/2/4/1	edits	1
 performance/2/4/1	slots	1
@@ -4735,7 +4386,6 @@ song/1/0/0	ae	1
 song/1/0/0	edits	1
 song/1/0/0	slots	1
 song/1/0/0	range_dep	0
-song/1/0/0	param_index	255
 song/1/0/1	name	Frequency
 song/1/0/1	title	LPF frequency
 song/1/0/1	ae	1
@@ -4764,7 +4414,6 @@ song/1/1/0	ae	1
 song/1/1/0	edits	1
 song/1/1/0	slots	1
 song/1/1/0	range_dep	0
-song/1/1/0	param_index	255
 song/1/1/1	name	Frequency
 song/1/1/1	title	HPF frequency
 song/1/1/1	ae	1
@@ -4790,7 +4439,6 @@ song/1/2	ae	1
 song/1/2	edits	1
 song/1/2	slots	4
 song/1/2	range_dep	0
-song/1/2	param_index	255
 song/2	name	FX
 song/2	title	FX
 song/2	kids	6
@@ -4841,14 +4489,12 @@ song/2/1/1	ae	1
 song/2/1/1	edits	1
 song/2/1/1	slots	1
 song/2/1/1	range_dep	0
-song/2/1/1	param_index	255
 song/2/1/2	name	Sync
 song/2/1/2	title	Delay sync
 song/2/1/2	ae	1
 song/2/1/2	edits	1
 song/2/1/2	slots	1
 song/2/1/2	range_dep	0
-song/2/1/2	param_index	255
 song/2/1/3	name	Rate
 song/2/1/3	title	Delay rate
 song/2/1/3	ae	1
@@ -4862,7 +4508,6 @@ song/2/1/4	ae	1
 song/2/1/4	edits	1
 song/2/1/4	slots	1
 song/2/1/4	range_dep	0
-song/2/1/4	param_index	255
 song/2/2	name	Reverb
 song/2/2	title	Reverb
 song/2/2	kids	9
@@ -4877,47 +4522,40 @@ song/2/2/1	ae	0
 song/2/2/1	edits	1
 song/2/2/1	slots	1
 song/2/2/1	range_dep	0
-song/2/2/1	param_index	255
 song/2/2/2	name	Damping
 song/2/2/2	title	Damping
 song/2/2/2	ae	0
 song/2/2/2	edits	1
 song/2/2/2	slots	1
 song/2/2/2	range_dep	0
-song/2/2/2	param_index	255
 song/2/2/3	ae	0
 song/2/2/3	edits	1
 song/2/2/3	slots	1
 song/2/2/3	range_dep	0
-song/2/2/3	param_index	255
 song/2/2/4	name	Model
 song/2/2/4	title	Model
 song/2/2/4	ae	0
 song/2/2/4	edits	1
 song/2/2/4	slots	1
 song/2/2/4	range_dep	0
-song/2/2/4	param_index	255
 song/2/2/5	name	Pan
 song/2/2/5	title	Reverb pan
 song/2/2/5	ae	0
 song/2/2/5	edits	1
 song/2/2/5	slots	1
 song/2/2/5	range_dep	0
-song/2/2/5	param_index	255
 song/2/2/6	name	Hpf
 song/2/2/6	title	Hpf
 song/2/2/6	ae	0
 song/2/2/6	edits	1
 song/2/2/6	slots	1
 song/2/2/6	range_dep	0
-song/2/2/6	param_index	255
 song/2/2/7	name	Lpf
 song/2/2/7	title	Lpf
 song/2/2/7	ae	0
 song/2/2/7	edits	1
 song/2/2/7	slots	1
 song/2/2/7	range_dep	0
-song/2/2/7	param_index	255
 song/2/2/8	name	Sidechain
 song/2/2/8	title	Reverb sidech
 song/2/2/8	kids	5
@@ -4927,35 +4565,30 @@ song/2/2/8/0	ae	0
 song/2/2/8/0	edits	1
 song/2/2/8/0	slots	1
 song/2/2/8/0	range_dep	0
-song/2/2/8/0	param_index	255
 song/2/2/8/1	name	Shape
 song/2/2/8/1	title	Sidech shape
 song/2/2/8/1	ae	0
 song/2/2/8/1	edits	1
 song/2/2/8/1	slots	1
 song/2/2/8/1	range_dep	0
-song/2/2/8/1	param_index	255
 song/2/2/8/2	name	Attack
 song/2/2/8/2	title	Sidech attack
 song/2/2/8/2	ae	1
 song/2/2/8/2	edits	1
 song/2/2/8/2	slots	1
 song/2/2/8/2	range_dep	0
-song/2/2/8/2	param_index	255
 song/2/2/8/3	name	Release
 song/2/2/8/3	title	Sidech release
 song/2/2/8/3	ae	1
 song/2/2/8/3	edits	1
 song/2/2/8/3	slots	1
 song/2/2/8/3	range_dep	0
-song/2/2/8/3	param_index	255
 song/2/2/8/4	name	Sync
 song/2/2/8/4	title	Sidechain sync
 song/2/2/8/4	ae	1
 song/2/2/8/4	edits	1
 song/2/2/8/4	slots	1
 song/2/2/8/4	range_dep	0
-song/2/2/8/4	param_index	255
 song/2/3	name	Stutter
 song/2/3	title	Stutter
 song/2/3	kids	3
@@ -4972,14 +4605,12 @@ song/2/3/1	ae	1
 song/2/3/1	edits	1
 song/2/3/1	slots	1
 song/2/3/1	range_dep	0
-song/2/3/1	param_index	255
 song/2/3/2	name	Quantize
 song/2/3/2	title	Quantize
 song/2/3/2	ae	1
 song/2/3/2	edits	1
 song/2/3/2	slots	1
 song/2/3/2	range_dep	0
-song/2/3/2	param_index	255
 song/2/4	name	Mod-FX
 song/2/4	title	Mod-FX
 song/2/4	kids	5
@@ -4989,7 +4620,6 @@ song/2/4/0	ae	1
 song/2/4/0	edits	1
 song/2/4/0	slots	4
 song/2/4/0	range_dep	0
-song/2/4/0	param_index	255
 song/2/4/1	ae	1
 song/2/4/1	edits	1
 song/2/4/1	slots	1
@@ -5035,7 +4665,6 @@ song/3	ae	0
 song/3	edits	1
 song/3	slots	1
 song/3	range_dep	0
-song/3	param_index	255
 song/4	name	Active Scales
 song/4	title	Active Scales
 song/4	ae	0
@@ -5051,7 +4680,6 @@ song/5/0	ae	0
 song/5/0	edits	1
 song/5/0	slots	1
 song/5/0	range_dep	0
-song/5/0	param_index	255
 song/6	name	Configure Macros
 song/6	title	Configure Macros
 song/6	ae	0
@@ -5082,35 +4710,30 @@ song/8/1/0	ae	0
 song/8/1/0	edits	1
 song/8/1/0	slots	1
 song/8/1/0	range_dep	0
-song/8/1/0	param_index	255
 song/8/1/1	name	Export to Silence
 song/8/1/1	title	Export to Silence
 song/8/1/1	ae	0
 song/8/1/1	edits	1
 song/8/1/1	slots	1
 song/8/1/1	range_dep	0
-song/8/1/1	param_index	255
 song/8/1/2	name	Song FX
 song/8/1/2	title	Song FX
 song/8/1/2	ae	0
 song/8/1/2	edits	1
 song/8/1/2	slots	1
 song/8/1/2	range_dep	0
-song/8/1/2	param_index	255
 song/8/1/3	name	Offline Rendering
 song/8/1/3	title	Offline Rendering
 song/8/1/3	ae	0
 song/8/1/3	edits	1
 song/8/1/3	slots	1
 song/8/1/3	range_dep	0
-song/8/1/3	param_index	255
 song/8/1/4	name	Export Mixdown
 song/8/1/4	title	Export Mixdown
 song/8/1/4	ae	0
 song/8/1/4	edits	1
 song/8/1/4	slots	1
 song/8/1/4	range_dep	0
-song/8/1/4	param_index	255
 kit global fx	name	Kit FX
 kit global fx	title	Kit FX
 kit global fx	kids	7
@@ -5150,35 +4773,30 @@ kit global fx/0/1/1/0	ae	0
 kit global fx/0/1/1/0	edits	1
 kit global fx/0/1/1/0	slots	1
 kit global fx/0/1/1/0	range_dep	0
-kit global fx/0/1/1/0	param_index	255
 kit global fx/0/1/1/1	name	Normalization
 kit global fx/0/1/1/1	title	Normalization
 kit global fx/0/1/1/1	ae	0
 kit global fx/0/1/1/1	edits	1
 kit global fx/0/1/1/1	slots	1
 kit global fx/0/1/1/1	range_dep	0
-kit global fx/0/1/1/1	param_index	255
 kit global fx/0/1/1/2	name	Export to Silence
 kit global fx/0/1/1/2	title	Export to Silence
 kit global fx/0/1/1/2	ae	0
 kit global fx/0/1/1/2	edits	1
 kit global fx/0/1/1/2	slots	1
 kit global fx/0/1/1/2	range_dep	0
-kit global fx/0/1/1/2	param_index	255
 kit global fx/0/1/1/3	name	Song FX
 kit global fx/0/1/1/3	title	Song FX
 kit global fx/0/1/1/3	ae	0
 kit global fx/0/1/1/3	edits	1
 kit global fx/0/1/1/3	slots	1
 kit global fx/0/1/1/3	range_dep	0
-kit global fx/0/1/1/3	param_index	255
 kit global fx/0/1/1/4	name	Offline Rendering
 kit global fx/0/1/1/4	title	Offline Rendering
 kit global fx/0/1/1/4	ae	0
 kit global fx/0/1/1/4	edits	1
 kit global fx/0/1/1/4	slots	1
 kit global fx/0/1/1/4	range_dep	0
-kit global fx/0/1/1/4	param_index	255
 kit global fx/1	name	Master
 kit global fx/1	title	Master
 kit global fx/1	kids	3
@@ -5212,7 +4830,6 @@ kit global fx/2/0	ae	1
 kit global fx/2/0	edits	1
 kit global fx/2/0	slots	1
 kit global fx/2/0	range_dep	0
-kit global fx/2/0	param_index	255
 kit global fx/2/1	name	Basic
 kit global fx/2/1	title	Arp basic
 kit global fx/2/1	kids	4
@@ -5222,7 +4839,6 @@ kit global fx/2/1/0	ae	1
 kit global fx/2/1/0	edits	1
 kit global fx/2/1/0	slots	1
 kit global fx/2/1/0	range_dep	0
-kit global fx/2/1/0	param_index	255
 kit global fx/2/1/1	name	Gate
 kit global fx/2/1/1	title	Arp gate
 kit global fx/2/1/1	ae	1
@@ -5236,7 +4852,6 @@ kit global fx/2/1/2	ae	1
 kit global fx/2/1/2	edits	1
 kit global fx/2/1/2	slots	1
 kit global fx/2/1/2	range_dep	0
-kit global fx/2/1/2	param_index	255
 kit global fx/2/1/3	name	Rate
 kit global fx/2/1/3	title	Arp rate
 kit global fx/2/1/3	ae	1
@@ -5253,42 +4868,36 @@ kit global fx/2/2/0	ae	1
 kit global fx/2/2/0	edits	1
 kit global fx/2/2/0	slots	1
 kit global fx/2/2/0	range_dep	0
-kit global fx/2/2/0	param_index	255
 kit global fx/2/2/1	name	Step Repeat
 kit global fx/2/2/1	title	Arp step repeat
 kit global fx/2/2/1	ae	1
 kit global fx/2/2/1	edits	1
 kit global fx/2/2/1	slots	1
 kit global fx/2/2/1	range_dep	0
-kit global fx/2/2/1	param_index	255
 kit global fx/2/2/2	name	Octave Mode
 kit global fx/2/2/2	title	Arp octave mode
 kit global fx/2/2/2	ae	1
 kit global fx/2/2/2	edits	1
 kit global fx/2/2/2	slots	1
 kit global fx/2/2/2	range_dep	0
-kit global fx/2/2/2	param_index	255
 kit global fx/2/2/3	name	Note Mode
 kit global fx/2/2/3	title	Arp note mode
 kit global fx/2/2/3	ae	0
 kit global fx/2/2/3	edits	1
 kit global fx/2/2/3	slots	1
 kit global fx/2/2/3	range_dep	0
-kit global fx/2/2/3	param_index	255
 kit global fx/2/2/4	name	Note Mode
 kit global fx/2/2/4	title	Arp note mode
 kit global fx/2/2/4	ae	1
 kit global fx/2/2/4	edits	1
 kit global fx/2/2/4	slots	1
 kit global fx/2/2/4	range_dep	0
-kit global fx/2/2/4	param_index	255
 kit global fx/2/2/5	name	Chord Simulator
 kit global fx/2/2/5	title	Arp chord sim
 kit global fx/2/2/5	ae	1
 kit global fx/2/2/5	edits	1
 kit global fx/2/2/5	slots	1
 kit global fx/2/2/5	range_dep	0
-kit global fx/2/2/5	param_index	255
 kit global fx/2/2/6	name	Rhythm
 kit global fx/2/2/6	title	Arp rhythm
 kit global fx/2/2/6	ae	1
@@ -5302,7 +4911,6 @@ kit global fx/2/2/7	ae	0
 kit global fx/2/2/7	edits	1
 kit global fx/2/2/7	slots	2
 kit global fx/2/2/7	range_dep	0
-kit global fx/2/2/7	param_index	255
 kit global fx/2/2/8	name	Sequence Length
 kit global fx/2/2/8	title	Arp seq length
 kit global fx/2/2/8	ae	1
@@ -5316,7 +4924,6 @@ kit global fx/2/2/9	ae	0
 kit global fx/2/2/9	edits	1
 kit global fx/2/2/9	slots	1
 kit global fx/2/2/9	range_dep	0
-kit global fx/2/2/9	param_index	255
 kit global fx/2/3	name	Randomizer
 kit global fx/2/3	title	Randomizer
 kit global fx/2/3	kids	24
@@ -5326,7 +4933,6 @@ kit global fx/2/3/0	ae	1
 kit global fx/2/3/0	edits	1
 kit global fx/2/3/0	slots	1
 kit global fx/2/3/0	range_dep	0
-kit global fx/2/3/0	param_index	255
 kit global fx/2/3/1	name	Gate Spread
 kit global fx/2/3/1	title	Arp gate spread
 kit global fx/2/3/1	ae	1
@@ -5340,7 +4946,6 @@ kit global fx/2/3/2	ae	0
 kit global fx/2/3/2	edits	1
 kit global fx/2/3/2	slots	1
 kit global fx/2/3/2	range_dep	0
-kit global fx/2/3/2	param_index	255
 kit global fx/2/3/3	name	Octave Spread
 kit global fx/2/3/3	title	Arp octa spread
 kit global fx/2/3/3	ae	1
@@ -5354,7 +4959,6 @@ kit global fx/2/3/4	ae	0
 kit global fx/2/3/4	edits	1
 kit global fx/2/3/4	slots	1
 kit global fx/2/3/4	range_dep	0
-kit global fx/2/3/4	param_index	255
 kit global fx/2/3/5	name	Velocity Spread
 kit global fx/2/3/5	title	Velocity spread
 kit global fx/2/3/5	ae	1
@@ -5368,7 +4972,6 @@ kit global fx/2/3/6	ae	0
 kit global fx/2/3/6	edits	1
 kit global fx/2/3/6	slots	1
 kit global fx/2/3/6	range_dep	0
-kit global fx/2/3/6	param_index	255
 kit global fx/2/3/7	name	Ratchet Amount
 kit global fx/2/3/7	title	Arp ratc amount
 kit global fx/2/3/7	ae	1
@@ -5382,7 +4985,6 @@ kit global fx/2/3/8	ae	0
 kit global fx/2/3/8	edits	1
 kit global fx/2/3/8	slots	1
 kit global fx/2/3/8	range_dep	0
-kit global fx/2/3/8	param_index	255
 kit global fx/2/3/9	name	Ratchet Probability
 kit global fx/2/3/9	title	Arp ratc prob
 kit global fx/2/3/9	ae	1
@@ -5396,7 +4998,6 @@ kit global fx/2/3/10	ae	0
 kit global fx/2/3/10	edits	1
 kit global fx/2/3/10	slots	1
 kit global fx/2/3/10	range_dep	0
-kit global fx/2/3/10	param_index	255
 kit global fx/2/3/11	name	Chord Polyphony
 kit global fx/2/3/11	title	Arp chord poly
 kit global fx/2/3/11	ae	1
@@ -5410,7 +5011,6 @@ kit global fx/2/3/12	ae	0
 kit global fx/2/3/12	edits	1
 kit global fx/2/3/12	slots	1
 kit global fx/2/3/12	range_dep	0
-kit global fx/2/3/12	param_index	255
 kit global fx/2/3/13	name	Chord Probability
 kit global fx/2/3/13	title	Arp chord prob
 kit global fx/2/3/13	ae	1
@@ -5424,7 +5024,6 @@ kit global fx/2/3/14	ae	0
 kit global fx/2/3/14	edits	1
 kit global fx/2/3/14	slots	1
 kit global fx/2/3/14	range_dep	0
-kit global fx/2/3/14	param_index	255
 kit global fx/2/3/15	name	Note Probability
 kit global fx/2/3/15	title	Note prob
 kit global fx/2/3/15	ae	1
@@ -5438,7 +5037,6 @@ kit global fx/2/3/16	ae	0
 kit global fx/2/3/16	edits	1
 kit global fx/2/3/16	slots	1
 kit global fx/2/3/16	range_dep	0
-kit global fx/2/3/16	param_index	255
 kit global fx/2/3/17	name	Swap Probability
 kit global fx/2/3/17	title	Arp swap prob
 kit global fx/2/3/17	ae	1
@@ -5452,7 +5050,6 @@ kit global fx/2/3/18	ae	0
 kit global fx/2/3/18	edits	1
 kit global fx/2/3/18	slots	1
 kit global fx/2/3/18	range_dep	0
-kit global fx/2/3/18	param_index	255
 kit global fx/2/3/19	name	Bass Probability
 kit global fx/2/3/19	title	Arp bass prob
 kit global fx/2/3/19	ae	1
@@ -5466,7 +5063,6 @@ kit global fx/2/3/20	ae	0
 kit global fx/2/3/20	edits	1
 kit global fx/2/3/20	slots	1
 kit global fx/2/3/20	range_dep	0
-kit global fx/2/3/20	param_index	255
 kit global fx/2/3/21	name	Glide Probability
 kit global fx/2/3/21	title	Arp glide prob
 kit global fx/2/3/21	ae	1
@@ -5480,7 +5076,6 @@ kit global fx/2/3/22	ae	0
 kit global fx/2/3/22	edits	1
 kit global fx/2/3/22	slots	1
 kit global fx/2/3/22	range_dep	0
-kit global fx/2/3/22	param_index	255
 kit global fx/2/3/23	name	Reverse Probability
 kit global fx/2/3/23	title	Reverse prob
 kit global fx/2/3/23	ae	1
@@ -5504,35 +5099,30 @@ kit global fx/3/1	ae	0
 kit global fx/3/1	edits	1
 kit global fx/3/1	slots	1
 kit global fx/3/1	range_dep	0
-kit global fx/3/1	param_index	255
 kit global fx/3/2	name	Blend
 kit global fx/3/2	title	Blend
 kit global fx/3/2	ae	0
 kit global fx/3/2	edits	1
 kit global fx/3/2	slots	1
 kit global fx/3/2	range_dep	0
-kit global fx/3/2	param_index	255
 kit global fx/3/3	name	Attack
 kit global fx/3/3	title	Attack
 kit global fx/3/3	ae	0
 kit global fx/3/3	edits	1
 kit global fx/3/3	slots	1
 kit global fx/3/3	range_dep	0
-kit global fx/3/3	param_index	255
 kit global fx/3/4	name	Release
 kit global fx/3/4	title	Release
 kit global fx/3/4	ae	0
 kit global fx/3/4	edits	1
 kit global fx/3/4	slots	1
 kit global fx/3/4	range_dep	0
-kit global fx/3/4	param_index	255
 kit global fx/3/5	name	Hpf
 kit global fx/3/5	title	Hpf
 kit global fx/3/5	ae	0
 kit global fx/3/5	edits	1
 kit global fx/3/5	slots	1
 kit global fx/3/5	range_dep	0
-kit global fx/3/5	param_index	255
 kit global fx/4	name	Filters
 kit global fx/4	title	Filters
 kit global fx/4	kids	3
@@ -5545,7 +5135,6 @@ kit global fx/4/0/0	ae	1
 kit global fx/4/0/0	edits	1
 kit global fx/4/0/0	slots	1
 kit global fx/4/0/0	range_dep	0
-kit global fx/4/0/0	param_index	255
 kit global fx/4/0/1	name	Frequency
 kit global fx/4/0/1	title	LPF frequency
 kit global fx/4/0/1	ae	1
@@ -5574,7 +5163,6 @@ kit global fx/4/1/0	ae	1
 kit global fx/4/1/0	edits	1
 kit global fx/4/1/0	slots	1
 kit global fx/4/1/0	range_dep	0
-kit global fx/4/1/0	param_index	255
 kit global fx/4/1/1	name	Frequency
 kit global fx/4/1/1	title	HPF frequency
 kit global fx/4/1/1	ae	1
@@ -5600,7 +5188,6 @@ kit global fx/4/2	ae	1
 kit global fx/4/2	edits	1
 kit global fx/4/2	slots	4
 kit global fx/4/2	range_dep	0
-kit global fx/4/2	param_index	255
 kit global fx/5	name	FX
 kit global fx/5	title	FX
 kit global fx/5	kids	6
@@ -5651,14 +5238,12 @@ kit global fx/5/1/1	ae	1
 kit global fx/5/1/1	edits	1
 kit global fx/5/1/1	slots	1
 kit global fx/5/1/1	range_dep	0
-kit global fx/5/1/1	param_index	255
 kit global fx/5/1/2	name	Sync
 kit global fx/5/1/2	title	Delay sync
 kit global fx/5/1/2	ae	1
 kit global fx/5/1/2	edits	1
 kit global fx/5/1/2	slots	1
 kit global fx/5/1/2	range_dep	0
-kit global fx/5/1/2	param_index	255
 kit global fx/5/1/3	name	Rate
 kit global fx/5/1/3	title	Delay rate
 kit global fx/5/1/3	ae	1
@@ -5672,7 +5257,6 @@ kit global fx/5/1/4	ae	1
 kit global fx/5/1/4	edits	1
 kit global fx/5/1/4	slots	1
 kit global fx/5/1/4	range_dep	0
-kit global fx/5/1/4	param_index	255
 kit global fx/5/2	name	Reverb
 kit global fx/5/2	title	Reverb
 kit global fx/5/2	kids	9
@@ -5687,47 +5271,40 @@ kit global fx/5/2/1	ae	0
 kit global fx/5/2/1	edits	1
 kit global fx/5/2/1	slots	1
 kit global fx/5/2/1	range_dep	0
-kit global fx/5/2/1	param_index	255
 kit global fx/5/2/2	name	Damping
 kit global fx/5/2/2	title	Damping
 kit global fx/5/2/2	ae	0
 kit global fx/5/2/2	edits	1
 kit global fx/5/2/2	slots	1
 kit global fx/5/2/2	range_dep	0
-kit global fx/5/2/2	param_index	255
 kit global fx/5/2/3	ae	0
 kit global fx/5/2/3	edits	1
 kit global fx/5/2/3	slots	1
 kit global fx/5/2/3	range_dep	0
-kit global fx/5/2/3	param_index	255
 kit global fx/5/2/4	name	Model
 kit global fx/5/2/4	title	Model
 kit global fx/5/2/4	ae	0
 kit global fx/5/2/4	edits	1
 kit global fx/5/2/4	slots	1
 kit global fx/5/2/4	range_dep	0
-kit global fx/5/2/4	param_index	255
 kit global fx/5/2/5	name	Pan
 kit global fx/5/2/5	title	Reverb pan
 kit global fx/5/2/5	ae	0
 kit global fx/5/2/5	edits	1
 kit global fx/5/2/5	slots	1
 kit global fx/5/2/5	range_dep	0
-kit global fx/5/2/5	param_index	255
 kit global fx/5/2/6	name	Hpf
 kit global fx/5/2/6	title	Hpf
 kit global fx/5/2/6	ae	0
 kit global fx/5/2/6	edits	1
 kit global fx/5/2/6	slots	1
 kit global fx/5/2/6	range_dep	0
-kit global fx/5/2/6	param_index	255
 kit global fx/5/2/7	name	Lpf
 kit global fx/5/2/7	title	Lpf
 kit global fx/5/2/7	ae	0
 kit global fx/5/2/7	edits	1
 kit global fx/5/2/7	slots	1
 kit global fx/5/2/7	range_dep	0
-kit global fx/5/2/7	param_index	255
 kit global fx/5/2/8	name	Sidechain
 kit global fx/5/2/8	title	Reverb sidech
 kit global fx/5/2/8	kids	5
@@ -5737,35 +5314,30 @@ kit global fx/5/2/8/0	ae	0
 kit global fx/5/2/8/0	edits	1
 kit global fx/5/2/8/0	slots	1
 kit global fx/5/2/8/0	range_dep	0
-kit global fx/5/2/8/0	param_index	255
 kit global fx/5/2/8/1	name	Shape
 kit global fx/5/2/8/1	title	Sidech shape
 kit global fx/5/2/8/1	ae	0
 kit global fx/5/2/8/1	edits	1
 kit global fx/5/2/8/1	slots	1
 kit global fx/5/2/8/1	range_dep	0
-kit global fx/5/2/8/1	param_index	255
 kit global fx/5/2/8/2	name	Attack
 kit global fx/5/2/8/2	title	Sidech attack
 kit global fx/5/2/8/2	ae	1
 kit global fx/5/2/8/2	edits	1
 kit global fx/5/2/8/2	slots	1
 kit global fx/5/2/8/2	range_dep	0
-kit global fx/5/2/8/2	param_index	255
 kit global fx/5/2/8/3	name	Release
 kit global fx/5/2/8/3	title	Sidech release
 kit global fx/5/2/8/3	ae	1
 kit global fx/5/2/8/3	edits	1
 kit global fx/5/2/8/3	slots	1
 kit global fx/5/2/8/3	range_dep	0
-kit global fx/5/2/8/3	param_index	255
 kit global fx/5/2/8/4	name	Sync
 kit global fx/5/2/8/4	title	Sidechain sync
 kit global fx/5/2/8/4	ae	1
 kit global fx/5/2/8/4	edits	1
 kit global fx/5/2/8/4	slots	1
 kit global fx/5/2/8/4	range_dep	0
-kit global fx/5/2/8/4	param_index	255
 kit global fx/5/3	name	Stutter
 kit global fx/5/3	title	Stutter
 kit global fx/5/3	kids	3
@@ -5782,14 +5354,12 @@ kit global fx/5/3/1	ae	1
 kit global fx/5/3/1	edits	1
 kit global fx/5/3/1	slots	1
 kit global fx/5/3/1	range_dep	0
-kit global fx/5/3/1	param_index	255
 kit global fx/5/3/2	name	Quantize
 kit global fx/5/3/2	title	Quantize
 kit global fx/5/3/2	ae	1
 kit global fx/5/3/2	edits	1
 kit global fx/5/3/2	slots	1
 kit global fx/5/3/2	range_dep	0
-kit global fx/5/3/2	param_index	255
 kit global fx/5/4	name	Mod-FX
 kit global fx/5/4	title	Mod-FX
 kit global fx/5/4	kids	5
@@ -5799,7 +5369,6 @@ kit global fx/5/4/0	ae	1
 kit global fx/5/4/0	edits	1
 kit global fx/5/4/0	slots	4
 kit global fx/5/4/0	range_dep	0
-kit global fx/5/4/0	param_index	255
 kit global fx/5/4/1	ae	1
 kit global fx/5/4/1	edits	1
 kit global fx/5/4/1	slots	1
@@ -5855,7 +5424,6 @@ kit global fx/6/1	ae	1
 kit global fx/6/1	edits	1
 kit global fx/6/1	slots	1
 kit global fx/6/1	range_dep	0
-kit global fx/6/1	param_index	255
 kit global fx/6/2	name	Shape
 kit global fx/6/2	title	Sidech shape
 kit global fx/6/2	ae	1
@@ -5869,14 +5437,12 @@ kit global fx/6/3	ae	1
 kit global fx/6/3	edits	1
 kit global fx/6/3	slots	1
 kit global fx/6/3	range_dep	0
-kit global fx/6/3	param_index	255
 kit global fx/6/4	name	Release
 kit global fx/6/4	title	Sidech release
 kit global fx/6/4	ae	1
 kit global fx/6/4	edits	1
 kit global fx/6/4	slots	1
 kit global fx/6/4	range_dep	0
-kit global fx/6/4	param_index	255
 settings	name	Settings
 settings	title	Settings
 settings	kids	15
@@ -5940,14 +5506,12 @@ settings/3/0/0	ae	0
 settings/3/0/0	edits	1
 settings/3/0/0	slots	1
 settings/3/0/0	range_dep	0
-settings/3/0/0	param_index	255
 settings/3/0/1	name	Auto-Start
 settings/3/0/1	title	Auto-Start
 settings/3/0/1	ae	0
 settings/3/0/1	edits	1
 settings/3/0/1	slots	1
 settings/3/0/1	range_dep	0
-settings/3/0/1	param_index	255
 settings/3/1	name	Output
 settings/3/1	title	Trig clock out
 settings/3/1	kids	1
@@ -5957,7 +5521,6 @@ settings/3/1/0	ae	0
 settings/3/1/0	edits	1
 settings/3/1/0	slots	1
 settings/3/1/0	range_dep	0
-settings/3/1/0	param_index	255
 settings/4	name	MIDI
 settings/4	title	MIDI
 settings/4	kids	9
@@ -5970,21 +5533,18 @@ settings/4/0/0	ae	0
 settings/4/0/0	edits	1
 settings/4/0/0	slots	1
 settings/4/0/0	range_dep	0
-settings/4/0/0	param_index	255
 settings/4/0/1	name	Input
 settings/4/0/1	title	MIDI clock in
 settings/4/0/1	ae	0
 settings/4/0/1	edits	1
 settings/4/0/1	slots	1
 settings/4/0/1	range_dep	0
-settings/4/0/1	param_index	255
 settings/4/0/2	name	Tempo Magnitude Matching
 settings/4/0/2	title	Tempo Magnitude Matching
 settings/4/0/2	ae	0
 settings/4/0/2	edits	1
 settings/4/0/2	slots	1
 settings/4/0/2	range_dep	0
-settings/4/0/2	param_index	255
 settings/4/1	name	MIDI-Follow
 settings/4/1	title	MIDI-Follow
 settings/4/1	kids	4
@@ -5997,140 +5557,120 @@ settings/4/1/0/0	ae	0
 settings/4/1/0/0	edits	1
 settings/4/1/0/0	slots	1
 settings/4/1/0/0	range_dep	0
-settings/4/1/0/0	param_index	255
 settings/4/1/0/1	name	Channel B
 settings/4/1/0/1	title	Channel B
 settings/4/1/0/1	ae	0
 settings/4/1/0/1	edits	1
 settings/4/1/0/1	slots	1
 settings/4/1/0/1	range_dep	0
-settings/4/1/0/1	param_index	255
 settings/4/1/0/2	name	Channel C
 settings/4/1/0/2	title	Channel C
 settings/4/1/0/2	ae	0
 settings/4/1/0/2	edits	1
 settings/4/1/0/2	slots	1
 settings/4/1/0/2	range_dep	0
-settings/4/1/0/2	param_index	255
 settings/4/1/0/3	name	Channel Track01
 settings/4/1/0/3	title	Channel Track01
 settings/4/1/0/3	ae	0
 settings/4/1/0/3	edits	1
 settings/4/1/0/3	slots	1
 settings/4/1/0/3	range_dep	0
-settings/4/1/0/3	param_index	255
 settings/4/1/0/4	name	Channel Track02
 settings/4/1/0/4	title	Channel Track02
 settings/4/1/0/4	ae	0
 settings/4/1/0/4	edits	1
 settings/4/1/0/4	slots	1
 settings/4/1/0/4	range_dep	0
-settings/4/1/0/4	param_index	255
 settings/4/1/0/5	name	Channel Track03
 settings/4/1/0/5	title	Channel Track03
 settings/4/1/0/5	ae	0
 settings/4/1/0/5	edits	1
 settings/4/1/0/5	slots	1
 settings/4/1/0/5	range_dep	0
-settings/4/1/0/5	param_index	255
 settings/4/1/0/6	name	Channel Track04
 settings/4/1/0/6	title	Channel Track04
 settings/4/1/0/6	ae	0
 settings/4/1/0/6	edits	1
 settings/4/1/0/6	slots	1
 settings/4/1/0/6	range_dep	0
-settings/4/1/0/6	param_index	255
 settings/4/1/0/7	name	Channel Track05
 settings/4/1/0/7	title	Channel Track05
 settings/4/1/0/7	ae	0
 settings/4/1/0/7	edits	1
 settings/4/1/0/7	slots	1
 settings/4/1/0/7	range_dep	0
-settings/4/1/0/7	param_index	255
 settings/4/1/0/8	name	Channel Track06
 settings/4/1/0/8	title	Channel Track06
 settings/4/1/0/8	ae	0
 settings/4/1/0/8	edits	1
 settings/4/1/0/8	slots	1
 settings/4/1/0/8	range_dep	0
-settings/4/1/0/8	param_index	255
 settings/4/1/0/9	name	Channel Track07
 settings/4/1/0/9	title	Channel Track07
 settings/4/1/0/9	ae	0
 settings/4/1/0/9	edits	1
 settings/4/1/0/9	slots	1
 settings/4/1/0/9	range_dep	0
-settings/4/1/0/9	param_index	255
 settings/4/1/0/10	name	Channel Track08
 settings/4/1/0/10	title	Channel Track08
 settings/4/1/0/10	ae	0
 settings/4/1/0/10	edits	1
 settings/4/1/0/10	slots	1
 settings/4/1/0/10	range_dep	0
-settings/4/1/0/10	param_index	255
 settings/4/1/0/11	name	Channel Track09
 settings/4/1/0/11	title	Channel Track09
 settings/4/1/0/11	ae	0
 settings/4/1/0/11	edits	1
 settings/4/1/0/11	slots	1
 settings/4/1/0/11	range_dep	0
-settings/4/1/0/11	param_index	255
 settings/4/1/0/12	name	Channel Track10
 settings/4/1/0/12	title	Channel Track10
 settings/4/1/0/12	ae	0
 settings/4/1/0/12	edits	1
 settings/4/1/0/12	slots	1
 settings/4/1/0/12	range_dep	0
-settings/4/1/0/12	param_index	255
 settings/4/1/0/13	name	Channel Track11
 settings/4/1/0/13	title	Channel Track11
 settings/4/1/0/13	ae	0
 settings/4/1/0/13	edits	1
 settings/4/1/0/13	slots	1
 settings/4/1/0/13	range_dep	0
-settings/4/1/0/13	param_index	255
 settings/4/1/0/14	name	Channel Track12
 settings/4/1/0/14	title	Channel Track12
 settings/4/1/0/14	ae	0
 settings/4/1/0/14	edits	1
 settings/4/1/0/14	slots	1
 settings/4/1/0/14	range_dep	0
-settings/4/1/0/14	param_index	255
 settings/4/1/0/15	name	Channel Track13
 settings/4/1/0/15	title	Channel Track13
 settings/4/1/0/15	ae	0
 settings/4/1/0/15	edits	1
 settings/4/1/0/15	slots	1
 settings/4/1/0/15	range_dep	0
-settings/4/1/0/15	param_index	255
 settings/4/1/0/16	name	Channel Track14
 settings/4/1/0/16	title	Channel Track14
 settings/4/1/0/16	ae	0
 settings/4/1/0/16	edits	1
 settings/4/1/0/16	slots	1
 settings/4/1/0/16	range_dep	0
-settings/4/1/0/16	param_index	255
 settings/4/1/0/17	name	Channel Track15
 settings/4/1/0/17	title	Channel Track15
 settings/4/1/0/17	ae	0
 settings/4/1/0/17	edits	1
 settings/4/1/0/17	slots	1
 settings/4/1/0/17	range_dep	0
-settings/4/1/0/17	param_index	255
 settings/4/1/0/18	name	Channel Track16
 settings/4/1/0/18	title	Channel Track16
 settings/4/1/0/18	ae	0
 settings/4/1/0/18	edits	1
 settings/4/1/0/18	slots	1
 settings/4/1/0/18	range_dep	0
-settings/4/1/0/18	param_index	255
 settings/4/1/1	name	Kit Root Note
 settings/4/1/1	title	Kit Root Note
 settings/4/1/1	ae	0
 settings/4/1/1	edits	1
 settings/4/1/1	slots	1
 settings/4/1/1	range_dep	0
-settings/4/1/1	param_index	255
 settings/4/1/2	name	Feedback
 settings/4/1/2	title	Feedback
 settings/4/1/2	kids	3
@@ -6140,56 +5680,48 @@ settings/4/1/2/0	ae	0
 settings/4/1/2/0	edits	1
 settings/4/1/2/0	slots	1
 settings/4/1/2/0	range_dep	0
-settings/4/1/2/0	param_index	255
 settings/4/1/2/1	name	Automation Feedback
 settings/4/1/2/1	title	Automation Feedback
 settings/4/1/2/1	ae	0
 settings/4/1/2/1	edits	1
 settings/4/1/2/1	slots	1
 settings/4/1/2/1	range_dep	0
-settings/4/1/2/1	param_index	255
 settings/4/1/2/2	name	Filter Responses
 settings/4/1/2/2	title	Filter Responses
 settings/4/1/2/2	ae	0
 settings/4/1/2/2	edits	1
 settings/4/1/2/2	slots	1
 settings/4/1/2/2	range_dep	0
-settings/4/1/2/2	param_index	255
 settings/4/1/3	name	Display Param
 settings/4/1/3	title	Display Param
 settings/4/1/3	ae	0
 settings/4/1/3	edits	1
 settings/4/1/3	slots	1
 settings/4/1/3	range_dep	0
-settings/4/1/3	param_index	255
 settings/4/2	name	Select Kit Row
 settings/4/2	title	Select Kit Row
 settings/4/2	ae	0
 settings/4/2	edits	1
 settings/4/2	slots	1
 settings/4/2	range_dep	0
-settings/4/2	param_index	255
 settings/4/3	name	MIDI-Thru
 settings/4/3	title	MIDI-Thru
 settings/4/3	ae	0
 settings/4/3	edits	1
 settings/4/3	slots	1
 settings/4/3	range_dep	0
-settings/4/3	param_index	255
 settings/4/4	name	Transpose
 settings/4/4	title	Transpose
 settings/4/4	ae	0
 settings/4/4	edits	1
 settings/4/4	slots	1
 settings/4/4	range_dep	0
-settings/4/4	param_index	255
 settings/4/5	name	Takeover
 settings/4/5	title	Takeover
 settings/4/5	ae	0
 settings/4/5	edits	1
 settings/4/5	slots	1
 settings/4/5	range_dep	0
-settings/4/5	param_index	255
 settings/4/6	name	Commands
 settings/4/6	title	MIDI commands
 settings/4/6	kids	12
@@ -6271,7 +5803,6 @@ settings/4/7	ae	0
 settings/4/7	edits	1
 settings/4/7	slots	1
 settings/4/7	range_dep	0
-settings/4/7	param_index	255
 settings/4/8	name	Devices
 settings/4/8	title	MIDI devices
 settings/4/8	ae	0
@@ -6287,21 +5818,18 @@ settings/5/0	ae	0
 settings/5/0	edits	1
 settings/5/0	slots	1
 settings/5/0	range_dep	0
-settings/5/0	param_index	255
 settings/5/1	name	Input
 settings/5/1	title	USB input
 settings/5/1	ae	0
 settings/5/1	edits	1
 settings/5/1	slots	1
 settings/5/1	range_dep	0
-settings/5/1	param_index	255
 settings/5/2	name	Output
 settings/5/2	title	USB output
 settings/5/2	ae	0
 settings/5/2	edits	1
 settings/5/2	slots	1
 settings/5/2	range_dep	0
-settings/5/2	param_index	255
 settings/6	name	Defaults
 settings/6	title	Defaults
 settings/6	kids	18
@@ -6317,14 +5845,12 @@ settings/6/0/0/0	ae	0
 settings/6/0/0/0	edits	1
 settings/6/0/0/0	slots	1
 settings/6/0/0/0	range_dep	0
-settings/6/0/0/0	param_index	255
 settings/6/0/0/1	name	Menu Highlighting
 settings/6/0/0/1	title	Menu Highlighting
 settings/6/0/0/1	ae	0
 settings/6/0/0/1	edits	1
 settings/6/0/0/1	slots	1
 settings/6/0/0/1	range_dep	0
-settings/6/0/0/1	param_index	255
 settings/6/0/1	name	Song
 settings/6/0/1	title	Song
 settings/6/0/1	kids	2
@@ -6334,7 +5860,6 @@ settings/6/0/1/0	ae	0
 settings/6/0/1/0	edits	1
 settings/6/0/1/0	slots	1
 settings/6/0/1/0	range_dep	0
-settings/6/0/1/0	param_index	255
 settings/6/0/1/1	name	Grid
 settings/6/0/1/1	title	Grid
 settings/6/0/1/1	kids	3
@@ -6344,14 +5869,12 @@ settings/6/0/1/1/0	ae	0
 settings/6/0/1/1/0	edits	1
 settings/6/0/1/1/0	slots	1
 settings/6/0/1/1/0	range_dep	0
-settings/6/0/1/1/0	param_index	255
 settings/6/0/1/1/1	name	Select in green mode
 settings/6/0/1/1/1	title	Select in green mode
 settings/6/0/1/1/1	ae	0
 settings/6/0/1/1/1	edits	1
 settings/6/0/1/1/1	slots	1
 settings/6/0/1/1/1	range_dep	0
-settings/6/0/1/1/1	param_index	255
 settings/6/0/1/1/2	name	Empty pads
 settings/6/0/1/1/2	title	Empty pads
 settings/6/0/1/1/2	kids	2
@@ -6361,14 +5884,12 @@ settings/6/0/1/1/2/0	ae	0
 settings/6/0/1/1/2/0	edits	1
 settings/6/0/1/1/2/0	slots	1
 settings/6/0/1/1/2/0	range_dep	0
-settings/6/0/1/1/2/0	param_index	255
 settings/6/0/1/1/2/1	name	Create + Record
 settings/6/0/1/1/2/1	title	Create + Record
 settings/6/0/1/1/2/1	ae	0
 settings/6/0/1/1/2/1	edits	1
 settings/6/0/1/1/2/1	slots	1
 settings/6/0/1/1/2/1	range_dep	0
-settings/6/0/1/1/2/1	param_index	255
 settings/6/0/2	name	Keyboard
 settings/6/0/2	title	Keyboard
 settings/6/0/2	kids	3
@@ -6378,7 +5899,6 @@ settings/6/0/2/0	ae	0
 settings/6/0/2/0	edits	1
 settings/6/0/2/0	slots	1
 settings/6/0/2/0	range_dep	0
-settings/6/0/2/0	param_index	255
 settings/6/0/2/1	name	Sidebar Controls
 settings/6/0/2/1	title	Sidebar Controls
 settings/6/0/2/1	kids	2
@@ -6388,21 +5908,18 @@ settings/6/0/2/1/0	ae	0
 settings/6/0/2/1/0	edits	1
 settings/6/0/2/1/0	slots	1
 settings/6/0/2/1/0	range_dep	0
-settings/6/0/2/1/0	param_index	255
 settings/6/0/2/1/1	name	Momentary Modwheel
 settings/6/0/2/1/1	title	Momentary Modwheel
 settings/6/0/2/1/1	ae	0
 settings/6/0/2/1/1	edits	1
 settings/6/0/2/1/1	slots	1
 settings/6/0/2/1/1	range_dep	0
-settings/6/0/2/1/1	param_index	255
 settings/6/0/2/2	name	Favourites
 settings/6/0/2/2	title	Favourites
 settings/6/0/2/2	ae	0
 settings/6/0/2/2	edits	1
 settings/6/0/2/2	slots	1
 settings/6/0/2/2	range_dep	0
-settings/6/0/2/2	param_index	255
 settings/6/0/3	name	Clip Type
 settings/6/0/3	title	Clip Type
 settings/6/0/3	kids	2
@@ -6412,21 +5929,18 @@ settings/6/0/3/0	ae	0
 settings/6/0/3/0	edits	1
 settings/6/0/3/0	slots	1
 settings/6/0/3/0	range_dep	0
-settings/6/0/3/0	param_index	255
 settings/6/0/3/1	name	Use Last Clip Type
 settings/6/0/3/1	title	Use Last Clip Type
 settings/6/0/3/1	ae	0
 settings/6/0/3/1	edits	1
 settings/6/0/3/1	slots	1
 settings/6/0/3/1	range_dep	0
-settings/6/0/3/1	param_index	255
 settings/6/0/4	name	Use Sharps (#)
 settings/6/0/4	title	Use Sharps (#)
 settings/6/0/4	ae	0
 settings/6/0/4	edits	1
 settings/6/0/4	slots	1
 settings/6/0/4	range_dep	0
-settings/6/0/4	param_index	255
 settings/6/1	name	Automation
 settings/6/1	title	Automation
 settings/6/1	kids	5
@@ -6436,63 +5950,54 @@ settings/6/1/0	ae	0
 settings/6/1/0	edits	1
 settings/6/1/0	slots	1
 settings/6/1/0	range_dep	0
-settings/6/1/0	param_index	255
 settings/6/1/1	name	Clear
 settings/6/1/1	title	Clear
 settings/6/1/1	ae	0
 settings/6/1/1	edits	1
 settings/6/1/1	slots	1
 settings/6/1/1	range_dep	0
-settings/6/1/1	param_index	255
 settings/6/1/2	name	Shift
 settings/6/1/2	title	Shift
 settings/6/1/2	ae	0
 settings/6/1/2	edits	1
 settings/6/1/2	slots	1
 settings/6/1/2	range_dep	0
-settings/6/1/2	param_index	255
 settings/6/1/3	name	Nudge Note
 settings/6/1/3	title	Nudge Note
 settings/6/1/3	ae	0
 settings/6/1/3	edits	1
 settings/6/1/3	slots	1
 settings/6/1/3	range_dep	0
-settings/6/1/3	param_index	255
 settings/6/1/4	name	Disable Audition Pad Shortcuts
 settings/6/1/4	title	Disable Audition Pad Shortcuts
 settings/6/1/4	ae	0
 settings/6/1/4	edits	1
 settings/6/1/4	slots	1
 settings/6/1/4	range_dep	0
-settings/6/1/4	param_index	255
 settings/6/2	name	Tempo
 settings/6/2	title	Default tempo
 settings/6/2	ae	0
 settings/6/2	edits	1
 settings/6/2	slots	1
 settings/6/2	range_dep	0
-settings/6/2	param_index	255
 settings/6/3	name	Swing Amount
 settings/6/3	title	Default swing
 settings/6/3	ae	0
 settings/6/3	edits	1
 settings/6/3	slots	1
 settings/6/3	range_dep	0
-settings/6/3	param_index	255
 settings/6/4	name	Swing Interval
 settings/6/4	title	Default swing
 settings/6/4	ae	0
 settings/6/4	edits	1
 settings/6/4	slots	1
 settings/6/4	range_dep	0
-settings/6/4	param_index	255
 settings/6/5	name	Key
 settings/6/5	title	Default key
 settings/6/5	ae	0
 settings/6/5	edits	1
 settings/6/5	slots	1
 settings/6/5	range_dep	0
-settings/6/5	param_index	255
 settings/6/6	name	Scale
 settings/6/6	title	Scale
 settings/6/6	kids	2
@@ -6502,7 +6007,6 @@ settings/6/6/0	ae	0
 settings/6/6/0	edits	1
 settings/6/6/0	slots	1
 settings/6/6/0	range_dep	0
-settings/6/6/0	param_index	255
 settings/6/6/1	name	Active Scales
 settings/6/6/1	title	Active Scales
 settings/6/6/1	ae	0
@@ -6515,70 +6019,60 @@ settings/6/7	ae	0
 settings/6/7	edits	1
 settings/6/7	slots	1
 settings/6/7	range_dep	0
-settings/6/7	param_index	255
 settings/6/8	name	Resolution
 settings/6/8	title	Default resol
 settings/6/8	ae	0
 settings/6/8	edits	1
 settings/6/8	slots	1
 settings/6/8	range_dep	0
-settings/6/8	param_index	255
 settings/6/9	name	Bend range
 settings/6/9	title	Default bend r
 settings/6/9	ae	0
 settings/6/9	edits	1
 settings/6/9	slots	1
 settings/6/9	range_dep	0
-settings/6/9	param_index	255
 settings/6/10	name	Metronome
 settings/6/10	title	Default metro
 settings/6/10	ae	0
 settings/6/10	edits	1
 settings/6/10	slots	1
 settings/6/10	range_dep	0
-settings/6/10	param_index	255
 settings/6/11	name	Patch cable polarity
 settings/6/11	title	Patch cable polarity
 settings/6/11	ae	0
 settings/6/11	edits	1
 settings/6/11	slots	1
 settings/6/11	range_dep	0
-settings/6/11	param_index	255
 settings/6/12	name	Startup Song
 settings/6/12	title	Startup Song
 settings/6/12	ae	0
 settings/6/12	edits	1
 settings/6/12	slots	1
 settings/6/12	range_dep	0
-settings/6/12	param_index	255
 settings/6/13	name	Pad Brightness
 settings/6/13	title	Pad brightness
 settings/6/13	ae	0
 settings/6/13	edits	1
 settings/6/13	slots	1
 settings/6/13	range_dep	0
-settings/6/13	param_index	255
 settings/6/14	name	Sample Slice Mode
 settings/6/14	title	Sample Slice Mode
 settings/6/14	ae	0
 settings/6/14	edits	1
 settings/6/14	slots	1
 settings/6/14	range_dep	0
-settings/6/14	param_index	255
 settings/6/15	name	High CPU Indicator
 settings/6/15	title	High CPU Indicator
 settings/6/15	ae	0
 settings/6/15	edits	1
 settings/6/15	slots	1
 settings/6/15	range_dep	0
-settings/6/15	param_index	255
 settings/6/16	name	Hold Press Time
 settings/6/16	title	Hold Press Time
 settings/6/16	ae	0
 settings/6/16	edits	1
 settings/6/16	slots	1
 settings/6/16	range_dep	0
-settings/6/16	param_index	255
 settings/6/17	name	Screensaver
 settings/6/17	title	Screensaver
 settings/6/17	kids	2
@@ -6588,14 +6082,12 @@ settings/6/17/0	ae	0
 settings/6/17/0	edits	1
 settings/6/17/0	slots	1
 settings/6/17/0	range_dep	0
-settings/6/17/0	param_index	255
 settings/6/17/1	name	Timeout
 settings/6/17/1	title	Timeout
 settings/6/17/1	ae	0
 settings/6/17/1	edits	1
 settings/6/17/1	slots	1
 settings/6/17/1	range_dep	0
-settings/6/17/1	param_index	255
 settings/7	name	Pads
 settings/7	title	Pads
 settings/7	kids	3
@@ -6605,14 +6097,12 @@ settings/7/0	ae	0
 settings/7/0	edits	1
 settings/7/0	slots	1
 settings/7/0	range_dep	0
-settings/7/0	param_index	255
 settings/7/1	name	Keyboard for Text
 settings/7/1	title	Key layout
 settings/7/1	ae	0
 settings/7/1	edits	1
 settings/7/1	slots	1
 settings/7/1	range_dep	0
-settings/7/1	param_index	255
 settings/7/2	name	Colours
 settings/7/2	title	Colours
 settings/7/2	kids	6
@@ -6622,56 +6112,48 @@ settings/7/2/0	ae	0
 settings/7/2/0	edits	1
 settings/7/2/0	slots	1
 settings/7/2/0	range_dep	0
-settings/7/2/0	param_index	255
 settings/7/2/1	name	Stopped
 settings/7/2/1	title	Stopped
 settings/7/2/1	ae	0
 settings/7/2/1	edits	1
 settings/7/2/1	slots	1
 settings/7/2/1	range_dep	0
-settings/7/2/1	param_index	255
 settings/7/2/2	name	Muted
 settings/7/2/2	title	Muted
 settings/7/2/2	ae	0
 settings/7/2/2	edits	1
 settings/7/2/2	slots	1
 settings/7/2/2	range_dep	0
-settings/7/2/2	param_index	255
 settings/7/2/3	name	Soloed
 settings/7/2/3	title	Soloed
 settings/7/2/3	ae	0
 settings/7/2/3	edits	1
 settings/7/2/3	slots	1
 settings/7/2/3	range_dep	0
-settings/7/2/3	param_index	255
 settings/7/2/4	name	Fill
 settings/7/2/4	title	Fill
 settings/7/2/4	ae	0
 settings/7/2/4	edits	1
 settings/7/2/4	slots	1
 settings/7/2/4	range_dep	0
-settings/7/2/4	param_index	255
 settings/7/2/5	name	Once
 settings/7/2/5	title	Once
 settings/7/2/5	ae	0
 settings/7/2/5	edits	1
 settings/7/2/5	slots	1
 settings/7/2/5	range_dep	0
-settings/7/2/5	param_index	255
 settings/8	name	Sample Preview
 settings/8	title	Sample Preview
 settings/8	ae	0
 settings/8	edits	1
 settings/8	slots	1
 settings/8	range_dep	0
-settings/8	param_index	255
 settings/9	name	Play-Cursor
 settings/9	title	Play-Cursor
 settings/9	ae	0
 settings/9	edits	1
 settings/9	slots	1
 settings/9	range_dep	0
-settings/9	param_index	255
 settings/10	name	Recording
 settings/10	title	Recording
 settings/10	kids	5
@@ -6681,28 +6163,24 @@ settings/10/0	ae	0
 settings/10/0	edits	1
 settings/10/0	slots	1
 settings/10/0	range_dep	0
-settings/10/0	param_index	255
 settings/10/1	name	Quantization
 settings/10/1	title	Quantization
 settings/10/1	ae	0
 settings/10/1	edits	1
 settings/10/1	slots	1
 settings/10/1	range_dep	0
-settings/10/1	param_index	255
 settings/10/2	name	Loop margins
 settings/10/2	title	Loop margins
 settings/10/2	ae	0
 settings/10/2	edits	1
 settings/10/2	slots	1
 settings/10/2	range_dep	0
-settings/10/2	param_index	255
 settings/10/3	name	Sampling monitoring
 settings/10/3	title	Monitoring
 settings/10/3	ae	0
 settings/10/3	edits	1
 settings/10/3	slots	1
 settings/10/3	range_dep	0
-settings/10/3	param_index	255
 settings/10/4	name	Threshold Recording
 settings/10/4	title	Threshold Recording
 settings/10/4	kids	1
@@ -6712,7 +6190,6 @@ settings/10/4/0	ae	0
 settings/10/4/0	edits	1
 settings/10/4/0	slots	1
 settings/10/4/0	range_dep	0
-settings/10/4/0	param_index	255
 settings/11	name	Community Features
 settings/11	title	Community feat
 settings/11	kids	24
@@ -6722,168 +6199,144 @@ settings/11/0	ae	0
 settings/11/0	edits	1
 settings/11/0	slots	1
 settings/11/0	range_dep	0
-settings/11/0	param_index	255
 settings/11/1	name	Fine Tempo Knob
 settings/11/1	title	Fine Tempo Knob
 settings/11/1	ae	0
 settings/11/1	edits	1
 settings/11/1	slots	1
 settings/11/1	range_dep	0
-settings/11/1	param_index	255
 settings/11/2	name	Quantize
 settings/11/2	title	Quantize
 settings/11/2	ae	0
 settings/11/2	edits	1
 settings/11/2	slots	1
 settings/11/2	range_dep	0
-settings/11/2	param_index	255
 settings/11/3	name	Catch Notes
 settings/11/3	title	Catch Notes
 settings/11/3	ae	0
 settings/11/3	edits	1
 settings/11/3	slots	1
 settings/11/3	range_dep	0
-settings/11/3	param_index	255
 settings/11/4	name	Delete Unused Kit Rows
 settings/11/4	title	Delete Unused Kit Rows
 settings/11/4	ae	0
 settings/11/4	edits	1
 settings/11/4	slots	1
 settings/11/4	range_dep	0
-settings/11/4	param_index	255
 settings/11/5	name	Alternative Golden Knob Delay Params
 settings/11/5	title	Alternative Golden Knob Delay Params
 settings/11/5	ae	0
 settings/11/5	edits	1
 settings/11/5	slots	1
 settings/11/5	range_dep	0
-settings/11/5	param_index	255
 settings/11/6	name	Sync Scaling Action
 settings/11/6	title	Sync Scaling Action
 settings/11/6	ae	0
 settings/11/6	edits	1
 settings/11/6	slots	1
 settings/11/6	range_dep	0
-settings/11/6	param_index	255
 settings/11/7	name	Highlight Incoming Notes
 settings/11/7	title	Highlight Incoming Notes
 settings/11/7	ae	0
 settings/11/7	edits	1
 settings/11/7	slots	1
 settings/11/7	range_dep	0
-settings/11/7	param_index	255
 settings/11/8	name	Display Norns Layout
 settings/11/8	title	Display Norns Layout
 settings/11/8	ae	0
 settings/11/8	edits	1
 settings/11/8	slots	1
 settings/11/8	range_dep	0
-settings/11/8	param_index	255
 settings/11/9	name	Sticky Shift
 settings/11/9	title	Sticky Shift
 settings/11/9	ae	0
 settings/11/9	edits	1
 settings/11/9	slots	1
 settings/11/9	range_dep	0
-settings/11/9	param_index	255
 settings/11/10	name	Light Shift
 settings/11/10	title	Light Shift
 settings/11/10	ae	0
 settings/11/10	edits	1
 settings/11/10	slots	1
 settings/11/10	range_dep	0
-settings/11/10	param_index	255
 settings/11/11	name	DX7 Engine
 settings/11/11	title	DX7 Engine
 settings/11/11	ae	0
 settings/11/11	edits	1
 settings/11/11	slots	1
 settings/11/11	range_dep	0
-settings/11/11	param_index	255
 settings/11/12	name	KB View Sidebar Menu Exit
 settings/11/12	title	KB View Sidebar Menu Exit
 settings/11/12	ae	0
 settings/11/12	edits	1
 settings/11/12	slots	1
 settings/11/12	range_dep	0
-settings/11/12	param_index	255
 settings/11/13	name	Launch Event Playhead
 settings/11/13	title	Launch Event Playhead
 settings/11/13	ae	0
 settings/11/13	edits	1
 settings/11/13	slots	1
 settings/11/13	range_dep	0
-settings/11/13	param_index	255
 settings/11/14	name	Chord Keyboards
 settings/11/14	title	Chord Keyboards
 settings/11/14	ae	0
 settings/11/14	edits	1
 settings/11/14	slots	1
 settings/11/14	range_dep	0
-settings/11/14	param_index	255
 settings/11/15	name	Alternative Playback Start Behaviour
 settings/11/15	title	Alternative Playback Start Behaviour
 settings/11/15	ae	0
 settings/11/15	edits	1
 settings/11/15	slots	1
 settings/11/15	range_dep	0
-settings/11/15	param_index	255
 settings/11/16	name	Grid View Loop Layer Pads
 settings/11/16	title	Grid View Loop Layer Pads
 settings/11/16	ae	0
 settings/11/16	edits	1
 settings/11/16	slots	1
 settings/11/16	range_dep	0
-settings/11/16	param_index	255
 settings/11/17	name	Alternative Tap Tempo Behaviour
 settings/11/17	title	Alternative Tap Tempo Behaviour
 settings/11/17	ae	0
 settings/11/17	edits	1
 settings/11/17	slots	1
 settings/11/17	range_dep	0
-settings/11/17	param_index	255
 settings/11/18	name	Horizontal Menus
 settings/11/18	title	Horizontal Menus
 settings/11/18	ae	0
 settings/11/18	edits	1
 settings/11/18	slots	1
 settings/11/18	range_dep	0
-settings/11/18	param_index	255
 settings/11/19	name	Rounded Corners
 settings/11/19	title	Rounded Corners
 settings/11/19	ae	0
 settings/11/19	edits	1
 settings/11/19	slots	1
 settings/11/19	range_dep	0
-settings/11/19	param_index	255
 settings/11/20	name	Trim From Start Of Audio Clips
 settings/11/20	title	Trim From Start Of Audio Clips
 settings/11/20	ae	0
 settings/11/20	edits	1
 settings/11/20	slots	1
 settings/11/20	range_dep	0
-settings/11/20	param_index	255
 settings/11/21	name	Show Battery Level
 settings/11/21	title	Show Battery Level
 settings/11/21	ae	0
 settings/11/21	edits	1
 settings/11/21	slots	1
 settings/11/21	range_dep	0
-settings/11/21	param_index	255
 settings/11/22	name	Shortcut Overlay
 settings/11/22	title	Shortcut Overlay
 settings/11/22	ae	0
 settings/11/22	edits	1
 settings/11/22	slots	1
 settings/11/22	range_dep	0
-settings/11/22	param_index	255
 settings/11/23	name	Legacy Menu
 settings/11/23	title	Legacy Menu
 settings/11/23	ae	0
 settings/11/23	edits	1
 settings/11/23	slots	1
 settings/11/23	range_dep	0
-settings/11/23	param_index	255
 settings/12	name	Battery level
 settings/12	title	Battery level
 settings/12	ae	0
@@ -6899,21 +6352,18 @@ settings/13/0	ae	0
 settings/13/0	edits	1
 settings/13/0	slots	1
 settings/13/0	range_dep	0
-settings/13/0	param_index	255
 settings/13/1	name	Avg Voice Count
 settings/13/1	title	Avg Voice Count
 settings/13/1	ae	0
 settings/13/1	edits	1
 settings/13/1	slots	1
 settings/13/1	range_dep	0
-settings/13/1	param_index	255
 settings/13/2	name	Max Voice Count
 settings/13/2	title	Max Voice Count
 settings/13/2	ae	0
 settings/13/2	edits	1
 settings/13/2	slots	1
 settings/13/2	range_dep	0
-settings/13/2	param_index	255
 settings/14	name	Firmware Version
 settings/14	title	Firmware vers
 settings/14	ae	0
@@ -6921,29 +6371,53 @@ settings/14	edits	0
 settings/14	slots	1
 settings/14	range_dep	0
 sound/6/2/1	name@freeverb	Room Size
+sound/6/2/1	title@freeverb	Room Size
 sound/6/2/1	name@mutable	Time
+sound/6/2/1	title@mutable	Time
 sound/6/2/3	name@freeverb	Width
+sound/6/2/3	title@freeverb	Width
 sound/6/2/3	name@mutable	Diffusion
+sound/6/2/3	title@mutable	Diffusion
 drum/6/2/1	name@freeverb	Room Size
+drum/6/2/1	title@freeverb	Room Size
 drum/6/2/1	name@mutable	Time
+drum/6/2/1	title@mutable	Time
 drum/6/2/3	name@freeverb	Width
+drum/6/2/3	title@freeverb	Width
 drum/6/2/3	name@mutable	Diffusion
+drum/6/2/3	title@mutable	Diffusion
 audio clip/6/2/1	name@freeverb	Room Size
+audio clip/6/2/1	title@freeverb	Room Size
 audio clip/6/2/1	name@mutable	Time
+audio clip/6/2/1	title@mutable	Time
 audio clip/6/2/3	name@freeverb	Width
+audio clip/6/2/3	title@freeverb	Width
 audio clip/6/2/3	name@mutable	Diffusion
+audio clip/6/2/3	title@mutable	Diffusion
 performance/2/2/1	name@freeverb	Room Size
+performance/2/2/1	title@freeverb	Room Size
 performance/2/2/1	name@mutable	Time
+performance/2/2/1	title@mutable	Time
 performance/2/2/3	name@freeverb	Width
+performance/2/2/3	title@freeverb	Width
 performance/2/2/3	name@mutable	Diffusion
+performance/2/2/3	title@mutable	Diffusion
 song/2/2/1	name@freeverb	Room Size
+song/2/2/1	title@freeverb	Room Size
 song/2/2/1	name@mutable	Time
+song/2/2/1	title@mutable	Time
 song/2/2/3	name@freeverb	Width
+song/2/2/3	title@freeverb	Width
 song/2/2/3	name@mutable	Diffusion
+song/2/2/3	title@mutable	Diffusion
 kit global fx/5/2/1	name@freeverb	Room Size
+kit global fx/5/2/1	title@freeverb	Room Size
 kit global fx/5/2/1	name@mutable	Time
+kit global fx/5/2/1	title@mutable	Time
 kit global fx/5/2/3	name@freeverb	Width
+kit global fx/5/2/3	title@freeverb	Width
 kit global fx/5/2/3	name@mutable	Diffusion
+kit global fx/5/2/3	title@mutable	Diffusion
 sound	rel	1
 sound/0	rel	1
 sound/0/0	rel	1
@@ -6955,7 +6429,6 @@ sound/1	rel	1
 sound/1/0	rel	1
 sound/1/0	read	0
 sound/1/0	options	Subtractive	Fm	Ringmod
-sound/1/0	param_kind	0
 sound/1/1	rel	1
 sound/1/1	read	41
 sound/1/1	learn	45
@@ -6967,25 +6440,21 @@ sound/1/2	param_kind	1
 sound/1/3	rel	1
 sound/1/3	read	-1200
 sound/1/3	learn	25
-sound/1/3	param_kind	1
 sound/1/4	rel	1
 sound/2	rel	1
 sound/2/0	rel	1
 sound/2/0	read	0
 sound/2/0	options	Off	On
-sound/2/0	param_kind	0
 sound/2/1	rel	1
 sound/2/1/0	rel	1
 sound/2/1/0	read	0
 sound/2/1/0	options	Off	Up	Down	Both	Random	Walk	Custom
-sound/2/1/0	param_kind	0
 sound/2/1/1	rel	1
 sound/2/1/1	read	25
 sound/2/1/1	learn	101
 sound/2/1/1	param_kind	3
 sound/2/1/2	rel	1
 sound/2/1/2	read	6
-sound/2/1/2	param_kind	0
 sound/2/1/3	rel	1
 sound/2/1/3	read	25
 sound/2/1/3	learn	54
@@ -6993,18 +6462,14 @@ sound/2/1/3	param_kind	1
 sound/2/2	rel	1
 sound/2/2/0	rel	1
 sound/2/2/0	read	2
-sound/2/2/0	param_kind	0
 sound/2/2/1	rel	1
 sound/2/2/1	read	1
-sound/2/2/1	param_kind	0
 sound/2/2/2	rel	1
 sound/2/2/2	read	0
 sound/2/2/2	options	Up	Down	Up & Down	Alternate	Random
-sound/2/2/2	param_kind	0
 sound/2/2/3	rel	1
 sound/2/2/3	read	0
 sound/2/2/3	options	Up	Down	Up & Down	Random	Walk1	Walk2	Walk3	Played Order	Pattern
-sound/2/2/3	param_kind	0
 sound/2/2/4	rel	0
 sound/2/2/5	rel	0
 sound/2/2/6	rel	1
@@ -7021,13 +6486,11 @@ sound/2/3	rel	1
 sound/2/3/0	rel	1
 sound/2/3/0	read	0
 sound/2/3/0	options	Disabled	Aftertouch	MPE Y
-sound/2/3/0	param_kind	0
 sound/2/4	rel	0
 sound/3	rel	1
 sound/3/0	rel	1
 sound/3/0	read	0
 sound/3/0	options	Off	On
-sound/3/0	param_kind	0
 sound/3/1	rel	0
 sound/3/2	rel	0
 sound/3/3	rel	0
@@ -7067,25 +6530,19 @@ sound/4/0	learn	100
 sound/4/0	param_kind	3
 sound/4/1	rel	1
 sound/4/1	read	64
-sound/4/1	param_kind	0
 sound/4/2	rel	1
 sound/4/2	read	127
-sound/4/2	param_kind	0
 sound/4/3	rel	1
 sound/4/3	read	5
-sound/4/3	param_kind	0
 sound/4/4	rel	1
 sound/4/4	read	5
-sound/4/4	param_kind	0
 sound/4/5	rel	1
 sound/4/5	read	0
-sound/4/5	param_kind	0
 sound/5	rel	1
 sound/5/0	rel	1
 sound/5/0/0	rel	1
 sound/5/0/0	read	1
 sound/5/0/0	options	12dB Ladder	24dB Ladder	Drive	SVF Bandpass	SVF Notch	Off
-sound/5/0/0	param_kind	0
 sound/5/0/1	rel	1
 sound/5/0/1	read	28
 sound/5/0/1	learn	24
@@ -7102,7 +6559,6 @@ sound/5/1	rel	1
 sound/5/1/0	rel	1
 sound/5/1/0	read	2
 sound/5/1/0	options	SVF Bandpass	SVF Notch	HP Ladder	Off
-sound/5/1/0	param_kind	0
 sound/5/1/1	rel	1
 sound/5/1/1	read	0
 sound/5/1/1	learn	30
@@ -7118,7 +6574,6 @@ sound/5/1/3	param_kind	1
 sound/5/2	rel	1
 sound/5/2	read	0
 sound/5/2	options	Hpf > Lpf	Lpf > Hpf	Parallel
-sound/5/2	param_kind	0
 sound/6	rel	1
 sound/6/0	rel	1
 sound/6/0/0	rel	1
@@ -7145,10 +6600,8 @@ sound/6/1/0	param_kind	1
 sound/6/1/1	rel	1
 sound/6/1/1	read	1
 sound/6/1/1	options	Off	On
-sound/6/1/1	param_kind	0
 sound/6/1/2	rel	1
 sound/6/1/2	read	6
-sound/6/1/2	param_kind	0
 sound/6/1/3	rel	1
 sound/6/1/3	read	25
 sound/6/1/3	learn	50
@@ -7156,7 +6609,6 @@ sound/6/1/3	param_kind	1
 sound/6/1/4	rel	1
 sound/6/1/4	read	0
 sound/6/1/4	options	Off	Digital	Analog
-sound/6/1/4	param_kind	0
 sound/6/2	rel	1
 sound/6/2/0	rel	1
 sound/6/2/0	read	0
@@ -7164,30 +6616,22 @@ sound/6/2/0	learn	47
 sound/6/2/0	param_kind	1
 sound/6/2/1	rel	1
 sound/6/2/1	read	30
-sound/6/2/1	param_kind	0
 sound/6/2/2	rel	1
 sound/6/2/2	read	36
-sound/6/2/2	param_kind	0
 sound/6/2/3	rel	1
 sound/6/2/3	read	50
-sound/6/2/3	param_kind	0
 sound/6/2/4	rel	1
 sound/6/2/4	read	1
 sound/6/2/4	options	Freeverb	Mutable	Digital
-sound/6/2/4	param_kind	0
 sound/6/2/5	rel	1
 sound/6/2/5	read	0
-sound/6/2/5	param_kind	0
 sound/6/2/6	rel	1
 sound/6/2/6	read	0
-sound/6/2/6	param_kind	0
 sound/6/2/7	rel	1
 sound/6/2/7	read	50
-sound/6/2/7	param_kind	0
 sound/6/2/8	rel	1
 sound/6/2/8/0	rel	1
 sound/6/2/8/0	read	-1
-sound/6/2/8/0	param_kind	0
 sound/6/2/8/1	rel	0
 sound/6/2/8/2	rel	0
 sound/6/2/8/3	rel	0
@@ -7200,13 +6644,11 @@ sound/6/3/0	param_kind	3
 sound/6/3/1	rel	1
 sound/6/3/1	read	0
 sound/6/3/1	options	Use Song Settings	Forward	Reversed	Forw-Ping	Rvrs-Ping
-sound/6/3/1	param_kind	0
 sound/6/3/2	rel	0
 sound/6/4	rel	1
 sound/6/4/0	rel	1
 sound/6/4/0	read	0
 sound/6/4/0	options	Disabled	Flanger	Chorus	Phaser	Stereo Chorus	Warble	Dimension	Grain
-sound/6/4/0	param_kind	0
 sound/6/4/1	rel	0
 sound/6/4/2	rel	0
 sound/6/4/3	rel	0
@@ -7214,7 +6656,6 @@ sound/6/4/4	rel	0
 sound/6/5	rel	1
 sound/6/5/0	rel	1
 sound/6/5/0	read	0
-sound/6/5/0	param_kind	0
 sound/6/5/1	rel	1
 sound/6/5/1	read	0
 sound/6/5/1	learn	96
@@ -7235,7 +6676,6 @@ sound/7	rel	1
 sound/7/0	rel	1
 sound/7/1	rel	1
 sound/7/1	read	5
-sound/7/1	param_kind	0
 sound/7/2	rel	1
 sound/7/2	read	18
 sound/7/2	learn	99
@@ -7243,20 +6683,16 @@ sound/7/2	param_kind	3
 sound/7/3	rel	0
 sound/7/4	rel	1
 sound/7/4	read	7
-sound/7/4	param_kind	0
 sound/7/5	rel	1
 sound/7/5	read	28
-sound/7/5	param_kind	0
 sound/8	rel	1
 sound/8/0	rel	1
 sound/8/0	read	4
 sound/8/0	options	Sine	Triangle	Square	Analog square	Saw	Analog saw	Supersaw	Wavetable	Sample	Dx7	Input (left)	Input (right)	Input (stereo)
-sound/8/0	param_kind	0
 sound/8/1	rel	1
 sound/8/2	rel	1
 sound/8/2	read	0
 sound/8/2	learn	26
-sound/8/2	param_kind	1
 sound/8/3	rel	0
 sound/8/4	rel	1
 sound/8/4	read	0
@@ -7265,7 +6701,6 @@ sound/8/4	param_kind	1
 sound/8/5	rel	0
 sound/8/6	rel	1
 sound/8/6	read	-1
-sound/8/6	param_kind	0
 sound/8/7	rel	0
 sound/8/8	rel	0
 sound/8/9	rel	0
@@ -7277,12 +6712,10 @@ sound/9	rel	1
 sound/9/0	rel	1
 sound/9/0	read	2
 sound/9/0	options	Sine	Triangle	Square	Analog square	Saw	Analog saw	Supersaw	Wavetable	Sample	Input (left)	Input (right)	Input (stereo)
-sound/9/0	param_kind	0
 sound/9/1	rel	1
 sound/9/2	rel	1
 sound/9/2	read	-1200
 sound/9/2	learn	27
-sound/9/2	param_kind	1
 sound/9/3	rel	0
 sound/9/4	rel	1
 sound/9/4	read	0
@@ -7291,7 +6724,6 @@ sound/9/4	param_kind	1
 sound/9/5	rel	0
 sound/9/6	rel	1
 sound/9/6	read	-1
-sound/9/6	param_kind	0
 sound/9/7	rel	0
 sound/9/8	rel	0
 sound/9/9	rel	0
@@ -7318,7 +6750,6 @@ sound/12/4	learn	3
 sound/12/4	param_kind	1
 sound/12/5	rel	1
 sound/12/5	read	0
-sound/12/5	param_kind	0
 sound/13	rel	1
 sound/13/0	rel	1
 sound/13/0	read	0
@@ -7391,10 +6822,8 @@ sound/17	rel	1
 sound/17/0	rel	1
 sound/17/0	read	1
 sound/17/0	options	Sine	Triangle	Square	Saw	S&H	Random Walk	Warble
-sound/17/0	param_kind	0
 sound/17/1	rel	1
 sound/17/1	read	0
-sound/17/1	param_kind	0
 sound/17/2	rel	1
 sound/17/2	read	30
 sound/17/2	learn	52
@@ -7403,10 +6832,8 @@ sound/18	rel	1
 sound/18/0	rel	1
 sound/18/0	read	1
 sound/18/0	options	Sine	Triangle	Square	Saw	S&H	Random Walk	Warble
-sound/18/0	param_kind	0
 sound/18/1	rel	1
 sound/18/1	read	0
-sound/18/1	param_kind	0
 sound/18/2	rel	1
 sound/18/2	read	25
 sound/18/2	learn	31
@@ -7415,10 +6842,8 @@ sound/19	rel	1
 sound/19/0	rel	1
 sound/19/0	read	1
 sound/19/0	options	Sine	Triangle	Square	Saw	S&H	Random Walk	Warble
-sound/19/0	param_kind	0
 sound/19/1	rel	1
 sound/19/1	read	0
-sound/19/1	param_kind	0
 sound/19/2	rel	1
 sound/19/2	read	30
 sound/19/2	learn	53
@@ -7427,10 +6852,8 @@ sound/20	rel	1
 sound/20/0	rel	1
 sound/20/0	read	1
 sound/20/0	options	Sine	Triangle	Square	Saw	S&H	Random Walk	Warble
-sound/20/0	param_kind	0
 sound/20/1	rel	1
 sound/20/1	read	0
-sound/20/1	param_kind	0
 sound/20/2	rel	1
 sound/20/2	read	25
 sound/20/2	learn	32
@@ -7439,14 +6862,11 @@ sound/21	rel	1
 sound/21/0	rel	1
 sound/21/0	read	1
 sound/21/0	options	Low	Medium	High
-sound/21/0	param_kind	0
 sound/21/1	rel	1
 sound/21/1	read	1
 sound/21/1	options	Auto	Polyphonic	Monophonic	Legato
-sound/21/1	param_kind	0
 sound/21/2	rel	1
 sound/21/2	read	8
-sound/21/2	param_kind	0
 sound/21/3	rel	1
 sound/21/3	read	0
 sound/21/3	learn	116
@@ -7454,30 +6874,23 @@ sound/21/3	param_kind	3
 sound/21/4	rel	1
 sound/21/4/0	rel	1
 sound/21/4/0	read	4
-sound/21/4/0	param_kind	0
 sound/21/4/1	rel	1
 sound/21/4/1	read	10
-sound/21/4/1	param_kind	0
 sound/21/4/2	rel	1
 sound/21/4/2	read	0
-sound/21/4/2	param_kind	0
 sound/22	rel	1
 sound/22/0	rel	1
 sound/22/0	read	2
-sound/22/0	param_kind	0
 sound/22/1	rel	1
 sound/22/1	read	48
-sound/22/1	param_kind	0
 sound/23	rel	0
 sound/24	rel	1
 sound/25	rel	1
 sound/25	read	0
 sound/25	options	Forward	Reversed	Ping-Pong
-sound/25	param_kind	0
 sound/26	rel	1
 sound/26/0	rel	1
 sound/26/0	read	0
-sound/26/0	param_kind	0
 sound/26/1	rel	0
 drum	rel	1
 drum/0	rel	1
@@ -7497,25 +6910,21 @@ drum/1/2	param_kind	1
 drum/1/3	rel	1
 drum/1/3	read	0
 drum/1/3	learn	25
-drum/1/3	param_kind	1
 drum/1/4	rel	1
 drum/2	rel	1
 drum/2/0	rel	1
 drum/2/0	read	0
 drum/2/0	options	Off	On
-drum/2/0	param_kind	0
 drum/2/1	rel	1
 drum/2/1/0	rel	1
 drum/2/1/0	read	0
 drum/2/1/0	options	Off	Up	Down	Both	Random	Walk	Custom
-drum/2/1/0	param_kind	0
 drum/2/1/1	rel	1
 drum/2/1/1	read	25
 drum/2/1/1	learn	101
 drum/2/1/1	param_kind	3
 drum/2/1/2	rel	1
 drum/2/1/2	read	6
-drum/2/1/2	param_kind	0
 drum/2/1/3	rel	1
 drum/2/1/3	read	25
 drum/2/1/3	learn	54
@@ -7523,23 +6932,18 @@ drum/2/1/3	param_kind	1
 drum/2/2	rel	1
 drum/2/2/0	rel	1
 drum/2/2/0	read	2
-drum/2/2/0	param_kind	0
 drum/2/2/1	rel	1
 drum/2/2/1	read	1
-drum/2/2/1	param_kind	0
 drum/2/2/2	rel	1
 drum/2/2/2	read	0
 drum/2/2/2	options	Up	Down	Up & Down	Alternate	Random
-drum/2/2/2	param_kind	0
 drum/2/2/3	rel	0
 drum/2/2/4	rel	1
 drum/2/2/4	read	0
 drum/2/2/4	options	Up	Down	Up & Down	Random	Walk1	Walk2	Walk3
-drum/2/2/4	param_kind	0
 drum/2/2/5	rel	1
 drum/2/2/5	read	0
 drum/2/2/5	options	None	5th	Sus2	Min	Maj	Sus4	Min7	Dom7	Maj7
-drum/2/2/5	param_kind	0
 drum/2/2/6	rel	1
 drum/2/2/6	read	0
 drum/2/2/6	learn	102
@@ -7554,16 +6958,13 @@ drum/2/3	rel	1
 drum/2/3/0	rel	1
 drum/2/3/0	read	0
 drum/2/3/0	options	Disabled	Aftertouch	MPE Y
-drum/2/3/0	param_kind	0
 drum/2/4	rel	1
 drum/2/4	read	1
 drum/2/4	options	Off	On
-drum/2/4	param_kind	0
 drum/3	rel	1
 drum/3/0	rel	1
 drum/3/0	read	0
 drum/3/0	options	Off	On
-drum/3/0	param_kind	0
 drum/3/1	rel	0
 drum/3/2	rel	0
 drum/3/3	rel	0
@@ -7603,25 +7004,19 @@ drum/4/0	learn	100
 drum/4/0	param_kind	3
 drum/4/1	rel	1
 drum/4/1	read	64
-drum/4/1	param_kind	0
 drum/4/2	rel	1
 drum/4/2	read	127
-drum/4/2	param_kind	0
 drum/4/3	rel	1
 drum/4/3	read	5
-drum/4/3	param_kind	0
 drum/4/4	rel	1
 drum/4/4	read	5
-drum/4/4	param_kind	0
 drum/4/5	rel	1
 drum/4/5	read	0
-drum/4/5	param_kind	0
 drum/5	rel	1
 drum/5/0	rel	1
 drum/5/0/0	rel	1
 drum/5/0/0	read	1
 drum/5/0/0	options	12dB Ladder	24dB Ladder	Drive	SVF Bandpass	SVF Notch	Off
-drum/5/0/0	param_kind	0
 drum/5/0/1	rel	1
 drum/5/0/1	read	50
 drum/5/0/1	learn	24
@@ -7638,7 +7033,6 @@ drum/5/1	rel	1
 drum/5/1/0	rel	1
 drum/5/1/0	read	2
 drum/5/1/0	options	SVF Bandpass	SVF Notch	HP Ladder	Off
-drum/5/1/0	param_kind	0
 drum/5/1/1	rel	1
 drum/5/1/1	read	0
 drum/5/1/1	learn	30
@@ -7654,7 +7048,6 @@ drum/5/1/3	param_kind	1
 drum/5/2	rel	1
 drum/5/2	read	0
 drum/5/2	options	Hpf > Lpf	Lpf > Hpf	Parallel
-drum/5/2	param_kind	0
 drum/6	rel	1
 drum/6/0	rel	1
 drum/6/0/0	rel	1
@@ -7681,10 +7074,8 @@ drum/6/1/0	param_kind	1
 drum/6/1/1	rel	1
 drum/6/1/1	read	1
 drum/6/1/1	options	Off	On
-drum/6/1/1	param_kind	0
 drum/6/1/2	rel	1
 drum/6/1/2	read	6
-drum/6/1/2	param_kind	0
 drum/6/1/3	rel	1
 drum/6/1/3	read	25
 drum/6/1/3	learn	50
@@ -7692,7 +7083,6 @@ drum/6/1/3	param_kind	1
 drum/6/1/4	rel	1
 drum/6/1/4	read	0
 drum/6/1/4	options	Off	Digital	Analog
-drum/6/1/4	param_kind	0
 drum/6/2	rel	1
 drum/6/2/0	rel	1
 drum/6/2/0	read	0
@@ -7700,30 +7090,22 @@ drum/6/2/0	learn	47
 drum/6/2/0	param_kind	1
 drum/6/2/1	rel	1
 drum/6/2/1	read	30
-drum/6/2/1	param_kind	0
 drum/6/2/2	rel	1
 drum/6/2/2	read	36
-drum/6/2/2	param_kind	0
 drum/6/2/3	rel	1
 drum/6/2/3	read	50
-drum/6/2/3	param_kind	0
 drum/6/2/4	rel	1
 drum/6/2/4	read	1
 drum/6/2/4	options	Freeverb	Mutable	Digital
-drum/6/2/4	param_kind	0
 drum/6/2/5	rel	1
 drum/6/2/5	read	0
-drum/6/2/5	param_kind	0
 drum/6/2/6	rel	1
 drum/6/2/6	read	0
-drum/6/2/6	param_kind	0
 drum/6/2/7	rel	1
 drum/6/2/7	read	50
-drum/6/2/7	param_kind	0
 drum/6/2/8	rel	1
 drum/6/2/8/0	rel	1
 drum/6/2/8/0	read	-1
-drum/6/2/8/0	param_kind	0
 drum/6/2/8/1	rel	0
 drum/6/2/8/2	rel	0
 drum/6/2/8/3	rel	0
@@ -7736,13 +7118,11 @@ drum/6/3/0	param_kind	3
 drum/6/3/1	rel	1
 drum/6/3/1	read	0
 drum/6/3/1	options	Use Song Settings	Forward	Reversed	Forw-Ping	Rvrs-Ping
-drum/6/3/1	param_kind	0
 drum/6/3/2	rel	0
 drum/6/4	rel	1
 drum/6/4/0	rel	1
 drum/6/4/0	read	0
 drum/6/4/0	options	Disabled	Flanger	Chorus	Phaser	Stereo Chorus	Warble	Dimension	Grain
-drum/6/4/0	param_kind	0
 drum/6/4/1	rel	0
 drum/6/4/2	rel	0
 drum/6/4/3	rel	0
@@ -7750,7 +7130,6 @@ drum/6/4/4	rel	0
 drum/6/5	rel	1
 drum/6/5/0	rel	1
 drum/6/5/0	read	0
-drum/6/5/0	param_kind	0
 drum/6/5/1	rel	1
 drum/6/5/1	read	0
 drum/6/5/1	learn	96
@@ -7771,25 +7150,20 @@ drum/7	rel	1
 drum/7/0	rel	1
 drum/7/1	rel	1
 drum/7/1	read	5
-drum/7/1	param_kind	0
 drum/7/2	rel	1
 drum/7/2	read	18
 drum/7/2	learn	99
 drum/7/2	param_kind	3
 drum/7/3	rel	1
 drum/7/3	read	0
-drum/7/3	param_kind	0
 drum/7/4	rel	1
 drum/7/4	read	7
-drum/7/4	param_kind	0
 drum/7/5	rel	1
 drum/7/5	read	28
-drum/7/5	param_kind	0
 drum/8	rel	1
 drum/8/0	rel	1
 drum/8/0	read	8
 drum/8/0	options	Sine	Triangle	Square	Analog square	Saw	Analog saw	Supersaw	Wavetable	Sample	Dx7	Input (left)	Input (right)	Input (stereo)
-drum/8/0	param_kind	0
 drum/8/1	rel	1
 drum/8/2	rel	0
 drum/8/3	rel	0
@@ -7807,7 +7181,6 @@ drum/9	rel	1
 drum/9/0	rel	1
 drum/9/0	read	8
 drum/9/0	options	Sine	Triangle	Square	Analog square	Saw	Analog saw	Supersaw	Wavetable	Sample	Input (left)	Input (right)	Input (stereo)
-drum/9/0	param_kind	0
 drum/9/1	rel	1
 drum/9/2	rel	0
 drum/9/3	rel	0
@@ -7911,10 +7284,8 @@ drum/17	rel	1
 drum/17/0	rel	1
 drum/17/0	read	1
 drum/17/0	options	Sine	Triangle	Square	Saw	S&H	Random Walk	Warble
-drum/17/0	param_kind	0
 drum/17/1	rel	1
 drum/17/1	read	0
-drum/17/1	param_kind	0
 drum/17/2	rel	1
 drum/17/2	read	30
 drum/17/2	learn	52
@@ -7923,10 +7294,8 @@ drum/18	rel	1
 drum/18/0	rel	1
 drum/18/0	read	1
 drum/18/0	options	Sine	Triangle	Square	Saw	S&H	Random Walk	Warble
-drum/18/0	param_kind	0
 drum/18/1	rel	1
 drum/18/1	read	0
-drum/18/1	param_kind	0
 drum/18/2	rel	1
 drum/18/2	read	25
 drum/18/2	learn	31
@@ -7935,10 +7304,8 @@ drum/19	rel	1
 drum/19/0	rel	1
 drum/19/0	read	1
 drum/19/0	options	Sine	Triangle	Square	Saw	S&H	Random Walk	Warble
-drum/19/0	param_kind	0
 drum/19/1	rel	1
 drum/19/1	read	0
-drum/19/1	param_kind	0
 drum/19/2	rel	1
 drum/19/2	read	30
 drum/19/2	learn	53
@@ -7947,10 +7314,8 @@ drum/20	rel	1
 drum/20/0	rel	1
 drum/20/0	read	1
 drum/20/0	options	Sine	Triangle	Square	Saw	S&H	Random Walk	Warble
-drum/20/0	param_kind	0
 drum/20/1	rel	1
 drum/20/1	read	0
-drum/20/1	param_kind	0
 drum/20/2	rel	1
 drum/20/2	read	25
 drum/20/2	learn	32
@@ -7959,11 +7324,9 @@ drum/21	rel	1
 drum/21/0	rel	1
 drum/21/0	read	1
 drum/21/0	options	Low	Medium	High
-drum/21/0	param_kind	0
 drum/21/1	rel	1
 drum/21/1	read	0
 drum/21/1	options	Auto	Polyphonic	Monophonic	Legato	Choke
-drum/21/1	param_kind	0
 drum/21/2	rel	0
 drum/21/3	rel	1
 drum/21/3	read	0
@@ -7972,29 +7335,22 @@ drum/21/3	param_kind	3
 drum/21/4	rel	1
 drum/21/4/0	rel	1
 drum/21/4/0	read	1
-drum/21/4/0	param_kind	0
 drum/21/4/1	rel	1
 drum/21/4/1	read	8
-drum/21/4/1	param_kind	0
 drum/21/4/2	rel	1
 drum/21/4/2	read	0
-drum/21/4/2	param_kind	0
 drum/22	rel	0
 drum/23	rel	1
 drum/23	read	2
-drum/23	param_kind	0
 drum/24	rel	1
 drum/25	rel	1
 drum/25	read	3
 drum/25	options	Forward	Reversed	Ping-Pong	None
-drum/25	param_kind	0
 drum/26	rel	1
 drum/26/0	rel	1
 drum/26/0	read	0
-drum/26/0	param_kind	0
 drum/26/1	rel	1
 drum/26/1	read	60
-drum/26/1	param_kind	0
 midi/cv	rel	1
 midi/cv/0	rel	1
 midi/cv/0/0	rel	1
@@ -8004,72 +7360,55 @@ midi/cv/1	rel	1
 midi/cv/1/0	rel	1
 midi/cv/1/1	rel	1
 midi/cv/1/1	read	0
-midi/cv/1/1	param_kind	0
 midi/cv/2	rel	1
 midi/cv/2/0	rel	1
 midi/cv/2/0	read	128
-midi/cv/2/0	param_kind	0
 midi/cv/2/1	rel	1
 midi/cv/2/1	read	128
-midi/cv/2/1	param_kind	0
 midi/cv/2/2	rel	1
 midi/cv/2/2	read	128
-midi/cv/2/2	param_kind	0
 midi/cv/3	rel	1
 midi/cv/3/0	rel	1
 midi/cv/3/0	read	0
 midi/cv/3/0	options	Off	On
-midi/cv/3/0	param_kind	0
 midi/cv/3/1	rel	1
 midi/cv/3/1/0	rel	1
 midi/cv/3/1/0	read	0
 midi/cv/3/1/0	options	Off	Up	Down	Both	Random	Walk	Custom
-midi/cv/3/1/0	param_kind	0
 midi/cv/3/1/1	rel	1
 midi/cv/3/1/1	read	25
-midi/cv/3/1/1	param_kind	0
 midi/cv/3/1/2	rel	1
 midi/cv/3/1/2	read	6
-midi/cv/3/1/2	param_kind	0
 midi/cv/3/1/3	rel	1
 midi/cv/3/1/3	read	25
-midi/cv/3/1/3	param_kind	0
 midi/cv/3/2	rel	1
 midi/cv/3/2/0	rel	1
 midi/cv/3/2/0	read	2
-midi/cv/3/2/0	param_kind	0
 midi/cv/3/2/1	rel	1
 midi/cv/3/2/1	read	1
-midi/cv/3/2/1	param_kind	0
 midi/cv/3/2/2	rel	1
 midi/cv/3/2/2	read	0
 midi/cv/3/2/2	options	Up	Down	Up & Down	Alternate	Random
-midi/cv/3/2/2	param_kind	0
 midi/cv/3/2/3	rel	1
 midi/cv/3/2/3	read	0
 midi/cv/3/2/3	options	Up	Down	Up & Down	Random	Walk1	Walk2	Walk3	Played Order	Pattern
-midi/cv/3/2/3	param_kind	0
 midi/cv/3/2/4	rel	0
 midi/cv/3/2/5	rel	0
 midi/cv/3/2/6	rel	0
 midi/cv/3/2/7	rel	1
 midi/cv/3/2/7	read	0
-midi/cv/3/2/7	param_kind	0
 midi/cv/3/2/8	rel	0
 midi/cv/3/2/9	rel	1
 midi/cv/3/2/9	read	0
-midi/cv/3/2/9	param_kind	0
 midi/cv/3/3	rel	1
 midi/cv/3/3/0	rel	1
 midi/cv/3/3/0	read	0
 midi/cv/3/3/0	options	Disabled	Aftertouch	MPE Y
-midi/cv/3/3/0	param_kind	0
 midi/cv/3/4	rel	0
 midi/cv/4	rel	1
 midi/cv/4/0	rel	1
 midi/cv/4/0	read	0
 midi/cv/4/0	options	Off	On
-midi/cv/4/0	param_kind	0
 midi/cv/4/1	rel	0
 midi/cv/4/2	rel	0
 midi/cv/4/3	rel	0
@@ -8077,7 +7416,6 @@ midi/cv/4/4	rel	0
 midi/cv/4/5	rel	0
 midi/cv/4/6	rel	1
 midi/cv/4/6	read	0
-midi/cv/4/6	param_kind	0
 midi/cv/4/7	rel	0
 midi/cv/4/8	rel	0
 midi/cv/4/9	rel	0
@@ -8089,7 +7427,6 @@ midi/cv/4/14	rel	0
 midi/cv/4/15	rel	0
 midi/cv/4/16	rel	1
 midi/cv/4/16	read	50
-midi/cv/4/16	param_kind	0
 midi/cv/4/17	rel	0
 midi/cv/4/18	rel	0
 midi/cv/4/19	rel	0
@@ -8100,25 +7437,19 @@ midi/cv/4/23	rel	0
 midi/cv/5	rel	1
 midi/cv/5/0	rel	1
 midi/cv/5/0	read	2
-midi/cv/5/0	param_kind	0
 midi/cv/5/1	rel	1
 midi/cv/5/1	read	48
-midi/cv/5/1	param_kind	0
 midi/cv/6	rel	0
 midi/cv/7	rel	1
 midi/cv/7	read	0
-midi/cv/7	param_kind	0
 midi/cv/8	rel	1
 midi/cv/8/0	rel	1
 midi/cv/8/0	read	0
-midi/cv/8/0	param_kind	0
 midi/cv/8/1	rel	1
 midi/cv/8/1	read	1
-midi/cv/8/1	param_kind	0
 midi/cv/9	rel	1
 midi/cv/9	read	0
 midi/cv/9	options	Forward	Reversed	Ping-Pong
-midi/cv/9	param_kind	0
 midi drum	rel	1
 midi drum/0	rel	1
 midi drum/0/0	rel	1
@@ -8126,63 +7457,48 @@ midi drum/1	rel	1
 midi drum/1/0	rel	1
 midi drum/1/0	read	0
 midi drum/1/0	options	Off	On
-midi drum/1/0	param_kind	0
 midi drum/1/1	rel	1
 midi drum/1/1/0	rel	1
 midi drum/1/1/0	read	0
 midi drum/1/1/0	options	Off	Up	Down	Both	Random	Walk	Custom
-midi drum/1/1/0	param_kind	0
 midi drum/1/1/1	rel	1
 midi drum/1/1/1	read	25
-midi drum/1/1/1	param_kind	0
 midi drum/1/1/2	rel	1
 midi drum/1/1/2	read	6
-midi drum/1/1/2	param_kind	0
 midi drum/1/1/3	rel	1
 midi drum/1/1/3	read	25
-midi drum/1/1/3	param_kind	0
 midi drum/1/2	rel	1
 midi drum/1/2/0	rel	1
 midi drum/1/2/0	read	2
-midi drum/1/2/0	param_kind	0
 midi drum/1/2/1	rel	1
 midi drum/1/2/1	read	1
-midi drum/1/2/1	param_kind	0
 midi drum/1/2/2	rel	1
 midi drum/1/2/2	read	0
 midi drum/1/2/2	options	Up	Down	Up & Down	Alternate	Random
-midi drum/1/2/2	param_kind	0
 midi drum/1/2/3	rel	0
 midi drum/1/2/4	rel	1
 midi drum/1/2/4	read	0
 midi drum/1/2/4	options	Up	Down	Up & Down	Random	Walk1	Walk2	Walk3
-midi drum/1/2/4	param_kind	0
 midi drum/1/2/5	rel	1
 midi drum/1/2/5	read	0
 midi drum/1/2/5	options	None	5th	Sus2	Min	Maj	Sus4	Min7	Dom7	Maj7
-midi drum/1/2/5	param_kind	0
 midi drum/1/2/6	rel	0
 midi drum/1/2/7	rel	1
 midi drum/1/2/7	read	0
-midi drum/1/2/7	param_kind	0
 midi drum/1/2/8	rel	0
 midi drum/1/2/9	rel	1
 midi drum/1/2/9	read	0
-midi drum/1/2/9	param_kind	0
 midi drum/1/3	rel	1
 midi drum/1/3/0	rel	1
 midi drum/1/3/0	read	0
 midi drum/1/3/0	options	Disabled	Aftertouch	MPE Y
-midi drum/1/3/0	param_kind	0
 midi drum/1/4	rel	1
 midi drum/1/4	read	1
 midi drum/1/4	options	Off	On
-midi drum/1/4	param_kind	0
 midi drum/2	rel	1
 midi drum/2/0	rel	1
 midi drum/2/0	read	0
 midi drum/2/0	options	Off	On
-midi drum/2/0	param_kind	0
 midi drum/2/1	rel	0
 midi drum/2/2	rel	0
 midi drum/2/3	rel	0
@@ -8190,7 +7506,6 @@ midi drum/2/4	rel	0
 midi drum/2/5	rel	0
 midi drum/2/6	rel	1
 midi drum/2/6	read	0
-midi drum/2/6	param_kind	0
 midi drum/2/7	rel	0
 midi drum/2/8	rel	0
 midi drum/2/9	rel	0
@@ -8202,7 +7517,6 @@ midi drum/2/14	rel	0
 midi drum/2/15	rel	0
 midi drum/2/16	rel	1
 midi drum/2/16	read	50
-midi drum/2/16	param_kind	0
 midi drum/2/17	rel	0
 midi drum/2/18	rel	0
 midi drum/2/19	rel	0
@@ -8217,21 +7531,16 @@ gate drum/1	rel	1
 gate drum/1/0	rel	1
 gate drum/1/0	read	0
 gate drum/1/0	options	Off	On
-gate drum/1/0	param_kind	0
 gate drum/1/1	rel	1
 gate drum/1/1/0	rel	1
 gate drum/1/1/0	read	0
 gate drum/1/1/0	options	Off	Up	Down	Both	Random	Walk	Custom
-gate drum/1/1/0	param_kind	0
 gate drum/1/1/1	rel	1
 gate drum/1/1/1	read	25
-gate drum/1/1/1	param_kind	0
 gate drum/1/1/2	rel	1
 gate drum/1/1/2	read	6
-gate drum/1/1/2	param_kind	0
 gate drum/1/1/3	rel	1
 gate drum/1/1/3	read	25
-gate drum/1/1/3	param_kind	0
 gate drum/1/2	rel	1
 gate drum/1/2/0	rel	0
 gate drum/1/2/1	rel	0
@@ -8242,21 +7551,17 @@ gate drum/1/2/5	rel	0
 gate drum/1/2/6	rel	0
 gate drum/1/2/7	rel	1
 gate drum/1/2/7	read	0
-gate drum/1/2/7	param_kind	0
 gate drum/1/2/8	rel	0
 gate drum/1/2/9	rel	1
 gate drum/1/2/9	read	0
-gate drum/1/2/9	param_kind	0
 gate drum/1/3	rel	0
 gate drum/1/4	rel	1
 gate drum/1/4	read	1
 gate drum/1/4	options	Off	On
-gate drum/1/4	param_kind	0
 gate drum/2	rel	1
 gate drum/2/0	rel	1
 gate drum/2/0	read	0
 gate drum/2/0	options	Off	On
-gate drum/2/0	param_kind	0
 gate drum/2/1	rel	0
 gate drum/2/2	rel	0
 gate drum/2/3	rel	0
@@ -8274,7 +7579,6 @@ gate drum/2/14	rel	0
 gate drum/2/15	rel	0
 gate drum/2/16	rel	1
 gate drum/2/16	read	50
-gate drum/2/16	param_kind	0
 gate drum/2/17	rel	0
 gate drum/2/18	rel	0
 gate drum/2/19	rel	0
@@ -8306,25 +7610,19 @@ audio clip/4/0	learn	100
 audio clip/4/0	param_kind	3
 audio clip/4/1	rel	1
 audio clip/4/1	read	64
-audio clip/4/1	param_kind	0
 audio clip/4/2	rel	1
 audio clip/4/2	read	127
-audio clip/4/2	param_kind	0
 audio clip/4/3	rel	1
 audio clip/4/3	read	5
-audio clip/4/3	param_kind	0
 audio clip/4/4	rel	1
 audio clip/4/4	read	5
-audio clip/4/4	param_kind	0
 audio clip/4/5	rel	1
 audio clip/4/5	read	0
-audio clip/4/5	param_kind	0
 audio clip/5	rel	1
 audio clip/5/0	rel	1
 audio clip/5/0/0	rel	1
 audio clip/5/0/0	read	1
 audio clip/5/0/0	options	12dB Ladder	24dB Ladder	Drive	SVF Bandpass	SVF Notch	Off
-audio clip/5/0/0	param_kind	0
 audio clip/5/0/1	rel	1
 audio clip/5/0/1	read	50
 audio clip/5/0/1	learn	122
@@ -8341,7 +7639,6 @@ audio clip/5/1	rel	1
 audio clip/5/1/0	rel	1
 audio clip/5/1/0	read	2
 audio clip/5/1/0	options	SVF Bandpass	SVF Notch	HP Ladder	Off
-audio clip/5/1/0	param_kind	0
 audio clip/5/1/1	rel	1
 audio clip/5/1/1	read	0
 audio clip/5/1/1	learn	125
@@ -8357,7 +7654,6 @@ audio clip/5/1/3	param_kind	3
 audio clip/5/2	rel	1
 audio clip/5/2	read	0
 audio clip/5/2	options	Hpf > Lpf	Lpf > Hpf	Parallel
-audio clip/5/2	param_kind	0
 audio clip/6	rel	1
 audio clip/6/0	rel	1
 audio clip/6/0/0	rel	1
@@ -8384,10 +7680,8 @@ audio clip/6/1/0	param_kind	3
 audio clip/6/1/1	rel	1
 audio clip/6/1/1	read	1
 audio clip/6/1/1	options	Off	On
-audio clip/6/1/1	param_kind	0
 audio clip/6/1/2	rel	1
 audio clip/6/1/2	read	6
-audio clip/6/1/2	param_kind	0
 audio clip/6/1/3	rel	1
 audio clip/6/1/3	read	25
 audio clip/6/1/3	learn	118
@@ -8395,7 +7689,6 @@ audio clip/6/1/3	param_kind	3
 audio clip/6/1/4	rel	1
 audio clip/6/1/4	read	0
 audio clip/6/1/4	options	Off	Digital	Analog
-audio clip/6/1/4	param_kind	0
 audio clip/6/2	rel	1
 audio clip/6/2/0	rel	1
 audio clip/6/2/0	read	0
@@ -8403,30 +7696,22 @@ audio clip/6/2/0	learn	128
 audio clip/6/2/0	param_kind	3
 audio clip/6/2/1	rel	1
 audio clip/6/2/1	read	30
-audio clip/6/2/1	param_kind	0
 audio clip/6/2/2	rel	1
 audio clip/6/2/2	read	36
-audio clip/6/2/2	param_kind	0
 audio clip/6/2/3	rel	1
 audio clip/6/2/3	read	50
-audio clip/6/2/3	param_kind	0
 audio clip/6/2/4	rel	1
 audio clip/6/2/4	read	1
 audio clip/6/2/4	options	Freeverb	Mutable	Digital
-audio clip/6/2/4	param_kind	0
 audio clip/6/2/5	rel	1
 audio clip/6/2/5	read	0
-audio clip/6/2/5	param_kind	0
 audio clip/6/2/6	rel	1
 audio clip/6/2/6	read	0
-audio clip/6/2/6	param_kind	0
 audio clip/6/2/7	rel	1
 audio clip/6/2/7	read	50
-audio clip/6/2/7	param_kind	0
 audio clip/6/2/8	rel	1
 audio clip/6/2/8/0	rel	1
 audio clip/6/2/8/0	read	-1
-audio clip/6/2/8/0	param_kind	0
 audio clip/6/2/8/1	rel	0
 audio clip/6/2/8/2	rel	0
 audio clip/6/2/8/3	rel	0
@@ -8439,13 +7724,11 @@ audio clip/6/3/0	param_kind	3
 audio clip/6/3/1	rel	1
 audio clip/6/3/1	read	0
 audio clip/6/3/1	options	Use Song Settings	Forward	Reversed	Forw-Ping	Rvrs-Ping
-audio clip/6/3/1	param_kind	0
 audio clip/6/3/2	rel	0
 audio clip/6/4	rel	1
 audio clip/6/4/0	rel	1
 audio clip/6/4/0	read	0
 audio clip/6/4/0	options	Disabled	Flanger	Chorus	Phaser	Stereo Chorus	Warble	Dimension	Grain
-audio clip/6/4/0	param_kind	0
 audio clip/6/4/1	rel	0
 audio clip/6/4/2	rel	0
 audio clip/6/4/3	rel	0
@@ -8453,7 +7736,6 @@ audio clip/6/4/4	rel	0
 audio clip/6/5	rel	1
 audio clip/6/5/0	rel	1
 audio clip/6/5/0	read	0
-audio clip/6/5/0	param_kind	0
 audio clip/6/5/1	rel	1
 audio clip/6/5/1	read	0
 audio clip/6/5/1	learn	96
@@ -8469,42 +7751,33 @@ audio clip/7/0	learn	130
 audio clip/7/0	param_kind	3
 audio clip/7/1	rel	1
 audio clip/7/1	read	5
-audio clip/7/1	param_kind	0
 audio clip/7/2	rel	1
 audio clip/7/2	read	18
 audio clip/7/2	learn	99
 audio clip/7/2	param_kind	3
 audio clip/7/3	rel	1
 audio clip/7/3	read	7
-audio clip/7/3	param_kind	0
 audio clip/7/4	rel	1
 audio clip/7/4	read	28
-audio clip/7/4	param_kind	0
 audio clip/8	rel	1
 audio clip/8/0	rel	1
 audio clip/8/1	rel	1
 audio clip/8/1	read	0
 audio clip/8/1	learn	131
-audio clip/8/1	param_kind	0
 audio clip/8/2	rel	1
 audio clip/8/2	read	0
-audio clip/8/2	param_kind	0
 audio clip/8/3	rel	1
 audio clip/8/3	read	1
 audio clip/8/3	options	Linked	Independent
-audio clip/8/3	param_kind	0
 audio clip/8/4	rel	0
 audio clip/8/5	rel	1
 audio clip/8/5	read	1
 audio clip/8/5	options	Linear	Sinc
-audio clip/8/5	param_kind	0
 audio clip/9	rel	1
 audio clip/9	read	0
-audio clip/9	param_kind	0
 audio clip/10	rel	1
 audio clip/10	read	1
 audio clip/10	options	Low	Medium	High
-audio clip/10	param_kind	0
 performance	rel	1
 performance/0	rel	1
 performance/1	rel	1
@@ -8765,19 +8038,14 @@ kit global fx/0/1/0	rel	1
 kit global fx/0/1/1	rel	1
 kit global fx/0/1/1/0	rel	1
 kit global fx/0/1/1/0	read	0
-kit global fx/0/1/1/0	param_kind	0
 kit global fx/0/1/1/1	rel	1
 kit global fx/0/1/1/1	read	1
-kit global fx/0/1/1/1	param_kind	0
 kit global fx/0/1/1/2	rel	1
 kit global fx/0/1/1/2	read	1
-kit global fx/0/1/1/2	param_kind	0
 kit global fx/0/1/1/3	rel	1
 kit global fx/0/1/1/3	read	0
-kit global fx/0/1/1/3	param_kind	0
 kit global fx/0/1/1/4	rel	1
 kit global fx/0/1/1/4	read	1
-kit global fx/0/1/1/4	param_kind	0
 kit global fx/1	rel	1
 kit global fx/1/0	rel	1
 kit global fx/1/0	read	25
@@ -8795,19 +8063,16 @@ kit global fx/2	rel	1
 kit global fx/2/0	rel	1
 kit global fx/2/0	read	0
 kit global fx/2/0	options	Off	On
-kit global fx/2/0	param_kind	0
 kit global fx/2/1	rel	1
 kit global fx/2/1/0	rel	1
 kit global fx/2/1/0	read	0
 kit global fx/2/1/0	options	Off	Up	Down	Both	Random	Walk	Custom
-kit global fx/2/1/0	param_kind	0
 kit global fx/2/1/1	rel	1
 kit global fx/2/1/1	read	50
 kit global fx/2/1/1	learn	101
 kit global fx/2/1/1	param_kind	3
 kit global fx/2/1/2	rel	1
 kit global fx/2/1/2	read	6
-kit global fx/2/1/2	param_kind	0
 kit global fx/2/1/3	rel	1
 kit global fx/2/1/3	read	25
 kit global fx/2/1/3	learn	120
@@ -8816,12 +8081,10 @@ kit global fx/2/2	rel	1
 kit global fx/2/2/0	rel	0
 kit global fx/2/2/1	rel	1
 kit global fx/2/2/1	read	1
-kit global fx/2/2/1	param_kind	0
 kit global fx/2/2/2	rel	0
 kit global fx/2/2/3	rel	1
 kit global fx/2/2/3	read	0
 kit global fx/2/2/3	options	Up	Down	Up & Down	Random	Walk1	Walk2	Walk3	Played Order	Pattern
-kit global fx/2/2/3	param_kind	0
 kit global fx/2/2/4	rel	0
 kit global fx/2/2/5	rel	0
 kit global fx/2/2/6	rel	1
@@ -8838,7 +8101,6 @@ kit global fx/2/3	rel	1
 kit global fx/2/3/0	rel	1
 kit global fx/2/3/0	read	0
 kit global fx/2/3/0	options	Off	On
-kit global fx/2/3/0	param_kind	0
 kit global fx/2/3/1	rel	0
 kit global fx/2/3/2	rel	0
 kit global fx/2/3/3	rel	0
@@ -8878,25 +8140,19 @@ kit global fx/3/0	learn	100
 kit global fx/3/0	param_kind	3
 kit global fx/3/1	rel	1
 kit global fx/3/1	read	64
-kit global fx/3/1	param_kind	0
 kit global fx/3/2	rel	1
 kit global fx/3/2	read	127
-kit global fx/3/2	param_kind	0
 kit global fx/3/3	rel	1
 kit global fx/3/3	read	5
-kit global fx/3/3	param_kind	0
 kit global fx/3/4	rel	1
 kit global fx/3/4	read	5
-kit global fx/3/4	param_kind	0
 kit global fx/3/5	rel	1
 kit global fx/3/5	read	0
-kit global fx/3/5	param_kind	0
 kit global fx/4	rel	1
 kit global fx/4/0	rel	1
 kit global fx/4/0/0	rel	1
 kit global fx/4/0/0	read	1
 kit global fx/4/0/0	options	12dB Ladder	24dB Ladder	Drive	SVF Bandpass	SVF Notch	Off
-kit global fx/4/0/0	param_kind	0
 kit global fx/4/0/1	rel	1
 kit global fx/4/0/1	read	50
 kit global fx/4/0/1	learn	122
@@ -8913,7 +8169,6 @@ kit global fx/4/1	rel	1
 kit global fx/4/1/0	rel	1
 kit global fx/4/1/0	read	2
 kit global fx/4/1/0	options	SVF Bandpass	SVF Notch	HP Ladder	Off
-kit global fx/4/1/0	param_kind	0
 kit global fx/4/1/1	rel	1
 kit global fx/4/1/1	read	0
 kit global fx/4/1/1	learn	125
@@ -8929,7 +8184,6 @@ kit global fx/4/1/3	param_kind	3
 kit global fx/4/2	rel	1
 kit global fx/4/2	read	0
 kit global fx/4/2	options	Hpf > Lpf	Lpf > Hpf	Parallel
-kit global fx/4/2	param_kind	0
 kit global fx/5	rel	1
 kit global fx/5/0	rel	1
 kit global fx/5/0/0	rel	1
@@ -8956,10 +8210,8 @@ kit global fx/5/1/0	param_kind	3
 kit global fx/5/1/1	rel	1
 kit global fx/5/1/1	read	1
 kit global fx/5/1/1	options	Off	On
-kit global fx/5/1/1	param_kind	0
 kit global fx/5/1/2	rel	1
 kit global fx/5/1/2	read	6
-kit global fx/5/1/2	param_kind	0
 kit global fx/5/1/3	rel	1
 kit global fx/5/1/3	read	25
 kit global fx/5/1/3	learn	118
@@ -8967,7 +8219,6 @@ kit global fx/5/1/3	param_kind	3
 kit global fx/5/1/4	rel	1
 kit global fx/5/1/4	read	0
 kit global fx/5/1/4	options	Off	Digital	Analog
-kit global fx/5/1/4	param_kind	0
 kit global fx/5/2	rel	1
 kit global fx/5/2/0	rel	1
 kit global fx/5/2/0	read	0
@@ -8975,30 +8226,22 @@ kit global fx/5/2/0	learn	128
 kit global fx/5/2/0	param_kind	3
 kit global fx/5/2/1	rel	1
 kit global fx/5/2/1	read	30
-kit global fx/5/2/1	param_kind	0
 kit global fx/5/2/2	rel	1
 kit global fx/5/2/2	read	36
-kit global fx/5/2/2	param_kind	0
 kit global fx/5/2/3	rel	1
 kit global fx/5/2/3	read	50
-kit global fx/5/2/3	param_kind	0
 kit global fx/5/2/4	rel	1
 kit global fx/5/2/4	read	1
 kit global fx/5/2/4	options	Freeverb	Mutable	Digital
-kit global fx/5/2/4	param_kind	0
 kit global fx/5/2/5	rel	1
 kit global fx/5/2/5	read	0
-kit global fx/5/2/5	param_kind	0
 kit global fx/5/2/6	rel	1
 kit global fx/5/2/6	read	0
-kit global fx/5/2/6	param_kind	0
 kit global fx/5/2/7	rel	1
 kit global fx/5/2/7	read	50
-kit global fx/5/2/7	param_kind	0
 kit global fx/5/2/8	rel	1
 kit global fx/5/2/8/0	rel	1
 kit global fx/5/2/8/0	read	-1
-kit global fx/5/2/8/0	param_kind	0
 kit global fx/5/2/8/1	rel	0
 kit global fx/5/2/8/2	rel	0
 kit global fx/5/2/8/3	rel	0
@@ -9011,13 +8254,11 @@ kit global fx/5/3/0	param_kind	3
 kit global fx/5/3/1	rel	1
 kit global fx/5/3/1	read	0
 kit global fx/5/3/1	options	Use Song Settings	Forward	Reversed	Forw-Ping	Rvrs-Ping
-kit global fx/5/3/1	param_kind	0
 kit global fx/5/3/2	rel	0
 kit global fx/5/4	rel	1
 kit global fx/5/4/0	rel	1
 kit global fx/5/4/0	read	0
 kit global fx/5/4/0	options	Disabled	Flanger	Chorus	Phaser	Stereo Chorus	Warble	Dimension	Grain
-kit global fx/5/4/0	param_kind	0
 kit global fx/5/4/1	rel	0
 kit global fx/5/4/2	rel	0
 kit global fx/5/4/3	rel	0
@@ -9038,17 +8279,14 @@ kit global fx/6/0	learn	130
 kit global fx/6/0	param_kind	3
 kit global fx/6/1	rel	1
 kit global fx/6/1	read	5
-kit global fx/6/1	param_kind	0
 kit global fx/6/2	rel	1
 kit global fx/6/2	read	18
 kit global fx/6/2	learn	99
 kit global fx/6/2	param_kind	3
 kit global fx/6/3	rel	1
 kit global fx/6/3	read	7
-kit global fx/6/3	param_kind	0
 kit global fx/6/4	rel	1
 kit global fx/6/4	read	28
-kit global fx/6/4	param_kind	0
 settings	rel	1
 settings/0	rel	1
 settings/0/0	rel	1
@@ -9758,6 +8996,7 @@ chain/gate_mode	options/2	V-Trig	S-Trig	Run signal
 chain/gate_mode	read/3	0
 chain/gate_mode	options/3	V-Trig	S-Trig	Clock
 chain/gate_off_time	read	10
+chain/gate_off_time	title	Minimum Off-Time
 settings/4/6/0	command	1
 settings/4/6/1	command	0
 settings/4/6/2	command	2

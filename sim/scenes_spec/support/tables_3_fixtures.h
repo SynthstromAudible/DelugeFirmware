@@ -84,7 +84,7 @@ inline std::vector<TablesRoot>& roots() {
 		// `deluge_boot()` calls this (`deluge.cpp`); nothing else in this spec's world does, and the
 		// community-features page is exactly the part of the settings root that reads it -- an
 		// un-`init`ed `RuntimeFeatureSetting` has an empty `options` vector, which legacy's own
-		// `Setting::readCurrentValue` indexes unconditionally (`runtime_feature/setting.cpp:23-28`).
+		// `runtime_feature::Setting::readCurrentValue` indexes unconditionally.
 		runtimeFeatureSettings.init();
 		std::vector<TablesRoot> r;
 
@@ -141,7 +141,7 @@ inline std::vector<TablesRoot>& roots() {
 			                               /*performance_view=*/true,
 			                               /*session_or_arranger_root=*/true, /*session_view_root=*/false, false),
 			             song_view.song, &performanceView});
-			// The song root as the SESSION view -- one of the three root UIs `:1764-1767` funnels
+			// The song root as the SESSION view -- one of the three root UIs `SoundEditor::setup` funnels
 			// into it, and the only one where `song_midi_learn` / `configure_song_macros` are shown.
 			// The arranger and song-automation readings of this same root are the dedicated example
 			// below, which drives all three from one table.

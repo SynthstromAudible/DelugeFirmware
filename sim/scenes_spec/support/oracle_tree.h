@@ -56,6 +56,15 @@ inline std::string first_path_of(const std::vector<TreeEntry>& entries, const me
 	return {};
 }
 
+/// @brief Whether a leaf's `ParamRef` is the legacy item's own param: it is when the node binds a param directly. A
+///        node with a get/set hook, or a target that is not a param, carries a learn-only `ParamRef`, which the learn
+///        rows check instead.
+inline bool param_comparable(const menu::Node& node) {
+	return node.kind != menu::Kind::Submenu && node.kind != menu::Kind::Custom && node.bind.param.valid()
+	       && node.bind.get == nullptr
+	       && !(node.bind.target.valid() && node.bind.target.kind != deluge::scenes::bind::Target::Kind::PARAM);
+}
+
 /// @brief A table value as a number, or nothing for a missing row or a value that is not one.
 inline std::optional<int32_t> int_of(const std::vector<std::string>* values, size_t at = 0) {
 	if (values == nullptr || values->size() <= at) {

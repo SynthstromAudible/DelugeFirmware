@@ -152,9 +152,8 @@ const std::vector<spec::TreeEntry>& settings_entries() {
 }
 
 /// @brief Reach `Output::activeClip`, which is `protected` (`model/output.h`) and whose only public setter,
-/// `Output::setActiveClip`,
-///        also re-sends MIDI program changes and wants a timeline-counter model stack. The pointer-to-member is formed
-///        inside a class derived from `Output` ([class.protected]); never instantiated.
+///        `Output::setActiveClip`, also re-sends MIDI program changes and wants a timeline-counter model stack. The
+///        pointer-to-member is formed inside a class derived from `Output` ([class.protected]); never instantiated.
 struct OutputPeek : ::Output {
 	static Clip*& active_clip_of(::Output& out) { return out.*(&OutputPeek::activeClip); }
 };
@@ -175,9 +174,8 @@ const TablesRoot& installed_root(std::string_view name) {
 }
 
 /// The six pad colour nodes, in `coloursSubmenu`'s order.
-static const Node* const kColourNodes[] = {&nodes::pad_colour_active, &nodes::pad_colour_stopped,
-                                           &nodes::pad_colour_muted,  &nodes::pad_colour_soloed,
-                                           &nodes::pad_colour_fill,   &nodes::pad_colour_once};
+const Node* const kColourNodes[] = {&nodes::pad_colour_active, &nodes::pad_colour_stopped, &nodes::pad_colour_muted,
+                                    &nodes::pad_colour_soloed, &nodes::pad_colour_fill,    &nodes::pad_colour_once};
 /// `Colour::Option`'s order: the nine names every pad colour item offers, as the options rows spell them.
 enum PadColour : uint8_t { kRed, kGreen, kBlue, kYellow, kCyan, kMagenta, kAmber, kWhite, kPink, kNumPadColours };
 
@@ -401,25 +399,37 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 		expect(std::to_string(nodes::root_settings.children.size())).to_equal(table().value("settings", "kids"));
 	});
 
-	it("parks the reverb width and room size names: main renames them under MUTABLE, the port does not yet", _ {
+	it("parks the reverb width and room size names and titles: main renames them under MUTABLE, the port does not yet", _ {
 		// `reverb::Width` and `reverb::RoomSize` answer Diffusion and Time under the MUTABLE and DIGITAL models; the
 		// port's node names are fixed ids (`src/scenes/README.md`, "Legacy features not yet ported"). Porting the
 		// dynamic names fails the MUTABLE half here until this example goes.
 		const deluge::effects::ReverbModel saved = AudioEngine::reverb.model();
+		// The width node's title is a known difference even under FREEVERB: main's title is its name.
 		size_t parked = 0;
+		size_t title_differs = 0;
 		for (const auto& [root, e] : every_entry()) {
 			if (e.node != &nodes::reverb_width && e.node != &nodes::reverb_room_size) {
 				continue;
 			}
 			install(root->ctx, root->song);
 			const std::string port = shown(e.node->name, *e.node, root->ctx);
+			const std::string port_title = shown(e.node->title, *e.node, root->ctx);
 			AudioEngine::setReverbModel(deluge::effects::ReverbModel::FREEVERB);
 			expect(port).to_equal(table().value(e.path, "name@freeverb"));
+			if (spec::title_differs_from_main(*e.node)) {
+				expect(port_title == table().value(e.path, "title@freeverb")).to_be_false();
+				title_differs++;
+			}
+			else {
+				expect(port_title).to_equal(table().value(e.path, "title@freeverb"));
+			}
 			AudioEngine::setReverbModel(deluge::effects::ReverbModel::MUTABLE);
 			expect(port == table().value(e.path, "name@mutable")).to_be_false();
+			expect(port_title == table().value(e.path, "title@mutable")).to_be_false();
 			parked++;
 		}
 		expect(parked > size_t(0)).to_be_true();
+		expect(title_differs).to_equal(spec::kReverbWidthTitleDifferences);
 		AudioEngine::setReverbModel(saved);
 	});
 
@@ -517,7 +527,8 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 			install(root->ctx, root->song);
 			// Main's `UnpatchedParam` answers true for the global params too; the port's answer is a known difference.
 			const std::string ae = std::to_string(menu::node_uses_affect_entire(*e.node) ? 1 : 0);
-			if (spec::affect_entire_differs_from_main(*e.node) && ae == "0" && table().value(e.path, "ae") == "1") {
+			if (spec::affect_entire_differs_from_main(root->name, *e.node) && ae == "0"
+			    && table().value(e.path, "ae") == "1") {
 				ae_differs++;
 			}
 			else {
@@ -545,19 +556,22 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 				expect(!got || got->owner == menu::bindings::controls_owner(root->ctx)).to_be_true();
 				learned++;
 			}
+			// A leaf with its own param has main's index and kind; one with a hook or a non-param target owns its value,
+			// its `ParamRef` is learn-only, and it is checked as the learn target above -- every such leaf shown here
+			// has a learn row.
+			if (!spec::param_comparable(*e.node)) {
+				expect(table().find(e.path, "param_index") == nullptr).to_be_true();
+				if (e.node->kind != menu::Kind::Custom && e.node->bind.param.valid()
+				    && (e.parent == nullptr || t3::relevant_here(*root, *e.parent)) && t3::relevant_here(*root, *e.node)) {
+					expect(e.path + (table().find(e.path, "learn") != nullptr ? " has a learn row" : " has none"))
+					    .to_equal(e.path + " has a learn row");
+				}
+				continue;
+			}
 			const std::optional<int32_t> index = spec::int_of(table().find(e.path, "param_index"));
-			const std::optional<int32_t> kind = spec::int_of(table().find(e.path, "param_kind"));
-			if (e.node->kind == menu::Kind::Custom || !e.node->bind.param.valid() || !t3::relevant_here(*root, *e.node)) {
-				continue;
-			}
-			// A hook or a non-param target owns its value: its ParamRef is learn-only, checked as the learn target above.
-			if (e.node->bind.get != nullptr
-			    || (e.node->bind.target.valid()
-			        && e.node->bind.target.kind != deluge::scenes::bind::Target::Kind::PARAM)) {
-				continue;
-			}
 			expect(at + " index " + std::to_string(e.node->bind.param.index))
 			    .to_equal(at + " index " + (index ? std::to_string(*index) : std::string{"<no row>"}));
+			const std::optional<int32_t> kind = spec::int_of(table().find(e.path, "param_kind"));
 			if (!kind || *kind == static_cast<int32_t>(deluge::modulation::params::Kind::NONE)) {
 				continue;
 			}
@@ -571,8 +585,8 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 			    .to_be_true();
 		}
 		expect(learned > size_t(0)).to_be_true();
-		expect(ae_differs > size_t(0)).to_be_true();
-		expect(range_differs > size_t(0)).to_be_true();
+		expect(ae_differs).to_equal(spec::kAffectEntireDifferences);
+		expect(range_differs).to_equal(spec::kRangeDependenceDifferencesTen);
 	});
 });
 
@@ -745,7 +759,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 		expect(spec::menu_engine(midi->ctx).params != nullptr).to_be_true();
 		expect(spec::menu_engine(midi->ctx).params->containsAnyParamCollectionsIncludingExpression()).to_be_true();
 
-		// Fix round 1, I1. `summaries[1]` being non-null is NOT proof of a `PatchedParamSet`:
+		// `summaries[1]` being non-null is NOT proof of a `PatchedParamSet`:
 		// `setupMIDI` leaves `expressionParamSetOffset == 1` (`param_manager.cpp:67-70`), so
 		// `ensureExpressionParamSetExists` puts an `ExpressionParamSet` there (`:289-298`) -- and
 		// `bend_range::Main::writeCurrentValue` calls `getOrCreateExpressionParamSet()`
@@ -814,7 +828,7 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 			}
 		}
 		without_settings.push_back(&nodes::root_cv);
-		// Fix round 1, minor 5: `roots()` has no CV entry (`Root::MidiOrCv` covers both spellings),
+		// `roots()` has no CV entry (`Root::MidiOrCv` covers both spellings),
 		// so without this the CV context never reached the `EmptySubmenu` and `DuplicateName`
 		// quantifiers -- and `root_cv`'s children are exactly the ones whose relevance differs
 		// between a MIDI and a CV output (`cv2_source`, `is_midi_out`).
@@ -939,16 +953,16 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			}
 			expect(e.path + " probed " + probed).to_equal(e.path + " probed " + expected);
 		}
-		// 113 distinct `set`-hook nodes, 414 (node, root, value) probes across the ten roots -- a node reachable from
-		// three roots is driven three times, on three different fixtures. A node bound to a target has no `set` hook:
-		// the binding library's specs drive it instead. The thresholds stay loose rather than exact; a drop in either
-		// number means the loop stopped reaching hooks.
+		// 367 probes across 144 (root, path) pairs with a `set` hook -- a node reachable from three roots is driven
+		// three times, on three different fixtures. A node bound to a target has no `set` hook: the binding library's
+		// specs drive it instead. The thresholds stay loose rather than exact; a drop in either number means the loop
+		// stopped reaching hooks.
 		expect(exercised > size_t(350)).to_be_true();
 		expect(covered.size() > size_t(105)).to_be_true();
 	});
 
 	it("drives the port hook of every node the write rows leave out", _ {
-		// Fix round 2, I1 + I3. `t3::kWritesNeedingBootedUi` suppresses the **legacy** call only. Every one
+		// `t3::kWritesNeedingBootedUi` suppresses the **legacy** call only. Every one
 		// of those fourteen port hooks is driven here on its own and its persisted effect asserted
 		// directly -- model state, `playbackHandler`, `FlashStorage`, `runtimeFeatureSettings` --
 		// because the read comparison does not reach any of it. The `covered` tally at the end is
@@ -1298,6 +1312,7 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 
 		expect(std::to_string(bindings::read(nodes::gate_off_time, settings.ctx)))
 		    .to_equal(table().value("chain/gate_off_time", "read"));
+		expect(text_of(nodes::gate_off_time.title)).to_equal(table().value("chain/gate_off_time", "title"));
 		expect(nodes::gate_off_time.bind.decimal_places).to_equal(uint8_t(1));
 		expect(nodes::gate_off_time.bind.fixed_range.has_value()).to_be_true();
 		expect(nodes::gate_off_time.bind.fixed_range->min).to_equal(int32_t(1));
@@ -2181,7 +2196,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 	});
 
 	it("lands on DIN when nothing at all is connected, rather than leaving a stale cable", _ {
-		// Fix round 1, minor 2. `Devices::beginSession` assigns unconditionally (`devices.cpp:55`),
+		// `Devices::beginSession` assigns unconditionally (`devices.cpp:55`),
 		// and `getCable(lowestDeviceNum)` is the DIN cable whatever its `connectionFlags` say --
 		// the guard at `:133-136` rejects out-of-range *indices*, not disconnection. So an empty
 		// row list still resolves to DIN; it must not leave `MenuContext::midi_cable` pointing at
@@ -2205,7 +2220,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 	});
 
 	it("does not move the source index just because the selector was opened", _ {
-		// Fix round 1, minor 3. Legacy's `beginSession` moves the *item's* value and leaves
+		// Legacy's `beginSession` moves the *item's* value and leaves
 		// `soundEditor.currentSourceIndex` alone; only `selectButtonPress` writes it
 		// (`cv/selection.h:32-34` vs `:42`, `gate/selection.h:34-36` vs `:47`). So `on_focus`
 		// publishes no `source_choice`, and the sentinel is still -1 after the descent that ran it.
@@ -2222,7 +2237,6 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 			expect(int(menu_scene().state().walk.source_choice)).to_equal(-1);
 		}
 	});
-
 
 	it("offers cv::Selection's own two options and chains onto the output the cursor names", _ {
 		// The option rows are main's `getOptions()`; the *mapping* is proved by a sentinel per output, because "CV
@@ -2361,7 +2375,6 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 			expect(int(menu_scene().state().walk.source_choice)).to_equal(-1);
 		}
 	});
-
 
 	it("offers CLOCK or RUN SIGNAL only on the outputs that carry them, once a selection has been "
 	   "made through the scene",
@@ -2567,7 +2580,7 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 	// `visible_top`, which is 5 on the 48-row board and **0** on the 64-row one -- hence
 	// `kMidiCommandRowY48` = 15 and `kMidiCommandRowY64` = 20, a pair, not a constant -- and
 	// `kApple7Height7YAdjust` = -1 cancels the one-row drop `FontId::Apple7` (the height-9 Apple
-	// face) has against legacy's own height-7 call. Fix round 1, I1: a single 48-row-derived
+	// face) has against legacy's own height-7 call. a single 48-row-derived
 	// constant put the 64-row panel five rows high, and only a 64-row golden could see it, so the
 	// learned readout is recorded on both.
 	it("renders an unassigned MIDI command item", _ {

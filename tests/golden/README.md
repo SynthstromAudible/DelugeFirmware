@@ -102,3 +102,8 @@ panels as PBM, `pads/` pad images.
 
 These are reference data, not recordings: nothing in the tree regenerates them. Change a row only to follow `main`,
 reading its source with `git show origin/main:<path>`, and name that source in the commit.
+
+Where an answer is a model value main's item left behind rather than text the item returned, the row is that value as
+the port's `bindings::read` reads it after main's write: the first value of every `write/<v>` row, and the
+`sweep/<path>` rows (each drum's value after main's affect-entire sweep). The second value of a `write/<v>` row is
+main's own read of the item.

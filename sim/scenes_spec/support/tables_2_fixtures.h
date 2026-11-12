@@ -116,9 +116,9 @@ inline Rigged& fixture() {
 
 /// @brief A kit with **two** `SoundDrum`s, the first selected.
 ///
-/// Needed for two things the synth clip cannot show: the kit-only relevance predicates (review
-/// round 1, M6 -- against one synth context ~25 of the 30 new predicates agreed vacuously), and
-/// every affect-entire sweep, which by definition needs more than one drum to be observable.
+/// Needed for two things the synth clip cannot show: the kit-only relevance predicates (against one synth context
+/// most of them agree vacuously), and every affect-entire sweep, which by definition needs more than one drum to be
+/// observable.
 struct KitRig {
 	spec::SongFixture song;
 	SoundDrum* drum_a = nullptr;

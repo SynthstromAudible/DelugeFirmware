@@ -289,38 +289,42 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 	});
 
 	it("gives every node main's own ParamRef, or none where main has none", _ {
-		Rigged& f = fixture();
-		install(f.ctx, f.song.song);
+		size_t compared = 0;
 		for (const spec::TreeEntry& e : entries()) {
-			// A submenu reports the kind of its first param child, not one of its own; only leaves have rows. A
-			// `Kind::Custom` node has no binding at all, and the two that stand in for `patch_cable_strength::Fixed`
-			// items (`vibrato`, `sidechain_volume`) report a patch cable descriptor, not a param index.
-			if (e.node->kind == menu::Kind::Submenu || e.node->kind == menu::Kind::Custom) {
+			// A submenu reports the kind of its first param child, not one of its own. A `Kind::Custom` node has no
+			// binding at all, and the two that stand in for `patch_cable_strength::Fixed` items (`vibrato`,
+			// `sidechain_volume`) report a patch cable descriptor, not a param index. A leaf with a hook or a non-param
+			// target owns its value, and its learn-only `ParamRef` is the learn rows' to check.
+			if (!spec::param_comparable(*e.node)) {
+				expect(table().find(e.path, "param_index") == nullptr).to_be_true();
 				continue;
 			}
 			const std::optional<int32_t> index = spec::int_of(table().find(e.path, "param_index"));
-			const std::optional<int32_t> kind = spec::int_of(table().find(e.path, "param_kind@synth"));
-			(void)table().find(e.path, "param_kind@kit row");
-			if (!kind || *kind == static_cast<int32_t>(deluge::modulation::params::Kind::NONE)) {
-				continue;
-			}
 			const std::string at = e.path + " " + text_of(e.node->name);
 			expect(at + " index " + std::to_string(e.node->bind.param.index))
 			    .to_equal(at + " index " + (index ? std::to_string(*index) : std::string{"<no row>"}));
-			// The *index* is the item's own; the *kind* is not, for an unpatched item: main's
-			// `UnpatchedParam::getParamKind` reports whatever collection the editor's model stack lands on.
-			const auto want = static_cast<deluge::modulation::params::Kind>(*kind);
-			const bool unpatched = want == deluge::modulation::params::Kind::UNPATCHED_SOUND
-			                       || want == deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
-			if (unpatched) {
-				expect(e.node->bind.param.kind == deluge::modulation::params::Kind::UNPATCHED_SOUND
-				       || e.node->bind.param.kind == deluge::modulation::params::Kind::UNPATCHED_GLOBAL)
-				    .to_be_true();
+			for (const char* fixture : {"synth", "kit row"}) {
+				const std::optional<int32_t> kind = spec::int_of(table().find(e.path, std::string{"param_kind@"} + fixture));
+				if (!kind || *kind == static_cast<int32_t>(deluge::modulation::params::Kind::NONE)) {
+					continue;
+				}
+				// The *index* is the item's own; the *kind* is not, for an unpatched item: main's
+				// `UnpatchedParam::getParamKind` reports whatever collection the editor's model stack lands on.
+				const auto want = static_cast<deluge::modulation::params::Kind>(*kind);
+				const bool unpatched = want == deluge::modulation::params::Kind::UNPATCHED_SOUND
+				                       || want == deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
+				if (unpatched) {
+					expect(e.node->bind.param.kind == deluge::modulation::params::Kind::UNPATCHED_SOUND
+					       || e.node->bind.param.kind == deluge::modulation::params::Kind::UNPATCHED_GLOBAL)
+					    .to_be_true();
+				}
+				else {
+					expect(e.node->bind.param.kind == want).to_be_true();
+				}
 			}
-			else {
-				expect(e.node->bind.param.kind == want).to_be_true();
-			}
+			compared++;
 		}
+		expect(compared > size_t(50)).to_be_true();
 	});
 
 	it("says a node uses AFFECT ENTIRE exactly where main's item does", _ {
@@ -377,7 +381,7 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 				expect(at + (got ? std::to_string(got->param.value) : std::string{"none"}))
 				    .to_equal(at + (want->empty() ? std::string{"<no value>"} : want->front()));
 				expect(!got || got->owner == menu::bindings::controls_owner(fx.ctx)).to_be_true();
-				learnable++;
+				learnable += std::string{fx.name} == "synth" ? 1 : 0;
 			}
 		}
 		// Every `ParamRef` leaf in the root tree plus the four transposes; a drop to 0 would make the loop vacuous.
@@ -407,7 +411,7 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 				    .to_equal(e.path + " range_dep " + table().value(e.path, "range_dep"));
 			}
 		}
-		expect(range_differs > size_t(0)).to_be_true();
+		expect(range_differs).to_equal(spec::kRangeDependenceDifferencesSound);
 	});
 });
 
@@ -441,9 +445,13 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 				install(fx.ctx, fx.song);
 				const std::vector<std::string>* want = table().find(e.path, std::string{"options@"} + fx.name);
 				if (want == nullptr) {
+					// The synth clip is asked of every enum but the lane-only ones; the kit row, of those it shows.
+					const bool lane_only =
+					    e.node->bind.target.shown_on == deluge::scenes::bind::Target::ShownOn::ON_LANE;
 					const bool shown_here = (e.parent == nullptr || menu::bindings::relevant(*e.parent, fx.ctx))
 					                        && menu::bindings::relevant(*e.node, fx.ctx);
-					expect(e.path + (shown_here ? " has none" : " has options")).to_equal(e.path + " has options");
+					const bool required = std::string{fx.name} == "synth" ? !lane_only : shown_here;
+					expect(e.path + (required ? " has none" : " has options")).to_equal(e.path + " has options");
 					continue;
 				}
 				std::string_view got[menu::kMaxDynamicNames];
@@ -839,7 +847,6 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		expect(chained_to_picker).to_equal(size_t(53));
 	});
 
-
 	it("reads and writes a patch cable's strength where the legacy page reads and writes it", _ {
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
@@ -859,9 +866,10 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		expect(int(st.decimal_pos)).to_equal(2); // `getDefaultEditPos()`
 
 		// The learn descriptor is the strength page's own learning thing: the cable's depth.
-		expect(static_cast<bool>(
-		           deluge::modulation::knobTargetOf(nodes::kPatchCableStrengthRegularItem.learn_descriptor(f.ctx, st))))
-		    .to_be_true();
+		expect(std::to_string(deluge::modulation::knobWord(deluge::modulation::knobTargetOf(
+		                          nodes::kPatchCableStrengthRegularItem.learn_descriptor(f.ctx, st)))
+		                          .word))
+		    .to_equal(table().value("strength/seed", "learn"));
 
 		// And the write, from an independent sentinel: the cable is moved somewhere that is NOT the value about to be
 		// written, the port's `commit` writes, and the cable is read back. A `commit` that did nothing would leave the
@@ -932,7 +940,6 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		nodes::kPatchCableStrengthRegularItem.on_focus(f.ctx, reopened);
 		expect(static_cast<int>(reopened.walk.patch_polarity)).to_equal(static_cast<int>(chosen));
 	});
-
 
 	it("deletes automation on shift+select exactly where the legacy item is an Automation", _ {
 		size_t automation = 0;
@@ -1031,7 +1038,6 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		expect(set->numPatchCables).to_equal(static_cast<uint8_t>(kMaxNumPatchCables));
 		install(fixture().ctx, fixture().song.song);
 	});
-
 
 	it("opens the strength page the selected cable needs, and installs that cable's own sources", _ {
 		Rigged& f = fixture();
@@ -1215,15 +1221,24 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		// through the editor's, which with no root UI open writes the *song's* param collection where the port writes
 		// the clip's. That is a property of the harness, not of the tables, and `bindings_spec` already covers the
 		// param write path end to end. The next example covers what is specific to this batch's param nodes instead.
-		size_t exercised = 0;
-		std::set<const Node*> covered;
+		// The ratchet is the set of (fixture, path) pairs with a `set` hook, shown in that fixture, not left out for needing
+		// a booted UI, and wide enough to start from a sentinel: it must be exactly the set the rows cover.
+		std::set<std::string> covered;
+		std::set<std::string> hooked;
 		for (const Fx& fx : fixtures()) {
 			for (const spec::TreeEntry& e : entries()) {
+				install(fx.ctx, fx.song);
+				if (e.node->bind.set != nullptr && !t2::write_needs_booted_ui(*e.node) && e.node->kind != menu::Kind::Range
+				    && menu::bindings::relevant(*e.node, fx.ctx)) {
+					const menu::IntRange wide = menu::bindings::range(*e.node, fx.ctx);
+					if (wide.min != wide.max) {
+						hooked.insert(std::string{fx.name} + " " + e.path);
+					}
+				}
 				const std::vector<const spec::OracleRow*> rows = table().columns(e.path, std::string{"write@"} + fx.name + "/");
 				if (rows.empty()) {
 					continue;
 				}
-				install(fx.ctx, fx.song);
 				const menu::IntRange r = menu::bindings::range(*e.node, fx.ctx);
 				std::string probed;
 				std::string expected;
@@ -1240,16 +1255,14 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 					const std::string at = std::string{fx.name} + " " + e.path + " write " + std::to_string(v) + " reads ";
 					expect(at + std::to_string(menu::bindings::read(*e.node, fx.ctx))).to_equal(at + row->values.at(0));
 					probed += std::to_string(v) + ",";
-					exercised++;
-					covered.insert(e.node);
 				}
+				covered.insert(std::string{fx.name} + " " + e.path);
 				expect(e.path + " probed " + probed).to_equal(e.path + " probed " + expected);
 			}
 		}
-		// 34 probes of 7 hooks, on the synth clip and the kit row; the other nodes are bound to targets, which the binding
-		// library's specs drive.
-		expect(exercised > size_t(30)).to_be_true();
-		expect(covered.size() >= size_t(7)).to_be_true();
+		// The other nodes are bound to targets, which the binding library's specs drive.
+		expect(covered).to_equal(hooked);
+		expect(covered.empty()).to_be_false();
 		install(fixture().ctx, fixture().song.song);
 	});
 
@@ -1261,8 +1274,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
 		size_t exercised = 0;
-		// Fix round 2, I2: the same treatment as the example above -- the distinct set of param
-		// nodes round-tripped, sized from the walk rather than from a hand-written "> 90".
+		// The distinct set of param nodes round-tripped, sized from the walk rather than from a hand-written count.
 		std::set<const Node*> covered;
 		std::set<const Node*> param_nodes;
 		// Distinct nodes are what the coverage claim is about; `pair_probes` counts the *tree
@@ -1306,7 +1318,6 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		expect(flagged.contains(&nodes::sidechain_shape)).to_be_true();
 	});
 
-
 	it("sweeps both drums of a kit exactly as legacy's affect-entire loop does", _ {
 		// With AFFECT-ENTIRE held on a kit row, main's ~20 hand-written sweeps write every drum in the kit; the port's
 		// the generic fan-out and the arp items' kit sweep (`SetKitLaneSetting` in `shell_bind_host.cpp`, every lane's
@@ -1322,10 +1333,19 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			out[1] = menu::bindings::read(node, select_drum(k, k.drum_b));
 			return out;
 		};
-		size_t swept = 0;
+		// The ratchet: every node with a `set` hook, not left out for needing a booted UI, and wide enough to seed from a
+		// sentinel is swept, so the rows cover exactly that set.
+		std::set<std::string> swept;
+		std::set<std::string> sweepable;
 		for (const spec::TreeEntry& e : entries()) {
 			const std::vector<std::string>* drum_a = table().find("sweep/" + e.path, "drum_a");
 			const std::vector<std::string>* drum_b = table().find("sweep/" + e.path, "drum_b");
+			if (e.node->bind.set != nullptr && !t2::write_needs_booted_ui(*e.node)) {
+				const menu::IntRange wide = menu::bindings::range(*e.node, select_drum(k, k.drum_a));
+				if (wide.min != wide.max) {
+					sweepable.insert(e.path);
+				}
+			}
 			if (drum_a == nullptr || drum_b == nullptr) {
 				continue;
 			}
@@ -1343,9 +1363,10 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			const std::array<int32_t, 2> after = observe(*e.node);
 			expect(e.path + " drum a " + std::to_string(after[0])).to_equal(e.path + " drum a " + drum_a->front());
 			expect(e.path + " drum b " + std::to_string(after[1])).to_equal(e.path + " drum b " + drum_b->front());
-			swept++;
+			swept.insert(e.path);
 		}
-		expect(swept > size_t(5)).to_be_true();
+		expect(swept).to_equal(sweepable);
+		expect(swept.empty()).to_be_false();
 		install(fixture().ctx, fixture().song.song);
 	});
 
@@ -1416,9 +1437,8 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		install(f.ctx, f.song.song);
 	});
 
-
 	it("drives the port hook of every node the write rows leave out", _ {
-		// Fix round 2, I1. `t2::kWritesNeedingBootedUi` above stands the **legacy** call down; it must not
+		// `t2::kWritesNeedingBootedUi` above stands the **legacy** call down; it must not
 		// stand the port's down with it. Each of the four hooks is driven here on its own and its
 		// persisted effect asserted -- including the two arpeggiator ones, whose real work
 		// (`silenceArp` on a toggle, `updatePresetFromCurrentSettings`,
@@ -1547,7 +1567,7 @@ describe tables_2_reference_rows("tables_2: the reference rows", $ {
 	it("parses tables_2.tsv clean and asks every row of it", _ {
 		spec::OracleTable& t = spec::OracleTable::named("tables_2");
 		expect(t.problems().size()).to_equal(size_t{0});
-		expect(t.size() > size_t{2500}).to_be_true();
+		expect(t.size() > size_t{2400}).to_be_true();
 		expect(t.unasked()).to_equal(std::string{});
 	});
 });
