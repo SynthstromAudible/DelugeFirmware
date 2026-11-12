@@ -57,6 +57,7 @@ inline constexpr size_t kReverbWidthTitleDifferences = 6;
 
 /// @brief The sample repeat items' titles: the row holds legacy's item's title with its source's number formatted into
 ///        it ("Samp1 repeat"); the port's node carries the placeholder unfilled ("Samp* repeat", no `title_arg`).
+///        DIFFERENCES row D149 (open for Kate: `main` shows neither, its title reads empty).
 /// @return The digit the row has where the port's title has `*`, or 0 where the titles are not excused.
 inline char title_placeholder_digit(const menu::Node& node) {
 	namespace nodes = deluge::scenes::menu::nodes;
