@@ -2131,6 +2131,67 @@ describe browser_choice_submenu_range("menu::begin_submenu_range, Submenu::begin
 		expect(static_cast<int32_t>(ctx.range_index)).to_equal(-1);
 	});
 
+	it("drops it on a page come back to from the other file selector", _ {
+		SongRig model;
+		give_three_ranges(model);
+		MenuContext ctx = model.ctx();
+		ctx.range_index = 1;
+		menu::begin_submenu_range(ctx, state_on(nodes::source_group, 0), &nodes::file1_selector);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(-1);
+	});
+
+	it("drops it on a page come back to from a recorder, which main does not count as range-dependent", _ {
+		SongRig model;
+		give_three_ranges(model);
+		MenuContext ctx = model.ctx();
+		ctx.range_index = 1;
+		menu::begin_submenu_range(ctx, state_on(nodes::source_group, 0), &nodes::sample0_recorder);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(-1);
+		ctx.range_index = 1;
+		menu::begin_submenu_range(ctx, state_on(nodes::source_group, 0), &nodes::sample1_recorder);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(-1);
+	});
+
+	it("tests the item a page is entered for, not the column it remembers, as focusChild runs before enterSubmenu",
+	   _ {
+		   SongRig model;
+		   give_three_ranges(model);
+		   MenuContext ctx = model.ctx();
+		   ctx.range_index = 1;
+		   menu::MenuWalk walk;
+		   menu::ValueSession session;
+		   // The page remembers transpose: leaving it from there records the column.
+		   menu::MenuState st = state_on(nodes::source_group,
+		                                 visible_index_of(ctx, nodes::source_group, nodes::source0_transpose));
+		   walk.ascend(menu::MenuCore{ctx, st}, session);
+		   expect(static_cast<int32_t>(ctx.range_index)).to_equal(1);
+
+		   // `enter_child`'s shortcut arm enters the page for the oscillator type, which is not range-dependent.
+		   st = state_on(nodes::sound_root, 0);
+		   walk.descend_to(menu::MenuCore{ctx, st}, session, nodes::source_group, &nodes::osc0_type);
+		   expect(menu::selected_child(ctx, st, nodes::source_group) == &nodes::osc0_type).to_be_true();
+		   expect(static_cast<int32_t>(ctx.range_index)).to_equal(-1);
+	   });
+
+	it("tests the level directly above the landing when the step up skips a level it may no longer enter", _ {
+		SongRig model;
+		give_three_ranges(model);
+		MenuContext ctx = model.ctx();
+		ctx.range_index = 1;
+		menu::MenuWalk walk;
+		menu::ValueSession session;
+		// The FM modulator page is not relevant on this subtractive sound, so the step up from transpose skips it and
+		// lands on the source page, as `goUpOneLevel`'s permission loop does; main's `oldItem` is the modulator page.
+		menu::MenuState st = state_on(nodes::source_group, 0);
+		st.path[1] = &nodes::modulator0;
+		st.path[2] = &nodes::source0_transpose;
+		st.depth = 2;
+		expect(menu::permission_for(nodes::modulator0, ctx) == menu::Permission::No).to_be_true();
+		walk.ascend(menu::MenuCore{ctx, st}, session);
+		expect(static_cast<int32_t>(st.depth)).to_equal(0);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(-1);
+	});
+
 	it("drops it on a list whatever it came back from", _ {
 		SongRig model;
 		give_three_ranges(model);

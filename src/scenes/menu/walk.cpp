@@ -338,6 +338,11 @@ void MenuWalk::descend_to(MenuCore core, ValueSession& session, const Node& chil
 	}
 	else {
 		restore_row(core);
+		// `Submenu::beginSession`'s `focusChild(navigatedBackwardFrom)`: the item the page is entered for is its
+		// focused column before the range test reads it, as `focusChild` runs before `enterSubmenu`.
+		if (navigated_backward_from != nullptr) {
+			focus_column(core, *navigated_backward_from);
+		}
 		begin_submenu_range(ctx, st, navigated_backward_from);
 	}
 }
@@ -369,7 +374,6 @@ void MenuWalk::enter_child(MenuCore core, ValueSession& session, const Node& chi
 	// range-dependent item's range.
 	if (const Node* page = shortcut_landing_page(ctx, child); page != nullptr && page != focused(st)) {
 		descend_to(core, session, *page, &child);
-		focus_column(core, child);
 		return;
 	}
 	descend_to(core, session, child);
@@ -390,16 +394,17 @@ void MenuWalk::ascend(MenuCore core, ValueSession& session) {
 	// `endScreen()` (-> `HorizontalMenu::endSession`) runs before the depth test, so leaving a horizontal page
 	// cancels its notification whether the step lands on a parent or closes the menu. Read before the loop pops
 	// anything, while `focused()` still names the page being left.
-	const Node* const left = st.path[st.depth];
 	remember_path(ctx, st);
 	if (on_horizontal_page(ctx, st)) {
 		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
 	}
+	const Node* left = nullptr;
 	do {
 		if (st.depth == 0) {
 			close_requested_ = true;
 			return;
 		}
+		left = st.path[st.depth]; // `oldItem`: the level directly above the landing
 		st.path[st.depth] = nullptr;
 		st.depth--;
 	} while (st.path[st.depth] != nullptr && permission_for(*st.path[st.depth], ctx) == Permission::No);

@@ -30,7 +30,9 @@ bool on_horizontal_page(const MenuContext& ctx, const MenuState& st);
 ///        column, or the item it came back from (@p left), is range-dependent (`HorizontalMenu::beginSession`).
 /// @param ctx  The menu's context, whose `range_index` is dropped.
 /// @param st   The walk, already on the submenu (its row or column restored).
-/// @param left The node the walk came back from, or null for a descent.
+/// @param left The item the submenu begins as if it came back from (`navigatedBackwardFrom`): the node `ascend`
+///             left (the picker counts as the item it heads to), the item `enter_child`'s shortcut arm enters the
+///             page for, or null for a plain descent and a chained page switch.
 void begin_submenu_range(MenuContext& ctx, const MenuState& st, const Node* left);
 
 /// @brief The node whose shortcut pad blinks and toggles the second layer: a horizontal page's
@@ -76,9 +78,10 @@ public:
 	///        `MustSelectRange`.
 	void enter_child(MenuCore core, ValueSession& session, const Node& child);
 	/// @brief Push @p child onto the path with no permission question asked -- the half of
-	///        `enter_child` the range-picker substitution reuses.
-	/// @param navigated_backward_from `enterSubmenu`'s second argument: the item a submenu @p child begins as if it
-	///        came back from (`begin_submenu_range`), or null.
+	///        `enter_child` the range-picker substitution reuses. A submenu @p child begins its range
+	///        (`begin_submenu_range`).
+	/// @param navigated_backward_from `enterSubmenu`'s second argument: the item a submenu @p child focuses and begins
+	///        as if it came back from, or null.
 	void descend_to(MenuCore core, ValueSession& session, const Node& child,
 	                const Node* navigated_backward_from = nullptr);
 	/// @brief Go up one level, skipping levels whose permission is now `No`
