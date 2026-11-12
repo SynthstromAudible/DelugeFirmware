@@ -20,17 +20,17 @@
 #include <cstdint>
 
 /// @file
-/// The world `gui/ui/slicer.cpp` is compiled against in the unit-test binary.
+/// The world `gui/ui/slice_core.cpp` is compiled against in the unit-test binary.
 ///
-/// The point of this mock is that the REAL `Slicer` translation unit links and runs: the audition
-/// specs drive `Slicer::preview()` and `Slicer::graphicsRoutine()` themselves, not a
-/// re-statement of what they are believed to do. A spec that only re-states the caller cannot catch
-/// a caller that stops re-asking.
+/// The point of this mock is that the REAL `SliceCore` translation unit links and runs: the audition
+/// specs drive `SliceCore::audition()` and `SliceCore::tick_audition()` themselves, the entry points
+/// the host's slice ops call, not a re-statement of what they are believed to do. A spec that only
+/// re-states the caller cannot catch a caller that stops re-asking.
 ///
-/// Only the collaborators the audition path actually touches behave; everything else `slicer.cpp`
+/// Only the collaborators the audition path actually touches behave; everything else `slice_core.cpp`
 /// references is defined just far enough to satisfy the linker.
 ///
-/// FAILURE MODES, for whoever extends this. A collaborator `slicer.cpp` gains that is not stubbed
+/// FAILURE MODES, for whoever extends this. A collaborator `slice_core.cpp` gains that is not stubbed
 /// is an undefined-symbol LINK error -- loud, and the reason compiling a firmware UI translation
 /// unit into the test binary is affordable. The failure that is NOT loud is a value-returning
 /// function stubbed as if it returned void, whose caller then reads garbage; `DELUGE_STUB_RET` in
@@ -48,7 +48,7 @@ enum class LoadAnswer : uint8_t {
 };
 
 /// How every `AsyncSampleLoad::tick()` answers, until a spec changes it. The only seam between the audition and the
-/// card: the slicer's `LatestSampleLoad` ticks a load of one holder, and this decides what that tick finds.
+/// card: the core's `LatestSampleLoad` ticks a load of one holder, and this decides what that tick finds.
 extern LoadAnswer loadAnswer;
 
 /// How many times `InstrumentClipView::sendAuditionNote()` has been called.

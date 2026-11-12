@@ -18,16 +18,18 @@
 #include "CppUTest/TestHarness.h"
 
 #include "display_mock.h"
-#include "gui/ui/slicer.h"
+#include "gui/ui/slice_core.h"
+#include "gui/waveform/waveform_basic_navigator.h"
 #include "slicer_env_mock.h"
 
 using deluge::test::LoadAnswer;
 
-/// Drives the real Slicer through its real entry points -- a pad's press or release (`preview()`), the tick surface
-/// (`graphicsRoutine()`) and the cancel -- with two seams: how each tick of the async sample load answers, and a count
-/// of audition notes. Nothing here reimplements slicer logic -- if it did, the test would pass against a UI that never
-/// works. In particular `graphicsRoutine()` is the shipped tick surface, so a Slicer that never ticks its held load
-/// fails `aColdPressDefersThenSoundsOnTheNextTick` rather than being rescued by a loop the test brought with it.
+/// Drives the real `SliceCore` through the entry points the slicer scenes call -- a pad's press or release
+/// (`audition()`), the tick surface (`tick_audition()`) and the cancel -- with two seams: how each tick of the async
+/// sample load answers, and a count of audition notes. Nothing here reimplements slicer logic -- if it did, the test
+/// would pass against a core that never works. In particular `tick_audition()` is the shipped tick surface, so a core
+/// that never ticks its held load fails `aColdPressDefersThenSoundsOnTheNextTick` rather than being rescued by a loop
+/// the test brought with it.
 class SlicerPreviewProbe {
 public:
 	SlicerPreviewProbe() {
@@ -38,24 +40,29 @@ public:
 	/// How every tick of a held load answers from now on.
 	void answer(LoadAnswer answer) { deluge::test::loadAnswer = answer; }
 
-	/// The shipped pad entry, as `padAction()` calls it for a held slice pad.
-	void press() { slicer_.preview(0, -1, 0, 1); }
-	/// The shipped pad entry, as `padAction()` calls it when the pad is lifted.
-	void release() { slicer_.preview(0, 0, 0, 0); }
+	/// The audition a held slice pad asks for, as the slice ops' audition request makes it.
+	void press() {
+		core_.audition(*waveformBasicNavigator.sample, {.startPoint = 0, .endPoint = -1, .transpose = 0, .on = 1});
+	}
+	/// The release of that pad.
+	void release() {
+		core_.audition(*waveformBasicNavigator.sample, {.startPoint = 0, .endPoint = 0, .transpose = 0, .on = 0});
+	}
 
-	/// The shipped cancel: what leaving the slicer, switching its mode or committing a slice calls.
-	void cancel() { slicer_.cancelPreview(); }
+	/// What leaving the slicer, switching its mode or committing a slice calls.
+	void cancel() { core_.cancel_audition(); }
 
-	void graphicsRoutine() { slicer_.graphicsRoutine(); }
+	/// The slicer's per-frame tick of a held audition.
+	void graphicsRoutine() { core_.tick_audition(); }
 
 	/// Whether a load is held for the tick surface to finish.
-	[[nodiscard]] bool previewIsPending() const { return slicer_.core_.audition_pending(); }
+	[[nodiscard]] bool previewIsPending() const { return core_.audition_pending(); }
 	[[nodiscard]] int32_t auditionNotesSent() const { return deluge::test::auditionNoteCount; }
 	[[nodiscard]] int32_t lastAuditionOn() const { return deluge::test::lastAuditionOn; }
-	[[nodiscard]] int32_t previewGiveUps() const { return slicer_.previewGiveUps(); }
+	[[nodiscard]] int32_t previewGiveUps() const { return core_.audition_give_ups(); }
 
 private:
-	Slicer slicer_{};
+	deluge::gui::ui::SliceCore core_{};
 };
 
 TEST_GROUP(SlicerPreview){};
@@ -146,8 +153,8 @@ TEST(SlicerPreview, aReleaseBeforeTheLoadLandsNeverSoundsItsNoteOn) {
 
 /// A cancel while a press's load is held sounds nothing, and leaves nothing that would wedge the next press.
 ///
-/// A held load that survived the cancel would sound a slice into a slicer the user has left: `slicer` is a file-scope
-/// singleton, and `graphicsRoutine()` ticks again the moment it is current.
+/// A held load that survived the cancel would sound a slice into a slicer the user has left: the core outlives the
+/// scene, and the tick runs again the moment the slicer is current.
 TEST(SlicerPreview, aCancelWhileLoadingSoundsNothingAndStrandsNothing) {
 	SlicerPreviewProbe probe;
 	probe.answer(LoadAnswer::Loading);

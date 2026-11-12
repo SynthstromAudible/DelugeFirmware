@@ -24,13 +24,7 @@
 #define SLICER_MODE_REGION 0
 #define SLICER_MODE_MANUAL 1
 
-/// Spec-only driver for the audition path (tests/unit/cpputest/slicer_preview_tests.cpp). Declared here so the specs
-/// can reach `auditionLoad_` and `cancelPreview()` without those becoming public API.
-class SlicerPreviewProbe;
-
 class Slicer final : public UI {
-	friend class SlicerPreviewProbe;
-
 public:
 	Slicer() { oledShowsUIUnderneath = true; }
 
@@ -59,9 +53,6 @@ public:
 	/// @param transpose  Transpose to apply to the audition note.
 	/// @param on         Nonzero to start the audition, zero to silence it.
 	void preview(int64_t startPoint, int64_t endPoint, int32_t transpose, int32_t on);
-
-	/// @brief How many auditions gave up on a load that stopped moving (AsyncSampleLoad's stall bound).
-	[[nodiscard]] int32_t previewGiveUps() const { return core_.audition_give_ups(); }
 
 	int32_t numManualSlice{};
 	int32_t currentSlice{};

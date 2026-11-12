@@ -19,7 +19,6 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/setting_group.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/ui/sound_target.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
@@ -179,10 +178,6 @@ AudioFileHolder* deluge::gui::audioFileHolderFor(const SoundTarget&) {
 void deluge::gui::cutSound(const SoundTarget&) {
 }
 
-deluge::gui::SoundTarget SoundEditor::soundTarget() const {
-	return {};
-}
-
 MultiRange* Source::getOrCreateFirstRange() {
 	return g_range.get();
 }
@@ -260,7 +255,7 @@ void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 } // namespace PadLEDs
 
 // ---------------------------------------------------------------------------------------------
-// Everything else `slicer.cpp` references. None of it runs in the audition specs -- these exist so
+// Everything else `slice_core.cpp` references. None of it runs in the audition specs -- these exist so
 // the real translation unit links. Value-returning symbols use DELUGE_STUB_RET, so a future spec
 // that drives one gets a defined (if inert) answer rather than an undefined return; see that
 // macro's comment for the failure mode this avoids.
@@ -296,7 +291,7 @@ void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 /// a misaligned access at alignment 1 even where x86 tolerates it.
 #define DELUGE_STUB_DATA(id, mangled, bytes) alignas(std::max_align_t) unsigned char id[bytes] asm(mangled) = {};
 
-// `SoundDrum::killAllVoices()` IS entered (Slicer::stopAnyPreviewing calls it) but is stubbed under
+// `SoundDrum::killAllVoices()` IS entered (SliceCore::unbind_first_drum calls it) but is stubbed under
 // its mangled name rather than written out as a member definition: defining a member of `SoundDrum`
 // here makes this the translation unit that emits `SoundDrum`'s vtable, and that vtable names every
 // virtual in the Sound/ModControllableAudio hierarchy -- i.e. the whole synth. The vtable is stubbed
@@ -318,13 +313,7 @@ DELUGE_STUB_RET(stub_matrixDriverIsPadPressed, "_ZN12MatrixDriver12isPadPressedE
 DELUGE_STUB_RET(stub_paramManagerSetupWithPatching, "_ZN12ParamManager17setupWithPatchingEv", Error, Error::NONE)
 DELUGE_STUB_FN(stub_paramManagerDtor, "_ZN12ParamManagerD2Ev")
 DELUGE_STUB_FN(stub_sampleHolderSetAudioFile, "_ZN12SampleHolder12setAudioFileEP9AudioFilebbi")
-DELUGE_STUB_FN(stub_sampleBrowserExitAndNeverDeleteDrum, "_ZN13SampleBrowser22exitAndNeverDeleteDrumEv")
 
-DELUGE_STUB_RET(stub_sampleBrowserPadAction, "_ZN13SampleBrowser9padActionEiii", ActionResult, ActionResult::DEALT_WITH)
-// Reached directly: clang devirtualizes slicer.cpp's call through the Browser base, since sampleBrowser's type is
-// known.
-DELUGE_STUB_RET(stub_sampleBrowserGetCurrentFilePath, "_ZN13SampleBrowser18getCurrentFilePathB5cxx11Ev", std::string,
-                std::string{})
 DELUGE_STUB_FN(stub_instrumentClipAssignDrums,
                "_ZN14InstrumentClip21assignDrumsToNoteRowsEP29ModelStackWithTimelineCounterbi")
 DELUGE_STUB_RET(stub_waveformRendererRenderFullScreen,
@@ -410,8 +399,6 @@ DELUGE_STUB_DATA(stub_actionLogger, "actionLogger", 1024)
 DELUGE_STUB_DATA(stub_matrixDriver, "matrixDriver", 1024)
 // `SliceCore::begin_slice`'s Keep arm reads it; the legacy slicer these specs drive takes the Release arm.
 DELUGE_STUB_DATA(stub_sampleForPreview, "_ZN11AudioEngine16sampleForPreviewE", sizeof(void*))
-DELUGE_STUB_DATA(stub_sampleBrowser, "sampleBrowser", 8192)
-DELUGE_STUB_DATA(stub_soundEditor, "soundEditor", 8192)
 DELUGE_STUB_DATA(stub_instrumentClipView, "instrumentClipView", 8192)
 DELUGE_STUB_DATA(stub_waveformRenderer, "waveformRenderer", 1024)
 DELUGE_STUB_DATA(stub_audioEngineSounds, "_ZN11AudioEngine6soundsE", 64)
@@ -419,7 +406,7 @@ DELUGE_STUB_DATA(stub_padLedsImage, "_ZN7PadLEDs5imageE", 8 * 18 * 4)
 DELUGE_STUB_DATA(stub_flashStorageDefaultSliceMode, "_ZN12FlashStorage16defaultSliceModeE", 4)
 
 // Vtables and the UI typeinfo. Reached only by the slice-commit path (`new SoundDrum`), which the
-// audition specs never enter, and by `Slicer`'s own RTTI, which nothing queries.
+// audition specs never enter, and by the UI typeinfo, which nothing queries.
 DELUGE_STUB_DATA(stub_vtableSoundDrum, "_ZTV9SoundDrum", 4096)
 DELUGE_STUB_DATA(stub_vttSoundDrum, "_ZTT9SoundDrum", 512)
 DELUGE_STUB_DATA(stub_vtableArpeggiatorBase, "_ZTV15ArpeggiatorBase", 512)
