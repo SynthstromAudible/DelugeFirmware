@@ -90,6 +90,19 @@ public:
 
 		return slotIndex;
 	}
+	/// The slot to play in place of one that has no sample: the first loaded one counting up from it, wrapping
+	/// round. Bit n of `loadedSlots` is set when slot n has a sample. Returns `slotIndex` unchanged when it is
+	/// loaded, or when nothing is.
+	static uint8_t nextLoadedSlotIndex(uint8_t rrCount, uint8_t slotIndex, uint8_t loadedSlots) {
+		uint8_t poolSize = rrCount + 1;
+		for (uint8_t step = 0; step < poolSize; step++) {
+			uint8_t candidate = (slotIndex + step) % poolSize;
+			if (loadedSlots & (1 << candidate)) {
+				return candidate;
+			}
+		}
+		return slotIndex;
+	}
 	// --- Menu audition override ---
 	// Static because at most one menu editing session exists at a time. While set, resolveVariant()
 	// on the matching range plays the given slot without advancing the cycle, so auditioning from a
