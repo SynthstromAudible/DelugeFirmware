@@ -42,19 +42,23 @@ public:
 	bool ignoredNoteOff;
 	uint32_t fastReleaseIncrement{1024};
 	/// `sustain` is the level the smoothed sustain starts from
-	int32_t noteOn(bool directlyToDecay, int32_t sustain);
+	int32_t noteOn(bool directlyToDecay, int32_t sustain,
+	               deluge::modulation::EnvelopeMode mode = deluge::modulation::EnvelopeMode::ADSR);
 	int32_t noteOn(uint8_t envelopeIndex, Sound* sound, Voice* voice);
 	void noteOff(uint8_t envelopeIndex, Sound* sound, ParamManagerForTimeline* paramManager);
-	/// Returns the level as a bipolar q31 patch source value (0 -> INT32_MIN, 1 -> INT32_MAX), or INT32_MIN when off
+	/// Returns the level as a bipolar q31 patch source value (0 -> INT32_MIN, 1 -> INT32_MAX), or INT32_MIN when off.
+	/// `followInput` is what AR mode follows (MPE pressure), as a q31 patch source value; other modes ignore it.
 	int32_t render(uint32_t numSamples, uint32_t attack, uint32_t decay, uint32_t sustain, uint32_t release,
-	               const deluge::modulation::EnvelopeShape& shape);
+	               const deluge::modulation::EnvelopeConfig& config, int32_t followInput = 0);
 	void unconditionalRelease(EnvelopeStage typeOfRelease = EnvelopeStage::RELEASE,
 	                          uint32_t newFastReleaseIncrement = SOFT_CULL_INCREMENT);
 	void unconditionalOff();
-	void resumeAttack(float oldLastValue, const deluge::modulation::EnvelopeShape& shape);
+	void resumeAttack(float oldLastValue, const deluge::modulation::EnvelopeConfig& config);
 	void resetTimeEntered();
 
 private:
+	int32_t follow(uint32_t numSamples, uint32_t attack, uint32_t sustain, uint32_t release,
+	               const deluge::modulation::EnvelopeShape& shape, int32_t followInput);
 	void setState(EnvelopeStage newState);
 	float smoothedSustain{0};
 };

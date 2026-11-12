@@ -753,7 +753,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 			sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e] = envelopes[e].render(
 			    numSamples, paramFinalValues[params::LOCAL_ENV_0_ATTACK + e],
 			    paramFinalValues[params::LOCAL_ENV_0_DECAY + e], paramFinalValues[params::LOCAL_ENV_0_SUSTAIN + e],
-			    release, deluge::modulation::kClassicEnvelopeShape);
+			    release, sound.envelopeConfig[e], sourceValues[util::to_underlying(PatchSource::AFTERTOUCH)]);
 			uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e]);
 			sourcesChanged |= anyChange << (util::to_underlying(PatchSource::ENVELOPE_0) + e);
 		}

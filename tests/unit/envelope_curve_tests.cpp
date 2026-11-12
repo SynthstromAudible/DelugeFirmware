@@ -52,3 +52,24 @@ TEST(EnvelopeCurveTest, risingInverse) {
 		}
 	}
 }
+
+TEST(EnvelopeCurveTest, classicCurveSettingIsTheClassicShape) {
+	using deluge::modulation::EnvelopeConfig;
+	using deluge::modulation::EnvelopeShape;
+	using deluge::modulation::kClassicEnvelopeShape;
+
+	EnvelopeConfig config;
+	CHECK(config.isDefault());
+	config.setCurve(EnvelopeShape::kClassicCurve);
+	CHECK(config.isDefault());
+	DOUBLES_EQUAL(kClassicEnvelopeShape.attack.k(), config.shape.attack.k(), 0.0);
+	DOUBLES_EQUAL(kClassicEnvelopeShape.decay.k(), config.shape.decay.k(), 0.0);
+	DOUBLES_EQUAL(kClassicEnvelopeShape.release.k(), config.shape.release.k(), 0.0);
+
+	config.setCurve(0);
+	CHECK(!config.isDefault());
+	DOUBLES_EQUAL(0.5, config.shape.decay.falling(0.5f), 0.0);
+
+	config.setCurve(1000); // clamped
+	LONGS_EQUAL(EnvelopeShape::kMaxCurve, config.curve);
+}

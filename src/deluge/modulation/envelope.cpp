@@ -21,9 +21,14 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "util/fixedpoint.h"
+#include <cstring>
 #include <limits>
 
 namespace params = deluge::modulation::params;
+using deluge::modulation::EnvelopeConfig;
+using deluge::modulation::EnvelopeMode;
+using deluge::modulation::EnvelopeShape;
+using deluge::modulation::fastExp2;
 
 Envelope::Envelope() {
 }
@@ -43,7 +48,20 @@ constexpr float kInvStageLength = 1.f / Envelope::kStageLength;
 } // namespace
 
 int32_t Envelope::render(uint32_t numSamples, uint32_t attack, uint32_t decay, uint32_t sustain, uint32_t release,
-                         const deluge::modulation::EnvelopeShape& shape) {
+                         const EnvelopeConfig& config, int32_t followInput) {
+	const auto& shape = config.shape;
+
+	// AHD reuses the ADSR params: hold time from decay, decay time from release, and no sustain
+	uint32_t hold = kStageLength; // any rate that finishes the stage in one render
+	if (config.mode == EnvelopeMode::AHD) {
+		hold = decay;
+		decay = release;
+		sustain = 0;
+	}
+	else if (config.mode == EnvelopeMode::AR && state < EnvelopeStage::RELEASE) {
+		return follow(numSamples, attack, sustain, release, shape, followInput);
+	}
+
 	// otherwise modulating sustain with aftertouch causes un smoothed jumps downstream because params don't smooth
 	// the envelope value and envelopes are rendered before other params are  calculated (including the envelopes
 	// own sustain). To fix this properly we'd first patch and smooth expression to the envelope, then render the
@@ -62,16 +80,23 @@ considerEnvelopeStage:
 		                            // entirely with a high posIncrease
 		if (pos >= kStageLength) {
 			pos = 0;
-			setState(EnvelopeStage::DECAY);
+			setState(config.mode == EnvelopeMode::AHD ? EnvelopeStage::HOLD : EnvelopeStage::DECAY);
 			goto considerEnvelopeStage;
 		}
 		// Never exactly 0 while attacking
 		lastValue = std::max(shape.attack.rising(stagePosition(pos)), 0x1p-31f);
 		break;
-		// TODO: this would be cool
-		//	case EnvelopeStage::HOLD:
-		//		lastValue = 1.f;
-		//		break;
+
+	case EnvelopeStage::HOLD:
+		pos += hold * numSamples;
+		if (pos >= kStageLength) {
+			pos = 0;
+			setState(EnvelopeStage::DECAY);
+			goto considerEnvelopeStage;
+		}
+		lastValue = 1.f;
+		break;
+
 	case EnvelopeStage::DECAY:
 		smoothSustain();
 		lastValue = smoothedSustain + shape.decay.falling(stagePosition(pos)) * (1.f - smoothedSustain);
@@ -129,16 +154,48 @@ considerEnvelopeStage:
 	return toSourceValue(lastValue); // Centre the range of the envelope around 0
 }
 
-int32_t Envelope::noteOn(bool directlyToDecay, int32_t sustain) {
-	smoothedSustain = q31_to_float(sustain);
-	ignoredNoteOff = false;
-	pos = 0;
-	if (!directlyToDecay) {
-		setState(EnvelopeStage::ATTACK);
-		lastValue = 0.f;
+int32_t Envelope::follow(uint32_t numSamples, uint32_t attack, uint32_t sustain, uint32_t release,
+                         const EnvelopeShape& shape, int32_t followInput) {
+	// While the note is held we sit in SUSTAIN, whatever the level is doing, so culling treats us as a held note
+	if (state != EnvelopeStage::SUSTAIN) {
+		setState(EnvelopeStage::SUSTAIN);
+	}
+
+	float floor = q31_to_float(static_cast<int32_t>(sustain));
+	float input = std::clamp(q31_to_float(followInput), 0.f, 1.f);
+	float target = floor + (1.f - floor) * input;
+
+	// How far through a full-scale stage this render takes us, at the rate for the direction we're going
+	uint32_t rate = (target > lastValue) ? attack : release;
+	float distance = static_cast<float>(rate) * static_cast<float>(numSamples) * kInvStageLength;
+
+	float k = shape.decay.k();
+	if (k > 0.f) {
+		// Exponential approach: covering a full-scale stage leaves 2^-k of the gap
+		lastValue = target + (lastValue - target) * fastExp2(-k * distance);
 	}
 	else {
-		setState(EnvelopeStage::DECAY);
+		// Straight line at full scale per stage time
+		float gap = target - lastValue;
+		lastValue += std::clamp(gap, -distance, distance);
+	}
+
+	// The voice is freed when envelope 0 sits at exactly 0 outside attack or decay, and no pressure must not mean that
+	lastValue = std::max(lastValue, 0x1p-31f);
+	return toSourceValue(lastValue);
+}
+
+int32_t Envelope::noteOn(bool directlyToDecay, int32_t sustain, EnvelopeMode mode) {
+	smoothedSustain = (mode == EnvelopeMode::AHD) ? 0.f : q31_to_float(sustain);
+	ignoredNoteOff = false;
+	pos = 0;
+	lastValue = 0.f;
+	// In AR mode, even without an attack stage the first render gets to the target, since the attack rate is huge
+	if (!directlyToDecay || mode == EnvelopeMode::AR) {
+		setState(EnvelopeStage::ATTACK);
+	}
+	else {
+		setState(mode == EnvelopeMode::AHD ? EnvelopeStage::HOLD : EnvelopeStage::DECAY);
 		lastValue = 1.f;
 	}
 
@@ -150,7 +207,7 @@ int32_t Envelope::noteOn(uint8_t envelopeIndex, Sound* sound, Voice* voice) {
 	int32_t sustain = voice->paramFinalValues[params::LOCAL_ENV_0_SUSTAIN + envelopeIndex];
 	bool directlyToDecay = (attack > 245632);
 
-	return noteOn(directlyToDecay, sustain);
+	return noteOn(directlyToDecay, sustain, sound->envelopeConfig[envelopeIndex].mode);
 }
 
 void Envelope::noteOff(uint8_t envelopeIndex, Sound* sound, ParamManagerForTimeline* paramManager) {
@@ -196,8 +253,36 @@ void Envelope::unconditionalRelease(EnvelopeStage typeOfRelease, uint32_t newFas
 	}
 }
 
-void Envelope::resumeAttack(float oldLastValue, const deluge::modulation::EnvelopeShape& shape) {
+void Envelope::resumeAttack(float oldLastValue, const EnvelopeConfig& config) {
 	if (state == EnvelopeStage::ATTACK) {
-		pos = static_cast<uint32_t>(shape.attack.risingInverse(oldLastValue) * kStageLength);
+		if (config.mode == EnvelopeMode::AR) {
+			lastValue = oldLastValue; // carry on following from where the old note was
+		}
+		else {
+			pos = static_cast<uint32_t>(config.shape.attack.risingInverse(oldLastValue) * kStageLength);
+		}
 	}
 }
+
+namespace deluge::modulation {
+char const* envelopeModeToString(EnvelopeMode mode) {
+	switch (mode) {
+	case EnvelopeMode::AHD:
+		return "ahd";
+	case EnvelopeMode::AR:
+		return "ar";
+	default:
+		return "adsr";
+	}
+}
+
+EnvelopeMode stringToEnvelopeMode(char const* string) {
+	if (!strcmp(string, "ahd")) {
+		return EnvelopeMode::AHD;
+	}
+	if (!strcmp(string, "ar")) {
+		return EnvelopeMode::AR;
+	}
+	return EnvelopeMode::ADSR;
+}
+} // namespace deluge::modulation

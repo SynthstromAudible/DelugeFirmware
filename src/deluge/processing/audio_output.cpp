@@ -150,7 +150,7 @@ bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* m
 
 renderEnvelope:
 			int32_t amplitudeLocal = (envelope.render(render.size(), attack, 8388608, 2147483647, 0,
-			                                          deluge::modulation::kAudioClipEnvelopeShape)
+			                                          deluge::modulation::kAudioClipEnvelopeConfig)
 			                          >> 1)
 			                         + 1073741824;
 

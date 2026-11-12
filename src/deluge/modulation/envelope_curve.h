@@ -91,11 +91,52 @@ struct EnvelopeShape {
 	EnvelopeCurve attack{4.f};
 	EnvelopeCurve decay{8.f};
 	EnvelopeCurve release{8.f};
+
+	/// One user-facing curve control for all three stages. `curve` is in [kMinCurve, kMaxCurve]: 0 is linear,
+	/// positive is exponential (fast at the start of every stage), negative bends the other way. Decay and release
+	/// get k = curve / 4 and attack half that, so kClassicCurve is the shape the Deluge has always had.
+	static constexpr int32_t kMinCurve = -50;
+	static constexpr int32_t kMaxCurve = 50;
+	static constexpr int32_t kClassicCurve = 32;
+	static constexpr EnvelopeShape fromCurve(int32_t curve) {
+		float k = static_cast<float>(curve) * 0.25f;
+		return {.attack = EnvelopeCurve{k * 0.5f}, .decay = EnvelopeCurve{k}, .release = EnvelopeCurve{k}};
+	}
 };
 
 /// The shape synth envelopes have always had
 inline constexpr EnvelopeShape kClassicEnvelopeShape{};
 /// Audio clips release along a shallower curve
 inline constexpr EnvelopeShape kAudioClipEnvelopeShape{.release = EnvelopeCurve{4.f}};
+
+enum class EnvelopeMode : uint8_t {
+	/// Attack, decay, sustain, release
+	ADSR,
+	/// Attack, hold at full level, decay to zero. One-shot: ignores note-off, for drums. Hold time is set by the decay
+	/// param and the decay by the release param, so the release gold knob sets a drum's length.
+	AHD,
+	/// Attack and release around a level that follows MPE pressure (Z): the target is sustain + (1 - sustain) * Z,
+	/// approached at the attack rate going up and the release rate going down. With sustain at full it's a plain AR.
+	AR,
+};
+constexpr int32_t kNumEnvelopeModes = 3;
+
+/// A sound's settings for one of its envelopes. Not a param: it doesn't vary per clip and can't be modulated.
+struct EnvelopeConfig {
+	EnvelopeMode mode{EnvelopeMode::ADSR};
+	int8_t curve{EnvelopeShape::kClassicCurve};
+	EnvelopeShape shape{}; // derived from curve; call setCurve() rather than writing either directly
+
+	constexpr void setCurve(int32_t newCurve) {
+		curve = static_cast<int8_t>(std::clamp(newCurve, EnvelopeShape::kMinCurve, EnvelopeShape::kMaxCurve));
+		shape = EnvelopeShape::fromCurve(curve);
+	}
+	constexpr bool isDefault() const { return mode == EnvelopeMode::ADSR && curve == EnvelopeShape::kClassicCurve; }
+};
+
+inline constexpr EnvelopeConfig kAudioClipEnvelopeConfig{.shape = kAudioClipEnvelopeShape};
+
+char const* envelopeModeToString(EnvelopeMode mode);
+EnvelopeMode stringToEnvelopeMode(char const* string);
 
 } // namespace deluge::modulation

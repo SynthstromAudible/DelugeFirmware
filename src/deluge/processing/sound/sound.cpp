@@ -409,6 +409,22 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 // paramManager only required for old old song files, or for presets (because you'd be wanting to extract the
 // defaultParams into it). arpSettings optional - no need if you're loading a new V2.0 song where Instruments are all
 // separate from Clips and won't store any arp stuff.
+namespace {
+// Tags for the community envelope settings (mode and curve). Written at sound level, unlike the ADSR params, which
+// belong to the param manager.
+constexpr std::array<char const*, kNumEnvelopes> kEnvelopeSettingsTags = {"envelope1Settings", "envelope2Settings",
+                                                                          "envelope3Settings", "envelope4Settings"};
+
+int32_t envelopeSettingsTagIndex(char const* tagName) {
+	for (int32_t e = 0; e < kNumEnvelopes; e++) {
+		if (!strcmp(tagName, kEnvelopeSettingsTags[e])) {
+			return e;
+		}
+	}
+	return -1;
+}
+} // namespace
+
 Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
                                     int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song) {
 
@@ -890,6 +906,24 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 			}
 		}
 		reader.exitTag("fx");
+	}
+
+	else if (int32_t e = envelopeSettingsTagIndex(tagName); e >= 0) {
+		reader.match('{');
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
+			if (!strcmp(tagName, "mode")) {
+				envelopeConfig[e].mode = deluge::modulation::stringToEnvelopeMode(reader.readTagOrAttributeValue());
+				reader.exitTag("mode");
+			}
+			else if (!strcmp(tagName, "curve")) {
+				envelopeConfig[e].setCurve(reader.readTagOrAttributeValueInt());
+				reader.exitTag("curve");
+			}
+			else {
+				reader.exitTag(tagName);
+			}
+		}
+		reader.exitTag(kEnvelopeSettingsTags[e], true);
 	}
 
 	else if (!strcmp(tagName, "lfo1")) {
@@ -1675,8 +1709,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 			if (success) {
 				if (voiceToReuse != nullptr) {
 					for (int32_t e = 0; e < kNumEnvelopes; e++) {
-						voice->envelopes[e].resumeAttack(envelopePositions[e],
-						                                 deluge::modulation::kClassicEnvelopeShape);
+						voice->envelopes[e].resumeAttack(envelopePositions[e], envelopeConfig[e]);
 					}
 				}
 			}
@@ -4219,6 +4252,18 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	writer.writeSyncTypeToFile(currentSong, "syncType", lfoConfig[LFO4_ID].syncType, false);
 	writer.closeTag();
 
+	// Community Firmware: envelope modes and curves, only when they're not the classic ADSR
+	for (int32_t e = 0; e < kNumEnvelopes; e++) {
+		const auto& config = envelopeConfig[e];
+		if (config.isDefault()) {
+			continue;
+		}
+		writer.writeOpeningTagBeginning(kEnvelopeSettingsTags[e]);
+		writer.writeAttribute("mode", deluge::modulation::envelopeModeToString(config.mode), false);
+		writer.writeAttribute("curve", static_cast<int32_t>(config.curve), false);
+		writer.closeTag();
+	}
+
 	if (synthMode == SynthMode::FM) {
 
 		writer.writeOpeningTagBeginning("modulator1");
@@ -4351,6 +4396,14 @@ Error Sound::loadAllAudioFiles(bool mayActuallyReadFiles) {
 }
 
 bool Sound::envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* paramManager) {
+	switch (envelopeConfig[e].mode) {
+	case deluge::modulation::EnvelopeMode::AHD:
+		return false; // one-shot
+	case deluge::modulation::EnvelopeMode::AR:
+		return true; // holds while the note does
+	default:
+		break;
+	}
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
@@ -4361,6 +4414,14 @@ bool Sound::envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* para
 }
 
 bool Sound::envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramManager) {
+	switch (envelopeConfig[e].mode) {
+	case deluge::modulation::EnvelopeMode::AHD:
+		return false;
+	case deluge::modulation::EnvelopeMode::AR:
+		return true;
+	default:
+		break;
+	}
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
