@@ -24,8 +24,7 @@
 /// `toggleNoteEditorParamMenu` in `gui/views/instrument_clip_view.cpp` -- are gated on the ported
 /// note mode, and `note_mode_reads_spec.cpp` runs them.)
 ///
-/// What this deliberately does not cover: the tail's firmware-version diagnostics, out of scope for
-/// this switch -- `shell_pad_forward.h`'s own note says why. And nothing here asks
+/// Nothing here asks
 /// `Scene::grid_pad_claim()`: that question is asked by this function's caller, before `forwardGridPad` is ever
 /// reached.
 
@@ -54,8 +53,12 @@
 #include "model/edits/setting_edit.h"
 #include "processing/sound/sound_instrument.h"
 
+#include "extern.h" // picFirmwareVersion
+#include "memory/heaps.h"
 #include "modulation/params/param.h" // params::Kind, LOCAL_LPF_FREQ, UNPATCHED_BASS -- the param nodes
 #include "notify/dirty_set.h"
+#include "notify/notice_queue.h"
+#include "processing/engines/audio_engine.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/marker/marker_scene.h"
 #include "scenes/menu/bindings.h"
@@ -310,27 +313,51 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		currentUIMode = UI_MODE_NONE;
 	});
 
-	it("does not exit on the three firmware-version diagnostic pads", _ {
-		// `sound_editor.cpp:1521-1543`: while `&firmwareVersionMenu` is open, `y == 7` and `x` in
-		// {13, 14, 15} return `DEALT_WITH` **without** falling to `exitCompletely()` -- the popups
-		// themselves stay unported (`shell_pad_forward.h`'s own note), but the "menu stays open"
-		// half is legacy's own behaviour and is what this pins. `open_menu_node` focuses the ported
-		// menu on `nodes::firmware_version` directly, the same shape the automation examples above
-		// use for their own node.
+	it("answers the three firmware-version diagnostic pads with their popups, and does not exit", _ {
+		// `SoundEditor::padAction`'s tail (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): while `&firmwareVersionMenu`
+		// is open, `y == 7` and `x` in {13, 14, 15} pop up the PIC version, the voice count and the internal memory, and
+		// return `DEALT_WITH` without falling to `exitCompletely()`.
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
 		open_menu_node(*fx.song, fx.clip, nodes::firmware_version);
 		setRootUILowLevel(&sessionView); // any root with no matching forwarding arm
 		currentUIMode = UI_MODE_NONE;
 
-		expect(deluge::gui::ui::forwardGridPad(15, 7, 64)).to_equal(PadForwardTarget::None); // SRAM
-		expect(deluge::gui::ui::forwardGridPad(14, 7, 64)).to_equal(PadForwardTarget::None); // voices
-		expect(deluge::gui::ui::forwardGridPad(13, 7, 64)).to_equal(PadForwardTarget::None); // PIC ver
+		expect(deluge::gui::ui::forwardGridPad(15, 7, 64)).to_equal(PadForwardTarget::FirmwareDiagnostic); // SRAM
+		expect(deluge::gui::ui::forwardGridPad(14, 7, 64)).to_equal(PadForwardTarget::FirmwareDiagnostic); // voices
+		expect(deluge::gui::ui::forwardGridPad(13, 7, 64)).to_equal(PadForwardTarget::FirmwareDiagnostic); // PIC
+		// A release is not a press: swallowed.
+		expect(deluge::gui::ui::forwardGridPad(14, 7, 0)).to_equal(PadForwardTarget::None);
 
 		// Control: a pad this carve-out does not name, on the same open menu, still exits -- the
 		// clause is additive, not a blanket "firmware-version menu never exits".
 		expect(deluge::gui::ui::forwardGridPad(12, 7, 64)).to_equal(PadForwardTarget::Exit);
 		expect(deluge::gui::ui::forwardGridPad(15, 6, 64)).to_equal(PadForwardTarget::Exit);
+	});
+
+	it("pops up the diagnostic each pad names, as main's displayPopup of the number", _ {
+		deluge::gui::ui::setPadForwardPerform(nullptr);
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		open_menu_node(*fx.song, fx.clip, nodes::firmware_version);
+		setRootUILowLevel(&sessionView);
+		currentUIMode = UI_MODE_NONE;
+		const auto popped = [](int32_t x) {
+			deluge::notify::Notice n;
+			while (deluge::notify::notices().pop(n)) {} // what was queued before
+			(void)deluge::gui::ui::forwardGridPad(x, 7, 64);
+			std::string text;
+			while (deluge::notify::notices().pop(n)) {
+				if (n.kind == deluge::notify::Notice::Kind::Text) {
+					text = n.text;
+				}
+			}
+			return text;
+		};
+		expect(popped(15)).to_equal(std::to_string(deluge::memory::sram_size()));
+		expect(popped(14)).to_equal(std::to_string(AudioEngine::getNumVoices() + AudioEngine::getNumAudio()));
+		expect(popped(13)).to_equal(std::to_string(picFirmwareVersion));
+		expect(deluge::scenes::menu_scene().focused() == &nodes::firmware_version).to_be_true();
 	});
 
 	it("does exit on the same three pads when a different node is focused", _ {
