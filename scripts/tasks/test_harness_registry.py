@@ -923,6 +923,23 @@ class RenderCardCacheTest(unittest.TestCase):
         self.assertEqual(second.stat().st_ino, inode)
         self.assertEqual(list(base.rglob("*.tmp-*")), [])
 
+    def test_a_failed_sample_write_leaves_no_temporary_sample(self):
+        key, generator = self.cache._generator(self.REPO)
+        base = self.cache_root / key
+        path = generator.samples_for("RS_KIT_FX")[0]
+        real = Path.write_bytes
+
+        def short_write(target, data):
+            real(target, data[:16])  # the file is made, then the disk fills
+            raise OSError("disk full")
+
+        with (
+            mock.patch.object(Path, "write_bytes", short_write),
+            self.assertRaises(OSError),
+        ):
+            self.cache._sample(base, generator, path)
+        self.assertEqual(list(base.rglob("*.tmp-*")), [])
+
     def test_a_failed_fill_leaves_no_temporary_card(self):
         _, generator = self.cache._generator(self.REPO)
         with (

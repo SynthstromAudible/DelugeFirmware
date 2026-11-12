@@ -86,13 +86,13 @@ def _sample(base: Path, generator, path: str) -> Path:
     if not sample.is_file():
         sample.parent.mkdir(parents=True, exist_ok=True)
         tmp = _temporary(sample)
-        tmp.write_bytes(generator.SAMPLE_FILES[path]())
         try:
+            tmp.write_bytes(generator.SAMPLE_FILES[path]())
             os.link(tmp, sample)
         except FileExistsError:
             pass  # another writer published it first: same bytes, the generator being deterministic
         finally:
-            tmp.unlink()
+            tmp.unlink(missing_ok=True)
     return sample
 
 
