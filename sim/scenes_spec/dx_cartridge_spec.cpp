@@ -416,7 +416,9 @@ describe dx_cartridge("the DX7 cartridge", ${
 		r.select();
 		settle(r);
 		select_file(r, "TRASH");
+		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"TRASH"});
 		expect(card_has(TrashFile::kPath)).to_be_true();
+		const int32_t trashed = browser_scene().file_index();
 		shift_save(r);
 		expect(delete_menu_up(r)).to_be_true();
 		r.select(); // OK
@@ -426,6 +428,9 @@ describe dx_cartridge("the DX7 cartridge", ${
 		}
 		settle(r);
 		expect(card_has(TrashFile::kPath)).to_be_false();
+		// `Browser::currentFileDeleted`: TRASH is the last entry, so the index steps back and the name is cleared.
+		expect(browser_scene().file_index()).to_equal(trashed - 1);
+		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{});
 		expect(browser_up(r)).to_be_true();
 		expect(deluge::gui::ui::dxCartridgeRead().busy()).to_be_false();
 		expect(browser_scene().awaiting_deferred_load()).to_be_false();
