@@ -51,10 +51,9 @@ public:
 	void stop_previewing() override { AudioEngine::sampleForPreview->killAllVoices(); }
 	void kill_voices() override { core_.kill_voices(); }
 	void audition(const PreviewRequest& req) override {
-		if (sample_ == nullptr) {
+		if (sample_ == nullptr || !retargetToMenu()) {
 			return;
 		}
-		core_.retarget(shellMenuTarget());
 		core_.audition(*sample_, SliceCore::AuditionTarget{.startPoint = req.start_point,
 		                                                   .endPoint = req.end_point,
 		                                                   .transpose = req.transpose,
@@ -65,10 +64,9 @@ public:
 	std::optional<int32_t> play_position() override { return play_position_; }
 	void restore_full_range() override { (void)core_.restore_full_range(); }
 	bool begin_commit(const SliceCommit& commit) override {
-		if (core_.slicing() || path_.empty()) {
+		if (core_.slicing() || path_.empty() || !retargetToMenu()) {
 			return false;
 		}
-		core_.retarget(shellMenuTarget());
 		SliceCore::Target target{};
 		target.isManual = commit.is_manual;
 		target.sliceCount = commit.slice_count;
@@ -118,8 +116,9 @@ public:
 			play_position_.reset();
 			return;
 		}
-		// The audition and the slice act on what the ported menu edits now.
-		core_.retarget(shellMenuTarget());
+		// The audition and the slice act on what the ported menu edits now; one that names no sound leaves them on
+		// the one they began on.
+		(void)retargetToMenu();
 		poll_open();
 		core_.tick_audition();
 		if (const std::optional<SliceCore::SliceEnd> end = core_.tick_slice()) {
@@ -150,6 +149,17 @@ public:
 	[[nodiscard]] bool busy() const { return open_load_.pending() || core_.slicing() || core_.audition_pending(); }
 
 private:
+	/// @brief Aim the slice at the sound the ported menu edits; false, aiming at nothing, when the menu names no sound
+	///        with a source and range (its context forgotten by a teardown), so a commit or an audition is refused.
+	bool retargetToMenu() {
+		const deluge::gui::SoundTarget target = shellMenuTarget();
+		if (target.sound == nullptr || target.source == nullptr || target.range == nullptr) {
+			return false;
+		}
+		core_.retarget(target);
+		return true;
+	}
+
 	/// @brief The preview drum's range while it holds a sample file, else null.
 	static const MultisampleRange* heldPreview() {
 		Source& source = AudioEngine::sampleForPreview->sources[0];

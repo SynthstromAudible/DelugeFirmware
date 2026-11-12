@@ -337,6 +337,7 @@ bool g_imEmptySucceeded = false;
 bool g_shellCommitBegun = false;
 bool g_shellEnded = false;
 bool g_shellBackKept = false;
+bool g_shellBackNoContextRefused = false;
 
 /// The region leg's song-load checks. A teardown of every UI (a song load) must drop the slicer's held audition, whose
 /// load names the outgoing kit's first drum; and a MIDI next-song that arrives while the slice is out must wait for it.
@@ -1399,6 +1400,7 @@ void actShellSlice() {
 	g_shellCommitBegun = false;
 	g_shellEnded = false;
 	g_shellBackKept = false;
+	g_shellBackNoContextRefused = false;
 	g_teardownHeld = g_teardownRootKept = g_teardownDropped = g_nextHeld = g_nextNoticed = false;
 	g_nextHeldThrough = true;
 	// What the ported menu edits: the kit's drum, as the clip view selected it.
@@ -1424,6 +1426,16 @@ void actShellSlice() {
 		deluge::gui::ui::releaseShellSlicerBeforeClose();
 		if (deluge::gui::ui::shellSlicerBusy()) {
 			fail(legName(g_leg), "the guest's close left the slicer's open out");
+		}
+		// A commit with the menu's context forgotten, as a teardown leaves it: refused, with nothing cut or loaded.
+		if (scene.ops() != nullptr) {
+			UI* const root = getRootUI();
+			nullifyUIs();
+			setRootUILowLevel(root);
+			deluge::gui::ui::openShellSlice(legFile());
+			const bool accepted = scene.ops()->begin_commit({.is_manual = false, .slice_count = 4});
+			g_shellBackNoContextRefused = !accepted && !deluge::gui::ui::shellSliceOut();
+			deluge::gui::ui::releaseShellSlicerBeforeClose();
 		}
 		g_shellEnded = true;
 		return;
@@ -2087,9 +2099,14 @@ void checkLeg() {
 		checkManualSlice("SC-SHELL-SLICE-MANUAL");
 		break;
 	case Leg::ShellSliceBack:
-		printf("SC-SHELL-SLICE-BACK kept=%d\n", g_shellBackKept ? 1 : 0);
+		printf("SC-SHELL-SLICE-BACK kept=%d noContextRefused=%d\n", g_shellBackKept ? 1 : 0,
+		       g_shellBackNoContextRefused ? 1 : 0);
 		if (!g_shellBackKept) {
 			printf("SC-SHELL-SLICE-BACK FAIL BACK out of manual mode changed a first drum that holds no file\n");
+			g_failures++;
+		}
+		if (!g_shellBackNoContextRefused) {
+			printf("SC-SHELL-SLICE-BACK FAIL a slice commit with no menu context was not refused\n");
 			g_failures++;
 		}
 		break;
