@@ -16,18 +16,15 @@
 ///     different folder, a different sample length, a range that exists on one source and not the
 ///     other -- so an item wired to the wrong source fails rather than passing on symmetry.
 ///
-/// Plus the relevance half of the task: `osc<i>_file_selector` and `osc<i>_is_sample` are compared
-/// against the legacy `isRelevant()` overrides they port over **eight** oscillator configurations
-/// rather than the single fixture `tables_1_spec.cpp` uses, with each side driven from its own
-/// sentinel (`SoundEditor`'s globals are written immediately before legacy is asked, and the port is
-/// asked through a `MenuContext` built from the same model state).
-///
-/// @note The spec may include `gui/` (for the legacy menu items); the library may not. Same rule
-///       `tables_1_spec.cpp`, `browser_scene_spec.cpp` and `marker_scene_spec.cpp` run under.
+/// Plus the relevance half of the task: the file selector, loop start and loop end nodes' relevance
+/// is compared with the reference rows main's `isRelevant()` overrides gave over **eight** oscillator
+/// configurations rather than the single fixture `tables_1_spec.cpp` uses, the port asked through a
+/// `MenuContext` built from the model state the rows were taken in.
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/marker/marker_scene.h"
+#include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
@@ -44,11 +41,6 @@
 #include "shell/shell.h"
 
 #include "gui/l10n/l10n.h"
-#include "gui/menu_item/file_selector.h"
-#include "gui/menu_item/sample/end.h"
-#include "gui/menu_item/sample/start.h"
-#include "gui/ui/menus.h"
-#include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "model/clip/audio_clip.h"
@@ -62,6 +54,8 @@
 #include "storage/multi_range/multisample_range.h"
 
 #include "support/menu_engine.h"
+#include "support/oracle_table.h"
+#include "support/sample_items_fixtures.h"
 #include "support/song_fixture.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
@@ -84,6 +78,7 @@
 #include "spec/support/spec_main.h"
 
 using namespace deluge::scenes;
+using namespace deluge::scenes::spec::sampleitems;
 using deluge::scenes::menu::MenuContext;
 using deluge::scenes::menu::Node;
 using deluge::ui::shell::BoardProfile;
@@ -107,40 +102,6 @@ struct ScratchCard {
 
 // ---------------------------------------------------------------------------------------------
 // The samples the marker examples open on
-
-constexpr size_t kClusterSize = 32768;
-constexpr int32_t kBytesPerFrame = 2;
-
-/// @brief A `Sample` with a fully investigated overview cache, so nothing reads the card.
-///
-/// `marker_scene_spec.cpp`'s fixture, parameterised by cluster count: **two clusters per display
-/// column is a cliff**, not a preference (`waveform_scan.cpp`'s `numClustersSpan >= 2`), so the two
-/// samples here are 32 and 64 clusters long -- both over the line, and different enough that
-/// `WaveformNav::max_zoom()` tells them apart.
-Sample* make_sample(int32_t num_clusters) {
-	Cluster::set_size(kClusterSize);
-	const uint64_t length = static_cast<uint64_t>(kClusterSize) * num_clusters / kBytesPerFrame;
-
-	// Placed in the deluge heap and never freed -- `song_fixture.h`'s own rule, and for its reason.
-	void* memory = deluge::memory::alloc_fast(sizeof(Sample));
-	auto* s = new (memory) Sample();
-	s->byteDepth = 2;
-	s->numChannels = 1;
-	s->sampleRate = 44100;
-	s->audioDataStartPosBytes = 0;
-	s->audioDataLengthBytes = length * kBytesPerFrame;
-	s->lengthInSamples = length;
-	s->maxValueFound = 127 << 24;
-	s->minValueFound = -128 << 24;
-	s->resizeOverviewCache(num_clusters);
-	for (int32_t i = 0; i < num_clusters; i++) {
-		OverviewCacheEntry& e = s->overviewCacheEntry(static_cast<uint32_t>(i));
-		e.min = static_cast<int8_t>(-(16 + i));
-		e.max = static_cast<int8_t>(16 + i);
-		e.investigated = true;
-	}
-	return s;
-}
 
 /// `WaveformNav::max_zoom()` for a sample of @p num_clusters clusters.
 int64_t zoom_max(int32_t num_clusters) {
@@ -439,24 +400,9 @@ std::vector<Wiring> expected_wiring() {
 // ---------------------------------------------------------------------------------------------
 // The relevance comparison
 
-/// @brief One oscillator configuration to compare the two relevance predicates under.
-struct OscCase {
-	const char* name;
-	::SynthMode synth_mode;
-	OscType osc_type;
-	bool load_file;
-};
-
-constexpr OscCase kOscCases[] = {
-    {"subtractive+sample+loaded", ::SynthMode::SUBTRACTIVE, OscType::SAMPLE, true},
-    {"subtractive+sample+empty", ::SynthMode::SUBTRACTIVE, OscType::SAMPLE, false},
-    {"subtractive+wavetable+loaded", ::SynthMode::SUBTRACTIVE, OscType::WAVETABLE, true},
-    {"subtractive+square", ::SynthMode::SUBTRACTIVE, OscType::SQUARE, false},
-    {"ringmod+sample+loaded", ::SynthMode::RINGMOD, OscType::SAMPLE, true},
-    {"ringmod+wavetable+loaded", ::SynthMode::RINGMOD, OscType::WAVETABLE, true},
-    {"fm+sample+loaded", ::SynthMode::FM, OscType::SAMPLE, true},
-    {"fm+wavetable+loaded", ::SynthMode::FM, OscType::WAVETABLE, true},
-};
+spec::OracleTable& table() {
+	return spec::OracleTable::named("sample_items");
+}
 
 } // namespace
 
@@ -706,59 +652,35 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 	});
 });
 
-describe sample_items_relevance("scenes::menu the sample items: relevance against legacy", $ {
+describe sample_items_relevance("scenes::menu the sample items: relevance against main", $ {
 
 	it("agrees with FileSelector::isRelevant and isSampleModeSample in every oscillator mode", _ {
-		// `tables_1_spec.cpp` already compares every batch-1 node's predicate against its legacy
-		// item, but on ONE fixture sound -- which for these two predicates exercises one of the eight
-		// configurations below. Each side is driven from its own sentinel: the model is written, then
-		// legacy is asked through `soundEditor`'s globals, then the model is written again and the
+		// `tables_1_spec.cpp` already compares every batch-1 node's relevance with its reference row, but on ONE fixture
+		// sound -- which for these nodes exercises one of the eight configurations below. The model is written, then the
 		// port is asked through a freshly built `MenuContext`.
 		select_language();
 		spec::SongFixture song = spec::make_synth_song();
 		auto* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
 		Sample* sample = make_sample(32);
 
-		const auto seed = [&](const OscCase& c, int32_t which) {
-			sound->assignSynthMode(c.synth_mode);
-			for (int32_t i = 0; i < 2; i++) {
-				Source& s = sound->sources[i];
-				s.oscType = i == which ? c.osc_type : OscType::SQUARE;
-				auto* range = static_cast<MultisampleRange*>(s.getOrCreateFirstRange());
-				range->sampleHolder.audioFile = (i == which && c.load_file) ? sample : nullptr;
-			}
-			deluge::bridge::recordLoadedSound(*sound, *song.song); // the record the port reads
-		};
-
 		std::vector<std::string> observed;
 		std::vector<std::string> want;
 		for (const OscCase& c : kOscCases) {
 			for (int32_t which = 0; which < 2; which++) {
-				// --- legacy, from its own sentinel
-				seed(c, which);
-				soundEditor.currentSound = sound;
-				soundEditor.currentSourceIndex = static_cast<int8_t>(which);
-				soundEditor.currentSource = &sound->sources[which];
-				const bool legacy_file = (which == 0 ? deluge::gui::menu_item::file0SelectorMenu
-				                                     : deluge::gui::menu_item::file1SelectorMenu)
-				                             .isRelevant(sound, which);
-				const bool legacy_loop = (which == 0 ? sample0StartMenu : sample1StartMenu).isRelevant(sound, which);
-				const bool legacy_end = (which == 0 ? sample0EndMenu : sample1EndMenu).isRelevant(sound, which);
-
-				// --- port, same sentinel written again, through its own context
-				seed(c, which);
-				const MenuContext ctx =
-				    menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), static_cast<int8_t>(which), false, false, false, false);
-				const bool port_file = (which == 0 ? menu::relevance::osc0_file_selector
-				                                   : menu::relevance::osc1_file_selector)(ctx);
-				const bool port_sample =
-				    (which == 0 ? menu::relevance::osc0_is_sample : menu::relevance::osc1_is_sample)(ctx);
-
-				const std::string tag = std::string{c.name} + "/osc" + std::to_string(which) + ":";
-				want.push_back(tag + (legacy_file ? "F1" : "F0") + (legacy_loop ? "S1" : "S0")
-				               + (legacy_end ? "E1" : "E0"));
-				observed.push_back(tag + (port_file ? "F1" : "F0") + (port_sample ? "S1" : "S0")
-				                   + (port_sample ? "E1" : "E0"));
+				seed_osc_case(*sound, *song.song, sample, c, which);
+				const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip),
+				                                          static_cast<int8_t>(which), false, false, false, false);
+				const std::string path = std::string{"sample/"} + c.name + "/" + std::to_string(which);
+				const std::vector<std::string>* frozen = table().find(path, "rel");
+				const auto flag = [](bool on) { return std::string{on ? "1" : "0"}; };
+				want.push_back(path + ":"
+				               + (frozen != nullptr && frozen->size() == 3
+				                      ? flag((*frozen)[0] == "1") + flag((*frozen)[1] == "1") + flag((*frozen)[2] == "1")
+				                      : std::string{"<no row>"}));
+				observed.push_back(path + ":"
+				                   + flag(menu::bindings::relevant(which == 0 ? nodes::file0_selector : nodes::file1_selector, ctx))
+				                   + flag(menu::bindings::relevant(which == 0 ? nodes::sample0_start : nodes::sample1_start, ctx))
+				                   + flag(menu::bindings::relevant(which == 0 ? nodes::sample0_end : nodes::sample1_end, ctx)));
 			}
 		}
 		expect(observed).to_equal(want);
@@ -772,6 +694,16 @@ describe sample_items_relevance("scenes::menu the sample items: relevance agains
 		expect(answers.size() > size_t(1)).to_be_true();
 	});
 });
+
+describe sample_items_reference_rows("scenes::menu the sample items: the reference rows", $ {
+	it("parses sample_items.tsv clean and asks every row of it", _ {
+		spec::OracleTable& t = table();
+		expect(t.problems().size()).to_equal(size_t{0});
+		expect(t.size() > size_t{15}).to_be_true();
+		expect(t.unasked()).to_equal(std::string{});
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(sample_items_spec, sample_items_mapping, sample_items_opening, sample_items_relevance)
+DELUGE_SPEC(sample_items_spec, sample_items_mapping, sample_items_opening, sample_items_relevance,
+            sample_items_reference_rows)

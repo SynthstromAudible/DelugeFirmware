@@ -1,5 +1,6 @@
 // The DX7 cartridge both menus read: the `.syx` read through the file prefix channel, the bank's names as the ported
-// cartridge page reads them, and a program loaded through the app's sink as legacy's cartridge page loads it.
+// cartridge page reads them, and a program loaded through the app's sink as main's cartridge page loads it. What main's
+// page answered is held in `tests/golden/ui/menu_oracle/dx_cartridge.tsv` and its panels.
 //
 // The spec may include `gui/`; the library may not (`scripts/check_layer_rules.py`).
 
@@ -23,7 +24,9 @@
 #include "storage/DX7Cartridge.h"
 
 #include "support/card_access.h"
+#include "support/dx_cartridge_fixtures.h"
 #include "support/dx_rig.h"
+#include "support/oracle_table.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -37,6 +40,7 @@
 #include <deque>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 using namespace deluge::scenes;
@@ -49,34 +53,20 @@ namespace nodes = deluge::scenes::menu::nodes;
 
 namespace {
 
-/// @brief A 32-voice bulk dump whose program @c i is named "PROG <i>" and whose voice bytes differ per program, its
-/// checksum right.
-std::array<std::byte, kSysexSize> make_bank() {
-	std::array<std::byte, kSysexSize> bank{};
-	const uint8_t header[] = {0xF0, 0x43, 0x00, 0x09, 0x20, 0x00};
-	for (size_t i = 0; i < sizeof header; i++) {
-		bank[i] = std::byte{header[i]};
-	}
-	for (int32_t voice = 0; voice < 32; voice++) {
-		std::byte* v = &bank[6 + voice * 128];
-		for (int32_t i = 0; i < 118; i++) {
-			v[i] = std::byte{static_cast<uint8_t>((voice * 7 + i) % 32)};
-		}
-		std::string name = "PROG " + std::to_string(voice);
-		name.resize(10, ' ');
-		for (int32_t i = 0; i < 10; i++) {
-			v[118 + i] = std::byte{static_cast<uint8_t>(name[i])};
-		}
-	}
-	bank[kSysexSize - 2] = sysexChecksum({&bank[6], 4096});
-	bank[kSysexSize - 1] = std::byte{0xF7};
-	return bank;
+spec::OracleTable& table() {
+	return spec::OracleTable::named("dx_cartridge");
 }
 
-/// @brief Parse a fresh bank into legacy's cartridge item, as a finished read does.
+/// @brief The bank the cartridge page holds: the one place this spec reads or replaces it. The cartridge item owns it
+///        until it is re-homed.
+DX7Cartridge*& bank() {
+	return legacy::dxCartridge.pd;
+}
+
+/// @brief Parse a fresh bank into the cartridge item, as a finished read does.
 void load_bank() {
-	std::array<std::byte, kSysexSize> bank = make_bank();
-	(void)legacy::dxCartridge.tryLoadFromBuffer(bank);
+	std::array<std::byte, kSysexSize> bytes = spec::make_bank();
+	(void)legacy::dxCartridge.tryLoadFromBuffer(bytes);
 }
 
 /// @brief The scripted channel: each collect answers the next status (the last one repeating), READY with the bank.
@@ -92,9 +82,9 @@ struct FakeChannel {
 			answers.pop_front();
 		}
 		if (s == DELUGE_CHANNEL_READY) {
-			const std::array<std::byte, kSysexSize> bank = make_bank();
-			std::memcpy(out, bank.data(), std::min<size_t>(out_cap, bank.size()));
-			*out_len = static_cast<uint32_t>(bank.size());
+			const std::array<std::byte, kSysexSize> bytes = spec::make_bank();
+			std::memcpy(out, bytes.data(), std::min<size_t>(out_cap, bytes.size()));
+			*out_len = static_cast<uint32_t>(bytes.size());
 		}
 		return s;
 	}
@@ -199,25 +189,29 @@ describe dx_cartridge("the DX7 cartridge", ${
 		expect(menu::host_runtime_facts().dx_cartridge().has_value()).to_be_false();
 	});
 
-	it("names the loaded bank's programs as legacy's cartridge page does", _ {
+	it("names the loaded bank's programs as main's cartridge page does", _ {
 		load_bank();
 		const std::optional<bind::DxCartridgeNames> names = menu::host_runtime_facts().dx_cartridge();
 		expect(names.has_value()).to_be_true();
-		expect(names->count).to_equal(legacy::dxCartridge.pd->numPatches());
-		char want[32][11];
-		legacy::dxCartridge.pd->getProgramNames(want);
-		for (int32_t i = 0; i < names->count; i++) {
-			expect(std::string{names->names[i].data()}).to_equal(std::string{want[i]});
+		const std::vector<std::string>* want = table().find("bank", "names");
+		expect(want != nullptr).to_be_true();
+		expect(names->count).to_equal(static_cast<int32_t>(want != nullptr ? want->size() : 0));
+		for (int32_t i = 0; want != nullptr && i < names->count && i < static_cast<int32_t>(want->size()); i++) {
+			expect(std::string{names->names[i].data()}).to_equal((*want)[static_cast<size_t>(i)]);
 		}
 		expect(std::string{names->names[5].data()}).to_equal(std::string{"PROG 5"});
 	});
 
-	it("loads a program over the source's patch as legacy's page does, naming an unsaved synth after it", _ {
+	it("loads a program over the source's patch as main's page does, naming an unsaved synth after it", _ {
 		DxSong s;
 		load_bank();
 		s.song.instrument->mightExistOnCard = false;
 		deluge::instrument::DxPatchState want = s.patch();
-		legacy::dxCartridge.pd->unpackProgram(want.params, 5);
+		const std::vector<std::string>* params = table().find("bank/5", "params");
+		expect(params != nullptr && params->size() == want.params.size()).to_be_true();
+		for (size_t i = 0; params != nullptr && i < params->size() && i < want.params.size(); i++) {
+			want.params[i] = static_cast<uint8_t>(std::stoi((*params)[i]));
+		}
 		expect(menu::host_write_sink().load_dx_program(s.slot(), 0, 5)).to_be_true();
 		expect(s.patch() == want).to_be_true();
 		expect(s.song.instrument->name).to_equal(std::string{"PROG 5"});
@@ -242,10 +236,10 @@ describe dx_cartridge("the DX7 cartridge", ${
 		deluge::project::SlotAddress nowhere = s.slot();
 		nowhere.id += 1000;
 		expect(menu::host_write_sink().load_dx_program(nowhere, 0, 0)).to_be_false();
-		DX7Cartridge* bank = legacy::dxCartridge.pd;
-		legacy::dxCartridge.pd = nullptr;
+		DX7Cartridge* const held = bank();
+		bank() = nullptr;
 		expect(menu::host_write_sink().load_dx_program(s.slot(), 0, 0)).to_be_false();
-		legacy::dxCartridge.pd = bank;
+		bank() = held;
 		expect(s.patch() == before).to_be_true();
 	});
 
@@ -266,7 +260,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 	});
 
 	it("parses the bytes when they arrive and ends Loaded, once", _ {
-		legacy::dxCartridge.pd = nullptr;
+		bank() = nullptr;
 		DxCartridgeRead read{FakeChannel::channel(), &FakeChannel::clock};
 		FakeChannel::script({DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY});
 		(void)read.start("DX7/BANK.SYX");
@@ -274,9 +268,9 @@ describe dx_cartridge("the DX7 cartridge", ${
 		expect(read.poll() == DxCartridgeRead::Status::Loaded).to_be_true();
 		expect(read.busy()).to_be_false();
 		expect(read.poll() == DxCartridgeRead::Status::Idle).to_be_true();
-		expect(legacy::dxCartridge.pd != nullptr).to_be_true();
+		expect(bank() != nullptr).to_be_true();
 		char name[11];
-		legacy::dxCartridge.pd->getProgramName(7, name);
+		bank()->getProgramName(7, name);
 		expect(std::string{name}).to_equal(std::string{"PROG 7"});
 	});
 
@@ -477,21 +471,18 @@ describe dx_cartridge("the DX7 cartridge", ${
 		settle(r);
 	});
 
-	it("lists the bank's programs as legacy's cartridge page draws them", _ {
+	it("lists the bank's programs as main's cartridge page draws them", _ {
 		select_language();
 		load_bank();
 		MenuRig r;
 		for (const int32_t cursor : {0, 1, 2, 5, 30, 31}) {
-			legacy::dxCartridge.currentValue = cursor;
-			legacy::dxCartridge.scrollPos = std::clamp(cursor - 1, 0, legacy::dxCartridge.pd->numPatches() - 3);
-			deluge::hid::display::OLED::main.clear();
-			legacy::dxCartridge.renderOLED();
-			const std::string legacy_panel = below_bezel(legacy_panel_pbm());
+			const std::string frozen = frozen_panel("dx_cartridge_" + std::to_string(cursor));
+			expect(frozen.empty()).to_be_false();
 			r.open(nodes::dx_cartridge);
 			r.turn(cursor);
 			r.tick();
 			const std::string tag = "cursor " + std::to_string(cursor) + "\n";
-			expect(tag + below_bezel(r.fake.pbm(0))).to_equal(tag + legacy_panel);
+			expect(tag + below_bezel(r.fake.pbm(0))).to_equal(tag + below_bezel(frozen));
 		}
 	});
 
@@ -552,6 +543,15 @@ describe dx_cartridge("the DX7 cartridge", ${
 		expect(r.shell.stack().depth()).to_equal(size_t{0});
 	});
 });
+
+describe dx_cartridge_reference_rows("the DX7 cartridge: the reference rows", ${
+	it("parses dx_cartridge.tsv clean and asks every row of it", _ {
+		spec::OracleTable& t = table();
+		expect(t.problems().size()).to_equal(size_t{0});
+		expect(t.size() > size_t{1}).to_be_true();
+		expect(t.unasked()).to_equal(std::string{});
+	});
+});
 // clang-format on
 
-CPPSPEC_SPEC(dx_cartridge)
+DELUGE_SPEC(dx_cartridge_spec, dx_cartridge, dx_cartridge_reference_rows)

@@ -1,0 +1,89 @@
+#pragma once
+
+/// @file
+/// @brief The fixtures of the sample items: a `Sample` with a fully investigated overview cache, and the eight
+///        oscillator configurations the relevance predicates are asked under. The spec and the menu oracle freezer
+///        share them.
+
+#include "memory/heaps.h"
+#include "model/project_bridge/slot_bridge.h"
+#include "model/sample/sample.h"
+#include "model/song/song.h"
+#include "processing/sound/sound.h"
+#include "processing/source.h"
+#include "storage/cluster/cluster.h"
+#include "storage/multi_range/multisample_range.h"
+
+#include <cstddef>
+#include <cstdint>
+#include <new>
+
+namespace deluge::scenes::spec::sampleitems {
+
+inline constexpr size_t kClusterSize = 32768;
+inline constexpr int32_t kBytesPerFrame = 2;
+
+/// @brief A `Sample` with a fully investigated overview cache, so nothing reads the card.
+///
+/// **Two clusters per display column is a cliff**, not a preference (`waveform_scan.cpp`'s `numClustersSpan >= 2`), so
+/// the samples the marker examples open are 32 and 64 clusters long -- both over the line, and different enough that
+/// `WaveformNav::max_zoom()` tells them apart.
+inline Sample* make_sample(int32_t num_clusters) {
+	Cluster::set_size(kClusterSize);
+	const uint64_t length = static_cast<uint64_t>(kClusterSize) * num_clusters / kBytesPerFrame;
+
+	// Placed in the deluge heap and never freed -- `song_fixture.h`'s own rule, and for its reason.
+	void* memory = deluge::memory::alloc_fast(sizeof(Sample));
+	auto* s = new (memory) Sample();
+	s->byteDepth = 2;
+	s->numChannels = 1;
+	s->sampleRate = 44100;
+	s->audioDataStartPosBytes = 0;
+	s->audioDataLengthBytes = length * kBytesPerFrame;
+	s->lengthInSamples = length;
+	s->maxValueFound = 127 << 24;
+	s->minValueFound = -128 << 24;
+	s->resizeOverviewCache(num_clusters);
+	for (int32_t i = 0; i < num_clusters; i++) {
+		OverviewCacheEntry& e = s->overviewCacheEntry(static_cast<uint32_t>(i));
+		e.min = static_cast<int8_t>(-(16 + i));
+		e.max = static_cast<int8_t>(16 + i);
+		e.investigated = true;
+	}
+	return s;
+}
+
+/// @brief One oscillator configuration to ask the relevance predicates under.
+struct OscCase {
+	const char* name;
+	::SynthMode synth_mode;
+	OscType osc_type;
+	bool load_file;
+};
+
+inline constexpr OscCase kOscCases[] = {
+    {"subtractive+sample+loaded", ::SynthMode::SUBTRACTIVE, OscType::SAMPLE, true},
+    {"subtractive+sample+empty", ::SynthMode::SUBTRACTIVE, OscType::SAMPLE, false},
+    {"subtractive+wavetable+loaded", ::SynthMode::SUBTRACTIVE, OscType::WAVETABLE, true},
+    {"subtractive+square", ::SynthMode::SUBTRACTIVE, OscType::SQUARE, false},
+    {"ringmod+sample+loaded", ::SynthMode::RINGMOD, OscType::SAMPLE, true},
+    {"ringmod+wavetable+loaded", ::SynthMode::RINGMOD, OscType::WAVETABLE, true},
+    {"fm+sample+loaded", ::SynthMode::FM, OscType::SAMPLE, true},
+    {"fm+wavetable+loaded", ::SynthMode::FM, OscType::WAVETABLE, true},
+};
+
+/// @brief Configure @p sound as @p c says for oscillator @p which (the other one a square wave, empty), and record it
+/// as
+///        a load does, so the record the menu reads is the sound's truth.
+inline void seed_osc_case(Sound& sound, Song& song, Sample* sample, const OscCase& c, int32_t which) {
+	sound.assignSynthMode(c.synth_mode);
+	for (int32_t i = 0; i < 2; i++) {
+		Source& s = sound.sources[i];
+		s.oscType = i == which ? c.osc_type : OscType::SQUARE;
+		auto* range = static_cast<MultisampleRange*>(s.getOrCreateFirstRange());
+		range->sampleHolder.audioFile = (i == which && c.load_file) ? sample : nullptr;
+	}
+	deluge::bridge::recordLoadedSound(sound, song);
+}
+
+} // namespace deluge::scenes::spec::sampleitems

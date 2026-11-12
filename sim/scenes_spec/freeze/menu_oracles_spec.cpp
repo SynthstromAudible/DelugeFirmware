@@ -17,11 +17,14 @@
 #include "support/menu_over_root.h"
 #include "support/oracle_table.h"
 #include "support/oracle_tree.h"
+#include "support/output_items_fixtures.h"
+#include "support/sample_items_fixtures.h"
 #include "support/tables_1_fixtures.h"
 #include "support/tables_2_fixtures.h"
 #include "support/tables_3_fixtures.h"
 
 #include "gui/ui/menu_view_of.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -100,8 +103,11 @@ using deluge::hid::display::OLED;
 #include "gui/menu_item/delay/sync.h"
 #include "gui/menu_item/delay/type.h"
 #include "gui/menu_item/dx/browse.h"
+#include "gui/menu_item/dx/cartridge.h"
 #include "gui/menu_item/dx/engine_select.h"
 #include "gui/menu_item/dx/global_params.h"
+#include "gui/menu_item/dx/operator_params.h"
+#include "gui/menu_item/dx/param.h"
 #include "gui/menu_item/edit_name.h"
 #include "gui/menu_item/envelope/envelope_menu.h"
 #include "gui/menu_item/envelope/segment.h"
@@ -266,6 +272,7 @@ using deluge::hid::display::OLED;
 #include "gui/ui/menus.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
+#include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -317,6 +324,9 @@ using deluge::hid::display::OLED;
 #include "storage/flash_storage.h"
 
 #include "support/descriptor_fixtures.h"
+#include "support/dx_cartridge_fixtures.h"
+#include "support/dx_pages_fixtures.h"
+#include "support/dx_rig.h"
 #include "support/global_guest_menu.h"
 #include "support/menu_scales_fixtures.h"
 #include "support/midi_device_fixtures.h"
@@ -541,6 +551,15 @@ extern deluge::gui::menu_item::HorizontalMenuGroup reverbMenuGroup;
 extern deluge::gui::menu_item::HorizontalMenuGroup filtersMenuGroup;
 extern deluge::gui::menu_item::HorizontalMenuGroup globalFiltersMenuGroup;
 extern deluge::gui::menu_item::HorizontalMenuGroup globalReverbMenuGroup;
+
+/// @brief How many UIs legacy's stack holds (`gui/ui/ui.cpp`), which no header declares.
+extern int32_t numUIsOpen;
+
+/// @brief Legacy's held-Shift state, which `Buttons::isShiftButtonPressed` reads and `hid/buttons.h` does not declare.
+namespace Buttons {
+extern bool shiftCurrentlyPressed;
+extern bool shiftCurrentlyStuck;
+} // namespace Buttons
 /// @}
 
 namespace {
@@ -3446,6 +3465,450 @@ void freeze(OracleWriter& out) {
 
 } // namespace song_settings_edit
 
+// ---------------------------------------------------------------------------------------------------------------
+// Family `output_items`: the MIDI device-definition link's value, the specific-output selector's landings, walks and
+// relevance, and its two panels.
+
+namespace output_items {
+
+namespace oi = spec::outputitems;
+
+/// @brief `OLED::main` -- what `MenuItem::renderOLED` draws into -- as a PBM.
+std::string legacy_panel_pbm() {
+	const auto& canvas = deluge::hid::display::OLED::main;
+	return page_major_to_pbm(canvas.bytes().data(), OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS);
+}
+
+/// @brief Begin a legacy selector session over whatever `currentSong` says, as the spec's legacy half did.
+void begin_selector() {
+	midiDeviceLinkedMenu.readCurrentValue(); // unrelated; keeps the two globals' state independent
+	specificOutputSelectorMenu.beginSession(nullptr);
+}
+
+/// @return Whether both panel files were written.
+bool freeze(OracleWriter& out) {
+	static oi::QuietDisplay quiet;
+	deluge::hid::Display* const saved_display = display;
+	if (display == nullptr) {
+		display = &quiet;
+	}
+	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
+
+	{
+		oi::MidiRig rig;
+		for (const oi::LinkedCase& c : oi::kLinkedCases) {
+			rig.instrument()->setDeviceDefinitionFileName(c.path);
+			midiDeviceLinkedMenu.readCurrentValue();
+			out.row(std::string{"linked/"} + c.name, "value", midiDeviceLinkedMenu.getValue() ? 1 : 0);
+		}
+	}
+	for (const auto& [name, start] :
+	     {std::pair{"invalid_source", oi::Start::None}, std::pair{"valid_source", oi::Start::SynthB}}) {
+		oi::ClipRig rig;
+		oi::store_source(rig, start);
+		begin_selector();
+		out.row(std::string{"selector/"} + name, "lands", rig.recording_from_index());
+	}
+	for (const oi::Walk& walk : oi::kWalks) {
+		oi::ClipRig rig;
+		if (walk.extra_synths) {
+			(void)rig.add_synth("C");
+			(void)rig.add_synth("D");
+		}
+		const int32_t step = walk.detents >= 0 ? 1 : -1;
+		const int32_t steps = walk.detents >= 0 ? walk.detents : -walk.detents;
+		oi::store_source(rig, walk.start);
+		begin_selector();
+		for (int32_t i = 1; i <= steps; i++) {
+			specificOutputSelectorMenu.selectEncoderAction(step);
+			out.row(std::string{"selector/"} + walk.name + "/" + std::to_string(i), "at", rig.recording_from_index());
+		}
+		if (std::string_view{walk.name} == "shift") {
+			// One click with Shift held reaches the item as the offset times five.
+			oi::store_source(rig, walk.start);
+			begin_selector();
+			specificOutputSelectorMenu.selectEncoderAction(5);
+			out.row("selector/shift/click", "at", rig.recording_from_index());
+		}
+	}
+	bool panels = true;
+	{
+		oi::ClipRig rig;
+		rig.song.output->setOutputRecordingFrom(rig.synth_a);
+		deluge::hid::display::OLED::main.clear();
+		specificOutputSelectorMenu.beginSession(nullptr);
+		specificOutputSelectorMenu.renderOLED();
+		panels = write_pixels("output_selector", legacy_panel_pbm()) && panels;
+	}
+	{
+		// A song with only the audio track in it: nothing can be recorded from, which is the "No track" arm.
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		f.output->setInputChannel(AudioInputChannel::SPECIFIC_OUTPUT);
+		f.output->setOutputRecordingFrom(nullptr);
+		deluge::hid::display::OLED::main.clear();
+		specificOutputSelectorMenu.beginSession(nullptr);
+		specificOutputSelectorMenu.renderOLED();
+		panels = write_pixels("output_selector_empty", legacy_panel_pbm()) && panels;
+	}
+	{
+		oi::ClipRig rig;
+		for (const auto& [name, channel] :
+		     {std::pair{"specific", AudioInputChannel::SPECIFIC_OUTPUT}, std::pair{"left", AudioInputChannel::LEFT}}) {
+			rig.song.output->setInputChannel(channel);
+			out.row(std::string{"selector/"} + name, "rel", specificOutputSelectorMenu.isRelevant(nullptr, 0) ? 1 : 0);
+		}
+	}
+	display = saved_display;
+	return panels;
+}
+
+} // namespace output_items
+
+// ---------------------------------------------------------------------------------------------------------------
+// Family `sample_items`: whether the file selector, the loop start and the loop end are offered, for each oscillator
+// configuration and each oscillator.
+
+namespace sample_items {
+
+namespace si = spec::sampleitems;
+
+void freeze(OracleWriter& out) {
+	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
+	spec::SongFixture song = spec::make_synth_song();
+	auto* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
+	Sample* sample = si::make_sample(32);
+	for (const si::OscCase& c : si::kOscCases) {
+		for (int32_t which = 0; which < 2; which++) {
+			si::seed_osc_case(*sound, *song.song, sample, c, which);
+			soundEditor.currentSound = sound;
+			soundEditor.currentSourceIndex = static_cast<int8_t>(which);
+			soundEditor.currentSource = &sound->sources[which];
+			const bool file =
+			    (which == 0 ? legacy::file0SelectorMenu : legacy::file1SelectorMenu).isRelevant(sound, which);
+			const bool loop = (which == 0 ? sample0StartMenu : sample1StartMenu).isRelevant(sound, which);
+			const bool end = (which == 0 ? sample0EndMenu : sample1EndMenu).isRelevant(sound, which);
+			out.row(std::string{"sample/"} + c.name + "/" + std::to_string(which), "rel",
+			        {file ? "1" : "0", loop ? "1" : "0", end ? "1" : "0"});
+		}
+	}
+}
+
+} // namespace sample_items
+
+// ---------------------------------------------------------------------------------------------------------------
+// Family `dx_pages`: the DX7 parameter page's limits, titles, row targets, steps, layouts, pad maps and blinks, and the
+// panels of the four DX7 pages.
+
+namespace dx_pages {
+
+namespace dx = deluge::scenes::menu::dx;
+namespace dxp = spec::dxpages;
+namespace rig = spec::dx_rig;
+
+/// @brief Legacy's param page on @p param, as `readValueAgain` leaves it.
+void legacy_on(int16_t param) {
+	legacy::dxParam.param = param;
+	legacy::dxParam.readValueAgain();
+}
+
+/// @brief Hold or release Shift on legacy's side, which is all `isShiftButtonPressed` reads.
+void set_shift(bool on) {
+	::Buttons::shiftCurrentlyPressed = on;
+	::Buttons::shiftCurrentlyStuck = false;
+}
+
+/// @brief `OLED::main`, into which every legacy `renderOLED()` draws, as a PBM.
+std::string legacy_panel_pbm() {
+	const auto& canvas = deluge::hid::display::OLED::main;
+	return page_major_to_pbm(canvas.bytes().data(), OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS);
+}
+
+/// @brief Legacy's `renderMainShortcutsOnly` with `soundEditor` the current UI on @p item: the overlay `main` paints.
+std::array<std::array<RGB, 18>, 8> legacy_overlay(::MenuItem& item) {
+	RootUI* const root = getRootUI();
+	const int32_t open = numUIsOpen;
+	setRootUILowLevel(&soundEditor);
+	const uint8_t depth = soundEditor.navigationDepth;
+	::MenuItem* const was = soundEditor.menuItemNavigationRecord[depth];
+	soundEditor.menuItemNavigationRecord[depth] = &item;
+	RGB image[8][18]{};
+	uint8_t occupancy[8][18]{};
+	SoundEditor::renderMainShortcutsOnly(nullptr, image, occupancy, false);
+	soundEditor.menuItemNavigationRecord[depth] = was;
+	if (root != nullptr) {
+		setRootUILowLevel(root);
+	}
+	numUIsOpen = open;
+	std::array<std::array<RGB, 18>, 8> out{};
+	for (int32_t y = 0; y < 8; y++) {
+		for (int32_t x = 0; x < 18; x++) {
+			out[y][x] = image[y][x];
+		}
+	}
+	return out;
+}
+
+/// @brief The page a row of the global list or an operator list leads to, as `selectButtonPress` answers it.
+std::string target_of(const ::MenuItem* next) {
+	if (next == &legacy::dxParam) {
+		return "param " + std::to_string(legacy::dxParam.param);
+	}
+	if (next == &legacy::dxOperatorParams) {
+		return "op " + std::to_string(legacy::dxOperatorParams.op);
+	}
+	return "other";
+}
+
+/// @return Whether every panel file was written.
+bool freeze(OracleWriter& out) {
+	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
+	bool panels = true;
+	const auto panel = [&](const std::string& name) { panels = write_pixels(name, legacy_panel_pbm()) && panels; };
+
+	{
+		rig::DxRig r;
+		for (int16_t p = dx::kRandomDetune; p <= dx::kLastParam; p++) {
+			legacy_on(p);
+			const std::string path = "dx/" + std::to_string(p);
+			out.row(path, "max", static_cast<int64_t>(legacy::dxParam.upper_limit));
+			out.row(path, "title", std::string{legacy::dxParam.getTitle()});
+		}
+		for (int32_t row = 0; row < dx::kGlobalRows; row++) {
+			legacy::dxGlobalParams.currentValue = row;
+			out.row("dx/row/" + std::to_string(row), "to", target_of(legacy::dxGlobalParams.selectButtonPress()));
+		}
+		for (int32_t op = 0; op < 6; op++) {
+			for (int32_t row = 0; row < dx::kOperatorRows; row++) {
+				legacy::dxOperatorParams.op = op;
+				legacy::dxOperatorParams.currentValue = row;
+				out.row("dx/op/" + std::to_string(op) + "/row/" + std::to_string(row), "to",
+				        target_of(legacy::dxOperatorParams.selectButtonPress()));
+			}
+		}
+		for (int16_t p = dx::kRandomDetune; p <= dx::kLastParam; p++) {
+			for (const int32_t offset : {-1, 1}) {
+				legacy_on(p);
+				legacy::dxParam.horizontalEncoderAction(offset);
+				out.row("dx/h/" + std::to_string(p) + "/" + std::to_string(offset), "to",
+				        static_cast<int64_t>(legacy::dxParam.param));
+			}
+		}
+		for (int32_t mask = 0; mask < 64; mask++) {
+			r.patch().params[dx::kOperatorSwitch] = static_cast<uint8_t>(mask);
+			for (int16_t p = dx::kRandomDetune; p <= dx::kLastParam; p++) {
+				if (mask == 0 && p == dx::kFirstGlobal) {
+					continue; // legacy's search never ends here
+				}
+				std::vector<std::string> to;
+				for (const int32_t offset : {-1, 1}) {
+					legacy_on(p);
+					set_shift(true);
+					legacy::dxParam.horizontalEncoderAction(offset);
+					set_shift(false);
+					to.push_back(std::to_string(legacy::dxParam.param));
+				}
+				out.row("dx/shift_h/" + std::to_string(p) + "/" + std::to_string(mask), "to", to);
+			}
+		}
+		const ::MenuItem* const rows[] = {&legacy::dxBrowseMenu, &legacy::dxGlobalParams, &legacy::dxEngineSelect};
+		const auto kids = SubmenuPeek::items_of(::dxMenu);
+		out.row("dx/source", "kids", static_cast<int64_t>(kids.size()));
+		out.row("dx/source", "title", std::string{::dxMenu.getTitle()});
+		check(kids.size() == std::size(rows) && kids[0] == rows[0] && kids[1] == rows[1] && kids[2] == rows[2],
+		      "dxMenu lists the browse, parameter and engine rows in that order");
+		for (size_t i = 0; i < kids.size(); i++) {
+			out.row("dx/source/" + std::to_string(i), "name", std::string{kids[i]->getName()});
+		}
+	}
+	{
+		rig::MenuRig r;
+		deluge::instrument::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sources[0]).value();
+		dxp::for_each_layout(
+		    patch,
+		    [&] { check(menu::host_write_sink().write_dx_patch(r.slot(), 0, patch), "the layout patch was written"); },
+		    [&](const std::string& name, int16_t param) {
+			    legacy_on(param);
+			    deluge::hid::display::OLED::main.clear();
+			    legacy::dxParam.renderOLED();
+			    panel("dx_" + name);
+		    });
+		const auto render = [&](::MenuItem& item, const std::string& name) {
+			deluge::hid::display::OLED::main.clear();
+			item.renderOLED();
+			panel("dx_source_" + name);
+		};
+		::dxMenu.beginSession(nullptr); // its current row, as entering it on the device sets
+		render(::dxMenu, "menu");
+		for (int32_t row = 0; row < dx::kGlobalRows; row++) {
+			legacy::dxGlobalParams.currentValue = row;
+			legacy::dxGlobalParams.scrollPos = std::clamp(row - 1, 0, dx::kGlobalRows - 3);
+			render(legacy::dxGlobalParams, "global_" + std::to_string(row));
+		}
+		for (int32_t op = 0; op < 6; op++) {
+			for (int32_t row = 0; row < dx::kOperatorRows; row++) {
+				legacy::dxOperatorParams.op = op;
+				legacy::dxOperatorParams.format(6 - op);
+				legacy::dxOperatorParams.currentValue = row;
+				legacy::dxOperatorParams.scrollPos = std::clamp(row - 1, 0, dx::kOperatorRows - 3);
+				render(legacy::dxOperatorParams, "operator_" + std::to_string(op) + "_" + std::to_string(row));
+			}
+		}
+		for (uint8_t mode = 0; mode < 3; mode++) {
+			deluge::instrument::DxPatchState modes = deluge::bridge::dxPatchOf(r.sound->sources[0]).value();
+			modes.engine_mode = mode;
+			check(menu::host_write_sink().write_dx_patch(r.slot(), 0, modes), "the engine mode was written");
+			legacy::dxEngineSelect.readValueAgain();
+			render(legacy::dxEngineSelect, "engine_" + std::to_string(mode));
+		}
+	}
+	{
+		rig::DxRig r;
+		for (int16_t param = dx::kRandomDetune; param <= dx::kLastParam; param++) {
+			soundEditor.currentParamShortcutX = 255; // legacy leaves the pad alone where none blinks
+			soundEditor.currentParamShortcutY = 255;
+			legacy_on(param);
+			const std::string path = "dx/" + std::to_string(param);
+			if (soundEditor.currentParamShortcutX == 255) {
+				out.row(path, "blink", "-");
+			}
+			else {
+				out.row(path, "blink",
+				        {std::to_string(soundEditor.currentParamShortcutX) + ","
+				             + std::to_string(soundEditor.currentParamShortcutY),
+				         std::to_string(soundEditor.paramShortcutBlinkFrequency)});
+			}
+			out.row(path, "flash_row", static_cast<int64_t>(legacy::dxParam.flash_row));
+		}
+	}
+	{
+		rig::DxRig r;
+		rig::Popups p; // `flashParamName` asks the display whether it is a 7-segment one
+		for (uint8_t x = 0; x < 16; x++) {
+			for (uint8_t y = 0; y < 8; y++) {
+				legacy_on(dxp::kUntouched);
+				(void)legacy::dxParam.potentialShortcutPadAction(x, y, true);
+				out.row("dx/pad/" + std::to_string(x) + "," + std::to_string(y), "param",
+				        static_cast<int64_t>(legacy::dxParam.param));
+			}
+		}
+	}
+	{
+		rig::DxRig r;
+		dxp::DxEngineOn on;
+		const auto want = legacy_overlay(legacy::dxParam);
+		for (uint8_t y = 0; y < 8; y++) {
+			for (uint8_t x = 0; x < 16; x++) {
+				const RGB c = want[y][x];
+				out.row("dx/overlay/" + std::to_string(x) + "," + std::to_string(y), "rgb",
+				        {std::to_string(c.r), std::to_string(c.g), std::to_string(c.b)});
+			}
+		}
+	}
+	{
+		rig::DxRig r;
+		RootUI* const root = getRootUI();
+		const int32_t open = numUIsOpen;
+		setRootUILowLevel(&soundEditor); // the editor is open...
+		const uint8_t depth = soundEditor.navigationDepth;
+		::MenuItem* const was = soundEditor.menuItemNavigationRecord[depth];
+		soundEditor.menuItemNavigationRecord[depth] = &legacy::dxParam; // ...on the parameter page
+		for (int32_t op = 0; op < 8; op++) {
+			for (int16_t p = dx::kRandomDetune; p <= dx::kLastParam; p++) {
+				legacy_on(p);
+				legacy::dxParam.openForOpOrGlobal(op);
+				out.row("dx/column/" + std::to_string(op) + "," + std::to_string(p) + "/on", "param",
+				        static_cast<int64_t>(legacy::dxParam.param));
+			}
+		}
+		soundEditor.menuItemNavigationRecord[depth] = was;
+		if (root != nullptr) {
+			setRootUILowLevel(root);
+		}
+		numUIsOpen = open;
+	}
+	{
+		rig::DxRig r;
+		dxp::IsomorphicRoot root{r.song.clip};
+		for (const int32_t scroll : dxp::kScrolls) {
+			for (int32_t interval = dxp::kIntervalFirst; interval <= dxp::kIntervalLast; interval++) {
+				r.song.clip->keyboardState.isomorphic.scrollOffset = scroll;
+				r.song.clip->keyboardState.isomorphic.rowInterval = interval;
+				for (int32_t breakpoint = 0; breakpoint < dxp::kBreakpointEnd; breakpoint += dxp::kBreakpointStep) {
+					r.patch().params[2 * 21 + 8] = static_cast<uint8_t>(breakpoint);
+					legacy_on(2 * 21 + 8);
+					soundEditor.currentParamShortcutX = 255;
+					uiTimerManager.setTimer(TimerName::SHORTCUT_BLINK, 1000);
+					legacy::dxParam.renderOLED();
+					const std::string path = "dx/breakpoint/" + std::to_string(scroll) + "/" + std::to_string(interval)
+					                         + "/" + std::to_string(breakpoint);
+					if (soundEditor.currentParamShortcutX == 255) {
+						check(!uiTimerManager.isTimerSet(TimerName::SHORTCUT_BLINK),
+						      "no pad blinks where the blink timer was cancelled: " + path);
+						out.row(path, "pad", "-");
+					}
+					else {
+						out.row(path, "pad",
+						        {std::to_string(soundEditor.currentParamShortcutX) + ","
+						             + std::to_string(soundEditor.currentParamShortcutY),
+						         std::to_string(soundEditor.paramShortcutBlinkFrequency)});
+					}
+				}
+			}
+		}
+	}
+	return panels;
+}
+
+} // namespace dx_pages
+
+// ---------------------------------------------------------------------------------------------------------------
+// Family `dx_cartridge`: the loaded bank's program names, a program unpacked over a patch, and the cartridge page's
+// panel at each cursor.
+
+namespace dx_cartridge {
+
+using dx_pages::legacy_panel_pbm;
+
+/// @brief Parse a fresh bank into legacy's cartridge item, as a finished read does.
+void load_bank() {
+	std::array<std::byte, kSysexSize> bank = spec::make_bank();
+	(void)legacy::dxCartridge.tryLoadFromBuffer(bank);
+}
+
+/// @return Whether every panel file was written.
+bool freeze(OracleWriter& out) {
+	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
+	bool panels = true;
+	load_bank();
+	std::vector<std::string> names;
+	char programs[32][11];
+	legacy::dxCartridge.pd->getProgramNames(programs);
+	for (int32_t i = 0; i < legacy::dxCartridge.pd->numPatches(); i++) {
+		names.emplace_back(programs[i]);
+	}
+	out.row("bank", "names", names);
+	{
+		spec::dx_rig::DxRig r;
+		deluge::instrument::DxPatchState patch = deluge::bridge::dxPatchOf(r.sound->sources[0]).value();
+		legacy::dxCartridge.pd->unpackProgram(patch.params, 5);
+		std::vector<std::string> params;
+		for (const uint8_t b : patch.params) {
+			params.push_back(std::to_string(b));
+		}
+		out.row("bank/5", "params", params);
+	}
+	for (const int32_t cursor : {0, 1, 2, 5, 30, 31}) {
+		legacy::dxCartridge.currentValue = cursor;
+		legacy::dxCartridge.scrollPos = std::clamp(cursor - 1, 0, legacy::dxCartridge.pd->numPatches() - 3);
+		deluge::hid::display::OLED::main.clear();
+		legacy::dxCartridge.renderOLED();
+		panels = write_pixels("dx_cartridge_" + std::to_string(cursor), legacy_panel_pbm()) && panels;
+	}
+	return panels;
+}
+
+} // namespace dx_cartridge
+
 } // namespace
 
 // clang-format off
@@ -3584,6 +4047,61 @@ describe freeze_tables("menu oracle freezer: the batch-1 roots, the sound root, 
 		expect(freeze_problems()).to_equal(std::string{});
 		expect(out.duplicates()).to_equal(std::string{});
 		expect(out.size() > size_t{4}).to_be_true();
+		expect(out.flush()).to_be_true();
+	});
+
+	it("writes output_items.tsv and its panels", _ {
+		if (!writes("output_items")) {
+			return;
+		}
+		freeze_problems().clear();
+		OracleWriter out{"output_items"};
+		const bool panels = output_items::freeze(out);
+		expect(panels).to_be_true();
+		expect(freeze_problems()).to_equal(std::string{});
+		expect(out.duplicates()).to_equal(std::string{});
+		expect(out.size() > size_t{20}).to_be_true();
+		expect(out.flush()).to_be_true();
+	});
+
+	it("writes sample_items.tsv", _ {
+		if (!writes("sample_items")) {
+			return;
+		}
+		freeze_problems().clear();
+		OracleWriter out{"sample_items"};
+		sample_items::freeze(out);
+		expect(freeze_problems()).to_equal(std::string{});
+		expect(out.duplicates()).to_equal(std::string{});
+		expect(out.size() > size_t{15}).to_be_true();
+		expect(out.flush()).to_be_true();
+	});
+
+	it("writes dx_pages.tsv and its panels", _ {
+		if (!writes("dx_pages")) {
+			return;
+		}
+		freeze_problems().clear();
+		OracleWriter out{"dx_pages"};
+		const bool panels = dx_pages::freeze(out);
+		expect(panels).to_be_true();
+		expect(freeze_problems()).to_equal(std::string{});
+		expect(out.duplicates()).to_equal(std::string{});
+		expect(out.size() > size_t{10000}).to_be_true();
+		expect(out.flush()).to_be_true();
+	});
+
+	it("writes dx_cartridge.tsv and its panels", _ {
+		if (!writes("dx_cartridge")) {
+			return;
+		}
+		freeze_problems().clear();
+		OracleWriter out{"dx_cartridge"};
+		const bool panels = dx_cartridge::freeze(out);
+		expect(panels).to_be_true();
+		expect(freeze_problems()).to_equal(std::string{});
+		expect(out.duplicates()).to_equal(std::string{});
+		expect(out.size() > size_t{1}).to_be_true();
 		expect(out.flush()).to_be_true();
 	});
 
