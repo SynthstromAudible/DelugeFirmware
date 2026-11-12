@@ -50,7 +50,9 @@ the same shape wherever you are, and is the same rule a Kit drum has always foll
 - `SLOT 1` through `SLOT 4` - each opens a submenu for that slot:
   - `FILE` - opens the sample browser to load (or replace) that slot's sample. `SLOT 1` is the primary sample and
     can also be loaded via the regular `FILE` browser item; slots 2-4 are alternates and must be filled in order
-    (the next empty slot is indicated with `Load`).
+    (the next empty slot is indicated with `Load`). While an oscillator has variants it stays a sample
+    oscillator: the browser's `SINGLE-CYCLE` and `WAVETABLE` load options aren't offered, and a wavetable file
+    loads as a plain sample. Clear the variants first if you want a wavetable there.
   - `STRT` and `END` - each opens the sample marker editor for that slot, focused on that marker. Loop points are
     editable from the same screen: pressing near any marker switches focus to it, so these two entries cover
     everything you'd otherwise need separate loop-point items for.
@@ -64,6 +66,9 @@ the same shape wherever you are, and is the same rule a Kit drum has always foll
     own volume. It only attenuates - there is no boost - so it can never push a variant into clipping.
 - Pressing `SHIFT` + `SAVE/DELETE` while an alternate slot (2-4) is selected clears that variant, shifting any
   later slots down to fill the gap.
+- A slot whose sample can't be found on the card is passed over when the zone plays, rather than sounding as a
+  silent note, until a sample is loaded into it again.
+- Slicing a sample into a kit, or importing a folder as a kit, clears the variants of the drum it starts from.
 
 ## Shortcuts
 
