@@ -70,10 +70,23 @@ describe legacy_shared_blink("the legacy editor's shortcut-blink members are the
 		padShortcutBlink.setup(kNoSelection, 0, 0);
 	});
 
-	it("is what the engine blinks after the legacy editor set it up", _ {
-		soundEditor.setupShortcutBlink(5, 6, 1);
+	it("is what the engine blinks after the legacy editor wrote it", _ {
+		soundEditor.currentParamShortcutX = 5;
+		soundEditor.currentParamShortcutY = 6;
+		soundEditor.currentParamColour = 7;
+		soundEditor.paramShortcutBlinkFrequency = 8;
+		soundEditor.shortcutBlinkCounter = 9;
 		expect(static_cast<int32_t>(padShortcutBlink.paramX)).to_equal(5);
 		expect(static_cast<int32_t>(padShortcutBlink.paramY)).to_equal(6);
+		expect(static_cast<int32_t>(padShortcutBlink.paramColour)).to_equal(7);
+		expect(static_cast<int32_t>(padShortcutBlink.paramFrequency)).to_equal(8);
+		expect(static_cast<int32_t>(padShortcutBlink.counter)).to_equal(9);
+		padShortcutBlink.setup(kNoSelection, 0, 0);
+	});
+
+	it("reads the engine's step counter", _ {
+		padShortcutBlink.counter = 11;
+		expect(static_cast<int32_t>(soundEditor.shortcutBlinkCounter)).to_equal(11);
 		padShortcutBlink.setup(kNoSelection, 0, 0);
 	});
 
@@ -81,8 +94,10 @@ describe legacy_shared_blink("the legacy editor's shortcut-blink members are the
 		padShortcutBlink.resetSources();
 		padShortcutBlink.sourceFrequencies[1][2] = 7;
 		padShortcutBlink.sourceColours[1][2] = 3;
+		padShortcutBlink.sourceAlternates[1][2] = true;
 		expect(static_cast<int32_t>(soundEditor.sourceShortcutBlinkFrequency(1, 2))).to_equal(7);
 		expect(static_cast<int32_t>(soundEditor.sourceShortcutBlinkColour(1, 2))).to_equal(3);
+		expect(soundEditor.sourceShortcutBlinkAlternates(1, 2)).to_be_true();
 		soundEditor.resetSourceBlinks();
 		expect(static_cast<int32_t>(padShortcutBlink.sourceFrequencies[1][2])).to_equal(255);
 	});

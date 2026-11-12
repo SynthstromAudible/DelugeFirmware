@@ -872,7 +872,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	});
 
 	it("on opening over an overlay-only stack, asks legacy to draw the root's pads and re-reads the greyout", _ {
-		// `SoundEditor::opened` calls `uiNeedsRendering(this, 0xFFFFFFFF, 0)` (`sound_editor.cpp:498`),
+		// `SoundEditor::opened` calls `uiNeedsRendering(this, 0xFFFFFFFF, 0)` (`SoundEditor::getGreyoutColsAndRows`),
 		// and `openUI` re-reads the greyout before `opened()` -- when the guest's stack is still empty --
 		// so the guest re-reads it once its scene is on.
 		Rig r;

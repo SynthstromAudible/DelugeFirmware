@@ -178,7 +178,7 @@ bool ShellHostUI::opened() {
 	// to check where the boundary is.
 	wireShellGuestServices();
 
-	// `SoundEditor::opened` asks for the root's pads (`gui/ui/sound_editor.cpp:498`): while the guest
+	// `SoundEditor::opened` asks for the root's pads (`SoundEditor::getGreyoutColsAndRows`): while the guest
 	// owns none they are the UI underneath's, greyed by the mask `openUI` read before the scene was
 	// on the stack -- so the greyout is read again now.
 	using deluge::ui::shell::PadRegions;

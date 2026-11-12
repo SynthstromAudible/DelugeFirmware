@@ -129,7 +129,7 @@ struct HeldShift {
 ///
 /// A root whose `relevant` hook refuses makes `permission_for` answer `No` for it
 /// (`scenes/menu/context.cpp`'s base rule), which is the refusal `SoundEditor::goUpOneLevel`'s loop
-/// meets at `gui/ui/sound_editor.cpp:718-722`. No production root refuses at depth 0, so these stand in.
+/// meets in the same function. No production root refuses at depth 0, so these stand in.
 /// @{
 bool never_relevant(const MenuContext&) {
 	return false;

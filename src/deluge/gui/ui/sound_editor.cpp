@@ -392,12 +392,10 @@ void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 PLACE_SDRAM_BSS SoundEditor soundEditor{};
 
 SoundEditor::SoundEditor() {
-	currentParamShortcutX = kNoSelection;
 	timeLastAttemptedAutomatedParamEdit = 0;
 	shouldGoUpOneLevelOnBegin = false;
 	setupKitGlobalFXMenu = false;
 	selectedNoteRow = false;
-	resetSourceBlinks();
 }
 
 void SoundEditor::resetSourceBlinks() {

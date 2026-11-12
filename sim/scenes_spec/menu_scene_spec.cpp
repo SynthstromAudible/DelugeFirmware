@@ -1194,8 +1194,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.shell.tick(0);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 
-		// `handle()` directly, so the `Result` itself is the assertion (`sound_editor.cpp:454` ->
-		// `:433` `goUpOneLevel()` -> `:678` `exitCompletely()`). `Remove`, not `Pop`:
+		// `handle()` directly, so the `Result` itself is the assertion (`SoundEditor::buttonAction`'s BACK arm ->
+		// `goUpOneLevel()` -> `exitCompletely()`). `Remove`, not `Pop`:
 		// `Pop{.pop_to = kind}` still pops everything ABOVE `kind` too
 		// (`SceneStack::pop`), which is wrong for "close just me" the moment a `Notices`
 		// overlay legitimately sits above this scene (see the test right after this one).
@@ -2987,7 +2987,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		expect(menu_scene().state().blink_anchor_ms).to_equal(first);
 
 		// ... but jumping to another pad re-anchors, exactly as `setupShortcutBlink`'s
-		// `shortcutBlinkCounter = 0` does (`sound_editor.cpp:1195`). Without that the port would
+		// `shortcutBlinkCounter = 0` does. Without that the port would
 		// free-run and a freshly focused pad could flash mid-cycle.
 		r.pad(kHpfFreqX, kHpfFreqY, 64, 600);
 		r.shell.tick(601);

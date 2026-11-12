@@ -22,8 +22,8 @@
 #include <cstdint>
 
 /// @brief The shortcut-pad blink: one parameter pad, flashed every `paramFrequency`-masked step, and the two
-///        patching-source columns, each flashed on its own mask. The automation view and the legacy editor drive the
-///        same one, and `TimerName::SHORTCUT_BLINK` ticks it.
+///        patching-source columns, each flashed on its own mask. It drives the shortcut pads' blinks for the menu and
+///        the automation view, and `TimerName::SHORTCUT_BLINK` ticks it.
 class PadShortcutBlink {
 public:
 	PadShortcutBlink() { resetSources(); }

@@ -32,7 +32,7 @@ bool noteEditorOpen() {
 }
 
 bool noteRowEditorOpen() {
-	// `noteEditorOpen`'s shape, over `inNoteRowEditor()` (`gui/ui/sound_editor.cpp:1918-1920`).
+	// `noteEditorOpen`'s shape, over `inNoteRowEditor()` (`SoundEditor::inNoteRowEditor`).
 	return (getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor())
 	       || activeNoteMode() == NoteModeKind::NoteRowEditor;
 }

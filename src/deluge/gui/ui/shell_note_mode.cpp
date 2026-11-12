@@ -188,9 +188,9 @@ std::optional<ActionResult> forwardNoteButton(deluge::hid::Button b, bool on) {
 	// as `DEALT_WITH` (`:3762`, `:4057`).
 	const NoteModeLegacyCalls& calls = noteModeLegacyCalls();
 	if (mode == NoteModeKind::NoteEditor) {
-		return calls.noteEditorButton(b, on); // `sound_editor.cpp:617-619`
+		return calls.noteEditorButton(b, on); // `SoundEditor::buttonAction`
 	}
-	return calls.noteRowEditorButton(b, on); // `sound_editor.cpp:619-623`
+	return calls.noteRowEditorButton(b, on); // `SoundEditor::buttonAction`
 }
 
 std::optional<ActionResult> forwardNoteHorizontalEncoder(int32_t offset) {

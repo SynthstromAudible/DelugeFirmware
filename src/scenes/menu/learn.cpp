@@ -276,7 +276,8 @@ void MenuLearn::leds(const MenuState& st, deluge::ui::LedFrame& f, deluge::ui::L
 	// item whether it wants the LEARN LED, and blinks or extinguishes it accordingly. Declared on
 	// every tick rather than only on a change, because that is what an `LedFrame` is -- the full
 	// state of the LEDs this scene owns, redeclared each time. It is `blinkLed`'s default blink, BACK's.
-	// While learning, `blinkLed(LEARN, 255, 1)`'s fast blink (`sound_editor.cpp:742`), restarted at the press.
+	// While learning, `blinkLed(LEARN, 255, 1)`'s fast blink (`SoundEditor::buttonAction`'s LEARN arm), restarted at
+	// the press.
 	if (restart_) {
 		restart_ = false;
 		f.restart(deluge::ui::BlinkRate::Fast);

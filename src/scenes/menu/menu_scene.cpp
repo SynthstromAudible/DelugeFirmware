@@ -95,7 +95,7 @@ void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	pending_transition_.reset();
 	transition_.reset();
 	cable_edge_until_ms_ = 0;
-	visit_ = {}; // `blinkLed(IndicatorLED::BACK)` as the editor opens (`sound_editor.cpp:569`), among the rest
+	visit_ = {}; // `blinkLed(IndicatorLED::BACK)` as the editor opens (`SoundEditor::beginScreen`), among the rest
 	holding_affect_entire_ = false;
 	pads_.forget_landing();
 	retarget(root);
@@ -239,7 +239,7 @@ bool MenuScene::on_enter(const SceneId& id) {
 		walk_.focus_column(core(), *target);
 		return true;
 	}
-	// `beginScreen`: a new screen, with `blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:569`). Reset only on a
+	// `beginScreen`: a new screen, with `blinkLed(IndicatorLED::BACK)` (`SoundEditor::beginScreen`). Reset only on a
 	// screen that opens: a refused id leaves the menu the visit it was, as the shell rolls the move back.
 	visit_ = {};
 	retarget(*target);
@@ -1115,8 +1115,8 @@ Result MenuScene::after_render_navigation() {
 		pushed_kind_ = st_.walk.pending_scene.kind;
 		st_.walk.pending_scene = SceneId{};
 		st_.walk.go_up_on_resume = true;
-		// `sampleBrowser.menuItemHeadingTo = item` (`gui/ui/sound_editor.cpp:2090`), and
-		// `osc::AudioRecorder::menuItemHeadingTo` (`:2101`) for the recorder half. Legacy writes it
+		// `sampleBrowser.menuItemHeadingTo = item` (`SoundEditor::maybeGetParentMenu`), and
+		// `osc::AudioRecorder::menuItemHeadingTo` for the recorder half. Legacy writes it
 		// on the way in, from `maybeGetParentMenu`, which is exactly here: the statement beside its
 		// own `openUI`. Items with no return affordance record one too and nothing reads it; the
 		// recorder's return is `MenuWalkState::resume_landing`, which its item writes.

@@ -245,7 +245,7 @@ struct MenuWalkState {
 	/// next descent -- which is precisely why legacy has the flag.
 	bool go_up_on_resume = false;
 	/// @brief The item whose `on_focus` pushed the scene that is now on top -- legacy's
-	///        `sampleBrowser.menuItemHeadingTo` (`gui/ui/sound_editor.cpp:2090`).
+	///        `sampleBrowser.menuItemHeadingTo` (`SoundEditor::maybeGetParentMenu`).
 	///
 	/// **Not `MultiRange::menuItemHeadingTo`.** That name resolves on two different objects and
 	/// `pending_after_range` above is the *other* one (`gui/menu_item/multi_range.h:34`, written in

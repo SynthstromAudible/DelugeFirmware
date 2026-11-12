@@ -450,8 +450,8 @@ bool shortcut_coming_soon(MenuContext::Root root, uint8_t x, uint8_t y) {
 
 ShortcutPos shortcut_pos(MenuContext::Root root, const Node& node) {
 	const Layers& l = layers_for(root);
-	// Second layer first, the order `updatePadLightsFor` scans in (`sound_editor.cpp:905` before
-	// `:872`) -- an item that is in both layers blinks at the pad it is reached from second.
+	// Second layer first, the order `updatePadLightsFor` scans in -- an item that is in both layers blinks at the pad
+	// it is reached from second.
 	if (l.second != l.first) {
 		if (ShortcutPos pos = find_in(*l.second, node); pos.valid) {
 			pos.second_layer = true;
