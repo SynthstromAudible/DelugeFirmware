@@ -1456,6 +1456,7 @@ bool doSomeOutputting() {
 
 	std::span<StereoSample> outputBufferForResampling{reinterpret_cast<StereoSample*>(spareRenderingBuffer), 128 * 2};
 	StereoSample* __restrict__ renderingBufferOutputPosNow = renderingBufferOutputPos;
+	size_t const renderOffset = renderingBufferOutputPosNow - renderingMemory.data(); // For the USB track buses
 	int32_t* __restrict__ i2sTXBufferPosNow = (int32_t*)i2sTXBufferPos;
 
 	// Monitored input - normally the codec's, but the USB input if that's what we're sampling
@@ -1584,7 +1585,7 @@ bool doSomeOutputting() {
 	if (numSamplesOutputted) {
 
 		if (doSendToUSB) {
-			usb_audio::sendToHost(std::span{toUSB}.first(numSamplesOutputted), i2sTXBufferPosNow);
+			usb_audio::sendToHost(std::span{toUSB}.first(numSamplesOutputted), i2sTXBufferPosNow, renderOffset);
 		}
 
 		i2sRXBufferPos += (numSamplesOutputted << (NUM_MONO_INPUT_CHANNELS_MAGNITUDE + 2));

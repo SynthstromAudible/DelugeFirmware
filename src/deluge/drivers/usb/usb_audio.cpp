@@ -17,7 +17,9 @@
 
 #include "drivers/usb/usb_audio.h"
 #include "definitions.h"
+#include "drivers/usb/usb_audio_pcm.h"
 #include "io/debug/log.h"
+#include "memory/general_memory_allocator.h"
 #include "storage/flash_storage.h"
 #include "timers_interrupts/timers_interrupts.h"
 #include <algorithm>
@@ -26,6 +28,7 @@
 #include <cstring>
 
 extern "C" {
+#include "RZA1/cache/cache.h"
 #include "RZA1/intc/devdrv_intc.h"
 #include "RZA1/system/iodefine.h"
 #include "RZA1/usb/r_usb_basic/r_usb_basic_if.h"
@@ -138,7 +141,8 @@ uint32_t toHostDmaFrames = 0;
 uint32_t fromHostRecoveries = 0;
 uint32_t toHostRecoveries = 0;
 
-// SSI-RX-shaped ring holding the audio from the host, for the rest of the Deluge to read like an input
+// SSI-RX-shaped ring holding the audio from the host (its first stereo input, with multitrack), for the rest of the
+// Deluge to read like an input
 PLACE_SDRAM_BSS alignas(CACHE_LINE_SIZE) int32_t inputRing[SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS];
 uint32_t inputRingWriteFrame = 0; // Where fillInputRing() got up to, in frames from the start
 // How many frames of silence have been written since the host last sent anything. Once it's the whole ring, there's
@@ -147,7 +151,148 @@ uint32_t inputRingSilentFrames = 0;
 
 bool interruptsSetUp = false;
 
-bool active = false; // Latched from FlashStorage::usbAudioEnabled each time USB starts as a peripheral
+bool active = false; // Latched from FlashStorage::usbAudioMode each time USB starts as a peripheral
+
+/*********************************************************************************************************************
+ * Multitrack (see r_usb_paudio_config.h). Its rings hold 16-bit frames laid out exactly as in the USB packets, so the
+ * DMA moves packets straight between them and the FIFOs - the interrupts don't copy anything. The CPU only reaches them
+ * through the uncached mirror, which is Normal non-cacheable memory, so there's no cache maintenance either: NEON packs
+ * frames into the to-host ring there, and unpacks frames from the host from there. All of it's allocated at power-on,
+ * and only if multitrack is chosen.
+ */
+
+namespace pcm = deluge::usb_audio::pcm;
+using deluge::usb_audio::kNumTrackBuses;
+
+constexpr uint32_t kMtToHostBytesPerFrame = USB_PAUDIO_MT_BYTES_PER_FRAME_TO_HOST;
+constexpr uint32_t kMtFromHostBytesPerFrame = USB_PAUDIO_MT_BYTES_PER_FRAME_FROM_HOST;
+static_assert(kMtToHostBytesPerFrame == pcm::kToHostBytesPerFrame);
+static_assert(kMtFromHostBytesPerFrame == pcm::kFromHostBytesPerFrame);
+static_assert(kNumTrackBuses + 1 == pcm::kToHostSources);
+// The same size as the stereo rings, so the steering's thresholds all hold
+constexpr uint32_t kMtRingFrames = 1024;
+static_assert(kMtRingFrames == kToHostRingFrames && kMtRingFrames == kFromHostRingFrames);
+// Each ring has room for this many frames past its end, so that a packet starting near the end is still contiguous for
+// the DMA. The to-host ring's first kMtSlackFrames frames are written there as well; whatever the DMA writes there from
+// the host gets moved to the start
+constexpr uint32_t kMtSlackFrames = USB_PAUDIO_MAX_FRAMES_PER_PACKET;
+static_assert(kMtSlackFrames >= USB_PAUDIO_MT_MAX_FRAMES_TO_HOST);
+static_assert(kMtSlackFrames * kMtFromHostBytesPerFrame >= USB_PAUDIO_MT_MAX_PACKET_BYTES_FROM_HOST);
+static_assert(pcm::kFromHostDestinations == deluge::usb_audio::kMaxInputs);
+
+bool multitrack = false; // Whether this session is multitrack. active is set too, if so
+
+struct {
+	// Tracks routed to USB render into these, a render at a time. Cached, and only used by the audio routine
+	std::array<StereoSample*, kNumTrackBuses> trackBuses{};
+	// The DMA's memory. These are the cached addresses, which is what the DMA takes - the CPU uses uncached()
+	uint8_t* toHostRing = nullptr;
+	uint8_t* fromHostRing = nullptr;
+	uint8_t* toHostStaging = nullptr; // For a packet padded with silence, when the audio routine's fallen behind
+	// The second input from the host (its channels 3/4), shaped like inputRing and kept in step with it
+	int32_t* inputRing2 = nullptr;
+} mt;
+
+// Which track buses something's been rendered into this render. The rest are silent
+uint8_t trackBusesUsed = 0;
+
+// Multitrack sends packets straight from the ring, so the frames in one stay out of the audio routine's way until the
+// DMA's finished with them. Then toHostRead moves on to here
+uint32_t toHostDmaReadEnd = 0;
+
+constexpr size_t roundUpToCacheLine(size_t bytes) {
+	return (bytes + CACHE_LINE_SIZE - 1) & ~size_t{CACHE_LINE_SIZE - 1};
+}
+
+// Allocates multitrack's memory, if it hasn't been already. Returns whether it's there
+bool allocateMultitrack() {
+	if (mt.toHostRing != nullptr) {
+		return true;
+	}
+	constexpr size_t kTrackBusBytes = SSI_TX_BUFFER_NUM_SAMPLES * sizeof(StereoSample);
+	constexpr size_t kToHostRingBytes = (kMtRingFrames + kMtSlackFrames) * kMtToHostBytesPerFrame;
+	constexpr size_t kFromHostRingBytes = (kMtRingFrames + kMtSlackFrames) * kMtFromHostBytesPerFrame;
+	constexpr size_t kStagingBytes = roundUpToCacheLine(USB_PAUDIO_MT_MAX_PACKET_BYTES_TO_HOST);
+	// Everything is whole cache lines, so the DMA's memory shares none with anything the CPU caches
+	static_assert(kTrackBusBytes % CACHE_LINE_SIZE == 0);
+	static_assert(kToHostRingBytes % CACHE_LINE_SIZE == 0);
+	static_assert(kFromHostRingBytes % CACHE_LINE_SIZE == 0);
+	constexpr size_t kDmaBytes = kToHostRingBytes + kFromHostRingBytes + kStagingBytes;
+	// Plus a line's room to align the start to one
+	constexpr size_t kTotalBytes = CACHE_LINE_SIZE + kTrackBusBytes * kNumTrackBuses + kDmaBytes;
+	// Read like the first input ring, which is in SDRAM too
+	constexpr size_t kInputRingBytes = sizeof(inputRing);
+
+	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(kTotalBytes);
+	if (memory == nullptr) {
+		return false;
+	}
+	void* inputRing2 = GeneralMemoryAllocator::get().allocLowSpeed(kInputRingBytes);
+	if (inputRing2 == nullptr) {
+		GeneralMemoryAllocator::get().dealloc(memory);
+		return false;
+	}
+	mt.inputRing2 = static_cast<int32_t*>(inputRing2);
+	std::memset(mt.inputRing2, 0, kInputRingBytes);
+	auto address = static_cast<uintptr_t>(roundUpToCacheLine(reinterpret_cast<uintptr_t>(memory)));
+	for (StereoSample*& bus : mt.trackBuses) {
+		bus = reinterpret_cast<StereoSample*>(address);
+		address += kTrackBusBytes;
+	}
+	uintptr_t const dmaStart = address;
+	mt.toHostRing = reinterpret_cast<uint8_t*>(address);
+	address += kToHostRingBytes;
+	mt.fromHostRing = reinterpret_cast<uint8_t*>(address);
+	address += kFromHostRingBytes;
+	mt.toHostStaging = reinterpret_cast<uint8_t*>(address);
+
+	// Whatever the caches hold of the DMA's memory would otherwise be written back over it some time later. From here
+	// on, the CPU only goes through the uncached mirror, so none of it will be cached again
+	invalidate_range_all_caches(dmaStart, dmaStart + kDmaBytes);
+	std::memset(uncached(mt.toHostRing), 0, kDmaBytes);
+	return true;
+}
+
+// Packs count frames into the to-host ring, starting at frame count start: main is the usual output, and the track
+// buses from renderOffset into the render go with it
+void packToHostRing(uint32_t start, StereoSample const* main, size_t renderOffset, size_t count) {
+	std::array<int32_t const*, kNumTrackBuses> buses;
+	for (size_t i = 0; i < kNumTrackBuses; i++) {
+		buses[i] = (trackBusesUsed & (1 << i)) ? &mt.trackBuses[i][renderOffset].l : nullptr;
+	}
+	uint8_t* ring = uncached(mt.toHostRing);
+
+	auto pack = [&](uint32_t index, size_t from, size_t numFrames) {
+		std::array<int32_t const*, kNumTrackBuses> busesFrom;
+		for (size_t i = 0; i < kNumTrackBuses; i++) {
+			busesFrom[i] = (buses[i] != nullptr) ? buses[i] + from * 2 : nullptr;
+		}
+		pcm::packToHost(reinterpret_cast<uint32_t*>(&ring[index * kMtToHostBytesPerFrame]), &main[from].l, busesFrom,
+		                numFrames);
+	};
+
+	for (size_t done = 0; done < count;) {
+		uint32_t index = (start + done) & (kMtRingFrames - 1);
+		size_t run = std::min<size_t>(count - done, kMtRingFrames - index);
+		pack(index, done, run);
+		// The first frames go past the end as well, for a packet that wraps round
+		if (index < kMtSlackFrames) {
+			pack(kMtRingFrames + index, done, std::min<size_t>(run, kMtSlackFrames - index));
+		}
+		done += run;
+	}
+}
+
+// Unpacks count frames from the host's ring, starting at frame count start, into interleaved stereo q31: its channels
+// 1/2 into output, 3/4 into output2
+void unpackFromHostRing(uint32_t start, int32_t* output, int32_t* output2, size_t count) {
+	auto const* ring = reinterpret_cast<int16_t const*>(uncached(mt.fromHostRing));
+	constexpr size_t kSamplesPerFrame = USB_PAUDIO_MT_CHANNELS_FROM_HOST;
+	uint32_t index = start & (kMtRingFrames - 1);
+	size_t first = std::min<size_t>(count, kMtRingFrames - index);
+	pcm::unpackFromHost(output, output2, &ring[index * kSamplesPerFrame], first);
+	pcm::unpackFromHost(&output[first * 2], &output2[first * 2], ring, count - first);
+}
 
 /*********************************************************************************************************************
  * DMA, and the interrupts driving it
@@ -193,15 +338,27 @@ void startFromHostDma() {
 		return;
 	}
 	uint32_t numBytes = fifoCtr & USB_DTLN;
-	if (numBytes == 0 || numBytes > kMaxPacketBytes) {
+	if (numBytes == 0 || numBytes > (multitrack ? USB_PAUDIO_MT_MAX_PACKET_BYTES_FROM_HOST : kMaxPacketBytes)) {
 		USB200.D1FIFOCTR = USB_BCLR; // Nothing we can use - throw it away
 		return;
+	}
+	auto destination = reinterpret_cast<uint32_t>(fromHostStaging);
+	if (multitrack) {
+		// Straight into the ring - if there's room. If the reader's that far behind, it'll be resyncing anyway
+		uint32_t written = fromHostWritten.load(std::memory_order_relaxed);
+		uint32_t space = kMtRingFrames - (written - fromHostRead.load(std::memory_order_acquire));
+		if (numBytes / kMtFromHostBytesPerFrame > space) {
+			USB200.D1FIFOCTR = USB_BCLR;
+			return;
+		}
+		destination =
+		    reinterpret_cast<uint32_t>(&mt.fromHostRing[(written & (kMtRingFrames - 1)) * kMtFromHostBytesPerFrame]);
 	}
 	fromHostDmaBytes = numBytes;
 	fromHostDmaBusy = true;
 	fromHostDmaFrames = 0;
-	startDma(USB_AUDIO_RX_DMA_CHANNEL, reinterpret_cast<uint32_t>(&USB200.D1FIFO.UINT32),
-	         reinterpret_cast<uint32_t>(fromHostStaging), (numBytes + 3) & ~3u);
+	startDma(USB_AUDIO_RX_DMA_CHANNEL, reinterpret_cast<uint32_t>(&USB200.D1FIFO.UINT32), destination,
+	         (numBytes + 3) & ~3u);
 	USB200.D1FIFOSEL |= USB_DREQE;
 }
 
@@ -211,7 +368,20 @@ void fromHostDmaComplete(uint32_t) {
 	}
 	USB200.D1FIFOSEL &= ~USB_DREQE;
 
-	if (fromHostStreaming) {
+	if (fromHostStreaming && multitrack) {
+		// The DMA put it straight into the ring
+		uint32_t numFrames = fromHostDmaBytes / kMtFromHostBytesPerFrame;
+		uint32_t written = fromHostWritten.load(std::memory_order_relaxed);
+		uint32_t index = written & (kMtRingFrames - 1);
+		if (index + numFrames > kMtRingFrames) {
+			// The end of it went past the end of the ring - move that to the start
+			uint8_t* ring = uncached(mt.fromHostRing);
+			std::memcpy(ring, &ring[kMtRingFrames * kMtFromHostBytesPerFrame],
+			            (index + numFrames - kMtRingFrames) * kMtFromHostBytesPerFrame);
+		}
+		fromHostWritten.store(written + numFrames, std::memory_order_release);
+	}
+	else if (fromHostStreaming) {
 		auto const* frames = uncached(reinterpret_cast<StereoSample const*>(fromHostStaging));
 		uint32_t numFrames = fromHostDmaBytes / kBytesPerFrame;
 		uint32_t written = fromHostWritten.load(std::memory_order_relaxed);
@@ -268,6 +438,11 @@ uint32_t framesForNextPacket(int32_t backlog) {
 	else if (error < -kToHostTolerance) {
 		numFrames--;
 	}
+	if (multitrack) {
+		// Its max packet size only has room for 45, so it can only speed up on what would have been 44-frame packets -
+		// 45000 frames a second at most, still plenty
+		numFrames = std::min<uint32_t>(numFrames, USB_PAUDIO_MT_MAX_FRAMES_TO_HOST);
+	}
 	return numFrames;
 }
 
@@ -306,15 +481,36 @@ void queueToHostPacket() {
 	// run out), padding with silence - a host doing implicit feedback takes its timing from these, so stopping to
 	// catch up would throw that, and the audio coming back from it, into disarray
 	uint32_t numToCopy = std::min(numFrames, fill);
-	auto* staging = uncached(reinterpret_cast<StereoSample*>(toHostStaging));
-	copyFromRing(toHostRing, read, staging, numToCopy);
-	std::memset(&staging[numToCopy], 0, (numFrames - numToCopy) * sizeof(StereoSample));
-	toHostRead.store(read + numToCopy, std::memory_order_release);
+	uint32_t source;
+	uint32_t bytesPerFrame;
+	if (multitrack) {
+		// Straight from the ring - always contiguous, thanks to its slack - unless it needs padding with silence
+		uint8_t* frames = &mt.toHostRing[(read & (kMtRingFrames - 1)) * kMtToHostBytesPerFrame];
+		source = reinterpret_cast<uint32_t>(frames);
+		if (numToCopy < numFrames) {
+			uint8_t* staging = uncached(mt.toHostStaging);
+			std::memcpy(staging, uncached(frames), numToCopy * kMtToHostBytesPerFrame);
+			std::memset(&staging[numToCopy * kMtToHostBytesPerFrame], 0,
+			            (numFrames - numToCopy) * kMtToHostBytesPerFrame);
+			source = reinterpret_cast<uint32_t>(mt.toHostStaging);
+		}
+		bytesPerFrame = kMtToHostBytesPerFrame;
+		toHostDmaReadEnd = read + numToCopy;
+		toHostRead.store(read, std::memory_order_release); // Which might have skipped ahead
+	}
+	else {
+		auto* staging = uncached(reinterpret_cast<StereoSample*>(toHostStaging));
+		copyFromRing(toHostRing, read, staging, numToCopy);
+		std::memset(&staging[numToCopy], 0, (numFrames - numToCopy) * sizeof(StereoSample));
+		toHostRead.store(read + numToCopy, std::memory_order_release);
+		source = reinterpret_cast<uint32_t>(toHostStaging);
+		bytesPerFrame = kBytesPerFrame;
+	}
 
 	toHostDmaBusy = true;
 	toHostDmaFrames = 0;
-	startDma(USB_AUDIO_TX_DMA_CHANNEL, reinterpret_cast<uint32_t>(toHostStaging),
-	         reinterpret_cast<uint32_t>(&USB200.D0FIFO.UINT32), numFrames * kBytesPerFrame);
+	startDma(USB_AUDIO_TX_DMA_CHANNEL, source, reinterpret_cast<uint32_t>(&USB200.D0FIFO.UINT32),
+	         numFrames * bytesPerFrame);
 	USB200.D0FIFOSEL |= USB_DREQE;
 }
 
@@ -337,6 +533,9 @@ void toHostDmaComplete(uint32_t) {
 	USB200.D0FIFOSEL &= ~USB_DREQE;
 	// Packets are always shorter than the max packet size, so we have to tell the controller this one's done
 	USB200.D0FIFOCTR = USB_BVAL;
+	if (multitrack) {
+		toHostRead.store(toHostDmaReadEnd, std::memory_order_release); // Done with those frames
+	}
 	toHostDmaBusy = false;
 	if (toHostStreaming && toHostBufferFree()) {
 		queueToHostPacket(); // The other buffer's free too - fill it for the frame after
@@ -370,6 +569,9 @@ void abortToHostDma() {
 	USB200.D0FIFOSEL &= ~USB_DREQE;
 	DMACn(USB_AUDIO_TX_DMA_CHANNEL).CHCFG_n = kChcfgToHost;
 	USB200.D0FIFOCTR = USB_BCLR;
+	if (multitrack) {
+		toHostRead.store(toHostDmaReadEnd, std::memory_order_release); // That packet's lost
+	}
 	toHostDmaBusy = false;
 }
 
@@ -559,9 +761,9 @@ void skipFromHost(uint32_t numFrames) {
 	fromHostRead.store(reader.readFrame, std::memory_order_release);
 }
 
-// Copies numFrames frames of audio from the host, interleaved stereo, into output. txQueued is how many frames the
-// codec has to play before it gets to these
-void readFromHost(int32_t* output, size_t numFrames, uint32_t txQueued) {
+// Copies numFrames frames of audio from the host, interleaved stereo, into output - and with multitrack, its second
+// input into output2. txQueued is how many frames the codec has to play before it gets to these
+void readFromHost(int32_t* output, int32_t* output2, size_t numFrames, uint32_t txQueued) {
 	auto& reader = fromHostReader;
 	uint32_t generation = fromHostGeneration.load(std::memory_order_relaxed);
 	if (reader.generation != generation) {
@@ -583,6 +785,9 @@ void readFromHost(int32_t* output, size_t numFrames, uint32_t txQueued) {
 		}
 		if (fill + txQueued < kFromHostTargetLatency) {
 			std::memset(output, 0, numFrames * sizeof(StereoSample));
+			if (output2 != nullptr) {
+				std::memset(output2, 0, numFrames * sizeof(StereoSample));
+			}
 			fromHostRead.store(reader.readFrame, std::memory_order_release);
 			return;
 		}
@@ -612,12 +817,20 @@ void readFromHost(int32_t* output, size_t numFrames, uint32_t txQueued) {
 
 	size_t numToCopy = std::min<size_t>(numFrames, fill);
 	auto* frames = reinterpret_cast<StereoSample*>(output);
-	copyFromRing(fromHostRing, reader.readFrame, frames, numToCopy);
+	if (multitrack) {
+		unpackFromHostRing(reader.readFrame, output, output2, numToCopy);
+	}
+	else {
+		copyFromRing(fromHostRing, reader.readFrame, frames, numToCopy);
+	}
 	reader.readFrame += numToCopy;
 
 	if (numToCopy < numFrames) {
 		// Ran out - the host's stopped sending, or fallen behind. Silence until there's enough again
 		std::memset(&frames[numToCopy], 0, (numFrames - numToCopy) * sizeof(StereoSample));
+		if (output2 != nullptr) {
+			std::memset(&output2[numToCopy * 2], 0, (numFrames - numToCopy) * sizeof(StereoSample));
+		}
 		reader.primed = false;
 		D_PRINTLN("USB audio: input underrun");
 	}
@@ -631,9 +844,16 @@ void readFromHost(int32_t* output, size_t numFrames, uint32_t txQueued) {
  * Hooks for the Renesas USB driver
  */
 
-extern "C" bool usbAudioStartPeripheral(void) {
-	active = FlashStorage::usbAudioEnabled;
-	return active;
+extern "C" uint8_t usbAudioStartPeripheral(void) {
+	using deluge::usb_audio::Mode;
+	Mode mode = FlashStorage::usbAudioMode;
+	if (mode == Mode::MULTITRACK && !allocateMultitrack()) {
+		D_PRINTLN("USB audio: no memory for multitrack - stereo instead");
+		mode = Mode::STEREO;
+	}
+	active = (mode != Mode::OFF);
+	multitrack = (mode == Mode::MULTITRACK);
+	return multitrack ? USB_PAUDIO_CONFIG_MULTITRACK : active ? USB_PAUDIO_CONFIG_STEREO : USB_PAUDIO_CONFIG_MIDI_ONLY;
 }
 
 extern "C" bool usbAudioActive(void) {
@@ -717,6 +937,27 @@ extern "C" void usbAudioHandleSof(void) {
 
 namespace deluge::usb_audio {
 
+bool multitrackActive() {
+	return multitrack;
+}
+
+bool routingToTrackBuses = false;
+
+void startRender(bool routeTracks) {
+	routingToTrackBuses = multitrack && routeTracks;
+	trackBusesUsed = 0;
+}
+
+std::span<StereoSample> trackBus(uint8_t bus, size_t numSamples) {
+	uint8_t const bit = 1 << (bus - 1);
+	StereoSample* buffer = mt.trackBuses[bus - 1];
+	if (!(trackBusesUsed & bit)) {
+		std::memset(buffer, 0, numSamples * sizeof(StereoSample));
+		trackBusesUsed |= bit;
+	}
+	return {buffer, numSamples};
+}
+
 bool receivingFromHost() {
 	return fromHostStreaming;
 }
@@ -725,16 +966,24 @@ bool sendingToHost() {
 	return toHostStreaming;
 }
 
-int32_t* getInputRingStart() {
-	return inputRing;
+uint8_t numInputs() {
+	return multitrack ? kMaxInputs : 1;
 }
 
-int32_t* getInputRingEnd() {
-	return &inputRing[SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS];
+uint8_t resolveInput(uint8_t input) {
+	return (input < numInputs()) ? input : 0;
 }
 
-int32_t* toInputRing(int32_t const* rxPosition) {
-	return inputRing + (rxPosition - getRxBufferStart());
+int32_t* getInputRingStart(uint8_t input) {
+	return (resolveInput(input) == 1) ? mt.inputRing2 : inputRing;
+}
+
+int32_t* getInputRingEnd(uint8_t input) {
+	return getInputRingStart(input) + SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
+}
+
+int32_t* toInputRing(int32_t const* rxPosition, uint8_t input) {
+	return getInputRingStart(input) + (rxPosition - getRxBufferStart());
 }
 
 void fillInputRing(uint32_t rxPosition, size_t numSamples, size_t txQueued) {
@@ -751,6 +1000,10 @@ void fillInputRing(uint32_t rxPosition, size_t numSamples, size_t txQueued) {
 			for (uint32_t frame = inputRingWriteFrame; frame != startFrame; frame = (frame + 1) & (kRingFrames - 1)) {
 				inputRing[frame * 2] = 0;
 				inputRing[frame * 2 + 1] = 0;
+				if (multitrack) {
+					mt.inputRing2[frame * 2] = 0;
+					mt.inputRing2[frame * 2 + 1] = 0;
+				}
 			}
 			if (fromHostStreaming) {
 				skipFromHost(gap);
@@ -762,12 +1015,16 @@ void fillInputRing(uint32_t rxPosition, size_t numSamples, size_t txQueued) {
 	while (numSamples) {
 		size_t numThisTime = std::min<size_t>(numSamples, kRingFrames - inputRingWriteFrame);
 		int32_t* output = &inputRing[inputRingWriteFrame * 2];
+		int32_t* output2 = multitrack ? &mt.inputRing2[inputRingWriteFrame * 2] : nullptr;
 		if (fromHostStreaming) {
-			readFromHost(output, numThisTime, txQueued);
+			readFromHost(output, output2, numThisTime, txQueued);
 			inputRingSilentFrames = 0;
 		}
 		else if (inputRingSilentFrames < kRingFrames) {
 			std::memset(output, 0, numThisTime * sizeof(StereoSample));
+			if (output2 != nullptr) {
+				std::memset(output2, 0, numThisTime * sizeof(StereoSample));
+			}
 			inputRingSilentFrames += numThisTime;
 		}
 		inputRingWriteFrame = (inputRingWriteFrame + numThisTime) & (kRingFrames - 1);
@@ -776,14 +1033,19 @@ void fillInputRing(uint32_t rxPosition, size_t numSamples, size_t txQueued) {
 	}
 }
 
-void sendToHost(std::span<const StereoSample> frames, int32_t const* txPosition) {
+void sendToHost(std::span<const StereoSample> frames, int32_t const* txPosition, size_t renderOffset) {
 	if (!toHostStreaming) {
 		return;
 	}
 	uint32_t written = toHostWritten.load(std::memory_order_relaxed);
 	uint32_t space = kToHostRingFrames - (written - toHostRead.load(std::memory_order_acquire));
 	size_t numFrames = std::min<size_t>(frames.size(), space);
-	copyToRing(toHostRing, written, frames.data(), numFrames);
+	if (multitrack) {
+		packToHostRing(written, frames.data(), renderOffset, numFrames);
+	}
+	else {
+		copyToRing(toHostRing, written, frames.data(), numFrames);
+	}
 	written += numFrames;
 	// The offset only changes when the stream (re)starts or the ring overflowed - every frame rendered normally goes
 	// both here and to the TX buffer. Leaving it alone otherwise means the SOF interrupt can't catch it out of step

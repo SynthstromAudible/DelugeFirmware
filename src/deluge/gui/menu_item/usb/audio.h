@@ -20,20 +20,40 @@
 #include "gui/menu_item/toggle.h"
 #include "hid/display/display.h"
 #include "storage/flash_storage.h"
+#include <algorithm>
+#include <array>
 
 namespace deluge::gui::menu_item::usb {
 
-/// Whether the Deluge offers USB audio to a computer. The host only reads our descriptors when we connect, so this
-/// takes effect the next time USB starts up - at power-on
-class Audio final : public Toggle {
+/// Whether the Deluge offers USB audio to a computer, and how: off, stereo, or multitrack. The host only reads our
+/// descriptors when we connect, so this takes effect the next time USB starts up - at power-on
+class Audio final : public Selection {
 public:
-	using Toggle::Toggle;
-	void readCurrentValue() override { this->setValue(FlashStorage::usbAudioEnabled); }
+	using Selection::Selection;
+	// Shown in this order, which isn't how they're stored
+	static constexpr std::array<usb_audio::Mode, usb_audio::kNumModes> kModes = {
+	    usb_audio::Mode::OFF, usb_audio::Mode::STEREO, usb_audio::Mode::MULTITRACK};
+
+	void readCurrentValue() override {
+		this->setValue(std::find(kModes.begin(), kModes.end(), FlashStorage::usbAudioMode) - kModes.begin());
+	}
 	void writeCurrentValue() override {
-		FlashStorage::usbAudioEnabled = this->getValue();
-		if (FlashStorage::usbAudioEnabled != usbAudioActive()) {
+		FlashStorage::usbAudioMode = kModes[this->getValue()];
+		if (FlashStorage::usbAudioMode != activeMode()) {
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_RESTART_TO_APPLY));
 		}
+	}
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
+		using enum l10n::String;
+		return {l10n::getView(STRING_FOR_OFF), l10n::getView(STRING_FOR_STEREO), l10n::getView(STRING_FOR_MULTITRACK)};
+	}
+
+private:
+	static usb_audio::Mode activeMode() {
+		return usb_audio::multitrackActive() ? usb_audio::Mode::MULTITRACK
+		       : usbAudioActive()            ? usb_audio::Mode::STEREO
+		                                     : usb_audio::Mode::OFF;
 	}
 };
 
