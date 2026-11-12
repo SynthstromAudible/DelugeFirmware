@@ -267,7 +267,7 @@ bool bypassCulling = false;
 bool audioRoutineLocked = false;
 uint32_t audioSampleTimer = 0;
 bool inputMonitoringWarmedUp = false;
-bool usbInputMonitoredByTrack = false;
+uint8_t usbInputsMonitoredByTrack = 0;
 // ~500ms after power-on for the codec ADC to settle before we start monitoring its input (see inputMonitoringWarmedUp),
 // then ~50ms to fade it in so monitoring doesn't switch on with a click.
 constexpr uint32_t kInputMonitoringWarmupSamples = kSampleRate / 2;
@@ -957,16 +957,16 @@ q31_t getInputMonitoringGain(uint32_t offset) {
 }
 
 int32_t* getInputBufferStart(AudioInputChannel channel) {
-	return (channel == AudioInputChannel::USB) ? usb_audio::getInputRingStart() : getRxBufferStart();
+	return isUSBInput(channel) ? usb_audio::getInputRingStart(usbInputNumber(channel)) : getRxBufferStart();
 }
 
 int32_t* getInputBufferEnd(AudioInputChannel channel) {
-	return (channel == AudioInputChannel::USB) ? usb_audio::getInputRingEnd() : getRxBufferEnd();
+	return isUSBInput(channel) ? usb_audio::getInputRingEnd(usbInputNumber(channel)) : getRxBufferEnd();
 }
 
 int32_t* getInputReadPos(AudioInputChannel channel) {
 	auto* rxPos = reinterpret_cast<int32_t*>(i2sRXBufferPos);
-	return (channel == AudioInputChannel::USB) ? usb_audio::toInputRing(rxPos) : rxPos;
+	return isUSBInput(channel) ? usb_audio::toInputRing(rxPos, usbInputNumber(channel)) : rxPos;
 }
 
 void renderAudio(size_t numSamples) {
@@ -982,7 +982,7 @@ void renderAudio(size_t numSamples) {
 	}
 
 	numHopsEndedThisRoutineCall = 0;
-	usbInputMonitoredByTrack = false;
+	usbInputsMonitoredByTrack = 0;
 	// Multitrack USB's track buses - except while exporting stems in real time, which need every track
 	usb_audio::startRender(!stemExport.processStarted);
 
@@ -1020,7 +1020,7 @@ void renderAudioForStemExport(size_t numSamples) {
 	}
 
 	numHopsEndedThisRoutineCall = 0;
-	usbInputMonitoredByTrack = false;
+	usbInputsMonitoredByTrack = 0;
 	usb_audio::startRender(false); // Every track goes in the stems
 
 	// Render audio for song
@@ -1273,7 +1273,7 @@ void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen 
 }
 void setMonitoringMode() { // Monitoring setup
 	doMonitoring = false;
-	if (audioRecorder.recordingSource == AudioInputChannel::USB) {
+	if (isUSBInput(audioRecorder.recordingSource)) {
 		// No risk of feedback from the internal mic here, so "conditional" means on. Unless it's already being sent
 		// straight to the outputs - then we'd hear it twice
 		doMonitoring = (inputMonitoringMode != InputMonitoringMode::OFF && !usb_audio::directMonitoring);
@@ -1462,19 +1462,25 @@ bool doSomeOutputting() {
 	size_t const renderOffset = renderingBufferOutputPosNow - renderingMemory.data(); // For the USB track buses
 	int32_t* __restrict__ i2sTXBufferPosNow = (int32_t*)i2sTXBufferPos;
 
-	// Monitored input - normally the codec's, but the USB input if that's what we're sampling
+	// Monitored input - normally the codec's, but a USB input if that's what we're sampling
 	AudioInputChannel const monitoringSource =
-	    (audioRecorder.recordingSource == AudioInputChannel::USB) ? AudioInputChannel::USB : AudioInputChannel::STEREO;
+	    isUSBInput(audioRecorder.recordingSource) ? audioRecorder.recordingSource : AudioInputChannel::STEREO;
 	int32_t* __restrict__ inputReadPos = getInputReadPos(monitoringSource);
 	int32_t const* const inputBufferEnd = getInputBufferEnd(monitoringSource);
 
-	// Audio from a USB host, mixed straight into the outputs if the user wants - unless it's already coming through
-	// an audio track's monitoring. The sampler only monitors it when this is off (setMonitoringMode()). It's added
-	// after toUSB is taken, so it isn't sent back to the host, which would echo it
-	bool const doUSBDirectMonitoring =
-	    usb_audio::directMonitoring && !usbInputMonitoredByTrack && usb_audio::receivingFromHost();
-	int32_t const* __restrict__ usbReadPos = getInputReadPos(AudioInputChannel::USB);
-	int32_t const* const usbInputEnd = usb_audio::getInputRingEnd();
+	// Audio from a USB host, mixed straight into the outputs if the user wants - each input unless it's already coming
+	// through an audio track's monitoring. The sampler only monitors them when this is off (setMonitoringMode()). It's
+	// added after toUSB is taken, so it isn't sent back to the host, which would echo it
+	uint8_t const usbDirectInputs = (usb_audio::directMonitoring && usb_audio::receivingFromHost())
+	                                    ? ((1u << usb_audio::numInputs()) - 1) & ~usbInputsMonitoredByTrack
+	                                    : 0;
+	bool const doUSBDirectMonitoring = (usbDirectInputs != 0);
+	bool const usbDirectInput1 = (usbDirectInputs & 1);
+	bool const usbDirectInput2 = (usbDirectInputs & 2);
+	// The inputs' rings are in step, so one position does for both
+	int32_t const* __restrict__ const usbInput1 = usb_audio::getInputRingStart(0);
+	int32_t const* __restrict__ const usbInput2 = usb_audio::getInputRingStart(1);
+	uint32_t usbReadSample = getInputReadPos(AudioInputChannel::USB) - usbInput1;
 	bool const doSendToUSB = usb_audio::sendingToHost();
 	std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> toUSB;
 
@@ -1553,12 +1559,16 @@ bool doSomeOutputting() {
 		}
 
 		if (doUSBDirectMonitoring) {
-			lAdjusted = add_saturate(lAdjusted, usbReadPos[0] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
-			rAdjusted = add_saturate(rAdjusted, usbReadPos[1] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
-			usbReadPos += NUM_MONO_INPUT_CHANNELS;
-			if (usbReadPos >= usbInputEnd) {
-				usbReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
+			if (usbDirectInput1) {
+				lAdjusted = add_saturate(lAdjusted, usbInput1[usbReadSample] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
+				rAdjusted = add_saturate(rAdjusted, usbInput1[usbReadSample + 1] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
 			}
+			if (usbDirectInput2) {
+				lAdjusted = add_saturate(lAdjusted, usbInput2[usbReadSample] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
+				rAdjusted = add_saturate(rAdjusted, usbInput2[usbReadSample + 1] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
+			}
+			usbReadSample =
+			    (usbReadSample + NUM_MONO_INPUT_CHANNELS) & (SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS - 1);
 		}
 
 		outputBufferForResampling[numSamplesOutputted].l = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);
