@@ -161,6 +161,42 @@ bool is_horizontal(const MenuContext& ctx, const Node& node) {
 	return renders_horizontal(node, ctx);
 }
 
+namespace {
+
+/// @brief `MenuItem::isRangeDependent()`: the transposes and the loop points. The file selectors and the recorders
+///        check the range (`Node::range_dependent`) without answering true.
+bool is_range_dependent_item(const Node* node) {
+	if (node == nullptr || !node->range_dependent) {
+		return false;
+	}
+	return node != &nodes::file0_selector && node != &nodes::file1_selector && node != &nodes::sample0_recorder
+	       && node != &nodes::sample1_recorder;
+}
+
+} // namespace
+
+void begin_submenu_range(MenuContext& ctx, const MenuState& st, const Node* left) {
+	const Node* const submenu = focused(st);
+	if (submenu == nullptr || submenu->kind != Kind::Submenu || ctx.range_index < 0) {
+		return;
+	}
+	if (is_horizontal(ctx, *submenu)) {
+		// `goUpOneLevel` hands the page the item the picker heads to, not the picker.
+		if (left == &nodes::multi_range) {
+			left = st.walk.pending_after_range;
+		}
+		if (is_range_dependent_item(selected_child(ctx, st, *submenu)) || is_range_dependent_item(left)) {
+			return;
+		}
+	}
+	// With one range, or on a kit row, main's range check selects the first range again before anything reads it, and
+	// its readers fall back to range 0: the context keeps the 0 `context_for` gave it.
+	if (ctx.is_kit || range_count(ctx) <= 1) {
+		return;
+	}
+	ctx.range_index = -1; // `currentMultiRange = nullptr`
+}
+
 size_t build_column_list(const MenuContext& ctx, const Node& node, std::span<const Node*> kids,
                          std::span<deluge::ui::oled::Column> cols, std::span<NodeText> label_scratch) {
 	const size_t n = visible_children(ctx, node, kids);
@@ -275,7 +311,8 @@ void MenuWalk::enter_horizontal_item(MenuCore core, ValueSession& session, const
 	}
 }
 
-void MenuWalk::descend_to(MenuCore core, ValueSession& session, const Node& child) {
+void MenuWalk::descend_to(MenuCore core, ValueSession& session, const Node& child,
+                          const Node* navigated_backward_from) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	if (st.depth + 1 >= kMenuDepth) {
@@ -301,6 +338,7 @@ void MenuWalk::descend_to(MenuCore core, ValueSession& session, const Node& chil
 	}
 	else {
 		restore_row(core);
+		begin_submenu_range(ctx, st, navigated_backward_from);
 	}
 }
 
@@ -327,9 +365,10 @@ void MenuWalk::enter_child(MenuCore core, ValueSession& session, const Node& chi
 	}
 	// `SoundEditor`'s select arm (`sound_editor.cpp:630-634`, the `maybeGetParentMenu` / `focusChild` pair before
 	// `enterSubmenu`): an item a chained page lists is entered on that page, focused on it, unless that page is the one
-	// already shown.
+	// already shown. The page begins as if it came back from the item (`enterSubmenu(parent, newItem)`), which keeps a
+	// range-dependent item's range.
 	if (const Node* page = shortcut_landing_page(ctx, child); page != nullptr && page != focused(st)) {
-		descend_to(core, session, *page);
+		descend_to(core, session, *page, &child);
 		focus_column(core, child);
 		return;
 	}
@@ -351,6 +390,7 @@ void MenuWalk::ascend(MenuCore core, ValueSession& session) {
 	// `endScreen()` (-> `HorizontalMenu::endSession`) runs before the depth test, so leaving a horizontal page
 	// cancels its notification whether the step lands on a parent or closes the menu. Read before the loop pops
 	// anything, while `focused()` still names the page being left.
+	const Node* const left = st.path[st.depth];
 	remember_path(ctx, st);
 	if (on_horizontal_page(ctx, st)) {
 		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
@@ -363,6 +403,7 @@ void MenuWalk::ascend(MenuCore core, ValueSession& session) {
 		st.path[st.depth] = nullptr;
 		st.depth--;
 	} while (st.path[st.depth] != nullptr && permission_for(*st.path[st.depth], ctx) == Permission::No);
+	begin_submenu_range(ctx, st, left);
 
 	// `goUpOneLevel` ends with `beginScreen(oldItem)`, i.e. it re-runs
 	// `beginSession` on the item it lands on -- so a value leaf reached by going *up* re-reads its

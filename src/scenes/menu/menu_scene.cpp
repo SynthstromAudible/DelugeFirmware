@@ -301,10 +301,10 @@ void MenuScene::on_resume() {
 			retarget(*landing);
 		}
 		else {
-			// The note-range picker the step lands on opens on the range a folder import left current, as
-			// `MultiRange::beginSession` reads `currentMultiRangeIndex`. Any other landing begins a submenu, which
-			// drops main's selected range (`Submenu::beginSession`): the import's range is not applied there.
-			if (imported >= 0 && st_.depth > 0 && st_.path[st_.depth - 1] == &nodes::multi_range) {
+			// A folder import left its range current, as `SoundEditor::setCurrentMultiRange` does. The level the step
+			// lands on keeps it or drops it as main's does: the picker opens on it, and a submenu that begins drops it
+			// (`begin_submenu_range`).
+			if (imported >= 0) {
 				select_range(ctx_, imported);
 			}
 			walk_.ascend(core(), visit_.session);

@@ -67,6 +67,10 @@ selector waits on it), turns it to the bottom range and opens the browser from i
 imports its folder again (MULTISAMPLES), and the browser closes onto the picker, which `main` opens on the middle range
 the import left current.
 
+`c44-page-import-transpose` imports `DRUMS/Block` as MULTISAMPLES from the OSC1 page's file column (Shift + (2,2),
+then KIT twice), lands back on the page, and presses MIDI, the transpose column's button. The page's begin drops
+`main`'s selected range (`Submenu::beginSession`), so with several ranges the button opens the note-range picker.
+
 `c37-recorder-threshold` sets the song's threshold to LOW with RECORD held and two Select turns (the first only
 shows the mode) and opens the recorder from its page, which draws the level meter.
 

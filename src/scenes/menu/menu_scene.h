@@ -442,9 +442,9 @@ public:
 	///        `shouldGoUpOneLevelOnBegin`, so the page sits under "load DX7 .syx file", whose BACK reopens the browser.
 	void land_dx_cartridge() { land_dx_cartridge_ = true; }
 	/// @brief A folder import from the browser this menu opened made range @p index of the menu's source current, as
-	///        `SoundEditor::setCurrentMultiRange` does. The resume that brings the menu back applies it when its step
-	///        up lands on the note-range picker, which opens on it (`MultiRange::beginSession`); any other landing
-	///        begins a submenu, which drops main's selected range (`Submenu::beginSession`). Dropped by `open`.
+	///        `SoundEditor::setCurrentMultiRange` does. The resume that brings the menu back applies it before its step
+	///        up, and the level the step lands on keeps or drops it, as main's does (`begin_submenu_range`). Dropped by
+	///        `open`.
 	void import_chose_range(int32_t index) { import_range_ = static_cast<int16_t>(index); }
 	/// @brief Shift + the keyboard's DX column pad for operator @p op with the menu open: `openForOpOrGlobal`. On the
 	///        parameter page it moves the param (`dx::column_param`'s toggle and carry); anywhere else the menu moves

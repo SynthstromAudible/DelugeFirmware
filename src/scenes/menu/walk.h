@@ -25,6 +25,14 @@ bool is_horizontal(const MenuContext& ctx, const Node& node);
 ///        `HorizontalMenu::buttonAction`'s six-button arm ports (`handle()`'s button code).
 bool on_horizontal_page(const MenuContext& ctx, const MenuState& st);
 
+/// @brief `Submenu::beginSession`'s `soundEditor.currentMultiRange = nullptr`, for the submenu @p st now focuses: it
+///        drops the context's range on a source with several ranges. A horizontal page keeps it when its focused
+///        column, or the item it came back from (@p left), is range-dependent (`HorizontalMenu::beginSession`).
+/// @param ctx  The menu's context, whose `range_index` is dropped.
+/// @param st   The walk, already on the submenu (its row or column restored).
+/// @param left The node the walk came back from, or null for a descent.
+void begin_submenu_range(MenuContext& ctx, const MenuState& st, const Node* left);
+
 /// @brief The node whose shortcut pad blinks and toggles the second layer: a horizontal page's
 ///        focused column (`Submenu::updatePadLights`), else `focused()`.
 const Node* pad_subject(const MenuContext& ctx, const MenuState& st);
@@ -69,7 +77,10 @@ public:
 	void enter_child(MenuCore core, ValueSession& session, const Node& child);
 	/// @brief Push @p child onto the path with no permission question asked -- the half of
 	///        `enter_child` the range-picker substitution reuses.
-	void descend_to(MenuCore core, ValueSession& session, const Node& child);
+	/// @param navigated_backward_from `enterSubmenu`'s second argument: the item a submenu @p child begins as if it
+	///        came back from (`begin_submenu_range`), or null.
+	void descend_to(MenuCore core, ValueSession& session, const Node& child,
+	                const Node* navigated_backward_from = nullptr);
 	/// @brief Go up one level, skipping levels whose permission is now `No`
 	///        (`sound_editor.cpp:710-721`).
 	void ascend(MenuCore core, ValueSession& session);

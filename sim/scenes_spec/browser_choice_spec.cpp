@@ -739,6 +739,15 @@ void import_from_picker(ShellRig& r) {
 	deluge::gui::ui::dispatchShellChoices();
 }
 
+/// @brief A walk at depth 0 on @p submenu, with its column and its row both at @p focused.
+menu::MenuState state_on(const Node& submenu, int32_t focused) {
+	menu::MenuState st{};
+	st.path[0] = &submenu;
+	st.columns[0].focused = static_cast<int8_t>(focused);
+	st.list[0].cursor = static_cast<int16_t>(focused);
+	return st;
+}
+
 /// @brief A kit whose one drum is on row 0, with the sample browser opened over it directly, as the long press
 ///        needs it.
 struct KitRig {
@@ -1827,7 +1836,9 @@ describe browser_choice_long_press(
 	        });
 
 	    it(
-	        "keeps the menu's range when the import's browser closes onto a page, which drops main's range", _ {
+	        "drops the menu's range when the import's browser closes onto a page, as Submenu::beginSession drops "
+	        "main's",
+	        _ {
 		        CleanBrowser clean;
 		        ImportSpy spy;
 		        ScratchCard card;
@@ -1861,8 +1872,25 @@ describe browser_choice_long_press(
 		        expect(r.browser_on_stack()).to_be_false();
 		        expect(static_cast<int32_t>(menu_scene().state().depth)).to_equal(1);
 		        expect(menu_scene().state().path[1] == &nodes::source_group).to_be_true();
-		        // `Submenu::beginSession` nulls main's range there, so its transpose column reads range 0.
-		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(0);
+		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(-1);
+		        // The transpose column's button then opens the picker first, as main's does.
+		        expect(menu::permission_for(nodes::source0_transpose, menu_scene().menu_context())
+		               == menu::Permission::MustSelectRange)
+		            .to_be_true();
+	        });
+
+	    it(
+	        "drops a range the picker chose when the walk enters a submenu", _ {
+		        CleanBrowser clean;
+		        ScratchCard card;
+		        ShellRig r;
+		        give_three_ranges(r.model);
+		        MenuContext ctx = r.model.ctx();
+		        ctx.range_index = 1;
+		        r.open_menu_at(nodes::sound_root, ctx);
+		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(1);
+		        menu_scene().enter_submenu(nodes::source_group);
+		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(-1);
 	        });
 
 	    it(
@@ -1966,5 +1994,98 @@ describe browser_choice_long_press(
 	        });
     });
 
+// clang-format off
+describe browser_choice_submenu_range("menu::begin_submenu_range, Submenu::beginSession's drop of the range", $ {
+	it("keeps it on a page whose focused column is range-dependent", _ {
+		SongRig model;
+		give_three_ranges(model);
+		MenuContext ctx = model.ctx();
+		ctx.range_index = 1;
+		const menu::MenuState st =
+		    state_on(nodes::source_group, visible_index_of(ctx, nodes::source_group, nodes::source0_transpose));
+		menu::begin_submenu_range(ctx, st, nullptr);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(1);
+	});
+
+	it("keeps it on a page come back to from a range-dependent item", _ {
+		SongRig model;
+		give_three_ranges(model);
+		MenuContext ctx = model.ctx();
+		ctx.range_index = 1;
+		menu::begin_submenu_range(ctx, state_on(nodes::source_group, 0), &nodes::source0_transpose);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(1);
+	});
+
+	it("keeps it on a page come back to from the picker heading to a range-dependent item", _ {
+		SongRig model;
+		give_three_ranges(model);
+		MenuContext ctx = model.ctx();
+		ctx.range_index = 1;
+		menu::MenuState st = state_on(nodes::source_group, 0);
+		st.walk.pending_after_range = &nodes::source0_transpose;
+		menu::begin_submenu_range(ctx, st, &nodes::multi_range);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(1);
+	});
+
+	it("drops it on a page come back to from the picker heading to the file selector", _ {
+		SongRig model;
+		give_three_ranges(model);
+		MenuContext ctx = model.ctx();
+		ctx.range_index = 1;
+		menu::MenuState st = state_on(nodes::source_group, 0);
+		st.walk.pending_after_range = &nodes::file0_selector;
+		menu::begin_submenu_range(ctx, st, &nodes::multi_range);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(-1);
+	});
+
+	it("drops it on a page come back to from the file selector, which main does not count as range-dependent", _ {
+		SongRig model;
+		give_three_ranges(model);
+		MenuContext ctx = model.ctx();
+		ctx.range_index = 1;
+		menu::begin_submenu_range(ctx, state_on(nodes::source_group, 0), &nodes::file0_selector);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(-1);
+	});
+
+	it("drops it on a list whatever it came back from", _ {
+		SongRig model;
+		give_three_ranges(model);
+		MenuContext ctx = model.ctx();
+		ctx.range_index = 1;
+		menu::begin_submenu_range(ctx, state_on(nodes::sound_root, 0), &nodes::source0_transpose);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(-1);
+	});
+
+	it("keeps a single range, which main's range check selects again before anything reads it", _ {
+		SongRig model;
+		MenuContext ctx = model.ctx(); // one range, range_index 0
+		menu::begin_submenu_range(ctx, state_on(nodes::source_group, 0), nullptr);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(0);
+	});
+
+	it("keeps the picked range when the picker's SELECT enters its item on the item's page, as main's select arm does", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		ShellRig r;
+		give_three_ranges(r.model);
+		MenuContext ctx = r.model.ctx();
+		ctx.range_index = -1; // several ranges and none chosen: the shortcut opens the picker heading to transpose
+		r.open_menu_at(nodes::source0_transpose, ctx);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		turn_detents(r.shell, r.clock, 3);
+		pick(r.shell, r.clock, 0);
+		r.step();
+
+		// `maybeGetParentMenu` -> `focusChild` -> `enterSubmenu(parent, newItem)`: the page begins having come back
+		// from transpose, so `HorizontalMenu::beginSession` keeps the range the picker chose.
+		expect(menu_scene().focused() == &nodes::source_group).to_be_true();
+		expect(menu::selected_child(menu_scene().menu_context(), menu_scene().state(), nodes::source_group)
+		       == &nodes::source0_transpose)
+		    .to_be_true();
+		expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(2);
+	});
+});
+// clang-format on
+
 DELUGE_SPEC(browser_choice_spec, browser_choice_target, browser_choice_dispatch, browser_choice_claim,
-            browser_choice_reroot, browser_choice_long_press, browser_choice_preview)
+            browser_choice_reroot, browser_choice_long_press, browser_choice_preview, browser_choice_submenu_range)
