@@ -69,11 +69,17 @@
 ///     byte-for-byte. So the fixture builder (`sim/scenes_spec/menu_dump_contexts.{h,cpp}`, and
 ///     the `scenes-includes-outside` layer-rule workaround that existed only to let it reach
 ///     `sim/scenes_spec/support/song_fixture.h` from outside `src/scenes/`) is gone. The only
-///     `MenuContext`s the dump makes are empty ones with a source index, for the names hooks `option_names` asks.
+///     `MenuContext`s the dump makes are the ones `option_names` asks the names hooks in (`g_names_contexts`): empty
+///     ones with a source index, and the booted song's first instrument clip as its row editor sees it, for the values
+///     an owner adds. They feed only `"options"`, never the walk.
 ///   * a node that offers values -> `"options"`, its value names in list order (`option_names`):
-///     a target row's name table, static `bind.names`, a `bind.dynamic_names` hook asked with an
-///     empty context once per source index, or a toggle's two words, as its own page lists them. A custom page or a
-///     number spelled as words names its values through the same two fields. A node with none gets no key.
+///     a target row's name table (with the names it takes with no audio input plugged in merged in), static
+///     `bind.names`, a `bind.dynamic_names` hook asked in each of `g_names_contexts` and merged (`merge_names`), or a
+///     toggle's two words, as its own page lists them. A custom page or a number spelled as words names its values
+///     through the same two fields. A node with none gets no key.
+///   * a page that draws its own list -> `"rows"`, each `{"name", "options"?, "rows"?}` (`drawn_rows`): "DX7
+///     parameters" lists its rows and the params each reaches, as main's website reference does. No other node has
+///     the key.
 ///   * a node with `Node::chain_targets` set -> a `"select_chain"` array of nested entries, in the
 ///     same shape as `"children"`: the pages a select press on that node opens instead of going up
 ///     a level (legacy's `MenuItem::selectButtonPress`). Seven nodes have one, and seven pages
@@ -118,7 +124,7 @@
 /// Root order is `kAllRoots`'s own compile-time order; child order is `Node::children`'s own
 /// declaration order (a `std::span` over a `constexpr` array, never reordered). JSON object keys
 /// are written in a fixed alphabetical order (`available_when`, `children`, `id`, `name`,
-/// `options`, `select_chain`, `title`, `type`) baked into `emit_node`'s own field-by-field writes rather than
+/// `options`, `rows`, `select_chain`, `title`, `type`) baked into `emit_node`'s own field-by-field writes rather than
 /// sorted at runtime --
 /// there is no hash-map/set iteration anywhere on the emission path. `text_of` resolves through
 /// `l10n::chosenLanguage`, pinned at the start of `dump_menu_tree` to the built-in English table before the walk
@@ -131,9 +137,14 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/setting_names.h"
 #include "gui/l10n/strings.h"
+#include "gui/ui/menu_view_of.h"
+#include "model/clip/clip.h"
+#include "model/song/song.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/node_id.h"
+#include "scenes/menu/nodes/dx.h"
+#include "scenes/menu/nodes/dx_tables.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/relevance.h"
 #include "scenes/profile.h"
@@ -221,6 +232,30 @@ std::string text_of(uint16_t id) {
 	return std::string{deluge::scenes::deluge_profile().text_or_digits(id, scratch)};
 }
 
+/// @brief Add @p more to @p into, in list order: the values @p more lists before any @p into already has go in front
+///        (a choice only an owner adds, ahead of the rest), the rest it lacks at the end (one only an owner or a
+///        missing input adds, after them), each value once.
+void merge_names(std::vector<std::string>& into, const std::vector<std::string>& more) {
+	std::vector<std::string> front;
+	bool seen_known = into.empty(); // a first list is taken as it stands
+	for (const std::string& name : more) {
+		if (std::ranges::find(into, name) != into.end()) {
+			seen_known = true;
+			continue;
+		}
+		if (std::ranges::find(front, name) != front.end()) {
+			continue;
+		}
+		if (seen_known) {
+			into.push_back(name);
+		}
+		else {
+			front.push_back(name);
+		}
+	}
+	into.insert(into.begin(), front.begin(), front.end());
+}
+
 /// @brief The names @p target's row table gives its values: every choice it names, in the row's order.
 ///
 /// A sound's settings and effects are named as the Deluge instrument names them, a host chain's effects as the global
@@ -245,11 +280,21 @@ std::vector<std::string> target_option_names(const deluge::scenes::bind::Target&
 	default:
 		break;
 	}
-	std::vector<std::string> out;
-	if (names != nullptr) {
-		for (const deluge::l10n::String id : names->choices) {
-			out.push_back(text_of(static_cast<uint16_t>(id)));
+	const auto spelled = [](const deluge::l10n::SettingNames* table) {
+		std::vector<std::string> out;
+		if (table != nullptr) {
+			for (const deluge::l10n::String id : table->choices) {
+				out.push_back(text_of(static_cast<uint16_t>(id)));
+			}
 		}
+		return out;
+	};
+	std::vector<std::string> out = spelled(names);
+	if (names != nullptr && target.kind == Kind::SOUND) {
+		// With no audio input plugged in, a row may name its values otherwise (an oscillator's one "Input").
+		const deluge::plugin::SettingContext unplugged{.audio_inputs_present = false};
+		merge_names(out,
+		            spelled(deluge::l10n::setting_names(deluge::plugin::kDelugeInstrument, target.path, unplugged)));
 	}
 	return out;
 }
@@ -257,6 +302,35 @@ std::vector<std::string> target_option_names(const deluge::scenes::bind::Target&
 /// The source indices a names hook is asked under: every output the CV and gate selectors pick (`NUM_GATE_CHANNELS`
 /// gate outputs, which covers the two CV outputs and the two oscillators).
 constexpr int8_t kDumpedSourceIndices = NUM_GATE_CHANNELS;
+
+/// @brief The contexts a names hook is asked in: an otherwise empty one per source index, which gives the values every
+///        owner is offered and those one output adds (a gate output's CLOCK), then the booted song's first instrument
+///        clip as its row editor sees it, a sound and a note row, which gives those an owner adds (a sound's USE SONG
+///        SETTINGS, a note row's NONE). The booted song is the app's default one, so the dump stays the same from run
+///        to run.
+std::vector<menu::MenuContext> g_names_contexts;
+
+void build_names_contexts() {
+	g_names_contexts.clear();
+	for (int8_t source = 0; source < kDumpedSourceIndices; ++source) {
+		menu::MenuContext ctx{};
+		ctx.source_index = source;
+		g_names_contexts.push_back(ctx);
+	}
+	if (currentSong == nullptr) {
+		return;
+	}
+	for (Clip* clip : currentSong->live.clips.session_clips) {
+		if (clip == nullptr || clip->type != ClipType::INSTRUMENT) {
+			continue;
+		}
+		menu::MenuContext ctx = menu::context_for(*currentSong, deluge::gui::menuViewOf(clip), 0, false, false, false,
+		                                          /*kit_global_fx=*/false);
+		ctx.root = menu::MenuContext::Root::NoteRowEditor;
+		g_names_contexts.push_back(ctx);
+		return;
+	}
+}
 
 /// @brief The values @p node offers, as its list spells them; empty for a node that offers none.
 ///
@@ -280,18 +354,12 @@ std::vector<std::string> option_names(const menu::Node& node) {
 	}
 	std::vector<std::string> out;
 	if (node.bind.dynamic_names != nullptr) {
-		// Asked once per output a selector can address, so a page that adds a value on one output (a gate output's
-		// CLOCK or RUN SIGNAL) lists it; each value once, in the order the outputs first offer it.
-		for (int8_t source = 0; source < kDumpedSourceIndices; ++source) {
-			menu::MenuContext ctx{};
-			ctx.source_index = source;
+		// Asked in every context the dump has (`g_names_contexts`), so a page that adds a value for one output or one
+		// owner lists it; each value once, in list order (`merge_names`).
+		for (const menu::MenuContext& ctx : g_names_contexts) {
 			std::array<std::string_view, menu::kMaxDynamicNames> names{};
 			const size_t count = std::min(node.bind.dynamic_names(ctx, names), names.size());
-			for (size_t i = 0; i < count; ++i) {
-				if (std::ranges::find(out, names[i]) == out.end()) {
-					out.emplace_back(names[i]);
-				}
-			}
+			merge_names(out, std::vector<std::string>(names.begin(), names.begin() + static_cast<ptrdiff_t>(count)));
 		}
 		return out;
 	}
@@ -299,6 +367,148 @@ std::vector<std::string> option_names(const menu::Node& node) {
 		out.push_back(text_of(id));
 	}
 	return out;
+}
+
+/// @brief A row a page draws in its own list, which no `Node` stands for: its label, the values it offers and the rows
+///        under it.
+struct DrawnRow {
+	std::string name;
+	std::vector<std::string> options;
+	std::vector<DrawnRow> rows;
+};
+
+namespace dx = deluge::scenes::menu::dx;
+
+/// An operator param's long name, by its index in the operator (`desc_op_long`,
+/// `origin/main:src/deluge/gui/menu_item/dx/param.cpp`).
+constexpr std::array<std::string_view, dx::kOperatorParams> kDxOperatorParamNames{
+    "env rate1",  "env rate2",     "env rate3",  "env rate4",   "env level1", "env level2",  "env level3",
+    "env level4", "breakpoint",    "left depth", "right depth", "left curve", "right curve", "rate scale",
+    "ampmod",     "velocity sens", "level",      "mode",        "coarse",     "fine",        "detune"};
+/// A global param's long name, by its index past the operators (`desc_global_long`, the same file).
+constexpr std::array<std::string_view, 18> kDxGlobalParamNames{
+    "DX7 pitch R1",  "DX7 pitch R2",  "DX7 pitch R3", "DX7 pitch R4", "DX7 pitch l1",     "DX7 pitch l2",
+    "DX7 pitch l3",  "DX7 pitch l4",  "algorithm",    "DX7 feedback", "DX7 osc Sync",     "DX7 LFO rate",
+    "DX7 LFO delay", "DX7 LFO pitch", "DX7 LFO amp",  "DX7 LFO sync", "DX7 LFO waveform", "DX7 pitch sens"};
+
+/// @brief The params a DX7 row lists, by the param its select press opens, as main's website reference lists them
+///        (`extractDxParamDescriptorContext` and `selectDescriptorIndicesForItem`,
+///        `origin/main:website/scripts/generate-menu-hierarchies.mjs`): the descriptor group the param is in, narrowed
+///        to the one param the row's label names (level, velocity sens, rate scale, ampmod), or for the row that names
+///        none of its group, the params the other rows do not name (pitch: mode, coarse, fine, detune).
+/// @param index The param's index in its operator, or past the operators for a global row.
+/// @param global Whether it is a global row's.
+std::vector<int16_t> dx_row_params(int16_t index, bool global) {
+	const auto span = [](int16_t first, int16_t last) {
+		std::vector<int16_t> out;
+		for (int16_t i = first; i <= last; ++i) {
+			out.push_back(i);
+		}
+		return out;
+	};
+	if (global) {
+		return index < 8 ? span(0, 7) : index < 11 ? span(index, index) : span(11, 17);
+	}
+	if (index < 8) {
+		return span(0, 7); // envelope
+	}
+	if (index < 13) {
+		return span(8, 12); // note scaling
+	}
+	if (index == 18) {
+		return span(17, 20); // pitch
+	}
+	return span(index, index); // level, velocity sense, rate scaling, ampmod
+}
+
+/// @brief A DX7 param as a row: its long name, and the values it offers by name (the curves, ratio or fixed, the LFO
+///        waveforms; `DxParam::renderOLED`'s words).
+DrawnRow dx_param_row(int16_t index, bool global) {
+	DrawnRow row{.name = std::string{global ? kDxGlobalParamNames[index] : kDxOperatorParamNames[index]}};
+	if (!global && (index == 11 || index == 12)) {
+		for (uint8_t curve = 0; curve < 4; ++curve) {
+			row.options.emplace_back(dx::curve_name(curve));
+		}
+	}
+	else if (!global && index == 17) {
+		row.options = {"ratio", "fixed"};
+	}
+	else if (global && index == 16) {
+		for (uint8_t shape = 0; shape < 6; ++shape) {
+			row.options.emplace_back(dx::lfo_shape(shape));
+		}
+	}
+	return row;
+}
+
+/// @brief The rows "DX7 parameters" draws (`dx::global_row`), each with the params it reaches: an operator's own rows
+///        (`dx::operator_row`) for "operator N", the params for the rest.
+std::vector<DrawnRow> dx_global_rows() {
+	std::vector<DrawnRow> out;
+	for (int32_t r = 0; r < dx::kGlobalRows; ++r) {
+		DrawnRow row{.name = std::string{dx::global_row(r)}};
+		const int16_t param = dx::global_row_param(r);
+		if (param < 0) {
+			for (int32_t o = 0; o < dx::kOperatorRows; ++o) {
+				DrawnRow op_row{.name = std::string{dx::operator_row(o)}};
+				const auto index = static_cast<int16_t>(dx::operator_row_param(0, o));
+				for (const int16_t p : dx_row_params(index, false)) {
+					op_row.rows.push_back(dx_param_row(p, false));
+				}
+				row.rows.push_back(std::move(op_row));
+			}
+		}
+		else {
+			for (const int16_t p : dx_row_params(static_cast<int16_t>(param - dx::kFirstGlobal), true)) {
+				row.rows.push_back(dx_param_row(p, true));
+			}
+		}
+		out.push_back(std::move(row));
+	}
+	return out;
+}
+
+/// @brief The rows @p node draws in its own list, which the dump lists under `"rows"`: only "DX7 parameters" has
+///        any, which `DxGlobalParamsItem` draws from the DX7 tables.
+std::vector<DrawnRow> drawn_rows(const menu::Node& node) {
+	if (&node == &nodes::dx_global_params) {
+		return dx_global_rows();
+	}
+	return {};
+}
+
+void emit_names(std::string& out, const std::vector<std::string>& names, int field_level) {
+	out += "[\n";
+	for (size_t i = 0; i < names.size(); ++i) {
+		out += spaces(field_level + 1);
+		write_json_string(out, names[i]);
+		out += i + 1 < names.size() ? ",\n" : "\n";
+	}
+	out += spaces(field_level) + "]";
+}
+
+/// @brief @p rows as a `"rows"` array at @p field_level: each row's `name`, then its `options` and `rows` where it has
+///        any, keys in the file's alphabetical order.
+void emit_drawn_rows(std::string& out, const std::vector<DrawnRow>& rows, int field_level) {
+	out += "[\n";
+	for (size_t i = 0; i < rows.size(); ++i) {
+		const DrawnRow& row = rows[i];
+		const int row_level = field_level + 1;
+		out += spaces(row_level) + "{\n";
+		out += spaces(row_level + 1) + "\"name\": ";
+		write_json_string(out, row.name);
+		if (!row.options.empty()) {
+			out += ",\n" + spaces(row_level + 1) + "\"options\": ";
+			emit_names(out, row.options, row_level + 1);
+		}
+		if (!row.rows.empty()) {
+			out += ",\n" + spaces(row_level + 1) + "\"rows\": ";
+			emit_drawn_rows(out, row.rows, row_level + 1);
+		}
+		out += "\n" + spaces(row_level) + "}";
+		out += i + 1 < rows.size() ? ",\n" : "\n";
+	}
+	out += spaces(field_level) + "]";
 }
 
 /// @brief @p node's `"options"` key, one name per line, or nothing for a node that offers no values.
@@ -515,6 +725,11 @@ void emit_node(std::string& out, const menu::Node& node, int brace_level) {
 	write_json_string(out, text_of(node.name));
 	out += ",\n";
 	emit_options(out, node, field_level);
+	if (const std::vector<DrawnRow> rows = drawn_rows(node); !rows.empty()) {
+		out += spaces(field_level) + "\"rows\": ";
+		emit_drawn_rows(out, rows, field_level);
+		out += ",\n";
+	}
 	// A node with no chain gets no `"select_chain"` key at all, the same way a node with no
 	// `relevant` gets no `"available_when"`: absent means "a select press here goes up a level",
 	// which is every node but seven.
@@ -545,6 +760,7 @@ bool deluge::scenes::menu::dump_menu_tree(std::string& out) {
 	// and the tool segfaults on the first node. Pinned to English rather than read from the
 	// environment so a run's language can never silently vary.
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
+	build_names_contexts();
 
 	uint16_t assigned = menu::assign_node_ids(nodes::kAllRoots);
 	if (assigned == 0) {

@@ -246,18 +246,141 @@ test("the committed dump names the values each kind of list offers", () => {
     "Disabled",
     "Enabled",
   ])
-  // a names hook, asked with no owner
+  // a names hook, asked with no owner and then as the boot song's clip and its row editor see it: a note row adds NONE
   assert.deepEqual(at(["Sound", "Play direction"]).options, [
     "Forward",
     "Reversed",
     "Ping-Pong",
+    "None",
   ])
-  // a setting row's name table
+  // a sound adds USE SONG SETTINGS, ahead of the rest
+  assert.deepEqual(at(["Sound", "FX", "Stutter", "Direction"]).options, [
+    "Use Song Settings",
+    "Forward",
+    "Reversed",
+    "Forw-Ping",
+    "Rvrs-Ping",
+  ])
+  // a setting row's name table, and with no audio input plugged in, the one "Input" after the rest
   assert.deepEqual(at(["Sound", "Oscillator 1", "Type"]).options.slice(0, 3), [
     "Sine",
     "Triangle",
     "Square",
   ])
+  assert.deepEqual(at(["Sound", "Oscillator 1", "Type"]).options.slice(-4), [
+    "Input (left)",
+    "Input (right)",
+    "Input (stereo)",
+    "Input",
+  ])
+})
+
+test("the committed dump lists the rows DX7 parameters draws, each with the params it reaches", () => {
+  const rows = at([
+    "Sound",
+    "Oscillator 1",
+    "Type",
+    "DX7 source",
+    "DX7 parameters",
+  ]).rows
+  assert.deepEqual(
+    rows.map((r) => r.name),
+    [
+      "algorithm",
+      "feedback",
+      "sync",
+      "operator 1",
+      "operator 2",
+      "operator 3",
+      "operator 4",
+      "operator 5",
+      "operator 6",
+      "pitch envelope",
+      "lfo",
+    ],
+  )
+  const operator = rows[3].rows
+  assert.deepEqual(
+    operator.map((r) => [r.name, r.rows.map((p) => p.name)]),
+    [
+      ["pitch", ["mode", "coarse", "fine", "detune"]],
+      ["level", ["level"]],
+      [
+        "envelope",
+        [
+          "env rate1",
+          "env rate2",
+          "env rate3",
+          "env rate4",
+          "env level1",
+          "env level2",
+          "env level3",
+          "env level4",
+        ],
+      ],
+      ["velocity sense", ["velocity sens"]],
+      [
+        "note scaling",
+        [
+          "breakpoint",
+          "left depth",
+          "right depth",
+          "left curve",
+          "right curve",
+        ],
+      ],
+      ["rate scaling", ["rate scale"]],
+      ["ampmod", ["ampmod"]],
+    ],
+  )
+  assert.deepEqual(operator[0].rows[0].options, ["ratio", "fixed"])
+  assert.deepEqual(operator[4].rows[3].options, [
+    "lin-",
+    "exp-",
+    "exp+",
+    "lin+",
+  ])
+  assert.deepEqual(rows[9].rows.map((p) => p.name).slice(0, 2), [
+    "DX7 pitch R1",
+    "DX7 pitch R2",
+  ])
+  const lfo = rows[10].rows
+  assert.equal(lfo.length, 7)
+  assert.deepEqual(lfo[5].options, [
+    "tri",
+    "saw down",
+    "saw up",
+    "square",
+    "sin",
+    "s-hold",
+  ])
+})
+
+test("a page's drawn rows are its reference rows in place of its select chain; the mod matrix's are main's", () => {
+  const dx = leaf(2, "DX7 parameters", {
+    rows: [
+      { name: "lfo", rows: [{ name: "DX7 LFO waveform", options: ["tri"] }] },
+    ],
+    select_chain: [leaf(3, "DX7 param")],
+  })
+  const tree = convertTree(
+    submenu(1, "Sound", [
+      dx,
+      leaf(4, "Mod matrix", { select_chain: [leaf(5, "Modulate with")] }),
+    ]),
+    "s",
+    noTags,
+  )
+  const [dxRow, modMatrix] = tree.children
+  assert.deepEqual(labels(dxRow), ["lfo"])
+  assert.deepEqual(labels(dxRow.children[0]), ["DX7 LFO waveform"])
+  assert.deepEqual(labels(dxRow.children[0].children[0]), ["tri"])
+  assert.deepEqual(labels(modMatrix), ["Selected Patch Cable"])
+  assert.deepEqual(labels(modMatrix.children[0]), [
+    "Regular destination",
+    "Range destination",
+  ])
+  assert.deepEqual(labels(modMatrix.children[0].children[1]), ["Strength"])
 })
 
 test("every root of the committed dump is placed, the nameless start marker editor as undocumented", () => {

@@ -80,6 +80,35 @@ const CLIP_SETTINGS_MENU = {
   ],
 }
 
+/**
+ * Rows the reference lists under a page whose list is the song's own (the mod matrix lists the sound's patch cables),
+ * by the page's name: the selected item's pages, as main's reference spells them.
+ */
+export const PAGE_ROWS = {
+  "Mod matrix": [
+    {
+      name: "Selected Patch Cable",
+      rows: [
+        { name: "Regular destination", rows: [{ name: "Strength" }] },
+        { name: "Range destination", rows: [{ name: "Strength" }] },
+      ],
+    },
+  ],
+}
+
+/**
+ * A page's drawn rows (the dump's `rows`, or PAGE_ROWS) in the dump's node shape: each row's values and the rows under
+ * it.
+ */
+export function drawnRows(rows) {
+  return rows.map((row) => ({
+    name: row.name,
+    title: row.name,
+    options: row.options ?? [],
+    children: drawnRows(row.rows ?? []),
+  }))
+}
+
 /** Anchor-safe spelling of a label: lower case, every run of other characters one hyphen. */
 export function slug(text) {
   const s = text
@@ -126,9 +155,10 @@ function listedIds(root) {
 
 /**
  * One dump root as a reference tree. A node's rows are the values it offers (`options`, each an `option` row), its
- * children, then the pages its select press opens
- * (`select_chain`) that no list in this tree names, each shown once, under the first item that opens it. A cycle stub
- * (`ref`) names a page already open above it, so it is one of those two and is skipped with them.
+ * children, then the rows it draws in its own list (`rows`, or PAGE_ROWS by its name), or, for a node that draws none,
+ * the pages its select press opens (`select_chain`) that no list in this tree names, each shown once, under the first
+ * item that opens it. A cycle stub (`ref`) names a page already open above it, so it is one of those two and is
+ * skipped with them. A drawn row's pages are the ones its select press opens, so they stand in for the chain.
  *
  * Rows of the same shape are listed once (`shapeOf`), except slot items ("*"), which are one row per slot.
  *
@@ -159,6 +189,13 @@ export function convertTree(root, rootKey, tags, hides = []) {
     }
     for (const child of node.children ?? []) {
       if (!hides.includes(child.available_when)) add(child)
+    }
+    const drawn =
+      node.rows ??
+      (Object.hasOwn(PAGE_ROWS, node.name) ? PAGE_ROWS[node.name] : undefined)
+    if (drawn) {
+      for (const row of drawnRows(drawn)) add(row)
+      return rows
     }
     for (const target of node.select_chain ?? []) {
       if (listed.has(target.id) || chained.has(target.id)) continue

@@ -1421,6 +1421,7 @@
                 "id": 116,
                 "name": "Direction",
                 "options": [
+                  "Use Song Settings",
                   "Forward",
                   "Reversed",
                   "Forw-Ping",
@@ -1795,7 +1796,8 @@
               "Dx7",
               "Input (left)",
               "Input (right)",
-              "Input (stereo)"
+              "Input (stereo)",
+              "Input"
             ],
             "select_chain": [
               {
@@ -1809,6 +1811,809 @@
                   {
                     "id": 141,
                     "name": "DX7 parameters",
+                    "rows": [
+                      {
+                        "name": "algorithm",
+                        "rows": [
+                          {
+                            "name": "algorithm"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "feedback",
+                        "rows": [
+                          {
+                            "name": "DX7 feedback"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "sync",
+                        "rows": [
+                          {
+                            "name": "DX7 osc Sync"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 1",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 2",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 3",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 4",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 5",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 6",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "pitch envelope",
+                        "rows": [
+                          {
+                            "name": "DX7 pitch R1"
+                          },
+                          {
+                            "name": "DX7 pitch R2"
+                          },
+                          {
+                            "name": "DX7 pitch R3"
+                          },
+                          {
+                            "name": "DX7 pitch R4"
+                          },
+                          {
+                            "name": "DX7 pitch l1"
+                          },
+                          {
+                            "name": "DX7 pitch l2"
+                          },
+                          {
+                            "name": "DX7 pitch l3"
+                          },
+                          {
+                            "name": "DX7 pitch l4"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "lfo",
+                        "rows": [
+                          {
+                            "name": "DX7 LFO rate"
+                          },
+                          {
+                            "name": "DX7 LFO delay"
+                          },
+                          {
+                            "name": "DX7 LFO pitch"
+                          },
+                          {
+                            "name": "DX7 LFO amp"
+                          },
+                          {
+                            "name": "DX7 LFO sync"
+                          },
+                          {
+                            "name": "DX7 LFO waveform",
+                            "options": [
+                              "tri",
+                              "saw down",
+                              "saw up",
+                              "square",
+                              "sin",
+                              "s-hold"
+                            ]
+                          },
+                          {
+                            "name": "DX7 pitch sens"
+                          }
+                        ]
+                      }
+                    ],
                     "select_chain": [
                       {
                         "id": 142,
@@ -2145,7 +2950,8 @@
               "Dx7",
               "Input (left)",
               "Input (right)",
-              "Input (stereo)"
+              "Input (stereo)",
+              "Input"
             ],
             "select_chain": [
               {
@@ -2159,6 +2965,809 @@
                   {
                     "id": 141,
                     "name": "DX7 parameters",
+                    "rows": [
+                      {
+                        "name": "algorithm",
+                        "rows": [
+                          {
+                            "name": "algorithm"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "feedback",
+                        "rows": [
+                          {
+                            "name": "DX7 feedback"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "sync",
+                        "rows": [
+                          {
+                            "name": "DX7 osc Sync"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 1",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 2",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 3",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 4",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 5",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 6",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "pitch envelope",
+                        "rows": [
+                          {
+                            "name": "DX7 pitch R1"
+                          },
+                          {
+                            "name": "DX7 pitch R2"
+                          },
+                          {
+                            "name": "DX7 pitch R3"
+                          },
+                          {
+                            "name": "DX7 pitch R4"
+                          },
+                          {
+                            "name": "DX7 pitch l1"
+                          },
+                          {
+                            "name": "DX7 pitch l2"
+                          },
+                          {
+                            "name": "DX7 pitch l3"
+                          },
+                          {
+                            "name": "DX7 pitch l4"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "lfo",
+                        "rows": [
+                          {
+                            "name": "DX7 LFO rate"
+                          },
+                          {
+                            "name": "DX7 LFO delay"
+                          },
+                          {
+                            "name": "DX7 LFO pitch"
+                          },
+                          {
+                            "name": "DX7 LFO amp"
+                          },
+                          {
+                            "name": "DX7 LFO sync"
+                          },
+                          {
+                            "name": "DX7 LFO waveform",
+                            "options": [
+                              "tri",
+                              "saw down",
+                              "saw up",
+                              "square",
+                              "sin",
+                              "s-hold"
+                            ]
+                          },
+                          {
+                            "name": "DX7 pitch sens"
+                          }
+                        ]
+                      }
+                    ],
                     "select_chain": [
                       {
                         "id": 142,
@@ -4234,7 +5843,8 @@
         "options": [
           "Forward",
           "Reversed",
-          "Ping-Pong"
+          "Ping-Pong",
+          "None"
         ],
         "title": "Play direction",
         "type": "basic"
@@ -5674,6 +7284,7 @@
                 "id": 116,
                 "name": "Direction",
                 "options": [
+                  "Use Song Settings",
                   "Forward",
                   "Reversed",
                   "Forw-Ping",
@@ -6048,7 +7659,8 @@
               "Dx7",
               "Input (left)",
               "Input (right)",
-              "Input (stereo)"
+              "Input (stereo)",
+              "Input"
             ],
             "select_chain": [
               {
@@ -6062,6 +7674,809 @@
                   {
                     "id": 141,
                     "name": "DX7 parameters",
+                    "rows": [
+                      {
+                        "name": "algorithm",
+                        "rows": [
+                          {
+                            "name": "algorithm"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "feedback",
+                        "rows": [
+                          {
+                            "name": "DX7 feedback"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "sync",
+                        "rows": [
+                          {
+                            "name": "DX7 osc Sync"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 1",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 2",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 3",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 4",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 5",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 6",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "pitch envelope",
+                        "rows": [
+                          {
+                            "name": "DX7 pitch R1"
+                          },
+                          {
+                            "name": "DX7 pitch R2"
+                          },
+                          {
+                            "name": "DX7 pitch R3"
+                          },
+                          {
+                            "name": "DX7 pitch R4"
+                          },
+                          {
+                            "name": "DX7 pitch l1"
+                          },
+                          {
+                            "name": "DX7 pitch l2"
+                          },
+                          {
+                            "name": "DX7 pitch l3"
+                          },
+                          {
+                            "name": "DX7 pitch l4"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "lfo",
+                        "rows": [
+                          {
+                            "name": "DX7 LFO rate"
+                          },
+                          {
+                            "name": "DX7 LFO delay"
+                          },
+                          {
+                            "name": "DX7 LFO pitch"
+                          },
+                          {
+                            "name": "DX7 LFO amp"
+                          },
+                          {
+                            "name": "DX7 LFO sync"
+                          },
+                          {
+                            "name": "DX7 LFO waveform",
+                            "options": [
+                              "tri",
+                              "saw down",
+                              "saw up",
+                              "square",
+                              "sin",
+                              "s-hold"
+                            ]
+                          },
+                          {
+                            "name": "DX7 pitch sens"
+                          }
+                        ]
+                      }
+                    ],
                     "select_chain": [
                       {
                         "id": 142,
@@ -6398,7 +8813,8 @@
               "Dx7",
               "Input (left)",
               "Input (right)",
-              "Input (stereo)"
+              "Input (stereo)",
+              "Input"
             ],
             "select_chain": [
               {
@@ -6412,6 +8828,809 @@
                   {
                     "id": 141,
                     "name": "DX7 parameters",
+                    "rows": [
+                      {
+                        "name": "algorithm",
+                        "rows": [
+                          {
+                            "name": "algorithm"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "feedback",
+                        "rows": [
+                          {
+                            "name": "DX7 feedback"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "sync",
+                        "rows": [
+                          {
+                            "name": "DX7 osc Sync"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 1",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 2",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 3",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 4",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 5",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "operator 6",
+                        "rows": [
+                          {
+                            "name": "pitch",
+                            "rows": [
+                              {
+                                "name": "mode",
+                                "options": [
+                                  "ratio",
+                                  "fixed"
+                                ]
+                              },
+                              {
+                                "name": "coarse"
+                              },
+                              {
+                                "name": "fine"
+                              },
+                              {
+                                "name": "detune"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "level",
+                            "rows": [
+                              {
+                                "name": "level"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "envelope",
+                            "rows": [
+                              {
+                                "name": "env rate1"
+                              },
+                              {
+                                "name": "env rate2"
+                              },
+                              {
+                                "name": "env rate3"
+                              },
+                              {
+                                "name": "env rate4"
+                              },
+                              {
+                                "name": "env level1"
+                              },
+                              {
+                                "name": "env level2"
+                              },
+                              {
+                                "name": "env level3"
+                              },
+                              {
+                                "name": "env level4"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "velocity sense",
+                            "rows": [
+                              {
+                                "name": "velocity sens"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "note scaling",
+                            "rows": [
+                              {
+                                "name": "breakpoint"
+                              },
+                              {
+                                "name": "left depth"
+                              },
+                              {
+                                "name": "right depth"
+                              },
+                              {
+                                "name": "left curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              },
+                              {
+                                "name": "right curve",
+                                "options": [
+                                  "lin-",
+                                  "exp-",
+                                  "exp+",
+                                  "lin+"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "rate scaling",
+                            "rows": [
+                              {
+                                "name": "rate scale"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "ampmod",
+                            "rows": [
+                              {
+                                "name": "ampmod"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "pitch envelope",
+                        "rows": [
+                          {
+                            "name": "DX7 pitch R1"
+                          },
+                          {
+                            "name": "DX7 pitch R2"
+                          },
+                          {
+                            "name": "DX7 pitch R3"
+                          },
+                          {
+                            "name": "DX7 pitch R4"
+                          },
+                          {
+                            "name": "DX7 pitch l1"
+                          },
+                          {
+                            "name": "DX7 pitch l2"
+                          },
+                          {
+                            "name": "DX7 pitch l3"
+                          },
+                          {
+                            "name": "DX7 pitch l4"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "lfo",
+                        "rows": [
+                          {
+                            "name": "DX7 LFO rate"
+                          },
+                          {
+                            "name": "DX7 LFO delay"
+                          },
+                          {
+                            "name": "DX7 LFO pitch"
+                          },
+                          {
+                            "name": "DX7 LFO amp"
+                          },
+                          {
+                            "name": "DX7 LFO sync"
+                          },
+                          {
+                            "name": "DX7 LFO waveform",
+                            "options": [
+                              "tri",
+                              "saw down",
+                              "saw up",
+                              "square",
+                              "sin",
+                              "s-hold"
+                            ]
+                          },
+                          {
+                            "name": "DX7 pitch sens"
+                          }
+                        ]
+                      }
+                    ],
                     "select_chain": [
                       {
                         "id": 142,
@@ -8487,7 +11706,8 @@
         "options": [
           "Forward",
           "Reversed",
-          "Ping-Pong"
+          "Ping-Pong",
+          "None"
         ],
         "title": "Play direction",
         "type": "basic"
@@ -9118,7 +12338,8 @@
         "options": [
           "Forward",
           "Reversed",
-          "Ping-Pong"
+          "Ping-Pong",
+          "None"
         ],
         "title": "Play direction",
         "type": "basic"
@@ -10490,6 +13711,7 @@
                 "id": 116,
                 "name": "Direction",
                 "options": [
+                  "Use Song Settings",
                   "Forward",
                   "Reversed",
                   "Forw-Ping",
@@ -11022,6 +14244,7 @@
                 "id": 116,
                 "name": "Direction",
                 "options": [
+                  "Use Song Settings",
                   "Forward",
                   "Reversed",
                   "Forw-Ping",
@@ -11439,6 +14662,7 @@
                 "id": 116,
                 "name": "Direction",
                 "options": [
+                  "Use Song Settings",
                   "Forward",
                   "Reversed",
                   "Forw-Ping",
@@ -12553,6 +15777,7 @@
                 "id": 116,
                 "name": "Direction",
                 "options": [
+                  "Use Song Settings",
                   "Forward",
                   "Reversed",
                   "Forw-Ping",
@@ -14920,7 +18145,8 @@
         "options": [
           "Forward",
           "Reversed",
-          "Ping-Pong"
+          "Ping-Pong",
+          "None"
         ],
         "title": "Play direction",
         "type": "basic"
@@ -15240,7 +18466,8 @@
         "options": [
           "Forward",
           "Reversed",
-          "Ping-Pong"
+          "Ping-Pong",
+          "None"
         ],
         "title": "Play direction",
         "type": "basic"
