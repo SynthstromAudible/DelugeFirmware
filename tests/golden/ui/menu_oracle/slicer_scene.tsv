@@ -1,0 +1,125 @@
+# Reference answers of upstream main's menu, one row per answer: path, column, values (tab-separated).
+# A row changes only to follow main's source (git show origin/main:<path>); tests/golden/README.md says how.
+slicer/open	mode	0
+slicer/open	clips	16
+slicer/open	num_slices	1
+slicer/open	current	0
+slicer/open	starts	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+slicer/open	transposes	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+slicer/open	view	0	32768
+slicer/count_clips	clips	20
+slicer/wrap_up	clips	2
+slicer/wrap_down	clips	256
+slicer/past_wrap	clips	258
+slicer/negative	clips	-4
+slicer/select_manual	num_after_up	1
+slicer/select_manual	num_after_down	1
+slicer/select_manual	current_after_down	0
+slicer/horizontal_region	start0	0
+slicer/horizontal_manual	start0	200
+slicer/horizontal_shift	start0	30
+slicer/horizontal_clamp	start0_floor	0
+slicer/horizontal_clamp	start0_ceiling	524288
+slicer/vertical_manual	transpose0_up	5
+slicer/vertical_manual	transpose0_ceiling	24
+slicer/vertical_manual	transpose0_floor	-24
+slicer/vertical_region	transpose0	0
+slicer/mark_moves	start0	40000
+slicer/sorted	num_slices	5
+slicer/sorted	current	0
+slicer/sorted	starts	0	50000	100000	200000	300000	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+slicer/sorted	transposes	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+slicer/slots	slot/0	0	0
+slicer/slots	slot/1	1	0
+slicer/slots	slot/2	2	0
+slicer/slots	slot/3	3	0
+slicer/slots	slot/4	0	1
+slicer/slots	slot/5	1	1
+slicer/slots	slot/6	2	1
+slicer/slots	slot/7	3	1
+slicer/slots	slot/8	0	2
+slicer/slots	slot/9	1	2
+slicer/slots	slot/10	2	2
+slicer/slots	slot/11	3	2
+slicer/slots	slot/12	0	3
+slicer/slots	slot/13	1	3
+slicer/slots	slot/14	2	3
+slicer/slots	slot/15	3	3
+slicer/slots	slot/16	4	0
+slicer/slots	slot/17	5	0
+slicer/slots	slot/18	6	0
+slicer/slots	slot/19	7	0
+slicer/slots	slot/20	4	1
+slicer/slots	slot/21	5	1
+slicer/slots	slot/22	6	1
+slicer/slots	slot/23	7	1
+slicer/slots	slot/24	4	2
+slicer/slots	slot/25	5	2
+slicer/slots	slot/26	6	2
+slicer/slots	slot/27	7	2
+slicer/slots	slot/28	4	3
+slicer/slots	slot/29	5	3
+slicer/slots	slot/30	6	3
+slicer/slots	slot/31	7	3
+slicer/slots	slot/32	8	0
+slicer/slots	slot/33	9	0
+slicer/slots	slot/34	10	0
+slicer/slots	slot/35	11	0
+slicer/slots	slot/36	8	1
+slicer/slots	slot/37	9	1
+slicer/slots	slot/38	10	1
+slicer/slots	slot/39	11	1
+slicer/slots	slot/40	8	2
+slicer/slots	slot/41	9	2
+slicer/slots	slot/42	10	2
+slicer/slots	slot/43	11	2
+slicer/slots	slot/44	8	3
+slicer/slots	slot/45	9	3
+slicer/slots	slot/46	10	3
+slicer/slots	slot/47	11	3
+slicer/slots	slot/48	12	0
+slicer/slots	slot/49	13	0
+slicer/slots	slot/50	14	0
+slicer/slots	slot/51	15	0
+slicer/slots	slot/52	12	1
+slicer/slots	slot/53	13	1
+slicer/slots	slot/54	14	1
+slicer/slots	slot/55	15	1
+slicer/slots	slot/56	12	2
+slicer/slots	slot/57	13	2
+slicer/slots	slot/58	14	2
+slicer/slots	slot/59	15	2
+slicer/slots	slot/60	12	3
+slicer/slots	slot/61	13	3
+slicer/slots	slot/62	14	3
+slicer/slots	slot/63	15	3
+slicer/popup_close	same_pad	0
+slicer/popup_close	other_pad	1
+slicer/x_enc	modes	1	0
+slicer/y_enc_manual	popup	Transpose: -7
+slicer/y_enc_region	popup	
+slicer/save_held/before	num_slices	4
+slicer/save_held/before	current	2
+slicer/save_held/before	starts	0	100000	200000	300000	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+slicer/save_held/before	transposes	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+slicer/save_held/after	num_slices	3
+slicer/save_held/after	current	2
+slicer/save_held/after	starts	0	100000	300000	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+slicer/save_held/after	transposes	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+slicer/save_released/before	num_slices	4
+slicer/save_released/before	current	2
+slicer/save_released/before	starts	0	100000	200000	300000	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+slicer/save_released/before	transposes	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+slicer/save_released	result	1
+slicer/save_released/after	num_slices	4
+slicer/save_released/after	current	2
+slicer/save_released/after	starts	0	100000	200000	300000	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+slicer/save_released/after	transposes	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+slicer/save_last/before	num_slices	2
+slicer/save_last/before	current	1
+slicer/save_last/before	starts	0	100000	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+slicer/save_last/before	transposes	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+slicer/save_last/after	num_slices	1
+slicer/save_last/after	current	0
+slicer/save_last/after	starts	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+slicer/save_last/after	transposes	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0

@@ -15,6 +15,7 @@
 ///       the tables do not.
 
 #include "support/menu_over_root.h"
+#include "support/oracle_files.h"
 #include "support/oracle_table.h"
 #include "support/oracle_tree.h"
 #include "support/output_items_fixtures.h"
@@ -308,15 +309,27 @@ using deluge::hid::display::OLED;
 #include "gui/menu_item/range.h"
 
 #include "effects/reverb.h"
+#include "gui/ui/audio_recorder.h"
+#include "gui/ui/browser/sample_browser.h"
+#include "gui/ui/sample_marker_editor.h"
+#include "gui/ui/slicer.h"
+#include "gui/waveform/waveform_basic_navigator.h"
+#include "hid/button.h"
+#include "hid/led/pad_leds.h"
+#include "hid/matrix/matrix_driver.h"
+#include "integration/scenarios/slot_coherence.h"
 #include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/midi_drum.h"
 #include "model/instrument/kit.h"
+#include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/sample/waveform_scan.h"
 #include "model/song/song.h"
+#include "model/voice/voice_sample.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -325,6 +338,8 @@ using deluge::hid::display::OLED;
 #include "processing/sound/sound_drum.h"
 #include "storage/flash_storage.h"
 
+#include "support/browser_scene_fixtures.h"
+#include "support/card_access.h"
 #include "support/clip_overview_cases.h"
 #include "support/descriptor_fixtures.h"
 #include "support/dx_cartridge_fixtures.h"
@@ -332,11 +347,14 @@ using deluge::hid::display::OLED;
 #include "support/dx_rig.h"
 #include "support/global_guest_menu.h"
 #include "support/host_flash.h"
+#include "support/marker_scene_fixtures.h"
 #include "support/menu_engine.h"
 #include "support/menu_scales_fixtures.h"
 #include "support/midi_device_fixtures.h"
+#include "support/recorder_scene_fixtures.h"
 #include "support/reset_witness.h"
 #include "support/shortcuts_fixtures.h"
+#include "support/slicer_scene_fixtures.h"
 
 #include "spec/gfx/support/pbm.h"
 
@@ -349,6 +367,7 @@ using deluge::hid::display::OLED;
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <map>
 #include <optional>
 #include <set>
 #include <span>
@@ -358,6 +377,11 @@ using deluge::hid::display::OLED;
 #include <vector>
 
 #include "spec/support/spec_main.h"
+
+/// The shipped audio-extension list itself (`sample_browser.cpp`), which has no header. Declared
+/// here at global scope -- where its definition lives -- rather than re-spelled, so `SpecBrowser`
+/// lists through the same array `SampleBrowser::opened` installs (`sample_browser.cpp`).
+extern char const* allowedFileExtensionsAudio[];
 
 /// @name Legacy globals no header declares for this file.
 /// @{
@@ -660,6 +684,18 @@ bool write_pixels(std::string_view name, const std::string& pbm) {
 	}
 	std::filesystem::create_directories(std::string{dir} + "/pixels");
 	std::ofstream(std::string{dir} + "/pixels/" + std::string{name} + ".pbm") << pbm;
+	return true;
+}
+
+/// @brief A pad image as the tables hold it: `pads/<name>.txt`.
+bool write_pads(std::string_view name, const deluge::scenes::spec::OraclePads& pads) {
+	const char* dir = std::getenv("MENU_ORACLE_OUT");
+	if (dir == nullptr) {
+		return false;
+	}
+	std::filesystem::create_directories(std::string{dir} + "/pads");
+	std::ofstream(std::string{dir} + "/pads/" + std::string{name} + ".txt")
+	    << deluge::scenes::spec::oracle_pads_text(pads);
 	return true;
 }
 
@@ -3982,6 +4018,1550 @@ void emit_reset(OracleWriter& out, std::string_view name, const rw::ResetWitness
 
 } // namespace context_menu_scene
 
+// ---------------------------------------------------------------------------------------------------------------
+// Family `marker_scene`: where `SampleMarkerEditor`'s own entry points leave the markers, its pads and its OLED page,
+// each on the fixture and after the gesture `marker_scene_spec`'s example gives the port.
+
+namespace marker_scene {
+
+namespace mf = spec::marker_fx;
+using deluge::ui::shell::SceneKind;
+using mf::HolderState;
+using mf::kZoomMax;
+using mf::Rig;
+
+/// @brief Open the LEGACY editor on the same model, letting it derive its OWN view.
+///
+/// Not a mirror of the port's scroll and zoom: `waveformBasicNavigator.opened(&holder)` is
+/// `SampleMarkerEditor::opened`'s own line, so the view legacy navigates and renders from is the one IT computes from
+/// the holder. The caller `restore()`s the holder first, so not even the remembered-view fields carry the port's
+/// answer across.
+void open_legacy(Rig& r, MarkerType marker) {
+	deluge::bridge::recordLoadedSound(*r.sound, *r.song.song); // the record legacy's Edit starts from
+	soundEditor.currentMultiRange = r.range;
+	soundEditor.currentSource = r.source;
+	soundEditor.currentSourceIndex = 0;
+	soundEditor.currentSound = r.sound;
+	waveformBasicNavigator.sample = static_cast<Sample*>(r.range->sampleHolder.audioFile);
+	waveformBasicNavigator.opened(&r.range->sampleHolder);
+	sampleMarkerEditor.markerType = marker;
+	sampleMarkerEditor.blinkPhase = 0;
+	currentUIMode = UI_MODE_NONE;
+}
+
+/// @brief The pad image `SampleMarkerEditor::renderMainPads` writes, in legacy's own shape.
+struct LegacyPads {
+	RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+};
+
+/// @brief Ask the REAL `SampleMarkerEditor::renderMainPads` for its pads, over the model legacy has just opened on:
+///        the whole overlay (`renderColumn` and `renderMarkerInCol`, private and so reachable only through it) on
+///        top of `waveformRenderer.renderFullScreen`.
+/// @param blink_phase `SampleMarkerEditor::blinkPhase`, which decides the suppression mask.
+LegacyPads legacy_pads(int8_t blink_phase) {
+	sampleMarkerEditor.blinkPhase = blink_phase;
+	LegacyPads out;
+	sampleMarkerEditor.renderMainPads(0xFFFFFFFFu, out.image, nullptr, true);
+	return out;
+}
+
+/// @brief The 128x48 canvas `SampleMarkerEditor::renderOLED` would have shown, as a PBM.
+std::string legacy_oled() {
+	static deluge::hid::display::oled_canvas::Canvas canvas;
+	canvas.clear();
+	sampleMarkerEditor.renderOLED(canvas);
+	return page_major_to_pbm(canvas.bytes().data(), 128, 48);
+}
+
+/// @brief The main columns of @p image, as a pad file holds them.
+spec::OraclePads main_pads(const RGB (&image)[kDisplayHeight][kDisplayWidth + kSideBarWidth]) {
+	spec::OraclePads pads{};
+	for (int32_t y = 0; y < kDisplayHeight; y++) {
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			pads[y][x] = image[y][x];
+		}
+	}
+	return pads;
+}
+
+/// @brief A `Rig` with the four markers given, opened on @p marker by the port, then the legacy editor over the
+///        restored holder: its pads at phase 0, as `pads/marker_<name>_0`.
+bool freeze_pads(std::string_view name, MarkerType marker, uint64_t start, uint64_t loop_start, uint64_t loop_end,
+                 uint64_t end) {
+	Rig r;
+	r.range->sampleHolder.startPos = start;
+	r.range->sampleHolder.loopStartPos = static_cast<uint32_t>(loop_start);
+	r.range->sampleHolder.loopEndPos = static_cast<uint32_t>(loop_end);
+	r.range->sampleHolder.endPos = end;
+	const HolderState before = holder_snapshot(r);
+	r.open(marker);
+	r.tick(0);
+	restore(r, before);
+	open_legacy(r, marker);
+	return write_pads("marker_" + std::string{name} + "_0", main_pads(legacy_pads(0).image));
+}
+
+/// @brief A `Rig` with @p start .. @p end, opened on START, turned once by the port and once by legacy over the
+///        restored holder: the markers legacy leaves, as `marker/<name> markers`.
+void freeze_one_turn(OracleWriter& out, std::string_view name, uint64_t start, uint64_t end) {
+	Rig r;
+	r.range->sampleHolder.startPos = start;
+	r.range->sampleHolder.endPos = end;
+	const HolderState before = holder_snapshot(r);
+	r.open(MarkerType::START);
+	r.tick(0);
+	r.turn_select(1, 10);
+	r.tick(10);
+	restore(r, before);
+	open_legacy(r, MarkerType::START);
+	sampleMarkerEditor.selectEncoderAction(1);
+	out.row("marker/" + std::string{name}, "markers", mf::markers_of(r.range->sampleHolder));
+}
+
+/// @brief A hold-and-tap on both sides: the port's, then legacy's `padAction` pair over the restored holder. Writes
+///        the markers and the selected marker legacy leaves as `marker/<name> markers` and `marker`.
+void freeze_hold_and_tap(OracleWriter& out, std::string_view name, MarkerType opened_on, uint64_t start,
+                         uint64_t loop_start, uint64_t loop_end, uint64_t end, std::pair<int32_t, int32_t> held,
+                         std::pair<int32_t, int32_t> tapped) {
+	Rig r;
+	r.range->sampleHolder.startPos = start;
+	r.range->sampleHolder.endPos = end;
+	r.range->sampleHolder.loopStartPos = static_cast<uint32_t>(loop_start);
+	r.range->sampleHolder.loopEndPos = static_cast<uint32_t>(loop_end);
+	const HolderState before = holder_snapshot(r);
+	r.open(opened_on);
+	r.tick(0);
+	r.pad(held.first, held.second, true, 10);
+	r.tick(10);
+	r.pad(tapped.first, tapped.second, true, 20);
+	r.tick(20);
+	restore(r, before);
+	open_legacy(r, opened_on);
+	sampleMarkerEditor.padAction(held.first, held.second, 127);
+	sampleMarkerEditor.padAction(tapped.first, tapped.second, 127);
+	const std::string path = "marker/" + std::string{name};
+	out.row(path, "markers", mf::markers_of(r.range->sampleHolder));
+	out.row(path, "marker", static_cast<int64_t>(sampleMarkerEditor.markerType));
+	currentUIMode = UI_MODE_NONE;
+}
+
+/// @return Whether every panel and pad file was written.
+bool freeze(OracleWriter& out) {
+	static mf::MarkerDisplay d;
+	if (display == nullptr) {
+		display = &d;
+	}
+	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
+	bool files = true;
+
+	// The select encoder: two turns.
+	{
+		Rig r;
+		const HolderState before = holder_snapshot(r);
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.turn_select(1, 10);
+		r.tick(10);
+		r.turn_select(1, 20);
+		r.tick(20);
+		restore(r, before);
+		open_legacy(r, MarkerType::START);
+		sampleMarkerEditor.selectEncoderAction(1);
+		sampleMarkerEditor.selectEncoderAction(1);
+		out.row("marker/select_two_turns", "markers", mf::markers_of(r.range->sampleHolder));
+	}
+	// One turn, and the record legacy's Edit leaves current.
+	{
+		Rig r;
+		const HolderState before = holder_snapshot(r);
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.turn_select(1, 10);
+		r.tick(10);
+		restore(r, before);
+		open_legacy(r, MarkerType::START);
+		sampleMarkerEditor.selectEncoderAction(1);
+		check(r.range->sampleHolder.startPos > before.start, "marker/record_one_turn: legacy did not move START");
+		check(deluge::harness::soundIncoherence(*r.sound, *r.song.song).empty(),
+		      "marker/record_one_turn: legacy left the record behind its holder");
+		out.row("marker/record_one_turn", "markers", mf::markers_of(r.range->sampleHolder));
+	}
+	// An audio clip's marker, from 0.
+	{
+		mf::AudioRig r;
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.turn_select(1, 10);
+		r.tick(10);
+		while (r.shell.stack().depth() > 0) {
+			r.shell.stack().pop(SceneKind::Null);
+		}
+		r.f.clip->setSampleStartPos(0);
+		waveformBasicNavigator.sample = r.sample;
+		waveformBasicNavigator.opened(&r.f.clip->sampleHolder);
+		sampleMarkerEditor.markerType = MarkerType::START;
+		sampleMarkerEditor.blinkPhase = 0;
+		currentUIMode = UI_MODE_NONE;
+		sampleMarkerEditor.selectEncoderAction(1);
+		check(r.played().first > 0U, "marker/audio_clip_turn: legacy did not move START");
+		check(r.recorded() == r.played(), "marker/audio_clip_turn: legacy left the clip's record behind");
+		out.row("marker/audio_clip_turn", "clip_markers", mf::clip_markers_of(r.played()));
+	}
+	// A playing audio clip's marker, a second turn after the port's.
+	{
+		mf::AudioRig r;
+		const uint8_t saved_playback_state = playbackHandler.playbackState;
+		playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
+		r.f.clip->activeIfNoSolo = true;
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		r.f.clip->resumePlayback(setupModelStackWithTimelineCounter(memory, r.f.song, r.f.clip), true);
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.turn_select(1, 10);
+		r.tick(10);
+		while (r.shell.stack().depth() > 0) {
+			r.shell.stack().pop(SceneKind::Null);
+		}
+		waveformBasicNavigator.sample = r.sample;
+		waveformBasicNavigator.opened(&r.f.clip->sampleHolder);
+		sampleMarkerEditor.markerType = MarkerType::START;
+		sampleMarkerEditor.blinkPhase = 0;
+		currentUIMode = UI_MODE_NONE;
+		const uint64_t before = r.played().first;
+		sampleMarkerEditor.selectEncoderAction(1);
+		check(r.played().first > before, "marker/audio_playing_turn: legacy did not move START");
+		check(r.recorded() == r.played(), "marker/audio_playing_turn: legacy left the clip's record behind");
+		check(r.f.clip->voiceSample != nullptr, "marker/audio_playing_turn: legacy stopped the clip");
+		out.row("marker/audio_playing_turn", "clip_markers", mf::clip_markers_of(r.played()));
+		r.f.clip->unassignVoiceSample(false);
+		r.f.clip->activeIfNoSolo = false;
+		playbackHandler.playbackState = saved_playback_state;
+	}
+	// A turn that would drive START into END's column, and the same turn a column further away.
+	freeze_one_turn(out, "refuse_into_end", 4 * kZoomMax, 6 * kZoomMax);
+	freeze_one_turn(out, "allow_column_away", 4 * kZoomMax, 8 * kZoomMax);
+
+	// The pads.
+	files = freeze_pads("four_apart", MarkerType::LOOP_START, 2 * kZoomMax, 6 * kZoomMax, 10 * kZoomMax, 14 * kZoomMax)
+	        && files;
+	files = freeze_pads("shared_column", MarkerType::LOOP_END, 4 * kZoomMax, 4 * kZoomMax + 1, 4 * kZoomMax + 2,
+	                    4 * kZoomMax + 3)
+	        && files;
+	files = freeze_pads("three_share", MarkerType::LOOP_START, 4 * kZoomMax, 4 * kZoomMax + 1, 4 * kZoomMax + 2,
+	                    12 * kZoomMax)
+	        && files;
+	{
+		Rig r;
+		r.range->sampleHolder.startPos = 4 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 4 * kZoomMax + 1;
+		r.range->sampleHolder.loopEndPos = 9 * kZoomMax;
+		r.range->sampleHolder.endPos = 13 * kZoomMax;
+		const HolderState before = holder_snapshot(r);
+		r.open(MarkerType::LOOP_START);
+		spec::OraclePads phase_0{};
+		for (int32_t phase = 0; phase < 4; phase++) {
+			r.tick(static_cast<uint32_t>(phase) * deluge::scenes::marker::kBlinkPhaseMs);
+			restore(r, before);
+			open_legacy(r, MarkerType::LOOP_START);
+			const spec::OraclePads pads = main_pads(legacy_pads(static_cast<int8_t>(phase)).image);
+			if (phase == 0) {
+				phase_0 = pads;
+			}
+			if (phase == 2) {
+				check(main_pads(legacy_pads(0).image) == phase_0,
+				      "marker/suppress: legacy's phase-0 pads differ between the phase-0 and phase-2 opens");
+			}
+			files = write_pads("marker_suppress_" + std::to_string(phase), pads) && files;
+		}
+	}
+
+	// The pads' own gestures.
+	{
+		Rig r;
+		const HolderState before = holder_snapshot(r);
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.pad(6, 3, true, 10);
+		r.tick(10);
+		restore(r, before);
+		open_legacy(r, MarkerType::START);
+		sampleMarkerEditor.padAction(6, 3, 127);
+		out.row("marker/pad_move", "markers", mf::markers_of(r.range->sampleHolder));
+	}
+	{
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.endPos = 10 * kZoomMax;
+		const HolderState before = holder_snapshot(r);
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.pad(9, 3, true, 10);
+		r.tick(10);
+		restore(r, before);
+		open_legacy(r, MarkerType::START);
+		sampleMarkerEditor.padAction(9, 3, 127);
+		out.row("marker/pad_select", "marker", static_cast<int64_t>(sampleMarkerEditor.markerType));
+		out.row("marker/pad_select", "holding", isUIModeActive(UI_MODE_HOLDING_SAMPLE_MARKER) ? 1 : 0);
+		currentUIMode = UI_MODE_NONE;
+	}
+	freeze_hold_and_tap(out, "add_loop_start", MarkerType::START, 2 * kZoomMax, 0, 0, 12 * kZoomMax, {2, 3}, {6, 3});
+	freeze_hold_and_tap(out, "remove_loop_start", MarkerType::LOOP_START, 2 * kZoomMax, 6 * kZoomMax, 0, 12 * kZoomMax,
+	                    {6, 3}, {2, 3});
+	freeze_hold_and_tap(out, "remove_loop_end", MarkerType::LOOP_END, 2 * kZoomMax, 4 * kZoomMax, 8 * kZoomMax,
+	                    12 * kZoomMax, {7, 3}, {11, 3});
+	{
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
+		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
+		const HolderState before = holder_snapshot(r);
+		r.open(MarkerType::LOOP_START);
+		r.tick(0);
+		r.pad(4, 3, true, 10);
+		r.tick(10);
+		r.pad(7, 3, true, 20);
+		r.tick(20);
+		restore(r, before);
+		open_legacy(r, MarkerType::LOOP_START);
+		sampleMarkerEditor.padAction(4, 3, 127);
+		sampleMarkerEditor.padAction(7, 3, 127);
+		out.row("marker/lock", "locked", r.range->sampleHolder.loopLocked ? 1 : 0);
+		currentUIMode = UI_MODE_NONE;
+	}
+
+	// The horizontal encoder: a zoom with its button held, and a scroll without.
+	{
+		spec::QuietAudio quiet;
+		Rig r;
+		r.range->sampleHolder.startPos = 4 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		const HolderState before = holder_snapshot(r);
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.x_enc_button(true, 10);
+		r.tick(10);
+		r.turn_horizontal(1, 20);
+		r.tick(20);
+		r.turn_horizontal(1, 30);
+		r.tick(30);
+		restore(r, before);
+		open_legacy(r, MarkerType::START);
+		sampleMarkerEditor.buttonAction(deluge::hid::button::X_ENC, true);
+		sampleMarkerEditor.horizontalEncoderAction(1);
+		out.row("marker/zoom", "view",
+		        {std::to_string(waveformBasicNavigator.xScroll), std::to_string(waveformBasicNavigator.xZoom)});
+		out.row("marker/zoom", "slide",
+		        {std::to_string(PadLEDs::zoomPinSquare[0]), std::to_string(PadLEDs::zoomMagnitude),
+		         std::to_string(PadLEDs::zoomingIn ? 1 : 0)});
+		spec::OraclePads to{};
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			for (int32_t x = 0; x < kDisplayWidth; x++) {
+				to[y][x] = PadLEDs::imageStore[y][x];
+			}
+		}
+		files = write_pads("marker_zoom_to", to) && files;
+		sampleMarkerEditor.horizontalEncoderAction(1);
+		out.row("marker/zoom", "second",
+		        {std::to_string(waveformBasicNavigator.xZoom),
+		         std::to_string((currentUIMode & UI_MODE_HORIZONTAL_ZOOM) != 0 ? 1 : 0)});
+		sampleMarkerEditor.buttonAction(deluge::hid::button::X_ENC, false);
+		currentUIMode = UI_MODE_NONE;
+	}
+	{
+		Rig r;
+		r.range->sampleHolder.startPos = 0;
+		r.range->sampleHolder.endPos = mf::kSampleLength;
+		r.range->sampleHolder.waveformViewZoom = kZoomMax / 4;
+		r.range->sampleHolder.waveformViewScroll = 8 * (kZoomMax / 4);
+		const HolderState before = holder_snapshot(r);
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.turn_horizontal(1, 10);
+		r.tick(10);
+		restore(r, before);
+		open_legacy(r, MarkerType::START);
+		sampleMarkerEditor.horizontalEncoderAction(1);
+		out.row("marker/scroll", "scroll", static_cast<int64_t>(waveformBasicNavigator.xScroll));
+	}
+
+	// The OLED page: START, a locked loop end, and a reversed sample's START.
+	{
+		Rig r;
+		r.range->sampleHolder.startPos = 3 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		const HolderState before = holder_snapshot(r);
+		r.open(MarkerType::START);
+		r.tick(0);
+		restore(r, before);
+		open_legacy(r, MarkerType::START);
+		files = write_pixels("marker_start", legacy_oled()) && files;
+	}
+	{
+		Rig r;
+		r.range->sampleHolder.startPos = 0;
+		r.range->sampleHolder.endPos = 14 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 5 * kZoomMax;
+		r.range->sampleHolder.loopEndPos = 9 * kZoomMax;
+		r.range->sampleHolder.loopLocked = true;
+		const HolderState before = holder_snapshot(r);
+		r.open(MarkerType::LOOP_END);
+		r.tick(0);
+		restore(r, before);
+		open_legacy(r, MarkerType::LOOP_END);
+		files = write_pixels("marker_loop_locked", legacy_oled()) && files;
+	}
+	{
+		Rig r;
+		r.source->sampleControls.reversed = true;
+		r.range->sampleHolder.startPos = 3 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		const HolderState before = holder_snapshot(r);
+		r.open(MarkerType::START);
+		r.tick(0);
+		restore(r, before);
+		open_legacy(r, MarkerType::START);
+		files = write_pixels("marker_reversed", legacy_oled()) && files;
+		r.source->sampleControls.reversed = false;
+	}
+	return files;
+}
+
+} // namespace marker_scene
+
+// ---------------------------------------------------------------------------------------------------------------
+// Family `recorder_scene`: the panel `AudioRecorder::renderOLED` draws, before and after the first sample, with and
+// without a threshold, each after the take `recorder_scene_spec`'s example gives the port.
+
+namespace recorder_scene {
+
+namespace rf = spec::recorder_fx;
+using rf::AudioClockAt;
+using rf::Guards;
+using rf::Rig;
+
+/// @brief What LEGACY draws, from LEGACY's own sentinel -- `AudioRecorder::updatedRecordingStatus`.
+/// @param captured Legacy's own flag: has the first sample been captured?
+/// @return The whole 128x48 panel as a PBM, the same shape `FakeSurfaceSet::pbm` produces.
+std::string legacy_oled(bool captured) {
+	using deluge::hid::display::OLED;
+	OLED::clearMainImage();
+	audioRecorder.updatedRecordingStatus = captured;
+	audioRecorder.renderOLED(OLED::main);
+	return page_major_to_pbm(&OLED::main.hackGetImageStore()[0][0], OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS);
+}
+
+/// @brief The panels written so far, so a second example that asks for one already written must draw it the same.
+std::map<std::string, std::string>& panels() {
+	static std::map<std::string, std::string> written;
+	return written;
+}
+
+/// @brief `pixels/recorder_<name>.pbm`, or, when an earlier example wrote it, a check that @p pbm is that panel.
+bool panel(std::string_view name, const std::string& pbm) {
+	const std::string file = "recorder_" + std::string{name};
+	if (const auto found = panels().find(file); found != panels().end()) {
+		check(found->second == pbm, "recorder_scene: " + file + " drawn two ways");
+		return true;
+	}
+	panels().emplace(file, pbm);
+	return write_pixels(file, pbm);
+}
+
+/// @return Whether every panel was written.
+bool freeze() {
+	static rf::RecorderDisplay d;
+	if (display == nullptr) {
+		display = &d;
+	}
+	bool files = true;
+	// Without a threshold, both states.
+	{
+		Guards g;
+		Rig r;
+		r.open();
+		r.tick(0);
+		SampleRecorder* rec = deluge::scenes::recorder::recorder_scene().recorder();
+		rec->numSamplesCaptured = 1024;
+		r.tick(10);
+		files = panel("waiting", legacy_oled(false)) && files;
+		files = panel("captured", legacy_oled(true)) && files;
+		rec->numSamplesCaptured = 0;
+	}
+	// The first sample arriving with no input.
+	{
+		Guards g;
+		Rig r;
+		r.open();
+		r.tick(0);
+		SampleRecorder* rec = deluge::scenes::recorder::recorder_scene().recorder();
+		rec->numSamplesCaptured = 1;
+		r.tick(deluge::scenes::recorder::kRecorderPollMs);
+		r.tick(2 * deluge::scenes::recorder::kRecorderPollMs);
+		files = panel("captured", legacy_oled(true)) && files;
+		rec->numSamplesCaptured = 0;
+	}
+	// A threshold take waiting, its threshold line lit and dark.
+	{
+		Guards g;
+		AudioClockAt clock{0};
+		Rig r;
+		r.song.song->thresholdRecordingMode = ThresholdRecordingMode::LOW;
+		r.open();
+		r.tick(0);
+		clock.set(400); // the line is dark from 290 ms to 570 ms of its 750 ms cycle
+		r.tick(10);
+		files = panel("threshold_dark", legacy_oled(false)) && files;
+		clock.set(0);
+		files = panel("threshold_lit", legacy_oled(false)) && files;
+	}
+	// A threshold take at its margin, and one sample past it.
+	{
+		Guards g;
+		AudioClockAt clock{0};
+		Rig r;
+		r.song.song->thresholdRecordingMode = ThresholdRecordingMode::LOW;
+		r.open();
+		r.tick(0);
+		SampleRecorder* rec = deluge::scenes::recorder::recorder_scene().recorder();
+		rec->numSamplesCaptured = rec->minThresholdMargin;
+		r.tick(10);
+		files = panel("threshold_margin", legacy_oled(false)) && files;
+		rec->numSamplesCaptured = rec->minThresholdMargin + 1;
+		r.tick(20);
+		files = panel("threshold_recording", legacy_oled(true)) && files;
+		rec->numSamplesCaptured = 0;
+	}
+	return files;
+}
+
+} // namespace recorder_scene
+
+// ---------------------------------------------------------------------------------------------------------------
+// Family `browser_scene`: where `Browser`'s own navigation leaves the sample browser -- its selection, scroll, text,
+// cursor and side-scroll, its directory, and its panel -- after the inputs `browser_scene_spec`'s example gives the
+// port, each run from an emptied catalogue on the scratch card.
+
+namespace browser_scene {
+
+namespace bf = spec::browser_fx;
+using bf::BrowserState;
+using bf::kBackX;
+using bf::kBackY;
+using bf::Pad;
+using bf::pad_for;
+using bf::Rig;
+using deluge::scenes::browser::BrowserId;
+using deluge::storage::FileCatalogue;
+
+/// @brief The legacy sample browser, **driven from its own inputs**.
+///
+/// @par What this is for
+///
+/// Legacy is handed the *inputs*, never the port's state: a `mirror()` that copied the scene's
+/// `file_index`/`scroll`/`enteredText`/cursor onto legacy's statics before rendering would validate
+/// the renderer and nothing else, because legacy's navigation --
+/// `Browser::clampFileSelectionAndScroll`, `Browser::selectEncoderAction`,
+/// `Browser::finishSelectEncoderAction`, `Browser::predictExtendedText`,
+/// `Browser::arrivedInNewFolder` -- would never run, so a port that navigated wrongly
+/// would still match, the oracle having been handed the port's answer. Legacy gets the same
+/// encoder detents and the same pad coordinates, computes its own selection, scroll, text and
+/// cursor, and both sides' answers are compared.
+///
+/// @par Why a subclass and not `sampleBrowser` itself
+///
+/// `SampleBrowser` is `final`, and `SampleBrowser::opened()` cannot run in a spec process: it
+/// dereferences `soundEditor.getCurrentAudioFileHolder()` (`SampleBrowser::opened`) and drives
+/// `actionLogger`, `favouritesManager` and `instrumentClipView`. So this derives from
+/// `Browser` and `open_samples()` performs `SampleBrowser::opened`'s **configuration** assignments.
+/// Everything past that point -- the listing, the search, the clamp, the prediction --
+/// is `Browser`'s own unmodified code, and the state it computes lives in `Browser`/`QwertyUI`
+/// statics, which is why the shipped `sampleBrowser` object can still be the thing that renders it
+/// (`legacy_pbm()`). The configuration transcription is seven flags; the behaviour under test is
+/// not transcribed at all.
+class SpecBrowser : public Browser {
+public:
+	SpecBrowser() {
+		// `SampleBrowser::SampleBrowser` (`sample_browser.cpp`), minus the two members
+		// `legacy_pbm()` renders through `sampleBrowser` instead (`fileIcon`, `title`).
+		shouldWrapFolderContents = false;
+		qwertyAlwaysVisible = false;
+		shouldInterpretNoteNamesForThisBrowser = true;
+		// `Browser::Browser` already leaves `mayDefaultToBrandNewNameOnEntry = false` and
+		// `filePrefix = NULL` (`browser.cpp`), which is what `SampleBrowser` inherits.
+	}
+
+	std::string getCurrentFilePath() override { return {}; }
+	UIType getUIType() override { return UIType::SAMPLE_BROWSER; }
+
+	/// @brief `SampleBrowser::enterKeyPress`'s folder arm (`sample_browser.cpp`).
+	///
+	/// Two things from that body are deliberately absent. `AudioEngine::stopAnyPreviewing()`
+	/// tears down a preview only `SampleBrowser::currentFileChanged` ever starts, and `Browser`'s
+	/// hook is empty -- there is nothing to stop. The file arm, `claimCurrentFile()`, names
+	/// `soundEditor`, `slicer`, `PadLEDs` and `instrumentClipView`; the port cannot perform it either
+	/// and parks the path instead (`sample_accept`), so it has no counterpart to compare against and
+	/// is recorded as uncovered.
+	void enterKeyPress() override {
+		FileItem* item = getCurrentFileItem();
+		if (item == nullptr) {
+			return;
+		}
+		if (item->isFolder) {
+			if (deluge::string::caselessEquals(item->filename, "TEMP")
+			    && deluge::string::caselessEquals(currentDir, "SAMPLES/CLIPS")) {
+				return;
+			}
+			goIntoFolder(item->filename.c_str());
+		}
+	}
+
+	/// `Browser::isFavouritesVisible` opens with `getCurrentUI()`, which indexes
+	/// `uiNavigationHierarchy[numUIsOpen - 1]` with `numUIsOpen == 0` in a spec process. Both answers
+	/// are false in legacy too through every state this spec drives, because `SampleBrowser::opened`
+	/// leaves `qwertyVisible` false (`sample_browser.cpp`) and the layout defaults to
+	/// `FavouritesDefaultLayoutOff`; the override is what makes them *reachable*, not what makes them
+	/// false. The favourites row itself has no port counterpart -- it is uncovered
+	/// by the migration.
+	bool isFavouritesVisible() override { return false; }
+	bool isBanksVisible() override { return false; }
+
+	/// @brief `SampleBrowser::opened`'s configuration and its listing, on an empty catalogue.
+	///
+	/// `Browser::opened()` (`browser.cpp`) runs for real -- it is what resets
+	/// `numCharsInPrefix`, `arrivedAtFileByTyping`, `numberEditPos` and (through `QwertyUI::opened`,
+	/// `qwerty_ui.cpp`) `enteredText`/`enteredTextEditPos`. The assignments after it are
+	/// `SampleBrowser::opened`'s own.
+	///
+	/// The `currentDir`/`filenameToStartAt` pair is the *blank-path* arm of that function's
+	/// dissection (`sample_browser.cpp`): with the holder's `filePath` empty and
+	/// `lastFilePathLoaded` empty, legacy takes `currentDir = "SAMPLES"` and a null search filename.
+	/// `browser_fx::blank_start_path()` is what holds the fixture to that arm, so the arm is
+	/// chosen by the fixture rather than assumed.
+	void open_samples() {
+		Browser::opened();
+		allowedFileExtensions = allowedFileExtensionsAudio; // `sample_browser.cpp`
+		allowFoldersSharingNameWithFile = true;
+		outputTypeToLoad = OutputType::NONE;
+		qwertyVisible = false;
+		fileIndexSelected = 0;
+		currentDir = "SAMPLES";
+		// `sample_browser.cpp`, settled at once: the comparison is of where each side lands,
+		// not of the ticks between.
+		beginListing({.action = ListingAction::Open, .direction = 1, .filenameToStartAt = "", .defaultDir = "SAMPLES"});
+		settle();
+	}
+
+	/// @brief `Browser::backButtonAction`'s ascend (`browser.cpp`).
+	///
+	/// The gate that arm wraps, `listingInProgress_`, is false here because every entry point settles
+	/// its listing, and `exitAction()` on the root-level refusal is `close()`, which the ascend example
+	/// never reaches.
+	void back() {
+		(void)goUpOneDirectoryLevel();
+		settle();
+	}
+
+	/// @brief Run the listing an entry point began to its end, as the interaction tier's ticks do.
+	///
+	/// Legacy lists from `graphicsRoutine()` (`Browser::runPendingListing`), a tick after the entry
+	/// point asks; before boot finishes each directory opens directly, so one pass completes it.
+	/// Every entry point the drives use settles, so each sees the previous one's listing done.
+	void settle() {
+		for (int32_t pass = 0; pass < 64 && isListingInProgress(); pass++) {
+			runPendingListing();
+		}
+		if (isListingInProgress()) {
+			std::fprintf(stderr, "browser_scene_spec: a legacy listing was still running after 64 passes\n");
+			std::abort();
+		}
+	}
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override {
+		const ActionResult result = Browser::padAction(x, y, velocity);
+		settle();
+		return result;
+	}
+	void selectEncoderAction(int8_t offset) override {
+		Browser::selectEncoderAction(offset);
+		settle();
+	}
+
+	static int32_t index() { return fileIndexSelected; }
+	static int32_t scroll() { return scrollPosVertical; }
+	static int32_t cursor() { return enteredTextEditPos; }
+	static int32_t text_scroll() { return scrollPosHorizontal; }
+	static std::string text() { return QwertyUI::enteredText; }
+
+	/// @brief Poison every static this spec compares, so a legacy run that silently did nothing
+	///        fails loudly instead of agreeing with whatever ran before it.
+	static void poison() {
+		fileIndexSelected = -99;
+		scrollPosVertical = -99;
+		QwertyUI::enteredText = "<<never-listed>>";
+		enteredTextEditPos = -99;
+		scrollPosHorizontal = -99;
+	}
+};
+
+/// @brief Wipe both sides' listings, so the legacy run below lists the card for itself.
+///
+/// The port's listing left `FileCatalogue::fileItems` populated and its bookkeeping set, and an
+/// earlier legacy run leaves `Browser`'s own listing and directory. Emptied here so the only thing
+/// the two runs share is the card.
+void clear_catalogue() {
+	Browser::emptyFileItems();
+	Browser::currentDir.clear();
+	FileCatalogue::emptyFileItems();
+	FileCatalogue::numFileItemsDeletedAtStart = 0;
+	FileCatalogue::numFileItemsDeletedAtEnd = 0;
+	FileCatalogue::firstFileItemRemaining.clear();
+	FileCatalogue::lastFileItemRemaining.clear();
+	FileCatalogue::filenameToStartSearchAt = nullptr;
+	FileCatalogue::currentDir.clear();
+}
+
+/// @brief Open the legacy sample browser on an empty catalogue, run @p drive, and read its answer.
+///
+/// @param drive The same input sequence the scene was given, spelled in legacy's own entry points.
+/// @return Legacy's own selection, scroll, text, cursor and rendered panel.
+template <typename Drive>
+BrowserState legacy_run(Drive&& drive) {
+	clear_catalogue();
+	SpecBrowser::poison();
+	SpecBrowser browser;
+	browser.open_samples();
+	drive(browser);
+
+	// `sampleBrowser` is the shipped object -- its constructor set `fileIcon` to `OLED::waveIcon` and
+	// `title` to "Audio files" (`sample_browser.cpp`) -- and every number it renders from is a
+	// `Browser`/`QwertyUI` static that the `SpecBrowser` run above computed. This is
+	// `Browser::renderOLED` itself, over legacy's own state.
+	static deluge::hid::display::oled_canvas::Canvas canvas;
+	canvas.clear();
+	sampleBrowser.renderOLED(canvas);
+	return BrowserState{SpecBrowser::index(),  SpecBrowser::scroll(),
+	                    SpecBrowser::cursor(), SpecBrowser::text_scroll(),
+	                    SpecBrowser::text(),   page_major_to_pbm(canvas.bytes().data(), 128, 48)};
+}
+
+/// @brief One run's answer as `browse/<name> state` and `pixels/browser_<name>.pbm`.
+/// @return Whether the panel was written.
+bool emit(OracleWriter& out, std::string_view name, const BrowserState& s) {
+	out.row("browse/" + std::string{name}, "state",
+	        {std::to_string(s.index), std::to_string(s.scroll), std::to_string(s.cursor), std::to_string(s.text_scroll),
+	         s.text});
+	return write_pixels("browser_" + std::string{name}, s.pbm);
+}
+
+/// @return Whether every panel was written.
+bool freeze(OracleWriter& out) {
+	bool files = true;
+	// Opening is the input.
+	{
+		bf::CleanBrowser clean;
+		bf::ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		check(bf::blank_start_path(f), "browser_scene: the fixture's holder names a file");
+		Rig r;
+		r.open_and_land(bf::context_of(f), BrowserId::Sample);
+		files = emit(out, "open", legacy_run([](SpecBrowser&) {})) && files;
+	}
+	// Four detents.
+	{
+		bf::CleanBrowser clean;
+		bf::ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		check(bf::blank_start_path(f), "browser_scene: the fixture's holder names a file");
+		Rig r;
+		r.open_and_land(bf::context_of(f), BrowserId::Sample);
+		for (int i = 0; i < 4; i++) {
+			r.turn(1, r.clock + 10);
+			r.step();
+		}
+		r.settle();
+		files = emit(out, "four_turns", legacy_run([](SpecBrowser& b) {
+			             for (int i = 0; i < 4; i++) {
+				             b.selectEncoderAction(1);
+			             }
+		             }))
+		        && files;
+	}
+	// One detent back from the first row.
+	{
+		bf::CleanBrowser clean;
+		bf::ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		check(bf::blank_start_path(f), "browser_scene: the fixture's holder names a file");
+		Rig r;
+		r.open_and_land(bf::context_of(f), BrowserId::Sample);
+		r.turn(-1, r.clock + 10);
+		r.step();
+		r.settle();
+		files = emit(out, "wrap_back", legacy_run([](SpecBrowser& b) { b.selectEncoderAction(-1); })) && files;
+	}
+	// One typed character.
+	{
+		bf::CleanBrowser clean;
+		bf::ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		check(bf::blank_start_path(f), "browser_scene: the fixture's holder names a file");
+		Rig r;
+		r.open_and_land(bf::context_of(f), BrowserId::Sample);
+		r.type('S');
+		r.settle();
+		const Pad p = pad_for('S');
+		files = emit(out, "type_s", legacy_run([p](SpecBrowser& b) {
+			             b.padAction(p.x, p.y, 64);
+			             b.padAction(p.x, p.y, 0);
+		             }))
+		        && files;
+	}
+	// Into KICKS and back out.
+	{
+		bf::CleanBrowser clean;
+		bf::ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		check(bf::blank_start_path(f), "browser_scene: the fixture's holder names a file");
+		Rig r;
+		r.open_and_land(bf::context_of(f), BrowserId::Sample);
+		for (int i = 0; i < 2; i++) {
+			r.turn(1, r.clock + 10);
+			r.step();
+		}
+		r.enter();
+		r.land();
+		r.button(kBackX, kBackY, true, r.clock + 10);
+		r.step();
+		r.button(kBackX, kBackY, false, r.clock + 10);
+		r.land();
+		const Pad enter_pad = pad_for(deluge::ui::grid::kTextKeyboardEnter);
+		files = emit(out, "ascend", legacy_run([enter_pad](SpecBrowser& b) {
+			             b.selectEncoderAction(1);
+			             b.selectEncoderAction(1);
+			             b.padAction(enter_pad.x, enter_pad.y, 64);
+			             b.padAction(enter_pad.x, enter_pad.y, 0);
+			             b.back();
+		             }))
+		        && files;
+		out.row("browse/ascend", "dir", std::string{Browser::currentDir});
+	}
+	// Into KICKS.
+	{
+		bf::CleanBrowser clean;
+		bf::ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		check(bf::blank_start_path(f), "browser_scene: the fixture's holder names a file");
+		Rig r;
+		r.open_and_land(bf::context_of(f), BrowserId::Sample);
+		for (int i = 0; i < 2; i++) {
+			r.turn(1, r.clock + 10);
+			r.step();
+		}
+		r.enter();
+		r.land();
+		const Pad enter_pad = pad_for(deluge::ui::grid::kTextKeyboardEnter);
+		files = emit(out, "descend", legacy_run([enter_pad](SpecBrowser& b) {
+			             b.selectEncoderAction(1);
+			             b.selectEncoderAction(1);
+			             b.padAction(enter_pad.x, enter_pad.y, 64);
+			             b.padAction(enter_pad.x, enter_pad.y, 0);
+		             }))
+		        && files;
+		out.row("browse/descend", "dir", std::string{Browser::currentDir});
+	}
+	return files;
+}
+
+} // namespace browser_scene
+
+// ---------------------------------------------------------------------------------------------------------------
+// Family `slicer_scene`: where `Slicer`'s own entry points leave its mode, clip count, view and slice table, its
+// popups, its slot layout, its pads and its OLED page, each after the gesture `slicer_scene_spec`'s example gives the
+// port.
+
+namespace slicer_scene {
+
+namespace sf = spec::slicer_fx;
+using deluge::scenes::slicing::slicer_scene;
+using deluge::ui::shell::SceneId;
+using sf::FakeOps;
+using sf::Rig;
+using sf::seed_port;
+
+/// @brief The last text legacy asked for, and whether it asked for the popup to be taken down.
+///
+/// Not decoration: `popupTextTemporary` is where three of legacy's arms end
+/// (`horizontalEncoderAction`, `verticalEncoderAction`, `buttonAction`'s Y_ENC arm), and
+/// `cancelPopup` is where two more do (`padAction`'s). Recording them is
+/// what makes the popup an oracle rather than a side effect nobody looks at: the port's own text
+/// arrives through `notify::notice_text` and comes back out of `Shell::notices().last_popup_text()`,
+/// so the two strings can be compared character for character.
+/// @{
+std::string legacy_popup_text;
+int32_t legacy_popup_cancels = 0;
+/// @}
+
+/// @brief The minimum `Display` legacy needs, recording its popups: both encoder arms call `popupTextTemporary`.
+struct PopupDisplay final : deluge::hid::Display {
+	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
+	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
+	void popupText(char const* t, PopupType) override { legacy_popup_text = t != nullptr ? t : ""; }
+	void popupTextTemporary(char const* t, PopupType) override { legacy_popup_text = t != nullptr ? t : ""; }
+	void cancelPopup() override { legacy_popup_cancels++; }
+	void freezeWithError(char const*) override {}
+	void displayError(Error) override {}
+	void removeWorkingAnimation() override {}
+	void displayLoadingAnimationText(char const*, bool, bool) override {}
+	void removeLoadingAnimation() override {}
+	bool hasPopup() override { return false; }
+	bool hasPopupOfType(PopupType) override { return false; }
+	void consoleText(char const*) override {}
+	void timerRoutine() override {}
+};
+
+/// @brief Capture legacy's popups for the scope: `PopupDisplay` installed as `display`, the app's
+///        own put back after.
+///
+/// The booted app has its own display, so the capture has to replace it rather than fill a null.
+struct LegacyPopupCapture {
+	deluge::hid::Display* saved = display;
+	LegacyPopupCapture() {
+		static PopupDisplay d;
+		display = &d;
+	}
+	~LegacyPopupCapture() { display = saved; }
+	LegacyPopupCapture(const LegacyPopupCapture&) = delete;
+	LegacyPopupCapture& operator=(const LegacyPopupCapture&) = delete;
+};
+
+/// @brief The legacy global (`Slicer slicer`, `gui/ui/slicer.cpp`), aliased so every oracle call
+///        below says out loud which side it is driving.
+Slicer& legacy_slicer = ::slicer;
+
+/// @brief Open the LEGACY slicer on the same sample, letting it derive its OWN view and its own
+///        state.
+///
+/// `waveformBasicNavigator.sample = sample; waveformBasicNavigator.opened();` is
+/// `SampleBrowser::showPreview`'s own pair
+/// (`gui/ui/browser/sample_browser.cpp`) -- the lines the preview path runs before the
+/// slicer is opened over it -- and `focusRegained()` is what
+/// `UI::opened()` then calls (`gui/ui/ui.h`). So legacy's scroll, zoom, mode, counts and
+/// slice table are all ones IT computed, from the sample alone.
+void open_legacy(Rig& r) {
+	waveformBasicNavigator.sample = r.sample;
+	waveformBasicNavigator.opened();
+	legacy_slicer.focusRegained();
+	currentUIMode = UI_MODE_NONE;
+}
+
+/// @brief The pad image `Slicer::renderMainPads` (`slicer.cpp`) writes, in legacy's shape.
+struct LegacyPads {
+	RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+};
+
+LegacyPads legacy_pads() {
+	LegacyPads out;
+	legacy_slicer.renderMainPads(0xFFFFFFFFu, out.image, nullptr, true);
+	return out;
+}
+
+/// @brief The 128x48 canvas `Slicer::renderOLED` (`slicer.cpp`) would have shown, as a PBM.
+std::string legacy_oled() {
+	static deluge::hid::display::oled_canvas::Canvas canvas;
+	canvas.clear();
+	legacy_slicer.renderOLED(canvas);
+	return page_major_to_pbm(canvas.bytes().data(), 128, 48);
+}
+
+struct PadXY {
+	int32_t x = -1;
+	int32_t y = -1;
+};
+
+/// @brief Ask **legacy's own renderer** which pad slot @p index is drawn at.
+///
+/// `Slicer::renderMainPads`'s slot loop (`slicer.cpp`) paints slot `i` at
+/// `((i % 4) + (i / 16) * 4, (i / 4) % 4)`, and colours the one equal to `currentSlice` with
+/// `colours::green.dim()` -- dim level 1, which no other slot can take: with `numManualSlice` at 0
+/// every other slot is `dim(6)`, green on the even pages and dark blue on the odd ones.
+/// So exactly one pad matches, and finding it reads the layout out of legacy rather than restating
+/// it here. `padAction`'s slot index is that layout inverted, which is what the spec tests.
+///
+/// @param index The slot to locate.
+/// @return Its pad coordinates, or `{-1, -1}` if legacy drew no unique bright slot.
+PadXY legacy_slot_pad(int32_t index) {
+	const int32_t saved_count = legacy_slicer.numManualSlice;
+	const int32_t saved_cursor = legacy_slicer.currentSlice;
+	legacy_slicer.numManualSlice = 0;
+	legacy_slicer.currentSlice = index;
+	const LegacyPads pads = legacy_pads();
+	legacy_slicer.numManualSlice = saved_count;
+	legacy_slicer.currentSlice = saved_cursor;
+
+	const RGB bright = deluge::gui::colours::green.dim();
+	PadXY found;
+	int32_t matches = 0;
+	for (int32_t y = 0; y < kDisplayHeight / 2; y++) {
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			if (pads.image[y][x] == bright) {
+				found = PadXY{x, y};
+				matches++;
+			}
+		}
+	}
+	return matches == 1 ? found : PadXY{};
+}
+
+/// @brief Assign legacy's table its own public members for @p positions, sorted: its adder is behind the voice walk no
+///        spec can drive.
+void seed_legacy(const std::vector<int32_t>& positions) {
+	std::vector<int32_t> sorted = positions;
+	std::sort(sorted.begin(), sorted.end());
+	legacy_slicer.numManualSlice = 1 + static_cast<int32_t>(sorted.size());
+	// Slot 0 is `focusRegained`'s zero slice (`slicer.cpp`), which every placed slice
+	// sorts after here because the fixtures use positive positions.
+	for (size_t i = 0; i < sorted.size(); i++) {
+		legacy_slicer.manualSlicePoints[i + 1].startPos = sorted[i];
+		legacy_slicer.manualSlicePoints[i + 1].transpose = 0;
+	}
+}
+
+/// @brief Legacy's slice table as rows of @p path: `num_slices`, `current`, and every slot's `starts` and
+///        `transposes`.
+void emit_table(OracleWriter& out, const std::string& path) {
+	out.row(path, "num_slices", static_cast<int64_t>(legacy_slicer.numManualSlice));
+	out.row(path, "current", static_cast<int64_t>(legacy_slicer.currentSlice));
+	std::vector<std::string> starts;
+	std::vector<std::string> transposes;
+	for (int32_t i = 0; i < deluge::scenes::slicing::kMaxManualSlices; i++) {
+		starts.push_back(std::to_string(legacy_slicer.manualSlicePoints[i].startPos));
+		transposes.push_back(std::to_string(legacy_slicer.manualSlicePoints[i].transpose));
+	}
+	out.row(path, "starts", starts);
+	out.row(path, "transposes", transposes);
+}
+
+/// @brief Legacy's main pads, as a pad file holds them.
+spec::OraclePads main_pads() {
+	const LegacyPads legacy = legacy_pads();
+	spec::OraclePads pads{};
+	for (int32_t y = 0; y < kDisplayHeight; y++) {
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			pads[y][x] = legacy.image[y][x];
+		}
+	}
+	return pads;
+}
+
+/// @brief A `Rig` opened by the port, in MANUAL when @p manual, and legacy opened over the same sample, in the same
+///        mode.
+void open_both(Rig& r, bool manual) {
+	r.open();
+	if (manual) {
+		slicer_scene().set_mode(deluge::scenes::slicing::Mode::Manual);
+	}
+	r.tick(0);
+	open_legacy(r);
+	if (manual) {
+		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
+	}
+}
+
+/// @return Whether every panel and pad file was written.
+bool freeze(OracleWriter& out) {
+	bool files = true;
+
+	// Opening.
+	{
+		Rig r;
+		r.open();
+		r.tick(0);
+		open_legacy(r);
+		out.row("slicer/open", "mode", static_cast<int64_t>(legacy_slicer.slicerMode));
+		out.row("slicer/open", "clips", static_cast<int64_t>(legacy_slicer.numClips));
+		emit_table(out, "slicer/open");
+	}
+	{
+		Rig r;
+		r.open();
+		r.tick(0);
+		open_legacy(r);
+		out.row("slicer/open", "view",
+		        {std::to_string(waveformBasicNavigator.xScroll), std::to_string(waveformBasicNavigator.xZoom)});
+	}
+
+	// The OLED page in each mode.
+	{
+		Rig r;
+		r.open();
+		r.tick(0);
+		open_legacy(r);
+		files = write_pixels("slicer_region", legacy_oled()) && files;
+	}
+	{
+		Rig r;
+		r.open();
+		slicer_scene().set_mode(deluge::scenes::slicing::Mode::Manual);
+		r.tick(0);
+		open_legacy(r);
+		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
+		files = write_pixels("slicer_manual", legacy_oled()) && files;
+	}
+
+	// The select encoder in REGION: the count, its wraps, and its fast turn past the floor.
+	{
+		Rig r;
+		r.open();
+		r.tick(0);
+		r.turn_select(1, 10);
+		r.settle(10);
+		r.turn_select(3, 20);
+		r.settle(20);
+		open_legacy(r);
+		legacy_slicer.selectEncoderAction(1);
+		legacy_slicer.selectEncoderAction(3);
+		out.row("slicer/count_clips", "clips", static_cast<int64_t>(legacy_slicer.numClips));
+		files = write_pixels("slicer_count_clips", legacy_oled()) && files;
+	}
+	{
+		Rig r;
+		r.open();
+		r.tick(0);
+		for (int32_t i = 0; i < 4; i++) {
+			const uint32_t at = 10 + static_cast<uint32_t>(i) * 2;
+			r.turn_select(60, at);
+			r.settle(at);
+		}
+		r.turn_select(1, 30);
+		r.settle(30);
+		open_legacy(r);
+		for (int32_t i = 0; i < 4; i++) {
+			legacy_slicer.selectEncoderAction(60);
+		}
+		legacy_slicer.selectEncoderAction(1);
+		out.row("slicer/wrap_up", "clips", static_cast<int64_t>(legacy_slicer.numClips));
+		files = write_pixels("slicer_wrap_up", legacy_oled()) && files;
+	}
+	{
+		Rig r;
+		r.open();
+		r.tick(0);
+		r.turn_select(-15, 10);
+		r.settle(10);
+		open_legacy(r);
+		legacy_slicer.selectEncoderAction(-15);
+		out.row("slicer/wrap_down", "clips", static_cast<int64_t>(legacy_slicer.numClips));
+		files = write_pixels("slicer_wrap_down", legacy_oled()) && files;
+	}
+	{
+		Rig r;
+		r.open();
+		r.tick(0);
+		for (int32_t i = 0; i < 4; i++) {
+			const uint32_t at = 10 + static_cast<uint32_t>(i) * 2;
+			r.turn_select(60, at);
+			r.settle(at);
+		}
+		r.turn_select(2, 30);
+		r.settle(30);
+		open_legacy(r);
+		for (int32_t i = 0; i < 4; i++) {
+			legacy_slicer.selectEncoderAction(60);
+		}
+		legacy_slicer.selectEncoderAction(2);
+		out.row("slicer/past_wrap", "clips", static_cast<int64_t>(legacy_slicer.numClips));
+	}
+	{
+		Rig r;
+		r.open();
+		r.tick(0);
+		r.turn_select(-20, 10);
+		r.settle(10);
+		open_legacy(r);
+		legacy_slicer.selectEncoderAction(-20);
+		out.row("slicer/negative", "clips", static_cast<int64_t>(legacy_slicer.numClips));
+		files = write_pixels("slicer_negative", legacy_oled()) && files;
+	}
+	// The select encoder in MANUAL.
+	{
+		Rig r;
+		r.open();
+		slicer_scene().set_mode(deluge::scenes::slicing::Mode::Manual);
+		r.tick(0);
+		r.turn_select(4, 10);
+		r.settle(10);
+		r.turn_select(-4, 20);
+		r.settle(20);
+		open_legacy(r);
+		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
+		legacy_slicer.selectEncoderAction(4);
+		out.row("slicer/select_manual", "num_after_up", static_cast<int64_t>(legacy_slicer.numManualSlice));
+		legacy_slicer.selectEncoderAction(-4);
+		out.row("slicer/select_manual", "num_after_down", static_cast<int64_t>(legacy_slicer.numManualSlice));
+		out.row("slicer/select_manual", "current_after_down", static_cast<int64_t>(legacy_slicer.currentSlice));
+	}
+
+	// The horizontal encoder.
+	{
+		Rig r;
+		r.open();
+		r.tick(0);
+		r.turn_horizontal(5, 10);
+		r.settle(10);
+		open_legacy(r);
+		(void)legacy_slicer.horizontalEncoderAction(5);
+		out.row("slicer/horizontal_region", "start0",
+		        static_cast<int64_t>(legacy_slicer.manualSlicePoints[0].startPos));
+	}
+	{
+		Rig r;
+		r.open();
+		slicer_scene().set_mode(deluge::scenes::slicing::Mode::Manual);
+		r.tick(0);
+		r.turn_horizontal(3, 10);
+		r.settle(10);
+		r.turn_horizontal(-1, 20);
+		r.settle(20);
+		open_legacy(r);
+		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
+		(void)legacy_slicer.horizontalEncoderAction(3);
+		(void)legacy_slicer.horizontalEncoderAction(-1);
+		out.row("slicer/horizontal_manual", "start0",
+		        static_cast<int64_t>(legacy_slicer.manualSlicePoints[0].startPos));
+	}
+	{
+		Rig r;
+		r.open();
+		slicer_scene().set_mode(deluge::scenes::slicing::Mode::Manual);
+		r.tick(0);
+		r.shift(true, 10);
+		r.settle(10);
+		r.turn_horizontal(3, 20);
+		r.settle(20);
+		r.shift(false, 30);
+		r.settle(30);
+		open_legacy(r);
+		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
+		// `Buttons::isShiftButtonPressed()` (`Slicer::horizontalEncoderAction`) reads `shiftCurrentlyPressed`, which
+		// `Buttons::commandToggleShift` is the public way to set.
+		Buttons::commandToggleShift(true);
+		(void)legacy_slicer.horizontalEncoderAction(3);
+		Buttons::clearShiftSticky();
+		out.row("slicer/horizontal_shift", "start0", static_cast<int64_t>(legacy_slicer.manualSlicePoints[0].startPos));
+	}
+	{
+		Rig r;
+		r.open();
+		slicer_scene().set_mode(deluge::scenes::slicing::Mode::Manual);
+		r.tick(0);
+		r.turn_horizontal(-5, 10);
+		r.settle(10);
+		for (int32_t i = 0; i < 90; i++) {
+			const uint32_t at = 20 + static_cast<uint32_t>(i) * 2;
+			r.turn_horizontal(60, at);
+			r.settle(at);
+		}
+		open_legacy(r);
+		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
+		(void)legacy_slicer.horizontalEncoderAction(-5);
+		out.row("slicer/horizontal_clamp", "start0_floor",
+		        static_cast<int64_t>(legacy_slicer.manualSlicePoints[0].startPos));
+		for (int32_t i = 0; i < 90; i++) {
+			(void)legacy_slicer.horizontalEncoderAction(60);
+		}
+		out.row("slicer/horizontal_clamp", "start0_ceiling",
+		        static_cast<int64_t>(legacy_slicer.manualSlicePoints[0].startPos));
+	}
+
+	// The vertical encoder.
+	{
+		Rig r;
+		r.open();
+		slicer_scene().set_mode(deluge::scenes::slicing::Mode::Manual);
+		r.tick(0);
+		r.turn_vertical(5, 10);
+		r.settle(10);
+		r.turn_vertical(60, 20);
+		r.settle(20);
+		r.turn_vertical(-60, 30);
+		r.settle(30);
+		r.turn_vertical(-60, 40);
+		r.settle(40);
+		open_legacy(r);
+		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
+		legacy_slicer.verticalEncoderAction(5);
+		out.row("slicer/vertical_manual", "transpose0_up",
+		        static_cast<int64_t>(legacy_slicer.manualSlicePoints[0].transpose));
+		legacy_slicer.verticalEncoderAction(60);
+		out.row("slicer/vertical_manual", "transpose0_ceiling",
+		        static_cast<int64_t>(legacy_slicer.manualSlicePoints[0].transpose));
+		legacy_slicer.verticalEncoderAction(-60);
+		legacy_slicer.verticalEncoderAction(-60);
+		out.row("slicer/vertical_manual", "transpose0_floor",
+		        static_cast<int64_t>(legacy_slicer.manualSlicePoints[0].transpose));
+	}
+	{
+		Rig r;
+		r.open();
+		r.tick(0);
+		r.turn_vertical(5, 10);
+		r.settle(10);
+		open_legacy(r);
+		legacy_slicer.verticalEncoderAction(5);
+		out.row("slicer/vertical_region", "transpose0",
+		        static_cast<int64_t>(legacy_slicer.manualSlicePoints[0].transpose));
+	}
+
+	// The pads.
+	{
+		Rig r;
+		r.open();
+		r.tick(0);
+		open_legacy(r);
+		files = write_pads("slicer_region", main_pads()) && files;
+	}
+	{
+		Rig r;
+		deluge::sample::WaveformNav shown{};
+		shown.length_samples = r.sample->lengthInSamples;
+		shown.opened(0, 0);
+		(void)deluge::sample::find_peaks_per_col(r.sample, shown.xScroll, static_cast<uint64_t>(shown.xZoom),
+		                                         &shown.renderData);
+		for (int32_t i = 0; i < sf::kNumClusters; i++) {
+			OverviewCacheEntry& e = r.sample->overviewCacheEntry(static_cast<uint32_t>(i));
+			e.min = 0;
+			e.max = 0;
+		}
+		// Legacy, with the preview's navigator as its global.
+		static_cast<deluge::sample::WaveformNav&>(waveformBasicNavigator) = shown;
+		waveformBasicNavigator.sample = r.sample;
+		legacy_slicer.focusRegained();
+		currentUIMode = UI_MODE_NONE;
+		files = write_pads("slicer_preview_nav", main_pads()) && files;
+	}
+	{
+		Rig r;
+		slicer_scene().open(nullptr);
+		slicer_scene().open(r.sample, nullptr);
+		r.shell.init(SceneId{deluge::scenes::slicing::kSlicerSceneKind, 0});
+		r.tick(0);
+		open_legacy(r);
+		files = write_pads("slicer_fresh_nav", main_pads()) && files;
+	}
+	{
+		Rig r;
+		open_both(r, true);
+		files = write_pads("slicer_manual", main_pads()) && files;
+	}
+	{
+		Rig r;
+		r.open();
+		slicer_scene().set_mode(deluge::scenes::slicing::Mode::Manual);
+		r.tick(0);
+		for (int32_t i = 0; i < 8; i++) {
+			const uint32_t at = 10 + static_cast<uint32_t>(i) * 2;
+			r.turn_horizontal(50, at);
+			r.settle(at);
+		}
+		open_legacy(r);
+		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
+		for (int32_t i = 0; i < 8; i++) {
+			(void)legacy_slicer.horizontalEncoderAction(50);
+		}
+		check(legacy_slicer.manualSlicePoints[0].startPos == 40000,
+		      "slicer/mark_moves: legacy's slice is not at 40000");
+		out.row("slicer/mark_moves", "start0", static_cast<int64_t>(legacy_slicer.manualSlicePoints[0].startPos));
+		files = write_pads("slicer_mark_moves", main_pads()) && files;
+	}
+
+	// The slice table.
+	{
+		Rig r;
+		r.open();
+		slicer_scene().set_mode(deluge::scenes::slicing::Mode::Manual);
+		r.tick(0);
+		const std::vector<int32_t> taps{300000, 100000, 200000, 50000};
+		seed_port(taps);
+		open_legacy(r);
+		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
+		seed_legacy(taps);
+		emit_table(out, "slicer/sorted");
+	}
+	// Where legacy's own renderer draws each slot.
+	{
+		Rig r;
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		slicer_scene().set_mode(deluge::scenes::slicing::Mode::Manual);
+		r.tick(0);
+		std::vector<int32_t> taps;
+		for (int32_t i = 0; i < 63; i++) {
+			taps.push_back(1000 * (i + 1));
+		}
+		seed_port(taps);
+		open_legacy(r);
+		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
+		for (int32_t i = 0; i < deluge::scenes::slicing::kMaxManualSlices; i++) {
+			const PadXY slot = legacy_slot_pad(i);
+			check(slot.x > -1, "slicer/slots: legacy drew no unique bright pad for slot " + std::to_string(i));
+			out.row("slicer/slots", "slot/" + std::to_string(i), {std::to_string(slot.x), std::to_string(slot.y)});
+		}
+	}
+	// Whether a pad press takes the popup down: legacy's `closePopup`, `currentSlice != slicePadIndex`, with its
+	// cursor on slot 0 and the pad on slot 0, then on slot 1.
+	{
+		Rig r;
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		slicer_scene().set_mode(deluge::scenes::slicing::Mode::Manual);
+		r.tick(0);
+		seed_port({100000});
+		r.y_enc(true, 4);
+		r.settle(4);
+		r.pad(0, 0, 64, 10);
+		r.settle(10);
+		r.pad(1, 0, 64, 20);
+		r.settle(20);
+		open_legacy(r);
+		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
+		seed_legacy({100000});
+		legacy_slicer.currentSlice = 0;
+		out.row("slicer/popup_close", "same_pad", legacy_slicer.currentSlice != 0 ? 1 : 0);
+		out.row("slicer/popup_close", "other_pad", legacy_slicer.currentSlice != 1 ? 1 : 0);
+	}
+
+	// The buttons.
+	{
+		Rig r;
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		r.tick(0);
+		r.x_enc(true, 10);
+		r.settle(10);
+		r.x_enc(false, 20);
+		r.x_enc(true, 30);
+		r.settle(30);
+		open_legacy(r);
+		// Legacy's own mode arithmetic, from its own state: `AudioEngine::stopAnyPreviewing()` and
+		// `getCurrentKit()->firstDrum->killAllVoices()` both need a booted engine and a kit clip, so the arm's
+		// arithmetic is run exactly as legacy writes it.
+		int32_t legacy_mode = legacy_slicer.slicerMode;
+		legacy_mode++;
+		legacy_mode %= 2;
+		const int32_t after_one = legacy_mode;
+		legacy_mode++;
+		legacy_mode %= 2;
+		out.row("slicer/x_enc", "modes", {std::to_string(after_one), std::to_string(legacy_mode)});
+	}
+	{
+		Rig r;
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		slicer_scene().set_mode(deluge::scenes::slicing::Mode::Manual);
+		r.tick(0);
+		r.turn_vertical(-7, 10);
+		r.settle(10);
+		r.y_enc(true, 20);
+		r.settle(20);
+		LegacyPopupCapture capture;
+		open_legacy(r);
+		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
+		legacy_slicer.verticalEncoderAction(-7);
+		legacy_popup_text.clear();
+		(void)legacy_slicer.buttonAction(deluge::hid::button::Y_ENC, true);
+		out.row("slicer/y_enc_manual", "popup", legacy_popup_text);
+	}
+	{
+		Rig r;
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		r.tick(0);
+		r.y_enc(true, 10);
+		r.settle(10);
+		LegacyPopupCapture capture;
+		open_legacy(r);
+		legacy_popup_text.clear();
+		(void)legacy_slicer.buttonAction(deluge::hid::button::Y_ENC, true);
+		out.row("slicer/y_enc_region", "popup", legacy_popup_text);
+	}
+	// SAVE over a held pad, over a released one, and over the last slice.
+	{
+		Rig r;
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		slicer_scene().set_mode(deluge::scenes::slicing::Mode::Manual);
+		r.tick(0);
+		const std::vector<int32_t> taps{100000, 200000, 300000};
+		seed_port(taps);
+		open_legacy(r);
+		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
+		seed_legacy(taps);
+		r.pad(2, 0, 64, 10);
+		r.settle(10);
+		legacy_slicer.currentSlice = 2;
+		matrixDriver.padStates[2][0] = true;
+		emit_table(out, "slicer/save_held/before");
+		r.save(true, 20);
+		r.settle(20);
+		(void)legacy_slicer.buttonAction(deluge::hid::button::SAVE, true);
+		emit_table(out, "slicer/save_held/after");
+	}
+	{
+		Rig r;
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		slicer_scene().set_mode(deluge::scenes::slicing::Mode::Manual);
+		r.tick(0);
+		const std::vector<int32_t> taps{100000, 200000, 300000};
+		seed_port(taps);
+		open_legacy(r);
+		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
+		seed_legacy(taps);
+		legacy_slicer.currentSlice = 2;
+		r.pad(2, 0, 64, 10);
+		r.settle(10);
+		r.pad(2, 0, 0, 12);
+		r.settle(12);
+		emit_table(out, "slicer/save_released/before");
+		r.save(true, 20);
+		r.settle(20);
+		out.row("slicer/save_released", "result",
+		        static_cast<int64_t>(legacy_slicer.buttonAction(deluge::hid::button::SAVE, true)));
+		emit_table(out, "slicer/save_released/after");
+	}
+	{
+		Rig r;
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		slicer_scene().set_mode(deluge::scenes::slicing::Mode::Manual);
+		r.tick(0);
+		seed_port({100000});
+		open_legacy(r);
+		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
+		seed_legacy({100000});
+		r.pad(1, 0, 64, 10);
+		r.settle(10);
+		legacy_slicer.currentSlice = 1;
+		matrixDriver.padStates[1][0] = true;
+		emit_table(out, "slicer/save_last/before");
+		r.save(true, 20);
+		r.settle(20);
+		(void)legacy_slicer.buttonAction(deluge::hid::button::SAVE, true);
+		emit_table(out, "slicer/save_last/after");
+	}
+	return files;
+}
+
+} // namespace slicer_scene
+
 } // namespace
 
 // clang-format off
@@ -4287,5 +5867,74 @@ describe freeze_clip_shortcut_overview("menu oracle freezer: the clip view's sho
 });
 // clang-format on
 
+// clang-format off
+describe freeze_marker_scene("menu oracle freezer: the sample marker editor", $ {
+	it("writes marker_scene.tsv, its pads and its panels", _ {
+		if (!writes("marker_scene")) {
+			return;
+		}
+		freeze_problems().clear();
+		OracleWriter out{"marker_scene"};
+		const bool files = marker_scene::freeze(out);
+		expect(files).to_be_true();
+		expect(freeze_problems()).to_equal(std::string{});
+		expect(out.duplicates()).to_equal(std::string{});
+		expect(out.size() > size_t{19}).to_be_true();
+		expect(out.flush()).to_be_true();
+	});
+});
+// clang-format on
+
+// clang-format off
+describe freeze_recorder_scene("menu oracle freezer: the audio recorder", $ {
+	it("writes the recorder's panels", _ {
+		if (!writes("recorder_scene")) {
+			return;
+		}
+		freeze_problems().clear();
+		expect(recorder_scene::freeze()).to_be_true();
+		expect(freeze_problems()).to_equal(std::string{});
+		expect(recorder_scene::panels().size()).to_equal(size_t{6});
+	});
+});
+// clang-format on
+
+// clang-format off
+describe freeze_browser_scene("menu oracle freezer: the sample browser", $ {
+	it("writes browser_scene.tsv and its panels", _ {
+		if (!writes("browser_scene")) {
+			return;
+		}
+		freeze_problems().clear();
+		OracleWriter out{"browser_scene"};
+		const bool files = browser_scene::freeze(out);
+		expect(files).to_be_true();
+		expect(freeze_problems()).to_equal(std::string{});
+		expect(out.duplicates()).to_equal(std::string{});
+		expect(out.size()).to_equal(size_t{8});
+		expect(out.flush()).to_be_true();
+	});
+});
+// clang-format on
+
+// clang-format off
+describe freeze_slicer_scene("menu oracle freezer: the slicer", $ {
+	it("writes slicer_scene.tsv, its pads and its panels", _ {
+		if (!writes("slicer_scene")) {
+			return;
+		}
+		freeze_problems().clear();
+		OracleWriter out{"slicer_scene"};
+		const bool files = slicer_scene::freeze(out);
+		expect(files).to_be_true();
+		expect(freeze_problems()).to_equal(std::string{});
+		expect(out.duplicates()).to_equal(std::string{});
+		expect(out.size() > size_t{100}).to_be_true();
+		expect(out.flush()).to_be_true();
+	});
+});
+// clang-format on
+
 DELUGE_SPEC(freeze_menu_oracles_spec, freeze_frame, freeze_tables, freeze_context_menu_scene,
-            freeze_clip_shortcut_overview /*, one family per later task, appended in task order */)
+            freeze_clip_shortcut_overview, freeze_marker_scene, freeze_recorder_scene, freeze_browser_scene,
+            freeze_slicer_scene /*, one family per later task, appended in task order */)

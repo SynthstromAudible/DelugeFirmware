@@ -1,31 +1,22 @@
 /// @file
 /// @brief `SlicerScene` -- the port of `Slicer` -- driven through a real `Shell` over
-///        `uitest::FakeSurfaceSet`, against a real `Sample` and against the real legacy `Slicer`.
+///        `uitest::FakeSurfaceSet`, against a real `Sample` and against what main's `Slicer` answers.
 ///
 /// @par The sample fixture, and why it never touches the card
 ///
-/// Identical in shape and reason to `marker_scene_spec.cpp`'s: `deluge::sample::find_peaks_per_col`
-/// reads clusters, and a spec process has no mounted card. The fixture builds a sample long enough
-/// that every display column spans two or more clusters and pre-marks every overview entry
-/// investigated, so every column is a cache hit and no I/O happens. Halving `kSampleLength` turns
-/// the whole waveform black -- the scan only takes its cache arm at `numClustersSpan >= 2`.
+/// Identical in shape and reason to `marker_scene_spec.cpp`'s (`support/slicer_scene_fixtures.h`):
+/// every display column of the fixture's sample is an overview-cache hit, so no I/O happens.
 ///
-/// @par The legacy oracle
+/// @par The reference
 ///
-/// Every comparison here runs the same gesture twice, each side from its own sentinel:
-///
-///   * the port, through the `Shell` -- real board events into `Shell::on_board_event`, rendered
-///     into `FakeSurfaceSet`;
-///   * legacy, through **`Slicer`'s own public entry points** -- `focusRegained`,
-///     `selectEncoderAction`, `horizontalEncoderAction`, `verticalEncoderAction`, `renderOLED`,
-///     `renderMainPads` -- over a `waveformBasicNavigator` that `open_legacy` sets up with the two
-///     lines `SampleBrowser::showPreview` uses (`sample_browser.cpp:692-693`), so even the
-///     scroll and zoom legacy renders from are ones IT derived.
-///
-/// Nothing the port computed is ever handed to legacy. The one thing both sides are *told* is the
-/// mode, and each is told it by the spec: `legacy_slicer.slicerMode = SLICER_MODE_MANUAL` on one side,
-/// `slicer_scene().set_mode(Mode::Manual)` on the other. That is the same shape
-/// `marker_scene_spec`'s `open_legacy` uses for `sampleMarkerEditor.markerType`.
+/// Every comparison here runs a gesture through the `Shell` -- real board events into
+/// `Shell::on_board_event`, rendered into `FakeSurfaceSet` -- and compares what the scene is left
+/// with against what main's `Slicer` was left with after the same gesture through its own public
+/// entry points (`focusRegained`, `selectEncoderAction`, `horizontalEncoderAction`,
+/// `verticalEncoderAction`, `buttonAction`, `renderOLED`, `renderMainPads`), over a navigator
+/// opened the way `SampleBrowser::showPreview` opens it, as `slicer_scene.tsv` and its
+/// `pads/slicer_*` and `pixels/slicer_*` files hold it. The one thing main's run was *told* is the
+/// mode, as the port is told it by `slicer_scene().set_mode(Mode::Manual)`.
 ///
 /// @par What is NOT covered here, and why
 ///
@@ -40,28 +31,24 @@
 ///     the same reason. `Sound::voices()` reads a private `fast_vector<ActiveVoice>`
 ///     (`processing/sound/sound.h`) filled only by `AudioEngine`'s voice pool, and nothing
 ///     in a spec process boots one. The *arithmetic* it feeds is ported as
-///     `SlicerScene::add_slice_at` and is compared against a table the spec seeds legacy with
+///     `SlicerScene::add_slice_at` and is compared against main's table for the same taps
 ///     (below); only the source of the number is uncovered.
-///   * **Legacy's slice body, `SliceCore::do_slice` (`gui/ui/slice_core.cpp`).** It reads
-///     `soundEditor.currentSource` / `currentSound`, calls `instrumentClipView.recalculateColours`,
-///     and `Slicer::graphicsRoutine` then ends the slice in `sampleBrowser.exitAndNeverDeleteDrum()`
-///     -- `gui/` globals `src/scenes/**` may never name, and a card read. So the commit's *body* is behind
+///   * **The slice body, `SliceCore::do_slice` (`gui/ui/slice_core.cpp`).** It reads the sound it
+///     slices, recolours the clip view and ends the slice in the sample browser -- `gui/` globals
+///     `src/scenes/**` may never name, and a card read. So the commit's *body* is behind
 ///     `SliceOps::commit` and the spec drives a fake; what IS compared, and mutation-proved, is
 ///     everything around it: the snapshot, the gate, the dispatch and the release.
 ///
-/// @par What the two sides are TOLD, and by whom
+/// @par The seeded slice table
 ///
-/// Each side computes from its own sentinel, with one addition. Several arms need a slice table with more than one
-/// entry in it, and neither side can build one from its own `padAction`: legacy's adder is behind the voice walk above.
-/// So the spec
-/// **tells both sides the same table**, each through its own front door -- the port through its own
-/// ported adder (`SlicerScene::add_slice_at`, the port of `Slicer::padAction`'s slice-adding arm), legacy through its
-/// own public members -- and then **asserts the two tables agree before the gesture under test runs**
-/// (`expect_tables_match`). The seeding is therefore an assertion, not an assumption, and every
-/// comparison after it is still legacy's own code against the port's own code.
+/// Several arms need a slice table with more than one entry in it, and neither the port nor main
+/// can build one from its own `padAction`: main's adder is behind the voice walk above. So the
+/// port's table is built through its own ported adder (`SlicerScene::add_slice_at`, the port of
+/// `Slicer::padAction`'s slice-adding arm), main's had its own public members assigned the same
+/// taps sorted, and each example **asserts the two tables agree before the gesture under test
+/// runs** (`expect_tables_match`). The seeding is therefore an assertion, not an assumption.
 ///
-/// @note The spec may include `gui/` (for the legacy slicer); the library may not. Same rule
-///       `marker_scene_spec.cpp` runs under.
+/// @note The spec may include `gui/`; the library may not. Same rule `marker_scene_spec.cpp` runs under.
 
 #include "model/sample/waveform_scan.h"
 #include "scenes/context_menu/context_menu_scene.h"
@@ -74,18 +61,17 @@
 #include "ui/core/metrics.h"
 #include "ui/grid/columns.h"
 
-#include "gui/ui/slicer.h"
-#include "gui/ui/ui.h"
-#include "gui/waveform/waveform_basic_navigator.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
-#include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "storage/cluster/cluster.h"
 
+#include "support/oracle_files.h"
+#include "support/oracle_table.h"
+#include "support/slicer_scene_fixtures.h"
 #include "support/song_fixture.h"
 
 // NOT `support/card_access.h`; the omission is deliberate. `QuietAudio` disarms exactly one
@@ -107,6 +93,7 @@
 #include <cstring>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "spec/support/spec_main.h"
@@ -121,53 +108,21 @@ using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
+namespace sf = deluge::scenes::spec::slicer_fx;
+using sf::FakeOps;
+using sf::kNumClusters;
+using sf::kSampleLength;
+using sf::Rig;
+using sf::seed_port;
+using sf::SlicerDisplay;
 
 namespace {
-
-// --- the sample -------------------------------------------------------------------------------
-
-constexpr size_t kClusterSize = 32768;
-constexpr int32_t kBytesPerFrame = 2; // 16-bit mono
-/// Thirty-two clusters' worth of frames -- two clusters per display column at max zoom, which is
-/// the number that makes the scan take its cached whole-cluster arm. See the file docstring.
-constexpr uint64_t kSampleLength = static_cast<uint64_t>(kClusterSize) * 32 / kBytesPerFrame;
-constexpr int32_t kNumClusters = 32;
-
-int8_t cluster_peak(int32_t i) {
-	return static_cast<int8_t>(16 + 3 * i);
-}
-
-Sample* make_sample() {
-	Cluster::set_size(kClusterSize);
-
-	// Placed in the deluge heap and never freed -- `song_fixture.h`'s own rule, and for its reason.
-	void* memory = deluge::memory::alloc_fast(sizeof(Sample));
-	auto* s = new (memory) Sample();
-	s->byteDepth = 2;
-	s->numChannels = 1;
-	s->sampleRate = 44100;
-	s->audioDataStartPosBytes = 0;
-	s->audioDataLengthBytes = kSampleLength * kBytesPerFrame;
-	s->lengthInSamples = kSampleLength;
-
-	s->maxValueFound = 127 << 24;
-	s->minValueFound = -128 << 24;
-
-	s->resizeOverviewCache(kNumClusters);
-	for (int32_t i = 0; i < kNumClusters; i++) {
-		OverviewCacheEntry& e = s->overviewCacheEntry(static_cast<uint32_t>(i));
-		e.min = static_cast<int8_t>(-cluster_peak(i));
-		e.max = cluster_peak(i);
-		e.investigated = true;
-	}
-	return s;
-}
 
 // --- the second geometry ----------------------------------------------------------------------
 
 /// @brief A 128x64 single-panel board, so the same scene can be recorded at the other shipped panel
-///        geometry. Legacy's own `renderOLED` cannot be run at it -- `OLED_MAIN_HEIGHT_PIXELS` is a
-///        compile-time 48 -- so the 64-row coverage is a golden, exactly as `marker_scene_spec`'s is.
+///        geometry. Main's own `renderOLED` draws at a compile-time 48 rows, so the 64-row coverage is a
+///        golden, exactly as `marker_scene_spec`'s is.
 constexpr DelugeDisplayDesc kDisplays64[] = {{128, 64, 0}};
 
 DelugeBoard board_64() {
@@ -188,244 +143,40 @@ const BoardProfile& profile_64() {
 	return p;
 }
 
-/// @brief The last text legacy asked for, and whether it asked for the popup to be taken down.
-///
-/// Not decoration: `popupTextTemporary` is where three of legacy's arms end
-/// (`horizontalEncoderAction` `:227`, `verticalEncoderAction` `:243`, `buttonAction`'s Y_ENC arm
-/// `:301`), and `cancelPopup` is where two more do (`padAction` `:503`, `:540`). Recording them is
-/// what makes the popup an oracle rather than a side effect nobody looks at: the port's own text
-/// arrives through `notify::notice_text` and comes back out of `Shell::notices().last_popup_text()`,
-/// so the two strings can be compared character for character.
-/// @{
-std::string legacy_popup_text;
-int32_t legacy_popup_cancels = 0;
-/// @}
-
-/// @brief The minimum `Display` legacy needs: `display` is null in a spec process
-///        (`hid/display/display.cpp:4`) and both encoder arms call `popupTextTemporary`.
-struct SlicerDisplay final : deluge::hid::Display {
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const* t, PopupType) override { legacy_popup_text = t != nullptr ? t : ""; }
-	void popupTextTemporary(char const* t, PopupType) override { legacy_popup_text = t != nullptr ? t : ""; }
-	void cancelPopup() override { legacy_popup_cancels++; }
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-};
-
-/// @brief Capture legacy's popups for the scope: `SlicerDisplay` installed as `display`, the app's
-///        own put back after.
-///
-/// The booted app has its own display, so the capture has to replace it rather than fill a null.
-struct LegacyPopupCapture {
-	deluge::hid::Display* saved = display;
-	LegacyPopupCapture() {
-		static SlicerDisplay d;
-		display = &d;
-	}
-	~LegacyPopupCapture() { display = saved; }
-	LegacyPopupCapture(const LegacyPopupCapture&) = delete;
-	LegacyPopupCapture& operator=(const LegacyPopupCapture&) = delete;
-};
-
-// --- the port's rig ---------------------------------------------------------------------------
-
-struct Rig {
-	spec::SongFixture song = spec::make_synth_song();
-	Sample* sample = make_sample();
-
-	const BoardProfile& profile;
-	deluge::ui::shell::SceneRegistry reg = scene_registry();
-	uitest::FakeSurfaceSet fake;
-	Shell shell;
-
-	Rig(const Rig&) = delete;
-	Rig& operator=(const Rig&) = delete;
-
-	/// @brief Tear the stack down, so `SlicerScene` -- a process singleton -- never carries state
-	///        into the next example. `recorder_scene_spec.cpp`'s `~Rig`, for its reason.
-	~Rig() {
-		while (shell.stack().depth() > 0) {
-			shell.stack().pop(SceneKind::Null);
-		}
-		Buttons::clearShiftSticky();
-		// The scene is a process singleton and `FakeOps` is an example-scoped local, so leaving it
-		// wired would hand the next example a dangling boundary. Unwired is also the state
-		// `SliceOps`'s docstring calls the honest default.
-		slicer_scene().set_ops(nullptr);
-		std::memset(matrixDriver.padStates, 0, sizeof(matrixDriver.padStates));
-	}
-
-	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
-	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
-		// The app's boot wires the host's ops; an example starts unwired and installs its own.
-		slicer_scene().set_ops(nullptr);
-	}
-
-	/// @brief Open the slicer on the fixture's sample, the way `SampleBrowser` does.
-	void open() {
-		slicer_scene().open(sample);
-		shell.init(SceneId{kSlicerSceneKind, 0});
-	}
-
-	void tick(uint32_t at_ms) { shell.tick(at_ms); }
-
-	/// @brief One tick to deliver the turn, one to draw its consequence.
-	///
-	/// `Shell::tick` delivers encoder events at **step 8**, after step 5/6 have already built this
-	/// tick's frames (`Shell::tick`), and the `Repaint` the arm files is therefore for
-	/// the tick after. So a pixel comparison taken one tick after a turn shows
-	/// the value from *before* it -- found by writing exactly that and watching the panel read 17
-	/// where legacy read 20. Every gesture below therefore settles before anything is read.
-	void settle(uint32_t at_ms) {
-		shell.tick(at_ms);
-		shell.tick(at_ms + 1);
-	}
-
-	/// @brief One detent of the (detented, 2 edges per click) select encoder, index 3
-	///        (`shell/profiles/deluge.cpp`).
-	///
-	/// @warning **At most 63 detents per call.** `InputLowering::apply_encoder_edges` takes its
-	///          edge count as an `int8_t` (`InputLowering::apply_encoder_edges`), so 64 detents is 128
-	///          edges and wraps negative -- 120 detents arrived as -16 and turned a count of 136
-	///          into 0, which is how this was found. Legacy has no such limit
-	///          (`selectEncoderAction(int8_t offset)` is handed whole detents), so every multi-turn
-	///          gesture below is split into <= 63-detent turns on BOTH sides.
-	void turn_select(int32_t detents, uint32_t at_ms) {
-		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, 3, 0, static_cast<int16_t>(detents * 2)}, at_ms);
-	}
-	/// @brief One detent of the horizontal encoder, index 1.
-	void turn_horizontal(int32_t detents, uint32_t at_ms) {
-		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, 1, 0, static_cast<int16_t>(detents * 2)}, at_ms);
-	}
-	/// @brief One detent of the vertical encoder, index 0.
-	void turn_vertical(int32_t detents, uint32_t at_ms) {
-		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, 0, 0, static_cast<int16_t>(detents * 2)}, at_ms);
-	}
-	/// @brief Press or release SHIFT, at matrix (8, 0) (`shell/profiles/deluge.cpp`).
-	void shift(bool on, uint32_t at_ms) {
-		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 8, 0, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
-	}
-
-	/// @brief Press or release one button, by matrix coordinates (`shell/profiles/deluge.cpp`).
-	void button(uint8_t mx, uint8_t my, bool on, uint32_t at_ms) {
-		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, mx, my, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
-	}
-	/// @name The five buttons `Slicer::buttonAction` has arms for
-	/// @{
-	void x_enc(bool on, uint32_t at_ms) { button(0, 1, on, at_ms); }
-	void y_enc(bool on, uint32_t at_ms) { button(0, 0, on, at_ms); }
-	void select_enc(bool on, uint32_t at_ms) { button(4, 3, on, at_ms); }
-	void save(bool on, uint32_t at_ms) { button(6, 3, on, at_ms); }
-	void back(bool on, uint32_t at_ms) { button(7, 1, on, at_ms); }
-	/// @}
-
-	/// @brief Press or release a pad, absolute coordinates; velocity 0 is a release.
-	void pad(int32_t x, int32_t y, int32_t velocity, uint32_t at_ms) {
-		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, static_cast<uint8_t>(x), static_cast<uint8_t>(y),
-		                                      static_cast<int16_t>(velocity)},
-		                     at_ms);
-	}
-
-	/// @return Is `SlicerScene` still on the stack?
-	bool on_stack() {
-		for (const deluge::ui::shell::Scene* s : shell.stack().scenes()) {
-			if (s->kind() == kSlicerSceneKind) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	/// @return The text the shell's popup service last showed.
-	///
-	/// @warning This is a *record*, not a level -- `Notices::last_popup_text()` is "the text last
-	///          shown" and survives the popup's removal (`shell/notices.h`). Ask
-	///          `popup_showing()` whether one is on screen.
-	std::string popup() { return shell.notices().last_popup_text(); }
-
-	/// @return Is a popup scene on the stack right now? `Notices` pushes `SceneKind::Popup` for one
-	///         and `SceneStack::remove`s it on cancel (`Notices::drain`'s `CancelPopup` case)
-	///         or on timeout (`Notices::tick`).
-	bool popup_showing() {
-		for (const deluge::ui::shell::Scene* s : shell.stack().scenes()) {
-			if (s->kind() == SceneKind::Popup) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	std::string oled() { return fake.pbm(0); }
-	std::string grid() { return fake.state(); }
-};
-
-// --- the legacy oracle ------------------------------------------------------------------------
-
-/// @brief The legacy global (`Slicer slicer`, `gui/ui/slicer.cpp`), aliased so every oracle call
-///        below says out loud which side it is driving.
-Slicer& legacy_slicer = ::slicer;
-
-/// @brief Open the LEGACY slicer on the same sample, letting it derive its OWN view and its own
-///        state.
-///
-/// `waveformBasicNavigator.sample = sample; waveformBasicNavigator.opened();` is
-/// `SampleBrowser::showPreview`'s own pair
-/// (`gui/ui/browser/sample_browser.cpp:692-693`) -- the lines the preview path runs before the
-/// slicer is opened over it -- and `focusRegained()` is what
-/// `UI::opened()` then calls (`gui/ui/ui.h:111-113`). So legacy's scroll, zoom, mode, counts and
-/// slice table are all ones IT computed, from the sample alone.
-void open_legacy(Rig& r) {
-	waveformBasicNavigator.sample = r.sample;
-	waveformBasicNavigator.opened();
-	legacy_slicer.focusRegained();
-	currentUIMode = UI_MODE_NONE;
+/// @brief `slicer_scene.tsv`: where main's slicer is left after each gesture below.
+spec::OracleTable& table() {
+	return spec::OracleTable::named("slicer_scene");
 }
 
-/// @brief The pad image `Slicer::renderMainPads` (`slicer.cpp:103-152`) writes, in legacy's shape.
-struct LegacyPads {
-	RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
-};
-
-LegacyPads legacy_pads() {
-	LegacyPads out;
-	legacy_slicer.renderMainPads(0xFFFFFFFFu, out.image, nullptr, true);
-	return out;
+/// @brief The values of row (`slicer/<path>`, @p column), or `<no row>` alone when there is none.
+std::vector<std::string> frozen(std::string_view path, std::string_view column) {
+	const std::vector<std::string>* v = table().find("slicer/" + std::string{path}, column);
+	return v != nullptr ? *v : std::vector<std::string>{"<no row>"};
 }
 
-/// @brief The 128x48 canvas `Slicer::renderOLED` (`slicer.cpp:74-98`) would have shown, as a PBM.
-std::string legacy_oled() {
-	static deluge::hid::display::oled_canvas::Canvas canvas;
-	canvas.clear();
-	legacy_slicer.renderOLED(canvas);
-	return page_major_to_pbm(canvas.bytes().data(), 128, 48);
+/// @brief The one value of row (`slicer/<path>`, @p column), as a number; `INT64_MIN` when there is no such row.
+int64_t frozen_number(std::string_view path, std::string_view column) {
+	const std::vector<std::string> v = frozen(path, column);
+	return v.size() == 1 && v[0] != "<no row>" ? std::stoll(v[0]) : INT64_MIN;
 }
 
-/// @brief Where the port's main pads first differ from a legacy image, and how many differ.
+/// @brief Where the port's main pads first differ from a reference pad image, and how many differ.
 ///
-/// Main columns only. Legacy's `renderMainPads` never writes the two sidebar columns (its clear is
-/// `kDisplayWidth * 3` bytes per row, `waveform_renderer.cpp:57-59`) and `Slicer` has no
+/// Main columns only. Main's `renderMainPads` never writes the two sidebar columns and `Slicer` has no
 /// `renderSidebar` at all, so the sidebar has no counterpart to compare -- exactly
-/// `marker_scene_spec`'s situation.
+/// `marker_scene_spec`'s situation. A missing image differs everywhere.
 struct PadDiff {
 	int32_t count = 0;
 	int32_t first_x = -1;
 	int32_t first_y = -1;
 };
 
-PadDiff pad_diff(Rig& r, const LegacyPads& legacy) {
+PadDiff pad_diff(Rig& r, const std::optional<spec::OraclePads>& frozen_pads) {
 	const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
 	PadDiff d;
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			if (!(g.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y)) == legacy.image[y][x])) {
+			if (!frozen_pads || !(g.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y)) == (*frozen_pads)[y][x])) {
 				if (d.count == 0) {
 					d.first_x = x;
 					d.first_y = y;
@@ -437,149 +188,31 @@ PadDiff pad_diff(Rig& r, const LegacyPads& legacy) {
 	return d;
 }
 
-/// @brief Assert the port's main pads are the legacy image, pad for pad.
+/// @brief Assert the port's main pads are `pads/<name>.txt`, pad for pad.
 /// @param self The enclosing `it(...)` block's lambda parameter -- `expect` expands to `self.expect`.
 template <typename Self>
-void expect_pads_match(Self& self, Rig& r, const LegacyPads& legacy) {
-	const PadDiff d = pad_diff(r, legacy);
+void expect_pads_match(Self& self, Rig& r, std::string_view name) {
+	const PadDiff d = pad_diff(r, spec::OracleFiles::pads(name));
 	// The coordinates first, so a failure names a pad rather than only a count.
 	expect(d.first_x).to_equal(-1);
 	expect(d.first_y).to_equal(-1);
 	expect(d.count).to_equal(0);
 }
 
-// --- where legacy draws each slot ---------------------------------------------------------------
-
-struct PadXY {
-	int32_t x = -1;
-	int32_t y = -1;
-};
-
-/// @brief Ask **legacy's own renderer** which pad slot @p index is drawn at.
-///
-/// `Slicer::renderMainPads`'s slot loop (`slicer.cpp:131-149`) paints slot `i` at
-/// `((i % 4) + (i / 16) * 4, (i / 4) % 4)`, and colours the one equal to `currentSlice` with
-/// `colours::green.dim()` -- dim level 1, which no other slot can take: with `numManualSlice` at 0
-/// every other slot is `dim(6)` (`:137`), green on the even pages and dark blue on the odd ones.
-/// So exactly one pad matches, and finding it reads the layout out of legacy rather than restating
-/// it here. `padAction`'s `:488` is that layout inverted, which is what the caller is testing.
-///
-/// @param index The slot to locate.
-/// @return Its pad coordinates, or `{-1, -1}` if legacy drew no unique bright slot.
-PadXY legacy_slot_pad(int32_t index) {
-	const int32_t saved_count = legacy_slicer.numManualSlice;
-	const int32_t saved_cursor = legacy_slicer.currentSlice;
-	legacy_slicer.numManualSlice = 0;
-	legacy_slicer.currentSlice = index;
-	const LegacyPads pads = legacy_pads();
-	legacy_slicer.numManualSlice = saved_count;
-	legacy_slicer.currentSlice = saved_cursor;
-
-	const RGB bright = deluge::gui::colours::green.dim();
-	PadXY found;
-	int32_t matches = 0;
-	for (int32_t y = 0; y < kDisplayHeight / 2; y++) {
-		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			if (pads.image[y][x] == bright) {
-				found = PadXY{x, y};
-				matches++;
-			}
-		}
-	}
-	return matches == 1 ? found : PadXY{};
-}
-
-// --- the audio/model/card boundary, faked ------------------------------------------------------
-
-/// @brief A `SliceOps` that records rather than acts.
-///
-/// The six calls behind `SliceOps` are the ones this layer may not make (see its docstring); a fake
-/// is how the spec sees *that they were made, with what, and in what order* without a booted audio
-/// engine, a kit, or a card. Everything the scene decides on its own -- the slice table, the modes,
-/// the popup, the gate, the coalescer, the dispatch -- is real and is compared against legacy.
-///
-/// `play_position` is the one that answers back: it stands for the voice walk in
-/// `Slicer::padAction`'s do-slice arm, and `nullopt` (its default) is legacy's
-/// `voiceSample == nullptr`.
-struct FakeOps final : deluge::scenes::slicing::SliceOps {
-	int32_t stop_previewing_calls = 0;
-	int32_t kill_voices_calls = 0;
-	int32_t restore_calls = 0;
-	std::vector<deluge::scenes::slicing::PreviewRequest> auditions;
-	std::vector<deluge::scenes::slicing::SliceCommit> commits;
-	std::optional<int32_t> next_play_position{};
-	int32_t play_position_calls = 0;
-	int32_t cancel_audition_calls = 0;
-	/// What `begin_commit` answers.
-	bool accept_commit = true;
-
-	void stop_previewing() override { stop_previewing_calls++; }
-	void cancel_audition() override { cancel_audition_calls++; }
-	void kill_voices() override { kill_voices_calls++; }
-	void restore_full_range() override { restore_calls++; }
-	void audition(const deluge::scenes::slicing::PreviewRequest& r) override { auditions.push_back(r); }
-	bool begin_commit(const deluge::scenes::slicing::SliceCommit& c) override {
-		commits.push_back(c);
-		return accept_commit;
-	}
-	std::optional<int32_t> play_position() override {
-		play_position_calls++;
-		return next_play_position;
-	}
-
-	/// @brief Element @p i of a recorded vector, or a zeroed value if it was never recorded.
-	///
-	/// cppspec's `expect` does not stop the example, so a bare `auditions[0]` on a mutant that
-	/// recorded nothing aborts the whole process inside libstdc++ and hides every other result --
-	/// found while mutation-testing, and this is the fix. A mutant now fails loudly on the value.
-	/// @{
-	deluge::scenes::slicing::PreviewRequest audition_at(size_t i) const {
-		return i < auditions.size() ? auditions[i] : deluge::scenes::slicing::PreviewRequest{};
-	}
-	deluge::scenes::slicing::SliceCommit commit_at(size_t i) const {
-		return i < commits.size() ? commits[i] : deluge::scenes::slicing::SliceCommit{};
-	}
-	/// @}
-};
-
-// --- the shared slice table ---------------------------------------------------------------------
-
-/// @brief Seed BOTH sides with the same manual slice table, each through its own front door.
-///
-/// See "What the two sides are TOLD" in the file docstring. The port goes through its own ported
-/// adder (`SlicerScene::add_slice_at`) with the play positions handed in;
-/// legacy is assigned its own public members, because its adder is behind the voice walk no spec can
-/// drive. `expect_tables_match` then makes the seeding an assertion.
-///
-/// @param positions Start positions to place, in the order a finger would tap them -- deliberately
-///                  NOT sorted, so the port's insertion sort has to do something.
-void seed_port(const std::vector<int32_t>& positions) {
-	for (const int32_t p : positions) {
-		(void)slicer_scene().add_slice_at(p);
-	}
-}
-
-void seed_legacy(const std::vector<int32_t>& positions) {
-	std::vector<int32_t> sorted = positions;
-	std::sort(sorted.begin(), sorted.end());
-	legacy_slicer.numManualSlice = 1 + static_cast<int32_t>(sorted.size());
-	// Slot 0 is `focusRegained`'s zero slice (`slicer.cpp:65, 68-71`), which every placed slice
-	// sorts after here because the fixtures use positive positions.
-	for (size_t i = 0; i < sorted.size(); i++) {
-		legacy_slicer.manualSlicePoints[i + 1].startPos = sorted[i];
-		legacy_slicer.manualSlicePoints[i + 1].transpose = 0;
-	}
-}
-
-/// @brief Assert the two slice tables are identical, entry for entry, over all 64 slots.
+/// @brief Assert the port's slice table is main's, as `slicer/<path>`'s `num_slices`, `current`, `starts` and
+///        `transposes` rows hold it, entry for entry over all 64 slots.
 template <typename Self>
-void expect_tables_match(Self& self) {
-	expect(slicer_scene().num_manual_slices()).to_equal(legacy_slicer.numManualSlice);
-	expect(slicer_scene().current_slice()).to_equal(legacy_slicer.currentSlice);
+void expect_tables_match(Self& self, std::string_view path) {
+	expect(int64_t{slicer_scene().num_manual_slices()}).to_equal(frozen_number(path, "num_slices"));
+	expect(int64_t{slicer_scene().current_slice()}).to_equal(frozen_number(path, "current"));
+	std::vector<std::string> starts;
+	std::vector<std::string> transposes;
 	for (int32_t i = 0; i < deluge::scenes::slicing::kMaxManualSlices; i++) {
-		expect(slicer_scene().slice(i).start_pos).to_equal(legacy_slicer.manualSlicePoints[i].startPos);
-		expect(slicer_scene().slice(i).transpose).to_equal(legacy_slicer.manualSlicePoints[i].transpose);
+		starts.push_back(std::to_string(slicer_scene().slice(i).start_pos));
+		transposes.push_back(std::to_string(slicer_scene().slice(i).transpose));
 	}
+	expect(starts).to_equal(frozen(path, "starts"));
+	expect(transposes).to_equal(frozen(path, "transposes"));
 }
 
 } // namespace
@@ -606,22 +239,14 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 
 	// --- opening ------------------------------------------------------------------------------
 
-	it("opens exactly where focusRegained leaves legacy", _ {
+	it("opens exactly where main's focusRegained leaves its slicer", _ {
 		Rig r;
 		r.open();
 		r.tick(0);
-
-		open_legacy(r);
-
-		expect(static_cast<int32_t>(slicer_scene().mode())).to_equal(legacy_slicer.slicerMode);
-		expect(slicer_scene().num_clips()).to_equal(static_cast<int32_t>(legacy_slicer.numClips));
-		expect(slicer_scene().num_manual_slices()).to_equal(legacy_slicer.numManualSlice);
-		expect(slicer_scene().current_slice()).to_equal(legacy_slicer.currentSlice);
-		// `:68-71`: every one of the 64 slice slots reset, not just the first.
-		for (int32_t i = 0; i < deluge::scenes::slicing::kMaxManualSlices; i++) {
-			expect(slicer_scene().slice(i).start_pos).to_equal(legacy_slicer.manualSlicePoints[i].startPos);
-			expect(slicer_scene().slice(i).transpose).to_equal(legacy_slicer.manualSlicePoints[i].transpose);
-		}
+		expect(static_cast<int64_t>(slicer_scene().mode())).to_equal(frozen_number("open", "mode"));
+		expect(int64_t{slicer_scene().num_clips()}).to_equal(frozen_number("open", "clips"));
+		// Every one of the 64 slice slots reset, not just the first.
+		expect_tables_match(self, "open");
 	});
 
 	it("opens zoomed all the way out, on the navigator the browser would have left", _ {
@@ -629,38 +254,30 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.open();
 		r.tick(0);
 
-		open_legacy(r);
-		expect(static_cast<int32_t>(slicer_scene().x_scroll())).to_equal(static_cast<int32_t>(waveformBasicNavigator.xScroll));
-		expect(static_cast<int32_t>(slicer_scene().x_zoom())).to_equal(static_cast<int32_t>(waveformBasicNavigator.xZoom));
+		expect(std::vector<std::string>{std::to_string(slicer_scene().x_scroll()), std::to_string(slicer_scene().x_zoom())})
+		    .to_equal(frozen("open", "view"));
 	});
 
-	// --- the OLED page, against legacy --------------------------------------------------------
+	// --- the OLED page, against main ---------------------------------------------------------
 
-	it("draws the REGION page legacy's renderOLED draws", _ {
+	it("draws the REGION page main's renderOLED draws", _ {
 		Rig r;
 		r.open();
 		r.tick(0);
-		const std::string ported = r.oled();
-
-		open_legacy(r);
-		expect(ported).to_equal(legacy_oled());
+		expect(r.oled()).to_equal(spec::OracleFiles::pixels("slicer_region"));
 	});
 
-	it("draws the MANUAL page legacy's renderOLED draws", _ {
+	it("draws the MANUAL page main's renderOLED draws", _ {
 		Rig r;
 		r.open();
 		slicer_scene().set_mode(Mode::Manual);
 		r.tick(0);
-		const std::string ported = r.oled();
-
-		open_legacy(r);
-		legacy_slicer.slicerMode = SLICER_MODE_MANUAL; // the spec's own sentinel, not the port's answer
-		expect(ported).to_equal(legacy_oled());
+		expect(r.oled()).to_equal(spec::OracleFiles::pixels("slicer_manual"));
 	});
 
-	// --- the select encoder, against legacy ---------------------------------------------------
+	// --- the select encoder, against main ----------------------------------------------------
 
-	it("counts REGION clips the way legacy's selectEncoderAction counts them", _ {
+	it("counts REGION clips the way main's selectEncoderAction counts them", _ {
 		Rig r;
 		r.open();
 		r.tick(0);
@@ -668,17 +285,11 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.settle(10);
 		r.turn_select(3, 20);
 		r.settle(20);
-		const int32_t ported = slicer_scene().num_clips();
-		const std::string ported_oled = r.oled();
-
-		open_legacy(r);
-		legacy_slicer.selectEncoderAction(1);
-		legacy_slicer.selectEncoderAction(3);
-		expect(ported).to_equal(static_cast<int32_t>(legacy_slicer.numClips));
-		expect(ported_oled).to_equal(legacy_oled());
+		expect(int64_t{slicer_scene().num_clips()}).to_equal(frozen_number("count_clips", "clips"));
+		expect(r.oled()).to_equal(spec::OracleFiles::pixels("slicer_count_clips"));
 	});
 
-	it("wraps 257 back to 2, exactly as legacy does", _ {
+	it("wraps 257 back to 2, exactly as main does", _ {
 		// The wrap tests for equality with 257, so it is only reachable one detent at a time from
 		// 256 -- 240 + 1 lands on 257, 240 + 2 lands on 258 and sails past. Both sides take the same
 		// route from their own 16.
@@ -694,35 +305,24 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.turn_select(1, 30);
 		r.settle(30);
 		const int32_t ported = slicer_scene().num_clips();
-		const std::string ported_oled = r.oled();
-
-		open_legacy(r);
-		for (int32_t i = 0; i < 4; i++) {
-			legacy_slicer.selectEncoderAction(60);
-		}
-		legacy_slicer.selectEncoderAction(1);
 		expect(ported).to_equal(2);
-		expect(ported).to_equal(static_cast<int32_t>(legacy_slicer.numClips));
-		expect(ported_oled).to_equal(legacy_oled());
+		expect(int64_t{ported}).to_equal(frozen_number("wrap_up", "clips"));
+		expect(r.oled()).to_equal(spec::OracleFiles::pixels("slicer_wrap_up"));
 	});
 
-	it("wraps 1 back to 256, exactly as legacy does", _ {
+	it("wraps 1 back to 256, exactly as main does", _ {
 		Rig r;
 		r.open();
 		r.tick(0);
 		r.turn_select(-15, 10);
 		r.settle(10);
 		const int32_t ported = slicer_scene().num_clips();
-		const std::string ported_oled = r.oled();
-
-		open_legacy(r);
-		legacy_slicer.selectEncoderAction(-15);
 		expect(ported).to_equal(256);
-		expect(ported).to_equal(static_cast<int32_t>(legacy_slicer.numClips));
-		expect(ported_oled).to_equal(legacy_oled());
+		expect(int64_t{ported}).to_equal(frozen_number("wrap_down", "clips"));
+		expect(r.oled()).to_equal(spec::OracleFiles::pixels("slicer_wrap_down"));
 	});
 
-	it("steps past the wrap on a multi-detent turn, exactly as legacy does", _ {
+	it("steps past the wrap on a multi-detent turn, exactly as main does", _ {
 		// 255 + 2 == 257 wraps; 256 + 2 == 258 does not. The bug-shaped half of the arm above, and
 		// the reason `num_clips_` has to be an `int16_t` rather than an `int32_t`.
 		Rig r;
@@ -736,17 +336,11 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.turn_select(2, 30);
 		r.settle(30);
 		const int32_t ported = slicer_scene().num_clips();
-
-		open_legacy(r);
-		for (int32_t i = 0; i < 4; i++) {
-			legacy_slicer.selectEncoderAction(60);
-		}
-		legacy_slicer.selectEncoderAction(2);
 		expect(ported).to_equal(258);
-		expect(ported).to_equal(static_cast<int32_t>(legacy_slicer.numClips));
+		expect(int64_t{ported}).to_equal(frozen_number("past_wrap", "clips"));
 	});
 
-	it("lets a fast turn drive the REGION count negative, exactly as legacy does", _ {
+	it("lets a fast turn drive the REGION count negative, exactly as main does", _ {
 		// The floor wrap tests for equality with 1, so a turn that STEPS OVER 1 misses it: 16 - 20
 		// is -4, and -4 is what both sides keep. Recorded in `src/scenes/README.md`'s "Defects this
 		// port found in shipping firmware" as a legacy defect the port reproduces rather than fixes -- a one-sided fix would be a
@@ -757,17 +351,13 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.turn_select(-20, 10);
 		r.settle(10);
 		const int32_t ported = slicer_scene().num_clips();
-		const std::string ported_oled = r.oled();
-
-		open_legacy(r);
-		legacy_slicer.selectEncoderAction(-20);
 		expect(ported).to_equal(-4);
-		expect(ported).to_equal(static_cast<int32_t>(legacy_slicer.numClips));
+		expect(int64_t{ported}).to_equal(frozen_number("negative", "clips"));
 		// And the page shows it: `intToString` renders the sign, so the window reads "-4".
-		expect(ported_oled).to_equal(legacy_oled());
+		expect(r.oled()).to_equal(spec::OracleFiles::pixels("slicer_negative"));
 	});
 
-	it("only ever removes manual slices from the select encoder, as legacy does", _ {
+	it("only ever removes manual slices from the select encoder, as main does", _ {
 		Rig r;
 		r.open();
 		slicer_scene().set_mode(Mode::Manual);
@@ -781,33 +371,25 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.settle(20);
 		const int32_t after_down = slicer_scene().num_manual_slices();
 		const int32_t cursor = slicer_scene().current_slice();
-
-		open_legacy(r);
-		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
-		legacy_slicer.selectEncoderAction(4);
-		expect(after_up).to_equal(legacy_slicer.numManualSlice);
-		legacy_slicer.selectEncoderAction(-4);
-		expect(after_down).to_equal(legacy_slicer.numManualSlice);
-		expect(cursor).to_equal(legacy_slicer.currentSlice);
+		expect(int64_t{after_up}).to_equal(frozen_number("select_manual", "num_after_up"));
+		expect(int64_t{after_down}).to_equal(frozen_number("select_manual", "num_after_down"));
+		expect(int64_t{cursor}).to_equal(frozen_number("select_manual", "current_after_down"));
 	});
 
-	// --- the horizontal encoder, against legacy -----------------------------------------------
+	// --- the horizontal encoder, against main ------------------------------------------------
 
-	it("does nothing in REGION mode, as legacy's horizontalEncoderAction does", _ {
+	it("does nothing in REGION mode, as main's horizontalEncoderAction does", _ {
 		Rig r;
 		r.open();
 		r.tick(0);
 		r.turn_horizontal(5, 10);
 		r.settle(10);
 		const int32_t ported = slicer_scene().slice(0).start_pos;
-
-		open_legacy(r);
-		(void)legacy_slicer.horizontalEncoderAction(5);
 		expect(ported).to_equal(0);
-		expect(ported).to_equal(legacy_slicer.manualSlicePoints[0].startPos);
+		expect(int64_t{ported}).to_equal(frozen_number("horizontal_region", "start0"));
 	});
 
-	it("moves the current slice 100 samples per detent, as legacy does", _ {
+	it("moves the current slice 100 samples per detent, as main does", _ {
 		Rig r;
 		r.open();
 		slicer_scene().set_mode(Mode::Manual);
@@ -817,16 +399,11 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.turn_horizontal(-1, 20);
 		r.settle(20);
 		const int32_t ported = slicer_scene().slice(0).start_pos;
-
-		open_legacy(r);
-		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
-		(void)legacy_slicer.horizontalEncoderAction(3);
-		(void)legacy_slicer.horizontalEncoderAction(-1);
 		expect(ported).to_equal(200);
-		expect(ported).to_equal(legacy_slicer.manualSlicePoints[0].startPos);
+		expect(int64_t{ported}).to_equal(frozen_number("horizontal_manual", "start0"));
 	});
 
-	it("moves 10 samples per detent with shift held, as legacy does", _ {
+	it("moves 10 samples per detent with shift held, as main does", _ {
 		Rig r;
 		r.open();
 		slicer_scene().set_mode(Mode::Manual);
@@ -838,19 +415,11 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.shift(false, 30);
 		r.settle(30);
 		const int32_t ported = slicer_scene().slice(0).start_pos;
-
-		open_legacy(r);
-		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
-		// `Buttons::isShiftButtonPressed()` (`Slicer::horizontalEncoderAction`) reads `shiftCurrentlyPressed`, which
-		// `Buttons::commandToggleShift` is the public way to set (`hid/buttons.cpp:236-245`).
-		Buttons::commandToggleShift(true);
-		(void)legacy_slicer.horizontalEncoderAction(3);
-		Buttons::clearShiftSticky();
 		expect(ported).to_equal(30);
-		expect(ported).to_equal(legacy_slicer.manualSlicePoints[0].startPos);
+		expect(int64_t{ported}).to_equal(frozen_number("horizontal_shift", "start0"));
 	});
 
-	it("clamps the start position to the sample, as legacy does", _ {
+	it("clamps the start position to the sample, as main does", _ {
 		Rig r;
 		r.open();
 		slicer_scene().set_mode(Mode::Manual);
@@ -869,21 +438,14 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 			r.settle(at);
 		}
 		const int32_t at_ceiling = slicer_scene().slice(0).start_pos;
-
-		open_legacy(r);
-		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
-		(void)legacy_slicer.horizontalEncoderAction(-5);
 		expect(at_floor).to_equal(0);
-		expect(at_floor).to_equal(legacy_slicer.manualSlicePoints[0].startPos);
-		for (int32_t i = 0; i < 90; i++) {
-			(void)legacy_slicer.horizontalEncoderAction(60);
-		}
-		expect(at_ceiling).to_equal(legacy_slicer.manualSlicePoints[0].startPos);
+		expect(int64_t{at_floor}).to_equal(frozen_number("horizontal_clamp", "start0_floor"));
+		expect(int64_t{at_ceiling}).to_equal(frozen_number("horizontal_clamp", "start0_ceiling"));
 	});
 
-	// --- the vertical encoder, against legacy -------------------------------------------------
+	// --- the vertical encoder, against main --------------------------------------------------
 
-	it("transposes the current slice and clamps at +-24, as legacy does", _ {
+	it("transposes the current slice and clamps at +-24, as main does", _ {
 		Rig r;
 		r.open();
 		slicer_scene().set_mode(Mode::Manual);
@@ -899,44 +461,32 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.turn_vertical(-60, 40);
 		r.settle(40);
 		const int32_t at_floor = slicer_scene().slice(0).transpose;
-
-		open_legacy(r);
-		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
-		legacy_slicer.verticalEncoderAction(5);
 		expect(after_up).to_equal(5);
-		expect(after_up).to_equal(legacy_slicer.manualSlicePoints[0].transpose);
-		legacy_slicer.verticalEncoderAction(60);
+		expect(int64_t{after_up}).to_equal(frozen_number("vertical_manual", "transpose0_up"));
 		expect(at_ceiling).to_equal(24);
-		expect(at_ceiling).to_equal(legacy_slicer.manualSlicePoints[0].transpose);
-		legacy_slicer.verticalEncoderAction(-60);
-		legacy_slicer.verticalEncoderAction(-60);
+		expect(int64_t{at_ceiling}).to_equal(frozen_number("vertical_manual", "transpose0_ceiling"));
 		expect(at_floor).to_equal(-24);
-		expect(at_floor).to_equal(legacy_slicer.manualSlicePoints[0].transpose);
+		expect(int64_t{at_floor}).to_equal(frozen_number("vertical_manual", "transpose0_floor"));
 	});
 
-	it("does nothing in REGION mode, as legacy's verticalEncoderAction does", _ {
+	it("does nothing in REGION mode, as main's verticalEncoderAction does", _ {
 		Rig r;
 		r.open();
 		r.tick(0);
 		r.turn_vertical(5, 10);
 		r.settle(10);
 		const int32_t ported = slicer_scene().slice(0).transpose;
-
-		open_legacy(r);
-		legacy_slicer.verticalEncoderAction(5);
 		expect(ported).to_equal(0);
-		expect(ported).to_equal(legacy_slicer.manualSlicePoints[0].transpose);
+		expect(int64_t{ported}).to_equal(frozen_number("vertical_region", "transpose0"));
 	});
 
-	// --- the pads, against legacy -------------------------------------------------------------
+	// --- the pads, against main --------------------------------------------------------------
 
-	it("draws the REGION waveform legacy's renderMainPads draws", _ {
+	it("draws the REGION waveform main's renderMainPads draws", _ {
 		Rig r;
 		r.open();
 		r.tick(0);
-
-		open_legacy(r);
-		expect_pads_match(self, r, legacy_pads());
+		expect_pads_match(self, r, "slicer_region");
 	});
 
 	it("keeps its waveform when reopened on the same sample, as legacy's navigator does", _ {
@@ -969,7 +519,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		expect(differ).to_equal(0);
 	});
 
-	it("opens on the navigator the browser's preview drew, as legacy's slicer reads the preview's global", _ {
+	it("opens on the navigator the browser's preview drew, as main's slicer reads the preview's global", _ {
 		// `Slicer::renderMainPads` renders through `waveformBasicNavigator`, which `SampleBrowser::showPreview` opened and
 		// scanned for this sample: the columns are already investigated, so the slicer draws the preview's peaks. A
 		// fresh navigator scans again, and on the device that scan reads the overview cache's coarse peaks.
@@ -984,18 +534,11 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 			e.min = 0;
 			e.max = 0;
 		}
-		// Legacy, with the preview's navigator as its global.
-		static_cast<deluge::sample::WaveformNav&>(waveformBasicNavigator) = shown;
-		waveformBasicNavigator.sample = r.sample;
-		legacy_slicer.focusRegained();
-		currentUIMode = UI_MODE_NONE;
-		const LegacyPads legacy = legacy_pads();
-
 		slicer_scene().open(nullptr); // nothing kept from an earlier example
 		slicer_scene().open(r.sample, &shown);
 		r.shell.init(SceneId{kSlicerSceneKind, 0});
 		r.tick(0);
-		expect_pads_match(self, r, legacy);
+		expect_pads_match(self, r, "slicer_preview_nav");
 		expect(static_cast<int32_t>(slicer_scene().x_zoom())).to_equal(static_cast<int32_t>(shown.xZoom));
 	});
 
@@ -1005,19 +548,15 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		slicer_scene().open(r.sample, nullptr);
 		r.shell.init(SceneId{kSlicerSceneKind, 0});
 		r.tick(0);
-		open_legacy(r);
-		expect_pads_match(self, r, legacy_pads());
+		expect_pads_match(self, r, "slicer_fresh_nav");
 	});
 
-	it("draws the MANUAL squashed waveform, slice marks and slot grid legacy draws", _ {
+	it("draws the MANUAL squashed waveform, slice marks and slot grid main draws", _ {
 		Rig r;
 		r.open();
 		slicer_scene().set_mode(Mode::Manual);
 		r.tick(0);
-
-		open_legacy(r);
-		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
-		expect_pads_match(self, r, legacy_pads());
+		expect_pads_match(self, r, "slicer_manual");
 	});
 
 	it("moves the slice mark across the row as the horizontal encoder moves the slice", _ {
@@ -1034,18 +573,14 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 			r.settle(at);
 		}
 
-		open_legacy(r);
-		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
-		for (int32_t i = 0; i < 8; i++) {
-			(void)legacy_slicer.horizontalEncoderAction(50);
-		}
-		expect(legacy_slicer.manualSlicePoints[0].startPos).to_equal(40000);
-		expect_pads_match(self, r, legacy_pads());
+		expect(int64_t{slicer_scene().slice(0).start_pos}).to_equal(frozen_number("mark_moves", "start0"));
+		expect(slicer_scene().slice(0).start_pos).to_equal(40000);
+		expect_pads_match(self, r, "slicer_mark_moves");
 	});
 
-	// --- the slice table, against legacy ------------------------------------------------------
+	// --- the slice table, against main -------------------------------------------------------
 
-	it("places slices in sorted order, as legacy's padAction does", _ {
+	it("places slices in sorted order, as main's padAction does", _ {
 		// `Slicer::padAction`'s slice-adding arm. The taps go in unsorted deliberately: its bubble
 		// sort is what puts them in order, and a table that arrived sorted would not exercise it.
 		Rig r;
@@ -1054,11 +589,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.tick(0);
 		const std::vector<int32_t> taps{300000, 100000, 200000, 50000};
 		seed_port(taps);
-
-		open_legacy(r);
-		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
-		seed_legacy(taps);
-		expect_tables_match(self);
+		expect_tables_match(self, "sorted");
 		// Five: `focusRegained`'s slice 0 plus the four taps.
 		expect(slicer_scene().num_manual_slices()).to_equal(5);
 	});
@@ -1090,19 +621,18 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		expect(slicer_scene().num_manual_slices()).to_equal(deluge::scenes::slicing::kMaxManualSlices);
 	});
 
-	// --- the pads, against legacy's padAction --------------------------------------------------
+	// --- the pads, against main's padAction ---------------------------------------------------
 
-	it("maps every slot pad to the slice legacy's own slot grid draws there", _ {
-		// `padAction`'s `:488` is the INVERSE of `renderMainPads`'s slot layout at `:132-133`, and
-		// legacy's own renderer is what says where slot `i` lives. So the pad coordinate for each
-		// index comes out of `legacy_slot_pad`, which reads it off a real `Slicer::renderMainPads`
-		// image -- not out of arithmetic this file wrote. Then the port is pressed there and asked
-		// which slice it thinks that was.
+	it("maps every slot pad to the slice main's own slot grid draws there", _ {
+		// Main's `padAction` slot index is the INVERSE of its `renderMainPads` slot layout, and main's
+		// own renderer is what says where slot `i` lives. So the pad coordinate for each index is the
+		// `slicer/slots slot/<i>` row, read off a real `Slicer::renderMainPads` image (the one slot it
+		// draws bright) -- not out of arithmetic this file wrote. Then the port is pressed there and
+		// asked which slice it thinks that was.
 		//
-		// Legacy's `padAction` itself is NOT driven: its select branch reaches `preview()` at
-		// `:493-500` on every index that maps to a placed slice, and `previewForTarget` (`:446-482`)
-		// needs a kit clip, a resolved `soundEditor` model stack and a booted `AudioEngine`. See the
-		// file docstring.
+		// Main's `padAction` itself was NOT driven: its select branch reaches `preview()` on every index
+		// that maps to a placed slice, and `previewForTarget` needs a kit clip, a resolved model stack
+		// and a booted `AudioEngine`. See the file docstring.
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);
@@ -1116,16 +646,19 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		seed_port(taps);
 		expect(slicer_scene().num_manual_slices()).to_equal(deluge::scenes::slicing::kMaxManualSlices);
 
-		open_legacy(r);
-		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
-
 		for (int32_t i = 0; i < deluge::scenes::slicing::kMaxManualSlices; i++) {
-			const PadXY slot = legacy_slot_pad(i);
-			expect(slot.x).to_be_greater_than(-1);
+			const std::vector<std::string> slot = frozen("slots", "slot/" + std::to_string(i));
+			expect(slot.size()).to_equal(size_t{2});
+			if (slot.size() != 2) {
+				continue;
+			}
+			const int32_t x = std::stoi(slot[0]);
+			const int32_t y = std::stoi(slot[1]);
+			expect(x).to_be_greater_than(-1);
 			const uint32_t at = 100 + static_cast<uint32_t>(i) * 4;
-			r.pad(slot.x, slot.y, 64, at);
+			r.pad(x, y, 64, at);
 			r.settle(at);
-			r.pad(slot.x, slot.y, 0, at + 2);
+			r.pad(x, y, 0, at + 2);
 			r.settle(at + 2);
 			expect(slicer_scene().current_slice()).to_equal(i);
 		}
@@ -1182,8 +715,8 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		expect(static_cast<int32_t>(ops.audition_at(1).start_point)).to_equal(0);
 	});
 
-	it("takes the popup down only when the pad moves the cursor, as legacy does", _ {
-		// `:491`, `:502-504`: `closePopup` is `currentSlice != slicePadIndex`, so re-tapping the pad
+	it("takes the popup down only when the pad moves the cursor, as main does", _ {
+		// Main's `padAction`: `closePopup` is `currentSlice != slicePadIndex`, so re-tapping the pad
 		// the cursor is already on leaves a popup up.
 		Rig r;
 		FakeOps ops;
@@ -1199,10 +732,15 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		expect(r.popup()).to_equal(std::string("Transpose: 0"));
 		expect(r.popup_showing()).to_be_true();
 
+		// Main's own `padAction` could not be driven (see the file docstring), so its `closePopup`
+		// expression was read with its own cursor on slot 0: `slicer/popup_close same_pad` for a tap
+		// on slot 0, `other_pad` for a tap on slot 1, 1 where it takes the popup down.
+		//
 		// Slot 0 is already the cursor, so tapping it cancels nothing and the popup survives ...
 		r.pad(0, 0, 64, 10);
 		r.settle(10);
 		expect(r.popup_showing()).to_be_true();
+		expect(int64_t{r.popup_showing() ? 0 : 1}).to_equal(frozen_number("popup_close", "same_pad"));
 		expect(slicer_scene().current_slice()).to_equal(0);
 
 		// ... and moving to slot 1 takes it down.
@@ -1210,16 +748,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.settle(20);
 		expect(slicer_scene().current_slice()).to_equal(1);
 		expect(r.popup_showing()).to_be_false();
-
-		// Legacy's own `padAction` cannot be driven here (see the file docstring), so the same pair
-		// of conditions is read off legacy's `:491` expression with legacy's own cursor: same
-		// cursor, no cancel; different cursor, cancel.
-		open_legacy(r);
-		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
-		seed_legacy({100000});
-		legacy_slicer.currentSlice = 0;
-		expect(legacy_slicer.currentSlice != 0).to_be_false();
-		expect(legacy_slicer.currentSlice != 1).to_be_true();
+		expect(int64_t{r.popup_showing() ? 0 : 1}).to_equal(frozen_number("popup_close", "other_pad"));
 	});
 
 	it("keeps its slice table when a popup it raised itself expires", _ {
@@ -1311,9 +840,9 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		expect(slicer_scene().current_slice()).to_equal(0);
 	});
 
-	// --- the buttons, against legacy's buttonAction ---------------------------------------------
+	// --- the buttons, against main's buttonAction ----------------------------------------------
 
-	it("switches mode on the X encoder button, as legacy's buttonAction does", _ {
+	it("switches mode on the X encoder button, as main's buttonAction does", _ {
 		// `:284-294`.
 		Rig r;
 		FakeOps ops;
@@ -1327,27 +856,20 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.x_enc(true, 30);
 		r.settle(30);
 		const int32_t after_two = static_cast<int32_t>(slicer_scene().mode());
-
-		open_legacy(r);
-		// Legacy's own arm, from legacy's own state. `AudioEngine::stopAnyPreviewing()` (`:288`) and
-		// `getCurrentKit()->firstDrum->killAllVoices()` (`:291`) both need a booted engine and a kit
-		// clip, so the mode arithmetic (`:285-286`) is compared by running it exactly as legacy
+		// Main's own arm, from main's own state, as `slicer/x_enc modes` holds it. Its
+		// `AudioEngine::stopAnyPreviewing()` and `getCurrentKit()->firstDrum->killAllVoices()` both need
+		// a booted engine and a kit clip, so the row is the arm's mode arithmetic run exactly as main
 		// writes it -- see `SliceOps` for why the two calls are behind the boundary rather than here.
-		int32_t legacy_mode = legacy_slicer.slicerMode;
-		legacy_mode++;
-		legacy_mode %= 2;
-		expect(after_one).to_equal(legacy_mode);
-		legacy_mode++;
-		legacy_mode %= 2;
-		expect(after_two).to_equal(legacy_mode);
+		expect(std::vector<std::string>{std::to_string(after_one), std::to_string(after_two)})
+		    .to_equal(frozen("x_enc", "modes"));
 		// And the two audio calls the arm makes: `stop_previewing` only on the way INTO manual.
 		expect(ops.stop_previewing_calls).to_equal(1);
 		expect(ops.kill_voices_calls).to_equal(2);
 	});
 
-	it("pops up the transpose on the Y encoder button, with legacy's own text", _ {
-		// `:297-303`. Both sides format their own string; the two are compared character for
-		// character through `SlicerDisplay` on one side and the shell's popup service on the other.
+	it("pops up the transpose on the Y encoder button, with main's own text", _ {
+		// Main's Y_ENC arm. The port's string, from the shell's popup service, is compared character
+		// for character with the text main's arm asked its display for.
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);
@@ -1359,19 +881,12 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.y_enc(true, 20);
 		r.settle(20);
 		const std::string ported = r.popup();
-
-		LegacyPopupCapture capture;
-		open_legacy(r);
-		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
-		legacy_slicer.verticalEncoderAction(-7);
-		legacy_popup_text.clear();
-		(void)legacy_slicer.buttonAction(deluge::hid::button::Y_ENC, true);
 		expect(ported).to_equal(std::string("Transpose: -7"));
-		expect(ported).to_equal(legacy_popup_text);
+		expect(ported).to_equal(table().value("slicer/y_enc_manual", "popup"));
 	});
 
-	it("says nothing on the Y encoder button in REGION mode, as legacy does", _ {
-		// The mode half of `:297`'s condition.
+	it("says nothing on the Y encoder button in REGION mode, as main does", _ {
+		// The mode half of main's Y_ENC condition.
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);
@@ -1380,19 +895,14 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.y_enc(true, 10);
 		r.settle(10);
 		const std::string ported = r.popup();
-
-		LegacyPopupCapture capture;
-		open_legacy(r);
-		legacy_popup_text.clear();
-		(void)legacy_slicer.buttonAction(deluge::hid::button::Y_ENC, true);
 		expect(ported).to_equal(std::string(""));
-		expect(ported).to_equal(legacy_popup_text);
+		expect(ported).to_equal(table().value("slicer/y_enc_region", "popup"));
 	});
 
-	it("deletes the slice under a held pad on SAVE, exactly as legacy does", _ {
-		// `:306-332`, both sides, over the whole 64-entry table. Legacy asks
-		// `matrixDriver.isPadPressed(xx, yy)` (`:309`); the port asks `UiContext::held_pads`, which
-		// is the same fact lowered by the shell, so each side reads its own.
+	it("deletes the slice under a held pad on SAVE, exactly as main does", _ {
+		// Main's SAVE arm, over the whole 64-entry table. Main asks `matrixDriver.isPadPressed(xx, yy)`;
+		// the port asks `UiContext::held_pads`, which is the same fact lowered by the shell, so each
+		// side reads its own.
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);
@@ -1402,27 +912,21 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		const std::vector<int32_t> taps{100000, 200000, 300000};
 		seed_port(taps);
 
-		open_legacy(r);
-		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
-		seed_legacy(taps);
-
-		// Put both cursors on slice 2 (slot (2, 0)) and hold that pad on both sides.
+		// Put the cursor on slice 2 (slot (2, 0)) and hold that pad, as main's run had it.
 		r.pad(2, 0, 64, 10);
 		r.settle(10);
-		legacy_slicer.currentSlice = 2;
-		matrixDriver.padStates[2][0] = true;
-		expect_tables_match(self);
+		expect_tables_match(self, "save_held/before");
 
 		r.save(true, 20);
 		r.settle(20);
-		(void)legacy_slicer.buttonAction(deluge::hid::button::SAVE, true);
-		expect_tables_match(self);
+		expect_tables_match(self, "save_held/after");
 		expect(slicer_scene().num_manual_slices()).to_equal(3);
 	});
 
-	it("ignores SAVE when the slice's own pad is not held, exactly as legacy does", _ {
-		// The other side of `:309`. **The braces matter:** the whole delete is inside that test, and
-		// when it fails the arm falls past SELECT_ENC and BACK to the `else` at `:393-395`.
+	it("ignores SAVE when the slice's own pad is not held, exactly as main does", _ {
+		// The other side of main's held-pad test. **The braces matter:** the whole delete is inside
+		// that test, and when it fails the arm falls past SELECT_ENC and BACK to its final `else`,
+		// which answers `NOT_DEALT_WITH` (`slicer/save_released result`).
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);
@@ -1431,27 +935,21 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.tick(0);
 		const std::vector<int32_t> taps{100000, 200000, 300000};
 		seed_port(taps);
-
-		open_legacy(r);
-		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
-		seed_legacy(taps);
-		legacy_slicer.currentSlice = 2;
 		r.pad(2, 0, 64, 10);
 		r.settle(10);
 		r.pad(2, 0, 0, 12); // released again -- nothing is held now
 		r.settle(12);
-		expect_tables_match(self);
+		expect_tables_match(self, "save_released/before");
 
 		r.save(true, 20);
 		r.settle(20);
-		expect(static_cast<int32_t>(legacy_slicer.buttonAction(deluge::hid::button::SAVE, true)))
-		    .to_equal(static_cast<int32_t>(ActionResult::NOT_DEALT_WITH));
-		expect_tables_match(self);
+		expect(frozen_number("save_released", "result")).to_equal(static_cast<int64_t>(ActionResult::NOT_DEALT_WITH));
+		expect_tables_match(self, "save_released/after");
 		expect(slicer_scene().num_manual_slices()).to_equal(4);
 	});
 
 	it("floors the count at one and re-clamps the cursor when the last slice is deleted", _ {
-		// `:318-326`, the same floor and re-clamp `selectEncoderAction`'s MANUAL arm applies.
+		// Main's SAVE arm floors and re-clamps the way its `selectEncoderAction`'s MANUAL arm does.
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);
@@ -1459,20 +957,13 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		slicer_scene().set_mode(Mode::Manual);
 		r.tick(0);
 		seed_port({100000});
-
-		open_legacy(r);
-		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
-		seed_legacy({100000});
 		r.pad(1, 0, 64, 10);
 		r.settle(10);
-		legacy_slicer.currentSlice = 1;
-		matrixDriver.padStates[1][0] = true;
-		expect_tables_match(self);
+		expect_tables_match(self, "save_last/before");
 
 		r.save(true, 20);
 		r.settle(20);
-		(void)legacy_slicer.buttonAction(deluge::hid::button::SAVE, true);
-		expect_tables_match(self);
+		expect_tables_match(self, "save_last/after");
 		expect(slicer_scene().num_manual_slices()).to_equal(1);
 		expect(slicer_scene().current_slice()).to_equal(0);
 	});
@@ -1767,7 +1258,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.x_enc(false, 20);
 		r.settle(20);
 		expect(r.on_stack()).to_be_true();
-		expect(static_cast<int32_t>(slicer_scene().mode())).to_equal(SLICER_MODE_REGION);
+		expect(slicer_scene().mode() == Mode::Region).to_be_true();
 	});
 
 	// --- goldens, both geometries -------------------------------------------------------------
@@ -1813,5 +1304,18 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		expect_golden(self, "../ui/scenes/slicer_manual_pads.state", r.fake.state());
 	});
 });
+
+describe slicer_scene_reference_rows("slicer_scene: the reference rows", $ {
+	it("parses slicer_scene.tsv clean and asks every row of it", _ {
+		spec::OracleTable& t = spec::OracleTable::named("slicer_scene");
+		expect(t.problems().size()).to_equal(size_t{0});
+		expect(t.size() > size_t{100}).to_be_true();
+		expect(t.unasked()).to_equal(std::string{});
+	});
+
+	it("reads every pad image and panel frozen beside it", _ {
+		expect(spec::OracleFiles::unread("slicer_")).to_equal(std::string{});
+	});
+});
 // clang-format on
-DELUGE_SPEC(slicer_scene_spec, slicer_scene_spec_body)
+DELUGE_SPEC(slicer_scene_spec, slicer_scene_spec_body, slicer_scene_reference_rows)

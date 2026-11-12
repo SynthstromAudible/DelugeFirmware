@@ -98,7 +98,9 @@ Upstream `main`'s menu answers, one row per answer, which the ported menu's scen
 (`sim/scenes_spec/support/oracle_table.h` reads them; every spec that reads a table also checks it asked every
 row). A row is `path<TAB>column<TAB>values…`: the path names what answered (a menu node by its child positions
 under its root, a setting case, a shortcut cell), the column the question, the values the answer. `pixels/` holds
-panels as PBM, `pads/` pad images.
+panels as PBM, `pads/` the main grid's pad images: eight lines from the top row (y = 7) down, each sixteen `r,g,b`
+triples separated by spaces (`sim/scenes_spec/support/oracle_files.h` reads both, and a spec that reads them checks it
+read every file under its own prefix).
 
 Fields are raw bytes: only tab, newline and backslash are escaped, so a glyph byte such as the flat sign (0x81 in
 `menu_ranges.tsv`) is stored as it is and the files are not always valid UTF-8.

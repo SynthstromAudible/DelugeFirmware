@@ -16,17 +16,14 @@
 /// That is not a workaround for the harness: it is the same path a zoomed-out render takes on the
 /// device once the background pre-scan (issue #4460) has run, which is the common case.
 ///
-/// @par The legacy oracle
+/// @par The reference
 ///
-/// The "against the real legacy editor" group compares the port against **`SampleMarkerEditor`
-/// itself**, driven from its own inputs. Each example runs the same gesture twice: once through the
-/// shell into `MarkerScene`, then -- on a model `restore()`d to exactly what the port started from
-/// -- through legacy's own public entry points (`selectEncoderAction`, `padAction`,
-/// `horizontalEncoderAction`, `renderMainPads`, `renderOLED`). `open_legacy` calls
-/// `waveformBasicNavigator.opened(&holder)`, which is `SampleMarkerEditor::opened`'s own line, so
-/// even the scroll and zoom legacy renders from are ones IT derived; nothing the port computed
-/// reaches the oracle. A `mirror_to_legacy` that handed legacy the port's own view
-/// would make the oracle echo the port.
+/// The "against main's editor" group, and the select-encoder examples, compare the port against what upstream
+/// `main`'s `SampleMarkerEditor` answers for the same gesture on the same fixture, as
+/// `tests/golden/ui/menu_oracle/marker_scene.tsv` and its `pads/marker_*` and `pixels/marker_*` files hold it: the
+/// markers after each turn or tap, the selected marker, the loop lock, the view after a zoom or a scroll, the main
+/// pads (`renderMainPads`, which draws `renderColumn` and `renderMarkerInCol` over the waveform) and the 128x48 OLED
+/// page (`renderOLED`).
 ///
 /// The pad overlay in particular is compared against the real `renderColumn`/`renderMarkerInCol`,
 /// reached through the public `renderMainPads` because both are private
@@ -38,12 +35,10 @@
 /// phase-2 suppression, which the scene deliberately does not follow (see `marker_scene.h`). It is
 /// asserted in both directions at its example.
 ///
-/// @note The spec may include `gui/` (for the legacy editor); the library may not. Same rule
-///       `browser_scene_spec.cpp` runs under.
+/// @note The spec may include `gui/`; the library may not. Same rule `browser_scene_spec.cpp` runs under.
 
 #include "gui/l10n/strings.h"
 #include "gui/ui/menu_view_of.h"
-#include "gui/ui/sound_editor.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/marker/marker_scene.h"
 #include "scenes/menu/bind_host.h"
@@ -61,16 +56,13 @@
 #include "ui/core/metrics.h"
 #include "ui/grid/columns.h"
 
-#include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/waveform/waveform_basic_navigator.h"
 #include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
-#include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
 #include "model/clip/audio_clip.h"
 #include "model/edits/setting_edit.h"
@@ -90,7 +82,10 @@
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
 #include "support/global_guest_menu.h"
+#include "support/marker_scene_fixtures.h"
 #include "support/menu_over_root.h"
+#include "support/oracle_files.h"
+#include "support/oracle_table.h"
 #include "support/song_fixture.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
@@ -106,6 +101,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "spec/support/spec_main.h"
@@ -126,56 +122,16 @@ using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
 
+namespace mf = deluge::scenes::spec::marker_fx;
+using mf::AudioRig;
+using mf::kBytesPerFrame;
+using mf::kSampleLength;
+using mf::kZoomMax;
+using mf::make_sample;
+using mf::MarkerDisplay;
+using mf::Rig;
+
 namespace {
-
-// --- geometry ---------------------------------------------------------------------------------
-
-constexpr size_t kClusterSize = 32768;
-constexpr int32_t kBytesPerFrame = 2; // 16-bit mono, so one frame is two bytes
-/// Thirty-two clusters' worth of frames, which is **two clusters per display column at max zoom**
-/// -- and two is the number that matters. The scan only takes its cache arm when a column spans
-/// two or more clusters (`waveform_scan.cpp`'s `numClustersSpan >= 2`); at one cluster per column
-/// it takes the two-cluster arm with `investigatingAWholeCluster` left false and opens a reader,
-/// which in a spec process fails on every column. Halving this length is enough to turn the whole
-/// waveform black -- found by doing exactly that.
-constexpr uint64_t kSampleLength = static_cast<uint64_t>(kClusterSize) * 32 / kBytesPerFrame;
-constexpr int32_t kNumClusters = 32;
-/// `WaveformNav::max_zoom()` for `kSampleLength`: `((len - 1) >> 4) + 1`.
-constexpr int32_t kZoomMax = static_cast<int32_t>(((kSampleLength - 1) >> 4) + 1);
-
-/// The per-cluster peak the fixture writes into the overview cache: a widening shape, so a golden
-/// shows something recognisable rather than a flat band.
-int8_t cluster_peak(int32_t i) {
-	return static_cast<int8_t>(16 + 3 * i);
-}
-
-Sample* make_sample() {
-	Cluster::set_size(kClusterSize);
-
-	// Placed in the deluge heap and never freed -- `song_fixture.h`'s own rule, and for its reason.
-	void* memory = deluge::memory::alloc_fast(sizeof(Sample));
-	auto* s = new (memory) Sample();
-	s->byteDepth = 2;
-	s->numChannels = 1;
-	s->sampleRate = 44100;
-	s->audioDataStartPosBytes = 0;
-	s->audioDataLengthBytes = kSampleLength * kBytesPerFrame;
-	s->lengthInSamples = kSampleLength;
-
-	// The normalisation the bar heights are computed against
-	// (`Sample::getFoundValueCentrePoint`/`getValueSpan`).
-	s->maxValueFound = 127 << 24;
-	s->minValueFound = -128 << 24;
-
-	s->resizeOverviewCache(kNumClusters);
-	for (int32_t i = 0; i < kNumClusters; i++) {
-		OverviewCacheEntry& e = s->overviewCacheEntry(static_cast<uint32_t>(i));
-		e.min = static_cast<int8_t>(-cluster_peak(i));
-		e.max = cluster_peak(i);
-		e.investigated = true;
-	}
-	return s;
-}
 
 // --- the fixture ------------------------------------------------------------------------------
 
@@ -200,182 +156,6 @@ const BoardProfile& profile_64() {
 	}();
 	return p;
 }
-
-/// @brief The minimum `Display` the legacy editor needs. `display` is null in a spec process
-///        (`hid/display/display.cpp:4`) and `SampleMarkerEditor::loopUnlock` pops up.
-struct MarkerDisplay final : deluge::hid::Display {
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-};
-
-/// @brief A synth song whose source 0 is a sample source with one multisample range.
-struct Rig {
-	spec::SongFixture song = spec::make_synth_song();
-	Sample* sample = make_sample();
-	Sound* sound = nullptr;
-	Source* source = nullptr;
-	MultisampleRange* range = nullptr;
-
-	const BoardProfile& profile;
-	deluge::ui::shell::SceneRegistry reg = scene_registry();
-	uitest::FakeSurfaceSet fake;
-	Shell shell;
-
-	Rig(const Rig&) = delete;
-	Rig& operator=(const Rig&) = delete;
-
-	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
-	///
-	/// `MarkerScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
-	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
-	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
-	/// `recorder_scene_spec.cpp`'s `~Rig` was written to stop (a leaked recorder there made the next
-	/// `on_enter` refuse outright and killed 13 of 16 examples on one mutant's first run). Popping
-	/// unconditionally means every example starts from the same place whatever the one before it did.
-	~Rig() {
-		while (shell.stack().depth() > 0) {
-			shell.stack().pop(SceneKind::Null);
-		}
-		currentSong = saved_song;
-	}
-
-	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
-	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
-		currentSong = song.song; // the app's sink and waveforms resolve addresses in the current song
-		sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
-		source = &sound->sources[0];
-		source->oscType = OscType::SAMPLE;
-		source->repeatMode = SampleRepeatMode::ONCE;
-		source->sampleControls.reversed = false;
-		range = static_cast<MultisampleRange*>(source->getOrCreateFirstRange());
-		range->sampleHolder.audioFile = sample;
-		range->sampleHolder.startPos = 0;
-		range->sampleHolder.endPos = kSampleLength;
-		range->sampleHolder.loopStartPos = 0;
-		range->sampleHolder.loopEndPos = 0;
-		range->sampleHolder.loopLocked = false;
-		range->sampleHolder.waveformViewZoom = 0; // "no remembered view" -- open zoomed out
-		range->sampleHolder.waveformViewScroll = 0;
-		// The sound was set up field by field; record it as a load does, so its record is its truth.
-		deluge::bridge::recordLoadedSound(*sound, *song.song);
-	}
-
-	MenuContext ctx() {
-		// `context_for` resolves the range only when the source has exactly one, as it has here.
-		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                         /*kit_global_fx=*/false);
-	}
-
-	/// @brief The key the scene remembers the range's view under: the range's own identity.
-	deluge::scenes::services::ViewKey key() {
-		return {.kind = deluge::scenes::services::ViewKey::Kind::RANGE, .id = range->identity()};
-	}
-
-	/// @brief The view the scene remembers for the range, if any.
-	std::optional<deluge::scenes::services::SampleView> view() {
-		return deluge::scenes::services::view_state().sample_view(key());
-	}
-
-	/// @brief Open the editor on @p marker, the way `LoopPoint::beginSession` does.
-	/// @param sink Where the scene's writes go; the app's sink when null.
-	void open(MarkerType marker, bind::WriteSink* sink = nullptr) {
-		// Examples set the holder by hand before opening; record it as a load would, since an Edit starts from the
-		// record.
-		deluge::bridge::recordLoadedSound(*sound, *song.song);
-		// Legacy remembers the view and the loop lock on the holder, the scene in the view-state store: both start
-		// from the holder's.
-		const SampleHolderForVoice& h = range->sampleHolder;
-		deluge::scenes::services::view_state().forget_unless(song.song->project.identity());
-		deluge::scenes::services::view_state().set_sample_view(
-		    key(), {.scroll = h.waveformViewScroll, .zoom = h.waveformViewZoom, .loop_locked = h.loopLocked});
-		MenuContext c = ctx();
-		if (sink != nullptr) {
-			c.sink = sink;
-		}
-		marker_scene().open(c);
-		shell.init(SceneId{kMarkerSceneKind, static_cast<uint16_t>(static_cast<int16_t>(marker))});
-	}
-
-	void tick(uint32_t at_ms) { shell.tick(at_ms); }
-
-	/// @brief The sound's slot.
-	deluge::project::SlotAddress slot() { return *ctx().addresses.slot; }
-
-	/// @brief Close the editor and open it again on @p marker at range @p range_index, seeding nothing: it opens with
-	///        what the view-state store kept.
-	void reopen(MarkerType marker, int16_t range_index) {
-		while (shell.stack().depth() > 0) {
-			shell.stack().pop(SceneKind::Null);
-		}
-		deluge::bridge::recordLoadedSound(*sound, *song.song);
-		MenuContext c = ctx();
-		c.range_index = range_index;
-		marker_scene().open(c);
-		shell.init(SceneId{kMarkerSceneKind, static_cast<uint16_t>(static_cast<int16_t>(marker))});
-	}
-
-	/// @brief Load the file at @p path into @p into, as a sample load does: the same range, another sample.
-	Sample* load_into(MultisampleRange& into, const char* path) {
-		Sample* loaded = make_sample();
-		loaded->filePath = path; // the record names the range's file by its sample's path
-		into.sampleHolder.filePath = path;
-		into.sampleHolder.audioFile = loaded;
-		return loaded;
-	}
-
-	/// @brief Open the menu at the sample start item, whose entry opens the editor over it: a shortcut's real door.
-	/// @param root_is_automation Whether the root under the menu is the automation view, as the host's opener says.
-	void open_through_menu(bool root_is_automation = false) {
-		deluge::bridge::recordLoadedSound(*sound, *song.song);
-		(void)menu::assign_node_ids(menu::nodes::kAllRoots);
-		MenuContext c = ctx();
-		c.root_is_automation = root_is_automation;
-		menu_scene().open(menu::nodes::sample0_start, c);
-		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(menu::nodes::sample0_start)});
-	}
-	/// @brief The scene on top of the stack.
-	SceneKind top() { return shell.stack().input_top().kind(); }
-	void shift(bool on, uint32_t at_ms) {
-		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 8, 0, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
-	}
-
-	/// @brief One detent of the (detented, 2 edges per click) select encoder, index 3
-	///        (`shell/profiles/deluge.cpp`).
-	void turn_select(int32_t detents, uint32_t at_ms) {
-		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, 3, 0, static_cast<int16_t>(detents * 2)}, at_ms);
-	}
-	void pad(int32_t x, int32_t y, bool on, uint32_t at_ms) {
-		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, static_cast<uint8_t>(x), static_cast<uint8_t>(y),
-		                                      static_cast<int16_t>(on ? 255 : 0)},
-		                     at_ms);
-	}
-	/// @brief Press or release the horizontal encoder's own button, at matrix (0, 1)
-	///        (`shell/profiles/deluge.cpp`). Legacy's `UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`.
-	void x_enc_button(bool on, uint32_t at_ms) {
-		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 0, 1, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
-	}
-	/// @brief One detent of the (detented) horizontal encoder, index 1 (`shell/profiles/deluge.cpp`).
-	void turn_horizontal(int32_t detents, uint32_t at_ms) {
-		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, 1, 0, static_cast<int16_t>(detents * 2)}, at_ms);
-	}
-
-	std::string oled() { return fake.pbm(0); }
-	std::string grid() { return fake.state(); }
-
-	Song* const saved_song = currentSong;
-};
 
 /// @brief Events handed to the marker scene itself, so the actions it files come back for the example to read.
 struct DirectEvents {
@@ -419,154 +199,39 @@ constexpr uint16_t popup_id(deluge::l10n::String s) {
 	return static_cast<uint16_t>(s);
 }
 
-/// @brief Everything about the holder either side can move, so a legacy run can start from exactly
-///        the model the port started from rather than from the model the port left behind.
-struct HolderState {
-	uint64_t start{};
-	uint64_t end{};
-	uint32_t loop_start{};
-	uint32_t loop_end{};
-	bool locked{};
-	int32_t view_scroll{};
-	int32_t view_zoom{};
-};
-
-HolderState holder_snapshot(Rig& r) {
-	const SampleHolderForVoice& h = r.range->sampleHolder;
-	return HolderState{h.startPos,           h.endPos,          h.loopStartPos, h.loopEndPos, h.loopLocked,
-	                   h.waveformViewScroll, h.waveformViewZoom};
+/// @brief `marker_scene.tsv`: where `main`'s editor leaves the markers after each gesture below.
+spec::OracleTable& table() {
+	return spec::OracleTable::named("marker_scene");
 }
 
-void restore(Rig& r, const HolderState& s) {
-	SampleHolderForVoice& h = r.range->sampleHolder;
-	h.startPos = s.start;
-	h.endPos = s.end;
-	h.loopStartPos = s.loop_start;
-	h.loopEndPos = s.loop_end;
-	h.loopLocked = s.locked;
-	h.waveformViewScroll = s.view_scroll;
-	h.waveformViewZoom = s.view_zoom;
-	// Set by hand, so recorded as a load would: the record is what an Edit starts from.
-	deluge::bridge::recordLoadedSound(*r.sound, *r.song.song);
+/// @brief The values of row (`marker/<name>`, @p column), or `<no row>` alone when there is none.
+std::vector<std::string> frozen(std::string_view name, std::string_view column) {
+	const std::vector<std::string>* v = table().find("marker/" + std::string{name}, column);
+	return v != nullptr ? *v : std::vector<std::string>{"<no row>"};
 }
 
-/// @brief Open the LEGACY editor on the same model, letting it derive its OWN view.
+/// @brief The one value of row (`marker/<name>`, @p column), as a number; -1 when there is no such row.
+int64_t frozen_number(std::string_view name, std::string_view column) {
+	const std::vector<std::string> v = frozen(name, column);
+	return v.size() == 1 && v[0] != "<no row>" ? std::stoll(v[0]) : -1;
+}
+
+/// @brief Where the port's main pads first differ from a reference pad image, and how many differ.
 ///
-/// Not a mirror of the port's scroll and zoom: `waveformBasicNavigator.opened(&holder)` is
-/// `SampleMarkerEditor::opened`'s own line (`sample_marker_editor.cpp:119-128`), so the view legacy
-/// navigates and renders from is the one IT computes from the holder. The caller `restore()`s the
-/// holder first, so not even the remembered-view fields carry the port's answer across (each side starts from its own
-/// sentinel).
-/// @brief An audio clip holding the sample, its markers set through the clip's own setters, with a `Shell` for the
-///        scene. An audio clip's markers live in its descriptor record (`AudioClip::docAudioClip_`), which a save
-///        writes.
-struct AudioRig {
-	spec::AudioSongFixture f = spec::make_audio_clip_song();
-	Sample* sample = make_sample();
-	const BoardProfile& profile;
-	deluge::ui::shell::SceneRegistry reg = scene_registry();
-	uitest::FakeSurfaceSet fake;
-	Shell shell;
-
-	AudioRig(const AudioRig&) = delete;
-	AudioRig& operator=(const AudioRig&) = delete;
-
-	explicit AudioRig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard,
-	                  const BoardProfile& p = deluge_profile())
-	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
-		currentSong = f.song; // the app's sink and waveforms resolve addresses in the current song
-		f.clip->sampleHolder.audioFile = sample;
-		f.clip->sampleHolder.neutralPhaseIncrement = kMaxSampleValue;
-		f.clip->sampleHolder.waveformViewZoom = 0;
-		f.clip->sampleHolder.waveformViewScroll = 0;
-		f.clip->setSampleStartPos(0);
-		f.clip->setSampleEndPos(kSampleLength);
-		f.clip->sampleControls.reversed = false;
-	}
-	~AudioRig() {
-		while (shell.stack().depth() > 0) {
-			shell.stack().pop(SceneKind::Null);
-		}
-		currentSong = saved_song;
-	}
-
-	/// @brief Open the scene on @p marker over the audio clip.
-	/// @param sink Where the scene's writes go; the app's sink when null.
-	void open(MarkerType marker, bind::WriteSink* sink = nullptr) {
-		MenuContext c = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
-		                                  /*kit_global_fx=*/false);
-		if (sink != nullptr) {
-			c.sink = sink;
-		}
-		marker_scene().open(c);
-		shell.init(SceneId{kMarkerSceneKind, static_cast<uint16_t>(static_cast<int16_t>(marker))});
-	}
-	void tick(uint32_t at_ms) { shell.tick(at_ms); }
-	void turn_select(int32_t detents, uint32_t at_ms) {
-		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, 3, 0, static_cast<int16_t>(detents * 2)}, at_ms);
-	}
-
-	/// @brief The descriptor record's markers, as a save writes them.
-	[[nodiscard]] std::pair<uint64_t, uint64_t> recorded() const {
-		return {f.clip->docAudioClip_->start_pos, f.clip->docAudioClip_->end_pos};
-	}
-	/// @brief The holder's markers, as playback reads them.
-	[[nodiscard]] std::pair<uint64_t, uint64_t> played() const {
-		return {f.clip->sampleHolder.startPos, f.clip->sampleHolder.endPos};
-	}
-
-	Song* const saved_song = currentSong;
-};
-
-void open_legacy(Rig& r, MarkerType marker) {
-	deluge::bridge::recordLoadedSound(*r.sound, *r.song.song); // the record legacy's Edit starts from
-	soundEditor.currentMultiRange = r.range;
-	soundEditor.currentSource = r.source;
-	soundEditor.currentSourceIndex = 0;
-	soundEditor.currentSound = r.sound;
-	waveformBasicNavigator.sample = static_cast<Sample*>(r.range->sampleHolder.audioFile); // `:119`
-	waveformBasicNavigator.opened(&r.range->sampleHolder);                                 // `:126`
-	sampleMarkerEditor.markerType = marker;
-	sampleMarkerEditor.blinkPhase = 0; // `:128`
-	currentUIMode = UI_MODE_NONE;
-}
-
-/// @brief The pad image `SampleMarkerEditor::renderMainPads` writes, in legacy's own shape.
-struct LegacyPads {
-	RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
-};
-
-/// @brief Ask the REAL `SampleMarkerEditor::renderMainPads` (`sample_marker_editor.cpp:1362`) for
-///        its pads, over the model legacy has just opened on.
-///
-/// This is the whole overlay -- `renderColumn` (`:1268`) and `renderMarkerInCol` (`:1058`), which
-/// are private and so unreachable except through this public entry -- on top of
-/// `waveformRenderer.renderFullScreen`. It stands in for a transcription of those two bodies in
-/// `tests/spec/ui/markers_grid_spec.cpp`, which the host target cannot link `deluge_app` to reach.
-/// @param blink_phase `SampleMarkerEditor::blinkPhase`, which decides the suppression mask.
-LegacyPads legacy_pads(int8_t blink_phase) {
-	sampleMarkerEditor.blinkPhase = blink_phase;
-	LegacyPads out;
-	sampleMarkerEditor.renderMainPads(0xFFFFFFFFu, out.image, nullptr, true);
-	return out;
-}
-
-/// @brief Where the port's main pads first differ from a legacy image, and how many differ.
-///
-/// Main columns only: the sidebar is `renderSidebar`'s, which this scene does not port (see the
-/// class docstring), so legacy's two sidebar columns have no counterpart to compare.
+/// Main columns only: the sidebar is `renderSidebar`'s, which this scene does not port (see the class docstring), so
+/// main's two sidebar columns have no counterpart to compare. A missing image differs everywhere.
 struct PadDiff {
 	int32_t count = 0;
 	int32_t first_x = -1;
 	int32_t first_y = -1;
 };
 
-PadDiff pad_diff(Rig& r, const LegacyPads& legacy) {
+PadDiff pad_diff(Rig& r, const std::optional<spec::OraclePads>& frozen_pads) {
 	const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
 	PadDiff d;
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			if (!(g.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y)) == legacy.image[y][x])) {
+			if (!frozen_pads || !(g.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y)) == (*frozen_pads)[y][x])) {
 				if (d.count == 0) {
 					d.first_x = x;
 					d.first_y = y;
@@ -578,24 +243,15 @@ PadDiff pad_diff(Rig& r, const LegacyPads& legacy) {
 	return d;
 }
 
-/// @brief Assert the port's main pads are the legacy image, pad for pad.
+/// @brief Assert the port's main pads are `pads/<name>.txt`, pad for pad.
 /// @param self The enclosing `it(...)` block's lambda parameter -- `expect` expands to `self.expect`.
 template <typename Self>
-void expect_pads_match(Self& self, Rig& r, const LegacyPads& legacy) {
-	const PadDiff d = pad_diff(r, legacy);
+void expect_pads_match(Self& self, Rig& r, std::string_view name) {
+	const PadDiff d = pad_diff(r, spec::OracleFiles::pads(name));
 	// The coordinates first, so a failure names a pad rather than only a count.
 	expect(d.first_x).to_equal(-1);
 	expect(d.first_y).to_equal(-1);
 	expect(d.count).to_equal(0);
-}
-
-/// @brief The 128x48 canvas `SampleMarkerEditor::renderOLED` (`sample_marker_editor.cpp:1098`)
-///        would have shown, as a PBM.
-std::string legacy_oled() {
-	static deluge::hid::display::oled_canvas::Canvas canvas;
-	canvas.clear();
-	sampleMarkerEditor.renderOLED(canvas);
-	return page_major_to_pbm(canvas.bytes().data(), 128, 48);
 }
 
 } // namespace
@@ -662,7 +318,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.audioFile = r.sample;
 	});
 
-	// --- the select encoder, against legacy ---------------------------------------------------
+	// --- the select encoder, against main ----------------------------------------------------
 
 	it("moves the START marker one column per detent and writes it through", _ {
 		Rig r;
@@ -680,51 +336,33 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(3 * kZoomMax);
 	});
 
-	it("writes the same position legacy's selectEncoderAction writes, for the same turns", _ {
+	it("writes the same position main's selectEncoderAction writes, for the same turns", _ {
 		Rig r;
-		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
-
-		// The port's answer, from its own state.
 		r.turn_select(1, 10);
 		r.tick(10);
 		r.turn_select(1, 20);
 		r.tick(20);
-		const uint64_t ported = r.range->sampleHolder.startPos;
-
-		// Put the model back exactly as the port found it and drive LEGACY over it, letting the
-		// legacy navigator derive its own scroll and zoom.
-		restore(r, before);
-		open_legacy(r, MarkerType::START);
-		sampleMarkerEditor.selectEncoderAction(1);
-		sampleMarkerEditor.selectEncoderAction(1);
-		const uint64_t legacy = r.range->sampleHolder.startPos;
-
-		expect(static_cast<int32_t>(ported)).to_equal(static_cast<int32_t>(legacy));
-		expect(static_cast<int32_t>(ported)).to_equal(2 * kZoomMax);
+		expect(mf::markers_of(r.range->sampleHolder)).to_equal(frozen("select_two_turns", "markers"));
+		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(2 * kZoomMax);
 	});
 
-	it("keeps the sound's record current: a moved marker is in the record a save writes, as legacy's Edit puts it", _ {
+	it("keeps the sound's record current: a moved marker is in the record a save writes, as main's Edit puts it", _ {
 		Rig r;
 		expect(deluge::harness::soundIncoherence(*r.sound, *r.song.song)).to_equal(std::string{});
-		const HolderState before = holder_snapshot(r);
+		const uint64_t start_before = r.range->sampleHolder.startPos;
 
 		r.open(MarkerType::START);
 		r.tick(0);
 		r.turn_select(1, 10);
 		r.tick(10);
-		expect(r.range->sampleHolder.startPos > before.start).to_be_true();
+		expect(r.range->sampleHolder.startPos > start_before).to_be_true();
 		expect(deluge::harness::soundIncoherence(*r.sound, *r.song.song)).to_equal(std::string{});
-
-		restore(r, before);
-		open_legacy(r, MarkerType::START);
-		sampleMarkerEditor.selectEncoderAction(1);
-		expect(r.range->sampleHolder.startPos > before.start).to_be_true();
-		expect(deluge::harness::soundIncoherence(*r.sound, *r.song.song)).to_equal(std::string{});
+		expect(mf::markers_of(r.range->sampleHolder)).to_equal(frozen("record_one_turn", "markers"));
 	});
 
-	it("keeps an audio clip's moved marker in its descriptor record, which a save writes -- scene and legacy", _ {
+	it("keeps an audio clip's moved marker in its descriptor record, which a save writes, where main's moves it", _ {
 		AudioRig r;
 		r.open(MarkerType::START);
 		r.tick(0);
@@ -732,22 +370,10 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(10);
 		expect(r.played().first > 0U).to_be_true();
 		expect(r.recorded() == r.played()).to_be_true();
-
-		while (r.shell.stack().depth() > 0) {
-			r.shell.stack().pop(SceneKind::Null);
-		}
-		r.f.clip->setSampleStartPos(0);
-		waveformBasicNavigator.sample = r.sample;
-		waveformBasicNavigator.opened(&r.f.clip->sampleHolder);
-		sampleMarkerEditor.markerType = MarkerType::START;
-		sampleMarkerEditor.blinkPhase = 0;
-		currentUIMode = UI_MODE_NONE;
-		sampleMarkerEditor.selectEncoderAction(1);
-		expect(r.played().first > 0U).to_be_true();
-		expect(r.recorded() == r.played()).to_be_true();
+		expect(mf::clip_markers_of(r.played())).to_equal(frozen("audio_clip_turn", "clip_markers"));
 	});
 
-	it("keeps a playing audio clip playing from the moved marker's record -- scene and legacy", _ {
+	it("keeps a playing audio clip playing from the moved marker's record, turn after turn, as main's does", _ {
 		AudioRig r;
 		const uint8_t saved_playback_state = playbackHandler.playbackState;
 		playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
@@ -764,19 +390,19 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(r.recorded() == r.played()).to_be_true();
 		expect(r.f.clip->voiceSample != nullptr).to_be_true();
 
+		// Opened again and turned again, where main's editor, opened over the playing clip, takes it.
 		while (r.shell.stack().depth() > 0) {
 			r.shell.stack().pop(SceneKind::Null);
 		}
-		waveformBasicNavigator.sample = r.sample;
-		waveformBasicNavigator.opened(&r.f.clip->sampleHolder);
-		sampleMarkerEditor.markerType = MarkerType::START;
-		sampleMarkerEditor.blinkPhase = 0;
-		currentUIMode = UI_MODE_NONE;
 		const uint64_t before = r.played().first;
-		sampleMarkerEditor.selectEncoderAction(1);
+		r.open(MarkerType::START);
+		r.tick(20);
+		r.turn_select(1, 30);
+		r.tick(30);
 		expect(r.played().first > before).to_be_true();
 		expect(r.recorded() == r.played()).to_be_true();
 		expect(r.f.clip->voiceSample != nullptr).to_be_true();
+		expect(mf::clip_markers_of(r.played())).to_equal(frozen("audio_playing_turn", "clip_markers"));
 
 		r.f.clip->unassignVoiceSample(false);
 		r.f.clip->activeIfNoSolo = false;
@@ -1071,25 +697,19 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		playbackHandler.playbackState = saved_playback_state;
 	});
 
-	it("refuses a turn that would drive one marker into another, exactly as legacy does", _ {
+	it("refuses a turn that would drive one marker into another, exactly as main does", _ {
 		Rig r;
 		// START at column 4, END at column 5 (`endPos - 1` floors there): one detent right would
-		// land START on END's column, and legacy's "don't drive one marker into the other" loop
+		// land START on END's column, and main's "don't drive one marker into the other" loop
 		// (`sample_marker_editor.cpp:281-288`) refuses it outright.
 		r.range->sampleHolder.startPos = 4 * kZoomMax;
 		r.range->sampleHolder.endPos = 6 * kZoomMax;
-		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
 		r.turn_select(1, 10);
 		r.tick(10);
-		const uint64_t ported = r.range->sampleHolder.startPos;
-
-		restore(r, before);
-		open_legacy(r, MarkerType::START);
-		sampleMarkerEditor.selectEncoderAction(1);
-		expect(static_cast<int32_t>(ported)).to_equal(static_cast<int32_t>(r.range->sampleHolder.startPos));
-		expect(static_cast<int32_t>(ported)).to_equal(4 * kZoomMax);
+		expect(mf::markers_of(r.range->sampleHolder)).to_equal(frozen("refuse_into_end", "markers"));
+		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(4 * kZoomMax);
 	});
 
 	it("allows the same turn once the other marker is a column further away", _ {
@@ -1098,18 +718,12 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.range->sampleHolder.startPos = 4 * kZoomMax;
 		r.range->sampleHolder.endPos = 8 * kZoomMax; // END now at column 7
-		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
 		r.turn_select(1, 10);
 		r.tick(10);
-		const uint64_t ported = r.range->sampleHolder.startPos;
-
-		restore(r, before);
-		open_legacy(r, MarkerType::START);
-		sampleMarkerEditor.selectEncoderAction(1);
-		expect(static_cast<int32_t>(ported)).to_equal(static_cast<int32_t>(r.range->sampleHolder.startPos));
-		expect(static_cast<int32_t>(ported)).to_equal(5 * kZoomMax);
+		expect(mf::markers_of(r.range->sampleHolder)).to_equal(frozen("allow_column_away", "markers"));
+		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(5 * kZoomMax);
 	});
 
 	it("clamps the END marker at the sample's length", _ {
@@ -1900,7 +1514,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		    .to_equal(phase0.find("pad 11 0 ") != std::string::npos);
 	});
 
-	// --- the OLED, against legacy -------------------------------------------------------------
+	// --- the OLED ---------------------------------------------------------------------------
 
 	it("draws the marker's own title, and the loop-lock badge only when the loop is locked", _ {
 		Rig r;
@@ -1939,19 +1553,16 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(reversed).to_equal(r.oled());
 	});
 
-	// --- against the real legacy editor -------------------------------------------------------
+	// --- against main's editor ---------------------------------------------------------------
 	//
-	// Every example below runs the same gesture twice: once through the shell into `MarkerScene`,
-	// and once through `SampleMarkerEditor`'s own public entry points over a model `restore()`d to
-	// what the port started from, with `waveformBasicNavigator.opened()` deriving legacy's view for
-	// itself. Neither side reads anything the other computed.
+	// Every example below runs a gesture through the shell into `MarkerScene` and compares what it
+	// leaves with what main's `SampleMarkerEditor` left after the same gesture on the same fixture.
 	//
-	// **Uncovered, and deliberately so.** `SampleMarkerEditor::renderSidebar` has no counterpart --
-	// the scene does not port the sidebar (see the class docstring) -- and neither does
+	// **Uncovered, and deliberately so.** Main's `SampleMarkerEditor::renderSidebar` has no
+	// counterpart -- the scene does not port the sidebar (see the class docstring) -- and neither does
 	// `verticalEncoderAction`, which falls through to the UI beneath. The audition-column and
-	// mute-column arms of `padAction` (`sample_marker_editor.cpp:353-365`) reach
-	// `instrumentClipView` and `exitUI()`, neither of which this layer performs. Those are uncovered
-	// by the migration, not counted here.
+	// mute-column arms of `padAction` reach `instrumentClipView` and `exitUI()`, neither of which this
+	// layer performs.
 
 	it("draws the same pads as SampleMarkerEditor::renderMainPads, four markers apart", _ {
 		Rig r;
@@ -1959,16 +1570,11 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.loopStartPos = 6 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 10 * kZoomMax;
 		r.range->sampleHolder.endPos = 14 * kZoomMax;
-		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::LOOP_START);
 		r.tick(0);
-
-		restore(r, before);
-		open_legacy(r, MarkerType::LOOP_START);
-		// `renderMainPads` is the only public way into `renderColumn` and `renderMarkerInCol`, which
-		// are private (`sample_marker_editor.h:90-94`) -- and it draws the waveform underneath them
-		// too, so this compares the blend rather than the overlay on black.
-		expect_pads_match(self, r, legacy_pads(0));
+		// Main's `renderMainPads` draws the waveform underneath its `renderColumn` and `renderMarkerInCol`, so this
+		// compares the blend rather than the overlay on black.
+		expect_pads_match(self, r, "marker_four_apart_0");
 	});
 
 	it("stacks a shared column the same way SampleMarkerEditor::renderColumn does", _ {
@@ -1981,16 +1587,12 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax + 1;
 		r.range->sampleHolder.loopEndPos = 4 * kZoomMax + 2;
 		r.range->sampleHolder.endPos = 4 * kZoomMax + 3;
-		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::LOOP_END);
 		r.tick(0);
-
-		restore(r, before);
-		open_legacy(r, MarkerType::LOOP_END);
-		expect_pads_match(self, r, legacy_pads(0));
+		expect_pads_match(self, r, "marker_shared_column_0");
 	});
 
-	it("gives the selected marker the wider slice when three share a column, as legacy does", _ {
+	it("gives the selected marker the wider slice when three share a column, as main does", _ {
 		// `numMarkers == 3` is the ONE case where `baseIncrement` (1) and `selectedIncrement` (2)
 		// differ (`sample_marker_editor.cpp:1310-1313`); with two or four sharing they are equal and
 		// swapping them changes nothing. Without this example a port that swapped the two passes.
@@ -1999,13 +1601,9 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax + 1;
 		r.range->sampleHolder.loopEndPos = 4 * kZoomMax + 2;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
-		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::LOOP_START);
 		r.tick(0);
-
-		restore(r, before);
-		open_legacy(r, MarkerType::LOOP_START);
-		expect_pads_match(self, r, legacy_pads(0));
+		expect_pads_match(self, r, "marker_three_share_0");
 	});
 
 	it("suppresses the same markers as renderMainPads does at every blink phase", _ {
@@ -2018,119 +1616,87 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax + 1;
 		r.range->sampleHolder.loopEndPos = 9 * kZoomMax;
 		r.range->sampleHolder.endPos = 13 * kZoomMax;
-		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::LOOP_START);
 		for (int32_t phase = 0; phase < 4; phase++) {
 			r.tick(static_cast<uint32_t>(phase) * marker::kBlinkPhaseMs);
 			expect(static_cast<int32_t>(marker_scene().blink_phase())).to_equal(phase);
-			restore(r, before);
-			open_legacy(r, MarkerType::LOOP_START);
 			// **Phase 2 is the documented divergence, and this is where it is measured rather than
-			// merely asserted.** Legacy renders the blink two ways: `timerCallback` (`:771`) draws
-			// phases 0 and 2 normally, while `renderMainPads` (`:1362`) suppresses whenever
-			// `blinkPhase >= 1`. The scene follows `timerCallback` on purpose (`marker_scene.h`), so
-			// at phase 2 it must match `renderMainPads`' PHASE-0 output and must not match its
-			// phase-2 output. Both halves are asserted, so a port that quietly started following
-			// `renderMainPads` would fail here.
-			expect_pads_match(self, r, legacy_pads(static_cast<int8_t>(phase == 2 ? 0 : phase)));
+			// merely asserted.** Main renders the blink two ways: `timerCallback` draws phases 0 and 2
+			// normally, while `renderMainPads` suppresses whenever `blinkPhase >= 1`. The scene follows
+			// `timerCallback` on purpose (`marker_scene.h`), so at phase 2 it must match `renderMainPads`'
+			// PHASE-0 image and must not match its phase-2 image. Both halves are asserted, so a port that
+			// quietly started following `renderMainPads` would fail here.
+			expect_pads_match(self, r, "marker_suppress_" + std::to_string(phase == 2 ? 0 : phase));
 			if (phase == 2) {
-				expect(pad_diff(r, legacy_pads(2)).count > 0).to_be_true();
+				const std::optional<spec::OraclePads> suppressed = spec::OracleFiles::pads("marker_suppress_2");
+				expect(suppressed.has_value()).to_be_true();
+				expect(pad_diff(r, suppressed).count > 0).to_be_true();
 			}
 		}
 	});
 
-	it("moves the marker to the column legacy's padAction moves it to", _ {
+	it("moves the marker to the column main's padAction moves it to", _ {
 		Rig r;
-		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
 		r.pad(6, 3, true, 10);
 		r.tick(10);
-		const uint64_t ported = r.range->sampleHolder.startPos;
-
-		restore(r, before);
-		open_legacy(r, MarkerType::START);
-		sampleMarkerEditor.padAction(6, 3, 127);
-		expect(static_cast<int32_t>(ported)).to_equal(static_cast<int32_t>(r.range->sampleHolder.startPos));
-		expect(static_cast<int32_t>(ported)).to_equal(6 * kZoomMax);
+		expect(mf::markers_of(r.range->sampleHolder)).to_equal(frozen("pad_move", "markers"));
+		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(6 * kZoomMax);
 	});
 
-	it("selects the marker legacy's padAction selects, and holds it the same way", _ {
+	it("selects the marker main's padAction selects, and holds it the same way", _ {
 		Rig r;
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
 		r.range->sampleHolder.endPos = 10 * kZoomMax;
-		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
 		r.pad(9, 3, true, 10); // column 9 is END's
 		r.tick(10);
 		const MarkerType ported = marker_scene().marker_type();
 		const bool ported_holding = marker_scene().holding_marker();
-
-		restore(r, before);
-		open_legacy(r, MarkerType::START);
-		sampleMarkerEditor.padAction(9, 3, 127);
-		expect(static_cast<int32_t>(ported)).to_equal(static_cast<int32_t>(sampleMarkerEditor.markerType));
+		expect(static_cast<int64_t>(ported)).to_equal(frozen_number("pad_select", "marker"));
 		expect(static_cast<int32_t>(ported)).to_equal(static_cast<int32_t>(MarkerType::END));
-		// `UI_MODE_HOLDING_SAMPLE_MARKER` (`:536`) is what the scene's `holding_marker()` replaces.
-		expect(ported_holding).to_equal(isUIModeActive(UI_MODE_HOLDING_SAMPLE_MARKER));
+		// Main's `UI_MODE_HOLDING_SAMPLE_MARKER` is what the scene's `holding_marker()` replaces.
+		expect(int64_t{ported_holding ? 1 : 0}).to_equal(frozen_number("pad_select", "holding"));
 		expect(ported_holding).to_be_true();
-		currentUIMode = UI_MODE_NONE;
 	});
 
-	it("adds the loop start where legacy's hold-and-tap adds it", _ {
+	it("adds the loop start where main's hold-and-tap adds it", _ {
 		Rig r;
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
-		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
 		r.pad(2, 3, true, 10); // hold START's own column
 		r.tick(10);
 		r.pad(6, 3, true, 20); // tap column 6
 		r.tick(20);
-		const uint32_t ported_loop = r.range->sampleHolder.loopStartPos;
 		const MarkerType ported_marker = marker_scene().marker_type();
-
-		restore(r, before);
-		open_legacy(r, MarkerType::START);
-		sampleMarkerEditor.padAction(2, 3, 127);
-		sampleMarkerEditor.padAction(6, 3, 127);
-		expect(static_cast<int32_t>(ported_loop))
-		    .to_equal(static_cast<int32_t>(r.range->sampleHolder.loopStartPos));
-		expect(static_cast<int32_t>(ported_marker)).to_equal(static_cast<int32_t>(sampleMarkerEditor.markerType));
+		expect(mf::markers_of(r.range->sampleHolder)).to_equal(frozen("add_loop_start", "markers"));
+		expect(static_cast<int64_t>(ported_marker)).to_equal(frozen_number("add_loop_start", "marker"));
 		expect(static_cast<int32_t>(ported_marker)).to_equal(static_cast<int32_t>(MarkerType::LOOP_START));
-		currentUIMode = UI_MODE_NONE;
 	});
 
-	it("removes the loop start where legacy's hold-and-tap removes it", _ {
+	it("removes the loop start where main's hold-and-tap removes it", _ {
 		Rig r;
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.range->sampleHolder.loopStartPos = 6 * kZoomMax;
-		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::LOOP_START);
 		r.tick(0);
 		r.pad(6, 3, true, 10); // hold LOOP_START
 		r.tick(10);
 		r.pad(2, 3, true, 20); // tap START
 		r.tick(20);
-		const uint32_t ported_loop = r.range->sampleHolder.loopStartPos;
 		const MarkerType ported_marker = marker_scene().marker_type();
-
-		restore(r, before);
-		open_legacy(r, MarkerType::LOOP_START);
-		sampleMarkerEditor.padAction(6, 3, 127);
-		sampleMarkerEditor.padAction(2, 3, 127);
-		expect(static_cast<int32_t>(ported_loop))
-		    .to_equal(static_cast<int32_t>(r.range->sampleHolder.loopStartPos));
-		expect(static_cast<int32_t>(ported_loop)).to_equal(0);
-		expect(static_cast<int32_t>(ported_marker)).to_equal(static_cast<int32_t>(sampleMarkerEditor.markerType));
+		expect(mf::markers_of(r.range->sampleHolder)).to_equal(frozen("remove_loop_start", "markers"));
+		expect(static_cast<int32_t>(r.range->sampleHolder.loopStartPos)).to_equal(0);
+		expect(static_cast<int64_t>(ported_marker)).to_equal(frozen_number("remove_loop_start", "marker"));
 		expect(static_cast<int32_t>(ported_marker)).to_equal(static_cast<int32_t>(MarkerType::START));
-		currentUIMode = UI_MODE_NONE;
 	});
 
-	it("removes the loop end where legacy's hold-and-tap removes it", _ {
+	it("removes the loop end where main's hold-and-tap removes it", _ {
 		// The LOOP_END arm (`sample_marker_editor.cpp:509-522`), which the LOOP_START one above does
 		// not reach: a different marker held, a different column tapped, and a different write.
 		Rig r;
@@ -2138,35 +1704,26 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
-		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::LOOP_END);
 		r.tick(0);
 		r.pad(7, 3, true, 10); // hold LOOP_END (`(pos - 1) / zoom` floors to 7)
 		r.tick(10);
 		r.pad(11, 3, true, 20); // tap END's own column
 		r.tick(20);
-		const uint32_t ported_loop = r.range->sampleHolder.loopEndPos;
 		const MarkerType ported_marker = marker_scene().marker_type();
-
-		restore(r, before);
-		open_legacy(r, MarkerType::LOOP_END);
-		sampleMarkerEditor.padAction(7, 3, 127);
-		sampleMarkerEditor.padAction(11, 3, 127);
-		expect(static_cast<int32_t>(ported_loop)).to_equal(static_cast<int32_t>(r.range->sampleHolder.loopEndPos));
-		expect(static_cast<int32_t>(ported_loop)).to_equal(0);
-		expect(static_cast<int32_t>(ported_marker)).to_equal(static_cast<int32_t>(sampleMarkerEditor.markerType));
+		expect(mf::markers_of(r.range->sampleHolder)).to_equal(frozen("remove_loop_end", "markers"));
+		expect(static_cast<int32_t>(r.range->sampleHolder.loopEndPos)).to_equal(0);
+		expect(static_cast<int64_t>(ported_marker)).to_equal(frozen_number("remove_loop_end", "marker"));
 		expect(static_cast<int32_t>(ported_marker)).to_equal(static_cast<int32_t>(MarkerType::END));
-		currentUIMode = UI_MODE_NONE;
 	});
 
-	it("toggles the loop lock where legacy's hold-and-tap toggles it", _ {
+	it("toggles the loop lock where main's hold-and-tap toggles it", _ {
 		// `markerHeld == LOOP_START && markerPressed == LOOP_END` (`:480-489`).
 		Rig r;
 		r.range->sampleHolder.startPos = 2 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
 		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
-		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::LOOP_START);
 		r.tick(0);
 		r.pad(4, 3, true, 10); // hold LOOP_START
@@ -2174,29 +1731,19 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.pad(7, 3, true, 20); // tap LOOP_END
 		r.tick(20);
 		const bool ported_locked = r.view().has_value() && r.view()->loop_locked;
-
-		restore(r, before);
-		open_legacy(r, MarkerType::LOOP_START);
-		sampleMarkerEditor.padAction(4, 3, 127);
-		sampleMarkerEditor.padAction(7, 3, 127);
-		expect(ported_locked).to_equal(r.range->sampleHolder.loopLocked);
+		expect(int64_t{ported_locked ? 1 : 0}).to_equal(frozen_number("lock", "locked"));
 		expect(ported_locked).to_be_true();
-		currentUIMode = UI_MODE_NONE;
 	});
 
-	it("zooms to the same scroll and zoom legacy's horizontalEncoderAction reaches", _ {
-		// Legacy zooms only while the horizontal encoder's BUTTON is held
-		// (`UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`, `sample_marker_editor.cpp:661-671`), and
-		// both sides are driven through that gate rather than around it.
-		// `WaveformBasicNavigator::zoom` runs `PadLEDs::renderZoom()` on success
-		// (`waveform_basic_navigator.cpp:67`), and that pumps `AudioEngine::routineWithClusterLoading()`, which
-		// segfaults in a spec process on the input ring. `QuietAudio` is the disarm (`support/card_access.h`);
-		// without it this example does not fail, it takes the process down.
+	it("zooms to the same scroll and zoom main's horizontalEncoderAction reaches", _ {
+		// Main zooms only while the horizontal encoder's BUTTON is held
+		// (`UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`, `SampleMarkerEditor::horizontalEncoderAction`), and
+		// the port is driven through that gate rather than around it. `QuietAudio` (`support/card_access.h`) keeps
+		// the audio routine from running inside the example.
 		spec::QuietAudio quiet;
 		Rig r;
 		r.range->sampleHolder.startPos = 4 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
-		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
 		r.x_enc_button(true, 10);
@@ -2211,58 +1758,50 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(30);
 		const int32_t ported_second = static_cast<int32_t>(marker_scene().x_zoom());
 
-		restore(r, before);
-		open_legacy(r, MarkerType::START);
-		sampleMarkerEditor.buttonAction(deluge::hid::button::X_ENC, true);
-		sampleMarkerEditor.horizontalEncoderAction(1);
-		expect(ported_zoom).to_equal(static_cast<int32_t>(waveformBasicNavigator.xZoom));
-		expect(ported_scroll).to_equal(static_cast<int32_t>(waveformBasicNavigator.xScroll));
+		expect(std::vector<std::string>{std::to_string(ported_scroll), std::to_string(ported_zoom)})
+		    .to_equal(frozen("zoom", "view"));
 		// ...and it really did zoom, so a port that refused the turn could not pass this.
 		expect(ported_zoom).to_equal(kZoomMax / 2);
-		// The slide legacy hands `PadLEDs::renderZoom`: its pin square, step and direction, and the new view's bare
+		// The slide main hands `PadLEDs::renderZoom`: its pin square, step and direction, and the new view's bare
 		// waveform (`renderFullScreen` into `imageStore[0]`, the old image going to the other half).
-		expect(slide.params.pin_square_from).to_equal(PadLEDs::zoomPinSquare[0]);
-		expect(slide.params.pin_square_to).to_equal(PadLEDs::zoomPinSquare[0]);
-		expect(slide.params.magnitude).to_equal(static_cast<int32_t>(PadLEDs::zoomMagnitude));
-		expect(slide.params.new_zoom < slide.params.old_zoom).to_equal(PadLEDs::zoomingIn);
+		const std::vector<std::string> main_slide = frozen("zoom", "slide");
+		expect(main_slide.size()).to_equal(size_t{3});
+		if (main_slide.size() == 3) {
+			expect(std::to_string(slide.params.pin_square_from)).to_equal(main_slide[0]);
+			expect(std::to_string(slide.params.pin_square_to)).to_equal(main_slide[0]);
+			expect(std::to_string(slide.params.magnitude)).to_equal(main_slide[1]);
+			expect(std::string{slide.params.new_zoom < slide.params.old_zoom ? "1" : "0"}).to_equal(main_slide[2]);
+		}
 		expect(slide.params.pin_square_from != 0).to_be_true(); // a pin of 0 would match a port that forgot it
-		bool to_matches = slide.to.has_value();
+		const std::optional<spec::OraclePads> main_to = spec::OracleFiles::pads("marker_zoom_to");
+		bool to_matches = slide.to.has_value() && main_to.has_value();
 		for (uint8_t y = 0; to_matches && y < kDisplayHeight; y++) {
 			for (uint8_t x = 0; x < kDisplayWidth; x++) {
-				to_matches = to_matches && slide.to->at(x, y) == PadLEDs::imageStore[y][x];
+				to_matches = to_matches && slide.to->at(x, y) == (*main_to)[y][x];
 			}
 		}
 		expect(to_matches).to_be_true();
 
-		// A successful zoom leaves `currentUIMode == UI_MODE_HORIZONTAL_ZOOM` until the slide finishes, and
-		// `horizontalEncoderAction`'s `isUIModeWithinRange(zoomUIModes)` gate refuses the next detent
-		// (`sample_marker_editor.cpp:745-752`); the port's slide refuses it the same way. Nothing runs legacy's slide
-		// to completion in a spec process, so a detent after it is the port's alone ("slides a zoom ...").
-		sampleMarkerEditor.horizontalEncoderAction(1);
-		expect(ported_second).to_equal(static_cast<int32_t>(waveformBasicNavigator.xZoom));
-		expect((currentUIMode & UI_MODE_HORIZONTAL_ZOOM) != 0).to_be_true();
-		sampleMarkerEditor.buttonAction(deluge::hid::button::X_ENC, false);
-		currentUIMode = UI_MODE_NONE;
+		// A successful zoom leaves main's `currentUIMode == UI_MODE_HORIZONTAL_ZOOM` until the slide finishes, and
+		// `horizontalEncoderAction`'s `isUIModeWithinRange(zoomUIModes)` gate refuses the next detent; the port's
+		// slide refuses it the same way. The row's second value is that mode, as main's second detent found it. Nothing
+		// ran main's slide to completion, so a detent after it is the port's alone ("slides a zoom ...").
+		expect(std::vector<std::string>{std::to_string(ported_second), "1"}).to_equal(frozen("zoom", "second"));
 	});
 
-	it("scrolls to the same position legacy's horizontalEncoderAction scrolls to", _ {
+	it("scrolls to the same position main's horizontalEncoderAction scrolls to", _ {
 		// The same entry point's OTHER arm: no button held, so `waveformBasicNavigator.scroll`.
 		Rig r;
 		r.range->sampleHolder.startPos = 0;
 		r.range->sampleHolder.endPos = kSampleLength;
 		r.range->sampleHolder.waveformViewZoom = kZoomMax / 4;
 		r.range->sampleHolder.waveformViewScroll = 8 * (kZoomMax / 4);
-		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
 		r.turn_horizontal(1, 10);
 		r.tick(10);
 		const int32_t ported_scroll = static_cast<int32_t>(marker_scene().x_scroll());
-
-		restore(r, before);
-		open_legacy(r, MarkerType::START);
-		sampleMarkerEditor.horizontalEncoderAction(1);
-		expect(ported_scroll).to_equal(static_cast<int32_t>(waveformBasicNavigator.xScroll));
+		expect(int64_t{ported_scroll}).to_equal(frozen_number("scroll", "scroll"));
 		expect(ported_scroll).to_equal(9 * (kZoomMax / 4));
 	});
 
@@ -2270,17 +1809,11 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.range->sampleHolder.startPos = 3 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
-		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
-		const std::string ported = r.oled();
-
-		restore(r, before);
-		open_legacy(r, MarkerType::START);
-		// The full 128x48 panel, title rows included: `OLED_MAIN_TOPMOST_PIXEL` is 5
-		// (`board_config.h:64`) and legacy offsets its own drawing by it, so the faceplate rows are
-		// blank on both sides and there is nothing to normalise away.
-		expect(ported).to_equal(legacy_oled());
+		// The full 128x48 panel, title rows included: `OLED_MAIN_TOPMOST_PIXEL` is 5 and main offsets its own drawing
+		// by it, so the faceplate rows are blank on both sides and there is nothing to normalise away.
+		expect(r.oled()).to_equal(spec::OracleFiles::pixels("marker_start"));
 	});
 
 	it("draws the same OLED page for a locked loop, badge and all", _ {
@@ -2292,31 +1825,21 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.loopStartPos = 5 * kZoomMax;
 		r.range->sampleHolder.loopEndPos = 9 * kZoomMax;
 		r.range->sampleHolder.loopLocked = true;
-		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::LOOP_END);
 		r.tick(0);
-		const std::string ported = r.oled();
-
-		restore(r, before);
-		open_legacy(r, MarkerType::LOOP_END);
-		expect(ported).to_equal(legacy_oled());
+		expect(r.oled()).to_equal(spec::OracleFiles::pixels("marker_loop_locked"));
 	});
 
 	it("labels a reversed sample's marker the same way reverseRemap does", _ {
 		// `reverseRemap` (`sample_marker_editor.cpp:83-104`) is read by BOTH renderers; with the
-		// sample reversed, START must draw legacy's "End point" page.
+		// sample reversed, START must draw main's "End point" page.
 		Rig r;
 		r.source->sampleControls.reversed = true;
 		r.range->sampleHolder.startPos = 3 * kZoomMax;
 		r.range->sampleHolder.endPos = 12 * kZoomMax;
-		const HolderState before = holder_snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
-		const std::string ported = r.oled();
-
-		restore(r, before);
-		open_legacy(r, MarkerType::START);
-		expect(ported).to_equal(legacy_oled());
+		expect(r.oled()).to_equal(spec::OracleFiles::pixels("marker_reversed"));
 		r.source->sampleControls.reversed = false;
 	});
 
@@ -2368,5 +1891,18 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect_golden(self, "../ui/scenes/marker_pads.state", r.fake.state());
 	});
 });
+
+describe marker_scene_reference_rows("marker_scene: the reference rows", $ {
+	it("parses marker_scene.tsv clean and asks every row of it", _ {
+		spec::OracleTable& t = spec::OracleTable::named("marker_scene");
+		expect(t.problems().size()).to_equal(size_t{0});
+		expect(t.size() > size_t{19}).to_be_true();
+		expect(t.unasked()).to_equal(std::string{});
+	});
+
+	it("reads every pad image and panel frozen beside it", _ {
+		expect(spec::OracleFiles::unread("marker_")).to_equal(std::string{});
+	});
+});
 // clang-format on
-DELUGE_SPEC(marker_scene_spec, marker_scene_spec_body)
+DELUGE_SPEC(marker_scene_spec, marker_scene_spec_body, marker_scene_reference_rows)

@@ -1,0 +1,22 @@
+# Reference answers of upstream main's menu, one row per answer: path, column, values (tab-separated).
+# A row changes only to follow main's source (git show origin/main:<path>); tests/golden/README.md says how.
+marker/select_two_turns	markers	65536	0	0	524288
+marker/record_one_turn	markers	32768	0	0	524288
+marker/audio_clip_turn	clip_markers	32768	524288
+marker/audio_playing_turn	clip_markers	65536	524288
+marker/refuse_into_end	markers	131072	0	0	196608
+marker/allow_column_away	markers	163840	0	0	262144
+marker/pad_move	markers	196608	0	0	524288
+marker/pad_select	marker	3
+marker/pad_select	holding	1
+marker/add_loop_start	markers	65536	196608	0	393216
+marker/add_loop_start	marker	1
+marker/remove_loop_start	markers	65536	0	0	393216
+marker/remove_loop_start	marker	0
+marker/remove_loop_end	markers	65536	131072	0	393216
+marker/remove_loop_end	marker	3
+marker/lock	locked	1
+marker/zoom	view	65536	16384
+marker/zoom	slide	262144	1	1
+marker/zoom	second	16384	1
+marker/scroll	scroll	73728

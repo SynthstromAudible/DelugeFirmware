@@ -20,15 +20,15 @@
 /// that *did* create a file could reach no committed fixture; `QuietAudio` keeps the audio routine
 /// from running inside an example.
 ///
-/// @par The legacy oracle
+/// @par The reference
 ///
-/// `AudioRecorder::renderOLED` (`gui/ui/audio_recorder.cpp`) is the whole of what this UI
-/// draws, so it is compared pixel-for-pixel: the **shipped `audioRecorder` object** is asked to
-/// render into `OLED::main` from its own `updatedRecordingStatus`, and the port is asked to render
-/// from its own recorder's `numSamplesCaptured`. Neither side reads the other's state.
+/// Main's `AudioRecorder::renderOLED` is the whole of what this UI draws, so it is compared
+/// pixel-for-pixel: the port renders from its own recorder's `numSamplesCaptured`, and is compared
+/// with the panel main draws for the same take, as `tests/golden/ui/menu_oracle/pixels/recorder_*.pbm`
+/// holds it.
 ///
-/// @note The spec may include `gui/` (for the legacy recorder); the library may not. Same rule
-///       `browser_scene_spec.cpp` and `marker_scene_spec.cpp` run under.
+/// @note The spec may include `gui/`; the library may not. Same rule `browser_scene_spec.cpp` and
+///       `marker_scene_spec.cpp` run under.
 
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_drum_creator.h"
@@ -56,9 +56,7 @@
 
 #include "deluge-project/setting_group.h"
 #include "gui/l10n/l10n.h"
-#include "gui/ui/audio_recorder.h"
 #include "hid/display/display.h"
-#include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
 #include "integration/scenarios/slot_coherence.h"
 #include "memory/heaps.h"
@@ -88,6 +86,8 @@
 
 #include "support/forwarding_facts.h"
 #include "support/menu_engine.h"
+#include "support/oracle_files.h"
+#include "support/recorder_scene_fixtures.h"
 #include "support/song_fixture.h"
 #include "support/torn_down_take.h"
 
@@ -123,6 +123,12 @@ using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
+namespace rf = deluge::scenes::spec::recorder_fx;
+using rf::AudioClockAt;
+using rf::Guards;
+using rf::RecorderDisplay;
+using rf::Rig;
+using rf::spec_bail;
 
 namespace PadLEDs {
 /// The tick squares as last set; 255 is none. Defined in `hid/led/pad_leds.cpp`, not in its header.
@@ -155,28 +161,6 @@ const BoardProfile& profile_64() {
 	return p;
 }
 
-/// @brief The minimum `Display` the model reaches for. `display` is null in a spec process
-///        (`hid/display/display.cpp:4`), and `AudioEngine::getNewRecorder`'s failure paths and
-///        `Kit::makeDrumNameUnique` both go through it.
-struct RecorderDisplay final : deluge::hid::Display {
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override { loading = true; }
-	void removeLoadingAnimation() override { loading = false; }
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-
-	bool loading = false; ///< a loading animation is up
-};
-
 /// @brief `display` is @p d for the scope, and put back after.
 struct DisplayAs {
 	deluge::hid::Display* saved = display;
@@ -184,143 +168,6 @@ struct DisplayAs {
 	~DisplayAs() { display = saved; }
 	DisplayAs(const DisplayAs&) = delete;
 	DisplayAs& operator=(const DisplayAs&) = delete;
-};
-
-/// @brief A synth song whose source 0 has one multisample range for the recording to land in.
-struct Rig {
-	spec::SongFixture song = spec::make_synth_song();
-	Sound* sound = nullptr;
-	Source* source = nullptr;
-	MultisampleRange* range = nullptr;
-
-	const BoardProfile& profile;
-	deluge::ui::shell::SceneRegistry reg = scene_registry();
-	uitest::FakeSurfaceSet fake;
-	Shell shell;
-
-	Rig(const Rig&) = delete;
-	Rig& operator=(const Rig&) = delete;
-
-	/// @brief Tear the stack down, so the scene's `on_exit` always runs.
-	///
-	/// **Scenes are process singletons.** An example that left the recorder armed would make the
-	/// NEXT example's `on_enter` refuse (`recorder_ != nullptr`) and cascade into a wall of
-	/// unrelated failures -- which is exactly what the first run of mutant M1 produced. Popping
-	/// here means every example starts from the same place whatever the one before it did, so a
-	/// mutation kills the assertions that actually see it and no others.
-	~Rig() {
-		while (on_stack()) {
-			shell.stack().pop(deluge::ui::shell::SceneKind::Null);
-		}
-		spec::settle_torn_down_take(); // a take ended with its screen keeps the next one out until it is freed
-		currentSong = saved_song;
-		menu_scene().reset_process_state(); // each example starts with the rows a boot has
-	}
-
-	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
-	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
-		currentSong = song.song; // the app's sink resolves addresses in the current song
-		sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
-		source = &sound->sources[0];
-		source->oscType = OscType::SQUARE; // so "became SAMPLE" is a real observation
-		source->sampleControls.reversed = false;
-		range = static_cast<MultisampleRange*>(source->getOrCreateFirstRange());
-	}
-
-	MenuContext ctx() {
-		MenuContext c = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                                  /*kit_global_fx=*/false);
-		c.range_index = 0;
-		return c;
-	}
-
-	/// @brief Open the recorder, the way `osc::AudioRecorder::beginSession` does.
-	/// @param sink Where the scene's writes go; the app's sink when null.
-	void open(bind::WriteSink* sink = nullptr) {
-		MenuContext c = ctx();
-		if (sink != nullptr) {
-			c.sink = sink;
-		}
-		recorder_scene().open(c);
-		shell.init(SceneId{kRecorderSceneKind, 0});
-	}
-
-	/// @brief Open the recorder on @p c, a context the example has changed.
-	void open_on(const MenuContext& c) {
-		recorder_scene().open(c);
-		shell.init(SceneId{kRecorderSceneKind, 0});
-	}
-
-	/// @brief The sound's slot.
-	deluge::project::SlotAddress slot() { return *ctx().addresses.slot; }
-
-	/// @brief Open the recorder ON TOP of the sound menu, which is where a node actually opens it.
-	///
-	/// The stack the LED example needs: `LedCompose::compose` runs bottom to top and the last
-	/// writer wins, so "the recorder's SYNTH/KIT answer beats the menu's" is only a claim about a
-	/// stack with both scenes on it.
-	void open_over_menu() {
-		const MenuContext c = ctx();
-		menu_scene().open(*menu::MenuScene::roots()[static_cast<size_t>(MenuContext::Root::Sound)], c);
-		shell.init(SceneId{deluge::ui::shell::SceneKind::FirstApp, 0});
-		recorder_scene().open(c);
-		(void)shell.stack().push(SceneId{kRecorderSceneKind, 0});
-	}
-
-	void tick(uint32_t at_ms) { shell.tick(at_ms); }
-
-	/// @brief Press or release a button. `ButtonId` -> board matrix coordinate, so the shell's own lowering runs
-	///        rather than a synthesised `UiEvent`.
-	void button(ButtonId b, bool down, uint32_t at_ms) {
-		const std::span<const ButtonId> matrix = profile.button_by_matrix;
-		for (size_t i = 0; i < matrix.size(); i++) {
-			if (matrix[i] != b) {
-				continue;
-			}
-			const auto x = static_cast<uint8_t>(i % profile.button_cols);
-			const auto y = static_cast<uint8_t>(i / profile.button_cols);
-			shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(down ? 255 : 0)},
-			                     at_ms);
-			return;
-		}
-	}
-	/// @brief Press a button down. `AudioRecorder::buttonAction` acts on the press and refuses the release.
-	void press(ButtonId b, uint32_t at_ms) { button(b, true, at_ms); }
-	/// @brief Release a button.
-	void release(ButtonId b, uint32_t at_ms) { button(b, false, at_ms); }
-	/// @brief Press or release grid pad (@p x, @p y).
-	void pad(uint8_t x, uint8_t y, bool down, uint32_t at_ms) {
-		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, x, y, static_cast<int16_t>(down ? 64 : 0)}, at_ms);
-	}
-	/// @brief Open the sound menu on @p node with the horizontal-menus feature on, as the ShellMenu card has it.
-	void open_menu(const menu::Node& node) {
-		MenuContext c = ctx();
-		c.horizontal_menus = true;
-		menu_scene().open(node, c);
-		shell.init(SceneId{deluge::ui::shell::SceneKind::FirstApp, menu::node_id(node)});
-	}
-	/// @brief Is a scene of @p kind on the stack?
-	bool has(deluge::ui::shell::SceneKind kind) {
-		for (const deluge::ui::shell::Scene* s : shell.stack().scenes()) {
-			if (s->kind() == kind) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	bool on_stack() {
-		for (const deluge::ui::shell::Scene* s : shell.stack().scenes()) {
-			if (s->kind() == kRecorderSceneKind) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	std::string oled() { return fake.pbm(0); }
-
-	Song* const saved_song = currentSong;
 };
 
 /// @brief A sink that refuses every request.
@@ -461,15 +308,10 @@ struct KitRig {
 	}
 };
 
-/// @brief What LEGACY draws, from LEGACY's own sentinel -- `AudioRecorder::updatedRecordingStatus`.
-/// @param captured Legacy's own flag: has the first sample been captured?
-/// @return The whole 128x48 panel as a PBM, the same shape `FakeSurfaceSet::pbm` produces.
-std::string legacy_oled(bool captured) {
-	using deluge::hid::display::OLED;
-	OLED::clearMainImage();
-	audioRecorder.updatedRecordingStatus = captured;
-	audioRecorder.renderOLED(OLED::main);
-	return page_major_to_pbm(&OLED::main.hackGetImageStore()[0][0], OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS);
+/// @brief What main's `AudioRecorder::renderOLED` draws for one take's state, the whole 128x48 panel as
+///        `pixels/recorder_<name>.pbm` holds it; empty when there is no such file.
+std::string main_panel(std::string_view name) {
+	return spec::OracleFiles::pixels("recorder_" + std::string{name});
 }
 
 /// @brief The state @p b was declared with this frame, or `Off` when it was not declared at all.
@@ -491,42 +333,6 @@ deluge::ui::BlinkRate led_rate(const deluge::ui::LedFrame& f, ButtonId b) {
 	}
 	return deluge::ui::BlinkRate::Normal;
 }
-
-// --- process-global guards -----------------------------------------------------------------
-//
-// **Every process global this spec touches is held in an RAII guard, and the guards REFUSE rather
-// than repair.** `QuietAudio` (`support/card_access.h`) is the shape; the addition here is the
-// refusal, and it is not fastidiousness -- a silently-repairing reset hides a broken assertion: a
-// quiet-tick example covered for by an unrelated repaint, a `~Rig` that leaks into the next example,
-// or a missing clear that `before_each` performs on the code's behalf.
-//
-// `before_each`/`after_each` take a `std::function<void()>` with no `self`
-// (`cppspec/description.hpp:23,95-97`), so `expect` is not available in them. A named reason on
-// stderr plus `std::abort()` is what "loudly" can mean there, and it fails the suite non-zero.
-
-[[noreturn]] void spec_bail(const char* what) {
-	std::fprintf(stderr, "recorder_scene_spec: %s\n", what);
-	std::abort();
-}
-
-/// @brief Hold the foreground-recording publication clear for the scope -- and refuse to run, or to
-///        finish, if it is not.
-///
-/// The foreground recording's channel and recorder (`AudioEngine::foregroundRecordingSource()` /
-/// `foregroundRecorder()`) are process globals many subsystems read, so an example that leaks one poisons the next;
-/// clearing it silently is what hid the leak in the first place.
-struct NoForegroundRecording {
-	NoForegroundRecording() { check("a foreground recording was already published when an example started"); }
-	~NoForegroundRecording() { check("an example finished with a foreground recording still published"); }
-	NoForegroundRecording(const NoForegroundRecording&) = delete;
-	NoForegroundRecording& operator=(const NoForegroundRecording&) = delete;
-	static void check(const char* what) {
-		if (AudioEngine::foregroundRecordingSource() != AudioInputChannel::NONE
-		    || AudioEngine::foregroundRecorder() != nullptr) {
-			spec_bail(what);
-		}
-	}
-};
 
 /// @brief Publish an OUTPUT recording (a resample, as far as every reader is concerned) for the
 ///        scope, and take it away again.
@@ -554,36 +360,6 @@ struct MonitoringOn {
 	MonitoringOn& operator=(const MonitoringOn&) = delete;
 };
 
-/// @brief Empty the notice queue and the dirty set on the way in.
-///
-/// @note **Deliberately not symmetric, and this is the convention rather than an oversight.** The
-///       queue cannot be asserted empty on the way out: `~Rig` pops the stack, `RecorderScene::on_exit`
-///       legitimately raises `ClearWorking`, and that notice is still queued when the example ends.
-///       Draining on entry is isolation (it decides what the NEXT example starts from); asserting on
-///       exit would be asserting something untrue.
-struct DrainedNotices {
-	DrainedNotices() {
-		deluge::notify::Notice discard;
-		while (deluge::notify::notices().pop(discard)) {}
-		deluge::notify::dirty().drain();
-	}
-	~DrainedNotices() = default;
-	DrainedNotices(const DrainedNotices&) = delete;
-	DrainedNotices& operator=(const DrainedNotices&) = delete;
-};
-
-/// @brief Select the built-in English strings for the scope, and put the pointer back.
-///
-/// `Action::Kind::Popup` resolves through `scenes::text_lookup` -> `l10n::getView`, which
-/// dereferences `chosenLanguage` unguarded (`gui/l10n/l10n.cpp:9`); a spec process leaves it null.
-struct EnglishL10n {
-	const deluge::l10n::Language* saved = deluge::l10n::chosenLanguage;
-	EnglishL10n() { deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english; }
-	~EnglishL10n() { deluge::l10n::chosenLanguage = saved; }
-	EnglishL10n(const EnglishL10n&) = delete;
-	EnglishL10n& operator=(const EnglishL10n&) = delete;
-};
-
 /// @brief No mic and no line-in for the scope: the booted host app's jack state put back after.
 struct NothingPluggedIn {
 	bool mic = AudioEngine::micPluggedIn;
@@ -598,26 +374,6 @@ struct NothingPluggedIn {
 	}
 	NothingPluggedIn(const NothingPluggedIn&) = delete;
 	NothingPluggedIn& operator=(const NothingPluggedIn&) = delete;
-};
-
-/// @brief Every guard an example needs, in one declaration.
-///
-/// Declare it FIRST in an example, before the `Rig`: members are destroyed in reverse declaration
-/// order and the `Rig` (declared after) tears the scene stack down, so `RecorderScene::on_exit` has
-/// already run by the time `NoForegroundRecording` checks.
-struct Guards {
-	/// Runs after every later local has torn its stack down (the global guest's among them), and before
-	/// `publication` checks.
-	~Guards() { spec::settle_torn_down_take(); }
-	Guards() = default;
-	Guards(const Guards&) = delete;
-	Guards& operator=(const Guards&) = delete;
-
-	deluge::scenes::spec::QuietAudio quiet;
-	deluge::scenes::spec::NoSdRoot no_card;
-	DrainedNotices notices;
-	EnglishL10n l10n;
-	NoForegroundRecording publication;
 };
 
 /// @brief Whether the recorder is on @p shell's stack.
@@ -654,17 +410,6 @@ SoundInstrument* loose_synth(::Song& song) {
 	song.live.param_backup.backUp(synth, nullptr, &params, true);
 	return synth;
 }
-
-/// @brief Hold `AudioEngine::audioSampleTimer`, the clock legacy's threshold screen blinks by, at a time in
-///        milliseconds for the scope, and put it back.
-struct AudioClockAt {
-	uint32_t saved = AudioEngine::audioSampleTimer;
-	explicit AudioClockAt(uint32_t ms) { set(ms); }
-	~AudioClockAt() { AudioEngine::audioSampleTimer = saved; }
-	void set(uint32_t ms) { AudioEngine::audioSampleTimer = static_cast<uint32_t>(uint64_t{ms} * kSampleRate / 1000); }
-	AudioClockAt(const AudioClockAt&) = delete;
-	AudioClockAt& operator=(const AudioClockAt&) = delete;
-};
 
 extern "C" bool deluge_host_storage_hold_fs(bool hold);
 
@@ -740,9 +485,9 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(recorder_scene().recording()).to_be_false();
 	});
 
-	// --- the screen, against legacy -------------------------------------------------------------
+	// --- the screen, against main ---------------------------------------------------------------
 
-	it("draws exactly what AudioRecorder::renderOLED draws, in both of its states", _ {
+	it("draws exactly what main's AudioRecorder::renderOLED draws, in both of its states", _ {
 		Guards g;
 		Rig r;
 		r.open();
@@ -754,9 +499,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.tick(10);
 		const std::string ported_recording = r.oled();
 
-		// LEGACY, from its own sentinel, after the port has finished with its own.
-		expect(ported_waiting).to_equal(legacy_oled(false));
-		expect(ported_recording).to_equal(legacy_oled(true));
+		expect(ported_waiting).to_equal(main_panel("waiting"));
+		expect(ported_recording).to_equal(main_panel("captured"));
 		// ...and the two really are different pictures, so the comparison above is not vacuous.
 		expect(ported_waiting == ported_recording).to_be_false();
 
@@ -780,7 +524,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.tick(deluge::scenes::recorder::kRecorderPollMs);
 		r.tick(2 * deluge::scenes::recorder::kRecorderPollMs);
 		expect(waiting == r.oled()).to_be_false();
-		expect(r.oled()).to_equal(legacy_oled(true));
+		expect(r.oled()).to_equal(main_panel("captured"));
 
 		rec->numSamplesCaptured = 0;
 	});
@@ -1784,7 +1528,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 	// --- the threshold take ---------------------------------------------------------------------------
 
-	it("draws AudioRecorder::renderOLED's threshold screen while waiting, its threshold line lit and dark", _ {
+	it("draws main's AudioRecorder::renderOLED threshold screen while waiting, its threshold line lit and dark", _ {
 		Guards g;
 		AudioClockAt clock{0};
 		Rig r;
@@ -1796,11 +1540,9 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		clock.set(400); // the line is dark from 290 ms to 570 ms of its 750 ms cycle
 		r.tick(10);
 		const std::string dark = r.oled();
-		// LEGACY, from its own sentinel, on the recorder the scene published.
-		const std::string legacy_dark = legacy_oled(false);
 		clock.set(0);
-		expect(lit).to_equal(legacy_oled(false));
-		expect(dark).to_equal(legacy_dark);
+		expect(lit).to_equal(main_panel("threshold_lit"));
+		expect(dark).to_equal(main_panel("threshold_dark"));
 		expect(lit == dark).to_be_false();
 	});
 
@@ -1816,11 +1558,11 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		rec->numSamplesCaptured = rec->minThresholdMargin; // the pre-roll a threshold take holds before it starts
 		r.tick(10);
 		expect(recorder_scene().capturing()).to_be_false();
-		expect(r.oled()).to_equal(legacy_oled(false));
+		expect(r.oled()).to_equal(main_panel("threshold_margin"));
 		rec->numSamplesCaptured = rec->minThresholdMargin + 1;
 		r.tick(20);
 		expect(recorder_scene().capturing()).to_be_true();
-		expect(r.oled()).to_equal(legacy_oled(true));
+		expect(r.oled()).to_equal(main_panel("threshold_recording"));
 		rec->numSamplesCaptured = 0;
 	});
 
@@ -1878,5 +1620,11 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(recorder_scene().stopping()).to_be_true();
 	});
 });
+
+describe recorder_scene_reference_panels("recorder_scene: the reference panels", $ {
+	it("reads every panel frozen beside the tables", _ {
+		expect(spec::OracleFiles::unread("recorder_")).to_equal(std::string{});
+	});
+});
 // clang-format on
-DELUGE_SPEC(recorder_scene_spec, recorder_scene_spec_body)
+DELUGE_SPEC(recorder_scene_spec, recorder_scene_spec_body, recorder_scene_reference_panels)
