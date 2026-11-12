@@ -160,6 +160,12 @@ void MultisampleRange::clearAllAlternates() {
 		clearAlternateSlot(0);
 	}
 	rrMode = RRMode::Cycle;
+	// clearAlternateSlot() walks each alternate's velocity band back to the default as it compacts, but
+	// never touches slot 0's. Only when the table exists: without it the getters return the defaults anyway,
+	// and allocating one just to write them would be waste.
+	if (alternates != nullptr) {
+		setVelocityRange(0, kDefaultVelocityMin, kDefaultVelocityMax);
+	}
 }
 
 SampleHolderForVoice* MultisampleRange::getVariantHolder(uint8_t slotIndex) {
