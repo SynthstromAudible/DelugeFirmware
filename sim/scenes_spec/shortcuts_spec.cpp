@@ -48,6 +48,7 @@
 #include "processing/sound/sound_instrument.h"
 
 #include "support/global_guest_menu.h"
+#include "support/known_differences.h"
 #include "support/menu_engine.h"
 #include "support/oracle_table.h"
 #include "support/oracle_tree.h"
@@ -123,26 +124,17 @@ std::string cell_key(std::string_view table_name, std::string_view version, uint
 	       + std::to_string(y);
 }
 
-/// @brief Nodes whose name is built out of live state rather than being one static string, so one `Node::name` cannot
-///        equal the reference row.
-///
-/// The four filter morph items only: they answer "Drive" or "FM" depending on the *current* filter mode.
-/// `tables_3_spec`'s `has_dynamic_name` holds the same two sound-root entries for the same reason; these tables add the
-/// song and global-FX twins. Their cells are still checked for presence, and their identity by tree path.
-bool has_dynamic_name(const Node& node) {
-	return &node == &nodes::lpf_morph || &node == &nodes::hpf_morph || &node == &nodes::global_lpf_morph
-	       || &node == &nodes::global_hpf_morph;
-}
-
 /// @brief Describe a mismatch between the port's @p node at one cell and the rows of that cell, or an empty string when
 ///        they agree.
 ///
 /// A free function rather than an inline `expect`: CppSpec's `expect` is only available inside an example's own lambda,
 /// so the sweep collects descriptions and the example asserts on them.
 ///
-/// The item is compared by tree path, and by name where the cell holds one. A name containing `*` is a placeholder the
-/// menu substitutes an index into at render time -- one static `uint16_t Node::name` cannot express it -- so those
-/// cells assert only that both sides are present.
+/// The item is compared by tree path, and by name where the cell holds one. A node whose name is built at render time
+/// (`tables3::has_dynamic_name`) or is a placeholder the menu substitutes an index into (`known_differences.h`) cannot
+/// equal a static `uint16_t Node::name`, so those cells assert only that both sides are present; the example
+/// "excuses exactly the pinned names" pins which cells and how many. V1 cells compare the item only: their names are
+/// the V3 rows' and `tables_3.tsv`'s.
 std::string diff_cell(const Node* node, std::string_view table_name, std::string_view version, uint8_t x, uint8_t y) {
 	spec::OracleTable& t = table();
 	const std::string key = cell_key(table_name, version, x, y);
@@ -161,7 +153,7 @@ std::string diff_cell(const Node* node, std::string_view table_name, std::string
 		return where + "no name row\n";
 	}
 	const std::string name = text_of(node->name);
-	if (has_dynamic_name(*node) || name.find('*') != std::string::npos) {
+	if (spec::tables3::has_dynamic_name(*node) || spec::shortcut_name_is_placeholder(*node)) {
 		return (name.empty() || name_row->front().empty()) ? where + "empty formatted name\n" : std::string{};
 	}
 	return name == name_row->front() ? std::string{}
@@ -371,6 +363,39 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 		expect(diffs).to_equal(std::string{});
 		expect(soon > size_t(0)).to_be_true(); // the rows named cells at all
 		expect(menu::shortcut_coming_soon(Root::Sound, 4, 2)).to_be_true();
+	});
+
+	it("excuses exactly the pinned names", _ {
+		// The cells compared by presence of both names rather than by equality: the nodes whose name is built at render
+		// time, and the placeholder-named ones. Identity and count are pinned in `known_differences.h`; a node whose port
+		// name carries a `*` and is in neither set would fail its cell, so this holds the sets to the layers.
+		const FreeverbModel freeverb;
+		install_sound_context();
+		const std::span<const Node* const> layers[] = {
+		    menu::shortcut_layer(Root::Sound, false),         menu::shortcut_layer(Root::Sound, true),
+		    menu::shortcut_layer(Root::AudioClip, false),     menu::shortcut_layer(Root::Song, false),
+		    menu::shortcut_layer(Root::KitGlobalFx, false),   menu::shortcut_layer(Root::MidiOrCv, false),
+		    menu::shortcut_layer(Root::GateDrum, false),
+		};
+		size_t dynamic = 0;
+		size_t placeholder = 0;
+		std::string stray;
+		for (const auto& layer : layers) {
+			for (const Node* node : layer) {
+				if (node == nullptr) {
+					continue;
+				}
+				dynamic += spec::tables3::has_dynamic_name(*node) ? 1 : 0;
+				placeholder += spec::shortcut_name_is_placeholder(*node) ? 1 : 0;
+				const bool starred = text_of(node->name).find('*') != std::string::npos;
+				if (starred != spec::shortcut_name_is_placeholder(*node) && !spec::tables3::has_dynamic_name(*node)) {
+					stray += node_paths(node) + " ";
+				}
+			}
+		}
+		expect(stray).to_equal(std::string{});
+		expect(dynamic).to_equal(spec::kShortcutDynamicNameCells);
+		expect(placeholder).to_equal(spec::kShortcutPlaceholderNameCells);
 	});
 
 	it("resolves the four inline MIDI/CV cells that are in no legacy table", _ {
@@ -842,15 +867,18 @@ describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSIO
 		spec::OracleTable& t = table();
 		std::span<const Node* const> layer = menu::shortcut_layer(Root::AudioClip, /*second_layer=*/false);
 		std::string diffs;
+		size_t collapsed = 0;
 		for (uint8_t x = 0; x < menu::kShortcutCols; x++) {
 			for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
-				if (y == 7 && x < 2) {
+				if (spec::shortcut_marker_collapsed("audio_clips", x, y)) {
+					collapsed++;
 					continue; // the start-marker pair, asserted below
 				}
 				diffs += diff_cell(layer[static_cast<size_t>(y) * menu::kShortcutCols + x], "audio_clips", "v1", x, y);
 			}
 		}
 		expect(diffs).to_equal(std::string{});
+		expect(collapsed).to_equal(spec::kShortcutCollapsedMarkerCells);
 
 		for (uint8_t x = 0; x < 2; x++) {
 			expect(t.value(cell_key("audio_clips", "v1", x, 7), "item")).to_equal(std::string{"name:"});
@@ -1085,17 +1113,27 @@ describe shortcut_blink_plan("scenes::menu shortcut blink plan against main's sh
 		expect(with_sources > size_t(10)).to_be_true();
 	});
 
-	it("never blinks a source without a param pad", _ {
+	it("plans no source blink on a sound-root entry that has no param pad", _ {
+		// `plan_blinks` plans sources only behind a param pad. No sound-root entry reaches that guard with a source to
+		// blink (a padless source list finds no patched source), so what this holds is the consequence: the entries
+		// without a pad, counted so the example is not vacuous, plan no source.
 		const MenuContext& ctx = install_sound_context();
 		expect(seed_blink_cables(ctx)).to_be_true();
+		size_t padless = 0;
+		size_t with_pad = 0;
 		for (const auto& e : spec::tree_entries("sound", nodes::sound_root)) {
 			MenuState st{};
 			st.path[0] = e.node;
 			const menu::BlinkPlan plan = menu::plan_blinks(ctx, st, *e.node);
 			if (!plan.param.valid) {
+				padless++;
 				expect(plan.any_source()).to_be_false();
+			} else {
+				with_pad++;
 			}
 		}
+		expect(padless).to_equal(size_t(97));
+		expect(with_pad > size_t(100)).to_be_true();
 	});
 
 	it("folds the volume triple to POST_FX's pad on a strength page", _ {
@@ -1155,6 +1193,9 @@ describe shortcut_landing("scenes::menu shortcut landing against main's chain se
 		std::string bad;
 		size_t compared = 0;
 		size_t on_a_page = 0;
+		size_t shared = 0;
+		size_t outside = 0;
+		size_t by_name = 0;
 		for (const LandingRoot& lr : kLandingRoots) {
 			for (const bool second : {false, true}) {
 				if (second && menu::shortcut_layer(lr.root, true).data() == menu::shortcut_layer(lr.root, false).data()) {
@@ -1178,6 +1219,14 @@ describe shortcut_landing("scenes::menu shortcut landing against main's chain se
 						compared++;
 						const std::string got = page_label(menu::shortcut_landing_page(lr.root, *node), lr.pages_in);
 						on_a_page += row->front() == "-" ? 0 : 1;
+						const Node* port_page = menu::shortcut_landing_page(lr.root, *node);
+						outside += row->front().starts_with("outside:") ? 1 : 0;
+						by_name += row->front().starts_with("name:") ? 1 : 0;
+						shared += port_page != nullptr && !row->front().starts_with("outside:")
+						                  && !row->front().starts_with("name:") && !row->front().starts_with("group:")
+						                  && row->front() != node_paths(port_page)
+						              ? 1
+						              : 0;
 						if (row->front() != got) {
 							bad += where + "main lands on " + row->front() + ", the port on " + got + "\n";
 						}
@@ -1190,6 +1239,13 @@ describe shortcut_landing("scenes::menu shortcut landing against main's chain se
 		expect(bad).to_equal(std::string{});
 		expect(compared > size_t(150)).to_be_true();
 		expect(on_a_page > size_t(80)).to_be_true();
+		// The pinned departures from a plain path comparison. A page the port shares across roots is named by where it
+		// sits in the landing root's own tree; the song and performance pad (7, 5) opens a page that is in no path of
+		// their trees. The four sample-recorder pads (`sound` and `drum`, columns 0 and 1, row 4) open a page the trees
+		// do not list, which the rows pin by its name.
+		expect(shared).to_equal(spec::kLandingSharedPageCells);
+		expect(outside).to_equal(spec::kLandingOutsideRootCells);
+		expect(by_name).to_equal(spec::kLandingUnlistedPageCells);
 	});
 });
 

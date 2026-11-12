@@ -1978,7 +1978,7 @@ land/song/6,0	page	song/0
 land/song/6,3	page	song/0
 land/song/6,5	page	song/2/5
 land/song/6,6	page	song/2/5
-land/song/7,5	page	sound/4 drum/4 audio clip/4 kit global fx/3
+land/song/7,5	page	outside:sound/4 drum/4 audio clip/4 kit global fx/3
 land/song/8,4	page	group:global_filters_group
 land/song/8,5	page	group:global_filters_group
 land/song/8,6	page	group:global_filters_group
@@ -2011,7 +2011,7 @@ land/performance/6,0	page	song/0
 land/performance/6,3	page	song/0
 land/performance/6,5	page	song/2/5
 land/performance/6,6	page	song/2/5
-land/performance/7,5	page	sound/4 drum/4 audio clip/4 kit global fx/3
+land/performance/7,5	page	outside:sound/4 drum/4 audio clip/4 kit global fx/3
 land/performance/8,4	page	group:global_filters_group
 land/performance/8,5	page	group:global_filters_group
 land/performance/8,6	page	group:global_filters_group
