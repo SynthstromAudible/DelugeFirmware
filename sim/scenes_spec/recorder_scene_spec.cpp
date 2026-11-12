@@ -64,6 +64,7 @@
 #include "memory/heaps.h"
 #include "model/action/action_logger.h"
 #include "model/edits/setting_edit.h"
+#include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/instrument/kit.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
@@ -166,12 +167,23 @@ struct RecorderDisplay final : deluge::hid::Display {
 	void freezeWithError(char const*) override {}
 	void displayError(Error) override {}
 	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
+	void displayLoadingAnimationText(char const*, bool, bool) override { loading = true; }
+	void removeLoadingAnimation() override { loading = false; }
 	bool hasPopup() override { return false; }
 	bool hasPopupOfType(PopupType) override { return false; }
 	void consoleText(char const*) override {}
 	void timerRoutine() override {}
+
+	bool loading = false; ///< a loading animation is up
+};
+
+/// @brief `display` is @p d for the scope, and put back after.
+struct DisplayAs {
+	deluge::hid::Display* saved = display;
+	explicit DisplayAs(deluge::hid::Display& d) { display = &d; }
+	~DisplayAs() { display = saved; }
+	DisplayAs(const DisplayAs&) = delete;
+	DisplayAs& operator=(const DisplayAs&) = delete;
 };
 
 /// @brief A synth song whose source 0 has one multisample range for the recording to land in.
@@ -622,6 +634,16 @@ bool drained_notice(deluge::notify::Notice::Kind kind, std::string_view text = {
 		seen = seen || (notice.kind == kind && (text.empty() || std::string_view{notice.text} == text));
 	}
 	return seen;
+}
+
+/// @brief A kit built the way a preset load builds one, its params backed up with the song, not yet in it.
+Kit* loose_kit(::Song& song) {
+	ParamManagerForTimeline params;
+	params.setupUnpatched();
+	GlobalEffectableForClip::initParams(&params);
+	auto* kit = static_cast<Kit*>(StorageManager::createNewInstrument(OutputType::KIT, &params));
+	song.live.param_backup.backUp(kit, nullptr, &params, true);
+	return kit;
 }
 
 /// @brief A synth built the way a preset load builds one, its params backed up with the song, not yet in it.
@@ -1269,6 +1291,66 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(static_cast<int32_t>(r.source->oscType)).to_equal(static_cast<int32_t>(OscType::SQUARE));
 	});
 
+	it("leaves up an animation it did not show when it frees a torn-down take", _ {
+		// The take ended with no "Working" of its own, so an animation up is another's: the song load that took the
+		// screen down shows one, and takes it down itself.
+		Guards g;
+		RecorderDisplay shown;
+		DisplayAs as{shown};
+		Rig r;
+		r.open();
+		r.tick(0);
+		SampleRecorder* rec = recorder_scene().recorder();
+		rec->numSamplesCaptured = 1024;
+		display->displayLoadingAnimationText("Loading");
+		r.shell.stack().pop(deluge::ui::shell::SceneKind::Null);
+		r.tick(10);
+		rec->status = RecorderStatus::COMPLETE;
+		deluge::recording::slowRoutine();
+		expect(AudioEngine::foregroundRecorder() == nullptr).to_be_true();
+		expect(shown.loading).to_be_true();
+	});
+
+	it("attaches a kit row's take to its row", _ {
+		Guards g;
+		KitRig k;
+		recorder_scene().open(k.ctx());
+		k.shell.init(SceneId{kRecorderSceneKind, 0});
+		k.shell.tick(0);
+		SampleRecorder* rec = recorder_scene().recorder();
+		expect(rec != nullptr).to_be_true();
+		const Take take{*rec, "SAMPLES/RECORD/REC024.WAV"};
+		rec->status = RecorderStatus::COMPLETE;
+		k.shell.tick(10);
+		expect(recorder_scene().recording()).to_be_false();
+		expect(k.drum->sources[0].ranges.getElement(0)->getAudioFileHolder()->audioFile
+		       == static_cast<AudioFile*>(take.sample))
+		    .to_be_true();
+	});
+
+	it("keeps a kit row's take unattached, silently, when its edited kit is replaced under it and only sleeps", _ {
+		Guards g;
+		KitRig k;
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		k.song.instrument->setActiveClip(setupModelStackWithTimelineCounter(memory, k.song.song, k.song.clip));
+		recorder_scene().open(k.ctx());
+		k.shell.init(SceneId{kRecorderSceneKind, 0});
+		k.shell.tick(0);
+		SampleRecorder* rec = recorder_scene().recorder();
+		expect(rec != nullptr).to_be_true();
+		const Take take{*rec, "SAMPLES/RECORD/REC025.WAV"};
+		// A kit preset change under the take: the edited kit hibernates with its rows, under their own ids.
+		k.song.instrument->editedByUser = true;
+		k.song.song->replaceInstrument(k.song.instrument, loose_kit(*k.song.song));
+		expect(k.song.song->live.media.first_hibernating_instrument == k.song.instrument).to_be_true();
+		rec->status = RecorderStatus::COMPLETE;
+		k.shell.tick(10);
+		expect(recorder_scene().recording()).to_be_false();
+		// A kit row is a sample source already: the range holding no file is what says nothing was attached.
+		expect(k.drum->sources[0].ranges.getElement(0)->getAudioFileHolder()->audioFile == nullptr).to_be_true();
+		expect(drained_notice(deluge::notify::Notice::Kind::Error)).to_be_false();
+	});
+
 	it("refuses a take with a Loading popup while a load may replace its sound, and keeps the undo log", _ {
 		Guards g;
 		deluge::scenes::spec::UiStackGuard ui_guard;
@@ -1759,8 +1841,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(recorder_scene().threshold_take()).to_be_false();
 		// Armed only once the first take is freed: a take still live refuses the second.
 		expect(recorder_scene().recorder() != nullptr).to_be_true();
-		expect(recorder_scene().recorder() != nullptr && recorder_scene().recorder()->monitorInputLevels.load())
-		    .to_be_false();
+		expect(recorder_scene().recorder()->monitorInputLevels.load()).to_be_false();
 	});
 
 	it("releases a next song held for the take as the take ends, as finishRecording does", _ {

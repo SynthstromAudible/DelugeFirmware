@@ -25,6 +25,7 @@
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_pattern_ui.h"
 #include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/load/output_replacement.h"
 #include "gui/ui/reversion.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
@@ -262,10 +263,7 @@ void AudioRecorder::graphicsRoutine() {
 }
 
 bool AudioRecorder::anOutputMayBeReplaced() {
-	using namespace deluge::gui;
-	return instrumentLoad.inFlight() || loadPatternUI.loadInFlight() || reversion.inFlight()
-	       || loadSongUI.isLoadInFlight() || randomizeDrums.inFlight() || sampleClaim.inFlight()
-	       || folderImport.inFlight();
+	return deluge::gui::anOutputMayBeReplaced();
 }
 
 bool AudioRecorder::targetStillHeld() const {

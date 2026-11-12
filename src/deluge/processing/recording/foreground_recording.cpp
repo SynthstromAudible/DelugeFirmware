@@ -58,12 +58,18 @@ bool setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels, Aud
 	return true;
 }
 
-void finishRecording() {
+/// Unpublishes and frees the foreground recorder.
+void releaseRecorder() {
 	SampleRecorder* recorder = AudioEngine::foregroundRecorder();
 	recorder->pointerHeldElsewhere = false;
 	// Unpublished first: the audio routine dereferences the pointer while the channel names a live capture.
 	AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);
 	AudioEngine::discardRecorder(recorder);
+}
+
+/// Frees the foreground recorder and takes down the "Working" its end showed.
+void finishRecording() {
+	releaseRecorder();
 	display->removeLoadingAnimation();
 }
 
@@ -127,7 +133,8 @@ void slowRoutine() {
 		}
 		else if (recorder->settled()) {
 			inputTakeOrphaned = false;
-			finishRecording();
+			// No "Working" was shown for it, so any animation up is another's: the song load that took its screen.
+			releaseRecorder();
 		}
 	}
 }

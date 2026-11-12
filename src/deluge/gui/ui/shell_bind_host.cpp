@@ -14,13 +14,9 @@
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
-#include "gui/ui/load/instrument_load.h"
-#include "gui/ui/load/load_pattern_ui.h"
-#include "gui/ui/load/load_song_ui.h"
-#include "gui/ui/reversion.h"
+#include "gui/ui/load/output_replacement.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/randomize_drums.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "instruments/deluge/settings.h"
@@ -261,12 +257,7 @@ public:
 		return deluge::gui::sampleClaim.explicitInFlight() || deluge::gui::folderImport.inFlight()
 		       || deluge::gui::ui::shellSlicerBusy();
 	}
-	[[nodiscard]] bool output_may_be_replaced() const override {
-		using namespace deluge::gui;
-		return instrumentLoad.inFlight() || loadPatternUI.loadInFlight() || reversion.inFlight()
-		       || loadSongUI.isLoadInFlight() || randomizeDrums.inFlight() || sampleClaim.inFlight()
-		       || folderImport.inFlight();
-	}
+	[[nodiscard]] bool output_may_be_replaced() const override { return deluge::gui::anOutputMayBeReplaced(); }
 	[[nodiscard]] std::optional<uint16_t> take_range(const deluge::scenes::bind::TakeTarget& target) const override;
 	[[nodiscard]] bool auditioning() const override { return isUIModeActive(UI_MODE_AUDITIONING); }
 	[[nodiscard]] deluge::scenes::bind::FlashCursor flash_cursor() const override {
@@ -386,10 +377,9 @@ bool clipPlaysSlot(const ::Clip& clip, deluge::project::SlotAddress slot) {
 }
 
 std::optional<uint16_t> ShellRuntimeFacts::take_range(const deluge::scenes::bind::TakeTarget& target) const {
-	// `AudioRecorder::targetStillHeld`, by identity: the song, then the clip and what it plays, then the range
-	// wherever it now sits.
-	if (currentSong == nullptr || currentSong->project.identity() != target.song || !target.clip || !target.range
-	    || target.source >= kNumSources) {
+	// `AudioRecorder::targetStillHeld`, by identity: the clip and what it plays, then the range wherever it now sits.
+	// Range identities are run-unique and never saved, so a range in another song cannot match.
+	if (currentSong == nullptr || !target.clip || !target.range || target.source >= kNumSources) {
 		return std::nullopt;
 	}
 	::Clip* clip = currentSong->clipForId(target.clip->clip_id);
