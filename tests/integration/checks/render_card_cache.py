@@ -5,8 +5,8 @@ generator's source. So each card is generated once into build/render-cards/<gene
 plays that directory read-only. The samples every song shares are synthesised once per key, into <key>/samples/, and
 hard-linked into each card.
 
-Gates fill the cache concurrently: each directory and file is built under a temporary name and published with a
-rename, and a rename that loses the race leaves the winner's in place.
+Gates fill the cache concurrently: each directory and file is built under a temporary name and published (a card with a
+rename, a shared sample with a hard link), and a publish that loses the race leaves the winner's in place.
 """
 
 import hashlib
@@ -77,13 +77,22 @@ def _publish_dir(tmp: Path, final: Path) -> None:
 
 
 def _sample(base: Path, generator, path: str) -> Path:
-    """The shared sample at card path @p path, synthesised once per key."""
+    """The shared sample at card path @p path, synthesised once per key.
+
+    The first writer publishes it with a hard link, which fails on a sample already there, and never with a rename over
+    it: a rename unlinks the inode it replaces, and a card being filled that is linking that inode at the moment gets
+    ENOENT. A published sample therefore keeps its inode for as long as the key's directory lives."""
     sample = base / "samples" / path
     if not sample.is_file():
         sample.parent.mkdir(parents=True, exist_ok=True)
         tmp = _temporary(sample)
         tmp.write_bytes(generator.SAMPLE_FILES[path]())
-        os.replace(tmp, sample)
+        try:
+            os.link(tmp, sample)
+        except FileExistsError:
+            pass  # another writer published it first: same bytes, the generator being deterministic
+        finally:
+            tmp.unlink()
     return sample
 
 
@@ -137,9 +146,13 @@ def card(root: Path, song: str, cache_root: Path | None = None) -> Path:
 
     tmp = _temporary(final)
     shutil.rmtree(tmp, ignore_errors=True)
-    for path in generator.samples_for(song):
-        (tmp / path).parent.mkdir(parents=True, exist_ok=True)
-        os.link(_sample(base, generator, path), tmp / path)
-    generator.write_song(tmp, song)
+    try:
+        for path in generator.samples_for(song):
+            (tmp / path).parent.mkdir(parents=True, exist_ok=True)
+            os.link(_sample(base, generator, path), tmp / path)
+        generator.write_song(tmp, song)
+    except BaseException:
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise
     _publish_dir(tmp, final)
     return final
