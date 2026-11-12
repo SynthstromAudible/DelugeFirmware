@@ -30,7 +30,8 @@ have.)
 
 If every sample that lands on a note has a velocity tag in its filename - `vel` (or `velocity`) followed by a
 number from 1 to 127, such as `Snare_vel40.wav` and `Snare_vel100.wav` - that zone is set to `VELOCITY` mode
-and 1-127 is split between its samples, each boundary falling halfway between neighbouring tags. If any sample
+and 1-127 is split between its tags, each boundary falling halfway between neighbouring ones. Samples with the
+same tag are takes of the same layer: they share its range and take turns within it. If any sample
 on the note is untagged, the zone stays in `CYCLE` with every slot on the full range. A bare `v` is not read
 as a velocity, since `Kick_v2.wav` usually means version 2.
 

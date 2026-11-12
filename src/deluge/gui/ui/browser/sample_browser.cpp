@@ -2076,11 +2076,14 @@ skipOctaveCorrection:
 			if (allHaveVelocity) {
 				uint8_t rangeMin[kMaxGroupMembers];
 				uint8_t rangeMax[kMaxGroupMembers];
-				computeVelocityLayerBoundaries(groupVelocities, groupMemberCount, rangeMin, rangeMax);
-				for (int32_t m = 0; m < groupMemberCount; m++) {
-					range->setVelocityRange(m, rangeMin[m], rangeMax[m]);
+				// Files sharing a tag are takes of one layer and share its band. If they all share one, there
+				// is only the one layer and nothing for velocity to choose between: leave the zone cycling.
+				if (computeVelocityLayerBoundaries(groupVelocities, groupMemberCount, rangeMin, rangeMax) > 1) {
+					for (int32_t m = 0; m < groupMemberCount; m++) {
+						range->setVelocityRange(m, rangeMin[m], rangeMax[m]);
+					}
+					range->rrMode = MultisampleRange::RRMode::Velocity;
 				}
-				range->rrMode = MultisampleRange::RRMode::Velocity;
 			}
 		}
 
