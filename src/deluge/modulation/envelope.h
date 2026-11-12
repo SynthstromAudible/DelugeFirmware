@@ -31,6 +31,8 @@ constexpr uint32_t SOFT_CULL_INCREMENT = 65536;
 class Envelope {
 public:
 	static constexpr uint32_t kStageLength = 8388608; // 2^23
+	/// AHD's hold runs this much faster than a decay stage at the same param value
+	static constexpr uint32_t kAhdHoldSpeedup = 8;
 
 	Envelope();
 

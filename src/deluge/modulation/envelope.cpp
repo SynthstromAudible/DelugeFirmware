@@ -54,7 +54,9 @@ int32_t Envelope::render(uint32_t numSamples, uint32_t attack, uint32_t decay, u
 	// AHD reuses the ADSR params: hold time from decay, decay time from release, and no sustain
 	uint32_t hold = kStageLength; // any rate that finishes the stage in one render
 	if (config.mode == EnvelopeMode::AHD) {
-		hold = decay;
+		// A decay stage is the time to fall 48 dB, which is long for a flat hold. An eighth of it - about the time the
+		// classic decay takes to fall 6 dB - makes the hold knob feel like the decay knob. Capped so it can't overflow
+		hold = (decay >= kStageLength / kAhdHoldSpeedup) ? kStageLength : decay * kAhdHoldSpeedup;
 		decay = release;
 		sustain = 0;
 	}

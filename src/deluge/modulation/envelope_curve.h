@@ -112,7 +112,8 @@ enum class EnvelopeMode : uint8_t {
 	/// Attack, decay, sustain, release
 	ADSR,
 	/// Attack, hold at full level, decay to zero. One-shot: ignores note-off, for drums. Hold time is set by the decay
-	/// param and the decay by the release param, so the release gold knob sets a drum's length.
+	/// param (an eighth of what a decay stage would take) and the decay by the release param, so the release gold knob
+	/// sets a drum's length.
 	AHD,
 	/// Attack and release around a level that follows MPE pressure (Z): the target is sustain + (1 - sustain) * Z,
 	/// approached at the attack rate going up and the release rate going down. With sustain at full it's a plain AR.
