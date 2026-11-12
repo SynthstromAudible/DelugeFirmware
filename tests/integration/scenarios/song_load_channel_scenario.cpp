@@ -162,6 +162,8 @@ int32_t g_orphansBefore = 0;
 int32_t g_cancelTicks = 0;
 /// cancel_after_begin: whether a cancel was tried past STAGE, and how it answered.
 bool g_refuseTried = false;
+/// Whether a next song held as the load began was still held when it finished.
+bool g_nextHeldAfterLoad = false;
 /// The startup-song mode before the cancel-in-STAGE leg set LASTOPENED, put back after it.
 StartupSongMode g_startupModeBefore = StartupSongMode::BLANK;
 
@@ -377,6 +379,9 @@ void runTick() {
 	case Stage::RefuseStart: {
 		// cancel_after_begin: the load that brings the song back is asked to cancel once it is past STAGE. Through
 		// the real ENTER as well, still with LASTOPENED: this load completes, and must record the song.
+		// SL-NEXT: a next song a MIDI NEXT_SONG left held behind a take or a slice must not outlive the song the user
+		// replaces; `main` loads a NEXT_SONG at once, so one never fires after a manual load.
+		playbackHandler.nextSongPending_ = true;
 		SongLoadChannelProbe::pressLoadEnter();
 		g_stage = Stage::LoadBackWait;
 		break;
@@ -397,6 +402,8 @@ void runTick() {
 		// showing, so with the browser open it would never go false and this gate would hang rather
 		// than report.
 		if (!loadSongUI.loadInFlight()) {
+			g_nextHeldAfterLoad = playbackHandler.nextSongPending_;
+			playbackHandler.nextSongPending_ = false;
 			if (!g_refuseTried) {
 				printf("SL-REFUSED FAIL the load finished before a cancel past STAGE could be tried\n");
 				g_failures++;
@@ -458,6 +465,11 @@ void runTick() {
 			printf("SL-ORDER FAIL the song's sample did not come back bound\n");
 			g_failures++;
 		}
+		printf("SL-NEXT heldAfterLoad=%d\n", g_nextHeldAfterLoad ? 1 : 0);
+		if (g_nextHeldAfterLoad) {
+			printf("SL-NEXT FAIL a next song held before the load was still held after it\n");
+			g_failures++;
+		}
 		printf("SL-SUMMARY served=%d channelTicks=%d\n", (int)StorageManager::stagingChannelServedOps(),
 		       (int)AudioEngine::songStageTicks());
 		// Leave the card as we found it. These harness images are keyed by fingerprint and SHARED with
@@ -501,6 +513,7 @@ void deluge_scenario_song_load_channel_begin(void) {
 	g_orphansBefore = 0;
 	g_cancelTicks = 0;
 	g_refuseTried = false;
+	g_nextHeldAfterLoad = false;
 	g_startupModeBefore = StartupSongMode::BLANK;
 }
 

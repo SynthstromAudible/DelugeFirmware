@@ -92,6 +92,9 @@ public:
 	/// @brief A MIDI next-song arrived during an audio-input take or a slice: @ref slowRoutine loads it once that is
 	///        over.
 	bool nextSongPending_{false};
+	/// @brief Forget a held next-song: the user is replacing the song it was to follow (a song load or a clear).
+	///        `main` loads a NEXT_SONG at once, so one never outlives the song it arrived over.
+	void dropHeldNextSong() { nextSongPending_ = false; }
 	/// @brief How soon a command held back by a busy card is tried again, in µs.
 	static constexpr deluge::runtime::Micros kSlowRetryUs = 1'000;
 	void scheduleSwungTickFromExternalClock();

@@ -108,6 +108,8 @@ int32_t g_unPreloads = 0;
 /// What the clear was seen to have done by the time `acceptCurrentOption()` returned.
 bool g_swappedOnReturn = false;
 bool g_modeReleasedOnReturn = false;
+/// Whether a next song held as the clear began was still held when it returned.
+bool g_nextHeldAfterClear = false;
 /// InstrumentLoad's counters across the clear itself: the clear must read nothing of its own.
 int32_t g_readsBefore = 0;
 int32_t g_loadsBefore = 0;
@@ -286,6 +288,16 @@ void checkGate() {
 	}
 }
 
+/// CS-NEXT: a next song a MIDI NEXT_SONG left held (behind a take or a slice) does not outlive the song it was to
+/// follow: `main` loads a NEXT_SONG at once, so one never fires after the user has replaced the song.
+void checkHeldNextSong() {
+	printf("CS-NEXT heldAfterClear=%d\n", g_nextHeldAfterClear ? 1 : 0);
+	if (g_nextHeldAfterClear) {
+		printf("CS-NEXT FAIL a next song held before the clear was still held after it\n");
+		g_failures++;
+	}
+}
+
 /// One line per undo leg, named for the leg, with the failure it guards.
 void checkUndoLeg() {
 	const std::string& bound = g_unBoundAfter;
@@ -415,7 +427,10 @@ void runTick() {
 		g_loadsBefore = deluge::gui::instrumentLoad.sampleLoads();
 		g_runsBefore = LoadInstrumentPresetUI::presetAcquisitionsRun();
 
+		playbackHandler.nextSongPending_ = true; // what a MIDI NEXT_SONG during a take or a slice leaves
 		(void)deluge::gui::context_menu::clearSong.acceptCurrentOption();
+		g_nextHeldAfterClear = playbackHandler.nextSongPending_;
+		playbackHandler.nextSongPending_ = false;
 
 		// Read the instant it returns: a dispatched body has not run yet, a synchronous one is done.
 		Instrument* instrument = firstInstrument();
@@ -445,6 +460,7 @@ void runTick() {
 		checkTier();
 		checkSong();
 		checkGate();
+		checkHeldNextSong();
 		g_stage = Stage::Summary;
 		break;
 	case Stage::UnSetup:
@@ -527,6 +543,7 @@ void deluge_scenario_clear_song_undo_begin(void) {
 	g_fixtureWritten = false;
 	g_swappedOnReturn = false;
 	g_modeReleasedOnReturn = false;
+	g_nextHeldAfterClear = false;
 }
 
 bool deluge_scenario_clear_song_undo_complete(void) {
