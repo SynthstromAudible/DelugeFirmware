@@ -350,19 +350,11 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 	try {
 		error = newInstrument->readFromFile(smDeserializer, song, clip, 0);
 	} catch (deluge::exception e) {
-		// A round-robin/velocity-heavy Kit can allocate many extra per-zone SampleHolderForVoice
-		// objects while loading (see multisample_range.cpp's ensureAlternateHolder/setVelocityRange
-		// - each zone's alternates and per-slot velocity ranges are allocated the first time a kit
-		// using them is read). If RAM is already under pressure - e.g. several previously-edited
-		// Instruments sitting in Song's hibernation list (see song.cpp's
-		// addInstrumentToHibernationList, which never frees an edited Instrument until the whole
-		// song changes) - one of those allocations can fail via the throwing global operator new
-		// (memory/operators.cpp) rather than one of the checked GeneralMemoryAllocator calls this
-		// function's own allocations already guard below. Uncaught, that propagated all the way to
-		// std::terminate() and froze the whole device ("ERROR: TERM", confirmed on real hardware,
-		// 2026-07-28) instead of reporting a normal load failure. Every other allocation failure in
-		// this function already reports Error::INSUFFICIENT_RAM instead of crashing - do the same
-		// here, so a kit that can't fit in available RAM fails gracefully like any other one would.
+		// Reading an instrument also allocates through the STL - drum names, for one - and that goes through
+		// the throwing operator new (memory/operators.cpp), not the checked allocator calls guarded below.
+		// Uncaught, running out of memory there reached std::terminate() and froze the device with
+		// "ERROR: TERM"; it was seen on hardware loading a kit with many variants while RAM was short. Report
+		// it like every other allocation failure in this function.
 		error = Error::INSUFFICIENT_RAM;
 	}
 
@@ -595,8 +587,7 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 	try {
 		error = newDrum->readFromFile(smDeserializer, song, clip, 0);
 	} catch (deluge::exception e) {
-		// See the matching catch in loadInstrumentFromFile() above for the full explanation - same
-		// out-of-memory-during-load risk, same fix.
+		// Out of memory in an STL allocation while reading - see the catch in loadInstrumentFromFile() above.
 		error = Error::INSUFFICIENT_RAM;
 	}
 
