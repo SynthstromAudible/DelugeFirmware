@@ -281,17 +281,20 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 		spec::SongFixture fx = spec::make_synth_song();
 		const uint8_t saved_byte = FlashStorage::shortcutsVersion;
 		::MenuItem* const saved_cells[2] = {paramShortcutsForSounds[0][6], paramShortcutsForSounds[1][6]};
+		// Seeded on the current layout so the turn lands on V1, whose (0, 6) cell differs from V3's.
+		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
+		expect(paramShortcutsForSounds[0][6] == &sample0EndMenu).to_be_false();
 		expect(open_settings_node(fx, nodes::shortcuts_version)).to_be_true();
 		const uint8_t before = FlashStorage::shortcutsVersion;
-		shellHostUI.selectEncoderAction(before == FlashStorage::kShortcutsVersion1 ? 1 : -1); // to the other layout
+		expect(static_cast<int>(before)).to_equal(FlashStorage::kShortcutsVersion3);
+		shellHostUI.selectEncoderAction(-1); // to V1
 		(void)shellHostUI.exitUI();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		// The turn writes flash byte 60, which the ported tables select on and the close then saves.
-		expect(FlashStorage::shortcutsVersion != before).to_be_true();
-		expect(menu::shortcuts_version()
-		       == (FlashStorage::shortcutsVersion == FlashStorage::kShortcutsVersion1 ? menu::ShortcutsVersion::V1
-		                                                                              : menu::ShortcutsVersion::V3))
-		    .to_be_true();
+		expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion1);
+		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V1).to_be_true();
+		// The legacy half: the close's dispatch brought legacy's in-place table into step.
+		expect(paramShortcutsForSounds[0][6] == &sample0EndMenu).to_be_true();
 		soundEditor.setShortcutsVersion(saved_byte);
 		paramShortcutsForSounds[0][6] = saved_cells[0];
 		paramShortcutsForSounds[1][6] = saved_cells[1];

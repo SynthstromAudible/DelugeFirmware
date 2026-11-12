@@ -70,7 +70,7 @@
 #include "gui/ui/root_ui.h" // PerformExitStubUI's base, for the arms that close()
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_host_ui.h"
-#include "gui/ui/sound_editor.h" // soundEditor.shortcutsVersion, SHORTCUTS_VERSION_1 / _3
+#include "gui/ui/sound_editor.h" // soundEditor.setShortcutsVersion, SHORTCUTS_VERSION_1 / _3
 #include "gui/ui/ui.h"           // isUIOpen / nullifyUIs / setRootUILowLevel, for the groups that use the real UI stack
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
@@ -1457,7 +1457,7 @@ describe menu_action_shortcuts_version("gui::ui::dispatchShellActions -- SetShor
 	// **Flash itself is not written here, and that is deliberate.** `FlashStorage::writeSettings`
 	// rewrites every setting this process shares with the other twenty specs in this binary -- the
 	// reason `boot_wiring_spec.cpp` gives for not driving `resetSettings` either. What these
-	// examples pin is `soundEditor.shortcutsVersion`, which is the *only* thing `:982` reads.
+	// examples pin is flash byte 60 and the legacy tables.
 	//
 	// **The reverse direction has its own example**, and it is not a duplicate of
 	// `boot_wiring_spec.cpp`'s: it is this group's control for the mutation reported with the task.
@@ -1490,14 +1490,14 @@ describe menu_action_shortcuts_version("gui::ui::dispatchShellActions -- SetShor
 		// Seeded at the value the answer is NOT, on both sides, so neither assertion below can pass
 		// on a value that was already there.
 		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
-		expect(static_cast<int>(soundEditor.shortcutsVersion)).to_equal(SHORTCUTS_VERSION_3);
+		expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion3);
 
 		Rig r;
 		expect(choose_shortcuts_version(r, kVersion1Index)).to_equal(kVersion1Index);
 		deluge::gui::ui::dispatchShellActions();
 
 		// The byte `FlashStorage::writeSettings` stores.
-		expect(static_cast<int>(soundEditor.shortcutsVersion)).to_equal(SHORTCUTS_VERSION_1);
+		expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion1);
 		// The layout the ported tables read is still right after the dispatch.
 		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V1).to_be_true();
 		// And the legacy table really moved, which is the effect a user sees: `(0, 6)` of the sound
@@ -1525,13 +1525,13 @@ describe menu_action_shortcuts_version("gui::ui::dispatchShellActions -- SetShor
 		}
 
 		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_1);
-		expect(static_cast<int>(soundEditor.shortcutsVersion)).to_equal(SHORTCUTS_VERSION_1);
+		expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion1);
 
 		Rig r;
 		expect(choose_shortcuts_version(r, kVersion3Index)).to_equal(kVersion3Index);
 		deluge::gui::ui::dispatchShellActions();
 
-		expect(static_cast<int>(soundEditor.shortcutsVersion)).to_equal(SHORTCUTS_VERSION_3);
+		expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion3);
 		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V3).to_be_true();
 		expect(scene().take_action().engaged()).to_be_false();
 	});
@@ -1552,7 +1552,7 @@ describe menu_action_shortcuts_version("gui::ui::dispatchShellActions -- SetShor
 
 		// The first detent really wrote, so the second one below is a second write and not the
 		// first one arriving late.
-		expect(static_cast<int>(soundEditor.shortcutsVersion)).to_equal(SHORTCUTS_VERSION_1);
+		expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion1);
 		// Still inside the item, one level down from the Pads page it was opened at.
 		expect(scene().focused() == &nodes::shortcuts_version).to_be_true();
 		expect(static_cast<int>(scene().state().depth)).to_equal(1);
@@ -1562,7 +1562,7 @@ describe menu_action_shortcuts_version("gui::ui::dispatchShellActions -- SetShor
 		r.shell.tick(210);
 		deluge::gui::ui::dispatchShellActions();
 		expect(static_cast<int>(scene().state().enum_index)).to_equal(kVersion3Index);
-		expect(static_cast<int>(soundEditor.shortcutsVersion)).to_equal(SHORTCUTS_VERSION_3);
+		expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion3);
 		expect(scene().focused() == &nodes::shortcuts_version).to_be_true();
 	});
 
@@ -1587,7 +1587,7 @@ describe menu_action_shortcuts_version("gui::ui::dispatchShellActions -- SetShor
 			deluge::gui::ui::dispatchShellActions();
 			expect(scene().take_action().engaged()).to_be_false();
 		}
-		expect(static_cast<int>(soundEditor.shortcutsVersion)).to_equal(SHORTCUTS_VERSION_3);
+		expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion3);
 	});
 
 	it("brings legacy's tables into step on the guest's own tick, with nothing calling the dispatcher by name", _ {
@@ -1629,7 +1629,7 @@ describe menu_action_shortcuts_version("gui::ui::dispatchShellActions -- SetShor
 		r.turn_select(-1);
 		(void)r.ui.timerCallback();
 
-		expect(static_cast<int>(soundEditor.shortcutsVersion)).to_equal(SHORTCUTS_VERSION_1);
+		expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion1);
 		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V1).to_be_true();
 		expect(paramShortcutsForSounds[0][6] == &sample0EndMenu).to_be_true();
 		expect(scene().take_action().engaged()).to_be_false();
