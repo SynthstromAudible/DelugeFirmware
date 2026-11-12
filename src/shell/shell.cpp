@@ -368,7 +368,7 @@ void Shell::tick(uint32_t now_ms) {
 	pump_input(now_ms);
 	// A `Action::Kind::Popup` applied anywhere above leaves its string id on the router; the
 	// router has no l10n and `Notices` takes text, so the shell is the one place both are in
-	// scope. Read and cleared as a pair, per `Router::clear_pending_popup`.
+	// scope. Read and cleared together, per `Router::clear_pending_popup`.
 	if (router_.pending_popup_string() != 0) {
 		// `scratch` outlives `text`, which points into it when the profile has no `text` hook and
 		// the id is spelled as digits instead (`BoardProfile::text_or_digits`); `show_popup` copies

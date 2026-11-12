@@ -99,13 +99,15 @@
 /// `recorder_ != nullptr` remains as a second, scene-local test in `on_enter`: it is the same fact
 /// once the publication exists, kept because it is the one this scene can assert about *itself*.
 ///
+/// @par SYNC_SCALING
+///
+/// A SYNC_SCALING release with fill mode on goes to the root view (`recorderPassesFillRelease`), as main's
+/// `AudioRecorder::buttonAction` sends it; the scene itself does not name a root UI.
+///
 /// @par What is deliberately not ported
 ///
 ///   * **`instrumentClipView.cancelAllAuditioning()`** (`:109-111`), a root-UI call this layer may
 ///     not make (`scenes-no-root-ui`).
-///   * **`buttonAction`'s `SYNC_SCALING` release arm** (`:259-262`), which forwards to `getRootUI()`. A SYNC_SCALING
-///     release with fill mode on goes to the root view (`recorderPassesFillRelease`), as main's
-///     `AudioRecorder::buttonAction` sends it; the scene itself does not name a root UI.
 ///   * **`checkPermissionToBeginSession`'s FM refusal** (`osc/audio_recorder.h:65-74`). It is
 ///     unreachable from the menu: `isRelevant` and the ported `relevance::is_subtractive` on
 ///     `nodes::sample0_recorder` hide the item in FM mode in the first place, so the popup only

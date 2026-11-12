@@ -517,6 +517,7 @@ describe shell_router("shell::Router", $ {
 		popup.kind = Action::Kind::Popup;
 		popup.popup_string = 42;
 		popup.popup_type = 7;
+		popup.popup_if_free = true;
 		Result res;
 		res.handled = true;
 		res.actions.push_back(popup);
@@ -526,9 +527,11 @@ describe shell_router("shell::Router", $ {
 
 		expect(r.router.pending_popup_string()).to_equal(uint16_t(42));
 		expect(r.router.pending_popup_type()).to_equal(uint8_t(7));
+		expect(r.router.pending_popup_if_free()).to_be_true();
 		r.router.clear_pending_popup();
 		expect(r.router.pending_popup_string()).to_equal(uint16_t(0));
 		expect(r.router.pending_popup_type()).to_equal(uint8_t(0));
+		expect(r.router.pending_popup_if_free()).to_be_false();
 	});
 
 	it("Shift and mod buttons are modifiers: consumed by bookkeeping, scenes still see them", _ {

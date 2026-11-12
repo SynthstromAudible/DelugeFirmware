@@ -1019,7 +1019,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// The press is not the recorder's to pass on: fill stays on.
 		(void)shellHostUI.buttonAction(deluge::hid::button::SYNC_SCALING, true);
 		expect(currentSong->isFillModeActive()).to_be_true();
-		(void)shellHostUI.buttonAction(deluge::hid::button::SYNC_SCALING, false);
+		expect(shellHostUI.buttonAction(deluge::hid::button::SYNC_SCALING, false) == ActionResult::DEALT_WITH)
+		    .to_be_true();
 		expect(currentSong->isFillModeActive()).to_be_false();
 		expect(recorder_on_stack(shellHostUI.shell())).to_be_true();
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::SyncScalingAction, saved_action);
@@ -1150,6 +1151,18 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.tick(30);
 		expect(rec->recordingClippedRecently).to_be_false();
 		expect(std::string{r.shell.notices().last_popup_text()}).to_equal(std::string{"A KNOB"});
+	});
+
+	it("raises CLIPPING OCCURRED when no popup is up", _ {
+		Guards g;
+		Rig r;
+		r.open();
+		r.tick(0);
+		SampleRecorder* rec = recorder_scene().recorder();
+		rec->recordingClippedRecently = true;
+		r.tick(10);
+		r.tick(20);
+		expect(std::string{r.shell.notices().last_popup_text()}).to_equal(std::string{"Clipping occurred"});
 	});
 
 	it("clears the playhead squares as the recorder opens", _ {

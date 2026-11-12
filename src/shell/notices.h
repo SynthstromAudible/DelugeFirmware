@@ -410,9 +410,9 @@ public:
 	///        from \p popup_type.
 	///
 	/// The path the shell (outside this class) is meant to call from a
-	/// `Router::pending_popup_string()`/`pending_popup_type()` pair once it has resolved the
-	/// string id through the profile -- `Action::Kind::Popup` and a non-`Warn` `Notice::Kind::Text`
-	/// both end up drawing the same popup, through the same underlying mechanism
+	/// `Router::pending_popup_string()`/`pending_popup_type()`/`pending_popup_if_free()` triple once it has resolved
+	/// the string id through the profile -- `Action::Kind::Popup` and a non-`Warn` `Notice::Kind::Text` both end up
+	/// drawing the same popup, through the same underlying mechanism
 	/// (`show_popup_with_timeout()`). `drain()`'s `Kind::Text` case does **not** call this
 	/// overload -- it calls `show_popup_with_timeout()` directly, so it can pass 0 for a `Warn`
 	/// notice instead of always computing `timeout_for(popup_type)` -- see `drain()`'s own doc.

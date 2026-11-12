@@ -157,9 +157,9 @@ public:
 	/// @brief Whether the pending popup shows only if no popup is up.
 	/// @return The `Action::popup_if_free` of the most recent `Popup` action.
 	bool pending_popup_if_free() const { return popup_if_free_; }
-	/// @brief Clear the pending popup string and type together.
+	/// @brief Clear the pending popup string, type and if-free flag together.
 	///
-	/// Read and cleared by `Notices`; the two are stored and cleared as a pair so a reader
+	/// Read and cleared by `Notices`; the three are stored and cleared together so a reader
 	/// never sees one updated without the other.
 	void clear_pending_popup() {
 		popup_string_ = 0;

@@ -189,8 +189,9 @@ bool RecorderScene::on_enter(const SceneId& id) {
 	if (!name_drum()) {
 		return false;
 	}
-	// `beginRecording`'s `blinkLed(BACK)` and `blinkLed(RECORD, 255, 1)` (`AudioRecorder::opened`) on success.
+	// `AudioRecorder::opened`'s `PadLEDs::clearTickSquares(true)`.
 	menu::host_clear_tick_squares();
+	// `beginRecording`'s `blinkLed(BACK)` and `blinkLed(RECORD, 255, 1)` (`AudioRecorder::opened`) on success.
 	blink_restart_ = setup_recording();
 	// `opened()`'s last statement, whether the take began or not.
 	menu::host_end_audition(menu::AuditionEnd::ClipViewWhenAuditioning);
@@ -330,7 +331,7 @@ Result RecorderScene::after_render() {
 		return r;
 	}
 
-	// `process()`'s ongoing arm (`:226-240`). `popup_if_free` is the `!display->hasPopup()` gate: the flag clears
+	// `AudioRecorder::process`'s ongoing arm. `popup_if_free` is the `!display->hasPopup()` gate: the flag clears
 	// whether or not the popup shows.
 	if (recorder_->recordingClippedRecently) {
 		recorder_->recordingClippedRecently = false;
