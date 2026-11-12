@@ -983,6 +983,8 @@ void renderAudio(size_t numSamples) {
 
 	numHopsEndedThisRoutineCall = 0;
 	usbInputMonitoredByTrack = false;
+	// Multitrack USB's track buses - except while exporting stems in real time, which need every track
+	usb_audio::startRender(!stemExport.processStarted);
 
 	// Render audio for song
 	if (currentSong != nullptr) {
@@ -1019,6 +1021,7 @@ void renderAudioForStemExport(size_t numSamples) {
 
 	numHopsEndedThisRoutineCall = 0;
 	usbInputMonitoredByTrack = false;
+	usb_audio::startRender(false); // Every track goes in the stems
 
 	// Render audio for song
 	if (currentSong != nullptr) {
