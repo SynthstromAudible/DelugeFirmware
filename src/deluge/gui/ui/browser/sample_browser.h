@@ -66,6 +66,10 @@ public:
 
 	String lastFilePathLoaded;
 	uint8_t targetRoundRobinSlot{0};
+	/// True when what's being loaded has to stay a sample: it's going into a variant slot, or the oscillator has
+	/// variants in another slot or zone. Switching the oscillator to WAVETABLE rebuilds every zone, which would
+	/// throw them all away.
+	bool mustLoadAsSample();
 
 	// menus to open when a sample file is selected. Only valid for one browser session.
 	// should be cleared on exit or failure

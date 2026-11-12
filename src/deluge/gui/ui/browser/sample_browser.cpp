@@ -32,6 +32,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/multi_range.h"
+#include "gui/menu_item/sample/round_robin.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -521,6 +522,14 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 	return ActionResult::DEALT_WITH;
 }
 
+bool SampleBrowser::mustLoadAsSample() {
+	if (targetRoundRobinSlot > 0) {
+		return true;
+	}
+	return getCurrentClip()->type != ClipType::AUDIO && soundEditor.currentSource != nullptr
+	       && deluge::gui::menu_item::sample::sourceUsesVariants(*soundEditor.currentSource);
+}
+
 bool SampleBrowser::canImportWholeKit() {
 	// Folder-to-kit and slicing rebuild drums, so never from a variant slot's browser.
 	return (soundEditor.editingKit() && soundEditor.currentSourceIndex == 0 && targetRoundRobinSlot == 0
@@ -980,10 +989,9 @@ removeLoadingAnimationAndGetOut:
 		bool makeWaveTableWorkAtAllCosts = (mayDoWaveTable == 2) || (mayDoSingleCycle == 2)
 		                                   || (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD);
 
-		// A variant slot can only hold a sample: forcing WAVETABLE would convert the whole oscillator
-		// and destroy the zone's other variants. The load menu hides those options for slots 2-4;
-		// this catches any other route.
-		if (makeWaveTableWorkAtAllCosts && targetRoundRobinSlot > 0) {
+		// An oscillator with variants can only hold samples: forcing WAVETABLE would convert the whole
+		// oscillator and destroy them. The load menu hides those options; this catches any other route.
+		if (makeWaveTableWorkAtAllCosts && mustLoadAsSample()) {
 			display->removeLoadingAnimation();
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
 			return false;
@@ -1094,9 +1102,9 @@ doLoadAsSample:
 			Sample* sample = (Sample*)targetHolder->audioFile;
 
 			// If the file was actually clearly a wavetable file, and we're allowed to load one, then go do that
-			// instead. Never do this for an alternate round-robin slot though - converting the source to
-			// WAVETABLE would destroy all its variants.
-			if (mayDoWaveTable && numTypesTried <= 1 && targetRoundRobinSlot == 0
+			// instead. Never do this on an oscillator with variants though - converting the source to
+			// WAVETABLE would destroy them all.
+			if (mayDoWaveTable && numTypesTried <= 1 && !mustLoadAsSample()
 			    && sample->fileExplicitlySpecifiesSelfAsWaveTable) {
 				goto doLoadAsWaveTable;
 			}
@@ -1111,8 +1119,9 @@ doLoadAsSample:
 				// If 20ms or less, and we're not a kit, then we'd like to be a single-cycle waveform.
 				if (!soundEditor.editingKit() && (mayDoSingleCycle == 2 || (mayDoSingleCycle == 1 && mSec <= 20))) {
 
-					// Ideally, we'd like to use the wavetable engine for this single-cycle-ness
-					if (mayDoWaveTable && numTypesTried <= 1 && sample->numChannels == 1
+					// Ideally, we'd like to use the wavetable engine for this single-cycle-ness - unless that
+					// would cost the oscillator its variants.
+					if (mayDoWaveTable && numTypesTried <= 1 && !mustLoadAsSample() && sample->numChannels == 1
 					    && sample->lengthInSamples >= kWavetableMinCycleSize
 					    && sample->lengthInSamples <= kWavetableMaxCycleSize) {
 

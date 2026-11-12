@@ -73,9 +73,9 @@ bool Synth::isCurrentOptionAvailable() {
 		// in Sample or WaveTable mode. Although, the user could get an error after selecting the option - e.g. if
 		// we're locked to WaveTable mode, they've selected single-cycle, and it realises it can't do this
 		// combination of things because it's a stereo file.
-		// Neither, though, when loading into variant slots 2-4: both switch the whole oscillator to
-		// WAVETABLE, which would throw away the zone's other variants.
-		return sampleBrowser.targetRoundRobinSlot == 0;
+		// Neither, though, on an oscillator with variants: both switch the whole oscillator to WAVETABLE,
+		// which would throw them away.
+		return !sampleBrowser.mustLoadAsSample();
 
 	default:
 		__builtin_unreachable();
