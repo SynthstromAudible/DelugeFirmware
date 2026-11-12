@@ -1823,6 +1823,15 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 	    && isNoteVelocityEditorShortcut(x, y)) {
 		// don't enter if we're in a kit with affect entire enabled
 		if (!(outputType == OutputType::KIT && getAffectEntire())) {
+			// Automation edits store physical pad rows, which note-editor releases cannot match.
+			if (inAutomationEditor()) {
+				for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+					if (instrumentClipView.editPadPresses[i].isActive) {
+						instrumentClipView.endEditPadPress(i);
+					}
+				}
+				instrumentClipView.checkIfAllEditPadPressesEnded();
+			}
 			if (outputType == OutputType::KIT) {
 				potentiallyVerticalScrollToSelectedDrum((InstrumentClip*)clip, output);
 			}
