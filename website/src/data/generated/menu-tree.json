@@ -277,6 +277,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 26,
                 "name": "Gate",
                 "title": "Arp gate",
@@ -289,6 +290,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_or_kit_fx",
                 "id": 28,
                 "name": "Rate",
                 "select_chain": [
@@ -344,6 +346,7 @@
           {
             "children": [
               {
+                "available_when": "not_gate_drum_or_kit_fx",
                 "id": 30,
                 "name": "Octaves",
                 "title": "Arp octaves",
@@ -469,6 +472,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 49,
             "name": "Velocity Spread",
             "title": "Velocity spread",
@@ -4225,6 +4229,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 26,
                 "name": "Gate",
                 "title": "Arp gate",
@@ -4237,6 +4242,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_or_kit_fx",
                 "id": 28,
                 "name": "Rate",
                 "select_chain": [
@@ -4292,6 +4298,7 @@
           {
             "children": [
               {
+                "available_when": "not_gate_drum_or_kit_fx",
                 "id": 30,
                 "name": "Octaves",
                 "title": "Arp octaves",
@@ -4417,6 +4424,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 49,
             "name": "Velocity Spread",
             "title": "Velocity spread",
@@ -8060,6 +8068,7 @@
           {
             "children": [
               {
+                "available_when": "not_gate_drum_or_kit_fx",
                 "id": 30,
                 "name": "Octaves",
                 "title": "Arp octaves",
@@ -8185,6 +8194,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 49,
             "name": "Velocity Spread",
             "title": "Velocity spread",
@@ -8473,6 +8483,7 @@
           {
             "children": [
               {
+                "available_when": "not_gate_drum_or_kit_fx",
                 "id": 30,
                 "name": "Octaves",
                 "title": "Arp octaves",
@@ -8598,6 +8609,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 49,
             "name": "Velocity Spread",
             "title": "Velocity spread",
@@ -8826,6 +8838,7 @@
           {
             "children": [
               {
+                "available_when": "not_gate_drum_or_kit_fx",
                 "id": 30,
                 "name": "Octaves",
                 "title": "Arp octaves",
@@ -8951,6 +8964,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 49,
             "name": "Velocity Spread",
             "title": "Velocity spread",
@@ -10604,6 +10618,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 26,
                 "name": "Gate",
                 "title": "Arp gate",
@@ -10630,6 +10645,7 @@
           {
             "children": [
               {
+                "available_when": "not_gate_drum_or_kit_fx",
                 "id": 30,
                 "name": "Octaves",
                 "title": "Arp octaves",
@@ -10728,6 +10744,7 @@
                 "type": "basic"
               },
               {
+                "available_when": "not_non_audio_drum_row",
                 "id": 49,
                 "name": "Velocity Spread",
                 "title": "Velocity spread",
@@ -12617,6 +12634,7 @@
           {
             "children": [
               {
+                "available_when": "not_gate_drum_or_kit_fx",
                 "id": 30,
                 "name": "Octaves",
                 "title": "Arp octaves",
@@ -12742,6 +12760,7 @@
             "type": "basic"
           },
           {
+            "available_when": "not_non_audio_drum_row",
             "id": 49,
             "name": "Velocity Spread",
             "title": "Velocity spread",
