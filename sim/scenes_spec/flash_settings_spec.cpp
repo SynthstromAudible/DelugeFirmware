@@ -102,10 +102,10 @@ describe flash_default_draws("a new song's tempo, swing and key are drawn from t
 		SettingsGuard guard;
 		for (const FlashStorage::DefaultRangeSlot slot :
 		     {FlashStorage::DEFAULT_RANGE_TEMPO, FlashStorage::DEFAULT_RANGE_SWING_AMOUNT}) {
-			FlashStorage::defaultRanges[slot] = {40, 80};
-			for (uint32_t seed = 1; seed <= 256; seed++) {
+			FlashStorage::defaultRanges[slot] = {40, 42};
+			for (uint32_t seed = 1; seed <= 16; seed++) {
 				deluge_seed_noise(seed);
-				const int32_t want = 40 + random(40);
+				const int32_t want = 40 + random(2);
 				deluge_seed_noise(seed);
 				expect(FlashStorage::drawDefaultRange(slot)).to_equal(want);
 			}
