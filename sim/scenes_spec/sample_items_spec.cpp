@@ -228,7 +228,7 @@ struct SoundRig {
 
 	/// @param second_source True to give oscillator 1 a sample source of its own; false to leave it
 	///                      a square wave with no `MultiRange` at all, which is the shape that makes
-	///                      "the item selected source 1" observable as a refusal.
+	///                      "the item selected source 1" observable as the range it gives that source.
 	explicit SoundRig(bool second_source)
 	    : fake(deluge::ui::shell::kDelugeBoard, deluge_profile()),
 	      shell(fake, deluge_profile(), reg, deluge::ui::shell::Services{}, ShellConfig{}) {
@@ -665,25 +665,23 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		expect(recorder::recorder_scene().recording()).to_be_true();
 	});
 
-	it("sample1_recorder opens it over source 1, which is what a missing range proves", _ {
-		// The per-source discriminator for this scene. Oscillator 1 is left a square wave with no
-		// `MultiRange` at all, so `RecorderScene::can`'s no-range refusal fires -- but
-		// only if the item re-pointed the context at source 1. Wired to source 0 it would find source
-		// 0's range and open, which is what makes this a test of `select_source` and not of `can`.
+	it("sample1_recorder gives source 1 its first range and opens the recorder on it, as main's AudioRecorder does", _ {
+		// `osc::AudioRecorder::checkPermissionToBeginSession` asks
+		// `checkPermissionToBeginSessionForRangeSpecificParam` about its own `source_id_`, whose first statement is
+		// `getOrCreateFirstRange()`: a square-wave oscillator 2 with no `MultiRange` gets one and records into it. The
+		// menu's context stays on source 0 (`SoundRig::ctx`), so only an item that asks about source 1 itself makes the
+		// range there; source 0 keeps the one range it had.
 		spec::QuietAudio quiet;
 		CleanScenes clean;
 		ScratchCard card;
 		SoundRig r{/*second_source=*/false};
-		expect(r.source[1] == nullptr).to_be_true();
+		expect(r.sound->sources[1].ranges.size()).to_equal(size_t{0});
 
 		r.focus(nodes::sample1_recorder);
-		expect(r.on_stack(recorder::kRecorderSceneKind)).to_be_false();
-
-		// And the same rig opens on source 0, so the refusal above is about the source rather than
-		// about the rig being unable to record at all.
-		SoundRig r2{/*second_source=*/false};
-		r2.focus(nodes::sample0_recorder);
-		expect(r2.on_stack(recorder::kRecorderSceneKind)).to_be_true();
+		expect(r.on_stack(recorder::kRecorderSceneKind)).to_be_true();
+		expect(recorder::recorder_scene().recording()).to_be_true();
+		expect(r.sound->sources[1].ranges.size()).to_equal(size_t{1});
+		expect(r.sound->sources[0].ranges.size()).to_equal(size_t{1});
 	});
 
 	it("does not leave source 0's range behind when it selects source 1", _ {
