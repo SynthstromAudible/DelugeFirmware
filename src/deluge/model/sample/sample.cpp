@@ -832,14 +832,17 @@ bool Sample::getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int3
 			char* currentPos = (char*)&cluster->data[bytePosWithinCluster] - 4 + byteDepthNow;
 			char* endPos = currentPos + numSamplesThisRead * bytesPerSample * playDirection;
 
+			// Summed in a local, as totals could alias the audio data as far as the compiler knows
+			int32_t total = totals[i];
 			do {
-				totals[i] += *(int32_t*)currentPos >> 16;
+				total += *(int32_t*)currentPos >> 16;
 				if (numChannelsNow == 2) {
-					totals[i] += *(int32_t*)(currentPos + byteDepthNow) >> 16;
+					total += *(int32_t*)(currentPos + byteDepthNow) >> 16;
 				}
 
 				currentPos += bytesPerSample * playDirection;
 			} while (currentPos != endPos);
+			totals[i] = total;
 
 			readByte += numSamplesThisRead * bytesPerSample * playDirection;
 			numSamplesLeftThisAverage -= numSamplesThisRead;

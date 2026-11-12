@@ -332,6 +332,120 @@ HopParams getHopParams(int32_t timeStretchRatio) {
 	return params;
 }
 
+// One stretch of the phase search in hopEnd(), with its state in registers: steps the moving averages of the new
+// play-head along the waveform (currentPos at their boundaries) and keeps track of the best match to the old
+// play-head's, until endOffset or until the total change's sign flips (or, if mayRestart, at once if the first read is
+// worse, for hopEnd() to search the other direction instead). The state passed in is updated as it goes.
+// lastTotalChange must be the totals' sum minus the old head's (as it always is in hopEnd()), as it's kept up to date
+// from the samples entering and leaving the totals rather than summed again
+enum class PhaseSearchStop { END_OF_READ, SIGN_FLIPPED, RESTART };
+
+struct PhaseSearchSteps {
+	char const* __restrict__* currentPos; // kNumMovingAverages + 1
+	int32_t* runningTotals;               // kNumMovingAverages
+	int32_t const* oldHeadTotals;
+	int32_t bytesPerSampleTimesSearchDirection;
+	int32_t searchDirectionRelativeToPlayDirection;
+	int32_t byteDepth;
+	int32_t& offsetNow;
+	int32_t& bestDifferenceAbs;
+	int32_t& bestOffset;
+	int32_t& lastTotalChange;
+	// When it stops because the sign flipped:
+	int32_t thisTotalChange = 0;
+	bool thisOffsetIsBestMatch = false;
+
+	template <int32_t numChannels>
+	PhaseSearchStop run(int32_t endOffset, bool mayRestart) {
+		static_assert(TimeStretch::Crossfade::kNumMovingAverages == 3);
+		int32_t const step = bytesPerSampleTimesSearchDirection;
+		int32_t const direction = searchDirectionRelativeToPlayDirection;
+		int32_t const depth = byteDepth;
+		char const* pos0 = currentPos[0];
+		char const* pos1 = currentPos[1];
+		char const* pos2 = currentPos[2];
+		char const* pos3 = currentPos[3];
+		// Only the totals' differences from the old head's are needed, so keep those
+		int32_t difference0 = runningTotals[0] - oldHeadTotals[0];
+		int32_t difference1 = runningTotals[1] - oldHeadTotals[1];
+		int32_t difference2 = runningTotals[2] - oldHeadTotals[2];
+		int32_t offset = offsetNow;
+		int32_t best = bestDifferenceAbs;
+		int32_t bestAt = bestOffset;
+		int32_t last = lastTotalChange;
+		int32_t change = 0;
+		PhaseSearchStop stop = PhaseSearchStop::END_OF_READ;
+
+		// Reads the sample (summed if stereo) at pos and moves pos along
+		auto read = [&](char const*& pos) __attribute__((always_inline)) {
+			int32_t value = *(int32_t*)pos >> 16;
+			if constexpr (numChannels == 2) {
+				value += *(int32_t*)(pos + depth) >> 16;
+			}
+			pos += step;
+			return value * direction;
+		};
+
+		// Moves the moving averages along one sample: each boundary's sample leaves one and enters the next. Sets
+		// change to how much that changed their sum by, and returns their total difference from the old head's
+		auto advance = [&]() __attribute__((always_inline)) {
+			int32_t value0 = read(pos0);
+			int32_t value1 = read(pos1);
+			int32_t value2 = read(pos2);
+			int32_t value3 = read(pos3);
+			difference0 += value1 - value0;
+			difference1 += value2 - value1;
+			difference2 += value3 - value2;
+			change = value3 - value0;
+			return std::abs(difference0) + std::abs(difference1) + std::abs(difference2);
+		};
+
+		int32_t differenceAbs = advance();
+		if (mayRestart && differenceAbs > best) {
+			stop = PhaseSearchStop::RESTART;
+		}
+		else {
+			while (true) {
+				offset += step;
+
+				// Keep track of best match
+				bool isBest = (differenceAbs < best);
+				if (isBest) {
+					best = differenceAbs;
+					bestAt = offset;
+				}
+
+				// The sum of the totals minus the old head's, kept up to date as the totals move along
+				int32_t totalChange = last + change;
+				if ((totalChange ^ last) < 0) {
+					thisTotalChange = totalChange;
+					thisOffsetIsBestMatch = isBest;
+					stop = PhaseSearchStop::SIGN_FLIPPED;
+					break;
+				}
+				last = totalChange;
+				if (offset == endOffset) {
+					break;
+				}
+				differenceAbs = advance();
+			}
+		}
+
+		currentPos[0] = pos0;
+		currentPos[1] = pos1;
+		currentPos[2] = pos2;
+		currentPos[3] = pos3;
+		runningTotals[0] = difference0 + oldHeadTotals[0];
+		runningTotals[1] = difference1 + oldHeadTotals[1];
+		runningTotals[2] = difference2 + oldHeadTotals[2];
+		offsetNow = offset;
+		bestDifferenceAbs = best;
+		bestOffset = bestAt;
+		lastTotalChange = last;
+		return stop;
+	}
+};
+
 } // namespace
 
 // Returns false if sound needs to cut due to a load error or similar
@@ -808,94 +922,71 @@ startSearch:
 			}
 
 			// Alright, read those samples for our currently worked out little bit until we reach a cluster boundary or
-			// something
+			// something. phaseSearchSteps() stops early when the total change's sign flips, for the rest to be done
+			// here
 			int32_t endOffset = offsetNow + numSamplesThisRead * bytesPerSampleTimesSearchDirection;
-			do { // For each individual sample (well, actually, we're gonna read like 3 different, spaced ones at a
-				 // time)
+			while (true) {
+				PhaseSearchSteps steps{currentPos,
+				                       newHeadRunningTotals,
+				                       oldHeadTotals,
+				                       bytesPerSampleTimesSearchDirection,
+				                       searchDirectionRelativeToPlayDirection,
+				                       byteDepth,
+				                       offsetNow,
+				                       bestDifferenceAbs,
+				                       bestOffset,
+				                       lastTotalChange};
+				// If our very first read is worse, we'll want to switch search direction right away
+				bool mayRestart =
+				    (offsetNow == 0 && searchDirectionRelativeToPlayDirection == 1 && !numFullDirectionsSearched);
+				PhaseSearchStop stop =
+				    (numChannels == 2) ? steps.run<2>(endOffset, mayRestart) : steps.run<1>(endOffset, mayRestart);
 
-				int32_t readValueRelativeToBothDirections;
-				int32_t thisRunningTotal;
-				int32_t i = 0;
-
-				goto entryPoint;
-
-				// Grab this sample for each moving-average-boundary
-				for (; i < TimeStretch::Crossfade::kNumMovingAverages + 1; i++) { // Manually unrolling didn't speed up
-
-					thisRunningTotal = newHeadRunningTotals[i - 1]
-					                   - readValueRelativeToBothDirections; // Subtracts the one from last iteration
-entryPoint:
-
-					int32_t readValueHere = *(int32_t*)currentPos[i] >> 16;
-
-					if (numChannels == 2) {
-						readValueHere += *(int32_t*)(currentPos[i] + byteDepth) >> 16;
-					}
-
-					currentPos[i] += bytesPerSampleTimesSearchDirection;
-
-					readValueRelativeToBothDirections = readValueHere * searchDirectionRelativeToPlayDirection;
-
-					if (i > 0) {
-						thisRunningTotal += readValueRelativeToBothDirections;
-						newHeadRunningTotals[i - 1] = thisRunningTotal;
-					}
-				}
-
-				int32_t differenceAbs = getTotalDifferenceAbs(oldHeadTotals, newHeadRunningTotals);
-
-				// If our very first read is worse, let's switch search direction right now - that'll improve our odds
-				if (offsetNow == 0 && searchDirectionRelativeToPlayDirection == 1 && !numFullDirectionsSearched
-				    && differenceAbs > bestDifferenceAbs) {
+				if (stop == PhaseSearchStop::RESTART) {
 					goto restartSearchWithOtherDirection;
 				}
-
-				offsetNow += bytesPerSampleTimesSearchDirection;
-
-				// Keep track of best match
-				bool thisOffsetIsBestMatch = (differenceAbs < bestDifferenceAbs);
-				if (thisOffsetIsBestMatch) {
-					bestDifferenceAbs = differenceAbs;
-					bestOffset = offsetNow;
+				if (stop == PhaseSearchStop::END_OF_READ) {
+					break;
 				}
 
-				int32_t thisTotalChange = getTotalChange(oldHeadTotals, newHeadRunningTotals);
+				// Sign just flipped...
+				int32_t thisTotalChange = steps.thisTotalChange;
+				bool thisOffsetIsBestMatch = steps.thisOffsetIsBestMatch;
 
-				// If sign just flipped...
-				if (((uint32_t)thisTotalChange >> 31) != ((uint32_t)lastTotalChange >> 31)) {
+				// Try going in between the samples for the most accurate positioning, lining-up-wise.
+				// The benefit of this is visible on a spectrum analysis if you're pitching a high-pitched sine wave
+				// right down, while also time stretching it
 
-					// Try going in between the samples for the most accurate positioning, lining-up-wise.
-					// The benefit of this is visible on a spectrum analysis if you're pitching a high-pitched sine wave
-					// right down, while also time stretching it
-
-					// If best was this one or last one
-					if (phaseIncrement != kMaxSampleValue
-					    && (thisOffsetIsBestMatch || bestOffset == offsetNow - bytesPerSampleTimesSearchDirection)) {
-						uint32_t thisTotalDifferenceAbs = std::abs(thisTotalChange);
-						uint32_t lastTotalDifferenceAbs = std::abs(lastTotalChange);
-						additionalOscPos = ((uint64_t)lastTotalDifferenceAbs << 24)
-						                   / (uint32_t)(lastTotalDifferenceAbs + thisTotalDifferenceAbs);
-						if (searchDirectionRelativeToPlayDirection == -1) {
-							additionalOscPos = kMaxSampleValue - additionalOscPos;
-						}
-						if (thisOffsetIsBestMatch != (searchDirectionRelativeToPlayDirection == -1)) {
-							bestOffset -= bytesPerSample * playDirection;
-						}
+				// If best was this one or last one
+				if (phaseIncrement != kMaxSampleValue
+				    && (thisOffsetIsBestMatch || bestOffset == offsetNow - bytesPerSampleTimesSearchDirection)) {
+					uint32_t thisTotalDifferenceAbs = std::abs(thisTotalChange);
+					uint32_t lastTotalDifferenceAbs = std::abs(lastTotalChange);
+					additionalOscPos = ((uint64_t)lastTotalDifferenceAbs << 24)
+					                   / (uint32_t)(lastTotalDifferenceAbs + thisTotalDifferenceAbs);
+					if (searchDirectionRelativeToPlayDirection == -1) {
+						additionalOscPos = kMaxSampleValue - additionalOscPos;
 					}
+					if (thisOffsetIsBestMatch != (searchDirectionRelativeToPlayDirection == -1)) {
+						bestOffset -= bytesPerSample * playDirection;
+					}
+				}
 
-					// After sign has flipped a certain number of times (in total, including both search directions), we
-					// can be fairly sure we've found a good fit This needs to be 4. Any less, and we start getting lots
-					// of bad alignments - I did tests. But 4 sounds basically as good as no limit.
-					timesSignFlipped++;
+				// After sign has flipped a certain number of times (in total, including both search directions), we
+				// can be fairly sure we've found a good fit This needs to be 4. Any less, and we start getting lots
+				// of bad alignments - I did tests. But 4 sounds basically as good as no limit.
+				timesSignFlipped++;
 #if !MEASURE_HOP_END_PERFORMANCE
-					if (timesSignFlipped >= 4) {
-						goto stopSearch;
-					}
-#endif
+				if (timesSignFlipped >= 4) {
+					goto stopSearch;
 				}
+#endif
 
 				lastTotalChange = thisTotalChange;
-			} while (offsetNow != endOffset);
+				if (offsetNow == endOffset) {
+					break;
+				}
+			}
 
 			numSamplesLeftThisSearch -= numSamplesThisRead;
 
