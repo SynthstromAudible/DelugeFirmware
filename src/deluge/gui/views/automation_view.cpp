@@ -1312,6 +1312,8 @@ void AutomationView::handleSessionButtonAction(Clip* clip, bool on) {
 	// go back to song / arranger view
 	else if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
 		if (padSelectionOn) {
+			// Song / Arranger View cannot release the automation editor's held pads.
+			endAutomationEditPadPresses();
 			initPadSelection();
 		}
 		// automation arranger view transitioning back to arranger view
