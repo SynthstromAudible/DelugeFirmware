@@ -758,8 +758,9 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 	});
 
 	it("SHIFT with a vertical turn does not shift the clip's colour -- verticalEncoderAction's `inNoteRowEditor`", _ {
-		// `gui/views/instrument_clip_view.cpp:6338-6342`: no colour shifting in the note-row editor; the turn
-		// falls to the scroll arm instead of `commandShiftColour`'s whole-clip shift (`:6541-6543`).
+		// `InstrumentClipView::verticalEncoderAction` (`gui/views/instrument_clip_view.cpp`): no colour shifting in the
+		// note-row editor; the turn falls to the scroll arm instead of `commandShiftColour`'s whole-clip shift
+		// (`:6541-6543`).
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
@@ -775,7 +776,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 
 	it("an audition on another drum's row gives the gold knobs that drum -- setSelectedDrum's "
 	   "`inNoteOrNoteRowEditor`", _ {
-		// `startAuditioningRow` selects the row's drum (`gui/views/instrument_clip_view.cpp:5562-5564`), and
+		// `startAuditioningRow` selects the row's drum (`gui/views/instrument_clip_view.cpp`), and
 		// `:5143-5144` then re-targets the active mod-controllable (`:5156`).
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;

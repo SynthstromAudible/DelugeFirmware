@@ -36,11 +36,11 @@ struct LoweringConfig {
 /// @brief The one object between the board's raw input and the shell's `UiEvent`s.
 ///
 /// It owns every piece of input state the legacy firmware scattered across `Buttons::`
-/// (`hid/buttons.cpp`), `MatrixDriver::padStates` (`hid/matrix/matrix_driver.cpp:65-84`) and the
-/// encoder accumulators (`hid/encoders.cpp`): which buttons and pads are down, when each press
-/// began, whether a press has been consumed, the sticky-shift latch, and each encoder's partial
-/// detent. From that it produces two things per tick: the `UiEvent` queue (`next()`) and the
-/// toolkit's `ui::InputSnapshot` (`snapshot()`).
+/// (`hid/buttons.cpp`), `MatrixDriver::padStates` (`MatrixDriver::padAction` and `isPadPressed`,
+/// `hid/matrix/matrix_driver.cpp`) and the encoder accumulators (`hid/encoders.cpp`): which buttons and pads are down,
+/// when each press began, whether a press has been consumed, the sticky-shift latch, and each encoder's partial detent.
+/// From that it produces two things per tick: the `UiEvent` queue (`next()`) and the toolkit's `ui::InputSnapshot`
+/// (`snapshot()`).
 ///
 /// # The tick
 ///
@@ -389,7 +389,7 @@ public:
 	/// @brief Release everything held: a synthetic release per held button and pad, then
 	///        `AllReleased`.
 	///
-	/// The safety net behind `DELUGE_EVENT_NO_PRESSES` (`matrix_driver.cpp:53-64`,
+	/// The safety net behind `DELUGE_EVENT_NO_PRESSES` (`MatrixDriver::noPressesHappening`, `matrix_driver.cpp`;
 	/// `buttons.cpp:315-323`). The synthetic releases run through the same path a real release
 	/// takes, so the sticky-shift rule sees a released shift exactly as it would have, and each
 	/// lands in whichever queue that event would normally have gone to.

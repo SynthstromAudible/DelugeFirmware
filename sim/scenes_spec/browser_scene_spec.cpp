@@ -2852,7 +2852,7 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 	});
 
 	it("with auto-load on, a landed preview files a claim that keeps the browser open; a stop files none", _ {
-		// `SampleBrowser::tickPreview`: the landed file is claimed as Select would, with `loadWithoutExiting`.
+		// `SampleBrowser::tickPreview`: the landed file is claimed as Select would, keeping the browser open.
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();

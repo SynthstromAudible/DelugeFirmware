@@ -419,7 +419,7 @@ menu tree reaches: `BrowserId::Sample`, `BrowserId::MidiDeviceDefinition` and `B
 * **`accept` has three outcomes.** `Close` and `Stay` are legacy's; `DeferAndWait` parks the choice in
   `take_choice()` and stays up until the host answers `deferred_load_done`, because the sample claim, the MIDI
   definition load and the `.syx` read reach objects this layer may not name, and each legacy browser stays up until
-  its load ends. `gui::ui::dispatchShellChoices` performs it (the claim with `loadWithoutExiting = true`), and the
+  its load ends. `gui::ui::dispatchShellChoices` performs it (a claim that leaves the browser to close itself), and the
   claim's success re-roots the covered menu onto the page the chain lists the file selector on (an oscillator's
   `source_group`, focused on the selector) before the browser closes over it.
 * **Shift+Select on a file while editing a kit** is legacy's whole `editingKit() && shift` branch,

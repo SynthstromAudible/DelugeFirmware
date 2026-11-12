@@ -4349,7 +4349,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool dragg
 	bool renderDisplay = !inAutomationNoteEditor; // note code already on display in automation note editor
 	bool updateDrumSelection = !inNoteRowEditor && !inAutomationNoteEditor;
 	scrollVertical_potentiallySwitchOnAuditionedNotes(draggingNoteRow, modelStack, clip, output, outputType, isKit,
-	                                                  false, currentClipIsActive, renderDisplay, updateDrumSelection);
+	                                                  currentClipIsActive, renderDisplay, updateDrumSelection);
 
 	// if we're not in automation view (note rows aren't moved around in automation view)
 	if (!inAutomationView) {
@@ -4534,8 +4534,7 @@ void InstrumentClipView::scrollVertical_dragSelectedNoteRow(InstrumentClip* clip
 
 void InstrumentClipView::scrollVertical_potentiallySwitchOnAuditionedNotes(
     bool draggingNoteRow, ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, Output* output,
-    OutputType outputType, bool isKit, bool inSoundEditor, bool currentClipIsActive, bool renderDisplay,
-    bool updateDrumSelection) {
+    OutputType outputType, bool isKit, bool currentClipIsActive, bool renderDisplay, bool updateDrumSelection) {
 	// Switch on any auditioned notes - remembering that the one we're shifting (if we are) was left on before
 	bool drawnNoteCodeYet = false;
 	bool forceStoppedAnyAuditioning = false;

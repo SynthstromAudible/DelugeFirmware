@@ -77,8 +77,7 @@
 ///     `BrowserScene` decides it with the press, as legacy's `editingKit() && shift` branch does.
 ///  3. **`perform_editor`'s sync into `menu::performance_editing_mode()` is complete.** The four
 ///     sites where `PerformanceView` moves the two mirrored bools call
-///     `syncEditingModeMirror(*this)`, and a fifth writer is covered too: legacy's own
-///     `EditingMode::selectButtonPress` (`gui/menu_item/performance_session_view/editing_mode.h:84`).
+///     `syncEditingModeMirror(*this)`, and the ported item sets the mirror itself.
 ///     With the writer set closed, the ported editing item and the view cannot disagree.
 ///  4. **The ported settings items that write flash notify the owner.** The shortcut-layout
 ///     setter writes flash byte 60 (`FlashStorage::shortcutsVersion`) itself. The two screensaver setters make
@@ -200,7 +199,7 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 bool openShellMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceView, bool sessionOrArrangerRoot,
                              bool sessionViewRoot, bool kitGlobalFx);
 
-/// @brief The one kit-global-FX latch, which `SoundEditor::setupKitGlobalFXMenu` refers to: whether an open, and a
+/// @brief The one kit-global-FX latch, main's `SoundEditor::setupKitGlobalFXMenu`: whether an open, and a
 ///        shortcut press re-rooting the open guest, edit a kit's own effects rather than its selected row.
 ///
 /// Sticky. `shellShortcutPadAction` writes it with the guest closed, on every press it is
