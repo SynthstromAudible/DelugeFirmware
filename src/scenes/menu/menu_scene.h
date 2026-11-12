@@ -463,7 +463,7 @@ public:
 	/// (`nodes/actions.cpp`).
 	///
 	/// Its only caller today is `nodes::set_shortcuts_version` (`nodes/settings.cpp`), which files
-	/// `MenuAction::SetShortcutsVersion` beside its own mirror write -- see `scenes/menu/action.h`'s
+	/// `MenuAction::SetShortcutsVersion` after writing flash byte 60 -- see `scenes/menu/action.h`'s
 	/// "the sixth item" for why that item's write, rather than its press, is what crosses the wall.
 	///
 	/// @par The timing, which is what makes this safe rather than merely convenient

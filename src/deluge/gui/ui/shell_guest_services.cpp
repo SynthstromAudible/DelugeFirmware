@@ -301,7 +301,7 @@ void refreshShellRangeDisplay() {
 		}
 		return;
 	}
-	// `SoundEditor::possibleChangeToCurrentRangeDisplay` (`sound_editor.cpp:1223-1232`).
+	// `SoundEditor::possibleChangeToCurrentRangeDisplay`.
 	if (root == &keyboardScreen) {
 		uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
 	}

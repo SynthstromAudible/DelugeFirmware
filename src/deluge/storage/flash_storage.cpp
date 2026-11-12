@@ -37,6 +37,7 @@
 #include "util/functions.h"
 #include "util/misc.h"
 #include "util/notify.h"
+#include "util/sound_menu_open.h"
 #include <cstdint>
 #include <modulation/patch/patch_cable.h>
 
@@ -289,6 +290,8 @@ Polarity defaultPatchCablePolarity = Polarity::BIPOLAR;
 
 bool defaultUseSharps = true;
 
+uint8_t shortcutsVersion = kShortcutsVersion3;
+
 /// The six pad colours (`flash_storage.h`). Zero-initialised here and given real defaults by
 /// `resetSettings`; `gui::menu_item::Colour::value` is a reference onto one of these.
 uint8_t padColours[NUM_PAD_COLOUR_SLOTS] = {};
@@ -340,7 +343,8 @@ void resetSettings() {
 
 	defaultScale = 0;
 
-	soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
+	shortcutsVersion = kShortcutsVersion3;
+	deluge::gui::ui::legacyShortcutsVersionChanged();
 
 	audioClipRecordMargins = true;
 	playbackHandler.countInBars = 0;
@@ -602,7 +606,8 @@ void readSettings() {
 		}
 	}
 
-	soundEditor.setShortcutsVersion(buffer[60]);
+	shortcutsVersion = buffer[60];
+	deluge::gui::ui::legacyShortcutsVersionChanged();
 	audioClipRecordMargins = buffer[61];
 	playbackHandler.countInBars = buffer[62];
 	keyboardLayout =
@@ -1088,7 +1093,7 @@ void writeSettings() {
 
 	buffer[59] = OFFICIAL_FIRMWARE_NONE_SCALE_INDEX; // tombstone value for official firmware Default Scale slot
 	buffer[148] = defaultScale;
-	buffer[60] = soundEditor.shortcutsVersion;
+	buffer[60] = shortcutsVersion;
 
 	buffer[61] = audioClipRecordMargins;
 	buffer[62] = playbackHandler.countInBars;

@@ -2257,8 +2257,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("a leaf's select press opens the menu its select_chain names, instead of ascending", _ {
-		// The port of `MenuItem::selectButtonPress` returning a menu (`gui/ui/sound_editor.cpp:395`
-		// -> `enterSubmenu`). `chain_source_leaf`'s hook chains only on an odd value, so this drives
+		// The port of `MenuItem::selectButtonPress` returning a menu (`SoundEditor::buttonAction`'s SELECT
+		// arm -> `enterSubmenu`). `chain_source_leaf`'s hook chains only on an odd value, so this drives
 		// both answers through the real shell and asserts each.
 		select_language();
 		deluge::notify::dirty().drain();

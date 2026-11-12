@@ -680,11 +680,9 @@ otherwise. Site 10, the legacy browser's own, is unreachable with ShellMenu on. 
 
 `registry.h`'s boot-wiring record is the authority; the short version:
 
-* **The shortcut layout** (`menu::set_shortcuts_version`, flash byte 60) is pushed from inside
-  `SoundEditor::setShortcutsVersion`, the sole writer, so boot, both reset menus (legacy's and the
-  ported one) and the legacy settings item all reach it. The ported settings item writes the mirror
-  and files `MenuAction::SetShortcutsVersion`, whose dispatch performs the legacy write that
-  persists it.
+* **The shortcut layout** is flash byte 60, `FlashStorage::shortcutsVersion`, which `menu::shortcuts_version` reads
+  and `menu::set_shortcuts_version` writes. The ported settings item writes it and files
+  `MenuAction::SetShortcutsVersion` so that the legacy editor's tables follow.
 * **The screensaver timeout** (`ShellConfig::screensaver_idle_ms`) is pushed through
   `Shell::set_screensaver_idle_ms` from `Screensaver::settingsChanged()`; the ported setters file
   `MenuAction::ScreensaverSettingsChanged`.

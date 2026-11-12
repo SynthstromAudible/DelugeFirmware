@@ -34,10 +34,8 @@
 /// What crosses the wall is its **write**. `shortcuts::Version::writeCurrentValue`
 /// (`gui/menu_item/shortcuts/version.h:27`) is `soundEditor.setShortcutsVersion(this->getValue())`,
 /// and `SoundEditor::shortcutsVersion` is the byte `FlashStorage::writeSettings` stores at flash
-/// byte 60 (`storage/flash_storage.cpp:982`). The ported hook can reach neither symbol, so it
-/// writes only this layer's mirror (`menu::set_shortcuts_version`, `scenes/menu/shortcuts.h`), so without
-/// the action a layout chosen from the ported settings menu would be in force for the session and gone
-/// at the next power-on. `MenuAction::SetShortcutsVersion` is the legacy half of that write.
+/// byte 60. The ported hook writes that byte itself (`menu::set_shortcuts_version`). It files the action so that the
+/// legacy editor's in-place shortcut tables follow while the Legacy Menu setting exists.
 ///
 /// Two consequences follow from "a write, not a press", and both are load-bearing below:
 ///
@@ -145,30 +143,12 @@ enum class MenuAction : uint8_t {
 	///        unused.
 	OpenSongMacros,
 
-	/// @brief `soundEditor.setShortcutsVersion(arg)` -- the legacy half of the ported
+	/// @brief Bring the legacy editor's shortcut tables into step with flash byte 60 -- the legacy half of the ported
 	///        `shortcuts_version` item's write. `arg` is the value the item was set to.
 	///
-	/// The dispatcher performs `shortcuts::Version::writeCurrentValue`'s one statement
-	/// (`gui/menu_item/shortcuts/version.h:27`) on the real `soundEditor`, which is the single writer covering all four
-	/// legacy paths that change this setting
-	/// (`SoundEditor::setShortcutsVersion`, `gui/ui/sound_editor.cpp:112-181`, the census in its own
-	/// comment). That is what puts the choice in flash byte 60
-	/// (`FlashStorage::writeSettings`, `storage/flash_storage.cpp:982`).
-	///
-	/// **`arg` is legacy's own unnormalised value, deliberately.** `writeCurrentValue` passes
-	/// `this->getValue()` straight through and lets `setShortcutsVersion`'s `switch` decide what a
-	/// value that is neither enumerator means ("Uses defaults", i.e. V3); the port passes the enum
-	/// index straight through for the same reason, so the two cannot disagree about the mapping
-	/// because neither of them applies one.
-	///
-	/// **This does not loop, and that is a design constraint rather than an observation.**
-	/// `SoundEditor::setShortcutsVersion` mirrors *into* this layer -- it calls
-	/// `menu::set_shortcuts_version` (`scenes/menu/shortcuts.h`). That callee is the
-	/// free function that assigns one file-scope `ShortcutsVersion` in `menu/shortcuts.cpp`; it is
-	/// **not** `nodes::set_shortcuts_version`, files no request and touches no `MenuState`. So the
-	/// round trip is exactly one lap: hook -> request -> dispatcher -> legacy write -> mirror write,
-	/// and it terminates there. Anything later that makes the *mirror* setter file a request would
-	/// close that loop, which is why the mirror setter must stay a plain assignment.
+	/// The ported item has written the byte itself (`menu::set_shortcuts_version`). The dispatcher calls the legacy
+	/// editor's `SoundEditor::setShortcutsVersion`, which mutates its in-place tables to match; that only matters while
+	/// the Legacy Menu setting exists. It does not loop: the callee writes no byte and files no request.
 	SetShortcutsVersion,
 
 	/// @brief `hid::display::Screensaver::settingsChanged()` -- the notify half of **both** ported
@@ -244,9 +224,7 @@ struct MenuActionRequest {
 /// (`gui/views/performance_view.h:112-113`), read and written from thirty-odd places inside that
 /// view. There is no bare-`extern` escape from a class member (the trick `settings.cpp` uses for
 /// `PadLEDs::flashCursor`), and unlike `Colour::value` these are not one setting byte that
-/// obviously belongs in `FlashStorage` -- they are that view's live mode. So the port owns a mirror,
-/// which is exactly the arrangement `menu::shortcuts_version()` already documents for
-/// `soundEditor.shortcutsVersion` (`scenes/menu/shortcuts.h`).
+/// obviously belongs in `FlashStorage` -- they are that view's live mode. So the port owns a mirror.
 ///
 /// **Who keeps the mirror in step.** The mirror is
 /// authoritative for what the menu *shows* and for what `MenuAction::OpenPerformanceView` carries.

@@ -39,6 +39,7 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/nodes.h"
+#include "storage/flash_storage.h"
 
 #include <array>
 #include <cstddef>
@@ -274,10 +275,10 @@ constexpr Cells kAudioClipV1Cells =
 /// (`x in {14, 15}`, `:1180-1268`, which walks `patchingSourceShortcutPress` up the menu stack).
 constexpr Cells kMidiExtraCells = [] {
 	Cells out{};
-	out[cell_index(4, 7)] = &n::sequence_direction;     // `sound_editor.cpp:1351-1353`
-	out[cell_index(15, 1)] = &n::spread_velocity_midi;  // `:1288-1289`
-	out[cell_index(15, 2)] = &n::randomizer_lock;       // `:1290-1291`
-	out[cell_index(15, 3)] = &n::note_probability_midi; // `:1292-1293`
+	out[cell_index(4, 7)] = &n::sequence_direction;     // `SoundEditor::get_basic_shortcut_action`
+	out[cell_index(15, 1)] = &n::spread_velocity_midi;  // ditto
+	out[cell_index(15, 2)] = &n::randomizer_lock;       // ditto
+	out[cell_index(15, 3)] = &n::note_probability_midi; // ditto
 	return out;
 }();
 
@@ -368,13 +369,9 @@ constexpr Layers kByRootV1[static_cast<size_t>(MenuContext::Root::Count)] = {
     {&kNoCells, &kNoCells},                                                      // NoteRowEditor
 };
 
-/// The layout in force. A file-scope value rather than a `MenuContext` field because it is a global
-/// *setting* -- legacy keeps it on `soundEditor`, one per application, not per open menu.
-ShortcutsVersion g_version = ShortcutsVersion::V3;
-
 const Layers& layers_for(MenuContext::Root root) {
 	const auto i = static_cast<size_t>(root);
-	const Layers* by_root = g_version == ShortcutsVersion::V1 ? kByRootV1 : kByRootV3;
+	const Layers* by_root = shortcuts_version() == ShortcutsVersion::V1 ? kByRootV1 : kByRootV3;
 	return i < static_cast<size_t>(MenuContext::Root::Count)
 	           ? by_root[i]
 	           : by_root[static_cast<size_t>(MenuContext::Root::Settings)];
@@ -461,12 +458,16 @@ ShortcutPos shortcut_pos(MenuContext::Root root, const Node& node) {
 	return find_in(*l.first, node);
 }
 
+static_assert(FlashStorage::kShortcutsVersion1 == static_cast<uint8_t>(ShortcutsVersion::V1));
+static_assert(FlashStorage::kShortcutsVersion3 == static_cast<uint8_t>(ShortcutsVersion::V3));
+
 ShortcutsVersion shortcuts_version() {
-	return g_version;
+	return FlashStorage::shortcutsVersion == FlashStorage::kShortcutsVersion1 ? ShortcutsVersion::V1
+	                                                                          : ShortcutsVersion::V3;
 }
 
 void set_shortcuts_version(ShortcutsVersion version) {
-	g_version = version;
+	FlashStorage::shortcutsVersion = static_cast<uint8_t>(version);
 }
 
 } // namespace deluge::scenes::menu

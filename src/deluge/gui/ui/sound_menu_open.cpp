@@ -30,6 +30,7 @@
 #include "gui/ui/shell_guest_services.h" // the shell* arms
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
+#include "storage/flash_storage.h"
 #include "util/shell_menu_entry.h"
 
 namespace deluge::gui::ui {
@@ -62,6 +63,10 @@ void readSoundMenuValueAgain() {
 void mpeZonesPotentiallyUpdated() {
 	soundEditor.mpeZonesPotentiallyUpdated();
 	shellMpeZonesPotentiallyUpdated();
+}
+
+void legacyShortcutsVersionChanged() {
+	soundEditor.setShortcutsVersion(FlashStorage::shortcutsVersion);
 }
 
 std::optional<int32_t> dxColumnFlashRow() {

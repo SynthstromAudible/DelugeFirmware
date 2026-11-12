@@ -23,6 +23,7 @@
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "modulation/arpeggiator.h"
+#include "storage/flash_storage.h"
 #include "util/shell_menu_entry.h"
 
 #define SHORTCUTS_VERSION_1 0
@@ -131,7 +132,7 @@ public:
 	uint32_t numberEditSize{};
 	int8_t numberEditPos{};
 
-	uint8_t shortcutsVersion{};
+	uint8_t& shortcutsVersion{FlashStorage::shortcutsVersion};
 
 	MenuItem* menuItemNavigationRecord[16]{};
 

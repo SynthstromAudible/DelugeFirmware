@@ -350,15 +350,6 @@ void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 
 	shortcutsVersion = newVersion;
 
-	// Keep the ported menu's copy of this setting in step. `deluge::scenes::menu` selects between two `constexpr`
-	// shortcut layers and keeps its own `ShortcutsVersion` beside them; it may not name `SoundEditor`. This is the sole
-	// writer of `shortcutsVersion` -- boot, factory reset (legacy and ported reset menus) and both settings items all
-	// reach it -- so mirroring here covers every path. V1 for `SHORTCUTS_VERSION_1`, V3 for everything else, as the
-	// `switch` below reads it.
-	deluge::scenes::menu::set_shortcuts_version(newVersion == SHORTCUTS_VERSION_1
-	                                                ? deluge::scenes::menu::ShortcutsVersion::V1
-	                                                : deluge::scenes::menu::ShortcutsVersion::V3);
-
 	switch (newVersion) {
 
 	case SHORTCUTS_VERSION_1:

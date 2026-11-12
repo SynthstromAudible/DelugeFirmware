@@ -83,9 +83,8 @@
 ///     ported menu opened after a flip-on. With the writer set closed, the ported editing item and
 ///     the view cannot disagree with ShellMenu on or off.
 ///  4. **The ported settings items that write flash notify the legacy owner.** The shortcut-layout
-///     setter reaches `SoundEditor::setShortcutsVersion` (and so flash byte 60):
-///     `nodes::set_shortcuts_version` files `MenuAction::SetShortcutsVersion` beside its own
-///     mirror write, and the dispatcher performs the legacy call. The two screensaver setters make
+///     setter writes flash byte 60 (`FlashStorage::shortcutsVersion`) itself and files
+///     `MenuAction::SetShortcutsVersion` so that the legacy editor's tables follow. The two screensaver setters make
 ///     their `FlashStorage` assignment in the ported hook, matching the first statement of each
 ///     legacy `writeCurrentValue` (`gui/menu_item/defaults/screensaver.h:39`, `:61`), and file
 ///     `MenuAction::ScreensaverSettingsChanged` for the second, `Screensaver::settingsChanged()`;

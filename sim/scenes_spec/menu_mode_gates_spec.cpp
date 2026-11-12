@@ -32,6 +32,7 @@
 #include "scenes/registry.h"
 #include "shell/scene.h"
 
+#include "storage/flash_storage.h"
 #include "support/feature_setting.h"
 #include "support/global_guest_menu.h"
 #include "support/menu_over_root.h"
@@ -278,20 +279,20 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 		spec::UiStackGuard ui_guard;
 		spec::UiModeGuard mode_guard;
 		spec::SongFixture fx = spec::make_synth_song();
-		const uint8_t saved_legacy = soundEditor.shortcutsVersion;
+		const uint8_t saved_byte = FlashStorage::shortcutsVersion;
 		::MenuItem* const saved_cells[2] = {paramShortcutsForSounds[0][6], paramShortcutsForSounds[1][6]};
 		expect(open_settings_node(fx, nodes::shortcuts_version)).to_be_true();
-		const uint8_t before = soundEditor.shortcutsVersion;
-		shellHostUI.selectEncoderAction(before == SHORTCUTS_VERSION_1 ? 1 : -1); // to the other layout
+		const uint8_t before = FlashStorage::shortcutsVersion;
+		shellHostUI.selectEncoderAction(before == FlashStorage::kShortcutsVersion1 ? 1 : -1); // to the other layout
 		(void)shellHostUI.exitUI();
 		expect(isUIOpen(&shellHostUI)).to_be_false();
-		// `shortcuts::Version::writeCurrentValue`: the port's layout and `soundEditor`'s, which the close then saves.
-		expect(soundEditor.shortcutsVersion != before).to_be_true();
+		// The turn writes flash byte 60, which the ported tables select on and the close then saves.
+		expect(FlashStorage::shortcutsVersion != before).to_be_true();
 		expect(menu::shortcuts_version()
-		       == (soundEditor.shortcutsVersion == SHORTCUTS_VERSION_1 ? menu::ShortcutsVersion::V1
-		                                                               : menu::ShortcutsVersion::V3))
+		       == (FlashStorage::shortcutsVersion == FlashStorage::kShortcutsVersion1 ? menu::ShortcutsVersion::V1
+		                                                                              : menu::ShortcutsVersion::V3))
 		    .to_be_true();
-		soundEditor.setShortcutsVersion(saved_legacy);
+		soundEditor.setShortcutsVersion(saved_byte);
 		paramShortcutsForSounds[0][6] = saved_cells[0];
 		paramShortcutsForSounds[1][6] = saved_cells[1];
 	});

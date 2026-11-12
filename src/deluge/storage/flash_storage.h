@@ -90,6 +90,13 @@ extern Polarity defaultPatchCablePolarity;
 
 extern bool defaultUseSharps;
 
+/// @brief The two shortcut layouts' values of flash byte 60: the pre-3.0 layout and the current one.
+inline constexpr uint8_t kShortcutsVersion1 = 0;
+inline constexpr uint8_t kShortcutsVersion3 = 1;
+/// @brief The shortcut layout, as flash byte 60 stores it: `kShortcutsVersion1` selects the pre-3.0 layout and any
+///        other value the current one. The ported shortcut tables select on it (`scenes::menu::shortcuts_version`).
+extern uint8_t shortcutsVersion;
+
 /// @brief Which of the six pad-colour settings a `padColours` entry holds.
 ///
 /// The order is the COLOURS page's own (`gui/ui/menus.cpp:1248-1253`, `colourMenu`), which is also

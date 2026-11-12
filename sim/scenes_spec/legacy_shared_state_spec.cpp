@@ -10,6 +10,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
+#include "storage/flash_storage.h"
 #include "util/shell_menu_entry.h"
 #include "util/sound_menu_open.h"
 
@@ -102,6 +103,12 @@ describe legacy_shared_blink("the legacy editor's shortcut-blink members are the
 		expect(static_cast<int32_t>(padShortcutBlink.sourceFrequencies[1][2])).to_equal(255);
 	});
 });
+
+describe legacy_shared_shortcuts_byte("the legacy editor's shortcutsVersion is flash byte 60", $ {
+	it("is the byte itself", _ {
+		expect(&soundEditor.shortcutsVersion == &FlashStorage::shortcutsVersion).to_be_true();
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(legacy_shared_state_spec, legacy_shared_latch, legacy_shared_blink)
+DELUGE_SPEC(legacy_shared_state_spec, legacy_shared_latch, legacy_shared_blink, legacy_shared_shortcuts_byte)

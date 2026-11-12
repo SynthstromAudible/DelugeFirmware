@@ -135,34 +135,22 @@ describe boot_node_ids("scenes::assigned_node_ids at boot", $ {
 });
 
 describe boot_shortcuts_version("the shortcut layout follows flash byte 60", $ {
-	it("SoundEditor::setShortcutsVersion carries the choice into the ported tree, on every path", _ {
-		const uint8_t saved_legacy = soundEditor.shortcutsVersion;
-		const ShortcutsVersion saved_port = menu::shortcuts_version();
-		// `setShortcutsVersion`'s V1 arm rewrites six cells of this array in place and its V3 arm is
-		// a comment reading "Uses defaults" (`gui/ui/sound_editor.cpp`), so the round trip does NOT
-		// restore them -- the same one-way write `menu::set_shortcuts_version`'s own note records.
-		// Saved and put back by hand, exactly as `shortcuts_spec.cpp`'s `LegacyVersion1` guard does.
-		::MenuItem* const saved_cells[2] = {paramShortcutsForSounds[0][6], paramShortcutsForSounds[1][6]};
+	it("the ported tables select on FlashStorage::shortcutsVersion, which every path writes", _ {
+		const uint8_t saved = FlashStorage::shortcutsVersion;
 
-		// **This function is the whole of the wiring, which is why the example drives it and not a
-		// helper.** It is the sole writer of `shortcutsVersion`, and all four paths that change the
-		// setting go through it: `FlashStorage::readSettings` at boot
-		// (`storage/flash_storage.cpp:568`, from byte 60), `FlashStorage::resetSettings` (reached
-		// from the legacy reset menu AND from the ported one --
-		// `scenes/context_menu/context_menu_scene.cpp`'s `accept_reset_flash` / `accept_reset_all`),
-		// and `shortcuts::Version::writeCurrentValue` (`gui/menu_item/shortcuts/version.h:27`).
-		// Each of those four is one call of exactly the shape below; the mirror is put
-		// here for that reason, because a version set at only three call sites misses the two
-		// ported reset arms. Not driven from `resetSettings` itself: it rewrites every setting this process
-		// shares with the other twenty specs in this binary.
+		// Boot (`FlashStorage::readSettings`, from byte 60), the factory resets (`FlashStorage::resetSettings`, reached
+		// from the legacy reset menu and from the ported one) and the ported settings item
+		// (`menu::set_shortcuts_version`) each write this one byte, so the example drives the byte and the setter
+		// rather than `resetSettings`, which rewrites every setting this process shares with the other specs in this
+		// binary.
 		//
-		// Both values byte 60 can hold, in both directions -- a mirror that only ever wrote V1
-		// would pass a one-way check.
-		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_1);
+		// Both values byte 60 can hold, in both directions -- a read that only ever followed one would pass a one-way
+		// check.
+		FlashStorage::shortcutsVersion = FlashStorage::kShortcutsVersion1;
 		expect(menu::shortcuts_version() == ShortcutsVersion::V1).to_be_true();
-		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3); // `resetSettings`' own line, verbatim
+		FlashStorage::shortcutsVersion = FlashStorage::kShortcutsVersion3;
 		expect(menu::shortcuts_version() == ShortcutsVersion::V3).to_be_true();
-		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_1);
+		menu::set_shortcuts_version(ShortcutsVersion::V1);
 		expect(menu::shortcuts_version() == ShortcutsVersion::V1).to_be_true();
 
 		// The layout the port actually resolves moves with it -- the setting is not just recorded.
@@ -171,19 +159,16 @@ describe boot_shortcuts_version("the shortcut layout follows flash byte 60", $ {
 		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 0, 6)
 		       == &deluge::scenes::menu::nodes::sample0_end)
 		    .to_be_true();
-		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
+		menu::set_shortcuts_version(ShortcutsVersion::V3);
 		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 0, 6)
 		       == &deluge::scenes::menu::nodes::sample0_interpolation)
 		    .to_be_true();
 
-		// And a value that is neither enumerator takes the V3 arm, as legacy's own `default` does.
-		soundEditor.setShortcutsVersion(7);
+		// And a byte that is neither enumerator takes the V3 layout, as legacy's own `default` does.
+		FlashStorage::shortcutsVersion = 7;
 		expect(menu::shortcuts_version() == ShortcutsVersion::V3).to_be_true();
 
-		paramShortcutsForSounds[0][6] = saved_cells[0];
-		paramShortcutsForSounds[1][6] = saved_cells[1];
-		soundEditor.shortcutsVersion = saved_legacy;
-		menu::set_shortcuts_version(saved_port);
+		FlashStorage::shortcutsVersion = saved;
 	});
 });
 

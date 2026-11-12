@@ -178,7 +178,7 @@ describe shell_router("shell::Router", $ {
 	// `UI::modEncoderAction` and `UI::modButtonAction` (`gui/ui/ui.cpp:35-41`) are the BASE-class
 	// implementations, whose whole body is a forward to `view`. So the current UI gets first
 	// refusal and `View` -- which is what `services.mod_knobs` ports -- is the fallback. Six UIs
-	// override the first (`gui/ui/sound_editor.h:80`, `gui/views/arranger_view.h:49`,
+	// override the first (`SoundEditor`, `gui/views/arranger_view.h:49`,
 	// `gui/views/automation_view.h:116`, `gui/views/performance_view.h:96`,
 	// `gui/views/session_view.h:100`, `gui/views/instrument_clip_view.h:215`) and two override the
 	// second (`gui/views/session_view.h`, `gui/views/performance_view.h`).

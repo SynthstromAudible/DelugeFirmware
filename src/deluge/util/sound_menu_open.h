@@ -52,6 +52,9 @@ void readSoundMenuValueAgain();
 ///        `SoundEditor::mpeZonesPotentiallyUpdated`, and the ported member-channel page re-read when it is frontmost.
 void mpeZonesPotentiallyUpdated();
 
+/// @brief Flash byte 60 changed: the legacy editor's shortcut tables follow it (`SoundEditor::setShortcutsVersion`).
+void legacyShortcutsVersionChanged();
+
 /// @brief Legacy's `currentUI == &sampleBrowser || &sampleMarkerEditor || &renameDrumUI`, or the guest's ported sample
 ///        browser, marker editor or drum rename frontmost: the UIs under which `setSelectedDrum` keeps the selection.
 bool drumSelectionFrozen();

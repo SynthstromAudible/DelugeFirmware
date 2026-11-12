@@ -21,7 +21,7 @@
 ///       `hid/`/`gui/` wall this layer may not cross has a real node:
 ///
 ///         * **`hid/` state.** `flash_status` (`PadLEDs::flashCursor`, `flash/status.h:26-32`),
-///           `shortcuts_version` (`soundEditor.shortcutsVersion`, `shortcuts/version.h:26-27`) and the
+///           `shortcuts_version` (`FlashStorage::shortcutsVersion`) and the
 ///           six `pad_colour_*` (`menu_item::Colour::value`, `colour.h:66`) are ordinary `Kind::Enum`
 ///           nodes with get/set hooks, because none needed a bespoke item, only a reachable byte:
 ///             - `flashCursor` is a plain namespace-scope `uint8_t` (`hid/led/pad_leds.h:47`) that
@@ -31,10 +31,8 @@
 ///               where the persistence code that reads and writes them
 ///               (`storage/flash_storage.cpp:576-579`, `:972-975`) lives, and `Colour::value` is a
 ///               reference onto one of them. A member of a `gui/` class could not be reached from here.
-///             - `shortcutsVersion` selects a shortcut *layer*, and this layer owns its own tables,
-///               so the port keeps the setting in `menu/shortcuts.cpp` beside them
-///               (`menu::set_shortcuts_version`). That is the one item whose value legacy and the
-///               port hold separately; `tables_3_spec.cpp`'s `value_is_port_owned` says so.
+///             - `shortcutsVersion` is flash byte 60 (`FlashStorage::shortcutsVersion`), which selects a shortcut
+///               *layer* of this layer's own tables (`menu::shortcuts_version`).
 ///           `battery_level` and `firmware_version` do not reach behind the `hid/` wall either --
 ///           `batteryMV` is a plain global set from `deluge.cpp`'s main loop, the same one
 ///           `sound_editor.cpp`'s `extern uint16_t batteryMV` reads with its own bare `extern` -- so they are real,
@@ -354,16 +352,13 @@ void set_flash_status(const MenuContext& ctx, int32_t value);
 
 /// @brief `shortcuts::Version`'s read and write (`shortcuts/version.h:26-27`).
 ///
-/// Legacy keeps the setting on `soundEditor` and applies it by *mutating* ten cells of two shortcut
-/// tables in place (`SoundEditor::setShortcutsVersion`, `gui/ui/sound_editor.cpp:112-181`). The
-/// port keeps it in `menu/shortcuts.cpp` beside the tables it selects, and selects a whole layer
-/// rather than editing one -- see `menu::set_shortcuts_version`.
+/// Legacy applies the setting by *mutating* ten cells of two shortcut tables in place
+/// (`SoundEditor::setShortcutsVersion`). The port selects a whole layer of its own tables on flash byte 60
+/// (`FlashStorage::shortcutsVersion`) rather than editing one -- see `menu::set_shortcuts_version`.
 ///
-/// **The write does two things**, and both are needed: the layer selection above,
-/// and a `MenuAction::SetShortcutsVersion` request (`scenes/menu/action.h`) that the dispatcher
-/// turns into `soundEditor.setShortcutsVersion(...)` -- which is what reaches flash byte 60. Without
-/// the request a layout chosen from the ported menu would be gone at the next power-on. The reasoning
-/// is at the hook itself.
+/// **The write does two things**: it writes the byte, which persists it, and files a
+/// `MenuAction::SetShortcutsVersion` request (`scenes/menu/action.h`) so that the legacy editor's tables follow
+/// while the Legacy Menu setting exists.
 /// @{
 int32_t get_shortcuts_version(const MenuContext& ctx);
 void set_shortcuts_version(const MenuContext& ctx, int32_t value);

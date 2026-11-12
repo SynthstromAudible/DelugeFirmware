@@ -148,9 +148,7 @@ enum class ShortcutsVersion : uint8_t {
 /// @brief The layout in force. `V3` until something sets otherwise.
 ShortcutsVersion shortcuts_version();
 
-/// @brief Select @p version -- the port of `SoundEditor::setShortcutsVersion`
-///        and the reason `nodes::shortcuts_version` is a real
-///        item rather than a setting that "selects nothing".
+/// @brief Select @p version: write flash byte 60 (`FlashStorage::shortcutsVersion`), which every lookup above reads.
 ///
 /// @note **This selects a layer; legacy *mutates* one.** `setShortcutsVersion`'s `V1` arm assigns
 ///       ten cells of `paramShortcutsForSounds` / `paramShortcutsForAudioClips` in place

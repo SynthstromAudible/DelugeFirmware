@@ -83,7 +83,7 @@ public:
 	/// `UI::modEncoderAction` and `UI::modButtonAction` (`gui/ui/ui.cpp:35-41`) are the
 	/// **base-class** implementations, and both do nothing but forward to `view` -- so the current
 	/// UI gets first refusal and `View` is the fallback. Six UIs override the first
-	/// (`SoundEditor`, `gui/ui/sound_editor.h:80`; `ArrangerView`, `gui/views/arranger_view.h:49`;
+	/// (`SoundEditor`; `ArrangerView`, `gui/views/arranger_view.h:49`;
 	/// `AutomationView`, `gui/views/automation_view.h:116`; `PerformanceView`,
 	/// `gui/views/performance_view.h:96`; `SessionView`, `gui/views/session_view.h:100`;
 	/// `InstrumentClipView`, `gui/views/instrument_clip_view.h:215`) and two override the second

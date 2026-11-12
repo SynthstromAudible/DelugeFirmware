@@ -53,8 +53,8 @@
 ///
 /// @note **The MIDI/CV root carries two titles.** `SoundEditor::setup` rewrites the single
 ///       `soundEditorRootMenuMIDIOrCV` object's `title` member on the way in --
-///       `STRING_FOR_MIDI_INST_MENU_TITLE` for a MIDI output (`sound_editor.cpp:1781`),
-///       `STRING_FOR_CV_INSTRUMENT` for a CV one (`:1731`). One `Node::title` is one static id, so
+///       `STRING_FOR_MIDI_INST_MENU_TITLE` for a MIDI output,
+///       `STRING_FOR_CV_INSTRUMENT` for a CV one. One `Node::title` is one static id, so
 ///       the port declares **two nodes over one child list**: `root_midi_or_cv` (the MIDI title)
 ///       and `root_cv` (the CV one). `midi_or_cv_root(ctx)` picks between them from
 ///       the instrument kind in `MenuContext::addresses`, which is the same fact `setup()` branched on, and

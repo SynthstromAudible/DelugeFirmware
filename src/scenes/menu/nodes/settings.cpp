@@ -879,36 +879,9 @@ int32_t get_shortcuts_version(const MenuContext&) {
 	return static_cast<int32_t>(menu::shortcuts_version()); // `shortcuts/version.h:26`
 }
 void set_shortcuts_version(const MenuContext&, int32_t value) {
-	// `shortcuts::Version::writeCurrentValue` (`shortcuts/version.h:27`) ->
-	// `SoundEditor::setShortcutsVersion` (`gui/ui/sound_editor.cpp`).
-	//
-	// **TWO WRITES, AND NEITHER IS REDUNDANT. Do not delete one for the other.**
-	//
-	//   1. `menu::set_shortcuts_version` is this layer's own copy -- what `get_shortcuts_version`
-	//      above reads back for the display, and what every shortcut-pad lookup in
-	//      `menu/shortcuts.cpp` resolves against. It has to happen here, synchronously, because the
-	//      item's own readout is drawn from it on the very next frame.
-	//   2. `request_action` is what reaches flash. `SoundEditor::shortcutsVersion` is the byte
-	//      `FlashStorage::writeSettings` stores at byte 60 (`storage/flash_storage.cpp:982`), and
-	//      `src/scenes` may not name `SoundEditor` (`scenes-includes-outside`,
-	//      `scripts/check_layer_rules.py`) -- so the write is asked for rather than made, and
-	//      `gui::ui::dispatchShellActions` performs it (`gui/ui/shell_action_dispatch.cpp`'s
-	//      `SetShortcutsVersion` arm). Without it, a layout
-	//      chosen from the *ported* settings menu would be in force for the session and gone at the next
-	//      power-on. The reverse direction needs nothing:
-	//      `SoundEditor::setShortcutsVersion` pushes into this layer, so a layout chosen from the
-	//      legacy menu, at boot, or by a factory reset is followed here.
-	//
-	// The two do not fight and cannot loop: the dispatcher's callee mirrors back into (1) by calling
-	// `menu::set_shortcuts_version` -- the free function, not this hook -- with the same value, so
-	// the lap terminates. The argument in full is on `MenuAction::SetShortcutsVersion`
-	// (`scenes/menu/action.h`).
-	//
-	// `value` crosses to the dispatcher **unnormalised**, exactly as legacy's `getValue()` does:
-	// `SoundEditor::setShortcutsVersion`'s own `switch` is what decides that anything other than
-	// `SHORTCUTS_VERSION_1` means V3, and duplicating that decision here would be two mappings to
-	// keep in step instead of one. The normalisation below is only for (1), whose enum has no
-	// "anything else" member to hold an out-of-range index.
+	// `shortcuts::Version::writeCurrentValue`. The first statement is the write that persists: flash byte 60
+	// (`FlashStorage::shortcutsVersion`), which the shortcut lookups read and `FlashStorage::writeSettings` stores. The
+	// action lets the legacy editor's own tables follow, which they need while the Legacy Menu setting exists.
 	menu::set_shortcuts_version(value == static_cast<int32_t>(ShortcutsVersion::V1) ? ShortcutsVersion::V1
 	                                                                                : ShortcutsVersion::V3);
 	menu_scene().request_action(

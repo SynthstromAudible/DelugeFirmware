@@ -680,10 +680,8 @@ static void deluge_boot(const DelugeBoard* board) {
 	//
 	//   * **The screensaver timeout** is pushed from `Screensaver::settingsChanged()`
 	//     (`hid/display/screensaver.cpp`), where all its writers funnel, including the call below.
-	//   * **The shortcut layout** (flash byte 60) is pushed from inside
-	//     `SoundEditor::setShortcutsVersion`, the sole writer of `shortcutsVersion`, which every
-	//     change path goes through: boot, the legacy settings item, and both factory-reset menus via
-	//     `FlashStorage::resetSettings`.
+	//   * **The shortcut layout** (flash byte 60) needs no push: the scenes read `FlashStorage::shortcutsVersion`
+	//     where they select a layout.
 	//   * **The menu highlighting** (flash byte 175) is pushed by `gui::ui::pushShellHighlighting`, from the
 	//     settings item, a factory reset, the ported menu's `MenuAction::HighlightingChanged` and the call below.
 	//   * **The play-cursor flash** (flash byte 36) needs no push: the scenes read `PadLEDs::flashCursor` through

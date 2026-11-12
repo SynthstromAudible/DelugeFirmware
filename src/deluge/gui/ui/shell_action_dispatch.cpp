@@ -27,8 +27,7 @@
 #include "gui/context_menu/midi_learn_mode.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/shell_host_ui.h"
-#include "gui/ui/sound_editor.h" // soundEditor.setShortcutsVersion -- the SetShortcutsVersion arm
-#include "gui/ui/ui.h"           // openUI, getRootUI
+#include "gui/ui/ui.h" // openUI, getRootUI
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
@@ -52,6 +51,7 @@
 #include "scenes/registry.h"
 #include "shell/scene.h" // SceneKind
 #include "storage/flash_storage.h"
+#include "util/sound_menu_open.h"
 
 #include <optional>
 
@@ -420,33 +420,8 @@ void performMenuAction(const MenuActionRequest& req) {
 		break;
 
 	case MenuAction::SetShortcutsVersion:
-		// `shortcuts::Version::writeCurrentValue`'s one statement
-		// (`gui/menu_item/shortcuts/version.h:27`), on the real `soundEditor`. No helper: there is
-		// no branch to transcribe, and the value is legacy's own -- `writeCurrentValue` passes
-		// `this->getValue()` through unnormalised and so does the port, so the two-way mapping
-		// between the enum index and the setting is decided in exactly one place,
-		// `SoundEditor::setShortcutsVersion`'s own `switch` (whose `default` arm is
-		// "Uses defaults").
-		//
-		// **This is the arm that reaches flash**, which no other arm in this switch does:
-		// `SoundEditor::shortcutsVersion` (`gui/ui/sound_editor.cpp:114`) is what
-		// `FlashStorage::writeSettings` stores at byte 60 (`storage/flash_storage.cpp:982`) and
-		// `readSettings` hands back at boot. The ported settings item must therefore make this call
-		// as well as write `deluge::scenes::menu`'s mirror, or the layout a user chose would survive
-		// only until power-off.
-		//
-		// **It does not loop**, and the reason is worth having here as well as at the enumerator,
-		// because this is the call that would close the loop if it ever did.
-		// `setShortcutsVersion` mirrors back into the port -- it calls
-		// `deluge::scenes::menu::set_shortcuts_version`. That callee assigns one
-		// file-scope variable in `scenes/menu/shortcuts.cpp`. It is **not**
-		// `nodes::set_shortcuts_version`, the item hook that filed this request; it writes no
-		// `MenuState`, files nothing, and calls nothing. One lap, then it stops.
-		//
-		// The mirror write it makes is also the same value the hook already wrote, by the same rule
-		// spelled the same way on both sides (`V1` for `SHORTCUTS_VERSION_1`, `V3` otherwise), so
-		// the lap is idempotent rather than merely finite.
-		soundEditor.setShortcutsVersion(static_cast<int32_t>(req.arg));
+		// The ported item has written flash byte 60 already; the legacy editor's tables follow it.
+		legacyShortcutsVersionChanged();
 		break;
 
 	case MenuAction::ScreensaverSettingsChanged:
