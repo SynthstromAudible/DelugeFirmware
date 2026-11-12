@@ -1136,7 +1136,7 @@ describe shortcut_blink_plan("scenes::menu shortcut blink plan against main's sh
 				with_pad++;
 			}
 		}
-		expect(padless).to_equal(size_t(97));
+		expect(padless).to_equal(spec::kPadlessShortcutNodes);
 		expect(with_pad > size_t(100)).to_be_true();
 	});
 

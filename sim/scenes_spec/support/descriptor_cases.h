@@ -761,7 +761,7 @@ inline constexpr int32_t kLossyStep = 256;
 /// Writes the reference rows hold none of: each reaches a UI global only a booted app has.
 ///   * `SynthModeSelection::writeCurrentValue` calls `view.setKnobIndicatorLevels()`;
 ///   * `arpeggiator::Mode` and `PresetMode` silence notes over the sound editor's model stack.
-inline constexpr bool kNoLegacyWrite = false;
+inline constexpr bool kNoFrozenWrite = false;
 /// The volume ducking menu's step: the stored value is the menu value times it.
 inline constexpr int32_t kDuckingVolumeStep = 21474836;
 
@@ -1101,7 +1101,7 @@ inline const std::vector<Case>& voice_cases() {
 	     .family = Family::INSTRUMENT,
 	     .where = Where::KIT_LANE,
 	     .stored = {21474836, 21474837, 42949673, 1073741823, 2126008811, 2126008812}},
-	    {.path = "mode", .family = Family::INSTRUMENT, .writes = kNoLegacyWrite},
+	    {.path = "mode", .family = Family::INSTRUMENT, .writes = kNoFrozenWrite},
 	    {.path = "transpose", .family = Family::INSTRUMENT, .pairs = kTransposePairs},
 	};
 	return cases;
@@ -1200,7 +1200,7 @@ inline const std::vector<Case>& effect_cases() {
 
 inline const std::vector<Case>& arp_cases() {
 	static const std::vector<Case> cases{
-	    {.path = "arpeggiator/arpMode", .family = Family::ARP, .writes = kNoLegacyWrite},
+	    {.path = "arpeggiator/arpMode", .family = Family::ARP, .writes = kNoFrozenWrite},
 	    {.path = "arpeggiator/octaveMode", .family = Family::ARP},
 	    {.path = "arpeggiator/noteMode", .family = Family::ARP},
 	    {.path = "arpeggiator/noteMode", .family = Family::ARP, .where = Where::KIT_LANE},
@@ -1211,7 +1211,7 @@ inline const std::vector<Case>& arp_cases() {
 	    {.path = "arpeggiator/syncLevel", .family = Family::ARP, .pairs = kSyncPairs},
 	    {.path = "arpeggiator/randomizerLock", .family = Family::ARP},
 	    {.path = "arpeggiator/kitArp", .family = Family::ARP, .where = Where::KIT_LANE},
-	    {.path = "arpeggiator/preset", .family = Family::ARP, .writes = kNoLegacyWrite},
+	    {.path = "arpeggiator/preset", .family = Family::ARP, .writes = kNoFrozenWrite},
 	};
 	return cases;
 }
@@ -1448,15 +1448,15 @@ inline bool second_oscillator_type_differs() {
 	return input_reads_past_list("osc2/type", 1);
 }
 
-/// The item's write of its top step stores a different value from the row's. The probe holds the top step and what
-/// the item stored (`none` where the record held nothing).
+/// The item's write of its top step stores a different value from the row's. The probe holds the step it wrote, which
+/// must be the row's top, and what the item stored (`none` where the record held nothing).
 inline bool compressor_shape_differs() {
 	const SettingInfo& row = table_row(Family::SONG, "reverb/compressor/shape");
-	const std::optional<int32_t> top = probe_int("reverb/compressor/shape", 0);
-	if (!top) {
+	const int32_t top = menu_range(row).second;
+	if (probe_int("reverb/compressor/shape", 0) != top) {
 		return false;
 	}
-	const std::optional<std::pair<int32_t, int32_t>> want = from_menu(row, *top);
+	const std::optional<std::pair<int32_t, int32_t>> want = from_menu(row, top);
 	const std::optional<int32_t> stored = probe_int("reverb/compressor/shape", 1);
 	return want && want->first != stored.value_or(want->first);
 }

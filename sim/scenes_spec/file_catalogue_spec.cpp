@@ -572,6 +572,36 @@ describe file_catalogue("the browser's file catalogue", $ {
 		expect(visited == sorted).to_be_true();
 	});
 
+	it("reaches every file from the folder's end, one turn back at a time across its reloads", _ {
+		CleanCatalogue clean;
+		const std::vector<std::string> sorted = thirty();
+		const std::vector<std::string> order = thirty_in_card_order();
+		// The browser's wrap up from the first file (`BrowserScene::step_selection`): a reload from the folder's end,
+		// keeping what sorts before it, so the window is the folder's last files.
+		read_in_order(order, nullptr, CATALOG_SEARCH_LEFT);
+		expect(FileCatalogue::fileItems.back().displayName()).to_equal(sorted.back());
+		expect(FileCatalogue::numFileItemsDeletedAtStart != 0).to_be_true();
+		std::vector<std::string> visited{FileCatalogue::fileItems.back().displayName()};
+		std::string current = visited.back();
+		std::string centre; // outlives each reload's read, which keeps a pointer to it
+		for (size_t turn = 1; turn < sorted.size(); turn++) {
+			// A turn back past the window's start: a reload centred on the current file, then the file before it.
+			int32_t index = FileCatalogue::searchFileItems(current.c_str()) - 1;
+			if (index < 0 && FileCatalogue::numFileItemsDeletedAtStart != 0) {
+				centre = current;
+				read_in_order(order, centre.c_str(), CATALOG_SEARCH_BOTH);
+				index = FileCatalogue::searchFileItems(centre.c_str()) - 1;
+			}
+			if (index < 0) {
+				break;
+			}
+			current = FileCatalogue::fileItems[static_cast<size_t>(index)].displayName();
+			visited.push_back(current);
+		}
+		FileCatalogue::filenameToStartSearchAt = nullptr;
+		expect(std::vector<std::string>(visited.rbegin(), visited.rend()) == sorted).to_be_true();
+	});
+
 	it("survives a cull whose deletions would reallocate the vector out from under a name", _ {
 		// The regression this whole family of owning copies exists for: firstFileItemRemaining used
 		// to be a `char const*` into a FileItem inside `fileItems`, which the cull then erased. If

@@ -4,8 +4,10 @@
 
 #include "gui/colour/colour.h"
 #include "gui/colour/pad_colour.h"
+#include "libdeluge/flash.h"
 #include "scenes/menu/shortcuts.h"
 #include "storage/flash_storage.h"
+#include "support/host_flash.h"
 #include "util/functions.h"
 #include "util/synth_noise.h"
 
@@ -44,6 +46,18 @@ struct SettingsGuard {
 	SettingsGuard(const SettingsGuard&) = delete;
 	SettingsGuard& operator=(const SettingsGuard&) = delete;
 };
+
+/// @brief Save the settings, put @p value in flash byte @p at, and read the settings back, as a boot reads a sector
+///        another firmware wrote.
+void read_settings_with_byte(uint32_t at, uint8_t value) {
+	FlashStorage::writeSettings();
+	uint8_t sector[256];
+	deluge_flash_read(0, sector, sizeof(sector));
+	sector[at] = value;
+	deluge_flash_erase(0);
+	deluge_flash_program(0, sector, sizeof(sector));
+	FlashStorage::readSettings();
+}
 } // namespace
 
 // clang-format off
@@ -85,6 +99,15 @@ describe flash_pad_colours("a pad-colour setting paints main's colour for its va
 		FlashStorage::padColours[FlashStorage::PAD_COLOUR_MUTED] = deluge::gui::BLUE;
 		expect(deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_MUTED) == deluge::gui::colours::blue).to_be_true();
 	});
+
+	it("reads a stored colour past the nine as the slot's default, which has a colour to paint", _ {
+		SettingsGuard guard;
+		deluge::scenes::spec::ErasedFlash flash;
+		FlashStorage::padColours[FlashStorage::PAD_COLOUR_ACTIVE] = deluge::gui::PINK;
+		read_settings_with_byte(74, deluge::gui::kNumPadColours); // byte 74 is the active colour
+		expect(static_cast<int32_t>(FlashStorage::padColours[FlashStorage::PAD_COLOUR_ACTIVE]))
+		    .to_equal(static_cast<int32_t>(deluge::gui::GREEN));
+	});
 });
 
 describe flash_default_draws("a new song's tempo, swing and key are drawn from the default ranges as main draws them", $ {
@@ -121,6 +144,16 @@ describe flash_default_draws("a new song's tempo, swing and key are drawn from t
 			deluge_seed_noise(seed);
 			expect(FlashStorage::drawDefaultRange(FlashStorage::DEFAULT_RANGE_KEY)).to_equal(want);
 		}
+	});
+
+	it("reads a key bound past the octave as stored and draws it unreduced, as main's readSettings keeps it", _ {
+		SettingsGuard guard;
+		deluge::scenes::spec::ErasedFlash flash;
+		FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO] = {120, 120}; // byte 53 nonzero: the ranges read
+		FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_KEY] = {0, 200};
+		read_settings_with_byte(57, 200); // byte 57 is the key's lower bound
+		expect(static_cast<int32_t>(FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_KEY].lower)).to_equal(200);
+		expect(FlashStorage::drawDefaultRange(FlashStorage::DEFAULT_RANGE_KEY)).to_equal(200);
 	});
 });
 // clang-format on

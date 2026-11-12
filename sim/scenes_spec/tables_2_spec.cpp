@@ -368,24 +368,30 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 	});
 
 	it("binds MIDI/CC learn to exactly the param main would have learned", _ {
-		size_t learnable = 0;
+		size_t synth_learners = 0;
 		for (const Fx& fx : fixtures()) {
 			install(fx.ctx, fx.song);
+			const bool synth = std::string{fx.name} == "synth";
 			for (const spec::TreeEntry& e : entries()) {
 				const std::vector<std::string>* want = table().find(e.path, std::string{"learn@"} + fx.name);
+				const std::optional<deluge::project::OwnerParamTarget> got = menu::bindings::learn_target(*e.node, fx.ctx);
+				if (synth && got) {
+					// Every node that learns on the synth has main's answer frozen beside it.
+					synth_learners++;
+					expect(e.path + " learn row " + (want != nullptr ? "frozen" : "missing"))
+					    .to_equal(e.path + " learn row frozen");
+				}
 				if (want == nullptr) {
 					continue;
 				}
-				const std::optional<deluge::project::OwnerParamTarget> got = menu::bindings::learn_target(*e.node, fx.ctx);
 				const std::string at = e.path + " " + text_of(e.node->name) + " learns ";
 				expect(at + (got ? std::to_string(got->param.value) : std::string{"none"}))
 				    .to_equal(at + (want->empty() ? std::string{"<no value>"} : want->front()));
 				expect(!got || got->owner == menu::bindings::controls_owner(fx.ctx)).to_be_true();
-				learnable += std::string{fx.name} == "synth" ? 1 : 0;
 			}
 		}
-		// Every `ParamRef` leaf in the root tree plus the four transposes; a drop to 0 would make the loop vacuous.
-		expect(learnable > size_t(60)).to_be_true();
+		// Every `ParamRef` leaf in the root tree plus the four transposes.
+		expect(synth_learners).to_equal(size_t(81));
 	});
 
 	it("carries main's occupied-slot counts and range dependence for every leaf", _ {

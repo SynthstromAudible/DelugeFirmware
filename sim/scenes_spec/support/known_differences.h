@@ -55,6 +55,17 @@ inline bool title_differs_from_main(const menu::Node& node) {
 /// @brief The root fixtures reaching the width node.
 inline constexpr size_t kReverbWidthTitleDifferences = 6;
 
+/// @brief The sample repeat items' titles: the row holds legacy's item's title with its source's number formatted into
+///        it ("Samp1 repeat"); the port's node carries the placeholder unfilled ("Samp* repeat", no `title_arg`).
+/// @return The digit the row has where the port's title has `*`, or 0 where the titles are not excused.
+inline char title_placeholder_digit(const menu::Node& node) {
+	namespace nodes = deluge::scenes::menu::nodes;
+	return &node == &nodes::sample0_repeat ? '1' : &node == &nodes::sample1_repeat ? '2' : '\0';
+}
+
+/// @brief How many batch-1 leaves that is.
+inline constexpr size_t kTitlePlaceholderDifferences = 2;
+
 /// @name The shortcut layouts' excusals
 /// Where a shortcut cell's port node cannot be compared with main's reference row by plain equality, pinned by identity
 /// and by count so a fix, or a new excused cell, turns the example red.
@@ -76,6 +87,9 @@ inline constexpr size_t kShortcutPlaceholderNameCells = 6;
 /// @brief How many shortcut cells hold a node `tables3::has_dynamic_name` names (the filter morph items), whose name
 ///        main resolves from the live filter mode.
 inline constexpr size_t kShortcutDynamicNameCells = 28;
+
+/// @brief How many sound-root entries have no param pad, so plan no source blink.
+inline constexpr size_t kPadlessShortcutNodes = 97;
 
 /// @brief Landing cells whose page the port shares with another root's tree (main has one page per root family), so the
 ///        landing rows name the page by its paths in the landing root's own tree.

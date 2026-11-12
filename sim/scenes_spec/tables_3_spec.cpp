@@ -927,12 +927,11 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			}
 			expect(e.path + " probed " + probed).to_equal(e.path + " probed " + expected);
 		}
-		// 367 probes across 144 (root, path) pairs with a `set` hook -- a node reachable from three roots is driven
-		// three times, on three different fixtures. A node bound to a target has no `set` hook: the binding library's
-		// specs drive it instead. The thresholds stay loose rather than exact; a drop in either number means the loop
-		// stopped reaching hooks.
-		expect(exercised > size_t(350)).to_be_true();
-		expect(covered.size() > size_t(105)).to_be_true();
+		// 365 probes over 118 nodes, across the (root, path) pairs with a `set` hook -- a node reachable from three
+		// roots is driven three times, on three different fixtures. A node bound to a target has no `set` hook: the
+		// binding library's specs drive it instead. A change in either number means the loop reaches other hooks.
+		expect(exercised).to_equal(size_t(365));
+		expect(covered.size()).to_equal(size_t(118));
 	});
 
 	it("drives the port hook of every node the write rows leave out", _ {
@@ -1158,7 +1157,8 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 		}
 
 		// The ratchet.
-		expect(covered).to_equal(std::set<const Node*>(std::begin(t3::kWritesNeedingBootedUi), std::end(t3::kWritesNeedingBootedUi)));
+		expect(covered).to_equal(
+		    std::set<const Node*>(std::begin(t3::kWritesNeedingBootedUi), std::end(t3::kWritesNeedingBootedUi)));
 
 		playbackHandler.midiOutClockEnabled = saved_midi_out;
 		playbackHandler.midiInClockEnabled = saved_midi_in;
@@ -1491,8 +1491,8 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 
 describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* items", $ {
 	// `ContextMenuScene`, its `Descriptor` table and all five accept hooks are driven directly by `DescriptorId`
-	// and checked against main's frozen resets (`context_menu_scene_spec.cpp`'s `cm_actions`). What that spec does NOT drive is the settings
-	// tree itself: it opens `ContextMenuScene` straight off a `DescriptorId`, never through
+	// and checked against main's frozen resets (`context_menu_scene_spec.cpp`'s `cm_actions`). What that spec does
+	// NOT drive is the settings tree itself: it opens `ContextMenuScene` straight off a `DescriptorId`, never through
 	// `nodes::reset_flash` .. `nodes::reset_all`. This is the missing half -- the mapping from menu
 	// node to descriptor -- and it is the one thing a swapped pair of `ResetItem` ids would break
 	// silently if it were untested.
@@ -1799,8 +1799,9 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 	it("asks for the learn blink on these twelve and on nothing else, and lights the LEARN LED for "
 	   "them",
 	   _ {
-		   // `MenuItem::shouldBlinkLearnLed` is true only on `midi::Command` (the base returns false), and the editor's screen change turns that into
-		   // `blinkLed(IndicatorLED::LEARN)` or `setLedState(LEARN, false)` on every screen change
+		   // `MenuItem::shouldBlinkLearnLed` is true only on `midi::Command` (the base returns false), and the editor's
+		   // screen change turns that into `blinkLed(IndicatorLED::LEARN)` or `setLedState(LEARN, false)` on every
+		   // screen change
 		   // (`sound_editor.cpp:949-954`). Board LED 7 is LEARN (`shell/profiles/deluge.cpp`).
 		   constexpr uint8_t kLearnBoardLed = 7;
 		   const TablesRoot& settings = roots().back();
@@ -2236,7 +2237,8 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 			r.shell.tick(110);
 			// `cv::Selection::selectButtonPress` returns the CV page unconditionally.
-			expect(t3::chain_name(menu_scene().focused())).to_equal(table().value("cv_selection", "chain/" + std::to_string(which)));
+			expect(t3::chain_name(menu_scene().focused()))
+			    .to_equal(table().value("cv_selection", "chain/" + std::to_string(which)));
 			expect(menu_scene().focused() == &nodes::cv_submenu).to_be_true();
 
 			// ... and it wrote the output on the way. The proof is which output `cv_volts` now reads: `enter_leaf`
@@ -2451,7 +2453,8 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		expect(nodes::kCvSelectionItem.is_placeholder()).to_be_false();
 		expect(nodes::kGateSelectionItem.is_placeholder()).to_be_false();
 		expect(nodes::kMidiDevicesItem.is_placeholder()).to_be_false();
-		// No `dynamic_children` anywhere in the tree -- the reason `deluge_menu_dump`'s fail-closed arm still has no case to be designed against.
+		// No `dynamic_children` anywhere in the tree -- the reason `deluge_menu_dump`'s fail-closed arm still has no case
+		// to be designed against.
 		const uint16_t assigned = menu::assign_node_ids(nodes::kAllRoots);
 		size_t dynamic = 0;
 		for (uint16_t id = 1; id <= assigned; id++) {
@@ -2553,7 +2556,7 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 	// `visible_top`, which is 5 on the 48-row board and **0** on the 64-row one -- hence
 	// `kMidiCommandRowY48` = 15 and `kMidiCommandRowY64` = 20, a pair, not a constant -- and
 	// `kApple7Height7YAdjust` = -1 cancels the one-row drop `FontId::Apple7` (the height-9 Apple
-	// face) has against legacy's own height-7 call. a single 48-row-derived
+	// face) has against legacy's own height-7 call. A single 48-row-derived
 	// constant put the 64-row panel five rows high, and only a 64-row golden could see it, so the
 	// learned readout is recorded on both.
 	it("renders an unassigned MIDI command item", _ {

@@ -89,8 +89,7 @@ inline std::string join_paths(const std::vector<std::string>& paths) {
 }
 
 /// @brief The paths of @p paths that lie in the tree of the root @p label, joined; `outside:` and all of them where
-/// none
-///        does, so a page outside the root's tree shows in a row rather than matching by accident.
+///        none does, so a page outside the root's tree shows in a row rather than matching by accident.
 ///
 /// A page is one object the port shares across the roots whose menus list it, where `main` has one per root family
 /// (the sound's EQ page and the global one are the same port node). A landing is the page the pad's own root opens, so

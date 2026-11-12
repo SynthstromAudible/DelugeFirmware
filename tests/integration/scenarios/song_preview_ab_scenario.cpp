@@ -3292,7 +3292,6 @@ void runByPathTick() {
 
 /// The folder the DX browser lists, and the one bank in it.
 constexpr const char* kDxDir = "DX7";
-constexpr const char* kDxBankName = "SPBANK.SYX";
 constexpr const char* kDxBankPath = "DX7/SPBANK.SYX";
 /// The first voice's name, exactly as `DX7Cartridge::getProgramName` normalises it: ten printable characters.
 constexpr const char* kDxFirstName = "SPDXBANK01";
@@ -3453,8 +3452,6 @@ void runDxTick() {
 		if (!dxLanded() && ++g_dxLandTicks < 16) {
 			return;
 		}
-		// The browser closed on the page, so the bank's file is the one the stage chose: the only one listed.
-		const std::string file = kDxBankName;
 		DX7Cartridge* pd = deluge::gui::dxCartridgeBank();
 		const int32_t patches = pd != nullptr ? pd->numPatches() : 0;
 		char first[11] = "-";
@@ -3462,9 +3459,7 @@ void runDxTick() {
 			pd->getProgramName(0, first);
 		}
 		const bool landed = dxLanded();
-		printf("SP-DX file=%s inFlight=0 patches=%d first=%s landed=%d\n", file.c_str(), patches, first,
-		       landed ? 1 : 0);
-		printf("SP-DX-WAIT ticks=%d\n", g_dxTicks);
+		printf("SP-DX inFlight=0 patches=%d first=%s landed=%d\n", patches, first, landed ? 1 : 0);
 		if (patches != 32 || strcmp(first, kDxFirstName) != 0 || !landed) {
 			printf("SP-DX FAIL the bank did not arrive whole: patches=%d first=%s landed=%d, wanted patches=32 "
 			       "first=%s landed=1\n",
