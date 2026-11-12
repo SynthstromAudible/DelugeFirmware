@@ -8,8 +8,11 @@
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h"
+#include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
+
+#include "shell/notices.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -179,6 +182,64 @@ void select_file(MenuRig& r, std::string_view name) {
 	}
 }
 
+/// @brief `DX7/TRASH.SYX`, ten bytes like `BROKEN.SYX`, on the card while it lives: a file an example may delete
+///        without costing the later ones the fixture card.
+struct TrashFile {
+	static constexpr const char* kPath = "DX7/TRASH.SYX";
+	TrashFile() {
+		auto file = deluge::io::File::open(kPath, DELUGE_FILE_WRITE_CREATE);
+		if (file.has_value()) {
+			const std::array<std::byte, 10> bytes{};
+			(void)file->write(bytes);
+			(void)file->close();
+		}
+	}
+	~TrashFile() { (void)deluge::io::unlink(kPath); }
+	TrashFile(const TrashFile&) = delete;
+	TrashFile& operator=(const TrashFile&) = delete;
+};
+
+/// @brief Whether the card holds @p path.
+bool card_has(const char* path) {
+	return deluge::io::File::open(path, DELUGE_FILE_READ).has_value();
+}
+
+/// @brief The scene of kind @p kind on @p r's stack, or null.
+deluge::ui::shell::Scene* on_stack(MenuRig& r, deluge::ui::shell::SceneKind kind) {
+	for (deluge::ui::shell::Scene* scene : r.shell.stack().scenes()) {
+		if (scene->kind() == kind) {
+			return scene;
+		}
+	}
+	return nullptr;
+}
+
+/// @brief The popup's text, or empty with none showing.
+std::string popup_text(MenuRig& r) {
+	const auto* popup =
+	    static_cast<const deluge::ui::shell::PopupScene*>(on_stack(r, deluge::ui::shell::SceneKind::Popup));
+	return popup != nullptr ? std::string{popup->text()} : std::string{};
+}
+
+/// @brief Whether the delete-file menu is on the stack.
+bool delete_menu_up(MenuRig& r) {
+	const auto* menu = static_cast<const deluge::scenes::context_menu::ContextMenuScene*>(
+	    on_stack(r, deluge::scenes::context_menu::kContextMenuSceneKind));
+	return menu != nullptr && menu->descriptor_id() == deluge::scenes::context_menu::DescriptorId::DeleteFile;
+}
+
+/// @brief Shift held, SAVE pressed and released, Shift let go.
+void shift_save(MenuRig& r) {
+	r.button(kShiftX, kShiftY, true);
+	r.tick();
+	r.button(6, 3, true);
+	r.tick();
+	r.button(6, 3, false);
+	r.tick();
+	r.button(kShiftX, kShiftY, false);
+	r.tick();
+}
+
 } // namespace
 
 // clang-format off
@@ -342,6 +403,42 @@ describe dx_cartridge("the DX7 cartridge", ${
 		settle(r);
 		expect(browser_up(r)).to_be_false();
 		expect(r.focused() == &nodes::dx_menu).to_be_true();
+	});
+
+	it("offers to delete a .syx file on Shift+SAVE, and refuses a folder with main's popup", _ {
+		// `DxSyxBrowser` does not override `Browser::buttonAction`, whose Shift+SAVE this is. The file is a copy of
+		// BROKEN.SYX so the fixture card stays whole for the examples after it.
+		DxCard card;
+		TrashFile trash;
+		select_language();
+		MenuRig r;
+		r.open(nodes::dx_menu);
+		r.select();
+		settle(r);
+		select_file(r, "TRASH");
+		expect(card_has(TrashFile::kPath)).to_be_true();
+		shift_save(r);
+		expect(delete_menu_up(r)).to_be_true();
+		r.select(); // OK
+		for (int32_t i = 0; i < 400 && card_has(TrashFile::kPath); i++) {
+			deluge::gui::ui::dispatchShellChoices();
+			r.tick();
+		}
+		settle(r);
+		expect(card_has(TrashFile::kPath)).to_be_false();
+		expect(browser_up(r)).to_be_true();
+		expect(deluge::gui::ui::dxCartridgeRead().busy()).to_be_false();
+		expect(browser_scene().awaiting_deferred_load()).to_be_false();
+		for (int32_t i = 0; i < 8 && !browser_scene().current_is_folder(); i++) {
+			r.turn(1);
+		}
+		expect(browser_scene().current_is_folder()).to_be_true();
+		shift_save(r);
+		expect(popup_text(r)).to_equal(
+		    std::string{deluge::l10n::get(deluge::l10n::String::STRING_FOR_FOLDERS_CANNOT_BE_DELETED_ON_THE_DELUGE)});
+		expect(delete_menu_up(r)).to_be_false();
+		r.back();
+		settle(r);
 	});
 
 	it("a re-read of the cartridge page redraws and loads nothing: the program and the cursor stay", _ {

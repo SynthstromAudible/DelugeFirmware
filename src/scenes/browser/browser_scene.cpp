@@ -1840,6 +1840,29 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 				return *taken;
 			}
 		}
+		if (id_ == BrowserId::DxSyx && event.button == ButtonId::Save && shift_) {
+			// `Browser::buttonAction`'s Shift+SAVE, which every browser but the sample browser takes unchanged: a
+			// file offers to be deleted, a folder is refused.
+			Result r;
+			r.handled = true;
+			const FileItem* item = item_at(file_index_);
+			if (!event.on || mode_up() || item == nullptr) {
+				return r;
+			}
+			if (item->isFolder) {
+				(void)r.actions.push_back(Action{
+				    .kind = Action::Kind::Popup,
+				    .surface = SurfaceRole::Main,
+				    .popup_string = static_cast<uint16_t>(String::STRING_FOR_FOLDERS_CANNOT_BE_DELETED_ON_THE_DELUGE)});
+				return r;
+			}
+			context_menu::context_menu_scene().open(ctx_);
+			(void)r.actions.push_back(
+			    Action{.kind = Action::Kind::Push,
+			           .id = SceneId{context_menu::kContextMenuSceneKind,
+			                         static_cast<uint16_t>(context_menu::DescriptorId::DeleteFile)}});
+			return r;
+		}
 		if (event.button == ButtonId::Back) {
 			// `Browser::buttonAction`'s BACK arm (`browser.cpp:1783-1787`): a press, with no UI mode up (a Select hold
 			// or a held X_ENC is one). Claimed either way.

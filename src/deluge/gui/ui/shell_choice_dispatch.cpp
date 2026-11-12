@@ -557,6 +557,10 @@ void dispatchChoice(const BrowserChoice& choice) {
 		break;
 
 	case BrowserId::DxSyx:
+		if (choice.op == BrowserChoice::Op::DeleteFile) {
+			deleteDispatch(choice.path);
+			break;
+		}
 		dxCartridgeReadSettled(dxCartridgeRead().start(choice.path));
 		break;
 
