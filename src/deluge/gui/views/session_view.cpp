@@ -65,6 +65,7 @@
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "model/song/track_link.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
@@ -160,6 +161,12 @@ bool SessionView::opened() {
 }
 
 void SessionView::focusRegained() {
+	// Track edit mode never outlives leaving song view. Coming back from its own menu is not leaving.
+	bool backFromTrackEditMenu =
+	    deluge::model::track_link::modeIsOn() && deluge::model::track_link::menuClip() != nullptr;
+	if (!backFromTrackEditMenu) {
+		deluge::model::track_link::exitMode();
+	}
 	viewingRecordArmingActive = false;
 	horizontalEncoderPressed = false;
 	selectLayout(0); // Make sure we get a valid layout from the loaded file
@@ -179,7 +186,14 @@ void SessionView::focusRegained() {
 	// using the clip settings menu in grid view and it sent you back to song view
 	// and the mod controllable was set to the newly converted audio clip
 	// if you're still holding that clip, don't change the active mod controllable
-	if (currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+	if (backFromTrackEditMenu) {
+		// Puts the song's current clip back and re-aims the knobs at the track; the mode stays on.
+		if (!deluge::model::track_link::returnFromMenu()) {
+			deluge::model::track_link::exitMode();
+			view.setActiveModControllableTimelineCounter(currentSong);
+		}
+	}
+	else if (currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		view.setActiveModControllableTimelineCounter(currentSong);
 	}
 
@@ -401,8 +415,22 @@ moveAfterClipInstance:
 	// Affect-entire button
 	else if (b == AFFECT_ENTIRE) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			currentSong->affectEntire = !currentSong->affectEntire;
-			view.setActiveModControllableTimelineCounter(currentSong);
+			// Shift + Affect-entire: track edit mode. The LED flashes for as long as it is on.
+			if (Buttons::isShiftButtonPressed() && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEdit)) {
+				deluge::model::track_link::toggleMode();
+				if (deluge::model::track_link::modeIsOn()) {
+					view.blinkOn = true;
+					uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kFastFlashTime);
+				}
+			}
+			// Inside the mode, plain Affect-entire switches a kit between its whole self and its selected drum row.
+			else if (deluge::model::track_link::modeIsOn()) {
+				deluge::model::track_link::toggleKitTarget();
+			}
+			else {
+				currentSong->affectEntire = !currentSong->affectEntire;
+				view.setActiveModControllableTimelineCounter(currentSong);
+			}
 		}
 	}
 
@@ -539,6 +567,8 @@ moveAfterClipInstance:
 					replaceInstrumentClipWithAudioClip(clip);
 				}
 			}
+			// Track edit mode: SELECT opens the picked track's sound menu rather than Song FX.
+			else if (currentUIMode == UI_MODE_NONE && deluge::model::track_link::openMenu()) {}
 			else if (currentUIMode == UI_MODE_NONE) {
 				if (session.hasPlaybackActive()) {
 					if (session.launchEventAtSwungTickCount) {
@@ -698,11 +728,44 @@ void SessionView::beginEditingSectionRepeatsNum() {
 	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 }
 
+// Track edit mode: a press on a clip pad picks that clip's track. In the grid layout a pad column is a track, so
+// pressing anywhere in the column picks it, even on an empty pad. In the rows layout each row is one clip, so
+// pressing a row picks the track that clip is on.
+ActionResult SessionView::trackLinkPadAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
+	if (!on || xDisplay >= kDisplayWidth) {
+		return ActionResult::DEALT_WITH;
+	}
+	if (sdRoutineLock) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
+	Output* output = nullptr;
+	Clip* clip = nullptr;
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		output = gridTrackFromX(xDisplay, gridTrackCount());
+		clip = gridClipFromCoords(xDisplay, yDisplay);
+	}
+	else {
+		clip = getClipOnScreen(yDisplay);
+		output = clip ? clip->output : nullptr;
+	}
+
+	if (output) {
+		deluge::model::track_link::selectOutput(output, clip);
+	}
+	return ActionResult::DEALT_WITH;
+}
+
 ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
 	// don't interact with sidebar if VU Meter is displayed
 	// and you're in the volume/pan mod knob mode (0)
 	if (xDisplay >= kDisplayWidth && view.displayVUMeter && (view.getModKnobMode() == 0)) {
 		return ActionResult::DEALT_WITH;
+	}
+
+	// Track edit mode takes every pad press, so nothing is launched, armed or opened while it is on.
+	if (deluge::model::track_link::modeIsOn()) {
+		return trackLinkPadAction(xDisplay, yDisplay, on);
 	}
 
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
@@ -1114,7 +1177,9 @@ void SessionView::clipPressEnded() {
 	gridResetPresses();
 
 	currentUIMode = UI_MODE_NONE;
-	view.setActiveModControllableTimelineCounter(currentSong);
+	if (!deluge::model::track_link::modeIsOn()) {
+		view.setActiveModControllableTimelineCounter(currentSong);
+	}
 	if (display->haveOLED()) {
 		renderUIsForOled();
 		// check UI in case this code is called from performance view
@@ -1236,6 +1301,12 @@ ActionResult SessionView::timerCallback() {
 
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING || viewingRecordArmingActive) {
 		requestRendering(this, 0, 0xFFFFFFFF);
+		view.blinkOn = !view.blinkOn;
+		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kFastFlashTime);
+	}
+	// Track edit mode: flash the picked track's pads.
+	else if (deluge::model::track_link::modeIsOn()) {
+		requestRendering(this, 0xFFFFFFFF, 0);
 		view.blinkOn = !view.blinkOn;
 		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kFastFlashTime);
 	}
@@ -2083,7 +2154,12 @@ void SessionView::renderViewDisplay() {
 #endif
 
 	char const* name;
-	if (currentSong->name.isEmpty()) {
+	char const* trackEditText = deluge::model::track_link::statusText();
+	if (trackEditText) {
+		// Track edit mode: say what the gold knobs are acting on, in place of the song name.
+		name = trackEditText;
+	}
+	else if (currentSong->name.isEmpty()) {
 		name = "UNSAVED";
 	}
 	else {
@@ -2740,8 +2816,15 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisIm
 
 	if (clip) {
 
+		// Track edit mode: the picked track's rows flash white.
+		if (deluge::model::track_link::isSelected(clip->output) && view.blinkOn) {
+			for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+				thisImage[xDisplay] = colours::white;
+			}
+		}
+
 		// If user assigning MIDI controls and this Clip has a command assigned, flash pink
-		if (view.midiLearnFlashOn && ((Instrument*)clip->output)->midiInput.containsSomething()) {
+		else if (view.midiLearnFlashOn && ((Instrument*)clip->output)->midiInput.containsSomething()) {
 
 			for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 				// We halve the intensity of the brightness in this case, because a lot of pads will be lit, it
@@ -3400,6 +3483,23 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 		if (x >= 0 && y >= 0 && occupancyMask[y][x] == 0) {
 			occupancyMask[y][x] = 64;
 			image[y][x] = gridRenderClipColor(clip, x, y);
+		}
+	}
+
+	// Track edit mode: the picked track's whole column flashes white, empty pads included.
+	if (view.blinkOn && deluge::model::track_link::modeIsOn()) {
+		for (int32_t idxTrack = 0; idxTrack < static_cast<int32_t>(trackCount); ++idxTrack) {
+			Output* track = gridTrackFromIndex(idxTrack, trackCount);
+			if (deluge::model::track_link::isSelected(track)) {
+				auto x = gridXFromTrack(idxTrack);
+				if (x >= 0 && x < kDisplayWidth) {
+					for (int32_t y = 0; y < kDisplayHeight; ++y) {
+						image[y][x] = colours::white;
+						occupancyMask[y][x] = 64;
+					}
+				}
+				break;
+			}
 		}
 	}
 
