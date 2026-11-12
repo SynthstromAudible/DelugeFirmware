@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <fstream>
+#include <initializer_list>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -194,6 +195,19 @@ public:
 		std::string out;
 		for (size_t i = 0; i < rows_.size(); i++) {
 			if (!asked_[i]) {
+				out += rows_[i].path + " " + rows_[i].column + "\n";
+			}
+		}
+		return out;
+	}
+
+	/// @brief Like `unasked`, over the rows whose column starts with one of @p columns.
+	[[nodiscard]] std::string unasked(std::initializer_list<std::string_view> columns) const {
+		std::string out;
+		for (size_t i = 0; i < rows_.size(); i++) {
+			const bool mine =
+			    std::ranges::any_of(columns, [&](std::string_view c) { return rows_[i].column.starts_with(c); });
+			if (mine && !asked_[i]) {
 				out += rows_[i].path + " " + rows_[i].column + "\n";
 			}
 		}

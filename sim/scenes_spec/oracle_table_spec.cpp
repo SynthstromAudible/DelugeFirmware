@@ -48,6 +48,15 @@ describe oracle_table("scenes spec reference tables: the reader", $ {
 		expect(t.under("b").size()).to_equal(size_t{1});
 		expect(t.unasked()).to_equal(std::string{});
 	});
+	it("names the unasked rows of the columns it is given, and no others", _ {
+		spec::OracleTable t = spec::OracleTable::parse("a\tx\t1\na\ty/1\t2\na\tz\t3\nb\ty/2\t4\n");
+		expect(t.unasked({"y/"})).to_equal(std::string{"a y/1\nb y/2\n"});
+		expect(t.unasked({"x", "z"})).to_equal(std::string{"a x\na z\n"});
+		(void)t.find("a", "y/1");
+		(void)t.find("a", "x");
+		expect(t.unasked({"y/", "x"})).to_equal(std::string{"b y/2\n"});
+		expect(t.unasked({})).to_equal(std::string{});
+	});
 	it("reports a table that is not there, and finds nothing in it", _ {
 		spec::OracleTable& t = spec::OracleTable::named("no_such_table");
 		expect(t.problems().size()).to_equal(size_t{1});
