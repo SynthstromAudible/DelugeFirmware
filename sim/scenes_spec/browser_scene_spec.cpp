@@ -1589,6 +1589,27 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 		expect(browser_scene().cursor()).to_equal(stopped + 1);
 	});
 
+	it("neither deletes nor holds backspace while Select is held, as QwertyUI::padAction's mode gate", _ {
+		// `QwertyUI::padAction`: `else if (!currentUIMode)` covers both `processBackspace` and the hold.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		r.type(std::string_view{"SNARE"});
+		const int32_t start = browser_scene().cursor();
+		const uint32_t down = press_select(r);
+		expect(browser_scene().holding()).to_be_true();
+		r.pad_backspace(true, down + 10);
+		r.tick(down + 10);
+		expect(browser_scene().cursor()).to_equal(start);
+		// Past the hold's 500 ms, still nothing: no repeat was armed.
+		r.tick(down + 400);
+		expect(browser_scene().cursor()).to_equal(start);
+		r.pad_backspace(false, down + 420);
+		r.tick(down + 420);
+	});
+
 	it("asks to be woken for the next backspace repeat", _ {
 		CleanBrowser clean;
 		ScratchCard card;
