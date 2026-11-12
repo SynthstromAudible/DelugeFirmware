@@ -105,6 +105,31 @@ describe menu_context("scenes::menu::context_for", $ {
 		expect(ctx.addresses.note_row.has_value()).to_be_true();
 	});
 
+	it("edits the kit's own chain under the row's root when kit_global_fx is set with affect-entire off", _ {
+		// `SoundEditor::setup` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) picks the root from the clip's
+		// `affectEntire` and what it edits from `setupKitGlobalFXMenu`, which a pad pressed earlier with affect-entire
+		// on leaves set.
+		auto f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		f.clip->affectEntire = false;
+		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
+		                                          /*kit_global_fx=*/true);
+		expect(root_of(ctx)).to_equal(static_cast<int>(Root::Drum));
+		expect(ctx.is_kit_global_fx).to_be_true();
+		expect(ctx.is_drum).to_be_false();
+		expect(ctx.addresses.slot.has_value()).to_be_false();
+		expect(ctx.addresses.chain.has_value() && ctx.addresses.chain_owner == bind::ChainOwner::KIT).to_be_true();
+
+		// A MIDI row selected: the MIDI drum's root, still over the kit's own chain.
+		auto m = spec::make_kit_song();
+		(void)spec::add_drum<MIDIDrum>(m);
+		m.clip->affectEntire = false;
+		const MenuContext midi = menu::context_for(*m.song, deluge::gui::menuViewOf(m.clip), 0, false, false, false,
+		                                           /*kit_global_fx=*/true);
+		expect(root_of(midi)).to_equal(static_cast<int>(Root::MidiDrum));
+		expect(midi.is_kit_global_fx).to_be_true();
+	});
+
 	it("resolves a kit clip with a selected sound drum to the drum root", _ {
 		auto f = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);

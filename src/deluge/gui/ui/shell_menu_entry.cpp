@@ -260,8 +260,9 @@ void wireShellKitGlobalShortcuts() {
 
 bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool sessionOrArrangerRoot,
                    bool sessionViewRoot, bool kitGlobalFx, ShellMenuNode node, NoteMode noteMode) {
-	// The site's own write comes before its `setup()`, and stays should `setup()` refuse. The open itself edits what
-	// the site says, from the clip's affect-entire as it is now: the latch is for the shortcut presses that follow.
+	// The site's own write comes before its `setup()`, and stays should `setup()` refuse. `setup()` then edits what
+	// the latch says, which a pad pressed with affect-entire on may have left set after the button went off: the
+	// kit's own effects under the root the clip's affect-entire picks.
 	kitGlobalFxLatch = kitGlobalFxLatch || kitGlobalFx;
 	if (currentSong == nullptr) {
 		return false;
@@ -273,7 +274,7 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 	}
 
 	menu::MenuContext ctx =
-	    resolveContext(clip, sourceIndex, performanceView, sessionOrArrangerRoot, sessionViewRoot, kitGlobalFx);
+	    resolveContext(clip, sourceIndex, performanceView, sessionOrArrangerRoot, sessionViewRoot, kitGlobalFxLatch);
 	// `MenuContext::resolved` is where `setup()`'s two outright refusals live -- a kit whose selected
 	// `SoundDrum` has no note row (`SoundEditor::setup` in `gui/ui/sound_editor.cpp`) and a kit with neither
 	// affect-entire nor a selected drum (the same function). Both are `return false` in legacy, and both

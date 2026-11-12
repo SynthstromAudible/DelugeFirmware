@@ -162,8 +162,8 @@ enum class NoteMode : uint8_t {
 /// @param sessionViewRoot        `getRootUI() == &sessionView`, the narrower fact two items read.
 /// @param kitGlobalFx            True to edit a kit's own effects: the clip views' SELECT on a kit with
 ///                               affect-entire on, which also sets `setupKitGlobalFXMenu` before its `setup()`. True
-///                               sets the latch (`shellKitGlobalFx`) for the shortcut presses that follow; false
-///                               leaves it as it is. The open reads this argument, never the latch.
+///                               sets the latch (`shellKitGlobalFx`); false leaves it as it is. The open edits what
+///                               the latch then says, under the root the clip's affect-entire picks.
 /// @param node                   Which node to land on; `ContextRoot` for the resolved root.
 /// @param noteMode               Override the resolved root with the note editor or the note-row editor, which
 ///                               `src/scenes` cannot infer from `currentUIMode`. `NoteEditor`/`NoteRowEditor` are
@@ -205,11 +205,10 @@ bool openShellMenuAtShortcut(Clip* clip, int32_t x, int32_t y, bool performanceV
 /// Sticky. `shellShortcutPadAction` writes it with the guest closed, on every press it is
 /// asked about; the clip views' SELECT sets it on a kit with affect-entire on (`openShellMenu`'s `kitGlobalFx`); only
 /// the guest's close and the drum creator clear it (`clearShellKitGlobalFx`). It is read live, never copied: by the
-/// shortcut presses with the guest closed (`shellShortcutPadAction`), by the open menu's own Shift + pad, SHIFT overlay
-/// and horizontal-menu chain on a kit's row (`wireShellKitGlobalShortcuts`), and by the automation view
-/// (`soundMenuKitGlobalFx`), as legacy's `get_basic_shortcut_action`, `setup()`, `renderMainShortcutsOnly` and
-/// `getCurrentHorizontalMenusChain` read `setupKitGlobalFXMenu`. The other opens edit what the clip's affect-entire
-/// says now (DIFFERENCES D130).
+/// shortcut presses with the guest closed (`shellShortcutPadAction`), by every open (`openShellMenu`), by the open
+/// menu's own Shift + pad, SHIFT overlay and horizontal-menu chain on a kit's row (`wireShellKitGlobalShortcuts`), and
+/// by the automation view (`soundMenuKitGlobalFx`), as legacy's `get_basic_shortcut_action`, `setup()`,
+/// `renderMainShortcutsOnly` and `getCurrentHorizontalMenusChain` read `setupKitGlobalFXMenu`.
 bool shellKitGlobalFx();
 
 /// @brief Clear the latch, as the editor's `exitCompletely` and `enterDrumCreator` do.

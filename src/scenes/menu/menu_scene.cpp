@@ -354,13 +354,22 @@ std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
 }
 
 std::optional<MenuContext> MenuScene::kit_global_shortcut_context() const {
-	if (kit_global_shortcut_source_ == nullptr || !ctx_.is_kit || ctx_.is_kit_global_fx) {
+	if (!ctx_.is_kit) {
 		return std::nullopt;
 	}
 	switch (ctx_.root) {
 	case MenuContext::Root::Drum:
 	case MenuContext::Root::MidiDrum:
 	case MenuContext::Root::GateDrum:
+		// A row's root opened on the kit's own effects already edits them; its shortcuts are the kit's own.
+		if (ctx_.is_kit_global_fx) {
+			MenuContext kit_global = ctx_;
+			kit_global.root = MenuContext::Root::KitGlobalFx;
+			return kit_global;
+		}
+		if (kit_global_shortcut_source_ == nullptr) {
+			return std::nullopt;
+		}
 		return kit_global_shortcut_source_(ctx_);
 	default:
 		return std::nullopt;

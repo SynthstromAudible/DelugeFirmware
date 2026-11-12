@@ -447,8 +447,9 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 		closeGuest();
 
 		// And the kit-global-FX argument, which is the one fact the site computes for itself
-		// (`KIT && affectEntire`). Same clip, both values, so the argument is what is under test.
+		// (`KIT && affectEntire`).
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
+		static_cast<InstrumentClip*>(kit.clip)->affectEntire = true;
 		expect(entry::openShellMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/true)).to_be_true();
 		expect(deluge::scenes::menu_scene().focused() == &nodes::root_kit_global_fx).to_be_true();
 		closeGuest();
@@ -1420,7 +1421,7 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		(void)shellHostUI.exitUI();
 	});
 
-	it("SELECT opens the drum's own menu once affect-entire is off, whatever a pad left the fact at", _ {
+	it("SELECT with affect-entire off opens the drum root on the kit's own effects while a pad left the fact set", _ {
 		(void)quiet_audio();
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
@@ -1439,10 +1440,16 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		(void)instrumentClipView.buttonAction(deluge::hid::button::SELECT_ENC, true);
 		(void)instrumentClipView.buttonAction(deluge::hid::button::SELECT_ENC, false);
 		expect(isUIOpen(&shellHostUI)).to_be_true();
+		// `SoundEditor::setup`: the root from the clip's affect-entire, what it edits from `setupKitGlobalFXMenu`.
 		const menu::MenuContext& ctx = deluge::scenes::menu_scene().menu_context();
 		expect(ctx.root == menu::MenuContext::Root::Drum).to_be_true();
-		expect(ctx.is_kit_global_fx).to_be_false();
-		expect(ctx.is_drum).to_be_true();
+		expect(ctx.is_kit_global_fx).to_be_true();
+		expect(ctx.is_drum).to_be_false();
+		expect(ctx.addresses.slot.has_value()).to_be_false();
+		expect(ctx.addresses.chain.has_value()).to_be_true();
+		expect(entry::soundMenuModControllable() == f.instrument->toModControllable()).to_be_true();
+		// The automation view under it agrees: the kit's own context.
+		expect(automationView.getAffectEntire()).to_be_true();
 		(void)shellHostUI.exitUI();
 		expect(entry::shellKitGlobalFx()).to_be_false();
 	});
@@ -1453,7 +1460,7 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		deluge::scenes::spec::UiModeGuard mode;
 		LatchedKit k;
 		expect(entry::shellKitGlobalFx()).to_be_true();
-		k.f.clip->affectEntire = false; // D130: SELECT then opens the drum's own menu
+		k.f.clip->affectEntire = false; // SELECT then opens the drum's root on the kit's own effects
 		(void)instrumentClipView.buttonAction(deluge::hid::button::SELECT_ENC, true);
 		(void)instrumentClipView.buttonAction(deluge::hid::button::SELECT_ENC, false);
 		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::Drum).to_be_true();
@@ -1478,10 +1485,13 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		                            entry::ShellMenuNode::ContextRoot, entry::NoteMode::NoteEditor))
 		    .to_be_true();
 		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::NoteEditor).to_be_true();
+		// `setup()` reads the latch for the note editor too: it opens on the kit's own effects.
+		expect(deluge::scenes::menu_scene().menu_context().is_kit_global_fx).to_be_true();
+		const menu::Node* const before = deluge::scenes::menu_scene().focused();
 		HeldShift shift;
 		guest_shortcut(8, 7);
 		expect(deluge::scenes::menu_scene().menu_context().root == menu::MenuContext::Root::NoteEditor).to_be_true();
-		expect(deluge::scenes::menu_scene().menu_context().is_kit_global_fx).to_be_false();
+		expect(deluge::scenes::menu_scene().focused() == before).to_be_true();
 		expect(deluge::scenes::menu_scene().focused_value() != &nodes::global_lpf_freq).to_be_true();
 		closeGuest();
 	});
@@ -1542,7 +1552,8 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 		closeGuest();
 	});
 
-	it("the SHIFT overlay on the drum menu shows the kit's own map while the latch is set, the drum's once it clears", _ {
+	it("the SHIFT overlay on the drum menu shows the kit's own map when it opened with the latch set, else the drum's",
+	   _ {
 		(void)quiet_audio();
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
@@ -1564,7 +1575,12 @@ describe menu_entry_reopen("an entry that reaches the open guest re-roots it in 
 			return grid.state();
 		};
 		const auto kit_map = shown();
-		entry::clearShellKitGlobalFx(); // as a close clears it; the menu itself is unchanged
+		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, false);
+		closeGuest(); // the close clears the latch
+		expect(entry::openShellMenu(k.f.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().is_kit_global_fx).to_be_false();
+		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, true);
+		(void)shellHostUI.timerCallback();
 		const auto drum_map = shown();
 		expect(kit_map != deluge::ui::test::GridRig{}.state()).to_be_true();
 		expect(kit_map != drum_map).to_be_true();
@@ -2078,8 +2094,9 @@ describe menu_entry_published_target("the ported menu's owner and params, which 
 		closeGuest();
 	});
 
-	it("with the latch set under the drum menu, the automation view's kit-wide stack is the drum's row", _ {
-		// Pins the port's current value: `main`'s `SoundEditor::setup` with `setupKitGlobalFXMenu` set edits the kit's own FX.
+	it("with the latch set under the drum menu, the automation view's kit-wide stack is the kit's own", _ {
+		// `SoundEditor::setup` tests `setupKitGlobalFXMenu` ahead of the selected drum: the kit's own effects and the
+		// clip's params, under the drum root the clip's affect-entire picks.
 		(void)quiet_audio();
 		RootUIGuard root_guard;
 		deluge::scenes::spec::UiModeGuard mode;
@@ -2097,8 +2114,9 @@ describe menu_entry_published_target("the ported menu's owner and params, which 
 		    deluge::modulation::params::Kind::UNPATCHED_GLOBAL);
 		expect(param != nullptr).to_be_true();
 		if (param != nullptr) {
-			expect(param->paramManager == &row->paramManager).to_be_true();
-			expect(param->modControllable == static_cast<ModControllableAudio*>(k.drum)).to_be_true();
+			expect(param->paramManager == &static_cast<InstrumentClip*>(k.f.clip)->paramManager).to_be_true();
+			expect(param->paramManager != &row->paramManager).to_be_true();
+			expect(param->modControllable == k.f.instrument->toModControllable()).to_be_true();
 		}
 		closeGuest();
 	});

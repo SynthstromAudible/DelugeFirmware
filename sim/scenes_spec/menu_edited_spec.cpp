@@ -195,6 +195,7 @@ describe menu_edited_guest("the ported menu marks the instrument it edits, as So
 		spec::UiModeGuard mode_guard;
 		spec::SongFixture fx = spec::make_kit_song();
 		(void)spec::add_drum<SoundDrum>(fx);
+		static_cast<InstrumentClip*>(fx.clip)->affectEntire = true;
 		activate(fx);
 		const menu::MenuContext ctx =
 		    menu::context_for(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, /*performance_view=*/false,

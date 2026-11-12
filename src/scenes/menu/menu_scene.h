@@ -617,9 +617,9 @@ private:
 	                                       const deluge::ui::shell::UiContext& ctx);
 	/// @brief The scene's context and state, for a unit's call.
 	MenuCore core() { return {ctx_, st_}; }
-	/// @brief The kit's own effects for a shortcut press on a kit's row, from the host
-	/// (`set_kit_global_shortcut_source`),
-	///        or `nullopt` off a kit row or while the host's latch is clear. The note editors and Settings take no
+	/// @brief The kit's own effects for a shortcut press on a kit's row root: the menu's own context when it was opened
+	///        on them, else the host's (`set_kit_global_shortcut_source`); `nullopt` off a kit row or while the host's
+	///        latch is clear. The note editors and Settings take no
 	///        shortcut press, as `SoundEditor::padAction` skips them.
 	std::optional<MenuContext> kit_global_shortcut_context() const;
 	/// @brief The root whose shortcut table and horizontal chain a press reads: the kit's own while

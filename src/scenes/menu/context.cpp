@@ -228,22 +228,25 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 	ctx.affect_entire = ctx.is_kit && !ctx.is_audio_clip && view.affect_entire;
 
 	// ---------------------------------------------------------------------------------------
-	// Part 2: which root menu (`:1769-1827`, the `item == nullptr` arm). The kit arms read `is_kit_global_fx` where
-	// legacy reads the clip's affect-entire: the same fact wherever no item is passed, and on the grid shortcut it
-	// keeps the root consistent with what part 1 edits. The note-editor roots are the caller's (`NoteMode`).
+	// Part 2: which root menu (`:1769-1827`, the `item == nullptr` arm). Legacy picks the kit roots from the clip's
+	// affect-entire and edits what `setupKitGlobalFXMenu` says, and the two can disagree: the kit's own root is taken
+	// when both say the kit, and otherwise the row's root by the selected drum's type, as legacy's arms run. The grid
+	// shortcut (affect-entire on, the row edited) so lands on the row's root, which is where its item lives; with
+	// affect-entire off and the fact set it is legacy's drum root over the kit's own effects. The note-editor roots
+	// are the caller's (`NoteMode`).
 	// ---------------------------------------------------------------------------------------
 	if (view.clip) { // `:1770`
 		if (!view.audio_clip) {
 			if (view.kind == TrackKind::MIDI_OUT || view.kind == TrackKind::CV) { // `:1780-1788`
 				ctx.root = MenuContext::Root::MidiOrCv;
 			}
-			else if (ctx.is_kit && ctx.is_kit_global_fx) { // `:1790-1792`
+			else if (ctx.is_kit && ctx.is_kit_global_fx && view.affect_entire) { // `:1790-1792`
 				ctx.root = MenuContext::Root::KitGlobalFx;
 			}
-			else if (ctx.is_kit && ctx.is_drum && view.selected_row_type == project::DrumType::MIDI) { // `:1794-1798`
-				ctx.root = MenuContext::Root::MidiDrum;
+			else if (ctx.is_kit && view.selected_row && view.selected_row_type == project::DrumType::MIDI) {
+				ctx.root = MenuContext::Root::MidiDrum; // `:1794-1798`
 			}
-			else if (ctx.is_kit && ctx.is_drum && view.selected_row_type == project::DrumType::GATE) { // `:1800-1804`
+			else if (ctx.is_kit && view.selected_row && view.selected_row_type == project::DrumType::GATE) {
 				ctx.root = MenuContext::Root::GateDrum;
 			}
 			else { // `:1806-1808`
