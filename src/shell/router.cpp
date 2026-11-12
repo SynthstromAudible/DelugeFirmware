@@ -20,7 +20,7 @@ namespace {
 /// `:134`), and the line it runs there is `getCurrentUI()->modEncoderButtonAction(n, on)` -- again a
 /// hook whose base implementation (`UI::modEncoderButtonAction`, `gui/ui/ui.cpp:43-45`) is a bare
 /// forward to `view`, and which five UIs override (`gui/views/instrument_clip_view.h:199`,
-/// `gui/ui/sound_editor.h:81`, `gui/views/session_view.h:80`,
+/// `SoundEditor::modEncoderButtonAction` in `gui/ui/sound_editor.h`, `gui/views/session_view.h:80`,
 /// `gui/views/performance_view.h:97`, `gui/views/automation_view.h:117`). Scene first, then here.
 ///
 /// @note Legacy reaches the two pushes only *after* the current UI. In a service-first chain that

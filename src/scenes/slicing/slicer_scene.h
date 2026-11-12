@@ -166,11 +166,11 @@ struct PreviewRequest {
 /// Plain data: the slice runs when its load lands, and an encoder turn or pad press while it is out
 /// must not change what gets sliced or painted.
 struct SliceCommit {
-	/// Was the slicer in MANUAL mode at press time (`slicer.cpp:345`)?
+	/// Was the slicer in MANUAL mode at press time (`Slicer::buttonAction`'s Select arm, `slicer.cpp`)?
 	bool is_manual = false;
-	/// `numManualSlice` (MANUAL) or `numClips` (REGION) at press time (`slicer.cpp:346`).
+	/// `numManualSlice` (MANUAL) or `numClips` (REGION) at press time (the same arm).
 	int32_t slice_count = 0;
-	/// The slice table as it stood at press time (`slicer.cpp:348-349`); only read when
+	/// The slice table as it stood at press time (the same arm); only read when
 	/// `is_manual`.
 	SlicePoint points[kMaxManualSlices]{};
 };

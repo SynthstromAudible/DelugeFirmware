@@ -66,6 +66,7 @@
 #include "gui/ui/shell_choice_dispatch.h"
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/sound_target.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/button.h"
 #include "hid/buttons.h"
@@ -926,6 +927,31 @@ describe browser_choice_claim(
 	        });
 
 	    it(
+	        "names the menu's sound, source and range in the request, whatever the legacy editor last held", _ {
+		        CleanBrowser clean;
+		        ClaimSpy spy;
+		        ScratchCard card;
+		        ShellRig r;
+		        r.open_browser();
+		        r.enter();
+		        Sound* const sound = static_cast<Sound*>(
+		            static_cast<ModControllableAudio*>(r.model.song.instrument->toModControllable()));
+		        soundEditor.currentSound = nullptr;
+		        soundEditor.currentSource = nullptr;
+		        soundEditor.currentMultiRange = nullptr;
+
+		        deluge::gui::ui::dispatchShellChoices();
+
+		        expect(spy.dispatches).to_equal(1);
+		        expect(ClaimSpy::last.target.sound == sound).to_be_true();
+		        expect(ClaimSpy::last.target.source == r.model.source).to_be_true();
+		        expect(ClaimSpy::last.target.range == static_cast<::MultiRange*>(r.model.range)).to_be_true();
+		        expect(static_cast<int32_t>(ClaimSpy::last.target.rangeIndex)).to_equal(0);
+		        expect(static_cast<int32_t>(ClaimSpy::last.target.sourceIndex)).to_equal(0);
+		        expect(ClaimSpy::last.legacyFinish == nullptr).to_be_true();
+	        });
+
+	    it(
 	        "claims from the guest's own tick, with nothing in the example naming the dispatcher", _ {
 		        // The composition, as the drain examples above do it: the difference between the two
 		        // legs is one call, `ui.shell().tick` versus `ui.timerCallback()`. So a claim on the
@@ -1013,9 +1039,9 @@ describe browser_choice_claim(
 
 	    it(
 	        "claims without exiting, because there is no legacy browser open to close", _ {
-		        // **The device defect this pins.** `claimCurrentFile`'s success tail is gated on
-		        // `!loadWithoutExiting` (`gui/ui/browser/sample_browser.cpp:966`), and its first
-		        // statement is `exitAndNeverDeleteDrum()` (`:1109`) -- which is `close()` (`:258-260`),
+		        // **The device defect this pins.** The legacy claim's success tail is gated on
+		        // `!loadWithoutExiting` (`SampleBrowser::finishLegacyClaim`), and its first
+		        // statement is `exitAndNeverDeleteDrum()` -- which is `close()`,
 		        // `Browser::close()`, `UI::close()` and finally
 		        // `closeUI(this)` (`gui/ui/ui.cpp:87-89`). Under the guest `sampleBrowser` was never
 		        // opened, so `closeUI`'s search falls out at `u == 0` and reads
@@ -1261,7 +1287,7 @@ describe browser_choice_reroot(
 		        // four ticks -- but the menu is opened on `sound_root` rather than on the item that
 		        // pushes the browser, so nothing ever recorded an opener. Legacy's guard is the same
 		        // shape: the re-rooting is inside `if (menuItemHeadingTo != nullptr &&
-		        // parentMenuHeadingTo != nullptr)` (`SampleClaim::stepFinish`).
+		        // parentMenuHeadingTo != nullptr)` (`SampleBrowser::finishLegacyClaim`).
 		        CleanBrowser clean;
 		        ClaimSpy spy;
 		        ScratchCard card;
@@ -1652,6 +1678,22 @@ describe browser_choice_long_press(
 		        expect(ImportSpy::last.folder).to_equal(std::string{"SAMPLES/OSC_A"});
 		        expect(ImportSpy::last.previouslyViewedFilename).to_equal(std::string{"A1.WAV"});
 		        expect(ImportSpy::last.exitBrowser).to_be_false();
+	        });
+
+	    it(
+	        "names the menu's source in a MULTISAMPLES import, and tells no legacy editor which range it chose", _ {
+		        CleanBrowser clean;
+		        ImportSpy spy;
+		        ScratchCard card;
+		        ShellRig r;
+		        r.open_browser();
+		        long_press(r.shell, r.clock);
+		        pick(r.shell, r.clock, 0);
+		        soundEditor.currentSource = nullptr;
+		        deluge::gui::ui::dispatchShellChoices();
+		        expect(spy.dispatches).to_equal(1);
+		        expect(ImportSpy::last.target.source == r.model.source).to_be_true();
+		        expect(ImportSpy::last.rangeChosen == nullptr).to_be_true();
 	        });
 
 	    it(

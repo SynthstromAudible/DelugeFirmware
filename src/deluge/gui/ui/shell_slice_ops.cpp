@@ -42,7 +42,8 @@ using deluge::scenes::slicing::PreviewRequest;
 using deluge::scenes::slicing::SliceCommit;
 using deluge::scenes::slicing::slicer_scene;
 
-/// @brief `SlicerScene`'s host: every call resolves `soundEditor` to what the ported menu edits, then does what the
+/// @brief `SlicerScene`'s host: every call names the sound the ported menu edits (`shellMenuTarget`), then does what
+/// the
 ///        legacy `Slicer` does through the same `SliceCore`.
 class HostSliceOps final : public deluge::scenes::slicing::SliceOps {
 public:
@@ -54,21 +55,21 @@ public:
 		if (sample_ == nullptr) {
 			return;
 		}
-		adoptShellMenuContext();
+		core_.retarget(shellMenuTarget());
 		core_.audition(*sample_, SliceCore::AuditionTarget{.startPoint = req.start_point,
 		                                                   .endPoint = req.end_point,
 		                                                   .transpose = req.transpose,
 		                                                   .on = req.on});
 	}
 	void cancel_audition() override { core_.cancel_audition(); }
-	/// The position `poll` read this tick: the scene asks while it renders, which must not move `soundEditor`.
+	/// The position `poll` read this tick: the scene asks while it renders, which walks no voices.
 	std::optional<int32_t> play_position() override { return play_position_; }
 	void restore_full_range() override { (void)core_.restore_full_range(); }
 	bool begin_commit(const SliceCommit& commit) override {
 		if (core_.slicing() || path_.empty()) {
 			return false;
 		}
-		adoptShellMenuContext();
+		core_.retarget(shellMenuTarget());
 		SliceCore::Target target{};
 		target.isManual = commit.is_manual;
 		target.sliceCount = commit.slice_count;
@@ -108,9 +109,8 @@ public:
 			play_position_.reset();
 			return;
 		}
-		// The audition and the slice act on what the ported menu edits, and another UI may have moved `soundEditor`
-		// since they were asked for.
-		adoptShellMenuContext();
+		// The audition and the slice act on what the ported menu edits now.
+		core_.retarget(shellMenuTarget());
 		poll_open();
 		core_.tick_audition();
 		if (const std::optional<SliceCore::SliceEnd> end = core_.tick_slice()) {

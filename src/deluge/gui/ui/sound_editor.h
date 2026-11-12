@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/pad_shortcut_blink.h"
+#include "gui/ui/sound_target.h"
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "modulation/arpeggiator.h"
@@ -183,6 +184,8 @@ public:
 
 	void cutSound();
 	AudioFileHolder* getCurrentAudioFileHolder();
+	/// @brief This editor's resolved sound, source, range and params, as a claim, import or slice takes them.
+	deluge::gui::SoundTarget soundTarget() const;
 	void mpeZonesPotentiallyUpdated();
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
@@ -203,43 +206,25 @@ public:
 	std::optional<std::span<deluge::gui::menu_item::HorizontalMenu* const>>
 	getCurrentHorizontalMenusChain(bool checkNavigationDepth = true);
 
-	/// @brief The nine facts `setup()` resolves before it opens anything, as a value.
-	///
-	/// Field-for-field the resolved half of the ported `menu::MenuContext`, but spelled in legacy's
-	/// own types: `check_layer_rules.py`'s `legacy-names-port` row forbids this header naming a
-	/// `src/scenes` type, and it is right to -- this header is included across the whole legacy tree
-	/// and the value is that the dependency runs one way. The caller translates
-	/// (`gui/ui/shell_choice_dispatch.cpp`), which is the layer whose job is translating.
-	struct ResolvedContext {
-		Sound* sound;
-		ModControllableAudio* mod;
-		ParamManagerForTimeline* params;
-		ArpeggiatorSettings* arp;
-		::MultiRange* range;
-		int16_t rangeIndex;
-		int8_t sourceIndex;
-		Source* source;
-		SampleControls* sampleControls;
-	};
+	/// @brief The facts `setup()` resolves before it opens anything, as a value: the target a claim, an import or a
+	///        slice carries (`deluge::gui::SoundTarget`). The ported menu's caller translates its own context into one
+	///        (`gui/ui/shell_choice_dispatch.cpp`), so this header names no `src/scenes` type.
+	using ResolvedContext = deluge::gui::SoundTarget;
 
 	/// @brief Point the resolved `current*` members at what @p resolved names -- `setup()`'s
 	///        own tail, for a caller that never ran `setup()`.
 	///
-	/// **Why this exists.** A sample claim (`gui/ui/browser/sample_claim.h`) reads `currentSound`,
-	/// `currentSource`, `currentSourceIndex` and `currentMultiRange` throughout, and
-	/// `Source::setOscType` consults `currentMultiRangeIndex`. Legacy reaches the browser only from
-	/// `FileSelector::beginSession`, inside a `SoundEditor` that `setup()` resolved. **Under the
-	/// ShellMenu toggle nothing calls `setup()` at all**, so `currentSound` is whatever the last legacy
-	/// menu left, which on a fresh boot is `nullptr`.
+	/// **Why this exists.** The kit's param stacks for the menu (`Kit::getModelStackWithParamForKit`) and
+	/// `View::notifyParamAutomationOccurred` read `currentModControllable` and `currentParamManager`. **Under the
+	/// ShellMenu toggle nothing calls `setup()` at all**, so they hold whatever the last legacy menu left, which on a
+	/// fresh boot is `nullptr`.
 	///
 	/// The write lives on the class that owns the members rather than in the wiring layer that has
 	/// the values.
 	///
-	/// What it deliberately does NOT touch: `allowsNoteTails` (a twelfth value `setup()` computes,
-	/// never read by a claim), `navigationDepth` / `menuItemNavigationRecord` (the ported walk lives
-	/// in `MenuState`, and `shellSampleClaimDone` re-roots that instead), and every UI member. This
-	/// makes `soundEditor` a correct *model* accessor for the duration of the claim; it does not
-	/// make it an open UI.
+	/// What it deliberately does NOT touch: `allowsNoteTails`, `navigationDepth` / `menuItemNavigationRecord` (the
+	/// ported walk lives in `MenuState`), and every UI member. This makes `soundEditor` a correct *model* accessor; it
+	/// does not make it an open UI.
 	void adoptResolvedContext(const ResolvedContext& resolved);
 
 private:

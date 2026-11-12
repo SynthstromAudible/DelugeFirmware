@@ -1473,8 +1473,12 @@ void actLeg() {
 		g_cancelLoadingFired = false;
 		g_cancelLoadingInFlight = false;
 		g_cancelLoadingTicks = 0;
-		deluge::gui::sampleClaim.request(
-		    {.path = legFile(), .loadWithoutExiting = true, .origin = deluge::gui::ClaimOrigin::AutoLoad});
+		// The legacy browser's request: the sound its editor resolved, and its own tail.
+		deluge::gui::sampleClaim.request({.path = legFile(),
+		                                  .loadWithoutExiting = true,
+		                                  .origin = deluge::gui::ClaimOrigin::AutoLoad,
+		                                  .target = soundEditor.soundTarget(),
+		                                  .legacyFinish = &SampleBrowser::finishLegacyClaim});
 		return;
 	}
 	if (g_leg == Leg::Gate) {
@@ -1500,10 +1504,12 @@ void actLeg() {
 		deluge::gui::folderImport.request({.kind = deluge::gui::FolderImportKind::Kit,
 		                                   .folder = kImportEmptyFolder,
 		                                   .previouslyViewedFilename = item != nullptr ? item->filename.c_str() : "",
-		                                   .completion = [](bool success) {
-			                                   g_imEmptyTold = true;
-			                                   g_imEmptySucceeded = success;
-		                                   }});
+		                                   .completion =
+		                                       [](bool success) {
+			                                       g_imEmptyTold = true;
+			                                       g_imEmptySucceeded = success;
+		                                       },
+		                                   .target = soundEditor.soundTarget()});
 		printf("SC-SETUP leg=import-empty inFlight=%d\n", deluge::gui::folderImport.inFlight() ? 1 : 0);
 		return;
 	}

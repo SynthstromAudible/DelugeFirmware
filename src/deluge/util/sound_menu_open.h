@@ -20,6 +20,8 @@
 #include <cstdint>
 #include <optional>
 
+class Source;
+
 /// @file
 /// @brief "Is the sound menu open?" -- legacy's own question, asked so that it also sees the ported menu.
 ///
@@ -77,6 +79,10 @@ bool noteWithinCurrentRange(int32_t untransposed);
 ///        (`MenuScene::dx_column_flash`).
 /// @return The row, or nothing when no row is white.
 std::optional<int32_t> dxColumnFlashRow();
+
+/// @brief @p source's ranges were reallocated by an oscillator-type change, emptied first when @p cleared: the legacy
+///        editor's current range is found again by its index.
+void legacyRangesRetyped(Source& source, bool cleared);
 
 /// @brief Legacy's `menu_item::multiRangeMenu.noteOnToChangeRange(note)`, or the ported picker's.
 /// @param note The note, transposed as the sound plays it.

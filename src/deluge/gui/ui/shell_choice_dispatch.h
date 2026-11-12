@@ -26,7 +26,7 @@
 /// `BrowserScene::take_choice()` hands it out exactly once; the claim's completion answers `deferred_load_done`.
 ///
 /// **Why it is deferred at all.** `SampleBrowser::enterKeyPress`'s file arm requests a claim from
-/// `deluge::gui::sampleClaim` (`gui/ui/browser/sample_claim.h`), whose phases reach `soundEditor`,
+/// `deluge::gui::sampleClaim` (`gui/ui/browser/sample_claim.h`), whose phases reach the sample browser,
 /// `AudioEngine`, `slicer`, `PadLEDs` and `instrumentClipView` -- `gui/` and `hid/` symbols the
 /// scenes layer may not name (`scenes-includes-outside`, `scripts/check_layer_rules.py`).
 /// `Descriptor::accept`'s own note says the same thing from the other side
@@ -42,6 +42,8 @@
 /// specs off the board. The host suite stubs this one symbol in
 /// `tests/spec/gui/support/fake_legacy_ui.cpp`, exactly as it stubs `dispatchShellActions` and
 /// `wireShellGuestServices`.
+
+#include "gui/ui/sound_target.h"
 
 #include <cstdint>
 #include <optional>
@@ -92,9 +94,9 @@ struct SampleClaimArgs {
 	int32_t mayDoSingleCycle;
 	/// As above.
 	int32_t mayDoWaveTable;
-	/// Keep the browser open once the file is claimed. **A correctness requirement**: the legacy
-	/// browser was never opened under the guest, so it is not in `uiNavigationHierarchy`, and
-	/// `SampleClaim::stepFinish`'s exit would `closeUI` a browser that is not there.
+	/// Keep the browser open once the file is claimed: the ported browser waits on the claim's
+	/// completion and closes itself. The legacy browser's exit (`SampleBrowser::finishLegacyClaim`)
+	/// runs only for a claim that browser asked for, so it never `closeUI`s a browser that is not there.
 	bool loadWithoutExiting;
 };
 
@@ -108,9 +110,9 @@ inline constexpr SampleClaimArgs kShellSampleClaimArgs{
 
 /// @brief The completion `dispatchShellChoices` gives the claim it requests for a `Sample` choice.
 ///
-/// `loadWithoutExiting` skips `SampleClaim::stepFinish`'s browser exit, the legacy menu re-rooting
-/// and its `uiNeedsRendering(&audioClipView)`. On success this pays back the two the guest still
-/// wants: the render request, and the re-rooting in the ported world's own terms,
+/// The claim carries no `legacyFinish`, so the legacy browser's exit, the legacy menu re-rooting
+/// and its `uiNeedsRendering(&audioClipView)` (`SampleBrowser::finishLegacyClaim`) do not run. On success this pays
+/// back the two the guest still wants: the render request, and the re-rooting in the ported world's own terms,
 /// `MenuScene::reroot_to_scene_opener_page()` against `MenuState::path`/`depth`. The legacy
 /// `menuItemHeadingTo`/`parentMenuHeadingTo` pair is left alone: nothing on the ported path writes
 /// it, and a stale pair from a legacy session would re-root the legacy editor.
@@ -185,6 +187,10 @@ void setFolderImportDispatch(FolderImportDispatch dispatch);
 /// @brief Point `soundEditor`'s current sound, source and range at what the ported menu edits, before an operation
 ///        that reads them on the menu's behalf.
 void adoptShellMenuContext();
+
+/// @brief The engine objects the ported menu's context names now, resolved in the current song: what a claim, an import
+///        or a slice started from the menu acts on.
+deluge::gui::SoundTarget shellMenuTarget();
 
 /// @brief Tell the ported browser whether its next open is the drum creator's: `InstrumentClipView::enterDrumCreator`
 ///        opens the browser with no `SoundEditor::beginScreen` after it, so only the browser's own BROWSE blink runs.

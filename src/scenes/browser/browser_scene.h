@@ -217,7 +217,7 @@ struct Descriptor {
 	///       `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp`, its
 	///       file-selector arm) writes `sampleBrowser.menuItemHeadingTo` and
 	///       `parentMenuHeadingTo` on the way *in*, and the claim's last step reads them back
-	///       (`SampleClaim::stepFinish`; `SampleBrowser::claimCurrentFile` on `main`) to re-root
+	///       (`SampleBrowser::finishLegacyClaim`; `SampleBrowser::claimCurrentFile` on `main`) to re-root
 	///       `soundEditor.menuItemNavigationRecord` onto the oscillator's horizontal page with the
 	///       file selector focused. So accepting a file lands the user on the source page, not back
 	///       on the item that opened the browser.
@@ -439,7 +439,7 @@ public:
 	///
 	/// The sample browser greys the mute column only while its keyboard or a waveform shows, or over the keyboard
 	/// screen, and every column but the audition column otherwise: `SampleBrowser::getGreyoutColsAndRows`
-	/// (`gui/ui/browser/sample_browser.cpp:576-587`). The MIDI device definition browser greys every column, keyboard
+	/// (`gui/ui/browser/sample_browser.cpp`). The MIDI device definition browser greys every column, keyboard
 	/// included, as `LoadMidiDeviceDefinitionUI` does (`gui/ui/load/load_midi_device_definition_ui.cpp:41-44`).
 	deluge::ui::grid::GreyoutMask greyout_mask() const override {
 		if (id_ == BrowserId::MidiDeviceDefinition) {

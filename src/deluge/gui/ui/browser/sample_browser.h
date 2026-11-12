@@ -37,6 +37,7 @@ class HorizontalMenu;
 
 namespace deluge::gui {
 enum class FolderImportKind : uint8_t;
+struct ClaimRequest;
 } // namespace deluge::gui
 
 class SampleBrowser final : public Browser {
@@ -66,6 +67,9 @@ public:
 	void requestFolderImport(deluge::gui::FolderImportKind kind, void (*completion)(bool success));
 	/// @brief Reset the current source's oscillator volume, if it is not automated and was at 0: after a file is set.
 	void audioFileIsNowSet();
+	/// @brief A claim this browser asked for, finishing: the range-menu step, the exit and the editor's re-root it
+	///        runs on the way out (`ClaimRequest::legacyFinish`).
+	static void finishLegacyClaim(const deluge::gui::ClaimRequest& request);
 	/// @brief Send @p drum to side-chain when its file, named @p fileName, looks like a kick and plays once.
 	void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName);
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],

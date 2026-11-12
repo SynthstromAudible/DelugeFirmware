@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/sound_target.h"
 #include "io/file.hpp"
 #include "model/sample/pitch_scan.h"
 #include "model/sample/recorder_write_policy.h" // UnproductiveSpan
@@ -48,6 +49,11 @@ struct FolderImportRequest {
 	/// Close the legacy sample browser once the import succeeds. False for an import the ported browser asked for,
 	/// which its completion closes instead: the legacy browser was never opened.
 	bool exitBrowser = true;
+	/// The sound the import fills: the menu's resolved sound and source.
+	SoundTarget target{};
+	/// Told each range the import makes current, for an opener that keeps its own current range. Null for the ported
+	/// browser, whose menu keeps its own.
+	void (*rangeChosen)(int32_t index) = nullptr;
 };
 
 /// @brief The sample browser's folder import: every audio file in a folder, as a kit's drums or a synth's multisample

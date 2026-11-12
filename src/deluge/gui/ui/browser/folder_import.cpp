@@ -23,7 +23,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/sample_browser.h"
-#include "gui/ui/sound_editor.h"
+#include "gui/ui/sound_target.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"
@@ -65,11 +65,19 @@ FolderImport folderImport{};
 
 namespace {
 
-/// Set the sound editor's current source's repeat mode through its setting Edit.
-void setImportRepeatMode(SampleRepeatMode mode) {
-	deluge::edits::settingFor(*soundEditor.currentSound,
-	                          deluge::edits::oscSettingPath(soundEditor.currentSourceIndex, "loopMode"),
+/// Set the import target's source's repeat mode through its setting Edit.
+void setImportRepeatMode(const SoundTarget& target, SampleRepeatMode mode) {
+	deluge::edits::settingFor(*target.sound, deluge::edits::oscSettingPath(target.sourceIndex, "loopMode"),
 	                          deluge::serialization::Value::makeNumber(std::to_underlying(mode)));
+}
+
+/// Make range @p index of the import's source the one it works on, and tell an opener that asked.
+void chooseRange(FolderImportRequest& request, int32_t index) {
+	request.target.rangeIndex = static_cast<int16_t>(index);
+	request.target.range = request.target.source->ranges.getElement(index);
+	if (request.rangeChosen != nullptr) {
+		request.rangeChosen(index);
+	}
 }
 
 #define NOTE_CHECK_ERROR_MARGIN 0.75
@@ -671,17 +679,17 @@ bool FolderImport::finishMulti() {
 	D_PRINTLN("loaded and sorted samples");
 
 	// Delete all but first pre-existing range
-	int32_t oldNumRanges = std::ssize(soundEditor.currentSource->ranges);
+	int32_t oldNumRanges = std::ssize(request_.target.source->ranges);
 	for (int32_t i = oldNumRanges - 1; i >= 1; i--) {
-		soundEditor.currentSound->deleteMultiRange(soundEditor.currentSourceIndex, i);
+		request_.target.sound->deleteMultiRange(request_.target.sourceIndex, i);
 	}
 
 	// If we now want more than one range, be efficient by getting our array of ranges to pre-allocate all the memory
 	// it's going to use
 	if (numSamples > 1) {
-		soundEditor.currentSound->killAllVoices();
+		request_.target.sound->killAllVoices();
 		AudioEngine::audioRoutineLocked = true;
-		bool success = soundEditor.currentSource->ranges.reserveExtra(numSamples - 1).has_value();
+		bool success = request_.target.source->ranges.reserveExtra(numSamples - 1).has_value();
 		AudioEngine::audioRoutineLocked = false;
 
 		if (!success) {
@@ -696,12 +704,12 @@ bool FolderImport::finishMulti() {
 				thisSample->removeReason("E393"); // Remove that temporary reason we added above
 			}
 			display->displayError(Error::INSUFFICIENT_RAM);
-			deluge::edits::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
+			deluge::edits::recordRanges(*request_.target.sound, request_.target.sourceIndex);
 			return false;
 		}
 	}
 
-	soundEditor.setCurrentMultiRange(0);
+	chooseRange(request_, 0);
 
 	AudioEngine::audioRoutineLocked = false;
 
@@ -764,11 +772,13 @@ skipOctaveCorrection:
 	int32_t numWithFileLoopPoints = 0;
 	int32_t numWithResultingLoopEndPoints = 0;
 
-	if (soundEditor.currentSource->oscType != OscType::SAMPLE) {
-		soundEditor.currentSound->killAllVoices();
-		deluge::edits::settingFor(*soundEditor.currentSound,
-		                          deluge::edits::oscSettingPath(soundEditor.currentSourceIndex, "type"),
+	if (request_.target.source->oscType != OscType::SAMPLE) {
+		request_.target.sound->killAllVoices();
+		const int32_t rangesBefore = std::ssize(request_.target.source->ranges);
+		deluge::edits::settingFor(*request_.target.sound,
+		                          deluge::edits::oscSettingPath(request_.target.sourceIndex, "type"),
 		                          deluge::serialization::Value::makeScalar("sample"));
+		retargetRangeAfterRetype(request_.target, rangesBefore);
 	}
 
 	D_PRINTLN("creating ranges");
@@ -799,13 +809,13 @@ skipOctaveCorrection:
 
 		MultisampleRange* range;
 		if (rangeIndex == 0) {
-			range = (MultisampleRange*)soundEditor.currentMultiRange;
+			range = (MultisampleRange*)request_.target.range;
 		}
 		else {
-			if (soundEditor.currentSource->ranges.currentElementSize() != sizeof(MultisampleRange)) {
+			if (request_.target.source->ranges.currentElementSize() != sizeof(MultisampleRange)) {
 				FREEZE_WITH_ERROR("E431");
 			}
-			range = (MultisampleRange*)soundEditor.currentSource->ranges.insertMultiRange(
+			range = (MultisampleRange*)request_.target.source->ranges.insertMultiRange(
 			    rangeIndex); // We know it's gonna succeed
 		}
 
@@ -814,7 +824,7 @@ skipOctaveCorrection:
 		range->topNote = topNote;
 
 		range->sampleHolder.filePath = thisSample->filePath;
-		range->sampleHolder.setAudioFile(thisSample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(),
+		range->sampleHolder.setAudioFile(thisSample, request_.target.source->sampleControls.isCurrentlyReversed(),
 		                                 true);
 		bool rangeCoversJustOneNote = (topNote == lastTopNote + 1);
 		range->sampleHolder.setTransposeAccordingToSamplePitch(false, rangeCoversJustOneNote, topNote);
@@ -841,18 +851,18 @@ skipOctaveCorrection:
 	if (!numSamples) {
 		display->displayPopup(
 		    deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_CREATING_MULTISAMPLED_INSTRUMENT));
-		deluge::edits::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
+		deluge::edits::recordRanges(*request_.target.sound, request_.target.sourceIndex);
 		return false;
 	}
 
 	D_PRINTLN("distinct ranges: %d", numSamples);
 
 	// The builder above rebuilt the whole range collection: record it.
-	deluge::edits::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
+	deluge::edits::recordRanges(*request_.target.sound, request_.target.sourceIndex);
 
 	delugeDealloc(sortArea);
 
-	sampleBrowser.audioFileIsNowSet();
+	resetSilentOscVolume(request_.target);
 
 	int32_t averageMSec = totalMSec / numSamples;
 
@@ -862,20 +872,20 @@ skipOctaveCorrection:
 		// If this led to an actual loop end pos, with more waveform after it, and the sample's not too long, we can do
 		// a ONCE
 		if (numWithResultingLoopEndPoints * 2 >= numSamples && averageMSec < 2002) {
-			setImportRepeatMode(SampleRepeatMode::ONCE);
+			setImportRepeatMode(request_.target, SampleRepeatMode::ONCE);
 		}
 		else {
-			setImportRepeatMode(SampleRepeatMode::LOOP);
+			setImportRepeatMode(request_.target, SampleRepeatMode::LOOP);
 		}
 	}
 
 	// Or if no loop points set...
 	else {
 		// If 2 seconds or less, set play mode to ONCE. Otherwise, cut
-		setImportRepeatMode((averageMSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT);
+		setImportRepeatMode(request_.target, (averageMSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT);
 	}
 
-	soundEditor.setCurrentMultiRange(numSamples >> 1);
+	chooseRange(request_, numSamples >> 1);
 
 	if (request_.exitBrowser) {
 		sampleBrowser.exitAndNeverDeleteDrum();
@@ -892,11 +902,11 @@ bool FolderImport::finishKit() {
 	const int32_t prefixAndDirLength = prefixAndDirLength_;
 
 	Kit* kit = getCurrentKit();
-	SoundDrum* firstDrum = (SoundDrum*)soundEditor.currentSound;
+	SoundDrum* firstDrum = (SoundDrum*)request_.target.sound;
 
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	{
-		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+		ModelStackWithThreeMainThings* modelStack = modelStackFor(request_.target, modelStackMemory);
 
 		for (int32_t s = 0; s < numSamples; s++) {
 
@@ -919,16 +929,16 @@ getOut:
 				}
 
 				// Ensure osc type is "sample". For the later drums, calling setupAsSample() does this same thing
-				if (soundEditor.currentSource->oscType != OscType::SAMPLE) {
-					soundEditor.currentSound->killAllVoices();
-					deluge::edits::settingFor(*soundEditor.currentSound,
-					                          deluge::edits::oscSettingPath(soundEditor.currentSourceIndex, "type"),
+				if (request_.target.source->oscType != OscType::SAMPLE) {
+					request_.target.sound->killAllVoices();
+					deluge::edits::settingFor(*request_.target.sound,
+					                          deluge::edits::oscSettingPath(request_.target.sourceIndex, "type"),
 					                          deluge::serialization::Value::makeScalar("sample"));
 				}
 
 				ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 				ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-				int32_t paramId = params::LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
+				int32_t paramId = params::LOCAL_OSC_A_VOLUME + request_.target.sourceIndex;
 				ModelStackWithAutoParam* modelStackWithParam =
 				    modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
 

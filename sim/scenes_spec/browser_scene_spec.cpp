@@ -218,7 +218,7 @@ struct BrowserDisplay final : deluge::hid::Display {
 class SpecBrowser : public Browser {
 public:
 	SpecBrowser() {
-		// `SampleBrowser::SampleBrowser` (`sample_browser.cpp:88-95`), minus the two members
+		// `SampleBrowser::SampleBrowser` (`sample_browser.cpp`), minus the two members
 		// `legacy_pbm()` renders through `sampleBrowser` instead (`fileIcon`, `title`).
 		shouldWrapFolderContents = false;
 		qwertyAlwaysVisible = false;

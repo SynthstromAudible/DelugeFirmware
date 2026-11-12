@@ -30,8 +30,11 @@
 #include "gui/ui/shell_guest_services.h" // the shell* arms
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
+#include "processing/source.h"
 #include "storage/flash_storage.h"
 #include "util/shell_menu_entry.h"
+
+#include <iterator>
 
 namespace deluge::gui::ui {
 
@@ -110,6 +113,15 @@ void changeRangeForNote(int32_t note) {
 	}
 	else if (shellRangePickerOpen()) {
 		shellChangeRangeForNote(note);
+	}
+}
+
+void legacyRangesRetyped(Source& source, bool cleared) {
+	if (cleared) {
+		soundEditor.currentMultiRangeIndex = 0;
+	}
+	if (soundEditor.currentMultiRangeIndex >= 0 && soundEditor.currentMultiRangeIndex < std::ssize(source.ranges)) {
+		soundEditor.currentMultiRange = source.ranges.getElement(soundEditor.currentMultiRangeIndex);
 	}
 }
 

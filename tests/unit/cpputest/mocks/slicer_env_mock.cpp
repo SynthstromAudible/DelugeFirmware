@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/setting_group.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/ui/sound_target.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "model/clip/clip.h"
@@ -164,11 +165,22 @@ Clip* getCurrentClip() {
 	return g_clip.get();
 }
 
-ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
+ModelStackWithThreeMainThings* deluge::gui::modelStackFor(const SoundTarget&, void* memory) {
 	std::memset(memory, 0, MODEL_STACK_MAX_SIZE);
 	auto* modelStack = static_cast<ModelStackWithThreeMainThings*>(memory);
 	modelStack->paramManager = g_paramManager.get();
 	return modelStack;
+}
+
+AudioFileHolder* deluge::gui::audioFileHolderFor(const SoundTarget&) {
+	return &g_range.get()->sampleHolder;
+}
+
+void deluge::gui::cutSound(const SoundTarget&) {
+}
+
+deluge::gui::SoundTarget SoundEditor::soundTarget() const {
+	return {};
 }
 
 MultiRange* Source::getOrCreateFirstRange() {
@@ -378,9 +390,6 @@ DELUGE_STUB_FN(stub_canvasDrawHorizontalLine, "_ZN6deluge3hid7display11oled_canv
 DELUGE_STUB_RET(stub_memoryAllocFast, "_ZN6deluge6memory10alloc_fastEjj", void*, nullptr)
 DELUGE_STUB_RET(stub_stringFromInt, "_ZN6deluge6string7fromIntB5cxx11Eij", std::string, std::string{})
 
-DELUGE_STUB_FN(stub_soundEditorCutSound, "_ZN11SoundEditor8cutSoundEv")
-DELUGE_STUB_RET(stub_soundEditorGetCurrentAudioFileHolder, "_ZN11SoundEditor25getCurrentAudioFileHolderEv",
-                AudioFileHolder*, &g_range.get()->sampleHolder)
 DELUGE_STUB_FN(stub_sourceSetOscType, "_ZN6Source10setOscTypeEN6deluge10instrument7OscTypeE")
 DELUGE_STUB_FN(stub_sourceSetRepeatMode, "_ZN6Source13setRepeatModeEN6deluge10instrument16SampleRepeatModeE")
 DELUGE_STUB_FN(stub_sourceSetReversed, "_ZN6Source11setReversedEb")

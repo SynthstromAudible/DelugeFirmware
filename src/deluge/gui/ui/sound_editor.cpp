@@ -2200,51 +2200,29 @@ MenuPermission SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(S
 	return MenuPermission::MUST_SELECT_RANGE;
 }
 
-void SoundEditor::cutSound() {
-	if (getCurrentClip()->type == ClipType::AUDIO) {
-		getCurrentAudioClip()->unassignVoiceSample(false);
-	}
-	else {
-		soundEditor.currentSound->killAllVoices();
-	}
-}
-
-AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
-
-	if (getCurrentClip()->type == ClipType::AUDIO) {
-		return &getCurrentAudioClip()->sampleHolder;
-	}
-
-	else {
-		return currentMultiRange->getAudioFileHolder();
-	}
+deluge::gui::SoundTarget SoundEditor::soundTarget() const {
+	return {.sound = currentSound,
+	        .mod = currentModControllable,
+	        .params = currentParamManager,
+	        .arp = currentArpSettings,
+	        .range = currentMultiRange,
+	        .rangeIndex = currentMultiRangeIndex,
+	        .sourceIndex = currentSourceIndex,
+	        .source = currentSource,
+	        .sampleControls = currentSource != nullptr ? &currentSource->sampleControls : nullptr,
+	        .kitGlobalFx = setupKitGlobalFXMenu};
 }
 
 ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
-	InstrumentClip* clip = getCurrentInstrumentClip();
-	Instrument* instrument = getCurrentInstrument();
+	return deluge::gui::modelStackFor(soundTarget(), memory);
+}
 
-	if (!rootUIIsClipMinderScreen()) {
-		return currentSong->setupModelStackWithSongAsTimelineCounter(memory);
-	}
-	else if (instrument->type == OutputType::KIT && clip->affectEntire) {
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(memory);
+void SoundEditor::cutSound() {
+	deluge::gui::cutSound(soundTarget());
+}
 
-		return modelStack->addOtherTwoThingsButNoNoteRow(currentModControllable, currentParamManager);
-	}
-	else {
-		NoteRow* noteRow = nullptr;
-		int32_t noteRowIndex;
-		if (instrument->type == OutputType::KIT) {
-			Drum* selectedDrum = ((Kit*)instrument)->selectedDrum;
-			if (selectedDrum) {
-				noteRow = clip->getNoteRowForDrum(selectedDrum, &noteRowIndex);
-			}
-		}
-
-		return setupModelStackWithThreeMainThingsIncludingNoteRow(memory, currentSong, getCurrentClip(), noteRowIndex,
-		                                                          noteRow, currentModControllable, currentParamManager);
-	}
+AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
+	return deluge::gui::audioFileHolderFor(soundTarget());
 }
 
 void SoundEditor::mpeZonesPotentiallyUpdated() {

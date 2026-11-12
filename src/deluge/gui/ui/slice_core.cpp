@@ -17,7 +17,6 @@
 
 #include "gui/ui/slice_core.h"
 #include "definitions_cxx.hpp"
-#include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"
 #include "memory/general_memory_allocator.h"
@@ -142,7 +141,7 @@ void SliceCore::sound_audition(const AuditionTarget& target) {
 		deluge::edits::recordRanges(*drum, 0);
 
 		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+		ModelStackWithThreeMainThings* modelStack = deluge::gui::modelStackFor(target_, modelStackMemory);
 		setUpSoundParam(*modelStack, params::LOCAL_ENV_0_RELEASE, deluge::plugin::preset_word(1));
 		setUpSoundParam(*modelStack, params::LOCAL_ENV_0_ATTACK, deluge::plugin::preset_word(1));
 	}
@@ -232,7 +231,7 @@ std::optional<int32_t> SliceCore::play_position() {
 			deluge::synth::SourceSlot* part = &voice->kernel.unison_parts[u].slots[0];
 			if (part != nullptr && part->active) {
 				voiceSample = voice->ports(u, 0).sample.voiceSample();
-				guide = &voice->guides[soundEditor.currentSourceIndex];
+				guide = &voice->guides[target_.sourceIndex];
 			}
 		}
 	}
@@ -256,14 +255,14 @@ void SliceCore::begin_slice(const Target& target, std::string_view path, Preview
 	}
 
 	// The first drum names the file, set once here, and the load binds it.
-	soundEditor.cutSound();
-	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
+	deluge::gui::cutSound(target_);
+	AudioFileHolder* holder = deluge::gui::audioFileHolderFor(target_);
 	holder->setAudioFile(nullptr);
 	holder->filePath = std::string{path};
 	slice_load_.request(
 	    deluge::storage::SampleDemand{
 	        .holder = holder,
-	        .reversed = soundEditor.currentSource->sampleControls.isCurrentlyReversed(),
+	        .reversed = target_.source->sampleControls.isCurrentlyReversed(),
 	        .manuallySelected = true,
 	        .clusterLoadInstruction = CLUSTER_ENQUEUE,
 	    },
@@ -310,7 +309,7 @@ std::optional<SliceCore::SliceEnd> SliceCore::tick_slice() {
 	// No drums were made, so nothing is painted: Kit::getDrumFromIndex() answers the first drum for an index past the
 	// end, so a paint loop here would write every slice's points onto that one drum. The first drum names the file,
 	// landed or not, and its record says so.
-	deluge::edits::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
+	deluge::edits::recordRanges(*target_.sound, target_.sourceIndex);
 	return SliceEnd{.landed = false, .error = (outcome->result == Result::Empty) ? outcome->error : Error::SD_CARD};
 }
 
@@ -320,19 +319,18 @@ Error SliceCore::do_slice(int32_t sliceCount) {
 	// Do the first Drum
 
 	// Ensure osc type is "sample"
-	if (soundEditor.currentSource->oscType != OscType::SAMPLE) {
-		soundEditor.currentSound->killAllVoices();
-		deluge::edits::settingFor(*soundEditor.currentSound,
-		                          deluge::edits::oscSettingPath(soundEditor.currentSourceIndex, "type"),
+	if (target_.source->oscType != OscType::SAMPLE) {
+		target_.sound->killAllVoices();
+		deluge::edits::settingFor(*target_.sound, deluge::edits::oscSettingPath(target_.sourceIndex, "type"),
 		                          deluge::serialization::Value::makeScalar("sample"));
 	}
 
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	{
-		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+		ModelStackWithThreeMainThings* modelStack = deluge::gui::modelStackFor(target_, modelStackMemory);
 		ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 		ParamSet* paramSet = (ParamSet*)summary->paramCollection;
-		int32_t paramId = params::LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
+		int32_t paramId = params::LOCAL_OSC_A_VOLUME + target_.sourceIndex;
 		ModelStackWithAutoParam* modelStackWithParam =
 		    modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
 
@@ -341,7 +339,7 @@ Error SliceCore::do_slice(int32_t sliceCount) {
 			setUpLane(*modelStackWithParam, 2147483647);
 		}
 
-		SoundDrum* firstDrum = (SoundDrum*)soundEditor.currentSound;
+		SoundDrum* firstDrum = (SoundDrum*)target_.sound;
 
 		if (firstDrum->nameIsDiscardable) {
 			deluge::edits::laneSettingFor(*firstDrum, "name", deluge::serialization::Value::makeScalar("1"));

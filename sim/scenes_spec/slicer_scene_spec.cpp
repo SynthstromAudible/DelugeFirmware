@@ -841,7 +841,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 
 		open_legacy(r);
 		legacy_slicer.slicerMode = SLICER_MODE_MANUAL;
-		// `Buttons::isShiftButtonPressed()` (`slicer.cpp:209`) reads `shiftCurrentlyPressed`, which
+		// `Buttons::isShiftButtonPressed()` (`Slicer::horizontalEncoderAction`) reads `shiftCurrentlyPressed`, which
 		// `Buttons::commandToggleShift` is the public way to set (`hid/buttons.cpp:236-245`).
 		Buttons::commandToggleShift(true);
 		(void)legacy_slicer.horizontalEncoderAction(3);

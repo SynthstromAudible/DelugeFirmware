@@ -41,6 +41,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/slicer.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/ui/sound_target.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -441,6 +442,8 @@ void SampleBrowser::requestClaim(int32_t mayDoPitchDetection, int32_t mayDoSingl
 	    .loadWithoutExiting = false,
 	    .origin = ClaimOrigin::Explicit,
 	    .completion = completion,
+	    .target = soundEditor.soundTarget(),
+	    .legacyFinish = &SampleBrowser::finishLegacyClaim,
 	});
 }
 
@@ -450,7 +453,10 @@ void SampleBrowser::requestFolderImport(FolderImportKind kind, void (*completion
 	}
 	// An auto-load claim would bind into the sound the import is replacing.
 	sampleClaim.cancelAutoLoad();
-	FolderImportRequest request{.kind = kind, .completion = completion};
+	FolderImportRequest request{.kind = kind,
+	                            .completion = completion,
+	                            .target = soundEditor.soundTarget(),
+	                            .rangeChosen = [](int32_t index) { soundEditor.setCurrentMultiRange(index); }};
 	FileItem* currentFileItem = getCurrentFileItem();
 	if (currentFileItem->isFolder) {
 		request.folder = getCurrentFilePath();
@@ -665,6 +671,8 @@ void SampleBrowser::tickPreview() {
 		    .enteredText = enteredText,
 		    .loadWithoutExiting = true,
 		    .origin = ClaimOrigin::AutoLoad,
+		    .target = soundEditor.soundTarget(),
+		    .legacyFinish = &SampleBrowser::finishLegacyClaim,
 		});
 	}
 
@@ -910,32 +918,33 @@ void SampleBrowser::autoDetectSideChainSending(SoundDrum* drum, Source* source, 
 	}
 }
 
-void SampleBrowser::audioFileIsNowSet() {
-
-	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-	ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
-	PatchedParamSet* paramSet = (PatchedParamSet*)summary->paramCollection;
-	int32_t paramId = params::LOCAL_OSC_A_VOLUME + soundEditor.currentSourceIndex;
-	ModelStackWithAutoParam* modelStackWithParam =
-	    modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
-
-	// Reset osc volume, if it's not automated and was at 0. Wait but that will only do it for the current
-	// ParamManager... there could be other ones...
-	if (!modelStackWithParam->autoParam->containsSomething(*modelStackWithParam->doc(), -2147483648)) {
-		if (const std::optional<deluge::project::ParamAddress> address =
-		        deluge::edits::addressFor(*modelStackWithParam)) {
-			deluge::edits::Context ctx{*currentSong, currentSong->project};
-			deluge::edits::SetParamValue edit{*address,
-			                                  2147483647,
-			                                  0,
-			                                  0,
-			                                  deluge::edits::SetParamValue::Resolve::EXACT,
-			                                  true,
-			                                  deluge::edits::SetParamValue::Write::SETUP};
-			deluge::edits::apply(ctx, edit);
+void SampleBrowser::finishLegacyClaim(const ClaimRequest& request) {
+	if (getCurrentClip()->type != ClipType::AUDIO) {
+		// If there was only one MultiRange, don't go back to the range menu (that's the BOT-TOP thing).
+		if (std::ssize(soundEditor.currentSource->ranges) <= 1 && soundEditor.navigationDepth
+		    && soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth - 1] == &menu_item::multiRangeMenu) {
+			soundEditor.navigationDepth--;
 		}
 	}
+	if (request.loadWithoutExiting) {
+		return;
+	}
+	sampleBrowser.exitAndNeverDeleteDrum();
+	if (sampleBrowser.menuItemHeadingTo != nullptr && sampleBrowser.parentMenuHeadingTo != nullptr) {
+		if (isUIOpen(&soundEditor)) {
+			closeUI(&soundEditor);
+		}
+		sampleBrowser.parentMenuHeadingTo->focusChild(sampleBrowser.menuItemHeadingTo);
+		soundEditor.setup(getCurrentClip(), sampleBrowser.parentMenuHeadingTo);
+		soundEditor.enterOrUpdateSoundEditor(true);
+		sampleBrowser.parentMenuHeadingTo = nullptr;
+		sampleBrowser.menuItemHeadingTo = nullptr;
+	}
+	uiNeedsRendering(&audioClipView);
+}
+
+void SampleBrowser::audioFileIsNowSet() {
+	resetSilentOscVolume(soundEditor.soundTarget());
 }
 
 static const uint32_t zoomUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, UI_MODE_AUDITIONING, 0};

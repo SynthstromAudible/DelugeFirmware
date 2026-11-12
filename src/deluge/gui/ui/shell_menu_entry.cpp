@@ -81,7 +81,7 @@
 ///
 /// | # | site | what it wants | why it is not mapped |
 /// |---|---|---|---|
-/// | 10 | `gui/ui/browser/sample_claim.cpp` `SampleClaim::stepFinish` | `parentMenuHeadingTo` focused on `menuItemHeadingTo` -- two `MenuItem*`s the legacy browser was handed on the way in | the *legacy* browser's, and with ShellMenu on nothing opens that browser: it opens from the legacy editor's file selector, which cannot open then (`SoundEditor::opened`), and from site 14's ShellMenu-off leg. The ported browser parks its choice in `BrowserScene::take_choice()`; `deluge::gui::ui::dispatchShellChoices` claims it with `loadWithoutExiting = true`, which skips this block, and `shellSampleClaimDone`'s success arm re-roots the menu itself (`MenuScene::reroot_to_scene_opener_page()` and `MenuWalkState::scene_opener`, the port of this pair) |
+/// | 10 | `gui/ui/browser/sample_browser.cpp` `SampleBrowser::finishLegacyClaim` | `parentMenuHeadingTo` focused on `menuItemHeadingTo` -- two `MenuItem*`s the legacy browser was handed on the way in | the *legacy* browser's, and with ShellMenu on nothing opens that browser: it opens from the legacy editor's file selector, which cannot open then (`SoundEditor::opened`), and from site 14's ShellMenu-off leg. The ported browser parks its choice in `BrowserScene::take_choice()`; `deluge::gui::ui::dispatchShellChoices` claims it with no `legacyFinish`, so this block does not run, and `shellSampleClaimDone`'s success arm re-roots the menu itself (`MenuScene::reroot_to_scene_opener_page()` and `MenuWalkState::scene_opener`, the port of this pair) |
 // clang-format on
 ///
 

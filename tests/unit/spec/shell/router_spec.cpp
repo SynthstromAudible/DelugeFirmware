@@ -458,7 +458,7 @@ describe shell_router("shell::Router", $ {
 		// what it runs there is `getCurrentUI()->modEncoderButtonAction(n, on)`, whose base
 		// implementation (`UI::modEncoderButtonAction`, `gui/ui/ui.cpp:43-45`) is another bare
 		// forward to `view`, overridden by five UIs (`gui/views/instrument_clip_view.h:199`,
-		// `gui/ui/sound_editor.h:81`, `gui/views/session_view.h:80`,
+		// `SoundEditor::modEncoderButtonAction` in `gui/ui/sound_editor.h`, `gui/views/session_view.h:80`,
 		// `gui/views/performance_view.h:97`, `gui/views/automation_view.h:117`).
 		//
 		// `mod_knobs` must not exclude these two on the observation that legacy reaches them only

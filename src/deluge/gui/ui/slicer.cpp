@@ -167,6 +167,8 @@ const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
 void Slicer::graphicsRoutine() {
 	// This surface (every ~15 ms while the slicer is on top) is the only thing that finishes a slice or a held
 	// audition.
+	// The slice, the audition and the play position act on the sound the legacy editor resolved.
+	core_.retarget(soundEditor.soundTarget());
 	if (core_.slicing()) {
 		if (const std::optional<deluge::gui::ui::SliceCore::SliceEnd> end = core_.tick_slice()) {
 			if (end->landed) {
@@ -353,6 +355,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on) {
 		// The gate, until graphicsRoutine() sees the slice end: the top of this function refuses BACK and a second
 		// Select while it is set, so nothing closes the slicer or slices twice while the load is out.
 		currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+		core_.retarget(soundEditor.soundTarget());
 		core_.begin_slice(target, static_cast<Browser&>(sampleBrowser).getCurrentFilePath());
 	}
 
@@ -382,6 +385,7 @@ void Slicer::stopAnyPreviewing() {
 	core_.unbind_first_drum();
 }
 void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, int32_t on) {
+	core_.retarget(soundEditor.soundTarget());
 	core_.audition(*waveformBasicNavigator.sample, deluge::gui::ui::SliceCore::AuditionTarget{
 	                                                   .startPoint = startPoint,
 	                                                   .endPoint = endPoint,

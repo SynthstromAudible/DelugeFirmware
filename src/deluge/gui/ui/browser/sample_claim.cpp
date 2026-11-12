@@ -20,12 +20,9 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
-#include "gui/menu_item/horizontal_menu.h"
-#include "gui/menu_item/multi_range.h"
 #include "gui/ui/browser/sample_browser.h"
-#include "gui/ui/sound_editor.h"
+#include "gui/ui/sound_target.h"
 #include "gui/ui/ui.h"
-#include "gui/views/audio_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "model/clip/audio_clip.h"
@@ -65,15 +62,15 @@ bool claimingAudioClip() {
 	return getCurrentClip()->type == ClipType::AUDIO;
 }
 
-/// The holder the claim loads into: the audio clip's, or the sound editor's current range's.
-AudioFileHolder* claimHolder() {
-	return soundEditor.getCurrentAudioFileHolder();
+/// The holder the claim loads into: the audio clip's, or the target's current range's.
+AudioFileHolder* claimHolder(const SoundTarget& target) {
+	return audioFileHolderFor(target);
 }
 
 /// Cut the sound, unbind its holder, and point it at @p path: the start of every attempt at a type.
-AudioFileHolder* prepareHolder(const std::string& path) {
-	soundEditor.cutSound();
-	AudioFileHolder* holder = claimHolder();
+AudioFileHolder* prepareHolder(const SoundTarget& target, const std::string& path) {
+	cutSound(target);
+	AudioFileHolder* holder = claimHolder(target);
 	holder->setAudioFile(nullptr);
 	holder->filePath = path;
 	return holder;
@@ -83,23 +80,25 @@ void closeGate() {
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 }
 
-/// Set the sound editor's current source's oscillator type through its setting Edit.
-void setClaimOscType(OscType type) {
+/// Set the target source's oscillator type through its setting Edit, and find the target's range again in the ranges
+/// the change reallocated.
+void setClaimOscType(SoundTarget& target, OscType type) {
+	const int32_t rangesBefore = std::ssize(target.source->ranges);
 	deluge::edits::settingFor(
-	    *soundEditor.currentSound, deluge::edits::oscSettingPath(soundEditor.currentSourceIndex, "type"),
+	    *target.sound, deluge::edits::oscSettingPath(target.sourceIndex, "type"),
 	    deluge::serialization::Value::makeScalar(std::string(deluge::instrument::to_string(type))));
+	retargetRangeAfterRetype(target, rangesBefore);
 }
 
-/// Set the sound editor's current source's repeat mode through its setting Edit.
-void setClaimRepeatMode(SampleRepeatMode mode) {
-	deluge::edits::settingFor(*soundEditor.currentSound,
-	                          deluge::edits::oscSettingPath(soundEditor.currentSourceIndex, "loopMode"),
+/// Set the target source's repeat mode through its setting Edit.
+void setClaimRepeatMode(const SoundTarget& target, SampleRepeatMode mode) {
+	deluge::edits::settingFor(*target.sound, deluge::edits::oscSettingPath(target.sourceIndex, "loopMode"),
 	                          deluge::serialization::Value::makeNumber(std::to_underlying(mode)));
 }
 
-/// Record the sound editor's current source's ranges as the claim left them.
-void recordClaimRanges() {
-	deluge::edits::recordRanges(*soundEditor.currentSound, soundEditor.currentSourceIndex);
+/// Record the target source's ranges as the claim left them.
+void recordClaimRanges(const SoundTarget& target) {
+	deluge::edits::recordRanges(*target.sound, target.sourceIndex);
 }
 
 void openGate() {
@@ -151,8 +150,8 @@ void SampleClaim::cancel() {
 	cancels_++;
 	load_.cancel();
 	// A claim cancelled mid-load has pointed the holder at its file: the record and the slot say what the source holds.
-	if (phase_ != Phase::Idle && !claimingAudioClip() && soundEditor.currentSound != nullptr) {
-		recordClaimRanges();
+	if (phase_ != Phase::Idle && !claimingAudioClip() && current_.target.sound != nullptr) {
+		recordClaimRanges(current_.target);
 	}
 	pitchScan_.cancel(); // a detection is dropped, never drained: nothing reads the sample after this
 	pitchWanted_ = false;
@@ -248,12 +247,12 @@ bool SampleClaim::stepStart() {
 		return true;
 	}
 
-	soundEditor.currentSound->killAllVoices(); // We used to only do this if osc type wasn't already SAMPLE...
+	current_.target.sound->killAllVoices(); // We used to only do this if osc type wasn't already SAMPLE...
 
 	makeWaveTable_ = (current_.mayDoWaveTable == 2) || (current_.mayDoSingleCycle == 2)
-	                 || (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD);
+	                 || (current_.target.sound->getSynthMode() == SynthMode::RINGMOD);
 
-	if (makeWaveTable_ || (current_.mayDoWaveTable == 1 && soundEditor.currentSource->oscType == OscType::WAVETABLE)) {
+	if (makeWaveTable_ || (current_.mayDoWaveTable == 1 && current_.target.source->oscType == OscType::WAVETABLE)) {
 		phase_ = Phase::PrepareWavetable;
 	}
 	else {
@@ -270,10 +269,10 @@ bool SampleClaim::stepPrepareSample() {
 		reversed = getCurrentAudioClip()->sampleControls.isCurrentlyReversed();
 	}
 	else {
-		setClaimOscType(OscType::SAMPLE);
-		reversed = soundEditor.currentSource->sampleControls.isCurrentlyReversed();
+		setClaimOscType(current_.target, OscType::SAMPLE);
+		reversed = current_.target.source->sampleControls.isCurrentlyReversed();
 	}
-	AudioFileHolder* holder = prepareHolder(current_.path);
+	AudioFileHolder* holder = prepareHolder(current_.target, current_.path);
 	load_.request(
 	    deluge::storage::SampleDemand{
 	        .holder = holder,
@@ -353,9 +352,9 @@ bool SampleClaim::stepDecideSample() {
 		return true;
 	}
 
-	recordClaimRanges();
+	recordClaimRanges(current_.target);
 
-	Sample* sample = (Sample*)claimHolder()->audioFile;
+	Sample* sample = (Sample*)claimHolder(current_.target)->audioFile;
 
 	// If the file was actually clearly a wavetable file, and we're allowed to load one, then go do that instead.
 	if (current_.mayDoWaveTable && numTypesTried_ <= 1 && sample->fileExplicitlySpecifiesSelfAsWaveTable) {
@@ -366,7 +365,7 @@ bool SampleClaim::stepDecideSample() {
 	int32_t mSec = sample->getLengthInMSec();
 
 	// If 20ms or less, and we're not a kit, then we'd like to be a single-cycle waveform.
-	if (!soundEditor.editingKit()
+	if (getCurrentOutputType() != OutputType::KIT
 	    && (current_.mayDoSingleCycle == 2 || (current_.mayDoSingleCycle == 1 && mSec <= 20))) {
 
 		// Ideally, we'd like to use the wavetable engine for this single-cycle-ness
@@ -379,13 +378,13 @@ bool SampleClaim::stepDecideSample() {
 		}
 
 		// Otherwise, set play mode to LOOP, and we'll just do single-cycle as a sample. (This is now pretty rare.)
-		setClaimRepeatMode(SampleRepeatMode::LOOP);
+		setClaimRepeatMode(current_.target, SampleRepeatMode::LOOP);
 		doingSingleCycle_ = true;
 	}
 
 	// If time stretching or looping on (or we just decided to do single-cycle, above), leave that the case
-	if (soundEditor.currentSource->repeatMode == SampleRepeatMode::STRETCH
-	    || soundEditor.currentSource->repeatMode == SampleRepeatMode::LOOP) {}
+	if (current_.target.source->repeatMode == SampleRepeatMode::STRETCH
+	    || current_.target.source->repeatMode == SampleRepeatMode::LOOP) {}
 
 	// Otherwise...
 	else {
@@ -393,24 +392,24 @@ bool SampleClaim::stepDecideSample() {
 		if (sample->fileLoopEndSamples) {
 			// If this led to an actual loop end pos, with more waveform after it, and the sample's not too long, we can
 			// do a ONCE.
-			if (((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.loopEndPos && mSec < 2002) {
-				setClaimRepeatMode(SampleRepeatMode::ONCE);
+			if (((MultisampleRange*)current_.target.range)->sampleHolder.loopEndPos && mSec < 2002) {
+				setClaimRepeatMode(current_.target, SampleRepeatMode::ONCE);
 			}
 			else {
-				setClaimRepeatMode(SampleRepeatMode::LOOP);
+				setClaimRepeatMode(current_.target, SampleRepeatMode::LOOP);
 			}
 		}
 		else {
 			// If 2 seconds or less, set play mode to ONCE. Otherwise, CUT.
-			setClaimRepeatMode((mSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT);
+			setClaimRepeatMode(current_.target, (mSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT);
 		}
 	}
 
 	// If Kit...
-	if (soundEditor.editingKit()) {
-		SoundDrum* drum = (SoundDrum*)soundEditor.currentSound;
+	if (getCurrentOutputType() == OutputType::KIT) {
+		SoundDrum* drum = (SoundDrum*)current_.target.sound;
 
-		sampleBrowser.autoDetectSideChainSending(drum, soundEditor.currentSource, current_.enteredText.c_str());
+		sampleBrowser.autoDetectSideChainSending(drum, current_.target.source, current_.enteredText.c_str());
 
 		// Give Drum no name, momentarily. We don't want it to show up when we're searching for duplicates
 		deluge::edits::laneSettingFor(*drum, "name", deluge::serialization::Value::makeScalar(""));
@@ -438,9 +437,9 @@ bool SampleClaim::stepDecideSample() {
 		}
 		// Otherwise, reset pitch. Popular request, late 2022.
 		// https://forums.synthstrom.com/discussion/4814/v4-0-1-after-loading-a-non-c-sample-into-synth-reloading-the-sample-as-basic-doesnt-reset-pitch
-		((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.transpose = 0;
-		((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.setCents(0);
-		recordClaimRanges();
+		((MultisampleRange*)current_.target.range)->sampleHolder.transpose = 0;
+		((MultisampleRange*)current_.target.range)->sampleHolder.setCents(0);
+		recordClaimRanges(current_.target);
 	}
 
 	removeWaveTableKnobs();
@@ -450,9 +449,9 @@ bool SampleClaim::stepDecideSample() {
 
 bool SampleClaim::stepPrepareWavetable() {
 	numTypesTried_++;
-	oldOscType_ = soundEditor.currentSource->getOscType();
-	setClaimOscType(OscType::WAVETABLE);
-	waveTableHolder_ = prepareHolder(current_.path);
+	oldOscType_ = current_.target.source->getOscType();
+	setClaimOscType(current_.target, OscType::WAVETABLE);
+	waveTableHolder_ = prepareHolder(current_.target, current_.path);
 	// A wavetable still loads synchronously. Blocking on the storage tier is permitted here, and song load's
 	// AsyncSampleLoad makes this same lookup on this tier.
 	waveTableError_ = Error::NONE;
@@ -471,7 +470,7 @@ bool SampleClaim::stepDecideWavetable() {
 			// If that was what the user really specified they wanted, and we couldn't do it, then we have to tell them
 			// no. Or if they don't really mind, just load it as a Sample.
 			if (current_.mayDoWaveTable == 2 || numTypesTried_ > 1
-			    || soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD) {
+			    || current_.target.sound->getSynthMode() == SynthMode::RINGMOD) {
 				end(false, error);
 			}
 			else {
@@ -484,30 +483,30 @@ bool SampleClaim::stepDecideWavetable() {
 	}
 
 	if (waveTableFile_ != nullptr) {
-		waveTableHolder_->setAudioFile(waveTableFile_, soundEditor.currentSource->sampleControls.isCurrentlyReversed(),
+		waveTableHolder_->setAudioFile(waveTableFile_, current_.target.source->sampleControls.isCurrentlyReversed(),
 		                               /*manuallySelected=*/true, CLUSTER_ENQUEUE);
-		recordClaimRanges();
+		recordClaimRanges(current_.target);
 	}
 
 	// if oscillator wasn't already a wavetable, update custom knob assignments, otherwise leave as is
 	if (oldOscType_ != OscType::WAVETABLE) {
-		if (soundEditor.currentSourceIndex == 0) { // Osc 1
-			soundEditor.currentSound->modKnobs[7][1].target =
+		if (current_.target.sourceIndex == 0) { // Osc 1
+			current_.target.sound->modKnobs[7][1].target =
 			    deluge::modulation::knobParam(params::LOCAL_OSC_A_WAVE_INDEX);
 
-			if (!(soundEditor.currentSound->modKnobs[7][0].target
+			if (!(current_.target.sound->modKnobs[7][0].target
 			      == deluge::modulation::knobParam(params::LOCAL_OSC_B_WAVE_INDEX))) {
-				soundEditor.currentSound->modKnobs[7][0].target = deluge::modulation::knobTargetOf(
+				current_.target.sound->modKnobs[7][0].target = deluge::modulation::knobTargetOf(
 				    deluge::synth::CableTarget::depth_of(params::LOCAL_OSC_A_WAVE_INDEX, PatchSource::LFO_LOCAL_1));
 			}
 		}
 		else { // Osc 2
-			soundEditor.currentSound->modKnobs[7][0].target =
+			current_.target.sound->modKnobs[7][0].target =
 			    deluge::modulation::knobParam(params::LOCAL_OSC_B_WAVE_INDEX);
 		}
 		(void)deluge::edits::modKnobModeFor(
 		    deluge::project::TrackAddress{currentSong->outputIdFor(*getCurrentOutput())}, 7);
-		deluge::edits::recordControlsOf(*soundEditor.currentSound); // the wavetable knobs it assigned
+		deluge::edits::recordControlsOf(*current_.target.sound); // the wavetable knobs it assigned
 	}
 	view.setKnobIndicatorLevels(); // Visually update.
 	view.setModLedStates();
@@ -517,7 +516,7 @@ bool SampleClaim::stepDecideWavetable() {
 }
 
 bool SampleClaim::stepDetectPitch() {
-	pitchSample_ = (Sample*)claimHolder()->audioFile;
+	pitchSample_ = (Sample*)claimHolder(current_.target)->audioFile;
 	pitchWanted_ = !pitchSample_->midiNoteWithoutScan(doingSingleCycle_);
 	if (pitchWanted_) {
 		pitchScan_.arm(*pitchSample_, {});
@@ -537,14 +536,14 @@ bool SampleClaim::stepAwaitPitch() {
 		pitchSample_->setMidiNoteFromFrequency(pitchScan_.result());
 	}
 
-	auto* range = (MultisampleRange*)soundEditor.currentMultiRange;
+	auto* range = (MultisampleRange*)current_.target.range;
 	const float midiNote = ((Sample*)range->sampleHolder.audioFile)->midiNote;
 	// The detection worked the note out. A note it could not find is left as it is: asking again here would scan the
 	// sample on this tier, and would leave the transpose alone just the same.
 	if (midiNote != MIDI_NOTE_ERROR && midiNote != MIDI_NOTE_UNSET) {
-		bool shouldMinimizeOctaves = (std::ssize(soundEditor.currentSource->ranges) == 1);
+		bool shouldMinimizeOctaves = (std::ssize(current_.target.source->ranges) == 1);
 		range->sampleHolder.setTransposeAccordingToSamplePitch(shouldMinimizeOctaves);
-		recordClaimRanges();
+		recordClaimRanges(current_.target);
 	}
 
 	removeWaveTableKnobs();
@@ -554,34 +553,11 @@ bool SampleClaim::stepAwaitPitch() {
 
 bool SampleClaim::stepFinish() {
 	if (!claimingAudioClip()) {
-		sampleBrowser.audioFileIsNowSet();
-
+		resetSilentOscVolume(current_.target);
 		getCurrentInstrument()->beenEdited();
-
-		// If there was only one MultiRange, don't go back to the range menu (that's the BOT-TOP thing).
-		if (std::ssize(soundEditor.currentSource->ranges) <= 1 && soundEditor.navigationDepth
-		    && soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth - 1] == &menu_item::multiRangeMenu) {
-			soundEditor.navigationDepth--;
-		}
 	}
-
-	if (!current_.loadWithoutExiting) {
-		sampleBrowser.exitAndNeverDeleteDrum();
-
-		if (sampleBrowser.menuItemHeadingTo != nullptr && sampleBrowser.parentMenuHeadingTo != nullptr) {
-			if (isUIOpen(&soundEditor)) {
-				closeUI(&soundEditor);
-			}
-
-			sampleBrowser.parentMenuHeadingTo->focusChild(sampleBrowser.menuItemHeadingTo);
-			soundEditor.setup(getCurrentClip(), sampleBrowser.parentMenuHeadingTo);
-			soundEditor.enterOrUpdateSoundEditor(true);
-
-			sampleBrowser.parentMenuHeadingTo = nullptr;
-			sampleBrowser.menuItemHeadingTo = nullptr;
-		}
-
-		uiNeedsRendering(&audioClipView);
+	if (current_.legacyFinish != nullptr) {
+		current_.legacyFinish(current_);
 	}
 	display->removeWorkingAnimation();
 	animationShown_ = false;
@@ -593,8 +569,8 @@ bool SampleClaim::stepFinish() {
 void SampleClaim::end(bool success, Error error) {
 	// Whether it landed or not, the holder was pointed at a file: the record and the slot say what the source holds
 	// now.
-	if (current_.path.size() != 0 && !claimingAudioClip() && soundEditor.currentSound != nullptr) {
-		recordClaimRanges();
+	if (current_.path.size() != 0 && !claimingAudioClip() && current_.target.sound != nullptr) {
+		recordClaimRanges(current_.target);
 	}
 	if (!success) {
 		if (animationShown_) {
@@ -623,14 +599,14 @@ void SampleClaim::end(bool success, Error error) {
 void SampleClaim::removeWaveTableKnobs() {
 	// Anyway, by now we know we've loaded as a Sample, not a Wavetable. So remove WaveTable gold knob assignments.
 	bool anyChange = false;
-	int32_t p = params::LOCAL_OSC_A_WAVE_INDEX + soundEditor.currentSourceIndex;
-	if (deluge::modulation::knobWord(soundEditor.currentSound->modKnobs[7][0].target).param_index() == p) {
-		soundEditor.currentSound->modKnobs[7][0].target =
+	int32_t p = params::LOCAL_OSC_A_WAVE_INDEX + current_.target.sourceIndex;
+	if (deluge::modulation::knobWord(current_.target.sound->modKnobs[7][0].target).param_index() == p) {
+		current_.target.sound->modKnobs[7][0].target =
 		    deluge::modulation::knobParam(params::UNPATCHED_BITCRUSHING + params::UNPATCHED_START);
 		anyChange = true;
 	}
-	if (deluge::modulation::knobWord(soundEditor.currentSound->modKnobs[7][1].target).param_index() == p) {
-		soundEditor.currentSound->modKnobs[7][1].target =
+	if (deluge::modulation::knobWord(current_.target.sound->modKnobs[7][1].target).param_index() == p) {
+		current_.target.sound->modKnobs[7][1].target =
 		    deluge::modulation::knobParam(params::UNPATCHED_SAMPLE_RATE_REDUCTION + params::UNPATCHED_START);
 		anyChange = true;
 	}
@@ -641,7 +617,7 @@ void SampleClaim::removeWaveTableKnobs() {
 		view.setKnobIndicatorLevels(); // Visually update.
 		view.setModLedStates();
 		// The knobs it put back are its record's.
-		deluge::edits::recordControlsOf(*soundEditor.currentSound);
+		deluge::edits::recordControlsOf(*current_.target.sound);
 	}
 }
 
