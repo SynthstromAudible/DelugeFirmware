@@ -190,6 +190,7 @@ bool RecorderScene::on_enter(const SceneId& id) {
 		return false;
 	}
 	// `beginRecording`'s `blinkLed(BACK)` and `blinkLed(RECORD, 255, 1)` (`AudioRecorder::opened`) on success.
+	menu::host_clear_tick_squares();
 	blink_restart_ = setup_recording();
 	// `opened()`'s last statement, whether the take began or not.
 	menu::host_end_audition(menu::AuditionEnd::ClipViewWhenAuditioning);
@@ -329,14 +330,14 @@ Result RecorderScene::after_render() {
 		return r;
 	}
 
-	// `process()`'s ongoing arm (`:226-240`). The `!display->hasPopup()` gate at `:230` is the
-	// popup service's own business here: `Notices` decides whether a popup is already up, which is
-	// the same question asked one layer further out.
+	// `process()`'s ongoing arm (`:226-240`). `popup_if_free` is the `!display->hasPopup()` gate: the flag clears
+	// whether or not the popup shows.
 	if (recorder_->recordingClippedRecently) {
 		recorder_->recordingClippedRecently = false;
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Popup,
 		                                 .surface = SurfaceRole::Main,
-		                                 .popup_string = sid(String::STRING_FOR_CLIPPING_OCCURRED)});
+		                                 .popup_string = sid(String::STRING_FOR_CLIPPING_OCCURRED),
+		                                 .popup_if_free = true});
 	}
 	// The `Waiting` -> `Recording` flip is legacy's third arm (`:234-239`). Nothing to do here:
 	// `render_oled` reads `capturing()` on every frame, and the repaint gate it arms is what makes

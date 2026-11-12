@@ -59,6 +59,7 @@
 #include "gui/ui/audio_recorder.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/led/pad_leds.h"
 #include "integration/scenarios/slot_coherence.h"
 #include "memory/heaps.h"
 #include "model/edits/setting_edit.h"
@@ -66,6 +67,7 @@
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -113,6 +115,11 @@ using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
+
+namespace PadLEDs {
+/// The tick squares as last set; 255 is none. Defined in `hid/led/pad_leds.cpp`, not in its header.
+extern uint8_t slowFlashSquares[];
+} // namespace PadLEDs
 
 namespace {
 
@@ -975,6 +982,50 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		nullifyUIs();
 	});
 
+	it("leaves the root view's animation stopped under the recorder, as main's base UI does", _ {
+		// `UI::canSeeViewUnderneath` is false and `AudioRecorder` does not override it; the menu under it says true.
+		Guards g;
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		KitRig k;
+		setRootUILowLevel(&instrumentClipView);
+		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
+		expect(shellHostUI.canSeeViewUnderneath()).to_be_true();
+		for (int32_t i = 0; i < 4 && !recorder_on_stack(shellHostUI.shell()); i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(recorder_on_stack(shellHostUI.shell())).to_be_true();
+		expect(shellHostUI.canSeeViewUnderneath()).to_be_false();
+		nullifyUIs();
+	});
+
+	it("passes a SYNC_SCALING release to the root view under the recorder while fill mode is on", _ {
+		// `AudioRecorder::buttonAction`: "allow turning off fill mode if it was active while entering audio recorder".
+		Guards g;
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		KitRig k;
+		const uint32_t saved_action = runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::SyncScalingAction,
+		                           RuntimeFeatureStateSyncScalingAction::Fill);
+		setRootUILowLevel(&instrumentClipView);
+		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
+		for (int32_t i = 0; i < 4 && !recorder_on_stack(shellHostUI.shell()); i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(recorder_on_stack(shellHostUI.shell())).to_be_true();
+		currentSong->changeFillMode(true);
+		expect(currentSong->isFillModeActive()).to_be_true();
+		// The press is not the recorder's to pass on: fill stays on.
+		(void)shellHostUI.buttonAction(deluge::hid::button::SYNC_SCALING, true);
+		expect(currentSong->isFillModeActive()).to_be_true();
+		(void)shellHostUI.buttonAction(deluge::hid::button::SYNC_SCALING, false);
+		expect(currentSong->isFillModeActive()).to_be_false();
+		expect(recorder_on_stack(shellHostUI.shell())).to_be_true();
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::SyncScalingAction, saved_action);
+		nullifyUIs();
+	});
+
 	it("leaves the menu when the creator's take that did begin closes, as legacy's recorder leaves the clip view", _ {
 		Guards g;
 		deluge::scenes::spec::UiStackGuard ui_guard;
@@ -1082,6 +1133,35 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(r.range->getAudioFileHolder()->audioFile == nullptr).to_be_true();
 		expect(recorder_scene().recording()).to_be_false();
 		expect(r.on_stack()).to_be_false();
+	});
+
+	it("raises CLIPPING OCCURRED only when no popup is up, and clears the flag either way", _ {
+		// `process()`'s `!display->hasPopup()` gate.
+		Guards g;
+		Rig r;
+		r.open();
+		r.tick(0);
+		deluge::notify::notice_text("A KNOB", deluge::notify::Notice::Kind::Text);
+		r.tick(10);
+		expect(std::string{r.shell.notices().last_popup_text()}).to_equal(std::string{"A KNOB"});
+		SampleRecorder* rec = recorder_scene().recorder();
+		rec->recordingClippedRecently = true;
+		r.tick(20);
+		r.tick(30);
+		expect(rec->recordingClippedRecently).to_be_false();
+		expect(std::string{r.shell.notices().last_popup_text()}).to_equal(std::string{"A KNOB"});
+	});
+
+	it("clears the playhead squares as the recorder opens", _ {
+		// `AudioRecorder::opened`'s `PadLEDs::clearTickSquares(true)`.
+		Guards g;
+		Rig r;
+		const uint8_t saved_cursor = PadLEDs::flashCursor;
+		PadLEDs::flashCursor = FLASH_CURSOR_FAST; // nothing to send to the pads
+		PadLEDs::slowFlashSquares[2] = 3;
+		r.open();
+		expect(static_cast<int32_t>(PadLEDs::slowFlashSquares[2])).to_equal(255);
+		PadLEDs::flashCursor = saved_cursor;
 	});
 
 	it("clears the clipping flag when it reports it, so one clip is one popup", _ {

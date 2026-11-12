@@ -38,6 +38,7 @@
 #include "processing/engines/audio_engine.h" // audioSampleTimer
 #include "scenes/marker/marker_scene.h"
 #include "scenes/profile.h"
+#include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
 #include "shell/profiles/deluge.h"
 #include "storage/flash_storage.h"
@@ -275,6 +276,12 @@ bool ShellHostUI::canSeeViewUnderneath() {
 	// (`gui/ui/sound_editor.h`) and `MenuScene::occludes_grid` is false
 	// (`scenes/menu/menu_scene.h`). Mapping it to `oled_transparent(Main)` would have made
 	// it false and frozen the clip view's playhead under an open menu.
+	// The recorder is a plain `UI` in main, whose `canSeeViewUnderneath` is false: the root's animation stops for the
+	// take.
+	if (shell_.stack().has_input_scene()
+	    && shell_.stack().input_top().kind() == deluge::scenes::recorder::kRecorderSceneKind) {
+		return false;
+	}
 	return !shell_.stack().top().occludes_grid();
 }
 
@@ -1012,6 +1019,11 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 	if (b == deluge::hid::button::RECORD && recorderTakesRecord(on)) {
 		armTickSoon();
 		return ActionResult::DEALT_WITH;
+	}
+
+	// The recorder hands a SYNC_SCALING release to the root view while fill mode is on, and answers as the view does.
+	if (recorderPassesFillRelease(b, on)) {
+		return rootViewButtonAction(b, on);
 	}
 
 	// **`NOT_DEALT_WITH`, and it is load-bearing three times over.** It is what `SoundEditor`

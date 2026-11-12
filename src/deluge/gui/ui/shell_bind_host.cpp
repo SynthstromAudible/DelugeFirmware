@@ -1389,6 +1389,10 @@ void host_forget_undo() {
 	actionLogger.deleteAllLogs();
 }
 
+void host_clear_tick_squares() {
+	PadLEDs::clearTickSquares(true);
+}
+
 void host_end_audition(AuditionEnd how) {
 	switch (how) {
 	case AuditionEnd::ClipViewWhenAuditioning:

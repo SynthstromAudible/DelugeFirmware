@@ -378,6 +378,15 @@ bool recorderTakesRecord(bool on) {
 	return on && &shellHostUI.shell().stack().input_top() == &recorder && recorder.recording();
 }
 
+bool recorderPassesFillRelease(deluge::hid::Button b, bool on) {
+	return !on && b == deluge::hid::button::SYNC_SCALING && currentSong != nullptr && currentSong->isFillModeActive()
+	       && &shellHostUI.shell().stack().input_top() == &deluge::scenes::recorder::recorder_scene();
+}
+
+ActionResult rootViewButtonAction(deluge::hid::Button b, bool on) {
+	return getRootUI()->buttonAction(b, on);
+}
+
 std::optional<ActionResult> forwardBrowserVertical(int32_t offset) {
 	const deluge::scenes::browser::BrowserScene& browser = deluge::scenes::browser::browser_scene();
 	if (&shellHostUI.shell().stack().input_top() != &browser

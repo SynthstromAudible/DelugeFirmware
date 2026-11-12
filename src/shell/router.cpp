@@ -115,6 +115,7 @@ void Router::apply(const Result& result) {
 		case Action::Kind::Popup:
 			popup_string_ = action.popup_string;
 			popup_type_ = action.popup_type;
+			popup_if_free_ = action.popup_if_free;
 			break;
 		case Action::Kind::Repaint: {
 			// SurfaceRole::None keeps its "no surface, never matches" meaning (surfaces.h): it is

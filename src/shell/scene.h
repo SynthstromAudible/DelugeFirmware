@@ -290,6 +290,8 @@ struct Action {
 	/// "no popup"; the popup service is what interprets the rest (how long it lingers, and what
 	/// `hasPopupOfType`-style gating it participates in).
 	uint8_t popup_type = 0;
+	/// `Popup`: shows only if no popup is up -- main's `!display->hasPopup()` gate.
+	bool popup_if_free = false;
 };
 
 /// @brief What one `handle()` or `after_render()` call decided.

@@ -101,14 +101,11 @@
 ///
 /// @par What is deliberately not ported
 ///
-///   * **`PadLEDs::clearTickSquares(true)`** (`:90`). Tick squares are a `PadLEDs` facility with no
-///     shell equivalent yet -- the same gap `MarkerScene` records for the playhead.
 ///   * **`instrumentClipView.cancelAllAuditioning()`** (`:109-111`), a root-UI call this layer may
 ///     not make (`scenes-no-root-ui`).
-///   * **`buttonAction`'s `SYNC_SCALING` release arm** (`:259-262`), which forwards to
-///     `getRootUI()` so a held fill mode can be turned off. The scene simply does not handle the
-///     event, and the shell routes it to the scene beneath -- which is the same outcome without
-///     naming a root UI.
+///   * **`buttonAction`'s `SYNC_SCALING` release arm** (`:259-262`), which forwards to `getRootUI()`. A SYNC_SCALING
+///     release with fill mode on goes to the root view (`recorderPassesFillRelease`), as main's
+///     `AudioRecorder::buttonAction` sends it; the scene itself does not name a root UI.
 ///   * **`checkPermissionToBeginSession`'s FM refusal** (`osc/audio_recorder.h:65-74`). It is
 ///     unreachable from the menu: `isRelevant` and the ported `relevance::is_subtractive` on
 ///     `nodes::sample0_recorder` hide the item in FM mode in the first place, so the popup only

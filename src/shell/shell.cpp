@@ -375,7 +375,11 @@ void Shell::tick(uint32_t now_ms) {
 		// before either goes out of scope.
 		TextScratch scratch;
 		const std::string_view text = profile_.text_or_digits(router_.pending_popup_string(), scratch);
-		notices_.show_popup(text, router_.pending_popup_type(), now_ms);
+		const bool popup_up =
+		    std::ranges::any_of(stack_.scenes(), [](const Scene* scene) { return scene->kind() == SceneKind::Popup; });
+		if (!router_.pending_popup_if_free() || !popup_up) {
+			notices_.show_popup(text, router_.pending_popup_type(), now_ms);
+		}
 		router_.clear_pending_popup();
 	}
 	// A popup re-targeted in place changed its text and no stack: repaint the panels it draws on.

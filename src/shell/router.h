@@ -154,6 +154,9 @@ public:
 	/// @return The `notify::Notice::popup_type` value `apply()` last stored, or 0 if none is
 	///         pending (0 also means "unspecified", per `Action::popup_type`'s own note).
 	uint8_t pending_popup_type() const { return popup_type_; }
+	/// @brief Whether the pending popup shows only if no popup is up.
+	/// @return The `Action::popup_if_free` of the most recent `Popup` action.
+	bool pending_popup_if_free() const { return popup_if_free_; }
 	/// @brief Clear the pending popup string and type together.
 	///
 	/// Read and cleared by `Notices`; the two are stored and cleared as a pair so a reader
@@ -161,6 +164,7 @@ public:
 	void clear_pending_popup() {
 		popup_string_ = 0;
 		popup_type_ = 0;
+		popup_if_free_ = false;
 	}
 
 	/// @brief How many events fell off the end of the chain with nothing handling them.
@@ -193,6 +197,7 @@ private:
 	bool grid_repaint_ = false;
 	uint16_t popup_string_ = 0;
 	uint8_t popup_type_ = 0;
+	bool popup_if_free_ = false;
 	uint32_t dropped_ = 0;
 };
 

@@ -488,6 +488,18 @@ bool recorderTakesRecord(bool on) {
 	return false;
 }
 
+bool recorderPassesFillRelease(deluge::hid::Button b, bool on) {
+	(void)b;
+	(void)on;
+	return false;
+}
+
+ActionResult rootViewButtonAction(deluge::hid::Button b, bool on) {
+	(void)b;
+	(void)on;
+	return ActionResult::NOT_DEALT_WITH;
+}
+
 void dispatchMenuTransitions() {
 	fakelegacyui::transition_dispatches++;
 }
