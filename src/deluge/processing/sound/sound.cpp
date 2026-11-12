@@ -1652,7 +1652,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 	else {
 		try {
 			const ActiveVoice& voice = voiceToReuse != nullptr ? *voiceToReuse : this->acquireVoice();
-			int32_t envelopePositions[kNumEnvelopes];
+			float envelopePositions[kNumEnvelopes];
 
 			if (voiceToReuse != nullptr) [[unlikely]] {
 				// The osc phases and stuff will remain
@@ -1675,7 +1675,8 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 			if (success) {
 				if (voiceToReuse != nullptr) {
 					for (int32_t e = 0; e < kNumEnvelopes; e++) {
-						voice->envelopes[e].resumeAttack(envelopePositions[e]);
+						voice->envelopes[e].resumeAttack(envelopePositions[e],
+						                                 deluge::modulation::kClassicEnvelopeShape);
 					}
 				}
 			}

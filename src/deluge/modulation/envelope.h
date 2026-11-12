@@ -18,20 +18,26 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "modulation/envelope_curve.h"
 #include <cstdint>
 
 class Sound;
 class Voice;
 class ParamManagerForTimeline;
 constexpr uint32_t SOFT_CULL_INCREMENT = 65536;
+
+/// Envelope levels are floats in [0, 1]. Stage positions stay integer: `pos` counts up to kStageLength at the rates
+/// the patcher gives us, and an integer accumulator is exact however slow the stage is.
 class Envelope {
 public:
+	static constexpr uint32_t kStageLength = 8388608; // 2^23
+
 	Envelope();
 
 	uint32_t pos;
 	EnvelopeStage state; // You may not set this directly, even from this class. Call setState()
-	int32_t lastValue;
-	int32_t lastValuePreCurrentStage;
+	float lastValue;
+	float lastValuePreCurrentStage;
 	uint32_t timeEnteredState;
 	bool ignoredNoteOff;
 	uint32_t fastReleaseIncrement{1024};
@@ -39,15 +45,16 @@ public:
 	int32_t noteOn(bool directlyToDecay, int32_t sustain);
 	int32_t noteOn(uint8_t envelopeIndex, Sound* sound, Voice* voice);
 	void noteOff(uint8_t envelopeIndex, Sound* sound, ParamManagerForTimeline* paramManager);
+	/// Returns the level as a bipolar q31 patch source value (0 -> INT32_MIN, 1 -> INT32_MAX), or INT32_MIN when off
 	int32_t render(uint32_t numSamples, uint32_t attack, uint32_t decay, uint32_t sustain, uint32_t release,
-	               const uint16_t* releaseTable);
+	               const deluge::modulation::EnvelopeShape& shape);
 	void unconditionalRelease(EnvelopeStage typeOfRelease = EnvelopeStage::RELEASE,
 	                          uint32_t newFastReleaseIncrement = SOFT_CULL_INCREMENT);
 	void unconditionalOff();
-	void resumeAttack(int32_t oldLastValue);
+	void resumeAttack(float oldLastValue, const deluge::modulation::EnvelopeShape& shape);
 	void resetTimeEntered();
 
 private:
 	void setState(EnvelopeStage newState);
-	int32_t smoothedSustain{0};
+	float smoothedSustain{0};
 };
