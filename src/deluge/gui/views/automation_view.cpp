@@ -1780,6 +1780,20 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
                                                  int32_t effectiveLength, int32_t x, int32_t y, int32_t velocity,
                                                  SquareInfo& squareInfo) {
 
+	// A pad can still be held when Shift+Clip / Shift+Song returns to the overview.
+	// Retire its registered press even though there is no longer a parameter to edit.
+	if (!velocity && onAutomationOverview()) {
+		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+			auto& press = instrumentClipView.editPadPresses[i];
+			if (press.isActive && press.xDisplay == x && press.yDisplay == y) {
+				instrumentClipView.endEditPadPress(i);
+				instrumentClipView.checkIfAllEditPadPressesEnded();
+				break;
+			}
+		}
+		return ActionResult::DEALT_WITH;
+	}
+
 	if (onArrangerView && isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 		return ActionResult::DEALT_WITH;
 	}
