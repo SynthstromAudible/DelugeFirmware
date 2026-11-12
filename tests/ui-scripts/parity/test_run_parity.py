@@ -39,5 +39,44 @@ class ScheduleTest(unittest.TestCase):
         self.assertEqual(len(dz.targets), 1)
 
 
+def snap(oled):
+    return {"frames": [{"oled": oled, "pads": [], "leds": [], "gold": []}], "midi": ""}
+
+
+def screen_with(rows):
+    """A 48-row OLED text, blank but for `rows` (index -> row text)."""
+    blank = "." * 128
+    return "\n".join(rows.get(i, blank) for i in range(48))
+
+
+class SectionLineTest(unittest.TestCase):
+    """D77: main draws an output name without its section line until a later redraw; ours draws it at once."""
+
+    def test_a_section_line_only_ours_draws_is_d77(self):
+        name = {10: "#" * 20 + "." * 108}
+        ref = snap(screen_with(name))
+        test = snap(
+            screen_with(
+                {**name, 40: "..###.##" + "." * 120, 42: ".#.#.#.." + "." * 120}
+            )
+        )
+        self.assertEqual(run_parity.classify(ref, test, ["oled"]), "D77")
+
+    def test_a_difference_where_main_draws_something_is_not(self):
+        ref = snap(screen_with({40: "#" + "." * 127}))
+        test = snap(screen_with({40: "##" + "." * 126}))
+        self.assertIsNone(run_parity.classify(ref, test, ["oled"]))
+
+    def test_a_difference_outside_the_section_line_is_not(self):
+        ref = snap(screen_with({}))
+        test = snap(screen_with({20: "#" + "." * 127}))
+        self.assertIsNone(run_parity.classify(ref, test, ["oled"]))
+
+    def test_a_difference_beyond_the_oled_is_not(self):
+        ref = snap(screen_with({}))
+        test = snap(screen_with({40: "#" + "." * 127}))
+        self.assertIsNone(run_parity.classify(ref, test, ["oled", "pads"]))
+
+
 if __name__ == "__main__":
     unittest.main()

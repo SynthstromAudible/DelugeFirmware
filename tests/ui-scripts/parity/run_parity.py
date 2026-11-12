@@ -320,6 +320,31 @@ def differences(ref, test):
     return found
 
 
+# The OLED rows an output name's section line ("SECTION 1") takes on the name screen.
+SECTION_LINE_ROWS = range(37, 44)
+
+
+def classify(ref, test, parts):
+    """The accepted DIFFERENCES row a snapshot's difference is, or None.
+
+    D77: `main`'s `View::drawOutputNameFromDetails` draws the section line only when its caller passes a clip, and
+    several of `main`'s callers pass none, so its first frame of a kit's name lacks the line ours draws from the model.
+    Such a snapshot differs on the OLED alone, every differing row is blank on `main` and lies in the section line's
+    rows."""
+    if parts != ["oled"]:
+        return None
+    r = ref["frames"][0]["oled"].splitlines()
+    t = test["frames"][0]["oled"].splitlines()
+    rows = [i for i, (a, b) in enumerate(zip(r, t)) if a != b]
+    if (
+        rows
+        and len(r) == len(t)
+        and all(i in SECTION_LINE_ROWS and set(r[i]) <= {"."} for i in rows)
+    ):
+        return "D77"
+    return None
+
+
 def file_digest(path):
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -432,6 +457,7 @@ def main():
 
     total = 0
     differing = 0
+    accepted = 0
     for script in a.scripts:
         name = os.path.splitext(os.path.basename(script))[0]
         ref, test = results[(script, "ref")], results[(script, "test")]
@@ -442,8 +468,13 @@ def main():
                 json.dump(snaps, f, indent=1)
         diffs = differences(ref, test)
         total += len(ref)
-        differing += len(diffs)
         for label, parts in diffs:
+            row = classify(ref[label], test[label], parts) if label in test else None
+            if row is not None:
+                accepted += 1
+                print(f"{row} {name}/{label}: {', '.join(parts)} (accepted)")
+                continue
+            differing += 1
             print(f"DIFF {name}/{label}: {', '.join(parts)}")
             if "oled" in parts:
                 ref_oled = ref[label]["frames"][0]["oled"]
@@ -453,7 +484,9 @@ def main():
                         print(f"  {r} | {t}")
             if "midi" in parts:
                 print(f"  midi {ref[label]['midi']} | {test[label]['midi']}")
-    print(f"PARITY {total - differing} of {total} snapshots identical")
+    print(
+        f"PARITY {total - differing - accepted} of {total} snapshots identical, {accepted} an accepted difference"
+    )
     return 1 if differing else 0
 
 
