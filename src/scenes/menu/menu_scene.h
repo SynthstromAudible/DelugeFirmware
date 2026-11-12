@@ -328,8 +328,8 @@ public:
 	void unlearn();
 	/// @brief Does the focused item want the LEARN LED blinking? `MenuItem::shouldBlinkLearnLed`.
 	///
-	/// Read by `leds()`, which is the port of `SoundEditor::beginScreen`'s own tail
-	/// (`SoundEditor::beginScreen`). Public because the LED is also legacy's own answer in `SoundEditor::buttonAction`,
+	/// Read by `leds()`, which is the port of `SoundEditor::beginScreen`'s own tail (`SoundEditor::updatePadLightsFor`,
+	/// reached from it). Public because the LED is also legacy's own answer in `SoundEditor::buttonAction`,
 	/// on the way *out* of learn mode -- **not** because it is the gate into it. See the second
 	/// `@warning` above: that gate is `allowsLearnMode()`, which this is not a synonym for.
 	bool wants_learn_blink() const;
@@ -767,7 +767,7 @@ public:
 	///
 	/// @note **A recorded divergence: the focus the entered page lands on.** Legacy's `beginScreen`
 	///       begins the entered item's session (`SoundEditor::beginScreen`), and the toggle names no
-	///       item to navigate back from (`:1968`). For a `HorizontalMenu` that is
+	///       item to navigate back from (`SoundEditor::toggleNoteEditorParamMenu`). For a `HorizontalMenu` that is
 	///       `HorizontalMenu::beginSession` (`gui/menu_item/horizontal_menu.cpp:40-48`) ->
 	///       `Submenu::beginSession` (`gui/menu_item/submenu.cpp:11-19`) -> `focusChild(nullptr)`
 	///       (`:21-37`), which keeps the process-lifetime object's `current_item_`: a second toggle hold

@@ -272,7 +272,7 @@ bool MenuLearn::observe(const MenuContext& ctx, const MenuState& st, const UiEve
 }
 
 void MenuLearn::leds(const MenuState& st, deluge::ui::LedFrame& f, deluge::ui::LedState shared_blink) {
-	// `SoundEditor::beginScreen`'s tail (`sound_editor.cpp:949-954`): every screen change asks the
+	// `SoundEditor::beginScreen`'s tail (`SoundEditor::updatePadLightsFor`): every screen change asks the
 	// item whether it wants the LEARN LED, and blinks or extinguishes it accordingly. Declared on
 	// every tick rather than only on a change, because that is what an `LedFrame` is -- the full
 	// state of the LEDs this scene owns, redeclared each time. It is `blinkLed`'s default blink, BACK's.
