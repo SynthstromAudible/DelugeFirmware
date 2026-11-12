@@ -2,9 +2,8 @@
 
 /// @file
 /// @brief The fixtures of the DX7 menu pages: a runtime feature held for one example, the keyboard screen as the root
-/// on
-///        the isomorphic layout, the patches the parameter page is drawn over and the keyboard layouts the breakpoint
-///        pad is asked over. The spec and the menu oracle freezer share them.
+///        on the isomorphic layout, the patches the parameter page is drawn over and the keyboard layouts the
+///        breakpoint pad is asked over. The spec and the menu oracle freezer share them.
 
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/root_ui.h"

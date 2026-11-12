@@ -660,7 +660,9 @@ describe dx_pages("the DX7 menu pages", ${
 	it("moves the param as main's openForOpOrGlobal does for every DX column pad, on the page and off it", _ {
 		for (int32_t op = 0; op < 8; op++) {
 			// Off the page, main's `setup()` opens it and the param is the operator's level, or the algorithm.
-			expect(static_cast<int32_t>(dx::column_param(5, op, false))).to_equal(op < 6 ? op * 21 + 16 : 134);
+			const std::string off = "dx/column/" + std::to_string(op);
+			expect(off + " " + std::to_string(dx::column_param(5, op, false)))
+			    .to_equal(off + " " + table().value(off, "off"));
 			for (int16_t p = dx::kRandomDetune; p <= dx::kLastParam; p++) {
 				const std::string path = "dx/column/" + std::to_string(op) + "," + std::to_string(p) + "/on";
 				expect(path + " " + std::to_string(dx::column_param(p, op, true)))

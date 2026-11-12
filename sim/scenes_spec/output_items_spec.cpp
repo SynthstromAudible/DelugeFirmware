@@ -783,7 +783,7 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 		expect(frozen_index("selector/shift/5", "at")).to_equal(rig.index_of(last));
 	});
 
-	it("walks the shift fixture's five single detents as legacy does", _ {
+	it("walks the shift fixture's five single detents as main does", _ {
 		ClipRig rig;
 		(void)rig.add_synth("C");
 		(void)rig.add_synth("D");

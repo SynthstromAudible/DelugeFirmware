@@ -713,6 +713,12 @@ std::optional<int32_t> legacy_value(::MenuItem* item) {
 	return std::nullopt;
 }
 
+/// @brief `OLED::main` -- what every legacy `renderOLED()` draws into -- as a PBM.
+std::string legacy_panel_pbm() {
+	const auto& canvas = deluge::hid::display::OLED::main;
+	return page_major_to_pbm(canvas.bytes().data(), OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS);
+}
+
 /// @brief Drive @p item's legacy write path with @p v. False for an item that holds no value.
 bool legacy_write(::MenuItem* item, int32_t v) {
 	if (auto* n = dynamic_cast<legacy::Value<int32_t>*>(item); n != nullptr) {
@@ -3208,12 +3214,6 @@ void legacy_walk_to(legacy::ActiveScaleMenu& item, int32_t row) {
 	}
 }
 
-/// @brief `OLED::main` -- what `MenuItem::renderOLED` draws into -- as a PBM.
-std::string legacy_panel_pbm() {
-	const auto& canvas = deluge::hid::display::OLED::main;
-	return page_major_to_pbm(canvas.bytes().data(), OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS);
-}
-
 /// @return Whether every panel file was written.
 bool freeze(OracleWriter& out) {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
@@ -3473,12 +3473,6 @@ namespace output_items {
 
 namespace oi = spec::outputitems;
 
-/// @brief `OLED::main` -- what `MenuItem::renderOLED` draws into -- as a PBM.
-std::string legacy_panel_pbm() {
-	const auto& canvas = deluge::hid::display::OLED::main;
-	return page_major_to_pbm(canvas.bytes().data(), OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS);
-}
-
 /// @brief Begin a legacy selector session over whatever `currentSong` says, as the spec's legacy half did.
 void begin_selector() {
 	midiDeviceLinkedMenu.readCurrentValue(); // unrelated; keeps the two globals' state independent
@@ -3615,12 +3609,6 @@ void legacy_on(int16_t param) {
 void set_shift(bool on) {
 	::Buttons::shiftCurrentlyPressed = on;
 	::Buttons::shiftCurrentlyStuck = false;
-}
-
-/// @brief `OLED::main`, into which every legacy `renderOLED()` draws, as a PBM.
-std::string legacy_panel_pbm() {
-	const auto& canvas = deluge::hid::display::OLED::main;
-	return page_major_to_pbm(canvas.bytes().data(), OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS);
 }
 
 /// @brief Legacy's `renderMainShortcutsOnly` with `soundEditor` the current UI on @p item: the overlay `main` paints.
@@ -3827,6 +3815,27 @@ bool freeze(OracleWriter& out) {
 		numUIsOpen = open;
 	}
 	{
+		// Off the page: the editor is not open on the parameter page, so main's `setup()` opens it and the param is the
+		// operator's level, or the algorithm.
+		rig::DxRig r;
+		dxp::IsomorphicRoot clip_screen{r.song.clip}; // a clip-minder root, which `setup()` resolves the sound from
+		for (int32_t op = 0; op < 8; op++) {
+			RootUI* const root = getRootUI();
+			const int32_t open = numUIsOpen;
+			const uint8_t depth = soundEditor.navigationDepth;
+			::MenuItem* const was = soundEditor.menuItemNavigationRecord[depth];
+			soundEditor.menuItemNavigationRecord[depth] = &legacy::dxGlobalParams;
+			legacy_on(dxp::kUntouched);
+			legacy::dxParam.openForOpOrGlobal(op);
+			out.row("dx/column/" + std::to_string(op), "off", static_cast<int64_t>(legacy::dxParam.param));
+			soundEditor.menuItemNavigationRecord[depth] = was;
+			if (root != nullptr) {
+				setRootUILowLevel(root);
+			}
+			numUIsOpen = open;
+		}
+	}
+	{
 		rig::DxRig r;
 		dxp::IsomorphicRoot root{r.song.clip};
 		for (const int32_t scroll : dxp::kScrolls) {
@@ -3866,8 +3875,6 @@ bool freeze(OracleWriter& out) {
 // panel at each cursor.
 
 namespace dx_cartridge {
-
-using dx_pages::legacy_panel_pbm;
 
 /// @brief Parse a fresh bank into legacy's cartridge item, as a finished read does.
 void load_bank() {

@@ -75,7 +75,7 @@ struct DxRig {
 	}
 };
 
-/// @brief The language the port's and legacy's text come from, and no notice left over from another example.
+/// @brief The language the menu's text comes from, and no notice left over from another example.
 inline void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 	deluge::notify::Notice discard;
