@@ -2036,6 +2036,9 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 
 	resetParameterShortcutBlinking();
 	if (inNoteEditor()) {
+		// Note edits use the selected note row; parameter edits release by physical pad row.
+		// Finish held note edits before switching to the parameter editor.
+		instrumentClipView.endAllEditPadPresses();
 		automationParamType = AutomationParamType::PER_SOUND;
 		instrumentClipView.resetSelectedNoteRowBlinking();
 	}
