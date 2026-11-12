@@ -54,7 +54,8 @@ public:
 	std::expected<FileItem*, Error> confirmPresetOrNextUnlaunchedOne(OutputType outputType, String* searchName,
 	                                                                 Availability availabilityRequirement);
 	PresetNavigationResult doPresetNavigation(int32_t offset, Instrument* oldInstrument,
-	                                          Availability availabilityRequirement, bool doBlink);
+	                                          Availability availabilityRequirement, bool doBlink,
+	                                          Clip* displayClip = nullptr);
 	void setupLoadInstrument(OutputType newOutputType, Instrument* instrumentToReplace_,
 	                         InstrumentClip* instrumentClipToLoadFor_) {
 		Browser::outputTypeToLoad = newOutputType;
