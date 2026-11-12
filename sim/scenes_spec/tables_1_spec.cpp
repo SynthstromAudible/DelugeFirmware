@@ -322,26 +322,17 @@ describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 		expect(edits > size_t(30)).to_be_true();
 	});
 
-	it("marks exactly main's range-dependent items as range_dependent, but for the recorders and file selectors", _ {
+	it("marks exactly main's range-dependent items as range_dependent", _ {
 		(void)fixture();
-		size_t range_differs = 0;
 		for (const spec::TreeEntry& e : t1::entries()) {
 			if (e.node->kind == menu::Kind::Submenu) {
 				continue;
 			}
-			// Main flags no recorder or file selector range dependent; the port does (a known difference).
-			if (spec::range_dependence_differs_from_main(*e.node) && e.node->range_dependent
-			    && table().value(e.path, "range_dep") == "0") {
-				range_differs++;
-			}
-			else {
-				expect(e.path + " range_dep " + std::to_string(e.node->range_dependent ? 1 : 0))
-				    .to_equal(e.path + " range_dep " + table().value(e.path, "range_dep"));
-			}
+			expect(e.path + " range_dep " + std::to_string(e.node->range_dependent ? 1 : 0))
+			    .to_equal(e.path + " range_dep " + table().value(e.path, "range_dep"));
 		}
-		expect(range_differs).to_equal(spec::kRangeDependenceDifferencesBatch1);
 		// The four classes that route through `checkPermissionToBeginSessionForRangeSpecificParam` are ten nodes here.
-		expect(nodes::kRangeDependentNodes.size()).to_equal(size_t(10));
+		expect(nodes::kRangeSpecificNodes.size()).to_equal(size_t(10));
 		expect(nodes::kHalfPrecisionNodes.size()).to_equal(size_t(3));
 	});
 });
@@ -460,7 +451,7 @@ describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
 		// every other root's (`validate.h`'s `skip_shortcut_sweep`). Nothing else is: no
 		// placeholder option is passed: every node in the tree has a real item.
 		const auto issues =
-		    menu::validate_tree(nodes::kBatch1Roots, contexts, nodes::kRangeDependentNodes,
+		    menu::validate_tree(nodes::kBatch1Roots, contexts, nodes::kRangeSpecificNodes,
 		                        nodes::kHalfPrecisionNodes, menu::ValidateOptions{.skip_shortcut_sweep = true});
 		size_t duplicates = 0;
 		size_t others = 0;
@@ -486,7 +477,7 @@ describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
 		// `sim/scenes_spec/sample_items_spec.cpp` pins which item each of those nodes got, and this
 		// is the same claim `output_items_spec.cpp` makes over `kAllRoots`, made here over batch 1.
 		const auto issues =
-		    menu::validate_tree(nodes::kBatch1Roots, contexts, nodes::kRangeDependentNodes,
+		    menu::validate_tree(nodes::kBatch1Roots, contexts, nodes::kRangeSpecificNodes,
 		                        nodes::kHalfPrecisionNodes, menu::ValidateOptions{.skip_shortcut_sweep = true});
 		size_t placeholders = 0;
 		for (const menu::Issue& i : issues) {
@@ -625,17 +616,17 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 		st.walk.pending_after_range = &nodes::source0_transpose;
 		expect(nodes::multi_range_chain(f.ctx, st) == &nodes::source0_transpose).to_be_true();
 
-		// The span has to be the whole `range_dependent` set, because any one of them can be what
-		// `permission_for` refused. Asserted against `nodes::kRangeDependentNodes` itself so the two
+		// The span has to be the whole `range_specific` set, because any one of them can be what
+		// `permission_for` refused. Asserted against `nodes::kRangeSpecificNodes` itself so the two
 		// lists cannot drift (`multi_range.h` says why it is spelled twice).
-		expect(nodes::kMultiRangeChain.size()).to_equal(nodes::kRangeDependentNodes.size());
-		for (const Node* n : nodes::kRangeDependentNodes) {
+		expect(nodes::kMultiRangeChain.size()).to_equal(nodes::kRangeSpecificNodes.size());
+		for (const Node* n : nodes::kRangeSpecificNodes) {
 			expect(std::find(nodes::kMultiRangeChain.begin(), nodes::kMultiRangeChain.end(), n)
 			       != nodes::kMultiRangeChain.end())
 			    .to_be_true();
 		}
-		// And the picker itself is NOT range-dependent -- see `multi_range.h`: it would recurse.
-		expect(nodes::multi_range.range_dependent).to_be_false();
+		// And the picker itself is NOT range-specific -- see `multi_range.h`: it would recurse.
+		expect(nodes::multi_range.range_specific).to_be_false();
 	});
 
 	it("getOrCreateFirstRange is run for a zero-range source", _ {

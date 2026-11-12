@@ -194,7 +194,7 @@ bool MenuScene::on_enter(const SceneId& id) {
 		// than paying neither: the half that is there makes it look complete. It is latent on a
 		// fresh source (0 ranges becomes 1, so the item just opens) and fires the moment a user
 		// presses LOAD on a multisampled oscillator.
-		if (target != nullptr && target->range_dependent) {
+		if (target != nullptr && target->range_specific) {
 			if (!ensure_first_range(ctx_)) {
 				deluge::notify::notice_string(
 				    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));

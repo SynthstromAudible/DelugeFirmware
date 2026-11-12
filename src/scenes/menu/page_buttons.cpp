@@ -109,7 +109,7 @@ std::optional<Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSes
 						// landed item and discards the result entirely (`:359`) -- not even
 						// `MUST_SELECT_RANGE` is acted on here, only the allocation side effect a
 						// range-dependent item's permission check performs matters.
-						if (kids[target]->range_dependent) {
+						if (kids[target]->range_specific) {
 							(void)ensure_first_range(ctx);
 						}
 						// `switchVisiblePage` cancels the notification unconditionally once past its

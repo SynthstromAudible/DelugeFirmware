@@ -188,7 +188,7 @@ mailbox goes in whichever band its effect falls into. The per-band table is on `
 * **The validator** (`validate.h`). `validate_tree` walks every reachable node and checks: no empty
   `Submenu`, every `ParamRef` resolves, every `Enum` has names, every shortcut cell points at a node,
   no `NullCustom`, no `DuplicateName` among siblings that can be on screen together, the
-  `range_dependent` and half-precision sets equal what the caller expects, at most
+  `range_specific` and half-precision sets equal what the caller expects, at most
   `kMaxCustomNodes` custom nodes, and no `PlaceholderCustom` — unconditionally; the one opt-out left
   is `skip_shortcut_sweep`, for a caller validating a subtree.
 * **Node ids** (`node_id.h`). `assign_node_ids(roots)` numbers every statically reachable node

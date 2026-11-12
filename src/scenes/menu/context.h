@@ -244,10 +244,10 @@ enum class Permission : uint8_t {
 /// relevance only) plus the range rule the range-specific overrides share via
 /// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` (`sound_editor.cpp`).
 ///
-/// The range rule fires on `Node::range_dependent` -- legacy's `MenuItem::isRangeDependent()`
-/// (`MenuItem::isRangeDependent`) -- **not** on "has a `bind.param`". An ordinary patched param
-/// on a multisampled sound takes the base rule and opens (`Yes`); only a range-dependent item on a
-/// source with more than one `MultiRange` and none selected gets `MustSelectRange`.
+/// The range rule fires on `Node::range_specific` -- the items whose override ends in that call --
+/// **not** on "has a `bind.param`". An ordinary patched param on a multisampled sound takes the
+/// base rule and opens (`Yes`); only a range-specific item on a source with more than one
+/// `MultiRange` and none selected gets `MustSelectRange`.
 /// @param node The node a session would begin on.
 /// @param ctx  The menu's context.
 /// @return `Yes`, `No`, or `MustSelectRange`.

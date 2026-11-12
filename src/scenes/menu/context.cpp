@@ -348,13 +348,11 @@ Permission permission_for(const Node& node, const MenuContext& ctx) {
 	// (`gui/menu_item/sample/transpose.h:120-135`), which after its own relevance and osc-type test
 	// defers to it verbatim.
 	//
-	// The discriminator is `Node::range_dependent`, the port of `MenuItem::isRangeDependent()`
-	// (`MenuItem::isRangeDependent`; true at `sample/transpose.h:137`, `sample/loop_point.h:31`,
-	// `origin/main:src/deluge/gui/menu_item/multi_range.h` `MultiRange::isRangeDependent`) -- NOT "the node has a
+	// The discriminator is `Node::range_specific`, the items whose override ends in that call -- NOT "the node has a
 	// `bind.param`". Everything else, an ordinary patched param on a multisampled sound included, takes the base rule
 	// above and opens: legacy routes it through `MenuItem::checkPermissionToBeginSession` (`menu_item.cpp:27-31`),
 	// which returns YES without ever looking at a range.
-	if (!node.range_dependent || !ctx.addresses.slot) {
+	if (!node.range_specific || !ctx.addresses.slot) {
 		return Permission::Yes;
 	}
 

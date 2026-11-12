@@ -88,8 +88,8 @@ struct Issue {
 
 /// @brief Which flag a `FlagMismatch` is about (`Issue::detail`).
 enum class Flag : uint16_t {
-	/// @brief `Node::range_dependent` (`node.h`, legacy `MenuItem::isRangeDependent()`).
-	RangeDependent,
+	/// @brief `Node::range_specific` (`node.h`, the items whose permission check takes the range rule).
+	RangeSpecific,
 	/// @brief `Binding::scaling == Scaling::HalfPrecision` (`bindings.h`'s two named exceptions).
 	HalfPrecision,
 	/// @brief Exactly one of `Node::select_chain` and `Node::chain_targets` is set.
@@ -193,7 +193,7 @@ struct ValidateOptions {
 ///                  context" quantifier of the `EmptySubmenu` rule. An empty span skips relevance
 ///                  filtering entirely (every declared child counts as visible), which is what a
 ///                  structural-only check wants.
-/// @param expected_range_dependent Every node that must carry `Node::range_dependent`, and no
+/// @param expected_range_specific Every node that must carry `Node::range_specific`, and no
 ///                  others.
 /// @param expected_half_precision  Every node whose binding must use `Scaling::HalfPrecision`, and
 ///                  no others.
@@ -202,7 +202,7 @@ struct ValidateOptions {
 ///         exhaustive list to be rejected).
 deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* const> roots,
                                                         std::span<const MenuContext> contexts,
-                                                        std::span<const Node* const> expected_range_dependent = {},
+                                                        std::span<const Node* const> expected_range_specific = {},
                                                         std::span<const Node* const> expected_half_precision = {},
                                                         ValidateOptions options = {});
 

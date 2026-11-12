@@ -33,19 +33,6 @@ inline bool affect_entire_differs_from_main(std::string_view root, const menu::N
 /// @brief How many leaves of the ten roots that is: the `ae` rows main has at 1 and the port at 0.
 inline constexpr size_t kAffectEntireDifferences = 55;
 
-/// @brief `main` flags no audio recorder and no file selector range dependent (`MenuItem::isRangeDependent` is
-///        overridden by the loop points, the transpose and the range picker alone); the port flags them.
-inline bool range_dependence_differs_from_main(const menu::Node& node) {
-	namespace nodes = deluge::scenes::menu::nodes;
-	return &node == &nodes::sample0_recorder || &node == &nodes::sample1_recorder || &node == &nodes::file0_selector
-	       || &node == &nodes::file1_selector;
-}
-
-/// @brief How many leaves that is: across the ten roots, in the sound root, and in the seventeen batch-1 roots.
-inline constexpr size_t kRangeDependenceDifferencesTen = 13;
-inline constexpr size_t kRangeDependenceDifferencesSound = 4;
-inline constexpr size_t kRangeDependenceDifferencesBatch1 = 4;
-
 /// @brief The sample repeat items' titles: the row holds legacy's item's title with its source's number formatted into
 ///        it ("Samp1 repeat"); the port's node carries the placeholder unfilled ("Samp* repeat", no `title_arg`).
 ///        DIFFERENCES row D149 (open for Kate: `main` shows neither, its title reads empty).

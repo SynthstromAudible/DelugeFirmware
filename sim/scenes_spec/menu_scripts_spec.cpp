@@ -46,8 +46,8 @@
 /// (it is idempotent over one root set, but a later call over a DIFFERENT set is what makes ids
 /// valid for that set -- see `node_id.h`), so blocks never depend on execution order.
 ///
-/// **The range-permission script is the one target with no real host.** Every `range_dependent` node
-/// in the committed tables (`nodes::kRangeDependentArray`, `nodes/nodes.h`) is a value column of a
+/// **The range-permission script is the one target with no real host.** Every `range_specific` node
+/// in the committed tables (`nodes::kRangeSpecificArray`, `nodes/nodes.h`) is a value column of a
 /// `Layout::Horizontal` page (`source0`/`source1`), and a horizontal page's `columns` widget claims
 /// `entered` only for a `Kind::Submenu` column (`ui/oled/columns.cpp`) -- so `enter_child` (the only
 /// caller of `permission_for`) is never reached through the real committed tree. To still exercise

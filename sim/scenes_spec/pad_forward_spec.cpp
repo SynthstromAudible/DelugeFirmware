@@ -1078,6 +1078,22 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 			shellHostUI.shell().tick(1);
 			deluge::gui::ui::refreshShellRangeDisplay(); // and comes back
 			expect(whichSideRowsNeedRendering != 0).to_be_true();
+			// `MenuItem::isRangeDependent` is true for the transposes and the loop points only: the file selector
+			// and the recorder check the range on open but do not highlight it.
+			for (const Node* item : {&nodes::file0_selector, &nodes::sample0_recorder}) {
+				menu_scene().open(*item, ctx);
+				shellHostUI.shell().tick(1);
+				expect(deluge::gui::ui::rangeDependentMenuOpen()).to_be_false();
+			}
+			for (const Node* item : {&nodes::source0_transpose, &nodes::sample0_start, &nodes::sample0_end}) {
+				menu_scene().open(*item, ctx);
+				shellHostUI.shell().tick(1);
+				expect(deluge::gui::ui::rangeDependentMenuOpen()).to_be_true();
+			}
+			menu_scene().open(nodes::multi_range, ctx);
+			shellHostUI.shell().tick(1);
+			deluge::gui::ui::refreshShellRangeDisplay();
+			whichSideRowsNeedRendering = 0;
 		}
 		{
 			// A range deleted under the same index: the root re-renders, as `deletePress` has it do.

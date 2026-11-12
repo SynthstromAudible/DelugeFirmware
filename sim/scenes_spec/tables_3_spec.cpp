@@ -507,7 +507,6 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 	it("gives every leaf main's own param, AFFECT ENTIRE use, edit marking, slot count and range dependence", _ {
 		size_t learned = 0;
 		size_t ae_differs = 0;
-		size_t range_differs = 0;
 		for (const auto& [root, e] : every_entry()) {
 			if (e.node->kind == menu::Kind::Submenu) {
 				continue;
@@ -529,15 +528,8 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 			    .to_equal(at + " edits " + table().value(e.path, "edits"));
 			expect(at + " slots " + std::to_string(e.node->slots))
 			    .to_equal(at + " slots " + table().value(e.path, "slots"));
-			// Main flags no recorder or file selector range dependent; the port does (a known difference).
-			if (spec::range_dependence_differs_from_main(*e.node) && e.node->range_dependent
-			    && table().value(e.path, "range_dep") == "0") {
-				range_differs++;
-			}
-			else {
-				expect(at + " range_dep " + std::to_string(e.node->range_dependent ? 1 : 0))
-				    .to_equal(at + " range_dep " + table().value(e.path, "range_dep"));
-			}
+			expect(at + " range_dep " + std::to_string(e.node->range_dependent ? 1 : 0))
+			    .to_equal(at + " range_dep " + table().value(e.path, "range_dep"));
 			// Every leaf the freezer found a learner on (relevant here) learns what main's item learns.
 			if (const std::vector<std::string>* want = table().find(e.path, "learn"); want != nullptr) {
 				const std::optional<deluge::project::OwnerParamTarget> got =
@@ -577,7 +569,6 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 		}
 		expect(learned > size_t(0)).to_be_true();
 		expect(ae_differs).to_equal(spec::kAffectEntireDifferences);
-		expect(range_differs).to_equal(spec::kRangeDependenceDifferencesTen);
 	});
 });
 
@@ -826,7 +817,7 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 		contexts.push_back(cv_fixture().ctx);
 		install(roots().front().ctx, roots().front().song);
 		const auto issues = menu::validate_tree(
-		    without_settings, contexts, nodes::kRangeDependentNodes, nodes::kHalfPrecisionNodes,
+		    without_settings, contexts, nodes::kRangeSpecificNodes, nodes::kHalfPrecisionNodes,
 		    menu::ValidateOptions{.skip_shortcut_sweep = true});
 		size_t duplicates = 0;
 		size_t others = 0;

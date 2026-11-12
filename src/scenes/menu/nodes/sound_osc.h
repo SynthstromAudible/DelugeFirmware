@@ -55,15 +55,16 @@
 ///       `osc::AudioRecorder::renderInHorizontalMenu`, `osc/audio_recorder.h:81-114`), and the hooks are
 ///       their transcriptions, not the items.
 ///
-/// @note **`range_dependent`.** Four legacy classes in this subtree override
+/// @note **`range_specific` and `range_dependent`.** Four legacy classes in this subtree override
 ///       `checkPermissionToBeginSession` to route through
 ///       `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`: `sample::Transpose`
 ///       (`sample/transpose.h:120-135`, which also overrides `isRangeDependent()` at `:137`),
 ///       `LoopPoint` (`sample/loop_point.cpp:38-58`, `loop_point.h:31`), `FileSelector`
-///       (`file_selector.cpp:68-86`) and `osc::AudioRecorder` (`osc/audio_recorder.h:65-74`). That is
-///       exactly `node.h`'s own list minus `multi_range.h`, so ten nodes here carry the flag
-///       (`nodes.h`'s `kRangeDependentNodes`); the validator's `Flag::RangeDependent` audit
-///       re-checks it.
+///       (`file_selector.cpp:68-86`) and `osc::AudioRecorder` (`osc/audio_recorder.h:65-74`). Ten nodes
+///       here carry `range_specific` (`nodes.h`'s `kRangeSpecificNodes`; the validator's
+///       `Flag::RangeSpecific` audit re-checks it). Only the transposes and the loop points
+///       override `isRangeDependent()`, so only they carry `range_dependent` (`with_range_dependent`
+///       sets both; the file selectors and the recorders take `with_range_specific`).
 ///
 /// @note **The four transposes carry a learn-only `ParamRef`** beside their `get`/`set`
 ///       (`with_learn_param`, `detail.h`). Legacy `sample::Transpose` and `modulator::Transpose`
@@ -185,7 +186,7 @@ constexpr Node retrigger_phase_screen(Node n) {
 	                          osc##i##_type_art)),                                                                     \
 	                      &osc##i##_type_chain, kOscTypeChain);                                                        \
 	inline constexpr Node file##i##_selector =                                                                         \
-	    with_value_text(with_column_art(with_allow_session_from_horizontal(with_range_dependent(                       \
+	    with_value_text(with_column_art(with_allow_session_from_horizontal(with_range_specific(                        \
 	                                        custom(sid(deluge::l10n::String::STRING_FOR_FILE_BROWSER),                 \
 	                                               &kFile##i##Selector, relevance::osc##i##_file_selector))),          \
 	                                    file_selector_art),                                                            \
@@ -367,7 +368,7 @@ inline constexpr Node modulator1 = submenu(sid(deluge::l10n::String::STRING_FOR_
 // `AudioRecorder::getOccupiedSlots()` (`osc/audio_recorder.h`).
 inline constexpr Node sample0_recorder =
     with_column_draw(without_notification(without_column_label(
-                         with_title_arg(with_slots(with_allow_session_from_horizontal(with_range_dependent(
+                         with_title_arg(with_slots(with_allow_session_from_horizontal(with_range_specific(
                                                        custom(sid(deluge::l10n::String::STRING_FOR_RECORD_TO_SAMPLE),
                                                               &kSample0Recorder, relevance::is_subtractive))),
                                                    2),
@@ -375,7 +376,7 @@ inline constexpr Node sample0_recorder =
                      recorder0_draw);
 inline constexpr Node sample1_recorder =
     with_column_draw(without_notification(without_column_label(
-                         with_title_arg(with_slots(with_allow_session_from_horizontal(with_range_dependent(
+                         with_title_arg(with_slots(with_allow_session_from_horizontal(with_range_specific(
                                                        custom(sid(deluge::l10n::String::STRING_FOR_RECORD_TO_SAMPLE),
                                                               &kSample1Recorder, relevance::is_subtractive))),
                                                    2),

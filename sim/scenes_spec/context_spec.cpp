@@ -236,7 +236,7 @@ describe menu_permission("scenes::menu::permission_for", $ {
 		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 
 		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
-		expect(param_node.range_dependent).to_be_false();
+		expect(param_node.range_specific).to_be_false();
 		expect(static_cast<int>(menu::permission_for(param_node, ctx))).to_equal(static_cast<int>(Permission::Yes));
 	});
 

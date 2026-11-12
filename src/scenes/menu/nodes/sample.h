@@ -40,9 +40,10 @@
 /// @note **No refusal is spelled here, deliberately.** Legacy refuses in
 ///       `checkPermissionToBeginSession`, which `SoundEditor::setup` consults *before* navigating;
 ///       the port splits that in two. The range half is `menu::permission_for` +
-///       `MenuScene::enter_child` (`Node::range_dependent`, which all but `audio_clip_waveform`
-///       carry -- exactly as legacy, whose `audio_clip::SampleMarkerEditor` overrides no
-///       `isRangeDependent`). The rest -- `LoopPoint`'s "make sure a Sample is loaded"
+///       `MenuScene::enter_child` (`Node::range_specific`, which all but `audio_clip_waveform`
+///       carry -- exactly as legacy, whose `audio_clip::SampleMarkerEditor` does not route through
+///       `checkPermissionToBeginSessionForRangeSpecificParam`). The rest -- `LoopPoint`'s "make sure a Sample is
+///       loaded"
 ///       (`sample/loop_point.cpp:50-55`), `audio_clip::SampleMarkerEditor`'s null `sampleHolder.
 ///       audioFile` (`audio_clip/sample_marker_editor.cpp:35-38`), `AudioRecorder`'s
 ///       "already recording" (`AudioRecorder::opened`) -- is each scene's own `can()`,

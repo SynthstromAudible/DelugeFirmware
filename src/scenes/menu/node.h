@@ -903,23 +903,29 @@ struct Node {
 
 	uint8_t slots = 1;
 
-	/// @brief Does this item edit something that belongs to one `MultiRange` rather than to the
-	///        `Sound` as a whole? The port of `MenuItem::isRangeDependent()`
-	///        (`MenuItem::isRangeDependent`, "only relevant to some note ranges").
+	/// @brief Is this item "only relevant to some note ranges"? The port of `MenuItem::isRangeDependent()`.
+	///
+	/// The legacy items that override it to true are `sample::Transpose` and `LoopPoint`
+	/// (`origin/main:src/deluge/gui/menu_item/sample/transpose.h`, `.../sample/loop_point.h`) and the picker itself
+	/// (`origin/main:src/deluge/gui/menu_item/multi_range.h` `MultiRange::isRangeDependent`, not set on
+	/// `nodes::multi_range`, whose own answers are spelled where they are read). It decides whether the selected range
+	/// survives a horizontal page's session (`menu::begin_submenu_range`) and whether the root highlights the range's
+	/// notes (`rangeDependentMenuOpen`). Every item that sets it also sets `range_specific`.
+	bool range_dependent = false;
+
+	/// @brief Does this item's permission check go through the range rule? The port of the overrides of
+	///        `checkPermissionToBeginSession` that end in
+	///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`.
 	///
 	/// This, not "has a `bind.param`", is what makes the menu's permission rule fire
-	/// (`menu::permission_for`). The distinction matters: an ordinary patched param such as LPF
-	/// frequency lives on the `Sound` and is editable on a multisampled synth without picking a
-	/// range first, while a range-dependent item's value lives in the range itself
-	/// (`sample/transpose.h:139-165` writes `sampleHolder.transpose` / `source.transpose`) and has
-	/// nowhere to go until one is chosen.
+	/// (`menu::permission_for`), and what allocates a source's first range on open. The distinction matters: an
+	/// ordinary patched param such as LPF frequency lives on the `Sound` and is editable on a multisampled synth
+	/// without picking a range first, while a range-specific item's value lives in the range itself and has nowhere
+	/// to go until one is chosen.
 	///
-	/// The legacy items that override `isRangeDependent()` to true, and so are the ones that set
-	/// this: `sample/transpose.h:137`, `sample/loop_point.h:31`, and
-	/// `origin/main:src/deluge/gui/menu_item/multi_range.h` `MultiRange::isRangeDependent` (the picker itself).
-	/// `file_selector` and `osc/audio_recorder` reach the same rule through
-	/// `checkPermissionToBeginSessionForRangeSpecificParam` without the override, and set this too.
-	bool range_dependent = false;
+	/// Four legacy classes route through the rule: the two that set `range_dependent` and `FileSelector` and
+	/// `osc::AudioRecorder`, which do not override `isRangeDependent()`.
+	bool range_specific = false;
 
 	/// @brief Does this item open itself directly from a horizontal page, bypassing the normal
 	///        range-picker gate and column-press notification? The port of
@@ -1059,15 +1065,22 @@ constexpr Node with_title_arg(Node n, uint8_t arg) {
 	return n;
 }
 
-/// @brief `n` with `range_dependent` set -- a `constexpr` post-hoc modifier rather than a trailing
-///        argument on all nine builders.
+/// @brief `n` with `range_dependent` and `range_specific` set -- a `constexpr` post-hoc modifier rather than a
+///        trailing argument on all nine builders.
 ///
-/// Only a handful of nodes in the whole tree are range-dependent (the five named on
-/// `Node::range_dependent`), so paying for the flag in every builder signature would be the wrong
-/// trade: `with_range_dependent(param(...))` reads as the exception it is, and no existing call site or
-/// `static_assert` changes.
+/// Only a handful of nodes in the whole tree are range-dependent (the ones named on `Node::range_dependent`), so
+/// paying for the flag in every builder signature would be the wrong trade: `with_range_dependent(param(...))` reads
+/// as the exception it is, and no existing call site or `static_assert` changes.
 constexpr Node with_range_dependent(Node n) {
 	n.range_dependent = true;
+	n.range_specific = true;
+	return n;
+}
+
+/// @brief `n` with `range_specific` set alone: an item whose permission check goes through the range rule but which
+///        is not range-dependent (`Node::range_specific`).
+constexpr Node with_range_specific(Node n) {
+	n.range_specific = true;
 	return n;
 }
 

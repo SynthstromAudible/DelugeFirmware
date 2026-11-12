@@ -400,24 +400,15 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 		expect(int(nodes::mod_fx_type.slots)).to_equal(4);
 		expect(int(nodes::arp_rhythm.slots)).to_equal(2);
 		expect(int(nodes::arp_rhythm_midi.slots)).to_equal(2);
-		size_t range_differs = 0;
 		for (const spec::TreeEntry& e : entries()) {
 			if (e.node->kind == menu::Kind::Submenu) {
 				continue;
 			}
 			expect(e.path + " slots " + std::to_string(e.node->slots))
 			    .to_equal(e.path + " slots " + table().value(e.path, "slots"));
-			// Main flags no recorder or file selector range dependent; the port does (a known difference).
-			if (spec::range_dependence_differs_from_main(*e.node) && e.node->range_dependent
-			    && table().value(e.path, "range_dep") == "0") {
-				range_differs++;
-			}
-			else {
-				expect(e.path + " range_dep " + std::to_string(e.node->range_dependent ? 1 : 0))
-				    .to_equal(e.path + " range_dep " + table().value(e.path, "range_dep"));
-			}
+			expect(e.path + " range_dep " + std::to_string(e.node->range_dependent ? 1 : 0))
+			    .to_equal(e.path + " range_dep " + table().value(e.path, "range_dep"));
 		}
-		expect(range_differs).to_equal(spec::kRangeDependenceDifferencesSound);
 	});
 });
 
@@ -567,7 +558,7 @@ describe tables_2_validation("scenes::menu batch-2 tables: validation", $ {
 		Rigged& f = fixture();
 		const MenuContext contexts[] = {f.ctx};
 		const auto issues = menu::validate_tree(
-		    nodes::kSoundRootRoots, contexts, nodes::kRangeDependentNodes, nodes::kHalfPrecisionNodes,
+		    nodes::kSoundRootRoots, contexts, nodes::kRangeSpecificNodes, nodes::kHalfPrecisionNodes,
 		    menu::ValidateOptions{.skip_shortcut_sweep = true});
 		size_t duplicates = 0;
 		size_t others = 0;

@@ -54,7 +54,7 @@
 /// `param` and write through the hook),
 /// `PlaceholderCustom` (a node that renders a stand-in rather than a real item -- unconditional,
 /// see `validate.h`'s `kPendingCustomNodes`), and the two `FlagMismatch` audits of
-/// `RangeDependent` and `HalfPrecision`.
+/// `RangeSpecific` and `HalfPrecision`.
 ///
 /// **No heap, no model.** The walk uses two fixed `kMaxNodes`-wide arrays of node pointers -- the
 /// reachable set and `collect`'s explicit work stack -- so the frame is `2 * kMaxNodes *
@@ -245,8 +245,8 @@ void check_flag_set(Issues& out, const Reachable& seen, std::span<const Node* co
 	}
 }
 
-bool flag_range_dependent(const Node& n) {
-	return n.range_dependent;
+bool flag_range_specific(const Node& n) {
+	return n.range_specific;
 }
 bool flag_half_precision(const Node& n) {
 	return n.bind.param.valid() && n.bind.scaling == Scaling::HalfPrecision;
@@ -256,7 +256,7 @@ bool flag_half_precision(const Node& n) {
 
 deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* const> roots,
                                                         std::span<const MenuContext> contexts,
-                                                        std::span<const Node* const> expected_range_dependent,
+                                                        std::span<const Node* const> expected_range_specific,
                                                         std::span<const Node* const> expected_half_precision,
                                                         ValidateOptions options) {
 	Issues out;
@@ -409,7 +409,7 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 	}
 
 	// --- The two flag audits -------------------------------------------------------
-	check_flag_set(out, seen, expected_range_dependent, Flag::RangeDependent, flag_range_dependent);
+	check_flag_set(out, seen, expected_range_specific, Flag::RangeSpecific, flag_range_specific);
 	check_flag_set(out, seen, expected_half_precision, Flag::HalfPrecision, flag_half_precision);
 
 	return out;

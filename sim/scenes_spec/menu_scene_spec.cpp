@@ -2205,7 +2205,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	it("a deep link to a node that is NOT range-dependent allocates nothing", _ {
 		// The other half of the guard, so the arm above cannot be satisfied by allocating for every
 		// deep link. Legacy runs the range check only for the items whose
-		// `checkPermissionToBeginSession` routes into it -- `MenuItem::isRangeDependent()`, which is `Node::range_dependent` -- and an ordinary
+		// `checkPermissionToBeginSession` routes into it -- `Node::range_specific` -- and an ordinary
 		// param takes `MenuItem::checkPermissionToBeginSession` (`menu_item.cpp:27-31`), which
 		// never looks at a range at all.
 		select_language();

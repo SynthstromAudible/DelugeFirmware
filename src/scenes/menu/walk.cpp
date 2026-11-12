@@ -163,14 +163,9 @@ bool is_horizontal(const MenuContext& ctx, const Node& node) {
 
 namespace {
 
-/// @brief `MenuItem::isRangeDependent()`: the transposes and the loop points. The file selectors and the recorders
-///        check the range (`Node::range_dependent`) without answering true.
+/// @brief `MenuItem::isRangeDependent()`: the transposes and the loop points.
 bool is_range_dependent_item(const Node* node) {
-	if (node == nullptr || !node->range_dependent) {
-		return false;
-	}
-	return node != &nodes::file0_selector && node != &nodes::file1_selector && node != &nodes::sample0_recorder
-	       && node != &nodes::sample1_recorder;
+	return node != nullptr && node->range_dependent;
 }
 
 } // namespace
@@ -277,7 +272,7 @@ bool MenuWalk::enter_range_picker_if_needed(MenuCore core, ValueSession& session
                                             bool suppress_when_allowed) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
-	if (child.range_dependent && !ensure_first_range(ctx)) {
+	if (child.range_specific && !ensure_first_range(ctx)) {
 		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));
 		return true;
 	}
