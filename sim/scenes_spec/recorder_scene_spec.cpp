@@ -857,6 +857,30 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		nullifyUIs();
 	});
 
+	it("ends a take whose guest a UI teardown took down, and frees it once it has settled", _ {
+		// A song load or a clear takes every UI down (`nullifyUIs`) with the recorder on top, and nothing ticks a closed
+		// guest: the teardown itself ends the screen's take, as legacy's recorder did once its UI was gone.
+		Guards g;
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		KitRig k;
+		setRootUILowLevel(&instrumentClipView);
+		expect(deluge::gui::ui::openShellDrumRecorder(k.song.clip)).to_be_true();
+		for (int32_t i = 0; i < 4 && !recorder_on_stack(shellHostUI.shell()); i++) {
+			(void)shellHostUI.timerCallback();
+		}
+		expect(recorder_scene().recording()).to_be_true();
+		nullifyUIs();
+		expect(recorder_on_stack(shellHostUI.shell())).to_be_false();
+		expect(recorder_scene().recording()).to_be_false();
+		// Still published until its file is closed, then freed by the foreground recording, attached to nothing.
+		expect(deluge::recording::inputTakeInProgress()).to_be_true();
+		deluge::scenes::spec::settle_torn_down_take();
+		expect(AudioEngine::foregroundRecorder() == nullptr).to_be_true();
+		expect(static_cast<int32_t>(AudioEngine::foregroundRecordingSource()))
+		    .to_equal(static_cast<int32_t>(AudioInputChannel::NONE));
+	});
+
 	it("goes up from a refused recorder no creator opened, as legacy's editor does from its recorder item", _ {
 		Guards g;
 		deluge::scenes::spec::UiStackGuard ui_guard;

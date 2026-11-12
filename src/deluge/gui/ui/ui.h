@@ -252,7 +252,15 @@ bool changeUIAtLevel(UI* newUI, int32_t level);
 bool isUIOpen(UI* ui);
 void setRootUILowLevel(UI* newUI);
 void swapOutRootUILowLevel(UI* newUI);
+/// @brief Take every UI down, as a song load or a song clear does before the outgoing song goes.
+///
+/// The installed teardown hook (`setUITeardownHook`) runs first, while the stack is still whole.
 void nullifyUIs();
+/// @brief What `nullifyUIs()` runs before it empties the stack: a UI that holds state of its own beyond the stack
+///        ends it there, since nothing calls a UI that is no longer open.
+using UITeardownHook = void (*)();
+/// @brief Install @p hook, or none (null).
+void setUITeardownHook(UITeardownHook hook);
 bool currentUIIsClipMinderScreen();
 bool rootUIIsClipMinderScreen();
 std::pair<uint32_t, uint32_t> getUIGreyoutColsAndRows();

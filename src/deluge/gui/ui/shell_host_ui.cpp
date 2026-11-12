@@ -179,6 +179,7 @@ bool ShellHostUI::opened() {
 	// writes to this object's own state and reading flash twice is cheaper than the reader having
 	// to check where the boundary is.
 	wireShellGuestServices();
+	setUITeardownHook([] { shellHostUI.uisTakenDown(); });
 
 	// `SoundEditor::opened` asks for the root's pads (`SoundEditor::opened`): while the guest
 	// owns none they are the UI underneath's, greyed by the mask `openUI` read before the scene was
@@ -1180,6 +1181,21 @@ void ShellHostUI::tickShell(uint32_t now) {
 	shell_.set_acceleration_clock_ms(accelerationClockMs());
 	shell_.set_owns_notices(getCurrentUI() == this);
 	shell_.tick(now);
+}
+
+void ShellHostUI::uisTakenDown() {
+	// At once: both takers-down (`LoadSongUI`'s load job and `ClearSong`'s accept) run outside the guest's tick, and
+	// a guest no longer open is never ticked again to do it later.
+	if (!isUIOpen(this)) {
+		return;
+	}
+	shell_.stack().reset();
+	shell_.discard_pending_input();
+	padsOwned_ = deluge::ui::shell::PadRegions::None;
+	padsAnswered_ = deluge::ui::shell::PadRegions::None;
+	visitWithoutEditor_ = false;
+	refreshShellSamplePreviewSounds();
+	forgetShellMenuContext();
 }
 
 void ShellHostUI::flushPendingInput() {

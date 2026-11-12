@@ -121,6 +121,10 @@ void refreshShellDxColumn();
 ///        the guest closes.
 void refreshShellSamplePreviewSounds();
 
+/// @brief Forget the song and the rest of what the ported menu was open on, for a teardown of every UI under the
+///        guest (`ShellHostUI::uisTakenDown`): the song may go next.
+void forgetShellMenuContext();
+
 /// @brief Whether the guest is the current UI and, at its last tick, its frontmost scene was the sample browser, one of
 ///        the sample browser's long-press menus or the slicer: the guest's half of "does the sample preview sound"
 ///        (`util/sample_preview_open.h`), read on the audio tier.

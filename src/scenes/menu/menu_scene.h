@@ -100,6 +100,10 @@ public:
 	/// @param ctx  What the menu edits.
 	void open(const Node& root, const MenuContext& ctx);
 
+	/// @brief Forget what the menu was open on, for its host's teardown of every UI: the song may go next, and the
+	///        next `open()` installs a fresh context anyway.
+	void forget_context() { ctx_ = MenuContext{}; }
+
 	/// @brief Back to what a boot leaves: every submenu's remembered row forgotten (each legacy `Submenu` keeps its
 	///        `current_item_` for the life of the firmware, and this scene is as long-lived), the horizontal encoder's
 	///        acceleration and the voice-usage clock reset.

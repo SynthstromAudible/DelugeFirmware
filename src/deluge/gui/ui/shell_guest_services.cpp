@@ -341,6 +341,10 @@ void refreshShellSamplePreviewSounds() {
 	guestPreviewSounds.store(sounds, std::memory_order_relaxed);
 }
 
+void forgetShellMenuContext() {
+	deluge::scenes::menu_scene().forget_context();
+}
+
 bool shellSamplePreviewSounds() {
 	return getCurrentUI() == &shellHostUI && guestPreviewSounds.load(std::memory_order_relaxed);
 }

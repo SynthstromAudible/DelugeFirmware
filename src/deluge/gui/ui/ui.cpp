@@ -312,7 +312,18 @@ bool isUIOpen(UI* ui) {
 }
 bool doesOLEDNeedRendering = false;
 
+namespace {
+UITeardownHook uiTeardownHook = nullptr;
+} // namespace
+
+void setUITeardownHook(UITeardownHook hook) {
+	uiTeardownHook = hook;
+}
+
 void nullifyUIs() {
+	if (uiTeardownHook != nullptr) {
+		uiTeardownHook();
+	}
 	numUIsOpen = 0;
 	doesOLEDNeedRendering = false;
 }

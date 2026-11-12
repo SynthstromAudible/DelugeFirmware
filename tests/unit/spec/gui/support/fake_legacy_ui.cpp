@@ -309,6 +309,15 @@ UI* getCurrentUI() {
 	return fakelegacyui::current_ui;
 }
 
+// `isUIOpen` walks the same hierarchy; the UI the rig declared current is the one open.
+bool isUIOpen(UI* ui) {
+	return ui == fakelegacyui::current_ui;
+}
+
+// The teardown hook `ShellHostUI::opened` installs; this suite runs no `nullifyUIs`.
+void setUITeardownHook(UITeardownHook /*hook*/) {
+}
+
 void exitUIMode(uint32_t uiMode) {
 	fakelegacyui::modes_exited.push_back(uiMode);
 }
@@ -515,6 +524,9 @@ void refreshShellDxColumn() {
 }
 
 void refreshShellSamplePreviewSounds() {
+}
+
+void forgetShellMenuContext() {
 }
 
 void dispatchShellActions() {

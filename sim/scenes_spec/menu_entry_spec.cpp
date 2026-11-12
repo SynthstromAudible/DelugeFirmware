@@ -506,6 +506,18 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 		expect(deluge::scenes::menu_scene().menu_context().is_session_view).to_be_false();
 		closeGuest();
 	});
+
+	it("a UI teardown empties the guest and forgets the song the menu was open on", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		expect(entry::openShellMenu(f.clip, 0, false, false, false, false)).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().song != nullptr).to_be_true();
+		// A song load or a clear takes every UI down (`nullifyUIs`) before the song the menu was open on goes.
+		nullifyUIs();
+		expect(shellHostUI.shell().stack().depth()).to_equal(size_t{0});
+		expect(deluge::scenes::menu_scene().menu_context().song == nullptr).to_be_true();
+		closeGuest();
+	});
 });
 
 describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $ {
