@@ -114,13 +114,14 @@ five kit snapshots that differ from `main` (`entire_menu`, `entire_mod1`, `entir
 the same way between `next` 18998b56c and `main`; with the kit's menu opened from its LPF shortcut instead, its whole
 kit half differs there (that page draws a marker on its bar that `main`'s does not).
 
-`root_knob_views` is also a `run_parity.py` script; it pins the gold knobs at the root views no other script drives, in
-the order its sections run:
+`root_knob_views` is also a `run_parity.py` script; it pins the gold knobs at the root views, in the order its sections
+run:
 - note tails (`tail_*`, `menu_tail_*`): a long note on the boot synth, envelope-1 sustain set to its minimum from the menu
   (no gold knob changes it), then the release knob (mod button 2, lower) turned across the tail flip, at root and with the
   sound menu up; the pads show the tails going and returning.
 - performance view (`perf_*`): mod button 1's knobs with and without a pad held, mod button 6 with a stutter pad held and
-  the upper knob pushed.
+  the upper knob pushed; then, in the song view, mod button 0 toggling the VU meter (`vu_*`). The sidebar redraws only
+  once the meter is drawn there, so the toggle off (`vu_off`) is the snapshot a missing redraw changes.
 - the automation view's overview (`auto_*`): the low-pass frequency painted with automation in its editor, then Learn +
   push copying it from the upper knob and Shift + Learn + push pasting it onto the lower knob (the resonance); the
   pasted automation shows in the overview pads at `auto_paste_lower`. The copy's popup is gone before a snapshot reads
@@ -128,6 +129,14 @@ the order its sections run:
 - a MIDI clip's CC select (`midi_*`): each knob's push held (the popup shows the CC), a gold-knob turn during the hold
   (changes nothing), select-encoder turns during the hold (they change the CC, also with the select push held), the CC
   shown again on a second push, and mod button 3 pressed and released.
+- an audio clip (`audio_*`), a kit row and the kit with affect-entire (`kit_row_*`, `kit_entire_*`), the arranger
+  (`arr_*`: an output's audition pad held, then the song's knobs and the VU meter) and the keyboard screen over the kit's
+  row (`kb_*`): the clips are made in the song view (a held empty clip pad and SELECT, or KIT), and in each root mod
+  button 1 and both knobs are turned, each knob pushed, then mod button 0 and both knobs turned. The kit's keyboard
+  shows its rows' random colours, so its pads compare as lit or unlit. Two groups differ from `main` exactly as `next`
+  a35f6b613 does: mod button 1's lower knob on the new kit, its row's and with affect-entire (`kit_row` to
+  `kit_row_lower`, `kit_entire_mod1` to `kit_entire_lower`: the lower ring and the value the turn shows), and mod
+  button 0 on the held arranger row (`arr_row_mod0*`: the upper ring and the OLED).
 
 The cards' factory presets are stamped `firmwareVersion` 4.1.3 (`tools/stamp_preset_versions.py`). `main` converts a
 preset older than official 4.1 as it loads it, and our line leaves that to `tools/deluge-upgrade`, so an unstamped
