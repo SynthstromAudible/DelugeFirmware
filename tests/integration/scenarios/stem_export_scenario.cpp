@@ -24,8 +24,12 @@
 /// default TRACK). StemExport::renderWait waits pass by pass for the async fill task to drain the loader queue, so a
 /// sample-backed fixture exports real audio.
 ///
-/// Its row is OwnClock: a slot each virtual millisecond, and each condition polled at once and then every 5 ms,
-/// which is the cadence the exported audio's recorded hash was taken under.
+/// Its row is OwnClock: a slot each virtual millisecond, and each condition polled at once and then every 5 ms. The
+/// cadence only bounds how often a condition is polled (each phase's poll budget derives from it); the exported audio
+/// does not depend on it.
+///
+/// Every exit 2 prints an `ST-FAIL` line first: a song that is not on the card, a fixture with no song, a refused
+/// load, or a phase that did not finish.
 
 #include "harness/level3/host_script.h"
 #include "scenarios/streaming_scenario.h"
@@ -86,8 +90,7 @@ std::string songPath() {
 	if (fixture == "icoustic") {
 		return "SONGS/Grunnmur 58 Nobass 14 Comm-Test.XML";
 	}
-	std::fprintf(stderr, "golden_vt_render: no known SONGS/*.XML path for fixture '%s' — set GOLDEN_STEM_SONG\n",
-	             fixture.c_str());
+	g_report.fail("FIXTURE %s has no known SONGS/*.XML path; set GOLDEN_STEM_SONG", fixture.c_str());
 	host_script_exit(2);
 }
 
@@ -130,8 +133,7 @@ void advance() {
 	switch (g_phase) {
 	case Phase::Dispatch:
 		if (!deluge_scenario_song_load_begin_ok()) {
-			std::fprintf(stderr, "golden_vt_render: deluge_scenario_begin_song_load('%s') returned false\n",
-			             g_songPath.c_str());
+			g_report.fail("LOAD %s could not open the load browser", g_songPath.c_str());
 			host_script_exit(2);
 		}
 		g_phase = Phase::Listing;
@@ -139,7 +141,8 @@ void advance() {
 		return;
 	case Phase::Listing:
 		if (!deluge_scenario_commit_song_load()) {
-			wedged("deluge_scenario_commit_song_load() returned false (the load was refused)");
+			g_report.fail("LOAD %s is not on the card", g_songPath.c_str());
+			host_script_exit(2);
 		}
 		g_phase = Phase::Load;
 		g_wait = Wait{g_report, "the song load", kLoadPolls};
