@@ -217,6 +217,7 @@
 #include "gui/menu_item/submenu/modulator.h"
 #include "gui/menu_item/swing/interval.h"
 #include "gui/menu_item/synth_mode.h"
+#include "gui/menu_item/toggle.h"
 #include "gui/menu_item/trigger/in/ppqn.h"
 #include "gui/menu_item/trigger/out/ppqn.h"
 #include "gui/menu_item/unison/count.h"
@@ -228,8 +229,12 @@
 #include "gui/menu_item/voice/polyphony.h"
 #include "gui/menu_item/voice/portamento.h"
 #include "gui/menu_item/voice/priority.h"
+#include "gui/ui/ui.h"
+#include "gui/views/arranger_view.h"
+#include "gui/views/session_view.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "modulation/params/param.h"
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
@@ -1837,6 +1842,21 @@ PLACE_SDRAM_BSS Submenu songThresholdRecordingSubmenu{
 PLACE_SDRAM_BSS song::ConfigureMacros configureSongMacrosMenu{STRING_FOR_CONFIGURE_SONG_MACROS};
 PLACE_SDRAM_BSS song::MidiLearn midiLearnMenu{STRING_FOR_MIDI_LEARN};
 
+class LoopSongMenuToggle final : public ToggleBoolDyn {
+public:
+	using ToggleBoolDyn::ToggleBoolDyn;
+	bool isRelevant(ModControllableAudio*, int32_t) const override {
+		UI* activeView = getUIUpOneLevel();
+		bool isGridView =
+		    activeView == &sessionView && currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid;
+		return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::EnableLoopSong)
+		       && (isGridView || activeView == &arrangerView);
+	}
+};
+
+PLACE_SDRAM_BSS LoopSongMenuToggle loopSongMenu{STRING_FOR_LOOP_SONG, STRING_FOR_LOOP_SONG,
+                                                []() -> bool* { return &currentSong->loopSong; }};
+
 // Root menu for Song View
 PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuSongView{
     STRING_FOR_SONG,
@@ -1847,6 +1867,7 @@ PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuSongView{
         &swingIntervalMenu,
         &activeScaleMenu,
         &songThresholdRecordingSubmenu,
+        &loopSongMenu,
         &configureSongMacrosMenu,
         &midiLearnMenu,
         &stemExportMenu,

@@ -90,6 +90,7 @@ add_executable(UnitTests
         chord_tests.cpp
         time_tests.cpp
         clock_output_scheduler_tests.cpp
+        section_sequence_tests.cpp
         name_compare_tests.cpp
         default_name_tests.cpp
         encoder_acceleration_tests.cpp

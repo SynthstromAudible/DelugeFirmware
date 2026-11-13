@@ -1236,6 +1236,7 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("songGridScrollX", songGridScrollX);
 	writer.writeAttribute("songGridScrollY", songGridScrollY);
 	writer.writeAttribute("sessionLayout", sessionLayout);
+	writer.writeAttribute("loopSong", loopSong);
 
 	writer.writeOpeningTagEnd();
 	// Attributes end
@@ -1637,6 +1638,10 @@ unknownTag:
 			else if (!strcmp(tagName, "sessionLayout")) {
 				sessionLayout = (SessionLayoutType)reader.readTagOrAttributeValueInt();
 				reader.exitTag("sessionLayout");
+			}
+			else if (!strcmp(tagName, "loopSong")) {
+				loopSong = reader.readTagOrAttributeValueInt() != 0;
+				reader.exitTag("loopSong");
 			}
 
 			else if (!strcmp(tagName, "songGridScrollX")) {
