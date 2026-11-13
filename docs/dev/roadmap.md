@@ -1,16 +1,16 @@
 # Roadmap
 
-Last updated 2026-11-07 (the UI read interface added; other status rows as of 2026-10-29). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
+Last updated 2026-11-12 (3d done; the synth line re-planned as Track A and Track B; the UI read interface as of 2026-11-07). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
 the Claude Doc "Deluge Firmware Roadmap".
 
 Items marked **(proposed)** are placements that no recorded plan or ruling fixes yet.
 
 ## Where things stand
 
-- `deluge-project-param` (the model line, P0 to P3c) is merged into `next`.
-- `feat/ui-integration` is the only unmerged line: 990 commits ahead of `next`, none behind.
-- `next` is 3,515 commits ahead of `main`. `main` is PR-only; local merges go into `next`.
-- Next action: P3d-1c step 3b, closing about 16 release blockers so the new menu can ship on device.
+- The model line (P0 to P3c) and the UI line are merged into `next`; the legacy menu is deleted (3d, 06008dfab).
+- `next` is 5,938 commits ahead of `main`. `main` is PR-only; local merges go into `next`.
+- Next actions: P3d-1c step 4 (delete `ModControllableAudio` and `GlobalEffectable`, with params C4), which is also
+  synth Track A step 1; the C2 spec and the R1 ratchet; the float instrument's voice pool (Track B).
 
 ## Target architecture
 
@@ -54,7 +54,7 @@ at language seams). That unlocks per-component language choice, CLAP, fault isol
 | P1 | Standalone model, JSON default save format | Done |
 | P2 | Engine boundary: the Deluge instrument | Done |
 | P3a to c | Effect components: filters, compressor, sidechain, delay, mod FX, granular, stutter | Done |
-| P3d | Host-chain flip, UI on addresses, param tables, delete MCA/GE | 1b done, 1c in progress |
+| P3d | Host-chain flip, UI on addresses, param tables, delete MCA/GE | 1b done; 1c steps 1 to 3 done, step 4 next |
 | P4 | Clip player (live input is one mode) | Not started |
 | P5 | Topology + reconciler: track = chain, kit = rack of lanes, clip-scoped values, one mapping table | Step 1 records done |
 | P6 | Interface | Read half begun: `scenes/bind` readers (P3d-1c step 2); see the UI read interface below |
@@ -99,17 +99,53 @@ engine, the playback handler and the MIDI device manager.
 Stage placement is **(proposed)**. Exit for R2: the scene specs run against a fake reader, and no file in
 `src/scenes` outside `bind/` includes `model/`, `modulation/`, `io/`, `processing/`, `storage/` or `playback/`.
 
+## Synth line
+
+Two instruments (decided 2026-10-31). The **q31 Deluge instrument** is frozen in sound: legacy patches load and sound
+as they always did, and only accepted bug fixes change it, so its remaining work is structural and bit-exact. The
+**float instrument** is new: the uniform matrix rules and float arithmetic belong to it from day one.
+
+**Done:** dsp-next L0; wave 1 (reverb, DX7, wavetable; NE10 gone); effects as components; the L1 engines and sources;
+the L2 voice lifted to `synth::Voice`; the q31 mod matrix (M3) in place of the Patcher, with cables owned by the
+instrument (M1); params A, B1, B2, C1a, C1b; the float poly kernels, voice slice, and ladder with drift; the voice
+budget.
+
+### Track A: the q31 instrument to the L3 boundary
+
+| Step | Delivers | Needs first |
+| --- | --- | --- |
+| 1 | Delete `ModControllableAudio` and `GlobalEffectable`, then the P3d-1d per-effect param tables; params C4 (unpatched effect descriptors) with it. Strips `Sound` of its FX base | 3d (done) |
+| 2 | Params C2 (UI param reads by address: R1 inventory and ratchet, spec, conversion), C3 (one store per instance; `ParamBackup` retires), C5 (`Kind` and the enums stop being identity); the synth vocabulary leaves `definitions_cxx.hpp` and `check_synth_boundary.py` forbids `instruments/` | 1 for C3 to C5 |
+| 3 | `Patch` extracted from `Sound`: `VoiceConfig` and `SoundSnapshot` reconciled; the delay, sidechain, stutter and compressor settings ("5b") out of their DSP objects. `Patch` is the state L3 serializes | 1, 2 |
+| 4 | The instrument owns its voice pool; the app keeps the cull policy (the voice budget is its first form). The note-on `OscType` dispatch becomes an engine registry; DX7 moves from Source to Engine | 3 |
+| 5 | Layout arc 2 (every library directly under `src/`), then the CLAP alignment arc (vendor the headers, `plugin-api` on CLAP's types; TODO.md) | can run beside 2 to 4 |
+| 6 | Params D (PARAM_MOD, display names, CLAP's double values) and the L3 adapter: a C-ABI `process()`, the reverb send as a second output, the instrument exporting a `clap_plugin`; stutter decided (the synth carries it, or the host stutters after the compressor) | 1 to 5 |
+
+### Track B: the float instrument
+
+1. The voice pool: banks per sound, stage-major render, and a part-level configure (a whole-chain reconfigure costs
+   about 3,400 cycles per lane per block).
+2. Ladder oversampling: Kate's call (aliasing measured at −26 to −27 dB at resonance 3.5).
+3. Its rule set: the uniform matrix rules parked on `window/matrix` (Tasks 3 to 5), and a float matrix evaluator.
+4. The instrument itself, built against the L3 interface from the start **(proposed)**: two different instruments
+   behind one boundary prove it better than one foreign engine, so it takes Plaits' place as the proof.
+
+### Side lanes
+
+- The SampleSource port and the P4 clip player (time-stretch, pitch detection home).
+- Voice budget follow-ons: Long 19's audio clips, the audio tier's eviction reserve.
+- The DSP performance items in TODO.md.
+
 ## DSP still in the app
 
 | Area | Where | Size (lines) | State |
 | --- | --- | --- | --- |
-| FM and DX7 core | `src/deluge/dsp/dx` | 2.4k | `DX7Source` wrapper exists; kernels app-side |
-| Wavetable | `src/deluge/storage/wave_table` | 1.2k | Render and hard sync in dsp-next (`WavetableOscillator`, `WavetableSyncOscillator`, `SyncWindower`); `WavetableSource` is a persistent engine. Left app-side: loading, band generation and the band-storage container migration |
-| Reverb | `src/deluge/dsp/reverb` | 1.4k | App-side; not in P3a to c |
-| Time-stretch, sample playback | `src/deluge/dsp/timestretch`, `voice_sample` | 1.4k+ | Waits on the deferred SampleSource port; belongs with P4 |
+| DX7 app glue | `src/deluge/processing/dx7` | small | Kernels in `dsp-next/fixed/dx7`; the device keeps `neon_fm_kernel.s` for modern no-input and bus-input ops |
+| Wavetable loading | `src/deluge/storage/wave_table` | 1.2k | Render, hard sync, FFT and band building in dsp-next; loading and the holder app-side |
+| Time-stretch, sample playback | `src/deluge/dsp/timestretch`, `model/voice/voice_sample` | 1.4k+ | Waits on the SampleSource port; belongs with P4 |
 | Pitch detection | `model/sample/pitch_scan`, `synth/source/live/live_pitch_shifter` | ~0.3k + shifter | App-side; no plan entry names it |
-| Voice kernel | `src/deluge/model/voice`, `processing/sound` | 5.7k+ | Phase 4 in progress, 24 bit-exact slices: a and b done, c and e partial, d and f to do (`docs/dev/synth_phase4_voice_kernel.md`) |
-| Oscillator tail | VA shapes, VCA and wave-scale duality | n/a | Engines done and bit-exact; unifying is audible and needs a re-baseline plus ear-check |
+| Voice adapter | `src/deluge/model/voice` (`SoundVoice`, `voice_setup`) | n/a | The kernel is `synth::Voice` in `src/synth/voice`; note-on setup and the sample adapter stay app-side until Track A step 4 |
+| Oscillator tail | VA shapes, VCA and wave-scale duality | n/a | Frozen in the q31 instrument; the unified forms belong to the float instrument |
 
 ## Long-term ordering
 
@@ -120,7 +156,7 @@ until the legacy menus are gone; they are deleted, so the model deletions are un
 | --- | --- | --- | --- | --- |
 | UI shell | 3b blockers, flash-test 3a, 3c flip; R1 read ratchet | 3d delete legacy menus, freeze oracle specs; R2 reads behind `bind` | Kit lanes and mapping-table UI; R3 readers on P5 ids | P6 interface (R4) |
 | Model | ModelStack plan, inventory of readers (shared with R1) | Delete MCA/GE, P3d-1d, stack out of param and undo paths | P5 topology + reconciler, stack out of clip and sequencer | ModelStack deleted |
-| Synth | FM/DX7 kernel, wavetable band port, reverb component (3 worktrees) | SampleSource port, pitch detection home, voice kernel c and d | Voice kernel e, f; P4 clip player; patcher replacement; audible re-baseline | L3 C ABI, CLAP and foreign engines, DX7 as engine |
+| Synth | Done: FM/DX7, wavetable, reverb, voice lift, M3 matrix | Track A 1 to 2 (MCA/GE with C4; C2, C3, C5); Track B voice pool | Track A 3 to 5 (`Patch`, voice ownership, layout and CLAP arcs); SampleSource and P4 clip player; float instrument | Track A 6: L3 adapter, both instruments behind it; external `.clap` hosting |
 | Platform, storage | Device flash-tests, USB-MIDI fix push, live-bug triage | Tier B sync callers, tier D comments, FS-lock queue wait | Allocator redesign, libdeluge hard wall | Supervisor + MMU, warm restart |
 | Release, features | UI branch into `next`, nightly with both corpora | `next` to `main` PR, port #5049 follow-ups | Merge each phase, merge `main` into `next` often | Faster-than-real-time export |
 
@@ -129,8 +165,8 @@ until the legacy menus are gone; they are deleted, so the model deletions are un
 1. **Ship before delete.** The new menu is flash-tested on device before the legacy one is removed.
 2. **Plan before retiring the ModelStack.** Every plan touching a stack-taking path says what it adds to or
    removes from the retirement.
-3. **One audible window.** Changes that alter sound (VCA and wave-scale unification, the patcher
-   replacement) land together, with one golden re-baseline and one hardware ear-check.
+3. **The q31 instrument keeps its sound.** Only bug fixes Kate accepts change it; sound changes (uniform matrix
+   rules, VCA and wave-scale unification) go to the float instrument.
 4. **Lanes own disjoint directories** so worktrees merge cleanly. Golden baselines, the test registry and CMake
    lists are touched by one lane at a time.
 5. **Scenes read through `bind`.** New scene code reads by address through `scenes/bind`; code a plan already
@@ -147,21 +183,19 @@ until the legacy menus are gone; they are deleted, so the model deletions are un
 | Scenes' direct runtime reads (54 files) | 2 | 3d; R1 ratchet in place | Readers exist for settings, slots and chains; (proposed) |
 | ModelStack deleted | 4 | P6; the wave-1 inventory shows no readers left | (proposed) |
 | Patch cable data | Done | n/a | In instrument state, per slot and clip (P2c) |
-| Patch cable runtime (Patcher to a replacement mod matrix) | 3 | Voice kernel lifted; the audible window | Decided 2026-10-25: after the voice kernel lift |
-| `OscType` switch to persistent per-voice engines | 3 | VCA and wave-scale unification | `renderOsc` deleted; VA and wavetable engines persist per voice-source; the note-on `OscType` dispatch remains |
-| `Voice`, `Sound::render` to `synth::Voice` | 3 | Voice kernel slices a to d | a and b done, c partial, d to do |
+| Patch cable runtime (Patcher to a replacement mod matrix) | Done | n/a | M3: the q31 matrix program and evaluator, bit-exact (abd530faa) |
+| `OscType` switch to persistent per-voice engines | 3 | Track A step 3; bit-exact, since the q31 sound is frozen **(proposed)** | `renderOsc` deleted; VA and wavetable engines persist per voice-source; the note-on `OscType` dispatch remains |
+| `Voice`, `Sound::render` to `synth::Voice` | Done | n/a | Slices a to f done; the kernel is `deluge::synth::Voice`, held by `SoundVoice` |
 
 ### Worktrees
 
 | Lane | Worktrees | Directories owned | Collision risk |
 | --- | --- | --- | --- |
-| UI shell | `feat/ui-integration`; the 3b blockers split into up to 3 sub-worktrees (entry and learn, DX7 and browser, slicer and grid) | `src/scenes`, `src/shell`, `gui/ui` | Scene binding tables; rebase often |
-| Model | One worktree off the UI branch after 3d; plan and inventory can start now | `src/deluge-project`, model bridges | Shares Song code with every lane; merge first |
-| Synth | Three at once (FM/DX7, wavetable, reverb); the voice kernel after is serial | `dsp/dx`, `storage/wave_table`, `dsp/reverb` | Golden baselines and the test registry |
+| UI shell | Off `next`; R1 and R2 | `src/scenes`, `src/shell`, `gui/ui` | Scene binding tables |
+| Model | One worktree off `next`: MCA/GE deletion (Track A step 1), then the params C line | `src/deluge-project`, model bridges, `processing/sound` | Shares Song code with every lane; merge first |
+| Synth | The float instrument (Track B), beside Track A | `src/synth`, `dsp-next/float` | Golden baselines and the test registry |
 | Platform, storage | Two: tier B sync callers; FS-lock and streaming | Storage, Rust BSP crates | Low; the device flash-test queue is the bottleneck |
 | Release | The main checkout, merges only | n/a | Local merges go into `next`, never `main` |
-
-The synth lane is cleared to start now (decided 2026-10-25). None of the three wave-1 synth worktrees has begun.
 
 Each worktree needs `DBT_TOOLCHAIN_PATH` set, not a symlinked `toolchain/`. Verify before a merge with the
 nightly tier and both `DELUGE_SONG_CORPUS` and `DELUGE_LEGACY_CORPUS` set.
@@ -175,12 +209,11 @@ nightly tier and both `DELUGE_SONG_CORPUS` and `DELUGE_LEGACY_CORPUS` set.
 | SD streaming | Rust async loader on; loader table-scan dropouts fixed | 12x queue wait under load from the FS lock; hardware ear-check |
 | Rust BSP, hardware | M5 code-complete | Hardware validation; flash-test async-SD and the libdeluge relocations |
 | Live bugs | USB-MIDI misdecode on device (fixed locally, unpushed) | Empty-preset heap corruption; `voices_` cross-tier race; E199 preview cluster; voice-output 2-tap low-pass |
-| Deferred | Allocator redesign, supervisor and MMU split, CLAP at L3 | Gap docs: libdeluge boundary spec, component catalog, CLAP integration, SVC ABI. Backlog: immediate-mode UI |
+| Deferred | Allocator redesign, supervisor and MMU split | Gap docs: libdeluge boundary spec, component catalog, CLAP integration, SVC ABI. Backlog: immediate-mode UI |
 
 ## Merge train
 
-1. Merge `feat/ui-integration` into `next` once step 3 lands. It is zero commits behind, so no catch-up merge is
-   needed first.
+1. The UI line is in `next` (3d merged 2026-11-12).
 2. Open the `next` to `main` PR.
 3. Before each merge, run the nightly tier with both corpus variables set; without them the preset and upgrade
    gates fail or go absent.
