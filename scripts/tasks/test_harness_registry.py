@@ -556,6 +556,7 @@ class ScenarioGateParseTest(unittest.TestCase):
         self.assertIsNone(sg.tag("saw CL-X a=1"))
         self.assertIsNone(sg.tag("Cl-X a=1"))
         self.assertIsNone(sg.tag(None))
+        self.assertEqual(sg.tag("SC-SHELL-SLICE x=1"), "SC-SHELL-SLICE")
 
     def test_fields(self):
         self.assertEqual(
@@ -565,6 +566,7 @@ class ScenarioGateParseTest(unittest.TestCase):
         self.assertEqual(sg.fields("A b=1 c= d=2"), {"b": "1", "c": "", "d": "2"})
         self.assertEqual(sg.fields("A label x=1"), {"x": "1"})
         self.assertEqual(sg.fields(None), {})
+        self.assertEqual(sg.fields("A k=b=c x=1 x=2"), {"k": "b=c", "x": "1"})
 
     def test_fields_agrees_with_field(self):
         for line in ("A x=1 y= z=3", "A x=1 x=2", "UPGRADE OK=3 FAIL=0"):
@@ -624,6 +626,20 @@ class GateShortfallTest(unittest.TestCase):
             gate.shortfall(["AB-ONE", "AB-TWO", "AB-RESULT failures=1"]),
             "in-process failures:",
         )
+        self.assertEqual(gate.failures, [])
+
+    def test_a_longer_tag_does_not_satisfy_a_marker(self):
+        gate, _ = self._gate()
+        self.assertEqual(
+            gate.shortfall(["AB-ONE-X", "AB-TWO", "AB-RESULT failures=0"]),
+            "no AB-ONE line; that stage did not run",
+        )
+
+    def test_require_markers_over_lines_from_two_sources(self):
+        gate, _ = self._gate()
+        out = ["AB-ONE x=1", "AB-RESULT failures=0"]
+        err = ["AB-TWO"]
+        self.assertTrue(gate.require_markers(out + err))
         self.assertEqual(gate.failures, [])
 
     def test_require_markers_records_and_shows_the_marker_lines(self):
