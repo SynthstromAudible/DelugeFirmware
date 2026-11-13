@@ -18,14 +18,14 @@ collection, a repeat was not staged and swapped in at its loop end or an audio t
 a spare or a staged snapshot was left once recording ended (RS-TAKE-LEFT), or a collection's published lanes are not
 its model's after the take (RS-TAKE-STALE).
 
-ARRANGE_TAKE_UPDATE=1 records the baseline (tests/golden/arrangement_take_baselines/RS_ARRANGE_TAKE.txt) instead of
-comparing with it, whatever else the run reports: a baseline is recorded on the commit the gate compares against.
+`./dbt test --update arrangement-take` records the baseline (tests/golden/arrangement_take_baselines/RS_ARRANGE_TAKE.txt)
+from a run whose other checks all passed, instead of comparing with it.
 """
 
 import importlib.util
-import os
 from pathlib import Path
 
+import golden_update
 from scenario_gate import int_field
 
 
@@ -56,16 +56,6 @@ def run(gate):
     pcm_path = gate.tmp / "out.pcm"
     env["RENDER_PCM_OUT"] = str(pcm_path)
     result = gate.run(env=env)
-    takes = result.starting("RS-TAKE ")
-    pcm = pcm_path.read_bytes() if pcm_path.exists() else b""
-    observed = takes + [_pcm_line(pcm)]
-    baseline_path = gate.root / BASELINE
-    if os.environ.get("ARRANGE_TAKE_UPDATE") == "1":
-        baseline_path.parent.mkdir(parents=True, exist_ok=True)
-        baseline_path.write_text("\n".join(observed) + "\n")
-        gate.say(f"RS-TAKE recorded {len(takes)} lines in {BASELINE}")
-        gate.show(result)
-        return
     if not gate.require_standard(result):
         return
     gate.show(result)
@@ -74,9 +64,19 @@ def run(gate):
             gate.fail(
                 f"RS-TAKE-PLAYED — the render plays other lanes than the take's: {line}"
             )
+    takes = result.starting("RS-TAKE ")
+    pcm = pcm_path.read_bytes() if pcm_path.exists() else b""
+    observed = takes + [_pcm_line(pcm)]
+    baseline_path = gate.root / BASELINE
+    if golden_update.updating(gate.env):
+        if not gate.failures:
+            golden_update.write_text(
+                baseline_path, "\n".join(observed) + "\n", str(BASELINE), env=gate.env
+            )
+        return
     if not baseline_path.exists():
         gate.fail(
-            f"RS-TAKE — no baseline at {BASELINE}; record one with ARRANGE_TAKE_UPDATE=1"
+            f"RS-TAKE — no baseline at {BASELINE}; ./dbt test --update arrangement-take records one"
         )
         return
     expected = baseline_path.read_text().splitlines()

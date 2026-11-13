@@ -933,6 +933,7 @@ result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -952,6 +953,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_KIT_FX" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -971,6 +973,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_KIT_FILTERS" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -990,6 +993,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_FILTERS" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1009,6 +1013,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MASTER_FILTERS" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1028,6 +1033,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_FX" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1047,6 +1053,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MASTER_FX" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1066,6 +1073,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MASTER_PAN", RENDER_STEREO = "1" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1085,6 +1093,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MASTER_ARRANGER", RENDER_SONG_AUTOMATED = "1" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1104,6 +1113,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MASTER_GRAIN_OFF" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1123,6 +1133,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_KIT_SVF_MORPH" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1142,6 +1153,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_DRIVE" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1161,6 +1173,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_KIT_FILTER_FADE" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1180,6 +1193,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_FILTER_FADE" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1199,6 +1213,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_DUCKED" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1218,6 +1233,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_DUCK_SHAPES" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1237,6 +1253,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_KIT_COMP" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1256,6 +1273,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_KIT_DELAY" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1275,6 +1293,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_DELAY_OWNERS" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1294,6 +1313,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_STUTTER_AUDIO", RENDER_STUTTER = "100:600:audio" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1313,6 +1333,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_STUTTER_SYNTH", RENDER_STUTTER = "100:600:synth" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1332,6 +1353,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_STUTTER_KIT", RENDER_STUTTER = "150:700:kit" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1351,6 +1373,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_STUTTER_MASTER", RENDER_STUTTER = "100:900:master" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1370,6 +1393,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_STUTTER_RATE", RENDER_STUTTER = "100:900:audio", RENDER_STUTTER_RATE = "400:0x30000000" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1389,6 +1413,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_STUTTER_HANDOFF", RENDER_STUTTER = "100:400:audio,400:800:kit" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1408,6 +1433,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_TEMPO_DELAYS", RENDER_TEMPO = "300:70" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1427,6 +1453,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_DELAY" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1446,6 +1473,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_KIT_PINGPONG", RENDER_STEREO = "1" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1465,6 +1493,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_DELAY_TOGGLE" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1484,6 +1513,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_DELAY_SWITCH", RENDER_DELAY_SWITCH = "600,1000" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~40s"
@@ -1503,6 +1533,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_PINGPONG_SWEEP", RENDER_STEREO = "1" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1522,6 +1553,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_DELAY_EXTREMES" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1541,6 +1573,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_LOW_CLIP" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1560,6 +1593,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_BITCRUSH" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1579,6 +1613,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_EQ_BANDS" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1598,6 +1633,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_REVERB_DUCK_OVERRIDE" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1617,6 +1653,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_REVERB_DUCK_OVERRIDE_TRACK" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1636,6 +1673,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_METRONOME", RENDER_METRONOME = "200" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1655,6 +1693,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_COMP_ONSET" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1674,6 +1713,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_COMP_RESET" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1693,6 +1733,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_COMP_BLEND" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1712,6 +1753,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MODFX_MONO" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1731,6 +1773,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MODFX_STEREO_A", RENDER_STEREO = "1" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1750,6 +1793,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MODFX_STEREO_B", RENDER_STEREO = "1" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1769,6 +1813,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MODFX_SOFT_OFF" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1788,6 +1833,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MODFX_SWITCH", RENDER_MODFX_SWITCH = "600:chorus,1000:TapeWarble" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1807,6 +1853,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_MODFX_CLEAR", RENDER_MODFX_SWITCH = "1400:phaser", RENDER_MODFX_CLEAR = "1000,1800" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1826,6 +1873,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_GRAIN_MONO" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1845,6 +1893,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_GRAIN_STEREO", RENDER_STEREO = "1" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1864,6 +1913,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_GRAIN_SWITCH", RENDER_MODFX_SWITCH = "600:grainFX,1800:chorus", RENDER_MODFX_CLEAR = "1300" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1883,6 +1933,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_GRAIN_MASTER", RENDER_MODFX_SWITCH = "600:grainFX:master,1800:chorus:master" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1902,6 +1953,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_REVERB_FREEVERB" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1921,6 +1973,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_REVERB_MUTABLE" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1940,6 +1993,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_REVERB_DIGITAL", RENDER_STEREO = "1" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1959,6 +2013,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_REVERB_SWITCH", RENDER_REVERB_SWITCH = "600:model=2,800:hpf=0.2,1000:model=0,1200:width=0.25,1400:room=0.3,1600:model=1,1800:lpf=0.8" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -1978,6 +2033,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_GRAIN_RESTART", RENDER_BLOCKS = "4000" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~25s"
@@ -1997,6 +2053,7 @@ check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
 requires = []
 env = { RENDER_GENERATED = "RS_GRAIN_OWNERS", RENDER_MODFX_SWITCH = "500:chorus:RSG,1200:grainFX:RSG", RENDER_MODFX_CLEAR = "1700:RSG,1800:RSK,1900:master" }
+baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -2016,6 +2073,7 @@ check = "tests/integration/checks/render_song.py"
 env = { RENDER_SONG = "SONGS/Cordae.XML", GOLDEN_FIXTURE = "cordae" }
 builds = ["golden-vt-render"]
 requires = ["song-corpus"]
+baseline = ["tests/integration/golden/songs.json"]
 tier = "nightly"
 group = "render"
 runtime = "~30s"
@@ -2027,13 +2085,14 @@ level = "integration"
 runner = "scenario"
 kind = "differential"
 status = "gate"
-gates = "every synth golden master must render as recorded: each of the 431 presets (tests/integration/golden/presets: synthesized cases for each oscillator, filter, envelope and modulation path, the voice's own note-change, release, sample-cache and zone-change paths, the factory and community preset packs, sample and wavetable playback, and live input, pitch-shifted up and down, in stereo, with unison and linear interpolation, through unity, in a chord, and on a percussive test signal) is loaded by the blank boot song, played by a DIN note script and rendered in real time on the audio tier, and its output is compared with its record in tests/integration/golden/presets.json (RP-PCM). A case fails if its preset did not replace the default synth (RP-LOADED), if the app did not read every scripted event (RP-MIDI), if CPU direness rose and the render took reduced-quality paths (RP-RENDER), if the render made a synchronous card call (RP-TIER-SYNC-AUDIO), if it rendered silence (RP-SILENT), or if a case whose sample zone is to move mid-note never moved it (RP-ZONE). RENDER_PRESET_FILTER runs a subset; RENDER_PRESET_UPDATE=1 records instead of comparing."
+gates = "every synth golden master must render as recorded: each of the 431 presets (tests/integration/golden/presets: synthesized cases for each oscillator, filter, envelope and modulation path, the voice's own note-change, release, sample-cache and zone-change paths, the factory and community preset packs, sample and wavetable playback, and live input, pitch-shifted up and down, in stereo, with unison and linear interpolation, through unity, in a chord, and on a percussive test signal) is loaded by the blank boot song, played by a DIN note script and rendered in real time on the audio tier, and its output is compared with its record in tests/integration/golden/presets.json (RP-PCM). A case fails if its preset did not replace the default synth (RP-LOADED), if the app did not read every scripted event (RP-MIDI), if CPU direness rose and the render took reduced-quality paths (RP-RENDER), if the render made a synchronous card call (RP-TIER-SYNC-AUDIO), if it rendered silence (RP-SILENT), or if a case whose sample zone is to move mid-note never moved it (RP-ZONE). RENDER_PRESET_FILTER runs a subset; ./dbt test --update golden-synth re-records."
 scenario = "render_preset"
 markers = ["RP-LOADED", "RP-MIDI", "RP-RENDER", "RP-TIER-SYNC-AUDIO", "RP-CAPTURE"]
 result = "RP-RESULT failures=0"
 check = "tests/integration/checks/render_preset.py"
 builds = ["golden-vt-render"]
 requires = []
+baseline = ["tests/integration/golden/presets.json"]
 tier = "pr"
 group = "render"
 runtime = "~20s"
@@ -2652,6 +2711,7 @@ check = "tests/integration/checks/arrangement_take.py"
 env = { RENDER_ARRANGE_RECORD = "1", RENDER_KNOB = "400:synth:lpf:268435456,500:kit:volume:-536870912,600:audio:lpf:536870912,1100:synth:volume:-1073741824,1360:synth:lpf:-1073741824,1370:kit:volume:536870912", RENDER_SOURCE_EDIT = "1500" }
 builds = ["golden-vt-render"]
 requires = []
+baseline = ["tests/golden/arrangement_take_baselines"]
 tier = "nightly"
 group = "render"
 runtime = "~20s"

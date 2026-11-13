@@ -25,15 +25,15 @@ Each case is one run of golden_vt_render's `render_preset` scenario
 ```sh
 ./dbt test golden-synth                                     # every case, against presets.json
 RENDER_PRESET_FILTER=sine,fm ./dbt test golden-synth        # the cases whose name holds any of these
-RENDER_PRESET_UPDATE=1 ./dbt test golden-synth              # record instead of comparing
+./dbt test --update golden-synth                           # record instead of comparing (builds first)
 ```
 
 A case takes a fraction of a second of wall time (the harness runs in virtual time), and the cases run in parallel.
 
 ## Recording
 
-A changed record means the sound changed. When the change is meant, record it with `RENDER_PRESET_UPDATE=1` and
-explain it in the commit, case by case. Never record a silent render: the check fails any render whose peak is below
+A changed record means the sound changed. When the change is meant, record it with `./dbt test
+--update golden-synth` and put its `GOLDEN-UPDATED` lines in the commit, each case explained. Never record a silent render: the check fails any render whose peak is below
 16 in 16-bit terms, because silence means the preset never heard its notes. A preset that fails to load is caught
 earlier, by `RP-LOADED`: the default synth left in its place would play the notes.
 

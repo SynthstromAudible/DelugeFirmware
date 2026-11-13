@@ -10,7 +10,6 @@ import dataclasses
 import hashlib
 import importlib.util
 import io
-import json
 import os
 import re
 import subprocess
@@ -277,7 +276,8 @@ class BaselineDeclarationTest(unittest.TestCase):
     CPP_OWNERS: ClassVar[set[str]] = set()
     # Entries that run an owner's code but record nothing: entry -> why.
     NOT_OWNERS: ClassVar[dict[str, str]] = {
-        "upgrade-differential-corpus": "its part records nothing: upgrade_run.py refuses to re-record it"
+        "golden-synth-arm": "the ARM render must equal the x86 records golden-synth makes",
+        "upgrade-differential-corpus": "its part records nothing: upgrade_run.py refuses to re-record it",
     }
 
     def _code(self, h: hr.Harness) -> str:
@@ -1330,31 +1330,6 @@ class CorpusGateTest(unittest.TestCase):
             self.assertTrue(tt._run_one(self.root, h, [], False, None, log, products))
         self.assertIn("==> d: run: tests/golden/fake_run.py", log.getvalue())
         self.assertEqual(gate.call_args.args[1], h)
-
-
-class SongRecordsTest(unittest.TestCase):
-    def test_parallel_updates_all_land(self):
-        render_song = _load_check_module("render_song")
-        path = Path(tempfile.mkdtemp()) / "songs.json"
-        threads = [
-            threading.Thread(
-                target=render_song.update_record,
-                args=(path, f"S{i}", {"sha256": str(i)}),
-            )
-            for i in range(16)
-        ]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-        records = json.loads(path.read_text())
-        self.assertEqual(sorted(records), sorted(f"S{i}" for i in range(16)))
-
-    def test_an_update_leaves_no_other_file(self):
-        render_song = _load_check_module("render_song")
-        directory = Path(tempfile.mkdtemp())
-        render_song.update_record(directory / "songs.json", "S", {"sha256": "0"})
-        self.assertEqual([p.name for p in directory.iterdir()], ["songs.json"])
 
 
 class CtestStepsTest(unittest.TestCase):

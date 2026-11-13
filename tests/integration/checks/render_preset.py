@@ -30,7 +30,8 @@ RENDER_PARAM_DUMP_DIR=<dir> dumps each case's matrix passes and voice sources th
 (src/deluge/processing/sound/param_dump.h; read by tools/audible_window/dump.py).
 RENDER_RANDOM_SEED seeds the synth's random stream at each case's first note instead of its boot seed, to measure how
 much a case depends on its random draws (audio/host.rs).
-RENDER_PRESET_UPDATE=1 records the cases run instead of comparing them; a changed hash is a finding to explain in the
+`./dbt test --update golden-synth` records the cases run instead of comparing them (RENDER_PRESET_FILTER narrows it;
+RENDER_PRESET_CORPUS cannot be re-recorded, since the records are the committed corpus's); a changed hash is a finding to explain in the
 commit that records the new one.
 """
 
@@ -42,7 +43,10 @@ import re
 import shutil
 from pathlib import Path
 
+import golden_update
 from scenario_gate import int_field
+
+RECORDS = Path("tests/integration/golden/presets.json")
 
 FRAMES_PER_SECOND = 44100
 DEFAULT_SECONDS = 2.0
@@ -212,8 +216,13 @@ def run(gate):
         gate.env.get("RENDER_PRESET_CORPUS")
         or gate.root / "tests/integration/golden/presets"
     )
-    records_path = gate.root / "tests/integration/golden/presets.json"
-    update = os.environ.get("RENDER_PRESET_UPDATE") == "1"
+    records_path = gate.root / RECORDS
+    update = golden_update.updating(gate.env)
+    if update and gate.env.get("RENDER_PRESET_CORPUS"):
+        gate.fail(
+            "RP-PCM — the records are the committed corpus's: a RENDER_PRESET_CORPUS run cannot re-record them"
+        )
+        return
     keep = (
         Path(gate.env["RENDER_PRESET_KEEP"])
         if gate.env.get("RENDER_PRESET_KEEP")
@@ -275,7 +284,7 @@ def run(gate):
             records[name] = record
         elif name not in records:
             gate.fail(
-                f"RP-PCM {name}: no record; run with RENDER_PRESET_UPDATE=1 to make one"
+                f"RP-PCM {name}: no record; ./dbt test --update golden-synth records one"
             )
         elif records[name] != record:
             gate.fail(
@@ -286,9 +295,8 @@ def run(gate):
 
     _check_learn(gate, corpus, pcm_record)
 
-    if update:
-        records_path.write_text(json.dumps(records, indent=1, sort_keys=True) + "\n")
-        gate.say(
-            f"RP-PCM recorded {len(selected) - failed} case(s) in {records_path.relative_to(gate.root)}"
+    if update and not gate.failures:
+        golden_update.write_json(
+            records_path, records, str(RECORDS), indent=1, env=gate.env
         )
     gate.say(f"RP-CASES run={len(selected)} passed={len(selected) - failed}")
