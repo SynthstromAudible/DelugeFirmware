@@ -114,6 +114,12 @@ five kit snapshots that differ from `main` (`entire_menu`, `entire_mod1`, `entir
 the same way between `next` 18998b56c and `main`; with the kit's menu opened from its LPF shortcut instead, its whole
 kit half differs there (that page draws a marker on its bar that `main`'s does not).
 
+`root_knob_views` is also a `run_parity.py` script. It turns and pushes the gold knobs at the root views no other script
+drives: performance view (mod buttons, a held pad, a held stutter pad), the automation overview (turns, pushes, Learn
+copy and paste), a MIDI clip's CC select (each knob held, the mod button pressed and released), and a synth note-tail
+change from the envelope-1 release knob at root and with the sound menu up. No gold knob changes the boot preset's
+envelope-1 sustain, so the script sets it to its minimum from the menu first.
+
 The cards' factory presets are stamped `firmwareVersion` 4.1.3 (`tools/stamp_preset_versions.py`). `main` converts a
 preset older than official 4.1 as it loads it, and our line leaves that to `tools/deluge-upgrade`, so an unstamped
 preset shows the conversion in every comparison that touches it instead of the UI.

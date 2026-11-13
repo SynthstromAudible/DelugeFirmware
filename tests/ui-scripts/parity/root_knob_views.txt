@@ -1,0 +1,178 @@
+# The gold knobs at the root views that no other script drives: performance view, the automation view's overview, a
+# MIDI track's CC select and a synth clip's note tails.
+#
+# 1 Performance view (song view, a short KEYBOARD press): mod button 1 and its knobs turned with no pad held; a pad
+#   held while the knob turns (the display shows the param, no popup); mod button 6 with a stutter pad held and the
+#   upper knob pushed, then the pad released.
+# 2 Automation view overview on the boot synth clip: a turn, the upper knob's push, and Learn + lower knob's push
+#   (copy) and Shift + Learn + the lower knob's push (paste).
+# 3 A MIDI clip at its root: each knob's push, held (the CC select popup shows while it is down) with turns, then
+#   released, and mod button 3 pressed and released.
+# 4 The boot synth clip with a long note and the envelope-1 sustain at its minimum: the release knob (mod button 2,
+#   lower) turned up and back down across the note-tail flip, the pads snapshot after each turn.
+# 5 The same as 4 with the sound menu up.
+#
+# The sections run in the order 4, 5, 1, 2, 3: the note tails need the boot synth clip's own view, and the MIDI clip
+# replaces the synth clip.
+#
+# Section 4: note tails. The boot preset's envelope-1 sustain is at its maximum, which no gold knob changes, so
+# the sustain is brought to its minimum from the menu first; then the release knob (mod button 2, lower) decides the
+# tails: tails vanish when the release passes the decay and return when it falls back.
+paddown 0 0
+paddown 8 0
+padup 8 0
+padup 0 0
+snapshot tail_note
+down SHIFT
+pad 8 1
+up SHIFT
+turn SELECT -50
+snapshot tail_sustain_min
+press BACK
+snapshot tail_root
+press MOD2
+snapshot tail_mod2
+turn LOWER 1
+snapshot tail_release_up_1
+turn LOWER 4
+snapshot tail_release_up_5
+turn LOWER 1
+snapshot tail_release_up_6
+turn LOWER 1
+snapshot tail_release_up_7
+turn LOWER -1
+snapshot tail_release_down_6
+turn LOWER -1
+snapshot tail_release_down_5
+turn LOWER -3
+snapshot tail_release_down_2
+turn LOWER -1
+snapshot tail_release_down_1
+turn UPPER 1
+snapshot tail_attack_up
+turn UPPER -1
+snapshot tail_attack_down
+turn LOWER -2
+snapshot tail_release_down_0
+#
+# Section 5: the same walk with the sound menu up.
+down SHIFT
+pad 8 7
+up SHIFT
+snapshot menu_tail_menu
+press MOD2
+snapshot menu_tail_mod2
+turn LOWER 1
+snapshot menu_tail_release_up_1
+turn LOWER 4
+snapshot menu_tail_release_up_5
+turn LOWER 1
+snapshot menu_tail_release_up_6
+turn LOWER 1
+snapshot menu_tail_release_up_7
+turn LOWER -1
+snapshot menu_tail_release_down_6
+turn LOWER -1
+snapshot menu_tail_release_down_5
+turn LOWER -3
+snapshot menu_tail_release_down_2
+turn LOWER -1
+snapshot menu_tail_release_down_1
+turn UPPER 1
+snapshot menu_tail_attack_up
+turn UPPER -1
+snapshot menu_tail_attack_down
+press BACK
+snapshot menu_tail_left
+#
+#
+# Section 1: performance view.
+press SESSION_VIEW
+wait 1
+press KEYBOARD 20
+snapshot perf_opened
+press MOD1
+snapshot perf_mod1
+turn UPPER 1
+snapshot perf_mod1_turn_upper_1
+turn UPPER 1
+snapshot perf_mod1_turn_upper_2
+turn LOWER 1
+snapshot perf_mod1_turn_lower
+paddown 3 5
+snapshot perf_pad_held
+turn UPPER 2
+snapshot perf_pad_held_turn_upper
+turn LOWER 1
+snapshot perf_pad_held_turn_lower
+padup 3 5
+snapshot perf_pad_released
+press MOD6
+snapshot perf_mod6
+paddown 5 7
+snapshot perf_stutter_held
+press MOD_ENCODER_1
+snapshot perf_stutter_held_upper_push
+turn UPPER 1
+snapshot perf_stutter_held_turn_upper
+padup 5 7
+snapshot perf_stutter_released
+press MOD_ENCODER_1
+snapshot perf_mod6_upper_push
+press KEYBOARD 20
+snapshot perf_closed
+#
+# Section 2: automation view overview on the boot synth clip.
+press CLIP_VIEW
+snapshot clip_view_entered
+press CLIP_VIEW
+snapshot auto_overview
+turn UPPER 1
+snapshot auto_turn_upper
+turn LOWER 1
+snapshot auto_turn_lower
+press MOD_ENCODER_1
+snapshot auto_upper_push
+press MOD_ENCODER_0
+snapshot auto_lower_push
+down LEARN
+press MOD_ENCODER_0
+snapshot auto_learn_lower_push
+up LEARN
+snapshot auto_learn_released
+down SHIFT
+down LEARN
+press MOD_ENCODER_0
+snapshot auto_shift_learn_lower_push
+up LEARN
+up SHIFT
+snapshot auto_paste_released
+#
+# Section 3: a MIDI clip's CC select at root (last: it leaves the synth clip).
+press CLIP_VIEW
+snapshot auto_left
+press MIDI
+wait 1
+snapshot midi_clip
+press MOD_ENCODER_1
+snapshot midi_upper_push
+down MOD_ENCODER_1
+snapshot midi_upper_down
+turn UPPER 1
+snapshot midi_held_turn_upper
+turn UPPER 1
+snapshot midi_held_turn_upper_2
+turn LOWER 1
+snapshot midi_held_turn_lower
+up MOD_ENCODER_1
+snapshot midi_held_released
+press MOD_ENCODER_1
+snapshot midi_upper_push2
+down MOD_ENCODER_0
+snapshot midi_lower_down
+up MOD_ENCODER_0
+snapshot midi_lower_up
+down MOD3
+snapshot midi_mod3_down
+up MOD3
+snapshot midi_mod3_up
