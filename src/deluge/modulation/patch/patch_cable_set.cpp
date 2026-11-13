@@ -720,7 +720,10 @@ ModelStackWithAutoParam* PatchCableSet::getAutoParamFromId(ModelStackWithParamId
 	PatchSource s;
 	ParamDescriptor paramDescriptor;
 	dissectParamId(modelStack->paramId, &paramDescriptor, &s);
+	int32_t paramId = modelStack->paramId;
 	AutoParam* autoParam = getParam(modelStack, s, paramDescriptor, allowCreation);
+	// Creating a cable re-runs setupPatching(), which reuses this model stack's memory for other cables' IDs.
+	modelStack->paramId = paramId;
 	return modelStack->addAutoParam(autoParam);
 }
 
@@ -1042,6 +1045,28 @@ void PatchCableSet::dissectParamId(uint32_t paramId, ParamDescriptor* destinatio
 	*s = paramDescriptor.getBottomLevelSource();
 }
 
+bool PatchCableSet::deleteCableIfUnused(ModelStackWithAutoParam const* modelStack) {
+	if (modelStack->autoParam->containsSomething(0)) {
+		return false;
+	}
+	PatchSource s;
+	ParamDescriptor destinationParamDescriptor;
+	dissectParamId(modelStack->paramId, &destinationParamDescriptor, &s);
+	int32_t c = getPatchCableIndex(s, destinationParamDescriptor);
+	if (c == 255) {
+		return false;
+	}
+
+	// Clone the ModelStack, since we only need the smaller amount of data that makes up a
+	// ModelStackWithParamCollection, and our call we make below could overwrite further-down fields of the
+	// ModelStack. Although I think in this case it actually doesn't - but best to be safe.
+	char localModelStackMemory[MODEL_STACK_MAX_SIZE];
+	copyModelStack(localModelStackMemory, modelStack, sizeof(ModelStackWithParamCollection));
+
+	deletePatchCable((ModelStackWithParamCollection*)localModelStackMemory, c);
+	return true;
+}
+
 // Watch the heck out! This might delete the PatchCable, and AutoParam, in question.
 void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
                                                  bool automationChanged, bool automatedBefore, bool automatedNow) {
@@ -1061,20 +1086,7 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 
 		// Delete the patch cable if its value is now 0 and no automation. This is a bit "dangerous" - it will probably
 		// delete the AutoParam that called us!
-		if (!modelStack->autoParam->containsSomething(0)) {
-			int32_t c = getPatchCableIndex(s, destinationParamDescriptor);
-			if (c != 255) {
-
-				// Clone the ModelStack, since we only need the smaller amount of data that makes up a
-				// ModelStackWithParamCollection, and our call we make below could overwrite further-down fields of the
-				// ModelStack. Although I think in this case it actually doesn't - but best to be safe.
-				char localModelStackMemory[MODEL_STACK_MAX_SIZE];
-				copyModelStack(localModelStackMemory, modelStack, sizeof(ModelStackWithParamCollection));
-
-				deletePatchCable((ModelStackWithParamCollection*)localModelStackMemory, c);
-				haveRedoneSetup = true;
-			}
-		}
+		haveRedoneSetup = deleteCableIfUnused(modelStack);
 
 		if (currentValueChanged) {
 			int32_t p =
@@ -1109,7 +1121,10 @@ void PatchCableSet::remotelySwapParamState(AutoParamState* state, ModelStackWith
 	ParamDescriptor destinationParamDescriptor;
 	dissectParamId(modelStack->paramId, &destinationParamDescriptor, &s);
 
-	int32_t c = getPatchCableIndex(s, destinationParamDescriptor);
+	// The cable may have been removed since this state was recorded (e.g. left at zero), so recreate it for undo/redo.
+	int32_t paramId = modelStack->paramId;
+	int32_t c = getPatchCableIndex(s, destinationParamDescriptor, modelStack, true);
+	modelStack->paramId = paramId; // Creating a cable re-runs setupPatching(), which reuses this model stack's memory.
 	if (c == 255) {
 		return;
 	}

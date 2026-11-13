@@ -106,6 +106,7 @@ public:
 	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;
 	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) override;
 	deluge::modulation::params::Kind getParamKind() override { return kind; }
+	bool supportsLinking() const override { return true; }
 
 	deluge::modulation::params::Kind kind = deluge::modulation::params::Kind::NONE;
 
@@ -123,6 +124,7 @@ public:
 	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) override;
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override;
 	deluge::modulation::params::Kind getParamKind() override { return deluge::modulation::params::Kind::PATCHED; }
+	bool supportsLinking() const override { return true; }
 
 private:
 	std::array<AutoParam, deluge::modulation::params::kNumParams> params_;
@@ -145,6 +147,7 @@ public:
 	void cancelAllOverriding();
 	void deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) override;
 	deluge::modulation::params::Kind getParamKind() override { return deluge::modulation::params::Kind::EXPRESSION; }
+	bool supportsLinking() const override { return false; }
 
 	// bendRanges being stored here in ExpressionParamSet still seems like the best option. I was thinking storing them
 	// in the ParamManager would make more sense, except for one thing
