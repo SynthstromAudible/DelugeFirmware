@@ -6,25 +6,57 @@ Run directly with:
 """
 
 import contextlib
+import importlib.util
 import io
 import json
 import multiprocessing
 import os
 import stat
+import subprocess
 import sys
 import tempfile
 import threading
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).parent))
 
 import golden_records as gr
 import golden_update as gu
+import harness_registry as hr
+
+_spec = importlib.util.spec_from_file_location(
+    "task_test", Path(__file__).parent / "task-test.py"
+)
+tt = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(tt)
 
 
 def _env(log: Path) -> dict[str, str]:
     return {gu.SWITCH: "1", gu.LOG: str(log)}
+
+
+def _args(*argv):
+    return tt.argparser().parse_args(list(argv))
+
+
+def _script(name, code, baseline=("base.txt",)):
+    return hr.Harness(
+        name=name,
+        path=".",
+        level="integration",
+        runner="script",
+        kind="regression",
+        status="gate",
+        gates="g",
+        tier="pr",
+        build=[],
+        run=[sys.executable, "-c", code],
+        requires=[],
+        runtime="?",
+        baseline=list(baseline),
+    )
 
 
 class UpdatingTest(unittest.TestCase):
@@ -355,6 +387,164 @@ class RecordFileTest(unittest.TestCase):
         (root / "h.h").write_bytes(dup.encode())
         with self.assertRaisesRegex(ValueError, "h.h region kA"):
             gr.apply(root, ["GOLDEN-RECORD h.h kA     9,"])
+
+
+class UpdateRefusalTest(unittest.TestCase):
+    def test_names_alone_are_accepted(self):
+        self.assertIsNone(tt.update_refusal(_args("--update", "a", "b")))
+        self.assertIsNone(tt.update_refusal(_args("--update", "-j", "1", "a")))
+
+    def test_refusals(self):
+        for argv, why in (
+            (["--update"], "name"),
+            (["--update", "--tier", "pr", "a"], "--tier"),
+            (["--update", "--level", "unit", "a"], "--level"),
+            (["--update", "--prebuilt", "a"], "builds first"),
+            (["--update", "-n", "a"], "builds first"),
+            (["--update", "-j", "4", "a"], "one test at a time"),
+            (["--update", "--list", "a"], "--list"),
+            (["--update", "--capture", "x", "a"], "--capture"),
+            (["--update", "--update-readme", "a"], "--update-readme"),
+            (["--update", "--skip-checks", "a"], "--skip-checks"),
+        ):
+            with self.subTest(argv):
+                self.assertIn(why, tt.update_refusal(_args(*argv)) or "")
+
+    def test_an_entry_without_a_baseline_is_refused(self):
+        why = tt.owners_refusal(
+            [_script("a", "pass"), _script("b", "pass", baseline=())]
+        )
+        self.assertIn("b", why)
+        self.assertNotIn("a,", why)
+        self.assertIsNone(tt.owners_refusal([_script("a", "pass")]))
+
+
+class UpdateEnvironmentTest(unittest.TestCase):
+    ROOT = Path(__file__).resolve().parents[2]
+
+    def test_no_test_inherits_the_switch(self):
+        with mock.patch.dict(os.environ, {gu.SWITCH: "1", gu.LOG: "/x"}):
+            env = tt._environment(self.ROOT, _script("t", "pass"), {})
+        self.assertNotIn(gu.SWITCH, env)
+        self.assertNotIn(gu.LOG, env)
+
+    def test_extra_env_reaches_the_run(self):
+        code = "import os; print(os.environ.get('DELUGE_GOLDEN_UPDATE'))"
+        with tempfile.TemporaryFile("w+") as log:
+            tt._run_one(
+                self.ROOT,
+                _script("t", code),
+                [],
+                False,
+                None,
+                log,
+                {},
+                extra_env={gu.SWITCH: "1"},
+            )
+            tt._run_one(self.ROOT, _script("t", code), [], False, None, log, {})
+            log.seek(0)
+            self.assertEqual(
+                [l for l in log.read().splitlines() if not l.startswith("==>")],
+                ["1", "None"],
+            )
+
+
+class UpdateOneTest(unittest.TestCase):
+    """`_update_one` on a scratch git worktree, with script entries standing in for owners."""
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp())
+        subprocess.run(["git", "init", "-q"], cwd=self.root, check=True)
+        (self.root / "base.txt").write_text("old\n")
+        (self.root / "h.h").write_text(RecordsTest.HEADER)
+
+    def _update(self, code, baseline=("base.txt",)):
+        with tempfile.TemporaryFile("w+") as out, mock.patch.object(tt, "OUT", out):
+            before = tt._update_one(self.root, _script("t", code, baseline), [], {})
+            out.seek(0)
+            return before, out.read()
+
+    LOGS = "import os, pathlib; log = open(os.environ['DELUGE_GOLDEN_UPDATE_LOG'], 'a'); root = pathlib.Path.cwd()\n"
+
+    def test_nothing_changed_says_none(self):
+        before, out = self._update("pass")
+        self.assertIsNotNone(before)
+        self.assertIn("GOLDEN-UPDATED none\n", out)
+
+    def test_a_reported_change_is_printed_relative_to_the_repository(self):
+        code = self.LOGS + (
+            "(root / 'base.txt').write_text('new\\n')\n"
+            "log.write(f'GOLDEN-UPDATED {root}/base.txt a -> b\\n')\n"
+        )
+        before, out = self._update(code)
+        self.assertIsNotNone(before)
+        self.assertIn("GOLDEN-UPDATED base.txt a -> b\n", out)
+        self.assertEqual((self.root / "base.txt").read_text(), "new\n")
+
+    def test_a_failed_run_restores_the_baseline(self):
+        before, out = self._update(
+            "import pathlib, sys; pathlib.Path('base.txt').write_text('x'); sys.exit(1)"
+        )
+        self.assertIsNone(before)
+        self.assertIn("GOLDEN-UPDATE-REVERTED base.txt", out)
+        self.assertEqual((self.root / "base.txt").read_text(), "old\n")
+
+    def test_an_unreported_change_fails_and_is_restored(self):
+        before, out = self._update(
+            "import pathlib; pathlib.Path('base.txt').write_text('x')"
+        )
+        self.assertIsNone(before)
+        self.assertIn("no GOLDEN-UPDATED line says so", out)
+        self.assertEqual((self.root / "base.txt").read_text(), "old\n")
+
+    def test_a_write_outside_the_baseline_fails(self):
+        before, out = self._update(
+            "import pathlib; pathlib.Path('other.txt').write_text('x')"
+        )
+        self.assertIsNone(before)
+        self.assertIn("other.txt changed, and it is not among t's baselines", out)
+
+    def test_record_lines_rewrite_the_header(self):
+        code = self.LOGS + "log.write('GOLDEN-RECORD h.h kA     9, // nine\\n')\n"
+        before, out = self._update(code, baseline=("h.h",))
+        self.assertIsNotNone(before)
+        self.assertIn("    9, // nine\n", (self.root / "h.h").read_text())
+        self.assertIn("GOLDEN-UPDATED h.h:kA ", out)
+
+    def test_a_record_line_for_another_header_is_refused(self):
+        code = self.LOGS + "log.write('GOLDEN-RECORD h.h kA     9, // nine\\n')\n"
+        before, out = self._update(code)
+        self.assertIsNone(before)
+        self.assertIn("h.h is not among t's baselines", out)
+        self.assertNotIn("nine", (self.root / "h.h").read_text())
+
+
+class CmdUpdateTest(unittest.TestCase):
+    def test_a_baseline_that_fails_its_second_run_is_restored(self):
+        root = Path(tempfile.mkdtemp())
+        subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+        (root / "base.txt").write_text("old\n")
+        # Records a value no second run accepts: the stand-in for a render that differs run to run.
+        code = (
+            "import os, pathlib, sys\n"
+            "p = pathlib.Path('base.txt')\n"
+            "if os.environ.get('DELUGE_GOLDEN_UPDATE') == '1':\n"
+            "    p.write_text('new\\n')\n"
+            "    open(os.environ['DELUGE_GOLDEN_UPDATE_LOG'], 'a').write(f'GOLDEN-UPDATED {pathlib.Path.cwd()}/base.txt a -> b\\n')\n"
+            "else:\n"
+            "    sys.exit(0 if p.read_text() == 'never\\n' else 1)\n"
+        )
+        with (
+            tempfile.TemporaryFile("w+") as out,
+            mock.patch.object(tt, "OUT", out),
+            mock.patch.object(tt.tb, "products", return_value={}),
+        ):
+            rc = tt.cmd_update(root, [_script("t", code)], [])
+            out.seek(0)
+            text = out.read()
+        self.assertEqual(rc, 1)
+        self.assertIn("GOLDEN-UPDATE-REVERTED base.txt", text)
+        self.assertEqual((root / "base.txt").read_text(), "old\n")
 
 
 if __name__ == "__main__":

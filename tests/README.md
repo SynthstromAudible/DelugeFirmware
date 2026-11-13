@@ -298,3 +298,34 @@ so the entry has no `scenario`, `markers`, `result` or `check`: the runner names
 runner that finds nothing to check exits 77, which fails the gate. Corpus runners drive driver rows on an empty card;
 the registry's static corpus-fixture check does not cover them, and golden_vt_render's run-time refusal does.
 `scripts/tasks/corpus_gate.py` runs it.
+
+## Re-recording a baseline
+
+A test that compares with something committed -- a fixture hash, a golden snapshot, a render record, a record
+header -- lists it in its registry entry's `baseline` (files or directories, relative to the repository root). One
+command re-records it:
+
+    ./dbt test --update <name>...                   # e.g. ./dbt test --update golden-synth render-kit-fx
+    ./dbt test --update unit -- -R <spec>           # a ctest tree: arguments after -- go to ctest
+
+`--update` takes names only (never `--tier` or `--level`), refuses a test whose entry lists no baseline, always builds
+first, and runs the named tests one at a time with `DELUGE_GOLDEN_UPDATE=1` (set for that test alone; one set in your
+shell is ignored). Each test runs as usual but writes what it would have compared with. Then the runner
+
+- prints one `GOLDEN-UPDATED <file or file:key> <old> -> <new>` line per item that changed, or `GOLDEN-UPDATED none`;
+- fails, and puts every baseline file back as it was (`GOLDEN-UPDATE-REVERTED <path>`), when the run failed (a crash
+  or a failed check is not a new baseline), when a file outside the entry's `baseline` changed, or when a baseline
+  changed with no line saying so;
+- builds again and runs each test as usual: a new baseline that fails that second run is put back too.
+
+**Evidence.** A changed baseline is a finding. Commit it with its `GOLDEN-UPDATED` lines in the commit body and, for
+each, why it moved (the change that moved it, or the bug whose fix it records). A line you cannot explain is a
+regression: do not commit it.
+
+**Writing an owner.** Python checks and runners use `scripts/tasks/golden_update.py`
+(`updating(gate.env)`, `write_bytes`, `write_text`, `write_json`, `update_json_key`, `remove`); C++ specs and scenarios
+use `tests/support/golden_update.h`. A record header keeps its generated lines between
+`// GOLDEN-RECORDS BEGIN <region>` and `// GOLDEN-RECORDS END <region>` and its spec hands them over with
+`golden::record` (`scripts/tasks/golden_records.py` rewrites the region). An owner re-records only the comparison it
+owns; every other check of the run still applies. A registry unit test checks that an entry lists a baseline exactly
+when its code records one.

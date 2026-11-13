@@ -156,6 +156,9 @@ class Harness:
     corpus_runner: str = ""
     # Run on its own after the parallel set: the gate measures real time, or loads the machine enough to distort others.
     alone: bool = False
+    # The files and directories (repository paths) the test writes under `./dbt test --update`, and only they: the
+    # runner snapshots them, restores them when the run fails, and fails a run that writes anywhere else.
+    baseline: list[str] = field(default_factory=list)
 
 
 def _runs_golden_vt_render(where: str, item: dict) -> None:
@@ -271,6 +274,18 @@ def load_registry(root: Path) -> list[Harness]:
                 raise ValueError(
                     f"{where}: unknown requirement '{req}'; add a probe to PROBES"
                 )
+        baseline = item.get("baseline", [])
+        if not isinstance(baseline, list) or not all(
+            isinstance(p, str)
+            and p
+            and not Path(p).is_absolute()
+            and ".." not in Path(p).parts
+            for p in baseline
+        ):
+            raise ValueError(
+                f"{where}: baseline lists the files or directories the test re-records, each relative to the "
+                "repository root"
+            )
         for table in ("env", "env_default"):
             if CORPUS_DECLARED in item.get(table, {}):
                 raise ValueError(
@@ -309,6 +324,7 @@ def load_registry(root: Path) -> list[Harness]:
                 check=item.get("check", ""),
                 corpus_runner=item.get("corpus_runner", ""),
                 alone=item.get("alone", False),
+                baseline=baseline,
                 group=item["group"],
             )
         )

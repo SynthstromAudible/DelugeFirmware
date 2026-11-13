@@ -11,11 +11,13 @@
 ./dbt test --capture <label>                 # run the estate and record its marker lines
 ./dbt test --ci-matrix --tier pr             # the selection by CI group, as JSON
 ./dbt test --update-readme                   # regenerate tests/README.md's table
+./dbt test --update golden-synth            # re-record the named tests' baselines
 ./dbt test --clean                           # drop the shared cargo target dir
 """
 
 import argparse
 import concurrent.futures
+import hashlib
 import json
 import os
 import shutil
@@ -31,6 +33,8 @@ import util
 sys.path.insert(0, str(Path(__file__).parent))
 
 import corpus_gate
+import golden_records
+import golden_update
 import harness_registry as hr
 import scenario_gate
 import test_builds as tb
@@ -63,7 +67,7 @@ def argparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--tier",
         choices=hr.TIERS,
-        default="pr",
+        default=None,
         help="Run every test up to and including this tier (default pr)",
     )
     parser.add_argument(
@@ -81,6 +85,12 @@ def argparser() -> argparse.ArgumentParser:
         "--update-readme",
         action="store_true",
         help="Regenerate the table in tests/README.md from the registry",
+    )
+    parser.add_argument(
+        "--update",
+        action="store_true",
+        help="Re-record the baselines of the tests named, and only those: build, run each with DELUGE_GOLDEN_UPDATE=1, "
+        "print what changed, then run it again as usual",
     )
     parser.add_argument(
         "--clean",
@@ -183,6 +193,9 @@ def _environment(
     env.pop(hr.CORPUS_DECLARED, None)
     if hr.declares_corpus(h):
         env[hr.CORPUS_DECLARED] = "1"
+    # Only `--update` re-records, and only for the test it is recording: never from the caller's environment.
+    for name in (golden_update.SWITCH, golden_update.LOG):
+        env.pop(name, None)
     if h.alone:
         env["GOLDEN_SWEEP_JOBS"] = ALONE_SWEEP_JOBS
     return env
@@ -310,8 +323,10 @@ def _run_one(
     junit_dir: Path | None,
     log,
     products: dict[str, tb.Product],
+    extra_env: dict[str, str] | None = None,
 ) -> bool:
     env = _environment(root, h, products)
+    env.update(extra_env or {})
     if h.runner in ("scenario", "corpus"):
         if build_only:
             return True
@@ -442,6 +457,249 @@ def cmd_run(
 def schedule(runnable: list[hr.Harness]) -> tuple[list[hr.Harness], list[hr.Harness]]:
     """`runnable` split into the tests run in parallel and those run alone after them, each in selection order."""
     return [h for h in runnable if not h.alone], [h for h in runnable if h.alone]
+
+
+def update_refusal(args) -> str | None:
+    """Why `--update` cannot run as asked, or None. It re-records exactly the tests named, from what it has just
+    built, one at a time."""
+    if not args.names:
+        return "--update re-records the tests it names and nothing else: ./dbt test --update <name>..."
+    if args.tier is not None or args.level:
+        return "--update takes test names, never --tier or --level: a tier re-recorded by accident is what it refuses"
+    if args.prebuilt or args.build_only:
+        return "--update always builds first: a baseline recorded from a stale binary records the stale binary"
+    if args.jobs not in (0, 1):
+        return "--update runs one test at a time"
+    modes = {
+        "--list": args.list,
+        "--markdown": args.markdown,
+        "--doctor": args.doctor,
+        "--capture": args.capture,
+        "--ci-matrix": args.ci_matrix,
+        "--list-outputs": args.list_outputs,
+        "--update-readme": args.update_readme,
+        "--clean": args.clean,
+        "--junit": args.junit,
+        "--skip-checks": args.skip_checks,
+    }
+    clash = [flag for flag, on in modes.items() if on]
+    return f"--update does not combine with {', '.join(clash)}" if clash else None
+
+
+def owners_refusal(selection: list[hr.Harness]) -> str | None:
+    """Why `--update` refuses some of `selection`: an entry that lists no baseline has nothing to re-record."""
+    none = [h.name for h in selection if not h.baseline]
+    return (
+        f"--update: {', '.join(none)} list(s) no baseline in the registry"
+        if none
+        else None
+    )
+
+
+def _under(rel: str, paths: list[str]) -> bool:
+    """Is repository path `rel` one of `paths`, or inside one of them?"""
+    return any(rel == p or rel.startswith(p.rstrip("/") + "/") for p in paths)
+
+
+def baseline_snapshot(root: Path, paths: list[str]) -> dict[str, bytes]:
+    """Every file under `paths` (files or directories, relative to `root`), with what it holds."""
+    found: dict[str, bytes] = {}
+    for rel in paths:
+        path = root / rel
+        files = (
+            sorted(p for p in path.rglob("*") if p.is_file())
+            if path.is_dir()
+            else [path]
+            if path.is_file()
+            else []
+        )
+        for f in files:
+            if "__pycache__" not in f.parts:
+                found[str(f.relative_to(root))] = f.read_bytes()
+    return found
+
+
+def changed_files(before: dict[str, bytes], after: dict[str, bytes]) -> list[str]:
+    return sorted(
+        rel for rel in set(before) | set(after) if before.get(rel) != after.get(rel)
+    )
+
+
+def restore(root: Path, before: dict[str, bytes], after: dict[str, bytes]) -> list[str]:
+    """Put every file that differs between the snapshots back as `before` holds it (removing one it lacks)."""
+    reverted = changed_files(before, after)
+    for rel in reverted:
+        path = root / rel
+        if rel in before:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(before[rel])
+        else:
+            path.unlink(missing_ok=True)
+    return reverted
+
+
+def worktree_state(root: Path) -> dict[str, str]:
+    """Each path `git status` reports (changed or untracked; ignored ones aside), with a digest of what it holds."""
+    out = subprocess.run(
+        ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"],
+        cwd=root,
+        capture_output=True,
+        check=True,
+    ).stdout.decode(errors="replace")
+    fields = out.split("\0")
+    state: dict[str, str] = {}
+    i = 0
+    while i < len(fields):
+        entry = fields[i]
+        i += 1
+        if not entry:
+            continue
+        if entry[0] in "RC":
+            i += 1  # a rename or copy names its source next
+        path = root / entry[3:]
+        state[entry[3:]] = (
+            hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else "-"
+        )
+    return state
+
+
+def strays(
+    before: dict[str, str], after: dict[str, str], paths: list[str]
+) -> list[str]:
+    """The worktree paths outside `paths` whose state changed between two worktree_state() calls."""
+    return sorted(
+        rel
+        for rel in set(before) | set(after)
+        if before.get(rel) != after.get(rel) and not _under(rel, paths)
+    )
+
+
+def evidence(
+    root: Path, lines: list[str], changed: list[str]
+) -> tuple[list[str], list[str]]:
+    """The log's GOLDEN-UPDATED lines with paths made relative to `root` (`GOLDEN-UPDATED none` when there are none),
+    and what is wrong with them: a baseline file that changed with no line naming it, or a line naming one that did
+    not change."""
+    prefix = f"{root}/"
+    tag = golden_update.TAG
+    updated = [line.replace(prefix, "") for line in lines if line.startswith(tag + " ")]
+    named = {golden_update.item_file(line) for line in updated}
+    problems = [
+        f"{rel} changed, and no {tag} line says so"
+        for rel in changed
+        if rel not in named
+    ]
+    problems += [
+        f"a {tag} line names {rel}, which did not change"
+        for rel in sorted(named - set(changed))
+    ]
+    return (updated or [f"{tag} none"]), problems
+
+
+def _update_one(
+    root: Path, h: hr.Harness, passthrough: list[str], products: dict[str, tb.Product]
+) -> dict[str, bytes] | None:
+    """Run `h` once re-recording, print what changed, and keep it only if the run passed and every change is one of
+    its baselines and was said. Returns the baselines as they were before (for a later restore), or None when
+    nothing was kept.
+
+    The log, and the locks golden_update keeps beside it, live in a directory of their own outside the repository,
+    so recording leaves nothing in the worktree but the baselines."""
+    print(f"==> {h.name}: re-recording {', '.join(h.baseline)}", file=OUT, flush=True)
+    before = baseline_snapshot(root, h.baseline)
+    tree_before = worktree_state(root)
+    scratch = Path(tempfile.mkdtemp(prefix=f"{h.name}.golden-update."))
+    log = scratch / "update.log"
+    log.touch()
+    try:
+        extra = {golden_update.SWITCH: "1", golden_update.LOG: str(log)}
+        ok = _run_one(root, h, passthrough, False, None, OUT, products, extra_env=extra)
+        lines = log.read_text(errors="replace").splitlines()
+    finally:
+        shutil.rmtree(scratch, ignore_errors=True)
+    problems = [] if ok else ["the run failed, and a failed run records nothing"]
+    if ok:
+        foreign = sorted(
+            {
+                header
+                for header, _ in golden_records.parse(lines)
+                if not _under(header, h.baseline)
+            }
+        )
+        problems += [
+            f"{header} is not among {h.name}'s baselines" for header in foreign
+        ]
+        if not foreign:
+            try:
+                lines += golden_records.apply(root, lines)
+            except (OSError, ValueError) as exc:
+                problems.append(str(exc))
+    after = baseline_snapshot(root, h.baseline)
+    problems += [
+        f"{rel} changed, and it is not among {h.name}'s baselines"
+        for rel in strays(tree_before, worktree_state(root), h.baseline)
+    ]
+    printed, wrong = evidence(root, lines, changed_files(before, after))
+    if ok:
+        problems += wrong
+    for line in printed:
+        print(line, file=OUT)
+    for problem in problems:
+        print(f"GOLDEN-UPDATE-FAIL {h.name}: {problem}", file=OUT)
+    if problems:
+        for rel in restore(root, before, after):
+            print(f"GOLDEN-UPDATE-REVERTED {rel}", file=OUT)
+        OUT.flush()
+        return None
+    OUT.flush()
+    return before
+
+
+def cmd_update(root: Path, selection: list[hr.Harness], passthrough: list[str]) -> int:
+    """Re-record each test's baselines, one test at a time; then build again and run each as usual against what it
+    recorded, restoring a baseline that does not hold."""
+    if why := owners_refusal(selection):
+        print(f"test: {why}", file=sys.stderr)
+        return 2
+    builds = Builds(root, selection)
+    outcomes: dict[str, Outcome] = {}
+    recorded: list[tuple[hr.Harness, dict[str, bytes]]] = []
+    for h in selection:
+        missing = _missing(root, h, builds.known)
+        why = f"needs {', '.join(missing)}" if missing else builds.blocker(h)
+        if why:
+            outcomes[h.name] = Outcome(h.name, "FAIL", why)
+            print(f"--- {h.name}: not re-recorded, {why}", file=OUT, flush=True)
+            continue
+        before = _update_one(
+            root, h, passthrough if h.runner == "ctest" else [], builds.known
+        )
+        if before is None:
+            outcomes[h.name] = Outcome(h.name, "FAIL", "nothing re-recorded")
+        else:
+            recorded.append((h, before))
+    # Built again: a record header is compiled into what checks it.
+    confirm = Builds(root, [h for h, _ in recorded])
+    for h, before in recorded:
+        print(f"==> {h.name}: the new baseline, run as usual", file=OUT, flush=True)
+        passed = confirm.blocker(h) is None and _run_one(
+            root,
+            h,
+            passthrough if h.runner == "ctest" else [],
+            False,
+            None,
+            OUT,
+            confirm.known,
+        )
+        if not passed:
+            for rel in restore(root, before, baseline_snapshot(root, h.baseline)):
+                print(f"GOLDEN-UPDATE-REVERTED {rel}", file=OUT, flush=True)
+        outcomes[h.name] = Outcome(
+            h.name,
+            "PASS" if passed else "FAIL",
+            "" if passed else "the new baseline fails a second run; restored",
+        )
+    return _summarise([outcomes[h.name] for h in selection], strict=True, out=OUT)
 
 
 def default_jobs(jobs: int, tier: str, capture: bool) -> int:
@@ -629,12 +887,23 @@ def main(argv: list[str] | None = None) -> int:
         cut = argv.index("--")
         argv, passthrough = argv[:cut], argv[cut + 1 :]
     args = argparser().parse_args(argv)
+    for name in (golden_update.SWITCH, golden_update.LOG):
+        if os.environ.pop(name, None) is not None:
+            print(
+                f"test: {name} in the environment is ignored: ./dbt test --update <name> sets it",
+                file=sys.stderr,
+            )
+    if args.update and (why := update_refusal(args)):
+        print(f"test: {why}", file=sys.stderr)
+        return 2
+    tier = args.tier or "pr"
     root = Path(util.get_git_root()).absolute()
     entries = _load(root)
 
     global OUT, ALONE_SWEEP_JOBS
     OUT = os.fdopen(os.dup(sys.stdout.fileno()), "w", buffering=1, errors="replace")
-    args.jobs = default_jobs(args.jobs, args.tier, bool(args.capture))
+    # `--update` runs one test at a time, so a corpus sweep it records has every CPU.
+    args.jobs = 1 if args.update else default_jobs(args.jobs, tier, bool(args.capture))
 
     # The corpus sweeps run songs in parallel (tests/golden/driver.py): a sweep run alongside other tests shares the
     # CPUs among them, one run alone has them all.
@@ -653,15 +922,17 @@ def main(argv: list[str] | None = None) -> int:
             root,
             entries,
             args.capture,
-            "nightly" if args.tier == "pr" else args.tier,
+            "nightly" if tier == "pr" else tier,
             args.jobs,
         )
 
     try:
-        selection = hr.select(entries, args.names, args.level, args.tier)
+        selection = hr.select(entries, args.names, args.level, tier)
     except ValueError as exc:
         print(f"test: {exc}", file=sys.stderr)
         return 1
+    if args.update:
+        return cmd_update(root, selection, passthrough)
 
     if args.list_outputs:
         names = [name for h in selection if hr.GROUPS[h.group] for name in h.builds]

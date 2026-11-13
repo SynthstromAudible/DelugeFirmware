@@ -247,6 +247,65 @@ class LoadRegistryTest(unittest.TestCase):
             hr.load_registry(self._root_with(MINIMAL + MINIMAL))
         self.assertIn("alpha", str(cm.exception))
 
+    def test_baseline_defaults_to_empty_and_loads(self):
+        self.assertEqual(hr.load_registry(self._root_with(MINIMAL))[0].baseline, [])
+        text = MINIMAL.replace(
+            'tier = "pr"',
+            'baseline = ["tests/golden/x.json", "tests/golden/d"]\ntier = "pr"',
+        )
+        self.assertEqual(
+            hr.load_registry(self._root_with(text))[0].baseline,
+            ["tests/golden/x.json", "tests/golden/d"],
+        )
+
+    def test_a_baseline_outside_the_repository_is_refused(self):
+        for bad in ('["/etc/x"]', '["../x"]', '["a/../../x"]', '[""]', '"tests/x"'):
+            text = MINIMAL.replace('tier = "pr"', f'baseline = {bad}\ntier = "pr"')
+            with (
+                self.subTest(bad),
+                self.assertRaisesRegex(ValueError, "relative to the repository root"),
+            ):
+                hr.load_registry(self._root_with(text))
+
+
+class BaselineDeclarationTest(unittest.TestCase):
+    ROOT = Path(__file__).resolve().parents[2]
+    # What in a check, a corpus runner or a script's Python says that it records a baseline.
+    RECORDS: ClassVar[tuple[str, ...]] = ("golden_update.",)
+    # Entries whose binaries record a baseline from C++ (tests/support/golden_update.h). The registry cannot see what a
+    # binary links, so this set stands in for it, checked both ways against `baseline`.
+    CPP_OWNERS: ClassVar[set[str]] = set()
+    # Entries that run an owner's code but record nothing: entry -> why.
+    NOT_OWNERS: ClassVar[dict[str, str]] = {}
+
+    def _code(self, h: hr.Harness) -> str:
+        paths = [h.check] if h.check else []
+        if h.corpus_runner:
+            paths.append(str(hr.CORPUS_RUNNERS / f"{h.corpus_runner}_run.py"))
+        paths += [arg for arg in h.run if arg.endswith(".py")]
+        return "".join(
+            (self.ROOT / p).read_text() for p in paths if (self.ROOT / p).is_file()
+        )
+
+    def test_an_entry_lists_a_baseline_exactly_when_it_records_one(self):
+        for h in hr.load_registry(self.ROOT):
+            with self.subTest(h.name):
+                records = h.name in self.CPP_OWNERS or (
+                    h.name not in self.NOT_OWNERS
+                    and any(mark in self._code(h) for mark in self.RECORDS)
+                )
+                self.assertEqual(bool(h.baseline), records)
+
+    def test_every_listed_baseline_is_in_the_tree(self):
+        for h in hr.load_registry(self.ROOT):
+            for rel in h.baseline:
+                with self.subTest(h.name, path=rel):
+                    self.assertTrue((self.ROOT / rel).exists())
+
+    def test_the_lists_here_name_registry_entries(self):
+        names = {h.name for h in hr.load_registry(self.ROOT)}
+        self.assertLessEqual(self.CPP_OWNERS | set(self.NOT_OWNERS), names)
+
 
 class CorpusEntryTest(unittest.TestCase):
     CORPUS = """
