@@ -197,9 +197,9 @@ built once for the whole run (`./dbt test --prebuilt`), so a test in them builds
 | bench-tooling | unit | script | unit | gate | the bench tools' host side | pr | tooling | ~1s |
 | ptm-trace-tool | unit | script | unit | gate | the PTM trace tool's host side | pr | tooling | ~1s |
 | app-asan-sample-load-tree | integration | scenario | sanitizer | gate | the sample-load-tree gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | nightly | unit | ~5m |
+| app-asan-sample-claim | integration | scenario | sanitizer | gate | the sample-claim gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | nightly | unit | ~15m |
 | app-asan-preset-load | integration | scenario | sanitizer | gate | the preset-load gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | nightly | unit | ~5m |
 | app-asan-recorder-take | integration | scenario | sanitizer | gate | the recorder-take gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | nightly | unit | ~5m |
-| app-asan-sample-claim | integration | scenario | sanitizer | gate | the sample-claim gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | nightly | unit | ~15m |
 | app-asan-ui-scenes-spec | integration | scenario | sanitizer | gate | the ui-scenes-spec gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | nightly | unit | ~5m |
 | app-asan-effect-owners | integration | scenario | sanitizer | gate | the effect-owners gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | nightly | unit | ~20s |
 | app-asan-edit-substrate | integration | scenario | sanitizer | gate | the edit-substrate gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning | nightly | unit | ~5m |

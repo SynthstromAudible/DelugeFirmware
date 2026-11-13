@@ -1841,6 +1841,25 @@ runtime_s = 300
 env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }
 
 [[harness]]
+name = "app-asan-sample-claim"
+level = "integration"
+runner = "scenario"
+kind = "sanitizer"
+status = "gate"
+gates = "the sample-claim gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning"
+scenario = "sample_claim"
+check = "tests/integration/checks/sample_claim.py"
+markers = ["SC-SETUP", "SC-SELECT", "SC-SYNTH", "SC-WAVETABLE", "SC-WAVETABLE-RESIDENT", "SC-WAVETABLE-CONVERTED", "SC-FALLBACK", "SC-GATE", "SC-STALL", "SC-SUPERSEDE", "SC-PITCH", "SC-PITCH-STALL", "SC-TIER", "SC-KIT", "SC-AUDIOCLIP", "SC-SHELL-SLICE", "SC-SHELL-SLICE-MANUAL", "SC-SHELL-SLICE-BACK", "SC-SHELL-SLICE-FAIL", "RD-ONE", "RD-ALL", "RD-TIER", "RD-GATE", "RD-STALL", "RD-CANCELSCAN", "IM-KIT", "IM-MULTI", "IM-TIER", "IM-GATE", "IM-EMPTY", "IM-STALL"]
+result = "SC-RESULT failures=0"
+env = { GOLDEN_VIRTUAL_BUDGET_MS = "180000" }
+builds = ["golden-vt-render-asan"]
+requires = ["clang-asan"]
+tier = "nightly"
+job = "unit"
+runtime_s = 900
+env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }
+
+[[harness]]
 name = "app-asan-preset-load"
 level = "integration"
 runner = "scenario"
@@ -1875,25 +1894,6 @@ requires = ["clang-asan"]
 tier = "nightly"
 job = "unit"
 runtime_s = 300
-env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }
-
-[[harness]]
-name = "app-asan-sample-claim"
-level = "integration"
-runner = "scenario"
-kind = "sanitizer"
-status = "gate"
-gates = "the sample-claim gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning"
-scenario = "sample_claim"
-check = "tests/integration/checks/sample_claim.py"
-markers = ["SC-SETUP", "SC-SELECT", "SC-SYNTH", "SC-WAVETABLE", "SC-WAVETABLE-RESIDENT", "SC-WAVETABLE-CONVERTED", "SC-FALLBACK", "SC-GATE", "SC-STALL", "SC-SUPERSEDE", "SC-PITCH", "SC-PITCH-STALL", "SC-TIER", "SC-KIT", "SC-AUDIOCLIP", "SC-SHELL-SLICE", "SC-SHELL-SLICE-MANUAL", "SC-SHELL-SLICE-BACK", "SC-SHELL-SLICE-FAIL", "RD-ONE", "RD-ALL", "RD-TIER", "RD-GATE", "RD-STALL", "RD-CANCELSCAN", "IM-KIT", "IM-MULTI", "IM-TIER", "IM-GATE", "IM-EMPTY", "IM-STALL"]
-result = "SC-RESULT failures=0"
-env = { GOLDEN_VIRTUAL_BUDGET_MS = "180000" }
-builds = ["golden-vt-render-asan"]
-requires = ["clang-asan"]
-tier = "nightly"
-job = "unit"
-runtime_s = 900
 env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }
 
 [[harness]]
