@@ -19,11 +19,11 @@ operations must have gone through the byte channel, because a channel that is co
 leave every other check green.
 """
 
-from scenario_gate import int_field
+from scenario_gate import count_field
 
 
 def check(gate, run):
-    if not int_field(run.first("FV-CHANNEL "), "favourites"):
+    if not count_field(run.first("FV-CHANNEL "), "favourites"):
         line = run.first("FV-CHANNEL ") or "no line"
         gate.fail(
             f"FV-CHANNEL — no favourites operation went through the channel: {line}"

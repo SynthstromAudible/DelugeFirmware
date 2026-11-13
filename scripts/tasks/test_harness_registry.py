@@ -403,19 +403,28 @@ class CheckModuleTest(unittest.TestCase):
         "ui_scripts.py": "a UI script's board steps",
     }
 
-    def test_checks_read_marker_lines_through_scenario_gate(self):
+    IMPORTS_RE = re.compile(r"^\s*(import re\b|from re import)", re.MULTILINE)
+
+    def _checks_importing_re(self):
         checks = self.ROOT / "tests" / "integration" / "checks"
-        own = sorted(
+        return sorted(
             p.name
-            for p in checks.glob("*.py")
-            if not p.name.startswith("test_")
-            and p.name not in self.NON_MARKER_RE
-            and re.search(r"^import re$", p.read_text(), re.MULTILINE)
+            for p in checks.rglob("*.py")
+            if not p.name.startswith("test_") and self.IMPORTS_RE.search(p.read_text())
         )
+
+    def test_checks_read_marker_lines_through_scenario_gate(self):
+        own = [n for n in self._checks_importing_re() if n not in self.NON_MARKER_RE]
         self.assertEqual(
             own,
             [],
             "parse marker lines with scenario_gate's helpers (tag, fields, field, ...)",
+        )
+
+    def test_every_allowed_re_import_is_still_used(self):
+        stale = sorted(set(self.NON_MARKER_RE) - set(self._checks_importing_re()))
+        self.assertEqual(
+            stale, [], "drop these from NON_MARKER_RE: they no longer import re"
         )
 
     def test_a_check_that_runs_the_binary_itself_judges_the_entrys_lines(self):
@@ -684,6 +693,14 @@ class ScenarioGateTest(unittest.TestCase):
         self.assertIsNone(sg.field("AB xx=1", "x"))
         self.assertEqual(sg.int_field("AB n=-3", "n"), -3)
         self.assertIsNone(sg.int_field("AB n=abc", "n"))
+
+    def test_count_field_accepts_only_unsigned_digits(self):
+        self.assertEqual(sg.count_field("AB n=0 m=12", "m"), 12)
+        self.assertEqual(sg.count_field("AB n=0", "n"), 0)
+        for bad in ("-1", "+3", "-0", "8x", "", "x", "\u00b2"):
+            self.assertIsNone(sg.count_field(f"AB n={bad}", "n"), bad)
+        self.assertIsNone(sg.count_field("AB m=1", "n"))
+        self.assertIsNone(sg.count_field(None, "n"))
 
 
 class ScenarioGateParseTest(unittest.TestCase):

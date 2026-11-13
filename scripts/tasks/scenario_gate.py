@@ -81,6 +81,16 @@ def int_field(line: str | None, key: str) -> int | None:
         return None
 
 
+def count_field(line: str | None, key: str) -> int | None:
+    """The counter `key=<digits>` in `line`; None when it is absent or anything but unsigned ASCII digits."""
+    value = field(line, key)
+    return (
+        int(value)
+        if value is not None and value.isascii() and value.isdigit()
+        else None
+    )
+
+
 def starting(lines: Iterable[str], *prefixes: str) -> list[str]:
     """Every line of `lines` that starts with one of `prefixes`, in order."""
     return [line for line in lines if line.startswith(prefixes)]

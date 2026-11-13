@@ -21,18 +21,19 @@ What the checks cover (tests/integration/scenarios/song_load_channel_scenario.cp
 The registry entry requires each marker and the result line; this module adds the channel's two counts.
 """
 
-from scenario_gate import field, int_field
+from scenario_gate import count_field
 
 
 def check(gate, run):
     summary = run.first("SL-SUMMARY ")
     failed = False
-    if not int_field(summary, "served"):
+    served = count_field(summary, "served")
+    if not served:
         gate.fail(
-            f"SL-CHANNEL — the load served {field(summary, 'served') or 'no'} staging read(s); the async arm never ran"
+            f"SL-CHANNEL — the load served {'no' if served is None else served} staging read(s); the async arm never ran"
         )
         failed = True
-    if not int_field(summary, "channelTicks"):
+    if not count_field(summary, "channelTicks"):
         gate.fail(
             "SL-TICKED — the staging read never ran through the channel across ticks"
         )

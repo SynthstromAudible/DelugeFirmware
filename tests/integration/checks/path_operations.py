@@ -29,15 +29,15 @@ The registry entry requires each marker and the result line; this module adds PO
 probe.
 """
 
-from scenario_gate import field, int_field
+from scenario_gate import count_field, field
 
 
 def check(gate, run):
-    channel = run.first("PO-CHANNEL ")
-    if not int_field(channel, "served"):
+    served = count_field(run.first("PO-CHANNEL "), "served")
+    if not served:
         gate.fail(
-            f"PO-CHANNEL served={field(channel, 'served') or 'none'}: the byte channel served nothing, so the async arm "
-            "never ran"
+            f"PO-CHANNEL served={'none' if served is None else served}: the byte channel served nothing, "
+            "so the async arm never ran"
         )
         return
     probes = [field(line, "n") or "" for line in run.starting("TIER-SYNC-PROBE ")]
@@ -51,5 +51,5 @@ def check(gate, run):
         "PASS — the protocol replied, browser deletes went through the byte channel, no browser folder creation or"
     )
     gate.say(
-        f"       delete ran on the interaction tier, and the byte channel served {field(channel, 'served')} operation(s)"
+        f"       delete ran on the interaction tier, and the byte channel served {served} operation(s)"
     )

@@ -28,12 +28,16 @@ What the checks cover:
                 document it was replacing byte-for-byte intact, and removes the temp file.
 """
 
-from scenario_gate import field
+from scenario_gate import count_field
 
 
-def _summary(run, key: str) -> str | None:
-    """The value of `key` on the DS-SUMMARY line, or None when the line or the key is absent ("" counts as absent)."""
-    return field(run.first("DS-SUMMARY "), key) or None
+def _summary(run, key: str) -> int | None:
+    """The counter `key` on the DS-SUMMARY line, or None when the line or the counter is absent or not a count."""
+    return count_field(run.first("DS-SUMMARY "), key)
+
+
+def _shown(count: int | None, otherwise: str) -> str:
+    return otherwise if count is None else str(count)
 
 
 def _require_line(gate, run, whole: str, tag: str, missing: str = "no line") -> None:
@@ -50,13 +54,13 @@ def check(gate, run):
     vinline = _summary(run, "verifyInline")
 
     # DS-CHANNEL. The async arm actually RAN.
-    if served is None or int(served) == 0:
+    if not served:
         gate.fail(
-            f"DS-CHANNEL — the save served {served or 'no'} document write(s); the async arm never ran"
+            f"DS-CHANNEL — the save served {_shown(served, 'no')} document write(s); the async arm never ran"
         )
 
     # DS-TICKED. The gate's actual claim: `channelTicks` counts ticks on which a staged step went through a channel.
-    if channel_ticks is None or int(channel_ticks) == 0:
+    if not channel_ticks:
         gate.fail("DS-TICKED — the save never ran through the channel across ticks")
 
     # DS-VERIFIED. The preset, the kit row, the confirmed overwrite and the held save are checked, and all four
@@ -95,10 +99,10 @@ def check(gate, run):
     )
 
     # DS-VERIFY-ARM. The read-back rides the channel, and none runs on the inline arm (`verifyInline`).
-    if int(vserved or 0) == 0 or int(vinline or 1) != 0:
+    if not vserved or vinline != 0:
         gate.fail(
             "DS-VERIFY-ARM — the read-back did not run through the channel "
-            f"(verifyServed={vserved or 'none'} verifyInline={vinline or 'none'})"
+            f"(verifyServed={_shown(vserved, 'none')} verifyInline={_shown(vinline, 'none')})"
         )
 
     if not gate.failures:

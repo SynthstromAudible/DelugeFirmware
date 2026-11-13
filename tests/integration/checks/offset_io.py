@@ -23,17 +23,18 @@ before OI-RESULT is printed, which is what turns a freeze into a gate failure ra
 The registry entry requires each marker and the result line; this module adds OI-CHANNEL's count.
 """
 
-from scenario_gate import field, int_field
+from scenario_gate import count_field
 
 
 def check(gate, run):
-    channel = run.first("OI-CHANNEL ")
-    if not int_field(channel, "served"):
+    served = count_field(run.first("OI-CHANNEL "), "served")
+    if not served:
         gate.fail(
-            f"OI-CHANNEL served={field(channel, 'served') or 'none'}: the byte channel served nothing, so the async arm never ran"
+            f"OI-CHANNEL served={'none' if served is None else served}: the byte channel served nothing, "
+            "so the async arm never ran"
         )
         return
     gate.say(
-        f"PASS — the transfer and the copy reached the card, and the byte channel served {field(channel, 'served')}"
+        f"PASS — the transfer and the copy reached the card, and the byte channel served {served}"
     )
     gate.say("       operation(s)")

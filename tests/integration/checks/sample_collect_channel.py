@@ -33,12 +33,12 @@ SC-ATOMIC must go red. SC-ORDERED does not catch that; the end state is repaired
 in-flight check can see it.
 """
 
-from scenario_gate import field
+from scenario_gate import count_field
 
 
-def _summary(run, key: str) -> str | None:
-    """The value of `key` on the SC-SUMMARY line, or None when the line or the key is absent ("" counts as absent)."""
-    return field(run.first("SC-SUMMARY "), key) or None
+def _summary(run, key: str) -> int | None:
+    """The counter `key` on the SC-SUMMARY line, or None when the line or the counter is absent or not a count."""
+    return count_field(run.first("SC-SUMMARY "), key)
 
 
 def check(gate, run):
@@ -49,20 +49,23 @@ def check(gate, run):
 
     # SC-CHANNEL, SC-ACCOUNTED and SC-TICKED: no file may take the inline arm, and the channel must have served exactly
     # the files that arrived.
-    if served is None or int(served) == 0:
+    shown_served = "no" if served is None else served
+    if not served:
         gate.fail(
-            f"SC-CHANNEL — the collection served {served or 'no'} transfer(s); the async arm never ran"
+            f"SC-CHANNEL — the collection served {shown_served} transfer(s); the async arm never ran"
         )
-    if int(inline_served or 1) != 0:
+    if inline_served != 0:
+        shown_inline = (
+            "an unknown number of" if inline_served is None else inline_served
+        )
         gate.fail(
-            "SC-ACCOUNTED — the collection sent "
-            f"{inline_served or 'an unknown number of'} transfer(s) through the inline arm"
+            f"SC-ACCOUNTED — the collection sent {shown_inline} transfer(s) through the inline arm"
         )
-    if int(served or 0) != copies:
+    if (served or 0) != copies:
         gate.fail(
-            f"SC-ACCOUNTED — the collection copied {copies} file(s) but the channel served {served or 'no'}"
+            f"SC-ACCOUNTED — the collection copied {copies} file(s) but the channel served {shown_served}"
         )
-    if channel_ticks is None or int(channel_ticks) == 0:
+    if not channel_ticks:
         gate.fail("SC-TICKED — no transfer ever ran through the channel across ticks")
 
     if not gate.failures:

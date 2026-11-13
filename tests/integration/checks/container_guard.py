@@ -205,7 +205,7 @@ def _check(gate, result) -> None:
             return
 
     # The render must not allocate: a kit's drums start and stop rendering without touching the heap.
-    alloc = result.first("CG-RENDERALLOC ")
+    alloc = next(iter(result.starting("CG-RENDERALLOC renderAllocs=")), None)
     starts, stops = int_field(alloc, "delayStarts"), int_field(alloc, "delayStops")
     if alloc and ((starts or 0) < 1 or (stops or 0) < 1):
         gate.fail(
@@ -355,7 +355,7 @@ def _check(gate, result) -> None:
         return
 
     # The render's latched record writes must be reached, or RECORDKNOB says nothing about them.
-    knob = result.first("CG-RECORDKNOB ")
+    knob = next(iter(result.starting("CG-RECORDKNOB recorded=")), None)
     if not (
         field(knob, "recorded") == "1" and (int_field(knob, "renderKernels") or 0) > 0
     ):

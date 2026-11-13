@@ -44,7 +44,7 @@ What the lines cover (tests/integration/scenarios/playhead_moves_scenario.cpp wr
                                          base at its request (base=0)
 """
 
-from scenario_gate import fields, has_fields, tag
+from scenario_gate import count_field, fields, has_fields, tag
 
 LEGS = [
     "START",
@@ -83,8 +83,9 @@ EFFECT_KEYS = [
     "retire",
     "publish_oom",
 ]
-# The fields every leg's line starts with.
+# The fields every leg's line starts with; the first three are counts.
 LEG_KEYS = ("stray", "masked_alloc", "masked_actions", "hash")
+LEG_COUNTS = LEG_KEYS[:3]
 
 
 def _check(gate, result) -> None:
@@ -93,8 +94,7 @@ def _check(gate, result) -> None:
     if not (
         list(got) == EFFECT_KEYS
         and all(got[key] == "1" for key in EFFECT_KEYS if key != "room")
-        and got["room"].isdigit()
-        and int(got["room"]) > 0
+        and (count_field(effects, "room") or 0) > 0
     ):
         gate.fail(
             f"{effects or 'no PM-EFFECTS line'}: a move's effects must run in order, once the"
@@ -120,11 +120,12 @@ def _check(gate, result) -> None:
     for leg in LEGS:
         line = lines[leg]
         f = fields(line)
-        stray, alloc, actions = (
-            int(f["stray"]),
-            int(f["masked_alloc"]),
-            int(f["masked_actions"]),
-        )
+        counts = {key: count_field(line, key) for key in LEG_COUNTS}
+        invalid = [key for key, count in counts.items() if count is None]
+        if invalid:
+            failed.extend(f"no/invalid {key} on PM-{leg}" for key in invalid)
+            continue
+        stray, alloc, actions = counts.values()
         rest = " ".join(f"{k}={v}" for k, v in f.items() if k not in LEG_KEYS)
         reasons = []
         if stray:
