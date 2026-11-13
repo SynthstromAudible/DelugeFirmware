@@ -10,6 +10,7 @@
 ./dbt test --doctor                          # what is missing, and how to get it
 ./dbt test --capture <label>                 # run the estate and record its marker lines
 ./dbt test --ci-matrix --tier pr             # the selection by CI group, as JSON
+./dbt test --update-readme                   # regenerate tests/README.md's table
 ./dbt test --clean                           # drop the shared cargo target dir
 """
 
@@ -78,6 +79,11 @@ def argparser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--doctor", action="store_true", help="Report missing prerequisites"
+    )
+    parser.add_argument(
+        "--update-readme",
+        action="store_true",
+        help="Regenerate the table in tests/README.md from the registry",
     )
     parser.add_argument(
         "--clean",
@@ -581,6 +587,16 @@ def cmd_doctor(root: Path, entries: list[hr.Harness]) -> int:
     return 1
 
 
+def cmd_update_readme(root: Path, entries: list[hr.Harness]) -> int:
+    path = root / "tests" / "README.md"
+    old = path.read_text()
+    new = hr.with_table(old, hr.markdown_table(entries))
+    if new != old:
+        path.write_text(new)
+        print(f"updated {path.relative_to(root)}")
+    return 0
+
+
 def cmd_clean(root: Path) -> int:
     """Remove every tree the runner builds: the ctest trees, the host-app objects and the shared cargo dir."""
     trees = sorted((root / "build").glob("test-*")) + [
@@ -618,6 +634,8 @@ def main(argv: list[str] | None = None) -> int:
     ALONE_SWEEP_JOBS = os.environ.get("GOLDEN_SWEEP_JOBS", str(cpus))
     os.environ.setdefault("GOLDEN_SWEEP_JOBS", str(max(1, cpus // args.jobs)))
 
+    if args.update_readme:
+        return cmd_update_readme(root, entries)
     if args.clean:
         return cmd_clean(root)
     if args.doctor:

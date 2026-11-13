@@ -352,11 +352,28 @@ def markdown_table(harnesses: list[Harness]) -> str:
     return "\n".join(lines) + "\n"
 
 
+TABLE_BEGIN = "<!-- BEGIN GENERATED TABLE -->"
+TABLE_END = "<!-- END GENERATED TABLE -->"
+
+
+def with_table(readme: str, table: str) -> str:
+    """`readme` with the lines between the generated-table markers replaced by `table`."""
+    begin = readme.find(TABLE_BEGIN)
+    end = readme.find(TABLE_END)
+    if begin < 0 or end < begin:
+        raise ValueError(
+            f"tests/README.md needs a '{TABLE_BEGIN}' line before a '{TABLE_END}' line"
+        )
+    return readme[: begin + len(TABLE_BEGIN)] + "\n" + table + readme[end:]
+
+
 __all__ = [
     "GROUPS",
     "LEVELS",
     "PROBES",
     "RUNNERS",
+    "TABLE_BEGIN",
+    "TABLE_END",
     "TIERS",
     "Harness",
     "ci_matrix",
@@ -364,4 +381,5 @@ __all__ = [
     "markdown_table",
     "probe",
     "select",
+    "with_table",
 ]

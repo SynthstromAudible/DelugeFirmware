@@ -159,11 +159,9 @@ jobs:
 
       - name: The test registry's table is current
         run: |
-          DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test --list --markdown > "$RUNNER_TEMP/table.md"
-          sed -n '/BEGIN GENERATED TABLE/,/END GENERATED TABLE/p' tests/README.md \
-            | sed '1d;$d' > "$RUNNER_TEMP/committed.md"
-          diff -u "$RUNNER_TEMP/committed.md" "$RUNNER_TEMP/table.md" || {
-            echo "::error::tests/README.md's table is stale -- regenerate it (see the README)."
+          DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test --update-readme
+          git diff --exit-code tests/README.md || {
+            echo "::error::tests/README.md's table is stale -- run ./dbt test --update-readme"
             exit 1
           }
 

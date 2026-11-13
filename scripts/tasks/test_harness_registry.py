@@ -636,6 +636,34 @@ class MarkdownTableTest(unittest.TestCase):
         return root
 
 
+class WithTableTest(unittest.TestCase):
+    README = f"intro\n{hr.TABLE_BEGIN}\n| old |\n{hr.TABLE_END}\noutro\n"
+
+    def test_replaces_only_the_table(self):
+        self.assertEqual(
+            hr.with_table(self.README, "| new |\n"),
+            f"intro\n{hr.TABLE_BEGIN}\n| new |\n{hr.TABLE_END}\noutro\n",
+        )
+
+    def test_is_idempotent(self):
+        once = hr.with_table(self.README, "| new |\n")
+        self.assertEqual(hr.with_table(once, "| new |\n"), once)
+
+    def test_missing_markers_are_an_error(self):
+        with self.assertRaisesRegex(ValueError, "BEGIN GENERATED TABLE"):
+            hr.with_table("no markers here\n", "| new |\n")
+
+    def test_committed_readme_is_current(self):
+        root = Path(__file__).resolve().parents[2]
+        readme = (root / "tests" / "README.md").read_text()
+        table = hr.markdown_table(hr.load_registry(root))
+        self.assertEqual(
+            hr.with_table(readme, table),
+            readme,
+            "tests/README.md is stale: run ./dbt test --update-readme",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
 

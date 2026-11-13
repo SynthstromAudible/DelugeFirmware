@@ -69,6 +69,12 @@ repos:
         language: system
         pass_filenames: false
         files: ^(include/libdeluge/|src/bsp/rust/src/|src/bsp/rust/harness/|src/bsp/rust/build/|src/bsp/rust/Cargo\.toml|crates/|scripts/check_abi_surface\.py)
+      - id: registry-readme
+        name: tests/README.md's table matches tests/registry.toml
+        entry: python3 scripts/tasks/task-test.py --update-readme
+        language: system
+        pass_filenames: false
+        files: ^(tests/registry\.toml|tests/README\.md|scripts/tasks/harness_registry\.py)$
       - id: dsp-next-boundary
         name: dsp-next L0 boundary
         description: src/deluge/dsp-next must not include app layers, the legacy dsp/, or the HAL/BSP
