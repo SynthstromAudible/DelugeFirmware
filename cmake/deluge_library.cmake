@@ -5,11 +5,17 @@ include(${CMAKE_CURRENT_LIST_DIR}/library_warnings.cmake)
 # deluge_library_target(<target>)
 #
 # The flags every library below the app builds with: a unity build, no LTO (so -finline-functions does the inlining, at
-# the default threshold) and ARM (not Thumb) mode on hardware. The app keeps Thumb and an inline threshold of 5, which
+# the default threshold) and ARM (not Thumb) mode when compiling for an ARM target (the device and the ARM unit
+# tree), not the host simulator. The app keeps Thumb and an inline threshold of 5, which
 # keeps its image small; library code inlines more, since DSP code needs it (the mod-matrix spike measured its
 # evaluator 15 % slower with only always_inline functions inlined). DELUGE_LIBRARY marks the target so that the app's
 # threshold leaves it alone.
 function(deluge_library_target target)
+  if(NOT DELUGE_HOST AND CMAKE_SYSTEM_PROCESSOR MATCHES "^([Aa][Rr][Mm])")
+    set(arm_mode "-marm")
+  else()
+    set(arm_mode "")
+  endif()
   set_target_properties(${target} PROPERTIES
     C_STANDARD ${DELUGE_C_STANDARD}
     C_STANDARD_REQUIRED ON
@@ -28,6 +34,6 @@ function(deluge_library_target target)
     ${DELUGE_COMMON_COMPILE_OPTIONS}
     "-fno-lto"
     "-finline-functions"
-    "$<$<NOT:$<BOOL:${DELUGE_HOST}>>:-marm>"
+    ${arm_mode}
   )
 endfunction()
