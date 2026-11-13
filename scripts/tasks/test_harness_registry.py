@@ -999,6 +999,34 @@ class WithTableTest(unittest.TestCase):
         )
 
 
+class UpgradeRunGuardTest(unittest.TestCase):
+    @staticmethod
+    def _shortfalls(*args):
+        spec = importlib.util.spec_from_file_location(
+            "upgrade_run",
+            Path(__file__).resolve().parents[2] / "tests/golden/upgrade_run.py",
+        )
+        module = importlib.util.module_from_spec(spec)
+        sys.path.insert(0, str(Path(spec.origin).parent))
+        try:
+            spec.loader.exec_module(module)
+        finally:
+            sys.path.pop(0)
+        return module.shortfalls(*args)
+
+    def test_an_empty_run_is_a_shortfall(self):
+        self.assertTrue(self._shortfalls("committed", 0, 39, 0, 0))
+        self.assertTrue(self._shortfalls("committed", 38, 39, 0, 0))
+        self.assertTrue(self._shortfalls("corpus", 230, 0, 0, 5))
+        self.assertTrue(self._shortfalls("corpus", 230, 0, 5, 0))
+        self.assertTrue(self._shortfalls("all", 0, 39, 0, 0))
+
+    def test_a_complete_run_is_not(self):
+        self.assertEqual(self._shortfalls("committed", 39, 39, 0, 0), [])
+        self.assertEqual(self._shortfalls("corpus", 0, 39, 200, 30), [])
+        self.assertEqual(self._shortfalls("all", 269, 39, 200, 30), [])
+
+
 class CorpusDeclarationTest(unittest.TestCase):
     ROOT = Path(__file__).resolve().parents[2]
 

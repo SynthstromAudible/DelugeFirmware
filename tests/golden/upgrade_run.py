@@ -61,6 +61,23 @@ def legacy_cases():
     return out
 
 
+def shortfalls(part, ran, committed_owed, corpus_songs, corpus_presets):
+    """Why a whole run (no --filter) ran fewer cases than its parts own; empty when it ran them all.
+
+    ran is the cases that were run (OK plus FAIL); committed_owed the committed cases the tree holds; corpus_songs and
+    corpus_presets the corpus cases found. A part that finds nothing to run must fail rather than pass on zero.
+    """
+    out = []
+    if part in ("all", "committed") and ran < committed_owed:
+        out.append(f"committed part ran {ran} of {committed_owed} cases")
+    if part in ("all", "corpus"):
+        if corpus_songs == 0:
+            out.append("corpus part found no songs")
+        if corpus_presets == 0:
+            out.append("corpus part found no presets")
+    return out
+
+
 def original(base: Path, key: str) -> Path:
     """The original a corpus fixture's upgraded (`.json`) key was made from."""
     stem = key.removesuffix(".json")
@@ -146,7 +163,7 @@ def main(argv=None) -> int:
     committed = args.part in ("all", "committed")
     from_corpus = args.part in ("all", "corpus")
     if args.part == "corpus" and not (
-        corpus and (Path(corpus).parent / "SYNTHS").is_dir()
+        corpus and Path(corpus).is_dir() and (Path(corpus).parent / "SYNTHS").is_dir()
     ):
         print(
             "UPGRADE-FAIL legacy corpus: DELUGE_LEGACY_CORPUS must name a card backup's original SONGS, "
@@ -163,7 +180,9 @@ def main(argv=None) -> int:
     try:
         # Songs and corpus presets: the upgraded file's round trip hashes as its original's did.
         cases = []
+        legacy_found = corpus_songs = corpus_presets = 0
         for key, path, kind in legacy_cases() if committed else []:
+            legacy_found += 1
             if args.filter not in key:
                 continue
             if key not in legacy:
@@ -183,7 +202,13 @@ def main(argv=None) -> int:
                 source = original(Path(corpus), key)
             else:
                 continue
-            if source.is_file():
+            synthetic = key.startswith(songs_run.SYNTHETIC_PREFIX)
+            if not source.is_file():
+                if synthetic:
+                    fail += 1
+                    print(f"UPGRADE-FAIL {key}: the committed song is missing")
+            else:
+                corpus_songs += not synthetic
                 # The round trip loads no samples: upgraded without a card, a zone in milliseconds stays (reported)
                 # and saves as the original's does there.
                 cases.append(("song", key, source, songs[key], None))
@@ -192,7 +217,17 @@ def main(argv=None) -> int:
             for key in sorted(presets):
                 source = original(beside, key)
                 if args.filter in key and source.is_file():
+                    corpus_presets += 1
                     cases.append(("preset", key, source, presets[key], None))
+
+        if not args.filter:
+            synthetic = sum(k.startswith(songs_run.SYNTHETIC_PREFIX) for k in songs)
+            owed = max(legacy_found, len(legacy)) + synthetic
+            for why in shortfalls(
+                args.part, len(cases) + fail, owed, corpus_songs, corpus_presets
+            ):
+                fail += 1
+                print(f"UPGRADE-FAIL shortfall: {why}")
 
         def one(case):
             kind, key, source, want, card = case
