@@ -91,7 +91,7 @@ std::vector<RemotePage> section_pages(uint32_t section, const PageInputs& in) {
 		constexpr std::array<ParamId, 5> kComp{setting::kCompRatio, setting::kCompAttack, setting::kCompRelease,
 		                                       setting::kCompHpf, setting::kCompBlend};
 		for (uint32_t i = 0; i < kComp.size(); i++) {
-			pages.push_back(page(4, i, 1, comp_knob(kComp[i], PressAction::NEXT_PAGE), threshold));
+			pages.push_back(page(4, i + 1, 1, comp_knob(kComp[i], PressAction::NEXT_PAGE), threshold));
 		}
 		return pages;
 	}

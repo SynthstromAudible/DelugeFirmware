@@ -31,6 +31,26 @@ describe instrument_pages("the Deluge instrument's pages", ${
 		expect(instrument::slot_for(ip::kPan, {}).kind == plugin::ParamKind::PATCHED).to_be_true();
 		expect(instrument::slot_for(ip::kBitcrushAmount, {}).kind == plugin::ParamKind::UNPATCHED_SOUND).to_be_true();
 	});
+	it("pins every default knob: the lower and upper param of each mod button", _{
+		const auto sidechain = *instrument::cable_depth_id(instrument::PatchSource::SIDECHAIN, ip::kVolumePostReverbSend);
+		const auto lfo_pitch = *instrument::cable_depth_id(instrument::PatchSource::LFO_GLOBAL_1, ip::kPitch);
+		const plugin::ParamId expected[8][2] = {
+			{ip::kPan, ip::kVolumePostFX},
+			{ip::kLpfResonance, ip::kLpfFrequency},
+			{ip::kEnv1Release, ip::kEnv1Attack},
+			{ip::kDelayFeedback, ip::kDelayRate},
+			{ip::kReverbAmount, sidechain},
+			{lfo_pitch, ip::kLfo1Rate},
+			{ip::kPortamento, ip::kStutterRate},
+			{ip::kBitcrushAmount, ip::kSampleRateReduction},
+		};
+		for (uint32_t button = 0; button < 8; button++) {
+			expect(instrument::kDevicePages[button].section).to_equal(button);
+			for (uint32_t knob = 0; knob < 2; knob++) {
+				expect(*instrument::kDevicePages[button].slots[knob].param == expected[button][knob]).to_be_true();
+			}
+		}
+	});
 	it("cycles low-pass, high-pass, EQ on the first mod button", _{
 		expect(*instrument::kFilterCycle[1].slots[1].param == ip::kHpfFrequency).to_be_true();
 		expect(*instrument::kFilterCycle[2].slots[0].param == ip::kBass).to_be_true();

@@ -52,7 +52,11 @@ describe chain_pages("the host chains' pages", ${
 		expect(*pages[0].slots[1].param == st::kCompThreshold).to_be_true();
 		expect(pages[0].slots[1].press == PressAction::TOGGLE_GROUP).to_be_true();
 		expect(pages[0].slots[0].press == PressAction::REVERB_PRESET).to_be_true();
-		expect(pages[1].group).to_equal(uint8_t{1});
+		expect(pages[0].page_id).to_equal(0u);
+		for (uint32_t i = 1; i <= 5; i++) {
+			expect(pages[i].group).to_equal(uint8_t{1});
+			expect(pages[i].page_id).to_equal(i);
+		}
 		expect(*pages[1].slots[0].param == st::kCompRatio).to_be_true();
 		expect(*pages[5].slots[0].param == st::kCompBlend).to_be_true();
 		expect(pages[5].slots[0].press == PressAction::NEXT_PAGE).to_be_true();
