@@ -136,10 +136,9 @@ bool AudioOutput::modeAllowsMonitoring() const {
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
 bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
                                                 std::span<StereoSample> render, int32_t* bufferToTransferTo,
-                                                int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+                                                int32_t* reverbBuffer, RenderAdjustments& adjustments,
                                                 int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
-                                                bool isClipActive, int32_t pitchAdjust, int32_t amplitudeAtStart,
-                                                int32_t amplitudeAtEnd) {
+                                                bool isClipActive, int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
 	bool rendered = false;
 	// audio outputs can have an activeClip while being muted
 	if (isClipActive) {
@@ -150,8 +149,10 @@ bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* m
 			int32_t attack = getExp(attackNeutralValue, -(activeAudioClip.attack / 4));
 
 renderEnvelope:
-			int32_t amplitudeLocal =
-			    (envelope.render(render.size(), attack, 8388608, 2147483647, 0, decayTableSmall4) >> 1) + 1073741824;
+			int32_t amplitudeLocal = (envelope.render(render.size(), attack, 8388608, 2147483647, 0,
+			                                          deluge::modulation::kAudioClipEnvelopeConfig)
+			                          >> 1)
+			                         + 1073741824;
 
 			if (envelope.state >= EnvelopeStage::OFF) {
 				if (activeAudioClip.doingLateStart) {
@@ -182,7 +183,7 @@ renderEnvelope:
 
 				std::span render_mono{reinterpret_cast<q31_t*>(render.data()), render.size()};
 				activeAudioClip.render(modelStack, render_mono, amplitudeEffectiveStart, amplitudeIncrementEffective,
-				                       pitchAdjust);
+				                       adjustments.pitch());
 				rendered = true;
 				amplitudeLastTime = amplitudeLocal;
 
@@ -284,8 +285,8 @@ renderEnvelope:
 		rendered = true;
 		std::byte modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* songModelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-		outputRecordingFrom->renderOutput(songModelStack, output, reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-		                                  shouldLimitDelayFeedback, isClipActive);
+		outputRecordingFrom->renderOutput(songModelStack, output, reverbBuffer, adjustments.reverbAmount(),
+		                                  sideChainHitPending, shouldLimitDelayFeedback, isClipActive);
 	}
 	return rendered;
 }

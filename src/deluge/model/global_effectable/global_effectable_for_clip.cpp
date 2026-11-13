@@ -53,28 +53,8 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
                                                         int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                                         bool shouldLimitDelayFeedback, bool isClipActive,
                                                         OutputType outputType, SampleRecorder* recorder) {
-	UnpatchedParamSet* unpatchedParams = paramManagerForClip->getUnpatchedParamSet();
-
-	// Process FX and stuff. For kits, stutter happens before reverb send
-	// The >>1 is to make up for the fact that we've got the preset default to effect a multiplication of 2 already (the
-	// maximum multiplication would be 4)
-	int32_t volumeAdjustment = conversions.volume(unpatchedParams->getValue(params::UNPATCHED_VOLUME), [](int32_t v) {
-		return getFinalParameterValueVolume(134217728, cableToLinearParamShortcut(v)) >> kClipVolumeAdjustmentShift;
-	});
-
-	int32_t volumePostFX = volumeAdjustment;
-
-	// Make it a bit bigger so that default filter resonance doesn't reduce volume overall.
-	// Unfortunately when I first implemented this for Kits, I just fudged a number which didn't give the 100% accuracy
-	// that I need for AudioOutputs, and I now have to maintain both for backwards compatibility
-	volumePostFX += (outputType == OutputType::AUDIO) ? multiply_32x32_rshift32_rounded(volumeAdjustment, 471633397)
-	                                                  : (volumeAdjustment >> kKitPostFXBaselineShift);
-
-	int32_t reverbAmountAdjustForDrums = multiply_32x32_rshift32_rounded(reverbAmountAdjust, volumeAdjustment) << 5;
-
-	int32_t pitchAdjust =
-	    conversions.pitchAdjust(unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST),
-	                            [](int32_t v) { return getFinalParameterValueExp(kMaxSampleValue, v >> 3); });
+	// Volume (for the drums' reverb) and pitch adjust, only read from the params if something renders
+	RenderAdjustments adjustments{*this, *paramManagerForClip, reverbAmountAdjust, true};
 
 	alignas(CACHE_LINE_SIZE) StereoSample global_effectable_memory[SSI_TX_BUFFER_NUM_SAMPLES];
 	memset(global_effectable_memory, 0, sizeof(StereoSample) * output.size());
@@ -82,9 +62,9 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 	// Render actual Drums / AudioClip. Nothing below affects this, so it comes first, to know whether we can skip the
 	// rest: their own render skipping makes it cheap when there's nothing to play.
-	bool renderedNow = renderGlobalEffectableForClip(
-	    modelStack, global_effectable_audio, nullptr, reverbBuffer, reverbAmountAdjustForDrums, sideChainHitPending,
-	    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
+	bool renderedNow = renderGlobalEffectableForClip(modelStack, global_effectable_audio, nullptr, reverbBuffer,
+	                                                 adjustments, sideChainHitPending, shouldLimitDelayFeedback,
+	                                                 isClipActive, 134217728, 134217728);
 
 	bool resumed = false;
 	// check if we should still skip, then return early if so
@@ -93,14 +73,33 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 		if (!renderedNow && !recording) {
 			// we're still skipping rendering so just clear stuff, tick params, get out
 			renderedLastTime = false;
-			compressor.reset();
-			compressor.gainReduction = 0;
+			// Nothing else touches the compressor while skipping, so it only needs clearing once (it's cold memory)
+			if (!compressorClearedWhileSkipping) {
+				compressor.reset();
+				compressor.gainReduction = 0;
+				compressorClearedWhileSkipping = true;
+			}
 			tickParamAutomation(modelStack, paramManagerForClip, output.size(), isClipActive);
 			return;
 		}
 		stopSkippingRendering(paramManagerForClip);
 		resumed = true;
 	}
+
+	UnpatchedParamSet* unpatchedParams = paramManagerForClip->getUnpatchedParamSet();
+
+	// Process FX and stuff. For kits, stutter happens before reverb send
+	// The >>1 is to make up for the fact that we've got the preset default to effect a multiplication of 2 already (the
+	// maximum multiplication would be 4)
+	int32_t volumeAdjustment = adjustments.volume();
+
+	int32_t volumePostFX = volumeAdjustment;
+
+	// Make it a bit bigger so that default filter resonance doesn't reduce volume overall.
+	// Unfortunately when I first implemented this for Kits, I just fudged a number which didn't give the 100% accuracy
+	// that I need for AudioOutputs, and I now have to maintain both for backwards compatibility
+	volumePostFX += (outputType == OutputType::AUDIO) ? multiply_32x32_rshift32_rounded(volumeAdjustment, 471633397)
+	                                                  : (volumeAdjustment >> kKitPostFXBaselineShift);
 
 	// The delay takes in sound from this render
 	Delay::State delayWorkingState =
@@ -204,6 +203,26 @@ void GlobalEffectableForClip::tickParamAutomation(ModelStackWithTimelineCounter*
 	}
 }
 
+int32_t GlobalEffectableForClip::RenderAdjustments::volume() {
+	if (!volume_) {
+		volume_ = owner_.conversions.volume(
+		    paramManager_.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME), [](int32_t v) {
+			    return getFinalParameterValueVolume(134217728, cableToLinearParamShortcut(v))
+			           >> kClipVolumeAdjustmentShift;
+		    });
+	}
+	return *volume_;
+}
+
+int32_t GlobalEffectableForClip::RenderAdjustments::pitch() {
+	if (!pitch_) {
+		pitch_ = owner_.conversions.pitchAdjust(
+		    paramManager_.getUnpatchedParamSet()->getValue(params::UNPATCHED_PITCH_ADJUST),
+		    [](int32_t v) { return getFinalParameterValueExp(kMaxSampleValue, v >> 3); });
+	}
+	return *pitch_;
+}
+
 // skip once nothing rendered, nothing's
 // stuttering or recording this, all tails done
 void GlobalEffectableForClip::reassessRenderSkippingStatus(ParamManager* paramManager, SampleRecorder* recorder) {
@@ -238,6 +257,7 @@ void GlobalEffectableForClip::reassessRenderSkippingStatus(ParamManager* paramMa
 void GlobalEffectableForClip::startSkippingRendering() {
 	timeStartedSkippingRendering = AudioEngine::audioSampleTimer;
 	skippingRendering = true;
+	compressorClearedWhileSkipping = false;
 	if (grainFX != nullptr) {
 		grainFX->startSkippingRendering();
 	}

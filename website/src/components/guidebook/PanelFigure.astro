@@ -140,70 +140,62 @@ const initial = auto
     {stepData && <summary>Show it on the Deluge</summary>}
     <div class="gb-panel-art-wrap" role="img" aria-label={alt}>
       <div class="gb-panel-frame" set:html={staticSvg} />
-      {
-        placed.length > 0 && (
-          <svg
-            class="gb-panel-leaders"
-            viewBox={box.join(" ")}
-            aria-hidden="true"
-            preserveAspectRatio="none"
-          >
-            {placed.map((c, i) => (
-              <g>
-                <line
-                  class="gb-panel-leader"
-                  x1={c.leader.x1}
-                  y1={c.leader.y1}
-                  x2={c.leader.x2}
-                  y2={c.leader.y2}
-                />
-                <g class="gb-panel-marker">
-                  <circle cx={c.leader.x2} cy={c.leader.y2} r={marker} />
-                  <text
-                    x={c.leader.x2}
-                    y={c.leader.y2}
-                    font-size={marker * 1.2}
-                    text-anchor="middle"
-                    dominant-baseline="central"
-                  >
-                    {i + 1}
-                  </text>
-                </g>
+      {placed.length > 0 && (
+        <svg
+          class="gb-panel-leaders"
+          viewBox={box.join(" ")}
+          aria-hidden="true"
+          preserveAspectRatio="none"
+        >
+          {placed.map((c, i) => (
+            <g>
+              <line
+                class="gb-panel-leader"
+                x1={c.leader.x1}
+                y1={c.leader.y1}
+                x2={c.leader.x2}
+                y2={c.leader.y2}
+              />
+              <g class="gb-panel-marker">
+                <circle cx={c.leader.x2} cy={c.leader.y2} r={marker} />
+                <text
+                  x={c.leader.x2}
+                  y={c.leader.y2}
+                  font-size={marker * 1.2}
+                  text-anchor="middle"
+                  dominant-baseline="central"
+                >
+                  {i + 1}
+                </text>
               </g>
-            ))}
-          </svg>
-        )
-      }
-    </div>
-    {
-      placed.length > 0 && (
-        <ol class="gb-panel-callouts">
-          {placed.map((c) => (
-            <li data-side={c.side} data-y={c.leader.y2}>
-              {c.text}
-            </li>
+            </g>
           ))}
-        </ol>
-      )
-    }
-    {
-      stepData && (
-        <button type="button" class="gb-panel-play" hidden>
-          ▶︎ Play steps
-        </button>
-      )
-    }
+        </svg>
+      )}
+    </div>
+    {placed.length > 0 && (
+      <ol class="gb-panel-callouts">
+        {placed.map((c) => (
+          <li data-side={c.side} data-y={c.leader.y2}>
+            {c.text}
+          </li>
+        ))}
+      </ol>
+    )}
+    {stepData && (
+      <button type="button" class="gb-panel-play" hidden>
+        ▶︎ Play steps
+      </button>
+    )}
   </Wrap>
-  {
-    stepData && (
-      <script
-        is:inline
-        type="application/json"
-        class="gb-panel-steps"
-        set:html={stepData}
-      />
-    )
-  }
+  {stepData && (
+    <script
+      is:inline
+      type="application/json"
+      class="gb-panel-steps"
+      set:html={stepData}
+    />
+  )}
 </figure>
 
 <script>

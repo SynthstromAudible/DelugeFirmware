@@ -68,6 +68,7 @@
 #include "gui/menu_item/edit_name.h"
 #include "gui/menu_item/envelope/envelope_menu.h"
 #include "gui/menu_item/envelope/segment.h"
+#include "gui/menu_item/envelope/settings.h"
 #include "gui/menu_item/eq/eq_menu.h"
 #include "gui/menu_item/eq/eq_unpatched_param.h"
 #include "gui/menu_item/file_selector.h"

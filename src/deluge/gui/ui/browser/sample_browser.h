@@ -65,9 +65,14 @@ public:
 
 	String lastFilePathLoaded;
 
-	// menus to open when a sample file is selected
+	// menus to open when a sample file is selected. Only valid for one browser session.
+	// should be cleared on exit or failure
 	deluge::gui::menu_item::HorizontalMenu* parentMenuHeadingTo{nullptr};
 	MenuItem* menuItemHeadingTo{nullptr};
+	void clearMenuHeadingTo() {
+		parentMenuHeadingTo = nullptr;
+		menuItemHeadingTo = nullptr;
+	}
 
 	// ui
 	UIType getUIType() override { return UIType::SAMPLE_BROWSER; }

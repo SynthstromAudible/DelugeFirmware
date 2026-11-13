@@ -22,7 +22,9 @@
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/song/song.h"
+#include "processing/sound/sound.h"
 #include "util/container/enum_to_string_map.hpp"
+#include "util/functions.h"
 #include <cstring>
 
 namespace deluge::modulation::params {
@@ -180,8 +182,68 @@ char const* getPatchedParamShortName(ParamType type) {
 	}
 }
 
+namespace {
+/// AHD, AR and MPE envelopes reuse some of their params for other jobs (see EnvelopeMode): AHD's decay param is its
+/// hold and its release param its decay, and AR's and MPE's sustain is their level. Returns the name for the job the
+/// param is doing, or nullptr if it's doing its usual one. `modControllable` must own patched params, which means it's
+/// a Sound.
+char const* envelopeParamNameForMode(ParamType p, ModControllableAudio* modControllable, bool shortName) {
+	using enum l10n::String;
+	using EnvelopeMode = deluge::modulation::EnvelopeMode;
+
+	auto inGroup = [p](ParamType first) { return p >= first && p < first + kNumEnvelopes; };
+	int32_t e;
+	if (inGroup(LOCAL_ENV_0_DECAY)) {
+		e = p - LOCAL_ENV_0_DECAY;
+	}
+	else if (inGroup(LOCAL_ENV_0_RELEASE)) {
+		e = p - LOCAL_ENV_0_RELEASE;
+	}
+	else if (inGroup(LOCAL_ENV_0_SUSTAIN)) {
+		e = p - LOCAL_ENV_0_SUSTAIN;
+	}
+	else {
+		return nullptr;
+	}
+
+	// Formatted names like "Env1 hold" share one buffer: callers copy the name straight away
+	static char formatted[24];
+	auto format = [e](l10n::String withAsterisk) {
+		strncpy(formatted, l10n::get(withAsterisk), sizeof(formatted) - 1);
+		formatted[sizeof(formatted) - 1] = 0;
+		asterixToInt(formatted, e + 1);
+		return formatted;
+	};
+
+	switch (static_cast<Sound*>(modControllable)->envelopeConfig[e].mode) {
+	case EnvelopeMode::AHD:
+		if (inGroup(LOCAL_ENV_0_DECAY)) {
+			return format(STRING_FOR_ENV_HOLD_MENU_TITLE);
+		}
+		if (inGroup(LOCAL_ENV_0_RELEASE)) {
+			// Same name the decay param has in ADSR mode
+			return shortName ? getPatchedParamShortName(LOCAL_ENV_0_DECAY + e)
+			                 : getParamDisplayName(Kind::PATCHED, LOCAL_ENV_0_DECAY + e);
+		}
+		break;
+	case EnvelopeMode::AR:
+	case EnvelopeMode::MPE:
+		if (inGroup(LOCAL_ENV_0_SUSTAIN)) {
+			return format(STRING_FOR_ENV_LEVEL_MENU_TITLE);
+		}
+		break;
+	default:
+		break;
+	}
+	return nullptr;
+}
+} // namespace
+
 char const* getPatchedParamShortName(ParamType type, ModControllableAudio* modControllable) {
 	if (modControllable != nullptr) {
+		if (char const* name = envelopeParamNameForMode(type, modControllable, true)) {
+			return name;
+		}
 		// See getParamDisplayName: the ladder filters rename morph after what it actually does.
 		if (type == LOCAL_LPF_MORPH
 		    && dsp::filter::SpecificFilter(modControllable->lpfMode).getFamily()
@@ -357,6 +419,12 @@ char const* getParamDisplayName(Kind kind, int32_t p, ModControllableAudio* modC
 	using enum l10n::String;
 
 	if (modControllable != nullptr) {
+		if (kind == Kind::PATCHED) {
+			if (char const* name = envelopeParamNameForMode(p, modControllable, false)) {
+				return name;
+			}
+		}
+
 		bool isLPFMorph = (kind == Kind::PATCHED && p == LOCAL_LPF_MORPH)
 		                  || (kind == Kind::UNPATCHED_GLOBAL && p == UnpatchedGlobal::UNPATCHED_LPF_MORPH);
 		bool isHPFMorph = (kind == Kind::PATCHED && p == LOCAL_HPF_MORPH)

@@ -56,14 +56,12 @@ const pages: number[] = entry.data.guidebook?.pdfPages ?? []
         <Content />
       </section>
       <section class="pdf">
-        {
-          pages.map((p) => (
-            <img
-              src={`/guidebook-compare/page/${p}.png`}
-              alt={`Guidebook PDF page ${p}`}
-            />
-          ))
-        }
+        {pages.map((p) => (
+          <img
+            src={`/guidebook-compare/page/${p}.png`}
+            alt={`Guidebook PDF page ${p}`}
+          />
+        ))}
       </section>
     </main>
   </body>

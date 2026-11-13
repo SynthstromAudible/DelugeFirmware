@@ -22,6 +22,7 @@
 #include "model/sample/sample_recorder.h"
 #include "model/voiced.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/envelope_curve.h"
 #include "modulation/knob.h"
 #include "modulation/lfo.h"
 #include "modulation/params/param.h"
@@ -97,6 +98,7 @@ public:
 	LFO globalLFO1;
 	LFO globalLFO3;
 	LFOConfig lfoConfig[LFO_COUNT];
+	std::array<deluge::modulation::EnvelopeConfig, kNumEnvelopes> envelopeConfig{};
 
 	bool invertReversed{}; // Used by the arpeggiator to invert the reverse flag just for the current voice
 

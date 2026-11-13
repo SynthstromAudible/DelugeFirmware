@@ -99,7 +99,9 @@ add_executable(UnitTests
         waveform_peak_math_tests.cpp
         midi_queue_tests.cpp
         fast_pythag_tests.cpp
+        fast_divide_tests.cpp
         tick_interpolation_tests.cpp
+        envelope_curve_tests.cpp
         mute_sequencer_tests.cpp
 )
 add_test(NAME UnitTests

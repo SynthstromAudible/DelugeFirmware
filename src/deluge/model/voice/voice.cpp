@@ -46,6 +46,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
+#include "util/fast_divide.h"
 
 #include "dsp/oscillators/basic_waves.h"
 #include "dsp/oscillators/oscillator.h"
@@ -140,12 +141,12 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 
 		// If no attack-stage...
 		if (paramManager->getPatchedParamSet()->getValue(params::LOCAL_ENV_0_ATTACK + e) == -2147483648u) {
-			envelopes[e].lastValue = 2147483647;
+			envelopes[e].lastValue = 1.f;
 		}
 
 		// Otherwise...
 		else {
-			envelopes[e].lastValue = 0;
+			envelopes[e].lastValue = 0.f;
 		}
 	}
 
@@ -749,10 +750,13 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 			if (e == 0 && overrideAmplitudeEnvelopeReleaseRate) {
 				release = overrideAmplitudeEnvelopeReleaseRate;
 			}
-			sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e] =
-			    envelopes[e].render(numSamples, paramFinalValues[params::LOCAL_ENV_0_ATTACK + e],
-			                        paramFinalValues[params::LOCAL_ENV_0_DECAY + e],
-			                        paramFinalValues[params::LOCAL_ENV_0_SUSTAIN + e], release, decayTableSmall8);
+			sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e] = envelopes[e].render(
+			    numSamples, paramFinalValues[params::LOCAL_ENV_0_ATTACK + e],
+			    paramFinalValues[params::LOCAL_ENV_0_DECAY + e], paramFinalValues[params::LOCAL_ENV_0_SUSTAIN + e],
+			    release, sound.envelopeConfig[e],
+			    sourceValues[util::to_underlying(sound.envelopeConfig[e].follow == deluge::modulation::EnvelopeFollow::Y
+			                                         ? PatchSource::Y
+			                                         : PatchSource::AFTERTOUCH)]);
 			uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e]);
 			sourcesChanged |= anyChange << (util::to_underlying(PatchSource::ENVELOPE_0) + e);
 		}
@@ -975,7 +979,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 			// Just do this for the amplitude envelope
 			overrideAmplitudeEnvelopeReleaseRate = 8388608 / highestNumSamplesLeft;
 			if (envelopes[0].state == EnvelopeStage::ATTACK && envelopes[0].pos == 0) {
-				envelopes[0].lastValue = 2147483647;
+				envelopes[0].lastValue = 1.f;
 			}
 			envelopes[0].unconditionalRelease();
 		}
@@ -1070,7 +1074,8 @@ skipAutoRelease: {}
 		}
 
 		for (int32_t s = 0; s < kNumSources; s++) {
-			sourceAmplitudeIncrements[s] = (int32_t)(sourceAmplitudes[s] - sourceAmplitudesLastTime[s]) / numSamples;
+			sourceAmplitudeIncrements[s] =
+			    deluge::divideBySmall((int32_t)(sourceAmplitudes[s] - sourceAmplitudesLastTime[s]), numSamples);
 		}
 
 		filterGainLastTime = filterGain;
@@ -1082,9 +1087,10 @@ skipAutoRelease: {}
 				    (paramFinalValues[params::LOCAL_MODULATOR_0_VOLUME + m] != 0 || modulatorAmplitudeLastTime[m] != 0);
 
 				if (modulatorsActive[m]) {
-					modulatorAmplitudeIncrements[m] = (int32_t)(paramFinalValues[params::LOCAL_MODULATOR_0_VOLUME + m]
-					                                            - modulatorAmplitudeLastTime[m])
-					                                  / numSamples;
+					modulatorAmplitudeIncrements[m] =
+					    deluge::divideBySmall((int32_t)(paramFinalValues[params::LOCAL_MODULATOR_0_VOLUME + m]
+					                                    - modulatorAmplitudeLastTime[m]),
+					                          numSamples);
 				}
 			}
 		}
@@ -1096,12 +1102,13 @@ skipAutoRelease: {}
 		if (!doneFirstRender && paramFinalValues[params::LOCAL_ENV_0_ATTACK] > 245632) {
 			overallOscAmplitudeLastTime = overallOscAmplitude;
 		}
-		overallOscillatorAmplitudeIncrement = (int32_t)(overallOscAmplitude - overallOscAmplitudeLastTime) / numSamples;
+		overallOscillatorAmplitudeIncrement =
+		    deluge::divideBySmall((int32_t)(overallOscAmplitude - overallOscAmplitudeLastTime), numSamples);
 
 		for (int32_t s = 0; s < kNumSources; s++) {
-			sourceWaveIndexIncrements[s] =
-			    (int32_t)(paramFinalValues[params::LOCAL_OSC_A_WAVE_INDEX + s] - sourceWaveIndexesLastTime[s])
-			    / numSamples;
+			sourceWaveIndexIncrements[s] = deluge::divideBySmall(
+			    (int32_t)(paramFinalValues[params::LOCAL_OSC_A_WAVE_INDEX + s] - sourceWaveIndexesLastTime[s]),
+			    numSamples);
 		}
 	}
 

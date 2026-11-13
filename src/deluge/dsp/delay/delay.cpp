@@ -293,10 +293,7 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 
 		// Native read
 		if (primaryBuffer.isNative()) {
-			for (StereoSample& sample : working_buffer) {
-				wrapped = primaryBuffer.clearAndMoveOn() || wrapped;
-				sample = primaryBuffer.current();
-			}
+			wrapped = primaryBuffer.clearAndReadNative(working_buffer);
 		}
 
 		// Or, resampling read
@@ -327,73 +324,111 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 		}
 	}
 
+	// Native writes to the primary buffer can go straight in as each sample's feedback is worked out below. Otherwise
+	// the feedback goes back into the working buffer, to be written afterwards
+	bool writePrimaryNow = primaryBuffer.isActive() && primaryBuffer.isNative() && !secondaryBuffer.isActive();
+	StereoSample* feedbackPos = working_buffer.data();
+	StereoSample* feedbackStart = working_buffer.data();
+	StereoSample* feedbackEnd = working_buffer.data() + working_buffer.size();
+	if (writePrimaryNow) {
+		feedbackPos = primaryBufferOldPos - delaySpaceBetweenReadAndWrite;
+		if (feedbackPos < primaryBuffer.begin()) {
+			feedbackPos += primaryBuffer.sizeIncludingExtra;
+		}
+		feedbackStart = primaryBuffer.begin();
+		feedbackEnd = primaryBuffer.end();
+	}
+
+	// Go through what we grabbed, saturating and filtering it, sending it to the audio output buffer, and also
+	// preparing it to be fed back into the delay. All in one pass, with the filter state kept in registers
+	auto feedBack = [&](auto saturate, auto pingPongStereo) {
+		int32_t lpfL = postLPFL;
+		int32_t lpfR = postLPFR;
+		StereoSample* input = working_buffer.data();
+		StereoSample* output = buffer.data();
+		StereoSample* const inputEnd = input + working_buffer.size();
+		// Rather than check for the feedback wrapping around for every sample, go in runs up to where it wraps
+		while (input != inputEnd) {
+			StereoSample* const runEnd = input + std::min(inputEnd - input, feedbackEnd - feedbackPos);
+			for (; input != runEnd; input++, output++) {
+				StereoSample current{saturate(input->l), saturate(input->r)};
+
+				// HPF on delay output, to stop it "farting out". Corner frequency is somewhere around 40Hz after many
+				// repetitions
+				int32_t distanceToGoL = current.l - lpfL;
+				lpfL += distanceToGoL >> 11;
+				current.l -= lpfL;
+
+				int32_t distanceToGoR = current.r - lpfR;
+				lpfR += distanceToGoR >> 11;
+				current.r -= lpfR;
+
+				// Feedback calculation, and combination with input
+				StereoSample in = *output;
+				StereoSample feedback;
+				if constexpr (pingPongStereo) {
+					feedback.l = current.r;
+					feedback.r = ((in.l + in.r) >> 1) + current.l;
+				}
+				else {
+					feedback = current + in;
+				}
+
+				// Output
+				*output = in + current;
+				*feedbackPos++ = feedback;
+			}
+			if (feedbackPos == feedbackEnd) {
+				feedbackPos = feedbackStart;
+			}
+		}
+		postLPFL = lpfL;
+		postLPFR = lpfR;
+	};
+	auto feedBackWith = [&](auto saturate) {
+		if (pingPong && AudioEngine::renderInStereo) {
+			feedBack(saturate, std::true_type{});
+		}
+		else {
+			feedBack(saturate, std::false_type{});
+		}
+	};
+
+	int32_t feedbackAmount = delayWorkingState.delayFeedbackAmount;
 	if (analog) {
 
 		ir_processor.process(working_buffer);
 
 		// Reduce headroom, since this sounds ok with analog sim. The saturation amount is fixed for the whole
 		// buffer, so pick the tanh once rather than switching on it for every sample
-		auto saturate = [&]<typename TanH>(TanH tanH) {
-			for (StereoSample& sample : working_buffer) {
-				sample.l = tanH(multiply_32x32_rshift32(sample.l, delayWorkingState.delayFeedbackAmount)) << 2;
-				sample.r = tanH(multiply_32x32_rshift32(sample.r, delayWorkingState.delayFeedbackAmount)) << 2;
-			}
-		};
 		switch (delayWorkingState.analog_saturation) {
 		case 8:
-			saturate([](int32_t input) { return getTanH<8>(input); });
+			feedBackWith([feedbackAmount](int32_t input) {
+				return getTanH<8>(multiply_32x32_rshift32(input, feedbackAmount)) << 2;
+			});
 			break;
 		case 5:
-			saturate([](int32_t input) { return getTanH<5>(input); });
+			feedBackWith([feedbackAmount](int32_t input) {
+				return getTanH<5>(multiply_32x32_rshift32(input, feedbackAmount)) << 2;
+			});
 			break;
 		default:
-			saturate([&](int32_t input) { return getTanHUnknown(input, delayWorkingState.analog_saturation); });
+			feedBackWith([feedbackAmount, saturation = delayWorkingState.analog_saturation](int32_t input) {
+				return getTanHUnknown(multiply_32x32_rshift32(input, feedbackAmount), saturation) << 2;
+			});
 			break;
 		}
 	}
 
 	else {
-		for (StereoSample& sample : working_buffer) {
-			// Leave more headroom, because making it clip sounds bad with pure digital
-			sample.l = signed_saturate<32 - 3>(multiply_32x32_rshift32(sample.l, delayWorkingState.delayFeedbackAmount))
-			           << 2;
-			sample.r = signed_saturate<32 - 3>(multiply_32x32_rshift32(sample.r, delayWorkingState.delayFeedbackAmount))
-			           << 2;
-		}
+		// Leave more headroom, because making it clip sounds bad with pure digital
+		feedBackWith([feedbackAmount](int32_t input) {
+			return signed_saturate<32 - 3>(multiply_32x32_rshift32(input, feedbackAmount)) << 2;
+		});
 	}
 
-	// HPF on delay output, to stop it "farting out". Corner frequency is somewhere around 40Hz after many
-	// repetitions
-	for (StereoSample& sample : working_buffer) {
-		int32_t distanceToGoL = sample.l - postLPFL;
-		postLPFL += distanceToGoL >> 11;
-		sample.l -= postLPFL;
-
-		int32_t distanceToGoR = sample.r - postLPFR;
-		postLPFR += distanceToGoR >> 11;
-		sample.r -= postLPFR;
-	}
-
-	// Go through what we grabbed, sending it to the audio output buffer, and also preparing it to be fed back
-	// into the delay
-	for (auto [input, output] : std::views::zip(working_buffer, buffer)) {
-		StereoSample current = input;
-
-		// Feedback calculation, and combination with input
-		if (pingPong && AudioEngine::renderInStereo) {
-			input.l = current.r;
-			input.r = ((output.l + output.r) >> 1) + current.l;
-		}
-		else {
-			input += output;
-		}
-
-		// Output
-		output += current;
-	}
-
-	// And actually feedback being applied back into the actual delay primary buffer...
-	if (primaryBuffer.isActive()) {
+	// And actually feedback being applied back into the actual delay primary buffer, if that wasn't done above...
+	if (primaryBuffer.isActive() && !writePrimaryNow) {
 
 		// Native
 		if (primaryBuffer.isNative()) {

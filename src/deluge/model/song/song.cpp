@@ -2513,7 +2513,9 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	AudioEngine::logAction("Start output render");
-	for (Output* output = firstOutput; output; output = output->next) {
+	for (Output *output = firstOutput, *next; output; output = next) {
+		// Read alongside inValidState (same cache line): rendering this Output often evicts it
+		next = output->next;
 		if (!output->inValidState) {
 			continue;
 		}
@@ -4830,7 +4832,7 @@ bool Song::shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequi
 	}
 }
 
-Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset) {
+Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset, Clip* displayClip) {
 	if (output->type == OutputType::AUDIO) {
 		return output;
 	}
@@ -4931,13 +4933,13 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 			((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
 		}
 
-		view.displayOutputName(oldNonAudioInstrument);
+		view.displayOutputName(oldNonAudioInstrument, true, displayClip);
 	}
 
 	// Or if we're on a Kit or Synth...
 	else {
-		PresetNavigationResult results =
-		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true);
+		PresetNavigationResult results = loadInstrumentPresetUI.doPresetNavigation(
+		    offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true, displayClip);
 		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
 removeWorkingAnimationAndGetOut:
 			if (display->haveOLED()) {

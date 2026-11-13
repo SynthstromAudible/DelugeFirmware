@@ -184,6 +184,10 @@ static uint16_t usb_hstd_enumeration(usb_utr_t* ptr)
                 /* Set Address */
                 case 1:
 
+                    /* Allow recovery after SET_ADDRESS before using the new address (USB 2.0 section 9.2.6.3).
+                     * Use 10 ms for compatibility with devices such as the Sequential Take 5. */
+                    usb_cpu_delay_xms(10);
+
                     descriptor_table = (uint8_t*)g_usb_hstd_device_descriptor[ptr->ip];
                     devsel           = (uint16_t)(g_usb_hstd_device_addr[ptr->ip] << USB_DEVADDRBIT);
 
