@@ -336,7 +336,7 @@ Step g_step = Step::Prepare;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
 ScenarioReport g_report{"SC"};
-/// The boot song's preset request, waited on across the whole run: its budget is spent cumulatively.
+/// The boot song's preset request, waited on before the first leg acts on the boot clip.
 Wait g_bootWait{g_report, "the boot song's preset arriving", kMaxBootTicks};
 /// The wait of the stage running; each stage that waits starts a fresh one.
 Wait g_wait{g_report, "a claim from the leg before ending", kMaxLegTicks};
@@ -2520,41 +2520,45 @@ const char* recallFile() {
 	return legItemIsFolder() ? kImportKitFile : legFile();
 }
 
+/// What one step of bringing the browser to its item came to.
+enum class LandState : uint8_t { Done, Waiting, GaveUp };
+
 /// One step of bringing the browser to the leg's item, which it opened beside the file the sound holds: a favourite
 /// holding the file recalled, and for a folder item BACK out of the file's folder and a turn onto the item.
-/// @return Whether the leg is done with it, the browser on the item or never to get there; false while a step waits, or
-///         after one that started a listing (the step goes back to the listing wait).
-bool landStep() {
+/// @return Done when the browser is on the item or the leg is to go on regardless; Waiting while a step waits, or after
+///         one that started a listing (the step goes back to the listing wait); GaveUp when the wait or the step bound
+///         ran out, already reported.
+LandState landStep() {
 	const std::string target = legFile();
 	if (guestSelectedPath() == target) {
-		return true;
+		return LandState::Done;
 	}
 	if (g_browseSteps >= kMaxBrowseSteps) {
 		g_report.fail("the browser never reached %s", target.c_str());
-		return true;
+		return LandState::GaveUp;
 	}
 	const std::string_view dir = std::string_view{target}.substr(0, target.rfind('/'));
 	const std::string_view current = deluge::scenes::browser::browser_scene().current_dir();
 	if (legItemIsFolder() && current == dir
 	    && deluge::harness::guestTurnTo(std::string_view{target}.substr(dir.size() + 1))) {
 		g_browseSteps++;
-		return true;
+		return LandState::Done;
 	}
 	if (legItemIsFolder() && current.size() > dir.size() && current.starts_with(dir) && current[dir.size()] == '/') {
 		g_browseSteps++;
 		guestBack();
 		startWait("a browser listing finishing", kMaxListingTicks);
 		g_step = Step::Listing;
-		return false;
+		return LandState::Waiting;
 	}
 	if (!deluge::harness::guestRecallFavourite(recallFile())) {
 		// The favourites bank is still loading.
-		return g_wait.poll(false) == WaitState::Expired;
+		return g_wait.poll(false) == WaitState::Expired ? LandState::GaveUp : LandState::Waiting;
 	}
 	g_browseSteps++;
 	startWait("a browser listing finishing", kMaxListingTicks);
 	g_step = Step::Listing;
-	return false;
+	return LandState::Waiting;
 }
 
 void nextLeg() {
@@ -2568,16 +2572,23 @@ void nextLeg() {
 /// Whether the blank song's own preset request has landed. The boot song starts on the built-in default synth and asks
 /// InstrumentLoad for the first SYNTHS preset on the interaction tier; a scenario that acted on the boot clip before
 /// that landed would be working on an Instrument about to be replaced, which no user can do.
-bool bootSettled() {
-	if (currentSong != nullptr && (currentSong->blankPresetPending || deluge::gui::instrumentLoad.inFlight())) {
-		return g_bootWait.poll(false) == WaitState::Expired;
-	}
-	return true;
+WaitState pollBoot() {
+	return g_bootWait.poll(currentSong == nullptr
+	                       || !(currentSong->blankPresetPending || deluge::gui::instrumentLoad.inFlight()));
 }
 
 void runTick() {
-	if (!bootSettled()) {
-		return;
+	if (g_leg == Leg::Synth && g_step == Step::Prepare) {
+		// Only the first leg starts on the boot clip; later legs leave the loader alone for their own waits.
+		switch (pollBoot()) {
+		case WaitState::Pending:
+			return;
+		case WaitState::Met:
+			break;
+		case WaitState::Expired:
+			g_leg = Leg::Done;
+			return;
+		}
 	}
 	if (g_leg == Leg::Done) {
 		g_report.printResult();
@@ -2626,7 +2637,12 @@ void runTick() {
 		g_step = Step::Select;
 		break;
 	case Step::Select: {
-		if (!landStep()) {
+		const LandState landed = landStep();
+		if (landed == LandState::Waiting) {
+			break;
+		}
+		if (landed == LandState::GaveUp) {
+			nextLeg();
 			break;
 		}
 		deluge::harness::guestHideKeyboard();

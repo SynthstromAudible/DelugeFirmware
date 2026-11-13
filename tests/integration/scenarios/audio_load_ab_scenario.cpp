@@ -303,7 +303,8 @@ constexpr int32_t kCancelTicks = 64;
 constexpr const char* kStallPath = "SAMPLES/STALL.WAV";
 
 /// How long, in virtual time, the stall stage waits for the preview to give up before calling it wedged: the load's
-/// own bound and a margin.
+/// own bound and a margin. Not a Wait: the bound is virtual time, not steps, and an expired window is judged by the
+/// stage's own stall FAIL (`pendingAtEnd`).
 constexpr uint64_t kStallWindowUs = deluge::storage::AsyncSampleLoad::kMaxStalledUs + 2'000'000;
 
 /// How long the loader holds each load during the stall: past the whole wait, so every collect in it answers PENDING.
@@ -432,6 +433,8 @@ enum class DrawStallStep : uint8_t { Start, Armed, Release, Restart, Wait, Move,
 DrawStallStep g_drawStallStep = DrawStallStep::Start;
 /// The draw-stall stage's current wait: the redraw arming, the stalled preview settling, the moved preview drawing.
 Wait g_drawStallWait{g_report, "the stalled preview arming a redraw", kMaxDrawStallTicks};
+/// Whether one of the stage's waits expired, which has said so: its evidence line and judgements are skipped.
+bool g_drawStallExpired = false;
 int32_t g_dsRedrawsBefore = 0;
 int32_t g_dsGiveUpsBefore = 0;
 bool g_dsPendingAtEnd = false;
@@ -1092,6 +1095,7 @@ void runOneDrawStallTick() {
 			break;
 		case WaitState::Expired:
 			deluge_streaming_set_fill_latency_ms(0);
+			g_drawStallExpired = true;
 			g_drawStallStep = DrawStallStep::Finished;
 			return;
 		}
@@ -1130,6 +1134,7 @@ void runOneDrawStallTick() {
 			break;
 		case WaitState::Expired:
 			deluge_streaming_set_fill_latency_ms(0);
+			g_drawStallExpired = true;
 			g_drawStallStep = DrawStallStep::Finished;
 			return;
 		}
@@ -1157,6 +1162,7 @@ void runOneDrawStallTick() {
 			deluge::harness::guestTick();
 			return;
 		}
+		g_drawStallExpired = g_drawStallWait.expired();
 		g_drawStallStep = DrawStallStep::Finished;
 		return;
 	case DrawStallStep::Finished:
@@ -1388,6 +1394,7 @@ void deluge_scenario_audio_load_ab_begin(void) {
 	g_stallGiveUpsBefore = 0;
 	g_stallPendingAtEnd = false;
 	g_drawStallStep = DrawStallStep::Start;
+	g_drawStallExpired = false;
 	g_dsRedrawsBefore = 0;
 	g_dsGiveUpsBefore = 0;
 	g_dsPendingAtEnd = false;
@@ -1500,7 +1507,9 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 		else if (g_stage == Stage::DrawStall) {
 			runOneDrawStallTick();
 			if (g_drawStallStep == DrawStallStep::Finished) {
-				finishDrawStallStage();
+				if (!g_drawStallExpired) {
+					finishDrawStallStage();
+				}
 				g_stage = Stage::Stall;
 			}
 		}

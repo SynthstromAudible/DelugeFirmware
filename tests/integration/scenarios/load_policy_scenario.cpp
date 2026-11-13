@@ -395,8 +395,8 @@ bool checkReadStreamPath() {
 	sample_build::abandon(build);
 	return ok;
 }
-/// Asks an explicit async load may be answered `LOAD_IN_PROGRESS` before it counts as wedged. A retry bound inside one
-/// load's resolution, which its own LP-DEFAULT line and FAIL lines judge, not a wait across steps.
+/// How many times an explicit async load may be answered `LOAD_IN_PROGRESS` before it counts as wedged. A retry bound
+/// inside one load's resolution, which its own LP-DEFAULT line and FAIL lines judge, not a wait across steps.
 constexpr int kMaxDeferrals = 2000;
 
 enum class Stage : uint8_t {

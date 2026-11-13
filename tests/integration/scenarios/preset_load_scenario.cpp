@@ -537,6 +537,11 @@ bool fail(const char* leg, const char* what) {
 	return false;
 }
 
+/// Names the leg a wait expired in: evidence only, the wait has counted the failure.
+void probeExpired() {
+	printf("PL-PROBE leg=%s expired\n", legName(g_leg));
+}
+
 TierMark markTier() {
 	return {deluge::gui::instrumentLoad.documentReads(), deluge::gui::instrumentLoad.sampleLoads(),
 	        deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
@@ -1714,6 +1719,7 @@ bool runNavWrapMachine() {
 	case WaitState::Met:
 		break;
 	case WaitState::Expired:
+		probeExpired();
 		g_navWrapMove = static_cast<int32_t>(kNavWrapMoves.size());
 		return false;
 	}
@@ -1734,6 +1740,11 @@ bool runNavWrapMachine() {
 
 /// Check pile-wrapped-twice's landings, and put the song back as it was.
 void checkNavWrapMachine() {
+	if (g_navWrapWait.expired()) {
+		// The walk never finished: its landings were never recorded, and the wait has said so.
+		restoreNavWrapKits();
+		return;
+	}
 	printf("AQ-NAV-PILE turns=pile-wrapped-twice landed=%s,%s,%s wraps=%d,%d,%d in-song=%d\n",
 	       g_navWrapLanded[0].c_str(), g_navWrapLanded[1].c_str(), g_navWrapLanded[2].c_str(), g_navWrapWraps[0],
 	       g_navWrapWraps[1], g_navWrapWraps[2], g_navWrapLandedInstrument == g_navWrapOther ? 1 : 0);
@@ -2641,6 +2652,9 @@ void runAcquireTick() {
 		if (waited == WaitState::Met) {
 			checkAcquireAct();
 		}
+		else {
+			probeExpired();
+		}
 		if (++g_aqAct < acquireActs(g_leg)) {
 			g_aqStep = AqStep::Act;
 			break;
@@ -2714,6 +2728,7 @@ void runWalkMachineTick() {
 		case WaitState::Met:
 			break;
 		case WaitState::Expired:
+			probeExpired();
 			g_walkStep = WalkMachineStep::Report;
 			return;
 		}
@@ -2755,6 +2770,7 @@ void runWalkMachineTick() {
 		case WaitState::Met:
 			break;
 		case WaitState::Expired:
+			probeExpired();
 			g_walkStep = WalkMachineStep::Report;
 			return;
 		}
@@ -2907,6 +2923,7 @@ void runBlankTick() {
 			g_blankStep = BlankStep::Act;
 			break;
 		case WaitState::Expired:
+			probeExpired();
 			nextLeg();
 			break;
 		}
@@ -2956,6 +2973,7 @@ void runBlankTick() {
 			nextLeg();
 			break;
 		case WaitState::Expired:
+			probeExpired();
 			nextLeg();
 			break;
 		}
@@ -3017,6 +3035,7 @@ void runTick() {
 		case WaitState::Met:
 			break;
 		case WaitState::Expired:
+			probeExpired();
 			nextLeg();
 			return;
 		}
@@ -3041,6 +3060,7 @@ void runTick() {
 		case WaitState::Met:
 			break;
 		case WaitState::Expired:
+			probeExpired();
 			nextLeg();
 			return;
 		}
@@ -3098,6 +3118,7 @@ void runTick() {
 			nextLeg();
 			break;
 		case WaitState::Expired:
+			probeExpired();
 			nextLeg();
 			break;
 		}

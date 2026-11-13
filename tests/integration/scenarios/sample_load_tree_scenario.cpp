@@ -248,7 +248,7 @@ enum class Stage : uint8_t {
 Stage g_stage = Stage::SongKit;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-/// The boot song's preset request, waited on across the whole run: its budget is spent cumulatively.
+/// The boot song's preset request, waited on before the first stage builds on the boot clip.
 Wait g_bootWait{g_report, "the boot song's preset arriving", kMaxBootTicks};
 /// The wait of the stage running; each stage that waits starts a fresh one.
 Wait g_wait{g_report, "the song save finishing", kMaxWaitTicks};
@@ -1882,16 +1882,23 @@ bool runPendingFixture() {
 /// Whether the blank song's own preset request has landed. The boot song starts on the built-in default synth and asks
 /// InstrumentLoad for the first SYNTHS preset on the interaction tier; a scenario that acted on the boot clip before
 /// that landed would be working on an Instrument about to be replaced, which no user can do.
-bool bootSettled() {
-	if (currentSong != nullptr && (currentSong->blankPresetPending || deluge::gui::instrumentLoad.inFlight())) {
-		return g_bootWait.poll(false) == WaitState::Expired;
-	}
-	return true;
+WaitState pollBoot() {
+	return g_bootWait.poll(currentSong == nullptr
+	                       || !(currentSong->blankPresetPending || deluge::gui::instrumentLoad.inFlight()));
 }
 
 void runTick() {
-	if (!bootSettled()) {
-		return;
+	if (g_stage == Stage::SongKit) {
+		// Only the first stage builds on the boot clip; later stages leave the loader alone for their own waits.
+		switch (pollBoot()) {
+		case WaitState::Pending:
+			return;
+		case WaitState::Met:
+			break;
+		case WaitState::Expired:
+			g_stage = Stage::Report;
+			return;
+		}
 	}
 	switch (g_stage) {
 	case Stage::SongKit:
