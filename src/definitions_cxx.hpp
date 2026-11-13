@@ -496,8 +496,13 @@ enum class SampleRepeatMode {
 	ONCE,
 	LOOP,
 	STRETCH,
+	PINGPONG,
 };
-constexpr auto kNumRepeatModes = util::to_underlying(SampleRepeatMode::STRETCH) + 1;
+constexpr auto kNumRepeatModes = util::to_underlying(SampleRepeatMode::PINGPONG) + 1;
+
+constexpr bool isLoopingRepeatMode(SampleRepeatMode mode) {
+	return mode == SampleRepeatMode::LOOP || mode == SampleRepeatMode::PINGPONG;
+}
 
 enum class FilterType {
 	LPF,

@@ -384,7 +384,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 - (#1589) <Badge text="c1.1" variant="tip" /> Added a new default setting that controls which playback mode new slices of a kit will get.
 - To change the setting, press :key[Shift + Select] : `MENU > DEFAULTS > SAMPLE SLICE MODE`.
 - every new slice in a kit using the slicer will now get one of the modes by default
-  - `CUT`, `ONCE`, `LOOP`, `STRETCH`
+  - `CUT`, `ONCE`, `LOOP`, `STRETCH`, `PINGPONG`
   - the setting is persistent after reboot
   - if a kit slice is shorter then 2s, the slicer will automatically switch to `ONCE` (default behaviour)
 
@@ -1211,6 +1211,17 @@ For a detailed description of this feature, please refer to the feature document
   (and also base note for drums) that will be sent at the same time as the sound triggers.
   In case of drums, it is like having a Sound row + a Midi row together triggering at the same time. And in case of synths, it is like
   having a Synth clip + a Midi clip together triggering at the same time. This feature is limited to regular MIDI (that is, not for MPE).
+
+### 4.5.11 - Ping-Pong Sample Repeat Mode <Badge text="c1.4" variant="tip" />
+
+- (#5309) Added a `PINGPONG` option to the sample oscillator's `REPEAT MODE` (`OSCILLATOR 1 / 2 > REPEAT MODE`), and
+  to `SAMPLE SLICE MODE` in the defaults menu.
+  - It plays like `LOOP`, but turns around at each loop boundary instead of jumping back to the loop start, so it plays
+    back and forth between the loop points. With no loop points set, it bounces between the start and end points.
+  - It works with `REVERSE`: a reversed sample plays its first pass backwards, then forwards, and so on.
+  - While time-stretching (pitch and speed unlinked with a transpose applied, or a `SPEED` other than 0), it loops like
+    `LOOP` instead.
+  - A ping-pong sample doesn't use the playback cache, so a transposed one uses a bit more CPU than in `LOOP` mode.
 
 ## 4.6 - Instrument Clip View - Kit Clip Features
 

@@ -53,6 +53,7 @@ void VoiceSample::noteOn(SamplePlaybackGuide* guide, uint32_t samplesLate, int32
 	timeStretcher = nullptr; // Just in case
 	fudging = false;
 	forAudioClip = false;
+	pingpongReversed = false;
 }
 
 // Returns false if error
@@ -1107,6 +1108,7 @@ readNonTimestretched:
 			if (!stillActive) {
 				return false;
 			}
+			jumpAmount = bytesPerSample * guide->playDirection; // Ping-pong may have just turned around
 
 			// No pitch adjustment - in which case we know we're not writing to cache either
 			if (phaseIncrement == kMaxSampleValue) {

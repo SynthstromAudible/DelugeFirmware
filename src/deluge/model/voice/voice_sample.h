@@ -92,8 +92,9 @@ public:
 	SampleCache* cache = nullptr;
 	bool doneFirstRenderYet = false;
 	bool fudging = false;
-	bool forAudioClip = false;   // This is a wee bit of a hack - but we need to be able to know this
-	bool writingToCache = false; // Value is only valid if cache assigned
+	bool forAudioClip = false;     // This is a wee bit of a hack - but we need to be able to know this
+	bool writingToCache = false;   // Value is only valid if cache assigned
+	bool pingpongReversed = false; // Each unison part bounces on its own, but they share one guide
 
 private:
 	bool weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuide* guide, int32_t numSamples,

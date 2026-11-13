@@ -2048,9 +2048,9 @@ int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, in
 		if (sources[s].oscType != OscType::SAMPLE) {
 			return 0;
 		}
-		else if (sources[s].repeatMode == SampleRepeatMode::CUT || sources[s].repeatMode == SampleRepeatMode::LOOP) {
+		else if (sources[s].repeatMode == SampleRepeatMode::CUT || isLoopingRepeatMode(sources[s].repeatMode)) {
 
-			if (anyLooping && sources[s].repeatMode == SampleRepeatMode::LOOP) {
+			if (anyLooping && isLoopingRepeatMode(sources[s].repeatMode)) {
 				*anyLooping = true;
 			}
 			int32_t length = sources[s].getLengthInSamplesAtSystemSampleRate(note);

@@ -27,6 +27,7 @@ VoiceSamplePlaybackGuide::VoiceSamplePlaybackGuide() {
 
 void VoiceSamplePlaybackGuide::setupPlaybackBounds(bool reversed) {
 
+	pingpongReversed = false;
 	SamplePlaybackGuide::setupPlaybackBounds(reversed);
 
 	int32_t loopStartPlaybackAtSample = 0;
@@ -97,5 +98,20 @@ LoopType VoiceSamplePlaybackGuide::getLoopingType(const Source& source) const {
 	if (loopEndPlaybackAtByte) {
 		return noteOffReceived ? LoopType::NONE : LoopType::LOW_LEVEL;
 	}
-	return (source.repeatMode == SampleRepeatMode::LOOP) ? LoopType::LOW_LEVEL : LoopType::NONE;
+	return isLoopingRepeatMode(source.repeatMode) ? LoopType::LOW_LEVEL : LoopType::NONE;
+}
+
+void VoiceSamplePlaybackGuide::onLoopRestart() {
+	if (pingpongAllowed) {
+		setPingpongReversed(!pingpongReversed);
+	}
+}
+
+// The reversed bounds cover exactly the same loop region, so turning around is just a switch of orientation. The
+// "loop start" is then the edge we just reached, and the reader reflects any overshoot back from it.
+void VoiceSamplePlaybackGuide::setPingpongReversed(bool reversed) {
+	if (reversed != pingpongReversed) {
+		setupPlaybackBounds(playDirection == 1); // Resets pingpongReversed
+		pingpongReversed = reversed;
+	}
 }
