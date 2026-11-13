@@ -5047,22 +5047,26 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 }
 
 Output* Song::applyNavigateThroughPresets(Instrument* oldInstrument, const deluge::storage::AcquireResult& acquired) {
-	if (acquired.error != Error::NONE) {
-		if (acquired.error != Error::NO_ERROR_BUT_GET_OUT) {
-			deluge::notify::notice(acquired.error);
-		}
+	// Every turn that stays where it is leaves through here: `main`'s `removeWorkingAnimationAndGetOut`
+	// (`origin/main:src/deluge/model/song/song.cpp`'s `Song::navigateThroughPresetsForInstrument`).
+	const auto removeWorkingAnimationAndGetOut = [oldInstrument]() -> Output* {
 		auto oled = static_cast<deluge::hid::display::OLED*>(display);
 		oled->consoleTimerEvent();
 		oled->removeWorkingAnimation();
 		return oldInstrument;
+	};
+	if (acquired.error != Error::NONE) {
+		if (acquired.error != Error::NO_ERROR_BUT_GET_OUT) {
+			deluge::notify::notice(acquired.error);
+		}
+		return removeWorkingAnimationAndGetOut();
 	}
 	if (acquired.alreadyInSong) {
 		// The walk passes instruments already in the song over until its second wrap, and then takes one. There is
 		// nothing to swap, and replaceInstrument() freezes (i009) on an Instrument already in its output list, so the
-		// turn stays where it is, as a walk that found nowhere to go does.
-		deluge::notify::notice_clear_working();
+		// turn stays where it is, as a walk that found nowhere to go does, with the old instrument's name redrawn.
 		view.displayOutputName(oldInstrument, false);
-		return oldInstrument;
+		return removeWorkingAnimationAndGetOut();
 	}
 	Instrument* newInstrument = acquired.instrument;
 	if (acquired.wasHibernating) {

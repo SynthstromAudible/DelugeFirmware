@@ -565,7 +565,8 @@ std::optional<uint32_t> InputLowering::last_press_ms(ButtonId b) const {
 }
 
 double InputLowering::calc_next_knob_speed(EncoderRole role, int8_t delta, uint32_t now_ms) {
-	// `ContinuousEncoder::calcNextKnobSpeed` (`hid/encoders.cpp`): legacy's curve, one per role, on this clock.
+	// `ContinuousEncoder::calcNextKnobSpeed` (`origin/main:src/deluge/hid/encoders.cpp`): main's curve, one per role,
+	// on this clock.
 	const size_t r = static_cast<size_t>(role);
 	if (r >= kEncoderCount) {
 		return ui::kGoldEncoderAcceleration.min_multiplier;

@@ -447,14 +447,12 @@ private:
 	///          must fit in -128..127; the warning on `InputLowering::apply_encoder_edges` records what
 	///          happens when it does not. **The guest can exceed it.** Legacy's
 	///          `detentDelta` is an `int32_t` accumulated in `DetentedEncoder::pos` across however
-	///          many `applyEdges` calls happen before a `take()`, and `interpretEncoders` skips the
-	///          `take()` entirely while the SD routine is yielding (its
-	///          `continue`s) and while a stem export is running (its early return, after the
-	///          `applyEdges` calls). Each skipped pass can add up to 63
-	///          detents (`deluge_encoder_take_edges` reports an `int8_t`, halved by
-	///          `DetentedEncoder::applyEdges`), so a knob turned through a multi-second song load delivers
-	///          the whole accumulation in one call. So the clamp is `+-(127 / edges_per_detent)`,
-	///          i.e. +-63 detents at the Deluge's two edges per detent, applied **before** the
+	///          many `applyEdges` calls happen before a `take()`, and `interpretEncoders` returns before
+	///          any `take()` while a stem export is running, after its `applyEdges` calls. Each skipped
+	///          pass can add up to 42 detents (`deluge_encoder_take_quadrature_edges` reports an `int8_t`
+	///          of edges, and `DetentedEncoder::applyEdges` counts 3, 4 or 2 edges a detent), so a knob
+	///          turned through a stem export delivers the whole accumulation in one call. So the clamp is `+-(127 /
+	///          edges_per_detent)`, i.e. +-63 detents at the Deluge's two edges per detent, applied **before** the
 	///          multiply. That is legacy's own choice for two of its four encoders -- tempo and
 	///          select get `clamp(detentDelta, -128, 127)` (`interpretEncoders`) -- and a
 	///          divergence from it for the other two, which legacy hands the full `int32_t` "for

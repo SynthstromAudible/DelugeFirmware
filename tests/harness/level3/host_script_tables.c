@@ -75,7 +75,7 @@ static const HostScriptButton k_buttons[] = {
     {"Play", 8, 3},
 };
 
-/// `EncoderRole` name by firmware encoder index -- the index `deluge_encoder_take_edges()` takes.
+/// `EncoderRole` name by firmware encoder index -- the index `deluge_encoder_take_quadrature_edges()` takes.
 ///
 /// `hid/encoder_input.cpp`'s `interpretEncoders` fixes the order (`0=scrollY 1=scrollX 2=tempo 3=select 4=mod1
 /// 5=mod0`), and `hid/encoders.h`'s `mod0`/`mod1` fixes which gold knob each `mod` is: `mod1` is the UPPER

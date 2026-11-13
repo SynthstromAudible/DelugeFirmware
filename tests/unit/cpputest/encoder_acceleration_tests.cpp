@@ -3,6 +3,8 @@
 #include "hid/encoder_acceleration.h"
 #include "hid/encoders.h"
 
+#include <vector>
+
 using deluge::hid::encoders::EncoderAcceleration;
 using deluge::hid::encoders::kGoldEncoderAcceleration;
 using deluge::hid::encoders::kHorizontalMenuAcceleration;
@@ -97,6 +99,13 @@ TEST(EncoderAccelerationTest, ExplicitResetClearsHorizontalMenuAcceleration) {
 TEST_GROUP(ContinuousEncoderTimedRunsTest) {
 	deluge::hid::encoders::ContinuousEncoder encoder;
 
+	/// Every turn the encoder hands out since the last call, in order.
+	std::vector<int32_t> turns() {
+		std::vector<int32_t> out;
+		encoder.actionTurns([&](int8_t offset) { out.push_back(offset); });
+		return out;
+	}
+
 	/// Every turn the encoder hands out since the last call, summed.
 	int32_t actioned() {
 		int32_t sum = 0;
@@ -114,4 +123,29 @@ TEST(ContinuousEncoderTimedRunsTest, BatchedRunsAccelerateOnTheirOwnTimes) {
 	}
 	LONGS_EQUAL(1 + 10 * 3, actioned());
 	LONGS_EQUAL(0, actioned());
+}
+
+// A reversal inside one batch starts the speed again from rest, as `main`'s `EncoderAcceleration::advance` does for a
+// turn the other way, and then builds it on the reversed runs' own times.
+TEST(ContinuousEncoderTimedRunsTest, AReversalMidBatchResetsTheSpeed) {
+	encoder.applyEdges(1, 1.000);
+	encoder.applyEdges(1, 1.003);
+	encoder.applyEdges(1, 1.006);
+	encoder.applyEdges(-1, 1.009);
+	encoder.applyEdges(-1, 1.012);
+	const std::vector<int32_t> want{1, 3, 3, -1, -3};
+	CHECK(want == turns());
+}
+
+// Runs past the queue's capacity fold into its newest run: no edge is lost, and the folded run goes out at its last
+// time, its edges accelerated together.
+TEST(ContinuousEncoderTimedRunsTest, RunsPastTheQueueFoldIntoTheNewest) {
+	constexpr size_t kRuns = deluge::hid::encoders::ContinuousEncoder::kMaxRuns + 2;
+	for (size_t i = 0; i < kRuns; i++) {
+		encoder.applyEdges(1, 1.0 + 0.003 * static_cast<double>(i));
+	}
+	const std::vector<int32_t> got = turns();
+	LONGS_EQUAL(deluge::hid::encoders::ContinuousEncoder::kMaxRuns, got.size());
+	LONGS_EQUAL(1, got.front());
+	LONGS_EQUAL(3 * 3, got.back());
 }

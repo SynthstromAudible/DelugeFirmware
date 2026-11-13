@@ -105,7 +105,7 @@ public:
 	/// `DELUGE_EVENT_PAD`, `DELUGE_EVENT_BUTTON` and `DELUGE_EVENT_NO_PRESSES` are the device's
 	/// three shapes. `DELUGE_EVENT_ENCODER` never arrives on this channel on the Deluge
 	/// (`deluge.cpp`) but the host injector uses it; its `x` is the encoder index and its
-	/// `value` is a signed count of A-pin *edges*, the same unit `deluge_encoder_take_edges`
+	/// `value` is a signed count of A-pin *edges*, the same unit `deluge_encoder_take_quadrature_edges`
 	/// reports, so it is handed straight to the encoder path.
 	/// @param ev     The event.
 	/// @param now_ms The wall clock at which it arrived.
@@ -116,7 +116,7 @@ public:
 	///        input is locked.
 	void on_host_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut_without_shift, uint32_t now_ms);
 	/// @brief Lower the A-pin edges one encoder has accumulated -- the device path
-	///        (`deluge_encoder_take_edges`, folded in by `hid/encoder_input.cpp`'s `interpretEncoders`).
+	///        (`deluge_encoder_take_quadrature_edges`, folded in by `hid/encoder_input.cpp`'s `interpretEncoders`).
 	///
 	/// @note Unlike `on_board_event`, this is never deferred by `sd_busy()`: the legacy
 	///       `applyEdges` runs unconditionally and leaves the detents pending in the encoder's own
@@ -377,8 +377,9 @@ public:
 	void clear_all_held(uint32_t now_ms);
 	/// @}
 
-	/// @brief The gold-knob acceleration multiplier for one turn: `ContinuousEncoder::calcNextKnobSpeed`
-	///        (`hid/encoders.cpp`), through the same `ui::EncoderAcceleration` legacy uses, one per encoder role.
+	/// @brief The gold-knob acceleration multiplier for one turn: `main`'s `ContinuousEncoder::calcNextKnobSpeed`
+	///        (`origin/main:src/deluge/hid/encoders.cpp`), through the same `ui::EncoderAcceleration` legacy uses, one
+	///        per encoder role.
 	///
 	/// Speed builds while the knob keeps turning the same way and resets when the direction changes or the knob
 	/// pauses past the threshold. Only the sign of \p delta counts, and a turn in the same millisecond as the last

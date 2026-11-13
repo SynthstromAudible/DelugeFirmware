@@ -308,8 +308,8 @@ constexpr uint32_t kNavReadHoldMs = 50;
 /// the third behind the pile's walk, so InstrumentLoad hands each pile its landing's wraps. A landing on an in-song
 /// instrument only happens where the walk passes them over, which is a turn from the session or arranger view (main's
 /// `Song::navigateThroughPresetsForInstrument`); the clip view's turn goes through `View::changeInstrument`, which does
-/// not reach that freeze. There main's `Song::replaceInstrument` freezes with i009 on an instrument already in the
-/// song; ours leaves the clip on the kit it had, its name on the OLED and the working notice cleared, as a walk that
+/// not reach that freeze. From those views main's `Song::replaceInstrument` freezes with i009 on an instrument already
+/// in the song; ours leaves the clip on the kit it had, its name on the OLED and no working notice up, as a walk that
 /// found nowhere to go does, so the turns end with the clip still on kNavWrapFrom.
 constexpr const char* kNavWrapDir = "KITS/AQWRAP";
 constexpr int32_t kNavWrapCount = 5;

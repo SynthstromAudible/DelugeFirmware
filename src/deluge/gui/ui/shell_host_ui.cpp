@@ -772,9 +772,9 @@ void ShellHostUI::feedPad(uint8_t x, uint8_t y, int32_t velocity, bool shortcutW
 
 void ShellHostUI::feedDetents(EncoderRole role, int32_t detents) {
 	if (detents == 0) {
-		// `interpretEncoders` only calls a hook when `fe.pending()` (`hid/encoder_input.cpp`'s `interpretEncoders`),
-		// so a zero is not something legacy produces -- but `selectEncoderAction` is also reachable
-		// from the SD test mode (`:83`) and from anything else that decides to drive a UI directly,
+		// `interpretEncoders` (`hid/encoder_input.cpp`) only calls a hook when `fe.pending()`, so a zero is
+		// not something legacy produces -- but `selectEncoderAction` is also reachable from its SD test
+		// mode (`SD_TEST_MODE_ENABLED`) and from anything else that decides to drive a UI directly,
 		// and a zero-edge feed would still set `had_input_this_tick` and wake the repaint gate.
 		return;
 	}
