@@ -26,27 +26,6 @@ static_assert(ContinuousEncoder::kMaxRuns == DELUGE_ENCODER_EDGE_RUNS);
 
 // ── DetentedEncoder ────────────────────────────────────────────────────────
 
-void DetentedEncoder::applyEdges(int8_t edges) {
-	// Thresholds depend on the last click's direction: see the class comment.
-	edgeAccumulator += edges;
-	int32_t ticks = 0;
-	while (edgeAccumulator >= positiveThreshold()) {
-		edgeAccumulator -= positiveThreshold();
-		lastDirection = 1;
-		++ticks;
-	}
-	while (edgeAccumulator <= -negativeThreshold()) {
-		edgeAccumulator += negativeThreshold();
-		lastDirection = -1;
-		--ticks;
-	}
-	pos.fetch_add(ticks, std::memory_order_relaxed);
-}
-
-int32_t DetentedEncoder::take() {
-	return pos.exchange(0, std::memory_order_relaxed);
-}
-
 // -- ContinuousEncoder ------------------------------------------------------
 
 void ContinuousEncoder::applyEdges(int8_t edges) {

@@ -24,6 +24,7 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
 namespace deluge::hid::encoders {
 
@@ -39,13 +40,28 @@ public:
 	DetentedEncoder(const DetentedEncoder&) = delete;
 	DetentedEncoder& operator=(const DetentedEncoder&) = delete;
 
-	void applyEdges(int8_t edges);
+	void applyEdges(int8_t edges) {
+		// Thresholds depend on the last click's direction: see the class comment.
+		edgeAccumulator += edges;
+		int32_t ticks = 0;
+		while (edgeAccumulator >= positiveThreshold()) {
+			edgeAccumulator -= positiveThreshold();
+			lastDirection = 1;
+			++ticks;
+		}
+		while (edgeAccumulator <= -negativeThreshold()) {
+			edgeAccumulator += negativeThreshold();
+			lastDirection = -1;
+			--ticks;
+		}
+		pos.fetch_add(ticks, std::memory_order_relaxed);
+	}
 
 	/// True if any detent steps are waiting to be consumed.
 	bool pending() const { return pos.load(std::memory_order_relaxed) != 0; }
 
 	/// Returns the accumulated signed detent count and resets pos to 0.
-	int32_t take();
+	int32_t take() { return pos.exchange(0, std::memory_order_relaxed); }
 
 private:
 	int32_t positiveThreshold() const { return lastDirection == 0 ? 3 : (lastDirection == 1 ? 4 : 2); }
@@ -55,6 +71,33 @@ private:
 	int32_t edgeAccumulator = 0; ///< Quadrature edges not yet a whole detent click.
 	std::atomic_int32_t pos = 0; ///< Written by applyEdges, drained by the encoder task.
 };
+
+/// One turn of a detented encoder: the detents a run of edges completed, and when the board decoded that run, on
+/// `getSystemTime()`'s clock in microseconds (0: no time).
+struct TimedDetents {
+	int32_t detents;
+	uint64_t timeUs;
+};
+
+/// @brief Fold @p runs (each with `edges` and `time_us`, oldest first) into @p encoder, and write each run that
+///        completed any detent as one turn into @p turns, after the detents already waiting in it as one turn with
+///        no time. `main`'s encoder task takes the detents as the edges arrive, a turn at a time.
+/// @param turns Room for one more turn than there are runs.
+/// @return How many turns were written.
+template <typename Run>
+size_t splitIntoTurns(DetentedEncoder& encoder, std::span<const Run> runs, std::span<TimedDetents> turns) {
+	size_t count = 0;
+	if (encoder.pending()) {
+		turns[count++] = {.detents = encoder.take(), .timeUs = 0};
+	}
+	for (const Run& run : runs) {
+		encoder.applyEdges(run.edges);
+		if (encoder.pending()) {
+			turns[count++] = {.detents = encoder.take(), .timeUs = run.time_us};
+		}
+	}
+	return count;
+}
 
 /// Gold mod encoders (MOD_0, MOD_1) are continuous, and accumulate raw edges for velocity: four per
 /// quadrature cycle, as in 1.x.
@@ -107,6 +150,9 @@ public:
 		count_ = 0;
 		for (size_t i = 0; i < count; i++) {
 			const Run run = runs_[i];
+			if (run.edges == 0) {
+				continue; // a fold that added up to nothing: `main` acts only `if (offset != 0)`
+			}
 			action(
 			    static_cast<int8_t>(run.edges * acceleration_.advance(run.edges, run.time, kGoldEncoderAcceleration)));
 		}

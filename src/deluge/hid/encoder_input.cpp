@@ -54,29 +54,12 @@ uint64_t selectTurnTimeUs() {
 	return selectTurnTimeUs_;
 }
 
-/// One select turn: the detents a run of edges completed, and when the board decoded that run.
-struct SelectTurn {
-	int32_t detents;
-	uint64_t timeUs;
-};
-
-/// Fold the select encoder's runs the board has decoded into its detents, oldest first, and write each run that
-/// completed any as one turn into \p turns, after any detents already waiting, which have no time.
+/// The select encoder's turns since the last call: see splitIntoTurns().
 /// @return How many turns were written.
-static size_t takeSelectTurns(std::span<SelectTurn, DELUGE_ENCODER_EDGE_RUNS + 1> turns) {
-	size_t count = 0;
-	if (select.pending()) {
-		turns[count++] = {.detents = select.take(), .timeUs = 0};
-	}
+static size_t takeSelectTurns(std::span<TimedDetents, DELUGE_ENCODER_EDGE_RUNS + 1> turns) {
 	DelugeEncoderEdges runs[DELUGE_ENCODER_EDGE_RUNS];
 	const uint8_t n = deluge_encoder_take_timed_quadrature_edges(3, runs, DELUGE_ENCODER_EDGE_RUNS);
-	for (uint8_t i = 0; i < n; i++) {
-		select.applyEdges(runs[i].edges);
-		if (select.pending()) {
-			turns[count++] = {.detents = select.take(), .timeUs = runs[i].time_us};
-		}
-	}
-	return count;
+	return splitIntoTurns(select, std::span<const DelugeEncoderEdges>{runs, n}, turns);
 }
 
 /// Queue the gold encoder's runs the board has decoded at \p index, each at the time it was decoded.
@@ -109,7 +92,7 @@ bool interpretEncoders() {
 		return false;
 	}
 	// The select encoder's runs wait on the board meanwhile, each with its time.
-	std::array<SelectTurn, DELUGE_ENCODER_EDGE_RUNS + 1> selectTurns;
+	std::array<TimedDetents, DELUGE_ENCODER_EDGE_RUNS + 1> selectTurns;
 	const size_t selectTurnCount = takeSelectTurns(selectTurns);
 
 	bool anything = false;
@@ -179,7 +162,7 @@ bool interpretEncoders() {
 
 	// Select: each run of edges that completed a detent is one of `main`'s turns, which its encoder task takes as the
 	// edges arrive, actioned on the time the board decoded it (selectTurnTimeUs()).
-	for (const SelectTurn& turn : std::span{selectTurns}.first(selectTurnCount)) {
+	for (const TimedDetents& turn : std::span{selectTurns}.first(selectTurnCount)) {
 		anything = true;
 		const auto saturatedDelta = static_cast<int8_t>(std::clamp(turn.detents, (int32_t)-128, (int32_t)127));
 		selectTurnTimeUs_ = turn.timeUs;

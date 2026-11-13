@@ -3,6 +3,8 @@
 #include "hid/encoder_acceleration.h"
 #include "hid/encoders.h"
 
+#include <array>
+#include <span>
 #include <vector>
 
 using deluge::hid::encoders::EncoderAcceleration;
@@ -148,4 +150,55 @@ TEST(ContinuousEncoderTimedRunsTest, RunsPastTheQueueFoldIntoTheNewest) {
 	LONGS_EQUAL(deluge::hid::encoders::ContinuousEncoder::kMaxRuns, got.size());
 	LONGS_EQUAL(1, got.front());
 	LONGS_EQUAL(3 * 3, got.back());
+}
+
+// A folded run whose edges add up to nothing is no turn: `main` acts on a gold knob only `if (offset != 0)`, so it
+// neither reaches the UI nor moves the acceleration on. The queue is filled, the newest run folds back to 0, and the
+// run after it accelerates as though the folded one had not come.
+TEST(ContinuousEncoderTimedRunsTest, AFoldThatAddsUpToNothingIsNoTurn) {
+	constexpr size_t kRuns = deluge::hid::encoders::ContinuousEncoder::kMaxRuns;
+	for (size_t i = 0; i < kRuns; i++) {
+		encoder.applyEdges(1, 1.0 + 0.003 * static_cast<double>(i));
+	}
+	encoder.applyEdges(-1, 2.0); // folds the newest run, +1, to 0
+	const std::vector<int32_t> got = turns();
+	LONGS_EQUAL(kRuns - 1, got.size());
+	// After 0.3 s the speed would reset; the zero run at 2.0 s must not have moved the clock it is measured from.
+	encoder.applyEdges(1, 1.0 + 0.003 * static_cast<double>(kRuns));
+	LONGS_EQUAL(3, actioned());
+}
+
+TEST_GROUP(SplitIntoTurnsTest) {
+	/// A run of edges as the board hands it over.
+	struct Run {
+		int8_t edges;
+		uint64_t time_us;
+	};
+	deluge::hid::encoders::DetentedEncoder encoder;
+	std::array<deluge::hid::encoders::TimedDetents, 8> turns{};
+};
+
+// Each run that completes a detent is a turn of its own, at that run's time; a run that completes none adds its edges
+// to the next. The first click needs three edges, the next ones four.
+TEST(SplitIntoTurnsTest, EachRunThatCompletesADetentIsATurnAtItsTime) {
+	const std::array<Run, 4> runs{{{2, 100}, {1, 200}, {4, 300}, {2, 400}}};
+	const size_t n = deluge::hid::encoders::splitIntoTurns(encoder, std::span<const Run>{runs}, std::span{turns});
+	LONGS_EQUAL(2, n);
+	LONGS_EQUAL(1, turns[0].detents);
+	LONGS_EQUAL(200, turns[0].timeUs);
+	LONGS_EQUAL(1, turns[1].detents);
+	LONGS_EQUAL(300, turns[1].timeUs);
+	CHECK_FALSE(encoder.pending());
+}
+
+// Detents already waiting in the encoder, put there without a time, go out first, as one turn with none.
+TEST(SplitIntoTurnsTest, DetentsAlreadyWaitingGoOutFirstWithNoTime) {
+	encoder.applyEdges(3);
+	const std::array<Run, 1> runs{{{4, 500}}};
+	const size_t n = deluge::hid::encoders::splitIntoTurns(encoder, std::span<const Run>{runs}, std::span{turns});
+	LONGS_EQUAL(2, n);
+	LONGS_EQUAL(1, turns[0].detents);
+	LONGS_EQUAL(0, turns[0].timeUs);
+	LONGS_EQUAL(1, turns[1].detents);
+	LONGS_EQUAL(500, turns[1].timeUs);
 }
