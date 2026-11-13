@@ -512,7 +512,7 @@ private:
 	bool holding_save_ = false;
 	bool holding_load_ = false;
 	/// `View::timeSaveButtonPressed` (`gui/views/view.h:128`) -- **one** member, shared by both
-	/// arms exactly as legacy shares it: the LOAD press writes the same variable (`view.cpp:300`)
+	/// arms exactly as legacy shares it: the LOAD press writes the same variable (`view.cpp:301`)
 	/// the SAVE press does (`:241`). They can never both be held, because each arm's press branch
 	/// requires `UI_MODE_NONE`.
 	uint32_t save_pressed_ms_ = 0;

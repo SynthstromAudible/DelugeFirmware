@@ -77,6 +77,10 @@ void wireShellClipCloneViews();
 ///        `ViewState` blocks. Called whenever the root, or the automation view's editor, changes under the menu.
 void refreshShellRootFacts();
 
+/// @brief Tell the shared gold knobs (`sharedModKnobs()`) the song and the root view now, before a root view's gesture
+///        reads them: `currentSong` and `currentUIMode` move between events, with no menu open to re-read them.
+void refreshKnobsForRoot();
+
 /// @brief Whether the ported menu is the guest's frontmost scene, the guest is the current UI, and the menu's root is
 ///        not the settings: the guest's half of "is the sound menu open" (`util/sound_menu_open.h`).
 bool shellSoundMenuOpen();

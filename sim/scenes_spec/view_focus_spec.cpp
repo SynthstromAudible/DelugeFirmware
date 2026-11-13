@@ -21,6 +21,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/edits/edit.h"
 #include "model/edits/learn_mapping.h"
+#include "model/edits/set_mod_knob_mode.h"
 #include "model/edits/set_param_value.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
@@ -546,8 +547,9 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		spec::SongFixture a = spec::make_synth_song();
 		spec::SongFixture b = add_synth_clip(a);
 		currentSong = a.song;
-		*a.instrument->toModControllable()->getModKnobMode() = 0;
-		*b.instrument->toModControllable()->getModKnobMode() = 0;
+		// Through the record, which the knobs read the mode from.
+		(void)deluge::edits::modKnobModeForSlot(a.instrument->toModControllable()->getModKnobMode(), 0);
+		(void)deluge::edits::modKnobModeForSlot(b.instrument->toModControllable()->getModKnobMode(), 0);
 		const auto pan_of = [](const spec::SongFixture& f) {
 			return project::ParamAddress{.owner = project::OwnerId::instrument(*f.instrument->id()),
 			                             .space = project::ParamSpace::ENGINE, .id = deluge::instrument::param::kPan,

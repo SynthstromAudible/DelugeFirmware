@@ -23,11 +23,12 @@
 /// `src/shell/**` may not include `model/**` (`shell-includes-outside`), and this class is about the song's
 /// records, so it implements the shell's interface from the scenes library, as `GlobalControls` and `MidiLearn` do.
 ///
-/// @par What the router sends here
+/// @par Who sends gestures here
 ///
-/// A mod button, a gold-knob turn and a gold-knob push, each only after the top scene has declined it
-/// (`shell/router.h`'s `route()`): `View` is what `UI`'s base-class hooks forward to (`UI::modEncoderAction`,
-/// `UI::modButtonAction`, `UI::modEncoderButtonAction`).
+/// With a menu up, the router: a mod button, a gold-knob turn and a gold-knob push, each only after the top scene has
+/// declined it (`shell/router.h`'s `route()`), shown through the shell's `GuestKnobPresentation`. With no menu, the
+/// root views: `UI`'s base-class hooks (`UI::modEncoderAction`, `UI::modButtonAction`, `UI::modEncoderButtonAction`)
+/// call `turn`, `section_button` and `push` through `gui/ui/root_knobs`, shown through the legacy display.
 ///
 /// @par Acceleration
 ///
@@ -201,12 +202,13 @@ public:
 
 	/// @brief What knob @p knob's indicator reads.
 	/// @param knob 0 for the lower knob, 1 for the upper.
-	ModIndicatorInfo indicator_info(int32_t knob) const;
+	/// @return What it reads; with no song, a default that declares nothing (`indicator_level`).
+	[[nodiscard]] ModIndicatorInfo indicator_info(int32_t knob) const;
 
 	/// @brief The address knob @p knob turns, if it turns a param (clip view's automation copy and paste).
 	/// @param knob 0 for the lower knob, 1 for the upper.
 	/// @return The address; none with no focus, or for a knob on a setting or on nothing.
-	std::optional<project::ParamAddress> knob_address(int32_t knob) const;
+	[[nodiscard]] std::optional<project::ParamAddress> knob_address(int32_t knob) const;
 
 	/// @brief Is the VU meter shown? (the focus's, which View keeps too), which pressing the selected mod button 0
 	///        outside a clip minder toggles; its one effect here is the blinking volume mod LED.

@@ -27,6 +27,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/root_knobs.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/save/save_song_ui.h"
 #include "gui/ui/ui.h"
@@ -1348,19 +1349,7 @@ void View::setKnobIndicatorLevels() {
 	}
 
 	refreshKnobParamManager();
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* stack = knobOwnerStack(memory);
-	if (stack != nullptr && stack->modControllable != nullptr) {
-		for (int32_t whichModEncoder = 0; whichModEncoder < NUM_LEVEL_INDICATORS; whichModEncoder++) {
-			if (!indicator_leds::isKnobIndicatorBlinking(whichModEncoder)) {
-				setKnobIndicatorLevel(whichModEncoder);
-			}
-		}
-	}
-
-	else {
-		indicator_leds::clearKnobIndicatorLevels();
-	}
+	deluge::gui::ui::root_knobs::refresh_indicators();
 }
 
 void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
@@ -1933,6 +1922,10 @@ void View::knobFocusChanged() {
 	compSong_ = currentSong;
 	knobsOnClipContext_ = knobsClipId().has_value();
 	refreshKnobParamManager();
+}
+
+bool View::knobsOnCurrentSong() const {
+	return currentSong != nullptr && knobSong_ == currentSong;
 }
 
 void View::refreshKnobParamManager() {

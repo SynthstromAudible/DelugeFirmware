@@ -119,6 +119,10 @@ void GuestKnobPresentation::notice_text(std::string_view text) {
 	deluge::notify::notice_text(text);
 }
 
+void GuestKnobPresentation::notification(std::string_view title, std::string_view value) {
+	deluge::notify::notice_notification(title, value);
+}
+
 void GuestKnobPresentation::popup(deluge::l10n::String string) {
 	(void)result_.actions.push_back(Action{.kind = Action::Kind::Popup,
 	                                       .surface = deluge::ui::shell::SurfaceRole::Main,

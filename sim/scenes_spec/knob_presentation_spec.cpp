@@ -108,6 +108,12 @@ struct Recording final : KnobPresentation {
 		calls.push_back(string == deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED ? "popup automation_deleted"
 		                                                                              : "popup other");
 	}
+	void notification(std::string_view title, std::string_view /*value*/) override {
+		calls.push_back("notification " + std::string{title});
+	}
+	void setting_indicator(int32_t knob, int32_t knob_pos) override {
+		calls.push_back("setting " + std::to_string(knob) + " " + std::to_string(knob_pos));
+	}
 	void cancel_popup() override { calls.emplace_back("cancel"); }
 
 	/// @return The calls so far, and forget them.
@@ -289,6 +295,32 @@ describe knob_presentation_spec_body("scenes::services::KnobPresentation", $ {
 		    .to_be_true();
 		actionLogger.deleteAllLogs();
 		nullifyUIs();
+	});
+
+	it("shows a song compressor turn as its knob's new position, then its setting's notification", _ {
+		Rig rig;
+		(void)deluge::edits::modKnobModeFor(deluge::project::SongAddress{}, 4);
+		rig.knobs.set_focus(bind::KnobFocus{.owner = bind::SongFocus{}}, false);
+		rig.knobs.push(1, true, {}, rig.out); // the upper knob's push edits the compressor: the knobs leave their params
+		rig.knobs.push(1, false, {}, rig.out);
+		(void)rig.out.take();
+		const deluge::scenes::services::ModIndicatorInfo before = rig.knobs.indicator_info(1);
+		expect(before.non_existent_param).to_be_true();
+
+		rig.knobs.turn(1, 3, 1000, rig.out); // the threshold
+		const std::string title{deluge::l10n::get(deluge::l10n::String::STRING_FOR_THRESHOLD)};
+		expect(rig.out.take()
+		       == Calls{"setting 1 " + std::to_string(before.non_existent_knob_pos + 3), "notification " + title})
+		    .to_be_true();
+	});
+
+	it("reads no indicator with no song", _ {
+		Rig rig;
+		rig.set_mode(0);
+		rig.knobs.set_song(nullptr);
+		const deluge::scenes::services::ModIndicatorInfo info = rig.knobs.indicator_info(0);
+		expect(info.has_auto_param || info.non_existent_param || info.patch_cable_default).to_be_false();
+		expect(ModKnobs::indicator_level(info, false).declared).to_be_false();
 	});
 
 	it("reads the address a knob turns, and none for a knob on nothing", _ {

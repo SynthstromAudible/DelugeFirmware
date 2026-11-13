@@ -601,7 +601,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(copy_of(OLED::main.bytes()) == rendered).to_be_true();
 
 		// It restores, it does not re-mark: legacy has already decided to send this frame by the
-		// time it calls here (`gui/ui/ui.cpp:395`).
+		// time it calls here (`gui/ui/ui.cpp:396`).
 		expect(fakelegacy::oled_marked()).to_be_false();
 	});
 
@@ -2216,7 +2216,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::closed.empty()).to_be_true();
 
 		// The close path: cleared, exactly once, and **before** `close()` -- `closeUI` hands focus
-		// to the UI beneath on the same call (`gui/ui/ui.cpp:229`) and that is what re-fills the
+		// to the UI beneath on the same call (`gui/ui/ui.cpp:230`) and that is what re-fills the
 		// rings, so a clear after it would blank rings nothing then refreshes.
 		expect(r.guest.exitUI() == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
 		expect(fakelegacyui::knob_indicator_clears).to_equal(1);
@@ -2749,7 +2749,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(uiTimerManager.isTimerSet(TimerName::UI_SPECIFIC)).to_be_false();
 
 		// What legacy does when a UI opened over the guest closes again: `closeUI` unsets the timer
-		// (`gui/ui/ui.cpp:227`) and then hands focus back (`:229`). Without the re-arm the guest
+		// (`gui/ui/ui.cpp:227`) and then hands focus back (`:230`). Without the re-arm the guest
 		// would tick normally until anything was opened over it and never again.
 		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 250); // the guest was mid-animation
 		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);

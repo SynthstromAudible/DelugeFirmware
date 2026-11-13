@@ -44,7 +44,6 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
-#include "notify/notice_queue.h"
 #include "playback/playback_handler.h"
 
 #include <algorithm>
@@ -292,7 +291,8 @@ void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms,
 		if (fx != nullptr) {
 			const CompTurn turn = comp_turn(*comp, *fx, offset);
 			if (sink.write_effect(song_chain, turn.path, turn.value)) {
-				deluge::notify::notice_notification(turn.title, turn.value_text);
+				out.setting_indicator(which_encoder, turn.knob_pos);
+				out.notification(turn.title, turn.value_text);
 			}
 		}
 		return;
@@ -603,6 +603,9 @@ bool ModKnobs::indicator_blinking(int32_t which_encoder) const {
 ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
 	// The reads `View::setKnobIndicatorLevel` makes, from the records and the facts.
 	ModIndicatorInfo out{};
+	if (song_ == nullptr) {
+		return out; // no song: nothing to read, so nothing is declared
+	}
 	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
 	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder);
 	if (const auto* comp = std::get_if<bind::CompArm>(&assignment.target)) {

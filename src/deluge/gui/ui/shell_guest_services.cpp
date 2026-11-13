@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/shell_guest_services.h"
+#include "gui/ui/shell_guest_knobs.h"
 
 #include "gui/ui/menu_view_of.h"
 
@@ -97,11 +98,10 @@ GuestServices& guestServices() {
 	return services;
 }
 
-/// @brief Give the knobs and the global controls the two `ViewState` blocks, read from the legacy views now.
-void setViewStates(GuestServices& services) {
-	// The two `ViewState` blocks -- the questions about *which legacy view is on screen* that a
-	// service in `src/scenes` has no way to ask. Each field is its own doc comment's legacy
-	// expression, evaluated here.
+/// @brief Give the knobs their `ViewState` block, read from the legacy views now.
+void setKnobViewState(GuestServices& services) {
+	// The questions about *which legacy view is on screen* that a service in `src/scenes` has no way to ask. Each
+	// field is its own doc comment's legacy expression, evaluated here.
 	deluge::scenes::services::ModKnobs::ViewState knobView;
 	knobView.in_automation_editor = getRootUI() == &automationView && automationView.inAutomationEditor();
 	knobView.automation_on_arranger = automationView.onArrangerView;
@@ -109,6 +109,11 @@ void setViewStates(GuestServices& services) {
 	knobView.root_is_clip_minder = rootUIIsClipMinderScreen();
 	knobView.mod_button_ui_mode_in_range = view.modButtonUIModeInRange();
 	services.knobs.set_view_state(knobView);
+}
+
+/// @brief Give the knobs and the global controls the two `ViewState` blocks, read from the legacy views now.
+void setViewStates(GuestServices& services) {
+	setKnobViewState(services);
 
 	deluge::scenes::services::GlobalControls::ViewState controlView;
 	// `currentUIIsClipMinderScreen()` (`gui/ui/ui.cpp`) rather than the bare
@@ -149,6 +154,16 @@ void handOffGuestOverlays(uint32_t now_ms) {
 		view.adoptModEncoderValuePopup(shown->kind, shown->param_id, shown->display_value, shown->source1,
 		                               shown->source2);
 	}
+}
+
+deluge::scenes::services::ModKnobs& sharedModKnobs() {
+	return guestServices().knobs;
+}
+
+void refreshKnobsForRoot() {
+	GuestServices& services = guestServices();
+	services.knobs.set_song(currentSong);
+	setKnobViewState(services);
 }
 
 void refreshShellRootFacts() {

@@ -25,6 +25,7 @@
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
+#include "gui/ui/root_knobs.h"
 #include "gui/ui/save/save_kit_row_ui.h"
 #include "gui/ui/shell_drum_creator.h"
 #include "gui/ui/shell_note_mode.h"
@@ -1023,7 +1024,7 @@ void InstrumentClipView::modEncoderButtonAction(uint8_t whichModEncoder, bool on
 		}
 	}
 	else {
-		view.modEncoderButtonAction(whichModEncoder, on);
+		deluge::gui::ui::root_knobs::push(whichModEncoder, on);
 	}
 }
 
@@ -1043,7 +1044,8 @@ void InstrumentClipView::copyAutomation(int32_t whichModEncoder, int32_t navSysI
 		return;
 	}
 
-	const std::optional<deluge::project::ParamAddress> address = view.knobAddress(whichModEncoder);
+	const std::optional<deluge::project::ParamAddress> address =
+	    deluge::gui::ui::root_knobs::knob_address(whichModEncoder);
 	if (!address) {
 		return;
 	}
@@ -1285,7 +1287,8 @@ void InstrumentClipView::pasteAutomation(int32_t whichModEncoder, int32_t navSys
 	float scaleFactor = (float)pastedAutomationWidth / copiedParamAutomation.width;
 
 	// The knob's param, made where it is a cable not made yet, in the take while the arrangement records.
-	const std::optional<deluge::project::ParamAddress> address = view.knobAddress(whichModEncoder);
+	const std::optional<deluge::project::ParamAddress> address =
+	    deluge::gui::ui::root_knobs::knob_address(whichModEncoder);
 	if (!address) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_PASTE_AUTOMATION));
 		return;

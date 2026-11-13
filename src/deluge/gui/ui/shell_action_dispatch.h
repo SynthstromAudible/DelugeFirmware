@@ -212,7 +212,7 @@ void reapplyLiveSettingsAfterReset();
 /// @return The type legacy would export, or `std::nullopt` where legacy's `if`/`else if` chain falls
 ///         through: any root that is not one of the three named, `instrumentClipView` over a
 ///         non-`KIT` output, and a null root (`getRootUI()` answers `nullptr` while `numUIsOpen ==
-///         0`, `gui/ui/ui.cpp:175-180`, which is "during song load / swap", `:94`).
+///         0`, `gui/ui/ui.cpp:175-180`, which is "during song load / swap", `:95`).
 std::optional<StemExportType> stemExportTypeForRootUI();
 
 } // namespace deluge::gui::ui

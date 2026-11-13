@@ -163,6 +163,12 @@ public:
 	[[nodiscard]] int32_t knobMode() const;
 	/// @brief [interaction] End the stutter of the owner the knobs are on.
 	void endKnobsStutter();
+	/// @brief [interaction] Are the focus's ids in the current song? With no song, or a focus another song's, the knobs
+	///        point at nothing.
+	[[nodiscard]] bool knobsOnCurrentSong() const;
+	/// @brief [interaction] Take the knobs' param manager, which the render compares automation against, from the
+	///        focus now.
+	void refreshKnobParamManager();
 	/// @brief [interaction] Let go of the knobs if they are on @p clip, which is about to go.
 	void releaseKnobsIfOn(const Clip& clip);
 	/// @brief [interaction] Let go of the knobs if they are on @p song or anything it owns, which is about to go.
@@ -293,6 +299,8 @@ public:
 
 	// vu meter rendering
 	bool potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]);
+	/// @brief Did the last render draw the VU meter in the sidebar?
+	[[nodiscard]] bool vuMeterRendered() const { return renderedVUMeter; }
 
 	void getParameterNameFromModEncoder(int32_t whichModEncoder, char* parameterName);
 
@@ -327,8 +335,6 @@ private:
 	/// @brief The compressor view a push may move: the focus's for the song; none (the push moves a view nothing
 	///        keeps) for any other owner.
 	[[nodiscard]] deluge::controls::CompView* knobCompToMove();
-	/// @brief Take the knobs' param manager, which the render compares automation against, from the focus now.
-	void refreshKnobParamManager();
 	/// @brief The address of @p param, a param of the knobs' owner, with the clip the focus names.
 	[[nodiscard]] std::optional<deluge::project::ParamAddress>
 	knobParamAddress(const ModelStackWithAutoParam& param) const;

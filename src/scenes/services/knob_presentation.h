@@ -61,6 +61,14 @@ public:
 	/// @brief A short notice (a push's setting change).
 	/// @param text What it says.
 	virtual void notice_text(std::string_view text) = 0;
+	/// @brief A turn moved a knob on a setting (the song compressor's): its name and new value.
+	/// @param title The setting's name.
+	/// @param value Its value, in its units.
+	virtual void notification(std::string_view title, std::string_view value) = 0;
+	/// @brief A turn moved knob @p knob on a setting: its indicator shows @p knob_pos now.
+	/// @param knob     0 for the lower knob, 1 for the upper.
+	/// @param knob_pos The setting's knob position, -64..64.
+	virtual void setting_indicator(int32_t knob, int32_t knob_pos) = 0;
 	/// @brief A localised popup (automation deleted).
 	/// @param string The string to show.
 	virtual void popup(deluge::l10n::String string) = 0;

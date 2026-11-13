@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/notify_drain.h"
+#include "gui/ui/root_knobs.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
@@ -33,15 +34,15 @@ UI::UI() {
 }
 
 void UI::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
-	view.modEncoderAction(whichModEncoder, offset);
+	deluge::gui::ui::root_knobs::turn(whichModEncoder, offset);
 }
 
 void UI::modButtonAction(uint8_t whichButton, bool on) {
-	view.modButtonAction(whichButton, on);
+	deluge::gui::ui::root_knobs::mod_button(whichButton, on);
 }
 
 void UI::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
-	view.modEncoderButtonAction(whichModEncoder, on);
+	deluge::gui::ui::root_knobs::push(whichModEncoder, on);
 }
 
 bool UI::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, int32_t note, int32_t velocity) {

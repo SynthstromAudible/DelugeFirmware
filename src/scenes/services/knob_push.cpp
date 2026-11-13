@@ -562,7 +562,7 @@ CompTurn comp_turn(const bind::CompArm& arm, const effects::EffectStates& effect
 	const int32_t knob = std::clamp(comp_knob_pos(arm, effects) + offset, -64, 64);
 	// The top of the knob's travel saturates to the whole Q31 range.
 	const int32_t stored = knob == 64 ? std::numeric_limits<int32_t>::max() : (knob + 64) << 24;
-	CompTurn out{.path = arm.path, .value = serialization::Value::makeNumber(stored)};
+	CompTurn out{.path = arm.path, .value = serialization::Value::makeNumber(stored), .knob_pos = knob};
 	int32_t shown = 0;
 	const char* unit = "";
 	if (arm.path == "audioCompressor/thresh") {

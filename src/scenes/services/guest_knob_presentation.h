@@ -49,6 +49,10 @@ public:
 	/// @brief A popup that stays until a mod button's release cancels it (`display->popupText`).
 	void popup_text(std::string_view text) override;
 	void notice_text(std::string_view text) override;
+	/// @brief A `Notification` notice, which the shell shows as its title-and-value popup.
+	void notification(std::string_view title, std::string_view value) override;
+	/// @brief Nothing: the frame redeclares both indicators from the records.
+	void setting_indicator(int32_t /*knob*/, int32_t /*knob_pos*/) override {}
 	void popup(deluge::l10n::String string) override;
 	void cancel_popup() override;
 	/// @}
