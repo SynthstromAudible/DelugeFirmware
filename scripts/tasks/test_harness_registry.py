@@ -713,6 +713,54 @@ class WithTableTest(unittest.TestCase):
         )
 
 
+class CorpusDeclarationTest(unittest.TestCase):
+    ROOT = Path(__file__).resolve().parents[2]
+
+    def _entry(self, requires):
+        return dataclasses.replace(entry("t"), requires=requires)
+
+    def test_an_entry_that_requires_the_corpus_declares_it(self):
+        env = tt._environment(self.ROOT, self._entry(["song-corpus"]), {})
+        self.assertEqual(env.get(hr.CORPUS_DECLARED), "1")
+
+    def test_no_other_entry_declares_it_whatever_the_caller_set(self):
+        with mock.patch.dict(os.environ, {hr.CORPUS_DECLARED: "1"}):
+            env = tt._environment(self.ROOT, self._entry(["song-xml-corpus"]), {})
+        self.assertNotIn(hr.CORPUS_DECLARED, env)
+
+    def test_an_entry_cannot_set_it_through_env(self):
+        root = Path(tempfile.mkdtemp())
+        (root / "tests").mkdir()
+        (root / "tests" / "registry.toml").write_text(
+            MINIMAL.replace(
+                'runtime = "~1m"',
+                f'runtime = "~1m"\nenv = {{ {hr.CORPUS_DECLARED} = "1" }}',
+            )
+        )
+        with self.assertRaisesRegex(ValueError, "song-corpus"):
+            hr.load_registry(root)
+
+    def test_the_table_has_corpus_fixture_rows(self):
+        self.assertIn(hr.STEM_EXPORT_ROW, hr.corpus_fixture_scenarios(self.ROOT))
+
+    def test_every_scenario_entry_on_the_corpus_fixture_declares_it(self):
+        rows = hr.corpus_fixture_scenarios(self.ROOT)
+        undeclared = [
+            h.name
+            for h in hr.load_registry(self.ROOT)
+            if h.runner == "scenario"
+            and h.scenario is not None
+            and (h.scenario or hr.STEM_EXPORT_ROW) in rows
+            and not hr.declares_corpus(h)
+        ]
+        self.assertEqual(
+            undeclared,
+            [],
+            "these entries boot the corpus fixture (kCorpusFixture in scenario_table.cpp) "
+            'without requires = ["song-corpus"]',
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
 

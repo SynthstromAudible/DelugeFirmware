@@ -182,6 +182,10 @@ def _environment(
     for name in tb.order(h.builds, products):
         env.update(products[name].test_env)
     env.update(h.env)
+    # Only an entry that declares the corpus may boot the corpus fixture, whatever the caller's environment says.
+    env.pop(hr.CORPUS_DECLARED, None)
+    if hr.declares_corpus(h):
+        env[hr.CORPUS_DECLARED] = "1"
     if h.alone:
         env["GOLDEN_SWEEP_JOBS"] = ALONE_SWEEP_JOBS
     return env

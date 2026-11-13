@@ -269,6 +269,8 @@ A scenario gate is a stepped scenario the Embassy host harness runs (`runner = "
    default empty); golden_vt_render applies both and runs any row by name, so nothing on the Rust side changes. A
    card of the scenario's own is a manifest beside it, `integration/scenarios/<name>.card`, in the format
    `src/bsp/rust/src/storage/card_manifest.rs` documents.
+   A row on the song-corpus fixture (`kCorpusFixture`) makes its tests local-only: each entry that runs it must
+   require `song-corpus` (a registry unit test checks this, and golden_vt_render refuses the card otherwise).
 2. **The registry entry:** `scenario = "<name>"`, `builds = ["golden-vt-render"]`, the `markers` each run must print
    and the `result` line that says it passed. `./dbt test` checks those, and the exit status, itself.
 3. **A check, only if the gate needs more:** `tests/integration/checks/<name>.py`, named by the entry's `check`,

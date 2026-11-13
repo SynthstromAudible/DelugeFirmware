@@ -31,6 +31,9 @@
 //!
 //! `GOLDEN_CARD_ONLY=1` installs the scenario's card and exits before anything runs, so `GOLDEN_SD_DUMP=<path>`
 //! writes out exactly the card the scenario boots with.
+//!
+//! A corpus-fixture card is installed only for a run that declares the corpus (`DELUGE_CORPUS_DECLARED=1`, which
+//! `./dbt test` sets for an entry that requires `song-corpus`); see [`corpus_fixture`].
 #![feature(impl_trait_in_assoc_type)]
 #![recursion_limit = "512"]
 
@@ -785,8 +788,23 @@ fn install_card(name: &str, card: Card, repo_root: &Path, fixture: &str) {
     }
 }
 
-/// The corpus fixture's tree, for scenario `name`.
-fn corpus_fixture(_name: &str, repo_root: &Path, fixture: &str) -> std::path::PathBuf {
+/// Names the run as one whose registry entry requires `song-corpus`; `./dbt test` sets it to "1" for exactly those.
+const CORPUS_DECLARED: &str = "DELUGE_CORPUS_DECLARED";
+
+/// The corpus fixture's tree, for scenario `name`. Exits 2 unless the run declares the corpus.
+///
+/// A test that boots the corpus fixture runs only where the maintainer's card backup is, so its registry entry must
+/// say so (`requires = ["song-corpus"]`, which keeps it out of CI). Refusing here makes a scenario given the corpus
+/// card by mistake fail on every machine, instead of passing where the backup happens to be and failing in CI.
+fn corpus_fixture(name: &str, repo_root: &Path, fixture: &str) -> std::path::PathBuf {
+    if std::env::var_os(CORPUS_DECLARED).is_none_or(|value| value != "1") {
+        eprintln!(
+            "golden_vt_render: {name} boots the song-corpus fixture '{fixture}', but this run does not declare the \
+             corpus: its entry in tests/registry.toml must require \"song-corpus\" (./dbt test then sets \
+             {CORPUS_DECLARED}=1). Running the binary by hand, set {CORPUS_DECLARED}=1 yourself."
+        );
+        std::process::exit(2);
+    }
     sd_image::golden_fixture_tree(repo_root, fixture)
 }
 

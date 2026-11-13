@@ -7,6 +7,7 @@ test_harness_registry.py.
 """
 
 import os
+import re
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -78,6 +79,32 @@ LOCAL_ONLY = frozenset({"song-corpus", "song-xml-corpus"})
 def local_only(h: "Harness") -> bool:
     """Does `h` need a requirement only a developer's machine has?"""
     return not LOCAL_ONLY.isdisjoint(h.requires)
+
+
+# Set to "1" in the environment of a test whose entry requires song-corpus, and absent from every other test's:
+# golden_vt_render refuses to boot the corpus fixture without it, so a test that boots it by mistake fails everywhere
+# instead of passing where the corpus happens to be.
+CORPUS_DECLARED = "DELUGE_CORPUS_DECLARED"
+SCENARIO_TABLE = Path("tests/integration/scenarios/scenario_table.cpp")
+# The table row the stem-render arm (`scenario = ""`) runs.
+STEM_EXPORT_ROW = "stem_export"
+
+
+def declares_corpus(h: "Harness") -> bool:
+    """Does `h`'s entry declare that it needs the song corpus?"""
+    return "song-corpus" in h.requires
+
+
+def corpus_fixture_scenarios(root: Path) -> set[str]:
+    """The scenario_table.cpp rows whose card is the corpus fixture (`kCorpusFixture`)."""
+    text = (root / SCENARIO_TABLE).read_text()
+    start = text.index("kScenarios[] = {")
+    body = text[start : text.index("\n};", start)]
+    return {
+        row.split('"', 1)[0]
+        for row in re.split(r'\n\s*\{"', body)[1:]
+        if "kCorpusFixture" in row
+    }
 
 
 @dataclass
@@ -198,6 +225,11 @@ def load_registry(root: Path) -> list[Harness]:
             if req not in PROBES:
                 raise ValueError(
                     f"{where}: unknown requirement '{req}'; add a probe to PROBES"
+                )
+        for table in ("env", "env_default"):
+            if CORPUS_DECLARED in item.get(table, {}):
+                raise ValueError(
+                    f'{where}: {table} may not set {CORPUS_DECLARED}; declare requires = ["song-corpus"] instead'
                 )
 
         if item["name"] in seen:
@@ -377,16 +409,21 @@ def with_table(readme: str, table: str) -> str:
 
 
 __all__ = [
+    "CORPUS_DECLARED",
     "GROUPS",
     "LEVELS",
     "LOCAL_ONLY",
     "PROBES",
     "RUNNERS",
+    "SCENARIO_TABLE",
+    "STEM_EXPORT_ROW",
     "TABLE_BEGIN",
     "TABLE_END",
     "TIERS",
     "Harness",
     "ci_matrix",
+    "corpus_fixture_scenarios",
+    "declares_corpus",
     "load_registry",
     "local_only",
     "markdown_table",
