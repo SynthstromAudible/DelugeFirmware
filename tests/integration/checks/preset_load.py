@@ -58,8 +58,10 @@ The acquisition legs pick presets without the browser, by the gestures a user ma
                NAV05, and thirty more behind that land on NAV04. A turn made while a turn's broken preset loads waits
                for the load to fail and moves one preset from the clip's own kit: the clip keeps FAIL0. One made while
                a good preset's document is read moves on from it before its samples load: from FAIL2, on, and one
-               more behind it land on FAIL4 with one sample load. A pile keeps the wraps its landing made: on the
-               walk itself, in a folder whose first kit is in the song, on from the last passes it and lands on
+               more behind it land on FAIL4 with one sample load. A pile whose walk fails (its folder renamed away)
+               ends with its error before a turn made behind it starts, and that turn moves one preset from the clip's
+               own kit: from GONE0, on, one more and one more end on GONE1. A pile keeps the wraps its landing made:
+               on the walk itself, in a folder whose first kit is in the song, on from the last passes it and lands on
                WRAP1, three more wrap once and land on WRAP3, and one more wraps again and takes the in-song kit.
                The same moves made by turns of the clip's held grid pad, the third behind the pile's walk, end on
                the in-song kit, which leaves the clip on WRAP4 (main freezes with i009).

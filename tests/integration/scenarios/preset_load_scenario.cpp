@@ -293,6 +293,17 @@ constexpr const char* kNavFailBroken = "KITS/AQNAVFAIL/FAIL1.XML";
 /// turn on onto FAIL3, and one more made while its document is read, land on kNavLoadedLands with one sample load.
 constexpr const char* kNavLoadedFrom = "FAIL2";
 constexpr const char* kNavLoadedLands = "FAIL4";
+/// A pile whose walk fails: main's `doPresetNavigation` returns the error before it takes the detents that piled up
+/// behind it, and they arrive as a turn of their own, which moves one preset from the clip's own kit. kNavGoneDir holds
+/// GONE0..GONE3: from kNavGoneFrom, a turn on and one more at once. The first lands on GONE1, and the second's walk
+/// reads its window again with the folder renamed to kNavGoneAway, so it fails. A third turn, made behind that walk,
+/// starts once the error is shown, with the folder back: one on from the clip's kit is kNavGoneLands, where one on
+/// from GONE1, the landing the failed walk moved from, would be GONE2.
+constexpr const char* kNavGoneDir = "KITS/AQNAVGONE";
+constexpr const char* kNavGoneAway = "KITS/AQNAVGONX";
+constexpr int32_t kNavGoneCount = 4;
+constexpr const char* kNavGoneFrom = "GONE0";
+constexpr const char* kNavGoneLands = "GONE1";
 /// Each folder open of that act held this long, so the second turn's walk is still reading when the first's preset
 /// lands, and the third turn can be made behind it.
 constexpr uint32_t kNavReadHoldMs = 50;
@@ -1406,6 +1417,11 @@ std::vector<Clip*> g_navWrapStopped{};
 int32_t g_navDocumentReadsBefore = 0;
 int32_t g_navSampleLoadsBefore = 0;
 bool g_navSecondDuringLoad = false;
+/// AQ-NAV-PILE pile-walk-failed: whether its folder is renamed away, whether its third turn was made behind the failing
+/// walk, and the error InstrumentLoad had finished with when that turn's walk began.
+bool g_navGoneAway = false;
+bool g_navGoneThirdBehindWalk = false;
+Error g_navGoneErrorShown = Error::NONE;
 bool g_aqHeavySwapped = false;
 TierMark g_aqTierMark{};
 /// AQ-TAP: the synth presets written for its tracks, one per track its acts make.
@@ -1439,7 +1455,7 @@ bool isAcquireLeg(Leg leg) {
 int32_t acquireActs(Leg leg) {
 	return leg == Leg::AqChangeCases ? 6
 	       : leg == Leg::AqTap       ? 5
-	       : leg == Leg::AqNavWrap   ? 16
+	       : leg == Leg::AqNavWrap   ? 17
 	       : leg == Leg::AqNavigate  ? 3
 	       : leg == Leg::AqNew       ? 2
 	                                 : 1;
@@ -1564,6 +1580,13 @@ void prepareAcquire() {
 			char path[48];
 			snprintf(path, sizeof(path), "%s/FAIL%d.XML", kNavFailDir, static_cast<int>(i));
 			const char* drumName = "FAILD";
+			ok = writeKitPreset(path, &drumName, &kAqKitSamples[0], 1);
+		}
+		(void)deluge::io::mkdir(kNavGoneDir);
+		for (int32_t i = 0; ok && i < kNavGoneCount; i++) {
+			char path[48];
+			snprintf(path, sizeof(path), "%s/GONE%d.XML", kNavGoneDir, static_cast<int>(i));
+			const char* drumName = "GONED";
 			ok = writeKitPreset(path, &drumName, &kAqKitSamples[0], 1);
 		}
 		if (ok) {
@@ -1982,6 +2005,20 @@ bool actAcquire() {
 			                  && PresetAcquireProbe::turnInGrid(g_aqClip, kNavWrapMoves[1]);
 			return held || fail(leg, "the clip's grid pad could not be held");
 		}
+		if (g_aqAct == 16) {
+			auto* kit = static_cast<Instrument*>(g_aqClip->output);
+			kit->dirPath = kNavGoneDir;
+			kit->name = kNavGoneFrom;
+			g_aqNameBefore = kNavGoneFrom;
+			g_aqTurned = false;
+			g_navGoneAway = false;
+			g_navGoneThirdBehindWalk = false;
+			g_navGoneErrorShown = Error::NONE;
+			deluge_file_directory_set_latency_ms(kNavReadHoldMs);
+			instrumentClipView.selectEncoderAction(1);
+			instrumentClipView.selectEncoderAction(1);
+			return true; // the folder goes, and the third turn is made, once the first has landed (runAcquireTick)
+		}
 		if (g_aqAct == 11) {
 			static_cast<Instrument*>(g_aqClip->output)->name = kNavInstrumentFrom;
 			g_aqNameBefore = kNavInstrumentFrom;
@@ -2345,6 +2382,28 @@ void checkAcquireAct() {
 			checkNavWrapTurned(name);
 			break;
 		}
+		if (g_aqAct == 16) {
+			deluge_file_directory_set_latency_ms(0);
+			if (g_navGoneAway) {
+				(void)deluge::io::rename(kNavGoneAway, kNavGoneDir);
+				g_navGoneAway = false;
+			}
+			printf("AQ-NAV-PILE turns=pile-walk-failed before=%s name=%s want=%s third-behind-walk=%d error-shown=%d "
+			       "runs=%d\n",
+			       g_aqNameBefore.c_str(), name.c_str(), kNavGoneLands, g_navGoneThirdBehindWalk ? 1 : 0,
+			       static_cast<int>(g_navGoneErrorShown), runs);
+			if (!g_navGoneThirdBehindWalk) {
+				aqFail("AQ-NAV-PILE", "the third turn was not made behind the second's walk, with its folder gone");
+			}
+			if (g_navGoneErrorShown == Error::NONE) {
+				aqFail("AQ-NAV-PILE",
+				       "a pile's failed walk did not end with its error before the turn behind it began");
+			}
+			if (name != kNavGoneLands) {
+				aqFail("AQ-NAV-PILE", "the turn behind a failed pile did not move one preset from the clip's own kit");
+			}
+			break;
+		}
 		if (g_aqAct >= 5) {
 			static constexpr const char* kTurns[] = {
 			    "other-other-on", "two-behind-other",     "pile-past-end",      "pile-past-window",  "pile-back",
@@ -2520,6 +2579,26 @@ void runAcquireTick() {
 			(void)PresetAcquireProbe::turnInGrid(g_aqClip, kNavWrapMoves[2]);
 			g_aqTurned = true;
 			break;
+		}
+		if (g_leg == Leg::AqNavWrap && g_aqAct == 16) {
+			const int32_t begun = LoadInstrumentPresetUI::presetAcquisitionsRun() - g_aqRunsBefore;
+			if (!g_aqTurned && begun == 2) {
+				// The first turn has landed and the pile behind it is walking: its folder goes, and one more turn is
+				// made behind that walk.
+				g_navGoneThirdBehindWalk =
+				    loadInstrumentPresetUI.presetAcquisitionInFlight() && g_aqClip->output->name == kNavGoneFrom;
+				g_navGoneAway = deluge::io::rename(kNavGoneDir, kNavGoneAway).has_value();
+				(void)focusClip(g_aqClip);
+				instrumentClipView.selectEncoderAction(1);
+				g_aqTurned = true;
+				break;
+			}
+			if (g_navGoneAway && begun == 3) {
+				// The third turn's walk has begun, its open held: the folder comes back before it reads.
+				g_navGoneErrorShown = deluge::gui::instrumentLoad.lastError();
+				(void)deluge::io::rename(kNavGoneAway, kNavGoneDir);
+				g_navGoneAway = false;
+			}
 		}
 		if (g_leg == Leg::AqNavWrap && (g_aqAct == 12 || g_aqAct == 13) && !g_aqTurned
 		    && deluge::gui::instrumentLoad.documentReads() > g_navDocumentReadsBefore) {

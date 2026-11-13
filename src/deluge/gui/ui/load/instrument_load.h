@@ -351,15 +351,9 @@ private:
 	ConfirmPreset confirm_{};
 	deluge::storage::AcquireWalkSpec walkOut_{}; ///< What the walk out reads; written only while no walk is out.
 	AcquireSnapshot walked_{};                   ///< What it found; read only once it has ended.
-	/// Where the last navigate's walk landed, while a navigate of the same output may still supersede it.
-	bool originValid_{false};
-	std::string originName_{};
-	std::string originDir_{};
-	/// The turn that landed there: only a turn of the same gesture and output walks on from it.
-	deluge::storage::PresetRequest originTurn_{};
-	/// Where that walk landed, for a turn made behind it to move on from by all its detents (main's pending detents).
-	/// Held for the request queued behind it; dropped when the turn is delivered with none queued, fails or is
-	/// cancelled, after which main's pile arrives as a turn of its own.
+	/// Where the last navigate's walk landed, for a turn made behind it to move on from by all its detents (main's
+	/// pending detents). Taken by the next request to start; dropped when the turn is delivered with none queued, fails
+	/// or is cancelled, after which main's pile arrives as a turn of its own.
 	std::optional<deluge::storage::NavigationPile> pileOrigin_{};
 	/// @}
 
