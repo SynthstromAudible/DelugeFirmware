@@ -1,7 +1,7 @@
 """The offline stem export's regression gate.
 
 Renders the fixture's MIXDOWN (cordae unless GOLDEN_FIXTURE names another) through the Embassy host BSP's own offline
-export -- the default, scenario-less arm of golden_vt_render -- and checks:
+export -- the stem_export row of golden_vt_render's table -- and checks:
 
   ST-BYTES    the export actually wrote audio, at the size recorded beside the hash (field 2 of the baseline). Checked
               before the hash so a zero-byte export reports what actually happened rather than an unhelpful mismatch.

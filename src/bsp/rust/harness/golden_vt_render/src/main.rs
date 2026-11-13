@@ -1,10 +1,9 @@
 //! `golden_vt_render`: boots the real C++ app on the BSP under a virtual clock, fills the card with
 //! a fixture tree, and runs one scenario deterministically.
 //!
-//! `GOLDEN_SCENARIO` names a row of `tests/integration/scenarios/scenario_table.cpp`: a stepped scenario or
-//! `stem_export`, which `GOLDEN_SCENARIO` selects by name or by being unset or empty: an
-//! offline `StemExport` of the fixture song whose stem WAVs it copies out. Sample cluster fills drain through the BSP's
-//! async `streaming_fill_task`, so a sample-backed fixture renders real audio.
+//! `GOLDEN_SCENARIO` names a row of `tests/integration/scenarios/scenario_table.cpp`, stepped by
+//! [`run_stepped_scenario`]; `stem_export`, the offline stem export of the fixture song, is the default. Sample cluster
+//! fills drain through the BSP's async `streaming_fill_task`, so a sample-backed fixture renders real audio.
 //!
 //! # Why a separate package
 //!
@@ -167,7 +166,7 @@ struct Steps {
 }
 
 impl Scenario {
-    /// The row's steps, or `None` for a row the harness drives itself. The table asserts a row has all five or none.
+    /// The row's steps, or `None` for a row missing one. The table asserts every row has all five.
     fn steps(&self) -> Option<Steps> {
         Some(Steps {
             begin: self.begin?,
@@ -256,16 +255,6 @@ fn table_row(name: &str) -> Option<&'static Scenario> {
 // firmware never contains it. Declared by hand: these are harness entry points, not part of the
 // libdeluge ABI that bindgen covers.
 unsafe extern "C" {
-    fn deluge_scenario_start_song_load(full_path: *const c_char);
-    fn deluge_scenario_song_load_begin_done() -> bool;
-    fn deluge_scenario_song_load_begin_ok() -> bool;
-    fn deluge_scenario_song_listing_in_progress() -> bool;
-    fn deluge_scenario_commit_song_load() -> bool;
-    fn deluge_scenario_song_load_in_progress() -> bool;
-    fn deluge_scenario_start_stem_export(mode: i32);
-    fn deluge_scenario_stem_export_done() -> bool;
-    fn deluge_scenario_copy_stems_out(out_dir: *const c_char);
-
     fn deluge_unguarded_structural_edits_total() -> u32;
     fn deluge_scenario_find(name: *const c_char) -> *const Scenario;
 }
@@ -313,42 +302,6 @@ async fn boot_task() {
 
     // The app loop runs the app's jobs from here on.
     core::future::pending::<()>().await
-}
-
-/// Returns the card path of `fixture`'s song (the fixture tree flattens it to `SONGS/<name>.XML`),
-/// or `GOLDEN_STEM_SONG` when set.
-///
-/// # Panics
-///
-/// Panics for a fixture not in the table when `GOLDEN_STEM_SONG` is unset.
-fn fixture_song_path(fixture: &str) -> String {
-    if let Ok(path) = std::env::var("GOLDEN_STEM_SONG") {
-        return path;
-    }
-    match fixture {
-        "cordae" => "SONGS/Cordae.XML",
-        "highsiderr" => "SONGS/06 Ilove Techno Song_Final_2.XML",
-        "icoustic" => "SONGS/Grunnmur 58 Nobass 14 Comm-Test.XML",
-        other => panic!(
-            "golden_vt_render: no known SONGS/*.XML path for fixture '{other}' — set GOLDEN_STEM_SONG"
-        ),
-    }
-    .to_string()
-}
-
-/// Returns the `StemExportType` `GOLDEN_STEM_MODE` names, as the C++ enum's value (CLIP=0, TRACK=1,
-/// DRUM=2, MIXDOWN=3 in `definitions_cxx.hpp`); defaults to TRACK.
-fn stem_export_mode() -> i32 {
-    match std::env::var("GOLDEN_STEM_MODE")
-        .unwrap_or_default()
-        .to_uppercase()
-        .as_str()
-    {
-        "CLIP" => 0,
-        "DRUM" => 2,
-        "MIXDOWN" => 3,
-        _ => 1, // TRACK
-    }
 }
 
 /// Drives a stepped scenario (`scenario_table.h`): waits for boot, calls `begin`, then one
@@ -400,141 +353,6 @@ async fn run_stepped_scenario(steps: Steps, name: &'static str, done: &'static A
         hard_exit(1);
     }
     log::info!("golden_vt_render: {name} completed (0 in-process failures)");
-    done.store(true, Ordering::Release);
-}
-
-/// The default scenario: waits for boot, loads `fixture`'s song, runs an offline `StemExport`,
-/// and copies the stem WAVs out to `GOLDEN_STEM_OUT` (default `golden_stems`).
-///
-/// The card already holds the fixture (`main` installed it); `fixture` picks the song and labels
-/// the log. `StemExport::renderWait` waits pass by pass for `streaming_fill_task` to drain the
-/// loader queue, so a sample-backed fixture exports real audio.
-#[embassy_executor::task]
-async fn run_stem_export_scenario(fixture: &'static str, done: &'static AtomicBool) {
-    log::info!(
-        "golden_vt_render: run_stem_export_scenario: fixture={fixture}, awaiting boot+mount"
-    );
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // StemExport exports `currentSong`, which boot leaves blank. The load is two-phase (see
-    // `streaming_scenario.h`): the begin only dispatches the async directory listing.
-    let song_path = fixture_song_path(fixture);
-    log::info!("golden_vt_render: boot+mount confirmed for fixture={fixture}; loading {song_path}");
-    let song_path_c =
-        CString::new(song_path.clone()).expect("fixture_song_path never contains a NUL byte");
-    // SAFETY: host scenario C ABI; boot has run `deluge_app_init`, and `song_path_c` outlives the
-    // call.
-    unsafe { deluge_scenario_start_song_load(song_path_c.as_ptr()) };
-
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_song_load_begin_done() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: song-load dispatch did not run within the 30s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-    // SAFETY: as above.
-    if !unsafe { deluge_scenario_song_load_begin_ok() } {
-        log::error!(
-            "golden_vt_render: deluge_scenario_begin_song_load('{song_path}') returned false"
-        );
-        hard_exit(2);
-    }
-
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        // SAFETY: as above.
-        if !unsafe { deluge_scenario_song_listing_in_progress() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: song listing did not complete within the 30s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: as above.
-    let committed = unsafe { deluge_scenario_commit_song_load() };
-    if !committed {
-        log::error!(
-            "golden_vt_render: deluge_scenario_commit_song_load() returned false (the load was refused)"
-        );
-        hard_exit(2);
-    }
-
-    let deadline = Instant::now() + Duration::from_secs(60);
-    loop {
-        // SAFETY: as above.
-        if !unsafe { deluge_scenario_song_load_in_progress() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: song load did not complete within the 60s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-    log::info!("golden_vt_render: song load complete for fixture={fixture}");
-
-    let mode = stem_export_mode();
-    log::info!("golden_vt_render: dispatching stem export mode={mode}");
-    // SAFETY: host scenario C ABI; the song load has completed. This only starts the export.
-    unsafe { deluge_scenario_start_stem_export(mode) };
-
-    // Generous: this budget covers the export's render time.
-    let deadline = Instant::now() + Duration::from_secs(300);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_stem_export_done() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: stem export did not complete within the 300s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-    log::info!("golden_vt_render: stem export complete for fixture={fixture}; copying stems out");
-
-    let out_dir = std::env::var("GOLDEN_STEM_OUT").unwrap_or_else(|_| "golden_stems".to_string());
-    match CString::new(out_dir.clone()) {
-        Ok(c_out_dir) => {
-            // SAFETY: as above; `c_out_dir` outlives the call.
-            unsafe { deluge_scenario_copy_stems_out(c_out_dir.as_ptr()) };
-        }
-        Err(_) => {
-            log::error!("golden_vt_render: GOLDEN_STEM_OUT ({out_dir:?}) contains a NUL byte");
-            hard_exit(2);
-        }
-    }
-
-    log::info!("golden_vt_render: stems copied to {out_dir}; exiting cleanly");
     done.store(true, Ordering::Release);
 }
 
@@ -854,19 +672,9 @@ fn main() {
         );
         std::process::exit(2);
     };
-    enum Driver {
-        Stepped(Steps),
-        StemExport,
-    }
-    let driver = match (row.steps(), scenario.as_str()) {
-        (Some(steps), _) => Driver::Stepped(steps),
-        (None, "stem_export") => Driver::StemExport,
-        (None, other) => {
-            eprintln!(
-                "golden_vt_render: scenario '{other}' has no steps, and the harness has no driver of its own for it"
-            );
-            std::process::exit(2);
-        }
+    let Some(steps) = row.steps() else {
+        eprintln!("golden_vt_render: scenario '{scenario}' has no step functions");
+        std::process::exit(2);
     };
 
     // The card and the pacing must be set here, before any task is spawned (see the module doc).
@@ -921,16 +729,8 @@ fn main() {
     spawner.spawn(file_stream::file_stream_task().unwrap());
 
     static DONE: AtomicBool = AtomicBool::new(false);
-    match driver {
-        Driver::Stepped(steps) => {
-            let name: &'static str = Box::leak(scenario.clone().into_boxed_str());
-            spawner.spawn(run_stepped_scenario(steps, name, &DONE).unwrap());
-        }
-        Driver::StemExport => {
-            let fixture_static: &'static str = Box::leak(fixture.into_boxed_str());
-            spawner.spawn(run_stem_export_scenario(fixture_static, &DONE).unwrap());
-        }
-    }
+    let name: &'static str = Box::leak(scenario.clone().into_boxed_str());
+    spawner.spawn(run_stepped_scenario(steps, name, &DONE).unwrap());
 
     // The discrete-event loop: poll to quiescence, then jump the virtual clock to the next due
     // deadline, until the scenario is done or the budget or wedge detection trips.
@@ -952,7 +752,7 @@ fn main() {
 
         if DONE.load(Ordering::Acquire) {
             log::info!(
-                "golden_vt_render: run_stem_export_scenario completed at virtual t={}us \
+                "golden_vt_render: {scenario} completed at virtual t={}us \
                  ({quiescence_passes} quiescence passes, {advances} clock advances)",
                 driver.now(),
             );

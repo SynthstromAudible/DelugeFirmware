@@ -22,11 +22,9 @@
 /// @file
 /// @brief The scenarios the Embassy host harness can run, found by name, each with the card it boots and its pacing.
 ///
-/// A stepped scenario is driven one tick at a time by golden_vt_render's generic driver: `begin` once, then
+/// Every scenario is stepped, driven one tick at a time by golden_vt_render's generic driver: `begin` once, then
 /// `dispatchStep` and `stepDone` until `complete`, then `failures`. Adding one means writing its five functions and a
-/// row in scenario_table.cpp, which also names its card and pacing; the harness needs no change. A row with no step
-/// functions is one the harness drives itself (`recorder_roundtrip`, `stem_export`): the row carries its card and
-/// pacing only.
+/// row in scenario_table.cpp, which also names its card and pacing; the harness needs no change.
 extern "C" {
 
 /// How the harness paces a scenario's audio, set before the render task is spawned.

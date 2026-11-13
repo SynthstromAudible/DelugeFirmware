@@ -68,6 +68,7 @@ DELUGE_SCENARIO_DECLARE(sound_lifetime);
 DELUGE_SCENARIO_DECLARE(staging_release);
 DELUGE_SCENARIO_DECLARE(stale_ui);
 DELUGE_SCENARIO_DECLARE(startup_failsafe);
+DELUGE_SCENARIO_DECLARE(stem_export);
 DELUGE_SCENARIO_DECLARE(ui_script);
 DELUGE_SCENARIO_DECLARE(ui_timer_deadline);
 // The rows' onAppInit hooks.
@@ -290,10 +291,13 @@ constexpr DelugeScenario kScenarios[] = {
     {"stale_ui", nullptr, &deluge_scenario_stale_ui_begin, &deluge_scenario_stale_ui_complete,
      &deluge_scenario_stale_ui_dispatch_step, &deluge_scenario_stale_ui_step_done, &deluge_scenario_stale_ui_failures,
      ScenarioPacing::DevicePeriod},
-    // Driven by golden_vt_render itself: the offline stem export of the corpus fixture's song. It is the scenario
-    // GOLDEN_SCENARIO selects by name or by being unset or empty.
-    {"stem_export", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, ScenarioPacing::Virtual,
-     ScenarioBoot::NoSettingsPrelude, ScenarioDrive::Interaction, kCorpusFixture},
+    // The offline stem export of the corpus fixture's song. It skips the settings prelude, whose reads (and its write
+    // when MIDI_FOLLOW.XML is absent) would occupy the single-slot byte channel. No gate observes the difference: a
+    // full boot exports the same audio and prints the same markers.
+    {"stem_export", nullptr, &deluge_scenario_stem_export_begin, &deluge_scenario_stem_export_complete,
+     &deluge_scenario_stem_export_dispatch_step, &deluge_scenario_stem_export_step_done,
+     &deluge_scenario_stem_export_failures, ScenarioPacing::Virtual, ScenarioBoot::NoSettingsPrelude,
+     ScenarioDrive::OwnClock, kCorpusFixture},
     {"menu_dump", nullptr, &deluge_scenario_menu_dump_begin, &deluge_scenario_menu_dump_complete,
      &deluge_scenario_menu_dump_dispatch_step, &deluge_scenario_menu_dump_step_done,
      &deluge_scenario_menu_dump_failures},
@@ -325,12 +329,9 @@ void dispatchStepAsInteractionEntry() {
 	kScenarios[I].dispatchStep();
 }
 
-/// Row @p I's step: an interaction-tier entry, the scenario's own for an OwnClock row, or null for a row without steps.
+/// Row @p I's step: an interaction-tier entry, or the scenario's own for an OwnClock row.
 template <std::size_t I>
 constexpr StepFn interactionEntry() {
-	if (kScenarios[I].dispatchStep == nullptr) {
-		return nullptr;
-	}
 	return kScenarios[I].drive == ScenarioDrive::Interaction ? &dispatchStepAsInteractionEntry<I>
 	                                                         : kScenarios[I].dispatchStep;
 }
@@ -342,13 +343,12 @@ constexpr std::array<DelugeScenario, sizeof...(I)> withInteractionEntries(std::i
 	                       kScenarios[I].boot, kScenarios[I].drive, kScenarios[I].card}...};
 }
 
-/// A row has all five step functions (a stepped scenario) or none (one the harness drives itself).
-constexpr bool stepsAllOrNone(const DelugeScenario& row) {
-	const int present = int{row.begin != nullptr} + int{row.complete != nullptr} + int{row.dispatchStep != nullptr}
-	                    + int{row.stepDone != nullptr} + int{row.failures != nullptr};
-	return present == 0 || present == 5;
+/// Every row has its five step functions.
+constexpr bool hasSteps(const DelugeScenario& row) {
+	return row.begin != nullptr && row.complete != nullptr && row.dispatchStep != nullptr && row.stepDone != nullptr
+	       && row.failures != nullptr;
 }
-static_assert(std::ranges::all_of(kScenarios, stepsAllOrNone), "a scenario row has all five step functions or none");
+static_assert(std::ranges::all_of(kScenarios, hasSteps), "every scenario row has its five step functions");
 
 // golden_vt_render's `Scenario` mirrors this layout and asserts the same offsets: seven pointers, the pacing, boot and
 // drive bytes, then the card at the next pointer boundary, on the 64-bit host and the 32-bit ARM leg alike.
