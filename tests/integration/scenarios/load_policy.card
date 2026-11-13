@@ -1,0 +1,32 @@
+# load_policy's card:
+# - SAMPLES/DEFAULT.WAV: the one sample its LP-DEFAULT loads ask for;
+# - SAMPLES/WTP/: the synthetic wavetables of tests/integration/golden/wavetable_pins/ (the band pins and the
+#   zero-band leg);
+# - SAMPLES/WTG/: the golden presets' wavetables (presets/wavetable_basic.wav and presets/wavetable/*.wav);
+# - SAMPLES/PIT/: the pitch pin's samples, sines at 55, 440 and 1760 Hz and PARTIALS.WAV, four partials over 196 Hz;
+# - SAMPLES/WTC/: sixteen copies of presets/wavetable/morph_sync.2.wav, WTC00.WAV to WTC15.WAV: distinct tables for
+#   the churn.
+wav SAMPLES/DEFAULT.WAV ch=1 bits=16 bytes=2000 fill=0x42
+copyall SAMPLES/WTP from=tests/integration/golden/wavetable_pins ext=WAV
+copy SAMPLES/WTG/wavetable_basic.wav from=tests/integration/golden/presets/wavetable_basic.wav
+copyall SAMPLES/WTG from=tests/integration/golden/presets/wavetable ext=wav
+sine SAMPLES/PIT/SINE55.WAV ch=1 frames=44100 hz=55
+sine SAMPLES/PIT/SINE440.WAV ch=1 frames=44100 hz=440
+sine SAMPLES/PIT/SINE1760.WAV ch=1 frames=44100 hz=1760
+partials SAMPLES/PIT/PARTIALS.WAV frames=44100 196:0.5,392:0.25,588:0.125,1013:0.1
+copy SAMPLES/WTC/WTC00.WAV from=tests/integration/golden/presets/wavetable/morph_sync.2.wav
+copy SAMPLES/WTC/WTC01.WAV from=tests/integration/golden/presets/wavetable/morph_sync.2.wav
+copy SAMPLES/WTC/WTC02.WAV from=tests/integration/golden/presets/wavetable/morph_sync.2.wav
+copy SAMPLES/WTC/WTC03.WAV from=tests/integration/golden/presets/wavetable/morph_sync.2.wav
+copy SAMPLES/WTC/WTC04.WAV from=tests/integration/golden/presets/wavetable/morph_sync.2.wav
+copy SAMPLES/WTC/WTC05.WAV from=tests/integration/golden/presets/wavetable/morph_sync.2.wav
+copy SAMPLES/WTC/WTC06.WAV from=tests/integration/golden/presets/wavetable/morph_sync.2.wav
+copy SAMPLES/WTC/WTC07.WAV from=tests/integration/golden/presets/wavetable/morph_sync.2.wav
+copy SAMPLES/WTC/WTC08.WAV from=tests/integration/golden/presets/wavetable/morph_sync.2.wav
+copy SAMPLES/WTC/WTC09.WAV from=tests/integration/golden/presets/wavetable/morph_sync.2.wav
+copy SAMPLES/WTC/WTC10.WAV from=tests/integration/golden/presets/wavetable/morph_sync.2.wav
+copy SAMPLES/WTC/WTC11.WAV from=tests/integration/golden/presets/wavetable/morph_sync.2.wav
+copy SAMPLES/WTC/WTC12.WAV from=tests/integration/golden/presets/wavetable/morph_sync.2.wav
+copy SAMPLES/WTC/WTC13.WAV from=tests/integration/golden/presets/wavetable/morph_sync.2.wav
+copy SAMPLES/WTC/WTC14.WAV from=tests/integration/golden/presets/wavetable/morph_sync.2.wav
+copy SAMPLES/WTC/WTC15.WAV from=tests/integration/golden/presets/wavetable/morph_sync.2.wav

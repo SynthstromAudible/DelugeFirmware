@@ -1,0 +1,97 @@
+# The sample-claim scenario's card.
+#
+# Every file is asked for by one leg only, so a holder naming it can only be that leg's doing:
+# - SAMPLES/SCSYN.WAV: a 440 Hz sine, claimed into the boot song's synth, whose pitch detection
+#   names its note.
+# - SAMPLES/SCPITCH.WAV, SCSUPA.WAV, SCSUPB.WAV, SCPSTALL.WAV: SCSYN.WAV's sine under
+#   paths of their own, for the legs that must catch a pitch detection waiting for a cluster: the
+#   resume leg, the two supersede legs and the pitch stall leg.
+# - SAMPLES/SCWTBIG.WAV: 64 wavetable-length cycles, previewed and then claimed as a wavetable:
+#   a resident multi-cluster Sample most of whose clusters are not cached, so it is built from the
+#   card.
+# - SAMPLES/SCWTFULL.WAV: 16 wavetable-length cycles, made fully resident as a Sample and then
+#   claimed as a wavetable, which converts it from memory. SAMPLES/SCWTFUL2.WAV holds the same
+#   bytes and is only ever built from the card: the reference the conversion is compared against.
+# - SAMPLES/SCCYCLE.WAV: one 512-frame cycle of a sine, claimed as a wavetable from the context
+#   menu.
+# - SAMPLES/SCSTER.WAV: stereo, claimed into a wavetable oscillator, which cannot take it and
+#   falls back to a sample.
+# - SAMPLES/SCGATE.WAV and SAMPLES/SCSTALL.WAV: claimed while the loader holds their loads,
+#   for the gate and the stall bound.
+# - SAMPLES/SCKITD.WAV: the sample the scenario's one-drum kit preset names, so the kit clip
+#   starts as a sample kit.
+# - SAMPLES/SCKICK.WAV: claimed into that kit's drum. Its name holds "KICK", which the claim
+#   reads as a kick.
+# - SAMPLES/SCAUD.WAV: claimed into an audio clip.
+# - SAMPLES/SCSLICE.WAV: one second long, sliced into four regions of 250 ms each.
+# - SAMPLES/SCSLCF.WAV: a file only the ported slicer's stalled open asks for, so nothing has loaded it before.
+# - SAMPLES/RD/RD1.WAV, RD2.WAV and RD3.WAV: the Drum Randomizer's folder. Its kit preset
+#   names the first, and the randomizer picks from the folder a drum's sample sits in, so these
+#   three are reachable by no other leg.
+# - SAMPLES/RDG/G1.WAV..G3.WAV: the randomizer gate leg's folder, loaded by nothing before it,
+#   so its load reaches the loader's hold.
+# - SAMPLES/RDK/K1.WAV: the randomizer stall leg's first row, alone in its folder and loaded
+#   before the hold.
+# - SAMPLES/RDS/S1.WAV..S3.WAV: the stall leg's second row, loaded by nothing, so its load is
+#   held past the stall bound.
+# - SAMPLES/IMK/IMK_HAT.WAV, IMK_KICK.WAV and IMK_SNARE.WAV: the kit folder import's folder,
+#   whose shared prefix the drum names drop.
+# - SAMPLES/IMG/IMG_A.WAV..IMG_C.WAV: the import gate leg's folder, loaded by nothing before
+#   it.
+# - SAMPLES/IMS/IMS_A.WAV..IMS_C.WAV: the import stall leg's folder; the first and last are
+#   loaded in its preparation, and the middle one is held.
+# - SAMPLES/IME/SUB/IME_A.WAV: the empty import leg's folder, IME, holds a subfolder and no
+#   audio file of its own.
+# - SYNTHS/: empty; the multisample import leg writes its blank synth preset there.
+# - SAMPLES/IMM/IMM_A2.WAV, IMM_A3.WAV and IMM_A4.WAV: the multisample folder import's
+#   folder, one-second sines at 110, 220 and 440 Hz.
+dir KITS
+# SYNTHS/: empty; the multisample import leg writes its blank synth preset there.
+dir SYNTHS
+sine SAMPLES/SCSYN.WAV ch=1 frames=22050 hz=440
+# The pitch legs' files: SCSYN.WAV's sine under paths no other leg reads, so their clusters are not resident when
+# detection starts (a file read once is never missed again).
+sine SAMPLES/SCPITCH.WAV ch=1 frames=22050 hz=440
+sine SAMPLES/SCSUPA.WAV ch=1 frames=22050 hz=440
+sine SAMPLES/SCSUPB.WAV ch=1 frames=22050 hz=440
+sine SAMPLES/SCPSTALL.WAV ch=1 frames=22050 hz=440
+# One 512-frame cycle: 44100 / 512 Hz.
+sine SAMPLES/SCCYCLE.WAV ch=1 frames=512 hz=86.1328125
+# 64 wavetable-length cycles (131072 frames, 8 clusters) at 44100 / 2048 Hz: resident as a Sample with most clusters
+# uncached, so the wavetable claim builds it from the card.
+sine SAMPLES/SCWTBIG.WAV ch=1 frames=131072 hz=21.533203125
+# 16 wavetable-length cycles (32768 frames, three clusters with the header), fully resident, so the wavetable claim
+# converts it from memory. Its twin is never previewed: the card build the conversion is compared against.
+sine SAMPLES/SCWTFULL.WAV ch=1 frames=32768 hz=21.533203125
+sine SAMPLES/SCWTFUL2.WAV ch=1 frames=32768 hz=21.533203125
+wav SAMPLES/SCSTER.WAV ch=2 bits=16 bytes=8192 fill=0x36
+wav SAMPLES/SCGATE.WAV ch=1 bits=16 bytes=4096 fill=0x37
+wav SAMPLES/SCSTALL.WAV ch=1 bits=16 bytes=4096 fill=0x38
+wav SAMPLES/SCKITD.WAV ch=1 bits=16 bytes=2048 fill=0x32
+wav SAMPLES/SCKICK.WAV ch=1 bits=16 bytes=4096 fill=0x33
+wav SAMPLES/SCAUD.WAV ch=1 bits=16 bytes=16384 fill=0x34
+wav SAMPLES/SCSLICE.WAV ch=1 bits=16 bytes=88200 fill=0x35
+wav SAMPLES/SCSLCF.WAV ch=1 bits=16 bytes=88200 fill=0x36
+wav SAMPLES/RD/RD1.WAV ch=1 bits=16 bytes=2048 fill=0x71
+wav SAMPLES/RD/RD2.WAV ch=1 bits=16 bytes=2560 fill=0x72
+wav SAMPLES/RD/RD3.WAV ch=1 bits=16 bytes=3072 fill=0x73
+wav SAMPLES/RDG/G1.WAV ch=1 bits=16 bytes=2048 fill=0x74
+wav SAMPLES/RDG/G2.WAV ch=1 bits=16 bytes=2560 fill=0x75
+wav SAMPLES/RDG/G3.WAV ch=1 bits=16 bytes=3072 fill=0x76
+wav SAMPLES/RDK/K1.WAV ch=1 bits=16 bytes=2048 fill=0x77
+wav SAMPLES/RDS/S1.WAV ch=1 bits=16 bytes=2048 fill=0x78
+wav SAMPLES/RDS/S2.WAV ch=1 bits=16 bytes=2560 fill=0x79
+wav SAMPLES/RDS/S3.WAV ch=1 bits=16 bytes=3072 fill=0x7a
+wav SAMPLES/IMK/IMK_HAT.WAV ch=1 bits=16 bytes=2048 fill=0x81
+wav SAMPLES/IMK/IMK_KICK.WAV ch=1 bits=16 bytes=2560 fill=0x82
+wav SAMPLES/IMK/IMK_SNARE.WAV ch=1 bits=16 bytes=3072 fill=0x83
+sine SAMPLES/IMM/IMM_A2.WAV ch=1 frames=44100 hz=110
+sine SAMPLES/IMM/IMM_A3.WAV ch=1 frames=44100 hz=220
+sine SAMPLES/IMM/IMM_A4.WAV ch=1 frames=44100 hz=440
+wav SAMPLES/IMG/IMG_A.WAV ch=1 bits=16 bytes=2048 fill=0x84
+wav SAMPLES/IMG/IMG_B.WAV ch=1 bits=16 bytes=2560 fill=0x85
+wav SAMPLES/IMG/IMG_C.WAV ch=1 bits=16 bytes=3072 fill=0x86
+sine SAMPLES/IMS/IMS_A.WAV ch=1 frames=44100 hz=110
+sine SAMPLES/IMS/IMS_B.WAV ch=1 frames=44100 hz=220
+sine SAMPLES/IMS/IMS_C.WAV ch=1 frames=44100 hz=440
+wav SAMPLES/IME/SUB/IME_A.WAV ch=1 bits=16 bytes=2048 fill=0x87

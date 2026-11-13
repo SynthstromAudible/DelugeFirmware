@@ -59,7 +59,7 @@ using deluge::gui::instrumentLoad;
 using deluge::gui::LoadTicket;
 
 /// The presets, written through the firmware's serialisers once the boot song has its synth; each names a sample of
-/// its own (see fill_load_cancel_card in the harness). Each leg that holds a sample load holds a sample nothing has
+/// its own (see load_cancel.card). Each leg that holds a sample load holds a sample nothing has
 /// asked for before, so no earlier leg's request for it is still out when the hold is set.
 constexpr int32_t kPresets = 6;
 constexpr const char* kPresetPaths[kPresets] = {"SYNTHS/LCA.XML", "SYNTHS/LCB.XML", "SYNTHS/LCC.XML",

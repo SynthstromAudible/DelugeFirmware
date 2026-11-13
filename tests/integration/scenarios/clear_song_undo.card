@@ -1,0 +1,10 @@
+# The clear_song_undo scenario's card: the samples its preset and audio clip use, and the empty folders the scenario
+# writes into through the firmware.
+dir SYNTHS
+dir KITS
+dir SONGS
+sine SAMPLES/CS/CSSYN.WAV ch=1 frames=22050 hz=440
+# The two an AudioClip's sample change moves between, and the one the missing-file leg deletes before undoing.
+sine SAMPLES/CS/CSUNA.WAV ch=1 frames=22050 hz=330
+sine SAMPLES/CS/CSUNB.WAV ch=1 frames=22050 hz=550
+sine SAMPLES/CS/CSGONE.WAV ch=1 frames=22050 hz=660

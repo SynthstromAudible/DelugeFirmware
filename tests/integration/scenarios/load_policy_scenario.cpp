@@ -329,7 +329,7 @@ bool checkPathAdmissionCorpus() {
 	return ok;
 }
 
-/// The sample every `LP-DEFAULT` load asks for; the card holds it (golden_vt_render's `fill_load_policy_card`).
+/// The sample every `LP-DEFAULT` load asks for; the card holds it (load_policy.card).
 constexpr const char* kDefaultPath = "SAMPLES/DEFAULT.WAV";
 
 /// Pin that a Sample's read stream opens exactly the path it is given: a path the ABI cannot carry whole is refused
