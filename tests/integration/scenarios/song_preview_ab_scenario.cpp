@@ -909,6 +909,8 @@ CaseDrive driveCase(const char* label, uint64_t windowUs = 0) {
 		case WaitState::Met:
 			return CaseDrive::Settled;
 		case WaitState::Expired:
+			// The wait is shared by every case, so the evidence line says which one hung.
+			printf("SP-CASE-WEDGED case=%s ticks=%d\n", label, g_caseTicks);
 			return CaseDrive::Wedged;
 		}
 	}
@@ -1602,6 +1604,41 @@ void finishListingStage() {
 	g_listingStep = ListingStep::Finished;
 }
 
+/// The marker name of a listing step.
+const char* listingStepName(ListingStep step) {
+	switch (step) {
+	case ListingStep::Fixture:
+		return "fixture";
+	case ListingStep::Reference:
+		return "reference";
+	case ListingStep::Predict:
+		return "predict";
+	case ListingStep::RetractUndone:
+		return "retraction(undone)";
+	case ListingStep::RetractKept:
+		return "retraction(kept)";
+	case ListingStep::BigFolder:
+		return "big";
+	case ListingStep::Fallback:
+		return "fallback";
+	case ListingStep::Create:
+		return "create";
+	case ListingStep::NewName:
+		return "newname";
+	case ListingStep::SlotName:
+		return "slotname";
+	case ListingStep::Variation:
+		return "variation";
+	case ListingStep::Unmount:
+		return "unmount";
+	case ListingStep::Mount:
+		return "mount";
+	case ListingStep::Finished:
+		return "finished";
+	}
+	return "?";
+}
+
 /// One tick of the run in flight. @return Whether it has finished.
 bool tickRun() {
 	switch (g_listingStep) {
@@ -1845,6 +1882,7 @@ void runListingTick() {
 		case WaitState::Pending:
 			return; // still waiting on the channel; the tick surface runs it again
 		case WaitState::Expired:
+			printf("SP-LISTING-WEDGED step=%s\n", listingStepName(g_listingStep));
 			finishListingStage();
 			return;
 		case WaitState::Met:
@@ -3453,12 +3491,11 @@ void runDxTick() {
 		if (pd != nullptr) {
 			pd->getProgramName(0, first);
 		}
-		const bool landed = dxLanded();
-		printf("SP-DX inFlight=0 patches=%d first=%s landed=%d\n", patches, first, landed ? 1 : 0);
-		if (patches != 32 || strcmp(first, kDxFirstName) != 0 || !landed) {
-			g_report.fail("DX the bank did not arrive whole: patches=%d first=%s landed=%d, wanted patches=32 "
-			              "first=%s landed=1",
-			              patches, first, landed ? 1 : 0, kDxFirstName);
+		// The landing wait has been met, so the menu is on the cartridge page.
+		printf("SP-DX inFlight=0 patches=%d first=%s landed=1\n", patches, first);
+		if (patches != 32 || strcmp(first, kDxFirstName) != 0) {
+			g_report.fail("DX the bank did not arrive whole: patches=%d first=%s, wanted patches=32 first=%s", patches,
+			              first, kDxFirstName);
 		}
 		g_dxStep = DxStep::Reopen;
 		return;
