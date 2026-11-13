@@ -258,15 +258,6 @@ Permission permission_for(const Node& node, const MenuContext& ctx);
 ///        fails); @p ctx itself otherwise.
 MenuContext range_rule_context(const Node& node, const MenuContext& ctx);
 
-/// @brief The context @p node's first range is made in and its picker test reads: @p ctx itself when the rule is
-///        about the menu's own source, so the range it resolves stays the menu's; @p own, filled with
-///        `range_rule_context`'s answer, when it is about another source.
-/// @param node The range-specific item.
-/// @param ctx  The menu's context.
-/// @param own  Storage for the other source's context; must outlive the returned reference.
-/// @return @p ctx or @p own.
-MenuContext& range_rule_target(const Node& node, MenuContext& ctx, MenuContext& own);
-
 /// @brief How many ranges the addressed source records.
 ///
 /// The range picker draws one row per range and has to know how many there are; a context with no
@@ -287,28 +278,36 @@ int32_t range_top_note(const MenuContext& ctx, int32_t index);
 std::vector<deluge::instrument::RangeState> ranges_of(const MenuContext& ctx);
 
 /// @brief Make sure @p ctx's source has at least one `MultiRange`, and point @p ctx at it when the
-///        choice is unambiguous -- `Source::getOrCreateFirstRange()` in
-///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`.
+///        choice is unambiguous -- `Source::getOrCreateFirstRange()` in `main`'s
+///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` (`src/deluge/gui/ui/sound_editor.cpp`).
 ///
 /// **This is the allocation `permission_for` deliberately does not do** (see this file's `.cpp`,
-/// "Not owned by this file"): legacy's `checkPermissionToBeginSessionForRangeSpecificParam` *creates* the first
-/// range before it answers anything, and can fail with `INSUFFICIENT_RAM`. `permission_for` is a
-/// pure predicate, so **every** caller that actually opens a range-dependent item does this first.
-/// There are two, because legacy has two ways in and makes no distinction between them:
-/// `MenuScene::enter_child` for a descent, and `MenuScene::on_enter` for a `SceneId::arg` deep link
-/// (the eight gated `openShellMenu` sites and the shortcut-pad jump's `Action::Kind::Replace`).
-/// The second exists because the ported file selector, reached by the deep link, refuses to
-/// open its browser on a source with no ranges.
+/// "Not owned by this file"): main's rule *creates* the first range before it answers anything, and can fail with
+/// `INSUFFICIENT_RAM`. `permission_for` is a pure predicate, so the menu makes the first range of a range-specific
+/// item wherever main runs that rule on one, through @ref ensure_item_first_range.
 ///
-/// On success it also mirrors legacy's `*previouslySelectedRange = firstRange` (`:1951`): when the
-/// choice cannot be ambiguous (a kit row, or exactly one range) `ctx.range_index` is pointed at
-/// range 0, exactly as `context_for` does for a context resolved with ranges already present.
+/// On success it also mirrors main's `*previouslySelectedRange = firstRange`: when the choice cannot be ambiguous (a
+/// kit row, or exactly one range) `ctx.range_index` is pointed at range 0, exactly as `context_for` does for a context
+/// resolved with ranges already present.
 ///
 /// @param ctx The context to top up; only its sound and source matter. A context with no sound is a
 ///            no-op success -- nothing is being edited that could want a range.
-/// @return False only where the sink refused the first range -- legacy's `INSUFFICIENT_RAM`, its
-///         `MenuPermission::NO` arm at `:1939-1942`.
+/// @return False only where the sink refused the first range -- main's `INSUFFICIENT_RAM`, answered with
+///         `MenuPermission::NO`.
 bool ensure_first_range(MenuContext& ctx);
+
+/// @brief The first range of the source @p node's range rule is about (`range_rule_context`), made as main's
+///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` makes it: in the menu's context when the
+///        rule is about the menu's own source, else in that other source's.
+///
+/// The menu runs it where main runs that rule on a range-specific item: a descent or a press on a horizontal item
+/// (`MenuWalk::enter_range_picker_if_needed`), a deep link (`MenuScene::on_enter`) and a page switch, which discards
+/// the answer (`HorizontalMenu::switchVisiblePage`).
+/// @param node The item; one that is not range-specific makes nothing and answers `Yes`.
+/// @param ctx  The menu's context, whose range index the first range resolves when the rule is about its source.
+/// @return `No` where the sink refused the first range; `MustSelectRange` where the rule's context edits a sound whose
+///         range is still unresolved (more than one, none remembered); `Yes` otherwise.
+Permission ensure_item_first_range(const Node& node, MenuContext& ctx);
 
 /// @brief Point @p ctx at range @p index -- `SoundEditor::setCurrentMultiRange` (`sound_editor.cpp`).
 ///

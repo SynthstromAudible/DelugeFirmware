@@ -347,9 +347,33 @@ MenuContext range_rule_context(const Node& node, const MenuContext& ctx) {
 	return own;
 }
 
+namespace {
+
+/// @brief The context @p node's first range is made in and its picker test reads: @p ctx itself when the rule is
+///        about the menu's own source, so the range it resolves stays the menu's; @p own, filled with
+///        `range_rule_context`'s answer, when it is about another source.
+/// @param node The range-specific item.
+/// @param ctx  The menu's context.
+/// @param own  Storage for the other source's context; must outlive the returned reference.
+/// @return @p ctx or @p own.
 MenuContext& range_rule_target(const Node& node, MenuContext& ctx, MenuContext& own) {
 	own = range_rule_context(node, ctx);
 	return own.source_index == ctx.source_index ? ctx : own;
+}
+
+} // namespace
+
+Permission ensure_item_first_range(const Node& node, MenuContext& ctx) {
+	if (!node.range_specific) {
+		return Permission::Yes;
+	}
+	MenuContext own;
+	MenuContext& rule_ctx = range_rule_target(node, ctx, own);
+	if (!ensure_first_range(rule_ctx)) {
+		return Permission::No;
+	}
+	// A context with no sound took the no-op success, and has no range to select.
+	return (rule_ctx.addresses.slot && rule_ctx.range_index < 0) ? Permission::MustSelectRange : Permission::Yes;
 }
 
 Permission permission_for(const Node& node, const MenuContext& ctx) {

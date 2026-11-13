@@ -186,33 +186,30 @@ bool MenuScene::on_enter(const SceneId& id) {
 		// (`gui/menu_item/menu_item.cpp:27-31`, relevance and nothing else) plus the range rule, so
 		// calling it here would refuse site 8 on a default SAW synth that legacy opens. That gap --
 		// `Node` has no port of an item-specific `checkPermissionToBeginSession` that bypasses
-		// relevance -- is listed in `src/scenes/README.md`'s "Legacy features not yet ported" rather than half-closed
-		// here.
+		// relevance -- is listed in `src/scenes/README.md`'s "Features `main` has that the scenes do not" rather than
+		// half-closed here.
 		//
 		// What is NOT skipped is the range half, both of its arms. Paying only the allocation and
 		// dropping `MUST_SELECT_RANGE` would be a partial port of a two-armed gate, which is worse
 		// than paying neither: the half that is there makes it look complete. It is latent on a
 		// fresh source (0 ranges becomes 1, so the item just opens) and fires the moment a user
 		// presses LOAD on a multisampled oscillator.
-		if (target != nullptr && target->range_specific) {
+		if (target != nullptr) {
 			// About the item's own source (`range_rule_context`): a recorder for oscillator 2 under oscillator 1's
 			// context makes oscillator 2's range, and its picker test reads oscillator 2.
-			MenuContext own;
-			MenuContext& rule_ctx = range_rule_target(*target, ctx_, own);
-			if (!ensure_first_range(rule_ctx)) {
+			const Permission range = ensure_item_first_range(*target, ctx_);
+			if (range == Permission::No) {
 				deluge::notify::notice_string(
 				    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));
 				return false;
 			}
-			// `:2005-2014`, the two arms after that allocation. `ensure_first_range` has already
-			// applied the first -- a kit row or a single range is unambiguous, so it points
-			// `ctx_.range_index` at range 0 (`:2005-2007`). What is left is legacy's own
-			// `MUST_SELECT_RANGE` (`:2014`): a range-specific item on a source with more than one
-			// range and none remembered. Spelled as "the allocation did not resolve one" rather
-			// than by calling `permission_for`, whose first statement is the relevance fold above.
-			// A context with no sound took `ensure_first_range`'s no-op success and must not land on a
-			// picker.
-			if (rule_ctx.addresses.slot && rule_ctx.range_index < 0) {
+			// The two arms after that allocation in `main`'s
+			// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`. The allocation has already applied the
+			// first -- a kit row or a single range is unambiguous, so it points the range index at range 0. What is
+			// left is `MUST_SELECT_RANGE`: a range-specific item on a source with more than one range and none
+			// remembered. Spelled as "the allocation did not resolve one" rather than by calling `permission_for`,
+			// whose first statement is the relevance fold above.
+			if (range == Permission::MustSelectRange) {
 				// `SoundEditor::setup`: `multiRangeMenu.menuItemHeadingTo =
 				// horizontal_menu_child; newItem = &multiRangeMenu;` -- the picker is opened
 				// *instead of* the item, and the item is remembered for the picker's own select

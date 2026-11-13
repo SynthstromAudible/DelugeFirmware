@@ -236,9 +236,9 @@
 # (`gui/menu_item/file_selector.cpp:88-91`) and `FileSelector::getColumnLabel` (`:93-114`, which
 # shows the loaded sample's folder, "SAMPLES", where the port shows the node's own name "FILE")
 # have no port, and the fourth visible column differs (legacy PLAY MODE, port REVERSE). Recording
-# that panel would be photographing a difference nobody has explained. Of these, only the fourth-column
-# difference remains, listed in `src/scenes/README.md`'s "Legacy features not yet ported"; the column
-# renderer and the folder column label are ported.
+# that panel would be photographing a difference nobody has explained. The column renderer and the folder
+# column label are ported since, and the fourth column was the legacy menu's: `main`'s source page (`child6` in
+# `gui/menu_item/generate/g_menus.inc`) shows REVERSE after TRANSPOSE once a sample is loaded, as the port does.
 12000  button SelectEnc down
 12020  button SelectEnc up
 
