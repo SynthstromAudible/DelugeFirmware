@@ -580,7 +580,15 @@ enum class PatchCableAcceptance {
 	YET_TO_BE_DETERMINED,
 };
 
-enum class OverDubType { Normal, ContinuousLayering };
+enum class OverDubType { Normal, ContinuousLayering, Take, ContinuousLayeringTake };
+
+constexpr bool isContinuousOverdub(OverDubType type) {
+	return type == OverDubType::ContinuousLayering || type == OverDubType::ContinuousLayeringTake;
+}
+
+constexpr bool isTakeOverdub(OverDubType type) {
+	return type == OverDubType::Take || type == OverDubType::ContinuousLayeringTake;
+}
 
 enum class GlobalMIDICommand {
 	NONE = -1,
@@ -596,6 +604,8 @@ enum class GlobalMIDICommand {
 	TRANSPOSE,
 	NEXT_SONG,
 	SHIFT,
+	LOOP_TAKE,
+	LOOP_CONTINUOUS_LAYERING_TAKE,
 	LAST, // Keep as boundary
 };
 constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::LAST) + 1;
@@ -1106,8 +1116,8 @@ enum GridDefaultActiveMode : uint8_t {
 
 // mapping of grid modes to y axis
 enum GridMode : uint8_t {
-	Unassigned0,
-	Unassigned1,
+	CYAN,   // Layering Loop Take (bottom pad)
+	ORANGE, // Loop Take
 	Unassigned2,
 	MAGENTA,
 	RED,

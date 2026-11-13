@@ -2783,6 +2783,10 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 
 			if (nextPendingOverdub) {
 				nextPendingOverdub->copyBasicsFrom(clip); // Copy this again, in case it's changed since it was created
+				if (isTakeOverdub(nextPendingOverdub->overdubNature)) {
+					// The pending take will own this output when clocked playback starts.
+					clip->activeIfNoSolo = false;
+				}
 			}
 		}
 	}
@@ -2921,6 +2925,8 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDICable& cable, int32_t channel, i
 
 			case GlobalMIDICommand::LOOP:
 			case GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING:
+			case GlobalMIDICommand::LOOP_TAKE:
+			case GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING_TAKE:
 				tryLoopCommand(command);
 				break;
 
@@ -2970,8 +2976,19 @@ void PlaybackHandler::tryLoopCommand(GlobalMIDICommand command) {
 	if (actionLogger.allowedToDoReversion()
 	    // Not quite sure if this describes exactly what we want but it'll do...
 	    || currentUIMode == UI_MODE_RECORD_COUNT_IN) {
-		OverDubType overdubNature =
-		    (command == GlobalMIDICommand::LOOP) ? OverDubType::Normal : OverDubType::ContinuousLayering;
+		OverDubType overdubNature;
+		switch (command) {
+		case GlobalMIDICommand::LOOP_TAKE:
+			overdubNature = OverDubType::Take;
+			break;
+		case GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING_TAKE:
+			overdubNature = OverDubType::ContinuousLayeringTake;
+			break;
+		default:
+			overdubNature =
+			    (command == GlobalMIDICommand::LOOP) ? OverDubType::Normal : OverDubType::ContinuousLayering;
+			break;
+		}
 		loopCommand(overdubNature);
 	}
 }
@@ -3368,7 +3385,7 @@ probablyExitRecordMode:
 		mustEndTempolessRecordingAfter = true;
 
 		// And if LAYERING command, make an overdub too
-		if (overdubNature == OverDubType::ContinuousLayering) {
+		if (isContinuousOverdub(overdubNature)) {
 			goto doCreateNextOverdub;
 		}
 	}
@@ -3399,7 +3416,7 @@ probablyExitRecordMode:
 
 		// Or if none were recording, or if it was the LAYERING command, then create a new overdub (potentially in
 		// addition to having armed the old one to stop
-		if (!anyGotArmedToStop || overdubNature == OverDubType::ContinuousLayering) {
+		if (!anyGotArmedToStop || isContinuousOverdub(overdubNature)) {
 
 doCreateNextOverdub:
 
@@ -3448,14 +3465,14 @@ doCreateNextOverdub:
 							clipToCreateOverdubFrom->overdubsShouldCloneOutput = true;
 						}
 
-						if (recording == RecordingMode::OFF) {
-							recording = RecordingMode::NORMAL;
-							setLedStates();
-						}
-
 						Clip* overdub = currentSong->createPendingNextOverdubBelowClip(
 						    clipToCreateOverdubFrom, clipIndexToCreateOverdubFrom, overdubNature);
 						if (overdub) {
+							// Only enter record mode once a clip is ready to record.
+							if (recording == RecordingMode::OFF) {
+								recording = RecordingMode::NORMAL;
+								setLedStates();
+							}
 							session.scheduleOverdubToStartRecording(overdub, clipToCreateOverdubFrom);
 						}
 					}
@@ -3473,7 +3490,7 @@ doCreateNextOverdub:
 	}
 
 	if (mustEndTempolessRecordingAfter) {
-		bool shouldExitRecordMode = (overdubNature != OverDubType::ContinuousLayering);
+		bool shouldExitRecordMode = !isContinuousOverdub(overdubNature);
 		finishTempolessRecording(true, kMIDIKeyInputLatency, shouldExitRecordMode);
 	}
 }

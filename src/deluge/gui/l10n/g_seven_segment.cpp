@@ -15,6 +15,9 @@ using enum String;
 PLACE_SDRAM_DATA Language seven_segment{
     "Seven Segment",
     {
+        {STRING_FOR_LOOP_TAKE, "TAKE"},
+        {STRING_FOR_LAYERING_LOOP_TAKE, "LTAK"},
+        {STRING_FOR_NO_FREE_TAKE_SECTIONS, "FULL"},
         {STRING_FOR_ERROR_INSUFFICIENT_RAM, "RAM"},
         {STRING_FOR_ERROR_INSUFFICIENT_RAM_FOR_FOLDER_CONTENTS_SIZE, "RAM"},
         {STRING_FOR_ERROR_SD_CARD, "CARD"},
