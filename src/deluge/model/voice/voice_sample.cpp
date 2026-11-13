@@ -1949,6 +1949,16 @@ int32_t VoiceSample::getPlaySample(Sample* sample, SamplePlaybackGuide* guide) {
 	}
 }
 
+// Where the incoming pass of a loop crossfade has got to, or -1 if there's no crossfade going on
+int32_t VoiceSample::getLoopCrossfadeIncomingPlaySample(Sample* sample, SamplePlaybackGuide* guide) {
+	if (!isLoopCrossfading()) {
+		return -1;
+	}
+	int32_t bytePosFromAudioDataStart =
+	    loopIncoming->getPlayByteLowLevel(sample, guide) - sample->audioDataStartPosBytes;
+	return bytePosFromAudioDataStart / (sample->byteDepth * sample->numChannels);
+}
+
 void VoiceSample::switchToReadingCacheFromWriting() {
 	D_PRINTLN("switchToReadingCacheFromWriting");
 	writingToCache = false;

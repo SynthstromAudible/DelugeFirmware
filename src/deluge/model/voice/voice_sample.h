@@ -82,6 +82,7 @@ public:
 	bool sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, bool reversed, MarkerType markerType,
 	                       LoopType loopingType, int32_t priorityRating, bool forAudioClip = false);
 	int32_t getPlaySample(Sample* sample, SamplePlaybackGuide* guide);
+	int32_t getLoopCrossfadeIncomingPlaySample(Sample* sample, SamplePlaybackGuide* guide);
 	bool stopUsingCache(SamplePlaybackGuide* guide, Sample* sample, int32_t priorityRating, bool loopingAtLowLevel);
 	bool possiblySetUpCache(SampleControls* sampleControls, SamplePlaybackGuide* guide, int32_t phaseIncrement,
 	                        int32_t timeStretchRatio, int32_t priorityRating, LoopType loopingType);
