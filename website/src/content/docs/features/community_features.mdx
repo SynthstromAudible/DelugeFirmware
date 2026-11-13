@@ -1215,16 +1215,16 @@ For a detailed description of this feature, please refer to the feature document
 ### 4.5.12 - Loop Crossfade
 
 - <Badge text="c1.4" variant="tip" /> Added a `LOOP XFADE` setting to each sample oscillator, right after `REPEAT MODE`
-  (`OSCILLATOR 1 / 2 > LOOP XFADE`), from `OFF` up to 1000 ms. It smooths out loops that don't join up perfectly.
-  - When playback gets that close to the loop end, the next pass through the loop starts from the loop start alongside
-    it. The end of the loop fades out while its start fades in (equal-power), then the new pass carries on alone.
-  - The crossfade is limited to half the loop length, so there are never more than two passes playing at once. With no
-    loop points set, the loop is the whole sample.
-  - It's measured in the sample's own time, so it gets shorter as the sample is played higher.
-  - It works when the sample loops (`LOOP` mode, or a loop end point while the note is held), forwards or reversed. It
-    has no effect while time-stretching.
-  - While it's on, a looping sample doesn't use the playback cache, and the voice reads the sample twice during each
-    crossfade, so it uses a bit more CPU. Set to `OFF`, it costs nothing.
+(`OSCILLATOR 1 / 2 > LOOP XFADE`), from `OFF` up to 1000 ms. It smooths out loops that don't join up perfectly.
+- When playback gets that close to the loop end, the next pass through the loop starts from the loop start alongside
+  it. The end of the loop fades out while its start fades in (equal-power), then the new pass carries on alone.
+- The crossfade is limited to half the loop length, so there are never more than two passes playing at once. With no
+  loop points set, the loop is the whole sample.
+- It's measured in the sample's own time, so it gets shorter as the sample is played higher.
+- It works when the sample loops (`LOOP` mode, or a loop end point while the note is held), forwards or reversed. It
+  has no effect while time-stretching.
+- While it's on, a looping sample doesn't use the playback cache, and the voice reads the sample twice during each
+  crossfade, so it uses a bit more CPU. Set to `OFF`, it costs nothing.
 
 ## 4.6 - Instrument Clip View - Kit Clip Features
 
