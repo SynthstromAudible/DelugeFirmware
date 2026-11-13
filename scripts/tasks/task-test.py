@@ -7,6 +7,7 @@
 ./dbt test pattern-load song-save-channel    # by name, whatever their tier
 ./dbt test unit -- -R mem_guard              # arguments after -- go to ctest
 ./dbt test --list [--markdown]               # the registry, with prerequisites resolved
+./dbt test --list --verbose song-roundtrip    # a test's explanation, from the file that judges it
 ./dbt test --doctor                          # what is missing, and how to get it
 ./dbt test --capture <label>                 # run the estate and record its marker lines
 ./dbt test --ci-matrix --tier pr             # the selection by CI job, as JSON
@@ -25,6 +26,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import textwrap
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
@@ -83,6 +85,11 @@ def argparser() -> argparse.ArgumentParser:
         "--markdown",
         action="store_true",
         help="With --list: the README table, for every test",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="With --list: each test's explanation too, from the file that judges it",
     )
     parser.add_argument(
         "--doctor", action="store_true", help="Report missing prerequisites"
@@ -1131,7 +1138,11 @@ def cmd_capture(
 
 
 def cmd_list(
-    root: Path, selection: list[hr.Harness], markdown: bool, entries: list[hr.Harness]
+    root: Path,
+    selection: list[hr.Harness],
+    markdown: bool,
+    entries: list[hr.Harness],
+    verbose: bool = False,
 ) -> int:
     if markdown:
         print(hr.markdown_table(entries), end="")
@@ -1148,6 +1159,9 @@ def cmd_list(
             f"{mark} {h.name:<{width}}  {h.level:<11} {h.status:<13} {h.tier:<7} {hr.runtime_text(h.runtime_s)}{note}"
         )
         print(f"    {' ' * width}  {h.gates}")
+        if verbose and (text := hr.explanation(root, h)):
+            for line in textwrap.wrap(text, width=max(40, 116 - width)):
+                print(f"    {' ' * width}  {line}")
     return 0
 
 
@@ -1272,7 +1286,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(hr.ci_matrix(selection)))
         return 0
     if args.list:
-        return cmd_list(root, selection, args.markdown, entries)
+        return cmd_list(root, selection, args.markdown, entries, verbose=args.verbose)
     return cmd_run(root, selection, args, passthrough, named=bool(args.names))
 
 

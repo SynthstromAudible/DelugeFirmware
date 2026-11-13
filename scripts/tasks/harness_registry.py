@@ -6,6 +6,7 @@ unit-testable without invoking dbt or spawning a build. See
 test_harness_registry.py.
 """
 
+import ast
 import dataclasses
 import json
 import os
@@ -180,6 +181,128 @@ KINDS = (
 PATH_RUNNERS = ("cargo", "script")
 # The fields an entry may set: everything the runner reads.
 ENTRY_FIELDS = frozenset(f.name for f in dataclasses.fields(Harness))
+
+
+# The longest `gates` line: one sentence a reader takes in from the README table. What it leaves out is the test's
+# explanation, a `Gate <name>:` block in the file that judges the test (explanation_source).
+GATES_MAX = 160
+_SENTENCE_BREAK = re.compile(r"[.!?;][\"')\]]*\s")
+
+
+def gates_problem(gates: str) -> str | None:
+    """Why `gates` is not one short sentence, or None."""
+    if "\n" in gates:
+        return "runs over more than one line"
+    if len(gates) > GATES_MAX:
+        return f"is {len(gates)} characters, more than {GATES_MAX}"
+    if found := _SENTENCE_BREAK.search(gates):
+        return f"has a sentence break ({found.group().strip()!r})"
+    if gates.rstrip().endswith("."):
+        return "ends with a full stop"
+    return None
+
+
+# Where a scenario without a check is written: its stepped scenario, or its driver.
+SCENARIO_SOURCES = (
+    "tests/integration/scenarios/{scenario}_scenario.cpp",
+    "tests/integration/scenarios/drivers/{scenario}.cpp",
+)
+# A check whose entries' explanations would swamp its docstring keeps them in a notes file beside it, one
+# `## <name>` section per entry.
+CHECK_NOTES = {
+    "tests/integration/checks/render_song.py": "tests/integration/checks/render_song_cases.md",
+}
+
+
+def explanation_source(root: Path, h: Harness) -> Path | None:
+    """The file that holds `h`'s explanation: the code that judges it, or the file its command runs."""
+    match h.runner:
+        case "scenario":
+            if h.check:
+                return Path(CHECK_NOTES.get(h.check, h.check))
+            for pattern in SCENARIO_SOURCES:
+                candidate = Path(pattern.format(scenario=h.scenario))
+                if (root / candidate).is_file():
+                    return candidate
+            return None
+        case "corpus":
+            return CORPUS_RUNNERS / f"{h.corpus_runner}_run.py"
+        case "cargo":
+            return Path(h.path) / "Cargo.toml"
+        case "ctest":
+            return Path(h.source) / "CMakeLists.txt"
+    run = h.run
+    if run[:3] == ["python3", "-m", "unittest"]:
+        module = f"{Path(h.path).name}.py" if run[3] == "discover" else f"{run[3]}.py"
+        return Path(h.path) / module
+    return Path(h.path) / (run[1] if run[0] == "python3" else run[0])
+
+
+_BLOCK_HEAD = re.compile(r"^Gate (?P<name>[a-z0-9][a-z0-9-]*):$")
+_SECTION_HEAD = re.compile(r"^## (?P<name>[a-z0-9][a-z0-9-]*)$")
+_COMMENT = re.compile(r"^\s*(?:///|//|#)(?: |$)")
+
+
+def _notes_sections(path: Path) -> dict[str, str]:
+    """The `## <name>` sections of a Markdown notes file, each one's lines joined by single spaces."""
+    sections: dict[str, list[str]] = {}
+    current = None
+    for line in path.read_text().splitlines():
+        if head := _SECTION_HEAD.match(line):
+            current = head["name"]
+            if current in sections:
+                raise ValueError(f"{path}: two '## {current}' sections")
+            sections[current] = []
+        elif line.startswith("#"):
+            current = None
+        elif current is not None and line.strip():
+            sections[current].append(line.strip())
+    for name, body in sections.items():
+        if not body:
+            raise ValueError(f"{path}: '## {name}' is empty")
+    return {name: " ".join(body) for name, body in sections.items()}
+
+
+def explanation_blocks(path: Path) -> dict[str, str]:
+    """The `Gate <name>:` blocks in `path`: in a Python file its module docstring, elsewhere its `///`, `//` or `#`
+    comments. A block is the header and the lines indented under it, up to the first blank or unindented line; its
+    text is those lines joined by single spaces. A Markdown notes file (CHECK_NOTES) holds `## <name>` sections."""
+    if path.suffix == ".md":
+        return _notes_sections(path)
+    text = path.read_text()
+    if path.suffix == ".py":
+        lines = (ast.get_docstring(ast.parse(text), clean=True) or "").splitlines()
+    else:
+        lines = [
+            _COMMENT.sub("", line, count=1) if _COMMENT.match(line) else ""
+            for line in text.splitlines()
+        ]
+    blocks: dict[str, str] = {}
+    i = 0
+    while i < len(lines):
+        head = _BLOCK_HEAD.match(lines[i])
+        i += 1
+        if not head:
+            continue
+        body = []
+        while i < len(lines) and lines[i].startswith("    ") and lines[i].strip():
+            body.append(lines[i].strip())
+            i += 1
+        name = head["name"]
+        if not body:
+            raise ValueError(f"{path}: 'Gate {name}:' is empty")
+        if name in blocks:
+            raise ValueError(f"{path}: two 'Gate {name}:' blocks")
+        blocks[name] = " ".join(body)
+    return blocks
+
+
+def explanation(root: Path, h: Harness) -> str:
+    """`h`'s explanation, or "" when its gates line says everything."""
+    source = explanation_source(root, h)
+    if source is None or not (root / source).is_file():
+        return ""
+    return explanation_blocks(root / source).get(h.name, "")
 
 
 def _runs_golden_vt_render(where: str, item: dict) -> None:
@@ -539,9 +662,11 @@ def dump_expanded(entries: list[Harness]) -> str:
 
 
 __all__ = [
+    "CHECK_NOTES",
     "CORPUS_DECLARED",
     "CORPUS_RUNNERS",
     "ENTRY_FIELDS",
+    "GATES_MAX",
     "JOBS",
     "KINDS",
     "LEVELS",
@@ -549,6 +674,7 @@ __all__ = [
     "PATH_RUNNERS",
     "PROBES",
     "RUNNERS",
+    "SCENARIO_SOURCES",
     "SCENARIO_TABLE",
     "TABLE_BEGIN",
     "TABLE_END",
@@ -558,6 +684,10 @@ __all__ = [
     "corpus_fixture_scenarios",
     "declares_corpus",
     "dump_expanded",
+    "explanation",
+    "explanation_blocks",
+    "explanation_source",
+    "gates_problem",
     "load_registry",
     "local_only",
     "markdown_table",

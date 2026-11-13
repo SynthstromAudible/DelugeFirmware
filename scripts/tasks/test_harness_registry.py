@@ -1785,3 +1785,148 @@ class RetiredSwitchTest(unittest.TestCase):
             for line in switch_definitions((self.ROOT / path).read_text())
         ]
         self.assertEqual(hits, [])
+
+
+class GatesRuleTest(unittest.TestCase):
+    def test_one_short_sentence_passes(self):
+        self.assertIsNone(
+            hr.gates_problem("the serializers agree (every corpus song, every output)")
+        )
+
+    def test_what_breaks_it(self):
+        for text, why in (
+            ("a" * (hr.GATES_MAX + 1), "characters"),
+            ("one claim. Another claim", "sentence break"),
+            ("one claim; another", "sentence break"),
+            ('a "quoted." Then more', "sentence break"),
+            ("a claim.", "full stop"),
+            ("two\nlines", "line"),
+        ):
+            with self.subTest(text):
+                self.assertIn(why, hr.gates_problem(text))
+
+    def test_numbers_and_paths_are_not_breaks(self):
+        self.assertIsNone(
+            hr.gates_problem("settles in 2.5 s through tests/golden/x.json")
+        )
+
+
+class ExplanationTest(unittest.TestCase):
+    ROOT = Path(__file__).resolve().parents[2]
+
+    def _file(self, name, text):
+        path = Path(tempfile.mkdtemp()) / name
+        path.write_text(text)
+        return path
+
+    def test_python_docstring_block(self):
+        path = self._file(
+            "c.py",
+            '"""The check.\n\nGate alpha:\n    the long\n    story\n\nGate beta:\n    other\n"""\n\n# Gate gamma:\n#     not docstring\n',
+        )
+        self.assertEqual(
+            hr.explanation_blocks(path), {"alpha": "the long story", "beta": "other"}
+        )
+
+    def test_comment_blocks_in_every_prefix(self):
+        for name, prefix in (
+            ("s.cpp", "///"),
+            ("d.cpp", "//"),
+            ("r.sh", "#"),
+            ("Cargo.toml", "#"),
+        ):
+            with self.subTest(name):
+                path = self._file(
+                    name,
+                    f"{prefix} Top.\n{prefix}\n{prefix} Gate alpha:\n{prefix}     a b\n{prefix}     c\ncode\n",
+                )
+                self.assertEqual(hr.explanation_blocks(path), {"alpha": "a b c"})
+
+    def test_a_block_ends_at_a_line_that_is_not_indented(self):
+        path = self._file("d.cpp", "// Gate alpha:\n//     a\n// b\n")
+        self.assertEqual(hr.explanation_blocks(path), {"alpha": "a"})
+
+    def test_a_second_block_for_one_entry_is_refused(self):
+        path = self._file(
+            "d.cpp", "// Gate alpha:\n//     a\n//\n// Gate alpha:\n//     b\n"
+        )
+        with self.assertRaisesRegex(ValueError, "alpha"):
+            hr.explanation_blocks(path)
+
+    def test_an_empty_block_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "empty"):
+            hr.explanation_blocks(self._file("d.cpp", "// Gate alpha:\n//\n"))
+
+    def test_markdown_notes_sections(self):
+        path = self._file(
+            "n.md",
+            "# Notes\n\nWhat this file holds.\n\n## alpha\n\nthe long\nstory\n\nmore\n\n## beta\n\nother\n",
+        )
+        self.assertEqual(
+            hr.explanation_blocks(path),
+            {"alpha": "the long story more", "beta": "other"},
+        )
+
+    def test_markdown_refuses_a_repeated_or_empty_section(self):
+        with self.assertRaisesRegex(ValueError, "alpha"):
+            hr.explanation_blocks(
+                self._file("n.md", "## alpha\n\na\n\n## alpha\n\nb\n")
+            )
+        with self.assertRaisesRegex(ValueError, "empty"):
+            hr.explanation_blocks(self._file("n.md", "## alpha\n\n## beta\n\nb\n"))
+
+    def test_sources_by_runner(self):
+        cases = {
+            "render-kit-fx": "tests/integration/checks/render_song_cases.md",
+            "effect-owners": "tests/integration/scenarios/drivers/effect_owners.cpp",
+            "stale-ui": "tests/integration/scenarios/stale_ui_scenario.cpp",
+            "song-roundtrip": "tests/golden/songs_run.py",
+            "upgrade-differential": "tests/golden/upgrade_run.py",
+            "registry-selftest": "scripts/tasks/test_harness_registry.py",
+            "ptm-trace-tool": "tools/deluge_trace/deluge_trace.py",
+            "snapshot-primitive-tsan": "tests/component/stress/run.sh",
+            "crates": "crates/Cargo.toml",
+            "unit": "tests/unit/CMakeLists.txt",
+        }
+        by_name = {h.name: h for h in hr.load_registry(self.ROOT)}
+        for name, path in cases.items():
+            with self.subTest(name):
+                self.assertEqual(
+                    hr.explanation_source(self.ROOT, by_name[name]), Path(path)
+                )
+
+    def test_every_entry_has_a_source_in_the_tree(self):
+        for h in hr.load_registry(self.ROOT):
+            with self.subTest(h.name):
+                source = hr.explanation_source(self.ROOT, h)
+                self.assertIsNotNone(source)
+                self.assertTrue((self.ROOT / source).is_file())
+
+    def test_every_block_names_an_entry_of_its_file(self):
+        names_by_source = {}
+        for h in hr.load_registry(self.ROOT):
+            names_by_source.setdefault(hr.explanation_source(self.ROOT, h), set()).add(
+                h.name
+            )
+        for source, names in names_by_source.items():
+            with self.subTest(str(source)):
+                self.assertLessEqual(
+                    set(hr.explanation_blocks(self.ROOT / source)), names
+                )
+
+    def test_list_verbose_prints_the_explanation(self):
+        root = Path(tempfile.mkdtemp())
+        (root / "tests").mkdir()
+        (root / "tests" / "registry.toml").write_text(MINIMAL)
+        (root / "harness/rust/alpha").mkdir(parents=True)
+        (root / "harness/rust/alpha/Cargo.toml").write_text(
+            "# Gate alpha:\n#     beta, explained\n[package]\n"
+        )
+        h = hr.load_registry(root)[0]
+        out = io.StringIO()
+        with (
+            mock.patch.object(hr, "probe", return_value=True),
+            contextlib.redirect_stdout(out),
+        ):
+            tt.cmd_list(root, [h], False, [h], verbose=True)
+        self.assertIn("beta, explained", out.getvalue())
