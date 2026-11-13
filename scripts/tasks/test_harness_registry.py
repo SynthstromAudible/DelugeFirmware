@@ -12,6 +12,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -20,6 +21,7 @@ import types
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import ClassVar
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -393,6 +395,28 @@ group = "render"
 
 class CheckModuleTest(unittest.TestCase):
     ROOT = Path(__file__).resolve().parents[2]
+
+    # Checks that keep `re` for text that is not a marker line, and what they parse with it.
+    NON_MARKER_RE: ClassVar[dict[str, str]] = {
+        "render_preset.py": "a preset's saved MIDI learn (XML and JSON)",
+        "render_song.py": "a song's reverb element",
+        "ui_scripts.py": "a UI script's board steps",
+    }
+
+    def test_checks_read_marker_lines_through_scenario_gate(self):
+        checks = self.ROOT / "tests" / "integration" / "checks"
+        own = sorted(
+            p.name
+            for p in checks.glob("*.py")
+            if not p.name.startswith("test_")
+            and p.name not in self.NON_MARKER_RE
+            and re.search(r"^import re$", p.read_text(), re.MULTILINE)
+        )
+        self.assertEqual(
+            own,
+            [],
+            "parse marker lines with scenario_gate's helpers (tag, fields, field, ...)",
+        )
 
     def test_a_check_that_runs_the_binary_itself_judges_the_entrys_lines(self):
         unjudged = sorted(

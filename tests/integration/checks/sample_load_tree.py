@@ -43,8 +43,6 @@ Environment:
     SAMPLE_LOAD_TREE_CRUCIAL_TRACE  if set, a file to write the run's LTC lines to
 """
 
-import re
-
 
 def run(gate):
     result = gate.run()
@@ -59,9 +57,8 @@ def run(gate):
     if not gate.require_standard(result):
         return
     # The SLT- lines and the tier inventory: the LT/LTA/LTC/LTP trace lines go to the trace files, not the log.
-    for line in result.lines:
-        if line.startswith("SLT-") or re.match(r"TIER-SYNC(-AT)? ", line):
-            gate.say(line)
+    for line in result.starting("SLT-", "TIER-SYNC ", "TIER-SYNC-AT "):
+        gate.say(line)
     gate.say(
         "PASS — every holder resolved where the fixture put its file, the dropped kit load bound no more, and the"
     )

@@ -38,7 +38,7 @@ the host BSP) or a std::terminate, during the deletion or the deferred destructi
 prints its count first, marked aborted=1 with the step it died in, and the run's SL-RESULT.
 """
 
-import re
+from scenario_gate import has_fields
 
 
 def _lines(run, prefix: str) -> str:
@@ -63,7 +63,7 @@ def check(gate, run):
 
     # A burst past the ring's capacity: nothing is destroyed before the render lets go of it, and everything is freed.
     if not any(
-        re.match(r"^SL-BURST .* violations=0 pending=0$", line) for line in run.lines
+        has_fields(line, violations=0, pending=0) for line in run.starting("SL-BURST ")
     ):
         gate.fail(
             f"{_lines(run, 'SL-BURST')}: a retired object was destroyed before the render let go of it, "

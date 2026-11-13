@@ -118,7 +118,7 @@ does a missing leg line. The registry entry requires the
 result line.
 """
 
-import re
+from scenario_gate import field, int_field, tag
 
 LEGS = [
     "NOTEADD",
@@ -187,9 +187,8 @@ NODE_LEGS = [
 ]
 
 
-def _grep(result, pattern: str, otherwise: str) -> str:
-    found = [line for line in result.lines if re.match(pattern, line)]
-    return "\n".join(found) if found else otherwise
+def _grep(result, prefix: str, otherwise: str) -> str:
+    return "\n".join(result.starting(prefix)) or otherwise
 
 
 def _guarded(result, leg: str) -> bool:
@@ -199,21 +198,20 @@ def _guarded(result, leg: str) -> bool:
 def _check(gate, result) -> None:
     for leg in LEGS:
         if not any(
-            re.match(rf"CG-{leg} unguarded=[0-9]+ ", line) for line in result.lines
+            (field(line, "unguarded") or "").isdigit()
+            for line in result.starting(f"CG-{leg} ")
         ):
             gate.fail(f"no CG-{leg} line: a stage never ran")
             return
 
     # The render must not allocate: a kit's drums start and stop rendering without touching the heap.
-    alloc = re.search(
-        r"CG-RENDERALLOC renderAllocs=(\d+) delayStarts=(\d+) delayStops=(\d+)",
-        "\n".join(result.lines),
-    )
-    if alloc and (int(alloc.group(2)) < 1 or int(alloc.group(3)) < 1):
+    alloc = result.first("CG-RENDERALLOC ")
+    starts, stops = int_field(alloc, "delayStarts"), int_field(alloc, "delayStops")
+    if alloc and ((starts or 0) < 1 or (stops or 0) < 1):
         gate.fail(
-            f"CG-RENDERALLOC — the drum's delay must start and abandon its tapes ({alloc.group(0)})"
+            f"CG-RENDERALLOC — the drum's delay must start and abandon its tapes ({alloc})"
         )
-    if not (alloc and alloc.group(1) == "0"):
+    if field(alloc, "renderAllocs") != "0":
         found = _grep(
             result,
             "CG-RENDERALLOC renderAllocs=",
@@ -346,7 +344,7 @@ def _check(gate, result) -> None:
         ),
     ):
         if not result.has_line(line):
-            leg = line.split(" ")[0]
+            leg = tag(line)
             found = _grep(result, leg + " ", f"no {leg} line")
             gate.fail(f"{leg} — {why} ({found})")
     if not result.has_line("CG-GRAINSWAP blocks=1 noted=1"):
@@ -357,10 +355,10 @@ def _check(gate, result) -> None:
         return
 
     # The render's latched record writes must be reached, or RECORDKNOB says nothing about them.
-    record = re.search(
-        r"CG-RECORDKNOB recorded=1 renderKernels=(\d+)", "\n".join(result.lines)
-    )
-    if not (record and int(record.group(1)) > 0):
+    knob = result.first("CG-RECORDKNOB ")
+    if not (
+        field(knob, "recorded") == "1" and (int_field(knob, "renderKernels") or 0) > 0
+    ):
         found = _grep(result, "CG-RECORDKNOB recorded", "no CG-RECORDKNOB line")
         gate.fail(f"{found}: the render never wrote over the recorded nodes")
     for leg in NODE_LEGS:

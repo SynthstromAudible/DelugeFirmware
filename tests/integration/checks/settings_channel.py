@@ -31,20 +31,17 @@ rather than a silently truncated log. The registry entry requires each marker an
 SC-CHANNEL's count.
 """
 
-import re
-
-CHANNEL = re.compile(r"SC-CHANNEL served=([0-9]*)")
+from scenario_gate import field, int_field
 
 
 def check(gate, run):
-    counts = [m.group(1) for line in run.lines if (m := CHANNEL.fullmatch(line))]
-    served = counts[0] if counts else ""
-    if not served or int(served) == 0:
+    channel = run.first("SC-CHANNEL ")
+    if not int_field(channel, "served"):
         gate.fail(
-            f"SC-CHANNEL served={served or 'none'}: the byte channel served nothing, so the async arm never ran"
+            f"SC-CHANNEL served={field(channel, 'served') or 'none'}: the byte channel served nothing, so the async arm never ran"
         )
         return
     gate.say(
-        f"PASS — the settings round-tripped, the byte channel served {served} operation(s), and no"
+        f"PASS — the settings round-tripped, the byte channel served {field(channel, 'served')} operation(s), and no"
     )
     gate.say("       settings I/O ran on the interaction tier")

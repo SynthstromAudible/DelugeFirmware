@@ -18,19 +18,17 @@ UI. Which tier those run on does not depend on which branch reached them.
 The registry entry requires each marker and the result line; this module adds SF-CHANNEL's non-zero count.
 """
 
-import re
-
-SERVED = re.compile(r"^SF-CHANNEL served=([0-9]*)$")
+from scenario_gate import field, int_field
 
 
 def check(gate, run):
-    served = next((m.group(1) for line in run.lines if (m := SERVED.match(line))), "")
-    if not served or int(served) == 0:
+    channel = run.first("SF-CHANNEL ")
+    if not int_field(channel, "served"):
         gate.fail(
-            f"SF-CHANNEL served={served or 'none'}: the byte channel served nothing, so the async arm never ran"
+            f"SF-CHANNEL served={field(channel, 'served') or 'none'}: the byte channel served nothing, so the async arm never ran"
         )
         return
     gate.say(
         "PASS — no startup fail-safe I/O ran on the interaction tier, and the byte channel served"
     )
-    gate.say(f"       {served} operation(s)")
+    gate.say(f"       {field(channel, 'served')} operation(s)")

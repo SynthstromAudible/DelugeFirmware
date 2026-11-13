@@ -18,33 +18,21 @@ What the checks cover (tests/integration/scenarios/song_load_channel_scenario.cp
     SL-*-LASTOPENED  with the startup-song mode LASTOPENED, the cancelled load writes no settings file and the
                  completed one does (likewise).
 
-The registry entry requires each marker. This module checks the result line itself, because a failed result does not
-stop the channel checks: every one of the three that fails is reported.
+The registry entry requires each marker and the result line; this module adds the channel's two counts.
 """
 
-import re
-
-SERVED = re.compile(r"^SL-SUMMARY served=([0-9]*) ")
-TICKS = re.compile(r"^SL-SUMMARY .*channelTicks=([0-9]*)")
-
-
-def _captured(run, pattern: re.Pattern) -> str:
-    return next((m.group(1) for line in run.lines if (m := pattern.match(line))), "")
+from scenario_gate import field, int_field
 
 
 def check(gate, run):
+    summary = run.first("SL-SUMMARY ")
     failed = False
-    if not run.has_line("SL-RESULT failures=0"):
-        gate.fail("\n".join(run.starting("SL-RESULT")))
-        failed = True
-    served = _captured(run, SERVED)
-    if not served or int(served) == 0:
+    if not int_field(summary, "served"):
         gate.fail(
-            f"SL-CHANNEL — the load served {served or 'no'} staging read(s); the async arm never ran"
+            f"SL-CHANNEL — the load served {field(summary, 'served') or 'no'} staging read(s); the async arm never ran"
         )
         failed = True
-    ticks = _captured(run, TICKS)
-    if not ticks or int(ticks) == 0:
+    if not int_field(summary, "channelTicks"):
         gate.fail(
             "SL-TICKED — the staging read never ran through the channel across ticks"
         )

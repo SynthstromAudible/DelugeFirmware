@@ -43,7 +43,6 @@ passed or not: the log shows only the summaries, and a change to how loads resol
 these.
 """
 
-import re
 from pathlib import Path
 
 # A floor on the case count, so a future edit that shrinks `kCases` cannot keep printing PASS over a comparison that no
@@ -51,9 +50,18 @@ from pathlib import Path
 # make a run go green.
 MIN_CASES = 11
 
-SHOWN = re.compile(
-    r"^(AB-SUMMARY|AB-DEFER|AB-PREVIEW|AB-CANCEL|AB-PREVIEW-STALL|AB-PREVIEW-TIER|AB-PREVIEW-DRAW"
-    r"|AB-PREVIEW-DRAW-STALL|AB-PREVIEW-DRAW-RELEASE|AB-PRESCAN-RANGE|AB-EJECT-SUMMARY) "
+SHOWN = (
+    "AB-SUMMARY ",
+    "AB-DEFER ",
+    "AB-PREVIEW ",
+    "AB-CANCEL ",
+    "AB-PREVIEW-STALL ",
+    "AB-PREVIEW-TIER ",
+    "AB-PREVIEW-DRAW ",
+    "AB-PREVIEW-DRAW-STALL ",
+    "AB-PREVIEW-DRAW-RELEASE ",
+    "AB-PRESCAN-RANGE ",
+    "AB-EJECT-SUMMARY ",
 )
 
 
@@ -61,9 +69,7 @@ def run(gate):
     result = gate.run()
     lines_file = gate.env.get("AUDIO_LOAD_AB_LINES")
     if lines_file:
-        kept = [
-            line for line in result.lines if re.match(r"^AB-(CASE|EJECT|REF) ", line)
-        ]
+        kept = result.starting("AB-CASE ", "AB-EJECT ", "AB-REF ")
         Path(lines_file).write_text("".join(line + "\n" for line in kept))
     if not gate.require_standard(result):
         return
@@ -85,6 +91,5 @@ def run(gate):
         "across a"
     )
     gate.say("       card swap, and a preview held past its bound gave up")
-    for line in result.lines:
-        if SHOWN.match(line):
-            gate.say(line)
+    for line in result.starting(*SHOWN):
+        gate.say(line)

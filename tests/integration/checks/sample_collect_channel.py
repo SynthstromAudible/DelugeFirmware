@@ -10,6 +10,8 @@ answers that by deciding every path first, transferring with nothing shared held
 pass -- and SC-ORDERED is what says the answer works. The transfers and the save around them ride the byte channel,
 which has no feature switch, so there is one leg.
 
+The registry entry requires each marker and the result line; this module judges the summary's counts.
+
 What the checks cover:
   SC-COPIED     every referenced sample is AT its collected destination, byte-identical to the source.
   SC-RENAMED    the fixture's recording really was renamed. Required, because a collect-media save rewrites filePath
@@ -31,25 +33,18 @@ SC-ATOMIC must go red. SC-ORDERED does not catch that; the end state is repaired
 in-flight check can see it.
 """
 
-import re
+from scenario_gate import field
 
 
-def _summary(run, pattern: str) -> str | None:
-    """The digits `pattern` captures on an SC-SUMMARY line, or None when no line matches ("" counts as absent)."""
-    for line in run.lines:
-        m = re.match(pattern, line)
-        if m:
-            return m.group(1) or None
-    return None
+def _summary(run, key: str) -> str | None:
+    """The value of `key` on the SC-SUMMARY line, or None when the line or the key is absent ("" counts as absent)."""
+    return field(run.first("SC-SUMMARY "), key) or None
 
 
 def check(gate, run):
-    if not run.has_line("SC-RESULT failures=0"):
-        gate.fail("\n".join(run.starting("SC-RESULT")))
-
-    served = _summary(run, r"^SC-SUMMARY served=([0-9]*) ")
-    inline_served = _summary(run, r"^SC-SUMMARY .*inlineServed=([0-9]*)")
-    channel_ticks = _summary(run, r"^SC-SUMMARY .*channelTicks=([0-9]*)")
+    served = _summary(run, "served")
+    inline_served = _summary(run, "inlineServed")
+    channel_ticks = _summary(run, "channelTicks")
     copies = len(run.starting("SC-COPIED to="))
 
     # SC-CHANNEL, SC-ACCOUNTED and SC-TICKED: no file may take the inline arm, and the channel must have served exactly

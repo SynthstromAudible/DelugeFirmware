@@ -59,19 +59,30 @@ as extra cases, which is the only part of this gate that sees documents nobody h
 cases still run and the gate still gates.
 """
 
-import re
-
 # A floor on the case count, so a future edit that shrinks the fixture cannot keep printing PASS over a comparison that
 # no longer covers the shapes this gate was built for. Counts the SYNTHETIC cases only: the corpus is the maintainer's
 # and may legitimately be absent. Bump it deliberately when cases are added; never lower it to make a run go green.
 MIN_CASES = 6
 
-SYNTHETIC = re.compile(r"^SP-CASE (render|json|noprev|missing|corrupt|empty) ")
-SUMMARY = re.compile(
-    r"^(SP-SUMMARY|SP-DEFER|SP-WINDOW|SP-SWAP-SUMMARY|SP-PREVIEW-STALL|SP-OPEN-SCROLL) "
+SYNTHETIC_KINDS = ("render", "json", "noprev", "missing", "corrupt", "empty")
+SUMMARY = (
+    "SP-SUMMARY ",
+    "SP-DEFER ",
+    "SP-WINDOW ",
+    "SP-SWAP-SUMMARY ",
+    "SP-PREVIEW-STALL ",
+    "SP-OPEN-SCROLL ",
 )
-STAGES = re.compile(
-    r"^(SP-LISTING|SP-NEWNAME|SP-PREDICT|SP-SLOT|SP-VARIATION|SP-BYPATH|SP-DX|SP-TIER|SP-RELOAD)"
+STAGES = (
+    "SP-LISTING",
+    "SP-NEWNAME",
+    "SP-PREDICT",
+    "SP-SLOT",
+    "SP-VARIATION",
+    "SP-BYPATH",
+    "SP-DX",
+    "SP-TIER",
+    "SP-RELOAD",
 )
 
 
@@ -87,7 +98,7 @@ def check(gate, run):
         return
 
     cases = len(run.starting("SP-CASE "))
-    synthetic = sum(1 for line in run.lines if SYNTHETIC.match(line))
+    synthetic = len(run.starting(*(f"SP-CASE {kind} " for kind in SYNTHETIC_KINDS)))
     if synthetic < MIN_CASES:
         gate.fail(
             f"only {synthetic} synthetic case(s) ran, fewer than the {MIN_CASES} this gate requires; kCases was shrunk"
@@ -107,9 +118,7 @@ def check(gate, run):
         f"PASS — the prefix channel drew all {cases} song(s) as the file read does, agreed on every outcome, held "
         "across a card swap, and parsed the DX7 bank"
     )
-    for line in run.lines:
-        if SUMMARY.match(line):
-            gate.say(line)
-    for line in run.lines:
-        if STAGES.match(line):
-            gate.say(" run     " + line)
+    for line in run.starting(*SUMMARY):
+        gate.say(line)
+    for line in run.starting(*STAGES):
+        gate.say(" run     " + line)

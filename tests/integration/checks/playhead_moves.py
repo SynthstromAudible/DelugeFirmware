@@ -44,7 +44,7 @@ What the lines cover (tests/integration/scenarios/playhead_moves_scenario.cpp wr
                                          base at its request (base=0)
 """
 
-import re
+from scenario_gate import fields, has_fields, tag
 
 LEGS = [
     "START",
@@ -71,30 +71,42 @@ LEGS = [
     "CLIPSTOP",
 ]
 
-_LINE = re.compile(
-    r"PM-(\w+) stray=(\d+) masked_alloc=(\d+) masked_actions=(\d+) hash=([0-9a-f]+)(.*)"
-)
+# PM-EFFECTS' fields, in order; each reads 1 but room, a count of at least 1.
+EFFECT_KEYS = [
+    "order",
+    "nested",
+    "room",
+    "room_ran",
+    "unmasked",
+    "drain",
+    "render",
+    "retire",
+    "publish_oom",
+]
+# The fields every leg's line starts with.
+LEG_KEYS = ("stray", "masked_alloc", "masked_actions", "hash")
 
 
 def _check(gate, result) -> None:
-    effects = [line for line in result.lines if line.startswith("PM-EFFECTS ")]
-    if not effects or not re.match(
-        r"PM-EFFECTS order=1 nested=1 room=[1-9][0-9]* room_ran=1 unmasked=1 drain=1 render=1 retire=1"
-        r" publish_oom=1$",
-        effects[0],
+    effects = result.first("PM-EFFECTS ")
+    got = fields(effects)
+    if not (
+        list(got) == EFFECT_KEYS
+        and all(got[key] == "1" for key in EFFECT_KEYS if key != "room")
+        and got["room"].isdigit()
+        and int(got["room"]) > 0
     ):
         gate.fail(
-            f"{effects[0] if effects else 'no PM-EFFECTS line'}: a move's effects must run in order, once the"
+            f"{effects or 'no PM-EFFECTS line'}: a move's effects must run in order, once the"
             " outermost section ends and the render runs again, and never on the render; retired memory must outlive the"
             " render block it may be read in; a snapshot that cannot be built must leave the old one published, be"
             " counted, and be built at the next publish point"
         )
         return
     lines = {}
-    for line in result.lines:
-        found = _LINE.match(line)
-        if found:
-            lines[found.group(1)] = found
+    for line in result.starting("PM-"):
+        if (name := tag(line)) and all(key in fields(line) for key in LEG_KEYS):
+            lines[name[3:]] = line
     missing = [leg for leg in LEGS if leg not in lines]
     if missing:
         gate.fail(
@@ -106,13 +118,14 @@ def _check(gate, result) -> None:
 
     failed = []
     for leg in LEGS:
-        found = lines[leg]
-        stray, alloc, actions, rest = (
-            int(found.group(2)),
-            int(found.group(3)),
-            int(found.group(4)),
-            found.group(6),
+        line = lines[leg]
+        f = fields(line)
+        stray, alloc, actions = (
+            int(f["stray"]),
+            int(f["masked_alloc"]),
+            int(f["masked_actions"]),
         )
+        rest = " ".join(f"{k}={v}" for k, v in f.items() if k not in LEG_KEYS)
         reasons = []
         if stray:
             reasons.append(f"{stray} position writes the render could see half made")
@@ -120,36 +133,35 @@ def _check(gate, result) -> None:
             reasons.append(f"{alloc} allocations with the render held off")
         if actions:
             reasons.append(f"{actions} undo Actions with the render held off")
-        if (
-            leg in ("INJECTSTART", "INJECTAFTERMOVE")
-            and " injected=1 injected_ticks=0" not in rest
+        if leg in ("INJECTSTART", "INJECTAFTERMOVE") and not has_fields(
+            line, injected=1, injected_ticks=0
         ):
-            reasons.append(f"the render ticked inside the start ({rest.strip()})")
-        if leg in ("LATESTART", "INJECTLAUNCH", "UNSOLO") and not re.search(
-            r" active=1 phase=0\b", rest
+            reasons.append(f"the render ticked inside the start ({rest})")
+        if leg in ("LATESTART", "INJECTLAUNCH", "UNSOLO") and not has_fields(
+            line, active=1, phase=0
         ):
-            reasons.append(f"the launched clip is out of phase ({rest.strip()})")
-        if leg == "CLONE" and " cloned=1" not in rest:
+            reasons.append(f"the launched clip is out of phase ({rest})")
+        if leg == "CLONE" and not has_fields(line, cloned=1):
             reasons.append("no clone took the clip's place")
-        if leg == "RESUME" and " resumed=1" not in rest:
+        if leg == "RESUME" and not has_fields(line, resumed=1):
             reasons.append("the clip did not take its place back")
-        if leg == "ARRANGERRECORD" and " began=1" not in rest:
+        if leg == "ARRANGERRECORD" and not has_fields(line, began=1):
             reasons.append("the switch began no arrangement recording")
-        if leg == "INJECTLAUNCH" and " injected=1" not in rest:
+        if leg == "INJECTLAUNCH" and not has_fields(line, injected=1):
             reasons.append("the render block was never injected")
-        if leg == "CLIPSHIFT" and " cursor=1" not in rest:
+        if leg == "CLIPSHIFT" and not has_fields(line, cursor=1):
             reasons.append(
                 "the shift positioned the cursor on the lane as published before it"
             )
-        if leg == "SELFREPAIR" and " render_writes=0 erased=1" not in rest:
+        if leg == "SELFREPAIR" and not has_fields(line, render_writes=0, erased=1):
             reasons.append(
-                f"the render wrote the lane, or the node was never erased ({rest.strip()})"
+                f"the render wrote the lane, or the node was never erased ({rest})"
             )
-        if leg == "CLIPSTOP" and not re.search(
-            r" render_writes=0 stopped=1 played=0 base=0\b", rest
+        if leg == "CLIPSTOP" and not has_fields(
+            line, render_writes=0, stopped=1, played=0, base=0
         ):
             reasons.append(
-                f"the render wrote the lane, or the expression was not cleared ({rest.strip()})"
+                f"the render wrote the lane, or the expression was not cleared ({rest})"
             )
         if reasons:
             failed.append(f"PM-{leg}: " + "; ".join(reasons))

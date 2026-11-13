@@ -4,6 +4,9 @@ Saves a preset through the REAL ENTER gesture and requires that the document was
 channel, and stored through the byte channel's write-from after boot. No other gate builds that whole-document write,
 and a feature no gate builds is code that has never run. The byte channel has no feature switch, so there is one leg.
 
+The registry entry requires each marker and the result line; this module judges the summary's counts and the lines'
+fields.
+
 What the checks cover:
   DS-CHANNEL    the document write was SERVED by the channel -- the async arm ran.
   DS-TICKED     the save's steps went through a channel after boot. The gate's actual claim.
@@ -25,16 +28,12 @@ What the checks cover:
                 document it was replacing byte-for-byte intact, and removes the temp file.
 """
 
-import re
+from scenario_gate import field
 
 
-def _summary(run, pattern: str) -> str | None:
-    """The digits `pattern` captures on a DS-SUMMARY line, or None when no line matches ("" counts as absent)."""
-    for line in run.lines:
-        m = re.match(pattern, line)
-        if m:
-            return m.group(1) or None
-    return None
+def _summary(run, key: str) -> str | None:
+    """The value of `key` on the DS-SUMMARY line, or None when the line or the key is absent ("" counts as absent)."""
+    return field(run.first("DS-SUMMARY "), key) or None
 
 
 def _require_line(gate, run, whole: str, tag: str, missing: str = "no line") -> None:
@@ -45,13 +44,10 @@ def _require_line(gate, run, whole: str, tag: str, missing: str = "no line") -> 
 
 
 def check(gate, run):
-    if not run.has_line("DS-RESULT failures=0"):
-        gate.fail("\n".join(run.starting("DS-RESULT")))
-
-    served = _summary(run, r"^DS-SUMMARY served=([0-9]*) ")
-    channel_ticks = _summary(run, r"^DS-SUMMARY .*channelTicks=([0-9]*)")
-    vserved = _summary(run, r"^DS-SUMMARY .*verifyServed=([0-9]*)")
-    vinline = _summary(run, r"^DS-SUMMARY .*verifyInline=([0-9]*)")
+    served = _summary(run, "served")
+    channel_ticks = _summary(run, "channelTicks")
+    vserved = _summary(run, "verifyServed")
+    vinline = _summary(run, "verifyInline")
 
     # DS-CHANNEL. The async arm actually RAN.
     if served is None or int(served) == 0:

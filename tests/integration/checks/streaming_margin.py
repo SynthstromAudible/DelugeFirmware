@@ -22,7 +22,7 @@ wait -- the margin curve -- and checks nothing.
 import importlib.util
 from pathlib import Path
 
-from scenario_gate import int_field
+from scenario_gate import after, int_field
 
 STEADY = {"RENDER_FILL_DELAY_MS": "16", "RENDER_FILL_READ_US": "5800"}
 STARVED = {"RENDER_FILL_DELAY_MS": "500", "RENDER_FILL_READ_US": "5800"}
@@ -53,7 +53,7 @@ def _play(gate, card_env, model, label):
     wait, unassign = _underruns(result)
     reads = int_field(result.last("RS-STREAM "), "reads")
     gate.say(
-        f"SM-{label} {result.last('RS-MODEL ')[len('RS-MODEL ') :]} reads={reads} wait={wait} unassign={unassign}"
+        f"SM-{label} {after(result.last('RS-MODEL '), 'RS-MODEL ')} reads={reads} wait={wait} unassign={unassign}"
     )
     return result
 
