@@ -70,6 +70,15 @@ PROBES = {
     ),
 }
 
+# Requirements CI never has: a test that needs one runs only on a developer's machine. `--ci-matrix` leaves such
+# tests out, so a CI job never fails on a skip it cannot avoid; `--list` and `--doctor` still show them.
+LOCAL_ONLY = frozenset({"song-corpus", "song-xml-corpus"})
+
+
+def local_only(h: "Harness") -> bool:
+    """Does `h` need a requirement only a developer's machine has?"""
+    return not LOCAL_ONLY.isdisjoint(h.requires)
+
 
 @dataclass
 class Harness:
@@ -319,8 +328,10 @@ def probe(requirement: str, root: Path) -> bool:
 def ci_matrix(selection: list[Harness]) -> dict:
     """The CI matrix for `selection`: one entry per group that has a selected test, in GROUPS order.
 
-    `test` lists every selected test as well, for the workflows that run one job per test (main's nightly reads it).
+    Local-only tests (LOCAL_ONLY) are left out. `test` lists every remaining test as well, for the workflows that run
+    one job per test (main's nightly reads it).
     """
+    selection = [h for h in selection if not local_only(h)]
     return {
         "include": [
             {
@@ -370,6 +381,7 @@ def with_table(readme: str, table: str) -> str:
 __all__ = [
     "GROUPS",
     "LEVELS",
+    "LOCAL_ONLY",
     "PROBES",
     "RUNNERS",
     "TABLE_BEGIN",
@@ -378,6 +390,7 @@ __all__ = [
     "Harness",
     "ci_matrix",
     "load_registry",
+    "local_only",
     "markdown_table",
     "probe",
     "select",

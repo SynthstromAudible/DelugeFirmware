@@ -559,14 +559,39 @@ class ProbeTest(unittest.TestCase):
 
 
 class CiMatrixTest(unittest.TestCase):
-    def test_ci_matrix_covers_every_test_once(self):
+    def test_ci_matrix_covers_every_ci_test_once(self):
         root = Path(__file__).resolve().parents[2]
-        selection = hr.select(hr.load_registry(root), [], [], "pr")
+        selection = hr.select(hr.load_registry(root), [], [], "nightly")
         names = [
             n for e in hr.ci_matrix(selection)["include"] for n in e["tests"].split()
         ]
-        self.assertEqual(sorted(names), sorted(h.name for h in selection))
+        self.assertEqual(
+            sorted(names), sorted(h.name for h in selection if not hr.local_only(h))
+        )
         self.assertEqual(len(names), len(set(names)))
+
+    def test_local_only_requirements_are_probes(self):
+        self.assertLessEqual(hr.LOCAL_ONLY, set(hr.PROBES))
+        self.assertEqual(hr.LOCAL_ONLY, {"song-corpus", "song-xml-corpus"})
+
+    def test_ci_matrix_omits_local_only_tests(self):
+        corpus = dataclasses.replace(entry("c"), group="unit", requires=["song-corpus"])
+        xml = dataclasses.replace(
+            entry("x"), group="unit", requires=["cargo", "song-xml-corpus"]
+        )
+        plain = dataclasses.replace(entry("p"), group="unit")
+        matrix = hr.ci_matrix([corpus, plain, xml])
+        self.assertEqual(
+            matrix["include"], [{"group": "unit", "tests": "p", "prebuilt": ""}]
+        )
+
+    def test_local_only(self):
+        self.assertTrue(
+            hr.local_only(dataclasses.replace(entry("c"), requires=["song-corpus"]))
+        )
+        self.assertFalse(
+            hr.local_only(dataclasses.replace(entry("p"), requires=["cargo"]))
+        )
 
     def test_ci_matrix_keeps_the_flat_test_list(self):
         # main's nightly workflow checks out next and reads .test.

@@ -560,6 +560,8 @@ def cmd_list(
         missing = _missing(root, h, known)
         mark = "OK " if not missing else "-- "
         note = "" if not missing else f"  (needs: {', '.join(missing)})"
+        if hr.local_only(h):
+            note += "  [local-only: not run in CI]"
         print(
             f"{mark} {h.name:<{width}}  {h.level:<11} {h.status:<13} {h.tier:<7} {h.runtime}{note}"
         )
@@ -581,7 +583,10 @@ def cmd_doctor(root: Path, entries: list[hr.Harness]) -> int:
     print("Missing prerequisites:\n")
     for req in missing:
         blocked = [h.name for h in entries if req in needs[h.name]]
-        print(f"  {req}")
+        print(
+            f"  {req}"
+            + ("   (local-only: CI never has it)" if req in hr.LOCAL_ONLY else "")
+        )
         print(f"    fix:     {hr.PROBES[req]}")
         print(f"    blocks:  {', '.join(blocked)}\n")
     return 1
