@@ -7,7 +7,8 @@
 # 2 Automation view overview on the boot synth clip: a turn, the upper knob's push, and Learn + lower knob's push
 #   (copy) and Shift + Learn + the lower knob's push (paste).
 # 3 A MIDI clip at its root: each knob's push, held (the CC select popup shows while it is down) with turns, then
-#   released, and mod button 3 pressed and released.
+#   released, and mod button 3 pressed and released. A gold-knob turn during the hold changes nothing; the select
+#   encoder turn changes the CC (alone, and with its push held), shown again on a second push.
 # 4 The boot synth clip with a long note and the envelope-1 sustain at its minimum: the release knob (mod button 2,
 #   lower) turned up and back down across the note-tail flip, the pads snapshot after each turn.
 # 5 The same as 4 with the sound menu up.
@@ -94,9 +95,7 @@ snapshot perf_opened
 press MOD1
 snapshot perf_mod1
 turn UPPER 1
-snapshot perf_mod1_turn_upper_1
-turn UPPER 1
-snapshot perf_mod1_turn_upper_2
+snapshot perf_mod1_turn_upper
 turn LOWER 1
 snapshot perf_mod1_turn_lower
 paddown 3 5
@@ -131,22 +130,42 @@ turn UPPER 1
 snapshot auto_turn_upper
 turn LOWER 1
 snapshot auto_turn_lower
+# The filter knobs' params get automation: the low-pass frequency's editor is painted with three nodes, then the
+# overview comes back.
+press MOD1
+pad 8 7
+snapshot auto_lpf_editor
+pad 2 5
+pad 6 2
+pad 10 6
+snapshot auto_lpf_painted
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+snapshot auto_lpf_overview
+press MOD1
+snapshot auto_overview_mod1
+# Copy from the automated upper knob, paste onto the lower knob (the low-pass resonance, no automation yet).
+down LEARN
+press MOD_ENCODER_0
+snapshot auto_copy_empty_lower
+press MOD_ENCODER_1
+snapshot auto_copy_upper
+up LEARN
+snapshot auto_copy_released
+down SHIFT
+down LEARN
+press MOD_ENCODER_0
+snapshot auto_paste_lower
+up LEARN
+up SHIFT
+snapshot auto_paste_released
 press MOD_ENCODER_1
 snapshot auto_upper_push
 press MOD_ENCODER_0
 snapshot auto_lower_push
-down LEARN
-press MOD_ENCODER_0
-snapshot auto_learn_lower_push
-up LEARN
-snapshot auto_learn_released
-down SHIFT
-down LEARN
-press MOD_ENCODER_0
-snapshot auto_shift_learn_lower_push
-up LEARN
-up SHIFT
-snapshot auto_paste_released
+press MOD_ENCODER_1
+snapshot auto_upper_push2
 #
 # Section 3: a MIDI clip's CC select at root (last: it leaves the synth clip).
 press CLIP_VIEW
@@ -158,16 +177,22 @@ press MOD_ENCODER_1
 snapshot midi_upper_push
 down MOD_ENCODER_1
 snapshot midi_upper_down
-turn UPPER 1
+# A gold-knob turn while the push is held does nothing: only the select encoder changes the CC.
+turn UPPER 3
 snapshot midi_held_turn_upper
-turn UPPER 1
-snapshot midi_held_turn_upper_2
-turn LOWER 1
-snapshot midi_held_turn_lower
+turn SELECT 3
+snapshot midi_held_select_3
+turn SELECT 2
+snapshot midi_held_select_5
+down SELECT_ENC
+turn SELECT 1
+snapshot midi_held_select_unused
+up SELECT_ENC
 up MOD_ENCODER_1
 snapshot midi_held_released
-press MOD_ENCODER_1
-snapshot midi_upper_push2
+down MOD_ENCODER_1
+snapshot midi_upper_down_again
+up MOD_ENCODER_1
 down MOD_ENCODER_0
 snapshot midi_lower_down
 up MOD_ENCODER_0

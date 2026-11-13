@@ -114,11 +114,20 @@ five kit snapshots that differ from `main` (`entire_menu`, `entire_mod1`, `entir
 the same way between `next` 18998b56c and `main`; with the kit's menu opened from its LPF shortcut instead, its whole
 kit half differs there (that page draws a marker on its bar that `main`'s does not).
 
-`root_knob_views` is also a `run_parity.py` script. It turns and pushes the gold knobs at the root views no other script
-drives: performance view (mod buttons, a held pad, a held stutter pad), the automation overview (turns, pushes, Learn
-copy and paste), a MIDI clip's CC select (each knob held, the mod button pressed and released), and a synth note-tail
-change from the envelope-1 release knob at root and with the sound menu up. No gold knob changes the boot preset's
-envelope-1 sustain, so the script sets it to its minimum from the menu first.
+`root_knob_views` is also a `run_parity.py` script; it pins the gold knobs at the root views no other script drives, in
+the order its sections run:
+- note tails (`tail_*`, `menu_tail_*`): a long note on the boot synth, envelope-1 sustain set to its minimum from the menu
+  (no gold knob changes it), then the release knob (mod button 2, lower) turned across the tail flip, at root and with the
+  sound menu up; the pads show the tails going and returning.
+- performance view (`perf_*`): mod button 1's knobs with and without a pad held, mod button 6 with a stutter pad held and
+  the upper knob pushed.
+- the automation view's overview (`auto_*`): the low-pass frequency painted with automation in its editor, then Learn +
+  push copying it from the upper knob and Shift + Learn + push pasting it onto the lower knob (the resonance); the
+  pasted automation shows in the overview pads at `auto_paste_lower`. The copy's popup is gone before a snapshot reads
+  it.
+- a MIDI clip's CC select (`midi_*`): each knob's push held (the popup shows the CC), a gold-knob turn during the hold
+  (changes nothing), select-encoder turns during the hold (they change the CC, also with the select push held), the CC
+  shown again on a second push, and mod button 3 pressed and released.
 
 The cards' factory presets are stamped `firmwareVersion` 4.1.3 (`tools/stamp_preset_versions.py`). `main` converts a
 preset older than official 4.1 as it loads it, and our line leaves that to `tools/deluge-upgrade`, so an unstamped
