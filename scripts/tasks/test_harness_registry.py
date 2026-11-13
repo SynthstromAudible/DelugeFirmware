@@ -11,6 +11,7 @@ import dataclasses
 import hashlib
 import importlib.util
 import io
+import json
 import os
 import re
 import subprocess
@@ -1616,6 +1617,33 @@ class SwitchDefinitionsTest(unittest.TestCase):
             'p.add_argument(dest="update")\n'
         )
         self.assertEqual(switch_definitions(source), [])
+
+
+class DumpExpandedTest(unittest.TestCase):
+    def _root_with(self, text):
+        root = Path(tempfile.mkdtemp())
+        (root / "tests").mkdir()
+        (root / "tests" / "registry.toml").write_text(text)
+        return root
+
+    def test_every_entry_with_every_field_sorted_by_name(self):
+        rows = json.loads(
+            hr.dump_expanded(hr.load_registry(self._root_with(CTEST + MINIMAL)))
+        )
+        self.assertEqual([r["name"] for r in rows], ["alpha", "beta"])
+        self.assertEqual(set(rows[0]), {f.name for f in dataclasses.fields(hr.Harness)})
+
+    def test_registry_order_does_not_change_it(self):
+        one = hr.dump_expanded(hr.load_registry(self._root_with(MINIMAL + CTEST)))
+        two = hr.dump_expanded(hr.load_registry(self._root_with(CTEST + MINIMAL)))
+        self.assertEqual(one, two)
+
+    def test_the_runner_prints_the_registrys_dump(self):
+        root = Path(__file__).resolve().parents[2]
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(tt.main(["--dump-expanded"]), 0)
+        self.assertEqual(out.getvalue(), hr.dump_expanded(hr.load_registry(root)))
 
 
 class RetiredSwitchTest(unittest.TestCase):

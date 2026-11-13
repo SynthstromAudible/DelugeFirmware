@@ -6,6 +6,8 @@ unit-testable without invoking dbt or spawning a build. See
 test_harness_registry.py.
 """
 
+import dataclasses
+import json
 import os
 import re
 import shutil
@@ -479,6 +481,16 @@ def with_table(readme: str, table: str) -> str:
     return readme[: begin + len(TABLE_BEGIN)] + "\n" + table + readme[end:]
 
 
+def dump_expanded(entries: list[Harness]) -> str:
+    """Every entry as the runner sees it: a JSON list sorted by name, each entry's keys sorted.
+
+    Two registries whose dumps are equal declare the same tests, so a rewrite of the registry is proved by mapping
+    the dump from before it onto the dump after.
+    """
+    rows = sorted((dataclasses.asdict(h) for h in entries), key=lambda row: row["name"])
+    return json.dumps(rows, indent=1, sort_keys=True, ensure_ascii=False) + "\n"
+
+
 __all__ = [
     "CORPUS_DECLARED",
     "CORPUS_RUNNERS",
@@ -495,6 +507,7 @@ __all__ = [
     "ci_matrix",
     "corpus_fixture_scenarios",
     "declares_corpus",
+    "dump_expanded",
     "load_registry",
     "local_only",
     "markdown_table",

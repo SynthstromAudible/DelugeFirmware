@@ -56,6 +56,11 @@ def argparser() -> argparse.ArgumentParser:
     )
     parser.group = "Development"
     parser.add_argument(
+        "--dump-expanded",
+        action="store_true",
+        help="Print every registry entry as the runner sees it, as JSON sorted by name (proves a registry rewrite)",
+    )
+    parser.add_argument(
         "names", nargs="*", help="Tests to run by name, whatever their tier"
     )
     parser.add_argument(
@@ -1210,6 +1215,9 @@ def main(argv: list[str] | None = None) -> int:
     tier = args.tier or "pr"
     root = Path(util.get_git_root()).absolute()
     entries = _load(root)
+    if args.dump_expanded:
+        print(hr.dump_expanded(entries), end="")
+        return 0
 
     global OUT, ALONE_SWEEP_JOBS
     OUT = os.fdopen(os.dup(sys.stdout.fileno()), "w", buffering=1, errors="replace")
