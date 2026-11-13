@@ -51,6 +51,7 @@ DELUGE_SCENARIO_DECLARE(path_operations);
 DELUGE_SCENARIO_DECLARE(pattern_load);
 DELUGE_SCENARIO_DECLARE(playhead_moves);
 DELUGE_SCENARIO_DECLARE(preset_load);
+DELUGE_SCENARIO_DECLARE(recorder_roundtrip);
 DELUGE_SCENARIO_DECLARE(recorder_take);
 DELUGE_SCENARIO_DECLARE(render_preset);
 DELUGE_SCENARIO_DECLARE(render_song);
@@ -226,8 +227,10 @@ constexpr DelugeScenario kScenarios[] = {
     {"preset_roundtrip", nullptr, &deluge_scenario_preset_roundtrip_begin, &deluge_scenario_preset_roundtrip_complete,
      &deluge_scenario_preset_roundtrip_dispatch_step, &deluge_scenario_preset_roundtrip_step_done,
      &deluge_scenario_preset_roundtrip_failures},
-    // Driven by golden_vt_render itself (its recorder round trip), on an empty card.
-    {"recorder_roundtrip", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr},
+    {"recorder_roundtrip", nullptr, &deluge_scenario_recorder_roundtrip_begin,
+     &deluge_scenario_recorder_roundtrip_complete, &deluge_scenario_recorder_roundtrip_dispatch_step,
+     &deluge_scenario_recorder_roundtrip_step_done, &deluge_scenario_recorder_roundtrip_failures,
+     ScenarioPacing::Virtual, ScenarioBoot::Full, ScenarioDrive::OwnClock},
     {"recorder_take", nullptr, &deluge_scenario_recorder_take_begin, &deluge_scenario_recorder_take_complete,
      &deluge_scenario_recorder_take_dispatch_step, &deluge_scenario_recorder_take_step_done,
      &deluge_scenario_recorder_take_failures, ScenarioPacing::DevicePeriod},

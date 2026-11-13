@@ -15,7 +15,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/recorder_roundtrip_scenario.h"
+/// @file
+/// @brief The SampleRecorder byte-exact round-trip oracle, then the ticked recording cases, run on the Rust/Embassy
+///        host BSP as golden_vt_render's `recorder_roundtrip` scenario.
+///
+/// The whole geometry matrix and the two readback probes. The card starts empty (boot mounts it): the recorder only
+/// writes new files, and the finalized probe reads back what it wrote. Reads back through `deluge::io::File`
+/// (drain-independent) except the `finalized_multicluster` probe, which is polled, asking the async fill task for a
+/// drain each time -- see `recorder_readback_probe.cpp`. Every stage is driven one step per tick.
+///
+/// The scenario keeps its own clock (`ScenarioDrive::OwnClock`): one tick per virtual millisecond, the shape a BSP
+/// task drives a recorder in, so the async cluster write and the recorder's blocking ticks are exercised where the
+/// device drives them. A phase that ends begins the next and ticks it in the same millisecond.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness dir is globbed in), so the Embassy binary, which
+///       links `deluge_app`, can reach it. Inert unless called.
+
+#include "harness/level3/host_script.h"
 #include "libdeluge/file_directory.h"
 #include "libdeluge/file_stream.h"
 
@@ -27,6 +43,8 @@
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "processing/engines/audio_engine.h"
+#include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h"
 #include "storage/cluster/cluster.h"
@@ -34,6 +52,8 @@
 
 #include <memory>
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -63,6 +83,8 @@ uint32_t deluge_harness_recorder_finalized_multicluster_probe_expected_clusters(
 uint8_t deluge_harness_recorder_finalized_multicluster_probe_bytes_ok();
 void deluge_harness_recorder_finalized_multicluster_probe_end();
 }
+
+DELUGE_SCENARIO_DECLARE(recorder_roundtrip);
 
 namespace {
 
@@ -432,7 +454,7 @@ int32_t recorderTier() {
 	return deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Recorder);
 }
 
-/// Each case's name, indexed by the `mode` passed to deluge_scenario_ticked_begin.
+/// Each case's name, indexed by the `mode` passed to tickedBegin.
 constexpr const char* kModeNames[] = {"recording", "alterfile",   "abort",      "busy",     "stall",
                                       "dirstall",  "abortcreate", "abortalter", "openioerr"};
 /// The openioerr case's recording folder: one no earlier case records into, so it is absent when the case starts.
@@ -524,7 +546,7 @@ void driveStall(const SampleRecorder& rec) {
 }
 
 /// Report the busy or stall case once its recording is COMPLETE.
-/// @return As deluge_scenario_ticked_tick.
+/// @return As tickedTick.
 int32_t finishGiveUpCase(SampleRecorder& rec) {
 	if (g_ticked.neighbourHeld) {
 		uint32_t freeClusters = 0;
@@ -586,9 +608,21 @@ int32_t finishGiveUpCase(SampleRecorder& rec) {
 	return ok ? 1 : 2;
 }
 
-} // namespace
-
-extern "C" void deluge_scenario_ticked_begin(int32_t mode) {
+/// @brief Set up one `ticked_` recording case.
+///
+/// The oracle's cases cover the geometry matrix; the `ticked_` cases take the shapes they do not, each with its own
+/// evidence line. Like them, each is driven entirely by the scenario's ticks.
+/// @param mode Which case:
+///             - 0 `recording`: mono, finished normally.
+///             - 1 `alterfile`: stereo with a silent right channel and alteration permitted, so finalize
+///               takes its REMOVE_RIGHT_CHANNEL branch. No other case permits alteration, so without this
+///               the batch machine is never run.
+///             - 2 `abort`: abandoned part-way, so the abort machine runs.
+///             - 3 `busy`: another stream-channel operation keeps taking the channel, so the recorder's
+///               requests are refused and asked again. Prints `RW-BUSY`.
+///             - 4 `stall`: a cluster write is held past the recorder's bound, so the take fails without a
+///               synchronous write. Prints `RW-STALL`.
+void tickedBegin(int32_t mode) {
 	g_ticked.rec = std::make_unique<SampleRecorder>();
 	g_ticked.ticks = 0;
 	g_ticked.path.clear();
@@ -664,7 +698,11 @@ extern "C" void deluge_scenario_ticked_begin(int32_t mode) {
 	g_ticked.started = true;
 }
 
-extern "C" int32_t deluge_scenario_ticked_tick() {
+/// @brief Advance the `ticked_` case by one tick.
+///
+/// Tick-driven on purpose: the pump must return so the Rust write task can make progress.
+/// @return 0 while running, 1 when it passed, 2 when it failed.
+int32_t tickedTick() {
 	if (!g_ticked.started || !g_ticked.rec) {
 		return 2; // failed to start
 	}
@@ -821,12 +859,19 @@ extern "C" int32_t deluge_scenario_ticked_tick() {
 	return 0;
 }
 
-extern "C" void deluge_scenario_ticked_report() {
+/// @brief Print `RW-TIER`: how many synchronous card operations the recorder began on the interaction tier
+///        after boot, and how many of its channel requests were refused, over every `ticked_` case.
+///
+/// Process-wide on purpose: a synchronous operation is a violation whichever case made it. Called once, after the
+/// last case.
+void tickedReport() {
 	printf("RW-TIER violations=%d refusals=%d\n", (int)recorderTier(), (int)SampleRecorder::channelRefusals());
 	fflush(nullptr);
 }
 
-extern "C" int32_t deluge_scenario_run_recorder_roundtrip() {
+/// @brief Set the round trip up: print the cluster size, and build the case list. Blocks on nothing; tick
+///        casesTick() after it.
+void oracleSetUp() {
 	g_failures = 0;
 	g_cases = 0;
 
@@ -879,14 +924,12 @@ extern "C" int32_t deluge_scenario_run_recorder_roundtrip() {
 	cases.push_back({"mono_extra_margins", 1, true, framesForBytes(112, 3, 2 * clusterSize) + 61});
 	cases.push_back({"stereo_extra_margins", 2, true, framesForBytes(112, 6, 2 * clusterSize) + 61});
 
-	// The cases are driven by deluge_scenario_recorder_cases_tick(), one step per call, so the caller
-	// can let the storage driver run in between. That is what lets them work on the CHANNEL arm --
-	// which is the arm they are on after boot.
-	return 0;
+	// The cases are driven by casesTick(), one step per tick, so the storage driver runs in between.
+	// That is what lets them work on the CHANNEL arm -- which is the arm they are on after boot.
 }
 
 /// Advance the case run by one step. 0 while cases remain, 1 when they are all done.
-extern "C" int32_t deluge_scenario_recorder_cases_tick() {
+int32_t casesTick() {
 	if (g_caseCursor >= g_caseList.size()) {
 		return 1;
 	}
@@ -911,8 +954,8 @@ extern "C" int32_t deluge_scenario_recorder_cases_tick() {
 	return 0;
 }
 
-/// Start the finalized multi-cluster probe. Its pump is ticked by the caller below.
-extern "C" void deluge_scenario_recorder_finalized_begin() {
+/// Start the finalized multi-cluster probe. Its pump is ticked by finalizedTick().
+void finalizedBegin() {
 	const uint32_t clusterSize = static_cast<uint32_t>(Cluster::size);
 	const uint32_t headerLen = 44;
 	const uint32_t avail = (3 * clusterSize > headerLen) ? (3 * clusterSize - headerLen) : 0;
@@ -924,11 +967,9 @@ extern "C" void deluge_scenario_recorder_finalized_begin() {
 }
 
 /// One tick of that probe's pump. 0 = still going, non-zero = settled.
-extern "C" int32_t deluge_scenario_recorder_finalized_tick() {
+int32_t finalizedTick() {
 	return deluge_harness_recorder_finalized_multicluster_probe_tick();
 }
-
-namespace {
 
 /// The oracle's tail, one step per call: the live-readback probe, then the finalized probe's acquire, then the
 /// summary. Run one step per call rather than straight through, since a drain must never block the caller.
@@ -991,13 +1032,12 @@ void reportFinalizedAndSummary() {
 	fflush(nullptr);
 }
 
-} // namespace
-
-/// Start the oracle's tail. Probe live read-back of a still-recording sample: RecordingReadSource is gone, so it must
-/// NOT resolve READY anywhere -- a still-recording Sample has no valid reader. The failed read is re-queued at lowest
-/// priority rather than failed outright (the async fill task's fill_once, streaming_loader.rs), so the acquire is
-/// expected to stay LOADING, not settle on UNAVAILABLE.
-extern "C" void deluge_scenario_recorder_rest_begin() {
+/// Start the oracle's tail -- the live-readback probe, the finalized probe's acquire, the summary -- once the cases and
+/// the finalized probe's pump are done. Probe live read-back of a still-recording sample: it must NOT resolve READY
+/// anywhere -- a still-recording Sample has no valid reader. The failed read is re-queued
+/// at lowest priority rather than failed outright (the async fill task's fill_once, streaming_loader.rs), so the
+/// acquire is expected to stay LOADING, not settle on UNAVAILABLE.
+void restBegin() {
 	g_rest = RestRun{};
 	if (deluge_harness_recorder_probe(/*numChannels=*/1, /*numFrames=*/50) == 0) {
 		g_rest.liveState = 0; // the harness error the report names
@@ -1008,13 +1048,14 @@ extern "C" void deluge_scenario_recorder_rest_begin() {
 	g_rest.step = RestStep::LiveDrain;
 }
 
-/// One step of the tail. 0 while it runs, 1 once RW-RESULT has printed.
+/// One step of the tail, with a tick between calls: the probes' drains are requests, answered in between. 0 while it
+/// runs, 1 once RW-RESULT has printed.
 ///
 /// After the live probe, the regression gate: a real, FINALIZED (COMPLETE) multi-cluster mono recording --
 /// finalizeRecordedFile()'s no-alteration else-branch, the only branch AudioClip recording ever takes -- must leave the
 /// overview cache sized to the real cluster count, and region index 1+ must resolve READY with correct bytes through
 /// the same port real playback uses.
-extern "C" int32_t deluge_scenario_recorder_rest_tick() {
+int32_t restTick() {
 	switch (g_rest.step) {
 	case RestStep::LiveDrain:
 		deluge_harness_recorder_probe_drain_tick();
@@ -1056,6 +1097,178 @@ extern "C" int32_t deluge_scenario_recorder_rest_tick() {
 	return 1;
 }
 
-extern "C" int32_t deluge_scenario_recorder_roundtrip_failures() {
+/// The oracle's failure count so far (0 = all passed); final once the tail has returned 1.
+int32_t oracleFailures() {
 	return g_failures;
+}
+
+} // namespace
+
+namespace {
+
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
+
+/// The round trip's parts, in the order they run.
+enum class Phase : uint8_t { Cases, Finalized, Rest, Ticked, Done };
+
+/// The `ticked_` cases in the order they run. The first three stop the run when they fail; the give-up cases after
+/// them each print their own line and do not, so every result is seen. dirstall runs last: its held directory open
+/// is still in flight when it reports, and a later case's folder scan would wait behind it.
+struct TickedOrder {
+	int32_t mode;
+	const char* name;
+};
+constexpr std::array<TickedOrder, 9> kTickedCases{{
+    {0, "recording"},
+    {1, "alterfile"},
+    {2, "abort"},
+    {3, "busy"},
+    {4, "stall"},
+    {6, "abortcreate"},
+    {7, "abortalter"},
+    {8, "openioerr"},
+    {5, "dirstall"},
+}};
+constexpr size_t kFirstGiveUpCase = 3;
+/// A phase's bound: 300 virtual seconds at a tick a millisecond. The phase's tick on the poll that reaches it is
+/// its 300,001st without an answer.
+constexpr int32_t kPhaseTicks = 300'001;
+
+/// The round trip's failures: the oracle's count, or one for a `ticked_` case that failed.
+ScenarioReport g_rtReport{"RW"};
+Phase g_phase = Phase::Done;
+size_t g_tickedCase = 0;
+bool g_giveUpFailed = false;
+Wait g_phaseWait{g_rtReport, "the recorder cases", kPhaseTicks};
+
+const char* phaseName() {
+	switch (g_phase) {
+	case Phase::Cases:
+		return "the recorder cases";
+	case Phase::Finalized:
+		return "the finalized probe";
+	case Phase::Rest:
+		return "the round trip's tail";
+	case Phase::Ticked:
+		return kTickedCases[g_tickedCase].name;
+	case Phase::Done:
+		break;
+	}
+	return "nothing";
+}
+
+void startPhase(Phase phase) {
+	g_phase = phase;
+	g_phaseWait = Wait{g_rtReport, phaseName(), kPhaseTicks};
+}
+
+void startTickedCase(size_t index) {
+	g_tickedCase = index;
+	tickedBegin(kTickedCases[index].mode);
+	startPhase(Phase::Ticked);
+}
+
+/// After a phase's tick answered @p state: the next phase, begun, or the end.
+void finishPhase(int32_t state) {
+	switch (g_phase) {
+	case Phase::Cases:
+		finalizedBegin();
+		startPhase(Phase::Finalized);
+		return;
+	case Phase::Finalized:
+		restBegin();
+		startPhase(Phase::Rest);
+		return;
+	case Phase::Rest:
+		if (const int32_t failures = oracleFailures(); failures != 0) {
+			g_rtReport.count(failures);
+			g_phase = Phase::Done;
+			return;
+		}
+		startTickedCase(0);
+		return;
+	case Phase::Ticked:
+		if (state != 1) {
+			if (g_tickedCase < kFirstGiveUpCase) {
+				g_rtReport.count();
+				g_phase = Phase::Done;
+				return;
+			}
+			g_giveUpFailed = true;
+		}
+		if (g_tickedCase + 1 < kTickedCases.size()) {
+			startTickedCase(g_tickedCase + 1);
+			return;
+		}
+		// Over every `ticked_` case: a synchronous card operation is a violation whichever case made it.
+		tickedReport();
+		if (g_giveUpFailed) {
+			g_rtReport.count();
+		}
+		g_phase = Phase::Done;
+		return;
+	case Phase::Done:
+		return;
+	}
+}
+
+int32_t tickPhase() {
+	switch (g_phase) {
+	case Phase::Cases:
+		return casesTick();
+	case Phase::Finalized:
+		return finalizedTick();
+	case Phase::Rest:
+		return restTick();
+	case Phase::Ticked:
+		return tickedTick();
+	case Phase::Done:
+		break;
+	}
+	return 1;
+}
+
+/// One virtual millisecond: the phase's tick, and when that ends the phase, the next phase begun and ticked at once.
+void slot() {
+	while (g_phase != Phase::Done) {
+		const int32_t state = tickPhase();
+		const WaitState waited = g_phaseWait.poll(state != 0);
+		if (waited == WaitState::Pending) {
+			return;
+		}
+		if (waited == WaitState::Expired) {
+			fprintf(stderr, "golden_vt_render: recorder_roundtrip: %s did not finish within 300 s — wedged\n",
+			        phaseName());
+			host_script_exit(2);
+		}
+		finishPhase(state);
+	}
+}
+
+} // namespace
+
+extern "C" void deluge_scenario_recorder_roundtrip_begin(void) {
+	g_rtReport.reset();
+	g_giveUpFailed = false;
+	oracleSetUp();
+	startPhase(Phase::Cases);
+}
+
+extern "C" bool deluge_scenario_recorder_roundtrip_complete(void) {
+	return g_phase == Phase::Done;
+}
+
+extern "C" void deluge_scenario_recorder_roundtrip_dispatch_step(void) {
+	slot();
+}
+
+extern "C" bool deluge_scenario_recorder_roundtrip_step_done(void) {
+	slot();
+	return true;
+}
+
+extern "C" int32_t deluge_scenario_recorder_roundtrip_failures(void) {
+	return g_rtReport.failures();
 }

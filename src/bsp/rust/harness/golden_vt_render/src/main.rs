@@ -1,8 +1,8 @@
 //! `golden_vt_render`: boots the real C++ app on the BSP under a virtual clock, fills the card with
 //! a fixture tree, and runs one scenario deterministically.
 //!
-//! `GOLDEN_SCENARIO` names a row of `tests/integration/scenarios/scenario_table.cpp`: a stepped scenario, the
-//! recorder round trip, or `stem_export`, which `GOLDEN_SCENARIO` selects by name or by being unset or empty: an
+//! `GOLDEN_SCENARIO` names a row of `tests/integration/scenarios/scenario_table.cpp`: a stepped scenario or
+//! `stem_export`, which `GOLDEN_SCENARIO` selects by name or by being unset or empty: an
 //! offline `StemExport` of the fixture song whose stem WAVs it copies out. Sample cluster fills drain through the BSP's
 //! async `streaming_fill_task`, so a sample-backed fixture renders real audio.
 //!
@@ -265,16 +265,6 @@ unsafe extern "C" {
     fn deluge_scenario_start_stem_export(mode: i32);
     fn deluge_scenario_stem_export_done() -> bool;
     fn deluge_scenario_copy_stems_out(out_dir: *const c_char);
-    fn deluge_scenario_run_recorder_roundtrip() -> i32;
-    fn deluge_scenario_recorder_cases_tick() -> i32;
-    fn deluge_scenario_recorder_finalized_begin();
-    fn deluge_scenario_recorder_finalized_tick() -> i32;
-    fn deluge_scenario_recorder_rest_begin();
-    fn deluge_scenario_recorder_rest_tick() -> i32;
-    fn deluge_scenario_recorder_roundtrip_failures() -> i32;
-    fn deluge_scenario_ticked_begin(mode: i32);
-    fn deluge_scenario_ticked_tick() -> i32;
-    fn deluge_scenario_ticked_report();
 
     fn deluge_unguarded_structural_edits_total() -> u32;
     fn deluge_scenario_find(name: *const c_char) -> *const Scenario;
@@ -545,207 +535,6 @@ async fn run_stem_export_scenario(fixture: &'static str, done: &'static AtomicBo
     }
 
     log::info!("golden_vt_render: stems copied to {out_dir}; exiting cleanly");
-    done.store(true, Ordering::Release);
-}
-
-/// The `GOLDEN_SCENARIO=recorder_roundtrip` scenario: the SampleRecorder byte-exact round-trip
-/// oracle, then the ticked recording cases.
-///
-/// Waits for boot, sets the oracle up, then ticks its cases, the finalized probe and the tail one
-/// step per await, and exits with the result. The card starts empty: the recorder only writes new
-/// files, and the finalized probe reads back what it wrote.
-#[embassy_executor::task]
-async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_recorder_roundtrip_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    log::info!("golden_vt_render: boot+mount confirmed; starting the recorder round-trip");
-    // SAFETY: host scenario C ABI; boot has run `deluge_app_init`. Set-up only: it blocks on
-    // nothing.
-    unsafe { deluge_scenario_run_recorder_roundtrip() };
-
-    // One case step per tick with a yield between, so the storage channel can answer: a caller
-    // that does not return cannot be answered.
-    let case_deadline = Instant::now() + Duration::from_secs(300);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_recorder_cases_tick() } != 0 {
-            break;
-        }
-        if Instant::now() >= case_deadline {
-            log::error!("golden_vt_render: recorder cases did not finish within 300s — wedged");
-            hard_exit(2);
-        }
-        Timer::after_millis(1).await;
-    }
-
-    // The finalized multi-cluster probe, ticked the same way and for the same reason.
-    // SAFETY: as above.
-    unsafe { deluge_scenario_recorder_finalized_begin() };
-    let fin_deadline = Instant::now() + Duration::from_secs(300);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_recorder_finalized_tick() } != 0 {
-            break;
-        }
-        if Instant::now() >= fin_deadline {
-            log::error!("golden_vt_render: finalized probe did not settle within 300s — wedged");
-            hard_exit(2);
-        }
-        Timer::after_millis(1).await;
-    }
-
-    // The oracle's tail — the live-readback probe, the finalized probe's acquire, the summary —
-    // ticked the same way: its drains are requests, answered between these calls.
-    // SAFETY: as above.
-    unsafe { deluge_scenario_recorder_rest_begin() };
-    let rest_deadline = Instant::now() + Duration::from_secs(300);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_recorder_rest_tick() } != 0 {
-            break;
-        }
-        if Instant::now() >= rest_deadline {
-            log::error!(
-                "golden_vt_render: recorder round-trip tail did not finish within 300s — wedged"
-            );
-            hard_exit(2);
-        }
-        Timer::after_millis(1).await;
-    }
-
-    // SAFETY: as above.
-    let failures = unsafe { deluge_scenario_recorder_roundtrip_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: recorder round-trip FAILED ({failures} case(s) — see the log above)"
-        );
-        hard_exit(1);
-    }
-    // The `ticked_` cases, driven from a task as the device drives a recorder: cluster writes go
-    // through the channel.
-    // SAFETY: same C-ABI contract as the calls above; called only from this task.
-    unsafe { deluge_scenario_ticked_begin(0) };
-    let off_deadline = Instant::now() + Duration::from_secs(300);
-    let off_result = loop {
-        // SAFETY: as above.
-        let state = unsafe { deluge_scenario_ticked_tick() };
-        if state != 0 {
-            break state;
-        }
-        if Instant::now() >= off_deadline {
-            log::error!("golden_vt_render: ticked recording did not complete within 300s — wedged");
-            hard_exit(2);
-        }
-        // Yield so the write task can make progress on the clusters the case handed it.
-        Timer::after_millis(1).await;
-    };
-    if off_result != 1 {
-        log::error!("golden_vt_render: ticked recording FAILED — see the log above");
-        hard_exit(1);
-    }
-
-    // Again through the alteration branch, as a separate run so a failure names which shape broke.
-    // SAFETY: same C-ABI contract as above.
-    unsafe { deluge_scenario_ticked_begin(1) };
-    let alter_deadline = Instant::now() + Duration::from_secs(300);
-    let alter_result = loop {
-        // SAFETY: as above.
-        let state = unsafe { deluge_scenario_ticked_tick() };
-        if state != 0 {
-            break state;
-        }
-        if Instant::now() >= alter_deadline {
-            log::error!("golden_vt_render: ticked alterFile did not complete within 300s — wedged");
-            hard_exit(2);
-        }
-        Timer::after_millis(1).await;
-    };
-    if alter_result != 1 {
-        log::error!("golden_vt_render: ticked alterFile FAILED — see the log above");
-        hard_exit(1);
-    }
-
-    // Once more, abandoning the recording part-way so the abort machine runs: its close must
-    // complete before its unlink, which only the free-cluster count can see.
-    // SAFETY: same C-ABI contract as above.
-    unsafe { deluge_scenario_ticked_begin(2) };
-    let abort_deadline = Instant::now() + Duration::from_secs(300);
-    let abort_result = loop {
-        // SAFETY: as above.
-        let state = unsafe { deluge_scenario_ticked_tick() };
-        if state != 0 {
-            break state;
-        }
-        if Instant::now() >= abort_deadline {
-            log::error!("golden_vt_render: ticked abort did not complete within 300s — wedged");
-            hard_exit(2);
-        }
-        Timer::after_millis(1).await;
-    };
-    if abort_result != 1 {
-        log::error!("golden_vt_render: ticked abort FAILED — see the log above");
-        hard_exit(1);
-    }
-
-    // The give-up cases (the channel busy with another operation, a cluster write held past the
-    // recorder's bound, and so on). Each prints its own line, and a failure stops neither the
-    // other cases nor the tier report, so the script sees every result.
-    let mut give_up_failed = false;
-    // dirstall runs last: its held directory open is still in flight when it reports, and a later
-    // case's folder scan would wait behind it.
-    for (mode, name) in [
-        (3, "busy"),
-        (4, "stall"),
-        (6, "abortcreate"),
-        (7, "abortalter"),
-        (8, "openioerr"),
-        (5, "dirstall"),
-    ] {
-        // SAFETY: same C-ABI contract as above.
-        unsafe { deluge_scenario_ticked_begin(mode) };
-        let deadline = Instant::now() + Duration::from_secs(300);
-        let result = loop {
-            // SAFETY: as above.
-            let state = unsafe { deluge_scenario_ticked_tick() };
-            if state != 0 {
-                break state;
-            }
-            if Instant::now() >= deadline {
-                log::error!(
-                    "golden_vt_render: ticked {name} case did not complete within 300s — wedged"
-                );
-                hard_exit(2);
-            }
-            Timer::after_millis(1).await;
-        };
-        if result != 1 {
-            log::error!("golden_vt_render: ticked {name} case FAILED — see the log above");
-            give_up_failed = true;
-        }
-    }
-
-    // Over every `ticked_` case: a synchronous card operation is a violation whichever case made
-    // it.
-    // SAFETY: same C-ABI contract as above.
-    unsafe { deluge_scenario_ticked_report() };
-    if give_up_failed {
-        hard_exit(1);
-    }
-
-    log::info!("golden_vt_render: recorder round-trip PASSED (0 failures); exiting cleanly");
     done.store(true, Ordering::Release);
 }
 
@@ -1067,12 +856,10 @@ fn main() {
     };
     enum Driver {
         Stepped(Steps),
-        RecorderRoundtrip,
         StemExport,
     }
     let driver = match (row.steps(), scenario.as_str()) {
         (Some(steps), _) => Driver::Stepped(steps),
-        (None, "recorder_roundtrip") => Driver::RecorderRoundtrip,
         (None, "stem_export") => Driver::StemExport,
         (None, other) => {
             eprintln!(
@@ -1139,7 +926,6 @@ fn main() {
             let name: &'static str = Box::leak(scenario.clone().into_boxed_str());
             spawner.spawn(run_stepped_scenario(steps, name, &DONE).unwrap());
         }
-        Driver::RecorderRoundtrip => spawner.spawn(run_recorder_roundtrip_scenario(&DONE).unwrap()),
         Driver::StemExport => {
             let fixture_static: &'static str = Box::leak(fixture.into_boxed_str());
             spawner.spawn(run_stem_export_scenario(fixture_static, &DONE).unwrap());
@@ -1203,7 +989,8 @@ pub extern "C" fn host_script_now_ms() -> u32 {
     Instant::now().as_millis() as u32
 }
 
-/// Ends the run for the UI script runner: 0 when its script quit, 2 when the script failed.
+/// Ends the run from C++: the UI script runner (0 when its script quit, 2 when it failed), or a scenario that finds
+/// itself wedged (2).
 #[unsafe(no_mangle)]
 pub extern "C" fn host_script_exit(code: i32) -> ! {
     hard_exit(code)
