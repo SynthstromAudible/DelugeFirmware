@@ -59,7 +59,7 @@
 ///     kit's and the song's, and a pitch bend learned to one), a program change launches a learned section, a CC
 ///     toggles a learned clip above zero and not at zero, a note learned to a section and a clip does both in that
 ///     order, and the clips one note toggles are toggled once each from the session's end, a clip an earlier toggle
-///     deletes never (mapping_dispatch.cpp, self-checking)
+///     deletes never (self-checking)
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/arrangement.h"

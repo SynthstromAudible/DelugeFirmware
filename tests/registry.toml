@@ -680,7 +680,7 @@ runtime_s = 240
 name = "path-operations"
 template = "scenario"
 kind = "property"
-gates = "real SysEx path requests get their replies, and browser folder creation and file deletion go through the byte channel, never on the interaction tier"
+gates = "real SysEx path requests get their replies, no browser folder creation or delete runs on the interaction tier, and browser deletes go through the byte channel"
 scenario = "path_operations"
 markers = ["PO-SYSEX", "PO-MKDIRALL", "PO-DELETE", "PO-DELETE-ABSENT", "PO-DELETE-STALL", "PO-CHANNEL", "PO-TIER", "PO-ILLEGAL", "PO-QUEUE"]
 result = "PO-RESULT failures=0"
@@ -1627,6 +1627,7 @@ gates = "decode reads a saved song's model records exactly as the engine loader 
 corpus_runner = "model_decode_diff"
 tier = "pr"
 runtime_s = 10
+# It runs on the committed synthetic songs; a corpus, when there is one, adds to them.
 requires = []
 
 [[harness]]

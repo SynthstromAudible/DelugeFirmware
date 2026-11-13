@@ -6,7 +6,7 @@
 //
 // Gate effect-owners:
 //     every owner of effects (a synth's sound, a kit, an audio track, the song master) keeps its effect settings in its
-//     own state, and the render's copy follows each change (effect_owners.cpp, self-checking)
+//     own state, and the render's copy follows each change (self-checking)
 //
 // Gate app-asan-effect-owners:
 //     the effect-owners gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap

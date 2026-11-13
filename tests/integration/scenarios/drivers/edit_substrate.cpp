@@ -8,7 +8,7 @@
 // Gate edit-substrate:
 //     the Edit substrate on its own: the dispatcher's wiring, and SetParamValue, DeleteParamAutomation and
 //     PasteParamAutomation's mutation, Consequence, coalescence and undo, plus ParamSnapshot staying equivalent to the
-//     store through region and scalar edits (edit_substrate.cpp, self-checking)
+//     store through region and scalar edits (self-checking)
 //
 // Gate app-asan-edit-substrate:
 //     the edit-substrate gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap

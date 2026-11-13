@@ -16,8 +16,7 @@
 //     to other cables' depths, orphaned depth cables, unknown-placeholder and empty targets) under seeded random
 //     usability tables are routed and folded into one pinned digest of the cable order a save walks, the usable count,
 //     each usable cable's range link, both globalities' destinations and sourcesPatchedToAnything; from the library's
-//     compile_routing on, every case is also compiled by it and must agree field by field (patch_routing.cpp,
-//     self-checking)
+//     compile_routing on, every case is also compiled by it and must agree field by field (self-checking)
 
 #include "synth/modulation/patch_routing.h"
 #include "definitions_cxx.hpp"

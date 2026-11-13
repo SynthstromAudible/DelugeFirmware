@@ -13,7 +13,7 @@
 //     the param/automation DOM leaf must agree with the engine it replaces: every DocAutoParam/DocParamSet kernel
 //     (projection to and from AutoParam, node edits, region homogenize, nudge, delete, copy/paste, the patch-cable and
 //     MIDI-CC collections, param backup, backed params) is run against the real AutoParam/ParamSet as its oracle and
-//     must produce the same nodes, values and serialized bytes (param_projection.cpp, self-checking)
+//     must produce the same nodes, values and serialized bytes (self-checking)
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/backed_params.h"

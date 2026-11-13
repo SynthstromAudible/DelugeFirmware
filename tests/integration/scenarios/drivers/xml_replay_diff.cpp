@@ -11,7 +11,7 @@
 //
 // Gate xml-replay-diff:
 //     ValueTreeDeserializer's XML replay must read exactly as XMLDeserializer does: each fragment's readFromFile-shaped
-//     script, run against both, must return the same transcript token for token (xml_replay_diff.cpp)
+//     script, run against both, must return the same transcript token for token
 
 #include "storage/parse_xml.h"
 #include "storage/storage_manager.h"

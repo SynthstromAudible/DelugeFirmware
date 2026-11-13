@@ -14,7 +14,7 @@
 // Gate param-clone:
 //     cloning the real engine param containers (AutoParam, a ParamManager with patched, unpatched and patch-cable
 //     collections) must give deep-independent copies: mutating the source after a clone must not reach the clone
-//     (param_clone.cpp, self-checking)
+//     (self-checking)
 
 #include "definitions_cxx.hpp"
 #include "memory/general_memory_allocator.h"
