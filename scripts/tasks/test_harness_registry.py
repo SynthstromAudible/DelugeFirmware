@@ -271,7 +271,7 @@ class LoadRegistryTest(unittest.TestCase):
 class BaselineDeclarationTest(unittest.TestCase):
     ROOT = Path(__file__).resolve().parents[2]
     # What in a check, a corpus runner or a script's Python says that it records a baseline.
-    RECORDS: ClassVar[tuple[str, ...]] = ("golden_update.",)
+    RECORDS: ClassVar[tuple[str, ...]] = ("golden_update.", "driver.baseline_diff(")
     # Entries whose binaries record a baseline from C++ (tests/support/golden_update.h). The registry cannot see what a
     # binary links, so this set stands in for it, checked both ways against `baseline`.
     CPP_OWNERS: ClassVar[set[str]] = set()

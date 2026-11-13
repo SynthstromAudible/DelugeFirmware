@@ -11,6 +11,9 @@ returncode and the harness's own stderr.
 
 Runs share nothing (each boots its own app on its own in-memory card, and the drivers read songs from the host), so
 the sweeps run them `--jobs` at a time with `run_all()`.
+
+Under `./dbt test --update`, a runner records its baselines instead of comparing (golden_update): never run one
+re-recording by hand -- the runner builds golden_vt_render first.
 """
 
 import concurrent.futures
@@ -18,11 +21,16 @@ import os
 import re
 import shlex
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
+# golden_update (scripts/tasks): the switch and the writers every runner here records through.
+sys.path.insert(0, str(REPO / "scripts" / "tasks"))
+import golden_update
+
 EXIT = re.compile(r"^DRV-EXIT code=(-?\d+)$", re.MULTILINE)
 
 
@@ -163,14 +171,22 @@ def find_songs(corpus: str, name_filter: str = "") -> list[str]:
 def baseline_diff(
     scenario: str,
     baseline_dir: str,
+    songs: list[str],
     argv=None,
     description: str = "",
     require_exit_0: bool = False,
 ) -> int:
-    """For each `<name>.txt` baseline in `baseline_dir`, run the driver on the corpus song `<name>.XML` or `.json` and
-    byte-compare its stdout (minus '#' comment lines, which carry the song's absolute path) against the baseline.
-    With `require_exit_0`, a run that does not exit 0 is a regression too. Returns 0, 1 on a regression, or 77
-    (skip) with no corpus or no baselines."""
+    """For each of `songs` (corpus song names, without extension), run the driver on `<name>.XML` or `.json` in the
+    corpus and byte-compare its stdout -- '#' comment lines, which carry the song's absolute path, removed, the rest
+    stripped -- with the baseline `<name>.txt` in `baseline_dir`. With `require_exit_0`, a run that does not exit 0
+    is a regression too.
+
+    Re-recording (golden_update.updating()), each song the corpus has is recorded instead, as that text plus a
+    newline; a run that would be a regression for its exit status, or did not finish, records nothing and fails. A
+    song the corpus lacks keeps its baseline. A `.txt` in `baseline_dir` that no song names fails either way: nothing
+    would compare it.
+
+    Returns 0, 1 on a regression, a failed recording or nothing compared, or 77 (skip) with no corpus."""
     import argparse
 
     ap = argparse.ArgumentParser(description=description)
@@ -180,6 +196,7 @@ def baseline_diff(
     ap.add_argument("--timeout", type=int, default=120)
     ap.add_argument("--jobs", type=int, default=default_jobs())
     args = ap.parse_args(argv)
+    updating = golden_update.updating()
 
     def strip_comments(text):
         return "\n".join(
@@ -189,17 +206,17 @@ def baseline_diff(
     if not os.path.isdir(args.corpus):
         print("SKIP: no song corpus (DELUGE_SONG_CORPUS)")
         return 77
-    if not os.path.isdir(baseline_dir):
-        print("SKIP: no baselines directory")
-        return 77
-    baselines = sorted(f[:-4] for f in os.listdir(baseline_dir) if f.endswith(".txt"))
-    if not baselines:
-        print("SKIP: no baselines")
-        return 77
+    on_disk = os.listdir(baseline_dir) if os.path.isdir(baseline_dir) else []
+    stray = sorted(
+        f[:-4] for f in on_disk if f.endswith(".txt") and f[:-4] not in songs
+    )
+    if stray:
+        print(f"FAIL: baselines no song names: {', '.join(stray)}")
+        return 1
 
     ok = regress = absent = 0
     present = []
-    for name in baselines:
+    for name in songs:
         song = next(
             (
                 os.path.join(args.corpus, name + ext)
@@ -222,10 +239,29 @@ def baseline_diff(
         args.jobs,
     )
     for (name, _), got in zip(present, results):
-        with open(os.path.join(baseline_dir, name + ".txt")) as fh:
-            expected = fh.read().strip()
+        path = os.path.join(baseline_dir, name + ".txt")
         actual = strip_comments(got.stdout)
-        if actual == expected and (got.returncode == 0 or not require_exit_0):
+        exited = got.returncode == 0 or not require_exit_0
+        if updating:
+            if exited and got.returncode >= 0:
+                golden_update.write_text(
+                    Path(path), actual + "\n", os.path.relpath(path, REPO)
+                )
+                print(f"OK      {name} (recorded)")
+                ok += 1
+            else:
+                print(f"REGRESS {name} (rc={got.returncode}): nothing recorded")
+                if got.stderr.strip():
+                    print(f"  stderr:   {got.stderr.strip()!r}")
+                regress += 1
+            continue
+        if not os.path.isfile(path):
+            print(f"REGRESS {name}: no baseline (./dbt test --update records it)")
+            regress += 1
+            continue
+        with open(path) as fh:
+            expected = fh.read().strip()
+        if actual == expected and exited:
             print(f"OK      {name}")
             ok += 1
         else:
@@ -237,7 +273,7 @@ def baseline_diff(
             regress += 1
     print("=" * 60)
     print(
-        f"OK={ok} REGRESS={regress} ABSENT={absent}  (corpus={args.corpus}, {len(baselines)} baselines)"
+        f"OK={ok} REGRESS={regress} ABSENT={absent}  (corpus={args.corpus}, {len(songs)} baselines)"
     )
     if ok == 0 and regress == 0:
         print("FAIL: no baseline's song is in the corpus, so nothing was compared")
