@@ -19,6 +19,9 @@
 /// @brief The live pitch shifter's own records over every workload (pitch_shift_workloads.h): the legacy classes'
 /// records (pitch_shift_workload_records.h) but where a quirk's fix changed what the shifter renders
 /// (docs/dev/live_pitch_shifter_quirks.md). live_pitch_shifter_spec names the workloads each fix reaches.
+///
+/// `./dbt test --update unit` rewrites the lines between the GOLDEN-RECORDS markers from the run
+/// (scripts/tasks/golden_records.py); a new record is added by hand, with any value, and re-recorded.
 
 #pragma once
 
@@ -31,6 +34,8 @@ namespace pitch_shift_workloads {
 /// @brief What the live pitch shifter renders from each workload, in WorkloadId order, identical on the host and on
 /// ARM.
 inline constexpr std::array<WorkloadRecord, kWorkloadCount> kShifterRecords{{
+    // clang-format off
+// GOLDEN-RECORDS BEGIN kShifterRecords
     // UP7_SAW_LEFT
     {.outputs = 0x1c548255f0b402cdULL, .hops = 0x82939e542dd13f25ULL, .lifecycle = 0x32d1e61076787b15ULL},
     // UP7_SAW_RIGHT
@@ -85,6 +90,8 @@ inline constexpr std::array<WorkloadRecord, kWorkloadCount> kShifterRecords{{
     {.outputs = 0xf39ad02ee046d7caULL, .hops = 0x1a61b42ad699cf94ULL, .lifecycle = 0x715e4354d13ef495ULL},
     // SILENCE_DOWN12_LEFT
     {.outputs = 0xb9be06ed94715767ULL, .hops = 0x3001803af585b034ULL, .lifecycle = 0xa947e50590de8025ULL},
+// GOLDEN-RECORDS END kShifterRecords
+    // clang-format on
 }};
 
 } // namespace pitch_shift_workloads

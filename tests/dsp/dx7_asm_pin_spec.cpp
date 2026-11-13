@@ -1,15 +1,20 @@
 // The device's NEON FM kernel (a test-local copy, reference_neon_fm_kernel.s), pinned under qemu over every padding
-// form, gain ramp and phase run: the oracle the Argon operator must equal.
+// form, gain ramp and phase run: the oracle the Argon operator must equal. `./dbt test --update unit-arm` re-records
+// the digests (dx7_asm_pin_records.h).
 #include "dx7_asm_pin_records.h"
 #include "dx7_asm_pin_workloads.h"
 #include "reference_dx7.h"
+#include "support/golden_update.h"
 #include <algorithm>
 #include <cppspec.hpp>
 #include <cstdio>
-#include <cstdlib>
 #include <iterator>
+#include <string_view>
 
 namespace dp = dx7_asm_pin;
+namespace golden = deluge::test::golden;
+
+constexpr std::string_view kHeader = "tests/dsp/dx7_asm_pin_records.h";
 
 // clang-format off
 describe dx7_asm_pin_spec("the NEON FM kernel, pinned", ${
@@ -33,10 +38,14 @@ describe dx7_asm_pin_spec("the NEON FM kernel, pinned", ${
 			}
 			expect(touched).to_equal(std::size_t{0});
 			const uint64_t d = dp::digest_first_n(out, pin.n);
-			if (std::getenv("DELUGE_DX7_RECORD") != nullptr) {
-				std::printf("    PIN 0x%llxULL, // %s\n", (unsigned long long)d, pin.name);
+			if (golden::updating()) {
+				char line[160];
+				std::snprintf(line, sizeof line, "    0x%llxULL, // %s", (unsigned long long)d, pin.name);
+				golden::record(kHeader, "kRecordedAsm", line);
 			}
-			expect(d).to_equal(dp::kRecordedAsm.at(i));
+			else {
+				expect(d).to_equal(dp::kRecordedAsm.at(i));
+			}
 		});
 	}
 	it("is not the scalar operator: lane 0 starts at gain1, the sine is a polynomial", _ {

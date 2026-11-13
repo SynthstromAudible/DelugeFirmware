@@ -19,6 +19,9 @@
 /// @brief The hop scheduler's records over every workload (pitch_shift_workloads.h): each block's hop count, the hop's
 /// progress after it, the noise and the output, hashed, in WorkloadId order (0 for the shared workloads, which the
 /// scheduler spec skips).
+///
+/// `./dbt test --update unit` rewrites the lines between the GOLDEN-RECORDS markers from the run
+/// (scripts/tasks/golden_records.py); a new record is added by hand, with any value, and re-recorded.
 
 #pragma once
 
@@ -28,6 +31,8 @@
 #include <cstdint>
 
 inline constexpr std::array<uint64_t, pitch_shift_workloads::kWorkloadCount> kSchedulerRecords{{
+    // clang-format off
+// GOLDEN-RECORDS BEGIN kSchedulerRecords
     0x391d131e86033905ULL, // UP7_SAW_LEFT
     0xcde607b2877be045ULL, // UP7_SAW_RIGHT
     0x4a2b77bfe6fcccb6ULL, // UP7_SAW_STEREO
@@ -55,4 +60,6 @@ inline constexpr std::array<uint64_t, pitch_shift_workloads::kWorkloadCount> kSc
     0x0ULL,                // SHARED_DOWN5_PERC_STEREO: skipped (shared)
     0x7623f813d9d7197cULL, // SILENCE_UP7_LEFT
     0x85c13b6ef5bbc132ULL, // SILENCE_DOWN12_LEFT
+// GOLDEN-RECORDS END kSchedulerRecords
+    // clang-format on
 }};

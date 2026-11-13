@@ -18,7 +18,7 @@
 // The live pitch shifter's hop scheduler (dsp-next/fixed/pitch_shift/hop_scheduler.h) over every workload, rendering
 // its heads as the shifter does: each block's hop count and the hop's progress after it (the samples until the hop
 // ends and into it, the crossfade's progress and step, the next crossfade, the onset threshold) are hashed against the
-// scheduler's records (hop_scheduler_records.h; HOP_SCHEDULER_PRINT_RECORDS=1 prints them), and on every block the
+// scheduler's records (hop_scheduler_records.h; `./dbt test --update unit` re-records them), and on every block the
 // segments must tile the block and no head may pass now, the frame not yet written (Q14).
 
 #include "hop_scheduler_records.h"
@@ -27,23 +27,27 @@
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h"
 #include "dsp-next/fixed/pitch_shift/hop_scheduler.h"
+#include "support/golden_update.h"
 
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
-#include <cstring>
-#include <iostream>
+#include <cstdio>
 #include <memory>
+#include <string>
+#include <string_view>
 #include <type_traits>
 #include <vector>
 
 namespace {
+namespace golden = deluge::test::golden;
 namespace pw = pitch_shift_workloads;
 namespace ps = deluge::dsp::fixed::pitch_shift;
 using deluge::dsp::Q;
 using deluge::dsp::StereoSample;
 using deluge::synth::InputChannel;
+
+constexpr std::string_view kHeader = "tests/dsp/hop_scheduler_records.h";
 
 struct Tally {
 	std::size_t blocks = 0;
@@ -164,19 +168,26 @@ bool schedules(const pw::Workload& w, Tally& tally, pw::Fnv& record) {
 // clang-format off
 describe hop_scheduler("deluge::dsp::fixed::pitch_shift::HopScheduler", ${
 	it("schedules every workload as recorded, tiling each block, no head passing now", _ {
-		const char* print = std::getenv("HOP_SCHEDULER_PRINT_RECORDS");
-		const bool printing = print != nullptr && std::strcmp(print, "1") == 0;
+		const bool updating = golden::updating();
 		Tally tally;
 		for (const pw::Workload& w : pw::all_workloads()) {
 			if (w.shared) {
-				continue; // One shifter per scheduler: the shared workloads are the component's to check
+				// One shifter per scheduler: the shared workloads are the component's to check
+				if (updating) {
+					golden::record(kHeader, "kSchedulerRecords",
+					               std::string{"    0x0ULL, // "} + w.name + ": skipped (shared)");
+				}
+				continue;
 			}
 			pw::Fnv record;
 			const bool held = w.channel == InputChannel::STEREO ? schedules<StereoSample>(w, tally, record)
 			                                                    : schedules<Q<31>>(w, tally, record);
 			expect(held).to_be_true();
-			if (printing) {
-				std::cout << "    0x" << std::hex << record.value() << std::dec << "ULL, // " << w.name << "\n";
+			if (updating) {
+				char line[128];
+				std::snprintf(line, sizeof line, "    0x%llxULL, // %s",
+				              static_cast<unsigned long long>(record.value()), w.name);
+				golden::record(kHeader, "kSchedulerRecords", line);
 			}
 			else {
 				expect(record.value()).to_equal(kSchedulerRecords.at(static_cast<std::size_t>(w.id)));

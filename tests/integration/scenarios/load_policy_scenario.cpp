@@ -53,6 +53,7 @@
 #include "storage/audio/sample_build.h"
 #include "storage/wave_table/wave_table.h"
 #include "storage/wave_table/wave_table_holder.h"
+#include "support/golden_update.h"
 
 #include "deluge_resource.h"   // DelugeResourceStats, deluge_resource_stats(_reset)
 #include "libdeluge/channel.h" // DELUGE_PATH_MAX
@@ -86,6 +87,10 @@ using deluge::scenarios::Wait;
 using deluge::scenarios::WaitState;
 
 ScenarioReport g_report{"LP"};
+
+namespace golden = deluge::test::golden;
+constexpr std::string_view kWaveTableHeader = "tests/dsp/wavetable_band_records.h";
+constexpr std::string_view kPitchHeader = "tests/integration/scenarios/pitch_pin_records.h";
 
 /// Pin proposeLoadCandidates()'s policy: which paths a load tries, in what order. The async loader opens candidates
 /// in exactly this order, so a wrong order silently opens the wrong file or misses one it used to find.
@@ -574,10 +579,6 @@ void runManagerDefault() {
 	report("LP-DEFAULT layer=manager mode=omitted", ok);
 }
 
-bool recording() {
-	return std::getenv("LOAD_POLICY_RECORD") != nullptr;
-}
-
 /// The card path of a record's file: wavetable_pins/X under SAMPLES/WTP, presets/… under SAMPLES/WTG.
 std::string cardPathOf(const char* recordFile) {
 	const std::string_view file{recordFile};
@@ -599,11 +600,15 @@ void runWaveTablePins() {
 		const deluge::dsp::fixed::WaveTableData view =
 		    table != nullptr ? table->view() : deluge::dsp::fixed::WaveTableData{};
 		const uint32_t crc = table != nullptr ? wavetable_band_crc(view) : 0;
-		if (recording()) {
-			printf("LP-RECORD {\"%s\", %d, 0x%08XU},\n", record.file, static_cast<int>(view.num_bands()),
-			       static_cast<unsigned>(crc));
+		const bool updating = golden::updating();
+		if (updating && table != nullptr) {
+			char line[160];
+			std::snprintf(line, sizeof line, "    {\"%s\", %d, 0x%08XU},", record.file,
+			              static_cast<int>(view.num_bands()), static_cast<unsigned>(crc));
+			golden::record(kWaveTableHeader, "kRecords", line);
 		}
-		const bool ok = table != nullptr && view.num_bands() == record.num_bands && crc == record.crc;
+		// Re-recording, the bands are what the run records; the table must still load.
+		const bool ok = table != nullptr && (updating || (view.num_bands() == record.num_bands && crc == record.crc));
 		printf("LP-WT-PIN file=%s error=%d bands=%d crc=%08X ok=%d\n", record.file, static_cast<int>(error),
 		       static_cast<int>(view.num_bands()), static_cast<unsigned>(crc), ok ? 1 : 0);
 		if (!ok) {
@@ -651,10 +656,14 @@ bool runPitchPinStep() {
 	const bool timeout = g_pitchWait.expired();
 	const float hz = g_pitchScan.result();
 	const uint32_t bits = std::bit_cast<uint32_t>(hz);
-	if (recording() && done) {
-		printf("LP-RECORD {\"%s\", 0x%08XU},\n", record.file, static_cast<unsigned>(bits));
+	const bool updating = golden::updating();
+	if (updating && done) {
+		char line[96];
+		std::snprintf(line, sizeof line, "    {\"%s\", 0x%08XU},", record.file, static_cast<unsigned>(bits));
+		golden::record(kPitchHeader, "kRecords", line);
 	}
-	const bool ok = done && bits == record.hz_bits;
+	// Re-recording, the pitch is what the run records; the scan must still finish.
+	const bool ok = done && (updating || bits == record.hz_bits);
 	if (timeout) {
 		printf("LP-PITCH-PIN file=%s timeout=1 ok=0\n", record.file);
 	}

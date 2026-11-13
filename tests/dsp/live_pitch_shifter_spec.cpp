@@ -17,14 +17,15 @@
 
 // The live pitch shifter (synth/sources/input/live/live_pitch_shifter.h) over every workload
 // (pitch_shift_workloads.h): it must make its records (pitch_shift_component_records.h), which differ from the legacy
-// classes' (pitch_shift_workload_records.h) only on the workloads its quirk fixes reach. PITCH_SHIFT_PRINT_RECORDS=1
-// prints its records instead.
+// classes' (pitch_shift_workload_records.h) only on the workloads its quirk fixes reach. `./dbt test --update unit`
+// re-records them.
 
 #include "alloc_seams.h"
 #include "pitch_shift_component_records.h"
 #include "pitch_shift_workload_records.h"
 #include "pitch_shift_workloads.h"
 
+#include "support/golden_update.h"
 #include "synth/sources/input/audio_input_port.h"
 #include "synth/sources/input/live/live_input.h"
 #include "synth/sources/input/live/live_inputs.h"
@@ -36,17 +37,21 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
-#include <cstring>
-#include <iostream>
 #include <memory>
 #include <set>
+#include <sstream>
+#include <string>
+#include <string_view>
 #include <tuple>
 #include <vector>
 
 namespace {
 
+namespace golden = deluge::test::golden;
 namespace pw = pitch_shift_workloads;
 using deluge::synth::InputChannel;
+
+constexpr std::string_view kHeader = "tests/dsp/pitch_shift_component_records.h";
 
 /// The host's input port as the shifter reads it, the block's clock and ring; and the one history the shifters share,
 /// as one oscillator's voices do.
@@ -112,12 +117,14 @@ private:
 // clang-format off
 describe live_pitch_shifter("deluge::synth::LivePitchShifter", ${
 	it("renders each workload as recorded", _ {
-		const char* print = std::getenv("PITCH_SHIFT_PRINT_RECORDS");
-		const bool printing = print != nullptr && std::strcmp(print, "1") == 0;
+		const bool updating = golden::updating();
 		for (const pw::Workload& w : pw::all_workloads()) {
 			const pw::WorkloadRecord record = pw::record<ShifterSystem>(w);
-			if (printing) {
-				std::cout << "    // " << w.name << "\n    " << record << ",\n";
+			if (updating) {
+				std::ostringstream text;
+				text << record;
+				golden::record(kHeader, "kShifterRecords", std::string{"    // "} + w.name);
+				golden::record(kHeader, "kShifterRecords", "    " + text.str() + ",");
 			}
 			else {
 				expect(record).to_equal(pw::kShifterRecords.at(static_cast<std::size_t>(w.id)));

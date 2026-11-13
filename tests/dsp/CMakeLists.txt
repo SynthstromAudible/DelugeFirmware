@@ -412,6 +412,11 @@ set(param_curve_spec_DEPS)
 # The params' formats are header-only.
 set(param_format_spec_DEPS)
 
+# The specs that re-record a record header include tests/support/golden_update.h as "support/golden_update.h".
+foreach(_recording_spec hop_scheduler_spec live_pitch_shifter_spec dx7_reference_spec dx7_asm_pin_spec)
+  list(APPEND ${_recording_spec}_INCLUDES ${_repo_root}/tests)
+endforeach()
+
 # CONFIGURE_DEPENDS: a spec file added to an already-configured tree is built (and run) on the next build.
 file(GLOB _specs CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)
 foreach(_spec_path IN LISTS _specs)

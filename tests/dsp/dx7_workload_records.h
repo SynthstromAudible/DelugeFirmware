@@ -18,6 +18,9 @@
 /// @file
 /// @brief The DX7 reference's records over every workload (dx7_workloads.h) and its tables, which the components must
 /// equal: recorded from it, identical on the host and on ARM.
+///
+/// `./dbt test --update unit` rewrites the lines between the GOLDEN-RECORDS markers from the run
+/// (scripts/tasks/golden_records.py); a new record is added by hand, with any value, and re-recorded.
 
 #pragma once
 
@@ -29,6 +32,8 @@ namespace dx7_workloads {
 
 /// @brief What the reference renders from each workload, in WorkloadId order.
 inline const std::array<WorkloadRecord, kWorkloadCount> kRecordedReference{{
+    // clang-format off
+// GOLDEN-RECORDS BEGIN kRecordedReference
     // ALG_0_MODERN_FB0
     {.outputs = 0xe7eecadb0741878bULL, .state = 0x4d80ed13f3563577ULL, .alive = 0x251c2a09d3947719ULL},
     // ALG_0_MODERN_FB7
@@ -325,14 +330,23 @@ inline const std::array<WorkloadRecord, kWorkloadCount> kRecordedReference{{
     {.outputs = 0xdd691e3d27a32725ULL, .state = 0xee8178833af78371ULL, .alive = 0x680aa42dad733dffULL},
     // RETRIGGER_KEEPS_FEEDBACK
     {.outputs = 0xe04964023eff1266ULL, .state = 0x1354cd114746b30eULL, .alive = 0x251c2a09d3947719ULL},
+// GOLDEN-RECORDS END kRecordedReference
+    // clang-format on
 }};
 
 /// @brief The reference's tables.
-inline constexpr TableRecord kRecordedTables{0xf41af9505d26224bULL, 0x6be14c4ca0e56dbdULL, 0xfbb3375360c0c5bULL,
-                                             0xa7e2f8331f1b344dULL, 0x4235cf2d96c95f5aULL};
+// clang-format off
+// GOLDEN-RECORDS BEGIN kRecordedTables
+inline constexpr TableRecord kRecordedTables{0xf41af9505d26224bULL, 0x6be14c4ca0e56dbdULL, 0xfbb3375360c0c5bULL, 0xa7e2f8331f1b344dULL, 0x4235cf2d96c95f5aULL};
+// GOLDEN-RECORDS END kRecordedTables
+// clang-format on
 
 /// @brief Whether an MkI voice's compute ever returns false after its release. Named quirk: it does not, as an MkI
 /// voice's gain_out is an attenuation, so the modern engine's threshold holds it alive.
+// clang-format off
+// GOLDEN-RECORDS BEGIN kMkIVoiceEnds
 inline constexpr bool kMkIVoiceEnds = false;
+// GOLDEN-RECORDS END kMkIVoiceEnds
+// clang-format on
 
 } // namespace dx7_workloads

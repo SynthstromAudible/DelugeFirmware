@@ -23,6 +23,9 @@
 /// @file
 /// @brief The bands each pinned wavetable builds, by CRC: the synthetic set in tests/integration/golden/wavetable_pins
 /// and the golden presets' wavetables.
+///
+/// `./dbt test --update load-policy` rewrites the lines between the GOLDEN-RECORDS markers from the run
+/// (scripts/tasks/golden_records.py); a new record is added by hand, with any value, and re-recorded.
 namespace wavetable_band_records {
 
 /// @brief One wavetable's recorded build.
@@ -34,17 +37,32 @@ struct Record {
 };
 
 inline constexpr std::array<Record, 22> kRecords{{
-    {"wavetable_pins/WTP_BIG.WAV", 11, 0xE4B57D43U},        {"wavetable_pins/WTP_F32.WAV", 9, 0xA1EF1FA0U},
-    {"wavetable_pins/WTP_MANY.WAV", 6, 0x665B5D5FU},        {"wavetable_pins/WTP_NPOT.WAV", 8, 0x9B94039FU},
-    {"wavetable_pins/WTP_ONE.WAV", 9, 0xFAA9506AU},         {"wavetable_pins/WTP_P24.WAV", 9, 0x263B7CBDU},
-    {"wavetable_pins/WTP_P32.WAV", 9, 0x80AD7FE2U},         {"wavetable_pins/WTP_S32.WAV", 3, 0x05EBD28EU},
-    {"wavetable_pins/WTP_S16.WAV", 2, 0x31D48F7AU},         {"wavetable_pins/WTP_S8.WAV", 1, 0x3B3D7F77U},
-    {"wavetable_pins/WTP_U8.WAV", 9, 0x8E9B4F58U},          {"presets/wavetable_basic.wav", 9, 0xF6D75D3FU},
-    {"presets/wavetable/morph_lfo.wav", 9, 0x9C36D926U},    {"presets/wavetable/morph_note.wav", 9, 0x9C36D926U},
-    {"presets/wavetable/morph_sync.2.wav", 9, 0x04617777U}, {"presets/wavetable/morph_sync.wav", 9, 0x0A36FDC7U},
-    {"presets/wavetable/scw.wav", 6, 0xD52350ACU},          {"presets/wavetable/scw_hi.wav", 6, 0xD52350ACU},
-    {"presets/wavetable/static.wav", 9, 0xEF1ECB14U},       {"presets/wavetable/static_lo.wav", 9, 0xEF1ECB14U},
-    {"presets/wavetable/sync.2.wav", 9, 0x04617777U},       {"presets/wavetable/sync.wav", 9, 0x0A36FDC7U},
+    // clang-format off
+// GOLDEN-RECORDS BEGIN kRecords
+    {"wavetable_pins/WTP_BIG.WAV", 11, 0xE4B57D43U},
+    {"wavetable_pins/WTP_F32.WAV", 9, 0xA1EF1FA0U},
+    {"wavetable_pins/WTP_MANY.WAV", 6, 0x665B5D5FU},
+    {"wavetable_pins/WTP_NPOT.WAV", 8, 0x9B94039FU},
+    {"wavetable_pins/WTP_ONE.WAV", 9, 0xFAA9506AU},
+    {"wavetable_pins/WTP_P24.WAV", 9, 0x263B7CBDU},
+    {"wavetable_pins/WTP_P32.WAV", 9, 0x80AD7FE2U},
+    {"wavetable_pins/WTP_S32.WAV", 3, 0x05EBD28EU},
+    {"wavetable_pins/WTP_S16.WAV", 2, 0x31D48F7AU},
+    {"wavetable_pins/WTP_S8.WAV", 1, 0x3B3D7F77U},
+    {"wavetable_pins/WTP_U8.WAV", 9, 0x8E9B4F58U},
+    {"presets/wavetable_basic.wav", 9, 0xF6D75D3FU},
+    {"presets/wavetable/morph_lfo.wav", 9, 0x9C36D926U},
+    {"presets/wavetable/morph_note.wav", 9, 0x9C36D926U},
+    {"presets/wavetable/morph_sync.2.wav", 9, 0x04617777U},
+    {"presets/wavetable/morph_sync.wav", 9, 0x0A36FDC7U},
+    {"presets/wavetable/scw.wav", 6, 0xD52350ACU},
+    {"presets/wavetable/scw_hi.wav", 6, 0xD52350ACU},
+    {"presets/wavetable/static.wav", 9, 0xEF1ECB14U},
+    {"presets/wavetable/static_lo.wav", 9, 0xEF1ECB14U},
+    {"presets/wavetable/sync.2.wav", 9, 0x04617777U},
+    {"presets/wavetable/sync.wav", 9, 0x0A36FDC7U},
+// GOLDEN-RECORDS END kRecords
+    // clang-format on
 }};
 
 } // namespace wavetable_band_records

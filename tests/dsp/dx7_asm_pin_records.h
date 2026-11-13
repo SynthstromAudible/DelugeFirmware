@@ -18,6 +18,9 @@
 /// @file
 /// @brief What the device's NEON FM kernel renders for each asm pin case (dx7_asm_pin_workloads.h): the first n
 /// output words' digest, recorded under qemu.
+///
+/// `./dbt test --update unit-arm` rewrites the lines between the GOLDEN-RECORDS markers from the run
+/// (scripts/tasks/golden_records.py); a new record is added by hand, with any value, and re-recorded.
 
 #pragma once
 
@@ -29,6 +32,8 @@
 namespace dx7_asm_pin {
 
 inline const std::array<uint64_t, kCaseCount> kRecordedAsm{{
+    // clang-format off
+// GOLDEN-RECORDS BEGIN kRecordedAsm
     0xaf63bd4c8601b7dfULL, // pure_set_n1_rising_slow
     0x6b1d723e79fe466eULL, // pure_set_n1_rising_wraps
     0x6b1d723e79fe466eULL, // pure_set_n1_rising_bit23
@@ -1229,6 +1234,8 @@ inline const std::array<uint64_t, kCaseCount> kRecordedAsm{{
     0xdd9ad8ba724c05c3ULL, // mod_add_n128_unity_wraps
     0x93d9b75f2134f887ULL, // mod_add_n128_unity_bit23
     0xc2f652f9f8178b60ULL, // mod_add_n128_unity_backwards
+// GOLDEN-RECORDS END kRecordedAsm
+    // clang-format on
 }};
 
 } // namespace dx7_asm_pin

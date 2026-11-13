@@ -273,7 +273,12 @@ class BaselineDeclarationTest(unittest.TestCase):
     RECORDS: ClassVar[tuple[str, ...]] = ("golden_update.", "driver.baseline_diff(")
     # Entries whose binaries record a baseline from C++ (tests/support/golden_update.h). The registry cannot see what a
     # binary links, so this set stands in for it, checked both ways against `baseline`.
-    CPP_OWNERS: ClassVar[set[str]] = {"unit", "ui-scenes-spec"}
+    CPP_OWNERS: ClassVar[set[str]] = {
+        "unit",
+        "unit-arm",
+        "ui-scenes-spec",
+        "load-policy",
+    }
     # Entries that run an owner's code but record nothing: entry -> why.
     NOT_OWNERS: ClassVar[dict[str, str]] = {
         "golden-synth-arm": "the ARM render must equal the x86 records golden-synth makes",
