@@ -302,16 +302,28 @@ The gold knobs and the mod buttons read pages, not tables. An owner publishes it
 the param a turn moves (a `ParamId` in the owner's `ENGINE` space), its `ParamKind`, and a `PressAction` with the
 setting it steps. `controls::page_of` (`src/controls/page.h`) turns a published page into targets in the owner's
 spaces; `SectionPages` holds the page the knobs are on, the section's cycle in `NEXT_PAGE` order, and the page each
-group enters at. A press-stepped setting (filter modes, the sync levels, the mod FX type) is a setting param: it
-carries `ParamFlag::SETTING | STEPPED | ENUM`, a stepper (`effects::step_setting`) and its codec name
-(`effects::kSettingParams`), so a press edits it by address like any param.
+group enters at. `scenes::bind::current_page` builds the current page alone, with no allocation, for a turn and the
+knobs' indicators; `section_pages` adds the cycle for a press.
+
+The settings a press steps or the song's compressor knobs turn are setting params (`effects::kSettingParams`, ids from
+`effects::kFirstSettingId`, clear of both plugins' tables): each row carries `ParamFlag::SETTING` and its file name.
+The eight a press steps (the filter modes, the delay's type, ping-pong and sync, the sidechain's sync, the mod FX type)
+are also `STEPPED | ENUM` and have a stepper (`effects::step_setting`); the six compressor rows are `SETTING` only,
+continuous, with no stepper. Settings have no storage of their own yet: a stepped setting is written by its row's file
+name through `controls::Sink::write_effect`, as a menu writes it, and a compressor knob's turn by its path.
 
 `controls::resolve_turn` and `resolve_press` (`src/controls/resolve.h`) are pure: given the `KnobFocus`, the section's
 pages and a slot, they return the one `Target` the control means: a `ParamWrite`, a `StepSetting`, a `SelectPage` or a
 `HostCommand` (stutter, reverb preset, MIDI CC select). `NEXT_PAGE` moves within the pressed slot's group and takes
-along every other slot still on the page's own param, so a slot the user mapped elsewhere stays where it is. The scenes
-and the legacy views apply the target through the control sink and read through the facts (`src/controls/sink.h`,
-`facts.h`), so the same pages drive the shell and the legacy views.
+along every other slot still on the page's own param, so a slot the user mapped elsewhere stays where it is; from a
+page the cycle lacks (a mod FX view its type has no param for) it moves to the group's first page after it.
+`controls::resolve_section` (`src/controls/section.h`) answers a mod button: whether its owner's mode changes, the VU
+meter toggles, the stutter ends, and the popup shows.
+
+The shell's gold knobs (`scenes::services::ModKnobs`, while a menu is up) resolve through these and apply each target
+through `controls::Sink`, reading values through `controls::Facts` (`src/controls/sink.h`, `facts.h`). The root views
+keep their own path (`View::modEncoderAction`, `ModControllable::getParamFromModEncoder`, `GlobalEffectable::knobParam`)
+until they forward their knobs to `ModKnobs`; param-target-check and the scenes specs hold the two to the same layout.
 
 ## Instrument-private rules
 
