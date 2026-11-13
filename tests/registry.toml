@@ -35,6 +35,7 @@ tier = "pr"
 group = "storage"
 runtime = "~1m"
 
+# needs song-corpus: its round trips run song_roundtrip/preset_roundtrip, which boot the corpus fixture.
 [[harness]]
 name = "upgrade-differential"
 path = "."
@@ -315,6 +316,7 @@ tier = "nightly"
 group = "unit"
 runtime = "~45s"
 
+# needs song-corpus: its scenario boots the corpus fixture (golden_vt_render has no card of its own for it).
 [[harness]]
 name = "save-roundtrip"
 path = "."
@@ -333,6 +335,7 @@ tier = "nightly"
 group = "model"
 runtime = "~5m"
 
+# needs song-corpus: its scenario boots the corpus fixture (golden_vt_render has no card of its own for it).
 [[harness]]
 name = "document-save-channel"
 path = "."
@@ -516,6 +519,7 @@ tier = "nightly"
 group = "app"
 runtime = "~1m"
 
+# needs song-corpus: its scenario boots the corpus fixture (golden_vt_render has no card of its own for it).
 [[harness]]
 name = "playhead-moves"
 path = "."
@@ -599,6 +603,7 @@ tier = "nightly"
 group = "app"
 runtime = "~10m"
 
+# needs song-corpus: its scenario boots the corpus fixture (golden_vt_render has no card of its own for it).
 [[harness]]
 name = "settings-channel"
 path = "."
@@ -618,6 +623,7 @@ group = "app"
 runtime = "~4m"
 
 
+# needs song-corpus: its scenario boots the corpus fixture (golden_vt_render has no card of its own for it).
 [[harness]]
 name = "favourites-channel"
 path = "."
@@ -636,6 +642,7 @@ tier = "nightly"
 group = "app"
 runtime = "~5m"
 
+# needs song-corpus: its scenario boots the corpus fixture (golden_vt_render has no card of its own for it).
 [[harness]]
 name = "startup-failsafe"
 path = "."
@@ -654,6 +661,7 @@ tier = "nightly"
 group = "app"
 runtime = "~4m"
 
+# needs song-corpus: its scenario boots the corpus fixture (golden_vt_render has no card of its own for it).
 [[harness]]
 name = "path-operations"
 path = "."
@@ -672,6 +680,7 @@ tier = "nightly"
 group = "app"
 runtime = "~4m"
 
+# needs song-corpus: its scenario boots the corpus fixture (golden_vt_render has no card of its own for it).
 [[harness]]
 name = "offset-io"
 path = "."
@@ -690,6 +699,7 @@ tier = "nightly"
 group = "app"
 runtime = "~4m"
 
+# needs song-corpus: its scenario boots the corpus fixture (golden_vt_render has no card of its own for it).
 [[harness]]
 name = "pattern-load"
 path = "."
@@ -707,6 +717,7 @@ tier = "nightly"
 group = "app"
 runtime = "~1m"
 
+# needs song-corpus: its scenario boots the corpus fixture (golden_vt_render has no card of its own for it).
 [[harness]]
 name = "staging-release"
 path = "."
@@ -2073,6 +2084,7 @@ alone = true
 group = "render"
 runtime = "~1m"
 
+# needs song-corpus: recorder_write.py's offline drain renders the Cordae fixture.
 [[harness]]
 name = "recorder-write"
 path = "."
@@ -2354,6 +2366,7 @@ tier = "pr"
 group = "model"
 runtime = "~1s"
 
+# needs song-corpus: its scenario boots the corpus fixture (golden_vt_render has no card of its own for it).
 [[harness]]
 name = "song-roundtrip"
 path = "."
@@ -2676,6 +2689,7 @@ alone = true
 group = "model"
 runtime = "~10s"
 
+# needs song-corpus: its scenario boots the corpus fixture (golden_vt_render has no card of its own for it).
 [[harness]]
 name = "param-snapshot-bench"
 path = "."
