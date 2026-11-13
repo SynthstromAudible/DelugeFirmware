@@ -114,7 +114,8 @@ budget.
 
 | Step | Delivers | Needs first |
 | --- | --- | --- |
-| 1 | Delete `ModControllableAudio` and `GlobalEffectable`, then the P3d-1d per-effect param tables; params C4 (unpatched effect descriptors) with it. Strips `Sound` of its FX base | 3d (done) |
+| 1 | The controls layer, then the `ModControllableAudio` / `GlobalEffectable` deletion: `src/controls` (one resolver for knobs, presses, mod buttons, learned MIDI and MIDI follow; owners publish CLAP remote-controls pages through `plugin-api`; board profiles), then the classes go. Four branches: `controls-library`, `controls-root-views`, `controls-learn`, `mca-ge-deletion`. Then P3d-1d / C4 (per-effect tables) on its own spec. Strips `Sound` of its FX base | 3d (done) |
+| 1b | Instrument events: expression routing, note tails and a MIDI instrument's CC output move into the instruments; the ModelStack owner slot goes; `ModControllable` is deleted | 1; ModelStack stage 1 |
 | 2 | Params C2 (UI param reads by address: R1 inventory and ratchet, spec, conversion), C3 (one store per instance; `ParamBackup` retires), C5 (`Kind` and the enums stop being identity); the synth vocabulary leaves `definitions_cxx.hpp` and `check_synth_boundary.py` forbids `instruments/` | 1 for C3 to C5 |
 | 3 | `Patch` extracted from `Sound`: `VoiceConfig` and `SoundSnapshot` reconciled; the delay, sidechain, stutter and compressor settings ("5b") out of their DSP objects. `Patch` is the state L3 serializes | 1, 2 |
 | 4 | The instrument owns its voice pool; the app keeps the cull policy (the voice budget is its first form). The note-on `OscType` dispatch becomes an engine registry; DX7 moves from Source to Engine | 3 |
