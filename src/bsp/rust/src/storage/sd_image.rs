@@ -1,6 +1,6 @@
 //! FAT32 SD card images of golden-corpus fixtures, for the host streaming scenario.
 //!
-//! The project tree (`SONGS/…`, `SAMPLES/…`) comes from `scripts/golden_mixdown.sh reconstruct`,
+//! The project tree (`SONGS/…`, `SAMPLES/…`) comes from `scripts/reconstruct_golden_fixture.sh`,
 //! which rebuilds a fixture from the local `~/Deluge Backup` corpus. The image is packed with
 //! mtools in a real card's geometry: 32 KB clusters and at least 2.5 GB, since FAT32 needs 65,525
 //! clusters.
@@ -24,7 +24,7 @@ pub fn pack_golden_fixture(repo_root: &Path, fixture: &str) -> PathBuf {
 }
 
 /// Returns the project tree for corpus fixture `fixture` (`<DELUGE_GOLDEN_DIR>/<fixture>_proj`),
-/// reconstructing it with `scripts/golden_mixdown.sh reconstruct` if absent.
+/// reconstructing it with `scripts/reconstruct_golden_fixture.sh` if absent.
 ///
 /// `DELUGE_GOLDEN_DIR` defaults to `~/.cache/deluge-golden`.
 ///
@@ -42,24 +42,23 @@ pub fn golden_fixture_tree(repo_root: &Path, fixture: &str) -> PathBuf {
 
     if !proj.is_dir() {
         log::info!(
-            "streaming-scenario: reconstructing '{fixture}' project tree at {} (scripts/golden_mixdown.sh reconstruct)",
+            "streaming-scenario: reconstructing '{fixture}' project tree at {} (scripts/reconstruct_golden_fixture.sh)",
             proj.display()
         );
         let status = Command::new("bash")
-            .arg(repo_root.join("scripts/golden_mixdown.sh"))
-            .arg("reconstruct")
+            .arg(repo_root.join("scripts/reconstruct_golden_fixture.sh"))
             .env("FIXTURE", fixture)
             .current_dir(repo_root)
             .status()
-            .expect("run scripts/golden_mixdown.sh reconstruct");
+            .expect("run scripts/reconstruct_golden_fixture.sh");
         assert!(
             status.success(),
-            "scripts/golden_mixdown.sh reconstruct failed for fixture '{fixture}' — is DELUGE_BACKUP \
+            "scripts/reconstruct_golden_fixture.sh failed for fixture '{fixture}' — is DELUGE_BACKUP \
              (default '~/Deluge Backup') present?"
         );
         assert!(
             proj.is_dir(),
-            "reconstruct did not produce {} — see the golden_mixdown.sh output above",
+            "reconstruct did not produce {} — see the reconstruct_golden_fixture.sh output above",
             proj.display()
         );
     }
