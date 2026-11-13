@@ -31,6 +31,7 @@
 #include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/display/oled.h"
+#include "hid/encoder_input.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "libdeluge/scheduler.h" // getSystemTime()
@@ -770,7 +771,7 @@ void ShellHostUI::feedPad(uint8_t x, uint8_t y, int32_t velocity, bool shortcutW
 	shell_.on_host_pad(x, y, static_cast<uint8_t>(velocity), shortcutWithoutShift, nowMs());
 }
 
-void ShellHostUI::feedDetents(EncoderRole role, int32_t detents) {
+void ShellHostUI::feedDetents(EncoderRole role, int32_t detents, uint64_t time_us) {
 	if (detents == 0) {
 		// `interpretEncoders` (`hid/encoder_input.cpp`) only calls a hook when `fe.pending()`, so a zero is
 		// not something legacy produces -- but `selectEncoderAction` is also reachable from its SD test
@@ -788,7 +789,7 @@ void ShellHostUI::feedDetents(EncoderRole role, int32_t detents) {
 		if (byIndex[i] != role) {
 			continue;
 		}
-		shell_.on_encoder_edges(static_cast<uint8_t>(i), edges, nowMs());
+		shell_.on_encoder_edges(static_cast<uint8_t>(i), edges, nowMs(), time_us);
 		return;
 	}
 	// A profile with no encoder in that role. Dropped rather than guessed at, the same way
@@ -1167,8 +1168,9 @@ void ShellHostUI::selectEncoderAction(int8_t offset) {
 	// (`UI::selectEncoderAction`), so unlike the other two this hook has no way to say
 	// "not now" even in legacy. The offset arrives already saturated to `int8_t`
 	// (`hid/encoder_input.cpp`), so `feedDetents`'s clamp can only bite on
-	// the outer 64 values of that range.
-	feedDetents(EncoderRole::Select, offset);
+	// the outer 64 values of that range. The turn carries when the board decoded it, which a horizontal page's
+	// acceleration is timed on.
+	feedDetents(EncoderRole::Select, offset, deluge::hid::encoders::selectTurnTimeUs());
 	armTickSoon();
 }
 

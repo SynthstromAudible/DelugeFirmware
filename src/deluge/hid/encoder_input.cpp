@@ -36,12 +36,44 @@
 #include "processing/stem_export/stem_export.h"
 #include "util/functions.h"
 
+#include <algorithm>
+#include <array>
+#include <span>
+
 namespace deluge::hid::encoders {
 
 uint32_t timeModEncoderLastTurned[2];
 
 static uint32_t timeNextSDTestAction = 0;
 static int32_t nextSDTestDirection = 1;
+
+/// The select turn being actioned: see selectTurnTimeUs().
+static uint64_t selectTurnTimeUs_ = 0;
+
+uint64_t selectTurnTimeUs() {
+	return selectTurnTimeUs_;
+}
+
+/// One select turn: the detents a run of edges completed, and when the board decoded that run.
+struct SelectTurn {
+	int32_t detents;
+	uint64_t timeUs;
+};
+
+/// Fold the select encoder's runs the board has decoded into its detents, oldest first, and write each run that
+/// completed any as one turn into \p turns. @return How many turns were written.
+static size_t takeSelectTurns(std::span<SelectTurn, DELUGE_ENCODER_EDGE_RUNS> turns) {
+	DelugeEncoderEdges runs[DELUGE_ENCODER_EDGE_RUNS];
+	const uint8_t n = deluge_encoder_take_timed_quadrature_edges(3, runs, DELUGE_ENCODER_EDGE_RUNS);
+	size_t count = 0;
+	for (uint8_t i = 0; i < n; i++) {
+		select.applyEdges(runs[i].edges);
+		if (select.pending()) {
+			turns[count++] = {.detents = select.take(), .timeUs = runs[i].time_us};
+		}
+	}
+	return count;
+}
 
 /// Queue the gold encoder's runs the board has decoded at \p index, each at the time it was decoded.
 static void takeTimedEdges(ContinuousEncoder& encoder, uint8_t index) {
@@ -59,13 +91,12 @@ void interpretEncodersTask() {
 bool interpretEncoders() {
 	// Fold the quadrature edges the board has decoded since last time into each encoder.
 	// Detent reduction (DetentedEncoder) and gold-knob velocity (ContinuousEncoder) happen in
-	// applyEdges; this runs in task context now, not the ISR. The gold knobs take their edges with the time
-	// each run was decoded, which their acceleration is computed on. The board's edge index order matches
-	// EncoderName: 0=scrollY 1=scrollX 2=tempo 3=select 4=mod1 5=mod0.
+	// applyEdges; this runs in task context now, not the ISR. The select encoder and the gold knobs take their edges
+	// with the time each run was decoded, which their acceleration is computed on. The board's edge index order
+	// matches EncoderName: 0=scrollY 1=scrollX 2=tempo 3=select 4=mod1 5=mod0.
 	functionEncoderAt(0).applyEdges(deluge_encoder_take_quadrature_edges(0)); // scrollY
 	functionEncoderAt(1).applyEdges(deluge_encoder_take_quadrature_edges(1)); // scrollX
 	functionEncoderAt(2).applyEdges(deluge_encoder_take_quadrature_edges(2)); // tempo
-	functionEncoderAt(3).applyEdges(deluge_encoder_take_quadrature_edges(3)); // select
 	takeTimedEdges(modEncoderAt(1), 4);                                       // mod1
 	takeTimedEdges(modEncoderAt(0), 5);                                       // mod0
 
@@ -73,6 +104,9 @@ bool interpretEncoders() {
 	if (stemExport.processStarted) {
 		return false;
 	}
+	// The select encoder's runs wait on the board meanwhile, each with its time.
+	std::array<SelectTurn, DELUGE_ENCODER_EDGE_RUNS> selectTurns;
+	const size_t selectTurnCount = takeSelectTurns(selectTurns);
 
 	bool anything = false;
 
@@ -90,9 +124,9 @@ bool interpretEncoders() {
 	}
 #endif
 
-	for (int32_t e = 0; e < (int32_t)kNumFunctionEncoders; e++) {
-		// 0=scrollY 1=scrollX 2=tempo 3=select
-		DetentedEncoder* const funcPtrs[] = {&scrollY, &scrollX, &tempo, &select};
+	for (int32_t e = 0; e < (int32_t)kNumFunctionEncoders - 1; e++) {
+		// 0=scrollY 1=scrollX 2=tempo; select is actioned below, a turn at a time
+		DetentedEncoder* const funcPtrs[] = {&scrollY, &scrollX, &tempo};
 
 		auto& fe = *funcPtrs[e];
 		if (fe.pending()) {
@@ -135,26 +169,32 @@ bool interpretEncoders() {
 					                                   Buttons::isShiftButtonPressed());
 				}
 				break;
-
-			case 3: // select
-				if (Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW)) {
-					PadLEDs::changeRefreshTime(saturatedDelta);
-				}
-				else if (Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
-					if (currentSong) {
-						currentSong->changeThresholdRecordingMode(saturatedDelta);
-					}
-				}
-				// With every UI taken down by a load, the select encoder sets the armed swap's loop count.
-				else if (uiStackEmpty()) {
-					loadSongUI.armedSelectEncoderAction(saturatedDelta);
-				}
-				else {
-					getCurrentUI()->selectEncoderAction(saturatedDelta);
-				}
-				break;
 			}
 		}
+	}
+
+	// Select: each run of edges that completed a detent is one of `main`'s turns, which its encoder task takes as the
+	// edges arrive, actioned on the time the board decoded it (selectTurnTimeUs()).
+	for (const SelectTurn& turn : std::span{selectTurns}.first(selectTurnCount)) {
+		anything = true;
+		const auto saturatedDelta = static_cast<int8_t>(std::clamp(turn.detents, (int32_t)-128, (int32_t)127));
+		selectTurnTimeUs_ = turn.timeUs;
+		if (Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW)) {
+			PadLEDs::changeRefreshTime(saturatedDelta);
+		}
+		else if (Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
+			if (currentSong) {
+				currentSong->changeThresholdRecordingMode(saturatedDelta);
+			}
+		}
+		// With every UI taken down by a load, the select encoder sets the armed swap's loop count.
+		else if (uiStackEmpty()) {
+			loadSongUI.armedSelectEncoderAction(saturatedDelta);
+		}
+		else {
+			getCurrentUI()->selectEncoderAction(saturatedDelta);
+		}
+		selectTurnTimeUs_ = 0;
 	}
 
 	// Mod knobs: each run the board decoded is one of `main`'s turns, on its own time.

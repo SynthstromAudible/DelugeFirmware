@@ -212,6 +212,31 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		expect(in.snapshot().turn).to_equal(int8_t(1));
 	});
 
+	it("keeps a tick's select turns apart, each with the time the board decoded it", _ {
+		// `interpretEncoders` hands the select encoder over a run of edges at a time, each with its decode time, and
+		// the horizontal menu accelerates each on its own: the snapshot keeps them apart rather than only their sum.
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(20);
+		in.on_encoder_edges(3, 2, 20, 600'000);
+		in.on_encoder_edges(3, 4, 20, 610'000);
+		in.on_encoder_edges(2, 2, 20, 615'000); // tempo: not a select turn
+		in.on_encoder_edges(3, 2, 20);          // a turn the host gave no time
+		in.end_tick(20);
+		expect(in.snapshot().turn).to_equal(int8_t(4));
+		const std::span<const deluge::ui::TimedTurn> turns = in.snapshot().turns;
+		expect(turns.size()).to_equal(size_t(3));
+		expect(turns[0].detents).to_equal(int8_t(1));
+		expect(turns[0].time_us).to_equal(uint64_t(600'000));
+		expect(turns[1].detents).to_equal(int8_t(2));
+		expect(turns[1].time_us).to_equal(uint64_t(610'000));
+		expect(turns[2].detents).to_equal(int8_t(1));
+		expect(turns[2].time_us).to_equal(uint64_t(0));
+
+		in.begin_tick(21);
+		in.end_tick(21);
+		expect(in.snapshot().turns.empty()).to_be_true();
+	});
+
 	it("reproduces the legacy gold-knob acceleration curve", _ {
 		InputLowering in(uitest::test_profile_input(), {});
 		// `EncoderAcceleration::advance`. First call: 1.0 s since the zero-initialised last time, past the

@@ -117,6 +117,7 @@ void InputLowering::begin_tick(uint32_t now_ms) {
 		d = 0;
 	}
 	pad_events_.clear();
+	turns_.clear();
 	ctx_.begin_tick(now_ms);
 	// What the last tick deferred belongs to this one: back into the sums and edges this tick's
 	// snapshot is assembled from.
@@ -128,6 +129,9 @@ void InputLowering::begin_tick(uint32_t now_ms) {
 			const size_t r = static_cast<size_t>(e.encoder);
 			if (r < kEncoderCount) {
 				tick_delta_[r] = saturating_add(tick_delta_[r], e.delta);
+			}
+			if (e.encoder == EncoderRole::Select) {
+				add_turn(e.delta, e.time_us);
 			}
 			break;
 		}
@@ -164,6 +168,7 @@ void InputLowering::discard_pending() {
 		d = 0;
 	}
 	pad_events_.clear();
+	turns_.clear();
 }
 
 void InputLowering::end_tick(uint32_t now_ms) {
@@ -180,6 +185,7 @@ void InputLowering::end_tick(uint32_t now_ms) {
 	snap_.shift = shift();
 	snap_.select_held = held_.has(ButtonId::SelectEnc);
 	snap_.pads = std::span<const ui::PadEvent>(pad_events_.begin(), pad_events_.size());
+	snap_.turns = std::span<const ui::TimedTurn>(turns_.begin(), turns_.size());
 	snap_.held_pads = held_pads_;
 	snap_.now_ms = now_ms_;
 	snap_.acceleration_clock_ms = acceleration_clock_ms_;
@@ -265,14 +271,24 @@ void InputLowering::set_sd_busy(bool busy) {
 	}
 }
 
-void InputLowering::on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms) {
+void InputLowering::on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms, uint64_t time_us) {
 	if (input_locked_) {
 		return;
 	}
-	apply_encoder_edges(index, edges, now_ms);
+	apply_encoder_edges(index, edges, now_ms, time_us);
 }
 
-void InputLowering::apply_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms) {
+void InputLowering::add_turn(int8_t detents, uint64_t time_us) {
+	if (turns_.size() < kTurnCapacity) {
+		(void)turns_.push_back(ui::TimedTurn{.detents = detents, .time_us = time_us});
+		return;
+	}
+	ui::TimedTurn& last = turns_[turns_.size() - 1];
+	last.detents = saturating_add(last.detents, detents);
+	last.time_us = time_us;
+}
+
+void InputLowering::apply_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms, uint64_t time_us) {
 	if (index >= profile_.encoder_by_index.size()) {
 		return;
 	}
@@ -303,10 +319,14 @@ void InputLowering::apply_encoder_edges(uint8_t index, int8_t edges, uint32_t no
 		return;
 	}
 	tick_delta_[r] = saturating_add(tick_delta_[r], delta);
+	if (role == EncoderRole::Select) {
+		add_turn(delta, time_us);
+	}
 
 	UiEvent e{UiEvent::Kind::Encoder};
 	e.encoder = role;
 	e.delta = delta;
+	e.time_us = time_us;
 	emit(e);
 }
 

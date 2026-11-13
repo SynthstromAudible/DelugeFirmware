@@ -334,7 +334,8 @@ public:
 	/// @param index  The board's encoder index.
 	/// @param edges  Signed A-pin edge count since the last call.
 	/// @param now_ms The wall clock.
-	void on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms);
+	/// @param time_us When the board decoded them (`InputLowering::on_encoder_edges`); 0 for none.
+	void on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms, uint64_t time_us = 0);
 
 	/// @brief Route one MIDI-learn message through the chain **now**, and say whether anything took
 	///        it.

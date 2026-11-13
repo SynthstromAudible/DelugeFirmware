@@ -463,7 +463,9 @@ private:
 	///                (`InputLowering::apply_encoder_edges`) and a profile may order it differently.
 	///                A role no index carries is dropped.
 	/// @param detents The signed detent count legacy handed over.
-	void feedDetents(deluge::ui::EncoderRole role, int32_t detents);
+	/// @param time_us When the board decoded the turn, on `getSystemTime()`'s clock in microseconds, which the
+	///                lowering hands the turn's consumer with it; 0 for none, which times it on the tick's clock.
+	void feedDetents(deluge::ui::EncoderRole role, int32_t detents, uint64_t time_us = 0);
 
 	/// @brief Feed one decoded board event, stamped with `nowMs()`.
 	/// @param ev The event.

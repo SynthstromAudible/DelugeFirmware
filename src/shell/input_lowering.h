@@ -90,6 +90,8 @@ public:
 	/// `held_pads()` and `next()`, so only a widget reading the tick's edges loses it. Every pad on
 	/// the Deluge's grid would have to change state in a single tick to reach that.
 	static constexpr uint8_t kPadEventCapacity = 32;
+	/// @brief How many Select turns one tick's snapshot keeps apart; a later one folds into the last.
+	static constexpr uint8_t kTurnCapacity = 16;
 
 	/// @brief Build a lowering for one board.
 	/// @param profile The board's tables. Copied in -- a `BoardProfile` is a handful of spans over
@@ -126,7 +128,9 @@ public:
 	/// @param index  The board's encoder index, looked up in `BoardProfile::encoder_by_index`.
 	/// @param edges  Signed A-pin edge count since the last call.
 	/// @param now_ms The wall clock.
-	void on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms);
+	/// @param time_us When the board decoded them, on `getSystemTime()`'s clock in microseconds, which a Select turn
+	///                carries into the snapshot's `turns`; 0 for none.
+	void on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms, uint64_t time_us = 0);
 	/// @}
 
 	/// @name The tick
@@ -428,7 +432,10 @@ private:
 	/// @param index  The board's encoder index, resolved through `BoardProfile::encoder_by_index`.
 	/// @param edges  Signed quadrature edges since the last event; see the warning.
 	/// @param now_ms The tick's clock.
-	void apply_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms);
+	/// @param time_us When the board decoded them; 0 for none.
+	void apply_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms, uint64_t time_us = 0);
+	/// @brief Add a Select turn to the tick's `turns`, folding it into the last when they are full.
+	void add_turn(int8_t detents, uint64_t time_us);
 	void on_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut_without_shift = false);
 	void on_matrix(uint8_t x, uint8_t y, bool on, uint32_t now_ms);
 	void on_button(ButtonId b, bool on, uint32_t now_ms);
@@ -483,6 +490,7 @@ private:
 	/// @name Per-tick state, reset by `begin_tick`
 	/// @{
 	FixedVector<ui::PadEvent, kPadEventCapacity> pad_events_;
+	FixedVector<ui::TimedTurn, kTurnCapacity> turns_; ///< The tick's Select turns (`ui::InputSnapshot::turns`).
 	uint32_t now_ms_ = 0;
 	bool had_input_ = false;
 	bool select_edge_ = false;

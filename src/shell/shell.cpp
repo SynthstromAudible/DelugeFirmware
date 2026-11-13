@@ -298,10 +298,10 @@ void Shell::on_host_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut_wi
 	lowering_.on_host_pad(x, y, velocity, shortcut_without_shift, now_ms);
 }
 
-void Shell::on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms) {
+void Shell::on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms, uint64_t time_us) {
 	ensure_tick_window(now_ms);
 	screensaver_.note_activity(now_ms);
-	lowering_.on_encoder_edges(index, edges, now_ms);
+	lowering_.on_encoder_edges(index, edges, now_ms, time_us);
 }
 
 bool Shell::route_midi(const UiEvent& event, uint32_t now_ms) {

@@ -149,6 +149,9 @@ struct UiEvent {
 	ButtonId button = ButtonId::None; ///< `Button`/`EncoderButton`: which button.
 	EncoderRole encoder{};            ///< `Encoder`: which encoder turned.
 	int8_t delta = 0;                 ///< `Encoder`: signed turn magnitude.
+	/// `Encoder`: when the board decoded the turn, on `getSystemTime()`'s clock in microseconds; 0 when the host gave
+	/// no time.
+	uint64_t time_us = 0;
 	/// `Encoder`: @ref delta is a host's already-lowered turn (`Shell::route_lowered_turn`), filtered and accelerated,
 	/// which its consumer applies as it is.
 	bool lowered = false;

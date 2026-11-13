@@ -353,6 +353,10 @@ struct Rig {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, index, 0, count}, at_ms);
 	}
 	void turn(int32_t detents, uint32_t at_ms) { edges(kSelectEncoder, static_cast<int16_t>(detents * 2), at_ms); }
+	/// @brief A Select turn the host hands over with the time the board decoded it, as `interpretEncoders` does.
+	void timed_turn(int32_t detents, uint32_t at_ms, uint64_t time_us) {
+		shell.on_encoder_edges(kSelectEncoder, static_cast<int8_t>(detents * 2), at_ms, time_us);
+	}
 	void gold(uint8_t index, int16_t delta, uint32_t at_ms) { edges(index, delta, at_ms); }
 	void button(uint8_t x, uint8_t y, bool on, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
@@ -519,6 +523,27 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 			r.shell.tick(t);
 		}
 		expect(g_chain_col).to_equal(4);
+	});
+
+	it("accelerates each select turn a tick holds on the time the board decoded it, as main's encoder task hands "
+	   "each over",
+	   _ {
+		// `main`'s encoder task takes each turn as its edges arrive, and `HorizontalMenu::selectEncoderAction` times
+		// each on the clock then. Four +1 turns decoded 10 ms apart reach one tick here, long after: each is
+		// accelerated on its own time (1.0, 1.5, 2.85, 4.065: 1 + 1 + 2 + 4), not as one turn of four on the tick's.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(horiz_page);
+		r.shell.tick(0);
+		r.press(kCvX, kCvY, 200); // focus CHAIN_COL (column 3)
+		g_chain_col = 0;
+		for (uint64_t ms = 600; ms <= 630; ms += 10) {
+			r.timed_turn(1, 600, ms * 1000);
+		}
+		r.shell.set_acceleration_clock_ms(10000);
+		r.shell.tick(640);
+		expect(g_chain_col).to_equal(8);
 	});
 
 	it("an enum column's notification names the option, as Selection::getNotificationValue does", _ {
