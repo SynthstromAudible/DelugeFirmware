@@ -44,6 +44,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
+#include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
 #include "playback/playback_handler.h"
 
@@ -348,6 +349,8 @@ Result ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_m
 
 	send_midi_follow_feedback(turn.kind, turn.param_id, turn.new_knob_pos, true, false);
 	if (turn.note_tails_changed) {
+		// The pads the shell draws, and the root view's under a menu, which the legacy UI draws.
+		deluge::notify::raise(deluge::notify::Dirty::GridMain);
 		(void)result.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 	}
 	potentially_make_it_harder_to_turn_knob(which_encoder, turn);
@@ -471,8 +474,11 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 	}
 	controls::Sink& sink = menu::host_controls_sink();
 
-	// A MIDI track choosing its knob's CC: any mod button ends that, and does nothing else.
+	// A MIDI track choosing its knob's CC: a mod button's press changes nothing, and its release ends the choice.
 	if (selecting_cc_) {
+		if (on) {
+			return;
+		}
 		(void)sink.midi_cc_select(*focus_, selecting_knob_, false);
 		selecting_cc_ = false;
 		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelPopup);

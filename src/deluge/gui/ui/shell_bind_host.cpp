@@ -1154,13 +1154,28 @@ int32_t ShellRuntimeFacts::played_bend_range(const deluge::project::SettingAddre
 
 bool ShellRuntimeFacts::allows_note_tails(deluge::project::SlotAddress slot) const {
 	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
-	if (sound == nullptr || slot.kind != deluge::project::SlotAddress::Kind::DRUM) {
-		return true; // only a kit row's inclusion in its kit's arp asks
+	if (sound == nullptr) {
+		return true;
 	}
-	auto* drum = static_cast<SoundDrum*>(sound);
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithSoundFlags* stack = getModelStackFromSoundDrum(memory, drum)->addSoundFlags();
-	return drum->allowNoteTails(stack, /*disregardSampleLoop=*/true);
+	if (slot.kind == deluge::project::SlotAddress::Kind::DRUM) {
+		auto* drum = static_cast<SoundDrum*>(sound);
+		ModelStackWithSoundFlags* stack = getModelStackFromSoundDrum(memory, drum)->addSoundFlags();
+		return drum->allowNoteTails(stack, /*disregardSampleLoop=*/true);
+	}
+	// A synth's tails read the envelopes in its clip's params, as `View::modEncoderAction` asks.
+	auto* instrument = static_cast<::SoundInstrument*>(sound);
+	const ::Clip* clip = currentSong->getClipWithOutput(instrument, true);
+	if (clip == nullptr) {
+		clip = currentSong->getClipWithOutput(instrument);
+	}
+	if (clip == nullptr) {
+		return true;
+	}
+	const deluge::scenes::bind::KnobFocus focus{
+	    .owner = deluge::scenes::bind::SoundFocus{.slot = slot, .clip = deluge::project::ClipAddress{clip->id()}}};
+	ModelStackWithThreeMainThings* owner = deluge::bridge::knobOwnerStackAt(*currentSong, focus, memory);
+	return owner == nullptr || sound->allowNoteTails(owner->addSoundFlags());
 }
 
 bool ShellEditSink::chain_view(deluge::project::ChainAddress chain, std::string_view key, std::string_view word) {

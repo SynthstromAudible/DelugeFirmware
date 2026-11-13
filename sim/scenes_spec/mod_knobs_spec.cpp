@@ -30,6 +30,8 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "modulation/automation/record_events.h"
+#include "notify/dirty_set.h"
+#include "notify/notice_queue.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
@@ -82,6 +84,7 @@
 #include "storage/storage_manager.h"
 
 #include "spec/shell/support/fake_surfaces.h"
+#include "support/global_guest_menu.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -90,6 +93,7 @@
 #include <array>
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <optional>
 #include <string>
 #include <vector>
@@ -320,6 +324,12 @@ struct DirectCtx {
 	explicit DirectCtx(uint32_t now_ms = 0)
 	    : ctx{held, pads, false, false, now_ms, deluge_profile(), nullptr, now_ms} {}
 };
+
+/// Empty the notice queue, so a case counts only what it raises.
+void drain_notices() {
+	deluge::notify::Notice discarded;
+	while (deluge::notify::notices().pop(discarded)) {}
+}
 
 /// A gold-knob turn event.
 UiEvent gold_turn(EncoderRole role, int8_t delta) {
@@ -970,6 +980,96 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.knobs.mod_button_action(3, true);
 		rig.knobs.mod_button_action(3, false);
 		expect(rig.knobs.mode()).to_equal(3);
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("repaints every pad when a synth's note tails change with a turn", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		auto* sound = static_cast<SoundInstrument*>(f.instrument);
+		// The third mod button's lower knob is envelope 1's release; with sustain at its minimum, tails hold only while the
+		// decay is above the release.
+		(void)deluge::edits::modKnobModeForSlot(sound->getModKnobMode(), 2);
+		const auto env_param = [&](int32_t id) {
+			return deluge::project::ParamAddress{
+			    .owner = deluge::project::OwnerId::instrument(*f.instrument->id()),
+			    .space = deluge::project::ParamSpace::ENGINE,
+			    .id = deluge::bridge::paramIdOf(Kind::PATCHED, id),
+			    .clip_id = f.clip->id()};
+		};
+		const auto set_value = [&](int32_t id, int32_t value) {
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithAutoParam* stack = deluge::bridge::paramStackAt(*f.song, env_param(id), memory);
+			expect(stack != nullptr).to_be_true();
+			stack->autoParam->setCurrentValueWithNoReversionOrRecording(stack, value);
+		};
+		set_value(deluge::modulation::params::LOCAL_ENV_0_SUSTAIN, std::numeric_limits<int32_t>::min());
+		set_value(deluge::modulation::params::LOCAL_ENV_0_DECAY, -(1 << 29));
+		set_value(deluge::modulation::params::LOCAL_ENV_0_RELEASE, std::numeric_limits<int32_t>::min());
+		const auto tails = [&] {
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* stack =
+			    deluge::bridge::knobOwnerStackAt(*f.song, focus_of(*f.song, f.clip), memory);
+			return stack != nullptr && sound->allowNoteTails(stack->addSoundFlags());
+		};
+		expect(tails()).to_be_true();
+
+		KnobRig rig;
+		rig.set_song(f.song);
+		rig.set_target_with_timeline(f.clip, false);
+		rig.knobs.set_mod_region();
+		DirectCtx c{1000};
+		int32_t repaints = 0;
+		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy);
+		for (int32_t i = 0; i < 60 && tails(); i++) {
+			const Result r = rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 1), c.ctx);
+			for (const auto& a : r.actions) {
+				repaints += a.kind == ShellAction::Kind::RepaintAll ? 1 : 0;
+			}
+		}
+		expect(tails()).to_be_false();
+		expect(repaints).to_equal(1);
+		// The root view's pads under a menu are legacy's to draw: they are told too.
+		expect(deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy).has(deluge::notify::Dirty::GridMain))
+		    .to_be_true();
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("leaves a MIDI CC select running when a mod button is pressed, and ends it on the release", _ {
+		StubDisplay stub;
+		display = &stub;
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		setRootUILowLevel(&instrumentClipView); // the select starts only from a clip minder
+		spec::SongFixture f = spec::make_midi_song();
+		currentSong = f.song;
+		KnobRig rig;
+		rig.set_song(f.song);
+		rig.set_target_with_timeline(f.clip, false);
+		DirectCtx c{1000};
+		UiEvent push{};
+		push.kind = UiEvent::Kind::EncoderButton;
+		push.button = ButtonId::ModEnc0;
+		push.on = true;
+		(void)rig.knobs.handle(push, c.ctx);
+		expect(currentUIMode).to_equal(UI_MODE_SELECTING_MIDI_CC);
+		drain_notices();
+
+		rig.knobs.mod_button_action(3, true);
+		expect(currentUIMode).to_equal(UI_MODE_SELECTING_MIDI_CC);
+		expect(deluge::notify::notices().size()).to_equal(size_t{0});
+		expect(rig.knobs.mode()).to_equal(0);
+
+		rig.knobs.mod_button_action(3, false);
+		expect(currentUIMode).to_equal(UI_MODE_NONE);
+		expect(deluge::notify::notices().size()).to_equal(size_t{1});
+		deluge::notify::Notice raised;
+		expect(deluge::notify::notices().pop(raised)).to_be_true();
+		expect(raised.kind == deluge::notify::Notice::Kind::CancelPopup).to_be_true();
+		currentUIMode = UI_MODE_NONE;
 		display = nullptr;
 		currentSong = nullptr;
 	});
