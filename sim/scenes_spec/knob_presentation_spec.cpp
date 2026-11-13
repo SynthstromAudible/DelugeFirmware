@@ -160,7 +160,7 @@ struct Rig {
 
 	/// The knob owner's mode, set directly in its record.
 	void set_mode(uint8_t button) {
-		(void)deluge::edits::modKnobModeForSlot(static_cast<SoundInstrument*>(f.instrument)->getModKnobMode(), button);
+		(void)deluge::edits::modKnobModeFor(deluge::project::TrackAddress{*f.instrument->id()}, button);
 	}
 	/// The address of the clip sound's patched param @p id.
 	deluge::project::ParamAddress patched(int32_t id) const {

@@ -31,6 +31,8 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
+#include "scenarios/gold_knob_gestures.h"
+#include <array>
 #include <cstring>
 #include <optional>
 #include <set>
@@ -1047,12 +1049,31 @@ void testKnobGesturesRecord(deluge::edits::Context& ctx) {
 	deluge::edits::recordControlsOf(sound);
 	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "knob gestures: a learn is recorded");
 
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* ms =
-	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, &ctx.song, &sound, nullptr, &paramManager);
-	for (int32_t press = 0; press < 3; press++) {
-		(void)sound.modEncoderButtonAction(1, true, ms);
-		deluge::edits::recordControlsOf(sound);
+	// The upper knob pushed three times in the synth's own (filter) mode: its mapping cycles through the filter's
+	// params, and the record follows each step. Recorded from `Sound::modEncoderButtonAction` on the same synth: the
+	// target of every mapping in the record, in its order, after each push.
+	constexpr std::array<std::array<uint32_t, 16>, 3> kRecorded = {{
+	    {23, 45, 12, 30, 41, 33, 49, 11, 47, 1073742638, 1073742105, 52, 116, 90, 96, 95},
+	    {23, 45, 91, 92, 41, 33, 49, 11, 47, 1073742638, 1073742105, 52, 116, 90, 96, 95},
+	    {23, 45, 11, 24, 41, 33, 49, 11, 47, 1073742638, 1073742105, 52, 116, 90, 96, 95},
+	}};
+	deluge::scenarios::GoldKnobGestures knobs{
+	    ctx.song,
+	    {.owner =
+	         deluge::scenes::bind::SoundFocus{.slot = {deluge::project::SlotAddress::Kind::OUTPUT, *synth->id()}}}};
+	for (size_t press = 0; press < kRecorded.size(); press++) {
+		knobs.push(1, true);
+		const deluge::project::DocOutput* record = ctx.song.project.output_structure.find(*synth->id());
+		check(record != nullptr && record->controls.size() == kRecorded[press].size(),
+		      "knob gestures: a knob cycle keeps the record's mappings");
+		for (size_t at = 0; record != nullptr && at < record->controls.size() && at < kRecorded[press].size(); at++) {
+			if (record->controls[at].target.value != kRecorded[press][at]) {
+				std::fprintf(io.err, "FAIL: knob gestures: push %zu: mapping %zu names param %u, not the recorded %u\n",
+				             press, at, static_cast<unsigned>(record->controls[at].target.value),
+				             static_cast<unsigned>(kRecorded[press][at]));
+				failures++;
+			}
+		}
 		check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "knob gestures: a knob cycle is recorded");
 	}
 }

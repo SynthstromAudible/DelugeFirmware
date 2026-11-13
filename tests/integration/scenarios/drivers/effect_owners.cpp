@@ -9,6 +9,7 @@
 #include "effects/state.h"
 #include "memory/general_memory_allocator.h"
 #include "model/edits/change_effect.h"
+#include "model/edits/set_mod_knob_mode.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -19,12 +20,14 @@
 #include "processing/audio_output.h"
 #include "processing/sound/sound_instrument.h"
 #include "scenarios/drivers/driver.h"
+#include "scenarios/gold_knob_gestures.h"
 #include "scenarios/slot_coherence.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 
 #include <cstdio>
 #include <new>
+#include <span>
 #include <string>
 
 namespace {
@@ -76,46 +79,99 @@ bool viewHolds(const deluge::project::FxChain* chain, const char* key, const cha
 	return entry != nullptr && entry->str() == value;
 }
 
-/// Each knob and button gesture of @p owner that changes an effect or the view leaves its chain coherent.
-void checkGestures(GlobalEffectable& owner, ParamManagerForTimeline& paramManager, Song& song, const char* name,
-                   bool clipChain) {
+/// What a gesture left on the owner's effects and view.
+struct Expected {
+	int32_t threshold;
+	int32_t attack;
+	int32_t sidechain_sync_level;
+	int32_t mod_fx_type;
+	int32_t mod_fx_param;
+	int32_t filter_type;
+};
+
+/// @p owner's effects and view now.
+Expected stateOf(GlobalEffectable& owner) {
+	const deluge::effects::EffectStates& state = owner.effects();
+	return {state.compressor.threshold,
+	        state.compressor.attack,
+	        static_cast<int32_t>(state.sidechain.sync_level),
+	        static_cast<int32_t>(state.mod_fx.type),
+	        static_cast<int32_t>(owner.modFXParam()),
+	        static_cast<int32_t>(owner.filterType())};
+}
+
+/// @p state as text.
+std::string describe(const Expected& state) {
+	return "threshold " + std::to_string(state.threshold) + ", attack " + std::to_string(state.attack)
+	       + ", sidechain sync " + std::to_string(state.sidechain_sync_level) + ", mod FX "
+	       + std::to_string(state.mod_fx_type) + "/" + std::to_string(state.mod_fx_param) + ", filter "
+	       + std::to_string(state.filter_type);
+}
+
+/// Each knob and button gesture of @p owner that changes an effect or the view leaves its chain coherent, through the
+/// gold knobs' own service on @p focus, and leaves the owner's effects and view as the engine's own gestures did.
+/// @param expected The state after each gesture in order: the compressor's threshold knob, its attack knob, the
+///                 sidechain sync button (a clip chain's only; the song's has none), the mod-FX type button, the
+///                 mod-FX param button and the filter type button. Recorded from
+///                 `GlobalEffectable::modEncoderActionForNonExistentParam` and `modEncoderButtonAction` (and
+///                 `GlobalEffectableForClip::modEncoderButtonAction`) on the same owner.
+void checkGestures(GlobalEffectable& owner, Song& song, const deluge::scenes::bind::KnobFocus& focus,
+                   const deluge::edits::KnobModeOwner& modeOwner, const char* name, bool clipChain,
+                   std::span<const Expected> expected) {
 	const std::string who = name;
-	const auto coherent = [&](const char* gesture) {
-		const std::string what = deluge::harness::chainIncoherence(song);
-		if (!what.empty()) {
-			std::fprintf(io.err, "FAIL: %s, %s: %s\n", name, gesture, what.c_str());
+	size_t gesture = 0;
+	const auto coherent = [&](const char* what) {
+		const std::string why = deluge::harness::chainIncoherence(song);
+		if (!why.empty()) {
+			std::fprintf(io.err, "FAIL: %s, %s: %s\n", name, what, why.c_str());
+			failures++;
+		}
+		const Expected now = stateOf(owner);
+		const bool known = gesture < expected.size();
+		const Expected& want = known ? expected[gesture] : now;
+		gesture++;
+		if (!known || now.threshold != want.threshold || now.attack != want.attack
+		    || now.sidechain_sync_level != want.sidechain_sync_level || now.mod_fx_type != want.mod_fx_type
+		    || now.mod_fx_param != want.mod_fx_param || now.filter_type != want.filter_type) {
+			std::fprintf(io.err, "FAIL: %s, %s: the state the engine left: %s; now %s\n", name, what,
+			             known ? describe(want).c_str() : "none recorded", describe(now).c_str());
 			failures++;
 		}
 	};
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* stack =
-	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, &song, &owner, nullptr, &paramManager);
 
-	*owner.getModKnobMode() = 4;
-	(void)owner.modEncoderActionForNonExistentParam(5, 1, nullptr);
+	deluge::scenarios::GoldKnobGestures knobs{song, focus};
+
+	// The compressor button: the upper knob turns the threshold. On the song the upper knob's push edits the
+	// compressor's setting and the lower's cycles it from the ratio to the attack, which the lower knob then turns; a
+	// clip chain's knobs there are its own params, and its upper knob's push steps the sidechain's sync.
+	(void)deluge::edits::modKnobModeFor(modeOwner, 4);
+	knobs.turn(1, 5);
 	coherent("the compressor's threshold knob");
-	(void)owner.modEncoderActionForNonExistentParam(
-	    5, 0, nullptr, deluge::controls::CompView{.editing = true, .param = static_cast<uint8_t>(CompParam::ATTACK)});
+	if (!clipChain) {
+		knobs.push(1, true);
+		knobs.push(0, true);
+	}
+	knobs.turn(0, 5);
 	coherent("the compressor's attack knob");
 	if (clipChain) {
-		(void)owner.modEncoderButtonAction(1, true, stack);
+		knobs.push(1, true);
 		coherent("the sidechain sync button");
 	}
 
-	*owner.getModKnobMode() = 5;
-	(void)owner.modEncoderButtonAction(1, true, stack);
+	(void)deluge::edits::modKnobModeFor(modeOwner, 5);
+	knobs.push(1, true);
 	coherent("the mod-FX type button");
-	(void)owner.modEncoderButtonAction(0, true, stack);
+	knobs.push(0, true);
 	coherent("the mod-FX param button");
 	check(viewHolds(chainOf(owner, song), "modFXCurrentParam", modFXParamToString(owner.modFXParam())),
 	      (who + ": the view holds the mod-FX param").c_str());
 
-	*owner.getModKnobMode() = 1;
-	(void)owner.modEncoderButtonAction(1, true, stack);
+	(void)deluge::edits::modKnobModeFor(modeOwner, 1);
+	knobs.push(1, true);
 	coherent("the filter type button");
 	check(viewHolds(chainOf(owner, song), "currentFilterType", filterTypeToString(owner.filterType())),
 	      (who + ": the view holds the filter type").c_str());
-	*owner.getModKnobMode() = 0;
+	(void)deluge::edits::modKnobModeFor(modeOwner, 0);
 }
 
 int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
@@ -158,9 +214,28 @@ int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 			std::fprintf(io.err, "FAIL: a kit after a render moved its threshold: %s\n", afterRender.c_str());
 			failures++;
 		}
-		checkGestures(*static_cast<Kit*>(kit), kitParams, *song, "a kit", true);
+		const deluge::scenes::bind::KnobFocus focus{
+		    .owner =
+		        deluge::scenes::bind::ChainFocus{.chain = {deluge::project::ChainAddress::Kind::OUTPUT, *kit->id()},
+		                                         .owner = deluge::scenes::bind::ChainOwner::KIT}};
+		// Recorded from the kit's `GlobalEffectableForClip::modEncoderButtonAction` gestures: the sidechain sync steps
+		// from 7 to 9, the mod-FX type from none to the first type, and the filter view from low-pass to high-pass. The
+		// compressor knobs on a kit are chain params, which leave the compressor setting where it was.
+		constexpr Expected kKit[] = {{0, 83886080, 7, 0, 1, 0}, {0, 83886080, 7, 0, 1, 0}, {0, 83886080, 9, 0, 1, 0},
+		                             {0, 83886080, 9, 1, 1, 0}, {0, 83886080, 9, 1, 1, 0}, {0, 83886080, 9, 1, 1, 1}};
+		checkGestures(*static_cast<Kit*>(kit), *song, focus, deluge::project::TrackAddress{*kit->id()}, "a kit", true,
+		              kKit);
 	}
-	checkGestures(song->live.global_effectable, song->paramManager, *song, "the song master", false);
+	{
+		// Recorded from the song master's `GlobalEffectable` gestures.
+		constexpr Expected kSong[] = {{83886080, 83886080, 7, 0, 1, 0},
+		                              {83886080, 167772160, 7, 0, 1, 0},
+		                              {83886080, 167772160, 7, 1, 1, 0},
+		                              {83886080, 167772160, 7, 1, 1, 0},
+		                              {83886080, 167772160, 7, 1, 1, 1}};
+		checkGestures(song->live.global_effectable, *song, {.owner = deluge::scenes::bind::SongFocus{}},
+		              deluge::project::SongAddress{}, "the song master", false, kSong);
+	}
 
 	if (synth != nullptr) {
 		checkOwner(*static_cast<SoundInstrument*>(synth), "a synth's sound");
