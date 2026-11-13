@@ -2588,6 +2588,10 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 // once parameter is selected
 // used to fine tune the values of non-midi parameters
 void AutomationView::selectEncoderAction(int8_t offset) {
+	if (offset == 0) {
+		return;
+	}
+
 	// 5x acceleration of select encoder when holding the shift button
 	if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
 		offset = offset * 5;
@@ -2759,8 +2763,13 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 // used with SelectEncoderAction to get the next synth or kit non-affect entire param
 void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
 	bool foundPatchCable = false;
+	// Patch cables follow the regular parameters, so enter their list from the end when
+	// scrolling left from the overview, regardless of the previously selected array position.
+	if (onAutomationOverview() && offset < 0) {
+		foundPatchCable = selectPatchCable(offset, clip);
+	}
 	// if we previously selected a patch cable, we'll see if there are any more to scroll through
-	if (clip->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+	else if (clip->lastSelectedParamKind == params::Kind::PATCH_CABLE) {
 		foundPatchCable = selectPatchCable(offset, clip);
 		// did we find another patch cable?
 		if (!foundPatchCable) {
@@ -2801,7 +2810,7 @@ void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
 		// did we reach beginning or end of list?
 		// if yes, then let's scroll through patch cables
 		// but only if we haven't already scrolled through patch cables already above
-		if ((clip->lastSelectedParamKind != params::Kind::PATCH_CABLE)
+		if (!onAutomationOverview() && (clip->lastSelectedParamKind != params::Kind::PATCH_CABLE)
 		    && (((offset > 0) && (idx < clip->lastSelectedParamArrayPosition))
 		        || ((offset < 0) && (idx > clip->lastSelectedParamArrayPosition)))) {
 			foundPatchCable = selectPatchCable(offset, clip);
@@ -2893,14 +2902,15 @@ bool AutomationView::selectPatchCableAtIndex(Clip* clip, PatchCableSet* set, int
 
 // used with SelectEncoderAction to get the next CV clip expression param
 void AutomationView::selectExpressionParam(int32_t offset, Clip* clip) {
-	int32_t id = 0;
-	// start at the beginning of the list if no expression param is selected yet
+	// Start just outside the list so either direction enters at its respective end.
+	int32_t id = offset > 0 ? -1 : 0;
 	if (!onAutomationOverview() && clip->lastSelectedParamKind == params::Kind::EXPRESSION
 	    && clip->lastSelectedParamID < kNumExpressionDimensions) {
-		id = (static_cast<int32_t>(clip->lastSelectedParamID) + offset) % kNumExpressionDimensions;
-		if (id < 0) {
-			id += kNumExpressionDimensions;
-		}
+		id = static_cast<int32_t>(clip->lastSelectedParamID);
+	}
+	id = (id + offset) % kNumExpressionDimensions;
+	if (id < 0) {
+		id += kNumExpressionDimensions;
 	}
 	clip->lastSelectedParamID = id;
 	clip->lastSelectedParamKind = params::Kind::EXPRESSION;
@@ -2910,7 +2920,8 @@ void AutomationView::selectExpressionParam(int32_t offset, Clip* clip) {
 // used with SelectEncoderAction to get the next midi CC
 void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
 	if (onAutomationOverview()) {
-		clip->lastSelectedParamID = CC_NUMBER_NONE;
+		// NONE is outside the selectable range and would skip CC 0 when scrolling right.
+		clip->lastSelectedParamID = offset > 0 ? kNumCCExpression - 1 : 0;
 	}
 	clip->lastSelectedParamID = ((MIDIInstrument*)clip->output)->getNextSelectableCC(clip->lastSelectedParamID, offset);
 	automationParamType = AutomationParamType::PER_SOUND;
@@ -2919,22 +2930,14 @@ void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
 // used with SelectEncoderAction to get the next parameter in the list of parameters
 int32_t AutomationView::getNextSelectedParamArrayPosition(int32_t offset, int32_t lastSelectedParamArrayPosition,
                                                           int32_t numParams) {
-	int32_t idx;
-	// if you haven't selected a parameter yet, start at the beginning of the list
+	// Enter at the first or last parameter from the overview. Keep the offset so callers
+	// can advance past parameters unavailable in the current context.
 	if (onAutomationOverview()) {
-		idx = 0;
+		lastSelectedParamArrayPosition = offset > 0 ? -1 : 0;
 	}
-	// if you are scrolling left and are at the beginning of the list, go to the end of the list
-	else if ((lastSelectedParamArrayPosition + offset) < 0) {
-		idx = numParams + offset;
-	}
-	// if you are scrolling right and are at the end of the list, go to the beginning of the list
-	else if ((lastSelectedParamArrayPosition + offset) > (numParams - 1)) {
-		idx = 0;
-	}
-	// otherwise scrolling left/right within the list
-	else {
-		idx = lastSelectedParamArrayPosition + offset;
+	int32_t idx = (lastSelectedParamArrayPosition + offset) % numParams;
+	if (idx < 0) {
+		idx += numParams;
 	}
 	return idx;
 }
