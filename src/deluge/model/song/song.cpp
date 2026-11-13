@@ -140,7 +140,20 @@ OutputType getCurrentOutputType() {
 using namespace deluge;
 using deluge::accidentals::AccidentalHandling;
 
+RGB Section::getColour() const {
+	// Resolve the stored palette index, falling back safely if it is outside the palette.
+	return defaultClipSectionColours[colourIndex < kMaxNumSections ? colourIndex : 0];
+}
+
+void Song::resetSectionColours() {
+	// Start with the original section-number-to-colour mapping before any sections are moved.
+	for (int32_t s = 0; s < kMaxNumSections; s++) {
+		sections[s].colourIndex = s;
+	}
+}
+
 Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
+	resetSectionColours();
 	outputClipInstanceListIsCurrentlyInvalid = false;
 	insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 	insideWorldTickMagnitudeOffsetFromBPM = 0;
@@ -1312,6 +1325,8 @@ weAreInArrangementEditorOrInClipInstance:
 			if (true || sections[s].numRepetitions) {
 				writer.writeAttribute("numRepeats", sections[s].numRepetitions, false);
 			}
+			// Persist the colour independently of the section ID so reordering survives a reload.
+			writer.writeAttribute("colour", sections[s].colourIndex, false);
 			if (sections[s].launchMIDICommand.containsSomething()) {
 				// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI
 				// class now uses.
@@ -1446,6 +1461,8 @@ Error Song::readFromFile(Deserializer& reader) {
 	for (int32_t s = 0; s < kMaxNumSections; s++) {
 		sections[s].numRepetitions = 0;
 	}
+	// Songs saved before section colours were stored use each section's default colour
+	resetSectionColours();
 	for (int32_t y = 0; y < 8; y++) {
 		sessionMacros[y].kind = NO_MACRO;
 	}
@@ -1946,6 +1963,8 @@ unknownTag:
 						uint8_t channel = 255;
 						uint8_t note = 255;
 						int16_t numRepeats = 0;
+						// Missing colour attributes in older songs leave the default mapping intact.
+						int32_t colourIndex = -1;
 						reader.match('{');
 						while (*(tagName = reader.readNextTagOrAttributeName())) {
 							if (!strcmp(tagName, "id")) {
@@ -1957,6 +1976,10 @@ unknownTag:
 								if (numRepeats < -2 || numRepeats > 9999) {
 									numRepeats = 0;
 								}
+							}
+
+							else if (!strcmp(tagName, "colour")) {
+								colourIndex = reader.readTagOrAttributeValueInt();
 							}
 
 							// Annoyingly, I used one-off tag names here, rather than it conforming to what the
@@ -1985,6 +2008,10 @@ unknownTag:
 								sections[id].launchMIDICommand.noteOrCC = note;
 							}
 							sections[id].numRepetitions = numRepeats;
+							// Only replace the default with a valid palette index from the song file.
+							if (colourIndex >= 0 && colourIndex < kMaxNumSections) {
+								sections[id].colourIndex = colourIndex;
+							}
 						}
 						reader.match('}');               // leave values object
 						reader.exitTag("section", true); // leave box.
