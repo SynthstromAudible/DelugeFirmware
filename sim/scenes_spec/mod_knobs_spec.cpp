@@ -136,13 +136,14 @@ using ShellAction = deluge::ui::shell::Action;
 /// `OLED::displayNotification`; what this records is the one thing that spec cannot reach, the
 /// parameter *name* legacy chose for a MIDI clip -- see the `PopupContext` example below.
 struct StubDisplay final : deluge::hid::Display {
+	std::string last_popup; ///< the text of the latest popupText
 	int notifications = 0;
 	std::string last_title;
 	bool showing = false;
 
 	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
 	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const*, PopupType) override {}
+	void popupText(char const* text, PopupType) override { last_popup = text; }
 	void popupTextTemporary(char const*, PopupType) override {}
 	void cancelPopup() override {}
 	void freezeWithError(char const*) override {}
@@ -1107,6 +1108,63 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 		expect(sink.midi_cc_select(focus, 1, false)).to_be_false();
 		expect(currentUIMode).to_equal(UI_MODE_HORIZONTAL_SCROLL);
+		currentUIMode = UI_MODE_NONE;
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("draws the CC a knob sends and whether its lane is automated, for a CC, bend, aftertouch and the Y axis", _ {
+		StubDisplay stub;
+		display = &stub;
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		setRootUILowLevel(&instrumentClipView);
+		spec::SongFixture f = spec::make_midi_song();
+		currentSong = f.song;
+		f.song->setCurrentClip(f.clip);
+		auto* instrument = static_cast<MIDIInstrument*>(f.instrument);
+		using Cc = deluge::project::ModKnobCc;
+		struct Case {
+			uint8_t mode;
+			uint8_t knob;
+			Cc cc;
+			bool automate;
+		};
+		const Case cases[] = {
+		    {0, 0, {.kind = Cc::Kind::NUMBER, .number = 74}, true},
+		    {0, 1, {.kind = Cc::Kind::BEND}, true},
+		    {1, 0, {.kind = Cc::Kind::AFTERTOUCH}, true},
+		    {1, 1, {.kind = Cc::Kind::NUMBER, .number = Cc::kYAxisNumber}, true},
+		    {2, 0, {.kind = Cc::Kind::NUMBER, .number = 75}, false}, // a CC with no automation
+		};
+		for (const Case& at : cases) {
+			(void)deluge::edits::modKnobCCFor(deluge::project::TrackAddress{*instrument->id()},
+			                                  static_cast<uint8_t>(at.mode * 2 + at.knob), at.cc);
+			if (at.automate) {
+				(void)deluge::edits::modKnobModeForSlot(instrument->getModKnobMode(), at.mode);
+				KnobRig rig;
+				rig.set_song(f.song);
+				rig.set_target_with_timeline(f.clip, false);
+				rig.knobs.set_mod_region(0, 24);
+				DirectCtx c{1000};
+				(void)rig.knobs.handle(gold_turn(at.knob == 0 ? EncoderRole::GoldLower : EncoderRole::GoldUpper, 5),
+				                       c.ctx);
+			}
+		}
+		auto& sink = deluge::scenes::menu::host_controls_sink();
+		for (const Case& at : cases) {
+			(void)deluge::edits::modKnobModeForSlot(instrument->getModKnobMode(), at.mode);
+			const deluge::scenes::bind::KnobFocus focus = focus_of(*f.song, f.clip);
+			etl::string<30> name;
+			instrument->appendCCName(name, MIDIInstrument::engineCcOf(at.cc));
+			std::string expected = name.c_str();
+			if (at.automate) {
+				expected += "\n(automated)";
+			}
+			stub.last_popup.clear();
+			expect(sink.midi_cc_select(focus, at.knob, true)).to_be_true();
+			expect(stub.last_popup).to_equal(expected);
+			expect(sink.midi_cc_select(focus, at.knob, false)).to_be_false();
+		}
 		currentUIMode = UI_MODE_NONE;
 		display = nullptr;
 		currentSong = nullptr;

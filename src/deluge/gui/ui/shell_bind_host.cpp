@@ -1300,6 +1300,7 @@ bool ShellEditSink::midi_cc_select(const deluge::scenes::bind::KnobFocus& focus,
 	    + static_cast<size_t>(knob);
 	const deluge::project::ModKnobCc cc =
 	    at < output->mod_knob_ccs.size() ? output->mod_knob_ccs[at] : deluge::project::ModKnobCc{};
+	// Reads only: a lane that does not exist yet has no automation, which is what creating it would report too.
 	bool automated = false;
 	if (const auto lane = midiKnobLane(*midi->clip, cc)) {
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
