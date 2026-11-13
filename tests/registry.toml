@@ -26,6 +26,71 @@
 # runtime_s: whole seconds a run takes with its build products already built (a comment gives a cold build's)
 # gates:  one sentence, at most 160 characters (harness_registry.gates_problem); the rest is a "Gate <name>:"
 #         block in the file that judges the test -- ./dbt test --list --verbose <name> prints it
+# template: [template.<name>] holds fields its entries share; an entry that sets one of them anyway lists it in
+#         `override`, or the loader refuses it. Templates do not nest.
+
+# A song rendered on the audio tier through the real load browser, compared with its record in songs.json
+# (tests/integration/checks/render_song.py).
+[template.render-song]
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+baseline = ["tests/integration/golden/songs.json"]
+tier = "pr"
+job = "render"
+runtime_s = 20
+
+# A preset rendered as golden_vt_render's render_preset scenario plays it.
+[template.render-preset]
+level = "integration"
+runner = "scenario"
+status = "gate"
+scenario = "render_preset"
+markers = ["RP-LOADED", "RP-MIDI", "RP-RENDER", "RP-TIER-SYNC-AUDIO", "RP-CAPTURE"]
+result = "RP-RESULT failures=0"
+
+# A self-checking driver (tests/integration/scenarios/drivers/) whose exit code is its verdict.
+[template.scenario-driver]
+level = "integration"
+runner = "scenario"
+status = "gate"
+builds = ["golden-vt-render"]
+markers = ["DRV-EXIT"]
+result = "DRV-EXIT code=0"
+
+# Any other golden_vt_render scenario gate.
+[template.scenario]
+level = "integration"
+runner = "scenario"
+status = "gate"
+builds = ["golden-vt-render"]
+
+# A tests/golden/<corpus_runner>_run.py sweep over the song corpus, alone so it has every CPU.
+[template.corpus]
+level = "integration"
+runner = "corpus"
+status = "gate"
+builds = ["golden-vt-render"]
+job = "model"
+alone = true
+requires = ["song-xml-corpus"]
+tier = "nightly"
+
+# A Python unittest suite for a tool, run in `path`.
+[template.unittest]
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+tier = "pr"
+job = "tooling"
+runtime_s = 1
 
 [[harness]]
 name = "fs-differential"
@@ -97,15 +162,12 @@ runtime_s = 30
 
 [[harness]]
 name = "load-policy"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "regression"
-status = "gate"
 gates = "the sample loader's candidate order, admission rule, build contract and stream paths, policies no loader state can show"
 scenario = "load_policy"
 markers = ["LP-ABANDON", "LP-CANDIDATES", "LP-ADMISSION", "LP-OPEN-PATH", "LP-DEFAULT", "LP-INVARIANTS", "LP-WT-PIN", "LP-PITCH-PIN", "LP-WT-ZEROBAND", "LP-WT-FAIL"]
 result = "LP-RESULT failures=0"
-builds = ["golden-vt-render"]
 baseline = ["tests/dsp/wavetable_band_records.h", "tests/integration/scenarios/pitch_pin_records.h"]
 tier = "pr"
 job = "app"
@@ -113,16 +175,13 @@ runtime_s = 10
 
 [[harness]]
 name = "load-policy-wavetable-churn"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "wavetables evicted under memory pressure reload as they were built"
 scenario = "load_policy"
 markers = ["LP-WT-CHURN", "LP-INVARIANTS"]
 result = "LP-RESULT failures=0"
 env = { DELUGE_SIM_SDRAM_MB = "5", LOAD_POLICY_ONLY = "wt-churn" }
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "app"
 runtime_s = 60
@@ -174,15 +233,12 @@ runtime_s = 60
 
 [[harness]]
 name = "recorder-roundtrip"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "simulation"
-status = "gate"
 gates = "the SampleRecorder record-then-read-back round trip must be byte-exact on the Embassy host BSP"
 scenario = "recorder_roundtrip"
 markers = ["RW-BUSY", "RW-STALL", "RW-DIR-STALL", "RW-OPEN-IOERR", "TK-ABORT-OPEN"]
 result = "RW-RESULT failures=0"
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "render"
 runtime_s = 300
@@ -197,16 +253,13 @@ runtime_s = 300
 # sibling golden_vt_render gates it can run anywhere.
 [[harness]]
 name = "audio-load-ab"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "differential"
-status = "gate"
 gates = "the async Rust audio loader must load every file the SAME way the synchronous C++ card path does, loaded in the same process as the reference"
 scenario = "audio_load_ab"
 markers = ["AB-PREVIEW", "AB-CANCEL", "AB-PREVIEW-STALL", "AB-PREVIEW-TIER", "AB-PREVIEW-DRAW", "AB-PREVIEW-DRAW-STALL", "AB-PREVIEW-DRAW-RELEASE", "AB-PRESCAN-RANGE", "AB-EJECT", "AB-EJECT-SUMMARY", "AB-DEFER", "AB-SUMMARY"]
 result = "AB-RESULT failures=0"
 check = "tests/integration/checks/audio_load_ab.py"
-builds = ["golden-vt-render"]
 tier = "pr"
 job = "app"
 runtime_s = 300
@@ -223,16 +276,13 @@ runtime_s = 300
 # here wrote -- worth passing locally, not required.
 [[harness]]
 name = "song-preview-ab"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "differential"
-status = "gate"
 gates = "the Rust prefix channel draws the same song artwork, and reports the same decode outcome and error, as the same file decoded synchronously"
 scenario = "song_preview_ab"
 markers = ["SP-WINDOW", "SP-SWAP-BEFORE", "SP-EJECT", "SP-SWAP-SUMMARY", "SP-LISTING-SUMMARY", "SP-PREDICT-SUMMARY", "SP-NEWNAME", "SP-SLOT", "SP-VARIATION", "SP-ACQUIRE-SUMMARY", "SP-BYPATH", "SP-LISTING-STALL", "SP-RELOAD", "SP-RELOAD-STALL", "SP-PREVIEW-STALL", "SP-OPEN-SCROLL", "SP-DX", "SP-DX-STALL", "SP-REFERENCE", "SP-TIER"]
 result = "SP-RESULT failures=0"
 check = "tests/integration/checks/song_preview_ab.py"
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "render"
 runtime_s = 300
@@ -353,48 +403,39 @@ runtime_s = 45
 
 [[harness]]
 name = "save-roundtrip"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "a song saved through the real SaveSongUI ENTER gesture round-trips byte-identically through save, load and overwrite"
 scenario = "save_roundtrip"
 markers = ["SR-SEAM", "SR-ROUNDTRIP"]
 result = "SR-RESULT failures=0"
 check = "tests/integration/checks/save_roundtrip.py"
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "model"
 runtime_s = 300
 
 [[harness]]
 name = "document-save-channel"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "a preset saved through the real ENTER gesture is written whole, read back through the channel and stored through the byte channel's write-from"
 scenario = "document_save_channel"
 result = "DS-RESULT failures=0"
 markers = ["DS-BACKMIDSAVE", "DS-EXITMIDSAVE", "DS-SAVED", "DS-FINISHED", "DS-OCCUPIED", "DS-GUARD", "DS-KITROW", "DS-KITFINISHED", "DS-GUARD-SONG", "DS-ACCOUNTED", "DS-OVERWRITE", "DS-OVERWRITE-FAIL", "DS-HELD", "DS-VERIFIED", "DS-SUMMARY"]
 check = "tests/integration/checks/document_save_channel.py"
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "app"
 runtime_s = 600
 
 [[harness]]
 name = "sample-collect-channel"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "a song saved with collect-media lands every sample it references in its own folder, byte-identical, and leaves every resident file findable"
 scenario = "sample_collect"
 result = "SC-RESULT failures=0"
 markers = ["SC-SETUP", "SC-COPIED", "SC-RENAMED", "SC-ATOMIC", "SC-ORDERED", "SC-SUMMARY"]
 check = "tests/integration/checks/sample_collect_channel.py"
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "app"
 runtime_s = 600
@@ -405,16 +446,13 @@ runtime_s = 600
 # $SAMPLE_LOAD_TREE_TRACE when set, so a restructuring of the load path can be compared call for call.
 [[harness]]
 name = "sample-load-tree"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "a song saved with collected media loads back with each sample holder bound to its collected copy once the originals are gone"
 scenario = "sample_load_tree"
 markers = ["SLT-ARM", "SLT-SETUP", "SLT-HOLDER", "SLT-CLIP", "SLT-SONG", "SLT-SYNTH", "SLT-KIT", "SLT-CRUCIAL", "SLT-CRUCIAL-SUMMARY", "SLT-ASYNC"]
 result = "SLT-RESULT failures=0"
 check = "tests/integration/checks/sample_load_tree.py"
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "app"
 runtime_s = 300
@@ -422,17 +460,14 @@ runtime_s = 300
 # The sample browser's claim, from the browser a user opens: what each claim binds, and where its load runs.
 [[harness]]
 name = "sample-claim"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "files claimed from the sample browser, the menu's file selector and a favourite's by-path listing are bound by the Select encoder's claim"
 scenario = "sample_claim"
 markers = ["SC-SETUP", "SC-SELECT", "SC-SYNTH", "SC-WAVETABLE", "SC-WAVETABLE-RESIDENT", "SC-WAVETABLE-CONVERTED", "SC-FALLBACK", "SC-GATE", "SC-STALL", "SC-SUPERSEDE", "SC-PITCH", "SC-PITCH-STALL", "SC-TIER", "SC-KIT", "SC-AUDIOCLIP", "SC-SHELL-SLICE", "SC-SHELL-SLICE-MANUAL", "SC-SHELL-SLICE-BACK", "SC-SHELL-SLICE-FAIL", "RD-ONE", "RD-ALL", "RD-TIER", "RD-GATE", "RD-STALL", "RD-CANCELSCAN", "IM-KIT", "IM-MULTI", "IM-TIER", "IM-GATE", "IM-EMPTY", "IM-STALL"]
 result = "SC-RESULT failures=0"
 check = "tests/integration/checks/sample_claim.py"
 env = { GOLDEN_VIRTUAL_BUDGET_MS = "180000" }
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "app"
 runtime_s = 180
@@ -440,160 +475,130 @@ runtime_s = 180
 # The preset browser's own loads, from the browser a user opens: what each load binds, and where its card work runs.
 [[harness]]
 name = "preset-load"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "synth and kit presets written through the firmware's serialisers, each naming samples of its own, must load through the real preset browser"
 scenario = "preset_load"
 markers = ["PL-SETUP", "PL-LISTING-EDGE", "PL-SELECT", "PL-SYNTH", "PL-KIT", "PL-ROW", "PL-CLONE", "PL-TIER", "PL-RACE", "PL-SUPERSEDE", "PL-GATE", "PL-STALL", "AQ-NEW", "AQ-CHANGE", "AQ-CHANGE-TIER", "AQ-CHANGE-NAMED", "AQ-CHANGE-NEXT", "AQ-CHANGE-MISSING", "AQ-CHANGE-STALL", "AQ-NAVIGATE", "AQ-NAV-TIER", "AQ-NAV-WRAP", "AQ-NAV-ADD", "AQ-NAV-PILE", "AQ-NAV-STALL", "AQ-SUPERSEDE", "AQ-REFUSE", "AQ-CLONE", "AQ-TAP", "AQ-STALL", "AQ-SLOT", "AQ-SLOT-STALL", "AQ-EXT", "AQ-TIER", "RV-CARD", "RV-MEMORY", "RV-STALL", "MD-BROWSER", "BS-BOOT", "BS-CLEAR", "BS-EDITED", "PW-WALK-FOUND", "PW-WALK-DEPTH", "PW-WALK-PAGED", "PW-WALK-EXHAUST", "PW-WALK-TIER"]
 result = "PL-RESULT failures=0"
 check = "tests/integration/checks/preset_load.py"
 env = { GOLDEN_VIRTUAL_BUDGET_MS = "180000" }
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "app"
 runtime_s = 180
 
 [[harness]]
 name = "song-save-channel"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "a song save builds its whole document in memory, writes it through the byte channel's write-from and reads back its length, head and tail"
 scenario = "song_save_channel"
 markers = ["SS-BACKMIDSAVE", "SS-EXITMIDSAVE", "SS-GREW", "SS-SAVED", "SS-VERIFIED", "SS-PARSES", "SS-INTACT", "SS-HELD", "SS-UPGRADE", "SS-SUMMARY"]
 result = "SS-RESULT failures=0"
 check = "tests/integration/checks/song_save_channel.py"
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "app"
 runtime_s = 720
 
 [[harness]]
 name = "clear-song-undo"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "Create New Song must run to completion on the tier its caller stands on, reading no card of its own"
 scenario = "clear_song_undo"
 markers = ["CS-PROBE", "CS-TIER", "CS-SONG", "CS-GATE", "CS-NEXT", "UN-PROBE", "UN-SAMPLE", "UN-REDO", "UN-PLAIN", "UN-REFUSE", "UN-MISSING", "UN-MIDI"]
 result = "CS-RESULT failures=0"
 check = "tests/integration/checks/clear_song_undo.py"
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "app"
 runtime_s = 60
 
 [[harness]]
 name = "sound-lifetime"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "Every deletion path must end a Sound's voices before any part of it is destroyed"
 scenario = "sound_lifetime"
 markers = ["SL-SYNTH", "SL-UNEDITED", "SL-KIT", "SL-DELETEDRUM", "SL-OPPORTUNISTIC", "SL-BURST", "SL-RECLAIM"]
 result = "SL-RESULT failures=0"
 check = "tests/integration/checks/sound_lifetime.py"
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "app"
 runtime_s = 60
 
 [[harness]]
 name = "clip-lifetime"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "Which clip deletions free a clip the render still points at"
 scenario = "clip_lifetime"
 markers = ["CL-EPOCH0", "CL-PROBE", "CL-WINDOW", "CL-DANGLING", "CL-FREED", "CL-SESSIONDELETE", "CL-DISCARD", "CL-ARRANGERDELETE", "CL-SWAPTYPE", "CL-UNDO", "CL-UNDODELETE", "CL-ARRANGERNOUNDO", "CL-RECORDSOURCE", "CL-SYNCSCALE", "CL-SAVE", "CL-SAVEKIT", "CL-CLEARED", "CL-AFTER", "CL-SONGCLEAR", "CL-LOADED", "CL-SONGLOAD", "CL-SONGSWAP", "CL-BURST", "CL-LETGO", "CL-BURSTSONG", "CL-CLEARSAMPLE", "CL-CLEARPLAYING", "CL-RECLAIM", "CL-WONTSOUND"]
 result = "CL-RESULT failures=0"
 check = "tests/integration/checks/clip_lifetime.py"
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "app"
 runtime_s = 60
 
 [[harness]]
 name = "container-guard"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "Which structural edits to the containers the audio render walks are made while the render could preempt them"
 scenario = "container_guard"
 markers = ["CG-NOTEADD", "CG-NODES", "CG-NOTEDEL", "CG-ROWADD", "CG-ROWDEL", "CG-CLIPNEW", "CG-CLIPDEL", "CG-CLIPDUP", "CG-ARRANGE", "CG-AUTOMATE", "CG-PATCHCABLE", "CG-DRUM", "CG-REPLACE", "CG-UNDO", "CG-MASK", "CG-BIGROW", "CG-ROWDRAG", "CG-CLIPMOVE", "CG-OUTPUTMOVE", "CG-QUANTIZE", "CG-RENDERSET", "CG-RENDERALLOC", "CG-CHOKE", "CG-VOICEPOLY", "CG-VOICEMONO", "CG-VOICEKILL", "CG-VOICEMULTIRANGE", "CG-VOICEFAIL", "CG-RECORDKNOB", "CG-RELOCATE", "CG-CCLEARN", "CG-CABLEADD", "CG-DRUMDEL", "CG-PASTE", "CG-TRIM", "CG-STEAL", "CG-HEAP", "CG-SLAB", "CG-MODFXOOM", "CG-MODFXCLONE", "CG-MODFXSWAP", "CG-GRAINOOM", "CG-GRAINSWAP", "CG-DELAYKNOB", "CG-DELAYOOM", "CG-DELAYMARGIN", "CG-DELAYOFF", "CG-STUTTERHANDOFF", "CG-STUTTEROOM", "CG-STUTTERDELETE", "CG-STUTTERSWAP", "CG-STUTTERCLEAR"]
 result = "CG-RESULT failures=0"
 check = "tests/integration/checks/container_guard.py"
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "app"
 runtime_s = 60
 
 [[harness]]
 name = "playhead-moves"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "The interaction tier moves the playhead only with the render excluded"
 scenario = "playhead_moves"
 markers = ["PM-EFFECTS", "PM-START", "PM-RESTART", "PM-CONTINUE", "PM-SPP", "PM-TOARRANGER", "PM-TOSESSION", "PM-UNDO", "PM-CLIPLENGTH", "PM-CLIPSHIFT", "PM-ROWMUTE", "PM-ROWLENGTH", "PM-ROWDIRECTION", "PM-LATESTART", "PM-UNSOLO", "PM-INJECTSTART", "PM-INJECTAFTERMOVE", "PM-INJECTLAUNCH", "PM-ARRANGERRECORD", "PM-CLONE", "PM-RESUME", "PM-SELFREPAIR", "PM-CLIPSTOP", "PM-SPAN", "PM-SNAPSHOT"]
 result = "PM-RESULT failures=0"
 check = "tests/integration/checks/playhead_moves.py"
-builds = ["golden-vt-render"]
 tier = "pr"
 job = "app"
 runtime_s = 30
 
 [[harness]]
 name = "card-reinsert"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "what a card swap does to the samples still in memory"
 scenario = "card_reinsert"
 markers = ["CR-SETUP", "CR-RESIDENTS", "CR-SURVIVE", "CR-LOST", "CR-EVICT"]
 result = "CR-RESULT failures=0"
 check = "tests/integration/checks/card_reinsert.py"
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "app"
 runtime_s = 6
 
 [[harness]]
 name = "audio-tick-hold"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "regression"
-status = "gate"
 gates = "the audio tick's hold and re-entry guard, on the booted app"
 scenario = "audio_tick_hold"
 markers = ["ATH-IDLE", "ATH-HOLD", "ATH-NESTED", "ATH-HELD", "ATH-REENTRY", "ATH-THROW"]
 result = "ATH-RESULT failures=0"
-builds = ["golden-vt-render"]
 tier = "pr"
 job = "app"
 runtime_s = 2
 
 [[harness]]
 name = "stem-export"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "an offline stem export must render byte-identical audio and write it"
 scenario = "stem_export"
 markers = ["ST-BYTES"]
 result = "ST-RESULT failures=0"
 check = "tests/integration/checks/stem_export.py"
-builds = ["golden-vt-render"]
 requires = ["song-corpus"]
 tier = "nightly"
 job = "render"
@@ -601,32 +606,26 @@ runtime_s = 12
 
 [[harness]]
 name = "song-load-channel"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "the song load must read its bytes through the storage channel"
 scenario = "song_load_channel"
 result = "SL-RESULT failures=0"
 markers = ["SL-SETUP", "SL-CANCEL-BACK", "SL-CANCEL-LASTOPENED", "SL-CANCEL", "SL-REFUSED", "SL-LOADED-LASTOPENED", "SL-LOADED", "SL-ORDER", "SL-NEXT", "SL-SUMMARY"]
 check = "tests/integration/checks/song_load_channel.py"
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "app"
 runtime_s = 600
 
 [[harness]]
 name = "settings-channel"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "a settings value written through the real consumer entry point must survive a read back, and no settings file operation may begin on the interaction tier"
 scenario = "settings_channel"
 markers = ["SC-ROUNDTRIP", "SC-UNKNOWN", "SC-BURST", "SC-ORDER", "SC-HEAD", "SC-FITS", "SC-UNLINK", "SC-PERF", "SC-OVERSIZE", "SC-RESET", "SC-BUSY", "SC-FALLBACK", "SC-TIER", "SC-CHANNEL"]
 result = "SC-RESULT failures=0"
 check = "tests/integration/checks/settings_channel.py"
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "app"
 runtime_s = 240
@@ -634,156 +633,126 @@ runtime_s = 240
 
 [[harness]]
 name = "favourites-channel"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "the favourites bank must never be written with less than it held, and none of its card I/O may begin on the interaction tier"
 scenario = "favourites_channel"
 markers = ["FV-SEED", "FV-ABSENT", "FV-REFUSE", "FV-ROUNDTRIP", "FV-ORDER", "FV-STALE", "FV-TIER", "FV-CHANNEL", "FV-ACCOUNTED", "FV-ILLEGAL"]
 result = "FV-RESULT failures=0"
 check = "tests/integration/checks/favourites_channel.py"
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "app"
 runtime_s = 300
 
 [[harness]]
 name = "startup-failsafe"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "no file operation in the startup song fail-safe may begin on the interaction tier"
 scenario = "startup_failsafe"
 markers = ["SF-ORDER", "SF-CHANNEL", "SF-TIER", "SF-ILLEGAL", "SF-INLINE", "SF-GIVEUP"]
 result = "SF-RESULT failures=0"
 check = "tests/integration/checks/startup_failsafe.py"
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "app"
 runtime_s = 240
 
 [[harness]]
 name = "path-operations"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "real SysEx path requests get their replies, and browser folder creation and file deletion go through the byte channel, never on the interaction tier"
 scenario = "path_operations"
 markers = ["PO-SYSEX", "PO-MKDIRALL", "PO-DELETE", "PO-DELETE-ABSENT", "PO-DELETE-STALL", "PO-CHANNEL", "PO-TIER", "PO-ILLEGAL", "PO-QUEUE"]
 result = "PO-RESULT failures=0"
 check = "tests/integration/checks/path_operations.py"
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "app"
 runtime_s = 240
 
 [[harness]]
 name = "offset-io"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "blocks written at ascending offsets through the SysEx transfer verbs all stay on the card, and a copy reproduces its source byte for byte"
 scenario = "offset_io"
 markers = ["OI-TRANSFER", "OI-COPY", "OI-DIR", "OI-CHANNEL", "OI-ILLEGAL", "OI-GIVEUP", "OI-DIR-STALL", "OI-TIER"]
 result = "OI-RESULT failures=0"
 check = "tests/integration/checks/offset_io.py"
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "app"
 runtime_s = 240
 
 [[harness]]
 name = "pattern-load"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "a pattern file the firmware's pattern writer made loads back through the pattern browser, and as a PLAY preview, with exactly the notes written"
 scenario = "pattern_load"
 markers = ["PT-SETUP", "PT-LISTED", "PT-LOAD", "PT-PREVIEW", "PT-DISCARD", "PT-SUPERSEDE", "PT-TIER"]
 result = "PT-RESULT failures=0"
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "app"
 runtime_s = 60
 
 [[harness]]
 name = "staging-release"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "a staged document read its consumer abandons never writes into the buffer once it has been freed and handed out again"
 scenario = "staging_release"
 markers = ["SR-ISSUED", "SR-RELEASE", "SR-INTACT", "SR-REAPED", "SR-STATUS"]
 result = "SR-RESULT failures=0"
-builds = ["golden-vt-render"]
 tier = "nightly"
 job = "app"
 runtime_s = 60
 
 [[harness]]
 name = "clock-input"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "trigger-clock edges through the BSP's handler start playback with analog auto-start on, none dropped when they arrive slower than the playback routine"
 scenario = "clock_input"
 markers = ["TC-INPUT", "TC-BURST"]
 result = "TC-RESULT failures=0"
-builds = ["golden-vt-render"]
 tier = "pr"
 job = "app"
 runtime_s = 60
 
 [[harness]]
 name = "recorder-take"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "an audio-input recording take must leave the rest of the app running, and must attach its sample only to the sound it was recorded for"
 scenario = "recorder_take"
 check = "tests/integration/checks/recorder_take.py"
 markers = ["RT-OPEN", "RT-TAKE", "RT-ATTACH", "RT-REFUSED", "RT-CLOSED", "RT-SECOND", "RT-NULLED", "RT-REPLACED", "RT-NEXT-RUN", "RT-NEXT-ATTACH", "RT-NEXT"]
 result = "RT-RESULT failures=0"
-builds = ["golden-vt-render"]
 tier = "pr"
 job = "app"
 runtime_s = 5
 
 [[harness]]
 name = "stale-ui"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "a song load takes every UI down for its whole length, and nothing acts on a UI the load took down while the UI stack is empty"
 scenario = "stale_ui"
 markers = ["SU-INERT", "SU-REPEATS", "SU-POPUP", "SU-KNOBUNDO", "SU-RETIRED", "SU-SWAPWORK", "SU-AUDITION", "SU-SWAPDROP", "SU-UNDO", "SU-HOLD", "SU-FAILED", "SU-ARRANGE", "SU-STACK", "SU-SWAP"]
 result = "SU-RESULT failures=0"
-builds = ["golden-vt-render"]
 tier = "pr"
 job = "app"
 runtime_s = 5
 
 [[harness]]
 name = "ui-scripts"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "regression"
-status = "gate"
 gates = "the level-3 UI scripts drive the whole app through the BSP's own input path on the virtual clock"
 scenario = "ui_script"
 check = "tests/integration/checks/ui_scripts.py"
 markers = ["UI-SCRIPT"]
 result = "UI-SCRIPT-RESULT failures=0"
-builds = ["golden-vt-render"]
 baseline = ["tests/golden/ui/app"]
 tier = "pr"
 job = "app"
@@ -791,16 +760,13 @@ runtime_s = 60
 
 [[harness]]
 name = "ui-menu-dump"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "regression"
-status = "gate"
 gates = "the declarative menu tree the app dumps as JSON equals website/src/data/generated/menu-tree.json"
 scenario = "menu_dump"
 check = "tests/integration/checks/menu_dump.py"
 markers = ["MENU-DUMP"]
 result = "MENU-DUMP-RESULT failures=0"
-builds = ["golden-vt-render"]
 baseline = ["website/src/data/generated/menu-tree.json"]
 tier = "pr"
 job = "app"
@@ -808,16 +774,13 @@ runtime_s = 2
 
 [[harness]]
 name = "ui-scenes-spec"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "regression"
-status = "gate"
 gates = "the scenes' specs (sim/scenes_spec) pass on golden_vt_render, one file per process from the app's own init, each on its card"
 scenario = "scenes_spec"
 check = "tests/integration/checks/scenes_spec.py"
 markers = ["SCENES-SPEC"]
 result = "SCENES-SPEC-RESULT failures=0"
-builds = ["golden-vt-render"]
 baseline = ["tests/golden/ui/menu", "tests/golden/ui/scenes", "tests/golden/ui/shell"]
 tier = "pr"
 job = "app"
@@ -825,1103 +788,429 @@ runtime_s = 10
 
 [[harness]]
 name = "load-cancel"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "a preset load can be cancelled by the ticket its request returned, and BACK in the preset browser cancels the browser's scroll-load"
 scenario = "load_cancel"
 markers = ["LC-SETUP", "LC-STAGE-BACK", "LC-STAGE", "LC-SAMPLES-BACK", "LC-SAMPLES", "LC-QUEUED-BACK", "LC-QUEUED", "LC-STALE-FINISHED", "LC-STALE-QUEUED", "LC-STALE-REPLACED", "LC-STALE", "LC-REFUSED-CANCEL", "LC-REFUSED"]
 result = "LC-RESULT failures=0"
-builds = ["golden-vt-render"]
 tier = "pr"
 job = "app"
 runtime_s = 5
 
 [[harness]]
 name = "ui-timer-deadline"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "the \"ui routine\" job runs the UI timers at their deadlines instead of polling"
 scenario = "ui_timer_deadline"
 markers = ["UT-RATE", "UT-EARLIER"]
 result = "UT-RESULT failures=0"
-builds = ["golden-vt-render"]
 tier = "pr"
 job = "app"
 runtime_s = 60
 
 [[harness]]
 name = "idle-job-rates"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "an idle app runs each job only as often as it has work"
 scenario = "idle_job_rates"
 markers = ["IR-WINDOW", "IR-JOB"]
 result = "IR-RESULT failures=0"
-builds = ["golden-vt-render"]
 tier = "pr"
 job = "app"
 runtime_s = 5
 
 [[harness]]
 name = "render-song"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "a song must play as the device plays it"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-kit-fx"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "a kit's effect chain renders as recorded"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_KIT_FX" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-kit-filters"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "a kit's filter chain renders as recorded"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_KIT_FILTERS" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-filters"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "an audio track's filter chain renders as recorded"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_AUDIO_FILTERS" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-master-filters"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "the song master's filter chain renders as recorded"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_MASTER_FILTERS" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-fx"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "an audio track's effect chain renders as recorded"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_AUDIO_FX" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-master-fx"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "the song master's effect chain renders as recorded"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_MASTER_FX" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-master-pan-stereo"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "the song master's pan renders as recorded in stereo, where it applies"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_MASTER_PAN", RENDER_STEREO = "1" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-master-arranger"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
+override = ["markers"]
 gates = "the song master's automation plays in the arranger"
-scenario = "render_song"
 markers = ["RS-LOADED", "RS-SONGPARAMS", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_MASTER_ARRANGER", RENDER_SONG_AUTOMATED = "1" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-master-grain-off"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "the song master's granular mod FX in its soft off renders as recorded"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_MASTER_GRAIN_OFF" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-kit-svf-morph"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "a kit's state-variable filters render as recorded with their morphs up"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_KIT_SVF_MORPH" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-drive"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "an audio track's oversampled drive filter, saturating ladder HPF and granular mod FX render as recorded"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_AUDIO_DRIVE" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-kit-filter-fade"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "a kit's filters fade in as recorded when switched on"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_KIT_FILTER_FADE" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-filter-fade"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "an audio track's filters fade in as recorded when switched on"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_AUDIO_FILTER_FADE" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-audio-ducked"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "sidechain hits duck as recorded"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_AUDIO_DUCKED" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-duck-shapes"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "the sidechain envelope's attack and release shapes, and a stronger hit taken mid-attack and mid-release, render as recorded on the host owners"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_DUCK_SHAPES" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-kit-comp"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "a kit's compressors render as recorded"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_KIT_COMP" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-kit-delay"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "a kit's delay renders as recorded through rate changes and its end"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_KIT_DELAY" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-delay-owners"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "a delay renders as recorded on each owner the kit and audio-track delay gates leave out"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_DELAY_OWNERS" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-stutter-audio"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
+override = ["markers"]
 gates = "an audio track's stutter renders as recorded"
-scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-STUTTER", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_STUTTER_AUDIO", RENDER_STUTTER = "100:600:audio" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-stutter-synth"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
+override = ["markers"]
 gates = "a synth's stutter renders as recorded"
-scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-STUTTER", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_STUTTER_SYNTH", RENDER_STUTTER = "100:600:synth" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-stutter-kit"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
+override = ["markers"]
 gates = "a kit's quantized, reversed stutter renders as recorded"
-scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-STUTTER", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_STUTTER_KIT", RENDER_STUTTER = "150:700:kit" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-stutter-master"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
+override = ["markers"]
 gates = "the song master's ping-pong stutter renders as recorded"
-scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-STUTTER", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_STUTTER_MASTER", RENDER_STUTTER = "100:900:master" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-stutter-rate"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
+override = ["markers"]
 gates = "a stutter whose rate knob is turned while it plays renders as recorded"
-scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-STUTTER", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_STUTTER_RATE", RENDER_STUTTER = "100:900:audio", RENDER_STUTTER_RATE = "400:0x30000000" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-stutter-handoff"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
+override = ["markers"]
 gates = "a stutter handed from one owner to another renders as recorded"
-scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-STUTTER", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_STUTTER_HANDOFF", RENDER_STUTTER = "100:400:audio,400:800:kit" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-tempo-delays"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "five synced delays resizing together after a tempo change render as recorded"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_TEMPO_DELAYS", RENDER_TEMPO = "300:70" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-delay"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "an audio track's digital delay renders as recorded through rate changes"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_AUDIO_DELAY" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-kit-pingpong-stereo"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "a kit's ping-pong delay renders as recorded in stereo, where its echoes cross channels"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_KIT_PINGPONG", RENDER_STEREO = "1" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-delay-toggle"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "an analog delay switched off and on again while it rings renders as recorded"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_AUDIO_DELAY_TOGGLE" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-delay-switch"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
+override = ["markers", "runtime_s"]
 gates = "an analog delay switched to digital and back to analog while it rings renders as recorded"
-scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-DELAY-SWITCH", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_AUDIO_DELAY_SWITCH", RENDER_DELAY_SWITCH = "600,1000" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
 runtime_s = 40
 
 [[harness]]
 name = "render-pingpong-stereo-sweep"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "ping-pong delays render as recorded in stereo, crossing channels while their rates step through new buffers"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_PINGPONG_SWEEP", RENDER_STEREO = "1" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-delay-extremes"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "a delay renders as recorded at both ends of its rate's range"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_AUDIO_DELAY_EXTREMES" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-low-clip"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "a host chain's saturation below amount 3, where it does not shift back up, renders as recorded"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_LOW_CLIP" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-bitcrush"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "the bitcrush paths the FX songs leave out render as recorded"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_BITCRUSH" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-eq-bands"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "the EQ's single bands render as recorded"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_EQ_BANDS" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-reverb-duck-override"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "the reverb's duck taken from a synth with the most reverb renders as recorded"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_REVERB_DUCK_OVERRIDE" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-reverb-duck-override-track"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "the reverb's duck taken from an audio track with the most reverb renders as recorded"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_REVERB_DUCK_OVERRIDE_TRACK" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-metronome"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
+override = ["markers"]
 gates = "the metronome's click renders as recorded"
-scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-METRONOME", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_METRONOME", RENDER_METRONOME = "200" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-comp-onset"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "a compressor switched on while its audio sounds renders as recorded"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_AUDIO_COMP_ONSET" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-comp-reset"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "a compressor reset mid-sound renders as recorded when it comes back on"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_AUDIO_COMP_RESET" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-comp-blend"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "a blended compressor on a loud audio track renders as recorded, so its 64-bit level sum is pinned"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_AUDIO_COMP_BLEND" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-modfx-mono"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "the warble and dimension mod FX, which no synth golden plays, render as recorded in mono"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_MODFX_MONO" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-modfx-stereo-a"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "the flanger, chorus and phaser mod FX render as recorded in stereo, where the comb types read a second tap for the right channel"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_MODFX_STEREO_A", RENDER_STEREO = "1" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-modfx-stereo-b"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "the stereo chorus, warble and dimension mod FX render as recorded in stereo"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_MODFX_STEREO_B", RENDER_STEREO = "1" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-modfx-soft-off"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "a mod FX switched off and on again by its knob renders as recorded"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_MODFX_SOFT_OFF" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-modfx-switch"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
+override = ["markers"]
 gates = "a mod FX switched to another type and back while it plays renders as recorded, its LFO re-seating each time its wave changes after it has rendered"
-scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-MODFX-SWITCH", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_MODFX_SWITCH", RENDER_MODFX_SWITCH = "600:chorus,1000:TapeWarble" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-modfx-clear"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
+override = ["markers"]
 gates = "a mod FX's memory cleared while it plays renders as recorded, both with a delay line and without one"
-scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-MODFX-SWITCH", "RS-MODFX-CLEAR", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_MODFX_CLEAR", RENDER_MODFX_SWITCH = "1400:phaser", RENDER_MODFX_CLEAR = "1000,1800" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-grain-mono"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "the granular mod FX renders as recorded in mono on a host owner's chain"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_GRAIN_MONO" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-grain-stereo"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "the granular mod FX renders as recorded in stereo, where each grain is panned"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_GRAIN_STEREO", RENDER_STEREO = "1" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-grain-switch"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
+override = ["markers"]
 gates = "the granular mod FX switched on and off by its type, and its memory cleared, while it plays renders as recorded"
-scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-MODFX-SWITCH", "RS-MODFX-CLEAR", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_GRAIN_SWITCH", RENDER_MODFX_SWITCH = "600:grainFX,1800:chorus", RENDER_MODFX_CLEAR = "1300" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-grain-master"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
+override = ["markers"]
 gates = "the song's master chain entering and leaving the granular mod FX by its type while it plays renders as recorded"
-scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-MODFX-SWITCH", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_GRAIN_MASTER", RENDER_MODFX_SWITCH = "600:grainFX:master,1800:chorus:master" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-reverb-freeverb"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "the song's Freeverb reverb renders as recorded at knobs of its own, its width at half, so each channel's output takes in the other's (wet2 above 0)"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_REVERB_FREEVERB" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-reverb-mutable"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "the song's Mutable reverb renders as recorded at knobs of its own, its room, damping, width, high-pass and low-pass away from the boot song's"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_REVERB_MUTABLE" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-reverb-digital"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
 gates = "the song's Digital reverb renders as recorded at knobs of its own, panned halfway left and rendered in stereo, so the two channels' return levels differ"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_REVERB_DIGITAL", RENDER_STEREO = "1" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-reverb-switch"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
+override = ["markers"]
 gates = "the song's reverb switched between its models, with its knobs turned while it plays, renders as recorded"
-scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-REVERB-SWITCH", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_REVERB_SWITCH", RENDER_REVERB_SWITCH = "600:model=2,800:hpf=0.2,1000:model=0,1200:width=0.25,1400:room=0.3,1600:model=1,1800:lpf=0.8" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-grain-restart"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
+override = ["runtime_s"]
 gates = "the granular mod FX started again renders as recorded, its grains reading 0 from every slot not yet written since the restart"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_GRAIN_RESTART", RENDER_BLOCKS = "4000" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
 runtime_s = 25
 
 [[harness]]
 name = "render-grain-owners"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
+override = ["markers"]
 gates = "the granular mod FX switched by a synth's own type setter, and cleared through each owner's own clear, while it plays renders as recorded"
-scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-MODFX-SWITCH", "RS-MODFX-CLEAR", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
-builds = ["golden-vt-render"]
 env = { RENDER_GENERATED = "RS_GRAIN_OWNERS", RENDER_MODFX_SWITCH = "500:chorus:RSG,1200:grainFX:RSG", RENDER_MODFX_CLEAR = "1700:RSG,1800:RSK,1900:master" }
-baseline = ["tests/integration/golden/songs.json"]
-tier = "pr"
-job = "render"
-runtime_s = 20
 
 [[harness]]
 name = "render-song-corpus"
-level = "integration"
-runner = "scenario"
-kind = "property"
-status = "gate"
+template = "render-song"
+override = ["tier", "runtime_s"]
 gates = "the render-song checks, on a real song from the maintainer's card backup (Cordae)"
-scenario = "render_song"
-markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
-result = "RS-RESULT failures=0"
-check = "tests/integration/checks/render_song.py"
 env = { RENDER_SONG = "SONGS/Cordae.XML", GOLDEN_FIXTURE = "cordae" }
-builds = ["golden-vt-render"]
 requires = ["song-corpus"]
-baseline = ["tests/integration/golden/songs.json"]
 tier = "nightly"
-job = "render"
 runtime_s = 30
 
 [[harness]]
 name = "golden-synth"
-level = "integration"
-runner = "scenario"
+template = "render-preset"
 kind = "differential"
-status = "gate"
 gates = "every synth golden master must render as recorded"
-scenario = "render_preset"
-markers = ["RP-LOADED", "RP-MIDI", "RP-RENDER", "RP-TIER-SYNC-AUDIO", "RP-CAPTURE"]
-result = "RP-RESULT failures=0"
 check = "tests/integration/checks/render_preset.py"
 builds = ["golden-vt-render"]
 baseline = ["tests/integration/golden/presets.json"]
@@ -1931,14 +1220,9 @@ runtime_s = 20
 
 [[harness]]
 name = "param-dump"
-level = "integration"
-runner = "scenario"
+template = "render-preset"
 kind = "regression"
-status = "gate"
 gates = "the audible window's parameter dump"
-scenario = "render_preset"
-markers = ["RP-LOADED", "RP-MIDI", "RP-RENDER", "RP-TIER-SYNC-AUDIO", "RP-CAPTURE"]
-result = "RP-RESULT failures=0"
 check = "tests/integration/checks/param_dump.py"
 builds = ["golden-vt-render"]
 tier = "nightly"
@@ -1947,14 +1231,9 @@ runtime_s = 5
 
 [[harness]]
 name = "golden-synth-arm"
-level = "integration"
-runner = "scenario"
+template = "render-preset"
 kind = "differential"
-status = "gate"
 gates = "the synth golden masters on 32-bit ARM"
-scenario = "render_preset"
-markers = ["RP-LOADED", "RP-MIDI", "RP-RENDER", "RP-TIER-SYNC-AUDIO", "RP-CAPTURE"]
-result = "RP-RESULT failures=0"
 check = "tests/integration/checks/render_preset.py"
 builds = ["golden-vt-render-arm"]
 tier = "nightly"
@@ -1963,16 +1242,13 @@ runtime_s = 60
 
 [[harness]]
 name = "streaming-margin"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "sample playback must keep up when storage is as slow as the device's"
 scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/streaming_margin.py"
-builds = ["golden-vt-render"]
 tier = "nightly"
 alone = true
 job = "render"
@@ -1980,8 +1256,8 @@ runtime_s = 30
 
 [[harness]]
 name = "streaming-margin-sweep"
-level = "integration"
-runner = "scenario"
+template = "scenario"
+override = ["status"]
 kind = "simulation"
 status = "investigative"
 gates = "nothing: it prints the streaming margin curve, the underruns at each fill-task wait in MARGIN_SWEEP"
@@ -1989,7 +1265,6 @@ scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/streaming_margin.py"
-builds = ["golden-vt-render"]
 env = { MARGIN_SWEEP = "0,50,100,125,150,200,300,500" }
 tier = "manual"
 alone = true
@@ -1999,16 +1274,13 @@ runtime_s = 60
 # needs song-corpus: recorder_write.py's offline drain renders the Cordae fixture.
 [[harness]]
 name = "recorder-write"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "a real recording must still read back byte-correctly"
 scenario = "recorder_roundtrip"
 markers = ["CASE", "RW-SUMMARY", "TK-LEAK", "RW-BUSY", "RW-STALL", "TK-OPEN-HELD", "TK-ABORT-OPEN", "RW-OPEN-IOERR", "RW-DIR-STALL", "RW-TIER", "TK-RESULT"]
 result = "RW-RESULT failures=0"
 check = "tests/integration/checks/recorder_write.py"
-builds = ["golden-vt-render"]
 requires = ["song-corpus"]
 tier = "nightly"
 job = "app"
@@ -2107,183 +1379,123 @@ runtime_s = 60
 # (`runner = "corpus"`) run their tests/golden runner, named by `corpus_runner`.
 [[harness]]
 name = "param-projection"
-level = "integration"
-runner = "scenario"
+template = "scenario-driver"
 kind = "unit"
-status = "gate"
 gates = "the param/automation DOM leaf must agree with the engine it replaces"
 scenario = "param_projection"
-markers = ["DRV-EXIT"]
-result = "DRV-EXIT code=0"
-builds = ["golden-vt-render"]
 tier = "pr"
 job = "model"
 runtime_s = 1
 
 [[harness]]
 name = "param-table-check"
-level = "integration"
-runner = "scenario"
+template = "scenario-driver"
 kind = "unit"
-status = "gate"
 gates = "the engines' param tables agree with the runtime"
 scenario = "param_table_check"
-markers = ["DRV-EXIT"]
-result = "DRV-EXIT code=0"
-builds = ["golden-vt-render"]
 tier = "pr"
 job = "model"
 runtime_s = 1
 
 [[harness]]
 name = "param-target-check"
-level = "integration"
-runner = "scenario"
+template = "scenario-driver"
 kind = "unit"
-status = "gate"
 gates = "the host names params by target"
 scenario = "param_target_check"
-markers = ["DRV-EXIT"]
-result = "DRV-EXIT code=0"
-builds = ["golden-vt-render"]
 tier = "pr"
 job = "model"
 runtime_s = 1
 
 [[harness]]
 name = "param-clone"
-level = "integration"
-runner = "scenario"
+template = "scenario-driver"
 kind = "unit"
-status = "gate"
 gates = "cloning the real engine param containers (AutoParam, a ParamManager with patched, unpatched and patch-cable collections) must give deep-independent copies"
 scenario = "param_clone"
-markers = ["DRV-EXIT"]
-result = "DRV-EXIT code=0"
-builds = ["golden-vt-render"]
 tier = "pr"
 job = "model"
 runtime_s = 1
 
 [[harness]]
 name = "patch-routing"
-level = "integration"
-runner = "scenario"
+template = "scenario-driver"
 kind = "property"
-status = "gate"
 gates = "a patch-cable set's routing and save order must not change"
 scenario = "patch_routing"
-markers = ["DRV-EXIT"]
-result = "DRV-EXIT code=0"
-builds = ["golden-vt-render"]
 tier = "pr"
 job = "model"
 runtime_s = 2
 
 [[harness]]
 name = "document-version"
-level = "integration"
-runner = "scenario"
+template = "scenario-driver"
 kind = "unit"
-status = "gate"
 gates = "the firmware version a document is read as is that document's own"
 scenario = "document_version"
-markers = ["DRV-EXIT"]
-result = "DRV-EXIT code=0"
-builds = ["golden-vt-render"]
 tier = "pr"
 job = "model"
 runtime_s = 1
 
 [[harness]]
 name = "preset-parse"
-level = "integration"
-runner = "scenario"
+template = "scenario-driver"
 kind = "unit"
-status = "gate"
 gates = "a JSON synth preset reads into a kit row as an XML one does"
 scenario = "preset_parse"
-markers = ["DRV-EXIT"]
-result = "DRV-EXIT code=0"
-builds = ["golden-vt-render"]
 tier = "pr"
 job = "model"
 runtime_s = 1
 
 [[harness]]
 name = "effect-owners"
-level = "integration"
-runner = "scenario"
+template = "scenario-driver"
 kind = "unit"
-status = "gate"
 gates = "every owner of effects (a synth's sound, a kit, an audio track, the song master) keeps its effect settings in its own state, and the render's copy follows"
 scenario = "effect_owners"
-markers = ["DRV-EXIT"]
-result = "DRV-EXIT code=0"
-builds = ["golden-vt-render"]
 tier = "pr"
 job = "model"
 runtime_s = 1
 
 [[harness]]
 name = "edit-substrate"
-level = "integration"
-runner = "scenario"
+template = "scenario-driver"
 kind = "unit"
-status = "gate"
 gates = "the Edit substrate on its own"
 scenario = "edit_substrate"
-markers = ["DRV-EXIT"]
-result = "DRV-EXIT code=0"
-builds = ["golden-vt-render"]
 tier = "pr"
 job = "model"
 runtime_s = 1
 
 [[harness]]
 name = "mapping-dispatch"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "property"
-status = "gate"
 gates = "the mapping index matches incoming MIDI as the dispatch's scans of the engine fields do"
 scenario = "mapping_dispatch"
 markers = ["DRV-OUT MAPPING-DISPATCH"]
 result = "DRV-EXIT code=0"
-builds = ["golden-vt-render"]
 tier = "pr"
 job = "app"
 runtime_s = 5
 
 [[harness]]
 name = "xml-replay-diff"
-level = "integration"
-runner = "scenario"
+template = "scenario-driver"
 kind = "differential"
-status = "gate"
 gates = "ValueTreeDeserializer's XML replay must read exactly as XMLDeserializer does"
 scenario = "xml_replay_diff"
-markers = ["DRV-EXIT"]
-result = "DRV-EXIT code=0"
-builds = ["golden-vt-render"]
 tier = "pr"
 job = "model"
 runtime_s = 1
 
 [[harness]]
 name = "song-roundtrip"
-level = "integration"
-runner = "corpus"
+template = "corpus"
 kind = "regression"
-status = "gate"
 gates = "what a song saves as must not change unexplained"
 corpus_runner = "songs"
-builds = ["golden-vt-render"]
-requires = ["song-xml-corpus"]
 baseline = ["tests/golden/songs_fixtures.json"]
-tier = "nightly"
-alone = true
-job = "model"
 runtime_s = 10
 
 [[harness]]
@@ -2302,214 +1514,124 @@ runtime_s = 2
 
 [[harness]]
 name = "preset-roundtrip"
-level = "integration"
-runner = "corpus"
+template = "corpus"
 kind = "regression"
-status = "gate"
 gates = "what a preset saves as must not change unexplained"
 corpus_runner = "presets"
-builds = ["golden-vt-render"]
-requires = ["song-xml-corpus"]
 baseline = ["tests/golden/presets_fixtures.json"]
-tier = "nightly"
-alone = true
-job = "model"
 runtime_s = 10
 
 [[harness]]
 name = "serializer-check"
-level = "integration"
-runner = "corpus"
+template = "corpus"
 kind = "property"
-status = "gate"
 gates = "the tree ValueSerializer builds for every output of every corpus song equals the tree the JSON writer's text parses to"
 corpus_runner = "serializer_check"
-builds = ["golden-vt-render"]
-requires = ["song-xml-corpus"]
-tier = "nightly"
-alone = true
-job = "model"
 runtime_s = 10
 
 [[harness]]
 name = "cable-decode"
-level = "integration"
-runner = "corpus"
+template = "corpus"
 kind = "property"
-status = "gate"
 gates = "the Deluge instrument decodes every song's and preset's patch cables as the app's reader does"
 corpus_runner = "cable_decode"
-builds = ["golden-vt-render"]
-requires = ["song-xml-corpus"]
 baseline = ["tests/golden/cable_decode_fixtures.json"]
-tier = "nightly"
-alone = true
-job = "model"
 runtime_s = 20
 
 [[harness]]
 name = "host-effect-settings"
-level = "integration"
-runner = "corpus"
+template = "corpus"
 kind = "property"
-status = "gate"
 gates = "a host owner's effects go through its chain"
 corpus_runner = "host_effect_settings"
-builds = ["golden-vt-render"]
-requires = ["song-xml-corpus"]
-tier = "nightly"
-alone = true
-job = "model"
 runtime_s = 30
 
 [[harness]]
 name = "engine-settings"
-level = "integration"
-runner = "corpus"
+template = "corpus"
 kind = "property"
-status = "gate"
 gates = "a sound's settings go through its slot"
 corpus_runner = "engine_settings"
-builds = ["golden-vt-render"]
-requires = ["song-xml-corpus"]
-tier = "nightly"
-alone = true
-job = "model"
 runtime_s = 30
 
 [[harness]]
 name = "song-settings"
-level = "integration"
-runner = "corpus"
+template = "corpus"
 kind = "property"
-status = "gate"
 gates = "a song's settings go through SetSetting"
 corpus_runner = "song_settings"
-builds = ["golden-vt-render"]
-requires = ["song-xml-corpus"]
-tier = "nightly"
-job = "model"
-alone = true
 runtime_s = 30
 
 [[harness]]
 name = "instrument-codec-decode"
-level = "integration"
-runner = "corpus"
+template = "corpus"
 kind = "property"
-status = "gate"
 gates = "the Deluge instrument reads its own state as the app's reader does"
 corpus_runner = "instrument_codec_decode"
-builds = ["golden-vt-render"]
-requires = ["song-xml-corpus"]
-tier = "nightly"
-alone = true
-job = "model"
 runtime_s = 20
 
 [[harness]]
 name = "instrument-codec-encode"
-level = "integration"
-runner = "corpus"
+template = "corpus"
 kind = "property"
-status = "gate"
 gates = "the Deluge instrument writes its own state"
 corpus_runner = "instrument_codec"
-builds = ["golden-vt-render"]
-requires = ["song-xml-corpus"]
-tier = "nightly"
-alone = true
-job = "model"
 runtime_s = 20
 
 [[harness]]
 name = "instrument-state-roundtrip"
-level = "integration"
-runner = "corpus"
+template = "corpus"
 kind = "property"
-status = "gate"
 gates = "the Deluge instrument's state round-trips through its codec"
 corpus_runner = "instrument_state_roundtrip"
-builds = ["golden-vt-render"]
-requires = ["song-xml-corpus"]
-tier = "nightly"
-alone = true
-job = "model"
 runtime_s = 20
 
 [[harness]]
 name = "json-roundtrip"
-level = "integration"
-runner = "corpus"
+template = "corpus"
 kind = "property"
-status = "gate"
 gates = "the JSON read path must be faithful to the JSON write path"
 corpus_runner = "json_roundtrip"
-builds = ["golden-vt-render"]
-requires = ["song-xml-corpus"]
-tier = "nightly"
-alone = true
-job = "model"
 runtime_s = 10
 
 [[harness]]
 name = "model-decode-diff"
-level = "integration"
-runner = "corpus"
+template = "corpus"
+override = ["requires", "tier"]
 kind = "property"
-status = "gate"
 gates = "decode reads a saved song's model records exactly as the engine loader does"
 corpus_runner = "model_decode_diff"
-builds = ["golden-vt-render"]
 tier = "pr"
-alone = true
-job = "model"
 runtime_s = 10
+requires = []
 
 [[harness]]
 name = "song-edit-roundtrip"
-level = "integration"
-runner = "corpus"
+template = "corpus"
 kind = "property"
-status = "gate"
 gates = "a DOM-first edit must persist"
 corpus_runner = "song_edit_roundtrip"
-builds = ["golden-vt-render"]
-requires = ["song-xml-corpus"]
-tier = "nightly"
-alone = true
-job = "model"
 runtime_s = 10
 
 [[harness]]
 name = "param-record-diff"
-level = "integration"
-runner = "corpus"
+template = "corpus"
 kind = "regression"
-status = "gate"
 gates = "the engine's live automation recording must reproduce its committed baselines (tests/golden/param_record_baselines)"
 corpus_runner = "param_record"
-builds = ["golden-vt-render"]
-requires = ["song-xml-corpus"]
 baseline = ["tests/golden/param_record_baselines"]
-tier = "nightly"
-alone = true
-job = "model"
 runtime_s = 5
 
 [[harness]]
 name = "arrangement-take"
-level = "integration"
-runner = "scenario"
+template = "scenario"
 kind = "regression"
-status = "gate"
 gates = "recording the session into the arrangement must make the takes it made when its baseline was recorded (tests/golden/arrangement_take_baselines)"
 scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-TAKE", "RS-TAKE-PLAYED", "RS-TAKE-REPEATS", "RS-TAKE-LEFT", "RS-TAKE-STALE", "RS-KNOB", "RS-SNAPSHOT"]
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/arrangement_take.py"
 env = { RENDER_ARRANGE_RECORD = "1", RENDER_KNOB = "400:synth:lpf:268435456,500:kit:volume:-536870912,600:audio:lpf:536870912,1100:synth:volume:-1073741824,1360:synth:lpf:-1073741824,1370:kit:volume:536870912", RENDER_SOURCE_EDIT = "1500" }
-builds = ["golden-vt-render"]
 baseline = ["tests/golden/arrangement_take_baselines"]
 tier = "nightly"
 job = "render"
@@ -2517,61 +1639,37 @@ runtime_s = 20
 
 [[harness]]
 name = "audio-clip-edit-diff"
-level = "integration"
-runner = "corpus"
+template = "corpus"
 kind = "regression"
-status = "gate"
 gates = "an AudioClip's descriptor edits, their undo, and a save and reload reproduce the committed baseline byte for byte"
 corpus_runner = "audio_clip_edit"
-builds = ["golden-vt-render"]
-requires = ["song-xml-corpus"]
 baseline = ["tests/golden/audio_clip_edit_baselines"]
-tier = "nightly"
-alone = true
-job = "model"
 runtime_s = 5
 
 [[harness]]
 name = "edit-undo-redo"
-level = "integration"
-runner = "corpus"
+template = "corpus"
 kind = "property"
-status = "gate"
 gates = "every reified Edit applied to a corpus song resolves through a live DOM address and comes back exactly through the real undo and redo"
 corpus_runner = "edit_undo_redo"
-builds = ["golden-vt-render"]
-requires = ["song-xml-corpus"]
-tier = "nightly"
-alone = true
-job = "model"
 runtime_s = 10
 
 [[harness]]
 name = "clip-clone-roundtrip"
-level = "integration"
-runner = "corpus"
+template = "corpus"
 kind = "property"
-status = "gate"
 gates = "InstrumentClip::clone() of a corpus song's clip is a distinct, deep-independent copy of its note rows, notes, param collections and stores"
 corpus_runner = "clip_clone"
-builds = ["golden-vt-render"]
-requires = ["song-xml-corpus"]
-tier = "nightly"
-alone = true
-job = "model"
 runtime_s = 10
 
 [[harness]]
 name = "param-snapshot-bench"
-level = "integration"
-runner = "scenario"
+template = "scenario-driver"
+override = ["status"]
 kind = "benchmark"
 status = "investigative"
 gates = "nothing: it times ParamSnapshot::applyPatch against the full projection rebuild for the same single-param edits"
 scenario = "param_snapshot_bench"
-markers = ["DRV-EXIT"]
-result = "DRV-EXIT code=0"
-builds = ["golden-vt-render"]
 tier = "manual"
 job = "app"
 runtime_s = 2
@@ -2591,29 +1689,17 @@ runtime_s = 1
 
 [[harness]]
 name = "doc-hygiene-selftest"
+template = "unittest"
 path = "scripts"
-level = "unit"
-runner = "script"
-kind = "unit"
-status = "gate"
 gates = "the UI docs lint flags task, review and workstream breadcrumbs and rename narration in comments and Markdown, and file:line citations to our own code"
 run = ["python3", "-m", "unittest", "test_check_doc_hygiene", "test_check_citations"]
-tier = "pr"
-job = "tooling"
-runtime_s = 1
 
 [[harness]]
 name = "fixed-point-raw-selftest"
+template = "unittest"
 path = "scripts"
-level = "unit"
-runner = "script"
-kind = "unit"
-status = "gate"
 gates = "the fixed-point raw-arithmetic ratchet counts raw helper calls, DSP inline asm, seam views and typed-boundary crossings apart, outside comments"
 run = ["python3", "-m", "unittest", "test_check_fixed_point_raw"]
-tier = "pr"
-job = "tooling"
-runtime_s = 1
 
 [[harness]]
 name = "fixed-point-raw"
@@ -2630,146 +1716,82 @@ runtime_s = 2
 
 [[harness]]
 name = "library-boundary-selftest"
+template = "unittest"
 path = "scripts"
-level = "unit"
-runner = "script"
-kind = "unit"
-status = "gate"
 gates = "each standalone library's boundary check rejects every way an undeclared header could slip in"
 run = ["python3", "-m", "unittest", "test_check_library_boundary"]
-tier = "pr"
-job = "tooling"
-runtime_s = 1
 
 [[harness]]
 name = "registry-selftest"
+template = "unittest"
 path = "scripts/tasks"
-level = "unit"
-runner = "script"
-kind = "unit"
-status = "gate"
 gates = "this registry's loader, validation, selection and probes, the SDRAM content packer's format, and the setting-menus and layer-rules checkers"
 run = ["python3", "-m", "unittest", "test_harness_registry", "test_golden_update", "test_sdram_pack", "test_check_setting_menus", "test_check_layer_rules"]
-tier = "pr"
-job = "tooling"
-runtime_s = 1
 
 [[harness]]
 name = "render-preset-selftest"
+template = "unittest"
 path = "tests/integration/checks"
-level = "unit"
-runner = "script"
-kind = "unit"
-status = "gate"
 gates = "the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever the member stands"
 run = ["python3", "-m", "unittest", "test_render_preset", "test_render_song"]
-tier = "pr"
-job = "tooling"
-runtime_s = 1
 
 [[harness]]
 name = "dsp-bench-parser"
+template = "unittest"
 path = "tools"
-level = "unit"
-runner = "script"
-kind = "unit"
-status = "gate"
 gates = "the DSP bench host script's parsing of device captures"
 run = ["python3", "-m", "unittest", "test_dsp_bench"]
-tier = "pr"
-job = "tooling"
-runtime_s = 1
 
 [[harness]]
 name = "compare-codegen-selftest"
+template = "unittest"
 path = "tools"
-level = "unit"
-runner = "script"
-kind = "unit"
-status = "gate"
 gates = "the machine-code comparison of two images names what an address points at instead of its value"
 run = ["python3", "-m", "unittest", "test_compare_codegen"]
-tier = "pr"
-job = "tooling"
-runtime_s = 1
 
 [[harness]]
 name = "stream-bench-parser"
+template = "unittest"
 path = "tools"
-level = "unit"
-runner = "script"
-kind = "unit"
-status = "gate"
 gates = "the streaming benchmark host script's parsing of device captures"
 run = ["python3", "-m", "unittest", "test_stream_bench"]
-tier = "pr"
-job = "tooling"
-runtime_s = 1
 
 [[harness]]
 name = "device-check-parser"
+template = "unittest"
 path = "tools"
-level = "unit"
-runner = "script"
-kind = "unit"
-status = "gate"
 gates = "device_check's reading of a rig capture"
 run = ["python3", "-m", "unittest", "test_device_check"]
-tier = "pr"
-job = "tooling"
-runtime_s = 1
 
 [[harness]]
 name = "rig-session"
+template = "unittest"
+override = ["runtime_s"]
 path = "tools"
-level = "unit"
-runner = "script"
-kind = "unit"
-status = "gate"
 gates = "rig_session's reading of the rig harness's RTT stream"
 run = ["python3", "-m", "unittest", "test_rig_session"]
-tier = "pr"
-job = "tooling"
 runtime_s = 2
 
 [[harness]]
 name = "device-parity"
+template = "unittest"
 path = "tools"
-level = "unit"
-runner = "script"
-kind = "unit"
-status = "gate"
 gates = "emu_parity's script runner drives delugemu or the rig through the same steps and timings, and device_parity seeds delugemu's flash from the rig's settings"
 run = ["python3", "-m", "unittest", "test_emu_parity_session", "test_device_parity", "test_stamp_preset_versions"]
-tier = "pr"
-job = "tooling"
-runtime_s = 1
 
 [[harness]]
 name = "run-parity-runner"
+template = "unittest"
 path = "tests/ui-scripts/parity"
-level = "unit"
-runner = "script"
-kind = "unit"
-status = "gate"
 gates = "run_parity's waits land on absolute script times, so the two images cannot drift apart over a long script"
 run = ["python3", "-m", "unittest", "test_run_parity"]
-tier = "pr"
-job = "tooling"
-runtime_s = 1
 
 [[harness]]
 name = "audible-window-tooling"
+template = "unittest"
 path = "tools/audible_window"
-level = "unit"
-runner = "script"
-kind = "unit"
-status = "gate"
 gates = "the audible window's analyser and song set"
 run = ["python3", "-m", "unittest", "discover", "-p", "test_*.py"]
-tier = "pr"
-job = "tooling"
-runtime_s = 1
 
 [[harness]]
 name = "audible-window-identity"
@@ -2786,29 +1808,17 @@ runtime_s = 60
 
 [[harness]]
 name = "bench-tooling"
+template = "unittest"
 path = "tools"
-level = "unit"
-runner = "script"
-kind = "unit"
-status = "gate"
 gates = "the bench tools' host side"
 run = ["python3", "-m", "unittest", "test_bench_tooling", "test_audio_timing"]
-tier = "pr"
-job = "tooling"
-runtime_s = 1
 
 [[harness]]
 name = "ptm-trace-tool"
+template = "unittest"
 path = "tools/deluge_trace"
-level = "unit"
-runner = "script"
-kind = "unit"
-status = "gate"
 gates = "the PTM trace tool's host side"
 run = ["python3", "-m", "unittest", "discover", "-p", "test_*.py"]
-tier = "pr"
-job = "tooling"
-runtime_s = 1
 
 [[harness]]
 name = "app-asan-sample-load-tree"
