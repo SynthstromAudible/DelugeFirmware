@@ -946,8 +946,8 @@ void AutomationView::clipNeedsReRendering(Clip* clip) {
 
 On Automation Overview:
 
-- on OLED it renders "Automation Overview" (or "Can't Automate CV" if you're on a CV clip)
-- on 7Seg it renders AUTO (or CANT if you're on a CV clip)
+- on OLED it renders "Automation Overview"
+- on 7Seg it renders AUTO
 
 On Automation Editor:
 
@@ -2653,7 +2653,12 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 			getLastSelectedParamShortcut(clip);
 		}
 	}
-	// if you're in a CV clip or function is called for some other reason, do nothing
+	// if you're in a CV clip, cycle through the expression params (pitch bend, Y, pressure)
+	else if (outputType == OutputType::CV) {
+		selectExpressionParam(offset, clip);
+		getLastSelectedParamShortcut(clip);
+	}
+	// function is called for some other reason, do nothing
 	else {
 		return;
 	}
@@ -2884,6 +2889,22 @@ bool AutomationView::selectPatchCableAtIndex(Clip* clip, PatchCableSet* set, int
 		return true;
 	}
 	return false;
+}
+
+// used with SelectEncoderAction to get the next CV clip expression param
+void AutomationView::selectExpressionParam(int32_t offset, Clip* clip) {
+	int32_t id = 0;
+	// start at the beginning of the list if no expression param is selected yet
+	if (!onAutomationOverview() && clip->lastSelectedParamKind == params::Kind::EXPRESSION
+	    && clip->lastSelectedParamID < kNumExpressionDimensions) {
+		id = (static_cast<int32_t>(clip->lastSelectedParamID) + offset) % kNumExpressionDimensions;
+		if (id < 0) {
+			id += kNumExpressionDimensions;
+		}
+	}
+	clip->lastSelectedParamID = id;
+	clip->lastSelectedParamKind = params::Kind::EXPRESSION;
+	automationParamType = AutomationParamType::PER_SOUND;
 }
 
 // used with SelectEncoderAction to get the next midi CC
