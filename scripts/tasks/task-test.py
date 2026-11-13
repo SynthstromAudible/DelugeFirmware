@@ -596,58 +596,140 @@ def evidence(
     return (updated or [f"{tag} none"]), problems
 
 
+# What putting a file back can fail with; each is reported, and the rest are still attempted.
+RESTORE_ERRORS = (OSError, subprocess.SubprocessError)
+
+
+def existing_dirs(root: Path) -> set[str]:
+    """Every directory of the worktree (`.` for the root), ignored trees and .git aside: a stray is never under one,
+    and put_back_strays() removes only the directories missing here."""
+    out = subprocess.run(
+        [
+            "git",
+            "ls-files",
+            "-z",
+            "--others",
+            "--ignored",
+            "--exclude-standard",
+            "--directory",
+        ],
+        cwd=root,
+        capture_output=True,
+        check=True,
+    ).stdout.decode(errors="replace")
+    skip = {root / ".git"} | {
+        root / e.rstrip("/") for e in out.split("\0") if e.endswith("/")
+    }
+    found: set[str] = set()
+    for dirpath, dirnames, _ in os.walk(root):
+        dirnames[:] = [d for d in dirnames if Path(dirpath, d) not in skip]
+        found.add(os.path.relpath(dirpath, root))
+    return found
+
+
 def put_back_strays(
-    root: Path, before: dict[str, str], after: dict[str, str], paths: list[str]
-) -> tuple[list[str], list[str]]:
-    """Undo the run's writes outside `paths`, given worktree_state() before and after it: a file that was clean takes
-    its committed content again, a file that did not exist is deleted. A path git already reported before the run
-    holds the caller's own change, which is never touched. Returns the paths put back and the paths left."""
-    reverted, left = [], []
+    root: Path,
+    before: dict[str, str],
+    after: dict[str, str],
+    paths: list[str],
+    dirs: set[str],
+) -> tuple[
+    list[str], list[str], list[tuple[str, OSError | subprocess.SubprocessError]]
+]:
+    """Undo the run's writes outside `paths`, given worktree_state() before and after it and existing_dirs() before
+    it: a file that was clean takes its committed content again, a file that did not exist is deleted, with each
+    directory the run made for it. A path git already reported before the run holds the caller's own change, which
+    is never touched. Every path is attempted; returns those put back, those left, and those that could not be."""
+    reverted: list[str] = []
+    left: list[str] = []
+    failed: list[tuple[str, OSError | subprocess.SubprocessError]] = []
     for rel in strays(before, after, paths):
         if rel in before:
             left.append(rel)
             continue
-        committed = (
-            subprocess.run(
-                ["git", "cat-file", "-e", f"HEAD:{rel}"],
-                cwd=root,
-                capture_output=True,
-                check=False,
-            ).returncode
-            == 0
-        )
-        if committed:
-            subprocess.run(
-                ["git", "restore", "--source=HEAD", "--worktree", "--", rel],
-                cwd=root,
-                check=True,
+        try:
+            committed = (
+                subprocess.run(
+                    ["git", "cat-file", "-e", f"HEAD:{rel}"],
+                    cwd=root,
+                    capture_output=True,
+                    check=False,
+                ).returncode
+                == 0
             )
-        else:
-            path = root / rel
-            path.unlink(missing_ok=True)
-            # The directories the run made for it, emptied.
-            for parent in path.parents:
-                if parent == root or not parent.is_dir() or any(parent.iterdir()):
-                    break
-                parent.rmdir()
+            if committed:
+                subprocess.run(
+                    ["git", "restore", "--source=HEAD", "--worktree", "--", rel],
+                    cwd=root,
+                    check=True,
+                )
+            else:
+                path = root / rel
+                path.unlink(missing_ok=True)
+                for parent in path.parents:
+                    if (
+                        os.path.relpath(parent, root) in dirs
+                        or not parent.is_dir()
+                        or any(parent.iterdir())
+                    ):
+                        break
+                    parent.rmdir()
+        except RESTORE_ERRORS as exc:
+            failed.append((rel, exc))
+            continue
         reverted.append(rel)
-    return reverted, left
+    return reverted, left, failed
+
+
+def restore_each(
+    root: Path, before: dict[str, bytes], after: dict[str, bytes]
+) -> list[tuple[str, OSError | subprocess.SubprocessError]]:
+    """restore(), attempting every file whatever fails; prints each put back, returns those that could not be."""
+    failed: list[tuple[str, OSError | subprocess.SubprocessError]] = []
+    for rel in changed_files(before, after):
+        try:
+            restore(
+                root,
+                {rel: before[rel]} if rel in before else {},
+                {rel: after[rel]} if rel in after else {},
+            )
+        except RESTORE_ERRORS as exc:
+            failed.append((rel, exc))
+            continue
+        print(f"GOLDEN-UPDATE-REVERTED {rel}", file=OUT)
+    return failed
 
 
 def _put_back(
-    root: Path, h: hr.Harness, before: dict[str, bytes], tree_before: dict[str, str]
-) -> None:
-    """Put `h`'s baselines back as `before` holds them, and undo its writes outside them, saying what was done."""
-    for rel in restore(root, before, baseline_snapshot(root, h.baseline)):
-        print(f"GOLDEN-UPDATE-REVERTED {rel}", file=OUT)
-    reverted, left = put_back_strays(
-        root, tree_before, worktree_state(root), h.baseline
-    )
-    for rel in reverted:
-        print(f"GOLDEN-UPDATE-REVERTED {rel}", file=OUT)
-    for rel in left:
-        print(f"GOLDEN-UPDATE-LEFT {rel}", file=OUT)
+    root: Path,
+    h: hr.Harness,
+    before: dict[str, bytes],
+    tree_before: dict[str, str] | None = None,
+    dirs: set[str] | None = None,
+) -> list[OSError | subprocess.SubprocessError]:
+    """Put `h`'s baselines back as `before` holds them and, given the worktree before its run, undo its writes outside
+    them. Attempts everything, says what was done and what could not be, and returns the errors."""
+    failed: list[tuple[str, OSError | subprocess.SubprocessError]] = []
+    try:
+        failed += restore_each(root, before, baseline_snapshot(root, h.baseline))
+    except RESTORE_ERRORS as exc:
+        failed.append((", ".join(h.baseline), exc))
+    if tree_before is not None:
+        try:
+            reverted, left, stray_failed = put_back_strays(
+                root, tree_before, worktree_state(root), h.baseline, dirs or set()
+            )
+            failed += stray_failed
+            for rel in reverted:
+                print(f"GOLDEN-UPDATE-REVERTED {rel}", file=OUT)
+            for rel in left:
+                print(f"GOLDEN-UPDATE-LEFT {rel}", file=OUT)
+        except RESTORE_ERRORS as exc:
+            failed.append(("the files outside the baseline", exc))
+    for rel, exc in failed:
+        print(f"GOLDEN-UPDATE-UNRESTORED {h.name}: {rel}: {exc}", file=OUT)
     OUT.flush()
+    return [exc for _, exc in failed]
 
 
 def _record(
@@ -722,45 +804,51 @@ def _update_one(
     print(f"==> {h.name}: re-recording {', '.join(h.baseline)}", file=OUT, flush=True)
     before = baseline_snapshot(root, h.baseline)
     tree_before = worktree_state(root)
+    dirs = existing_dirs(root)
     try:
         kept = _record(root, h, passthrough, products, before, tree_before)
-    except BaseException:
-        _put_back(root, h, before, tree_before)
+    except BaseException as exc:
+        # The interrupt is what is raised; a restore that failed on the way rides along as its cause.
+        errors = _put_back(root, h, before, tree_before, dirs)
+        if errors and exc.__cause__ is None:
+            raise exc from errors[0]
         raise
     if not kept:
-        _put_back(root, h, before, tree_before)
+        _put_back(root, h, before, tree_before, dirs)
         return None
     return before
 
 
 def cmd_update(root: Path, selection: list[hr.Harness], passthrough: list[str]) -> int:
     """Re-record each test's baselines, one test at a time; then build again and run each as usual against what it
-    recorded, restoring a baseline that does not hold."""
+    recorded, restoring a baseline that does not hold. An interrupt anywhere puts back every baseline recorded but not
+    yet confirmed by its second run."""
     if why := owners_refusal(selection):
         print(f"test: {why}", file=sys.stderr)
         return 2
     builds = Builds(root, selection)
     outcomes: dict[str, Outcome] = {}
     recorded: list[tuple[hr.Harness, dict[str, bytes]]] = []
-    for h in selection:
-        missing = _missing(root, h, builds.known)
-        why = f"needs {', '.join(missing)}" if missing else builds.blocker(h)
-        if why:
-            outcomes[h.name] = Outcome(h.name, "FAIL", why)
-            print(f"--- {h.name}: not re-recorded, {why}", file=OUT, flush=True)
-            continue
-        before = _update_one(
-            root, h, passthrough if h.runner == "ctest" else [], builds.known
-        )
-        if before is None:
-            outcomes[h.name] = Outcome(h.name, "FAIL", "nothing re-recorded")
-        else:
-            recorded.append((h, before))
-    # Built again: a record header is compiled into what checks it.
-    confirm = Builds(root, [h for h, _ in recorded])
-    for i, (h, before) in enumerate(recorded):
-        print(f"==> {h.name}: the new baseline, run as usual", file=OUT, flush=True)
-        try:
+    confirmed = 0
+    try:
+        for h in selection:
+            missing = _missing(root, h, builds.known)
+            why = f"needs {', '.join(missing)}" if missing else builds.blocker(h)
+            if why:
+                outcomes[h.name] = Outcome(h.name, "FAIL", why)
+                print(f"--- {h.name}: not re-recorded, {why}", file=OUT, flush=True)
+                continue
+            before = _update_one(
+                root, h, passthrough if h.runner == "ctest" else [], builds.known
+            )
+            if before is None:
+                outcomes[h.name] = Outcome(h.name, "FAIL", "nothing re-recorded")
+            else:
+                recorded.append((h, before))
+        # Built again: a record header is compiled into what checks it.
+        confirm = Builds(root, [h for h, _ in recorded])
+        for h, before in recorded:
+            print(f"==> {h.name}: the new baseline, run as usual", file=OUT, flush=True)
             passed = confirm.blocker(h) is None and _run_one(
                 root,
                 h,
@@ -770,22 +858,21 @@ def cmd_update(root: Path, selection: list[hr.Harness], passthrough: list[str]) 
                 OUT,
                 confirm.known,
             )
-        except BaseException:
-            # Interrupted: no baseline from here on has held a second run.
-            for rest, rest_before in recorded[i:]:
-                for rel in restore(
-                    root, rest_before, baseline_snapshot(root, rest.baseline)
-                ):
-                    print(f"GOLDEN-UPDATE-REVERTED {rel}", file=OUT, flush=True)
-            raise
-        if not passed:
-            for rel in restore(root, before, baseline_snapshot(root, h.baseline)):
-                print(f"GOLDEN-UPDATE-REVERTED {rel}", file=OUT, flush=True)
-        outcomes[h.name] = Outcome(
-            h.name,
-            "PASS" if passed else "FAIL",
-            "" if passed else "the new baseline fails a second run; restored",
-        )
+            if not passed:
+                _put_back(root, h, before)
+            confirmed += 1
+            outcomes[h.name] = Outcome(
+                h.name,
+                "PASS" if passed else "FAIL",
+                "" if passed else "the new baseline fails a second run; restored",
+            )
+    except BaseException as exc:
+        errors: list[OSError | subprocess.SubprocessError] = []
+        for h, before in recorded[confirmed:]:
+            errors += _put_back(root, h, before)
+        if errors and exc.__cause__ is None:
+            raise exc from errors[0]
+        raise
     return _summarise([outcomes[h.name] for h in selection], strict=True, out=OUT)
 
 

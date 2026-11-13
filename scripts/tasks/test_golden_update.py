@@ -592,6 +592,42 @@ class UpdateOneTest(unittest.TestCase):
         self.assertEqual((self.root / "base.txt").read_text(), "old\n")
         self.assertFalse((self.root / "other.txt").exists())
 
+    def test_an_interrupt_whose_restore_fails_raises_the_interrupt_and_restores_the_rest(
+        self,
+    ):
+        def interrupted(root, *_args, **_kwargs):
+            (root / "base.txt").write_text("ha")
+            (root / "other.txt").write_text("x")
+            raise KeyboardInterrupt
+
+        broken = OSError("disk gone")
+        with (
+            mock.patch.object(tt, "_run_one", interrupted),
+            mock.patch.object(tt, "restore", side_effect=broken),
+            tempfile.TemporaryFile("w+") as out,
+            mock.patch.object(tt, "OUT", out),
+        ):
+            with self.assertRaises(KeyboardInterrupt) as cm:
+                tt._update_one(self.root, _script("t", "pass"), [], {})
+            out.seek(0)
+            text = out.read()
+        self.assertIs(cm.exception.__cause__, broken)
+        self.assertIn("GOLDEN-UPDATE-UNRESTORED t: base.txt: disk gone", text)
+        self.assertIn("GOLDEN-UPDATE-REVERTED other.txt", text)
+        self.assertFalse((self.root / "other.txt").exists())
+
+    def test_a_directory_that_existed_empty_survives_the_put_back(self):
+        (self.root / "keep").mkdir()
+        before, out = self._update(
+            "import pathlib; pathlib.Path('keep/f').write_text('x'); pathlib.Path('n/m').mkdir(parents=True);"
+            " pathlib.Path('n/m/f').write_text('x')"
+        )
+        self.assertIsNone(before)
+        self.assertIn("GOLDEN-UPDATE-REVERTED keep/f", out)
+        self.assertTrue((self.root / "keep").is_dir())
+        self.assertFalse((self.root / "keep" / "f").exists())
+        self.assertFalse((self.root / "n").exists())
+
     def test_worktree_state_names_a_rename_by_its_new_path(self):
         subprocess.run(
             ["git", "mv", "tracked.txt", "moved.txt"], cwd=self.root, check=True
@@ -657,6 +693,62 @@ class CmdUpdateTest(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertIn("GOLDEN-UPDATE-REVERTED base.txt", text)
         self.assertEqual((root / "base.txt").read_text(), "old\n")
+
+    @staticmethod
+    def _recorder(rel):
+        """Records `rel` as 'new' under the switch; otherwise passes."""
+        return (
+            "import os, pathlib\n"
+            "if os.environ.get('DELUGE_GOLDEN_UPDATE') == '1':\n"
+            f"    pathlib.Path('{rel}').write_text('new\\n')\n"
+            "    open(os.environ['DELUGE_GOLDEN_UPDATE_LOG'], 'a').write("
+            f"f'GOLDEN-UPDATED {{pathlib.Path.cwd()}}/{rel} a -> b\\n')\n"
+        )
+
+    def _interrupted_update(self, names, interrupt):
+        """cmd_update over one recorder per name (each owning <name>.txt), raising KeyboardInterrupt from the run
+        `interrupt(h, extra_env)` picks. Returns the root."""
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root, True)
+        subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+        for name in names:
+            (root / f"{name}.txt").write_text("old\n")
+        real = tt._run_one
+
+        def run_one(root_, h, *args, extra_env=None, **kwargs):
+            if interrupt(h, extra_env):
+                raise KeyboardInterrupt
+            return real(root_, h, *args, extra_env=extra_env, **kwargs)
+
+        selection = [
+            _script(n, self._recorder(f"{n}.txt"), (f"{n}.txt",)) for n in names
+        ]
+        with (
+            tempfile.TemporaryFile("w+") as out,
+            mock.patch.object(tt, "OUT", out),
+            mock.patch.object(tt.tb, "products", return_value={}),
+            mock.patch.object(tt, "_run_one", run_one),
+            self.assertRaises(KeyboardInterrupt),
+        ):
+            tt.cmd_update(root, selection, [])
+        return root
+
+    def test_an_interrupt_in_a_later_update_puts_back_the_earlier_unconfirmed_ones(
+        self,
+    ):
+        root = self._interrupted_update(
+            ["a", "b"], lambda h, extra: h.name == "b" and extra
+        )
+        self.assertEqual((root / "a.txt").read_text(), "old\n")
+        self.assertEqual((root / "b.txt").read_text(), "old\n")
+
+    def test_an_interrupt_in_a_confirming_run_puts_back_only_the_unconfirmed(self):
+        root = self._interrupted_update(
+            ["a", "b", "c"], lambda h, extra: h.name == "b" and not extra
+        )
+        self.assertEqual((root / "a.txt").read_text(), "new\n")
+        self.assertEqual((root / "b.txt").read_text(), "old\n")
+        self.assertEqual((root / "c.txt").read_text(), "old\n")
 
 
 if __name__ == "__main__":
