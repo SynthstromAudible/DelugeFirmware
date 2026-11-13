@@ -15,9 +15,10 @@ runner, tier and prerequisites. `./dbt test` runs any selection of them:
 A test whose prerequisites are missing is reported as skipped, with the reason; `--strict` (which CI passes) makes
 a skip fail the run.
 
-Each test also names its CI **job** (`render`, `app`, `model`, `storage`, `unit`, `unit-cpp`, `unit-cpp-variants`, `tooling`): CI runs one GitHub job per
-value, and `./dbt test --ci-matrix` prints that matrix. `render`, `app` and `model` run against a `golden_vt_render`
-built once for the whole run (`./dbt test --prebuilt`), so a test in them builds only `golden-vt-render`.
+Each test also names its CI **job** (`render`, `app`, `model`, `storage`, `unit`, `unit-cpp`, `unit-cpp-variants`,
+`tooling`): CI runs one GitHub job per value, and `./dbt test --ci-matrix` prints that matrix. `render`, `app` and
+`model` run against a `golden_vt_render` built once for the whole run (`./dbt test --prebuilt`), so a test in them
+builds only `golden-vt-render`.
 
 **The table below is generated.** Edit `registry.toml`, then regenerate it (the pre-commit hook does this when
 `registry.toml` is staged):
@@ -264,18 +265,23 @@ that fact anywhere a reader would look. The loader refuses a field it does not k
 ### Writing an entry
 
 - **`gates`** is one sentence of at most 160 characters, with no full stop: what the test gates, as the table shows
-  it. Everything else a reader needs -- the legs, the markers, why a check exists -- goes in a block in the file that
-  judges the test: a check module's docstring (scenario entries with a `check`), the scenario's or driver's `.cpp`
-  comment (scenario entries without one), the corpus runner's docstring, the script's own header, the crate's
-  `Cargo.toml` or the tree's `CMakeLists.txt`:
+  it. Everything else a reader needs -- the legs, the markers, why a check exists -- is the test's explanation, a
+  block in the file that judges it: a check module's docstring (scenario entries with a `check`), the scenario's or
+  driver's `.cpp` comment (scenario entries without one), the corpus runner's docstring, the crate's `Cargo.toml`,
+  the tree's `CMakeLists.txt`, or, for a script entry, the header of the file its `run` runs:
 
       Gate <name>:
           <the explanation, indented under the header>
 
+  A script entry's file is in its `path`: the program `run` starts with, the script after `python3`, or
+  `<module>.py` for `python3 -m <module>`. For `python3 -m unittest` it is the first module named, and with none
+  named, or `discover`, the module named after `path`'s last directory (`path = "tools/x"` reads `tools/x/x.py`);
+  the loader refuses a `run` from which it cannot name one.
   A check whose entries' explanations would swamp its docstring keeps them in a notes file beside it, one
   `## <name>` section per entry (`harness_registry.CHECK_NOTES`: `render_song.py`'s are in `render_song_cases.md`).
-  `./dbt test --list --verbose <name>` prints the explanation, and a registry unit test refuses a block whose entry
-  is gone.
+  `./dbt test --list --verbose <name>` prints the explanation. Every entry has one, unless its gates line says
+  everything: such an entry is listed in `NO_EXPLANATION` (`scripts/tasks/test_harness_registry.py`), and
+  `registry-selftest` fails on any other entry without an explanation, and on a block whose entry is gone.
 - **`runtime_s`** is the whole seconds a run takes with its build products already built. A cold build's cost goes in
   a comment above it. A test with no natural end states its usual run, and a comment says so.
 - **`path`** belongs only to `cargo` and `script` entries: the directory their commands run in. A ctest entry runs in
@@ -286,9 +292,18 @@ that fact anywhere a reader would look. The loader refuses a field it does not k
   (`render-song`, `render-preset`, `scenario-driver`, `scenario`, `corpus`, `unittest`). An entry that sets a field its
   template also sets must list it, `override = ["markers"]`; an undeclared difference, an override that changes
   nothing and an override of a field the entry does not set are all refused. Templates do not nest.
+  A `render-song` entry adds its `gates` and the song it plays: `env = { RENDER_GENERATED = "<song>" }` for a song
+  `tests/integration/golden/songs/make_render_song.py` generates, or `RENDER_SONG` with its `GOLDEN_FIXTURE` card for
+  a song from the corpus (with neither, it plays RS_STREAM); its explanation is a `## <name>` section in
+  `tests/integration/checks/render_song_cases.md`, and `./dbt test --update <name>` records its output
+  (`render_song.py`'s docstring has the rest).
+  A `unittest` entry adds `path`, `gates` and `run` (`["python3", "-m", "unittest", "<module>", ...]`, run in
+  `path`); its explanation is a `Gate <name>:` block in the docstring of the first module `run` names.
 - **Variants.** `variants = ["asan"]` on a scenario entry generates `app-asan-<name>`: the entry's scenario, markers,
   result and check on the host app built with AddressSanitizer (`[variant.asan]` gives its builds, environment, job
-  and tier). `variant_fields = { asan = { runtime_s = N } }` sets the copy's run time. A copy never owns a baseline.
+  and tier). `variant_fields = { asan = { runtime_s = N } }` sets the copy's run time. The copy's explanation is a
+  `Gate app-asan-<name>:` block in the base's file, the one that judges both. A copy never owns a baseline:
+  `./dbt test --update <name>` re-records the base, and the copy only checks.
 - `./dbt test --dump-expanded` prints every entry as the runner sees it, templates and variants applied; a rewrite of
   the registry that changes no test leaves it identical.
 

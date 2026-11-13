@@ -25,11 +25,12 @@
 #         only golden-vt-render
 # runtime_s: whole seconds a run takes with its build products already built (a comment gives a cold build's)
 # gates:  one sentence, at most 160 characters (harness_registry.gates_problem); the rest is a "Gate <name>:"
-#         block in the file that judges the test -- ./dbt test --list --verbose <name> prints it
+#         block in the file that judges the test, or a `## <name>` section in its check's notes
+#         (harness_registry.CHECK_NOTES) -- ./dbt test --list --verbose <name> prints it
 # template: [template.<name>] holds fields its entries share; an entry that sets one of them anyway lists it in
 #         `override`, or the loader refuses it. Templates do not nest.
-# variants: ["asan"] generates [variant.asan]'s copy of the entry after every entry written here; the copy never
-#         owns a baseline. variant_fields = { asan = { runtime_s = N } } sets that copy's run time.
+# variants: ["asan"] (scenario entries only) generates [variant.asan]'s copy of the entry after every entry written
+#         here; the copy never owns a baseline. variant_fields = { asan = { runtime_s = N } } sets that copy's run time.
 
 # A song rendered on the audio tier through the real load browser, compared with its record in songs.json
 # (tests/integration/checks/render_song.py).
