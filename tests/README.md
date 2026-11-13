@@ -315,7 +315,10 @@ shell is ignored). Each test runs as usual but writes what it would have compare
 - prints one `GOLDEN-UPDATED <file or file:key> <old> -> <new>` line per item that changed, or `GOLDEN-UPDATED none`;
 - fails, and puts every baseline file back as it was (`GOLDEN-UPDATE-REVERTED <path>`), when the run failed (a crash
   or a failed check is not a new baseline), when a file outside the entry's `baseline` changed, or when a baseline
-  changed with no line saying so;
+  changed with no line saying so (its `GOLDEN-UPDATED` lines are printed as `GOLDEN-UPDATE-DISCARDED`). What it wrote
+  outside `baseline` is put back too: a file that was clean takes its committed content again, a new file is deleted,
+  and a file you had already changed or added before the run is left as it is (`GOLDEN-UPDATE-LEFT <path>`). An
+  interrupt (Ctrl-C) puts everything back the same way;
 - builds again and runs each test as usual: a new baseline that fails that second run is put back too.
 
 **Evidence.** A changed baseline is a finding. Commit it with its `GOLDEN-UPDATED` lines in the commit body and, for
@@ -324,8 +327,8 @@ regression: do not commit it.
 
 **Writing an owner.** Python checks and runners use `scripts/tasks/golden_update.py`
 (`updating(gate.env)`, `write_bytes`, `write_text`, `write_json`, `update_json_key`, `remove`); C++ specs and scenarios
-use `tests/support/golden_update.h`. A record header keeps its generated lines between
-`// GOLDEN-RECORDS BEGIN <region>` and `// GOLDEN-RECORDS END <region>` and its spec hands them over with
-`golden::record` (`scripts/tasks/golden_records.py` rewrites the region). An owner re-records only the comparison it
+use `tests/support/golden_update.h` (added with the first C++ owner). A record header keeps its generated lines
+between `// GOLDEN-RECORDS BEGIN <region>` and `// GOLDEN-RECORDS END <region>` and its spec hands them over with
+`golden::record` (added with the first C++ owner; `scripts/tasks/golden_records.py` rewrites the region). An owner re-records only the comparison it
 owns; every other check of the run still applies. A registry unit test checks that an entry lists a baseline exactly
 when its code records one.

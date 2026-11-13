@@ -11,6 +11,7 @@ import io
 import json
 import multiprocessing
 import os
+import shutil
 import stat
 import subprocess
 import sys
@@ -98,6 +99,7 @@ class UpdatingTest(unittest.TestCase):
 class WriterTest(unittest.TestCase):
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.dir, True)
         self.log = self.dir / "log"
         self.env = _env(self.log)
 
@@ -254,6 +256,7 @@ class RecordsTest(unittest.TestCase):
 
     def test_apply_reports_a_changed_region_and_leaves_an_unchanged_one(self):
         root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root, True)
         (root / "h.h").write_text(self.HEADER)
         lines = [
             "GOLDEN-RECORD h.h kA     1, // one",
@@ -277,6 +280,7 @@ def _append_lines(log: str, n: int, tag: str) -> None:
 class ExactOutputTest(unittest.TestCase):
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.dir, True)
         self.log = self.dir / "log"
         self.env = _env(self.log)
 
@@ -353,6 +357,7 @@ class RecordFileTest(unittest.TestCase):
 
     def test_only_the_regions_change_in_a_multi_region_header(self):
         root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root, True)
         (root / "h.h").write_bytes(self.MULTI.encode())
         gr.apply(root, ["GOLDEN-RECORD h.h kA     9,", "GOLDEN-RECORD h.h kB     2,"])
         self.assertEqual(
@@ -361,6 +366,7 @@ class RecordFileTest(unittest.TestCase):
 
     def test_crlf_survives(self):
         root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root, True)
         crlf = self.MULTI.replace("\n", "\r\n")
         (root / "h.h").write_bytes(crlf.encode())
         updated = gr.apply(root, ["GOLDEN-RECORD h.h kA     9,"])
@@ -371,6 +377,7 @@ class RecordFileTest(unittest.TestCase):
 
     def test_an_unchanged_tree_logs_nothing_and_keeps_mtime(self):
         root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root, True)
         (root / "h.h").write_bytes(self.MULTI.encode())
         os.utime(root / "h.h", (1, 1))
         self.assertEqual(
@@ -383,6 +390,7 @@ class RecordFileTest(unittest.TestCase):
 
     def test_a_duplicated_marker_is_an_error_naming_the_header(self):
         root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root, True)
         dup = self.MULTI + "\n// GOLDEN-RECORDS BEGIN kA\n"
         (root / "h.h").write_bytes(dup.encode())
         with self.assertRaisesRegex(ValueError, "h.h region kA"):
@@ -454,9 +462,24 @@ class UpdateOneTest(unittest.TestCase):
 
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.root, True)
         subprocess.run(["git", "init", "-q"], cwd=self.root, check=True)
         (self.root / "base.txt").write_text("old\n")
         (self.root / "h.h").write_text(RecordsTest.HEADER)
+        (self.root / "tracked.txt").write_text("committed\n")
+        git = [
+            "git",
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@example.invalid",
+            "-c",
+            "commit.gpgsign=false",
+        ]
+        subprocess.run(["git", "add", "."], cwd=self.root, check=True)
+        subprocess.run(
+            [*git, "commit", "-q", "--no-verify", "-m", "x"], cwd=self.root, check=True
+        )
 
     def _update(self, code, baseline=("base.txt",)):
         with tempfile.TemporaryFile("w+") as out, mock.patch.object(tt, "OUT", out):
@@ -503,6 +526,79 @@ class UpdateOneTest(unittest.TestCase):
         )
         self.assertIsNone(before)
         self.assertIn("other.txt changed, and it is not among t's baselines", out)
+        self.assertIn("GOLDEN-UPDATE-REVERTED other.txt", out)
+        self.assertFalse((self.root / "other.txt").exists())
+
+    def test_a_new_file_in_a_new_directory_is_removed_with_it(self):
+        before, out = self._update(
+            "import pathlib; pathlib.Path('d/e').mkdir(parents=True); pathlib.Path('d/e/f').write_text('x')"
+        )
+        self.assertIsNone(before)
+        self.assertIn("GOLDEN-UPDATE-REVERTED d/e/f", out)
+        self.assertFalse((self.root / "d").exists())
+
+    def test_a_clean_tracked_file_written_outside_the_baseline_takes_its_committed_content(
+        self,
+    ):
+        before, out = self._update(
+            "import pathlib; pathlib.Path('tracked.txt').write_text('x')"
+        )
+        self.assertIsNone(before)
+        self.assertIn("GOLDEN-UPDATE-REVERTED tracked.txt", out)
+        self.assertEqual((self.root / "tracked.txt").read_text(), "committed\n")
+
+    def test_a_clean_tracked_file_deleted_outside_the_baseline_comes_back(self):
+        before, out = self._update(
+            "import pathlib; pathlib.Path('tracked.txt').unlink()"
+        )
+        self.assertIsNone(before)
+        self.assertIn("GOLDEN-UPDATE-REVERTED tracked.txt", out)
+        self.assertEqual((self.root / "tracked.txt").read_text(), "committed\n")
+
+    def test_a_change_of_the_callers_own_is_left(self):
+        (self.root / "tracked.txt").write_text("mine\n")
+        (self.root / "notes.txt").write_text("mine\n")
+        code = "import pathlib; pathlib.Path('tracked.txt').write_text('run'); pathlib.Path('notes.txt').write_text('run')"
+        before, out = self._update(code)
+        self.assertIsNone(before)
+        self.assertIn("GOLDEN-UPDATE-LEFT notes.txt", out)
+        self.assertIn("GOLDEN-UPDATE-LEFT tracked.txt", out)
+        self.assertEqual((self.root / "tracked.txt").read_text(), "run")
+        self.assertEqual((self.root / "notes.txt").read_text(), "run")
+
+    def test_a_failed_run_discards_its_lines(self):
+        code = self.LOGS + (
+            "(root / 'base.txt').write_text('new\\n')\n"
+            "log.write(f'GOLDEN-UPDATED {root}/base.txt a -> b\\n')\n"
+            "raise SystemExit(1)\n"
+        )
+        before, out = self._update(code)
+        self.assertIsNone(before)
+        self.assertIn("GOLDEN-UPDATE-DISCARDED base.txt a -> b\n", out)
+        self.assertNotRegex(out, r"(?m)^GOLDEN-UPDATED")
+        self.assertEqual((self.root / "base.txt").read_text(), "old\n")
+
+    def test_an_interrupt_mid_write_puts_everything_back(self):
+        def interrupted(root, *_args, **_kwargs):
+            (root / "base.txt").write_text("ha")
+            (root / "other.txt").write_text("x")
+            raise KeyboardInterrupt
+
+        with (
+            mock.patch.object(tt, "_run_one", interrupted),
+            self.assertRaises(KeyboardInterrupt),
+        ):
+            self._update("pass")
+        self.assertEqual((self.root / "base.txt").read_text(), "old\n")
+        self.assertFalse((self.root / "other.txt").exists())
+
+    def test_worktree_state_names_a_rename_by_its_new_path(self):
+        subprocess.run(
+            ["git", "mv", "tracked.txt", "moved.txt"], cwd=self.root, check=True
+        )
+        state = tt.worktree_state(self.root)
+        self.assertIn("moved.txt", state)
+        self.assertNotIn("tracked.txt", state)
 
     def test_record_lines_rewrite_the_header(self):
         code = self.LOGS + "log.write('GOLDEN-RECORD h.h kA     9, // nine\\n')\n"
@@ -519,9 +615,25 @@ class UpdateOneTest(unittest.TestCase):
         self.assertNotIn("nine", (self.root / "h.h").read_text())
 
 
+class MainTest(unittest.TestCase):
+    def test_a_callers_switch_is_stripped_and_reported(self):
+        with mock.patch.dict(os.environ, {gu.SWITCH: "1", gu.LOG: "/x"}):
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                rc = tt.main(["--update"])
+            self.assertNotIn(gu.SWITCH, os.environ)
+            self.assertNotIn(gu.LOG, os.environ)
+        self.assertEqual(rc, 2)
+        self.assertIn(
+            f"test: {gu.SWITCH} in the environment is ignored", err.getvalue()
+        )
+        self.assertIn(f"test: {gu.LOG} in the environment is ignored", err.getvalue())
+
+
 class CmdUpdateTest(unittest.TestCase):
     def test_a_baseline_that_fails_its_second_run_is_restored(self):
         root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root, True)
         subprocess.run(["git", "init", "-q"], cwd=root, check=True)
         (root / "base.txt").write_text("old\n")
         # Records a value no second run accepts: the stand-in for a render that differs run to run.

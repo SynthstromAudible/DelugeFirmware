@@ -11,7 +11,7 @@
 ./dbt test --capture <label>                 # run the estate and record its marker lines
 ./dbt test --ci-matrix --tier pr             # the selection by CI group, as JSON
 ./dbt test --update-readme                   # regenerate tests/README.md's table
-./dbt test --update golden-synth            # re-record the named tests' baselines
+./dbt test --update golden-synth             # re-record the named tests' baselines
 ./dbt test --clean                           # drop the shared cargo target dir
 """
 
@@ -554,7 +554,7 @@ def worktree_state(root: Path) -> dict[str, str]:
         i += 1
         if not entry:
             continue
-        if entry[0] in "RC":
+        if "R" in entry[:2] or "C" in entry[:2]:
             i += 1  # a rename or copy names its source next
         path = root / entry[3:]
         state[entry[3:]] = (
@@ -596,18 +596,69 @@ def evidence(
     return (updated or [f"{tag} none"]), problems
 
 
-def _update_one(
-    root: Path, h: hr.Harness, passthrough: list[str], products: dict[str, tb.Product]
-) -> dict[str, bytes] | None:
-    """Run `h` once re-recording, print what changed, and keep it only if the run passed and every change is one of
-    its baselines and was said. Returns the baselines as they were before (for a later restore), or None when
-    nothing was kept.
+def put_back_strays(
+    root: Path, before: dict[str, str], after: dict[str, str], paths: list[str]
+) -> tuple[list[str], list[str]]:
+    """Undo the run's writes outside `paths`, given worktree_state() before and after it: a file that was clean takes
+    its committed content again, a file that did not exist is deleted. A path git already reported before the run
+    holds the caller's own change, which is never touched. Returns the paths put back and the paths left."""
+    reverted, left = [], []
+    for rel in strays(before, after, paths):
+        if rel in before:
+            left.append(rel)
+            continue
+        committed = (
+            subprocess.run(
+                ["git", "cat-file", "-e", f"HEAD:{rel}"],
+                cwd=root,
+                capture_output=True,
+                check=False,
+            ).returncode
+            == 0
+        )
+        if committed:
+            subprocess.run(
+                ["git", "restore", "--source=HEAD", "--worktree", "--", rel],
+                cwd=root,
+                check=True,
+            )
+        else:
+            path = root / rel
+            path.unlink(missing_ok=True)
+            # The directories the run made for it, emptied.
+            for parent in path.parents:
+                if parent == root or not parent.is_dir() or any(parent.iterdir()):
+                    break
+                parent.rmdir()
+        reverted.append(rel)
+    return reverted, left
 
-    The log, and the locks golden_update keeps beside it, live in a directory of their own outside the repository,
-    so recording leaves nothing in the worktree but the baselines."""
-    print(f"==> {h.name}: re-recording {', '.join(h.baseline)}", file=OUT, flush=True)
-    before = baseline_snapshot(root, h.baseline)
-    tree_before = worktree_state(root)
+
+def _put_back(
+    root: Path, h: hr.Harness, before: dict[str, bytes], tree_before: dict[str, str]
+) -> None:
+    """Put `h`'s baselines back as `before` holds them, and undo its writes outside them, saying what was done."""
+    for rel in restore(root, before, baseline_snapshot(root, h.baseline)):
+        print(f"GOLDEN-UPDATE-REVERTED {rel}", file=OUT)
+    reverted, left = put_back_strays(
+        root, tree_before, worktree_state(root), h.baseline
+    )
+    for rel in reverted:
+        print(f"GOLDEN-UPDATE-REVERTED {rel}", file=OUT)
+    for rel in left:
+        print(f"GOLDEN-UPDATE-LEFT {rel}", file=OUT)
+    OUT.flush()
+
+
+def _record(
+    root: Path,
+    h: hr.Harness,
+    passthrough: list[str],
+    products: dict[str, tb.Product],
+    before: dict[str, bytes],
+    tree_before: dict[str, str],
+) -> bool:
+    """Run `h` re-recording and judge what it wrote; True when every change is kept."""
     scratch = Path(tempfile.mkdtemp(prefix=f"{h.name}.golden-update."))
     log = scratch / "update.log"
     log.touch()
@@ -642,16 +693,43 @@ def _update_one(
     printed, wrong = evidence(root, lines, changed_files(before, after))
     if ok:
         problems += wrong
+    if problems:
+        # What the run wrote is about to be put back: its lines are not a record of anything kept.
+        tag = golden_update.TAG
+        printed = [
+            f"GOLDEN-UPDATE-DISCARDED {line[len(tag) + 1 :]}"
+            for line in printed
+            if line != f"{tag} none"
+        ]
     for line in printed:
         print(line, file=OUT)
     for problem in problems:
         print(f"GOLDEN-UPDATE-FAIL {h.name}: {problem}", file=OUT)
-    if problems:
-        for rel in restore(root, before, after):
-            print(f"GOLDEN-UPDATE-REVERTED {rel}", file=OUT)
-        OUT.flush()
-        return None
     OUT.flush()
+    return not problems
+
+
+def _update_one(
+    root: Path, h: hr.Harness, passthrough: list[str], products: dict[str, tb.Product]
+) -> dict[str, bytes] | None:
+    """Run `h` once re-recording, print what changed, and keep it only if the run passed and every change is one of
+    its baselines and was said; otherwise put back the baselines and whatever else it wrote. Returns the baselines as
+    they were before (for a later restore), or None when nothing was kept.
+
+    The log, and the locks golden_update keeps beside it, live in a directory of their own outside the repository,
+    so recording leaves nothing in the worktree but the baselines. An interrupt (Ctrl-C) mid-write puts everything
+    back too, so no baseline is left half written."""
+    print(f"==> {h.name}: re-recording {', '.join(h.baseline)}", file=OUT, flush=True)
+    before = baseline_snapshot(root, h.baseline)
+    tree_before = worktree_state(root)
+    try:
+        kept = _record(root, h, passthrough, products, before, tree_before)
+    except BaseException:
+        _put_back(root, h, before, tree_before)
+        raise
+    if not kept:
+        _put_back(root, h, before, tree_before)
+        return None
     return before
 
 
@@ -680,17 +758,26 @@ def cmd_update(root: Path, selection: list[hr.Harness], passthrough: list[str]) 
             recorded.append((h, before))
     # Built again: a record header is compiled into what checks it.
     confirm = Builds(root, [h for h, _ in recorded])
-    for h, before in recorded:
+    for i, (h, before) in enumerate(recorded):
         print(f"==> {h.name}: the new baseline, run as usual", file=OUT, flush=True)
-        passed = confirm.blocker(h) is None and _run_one(
-            root,
-            h,
-            passthrough if h.runner == "ctest" else [],
-            False,
-            None,
-            OUT,
-            confirm.known,
-        )
+        try:
+            passed = confirm.blocker(h) is None and _run_one(
+                root,
+                h,
+                passthrough if h.runner == "ctest" else [],
+                False,
+                None,
+                OUT,
+                confirm.known,
+            )
+        except BaseException:
+            # Interrupted: no baseline from here on has held a second run.
+            for rest, rest_before in recorded[i:]:
+                for rel in restore(
+                    root, rest_before, baseline_snapshot(root, rest.baseline)
+                ):
+                    print(f"GOLDEN-UPDATE-REVERTED {rel}", file=OUT, flush=True)
+            raise
         if not passed:
             for rel in restore(root, before, baseline_snapshot(root, h.baseline)):
                 print(f"GOLDEN-UPDATE-REVERTED {rel}", file=OUT, flush=True)
