@@ -59,8 +59,8 @@
 ///
 /// @par This is a poll, not a caller-driven popup -- unlike `ParamPopupScene`
 ///
-/// `ParamPopupScene::show()` is called by a caller sitting inside the input pipeline (a future
-/// `ModKnobs::mod_encoder_action`), so that caller's own `Result` can ask for a repaint the same
+/// `ParamPopupScene::show()` is called by a caller sitting inside the input pipeline
+/// (`GuestKnobPresentation::show_value_popup`), so that caller's own `Result` can ask for a repaint the same
 /// tick. The count-in digit has no such caller: legacy's own mechanism is a poll -- "the tick tree
 /// only moves `currentVisualCountForCountIn` ... the digit is formatted and shown [in the drain],
 /// in task context" (`notify_drain.cpp`) -- run every drain pass, unconditionally, whether or

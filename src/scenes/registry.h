@@ -81,9 +81,9 @@ uint16_t assigned_node_ids();
 ///
 ///   * **The three services are installed** -- `services::ModKnobs`, `services::GlobalControls`,
 ///     `services::MidiLearn`. Each is constructed from a `SceneStack&` (the first two also from an
-///     `InputLowering&`) and each *uses* it: `ModKnobs::show_popup` pushes
-///     `overlay::ParamPopupScene` onto that stack (`ModKnobs::show_popup`) and
-///     `ModKnobs::popup_suppressed` and `ModKnobs::mod_encoder_button_action`
+///     `InputLowering&`) and each *uses* it: its `GuestKnobPresentation` pushes
+///     `overlay::ParamPopupScene` onto that stack (`GuestKnobPresentation::show_value_popup`), and
+///     `GuestKnobPresentation::suppress_value_popup` and `ModKnobs::push`
 ///     read `stack_.input_top()`; `GlobalControls::handle` gates its whole `View::buttonAction`
 ///     group on `stack_.input_top().is_root()` (`GlobalControls::handle`);
 ///     `MidiLearn::handle` reads the same. The only `SceneStack`

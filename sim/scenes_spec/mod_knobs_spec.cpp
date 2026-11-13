@@ -19,7 +19,7 @@
 ///   * **The popup's performance-view and song-browser suppression arms** (`view.cpp`,
 ///     `:885`). `PerformanceScene` does not exist and the song browser is not among the legacy UIs
 ///     `BrowserScene` carries, so there is no port-side state that could make either fire. See
-///     `ModKnobs::popup_suppressed`.
+///     `GuestKnobPresentation::suppress_value_popup`.
 ///   * **`PopupContext::stuttering` true**: no example plays a stutter while a knob turns.
 ///   * **`PopupContext::midi_clip`, the MIDI-clip CC/expression naming arm** (`view.cpp`): no example
 ///     compares its text with legacy's. The filter-aware naming half of the context IS driven, below.

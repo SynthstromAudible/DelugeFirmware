@@ -44,7 +44,6 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
-#include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
 #include "playback/playback_handler.h"
 
@@ -57,10 +56,8 @@ using deluge::modulation::params::Kind;
 using deluge::project::ParamAddress;
 using deluge::project::ParamSpace;
 using deluge::ui::EncoderRole;
-using deluge::ui::shell::Action;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::Result;
-using deluge::ui::shell::SceneId;
 using deluge::ui::shell::UiEvent;
 
 namespace {
@@ -99,17 +96,6 @@ int32_t legacy_id(const ParamAddress& address, Kind kind) {
 	}
 	const std::optional<deluge::instrument::RuntimeSlot> slot = deluge::instrument::runtime_slot(address.id);
 	return slot ? slot->index : 0;
-}
-
-/// @brief Show @p text as a popup that stays until a mod button's release cancels it (`display->popupText`).
-void popup_text(const std::string& text) {
-	deluge::notify::Notice n;
-	n.kind = deluge::notify::Notice::Kind::Text;
-	n.severity = deluge::notify::Notice::Severity::Warn; // stays until something removes it
-	const size_t length = std::min(text.size(), sizeof(n.text) - 1);
-	std::copy_n(text.data(), length, n.text);
-	n.text[length] = '\0';
-	(void)deluge::notify::notices().push(n);
 }
 
 } // namespace
@@ -232,8 +218,8 @@ Result ModKnobs::handle(const deluge::ui::shell::UiEvent& event, const deluge::u
 	if (event.kind == UiEvent::Kind::Button) {
 		const int32_t which = static_cast<int32_t>(event.button) - static_cast<int32_t>(ButtonId::Mod0);
 		if (which >= 0 && which < kNumModButtons) {
-			mod_button_action(which, event.on);
-			Result r;
+			section_button(which, event.on, guest_);
+			Result r = guest_.take_result();
 			r.handled = true;
 			return r;
 		}
@@ -246,8 +232,11 @@ Result ModKnobs::handle(const deluge::ui::shell::UiEvent& event, const deluge::u
 			const int32_t current = mode();
 			const bool mode_held =
 			    current >= 0 && ctx.held.has(static_cast<ButtonId>(static_cast<uint8_t>(ButtonId::Mod0) + current));
-			return mod_encoder_button_action(event.button == ButtonId::ModEnc0 ? 0 : 1, event.on, ctx.shift,
-			                                 ctx.held.has(ButtonId::Learn), mode_held);
+			push(event.button == ButtonId::ModEnc0 ? 0 : 1, event.on,
+			     {.shift = ctx.shift, .learn = ctx.held.has(ButtonId::Learn), .mode_held = mode_held}, guest_);
+			Result r = guest_.take_result();
+			r.handled = true;
+			return r;
 		}
 		return Result::unhandled();
 	}
@@ -272,27 +261,26 @@ Result ModKnobs::handle(const deluge::ui::shell::UiEvent& event, const deluge::u
 	const double speed =
 	    event.lowered ? 1.0 : lowering_.calc_next_knob_speed(event.encoder, event.delta, ctx.acceleration_clock_ms);
 	const int32_t offset = static_cast<int8_t>(static_cast<double>(event.delta) * speed);
-	return mod_encoder_action(which_encoder, offset, ctx.now_ms);
+	// Legacy consumes a gold-knob turn unconditionally.
+	turn(which_encoder, offset, ctx.now_ms, guest_);
+	Result r = guest_.take_result();
+	r.handled = true;
+	return r;
 }
 
-Result ModKnobs::mod_encoder_action(int32_t which_encoder, int32_t offset, uint32_t now_ms) {
-	// `View::modEncoderAction`. Legacy consumes a gold-knob turn unconditionally.
+void ModKnobs::turn(int32_t knob, int32_t offset, uint32_t now_ms, KnobPresentation& out) {
+	// `View::modEncoderAction`.
 	if (!bound() || std::holds_alternative<std::monostate>(focus_->owner)) {
-		Result result;
-		result.handled = true;
-		return result;
+		return;
 	}
-	Result result = turn_knob(which_encoder, offset, now_ms);
+	turn_knob(knob, offset, now_ms, out);
 	// Every turn on a clip marks its instrument edited, whatever it wrote.
 	if (is_clip_context(*focus_)) {
 		(void)menu::host_controls_sink().instrument_edited(*focus_);
 	}
-	return result;
 }
 
-Result ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms) {
-	Result result;
-	result.handled = true;
+void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms, KnobPresentation& out) {
 	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
 	controls::Sink& sink = menu::host_controls_sink();
 	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder);
@@ -307,11 +295,11 @@ Result ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_m
 				deluge::notify::notice_notification(turn.title, turn.value_text);
 			}
 		}
-		return result;
+		return;
 	}
 	const auto* address = std::get_if<ParamAddress>(&assignment.target);
 	if (address == nullptr) {
-		return result;
+		return;
 	}
 
 	// `View::modEncoderAction_existentParam`. A knob on a param its owner does not hold yet reads 0: the write
@@ -325,13 +313,12 @@ Result ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_m
 	turn.old_knob_pos = bind::knob_pos_of(*address, info, value.value_or(0));
 	turn.new_knob_pos = bind::turn(bind::knob_kind(*address), turn.old_knob_pos, offset);
 
-	// The popup, and the tests that suppress it.
-	if (!popup_suppressed(turn) && show_popup(turn, now_ms)) {
-		(void)result.actions.push_back(
-		    Action{.kind = Action::Kind::Repaint, .surface = deluge::ui::shell::SurfaceRole::Main});
+	// The popup, unless the presentation shows the value its own way.
+	if (!out.suppress_value_popup(turn)) {
+		show_popup(turn, now_ms, out);
 	}
 	if (turn.new_knob_pos == turn.old_knob_pos) {
-		return result;
+		return;
 	}
 
 	const auto* sound = std::get_if<bind::SoundFocus>(&focus_->owner);
@@ -339,8 +326,9 @@ Result ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_m
 	const int32_t new_value = bind::value_of_knob(*address, info, turn.new_knob_pos);
 	const int32_t pos = at_region ? static_cast<int32_t>(focus_->region.pos) : 0;
 	if (!sink.write_param(*address, new_value, pos, static_cast<int32_t>(focus_->region.length))) {
-		return result; // refused: nothing changed, so nothing is fed back
+		return; // refused: nothing changed, so nothing is fed back
 	}
+	out.value_written();
 	turn.value_changed = true;
 	turn.note_tails_changed = sound != nullptr && sound->clip && tails_before != facts.allows_note_tails(sound->slot);
 
@@ -349,37 +337,12 @@ Result ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_m
 
 	send_midi_follow_feedback(turn.kind, turn.param_id, turn.new_knob_pos, true, false);
 	if (turn.note_tails_changed) {
-		// The pads the shell draws, and the root view's under a menu, which the legacy UI draws.
-		deluge::notify::raise(deluge::notify::Dirty::GridMain);
-		(void)result.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+		out.note_tails_changed();
 	}
-	potentially_make_it_harder_to_turn_knob(which_encoder, turn);
-	return result;
+	potentially_make_it_harder_to_turn_knob(which_encoder, turn, out);
 }
 
-bool ModKnobs::popup_suppressed(const ModTurn& turn) const {
-	// `View::modEncoderAction_existentParam`'s "let's see if we're editing the same param in the menu, if so, don't
-	// show pop-up". `SoundEditor`'s port is `MenuScene`, so legacy's `getCurrentUI() == &soundEditor` is this identity
-	// test against the one menu interpreter (`scenes/registry.h`'s `menu_scene()`) -- not a `kind()` comparison, which
-	// would only *infer* that the scene on top is that object.
-	//
-	// The other two arms (performance view, the song browser) have no scene to
-	// ask yet; the header records both as uncovered rather than guessed at.
-	if (&stack_.input_top() != static_cast<const deluge::ui::shell::Scene*>(&menu_scene())) {
-		return false;
-	}
-	// `focused_value()`, not `focused()`: legacy's same-param test forwards through a horizontal
-	// page to the focused value column (`Submenu::shouldForwardButtons`,
-	// `Submenu::shouldForwardButtons`) -- the page node itself has no `bind.param` to compare
-	// against, so `focused()` alone would never suppress the popup on a horizontal menu at all.
-	const menu::Node* focused = menu_scene().focused_value();
-	if (focused == nullptr || !focused->bind.param.valid()) {
-		return false;
-	}
-	return focused->bind.param.kind == turn.kind && static_cast<int32_t>(focused->bind.param.index) == turn.param_id;
-}
-
-bool ModKnobs::show_popup(const ModTurn& turn, uint32_t now_ms) {
+void ModKnobs::show_popup(const ModTurn& turn, uint32_t now_ms, KnobPresentation& out) {
 	// The two patch sources, then the popup itself.
 	PatchSource source1 = PatchSource::NONE;
 	PatchSource source2 = PatchSource::NONE;
@@ -409,21 +372,11 @@ bool ModKnobs::show_popup(const ModTurn& turn, uint32_t now_ms) {
 		}
 	}
 	context.stuttering = menu::host_runtime_facts().stutter_active();
-
-	// The popup's `show` reports whether it redrew; a second detent on an open popup moves its text, and only the
-	// caller's `Repaint` draws it.
-	const bool committed = popup_.show(turn.kind, turn.param_id, turn.new_knob_pos, source1, source2, now_ms, context);
-	// The popup is a scene: pushed when not stacked yet (it is input-transparent, so one may sit above it).
-	for (const deluge::ui::shell::Scene* scene : stack_.scenes()) {
-		if (scene->kind() == overlay::kParamPopupSceneKind) {
-			return committed;
-		}
-	}
-	(void)stack_.push(SceneId{.kind = overlay::kParamPopupSceneKind});
-	return committed;
+	out.show_value_popup(turn, source1, source2, context, now_ms);
 }
 
-void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, const ModTurn& turn) {
+void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, const ModTurn& turn,
+                                                       KnobPresentation& out) {
 	// `View::potentiallyMakeItHarderToTurnKnob`.
 	if (which_encoder < 0 || which_encoder >= kKnobCount) {
 		return;
@@ -436,32 +389,19 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 	}
 
 	if (knob_pos == 0 && turn.should_indicate_middle_value) {
-		// One indicator blinks at a time (`indicator_leds.cpp`'s `whichLevelIndicatorBlinking`): starting
-		// this knob's blink ends the other's, which then shows its level again.
-		for (int32_t k = 0; k < kKnobCount; k++) {
-			blink_indicator_[k] = false;
-			blink_indicator_start_ms_[k] = 0;
-		}
-		blink_indicator_[which_encoder] = true;
-		blink_indicator_bipolar_[which_encoder] = deluge::modulation::params::isParamBipolar(turn.kind, turn.param_id);
-		// `blinkKnobIndicator` restarts the flash from the top on every qualifying turn
-		// (`indicator_leds::blinkKnobIndicator` re-seeds `levelIndicatorBlinksLeft`), so the phase origin
-		// moves with it.
-		blink_indicator_start_ms_[which_encoder] = now_ms_;
-		// `indicator_leds::blinkKnobIndicator(whichModEncoder, isBipolar)` -- recorded here,
-		// declared by `leds()`.
-		// `main`'s `pretendModKnobsUntouchedForAWhile` here writes `timeModEncoderLastTurned`, which nothing reads,
-		// so it has no port.
+		// `indicator_leds::blinkKnobIndicator(whichModEncoder, isBipolar)`. `main`'s
+		// `pretendModKnobsUntouchedForAWhile` here writes `timeModEncoderLastTurned`, which nothing reads, so it has no
+		// port.
+		out.blink_indicator(which_encoder, deluge::modulation::params::isParamBipolar(turn.kind, turn.param_id));
 	}
 	else {
-		blink_indicator_[which_encoder] = false; // `stopBlinkingKnobIndicator`
-		blink_indicator_start_ms_[which_encoder] = 0;
+		out.stop_blink_indicator(which_encoder); // `stopBlinkingKnobIndicator`
 	}
 }
 
 // -- The buttons -------------------------------------------------------------------------------
 
-void ModKnobs::mod_button_action(int32_t which_button, bool on) {
+void ModKnobs::section_button(int32_t which_button, bool on, KnobPresentation& out) {
 	// `View::modButtonAction`.
 
 	// The automation editor ignores a mod button, except mod button 0 on the arranger's, which keeps
@@ -481,7 +421,7 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 		}
 		(void)sink.midi_cc_select(*focus_, selecting_knob_, false);
 		selecting_cc_ = false;
-		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelPopup);
+		out.cancel_popup();
 		return;
 	}
 
@@ -498,6 +438,9 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 	if (section.toggle_vu_meter) {
 		focus_->vu_meter = !focus_->vu_meter;
 	}
+	if (on && section.taken && !view_.root_is_clip_minder) {
+		out.vu_sidebar_changed(); // the VU meter is offered only outside a clip minder
+	}
 	if (section.change_mode) {
 		(void)sink.knob_mode(*controls::knob_mode_owner(*focus_), static_cast<uint8_t>(which_button));
 	}
@@ -505,39 +448,34 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 		(void)sink.stutter(*focus_, false);
 	}
 	if (!section.taken) {
-		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelPopup);
+		out.cancel_popup();
 		return;
 	}
 	if (const std::string text = mod_button_popup(song_->project, *focus_, which_button, push_inputs(false));
 	    !text.empty()) {
-		popup_text(text);
+		out.popup_text(text);
 	}
+	out.mode_changed();
 }
 
-Result ModKnobs::mod_encoder_button_action(int32_t which_encoder, bool on, bool shift, bool learn, bool mode_held) {
+void ModKnobs::push(int32_t which_encoder, bool on, const PushContext& ctx, KnobPresentation& out) {
 	// `View::modEncoderButtonAction`. Legacy's tail always reaches `dealtWith`.
-	Result result;
-	result.handled = true;
-	if (learn || std::holds_alternative<std::monostate>(focus_->owner) || !bound()) {
-		return result;
+	if (ctx.learn || std::holds_alternative<std::monostate>(focus_->owner) || !bound()) {
+		return;
 	}
 	controls::Sink& sink = menu::host_controls_sink();
 
-	if (shift && on) { // `View::modEncoderButtonAction_deleteAutomation`
-		const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder);
-		const auto* address = std::get_if<ParamAddress>(&assignment.target);
-		if (address != nullptr && menu::host_runtime_facts().param_value(*address).has_value()
+	if (ctx.shift && on) { // `View::modEncoderButtonAction_deleteAutomation`
+		const std::optional<ParamAddress> address = knob_address(which_encoder);
+		if (address && menu::host_runtime_facts().param_value(*address).has_value()
 		    && sink.delete_knob_automation(*address)) {
-			(void)result.actions.push_back(
-			    Action{.kind = Action::Kind::Popup,
-			           .surface = deluge::ui::shell::SurfaceRole::Main,
-			           .popup_string = static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED)});
+			out.popup(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED);
 		}
-		return result;
+		return;
 	}
 
 	// `View::modEncoderButtonAction_changeModControllable`: the push's table, sent to the sink.
-	const KnobPush push = knob_push(song_->project, *focus_, which_encoder, on, push_inputs(mode_held));
+	const KnobPush push = knob_push(song_->project, *focus_, which_encoder, on, push_inputs(ctx.mode_held));
 	if (push.midi_cc_select) {
 		// The instrument takes it from a clip minder with no UI mode active; a release ends it.
 		selecting_cc_ = sink.midi_cc_select(*focus_, which_encoder, on) && on;
@@ -551,15 +489,26 @@ Result ModKnobs::mod_encoder_button_action(int32_t which_encoder, bool on, bool 
 		focus_->comp = *push.comp;
 	}
 	if (!push.popup.empty()) {
-		popup_text(push.popup);
+		out.popup_text(push.popup);
 	}
 	else if (!push.notice.empty()) {
-		deluge::notify::notice_text(push.notice);
+		out.notice_text(push.notice);
 	}
 	if (&stack_.input_top() == static_cast<const deluge::ui::shell::Scene*>(&menu_scene())) {
 		menu_scene().read_value_again();
 	}
-	return result;
+	out.indicators_changed();
+}
+
+std::optional<ParamAddress> ModKnobs::knob_address(int32_t which_encoder) const {
+	if (song_ == nullptr || std::holds_alternative<std::monostate>(focus_->owner)) {
+		return std::nullopt;
+	}
+	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder);
+	if (const auto* address = std::get_if<ParamAddress>(&assignment.target)) {
+		return *address;
+	}
+	return std::nullopt;
 }
 
 // -- The LEDs and the indicators -----------------------------------------------------------------
@@ -645,10 +594,10 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 }
 
 bool ModKnobs::indicator_blinking(int32_t which_encoder) const {
-	if (which_encoder < 0 || which_encoder >= kKnobCount || !blink_indicator_[which_encoder]) {
+	if (!guest_.blink_on(which_encoder)) {
 		return false;
 	}
-	return (now_ms_ - blink_indicator_start_ms_[which_encoder]) < deluge::ui::kKnobIndicatorBlinkMs;
+	return (now_ms_ - guest_.blink_start_ms(which_encoder)) < deluge::ui::kKnobIndicatorBlinkMs;
 }
 
 ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
@@ -717,7 +666,7 @@ void ModKnobs::declare_indicators(deluge::ui::LedFrame& frame) {
 			// A blinking knob is driven by its blink's phase.
 			(void)frame.indicator(
 			    static_cast<deluge::ui::IndicatorId>(k),
-			    deluge::ui::knob_indicator_blink(now_ms_ - blink_indicator_start_ms_[k], blink_indicator_bipolar_[k]));
+			    deluge::ui::knob_indicator_blink(now_ms_ - guest_.blink_start_ms(k), guest_.blink_bipolar(k)));
 			continue;
 		}
 		const IndicatorLevel level = indicator_level(indicator_info(k), stuttering);
@@ -828,7 +777,7 @@ std::optional<uint32_t> ModKnobs::next_timer() const {
 	// the ordinary level comes back (`indicator_leds::blinkKnobIndicatorLevelTimeout`'s 20 ms re-arm).
 	for (int32_t k = 0; k < kKnobCount; k++) {
 		if (indicator_blinking(k)) {
-			const uint32_t elapsed = now_ms_ - blink_indicator_start_ms_[k];
+			const uint32_t elapsed = now_ms_ - guest_.blink_start_ms(k);
 			const uint32_t to_next_half =
 			    deluge::ui::kKnobIndicatorBlinkHalfMs - (elapsed % deluge::ui::kKnobIndicatorBlinkHalfMs);
 			if (!next.has_value() || to_next_half < *next) {
@@ -840,11 +789,11 @@ std::optional<uint32_t> ModKnobs::next_timer() const {
 }
 
 bool ModKnobs::blink_indicator(int32_t which_encoder) const {
-	return which_encoder >= 0 && which_encoder < kKnobCount && blink_indicator_[which_encoder];
+	return guest_.blink_on(which_encoder);
 }
 
 bool ModKnobs::blink_indicator_bipolar(int32_t which_encoder) const {
-	return which_encoder >= 0 && which_encoder < kKnobCount && blink_indicator_bipolar_[which_encoder];
+	return guest_.blink_bipolar(which_encoder);
 }
 
 } // namespace deluge::scenes::services

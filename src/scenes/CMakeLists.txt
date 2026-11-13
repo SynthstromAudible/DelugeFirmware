@@ -114,6 +114,9 @@ add_library(deluge_scenes STATIC
     # the gold-knob half of legacy's `View`, as a `shell::Service` that lives here
     # (not in `src/shell`) because it is entirely about the model. See `services/mod_knobs.h`.
     services/mod_knobs.cpp
+    # The menu shell's `KnobPresentation`: how the gold knobs show through its scene stack and frame. See
+    # `services/guest_knob_presentation.h`.
+    services/guest_knob_presentation.cpp
     # What a gold knob's push and a mod button's press do, over the song's records. See `services/knob_push.h`.
     services/knob_push.cpp
     # A patch source's short and full names, which the popup, the mod matrix and the push all show.

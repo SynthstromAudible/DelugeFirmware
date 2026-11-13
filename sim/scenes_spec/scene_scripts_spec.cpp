@@ -12,7 +12,7 @@
 /// |---|---|---|
 /// | `audio_clip` | `audio_clip::AudioClipScene` | `RunOptions::initial_scene` -- it is a ROOT scene, and a root is what the shell is booted onto |
 /// | `slicer` | `slicing::SlicerScene` | `RunOptions::initial_scene`, after `slicer_scene().open(sample)` -- legacy's `SampleBrowser` opens it the same way, `open()` first and the push second |
-/// | `param_popup` | `overlay::ParamPopupScene` **pushed by `services::ModKnobs`** | nothing in the script pushes it: a gold-knob turn reaches the service, and `ModKnobs::show_popup` pushes the scene |
+/// | `param_popup` | `overlay::ParamPopupScene` **pushed by `services::ModKnobs`** | nothing in the script pushes it: a gold-knob turn reaches the service, and `GuestKnobPresentation::show_value_popup` pushes the scene |
 /// | `screensaver` | `overlay::ScreensaverScene` **pushed by `shell::Screensaver`** | nothing in the script pushes it either: the script simply stops touching anything for longer than `ShellConfig::screensaver_idle_ms` |
 /// | `count_in` | `overlay::CountInScene` | **the spec pushes it**, from `RunOptions::before_tick`, over an `AudioClipScene` root. Nothing in the tree pushes this kind -- see the honesty note below |
 /// | `menu_gold_turn` | `menu::MenuScene` and a real `services::ModKnobs` in one run | `RunOptions::initial_scene` at `nodes::saturation`, exactly as `menu_scripts_spec.cpp` opens a menu. The only recorded frame on this stack with a menu and a real service together |
@@ -30,9 +30,9 @@
 /// were recorded against null services, so the scripts here are the only ones that get real ones.
 ///
 /// `services::ModKnobs`, `GlobalControls` and `MidiLearn` each take a `SceneStack&` and (for the
-/// first two) an `InputLowering&` at construction, and they *use* them: `ModKnobs::show_popup`
-/// pushes the param popup onto that stack, and `ModKnobs::popup_suppressed` and
-/// `ModKnobs::mod_encoder_button_action` read `stack_.input_top()`; `GlobalControls::handle` gates
+/// first two) an `InputLowering&` at construction, and they *use* them: `ModKnobs`' `GuestKnobPresentation`
+/// pushes the param popup onto that stack, and `GuestKnobPresentation::suppress_value_popup` and
+/// `ModKnobs::push` read `stack_.input_top()`; `GlobalControls::handle` gates
 /// its `View::buttonAction` group on `stack_.input_top().is_root()`; `MidiLearn::handle` reads the
 /// same. The only `SceneStack` and `InputLowering` in an application are the ones the `Shell`
 /// **owns** (`shell/shell.h`'s `stack_`, `lowering_`), so a real service cannot be built before the

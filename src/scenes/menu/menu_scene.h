@@ -192,7 +192,7 @@ public:
 	/// unchanged -- there the leaf IS what the encoders edit. On a vertical submenu, or a
 	/// horizontal page focused on a submenu column, there is nothing to edit and this is null.
 	///
-	/// Exists for `services::ModKnobs::popup_suppressed` (`scenes/services/mod_knobs.cpp`)'s
+	/// Exists for `services::GuestKnobPresentation::suppress_value_popup`'s
 	/// same-param test: `focused()` stops at the page itself on a horizontal menu, which is wrong by
 	/// the same measure `shouldForwardButtons` names.
 	const Node* focused_value() const;
