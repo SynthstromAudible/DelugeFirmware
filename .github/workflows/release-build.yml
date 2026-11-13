@@ -47,12 +47,12 @@ jobs:
         run: |
           if [ "$EVENT" = "push" ]; then
             tag="$REF_NAME"; publish=true
-            case "$tag" in *-rc*) type=rc ;; *-*) echo "Unrecognised pre-release suffix in $tag"; exit 1 ;; *) type=release ;; esac
+            case "$tag" in *-rc*) type=rc ;; *) type=release ;; esac
           else
             tag="$IN_TAG"; publish="$IN_PUBLISH"; type="$IN_TYPE"
-            if [ "$publish" = true ] && ! echo "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]*)?$'; then
-              echo "tag-name must look like v1.3.0 or v1.3.0-rc1 to publish"; exit 1
-            fi
+          if [ "$publish" = true ] && ! echo "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+.*$'; then
+            echo "tag-name must look like v1.3.0 or v1.3.0-rc1 (any suffix allowed)"; exit 1
+          fi
           fi
           {
             echo "release-type=$type"
@@ -87,7 +87,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: ${{ env.TYPE }}_Release_build_bundle
-      - name: Create archive
+      - name: Create README
         run: |
           cat <<'END' > README.txt
           Deluge Community Firmware ($TAG)
@@ -98,12 +98,19 @@ jobs:
           https://github.com/SynthstromAudible/DelugeFirmware/wiki/Update-guide
           END
           sed -i "s/\$TAG/$TAG/; s/\$GITHUB_SHA/$GITHUB_SHA/" README.txt
-          zip -j "./$TAG.zip" README.txt ./*.bin ./*.elf
       - name: Create draft release or attach to existing one
         run: |
+          # Collect all assets to upload
+          assets=()
+          for f in *.bin *.elf README.txt; do
+            [ -f "$f" ] && assets+=("$f")
+          done
+
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            # Release was created in the UI: keep its title and notes, just attach the firmware
-            gh release upload "$TAG" "./$TAG.zip" --repo "$GITHUB_REPOSITORY" --clobber
+            # Release exists: upload/overwrite assets
+            for f in "${assets[@]}"; do
+              gh release upload "$TAG" "$f" --repo "$GITHUB_REPOSITORY" --clobber
+            done
           else
             # Without a start tag GitHub diffs against an old stable tag (it skips drafts), and the
             # generated notes blow past the 125000 character limit. Diff against the previous rc
@@ -126,5 +133,9 @@ jobs:
 
             flags=(--draft --notes-file notes.md --title "Deluge $TAG" --target "$GITHUB_SHA")
             [ "$TYPE" = rc ] && flags+=(--prerelease)
-            gh release create "$TAG" "./$TAG.zip" --repo "$GITHUB_REPOSITORY" "${flags[@]}"
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" "${flags[@]}"
+            # Upload assets separately so each shows as its own file on the release page
+            for f in "${assets[@]}"; do
+              gh release upload "$TAG" "$f" --repo "$GITHUB_REPOSITORY"
+            done
           fi
