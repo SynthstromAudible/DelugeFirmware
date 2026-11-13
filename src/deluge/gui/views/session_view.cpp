@@ -673,7 +673,7 @@ doActualSimpleChange:
 							if (instrument->type != newOutputType) {
 								Instrument* newInstrument = currentSong->changeOutputType(instrument, newOutputType);
 								if (newInstrument) {
-									view.displayOutputName(newInstrument);
+									view.displayOutputName(newInstrument, true, clip);
 									view.setActiveModControllableTimelineCounter(newInstrument->getActiveClip());
 								}
 							}
@@ -1389,7 +1389,7 @@ void SessionView::commandChangeClipPreset(int8_t offset) {
 		}
 		case SessionLayoutType::SessionLayoutTypeGrid: {
 			Output* oldOutput = clip->output;
-			Output* newOutput = currentSong->navigateThroughPresetsForInstrument(oldOutput, offset);
+			Output* newOutput = currentSong->navigateThroughPresetsForInstrument(oldOutput, offset, clip);
 			if (oldOutput != newOutput) {
 				view.setActiveModControllableTimelineCounter(newOutput->getActiveClip());
 				requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
@@ -5052,10 +5052,11 @@ Output* SessionView::getOutputFromPad(int32_t x, int32_t y) {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		return gridTrackFromX(x, gridTrackCount());
 	}
-	else {
-		return getClipOnScreen(y)->output;
-	}
-	return nullptr;
+
+	// row layout
+	Clip* clip = getClipOnScreen(y);
+	// ensure there's actually a clip on this row
+	return clip ? clip->output : nullptr;
 }
 
 Cartesian SessionView::gridXYFromClip(Clip& clip) {
