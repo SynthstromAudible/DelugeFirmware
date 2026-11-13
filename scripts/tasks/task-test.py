@@ -18,7 +18,6 @@ import argparse
 import concurrent.futures
 import json
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -42,9 +41,6 @@ SHARED_TARGET_SUBDIR = tb.SHARED_TARGET_SUBDIR
 OUT = sys.stdout
 # GOLDEN_SWEEP_JOBS for a test run alone: the caller's, else one per CPU.
 ALONE_SWEEP_JOBS = str(os.cpu_count() or 1)
-
-# A marker line: an upper-case tag followed by a space, '=', ':' or a further '-TAG'. What a capture records.
-MARKER = re.compile(r"^[A-Z][A-Z0-9_]*(-[A-Z0-9_]+)*([ =:]|$)")
 
 
 def argparser() -> argparse.ArgumentParser:
@@ -545,7 +541,7 @@ def cmd_capture(
             for line in (
                 (out / f"{h.name}.log").read_text(errors="replace").splitlines()
             ):
-                if MARKER.match(line):
+                if scenario_gate.MARKER.match(line):
                     markers.write(f"{h.name}: {line}\n")
             markers.write(f"{h.name}: rc={codes[h.name]}\n")
     print(f"passed {passed}/{len(selection)}")

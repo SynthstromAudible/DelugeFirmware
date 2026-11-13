@@ -545,6 +545,97 @@ class ScenarioGateTest(unittest.TestCase):
         self.assertIsNone(sg.int_field("AB n=abc", "n"))
 
 
+class ScenarioGateParseTest(unittest.TestCase):
+    """scenario_gate's marker-line helpers, which every check parses through."""
+
+    def test_tag(self):
+        self.assertEqual(sg.tag("CL-SONGLOAD clipsReferenced=0"), "CL-SONGLOAD")
+        self.assertEqual(sg.tag("TIER-SYNC-AT n=1"), "TIER-SYNC-AT")
+        self.assertEqual(sg.tag("RW-RESULT"), "RW-RESULT")
+        self.assertEqual(sg.tag("CL-EPOCH0 epoch=1"), "CL-EPOCH0")
+        self.assertIsNone(sg.tag("saw CL-X a=1"))
+        self.assertIsNone(sg.tag("Cl-X a=1"))
+        self.assertIsNone(sg.tag(None))
+
+    def test_fields(self):
+        self.assertEqual(
+            sg.fields("PM-START stray=0 masked_alloc=0 hash=ab12 injected=1"),
+            {"stray": "0", "masked_alloc": "0", "hash": "ab12", "injected": "1"},
+        )
+        self.assertEqual(sg.fields("A b=1 c= d=2"), {"b": "1", "c": "", "d": "2"})
+        self.assertEqual(sg.fields("A label x=1"), {"x": "1"})
+        self.assertEqual(sg.fields(None), {})
+
+    def test_fields_agrees_with_field(self):
+        for line in ("A x=1 y= z=3", "A x=1 x=2", "UPGRADE OK=3 FAIL=0"):
+            for key, value in sg.fields(line).items():
+                self.assertEqual(value, sg.field(line, key), (line, key))
+
+    def test_has_fields(self):
+        line = "SL-BURST n=40 violations=0 pending=0"
+        self.assertTrue(sg.has_fields(line, violations=0, pending=0))
+        self.assertTrue(sg.has_fields(line, n="40"))
+        self.assertFalse(sg.has_fields(line, pending=1))
+        self.assertFalse(sg.has_fields(line, absent=0))
+        self.assertFalse(sg.has_fields("SL-BURST pendingX=0", pending=0))
+        self.assertFalse(sg.has_fields(None))
+
+    def test_starting(self):
+        lines = ["AB-CASE 1", "AB-REF 2", "x AB-CASE", "AB-CASEY 3"]
+        self.assertEqual(
+            sg.starting(lines, "AB-CASE ", "AB-REF "), ["AB-CASE 1", "AB-REF 2"]
+        )
+        run = sg.Run(0, "\n".join(lines), "")
+        self.assertEqual(run.starting("AB-CASE ", "AB-REF "), ["AB-CASE 1", "AB-REF 2"])
+        self.assertEqual(run.starting("AB-CASE"), ["AB-CASE 1", "AB-CASEY 3"])
+
+    def test_after(self):
+        self.assertEqual(sg.after("RS-MODEL a b", "RS-MODEL "), "a b")
+        self.assertIsNone(sg.after("RS-X a", "RS-MODEL "))
+        self.assertIsNone(sg.after(None, "RS-MODEL "))
+
+
+class GateShortfallTest(unittest.TestCase):
+    """The entry's markers and result, judged over lines from any source."""
+
+    def _gate(self):
+        h = dataclasses.replace(
+            entry("g"),
+            runner="scenario",
+            scenario="g",
+            markers=["AB-ONE", "AB-TWO"],
+            result="AB-RESULT failures=0",
+        )
+        log = io.StringIO()
+        gate = sg.Gate("g", Path(tempfile.mkdtemp()), Path("/nonexistent"), {}, h, log)
+        self.addCleanup(gate.cleanup)
+        return gate, log
+
+    def test_shortfall_names_the_first_gap_and_records_nothing(self):
+        gate, _ = self._gate()
+        self.assertIsNone(
+            gate.shortfall(["AB-ONE x=1", "AB-TWO", "AB-RESULT failures=0"])
+        )
+        self.assertEqual(
+            gate.shortfall(["AB-ONE x=1", "AB-RESULT failures=0"]),
+            "no AB-TWO line; that stage did not run",
+        )
+        self.assertEqual(
+            gate.shortfall(["AB-ONE", "AB-TWO", "AB-RESULT failures=1"]),
+            "in-process failures:",
+        )
+        self.assertEqual(gate.failures, [])
+
+    def test_require_markers_records_and_shows_the_marker_lines(self):
+        gate, log = self._gate()
+        self.assertFalse(
+            gate.require_markers(["AB-ONE x=1", "noise", "AB-RESULT failures=0"])
+        )
+        self.assertEqual(gate.failures, ["no AB-TWO line; that stage did not run"])
+        self.assertIn("AB-ONE x=1\n", log.getvalue())
+        self.assertNotIn("noise", log.getvalue())
+
+
 class ProbeTest(unittest.TestCase):
     def test_cargo_is_present(self):
         self.assertTrue(hr.probe("cargo", Path.cwd()))
