@@ -449,11 +449,11 @@ private:
 	///          `detentDelta` is an `int32_t` accumulated in `DetentedEncoder::pos` across however
 	///          many `applyEdges` calls happen before a `take()`, and `interpretEncoders` returns before
 	///          any `take()` while a stem export is running, after its `applyEdges` calls. Each skipped
-	///          pass can add up to 42 detents (`deluge_encoder_take_quadrature_edges` reports an `int8_t`
-	///          of edges, and `DetentedEncoder::applyEdges` counts 3, 4 or 2 edges a detent), so a knob
-	///          turned through a stem export delivers the whole accumulation in one call. So the clamp is `+-(127 /
-	///          edges_per_detent)`, i.e. +-63 detents at the Deluge's two edges per detent, applied **before** the
-	///          multiply. That is legacy's own choice for two of its four encoders -- tempo and
+	///          pass can add about 32 detents (`deluge_encoder_take_quadrature_edges` reports an `int8_t`
+	///          of edges, and `DetentedEncoder::applyEdges` counts 4 edges a detent after the first), so a
+	///          knob turned through a stem export delivers the whole accumulation in one call. So the clamp
+	///          is `+-(127 / edges_per_detent)`, i.e. +-63 detents at two edges per detent, applied
+	///          **before** the multiply. That is legacy's own choice for two of its four encoders -- tempo and
 	///          select get `clamp(detentDelta, -128, 127)` (`interpretEncoders`) -- and a
 	///          divergence from it for the other two, which legacy hands the full `int32_t` "for
 	///          natural acceleration" (the horizontal and vertical actions). Saturating loses the excess of an
