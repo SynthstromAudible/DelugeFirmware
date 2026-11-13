@@ -76,6 +76,7 @@
 #include "model/project_bridge/patch_cable_words.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -460,9 +461,7 @@ deluge::scenes::bind::KnobFocus focus_of(Song& song, TimelineCounter* counter) {
 ///        song.
 /// @param memory A model-stack buffer.
 ModelStackWithThreeMainThings* view_knob_stack(void* memory) {
-	return currentSong != nullptr && view.knobsOnCurrentSong()
-	           ? deluge::bridge::knobOwnerStackAt(*currentSong, view.knobFocus(), memory)
-	           : nullptr;
+	return view.knobOwnerStack(memory);
 }
 
 /// @brief The knobs' focus on a bare mod controllable, as `View::setActiveModControllableWithoutTimelineCounter`.
@@ -917,8 +916,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		currentSong = f.song;
 		auto* sound = static_cast<SoundInstrument*>(f.instrument);
-		// The third mod button's lower knob is envelope 1's release; with sustain at its minimum, tails hold only while the
-		// decay is above the release.
+		// `modKnobModeFor(..., 2)` puts the knobs on the third mod button, whose lower knob is envelope 1's release;
+		// with sustain at its minimum, tails hold only while the decay is above the release.
 		(void)deluge::edits::modKnobModeFor(deluge::project::TrackAddress{*sound->id()}, 2);
 		const auto env_param = [&](int32_t id) {
 			return deluge::project::ParamAddress{
@@ -949,20 +948,76 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.set_target_with_timeline(f.clip, false);
 		rig.knobs.set_mod_region();
 		DirectCtx c{1000};
-		int32_t repaints = 0;
-		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy);
-		for (int32_t i = 0; i < 60 && tails(); i++) {
-			const Result r = rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 1), c.ctx);
-			for (const auto& a : r.actions) {
-				repaints += a.kind == ShellAction::Kind::RepaintAll ? 1 : 0;
+		// Turns the release up until the tails go, and answers how many turns asked the shell to repaint every pad.
+		const auto turn_until_no_tails = [&] {
+			int32_t repaints = 0;
+			for (int32_t i = 0; i < 60 && tails(); i++) {
+				const Result r = rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 1), c.ctx);
+				for (const auto& a : r.actions) {
+					repaints += a.kind == ShellAction::Kind::RepaintAll ? 1 : 0;
+				}
 			}
-		}
+			return repaints;
+		};
+
+		// Over a timeline view, the root view's pads under a menu are legacy's to draw: they are told too.
+		rig.knobs.set_view_state({.root_is_timeline_view = true});
+		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy);
+		expect(turn_until_no_tails()).to_equal(1);
 		expect(tails()).to_be_false();
-		expect(repaints).to_equal(1);
-		// The root view's pads under a menu are legacy's to draw: they are told too.
 		expect(deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy).has(deluge::notify::Dirty::GridMain))
 		    .to_be_true();
+
+		// Over any other root, only the shell's pads repaint.
+		set_value(deluge::modulation::params::LOCAL_ENV_0_RELEASE, std::numeric_limits<int32_t>::min());
+		expect(tails()).to_be_true();
+		rig.knobs.set_view_state({.root_is_timeline_view = false});
+		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy);
+		expect(turn_until_no_tails()).to_equal(1);
+		expect(tails()).to_be_false();
+		expect(deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy).has(deluge::notify::Dirty::GridMain))
+		    .to_be_false();
 		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("reads a synth's note tails from the clip a turn is in, not the clip its synth plays", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		auto* synth = static_cast<SoundInstrument*>(f.instrument);
+		InstrumentClip* other = spec::detail::make_session_clip(f.song);
+		ParamManagerForTimeline params;
+		expect(params.cloneParamCollectionsFrom(&f.clip->paramManager, false) == Error::NONE).to_be_true();
+		other->setAudioInstrument(synth, f.song, true, &params);
+		const auto set_value = [&](const Clip& clip, int32_t id, int32_t value) {
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithAutoParam* stack = deluge::bridge::paramStackAt(
+			    *f.song,
+			    deluge::project::ParamAddress{.owner = deluge::project::OwnerId::instrument(*synth->id()),
+			                                  .space = deluge::project::ParamSpace::ENGINE,
+			                                  .id = deluge::bridge::paramIdOf(Kind::PATCHED, id),
+			                                  .clip_id = clip.id()},
+			    memory);
+			expect(stack != nullptr).to_be_true();
+			stack->autoParam->setCurrentValueWithNoReversionOrRecording(stack, value);
+		};
+		// Both clips hold no sustain and a decay above the release: tails. The other clip's release then goes above
+		// its decay: no tails there.
+		for (const Clip* clip : {static_cast<const Clip*>(f.clip), static_cast<const Clip*>(other)}) {
+			set_value(*clip, deluge::modulation::params::LOCAL_ENV_0_SUSTAIN, std::numeric_limits<int32_t>::min());
+			set_value(*clip, deluge::modulation::params::LOCAL_ENV_0_DECAY, -(1 << 29));
+			set_value(*clip, deluge::modulation::params::LOCAL_ENV_0_RELEASE, std::numeric_limits<int32_t>::min());
+		}
+		set_value(*other, deluge::modulation::params::LOCAL_ENV_0_RELEASE, std::numeric_limits<int32_t>::max());
+
+		// The first clip plays, and the other does not: a turn with no clip reads the playing one.
+		f.clip->activeIfNoSolo = true;
+		other->activeIfNoSolo = false;
+		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *synth->id()};
+		const auto& facts = deluge::scenes::menu::host_runtime_facts();
+		expect(facts.allows_note_tails(slot, deluge::project::ClipAddress{f.clip->id()})).to_be_true();
+		expect(facts.allows_note_tails(slot, deluge::project::ClipAddress{other->id()})).to_be_false();
+		expect(facts.allows_note_tails(slot, std::nullopt)).to_be_true();
 		currentSong = nullptr;
 	});
 
@@ -1092,6 +1147,44 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 				expect(sink.midi_cc_select(focus, lane.knob, false)).to_be_false();
 			}
 		}
+		currentUIMode = UI_MODE_NONE;
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("draws a CC whose lane is not made, and a knob that sends nothing, unautomated, and makes no lane", _ {
+		StubDisplay stub;
+		display = &stub;
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		setRootUILowLevel(&instrumentClipView);
+		using Cc = deluge::project::ModKnobCc;
+		spec::SongFixture f = spec::make_midi_song();
+		currentSong = f.song;
+		f.song->setCurrentClip(f.clip);
+		auto* instrument = static_cast<MIDIInstrument*>(f.instrument);
+		const deluge::project::TrackAddress track{*instrument->id()};
+		(void)deluge::edits::modKnobCCFor(track, 4, {.kind = Cc::Kind::NUMBER, .number = 75});
+		(void)deluge::edits::modKnobCCFor(track, 5, {});
+		(void)deluge::edits::modKnobModeFor(track, 2);
+		MIDIParamCollection* ccs = f.clip->paramManager.getMIDIParamCollection();
+		expect(ccs != nullptr && ccs->params.getParamFromCC(75) == nullptr).to_be_true();
+		auto& sink = deluge::scenes::menu::host_controls_sink();
+		const deluge::scenes::bind::KnobFocus focus = focus_of(*f.song, f.clip);
+		for (const auto& [knob, cc] : {std::pair{0, Cc{.kind = Cc::Kind::NUMBER, .number = 75}}, std::pair{1, Cc{}}}) {
+			etl::string<30> name;
+			instrument->appendCCName(name, MIDIInstrument::engineCcOf(cc));
+			stub.last_popup.clear();
+			expect(sink.midi_cc_select(focus, knob, true)).to_be_true();
+			expect(stub.last_popup).to_equal(std::string{name.c_str()});
+			expect(sink.midi_cc_select(focus, knob, false)).to_be_false();
+		}
+		expect(ccs->params.getParamFromCC(75) == nullptr).to_be_true();
+
+		// A clip the song does not hold starts nothing.
+		deluge::scenes::bind::KnobFocus elsewhere = focus;
+		std::get<deluge::scenes::bind::MidiFocus>(elsewhere.owner).clip = deluge::project::ClipAddress{f.clip->id() + 1000};
+		expect(sink.midi_cc_select(elsewhere, 0, true)).to_be_false();
+		expect(currentUIMode).to_equal(UI_MODE_NONE);
 		currentUIMode = UI_MODE_NONE;
 		display = nullptr;
 		currentSong = nullptr;

@@ -108,6 +108,7 @@ void setKnobViewState(GuestServices& services) {
 	knobView.root_is_performance = getRootUI() == &performanceView;
 	knobView.root_is_clip_minder = rootUIIsClipMinderScreen();
 	knobView.mod_button_ui_mode_in_range = view.modButtonUIModeInRange();
+	knobView.root_is_timeline_view = getRootUI() != nullptr && getRootUI()->toTimelineView() != nullptr;
 	services.knobs.set_view_state(knobView);
 }
 

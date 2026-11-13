@@ -69,7 +69,8 @@ public:
 	[[nodiscard]] int32_t played_bend_range(const project::SettingAddress& owner, int32_t which) const override {
 		return which == 0 || owner.group == project::SettingGroupId::NOTE_ROW ? kDeviceBendRange : kDeviceBendRangeMpe;
 	}
-	[[nodiscard]] bool allows_note_tails(project::SlotAddress slot) const override;
+	[[nodiscard]] bool allows_note_tails(project::SlotAddress slot,
+	                                     std::optional<project::ClipAddress> clip) const override;
 	[[nodiscard]] uint8_t arp_preset(const project::SettingAddress& /*address*/) const override { return preset; }
 	/// The value each param plays, by its address; a param absent here the song does not hold.
 	std::vector<std::pair<project::ParamAddress, int32_t>> param_values;

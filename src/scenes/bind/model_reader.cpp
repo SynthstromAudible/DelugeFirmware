@@ -37,7 +37,7 @@ std::optional<int32_t> ModelReader::read(std::string_view path) const {
 		const auto* lane = std::get_if<project::LaneAddress>(&address_.owner);
 		const project::DocDrum* drum = lane != nullptr ? model_->drum_structure.find(lane->drum_id) : nullptr;
 		if (drum != nullptr && drum->drum_type == project::DrumType::SOUND
-		    && !facts_->allows_note_tails({project::SlotAddress::Kind::DRUM, lane->drum_id})) {
+		    && !facts_->allows_note_tails({project::SlotAddress::Kind::DRUM, lane->drum_id}, std::nullopt)) {
 			return 0;
 		}
 	}

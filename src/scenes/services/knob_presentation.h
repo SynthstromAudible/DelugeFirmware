@@ -19,6 +19,9 @@ namespace deluge::scenes::services {
 /// (`GuestKnobPresentation`); the root views through the legacy display and LEDs (`gui/ui/root_knobs`).
 class KnobPresentation {
 public:
+	/// @brief How many gold knobs there are (`hid/encoders.h`'s `mod0`/`mod1`): 0 is the lower, 1 the upper.
+	static constexpr int32_t kKnobCount = 2;
+
 	virtual ~KnobPresentation() = default;
 
 	/// @brief Should this turn show no value popup? Asked once per turn, before the write.
@@ -47,8 +50,11 @@ public:
 	virtual void stop_blink_indicator(int32_t knob) = 0;
 
 	/// @brief A push may have moved the knobs to other params: re-level both indicators.
+	/// @note A presentation may re-tell `ModKnobs` its song and view state from here (the root's does, through
+	///       `View::setKnobIndicatorLevels`), so `ModKnobs::push` calls this last and reads nothing after it.
 	virtual void indicators_changed() = 0;
 	/// @brief A mod button changed the knobs' mode or owner state: re-level the indicators and the mod LEDs.
+	/// @note As `indicators_changed`: `ModKnobs::section_button` calls this last and reads nothing after it.
 	virtual void mode_changed() = 0;
 	/// @brief A mod button press outside a clip minder, in range: the VU sidebar redraws if it is showing.
 	virtual void vu_sidebar_changed() = 0;

@@ -224,11 +224,11 @@ describe model_targets("a model target's write reaches the record its menu names
 		auto* drum = spec::add_drum<SoundDrum>(kit);
 		const MenuContext row = clip_root(*kit.song, kit.clip);
 		alignas(ModelStackWithAutoParam) char drum_memory[MODEL_STACK_MAX_SIZE];
-		expect(facts.allows_note_tails(*row.addresses.slot))
+		expect(facts.allows_note_tails(*row.addresses.slot, std::nullopt))
 		    .to_equal(drum->allowNoteTails(getModelStackFromSoundDrum(drum_memory, drum)->addSoundFlags(),
 		                                   /*disregardSampleLoop=*/true));
 		drum->arpSettings.mode = ArpMode::ARP;
-		expect(facts.allows_note_tails(*row.addresses.slot)).to_be_true(); // an arp holds its notes
+		expect(facts.allows_note_tails(*row.addresses.slot, std::nullopt)).to_be_true(); // an arp holds its notes
 
 		spec::SongFixture synth = spec::make_synth_song();
 		const MenuContext ctx = clip_root(*synth.song, synth.clip);

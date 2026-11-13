@@ -9,6 +9,7 @@
 #include "shell/scene.h"
 #include "shell/scene_stack.h"
 
+#include <array>
 #include <cstdint>
 #include <string_view>
 
@@ -22,14 +23,17 @@ namespace deluge::scenes::services {
 /// that ask for them do nothing here.
 class GuestKnobPresentation final : public KnobPresentation {
 public:
-	/// @brief How many gold knobs there are (`hid/encoders.h`'s `mod0`/`mod1`).
-	static constexpr int32_t kKnobCount = 2;
-
 	/// @param popup  The value popup.
 	/// @param stack  The scene stack the popup is pushed onto, and whose top the same-param test reads.
 	/// @param now_ms The clock a blink starts at: the knobs' last tick or event, read when the blink starts.
-	GuestKnobPresentation(overlay::ParamPopupScene& popup, deluge::ui::shell::SceneStack& stack, const uint32_t& now_ms)
-	    : popup_(popup), stack_(stack), now_ms_(now_ms) {}
+	/// @param root_is_timeline_view Whether the root view under the menu is a timeline view, read when a turn changes
+	///                              note tails.
+	/// @note @p now_ms and @p root_is_timeline_view are held by reference, so they must outlive this presentation.
+	///       `ModKnobs` owns them and the presentation and cannot be copied, so the references always read its
+	///       current state, with no setter for each entry into the presentation to remember.
+	GuestKnobPresentation(overlay::ParamPopupScene& popup, deluge::ui::shell::SceneStack& stack, const uint32_t& now_ms,
+	                      const bool& root_is_timeline_view)
+	    : popup_(popup), stack_(stack), now_ms_(now_ms), root_is_timeline_view_(root_is_timeline_view) {}
 
 	/// @name `KnobPresentation`
 	/// @{
@@ -44,7 +48,8 @@ public:
 	void indicators_changed() override {}
 	void mode_changed() override {}
 	void vu_sidebar_changed() override {}
-	/// @brief Repaint every pad: the shell's, and the root view's under a menu, which the legacy UI draws.
+	/// @brief Repaint every pad of the shell's, and the root view's under the menu (which the legacy UI draws) when
+	///        it is a timeline view.
 	void note_tails_changed() override;
 	/// @brief A popup that stays until a mod button's release cancels it (`display->popupText`).
 	void popup_text(std::string_view text) override;
@@ -58,14 +63,14 @@ public:
 	/// @}
 
 	/// @brief The actions the gestures since the last call owe, and forget them.
-	deluge::ui::shell::Result take_result();
+	[[nodiscard]] deluge::ui::shell::Result take_result();
 
 	/// @brief Should knob @p knob's indicator be blinking? (`blinkKnobIndicator` / `stop...`).
-	bool blink_on(int32_t knob) const { return in_range(knob) && blink_[knob]; }
+	[[nodiscard]] bool blink_on(int32_t knob) const { return in_range(knob) && blink_[knob]; }
 	/// @brief Was the last blink decision for knob @p knob a bipolar param's?
-	bool blink_bipolar(int32_t knob) const { return in_range(knob) && blink_bipolar_[knob]; }
+	[[nodiscard]] bool blink_bipolar(int32_t knob) const { return in_range(knob) && blink_bipolar_[knob]; }
 	/// @brief When knob @p knob's blink started: the phase origin of its flash.
-	uint32_t blink_start_ms(int32_t knob) const { return in_range(knob) ? blink_start_ms_[knob] : 0; }
+	[[nodiscard]] uint32_t blink_start_ms(int32_t knob) const { return in_range(knob) ? blink_start_ms_[knob] : 0; }
 
 private:
 	static bool in_range(int32_t knob) { return knob >= 0 && knob < kKnobCount; }
@@ -73,10 +78,11 @@ private:
 	overlay::ParamPopupScene& popup_;
 	deluge::ui::shell::SceneStack& stack_;
 	const uint32_t& now_ms_;
+	const bool& root_is_timeline_view_;
 	deluge::ui::shell::Result result_;
-	bool blink_[kKnobCount]{};
-	bool blink_bipolar_[kKnobCount]{};
-	uint32_t blink_start_ms_[kKnobCount]{};
+	std::array<bool, kKnobCount> blink_{};
+	std::array<bool, kKnobCount> blink_bipolar_{};
+	std::array<uint32_t, kKnobCount> blink_start_ms_{};
 };
 
 } // namespace deluge::scenes::services

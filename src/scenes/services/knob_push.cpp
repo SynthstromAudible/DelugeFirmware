@@ -370,6 +370,9 @@ std::string cc_name(const project::DocOutput& output, const project::ModKnobCc& 
 	case Kind::NUMBER:
 		break;
 	}
+	// CC 1 is named the mod wheel, as `MIDIInstrument::appendCCName` names `CC_EXTERNAL_MOD_WHEEL`, while its lane is
+	// CC 1's own (`ShellEditSink::midi_cc_select`'s lane, as legacy's `getParamToControlFromInputMIDIChannel`). No
+	// record holds a 1: the codec reads a file's 1 as the Y axis, and the CC choice steps over it.
 	if (cc.number == project::ModKnobCc::kYAxisNumber || cc.number == 1) {
 		return text(String::STRING_FOR_MOD_WHEEL);
 	}

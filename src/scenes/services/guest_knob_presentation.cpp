@@ -80,10 +80,8 @@ void GuestKnobPresentation::blink_indicator(int32_t knob, bool bipolar) {
 	}
 	// One indicator blinks at a time (`indicator_leds.cpp`'s `whichLevelIndicatorBlinking`): starting this knob's
 	// blink ends the other's, which then shows its level again.
-	for (int32_t k = 0; k < kKnobCount; k++) {
-		blink_[k] = false;
-		blink_start_ms_[k] = 0;
-	}
+	blink_.fill(false);
+	blink_start_ms_.fill(0);
 	blink_[knob] = true;
 	blink_bipolar_[knob] = bipolar;
 	// `blinkKnobIndicator` restarts the flash from the top on every qualifying turn
@@ -101,7 +99,9 @@ void GuestKnobPresentation::stop_blink_indicator(int32_t knob) {
 }
 
 void GuestKnobPresentation::note_tails_changed() {
-	deluge::notify::raise(deluge::notify::Dirty::GridMain);
+	if (root_is_timeline_view_) {
+		deluge::notify::raise(deluge::notify::Dirty::GridMain);
+	}
 	(void)result_.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 }
 
@@ -109,8 +109,7 @@ void GuestKnobPresentation::popup_text(std::string_view text) {
 	deluge::notify::Notice n;
 	n.kind = deluge::notify::Notice::Kind::Text;
 	n.severity = deluge::notify::Notice::Severity::Warn; // stays until something removes it
-	const size_t length = std::min(text.size(), sizeof(n.text) - 1);
-	std::copy_n(text.data(), length, n.text);
+	const size_t length = text.copy(n.text, sizeof(n.text) - 1);
 	n.text[length] = '\0';
 	(void)deluge::notify::notices().push(n);
 }

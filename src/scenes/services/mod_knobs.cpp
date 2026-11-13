@@ -322,7 +322,7 @@ void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms,
 	}
 
 	const auto* sound = std::get_if<bind::SoundFocus>(&focus_->owner);
-	const bool tails_before = sound != nullptr && sound->clip && facts.allows_note_tails(sound->slot);
+	const bool tails_before = sound != nullptr && sound->clip && facts.allows_note_tails(sound->slot, sound->clip);
 	const int32_t new_value = bind::value_of_knob(*address, info, turn.new_knob_pos);
 	const int32_t pos = at_region ? static_cast<int32_t>(focus_->region.pos) : 0;
 	if (!sink.write_param(*address, new_value, pos, static_cast<int32_t>(focus_->region.length))) {
@@ -330,7 +330,8 @@ void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms,
 	}
 	out.value_written();
 	turn.value_changed = true;
-	turn.note_tails_changed = sound != nullptr && sound->clip && tails_before != facts.allows_note_tails(sound->slot);
+	turn.note_tails_changed =
+	    sound != nullptr && sound->clip && tails_before != facts.allows_note_tails(sound->slot, sound->clip);
 
 	turn.should_indicate_middle_value =
 	    bind::indicates_middle(*address, info, owner_stutter_quantized(), facts.stutter_active());

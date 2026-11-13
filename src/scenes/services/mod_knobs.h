@@ -4,7 +4,7 @@
 /// @brief `ModKnobs` -- the gold knobs, as a `shell::Service`.
 ///
 /// The one implementation of the gold knobs, for the guest's menus and the root views alike, each shown through its
-/// own `KnobPresentation`: the turn, the push, the mod buttons, the indicators and mod LEDs, the centre detent, the
+/// own `KnobPresentation`: the turn, the push, the mod buttons, the indicators and mod LEDs, the centre blink, the
 /// mod region, the automation notification and the MIDI-follow feedback. Recorded from `View::modEncoderAction`,
 /// `modEncoderButtonAction`, `modButtonAction`, `setKnobIndicatorLevels`, `setModLedStates`,
 /// `potentiallyMakeItHarderToTurnKnob` and `setModRegion`; no engine object keeps a gold-knob path of its own.
@@ -84,8 +84,8 @@ struct PushInputs;
 /// @brief The two gold knobs: what they point at, what turning, pushing and their mod buttons do, and how fast.
 class ModKnobs final : public deluge::ui::shell::Service {
 public:
-	/// @brief How many gold knobs there are (`hid/encoders.h`'s `mod0`/`mod1`).
-	static constexpr int32_t kKnobCount = GuestKnobPresentation::kKnobCount;
+	/// @brief How many gold knobs there are: `KnobPresentation::kKnobCount`.
+	static constexpr int32_t kKnobCount = KnobPresentation::kKnobCount;
 
 	/// @param popup    The value popup the shell's presentation shows through.
 	/// @param stack    The scene stack it pushes that popup onto.
@@ -94,7 +94,7 @@ public:
 	ModKnobs& operator=(const ModKnobs&) = delete;
 	ModKnobs(overlay::ParamPopupScene& popup, deluge::ui::shell::SceneStack& stack,
 	         deluge::ui::shell::InputLowering& lowering)
-	    : stack_(stack), lowering_(lowering), guest_(popup, stack, now_ms_) {}
+	    : stack_(stack), lowering_(lowering), guest_(popup, stack, now_ms_, view_.root_is_timeline_view) {}
 
 	/// @name What the knobs point at
 	/// @{
@@ -152,6 +152,9 @@ public:
 		bool root_is_clip_minder = false;
 		/// `View::modButtonUIModeInRange`: true with no UI mode active.
 		bool mod_button_ui_mode_in_range = true;
+		/// The root is a timeline view (`UI::toTimelineView`, `View::modEncoderAction_existentParam`): a turn that
+		/// changes a sound's note tails repaints the root's pads only then.
+		bool root_is_timeline_view = false;
 	};
 
 	/// @brief Tell this service what the root view is.
@@ -199,6 +202,10 @@ public:
 	/// @brief One mod button, shown through the shell's presentation.
 	/// @param which_button 0..7.
 	/// @param on           Press or release.
+	/// @note This drives the shell's presentation outside `handle()`, which nothing then asks for its `Result`: any
+	///       action the press owes waits there for the next `handle()` to return it. A mod button owes none today
+	///       (its popups are notices, and the frame redeclares its LEDs), so a caller that needs the actions goes
+	///       through `handle()` instead.
 	void mod_button_action(int32_t which_button, bool on) { section_button(which_button, on, guest_); }
 
 	/// @brief What knob @p knob's indicator reads.
@@ -258,11 +265,12 @@ public:
 	static IndicatorLevel indicator_level(const ModIndicatorInfo& info, bool stuttering);
 
 private:
-	/// @brief The turn itself: the comp arm's setting, or the param's write, popup, feedback and detent.
+	/// @brief The turn itself: the comp arm's setting, or the param's write, popup, feedback and centre blink.
 	void turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms, KnobPresentation& out);
 	/// @brief The value popup's patch sources and owner context for @p turn, handed to @p out.
 	void show_popup(const ModTurn& turn, uint32_t now_ms, KnobPresentation& out);
-	/// @brief `View::potentiallyMakeItHarderToTurnKnob`: blink a centred knob and make it harder to turn away.
+	/// @brief `View::potentiallyMakeItHarderToTurnKnob`: blink the indicator at a centred position of a param that
+	///        shows its middle; stop the blink otherwise.
 	void potentially_make_it_harder_to_turn_knob(int32_t which_encoder, const ModTurn& turn, KnobPresentation& out);
 	/// @brief Declare both knob indicator columns -- `View::setKnobIndicatorLevels`.
 	void declare_indicators(deluge::ui::LedFrame& frame);

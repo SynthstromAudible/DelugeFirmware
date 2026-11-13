@@ -66,7 +66,9 @@ public:
 		return static_cast<int32_t>(pos);
 	}
 	[[nodiscard]] bool stutter_active() const override { return true; }
-	[[nodiscard]] bool allows_note_tails(project::SlotAddress) const override { return false; }
+	[[nodiscard]] bool allows_note_tails(project::SlotAddress, std::optional<project::ClipAddress>) const override {
+		return false;
+	}
 };
 } // namespace
 
@@ -105,7 +107,7 @@ describe sink("the controls' sink and facts", ${
 		expect(facts.param_value(address) == std::optional<int32_t>{7}).to_be_true();
 		expect(facts.param_value_at(address, 96) == std::optional<int32_t>{96}).to_be_true();
 		expect(facts.stutter_active()).to_be_true();
-		expect(facts.allows_note_tails(project::SlotAddress{})).to_be_false();
+		expect(facts.allows_note_tails(project::SlotAddress{}, std::nullopt)).to_be_false();
 	});
 });
 // clang-format on
