@@ -96,7 +96,7 @@ firmware.
 | `tests/unit/spec/scenes/` | the parts that need no model: the `Node` builders, the id registry, the validator over fake trees, view state |
 | `tests/scenes-bind/` | `deluge_scenes_bind` against a `project::Song` with no engine runtime |
 | `sim/scenes_spec/` | the model-backed specs, linked into the host app and run one file per process by the `ui-scenes-spec` harness (`tests/registry.toml`); the table cross-checks against legacy, every scene, every service, the level-2 scripts |
-| `tests/integration/scenarios/menu_dump.cpp` | the `ui-menu-dump` gate: the app dumps every root as JSON, which must equal `website/src/data/generated/menu-tree.json`; `scripts/menu_dump_check.sh` regenerates it |
+| `tests/integration/scenarios/menu_dump.cpp` | the `ui-menu-dump` gate: the app dumps every root as JSON, which must equal `website/src/data/generated/menu-tree.json`; `./dbt test --update ui-menu-dump` regenerates it |
 
 Nothing under `src/scenes` depends on a spec tree existing.
 
@@ -216,7 +216,7 @@ mailbox goes in whichever band its effect falls into. The per-band table is on `
    return in `chain_targets`, so ids, the validator and the dump reach pages no `children` span
    names.
 5. Add the row to the `tables_*_spec.cpp` that walks its root, and run
-   `python3 scripts/check_layer_rules.py` and `scripts/menu_dump_check.sh`.
+   `python3 scripts/check_layer_rules.py` and `./dbt test --update ui-menu-dump`.
 
 ### Adding a `Kind`
 

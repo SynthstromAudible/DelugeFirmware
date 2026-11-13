@@ -1,5 +1,12 @@
 """The declarative menu tree, dumped by golden_vt_render's menu_dump scenario, must equal the committed
-website/src/data/generated/menu-tree.json. scripts/menu_dump_check.sh regenerates it."""
+website/src/data/generated/menu-tree.json. `./dbt test --update ui-menu-dump` re-records it; regenerate the website's
+menu-hierarchies.json from it afterwards (website/src/data/generated/README.md)."""
+
+from pathlib import Path
+
+import golden_update
+
+COMMITTED = Path("website/src/data/generated/menu-tree.json")
 
 
 def run(gate) -> None:
@@ -8,8 +15,16 @@ def run(gate) -> None:
     if not gate.require_standard(run):
         gate.show(run)
         return
-    committed = gate.root / "website/src/data/generated/menu-tree.json"
-    if out.read_text() != committed.read_text():
+    if not out.is_file() or out.stat().st_size == 0:
+        gate.fail("the dump wrote nothing")
+        return
+    if golden_update.updating(gate.env):
+        golden_update.write_bytes(
+            gate.root / COMMITTED, out.read_bytes(), str(COMMITTED), env=gate.env
+        )
+        return
+    if out.read_bytes() != (gate.root / COMMITTED).read_bytes():
         gate.fail(
-            "menu-tree.json no longer matches the menu tree: run scripts/menu_dump_check.sh and commit the result"
+            "menu-tree.json no longer matches the menu tree: ./dbt test --update ui-menu-dump re-records it "
+            "(commit it with the reason)"
         )

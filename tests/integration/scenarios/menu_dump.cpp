@@ -107,8 +107,7 @@
 ///     against `doc_emitter.py`'s shape (expecting `entry["description"]` to exist, even as `""`)
 ///     will `KeyError`/throw on this dump's output instead. That warning is repeated where a
 ///     consumer is more likely to actually read it:
-///     `website/src/data/generated/README.md` (next to the JSON itself) and
-///     `scripts/menu_dump_check.sh`'s own header comment.
+///     `website/src/data/generated/README.md`, next to the JSON itself.
 ///
 /// ## The walk
 ///
@@ -130,7 +129,7 @@
 /// `l10n::chosenLanguage`, pinned at the start of `dump_menu_tree` to the built-in English table before the walk
 /// starts, so every run resolves the same language regardless of process environment. Two-space
 /// indentation, one trailing newline at end of file. golden_vt_render's `menu_dump` scenario writes it, and
-/// `scripts/menu_dump_check.sh` diffs the result byte-for-byte against the committed
+/// the `ui-menu-dump` gate compares the result byte for byte with the committed
 /// `website/src/data/generated/menu-tree.json`.
 #include "scenarios/menu_dump.h"
 
@@ -648,7 +647,7 @@ void emit_chain_targets(std::string& out, const menu::Node& node, int elem_level
 ///       this tool's `MenuContext` fixtures entirely (see the file header), so there is no context
 ///       to expand against, and building one back would make the committed JSON a function of
 ///       whatever `MIDIDeviceManager`'s globals happen to hold in the dump process -- exactly the
-///       determinism `scripts/menu_dump_check.sh` diffs for. A static "every node this hook may
+///       determinism the `ui-menu-dump` gate compares for. A static "every node this hook may
 ///       yield" span on `Node`, in the shape `chain_targets` already has for `select_chain` and
 ///       for the same three reasons (`assign_node_ids` numbers it, `validate_tree` checks it, this
 ///       dump prints it), is the design that would survive -- but it is a `node.h` change with no
