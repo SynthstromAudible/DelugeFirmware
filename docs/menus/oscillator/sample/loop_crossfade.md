@@ -6,4 +6,4 @@ alongside it. Over the crossfade time, the end of the loop fades out while its s
 next pass carries on alone. The crossfade time is measured in the sample's own time, so it gets shorter as the sample is
 played higher, and it is limited to half the loop length. It has no effect while time-stretching.
 
-Range: OFF (0) to 1000 ms.
+Range: OFF, then 10 to 1000 ms in 10 ms steps.

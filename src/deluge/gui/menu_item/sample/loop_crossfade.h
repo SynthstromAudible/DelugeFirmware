@@ -38,26 +38,44 @@ public:
 		return isSampleModeSample(modControllable, source_id_);
 	}
 
-	void readCurrentValue() override { setValue(soundEditor.currentSound->sources[source_id_].loopCrossfadeMs); }
+	// The menu works in 10 ms steps, but the Source keeps milliseconds
+	static constexpr int32_t kMsPerStep = 10;
+
+	void readCurrentValue() override {
+		setValue(soundEditor.currentSound->sources[source_id_].loopCrossfadeMs / kMsPerStep);
+	}
 
 	void writeCurrentValue() override {
+		uint16_t ms = getValue() * kMsPerStep;
+
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
 			const Kit* kit = getCurrentKit();
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
-					static_cast<SoundDrum*>(thisDrum)->sources[source_id_].loopCrossfadeMs = getValue();
+					static_cast<SoundDrum*>(thisDrum)->sources[source_id_].loopCrossfadeMs = ms;
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->sources[source_id_].loopCrossfadeMs = getValue();
+			soundEditor.currentSound->sources[source_id_].loopCrossfadeMs = ms;
 		}
 	}
 
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxLoopCrossfadeMs; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxLoopCrossfadeMs / kMsPerStep; }
+	int32_t getDisplayValue() override { return getValue() * kMsPerStep; }
+	const char* getUnit() override { return "MS"; }
+	void getNotificationValue(StringBuf& value) override {
+		if (getValue() == 0) {
+			value.append(l10n::get(l10n::String::STRING_FOR_OFF));
+		}
+		else {
+			value.appendInt(getDisplayValue());
+			value.append(getUnit());
+		}
+	}
 
 	// A time in ms, drawn as a ramp like the compressor and sidechain attack times
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return ATTACK; }
