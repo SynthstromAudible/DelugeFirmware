@@ -28,6 +28,9 @@
 //! first polls of tasks spawned together. So `main` installs the memory card before the executor
 //! exists; installed from a task, a poll order that reached [`boot_task`]'s SD bring-up first
 //! would open the wrong backing, silently.
+//!
+//! `GOLDEN_CARD_ONLY=1` installs the scenario's card and exits before anything runs, so `GOLDEN_SD_DUMP=<path>`
+//! writes out exactly the card the scenario boots with.
 #![feature(impl_trait_in_assoc_type)]
 #![recursion_limit = "512"]
 
@@ -1537,6 +1540,12 @@ fn main() {
             | "model_decode_diff" | "audio_tick_hold" => memory_card::install(None),
             _ => memory_card::install(Some(&sd_image::golden_fixture_tree(&repo_root, &fixture))),
         }
+    }
+    // GOLDEN_CARD_ONLY: stop once the card is installed, so GOLDEN_SD_DUMP holds exactly what the scenario boots
+    // with and nothing it writes.
+    if std::env::var_os("GOLDEN_CARD_ONLY").is_some() {
+        log::info!("golden_vt_render: GOLDEN_CARD_ONLY: the card is installed; exiting");
+        hard_exit(0);
     }
     // Trims the host audio drive's per-block diagnostic bookkeeping.
     // SAFETY: single-threaded here; no task or executor exists yet.
