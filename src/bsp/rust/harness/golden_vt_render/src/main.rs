@@ -583,8 +583,6 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
     }
 
     log::info!("golden_vt_render: recorder round-trip PASSED (0 failures); exiting cleanly");
-    // The gate's result line: every failure path above exits non-zero before reaching it.
-    println!("RR-RESULT failures=0");
     done.store(true, Ordering::Release);
 }
 

@@ -156,7 +156,7 @@ status = "gate"
 gates = "the SampleRecorder record-then-read-back round trip must be byte-exact on the Embassy host BSP"
 scenario = "recorder_roundtrip"
 markers = ["RW-BUSY", "RW-STALL", "RW-DIR-STALL", "RW-OPEN-IOERR", "TK-ABORT-OPEN"]
-result = "RR-RESULT failures=0"
+result = "RW-RESULT failures=0"
 builds = ["golden-vt-render"]
 tier = "nightly"
 group = "render"
