@@ -295,4 +295,6 @@ A corpus gate (`runner = "corpus"`) runs one of the per-song runners in `tests/g
 entry names with `corpus_runner = "<name>"`. The runner drives one golden_vt_render run per song through
 `tests/golden/driver.py` and judges each itself (a fixture hash, a stdout baseline, or the driver's own exit status),
 so the entry has no `scenario`, `markers`, `result` or `check`: the runner names its scenario and is the check. A
-runner that finds nothing to check exits 77, which fails the gate. `scripts/tasks/corpus_gate.py` runs it.
+runner that finds nothing to check exits 77, which fails the gate. Corpus runners drive driver rows on an empty card;
+the registry's static corpus-fixture check does not cover them, and golden_vt_render's run-time refusal does.
+`scripts/tasks/corpus_gate.py` runs it.
