@@ -1221,8 +1221,9 @@ For a detailed description of this feature, please refer to the feature document
   - The crossfade is limited to half the loop length, so there are never more than two passes playing at once. With no
     loop points set, the loop is the whole sample.
   - It's measured in the sample's own time, so it gets shorter as the sample is played higher.
-  - It works when the sample loops (`LOOP` mode, or a loop end point while the note is held), forwards or reversed. It
-    has no effect while time-stretching.
+  - It works when the sample loops (`LOOP` mode, or a loop end point while the note is held), forwards or reversed.
+  - It needs pitch and speed linked (`PITCH/SPEED`) and `SPEED` at 0. With them unlinked, the Deluge time-stretches any
+    note that isn't at the sample's own pitch (other keys, unison detune, vibrato), and the loop then jumps as usual.
   - While it's on, a looping sample doesn't use the playback cache, and the voice reads the sample twice during each
     crossfade, so it uses a bit more CPU. Set to `OFF`, it costs nothing.
 
