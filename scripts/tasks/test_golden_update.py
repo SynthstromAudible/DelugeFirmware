@@ -751,6 +751,78 @@ class CmdUpdateTest(unittest.TestCase):
         self.assertEqual((root / "c.txt").read_text(), "old\n")
 
 
+class SharedBaselineTest(unittest.TestCase):
+    """Entries whose baselines overlap are re-recorded all or nothing."""
+
+    @staticmethod
+    def _recorder(key, confirm_ok):
+        """Appends `key` to shared.txt under the switch; a second run passes when `confirm_ok`."""
+        return (
+            "import os, pathlib, sys\n"
+            "if os.environ.get('DELUGE_GOLDEN_UPDATE') == '1':\n"
+            "    p = pathlib.Path('shared.txt')\n"
+            f"    p.write_text(p.read_text() + '{key}\\n')\n"
+            "    open(os.environ['DELUGE_GOLDEN_UPDATE_LOG'], 'a').write("
+            "f'GOLDEN-UPDATED {pathlib.Path.cwd()}/shared.txt a -> b\\n')\n"
+            f"elif not {confirm_ok}:\n"
+            "    sys.exit(1)\n"
+        )
+
+    def _update(self, a_ok, b_ok, interrupt_on=None):
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root, True)
+        subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+        (root / "shared.txt").write_text("old\n")
+        selection = [
+            _script("a", self._recorder("A", a_ok), ("shared.txt",)),
+            _script("b", self._recorder("B", b_ok), ("shared.txt",)),
+        ]
+        real = tt._run_one
+
+        def run_one(root_, h, *args, extra_env=None, **kwargs):
+            if h.name == interrupt_on and not extra_env:
+                raise KeyboardInterrupt
+            return real(root_, h, *args, extra_env=extra_env, **kwargs)
+
+        with (
+            tempfile.TemporaryFile("w+") as out,
+            mock.patch.object(tt, "OUT", out),
+            mock.patch.object(tt.tb, "products", return_value={}),
+            mock.patch.object(tt, "_run_one", run_one),
+        ):
+            try:
+                rc = tt.cmd_update(root, selection, [])
+            except KeyboardInterrupt:
+                rc = "interrupted"
+            out.seek(0)
+            text = out.read()
+        return root, rc, text
+
+    def test_the_first_failing_its_confirm_restores_the_file_for_both(self):
+        root, rc, text = self._update(False, True)
+        self.assertEqual(rc, 1)
+        self.assertEqual((root / "shared.txt").read_text(), "old\n")
+        self.assertIn("FAIL  a", text)
+        self.assertIn("FAIL  b", text)
+
+    def test_the_second_failing_its_confirm_restores_the_file_for_both(self):
+        root, rc, text = self._update(True, False)
+        self.assertEqual(rc, 1)
+        self.assertEqual((root / "shared.txt").read_text(), "old\n")
+        self.assertIn("FAIL  a", text)
+        self.assertIn("FAIL  b", text)
+
+    def test_both_passing_keep_both_records(self):
+        root, rc, _ = self._update(True, True)
+        self.assertEqual(rc, 0)
+        self.assertEqual((root / "shared.txt").read_text(), "old\nA\nB\n")
+
+    def test_an_interrupt_mid_group_restores_the_pre_group_file(self):
+        root, rc, _ = self._update(True, True, interrupt_on="b")
+        self.assertEqual(rc, "interrupted")
+        self.assertEqual((root / "shared.txt").read_text(), "old\n")
+
+
 if __name__ == "__main__":
     unittest.main()
 

@@ -17,6 +17,7 @@
 
 import argparse
 import concurrent.futures
+import dataclasses
 import hashlib
 import json
 import os
@@ -819,35 +820,89 @@ def _update_one(
     return before
 
 
+def _overlap(a: str, b: str) -> bool:
+    """Whether baseline paths `a` and `b` are one file or one contains the other."""
+    a, b = a.rstrip("/"), b.rstrip("/")
+    return a == b or a.startswith(b + "/") or b.startswith(a + "/")
+
+
+def baseline_groups(selection: list[hr.Harness]) -> list[list[hr.Harness]]:
+    """The selection split into groups whose baselines overlap (transitively), each in selection order, the groups in
+    the order of their first member. Entries with disjoint baselines are groups of one."""
+    groups: list[list[hr.Harness]] = []
+    for h in selection:
+        hit = [
+            g
+            for g in groups
+            if any(_overlap(p, q) for m in g for p in m.baseline for q in h.baseline)
+        ]
+        merged = [h]
+        for g in hit:
+            groups.remove(g)
+            merged = g + merged
+        groups.append(sorted(merged, key=selection.index))
+    return sorted(groups, key=lambda g: selection.index(g[0]))
+
+
 def cmd_update(root: Path, selection: list[hr.Harness], passthrough: list[str]) -> int:
     """Re-record each test's baselines, one test at a time; then build again and run each as usual against what it
-    recorded, restoring a baseline that does not hold. An interrupt anywhere puts back every baseline recorded but not
-    yet confirmed by its second run."""
+    recorded. Tests whose baselines overlap form a group that is kept all or nothing: the group's files are snapshotted
+    once, before its first record run, and any member's failure (record, confirm or interrupt) puts every file of the
+    group back and reports every member as not re-recorded. An interrupt anywhere puts back every group not yet
+    wholly confirmed."""
     if why := owners_refusal(selection):
         print(f"test: {why}", file=sys.stderr)
         return 2
     builds = Builds(root, selection)
     outcomes: dict[str, Outcome] = {}
-    recorded: list[tuple[hr.Harness, dict[str, bytes]]] = []
-    confirmed = 0
+    groups = baseline_groups(selection)
+    group_of = {h.name: g for g in groups for h in g}
+
+    def union(g: list[hr.Harness]) -> hr.Harness:
+        paths = list(dict.fromkeys(p for h in g for p in h.baseline))
+        return dataclasses.replace(g[0], baseline=paths)
+
+    snapshots: dict[int, dict[str, bytes]] = {}
+    confirmed_groups: set[int] = set()
+    rolled_back: dict[int, str] = {}
+
+    def roll_back(g: list[hr.Harness], why: str) -> list:
+        key = id(g)
+        errors = _put_back(root, union(g), snapshots[key]) if key in snapshots else []
+        rolled_back.setdefault(key, why)
+        return errors
+
+    recorded: list[hr.Harness] = []
     try:
         for h in selection:
+            g = group_of[h.name]
+            if id(g) in rolled_back:
+                continue
             missing = _missing(root, h, builds.known)
             why = f"needs {', '.join(missing)}" if missing else builds.blocker(h)
             if why:
                 outcomes[h.name] = Outcome(h.name, "FAIL", why)
                 print(f"--- {h.name}: not re-recorded, {why}", file=OUT, flush=True)
+                roll_back(g, f"{h.name} could not be re-recorded")
                 continue
+            if id(g) not in snapshots:
+                snapshots[id(g)] = baseline_snapshot(root, union(g).baseline)
             before = _update_one(
                 root, h, passthrough if h.runner == "ctest" else [], builds.known
             )
             if before is None:
                 outcomes[h.name] = Outcome(h.name, "FAIL", "nothing re-recorded")
+                roll_back(g, f"{h.name} recorded nothing")
             else:
-                recorded.append((h, before))
+                recorded.append(h)
+        recorded = [h for h in recorded if id(group_of[h.name]) not in rolled_back]
         # Built again: a record header is compiled into what checks it.
-        confirm = Builds(root, [h for h, _ in recorded])
-        for h, before in recorded:
+        confirm = Builds(root, recorded)
+        passed_names: set[str] = set()
+        for h in recorded:
+            g = group_of[h.name]
+            if id(g) in rolled_back:
+                continue
             print(f"==> {h.name}: the new baseline, run as usual", file=OUT, flush=True)
             passed = confirm.blocker(h) is None and _run_one(
                 root,
@@ -858,18 +913,29 @@ def cmd_update(root: Path, selection: list[hr.Harness], passthrough: list[str]) 
                 OUT,
                 confirm.known,
             )
-            if not passed:
-                _put_back(root, h, before)
-            confirmed += 1
-            outcomes[h.name] = Outcome(
-                h.name,
-                "PASS" if passed else "FAIL",
-                "" if passed else "the new baseline fails a second run; restored",
+            if passed:
+                passed_names.add(h.name)
+                if all(m.name in passed_names for m in g):
+                    confirmed_groups.add(id(g))
+            else:
+                outcomes[h.name] = Outcome(
+                    h.name, "FAIL", "the new baseline fails a second run; restored"
+                )
+                roll_back(g, f"{h.name} fails a second run")
+        for h in selection:
+            if h.name in outcomes:
+                continue
+            why = rolled_back.get(id(group_of[h.name]))
+            outcomes[h.name] = (
+                Outcome(h.name, "FAIL", f"not re-recorded: {why}; restored")
+                if why
+                else Outcome(h.name, "PASS", "")
             )
     except BaseException as exc:
         errors: list[OSError | subprocess.SubprocessError] = []
-        for h, before in recorded[confirmed:]:
-            errors += _put_back(root, h, before)
+        for g in groups:
+            if id(g) in snapshots and id(g) not in confirmed_groups:
+                errors += roll_back(g, "interrupted")
         if errors and exc.__cause__ is None:
             raise exc from errors[0]
         raise

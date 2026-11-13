@@ -321,6 +321,11 @@ shell is ignored). Each test runs as usual but writes what it would have compare
   interrupt (Ctrl-C) puts everything back the same way;
 - builds again and runs each test as usual: a new baseline that fails that second run is put back too.
 
+Tests whose `baseline` lists overlap (the render-song entries share `songs.json`) are re-recorded all or nothing: the
+shared files are snapshotted once, before the group's first record run, and if any member fails (its record run, its
+second run or an interrupt) every file of the group goes back to that snapshot and every member is reported as not
+re-recorded. Tests with disjoint baselines are judged one by one.
+
 **Evidence.** A changed baseline is a finding. Commit it with its `GOLDEN-UPDATED` lines in the commit body and, for
 each, why it moved (the change that moved it, or the bug whose fix it records). A line you cannot explain is a
 regression: do not commit it.

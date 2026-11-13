@@ -13,8 +13,8 @@ The baseline is the Embassy render itself. It is not expected to move: a walk's 
 rendered audio is not. A red ST-RENDER is a finding to bisect, never a re-baseline, so the entry declares no `baseline`
 and `./dbt test --update stem-export` is refused. Once a bisect proves the change intended, re-record by hand: run the
 gate, take the sha256 from its ST-RENDER line and the byte count from its ST-BYTES line, write them as
-`<sha256>  <bytes>` to tests/integration/checks/stem-export-<fixture>.sha256, and say in the commit why the audio
-moved.
+`<sha256>  <bytes>` to tests/integration/checks/stem-export-<fixture>.sha256, then run `./dbt test stem-export` and
+confirm it passes, and say in the commit why the audio moved.
 """
 
 import hashlib

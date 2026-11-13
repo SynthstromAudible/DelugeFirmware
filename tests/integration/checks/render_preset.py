@@ -31,8 +31,8 @@ RENDER_PARAM_DUMP_DIR=<dir> dumps each case's matrix passes and voice sources th
 RENDER_RANDOM_SEED seeds the synth's random stream at each case's first note instead of its boot seed, to measure how
 much a case depends on its random draws (audio/host.rs).
 `./dbt test --update golden-synth` records the cases run instead of comparing them (RENDER_PRESET_FILTER narrows it;
-RENDER_PRESET_CORPUS cannot be re-recorded, since the records are the committed corpus's); a changed hash is a finding to explain in the
-commit that records the new one.
+RENDER_PRESET_CORPUS cannot be re-recorded, since the records are the committed corpus's); a changed hash is a
+finding to explain in the commit that records the new one.
 """
 
 import concurrent.futures

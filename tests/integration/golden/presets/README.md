@@ -25,7 +25,7 @@ Each case is one run of golden_vt_render's `render_preset` scenario
 ```sh
 ./dbt test golden-synth                                     # every case, against presets.json
 RENDER_PRESET_FILTER=sine,fm ./dbt test golden-synth        # the cases whose name holds any of these
-./dbt test --update golden-synth                           # record instead of comparing (builds first)
+./dbt test --update golden-synth                            # record instead of comparing (builds first)
 ```
 
 A case takes a fraction of a second of wall time (the harness runs in virtual time), and the cases run in parallel.
