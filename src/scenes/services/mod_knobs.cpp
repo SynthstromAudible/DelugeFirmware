@@ -190,7 +190,7 @@ void ModKnobs::set_mod_region(uint32_t pos, uint32_t length, int32_t note_row_id
 	}
 	// `:1931-1935` -- holding a note on a stopped clip grabs its params' values from there.
 	if (length != 0 && is_clip_context(*focus_) && !playbackHandler.isEitherClockActive() && bound()) {
-		(void)menu::host_write_sink().grab_region(*focus_, pos);
+		(void)menu::host_controls_sink().grab_region(*focus_, pos);
 	}
 	// `:1946-1947` -- unless midi follow feedback automation is disabled.
 	if (midiEngine.midiFollowFeedbackAutomation != MIDIFollowFeedbackAutomationMode::DISABLED) {
@@ -286,7 +286,7 @@ Result ModKnobs::mod_encoder_action(int32_t which_encoder, int32_t offset, uint3
 	Result result = turn_knob(which_encoder, offset, now_ms);
 	// `:840` -- every turn on a clip marks its instrument edited, whatever it wrote.
 	if (is_clip_context(*focus_)) {
-		(void)menu::host_write_sink().instrument_edited(*focus_);
+		(void)menu::host_controls_sink().instrument_edited(*focus_);
 	}
 	return result;
 }
@@ -295,7 +295,7 @@ Result ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_m
 	Result result;
 	result.handled = true;
 	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
-	bind::WriteSink& sink = menu::host_write_sink();
+	controls::Sink& sink = menu::host_controls_sink();
 	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder);
 
 	if (const auto* comp = std::get_if<bind::CompArm>(&assignment.target)) {
@@ -473,7 +473,7 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 	if (std::holds_alternative<std::monostate>(focus_->owner) || !bound()) { // `:1510`
 		return;
 	}
-	bind::WriteSink& sink = menu::host_write_sink();
+	controls::Sink& sink = menu::host_controls_sink();
 
 	// A MIDI track choosing its knob's CC: any mod button ends that, and does nothing else.
 	if (selecting_cc_) {
@@ -536,7 +536,7 @@ Result ModKnobs::mod_encoder_button_action(int32_t which_encoder, bool on, bool 
 	if (learn || std::holds_alternative<std::monostate>(focus_->owner) || !bound()) {
 		return result; // `:1336-1340`
 	}
-	bind::WriteSink& sink = menu::host_write_sink();
+	controls::Sink& sink = menu::host_controls_sink();
 
 	if (shift && on) { // `:1342-1344` -- delete the knob's automation
 		const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder);
@@ -571,7 +571,7 @@ Result ModKnobs::mod_encoder_button_action(int32_t which_encoder, bool on, bool 
 		selecting_knob_ = which_encoder;
 	}
 	// `:1371` -- a push that edited the instrument marks it, on a clip.
-	if (apply_push(sink, *focus_, push) && push.edited && is_clip_context(*focus_)) {
+	if (apply_push(menu::host_write_sink(), sink, *focus_, push) && push.edited && is_clip_context(*focus_)) {
 		(void)sink.instrument_edited(*focus_);
 	}
 	if (push.comp) {

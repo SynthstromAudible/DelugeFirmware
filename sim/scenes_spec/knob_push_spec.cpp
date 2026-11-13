@@ -197,7 +197,8 @@ std::string push_both(Side& legacy, Side& port, uint8_t mode, int32_t knob, bool
 	const services::KnobPush press =
 	    services::knob_push(port.song->project, port.focus, knob, true, inputs_of(port, held));
 	currentSong = port.song;
-	(void)services::apply_push(deluge::scenes::menu::host_write_sink(), port.focus, press);
+	(void)services::apply_push(deluge::scenes::menu::host_write_sink(), deluge::scenes::menu::host_controls_sink(),
+	                           port.focus, press);
 	if (press.comp) {
 		port.focus.comp = *press.comp;
 	}
@@ -205,7 +206,8 @@ std::string push_both(Side& legacy, Side& port, uint8_t mode, int32_t knob, bool
 	const services::KnobPush release =
 	    services::knob_push(port.song->project, port.focus, knob, false, inputs_of(port, held));
 	currentSong = port.song;
-	(void)services::apply_push(deluge::scenes::menu::host_write_sink(), port.focus, release);
+	(void)services::apply_push(deluge::scenes::menu::host_write_sink(), deluge::scenes::menu::host_controls_sink(),
+	                           port.focus, release);
 	hold_mod_button(mode, false);
 	(void)last_notice();
 

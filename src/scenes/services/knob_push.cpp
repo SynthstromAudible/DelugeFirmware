@@ -690,11 +690,11 @@ CompTurn comp_turn(const bind::CompArm& arm, const effects::EffectStates& effect
 	return out;
 }
 
-bool apply_push(bind::WriteSink& sink, const bind::KnobFocus& focus, const KnobPush& push) {
+bool apply_push(bind::WriteSink& sink, controls::Sink& controls, const bind::KnobFocus& focus, const KnobPush& push) {
 	bool taken = true;
 	const std::optional<EffectOwner> owner = effect_owner(focus);
 	for (const EffectWrite& write : push.effects) {
-		taken &= owner && sink.write_effect(*owner, write.path, write.value);
+		taken &= owner && controls.write_effect(*owner, write.path, write.value);
 	}
 	for (const auto& [path, menu_value] : push.song) {
 		const bind::Target target{
@@ -703,20 +703,20 @@ bool apply_push(bind::WriteSink& sink, const bind::KnobFocus& focus, const KnobP
 	}
 	if (push.chain_view) {
 		const auto* chain = owner ? std::get_if<project::ChainAddress>(&*owner) : nullptr;
-		taken &= chain != nullptr && sink.chain_view(*chain, push.chain_view->first, push.chain_view->second);
+		taken &= chain != nullptr && controls.chain_view(*chain, push.chain_view->first, push.chain_view->second);
 	}
 	if (push.controls) {
 		const auto* sound = std::get_if<bind::SoundFocus>(&focus.owner);
-		taken &=
-		    sound != nullptr
-		    && sink.write_controls(project::ControlsAddress{.kind = sound->slot.kind == project::SlotAddress::Kind::DRUM
-		                                                                ? project::ControlsAddress::Kind::DRUM
-		                                                                : project::ControlsAddress::Kind::OUTPUT,
-		                                                    .id = sound->slot.id},
-		                           *push.controls);
+		taken &= sound != nullptr
+		         && controls.write_controls(
+		             project::ControlsAddress{.kind = sound->slot.kind == project::SlotAddress::Kind::DRUM
+		                                                  ? project::ControlsAddress::Kind::DRUM
+		                                                  : project::ControlsAddress::Kind::OUTPUT,
+		                                      .id = sound->slot.id},
+		             *push.controls);
 	}
 	if (push.stutter) {
-		taken &= sink.stutter(focus, *push.stutter);
+		taken &= controls.stutter(focus, *push.stutter);
 	}
 	return taken;
 }

@@ -2614,7 +2614,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 			(void)r.open(nodes::lpf_freq);
 			r.shell.tick(0);
 			const auto lpf = lpf_of(r.song);
-			expect(menu::host_write_sink().write_param(lpf, 0x20000000, 0, 24)).to_be_true();
+			expect(menu::host_controls_sink().write_param(lpf, 0x20000000, 0, 24)).to_be_true();
 			expect(r.song.song->project.resolveParam(lpf)->nodes.empty()).to_be_false();
 			changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
 			actionLogger.deleteAllLogs();
@@ -2645,7 +2645,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 			r.shell.tick(215);
 			expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
 			const auto lpf = lpf_of(r.song);
-			expect(menu::host_write_sink().write_param(lpf, 0x20000000, 0, 24)).to_be_true();
+			expect(menu::host_controls_sink().write_param(lpf, 0x20000000, 0, 24)).to_be_true();
 			r.button(kShiftX, kShiftY, true, 230);
 			r.enter(240);
 			r.shell.tick(250);

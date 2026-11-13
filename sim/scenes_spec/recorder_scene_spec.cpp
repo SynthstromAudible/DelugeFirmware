@@ -173,7 +173,7 @@ struct DisplayAs {
 };
 
 /// @brief A sink that refuses every request.
-struct RefusingSink final : bind::WriteSink {
+struct RefusingSink final : bind::WriteSink, deluge::controls::Sink {
 	bool write(const bind::WriteRequest&) override { return false; }
 	bool write_param(const deluge::project::ParamAddress&, int32_t, int32_t, int32_t) override { return false; }
 	bool delete_automation(const deluge::project::ParamAddress&) override { return false; }

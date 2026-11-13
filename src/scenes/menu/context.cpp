@@ -274,6 +274,7 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 	if (host_binds(song)) {
 		ctx.facts = &host_runtime_facts();
 		ctx.sink = &host_write_sink();
+		ctx.controls_sink = &host_controls_sink();
 	}
 	// An unresolved context (a kit row with no note row) names nothing to edit.
 	if (ctx.resolved && slot) {

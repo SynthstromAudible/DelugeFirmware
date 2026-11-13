@@ -819,13 +819,13 @@ void MenuScene::flip_in_place(const Node& node) {
 void MenuScene::mark_edited_after_turn() {
 	// `currentSound`, which the slot stands for, and `markInstrumentAsEdited`'s `!inSettingsMenu()`: the settings menu
 	// can be opened over a synth with a slot resolved.
-	if (ctx_.sink == nullptr || ctx_.root == MenuContext::Root::Settings || !ctx_.addresses.slot
+	if (ctx_.controls_sink == nullptr || ctx_.root == MenuContext::Root::Settings || !ctx_.addresses.slot
 	    || !select_turn_edits_instrument(ctx_, st_)) {
 		return;
 	}
 	const deluge::project::SlotAddress slot = *ctx_.addresses.slot;
 	const bool drum = slot.kind == deluge::project::SlotAddress::Kind::DRUM;
-	(void)ctx_.sink->instrument_edited(deluge::scenes::bind::KnobFocus{
+	(void)ctx_.controls_sink->instrument_edited(deluge::scenes::bind::KnobFocus{
 	    .owner = deluge::scenes::bind::SoundFocus{
 	        .slot = slot, .clip = ctx_.addresses.clip, .kit = drum ? ctx_.addresses.kit_output : std::nullopt}});
 }

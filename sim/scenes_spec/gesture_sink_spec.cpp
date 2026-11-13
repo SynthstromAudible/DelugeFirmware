@@ -93,7 +93,7 @@ describe gesture_sink("a scene's gestures through the app's sink", ${
 		currentSong = audio.song;
 		audio.song->setCurrentClip(audio.clip);
 		const deluge::project::ParamAddress lpf = audio_lpf(audio);
-		expect(menu::host_write_sink().write_param(lpf, 0x20000000, 0, 24)).to_be_true();
+		expect(menu::host_controls_sink().write_param(lpf, 0x20000000, 0, 24)).to_be_true();
 		expect(audio.song->project.resolveParam(lpf)->nodes.empty()).to_be_false();
 		changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
 		actionLogger.deleteAllLogs();

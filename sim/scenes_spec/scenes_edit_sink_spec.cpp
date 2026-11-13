@@ -291,7 +291,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 
 	it("each knob request reaches its Edit or command, and the recording sink keeps it", _ {
 		spec::SongFixture f = spec::make_synth_song();
-		bind::WriteSink& sink = menu::host_write_sink();
+		deluge::controls::Sink& sink = menu::host_controls_sink();
 		const uint32_t id = *f.instrument->id();
 		deluge::project::Song& model = f.song->project;
 

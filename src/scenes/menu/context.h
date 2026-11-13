@@ -190,7 +190,8 @@ struct MenuContext {
 	deluge::scenes::bind::Addresses addresses{};
 	const deluge::scenes::bind::RuntimeFacts* facts = nullptr;
 	deluge::scenes::bind::WriteSink* sink = nullptr;
-	/// @}
+	deluge::controls::Sink* controls_sink = nullptr; ///< the same host's knob writes
+	                                                 /// @}
 };
 
 /// @brief Resolve what a menu opened over @p clip would edit -- `SoundEditor::setup`'s context half,
