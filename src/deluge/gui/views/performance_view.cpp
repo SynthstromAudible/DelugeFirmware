@@ -1640,7 +1640,7 @@ void PerformanceView::modEncoderAction(int32_t whichModEncoder, int32_t offset) 
 void PerformanceView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	// release stutter if it's already active before beginning stutter again
 	// Stutter section: the upper knob of mod button 6
-	if (on && view.getModKnobMode() == 6 && whichModEncoder == 1) {
+	if (on && view.knobMode() == 6 && whichModEncoder == 1) {
 		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);

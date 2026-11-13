@@ -153,10 +153,9 @@ public:
 
 	/// @brief Reseed the record's 6 base identity fields from the current native values.
 	///
-	/// The load bridge, and the reseed helper for sites that can't call a single setter directly: the polymorphic
-	/// modKnobMode write in View::modButtonAction, and the clone/replace families in song.cpp that bulk-copy fields
-	/// between Outputs. Virtual so Instrument can also reseed its own tier (dir_path/default_velocity), and every
-	/// polymorphic call site covers those fields too.
+	/// The load bridge, and the reseed helper for sites that can't call a single setter directly: the clone/replace
+	/// families in song.cpp that bulk-copy fields between Outputs. Virtual so Instrument can also reseed its own tier
+	/// (dir_path/default_velocity), and every polymorphic call site covers those fields too.
 	virtual void seedDocOutputIdentity();
 
 	// Temp stuff for doLaunch()

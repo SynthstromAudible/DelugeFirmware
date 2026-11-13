@@ -194,9 +194,9 @@ namespace deluge::gui::ui {
 /// @par The gold knobs are the scenes' `ModKnobs`
 ///
 /// The guest's gold knobs go to the shell's router, which hands `Encoder{GoldLower/GoldUpper}`,
-/// `EncoderButton{ModEnc0/1}` and `Button{Mod0..7}` to the knobs' service; that service and legacy's
-/// `View` keep one focus (`View::knobFocus()`), so what the knobs point at is the same either side
-/// of an open guest.
+/// `EncoderButton{ModEnc0/1}` and `Button{Mod0..7}` to the knobs' service. With no guest open the root views
+/// reach the same service through `gui/ui/root_knobs`, and the service and `View` keep one focus
+/// (`View::knobFocus()`), so what the knobs point at is the same either side of an open guest.
 ///
 ///  - **A turn arrives lowered.** `interpretEncoders` has accelerated it (`ContinuousEncoder::actionTurns`) before
 ///    it calls `modEncoderAction`, so the turn goes to `Shell::route_lowered_turn`, not into the lowering, where

@@ -402,7 +402,7 @@ struct PerformViewGuard {
 ///
 /// **The one residue this cannot put back, stated rather than left to be discovered.**
 /// `nullifyUIs()` also sets `lastUIBeforeNullifying = getCurrentUI()` (`gui/ui/ui.cpp:288`), and
-/// that variable is defined at `gui/ui/ui.cpp:96` with no declaration in `ui.h`, so it cannot be
+/// that variable is defined at `gui/ui/ui.cpp:97` with no declaration in `ui.h`, so it cannot be
 /// reset from here -- `tables_3_spec.cpp` records the same fact for the same reason. So
 /// after an example in this group, `getCurrentUI()` answers `&performanceView`
 /// instead of null, while `getRootUI()` still answers null -- it is a different function, at
@@ -544,7 +544,7 @@ bool open_global_guest(const Node& root, spec::SongFixture& song) {
 /// does NOT call `opened()` first the way `open_global_guest` does -- doing both would push the
 /// initial scene twice.
 ///
-/// @warning Seat a root UI first. `openUI` writes `uiNavigationHierarchy[numUIsOpen]` (`ui.cpp:260`),
+/// @warning Seat a root UI first. `openUI` writes `uiNavigationHierarchy[numUIsOpen]` (`ui.cpp:261`),
 ///          so with an empty hierarchy the guest lands at index 0 and becomes `getRootUI()` -- the
 ///          precondition `stemExportTypeForRootUI`'s note in `gui/ui/shell_action_dispatch.cpp`
 ///          spells out. Teardown is `UiStackGuard`'s `nullifyUIs()`, never `closeUI`.
@@ -1860,7 +1860,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		expect(chosen_stem_export_type()).to_equal(-1);
 
 		// And the null root: `getRootUI()` answers `nullptr` while `numUIsOpen == 0`
-		// (`gui/ui/ui.cpp:175-180`), which is legacy's "during song load / swap" (`:94`).
+		// (`gui/ui/ui.cpp:175-180`), which is legacy's "during song load / swap" (`:95`).
 		// `nullifyUIs()` (`:257-261`) is how legacy itself gets there.
 		nullifyUIs();
 		expect(getRootUI() == nullptr).to_be_true();

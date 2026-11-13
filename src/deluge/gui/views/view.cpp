@@ -27,6 +27,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/root_knobs.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/save/save_song_ui.h"
 #include "gui/ui/ui.h"
@@ -40,8 +41,6 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "hid/encoder_input.h"
-#include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -54,18 +53,10 @@
 #include "lib/printf.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
-#include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
-#include "model/consequence/consequence.h"
 #include "model/drum/drum.h"
-#include "model/edits/bend_range_for.h"
-#include "model/edits/delete_param_automation.h"
-#include "model/edits/edit.h"
 #include "model/edits/learn_mapping.h"
-#include "model/edits/param_address_for.h"
-#include "model/edits/set_mod_knob_mode.h"
-#include "model/edits/set_param_value.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/instrument.h"
@@ -93,8 +84,6 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
-#include "processing/sound/sound_instrument.h"
-#include "processing/stem_export/stem_export.h"
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
@@ -107,7 +96,6 @@
 #include <optional>
 
 namespace params = deluge::modulation::params;
-namespace encoders = deluge::hid::encoders;
 using namespace deluge;
 using namespace gui;
 using deluge::project::SessionMacro;
@@ -778,135 +766,6 @@ void View::midiLearnFlash() {
 	}
 }
 
-void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
-	// this routine used to exit if shift was held, but the shift+encoder combo does not seem used anywhere else either
-	//  if (Buttons::isShiftButtonPressed()) {
-	//  	return;
-	//  }
-
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* stack = knobOwnerStack(memory);
-	if (stack != nullptr && stack->modControllable != nullptr) {
-		bool noteTailsAllowedBefore = false;
-		if (stack->timelineCounterIsSet()) {
-			alignas(ModelStackWithAutoParam) char soundMemory[MODEL_STACK_MAX_SIZE];
-			copyModelStack(soundMemory, stack, sizeof(ModelStackWithThreeMainThings));
-			noteTailsAllowedBefore = stack->modControllable->allowNoteTails(
-			    reinterpret_cast<ModelStackWithThreeMainThings*>(soundMemory)->addSoundFlags());
-		}
-
-		// Read, never made: the write makes what it turns (a cable), in the take while the arrangement records.
-		ModelStackWithAutoParam* modelStackWithParam =
-		    stack->modControllable->getParamFromModEncoder(whichModEncoder, stack, false, knobComp());
-
-		if (isParamOfKnob(modelStackWithParam)) {
-			modEncoderAction_existentParam(whichModEncoder, offset, modelStackWithParam, noteTailsAllowedBefore);
-		}
-		// If non-existent param, still let the ModControllable know
-		else {
-			modEncoderAction_nonExistentParam(*stack->modControllable, whichModEncoder, offset, modelStackWithParam);
-		}
-	}
-
-	instrumentBeenEdited();
-}
-
-void View::modEncoderAction_nonExistentParam(ModControllable& owner, int32_t whichModEncoder, int32_t offset,
-                                             ModelStackWithAutoParam* modelStackWithParam) {
-	ActionResult result =
-	    owner.modEncoderActionForNonExistentParam(offset, whichModEncoder, modelStackWithParam, knobComp());
-
-	if (result == ActionResult::ACTIONED_AND_CAUSED_CHANGE) {
-		setKnobIndicatorLevel(whichModEncoder);
-	}
-}
-
-void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offset,
-                                          ModelStackWithAutoParam* modelStackWithParam, bool noteTailsAllowedBefore) {
-	params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-
-	// An unmade cable reads as its default, 0.
-	int32_t value = modelStackWithParam->autoParam != nullptr
-	                    ? modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos(), modelStackWithParam)
-	                    : 0;
-	int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(value, modelStackWithParam);
-	int32_t newKnobPos = calculateKnobPosForModEncoderTurn(kind, knobPos, offset);
-
-	// if you had selected a parameter in performance view and the parameter name
-	// and current value is displayed on the screen, don't show pop-up as the display
-	// already shows it
-	// this checks that the param displayed on the screen in performance view
-	// is the same param currently being edited with mod encoder
-	bool editingParamInPerformanceView = false;
-	if (getRootUI() == &performanceView) {
-		editingParamInPerformanceView =
-		    performanceView.possiblyRefreshPerformanceViewDisplay(kind, modelStackWithParam->paramId, newKnobPos);
-	}
-
-	// Browsing for a song, or a song load in flight (which has taken every UI down): its popup stays up.
-	bool inSongBrowser = loadSongUI.isLoadingSong();
-
-	if (!editingParamInPerformanceView && !inSongBrowser) {
-		PatchSource source1 = PatchSource::NONE;
-		PatchSource source2 = PatchSource::NONE;
-		if (kind == params::Kind::PATCH_CABLE) {
-			const deluge::synth::CableTarget paramDescriptor{static_cast<uint32_t>(modelStackWithParam->paramId)};
-			source1 = paramDescriptor.bottom_source();
-			if (!paramDescriptor.has_just_one_source()) {
-				source2 = paramDescriptor.top_source();
-			}
-		}
-		displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos, source1, source2);
-	}
-
-	if (newKnobPos == knobPos) {
-		return;
-	}
-
-	int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
-
-	// Perform the actual change as an Edit, at the address: the take is made (once) and written while the
-	// arrangement records, and what it turns is made.
-	if (const std::optional<deluge::project::ParamAddress> address = knobParamAddress(*modelStackWithParam)) {
-		deluge::edits::Context editContext{*currentSong, currentSong->project};
-		deluge::edits::SetParamValue edit{*address, newValue, static_cast<int32_t>(modPos()),
-		                                  static_cast<int32_t>(modLength()),
-		                                  deluge::edits::SetParamValue::Resolve::WRITE};
-		deluge::edits::apply(editContext, edit);
-	}
-
-	// The write may have made the take or the cable: what follows reads the owner as it now is.
-	alignas(ModelStackWithAutoParam) char afterMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* after = knobOwnerStack(afterMemory);
-	refreshKnobParamManager();
-
-	// midi follow and midi feedback enabled
-	// re-send midi cc because learned parameter value has changed
-	if (after != nullptr && after->modControllable != nullptr) {
-		alignas(ModelStackWithAutoParam) char paramMemory[MODEL_STACK_MAX_SIZE];
-		copyModelStack(paramMemory, after, sizeof(ModelStackWithThreeMainThings));
-		sendMidiFollowFeedback(
-		    after->modControllable->getParamFromModEncoder(
-		        whichModEncoder, reinterpret_cast<ModelStackWithThreeMainThings*>(paramMemory), false, knobComp()),
-		    newKnobPos);
-
-		if (after->timelineCounterIsSet()) {
-			bool noteTailsAllowedAfter = after->modControllable->allowNoteTails(after->addSoundFlags());
-
-			if (noteTailsAllowedBefore != noteTailsAllowedAfter) {
-				if (getRootUI() && getRootUI()->toTimelineView() != nullptr) {
-					uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0);
-				}
-			}
-		}
-	}
-
-	// if the newKnobPos == 0, and we're dealing with a param that param that should
-	// indicate (blink) middle value
-	// then blink that middle value and make it harder to turn the knob past middle
-	potentiallyMakeItHarderToTurnKnob(whichModEncoder, modelStackWithParam, newKnobPos);
-}
-
 int32_t View::calculateKnobPosForModEncoderTurn(params::Kind kind, int32_t knobPos, int32_t offset) {
 	int32_t lowerLimit;
 	int32_t upperLimit = 64_i32;
@@ -927,72 +786,7 @@ int32_t View::calculateKnobPosForModEncoderTurn(params::Kind kind, int32_t knobP
 	return newKnobPos;
 }
 
-bool View::isParamOfKnob(const ModelStackWithAutoParam* modelStackWithParam) {
-	return modelStackWithParam != nullptr && modelStackWithParam->paramCollection != nullptr
-	       && (modelStackWithParam->autoParam != nullptr
-	           || modelStackWithParam->paramCollection->getParamKind() == params::Kind::PATCH_CABLE);
-}
-
-std::optional<deluge::project::ParamAddress> View::knobParamAddress(const ModelStackWithAutoParam& param) const {
-	const std::optional<deluge::project::ParamAddress> owner = deluge::controls::knob_owner(knobFocus_);
-	if (!owner) {
-		return std::nullopt;
-	}
-	return deluge::bridge::addressOf(owner->owner, param.kind, param.paramId, owner->clip_id);
-}
-
-// used to get name of parameter assigned to mod encoder
-void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* parameterName) {
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* stack = knobOwnerStack(memory);
-	if (stack == nullptr || stack->modControllable == nullptr) {
-		return;
-	}
-	// Named as it stands: a name read makes no take.
-	ModelStackWithAutoParam* modelStackWithParam =
-	    stack->modControllable->getParamFromModEncoder(whichModEncoder, stack, false, knobComp());
-	if (isParamOfKnob(modelStackWithParam)) {
-		params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-
-		if (kind == params::Kind::PATCH_CABLE) {
-			PatchSource source1 = PatchSource::NONE;
-			PatchSource source2 = PatchSource::NONE;
-			const deluge::synth::CableTarget paramDescriptor{static_cast<uint32_t>(modelStackWithParam->paramId)};
-			source1 = paramDescriptor.bottom_source();
-			if (!paramDescriptor.has_just_one_source()) {
-				source2 = paramDescriptor.top_source();
-			}
-
-			etl::string<30> paramDisplayName;
-			if (source2 == PatchSource::NONE) {
-				paramDisplayName.append(getSourceDisplayName(source1));
-			}
-			else {
-				paramDisplayName.append(sourceToStringShort(source1));
-			}
-			paramDisplayName.append(" -> ");
-
-			if (source2 != PatchSource::NONE) {
-				paramDisplayName.append(sourceToStringShort(source2));
-				paramDisplayName.append(" -> ");
-			}
-
-			paramDisplayName.append(modulation::params::getPatchedParamShortName(
-			    modelStackWithParam->paramId, (ModControllableAudio*)stack->modControllable));
-			strncpy(parameterName, paramDisplayName.c_str(), 29);
-		}
-		else {
-			strncpy(parameterName,
-			        deluge::modulation::params::getParamDisplayName(kind, modelStackWithParam->paramId,
-			                                                        (ModControllableAudio*)stack->modControllable),
-			        29);
-		}
-	}
-}
-
-// for param's that are bipolar / should indicate middle value
-// this will blink the middle value when middle knob pos is reached
-// and make it harder to turn the knob past the middle value
+// Blink the indicator at a centred position of a param that shows its middle; stop the blink otherwise.
 void View::potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStackWithAutoParam* modelStackWithParam,
                                              int32_t newKnobPos) {
 	params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
@@ -1010,9 +804,6 @@ void View::potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStack
 		bool isBipolar = deluge::modulation::params::isParamBipolar(kind, modelStackWithParam->paramId);
 
 		indicator_leds::blinkKnobIndicator(whichModEncoder, isBipolar);
-
-		// Make it harder to turn that knob away from its centred position
-		deluge::hid::encoders::timeModEncoderLastTurned[whichModEncoder] = AudioEngine::audioSampleTimer - kSampleRate;
 	}
 	else {
 		indicator_leds::stopBlinkingKnobIndicator(whichModEncoder);
@@ -1278,64 +1069,6 @@ int32_t View::calculateKnobPosForDisplay(params::Kind kind, int32_t paramID, int
 	return deluge::plugin::knob_display_number(info != nullptr ? info->flags : deluge::plugin::ParamFlags{}, knobPos);
 }
 
-void View::instrumentBeenEdited() {
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* stack = knobOwnerStack(memory);
-	if (stack != nullptr && stack->timelineCounterIsSet()) {
-		stack->getTimelineCounter()->instrumentBeenEdited();
-	}
-}
-
-void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
-
-	// If the learn button is pressed, user is trying to copy or paste, and the fact that we've ended up here means they
-	// can't
-	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
-		return;
-	}
-
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* stack = knobOwnerStack(memory);
-	if (stack != nullptr && stack->modControllable != nullptr) {
-
-		if (Buttons::isShiftButtonPressed() && on) {
-			modEncoderButtonAction_deleteAutomation(whichModEncoder, stack);
-		}
-		else {
-			modEncoderButtonAction_changeModControllable(whichModEncoder, on, stack);
-		}
-	}
-}
-
-void View::modEncoderButtonAction_deleteAutomation(uint8_t whichModEncoder, ModelStackWithThreeMainThings* stack) {
-	// Only a param the owner holds has automation to delete; the delete lands in the take while the arrangement
-	// records.
-	ModelStackWithAutoParam* modelStackWithParam =
-	    stack->modControllable->getParamFromModEncoder(whichModEncoder, stack, false, knobComp());
-	if (modelStackWithParam == nullptr || modelStackWithParam->autoParam == nullptr) {
-		return;
-	}
-	if (const std::optional<deluge::project::ParamAddress> address = knobParamAddress(*modelStackWithParam)) {
-		deluge::edits::Context editCtx{*currentSong, currentSong->project};
-		deluge::edits::DeleteParamAutomation edit{*address, ActionAddition::NOT_ALLOWED,
-		                                          deluge::edits::SetParamValue::Resolve::WRITE};
-		deluge::edits::apply(editCtx, edit);
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED));
-	}
-}
-
-void View::modEncoderButtonAction_changeModControllable(uint8_t whichModEncoder, bool on,
-                                                        ModelStackWithThreeMainThings* stack) {
-	ModControllable* owner = stack->modControllable;
-	bool anyEditingDone = owner->modEncoderButtonAction(whichModEncoder, on, stack, knobCompToMove());
-	// A press may cycle a knob to its next param (LPF, HPF, EQ): its owner's mappings are the record's.
-	deluge::edits::recordControlsOf(*owner);
-	if (anyEditingDone) {
-		instrumentBeenEdited();
-	}
-	setKnobIndicatorLevels(); // These might have changed as a result
-}
-
 void View::setKnobIndicatorLevels() {
 	if (!getRootUI()) {
 		return; // What's this?
@@ -1348,91 +1081,7 @@ void View::setKnobIndicatorLevels() {
 	}
 
 	refreshKnobParamManager();
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* stack = knobOwnerStack(memory);
-	if (stack != nullptr && stack->modControllable != nullptr) {
-		for (int32_t whichModEncoder = 0; whichModEncoder < NUM_LEVEL_INDICATORS; whichModEncoder++) {
-			if (!indicator_leds::isKnobIndicatorBlinking(whichModEncoder)) {
-				setKnobIndicatorLevel(whichModEncoder);
-			}
-		}
-	}
-
-	else {
-		indicator_leds::clearKnobIndicatorLevels();
-	}
-}
-
-void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
-	// timelineCounter and paramManager could be NULL - if the user is holding down an audition pad in Arranger,
-	// and that Output has no Clips. Especially if it's a MIDIInstrument (no ParamManager).
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* stack = knobOwnerStack(memory);
-	if (stack == nullptr || stack->modControllable == nullptr) {
-		return;
-	}
-	ModelStackWithAutoParam* modelStackWithParam =
-	    stack->modControllable->getParamFromModEncoder(whichModEncoder, stack, false, knobComp());
-
-	int32_t knobPos;
-	bool isBipolar = false;
-
-	if (modelStackWithParam->autoParam) {
-		int32_t value = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos(), modelStackWithParam);
-		ParamCollection* paramCollection = modelStackWithParam->paramCollection;
-		params::Kind kind = paramCollection->getParamKind();
-		isBipolar = deluge::modulation::params::isParamBipolar(kind, modelStackWithParam->paramId);
-		knobPos = paramCollection->paramValueToKnobPos(value, modelStackWithParam);
-		int32_t lowerLimit;
-
-		if (kind == params::Kind::PATCH_CABLE) {
-			lowerLimit = std::min(-192_i32, knobPos);
-		}
-		else {
-			lowerLimit = std::min(-64_i32, knobPos);
-		}
-		knobPos = std::clamp(knobPos, lowerLimit, 64_i32);
-		if (deluge::modulation::params::isParamQuantizedStutter(
-		        kind, modelStackWithParam->paramId, (ModControllableAudio*)modelStackWithParam->modControllable)
-		    && !isUIModeActive(UI_MODE_STUTTERING)) {
-			if (knobPos < -39) { // 4ths stutter: no leds turned on
-				knobPos = -64;
-			}
-			else if (knobPos < -14) { // 8ths stutter: 1 led turned on
-				knobPos = -32;
-			}
-			else if (knobPos < 14) { // 16ths stutter: 2 leds turned on
-				knobPos = 0;
-			}
-			else if (knobPos < 39) { // 32nds stutter: 3 leds turned on
-				knobPos = 32;
-			}
-			else { // 64ths stutter: all 4 leds turned on
-				knobPos = 64;
-			}
-		}
-		knobPos += kKnobPosOffset;
-
-		if (kind == params::Kind::PATCH_CABLE) {
-			knobPos = view.convertPatchCableKnobPosToIndicatorLevel(knobPos);
-		}
-	}
-	else {
-		if (modelStackWithParam->paramId == 255) {
-			knobPos = modelStackWithParam->modControllable->getKnobPosForNonExistentParam(
-			    whichModEncoder, modelStackWithParam, knobComp());
-			knobPos += kKnobPosOffset;
-		}
-		// is it not just a param? then its a patch cable
-		else if (!((modelStackWithParam->paramId & 0x0000FF00) == 0x0000FF00)) {
-			// default value for patch cable
-			// (equals 0 (midpoint) in -128 to +128 range)
-			knobPos = 64;
-			isBipolar = true;
-		}
-	}
-
-	indicator_leds::setKnobIndicatorLevel(whichModEncoder, knobPos, isBipolar);
+	deluge::gui::ui::root_knobs::refresh_indicators();
 }
 
 /// if you're dealing with a patch cable which has a -128 to +128 range
@@ -1463,61 +1112,6 @@ static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
 
 bool View::modButtonUIModeInRange() const {
 	return isUIModeWithinRange(modButtonUIModes);
-}
-
-void View::modButtonAction(uint8_t whichButton, bool on) {
-	RootUI* rootUI = getRootUI();
-
-	// ignore modButtonAction when in the Automation View Automation Editor
-	if ((rootUI == &automationView) && automationView.inAutomationEditor()) {
-		// exception for arranger view and pressing mod button 0 so you can toggle VU meter
-		if (!(automationView.onArrangerView && whichButton == 0)) {
-			return;
-		}
-	}
-
-	pretendModKnobsUntouchedForAWhile();
-
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* stack = knobOwnerStack(memory);
-	if (stack != nullptr && stack->modControllable != nullptr) {
-		ModControllable* owner = stack->modControllable;
-		auto* params = (ParamManagerForTimeline*)stack->paramManager;
-		if (on) {
-			if (modButtonUIModeInRange() || (rootUI == &performanceView)) {
-				// only displaying VU meter in session view, arranger view, performance view and arranger automation
-				// view
-				if (!rootUIIsClipMinderScreen()) {
-					// are we pressing the same button that is currently selected
-					if (*owner->getModKnobMode() == whichButton) {
-						// you just pressed the volume mod button and it was already selected previously
-						// toggle displaying VU Meter on / off
-						if (whichButton == 0) {
-							knobFocus_.vu_meter = !knobFocus_.vu_meter;
-						}
-					}
-					// refresh sidebar if VU meter previously rendered is still showing
-					if (renderedVUMeter) {
-						uiNeedsRendering(rootUI, 0); // only render sidebar
-					}
-				}
-
-				// change the button selection before calling mod button action so that mod button action
-				// knows the mod button parameter context
-				// The knob owner's mode: the song's own, or its output's (a kit row's knobs are its kit's), wherever it
-				// is.
-				(void)deluge::edits::modKnobModeForSlot(owner->getModKnobMode(), whichButton);
-
-				owner->modButtonAction(whichButton, true, params, knobComp());
-
-				setKnobIndicatorLevels();
-				setModLedStates();
-			}
-		}
-		else {
-			owner->modButtonAction(whichButton, false, params, knobComp());
-		}
-	}
 }
 
 void View::setModLedStates() {
@@ -1632,7 +1226,7 @@ void View::setModLedStates() {
 	}
 
 	// Sort out actual "mod" LEDs
-	int32_t modKnobMode = getModKnobMode();
+	int32_t modKnobMode = knobMode();
 
 	for (int32_t i = 0; i < kNumModButtons; i++) {
 		bool on = (i == modKnobMode);
@@ -1650,19 +1244,6 @@ void View::setModLedStates() {
 			indicator_leds::setLedState(indicator_leds::modLed[i], on);
 		}
 	}
-}
-
-int32_t View::getModKnobMode() {
-	int32_t modKnobMode = -1;
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* stack = knobOwnerStack(memory);
-	if (stack != nullptr && stack->modControllable != nullptr) {
-		uint8_t* modKnobModePointer = stack->modControllable->getModKnobMode();
-		if (modKnobModePointer) {
-			modKnobMode = *modKnobModePointer;
-		}
-	}
-	return modKnobMode;
 }
 
 void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels) {
@@ -1730,7 +1311,7 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 	// or
 	// 2) we've pressed a clip while vu meter was active
 	// then let's continue to render VU meter
-	if (knobFocus_.vu_meter && (getModKnobMode() == 0 || (knobsOnClipContext() && renderedVUMeter))) {
+	if (knobFocus_.vu_meter && (knobMode() == 0 || (knobsOnClipContext() && renderedVUMeter))) {
 		PadLEDs::renderingLock = true;
 
 		// get max Y display that would be rendered based on AudioEngine::approxRMSLevel
@@ -1836,8 +1417,6 @@ void View::renderVUMeter(int32_t maxYDisplay, int32_t xDisplay, RGB thisImage[][
 }
 
 void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCounter, bool shouldSendMidiFeedback) {
-	pretendModKnobsUntouchedForAWhile();
-
 	// The target's own stack, read once for the focus: a take the arrangement records is named by its session clip.
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
@@ -1871,8 +1450,6 @@ void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCoun
 void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable,
                                                           ParamManager* paramManager) {
 
-	pretendModKnobsUntouchedForAWhile(); // Why again?
-
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	setKnobFocusFrom(setupModelStackWithSong(memory, currentSong)
 	                     ->addTimelineCounter(nullptr)
@@ -1899,12 +1476,6 @@ void View::releaseActiveModControllable() {
 	knobParamManager_.store(nullptr, std::memory_order_relaxed);
 }
 
-ModelStackWithThreeMainThings* View::knobOwnerStack(void* memory) const {
-	return currentSong != nullptr && knobSong_ == currentSong
-	           ? deluge::bridge::knobOwnerStackAt(*currentSong, knobFocus_, memory)
-	           : nullptr;
-}
-
 void View::setKnobFocusFrom(const ModelStackWithThreeMainThings* stack) {
 	knobFocus_.owner = currentSong != nullptr && stack != nullptr
 	                       ? deluge::gui::knobFocusFromStack(*currentSong, *stack).owner
@@ -1924,15 +1495,25 @@ const deluge::controls::CompView& View::knobComp() const {
 	return std::holds_alternative<deluge::controls::SongFocus>(knobFocus_.owner) ? knobFocus_.comp : kNone;
 }
 
-deluge::controls::CompView* View::knobCompToMove() {
-	return std::holds_alternative<deluge::controls::SongFocus>(knobFocus_.owner) ? &knobFocus_.comp : nullptr;
-}
-
 void View::knobFocusChanged() {
 	knobSong_ = currentSong;
 	compSong_ = currentSong;
 	knobsOnClipContext_ = knobsClipId().has_value();
 	refreshKnobParamManager();
+}
+
+bool View::knobsOnCurrentSong() const {
+	return currentSong != nullptr && knobSong_ == currentSong;
+}
+
+ModelStackWithThreeMainThings* View::knobOwnerStack(void* memory) const {
+	return knobsOnCurrentSong() ? deluge::bridge::knobOwnerStackAt(*currentSong, knobFocus_, memory) : nullptr;
+}
+
+TimelineCounter* View::knobTimelineCounter() const {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* stack = knobOwnerStack(memory);
+	return stack != nullptr ? stack->getTimelineCounterAllowNull() : nullptr;
 }
 
 void View::refreshKnobParamManager() {
@@ -1984,17 +1565,6 @@ void View::releaseKnobsIfOn(const Clip& clip) {
 	}
 }
 
-std::optional<deluge::project::ParamAddress> View::knobAddress(int32_t whichModEncoder) const {
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* stack = knobOwnerStack(memory);
-	if (stack == nullptr || stack->modControllable == nullptr) {
-		return std::nullopt;
-	}
-	ModelStackWithAutoParam* param =
-	    stack->modControllable->getParamFromModEncoder(whichModEncoder, stack, false, knobComp());
-	return isParamOfKnob(param) ? knobParamAddress(*param) : std::nullopt;
-}
-
 int32_t View::knobMode() const {
 	if (std::holds_alternative<std::monostate>(knobFocus_.owner) || currentSong == nullptr
 	    || knobSong_ != currentSong) {
@@ -2022,8 +1592,6 @@ void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
 
 	knobFocus_.region = {.pos = pos, .length = length, .note_row_id = noteRowId};
 
-	pretendModKnobsUntouchedForAWhile();
-
 	// If holding down a note and not playing, permanently grab values from pos
 	if (length && !playbackHandler.isEitherClockActive() && currentSong != nullptr && knobSong_ == currentSong) {
 		if (const std::optional<deluge::project::ParamAddress> owner = deluge::controls::knob_owner(knobFocus_)) {
@@ -2038,11 +1606,6 @@ void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
 	if (midiEngine.midiFollowFeedbackAutomation != MIDIFollowFeedbackAutomationMode::DISABLED) {
 		sendMidiFollowFeedback(nullptr, kNoSelection, true);
 	}
-}
-
-void View::pretendModKnobsUntouchedForAWhile() {
-	encoders::timeModEncoderLastTurned[0] = encoders::timeModEncoderLastTurned[1] =
-	    AudioEngine::audioSampleTimer - kSampleRate;
 }
 
 void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {

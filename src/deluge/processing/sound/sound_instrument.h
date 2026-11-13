@@ -81,7 +81,6 @@ public:
 	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) override;
 	void setupWithoutActiveClip(ModelStack* modelStack) override;
 	[[nodiscard]] deluge::model::ReverbCandidate reverbCandidate(deluge::model::ReverbCandidate best) override;
-	uint8_t* getModKnobMode() override { return &modKnobMode; }
 	ArpeggiatorBase* getArp() override;
 	char const* getXMLTag() override { return "sound"; }
 	const char* getName() override { return name.c_str(); }

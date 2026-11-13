@@ -19,6 +19,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/words.h"
 #include "io/debug/log.h"
@@ -26,6 +27,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/clip/instrument_clip_minder.h"
 #include "model/drum/drum.h"
 #include "model/edits/attach_recorded_sample.h"
 #include "model/edits/clear_clip.h"
@@ -52,6 +54,7 @@
 #include "model/favourite/favourite_manager.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
+#include "model/instrument/midi_instrument.h"
 #include "model/instrument/non_audio_instrument.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -324,7 +327,8 @@ public:
 	[[nodiscard]] const deluge::effects::EffectStates*
 	chain_effects(deluge::project::ChainAddress chain) const override;
 	[[nodiscard]] int32_t played_bend_range(const deluge::project::SettingAddress& owner, int32_t which) const override;
-	[[nodiscard]] bool allows_note_tails(deluge::project::SlotAddress slot) const override;
+	[[nodiscard]] bool allows_note_tails(deluge::project::SlotAddress slot,
+	                                     std::optional<deluge::project::ClipAddress> clip) const override;
 	[[nodiscard]] uint8_t arp_preset(const deluge::project::SettingAddress& address) const override;
 	[[nodiscard]] std::optional<int32_t> param_value(const deluge::project::ParamAddress& address) const override;
 	[[nodiscard]] std::optional<int32_t> param_value_at(const deluge::project::ParamAddress& address,
@@ -1028,7 +1032,7 @@ void ShellEditSink::apply(const WriteRequest& request) {
 		::Drum* drum = deluge::bridge::drumWithId(*currentSong, lane.drum_id);
 		if (drum != nullptr && drum->type == DrumType::SOUND
 		    && !deluge::scenes::menu::host_runtime_facts().allows_note_tails(
-		        {deluge::project::SlotAddress::Kind::DRUM, lane.drum_id})) {
+		        {deluge::project::SlotAddress::Kind::DRUM, lane.drum_id}, std::nullopt)) {
 			refusals_++;
 			D_PRINTLN("menu write refused: kit row %u cannot hold note tails for its kit's arp",
 			          static_cast<unsigned>(lane.drum_id));
@@ -1152,15 +1156,34 @@ int32_t ShellRuntimeFacts::played_bend_range(const deluge::project::SettingAddre
 	return FlashStorage::defaultBendRange[drum ? BEND_RANGE_MAIN : range];
 }
 
-bool ShellRuntimeFacts::allows_note_tails(deluge::project::SlotAddress slot) const {
+bool ShellRuntimeFacts::allows_note_tails(deluge::project::SlotAddress slot,
+                                          std::optional<deluge::project::ClipAddress> clip) const {
 	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
-	if (sound == nullptr || slot.kind != deluge::project::SlotAddress::Kind::DRUM) {
-		return true; // only a kit row's inclusion in its kit's arp asks
+	if (sound == nullptr) {
+		return true;
 	}
-	auto* drum = static_cast<SoundDrum*>(sound);
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithSoundFlags* stack = getModelStackFromSoundDrum(memory, drum)->addSoundFlags();
-	return drum->allowNoteTails(stack, /*disregardSampleLoop=*/true);
+	if (slot.kind == deluge::project::SlotAddress::Kind::DRUM) {
+		auto* drum = static_cast<SoundDrum*>(sound);
+		ModelStackWithSoundFlags* stack = getModelStackFromSoundDrum(memory, drum)->addSoundFlags();
+		return drum->allowNoteTails(stack, /*disregardSampleLoop=*/true);
+	}
+	// A synth's tails read the envelopes in a clip's params: the turn's, as `View::modEncoderAction` asks, or else the
+	// clip its output plays.
+	if (!clip) {
+		auto* instrument = static_cast<::SoundInstrument*>(sound);
+		const ::Clip* active = currentSong->getClipWithOutput(instrument, true);
+		if (active == nullptr) {
+			active = currentSong->getClipWithOutput(instrument);
+		}
+		if (active == nullptr) {
+			return true;
+		}
+		clip = deluge::project::ClipAddress{active->id()};
+	}
+	const deluge::scenes::bind::KnobFocus focus{.owner = deluge::scenes::bind::SoundFocus{.slot = slot, .clip = clip}};
+	ModelStackWithThreeMainThings* owner = deluge::bridge::knobOwnerStackAt(*currentSong, focus, memory);
+	return owner == nullptr || sound->allowNoteTails(owner->addSoundFlags());
 }
 
 bool ShellEditSink::chain_view(deluge::project::ChainAddress chain, std::string_view key, std::string_view word) {
@@ -1233,9 +1256,72 @@ bool ShellEditSink::instrument_edited(const deluge::scenes::bind::KnobFocus& foc
 	return true;
 }
 
+namespace {
+
+/// The lane of @p clip that a MIDI track's knob sending @p cc moves; none for a knob that sends nothing. A CC 1 moves
+/// CC lane 1, as legacy's `getParamToControlFromInputMIDIChannel` does, though `knob_push` names it the mod wheel.
+std::optional<deluge::project::ParamAddress> midiKnobLane(deluge::project::ClipAddress clip,
+                                                          const deluge::project::ModKnobCc& cc) {
+	using Kind = deluge::project::ModKnobCc::Kind;
+	using deluge::project::ParamSpace;
+	const auto lane = [clip](ParamSpace space, uint32_t id) {
+		return deluge::project::ParamAddress::of(deluge::project::OwnerId::clip(clip.clip_id),
+		                                         {space, deluge::plugin::ParamId{id}});
+	};
+	switch (cc.kind) {
+	case Kind::BEND:
+		return lane(ParamSpace::EXPRESSION, 0);
+	case Kind::AFTERTOUCH:
+		return lane(ParamSpace::EXPRESSION, 2);
+	case Kind::NUMBER:
+		return cc.number == deluge::project::ModKnobCc::kYAxisNumber ? lane(ParamSpace::EXPRESSION, 1)
+		                                                             : lane(ParamSpace::MIDI_CC, cc.number);
+	case Kind::NONE:
+		break;
+	}
+	return std::nullopt;
+}
+
+} // namespace
+
 bool ShellEditSink::midi_cc_select(const deluge::scenes::bind::KnobFocus& focus, int32_t knob, bool on) {
-	const std::optional<deluge::project::ParamAddress> owner = deluge::scenes::bind::knob_owner(focus);
-	return currentSong != nullptr && owner && deluge::bridge::midiCcSelectAt(*currentSong, *owner, knob, on);
+	if (!on) {
+		if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
+			currentUIMode = UI_MODE_NONE;
+			deluge::hid::display::OLED::removePopup();
+		}
+		return false;
+	}
+	const auto* midi = std::get_if<deluge::scenes::bind::MidiFocus>(&focus.owner);
+	if (currentSong == nullptr || midi == nullptr || !midi->clip || currentUIMode != UI_MODE_NONE
+	    || getCurrentUI()->toClipMinder() == nullptr) {
+		return false;
+	}
+	const deluge::project::DocOutput* output = currentSong->project.output_structure.find(midi->track.output_id);
+	if (output == nullptr) {
+		return false;
+	}
+	// A clip the song does not hold has no CC to choose: legacy's push needs the clip's stack.
+	alignas(ModelStackWithAutoParam) char owner_memory[MODEL_STACK_MAX_SIZE];
+	if (deluge::bridge::knobOwnerStackAt(*currentSong, focus, owner_memory) == nullptr) {
+		return false;
+	}
+	const size_t at =
+	    (static_cast<size_t>(deluge::scenes::bind::knob_mode(currentSong->project, focus)) * kNumPhysicalModKnobs)
+	    + static_cast<size_t>(knob);
+	const deluge::project::ModKnobCc cc =
+	    at < output->mod_knob_ccs.size() ? output->mod_knob_ccs[at] : deluge::project::ModKnobCc{};
+	// Reads only: a lane that does not exist yet has no automation, which is what creating it would report too.
+	bool automated = false;
+	if (const auto lane = midiKnobLane(*midi->clip, cc)) {
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		const ModelStackWithAutoParam* stack = deluge::bridge::paramStackFollowingTake(*currentSong, *lane, memory);
+		automated = stack != nullptr && stack->autoParam != nullptr && stack->autoParam->isAutomated(*stack->doc());
+	}
+	currentUIMode = UI_MODE_SELECTING_MIDI_CC;
+	InstrumentClipMinder::editingMIDICCForWhichModKnob = static_cast<uint8_t>(knob);
+	InstrumentClipMinder::drawMIDIControlNumber(MIDIInstrument::engineCcOf(cc), automated);
+	return true;
 }
 
 std::optional<int32_t> ShellRuntimeFacts::param_value(const deluge::project::ParamAddress& address) const {

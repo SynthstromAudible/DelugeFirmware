@@ -1,12 +1,13 @@
 #pragma once
 
 /// @file
-/// @brief `ModKnobs` -- the gold-knob half of `View`, as a `shell::Service`.
+/// @brief `ModKnobs` -- the gold knobs, as a `shell::Service`.
 ///
-/// The port of `View::modEncoderAction` and what it reaches: the turn, the push
-/// (`modEncoderButtonAction`), the mod buttons (`modButtonAction`), the indicators and mod LEDs
-/// (`setKnobIndicatorLevels`, `setModLedStates`), the centre detent (`potentiallyMakeItHarderToTurnKnob`), the mod
-/// region (`setModRegion`), the automation notification and the MIDI-follow feedback.
+/// The one implementation of the gold knobs, for the guest's menus and the root views alike, each shown through its
+/// own `KnobPresentation`: the turn, the push, the mod buttons, the indicators and mod LEDs, the centre blink, the
+/// mod region, the automation notification and the MIDI-follow feedback. Recorded from `View::modEncoderAction`,
+/// `modEncoderButtonAction`, `modButtonAction`, `setKnobIndicatorLevels`, `setModLedStates`,
+/// `potentiallyMakeItHarderToTurnKnob` and `setModRegion`; no engine object keeps a gold-knob path of its own.
 ///
 /// @par What the knobs point at, and how they read and write
 ///
@@ -23,11 +24,12 @@
 /// `src/shell/**` may not include `model/**` (`shell-includes-outside`), and this class is about the song's
 /// records, so it implements the shell's interface from the scenes library, as `GlobalControls` and `MidiLearn` do.
 ///
-/// @par What the router sends here
+/// @par Who sends gestures here
 ///
-/// A mod button, a gold-knob turn and a gold-knob push, each only after the top scene has declined it
-/// (`shell/router.h`'s `route()`): `View` is what `UI`'s base-class hooks forward to (`UI::modEncoderAction`,
-/// `UI::modButtonAction`, `UI::modEncoderButtonAction`).
+/// With a menu up, the router: a mod button, a gold-knob turn and a gold-knob push, each only after the top scene has
+/// declined it (`shell/router.h`'s `route()`), shown through the shell's `GuestKnobPresentation`. With no menu, the
+/// root views: `UI`'s base-class hooks (`UI::modEncoderAction`, `UI::modButtonAction`, `UI::modEncoderButtonAction`)
+/// call `turn`, `section_button` and `push` through `gui/ui/root_knobs`, shown through the legacy display.
 ///
 /// @par Acceleration
 ///
@@ -50,6 +52,8 @@
 #include "effects/state.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/overlay/param_popup_scene.h"
+#include "scenes/services/guest_knob_presentation.h"
+#include "scenes/services/knob_presentation.h"
 #include "scenes/services/mod_target.h"
 
 #include "ui/core/knob_indicator.h"
@@ -80,17 +84,17 @@ struct PushInputs;
 /// @brief The two gold knobs: what they point at, what turning, pushing and their mod buttons do, and how fast.
 class ModKnobs final : public deluge::ui::shell::Service {
 public:
-	/// @brief How many gold knobs there are (`hid/encoders.h`'s `mod0`/`mod1`).
-	static constexpr int32_t kKnobCount = 2;
+	/// @brief How many gold knobs there are: `KnobPresentation::kKnobCount`.
+	static constexpr int32_t kKnobCount = KnobPresentation::kKnobCount;
 
-	/// @param popup    The value popup this service shows through.
+	/// @param popup    The value popup the shell's presentation shows through.
 	/// @param stack    The scene stack it pushes that popup onto.
 	/// @param lowering The input lowering it reads acceleration from and backdates the "last turned" clock on.
 	ModKnobs(const ModKnobs&) = delete;
 	ModKnobs& operator=(const ModKnobs&) = delete;
 	ModKnobs(overlay::ParamPopupScene& popup, deluge::ui::shell::SceneStack& stack,
 	         deluge::ui::shell::InputLowering& lowering)
-	    : popup_(popup), stack_(stack), lowering_(lowering) {}
+	    : stack_(stack), lowering_(lowering), guest_(popup, stack, now_ms_, view_.root_is_timeline_view) {}
 
 	/// @name What the knobs point at
 	/// @{
@@ -148,6 +152,9 @@ public:
 		bool root_is_clip_minder = false;
 		/// `View::modButtonUIModeInRange`: true with no UI mode active.
 		bool mod_button_ui_mode_in_range = true;
+		/// The root is a timeline view (`UI::toTimelineView`, `View::modEncoderAction_existentParam`): a turn that
+		/// changes a sound's note tails repaints the root's pads only then.
+		bool root_is_timeline_view = false;
 	};
 
 	/// @brief Tell this service what the root view is.
@@ -158,13 +165,58 @@ public:
 	/// @}
 
 	/// @name Gestures and their state
+	///
+	/// Each gesture decides here and shows through a `KnobPresentation`: `handle()` passes the shell's own, a root
+	/// view its own.
 	/// @{
 
-	/// @brief One mod button pressed or released -- `View::modButtonAction`: the knobs' mode,
-	///        the VU-meter toggle, the end of a stutter, and the button's popup.
+	/// @brief Push context a caller reads from its own button state.
+	struct PushContext {
+		bool shift = false;     ///< Shift held or latched: the push deletes the knob's automation.
+		bool learn = false;     ///< Learn held: the push is a copy or paste, not the knobs'.
+		bool mode_held = false; ///< The knobs' mode's mod button is held: its popup is re-shown.
+	};
+
+	/// @brief One gold-knob turn (`View::modEncoderAction`), already accelerated: the turn, then the instrument
+	///        marked edited on a clip.
+	/// @param knob   0 for the lower knob, 1 for the upper.
+	/// @param offset The accelerated detents.
+	/// @param now_ms The gesture's clock, which the value popup times out from.
+	/// @param out    Where the turn shows.
+	void turn(int32_t knob, int32_t offset, uint32_t now_ms, KnobPresentation& out);
+
+	/// @brief One gold-knob push (`View::modEncoderButtonAction`).
+	/// @param knob 0 for the lower knob, 1 for the upper.
+	/// @param on   Press or release.
+	/// @param ctx  The buttons held with it.
+	/// @param out  Where the push shows.
+	void push(int32_t knob, bool on, const PushContext& ctx, KnobPresentation& out);
+
+	/// @brief One mod button pressed or released (`View::modButtonAction`): the knobs' mode, the VU-meter toggle,
+	///        the end of a stutter, and the button's popup.
+	/// @param button 0..7.
+	/// @param on     Press or release.
+	/// @param out    Where the button shows.
+	void section_button(int32_t button, bool on, KnobPresentation& out);
+
+	/// @brief One mod button, shown through the shell's presentation.
 	/// @param which_button 0..7.
 	/// @param on           Press or release.
-	void mod_button_action(int32_t which_button, bool on);
+	/// @note This drives the shell's presentation outside `handle()`, which nothing then asks for its `Result`: any
+	///       action the press owes waits there for the next `handle()` to return it. A mod button owes none today
+	///       (its popups are notices, and the frame redeclares its LEDs), so a caller that needs the actions goes
+	///       through `handle()` instead.
+	void mod_button_action(int32_t which_button, bool on) { section_button(which_button, on, guest_); }
+
+	/// @brief What knob @p knob's indicator reads.
+	/// @param knob 0 for the lower knob, 1 for the upper.
+	/// @return What it reads; with no song, a default that declares nothing (`indicator_level`).
+	[[nodiscard]] ModIndicatorInfo indicator_info(int32_t knob) const;
+
+	/// @brief The address knob @p knob turns, if it turns a param (clip view's automation copy and paste).
+	/// @param knob 0 for the lower knob, 1 for the upper.
+	/// @return The address; none with no focus, or for a knob on a setting or on nothing.
+	[[nodiscard]] std::optional<project::ParamAddress> knob_address(int32_t knob) const;
 
 	/// @brief Is the VU meter shown? (the focus's, which View keeps too), which pressing the selected mod button 0
 	///        outside a clip minder toggles; its one effect here is the blinking volume mod LED.
@@ -213,25 +265,13 @@ public:
 	static IndicatorLevel indicator_level(const ModIndicatorInfo& info, bool stuttering);
 
 private:
-	/// @brief One gold-knob turn -- `View::modEncoderAction`: the turn, then the instrument marked edited on a clip.
-	deluge::ui::shell::Result mod_encoder_action(int32_t which_encoder, int32_t offset, uint32_t now_ms);
-	/// @brief The turn itself: the comp arm's setting, or the param's write, popup, feedback and detent.
-	deluge::ui::shell::Result turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms);
-	/// @brief Hand @p turn to the popup and push it if it is not stacked yet.
-	/// @return True when the popup redrew, so the caller owes a `Repaint`.
-	bool show_popup(const ModTurn& turn, uint32_t now_ms);
-	/// @brief Is the menu on top focused on this very param (`View::modEncoderAction_existentParam`)? The
-	/// performance-view and
-	///        song-browser suppressions have no scene to ask yet.
-	bool popup_suppressed(const ModTurn& turn) const;
-	/// @brief `View::potentiallyMakeItHarderToTurnKnob`: blink a centred knob and make it harder to turn away.
-	void potentially_make_it_harder_to_turn_knob(int32_t which_encoder, const ModTurn& turn);
-	/// @brief One gold-knob push -- `View::modEncoderButtonAction`.
-	/// @param mode_held The knobs' mode's mod button is held, which re-shows its popup.
-	deluge::ui::shell::Result mod_encoder_button_action(int32_t which_encoder, bool on, bool shift, bool learn,
-	                                                    bool mode_held);
-	/// @brief What knob @p which_encoder's indicator reads.
-	ModIndicatorInfo indicator_info(int32_t which_encoder) const;
+	/// @brief The turn itself: the comp arm's setting, or the param's write, popup, feedback and centre blink.
+	void turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms, KnobPresentation& out);
+	/// @brief The value popup's patch sources and owner context for @p turn, handed to @p out.
+	void show_popup(const ModTurn& turn, uint32_t now_ms, KnobPresentation& out);
+	/// @brief `View::potentiallyMakeItHarderToTurnKnob`: blink the indicator at a centred position of a param that
+	///        shows its middle; stop the blink otherwise.
+	void potentially_make_it_harder_to_turn_knob(int32_t which_encoder, const ModTurn& turn, KnobPresentation& out);
 	/// @brief Declare both knob indicator columns -- `View::setKnobIndicatorLevels`.
 	void declare_indicators(deluge::ui::LedFrame& frame);
 	/// @brief Is knob @p which_encoder inside its blink's flash? At most one knob blinks at a time.
@@ -250,7 +290,6 @@ private:
 	/// @param mode_held The knobs' mode's mod button is held.
 	PushInputs push_inputs(bool mode_held) const;
 
-	overlay::ParamPopupScene& popup_;
 	deluge::ui::shell::SceneStack& stack_;
 	deluge::ui::shell::InputLowering& lowering_;
 	Song* song_ = nullptr;
@@ -263,11 +302,10 @@ private:
 	/// A MIDI track's knob (@ref selecting_knob_) is choosing its CC, which the next mod button ends.
 	bool selecting_cc_ = false;
 	int32_t selecting_knob_ = 0;
-	/// The last clock `tick()` saw.
+	/// The last clock `tick()` or `handle()` saw.
 	uint32_t now_ms_ = 0;
-	bool blink_indicator_[kKnobCount]{};
-	bool blink_indicator_bipolar_[kKnobCount]{};
-	uint32_t blink_indicator_start_ms_[kKnobCount]{};
+	/// The shell's presentation, which `handle()` shows through and whose blink state `leds()` declares.
+	GuestKnobPresentation guest_;
 	ViewState view_{};
 	std::optional<uint32_t> automation_display_ms_;
 	bool automation_updates_mod_levels_ = false;

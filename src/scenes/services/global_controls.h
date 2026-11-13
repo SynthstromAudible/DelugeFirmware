@@ -35,8 +35,9 @@
 /// The tail runs for **any** current UI that declined the event. `View::buttonAction` runs only for
 /// a **root view**: `UI::buttonAction`'s base implementation is `return
 /// ActionResult::NOT_DEALT_WITH` (`gui/ui/ui.h:98-100`) and does **not** forward to `view`, unlike
-/// `UI::modEncoderAction`/`modButtonAction`/`modEncoderButtonAction` (`gui/ui/ui.cpp:35-45`), which
-/// do and which is why `ModKnobs` really is a base-class fallback. `View::buttonAction` has exactly
+/// `UI::modEncoderAction`/`modButtonAction`/`modEncoderButtonAction`, which hand every root view's
+/// gold knobs and mod buttons on (`gui/ui/root_knobs`), which is why `ModKnobs` really is a
+/// base-class fallback. `View::buttonAction` has exactly
 /// two callers, `TimelineView::buttonAction`'s final `else` (`gui/views/timeline_view.cpp`)
 /// and `KeyboardScreen::buttonAction` (`gui/ui/keyboard/keyboard_screen.cpp`) -- and
 /// `grep "public RootUI"` finds exactly those two classes (`gui/views/timeline_view.h:27`,
@@ -511,10 +512,9 @@ private:
 	/// `UI_MODE_HOLDING_SAVE_BUTTON` / `UI_MODE_HOLDING_LOAD_BUTTON` (`View::buttonAction` in `view.cpp`).
 	bool holding_save_ = false;
 	bool holding_load_ = false;
-	/// `View::timeSaveButtonPressed` (`gui/views/view.h:128`) -- **one** member, shared by both
-	/// arms exactly as legacy shares it: the LOAD press writes the same variable (`view.cpp:300`)
-	/// the SAVE press does (`:241`). They can never both be held, because each arm's press branch
-	/// requires `UI_MODE_NONE`.
+	/// `View::timeSaveButtonPressed` -- **one** member, shared by both arms exactly as legacy shares
+	/// it: `View::buttonAction`'s LOAD arm writes the same variable on a press that its SAVE arm
+	/// does. They can never both be held, because each arm's press branch requires `UI_MODE_NONE`.
 	uint32_t save_pressed_ms_ = 0;
 	/// The lowering's stamp of the last RECORD press the transport tail itself took (`tail_button_action`). A release
 	/// belongs to the button's latest press, so one whose press a scene took finds a different stamp there and does not

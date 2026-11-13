@@ -894,7 +894,7 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 
-			if (modelStackWithParam->getTimelineCounter() == View::KnobStack{view}.counter()) {
+			if (modelStackWithParam->getTimelineCounter() == view.knobTimelineCounter()) {
 
 				int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, view.modPos()) + kKnobPosOffset;
 

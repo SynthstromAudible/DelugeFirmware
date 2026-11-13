@@ -25,7 +25,7 @@
 /// rename against the real `View::displayModEncoderValuePopup` on a real `Sound`. What stays
 /// uncovered is `PopupContext::stuttering` (nothing in the port owns the stutter gesture, so no
 /// caller can set it true) and the MIDI-clip naming arm (reachable, but not yet driven: a MIDI
-/// clip's mod knobs resolve through `MIDIInstrument::getParamFromModEncoder`, whose default CC
+/// clip's mod knobs resolve through the controls library's page resolution, whose default CC
 /// assignment on a bare fixture takes the non-existent-param arm before any popup is shown).
 ///
 /// No `SongFixture` (unlike every other file in this directory): every code path this spec

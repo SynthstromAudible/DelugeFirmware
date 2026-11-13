@@ -42,40 +42,14 @@ class ModControllable {
 public:
 	ModControllable() = default;
 	virtual ~ModControllable() = default;
-	/// @name The gold knobs
-	/// The compressor view (`comp`) is the knobs' own view state, which the song's knobs follow and every other owner
-	/// ignores; a push into or around it moves the view it is given, and none given moves a view nothing keeps.
-	/// @{
-	virtual bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack,
-	                                    deluge::controls::CompView* comp = nullptr) {
-		return false;
-	} // Returns whether Instrument was changed
-	virtual void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
-	                             const deluge::controls::CompView& comp = {}) {};
-	/// Check that autoParam isn't NULL, after calling this. allowCreation: the caller writes it.
-	virtual ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder,
-	                                                        ModelStackWithThreeMainThings* modelStack,
-	                                                        bool allowCreation,
-	                                                        const deluge::controls::CompView& comp = {});
-
 	/// Check that autoParam isn't NULL, after calling this
 	virtual ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack);
 
-	virtual uint8_t* getModKnobMode(); // Return NULL if different modes not supported
 	virtual bool isSong() { return false; }
 	virtual bool valueChangedEnoughToMatter(int32_t old_value, int32_t new_value, deluge::modulation::params::Kind kind,
 	                                        uint32_t paramID) {
 		return old_value != new_value;
 	}
-	virtual int32_t getKnobPosForNonExistentParam(
-	    int32_t whichModEncoder, ModelStackWithAutoParam* modelStack,
-	    const deluge::controls::CompView& comp = {}); // modelStack->autoParam will be NULL in this rare case!!
-	virtual ActionResult modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
-	                                                         ModelStackWithAutoParam* modelStack,
-	                                                         const deluge::controls::CompView& comp = {}) {
-		return ActionResult::NOT_DEALT_WITH;
-	}
-	/// @}
 	virtual bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) { return true; }
 	virtual void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
 	                                                      int32_t channelOrNoteNumber,

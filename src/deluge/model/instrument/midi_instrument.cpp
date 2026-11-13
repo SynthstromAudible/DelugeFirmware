@@ -112,42 +112,6 @@ void MIDIInstrument::setOutputMPEY(CCNumber v) {
 	}
 }
 
-// Returns whether any change made. For MIDI Instruments, this has no consequence
-bool MIDIInstrument::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack,
-                                            deluge::controls::CompView* comp) {
-
-	if (on) {
-		if (currentUIMode == UI_MODE_NONE) {
-
-			if (getCurrentUI()->toClipMinder()) {
-				currentUIMode = UI_MODE_SELECTING_MIDI_CC;
-
-				int32_t cc = modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + whichModEncoder];
-
-				bool automationExists = doesAutomationExistOnMIDIParam(modelStack, cc);
-				InstrumentClipMinder::editingMIDICCForWhichModKnob = whichModEncoder;
-				InstrumentClipMinder::drawMIDIControlNumber(cc, automationExists);
-				return true;
-			}
-			else {
-				return false;
-			}
-		}
-		else {
-			return false;
-		}
-	}
-
-	// De-press
-	else {
-		if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
-			currentUIMode = UI_MODE_NONE;
-			deluge::hid::display::OLED::removePopup();
-		}
-		return false;
-	}
-}
-
 bool MIDIInstrument::doesAutomationExistOnMIDIParam(ModelStackWithThreeMainThings* modelStack, int32_t cc) {
 	bool automationExists = false;
 
@@ -186,63 +150,6 @@ bool MIDIInstrument::appendCCName(etl::istring& buf, int32_t cc) {
 		deluge::string::appendInt(buf, cc);
 	}
 	return false;
-}
-
-void MIDIInstrument::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
-                                     const deluge::controls::CompView& comp) {
-	// If we're leaving this mod function or anything else is happening, we want to be sure that stutter has stopped
-	if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
-		currentUIMode = UI_MODE_NONE;
-		deluge::hid::display::OLED::removePopup();
-		return;
-	}
-
-	int32_t ccTop = modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + 1];
-	int32_t ccBottom = modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + 0];
-
-	// Both mod-knob CC assignments are shown while the button is held.
-	etl::string<100> popupMsg;
-	appendCCName(popupMsg, ccTop);
-	popupMsg.append("\n");
-	appendCCName(popupMsg, ccBottom);
-
-	if (on) {
-		display->popupText(popupMsg.c_str());
-	}
-	else {
-		// NOTIFY-DEFERRED: the show half of this pair is display->popupText(), which is out of scope
-		// here (the shell will own PopupType). Deferring only the hide half would split an atomic
-		// show/hide across the immediate path and the queue, so both move together later.
-		display->cancelPopup();
-	}
-}
-
-ModelStackWithAutoParam* MIDIInstrument::getParamFromModEncoder(int32_t whichModEncoder,
-                                                                ModelStackWithThreeMainThings* modelStack,
-                                                                bool allowCreation,
-                                                                const deluge::controls::CompView& comp) {
-
-	if (!modelStack->paramManager) { // Could be NULL - if the user is holding down an audition pad in Arranger, and we
-		                             // have no Clips
-noParam:
-		return modelStack->addParamCollectionAndId(nullptr, nullptr, 0)->addAutoParam(nullptr); // "No param"
-	}
-
-	int32_t paramId = modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + whichModEncoder];
-
-	return getParamToControlFromInputMIDIChannel(paramId, modelStack);
-}
-
-// modelStack->autoParam will be NULL in this rare case!!
-int32_t MIDIInstrument::getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack,
-                                                      const deluge::controls::CompView& comp) {
-	if (modelStack->autoParam
-	    && (modelStack->paramId < kNumRealCCNumbers || modelStack->paramId == CC_NUMBER_PITCH_BEND)) {
-		return 0;
-	}
-	else {
-		return ModControllable::getKnobPosForNonExistentParam(whichModEncoder, modelStack);
-	}
 }
 
 ModelStackWithAutoParam*

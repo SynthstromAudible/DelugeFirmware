@@ -258,34 +258,12 @@ protected:
 	/// @brief Gives the delay's tapes back to the arena and leaves its margin, as a change to OFF does. A sound calls
 	/// it in its destructor, while its chain still exists; a host chain's channel does the same for itself.
 	void releaseChainMemory();
-	void switchDelayPingPong();
-	/// @brief One press of the delay's feedback knob: digital, analog, off, digital, by one Edit.
-	void cycleDelayType();
-	void switchDelaySyncType();
-	void switchDelaySyncLevel();
-	void switchLPFMode();
-	void switchHPFMode();
 
 	/// What kind of unpatched parameters this ModControllable uses.
 	///
 	/// This should be UNPATCHED_GLOBAL for GlobalEffectable and UNPATCHED_SOUND for Sound. If a new ModControllable
 	/// subclass is
 	deluge::modulation::params::Kind unpatchedParamKind_;
-
-	char const* getFilterTypeDisplayName(FilterType currentFilterType);
-	char const* getFilterModeDisplayName(FilterType currentFilterType);
-	char const* getLPFModeDisplayName();
-	char const* getHPFModeDisplayName();
-	char const* getDelayTypeDisplayName();
-	char const* getDelayPingPongStatusDisplayName();
-	char const* getDelaySyncTypeDisplayName();
-	void getDelaySyncLevelDisplayName(char* displayName);
-	char const* getSidechainDisplayName();
-
-	void displayFilterSettings(bool on, FilterType currentFilterType);
-	void displayDelaySettings(bool on);
-	void displaySidechainAndReverbSettings(bool on);
-	void displayOtherModKnobSettings(uint8_t whichModButton, bool on);
 
 private:
 	ModelStackWithThreeMainThings* addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack,

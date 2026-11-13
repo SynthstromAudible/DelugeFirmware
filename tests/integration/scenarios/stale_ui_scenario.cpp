@@ -44,6 +44,7 @@
 #include "model/instrument/melodic_instrument.h"
 #include "model/model_stack.h"
 #include "model/output.h"
+#include "model/project_bridge/param_stack.h"
 #include "model/song/song.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
@@ -77,6 +78,24 @@ uint32_t deluge_host_midi_script_released(void);
 }
 
 namespace {
+
+/// @brief The knobs' owner stack, resolved now from View's focus in a buffer of its own: none unless the focus is on
+///        the current song.
+struct KnobOwner {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* stack = view.knobOwnerStack(memory);
+	KnobOwner() = default;
+	KnobOwner(const KnobOwner&) = delete;
+	KnobOwner& operator=(const KnobOwner&) = delete;
+	/// @brief The owner the knobs move, or null.
+	[[nodiscard]] ModControllable* owner() const { return stack != nullptr ? stack->modControllable : nullptr; }
+	/// @brief The owner's param manager, or null.
+	[[nodiscard]] ParamManager* params() const { return stack != nullptr ? stack->paramManager : nullptr; }
+	/// @brief The clip or song the owner is in, or null.
+	[[nodiscard]] TimelineCounter* counter() const {
+		return stack != nullptr ? stack->getTimelineCounterAllowNull() : nullptr;
+	}
+};
 
 /// A UI that counts every call made into it after it has left the UI stack. Anything that reaches it then is acting
 /// on a UI the user can no longer see, against whatever song it was opened over.
@@ -545,8 +564,7 @@ void stepEditorRun() {
 		if (getCurrentUI() == &shellHostUI) {
 			g_staleEditor++;
 		}
-		if (swapped
-		    && (View::KnobStack{view}.counter() == g_clipBefore || View::KnobStack{view}.owner() == g_modBefore)) {
+		if (swapped && (KnobOwner{}.counter() == g_clipBefore || KnobOwner{}.owner() == g_modBefore)) {
 			g_staleView++;
 		}
 		// swap_work: the first interaction-tier entry after an armed swap the render made. Each is one, as every
@@ -865,7 +883,7 @@ void stepArrangeSetup() {
 	view.setActiveModControllableTimelineCounter(clip);
 	encoders::modEncoderAt(0).applyEdges(1);
 	(void)encoders::interpretEncoders();
-	Clip* into = static_cast<Clip*>(View::KnobStack{view}.counter());
+	Clip* into = static_cast<Clip*>(KnobOwner{}.counter());
 	if (into == nullptr || into == clip || into->beingRecordedFromClip != clip) {
 		fail("SU-ARRANGE", "the knob turn did not move the knobs on to the clip the arranger records into");
 		g_stage = Stage::Report;
@@ -890,7 +908,7 @@ void stepArrangeRun() {
 		return;
 	}
 	g_movedTo = active;
-	const View::KnobStack knobs{view};
+	const KnobOwner knobs{};
 	const bool followed = knobs.counter() == g_movedTo;
 	const bool params = knobs.params() == &g_movedTo->paramManager;
 	const bool output = knobs.owner() == g_movedTo->output->toModControllable();

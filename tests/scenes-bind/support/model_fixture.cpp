@@ -20,7 +20,7 @@ const instrument::SoundState* FakeFacts::sound_state(project::SlotAddress slot) 
 	return found != states.end() ? &found->second : nullptr;
 }
 
-bool FakeFacts::allows_note_tails(project::SlotAddress slot) const {
+bool FakeFacts::allows_note_tails(project::SlotAddress slot, std::optional<project::ClipAddress> /*clip*/) const {
 	const auto found = note_tails.find(slot.id);
 	return found == note_tails.end() || found->second;
 }

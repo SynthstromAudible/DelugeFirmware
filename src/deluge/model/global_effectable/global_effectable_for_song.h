@@ -33,8 +33,6 @@ public:
 	[[nodiscard]] deluge::model::ChainView& chainView() override { return channel_.view(); }
 	[[nodiscard]] const deluge::model::ChainView& chainView() const override { return channel_.view(); }
 
-	uint8_t* getModKnobMode() override { return &modKnobMode; }
-
 	uint8_t modKnobMode;
 
 private:

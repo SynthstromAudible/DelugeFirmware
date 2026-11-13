@@ -307,6 +307,14 @@ LEGACY_PORT_SEAMS = (
     # no-arguments `wireShellNotificationSink()`, so this seam too is one translation unit wide --
     # exactly the line `shell_note_bridge.h` draws above.
     "src/deluge/gui/ui/shell_notification_sink.cpp",
+    # The root views' gold knobs: the root's `KnobPresentation` over the legacy display, `indicator_leds` and `view`,
+    # and the three `UI` hooks' forward into the shell's `ModKnobs`. It names the knobs and their port because it
+    # implements the port on this side of the wall. Its HEADER (`root_knobs.h`) is deliberately NOT listed: it names no
+    # port type, so `ui.cpp` and the views reach it as they reach any legacy function.
+    "src/deluge/gui/ui/root_knobs.cpp",
+    # The one declaration of the shared `ModKnobs` (`sharedModKnobs()`), defined in `shell_guest_services.cpp`. Its
+    # own header because it names the port's type, which `shell_guest_services.h` must not.
+    "src/deluge/gui/ui/shell_guest_knobs.h",
 )
 
 RULES = [
@@ -557,9 +565,9 @@ RULES = [
     ),
     (
         # A view acts on the knobs' owner by address (bridge::stutterAt, the focus's comp view, knobMode), not through
-        # an engine cast of an owner it resolves (View::KnobStack, or any `->modControllable` / `.owner()` read). Two
-        # are outside it until the scenes ship on the device: View itself, whose engine knob functions name the owner,
-        # and the automation view with its editor layout, which still read the stack.
+        # an engine cast of an owner it resolves (any `->modControllable` / `.owner()` read). Two are outside it until
+        # the scenes ship on the device: View itself, whose value popup names the owner, and the automation view with
+        # its editor layout, which still read the stack.
         "views-no-knob-owner-cast",
         (
             "src/deluge/gui/views/**",
@@ -568,7 +576,7 @@ RULES = [
             "src/deluge/gui/views/automation/**",
         ),
         "symbol",
-        r"\(\s*ModControllableAudio\s*\*\s*\)\s*(View::KnobStack|[\w.]+(->|\.)(modControllable|owner\(\)))",
+        r"\(\s*ModControllableAudio\s*\*\s*\)\s*[\w.]+(->|\.)(modControllable|owner\(\))",
         "2026-10-18-scenes-bind-to-model-design.md",
     ),
     (

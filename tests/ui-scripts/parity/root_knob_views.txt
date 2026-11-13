@@ -1,0 +1,506 @@
+# The gold knobs at the root views: performance view, the automation view's overview, a MIDI track's CC select, a
+# synth clip's note tails, an audio clip, a kit row and a kit with affect-entire, the arranger and the keyboard screen.
+#
+# 1 Performance view (song view, a short KEYBOARD press): mod button 1 and its knobs turned with no pad held; the
+#   pad of the param a knob turns held while that knob turns (the display shows the param, no popup), and a pad
+#   of the other knob's param held; mod button 6 with a stutter pad held and the upper knob pushed, then the pad
+#   released. Back in the song view, mod button 0 pressed until the VU meter toggles in the sidebar: the sidebar
+#   redraws only once the meter is drawn there, so it is the toggle off (vu_off) that shows a missing redraw.
+# 2 Automation view overview on the boot synth clip: both knobs turned; the low-pass frequency's automation painted
+#   in its editor; Learn + a knob's push copies (the lower knob's, empty, then the upper's) and Shift + Learn + the
+#   lower knob's push pastes; then each knob pushed.
+# 3 A MIDI clip at its root: each knob's push, held (the CC select popup shows while it is down) with turns, then
+#   released, and mod button 3 pressed and released. A gold-knob turn during the hold changes nothing; the select
+#   encoder turn changes the CC (alone, and with its push held), shown again on a second push.
+# 4 The boot synth clip with a long note and the envelope-1 sustain at its minimum: the release knob (mod button 2,
+#   lower) turned up and back down across the note-tail flip, the pads snapshot after each turn.
+# 5 The same as 4 with the sound menu up.
+# 6-9 An audio clip, a kit row and then the kit with affect-entire, the arranger (an output's audition pad held, then
+#   the song's knobs and the VU meter), and the keyboard screen over the kit's row: in each, mod button 1 and both
+#   knobs turned, each knob pushed, then mod button 0 and both knobs turned.
+#
+# The sections run in the order 4, 5, 1, 2, 3, 6, 7, 8, 9: the note tails need the boot synth clip's own view, the MIDI
+# clip replaces the synth clip, and the song view makes the audio and kit clips.
+#
+# Section 4: note tails. The boot preset's envelope-1 sustain is at its maximum, which no gold knob changes, so
+# the sustain is brought to its minimum from the menu first; then the release knob (mod button 2, lower) decides the
+# tails: tails vanish when the release passes the decay and return when it falls back.
+paddown 0 0
+paddown 8 0
+padup 8 0
+padup 0 0
+snapshot tail_note
+down SHIFT
+pad 8 1
+up SHIFT
+turn SELECT -50
+snapshot tail_sustain_min
+press BACK
+snapshot tail_root
+press MOD2
+snapshot tail_mod2
+turn LOWER 1
+snapshot tail_release_up_1
+turn LOWER 4
+snapshot tail_release_up_5
+turn LOWER 1
+snapshot tail_release_up_6
+turn LOWER 1
+snapshot tail_release_up_7
+turn LOWER -1
+snapshot tail_release_down_6
+turn LOWER -1
+snapshot tail_release_down_5
+turn LOWER -3
+snapshot tail_release_down_2
+turn LOWER -1
+snapshot tail_release_down_1
+turn UPPER 1
+snapshot tail_attack_up
+turn UPPER -1
+snapshot tail_attack_down
+turn LOWER -2
+snapshot tail_release_down_0
+#
+# Section 5: the same walk with the sound menu up.
+down SHIFT
+pad 8 7
+up SHIFT
+snapshot menu_tail_menu
+press MOD2
+snapshot menu_tail_mod2
+turn LOWER 1
+snapshot menu_tail_release_up_1
+turn LOWER 4
+snapshot menu_tail_release_up_5
+turn LOWER 1
+snapshot menu_tail_release_up_6
+turn LOWER 1
+snapshot menu_tail_release_up_7
+turn LOWER -1
+snapshot menu_tail_release_down_6
+turn LOWER -1
+snapshot menu_tail_release_down_5
+turn LOWER -3
+snapshot menu_tail_release_down_2
+turn LOWER -1
+snapshot menu_tail_release_down_1
+turn UPPER 1
+snapshot menu_tail_attack_up
+turn UPPER -1
+snapshot menu_tail_attack_down
+press BACK
+snapshot menu_tail_left
+#
+#
+# Section 1: performance view.
+press SESSION_VIEW
+wait 1
+press KEYBOARD 20
+snapshot perf_opened
+press MOD1
+snapshot perf_mod1
+turn UPPER 1
+snapshot perf_mod1_turn_upper
+turn LOWER 1
+snapshot perf_mod1_turn_lower
+paddown 0 5
+snapshot perf_pad_held
+turn UPPER 2
+snapshot perf_pad_held_turn_upper
+turn LOWER 1
+snapshot perf_pad_held_turn_lower
+padup 0 5
+snapshot perf_pad_released
+paddown 1 5
+turn LOWER 1
+snapshot perf_pad_held_turn_lower_same
+padup 1 5
+snapshot perf_pad_released_lower
+press MOD6
+snapshot perf_mod6
+paddown 5 7
+snapshot perf_stutter_held
+press MOD_ENCODER_1
+snapshot perf_stutter_held_upper_push
+turn UPPER 1
+snapshot perf_stutter_held_turn_upper
+padup 5 7
+snapshot perf_stutter_released
+press MOD_ENCODER_1
+snapshot perf_mod6_upper_push
+press KEYBOARD 20
+snapshot perf_closed
+# Mod button 0 in the song view: the first press leaves mode 6 for mode 0, the next two toggle the VU meter in the
+# sidebar on and off.
+press MOD0
+snapshot vu_mode0
+press MOD0
+snapshot vu_on
+press MOD0
+snapshot vu_off
+#
+# Section 2: automation view overview on the boot synth clip.
+press CLIP_VIEW
+snapshot clip_view_entered
+press CLIP_VIEW
+snapshot auto_overview
+turn UPPER 1
+snapshot auto_turn_upper
+turn LOWER 1
+snapshot auto_turn_lower
+# The filter knobs' params get automation: the low-pass frequency's editor is painted with three nodes, then the
+# overview comes back.
+press MOD1
+pad 8 7
+snapshot auto_lpf_editor
+pad 2 5
+pad 6 2
+pad 10 6
+snapshot auto_lpf_painted
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+snapshot auto_lpf_overview
+press MOD1
+snapshot auto_overview_mod1
+# Copy from the automated upper knob, paste onto the lower knob (the low-pass resonance, no automation yet).
+down LEARN
+press MOD_ENCODER_0
+snapshot auto_copy_empty_lower
+press MOD_ENCODER_1
+snapshot auto_copy_upper
+up LEARN
+snapshot auto_copy_released
+down SHIFT
+down LEARN
+press MOD_ENCODER_0
+snapshot auto_paste_lower
+up LEARN
+up SHIFT
+snapshot auto_paste_released
+press MOD_ENCODER_1
+snapshot auto_upper_push
+press MOD_ENCODER_0
+snapshot auto_lower_push
+press MOD_ENCODER_1
+snapshot auto_upper_push2
+#
+# Section 3: a MIDI clip's CC select at root (it leaves the synth clip).
+press CLIP_VIEW
+snapshot auto_left
+press MIDI
+wait 1
+snapshot midi_clip
+press MOD_ENCODER_1
+snapshot midi_upper_push
+down MOD_ENCODER_1
+snapshot midi_upper_down
+# A gold-knob turn while the push is held does nothing: only the select encoder changes the CC.
+turn UPPER 3
+snapshot midi_held_turn_upper
+turn SELECT 3
+snapshot midi_held_select_3
+turn SELECT 2
+snapshot midi_held_select_5
+down SELECT_ENC
+turn SELECT 1
+snapshot midi_held_select_unused
+up SELECT_ENC
+up MOD_ENCODER_1
+snapshot midi_held_released
+down MOD_ENCODER_1
+snapshot midi_upper_down_again
+up MOD_ENCODER_1
+down MOD_ENCODER_0
+snapshot midi_lower_down
+up MOD_ENCODER_0
+snapshot midi_lower_up
+down MOD3
+snapshot midi_mod3_down
+up MOD3
+snapshot midi_mod3_up
+#
+# Section 6: an audio clip. In the song view a held empty clip pad and SELECT make an audio clip, which a pad opens.
+press SESSION_VIEW
+wait 1
+snapshot audio_song
+paddown 3 6
+press SELECT_ENC
+wait 1
+padup 3 6
+wait 1
+snapshot audio_made
+pad 3 6
+wait 1
+snapshot audio_clip
+press MOD1
+snapshot audio_mod1
+turn UPPER 1
+snapshot audio_upper
+turn LOWER 1
+snapshot audio_lower
+press MOD_ENCODER_1
+snapshot audio_upper_push
+press MOD_ENCODER_0
+snapshot audio_lower_push
+press MOD0
+snapshot audio_mod0
+turn UPPER -1
+snapshot audio_mod0_upper
+turn LOWER 1
+snapshot audio_mod0_lower
+#
+# Section 7: a kit row, then the kit with affect-entire. In the song view a held empty clip pad and KIT make a kit
+# clip, which a pad opens.
+press SESSION_VIEW
+wait 1
+paddown 3 5
+press KIT
+wait 2
+padup 3 5
+wait 1
+snapshot kit_made
+pad 3 5
+wait 2
+snapshot kit_clip
+# the selected drum's audition pad shows its row's random colour
+random_colour 17 0
+pad 17 0
+snapshot kit_row
+press MOD1
+snapshot kit_row_mod1
+turn UPPER 1
+snapshot kit_row_upper
+turn LOWER 1
+snapshot kit_row_lower
+press MOD_ENCODER_1
+snapshot kit_row_upper_push
+press MOD_ENCODER_0
+snapshot kit_row_lower_push
+press MOD0
+snapshot kit_row_mod0
+turn UPPER -1
+snapshot kit_row_mod0_upper
+turn LOWER 1
+snapshot kit_row_mod0_lower
+press AFFECT_ENTIRE
+snapshot kit_entire
+press MOD1
+snapshot kit_entire_mod1
+turn UPPER 1
+snapshot kit_entire_upper
+turn LOWER 1
+snapshot kit_entire_lower
+press MOD_ENCODER_1
+snapshot kit_entire_upper_push
+press MOD_ENCODER_0
+snapshot kit_entire_lower_push
+press MOD0
+snapshot kit_entire_mod0
+turn UPPER -1
+snapshot kit_entire_mod0_upper
+turn LOWER 1
+snapshot kit_entire_mod0_lower
+#
+# Section 8: the arranger. An output's audition pad held puts the knobs on it; with nothing held they are the song's,
+# and mod button 0 toggles the VU meter in the sidebar.
+press SESSION_VIEW
+wait 1
+press SESSION_VIEW
+wait 1
+snapshot arr_opened
+paddown 17 0
+snapshot arr_row_held
+press MOD1
+snapshot arr_row_mod1
+turn UPPER 1
+snapshot arr_row_upper
+turn LOWER 1
+snapshot arr_row_lower
+press MOD_ENCODER_1
+snapshot arr_row_upper_push
+press MOD_ENCODER_0
+snapshot arr_row_lower_push
+press MOD0
+snapshot arr_row_mod0
+turn UPPER -1
+snapshot arr_row_mod0_upper
+turn LOWER 1
+snapshot arr_row_mod0_lower
+padup 17 0
+snapshot arr_row_released
+press MOD1
+snapshot arr_song_mod1
+turn UPPER 1
+snapshot arr_song_upper
+turn LOWER 1
+snapshot arr_song_lower
+press MOD_ENCODER_1
+snapshot arr_song_upper_push
+press MOD_ENCODER_0
+snapshot arr_song_lower_push
+press MOD0
+snapshot arr_vu_mode0
+press MOD0
+snapshot arr_vu_on
+press MOD0
+snapshot arr_vu_off
+#
+# Section 9: the keyboard screen over the kit, affect-entire off: the knobs on the selected row. A kit's keyboard shows
+# its rows' random colours, so its pads compare as lit or unlit.
+press SESSION_VIEW
+wait 1
+pad 3 5
+wait 2
+snapshot kb_kit
+press AFFECT_ENTIRE
+snapshot kb_kit_row
+random_colour 0 0
+random_colour 1 0
+random_colour 2 0
+random_colour 3 0
+random_colour 4 0
+random_colour 5 0
+random_colour 6 0
+random_colour 7 0
+random_colour 8 0
+random_colour 9 0
+random_colour 10 0
+random_colour 11 0
+random_colour 12 0
+random_colour 13 0
+random_colour 14 0
+random_colour 15 0
+random_colour 0 1
+random_colour 1 1
+random_colour 2 1
+random_colour 3 1
+random_colour 4 1
+random_colour 5 1
+random_colour 6 1
+random_colour 7 1
+random_colour 8 1
+random_colour 9 1
+random_colour 10 1
+random_colour 11 1
+random_colour 12 1
+random_colour 13 1
+random_colour 14 1
+random_colour 15 1
+random_colour 0 2
+random_colour 1 2
+random_colour 2 2
+random_colour 3 2
+random_colour 4 2
+random_colour 5 2
+random_colour 6 2
+random_colour 7 2
+random_colour 8 2
+random_colour 9 2
+random_colour 10 2
+random_colour 11 2
+random_colour 12 2
+random_colour 13 2
+random_colour 14 2
+random_colour 15 2
+random_colour 0 3
+random_colour 1 3
+random_colour 2 3
+random_colour 3 3
+random_colour 4 3
+random_colour 5 3
+random_colour 6 3
+random_colour 7 3
+random_colour 8 3
+random_colour 9 3
+random_colour 10 3
+random_colour 11 3
+random_colour 12 3
+random_colour 13 3
+random_colour 14 3
+random_colour 15 3
+random_colour 0 4
+random_colour 1 4
+random_colour 2 4
+random_colour 3 4
+random_colour 4 4
+random_colour 5 4
+random_colour 6 4
+random_colour 7 4
+random_colour 8 4
+random_colour 9 4
+random_colour 10 4
+random_colour 11 4
+random_colour 12 4
+random_colour 13 4
+random_colour 14 4
+random_colour 15 4
+random_colour 0 5
+random_colour 1 5
+random_colour 2 5
+random_colour 3 5
+random_colour 4 5
+random_colour 5 5
+random_colour 6 5
+random_colour 7 5
+random_colour 8 5
+random_colour 9 5
+random_colour 10 5
+random_colour 11 5
+random_colour 12 5
+random_colour 13 5
+random_colour 14 5
+random_colour 15 5
+random_colour 0 6
+random_colour 1 6
+random_colour 2 6
+random_colour 3 6
+random_colour 4 6
+random_colour 5 6
+random_colour 6 6
+random_colour 7 6
+random_colour 8 6
+random_colour 9 6
+random_colour 10 6
+random_colour 11 6
+random_colour 12 6
+random_colour 13 6
+random_colour 14 6
+random_colour 15 6
+random_colour 0 7
+random_colour 1 7
+random_colour 2 7
+random_colour 3 7
+random_colour 4 7
+random_colour 5 7
+random_colour 6 7
+random_colour 7 7
+random_colour 8 7
+random_colour 9 7
+random_colour 10 7
+random_colour 11 7
+random_colour 12 7
+random_colour 13 7
+random_colour 14 7
+random_colour 15 7
+press KEYBOARD
+snapshot kb_opened
+press MOD1
+snapshot kb_mod1
+turn UPPER 1
+snapshot kb_upper
+turn LOWER 1
+snapshot kb_lower
+press MOD_ENCODER_1
+snapshot kb_upper_push
+press MOD_ENCODER_0
+snapshot kb_lower_push
+press MOD0
+snapshot kb_mod0
+turn UPPER -1
+snapshot kb_mod0_upper
+turn LOWER 1
+snapshot kb_mod0_lower
+press KEYBOARD
+snapshot kb_closed

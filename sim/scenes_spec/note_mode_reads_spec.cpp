@@ -41,6 +41,7 @@
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/param_stack.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "notify/notice_queue.h"
@@ -98,6 +99,15 @@ namespace guest = deluge::gui::ui;
 namespace {
 
 using Root = MenuContext::Root;
+
+/// @brief Whether the view's knobs move @p controllable: its focus's owner stack, resolved only while the focus is
+///        on the current song.
+/// @param controllable The mod controllable to look for.
+bool knobs_move(ModControllable* controllable) {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	const ModelStackWithThreeMainThings* owner = view.knobOwnerStack(memory);
+	return owner != nullptr && owner->modControllable == controllable;
+}
 
 /// @brief Hold one legacy button for an example's lifetime, by writing only what `isButtonPressed`
 ///        reads.
@@ -798,12 +808,12 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
 		view.setActiveModControllableTimelineCounter(fx.clip, false);
-		expect(View::KnobStack{view}.owner() == row0->toModControllable()).to_be_true();
+		expect(knobs_move(row0->toModControllable())).to_be_true();
 
 		expect(guest::noteModeLegacyCalls().noteRowEditorPad(kDisplayWidth + 1, 1, 1)).to_be_true();
 
 		expect(kit->selectedDrum == row1).to_be_true();
-		expect(View::KnobStack{view}.owner() == row1->toModControllable()).to_be_true();
+		expect(knobs_move(row1->toModControllable())).to_be_true();
 	});
 
 	it("nudging a held note out of its square goes up one level -- nudgeNotes' goUpOneLevel", _ {

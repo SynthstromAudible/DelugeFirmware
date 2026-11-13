@@ -20,6 +20,7 @@
 /// @file
 /// @brief What a control reads that the model does not hold: the engine's live values and runtime state.
 
+#include "deluge-project/clip_address.h"
 #include "deluge-project/instrument_slot.h"
 #include "deluge-project/param_address.h"
 
@@ -43,9 +44,13 @@ public:
 	/// @brief Whether a stutter is playing: the song's stutter, which a gold knob's push begins, is live state no
 	/// record holds.
 	[[nodiscard]] virtual bool stutter_active() const = 0;
-	/// @brief Whether the sound drum at @p slot can hold note tails, which its kit-arp inclusion needs: its params
-	/// (envelope sustain, noise) decide it, which no setting holds.
-	[[nodiscard]] virtual bool allows_note_tails(project::SlotAddress slot) const = 0;
+	/// @brief Whether the sound at @p slot can hold note tails, which a sound drum's kit-arp inclusion needs and a
+	/// gold-knob turn repaints for: its params (envelope sustain, noise) decide it, which no setting holds.
+	/// @param slot The sound.
+	/// @param clip The clip whose params a synth reads (the turn's); none for the clip its output plays. A sound
+	///             drum always reads its own row's.
+	[[nodiscard]] virtual bool allows_note_tails(project::SlotAddress slot,
+	                                             std::optional<project::ClipAddress> clip) const = 0;
 };
 
 } // namespace deluge::controls

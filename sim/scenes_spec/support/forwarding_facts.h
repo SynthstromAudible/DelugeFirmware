@@ -68,8 +68,9 @@ public:
 	                                        int32_t which) const override {
 		return real_.played_bend_range(owner, which);
 	}
-	[[nodiscard]] bool allows_note_tails(deluge::project::SlotAddress slot) const override {
-		return real_.allows_note_tails(slot);
+	[[nodiscard]] bool allows_note_tails(deluge::project::SlotAddress slot,
+	                                     std::optional<deluge::project::ClipAddress> clip) const override {
+		return real_.allows_note_tails(slot, clip);
 	}
 	[[nodiscard]] uint8_t arp_preset(const deluge::project::SettingAddress& address) const override {
 		return real_.arp_preset(address);

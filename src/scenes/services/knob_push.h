@@ -84,6 +84,7 @@ struct CompTurn {
 	serialization::Value value; ///< its new value
 	std::string title;          ///< the notification's title: the setting's name
 	std::string value_text;     ///< and its value, in its units
+	int32_t knob_pos = 0;       ///< the knob's new position, -64..64, which its indicator shows
 };
 
 /// @brief The knob position (-64..64) the song's compressor setting @p arm is at.

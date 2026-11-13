@@ -190,8 +190,4 @@ ContinuousEncoder& modEncoderAt(size_t i);    ///< 0=mod0 1=mod1
 
 // ── Shared timestamp ──────────────────────────────────────────────────────
 
-/// Last AudioEngine::audioSampleTimer tick at which we noticed a change on one of the mod encoders.
-/// Defined in encoder_input.cpp; also written by view.cpp.
-extern uint32_t timeModEncoderLastTurned[];
-
 } // namespace deluge::hid::encoders

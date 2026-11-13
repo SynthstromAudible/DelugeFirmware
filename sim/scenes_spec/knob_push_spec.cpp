@@ -1,7 +1,8 @@
-// What a gold knob's push and a mod button's press do, from the song's records: on twin songs, the engine's own
-// modEncoderButtonAction on one and the port's push, applied through the app's sink, on the other, for every owner
-// kind, mode and knob, pushed three times round each cycle -- the same effect settings, knob mappings, chain views,
-// reverb, compressor view, stutter and text after every push. And the mod button's popup, as the engine shows it.
+// What a gold knob's push and a mod button's press do, from the song's records: the port's push, applied through the
+// app's sink, for every owner kind, mode and knob, pushed three times round each cycle, against the outcome the
+// engine's own modEncoderButtonAction was recorded leaving (support/recorded_knob_pushes.h) -- the same effect
+// settings, knob mappings, chain views, reverb, stutter and text after every push. And the mod button's popup, as the
+// engine showed it.
 
 #include "scenes/services/knob_push.h"
 
@@ -29,16 +30,21 @@
 #include "processing/sound/sound_instrument.h"
 #include "util/functions.h"
 
+#include "support/recorded_knob_pushes.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
 
 #include "spec/support/spec_main.h"
 
+#include <algorithm>
 #include <array>
+#include <bit>
 #include <cstdio>
 #include <functional>
+#include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace Buttons {
@@ -71,15 +77,11 @@ struct StubDisplay final : deluge::hid::Display {
 	void displayNotification(std::string_view, std::optional<std::string_view>) override {}
 };
 
-/// @brief One twin: a song, the engine owner its knobs point at, and the same owner as the port's focus.
+/// @brief One owner under test: a song, the owner its knobs point at as a focus, and whose mod-knob mode it holds.
 struct Side {
 	Song* song = nullptr;
-	ModControllable* engine = nullptr;
-	std::function<ModelStackWithThreeMainThings*(char*)> stack_of;
-	std::function<void()> point_view; ///< points legacy's view at the owner, which its knob names read
 	bind::KnobFocus focus;
 	KnobModeOwner mode_owner;
-	deluge::controls::CompView comp{}; ///< the engine side's compressor view, which its pushes move
 };
 
 /// @brief What a push leaves that the two sides are compared on.
@@ -137,6 +139,53 @@ Outcome outcome_of(const Side& side, std::string text) {
 	return out;
 }
 
+/// @brief @p outcome as text: every field, floats by their bits.
+std::string canonical(const Outcome& o) {
+	const deluge::effects::EffectStates& e = o.effects;
+	std::string text;
+	const auto add = [&text](std::initializer_list<int64_t> values) {
+		for (const int64_t v : values) {
+			text += std::to_string(v) + " ";
+		}
+		text += "|";
+	};
+	add({int(e.filter.lpf_mode), int(e.filter.hpf_mode), int(e.filter.route), e.saturation.clipping_amount,
+	     int(e.mod_fx.type)});
+	add({e.delay.ping_pong, int(e.delay.type), int(e.delay.sync_type), int(e.delay.sync_level)});
+	add({e.stutter.use_song_stutter, e.stutter.quantized, e.stutter.reversed, e.stutter.ping_pong});
+	add({e.compressor.attack, e.compressor.release, e.compressor.threshold, e.compressor.ratio,
+	     e.compressor.sidechain_hpf, e.compressor.blend});
+	add({e.sidechain.attack, e.sidechain.release, int(e.sidechain.sync_type), int(e.sidechain.sync_level)});
+	add({o.filter_type, o.mod_fx_param, std::bit_cast<uint32_t>(o.room), std::bit_cast<uint32_t>(o.damping),
+	     o.stuttering});
+	for (const deluge::project::ControllerMapping& m : o.controls) {
+		text += std::to_string(m.control.button) + "." + std::to_string(m.control.knob) + ">"
+		        + std::to_string(m.target.value) + ",";
+	}
+	return text + "|" + o.text;
+}
+
+/// @brief Where @p actual first differs from @p expected, section by section (the `|`-separated parts of a canonical
+///        outcome), or empty when they are equal.
+std::string first_difference(std::string_view expected, std::string_view actual) {
+	size_t at = 0;
+	for (size_t section = 0; at <= expected.size() || at <= actual.size(); section++) {
+		const size_t e_end = std::min(expected.find('|', at), expected.size());
+		const size_t a_end = std::min(actual.find('|', at), actual.size());
+		const std::string_view e = at <= expected.size() ? expected.substr(at, e_end - at) : std::string_view{};
+		const std::string_view a = at <= actual.size() ? actual.substr(at, a_end - at) : std::string_view{};
+		if (e != a) {
+			return "section " + std::to_string(section) + ": recorded '" + std::string{e} + "', pushed '"
+			       + std::string{a} + "'";
+		}
+		if (e_end >= expected.size() && a_end >= actual.size()) {
+			break;
+		}
+		at = e_end + 1;
+	}
+	return {};
+}
+
 void hold_mod_button(int32_t mode, bool held) {
 	Buttons::buttonStates[modButtonX[mode]][modButtonY[mode]] = held;
 }
@@ -175,98 +224,62 @@ services::PushInputs inputs_of(const Side& side, bool held) {
 	return inputs;
 }
 
-/// @brief Push knob @p knob on both sides (press and release), and where the two first differ, or empty.
-std::string push_both(Side& legacy, Side& port, uint8_t mode, int32_t knob, bool held, StubDisplay& stub) {
-	// The engine's push, its notice and its popup.
-	currentSong = legacy.song;
+/// @brief Push knob @p knob on @p side (press and release), and where its outcome first differs from the recorded
+///        one, or empty.
+std::string push_one(Side& side, uint8_t mode, int32_t knob, bool held, std::string_view recorded) {
 	(void)last_notice();
-	stub.popup.clear();
 	hold_mod_button(mode, held);
-	{
-		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-		(void)legacy.engine->modEncoderButtonAction(knob, true, legacy.stack_of(memory), &legacy.comp);
-	}
-	// As View's push does: a knob cycled to its next param is its owner's mappings.
-	deluge::edits::recordControlsOf(*legacy.engine);
-	const std::string legacy_text = held ? stub.popup : last_notice();
-	const Outcome engine = outcome_of(legacy, legacy_text);
-	{
-		currentSong = legacy.song;
-		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-		(void)legacy.engine->modEncoderButtonAction(knob, false, legacy.stack_of(memory), &legacy.comp);
-	}
 
-	// The port's push, applied through the app's sink.
+	// The push, applied through the app's sink.
 	const services::KnobPush press =
-	    services::knob_push(port.song->project, port.focus, knob, true, inputs_of(port, held));
-	currentSong = port.song;
+	    services::knob_push(side.song->project, side.focus, knob, true, inputs_of(side, held));
+	currentSong = side.song;
 	(void)services::apply_push(deluge::scenes::menu::host_write_sink(), deluge::scenes::menu::host_controls_sink(),
-	                           port.focus, press);
+	                           side.focus, press);
 	if (press.comp) {
-		port.focus.comp = *press.comp;
+		side.focus.comp = *press.comp;
 	}
-	const Outcome ported = outcome_of(port, held ? press.popup : press.notice);
+	const Outcome pushed = outcome_of(side, held ? press.popup : press.notice);
 	const services::KnobPush release =
-	    services::knob_push(port.song->project, port.focus, knob, false, inputs_of(port, held));
-	currentSong = port.song;
+	    services::knob_push(side.song->project, side.focus, knob, false, inputs_of(side, held));
+	currentSong = side.song;
 	(void)services::apply_push(deluge::scenes::menu::host_write_sink(), deluge::scenes::menu::host_controls_sink(),
-	                           port.focus, release);
+	                           side.focus, release);
 	hold_mod_button(mode, false);
 	(void)last_notice();
 
-	const std::string at =
-	    "mode " + std::to_string(mode) + " knob " + std::to_string(knob) + (held ? " held" : "") + ": ";
-	if (engine.effects != ported.effects) {
-		return at + "effects";
-	}
-	if (engine.controls != ported.controls) {
-		std::string why =
-		    at + "controls " + std::to_string(engine.controls.size()) + " vs " + std::to_string(ported.controls.size());
-		for (size_t i = 0; i < std::min(engine.controls.size(), ported.controls.size()); i++) {
-			if (!(engine.controls[i] == ported.controls[i])) {
-				why += " first at " + std::to_string(i) + ": " + std::to_string(engine.controls[i].target.value)
-				       + " vs " + std::to_string(ported.controls[i].target.value);
-				break;
-			}
-		}
-		return why;
-	}
-	if (engine.filter_type != ported.filter_type || engine.mod_fx_param != ported.mod_fx_param) {
-		return at + "chain view";
-	}
-	if (engine.room != ported.room || engine.damping != ported.damping) {
-		return at + "reverb";
-	}
-	if (engine.stuttering != ported.stuttering) {
-		return at + "stutter";
-	}
-	if (engine.text != ported.text) {
-		return at + "text '" + engine.text + "' vs '" + ported.text + "'";
+	if (const std::string why = first_difference(recorded, canonical(pushed)); !why.empty()) {
+		return "mode " + std::to_string(mode) + " knob " + std::to_string(knob) + (held ? " held" : "") + ": " + why;
 	}
 	return {};
 }
 
 /// @brief Every mode and knob, three pushes each, with and without the alt delay knobs and the button held.
-std::vector<std::string> push_everything(Side& legacy, Side& port, const std::string& label,
+/// @param side     The owner's side.
+/// @param label    Names the owner in each disagreement.
+/// @param recorded The `kPushTexts` index recorded for each push, in the order the loops visit them.
+/// @param extra    Run once per alt setting after the pushes; returns where it disagrees, or empty.
+std::vector<std::string> push_everything(Side& side, const std::string& label, std::span<const uint16_t> recorded,
                                          const std::function<std::string()>& extra = {}) {
 	StubDisplay stub;
 	display = &stub;
+	size_t next = 0;
 	std::vector<std::string> found;
 	for (const bool alt : {false, true}) {
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::AltGoldenKnobDelayParams,
 		                           alt ? RuntimeFeatureStateToggle::On : RuntimeFeatureStateToggle::Off);
 		for (uint8_t mode = 0; mode < kNumModButtons; mode++) {
-			currentSong = legacy.song;
-			(void)deluge::edits::modKnobModeFor(legacy.mode_owner, mode);
-			currentSong = port.song;
-			(void)deluge::edits::modKnobModeFor(port.mode_owner, mode);
+			currentSong = side.song;
+			(void)deluge::edits::modKnobModeFor(side.mode_owner, mode);
 			for (int32_t knob = 0; knob < 2; knob++) {
 				// The delay's sync level names its 256th as none on the engine, which wrote it so: two pushes (one
 				// plain, one held) stop short of it.
 				const int32_t pushes = (alt && mode == 3 && knob == 0) ? 1 : 3;
 				for (int32_t n = 0; n < pushes; n++) {
 					for (const bool held : {false, true}) {
-						if (std::string why = push_both(legacy, port, mode, knob, held, stub); !why.empty()) {
+						if (std::string why =
+						        push_one(side, mode, knob, held, knob_recorded::kPushTexts[recorded[next++]]);
+						    !why.empty()) {
 							found.push_back(label + (alt ? " alt " : " ") + why);
 						}
 					}
@@ -284,23 +297,21 @@ std::vector<std::string> push_everything(Side& legacy, Side& port, const std::st
 	return found;
 }
 
-/// @brief Each mod button pressed on both sides: where the engine's popup and the port's first differ, or empty.
-std::vector<std::string> press_buttons(Side& legacy, Side& port, const std::string& label) {
+/// @brief Each mod button pressed on @p side: where the popup the port shows first differs from the recorded one, or
+///        empty.
+std::vector<std::string> press_buttons(Side& side, const std::string& label,
+                                       const std::array<std::string_view, 8>& recorded) {
 	StubDisplay stub;
 	display = &stub;
 	std::vector<std::string> found;
 	for (uint8_t button = 0; button < kNumModButtons; button++) {
-		currentSong = legacy.song;
-		(void)deluge::edits::modKnobModeFor(legacy.mode_owner, button);
-		legacy.point_view();
-		stub.popup.clear();
-		legacy.engine->modButtonAction(button, true, nullptr, legacy.comp);
-		currentSong = port.song;
-		(void)deluge::edits::modKnobModeFor(port.mode_owner, button);
-		const std::string ported =
-		    services::mod_button_popup(port.song->project, port.focus, button, inputs_of(port, true));
-		if (stub.popup != ported) {
-			found.push_back(label + " button " + std::to_string(button) + ": '" + stub.popup + "' vs '" + ported + "'");
+		currentSong = side.song;
+		(void)deluge::edits::modKnobModeFor(side.mode_owner, button);
+		const std::string shown =
+		    services::mod_button_popup(side.song->project, side.focus, button, inputs_of(side, true));
+		if (shown != std::string{recorded[button]}) {
+			found.push_back(label + " button " + std::to_string(button) + ": recorded '" + std::string{recorded[button]}
+			                + "' vs '" + shown + "'");
 		}
 	}
 	display = nullptr;
@@ -331,25 +342,30 @@ std::string set_mod_fx(Side& side, std::string_view type, std::string_view view)
 }
 
 /// @brief The mod FX button's lower knob pushed three times from a view its type has no param for (a flanger on
-///        depth, a chorus on feedback), plain and held: the push moves on to the type's next view, on both sides.
-std::vector<std::string> push_from_missing_view(Side& legacy, Side& port, const std::string& label) {
+///        depth, a chorus on feedback), plain and held: the push moves on to the type's next view.
+/// @param side     The chain owner's side.
+/// @param label    Names the owner in each disagreement.
+/// @param recorded The `kPushTexts` index recorded for each push.
+std::vector<std::string> push_from_missing_view(Side& side, const std::string& label,
+                                                std::span<const uint16_t> recorded) {
 	constexpr uint8_t kModFxButton = 5;
 	constexpr std::array<std::pair<std::string_view, std::string_view>, 2> kStates{
 	    {{"flanger", "depth"}, {"chorus", "feedback"}}};
 	StubDisplay stub;
 	display = &stub;
+	size_t next = 0;
 	std::vector<std::string> found;
 	for (const auto& [type, view] : kStates) {
 		for (const bool held : {false, true}) {
-			for (Side* side : {&legacy, &port}) {
-				if (std::string why = set_mod_fx(*side, type, view); !why.empty()) {
-					found.push_back(label + " " + why);
-				}
-				currentSong = side->song;
-				(void)deluge::edits::modKnobModeFor(side->mode_owner, kModFxButton);
+			if (std::string why = set_mod_fx(side, type, view); !why.empty()) {
+				found.push_back(label + " " + why);
 			}
+			currentSong = side.song;
+			(void)deluge::edits::modKnobModeFor(side.mode_owner, kModFxButton);
 			for (int32_t n = 0; n < 3; n++) {
-				if (std::string why = push_both(legacy, port, kModFxButton, 0, held, stub); !why.empty()) {
+				if (std::string why =
+				        push_one(side, kModFxButton, 0, held, knob_recorded::kPushTexts[recorded[next++]]);
+				    !why.empty()) {
 					found.push_back(label + " " + std::string{type} + " on " + std::string{view} + " push "
 					                + std::to_string(n) + " " + why);
 				}
@@ -366,49 +382,32 @@ void report(const std::vector<std::string>& found) {
 	}
 }
 
-/// @brief A synth's side of the twin.
+/// @brief A synth's side.
 Side synth_side(deluge::scenes::spec::SongFixture& f) {
 	auto* synth = static_cast<SoundInstrument*>(f.instrument);
 	Side side;
 	side.song = f.song;
-	side.engine = synth;
-	side.stack_of = [song = f.song, synth, clip = f.clip](char* memory) {
-		return setupModelStackWithThreeMainThingsButNoNoteRow(memory, song, synth, clip, &clip->paramManager);
-	};
-	side.point_view = [clip = f.clip] { view.setActiveModControllableTimelineCounter(clip, false); };
 	side.focus = {.owner = bind::SoundFocus{.slot = {deluge::project::SlotAddress::Kind::OUTPUT, *synth->id()},
 	                                        .clip = deluge::project::ClipAddress{f.clip->id()}}};
 	side.mode_owner = deluge::project::TrackAddress{*synth->id()};
 	return side;
 }
 
-/// @brief The song's own chain's side of the twin.
+/// @brief The song's own chain's side.
 Side song_side(deluge::scenes::spec::SongFixture& f) {
 	Side side;
 	side.song = f.song;
-	side.engine = &f.song->live.global_effectable;
-	side.stack_of = [song = f.song](char* memory) { return song->setupModelStackWithSongAsTimelineCounter(memory); };
-	side.point_view = [song = f.song] {
-		view.setActiveModControllableWithoutTimelineCounter(&song->live.global_effectable, &song->paramManager);
-	};
 	side.focus = {.owner = bind::SongFocus{}};
 	side.mode_owner = deluge::project::SongAddress{};
 	return side;
 }
 
-/// @brief A kit's chain's side of the twin.
+/// @brief A kit's chain's side.
 Side kit_chain_side(deluge::scenes::spec::SongFixture& f) {
 	auto* kit = static_cast<Kit*>(f.instrument);
+	f.clip->affectEntire = true; // the kit's own chain, not its selected row
 	Side side;
 	side.song = f.song;
-	side.engine = kit;
-	side.stack_of = [song = f.song, kit, clip = f.clip](char* memory) {
-		return setupModelStackWithThreeMainThingsButNoNoteRow(memory, song, kit, clip, &clip->paramManager);
-	};
-	side.point_view = [clip = f.clip] {
-		clip->affectEntire = true; // the kit's own chain, not its selected row
-		view.setActiveModControllableTimelineCounter(clip, false);
-	};
 	side.focus = {.owner = bind::ChainFocus{.chain = {deluge::project::ChainAddress::Kind::OUTPUT, *kit->id()},
 	                                        .owner = bind::ChainOwner::KIT,
 	                                        .clip = deluge::project::ClipAddress{f.clip->id()}}};
@@ -416,14 +415,10 @@ Side kit_chain_side(deluge::scenes::spec::SongFixture& f) {
 	return side;
 }
 
-/// @brief An audio track's chain's side of the twin.
+/// @brief An audio track's chain's side.
 Side audio_side(deluge::scenes::spec::AudioSongFixture& f) {
 	Side side;
 	side.song = f.song;
-	side.engine = f.output;
-	side.stack_of = [song = f.song, audio = f.output, clip = f.clip](char* memory) {
-		return setupModelStackWithThreeMainThingsButNoNoteRow(memory, song, audio, clip, &clip->paramManager);
-	};
 	side.focus = {.owner = bind::ChainFocus{.chain = {deluge::project::ChainAddress::Kind::OUTPUT, *f.output->id()},
 	                                        .owner = bind::ChainOwner::AUDIO_TRACK,
 	                                        .clip = deluge::project::ClipAddress{f.clip->id()}}};
@@ -435,59 +430,43 @@ Side audio_side(deluge::scenes::spec::AudioSongFixture& f) {
 
 // clang-format off
 describe knob_push("what a gold knob's push and a mod button do, from the records", ${
-	it("pushes a synth's knobs as the engine does, in every mode, round every cycle", _ {
+	it("pushes a synth's knobs as the recorded engine did, in every mode, round every cycle", _ {
 		Song* const before = currentSong;
 		deluge::scenes::spec::SongFixture a = deluge::scenes::spec::make_synth_song();
-		deluge::scenes::spec::SongFixture b = deluge::scenes::spec::make_synth_song();
-		Side legacy = synth_side(a);
-		Side port = synth_side(b);
-		const auto found = push_everything(legacy, port, "synth");
+		Side side = synth_side(a);
+		const auto found = push_everything(side, "synth", knob_recorded::kSynthPushes);
 		report(found);
 		expect(found.empty()).to_be_true();
 		currentSong = before;
 	});
 
-	it("pushes a kit row's knobs as the engine does, with the kit's mode", _ {
+	it("pushes a kit row's knobs as the recorded engine did, with the kit's mode", _ {
 		Song* const before = currentSong;
 		deluge::scenes::spec::SongFixture a = deluge::scenes::spec::make_kit_song();
-		deluge::scenes::spec::SongFixture b = deluge::scenes::spec::make_kit_song();
-		const auto row_side = [](deluge::scenes::spec::SongFixture& f) {
-			currentSong = f.song; // a drum takes its id from the current song
-			SoundDrum* drum = deluge::scenes::spec::add_drum<SoundDrum>(f);
-			auto* kit = static_cast<Kit*>(f.instrument);
-			int32_t row_index = 0;
-			NoteRow* row = f.clip->getNoteRowForDrum(drum, &row_index);
-			Side side;
-			side.song = f.song;
-			side.engine = drum;
-			side.stack_of = [song = f.song, clip = f.clip, row_index, row, drum](char* memory) {
-				return setupModelStackWithThreeMainThingsIncludingNoteRow(memory, song, clip, row_index, row, drum,
-				                                                          &row->paramManager);
-			};
-			side.focus = {.owner = bind::SoundFocus{
-			    .slot = {deluge::project::SlotAddress::Kind::DRUM, *drum->id()},
-			    .clip = deluge::project::ClipAddress{f.clip->id()},
-			    .row = deluge::project::NoteRowAddress{f.clip->id(), true, static_cast<int32_t>(*drum->id())},
-			    .kit = *kit->id()}};
-			side.mode_owner = deluge::project::TrackAddress{*kit->id()};
-			return side;
-		};
-		Side legacy = row_side(a);
-		Side port = row_side(b);
-		const auto found = push_everything(legacy, port, "kit row");
+		currentSong = a.song; // a drum takes its id from the current song
+		SoundDrum* drum = deluge::scenes::spec::add_drum<SoundDrum>(a);
+		auto* kit = static_cast<Kit*>(a.instrument);
+		Side side;
+		side.song = a.song;
+		side.focus = {.owner = bind::SoundFocus{
+		    .slot = {deluge::project::SlotAddress::Kind::DRUM, *drum->id()},
+		    .clip = deluge::project::ClipAddress{a.clip->id()},
+		    .row = deluge::project::NoteRowAddress{a.clip->id(), true, static_cast<int32_t>(*drum->id())},
+		    .kit = *kit->id()}};
+		side.mode_owner = deluge::project::TrackAddress{*kit->id()};
+		const auto found = push_everything(side, "kit row", knob_recorded::kKitRowPushes);
 		report(found);
 		expect(found.empty()).to_be_true();
 		currentSong = before;
 	});
 
-	it("pushes the song's knobs as the engine does, its compressor view included", _ {
+	it("pushes the song's knobs as the recorded engine did, its compressor view included", _ {
 		Song* const before = currentSong;
 		deluge::scenes::spec::SongFixture a = deluge::scenes::spec::make_synth_song();
-		deluge::scenes::spec::SongFixture b = deluge::scenes::spec::make_synth_song();
-		Side legacy = song_side(a);
-		Side port = song_side(b);
-		const auto found = push_everything(legacy, port, "song", [&]() -> std::string {
-			if (legacy.comp != port.focus.comp) {
+		Side side = song_side(a);
+		const auto found = push_everything(side, "song", knob_recorded::kSongPushes, [&]() -> std::string {
+			// Recorded from the engine's compressor view after the pushes: not editing, on its first param.
+			if (side.focus.comp != deluge::controls::CompView{.editing = false, .param = 0}) {
 				return "compressor view";
 			}
 			return {};
@@ -497,55 +476,45 @@ describe knob_push("what a gold knob's push and a mod button do, from the record
 		currentSong = before;
 	});
 
-	it("pushes a kit's chain as the engine does", _ {
+	it("pushes a kit's chain as the recorded engine did", _ {
 		Song* const before = currentSong;
 		deluge::scenes::spec::SongFixture a = deluge::scenes::spec::make_kit_song();
-		deluge::scenes::spec::SongFixture b = deluge::scenes::spec::make_kit_song();
-		Side legacy = kit_chain_side(a);
-		Side port = kit_chain_side(b);
-		const auto found = push_everything(legacy, port, "kit chain");
+		Side side = kit_chain_side(a);
+		const auto found = push_everything(side, "kit chain", knob_recorded::kKitChainPushes);
 		report(found);
 		expect(found.empty()).to_be_true();
 		currentSong = before;
 	});
 
-	it("pushes an audio track's chain as the engine does", _ {
+	it("pushes an audio track's chain as the recorded engine did", _ {
 		Song* const before = currentSong;
 		deluge::scenes::spec::AudioSongFixture a = deluge::scenes::spec::make_audio_clip_song();
-		deluge::scenes::spec::AudioSongFixture b = deluge::scenes::spec::make_audio_clip_song();
-		Side legacy = audio_side(a);
-		Side port = audio_side(b);
-		const auto found = push_everything(legacy, port, "audio");
+		Side side = audio_side(a);
+		const auto found = push_everything(side, "audio", knob_recorded::kAudioPushes);
 		report(found);
 		expect(found.empty()).to_be_true();
 		currentSong = before;
 	});
 
-	it("pushes a chain's mod FX knob from a view its type lacks as the engine does: a kit's, the song's, an audio track's", _ {
+	it("pushes a chain's mod FX knob from a view its type lacks as the recorded engine did: a kit's, the song's, an audio track's", _ {
 		Song* const before = currentSong;
 		std::vector<std::string> found;
 		{
 			deluge::scenes::spec::SongFixture a = deluge::scenes::spec::make_kit_song();
-			deluge::scenes::spec::SongFixture b = deluge::scenes::spec::make_kit_song();
-			Side legacy = kit_chain_side(a);
-			Side port = kit_chain_side(b);
-			auto more = push_from_missing_view(legacy, port, "kit chain");
+			Side side = kit_chain_side(a);
+			auto more = push_from_missing_view(side, "kit chain", knob_recorded::kMissingKitChainPushes);
 			found.insert(found.end(), more.begin(), more.end());
 		}
 		{
 			deluge::scenes::spec::SongFixture a = deluge::scenes::spec::make_synth_song();
-			deluge::scenes::spec::SongFixture b = deluge::scenes::spec::make_synth_song();
-			Side legacy = song_side(a);
-			Side port = song_side(b);
-			auto more = push_from_missing_view(legacy, port, "song");
+			Side side = song_side(a);
+			auto more = push_from_missing_view(side, "song", knob_recorded::kMissingSongPushes);
 			found.insert(found.end(), more.begin(), more.end());
 		}
 		{
 			deluge::scenes::spec::AudioSongFixture a = deluge::scenes::spec::make_audio_clip_song();
-			deluge::scenes::spec::AudioSongFixture b = deluge::scenes::spec::make_audio_clip_song();
-			Side legacy = audio_side(a);
-			Side port = audio_side(b);
-			auto more = push_from_missing_view(legacy, port, "audio");
+			Side side = audio_side(a);
+			auto more = push_from_missing_view(side, "audio", knob_recorded::kMissingAudioPushes);
 			found.insert(found.end(), more.begin(), more.end());
 		}
 		report(found);
@@ -553,31 +522,25 @@ describe knob_push("what a gold knob's push and a mod button do, from the record
 		currentSong = before;
 	});
 
-	it("shows the popup the engine shows for every mod button, on a synth, the song and a kit's chain", _ {
+	it("shows the popup the recorded engine showed for every mod button, on a synth, the song and a kit's chain", _ {
 		Song* const before = currentSong;
 		std::vector<std::string> found;
 		{
 			deluge::scenes::spec::SongFixture a = deluge::scenes::spec::make_synth_song();
-			deluge::scenes::spec::SongFixture b = deluge::scenes::spec::make_synth_song();
-			Side legacy = synth_side(a);
-			Side port = synth_side(b);
-			auto more = press_buttons(legacy, port, "synth");
+			Side side = synth_side(a);
+			auto more = press_buttons(side, "synth", knob_recorded::kSynthPopups);
 			found.insert(found.end(), more.begin(), more.end());
 		}
 		{
 			deluge::scenes::spec::SongFixture a = deluge::scenes::spec::make_synth_song();
-			deluge::scenes::spec::SongFixture b = deluge::scenes::spec::make_synth_song();
-			Side legacy = song_side(a);
-			Side port = song_side(b);
-			auto more = press_buttons(legacy, port, "song");
+			Side side = song_side(a);
+			auto more = press_buttons(side, "song", knob_recorded::kSongPopups);
 			found.insert(found.end(), more.begin(), more.end());
 		}
 		{
 			deluge::scenes::spec::SongFixture a = deluge::scenes::spec::make_kit_song();
-			deluge::scenes::spec::SongFixture b = deluge::scenes::spec::make_kit_song();
-			Side legacy = kit_chain_side(a);
-			Side port = kit_chain_side(b);
-			auto more = press_buttons(legacy, port, "kit chain");
+			Side side = kit_chain_side(a);
+			auto more = press_buttons(side, "kit chain", knob_recorded::kKitChainPopups);
 			found.insert(found.end(), more.begin(), more.end());
 		}
 		report(found);

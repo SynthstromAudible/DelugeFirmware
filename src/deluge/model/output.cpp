@@ -64,8 +64,8 @@ Output::~Output() {
 }
 
 // Reseeds the record's 6 base identity fields from the current native values. Load bridge (called from
-// Song::adoptOutput at bind time) plus reseed helper for sites that can't call a single setter (the polymorphic
-// modKnobMode write in View::modButtonAction; the clone/replace families in song.cpp).
+// Song::adoptOutput at bind time) plus reseed helper for sites that can't call a single setter (the clone/replace
+// families in song.cpp).
 void Output::seedDocOutputIdentity() {
 	if (docOutput_ == nullptr) {
 		return;

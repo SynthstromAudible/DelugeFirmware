@@ -384,12 +384,12 @@ describe boot_services("the three services, installed into the guest's own Shell
 
 		knobs->mod_button_action(1, true);
 		knobs->mod_button_action(1, false);
-		expect(view.getModKnobMode()).to_equal(1);
+		expect(view.knobMode()).to_equal(1);
 		knobs->mod_button_action(0, true);
 		knobs->mod_button_action(0, false);
 		knobs->mod_button_action(0, true);
 		knobs->mod_button_action(0, false);
-		expect(view.getModKnobMode()).to_equal(0);
+		expect(view.knobMode()).to_equal(0);
 		expect(view.knobFocus().vu_meter).to_be_true();
 
 		view.setModRegion(96, 48, 0);

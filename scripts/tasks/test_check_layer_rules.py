@@ -139,7 +139,7 @@ class ViewKnobRows(unittest.TestCase):
     def test_a_view_casting_the_knobs_owner_is_counted(self):
         counts = self.counts(
             "src/deluge/gui/views/session_view.cpp",
-            "void f() {\n\t((ModControllableAudio*)View::KnobStack{view}.owner())->endStutter(nullptr);\n}\n",
+            "void f() {\n\t((ModControllableAudio*)modelStack->modControllable)->endStutter(nullptr);\n}\n",
         )
         self.assertEqual(counts.get("views-no-knob-owner-cast"), 1)
 
@@ -160,7 +160,7 @@ class ViewKnobRows(unittest.TestCase):
     def test_the_automation_view_is_not_yet(self):
         counts = self.counts(
             "src/deluge/gui/views/automation/editor_layout/planted.cpp",
-            "void f() {\n\t(void)(ModControllableAudio*)View::KnobStack{view}.owner();\n}\n",
+            "void f() {\n\t(void)(ModControllableAudio*)stack->modControllable;\n}\n",
         )
         self.assertNotIn("views-no-knob-owner-cast", counts)
 

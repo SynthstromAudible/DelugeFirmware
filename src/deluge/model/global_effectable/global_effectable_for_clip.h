@@ -38,17 +38,4 @@ public:
 	[[nodiscard]] const deluge::effects::ChainCore& core() const final { return channel().core(); }
 	[[nodiscard]] deluge::model::ChainView& chainView() final { return channel().view(); }
 	[[nodiscard]] const deluge::model::ChainView& chainView() const final { return channel().view(); }
-
-	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
-	                     const deluge::controls::CompView& comp = {}) final;
-	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack,
-	                            deluge::controls::CompView* comp = nullptr) final;
-
-	/// @brief The two mod knobs a clip's global effectable lays out differently from the song's: the sidechain volume
-	/// (mode 4, upper) and the pitch adjust (mode 6, lower); nullopt for the others.
-	[[nodiscard]] static std::optional<deluge::plugin::ParamId> clipKnobParam(int32_t modKnobMode,
-	                                                                          int32_t whichModEncoder);
-
-protected:
-	int32_t getParameterFromKnob(int32_t whichModEncoder, const deluge::controls::CompView& comp) final;
 };

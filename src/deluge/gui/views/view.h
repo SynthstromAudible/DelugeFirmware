@@ -79,12 +79,7 @@ public:
 	void commitLearnedThing(const LearnedMIDI& learned, bool inputFromNote = false);
 	void midiLearnFlash();
 	void setModLedStates();
-	int32_t getModKnobMode();
-	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
-	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
-	void modButtonAction(uint8_t whichButton, bool on);
 	void setKnobIndicatorLevels();
-	void setKnobIndicatorLevel(uint8_t whichModEncoder);
 	int32_t convertPatchCableKnobPosToIndicatorLevel(int32_t knobPos);
 	void setActiveModControllableTimelineCounter(TimelineCounter* playPositionCounter,
 	                                             bool shouldSendMidiFeedback = true);
@@ -101,28 +96,6 @@ public:
 	/// @brief [interaction] Follow a write another keeper of the focus made (the guest's knobs): the song the focus is
 	///        in, whether it is a clip's, and the param manager the render compares automation against.
 	void knobFocusChanged();
-	/// @brief [interaction] The engine stack of the owner the knobs move, resolved now from the focus (following the
-	///        take the arrangement records, without making one). Valid until the song's structure next changes.
-	/// @param memory MODEL_STACK_MAX_SIZE bytes, aligned as ModelStackWithAutoParam, which the stack lives in.
-	/// @return The stack, or null for no focus.
-	[[nodiscard]] ModelStackWithThreeMainThings* knobOwnerStack(void* memory) const;
-	/// @brief [interaction] The knobs' owner stack, resolved now in a buffer of its own: for a gesture that needs the
-	///        engine objects the knobs name.
-	struct KnobStack {
-		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* stack;
-		explicit KnobStack(const View& view) : stack(view.knobOwnerStack(memory)) {}
-		KnobStack(const KnobStack&) = delete;
-		KnobStack& operator=(const KnobStack&) = delete;
-		/// @brief The owner the knobs move, or null.
-		[[nodiscard]] ModControllable* owner() const { return stack != nullptr ? stack->modControllable : nullptr; }
-		/// @brief The owner's param manager, or null.
-		[[nodiscard]] ParamManager* params() const { return stack != nullptr ? stack->paramManager : nullptr; }
-		/// @brief The clip (its take while the arrangement records it) or song the owner is in, or null.
-		[[nodiscard]] TimelineCounter* counter() const {
-			return stack != nullptr ? stack->getTimelineCounterAllowNull() : nullptr;
-		}
-	};
 	/// @brief [interaction] What the gold knobs point at, as addresses: the owner the views set, the region a held pad
 	///        names, the song's compressor view and its VU meter.
 	[[nodiscard]] const deluge::controls::KnobFocus& knobFocus() const { return knobFocus_; }
@@ -150,10 +123,6 @@ public:
 	[[nodiscard]] uint32_t modLength() const { return knobFocus_.region.length; }
 	/// @brief [interaction] The held note's row id.
 	[[nodiscard]] int32_t modNoteRowId() const { return knobFocus_.region.note_row_id; }
-	/// @brief [interaction] The address of the param knob @p whichModEncoder moves (0 the lower, 1 the upper), in the
-	///        clip the focus names: one the owner holds, or a cable a turn would make.
-	/// @return The address, or none for a knob with no param or no focus.
-	[[nodiscard]] std::optional<deluge::project::ParamAddress> knobAddress(int32_t whichModEncoder) const;
 	/// @brief [interaction] Does the UI mode now let a mod button change the knobs' mode? None does, and those a
 	///        held pad or row or a song load holds.
 	[[nodiscard]] bool modButtonUIModeInRange() const;
@@ -163,6 +132,18 @@ public:
 	[[nodiscard]] int32_t knobMode() const;
 	/// @brief [interaction] End the stutter of the owner the knobs are on.
 	void endKnobsStutter();
+	/// @brief [interaction] Are the focus's ids in the current song? With no song, or a focus another song's, the knobs
+	///        point at nothing.
+	[[nodiscard]] bool knobsOnCurrentSong() const;
+	/// @brief [interaction] The engine stack of the owner the knobs move, resolved from the focus.
+	/// @param memory MODEL_STACK_MAX_SIZE bytes, aligned as ModelStackWithAutoParam, which the stack lives in.
+	/// @return The stack, or null while the knobs point at nothing (`knobsOnCurrentSong`, or no owner).
+	[[nodiscard]] ModelStackWithThreeMainThings* knobOwnerStack(void* memory) const;
+	/// @brief [interaction] The clip (its take while the arrangement records it) or song the knobs are on, or null.
+	[[nodiscard]] TimelineCounter* knobTimelineCounter() const;
+	/// @brief [interaction] Take the knobs' param manager, which the render compares automation against, from the
+	///        focus now.
+	void refreshKnobParamManager();
 	/// @brief [interaction] Let go of the knobs if they are on @p clip, which is about to go.
 	void releaseKnobsIfOn(const Clip& clip);
 	/// @brief [interaction] Let go of the knobs if they are on @p song or anything it owns, which is about to go.
@@ -293,8 +274,8 @@ public:
 
 	// vu meter rendering
 	bool potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]);
-
-	void getParameterNameFromModEncoder(int32_t whichModEncoder, char* parameterName);
+	/// @brief Did the last render draw the VU meter in the sidebar?
+	[[nodiscard]] bool vuMeterRendered() const { return renderedVUMeter; }
 
 	int32_t calculateKnobPosForModEncoderTurn(deluge::modulation::params::Kind kind, int32_t knobPos, int32_t offset);
 
@@ -324,15 +305,6 @@ private:
 	/// @brief Set the focus's owner from @p stack, a view's stack for its target, keeping its region, compressor view
 	///        and VU meter.
 	void setKnobFocusFrom(const ModelStackWithThreeMainThings* stack);
-	/// @brief The compressor view a push may move: the focus's for the song; none (the push moves a view nothing
-	///        keeps) for any other owner.
-	[[nodiscard]] deluge::controls::CompView* knobCompToMove();
-	/// @brief Take the knobs' param manager, which the render compares automation against, from the focus now.
-	void refreshKnobParamManager();
-	/// @brief The address of @p param, a param of the knobs' owner, with the clip the focus names.
-	[[nodiscard]] std::optional<deluge::project::ParamAddress>
-	knobParamAddress(const ModelStackWithAutoParam& param) const;
-
 	deluge::controls::KnobFocus knobFocus_{};
 	/// The song the focus's ids are in, as an identity only: never dereferenced.
 	const Song* knobSong_{};
@@ -342,8 +314,6 @@ private:
 	/// The param manager of the owner the knobs move, as an identity: the render compares an automation's against it.
 	std::atomic<const ParamManager*> knobParamManager_{};
 
-	void pretendModKnobsUntouchedForAWhile();
-	void instrumentBeenEdited();
 	void clearMelodicInstrumentMonoExpressionIfPossible();
 
 	// vu meter rendering
@@ -352,19 +322,6 @@ private:
 	int32_t cachedMaxYDisplayForVUMeterR;
 	void renderVUMeter(int32_t maxYDisplay, int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth]);
 	bool renderedVUMeter;
-
-	// mod encoder action
-	void modEncoderAction_nonExistentParam(ModControllable& owner, int32_t whichModEncoder, int32_t offset,
-	                                       ModelStackWithAutoParam* modelStackWithParam);
-	void modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offset,
-	                                    ModelStackWithAutoParam* modelStackWithParam, bool noteTailsAllowedBefore);
-	/// @brief Does @p modelStackWithParam name a param a knob turns: one the owner holds, or a cable it makes?
-	static bool isParamOfKnob(const ModelStackWithAutoParam* modelStackWithParam);
-
-	// mod encoder button action
-	void modEncoderButtonAction_deleteAutomation(uint8_t whichModEncoder, ModelStackWithThreeMainThings* stack);
-	void modEncoderButtonAction_changeModControllable(uint8_t whichModEncoder, bool on,
-	                                                  ModelStackWithThreeMainThings* stack);
 
 	// Timing constants for display arbitration in displayModEncoderValuePopup (in AudioEngine sample units)
 	static constexpr uint32_t MIN_DISPLAY_OWNERSHIP_TIME = kSampleRate; // 1 second (minimum juggling time)
