@@ -19,8 +19,12 @@
 /// @brief The DX7 reference's records over every workload (dx7_workloads.h) and its tables, which the components must
 /// equal: recorded from it, identical on the host and on ARM.
 ///
-/// `./dbt test --update unit` rewrites the lines between the GOLDEN-RECORDS markers from the run
-/// (scripts/tasks/golden_records.py); a new record is added by hand, with any value, and re-recorded.
+/// `./dbt test --update unit -- -R dx7_reference_spec` rewrites the lines between the GOLDEN-RECORDS markers from the
+/// reference's run (scripts/tasks/golden_records.py), and the components confirm the new records on the next plain run;
+/// a plain `--update unit` fails safe when the reference moved, as the components' specs still compare with the old
+/// records. A new record is added by hand, with any value, and re-recorded. The host's run records them; the ARM tree's
+/// run of the same spec only checks them. A change to these records and to the asm pins (dx7_asm_pin_records.h)
+/// re-records with `--update unit`, then `--update unit-arm`.
 
 #pragma once
 

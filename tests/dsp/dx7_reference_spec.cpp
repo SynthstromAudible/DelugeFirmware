@@ -1,6 +1,7 @@
 // The DX7 reference (reference_dx7.h) over every workload (dx7_workloads.h): its tables and records, that the
-// workloads reach every operator path, and whether a voice ends after its release. `./dbt test --update unit`
-// re-records the records (dx7_workload_records.h).
+// workloads reach every operator path, and whether a voice ends after its release.
+// `./dbt test --update unit -- -R dx7_reference_spec` re-records the records (dx7_workload_records.h); the components'
+// specs confirm them on the next plain run.
 #include "dx7_workload_records.h"
 #include "reference_dx7.h"
 #include "support/golden_update.h"
@@ -14,10 +15,17 @@ namespace golden = deluge::test::golden;
 
 constexpr std::string_view kHeader = "tests/dsp/dx7_workload_records.h";
 
+// The records are the host's: the ARM tree runs this spec as a check of them, so there it always compares.
+#ifdef __arm__
+constexpr bool kRecordsHere = false;
+#else
+constexpr bool kRecordsHere = true;
+#endif
+
 // clang-format off
 describe dx7_reference_spec("the DX7 reference", ${
 	it("builds the tables as recorded", _ {
-		const bool updating = golden::updating();
+		const bool updating = kRecordsHere && golden::updating();
 		const dw::TableRecord record = dw::table_record(dw::reference_tables());
 		if (updating) {
 			char line[256];
@@ -35,7 +43,7 @@ describe dx7_reference_spec("the DX7 reference", ${
 	});
 	for (const dw::Workload& workload : dw::all_workloads()) {
 		it(dw::name(workload.id), _ {
-			const bool updating = golden::updating();
+			const bool updating = kRecordsHere && golden::updating();
 			const dw::WorkloadRecord record = dw::run_reference(workload);
 			if (updating) {
 				char line[160];
@@ -69,7 +77,7 @@ describe dx7_reference_spec("the DX7 reference", ${
 		expect(c.gated).to_be_greater_than(std::size_t{0});
 	});
 	it("ends a modern voice after its release and records whether an MkI voice ends", _ {
-		const bool updating = golden::updating();
+		const bool updating = kRecordsHere && golden::updating();
 		const dw::Ending modern = dw::ending(dw::WorkloadId::RELEASE_TAIL_MODERN);
 		const dw::Ending mki = dw::ending(dw::WorkloadId::RELEASE_TAIL_MKI);
 		if (updating) {

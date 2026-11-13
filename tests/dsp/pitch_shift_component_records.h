@@ -22,6 +22,8 @@
 ///
 /// `./dbt test --update unit` rewrites the lines between the GOLDEN-RECORDS markers from the run
 /// (scripts/tasks/golden_records.py); a new record is added by hand, with any value, and re-recorded.
+/// The host's run (`unit`) records them; the ARM tree's run of the same spec only checks them. A change to these
+/// records and to the asm pins (dx7_asm_pin_records.h) re-records with `--update unit`, then `--update unit-arm`.
 
 #pragma once
 

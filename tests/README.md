@@ -326,6 +326,11 @@ shared files are snapshotted once, before the group's first record run, and if a
 second run or an interrupt) every file of the group goes back to that snapshot and every member is reported as not
 re-recorded. Tests with disjoint baselines are judged one by one.
 
+The dsp record headers shared by both ctest trees (`dx7_workload_records.h`, `hop_scheduler_records.h`,
+`pitch_shift_component_records.h`) are recorded by the host's run (`unit`); the ARM tree runs the same specs only to
+check them, and `unit-arm` records only the asm pins (`dx7_asm_pin_records.h`). A change to both re-records with
+`./dbt test --update unit`, then `./dbt test --update unit-arm`.
+
 **Evidence.** A changed baseline is a finding. Commit it with its `GOLDEN-UPDATED` lines in the commit body and, for
 each, why it moved (the change that moved it, or the bug whose fix it records). A line you cannot explain is a
 regression: do not commit it.

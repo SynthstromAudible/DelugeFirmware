@@ -49,6 +49,13 @@ using deluge::synth::InputChannel;
 
 constexpr std::string_view kHeader = "tests/dsp/hop_scheduler_records.h";
 
+// The records are the host's: the ARM tree runs this spec as a check of them, so there it always compares.
+#ifdef __arm__
+constexpr bool kRecordsHere = false;
+#else
+constexpr bool kRecordsHere = true;
+#endif
+
 struct Tally {
 	std::size_t blocks = 0;
 	std::size_t split_blocks = 0; ///< Blocks cut into more than one segment.
@@ -168,7 +175,7 @@ bool schedules(const pw::Workload& w, Tally& tally, pw::Fnv& record) {
 // clang-format off
 describe hop_scheduler("deluge::dsp::fixed::pitch_shift::HopScheduler", ${
 	it("schedules every workload as recorded, tiling each block, no head passing now", _ {
-		const bool updating = golden::updating();
+		const bool updating = kRecordsHere && golden::updating();
 		Tally tally;
 		for (const pw::Workload& w : pw::all_workloads()) {
 			if (w.shared) {

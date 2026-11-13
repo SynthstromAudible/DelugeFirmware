@@ -53,6 +53,13 @@ using deluge::synth::InputChannel;
 
 constexpr std::string_view kHeader = "tests/dsp/pitch_shift_component_records.h";
 
+// The records are the host's: the ARM tree runs this spec as a check of them, so there it always compares.
+#ifdef __arm__
+constexpr bool kRecordsHere = false;
+#else
+constexpr bool kRecordsHere = true;
+#endif
+
 /// The host's input port as the shifter reads it, the block's clock and ring; and the one history the shifters share,
 /// as one oscillator's voices do.
 class WorkloadPort final : public deluge::synth::AudioInputPort {
@@ -117,7 +124,7 @@ private:
 // clang-format off
 describe live_pitch_shifter("deluge::synth::LivePitchShifter", ${
 	it("renders each workload as recorded", _ {
-		const bool updating = golden::updating();
+		const bool updating = kRecordsHere && golden::updating();
 		for (const pw::Workload& w : pw::all_workloads()) {
 			const pw::WorkloadRecord record = pw::record<ShifterSystem>(w);
 			if (updating) {
