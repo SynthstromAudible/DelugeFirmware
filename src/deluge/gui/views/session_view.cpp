@@ -1091,6 +1091,15 @@ void SessionView::clipPressEnded() {
 	}
 
 	if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {
+		// A mode-pad press can cancel a section move before release. Restore the normal
+		// viewport here too, but only redraw if snapping back actually changes it.
+		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+			const int32_t scrollY = std::clamp<int32_t>(currentSong->songGridScrollY, 0, kMaxNumSections - kGridHeight);
+			if (scrollY != currentSong->songGridScrollY) {
+				currentSong->songGridScrollY = scrollY;
+				requestRendering(getRootUI(), 0xFFFFFFFF, 0xFFFFFFFF);
+			}
+		}
 		exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
 		if (display->haveOLED()) {
 			deluge::hid::display::OLED::removePopup();
@@ -1425,6 +1434,15 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 	if (currentUIMode == UI_MODE_NONE && Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		currentSong->commandTranspose(offset);
 	}
+	else if (currentUIMode == UI_MODE_HOLDING_SECTION_PAD
+	         && currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		// Holding a section changes vertical scrolling into section reordering.
+		// Defer the edit while card access is in progress, as with other structural edits.
+		if (inCardRoutine || sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+		return gridMoveSection(offset);
+	}
 	else if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
 	         || currentUIMode == UI_MODE_VIEWING_RECORD_ARMING
 	         || getCurrentUI() == &deluge::gui::context_menu::midiLearnMode) {
@@ -1573,7 +1591,8 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
 		}
 
 		else {
-			thisColour = defaultClipSectionColours[clip->section];
+			// Row view must use the section's stored colour, which follows it when reordered.
+			thisColour = currentSong->sections[clip->section].getColour();
 
 			// If user assigning MIDI controls and has this section selected, flash to half brightness
 			if (view.midiLearnFlashOn && currentSong
@@ -3296,8 +3315,17 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 
 			auto section = gridSectionFromY(y);
 			RGB& ptrSectionColour = image[y][sectionColumnIndex];
+			// Moving a held section can expose rows outside the section range. Leave those
+			// section pads dark without indexing the sections array; mode pads still render.
+			if (section < 0) {
+				ptrSectionColour = colours::black;
+				occupancyMask[y][sectionColumnIndex] = 0;
+				gridRenderActionModes(y, image, occupancyMask);
+				continue;
+			}
 
-			ptrSectionColour = defaultClipSectionColours[gridSectionFromY(y)];
+			// Use the colour carried by the section rather than its current row number.
+			ptrSectionColour = currentSong->sections[section].getColour();
 
 			if (view.midiLearnFlashOn && gridModeActive == SessionGridModeLaunch) {
 				// MIDI colour if necessary
@@ -3940,6 +3968,93 @@ void SessionView::gridStartSection(uint32_t section, bool instant) {
 	}
 }
 
+// Swaps the held section (and all of its clips, settings and references) with its neighbour.
+// Turning clockwise moves the section up the grid (towards lower section numbers).
+ActionResult SessionView::gridMoveSection(int32_t offset) {
+	if (offset == 0 || sectionPressed >= kMaxNumSections) {
+		return ActionResult::DEALT_WITH;
+	}
+
+	// Only move when the selected section pad is the sole pad being held.
+	const int32_t sectionY = gridYFromSection(sectionPressed);
+	if (!matrixDriver.isPadPressed(kDisplayWidth, sectionY)) {
+		return ActionResult::DEALT_WITH;
+	}
+	for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; ++x) {
+		for (int32_t y = 0; y < kDisplayHeight; ++y) {
+			if ((x != kDisplayWidth || y != sectionY) && matrixDriver.isPadPressed(x, y)) {
+				return ActionResult::DEALT_WITH;
+			}
+		}
+	}
+
+	// Not allowed if recording arrangement
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+		return ActionResult::DEALT_WITH;
+	}
+
+	// Not allowed if moving section out of bounds (before first or after last section)
+	const int32_t oldSection = sectionPressed;
+	const int32_t newSection = oldSection - ((offset > 0) ? 1 : -1);
+	if (newSection < 0 || newSection >= kMaxNumSections) {
+		return ActionResult::DEALT_WITH;
+	}
+
+	// Section moves aren't undoable
+	actionLogger.deleteAllLogs();
+
+	// Capture the two section numbers and update each supplied reference in place.
+	// References to other sections stay unchanged.
+	auto swapSectionNumber = [oldSection, newSection](auto& section) {
+		if (section == oldSection) {
+			section = newSection;
+		}
+		// Use else if so a reference changed above is not immediately changed back.
+		else if (section == newSection) {
+			section = oldSection;
+		}
+	};
+
+	// Exchange the section assignments of all clips belonging to either section.
+	for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
+		swapSectionNumber(currentSong->sessionClips.getClipAtIndex(idxClip)->section);
+	}
+
+	// Move the repeat count, MIDI launch command and colour along with each section's clips.
+	std::swap(currentSong->sections[oldSection], currentSong->sections[newSection]);
+
+	// Keep section-launch macros pointing to the same musical section after the swap.
+	for (SessionMacro& macro : currentSong->sessionMacros) {
+		if (macro.kind == SessionMacroKind::SECTION) {
+			swapSectionNumber(macro.section);
+		}
+	}
+
+	// Keep the last armed section reference in sync, leaving the special values for
+	// "none" (255) and "switch off all sections" (254) untouched.
+	if (session.lastSectionArmed < kMaxNumSections) {
+		swapSectionNumber(session.lastSectionArmed);
+	}
+
+	// Continue editing the held section at its new position on subsequent encoder turns.
+	sectionPressed = newSection;
+
+	// Keep the section beneath the held pad, allowing blank rows until release.
+	currentSong->songGridScrollY += newSection - oldSection;
+
+	// Moving counts as a hold, so the section won't be armed on release (green mode)
+	// The repeat count moves with the section, so its display does not need refreshing.
+	if (performActionOnSectionPadRelease) {
+		performActionOnSectionPadRelease = false;
+		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
+	}
+
+	// Scrolling shifts the clip rows as well as the section pads; refresh the pads only.
+	requestRendering(getRootUI(), 0xFFFFFFFF, 0xFFFFFFFF);
+	return ActionResult::DEALT_WITH;
+}
+
 void SessionView::gridToggleClipPlay(Clip* clip, bool instant) {
 	session.toggleClipStatus(clip, nullptr, instant, kInternalButtonPressLatency);
 }
@@ -4003,6 +4118,11 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		}
 	}
 	else {
+		// Ignore presses on temporary blank rows so they cannot create clips or launch sections.
+		// Still handle releases, and leave macro pads independent of the section viewport.
+		if (on && gridModeActive != SessionGridModeMacros && gridSectionFromY(y) < 0) {
+			return ActionResult::DEALT_WITH;
+		}
 		gridActiveModeUsed = true;
 
 		Clip* clip = gridClipFromCoords(x, y);
@@ -4054,6 +4174,9 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 		}
 		else {
 			if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {
+				// Blue-mode release ends the temporary overscroll used to keep the section under the finger.
+				currentSong->songGridScrollY =
+				    std::clamp<int32_t>(currentSong->songGridScrollY, 0, kMaxNumSections - kGridHeight);
 				exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
 				if (display->haveOLED()) {
 					deluge::hid::display::OLED::removePopup();
@@ -4244,6 +4367,12 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 				// A short press (timer not yet fired) arms the section; a hold just edits repeats
 				if (performActionOnSectionPadRelease) {
 					session.armSection(sectionPressed, kInternalButtonPressLatency);
+				}
+				// A hold edits repeats or moves the section instead of launching it.
+				else {
+					// Green-mode release snaps any temporary overscroll back into the normal range.
+					currentSong->songGridScrollY =
+					    std::clamp<int32_t>(currentSong->songGridScrollY, 0, kMaxNumSections - kGridHeight);
 				}
 				exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
 				if (display->haveOLED()) {
@@ -4797,8 +4926,10 @@ int32_t SessionView::gridYFromSection(uint32_t section) {
 }
 
 int32_t SessionView::gridSectionFromY(uint32_t y) {
-	int32_t result = ((kGridHeight - 1) - y) + currentSong->songGridScrollY;
-	if (result >= kMaxNumSections) {
+	// A held section can scroll past either end. Return the same invalid-section sentinel
+	// for blank rows above and below the grid so renderers and pad handlers can ignore them.
+	int32_t result = (kGridHeight - 1) - static_cast<int32_t>(y) + currentSong->songGridScrollY;
+	if (result < 0 || result >= kMaxNumSections) {
 		return -1;
 	}
 

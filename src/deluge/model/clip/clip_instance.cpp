@@ -20,6 +20,7 @@
 #include "model/action/action.h"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_clip_instance_change.h"
+#include "model/song/song.h"
 #include "playback/mode/session.h"
 #include "util/functions.h"
 #include <new>
@@ -33,7 +34,8 @@ RGB ClipInstance::getColour() {
 		return RGB::monochrome(128);
 	}
 
-	return defaultClipSectionColours[clip->section];
+	// Arranger instances retain their section's colour when that section changes position.
+	return currentSong->sections[clip->section].getColour();
 }
 
 void ClipInstance::change(Action* action, Output* output, int32_t newPos, int32_t newLength, Clip* newClip) {
