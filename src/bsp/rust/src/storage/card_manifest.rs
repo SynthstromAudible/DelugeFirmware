@@ -1,13 +1,12 @@
 //! Card manifests: a scenario's memory card written as a short list of operations, built into a directory that
 //! `memory_card::install` then copies onto the card.
 //!
-//! One operation a line; `#` starts a comment. Fields are separated by whitespace, so no path holds a space. Card
-//! paths (`<path>`, `<dst>`, `<dir>` written to) are relative to the card's root; source paths (`base`, `from=`) are
-//! relative to the repository. Numbers are decimal, or hexadecimal after `0x`.
+//! One operation a line; `#` starts a comment. Fields are separated by whitespace, so no path holds a space or `=` (a
+//! word with `=` is a `key=value` field). Card paths (`<path>`, `<dst>`, `<dir>` written to) are relative to the
+//! card's root; source paths (`from=`) are relative to the repository. Numbers are decimal, or hexadecimal after `0x`.
 //!
 //! | Operation | Writes |
 //! | --- | --- |
-//! | `base <dir>` | a copy of the tree at `<dir>`; only as the first operation |
 //! | `dir <path>` | an empty directory, with its parents |
 //! | `wav <path> ch=<n> bits=<n> bytes=<n> fill=<byte>` | a PCM WAV header (44.1 kHz) and `bytes` data bytes, each `fill` |
 //! | `sine <path> ch=<n> frames=<n> hz=<f>` | a 16-bit sine at `hz`, amplitude 16,000, the same on every channel |
@@ -26,7 +25,6 @@ use std::path::{Component, Path, PathBuf};
 /// One line of a manifest.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Op {
-    Base(PathBuf),
     Dir(PathBuf),
     Wav {
         path: PathBuf,
@@ -91,21 +89,46 @@ pub fn parse(file: &Path, text: &str) -> Result<Vec<Op>, Error> {
         let mut words = content.split_whitespace();
         let Some(name) = words.next() else { continue };
         let op = parse_op(name, &words.collect::<Vec<_>>()).map_err(fail)?;
-        if matches!(op, Op::Base(_)) && !ops.is_empty() {
-            return Err(fail("`base` must be the first operation".into()));
-        }
+        check_wav_size(name, &op).map_err(fail)?;
         ops.push(op);
     }
     Ok(ops)
 }
 
+/// Fails when a WAV op's header fields would overflow: the block align (a `u16`), or the data size or the RIFF size
+/// (`36 +` the data size, both `u32`).
+fn check_wav_size(name: &str, op: &Op) -> Result<(), String> {
+    let (channels, bits, data_bytes) = match *op {
+        Op::Wav {
+            channels,
+            bits,
+            data_bytes,
+            ..
+        } => (channels, bits, Some(data_bytes)),
+        Op::Sine {
+            channels, frames, ..
+        } => (
+            channels,
+            16,
+            frames
+                .checked_mul(u32::from(channels))
+                .and_then(|n| n.checked_mul(2)),
+        ),
+        Op::Partials { frames, .. } => (1, 16, frames.checked_mul(2)),
+        _ => return Ok(()),
+    };
+    channels
+        .checked_mul(bits / 8)
+        .ok_or_else(|| format!("`{name}` makes a block align larger than 65535"))?;
+    data_bytes
+        .and_then(|n| n.checked_add(36))
+        .map(drop)
+        .ok_or_else(|| format!("`{name}` makes a WAV larger than 4 GiB"))
+}
+
 fn parse_op(name: &str, words: &[&str]) -> Result<Op, String> {
     let mut fields = Fields::new(words)?;
     let op = match name {
-        "base" => {
-            let [dir] = fields.positional("base <dir>")?;
-            Op::Base(relative(dir)?)
-        }
         "dir" => {
             let [path] = fields.positional("dir <path>")?;
             Op::Dir(relative(path)?)
@@ -292,9 +315,6 @@ pub fn build(repo_root: &Path, ops: &[Op], into: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(into).map_err(|e| named(into, e))?;
     for op in ops {
         match op {
-            Op::Base(dir) => {
-                copy_tree(&repo_root.join(dir), into).map_err(|e| named(&repo_root.join(dir), e))?
-            }
             Op::Dir(path) => {
                 std::fs::create_dir_all(into.join(path)).map_err(|e| named(&into.join(path), e))?
             }
@@ -355,20 +375,6 @@ pub fn build_file(repo_root: &Path, manifest: &Path, into: &Path) -> Result<(), 
         std::fs::read_to_string(manifest).map_err(|e| format!("{}: {e}", manifest.display()))?;
     let ops = parse(manifest, &text).map_err(|e| e.to_string())?;
     build(repo_root, &ops, into).map_err(|e| format!("{}: {e}", manifest.display()))
-}
-
-fn copy_tree(from: &Path, into: &Path) -> std::io::Result<()> {
-    std::fs::create_dir_all(into)?;
-    for entry in std::fs::read_dir(from)? {
-        let entry = entry?;
-        let target = into.join(entry.file_name());
-        if entry.file_type()?.is_dir() {
-            copy_tree(&entry.path(), &target)?;
-        } else {
-            std::fs::copy(entry.path(), &target)?;
-        }
-    }
-    Ok(())
 }
 
 const SAMPLE_RATE: u32 = 44_100;
@@ -451,8 +457,7 @@ mod tests {
     #[test]
     fn parses_every_operation() {
         let ops = parse_ok(
-            "base tests/fixtures/card\n\
-             dir SONGS\n\
+            "dir SONGS\n\
              wav SAMPLES/A.WAV ch=2 bits=24 bytes=3072 fill=0x55\n\
              sine SAMPLES/S.WAV ch=1 frames=22050 hz=86.1328125\n\
              partials SAMPLES/P.WAV frames=44100 196:0.5,392:0.25\n\
@@ -463,7 +468,6 @@ mod tests {
         assert_eq!(
             ops,
             vec![
-                Op::Base(PathBuf::from("tests/fixtures/card")),
                 Op::Dir(PathBuf::from("SONGS")),
                 Op::Wav {
                     path: PathBuf::from("SAMPLES/A.WAV"),
@@ -572,10 +576,22 @@ mod tests {
     }
 
     #[test]
-    fn base_must_come_first() {
+    fn a_wav_too_large_for_its_header_is_a_parse_error() {
         assert_eq!(
-            parse_err("dir A\nbase tests/fixtures/card\n"),
-            "t.card:2: `base` must be the first operation"
+            parse_err("wav A ch=1 bits=16 bytes=4294967295 fill=0\n"),
+            "t.card:1: `wav` makes a WAV larger than 4 GiB"
+        );
+        assert_eq!(
+            parse_err("sine A ch=2 frames=1100000000 hz=1\n"),
+            "t.card:1: `sine` makes a WAV larger than 4 GiB"
+        );
+        assert_eq!(
+            parse_err("partials A frames=2147483648 100:0.5\n"),
+            "t.card:1: `partials` makes a WAV larger than 4 GiB"
+        );
+        assert_eq!(
+            parse_err("wav A ch=65535 bits=16 bytes=4 fill=0\n"),
+            "t.card:1: `wav` makes a block align larger than 65535"
         );
     }
 
@@ -619,8 +635,6 @@ mod tests {
     #[test]
     fn builds_every_operation_into_a_tree() {
         let repo = scratch("repo");
-        std::fs::create_dir_all(repo.join("fixture/SONGS")).unwrap();
-        std::fs::write(repo.join("fixture/SONGS/A.XML"), "a").unwrap();
         std::fs::create_dir_all(repo.join("src")).unwrap();
         for (name, text) in [
             ("B.WAV", "b"),
@@ -632,8 +646,7 @@ mod tests {
         }
         let card = scratch("card");
         let ops = parse_ok(
-            "base fixture\n\
-             dir KITS\n\
+            "dir KITS\n\
              wav SAMPLES/W.WAV ch=1 bits=16 bytes=4 fill=0x11\n\
              raw SAMPLES/E.WAV bytes=0 fill=0\n\
              copy SAMPLES/ONE.WAV from=src/c.wav\n\
@@ -641,7 +654,6 @@ mod tests {
         );
         build(&repo, &ops, &card).unwrap();
         let read = |p: &str| std::fs::read(card.join(p)).unwrap();
-        assert_eq!(read("SONGS/A.XML"), b"a");
         assert!(card.join("KITS").is_dir());
         assert_eq!(read("SAMPLES/W.WAV"), test_wav(1, 16, 4, 0x11));
         assert!(read("SAMPLES/E.WAV").is_empty());
@@ -668,6 +680,7 @@ mod tests {
         assert!(err.to_string().contains("/nonexistent-repo/b/c"), "{err}");
         let _ = std::fs::remove_dir_all(&card);
     }
+
     #[test]
     fn every_committed_manifest_parses_and_builds() {
         let repo = Path::new(env!("CARGO_MANIFEST_DIR"))
