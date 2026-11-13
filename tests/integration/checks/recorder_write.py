@@ -219,7 +219,9 @@ def run(gate):
     # renders go to this gate's own temporary directory and nowhere else.
     gate.say("recorder write: running the offline drain")
     drain = gate.run(
-        scenario="", env={"GOLDEN_STEM_OUT": str(gate.tmp / "drain-stems")}, timeout=900
+        scenario="stem_export",
+        env={"GOLDEN_STEM_OUT": str(gate.tmp / "drain-stems")},
+        timeout=900,
     )
     if drain.code != 0:
         gate.fail(

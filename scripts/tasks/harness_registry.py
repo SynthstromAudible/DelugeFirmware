@@ -86,8 +86,6 @@ def local_only(h: "Harness") -> bool:
 # instead of passing where the corpus happens to be.
 CORPUS_DECLARED = "DELUGE_CORPUS_DECLARED"
 SCENARIO_TABLE = Path("tests/integration/scenarios/scenario_table.cpp")
-# The table row the stem-render arm (`scenario = ""`) runs.
-STEM_EXPORT_ROW = "stem_export"
 
 
 def declares_corpus(h: "Harness") -> bool:
@@ -140,7 +138,7 @@ class Harness:
     junit: str = ""
     # Build products (test_builds.py) the runner makes before this test runs.
     builds: list[str] = field(default_factory=list)
-    # runner = "scenario": the GOLDEN_SCENARIO to run ("" for the stem-render arm), the markers each run must print,
+    # runner = "scenario": the GOLDEN_SCENARIO to run, the markers each run must print,
     # the whole line that says it passed, and a module (scenario_gate.py) with the gate's own checks.
     scenario: str | None = None
     markers: list[str] = field(default_factory=list)
@@ -194,6 +192,10 @@ def load_registry(root: Path) -> list[Harness]:
                     f"{where}: a ctest test is built and run from 'source' and 'tree', not 'build'/'run'"
                 )
         elif item["runner"] == "scenario" and "scenario" in item:
+            if not item["scenario"]:
+                raise ValueError(
+                    f"{where}: scenario must name a row of scenario_table.cpp"
+                )
             if item.get("build") or item.get("run"):
                 raise ValueError(
                     f"{where}: a scenario gate is run from 'scenario', not 'build'/'run'"
@@ -421,7 +423,6 @@ __all__ = [
     "PROBES",
     "RUNNERS",
     "SCENARIO_TABLE",
-    "STEM_EXPORT_ROW",
     "TABLE_BEGIN",
     "TABLE_END",
     "TIERS",

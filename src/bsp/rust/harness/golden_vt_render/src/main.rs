@@ -2,7 +2,7 @@
 //! a fixture tree, and runs one scenario deterministically.
 //!
 //! `GOLDEN_SCENARIO` names a row of `tests/integration/scenarios/scenario_table.cpp`, stepped by
-//! [`run_stepped_scenario`]; `stem_export`, the offline stem export of the fixture song, is the default. Sample cluster
+//! [`run_stepped_scenario`]; Sample cluster
 //! fills drain through the BSP's async `streaming_fill_task`, so a sample-backed fixture renders real audio.
 //!
 //! # Why a separate package
@@ -235,12 +235,17 @@ impl Scenario {
     }
 }
 
-/// The scenario this run plays: GOLDEN_SCENARIO, or `stem_export` when it is unset or empty.
+/// The scenario this run plays: GOLDEN_SCENARIO, which must name a row.
 fn scenario_name() -> String {
-    std::env::var("GOLDEN_SCENARIO")
-        .ok()
-        .filter(|name| !name.is_empty())
-        .unwrap_or_else(|| "stem_export".to_string())
+    match std::env::var("GOLDEN_SCENARIO") {
+        Ok(name) if !name.is_empty() => name,
+        _ => {
+            eprintln!(
+                "golden_vt_render: GOLDEN_SCENARIO names no scenario (a row of tests/integration/scenarios/scenario_table.cpp)"
+            );
+            std::process::exit(2);
+        }
+    }
 }
 
 /// The table row named `name`, if there is one.
@@ -661,11 +666,11 @@ fn main() {
         .and_then(|s| s.parse().ok())
         .unwrap_or(60_000);
 
-    // GOLDEN_SCENARIO names a row of the scenario table; unset, it is the stem export.
+    // GOLDEN_SCENARIO names a row of the scenario table; unset or empty is refused.
     let scenario = scenario_name();
     log::info!("golden_vt_render: fixture={fixture} budget_ms={budget_ms} scenario={scenario}");
     // A name the table does not hold is a mistake (a scenario not registered in scenario_table.cpp, or a typo), not
-    // a request for the stem export, which would run for minutes and report nothing about the scenario.
+    // a request for another scenario.
     let Some(row) = table_row(&scenario) else {
         eprintln!(
             "golden_vt_render: no scenario named '{scenario}' (tests/integration/scenarios/scenario_table.cpp)"

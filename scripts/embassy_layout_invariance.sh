@@ -53,7 +53,8 @@ render_pad() {
 	local out="$OUT_ROOT/$tag"
 	mkdir -p "$out"
 	set +e
-	GOLDEN_FIXTURE="$FIXTURE" \
+	GOLDEN_SCENARIO=stem_export \
+		GOLDEN_FIXTURE="$FIXTURE" \
 		GOLDEN_STEM_MODE=MIXDOWN \
 		GOLDEN_STEM_OUT="$out" \
 		GOLDEN_VIRTUAL_BUDGET_MS="${GOLDEN_VIRTUAL_BUDGET_MS:-1800000}" \

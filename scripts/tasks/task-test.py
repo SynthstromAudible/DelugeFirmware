@@ -319,7 +319,7 @@ def _run_one(
         if build_only:
             return True
         print(
-            f"==> {h.name}: run: GOLDEN_SCENARIO={h.scenario or '(stem render)'}",
+            f"==> {h.name}: run: GOLDEN_SCENARIO={h.scenario}",
             file=log if log is not None else sys.stdout,
             flush=True,
         )

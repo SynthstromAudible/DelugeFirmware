@@ -280,6 +280,14 @@ group = "render"
                 )
             )
 
+    def test_an_empty_scenario_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "must name a row"):
+            hr.load_registry(
+                self._root_with(
+                    self.SCENARIO.replace('scenario = "gamma"', 'scenario = ""')
+                )
+            )
+
     def test_rejects_run(self):
         with self.assertRaises(ValueError):
             hr.load_registry(self._root_with(self.SCENARIO + 'run = ["x"]\n'))
@@ -741,7 +749,7 @@ class CorpusDeclarationTest(unittest.TestCase):
             hr.load_registry(root)
 
     def test_the_table_has_corpus_fixture_rows(self):
-        self.assertIn(hr.STEM_EXPORT_ROW, hr.corpus_fixture_scenarios(self.ROOT))
+        self.assertIn("stem_export", hr.corpus_fixture_scenarios(self.ROOT))
 
     def test_a_comment_naming_the_corpus_fixture_does_not_mark_a_row(self):
         root = Path(tempfile.mkdtemp())
@@ -763,7 +771,7 @@ class CorpusDeclarationTest(unittest.TestCase):
             for h in hr.load_registry(self.ROOT)
             if h.runner == "scenario"
             and h.scenario is not None
-            and (h.scenario or hr.STEM_EXPORT_ROW) in rows
+            and h.scenario in rows
             and not hr.declares_corpus(h)
         ]
         self.assertEqual(
