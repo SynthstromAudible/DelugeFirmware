@@ -118,6 +118,7 @@ void InputLowering::begin_tick(uint32_t now_ms) {
 	}
 	pad_events_.clear();
 	turns_.clear();
+	turns_first_ = 0;
 	ctx_.begin_tick(now_ms);
 	// What the last tick deferred belongs to this one: back into the sums and edges this tick's
 	// snapshot is assembled from.
@@ -169,6 +170,7 @@ void InputLowering::discard_pending() {
 	}
 	pad_events_.clear();
 	turns_.clear();
+	turns_first_ = 0;
 }
 
 void InputLowering::end_tick(uint32_t now_ms) {
@@ -185,7 +187,7 @@ void InputLowering::end_tick(uint32_t now_ms) {
 	snap_.shift = shift();
 	snap_.select_held = held_.has(ButtonId::SelectEnc);
 	snap_.pads = std::span<const ui::PadEvent>(pad_events_.begin(), pad_events_.size());
-	snap_.turns = std::span<const ui::TimedTurn>(turns_.begin(), turns_.size());
+	sync_snapshot_turns();
 	snap_.held_pads = held_pads_;
 	snap_.now_ms = now_ms_;
 	snap_.acceleration_clock_ms = acceleration_clock_ms_;
@@ -286,6 +288,36 @@ void InputLowering::add_turn(int8_t detents, uint64_t time_us) {
 	ui::TimedTurn& last = turns_[turns_.size() - 1];
 	last.detents = saturating_add(last.detents, detents);
 	last.time_us = time_us;
+}
+
+void InputLowering::withdraw_first_turn(int8_t delta) {
+	if (turns_first_ >= turns_.size()) {
+		return;
+	}
+	// A folded turn holds several events' detents: it leaves once all of them have.
+	ui::TimedTurn& first = turns_[turns_first_];
+	first.detents = saturating_add(first.detents, -delta);
+	if (first.detents == 0) {
+		turns_first_++;
+	}
+	sync_snapshot_turns();
+}
+
+void InputLowering::withdraw_last_turn(int8_t delta) {
+	if (turns_first_ >= turns_.size()) {
+		return;
+	}
+	ui::TimedTurn& last = turns_[turns_.size() - 1];
+	last.detents = saturating_add(last.detents, -delta);
+	if (last.detents == 0) {
+		turns_.pop_back();
+	}
+	sync_snapshot_turns();
+}
+
+void InputLowering::sync_snapshot_turns() {
+	const size_t first = std::min<size_t>(turns_first_, turns_.size());
+	snap_.turns = std::span<const ui::TimedTurn>(turns_.begin() + first, turns_.size() - first);
 }
 
 void InputLowering::apply_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms, uint64_t time_us) {
@@ -487,8 +519,15 @@ void InputLowering::defer_rest(const UiEvent& e) {
 	size_t pads = 0;
 	for (uint8_t i = 0; i < in_snapshot_; i++) {
 		const UiEvent& q = queue_[(queue_head_ + i) % kQueueCapacity];
-		withdraw(q);
+		withdraw_sums(q);
 		pads += q.kind == UiEvent::Kind::Pad ? 1 : 0;
+	}
+	// The deferred turns are the last ones this window took, newest last: trimmed from the end, as the pads are.
+	for (uint8_t i = in_snapshot_; i > 0; i--) {
+		const UiEvent& q = queue_[(queue_head_ + i - 1) % kQueueCapacity];
+		if (q.kind == UiEvent::Kind::Encoder && q.encoder == EncoderRole::Select) {
+			withdraw_last_turn(q.delta);
+		}
 	}
 	// The deferred pads are the last ones this window took, so the snapshot keeps the ones before.
 	snap_.pads = snap_.pads.first(snap_.pads.size() - std::min(pads, snap_.pads.size()));
@@ -497,6 +536,13 @@ void InputLowering::defer_rest(const UiEvent& e) {
 }
 
 void InputLowering::withdraw(const UiEvent& e) {
+	withdraw_sums(e);
+	if (e.kind == UiEvent::Kind::Encoder && e.encoder == EncoderRole::Select) {
+		withdraw_first_turn(e.delta);
+	}
+}
+
+void InputLowering::withdraw_sums(const UiEvent& e) {
 	switch (e.kind) {
 	case UiEvent::Kind::Encoder:
 		switch (e.encoder) {

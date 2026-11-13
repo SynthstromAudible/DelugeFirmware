@@ -301,6 +301,7 @@ constexpr const Node* kRoots[] = {&horiz_page,
 // Board fixture -- copied from `menu_scene_spec.cpp`'s `Rig`.
 
 constexpr uint8_t kSelectEncoder = 3;
+constexpr uint8_t kTempoEncoder = 2;
 constexpr uint8_t kGoldUpper = 4;
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 constexpr uint8_t kBackX = 7, kBackY = 1;
@@ -366,8 +367,7 @@ struct Rig {
 		button(kSelectEncButtonX, kSelectEncButtonY, false, at_ms);
 	}
 	/// @brief The song's synth with square oscillators and no ranges, recorded: a range-specific item asks for its
-	/// first
-	///        range.
+	///        first range.
 	SoundInstrument* without_ranges() {
 		auto* sound = static_cast<SoundInstrument*>(song.instrument);
 		for (Source& source : sound->sources) {
@@ -544,6 +544,26 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.shell.set_acceleration_clock_ms(10000);
 		r.shell.tick(640);
 		expect(g_chain_col).to_equal(8);
+	});
+
+	it("applies a select turn deferred behind an unowned input once, on the next tick", _ {
+		// A turn the page owns, a tempo turn it does not (so the rest of the tick waits for the next), and a second
+		// turn behind it: the first edits now, the second on the next tick, each once. Turns a second apart do not
+		// accelerate, so the two move the value 1 + 1.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(horiz_page);
+		r.shell.tick(0);
+		r.press(kCvX, kCvY, 200); // focus CHAIN_COL (column 3)
+		g_chain_col = 0;
+		r.timed_turn(1, 600, 600'000);
+		r.edges(kTempoEncoder, 2, 600);
+		r.timed_turn(1, 600, 1'600'000);
+		r.shell.set_acceleration_clock_ms(10000);
+		r.shell.tick(640);
+		r.shell.tick(700);
+		expect(g_chain_col).to_equal(2);
 	});
 
 	it("an enum column's notification names the option, as Selection::getNotificationValue does", _ {

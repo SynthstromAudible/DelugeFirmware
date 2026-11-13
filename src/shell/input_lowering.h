@@ -436,6 +436,15 @@ private:
 	void apply_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms, uint64_t time_us = 0);
 	/// @brief Add a Select turn to the tick's `turns`, folding it into the last when they are full.
 	void add_turn(int8_t detents, uint64_t time_us);
+	/// @brief Take a routed Select turn of @p delta out of the snapshot's `turns`: the oldest still in it, which is
+	///        the one `next()` handed out.
+	void withdraw_first_turn(int8_t delta);
+	/// @brief Take a deferred Select turn of @p delta out of the snapshot's `turns`: the newest still in it.
+	void withdraw_last_turn(int8_t delta);
+	/// @brief Point the snapshot's `turns` at what is left of @ref turns_.
+	void sync_snapshot_turns();
+	/// @brief `withdraw` without the `turns` bookkeeping, which its two callers do from opposite ends.
+	void withdraw_sums(const UiEvent& e);
 	void on_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut_without_shift = false);
 	void on_matrix(uint8_t x, uint8_t y, bool on, uint32_t now_ms);
 	void on_button(ButtonId b, bool on, uint32_t now_ms);
@@ -491,6 +500,8 @@ private:
 	/// @{
 	FixedVector<ui::PadEvent, kPadEventCapacity> pad_events_;
 	FixedVector<ui::TimedTurn, kTurnCapacity> turns_; ///< The tick's Select turns (`ui::InputSnapshot::turns`).
+	/// The first of @ref turns_ still in the snapshot: the ones before it were routed (`withdraw`).
+	uint8_t turns_first_ = 0;
 	uint32_t now_ms_ = 0;
 	bool had_input_ = false;
 	bool select_edge_ = false;

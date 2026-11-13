@@ -237,6 +237,37 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		expect(in.snapshot().turns.empty()).to_be_true();
 	});
 
+	it("takes a routed select turn from the front of the tick's turns and deferred ones from the back", _ {
+		// `withdraw` takes the event `next()` handed out, the oldest; `defer_rest` hands the rest to the next tick,
+		// which lists them again, so no turn is read by two ticks.
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(30);
+		in.on_encoder_edges(3, 2, 30, 100);
+		in.on_encoder_edges(3, 4, 30, 200);
+		in.on_encoder_edges(3, 6, 30, 300);
+		in.end_tick(30);
+		UiEvent e{UiEvent::Kind::AllReleased};
+		expect(in.next(e)).to_be_true();
+		in.withdraw(e);
+		std::span<const deluge::ui::TimedTurn> turns = in.snapshot().turns;
+		expect(turns.size()).to_equal(size_t(2));
+		expect(turns[0].time_us).to_equal(uint64_t(200));
+		expect(in.snapshot().turn).to_equal(int8_t(5));
+
+		expect(in.next(e)).to_be_true();
+		in.defer_rest(e);
+		expect(in.snapshot().turns.empty()).to_be_true();
+		expect(in.snapshot().turn).to_equal(int8_t(0));
+
+		in.begin_tick(31);
+		in.end_tick(31);
+		turns = in.snapshot().turns;
+		expect(turns.size()).to_equal(size_t(2));
+		expect(turns[0].time_us).to_equal(uint64_t(200));
+		expect(turns[1].time_us).to_equal(uint64_t(300));
+		expect(in.snapshot().turn).to_equal(int8_t(5));
+	});
+
 	it("reproduces the legacy gold-knob acceleration curve", _ {
 		InputLowering in(uitest::test_profile_input(), {});
 		// `EncoderAcceleration::advance`. First call: 1.0 s since the zero-initialised last time, past the
