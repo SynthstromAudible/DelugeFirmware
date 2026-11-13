@@ -9,7 +9,7 @@ For every song, run the `song_roundtrip` driver:
 The driver asserts gen1 == gen2 (the canonical fixed point) and emits gen1. We
 hash gen1 (SHA-256) and compare against songs_fixtures.json. A hash change means
 the serialized project model changed — a refactor in the extraction must justify
-and re-baseline it (--update). Mirrors the audio golden harness conventions.
+and re-record it (`./dbt test --update song-roundtrip`). Mirrors the audio golden harness conventions.
 
 The driver is the song_roundtrip scenario of golden_vt_render (driver.py), and `./dbt test song-roundtrip` runs
 this runner as a corpus gate (scripts/tasks/corpus_gate.py).
@@ -24,7 +24,7 @@ Usage:
     ./dbt test -n song-roundtrip                      # build golden_vt_render
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
     python3 tests/golden/songs_run.py                 # check fixtured songs (exit 1 on regression)
-    python3 tests/golden/songs_run.py --update        # discover+re-baseline (walks the corpus)
+    ./dbt test --update song-roundtrip                 # re-record (builds first; see tests/README.md)
     python3 tests/golden/songs_run.py --filter Bass   # subset (substring match)
 
 ARM-NEON oracle (must agree with x86 on the *same* fixtures): the qemu-arm build of golden_vt_render.
@@ -40,8 +40,10 @@ import os
 import shlex
 import sys
 import tempfile
+from pathlib import Path
 
 import driver
+import golden_update
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
@@ -89,6 +91,46 @@ def find_songs(corpus):
     return sorted(out)
 
 
+def record(args, pre, fixtures: dict[str, str]) -> int:
+    """Re-record songs_fixtures.json from this run: every corpus song (`--exclude` aside) and every committed
+    synthetic song that settles gets its hash; a fixtured song the corpus lacks keeps its hash; a fixtured song that
+    no longer settles records nothing and fails, since that is a regression, not a baseline."""
+    songs = []
+    if os.path.isdir(args.corpus):
+        songs = [
+            (os.path.relpath(s, args.corpus), s)
+            for s in find_songs(args.corpus)
+            if args.filter in s and (not args.exclude or args.exclude not in s)
+        ]
+    songs += [(os.path.relpath(s, HERE), s) for s in find_songs(SYNTHETIC)]
+    results = driver.map_ordered(
+        lambda song: run_driver(pre, args.binary, song[1], args.timeout),
+        songs,
+        args.jobs,
+    )
+    out = dict(fixtures)
+    settled = failed = 0
+    for (rel, _), (rc, digest, tail) in zip(songs, results):
+        if rc == EXIT_SETTLED:
+            out[rel] = digest
+            settled += 1
+        elif rel in fixtures:
+            failed += 1
+            print(
+                f"FAIL     {rel}  rc={rc} ({tail}): a fixtured song no longer settles"
+            )
+        else:
+            print(f"skip     {rel}  ({tail})")
+    print("=" * 60)
+    print(f"SETTLED={settled} FAIL={failed}  (corpus={args.corpus})")
+    if failed:
+        return 1
+    golden_update.write_json(
+        Path(FIXTURES), out, os.path.relpath(FIXTURES, REPO), indent=2
+    )
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--binary", default=str(driver.default_binary()))
@@ -102,10 +144,7 @@ def main(argv=None):
     ap.add_argument(
         "--exclude",
         default="problem_songs",
-        help="(--update) skip corpus paths containing this substring; '' to disable",
-    )
-    ap.add_argument(
-        "--update", action="store_true", help="discover+re-baseline (walks the corpus)"
+        help="(re-recording) skip corpus paths containing this substring; '' to disable",
     )
     ap.add_argument(
         "--dump", default="", help="(check) keep each settled gen1 in this directory"
@@ -123,46 +162,8 @@ def main(argv=None):
         with open(FIXTURES) as fh:
             fixtures = json.load(fh)
 
-    # ---- discover / re-baseline: walk the corpus, hash settled songs ----
-    if args.update:
-        if not os.path.isdir(args.corpus):
-            sys.exit(
-                f"--update needs a corpus dir; none at {args.corpus} (set $DELUGE_SONG_CORPUS)"
-            )
-        songs = [
-            s
-            for s in find_songs(args.corpus)
-            if args.filter in s and (not args.exclude or args.exclude not in s)
-        ]
-        # Always also re-baseline the committed synthetic fixtures, keyed "synthetic/..." and
-        # resolved from HERE, so --update (which rewrites the whole file) never drops them.
-        songs += [(SYNTHETIC_PREFIX, s) for s in find_songs(SYNTHETIC)]
-        out = {}
-        n_settled = n_skip = 0
-        paths = [song[1] if isinstance(song, tuple) else song for song in songs]
-        results = driver.map_ordered(
-            lambda path: run_driver(pre, args.binary, path, args.timeout),
-            paths,
-            args.jobs,
-        )
-        for song, (rc, digest, tail) in zip(songs, results):
-            if isinstance(song, tuple):  # (prefix, path) -> synthetic, keyed from HERE
-                rel = os.path.relpath(song[1], HERE)
-            else:
-                rel = os.path.relpath(song, args.corpus)
-            if rc == EXIT_SETTLED:
-                out[rel] = digest
-                n_settled += 1
-                print(f"SETTLED  {rel}  {digest[:16]}")
-            else:
-                n_skip += 1
-                print(f"skip     {rel}  ({tail})")
-        with open(FIXTURES, "w") as fh:
-            json.dump(dict(sorted(out.items())), fh, indent=2)
-            fh.write("\n")
-        print("=" * 60)
-        print(f"wrote {FIXTURES}: {n_settled} fixtures ({n_skip} skipped)")
-        return 0
+    if golden_update.updating():
+        return record(args, pre, fixtures)
 
     # ---- check: iterate the committed contract; verify each present song ----
     if not fixtures:

@@ -35,7 +35,7 @@ emits `gen1`; the runner hashes it (SHA-256) and compares to `songs_fixtures.jso
 ./dbt test -n song-roundtrip                           # build golden_vt_render
 export DELUGE_SONG_CORPUS=~/path/to/SONGS              # your songs dir (BYO, see below)
 python3 tests/golden/songs_run.py                      # check fixtured songs (exit 1 on regression)
-python3 tests/golden/songs_run.py --update             # discover+re-baseline (walks the corpus)
+./dbt test --update song-roundtrip                    # re-record (builds first; tests/README.md)
 python3 tests/golden/songs_run.py --filter Bass        # subset (substring on path)
 ./dbt test song-roundtrip                              # same, as the registry gate
 ```
@@ -74,11 +74,12 @@ python3 tests/golden/songs_run.py --binary <that build's golden_vt_render> \
 
 `songs_fixtures.json` maps each settled song (path relative to the corpus root)
 to its `gen1` SHA-256. To add coverage: put songs in your corpus dir and run
-`--update` (it walks the corpus, runs the driver, and writes a fixture for every
-song that settles; songs that don't settle are skipped, not committed). Aim for
+`./dbt test --update song-roundtrip` (it walks the corpus, runs the driver, and writes a fixture for every
+song that settles; songs that don't settle are skipped, a fixtured song your corpus lacks keeps its fixture, and a
+fixtured song that no longer settles fails the update). Aim for
 spread across formats (legacy tag-format **and** modern attribute-format),
 firmware versions, and features (synth/kit/MIDI/CV, arrangement, automation,
-scales). Re-baselining after an intended change is the same `--update`.
+scales). Re-recording after an intended change is the same command.
 
 ### Synthetic fixtures (committed, for rare structures)
 
@@ -87,10 +88,10 @@ so a read for them would be golden-blind. For those, commit a small,
 privacy-clean hand-authored song under `tests/golden/synthetic/`. Its fixture key
 is prefixed `synthetic/` and resolves against this directory rather than the
 corpus, so it is **always present** — it runs (and gives real coverage) even in
-CI with no corpus, instead of *Skipped*. `--update` re-baselines these alongside
+CI with no corpus, instead of *Skipped*. the same command re-records these alongside
 the corpus. To make one: author a minimal song that exercises the structure, run
 it through the driver until it *settles* (exit 0), commit the emitted `gen1`, and
-`--update` (or add its `gen1` SHA-256 under a `synthetic/<name>.XML` key).
+re-record (or add its `gen1` SHA-256 under a `synthetic/<name>.XML` key).
 
 ## Menu reference tables (`ui/menu_oracle/`)
 

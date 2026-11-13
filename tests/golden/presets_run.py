@@ -7,7 +7,8 @@ For every synth and kit preset, run the `preset_roundtrip` driver:
     gen2 = save(load(gen1))
 
 The driver asserts gen1 == gen2 (the canonical fixed point) and emits gen1. We hash gen1 (SHA-256) and compare against
-presets_fixtures.json. A hash change means what a preset saves as changed: justify it and re-record (--update).
+presets_fixtures.json. A hash change means what a preset saves as changed: justify it and re-record it
+(`./dbt test --update preset-roundtrip`).
 
 The presets are the SYNTHS and KITS folders beside the song corpus ($DELUGE_SONG_CORPUS or --corpus; see
 driver.default_corpus()). They stay out of the repo; only the hashes live here. With none of the fixtured presets
@@ -16,7 +17,7 @@ present the runner exits 77, which fails the preset-roundtrip corpus gate (corpu
 Usage:
     ./dbt test -n preset-roundtrip                  # build golden_vt_render
     python3 tests/golden/presets_run.py             # check (exit 1 on a regression)
-    python3 tests/golden/presets_run.py --update    # re-record every preset that settles
+    ./dbt test --update preset-roundtrip              # re-record (builds first)
     python3 tests/golden/presets_run.py --dump DIR  # also keep each settled gen1 in DIR
 """
 
@@ -27,10 +28,13 @@ import os
 import shlex
 import sys
 import tempfile
+from pathlib import Path
 
 import driver
+import golden_update
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 FIXTURES = os.path.join(HERE, "presets_fixtures.json")
 FOLDERS = (("SYNTHS", "SYNTH"), ("KITS", "KIT"))
 
@@ -74,6 +78,42 @@ def find_presets(root):
     return sorted(out)
 
 
+def record(args, pre, presets, fixtures: dict[str, str]) -> int:
+    """Re-record presets_fixtures.json from this run: every preset here that settles gets its hash; a fixtured preset
+    this machine lacks keeps its hash; a fixtured preset that no longer settles records nothing and fails."""
+    if not presets:
+        print(
+            "FAIL: no presets beside the song corpus to record (set DELUGE_SONG_CORPUS)"
+        )
+        return 1
+    results = driver.map_ordered(
+        lambda p: run_driver(pre, args.binary, p[1], p[2], args.timeout),
+        presets,
+        args.jobs,
+    )
+    out = dict(fixtures)
+    settled = failed = 0
+    for (key, _, _), (rc, digest, tail) in zip(presets, results):
+        if rc == EXIT_SETTLED:
+            out[key] = digest
+            settled += 1
+        elif key in fixtures:
+            failed += 1
+            print(
+                f"FAIL     {key}  rc={rc} ({tail}): a fixtured preset no longer settles"
+            )
+        else:
+            print(f"skip     {key}  (rc={rc}: {tail})")
+    print("=" * 60)
+    print(f"SETTLED={settled} FAIL={failed}  (presets beside {args.corpus})")
+    if failed:
+        return 1
+    golden_update.write_json(
+        Path(FIXTURES), out, os.path.relpath(FIXTURES, REPO), indent=2
+    )
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--binary", default=str(driver.default_binary()))
@@ -87,9 +127,6 @@ def main(argv=None):
     )
     ap.add_argument(
         "--filter", default="", help="only presets whose key contains this substring"
-    )
-    ap.add_argument(
-        "--update", action="store_true", help="re-record every preset that settles"
     )
     ap.add_argument(
         "--dump", default="", help="keep each settled gen1 in this directory"
@@ -118,33 +155,8 @@ def main(argv=None):
         with open(FIXTURES) as fh:
             fixtures = json.load(fh)
 
-    if args.update:
-        if not presets:
-            sys.exit(
-                "--update needs presets beside the song corpus (set $DELUGE_SONG_CORPUS)"
-            )
-        results = driver.map_ordered(
-            lambda p: run_driver(
-                pre, args.binary, p[1], p[2], args.timeout, dump_path(p[0])
-            ),
-            presets,
-            args.jobs,
-        )
-        out = {}
-        n_skip = 0
-        for (key, _, _), (rc, digest, tail) in zip(presets, results):
-            if rc == EXIT_SETTLED:
-                out[key] = digest
-                print(f"SETTLED  {key}  {digest[:16]}")
-            else:
-                n_skip += 1
-                print(f"skip     {key}  (rc={rc}: {tail})")
-        with open(FIXTURES, "w") as fh:
-            json.dump(dict(sorted(out.items())), fh, indent=2)
-            fh.write("\n")
-        print("=" * 60)
-        print(f"wrote {FIXTURES}: {len(out)} fixtures ({n_skip} skipped)")
-        return 0
+    if golden_update.updating():
+        return record(args, pre, presets, fixtures)
 
     if not fixtures:
         print("no fixtures committed; nothing to check")

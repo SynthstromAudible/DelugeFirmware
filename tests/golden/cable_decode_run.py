@@ -5,7 +5,7 @@ check keeps its meaning once the app reads cables through the decoder.
 
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
     python3 tests/golden/cable_decode_run.py            # check
-    python3 tests/golden/cable_decode_run.py --update   # re-record every file's fingerprint
+    ./dbt test --update cable-decode   # re-record every file's fingerprint
 """
 
 import argparse
@@ -14,11 +14,14 @@ import json
 import os
 import shlex
 import sys
+from pathlib import Path
 
 import driver
+import golden_update
 from presets_run import find_presets
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 FIXTURES = os.path.join(HERE, "cable_decode_fixtures.json")
 
 
@@ -28,13 +31,13 @@ def main(argv=None):
     ap.add_argument("--wrapper", default="")
     ap.add_argument("--corpus", default=driver.default_corpus() or "")
     ap.add_argument("--filter", default="")
-    ap.add_argument("--update", action="store_true")
     ap.add_argument("--timeout", type=int, default=120)
     ap.add_argument("--jobs", type=int, default=driver.default_jobs())
     args = ap.parse_args(argv)
     if not os.path.isdir(args.corpus):
         print(f"no corpus at {args.corpus!r} (set DELUGE_SONG_CORPUS)")
         return 77
+    updating = golden_update.updating()
     pre = shlex.split(args.wrapper)
     root = os.path.dirname(os.path.abspath(args.corpus))
     jobs = [(song, "SONG") for song in driver.find_songs(args.corpus, args.filter)]
@@ -70,19 +73,25 @@ def main(argv=None):
             continue
         digest = hashlib.sha256(r.stdout.encode()).hexdigest()
         recorded[rel] = digest
-        if not args.update and fixtures.get(rel) != digest:
+        if not updating and fixtures.get(rel) != digest:
             fail += 1
             print(f"CHANGED  {rel}" if rel in fixtures else f"ABSENT   {rel}")
             continue
         ok += 1
-    if args.update:
-        with open(FIXTURES, "w") as fh:
-            json.dump(dict(sorted(recorded.items())), fh, indent=1)
-            fh.write("\n")
-        print(f"recorded {len(recorded)} fingerprints")
+    if updating:
+        if fail:
+            print(f"FAIL: {fail} file(s) failed to decode; nothing recorded")
+        else:
+            # A file this machine lacks, or that does not parse here, keeps its fingerprint.
+            golden_update.write_json(
+                Path(FIXTURES),
+                {**fixtures, **recorded},
+                os.path.relpath(FIXTURES, REPO),
+                indent=1,
+            )
     print("=" * 60)
     print(f"OK={ok} FAIL={fail} SKIP={skip}  (cable_decode, corpus={args.corpus})")
-    if not ok and not fail and not args.update:
+    if not ok and not fail and not updating:
         print("FAIL: nothing was checked")
         return 77
     return 1 if fail else 0
