@@ -19,6 +19,11 @@ on:
 permissions:
   contents: read
 
+env:
+  # Pushes to next and manual runs take the nightly tier: next also takes local merges that no pull request's CI saw.
+  # Pull requests and the merge queue take the pr tier.
+  TEST_TIER: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && 'nightly' || 'pr' }}
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -230,14 +235,14 @@ jobs:
       # Each product is built once however many tests name it; the prebuilt groups name only golden-vt-render.
       - name: Build the prebuilt groups' products
         run: |
-          read -ra tests <<< "$(DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test --ci-matrix --tier pr \
+          read -ra tests <<< "$(DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test --ci-matrix --tier "$TEST_TIER" \
             | jq -r '[.include[] | select(.prebuilt != "") | .tests] | join(" ")')"
           DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test -n --strict "${tests[@]}"
 
       # A tarball keeps the executable bit, which an artifact upload drops.
       - name: Pack the prebuilt groups' products
         run: |
-          DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test --list-outputs > "$RUNNER_TEMP/outputs.txt"
+          DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test --list-outputs --tier "$TEST_TIER" > "$RUNNER_TEMP/outputs.txt"
           tar -czf host-build.tar.gz -T "$RUNNER_TEMP/outputs.txt"
 
       - uses: actions/upload-artifact@v7
@@ -259,7 +264,7 @@ jobs:
       # A registry error, or a selection with nothing in it, fails here rather than in every job after.
       - id: emit
         run: |
-          matrix=$(DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test --ci-matrix --tier pr)
+          matrix=$(DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test --ci-matrix --tier "$TEST_TIER")
           include=$(jq -ce '.include | select(length > 0)' <<< "$matrix")
           echo "include=$include" >> "$GITHUB_OUTPUT"
 

@@ -593,11 +593,6 @@ class CiMatrixTest(unittest.TestCase):
             hr.local_only(dataclasses.replace(entry("p"), requires=["cargo"]))
         )
 
-    def test_ci_matrix_keeps_the_flat_test_list(self):
-        # main's nightly workflow checks out next and reads .test.
-        selection = [entry("a"), dataclasses.replace(entry("r"), group="render")]
-        self.assertEqual(hr.ci_matrix(selection)["test"], ["a", "r"])
-
     def test_ci_matrix_entry_shape(self):
         selection = [
             dataclasses.replace(entry("a"), group="unit"),
@@ -611,7 +606,6 @@ class CiMatrixTest(unittest.TestCase):
                     {"group": "render", "tests": "r", "prebuilt": "golden-vt-render"},
                     {"group": "unit", "tests": "a b", "prebuilt": ""},
                 ],
-                "test": ["a", "r", "b"],
             },
         )
 

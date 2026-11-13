@@ -328,8 +328,7 @@ def probe(requirement: str, root: Path) -> bool:
 def ci_matrix(selection: list[Harness]) -> dict:
     """The CI matrix for `selection`: one entry per group that has a selected test, in GROUPS order.
 
-    Local-only tests (LOCAL_ONLY) are left out. `test` lists every remaining test as well, for the workflows that run
-    one job per test (main's nightly reads it).
+    Local-only tests (LOCAL_ONLY) are left out.
     """
     selection = [h for h in selection if not local_only(h)]
     return {
@@ -342,7 +341,6 @@ def ci_matrix(selection: list[Harness]) -> dict:
             for group, prebuilt in GROUPS.items()
             if any(h.group == group for h in selection)
         ],
-        "test": [h.name for h in selection],
     }
 
 
