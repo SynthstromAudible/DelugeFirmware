@@ -68,6 +68,13 @@ bool mod_fx_page_valid(effects::ModFXType type, uint32_t mod_fx_param) {
 	}
 }
 
+RemotePage mod_fx_page(uint32_t mod_fx_param) {
+	constexpr std::array<ParamId, 3> kLower{ge::kModFXDepth, ge::kModFXFeedback, ge::kModFXOffset};
+	constexpr uint32_t kFeedback = 1;
+	const uint32_t view = mod_fx_param < kLower.size() ? mod_fx_param : kFeedback;
+	return page(5, view, 0, knob(kLower[view], PressAction::NEXT_PAGE), step(ge::kModFXRate, setting::kModFXType));
+}
+
 std::vector<RemotePage> section_pages(uint32_t section, const PageInputs& in) {
 	switch (section) {
 	case 0:
@@ -96,12 +103,11 @@ std::vector<RemotePage> section_pages(uint32_t section, const PageInputs& in) {
 		return pages;
 	}
 	case 5: {
-		constexpr std::array<ParamId, 3> kLower{ge::kModFXDepth, ge::kModFXFeedback, ge::kModFXOffset};
+		constexpr uint32_t kViews = 3;
 		std::vector<RemotePage> pages;
-		for (uint32_t i = 0; i < kLower.size(); i++) {
+		for (uint32_t i = 0; i < kViews; i++) {
 			if (mod_fx_page_valid(in.mod_fx_type, i)) {
-				pages.push_back(
-				    page(5, i, 0, knob(kLower[i], PressAction::NEXT_PAGE), step(ge::kModFXRate, setting::kModFXType)));
+				pages.push_back(mod_fx_page(i));
 			}
 		}
 		return pages;

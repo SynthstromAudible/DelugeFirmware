@@ -42,6 +42,12 @@ struct PageInputs {
 /// @return True when the type has the param.
 [[nodiscard]] bool mod_fx_page_valid(effects::ModFXType type, uint32_t mod_fx_param);
 
+/// @brief The mod FX page of a view, whether or not a type has its param: a chain whose saved view its type lacks
+/// still turns that view's param.
+/// @param mod_fx_param The view: 0 depth, 1 feedback, 2 offset; past the last, feedback.
+/// @return The page of section 5, \c page_id the view.
+[[nodiscard]] plugin::RemotePage mod_fx_page(uint32_t mod_fx_param);
+
 /// @brief The chain's pages of mod button @p section, in cycle order (one page for a fixed section, none for the
 /// envelopes' button 2). Section 1's pages are low-pass, high-pass and EQ; the song's section 4 holds its compressor
 /// group (group 1, five pages) after the reverb group (group 0); section 5's are the mod FX params @p in's type has,
