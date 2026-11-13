@@ -29,7 +29,8 @@
 /// does not depend on it.
 ///
 /// Every exit 2 prints an `ST-FAIL` line first: a song that is not on the card, a fixture with no song, a refused
-/// load, or a phase that did not finish.
+/// load, or a phase that did not finish. A run that copied its stems out prints `ST-RESULT failures=<n>` on stdout;
+/// `ST-BYTES` (streaming_scenario.cpp) is on stderr.
 
 #include "harness/level3/host_script.h"
 #include "scenarios/streaming_scenario.h"
@@ -156,6 +157,7 @@ void advance() {
 		const char* out = std::getenv("GOLDEN_STEM_OUT");
 		deluge_scenario_copy_stems_out(out != nullptr ? out : "golden_stems");
 		g_phase = Phase::Done;
+		g_report.printResult();
 		return;
 	}
 	case Phase::Done:
