@@ -872,19 +872,6 @@ void ModControllableAudio::cycleDelayType() {
 	                                deluge::effects::next_delay_type(effects().delay.type)))));
 }
 
-char const* ModControllableAudio::getDelayTypeDisplayName() {
-	using enum deluge::l10n::String;
-	switch (effects().delay.type) {
-	case deluge::effects::DelayType::OFF:
-		return l10n::get(STRING_FOR_DELAY_OFF);
-	case deluge::effects::DelayType::ANALOG:
-		return l10n::get(STRING_FOR_ANALOG_DELAY);
-	case deluge::effects::DelayType::DIGITAL:
-		break;
-	}
-	return l10n::get(STRING_FOR_DIGITAL_DELAY);
-}
-
 void ModControllableAudio::switchDelaySyncType() {
 	SyncType next = SYNC_TYPE_TRIPLET; // after even
 	switch (effects().delay.sync_type) {
@@ -901,17 +888,6 @@ void ModControllableAudio::switchDelaySyncType() {
 	                            deluge::serialization::Value::makeNumber(util::to_underlying(next)));
 }
 
-char const* ModControllableAudio::getDelaySyncTypeDisplayName() {
-	switch (effects().delay.sync_type) {
-	case SYNC_TYPE_TRIPLET:
-		return "Triplet";
-	case SYNC_TYPE_DOTTED:
-		return "Dotted";
-	default: // SYNC_TYPE_EVEN
-		return "Even";
-	}
-}
-
 void ModControllableAudio::switchDelaySyncLevel() {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
 	deluge::edits::changeEffect(
@@ -921,66 +897,10 @@ void ModControllableAudio::switchDelaySyncLevel() {
 	                                             + 1)); // cycle from 1 to 9 (omit 0)
 }
 
-void ModControllableAudio::getDelaySyncLevelDisplayName(char* displayName) {
-	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
-	deluge::edits::changeEffect(*this, "delay/syncLevel",
-	                            deluge::serialization::Value::makeNumber(
-	                                deluge::plugin::index_of(effects().delay.sync_level)
-	                                % deluge::plugin::index_of(SYNC_LEVEL_256TH))); // cycle from 1 to 9 (omit 0)
-	etl::string<kShortStringBufferSize> buffer;
-	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (deluge::plugin::index_of(SYNC_LEVEL_256TH)
-	                                                       - deluge::plugin::index_of(effects().delay.sync_level)));
-	strncpy(displayName, buffer.data(), 29);
-}
-
-char const* ModControllableAudio::getFilterTypeDisplayName(FilterType currentFilterType) {
-	using enum deluge::l10n::String;
-	switch (currentFilterType) {
-	case FilterType::LPF:
-		return l10n::get(STRING_FOR_LPF);
-	case FilterType::HPF:
-		return l10n::get(STRING_FOR_HPF);
-	case FilterType::EQ:
-		return l10n::get(STRING_FOR_EQ);
-	default:
-		return l10n::get(STRING_FOR_NONE);
-	}
-}
-
 void ModControllableAudio::switchLPFMode() {
 	deluge::edits::changeEffect(
 	    *this, "lpfMode",
 	    effectWord(static_cast<FilterMode>((util::to_underlying(effects().filter.lpf_mode) + 1) % kNumLPFModes)));
-}
-
-char const* ModControllableAudio::getFilterModeDisplayName(FilterType currentFilterType) {
-	switch (currentFilterType) {
-	case FilterType::LPF:
-		return getLPFModeDisplayName();
-	case FilterType::HPF:
-		return getHPFModeDisplayName();
-	default:
-		return l10n::get(deluge::l10n::String::STRING_FOR_NONE);
-	}
-}
-
-char const* ModControllableAudio::getLPFModeDisplayName() {
-
-	using enum deluge::l10n::String;
-	switch (effects().filter.lpf_mode) {
-	case FilterMode::TRANSISTOR_12DB:
-		return l10n::get(STRING_FOR_12DB_LADDER);
-	case FilterMode::TRANSISTOR_24DB:
-		return l10n::get(STRING_FOR_24DB_LADDER);
-	case FilterMode::TRANSISTOR_24DB_DRIVE:
-		return l10n::get(STRING_FOR_DRIVE);
-	case FilterMode::SVF_BAND:
-		return l10n::get(STRING_FOR_SVF_BAND);
-	case FilterMode::SVF_NOTCH:
-		return l10n::get(STRING_FOR_SVF_NOTCH);
-	default:
-		return l10n::get(STRING_FOR_NONE);
-	}
 }
 
 void ModControllableAudio::switchHPFMode() {
@@ -989,20 +909,6 @@ void ModControllableAudio::switchHPFMode() {
 	    *this, "hpfMode",
 	    effectWord(static_cast<FilterMode>((util::to_underlying(effects().filter.hpf_mode) + 1) % kNumHPFModes
 	                                       + kFirstHPFMode)));
-}
-
-char const* ModControllableAudio::getHPFModeDisplayName() {
-	using enum deluge::l10n::String;
-	switch (effects().filter.hpf_mode) {
-	case FilterMode::HPLADDER:
-		return l10n::get(STRING_FOR_HPLADDER);
-	case FilterMode::SVF_BAND:
-		return l10n::get(STRING_FOR_SVF_BAND);
-	case FilterMode::SVF_NOTCH:
-		return l10n::get(STRING_FOR_SVF_NOTCH);
-	default:
-		return l10n::get(STRING_FOR_NONE);
-	}
 }
 
 // This can get called either for hibernation, or because drum now has no active noteRow
@@ -1076,103 +982,4 @@ bool ModControllableAudio::unlearnKnobs(deluge::modulation::KnobTarget target, S
 	}
 
 	return erased > 0;
-}
-
-void ModControllableAudio::displayFilterSettings(bool on, FilterType currentFilterType) {
-	if (on) {
-		etl::string<40> popupMsg;
-		popupMsg.append(getFilterTypeDisplayName(currentFilterType));
-		if (currentFilterType != FilterType::EQ) {
-			popupMsg.append("\n");
-			popupMsg.append(getFilterModeDisplayName(currentFilterType));
-		}
-		display->popupText(popupMsg.c_str());
-	}
-	else {
-		// NOTIFY-DEFERRED: the show half of this pair is display->popupText(), which is out of scope
-		// here (the shell will own PopupType). Deferring only the hide half would split an atomic
-		// show/hide across the immediate path and the queue, so both move together later.
-		display->cancelPopup();
-	}
-}
-
-void ModControllableAudio::displayDelaySettings(bool on) {
-	if (on) {
-		etl::string<100> popupMsg;
-		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
-		    == RuntimeFeatureStateToggle::On) {
-			popupMsg.append("Type: ");
-			popupMsg.append(getDelaySyncTypeDisplayName());
-
-			popupMsg.append("\nSync: ");
-			char displayName[30];
-			getDelaySyncLevelDisplayName(displayName);
-			popupMsg.append(displayName);
-		}
-		else {
-			popupMsg.append("Ping pong: ");
-			popupMsg.append(getDelayPingPongStatusDisplayName());
-			popupMsg.append("\n");
-			popupMsg.append(getDelayTypeDisplayName());
-		}
-
-		display->popupText(popupMsg.c_str());
-	}
-	else {
-		// NOTIFY-DEFERRED: the show half of this pair is display->popupText(), which is out of scope
-		// here (the shell will own PopupType). Deferring only the hide half would split an atomic
-		// show/hide across the immediate path and the queue, so both move together later.
-		display->cancelPopup();
-	}
-}
-
-char const* ModControllableAudio::getDelayPingPongStatusDisplayName() {
-	using enum deluge::l10n::String;
-	switch (effects().delay.ping_pong) {
-	case 0:
-		return l10n::get(STRING_FOR_DISABLED);
-	default:
-		return l10n::get(STRING_FOR_ENABLED);
-	}
-}
-
-void ModControllableAudio::displaySidechainAndReverbSettings(bool on) {
-	// Sidechain
-	if (on) {
-		etl::string<100> popupMsg;
-		// Sidechain
-		popupMsg.append("Sidechain: ");
-		popupMsg.append(getSidechainDisplayName());
-
-		popupMsg.append("\n");
-
-		// Reverb
-		popupMsg.append(deluge::model::reverbPresetName(deluge::model::reverbPresetOf(currentSong->project)));
-
-		display->popupText(popupMsg.c_str());
-	}
-	else {
-		// NOTIFY-DEFERRED: the show half of this pair is display->popupText(), which is out of scope
-		// here (the shell will own PopupType). Deferring only the hide half would split an atomic
-		// show/hide across the immediate path and the queue, so both move together later.
-		display->cancelPopup();
-	}
-}
-
-char const* ModControllableAudio::getSidechainDisplayName() {
-	int32_t insideWorldTickMagnitude;
-	if (currentSong) { // Bit of a hack just referring to currentSong in here...
-		insideWorldTickMagnitude = (currentSong->project.transport.inside_world_tick_magnitude
-		                            + currentSong->project.transport.inside_world_tick_magnitude_offset_from_bpm);
-	}
-	else {
-		insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
-	}
-	using enum deluge::l10n::String;
-	if (effects().sidechain.sync_level == (SyncLevel)(7 - insideWorldTickMagnitude)) {
-		return l10n::get(STRING_FOR_SLOW);
-	}
-	else {
-		return l10n::get(STRING_FOR_FAST);
-	}
 }

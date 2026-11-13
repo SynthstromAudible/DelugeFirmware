@@ -380,13 +380,6 @@ public:
 	bool renderingOscillatorSyncEver(ParamManager* paramManager);
 	void setupAsBlankSynth(ParamManager* paramManager, bool is_dx = false);
 	void setupAsDefaultSynth(ParamManager* paramManager);
-	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
-	                     const deluge::controls::CompView& comp = {}) final;
-	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack,
-	                            deluge::controls::CompView* comp = nullptr) final;
-	// The real body; the override above wraps it to re-seed the modKnobs record after any in-place reassignment,
-	// so this function's many early returns need no re-seed of their own.
-	bool modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack);
 	static void writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation);
 	static void readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
 	                               int32_t readAutomationUpToPos);
@@ -408,9 +401,6 @@ public:
 	void reseedRecord();
 	virtual void setupPatchingForAllParamManagers(Song* song) {}
 	// void channelAftertouchReceivedFromInputMIDIChannel(int32_t newValue);
-	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
-	                                                bool allowCreation,
-	                                                const deluge::controls::CompView& comp = {}) final;
 	void reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, bool shouldJustCutModFX = false);
 	/// @brief The reverb's auto duck's search past this sound: its send, when @p paramManager holds one unautomated and
 	/// it beats @p best; then how it ducks the return.
@@ -517,10 +507,6 @@ private:
 
 	bool renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack);
 	void setupDefaultExpressionPatching(ParamManager* paramManager);
-	void pushSwitchActionOnEncoderForParam(int32_t p, bool on, ModelStackWithThreeMainThings* modelStack);
-	ModelStackWithAutoParam* getParamFromModEncoderDeeper(int32_t whichModEncoder,
-	                                                      ModelStackWithThreeMainThings* modelStack,
-	                                                      bool allowCreation);
 
 	/// @brief The sound's effect settings and the render's copy of them.
 	deluge::model::EffectsBinding effectsBinding_;

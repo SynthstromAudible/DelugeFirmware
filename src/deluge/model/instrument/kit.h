@@ -130,7 +130,6 @@ public:
 	void resetDrumTempValues();
 	void setupWithoutActiveClip(ModelStack* modelStack) override;
 	[[nodiscard]] deluge::model::ReverbCandidate reverbCandidate(deluge::model::ReverbCandidate best) override;
-	uint8_t* getModKnobMode() override { return &modKnobMode; }
 
 	bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) override;
 	bool allowNoteTails(NoteRow* noteRow);

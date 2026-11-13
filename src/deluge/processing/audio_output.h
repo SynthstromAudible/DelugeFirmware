@@ -53,7 +53,6 @@ public:
 	};
 
 	ModControllable* toModControllable() override { return this; }
-	uint8_t* getModKnobMode() override { return &modKnobMode; }
 
 	void cutAllSound() override;
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;

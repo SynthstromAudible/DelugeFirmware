@@ -1,12 +1,13 @@
 #pragma once
 
 /// @file
-/// @brief `ModKnobs` -- the gold-knob half of `View`, as a `shell::Service`.
+/// @brief `ModKnobs` -- the gold knobs, as a `shell::Service`.
 ///
-/// The port of `View::modEncoderAction` and what it reaches: the turn, the push
-/// (`modEncoderButtonAction`), the mod buttons (`modButtonAction`), the indicators and mod LEDs
-/// (`setKnobIndicatorLevels`, `setModLedStates`), the centre detent (`potentiallyMakeItHarderToTurnKnob`), the mod
-/// region (`setModRegion`), the automation notification and the MIDI-follow feedback.
+/// The one implementation of the gold knobs, for the guest's menus and the root views alike, each shown through its
+/// own `KnobPresentation`: the turn, the push, the mod buttons, the indicators and mod LEDs, the centre detent, the
+/// mod region, the automation notification and the MIDI-follow feedback. Recorded from `View::modEncoderAction`,
+/// `modEncoderButtonAction`, `modButtonAction`, `setKnobIndicatorLevels`, `setModLedStates`,
+/// `potentiallyMakeItHarderToTurnKnob` and `setModRegion`; no engine object keeps a gold-knob path of its own.
 ///
 /// @par What the knobs point at, and how they read and write
 ///

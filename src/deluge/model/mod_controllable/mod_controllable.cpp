@@ -20,23 +20,9 @@
 #include "model/timeline_counter.h"
 #include "modulation/automation/auto_param.h"
 
-// modelStack->autoParam will be NULL in this rare case!!
-int32_t ModControllable::getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack,
-                                                       const deluge::controls::CompView& comp) {
-	return -64;
-}
-
 void setTheAutoParamToNull(ModelStackWithThreeMainThings* modelStack) {
 	ModelStackWithAutoParam* modelStackWithAutoParam = (ModelStackWithAutoParam*)modelStack;
 	modelStackWithAutoParam->autoParam = nullptr;
-}
-
-ModelStackWithAutoParam* ModControllable::getParamFromModEncoder(int32_t whichModEncoder,
-                                                                 ModelStackWithThreeMainThings* modelStack,
-                                                                 bool allowCreation,
-                                                                 const deluge::controls::CompView& comp) {
-	setTheAutoParamToNull(modelStack);
-	return (ModelStackWithAutoParam*)modelStack;
 }
 
 ModelStackWithAutoParam* ModControllable::getParamFromMIDIKnob(MIDIKnob& knob,
@@ -44,8 +30,4 @@ ModelStackWithAutoParam* ModControllable::getParamFromMIDIKnob(MIDIKnob& knob,
 
 	setTheAutoParamToNull(modelStack);
 	return (ModelStackWithAutoParam*)modelStack;
-}
-
-uint8_t* ModControllable::getModKnobMode() {
-	return nullptr;
 }

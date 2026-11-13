@@ -126,18 +126,6 @@ public:
 	                       int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
 	                       bool* doingMidiThru) override;
 
-	// ModControllable implementation
-	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack,
-	                            deluge::controls::CompView* comp = nullptr) override;
-	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
-	                     const deluge::controls::CompView& comp = {}) override;
-	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
-	                                                bool allowCreation,
-	                                                const deluge::controls::CompView& comp = {}) override;
-	uint8_t* getModKnobMode() override { return &modKnobMode; }
-
-	int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack,
-	                                      const deluge::controls::CompView& comp = {}) override;
 	ModelStackWithAutoParam* getParamToControlFromInputMIDIChannel(int32_t cc,
 	                                                               ModelStackWithThreeMainThings* modelStack) override;
 	bool doesAutomationExistOnMIDIParam(ModelStackWithThreeMainThings* modelStack, int32_t cc);

@@ -200,10 +200,6 @@ void SoundDrum::setSkippingRendering(bool newSkipping) {
 	Sound::setSkippingRendering(newSkipping);
 }
 
-uint8_t* SoundDrum::getModKnobMode() {
-	return &kit->modKnobMode;
-}
-
 void SoundDrum::drumWontBeRenderedForAWhile() {
 	Sound::wontBeRenderedForAWhile();
 }

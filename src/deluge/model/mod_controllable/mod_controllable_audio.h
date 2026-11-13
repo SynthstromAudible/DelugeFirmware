@@ -272,20 +272,6 @@ protected:
 	/// subclass is
 	deluge::modulation::params::Kind unpatchedParamKind_;
 
-	char const* getFilterTypeDisplayName(FilterType currentFilterType);
-	char const* getFilterModeDisplayName(FilterType currentFilterType);
-	char const* getLPFModeDisplayName();
-	char const* getHPFModeDisplayName();
-	char const* getDelayTypeDisplayName();
-	char const* getDelayPingPongStatusDisplayName();
-	char const* getDelaySyncTypeDisplayName();
-	void getDelaySyncLevelDisplayName(char* displayName);
-	char const* getSidechainDisplayName();
-
-	void displayFilterSettings(bool on, FilterType currentFilterType);
-	void displayDelaySettings(bool on);
-	void displaySidechainAndReverbSettings(bool on);
-
 private:
 	ModelStackWithThreeMainThings* addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack,
 	                                                       int32_t noteRowIndex);

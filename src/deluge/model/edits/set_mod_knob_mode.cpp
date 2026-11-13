@@ -33,23 +33,4 @@ bool modKnobModeFor(KnobModeOwner owner, uint8_t mode) {
 	return deluge::edits::apply(ctx, edit) == Error::NONE;
 }
 
-bool modKnobModeForSlot(uint8_t* slot, uint8_t mode) {
-	if (currentSong == nullptr || mode >= kNumModButtons) {
-		return false;
-	}
-	if (slot == &currentSong->live.global_effectable.modKnobMode) {
-		return modKnobModeFor(project::SongAddress{}, mode);
-	}
-	for (Output* list : {currentSong->live.media.first_output,
-	                     static_cast<Output*>(currentSong->live.media.first_hibernating_instrument)}) {
-		for (Output* output = list; output != nullptr; output = output->next) {
-			if (slot == &output->modKnobMode) {
-				return modKnobModeFor(project::TrackAddress{currentSong->outputIdFor(*output)}, mode);
-			}
-		}
-	}
-	*slot = mode; // an owner outside the song: its engine field alone
-	return false;
-}
-
 } // namespace deluge::edits

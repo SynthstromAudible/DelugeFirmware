@@ -99,7 +99,6 @@ src/deluge/model/fx/chain_inputs.cpp raw=0 boundary=4
 src/deluge/model/fx/chain_inputs.h raw=0 boundary=1
 src/deluge/model/fx/song_stutter.cpp raw=0 boundary=3
 src/deluge/model/fx/track_channel.cpp raw=0 boundary=2
-src/deluge/model/global_effectable/global_effectable.cpp raw=0 boundary=2
 src/deluge/model/instrument/cv_instrument.cpp raw=0 boundary=3
 src/deluge/model/instrument/kit.cpp raw=0 boundary=1
 src/deluge/model/instrument/midi_instrument.cpp raw=0 boundary=6
