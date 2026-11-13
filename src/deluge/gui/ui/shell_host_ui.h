@@ -198,10 +198,9 @@ namespace deluge::gui::ui {
 /// `View` keep one focus (`View::knobFocus()`), so what the knobs point at is the same either side
 /// of an open guest.
 ///
-///  - **A turn arrives lowered.** `interpretEncoders` has applied legacy's wiggle check and the gold
-///    acceleration (`ContinuousEncoder::actionTurns`) before it calls `modEncoderAction`, so the turn
-///    goes to `Shell::route_lowered_turn`, not into the lowering, where `ModKnobs` would accelerate it a
-///    second time.
+///  - **A turn arrives lowered.** `interpretEncoders` has accelerated it (`ContinuousEncoder::actionTurns`) before
+///    it calls `modEncoderAction`, so the turn goes to `Shell::route_lowered_turn`, not into the lowering, where
+///    `ModKnobs` would accelerate it a second time.
 ///  - **A push is fed once.** `Buttons::buttonAction` delivers MOD_ENCODER_0/1 twice: to
 ///    `buttonAction`, which feeds it, and to `modEncoderButtonAction` in its tail, which does
 ///    nothing then.

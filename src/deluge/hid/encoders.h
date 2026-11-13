@@ -96,9 +96,10 @@ public:
 	/// @brief Hand each queued run to \p action as `main`'s `interpretEncoders` hands each turn it takes, oldest
 	///        first, and empty the queue.
 	///
-	/// A run that takes back the previous unactioned one is written off as a wiggle; any other goes out as its
-	/// edges times the gold acceleration at the run's own time, truncated to `int8_t` as `main`'s
-	/// `offset_accelerated` is.
+	/// Every run goes out, as its edges times the gold acceleration at the run's own time, truncated to `int8_t` as
+	/// `main`'s `offset_accelerated` is. `main`'s wiggle test writes no turn off: it compares the turn against
+	/// `modEncoderInitialTurnDirection`, which nothing sets to anything but 0
+	/// (`origin/main:src/deluge/hid/encoder_input.cpp`).
 	/// @param action Called with each actioned turn's accelerated offset.
 	/// @return Whether any run was queued.
 	bool actionTurns(std::invocable<int8_t> auto&& action) {
@@ -106,15 +107,8 @@ public:
 		count_ = 0;
 		for (size_t i = 0; i < count; i++) {
 			const Run run = runs_[i];
-			if (run.edges + initial_turn_direction_ != 0) {
-				const auto accelerated = static_cast<int8_t>(
-				    run.edges * acceleration_.advance(run.edges, run.time, kGoldEncoderAcceleration));
-				action(accelerated);
-				initial_turn_direction_ = 0;
-			}
-			else {
-				initial_turn_direction_ = run.edges;
-			}
+			action(
+			    static_cast<int8_t>(run.edges * acceleration_.advance(run.edges, run.time, kGoldEncoderAcceleration)));
 		}
 		return count != 0;
 	}
@@ -128,7 +122,6 @@ private:
 
 	std::array<Run, kMaxRuns> runs_{};
 	size_t count_ = 0;
-	int8_t initial_turn_direction_ = 0; ///< The run written off as a wiggle, which the next run may cancel.
 	EncoderAcceleration acceleration_;
 };
 

@@ -357,7 +357,7 @@ public:
 	/// @return True if the top scene or a service reported `handled`, which the caller should
 	///         return to legacy so its `else` does not also run.
 	bool route_midi(const UiEvent& event, uint32_t now_ms);
-	/// @brief Route a gold-knob turn a host has already lowered -- its wiggle check and its acceleration applied --
+	/// @brief Route a gold-knob turn a host has already lowered -- its acceleration applied --
 	///        as an `Encoder` event marked `lowered`, which the knobs' service applies as it is. Like `route_midi`, it
 	///        does not enter the lowering or open its tick window.
 	/// @param role   The gold knob: `GoldLower` or `GoldUpper`.
