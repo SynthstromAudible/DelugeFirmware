@@ -15,7 +15,28 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/clip_lifetime_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the clip-lifetime probe: a playing clip is deleted through each real clip deletion path,
+///        a sounding drum through the two direct drum destroys (the song save's orphan-drum drop, and what a load or
+///        clear during playback runs first), and the song through its clear, its stopped-clock load and its armed
+///        swap. Each path reports how many Clips, Songs and Sounds it destroyed while the render could still reach them
+///        (Clip::clipsDestroyedWhileReferenced(), Song::songsDestroyedWhileReachable(),
+///        Sound::soundsDestroyedWithLiveVoices()), and the run what is still retired and waiting (CL-RECLAIM).
+///
+/// @note The scenario itself fails nothing on a count: tests/integration/checks/clip_lifetime.py requires every leg
+///       clean (a clip leg's clip is retired, so each clip leg renders and reclaims before its line -- CL-FREED -- to
+///       destroy the clip inside the leg; a stopped-clock song leg must have freed the old song before it built the
+///       new one).
+///
+/// @note Runs as a step machine: each `dispatch_step()` does one stage, and the platform driver lets virtual time
+///       advance between steps. The scenario drives the render itself.
+///
+/// @note Setting `CLIP_LIFETIME_FROM=<LEG>` starts the run at that leg, so the script can carry on past a leg that
+///       ended the process.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "definitions_cxx.hpp"
 #include "extern.h"
@@ -75,6 +96,12 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(clip_lifetime);
+
+/// Called right after deluge_app_init() (scenario_table.h's `onAppInit`): EPOCH0, clearing the song at boot, before the
+/// render has run a block. It does nothing when `CLIP_LIFETIME_FROM` names a later leg.
+extern "C" void deluge_scenario_clip_lifetime_boot(void);
 
 namespace {
 

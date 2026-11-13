@@ -15,7 +15,28 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/load_policy_scenario.h"
+/// @file
+/// @brief The load policies that need no loader state to pin, run as `GOLDEN_SCENARIO=load_policy`.
+///
+/// Each prints one `LP-<CHECK> ok=0|1` line, then `LP-RESULT failures=N`:
+///
+/// - `LP-CANDIDATES`: `AudioFileManager::proposeLoadCandidates` proposes the right paths in the right order. The
+///   async loader tries them in exactly this order, so a wrong order opens the wrong file or misses one.
+/// - `LP-ADMISSION`: `AudioFileManager::admissibleAsyncLoadPath` agrees with `path_admission_corpus.inc`, which the
+///   Rust loader is tested against too. A looser C++ rule asks the loader for a path it refuses, forever.
+/// - `LP-ABANDON`: the sample build contract (`storage/audio/sample_build.h`). Abandoning a build publishes nothing,
+///   `applyGeometry` refuses an invalid raw data format, and 20,000 begin/abandon rounds release every chunk they
+///   adopt, so a browser cursor that never lands on a file cannot exhaust the chunk table. Runs before anything
+///   else loads, so its eviction count is its own.
+/// - `LP-OPEN-PATH`: a Sample's read stream (`SampleStream::open_read_stream`) opens exactly the path it is given. A
+///   path with an embedded NUL, or with no room for its terminator, answers `FILE_NOT_FOUND` rather than opening
+///   the file a shortened path names.
+/// - `LP-DEFAULT layer=holder|manager`: `AudioFileHolder::loadFile` and `AudioFileManager::getAudioFileFromFilename`
+///   default to the synchronous backing. Against the real loader, which is always active here, a call with the
+///   mode omitted loads at once, and the same call made explicitly `AsyncOrBlocking` first reports
+///   `LOAD_IN_PROGRESS`; the contrast is what lets a flipped default fail.
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "../../dsp/wavetable_band_crc.h"
 #include "../../dsp/wavetable_band_records.h"
@@ -51,6 +72,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(load_policy);
 
 using deluge::storage::AsyncLoadMode;
 using deluge::storage::AudioLoadContext;

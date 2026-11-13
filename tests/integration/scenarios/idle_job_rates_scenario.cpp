@@ -15,7 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/idle_job_rates_scenario.h"
+/// @file
+/// @brief An idle app loop runs each job only as often as it has work: after boot settles, every job's runs over ten
+/// seconds of the app's clock are printed as a rate (IR-JOB), and the wake-driven jobs must not have run at all.
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "runtime/app_loop.h"
 
@@ -28,6 +32,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(idle_job_rates);
 
 namespace {
 

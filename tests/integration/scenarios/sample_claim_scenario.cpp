@@ -15,7 +15,17 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/sample_claim_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the sample-claim gate: claim files from the real sample browser into a synth, a kit drum
+///        and an audio clip, and slice a kit, and report what each claim bound and on which tier its load ran.
+///
+/// @note Runs as a step machine: each `dispatch_step()` runs one stage inline on the calling tick, and the platform
+///       driver waits for `step_done()` -- which first runs any fixture builds the stage queued -- before dispatching
+///       again.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/folder_import.h"
@@ -99,6 +109,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(sample_claim);
 
 namespace {
 

@@ -15,7 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/favourites_channel_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the favourites-channel gate: drive the favourites bank through its real
+///        entry points, require that no bank is ever written with less than it held, and count every
+///        favourites card operation that began on the interaction tier.
+///
+/// Stepped, not one blocking call: after boot a bank operation is only QUEUED when its entry point
+/// runs, so every check waits for `FavouritesManager::idle()` -- never for a file to appear, which is a
+/// proxy for an operation finishing and not the thing itself.
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "io/file.hpp"
 #include "libdeluge/file_bytes.h"
@@ -33,6 +42,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(favourites_channel);
 
 namespace {
 

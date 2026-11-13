@@ -15,7 +15,24 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/sample_collect_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the sample-collect gate: save a song that references audio files with
+///        collect-media on, and require both that the samples arrived and that the audio-file list
+///        survived the journey.
+///
+/// ## The check this gate exists for
+///
+/// `audioFiles` is sorted by `filePath` and searched by bisection. Collecting media REWRITES some of
+/// those paths. The transfers run a tick at a time, so something can look in between and see a
+/// half-rewritten ordering.
+///
+/// `SC-ORDERED` is what says the list is still usable afterwards -- every file findable by
+/// `searchForExactObject`, and the vector non-decreasing by path. Checking only that the files
+/// arrived would miss the entire hazard the design was built to avoid.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app`. Inert unless called.
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/save/save_song_ui.h"
@@ -37,6 +54,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(sample_collect);
 
 /// Reaches the protected ENTER gesture, and `collectingSamples`, which is what makes this a
 /// collect-media save rather than an ordinary one.

@@ -15,7 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/clear_song_undo_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the clear-song/undo gate: Create New Song and, later, undo and redo -- two operations
+///        that run on the interaction tier, the clear inside the press and a reversion across the ticks after it.
+///
+/// @note Runs as a step machine: each `dispatch_step()` runs one stage inline on the calling tick, and the platform
+///       driver waits for `step_done()` before dispatching again.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "gui/context_menu/clear_song.h"
 #include "gui/ui/browser/browser.h"
@@ -50,6 +59,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(clear_song_undo);
 
 // The pending-command pair `View::buttonAction()` sets for UNDO and REDO: file-scope in playback_handler.cpp, reached
 // by extern the same way view.cpp reaches it. Driving the gesture through them is what makes these legs the button's

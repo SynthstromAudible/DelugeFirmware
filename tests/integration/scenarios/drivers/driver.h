@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "../support/scenario_declare.h"
+
 #include <cstdint>
 #include <cstdio>
 
@@ -72,9 +74,10 @@ long saveSongCapture(Song& song, char* buf, uint32_t cap);
 
 } // namespace deluge::scenarios::driver
 
-/// The five functions of a driver scenario named @p name, running @p mainFn. Their declarations are in
-/// scenarios/drivers/driver_scenarios.h.
+/// The five functions of a driver scenario named @p name, running @p mainFn. Declared through DELUGE_SCENARIO_DECLARE,
+/// as the table declares them.
 #define DELUGE_DRIVER_SCENARIO(name, mainFn)                                                                           \
+	DELUGE_SCENARIO_DECLARE(name);                                                                                     \
 	extern "C" void deluge_scenario_##name##_begin(void) {                                                             \
 		deluge::scenarios::driver::begin();                                                                            \
 	}                                                                                                                  \

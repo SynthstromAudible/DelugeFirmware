@@ -15,7 +15,26 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/path_operations_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the path-operations gate.
+///
+/// ## Two halves, two kinds of evidence
+///
+/// `PO-SYSEX` is the round trip: a real SysEx request for each covered verb must still produce its
+/// `^verb` reply carrying the right `err`. It passes whichever tier does the I/O, which is the point —
+/// it is what catches a change that moved the I/O and broke the protocol.
+///
+/// `PO-TIER` is the browser half's evidence: folder creation begun on the interaction tier, required
+/// zero. **`smsysex` has no equivalent**: it never begins a blocking operation after boot, so its tier
+/// count reads zero whichever way its I/O runs and `PO-CHANNEL served=` is the whole of its proof.
+///
+/// ## Replies are captured, not inferred
+///
+/// A loopback `MIDICable` records what `sendMsg` sent. Asserting the filesystem effect instead would
+/// pass for a request path that stopped replying altogether, which is exactly the failure deferring a
+/// reply risks.
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "gui/context_menu/delete_file.h"
 #include "gui/ui/browser/browser.h"
@@ -45,6 +64,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(path_operations);
 
 /// Reaches `Browser`'s protected state for the delete stages. Declared a friend by `Browser`.
 class PathOperationsBrowserProbe {

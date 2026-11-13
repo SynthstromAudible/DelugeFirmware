@@ -15,7 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/container_guard_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the container-guard probe. With playback running, each leg makes one structural edit to
+///        a container the render walks -- a note, a note row, a clip, a clip instance, an automation node, a drum, an
+///        output -- through the model's own entry point, and reports how many structural edits were made while the
+///        render could have preempted them (deluge::unguardedStructuralEditsTotal(), util/structural_edit_probe.h).
+///
+/// @note The scenario fails nothing on a count: tests/integration/checks/container_guard.py judges them.
+///
+/// @note Runs as a step machine: each `dispatch_step()` does one stage, and the platform driver lets virtual time
+///       advance between steps. The scenario drives the render itself.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
@@ -96,6 +109,8 @@ extern void setUIForLoadedSong(Song* song);
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(container_guard);
 
 namespace {
 

@@ -15,7 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/sound_lifetime_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the sound-lifetime probe: a sounding synth and a sounding kit are deleted through each
+///        real deletion path, and each path reports how many Sounds it destroyed while they still had live voices.
+///
+/// @note Runs as a step machine: each `dispatch_step()` does one stage, and the platform driver lets virtual time
+///       (and so the audio render) advance between steps.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "definitions_cxx.hpp"
 #include "extern.h"
@@ -48,6 +57,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(sound_lifetime);
 
 namespace {
 

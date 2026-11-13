@@ -15,7 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/clock_input_scenario.h"
+/// @file
+/// @brief Trigger-clock input reaches the transport: edges delivered through the BSP's handler, with analog
+/// auto-start on, must start playback (TC-INPUT).
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "libdeluge/cv_gate.h"
 #include "playback/playback_handler.h"
@@ -29,6 +33,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(clock_input);
 
 namespace {
 

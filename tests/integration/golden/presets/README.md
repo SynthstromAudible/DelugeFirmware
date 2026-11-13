@@ -7,7 +7,7 @@ is `tests/integration/checks/render_preset.py`.
 ## How a case renders
 
 Each case is one run of golden_vt_render's `render_preset` scenario
-(`tests/integration/scenarios/render_preset_scenario.h`):
+(`tests/integration/scenarios/render_preset_scenario.cpp`):
 
 - The card holds the preset at `SYNTHS/PRESET.XML`. The blank boot song replaces its built-in default synth with the
   first preset in `SYNTHS/`, through the real deserialization path, so a case needs no loading code of its own.

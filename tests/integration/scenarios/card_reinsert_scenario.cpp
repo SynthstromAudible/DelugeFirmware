@@ -15,7 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/card_reinsert_scenario.h"
+/// @file
+/// @brief Drives a card ejection and re-insertion with samples STILL RESIDENT, and pins what
+///        `AudioFileManager::cardReinserted()`'s walk does to each of them.
+///
+/// No other scenario covers that walk. `audio-load-ab` drives the same eject/re-insert
+/// edges, but reaches `cardReinserted()` twice with `residents=0 samples=0 referenced=0` — the edges
+/// fire and the loop body never runs. This scenario exists to give the walk something to walk, with
+/// samples actually resident for it to act on.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the
+///       app's sources).
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/load/instrument_load.h"
@@ -43,6 +55,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(card_reinsert);
 
 namespace {
 

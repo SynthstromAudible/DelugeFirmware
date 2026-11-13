@@ -15,7 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/ui_timer_deadline_scenario.h"
+/// @file
+/// @brief The "ui routine" job runs the UI timers at their deadlines: it runs a few dozen times a second rather than
+/// polling (UT-RATE), and a timer set earlier than the job's pending run fires at its own time, not at that run
+/// (UT-EARLIER).
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "gui/ui_timer_manager.h"
 #include "processing/engines/audio_engine.h"
@@ -30,6 +35,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(ui_timer_deadline);
 
 namespace {
 

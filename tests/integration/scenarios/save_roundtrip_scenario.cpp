@@ -15,7 +15,38 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/save_roundtrip_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the save round-trip gate: save a song through the REAL `SaveSongUI`
+///        gesture, load it back, save it again, and require the two written files to be identical.
+///
+/// ## Why a round trip rather than a golden
+///
+/// The property that matters is that a saved song can be loaded and re-saved without losing
+/// anything, and that is self-checking: nothing here is baselined, so there is no golden anyone can
+/// quietly re-baseline into passing.
+///
+/// ## Why the second save overwrites the SAME name
+///
+/// a finished song save writes `currentSong->name = enteredText` as part of a successful save, so saving
+/// the reloaded song under a DIFFERENT name would legitimately produce different bytes and the
+/// comparison would fail for a reason that is not a defect. Overwriting the same name keeps every
+/// name-derived field identical, so a difference can only come from the round trip losing something.
+/// It also makes the second save the overwrite-prompt case, so one gesture covers both properties.
+///
+/// ## The seam is asserted by OUTCOME
+///
+/// Whether the overwrite context menu opened is read from the UI itself, not from a dispatch count.
+/// A count proves only that an op was queued -- this gate exists to prove the save actually
+/// happened and the prompt actually appeared.
+///
+/// @note Runs as a STEP MACHINE, because saving is staged across ticks: the gesture only STARTS
+///       the save, whose card steps go through the channels and complete on later ticks, so every
+///       check reads its result on a LATER tick than the gesture that caused it.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the
+///       app's sources). Inert unless called.
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "gui/context_menu/overwrite_file.h"
 #include "gui/ui/browser/browser.h"
@@ -41,6 +72,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(save_roundtrip);
 
 /// Reaches `SaveUI::enterKeyPress()`, which is protected: the gate must drive the REAL gesture, not
 /// the save machinery underneath it, or it would miss whatever the gesture itself does. Mirrors

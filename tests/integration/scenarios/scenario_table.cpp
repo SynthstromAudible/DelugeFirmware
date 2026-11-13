@@ -19,44 +19,8 @@
 
 // Every scenario below is host-only: several compile to nothing on the device.
 
-#include "scenarios/audio_header_dump_scenario.h"
-#include "scenarios/audio_load_ab_scenario.h"
-#include "scenarios/audio_tick_hold_scenario.h"
-#include "scenarios/card_reinsert_scenario.h"
-#include "scenarios/clear_song_undo_scenario.h"
-#include "scenarios/clip_lifetime_scenario.h"
-#include "scenarios/clock_input_scenario.h"
-#include "scenarios/container_guard_scenario.h"
-#include "scenarios/document_save_channel_scenario.h"
 #include "scenarios/drivers/driver_scenarios.h"
-#include "scenarios/favourites_channel_scenario.h"
-#include "scenarios/idle_job_rates_scenario.h"
-#include "scenarios/load_cancel_scenario.h"
-#include "scenarios/load_policy_scenario.h"
-#include "scenarios/menu_dump_scenario.h"
-#include "scenarios/offset_io_scenario.h"
-#include "scenarios/path_operations_scenario.h"
-#include "scenarios/pattern_load_scenario.h"
-#include "scenarios/playhead_moves_scenario.h"
-#include "scenarios/preset_load_scenario.h"
-#include "scenarios/recorder_take_scenario.h"
-#include "scenarios/render_preset_scenario.h"
-#include "scenarios/render_song_scenario.h"
-#include "scenarios/sample_claim_scenario.h"
-#include "scenarios/sample_collect_scenario.h"
-#include "scenarios/sample_load_tree_scenario.h"
-#include "scenarios/save_roundtrip_scenario.h"
-#include "scenarios/scenes_spec_scenario.h"
-#include "scenarios/settings_channel_scenario.h"
-#include "scenarios/song_load_channel_scenario.h"
-#include "scenarios/song_preview_ab_scenario.h"
-#include "scenarios/song_save_channel_scenario.h"
-#include "scenarios/sound_lifetime_scenario.h"
-#include "scenarios/staging_release_scenario.h"
-#include "scenarios/stale_ui_scenario.h"
-#include "scenarios/startup_failsafe_scenario.h"
-#include "scenarios/ui_script_scenario.h"
-#include "scenarios/ui_timer_deadline_scenario.h"
+#include "scenarios/support/scenario_declare.h"
 
 #include "playback/render_requests.h"
 
@@ -66,6 +30,48 @@
 #include <cstring>
 #include <iterator>
 #include <utility>
+
+// The stepped scenarios' entry points. The host drivers' are in drivers/driver_scenarios.h.
+DELUGE_SCENARIO_DECLARE(audio_header_dump);
+DELUGE_SCENARIO_DECLARE(audio_load_ab);
+DELUGE_SCENARIO_DECLARE(audio_tick_hold);
+DELUGE_SCENARIO_DECLARE(card_reinsert);
+DELUGE_SCENARIO_DECLARE(clear_song_undo);
+DELUGE_SCENARIO_DECLARE(clip_lifetime);
+DELUGE_SCENARIO_DECLARE(clock_input);
+DELUGE_SCENARIO_DECLARE(container_guard);
+DELUGE_SCENARIO_DECLARE(document_save_channel);
+DELUGE_SCENARIO_DECLARE(favourites_channel);
+DELUGE_SCENARIO_DECLARE(idle_job_rates);
+DELUGE_SCENARIO_DECLARE(load_cancel);
+DELUGE_SCENARIO_DECLARE(load_policy);
+DELUGE_SCENARIO_DECLARE(menu_dump);
+DELUGE_SCENARIO_DECLARE(offset_io);
+DELUGE_SCENARIO_DECLARE(path_operations);
+DELUGE_SCENARIO_DECLARE(pattern_load);
+DELUGE_SCENARIO_DECLARE(playhead_moves);
+DELUGE_SCENARIO_DECLARE(preset_load);
+DELUGE_SCENARIO_DECLARE(recorder_take);
+DELUGE_SCENARIO_DECLARE(render_preset);
+DELUGE_SCENARIO_DECLARE(render_song);
+DELUGE_SCENARIO_DECLARE(sample_claim);
+DELUGE_SCENARIO_DECLARE(sample_collect);
+DELUGE_SCENARIO_DECLARE(sample_load_tree);
+DELUGE_SCENARIO_DECLARE(save_roundtrip);
+DELUGE_SCENARIO_DECLARE(scenes_spec);
+DELUGE_SCENARIO_DECLARE(settings_channel);
+DELUGE_SCENARIO_DECLARE(song_load_channel);
+DELUGE_SCENARIO_DECLARE(song_preview_ab);
+DELUGE_SCENARIO_DECLARE(song_save_channel);
+DELUGE_SCENARIO_DECLARE(sound_lifetime);
+DELUGE_SCENARIO_DECLARE(staging_release);
+DELUGE_SCENARIO_DECLARE(stale_ui);
+DELUGE_SCENARIO_DECLARE(startup_failsafe);
+DELUGE_SCENARIO_DECLARE(ui_script);
+DELUGE_SCENARIO_DECLARE(ui_timer_deadline);
+// The rows' onAppInit hooks.
+extern "C" void deluge_scenario_clip_lifetime_boot(void);
+extern "C" void deluge_scenario_scenes_spec_on_app_init(void);
 
 namespace {
 

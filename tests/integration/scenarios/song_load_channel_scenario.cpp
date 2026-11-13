@@ -15,7 +15,37 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/song_load_channel_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the song-load channel gate: save a song carrying a distinctive value,
+///        load it back through the REAL `LoadSongUI`, and require both that the value returns and
+///        that the read went through the storage channel.
+///
+/// ## Why this gate exists at all
+///
+/// A load that brings back the right song says nothing about how its bytes arrived. This gate pins
+/// the whole-file staging read the song load depends on: a gate that only checks what came back would
+/// stay green with that read broken in any way that still produced the song.
+///
+/// ## Why the assertion is a VALUE from inside the song
+///
+/// The two cheaper signals are both known-bad. The song's NAME is written by the finished song save from the
+/// entered text, so it matches whether or not the load happened. Object IDENTITY -- "is `currentSong`
+/// a different object afterwards" -- returns false even on a clean tree in the save round-trip's
+/// shape, so it cannot separate a real load from a retained one either.
+///
+/// `insideWorldTickMagnitude` is saved as `inputTickMagnitude` and read back by `Song::readFromFile`,
+/// so it can only be right if bytes came off the card and were parsed. The scenario deliberately
+/// stamps a DIFFERENT value over it after saving and before loading: without that, the value could be
+/// correct merely because nothing ever changed it.
+///
+/// @note Runs as a STEP MACHINE: the gesture only starts the load, which `loadRoutine()` then
+///       advances across ticks, so every check reads its result on a LATER tick than the gesture
+///       that caused it.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the
+///       app's sources). Inert unless called.
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/cancel_result.h"
@@ -48,6 +78,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(song_load_channel);
 
 /// Reaches `SaveUI::enterKeyPress()`, which is protected: the gate drives the REAL gesture rather
 /// than the save machinery underneath it. Mirrors `SaveRoundtripProbe` in the save round-trip scenario.

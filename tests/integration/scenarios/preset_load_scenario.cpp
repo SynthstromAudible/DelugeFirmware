@@ -15,8 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/preset_load_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the preset-load gate: load synth and kit presets through the real preset browser into a
+///        clip, a kit row and a clone, and report what each load bound and on which tier its card work began.
+///
+/// @note Runs as a step machine: each `dispatch_step()` runs one stage inline on the calling tick, and the platform
+///       driver waits for `step_done()` -- which first runs any fixture builds the stage queued -- before dispatching
+///       again.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
+
 #include "scenarios/slot_coherence.h"
+#include "scenarios/support/scenario_declare.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/clear_song.h"
@@ -79,6 +89,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(preset_load);
 
 /// Drives SessionView's and ArrangerView's acquisition gestures for the AQ legs: the private state a pad or encoder
 /// handler reads is written as a user's press leaves it, and then the handler itself is called.

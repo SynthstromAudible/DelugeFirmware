@@ -263,9 +263,11 @@ declares it throwaway survives indefinitely when nothing records that fact anywh
 
 A scenario gate is a stepped scenario the Embassy host harness runs (`runner = "scenario"`). Adding one:
 
-1. **The scenario:** `integration/scenarios/<name>_scenario.{h,cpp}`, exporting `begin`, `complete`,
-   `dispatch_step`, `step_done` and `failures`, and a row in `integration/scenarios/scenario_table.cpp`. Only the host
-   tree compiles that directory, so it needs no `DELUGE_HOST` guard, and includes are `"scenarios/<name>.h"`.
+1. **The scenario:** `integration/scenarios/<name>_scenario.cpp`, declaring its entry points with
+   `DELUGE_SCENARIO_DECLARE(<name>)` (`integration/scenarios/support/scenario_declare.h`) and defining `begin`,
+   `complete`, `dispatch_step`, `step_done` and `failures`, and a row in `integration/scenarios/scenario_table.cpp`,
+   which declares them the same way. Only the host tree compiles that directory, so it needs no `DELUGE_HOST` guard,
+   and includes are `"scenarios/…"`.
    The row also names the scenario's pacing (`ScenarioPacing`, default virtual time) and card (`ScenarioCard`,
    default empty); golden_vt_render applies both and runs any row by name, so nothing on the Rust side changes. A
    card of the scenario's own is a manifest beside it, `integration/scenarios/<name>.card`, in the format

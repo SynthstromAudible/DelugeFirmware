@@ -15,7 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/stale_ui_scenario.h"
+/// @file
+/// @brief A song load takes every UI down for its whole length. While the UI stack is empty, input and UI timers
+/// must reach no UI that was open before the load (SU-INERT), the arming gestures the load itself answers must still
+/// reach it (SU-REPEATS, SU-HOLD) and its popup stay up under a knob turn (SU-POPUP), and once the outgoing song has
+/// been swapped out nothing the empty stack reaches may still point into it (SU-RETIRED). Pads held when the UIs go
+/// down are released through them (SU-AUDITION) with no undo action left against the outgoing song (SU-UNDO), and a
+/// load that fails after that puts the surviving song's UI back (SU-FAILED).
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "definitions_cxx.hpp"
 #include "extern.h"
@@ -66,6 +74,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(stale_ui);
 
 // MIDI follow's stored clips, one per note, for the note-off (io/midi/midi_follow.cpp).
 extern Clip* clipForLastNoteReceived[kMaxMIDIValue + 1];

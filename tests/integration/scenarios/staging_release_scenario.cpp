@@ -15,7 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/staging_release_scenario.h"
+/// @file
+/// @brief The staging-release gate: releasing a staged document while the channel is still reading into it.
+///
+/// The byte channel's whole-file read writes into the caller's buffer from the storage tier and cannot be cancelled,
+/// so a consumer that abandons a staged read -- a preset load superseded by a newer one, a song load given up -- must
+/// not have that buffer freed under the read. The scenario holds a staged read in flight, releases its staging as an
+/// abandoning consumer does, allocates the same size again and fills it with a sentinel, and lets the read finish. The
+/// sentinel must survive: memory handed to someone else may not be written by a read its previous owner gave up on.
+/// The released buffer must then still be freed once the read has finished, or the release has only traded the
+/// corruption for a leak.
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "io/file.hpp"
 #include "libdeluge/file_bytes.h"
@@ -32,6 +43,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(staging_release);
 
 namespace {
 

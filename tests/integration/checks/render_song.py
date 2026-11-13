@@ -1,7 +1,7 @@
 """The render-song gate: a song played as the device plays it, rendered on the audio tier.
 
 `render_song` loads the song through the real load browser, plays it in real time, and reports each stage with the
-evidence that it happened (tests/integration/scenarios/render_song_scenario.h lists the lines). The scenario itself
+evidence that it happened (tests/integration/scenarios/render_song_scenario.cpp lists the lines). The scenario itself
 fails a run whose song did not load, whose playback stopped, or whose render made a synchronous card call. This module
 adds what depends on the song, and why each check is here:
     RS-VOICES audio   sample voices rendered on the audio tier. A sample-backed song that renders none played

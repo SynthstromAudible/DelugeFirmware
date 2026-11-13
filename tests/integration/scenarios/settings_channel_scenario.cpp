@@ -15,7 +15,35 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/settings_channel_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the settings-channel gate: write a settings file through the REAL
+///        consumer entry point, read it back, and require the value to survive -- while counting
+///        every settings operation that began on the interaction tier.
+///
+/// ## Two halves
+///
+/// The round trip is the SAFETY half: it catches a change that moved the I/O and broke the settings
+/// on the way. `SC-TIER` is the EVIDENCE half: it must be zero, and it is the only check that shows
+/// where the I/O ran.
+///
+/// A round trip alone is not enough: it passes the same whichever tier did the I/O, so a gate with
+/// only a round trip would report success with every settings operation still running on the
+/// interaction tier.
+///
+/// ## Why the count and not a dispatch counter
+///
+/// A counter incremented at the point of dispatch proves that dispatch was reached, not that the
+/// work moved. This one is incremented inside the consumer's own I/O path, from
+/// `deluge::storage::bytes::noteIoTier()`, and it reads the tier it is actually standing
+/// on -- so it cannot report success for an operation that dispatched and then ran inline anyway.
+///
+/// ## Stepped, not one blocking call
+///
+/// After boot settings operations are channel-backed, so the work is only ENQUEUED when the entry
+/// point runs. A same-tick read would prove nothing, so each stage has
+/// a `*Check` successor a tick later.
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "gui/views/performance_view.h"
 #include "io/file.hpp"
@@ -42,6 +70,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(settings_channel);
 
 /// The gate's view into state the settings consumers keep private, befriended by each consumer it reaches. Every
 /// check still drives the consumer's real entry point; the probe only arranges and observes.

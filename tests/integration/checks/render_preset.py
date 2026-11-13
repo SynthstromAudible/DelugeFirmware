@@ -1,6 +1,6 @@
 """The synth golden masters: every corpus preset, played and rendered as the device renders it, against its record.
 
-Each case is one `render_preset` run (tests/integration/scenarios/render_preset_scenario.h). The card holds the preset
+Each case is one `render_preset` run (tests/integration/scenarios/render_preset_scenario.cpp). The card holds the preset
 at SYNTHS/PRESET.XML, where the blank boot song picks it up, plus the case's samples. A DIN note script on MIDI channel 1
 plays it through MIDI follow, which sends that channel to the instrument in front of the user, and the output is
 captured from the audio tier. This module stages each case, runs them in parallel, and checks per case:

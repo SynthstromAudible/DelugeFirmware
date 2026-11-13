@@ -15,7 +15,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/offset_io_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the offset-addressed I/O gate.
+///
+/// ## `OI-TRANSFER` writes THREE blocks, and that is the whole point
+///
+/// A `write_at` that truncated would leave only the final block, and a single-block round trip would
+/// pass happily against exactly that bug — which is what this gate most risks, because
+/// `efatfs::portable::create_context` truncates unconditionally and the correct open mode looks like a
+/// mistake. Three blocks at ascending offsets is what makes the guard real.
+///
+/// ## The tier count is not this gate's evidence
+///
+/// `smsysex` never begins a blocking operation after boot, so its tier count reads zero whichever
+/// way its I/O runs. This gate's evidence is `OI-CHANNEL served=` going non-zero, plus the truncation
+/// neutering failing.
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "io/file.hpp"
 #include "io/midi/midi_device.h"
@@ -38,6 +54,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(offset_io);
 
 namespace {
 

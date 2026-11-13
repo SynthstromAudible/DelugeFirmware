@@ -15,12 +15,26 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/sample_load_tree_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the sample-load tree gate: build a song, save it with collected media, load it back,
+///        load a synth preset and a kit preset, and report where every holder's file came from.
+///
+/// Every fixture document is written by the firmware's own save and serialisation paths inside the scenario; none
+/// is hand-written. Each load runs inside a load-trace window (see `storage/audio/load_trace.h`), whose lines are
+/// printed as `LT <load> <event>` so a gate can compare the trace across a restructuring of the load path.
+///
+/// @note Runs as a step machine: each `dispatch_step()` runs one stage inline on the calling tick, and the platform
+///       driver waits for `step_done()` -- which first runs any fixture builds the stage queued -- before dispatching
+///       again.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
+
 #include "extern.h"
 #include "model/edits/set_source_ranges.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
 #include "scenarios/slot_coherence.h"
+#include "scenarios/support/scenario_declare.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
@@ -80,6 +94,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(sample_load_tree);
 
 /// Reaches the protected ENTER gesture and `collectingSamples`, so the fixture song is saved the way a user saves it.
 class SampleLoadTreeProbe {

@@ -15,14 +15,21 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Every take starts from the menu's recorder item, opened on the clip as the user opens it, and runs on the ported
-// recorder screen. The open ticks the guest until the screen is pushed, so each leg checks its take on the step that
-// started it; after that the guest runs on its own wake, the UI timer the app loop fires.
+/// @file
+/// @brief Audio-input recording takes, each started from the sound editor's recorder menu item. A take runs while the
+/// rest of the app keeps going: DIN MIDI notes and clock delivered during it are handled during it (RT-TAKE), and BACK
+/// attaches its sample to the source it was recorded for (RT-ATTACH). No take starts while a load that can replace the
+/// clip's output is in flight (RT-REFUSED); a take whose recorder UI is closed under it (RT-CLOSED), or whose synth is
+/// replaced under it (RT-REPLACED), is dropped and attached to nothing, and the next take starts (RT-SECOND).
+///
+/// Every take starts from the menu's recorder item, opened on the clip as the user opens it, and runs on the ported
+/// recorder screen. The open ticks the guest until the screen is pushed, so each leg checks its take on the step that
+/// started it; after that the guest runs on its own wake, the UI timer the app loop fires.
 
-#include "scenarios/recorder_take_scenario.h"
 #include "scenarios/follow_channel.h"
 #include "scenarios/guest_drive.h"
 #include "scenarios/slot_coherence.h"
+#include "scenarios/support/scenario_declare.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
@@ -75,6 +82,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(recorder_take);
 
 // The harness's test input signal and DIN note script (audio/host.rs).
 extern "C" {

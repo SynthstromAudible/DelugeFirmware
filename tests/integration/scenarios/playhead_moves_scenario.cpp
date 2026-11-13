@@ -15,7 +15,21 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/playhead_moves_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the playhead-moves probe. The render ticks the sequencer, so the interaction tier may
+///        move the playhead -- a lane cursor, a clip's or note row's position, the next-event schedule, the playback
+///        mode and state -- only with the render excluded, and must not allocate or log undo while it holds it off.
+///        Each leg makes one move through the app's own entry point while a clock runs (or starts one) and reports
+///        PM-<LEG> stray=<n> masked_alloc=<n> masked_actions=<n> hash=<h>; the injection legs run a render block at a
+///        point inside a move and report what that block saw.
+///
+/// @note The scenario fails nothing on a count: tests/integration/checks/playhead_moves.py judges them.
+///
+/// @note Runs as a step machine: each `dispatch_step()` does one stage. The scenario drives the render itself.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/edit_guard.h"
@@ -55,6 +69,8 @@
 
 #include <cstdint>
 #include <cstdio>
+
+DELUGE_SCENARIO_DECLARE(playhead_moves);
 
 namespace {
 

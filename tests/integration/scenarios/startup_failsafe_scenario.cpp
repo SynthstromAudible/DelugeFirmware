@@ -15,7 +15,28 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/startup_failsafe_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the startup fail-safe gate: drive the REAL fail-safe and require that
+///        none of its file I/O begins on the interaction tier.
+///
+/// ## What it drives, and what it deliberately does not
+///
+/// The fail-safe's happy path ends in `openUI(&loadSongUI)`, and this harness has no UI stack and no
+/// root UI, so `openUI` would index off the end of an array. The scenario therefore drives the
+/// **song-missing** path: startup mode `LASTOPENED` with no startup song recorded and no
+/// `SONGS/DEFAULT.XML`, which reaches the canary creation, all the existence checks and the cleanup
+/// unlink, and then returns without touching the UI.
+///
+/// That is not a reduced test. Those are five of the fail-safe's file operations, and which TIER they
+/// run on — the whole subject of this gate — does not depend on which branch reached them.
+///
+/// ## `SF-TIER` is the evidence; the rest is context
+///
+/// It must be zero, and it is the only check that shows which tier the fail-safe's I/O ran on.
+/// `SF-CHANNEL` is reported and not asserted here: a build without the byte channel honestly answers
+/// 0, so it is `tests/integration/checks/startup_failsafe.py` that requires it non-zero.
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "definitions_cxx.hpp"
 #include "io/file.hpp"
@@ -34,6 +55,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(startup_failsafe);
 
 namespace {
 

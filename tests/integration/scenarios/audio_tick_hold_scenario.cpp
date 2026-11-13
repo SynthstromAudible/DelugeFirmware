@@ -15,7 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/audio_tick_hold_scenario.h"
+/// @file
+/// @brief The audio tick's hold and re-entry guard (`AudioEngine::AudioTickHold`, `routine()`), run as
+///        `GOLDEN_SCENARIO=audio_tick_hold` on the booted app.
+///
+/// `begin` runs every check and prints one line per check:
+///     ATH-IDLE     no hold alive: audioTicksHeld() is false
+///     ATH-HOLD     a hold is held for its scope, and released after it
+///     ATH-NESTED   nested holds release only when the outermost ends
+///     ATH-HELD     a held tick does nothing: routine_task() is false, routine() 0, the routine body never reached
+///     ATH-REENTRY  routine() called from inside routine() returns 0 without running the body
+///     ATH-THROW    a throw out of routine() does not latch it: the next tick reaches the routine body
+/// then `ATH-RESULT failures=N`.
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "libdeluge/app.h"
 #include "processing/engines/audio_engine.h"
@@ -29,6 +42,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(audio_tick_hold);
 
 namespace {
 

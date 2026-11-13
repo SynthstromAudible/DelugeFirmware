@@ -15,13 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/menu_dump_scenario.h"
+/// @file
+/// @brief The declarative menu tree dumped as JSON to `MENU_DUMP_OUT` (default `menu-tree.json`), from the booted
+/// app, printing `MENU-DUMP bytes=<n>`.
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "scenarios/menu_dump.h"
 
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+
+DELUGE_SCENARIO_DECLARE(menu_dump);
 
 namespace {
 int32_t g_failures = 0;

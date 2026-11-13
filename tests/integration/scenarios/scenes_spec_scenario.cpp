@@ -15,7 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/scenes_spec_scenario.h"
+/// @file
+/// @brief One scenes spec file (`SCENES_SPEC`, its id under sim/scenes_spec) run once, from the app-init hook, so
+/// before boot installs a root UI, on the card `SCENES_SPEC_CARD` names. Prints `SCENES-SPEC <id> exit=<n>`; fails when
+/// the file's entry returned non-zero. `SCENES_SPEC=--list` prints every id as `SCENES-SPEC-ID <id>` and exits.
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "entries.h"
 
@@ -29,6 +34,11 @@
 #include <cstring>
 #include <exception>
 #include <optional>
+
+DELUGE_SCENARIO_DECLARE(scenes_spec);
+
+/// Called right after deluge_app_init() (scenario_table.h's `onAppInit`).
+extern "C" void deluge_scenario_scenes_spec_on_app_init(void);
 
 namespace {
 /// The file's exit code: 0 when every example passed; -1 before it has run.

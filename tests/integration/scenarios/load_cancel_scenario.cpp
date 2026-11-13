@@ -15,7 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/load_cancel_scenario.h"
+/// @file
+/// @brief Cancelling preset loads by ticket. BACK in the preset browser while the preset under the cursor is still
+/// staging (LC-STAGE) or loading its samples (LC-SAMPLES) drops that load: the clip keeps its preset, the browser stays
+/// where it is, nothing of the dropped load is left behind and no error is shown. A cancel naming a load that has
+/// finished, or one a newer request replaced, changes nothing (LC-STALE); a creation refuses a cancel and completes
+/// (LC-REFUSED). BACK straight after a fast scroll, the newest scroll-load still queued behind the one it replaces,
+/// leaves neither loading (LC-QUEUED).
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
@@ -51,6 +59,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(load_cancel);
 
 namespace {
 

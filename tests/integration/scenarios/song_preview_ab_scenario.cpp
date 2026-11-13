@@ -15,7 +15,45 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/song_preview_ab_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the song-preview gate: draw every fixture song's artwork through the
+///        REAL `LoadSongUI` over the prefix channel, and hold each song's rendered image and decode
+///        outcome to the same file decoded synchronously, inline.
+///
+/// The channel has no switch, so there is one build and one run: the reference that a second,
+/// file-backed build would otherwise provide is decoded in-process instead (`SP-REFERENCE`, beside
+/// each `SP-CASE`). `./dbt test song-preview-ab` runs it; `tests/integration/checks/song_preview_ab.py` checks it.
+///
+/// ## What is compared, and why pixels alone are not enough
+///
+/// Each `SP-CASE` line carries a CRC of the rendered pad image AND the `SongPreviewOutcome` the
+/// decode reported, plus the `Error` it put on screen. The outcome is not decoration: an unreadable
+/// song, a song with no artwork, and a preview that falls past the read window all draw an
+/// IDENTICAL blank screen, so a gate that compared only images would pass while one backing shows
+/// the user an error popup and the other shows nothing at all.
+///
+/// ## The re-ask is under test, not simulated
+///
+/// Every case calls `LoadSongUI::drawSongPreview()` ONCE -- the shipped entry a cursor move
+/// reaches -- and from then on drives only `LoadSongUI::graphicsRoutine()`, the per-tick surface,
+/// with no further input of any kind. Nothing here runs a retry loop of its own. If the browser
+/// ever stops re-asking for a preview whose bytes have not arrived, the async leg simply never
+/// lands and every one of its cases fails.
+///
+/// ## Deferrals are asserted PER CASE
+///
+/// A run-wide deferral total is satisfied by one deferral anywhere, which would leave the async
+/// path inert for every other song while the gate stayed green. Each case carries its own count and
+/// each is required to be non-zero on the async leg.
+///
+/// @note Runs as a STEP MACHINE rather than one blocking call, because that is what the async
+///       backing requires: a preview whose prefix has not arrived is answered on a later tick, and
+///       the caller must return to its own loop for the Embassy reader task to be polled at all.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the
+///       app's sources), so the Embassy host binary, which links `deluge_app`, can reach it. Inert unless called.
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/clip_settings/new_clip_type.h" // the picker's chosen type, set by the grid ENTER probe
@@ -76,6 +114,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(song_preview_ab);
 
 using deluge::storage::SongPreviewOutcome;
 

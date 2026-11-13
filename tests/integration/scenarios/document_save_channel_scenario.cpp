@@ -15,7 +15,30 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/document_save_channel_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the document-save channel gate: save a preset through the REAL ENTER
+///        gesture, require the written file to be whole, and report whether the byte channel
+///        served the write after boot.
+///
+/// ## Why this gate exists
+///
+/// No other harness builds `write_file`. A feature no gate builds is code that has never run, so
+/// this gate exists to run it and catch what only running finds.
+///
+/// ## Why the file check is shallow
+///
+/// The save verifies its own write by reading the document back through the channel, and only a save
+/// that completed that read-back counts (DS-VERIFIED). The check on the file itself is deliberately
+/// shallow (the file exists, opens with the XML prolog, is not trivially short): it catches the
+/// shapes a verified save could still leave behind, and its CRC is what DS-OCCUPIED and the overwrite
+/// legs compare the document against later.
+///
+/// @note Runs as a STEP MACHINE: a staged save spans ticks by construction, so every check reads its
+///       result on a LATER tick than the gesture that caused it.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app`. Inert unless called.
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "gui/context_menu/overwrite_file.h"
 #include "gui/ui/browser/browser.h"
@@ -49,6 +72,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(document_save_channel);
 
 /// Reaches `SaveUI::enterKeyPress()`, which is protected: the gate drives the REAL gesture rather
 /// than the save machinery underneath it. Mirrors SaveRoundtripProbe and SongLoadChannelProbe.

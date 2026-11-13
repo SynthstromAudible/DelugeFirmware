@@ -15,7 +15,31 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "scenarios/audio_load_ab_scenario.h"
+/// @file
+/// @brief Host-only C ABI for the sync-vs-async load A/B: run ONE whole song-shaped load of a fixed
+///        sample list through `AudioFileManager::getAudioFileFromFilename` and print each file's
+///        resolved identity and geometry as a stable line, checked against a synchronous reference.
+///
+/// Every case loads twice in one process: first through the synchronous card path (`AsyncLoadMode::Blocking`), as the
+/// reference, and then through the Rust Embassy loader (`libdeluge/audio_load.h`'s request/collect pair). The async
+/// load's `AB-CASE` line must equal the reference's. `AB-SUMMARY` carries the per-run facts, such as deferral counts,
+/// that the reference has no counterpart for.
+///
+/// The whole point is that everything else must be identical: same file chosen, same alternate-dir
+/// resolution, same geometry, same `Error` on failure, same bytes readable back through the
+/// Sample's own stream.
+///
+/// @note Runs as a STEP MACHINE rather than one blocking call, because that is what the async
+///       backing requires: a deferred load answers `Error::LOAD_IN_PROGRESS` and the caller must
+///       return to its own loop so the Embassy loader task can be polled at all. Each
+///       `dispatch_step()` arms one attempt, which runs when the driver next polls
+///       `step_done()`, and returns; the platform driver waits for `step_done()`, lets its executor run,
+///       and dispatches again.
+///
+/// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the
+///       app's sources), so the Embassy host binary, which links `deluge_app`, can reach it. Inert unless called.
+
+#include "scenarios/support/scenario_declare.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/sample_preview.h" // the loader the ported browser previews through
@@ -55,6 +79,8 @@
 #ifdef printf
 #undef printf
 #endif
+
+DELUGE_SCENARIO_DECLARE(audio_load_ab);
 
 namespace {
 
