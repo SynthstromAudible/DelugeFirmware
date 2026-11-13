@@ -1574,3 +1574,41 @@ class ChildStderrTest(unittest.TestCase):
         text = self._run(buffered=True)
         self.assertIn("to-out", text.splitlines())
         self.assertIn("to-err", text.splitlines())
+
+
+class RetiredSwitchTest(unittest.TestCase):
+    """`./dbt test --update <name>` is the only way the tree re-records a baseline: no other switch is named."""
+
+    ROOT = Path(__file__).resolve().parents[2]
+    RETIRED = (
+        "GFX_GOLDEN_UPDATE",
+        "RENDER_SONG_UPDATE",
+        "RENDER_PRESET_UPDATE",
+        "ARRANGE_TAKE_UPDATE",
+        "LOAD_POLICY_RECORD",
+        "DELUGE_DX7_RECORD",
+        "HOP_SCHEDULER_PRINT_RECORDS",
+        "PITCH_SHIFT_PRINT_RECORDS",
+        "menu_dump_check",
+        "_run.py --update",
+        "_run.py --record",
+        "upgrade_run.py --record",
+    )
+
+    def test_no_tracked_file_names_a_retired_switch(self):
+        words = [arg for word in self.RETIRED for arg in ("-e", word)]
+        hits = subprocess.run(
+            [
+                "git",
+                "grep",
+                "-nF",
+                *words,
+                "--",
+                ":!scripts/tasks/test_harness_registry.py",
+            ],
+            cwd=self.ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout
+        self.assertEqual(hits, "")

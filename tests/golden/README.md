@@ -88,10 +88,10 @@ so a read for them would be golden-blind. For those, commit a small,
 privacy-clean hand-authored song under `tests/golden/synthetic/`. Its fixture key
 is prefixed `synthetic/` and resolves against this directory rather than the
 corpus, so it is **always present** — it runs (and gives real coverage) even in
-CI with no corpus, instead of *Skipped*. the same command re-records these alongside
+CI with no corpus, instead of *Skipped*. `./dbt test --update song-roundtrip` re-records these alongside
 the corpus. To make one: author a minimal song that exercises the structure, run
 it through the driver until it *settles* (exit 0), commit the emitted `gen1`, and
-re-record (or add its `gen1` SHA-256 under a `synthetic/<name>.XML` key).
+re-record it with `./dbt test --update song-roundtrip` (or add its `gen1` SHA-256 under a `synthetic/<name>.XML` key).
 
 ## Menu reference tables (`ui/menu_oracle/`)
 

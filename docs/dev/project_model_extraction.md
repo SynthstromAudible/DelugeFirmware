@@ -193,7 +193,7 @@ Phase 0 is the regression net that makes Phases 1–5 safe: it pins the
 **serialization behaviour** of the model so that any accidental change to *what
 gets written to disk* is caught. It is the serialization analogue of the synth
 audio golden-master harness (`tests/golden`), and reuses its conventions
-(committed fixtures, SHA anchors, x86≡ARM oracle, `--update` re-baselining).
+(committed fixtures, SHA anchors, x86≡ARM oracle, `./dbt test --update` re-baselining).
 
 ### The invariant (this is the crux)
 
@@ -215,7 +215,7 @@ fills defaults, normalizes ordering, and drops tags it doesn't understand. So
 - **Regression contract during the refactor:** for every corpus song,
   `save(load(original))` must keep producing the committed `gen1` bytes. A
   refactor that changes serialization output breaks the hash → must be justified
-  and re-baselined (`--update`), exactly like the audio harness.
+  and re-baselined (`./dbt test --update <name>`, with its GOLDEN-UPDATED lines and the reason in the commit), exactly like the audio harness.
 
 ### Driver: direct in-memory round-trip
 
@@ -356,7 +356,7 @@ once the extraction is underway.
       `song_roundtrip`): in-memory load→save→reload→save fixed-point check,
       emits `gen1`.
 - [x] Runner `tests/golden/songs_run.py` + `songs_fixtures.json` (SHA-256 of
-      `gen1`); `--update` to re-baseline; fails only on a committed-hash
+      `gen1`); `./dbt test --update song-roundtrip` to re-baseline; fails only on a committed-hash
       `REGRESS`. Verified: detects a tampered fixture (exit 1), clean (exit 0).
 - [x] CTest registration (`ctest -R song_roundtrip`, `SKIP_RETURN_CODE 77`) +
       `tests/golden/README`.
@@ -371,7 +371,7 @@ once the extraction is underway.
       Serialization is arch-independent; fixtures trustworthy on both backends.
 - [x] Outliers triaged: `Glitchy_2` fixed (now a fixture; 15 total),
       `CLickybasswobble` is a misfiled `<sound>` preset (correctly excluded).
-      `--update` takes `--exclude` (default `problem_songs`) to keep the baseline
+      A re-record skips `problem_songs` (the runner's `--exclude`) to keep the baseline
       curated.
 - [ ] Broaden corpus across formats / firmware versions / features.
 
