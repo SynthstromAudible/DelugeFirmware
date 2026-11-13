@@ -9,10 +9,12 @@ export -- run through the stem_export row of golden_vt_render's table -- and che
 
 The scenario prints the ST-RESULT line itself; the gate judges it with the entry's markers.
 
-The baseline is the Embassy render itself, recorded in the repo.
-
-THE BASELINE IS NOT EXPECTED TO MOVE. A walk's cadence is an implementation detail; rendered audio is not. If
-ST-RENDER goes red, that is a finding to investigate -- never a re-baseline.
+The baseline is the Embassy render itself. It is not expected to move: a walk's cadence is an implementation detail,
+rendered audio is not. A red ST-RENDER is a finding to bisect, never a re-baseline, so the entry declares no `baseline`
+and `./dbt test --update stem-export` is refused. Once a bisect proves the change intended, re-record by hand: run the
+gate, take the sha256 from its ST-RENDER line and the byte count from its ST-BYTES line, write them as
+`<sha256>  <bytes>` to tests/integration/checks/stem-export-<fixture>.sha256, and say in the commit why the audio
+moved.
 """
 
 import hashlib

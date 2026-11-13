@@ -309,6 +309,14 @@ class BaselineDeclarationTest(unittest.TestCase):
         self.assertLessEqual(self.CPP_OWNERS | set(self.NOT_OWNERS), names)
 
 
+class StemExportBaselineTest(unittest.TestCase):
+    def test_the_stem_export_declares_no_baseline(self):
+        """A red ST-RENDER is bisected, never re-recorded: `./dbt test --update` must refuse the entry."""
+        root = Path(__file__).resolve().parents[2]
+        stem = next(h for h in hr.load_registry(root) if h.name == "stem-export")
+        self.assertEqual(stem.baseline, [])
+
+
 class CorpusEntryTest(unittest.TestCase):
     CORPUS = """
 [[harness]]
