@@ -27,11 +27,14 @@
 #include "gui/ui/load/load_midi_device_definition_ui.h"
 #include "gui/ui/load/preset_navigation.h"
 #include "gui/ui/load/preset_walk.h"
+#include "gui/ui/notify_drain.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
+#include "gui/views/view.h"
 #include "hid/button.h"
+#include "hid/display/oled.h"
 #include "io/file.hpp"
 #include "libdeluge/audio_load.h"     // deluge_audio_load_set_latency_ms
 #include "libdeluge/file_bytes.h"     // deluge_file_bytes_set_latency_ms
@@ -304,9 +307,10 @@ constexpr uint32_t kNavReadHoldMs = 50;
 /// Run twice: on the walk itself, and then as turns of the clip's held grid pad, the second made with the first out and
 /// the third behind the pile's walk, so InstrumentLoad hands each pile its landing's wraps. A landing on an in-song
 /// instrument only happens where the walk passes them over, which is a turn from the session or arranger view (main's
-/// `Song::navigateThroughPresetsForInstrument`) or from the clip view on a clip with an arranger instance. There main's
-/// `Song::replaceInstrument` freezes with i009 on an instrument already in the song; ours leaves the clip on the kit
-/// it had, as a walk that found nowhere to go does, so the turns end with the clip still on kNavWrapFrom.
+/// `Song::navigateThroughPresetsForInstrument`); the clip view's turn goes through `View::changeInstrument`, which does
+/// not reach that freeze. There main's `Song::replaceInstrument` freezes with i009 on an instrument already in the
+/// song; ours leaves the clip on the kit it had, its name on the OLED and the working notice cleared, as a walk that
+/// found nowhere to go does, so the turns end with the clip still on kNavWrapFrom.
 constexpr const char* kNavWrapDir = "KITS/AQWRAP";
 constexpr int32_t kNavWrapCount = 5;
 constexpr const char* kNavWrapFrom = "WRAP4";
@@ -1716,12 +1720,34 @@ void checkNavWrapMachine() {
 	restoreNavWrapKits();
 }
 
+/// The OLED's main image, byte for byte.
+std::vector<uint8_t> oledMainImage() {
+	const auto& store = deluge::hid::display::OLED::main.hackGetImageStore();
+	const auto* bytes = &store[0][0];
+	return {bytes, bytes + sizeof(store)};
+}
+
 /// Check pile-wrapped-twice made by turns: the third turn was made behind the pile's walk, and the landing on the
-/// in-song kit left the clip on the kit it had.
+/// in-song kit left the clip on the kit it had, its name on the OLED and no working notice left up.
 void checkNavWrapTurned(const std::string& name) {
 	const bool stayed = name == kNavWrapFrom && g_aqClip->output != g_navWrapOther;
-	printf("AQ-NAV-PILE turns=pile-wrapped-twice-turned before=%s name=%s want=%s third-behind-walk=%d\n",
-	       g_aqNameBefore.c_str(), name.c_str(), kNavWrapFrom, g_navThirdBehindWalk ? 1 : 0);
+	// The notices the turn raised reach the display at the tick's drain, which may not have run yet.
+	drain_notifications();
+	const bool working = deluge::hid::display::OLED::isWorkingAnimationPresent();
+	// What the OLED shows, against what drawing the clip's own kit's name puts there.
+	const std::vector<uint8_t> shown = oledMainImage();
+	view.displayOutputName(g_aqClip->output, false);
+	const bool nameShown = shown == oledMainImage();
+	printf("AQ-NAV-PILE turns=pile-wrapped-twice-turned before=%s name=%s want=%s third-behind-walk=%d oled-name=%d "
+	       "working=%d\n",
+	       g_aqNameBefore.c_str(), name.c_str(), kNavWrapFrom, g_navThirdBehindWalk ? 1 : 0, nameShown ? 1 : 0,
+	       working ? 1 : 0);
+	if (!nameShown) {
+		aqFail("AQ-NAV-PILE", "the OLED did not show the name of the kit the clip stayed on");
+	}
+	if (working) {
+		aqFail("AQ-NAV-PILE", "the working notice was left up after the turn stayed where it was");
+	}
 	if (!g_navThirdBehindWalk) {
 		aqFail("AQ-NAV-PILE", "the third turn was not made behind the pile's walk");
 	}
