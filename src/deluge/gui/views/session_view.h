@@ -257,12 +257,15 @@ private:
 	void setupNewClip(Clip* newClip);
 
 	void gridStartSection(uint32_t section, bool instant);
+	// Swap the exclusively held section with its neighbour in the encoder's direction.
+	ActionResult gridMoveSection(int32_t offset);
 	void gridToggleClipPlay(Clip* clip, bool instant);
 
 	[[nodiscard]] const size_t gridTrackCount() const;
 	uint32_t gridClipCountForTrack(Output* track);
 	uint32_t gridTrackIndexFromTrack(Output* track, uint32_t maxTrack);
 	Output* gridTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack);
+	int32_t gridSectionRows() const;
 	int32_t gridYFromSection(uint32_t section);
 	int32_t gridSectionFromY(uint32_t y);
 	int32_t gridXFromTrack(uint32_t trackIndex);
