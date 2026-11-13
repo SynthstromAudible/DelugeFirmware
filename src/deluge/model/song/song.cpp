@@ -17,6 +17,7 @@
 
 #include "model/song/song.h"
 #include "definitions_cxx.hpp"
+#include "drivers/usb/usb_audio.h"
 #include "dsp/reverb/reverb.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
@@ -2522,9 +2523,17 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 
 		bool isClipActiveNow =
 		    (output->getActiveClip() && isClipActive(output->getActiveClip()->getClipBeingRecordedFrom()));
+		// A track routed to a multitrack USB bus renders into that instead of the main mix. Never while multitrack's
+		// off
+		std::span<StereoSample> destination = outputBuffer;
+		if (deluge::usb_audio::routingToTrackBuses) [[unlikely]] {
+			if (uint8_t bus = output->getUSBBus()) {
+				destination = deluge::usb_audio::trackBus(bus, outputBuffer.size());
+			}
+		}
 		ENTER_CRITICAL_SECTION();
 		if (output->shouldRenderInSong()) {
-			output->renderOutput(modelStack, outputBuffer, reverbBuffer, volumePostFX >> 1, sideChainHitPending,
+			output->renderOutput(modelStack, destination, reverbBuffer, volumePostFX >> 1, sideChainHitPending,
 			                     !isClipActiveNow, isClipActiveNow);
 		}
 		EXIT_CRITICAL_SECTION();
@@ -3552,6 +3561,9 @@ traverseClips:
 
 	newOutput->armedForRecording = oldOutput->armedForRecording;
 	oldOutput->armedForRecording = false;
+
+	newOutput->setUSBBus(oldOutput->getUSBBus());
+	oldOutput->setUSBBus(0);
 
 	retargetRecordingFromReferences(oldOutput, newOutput);
 
@@ -5306,6 +5318,9 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 
 	newOutput->armedForRecording = oldOutput->armedForRecording;
 	oldOutput->armedForRecording = false;
+
+	newOutput->setUSBBus(oldOutput->getUSBBus());
+	oldOutput->setUSBBus(0);
 
 	retargetRecordingFromReferences(oldOutput, newOutput);
 

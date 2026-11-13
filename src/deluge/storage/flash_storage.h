@@ -28,6 +28,9 @@
 #define PREVIEW_ON 2
 
 enum class Polarity : uint8_t;
+namespace deluge::usb_audio {
+enum class Mode : uint8_t;
+}
 namespace FlashStorage {
 
 extern uint8_t defaultScale;
@@ -90,9 +93,9 @@ extern Polarity defaultPatchCablePolarity;
 
 extern bool defaultUseSharps;
 
-/// Whether the Deluge offers USB audio to a computer, alongside USB MIDI. Read when USB starts up as a peripheral, at
-/// power-on - changing it takes effect after a restart
-extern bool usbAudioEnabled;
+/// Whether the Deluge offers USB audio to a computer, alongside USB MIDI, and in which configuration. Read when USB
+/// starts up as a peripheral, at power-on - changing it takes effect after a restart
+extern deluge::usb_audio::Mode usbAudioMode;
 
 void readSettings();
 void writeSettings();

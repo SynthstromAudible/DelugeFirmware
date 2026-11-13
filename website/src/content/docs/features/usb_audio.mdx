@@ -12,14 +12,21 @@ as a class-compliant audio device alongside its existing USB MIDI ports, so no d
 - play audio from your computer through the Deluge's outputs
 - record the Deluge's output into your computer
 - record and monitor audio from your computer in an audio clip, just like the line input
+- with the optional multitrack mode, record up to three stereo groups of tracks into your computer separately, as well
+  as the main mix, and send the Deluge two stereo streams back
 
 ## Format
 
-|             | From computer to Deluge | From Deluge to computer |
-| ----------- | ----------------------- | ----------------------- |
-| Channels    | 2 (stereo)              | 2 (stereo)              |
-| Sample rate | 44.1 kHz                | 44.1 kHz                |
-| Bit depth   | 24-bit                  | 24-bit                  |
+USB audio has two modes, chosen with `SETTINGS > USB AUDIO > MODE`:
+
+|             | Stereo (default)            | Multitrack                          |
+| ----------- | --------------------------- | ----------------------------------- |
+| To Deluge   | 2 channels (stereo), 24-bit | 4 channels (2 stereo pairs), 16-bit |
+| To computer | 2 channels (stereo), 24-bit | 8 channels (4 stereo pairs), 16-bit |
+| Sample rate | 44.1 kHz                    | 44.1 kHz                            |
+
+Multitrack uses 16-bit samples because the Deluge's USB port runs at full speed (12 Mbit/s), which only has room for
+8 channels to the computer and 4 back at 16-bit. See [Multitrack](#multitrack) below.
 
 The Deluge's own sample clock sets the rate for audio going to the computer. For audio coming from the computer, the
 Deluge offers two modes, and the computer picks whichever it supports:
@@ -44,16 +51,16 @@ The Deluge's USB MIDI ports keep working as before.
 
 USB audio's settings are in `SETTINGS > USB AUDIO` (`USBA` on 7SEG):
 
-| Setting   | 7SEG  | Options                                                     |
-| --------- | ----- | ----------------------------------------------------------- |
-| `ENABLED` | `ON`  | On (default), off                                           |
-| `INPUT`   | `IN`  | On (default), off - see below                               |
-| `OUTPUT`  | `OUT` | `MAIN MIX` (default, `MIX`), `LINE IN` (`LINE`) - see below |
+| Setting  | 7SEG   | Options                                                              |
+| -------- | ------ | -------------------------------------------------------------------- |
+| `MODE`   | `MODE` | `OFF`, `STEREO` (default, `STER`), `MULTITRACK` (`MULT`) - see below |
+| `INPUT`  | `IN`   | On (default), off - see below                                        |
+| `OUTPUT` | `OUT`  | `MAIN MIX` (default, `MIX`), `LINE IN` (`LINE`) - see below          |
 
-## Turning USB audio off
+## Turning USB audio off, or switching mode
 
-USB audio is on by default. To turn it off, set `SETTINGS > USB AUDIO > ENABLED` to off. The Deluge then connects to
-your computer as a USB MIDI device only, exactly as it did before USB audio was added.
+USB audio is on, in stereo, by default. To turn it off, set `SETTINGS > USB AUDIO > MODE` to `OFF`. The Deluge then
+connects to your computer as a USB MIDI device only, exactly as it did before USB audio was added.
 
 The setting takes effect the next time the Deluge is turned on, since your computer only finds out what kind of
 device the Deluge is when it first connects.
@@ -113,8 +120,50 @@ Monitoring follows the audio output mode, as for any other source (see
 
 Recording a sample from a synth or kit's sample menu still uses the line input only.
 
+## Multitrack
+
+With `SETTINGS > USB AUDIO > MODE` set to `MULTITRACK` (and the Deluge restarted), the computer receives 8 channels
+from the Deluge instead of 2:
+
+| Channels | What                                                                         |
+| -------- | ---------------------------------------------------------------------------- |
+| 1/2      | Whatever `SETTINGS > USB AUDIO > OUTPUT` is set to: the main mix, or line in |
+| 3/4      | USB bus 1: the tracks routed to `USB 3/4`                                    |
+| 5/6      | USB bus 2: the tracks routed to `USB 5/6`                                    |
+| 7/8      | USB bus 3: the tracks routed to `USB 7/8`                                    |
+
+The computer can also send the Deluge 4 channels instead of 2: two stereo inputs. Channels 1/2 are the usual USB
+input, and work exactly as in stereo mode. Channels 3/4 are a second one, `USB INPUT 3/4` (`USB2` on 7SEG), which an
+audio clip can choose as its `AUDIO SOURCE` too. `INPUT` mixes both straight into the Deluge's outputs, each unless an
+audio clip is monitoring it. A computer that only plays stereo to the Deluge sends just channels 1/2.
+
+`USB INPUT 3/4` is only in the `AUDIO SOURCE` menu in multitrack mode. A song using it, loaded in stereo mode, gets
+the stereo USB input instead.
+
+To route a track, open its menu - the synth's sound menu, the audio clip's sound menu, or, for a kit, the kit menu
+with affect entire on - and set `USB BUS` (`USBB` on 7SEG) at the end of it. It's only in the menu while the Deluge
+is in multitrack mode. It's set per track, so all of a track's clips share it, and it's saved with the song:
+
+- **`MAIN MIX`** (the default, `MIX`): the track plays through the Deluge as usual.
+- **`USB 3/4`**, **`USB 5/6`** or **`USB 7/8`** (`U34`, `U56`, `U78`): the track goes to that pair of channels
+  instead, and is taken out of the Deluge's main mix. Several tracks routed to the same bus are mixed together there.
+
+A track sent to a bus has its own volume, pan and effects, but not the song's effects or master volume - its level is
+the same as when recording the song's mix. A few more things to know:
+
+- A routed track's reverb send still goes to the Deluge's reverb, which is in the main mix. So the track arrives on
+  its bus dry, and its reverb arrives on channels 1/2.
+- A routed track isn't heard from the Deluge's own outputs. To hear it, monitor its channels in your DAW, or send them
+  back to the Deluge.
+- A routed track isn't in resampling or recordings of the Deluge's mix or output.
+- Stem export includes every track, wherever it's routed.
+- Songs remember each track's bus even in stereo mode, where it has no effect.
+- On Windows, multitrack shows up as an ordinary 8-channel (7.1) input and a 4-channel (quadraphonic) output. The
+  channels are really the stereo pairs above, whatever Windows calls them.
+
 ## Latency
 
 Audio from the computer is buffered by about 6 ms (256 samples) on the Deluge before it's played or recorded, which
-keeps it smooth when the Deluge is busy. Audio going to the computer is buffered by about 2 ms. Your computer adds its
+keeps it smooth when the Deluge is busy. Audio going to the computer is buffered by about 3 ms, which includes a
+spare packet that covers the Deluge being too busy to send one in time. Your computer adds its
 own buffering on top of both, which you can usually set in your DAW.

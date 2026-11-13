@@ -17,6 +17,7 @@
 
 #include "model/output.h"
 #include "definitions_cxx.hpp"
+#include "drivers/usb/usb_audio.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
@@ -269,6 +270,10 @@ bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, 
 		}
 		writer.writeAttribute("isArmedForRecording", armedForRecording);
 		writer.writeAttribute("activeModFunction", modKnobMode);
+		// Only when set, so a song that doesn't use it saves exactly as before
+		if (usbBus_ != 0) {
+			writer.writeAttribute("usbBus", usbBus_);
+		}
 
 		if (clipInstances.getNumElements()) {
 			writer.insertCommaIfNeeded();
@@ -343,6 +348,11 @@ bool Output::readTagFromFile(Deserializer& reader, char const* tagName) {
 
 	else if (!strcmp(tagName, "activeModFunction")) {
 		modKnobMode = reader.readTagOrAttributeValueInt();
+	}
+
+	else if (!strcmp(tagName, "usbBus")) {
+		int32_t bus = reader.readTagOrAttributeValueInt();
+		usbBus_ = (bus >= 0 && bus <= deluge::usb_audio::kNumTrackBuses) ? bus : 0;
 	}
 
 	else if (!strcmp(tagName, "colour")) {
