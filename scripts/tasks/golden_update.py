@@ -145,14 +145,26 @@ def remove(path: Path, item: str, env: Mapping[str, str] | None = None) -> bool:
     return True
 
 
+def _lock_path(path: Path, env: Mapping[str, str] | None) -> Path:
+    """The lock for `path`'s read-modify-write: under the update log's directory (untracked, set by the runner), named
+    by the baseline's resolved path, so a lock never lands beside a tracked file."""
+    log = _env(env).get(LOG)
+    if not log:
+        _refuse()
+    key = hashlib.sha1(str(path.resolve()).encode()).hexdigest()
+    return Path(log).resolve().parent / "locks" / f"{key}.lock"
+
+
 def _rewrite_json(path: Path, change, item: str, indent: int, env) -> int:
     """Apply `change(old) -> new` to the JSON object in `path`, write it as json.dumps(new, indent=indent,
     sort_keys=True) plus a newline, and report each key that changed. Returns how many did. Leaves the file alone when
     the object is unchanged, whatever its formatting. Gates running at once share a records file, so the read-modify-
-    write holds a lock on `<file>.lock`: the write replaces the file's inode, which a lock on the file itself would not
-    survive. The lock file stays."""
+    write holds a lock under the update log's directory (never beside the baseline): the write replaces the file's
+    inode, which a lock on the file itself would not survive."""
+    lock_path = _lock_path(path, env)
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path.with_name(path.name + ".lock"), "a") as lock:
+    with open(lock_path, "a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         text = path.read_text() if path.exists() else ""
         old = json.loads(text) if text else {}

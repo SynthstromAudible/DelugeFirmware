@@ -150,7 +150,7 @@ class WriterTest(unittest.TestCase):
         self.assertEqual(path.stat().st_mtime, 1)
 
     def test_parallel_key_updates_all_land(self):
-        path = self.dir / "songs.json"
+        path = self.dir / "tree" / "songs.json"
         threads = [
             threading.Thread(
                 target=gu.update_json_key,
@@ -167,10 +167,8 @@ class WriterTest(unittest.TestCase):
             sorted(json.loads(path.read_text())), sorted(f"S{i}" for i in range(16))
         )
         self.assertEqual(len(self.lines()), 16)
-        self.assertEqual(
-            sorted(p.name for p in self.dir.iterdir()),
-            ["log", "songs.json", "songs.json.lock"],
-        )
+        self.assertEqual([p.name for p in path.parent.iterdir()], ["songs.json"])
+        self.assertEqual(len(list((self.dir / "locks").iterdir())), 1)
 
 
 class RecordsTest(unittest.TestCase):
@@ -285,6 +283,11 @@ class ExactOutputTest(unittest.TestCase):
         self.assertEqual(path.read_text(), '{"a":"x"}')
         self.assertEqual(path.stat().st_mtime, 1)
         self.assertFalse(self.log.exists())
+
+    def test_json_updates_without_a_log_are_refused(self):
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            gu.write_json(self.dir / "f.json", {"a": 1}, "f.json", indent=1, env={})
+        self.assertEqual(list(self.dir.iterdir()), [])
 
     def test_concurrent_processes_append_whole_lines(self):
         procs = [
