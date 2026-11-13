@@ -206,7 +206,6 @@ struct ParamlessOwner final : GlobalEffectable {
 	~ParamlessOwner() override { endStutterIfStuttering(); }
 	[[nodiscard]] deluge::effects::ChainCore& core() override { return chain.core(); }
 	[[nodiscard]] const deluge::effects::ChainCore& core() const override { return chain.core(); }
-	[[nodiscard]] deluge::effects::Filter& filter() override { return chain.filter(); }
 	[[nodiscard]] deluge::model::ChainView& chainView() override { return view; }
 	[[nodiscard]] const deluge::model::ChainView& chainView() const override { return view; }
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& /*knob*/,

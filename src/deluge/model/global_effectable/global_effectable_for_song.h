@@ -28,10 +28,8 @@ public:
 	explicit GlobalEffectableForSong(deluge::model::MasterChannel& channel);
 	~GlobalEffectableForSong() override;
 
-	[[nodiscard]] deluge::effects::MasterChain& chain() { return channel_.chain(); }
 	[[nodiscard]] deluge::effects::ChainCore& core() override { return channel_.core(); }
 	[[nodiscard]] const deluge::effects::ChainCore& core() const override { return channel_.core(); }
-	[[nodiscard]] deluge::effects::Filter& filter() override { return channel_.filter(); }
 	[[nodiscard]] deluge::model::ChainView& chainView() override { return channel_.view(); }
 	[[nodiscard]] const deluge::model::ChainView& chainView() const override { return channel_.view(); }
 

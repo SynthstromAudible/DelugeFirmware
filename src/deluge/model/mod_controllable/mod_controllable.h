@@ -62,7 +62,6 @@ public:
 	virtual ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack);
 
 	virtual uint8_t* getModKnobMode(); // Return NULL if different modes not supported
-	virtual bool isKit() { return false; }
 	virtual bool isSong() { return false; }
 	virtual bool valueChangedEnoughToMatter(int32_t old_value, int32_t new_value, deluge::modulation::params::Kind kind,
 	                                        uint32_t paramID) {
@@ -82,11 +81,4 @@ public:
 	                                                      int32_t channelOrNoteNumber,
 	                                                      MIDICharacteristic whichCharacteristic) {}
 	virtual void monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) {}
-
-protected:
-	/// What kind of unpatched parameters this ModControllable uses.
-	///
-	/// This should be UNPATCHED_GLOBAL for GlobalEffectable and UNPATCHED_SOUND for Sound. If a new ModControllable
-	/// subclass is
-	deluge::modulation::params::Kind unpatchedParamKind_;
 };

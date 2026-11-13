@@ -88,9 +88,6 @@ public:
 	ActionResult modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
 	                                                 ModelStackWithAutoParam* modelStack,
 	                                                 const deluge::project::CompView& comp = {}) override;
-	/// @brief The chain's filters: a track chain's or the master's.
-	/// @return The filters.
-	[[nodiscard]] virtual deluge::effects::Filter& filter() = 0;
 	/// @brief Sets which value the mod FX knob and which filter the filter knobs edit, in the bound record while there
 	/// is one, and projects the render copy.
 	/// @param param Which mod FX value.

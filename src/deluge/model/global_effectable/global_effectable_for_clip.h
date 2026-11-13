@@ -34,10 +34,8 @@ public:
 	[[nodiscard]] virtual deluge::model::TrackChannel& channel() = 0;
 	[[nodiscard]] virtual const deluge::model::TrackChannel& channel() const = 0;
 
-	[[nodiscard]] deluge::effects::TrackChain& chain() { return channel().chain(); }
 	[[nodiscard]] deluge::effects::ChainCore& core() final { return channel().core(); }
 	[[nodiscard]] const deluge::effects::ChainCore& core() const final { return channel().core(); }
-	[[nodiscard]] deluge::effects::Filter& filter() final { return channel().filter(); }
 	[[nodiscard]] deluge::model::ChainView& chainView() final { return channel().view(); }
 	[[nodiscard]] const deluge::model::ChainView& chainView() const final { return channel().view(); }
 
@@ -45,7 +43,6 @@ public:
 	                     const deluge::project::CompView& comp = {}) final;
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack,
 	                            deluge::project::CompView* comp = nullptr) final;
-	virtual Output* toOutput() = 0;
 
 	/// @brief The two mod knobs a clip's global effectable lays out differently from the song's: the sidechain volume
 	/// (mode 4, upper) and the pitch adjust (mode 6, lower); nullopt for the others.

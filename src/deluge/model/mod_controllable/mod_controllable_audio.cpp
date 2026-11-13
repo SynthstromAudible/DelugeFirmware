@@ -119,10 +119,6 @@ void ModControllableAudio::initParams(ParamManager* paramManager, params::Kind d
 	                     params::UNPATCHED_SIDECHAIN_SHAPE, params::UNPATCHED_COMPRESSOR_THRESHOLD});
 }
 
-void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
-	writeAttributesToFile(writer, effects());
-}
-
 void ModControllableAudio::writeAttributesToFile(Serializer& writer, const deluge::effects::EffectStates& states) {
 	writer.writeValue(deluge::effects::encode_pieces(states, effectsCodecContext()).attributes);
 }
@@ -326,15 +322,6 @@ void ModControllableAudio::writeParamTagsToFile(Serializer& writer, ParamManager
                                                 int32_t* valuesForOverride) {
 	deluge::project::DocParamSet unpatched = deluge::bridge::toDocParamSet(*paramManager->getUnpatchedParamSet());
 	deluge::bridge::serializeModControllableParamTags(unpatched, writer, writeAutomation, valuesForOverride);
-}
-
-bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const* tagName,
-                                                ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
-	// Read the shared param block from the value DOM (deluge::project). The MCA block has no legacy-only tag names.
-	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
-	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
-	return deluge::bridge::readModControllableParamTag(reader, tagName, *unpatchedParams, *unpatchedParamsSummary,
-	                                                   readAutomationUpToPos);
 }
 
 // paramManager is optional
@@ -966,22 +953,6 @@ void ModControllableAudio::switchLPFMode() {
 	    effectWord(static_cast<FilterMode>((util::to_underlying(effects().filter.lpf_mode) + 1) % kNumLPFModes)));
 }
 
-// for future use with FM
-void ModControllableAudio::switchLPFModeWithOff() {
-	FilterMode mode = static_cast<FilterMode>((util::to_underlying(effects().filter.lpf_mode) + 1) % kNumLPFModes);
-	switch (mode) {
-	case FilterMode::OFF:
-		mode = FilterMode::TRANSISTOR_12DB;
-		break;
-	case lastLpfMode:
-		mode = FilterMode::OFF;
-		break;
-	default:
-		mode = static_cast<FilterMode>((util::to_underlying(mode) + 1));
-	}
-	deluge::edits::changeEffect(*this, "lpfMode", effectWord(mode));
-}
-
 char const* ModControllableAudio::getFilterModeDisplayName(FilterType currentFilterType) {
 	switch (currentFilterType) {
 	case FilterType::LPF:
@@ -1018,19 +989,6 @@ void ModControllableAudio::switchHPFMode() {
 	    *this, "hpfMode",
 	    effectWord(static_cast<FilterMode>((util::to_underlying(effects().filter.hpf_mode) + 1) % kNumHPFModes
 	                                       + kFirstHPFMode)));
-}
-
-// for future use with FM
-void ModControllableAudio::switchHPFModeWithOff() {
-	switch (effects().filter.hpf_mode) {
-	case FilterMode::OFF:
-		deluge::edits::changeEffect(*this, "hpfMode", effectWord(firstHPFMode));
-		break;
-	default:
-		deluge::edits::changeEffect(
-		    *this, "hpfMode",
-		    effectWord(static_cast<FilterMode>((util::to_underlying(effects().filter.hpf_mode) + 1))));
-	}
 }
 
 char const* ModControllableAudio::getHPFModeDisplayName() {

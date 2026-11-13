@@ -62,7 +62,6 @@ public:
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack,
 	                   PgmChangeSend maySendMIDIPGMs = PgmChangeSend::ONCE) override;
 	bool isSkippingRendering() override;
-	Output* toOutput() override { return this; }
 	[[nodiscard]] deluge::model::ReverbCandidate reverbCandidate(deluge::model::ReverbCandidate best) override;
 
 	// A TimelineCounter is required
