@@ -14,6 +14,36 @@ Page page(uint32_t section, uint32_t id, std::optional<uint32_t> lower, std::opt
 	p.slots[1].press = upper_press;
 	return p;
 }
+
+/// The song compressor's section: the reverb page (group 0, id 0), then a compressor page per setting (group 1).
+SectionPages comp_section(uint32_t current_id, uint32_t comp_entry) {
+	SectionPages out{.group_entry = {0, comp_entry}};
+	for (uint32_t id = 0; id < 4; id++) {
+		Page p = page(4, id, 100 + id, 1032, plugin::PressAction::TOGGLE_GROUP);
+		p.group = id == 0 ? 0 : 1;
+		p.slots[0].press = id == 0 ? plugin::PressAction::REVERB_PRESET : plugin::PressAction::NEXT_PAGE;
+		out.cycle.push_back(p);
+	}
+	out.current = out.cycle[current_id];
+	return out;
+}
+
+/// A mod FX section with the views @p ids, the lower slot moving each view's param and stepping to the next.
+SectionPages mod_fx_section(std::initializer_list<uint32_t> ids, Page current) {
+	SectionPages out{.current = current};
+	for (const uint32_t id : ids) {
+		Page p = page(5, id, 60 + id, 70);
+		p.slots[0].press = plugin::PressAction::NEXT_PAGE;
+		out.cycle.push_back(p);
+	}
+	return out;
+}
+
+Page mod_fx_view(uint32_t id) {
+	Page p = page(5, id, 60 + id, 70);
+	p.slots[0].press = plugin::PressAction::NEXT_PAGE;
+	return p;
+}
 } // namespace
 
 describe resolve("resolving a control", ${
@@ -36,7 +66,7 @@ describe resolve("resolving a control", ${
 		const Page eq = page(1, 2, 91, 92, plugin::PressAction::NEXT_PAGE);
 		const SectionPages pages{.current = lpf, .cycle = {lpf, hpf, eq}};
 		const Target t = resolve_press(KnobFocus{.owner = SongFocus{}}, pages, 1, true);
-		const auto& sel = std::get<SelectPage>(t);
+		const SelectPage sel = std::get<SelectPage>(t);
 		expect(sel.page_id).to_equal(1u);
 		expect(sel.slots[1].target->id.value).to_equal(30u);
 		expect(sel.slots[0].target->id.value).to_equal(12u);
@@ -46,7 +76,7 @@ describe resolve("resolving a control", ${
 		const Page lpf = page(1, 0, 11, 24, plugin::PressAction::NEXT_PAGE);
 		const Page hpf = page(1, 1, 12, 30, plugin::PressAction::NEXT_PAGE);
 		const SectionPages pages{.current = custom, .cycle = {lpf, hpf}};
-		const auto& sel = std::get<SelectPage>(resolve_press(KnobFocus{.owner = SongFocus{}}, pages, 1, true));
+		const SelectPage sel = std::get<SelectPage>(resolve_press(KnobFocus{.owner = SongFocus{}}, pages, 1, true));
 		expect(sel.slots[0].target->id.value).to_equal(47u);
 	});
 	it("begins a stutter on a press and ends it on the release", _{
@@ -59,6 +89,62 @@ describe resolve("resolving a control", ${
 	it("does nothing on a release except to end a hold or a CC select", _{
 		const SectionPages pages{.current = page(1, 0, 11, 24, plugin::PressAction::NEXT_PAGE)};
 		expect(std::holds_alternative<std::monostate>(resolve_press(KnobFocus{.owner = SongFocus{}}, pages, 1, false))).to_be_true();
+	});
+	it("enters the compressor group at its entry page, and toggles back to the reverb page", _{
+		const KnobFocus song{.owner = SongFocus{}};
+		const SelectPage in = std::get<SelectPage>(resolve_press(song, comp_section(0, 2), 1, true));
+		expect(in.page_id).to_equal(2u);
+		expect(in.slots[0].target->id.value).to_equal(102u);
+		const SelectPage out = std::get<SelectPage>(resolve_press(song, comp_section(2, 2), 1, true));
+		expect(out.page_id).to_equal(0u);
+		expect(out.slots[0].target->id.value).to_equal(100u);
+	});
+	it("steps the slot's setting on the focused owner, in its clip", _{
+		const KnobFocus focus{.owner = SoundFocus{.slot = {project::SlotAddress::Kind::OUTPUT, 7},
+		                                          .clip = project::ClipAddress{12}}};
+		Page p = page(3, 0, 20, 21);
+		p.slots[0].press = plugin::PressAction::STEP_SETTING;
+		p.slots[0].press_param = plugin::ParamId{1025};
+		const StepSetting step = std::get<StepSetting>(resolve_press(focus, SectionPages{.current = p}, 0, true));
+		expect(step.address.owner == project::OwnerId::instrument(7)).to_be_true();
+		expect(step.address.space == project::ParamSpace::ENGINE).to_be_true();
+		expect(step.address.id.value).to_equal(1025u);
+		expect(step.address.clip_id == std::optional<uint32_t>{12}).to_be_true();
+	});
+	it("selects a MIDI knob's CC on a press, and ends the selection on the release", _{
+		const KnobFocus focus{.owner = MidiFocus{.track = {5}, .clip = project::ClipAddress{9}}};
+		Page p = page(0, 0, std::nullopt, 74);
+		p.slots[1].press = plugin::PressAction::MIDI_CC_SELECT;
+		const SectionPages pages{.current = p};
+		expect(std::get<HostCommand>(resolve_press(focus, pages, 1, true)) == HostCommand::MIDI_CC_SELECT_ON).to_be_true();
+		expect(std::get<HostCommand>(resolve_press(focus, pages, 1, false)) == HostCommand::MIDI_CC_SELECT_OFF).to_be_true();
+	});
+	it("moves to the next reverb preset", _{
+		const KnobFocus song{.owner = SongFocus{}};
+		expect(std::get<HostCommand>(resolve_press(song, comp_section(0, 1), 0, true)) == HostCommand::REVERB_PRESET).to_be_true();
+	});
+	it("walks a group's pages, skipping another group's", _{
+		const KnobFocus song{.owner = SongFocus{}};
+		const SelectPage next = std::get<SelectPage>(resolve_press(song, comp_section(1, 1), 0, true));
+		expect(next.page_id).to_equal(2u);
+		expect(next.slots[0].target->id.value).to_equal(102u);
+	});
+	it("wraps from a group's last page to its first, past another group's page", _{
+		const KnobFocus song{.owner = SongFocus{}};
+		const SelectPage next = std::get<SelectPage>(resolve_press(song, comp_section(3, 1), 0, true));
+		expect(next.page_id).to_equal(1u);
+		expect(next.slots[0].target->id.value).to_equal(101u);
+	});
+	it("moves from a page not in the cycle to the first one after it, by page id", _{
+		const KnobFocus song{.owner = SongFocus{}};
+		const SelectPage after = std::get<SelectPage>(resolve_press(song, mod_fx_section({1, 2}, mod_fx_view(0)), 0, true));
+		expect(after.page_id).to_equal(1u);
+		expect(after.slots[0].target->id.value).to_equal(61u);
+		const SelectPage wrapped = std::get<SelectPage>(resolve_press(song, mod_fx_section({0, 2}, mod_fx_view(1)), 0, true));
+		expect(wrapped.page_id).to_equal(2u);
+		const SelectPage round = std::get<SelectPage>(resolve_press(song, mod_fx_section({0}, mod_fx_view(1)), 0, true));
+		expect(round.page_id).to_equal(0u);
+		expect(round.slots[0].target->id.value).to_equal(60u);
 	});
 });
 // clang-format on

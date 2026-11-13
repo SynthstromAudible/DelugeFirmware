@@ -78,6 +78,22 @@ std::optional<project::ParamAddress> knob_owner(const KnobFocus& focus) {
 	return std::nullopt;
 }
 
+std::optional<project::KnobModeOwner> knob_mode_owner(const KnobFocus& focus) {
+	if (std::holds_alternative<SongFocus>(focus.owner)) {
+		return project::SongAddress{};
+	}
+	if (const auto* sound = std::get_if<SoundFocus>(&focus.owner)) {
+		return project::TrackAddress{sound->kit.value_or(sound->slot.id)};
+	}
+	if (const auto* chain = std::get_if<ChainFocus>(&focus.owner)) {
+		return project::TrackAddress{chain->chain.id};
+	}
+	if (const auto* midi = std::get_if<MidiFocus>(&focus.owner)) {
+		return midi->track;
+	}
+	return std::nullopt;
+}
+
 uint8_t knob_mode(const project::Song& song, const KnobFocus& focus) {
 	if (std::holds_alternative<SongFocus>(focus.owner)) {
 		return capped(song.mod_knob_mode);

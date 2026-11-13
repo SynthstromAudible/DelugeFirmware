@@ -78,7 +78,8 @@ using Target = std::variant<std::monostate, ParamWrite, StepSetting, SelectPage,
 /// @param on    True for the press, false for the release.
 /// @return The slot's press action resolved: a release ends a hold or a CC select and does nothing else. NEXT_PAGE
 ///         moves the pressed slot to the section's next page of its group, and with it each other slot still on the
-///         page the pressed one was found on; TOGGLE_GROUP enters the other group at its entry page.
+///         page the pressed one was found on; from a current page the cycle lacks, it moves to the group's first page
+///         whose id follows the current one's, wrapping round. TOGGLE_GROUP enters the other group at its entry page.
 [[nodiscard]] Target resolve_press(const KnobFocus& focus, const SectionPages& pages, int32_t slot, bool on);
 
 } // namespace deluge::controls

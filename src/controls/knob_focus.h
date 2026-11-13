@@ -97,6 +97,10 @@ struct KnobFocus {
 /// @return None for no focus, or a MIDI track with no clip.
 [[nodiscard]] std::optional<project::ParamAddress> knob_owner(const KnobFocus& focus);
 
+/// @brief Whose gold-knob mode @p focus's knobs follow: the song's, or a track's (a kit row's kit's).
+/// @return None for no focus.
+[[nodiscard]] std::optional<project::KnobModeOwner> knob_mode_owner(const KnobFocus& focus);
+
 /// @brief The mod button the gold knobs of @p focus follow, from @p song's records: the song's, an output's, a kit
 ///        row's kit's. Past the last button, the last.
 /// @return The mode; 0 for no focus.

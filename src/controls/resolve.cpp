@@ -35,6 +35,29 @@ const Slot* slot_at(const SectionPages& pages, int32_t slot) {
 	return &pages.current.slots[static_cast<size_t>(slot)];
 }
 
+/// The cycle's first page of the current page's group whose id follows the current page's, wrapping round: where a
+/// press goes from a page the cycle lacks (a mod FX view its type has no param for). Every slot moves to it.
+Target following_page(const SectionPages& pages) {
+	const Page* first = nullptr;
+	const Page* after = nullptr;
+	for (const Page& p : pages.cycle) {
+		if (p.group != pages.current.group) {
+			continue;
+		}
+		if (first == nullptr || p.page_id < first->page_id) {
+			first = &p;
+		}
+		if (p.page_id > pages.current.page_id && (after == nullptr || p.page_id < after->page_id)) {
+			after = &p;
+		}
+	}
+	const Page* to = after != nullptr ? after : first;
+	if (to == nullptr) {
+		return {};
+	}
+	return SelectPage{.section = pages.current.section, .page_id = to->page_id, .slots = to->slots};
+}
+
 /// The page after the one holding the current page's slot @p k, in its group: the pressed slot moves to it, and each
 /// other slot that sits where the found page has it moves with it. A slot the user mapped elsewhere stays.
 Target next_page(const SectionPages& pages, size_t k) {
@@ -45,7 +68,7 @@ Target next_page(const SectionPages& pages, size_t k) {
 	}
 	const auto found = std::ranges::find_if(cycle, [&](const Page& p) { return p.slots[k].target == pressed; });
 	if (found == cycle.end()) {
-		return {};
+		return following_page(pages);
 	}
 	const auto i = static_cast<size_t>(found - cycle.begin());
 	size_t j = i;
