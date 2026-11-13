@@ -220,11 +220,17 @@ LIBRARIES: dict[str, Library] = {
             "foundation/panic.h",
         ),
     ),
+    "controls": Library(
+        REPO / "src" / "controls",
+        "controls/",
+        ("deluge-project/", "plugin-api/", "serialization/", "foundation/panic.h"),
+    ),
     "scenes-bind": Library(
         REPO / "src" / "scenes" / "bind",
         "scenes/bind/",
         (
             "deluge-project/",
+            "controls/",
             "plugin-api/",
             "instruments/deluge/",
             "effects/",

@@ -1008,7 +1008,7 @@ void AutomationEditorLayoutModControllable::updateAutomationModPosition(ModelSta
 			if (modelStack->getTimelineCounter() == View::KnobStack{view}.counter()) {
 
 				if (const std::optional<deluge::project::ParamAddress> owner =
-				        deluge::project::knob_owner(view.knobFocus())) {
+				        deluge::controls::knob_owner(view.knobFocus())) {
 					(void)deluge::bridge::grabRegionAt(*currentSong, *owner, squareStart);
 				}
 

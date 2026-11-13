@@ -356,7 +356,7 @@ public:
 
 	/// @brief Test that the keys in this array are sorted in ascending order. Used in assert-like fashion.
 	/// @param errorCode Code passed to FREEZE_WITH_ERROR when the order is broken (debug builds only).
-	void testSequentiality(char const* errorCode) const {
+	void testSequentiality([[maybe_unused]] char const* errorCode) const {
 #if !defined(NDEBUG)
 		int32_t lastKey = -2147483648;
 		for (int32_t i = 0; i < static_cast<int32_t>(elements_.size()); i++) {

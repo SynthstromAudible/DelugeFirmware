@@ -1,18 +1,18 @@
 #pragma once
 
-#include "deluge-project/knob_focus.h"
+#include "controls/knob_focus.h"
 #include "scenes/bind/target.h"
 
 namespace deluge::scenes::bind {
 
-using project::ChainFocus;
-using project::CompView;
-using project::knob_mode;
-using project::knob_owner;
-using project::KnobFocus;
-using project::MidiFocus;
-using project::ModRegion;
-using project::SongFocus;
-using project::SoundFocus;
+using controls::ChainFocus;
+using controls::CompView;
+using controls::knob_mode;
+using controls::knob_owner;
+using controls::KnobFocus;
+using controls::MidiFocus;
+using controls::ModRegion;
+using controls::SongFocus;
+using controls::SoundFocus;
 
 } // namespace deluge::scenes::bind

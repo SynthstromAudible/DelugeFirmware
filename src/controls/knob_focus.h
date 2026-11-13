@@ -32,8 +32,10 @@
 #include <variant>
 
 namespace deluge::project {
-
 class Song;
+} // namespace deluge::project
+
+namespace deluge::controls {
 
 /// @brief Which kind of output holds a chain: the model's ChainAddress cannot tell a kit from an audio track.
 enum class ChainOwner : uint8_t { KIT, AUDIO_TRACK, SONG };
@@ -45,25 +47,25 @@ struct SongFocus {
 
 /// @brief The gold knobs on a sound: a synth track's, or a kit row's (with its kit, whose mode the row's knobs use).
 struct SoundFocus {
-	SlotAddress slot;
-	std::optional<ClipAddress> clip;   ///< none for an arranger row with no clip
-	std::optional<NoteRowAddress> row; ///< a kit row's note row in the clip
-	std::optional<uint32_t> kit;       ///< a kit row's kit, by output id
+	project::SlotAddress slot;
+	std::optional<project::ClipAddress> clip;   ///< none for an arranger row with no clip
+	std::optional<project::NoteRowAddress> row; ///< a kit row's note row in the clip
+	std::optional<uint32_t> kit;                ///< a kit row's kit, by output id
 	bool operator==(const SoundFocus&) const = default;
 };
 
 /// @brief The gold knobs on a host chain: a kit's with affect-entire, or an audio track's.
 struct ChainFocus {
-	ChainAddress chain;
+	project::ChainAddress chain;
 	ChainOwner owner{ChainOwner::KIT};
-	std::optional<ClipAddress> clip; ///< none for an arranger row with no clip
+	std::optional<project::ClipAddress> clip; ///< none for an arranger row with no clip
 	bool operator==(const ChainFocus&) const = default;
 };
 
 /// @brief The gold knobs on a MIDI track, which send the CCs its knobs name.
 struct MidiFocus {
-	TrackAddress track;
-	std::optional<ClipAddress> clip; ///< none: the knobs have no param to move
+	project::TrackAddress track;
+	std::optional<project::ClipAddress> clip; ///< none: the knobs have no param to move
 	bool operator==(const MidiFocus&) const = default;
 };
 
@@ -93,11 +95,11 @@ struct KnobFocus {
 
 /// @brief The owner @p focus's knobs move params of, as an address with no param: its owner id and clip id.
 /// @return None for no focus, or a MIDI track with no clip.
-[[nodiscard]] std::optional<ParamAddress> knob_owner(const KnobFocus& focus);
+[[nodiscard]] std::optional<project::ParamAddress> knob_owner(const KnobFocus& focus);
 
 /// @brief The mod button the gold knobs of @p focus follow, from @p song's records: the song's, an output's, a kit
 ///        row's kit's. Past the last button, the last.
 /// @return The mode; 0 for no focus.
-[[nodiscard]] uint8_t knob_mode(const Song& song, const KnobFocus& focus);
+[[nodiscard]] uint8_t knob_mode(const project::Song& song, const KnobFocus& focus);
 
-} // namespace deluge::project
+} // namespace deluge::controls

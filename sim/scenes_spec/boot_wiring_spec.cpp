@@ -393,7 +393,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 		expect(view.knobFocus().vu_meter).to_be_true();
 
 		view.setModRegion(96, 48, 0);
-		expect(knobs->focus().region == deluge::project::ModRegion{.pos = 96, .length = 48}).to_be_true();
+		expect(knobs->focus().region == deluge::controls::ModRegion{.pos = 96, .length = 48}).to_be_true();
 
 		view.setModRegion();
 		view.knobFocus().vu_meter = false;

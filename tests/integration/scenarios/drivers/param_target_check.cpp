@@ -20,8 +20,8 @@
 // its recorded characterisation holds.
 // Exit: 0 agree; 3 a check disagrees (each printed).
 
+#include "controls/knob_focus.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/knob_focus.h"
 #include "deluge-project/song.h"
 #include "effects/global_effectable/params.h"
 #include "gui/views/automation_view.h"
@@ -470,7 +470,7 @@ void checkChainCells(Checker& check) {
 		}
 		else {
 			focus.owner = bind::ChainFocus{.chain = {.kind = project::ChainAddress::Kind::OUTPUT, .id = kKit},
-			                               .owner = project::ChainOwner::KIT,
+			                               .owner = controls::ChainOwner::KIT,
 			                               .clip = project::ClipAddress{.clip_id = kClip}};
 		}
 		project::FxChain& chain = isSong ? song->master_effects : *output.effects;

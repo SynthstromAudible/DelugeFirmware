@@ -15,13 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "deluge-project/knob_focus.h"
+#include "controls/knob_focus.h"
 
 #include "deluge-project/song.h"
 
 #include <algorithm>
 
-namespace deluge::project {
+namespace deluge::controls {
 
 namespace {
 
@@ -38,10 +38,10 @@ std::optional<uint32_t> mode_output(const KnobFocus& focus) {
 		if (sound->kit) {
 			return sound->kit;
 		}
-		return sound->slot.kind == SlotAddress::Kind::OUTPUT ? std::optional{sound->slot.id} : std::nullopt;
+		return sound->slot.kind == project::SlotAddress::Kind::OUTPUT ? std::optional{sound->slot.id} : std::nullopt;
 	}
 	if (const auto* chain = std::get_if<ChainFocus>(&focus.owner)) {
-		return chain->chain.kind == ChainAddress::Kind::OUTPUT ? std::optional{chain->chain.id} : std::nullopt;
+		return chain->chain.kind == project::ChainAddress::Kind::OUTPUT ? std::optional{chain->chain.id} : std::nullopt;
 	}
 	if (const auto* midi = std::get_if<MidiFocus>(&focus.owner)) {
 		return midi->track.output_id;
@@ -51,40 +51,42 @@ std::optional<uint32_t> mode_output(const KnobFocus& focus) {
 
 } // namespace
 
-std::optional<ParamAddress> knob_owner(const KnobFocus& focus) {
-	const auto clip_id = [](const std::optional<ClipAddress>& clip) {
+std::optional<project::ParamAddress> knob_owner(const KnobFocus& focus) {
+	const auto clip_id = [](const std::optional<project::ClipAddress>& clip) {
 		return clip ? std::optional{clip->clip_id} : std::nullopt;
 	};
 	if (std::holds_alternative<SongFocus>(focus.owner)) {
-		return ParamAddress{.owner = OwnerId::song()};
+		return project::ParamAddress{.owner = project::OwnerId::song()};
 	}
 	if (const auto* sound = std::get_if<SoundFocus>(&focus.owner)) {
-		return ParamAddress{.owner = sound->slot.kind == SlotAddress::Kind::DRUM ? OwnerId::drum(sound->slot.id)
-		                                                                         : OwnerId::instrument(sound->slot.id),
-		                    .clip_id = clip_id(sound->clip)};
+		return project::ParamAddress{.owner = sound->slot.kind == project::SlotAddress::Kind::DRUM
+		                                          ? project::OwnerId::drum(sound->slot.id)
+		                                          : project::OwnerId::instrument(sound->slot.id),
+		                             .clip_id = clip_id(sound->clip)};
 	}
 	if (const auto* chain = std::get_if<ChainFocus>(&focus.owner)) {
 		if (chain->owner == ChainOwner::AUDIO_TRACK) {
-			return ParamAddress{.owner = chain->clip ? OwnerId::clip(chain->clip->clip_id)
-			                                         : OwnerId::instrument(chain->chain.id)};
+			return project::ParamAddress{.owner = chain->clip ? project::OwnerId::clip(chain->clip->clip_id)
+			                                                  : project::OwnerId::instrument(chain->chain.id)};
 		}
-		return ParamAddress{.owner = OwnerId::instrument(chain->chain.id), .clip_id = clip_id(chain->clip)};
+		return project::ParamAddress{.owner = project::OwnerId::instrument(chain->chain.id),
+		                             .clip_id = clip_id(chain->clip)};
 	}
 	if (const auto* midi = std::get_if<MidiFocus>(&focus.owner); midi != nullptr && midi->clip) {
-		return ParamAddress{.owner = OwnerId::clip(midi->clip->clip_id)};
+		return project::ParamAddress{.owner = project::OwnerId::clip(midi->clip->clip_id)};
 	}
 	return std::nullopt;
 }
 
-uint8_t knob_mode(const Song& song, const KnobFocus& focus) {
+uint8_t knob_mode(const project::Song& song, const KnobFocus& focus) {
 	if (std::holds_alternative<SongFocus>(focus.owner)) {
 		return capped(song.mod_knob_mode);
 	}
 	if (const std::optional<uint32_t> id = mode_output(focus)) {
-		const DocOutput* output = song.output_structure.find(*id);
+		const project::DocOutput* output = song.output_structure.find(*id);
 		return output != nullptr ? capped(output->mod_knob_mode) : 0;
 	}
 	return 0;
 }
 
-} // namespace deluge::project
+} // namespace deluge::controls

@@ -3392,7 +3392,7 @@ bool Sound::envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramMana
 }
 
 void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
-                            const deluge::project::CompView& comp) {
+                            const deluge::controls::CompView& comp) {
 	endStutter(paramManager);
 
 	int32_t modKnobMode = *getModKnobMode();
@@ -3444,7 +3444,7 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 
 ModelStackWithAutoParam* Sound::getParamFromModEncoder(int32_t whichModEncoder,
                                                        ModelStackWithThreeMainThings* modelStack, bool allowCreation,
-                                                       const deluge::project::CompView& comp) {
+                                                       const deluge::controls::CompView& comp) {
 
 	// If setting up a macro by holding its encoder down, the knobs will represent macro control-amounts rather than
 	// actual "params", so there's no "param".
@@ -3494,7 +3494,7 @@ ModelStackWithAutoParam* Sound::getParamFromModEncoderDeeper(int32_t whichModEnc
 }
 
 bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack,
-                                   deluge::project::CompView* comp) {
+                                   deluge::controls::CompView* comp) {
 	// A knob it cycled is recorded by its caller, through the knobs' Edit.
 	return modEncoderButtonActionImpl(whichModEncoder, on, modelStack);
 }

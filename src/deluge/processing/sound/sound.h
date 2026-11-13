@@ -381,9 +381,9 @@ public:
 	void setupAsBlankSynth(ParamManager* paramManager, bool is_dx = false);
 	void setupAsDefaultSynth(ParamManager* paramManager);
 	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
-	                     const deluge::project::CompView& comp = {}) final;
+	                     const deluge::controls::CompView& comp = {}) final;
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack,
-	                            deluge::project::CompView* comp = nullptr) final;
+	                            deluge::controls::CompView* comp = nullptr) final;
 	// The real body; the override above wraps it to re-seed the modKnobs record after any in-place reassignment,
 	// so this function's many early returns need no re-seed of their own.
 	bool modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack);
@@ -410,7 +410,7 @@ public:
 	// void channelAftertouchReceivedFromInputMIDIChannel(int32_t newValue);
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                                                bool allowCreation,
-	                                                const deluge::project::CompView& comp = {}) final;
+	                                                const deluge::controls::CompView& comp = {}) final;
 	void reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, bool shouldJustCutModFX = false);
 	/// @brief The reverb's auto duck's search past this sound: its send, when @p paramManager holds one unautomated and
 	/// it beats @p best; then how it ducks the return.

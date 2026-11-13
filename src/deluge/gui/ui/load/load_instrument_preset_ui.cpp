@@ -553,7 +553,7 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		// on to the preset that replaced it.
 		const std::optional<uint32_t> defaultSynth =
 		    currentSong->blankPresetInstrument != nullptr ? currentSong->blankPresetInstrument->id() : std::nullopt;
-		const auto* knobs = std::get_if<deluge::project::SoundFocus>(&view.knobFocus().owner);
+		const auto* knobs = std::get_if<deluge::controls::SoundFocus>(&view.knobFocus().owner);
 		const bool knobsOnDefault = knobs != nullptr && defaultSynth
 		                            && knobs->slot.kind == deluge::project::SlotAddress::Kind::OUTPUT
 		                            && knobs->slot.id == *defaultSynth;

@@ -138,7 +138,7 @@ fn archive_app_objects(
         panic!(
             "C++ app objects not found at {}. Build them first:\n  \
              cmake --build {} --target deluge_app eyalroz_printf \
-             deluge_dsp deluge_dsp_fixed deluge_dsp_float deluge_synth deluge_foundation deluge_serialization deluge_music_theory deluge_project deluge_instrument deluge_effects deluge_midi \
+             deluge_dsp deluge_dsp_fixed deluge_dsp_float deluge_synth deluge_foundation deluge_serialization deluge_music_theory deluge_project deluge_controls deluge_instrument deluge_effects deluge_midi \
              deluge_gfx_oled deluge_gfx_grid deluge_ui_core deluge_ui_oled deluge_ui_grid deluge_ui_shell \
              deluge_notify deluge_scenes deluge_scenes_bind",
             app_objs_dir.display(),
@@ -187,7 +187,7 @@ fn archive_app_objects(
 /// Emits the app archive and its static libraries as one `--start-group`, because the references
 /// are mutual: the C++ app calls the `deluge_*` services, and this crate calls `deluge_app_init`.
 fn link_app_closure(build_dir: &Path, cfg: &str, app_archives: &[PathBuf]) {
-    let deps: [(&str, &str); 21] = [
+    let deps: [(&str, &str); 22] = [
         ("src/lib", "libeyalroz_printf.a"),
         ("src/deluge/dsp", "libdeluge_dsp.a"),
         ("src/deluge/dsp-next", "libdeluge-dsp-fixed.a"),
@@ -197,6 +197,7 @@ fn link_app_closure(build_dir: &Path, cfg: &str, app_archives: &[PathBuf]) {
         ("src/serialization", "libdeluge_serialization.a"),
         ("src/music-theory", "libdeluge_music_theory.a"),
         ("src/deluge-project", "libdeluge_project.a"),
+        ("src/controls", "libdeluge_controls.a"),
         ("src/instruments/deluge", "libdeluge_instrument.a"),
         ("src/effects", "libdeluge_effects.a"),
         ("src/midi", "libdeluge_midi.a"),

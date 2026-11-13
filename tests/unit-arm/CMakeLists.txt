@@ -29,6 +29,7 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../plugin-api plugin-api)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../effects effects)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../instruments instruments)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../model model)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../controls controls)
 
 # dsp-next specs on real ARM NEON (run via qemu). DSP_SPEC_ARM tells the shared
 # tests/dsp build to skip the x86/SIMDe setup. Same specs as the x86 test project.

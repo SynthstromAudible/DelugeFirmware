@@ -91,6 +91,7 @@ HOST_APP_TARGETS = [
     "deluge_serialization",
     "deluge_music_theory",
     "deluge_project",
+    "deluge_controls",
     "deluge_instrument",
     "deluge_effects",
     "deluge_midi",

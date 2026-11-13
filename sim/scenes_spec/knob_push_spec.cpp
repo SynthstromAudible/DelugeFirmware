@@ -76,7 +76,7 @@ struct Side {
 	std::function<void()> point_view; ///< points legacy's view at the owner, which its knob names read
 	bind::KnobFocus focus;
 	KnobModeOwner mode_owner;
-	deluge::project::CompView comp{}; ///< the engine side's compressor view, which its pushes move
+	deluge::controls::CompView comp{}; ///< the engine side's compressor view, which its pushes move
 };
 
 /// @brief What a push leaves that the two sides are compared on.

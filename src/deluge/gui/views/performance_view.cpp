@@ -102,7 +102,7 @@ void syncEditingModeMirror(const PerformanceView& v) {
 
 /// Are the gold knobs on the song, which the performance view's columns act on?
 bool knobsOnSong() {
-	return std::holds_alternative<deluge::project::SongFocus>(view.knobFocus().owner);
+	return std::holds_alternative<deluge::controls::SongFocus>(view.knobFocus().owner);
 }
 
 /// @p paramID of @p kind's name, as the song's filter modes name it.

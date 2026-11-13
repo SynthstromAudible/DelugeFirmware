@@ -45,6 +45,7 @@ LIBRARIES = {
     "src/instruments/deluge/": "/instruments/deluge/",
     "src/plugin-api/": "/dsp-next/",  # header-only: any library's flags see it
     "src/serialization/": "/serialization/",
+    "src/controls/": "/controls/",
 }
 SOURCE_SUFFIXES = {".cpp", ".cc", ".cxx"}
 HEADER_SUFFIXES = {".h", ".hpp", ".hh"}

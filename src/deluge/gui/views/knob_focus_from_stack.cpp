@@ -17,7 +17,7 @@ std::optional<project::ClipAddress> clipAddressOf(const ::Clip* clip) {
 }
 
 /// The focus on @p output's own mod controllable, in @p clip (none for an arranger row).
-project::KnobFocus outputFocus(::Output& output, const ::Clip* clip) {
+controls::KnobFocus outputFocus(::Output& output, const ::Clip* clip) {
 	if (!output.id()) {
 		return {};
 	}
@@ -25,27 +25,28 @@ project::KnobFocus outputFocus(::Output& output, const ::Clip* clip) {
 	const std::optional<project::ClipAddress> at = clipAddressOf(clip);
 	switch (output.type) {
 	case OutputType::SYNTH:
-		return {.owner = project::SoundFocus{.slot = {project::SlotAddress::Kind::OUTPUT, id}, .clip = at}};
+		return {.owner = controls::SoundFocus{.slot = {project::SlotAddress::Kind::OUTPUT, id}, .clip = at}};
 	case OutputType::KIT:
-		return {.owner = project::ChainFocus{
-		            .chain = {project::ChainAddress::Kind::OUTPUT, id}, .owner = project::ChainOwner::KIT, .clip = at}};
+		return {.owner = controls::ChainFocus{.chain = {project::ChainAddress::Kind::OUTPUT, id},
+		                                      .owner = controls::ChainOwner::KIT,
+		                                      .clip = at}};
 	case OutputType::AUDIO:
-		return {.owner = project::ChainFocus{.chain = {project::ChainAddress::Kind::OUTPUT, id},
-		                                     .owner = project::ChainOwner::AUDIO_TRACK,
-		                                     .clip = at}};
+		return {.owner = controls::ChainFocus{.chain = {project::ChainAddress::Kind::OUTPUT, id},
+		                                      .owner = controls::ChainOwner::AUDIO_TRACK,
+		                                      .clip = at}};
 	case OutputType::MIDI_OUT:
-		return {.owner = project::MidiFocus{.track = project::TrackAddress{id}, .clip = at}};
+		return {.owner = controls::MidiFocus{.track = project::TrackAddress{id}, .clip = at}};
 	default: // a CV track's knobs move nothing
 		return {};
 	}
 }
 
 /// The focus on the sound drum @p drum of @p kit, in @p clip.
-project::KnobFocus drumFocus(::Kit& kit, ::SoundDrum& drum, const ::Clip* clip) {
+controls::KnobFocus drumFocus(::Kit& kit, ::SoundDrum& drum, const ::Clip* clip) {
 	if (!drum.id() || !kit.id()) {
 		return {};
 	}
-	project::SoundFocus sound{.slot = {project::SlotAddress::Kind::DRUM, *drum.id()}, .kit = *kit.id()};
+	controls::SoundFocus sound{.slot = {project::SlotAddress::Kind::DRUM, *drum.id()}, .kit = *kit.id()};
 	if (clip != nullptr) {
 		sound.clip = project::ClipAddress{clip->id()};
 		sound.row = project::NoteRowAddress{clip->id(), true, static_cast<int32_t>(*drum.id())};
@@ -55,8 +56,8 @@ project::KnobFocus drumFocus(::Kit& kit, ::SoundDrum& drum, const ::Clip* clip) 
 
 } // namespace
 
-project::KnobFocus knobFocusFromStack(::Song& song, const ModelStackWithThreeMainThings& stack) {
-	project::KnobFocus focus;
+controls::KnobFocus knobFocusFromStack(::Song& song, const ModelStackWithThreeMainThings& stack) {
+	controls::KnobFocus focus;
 	ModControllable* controllable = stack.modControllable;
 	if (controllable != nullptr && controllable != static_cast<ModControllable*>(&song.live.global_effectable)) {
 		TimelineCounter* counter = stack.getTimelineCounterAllowNull();
@@ -88,7 +89,7 @@ project::KnobFocus knobFocusFromStack(::Song& song, const ModelStackWithThreeMai
 		}
 	}
 	else if (controllable != nullptr) {
-		focus.owner = project::SongFocus{};
+		focus.owner = controls::SongFocus{};
 	}
 	return focus;
 }

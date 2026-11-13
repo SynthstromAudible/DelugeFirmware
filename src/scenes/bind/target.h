@@ -4,10 +4,10 @@
 /// @brief What a menu node edits and where: a target named by the engines' descriptors, and the addresses it
 /// resolves against, never an engine object.
 
+#include "controls/knob_focus.h"
 #include "deluge-project/clip_address.h"
 #include "deluge-project/fx_chain.h"
 #include "deluge-project/instrument_slot.h"
-#include "deluge-project/knob_focus.h"
 #include "deluge-project/note_address.h"
 #include "deluge-project/param_address.h"
 #include "deluge-project/setting_group.h"
@@ -97,7 +97,7 @@ struct Target {
 	}
 };
 
-using project::ChainOwner;
+using controls::ChainOwner;
 
 /// @brief Where the menu edits: addresses into the model.
 struct Addresses {
