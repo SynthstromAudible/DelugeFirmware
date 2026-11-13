@@ -17,10 +17,12 @@ Cases, in two parts (--part; both by default):
   corpus     each original song in DELUGE_LEGACY_CORPUS and each SYNTHS and KITS preset beside it, and the golden
              preset corpus upgraded and rendered (its factory presets upgraded from their originals in the backup's
              SYNTHS). Asked for on its own without that corpus, it fails at once.
---filter takes a substring of the cases to run. --record records the legacy fixtures' hashes from their originals
-instead: only a firmware that still reads their old forms can record them.
+--filter takes a substring of the cases to run. Under `./dbt test --update upgrade-differential` the committed part
+re-records the legacy fixtures' hashes from their `<name>.oracle.xml` (the same content in the current form); a
+fixture without an oracle keeps its hash, frozen, because the firmware reads only the current forms. To add a case,
+commit the fixture and its oracle, then run the update. The corpus part records nothing.
 
-    python3 tests/golden/upgrade_run.py [--part P] [--filter S] [--no-render] [--record]
+    python3 tests/golden/upgrade_run.py [--part P] [--filter S] [--no-render]
 
 A whole run (no --filter) also fails when a part ran fewer cases than it owns: the default `--part all` fails without
 the legacy corpus (shortfall lines), as does `--part corpus`. A whole corpus run prints UPGRADE-ABSENT <n>, the fixtured
@@ -44,6 +46,7 @@ ROOT = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 
 import driver
+import golden_update
 import presets_run
 import songs_run
 
@@ -132,6 +135,66 @@ def reported(report: Path) -> list:
     return json.loads(report.read_text()) if report.exists() else []
 
 
+def oracle_of(path: Path) -> Path:
+    """The oracle beside a legacy fixture: the same content in the current form."""
+    return path.with_name(path.name.replace(".XML", ".oracle.xml"))
+
+
+def plan_record(cases, legacy: dict, flt: str):
+    """Split the legacy fixtures a recording covers into (record, kept, missing). `cases` is (key, has_oracle) per
+    fixture. A fixture with an oracle is recorded from it. One without keeps its committed hash, which is frozen: the
+    firmware reads only the current forms, so an older form's hash cannot be re-derived from its original. One
+    without an oracle and without a committed hash is a new case, which cannot be recorded and is `missing`."""
+    record, kept, missing = [], [], []
+    for key, has_oracle in cases:
+        if flt not in key:
+            continue
+        if has_oracle:
+            record.append(key)
+        elif key in legacy:
+            kept.append(key)
+        else:
+            missing.append(key)
+    return record, kept, missing
+
+
+def record_legacy(binary: str, legacy: dict, args) -> int:
+    """Re-record upgrade_fixtures.json: the save(load(oracle)) hash of each legacy fixture that has an oracle. A
+    fixture without one keeps its frozen hash; a new fixture needs its oracle (`<name>.oracle.xml`) beside it. A round
+    trip that fails records nothing and fails."""
+    paths = {key: (path, kind) for key, path, kind in legacy_cases()}
+    record, kept, missing = plan_record(
+        [(key, oracle_of(path).exists()) for key, (path, _) in paths.items()],
+        legacy,
+        args.filter,
+    )
+    for key in missing:
+        print(
+            f"UPGRADE-FAIL {key}: no committed hash and no {oracle_of(paths[key][0]).name} to record one from"
+        )
+    if missing:
+        return 1
+    for key in kept:
+        print(f"UPGRADE-KEPT {key} (frozen: no oracle)")
+    recorded = dict(legacy)
+    failed = 0
+    for key in record:
+        path, kind = paths[key]
+        rc, digest, tail = round_trip(binary, oracle_of(path), kind, args.timeout)
+        if digest is None:
+            failed += 1
+            print(f"UPGRADE-FAIL {key}: rc={rc} {tail}: nothing recorded")
+            continue
+        recorded[key] = {"kind": kind, "sha256": digest}
+    if failed:
+        return 1
+    golden_update.write_json(
+        LEGACY_FIXTURES, recorded, str(LEGACY_FIXTURES.relative_to(ROOT)), indent=2
+    )
+    print(f"UPGRADE-RECORDED {len(record)} from oracles, {len(kept)} frozen")
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--filter", default="")
@@ -151,31 +214,17 @@ def main(argv=None) -> int:
         help="render only the golden cases holding this (RENDER_PRESET_FILTER)",
     )
     ap.add_argument("--timeout", type=int, default=60)
-    ap.add_argument(
-        "--record",
-        action="store_true",
-        help="record the legacy fixtures' hashes from their originals",
-    )
     args = ap.parse_args(argv)
 
     binary = str(driver.default_binary())
     legacy = json.loads(LEGACY_FIXTURES.read_text()) if LEGACY_FIXTURES.exists() else {}
-    if args.record:
-        for key, path, kind in legacy_cases():
-            if args.filter in key:
-                # A form the firmware no longer reads is recorded from its oracle: the same content, current form.
-                oracle = path.with_name(path.name.replace(".XML", ".oracle.xml"))
-                source = oracle if oracle.exists() else path
-                rc, digest, tail = round_trip(binary, source, kind, args.timeout)
-                if digest is None:
-                    print(f"UPGRADE-RECORD-FAIL {key}: rc={rc} {tail}")
-                    continue
-                legacy[key] = {"kind": kind, "sha256": digest}
-                print(f"UPGRADE-RECORD {key} {digest[:16]}")
-        LEGACY_FIXTURES.write_text(
-            json.dumps(dict(sorted(legacy.items())), indent=2) + "\n"
-        )
-        return 0
+    if golden_update.updating():
+        if args.part == "corpus":
+            print(
+                "UPGRADE-FAIL the corpus part records nothing: its fixtures are the round-trip gates' own"
+            )
+            return 1
+        return record_legacy(binary, legacy, args)
     corpus = os.environ.get("DELUGE_LEGACY_CORPUS") or ""
     committed = args.part in ("all", "committed")
     from_corpus = args.part in ("all", "corpus")
@@ -205,7 +254,9 @@ def main(argv=None) -> int:
             committed_ran += 1
             if key not in legacy:
                 fail += 1
-                print(f"UPGRADE-FAIL {key}: no recorded hash (record it with --record)")
+                print(
+                    f"UPGRADE-FAIL {key}: no recorded hash (./dbt test --update upgrade-differential records it)"
+                )
                 continue
             kind_ = "song" if kind == "song" else ("preset-" + kind)
             cases.append((kind_, key, path, legacy[key]["sha256"], None))

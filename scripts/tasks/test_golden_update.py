@@ -753,3 +753,26 @@ class CmdUpdateTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PlanLegacyRecordTest(unittest.TestCase):
+    """upgrade_run.plan_record: which legacy fixtures a recording writes, keeps frozen or refuses."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(
+            0, str(Path(__file__).resolve().parents[2] / "tests" / "golden")
+        )
+        import upgrade_run
+
+        cls.plan = staticmethod(upgrade_run.plan_record)
+
+    def test_oracle_records_frozen_keeps_new_without_oracle_is_missing(self):
+        cases = [("a", True), ("b", False), ("c", False)]
+        self.assertEqual(
+            self.plan(cases, {"a": {}, "b": {}}, ""), (["a"], ["b"], ["c"])
+        )
+
+    def test_filter_limits_the_cases(self):
+        cases = [("x/a", True), ("y/b", False)]
+        self.assertEqual(self.plan(cases, {"y/b": {}}, "y/"), ([], ["y/b"], []))

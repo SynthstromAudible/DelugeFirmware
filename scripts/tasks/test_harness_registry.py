@@ -276,7 +276,9 @@ class BaselineDeclarationTest(unittest.TestCase):
     # binary links, so this set stands in for it, checked both ways against `baseline`.
     CPP_OWNERS: ClassVar[set[str]] = set()
     # Entries that run an owner's code but record nothing: entry -> why.
-    NOT_OWNERS: ClassVar[dict[str, str]] = {}
+    NOT_OWNERS: ClassVar[dict[str, str]] = {
+        "upgrade-differential-corpus": "its part records nothing: upgrade_run.py refuses to re-record it"
+    }
 
     def _code(self, h: hr.Harness) -> str:
         paths = [h.check] if h.check else []

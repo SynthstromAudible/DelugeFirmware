@@ -50,6 +50,7 @@ build = []
 run = ["python3", "tests/golden/upgrade_run.py", "--part", "committed"]
 builds = ["golden-vt-render"]
 requires = ["cargo"]
+baseline = ["tests/golden/upgrade_fixtures.json"]
 tier = "nightly"
 alone = true
 group = "storage"
