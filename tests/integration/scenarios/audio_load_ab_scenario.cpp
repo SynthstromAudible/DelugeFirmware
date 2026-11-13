@@ -40,6 +40,7 @@
 ///       app's sources), so the Embassy host binary, which links `deluge_app`, can reach it. Inert unless called.
 
 #include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/sample_preview.h" // the loader the ported browser previews through
@@ -83,6 +84,10 @@
 DELUGE_SCENARIO_DECLARE(audio_load_ab);
 
 namespace {
+
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
 
 /// One sample the load asks for, in the order the load asks for it.
 ///
@@ -151,7 +156,7 @@ constexpr std::array<Case, 11> kCases{{
 
 /// How many times one case may answer LOAD_IN_PROGRESS before it is called wedged. Each deferral is
 /// one dispatch round trip through the platform driver's executor, so this is generous: a healthy
-/// async load takes one or two.
+/// async load takes one or two. A retry bound inside the case, which its own FAIL line judges, not a wait.
 constexpr int32_t kMaxDeferrals = 2000;
 
 /// Cursor over kCases.
@@ -217,7 +222,7 @@ static_assert(std::string_view{kCases[kSelfdirIndex].path} == kSelfdirAlternate,
 /// song's folder.
 std::string g_selfdirAlternatePath{};
 /// In-process assertion failures.
-int32_t g_failures = 0;
+ScenarioReport g_report{"AB"};
 /// The load every case belongs to: a song's, whose alternate directory is SAMPLES/ALT. Set by begin().
 deluge::storage::AudioLoadContext g_loadContext{};
 /// Set false by dispatch_step(), true by the dispatched closure on its way out.
@@ -249,7 +254,8 @@ constexpr const char* kPreviewPath = "SAMPLES/PREVIEW.WAV";
 /// healthy load lands within a few.
 constexpr int32_t kMaxPreviewTicks = 2000;
 
-/// Guest ticks the browser's opening may take to list and settle before the stages begin.
+/// Guest ticks the browser's opening may take to list and settle before the stages begin. A loop of guest ticks inside
+/// one step, not a wait across steps: the loop reports its own exhaustion.
 constexpr int32_t kMaxOpenTicks = 400;
 
 /// Consecutive idle guest ticks (no listing, no preview) that show the browser's opening is done.
@@ -304,7 +310,8 @@ constexpr uint64_t kStallWindowUs = deluge::storage::AsyncSampleLoad::kMaxStalle
 constexpr uint32_t kStallHoldMs = 30000;
 static_assert(uint64_t{kStallHoldMs} * 1000 > kStallWindowUs, "the hold must outlast the stall stage's wait");
 
-/// guestTick() calls after the wait ends, with the hold lifted, in which nothing may be pending again.
+/// guestTick() calls after the wait ends, with the hold lifted, in which nothing may be pending again: the property is
+/// that nothing is pending again anywhere in the window, so the window is its definition, not a bound.
 constexpr int32_t kStallSettleTicks = 64;
 
 extern "C" void deluge_streaming_set_fill_latency_ms(uint32_t ms); // host harness only; streaming_loader.rs
@@ -382,8 +389,8 @@ constexpr int32_t kMaxEjectTicks = 2000;
 /// Where `runOneEjectTick` is in the sequence above.
 enum class EjectStep : uint8_t { Request, AwaitWitness, Swap, Collect, Finished };
 EjectStep g_ejectStep = EjectStep::Request;
-/// Ticks spent in the current step.
-int32_t g_ejectTicks = 0;
+/// The wait of the current step that waits on the loader.
+Wait g_ejectWait{g_report, "the witness file loading", kMaxEjectTicks};
 /// Deferrals seen while re-collecting kSwapPath AFTER the swap.
 ///
 /// The single most direct witness this gate has that the flush ran. With it, the
@@ -406,8 +413,12 @@ enum class Stage : uint8_t { Cases, Eject, Preview, PrescanRange, Cancel, DrawSt
 Stage g_stage = Stage::Cases;
 /// Whether request() has been called. It is called exactly once.
 bool g_previewStarted = false;
-/// guestTick() calls made since then.
+/// guestTick() calls made since then, the one that ended the stage included.
 int32_t g_previewTicks = 0;
+/// The preview stage's wait for its first complete draw, from the request on.
+Wait g_previewWait{g_report, "the preview drawing", kMaxPreviewTicks};
+/// Whether the browser could not be opened, which ends the stage at once.
+bool g_previewAborted = false;
 /// Of those, how many found a deferred preview still waiting.
 int32_t g_previewRedrives = 0;
 /// Whether the cancellation stage has issued its request()/cancelPreview() pair.
@@ -419,7 +430,8 @@ enum class StallStep : uint8_t { Start, Wait, Settle, Finished };
 StallStep g_stallStep = StallStep::Start;
 enum class DrawStallStep : uint8_t { Start, Armed, Release, Restart, Wait, Move, MoveWait, Finished };
 DrawStallStep g_drawStallStep = DrawStallStep::Start;
-int32_t g_drawStallTicks = 0;
+/// The draw-stall stage's current wait: the redraw arming, the stalled preview settling, the moved preview drawing.
+Wait g_drawStallWait{g_report, "the stalled preview arming a redraw", kMaxDrawStallTicks};
 int32_t g_dsRedrawsBefore = 0;
 int32_t g_dsGiveUpsBefore = 0;
 bool g_dsPendingAtEnd = false;
@@ -472,9 +484,8 @@ void checkTier(const char* stage, const TierMark& before) {
 	const int32_t sampleIo = now.sampleIo - before.sampleIo;
 	printf("AB-PREVIEW-TIER stage=%s sampleIo=%d\n", stage, sampleIo);
 	if (sampleIo != 0) {
-		printf("FAIL [audioLoadAB/%s]: %d preview sample read(s) went to the card on the interaction tier\n", stage,
-		       sampleIo);
-		g_failures++;
+		g_report.fail("[audioLoadAB/%s]: %d preview sample read(s) went to the card on the interaction tier", stage,
+		              sampleIo);
 	}
 }
 
@@ -537,10 +548,9 @@ std::string caseLine(const char* tag, const char* label, AudioFile* file, Error 
 	bool readable = false;
 	const uint32_t fingerprint = streamFingerprint(s, readable);
 	if (!readable) {
-		printf("FAIL [audioLoadAB/%s]: the published Sample cannot be read -- its stream was never bound, so it "
-		       "would load without error and play silence\n",
-		       label);
-		g_failures++;
+		g_report.fail("[audioLoadAB/%s]: the published Sample cannot be read -- its stream was never bound, so it "
+		              "would load without error and play silence",
+		              label);
 	}
 
 	snprintf(line, sizeof(line),
@@ -580,10 +590,9 @@ void printAgainstReference(const std::string& line, const std::string& reference
 	printf("%s\n", line.c_str());
 	if (line != reference) {
 		printf("AB-REF %s\n", reference.c_str());
-		printf("FAIL [audioLoadAB/%s]: the async load differs from the in-process synchronous load of the same file "
-		       "(AB-REF above is the reference)\n",
-		       label);
-		g_failures++;
+		g_report.fail("[audioLoadAB/%s]: the async load differs from the in-process synchronous load of the same file "
+		              "(AB-REF above is the reference)",
+		              label);
 	}
 }
 
@@ -591,7 +600,7 @@ void printAgainstReference(const std::string& line, const std::string& reference
 /// async loader: that every case answered LOAD_IN_PROGRESS at least once before settling, rather than being served
 /// synchronously (or from memory) with the loader never consulted.
 void printSummary() {
-	printf("AB-SUMMARY cases=%zu deferrals=%d failures=%d\n", kCases.size(), g_deferralsTotal, g_failures);
+	printf("AB-SUMMARY cases=%zu deferrals=%d failures=%d\n", kCases.size(), g_deferralsTotal, g_report.failures());
 
 	printf("AB-DEFER");
 	for (size_t i = 0; i < kCases.size(); i++) {
@@ -603,10 +612,9 @@ void printSummary() {
 	// catches and the run-wide total misses.
 	for (size_t i = 0; i < kCases.size(); i++) {
 		if (g_deferralsByCase[i] == 0) {
-			printf("FAIL [audioLoadAB]: case '%s' never deferred -- it was answered on the synchronous path, so it "
-			       "is not under test at all\n",
-			       kCases[i].label);
-			g_failures++;
+			g_report.fail("[audioLoadAB]: case '%s' never deferred -- it was answered on the synchronous path, so it "
+			              "is not under test at all",
+			              kCases[i].label);
 		}
 	}
 	// Absolute, not comparative: see g_selfdirAlternatePath. The reference and the async load both
@@ -615,30 +623,28 @@ void printSummary() {
 	// The VALUE, not merely non-emptiness: a case that happens to resolve from some other alternate
 	// candidate would satisfy "not empty" while proving nothing about this one.
 	if (g_selfdirAlternatePath != kSelfdirAlternate) {
-		printf("FAIL [audioLoadAB/%s]: the sample living IN the alternate dir recorded "
-		       "loadedFromAlternatePath \"%s\", expected \"%.*s\" -- the winning candidate was read by "
-		       "comparing paths rather than by slot, so a collect-media save would leave it behind\n",
-		       kCases[kSelfdirIndex].label, g_selfdirAlternatePath.c_str(), static_cast<int>(kSelfdirAlternate.size()),
-		       kSelfdirAlternate.data());
-		g_failures++;
+		g_report.fail("[audioLoadAB/%s]: the sample living IN the alternate dir recorded "
+		              "loadedFromAlternatePath \"%s\", expected \"%.*s\" -- the winning candidate was read by "
+		              "comparing paths rather than by slot, so a collect-media save would leave it behind",
+		              kCases[kSelfdirIndex].label, g_selfdirAlternatePath.c_str(),
+		              static_cast<int>(kSelfdirAlternate.size()), kSelfdirAlternate.data());
 	}
 	if (g_bothStatusAfter != AlternateLoadDirStatus::MIGHT_EXIST) {
-		printf("FAIL [audioLoadAB/%s]: a hit on the regular path changed the alternate-dir status to %d; it must "
-		       "leave it unprobed (MIGHT_EXIST)\n",
-		       kCases[kBothIndex].label, static_cast<int>(g_bothStatusAfter));
-		g_failures++;
+		g_report.fail("[audioLoadAB/%s]: a hit on the regular path changed the alternate-dir status to %d; it must "
+		              "leave it unprobed (MIGHT_EXIST)",
+		              kCases[kBothIndex].label, static_cast<int>(g_bothStatusAfter));
 	}
 	if (g_badRegLoaded || g_badRegError != Error::FILE_UNSUPPORTED
 	    || g_badRegStatusAfter != AlternateLoadDirStatus::MIGHT_EXIST) {
-		printf("FAIL [audioLoadAB/%s]: garbage at the regular path loaded=%d error=%d status=%d; a parse verdict must "
-		       "fail as FILE_UNSUPPORTED without retrying in the alternate dir, which must stay unprobed\n",
-		       kCases[kBadRegIndex].label, g_badRegLoaded ? 1 : 0, static_cast<int>(g_badRegError),
-		       static_cast<int>(g_badRegStatusAfter));
-		g_failures++;
+		g_report.fail(
+		    "[audioLoadAB/%s]: garbage at the regular path loaded=%d error=%d status=%d; a parse verdict must "
+		    "fail as FILE_UNSUPPORTED without retrying in the alternate dir, which must stay unprobed",
+		    kCases[kBadRegIndex].label, g_badRegLoaded ? 1 : 0, static_cast<int>(g_badRegError),
+		    static_cast<int>(g_badRegStatusAfter));
 	}
 	// Reprint with the summary's own failures folded in, so a reader of the last line sees the real
 	// count rather than the count as it stood before these checks ran.
-	printf("AB-RESULT failures=%d\n", g_failures);
+	g_report.printResult();
 	fflush(stdout);
 }
 
@@ -654,7 +660,7 @@ void runOneStep() {
 		// The reference first, before this case's first async ask, so both start from the same state.
 		g_referenceLine = referenceLine("AB-CASE", c.label, c.path);
 		if (!checkLoadInvariants(c.label)) {
-			g_failures++;
+			g_report.count();
 		}
 		g_referenceTaken = true;
 	}
@@ -673,9 +679,8 @@ void runOneStep() {
 		if (g_deferralsThisCase <= kMaxDeferrals) {
 			return; // Ask again next tick — the contract LOAD_IN_PROGRESS imposes on its caller.
 		}
-		printf("FAIL [audioLoadAB/%s]: still LOAD_IN_PROGRESS after %d attempts -- the load never completed\n", c.label,
-		       g_deferralsThisCase);
-		g_failures++;
+		g_report.fail("[audioLoadAB/%s]: still LOAD_IN_PROGRESS after %d attempts -- the load never completed", c.label,
+		              g_deferralsThisCase);
 		// Fall through and record it as wedged, so the run finishes and both builds' lines stay
 		// comparable rather than one of them ending early.
 		file = nullptr;
@@ -698,7 +703,7 @@ void runOneStep() {
 	}
 
 	if (!checkLoadInvariants(c.label)) {
-		g_failures++;
+		g_report.count();
 	}
 
 	// Drop residency before the next case. Nothing here shares a path, so this is not what keeps the
@@ -764,11 +769,16 @@ bool openGuestBrowser() {
 		deluge::harness::guestTick();
 	}
 	int32_t idleTicks = 0;
-	for (int32_t t = 0; deluge::harness::browserOnTop() && t < kMaxOpenTicks && idleTicks < kOpenIdleTicks; t++) {
+	int32_t openTicks = 0;
+	for (; deluge::harness::browserOnTop() && openTicks < kMaxOpenTicks && idleTicks < kOpenIdleTicks; openTicks++) {
 		deluge::harness::guestTick();
 		const bool busy =
 		    deluge::scenes::browser::browser_scene().listing_in_flight() || deluge::gui::ui::shellPreviewer().pending();
 		idleTicks = busy ? 0 : idleTicks + 1;
+	}
+	if (openTicks == kMaxOpenTicks && idleTicks < kOpenIdleTicks) {
+		g_report.fail("[audioLoadAB/preview]: the browser's opening did not settle within %d guest ticks",
+		              kMaxOpenTicks);
 	}
 	printf("AB-PROBE guest opened=%d browserOnTop=%d\n", opened ? 1 : 0, deluge::harness::browserOnTop() ? 1 : 0);
 	return deluge::harness::browserOnTop();
@@ -787,17 +797,17 @@ bool previewHasDrawn() {
 }
 
 /// One tick of the preview stage. See the Stage/kPreviewPath comments above.
-void runOnePreviewTick() {
+/// @return Whether the tick was a step of the wait, not the request that starts it.
+bool runOnePreviewTick() {
 	if (!g_previewStarted) {
 		// The ONE user-driven action of this stage: the browser is told which file to preview,
 		// exactly as a cursor move tells it. Nothing below ever calls this again.
 		g_previewStarted = true;
 		// The guest's browser, opened before the first preview; it draws the waveform until a main pad is pressed.
 		if (!openGuestBrowser()) {
-			printf("FAIL [audioLoadAB/preview]: the ported browser could not be opened on the boot song\n");
-			g_failures++;
-			g_previewTicks = kMaxPreviewTicks;
-			return;
+			g_report.fail("[audioLoadAB/preview]: the ported browser could not be opened on the boot song");
+			g_previewAborted = true;
+			return false;
 		}
 		g_previewTier = markTier();
 		// The ported browser draws a frame after the load lands, by which time the host's fill has already delivered
@@ -807,7 +817,8 @@ void runOnePreviewTick() {
 		g_redrawsBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().redraws;
 		g_drawsCompleteBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().complete;
 		deluge::gui::ui::shellPreviewer().request(kPreviewPath, /*movementDirection=*/0);
-		return;
+		g_previewWait = Wait{g_report, "the preview drawing", kMaxPreviewTicks};
+		return false;
 	}
 
 	g_previewTicks++;
@@ -816,6 +827,7 @@ void runOnePreviewTick() {
 	}
 	// The per-tick surface, and the ONLY thing driven from here on.
 	deluge::harness::guestTick();
+	return true;
 }
 
 /// Print the preview stage's outcome and assert it.
@@ -827,26 +839,23 @@ void finishPreviewStage(bool drawn) {
 	       deluge::gui::ui::shellPreviewer().pending() ? 1 : 0);
 
 	if (!drawn) {
-		printf("FAIL [audioLoadAB/preview]: after ONE request() and %d guestTick() tick(s) with no "
-		       "further input, the preview never sounded or drew '%s'. A deferred preview that nothing asks "
-		       "for again is silent, blank and errorless -- indistinguishable to the user from a file that "
-		       "does not exist.\n",
-		       g_previewTicks, kPreviewPath);
-		g_failures++;
+		g_report.fail("[audioLoadAB/preview]: after ONE request() and %d guestTick() tick(s) with no "
+		              "further input, the preview never sounded or drew '%s'. A deferred preview that nothing asks "
+		              "for again is silent, blank and errorless -- indistinguishable to the user from a file that "
+		              "does not exist.",
+		              g_previewTicks, kPreviewPath);
 	}
 	if (deluge::gui::ui::shellPreviewer().pending()) {
-		printf("FAIL [audioLoadAB/preview]: a deferral is STILL pending after this stage -- either it was never "
-		       "answered (see above), or the re-drive state is not cleared once it lands and will fire again "
-		       "over whatever the user looks at next\n");
-		g_failures++;
+		g_report.fail("[audioLoadAB/preview]: a deferral is STILL pending after this stage -- either it was never "
+		              "answered (see above), or the re-drive state is not cleared once it lands and will fire again "
+		              "over whatever the user looks at next");
 	}
 	// The preview must have gone through the deferred path at least once, or this stage tested
 	// nothing: a preview that landed synchronously exercises no re-drive at all, and the check would
 	// pass with the surface it exists to guard removed entirely.
 	if (g_previewRedrives == 0) {
-		printf("FAIL [audioLoadAB/preview]: the preview never deferred, so the re-drive was never under "
-		       "test\n");
-		g_failures++;
+		g_report.fail("[audioLoadAB/preview]: the preview never deferred, so the re-drive was never under "
+		              "test");
 	}
 	const int32_t draws = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws - g_drawsBefore;
 	const int32_t redraws = deluge::scenes::browser::browser_scene().waveform_draw_stats().redraws - g_redrawsBefore;
@@ -859,9 +868,9 @@ void finishPreviewStage(bool drawn) {
 	// the card.
 	if (draws != 1 || redraws < 1 || complete < 1
 	    || deluge::scenes::browser::browser_scene().waveform_redraw_pending()) {
-		printf("FAIL [audioLoadAB/preview-draw]: the preview must be drawn once, without waiting for its clusters, and "
-		       "end on a complete render with nothing left to redraw\n");
-		g_failures++;
+		g_report.fail(
+		    "[audioLoadAB/preview-draw]: the preview must be drawn once, without waiting for its clusters, and "
+		    "end on a complete render with nothing left to redraw");
 	}
 	checkTier("preview", g_previewTier);
 }
@@ -874,9 +883,11 @@ struct PrescanMark {
 	int32_t investigated = 0;
 };
 PrescanMark g_prescanBefore{};
+/// Scan ticks made, the one that ended the stage included.
 int32_t g_prescanTicks = 0;
 /// Bound on the pre-scan stage, in ticks: one cluster per tick, and the preview file holds far fewer.
 constexpr int32_t kMaxPrescanTicks = 4000;
+Wait g_prescanWait{g_report, "the overview pre-scan finishing", kMaxPrescanTicks};
 
 int32_t investigatedClusters(const Sample& sample) {
 	int32_t n = 0;
@@ -913,14 +924,13 @@ void finishPrescanStage() {
 	       audioFileManager.overviewScanAllDone ? 1 : 0, g_prescanTicks, investigated - g_prescanBefore.investigated,
 	       g_prescanBefore.min, min, g_prescanBefore.max, max);
 	if (!sameSample || !audioFileManager.overviewScanAllDone || investigated <= g_prescanBefore.investigated) {
-		printf("FAIL [audioLoadAB/prescan-range]: the pre-scan must finish and investigate clusters the preview's "
-		       "draw did not, on the previewed sample, or this stage tested nothing\n");
-		g_failures++;
+		g_report.fail("[audioLoadAB/prescan-range]: the pre-scan must finish and investigate clusters the preview's "
+		              "draw did not, on the previewed sample, or this stage tested nothing");
 	}
 	else if (min != g_prescanBefore.min || max != g_prescanBefore.max) {
-		printf("FAIL [audioLoadAB/prescan-range]: the pre-scan moved the sample's found range, so the next full-screen "
-		       "render draws its bars smaller than main's\n");
-		g_failures++;
+		g_report.fail(
+		    "[audioLoadAB/prescan-range]: the pre-scan moved the sample's found range, so the next full-screen "
+		    "render draws its bars smaller than main's");
 	}
 }
 
@@ -970,23 +980,20 @@ void finishCancelStage() {
 	       deluge::gui::ui::shellPreviewer().pending() ? 1 : 0);
 
 	if (drawn) {
-		printf("FAIL [audioLoadAB/cancel]: the preview was cancelled before its load ran, and its waveform "
-		       "was drawn anyway -- on the device that is a file the cursor has LEFT, rendered over the "
-		       "folder the user moved onto, with its note-on no longer suppressed\n");
-		g_failures++;
+		g_report.fail("[audioLoadAB/cancel]: the preview was cancelled before its load ran, and its waveform "
+		              "was drawn anyway -- on the device that is a file the cursor has LEFT, rendered over the "
+		              "folder the user moved onto, with its note-on no longer suppressed");
 	}
 	if (loaded) {
-		printf("FAIL [audioLoadAB/cancel]: the preview was cancelled before its load ran, and the load ran "
-		       "anyway (lastFilePathLoaded is '%s') -- the op acted on an abandoned target instead of "
-		       "checking whether it was still wanted\n",
-		       kCancelPath);
-		g_failures++;
+		g_report.fail("[audioLoadAB/cancel]: the preview was cancelled before its load ran, and the load ran "
+		              "anyway (lastFilePathLoaded is '%s') -- the op acted on an abandoned target instead of "
+		              "checking whether it was still wanted",
+		              kCancelPath);
 	}
 	if (deluge::gui::ui::shellPreviewer().pending()) {
-		printf("FAIL [audioLoadAB/cancel]: a cancelled preview is STILL pending after %d tick(s) -- it re-armed "
-		       "itself and will be re-driven every frame until it lands, and then rendered\n",
-		       g_cancelTicks);
-		g_failures++;
+		g_report.fail("[audioLoadAB/cancel]: a cancelled preview is STILL pending after %d tick(s) -- it re-armed "
+		              "itself and will be re-driven every frame until it lands, and then rendered",
+		              g_cancelTicks);
 	}
 	checkTier("cancel", g_cancelTier);
 }
@@ -1047,21 +1054,18 @@ void finishStallStage() {
 	       g_stallPendingAtEnd ? 1 : 0, drawn ? 1 : 0, pendingAfter ? 1 : 0);
 
 	if (g_stallPendingAtEnd || giveUps != 1) {
-		printf("FAIL [audioLoadAB/stall]: a preview whose load was held %u ms did not give up once (pending=%d after "
-		       "%d guestTick() tick(s), %d give-up(s)) -- a load that never answers would be asked for on every "
-		       "frame, silent and undrawn, for as long as the card takes\n",
-		       static_cast<unsigned>(kStallHoldMs), g_stallPendingAtEnd ? 1 : 0, g_stallTicks, giveUps);
-		g_failures++;
+		g_report.fail("[audioLoadAB/stall]: a preview whose load was held %u ms did not give up once (pending=%d after "
+		              "%d guestTick() tick(s), %d give-up(s)) -- a load that never answers would be asked for on every "
+		              "frame, silent and undrawn, for as long as the card takes",
+		              static_cast<unsigned>(kStallHoldMs), g_stallPendingAtEnd ? 1 : 0, g_stallTicks, giveUps);
 	}
 	if (drawn) {
-		printf("FAIL [audioLoadAB/stall]: '%s' was drawn, but its load was held for the whole stage\n", kStallPath);
-		g_failures++;
+		g_report.fail("[audioLoadAB/stall]: '%s' was drawn, but its load was held for the whole stage", kStallPath);
 	}
 	if (pendingAfter) {
-		printf("FAIL [audioLoadAB/stall]: a preview that gave up is pending again after %d tick(s) with the hold "
-		       "lifted -- it re-armed itself\n",
-		       g_stallSettleTicks);
-		g_failures++;
+		g_report.fail("[audioLoadAB/stall]: a preview that gave up is pending again after %d tick(s) with the hold "
+		              "lifted -- it re-armed itself",
+		              g_stallSettleTicks);
 	}
 	checkTier("stall", g_stallTier);
 }
@@ -1074,15 +1078,21 @@ void runOneDrawStallTick() {
 		g_drawStallTier = markTier();
 		deluge_streaming_set_fill_latency_ms(kDrawStallHoldMs);
 		deluge::gui::ui::shellPreviewer().request(kDrawStallPath, /*movementDirection=*/0);
+		g_drawStallWait = Wait{g_report, "the stalled preview arming a redraw", kMaxDrawStallTicks};
 		g_drawStallStep = DrawStallStep::Armed;
 		return;
 	case DrawStallStep::Armed:
 		// First, a release with a redraw pending: Select (enterKeyPress) and a typed move release the preview's sample
 		// through stopAnyPreviewing() without moving the generation. The redraw must not read the released sample.
-		if (!deluge::scenes::browser::browser_scene().waveform_redraw_pending()
-		    && g_drawStallTicks < kMaxDrawStallTicks) {
-			g_drawStallTicks++;
+		switch (g_drawStallWait.poll(deluge::scenes::browser::browser_scene().waveform_redraw_pending())) {
+		case WaitState::Pending:
 			deluge::harness::guestTick();
+			return;
+		case WaitState::Met:
+			break;
+		case WaitState::Expired:
+			deluge_streaming_set_fill_latency_ms(0);
+			g_drawStallStep = DrawStallStep::Finished;
 			return;
 		}
 		g_dsArmed = deluge::scenes::browser::browser_scene().waveform_redraw_pending();
@@ -1100,7 +1110,7 @@ void runOneDrawStallTick() {
 	}
 	case DrawStallStep::Restart:
 		// Then the give-up: the same file previewed again, its clusters still held.
-		g_drawStallTicks = 0;
+		g_drawStallWait = Wait{g_report, "the stalled preview settling", kMaxDrawStallTicks};
 		g_dsRedrawsBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().redraws;
 		g_dsGiveUpsBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().give_ups;
 		g_dsDrawsBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws;
@@ -1112,16 +1122,22 @@ void runOneDrawStallTick() {
 		const bool drawnAtAll = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws > g_dsDrawsBefore;
 		const bool settled = drawnAtAll && !deluge::scenes::browser::browser_scene().waveform_redraw_pending()
 		                     && !deluge::gui::ui::shellPreviewer().pending();
-		if (!settled && g_drawStallTicks < kMaxDrawStallTicks) {
-			g_drawStallTicks++;
+		switch (g_drawStallWait.poll(settled)) {
+		case WaitState::Pending:
 			deluge::harness::guestTick();
+			return;
+		case WaitState::Met:
+			break;
+		case WaitState::Expired:
+			deluge_streaming_set_fill_latency_ms(0);
+			g_drawStallStep = DrawStallStep::Finished;
 			return;
 		}
 		g_dsPendingAtEnd = deluge::scenes::browser::browser_scene().waveform_redraw_pending();
 		g_dsStallDraws = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws - g_dsDrawsBefore;
 		g_dsStallComplete =
 		    deluge::scenes::browser::browser_scene().waveform_draw_stats().complete - g_dsCompleteBefore;
-		g_dsStallTicks = g_drawStallTicks;
+		g_dsStallTicks = g_drawStallWait.ticks();
 		deluge_streaming_set_fill_latency_ms(0);
 		g_drawStallStep = DrawStallStep::Move;
 		return;
@@ -1130,15 +1146,14 @@ void runOneDrawStallTick() {
 		// A cursor move onto another file, with the hold lifted: the browser must still preview it.
 		g_dsMoveDrawsBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws;
 		deluge::gui::ui::shellPreviewer().request(kPreviewPath, /*movementDirection=*/0);
-		g_drawStallTicks = 0;
+		g_drawStallWait = Wait{g_report, "the moved preview drawing", kMaxPreviewTicks};
 		g_drawStallStep = DrawStallStep::MoveWait;
 		return;
 	case DrawStallStep::MoveWait:
 		g_dsMovedDrawn = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws > g_dsMoveDrawsBefore
 		                 && deluge::model::lastFilePathLoaded() == kPreviewPath
 		                 && !deluge::scenes::browser::browser_scene().waveform_redraw_pending();
-		if (!g_dsMovedDrawn && g_drawStallTicks < kMaxPreviewTicks) {
-			g_drawStallTicks++;
+		if (g_drawStallWait.poll(g_dsMovedDrawn) == WaitState::Pending) {
 			deluge::harness::guestTick();
 			return;
 		}
@@ -1158,16 +1173,14 @@ void finishDrawStallStage() {
 	printf("AB-PREVIEW-DRAW-RELEASE armed=%d redrawsAfter=%d pendingAfter=%d\n", g_dsArmed ? 1 : 0,
 	       g_dsRedrawsAfterRelease, g_dsPendingAfterRelease ? 1 : 0);
 	if (!g_dsArmed || g_dsRedrawsAfterRelease != 0 || g_dsPendingAfterRelease) {
-		printf(
-		    "FAIL [audioLoadAB/preview-draw-release]: a redraw pending when the preview's sample is released must be "
-		    "dropped, never drawn from the released sample\n");
-		g_failures++;
+		g_report.fail(
+		    "[audioLoadAB/preview-draw-release]: a redraw pending when the preview's sample is released must be "
+		    "dropped, never drawn from the released sample");
 	}
 	checkTier("draw-stall", g_drawStallTier);
 	if (redraws < 1 || giveUps != 1 || g_dsPendingAtEnd || !g_dsMovedDrawn) {
-		printf("FAIL [audioLoadAB/preview-draw-stall]: a preview whose clusters never arrived must redraw, give up "
-		       "exactly once with nothing left pending, and leave the browser previewing the next file\n");
-		g_failures++;
+		g_report.fail("[audioLoadAB/preview-draw-stall]: a preview whose clusters never arrived must redraw, give up "
+		              "exactly once with nothing left pending, and leave the browser previewing the next file");
 	}
 }
 
@@ -1194,11 +1207,11 @@ AudioFile* ejectAttempt(const char* path, Error& error, bool& deferred) {
 /// swap, and why the code under test cannot tell the difference.
 bool performCardSwap() {
 	if (!deluge::io::unlink(kSwapPath).has_value()) {
-		printf("FAIL [audioLoadAB/eject]: could not remove '%s' to stage the swapped card\n", kSwapPath);
+		g_report.fail("[audioLoadAB/eject]: could not remove '%s' to stage the swapped card", kSwapPath);
 		return false;
 	}
 	if (!deluge::io::rename(kSwapReplacementPath, kSwapPath).has_value()) {
-		printf("FAIL [audioLoadAB/eject]: could not move '%s' into place at '%s'\n", kSwapReplacementPath, kSwapPath);
+		g_report.fail("[audioLoadAB/eject]: could not move '%s' into place at '%s'", kSwapReplacementPath, kSwapPath);
 		return false;
 	}
 	return true;
@@ -1206,15 +1219,6 @@ bool performCardSwap() {
 
 /// One tick of the ejection stage. See the block comment above kSwapPath for the sequence.
 void runOneEjectTick() {
-	g_ejectTicks++;
-	if (g_ejectTicks > kMaxEjectTicks) {
-		printf("FAIL [audioLoadAB/eject]: wedged after %d tick(s) in step %d\n", g_ejectTicks,
-		       static_cast<int>(g_ejectStep));
-		g_failures++;
-		g_ejectStep = EjectStep::Finished;
-		return;
-	}
-
 	switch (g_ejectStep) {
 
 	case EjectStep::Request: {
@@ -1233,7 +1237,7 @@ void runOneEjectTick() {
 		bool witnessDeferred = false;
 		(void)ejectAttempt(kWitnessPath, error, witnessDeferred);
 		g_ejectStep = EjectStep::AwaitWitness;
-		g_ejectTicks = 0;
+		g_ejectWait = Wait{g_report, "the witness file loading", kMaxEjectTicks};
 		return;
 	}
 
@@ -1241,20 +1245,24 @@ void runOneEjectTick() {
 		Error error = Error::NONE;
 		bool deferred = false;
 		AudioFile* file = ejectAttempt(kWitnessPath, error, deferred);
-		if (deferred) {
+		switch (g_ejectWait.poll(!deferred)) {
+		case WaitState::Pending:
 			return; // Still coming. Ask again next tick — never kSwapPath.
+		case WaitState::Met:
+			break;
+		case WaitState::Expired:
+			g_ejectStep = EjectStep::Finished;
+			return;
 		}
 		if (file == nullptr) {
-			printf("FAIL [audioLoadAB/eject]: the witness file '%s' did not load (error=%d), so this stage cannot "
-			       "know whether '%s' was ever parsed\n",
-			       kWitnessPath, static_cast<int>(error), kSwapPath);
-			g_failures++;
+			g_report.fail("[audioLoadAB/eject]: the witness file '%s' did not load (error=%d), so this stage cannot "
+			              "know whether '%s' was ever parsed",
+			              kWitnessPath, static_cast<int>(error), kSwapPath);
 			g_ejectStep = EjectStep::Finished;
 			return;
 		}
 		audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(kWitnessPath);
 		g_ejectStep = EjectStep::Swap;
-		g_ejectTicks = 0;
 		return;
 	}
 
@@ -1265,7 +1273,6 @@ void runOneEjectTick() {
 		audioFileManager.setCardEjected();
 		if (!performCardSwap()) {
 			g_ejectSwapFailed = true;
-			g_failures++;
 			g_ejectStep = EjectStep::Finished;
 			return;
 		}
@@ -1275,7 +1282,7 @@ void runOneEjectTick() {
 		// The reference for the post-swap load: the file that is on the card NOW, read synchronously.
 		g_ejectReferenceLine = referenceLine("AB-EJECT", "swap", kSwapPath);
 		g_ejectStep = EjectStep::Collect;
-		g_ejectTicks = 0;
+		g_ejectWait = Wait{g_report, "the swapped file's load answering", kMaxEjectTicks};
 		return;
 
 	case EjectStep::Collect: {
@@ -1284,6 +1291,14 @@ void runOneEjectTick() {
 		AudioFile* file = ejectAttempt(kSwapPath, error, deferred);
 		if (deferred) {
 			g_ejectCollectDeferrals++;
+		}
+		switch (g_ejectWait.poll(!deferred)) {
+		case WaitState::Pending:
+			return;
+		case WaitState::Met:
+			break;
+		case WaitState::Expired:
+			g_ejectStep = EjectStep::Finished;
 			return;
 		}
 		// The one line this stage compares with its reference, and the one that carries the whole property: the
@@ -1292,24 +1307,23 @@ void runOneEjectTick() {
 		    caseLine("AB-EJECT", "swap", file, error, std::string{kSwapPath}, g_loadContext.alternateDirStatus),
 		    g_ejectReferenceLine, "eject");
 		if (!checkLoadInvariants("audioLoadAB/eject")) {
-			g_failures++;
+			g_report.count();
 		}
 		if (file == nullptr) {
-			printf("FAIL [audioLoadAB/eject]: '%s' did not load after the card swap (error=%d)\n", kSwapPath,
-			       static_cast<int>(error));
-			g_failures++;
+			g_report.fail("[audioLoadAB/eject]: '%s' did not load after the card swap (error=%d)", kSwapPath,
+			              static_cast<int>(error));
 		}
 		else {
 			auto& s = static_cast<Sample&>(*file);
 			if (s.numChannels != kSwapReplacementChannels || s.byteDepth != kSwapReplacementByteDepth
 			    || s.audioDataLengthBytes != kSwapReplacementDataLength) {
-				printf("FAIL [audioLoadAB/eject]: '%s' loaded with channels=%u byteDepth=%u dataLen=%llu, but the "
-				       "file at that path after the swap is channels=%u byteDepth=%u dataLen=%u -- a header parsed "
-				       "from the PREVIOUS card was applied to this one's file, which loads with no error and plays "
-				       "the wrong thing\n",
-				       kSwapPath, s.numChannels, s.byteDepth, static_cast<unsigned long long>(s.audioDataLengthBytes),
-				       kSwapReplacementChannels, kSwapReplacementByteDepth, kSwapReplacementDataLength);
-				g_failures++;
+				g_report.fail(
+				    "[audioLoadAB/eject]: '%s' loaded with channels=%u byteDepth=%u dataLen=%llu, but the "
+				    "file at that path after the swap is channels=%u byteDepth=%u dataLen=%u -- a header parsed "
+				    "from the PREVIOUS card was applied to this one's file, which loads with no error and plays "
+				    "the wrong thing",
+				    kSwapPath, s.numChannels, s.byteDepth, static_cast<unsigned long long>(s.audioDataLengthBytes),
+				    kSwapReplacementChannels, kSwapReplacementByteDepth, kSwapReplacementDataLength);
 			}
 			audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(kSwapPath);
 		}
@@ -1331,20 +1345,18 @@ void finishEjectStage() {
 	// that was answered synchronously (a permanent request decline falls through to the sync path)
 	// leaves no uncollected result behind, and the post-swap load is then trivially correct.
 	if (g_ejectRequestDeferrals == 0) {
-		printf("FAIL [audioLoadAB/eject]: the pre-ejection ask for '%s' never deferred, so no uncollected result was "
-		       "left for the ejection to invalidate -- this stage tested nothing\n",
-		       kSwapPath);
-		g_failures++;
+		g_report.fail("[audioLoadAB/eject]: the pre-ejection ask for '%s' never deferred, so no uncollected result was "
+		              "left for the ejection to invalidate -- this stage tested nothing",
+		              kSwapPath);
 	}
 	// The direct witness that the flush ran. A flushed path reports UNKNOWN, which makes the
 	// collector request it again and therefore defer at least once. A STALE result is READY on the
 	// very first ask and defers not at all -- so zero here is the bug, whatever the geometry check
 	// happened to say.
 	if (!g_ejectSwapFailed && g_ejectCollectDeferrals == 0) {
-		printf("FAIL [audioLoadAB/eject]: the post-swap collect for '%s' was answered without a single deferral, so "
-		       "it came from a result parsed BEFORE the ejection rather than from the card now in the slot\n",
-		       kSwapPath);
-		g_failures++;
+		g_report.fail("[audioLoadAB/eject]: the post-swap collect for '%s' was answered without a single deferral, so "
+		              "it came from a result parsed BEFORE the ejection rather than from the card now in the slot",
+		              kSwapPath);
 	}
 }
 
@@ -1357,12 +1369,14 @@ void deluge_scenario_audio_load_ab_begin(void) {
 	g_deferralsThisCase = 0;
 	g_deferralsTotal = 0;
 	g_deferralsByCase.fill(0);
-	g_failures = 0;
+	g_report.reset();
 	g_stepDone = true;
 	g_summaryPrinted = false;
 	g_stage = Stage::Cases;
 	g_previewStarted = false;
 	g_previewTicks = 0;
+	g_previewAborted = false;
+	g_previewWait = Wait{g_report, "the preview drawing", kMaxPreviewTicks};
 	g_previewRedrives = 0;
 	g_cancelStarted = false;
 	g_cancelTicks = 0;
@@ -1374,7 +1388,6 @@ void deluge_scenario_audio_load_ab_begin(void) {
 	g_stallGiveUpsBefore = 0;
 	g_stallPendingAtEnd = false;
 	g_drawStallStep = DrawStallStep::Start;
-	g_drawStallTicks = 0;
 	g_dsRedrawsBefore = 0;
 	g_dsGiveUpsBefore = 0;
 	g_dsPendingAtEnd = false;
@@ -1389,8 +1402,10 @@ void deluge_scenario_audio_load_ab_begin(void) {
 	g_dsStallDraws = 0;
 	g_dsStallComplete = 0;
 	g_dsStallTicks = 0;
+	g_prescanWait = Wait{g_report, "the overview pre-scan finishing", kMaxPrescanTicks};
+	g_drawStallWait = Wait{g_report, "the stalled preview arming a redraw", kMaxDrawStallTicks};
 	g_ejectStep = EjectStep::Request;
-	g_ejectTicks = 0;
+	g_ejectWait = Wait{g_report, "the witness file loading", kMaxEjectTicks};
 	g_ejectCollectDeferrals = 0;
 	g_ejectRequestDeferrals = 0;
 	g_ejectSwapFailed = false;
@@ -1440,18 +1455,39 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 		// records the file, so cancelPreview() lands before any tick has started its load.
 		g_stepDone = false;
 		if (g_stage == Stage::Preview) {
-			runOnePreviewTick();
+			const bool waited = runOnePreviewTick();
 			const bool drawn = previewHasDrawn() && !deluge::scenes::browser::browser_scene().waveform_redraw_pending();
-			if (drawn || g_previewTicks >= kMaxPreviewTicks) {
-				finishPreviewStage(drawn);
+			if (g_previewAborted) {
+				finishPreviewStage(false);
 				g_stage = Stage::PrescanRange;
+			}
+			else if (waited || drawn) {
+				switch (g_previewWait.poll(drawn)) {
+				case WaitState::Pending:
+					break;
+				case WaitState::Met:
+					finishPreviewStage(true);
+					g_stage = Stage::PrescanRange;
+					break;
+				case WaitState::Expired:
+					deluge_streaming_set_fill_latency_ms(0);
+					g_stage = Stage::PrescanRange;
+					break;
+				}
 			}
 		}
 		else if (g_stage == Stage::PrescanRange) {
 			runOnePrescanTick();
-			if (audioFileManager.overviewScanAllDone || g_prescanTicks >= kMaxPrescanTicks) {
+			switch (g_prescanWait.poll(audioFileManager.overviewScanAllDone)) {
+			case WaitState::Pending:
+				break;
+			case WaitState::Met:
 				finishPrescanStage();
 				g_stage = Stage::Cancel;
+				break;
+			case WaitState::Expired:
+				g_stage = Stage::Cancel;
+				break;
 			}
 		}
 		else if (g_stage == Stage::Cancel) {
@@ -1508,7 +1544,7 @@ bool deluge_scenario_audio_load_ab_step_done(void) {
 }
 
 int32_t deluge_scenario_audio_load_ab_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

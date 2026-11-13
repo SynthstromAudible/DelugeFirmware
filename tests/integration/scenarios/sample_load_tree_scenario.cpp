@@ -35,6 +35,7 @@
 #include "model/project_bridge/source_bridge.h"
 #include "scenarios/slot_coherence.h"
 #include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
@@ -120,6 +121,12 @@ public:
 
 namespace {
 
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
+
+ScenarioReport g_report{"SLT"};
+
 constexpr const char* kSongDir = "SONGS";
 constexpr const char* kSongName = "SLTSONG1";
 const std::string kSongPathString =
@@ -178,10 +185,14 @@ constexpr int32_t kRenderBlocksPerTick = 4;
 constexpr uint32_t kRenderBlockFrames = 128;
 
 constexpr int32_t kMaxWaitTicks = 200000;
+/// Scenario ticks the boot song's own preset request may take before the scenario goes on without it.
+constexpr int32_t kMaxBootTicks = 2000;
 
 /// Milliseconds the loader holds each load during an async leg, so each load spans several scenario ticks.
 constexpr uint32_t kAsyncLatencyMs = 20;
-/// Scenario ticks an async leg may take before it is called wedged. Every leg finishes well inside this.
+/// Scenario ticks an async leg may take before it is called wedged. Every leg finishes well inside this. Not a wait:
+/// the stall leg's cap is virtual time (`kStallLegWindowUs`), so `asyncLegWithinCap` mixes the two, and each leg's
+/// check judges an exhausted cap with its own `SLT-ASYNC` line.
 constexpr int32_t kMaxAsyncTicks = 4000;
 /// Synchronous wavetable lookups each async leg makes, in leg order (crucial, song, synth, kit, race, card-gone, stall,
 /// probe-orphan, dropped-answer, live-pair): one per wavetable holder its walk reaches. Measured, and pinned.
@@ -237,8 +248,10 @@ enum class Stage : uint8_t {
 Stage g_stage = Stage::SongKit;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-int32_t g_failures = 0;
-int32_t g_waitTicks = 0;
+/// The boot song's preset request, waited on across the whole run: its budget is spent cumulatively.
+Wait g_bootWait{g_report, "the boot song's preset arriving", kMaxBootTicks};
+/// The wait of the stage running; each stage that waits starts a fresh one.
+Wait g_wait{g_report, "the song save finishing", kMaxWaitTicks};
 bool g_crucialClockAtLoad = false;
 /// Holders still waiting for a file when the arm wait was FIRST seen, and whether that moment was ever reached.
 /// The rest of the samples are loaded here; a pass that runs to completion before the user can arm has none left.
@@ -317,8 +330,7 @@ AudioFileHolder* firstHolder(Source& source) {
 }
 
 bool fail(const char* what) {
-	printf("SLT-SETUP FAIL %s\n", what);
-	g_failures++;
+	g_report.fail("SETUP %s", what);
 	return false;
 }
 
@@ -443,8 +455,7 @@ void releaseSongFiles() {
 	}
 	for (const char* path : {kSynthSample, kWaveTable, kKitSample}) {
 		if (!audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path)) {
-			printf("SLT-SETUP FAIL %s is still referenced and could not be released\n", path);
-			g_failures++;
+			g_report.fail("SETUP %s is still referenced and could not be released", path);
 		}
 		(void)deluge::io::unlink(path);
 	}
@@ -577,9 +588,8 @@ void reportHolder(const char* load, const char* owner, AudioFileHolder* holder, 
 	       file != nullptr ? 1 : 0, alt);
 	if (wantPath != nullptr
 	    && (holder->filePath != wantPath || (file != nullptr) != wantBound || std::strcmp(alt, wantAlt) != 0)) {
-		printf("SLT-HOLDER FAIL load=%s owner=%s wanted path=%s bound=%d alt=%s\n", load, owner, wantPath,
-		       wantBound ? 1 : 0, wantAlt);
-		g_failures++;
+		g_report.fail("HOLDER load=%s owner=%s wanted path=%s bound=%d alt=%s", load, owner, wantPath,
+		              wantBound ? 1 : 0, wantAlt);
 	}
 }
 
@@ -615,20 +625,18 @@ void checkLiveZoneMove() {
 		const bool kept = synth->numActiveVoices() == sounding;
 		printf("SLT-LIVE-ZONE sounding=%zu applied=%d kept=%d\n", sounding, applied ? 1 : 0, kept ? 1 : 0);
 		if (sounding == 0 || !applied || !kept) {
-			printf("SLT-LIVE-ZONE FAIL a zone moved under a sounding note must keep it sounding\n");
-			g_failures++;
+			g_report.fail("LIVE-ZONE a zone moved under a sounding note must keep it sounding");
 		}
-		g_failures += deluge::harness::expectSongCoherent(*currentSong, "live-zone");
+		g_report.count(deluge::harness::expectSongCoherent(*currentSong, "live-zone"));
 		synth->killAllVoices();
 		return;
 	}
-	printf("SLT-LIVE-ZONE FAIL the song has no sample synth with a clip\n");
-	g_failures++;
+	g_report.fail("LIVE-ZONE the song has no sample synth with a clip");
 }
 
 void checkSong() {
 	// What loading made of each sound (a clamped end, a path found elsewhere) is what its record and slot say.
-	g_failures += deluge::harness::expectSongCoherent(*currentSong, "song");
+	g_report.count(deluge::harness::expectSongCoherent(*currentSong, "song"));
 	bool sawSynth = false;
 	bool sawKit = false;
 	bool sawClip = false;
@@ -668,14 +676,12 @@ void checkSong() {
 		reportHolder("song", "audio-clip", &audioClip->sampleHolder, kClipSample, true, "");
 		printf("SLT-CLIP name=%s\n", audioClip->name.c_str());
 		if (audioClip->name != kClipSample) {
-			printf("SLT-CLIP FAIL the audio clip's name is not its sample's path\n");
-			g_failures++;
+			g_report.fail("CLIP the audio clip's name is not its sample's path");
 		}
 	}
 	printf("SLT-SONG synth=%d kit=%d clip=%d\n", sawSynth ? 1 : 0, sawKit ? 1 : 0, sawClip ? 1 : 0);
 	if (!sawSynth || !sawKit || !sawClip) {
-		printf("SLT-SONG FAIL the loaded song is missing a fixture part\n");
-		g_failures++;
+		g_report.fail("SONG the loaded song is missing a fixture part");
 	}
 }
 
@@ -692,8 +698,7 @@ void loadSynthPreset() {
 	closeTrace();
 	printf("SLT-SYNTH error=%d\n", static_cast<int>(error));
 	if (error != Error::NONE || instrument == nullptr) {
-		printf("SLT-SYNTH FAIL the synth preset did not load\n");
-		g_failures++;
+		g_report.fail("SYNTH the synth preset did not load");
 		return;
 	}
 	reportHolder("synth", "preset-sample", firstHolder(static_cast<SoundInstrument*>(instrument)->sources[0]),
@@ -715,8 +720,7 @@ void loadKitPreset() {
 	closeTrace();
 	printf("SLT-KIT error=%d\n", static_cast<int>(error));
 	if (error != Error::NONE || instrument == nullptr) {
-		printf("SLT-KIT FAIL the kit preset did not load\n");
-		g_failures++;
+		g_report.fail("KIT the kit preset did not load");
 		return;
 	}
 	int32_t index = 0;
@@ -896,8 +900,7 @@ void releaseCrucialSongFiles() {
 	forEachSongHolder(*currentSong, [](AudioFileHolder* holder) { holder->setAudioFile(nullptr); });
 	for (const CrucialHolder& entry : kCrucialHolders) {
 		if (!audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(entry.path)) {
-			printf("SLT-CRUCIAL FAIL %s is still referenced and could not be released\n", entry.path);
-			g_failures++;
+			g_report.fail("CRUCIAL %s is still referenced and could not be released", entry.path);
 		}
 		(void)deluge::io::unlink(entry.path);
 	}
@@ -916,20 +919,17 @@ void renderWhileArmed() {
 
 void checkCrucialLoad() {
 	// What loading made of each sound (a clamped end, a path found elsewhere) is what its record and slot say.
-	g_failures += deluge::harness::expectSongCoherent(*currentSong, "crucial");
+	g_report.count(deluge::harness::expectSongCoherent(*currentSong, "crucial"));
 	printf("SLT-CRUCIAL-SUMMARY clockAtLoad=%d swapAfterTicks=%d renderedBlocks=%d snapshot=%d\n",
 	       g_crucialClockAtLoad ? 1 : 0, g_crucialSwapTick, g_crucialRendered, g_crucialSnapshotTaken ? 1 : 0);
 	if (!g_crucialClockAtLoad) {
-		printf("SLT-CRUCIAL FAIL playback was not running when the load began\n");
-		g_failures++;
+		g_report.fail("CRUCIAL playback was not running when the load began");
 	}
 	if (!g_crucialSnapshotTaken) {
-		printf("SLT-CRUCIAL FAIL the load never traced \"crucial end\": it did not take the crucial-only pass\n");
-		g_failures++;
+		g_report.fail("CRUCIAL the load never traced \"crucial end\": it did not take the crucial-only pass");
 	}
 	if (g_crucialSwapTick < 0) {
-		printf("SLT-CRUCIAL FAIL the load finished without its armed swap\n");
-		g_failures++;
+		g_report.fail("CRUCIAL the load finished without its armed swap");
 	}
 	// SLT-ARM. The rest of the samples must still be arriving when the user can first arm the swap. A pass that
 	// blocks on the card cannot do that: it runs to completion before the arm mode is ever set, so every
@@ -937,21 +937,18 @@ void checkCrucialLoad() {
 	printf("SLT-ARM unboundAtArm=%d boundAtArm=%d reached=%d\n", g_crucialUnboundAtArm, g_crucialBoundAtArm,
 	       (g_crucialUnboundAtArm >= 0) ? 1 : 0);
 	if (g_crucialUnboundAtArm < 0) {
-		printf("SLT-ARM FAIL the load never reached the arm wait, so nothing was observed there\n");
-		g_failures++;
+		g_report.fail("ARM the load never reached the arm wait, so nothing was observed there");
 	}
 	else if (g_crucialUnboundAtArm == 0) {
-		printf("SLT-ARM FAIL every sample was already in when the swap could first be armed: the rest pass ran "
-		       "to completion before the user could act\n");
-		g_failures++;
+		g_report.fail("ARM every sample was already in when the swap could first be armed: the rest pass ran "
+		              "to completion before the user could act");
 	}
 	for (size_t i = 0; i < kCrucialHolders.size(); i++) {
 		const CrucialHolder& entry = kCrucialHolders[i];
 		printf("SLT-CRUCIAL pass holder=%s path=%s bound=%d\n", entry.owner, entry.path, g_crucialBound[i]);
 		if (g_crucialSnapshotTaken && g_crucialBound[i] != (entry.boundAfterCrucialPass ? 1 : 0)) {
-			printf("SLT-CRUCIAL FAIL holder=%s wanted bound=%d after the crucial pass\n", entry.owner,
-			       entry.boundAfterCrucialPass ? 1 : 0);
-			g_failures++;
+			g_report.fail("CRUCIAL holder=%s wanted bound=%d after the crucial pass", entry.owner,
+			              entry.boundAfterCrucialPass ? 1 : 0);
 		}
 	}
 	// After the swap and the load's later passes, every holder is bound to its collected copy.
@@ -969,9 +966,7 @@ void checkCrucialLoad() {
 	});
 	for (size_t i = 0; i < kCrucialHolders.size(); i++) {
 		if (found[i] != 1) {
-			printf("SLT-CRUCIAL FAIL holder=%s found %d times in the loaded song\n", kCrucialHolders[i].owner,
-			       found[i]);
-			g_failures++;
+			g_report.fail("CRUCIAL holder=%s found %d times in the loaded song", kCrucialHolders[i].owner, found[i]);
 		}
 	}
 }
@@ -1157,8 +1152,7 @@ void reloadPreset(Instrument* reference, std::initializer_list<const char*> resi
 	}
 	for (const char* residentPath : residentPaths) {
 		if (!audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(residentPath)) {
-			printf("SLT-ASYNC FAIL %s is still referenced and could not be released\n", residentPath);
-			g_failures++;
+			g_report.fail("ASYNC %s is still referenced and could not be released", residentPath);
 		}
 	}
 	std::string name = presetName;
@@ -1166,9 +1160,8 @@ void reloadPreset(Instrument* reference, std::initializer_list<const char*> resi
 	g_asyncInstrument = nullptr;
 	const Error error = deluge::harness::loadPresetFixture(currentSong, type, &g_asyncInstrument, path, &name, &dir);
 	if (error != Error::NONE || g_asyncInstrument == nullptr) {
-		printf("SLT-ASYNC FAIL leg=%s the preset could not be read again (error %d)\n", asyncLegName(g_asyncLeg),
-		       static_cast<int>(error));
-		g_failures++;
+		g_report.fail("ASYNC leg=%s the preset could not be read again (error %d)", asyncLegName(g_asyncLeg),
+		              static_cast<int>(error));
 		g_asyncInstrument = nullptr;
 	}
 }
@@ -1255,9 +1248,8 @@ bool beginAsyncLeg() {
 		}
 		g_droppedDemands = outputDemands(*g_asyncInstrument);
 		if (g_droppedDemands.size() != 2) {
-			printf("SLT-ASYNC FAIL leg=dropped-answer the kit has %zu drums with samples, not 2\n",
-			       g_droppedDemands.size());
-			g_failures++;
+			g_report.fail("ASYNC leg=dropped-answer the kit has %zu drums with samples, not 2",
+			              g_droppedDemands.size());
 			return false;
 		}
 		g_droppedContext =
@@ -1274,8 +1266,7 @@ bool beginAsyncLeg() {
 		}
 		g_pairDemands = outputDemands(*g_asyncInstrument);
 		if (g_pairDemands.size() != 2) {
-			printf("SLT-ASYNC FAIL leg=live-pair the kit has %zu drums with samples, not 2\n", g_pairDemands.size());
-			g_failures++;
+			g_report.fail("ASYNC leg=live-pair the kit has %zu drums with samples, not 2", g_pairDemands.size());
 			return false;
 		}
 		g_pairContext = deluge::storage::AudioLoadContext::forInstrument(kKitPresetDir, kKitPresetName, ThingType::KIT);
@@ -1540,8 +1531,7 @@ bool tickAsyncLeg() {
 	g_asyncProbes =
 	    deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoadProbe) - g_probesBefore;
 	if (!ended) {
-		printf("SLT-ASYNC FAIL leg=%s the load had not ended after %d ticks\n", asyncLegName(g_asyncLeg), g_asyncTicks);
-		g_failures++;
+		g_report.fail("ASYNC leg=%s the load had not ended after %d ticks", asyncLegName(g_asyncLeg), g_asyncTicks);
 	}
 	return true;
 }
@@ -1554,16 +1544,14 @@ void compareOutcomes(const char* leg, const std::vector<HolderOutcome>& want, co
 		       outcome.bound ? 1 : 0, outcome.alt.c_str(), outcome.clipName.c_str());
 		if (i < want.size() && !(outcome == want[i])) {
 			const HolderOutcome& wanted = want[i];
-			printf("SLT-ASYNC FAIL leg=%s index=%zu wanted path=%s bound=%d alt=%s name=%s, as the blocking load left "
-			       "it\n",
-			       leg, i, wanted.path.c_str(), wanted.bound ? 1 : 0, wanted.alt.c_str(), wanted.clipName.c_str());
-			g_failures++;
+			g_report.fail("ASYNC leg=%s index=%zu wanted path=%s bound=%d alt=%s name=%s, as the blocking load left "
+			              "it",
+			              leg, i, wanted.path.c_str(), wanted.bound ? 1 : 0, wanted.alt.c_str(),
+			              wanted.clipName.c_str());
 		}
 	}
 	if (got.size() != want.size()) {
-		printf("SLT-ASYNC FAIL leg=%s walked %zu holders; the blocking load walked %zu\n", leg, got.size(),
-		       want.size());
-		g_failures++;
+		g_report.fail("ASYNC leg=%s walked %zu holders; the blocking load walked %zu", leg, got.size(), want.size());
 	}
 }
 
@@ -1585,17 +1573,14 @@ void checkAsyncCrucial() {
 			       file != nullptr ? 1 : 0, alt.c_str());
 			const bool wantBound = (g_crucialBound[i] == 1);
 			if ((file != nullptr) != wantBound || (wantBound && alt != collectedCopy)) {
-				printf("SLT-ASYNC FAIL leg=crucial owner=%s wanted bound=%d alt=%s, as the crucial pass left it\n",
-				       entry.owner, wantBound ? 1 : 0, wantBound ? collectedCopy.c_str() : "");
-				g_failures++;
+				g_report.fail("ASYNC leg=crucial owner=%s wanted bound=%d alt=%s, as the crucial pass left it",
+				              entry.owner, wantBound ? 1 : 0, wantBound ? collectedCopy.c_str() : "");
 			}
 		}
 	});
 	for (size_t i = 0; i < kCrucialHolders.size(); i++) {
 		if (found[i] != 1) {
-			printf("SLT-ASYNC FAIL leg=crucial owner=%s found %d times in the song\n", kCrucialHolders[i].owner,
-			       found[i]);
-			g_failures++;
+			g_report.fail("ASYNC leg=crucial owner=%s found %d times in the song", kCrucialHolders[i].owner, found[i]);
 		}
 	}
 }
@@ -1626,14 +1611,12 @@ void checkAsyncKit() {
 		}
 		gotBound++;
 		if (!outcome.path.starts_with("KITS/SLTPKIT/") || !outcome.alt.empty()) {
-			printf("SLT-ASYNC FAIL leg=kit index=%zu bound a file that is not its copy in the kit's folder\n", i);
-			g_failures++;
+			g_report.fail("ASYNC leg=kit index=%zu bound a file that is not its copy in the kit's folder", i);
 		}
 	}
 	if (gotBound != wantBound || got.size() != g_refKit.size()) {
-		printf("SLT-ASYNC FAIL leg=kit bound %d of %zu drums; the load dropped after its first bind binds %d of %zu\n",
-		       gotBound, got.size(), wantBound, g_refKit.size());
-		g_failures++;
+		g_report.fail("ASYNC leg=kit bound %d of %zu drums; the load dropped after its first bind binds %d of %zu",
+		              gotBound, got.size(), wantBound, g_refKit.size());
 	}
 	// One lease on each file a drum holds, and none on a file the dropped load did not bind.
 	int64_t leases = 0;
@@ -1647,13 +1630,11 @@ void checkAsyncKit() {
 		}
 	}
 	if (resident != wantBound || leases != wantBound) {
-		printf("SLT-ASYNC FAIL leg=kit %d file(s) resident with %lld lease(s); wanted only the bound drum's, once\n",
-		       resident, static_cast<long long>(leases));
-		g_failures++;
+		g_report.fail("ASYNC leg=kit %d file(s) resident with %lld lease(s); wanted only the bound drum's, once",
+		              resident, static_cast<long long>(leases));
 	}
 	if (g_kitStep != KitStep::AfterDrop || g_asyncLoad.has_value()) {
-		printf("SLT-ASYNC FAIL leg=kit the load was not dropped after its first bind\n");
-		g_failures++;
+		g_report.fail("ASYNC leg=kit the load was not dropped after its first bind");
 	}
 	// The loader keeps no answer the dropped load was owed, for the next lookup of either drum's path to take: under
 	// either candidate list the kit's folder gives, before it is known to exist and after.
@@ -1679,8 +1660,7 @@ void checkAsyncKit() {
 		}
 		printf("SLT-ASYNC loader leg=kit path=%s status=%d held=%u\n", path, static_cast<int>(status), held);
 		if (status != DELUGE_CHANNEL_UNKNOWN || held != 0) {
-			printf("SLT-ASYNC FAIL leg=kit the loader kept an answer for %s after its load was dropped\n", path);
-			g_failures++;
+			g_report.fail("ASYNC leg=kit the loader kept an answer for %s after its load was dropped", path);
 		}
 	}
 }
@@ -1695,17 +1675,14 @@ void checkCardGone() {
 	       static_cast<int>(g_cardGoneStatusAfter), g_firstProbeAnswer);
 	if (g_cardGoneFirstState != AsyncSampleLoad::State::Failed
 	    || g_cardGoneFirstReason != AsyncSampleLoad::Reason::CardUnusable) {
-		printf("SLT-ASYNC FAIL leg=card-gone the first load did not end Failed/CardUnusable on the ejected card\n");
-		g_failures++;
+		g_report.fail("ASYNC leg=card-gone the first load did not end Failed/CardUnusable on the ejected card");
 	}
 	if (g_cardGoneStatusAfter != AlternateLoadDirStatus::PROBING) {
-		printf("SLT-ASYNC FAIL leg=card-gone the first load did not end with its folder probe still out\n");
-		g_failures++;
+		g_report.fail("ASYNC leg=card-gone the first load did not end with its folder probe still out");
 	}
 	if (g_firstProbeAnswer != static_cast<int32_t>(deluge::storage::bytes::ByteIo::Unknown)) {
-		printf("SLT-ASYNC FAIL leg=card-gone the second load's first folder answer was not the stale one, so this leg "
-		       "proves nothing\n");
-		g_failures++;
+		g_report.fail("ASYNC leg=card-gone the second load's first folder answer was not the stale one, so this leg "
+		              "proves nothing");
 	}
 }
 
@@ -1719,23 +1696,20 @@ void checkStall() {
 	       g_stallFirst.inFlight);
 	if (g_stallFirst.state != AsyncSampleLoad::State::Failed
 	    || g_stallFirst.reason != AsyncSampleLoad::Reason::Stalled) {
-		printf("SLT-ASYNC FAIL leg=stall the held load did not end Failed/Stalled\n");
-		g_failures++;
+		g_report.fail("ASYNC leg=stall the held load did not end Failed/Stalled");
 	}
 	// On the bound's walk: the first walk at or past the bound, so short of it by less than one gap between walks.
 	if (g_stallFirst.stalledUs < AsyncSampleLoad::kMaxStalledUs
 	    || g_stallFirst.stalledUs >= AsyncSampleLoad::kMaxStalledUs + g_stallMaxGapUs
 	    || g_stallFirst.stalledTicks != g_stallFirst.ticks) {
-		printf("SLT-ASYNC FAIL leg=stall the held load did not end on the bound's walk: stalled %llu us, wanted at "
-		       "least %llu us and under %llu us (the bound plus the longest gap between walks)\n",
-		       static_cast<unsigned long long>(g_stallFirst.stalledUs),
-		       static_cast<unsigned long long>(AsyncSampleLoad::kMaxStalledUs),
-		       static_cast<unsigned long long>(AsyncSampleLoad::kMaxStalledUs + g_stallMaxGapUs));
-		g_failures++;
+		g_report.fail("ASYNC leg=stall the held load did not end on the bound's walk: stalled %llu us, wanted at "
+		              "least %llu us and under %llu us (the bound plus the longest gap between walks)",
+		              static_cast<unsigned long long>(g_stallFirst.stalledUs),
+		              static_cast<unsigned long long>(AsyncSampleLoad::kMaxStalledUs),
+		              static_cast<unsigned long long>(AsyncSampleLoad::kMaxStalledUs + g_stallMaxGapUs));
 	}
 	if (g_stallFirst.bound != 0) {
-		printf("SLT-ASYNC FAIL leg=stall the held load bound a holder\n");
-		g_failures++;
+		g_report.fail("ASYNC leg=stall the held load bound a holder");
 	}
 }
 
@@ -1749,19 +1723,17 @@ void checkDroppedAnswer() {
 	       static_cast<int>(g_droppedStatusAfterLearn));
 	if (g_droppedLearn.state != AsyncSampleLoad::State::Loaded || g_droppedLearn.bound != 1
 	    || g_droppedStatusAfterLearn != AlternateLoadDirStatus::DOES_EXIST) {
-		printf("SLT-ASYNC FAIL leg=dropped-answer the first drum's load did not bind it and learn the kit's folder, so "
-		       "this leg proves nothing\n");
-		g_failures++;
+		g_report.fail("ASYNC leg=dropped-answer the first drum's load did not bind it and learn the kit's folder, so "
+		              "this leg proves nothing");
 	}
 	const AudioFileHolder* holder = g_droppedDemands.size() == 2 ? g_droppedDemands[1].holder : nullptr;
 	const bool bound = holder != nullptr && holder->audioFile != nullptr;
 	printf("SLT-ASYNC holder leg=dropped-answer path=%s bound=%d\n", holder != nullptr ? holder->filePath.c_str() : "",
 	       bound ? 1 : 0);
 	if (!bound || holder->filePath != kKitPresetResolvedB) {
-		printf("SLT-ASYNC FAIL leg=dropped-answer the second drum was not bound to %s: the dropped request's answer "
-		       "was taken for the load that came after it\n",
-		       kKitPresetResolvedB);
-		g_failures++;
+		g_report.fail("ASYNC leg=dropped-answer the second drum was not bound to %s: the dropped request's answer "
+		              "was taken for the load that came after it",
+		              kKitPresetResolvedB);
 	}
 }
 
@@ -1775,9 +1747,8 @@ void checkLivePair() {
 	       static_cast<int>(g_pairStatusAfterLearn));
 	if (g_pairLearn.state != AsyncSampleLoad::State::Loaded || g_pairLearn.bound != 1
 	    || g_pairStatusAfterLearn != AlternateLoadDirStatus::DOES_EXIST) {
-		printf("SLT-ASYNC FAIL leg=live-pair the first drum's load did not bind it and learn the kit's folder, so this "
-		       "leg proves nothing\n");
-		g_failures++;
+		g_report.fail("ASYNC leg=live-pair the first drum's load did not bind it and learn the kit's folder, so this "
+		              "leg proves nothing");
 	}
 	const AudioFileHolder* holder = g_pairDemands.size() == 2 ? g_pairDemands[1].holder : nullptr;
 	const bool bound = holder != nullptr && holder->audioFile != nullptr;
@@ -1785,10 +1756,9 @@ void checkLivePair() {
 	printf("SLT-ASYNC holder leg=live-pair path=%s bound=%d foreign=%s\n",
 	       holder != nullptr ? holder->filePath.c_str() : "", bound ? 1 : 0, foreign);
 	if (!bound || holder->filePath != kKitPresetResolvedB) {
-		printf("SLT-ASYNC FAIL leg=live-pair the second drum was not bound to %s: the other live load's answer was "
-		       "taken for this one's\n",
-		       kKitPresetResolvedB);
-		g_failures++;
+		g_report.fail("ASYNC leg=live-pair the second drum was not bound to %s: the other live load's answer was "
+		              "taken for this one's",
+		              kKitPresetResolvedB);
 	}
 	g_pairForeign.reset();
 }
@@ -1802,21 +1772,19 @@ void checkOrphan() {
 	       g_orphanDemand.holder->filePath.c_str(), file != nullptr ? 1 : 0, alt.c_str(),
 	       static_cast<int>(g_asyncContext.alternateDirStatus));
 	if (file == nullptr || alt != collectedCopy) {
-		printf("SLT-ASYNC FAIL leg=probe-orphan the wavetable was not bound to its collected copy %s\n",
-		       collectedCopy.c_str());
-		g_failures++;
+		g_report.fail("ASYNC leg=probe-orphan the wavetable was not bound to its collected copy %s",
+		              collectedCopy.c_str());
 	}
 }
 
 void checkAsyncLeg() {
 	// What loading made of each sound (a clamped end, a path found elsewhere) is what its record and slot say.
-	g_failures += deluge::harness::expectSongCoherent(*currentSong, "async");
+	g_report.count(deluge::harness::expectSongCoherent(*currentSong, "async"));
 	using deluge::storage::AsyncSampleLoad;
 	const char* leg = asyncLegName(g_asyncLeg);
 	if (!g_asyncLoad.has_value() && g_asyncLeg != AsyncLeg::Kit) {
 		printf("SLT-ASYNC leg=%s state=none\n", leg);
-		printf("SLT-ASYNC FAIL leg=%s had nothing to load\n", leg);
-		g_failures++;
+		g_report.fail("ASYNC leg=%s had nothing to load", leg);
 		return;
 	}
 	// The kit leg's owner dropped its load: what it reported on its last tick.
@@ -1832,24 +1800,19 @@ void checkAsyncLeg() {
 	const bool endedRight = wantDropped ? (progress.state == AsyncSampleLoad::State::Loading)
 	                                    : (progress.state == AsyncSampleLoad::State::Loaded);
 	if (!endedRight) {
-		printf("SLT-ASYNC FAIL leg=%s ended %s/%s; wanted %s\n", leg, asyncStateName(progress.state),
-		       asyncReasonName(progress.reason), wantDropped ? "dropped while still Loading" : "loaded");
-		g_failures++;
+		g_report.fail("ASYNC leg=%s ended %s/%s; wanted %s", leg, asyncStateName(progress.state),
+		              asyncReasonName(progress.reason), wantDropped ? "dropped while still Loading" : "loaded");
 	}
 	if (g_asyncSampleOpens != 0) {
-		printf("SLT-ASYNC FAIL leg=%s %d sample lookup(s) read the card on the interaction tier\n", leg,
-		       g_asyncSampleOpens);
-		g_failures++;
+		g_report.fail("ASYNC leg=%s %d sample lookup(s) read the card on the interaction tier", leg,
+		              g_asyncSampleOpens);
 	}
 	if (g_asyncProbes != 0) {
-		printf("SLT-ASYNC FAIL leg=%s %d folder probe(s) opened the card on the interaction tier\n", leg,
-		       g_asyncProbes);
-		g_failures++;
+		g_report.fail("ASYNC leg=%s %d folder probe(s) opened the card on the interaction tier", leg, g_asyncProbes);
 	}
 	if (progress.wavetableReads != kAsyncWavetableReads[index]) {
-		printf("SLT-ASYNC FAIL leg=%s wavetableReads=%d pinned=%d\n", leg, progress.wavetableReads,
-		       kAsyncWavetableReads[index]);
-		g_failures++;
+		g_report.fail("ASYNC leg=%s wavetableReads=%d pinned=%d", leg, progress.wavetableReads,
+		              kAsyncWavetableReads[index]);
 	}
 
 	switch (g_asyncLeg) {
@@ -1869,8 +1832,7 @@ void checkAsyncLeg() {
 		compareOutcomes(leg, g_refSong, snapshot(songDemands(*currentSong)));
 		printf("SLT-ASYNC probe leg=race waits=%d\n", g_probeWaits);
 		if (g_probeWaits == 0) {
-			printf("SLT-ASYNC FAIL leg=race no lookup waited for the folder probe, so the race never happened\n");
-			g_failures++;
+			g_report.fail("ASYNC leg=race no lookup waited for the folder probe, so the race never happened");
 		}
 		break;
 	case AsyncLeg::CardGone:
@@ -1921,10 +1883,8 @@ bool runPendingFixture() {
 /// InstrumentLoad for the first SYNTHS preset on the interaction tier; a scenario that acted on the boot clip before
 /// that landed would be working on an Instrument about to be replaced, which no user can do.
 bool bootSettled() {
-	static int32_t waited = 0;
-	if (currentSong != nullptr && (currentSong->blankPresetPending || deluge::gui::instrumentLoad.inFlight())
-	    && ++waited < 2000) {
-		return false;
+	if (currentSong != nullptr && (currentSong->blankPresetPending || deluge::gui::instrumentLoad.inFlight())) {
+		return g_bootWait.poll(false) == WaitState::Expired;
 	}
 	return true;
 }
@@ -1943,7 +1903,7 @@ void runTick() {
 		g_stage = Stage::Build;
 		break;
 	case Stage::Build:
-		if (g_failures != 0) {
+		if (!g_report.clean()) {
 			g_stage = Stage::Report;
 			break;
 		}
@@ -1955,7 +1915,7 @@ void runTick() {
 		g_stage = Stage::SaveOpen;
 		break;
 	case Stage::SaveOpen:
-		if (g_failures != 0) {
+		if (!g_report.clean()) {
 			g_stage = Stage::Report;
 			break;
 		}
@@ -1972,17 +1932,19 @@ void runTick() {
 		SampleLoadTreeProbe::typeName(kSongName);
 		SampleLoadTreeProbe::collectMedia();
 		SampleLoadTreeProbe::pressEnter();
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the song save finishing", kMaxWaitTicks};
 		g_stage = Stage::SaveWait;
 		break;
 	case Stage::SaveWait:
-		if (!saveSongUI.collectInFlight() && !saveSongUI.docInFlight() && !SaveUI::saveInFlight()) {
+		switch (g_wait.poll(!saveSongUI.collectInFlight() && !saveSongUI.docInFlight() && !SaveUI::saveInFlight())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			g_stage = Stage::Release;
-		}
-		else if (++g_waitTicks > kMaxWaitTicks) {
-			printf("SLT-SETUP FAIL the song save never finished\n");
-			g_failures++;
+			break;
+		case WaitState::Expired:
 			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	case Stage::Release:
@@ -1992,34 +1954,41 @@ void runTick() {
 	case Stage::LoadOpen:
 		currentSong->setSongFullPath(kSongPath);
 		(void)openUI(&loadSongUI);
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the load browser's listing finishing", kMaxWaitTicks};
 		g_stage = Stage::LoadListing;
 		break;
-	case Stage::LoadListing:
-		if (Browser::isListingInProgress()) {
+	case Stage::LoadListing: {
+		const bool listing = Browser::isListingInProgress();
+		if (listing) {
 			loadSongUI.graphicsRoutine();
-			if (++g_waitTicks > kMaxWaitTicks) {
-				printf("SLT-SONG FAIL the load browser's listing never finished\n");
-				g_failures++;
-				g_stage = Stage::Report;
-			}
+		}
+		switch (g_wait.poll(!listing)) {
+		case WaitState::Pending:
+			return;
+		case WaitState::Met:
 			break;
+		case WaitState::Expired:
+			g_stage = Stage::Report;
+			return;
 		}
 		openTrace("song");
 		loadSongUI.beginLoad();
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the song load finishing", kMaxWaitTicks};
 		g_stage = Stage::LoadWait;
 		break;
+	}
 	case Stage::LoadWait:
-		if (!loadSongUI.loadInFlight()) {
+		switch (g_wait.poll(!loadSongUI.loadInFlight())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			closeTrace();
 			g_stage = Stage::SongCheck;
-		}
-		else if (++g_waitTicks > kMaxWaitTicks) {
+			break;
+		case WaitState::Expired:
 			closeTrace();
-			printf("SLT-SONG FAIL the song load never finished\n");
-			g_failures++;
 			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	case Stage::SongCheck:
@@ -2078,17 +2047,19 @@ void runTick() {
 		SampleLoadTreeProbe::typeName(kCrucialSongName);
 		SampleLoadTreeProbe::collectMedia();
 		SampleLoadTreeProbe::pressEnter();
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the crucial song's save finishing", kMaxWaitTicks};
 		g_stage = Stage::CrucialSaveWait;
 		break;
 	case Stage::CrucialSaveWait:
-		if (!saveSongUI.collectInFlight() && !saveSongUI.docInFlight() && !SaveUI::saveInFlight()) {
+		switch (g_wait.poll(!saveSongUI.collectInFlight() && !saveSongUI.docInFlight() && !SaveUI::saveInFlight())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			g_stage = Stage::CrucialRelease;
-		}
-		else if (++g_waitTicks > kMaxWaitTicks) {
-			printf("SLT-CRUCIAL FAIL the crucial song's save never finished\n");
-			g_failures++;
+			break;
+		case WaitState::Expired:
 			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	case Stage::CrucialRelease:
@@ -2104,18 +2075,22 @@ void runTick() {
 	case Stage::CrucialLoadOpen:
 		currentSong->setSongFullPath(kCrucialSongPath);
 		(void)openUI(&loadSongUI);
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the load browser's listing finishing", kMaxWaitTicks};
 		g_stage = Stage::CrucialListing;
 		break;
-	case Stage::CrucialListing:
-		if (Browser::isListingInProgress()) {
+	case Stage::CrucialListing: {
+		const bool listing = Browser::isListingInProgress();
+		if (listing) {
 			loadSongUI.graphicsRoutine();
-			if (++g_waitTicks > kMaxWaitTicks) {
-				printf("SLT-CRUCIAL FAIL the load browser's listing never finished\n");
-				g_failures++;
-				g_stage = Stage::Report;
-			}
+		}
+		switch (g_wait.poll(!listing)) {
+		case WaitState::Pending:
+			return;
+		case WaitState::Met:
 			break;
+		case WaitState::Expired:
+			g_stage = Stage::Report;
+			return;
 		}
 		g_crucialClockAtLoad = playbackHandler.isEitherClockActive();
 		openTrace("crucial", "LTC");
@@ -2123,9 +2098,10 @@ void runTick() {
 		// runs as the loader answers, and an unheld rest pass can finish between two scenario ticks.
 		deluge_audio_load_set_latency_ms(kAsyncLatencyMs);
 		loadSongUI.beginLoad();
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the crucial song's load finishing", kMaxCrucialWaitTicks};
 		g_stage = Stage::CrucialWait;
 		break;
+	}
 	case Stage::CrucialWait:
 		if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED
 		    || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED) {
@@ -2148,21 +2124,23 @@ void runTick() {
 			renderWhileArmed();
 		}
 		else if (g_crucialRendered > 0 && g_crucialSwapTick < 0) {
-			g_crucialSwapTick = g_waitTicks;
+			g_crucialSwapTick = g_wait.ticks();
 		}
-		if (!loadSongUI.loadInFlight()) {
+		switch (g_wait.poll(!loadSongUI.loadInFlight())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			// The hold ends with the leg, whether or not the arm tick was ever reached.
 			deluge_audio_load_set_latency_ms(0);
 			closeTrace();
 			playbackHandler.endPlayback();
 			g_stage = Stage::CrucialCheck;
-		}
-		else if (++g_waitTicks > kMaxCrucialWaitTicks) {
+			break;
+		case WaitState::Expired:
 			deluge_audio_load_set_latency_ms(0);
 			closeTrace();
-			printf("SLT-CRUCIAL FAIL the crucial song's load never finished\n");
-			g_failures++;
 			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	case Stage::CrucialCheck:
@@ -2194,7 +2172,7 @@ void runTick() {
 		g_stage = (g_asyncLeg == AsyncLeg::Done) ? Stage::Report : Stage::AsyncRelease;
 		break;
 	case Stage::Report:
-		printf("SLT-RESULT failures=%d\n", g_failures);
+		g_report.printResult();
 		fflush(stdout);
 		g_summaryPrinted = true;
 		g_stage = Stage::Done;
@@ -2213,8 +2191,8 @@ void deluge_scenario_sample_load_tree_begin(void) {
 	g_stage = Stage::SongKit;
 	g_stepDone = false;
 	g_summaryPrinted = false;
-	g_failures = 0;
-	g_waitTicks = 0;
+	g_report.reset();
+	g_bootWait = Wait{g_report, "the boot song's preset arriving", kMaxBootTicks};
 	g_crucialClockAtLoad = false;
 	g_crucialUnboundAtArm = -1;
 	g_crucialBoundAtArm = -1;
@@ -2278,7 +2256,7 @@ bool deluge_scenario_sample_load_tree_step_done(void) {
 }
 
 int32_t deluge_scenario_sample_load_tree_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"
