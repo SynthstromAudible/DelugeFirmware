@@ -103,6 +103,17 @@ SELECT) and drives it there: the held pad's release, a Vertical turn, a grid pre
 turn and BACK, which returns to the automation overview. It makes no Horizontal turn, on which `main` freezes (E379)
 with no note under the held pad.
 
+`menu_knob_presses` is written for `run_parity.py` (its script format, the factory card), not `tools/emu_parity.py`: it
+presses the gold knobs and the mod buttons with a menu up, where the shell's knob service takes them, which the other
+knob scripts never do (they press only over the root views). On the boot synth (the low-pass frequency's page), a kit
+with affect-entire (its menu from SELECT) and the song (the song menu), each press is followed by a turn, so a press
+that moved a knob shows in the next popup and the knob LEDs: the filter knob's cycle, the mode steps, a chain's mod FX
+views and type, the song's compressor entered from its threshold knob, walked round and left, and a held stutter. Its
+five kit snapshots that differ from `main` (`entire_menu`, `entire_mod1`, `entire_mod1_upper_push3`,
+`entire_mod1_lower_push`, `entire_mod1_lower_push_turn`: the kit's knob LEDs, and a popup's timing and value) differ
+the same way between `next` 18998b56c and `main`; with the kit's menu opened from its LPF shortcut instead, its whole
+kit half differs there (that page draws a marker on its bar that `main`'s does not).
+
 The cards' factory presets are stamped `firmwareVersion` 4.1.3 (`tools/stamp_preset_versions.py`). `main` converts a
 preset older than official 4.1 as it loads it, and our line leaves that to `tools/deluge-upgrade`, so an unstamped
 preset shows the conversion in every comparison that touches it instead of the UI.
