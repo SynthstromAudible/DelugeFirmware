@@ -86,6 +86,7 @@
 ///   - `RS-RESULT failures=<n>`.
 
 #include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "definitions_cxx.hpp"
 #include "effects/reverb.h"
@@ -158,13 +159,19 @@ void inputRoutine();
 
 namespace {
 
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
+
 enum class Stage : uint8_t { Open, Listing, Loading, Play, Playing, Report, Done };
 
-/// Ticks each wait is given before it counts as a failure. A tick is about two virtual milliseconds.
+/// Ticks each load wait is given before it counts as a failure. A tick is about two virtual milliseconds.
 constexpr int32_t kMaxWaitTicks = 20000;
 
 Stage g_stage = Stage::Open;
-int32_t g_failures = 0;
+ScenarioReport g_report{"RS"};
+/// The wait of the load's current stage: the browser's listing, then the load.
+Wait g_wait{g_report, "LOADED the load browser's listing", kMaxWaitTicks};
 int32_t g_ticks = 0;
 
 std::string g_songPath;
@@ -554,8 +561,6 @@ void readMetronome() {
 	}
 }
 
-void fail(const char* marker, const char* what);
-
 /// RENDER_ARRANGE_RECORD: `1`; unset by default. Play begins recording the session into the arrangement, as holding
 /// record and pressing the session button while stopped does: each session clip playing gets an instance from the
 /// arrangement's start, and a knob turned on one (RENDER_KNOB) clones it into a take that repeats it at each loop end.
@@ -605,7 +610,7 @@ void readArrangeRecord() {
 		unsigned long long block = 0;
 		long long value = 0;
 		if (std::sscanf(item.c_str(), "%llu:%7[a-z]:%7[a-z]:%lld", &block, type, param, &value) != 4) {
-			fail("RS-KNOB", "a knob turn is not <block>:<synth|kit|audio>:<lpf|volume>:<value>");
+			g_report.fail("KNOB a knob turn is not <block>:<synth|kit|audio>:<lpf|volume>:<value>");
 			continue;
 		}
 		const std::string kind = type;
@@ -627,7 +632,7 @@ void beginArrangementRecording() {
 	}
 	currentSong->clearArrangementBeyondPos(arrangerView.xScrollWhenPlaybackStarted, action);
 	if (currentSong->placeFirstInstancesOfActiveClips(arrangerView.xScrollWhenPlaybackStarted) != Error::NONE) {
-		fail("RS-ARRANGE", "the session clips' first instances could not be placed");
+		g_report.fail("ARRANGE the session clips' first instances could not be placed");
 		return;
 	}
 	playbackHandler.recording = RecordingMode::ARRANGEMENT;
@@ -650,7 +655,7 @@ Clip* sessionClipOf(OutputType type) {
 void turnKnob(uint64_t block, const KnobTurn& turn) {
 	Clip* clip = sessionClipOf(turn.type);
 	if (clip == nullptr) {
-		fail("RS-KNOB", "the song has no session clip of the output a knob turn names");
+		g_report.fail("KNOB the song has no session clip of the output a knob turn names");
 		return;
 	}
 	namespace params = deluge::modulation::params;
@@ -680,7 +685,7 @@ void editSource(uint64_t block) {
 	auto* clip = static_cast<InstrumentClip*>(sessionClipOf(OutputType::KIT));
 	NoteRow* row = clip != nullptr && !clip->noteRows.empty() ? &clip->noteRows[0] : nullptr;
 	if (row == nullptr || row->drum == nullptr) {
-		fail("RS-SOURCE-EDIT", "the song has no session kit clip with a drum row");
+		g_report.fail("SOURCE-EDIT the song has no session kit clip with a drum row");
 		return;
 	}
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
@@ -921,11 +926,6 @@ int32_t g_voicesMax = 0;
 int32_t g_wrongWidthTicks = 0;
 uint64_t g_captured = 0;
 
-void fail(const char* marker, const char* what) {
-	printf("%s FAIL %s\n", marker, what);
-	g_failures++;
-}
-
 /// The song's name as the load gives it: the file name without its folder or extension.
 std::string expectedName(const std::string& path) {
 	std::string name = path.substr(path.find_last_of('/') + 1);
@@ -935,44 +935,48 @@ std::string expectedName(const std::string& path) {
 	return name;
 }
 
-bool waitedTooLong(const char* marker, const char* what) {
-	if (++g_ticks <= kMaxWaitTicks) {
-		return false;
-	}
-	fail(marker, what);
-	g_stage = Stage::Report;
-	return true;
-}
-
 void stepOpen() {
 	// Also renames the current song to the file name WITH its extension, while a completed load names the new song
 	// without it: so a load that gives up cannot leave behind a song whose name matches.
 	currentSong->setSongFullPath(g_songPath.c_str());
 	if (!openUI(&loadSongUI)) {
-		fail("RS-LOADED", "the load browser would not open");
+		g_report.fail("LOADED the load browser would not open");
 		g_stage = Stage::Report;
 		return;
 	}
-	g_ticks = 0;
+	g_wait = Wait{g_report, "LOADED the load browser's listing", kMaxWaitTicks};
 	g_stage = Stage::Listing;
 }
 
 void stepListing() {
 	// Nothing else ticks the browser on this headless harness: each step is its tick.
-	if (Browser::isListingInProgress()) {
+	const bool listing = Browser::isListingInProgress();
+	if (listing) {
 		loadSongUI.graphicsRoutine();
-		waitedTooLong("RS-LOADED", "the load browser's listing never finished");
+	}
+	switch (g_wait.poll(!listing)) {
+	case WaitState::Pending:
 		return;
+	case WaitState::Expired:
+		g_stage = Stage::Report;
+		return;
+	case WaitState::Met:
+		break;
 	}
 	loadSongUI.beginLoad();
-	g_ticks = 0;
+	g_wait = Wait{g_report, "LOADED the load", kMaxWaitTicks};
 	g_stage = Stage::Loading;
 }
 
 void stepLoading() {
-	if (loadSongUI.loadInFlight()) {
-		waitedTooLong("RS-LOADED", "the load never finished");
+	switch (g_wait.poll(!loadSongUI.loadInFlight())) {
+	case WaitState::Pending:
 		return;
+	case WaitState::Expired:
+		g_stage = Stage::Report;
+		return;
+	case WaitState::Met:
+		break;
 	}
 	const std::string want = expectedName(g_songPath);
 	const std::string got = currentSong->project.metadata.name.c_str();
@@ -1002,7 +1006,7 @@ void stepLoading() {
 		       static_cast<int>(Browser::lastListingFailure()));
 		// Either the load gave up (the name still carries the extension stepOpen gave it), or the browser did not
 		// find the file and loaded the nearest one instead.
-		fail("RS-LOADED", "the song asked for is not the song loaded");
+		g_report.fail("LOADED the song asked for is not the song loaded");
 		g_stage = Stage::Report;
 		return;
 	}
@@ -1110,7 +1114,7 @@ void stepPlaying() {
 	}
 	// A block takes about 2.9 virtual milliseconds and a tick about two, so twice the blocks in ticks is ample.
 	if (++g_ticks > static_cast<int64_t>(g_blocksWanted) * 2 + 1000) {
-		fail("RS-RENDER", "the render stopped short of the blocks asked for");
+		g_report.fail("RENDER the render stopped short of the blocks asked for");
 		g_captured = deluge_host_capture_stop();
 		g_stage = Stage::Report;
 	}
@@ -1127,7 +1131,7 @@ void report() {
 	       static_cast<unsigned long long>(g_blocksRendered), g_stops, static_cast<long long>(g_firstStop), g_voicesMax,
 	       g_direnessMax);
 	if (g_stops != 0) {
-		fail("RS-RENDER", "playback stopped before the blocks asked for were rendered");
+		g_report.fail("RENDER playback stopped before the blocks asked for were rendered");
 	}
 	uint64_t voices[3];
 	for (uint8_t tier = 0; tier < 3; tier++) {
@@ -1140,7 +1144,7 @@ void report() {
 	const uint32_t audioSync = deluge_tier_sync_audio_total() - g_audioSyncBase;
 	printf("RS-TIER-SYNC-AUDIO total=%u\n", audioSync);
 	if (audioSync != 0) {
-		fail("RS-TIER-SYNC-AUDIO", "the render made a synchronous card call");
+		g_report.fail("TIER-SYNC-AUDIO the render made a synchronous card call");
 	}
 	// Card reads while playing: sample data streamed from the card, rather than found resident.
 	printf("RS-STREAM reads=%llu\n", static_cast<unsigned long long>(g_reads));
@@ -1148,21 +1152,22 @@ void report() {
 	       static_cast<unsigned long long>(deluge_sim_underrun_wait_count() - g_waitBase),
 	       static_cast<unsigned long long>(deluge_sim_underrun_unassign_count() - g_unassignBase));
 	if (g_tempoAsked && !g_tempoDone) {
-		fail("RS-TEMPO", "the tempo change asked for never happened");
+		g_report.fail("TEMPO the tempo change asked for never happened");
 	}
 	if (!g_stutterAt.empty()) {
 		printf("RS-STUTTER applied=%d asked=%zu stuttered=%llu\n", g_stutterApplied, g_stutterAt.size() * 2,
 		       static_cast<unsigned long long>(g_stutteredTicks));
 		if (g_stutterApplied != static_cast<int32_t>(g_stutterAt.size() * 2) || g_stutteredTicks == 0
 		    || (g_stutterRateAsked && !g_stutterRateDone)) {
-			fail("RS-STUTTER", "a stutter asked for did not begin and end, never stuttered, or missed its rate change");
+			g_report.fail(
+			    "STUTTER a stutter asked for did not begin and end, never stuttered, or missed its rate change");
 		}
 	}
 	if (!g_switchAt.empty()) {
 		printf("RS-DELAY-SWITCH switches=%zu asked=%zu tracks=%d\n", g_switchesDone, g_switchAt.size(),
 		       g_tracksSwitched);
 		if (g_switchesDone != g_switchAt.size() || g_tracksSwitched != static_cast<int32_t>(g_switchAt.size())) {
-			fail("RS-DELAY-SWITCH", "a switch asked for did not switch exactly one audio track's delay");
+			g_report.fail("DELAY-SWITCH a switch asked for did not switch exactly one audio track's delay");
 		}
 	}
 	if (!g_modFxSwitchAt.empty()) {
@@ -1171,7 +1176,7 @@ void report() {
 		       g_modFxSwitchedRing, g_modFxSwitchedNoRing, g_modFxSwitchedGrain);
 		if (g_modFxSwitchesDone != g_modFxSwitchAt.size()
 		    || g_tracksModFxSwitched != static_cast<int32_t>(g_modFxSwitchAt.size())) {
-			fail("RS-MODFX-SWITCH", "a switch asked for did not switch exactly one audio track's mod FX");
+			g_report.fail("MODFX-SWITCH a switch asked for did not switch exactly one audio track's mod FX");
 		}
 	}
 	if (!g_modFxClearAt.empty()) {
@@ -1179,7 +1184,7 @@ void report() {
 		       g_modFxClearAt.size(), g_modFxClearedRing, g_modFxClearedNoRing, g_modFxClearedGrain);
 		if (g_modFxClearsDone != g_modFxClearAt.size()
 		    || g_tracksModFxCleared != static_cast<int32_t>(g_modFxClearAt.size())) {
-			fail("RS-MODFX-CLEAR", "a clear asked for did not clear exactly one audio track's mod FX");
+			g_report.fail("MODFX-CLEAR a clear asked for did not clear exactly one audio track's mod FX");
 		}
 	}
 	if (!g_reverbSwitchAt.empty()) {
@@ -1187,13 +1192,13 @@ void report() {
 		       g_reverbSwitchedModels.empty() ? "-" : g_reverbSwitchedModels.c_str());
 		if (g_reverbSwitchesDone != g_reverbSwitchAt.size()
 		    || g_reverbSwitched != static_cast<int32_t>(g_reverbSwitchAt.size())) {
-			fail("RS-REVERB-SWITCH", "a reverb switch asked for was not applied");
+			g_report.fail("REVERB-SWITCH a reverb switch asked for was not applied");
 		}
 	}
 	if (g_metronomeAt) {
 		printf("RS-METRONOME applied=%d on=%d\n", g_metronomeDone ? 1 : 0, playbackHandler.metronomeOn ? 1 : 0);
 		if (!g_metronomeDone || !playbackHandler.metronomeOn) {
-			fail("RS-METRONOME", "the metronome was not switched on");
+			g_report.fail("METRONOME the metronome was not switched on");
 		}
 	}
 	if (g_arrangeRecord) {
@@ -1202,7 +1207,7 @@ void report() {
 		const int32_t stale = deluge::modulation::checkPublished(*currentSong);
 		printf("RS-TAKE-STALE collections=%d\n", static_cast<int>(stale));
 		if (stale != 0) {
-			fail("RS-TAKE-STALE", "a collection's published lanes are not its model's after the take");
+			g_report.fail("TAKE-STALE a collection's published lanes are not its model's after the take");
 		}
 		dumpTakes();
 		printf("RS-TAKE-PLAYED checked=%d mismatched=%d\n", g_playedChecked, g_playedMismatched);
@@ -1224,13 +1229,13 @@ void report() {
 		       deluge::modulation::renderTakeEnds, deluge::modulation::audioSpareMisses,
 		       deluge::modulation::renderMadeCollections);
 		if (deluge::modulation::audioSpareMisses != 0 || deluge::modulation::renderMadeCollections != 0) {
-			fail("RS-TAKE-REPEATS", "an audio take's loop end made its next take on the render, or found no spare");
+			g_report.fail("TAKE-REPEATS an audio take's loop end made its next take on the render, or found no spare");
 		}
 		if (deluge::modulation::latchWritesWithoutCopy != 0 || deluge::modulation::copiesEndedAtLoopEnd() != 0
 		    || deluge::modulation::renderTakeEnds != 0) {
-			fail("RS-TAKE-REPEATS",
-			     "a take's recording stopped at a loop end: a copy ended there, or a latch write was "
-			     "skipped for want of one");
+			g_report.fail(
+			    "TAKE-REPEATS a take's recording stopped at a loop end: a copy ended there, or a latch write was "
+			    "skipped for want of one");
 		}
 		int32_t spares = 0;
 		for (Clip* clip : currentSong->live.clips.arrangement_only_clips) {
@@ -1239,21 +1244,21 @@ void report() {
 		const int32_t staged = deluge::modulation::stagedSnapshotsLeft(*currentSong);
 		printf("RS-TAKE-LEFT spares=%d staged=%d\n", spares, static_cast<int>(staged));
 		if (spares != 0 || staged != 0) {
-			fail("RS-TAKE-LEFT", "a spare or a staged snapshot was left after recording ended");
+			g_report.fail("TAKE-LEFT a spare or a staged snapshot was left after recording ended");
 		}
 		if (deluge::modulation::stagedRepeatMisses != 0 || deluge::modulation::stagedRepeatSwaps != repeats) {
-			fail("RS-TAKE-REPEATS", "a take's repeat was not staged and swapped in at its loop end");
+			g_report.fail("TAKE-REPEATS a take's repeat was not staged and swapped in at its loop end");
 		}
 #endif
 		printf("RS-KNOB applied=%d asked=%zu\n", g_knobsApplied, g_knobAt.size());
 		if (g_knobsApplied != static_cast<int32_t>(g_knobAt.size())) {
-			fail("RS-KNOB", "a knob turn asked for did not land in its clip's take");
+			g_report.fail("KNOB a knob turn asked for did not land in its clip's take");
 		}
 		if (g_sourceEditAsked && !g_sourceEdited) {
-			fail("RS-SOURCE-EDIT", "the source edit asked for was not applied");
+			g_report.fail("SOURCE-EDIT the source edit asked for was not applied");
 		}
 		if (g_playedChecked == 0) {
-			fail("RS-TAKE-PLAYED", "no take grew by a repeat with automation in it");
+			g_report.fail("TAKE-PLAYED no take grew by a repeat with automation in it");
 		}
 	}
 	printf("RS-DELAY-OFF silenced=%u\n", deluge::effects::delay_off_silenced_blocks());
@@ -1261,8 +1266,8 @@ void report() {
 	       deluge::model::delayArena().regions(), deluge::model::delayArenaMaintenanceRuns());
 	printf("RS-CAPTURE frames=%llu stereo=%d\n", static_cast<unsigned long long>(g_captured), g_stereo ? 1 : 0);
 	if (g_wrongWidthTicks != 0) {
-		fail("RS-CAPTURE", g_stereo ? "the app rendered in mono with headphones plugged in"
-		                            : "the app rendered in stereo with nothing plugged in");
+		g_report.fail("CAPTURE %s", g_stereo ? "the app rendered in mono with headphones plugged in"
+		                                     : "the app rendered in stereo with nothing plugged in");
 	}
 #if ALPHA_OR_BETA_VERSION
 	const uint32_t storeEdits = deluge::renderStructuralEdits(deluge::StructuralContainer::PARAM_STORE);
@@ -1270,24 +1275,25 @@ void report() {
 	printf("RS-SNAPSHOT model_reads=%u render_writes=%u requests_dropped=%u\n", deluge::modulation::renderModelReads,
 	       deluge::modulation::renderModelWrites, deluge::modulation::laneRequestOverflows);
 	if (deluge::modulation::renderModelReads != 0 || deluge::modulation::renderModelWrites != 0) {
-		fail("RS-SNAPSHOT", "the render read or wrote a lane in the model");
+		g_report.fail("SNAPSHOT the render read or wrote a lane in the model");
 	}
 	if (deluge::modulation::laneRequestOverflows != 0) {
-		fail("RS-SNAPSHOT", "a lane request the render made found the queue full");
+		g_report.fail("SNAPSHOT a lane request the render made found the queue full");
 	}
 	printf("RS-LANES splits=%u\n", deluge::modulation::laneSplits);
 	if (deluge::modulation::laneSplits != 0) {
-		fail("RS-LANES", "the interaction tier resolved a lane the render does not read");
+		g_report.fail("LANES the interaction tier resolved a lane the render does not read");
 	}
 	if (storeEdits != 0) {
-		fail("RS-STORE", "the render changed a lane store");
+		g_report.fail("STORE the render changed a lane store");
 	}
 	printf("RS-POSITIONS stray=%u\n", deluge::playback::strayPositionWrites);
 	if (deluge::playback::strayPositionWrites != 0) {
-		fail("RS-POSITIONS", "the interaction tier moved the playhead while the render could tick, not excluding it");
+		g_report.fail(
+		    "POSITIONS the interaction tier moved the playhead while the render could tick, not excluding it");
 	}
 #endif
-	printf("RS-RESULT failures=%d\n", g_failures);
+	g_report.printResult();
 	g_stage = Stage::Done;
 }
 
@@ -1298,7 +1304,7 @@ extern "C" {
 void deluge_scenario_render_song_begin(void) {
 	setvbuf(stdout, nullptr, _IOLBF, 0);
 	g_stage = Stage::Open;
-	g_failures = 0;
+	g_report.reset();
 	g_ticks = 0;
 	g_stops = 0;
 	g_firstStop = -1;
@@ -1348,7 +1354,7 @@ void deluge_scenario_render_song_begin(void) {
 		g_blocksWanted = std::strtoull(blocks, nullptr, 10);
 	}
 	if (g_songPath.empty()) {
-		fail("RS-LOADED", "RENDER_SONG names no song");
+		g_report.fail("LOADED RENDER_SONG names no song");
 		g_stage = Stage::Report;
 	}
 }
@@ -1387,7 +1393,7 @@ bool deluge_scenario_render_song_step_done(void) {
 }
 
 int32_t deluge_scenario_render_song_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"
