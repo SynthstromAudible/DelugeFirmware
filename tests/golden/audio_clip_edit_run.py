@@ -11,6 +11,11 @@ Usage:
   DELUGE_SONG_CORPUS=/path/to/SONGS python3 tests/golden/audio_clip_edit_run.py
 
 Exit: 0 = all baselines reproduced; 1 = a regression; 77 = skipped (no corpus).
+
+Gate audio-clip-edit-diff:
+    an AudioClip's descriptor edits, their undo, and a save and reload must reproduce the committed baseline
+    (tests/golden/audio_clip_edit_baselines) byte for byte, with each clip's DocAudioClip matching the engine's cache
+    after every step
 """
 
 import os

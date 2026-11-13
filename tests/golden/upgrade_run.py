@@ -30,6 +30,18 @@ originals the corpus lacks (the fixtures were made from it), and fails when n is
 renders, so the run leaves their cases out of OK.
 
 Prints UPGRADE OK=<n> FAIL=<n> REPORTED=<n>, and UPGRADE-FAIL <case>: <why> per failure; exits 1 on any failure.
+
+Gate upgrade-differential:
+    a file the upgrader (tools/deluge-upgrade) writes as JSON must load to exactly what its original loaded: each
+    committed synthetic song and legacy fixture (tests/golden/upgrade, hashes in upgrade_fixtures.json), upgraded, must
+    round-trip to its fixture hash
+
+Gate upgrade-differential-corpus:
+    the upgrader against a real card backup: each original corpus song and SYNTHS/KITS preset in DELUGE_LEGACY_CORPUS,
+    upgraded, must round-trip to its fixture hash (the fixtures are keyed by the upgraded .json names:
+    DELUGE_SONG_CORPUS names the upgraded corpus), and the golden preset corpus upgraded, its factory presets from their
+    originals in the backup's SYNTHS, must render exactly as recorded (through RENDER_PRESET_CORPUS; sample cases
+    upgraded against their own sample)
 """
 
 import argparse

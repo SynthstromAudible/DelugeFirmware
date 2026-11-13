@@ -33,6 +33,26 @@ much a case depends on its random draws (audio/host.rs).
 `./dbt test --update golden-synth` records the cases run instead of comparing them (RENDER_PRESET_FILTER narrows it;
 RENDER_PRESET_CORPUS cannot be re-recorded, since the records are the committed corpus's); a changed hash is a
 finding to explain in the commit that records the new one.
+
+Gate golden-synth:
+    every synth golden master must render as recorded: each of the 431 presets (tests/integration/golden/presets:
+    synthesized cases for each oscillator, filter, envelope and modulation path, the voice's own note-change, release,
+    sample-cache and zone-change paths, the factory and community preset packs, sample and wavetable playback, and live
+    input, pitch-shifted up and down, in stereo, with unison and linear interpolation, through unity, in a chord, and on
+    a percussive test signal) is loaded by the blank boot song, played by a DIN note script and rendered in real time on
+    the audio tier, and its output is compared with its record in tests/integration/golden/presets.json (RP-PCM). A case
+    fails if its preset did not replace the default synth (RP-LOADED), if the app did not read every scripted event
+    (RP-MIDI), if CPU direness rose and the render took reduced-quality paths (RP-RENDER), if the render made a
+    synchronous card call (RP-TIER-SYNC-AUDIO), if it rendered silence (RP-SILENT), or if a case whose sample zone is to
+    move mid-note never moved it (RP-ZONE). RENDER_PRESET_FILTER runs a subset; ./dbt test --update golden-synth
+    re-records.
+
+Gate golden-synth-arm:
+    the synth golden masters on 32-bit ARM: every golden-synth case, rendered by golden_vt_render cross-built for armv7
+    Linux (the host app compiled by clang for a Cortex-A9 with NEON, as the firmware is) and run under qemu, must match
+    the same records in tests/integration/golden/presets.json as the x86 build. x86 renders NEON code through SIMDe and
+    ARM through the real instructions, so a difference is a vectorised kernel that does not compute what its portable
+    form does, or code that depends on the word size.
 """
 
 import concurrent.futures

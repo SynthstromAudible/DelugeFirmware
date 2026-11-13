@@ -1,3 +1,9 @@
+# Gate unit-arm:
+#     the fixed-point, VFP and NEON specs must hold on ARM, cross-built and run under qemu: the NEON conversion kernels
+#     must match their scalar references bit for bit, every fixed-point operation (and its portable twin) must match the
+#     A9 instruction it stands for, and every fixed-point operation must compile, at the shipping image's ARM and
+#     Thumb-2 codegen flags, to the instruction it names (tests/unit-arm/codegen)
+
 cmake_minimum_required(VERSION 3.24)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 # This tree only ever cross-builds for ARM Linux, run under qemu: with clang, as the firmware is built.

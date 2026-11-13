@@ -4,6 +4,11 @@ differs), so there is no baseline to diff.
 
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
     python3 tests/golden/instrument_codec_run.py              # the encode check
+
+Gate instrument-codec-encode:
+    the Deluge instrument writes its own state: for every sound of every corpus song and every synth and kit preset
+    beside the corpus, the element the app writes, cut to the instrument's keys, is the tree the instrument's codec
+    encodes from the sound's state
 """
 
 import argparse

@@ -25,6 +25,16 @@
 /// sentinel must survive: memory handed to someone else may not be written by a read its previous owner gave up on.
 /// The released buffer must then still be freed once the read has finished, or the release has only traded the
 /// corruption for a leak.
+///
+/// Gate staging-release:
+///     a staged document read (the byte channel's read-into) that its consumer abandons while the byte channel holds
+///     its buffer must not write into that memory once it has been freed and handed out again: the scenario releases
+///     the staging mid-read, reallocates the same size filled with a sentinel, lets the read finish, and requires the
+///     sentinel intact (SR-INTACT). SR-ISSUED requires the read to have been held when the staging was released, and
+///     SR-REAPED requires the released buffer to be freed once the read has finished, so the release trades the
+///     corruption for nothing, not for a leak. SR-STATUS requires a caller-buffer operation whose open fails to report
+///     the open's own status: NOT_FOUND for a read of a missing document, and not a bare IO error for a write to a name
+///     the card refuses.
 
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"

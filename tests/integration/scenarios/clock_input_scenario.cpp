@@ -18,6 +18,13 @@
 /// @file
 /// @brief Trigger-clock input reaches the transport: edges delivered through the BSP's handler, with analog
 /// auto-start on, must start playback (TC-INPUT).
+///
+/// Gate clock-input:
+///     trigger-clock edges delivered through the BSP's handler, with analog auto-start on, must start playback
+///     (TC-INPUT), with none dropped when they arrive slower than PlaybackHandler::routine() runs. The input was dead
+///     while nothing installed the handler: the app polled globals that nothing wrote. Two edges with the same stamp
+///     right after playback starts must never drive the internal tick count negative (TC-BURST): the moving average
+///     over ticks that span no time is zero, and the tick position divides by it.
 
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"

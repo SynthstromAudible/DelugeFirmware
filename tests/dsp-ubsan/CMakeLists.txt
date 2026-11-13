@@ -9,6 +9,13 @@
 #
 # Only the specs are instrumented: CppSpec and argon are made available (by specs.cmake) before the sanitizer flags are
 # added, so a finding names dsp-next code or a header it includes, never the test framework.
+#
+# Gate dsp-ubsan:
+#     the dsp-next specs (tests/dsp) must run without a signed overflow, an out-of-range shift or an out-of-range
+#     float-to-int conversion under UndefinedBehaviorSanitizer, any finding fatal: on the host a plain signed + gives
+#     the values wrapping_add gives, so the unit tree cannot see a kernel that overflows where it must wrap, and an
+#     out-of-range conversion gives a host-only value where the A9 saturates. Every spec runs with every check; only the
+#     verbatim references' legacy sums are unchecked, per function (see tests/dsp-ubsan/CMakeLists.txt)
 cmake_minimum_required(VERSION 3.24)
 project(DelugeDspUbsan)
 include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/ccache.cmake)

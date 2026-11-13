@@ -10,6 +10,11 @@
 // Any change to the clone paths that breaks deep independence fails here.
 //
 // Exit: 0 = all clones deep-independent, 1 = a failure.
+//
+// Gate param-clone:
+//     cloning the real engine param containers (AutoParam, a ParamManager with patched, unpatched and patch-cable
+//     collections) must give deep-independent copies: mutating the source after a clone must not reach the clone
+//     (param_clone.cpp, self-checking)
 
 #include "definitions_cxx.hpp"
 #include "memory/general_memory_allocator.h"

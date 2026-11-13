@@ -5,6 +5,12 @@ equal the records the engine loader leaves in the model. The driver is self-chec
 3 = a record differs).
 
 The driver is the model_decode_diff scenario of golden_vt_render (driver.py); `./dbt test model-decode-diff` runs this.
+
+Gate model-decode-diff:
+    decode reads a saved song's model records exactly as the engine loader does: every synthetic song (and every corpus
+    song when there is a corpus) is loaded, saved, and the saved bytes both loaded by the engine and decoded by the
+    model alone; the song-level records, the arrangement, the MIDI mapping table and every clip, audio clip, output and
+    drum record must be equal
 """
 
 import argparse

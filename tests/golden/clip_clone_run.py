@@ -15,6 +15,13 @@ Per-song exit codes from the driver: 0=all clone assertions passed, 3=skip (no i
 1=song didn't load (skip — loader limitation, not a clone defect), 4=assertion failed. A run that ends the
 harness before printing LOADED is a load-path defect, not a clone one, and is counted as a load skip.
 This runner FAILS only on rc==4 or an end AFTER the load (a real clone regression).
+
+Gate clip-clone-roundtrip:
+    InstrumentClip::clone() of a loaded corpus song's clip must be a distinct, deep-independent copy with the source's
+    note rows and notes, freshly allocated param collections and DOM-bound stores; a reverse clip's flatten-reversing
+    clone must run and come out FORWARD; a runtime clone's clip-level FX must relocate into the tree on its first doc();
+    and no owner may reach doc()'s engine fallback (a song without an instrument clip with notes, or one that does not
+    load, is skipped)
 """
 
 import argparse

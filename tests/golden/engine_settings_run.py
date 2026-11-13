@@ -4,6 +4,12 @@ community presets (which hold MIDI-learned knobs). The engine_settings driver ch
 
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
     python3 tests/golden/engine_settings_run.py
+
+Gate engine-settings:
+    a sound's settings go through its slot: every sound of every corpus song, of every synth and kit preset beside the
+    corpus and of the community presets is bound to its slot, as is a synth added to a running song or replacing
+    another; every setting the sound editor changes is an Edit, after which the sound still plays its record's state and
+    the snapshot equals its projection of it
 """
 
 import os

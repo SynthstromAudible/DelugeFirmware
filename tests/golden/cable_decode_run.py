@@ -6,6 +6,11 @@ check keeps its meaning once the app reads cables through the decoder.
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
     python3 tests/golden/cable_decode_run.py   # check
     ./dbt test --update cable-decode           # re-record every file's fingerprint
+
+Gate cable-decode:
+    the Deluge instrument decodes every song's and preset's patch cables as the app's reader does: the same cables,
+    depths, polarities and amounts, in order, older formats included; each file's cables are fingerprinted, so the gate
+    holds once the app reads through the decoder
 """
 
 import argparse

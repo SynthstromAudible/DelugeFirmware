@@ -8,6 +8,21 @@ reaches its result line fails by name, as does one still running after RUN_TIMEO
 ran at all. The runner's self-specs pin that a passing file and the card checks pass and that a failing, a crashing and
 an empty one (no examples) do not. Every file runs in a fresh process, so no file's leftover state (a stack song in
 currentSong, a guard it left open) can reach another.
+
+Gate ui-scenes-spec:
+    the scenes' specs (sim/scenes_spec) run on golden_vt_render, one file per process from the app's own init, each on
+    its card (tests/integration/checks/scenes_spec_cards.txt, the fixture card otherwise). The scenario's entry table
+    must list exactly the spec files under sim/scenes_spec (selftest/ aside), and every file must exit 0 and print its
+    own SCENES-SPEC-RESULT failures=0, so a crash, a file that never reaches its result or one still running after two
+    minutes fails by name. The runner's self-specs pin a passing file and the card checks (SdRoot/NoSdRoot) passing and
+    a failing and a crashing one failing; each file's process is fresh, so one file's leftover state cannot reach
+    another. A file that runs no examples fails. The net is temporary: as each scene moves onto model addresses and
+    Edits its specs move down to unit specs, and the gate goes when the directory is empty.
+
+Gate app-asan-ui-scenes-spec:
+    the ui-scenes-spec gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap
+    poisoning: any use-after-free, overflow or undefined behaviour the scenario reaches is fatal (a sound plays its
+    record's state, so a record freed under it would read freed memory)
 """
 
 from pathlib import Path

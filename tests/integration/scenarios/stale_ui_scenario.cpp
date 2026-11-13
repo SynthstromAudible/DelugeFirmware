@@ -22,6 +22,50 @@
 /// been swapped out nothing the empty stack reaches may still point into it (SU-RETIRED). Pads held when the UIs go
 /// down are released through them (SU-AUDITION) with no undo action left against the outgoing song (SU-UNDO), and a
 /// load that fails after that puts the surviving song's UI back (SU-FAILED).
+///
+/// Gate stale-ui:
+///     a song load takes every UI down for its whole length, and while the UI stack is empty nothing may act on a UI
+///     the load took down. inert_while_empty: with a probe UI open over the clip view and the song playing, a learned
+///     MIDI NEXT_SONG arrives on DIN; on every step the stack is empty, a button, a pad, the scroll and mod encoders
+///     are delivered through the app's own dispatchers and the UI-specific and BACK long-press timers are set to fire,
+///     and a mod encoder button is pressed before the swap and released after it; neither getCurrentUI() nor any of
+///     those, nor the graphics routine, may reach the probe (SU-INERT). The armed swap's loop count must still follow
+///     the select encoder, though the UI the load took down was not the load browser (SU-REPEATS), and a knob turn on
+///     the still-playing song must leave the load's LOADING popup up (SU-POPUP), and once the load is over no action
+///     the knobs logged against the outgoing song may be left in the undo history (SU-KNOBUNDO). retired_song: with the
+///     menu open on a synth clip, as the clip view's SELECT opens it, NEXT_SONG loads the next song; on both sides of
+///     the swap the stack is empty, and getCurrentUI() must not report the menu, whose sound belongs to the outgoing
+///     song the load frees; once the load is over the menu must not be open on that song, and the view must no longer
+///     point into it (SU-RETIRED). swap_work: in the same leg, MIDI follow holds the outgoing song's clip for a
+///     note-off when NEXT_SONG arrives; the render makes the armed swap and only asks the interaction tier for its side
+///     of it, so at the first interaction-tier entry after the swap -- where any MIDI handler or other job would run --
+///     no stored clip may name a clip outside the current song, the mode must be the load's new-song-playing mode, the
+///     loading animation must be up and the instrument load must have been told a song was made current, and a note an
+///     external MIDI keyboard auditioned on the outgoing song's synth while the load waited on the armed swap must no
+///     longer be auditioning once the swap's interaction side has run (SU-SWAPWORK). held_audition: an audition pad
+///     held on the clip view when NEXT_SONG arrives must be released, its pad no longer pressed and its instrument no
+///     longer auditioning, by the first step the stack is empty, while the song it plays is still current
+///     (SU-AUDITION). dropped_swap: in the same leg the request queue is flooded (a host-only knob) at the render's
+///     swap, so the swap's place in it is lost; its own slot must still carry it: the queue overflowed, the load ended
+///     (its mode moved on), and an external MIDI audition on the outgoing song was stopped (SU-SWAPDROP). tapped_note:
+///     a note on the clip is tapped again and NEXT_SONG arrives before the tap ends; the release the load gives that
+///     pad deletes the note and records an undo action against the outgoing song, and no action may be left in the undo
+///     history once the load ends (SU-UNDO). hold_load_to_launch: LOAD pressed in the load browser starts a load and,
+///     held, keeps the swap waiting; its release, with the stack empty, must arm the swap and the load must end
+///     (SU-HOLD). failed_load: playing, NEXT_SONG moves on to a song whose one clip names an instrument it lacks, so
+///     the parse fails after every UI was taken down; the old song must survive and be back in front of a root UI that
+///     getCurrentUI() reports (SU-FAILED). arrangement_record: an audio clip is recorded into the arranger through the
+///     session view's own gesture (RECORD held, SESSION pressed) and a knob turn writes the arrangement-only clip it
+///     records into; at the loop end the render moves the recording on to a new clone, and the knobs, still on the
+///     session clip, must resolve to the new clip, its param manager and its output (SU-ARRANGE). Only the interaction
+///     tier writes the knobs' render-visible words (the song they are in, the param manager automation is compared
+///     against) -- the render asks for a release and the interaction tier makes it before its next job -- so across the
+///     whole run, both armed swaps and the arranger recording included, no render block may change them (SU-STACK
+///     renderWrites=0, a host-only probe around every render block). Nor may any render block write the other state a
+///     swap changes that only the interaction tier owns: MIDI follow's stored clips, the loading animation (an armed
+///     launch's repeat countdown included), the instrument load's notification, currentUIMode, the load's deleted-parts
+///     flag or the outgoing song's auditioning (SU-SWAP, all six counts 0: the writers that are functions count a call
+///     made on the audio tier, the globals are compared across each render block).
 
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"

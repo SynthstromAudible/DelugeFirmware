@@ -3,6 +3,15 @@
 // (scenarios/drivers/driver.h), on x86 and on ARM.
 //
 // Exit: 0 = all checks pass, 1 = a failure.
+//
+// Gate effect-owners:
+//     every owner of effects (a synth's sound, a kit, an audio track, the song master) keeps its effect settings in its
+//     own state, and the render's copy follows each change (effect_owners.cpp, self-checking)
+//
+// Gate app-asan-effect-owners:
+//     the effect-owners gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap
+//     poisoning: a kit, an audio track and the master play their chain records' effects, so a record freed under one
+//     would read freed memory, and that is fatal here
 
 #include "definitions_cxx.hpp"
 #include "effects/chain.h"

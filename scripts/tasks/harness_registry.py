@@ -345,6 +345,11 @@ def load_registry(root: Path) -> list[Harness]:
         ):
             if required not in item or item[required] in ("", [], None):
                 raise ValueError(f"{where}: missing required field '{required}'")
+        if problem := gates_problem(item["gates"]):
+            raise ValueError(
+                f"{where}: gates {problem}: state what the test gates in one sentence, and put the rest in a "
+                f"'Gate {item['name']}:' block in the file that judges it (tests/README.md, Adding a test)"
+            )
 
         for key, allowed in (
             ("status", STATUSES),

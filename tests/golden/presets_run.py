@@ -19,6 +19,12 @@ Usage:
     python3 tests/golden/presets_run.py             # check (exit 1 on a regression)
     ./dbt test --update preset-roundtrip            # re-record (builds first)
     python3 tests/golden/presets_run.py --dump DIR  # also keep each settled gen1 in DIR
+
+Gate preset-roundtrip:
+    what a preset saves as must not change unexplained: each fixtured synth and kit preset
+    (tests/golden/presets_fixtures.json, from the SYNTHS and KITS folders beside DELUGE_SONG_CORPUS) is loaded, saved as
+    a preset is saved, reloaded and saved again; the two saves must be identical and the first must hash to its fixture
+    (./dbt test --update preset-roundtrip re-records, with evidence)
 """
 
 import argparse

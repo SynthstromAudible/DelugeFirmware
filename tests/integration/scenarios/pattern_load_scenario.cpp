@@ -23,6 +23,14 @@
 /// a PLAY preview, a preview discarded by BACK, and Enter pressed over a preview still in flight. Each leg must leave
 /// exactly the notes it should, and none may make a synchronous card call on the interaction tier: every byte of the
 /// pattern has to arrive through the channels.
+///
+/// Gate pattern-load:
+///     a pattern file, written from notes on the boot song's synth clip by the firmware's own pattern writer, must load
+///     back through the real pattern browser with Enter, landing after the browser closes (PT-LOAD), and as a PLAY
+///     preview (PT-PREVIEW), each putting back exactly the notes that were written onto a cleared clip. A preview
+///     followed by BACK, pressed while the channel holds the preview's read, must paste nothing (PT-DISCARD), and Enter
+///     pressed at that moment must land its own load (PT-SUPERSEDE). No leg may make a synchronous card call on the
+///     interaction tier after boot (PT-TIER): the pattern's bytes must arrive through the channels.
 
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"

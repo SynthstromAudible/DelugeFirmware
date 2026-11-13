@@ -31,6 +31,16 @@ SC-RENAMED proves it is still being renamed -- and a second file positioned so t
 ACROSS it in the sort order. And the neutering: mutate filePath during the PLAN walk instead of the APPLY pass, and
 SC-ATOMIC must go red. SC-ORDERED does not catch that; the end state is repaired by the apply pass, so only the
 in-flight check can see it.
+
+Gate sample-collect-channel:
+    a song saved with collect-media on must land every sample it references in its own folder, byte-identical to the
+    source, and must leave the audio-file list sorted and every resident file still findable. One leg: every transfer
+    rides the byte channel, and so does the save around it, which stages its document through the byte channel's
+    write-from; the channel has no feature switch. SC-ORDERED is the reason this gate is worth its runtime -- the
+    collection walks a container the audio engine and the UI both read, mutating the very key it is SORTED BY, while the
+    copying spans ticks, so the walk can be observed half-done. A green SC-ORDERED proves nothing by itself, though:
+    what proves the snapshot is load-bearing is the neutering that mutates filePath during the PLAN walk instead of the
+    APPLY pass, which must turn SC-ORDERED red.
 """
 
 from scenario_gate import count_field

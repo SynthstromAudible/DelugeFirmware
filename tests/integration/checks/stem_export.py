@@ -15,6 +15,14 @@ and `./dbt test --update stem-export` is refused. Once a bisect proves the chang
 gate, take the sha256 from its ST-RENDER line and the byte count from its ST-BYTES line, write them as
 `<sha256>  <bytes>` to tests/integration/checks/stem-export-<fixture>.sha256, then run `./dbt test stem-export` and
 confirm it passes, and say in the commit why the audio moved.
+
+Gate stem-export:
+    an offline stem export must render byte-identical audio and write it. It compares the Embassy render against ITSELF,
+    recorded in tests/integration/checks/stem-export-cordae.sha256. ST-RENDER is the regression claim. ST-BYTES is not
+    redundant with it: an export can complete, report success and write a ZERO-BYTE file -- the recorder takes its
+    stream-channel arm and the bytes never land -- and that failure must be reported as "the export wrote nothing"
+    rather than as a hash mismatch. WARNING: this baseline is NOT expected to move. A walk's cadence is an
+    implementation detail, rendered audio is not -- a red ST-RENDER is a finding to bisect, never a re-baseline.
 """
 
 import hashlib

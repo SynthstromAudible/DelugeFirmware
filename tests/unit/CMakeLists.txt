@@ -1,3 +1,8 @@
+# Gate unit:
+#     every CppUTest and CppSpec suite under tests/unit/: policies, parsers, storage state machines, the UI's pure
+#     steps, DSP kernels against scalar references. Pass extra ctest arguments after --, e.g. `dbt test unit -- -R
+#     stitch_spec`; the CppUTest suites are one ctest test, UnitTests.
+
 cmake_minimum_required(VERSION 3.24)
 project(DelugeTests)
 include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/ccache.cmake)

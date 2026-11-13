@@ -8,6 +8,12 @@ this.
 
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
     python3 tests/golden/host_effect_settings_run.py
+
+Gate host-effect-settings:
+    a host owner's effects go through its chain: for every kit, audio track and master of every corpus song, every legal
+    value of every effect setting is a SetEffectSetting after which the owner reads it back, each chain slot is the
+    encoding of the owner's state and the render copy is the state; a tick-magnitude change leaves the delay's and
+    sidechain's sync levels where they were; a changed filter mode and compressor attack survive a save and reload
 """
 
 import sys

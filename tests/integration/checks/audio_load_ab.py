@@ -41,6 +41,21 @@ What the checks cover (tests/integration/scenarios/audio_load_ab_scenario.cpp wr
 With AUDIO_LOAD_AB_LINES set to a file, the run's AB-CASE, AB-EJECT and AB-REF lines are written to it, whether the run
 passed or not: the log shows only the summaries, and a change to how loads resolve is compared case by case against
 these.
+
+Gate audio-load-ab:
+    the async Rust audio loader must load every file the SAME way the synchronous C++ card path does, loaded in the same
+    process as the reference -- identical chosen path (regular vs alternate dir, including the case where the alternate
+    dir IS the file's own directory and the two candidates stringify identically), identical
+    byteDepth/numChannels/audioDataStartPosBytes/audioDataLengthBytes and the rest of the parsed geometry, identical
+    bytes read back through the Sample's own stream, and the identical Error identity on a failure. Also pins that no
+    load leaves a half-built zero-geometry object or a leaked reason behind, and that every case genuinely went through
+    the collector (deferred at least once) rather than being answered synchronously. Finally, drives a real CALLER: the
+    sample browser is asked to preview one file once and then driven only by its per-tick surface, and must eventually
+    draw -- the one check here that fails if a caller stops re-asking for a deferred load, since every other check
+    drives the loader through the harness's own retry loop. AB-PREVIEW-STALL holds a preview's load far past its load's
+    600-walk stall bound and requires it to give up once: nothing pending, nothing drawn, and nothing pending again once
+    the hold is lifted. AB-PREVIEW-TIER requires, for each of those three stages, that no preview sample was read from
+    the card on the interaction tier.
 """
 
 from pathlib import Path

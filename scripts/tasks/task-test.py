@@ -1160,7 +1160,12 @@ def cmd_list(
         )
         print(f"    {' ' * width}  {h.gates}")
         if verbose and (text := hr.explanation(root, h)):
-            for line in textwrap.wrap(text, width=max(40, 116 - width)):
+            for line in textwrap.wrap(
+                text,
+                width=max(40, 116 - width),
+                break_on_hyphens=False,
+                break_long_words=False,
+            ):
                 print(f"    {' ' * width}  {line}")
     return 0
 

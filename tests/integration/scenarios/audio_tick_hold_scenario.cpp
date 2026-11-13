@@ -27,6 +27,14 @@
 ///     ATH-REENTRY  routine() called from inside routine() returns 0 without running the body
 ///     ATH-THROW    a throw out of routine() does not latch it: the next tick reaches the routine body
 /// then `ATH-RESULT failures=N`.
+///
+/// Gate audio-tick-hold:
+///     the audio tick's hold and re-entry guard, on the booted app: no hold alive means ticks are not held (ATH-IDLE);
+///     an AudioEngine::AudioTickHold holds them for its scope and releases them after (ATH-HOLD), and nested holds
+///     release only when the outermost ends (ATH-NESTED); a held tick does nothing, routine_task() false and routine()
+///     0 without reaching the routine body (ATH-HELD); routine() called from inside routine() returns 0 without running
+///     the body again (ATH-REENTRY); and a throw out of routine() does not latch its re-entry guard, so the next
+///     deluge_app_audio_tick() reaches the routine body (ATH-THROW), which a guard left set would silence for good
 
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"

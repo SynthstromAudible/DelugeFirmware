@@ -21,6 +21,17 @@ covered by song-save-channel's and document-save-channel's read-back checks. An 
 before OI-RESULT is printed, which is what turns a freeze into a gate failure rather than a silently truncated log.
 
 The registry entry requires each marker and the result line; this module adds OI-CHANNEL's count.
+
+Gate offset-io:
+    three blocks written at ascending offsets through the real SysEx transfer verbs must all still be on the card, a
+    copy must reproduce its source byte-for-byte, and copying a missing source must report an error. THREE blocks and
+    not one is the whole point: efatfs::portable::create_context truncates unconditionally, so a write_at that re-opened
+    that way would leave only the last block, and a single-block round trip would pass against exactly that bug. The
+    missing-source case is load-bearing for the same class of reason -- without a case whose expected answer is an
+    error, a handler replying before its operation completed reports the same err=0 a correct one does. OI-CHANNEL going
+    non-zero is the evidence that the SysEx operations took the channel. OI-DIR-STALL holds a directory listing's open
+    far past the handler's 600-tick bound and requires a timeout reply (15) with no entries, and OI-TIER requires that
+    SMSysex opened no directory synchronously on the interaction tier after boot.
 """
 
 from scenario_gate import count_field, field

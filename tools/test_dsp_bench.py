@@ -1,4 +1,10 @@
-"""Tests for dsp_bench.py, run against canned captures of the device's RTT stream."""
+"""Tests for dsp_bench.py, run against canned captures of the device's RTT stream.
+
+Gate dsp-bench-parser:
+    the DSP bench host script's parsing of device captures: partial, mismatched and malformed runs are rejected, a run
+    failing the calibration_loop or DBGAUTHSTATUS sanity check is written marked and exits 4, and the table text and
+    probe arguments are exact
+"""
 
 import io
 import json

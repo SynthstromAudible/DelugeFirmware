@@ -26,6 +26,29 @@ What the checks cover:
   DS-OVERWRITE-FAIL
                 a confirmed overwrite whose temp file is truncated before its read-back fails the save, leaves the
                 document it was replacing byte-for-byte intact, and removes the temp file.
+
+Gate document-save-channel:
+    a preset saved through the real ENTER gesture must be written WHOLE, read back through the channel (DS-VERIFIED,
+    DS-VERIFY-ARM), and stored through the byte channel's write-from after boot (DS-TICKED). One leg: the byte channel
+    has no feature switch, so there is no second arm to run. DS-OCCUPIED saves onto a name that is already taken and
+    requires both that the user is asked and that the existing document is left alone: silently replacing somebody's
+    preset is the worst thing this code could do. DS-BACKMIDSAVE and DS-EXITMIDSAVE press BACK and fire the long-press
+    exit while the save is still running, and require the save screen to stay open: a save spans ticks with the UI live,
+    and leaving its screen mid-save would let the save's own close() read below the bottom of the UI stack. Both first
+    require that the save really is still in flight, so a save that finished early fails the check instead of passing it
+    for free. DS-GUARD-SONG dispatches a preset save while a song save's collection or document machine is still running
+    with the save guard already released, and requires the dispatch refused and the song document whole: the shared
+    serialiser holds the song's staged document for that whole window. DS-ACCOUNTED removes a preset's file between its
+    write landing and its read-back's first answer, and requires the one answer the channel gave -- NOT_FOUND, which
+    fails the save -- to be counted as served: counting only the ticks that advanced would undercount every failed
+    read-back. DS-OVERWRITE saves onto the preset's own name again, confirms the prompt, and requires the document
+    written to <target>.tmp, verified there and swapped into place, with no temp file left. DS-OVERWRITE-FAIL does the
+    same and truncates that temp file between its write landing and its read-back, and requires the save failed, the
+    document it was replacing byte-for-byte intact, and the temp file removed: rewriting the target in place would let a
+    failed write or read-back destroy the document it replaces. Both run last, because DS-GUARD and DS-KITROW count
+    staged saves absolutely. DS-HELD holds a preset save's write-from on the byte channel past the save's stall bound
+    and requires the save to complete and verify: giving up would release the serialiser the write is still copying
+    from.
 """
 
 from scenario_gate import count_field

@@ -10,6 +10,14 @@
 // field.
 //
 // Exit: 0 = the digest matches and every case agrees, 1 = a mismatch.
+//
+// Gate patch-routing:
+//     a patch-cable set's routing and save order must not change: 20,000 seeded random topologies (cables to params and
+//     to other cables' depths, orphaned depth cables, unknown-placeholder and empty targets) under seeded random
+//     usability tables are routed and folded into one pinned digest of the cable order a save walks, the usable count,
+//     each usable cable's range link, both globalities' destinations and sourcesPatchedToAnything; from the library's
+//     compile_routing on, every case is also compiled by it and must agree field by field (patch_routing.cpp,
+//     self-checking)
 
 #include "synth/modulation/patch_routing.h"
 #include "definitions_cxx.hpp"

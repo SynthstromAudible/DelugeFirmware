@@ -7,6 +7,11 @@ with no declaration and no card image, and requires exit code 2 and the refusal:
 whose card comes from the environment.
 
 Usage: python3 tests/integration/checks/corpus_guard.py   (through ./dbt test, which builds golden_vt_render first)
+
+Gate corpus-guard:
+    golden_vt_render exits 2 with its refusal when a run that does not declare the song corpus asks for the corpus
+    fixture's card (stem_export with GOLDEN_CARD_ONLY), so a scenario given the corpus card by mistake fails on every
+    machine
 """
 
 import os

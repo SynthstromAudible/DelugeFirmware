@@ -5,6 +5,11 @@ holds every pass.
     PD-PARSE    the dump reads back, version 1
     PD-PASSES   a sound-scope pass, and a voice-scope pass and source states for each note-on
     PD-ORDER    each key's times never go back
+
+Gate param-dump:
+    the audible window's parameter dump: a render dumped through RENDER_PARAM_DUMP is byte-identical to a plain one
+    (PD-SAME), the dump reads back (PD-PARSE), and it holds the sound's pass and each note's voice passes and source
+    states (PD-PASSES) in time order (PD-ORDER)
 """
 
 import sys

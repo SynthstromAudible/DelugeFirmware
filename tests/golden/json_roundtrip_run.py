@@ -8,6 +8,11 @@ The driver is the json_roundtrip scenario of golden_vt_render (driver.py); `./db
 
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
     python3 tests/golden/json_roundtrip_run.py
+
+Gate json-roundtrip:
+    the JSON read path must be faithful to the JSON write path: every corpus song is loaded from XML, saved as JSON, the
+    JSON loaded back through parseJson and the Value tree and saved as JSON again, and the two JSON documents must be
+    byte-identical (a song that does not load from XML is skipped)
 """
 
 import sys

@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Tests for stream_bench.py's parsing and tables: run with `python3 -m unittest test_stream_bench`."""
+"""Tests for stream_bench.py's parsing and tables: run with `python3 -m unittest test_stream_bench`.
+
+Gate stream-bench-parser:
+    the streaming benchmark host script's parsing of device captures: every phase's histograms, filesystem waits and
+    slowest jobs are read; a run without STREAM-BENCH-DONE, or missing a phase, is rejected and writes no tables; a
+    reported failure exits 4; percentiles are bucket upper edges bounded by the max
+"""
 
 import json
 import tempfile

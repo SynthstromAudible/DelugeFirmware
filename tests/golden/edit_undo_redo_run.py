@@ -6,6 +6,11 @@ The driver is the edit_undo_redo scenario of golden_vt_render (driver.py); `./db
 
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
     python3 tests/golden/edit_undo_redo_run.py
+
+Gate edit-undo-redo:
+    every reified Edit applied to a loaded corpus song must resolve through a live DOM address and come back exactly
+    through the real undo and redo (ActionLogger::revert): the driver applies each Edit kind and checks the state after
+    apply, undo and redo (self-checking; a song that does not load is skipped)
 """
 
 import sys

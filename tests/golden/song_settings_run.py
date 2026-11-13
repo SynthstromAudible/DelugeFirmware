@@ -4,6 +4,11 @@ values it applied per group and path; this runner sums them and fails when a gro
 
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
     python3 tests/golden/song_settings_run.py
+
+Gate song-settings:
+    a song's settings go through SetSetting: over every corpus song, for every setting group of every owner (the song,
+    each track and MIDI or CV instrument device, each kit lane, each note row, each audio clip) and every legal value of
+    every path of the group's table, the Edit is applied and every record then equals its engine copy
 """
 
 import argparse

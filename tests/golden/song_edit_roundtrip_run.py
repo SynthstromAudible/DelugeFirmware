@@ -9,6 +9,12 @@ runs this.
 
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
     python3 tests/golden/song_edit_roundtrip_run.py
+
+Gate song-edit-roundtrip:
+    a DOM-first edit must persist: for every corpus song, a sentinel value and automation written to a song-global
+    param's DOM store must come back from save and reload in both the store and the engine; on the way, every loaded
+    clip, drum, patch-cable set and MIDI CC set must be bound to its tree store and resolve by its durable id
+    (resolveParam == docForParam)
 """
 
 import sys

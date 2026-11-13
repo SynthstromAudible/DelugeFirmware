@@ -10,6 +10,12 @@ Usage:
   DELUGE_SONG_CORPUS=/path/to/SONGS python3 tests/golden/param_record_run.py
 
 Exit: 0 = all baselines reproduced; 1 = a regression; 77 = skipped (no corpus).
+
+Gate param-record-diff:
+    the engine's live automation recording must reproduce its committed baselines (tests/golden/param_record_baselines):
+    a scripted run of values recorded through setCurrentValueInResponseToUserInput and processCurrentPos into a
+    song-global param (undone, redone, saved, reloaded, its latch drifting back) and into clip lanes (synth, kit row,
+    MIDI CC, MPE, reversed, latch; each take undone and redone) must print the same nodes byte for byte
 """
 
 import os

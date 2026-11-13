@@ -2,7 +2,16 @@
 #
 # This file is part of The Synthstrom Audible Deluge Firmware.
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
-"""Tests for compare_codegen.py: what masking hides and what it must not."""
+"""Tests for compare_codegen.py: what masking hides and what it must not.
+
+Gate compare-codegen-selftest:
+    the machine-code comparison of two images names what an address points at instead of its value (a sized symbol, or
+    ADDR in a loaded segment, for literal-pool words and the movw/movt pairs that reach each other along the function's
+    branches; an in-function branch as the index it lands on) and masks pc-relative and adr offsets, lld's trap fill,
+    ThinLTO suffixes and a signature's parameter types; it reports a changed constant (one outside every loaded segment,
+    in a pool word or a movw/movt pair), a reference moved to another symbol, a retargeted branch and an added or
+    removed function
+"""
 
 from __future__ import annotations
 

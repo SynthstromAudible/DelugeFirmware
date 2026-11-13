@@ -19,6 +19,14 @@
 /// @brief The "ui routine" job runs the UI timers at their deadlines: it runs a few dozen times a second rather than
 /// polling (UT-RATE), and a timer set earlier than the job's pending run fires at its own time, not at that run
 /// (UT-EARLIER).
+///
+/// Gate ui-timer-deadline:
+///     the "ui routine" job runs the UI timers at their deadlines instead of polling: over about half a second of the
+///     sample clock it must run between 30 and 400 times a second (UT-RATE) -- often enough for the graphics routine's
+///     15 ms timer, and far below the 1,250 a second it polled at. A 2 ms timer set just after the graphics routine
+///     re-armed, with every timer at least 600 samples (13.6 ms) off, must fire within 344 samples of being set -- its
+///     own 2 ms plus two blocks -- not at the job's pending run (UT-EARLIER, ui_timer_earlier_deadline): setTimer
+///     brings the job's pending run forward to the new timer's time.
 
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"

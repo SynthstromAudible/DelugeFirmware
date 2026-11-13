@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """Tests that emu_parity's script runner drives whatever session it is given:
-`python3 -m unittest test_emu_parity_session`."""
+`python3 -m unittest test_emu_parity_session`.
+
+Gate device-parity:
+    emu_parity's script runner drives whatever session it is given (delugemu or the rig) through the same steps and
+    timings, and device_parity builds delugemu's starting flash from the rig's settings sector, refusing a short or
+    all-zero read
+"""
 
 import contextlib
 import tempfile

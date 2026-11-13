@@ -17,6 +17,17 @@ Three runs, and what each is for:
 
 With MARGIN_SWEEP set (a comma-separated list of waits in ms) the gate instead prints the underrun count at each
 wait -- the margin curve -- and checks nothing.
+
+Gate streaming-margin:
+    sample playback must keep up when storage is as slow as the device's: the render-song song, played with the fill
+    task waiting 16 ms to be scheduled and each chunk taking 5.8 ms to read (the device's steady figures), must stream
+    without an underrun (SM-STEADY). A 500 ms wait must drop voices (SM-STARVED), which is what shows the gate can see
+    an underrun at all. A 260 ms wait for half a second, as a song load imposes on the device, is reported and not gated
+    (SM-BURST): the device drops voices there too.
+
+Gate streaming-margin-sweep:
+    prints the margin curve: underruns at each fill-task wait in MARGIN_SWEEP, with the device's 5.8 ms chunk read.
+    Checks nothing.
 """
 
 import importlib.util

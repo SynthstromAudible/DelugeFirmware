@@ -35,6 +35,34 @@
 ///   default to the synchronous backing. Against the real loader, which is always active here, a call with the
 ///   mode omitted loads at once, and the same call made explicitly `AsyncOrBlocking` first reports
 ///   `LOAD_IN_PROGRESS`; the contrast is what lets a flipped default fail.
+///
+/// Gate load-policy:
+///     the load policies no loader state can show: AudioFileManager::proposeLoadCandidates proposes the right paths in
+///     the right order (LP-CANDIDATES) -- the async loader opens them in exactly that order; the C++ admission rule
+///     agrees with path_admission_corpus.inc, which the Rust loader is tested against too (LP-ADMISSION); the sample
+///     build contract (storage/audio/sample_build.h), where abandoning a build publishes nothing, applyGeometry refuses
+///     an invalid raw data format, and 20,000 begin/abandon rounds release every chunk they adopt, so a browser cursor
+///     that never lands cannot exhaust the chunk table (LP-ABANDON); a sample's read stream opens exactly the path it
+///     is given, refusing one with an embedded NUL or with no room for its terminator rather than opening the file a
+///     shortened path names (LP-OPEN-PATH); and AudioFileHolder::loadFile and getAudioFileFromFilename default to the
+///     synchronous backing, which a call with the mode omitted shows by loading at once while the same call made
+///     explicitly AsyncOrBlocking first reports LOAD_IN_PROGRESS (LP-DEFAULT); the wavetables each fixture builds
+///     (LP-WT-PIN: every band's range, geometry and samples, as a CRC per file under
+///     tests/dsp/wavetable_band_records.h, for the synthetic set in tests/integration/golden/wavetable_pins and the
+///     golden presets' wavetables); the pitch each sample's detection finds (LP-PITCH-PIN, by its bits, against
+///     tests/integration/scenarios/pitch_pin_records.h); and a single-band table's load (LP-WT-ZEROBAND, an 8-sample
+///     cycle, which must hold one band with a non-empty cycle range so no band index below 0 is selected); each
+///     allocation of a wavetable load from a file, failed once (LP-WT-FAIL): a band's samples, the band list, the cycle
+///     buffer and the spectrum fail the load with INSUFFICIENT_RAM and leave nothing resident, a missing band-0 FFT
+///     table leaves one band holding every cycle, a missing smaller band's table drops that band alone, and a missing
+///     pitch window table ends the detection with no pitch.
+///
+/// Gate load-policy-wavetable-churn:
+///     wavetables evicted under memory pressure reload as they were built: sixteen distinct copies of a golden
+///     wavetable, loaded and released for eight rounds with the host SDRAM clamped so each round must evict, each
+///     reload's bands matching the recorded CRC, with the resource manager's eviction count rising, every failing
+///     allocation of LP-WT-FAIL repeated each round so a leaked band or chunk exhausts memory, and no reason leaked at
+///     the end (LP-INVARIANTS)
 
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"

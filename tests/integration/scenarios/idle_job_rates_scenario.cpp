@@ -18,6 +18,16 @@
 /// @file
 /// @brief An idle app loop runs each job only as often as it has work: after boot settles, every job's runs over ten
 /// seconds of the app's clock are printed as a rate (IR-JOB), and the wake-driven jobs must not have run at all.
+///
+/// Gate idle-job-rates:
+///     an idle app runs each job only as often as it has work: booted on an empty card, settled for 2 s, then over 10 s
+///     of the app clock every job's runs are printed as a rate (IR-JOB). The jobs with no gap -- encoders, reclaim,
+///     buttons and pads, every storage machine, settings io, the startup fail-safe, stem export, SysEx, and the
+///     playback slow routine -- must not run at all, since nothing wakes or requests them; a job turned back into a
+///     poll fails here. The ui routine must run between 30 and 400 times a second (the graphics routine's 15 ms timer
+///     plus its re-checks while the sample clock reaches a deadline). The gapped jobs are printed, not bounded: each
+///     runs once per gap (playback and midi 1.5 ms, audio slow 6 ms, pending UI 20 ms, audio recorder slow 100 ms,
+///     audio file slow 200 ms).
 
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"

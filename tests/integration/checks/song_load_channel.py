@@ -19,6 +19,30 @@ What the checks cover (tests/integration/scenarios/song_load_channel_scenario.cp
                  completed one does (likewise).
 
 The registry entry requires each marker and the result line; this module adds the channel's two counts.
+
+Gate song-load-channel:
+    the song load must read its bytes through the storage channel. One leg: the byte channel has no feature switch.
+    SL-LOADED requires a value stamped into the song before saving -- and deliberately overwritten in memory afterwards
+    -- to come back, because nothing cheaper distinguishes a real load: the song's NAME is written by the save from what
+    the user typed, so it matches whether or not the load happened, and its object IDENTITY is unchanged across a load
+    that did happen. SL-CHANNEL requires a staging read to have been SERVED and SL-TICKED requires the staging to have
+    run through the channels after boot. This gate exists because a load that brings back the right song says nothing
+    about how its bytes arrived, so a gate that only checks what came back would stay green with the staging read
+    broken. The read sizes its buffer with the byte channel's stat and fills it with the byte channel's read-into, and
+    both are always on. SL-ORDER requires the sample the song carries to be bound by the time the load ends. The song is
+    given that sample before the save: measured, the boot song is one instrument clip with no audio clips, so a
+    sample-pass leg without it would pass by having nothing asked of it. cancel_in_stage (SL-CANCEL): with the song
+    playing and the byte channel holding the staging read, BACK in the song browser must drop the load at once, leave
+    the browser where it was with the current song still in place and playing and no loading animation, and park the
+    staging buffer the channel still writes into rather than free it; past the hold nothing of the load comes back, the
+    parked buffer is freed, and a cancel with no load in flight answers Stale; the load is started by the real ENTER
+    with the startup-song mode LASTOPENED, and the cancelled load must not write the settings file that records the last
+    opened song (SL-CANCEL-LASTOPENED). cancel_after_begin (SL-REFUSED): the load that brings the song back, again
+    through ENTER with LASTOPENED, is asked to cancel once it is past STAGE, where the outgoing song may already be
+    deleted, and must answer Refused and carry on to complete (SL-LOADED) and record the song as last opened
+    (SL-LOADED-LASTOPENED). SL-NEXT requires a next song a MIDI NEXT_SONG left held behind a take or a slice to be
+    dropped by the manual load, as main loads a NEXT_SONG at once and so never one after the song it was to follow is
+    gone.
 """
 
 from scenario_gate import count_field, field

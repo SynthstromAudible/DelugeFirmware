@@ -2,7 +2,13 @@
 #
 # This file is part of The Synthstrom Audible Deluge Firmware.
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
-"""Tests for check_doc_hygiene.py: the history notes and the line citations to our own code it flags."""
+"""Tests for check_doc_hygiene.py: the history notes and the line citations to our own code it flags.
+
+Gate doc-hygiene-selftest:
+    the UI docs lint flags task, review and workstream breadcrumbs and rename narration in comments and Markdown, and
+    file:line citations to our own code; passes legacy citations, symbol citations, plain prose and string literals;
+    check_citations refuses a --paths entry no scan root reaches
+"""
 
 from __future__ import annotations
 

@@ -13,6 +13,19 @@ CR-RESIDENTS is checked first and hardest.
 
 This module runs the scenario itself, after the entry's standard checks. Every leg is checked and every failing one
 reported.
+
+Gate card-reinsert:
+    what a card swap does to the samples still in memory. Drives a real ejection and re-insertion (setCardEjected ->
+    reinitEjectedCard -> deluge_efatfs_remount -> cardReinserted) with three residents present, one per fate that walk
+    distinguishes: a referenced sample whose file is intact must stay loadable, a referenced sample whose file was
+    removed must be marked unloadable, and a resident nothing references must be pruned. CR-RESIDENTS is the leg that
+    makes the rest mean anything: audio-load-ab drives these same edges, but measured, it reaches cardReinserted() twice
+    with residents=0 -- the edges fire and the loop body never runs -- so without this gate the walk has NO coverage at
+    all. A gate whose subject never runs stays green; a gate for a walk must fail when the walk is empty. The swap is a
+    file change at a path rather than a block-device exchange, for the reason audio_load_ab_scenario.cpp documents at
+    length: the host BSP opens one backing file for the process lifetime behind a OnceLock with is_inserted() hard-coded
+    true. The cluster-size branches (cardDisabled + reboot popup; killAllVoices + unplayable) are a KNOWN GAP -- they
+    need a card image with different geometry, which that stand-in cannot provide.
 """
 
 from scenario_gate import field, int_field

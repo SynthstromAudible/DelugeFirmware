@@ -21,6 +21,18 @@ its model's after the take (RS-TAKE-STALE).
 `./dbt test --update arrangement-take` records the baseline
 (tests/golden/arrangement_take_baselines/RS_ARRANGE_TAKE.txt) from a run whose other checks all passed, instead of
 comparing with it.
+
+Gate arrangement-take:
+    recording the session into the arrangement must make the takes it made when its baseline was recorded
+    (tests/golden/arrangement_take_baselines): the generated song RS_ARRANGE_TAKE (an automated synth, kit and audio
+    clip, a bar each) recorded from the start with a knob turned on each clip, cloning it into a take that repeats it at
+    every loop end, must leave every take's length and lanes byte for byte as the baseline's and render the same output
+    (RS-TAKE, RS-PCM); what the render plays across each repeat must be the take's appended lanes (RS-TAKE-PLAYED);
+    every knob turn must land in its take (RS-KNOB); every repeat, a half-bar row's at its own end included, must be
+    staged and swapped in at its loop end and each audio take's next take be a spare made on the interaction tier
+    (RS-TAKE-REPEATS); once recording ends no spare or staged snapshot may be left (RS-TAKE-LEFT) and every collection
+    must publish its model's lanes (RS-TAKE-STALE); and the render must neither read nor write a lane in the model
+    (RS-SNAPSHOT)
 """
 
 import importlib.util

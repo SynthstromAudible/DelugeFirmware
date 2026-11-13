@@ -16,6 +16,14 @@ song-missing path instead: the canary creation, the existence checks and the cle
 UI. Which tier those run on does not depend on which branch reached them.
 
 The registry entry requires each marker and the result line; this module adds SF-CHANNEL's non-zero count.
+
+Gate startup-failsafe:
+    no file operation in the startup song fail-safe may begin on the interaction tier. SF-TIER is the evidence, required
+    zero: it is the only check that shows which tier the fail-safe's I/O ran on. SF-CHANNEL is required non-zero,
+    because a channel that is compiled but never runs would otherwise leave this gate green. The fail-safe's happy path
+    ends in openUI and this harness has no UI stack, so the scenario drives the song-missing path: the canary creation,
+    the existence checks and the cleanup unlink, then a return before the UI. Which tier those run on does not depend on
+    which branch reached them.
 """
 
 from scenario_gate import count_field, field

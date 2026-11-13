@@ -3,6 +3,11 @@
 
 Run directly with:
     python3 scripts/tasks/test_harness_registry.py
+
+Gate registry-selftest:
+    this registry's loader, validation, selection and probes, the SDRAM content packer's format (the pack the boot
+    inflates, and the Rust decoder's fixture as such a pack), the setting-menus checker's planted song-state writes and
+    scene engine calls, and the layer rules' planted scenes rows
 """
 
 import ast
@@ -138,6 +143,13 @@ class LoadRegistryTest(unittest.TestCase):
         (root / "tests").mkdir()
         (root / "tests" / "registry.toml").write_text(text)
         return root
+
+    def test_a_long_gates_line_is_refused(self):
+        text = MINIMAL.replace(
+            'gates = "alpha must equal beta"', 'gates = "alpha holds. Beta too"'
+        )
+        with self.assertRaisesRegex(ValueError, "sentence break"):
+            hr.load_registry(self._root_with(text))
 
     def test_runtime_s_is_required(self):
         with self.assertRaisesRegex(ValueError, "missing required field 'runtime_s'"):

@@ -18,6 +18,24 @@ What the checks cover (tests/integration/scenarios/clear_song_undo_scenario.cpp 
     CS-NEXT    a next song held behind a take or a slice did not outlive the clear.
 
 The registry entry requires each marker and the result line.
+
+Gate clear-song-undo:
+    Create New Song must run to completion on the tier its caller stands on, reading no card of its own. CS-TIER
+    requires the clear to be finished when clearSong.acceptCurrentOption() returns -- a body deferred to a later tick
+    has not run yet when it does -- and requires no document read and no sample load attributable to the clear itself,
+    on either tier. CS-SONG requires the cleared song to hold one clip whose preset came from SYNTHS through exactly one
+    InstrumentLoad acquisition, with its sample bound: that is what proves the clear needs no loadAllSamples() call:
+    there is nothing for one to load. CS-GATE requires the UI-mode gate the clear closes around the song swap to be
+    released again, because nullifyUIs() drops numUIsOpen to zero for that window and a press arriving inside it would
+    index the UI stack out of bounds. CS-NEXT requires a next song a MIDI NEXT_SONG left held behind a take or a slice
+    to be dropped by the clear, as main loads a NEXT_SONG at once and so never one after the song it was to follow is
+    gone. The undo legs cover the other half. UN-PLAIN requires an undo with no sample in it to land INSIDE the press
+    that asked for it, which a reversion deferred to a later tick cannot do; UN-REFUSE requires a redo pressed while an
+    undo is still out to be refused rather than queued, because undo and redo are steps and dropping either loses an
+    edit. UN-SAMPLE, UN-REDO and UN-MISSING pin what must not change: the sample comes back with a file behind it, redo
+    puts the second one back, and a file deleted from the card still leaves the revert done with the holder empty.
+    UN-MIDI requires a MIDI UNDO that tryGlobalMIDICommands() leaves waiting, with nothing in the scenario running the
+    playback slow routine, to be undone by that routine's own job, which the waiting command asks for.
 """
 
 

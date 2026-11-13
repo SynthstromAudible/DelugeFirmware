@@ -2,7 +2,14 @@
 #
 # This file is part of The Synthstrom Audible Deluge Firmware.
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
-"""Tests for render_preset.py's staging: a preset's own MIDI learn is removed and the preset stays valid."""
+"""Tests for render_preset.py's staging: a preset's own MIDI learn is removed and the preset stays valid.
+
+Gate render-preset-selftest:
+    the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever
+    the member stands; each render-song gate plays its own generated song, whatever the shell exports; a render-song
+    gate that switches mod FX types, clears mod FX memory or switches the reverb's model or knobs fails unless the
+    scenario's summary shows each applied as asked and reaching its path
+"""
 
 from __future__ import annotations
 

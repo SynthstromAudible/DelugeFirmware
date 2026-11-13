@@ -31,6 +31,12 @@ ARM-NEON oracle (must agree with x86 on the *same* fixtures): the qemu-arm build
     ./dbt test -n golden-synth-arm
     python3 tests/golden/songs_run.py --binary <its golden_vt_render> \
         --wrapper 'qemu-arm -L /usr/arm-linux-gnueabihf -cpu cortex-a9'
+
+Gate song-roundtrip:
+    what a song saves as must not change unexplained: each fixtured song in tests/golden/songs_fixtures.json (the
+    committed synthetic songs always, the corpus songs when DELUGE_SONG_CORPUS has them) is loaded, saved, reloaded and
+    saved again; the two saves must be identical (the canonical fixed point) and the first must hash to its fixture. A
+    changed hash is a change to the saved project model, to justify and re-record (./dbt test --update song-roundtrip)
 """
 
 import argparse

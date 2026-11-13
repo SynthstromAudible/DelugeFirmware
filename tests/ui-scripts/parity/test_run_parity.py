@@ -1,4 +1,11 @@
-"""run_parity's schedule: each wait lands on an absolute time, so overshoot never accumulates."""
+"""run_parity's schedule: each wait lands on an absolute time, so overshoot never accumulates.
+
+Gate run-parity-runner:
+    run_parity's waits land on absolute script times, so the two images cannot drift apart over a long script; and its
+    report counts a snapshot as D77's accepted difference only when every frame of ours in the window is one of main's,
+    or one of them with `SECTION n` drawn in the section line's rows (blank on main, the name screen above it the same),
+    and nothing else
+"""
 
 import unittest
 

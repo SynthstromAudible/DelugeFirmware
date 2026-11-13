@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Tests for stream_bench_matrix.py and bench_image.py: `python3 -m unittest test_bench_tooling`."""
+"""Tests for stream_bench_matrix.py and bench_image.py: `python3 -m unittest test_bench_tooling`.
+
+Gate bench-tooling:
+    the bench tools' host side: stream_bench_matrix flattens a run into named metrics (histograms, underruns, tagged
+    phase lines, the arm time, load phases, log lines), summarises each image's runs as mean, deviation and range,
+    leaves incomplete runs out, and marks two images' ranges apart or overlapping; bench_image points the SDK override
+    at another checkout and refuses an override with nothing to redirect; audio_timing reads AUDIO-TIMING lines per
+    stream-bench phase and fits the per-render overhead from two fixed window sizes
+"""
 
 import json
 import tempfile
