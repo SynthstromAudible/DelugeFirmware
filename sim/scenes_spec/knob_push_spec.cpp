@@ -37,12 +37,14 @@
 
 #include "spec/support/spec_main.h"
 
+#include <algorithm>
 #include <array>
 #include <bit>
 #include <cstdio>
 #include <functional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace Buttons {
@@ -163,13 +165,25 @@ std::string canonical(const Outcome& o) {
 	return text + "|" + o.text;
 }
 
-/// @brief FNV-1a over @p text: the digest the recorded outcomes are kept as.
-uint64_t digest_of(const std::string& text) {
-	uint64_t hash = 14695981039346656037ULL;
-	for (const char c : text) {
-		hash = (hash ^ static_cast<uint8_t>(c)) * 1099511628211ULL;
+/// @brief Where @p actual first differs from @p expected, section by section (the `|`-separated parts of a canonical
+///        outcome), or empty when they are equal.
+std::string first_difference(std::string_view expected, std::string_view actual) {
+	size_t at = 0;
+	for (size_t section = 0; at <= expected.size() || at <= actual.size(); section++) {
+		const size_t e_end = std::min(expected.find('|', at), expected.size());
+		const size_t a_end = std::min(actual.find('|', at), actual.size());
+		const std::string_view e = at <= expected.size() ? expected.substr(at, e_end - at) : std::string_view{};
+		const std::string_view a = at <= actual.size() ? actual.substr(at, a_end - at) : std::string_view{};
+		if (e != a) {
+			return "section " + std::to_string(section) + ": recorded '" + std::string{e} + "', pushed '"
+			       + std::string{a} + "'";
+		}
+		if (e_end >= expected.size() && a_end >= actual.size()) {
+			break;
+		}
+		at = e_end + 1;
 	}
-	return hash;
+	return {};
 }
 
 void hold_mod_button(int32_t mode, bool held) {
@@ -212,7 +226,7 @@ services::PushInputs inputs_of(const Side& side, bool held) {
 
 /// @brief Push knob @p knob on @p side (press and release), and where its outcome first differs from the recorded
 ///        one, or empty.
-std::string push_one(Side& side, uint8_t mode, int32_t knob, bool held, uint64_t recorded) {
+std::string push_one(Side& side, uint8_t mode, int32_t knob, bool held, std::string_view recorded) {
 	(void)last_notice();
 	hold_mod_button(mode, held);
 
@@ -234,9 +248,8 @@ std::string push_one(Side& side, uint8_t mode, int32_t knob, bool held, uint64_t
 	hold_mod_button(mode, false);
 	(void)last_notice();
 
-	if (digest_of(canonical(pushed)) != recorded) {
-		return "mode " + std::to_string(mode) + " knob " + std::to_string(knob) + (held ? " held" : "")
-		       + ": recorded outcome differs: " + canonical(pushed);
+	if (const std::string why = first_difference(recorded, canonical(pushed)); !why.empty()) {
+		return "mode " + std::to_string(mode) + " knob " + std::to_string(knob) + (held ? " held" : "") + ": " + why;
 	}
 	return {};
 }
@@ -244,9 +257,9 @@ std::string push_one(Side& side, uint8_t mode, int32_t knob, bool held, uint64_t
 /// @brief Every mode and knob, three pushes each, with and without the alt delay knobs and the button held.
 /// @param side     The owner's side.
 /// @param label    Names the owner in each disagreement.
-/// @param recorded The outcome digest recorded for each push, in the order the loops visit them.
+/// @param recorded The `kPushTexts` index recorded for each push, in the order the loops visit them.
 /// @param extra    Run once per alt setting after the pushes; returns where it disagrees, or empty.
-std::vector<std::string> push_everything(Side& side, const std::string& label, std::span<const uint64_t> recorded,
+std::vector<std::string> push_everything(Side& side, const std::string& label, std::span<const uint16_t> recorded,
                                          const std::function<std::string()>& extra = {}) {
 	StubDisplay stub;
 	display = &stub;
@@ -264,7 +277,9 @@ std::vector<std::string> push_everything(Side& side, const std::string& label, s
 				const int32_t pushes = (alt && mode == 3 && knob == 0) ? 1 : 3;
 				for (int32_t n = 0; n < pushes; n++) {
 					for (const bool held : {false, true}) {
-						if (std::string why = push_one(side, mode, knob, held, recorded[next++]); !why.empty()) {
+						if (std::string why =
+						        push_one(side, mode, knob, held, knob_recorded::kPushTexts[recorded[next++]]);
+						    !why.empty()) {
 							found.push_back(label + (alt ? " alt " : " ") + why);
 						}
 					}
@@ -330,9 +345,9 @@ std::string set_mod_fx(Side& side, std::string_view type, std::string_view view)
 ///        depth, a chorus on feedback), plain and held: the push moves on to the type's next view.
 /// @param side     The chain owner's side.
 /// @param label    Names the owner in each disagreement.
-/// @param recorded The outcome digest recorded for each push.
+/// @param recorded The `kPushTexts` index recorded for each push.
 std::vector<std::string> push_from_missing_view(Side& side, const std::string& label,
-                                                std::span<const uint64_t> recorded) {
+                                                std::span<const uint16_t> recorded) {
 	constexpr uint8_t kModFxButton = 5;
 	constexpr std::array<std::pair<std::string_view, std::string_view>, 2> kStates{
 	    {{"flanger", "depth"}, {"chorus", "feedback"}}};
@@ -348,7 +363,9 @@ std::vector<std::string> push_from_missing_view(Side& side, const std::string& l
 			currentSong = side.song;
 			(void)deluge::edits::modKnobModeFor(side.mode_owner, kModFxButton);
 			for (int32_t n = 0; n < 3; n++) {
-				if (std::string why = push_one(side, kModFxButton, 0, held, recorded[next++]); !why.empty()) {
+				if (std::string why =
+				        push_one(side, kModFxButton, 0, held, knob_recorded::kPushTexts[recorded[next++]]);
+				    !why.empty()) {
 					found.push_back(label + " " + std::string{type} + " on " + std::string{view} + " push "
 					                + std::to_string(n) + " " + why);
 				}

@@ -109,12 +109,10 @@ std::string describe(const Expected& state) {
 }
 
 /// Each knob and button gesture of @p owner that changes an effect or the view leaves its chain coherent, through the
-/// gold knobs' own service on @p focus, and leaves the owner's effects and view as the engine's own gestures did.
-/// @param expected The state after each gesture in order: the compressor's threshold knob, its attack knob, the
-///                 sidechain sync button (a clip chain's only; the song's has none), the mod-FX type button, the
-///                 mod-FX param button and the filter type button. Recorded from
-///                 `GlobalEffectable::modEncoderActionForNonExistentParam` and `modEncoderButtonAction` (and
-///                 `GlobalEffectableForClip::modEncoderButtonAction`) on the same owner.
+/// gold knobs' own service on @p focus, and leaves the owner's effects and view as @p expected says.
+/// @param expected The state after each gesture in order: the compressor button's upper knob turn, its lower knob
+///                 turn, the sidechain sync push (a clip chain's only; the song's has none), the mod-FX type push,
+///                 the mod-FX param push and the filter type push.
 void checkGestures(GlobalEffectable& owner, Song& song, const deluge::scenes::bind::KnobFocus& focus,
                    const deluge::edits::KnobModeOwner& modeOwner, const char* name, bool clipChain,
                    std::span<const Expected> expected) {
@@ -146,13 +144,13 @@ void checkGestures(GlobalEffectable& owner, Song& song, const deluge::scenes::bi
 	// clip chain's knobs there are its own params, and its upper knob's push steps the sidechain's sync.
 	(void)deluge::edits::modKnobModeFor(modeOwner, 4);
 	knobs.turn(1, 5);
-	coherent("the compressor's threshold knob");
+	coherent(clipChain ? "the compressor button's upper knob (sidechain volume)" : "the compressor's threshold knob");
 	if (!clipChain) {
 		knobs.push(1, true);
 		knobs.push(0, true);
 	}
 	knobs.turn(0, 5);
-	coherent("the compressor's attack knob");
+	coherent(clipChain ? "the compressor button's lower knob (reverb amount)" : "the compressor's attack knob");
 	if (clipChain) {
 		knobs.push(1, true);
 		coherent("the sidechain sync button");
@@ -218,16 +216,19 @@ int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		    .owner =
 		        deluge::scenes::bind::ChainFocus{.chain = {deluge::project::ChainAddress::Kind::OUTPUT, *kit->id()},
 		                                         .owner = deluge::scenes::bind::ChainOwner::KIT}};
-		// Recorded from the kit's `GlobalEffectableForClip::modEncoderButtonAction` gestures: the sidechain sync steps
-		// from 7 to 9, the mod-FX type from none to the first type, and the filter view from low-pass to high-pass. The
-		// compressor knobs on a kit are chain params, which leave the compressor setting where it was.
+		// The sidechain sync step (7 to 9), the mod-FX type (none to the first type) and the filter view (low-pass to
+		// high-pass) are recorded from `GlobalEffectableForClip::modEncoderButtonAction` and
+		// `GlobalEffectable::modEncoderButtonAction` on the same kit. The compressor setting columns are not from the
+		// engine: no production path turns its compressor-setting arm for a kit (its compressor button's knobs are
+		// chain params), so these are what the gold knobs leave, the setting where it was.
 		constexpr Expected kKit[] = {{0, 83886080, 7, 0, 1, 0}, {0, 83886080, 7, 0, 1, 0}, {0, 83886080, 9, 0, 1, 0},
 		                             {0, 83886080, 9, 1, 1, 0}, {0, 83886080, 9, 1, 1, 0}, {0, 83886080, 9, 1, 1, 1}};
 		checkGestures(*static_cast<Kit*>(kit), *song, focus, deluge::project::TrackAddress{*kit->id()}, "a kit", true,
 		              kKit);
 	}
 	{
-		// Recorded from the song master's `GlobalEffectable` gestures.
+		// Recorded from `GlobalEffectable::modEncoderActionForNonExistentParam` and `modEncoderButtonAction` on the
+		// song master.
 		constexpr Expected kSong[] = {{83886080, 83886080, 7, 0, 1, 0},
 		                              {83886080, 167772160, 7, 0, 1, 0},
 		                              {83886080, 167772160, 7, 1, 1, 0},

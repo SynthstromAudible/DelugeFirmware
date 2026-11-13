@@ -416,6 +416,12 @@ void checkChainKnobs(Checker& check) {
 							if ((arm != nullptr) != (setting && cell.kind == params::Kind::NONE)) {
 								check.fail(name, n, arm != nullptr, setting);
 							}
+							// The upper knob edits the threshold; the lower, in the view, the first setting (the
+							// ratio).
+							if (arm != nullptr
+							    && arm->path != (k == 1 ? "audioCompressor/thresh" : "audioCompressor/ratio")) {
+								check.fail(name, n, 1, 0);
+							}
 						}
 					}
 				}

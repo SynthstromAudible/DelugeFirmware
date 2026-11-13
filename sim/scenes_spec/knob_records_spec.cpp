@@ -153,14 +153,14 @@ describe knob_records("the knob records, by Edit", ${
 		}
 		f.song->addOutput(held);
 		expect(held->docOutput_ != nullptr && held->id().has_value()).to_be_true();
-		expect(deluge::edits::modKnobModeForSlot(&held->modKnobMode, 4)).to_be_true();
+		expect(deluge::edits::modKnobModeFor(deluge::project::TrackAddress{*held->id()}, 4)).to_be_true();
 		expect(held->modKnobMode).to_equal(uint8_t{4});
 		const deluge::project::DocOutput* record = f.song->project.output_structure.find(*held->id());
 		expect(record != nullptr && record->mod_knob_mode == 4).to_be_true();
-		expect(deluge::edits::modKnobModeForSlot(&f.song->live.global_effectable.modKnobMode, 2)).to_be_true();
+		expect(deluge::edits::modKnobModeFor(deluge::project::SongAddress{}, 2)).to_be_true();
 		expect(f.song->project.mod_knob_mode).to_equal(uint8_t{2});
-		uint8_t stray = 0;
-		expect(deluge::edits::modKnobModeForSlot(&stray, 3)).to_be_false();
+		// A track the song does not hold takes no mode.
+		expect(deluge::edits::modKnobModeFor(deluge::project::TrackAddress{0xFFFFFF}, 3)).to_be_false();
 		currentSong = before;
 	});
 

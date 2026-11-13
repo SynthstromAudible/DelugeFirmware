@@ -80,8 +80,7 @@ uint32_t deluge_host_midi_script_released(void);
 namespace {
 
 /// @brief The knobs' owner stack, resolved now from View's focus in a buffer of its own: none unless the focus is on
-/// the
-///        current song.
+///        the current song.
 struct KnobOwner {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* stack =
