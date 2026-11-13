@@ -17,7 +17,11 @@ import tomllib
 
 STATUSES = ("gate", "investigative", "unavailable")
 LEVELS = ("unit", "component", "integration")
-RUNNERS = ("ctest", "cargo", "scenario", "script")
+RUNNERS = ("ctest", "cargo", "scenario", "corpus", "script")
+# Where a corpus gate's runner lives: `corpus_runner = "<name>"` runs <CORPUS_RUNNERS>/<name>_run.py.
+CORPUS_RUNNERS = Path("tests/golden")
+# A corpus gate's runner names its scenario and judges its own runs, so these mean nothing on one.
+SCENARIO_ONLY = ("scenario", "markers", "result", "check")
 # Cumulative, in this order: selecting a tier selects every tier before it too.
 TIERS = ("pr", "nightly", "manual")
 # The build products that produce golden_vt_render; a scenario gate names one.
@@ -144,8 +148,23 @@ class Harness:
     markers: list[str] = field(default_factory=list)
     result: str = ""
     check: str = ""
+    # runner = "corpus": the stem of the tests/golden runner it runs (<corpus_runner>_run.py).
+    corpus_runner: str = ""
     # Run on its own after the parallel set: the gate measures real time, or loads the machine enough to distort others.
     alone: bool = False
+
+
+def _runs_golden_vt_render(where: str, item: dict) -> None:
+    """A scenario or corpus gate runs only the golden_vt_render `./dbt test` built for it."""
+    if item.get("build") or item.get("run"):
+        raise ValueError(
+            f"{where}: a {item['runner']} gate is run by the runner, not by 'build'/'run'"
+        )
+    if not set(SCENARIO_RENDERERS) & set(item.get("builds", [])):
+        raise ValueError(
+            f"{where}: a {item['runner']} gate runs golden_vt_render, so builds must name one of "
+            f"{', '.join(SCENARIO_RENDERERS)}"
+        )
 
 
 def load_registry(root: Path) -> list[Harness]:
@@ -191,22 +210,32 @@ def load_registry(root: Path) -> list[Harness]:
                 raise ValueError(
                     f"{where}: a ctest test is built and run from 'source' and 'tree', not 'build'/'run'"
                 )
-        elif item["runner"] == "scenario" and "scenario" in item:
-            if not item["scenario"]:
+        elif item["runner"] == "scenario":
+            if not item.get("scenario"):
                 raise ValueError(
                     f"{where}: scenario must name a row of scenario_table.cpp"
                 )
-            if item.get("build") or item.get("run"):
+            _runs_golden_vt_render(where, item)
+        elif item["runner"] == "corpus":
+            runner = item.get("corpus_runner", "")
+            if not runner:
                 raise ValueError(
-                    f"{where}: a scenario gate is run from 'scenario', not 'build'/'run'"
+                    f"{where}: a corpus gate names its runner in 'corpus_runner'"
                 )
-            if not set(SCENARIO_RENDERERS) & set(item.get("builds", [])):
+            if not (root / CORPUS_RUNNERS / f"{runner}_run.py").is_file():
                 raise ValueError(
-                    f"{where}: a scenario gate runs golden_vt_render, so builds must name one of "
-                    f"{', '.join(SCENARIO_RENDERERS)}"
+                    f"{where}: corpus_runner '{runner}': no {CORPUS_RUNNERS / f'{runner}_run.py'}"
                 )
+            for name in SCENARIO_ONLY:
+                if name in item:
+                    raise ValueError(
+                        f"{where}: a corpus gate's runner judges its own runs, so it takes no '{name}'"
+                    )
+            _runs_golden_vt_render(where, item)
         elif not item.get("run"):
             raise ValueError(f"{where}: missing required field 'run'")
+        if item.get("corpus_runner") and item["runner"] != "corpus":
+            raise ValueError(f"{where}: only a corpus gate names a corpus_runner")
         if item.get("check") and not (root / item["check"]).is_file():
             raise ValueError(f"{where}: check '{item['check']}' does not exist")
 
@@ -216,9 +245,9 @@ def load_registry(root: Path) -> list[Harness]:
                 f"{where}: group '{item['group']}' runs prebuilt, so a test in it builds only {prebuilt}"
             )
         # A script or build step could build at run time, which a prebuilt group must not.
-        if prebuilt and (item["runner"] != "scenario" or "scenario" not in item):
+        if prebuilt and item["runner"] not in ("scenario", "corpus"):
             raise ValueError(
-                f"{where}: group '{item['group']}' runs prebuilt, so it holds only scenario gates"
+                f"{where}: group '{item['group']}' runs prebuilt, so it holds only scenario and corpus gates"
             )
 
         known_products = test_builds.products(root)
@@ -269,6 +298,7 @@ def load_registry(root: Path) -> list[Harness]:
                 markers=item.get("markers", []),
                 result=item.get("result", ""),
                 check=item.get("check", ""),
+                corpus_runner=item.get("corpus_runner", ""),
                 alone=item.get("alone", False),
                 group=item["group"],
             )
@@ -417,6 +447,7 @@ def with_table(readme: str, table: str) -> str:
 
 __all__ = [
     "CORPUS_DECLARED",
+    "CORPUS_RUNNERS",
     "GROUPS",
     "LEVELS",
     "LOCAL_ONLY",

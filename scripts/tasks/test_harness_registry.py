@@ -24,6 +24,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+import corpus_gate as cg
 import harness_registry as hr
 import scenario_gate as sg
 import test_builds as tb
@@ -177,7 +178,7 @@ class LoadRegistryTest(unittest.TestCase):
         )
         with self.assertRaises(ValueError) as cm:
             hr.load_registry(self._root_with(text))
-        self.assertIn("holds only scenario gates", str(cm.exception))
+        self.assertIn("holds only scenario and corpus gates", str(cm.exception))
 
     def test_missing_gates_is_rejected(self):
         text = MINIMAL.replace('gates = "alpha must equal beta"\n', "")
@@ -245,6 +246,77 @@ class LoadRegistryTest(unittest.TestCase):
         self.assertIn("alpha", str(cm.exception))
 
 
+class CorpusEntryTest(unittest.TestCase):
+    CORPUS = """
+[[harness]]
+name = "delta"
+path = "."
+level = "integration"
+runner = "corpus"
+kind = "regression"
+status = "gate"
+gates = "delta holds"
+corpus_runner = "fake"
+builds = ["golden-vt-render"]
+tier = "nightly"
+group = "model"
+"""
+
+    def _root_with(self, text, runners=("fake",)):
+        root = Path(tempfile.mkdtemp())
+        (root / "tests").mkdir()
+        (root / "tests" / "registry.toml").write_text(text)
+        (root / hr.CORPUS_RUNNERS).mkdir(parents=True)
+        for name in runners:
+            (root / hr.CORPUS_RUNNERS / f"{name}_run.py").write_text("")
+        return root
+
+    def test_loads(self):
+        h = hr.load_registry(self._root_with(self.CORPUS))[0]
+        self.assertEqual(
+            (h.runner, h.corpus_runner, h.scenario), ("corpus", "fake", None)
+        )
+
+    def test_needs_a_runner(self):
+        with self.assertRaisesRegex(ValueError, "corpus_runner"):
+            hr.load_registry(
+                self._root_with(self.CORPUS.replace('corpus_runner = "fake"\n', ""))
+            )
+
+    def test_the_runner_must_exist(self):
+        with self.assertRaisesRegex(ValueError, "fake_run.py"):
+            hr.load_registry(self._root_with(self.CORPUS, runners=()))
+
+    def test_takes_no_scenario_fields(self):
+        for extra in (
+            'scenario = "x"',
+            'markers = ["X"]',
+            'result = "X"',
+            'check = "c.py"',
+            'run = ["x"]',
+        ):
+            with self.subTest(extra=extra), self.assertRaises(ValueError):
+                hr.load_registry(self._root_with(self.CORPUS + extra + "\n"))
+
+    def test_needs_the_harness_binary(self):
+        with self.assertRaises(ValueError):
+            hr.load_registry(
+                self._root_with(
+                    self.CORPUS.replace('builds = ["golden-vt-render"]\n', "")
+                )
+            )
+
+    def test_only_a_corpus_gate_names_a_runner(self):
+        with self.assertRaisesRegex(ValueError, "only a corpus gate"):
+            hr.load_registry(self._root_with(MINIMAL + 'corpus_runner = "fake"\n'))
+
+    def test_the_registry_holds_the_corpus_gates(self):
+        root = Path(__file__).resolve().parents[2]
+        corpus = [h for h in hr.load_registry(root) if h.runner == "corpus"]
+        self.assertEqual(len(corpus), 17)
+        self.assertTrue(all(h.group == "model" and h.alone for h in corpus))
+
+
 class ScenarioEntryTest(unittest.TestCase):
     SCENARIO = """
 [[harness]]
@@ -257,6 +329,7 @@ status = "gate"
 gates = "gamma holds"
 scenario = "gamma"
 markers = ["GA-ONE"]
+result = "GA-RESULT failures=0"
 builds = ["golden-vt-render"]
 tier = "nightly"
 group = "render"
@@ -286,6 +359,12 @@ group = "render"
                 self._root_with(
                     self.SCENARIO.replace('scenario = "gamma"', 'scenario = ""')
                 )
+            )
+
+    def test_a_scenario_entry_names_its_row(self):
+        with self.assertRaisesRegex(ValueError, "must name a row"):
+            hr.load_registry(
+                self._root_with(self.SCENARIO.replace('scenario = "gamma"\n', ""))
             )
 
     def test_rejects_run(self):
@@ -945,77 +1024,104 @@ def _load_check_module(name):
     return module
 
 
-class HostDriverTest(unittest.TestCase):
-    """host_driver runs a corpus runner and hands its output to the gate, leaving the process's stdout alone."""
+class CorpusGateTest(unittest.TestCase):
+    """A corpus gate runs its runner in a process of its own and hands the runner's output to the gate."""
 
     def setUp(self):
-        self.host_driver = _load_check_module("host_driver")
         self.root = Path(tempfile.mkdtemp())
-        golden = self.root / "tests" / "golden"
-        golden.mkdir(parents=True)
-        (golden / "driver.py").write_text("def default_corpus():\n    return None\n")
-        (golden / "fake_run.py").write_text(
-            "import sys, time\n"
+        runners = self.root / hr.CORPUS_RUNNERS
+        runners.mkdir(parents=True)
+        (runners / "driver.py").write_text("def default_corpus():\n    return None\n")
+        self._runner("print('HELLO')\n    time.sleep(0.2)\n    return 0")
+        self.binary = self.root / "golden_vt_render"
+        self.binary.write_text("")
+        self.addCleanup(
+            lambda: sys.path.remove(str(runners)) if str(runners) in sys.path else None
+        )
+        self.addCleanup(lambda: sys.modules.pop("driver", None))
+
+    def _runner(self, body):
+        (self.root / hr.CORPUS_RUNNERS / "fake_run.py").write_text(
+            "import os, sys, time\n"
             "def main(argv=None):\n"
-            "    print('HELLO')\n"
-            "    time.sleep(0.2)\n"
-            "    return 0\n"
+            "    " + body + "\n"
             "if __name__ == '__main__':\n"
             "    sys.exit(main())\n"
         )
-        self.host_driver.RUNNERS["fake"] = "fake_run"
-        self.addCleanup(
-            lambda: sys.path.remove(str(golden)) if str(golden) in sys.path else None
-        )
-        self.addCleanup(
-            lambda: [sys.modules.pop(m, None) for m in ("driver", "fake_run")]
-        )
 
-    def _gate(self):
-        lines, failures = [], []
-        gate = mock.Mock()
-        gate.root = self.root
-        gate.entry.scenario = "fake"
-        gate.env = {}
-        gate.binary = Path("/nonexistent/golden_vt_render")
-        gate.say.side_effect = lines.append
-        gate.fail.side_effect = failures.append
-        return gate, lines, failures
+    def _run(self, env=None):
+        h = dataclasses.replace(
+            entry("d"),
+            runner="corpus",
+            corpus_runner="fake",
+            builds=["golden-vt-render"],
+        )
+        log = io.StringIO()
+        passed = cg.run_corpus_gate(
+            self.root, h, dict(os.environ) if env is None else env, self.binary, log
+        )
+        return passed, log.getvalue()
 
     def test_runner_output_reaches_the_gate_without_touching_stdout(self):
         before = sys.stdout
-        gate, lines, failures = self._gate()
-        self.host_driver.run(gate)
+        passed, log = self._run()
         self.assertIs(sys.stdout, before)
-        self.assertIn("HELLO", lines)
-        self.assertEqual(failures, [])
+        self.assertTrue(passed, log)
+        self.assertIn("HELLO\n", log)
+        self.assertTrue(log.endswith("d: PASS\n"), log)
 
-        gates = [self._gate() for _ in range(2)]
-        threads = [
-            threading.Thread(target=self.host_driver.run, args=(g,))
-            for g, _, _ in gates
-        ]
+        results = [None, None]
+
+        def one(i):
+            results[i] = self._run()
+
+        threads = [threading.Thread(target=one, args=(i,)) for i in range(2)]
         for t in threads:
             t.start()
         for t in threads:
             t.join()
         self.assertIs(sys.stdout, before)
-        for _, lines, _ in gates:
-            self.assertIn("HELLO", lines)
+        for _, log in results:
+            self.assertIn("HELLO", log)
 
     def test_the_gate_environment_reaches_the_runner(self):
-        (self.root / "tests/golden/fake_run.py").write_text(
-            "import os, sys\n"
-            "def main(argv=None):\n"
-            "    print('PROBE=' + os.environ.get('PROBE', 'unset'))\n"
-            "    return 0\n"
-            "if __name__ == '__main__':\n"
-            "    sys.exit(main())\n"
+        self._runner("print('PROBE=' + os.environ.get('PROBE', 'unset'))\n    return 0")
+        _, log = self._run({**os.environ, "PROBE": "from-gate"})
+        self.assertIn("PROBE=from-gate", log)
+
+    def test_finding_nothing_to_check_fails(self):
+        self._runner("return 77")
+        passed, log = self._run()
+        self.assertFalse(passed)
+        self.assertIn("no corpus songs to check", log)
+
+    def test_a_failing_runner_fails(self):
+        self._runner("return 1")
+        passed, log = self._run()
+        self.assertFalse(passed)
+        self.assertIn("the runner exited 1", log)
+
+    def test_an_unbuilt_binary_fails(self):
+        self.binary.unlink()
+        passed, log = self._run()
+        self.assertFalse(passed)
+        self.assertIn("is not built", log)
+
+    def test_the_runner_dispatches_a_corpus_entry(self):
+        h = dataclasses.replace(
+            entry("d"),
+            runner="corpus",
+            corpus_runner="fake",
+            builds=["golden-vt-render"],
         )
-        gate, lines, _ = self._gate()
-        gate.env = {**os.environ, "PROBE": "from-gate"}
-        self.host_driver.run(gate)
-        self.assertIn("PROBE=from-gate", lines)
+        log = io.StringIO()
+        products = tb.products(Path(__file__).resolve().parents[2])
+        with mock.patch.object(
+            tt.corpus_gate, "run_corpus_gate", return_value=True
+        ) as gate:
+            self.assertTrue(tt._run_one(self.root, h, [], False, None, log, products))
+        self.assertIn("==> d: run: tests/golden/fake_run.py", log.getvalue())
+        self.assertEqual(gate.call_args.args[1], h)
 
 
 class SongRecordsTest(unittest.TestCase):
