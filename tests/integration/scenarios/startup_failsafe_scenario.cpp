@@ -37,6 +37,7 @@
 /// 0, so it is `tests/integration/checks/startup_failsafe.py` that requires it non-zero.
 
 #include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "definitions_cxx.hpp"
 #include "io/file.hpp"
@@ -59,6 +60,10 @@
 DELUGE_SCENARIO_DECLARE(startup_failsafe);
 
 namespace {
+
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
 
 /// The template the fail-safe falls back to, and creates when there is none. Every path it is looked for at is removed
 /// before the run so the song-missing path is reached rather than the load.
@@ -117,7 +122,6 @@ constexpr uint32_t kDriveLatencyMs = 20;
 constexpr int32_t kMaxGiveUpTicks = 2000;
 
 Stage g_stage = Stage::Fixture;
-int32_t g_driveTicks = 0;
 /// Whether the machine has been observed in its canary-write phase yet.
 bool g_sawCanaryPhase = false;
 /// Whether the canary was readable ON THE CARD at the instant the machine left that phase. -1 until
@@ -125,8 +129,7 @@ bool g_sawCanaryPhase = false;
 int32_t g_canaryOnCard = -1;
 /// `illegalInline()` when the stage being measured began.
 int32_t g_illegalBefore = 0;
-/// Ticks the give-up stage's machine has run, and the interaction-tier count it started from.
-int32_t g_giveUpTicks = 0;
+/// The interaction-tier count the give-up stage started from.
 int32_t g_giveUpTierBefore = 0;
 
 /// Observe the ordering guarantee: by the time the machine leaves its canary-write phase, everything
@@ -151,11 +154,12 @@ void observeCanaryOrdering() {
 	}
 }
 int32_t g_templateTierBefore = 0;
-int32_t g_templateTicks = 0;
 bool g_templateCreated = false;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-int32_t g_failures = 0;
+ScenarioReport g_report{"SF"};
+/// The wait of the leg running; each leg that waits starts its own.
+Wait g_wait{g_report, "the fail-safe machine finishing", kMaxDriveTicks};
 
 void runTick() {
 	switch (g_stage) {
@@ -178,6 +182,7 @@ void runTick() {
 		// the product never takes.
 		g_illegalBefore = deluge::storage::bytes::illegalInline();
 		deluge_file_bytes_set_latency_ms(kDriveLatencyMs);
+		g_wait = Wait{g_report, "the fail-safe machine finishing", kMaxDriveTicks};
 		deluge::storage::armStartupSong();
 		g_stage = Stage::DriveCheck;
 		break;
@@ -186,14 +191,10 @@ void runTick() {
 		// The machine is phased now, so one tick is not enough: wait until it has finished before
 		// reading the tier count, or the count would be read partway through and report whatever
 		// happened to have run. Bounded so a wedged machine fails the gate rather than hanging it.
-		if (!deluge::storage::startupSongIdle() && ++g_driveTicks < kMaxDriveTicks) {
+		if (g_wait.poll(deluge::storage::startupSongIdle()) == WaitState::Pending) {
 			break;
 		}
 		deluge_file_bytes_set_latency_ms(0);
-		if (g_driveTicks >= kMaxDriveTicks) {
-			printf("SF-DRIVE FAIL the fail-safe machine did not finish within %d ticks\n", kMaxDriveTicks);
-			g_failures++;
-		}
 		g_stage = Stage::Tier;
 		break;
 
@@ -207,15 +208,13 @@ void runTick() {
 			// The half that can be tested. The card check below proves the canary is THERE; this
 			// proves the machine WAITED for it rather than reaching that state by luck, which on a
 			// host where the channel completes within a tick is the only way to tell the two apart.
-			printf("SF-ORDER FAIL the machine advanced past the canary write without a terminal answer\n");
-			g_failures++;
+			g_report.fail("ORDER the machine advanced past the canary write without a terminal answer");
 		}
 		if (g_canaryOnCard != 1) {
 			// THE ORDERING GUARANTEE. A canary that has not landed when the machine allows the load to
 			// proceed is precisely the failure the fail-safe exists to prevent: the device dies
 			// mid-load, no canary survives, and the next boot retries the same song.
-			printf("SF-ORDER FAIL the canary was not on the card when the load was allowed to proceed\n");
-			g_failures++;
+			g_report.fail("ORDER the canary was not on the card when the load was allowed to proceed");
 		}
 		printf("SF-CHANNEL served=%d\n", deluge::storage::bytes::channelServedOps());
 
@@ -223,20 +222,17 @@ void runTick() {
 		printf("SF-TIER violations=%d\n", violations);
 		if (violations != 0) {
 			// Fail-safe I/O on the interaction tier is the defect this gate exists to catch.
-			printf("SF-TIER FAIL startup fail-safe I/O ran on the interaction tier\n");
-			g_failures++;
+			g_report.fail("TIER startup fail-safe I/O ran on the interaction tier");
 		}
 		const int32_t inlineRan = deluge::storage::bytes::inlineRuns();
 		printf("SF-INLINE ok=%d ran=%d\n", (int)(inlineRan == 0), (int)inlineRan);
 		if (inlineRan != 0) {
-			printf("SF-INLINE FAIL a settings read still took the blocking arm\n");
-			g_failures++;
+			g_report.fail("INLINE a settings read still took the blocking arm");
 		}
 		const int32_t illegal = deluge::storage::bytes::illegalInline() - g_illegalBefore;
 		printf("SF-ILLEGAL illegal=%d\n", illegal);
 		if (illegal != 0) {
-			printf("SF-ILLEGAL FAIL a fail-safe operation was refused for want of a legal place to run\n");
-			g_failures++;
+			g_report.fail("ILLEGAL a fail-safe operation was refused for want of a legal place to run");
 		}
 		g_stage = Stage::TemplateArm;
 		break;
@@ -251,13 +247,13 @@ void runTick() {
 		(void)deluge::io::unlink(deluge::storage::startupSongCanaryPath());
 		g_illegalBefore = deluge::storage::bytes::illegalInline();
 		g_giveUpTierBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Startup);
-		g_giveUpTicks = 0;
+		g_wait = Wait{g_report, "the give-up stage finishing", kMaxGiveUpTicks};
 		deluge::storage::armStartupSong();
 		g_stage = Stage::GiveUpDrive;
 		break;
 
 	case Stage::GiveUpDrive:
-		if (!deluge::storage::startupSongIdle() && ++g_giveUpTicks < kMaxGiveUpTicks) {
+		if (g_wait.poll(deluge::storage::startupSongIdle()) == WaitState::Pending) {
 			break;
 		}
 		g_stage = Stage::GiveUpCheck;
@@ -265,7 +261,7 @@ void runTick() {
 
 	case Stage::GiveUpCheck: {
 		deluge_file_bytes_set_latency_ms(0);
-		const bool finished = g_giveUpTicks < kMaxGiveUpTicks;
+		const bool finished = !g_wait.expired();
 		const int32_t illegal = deluge::storage::bytes::illegalInline() - g_illegalBefore;
 		const int32_t tier =
 		    deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Startup) - g_giveUpTierBefore;
@@ -274,25 +270,17 @@ void runTick() {
 		if (canary.has_value()) {
 			(void)canary->close();
 		}
-		printf("SF-GIVEUP ticks=%d finished=%d illegal=%d tier=%d canary=%d latencyMs=%u\n", g_giveUpTicks,
+		printf("SF-GIVEUP ticks=%d finished=%d illegal=%d tier=%d canary=%d latencyMs=%u\n", g_wait.ticks(),
 		       (int)finished, illegal, tier, (int)canaryOnCard, (unsigned)kGiveUpLatencyMs);
-		if (!finished) {
-			printf("SF-GIVEUP FAIL the fail-safe did not give up on a stalled channel within %d ticks\n",
-			       kMaxGiveUpTicks);
-			g_failures++;
-		}
 		if (illegal != 1) {
-			printf("SF-GIVEUP FAIL expected exactly one refused operation (the stalled existence check), got %d\n",
-			       illegal);
-			g_failures++;
+			g_report.fail("GIVEUP expected exactly one refused operation (the stalled existence check), got %d",
+			              illegal);
 		}
 		if (tier != 0) {
-			printf("SF-GIVEUP FAIL startup fail-safe I/O ran on the interaction tier while giving up\n");
-			g_failures++;
+			g_report.fail("GIVEUP startup fail-safe I/O ran on the interaction tier while giving up");
 		}
 		if (canaryOnCard) {
-			printf("SF-GIVEUP FAIL a canary is on the card though the machine could not tell whether one was there\n");
-			g_failures++;
+			g_report.fail("GIVEUP a canary is on the card though the machine could not tell whether one was there");
 		}
 		g_stage = Stage::Summary;
 		break;
@@ -311,7 +299,7 @@ void runTick() {
 		unlinkTemplates();
 		(void)deluge::io::unlink(deluge::storage::startupSongCanaryPath());
 		g_templateTierBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Startup);
-		g_templateTicks = 0;
+		g_wait = Wait{g_report, "the template leg finishing", kMaxDriveTicks};
 		deluge::storage::armStartupSong();
 		g_stage = Stage::TemplateDrive;
 		break;
@@ -326,37 +314,31 @@ void runTick() {
 			g_templateCreated = true;
 			(void)deluge::io::unlink(kDefaultSong);
 		}
-		if (!deluge::storage::startupSongIdle() && ++g_templateTicks < kMaxDriveTicks) {
+		if (g_wait.poll(deluge::storage::startupSongIdle()) == WaitState::Pending) {
 			break;
 		}
 		g_stage = Stage::TemplateCheck;
 		break;
 
 	case Stage::TemplateCheck: {
-		const bool finished = g_templateTicks < kMaxDriveTicks;
+		const bool finished = !g_wait.expired();
 		const bool made = g_templateCreated;
 		const int32_t tier =
 		    deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Startup) - g_templateTierBefore;
 		printf("SF-TEMPLATE finished=%d created=%d tier=%d ticks=%d\n", (int)finished, (int)made, (int)tier,
-		       (int)g_templateTicks);
-		if (!finished) {
-			printf("SF-TEMPLATE FAIL the machine did not finish\n");
-			g_failures++;
-		}
+		       (int)g_wait.ticks());
 		if (!made) {
-			printf("SF-TEMPLATE FAIL no template was created, so this leg proves nothing\n");
-			g_failures++;
+			g_report.fail("TEMPLATE no template was created, so this leg proves nothing");
 		}
 		if (tier != 0) {
-			printf("SF-TEMPLATE FAIL the template write ran on the interaction tier\n");
-			g_failures++;
+			g_report.fail("TEMPLATE the template write ran on the interaction tier");
 		}
 		g_stage = Stage::GiveUpArm;
 		break;
 	}
 
 	case Stage::Summary:
-		printf("SF-RESULT failures=%d\n", g_failures);
+		g_report.printResult();
 		// Piped into a script stdout is block-buffered and the harness exits without flushing C
 		// stdio, so without this the entire gate output vanishes while the run reports success.
 		fflush(stdout);
@@ -379,12 +361,10 @@ void deluge_scenario_startup_failsafe_begin(void) {
 	g_stage = Stage::Fixture;
 	g_stepDone = false;
 	g_summaryPrinted = false;
-	g_failures = 0;
-	g_driveTicks = 0;
+	g_report.reset();
 	g_sawCanaryPhase = false;
 	g_canaryOnCard = -1;
 	g_illegalBefore = 0;
-	g_giveUpTicks = 0;
 	g_giveUpTierBefore = 0;
 }
 
@@ -411,7 +391,7 @@ bool deluge_scenario_startup_failsafe_step_done(void) {
 }
 
 int32_t deluge_scenario_startup_failsafe_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

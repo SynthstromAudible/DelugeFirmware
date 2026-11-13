@@ -25,6 +25,7 @@
 /// proxy for an operation finishing and not the thing itself.
 
 #include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "io/file.hpp"
 #include "libdeluge/file_bytes.h"
@@ -46,6 +47,10 @@
 DELUGE_SCENARIO_DECLARE(favourites_channel);
 
 namespace {
+
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
 
 using deluge::favourites::BankState;
 
@@ -97,8 +102,9 @@ Stage g_stage = Stage::Prepare;
 Stage g_afterIdle = Stage::Prepare;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-int32_t g_failures = 0;
-int32_t g_waitTicks = 0;
+ScenarioReport g_report{"FV"};
+/// The wait of the stage running; each stage that waits starts its own.
+Wait g_wait{g_report, "the favourites bank going idle", kMaxWaitTicks};
 BankState g_stateAtEdit = BankState::Loaded;
 bool g_seedSeen = false;
 int32_t g_issuedBeforeStale = 0;
@@ -167,7 +173,7 @@ uint32_t crc32(const void* data, size_t len) {
 
 void waitIdleThen(Stage next) {
 	g_afterIdle = next;
-	g_waitTicks = 0;
+	g_wait = Wait{g_report, "the favourites bank going idle", kMaxWaitTicks};
 	g_stage = Stage::WaitIdle;
 }
 
@@ -202,9 +208,8 @@ void runTick() {
 		const int32_t there = presence(bankFile(2));
 		printf("FV-SEED file=%d\n", there);
 		if (there != 1) {
-			printf("FV-SEED FAIL the seed favourite never reached bank 2's file; every later check would be "
-			       "vacuous\n");
-			g_failures++;
+			g_report.fail("SEED the seed favourite never reached bank 2's file; every later check would be "
+			              "vacuous");
 			g_stage = Stage::Report;
 			break;
 		}
@@ -222,8 +227,7 @@ void runTick() {
 		const BankState state = favouritesManager.bankState();
 		printf("FV-ABSENT file=%d state=%s\n", there, stateName(state));
 		if (there != 0 || state != BankState::Loaded) {
-			printf("FV-ABSENT FAIL opening a bank with no file must leave no file and a usable bank\n");
-			g_failures++;
+			g_report.fail("ABSENT opening a bank with no file must leave no file and a usable bank");
 		}
 		g_stage = Stage::RefuseEdit;
 		break;
@@ -242,12 +246,10 @@ void runTick() {
 		const bool slotEmpty = favouritesManager.isEmpty(kRefusedSlot);
 		printf("FV-REFUSE stateAtEdit=%s file=%d slotEmpty=%d\n", stateName(g_stateAtEdit), there, (int)slotEmpty);
 		if (g_stateAtEdit != BankState::Loading) {
-			printf("FV-REFUSE FAIL the bank was not loading when the edit was made, so nothing was refused\n");
-			g_failures++;
+			g_report.fail("REFUSE the bank was not loading when the edit was made, so nothing was refused");
 		}
 		else if (there != 0 || !slotEmpty) {
-			printf("FV-REFUSE FAIL an edit made while the bank was loading changed it or wrote it\n");
-			g_failures++;
+			g_report.fail("REFUSE an edit made while the bank was loading changed it or wrote it");
 		}
 		g_stage = Stage::RoundTripSet;
 		break;
@@ -276,9 +278,8 @@ void runTick() {
 		printf("FV-ROUNDTRIP survived=%d bytes=%zu crc=%08X\n", (int)survived, read ? bytes.size() : size_t{0},
 		       read ? crc32(bytes.data(), bytes.size()) : 0u);
 		if (!survived || !prolog) {
-			printf("FV-ROUNDTRIP FAIL a favourite did not survive leaving its bank and coming back, or its file is "
-			       "not an XML document\n");
-			g_failures++;
+			g_report.fail("ROUNDTRIP a favourite did not survive leaving its bank and coming back, or its file is "
+			              "not an XML document");
 		}
 		g_stage = Stage::OrderEdit;
 		break;
@@ -302,9 +303,8 @@ void runTick() {
 		printf("FV-ORDER new=%d old=%d state=%s latencyMs=%u\n", (int)newKept, (int)oldKept, stateName(state),
 		       kOrderLatencyMs);
 		if (!newKept || !oldKept || state != BankState::Loaded) {
-			printf("FV-ORDER FAIL a favourite set just before switching away and back was lost: the bank was read "
-			       "before its save landed\n");
-			g_failures++;
+			g_report.fail("ORDER a favourite set just before switching away and back was lost: the bank was read "
+			              "before its save landed");
 		}
 		g_stage = Stage::StaleFirst;
 		break;
@@ -321,7 +321,7 @@ void runTick() {
 		// One tick later: this tick's service has issued bank 2's load, so bank 3 is selected while it is IN
 		// FLIGHT. In the same tick the two loads would simply collapse, and nothing could go stale.
 		favouritesManager.selectFavouritesBank(3);
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the bank going idle after the stale load", kMaxWaitTicks};
 		g_stage = Stage::StaleWait;
 		break;
 
@@ -329,14 +329,15 @@ void runTick() {
 		if (!favouritesManager.isEmpty(kSeedSlot)) {
 			g_seedSeen = true;
 		}
-		if (favouritesManager.idle()) {
+		switch (g_wait.poll(favouritesManager.idle())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			g_stage = Stage::StaleCheck;
 			break;
-		}
-		if (++g_waitTicks > kMaxWaitTicks) {
-			printf("FV-STALE FAIL the bank never went idle (%d ticks)\n", g_waitTicks);
-			g_failures++;
+		case WaitState::Expired:
 			g_stage = Stage::Report;
+			break;
 		}
 		break;
 
@@ -347,13 +348,11 @@ void runTick() {
 		printf("FV-STALE loads=%d seedSeen=%d seedNow=%d state=%s\n", loads, (int)g_seedSeen, (int)seedNow,
 		       stateName(state));
 		if (loads < 2) {
-			printf("FV-STALE FAIL bank 2's load was never issued, so no answer could go stale and this proves "
-			       "nothing\n");
-			g_failures++;
+			g_report.fail("STALE bank 2's load was never issued, so no answer could go stale and this proves "
+			              "nothing");
 		}
 		else if (g_seedSeen || seedNow || state != BankState::Loaded) {
-			printf("FV-STALE FAIL bank 2's answer was applied after bank 3 had been selected\n");
-			g_failures++;
+			g_report.fail("STALE bank 2's answer was applied after bank 3 had been selected");
 		}
 		g_stage = Stage::Cleanup;
 		break;
@@ -377,8 +376,7 @@ void runTick() {
 		    deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Favourites);
 		printf("FV-TIER violations=%d\n", violations);
 		if (violations != 0) {
-			printf("FV-TIER FAIL favourites card I/O ran on the interaction tier\n");
-			g_failures++;
+			g_report.fail("TIER favourites card I/O ran on the interaction tier");
 		}
 		// Reported here, required by the script: served must be non-zero on the channel leg only.
 		printf("FV-CHANNEL served=%d favourites=%d\n", deluge::storage::bytes::channelServedOps(),
@@ -388,22 +386,20 @@ void runTick() {
 		const int32_t owner = favouritesManager.inlineCompletions();
 		printf("FV-ACCOUNTED issued=%d channel=%d owner=%d\n", issued, channel, owner);
 		if (issued == 0 || channel + owner != issued) {
-			printf("FV-ACCOUNTED FAIL every issued card operation must end on exactly one arm\n");
-			g_failures++;
+			g_report.fail("ACCOUNTED every issued card operation must end on exactly one arm");
 		}
 		// No legal place to run is a refusal, and a refused intent ends on neither arm above.
 		const int32_t illegal = deluge::storage::bytes::illegalInline();
 		printf("FV-ILLEGAL illegal=%d\n", illegal);
 		if (illegal != 0) {
-			printf("FV-ILLEGAL FAIL a card operation was refused for want of a legal place to run\n");
-			g_failures++;
+			g_report.fail("ILLEGAL a card operation was refused for want of a legal place to run");
 		}
 		g_stage = Stage::Summary;
 		break;
 	}
 
 	case Stage::Summary:
-		printf("FV-RESULT failures=%d\n", g_failures);
+		g_report.printResult();
 		// Piped into a script stdout is block-buffered and the harness exits without flushing C stdio.
 		fflush(stdout);
 		g_summaryPrinted = true;
@@ -414,14 +410,15 @@ void runTick() {
 		break;
 
 	case Stage::WaitIdle:
-		if (favouritesManager.idle()) {
+		switch (g_wait.poll(favouritesManager.idle())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			g_stage = g_afterIdle;
 			break;
-		}
-		if (++g_waitTicks > kMaxWaitTicks) {
-			printf("FV-WAIT FAIL the favourites bank never went idle (%d ticks)\n", g_waitTicks);
-			g_failures++;
+		case WaitState::Expired:
 			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	}
@@ -437,8 +434,7 @@ void deluge_scenario_favourites_channel_begin(void) {
 	g_afterIdle = Stage::Prepare;
 	g_stepDone = false;
 	g_summaryPrinted = false;
-	g_failures = 0;
-	g_waitTicks = 0;
+	g_report.reset();
 	g_seedSeen = false;
 	g_issuedBeforeStale = 0;
 }
@@ -465,7 +461,7 @@ bool deluge_scenario_favourites_channel_step_done(void) {
 }
 
 int32_t deluge_scenario_favourites_channel_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

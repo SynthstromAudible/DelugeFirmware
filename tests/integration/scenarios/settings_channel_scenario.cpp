@@ -44,6 +44,7 @@
 /// a `*Check` successor a tick later.
 
 #include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "gui/views/performance_view.h"
 #include "io/file.hpp"
@@ -112,6 +113,10 @@ struct SettingsChannelProbe {
 };
 
 namespace {
+
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
 
 /// The setting the round trip carries. `RuntimeFeatureSettingType` values are plain integers in the
 /// file, so any of them proves the path; this one is chosen because it is a simple toggle with no
@@ -219,11 +224,13 @@ enum class Stage : uint8_t {
 Stage g_stage = Stage::Write;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-int32_t g_failures = 0;
+ScenarioReport g_report{"SC"};
+/// The seam wait of the stage running; `waitIdleThen` starts a fresh one for each stage that waits.
+Wait g_wait{g_report, "the settings seam going idle", kMaxWaitTicks};
+bool g_waitFresh = true;
 uint32_t g_wrote = 0;
 uint32_t g_read = 0;
 uint32_t g_original = 0;
-int32_t g_waitTicks = 0;
 int32_t g_servedBefore = 0;
 int32_t g_illegalBefore = 0;
 int32_t g_burstServed = 0;
@@ -300,19 +307,24 @@ bool readWholeFile(const char* path, std::vector<uint8_t>& out) {
 	return true;
 }
 
-/// Advance to `next` once the seam is idle; report and move to the restore if it never is.
-void waitIdleThen(const char* marker, Stage next, Stage onTimeout) {
-	if (deluge::storage::bytes::idle()) {
-		g_waitTicks = 0;
-		g_stage = next;
+/// Advance to `next` once the seam is idle; the wait reports it and the scenario moves to `onTimeout` if it never is.
+/// @param what Names the wait, stage first ("BUSY the settings seam going idle"); a literal that outlives the wait.
+void waitIdleThen(const char* what, Stage next, Stage onTimeout) {
+	if (g_waitFresh) {
+		g_wait = Wait{g_report, what, kMaxWaitTicks};
+		g_waitFresh = false;
+	}
+	switch (g_wait.poll(deluge::storage::bytes::idle())) {
+	case WaitState::Pending:
 		return;
-	}
-	if (++g_waitTicks > kMaxWaitTicks) {
-		printf("%s FAIL the seam never went idle (%d ticks)\n", marker, g_waitTicks);
-		g_failures++;
-		g_waitTicks = 0;
+	case WaitState::Met:
+		g_stage = next;
+		break;
+	case WaitState::Expired:
 		g_stage = onTimeout;
+		break;
 	}
+	g_waitFresh = true;
 }
 
 void runTick() {
@@ -336,7 +348,7 @@ void runTick() {
 		// the write to COMPLETE, not for a tick to pass: the entry point only queues it, and how many ticks it
 		// takes depends on everything else the harness runs. Spending exactly one tick passed only while
 		// something else happened to slow the step down, and read the scrub below once nothing did.
-		waitIdleThen("SC-ROUNDTRIP", Stage::Read, Stage::Restore);
+		waitIdleThen("ROUNDTRIP the settings seam going idle", Stage::Read, Stage::Restore);
 		break;
 
 	case Stage::Read:
@@ -352,21 +364,19 @@ void runTick() {
 	case Stage::ReadCheck:
 		// Likewise the read: a value taken before its parse lands is the scrub above, not the file.
 		if (!deluge::storage::bytes::idle()) {
-			waitIdleThen("SC-ROUNDTRIP", Stage::ReadCheck, Stage::Restore);
+			waitIdleThen("ROUNDTRIP the settings seam going idle", Stage::ReadCheck, Stage::Restore);
 			break;
 		}
 		g_read = runtimeFeatureSettings.get(kProbeSetting);
 		printf("SC-ROUNDTRIP subsystem=runtime_features wrote=%u read=%u\n", g_wrote, g_read);
 		if (g_read != g_wrote) {
-			printf("SC-ROUNDTRIP FAIL the value did not survive the write/read pair\n");
-			g_failures++;
+			g_report.fail("ROUNDTRIP the value did not survive the write/read pair");
 		}
 		{
 			const size_t kept = SettingsChannelProbe::unknownSettingsNamed(g_roundTripUnknownBase, "legacyMenu", 1);
 			printf("SC-UNKNOWN name=legacyMenu kept=%zu\n", kept);
 			if (kept != 1) {
-				printf("SC-UNKNOWN FAIL a setting no longer known did not survive the write/read pair once\n");
-				g_failures++;
+				g_report.fail("UNKNOWN a setting no longer known did not survive the write/read pair once");
 			}
 			SettingsChannelProbe::truncateUnknownSettings(g_roundTripUnknownBase);
 		}
@@ -376,7 +386,7 @@ void runTick() {
 	case Stage::BurstFirst:
 		// Start from an empty seam, so the burst's served count is the burst's alone.
 		if (!deluge::storage::bytes::idle()) {
-			waitIdleThen("SC-BURST", Stage::BurstFirst, Stage::Restore);
+			waitIdleThen("BURST the settings seam going idle", Stage::BurstFirst, Stage::Restore);
 			break;
 		}
 		g_servedBefore = deluge::storage::bytes::channelServedOps();
@@ -394,13 +404,12 @@ void runTick() {
 		runtimeFeatureSettings.writeSettingsToFile();
 		runtimeFeatureSettings.set(kProbeSetting, kBurstThird);
 		runtimeFeatureSettings.writeSettingsToFile();
-		g_waitTicks = 0;
 		g_stage = Stage::BurstWait;
 		break;
 
 	case Stage::BurstWait:
 		if (!deluge::storage::bytes::idle()) {
-			waitIdleThen("SC-BURST", Stage::BurstWait, Stage::Restore);
+			waitIdleThen("BURST the settings seam going idle", Stage::BurstWait, Stage::Restore);
 			break;
 		}
 		g_burstServed = deluge::storage::bytes::channelServedOps() - g_servedBefore;
@@ -411,21 +420,18 @@ void runTick() {
 		break;
 
 	case Stage::BurstReadWait:
-		waitIdleThen("SC-BURST", Stage::BurstCheck, Stage::Restore);
+		waitIdleThen("BURST the settings seam going idle", Stage::BurstCheck, Stage::Restore);
 		break;
 
 	case Stage::BurstCheck: {
 		const uint32_t value = runtimeFeatureSettings.get(kProbeSetting);
 		printf("SC-BURST value=%u served=%d illegal=%d\n", value, g_burstServed, g_burstIllegal);
 		if (value != kBurstThird) {
-			printf("SC-BURST FAIL the last write of the burst did not land (read %u, wanted %u)\n", value, kBurstThird);
-			g_failures++;
+			g_report.fail("BURST the last write of the burst did not land (read %u, wanted %u)", value, kBurstThird);
 		}
 		// Exactly two card writes, all through the channel.
 		if (g_burstServed != 2) {
-			printf("SC-BURST FAIL the channel carried %d writes for a burst that should collapse to 2\n",
-			       g_burstServed);
-			g_failures++;
+			g_report.fail("BURST the channel carried %d writes for a burst that should collapse to 2", g_burstServed);
 		}
 		g_stage = Stage::OrderSubmit;
 		break;
@@ -441,12 +447,11 @@ void runTick() {
 		runtimeFeatureSettings.set(kProbeSetting, kOrderValue);
 		runtimeFeatureSettings.writeSettingsToFile();
 		runtimeFeatureSettings.readSettingsFromFile();
-		g_waitTicks = 0;
 		g_stage = Stage::OrderWait;
 		break;
 
 	case Stage::OrderWait:
-		waitIdleThen("SC-ORDER", Stage::OrderCheck, Stage::Restore);
+		waitIdleThen("ORDER the settings seam going idle", Stage::OrderCheck, Stage::Restore);
 		break;
 
 	case Stage::OrderCheck: {
@@ -455,13 +460,10 @@ void runTick() {
 		g_orderServed = deluge::storage::bytes::channelServedOps() - g_servedBefore;
 		printf("SC-ORDER value=%u served=%d\n", value, g_orderServed);
 		if (value != kOrderValue) {
-			printf("SC-ORDER FAIL a read queued behind a write did not see it (read %u, wanted %u)\n", value,
-			       kOrderValue);
-			g_failures++;
+			g_report.fail("ORDER a read queued behind a write did not see it (read %u, wanted %u)", value, kOrderValue);
 		}
 		if (g_orderServed != 2) {
-			printf("SC-ORDER FAIL the channel carried %d operations for one write and one read\n", g_orderServed);
-			g_failures++;
+			g_report.fail("ORDER the channel carried %d operations for one write and one read", g_orderServed);
 		}
 		g_stage = Stage::HeadWrite;
 		break;
@@ -477,12 +479,11 @@ void runTick() {
 		MIDIDeviceManager::dinMIDIPorts.sendClock = false;
 		MIDIDeviceManager::anyChangesToSave = true;
 		MIDIDeviceManager::writeDevicesToFile();
-		g_waitTicks = 0;
 		g_stage = Stage::HeadWait;
 		break;
 
 	case Stage::HeadWait:
-		waitIdleThen("SC-HEAD", Stage::HeadCheck, Stage::Restore);
+		waitIdleThen("HEAD the settings seam going idle", Stage::HeadCheck, Stage::Restore);
 		break;
 
 	case Stage::HeadCheck: {
@@ -500,13 +501,11 @@ void runTick() {
 			const size_t bound = DELUGE_FILE_BYTES_MAX_BYTES;
 			printf("SC-FITS file=%s bytes=%zu bound=%zu\n", path, bytes.size(), bound);
 			if (!read || bytes.size() > bound) {
-				printf("SC-FITS FAIL %s does not fit the channel\n", path);
-				g_failures++;
+				g_report.fail("FITS %s does not fit the channel", path);
 			}
 		}
 		if (missing != 0) {
-			printf("SC-HEAD FAIL %d settings file(s) do not begin with the XML declaration\n", missing);
-			g_failures++;
+			g_report.fail("HEAD %d settings file(s) do not begin with the XML declaration", missing);
 		}
 		g_stage = Stage::UnlinkWrite;
 		break;
@@ -550,19 +549,17 @@ void runTick() {
 			    (int)MIDIDeviceManager::upstreamUSBMIDICable2.midi_thru,
 			    (int)MIDIDeviceManager::upstreamUSBMIDICable2.defaultVelocityToLevel);
 			if (din || up1 || up2 || hostedWorth != 0) {
-				printf("SC-UNLINK FAIL precondition: the MIDI device table still holds something worth writing\n");
-				g_failures++;
+				g_report.fail("UNLINK precondition: the MIDI device table still holds something worth writing");
 			}
 		}
 		g_servedBefore = deluge::storage::bytes::channelServedOps();
 		g_illegalBefore = deluge::storage::bytes::illegalInline();
 		MIDIDeviceManager::writeDevicesToFile();
-		g_waitTicks = 0;
 		g_stage = Stage::UnlinkWait;
 		break;
 
 	case Stage::UnlinkWait:
-		waitIdleThen("SC-UNLINK", Stage::UnlinkCheck, Stage::Restore);
+		waitIdleThen("UNLINK the settings seam going idle", Stage::UnlinkCheck, Stage::Restore);
 		break;
 
 	case Stage::UnlinkCheck: {
@@ -571,15 +568,12 @@ void runTick() {
 		const int32_t illegal = deluge::storage::bytes::illegalInline() - g_illegalBefore;
 		printf("SC-UNLINK file=%d served=%d illegal=%d\n", there, served, illegal);
 		if (there != 0) {
-			printf(
-			    "SC-UNLINK FAIL the MIDI device file is still there (presence %d) after a save with nothing to keep\n",
-			    there);
-			g_failures++;
+			g_report.fail("UNLINK the MIDI device file is still there (presence %d) after a save with nothing to keep",
+			              there);
 		}
 		if (served < 1 || illegal != 0) {
-			printf("SC-UNLINK FAIL the removal did not go through the channel (served %d, refused inline %d)\n", served,
-			       illegal);
-			g_failures++;
+			g_report.fail("UNLINK the removal did not go through the channel (served %d, refused inline %d)", served,
+			              illegal);
 		}
 		g_stage = Stage::PerfRead;
 		break;
@@ -592,12 +586,11 @@ void runTick() {
 		g_servedBefore = deluge::storage::bytes::channelServedOps();
 		g_illegalBefore = deluge::storage::bytes::illegalInline();
 		SettingsChannelProbe::readPerformanceDefaults();
-		g_waitTicks = 0;
 		g_stage = Stage::PerfWait;
 		break;
 
 	case Stage::PerfWait:
-		waitIdleThen("SC-PERF", Stage::PerfCheck, Stage::Restore);
+		waitIdleThen("PERF the settings seam going idle", Stage::PerfCheck, Stage::Restore);
 		break;
 
 	case Stage::PerfCheck: {
@@ -606,13 +599,11 @@ void runTick() {
 		const int32_t illegal = deluge::storage::bytes::illegalInline() - g_illegalBefore;
 		printf("SC-PERF loaded=%d served=%d illegal=%d\n", (int)loaded, served, illegal);
 		if (!loaded) {
-			printf("SC-PERF FAIL the performance defaults were not loaded\n");
-			g_failures++;
+			g_report.fail("PERF the performance defaults were not loaded");
 		}
 		if (served < 1 || illegal != 0) {
-			printf("SC-PERF FAIL the read did not go through the channel (served %d, refused inline %d)\n", served,
-			       illegal);
-			g_failures++;
+			g_report.fail("PERF the read did not go through the channel (served %d, refused inline %d)", served,
+			              illegal);
 		}
 		g_stage = Stage::OversizeWrite;
 		break;
@@ -630,12 +621,11 @@ void runTick() {
 		g_servedBefore = deluge::storage::bytes::channelServedOps();
 		g_tierBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Settings);
 		runtimeFeatureSettings.writeSettingsToFile();
-		g_waitTicks = 0;
 		g_stage = Stage::OversizeWait;
 		break;
 
 	case Stage::OversizeWait:
-		waitIdleThen("SC-OVERSIZE", Stage::OversizeCheck, Stage::OversizeCheck);
+		waitIdleThen("OVERSIZE the settings seam going idle", Stage::OversizeCheck, Stage::OversizeCheck);
 		break;
 
 	case Stage::OversizeCheck: {
@@ -651,8 +641,7 @@ void runTick() {
 		    deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Settings) - g_tierBefore;
 		printf("SC-OVERSIZE illegal=%d served=%d tier=%d unchanged=%d\n", illegal, served, tier, (int)unchanged);
 		if (illegal != 1 || served != 0 || tier != 0 || !unchanged) {
-			printf("SC-OVERSIZE FAIL an oversize settings write was not refused cleanly\n");
-			g_failures++;
+			g_report.fail("OVERSIZE an oversize settings write was not refused cleanly");
 		}
 		g_stage = Stage::BusyStart;
 		break;
@@ -663,7 +652,7 @@ void runTick() {
 		// SysEx copy or a song save's sample collection runs -- must wait for it and land, not give up on a channel
 		// that is merely busy.
 		if (!deluge::storage::bytes::idle()) {
-			waitIdleThen("SC-BUSY", Stage::BusyStart, Stage::Fallback);
+			waitIdleThen("BUSY the settings seam going idle", Stage::BusyStart, Stage::Fallback);
 			break;
 		}
 		std::vector<std::byte> chunk(DELUGE_FILE_BYTES_BLOCK, std::byte{0x5A});
@@ -678,8 +667,7 @@ void runTick() {
 		}
 		deluge_file_bytes_set_chunk_latency_ms(kBusyChunkLatencyMs);
 		if (!staged || !deluge_file_bytes_request_copy(kBusySource, kBusyCopy)) {
-			printf("SC-BUSY FAIL could not stage the copy that holds the channel (source %d)\n", (int)staged);
-			g_failures++;
+			g_report.fail("BUSY could not stage the copy that holds the channel (source %d)", (int)staged);
 			deluge_file_bytes_set_chunk_latency_ms(0);
 			g_stage = Stage::Fallback;
 			break;
@@ -688,14 +676,13 @@ void runTick() {
 		runtimeFeatureSettings.set(kProbeSetting, kBusyValue);
 		runtimeFeatureSettings.writeSettingsToFile();
 		g_busyStartUs = deluge::runtime::nowUs();
-		g_waitTicks = 0;
 		g_stage = Stage::BusyWait;
 		break;
 	}
 
 	case Stage::BusyWait:
 		if (!deluge::storage::bytes::idle()) {
-			waitIdleThen("SC-BUSY", Stage::BusyWait, Stage::BusyCheck);
+			waitIdleThen("BUSY the settings seam going idle", Stage::BusyWait, Stage::BusyCheck);
 			break;
 		}
 		deluge_file_bytes_set_chunk_latency_ms(0);
@@ -707,7 +694,7 @@ void runTick() {
 		break;
 
 	case Stage::BusyReadWait:
-		waitIdleThen("SC-BUSY", Stage::BusyCheck, Stage::BusyCheck);
+		waitIdleThen("BUSY the settings seam going idle", Stage::BusyCheck, Stage::BusyCheck);
 		break;
 
 	case Stage::BusyCheck: {
@@ -721,19 +708,16 @@ void runTick() {
 		// The value first: a write that gave up was held for at most the stall bound, so the precondition below
 		// cannot tell a failed write from a hold too short to prove anything.
 		if (value != kBusyValue) {
-			printf("SC-BUSY FAIL a settings write held behind a long copy did not land (read %u, wanted %u)\n", value,
-			       kBusyValue);
-			g_failures++;
+			g_report.fail("BUSY a settings write held behind a long copy did not land (read %u, wanted %u)", value,
+			              kBusyValue);
 		}
 		else if (g_busyHeldUs <= deluge::io::kChannelStallUs) {
-			printf("SC-BUSY FAIL the write was held for only %llu us, within the stall bound; nothing was held past "
-			       "it, so this proves nothing\n",
-			       static_cast<unsigned long long>(g_busyHeldUs));
-			g_failures++;
+			g_report.fail("BUSY the write was held for only %llu us, within the stall bound; nothing was held past "
+			              "it, so this proves nothing",
+			              static_cast<unsigned long long>(g_busyHeldUs));
 		}
 		if (!copyThere || copied.size() != size_t{kBusyChunks} * DELUGE_FILE_BYTES_BLOCK) {
-			printf("SC-BUSY FAIL the copy that held the channel did not complete\n");
-			g_failures++;
+			g_report.fail("BUSY the copy that held the channel did not complete");
 		}
 		(void)deluge::io::unlink(kBusySource);
 		(void)deluge::io::unlink(kBusyCopy);
@@ -746,7 +730,7 @@ void runTick() {
 		// (DELUGE_FILE_BYTES_PROTECTED_ANSWER_SPAN_MS), and land -- not sleep until its own stall bound and give up.
 		// Nothing wakes it when the answer ages out, so this is the machine's own re-ask that is under test.
 		if (!deluge::storage::bytes::idle()) {
-			waitIdleThen("SC-ORPHAN", Stage::OrphanStart, Stage::Fallback);
+			waitIdleThen("ORPHAN the settings seam going idle", Stage::OrphanStart, Stage::Fallback);
 			break;
 		}
 		auto orphan = deluge::io::File::open(kOrphanPath, DELUGE_FILE_WRITE_CREATE);
@@ -754,8 +738,7 @@ void runTick() {
 			(void)orphan->close();
 		}
 		if (!orphan.has_value() || !deluge_file_bytes_request_unlink(kOrphanPath)) {
-			printf("SC-ORPHAN FAIL could not issue the removal whose answer is orphaned\n");
-			g_failures++;
+			g_report.fail("ORPHAN could not issue the removal whose answer is orphaned");
 			g_stage = Stage::Fallback;
 			break;
 		}
@@ -763,14 +746,13 @@ void runTick() {
 		runtimeFeatureSettings.set(kProbeSetting, kOrphanValue);
 		runtimeFeatureSettings.writeSettingsToFile();
 		g_orphanStartUs = deluge::runtime::nowUs();
-		g_waitTicks = 0;
 		g_stage = Stage::OrphanWait;
 		break;
 	}
 
 	case Stage::OrphanWait:
 		if (!deluge::storage::bytes::idle()) {
-			waitIdleThen("SC-ORPHAN", Stage::OrphanWait, Stage::OrphanCheck);
+			waitIdleThen("ORPHAN the settings seam going idle", Stage::OrphanWait, Stage::OrphanCheck);
 			break;
 		}
 		g_orphanRefused = deluge::storage::bytes::refusedTicks() - g_refusedBefore;
@@ -781,7 +763,7 @@ void runTick() {
 		break;
 
 	case Stage::OrphanReadWait:
-		waitIdleThen("SC-ORPHAN", Stage::OrphanCheck, Stage::OrphanCheck);
+		waitIdleThen("ORPHAN the settings seam going idle", Stage::OrphanCheck, Stage::OrphanCheck);
 		break;
 
 	case Stage::OrphanCheck: {
@@ -790,19 +772,16 @@ void runTick() {
 		       static_cast<unsigned long long>(g_orphanHeldUs), DELUGE_FILE_BYTES_PROTECTED_ANSWER_SPAN_MS,
 		       static_cast<unsigned long long>(deluge::io::kChannelStallUs));
 		if (g_orphanRefused == 0) {
-			printf("SC-ORPHAN FAIL the write was never refused; the orphaned answer held nothing, so this proves "
-			       "nothing\n");
-			g_failures++;
+			g_report.fail("ORPHAN the write was never refused; the orphaned answer held nothing, so this proves "
+			              "nothing");
 		}
 		else if (value != kOrphanValue) {
-			printf("SC-ORPHAN FAIL a settings write refused by an orphaned answer did not land once it aged out "
-			       "(read %u, wanted %u)\n",
-			       value, kOrphanValue);
-			g_failures++;
+			g_report.fail("ORPHAN a settings write refused by an orphaned answer did not land once it aged out "
+			              "(read %u, wanted %u)",
+			              value, kOrphanValue);
 		}
 		else if (g_orphanHeldUs >= deluge::io::kChannelStallUs) {
-			printf("SC-ORPHAN FAIL the write waited out its stall bound rather than the answer's span\n");
-			g_failures++;
+			g_report.fail("ORPHAN the write waited out its stall bound rather than the answer's span");
 		}
 		(void)deluge::io::unlink(kOrphanPath);
 		g_stage = Stage::ResetStart;
@@ -817,22 +796,20 @@ void runTick() {
 		// Sampled before the queued re-read lands; sound because the reset unlinked the file, so that re-read adds
 		// nothing.
 		g_unknownAfterReset = SettingsChannelProbe::unknownSettingCount();
-		g_waitTicks = 0;
 		g_stage = Stage::ResetWait;
 		break;
 
 	case Stage::ResetWait:
-		waitIdleThen("SC-RESET", Stage::ResetWrite, Stage::ResetWrite);
+		waitIdleThen("RESET the settings seam going idle", Stage::ResetWrite, Stage::ResetWrite);
 		break;
 
 	case Stage::ResetWrite:
 		runtimeFeatureSettings.writeSettingsToFile();
-		g_waitTicks = 0;
 		g_stage = Stage::ResetWriteWait;
 		break;
 
 	case Stage::ResetWriteWait:
-		waitIdleThen("SC-RESET", Stage::ResetCheck, Stage::ResetCheck);
+		waitIdleThen("RESET the settings seam going idle", Stage::ResetCheck, Stage::ResetCheck);
 		break;
 
 	case Stage::ResetCheck: {
@@ -842,8 +819,7 @@ void runTick() {
 		const bool carried = text.find("scResetProbe") != std::string::npos;
 		printf("SC-RESET unknownAfter=%zu file=%d carried=%d\n", g_unknownAfterReset, (int)hasFile, (int)carried);
 		if (g_unknownAfterReset != 0 || !hasFile || carried) {
-			printf("SC-RESET FAIL a factory reset kept an unknown setting and wrote it back\n");
-			g_failures++;
+			g_report.fail("RESET a factory reset kept an unknown setting and wrote it back");
 		}
 		g_stage = Stage::Fallback;
 		break;
@@ -853,8 +829,7 @@ void runTick() {
 		printf("SC-FALLBACK burst=%d order=%d\n", g_burstIllegal, g_orderIllegal);
 		// A busy channel queues: nothing the burst or the ordered write-then-read submitted was refused.
 		if (g_burstIllegal != 0 || g_orderIllegal != 0) {
-			printf("SC-FALLBACK FAIL a settings operation was refused instead of queued behind a busy channel\n");
-			g_failures++;
+			g_report.fail("FALLBACK a settings operation was refused instead of queued behind a busy channel");
 		}
 		g_stage = Stage::Restore;
 		break;
@@ -877,12 +852,11 @@ void runTick() {
 		MIDIDeviceManager::upstreamUSBMIDICable2.is_relative = g_originalCable2Relative;
 		MIDIDeviceManager::upstreamUSBMIDICable2.midi_thru = g_originalCable2Thru;
 		MIDIDeviceManager::upstreamUSBMIDICable2.defaultVelocityToLevel = g_originalCable2Velocity;
-		g_waitTicks = 0;
 		g_stage = Stage::RestoreWait;
 		break;
 
 	case Stage::RestoreWait:
-		waitIdleThen("SC-RESTORE", Stage::Tier, Stage::Tier);
+		waitIdleThen("RESTORE the settings seam going idle", Stage::Tier, Stage::Tier);
 		break;
 
 	case Stage::Tier: {
@@ -893,15 +867,14 @@ void runTick() {
 		printf("SC-TIER violations=%d\n", violations);
 		if (violations != 0) {
 			// Settings I/O on the interaction tier is the defect this gate exists to catch.
-			printf("SC-TIER FAIL settings I/O ran on the interaction tier\n");
-			g_failures++;
+			g_report.fail("TIER settings I/O ran on the interaction tier");
 		}
 		g_stage = Stage::Summary;
 		break;
 	}
 
 	case Stage::Summary:
-		printf("SC-RESULT failures=%d\n", g_failures);
+		g_report.printResult();
 		// Piped into a script stdout is block-buffered and the harness exits without flushing C
 		// stdio, so without this the entire gate output vanishes while the run reports success.
 		fflush(stdout);
@@ -924,7 +897,7 @@ void deluge_scenario_settings_channel_begin(void) {
 	g_stage = Stage::Write;
 	g_stepDone = false;
 	g_summaryPrinted = false;
-	g_failures = 0;
+	g_report.reset();
 	g_wrote = 0;
 	g_read = 0;
 	g_original = runtimeFeatureSettings.get(kProbeSetting);
@@ -938,7 +911,6 @@ void deluge_scenario_settings_channel_begin(void) {
 	g_originalCable2Relative = MIDIDeviceManager::upstreamUSBMIDICable2.is_relative;
 	g_originalCable2Thru = MIDIDeviceManager::upstreamUSBMIDICable2.midi_thru;
 	g_originalCable2Velocity = MIDIDeviceManager::upstreamUSBMIDICable2.defaultVelocityToLevel;
-	g_waitTicks = 0;
 	g_burstServed = 0;
 	g_burstIllegal = 0;
 	g_orderIllegal = 0;
@@ -973,7 +945,7 @@ bool deluge_scenario_settings_channel_step_done(void) {
 }
 
 int32_t deluge_scenario_settings_channel_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"
