@@ -1592,23 +1592,40 @@ class RetiredSwitchTest(unittest.TestCase):
         "menu_dump_check",
         "_run.py --update",
         "_run.py --record",
-        "upgrade_run.py --record",
+    )
+    # A runner's own argparse switch for re-recording. The hygiene checkers keep their --update (it rewrites their
+    # allowlists, not a test baseline), and `./dbt test --update` itself is the one switch the tree keeps.
+    SWITCH_DEFINITION = r'add_argument\(\s*"--(update|record)"'
+    SWITCH_PATHS = (
+        "tests",
+        "tools",
+        "scripts",
+        ":!scripts/check_*",
+        ":!scripts/tasks/task-test.py",
     )
 
-    def test_no_tracked_file_names_a_retired_switch(self):
-        words = [arg for word in self.RETIRED for arg in ("-e", word)]
-        hits = subprocess.run(
-            [
-                "git",
-                "grep",
-                "-nF",
-                *words,
-                "--",
-                ":!scripts/tasks/test_harness_registry.py",
-            ],
+    def git_grep(self, *args):
+        return subprocess.run(
+            ["git", "grep", "-n", *args],
             cwd=self.ROOT,
             capture_output=True,
             text=True,
             check=False,
-        ).stdout
-        self.assertEqual(hits, "")
+        )
+
+    def assert_no_match(self, found):
+        # git grep exits 1 for no match; anything else (a match, or git failing) fails the test.
+        self.assertEqual((found.returncode, found.stdout), (1, ""), found.stderr)
+
+    def test_no_tracked_file_names_a_retired_switch(self):
+        words = [arg for word in self.RETIRED for arg in ("-e", word)]
+        self.assert_no_match(
+            self.git_grep(
+                "-F", *words, "--", ":!scripts/tasks/test_harness_registry.py"
+            )
+        )
+
+    def test_no_runner_defines_its_own_re_record_switch(self):
+        self.assert_no_match(
+            self.git_grep("-E", self.SWITCH_DEFINITION, "--", *self.SWITCH_PATHS)
+        )
