@@ -51,7 +51,7 @@ build = ["cargo", "build"]
 run = ["cargo", "test"]
 requires = ["cargo"]
 tier = "pr"
-runtime = "~1m"
+runtime_s = 60
 job = "storage"
 """
 
@@ -70,6 +70,7 @@ tree = "build/x"
 ctest_args = ["-C", "Debug"]
 tier = "pr"
 job = "unit"
+runtime_s = 1
 """
 
 
@@ -86,7 +87,7 @@ def entry(name, level="unit", tier="pr", status="gate"):
         build=[],
         run=["true"],
         requires=[],
-        runtime="?",
+        runtime_s=1,
     )
 
 
@@ -137,6 +138,33 @@ class LoadRegistryTest(unittest.TestCase):
         (root / "tests").mkdir()
         (root / "tests" / "registry.toml").write_text(text)
         return root
+
+    def test_runtime_s_is_required(self):
+        with self.assertRaisesRegex(ValueError, "missing required field 'runtime_s'"):
+            hr.load_registry(self._root_with(MINIMAL.replace("runtime_s = 60\n", "")))
+
+    def test_runtime_s_is_a_whole_positive_number_of_seconds(self):
+        for bad in ("0", "-5", "1.5", '"~1m"', "true"):
+            with (
+                self.subTest(bad),
+                self.assertRaisesRegex(ValueError, "whole number of seconds"),
+            ):
+                hr.load_registry(
+                    self._root_with(
+                        MINIMAL.replace("runtime_s = 60", f"runtime_s = {bad}")
+                    )
+                )
+
+    def test_runtime_text(self):
+        for seconds, text in (
+            (1, "~1s"),
+            (45, "~45s"),
+            (60, "~1m"),
+            (90, "~90s"),
+            (300, "~5m"),
+            (1800, "~30m"),
+        ):
+            self.assertEqual(hr.runtime_text(seconds), text)
 
     def test_loads_all_fields(self):
         entries = hr.load_registry(self._root_with(MINIMAL))
@@ -344,6 +372,7 @@ corpus_runner = "fake"
 builds = ["golden-vt-render"]
 tier = "nightly"
 job = "model"
+runtime_s = 1
 """
 
     def _root_with(self, text, runners=("fake",)):
@@ -417,6 +446,7 @@ result = "GA-RESULT failures=0"
 builds = ["golden-vt-render"]
 tier = "nightly"
 job = "render"
+runtime_s = 1
 """
 
     def _root_with(self, text):
@@ -727,7 +757,7 @@ class ScenarioGateTest(unittest.TestCase):
             build=[],
             run=[],
             requires=[],
-            runtime="?",
+            runtime_s=1,
             builds=["golden-vt-render"],
             scenario="g",
             markers=list(markers),
@@ -1156,8 +1186,8 @@ class CorpusDeclarationTest(unittest.TestCase):
         (root / "tests").mkdir()
         (root / "tests" / "registry.toml").write_text(
             MINIMAL.replace(
-                'runtime = "~1m"',
-                f'runtime = "~1m"\nenv = {{ {hr.CORPUS_DECLARED} = "1" }}',
+                "runtime_s = 60",
+                f'runtime_s = 60\nenv = {{ {hr.CORPUS_DECLARED} = "1" }}',
             )
         )
         with self.assertRaisesRegex(ValueError, "song-corpus"):

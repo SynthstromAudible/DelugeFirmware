@@ -1140,7 +1140,7 @@ def cmd_list(
         if hr.local_only(h):
             note += "  [local-only: not run in CI]"
         print(
-            f"{mark} {h.name:<{width}}  {h.level:<11} {h.status:<13} {h.tier:<7} {h.runtime}{note}"
+            f"{mark} {h.name:<{width}}  {h.level:<11} {h.status:<13} {h.tier:<7} {hr.runtime_text(h.runtime_s)}{note}"
         )
         print(f"    {' ' * width}  {h.gates}")
     return 0

@@ -133,7 +133,7 @@ class Harness:
     build: list[str]
     run: list[str]
     requires: list[str]
-    runtime: str
+    runtime_s: int
     # Set over the caller's environment.
     env: dict[str, str] = field(default_factory=dict)
     # Set only where the caller's environment does not already say.
@@ -195,8 +195,9 @@ def load_registry(root: Path) -> list[Harness]:
             "gates",
             "tier",
             "job",
+            "runtime_s",
         ):
-            if not item.get(required):
+            if required not in item or item[required] in ("", [], None):
                 raise ValueError(f"{where}: missing required field '{required}'")
 
         for key, allowed in (
@@ -252,6 +253,12 @@ def load_registry(root: Path) -> list[Harness]:
             raise ValueError(f"{where}: only a corpus gate names a corpus_runner")
         if item.get("check") and not (root / item["check"]).is_file():
             raise ValueError(f"{where}: check '{item['check']}' does not exist")
+
+        seconds = item["runtime_s"]
+        if not isinstance(seconds, int) or isinstance(seconds, bool) or seconds <= 0:
+            raise ValueError(
+                f"{where}: runtime_s is a whole number of seconds above zero, not {seconds!r}"
+            )
 
         prebuilt = JOBS[item["job"]]
         if prebuilt and item.get("builds", []) != [prebuilt]:
@@ -311,7 +318,7 @@ def load_registry(root: Path) -> list[Harness]:
                 build=item.get("build", []),
                 run=item.get("run", []),
                 requires=item.get("requires", []),
-                runtime=item.get("runtime", "?"),
+                runtime_s=item["runtime_s"],
                 env=item.get("env", {}),
                 env_default=item.get("env_default", {}),
                 source=item.get("source", ""),
@@ -449,6 +456,13 @@ def ci_matrix(selection: list[Harness]) -> dict:
     }
 
 
+def runtime_text(seconds: int) -> str:
+    """`seconds` as the README and --list print it: whole minutes as ~Nm, anything else as ~Ns."""
+    return (
+        f"~{seconds // 60}m" if seconds >= 60 and seconds % 60 == 0 else f"~{seconds}s"
+    )
+
+
 def markdown_table(harnesses: list[Harness]) -> str:
     """The generated table for tests/README.md."""
     lines = [
@@ -458,10 +472,9 @@ def markdown_table(harnesses: list[Harness]) -> str:
     for h in harnesses:
         # Escape pipes in fields to preserve table structure
         escaped_gates = h.gates.replace("|", "\\|")
-        escaped_runtime = h.runtime.replace("|", "\\|")
         lines.append(
             f"| {h.name} | {h.level} | {h.runner} | {h.kind} | {h.status} | {escaped_gates} | {h.tier} | {h.job} "
-            f"| {escaped_runtime} |"
+            f"| {runtime_text(h.runtime_s)} |"
         )
     return "\n".join(lines) + "\n"
 
