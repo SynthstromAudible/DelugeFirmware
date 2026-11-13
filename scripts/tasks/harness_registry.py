@@ -553,6 +553,10 @@ def _validate(root: Path, item: dict, where: str, seen: set[str]) -> Harness:
             raise ValueError(f"{where}: missing required field '{required}'")
     if not isinstance(item["gates"], str):
         raise ValueError(f"{where}: gates is a string")  # noqa: TRY004
+    for command in ("build", "run"):
+        given = item.get(command, [])
+        if not isinstance(given, list) or not all(isinstance(a, str) for a in given):
+            raise ValueError(f"{where}: {command} is a list of strings")
     if problem := gates_problem(item["gates"]):
         raise ValueError(
             f"{where}: gates {problem}: state what the test gates in one sentence, and put the rest in its explanation, "

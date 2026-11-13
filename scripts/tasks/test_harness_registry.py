@@ -247,6 +247,36 @@ class LoadRegistryTest(unittest.TestCase):
                     f"alpha: a {runner} test runs its commands in 'path', so it needs a non-empty 'path'",
                 )
 
+    def test_run_and_build_are_lists_of_strings(self):
+        script = MINIMAL.replace('runner = "cargo"', 'runner = "script"')
+        for old, new, message in (
+            ('run = ["cargo", "test"]', "run = [3]", "alpha: run is a list of strings"),
+            (
+                'run = ["cargo", "test"]',
+                'run = "python3 x.py"',
+                "alpha: run is a list of strings",
+            ),
+            (
+                'run = ["cargo", "test"]',
+                'run = ["python3", 3]',
+                "alpha: run is a list of strings",
+            ),
+            (
+                'build = ["cargo", "build"]',
+                "build = [3]",
+                "alpha: build is a list of strings",
+            ),
+            (
+                'build = ["cargo", "build"]',
+                'build = "make"',
+                "alpha: build is a list of strings",
+            ),
+        ):
+            with self.subTest(new):
+                with self.assertRaises(ValueError) as caught:
+                    hr.load_registry(self._root_with(script.replace(old, new)))
+                self.assertEqual(str(caught.exception), message)
+
     def test_a_script_entry_with_a_path_loads(self):
         script = MINIMAL.replace('runner = "cargo"', 'runner = "script"')
         h = hr.load_registry(self._root_with(script))[0]

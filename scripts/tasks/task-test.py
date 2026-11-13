@@ -525,13 +525,12 @@ def mode_refusal(args, passthrough: list[str]) -> str | None:
         return "--verbose adds each test's explanation to --list: ./dbt test --list --verbose <name>..."
     if not args.dump_expanded:
         return None
-    parser = argparser()
-    defaults = vars(parser.parse_args([]))
+    # Every option's flag is its dest spelled with dashes; the positional names are the one without a flag.
+    defaults = vars(argparser().parse_args([]))
     clash = [
-        action.option_strings[-1] if action.option_strings else "test names"
-        for action in parser._actions
-        if action.dest not in ("help", "dump_expanded")
-        and getattr(args, action.dest) != defaults[action.dest]
+        "test names" if key == "names" else "--" + key.replace("_", "-")
+        for key, value in vars(args).items()
+        if key != "dump_expanded" and value != defaults[key]
     ]
     if passthrough:
         clash.append("arguments after --")
