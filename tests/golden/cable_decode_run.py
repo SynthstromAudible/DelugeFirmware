@@ -4,8 +4,8 @@ differs) and prints one line per cable; those lines are fingerprinted per file i
 check keeps its meaning once the app reads cables through the decoder.
 
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
-    python3 tests/golden/cable_decode_run.py            # check
-    ./dbt test --update cable-decode   # re-record every file's fingerprint
+    python3 tests/golden/cable_decode_run.py   # check
+    ./dbt test --update cable-decode           # re-record every file's fingerprint
 """
 
 import argparse
@@ -63,6 +63,11 @@ def main(argv=None):
     for (path, kind), r in zip(jobs, results):
         rel = os.path.relpath(path, root)
         if r.returncode == 1:
+            if updating and rel in fixtures:
+                # A fingerprinted file that stops parsing is a reader regression, not a file to step over.
+                fail += 1
+                print(f"FAIL(no parse) {kind} {rel}: it has a fingerprint")
+                continue
             skip += 1
             print(f"skip     {rel}")
             continue
@@ -81,8 +86,11 @@ def main(argv=None):
     if updating:
         if fail:
             print(f"FAIL: {fail} file(s) failed to decode; nothing recorded")
+        elif not ok:
+            fail += 1
+            print("FAIL: nothing was recorded")
         else:
-            # A file this machine lacks, or that does not parse here, keeps its fingerprint.
+            # A fingerprinted file this machine lacks keeps its fingerprint.
             golden_update.write_json(
                 Path(FIXTURES),
                 {**fixtures, **recorded},
