@@ -237,7 +237,7 @@ public:
 	[[nodiscard]] Error lastError() const { return lastError_; }
 	/// @brief Navigate walks begun -- the preset scroll.
 	[[nodiscard]] int32_t navigationsRun() const { return navigationsRun_; }
-	/// @brief Navigates that hit the machine's read backstop; required 0 (termination does not depend on it).
+	/// @brief Navigates that hit the machine's read backstop: only a pile that keeps reading one window does.
 	[[nodiscard]] int32_t navigationGiveUps() const { return navigation_.giveUps(); }
 	/// @brief Confirm walks begun -- the SYNTH/KIT change-type.
 	[[nodiscard]] int32_t confirmsRun() const { return confirmsRun_; }

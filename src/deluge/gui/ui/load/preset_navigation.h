@@ -36,17 +36,20 @@ namespace deluge::gui {
 ///
 /// Reads the folder a window at a time into a listing of its OWN, through the browser's resumable read, and hands
 /// each window to decideNavigation. A read that is not ready leaves it in Read; the next tick asks for the same open.
-/// The walk's wraps are summed here, across windows, which is what bounds it: a page only moves forward, and a
-/// read from the far end is a wrap.
+/// A step's wraps are summed here, across windows, which is what bounds it: a page only moves forward, and a read
+/// from the far end is a wrap.
 ///
 /// A pile (the detents of a turn made while one of the same output loaded) reads the window the earlier turn landed
-/// in again, finds its landing there and moves from it by the whole pile, by main's rules (movePile).
+/// in again, finds its landing there and moves from it by the whole pile, by main's rules (movePile). Those rules
+/// start the wrap count again with each read, as main's `wrapped` does, so they do not bound a pile: one passing
+/// presets in the song past a window's trimmed edge, or past the folder's end, reads the same window again, where
+/// main's `doPresetNavigation` would spin for ever. The read backstop (@ref kMaxNavigationReads) ends it.
 ///
 /// @note The FileItem* handed back points into this walk's own listing and stays valid until it is armed again.
 class PresetNavigation {
 public:
-	/// A backstop: termination does not depend on it, but a machine that could spin for ever should not rest on
-	/// that alone. Hitting it gets out and is counted.
+	/// The reads a walk may make: a step never needs it, and a pile that keeps reading the same window ends on it.
+	/// Hitting it gets out and is counted.
 	static constexpr int32_t kMaxNavigationReads = 64;
 
 	/// @brief Start a scroll from @p spec's preset, one preset on in its direction, or by its pile.
