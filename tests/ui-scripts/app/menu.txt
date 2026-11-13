@@ -230,15 +230,10 @@
 # `runShellSampleClaimOp` -> the same `SampleBrowser::claimCurrentFile`, whose
 # success arm re-roots the ported menu onto the source page.
 #
-# **The landing page is deliberately NOT photographed, and that is a finding rather than a gap.**
-# The menu lands on the page and column `main` lands on -- measured -- but drew it differently, for
-# reasons that are undiagnosed: `FileSelector::renderInHorizontalMenu`
-# (`gui/menu_item/file_selector.cpp:88-91`) and `FileSelector::getColumnLabel` (`:93-114`, which
-# shows the loaded sample's folder, "SAMPLES", where the port shows the node's own name "FILE")
-# have no port, and the fourth visible column differs (legacy PLAY MODE, port REVERSE). Recording
-# that panel would be photographing a difference nobody has explained. The column renderer and the folder
-# column label are ported since, and the fourth column was the legacy menu's: `main`'s source page (`child6` in
-# `gui/menu_item/generate/g_menus.inc`) shows REVERSE after TRANSPOSE once a sample is loaded, as the port does.
+# **The landing page is not photographed here.** The menu lands on the page and column `main` lands on. The file
+# column draws as `main`'s `FileSelector::renderInHorizontalMenu` and `FileSelector::getColumnLabel` do, and the fourth
+# column is REVERSE, which `main`'s source page (`child6` in `gui/menu_item/generate/g_menus.inc`) shows after
+# TRANSPOSE once a sample is loaded.
 12000  button SelectEnc down
 12020  button SelectEnc up
 
