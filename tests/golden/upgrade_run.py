@@ -22,6 +22,11 @@ instead: only a firmware that still reads their old forms can record them.
 
     python3 tests/golden/upgrade_run.py [--part P] [--filter S] [--no-render] [--record]
 
+A whole run (no --filter) also fails when a part ran fewer cases than it owns: the default `--part all` fails without
+the legacy corpus (shortfall lines), as does `--part corpus`. A whole corpus run prints UPGRADE-ABSENT <n>, the fixtured
+originals the corpus lacks (the fixtures were made from it), and fails when n is not 0. --no-render skips the golden
+renders, so the run leaves their cases out of OK.
+
 Prints UPGRADE OK=<n> FAIL=<n> REPORTED=<n>, and UPGRADE-FAIL <case>: <why> per failure; exits 1 on any failure.
 """
 
@@ -63,25 +68,30 @@ def legacy_cases():
     return out
 
 
-def shortfalls(part, ran, committed_owed, corpus_songs, corpus_presets):
+def shortfalls(
+    part, committed_ran, committed_owed, corpus_songs, corpus_presets, corpus_absent=0
+):
     """Why a whole run (no --filter) ran fewer cases than its parts own; empty when it ran them all.
 
-    ran is the cases that were run (OK plus FAIL); committed_owed the committed cases the tree holds; corpus_songs and
-    corpus_presets the corpus cases found. A part that finds nothing to run must fail rather than pass on zero.
+    committed_ran is the committed cases that were run, failures included, each once; committed_owed the committed
+    cases the tree holds; corpus_songs and corpus_presets the corpus cases found; corpus_absent the fixtured corpus
+    originals (songs and presets) the corpus lacks. A part that finds nothing to run must fail rather than pass on zero.
     """
     out = []
     if part in ("all", "committed"):
         if committed_owed == 0:
             out.append("the committed part owns no cases")
-        if ran < max(committed_owed, MIN_COMMITTED):
+        if committed_ran < max(committed_owed, MIN_COMMITTED):
             out.append(
-                f"committed part ran {ran} of {max(committed_owed, MIN_COMMITTED)} cases"
+                f"committed part ran {committed_ran} of {max(committed_owed, MIN_COMMITTED)} cases"
             )
     if part in ("all", "corpus"):
         if corpus_songs == 0:
             out.append("corpus part found no songs")
         if corpus_presets == 0:
             out.append("corpus part found no presets")
+        if corpus_absent:
+            out.append(f"corpus part lacks {corpus_absent} fixtured originals")
     return out
 
 
@@ -187,11 +197,12 @@ def main(argv=None) -> int:
     try:
         # Songs and corpus presets: the upgraded file's round trip hashes as its original's did.
         cases = []
-        legacy_found = corpus_songs = corpus_presets = 0
+        legacy_found = corpus_songs = corpus_presets = absent = committed_ran = 0
         for key, path, kind in legacy_cases() if committed else []:
             legacy_found += 1
             if args.filter not in key:
                 continue
+            committed_ran += 1
             if key not in legacy:
                 fail += 1
                 print(f"UPGRADE-FAIL {key}: no recorded hash (record it with --record)")
@@ -210,10 +221,13 @@ def main(argv=None) -> int:
             else:
                 continue
             synthetic = key.startswith(songs_run.SYNTHETIC_PREFIX)
+            committed_ran += synthetic
             if not source.is_file():
                 if synthetic:
                     fail += 1
                     print(f"UPGRADE-FAIL {key}: the committed song is missing")
+                else:
+                    absent += 1
             else:
                 corpus_songs += not synthetic
                 # The round trip loads no samples: upgraded without a card, a zone in milliseconds stays (reported)
@@ -223,15 +237,21 @@ def main(argv=None) -> int:
             beside = Path(corpus).parent
             for key in sorted(presets):
                 source = original(beside, key)
-                if args.filter in key and source.is_file():
+                if args.filter not in key:
+                    continue
+                if source.is_file():
                     corpus_presets += 1
                     cases.append(("preset", key, source, presets[key], None))
+                else:
+                    absent += 1
 
         if not args.filter:
             synthetic = sum(k.startswith(songs_run.SYNTHETIC_PREFIX) for k in songs)
             owed = max(legacy_found, len(legacy)) + synthetic
+            if from_corpus and corpus:
+                print(f"UPGRADE-ABSENT {absent}")
             for why in shortfalls(
-                args.part, len(cases) + fail, owed, corpus_songs, corpus_presets
+                args.part, committed_ran, owed, corpus_songs, corpus_presets, absent
             ):
                 fail += 1
                 print(f"UPGRADE-FAIL shortfall: {why}")
