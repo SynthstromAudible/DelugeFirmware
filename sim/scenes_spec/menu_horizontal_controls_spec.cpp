@@ -361,6 +361,32 @@ struct Rig {
 		button(kSelectEncButtonX, kSelectEncButtonY, true, at_ms);
 		button(kSelectEncButtonX, kSelectEncButtonY, false, at_ms);
 	}
+	/// @brief The song's synth with square oscillators and no ranges, recorded: a range-specific item asks for its
+	/// first
+	///        range.
+	SoundInstrument* without_ranges() {
+		auto* sound = static_cast<SoundInstrument*>(song.instrument);
+		for (Source& source : sound->sources) {
+			source.oscType = OscType::SQUARE;
+			source.ranges.clear();
+		}
+		deluge::bridge::recordLoadedSound(*sound, *song.song);
+		return sound;
+	}
+	/// @brief `open` on a context with no sink, which refuses a range request as `main`'s `getOrCreateFirstRange`
+	///        fails with INSUFFICIENT_RAM.
+	/// @param list Open with horizontal menus off.
+	void open_refusing_ranges(const Node& root, bool list = false) {
+		MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                                    /*kit_global_fx=*/false);
+		if (list) {
+			ctx.horizontal_menus = false;
+		}
+		ctx.sink = nullptr;
+		(void)menu::assign_node_ids(kRoots);
+		menu_scene().open(root, ctx);
+		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});
+	}
 	/// @brief One clean press-release of instrument button (\p x, \p y), settled by a tick.
 	void press(uint8_t x, uint8_t y, uint32_t at_ms) {
 		button(x, y, true, at_ms);
@@ -2303,12 +2329,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
-		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
-		for (Source& source : sound->sources) {
-			source.oscType = OscType::SQUARE; // no range until something asks for one
-			source.ranges.clear();
-		}
-		deluge::bridge::recordLoadedSound(*sound, *r.song.song);
+		SoundInstrument* sound = r.without_ranges();
 		(void)r.open(other_source_page);
 		r.shell.tick(0);
 
@@ -2329,19 +2350,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
-		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
-		for (Source& source : sound->sources) {
-			source.oscType = OscType::SQUARE;
-			source.ranges.clear();
-		}
-		deluge::bridge::recordLoadedSound(*sound, *r.song.song);
-		MenuContext ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false,
-		                                    /*kit_global_fx=*/false);
-		ctx.horizontal_menus = false; // a list, entered row by row
-		ctx.sink = nullptr;
-		(void)menu::assign_node_ids(kRoots);
-		menu_scene().open(range_submenu_page, ctx);
-		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(range_submenu_page)});
+		SoundInstrument* sound = r.without_ranges();
+		r.open_refusing_ranges(range_submenu_page, /*list=*/true); // a list, entered row by row
 		r.shell.tick(0);
 		r.turn(1, 100); // onto the range-specific item's row
 		r.shell.tick(110);
@@ -2367,18 +2377,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
-		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
-		for (Source& source : sound->sources) {
-			source.oscType = OscType::SQUARE;
-			source.ranges.clear();
-		}
-		deluge::bridge::recordLoadedSound(*sound, *r.song.song);
-		MenuContext ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false,
-		                                    /*kit_global_fx=*/false);
-		ctx.sink = nullptr; // the range request is refused
-		(void)menu::assign_node_ids(kRoots);
-		menu_scene().open(range_submenu_page, ctx);
-		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(range_submenu_page)});
+		SoundInstrument* sound = r.without_ranges();
+		r.open_refusing_ranges(range_submenu_page);
 		r.shell.tick(0);
 		r.button(kKitX, kKitY, true, 300); // focus the range-specific item
 		r.shell.tick(305);
@@ -2408,18 +2408,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
-		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
-		for (Source& source : sound->sources) {
-			source.oscType = OscType::SQUARE;
-			source.ranges.clear();
-		}
-		deluge::bridge::recordLoadedSound(*sound, *r.song.song);
-		MenuContext ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false,
-		                                    /*kit_global_fx=*/false);
-		ctx.sink = nullptr; // the range request is refused
-		(void)menu::assign_node_ids(kRoots);
-		menu_scene().open(other_source_page, ctx);
-		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(other_source_page)});
+		(void)r.without_ranges();
+		r.open_refusing_ranges(other_source_page);
 		r.shell.tick(0);
 		(void)raised_notices(); // drain
 		r.button(kKitX, kKitY, true, 300); // onto the file browser
