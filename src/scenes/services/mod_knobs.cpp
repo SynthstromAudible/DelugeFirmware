@@ -20,6 +20,8 @@
 
 #include "scenes/services/mod_knobs.h"
 
+#include "controls/section.h"
+
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/bind/knob_math.h"
 #include "scenes/bind/runtime_facts.h"
@@ -96,26 +98,6 @@ int32_t legacy_id(const ParamAddress& address, Kind kind) {
 	}
 	const std::optional<deluge::instrument::RuntimeSlot> slot = deluge::instrument::runtime_slot(address.id);
 	return slot ? slot->index : 0;
-}
-
-/// @brief Whose gold-knob mode @p focus's knobs follow: the song's, or a track's (a kit row's kit's).
-std::optional<deluge::project::KnobModeOwner> mode_owner(const bind::KnobFocus& focus) {
-	if (std::holds_alternative<bind::SongFocus>(focus.owner)) {
-		return deluge::project::SongAddress{};
-	}
-	if (const auto* sound = std::get_if<bind::SoundFocus>(&focus.owner)) {
-		if (sound->kit) {
-			return deluge::project::TrackAddress{*sound->kit};
-		}
-		return deluge::project::TrackAddress{sound->slot.id};
-	}
-	if (const auto* chain = std::get_if<bind::ChainFocus>(&focus.owner)) {
-		return deluge::project::TrackAddress{chain->chain.id};
-	}
-	if (const auto* midi = std::get_if<bind::MidiFocus>(&focus.owner)) {
-		return midi->track;
-	}
-	return std::nullopt;
 }
 
 /// @brief Show @p text as a popup that stays until a mod button's release cancels it (`display->popupText`).
@@ -483,33 +465,26 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 		return;
 	}
 
-	if (on) {
-		// `:1512` -- a mod button is taken only in the modes it is offered in, or on performance view.
-		if (!view_.mod_button_ui_mode_in_range && !view_.root_is_performance) {
-			return;
-		}
-		// `:1513-1529` -- pressing the selected button 0 toggles the VU meter, outside a clip minder.
-		if (!view_.root_is_clip_minder && mode() == which_button && which_button == 0) {
-			focus_->vu_meter = !focus_->vu_meter;
-		}
-		// `:1530-1532` -- the mode changes before the button's own action, which reads it.
-		if (const std::optional<project::KnobModeOwner> owner = mode_owner(*focus_)) {
-			(void)sink.knob_mode(*owner, static_cast<uint8_t>(which_button));
-		}
+	// The button's rules (`View::modButtonAction`, `ModControllable::modButtonAction`): the VU meter's toggle and the
+	// mode change come before the stutter's end, which the popup reads, and a press the rules ignore does nothing.
+	const controls::SectionResult section =
+	    controls::resolve_section(*focus_, static_cast<uint8_t>(mode()), which_button, on,
+	                              {.root_is_performance = view_.root_is_performance,
+	                               .mod_button_ui_mode_in_range = view_.mod_button_ui_mode_in_range,
+	                               .root_is_clip_minder = view_.root_is_clip_minder});
+	if (on && !section.popup) {
+		return;
 	}
-
-	// `ModControllable::modButtonAction` (`:1534-1535`, `:1541-1544`): the end of a stutter, then the button's popup
-	// on a press and its removal on a release. A clip's chain leaves the stutter on its compressor button; the song's
-	// chain leaves it running on performance view.
-	const bool chain = std::holds_alternative<bind::ChainFocus>(focus_->owner);
-	const bool song = std::holds_alternative<bind::SongFocus>(focus_->owner);
-	const bool ends_stutter = std::holds_alternative<bind::SoundFocus>(focus_->owner)
-	                          || (chain && which_button != 4 && !view_.root_is_performance)
-	                          || (song && !view_.root_is_performance);
-	if (ends_stutter) {
+	if (section.toggle_vu_meter) {
+		focus_->vu_meter = !focus_->vu_meter;
+	}
+	if (section.change_mode) {
+		(void)sink.knob_mode(*controls::knob_mode_owner(*focus_), static_cast<uint8_t>(which_button));
+	}
+	if (section.end_stutter) {
 		(void)sink.stutter(*focus_, false);
 	}
-	if (!on) {
+	if (!section.popup) {
 		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelPopup);
 		return;
 	}

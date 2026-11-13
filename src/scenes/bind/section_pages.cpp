@@ -4,6 +4,7 @@
 #include "instruments/deluge/pages.h"
 
 #include <algorithm>
+#include <utility>
 
 namespace deluge::scenes::bind {
 
@@ -31,7 +32,27 @@ std::vector<Page> pages_of(const auto& pages) {
 	return out;
 }
 
-/// A sound's pages: its saved knobs for @p mode, and the filter cycle on the filter button.
+/// A sound's filter cycle on mod button @p mode: low-pass, high-pass, EQ with the cutoff on the upper knob (group 0,
+/// page ids 0 to 2), then the same with it on the lower knob (group 1, page ids 3 to 5). A sound may hold its filter
+/// knob on either knob of any button, and its press cycles it wherever it is.
+std::vector<Page> sound_filter_cycle(uint8_t mode) {
+	std::vector<Page> out;
+	for (const uint8_t group : {uint8_t{0}, uint8_t{1}}) {
+		for (const plugin::RemotePage& p : instrument::kFilterCycle) {
+			Page page = controls::page_of(p);
+			page.section = mode;
+			page.group = group;
+			if (group == 1) {
+				page.page_id += instrument::kFilterCycle.size();
+				std::swap(page.slots[0], page.slots[1]);
+			}
+			out.push_back(page);
+		}
+	}
+	return out;
+}
+
+/// A sound's pages: its saved knobs for @p mode, and the filter cycle.
 SectionPages sound_pages(const project::Song& song, const controls::SoundFocus& focus, uint8_t mode,
                          const PageInputs& inputs) {
 	const std::vector<project::ControllerMapping>* controls = nullptr;
@@ -53,8 +74,7 @@ SectionPages sound_pages(const project::Song& song, const controls::SoundFocus& 
 			}
 		}
 	}
-	return {.current = controls::page_of(saved),
-	        .cycle = mode == kFilterButton ? pages_of(instrument::kFilterCycle) : std::vector<Page>{}};
+	return {.current = controls::page_of(saved), .cycle = sound_filter_cycle(mode)};
 }
 
 /// A chain's pages: the global effectable's for @p mode, the current one the view @p chain holds and, on the song,
@@ -84,18 +104,21 @@ SectionPages chain_pages(const KnobFocus& focus, const project::FxChain& chain, 
 	return out;
 }
 
-/// A MIDI track's page: the CCs its record names for @p mode's knobs, in its clip; a press picks a knob's CC.
+/// A MIDI track's page: the CCs its record names for @p mode's knobs, in its clip; a press picks a knob's CC, with
+/// or without a clip (the host turns the selection down where it cannot take it).
 SectionPages midi_pages(const project::Song& song, const controls::MidiFocus& focus, uint8_t mode) {
 	SectionPages out;
 	out.current.section = mode;
+	constexpr size_t kKnobs = 2;
+	for (size_t knob = 0; knob < kKnobs; knob++) {
+		out.current.slots[knob].press = plugin::PressAction::MIDI_CC_SELECT;
+	}
 	const project::DocOutput* output = song.output_structure.find(focus.track.output_id);
 	if (output == nullptr || !focus.clip) {
 		return out;
 	}
-	constexpr size_t kKnobs = 2;
 	for (size_t knob = 0; knob < kKnobs; knob++) {
 		controls::Slot& slot = out.current.slots[knob];
-		slot.press = plugin::PressAction::MIDI_CC_SELECT;
 		const size_t at = (static_cast<size_t>(mode) * kKnobs) + knob;
 		if (at >= output->mod_knob_ccs.size()) {
 			continue;
