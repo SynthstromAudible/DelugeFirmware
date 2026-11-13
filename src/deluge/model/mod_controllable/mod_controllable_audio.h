@@ -258,13 +258,6 @@ protected:
 	/// @brief Gives the delay's tapes back to the arena and leaves its margin, as a change to OFF does. A sound calls
 	/// it in its destructor, while its chain still exists; a host chain's channel does the same for itself.
 	void releaseChainMemory();
-	void switchDelayPingPong();
-	/// @brief One press of the delay's feedback knob: digital, analog, off, digital, by one Edit.
-	void cycleDelayType();
-	void switchDelaySyncType();
-	void switchDelaySyncLevel();
-	void switchLPFMode();
-	void switchHPFMode();
 
 	/// What kind of unpatched parameters this ModControllable uses.
 	///

@@ -103,5 +103,4 @@ private:
 	/// @param param Which mod FX value.
 	/// @param type  Which filter.
 	void writeView(ModFXParam param, FilterType type);
-	void ensureModFXParamIsValid();
 };

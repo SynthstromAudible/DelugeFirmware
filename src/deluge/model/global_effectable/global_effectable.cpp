@@ -130,27 +130,6 @@ ModFXType GlobalEffectable::getModFXType() {
 	return modControllableSnapshot().effects.mod_fx.type;
 }
 
-void GlobalEffectable::ensureModFXParamIsValid() {
-	const ModFXType type = modControllableSnapshot().effects.mod_fx.type;
-	const auto valid = [type](ModFXParam param) {
-		switch (param) {
-		case ModFXParam::DEPTH:
-			return type != ModFXType::FLANGER;
-		case ModFXParam::OFFSET:
-			return type == ModFXType::CHORUS || type == ModFXType::CHORUS_STEREO || type == ModFXType::GRAIN;
-		default: // ModFXParam::FEEDBACK
-			return type != ModFXType::CHORUS && type != ModFXType::CHORUS_STEREO;
-		}
-	};
-	ModFXParam param = modFXParam();
-	for (int32_t tried = 0; tried < kNumModFXParams && !valid(param); tried++) {
-		param = static_cast<ModFXParam>((util::to_underlying(param) + 1) % kNumModFXParams);
-	}
-	if (param != modFXParam()) {
-		deluge::edits::changeView(*this, "modFXCurrentParam", modFXParamToString(param));
-	}
-}
-
 void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutomation) {
 	// Its record's, while it plays one.
 	writer.writeAttribute("modFXCurrentParam", modFXParamToString(modFXParam()));

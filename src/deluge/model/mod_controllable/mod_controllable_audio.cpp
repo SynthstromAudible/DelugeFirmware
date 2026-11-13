@@ -861,56 +861,6 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 	exitUIMode(UI_MODE_STUTTERING);
 }
 
-void ModControllableAudio::switchDelayPingPong() {
-	deluge::edits::changeEffect(*this, "delay/pingPong",
-	                            deluge::serialization::Value::makeNumber(effects().delay.ping_pong ? 0 : 1));
-}
-
-void ModControllableAudio::cycleDelayType() {
-	deluge::edits::changeEffect(*this, "delay/type",
-	                            deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(
-	                                deluge::effects::next_delay_type(effects().delay.type)))));
-}
-
-void ModControllableAudio::switchDelaySyncType() {
-	SyncType next = SYNC_TYPE_TRIPLET; // after even
-	switch (effects().delay.sync_type) {
-	case SYNC_TYPE_TRIPLET:
-		next = SYNC_TYPE_DOTTED;
-		break;
-	case SYNC_TYPE_DOTTED:
-		next = SYNC_TYPE_EVEN;
-		break;
-	default:
-		break;
-	}
-	deluge::edits::changeEffect(*this, "delay/syncType",
-	                            deluge::serialization::Value::makeNumber(util::to_underlying(next)));
-}
-
-void ModControllableAudio::switchDelaySyncLevel() {
-	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
-	deluge::edits::changeEffect(
-	    *this, "delay/syncLevel",
-	    deluge::serialization::Value::makeNumber(deluge::plugin::index_of(effects().delay.sync_level)
-	                                                 % deluge::plugin::index_of(SYNC_LEVEL_256TH)
-	                                             + 1)); // cycle from 1 to 9 (omit 0)
-}
-
-void ModControllableAudio::switchLPFMode() {
-	deluge::edits::changeEffect(
-	    *this, "lpfMode",
-	    effectWord(static_cast<FilterMode>((util::to_underlying(effects().filter.lpf_mode) + 1) % kNumLPFModes)));
-}
-
-void ModControllableAudio::switchHPFMode() {
-	// this works fine, the offset to the first hpf doesn't matter with the modulus
-	deluge::edits::changeEffect(
-	    *this, "hpfMode",
-	    effectWord(static_cast<FilterMode>((util::to_underlying(effects().filter.hpf_mode) + 1) % kNumHPFModes
-	                                       + kFirstHPFMode)));
-}
-
 // This can get called either for hibernation, or because drum now has no active noteRow
 void ModControllableAudio::wontBeRenderedForAWhile() {
 	{
