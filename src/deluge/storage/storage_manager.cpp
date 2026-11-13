@@ -353,23 +353,26 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
 		D_PRINTLN("reading instrument file failed -  %s", name->get());
-		if (!fileSuccess) {
+		if (fileSuccess != FR_OK) {
 			error = Error::SD_CARD;
 		}
 
 deleteInstrumentAndGetOut:
 		D_PRINTLN("abandoning load -  %s", name->get());
 		newInstrument->deleteBackedUpParamManagers(song);
-		void* toDealloc = static_cast<void*>(newInstrument);
+		// Instrument isn't the first base of SoundInstrument, so the allocation starts before newInstrument
+		void* toDealloc = dynamic_cast<void*>(newInstrument);
 		newInstrument->~Instrument();
 		delugeDealloc(toDealloc);
 
 		return error;
 	}
 
-	// Check that a ParamManager was actually loaded for the Instrument, cos if not, that'd spell havoc
-	if (!song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)newInstrument->toModControllable(),
-	                                                     nullptr)) {
+	// Check that a ParamManager was actually loaded for the Instrument, cos if not, that'd spell havoc. MIDI
+	// instruments create their ParamManager later and are not ModControllableAudio objects.
+	if (outputType != OutputType::MIDI_OUT
+	    && !song->getBackedUpParamManagerPreferablyWithClip(
+	        static_cast<ModControllableAudio*>(newInstrument->toModControllable()), nullptr)) {
 
 		// Prior to V2.0 (or was it only in V1.0 on the 40-pad?) Kits didn't have anything that would have caused the
 		// paramManager to be created when we read the Kit just now. So, just make one.
@@ -383,9 +386,6 @@ deleteInstrumentAndGetOut:
 			GlobalEffectableForClip::initParams(&paramManager);
 			((Kit*)newInstrument)->compensateInstrumentVolumeForResonance(&paramManager, song); // Necessary?
 			song->backUpParamManager(((Kit*)newInstrument), clip, &paramManager, true);
-		}
-		else if (outputType == OutputType::MIDI_OUT) {
-			// midi instruments make the param manager later
 		}
 		else {
 paramManagersMissing:
@@ -456,7 +456,7 @@ Error StorageManager::loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrumen
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
 		D_PRINTLN("reading midi device definition file failed -  %s", fileName->get());
-		if (!fileSuccess) {
+		if (fileSuccess != FR_OK) {
 			error = Error::SD_CARD;
 		}
 
@@ -515,7 +515,7 @@ Error StorageManager::loadPatternFile(FilePointer* filePointer, String* fileName
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
-		if (!fileSuccess) {
+		if (fileSuccess != FR_OK) {
 			error = Error::SD_CARD;
 		}
 
@@ -543,7 +543,7 @@ Error StorageManager::loadFavouriteFile(FilePointer* filePointer, String* fileNa
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
-		if (!fileSuccess) {
+		if (fileSuccess != FR_OK) {
 			error = Error::SD_CARD;
 		}
 
@@ -569,27 +569,24 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 
 	Error error = openInstrumentFile(outputType, filePointer);
 	if (error != Error::NONE) {
-		return error;
+		goto deleteDrumAndGetOut;
 	}
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 
 	error = newDrum->readFromFile(smDeserializer, song, clip, 0);
 
-	bool fileSuccess = activeDeserializer->closeWriter() == FR_OK;
-
 	// If that somehow didn't work...
-	if (error != Error::NONE || !fileSuccess) {
-
-		void* toDealloc = static_cast<void*>(newDrum);
+	if (activeDeserializer->closeWriter() != FR_OK && error == Error::NONE) {
+		error = Error::SD_CARD;
+	}
+	if (error != Error::NONE) {
+		// readFromFile() may already have backed up a ParamManager keyed by this drum
+		song->deleteBackedUpParamManagersForModControllable(newDrum);
+deleteDrumAndGetOut:
 		newDrum->~SoundDrum();
-		GeneralMemoryAllocator::get().dealloc(toDealloc);
+		delugeDealloc(newDrum);
 		return error;
-
-		if (!fileSuccess) {
-			error = Error::SD_CARD;
-			return error;
-		}
 	}
 	// The caller owns whatever drum this replaces - it may still be referenced by NoteRows in several Clips, so it's up
 	// to the caller to move those over before deleting it
@@ -788,8 +785,8 @@ bool StorageManager::buildPathToFile(const char* fileName) {
 }
 
 FileReader::FileReader() {
-	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(32768 + CACHE_LINE_SIZE * 2);
-	fileClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
+	fileClusterBufferAllocation = GeneralMemoryAllocator::get().allocLowSpeed(32768 + CACHE_LINE_SIZE * 2);
+	fileClusterBuffer = fileClusterBufferAllocation ? (char*)fileClusterBufferAllocation + CACHE_LINE_SIZE : nullptr;
 }
 
 // Used to read an in-memory file stream.
@@ -803,8 +800,7 @@ FileReader::FileReader(char* memBuffer, uint32_t bufLen) {
 }
 
 FileReader::~FileReader() {
-	if (!memoryBased)
-		GeneralMemoryAllocator::get().dealloc(fileClusterBuffer);
+	GeneralMemoryAllocator::get().dealloc(fileClusterBufferAllocation);
 }
 
 void FileReader::resetReader() {
@@ -822,6 +818,11 @@ void FileReader::resetReader() {
 // Returns whether successful loading took place
 // return true "if still going".
 bool FileReader::readFileClusterIfNecessary() {
+	if (!fileClusterBuffer) {
+		reachedBufferEnd = true;
+		return false;
+	}
+
 	if (memoryBased) {
 		if (fileReadBufferCurrentPos >= currentReadBufferEndPos) {
 			reachedBufferEnd = true;
@@ -925,8 +926,8 @@ FRESULT FileReader::closeWriter() {
 
 FileWriter::FileWriter() {
 	bufferSize = 32768;
-	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(bufferSize + CACHE_LINE_SIZE * 2);
-	writeClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
+	writeClusterBufferAllocation = GeneralMemoryAllocator::get().allocLowSpeed(bufferSize + CACHE_LINE_SIZE * 2);
+	writeClusterBuffer = writeClusterBufferAllocation ? (char*)writeClusterBufferAllocation + CACHE_LINE_SIZE : nullptr;
 }
 
 FileWriter::FileWriter(bool inMem) : FileWriter() {
@@ -934,7 +935,7 @@ FileWriter::FileWriter(bool inMem) : FileWriter() {
 }
 
 FileWriter::~FileWriter() {
-	GeneralMemoryAllocator::get().dealloc(writeClusterBuffer);
+	GeneralMemoryAllocator::get().dealloc(writeClusterBufferAllocation);
 }
 
 int32_t FileWriter::bytesWritten() {
@@ -949,7 +950,7 @@ void FileWriter::resetWriter() {
 
 FRESULT FileWriter::closeWriter() {
 	if (memoryBased) {
-		if (fileWriteBufferCurrentPos < bufferSize) {
+		if (writeClusterBuffer && fileWriteBufferCurrentPos < bufferSize) {
 			writeClusterBuffer[fileWriteBufferCurrentPos] = 0;
 			return FRESULT::FR_OK;
 		}
@@ -969,6 +970,11 @@ void FileWriter::writeBlock(uint8_t* block, uint32_t size) {
 extern "C" void routineForSD(void);
 
 void FileWriter::writeByte(int8_t b) {
+
+	if (!writeClusterBuffer) {
+		fileAccessFailedDuringWrite = true;
+		return;
+	}
 
 	if (fileWriteBufferCurrentPos == bufferSize) {
 		if (!memoryBased && !fileAccessFailedDuringWrite) {
@@ -1001,6 +1007,9 @@ void FileWriter::writeChars(char const* output) {
 }
 
 Error FileWriter::writeBufferToFile() {
+	if (!writeClusterBuffer) {
+		return Error::INSUFFICIENT_RAM;
+	}
 	UINT bytesWritten;
 	FRESULT result = f_write(&writeFIL, writeClusterBuffer, fileWriteBufferCurrentPos, &bytesWritten);
 	if (result != FR_OK || bytesWritten != fileWriteBufferCurrentPos) {
@@ -1012,7 +1021,7 @@ Error FileWriter::writeBufferToFile() {
 	return Error::NONE;
 }
 
-// Returns false if some error, including error while writing
+// Returns Error::WRITE_FAIL on any error, including errors while writing
 Error FileWriter::closeAfterWriting(char const* path, char const* beginningString, char const* endString) {
 
 	if (fileAccessFailedDuringWrite) {
@@ -1031,25 +1040,37 @@ Error FileWriter::closeAfterWriting(char const* path, char const* beginningStrin
 		return Error::WRITE_FAIL;
 	}
 
-	if (path) {
-		// Check file exists
-		result = f_open(&writeFIL, path, FA_READ);
-		if (result) {
-			return Error::WRITE_FAIL;
-		}
+	// Read-back verification needs a path to reopen the file
+	if (!path) {
+		return Error::NONE;
 	}
 
-	// Check size
+	result = f_open(&writeFIL, path, FA_READ);
+	if (result) {
+		return Error::WRITE_FAIL;
+	}
+
+	error = verifyWrittenFile(beginningString, endString);
+
+	result = closeWriter();
+	if (result && error == Error::NONE) {
+		error = Error::WRITE_FAIL;
+	}
+
+	return error;
+}
+
+// Expects writeFIL to be open for reading; leaves closing it to the caller
+Error FileWriter::verifyWrittenFile(char const* beginningString, char const* endString) {
 	if (f_size(&writeFIL) != fileTotalBytesWritten) {
 		return Error::WRITE_FAIL;
 	}
 
-	// Check beginning
+	UINT dontCare;
+
 	if (beginningString) {
-		UINT dontCare;
 		int32_t length = strlen(beginningString);
-		result = f_read(&writeFIL, miscStringBuffer, length, &dontCare);
-		if (result) {
+		if (f_read(&writeFIL, miscStringBuffer, length, &dontCare)) {
 			return Error::WRITE_FAIL;
 		}
 		if (memcmp(miscStringBuffer, beginningString, length)) {
@@ -1057,28 +1078,17 @@ Error FileWriter::closeAfterWriting(char const* path, char const* beginningStrin
 		}
 	}
 
-	// Check end
 	if (endString) {
-		UINT dontCare;
 		int32_t length = strlen(endString);
-
-		result = f_lseek(&writeFIL, fileTotalBytesWritten - length);
-		if (result) {
+		if (f_lseek(&writeFIL, fileTotalBytesWritten - length)) {
 			return Error::WRITE_FAIL;
 		}
-
-		result = f_read(&writeFIL, miscStringBuffer, length, &dontCare);
-		if (result) {
+		if (f_read(&writeFIL, miscStringBuffer, length, &dontCare)) {
 			return Error::WRITE_FAIL;
 		}
 		if (memcmp(miscStringBuffer, endString, length)) {
 			return Error::WRITE_FAIL;
 		}
-	}
-
-	result = closeWriter();
-	if (result) {
-		return Error::WRITE_FAIL;
 	}
 
 	return Error::NONE;

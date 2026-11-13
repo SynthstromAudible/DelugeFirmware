@@ -1,0 +1,23 @@
+---
+/**
+ * Marks a Guidebook section as a stub: asks readers to help, linking to the page's editor.
+ * Any children say where to read about the feature for now. Delete it when the section is written.
+ * Kept out of search, so results show what a page covers rather than this message.
+ */
+import { Aside } from "@astrojs/starlight/components"
+
+const { editUrl } = Astro.locals.starlightRoute
+---
+
+<div data-pagefind-ignore>
+  <Aside type="note" title="This section is unwritten!">
+    {editUrl ? (
+      <>
+        You can help by <a href={editUrl}>adding content</a>.
+      </>
+    ) : (
+      <>You can help by adding content.</>
+    )}
+    <slot />
+  </Aside>
+</div>

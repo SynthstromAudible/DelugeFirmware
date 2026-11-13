@@ -125,7 +125,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 	// See if we can add to an existing action...
 	else if (addToExistingIfPossible != ActionAddition::NOT_ALLOWED && firstAction[BEFORE]
 	         && firstAction[BEFORE]->openForAdditions && firstAction[BEFORE]->type == newActionType
-	         && firstAction[BEFORE]->view == getCurrentUI()
+	         && firstAction[BEFORE]->view == getRootUI()
 	         && (addToExistingIfPossible == ActionAddition::ALLOWED
 	             || firstAction[BEFORE]->creationTime == AudioEngine::audioSampleTimer)) {
 		newAction = firstAction[BEFORE];
@@ -192,7 +192,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 		// newAction->modKnobModeSongView = currentSong->modKnobMode;
 		newAction->affectEntireSongView = currentSong->affectEntire;
 
-		newAction->view = getCurrentUI();
+		newAction->view = getRootUI();
 		newAction->currentClip = getCurrentClip();
 	}
 
@@ -348,7 +348,7 @@ bool ActionLogger::revert(TimeType time, bool updateVisually, bool doNavigation)
 		Action* toRevert = firstAction[time];
 
 		// If we're in a UI mode, and reverting this Action would mean changing UI, we have to disallow that.
-		if (toRevert->view != getCurrentUI() && !isNoUIModeActive()) {
+		if (toRevert->view != getRootUI() && !isNoUIModeActive()) {
 			return false;
 		}
 
@@ -397,7 +397,7 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 
 			// If user is in song view or arranger view, just stay in that UI.
 			if (getCurrentUI() == &arrangerView || getCurrentUI() == &sessionView) {
-				action->view = getCurrentUI();
+				action->view = getRootUI();
 
 				// If in arranger view, don't go scrolling anywhere - that'd just visually confuse things
 				if (getCurrentUI() == &arrangerView) {
@@ -408,7 +408,9 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 
 		// We only want to display one animation
 
-		if (updateVisually) {
+		// A browser can undo its preview while still open. Restore the data underneath it without navigating
+		// away or treating the overlay as a TimelineView for scroll/zoom animations.
+		if (updateVisually && getCurrentUI() == getRootUI()) {
 
 			// Switching between session / arranger
 			if (action->view == &sessionView && getCurrentUI() == &arrangerView) {
@@ -643,6 +645,10 @@ currentClipSwitchedOver:
 		}
 		else {
 			getCurrentUI()->focusRegained();
+			// if changing clips, the section / clip name may need to be refreshed on the display
+			if (display->haveOLED()) {
+				renderUIsForOled();
+			}
 			renderingNeededRegardlessOfUI(); // Didn't have this til March 2020, and stuff didn't update. Guess this is
 			                                 // just needed? Can't remember specifics just now
 		}
@@ -894,23 +900,26 @@ bool ActionLogger::undoJustOneConsequencePerNoteRow(ModelStack* modelStack) {
 	Consequence* firstConsequence = firstAction[BEFORE]->firstConsequence;
 	if (firstConsequence) { // Should always be true
 
-		// Work out if multiple Consequences per NoteRow (see big comment above)
-		int32_t firstNoteRowId = ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId;
+		// Work out if multiple Consequences per NoteRow (see big comment above). Only NoteArrayChanges carry a
+		// noteRowId - if the most recent Consequence is something else, there's no "mini action" boundary to find.
+		Consequence* nextForSameNoteRow = nullptr;
+		if (firstConsequence->type == Consequence::NOTE_ARRAY_CHANGE) {
+			int32_t firstNoteRowId = static_cast<ConsequenceNoteArrayChange*>(firstConsequence)->noteRowId;
 
-		Consequence* thisConsequence = firstConsequence->next;
-		while (thisConsequence) {
-			if (thisConsequence->type == Consequence::NOTE_ARRAY_CHANGE
-			    && ((ConsequenceNoteArrayChange*)thisConsequence)->noteRowId == firstNoteRowId) {
-				goto gotMultipleConsequencesPerNoteRow;
+			for (Consequence* thisConsequence = firstConsequence->next; thisConsequence;
+			     thisConsequence = thisConsequence->next) {
+				if (thisConsequence->type == Consequence::NOTE_ARRAY_CHANGE
+				    && static_cast<ConsequenceNoteArrayChange*>(thisConsequence)->noteRowId == firstNoteRowId) {
+					nextForSameNoteRow = thisConsequence;
+					break;
+				}
 			}
-
-			thisConsequence = thisConsequence->next;
 		}
 
-		// If multiple Consequences per NoteRow, just revert most recent one per NoteRow
-		if (false) {
-gotMultipleConsequencesPerNoteRow:
-			do {
+		// If multiple Consequences per NoteRow, just revert most recent one per NoteRow - everything before the next
+		// Consequence for the same NoteRow
+		if (nextForSameNoteRow) {
+			while (firstConsequence != nextForSameNoteRow) {
 				firstConsequence->revert(BEFORE,
 				                         modelStack); // Unlike reverting a whole Action, this doesn't update anything
 				                                      // visually or call any expectEvent() functions
@@ -920,8 +929,7 @@ gotMultipleConsequencesPerNoteRow:
 				firstConsequence->~Consequence();
 				delugeDealloc(firstConsequence);
 				firstConsequence = firstAction[BEFORE]->firstConsequence;
-			} while (thisConsequence->type != Consequence::NOTE_ARRAY_CHANGE
-			         || ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId != firstNoteRowId);
+			}
 
 			D_PRINTLN("did secret undo, just one Consequence");
 		}

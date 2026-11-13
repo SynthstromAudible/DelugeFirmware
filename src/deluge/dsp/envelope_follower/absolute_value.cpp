@@ -16,7 +16,18 @@
  */
 
 #include "absolute_value.h"
+#include "util/fixedpoint.h"
 #include <cmath>
+#include <cstdint>
+#include <limits>
+
+namespace {
+/// |x|, but defined for INT_MIN (which gives INT_MAX) and one instruction. Negatives come out 1 low, which is nothing
+/// next to the level this measures
+inline int32_t absForLevel(int32_t x) {
+	return x ^ (x >> 31);
+}
+} // namespace
 
 float AbsValueFollower::runEnvelope(float current, float desired, float numSamples) {
 	float s;
@@ -31,19 +42,26 @@ float AbsValueFollower::runEnvelope(float current, float desired, float numSampl
 
 // output range is 0-21 (2^31)
 // dac clipping is at 16
+// do not feed block over length 256 if it contains q31 data
 StereoFloatSample AbsValueFollower::calcApproxRMS(std::span<StereoSample> buffer) {
 	q31_t l = 0;
 	q31_t r = 0;
-	StereoFloatSample logMean;
-
 	for (StereoSample sample : buffer) {
-		l += std::abs(sample.l);
-		r += std::abs(sample.r);
+		l += absForLevel(sample.l) >> 8;
+		r += absForLevel(sample.r) >> 8;
 	}
 
 	float ns = buffer.size();
-	meanL = l / ns;
-	meanR = r / ns;
+
+	return calcApproxRMSFromMeans(256.f * l / ns, 256.f * r / ns, buffer.size());
+}
+
+StereoFloatSample AbsValueFollower::calcApproxRMSFromMeans(float newMeanL, float newMeanR, size_t numSamples) {
+	StereoFloatSample logMean;
+	float ns = numSamples;
+	meanL = newMeanL;
+	meanR = newMeanR;
+
 	// warning this is not good math but it's pretty close and way cheaper than doing it properly
 	// good math would use a long FIR, this is a one pole IIR instead
 	// the more samples we have, the more weight we put on the current mean to avoid response slowing down

@@ -754,23 +754,29 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	int32_t lpfFrequency =
-	    getFinalParameterValueExp(paramNeutralValues[params::LOCAL_LPF_FREQ],
-	                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_LPF_FREQ)));
+	    conversions.lpfFrequency(unpatchedParams->getValue(params::UNPATCHED_LPF_FREQ), [](int32_t v) {
+		    return getFinalParameterValueExp(paramNeutralValues[params::LOCAL_LPF_FREQ], cableToExpParamShortcut(v));
+	    });
 	int32_t lpfResonance =
-	    getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_LPF_RESONANCE],
-	                                 cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_LPF_RES)));
-	int32_t lpfMorph =
-	    getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_LPF_MORPH],
-	                                 cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_LPF_MORPH)));
+	    conversions.lpfResonance(unpatchedParams->getValue(params::UNPATCHED_LPF_RES), [](int32_t v) {
+		    return getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_LPF_RESONANCE],
+		                                        cableToLinearParamShortcut(v));
+	    });
+	int32_t lpfMorph = conversions.lpfMorph(unpatchedParams->getValue(params::UNPATCHED_LPF_MORPH), [](int32_t v) {
+		return getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_LPF_MORPH], cableToExpParamShortcut(v));
+	});
 	int32_t hpfFrequency =
-	    getFinalParameterValueExp(paramNeutralValues[params::LOCAL_HPF_FREQ],
-	                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_HPF_FREQ)));
+	    conversions.hpfFrequency(unpatchedParams->getValue(params::UNPATCHED_HPF_FREQ), [](int32_t v) {
+		    return getFinalParameterValueExp(paramNeutralValues[params::LOCAL_HPF_FREQ], cableToExpParamShortcut(v));
+	    });
 	int32_t hpfResonance =
-	    getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_HPF_RESONANCE],
-	                                 cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_HPF_RES)));
-	int32_t hpfMorph =
-	    getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_HPF_MORPH],
-	                                 cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_HPF_MORPH)));
+	    conversions.hpfResonance(unpatchedParams->getValue(params::UNPATCHED_HPF_RES), [](int32_t v) {
+		    return getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_HPF_RESONANCE],
+		                                        cableToLinearParamShortcut(v));
+	    });
+	int32_t hpfMorph = conversions.hpfMorph(unpatchedParams->getValue(params::UNPATCHED_HPF_MORPH), [](int32_t v) {
+		return getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_HPF_MORPH], cableToExpParamShortcut(v));
+	});
 
 	bool doLPF = (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE
 	              || unpatchedParams->getValue(params::UNPATCHED_LPF_FREQ) < 2147483602
@@ -1126,16 +1132,19 @@ Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManage
 	Delay::State delayWorkingState;
 	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
-	delayWorkingState.delayFeedbackAmount = getFinalParameterValueLinear(
-	    paramNeutralValues[params::GLOBAL_DELAY_FEEDBACK],
-	    cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_DELAY_AMOUNT)));
+	delayWorkingState.delayFeedbackAmount =
+	    conversions.delayFeedback(unpatchedParams->getValue(params::UNPATCHED_DELAY_AMOUNT), [](int32_t v) {
+		    return getFinalParameterValueLinear(paramNeutralValues[params::GLOBAL_DELAY_FEEDBACK],
+		                                        cableToLinearParamShortcut(v));
+	    });
 	if (shouldLimitDelayFeedback) {
 		delayWorkingState.delayFeedbackAmount =
 		    std::min(delayWorkingState.delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
 	}
 	delayWorkingState.userDelayRate =
-	    getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_DELAY_RATE],
-	                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_DELAY_RATE)));
+	    conversions.delayRate(unpatchedParams->getValue(params::UNPATCHED_DELAY_RATE), [](int32_t v) {
+		    return getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_DELAY_RATE], cableToExpParamShortcut(v));
+	    });
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
 	delay.setupWorkingState(delayWorkingState, timePerTickInverse, soundComingIn);
 
@@ -1147,12 +1156,14 @@ void GlobalEffectable::processFXForGlobalEffectable(std::span<StereoSample> buff
                                                     bool anySoundComingIn, q31_t verbAmount) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	int32_t modFXRate =
-	    getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_MOD_FX_RATE],
-	                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_MOD_FX_RATE)));
-	int32_t modFXDepth = getFinalParameterValueVolume(
-	    paramNeutralValues[params::GLOBAL_MOD_FX_DEPTH],
-	    cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_MOD_FX_DEPTH)));
+	int32_t modFXRate = conversions.modFXRate(unpatchedParams->getValue(params::UNPATCHED_MOD_FX_RATE), [](int32_t v) {
+		return getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_MOD_FX_RATE], cableToExpParamShortcut(v));
+	});
+	int32_t modFXDepth =
+	    conversions.modFXDepth(unpatchedParams->getValue(params::UNPATCHED_MOD_FX_DEPTH), [](int32_t v) {
+		    return getFinalParameterValueVolume(paramNeutralValues[params::GLOBAL_MOD_FX_DEPTH],
+		                                        cableToLinearParamShortcut(v));
+	    });
 
 	ModFXType modFXTypeNow = getActiveModFXType(paramManager);
 

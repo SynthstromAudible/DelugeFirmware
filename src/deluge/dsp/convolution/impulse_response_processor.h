@@ -46,22 +46,36 @@ public:
 		// Render windows are often shorter than the IR, so rather than special-casing the outputs that reach back
 		// into the last call's inputs, lay the history and a chunk of input out contiguously and convolve that
 		std::array<StereoSample, HISTORY_SIZE + CHUNK_SIZE> input;
-		std::copy(history_.begin(), history_.end(), input.begin());
+		copy(history_.data(), HISTORY_SIZE, input.data());
 
-		while (!buffer.empty()) {
+		while (true) {
 			size_t chunkSize = std::min(buffer.size(), CHUNK_SIZE);
-			std::copy_n(buffer.begin(), chunkSize, input.begin() + HISTORY_SIZE);
+			copy(buffer.data(), chunkSize, input.data() + HISTORY_SIZE);
 			convolve(input.data() + HISTORY_SIZE, buffer.first(chunkSize));
-			// The end of this chunk's input is the history for the next
-			std::copy_n(input.begin() + chunkSize, HISTORY_SIZE, input.begin());
 			buffer = buffer.subspan(chunkSize);
+			if (buffer.empty()) {
+				// The end of the last chunk's input is the history for next time
+				copy(input.data() + chunkSize, HISTORY_SIZE, history_.data());
+				return;
+			}
+			// The end of this chunk's input is the history for the next
+			copy(input.data() + chunkSize, HISTORY_SIZE, input.data());
 		}
-
-		std::copy_n(input.begin(), HISTORY_SIZE, history_.begin());
 	}
 
 private:
 	constexpr static size_t CHUNK_SIZE = 64;
+
+	/// Copy forwards, so moving samples down within the same array is fine too. These copies are short, so doing
+	/// them two samples at a time inline is much cheaper than calling memcpy() / memmove() as std::copy does
+	static void copy(const StereoSample* from, size_t n, StereoSample* to) {
+		for (; n >= 2; n -= 2, from += 2, to += 2) {
+			Argon<int32_t>::Load(&from->l).StoreTo(&to->l);
+		}
+		if (n != 0) {
+			*to = *from;
+		}
+	}
 
 	/// x points at the first new input, with HISTORY_SIZE older inputs before it
 	static void convolve(const StereoSample* x, std::span<StereoSample> output) {

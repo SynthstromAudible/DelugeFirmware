@@ -1,0 +1,110 @@
+---
+title: "7.7 Filters"
+description: "Deluge has a high-pass and low-pass filter."
+sidebar:
+  order: 6
+banner:
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
+guidebook:
+  section: "7.7"
+  chapter: 7
+  pdfPages: [114]
+  printedPages: [108]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_7_7_1 from "../../../../assets/guidebook/figs/07-synthesizers__07-filters--1.svg?raw"
+import fig_fig_7_7_2 from "../../../../assets/guidebook/figs/07-synthesizers__07-filters--2.svg?raw"
+import fig_fig_7_7_3 from "../../../../assets/guidebook/figs/07-synthesizers__07-filters--3.svg?raw"
+import { Badge } from "@astrojs/starlight/components"
+import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Deluge has a high-pass and low-pass filter. Each is configurable with the mode type and has a morph feature. Filter routing can also configurable.
+
+{/* aside fig-7.7-1 */}
+
+<div class="gb-aside">
+
+<Figure
+  id="fig-7.7-1"
+  src={fig_fig_7_7_1}
+  alt={"Diagram: FREQUENCY"}
+  page={108}
+/>
+
+<div>
+
+#### HPF - HIGH-PASS FILTER
+
+Allows higher frequencies to pass through the filter and cuts off lower frequencies.
+
+</div>
+
+</div>
+
+{/* /aside fig-7.7-1 */}
+
+{/* aside fig-7.7-2 */}
+
+<div class="gb-aside">
+
+<Figure
+  id="fig-7.7-2"
+  src={fig_fig_7_7_2}
+  alt={"Diagram: 2 Pole 12dB/Octave 4 Pole 24dB/Octave FREQUENCY"}
+  page={108}
+/>
+
+<div>
+
+#### LPF - LOW-PASS FILTER
+
+Allows lower frequencies to pass through the filter and cuts off higher frequencies. Deluge filters are 2-pole and 4-pole and 4-pole analog drive with saturation only on the LPF. Poles refer to how ‘steep’ or aggressive the cutoff curve is. This is measured in dB per octave.
+
+</div>
+
+</div>
+
+{/* /aside fig-7.7-2 */}
+
+{/* aside fig-7.7-3 */}
+
+<div class="gb-aside">
+
+<Figure
+  id="fig-7.7-3"
+  src={fig_fig_7_7_3}
+  alt={
+    "Diagram: Cut Off Frequency Stop Transition Band Band Resonance Pass Band FREQUENCY"
+  }
+  page={108}
+/>
+
+<div>
+
+#### CUTOFF & RESONANCE
+
+The two parameters common to both the filters provide control over the cutoff frequency and also the resonance (emphasis at the cutoff point).
+
+</div>
+
+</div>
+
+{/* /aside fig-7.7-3 */}
+
+MODE: The LPF has 2 Ladder filters, SVF Notch and SVF Bandpass. The HPF contains a HP Ladder filter, SVF Notch and SVF Bandpass. The State Variable Filters have significantly less distortion than the ladder filters.
+
+MORPH: Adjusts smoothly from a setting of 0 at lowpass through bandpass/ notch to highpass at a maximum of 50. This is inverted in the HPF slot so that at 0 is highpass and at 50 it is lowpassed. Morph adds drive to the LP Ladder filters and FM to the HP Ladder. Morph is modulatable.
+
+FILTER ROUTE: Only accessible via the SOUND menu. Adjusts the filter order from HPF to LPF, LPF to HPF, or Filters operate in Parallel.
+
+## FM filters <Badge text="C1.2" variant="tip" />
+
+{/* TODO(kate): CHANGELOG.mdx: L493 */}
+
+<Unwritten />

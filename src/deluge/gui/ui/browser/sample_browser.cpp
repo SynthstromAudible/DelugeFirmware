@@ -18,6 +18,7 @@
 #include "definitions_cxx.hpp"
 #include "fatfs.hpp"
 #include "hid/button.h"
+#include "model/global_effectable/output_stage_gain.h"
 #include "model/sample/sample.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "util/try.h"
@@ -79,7 +80,7 @@ namespace params = deluge::modulation::params;
 using namespace deluge;
 using namespace gui;
 
-SampleBrowser sampleBrowser{};
+PLACE_SDRAM_BSS SampleBrowser sampleBrowser{};
 
 char const* allowedFileExtensionsAudio[] = {"WAV", "AIFF", "AIF", NULL};
 
@@ -263,6 +264,7 @@ void SampleBrowser::currentFileChanged(int32_t movementDirection) {
 }
 
 void SampleBrowser::exitAndNeverDeleteDrum() {
+	clearMenuHeadingTo();
 	display->setNextTransitionDirection(-1);
 	close();
 }
@@ -270,6 +272,9 @@ void SampleBrowser::exitAndNeverDeleteDrum() {
 // Will "delete drum if possible".
 void SampleBrowser::exitAction() {
 	UI* redrawUI = nullptr;
+
+	// No file was chosen, so don't jump to the horizontal menu next time a file is chosen from some other route
+	clearMenuHeadingTo();
 
 	display->setNextTransitionDirection(-1);
 	if (!isUIOpen(&soundEditor)) {
@@ -375,6 +380,7 @@ void SampleBrowser::enterKeyPress() {
 
 		if (error != Error::NONE) {
 			display->displayError(error);
+			clearMenuHeadingTo();
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
 		}
 	}
@@ -608,24 +614,36 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 		}
 
 		// Work out the volume the sample will play at once it's loaded into the current instrument / kit-row, so the
-		// preview can match it (issue #1591). The song master volume is applied to the preview downstream, so we only
-		// need the target Sound's own volume, plus - for a kit - the kit's output volume.
+		// preview can match it (issue #1591). That's the target Sound's own volume, plus the output stages the preview
+		// skips by rendering outside the song: the song's volume stage in Song::renderAudio() and, for a kit, the kit's
+		// output volume and the fixed gain of its output stage. Master FX in renderSongFX() apply to both.
 		//
-		// Not modelled: the kit's x1.25 postFX baseline and setupFilterSetConfig()'s resonance scaling, both applied
-		// in GlobalEffectableForClip::renderOutput(). A resonant kit will still preview slightly off. Modelling them
-		// would couple the preview path to the kit render chain.
+		// Not modelled: the kit's filter resonance, which setupFilterSetConfig() folds into its post-FX volume in
+		// GlobalEffectableForClip::renderOutput(). A resonant kit will still preview slightly off.
 		AudioEngine::PreviewVolume previewVolume = AudioEngine::PreviewVolume::neutral();
 
+		// Only a target Sound - a synth or kit row - is modelled. With none, e.g. when browsing for an audio clip, the
+		// preview keeps its neutral volume: an AudioOutput's own volume stage isn't modelled, so applying the song's
+		// alone wouldn't bring it any closer.
 		if (shouldActuallySound && soundEditor.currentSound != nullptr && soundEditor.currentParamManager != nullptr
 		    && soundEditor.currentParamManager->containsAnyMainParamCollections()) {
+			// The output stages' combined gain, in the pos domain of util/volume_param_gain.h. The song's volume stage
+			// halves its volume - about -6 dB at neutral song volume.
+			int32_t outputGainPos = kVolumeParamUnityPos;
+			if (currentSong != nullptr) {
+				int32_t songVolumeParam =
+				    currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME);
+				outputGainPos = multiplyGainPos(volumeParamToGainPos(songVolumeParam), songOutputStageGainPos());
+			}
+
 			PatchedParamSet* targetParams = soundEditor.currentParamManager->getPatchedParamSet();
 			previewVolume.volumePostFX = targetParams->getValue(params::GLOBAL_VOLUME_POST_FX);
 			previewVolume.localVolume = targetParams->getValue(params::LOCAL_VOLUME);
 
 			// The preview drum always notes on at velocity 64, so matching both the depth and the polarity of this
-			// cable makes the preview's final per-voice volume match the target's. The polarity matters as much as the
-			// depth: at velocity 64 a bipolar cable contributes nothing, while a unipolar one contributes about half
-			// its depth.
+			// cable makes the preview's final per-voice volume match the target's. The polarity matters as much as
+			// the depth: at velocity 64 a bipolar cable contributes nothing, while a unipolar one contributes about
+			// half its depth.
 			PatchCable* velocityCable = targetVelocityToVolumeCable(soundEditor.currentParamManager);
 			if (velocityCable != nullptr) {
 				previewVolume.velocityCableDepth = velocityCable->param.getCurrentValue();
@@ -639,17 +657,20 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 				ParamManagerForTimeline& kitParamManager = getCurrentInstrumentClip()->paramManager;
 				if (kitParamManager.containsAnyParamCollectionsIncludingExpression()) {
 					int32_t kitVolumeParam = kitParamManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME);
-					int32_t kitGainPos = volumeParamToGainPos(kitVolumeParam);
-
-					// Fold the kit's output volume into LOCAL_VOLUME first: it sits at neutral by default, so it has
-					// exactly the 4x of headroom the kit's maximum gain demands. Anything that doesn't fit - only
-					// possible when the drum's own local volume is already boosted - spills into GLOBAL_VOLUME_POST_FX.
-					VolumeParamGain local = applyGainToVolumeParam(previewVolume.localVolume, kitGainPos);
-					previewVolume.localVolume = local.param;
-					previewVolume.volumePostFX =
-					    applyGainToVolumeParam(previewVolume.volumePostFX, local.remainingGainPos).param;
+					// The kit's output stage halves its volume, adds a baseline and passes through the filter set's
+					// gain adjustment - about -6 dB at neutral kit volume.
+					outputGainPos = multiplyGainPos(
+					    outputGainPos, multiplyGainPos(volumeParamToGainPos(kitVolumeParam), kitOutputStageGainPos()));
 				}
 			}
+
+			// Fold the output gain into LOCAL_VOLUME first: it sits at neutral by default, so it has more than the
+			// headroom the maximum output gain demands. Anything that doesn't fit - only possible when the Sound's own
+			// local volume is already boosted - spills into GLOBAL_VOLUME_POST_FX.
+			VolumeParamGain local = applyGainToVolumeParam(previewVolume.localVolume, outputGainPos);
+			previewVolume.localVolume = local.param;
+			previewVolume.volumePostFX =
+			    applyGainToVolumeParam(previewVolume.volumePostFX, local.remainingGainPos).param;
 		}
 
 		AudioEngine::previewSample(&filePath, &currentFileItem->filePointer, shouldActuallySound, previewVolume);
@@ -1148,19 +1169,20 @@ doLoadAsSample:
 	}
 
 	if (!loadWithoutExiting) {
+		menu_item::HorizontalMenu* parentMenu = parentMenuHeadingTo;
+		MenuItem* menuItem = menuItemHeadingTo;
 		exitAndNeverDeleteDrum();
 
-		if (menuItemHeadingTo != nullptr && parentMenuHeadingTo != nullptr) {
+		// A HorizontalMenuGroup can't be drawn as a vertical menu, so only go there if it'll render horizontally
+		if (menuItem != nullptr && parentMenu != nullptr
+		    && parentMenu->renderingStyle() == menu_item::Submenu::HORIZONTAL) {
 			if (isUIOpen(&soundEditor)) {
 				closeUI(&soundEditor);
 			}
 
-			parentMenuHeadingTo->focusChild(menuItemHeadingTo);
-			soundEditor.setup(getCurrentClip(), parentMenuHeadingTo);
+			parentMenu->focusChild(menuItem);
+			soundEditor.setup(getCurrentClip(), parentMenu);
 			soundEditor.enterOrUpdateSoundEditor(true);
-
-			parentMenuHeadingTo = nullptr;
-			menuItemHeadingTo = nullptr;
 		}
 
 		uiNeedsRendering(&audioClipView);

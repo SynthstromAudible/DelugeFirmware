@@ -30,8 +30,12 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		const auto sound = static_cast<Sound*>(modControllable);
 		auto& source = sound->sources[source_id_];
-		return sound->getSynthMode() != SynthMode::FM && source.oscType == OscType::WAVETABLE
-		       && source.hasAtLeastOneAudioFileLoaded();
+		if (sound->getSynthMode() == SynthMode::FM) {
+			return false;
+		}
+		// The supersaw uses it for spread
+		return source.oscType == OscType::SUPERSAW
+		       || (source.oscType == OscType::WAVETABLE && source.hasAtLeastOneAudioFileLoaded());
 	}
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return SLIDER; }

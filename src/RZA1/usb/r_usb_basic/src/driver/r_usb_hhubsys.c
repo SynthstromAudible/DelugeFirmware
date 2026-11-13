@@ -125,7 +125,7 @@ usb_utr_t g_usb_shhub_ctrl_mess[USB_NUM_USBIP];
 usb_utr_t g_usb_shhub_data_mess[USB_NUM_USBIP][USB_MAXDEVADDR + 1u];
 
 /* HUB descriptor */
-uint8_t g_usb_hhub_descriptor[USB_NUM_USBIP][USB_CONFIGSIZE];
+PLACE_SDRAM_BSS uint8_t g_usb_hhub_descriptor[USB_NUM_USBIP][USB_CONFIGSIZE];
 
 /* HUB status data */
 uint8_t g_usb_hhub_data[USB_NUM_USBIP][USB_MAXDEVADDR + 1u][8];

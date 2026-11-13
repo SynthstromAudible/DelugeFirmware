@@ -1,0 +1,390 @@
+---
+/**
+ * A Guidebook figure that is a window onto the Deluge front panel, showing what the Deluge looks
+ * like after each step of the procedure before it. Frames (pad colours, lit buttons) come from
+ * src/data/guidebook-frames/<id>.json; the step's controls (`stepControls`) are filled in at
+ * build time by remark-panel-steps from the preceding <Steps> list.
+ *
+ * Figures bound to steps are demos and start collapsed: the reader opens them ("Show it on the
+ * Deluge"); printing opens them. Without JavaScript (and in print) the figure shows the last frame
+ * with every step's controls marked. With JavaScript, StepFocus's current step selects the frame.
+ *
+ * `auto` demos (added by remark-panel-steps under every Steps that names panel controls) have no
+ * frame file: each step only marks its controls. They load the panel SVG when first opened (one
+ * cached file for the whole site), so pages with many of them stay light, and they show only
+ * when JavaScript runs and never in print (they repeat the steps above them).
+ */
+import "../../styles/guidebook-panel.css"
+import panelSvg from "../../assets/guidebook/panel/panel.svg?raw"
+import panelUrl from "../../assets/guidebook/panel/panel.svg?url"
+import panelJson from "../../data/guidebook-panel.json"
+import { validateFrames } from "./panel/frames.ts"
+import type { StepControl } from "./panel/key-controls.ts"
+import { PanelMapSchema } from "./panel/panel-map.ts"
+import {
+  demoWindow,
+  fitWindow,
+  frameAttributes,
+  renderFrame,
+  windowBox,
+} from "./panel/render-frame.ts"
+import { type Callout, layoutCallouts } from "./panel/callouts.ts"
+
+type Props = {
+  id: string
+  alt: string
+  /** JSON StepControl[][]: injected by remark-panel-steps, one entry per step. */
+  stepControls?: string
+  /** Frame file id (default: `id`). */
+  frames?: string
+  /** Panel region name or "x y w h"; overrides the frame file's window. */
+  window?: string
+  callouts?: Callout[]
+  /** Index of the bound <Steps> among the page's Steps: injected by remark-panel-steps. */
+  stepsIndex?: string
+  /** A demo added by remark-panel-steps: no frame file, SVG loaded when opened. */
+  auto?: boolean
+}
+
+const {
+  id,
+  alt,
+  stepControls,
+  frames = id,
+  window,
+  callouts = [],
+  stepsIndex,
+  auto = false,
+} = Astro.props
+const panel = PanelMapSchema.parse(panelJson)
+const steps: StepControl[][] | undefined = stepControls
+  ? JSON.parse(stepControls)
+  : undefined
+
+const files = import.meta.glob("../../data/guidebook-frames/*.json", {
+  eager: true,
+  import: "default",
+})
+const raw = auto
+  ? {
+      figure: frames,
+      source: "hand",
+      window: "full",
+      steps: steps?.map(() => ({})) ?? [{}],
+    }
+  : files[`../../data/guidebook-frames/${frames}.json`]
+if (!raw)
+  throw new Error(
+    `${id}: no frame file src/data/guidebook-frames/${frames}.json`,
+  )
+const file = validateFrames(raw, {
+  figure: frames,
+  stepCount: steps?.length,
+  panel,
+})
+
+// No step chosen (no JS, print): the final state, with every control the steps use.
+const allControls = [
+  ...new Map((steps ?? []).flat().map((c) => [c.id, c])).values(),
+]
+
+const explicit = window?.split(/\s+/).map(Number)
+const chosenBox = windowBox(
+  explicit?.length === 4 && explicit.every(Number.isFinite)
+    ? (explicit as [number, number, number, number])
+    : (window ?? file.window),
+  panel,
+)
+// Grown if needed so every control a step uses is in view.
+const ids = allControls.map((c) => c.id)
+const box = auto ? demoWindow(ids, panel) : fitWindow(chosenBox, ids, panel)
+
+// Each step's look (lit LEDs, pad colours, highlights) as data; the page script applies it to
+// the one SVG below. One SVG per figure keeps pages light.
+const stepData = steps
+  ? JSON.stringify(
+      file.steps.map((frame, i) => frameAttributes(frame, steps[i] ?? [])),
+    )
+  : undefined
+const ww = box[2]
+const placed = layoutCallouts(callouts, panel, box)
+// Marker size for the numbered callout list, in panel px.
+const marker = ww * 0.022
+
+// Step demos start collapsed (a <details> the reader opens); callout figures always show.
+const Wrap = stepData ? "details" : "div"
+
+const staticSvg = auto
+  ? ""
+  : renderFrame(panelSvg, file.steps.at(-1) ?? {}, allControls, box)
+// An auto demo marks every step's controls until a step is chosen, once its SVG has loaded.
+const initial = auto
+  ? JSON.stringify(frameAttributes({}, allControls))
+  : undefined
+---
+
+<figure
+  class:list={[
+    "gb-figure gb-panel",
+    { "gb-panel-has-callouts": placed.length, "gb-panel-auto": auto },
+  ]}
+  hidden={auto}
+  id={id}
+  data-steps={steps ? file.steps.length : undefined}
+  data-steps-index={steps ? stepsIndex : undefined}
+  data-window={box.join(" ")}
+  data-src={auto ? panelUrl : undefined}
+  data-initial={initial}
+>
+  <Wrap class:list={{ "gb-panel-demo": stepData }}>
+    {stepData && <summary>Show it on the Deluge</summary>}
+    <div class="gb-panel-art-wrap" role="img" aria-label={alt}>
+      <div class="gb-panel-frame" set:html={staticSvg} />
+      {placed.length > 0 && (
+        <svg
+          class="gb-panel-leaders"
+          viewBox={box.join(" ")}
+          aria-hidden="true"
+          preserveAspectRatio="none"
+        >
+          {placed.map((c, i) => (
+            <g>
+              <line
+                class="gb-panel-leader"
+                x1={c.leader.x1}
+                y1={c.leader.y1}
+                x2={c.leader.x2}
+                y2={c.leader.y2}
+              />
+              <g class="gb-panel-marker">
+                <circle cx={c.leader.x2} cy={c.leader.y2} r={marker} />
+                <text
+                  x={c.leader.x2}
+                  y={c.leader.y2}
+                  font-size={marker * 1.2}
+                  text-anchor="middle"
+                  dominant-baseline="central"
+                >
+                  {i + 1}
+                </text>
+              </g>
+            </g>
+          ))}
+        </svg>
+      )}
+    </div>
+    {placed.length > 0 && (
+      <ol class="gb-panel-callouts">
+        {placed.map((c) => (
+          <li data-side={c.side} data-y={c.leader.y2}>
+            {c.text}
+          </li>
+        ))}
+      </ol>
+    )}
+    {stepData && (
+      <button type="button" class="gb-panel-play" hidden>
+        ▶︎ Play steps
+      </button>
+    )}
+  </Wrap>
+  {stepData && (
+    <script
+      is:inline
+      type="application/json"
+      class="gb-panel-steps"
+      set:html={stepData}
+    />
+  )}
+</figure>
+
+<script>
+  import { labelsFit, stackLabels } from "./panel/callouts.ts"
+
+  import { renderFrame, type ControlAttributes } from "./panel/render-frame.ts"
+
+  // Auto demos share one panel SVG, fetched the first time any of them opens.
+  const svgs = new Map<string, Promise<string>>()
+  const fetchSvg = (src: string) => {
+    if (!svgs.has(src))
+      svgs.set(
+        src,
+        fetch(src).then((r) => r.text()),
+      )
+    return svgs.get(src)!
+  }
+
+  // The bound Steps list (named at build time by its index on the page) drives the figure: the
+  // current step's look is applied to the figure's SVG. Until a step is chosen the figure shows
+  // the final state with every step's controls marked.
+  function bind(figure: HTMLElement) {
+    const lists = document.querySelectorAll<HTMLOListElement>(
+      ".sl-markdown-content ol.sl-steps",
+    )
+    const list = lists[Number(figure.dataset.stepsIndex)]
+    const data = figure.querySelector(".gb-panel-steps")?.textContent
+    const art = figure.querySelector<HTMLElement>(".gb-panel-art-wrap")
+    if (!list || !data || !art) return
+    const steps: ControlAttributes[][] = JSON.parse(data)
+    const items = [...list.children] as HTMLLIElement[]
+    let current: ControlAttributes[] | undefined
+
+    // Show a frame: clear every control, then give the frame's controls their look.
+    const apply = (attrs: ControlAttributes[]) => {
+      current = attrs
+      for (const el of art.querySelectorAll<SVGElement>("[data-c]")) {
+        el.removeAttribute("class")
+        el.removeAttribute("style")
+      }
+      for (const { id, class: cls, style } of attrs) {
+        const el = art.querySelector(`[data-c="${CSS.escape(id)}"]`)
+        if (cls) el?.setAttribute("class", cls)
+        if (style) el?.setAttribute("style", style)
+      }
+    }
+
+    // Auto demo: shown now that JS runs; its SVG is loaded on first open.
+    const src = figure.dataset.src
+    if (src) {
+      figure.hidden = false
+      const details = figure.querySelector("details")
+      const frame = art.querySelector(".gb-panel-frame")
+      const box = (figure.dataset.window ?? "").split(" ").map(Number)
+      details?.addEventListener("toggle", async () => {
+        if (!details.open || frame?.firstChild) return
+        const svg = await fetchSvg(src)
+        if (frame?.firstChild) return
+        frame!.innerHTML = renderFrame(svg, {}, [], box as never)
+        apply(current ?? JSON.parse(figure.dataset.initial ?? "[]"))
+      })
+    }
+
+    // Play: select each step in turn (through StepFocus, so the list follows), about every
+    // 1.6 s, stopping at the last step, on Stop, or when the reader picks a step.
+    const play = figure.querySelector<HTMLButtonElement>(".gb-panel-play")
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let advancing = false
+    const stop = () => {
+      clearTimeout(timer)
+      timer = undefined
+      if (play) {
+        play.textContent = "▶︎ Play steps"
+        play.setAttribute("aria-pressed", "false")
+      }
+    }
+    const show = (i: number) => {
+      if (i >= items.length) return stop()
+      advancing = true
+      items[i].click()
+      advancing = false
+      timer = setTimeout(() => show(i + 1), 1600)
+    }
+    if (play) {
+      play.hidden = false
+      play.setAttribute("aria-pressed", "false")
+      play.addEventListener("click", () => {
+        if (timer !== undefined) return stop()
+        play.textContent = "■︎ Stop"
+        play.setAttribute("aria-pressed", "true")
+        show(0)
+      })
+    }
+
+    list.addEventListener("guidebook:step", (e) => {
+      if (timer !== undefined && !advancing) stop()
+      const index = (e as CustomEvent<{ index: number }>).detail.index
+      const step = steps[index]
+      if (!step) return
+      apply(step)
+      figure.dataset.step = String(index)
+      const li = items[index]
+      if (li) {
+        li.id ||= `${figure.id}-step-${index + 1}`
+        art.setAttribute("aria-describedby", li.id)
+      }
+    })
+  }
+  document
+    .querySelectorAll<HTMLElement>("figure.gb-panel[data-steps]")
+    .forEach(bind)
+
+  // Print the demos open: a closed <details> prints as its summary alone.
+  addEventListener("beforeprint", () => {
+    for (const d of document.querySelectorAll<HTMLDetailsElement>(
+      "figure:not(.gb-panel-auto) details.gb-panel-demo:not([open])",
+    )) {
+      d.open = true
+      d.dataset.printOpened = ""
+    }
+  })
+  addEventListener("afterprint", () => {
+    for (const d of document.querySelectorAll<HTMLDetailsElement>(
+      "details.gb-panel-demo[data-print-opened]",
+    )) {
+      d.open = false
+      delete d.dataset.printOpened
+    }
+  })
+
+  // Wide figures with left/right callouts: labels beside the panel, stacked by their real
+  // heights, leaders from each label to its control. Otherwise the numbered list stays.
+  const ANCHOR_MIN_WIDTH = 640
+  function anchor(figure: HTMLElement) {
+    const items = [
+      ...figure.querySelectorAll<HTMLLIElement>(".gb-panel-callouts li"),
+    ]
+    const lines = [
+      ...figure.querySelectorAll<SVGLineElement>(".gb-panel-leader"),
+    ]
+    const art = figure.querySelector<HTMLElement>(".gb-panel-art-wrap")
+    const sideOk = items.every((li) =>
+      /^(left|right)$/.test(li.dataset.side ?? ""),
+    )
+    const wide = figure.getBoundingClientRect().width >= ANCHOR_MIN_WIDTH
+    figure.classList.toggle("gb-panel-anchored", Boolean(art && sideOk && wide))
+    if (!art || !figure.classList.contains("gb-panel-anchored")) return
+    // Anchor only if each side's labels fit beside the panel; otherwise keep the list.
+    const fits = ["left", "right"].every((side) =>
+      labelsFit(
+        items
+          .filter((li) => li.dataset.side === side)
+          .map((li) => li.offsetHeight),
+        6,
+        figure.offsetHeight,
+      ),
+    )
+    if (!fits) {
+      figure.classList.remove("gb-panel-anchored")
+      return
+    }
+    const [wx, wy, ww, wh] = (figure.dataset.window ?? "")
+      .split(" ")
+      .map(Number)
+    const artTop = art.offsetTop
+    const artH = art.offsetHeight
+    for (const side of ["left", "right"]) {
+      const group = items
+        .map((li, i) => ({ li, i, y: Number(li.dataset.y) }))
+        .filter(({ li }) => li.dataset.side === side)
+        .sort((a, b) => a.y - b.y)
+      const tops = stackLabels(
+        group.map(({ y }) => artTop + ((y - wy) / wh) * artH),
+        group.map(({ li }) => li.offsetHeight),
+        6,
+        figure.offsetHeight,
+      )
+      group.forEach(({ li, i }, k) => {
+        li.style.top = `${tops[k]}px`
+        const mid = tops[k] + li.offsetHeight / 2 - artTop
+        lines[i]?.setAttribute("x1", String(side === "left" ? wx : wx + ww))
+        lines[i]?.setAttribute("y1", String(wy + (mid / artH) * wh))
+      })
+    }
+  }
+  document
+    .querySelectorAll<HTMLElement>("figure.gb-panel-has-callouts")
+    .forEach((figure) => {
+      anchor(figure)
+      new ResizeObserver(() => anchor(figure)).observe(figure)
+    })
+</script>

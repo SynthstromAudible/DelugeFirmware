@@ -1,0 +1,101 @@
+/* The Guidebook index (GuidebookIndex.astro): headwords with their subentries, section links
+   after each. */
+.gb-index-tools {
+  display: grid;
+  gap: 0.75rem;
+  margin-block: 1rem 1.5rem;
+}
+
+.gb-index-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: var(--sl-text-sm);
+}
+
+.gb-index-filter[hidden] {
+  display: none;
+}
+
+.gb-index-filter input {
+  flex: 1;
+  max-width: 22rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--sl-color-gray-4);
+  border-radius: 0.4rem;
+  background: var(--sl-color-bg);
+  color: var(--sl-color-white);
+  font: inherit;
+}
+
+.gb-index-letters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.6rem;
+  font-weight: 600;
+}
+
+.gb-index-letters a {
+  text-decoration: none;
+}
+
+.gb-index-group h2 {
+  margin: 1.75rem 0 0.5rem;
+  padding-bottom: 0.2rem;
+  border-bottom: 1px solid var(--sl-color-hairline);
+  font-size: var(--sl-text-h3);
+}
+
+.gb-index ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gb-index-entry {
+  margin: 0 0 0.6rem;
+  scroll-margin-top: calc(var(--sl-nav-height, 4rem) + 1rem);
+}
+
+.gb-index-head {
+  font-weight: 600;
+  color: var(--sl-color-white);
+}
+
+.gb-index-see,
+.gb-index-also {
+  color: var(--sl-color-gray-3);
+}
+
+.gb-index-also {
+  margin: 0.15rem 0 0 1.25rem;
+  font-size: var(--sl-text-sm);
+}
+
+.gb-index-subs li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.5rem;
+  margin-left: 1.25rem;
+  line-height: 1.45;
+}
+
+.gb-index-links {
+  display: inline-flex;
+  gap: 0.4rem;
+  font-size: var(--sl-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.gb-index-subs li[hidden],
+.gb-index-entry[hidden],
+.gb-index-group[hidden],
+.gb-index-none[hidden] {
+  display: none;
+}
+
+/* "see" and "see also" lists: the comma sits outside the links */
+.gb-index-list > span:not(:last-child)::after {
+  content: ", ";
+}

@@ -137,6 +137,8 @@ protected:
 	void switchLPFMode();
 	void switchHPFMode();
 	void clearModFXMemory();
+	/// how long the mod FX and compressor keep going once their input is silent
+	[[nodiscard]] int32_t getSamplesUntilFXTailsEnd(ModFXType modFXType) const;
 
 	/// What kind of unpatched parameters this ModControllable uses.
 	///

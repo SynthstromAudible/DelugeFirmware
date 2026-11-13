@@ -70,19 +70,26 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 		// oscPos = 0;
 	}
 	else if (synthMode != SynthMode::FM && source->oscType == OscType::DX7) [[unlikely]] {
+		DxPatch* patch = source->ensureDxPatch();
+		if (patch == nullptr) {
+			return false;
+		}
 		if (dxVoice == nullptr) { // We might actually already have one, and just be restarting this voice
+			// ensureDxPatch() succeeding means the engine exists
 			dxVoice = getDxEngine()->solicitDxVoice();
 			if (dxVoice == nullptr) {
 				return false;
 			}
 		}
 
-		DxPatch* patch = source->ensureDxPatch();
 		dxVoice->init(*patch, voice->noteCodeAfterArpeggiation, velocity);
 	}
 	else {
 		if (oscRetriggerPhase != 0xFFFFFFFF) {
 			oscPos = getOscInitialPhaseForZero(source->oscType) + oscRetriggerPhase;
+			if (source->oscType == OscType::SUPERSAW) {
+				supersawPhases = deluge::dsp::Supersaw::sidePhasesFrom(oscPos);
+			}
 		}
 	}
 
@@ -171,7 +178,7 @@ bool VoiceUnisonPartSource::getPitchAndSpeedParams(Source* source, VoiceSamplePl
 			// more
 			bool furtherPitchShifting = (*phaseIncrement != pitchAdjustNeutralValue);
 			if (furtherPitchShifting) {
-				*timeStretchRatio = ((uint64_t)pitchAdjustNeutralValue << 24) / (uint32_t)*phaseIncrement;
+				*timeStretchRatio = getStretchToUndoPitch(pitchAdjustNeutralValue, *phaseIncrement);
 			}
 			*phaseIncrement = (uint64_t)*phaseIncrement * (uint64_t)sampleLengthInSamples / *noteLengthInSamples;
 
@@ -191,6 +198,15 @@ bool VoiceUnisonPartSource::getPitchAndSpeedParams(Source* source, VoiceSamplePl
 	return true;
 }
 
+uint32_t VoiceUnisonPartSource::getStretchToUndoPitch(int32_t pitchAdjustNeutralValue, uint32_t phaseIncrement) {
+	if (phaseIncrement != stretchToUndoPitchIncrement_ || pitchAdjustNeutralValue != stretchToUndoPitchNeutral_) {
+		stretchToUndoPitchNeutral_ = pitchAdjustNeutralValue;
+		stretchToUndoPitchIncrement_ = phaseIncrement;
+		stretchToUndoPitch_ = ((uint64_t)pitchAdjustNeutralValue << 24) / phaseIncrement;
+	}
+	return stretchToUndoPitch_;
+}
+
 // This normally only gets called from the getPitchAndSpeedParams() function, above, but occasionally we'll also call it
 // from Voice::renderBasicSource() when doing a "late start" on a Sample and we need to disregard any pitch modulation,
 // so send this the non-modulated phaseIncrement.
@@ -202,7 +218,7 @@ uint32_t VoiceUnisonPartSource::getSpeedParamForNoSyncing(Source* source, int32_
 	// If pitch and time being treated independently, then achieve this by adjusting stretch to counteract pitch
 	if (source->sampleControls.pitchAndSpeedAreIndependent) {
 		if (phaseIncrement != pitchAdjustNeutralValue) {
-			timeStretchRatio = ((uint64_t)pitchAdjustNeutralValue << 24) / (uint32_t)phaseIncrement;
+			timeStretchRatio = getStretchToUndoPitch(pitchAdjustNeutralValue, phaseIncrement);
 		}
 	}
 

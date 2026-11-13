@@ -1,0 +1,464 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5808 3952" class="gb-panel-art">
+<path class="fill" d="M1508 1050L1488 1055L1473 1060L1449 1071L1426 1087L1404 1109L1389 1131L1380 1149L1372 1173L1370 1189L1369 1190L1369 1197L1368 1198L1368 1232L1375 1260L1387 1288L1404 1313L1427 1336L1449 1351L1467 1360L1470 1360L1475 1363L1481 1364L1488 1367L1508 1371L1516 1371L1517 1372L1549 1372L1570 1367L1590 1360L1607 1352L1620 1344L1635 1332L1652 1315L1661 1303L1671 1287L1671 1285L1677 1274L1684 1255L1684 1251L1687 1242L1687 1228L1689 1227L1689 1185L1683 1164L1681 1161L1679 1153L1671 1137L1671 1135L1663 1122L1649 1104L1636 1091L1621 1079L1601 1067L1599 1067L1585 1060L1569 1055L1549 1051L1533 1051L1532 1050ZM5128 403L5100 412L5087 419L5085 419L5072 427L5052 443L5036 460L5028 471L5016 492L5011 504L5011 507L5008 512L5006 523L5004 527L5002 549L5001 550L5001 571L5002 572L5002 589L5007 606L5010 612L5012 620L5027 649L5038 664L5048 675L5071 694L5096 708L5118 716L5122 716L5130 719L5144 719L5145 721L5188 721L5209 715L5212 713L5220 711L5251 695L5270 680L5283 667L5296 650L5311 622L5320 592L5320 586L5322 578L5322 568L5323 567L5323 555L5322 554L5322 543L5321 542L5321 529L5311 500L5303 483L5295 470L5276 447L5264 436L5247 424L5224 412L5195 403L5176 401L5175 400L5149 400L5148 401ZM2055 400L2054 401L2035 403L2020 407L2014 410L2006 412L1990 420L1977 428L1964 438L1946 456L1927 483L1915 511L1915 514L1911 525L1911 530L1908 543L1908 553L1907 554L1907 579L1915 611L1928 640L1937 654L1948 668L1968 687L1991 702L2005 709L2018 713L2021 715L2042 720L2051 720L2052 721L2085 721L2086 720L2094 720L2108 716L2112 716L2134 708L2138 705L2144 703L2156 696L2171 685L2183 674L2196 659L2208 641L2216 625L2224 603L2224 599L2228 584L2228 572L2229 571L2229 538L2223 515L2221 512L2216 496L2213 492L2210 484L2194 460L2169 435L2145 419L2117 407L2110 406L2102 403L2096 403L2081 400ZM5477 227L5476 228L5477 229L5478 228ZM5488 223L5488 224L5490 224L5490 223ZM5464 223L5464 224L5466 224ZM5482 215L5482 216L5484 216ZM5472 215L5470 216L5471 217ZM5458 214L5460 215L5460 214ZM5495 213L5494 214L5495 215L5496 214ZM5476 208L5476 210L5478 209ZM5468 206L5468 208L5470 207ZM5478 201L5477 200L5476 202ZM5467 195L5466 194L5465 196ZM5476 191L5476 192L5478 192L5478 191ZM1727 162L1727 189L1771 189L1771 162ZM5467 127L5450 131L5437 137L5424 146L5414 156L5404 171L5399 183L5395 202L5395 215L5399 234L5404 246L5411 257L5424 271L5437 280L5454 287L5464 289L5471 289L5472 290L5482 290L5483 289L5490 289L5500 287L5518 279L5535 266L5541 259L5551 243L5552 238L5555 233L5558 218L5558 199L5555 184L5553 181L5552 176L5548 170L5548 168L5536 152L5527 144L5513 135L5496 129L5486 127ZM5474 226L5479 225L5480 230L5475 231ZM5488 220L5490 220L5493 223L5490 227L5488 227L5485 223ZM5464 220L5466 220L5468 222L5468 225L5466 227L5463 227L5461 224ZM5482 212L5484 212L5486 214L5486 217L5484 219L5481 219L5479 216ZM5471 212L5475 215L5475 217L5473 219L5468 218L5468 214ZM5458 211L5460 211L5463 214L5460 218L5458 218L5456 216L5456 213ZM5495 210L5498 212L5498 215L5496 217L5493 217L5492 212ZM5473 208L5475 206L5478 206L5480 208L5480 210L5477 213L5473 210ZM5465 206L5467 204L5471 204L5472 208L5470 210L5467 210ZM5481 205L5483 203L5486 203L5488 205L5488 207L5484 210L5481 207ZM5459 200L5463 203L5463 205L5461 207L5458 207L5456 205L5456 202ZM5490 201L5492 199L5494 199L5497 201L5497 203L5493 206L5490 203ZM5473 201L5475 198L5478 198L5480 200L5480 203L5477 205ZM5462 195L5464 192L5467 192L5469 194L5469 196L5466 199ZM5483 194L5485 191L5488 191L5490 193L5490 196L5486 198ZM5476 188L5478 188L5480 190L5480 193L5478 195L5476 195L5473 192Z" fill-rule="evenodd"/>
+<g class="ctrl">
+<circle data-c="Affect-Entire" cx="1851.5" cy="1209.5" r="59.5" stroke-width="3.7"/>
+<circle data-c="Back-Undo" cx="3864.5" cy="669.5" r="59.5" stroke-width="3.7"/>
+<circle data-c="CV" cx="3632.5" cy="1103.5" r="59.5" stroke-width="3.7"/>
+<circle data-c="Clip" cx="2283.5" cy="1320.5" r="59.5" stroke-width="3.7"/>
+<circle data-c="Cross-screen" cx="3437.5" cy="1320.5" r="59.5" stroke-width="3.7"/>
+<circle data-c="Function-1" cx="987.5" cy="886.0" r="59.5" stroke-width="3.6"/>
+<circle data-c="Function-2" cx="1203.5" cy="886.0" r="59.5" stroke-width="3.7"/>
+<circle data-c="Function-3" cx="1419.5" cy="886.0" r="59.5" stroke-width="3.7"/>
+<circle data-c="Function-4" cx="1635.5" cy="886.0" r="59.5" stroke-width="3.7"/>
+<circle data-c="Function-5" cx="1851.5" cy="886.0" r="59.5" stroke-width="3.7"/>
+<circle data-c="Function-6" cx="2067.5" cy="886.0" r="59.5" stroke-width="3.7"/>
+<circle data-c="Function-7" cx="2283.5" cy="886.0" r="59.5" stroke-width="3.7"/>
+<circle data-c="Function-8" cx="2499.5" cy="886.0" r="59.5" stroke-width="3.7"/>
+<circle data-c="Horizontal-Encoder" cx="987.0" cy="561.0" r="180.2" stroke-width="3.7"/>
+<circle data-c="Keyboard" cx="2711.0" cy="1320.5" r="59.5" stroke-width="3.7"/>
+<circle data-c="Kit" cx="3243.0" cy="1103.5" r="59.5" stroke-width="3.7"/>
+<circle data-c="Learn-Input" cx="3864.5" cy="1320.5" r="59.5" stroke-width="3.7"/>
+<circle data-c="Load" cx="3864.5" cy="887.0" r="59.5" stroke-width="3.7"/>
+<circle data-c="Lower-Gold-Encoder" cx="1529.0" cy="1211.5" r="163.9" stroke-width="5.5"/>
+<circle data-c="MIDI" cx="3438.0" cy="1103.5" r="59.5" stroke-width="3.7"/>
+<circle data-c="Output-Level" cx="5162.5" cy="561.0" r="163.9" stroke-width="5.5"/>
+<circle data-c="Play" cx="5159.0" cy="887.0" r="59.5" stroke-width="3.6"/>
+<circle data-c="Record" cx="5159.0" cy="1103.5" r="59.5" stroke-width="3.7"/>
+<circle data-c="Save" cx="3864.5" cy="1103.5" r="59.5" stroke-width="3.7"/>
+<circle data-c="Scale" cx="3091.5" cy="1320.5" r="59.5" stroke-width="3.7"/>
+<circle data-c="Select-Encoder" cx="2763.5" cy="882.5" r="152.5" stroke-width="3.7"/>
+<circle data-c="Shift" cx="5159.0" cy="1320.5" r="59.5" stroke-width="3.7"/>
+<circle data-c="Song" cx="2283.5" cy="1103.5" r="59.5" stroke-width="3.7"/>
+<circle data-c="Sync-scaling" cx="4538.0" cy="1103.5" r="59.5" stroke-width="3.6"/>
+<circle data-c="Synced" cx="4776.5" cy="674.0" r="19.6" stroke-width="3.6"/>
+<circle data-c="Synth" cx="3048.5" cy="1103.5" r="59.5" stroke-width="3.7"/>
+<circle data-c="Tap-Tempo" cx="4538.0" cy="887.0" r="59.5" stroke-width="3.6"/>
+<circle data-c="Tempo-Encoder" cx="4536.5" cy="561.0" r="164.2" stroke-width="5.0"/>
+<circle data-c="Triplets-View" cx="4538.0" cy="1320.5" r="59.5" stroke-width="3.7"/>
+<circle data-c="Upper-Gold-Encoder" cx="2068.5" cy="561.0" r="163.9" stroke-width="5.5"/>
+<circle data-c="Vertical-Encoder" cx="446.5" cy="1211.5" r="164.2" stroke-width="5.0"/>
+<circle cx="5477.0" cy="209.0" r="91.9" stroke-width="2.3"/>
+<circle cx="5477.0" cy="209.0" r="84.0" stroke-width="4.1"/>
+<circle cx="819.5" cy="193.5" r="19.7" stroke-width="3.8"/>
+<circle cx="4536.5" cy="561.5" r="180.2" stroke-width="4.7"/>
+<circle cx="5162.0" cy="561.0" r="180.2" stroke-width="3.7"/>
+<circle cx="987.0" cy="561.0" r="164.2" stroke-width="5.0"/>
+<rect class="frame" x="1793.8" y="402.8" width="56.5" height="56.5" rx="0.0" stroke-width="3.5"/>
+<rect class="frame" x="1793.8" y="490.8" width="56.5" height="56.5" rx="0.0" stroke-width="3.5"/>
+<rect class="frame" x="4756.5" y="569.5" width="192.0" height="70.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="1793.8" y="578.8" width="56.5" height="56.5" rx="0.0" stroke-width="3.5"/>
+<rect class="frame" x="1793.8" y="666.8" width="56.5" height="56.5" rx="0.0" stroke-width="3.5"/>
+<rect class="frame" x="3968.5" y="671.5" width="169.0" height="70.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="2948.6" y="727.6" width="734.8" height="238.8" rx="0.0" stroke-width="3.2"/>
+<rect class="frame" x="4630.5" y="880.5" width="71.0" height="82.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="3968.6" y="883.6" width="154.8" height="69.8" rx="0.0" stroke-width="3.2"/>
+<circle cx="447.0" cy="1212.0" r="180.2" stroke-width="3.7"/>
+<rect class="frame" x="1252.8" y="1048.8" width="56.5" height="56.5" rx="0.0" stroke-width="3.5"/>
+<rect class="frame" x="3968.5" y="1101.5" width="227.0" height="70.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="5256.5" y="1104.5" width="285.0" height="70.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="1252.8" y="1136.8" width="56.5" height="56.5" rx="0.0" stroke-width="3.5"/>
+<rect class="frame" x="2623.4" y="1164.4" width="277.2" height="69.2" rx="0.0" stroke-width="2.8"/>
+<rect class="frame" x="1252.8" y="1224.8" width="56.5" height="56.5" rx="0.0" stroke-width="3.5"/>
+<rect class="frame" x="5256.5" y="1285.5" width="179.0" height="70.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="1252.8" y="1312.8" width="56.5" height="56.5" rx="0.0" stroke-width="3.5"/>
+<rect class="frame" x="2038.5" y="1707.5" width="233.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="3800.5" y="1707.5" width="114.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="4036.5" y="1707.5" width="200.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="4400.5" y="1707.5" width="45.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="4682.4" y="1707.4" width="44.2" height="44.2" rx="0.0" stroke-width="2.8"/>
+<rect class="frame" x="956.5" y="1710.5" width="125.0" height="43.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="1208.5" y="1710.5" width="191.0" height="43.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="2057.6" y="1992.6" width="194.8" height="43.8" rx="0.0" stroke-width="3.2"/>
+<rect class="frame" x="3785.6" y="1992.6" width="137.8" height="43.8" rx="0.0" stroke-width="3.2"/>
+<rect class="frame" x="4025.6" y="1992.6" width="222.8" height="43.8" rx="0.0" stroke-width="3.2"/>
+<rect class="frame" x="4361.6" y="1992.6" width="120.8" height="43.8" rx="0.0" stroke-width="3.2"/>
+<rect class="frame" x="4643.6" y="1992.6" width="119.8" height="43.8" rx="0.0" stroke-width="3.2"/>
+<rect class="frame" x="2039.5" y="2275.5" width="229.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="3228.5" y="2275.5" width="116.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="3513.5" y="2275.5" width="116.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="3756.5" y="2275.5" width="200.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="4072.5" y="2275.5" width="129.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="4356.5" y="2275.5" width="130.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="4638.5" y="2275.5" width="129.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="2032.5" y="2562.5" width="245.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="2353.5" y="2562.5" width="167.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="3221.5" y="2562.5" width="140.0" height="43.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="3513.5" y="2562.5" width="123.0" height="43.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="3777.5" y="2562.5" width="150.0" height="43.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="4095.5" y="2562.5" width="84.0" height="43.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="4343.5" y="2562.5" width="154.0" height="43.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="4604.5" y="2562.5" width="202.0" height="43.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="2109.5" y="2843.5" width="90.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="2357.5" y="2843.5" width="155.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="3210.5" y="2843.5" width="155.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="3487.6" y="2843.6" width="171.8" height="43.8" rx="0.0" stroke-width="3.2"/>
+<rect class="frame" x="3795.5" y="2843.5" width="112.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="4054.6" y="2843.6" width="165.8" height="43.8" rx="0.0" stroke-width="3.2"/>
+<rect class="frame" x="4339.5" y="2843.5" width="165.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="4651.5" y="2843.5" width="108.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="2071.5" y="3129.5" width="170.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="2349.5" y="3129.5" width="178.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="3194.4" y="3129.4" width="191.2" height="44.2" rx="0.0" stroke-width="2.8"/>
+<rect class="frame" x="3516.5" y="3129.5" width="110.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="4339.5" y="3129.5" width="162.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="4621.5" y="3129.5" width="162.0" height="44.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="2323.6" y="3411.6" width="226.8" height="43.8" rx="0.0" stroke-width="3.2"/>
+<rect class="frame" x="4615.6" y="3411.6" width="180.8" height="43.8" rx="0.0" stroke-width="3.2"/>
+<rect class="frame" x="2365.5" y="3690.5" width="137.0" height="43.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="3201.5" y="3690.5" width="177.0" height="43.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="4580.5" y="3690.5" width="248.0" height="43.0" rx="0.0" stroke-width="3.0"/>
+<rect class="frame" x="3699.5" y="3761.5" width="51.0" height="67.0" rx="0.0" stroke-width="3.0"/>
+<rect data-c="pad-1-1" x="360.0" y="1504.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-1-2" x="359.9" y="1787.9" width="189.2" height="188.2" rx="17.5" stroke-width="3.8"/>
+<rect data-c="pad-1-3" x="360.0" y="2071.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-1-4" x="359.8" y="2354.8" width="189.5" height="188.5" rx="18.5" stroke-width="3.5"/>
+<rect data-c="pad-1-5" x="360.0" y="2638.0" width="189.0" height="189.0" rx="17.5" stroke-width="4.0"/>
+<rect data-c="pad-1-6" x="359.8" y="2921.8" width="189.5" height="188.5" rx="18.5" stroke-width="3.5"/>
+<rect data-c="pad-1-7" x="360.0" y="3205.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-1-8" x="360.0" y="3488.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-2-1" x="644.0" y="1504.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-2-2" x="643.9" y="1787.9" width="189.2" height="188.2" rx="17.4" stroke-width="3.8"/>
+<rect data-c="pad-2-3" x="644.0" y="2071.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-2-4" x="643.8" y="2354.8" width="189.5" height="188.5" rx="18.5" stroke-width="3.5"/>
+<rect data-c="pad-2-5" x="644.0" y="2638.0" width="189.0" height="189.0" rx="17.5" stroke-width="4.0"/>
+<rect data-c="pad-2-6" x="643.8" y="2921.8" width="189.5" height="188.5" rx="18.4" stroke-width="3.5"/>
+<rect data-c="pad-2-7" x="644.0" y="3205.0" width="189.0" height="189.0" rx="17.5" stroke-width="4.0"/>
+<rect data-c="pad-2-8" x="644.0" y="3488.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-3-1" x="927.9" y="1503.9" width="188.2" height="189.2" rx="17.5" stroke-width="3.8"/>
+<rect data-c="pad-3-2" x="927.8" y="1787.8" width="188.5" height="188.5" rx="17.4" stroke-width="3.5"/>
+<rect data-c="pad-3-3" x="927.9" y="2070.9" width="188.2" height="189.2" rx="17.5" stroke-width="3.8"/>
+<rect data-c="pad-3-4" x="927.6" y="2354.6" width="188.8" height="188.8" rx="18.5" stroke-width="3.2"/>
+<rect data-c="pad-3-5" x="927.9" y="2637.9" width="188.2" height="189.2" rx="17.4" stroke-width="3.8"/>
+<rect data-c="pad-3-6" x="927.6" y="2921.6" width="188.8" height="188.8" rx="18.5" stroke-width="3.2"/>
+<rect data-c="pad-3-7" x="927.9" y="3204.9" width="188.2" height="189.2" rx="17.5" stroke-width="3.8"/>
+<rect data-c="pad-3-8" x="927.9" y="3487.9" width="188.2" height="189.2" rx="17.5" stroke-width="3.8"/>
+<rect data-c="pad-4-1" x="1211.0" y="1504.0" width="189.0" height="189.0" rx="17.5" stroke-width="4.0"/>
+<rect data-c="pad-4-2" x="1210.9" y="1787.9" width="189.2" height="188.2" rx="17.3" stroke-width="3.8"/>
+<rect data-c="pad-4-3" x="1211.0" y="2071.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-4-4" x="1210.8" y="2354.8" width="189.5" height="188.5" rx="18.4" stroke-width="3.5"/>
+<rect data-c="pad-4-5" x="1211.0" y="2638.0" width="189.0" height="189.0" rx="17.7" stroke-width="4.0"/>
+<rect data-c="pad-4-6" x="1210.8" y="2921.8" width="189.5" height="188.5" rx="18.3" stroke-width="3.5"/>
+<rect data-c="pad-4-7" x="1211.0" y="3205.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-4-8" x="1211.0" y="3488.0" width="189.0" height="189.0" rx="17.5" stroke-width="4.0"/>
+<rect data-c="pad-5-1" x="1494.8" y="1503.8" width="188.5" height="189.5" rx="18.5" stroke-width="3.5"/>
+<rect data-c="pad-5-2" x="1494.6" y="1787.6" width="188.8" height="188.8" rx="18.3" stroke-width="3.2"/>
+<rect data-c="pad-5-3" x="1494.8" y="2070.8" width="188.5" height="189.5" rx="18.4" stroke-width="3.5"/>
+<rect data-c="pad-5-4" x="1494.5" y="2354.5" width="189.0" height="189.0" rx="19.5" stroke-width="3.0"/>
+<rect data-c="pad-5-5" x="1494.8" y="2637.8" width="188.5" height="189.5" rx="18.4" stroke-width="3.5"/>
+<rect data-c="pad-5-6" x="1494.5" y="2921.5" width="189.0" height="189.0" rx="19.5" stroke-width="3.0"/>
+<rect data-c="pad-5-7" x="1494.8" y="3204.8" width="188.5" height="189.5" rx="18.4" stroke-width="3.5"/>
+<rect data-c="pad-5-8" x="1494.8" y="3487.8" width="188.5" height="189.5" rx="18.5" stroke-width="3.5"/>
+<rect data-c="pad-6-1" x="1778.0" y="1504.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-6-2" x="1777.9" y="1787.9" width="189.2" height="188.2" rx="17.5" stroke-width="3.8"/>
+<rect data-c="pad-6-3" x="1778.0" y="2071.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-6-4" x="1777.8" y="2354.8" width="189.5" height="188.5" rx="18.4" stroke-width="3.5"/>
+<rect data-c="pad-6-5" x="1778.0" y="2638.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-6-6" x="1777.8" y="2921.8" width="189.5" height="188.5" rx="18.4" stroke-width="3.5"/>
+<rect data-c="pad-6-7" x="1778.0" y="3205.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-6-8" x="1778.0" y="3488.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-7-1" x="2061.8" y="1503.8" width="188.5" height="189.5" rx="18.4" stroke-width="3.5"/>
+<rect data-c="pad-7-2" x="2061.6" y="1787.6" width="188.8" height="188.8" rx="18.3" stroke-width="3.2"/>
+<rect data-c="pad-7-3" x="2061.8" y="2070.8" width="188.5" height="189.5" rx="18.4" stroke-width="3.5"/>
+<rect data-c="pad-7-4" x="2061.5" y="2354.5" width="189.0" height="189.0" rx="19.5" stroke-width="3.0"/>
+<rect data-c="pad-7-5" x="2061.8" y="2637.8" width="188.5" height="189.5" rx="18.4" stroke-width="3.5"/>
+<rect data-c="pad-7-6" x="2061.5" y="2921.5" width="189.0" height="189.0" rx="19.5" stroke-width="3.0"/>
+<rect data-c="pad-7-7" x="2061.8" y="3204.8" width="188.5" height="189.5" rx="18.4" stroke-width="3.5"/>
+<rect data-c="pad-7-8" x="2061.8" y="3487.8" width="188.5" height="189.5" rx="18.4" stroke-width="3.5"/>
+<rect data-c="pad-8-1" x="2345.0" y="1504.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-8-2" x="2344.9" y="1787.9" width="189.2" height="188.2" rx="17.4" stroke-width="3.8"/>
+<rect data-c="pad-8-3" x="2345.0" y="2071.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-8-4" x="2344.8" y="2354.8" width="189.5" height="188.5" rx="18.4" stroke-width="3.5"/>
+<rect data-c="pad-8-5" x="2345.0" y="2638.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-8-6" x="2344.8" y="2921.8" width="189.5" height="188.5" rx="18.3" stroke-width="3.5"/>
+<rect data-c="pad-8-7" x="2345.0" y="3205.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-8-8" x="2345.0" y="3488.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-9-1" x="2628.8" y="1503.8" width="188.5" height="189.5" rx="18.5" stroke-width="3.5"/>
+<rect data-c="pad-9-2" x="2628.6" y="1787.6" width="188.8" height="188.8" rx="18.3" stroke-width="3.2"/>
+<rect data-c="pad-9-3" x="2628.8" y="2070.8" width="188.5" height="189.5" rx="18.5" stroke-width="3.5"/>
+<rect data-c="pad-9-4" x="2628.5" y="2354.5" width="189.0" height="189.0" rx="19.4" stroke-width="3.0"/>
+<rect data-c="pad-9-5" x="2628.8" y="2637.8" width="188.5" height="189.5" rx="18.4" stroke-width="3.5"/>
+<rect data-c="pad-9-6" x="2628.5" y="2921.5" width="189.0" height="189.0" rx="19.4" stroke-width="3.0"/>
+<rect data-c="pad-9-7" x="2628.8" y="3204.8" width="188.5" height="189.5" rx="18.5" stroke-width="3.5"/>
+<rect data-c="pad-9-8" x="2628.8" y="3487.8" width="188.5" height="189.5" rx="18.5" stroke-width="3.5"/>
+<rect data-c="pad-10-1" x="2912.0" y="1504.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-10-2" x="2911.9" y="1787.9" width="189.2" height="188.2" rx="17.5" stroke-width="3.8"/>
+<rect data-c="pad-10-3" x="2912.0" y="2071.0" width="189.0" height="189.0" rx="17.5" stroke-width="4.0"/>
+<rect data-c="pad-10-4" x="2911.8" y="2354.8" width="189.5" height="188.5" rx="18.5" stroke-width="3.5"/>
+<rect data-c="pad-10-5" x="2912.0" y="2638.0" width="189.0" height="189.0" rx="17.7" stroke-width="4.0"/>
+<rect data-c="pad-10-6" x="2911.8" y="2921.8" width="189.5" height="188.5" rx="18.4" stroke-width="3.5"/>
+<rect data-c="pad-10-7" x="2912.0" y="3205.0" width="189.0" height="189.0" rx="17.5" stroke-width="4.0"/>
+<rect data-c="pad-10-8" x="2912.0" y="3488.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-11-1" x="3195.9" y="1503.9" width="188.2" height="189.2" rx="17.5" stroke-width="3.8"/>
+<rect data-c="pad-11-2" x="3195.8" y="1787.8" width="188.5" height="188.5" rx="17.4" stroke-width="3.5"/>
+<rect data-c="pad-11-3" x="3195.9" y="2070.9" width="188.2" height="189.2" rx="17.4" stroke-width="3.8"/>
+<rect data-c="pad-11-4" x="3195.6" y="2354.6" width="188.8" height="188.8" rx="18.4" stroke-width="3.2"/>
+<rect data-c="pad-11-5" x="3195.9" y="2637.9" width="188.2" height="189.2" rx="17.5" stroke-width="3.8"/>
+<rect data-c="pad-11-6" x="3195.6" y="2921.6" width="188.8" height="188.8" rx="18.3" stroke-width="3.2"/>
+<rect data-c="pad-11-7" x="3195.9" y="3204.9" width="188.2" height="189.2" rx="17.5" stroke-width="3.8"/>
+<rect data-c="pad-11-8" x="3195.9" y="3487.9" width="188.2" height="189.2" rx="17.5" stroke-width="3.8"/>
+<rect data-c="pad-12-1" x="3479.9" y="1503.9" width="188.2" height="189.2" rx="17.5" stroke-width="3.8"/>
+<rect data-c="pad-12-2" x="3479.8" y="1787.8" width="188.5" height="188.5" rx="17.4" stroke-width="3.5"/>
+<rect data-c="pad-12-3" x="3479.9" y="2070.9" width="188.2" height="189.2" rx="17.4" stroke-width="3.8"/>
+<rect data-c="pad-12-4" x="3479.6" y="2354.6" width="188.8" height="188.8" rx="18.4" stroke-width="3.2"/>
+<rect data-c="pad-12-5" x="3479.9" y="2637.9" width="188.2" height="189.2" rx="17.5" stroke-width="3.8"/>
+<rect data-c="pad-12-6" x="3479.6" y="2921.6" width="188.8" height="188.8" rx="18.3" stroke-width="3.2"/>
+<rect data-c="pad-12-7" x="3479.9" y="3204.9" width="188.2" height="189.2" rx="17.5" stroke-width="3.8"/>
+<rect data-c="pad-12-8" x="3479.9" y="3487.9" width="188.2" height="189.2" rx="17.5" stroke-width="3.8"/>
+<rect data-c="pad-13-1" x="3763.0" y="1504.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-13-2" x="3762.9" y="1787.9" width="189.2" height="188.2" rx="17.5" stroke-width="3.8"/>
+<rect data-c="pad-13-3" x="3763.0" y="2071.0" width="189.0" height="189.0" rx="17.5" stroke-width="4.0"/>
+<rect data-c="pad-13-4" x="3762.8" y="2354.8" width="189.5" height="188.5" rx="18.5" stroke-width="3.5"/>
+<rect data-c="pad-13-5" x="3763.0" y="2638.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-13-6" x="3762.8" y="2921.8" width="189.5" height="188.5" rx="18.4" stroke-width="3.5"/>
+<rect data-c="pad-13-7" x="3763.0" y="3205.0" width="189.0" height="189.0" rx="17.5" stroke-width="4.0"/>
+<rect data-c="pad-13-8" x="3763.0" y="3488.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-14-1" x="4046.8" y="1503.8" width="188.5" height="189.5" rx="18.5" stroke-width="3.5"/>
+<rect data-c="pad-14-2" x="4046.6" y="1787.6" width="188.8" height="188.8" rx="18.4" stroke-width="3.2"/>
+<rect data-c="pad-14-3" x="4046.8" y="2070.8" width="188.5" height="189.5" rx="18.5" stroke-width="3.5"/>
+<rect data-c="pad-14-4" x="4046.5" y="2354.5" width="189.0" height="189.0" rx="19.4" stroke-width="3.0"/>
+<rect data-c="pad-14-5" x="4046.8" y="2637.8" width="188.5" height="189.5" rx="18.3" stroke-width="3.5"/>
+<rect data-c="pad-14-6" x="4046.5" y="2921.5" width="189.0" height="189.0" rx="19.4" stroke-width="3.0"/>
+<rect data-c="pad-14-7" x="4046.8" y="3204.8" width="188.5" height="189.5" rx="18.5" stroke-width="3.5"/>
+<rect data-c="pad-14-8" x="4046.8" y="3487.8" width="188.5" height="189.5" rx="18.5" stroke-width="3.5"/>
+<rect data-c="pad-15-1" x="4330.0" y="1504.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-15-2" x="4329.9" y="1787.9" width="189.2" height="188.2" rx="17.4" stroke-width="3.8"/>
+<rect data-c="pad-15-3" x="4330.0" y="2071.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-15-4" x="4329.8" y="2354.8" width="189.5" height="188.5" rx="18.4" stroke-width="3.5"/>
+<rect data-c="pad-15-5" x="4330.0" y="2638.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-15-6" x="4329.8" y="2921.8" width="189.5" height="188.5" rx="18.3" stroke-width="3.5"/>
+<rect data-c="pad-15-7" x="4330.0" y="3205.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-15-8" x="4330.0" y="3488.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-16-1" x="4613.8" y="1503.8" width="188.5" height="189.5" rx="18.5" stroke-width="3.5"/>
+<rect data-c="pad-16-2" x="4613.6" y="1787.6" width="188.8" height="188.8" rx="18.3" stroke-width="3.2"/>
+<rect data-c="pad-16-3" x="4613.8" y="2070.8" width="188.5" height="189.5" rx="18.4" stroke-width="3.5"/>
+<rect data-c="pad-16-4" x="4613.5" y="2354.5" width="189.0" height="189.0" rx="19.5" stroke-width="3.0"/>
+<rect data-c="pad-16-5" x="4613.8" y="2637.8" width="188.5" height="189.5" rx="18.4" stroke-width="3.5"/>
+<rect data-c="pad-16-6" x="4613.5" y="2921.5" width="189.0" height="189.0" rx="19.4" stroke-width="3.0"/>
+<rect data-c="pad-16-7" x="4613.8" y="3204.8" width="188.5" height="189.5" rx="18.4" stroke-width="3.5"/>
+<rect data-c="pad-16-8" x="4613.8" y="3487.8" width="188.5" height="189.5" rx="18.5" stroke-width="3.5"/>
+<rect data-c="pad-17-1" x="5064.0" y="1504.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-17-2" x="5063.9" y="1787.9" width="189.2" height="188.2" rx="17.5" stroke-width="3.8"/>
+<rect data-c="pad-17-3" x="5064.0" y="2071.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-17-4" x="5063.8" y="2354.8" width="189.5" height="188.5" rx="18.5" stroke-width="3.5"/>
+<rect data-c="pad-17-5" x="5064.0" y="2638.0" width="189.0" height="189.0" rx="17.5" stroke-width="4.0"/>
+<rect data-c="pad-17-6" x="5063.8" y="2921.8" width="189.5" height="188.5" rx="18.5" stroke-width="3.5"/>
+<rect data-c="pad-17-7" x="5064.0" y="3205.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-17-8" x="5064.0" y="3488.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-18-1" x="5348.0" y="1504.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-18-2" x="5347.9" y="1787.9" width="189.2" height="188.2" rx="17.4" stroke-width="3.8"/>
+<rect data-c="pad-18-3" x="5348.0" y="2071.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+<rect data-c="pad-18-4" x="5347.8" y="2354.8" width="189.5" height="188.5" rx="18.5" stroke-width="3.5"/>
+<rect data-c="pad-18-5" x="5348.0" y="2638.0" width="189.0" height="189.0" rx="17.5" stroke-width="4.0"/>
+<rect data-c="pad-18-6" x="5347.8" y="2921.8" width="189.5" height="188.5" rx="18.4" stroke-width="3.5"/>
+<rect data-c="pad-18-7" x="5348.0" y="3205.0" width="189.0" height="189.0" rx="17.5" stroke-width="4.0"/>
+<rect data-c="pad-18-8" x="5348.0" y="3488.0" width="189.0" height="189.0" rx="17.6" stroke-width="4.0"/>
+</g>
+<path class="ink" d="M811 3691L808 3692L808 3714L807 3715L490 3715L489 3714L489 3693L488 3692L366 3692L365 3693L365 3737L489 3737L489 3718L490 3717L811 3717ZM367 3695L368 3694L486 3694L487 3695L487 3734L486 3735L368 3735L367 3734ZM2243 3691L2242 3690L2241 3691L2241 3714L2240 3715L1065 3715L1064 3714L1064 3693L1063 3692L925 3692L925 3737L1063 3737L1064 3736L1064 3718L1065 3717L2243 3717ZM927 3695L928 3694L1061 3694L1062 3695L1062 3733L1060 3735L928 3735L927 3734ZM3081 3688L3079 3688L3079 3711L3078 3712L2816 3712L2815 3711L2815 3690L2814 3689L2637 3689L2636 3690L2636 3734L2814 3734L2815 3733L2815 3716L2816 3715L3080 3715L3081 3714ZM2638 3692L2639 3691L2812 3691L2813 3692L2813 3731L2812 3732L2639 3732L2638 3731ZM4498 3688L4497 3686L4495 3687L4495 3709L4494 3710L3591 3710L3590 3709L3590 3689L3483 3689L3482 3690L3482 3734L3590 3734L3590 3714L3591 3713L4497 3713L4498 3711ZM3484 3692L3485 3691L3587 3691L3588 3692L3588 3731L3587 3732L3485 3732L3484 3731ZM3689 3035L3689 3042L3696 3042L3696 3035ZM3411 3034L3405 3034L3405 3041L3409 3042L3404 3048L3405 3050L3408 3049L3411 3046ZM4263 3003L4243 3023L4245 3025L4254 3025L4255 3026L4255 3038L4256 3039L4271 3039L4271 3026L4272 3025L4281 3025L4283 3024L4283 3022ZM4263 3007L4277 3020L4276 3022L4269 3022L4269 3035L4267 3037L4260 3037L4258 3035L4258 3022L4250 3022L4249 3021ZM859 3003L841 3021L840 3024L842 3025L851 3025L852 3026L852 3038L853 3039L868 3039L868 3026L869 3025L878 3025L880 3024L880 3022L861 3003ZM860 3007L874 3020L873 3022L866 3022L865 3023L865 3036L864 3037L856 3037L855 3036L855 3023L846 3021ZM3753 2945L3725 2945L3723 2947L3723 3565L3724 3567L3728 3567L3729 3565L3729 2952L3730 2951L3753 2951L3755 2949L3755 2947ZM2335 2942L2308 2942L2307 2943L2307 3548L2309 3548L2309 2946L2310 2945L2335 2945L2336 2944ZM3678 2731L3678 2758L3697 2758L3697 2754L3683 2754L3682 2753L3682 2731ZM4248 2730L4248 2738L4249 2740L4252 2740L4252 2731ZM3128 2730L3123 2730L3123 2752L3119 2755L3116 2753L3115 2750L3111 2750L3111 2754L3113 2757L3123 2757L3126 2756L3128 2752ZM2904 2659L2876 2659L2875 2660L2875 2861L2874 2862L2794 2862L2793 2861L2793 2842L2637 2842L2636 2843L2636 2887L2638 2888L2792 2888L2793 2887L2793 2867L2795 2865L2874 2865L2875 2866L2875 3148L2874 3149L2774 3149L2773 3148L2773 3129L2772 3128L2637 3128L2636 3129L2636 3173L2637 3174L2772 3174L2773 3173L2773 3153L2774 3152L2874 3152L2875 3153L2875 3431L2874 3432L2802 3432L2801 3431L2801 3410L2637 3410L2636 3411L2636 3455L2638 3456L2800 3456L2801 3455L2801 3436L2802 3435L2874 3435L2875 3436L2875 3450L2877 3451L2878 3450L2878 3436L2879 3435L3080 3435L3081 3434L3081 3408L3079 3408L3079 3431L3078 3432L2879 3432L2878 3431L2878 3153L2879 3152L3079 3152L3081 3151L3081 3125L3079 3125L3079 3147L3077 3149L2879 3149L2878 3148L2878 2866L2879 2865L3081 2865L3081 2839L3079 2838L3079 2861L3078 2862L2879 2862L2878 2861L2878 2663L2880 2661L2904 2661ZM2638 3413L2639 3412L2798 3412L2800 3414L2800 3431L2799 3432L2799 3452L2798 3454L2640 3454L2638 3452ZM2638 3131L2639 3130L2770 3130L2771 3131L2771 3171L2770 3172L2639 3172L2638 3171ZM2638 2845L2639 2844L2790 2844L2791 2845L2791 2885L2790 2886L2640 2886L2638 2884ZM2620 2657L2594 2657L2591 2658L2591 3451L2592 3452L2596 3451L2596 2664L2597 2663L2621 2663L2623 2660ZM3397 2446L3397 2473L3402 2473L3402 2446ZM4320 2376L4294 2376L4293 2377L4293 3431L4292 3432L4013 3432L4012 3431L4012 3152L4013 3151L4217 3151L4218 3150L4218 3125L4217 3124L4215 3125L4215 3147L4214 3148L4013 3148L4012 3147L4012 2951L4014 2949L4038 2949L4038 2947L4010 2947L4010 3147L4009 3148L3907 3148L3906 3147L3906 3129L3905 3128L3770 3128L3769 3129L3769 3173L3770 3174L3905 3174L3906 3173L3906 3152L3907 3151L4009 3151L4010 3152L4010 3431L4009 3432L3886 3432L3885 3431L3885 3411L3884 3410L3773 3410L3772 3411L3772 3455L3774 3456L3883 3456L3885 3455L3885 3436L3886 3435L4009 3435L4010 3436L4010 3566L4012 3565L4012 3436L4013 3435L4292 3435L4293 3436L4293 3535L4294 3536L4295 3535L4295 3436L4296 3435L4496 3435L4498 3433L4498 3410L4497 3408L4495 3408L4495 3431L4494 3432L4296 3432L4295 3431L4295 2380L4296 2379L4321 2379ZM3774 3413L3775 3412L3882 3412L3883 3413L3883 3432L3882 3433L3883 3434L3883 3452L3881 3454L3776 3454L3774 3452ZM3771 3131L3772 3130L3903 3130L3904 3131L3904 3171L3903 3172L3772 3172L3771 3171ZM3469 2374L3442 2374L3441 2375L3441 3431L3440 3432L3317 3432L3316 3431L3316 3410L3203 3410L3203 3454L3204 3455L3315 3455L3316 3454L3316 3436L3317 3435L3440 3435L3441 3436L3441 3584L3444 3583L3444 3436L3445 3435L3646 3435L3648 3434L3648 3409L3647 3408L3645 3409L3645 3431L3644 3432L3445 3432L3444 3431L3444 2378L3445 2377L3468 2377L3470 2376ZM3205 3413L3206 3412L3313 3412L3314 3413L3314 3452L3313 3453L3206 3453L3205 3452ZM2337 2372L2309 2372L2309 2657L2311 2657L2311 2376L2312 2375L2336 2375L2338 2373ZM2594 2308L2591 2309L2590 2311L2590 2590L2591 2592L2596 2591L2596 2310ZM3081 2274L3080 2273L3079 2274L3079 2296L3077 2298L2802 2298L2800 2296L2800 2274L2637 2274L2637 2319L2638 2320L2799 2320L2800 2319L2800 2302L2802 2300L3081 2300ZM2639 2277L2640 2276L2797 2276L2798 2277L2798 2317L2797 2318L2640 2318L2639 2317ZM2015 2238L2014 2240L2014 2253L2037 2253L2037 2240L2033 2236L2028 2234L2019 2234ZM2017 2242L2020 2239L2024 2238L2030 2239L2033 2242L2034 2248L2032 2250L2018 2250L2017 2249ZM2014 2226L2014 2229L2037 2229L2037 2226ZM2037 2206L2033 2203L2027 2203L2024 2206L2022 2214L2019 2217L2017 2215L2016 2211L2020 2207L2020 2204L2017 2204L2014 2207L2013 2211L2014 2217L2017 2220L2022 2220L2025 2217L2027 2209L2029 2207L2031 2207L2034 2210L2033 2215L2029 2218L2030 2221L2032 2221L2037 2215ZM4248 2183L4248 2187L4258 2187L4258 2183ZM2014 2182L2014 2200L2017 2199L2017 2193L2018 2192L2037 2192L2037 2189L2018 2189L2017 2188L2017 2182ZM4556 2169L4555 2171L4562 2178L4557 2183L4555 2187L4558 2187L4565 2181L4572 2188L4573 2185L4567 2178L4573 2172L4573 2170L4572 2169L4564 2176ZM1987 2167L1982 2170L1981 2174L1985 2174L1987 2171L1990 2171L1992 2173L1992 2176L1990 2178L1988 2178L1987 2182L1991 2182L1994 2187L1990 2192L1988 2192L1985 2188L1980 2188L1981 2191L1984 2194L1993 2194L1996 2193L1998 2189L1998 2184L1993 2180L1997 2176L1997 2172L1995 2169L1991 2167ZM4525 2178L4530 2184L4543 2194L4591 2194L4592 2193L4592 2164L4591 2163L4543 2163ZM4529 2178L4545 2165L4588 2165L4589 2166L4589 2190L4587 2192L4545 2192L4531 2181ZM2017 2159L2013 2166L2013 2170L2015 2175L2022 2179L2028 2179L2033 2177L2037 2171L2037 2162L2032 2158L2029 2157L2021 2157ZM2016 2168L2017 2165L2021 2161L2029 2161L2034 2167L2033 2171L2028 2175L2020 2175L2017 2171ZM2037 2132L2031 2135L2027 2139L2023 2134L2015 2134L2014 2137L2014 2152L2037 2152L2036 2148L2028 2148L2027 2147L2027 2144L2037 2136ZM2018 2138L2023 2139L2024 2142L2024 2147L2023 2148L2018 2148L2017 2147L2017 2139ZM2014 2112L2014 2130L2017 2129L2017 2124L2018 2123L2036 2123L2037 2122L2037 2119L2018 2119L2017 2118L2017 2112ZM2014 2104L2014 2108L2036 2108L2037 2107L2037 2104ZM3184 2092L3157 2092L3156 2093L3156 3476L3157 3477L3159 3474L3159 2096L3160 2095L3183 2095L3185 2094ZM2019 2077L2016 2080L2013 2087L2015 2095L2021 2099L2030 2099L2036 2094L2037 2091L2037 2085L2033 2079L2027 2077ZM2017 2085L2020 2082L2027 2081L2030 2082L2033 2085L2034 2090L2029 2095L2021 2095L2017 2091L2016 2088ZM2014 2054L2014 2058L2027 2058L2028 2059L2014 2068L2014 2072L2037 2072L2036 2069L2023 2069L2022 2068L2037 2058L2036 2054ZM3646 1989L3644 1989L3644 2011L3642 2013L3363 2013L3362 2012L3362 1991L3206 1991L3205 1992L3205 2036L3206 2037L3361 2037L3362 2036L3362 2017L3363 2016L3644 2016L3646 2015ZM3207 1994L3208 1993L3359 1993L3360 1994L3360 2012L3359 2013L3360 2016L3360 2033L3359 2034L3208 2034L3207 2033ZM1740 1807L1740 1990L1739 1991L1502 1991L1500 1992L1500 2036L1501 2037L1738 2037L1740 2039L1740 2293L1739 2294L1478 2294L1476 2295L1477 2297L1738 2297L1740 2299L1740 2578L1739 2579L1478 2579L1477 2580L1478 2582L1739 2582L1740 2583L1740 2861L1739 2862L1479 2862L1477 2863L1478 2865L1738 2865L1740 2867L1740 3146L1739 3147L1479 3147L1478 3148L1479 3150L1739 3150L1740 3151L1740 3429L1739 3430L1479 3430L1478 3433L1738 3433L1740 3435L1740 3488L1742 3488L1742 3434L1743 3433L2022 3433L2023 3434L2023 3516L2025 3516L2026 3515L2026 3434L2027 3433L2238 3433L2239 3432L2239 3407L2238 3406L2236 3407L2236 3429L2235 3430L2027 3430L2026 3429L2026 2377L2027 2376L2052 2376L2052 2374L2023 2374L2023 3429L2022 3430L1743 3430L1742 3429L1742 3151L1743 3150L1946 3150L1947 3149L1947 3124L1946 3123L1944 3124L1944 3146L1943 3147L1743 3147L1742 3146L1742 2866L1743 2865L1946 2865L1947 2864L1947 2839L1946 2838L1944 2839L1944 2861L1943 2862L1743 2862L1742 2861L1742 2583L1743 2582L1946 2582L1947 2581L1947 2556L1946 2555L1944 2556L1944 2578L1943 2579L1743 2579L1742 2578L1742 2298L1743 2297L1946 2297L1947 2296L1947 2271L1946 2270L1944 2271L1944 2293L1943 2294L1743 2294L1742 2293L1742 2017L1743 2016L1945 2016L1947 2015L1947 1989L1944 1990L1944 2012L1943 2013L1743 2013L1742 2012L1742 1811L1743 1810L1763 1810L1764 1807ZM1502 1995L1504 1993L1738 1993L1739 1994L1739 2013L1738 2014L1739 2015L1739 2034L1738 2035L1503 2035L1502 2034ZM913 1807L889 1807L889 3546L890 3547L892 3546L892 1810L893 1809L913 1809ZM1481 1805L1460 1805L1457 1807L1457 3488L1458 3489L1462 3488L1462 1812L1463 1811L1483 1811L1484 1806ZM2632 2036L2633 2037L2863 2037L2864 2036L2864 2017L2865 2016L2877 2016L2878 2017L2878 2170L2880 2170L2880 2017L2881 2016L3079 2016L3081 2015L3081 1989L3079 1989L3079 2011L3077 2013L2881 2013L2880 2012L2880 1732L2881 1731L3155 1731L3156 1732L3156 1864L3158 1864L3159 1862L3159 1732L3160 1731L3441 1731L3442 1732L3442 1821L3444 1822L3445 1821L3445 1732L3446 1731L3650 1731L3651 1730L3651 1704L3649 1704L3649 1727L3648 1728L3446 1728L3445 1727L3445 1528L3446 1527L3469 1527L3471 1526L3471 1524L3443 1524L3442 1525L3442 1727L3441 1728L3160 1728L3159 1727L3159 1528L3160 1527L3183 1527L3185 1525L3184 1524L3157 1524L3156 1525L3156 1727L3155 1728L2881 1728L2880 1727L2880 1528L2881 1527L2904 1527L2906 1526L2906 1524L2878 1524L2878 1727L2877 1728L2865 1728L2864 1727L2864 1706L2629 1706L2629 1751L2630 1752L2863 1752L2864 1751L2864 1732L2865 1731L2877 1731L2878 1732L2878 2011L2876 2013L2865 2013L2864 2012L2864 1991L2633 1991L2632 1992ZM2634 1994L2635 1993L2861 1993L2862 1994L2862 2033L2861 2034L2635 2034L2634 2033ZM2631 1709L2632 1708L2861 1708L2862 1709L2862 1749L2861 1750L2632 1750L2631 1749ZM2052 1524L2024 1524L2023 1525L2023 2028L2026 2027L2026 1528L2027 1527L2050 1527L2052 1526ZM4293 1523L4293 2332L4575 2332L4576 2333L4576 3399L4578 3400L4579 3398L4579 2331L4578 2330L4297 2330L4295 2328L4295 1527L4297 1525L4321 1525L4322 1524L4321 1523ZM4035 1523L4007 1523L4006 1524L4006 2650L4007 2651L4009 2650L4009 1526L4010 1525L4035 1525ZM1458 1523L1457 1524L1457 1744L1461 1745L1462 1744L1462 1524ZM2617 1522L2591 1522L2588 1524L2588 2170L2590 2172L2592 2172L2594 2169L2594 1529L2595 1528L2618 1528L2620 1526L2620 1524ZM1193 1522L1169 1522L1169 2012L1168 2013L1156 2013L1155 2012L1155 1992L1154 1991L927 1991L925 1992L925 2037L1155 2037L1155 2017L1156 2016L1168 2016L1169 2017L1169 2294L1168 2295L1133 2295L1132 2294L1132 2276L1131 2275L925 2275L925 2320L1131 2320L1132 2319L1132 2299L1133 2298L1168 2298L1169 2299L1169 2557L1168 2558L925 2558L925 2603L1168 2603L1169 2604L1169 2862L1168 2863L1006 2863L1005 2862L1005 2844L1004 2843L925 2843L925 2888L1004 2888L1005 2887L1005 2867L1006 2866L1169 2866L1170 2867L1170 3147L1169 3148L1042 3148L1041 3147L1041 3127L925 3127L925 3172L1041 3172L1041 3152L1043 3150L1169 3150L1170 3151L1170 3429L1169 3430L1160 3430L1159 3429L1159 3411L1158 3410L925 3410L925 3455L1158 3455L1159 3454L1159 3434L1160 3433L1169 3433L1170 3434L1170 3547L1171 3548L1173 3547L1173 3434L1174 3433L1433 3433L1434 3432L1433 3430L1174 3430L1173 3429L1173 3152L1175 3150L1433 3150L1433 3148L1174 3148L1173 3147L1173 2867L1174 2866L1432 2866L1433 2865L1433 2863L1173 2863L1172 2862L1172 2604L1173 2603L1199 2603L1199 2584L1200 2583L1431 2583L1432 2582L1431 2580L1200 2580L1199 2579L1199 2558L1173 2558L1172 2557L1172 2299L1173 2298L1432 2298L1431 2295L1173 2295L1172 2294L1172 2017L1173 2016L1374 2016L1376 2014L1376 1990L1375 1989L1373 1989L1373 2012L1372 2013L1172 2013L1171 2012L1171 1526L1172 1525L1192 1525ZM927 3413L928 3412L1156 3412L1157 3413L1157 3429L1155 3431L1157 3434L1157 3452L1156 3453L928 3453L927 3452ZM927 3130L928 3129L1038 3129L1039 3130L1039 3169L1038 3170L928 3170L927 3169ZM927 2846L928 2845L1001 2845L1002 2846L1002 2885L1001 2886L928 2886L927 2885ZM927 2561L928 2560L1196 2560L1197 2561L1197 2600L1196 2601L928 2601L927 2600ZM927 2278L928 2277L1128 2277L1130 2279L1130 2317L1129 2318L928 2318L927 2317ZM927 1994L928 1993L1152 1993L1153 1994L1153 2034L1152 2035L928 2035L927 2034ZM628 1522L605 1522L604 1524L604 1727L603 1728L582 1728L581 1727L581 1709L365 1709L365 1754L581 1754L581 1732L582 1731L603 1731L604 1732L604 1990L603 1991L366 1991L365 1992L365 2036L366 2037L603 2037L604 2038L604 2295L603 2296L542 2296L541 2295L541 2275L540 2274L366 2274L365 2275L365 2319L366 2320L541 2320L541 2300L542 2299L603 2299L604 2300L604 2578L603 2579L542 2579L541 2578L541 2558L365 2558L365 2602L366 2603L541 2603L541 2583L542 2582L603 2582L604 2583L604 2841L603 2842L366 2842L365 2843L365 2887L366 2888L603 2888L604 2889L604 3145L603 3146L507 3146L506 3145L506 3127L505 3126L365 3126L365 3170L366 3171L505 3171L506 3169L506 3149L507 3148L603 3148L604 3149L604 3429L603 3430L550 3430L549 3429L549 3410L548 3409L365 3409L365 3454L548 3454L549 3453L549 3434L550 3433L603 3433L604 3434L604 3493L605 3495L607 3494L607 3434L608 3433L810 3433L811 3432L811 3407L810 3406L808 3407L808 3429L807 3430L608 3430L607 3429L607 3149L608 3148L810 3148L811 3147L811 3122L808 3123L808 3145L807 3146L608 3146L607 3145L607 2889L608 2888L624 2888L625 2887L625 2868L626 2867L809 2867L811 2866L811 2841L810 2840L808 2841L808 2863L807 2864L626 2864L625 2863L625 2843L624 2842L608 2842L607 2841L607 2583L608 2582L810 2582L811 2581L811 2556L810 2555L808 2556L808 2578L807 2579L608 2579L607 2578L607 2300L608 2299L809 2299L811 2298L811 2273L810 2272L808 2273L808 2295L807 2296L608 2296L607 2295L607 2038L608 2037L659 2037L660 2036L660 2017L661 2016L809 2016L811 2015L811 1989L808 1990L808 2012L807 2013L661 2013L660 2012L660 1992L659 1991L608 1991L607 1990L607 1732L608 1731L809 1731L811 1730L811 1705L810 1704L808 1705L808 1727L807 1728L608 1728L607 1727L607 1526L608 1525L627 1525ZM367 3412L368 3411L546 3411L547 3412L547 3429L546 3430L547 3434L547 3451L546 3452L368 3452L367 3451ZM367 3129L368 3128L503 3128L504 3129L504 3168L503 3169L368 3169L367 3168ZM367 2845L368 2844L621 2844L623 2846L623 2885L622 2886L608 2886L607 2885L604 2886L368 2886L367 2885ZM367 2561L368 2560L538 2560L539 2561L539 2600L538 2601L368 2601L367 2600ZM367 2277L368 2276L538 2276L539 2277L539 2317L538 2318L368 2318L367 2317ZM367 1994L368 1993L657 1993L658 1994L658 2012L657 2013L658 2016L658 2033L656 2035L368 2035L367 2034ZM367 1712L368 1711L578 1711L579 1712L579 1751L578 1752L368 1752L367 1751ZM348 1522L325 1522L324 1524L324 3493L325 3495L327 3494L327 1526L328 1525L347 1525ZM3753 1521L3725 1521L3723 1523L3723 2651L3724 2652L3729 2651L3729 1528L3730 1527L3753 1527L3755 1525L3755 1523ZM5031 1516L5030 1517L5030 3683L5033 3684L5034 3683L5034 1517ZM4839 1516L4837 1517L4837 3684L4840 3683L4840 1517ZM2183 1278L2185 1281L2206 1290L2210 1289L2210 1286L2187 1276L2185 1276ZM2803 1275L2802 1276L2802 1358L2885 1358L2886 1357L2886 1276L2885 1275ZM2871 1283L2883 1283L2884 1284L2884 1356L2883 1357L2863 1357L2862 1356L2862 1324L2863 1323L2869 1323L2869 1285ZM2837 1283L2851 1283L2853 1285L2853 1323L2860 1323L2861 1324L2861 1356L2860 1357L2830 1357L2829 1356L2829 1324L2830 1323L2836 1323L2836 1284ZM2805 1283L2818 1283L2819 1284L2819 1323L2826 1323L2827 1324L2827 1356L2826 1357L2805 1357L2804 1356L2804 1284ZM2139 1259L2140 1262L2163 1272L2166 1270L2165 1267L2144 1258ZM2095 1240L2095 1243L2118 1253L2121 1253L2122 1251L2120 1248L2099 1239ZM758 1188L734 1236L734 1238L735 1239L784 1239L785 1237L761 1189ZM759 1193L761 1194L762 1198L765 1202L779 1232L781 1234L780 1236L739 1236L738 1235ZM670 1188L670 1190L695 1239L697 1238L697 1236L700 1232L701 1228L721 1190L721 1188ZM674 1190L716 1190L717 1191L697 1232L695 1234L673 1191ZM2122 1172L2120 1170L2116 1171L2104 1177L2097 1179L2095 1181L2095 1183L2097 1185L2121 1175ZM2166 1153L2161 1152L2149 1158L2140 1161L2139 1164L2142 1166L2155 1161L2162 1157L2164 1157L2166 1155ZM2210 1134L2206 1133L2185 1142L2183 1145L2185 1147L2188 1147L2209 1138ZM4652 893L4640 949L4641 950L4690 950L4691 949L4691 944L4682 907L4687 898L4687 896L4684 895L4683 898L4681 899L4679 893ZM4679 913L4681 916L4685 935L4684 936L4669 936L4668 935L4669 931ZM4675 896L4677 898L4677 907L4664 934L4662 936L4648 936L4647 931L4649 926L4649 917L4655 897L4656 896ZM856 722L853 722L847 728L577 1046L578 1050L580 1050L845 739L856 726ZM440 632L441 635L593 635L593 631L441 631ZM582 585L582 590L576 617L595 617L595 615L581 615L580 614L580 604L583 602L598 602L598 600L584 600L583 599L583 589L586 587L601 587L601 585ZM562 585L556 617L573 617L573 615L560 615L559 614L565 588L565 585ZM549 585L539 585L533 617L545 617L552 612L555 603L554 600L549 595L552 592L552 588ZM548 598L552 603L551 608L545 614L538 615L537 614L537 609L539 599L541 597ZM541 589L543 587L547 587L549 589L549 592L545 595L542 595L541 594ZM534 585L531 585L529 597L524 617L527 617ZM518 587L512 585L505 585L504 586L498 617L510 617L516 613L520 609L524 598L521 590ZM513 588L517 590L520 594L521 597L520 603L514 611L509 614L503 615L502 614L502 609L504 604L506 589L508 587ZM500 585L497 585L492 609L487 614L484 615L479 615L474 610L474 605L478 589L478 585L476 585L471 607L472 613L475 616L481 618L486 617L494 611L496 606L496 596ZM461 584L457 588L441 615L441 617L443 617L445 615L447 610L451 605L462 605L465 617L468 617ZM459 591L462 601L461 602L454 602L453 600ZM1277 535L1277 585L1280 585L1326 562L1328 559L1278 534ZM1279 581L1279 539L1280 538L1321 558L1323 560L1280 582ZM1259 585L1259 535L1258 534L1208 559L1210 562L1256 585ZM1257 539L1257 581L1256 582L1233 570L1231 570L1225 566L1223 566L1217 562L1215 562L1213 560L1215 558L1255 538ZM711 505L711 510L702 551L700 566L706 566L714 521L716 518L732 553L761 519L762 520L753 566L759 566L771 508L770 505L765 505L735 541L733 540L718 506L717 505ZM594 505L582 566L588 566L591 548L593 546L602 546L604 548L613 566L620 566L610 547L610 545L619 540L625 534L629 524L629 516L625 511L618 506L614 505ZM599 511L614 511L619 514L622 518L622 527L620 531L612 538L606 540L594 540L593 539ZM589 505L550 505L549 510L563 510L565 512L561 536L558 546L558 556L555 561L555 566L561 566L571 512L573 510L589 510ZM468 505L462 531L462 536L456 566L462 566L466 542L468 540L491 540L492 541L487 566L493 566L505 505L499 505L498 507L494 532L492 534L469 534L468 533L474 505ZM464 505L424 505L423 510L438 510L439 511L430 556L430 566L435 566L445 512L447 510L462 510ZM376 505L370 535L370 540L364 566L370 566L371 565L379 520L381 518L403 566L408 566L420 505L414 505L409 533L406 543L406 548L404 553L382 505ZM688 509L679 505L666 505L656 505L645 512L635 522L630 533L630 543L630 551L634 556L642 563L646 565L656 567L671 565L684 558L693 549L697 542L699 533L699 522L695 516ZM683 513L690 520L693 528L693 534L687 547L677 556L665 561L653 561L644 557L637 549L635 542L635 534L640 525L648 517L659 511L675 511ZM532 504L523 504L519 507L514 512L512 516L512 523L514 527L517 530L530 536L535 541L536 548L534 553L529 558L523 561L514 561L507 555L506 548L500 550L500 554L502 559L507 564L511 566L520 566L528 566L533 562L539 556L541 552L541 541L540 537L534 531L521 525L518 521L519 515L526 510L532 510L537 516L541 515L542 512L540 508ZM306 505L298 505L292 506L284 514L284 523L285 527L290 531L296 533L304 538L307 543L307 549L305 553L300 558L294 561L283 561L278 555L277 548L271 550L273 559L278 564L282 566L291 566L301 564L310 556L313 550L313 538L305 531L297 528L291 524L289 521L289 518L291 514L297 510L305 510L308 516L312 515L313 511L310 507ZM2885 501L2885 525L2908 525L2910 527L2910 550L2933 550L2934 551L2934 574L2958 574L2958 550L2935 550L2934 549L2934 526L2910 526L2909 525L2909 501ZM360 486L354 491L318 533L319 536L337 536L343 540L322 577L326 580L368 530L368 527L351 527L343 523L364 489ZM2785 473L2784 474L2784 497L2808 497L2809 498L2809 522L2833 522L2834 523L2834 547L2857 547L2858 548L2858 571L2859 572L2882 572L2883 571L2883 548L2882 547L2859 547L2858 546L2858 523L2835 523L2833 521L2833 498L2810 498L2809 497L2809 474L2808 473ZM2885 448L2885 472L2908 472L2910 474L2910 497L2933 497L2934 498L2934 521L2935 522L2958 522L2958 498L2935 498L2934 497L2934 473L2910 473L2909 472L2909 448ZM2959 447L2959 471L2983 471L2984 472L2984 496L3007 496L3008 497L3008 520L3033 520L3033 497L3032 496L3009 496L3008 495L3008 472L2984 472L2983 471L2983 447ZM3422 405L3422 500L3423 501L3423 510L3425 518L3430 528L3442 539L3451 543L3461 545L3470 545L3483 542L3494 536L3499 531L3500 532L3500 542L3537 542L3537 405L3498 405L3498 480L3497 481L3497 487L3493 499L3488 504L3479 509L3472 509L3468 507L3464 503L3463 500L3463 405ZM3743 402L3742 403L3732 403L3723 407L3710 415L3698 428L3691 441L3687 453L3687 466L3685 467L3685 481L3686 482L3686 495L3694 514L3707 530L3715 536L3728 542L3736 544L3755 544L3774 541L3784 536L3792 530L3804 516L3808 508L3812 495L3776 490L3771 501L3764 508L3756 511L3745 511L3739 509L3731 502L3727 493L3727 483L3727 482L3812 482L3812 468L3812 467L3812 453L3805 435L3801 428L3792 417L3783 410L3772 405L3759 402ZM3727 451L3732 441L3738 436L3745 433L3753 433L3762 437L3767 442L3771 450L3770 453L3728 453ZM3275 402L3274 403L3264 403L3255 407L3248 411L3234 423L3227 433L3223 441L3218 459L3218 469L3217 470L3217 490L3222 505L3228 517L3234 525L3244 534L3257 541L3260 541L3264 543L3276 543L3277 545L3287 545L3306 541L3323 531L3331 523L3336 516L3341 506L3344 495L3308 490L3303 501L3296 508L3289 511L3277 511L3271 509L3261 499L3258 483L3259 482L3344 482L3345 481L3345 466L3341 445L3337 435L3331 425L3323 416L3315 410L3301 404L3291 402ZM3259 451L3265 440L3270 436L3277 433L3285 433L3291 435L3299 442L3303 450L3302 453L3260 453ZM3687 381L3662 381L3655 383L3649 386L3641 394L3636 404L3626 402L3606 402L3587 406L3577 411L3572 415L3563 426L3559 436L3559 449L3559 450L3559 455L3563 465L3571 474L3560 485L3556 495L3556 510L3563 521L3554 530L3550 538L3550 544L3549 545L3549 552L3551 561L3554 567L3563 576L3575 582L3586 585L3592 585L3600 587L3631 587L3632 586L3644 586L3657 581L3672 572L3681 562L3686 550L3686 535L3684 524L3678 515L3673 510L3663 504L3652 501L3644 501L3643 500L3598 500L3595 499L3592 496L3591 492L3595 487L3604 489L3615 489L3616 490L3637 488L3654 481L3665 472L3673 458L3673 438L3669 426L3662 417L3665 414L3670 414L3671 413L3687 413ZM3585 538L3587 536L3597 538L3638 538L3647 541L3649 543L3649 548L3645 553L3636 556L3628 556L3627 557L3606 557L3598 554L3592 551L3585 544ZM3601 438L3609 432L3613 431L3625 431L3630 435L3634 441L3634 452L3632 456L3625 461L3621 462L3609 462L3605 459L3600 453L3600 443ZM882 780L882 786L881 787L881 985L882 986L882 992L885 999L892 1006L898 1009L904 1009L905 1010L1525 1010L1526 1011L1526 1028L1525 1029L1506 1029L1505 1031L1489 1033L1468 1039L1451 1046L1425 1061L1413 1070L1394 1088L1375 1113L1362 1137L1352 1166L1349 1180L1349 1194L1347 1195L1347 1227L1348 1228L1348 1242L1353 1260L1362 1285L1370 1301L1381 1318L1394 1334L1406 1346L1422 1359L1434 1367L1453 1377L1484 1388L1505 1392L1514 1392L1515 1393L1552 1393L1553 1391L1569 1389L1587 1384L1600 1379L1625 1366L1648 1349L1667 1330L1680 1313L1688 1300L1700 1274L1704 1262L1709 1239L1709 1220L1711 1219L1711 1203L1710 1202L1710 1191L1709 1190L1709 1183L1706 1168L1696 1138L1688 1122L1675 1102L1666 1091L1649 1074L1631 1060L1618 1052L1600 1043L1573 1034L1558 1031L1552 1031L1551 1030L1532 1030L1531 1028L1531 1011L1532 1010L1847 1010L1848 1011L1848 1127L1853 1127L1853 1011L1854 1010L2531 1010L2547 1016L2553 1020L2561 1028L2568 1040L2571 1051L2571 1313L2570 1314L2485 1314L2485 1319L2570 1319L2571 1320L2571 1408L2575 1417L2582 1423L2588 1425L3724 1425L3733 1421L3739 1414L3741 1408L3741 687L3737 678L3733 674L3723 670L2723 670L2722 671L2706 671L2705 672L2684 674L2670 678L2666 678L2642 686L2626 694L2624 694L2602 706L2563 731L2535 751L2522 757L2502 762L2073 762L2072 761L2072 744L2073 743L2097 741L2112 737L2116 737L2148 725L2164 716L2180 705L2195 692L2208 678L2218 665L2228 649L2237 630L2244 610L2248 592L2248 577L2250 576L2250 545L2249 544L2249 529L2242 505L2236 489L2227 471L2210 446L2189 424L2178 415L2160 403L2140 393L2121 386L2105 382L2085 380L2084 379L2052 379L2051 380L2032 382L2016 386L1999 392L1982 400L1960 414L1950 422L1929 443L1910 470L1897 498L1892 514L1888 533L1888 550L1886 551L1886 570L1887 571L1887 582L1888 583L1890 600L1899 629L1914 658L1932 682L1947 697L1962 709L1974 717L1991 726L2005 732L2025 738L2040 741L2047 741L2048 742L2066 742L2067 744L2067 761L2066 762L901 762L895 764L889 768L885 773ZM1512 1033L1546 1033L1547 1034L1565 1036L1584 1041L1614 1054L1642 1073L1658 1088L1670 1102L1678 1113L1689 1132L1701 1163L1705 1181L1705 1197L1707 1198L1707 1224L1706 1225L1706 1241L1701 1259L1694 1279L1688 1292L1686 1294L1686 1296L1667 1324L1642 1349L1614 1368L1595 1377L1581 1382L1566 1386L1548 1388L1547 1389L1511 1389L1480 1383L1465 1378L1449 1370L1447 1370L1418 1351L1393 1327L1385 1317L1370 1293L1358 1264L1354 1249L1352 1231L1351 1230L1351 1217L1350 1216L1350 1192L1352 1191L1354 1173L1357 1165L1358 1158L1370 1129L1389 1100L1418 1071L1442 1055L1460 1046L1477 1040ZM3738 1410L3736 1414L3730 1420L3726 1422L2586 1422L2582 1420L2576 1414L2573 1404L2573 1048L2568 1034L2560 1023L2553 1017L2543 1011L2527 1007L900 1007L895 1005L889 1000L885 994L884 990L884 782L886 776L893 768L899 765L905 765L906 764L2505 764L2518 761L2531 756L2587 718L2614 702L2641 689L2676 678L2699 675L2700 674L2709 674L2710 673L3726 673L3730 675L3736 681L3738 685ZM2064 382L2087 382L2088 384L2101 384L2130 393L2159 407L2184 425L2209 451L2221 468L2231 487L2236 499L2243 523L2245 540L2246 541L2246 557L2247 558L2245 588L2237 620L2230 637L2223 650L2214 664L2202 679L2187 694L2168 709L2141 724L2116 733L2098 737L2082 737L2081 739L2045 739L2017 732L2000 726L1980 716L1953 697L1932 676L1913 649L1904 631L1897 612L1893 596L1891 575L1890 574L1890 538L1893 531L1893 525L1901 498L1905 488L1917 466L1935 442L1961 418L1979 406L1997 397L2019 389L2031 386L2049 384L2050 383L2063 383ZM2760 374L2760 398L2784 398L2785 399L2785 423L2809 423L2810 424L2810 448L2833 448L2834 449L2834 472L2858 472L2858 448L2835 448L2834 447L2834 424L2833 423L2810 423L2809 422L2809 399L2786 399L2784 397L2784 374ZM3360 360L3360 542L3399 542L3399 360ZM3202 360L3163 360L3163 407L3162 408L3151 402L3143 400L3125 400L3117 402L3103 410L3094 420L3087 432L3082 446L3080 464L3079 465L3079 479L3080 480L3080 494L3086 511L3095 527L3107 538L3122 544L3137 544L3152 541L3164 532L3165 533L3165 542L3202 542ZM3138 435L3146 435L3153 438L3158 443L3161 449L3161 459L3163 460L3163 485L3161 495L3157 502L3153 506L3146 510L3136 510L3132 508L3126 502L3121 486L3121 460L3122 455L3127 443L3133 437ZM2858 324L2858 348L2881 348L2882 349L2882 372L2883 373L2906 373L2907 374L2907 397L2931 397L2932 398L2932 422L2956 422L2956 398L2932 398L2931 397L2931 373L2908 373L2907 372L2907 349L2883 349L2882 348L2882 324ZM2784 322L2783 323L2783 347L2807 347L2808 348L2808 371L2831 371L2832 372L2832 396L2856 396L2857 397L2857 421L2881 421L2881 397L2858 397L2856 395L2856 372L2833 372L2832 371L2832 347L2808 347L2807 346L2807 322ZM5475 226L5475 230L5479 230L5479 226ZM5475 228L5477 226L5479 228L5477 230ZM1013 227L1014 229L1037 229L1038 228L1038 226L1014 226ZM5488 221L5486 223L5488 226L5490 226L5492 223L5490 221ZM5487 223L5490 222L5491 224L5488 225ZM5464 221L5462 224L5463 226L5466 226L5467 222ZM5463 223L5465 222L5467 224L5464 225ZM880 215L880 224L879 225L871 225L870 229L879 229L880 230L880 239L884 239L884 230L885 229L894 229L894 225L885 225L884 224L884 215ZM5482 213L5480 216L5481 218L5484 218L5485 214ZM5481 215L5483 214L5485 216L5482 217ZM5474 215L5471 213L5469 214L5469 218L5473 218ZM5469 216L5471 214L5473 215L5471 218ZM5458 212L5457 216L5460 217L5462 214L5460 212ZM5457 214L5460 213L5461 215L5459 216ZM5497 212L5495 211L5493 212L5493 216L5496 216ZM5493 214L5495 212L5497 214L5495 216ZM5475 207L5474 210L5477 212L5479 210L5479 208ZM5475 210L5476 207L5479 209L5477 211ZM1047 223L1044 216L1038 210L1031 207L1021 207L1014 210L1009 215L1006 221L1006 224L1004 226L957 226L956 228L957 229L1004 229L1006 231L1007 237L1014 245L1020 248L1027 249L1035 247L1041 243L1047 232ZM1023 210L1030 210L1036 213L1041 218L1044 226L1042 236L1035 243L1031 245L1022 245L1017 243L1011 237L1009 233L1009 222L1016 213ZM4139 206L4134 207L4134 237L4133 238L4041 238L4041 242L4138 242L4139 241ZM3690 206L3690 242L3789 242L3789 238L3695 238L3694 237L3694 206ZM3345 206L3341 206L3341 237L3340 238L3227 238L3227 242L3344 242L3345 241ZM2939 206L2939 241L2940 242L3058 242L3058 238L2945 238L2944 237L2944 206ZM2629 206L2625 206L2625 236L2623 238L2570 238L2570 242L2628 242L2629 241ZM2385 206L2385 241L2386 242L2444 242L2444 238L2391 238L2389 236L2389 206ZM2147 206L2142 207L2142 237L2141 238L1941 238L1941 242L2146 242L2147 241ZM1406 206L1406 242L1611 242L1611 238L1411 238L1410 237L1410 206ZM861 225L861 234L865 240L869 244L877 248L887 248L894 245L900 239L904 229L940 229L942 231L942 234L945 240L949 244L957 248L967 248L975 244L974 241L965 245L956 245L952 242L945 233L945 222L947 218L953 212L958 210L965 210L971 213L973 212L972 209L963 206L956 207L950 210L944 216L942 220L942 224L940 226L904 226L898 213L893 209L884 206L876 206L870 210L864 216ZM878 210L887 210L891 212L898 219L900 226L899 233L897 237L892 242L885 245L879 245L872 242L865 233L865 222L867 218L873 212ZM5467 205L5466 206L5467 209L5470 209L5471 205ZM5467 208L5468 205L5471 207L5469 209ZM5483 204L5482 207L5485 209L5487 207L5487 205ZM5483 206L5485 205L5486 207L5484 208ZM5457 202L5458 206L5462 205L5462 203L5460 201ZM5458 203L5460 202L5461 204L5459 205ZM5492 200L5491 203L5494 205L5496 203L5496 201ZM5492 202L5494 201L5495 203L5493 204ZM5475 199L5474 202L5477 204L5479 203L5479 200ZM5475 202L5477 199L5479 201L5477 203ZM5464 193L5463 195L5466 198L5468 196L5468 194ZM5464 196L5466 193L5468 195L5466 197ZM5485 192L5484 195L5486 197L5489 196L5489 193ZM5485 194L5487 193L5488 195L5486 196ZM5143 191L5143 196L5252 196L5252 191ZM5476 189L5474 192L5476 194L5478 194L5479 190ZM5475 191L5478 190L5479 192L5476 193ZM919 174L919 180L932 180L932 174ZM1703 159L1703 192L1846 192L1846 159L1845 158L1704 158ZM1726 162L1727 161L1771 161L1772 162L1772 189L1771 190L1727 190L1726 189ZM1773 161L1774 160L1843 160L1844 161L1844 190L1843 191L1775 191L1773 189ZM1706 160L1723 160L1724 161L1724 190L1723 191L1706 191L1705 190L1705 161ZM4367 162L4358 172L4354 180L4354 190L4352 191L4354 205L4358 212L4358 226L4360 228L4364 229L4367 234L4370 234L4373 232L4373 199L4371 197L4366 197L4364 202L4359 203L4357 198L4357 187L4362 175L4371 165L4376 162L4384 159L4394 159L4404 159L4412 164L4420 171L4426 181L4428 191L4428 201L4425 203L4422 202L4419 197L4414 197L4413 198L4413 232L4415 234L4420 233L4421 230L4423 228L4425 228L4426 226L4426 213L4429 209L4432 200L4432 184L4426 171L4415 160L4400 154L4384 154ZM2384 154L2377 162L2374 163L2374 168L2376 168L2382 164L2384 165L2384 191L2390 191L2390 154ZM1405 154L1399 161L1395 163L1395 168L1397 168L1403 164L1404 165L1404 190L1405 191L1411 191L1411 154ZM1008 153L1021 190L1029 190L1042 153L1035 153L1034 154L1034 157L1031 163L1029 172L1025 180L1017 160L1016 154L1015 153ZM988 154L982 157L980 163L986 164L987 161L990 158L994 158L997 160L998 164L997 167L984 180L979 190L1004 190L1004 184L991 184L990 183L1001 172L1004 166L1004 160L999 154ZM963 153L957 160L953 162L953 168L961 163L962 164L962 190L968 190L968 153ZM881 153L877 155L874 159L873 162L873 171L880 177L887 177L889 175L891 177L889 183L885 186L883 186L880 182L874 182L874 184L877 189L886 191L891 189L896 183L897 180L897 163L892 155L888 153ZM883 158L886 158L890 162L890 169L886 173L883 173L880 170L879 163ZM22 21L22 3936L23 3938L25 3939L217 3939L220 3936L220 3874L221 3873L5597 3873L5598 3874L5598 3937L5600 3939L5793 3939L5796 3935L5796 22L5794 19L5792 18L5602 18L5598 21L5598 83L5597 84L221 84L220 83L220 21L216 18L26 18ZM221 94L222 93L5596 93L5598 95L5598 3863L5597 3864L222 3864L221 3863ZM5608 27L5785 27L5787 29L5787 3929L5786 3930L5608 3930L5607 3929L5607 28ZM32 27L209 27L211 29L211 3929L210 3930L32 3930L31 3929L31 28Z" fill-rule="evenodd"/>
+<g class="txt">
+<text x="1115" y="191" font-size="53.1" textLength="106" lengthAdjust="spacingAndGlyphs">CLK</text>
+<text x="3290" y="192" font-size="53.1" textLength="109" lengthAdjust="spacingAndGlyphs">OUT</text>
+<text x="664" y="214" font-size="53.1" textLength="106" lengthAdjust="spacingAndGlyphs">USB</text>
+<text x="2922" y="192" font-size="53.1" textLength="45" lengthAdjust="spacingAndGlyphs">IN</text>
+<text x="3577" y="192" font-size="53.8" textLength="236" lengthAdjust="spacingAndGlyphs">L / MONO</text>
+<text x="4669" y="214" font-size="53.1" textLength="182" lengthAdjust="spacingAndGlyphs">LINE IN</text>
+<text x="5001" y="214" font-size="53.1" textLength="127" lengthAdjust="spacingAndGlyphs">GAIN</text>
+<text x="5266" y="214" font-size="53.1" textLength="91" lengthAdjust="spacingAndGlyphs">MIC</text>
+<text x="1144" y="246" font-size="54.5" textLength="45" lengthAdjust="spacingAndGlyphs">IN</text>
+<text x="1641" y="259" font-size="53.1" textLength="268" lengthAdjust="spacingAndGlyphs">GATE OUT</text>
+<text x="2473" y="259" font-size="53.8" textLength="71" lengthAdjust="spacingAndGlyphs">CV</text>
+<text x="3090" y="258" font-size="53.1" textLength="105" lengthAdjust="spacingAndGlyphs">MIDI</text>
+<text x="4755" y="547" font-size="46.1" textLength="163" lengthAdjust="spacingAndGlyphs">TEMPO</text>
+<text x="5364" y="546" font-size="47.5" textLength="189" lengthAdjust="spacingAndGlyphs">OUTPUT</text>
+<text x="4769" y="622" font-size="46.1" textLength="153" lengthAdjust="spacingAndGlyphs">SWING</text>
+<text x="5366" y="594" font-size="46.1" textLength="145" lengthAdjust="spacingAndGlyphs">LEVEL</text>
+<text x="3985" y="722" font-size="46.1" textLength="129" lengthAdjust="spacingAndGlyphs">REDO</text>
+<text x="4816" y="684" font-size="33.5" textLength="136" lengthAdjust="spacingAndGlyphs">SYNCED</text>
+<text x="935" y="810" font-size="32.1" textLength="104" lengthAdjust="spacingAndGlyphs">LEVEL</text>
+<text x="1354" y="811" font-size="32.1" textLength="131" lengthAdjust="spacingAndGlyphs">ATTACK</text>
+<text x="2206" y="811" font-size="32.1" textLength="152" lengthAdjust="spacingAndGlyphs">STUTTER</text>
+<text x="2413" y="811" font-size="33.5" textLength="169" lengthAdjust="spacingAndGlyphs">CUSTOM 2</text>
+<text x="3967" y="863" font-size="46.1" textLength="127" lengthAdjust="spacingAndGlyphs">LOAD</text>
+<text x="4623" y="863" font-size="46.1" textLength="265" lengthAdjust="spacingAndGlyphs">TAP TEMPO</text>
+<text x="5257" y="904" font-size="47.5" textLength="116" lengthAdjust="spacingAndGlyphs">PLAY</text>
+<text x="3985" y="934" font-size="46.1" textLength="105" lengthAdjust="spacingAndGlyphs">NEW</text>
+<text x="954" y="988" font-size="33.5" textLength="63" lengthAdjust="spacingAndGlyphs">PAN</text>
+<text x="1135" y="988" font-size="33.5" textLength="140" lengthAdjust="spacingAndGlyphs">RES / FM</text>
+<text x="1346" y="988" font-size="33.5" textLength="153" lengthAdjust="spacingAndGlyphs">RELEASE</text>
+<text x="1563" y="988" font-size="33.5" textLength="146" lengthAdjust="spacingAndGlyphs">AMOUNT</text>
+<text x="1785" y="988" font-size="33.5" textLength="135" lengthAdjust="spacingAndGlyphs">REVERB</text>
+<text x="2016" y="988" font-size="33.5" textLength="108" lengthAdjust="spacingAndGlyphs">DEPTH</text>
+<text x="2201" y="988" font-size="33.5" textLength="164" lengthAdjust="spacingAndGlyphs">CUSTOM 1</text>
+<text x="2417" y="988" font-size="33.5" textLength="168" lengthAdjust="spacingAndGlyphs">CUSTOM 3</text>
+<text x="3966" y="1080" font-size="47.5" textLength="119" lengthAdjust="spacingAndGlyphs">SAVE</text>
+<text x="5257" y="1083" font-size="46.1" textLength="196" lengthAdjust="spacingAndGlyphs">RECORD</text>
+<text x="2373" y="1120" font-size="47.5" textLength="132" lengthAdjust="spacingAndGlyphs">SONG</text>
+<text x="2675" y="1136" font-size="47.5" textLength="181" lengthAdjust="spacingAndGlyphs">SELECT</text>
+<text x="4623" y="1120" font-size="47.5" textLength="351" lengthAdjust="spacingAndGlyphs">SYNC-SCALING</text>
+<text x="3985" y="1152" font-size="47.5" textLength="178" lengthAdjust="spacingAndGlyphs">DELETE</text>
+<text x="5270" y="1157" font-size="47.5" textLength="253" lengthAdjust="spacingAndGlyphs">RESAMPLE</text>
+<text x="1933" y="1204" font-size="33.5" textLength="130" lengthAdjust="spacingAndGlyphs">AFFECT</text>
+<text x="2644" y="1216" font-size="47.5" textLength="230" lengthAdjust="spacingAndGlyphs">SETTINGS</text>
+<text x="2967" y="1216" font-size="47.5" textLength="153" lengthAdjust="spacingAndGlyphs">SYNTH</text>
+<text x="3210" y="1216" font-size="47.5" textLength="71" lengthAdjust="spacingAndGlyphs">KIT</text>
+<text x="3394" y="1216" font-size="47.5" textLength="92" lengthAdjust="spacingAndGlyphs">MIDI</text>
+<text x="3603" y="1216" font-size="47.5" textLength="62" lengthAdjust="spacingAndGlyphs">CV</text>
+<text x="1935" y="1238" font-size="32.1" textLength="118" lengthAdjust="spacingAndGlyphs">ENTIRE</text>
+<text x="2373" y="1335" font-size="46.1" textLength="102" lengthAdjust="spacingAndGlyphs">CLIP</text>
+<text x="3173" y="1336" font-size="47.5" textLength="154" lengthAdjust="spacingAndGlyphs">SCALE</text>
+<text x="3522" y="1312" font-size="47.5" textLength="178" lengthAdjust="spacingAndGlyphs">CROSS-</text>
+<text x="3521" y="1360" font-size="47.5" textLength="189" lengthAdjust="spacingAndGlyphs">SCREEN</text>
+<text x="4622" y="1339" font-size="46.1" textLength="357" lengthAdjust="spacingAndGlyphs">TRIPLETS VIEW</text>
+<text x="5268" y="1338" font-size="46.1" textLength="132" lengthAdjust="spacingAndGlyphs">SHIFT</text>
+<text x="377" y="1744" font-size="33.5" textLength="191" lengthAdjust="spacingAndGlyphs">WAVEFORM</text>
+<text x="969" y="1744" font-size="33.5" textLength="100" lengthAdjust="spacingAndGlyphs">NOISE</text>
+<text x="1220" y="1744" font-size="33.5" textLength="170" lengthAdjust="spacingAndGlyphs">OSC SYNC</text>
+<text x="2050" y="1742" font-size="33.5" textLength="209" lengthAdjust="spacingAndGlyphs">SATURATION</text>
+<text x="2642" y="1743" font-size="33.5" textLength="207" lengthAdjust="spacingAndGlyphs">FREQUENCY</text>
+<text x="3813" y="1741" font-size="33.5" textLength="84" lengthAdjust="spacingAndGlyphs">RATE</text>
+<text x="4045" y="1742" font-size="33.5" textLength="183" lengthAdjust="spacingAndGlyphs">ROOM SIZE</text>
+<text x="379" y="2027" font-size="33.5" textLength="265" lengthAdjust="spacingAndGlyphs">INTERPOLATION</text>
+<text x="937" y="2027" font-size="33.5" textLength="202" lengthAdjust="spacingAndGlyphs">WAVETABLE</text>
+<text x="1509" y="2027" font-size="33.5" textLength="218" lengthAdjust="spacingAndGlyphs">DESTINATION</text>
+<text x="2070" y="2026" font-size="33.5" textLength="167" lengthAdjust="spacingAndGlyphs">BITCRUSH</text>
+<text x="2648" y="2026" font-size="33.5" textLength="209" lengthAdjust="spacingAndGlyphs">RESONANCE</text>
+<text x="3219" y="2026" font-size="33.5" textLength="132" lengthAdjust="spacingAndGlyphs">ADJUST</text>
+<text x="3800" y="2026" font-size="33.5" textLength="108" lengthAdjust="spacingAndGlyphs">DEPTH</text>
+<text x="4039" y="2026" font-size="33.5" textLength="200" lengthAdjust="spacingAndGlyphs">DAMPENING</text>
+<text x="4375" y="2026" font-size="33.5" textLength="89" lengthAdjust="spacingAndGlyphs">ENV 1</text>
+<text x="4657" y="2026" font-size="33.5" textLength="92" lengthAdjust="spacingAndGlyphs">ENV 2</text>
+<text x="379" y="2310" font-size="33.5" textLength="146" lengthAdjust="spacingAndGlyphs">BROWSE</text>
+<text x="939" y="2310" font-size="33.5" textLength="182" lengthAdjust="spacingAndGlyphs">FEEDBACK</text>
+<text x="2052" y="2310" font-size="33.5" textLength="204" lengthAdjust="spacingAndGlyphs">DECIMATION</text>
+<text x="3240" y="2310" font-size="33.5" textLength="90" lengthAdjust="spacingAndGlyphs">SEND</text>
+<text x="3526" y="2309" font-size="33.5" textLength="94" lengthAdjust="spacingAndGlyphs">NAME</text>
+<text x="3767" y="2310" font-size="33.5" textLength="183" lengthAdjust="spacingAndGlyphs">FEEDBACK</text>
+<text x="4083" y="2309" font-size="33.5" textLength="106" lengthAdjust="spacingAndGlyphs">WIDTH</text>
+<text x="4374" y="2310" font-size="33.5" textLength="87" lengthAdjust="spacingAndGlyphs">LFO 1</text>
+<text x="4656" y="2310" font-size="33.5" textLength="90" lengthAdjust="spacingAndGlyphs">LFO 2</text>
+<text x="379" y="2593" font-size="33.5" textLength="140" lengthAdjust="spacingAndGlyphs">RECORD</text>
+<text x="939" y="2593" font-size="33.5" textLength="246" lengthAdjust="spacingAndGlyphs">RETRIG PHASE</text>
+<text x="2044" y="2597" font-size="33.5" textLength="219" lengthAdjust="spacingAndGlyphs">SYNTH MODE</text>
+<text x="2366" y="2597" font-size="33.5" textLength="143" lengthAdjust="spacingAndGlyphs">NUMBER</text>
+<text x="3231" y="2596" font-size="33.5" textLength="112" lengthAdjust="spacingAndGlyphs">SHAPE</text>
+<text x="3524" y="2596" font-size="33.5" textLength="96" lengthAdjust="spacingAndGlyphs">MODE</text>
+<text x="3789" y="2596" font-size="33.5" textLength="129" lengthAdjust="spacingAndGlyphs">OFFSET</text>
+<text x="4106" y="2596" font-size="33.5" textLength="63" lengthAdjust="spacingAndGlyphs">PAN</text>
+<text x="4353" y="2596" font-size="33.5" textLength="135" lengthAdjust="spacingAndGlyphs">STEREO</text>
+<text x="4615" y="2596" font-size="33.5" textLength="179" lengthAdjust="spacingAndGlyphs">SIDECHAIN</text>
+<text x="379" y="2878" font-size="33.5" textLength="237" lengthAdjust="spacingAndGlyphs">PITCH / SPEED</text>
+<text x="939" y="2878" font-size="33.5" textLength="51" lengthAdjust="spacingAndGlyphs">PW</text>
+<text x="2122" y="2877" font-size="33.5" textLength="62" lengthAdjust="spacingAndGlyphs">PAN</text>
+<text x="2370" y="2878" font-size="33.5" textLength="133" lengthAdjust="spacingAndGlyphs">DETUNE</text>
+<text x="2648" y="2878" font-size="33.5" textLength="131" lengthAdjust="spacingAndGlyphs">ATTACK</text>
+<text x="3221" y="2878" font-size="33.5" textLength="131" lengthAdjust="spacingAndGlyphs">ATTACK</text>
+<text x="3497" y="2878" font-size="33.5" textLength="153" lengthAdjust="spacingAndGlyphs">OCTAVES</text>
+<text x="3805" y="2877" font-size="33.5" textLength="85" lengthAdjust="spacingAndGlyphs">TYPE</text>
+<text x="4062" y="2878" font-size="33.5" textLength="145" lengthAdjust="spacingAndGlyphs">AMOUNT</text>
+<text x="4346" y="2878" font-size="33.5" textLength="146" lengthAdjust="spacingAndGlyphs">AMOUNT</text>
+<text x="4661" y="2878" font-size="33.5" textLength="88" lengthAdjust="spacingAndGlyphs">NOTE</text>
+<text x="378" y="3161" font-size="33.5" textLength="110" lengthAdjust="spacingAndGlyphs">SPEED</text>
+<text x="937" y="3162" font-size="33.5" textLength="85" lengthAdjust="spacingAndGlyphs">TYPE</text>
+<text x="2082" y="3164" font-size="33.5" textLength="145" lengthAdjust="spacingAndGlyphs">VIBRATO</text>
+<text x="2362" y="3164" font-size="33.5" textLength="154" lengthAdjust="spacingAndGlyphs">PRIORITY</text>
+<text x="2650" y="3164" font-size="33.5" textLength="111" lengthAdjust="spacingAndGlyphs">DECAY</text>
+<text x="3206" y="3164" font-size="33.5" textLength="172" lengthAdjust="spacingAndGlyphs">VOL DUCK</text>
+<text x="3527" y="3164" font-size="33.5" textLength="87" lengthAdjust="spacingAndGlyphs">GATE</text>
+<text x="3782" y="3164" font-size="33.5" textLength="112" lengthAdjust="spacingAndGlyphs">SHAPE</text>
+<text x="4350" y="3164" font-size="33.5" textLength="142" lengthAdjust="spacingAndGlyphs">ANALOG</text>
+<text x="4628" y="3164" font-size="33.5" textLength="146" lengthAdjust="spacingAndGlyphs">RANDOM</text>
+<text x="379" y="3444" font-size="33.5" textLength="155" lengthAdjust="spacingAndGlyphs">REVERSE</text>
+<text x="937" y="3445" font-size="33.5" textLength="205" lengthAdjust="spacingAndGlyphs">TRANSPOSE</text>
+<text x="2337" y="3446" font-size="33.5" textLength="203" lengthAdjust="spacingAndGlyphs">POLYPHONY</text>
+<text x="2649" y="3446" font-size="33.5" textLength="140" lengthAdjust="spacingAndGlyphs">SUSTAIN</text>
+<text x="4622" y="3446" font-size="33.5" textLength="165" lengthAdjust="spacingAndGlyphs">VELOCITY</text>
+<text x="379" y="3727" font-size="33.5" textLength="96" lengthAdjust="spacingAndGlyphs">MODE</text>
+<text x="939" y="3727" font-size="33.5" textLength="104" lengthAdjust="spacingAndGlyphs">LEVEL</text>
+<text x="2378" y="3724" font-size="33.5" textLength="112" lengthAdjust="spacingAndGlyphs">PORTA</text>
+<text x="2650" y="3724" font-size="33.5" textLength="153" lengthAdjust="spacingAndGlyphs">RELEASE</text>
+<text x="3214" y="3724" font-size="33.5" textLength="154" lengthAdjust="spacingAndGlyphs">RELEASE</text>
+<text x="3492" y="3724" font-size="33.5" textLength="84" lengthAdjust="spacingAndGlyphs">RATE</text>
+<text x="4591" y="3724" font-size="33.5" textLength="226" lengthAdjust="spacingAndGlyphs">AFTERTOUCH</text>
+<text x="5117" y="3787" font-size="32.1" textLength="90" lengthAdjust="spacingAndGlyphs">MUTE</text>
+<text x="5364" y="3787" font-size="32.1" textLength="158" lengthAdjust="spacingAndGlyphs">AUDITION</text>
+<text x="5082" y="3821" font-size="33.5" textLength="157" lengthAdjust="spacingAndGlyphs">/ LAUNCH</text>
+<text x="5361" y="3821" font-size="33.5" textLength="164" lengthAdjust="spacingAndGlyphs">/ SECTION</text>
+<text x="1098" y="811" font-size="32.1" textLength="207" lengthAdjust="spacingAndGlyphs">CUTOFF / FM</text>
+<text x="1537" y="810" font-size="32.1" textLength="194" lengthAdjust="spacingAndGlyphs">DELAY TIME</text>
+<text x="1717" y="145" font-size="33.5" textLength="39" lengthAdjust="spacingAndGlyphs">9V</text>
+<text x="1760" y="811" font-size="32.1" textLength="179" lengthAdjust="spacingAndGlyphs">SIDECHAIN</text>
+<text x="1778" y="145" font-size="33.5" textLength="56" lengthAdjust="spacingAndGlyphs">12V</text>
+<text x="1982" y="811" font-size="32.1" textLength="172" lengthAdjust="spacingAndGlyphs">MOD RATE</text>
+<text x="2650" y="2310" font-size="34.2" textLength="140" lengthAdjust="spacingAndGlyphs">dB / OCT</text>
+<text x="3215" y="3445" font-size="33.5" textLength="89" lengthAdjust="spacingAndGlyphs">SYNC</text>
+<text x="3785" y="3446" font-size="34.2" textLength="89" lengthAdjust="spacingAndGlyphs">SYNC</text>
+<text x="3809" y="259" font-size="53.8" textLength="216" lengthAdjust="spacingAndGlyphs">OUTPUT</text>
+<text x="3967" y="648" font-size="47.5" textLength="306" lengthAdjust="spacingAndGlyphs">BACK / UNDO</text>
+<text x="3967" y="1339" font-size="46.1" textLength="336" lengthAdjust="spacingAndGlyphs">LEARN / INPUT</text>
+<text x="5017" y="152" font-size="33.5" textLength="42" lengthAdjust="spacingAndGlyphs">LO</text>
+<text x="5081" y="151" font-size="32.1" textLength="29" lengthAdjust="spacingAndGlyphs">HI</text>
+<text x="1632" y="192" font-size="53.1" textLength="26" lengthAdjust="spacingAndGlyphs">2</text>
+<text x="1884" y="192" font-size="53.1" textLength="25" lengthAdjust="spacingAndGlyphs">3</text>
+<text x="2128" y="192" font-size="53.1" textLength="27" lengthAdjust="spacingAndGlyphs">4</text>
+<text x="2611" y="192" font-size="53.1" textLength="26" lengthAdjust="spacingAndGlyphs">2</text>
+<text x="4121" y="192" font-size="53.1" textLength="34" lengthAdjust="spacingAndGlyphs">R</text>
+<text x="4412" y="1741" font-size="33.5" textLength="21" lengthAdjust="spacingAndGlyphs">X</text>
+<text x="4694" y="1741" font-size="33.5" textLength="21" lengthAdjust="spacingAndGlyphs">Y</text>
+<text transform="translate(3456 1973) rotate(-90)" font-size="33.5" textLength="131" lengthAdjust="spacingAndGlyphs">TREBLE</text>
+<text transform="translate(3171 1970) rotate(-90)" font-size="33.5" textLength="88" lengthAdjust="spacingAndGlyphs">BASS</text>
+<text class="blue" x="1419" y="2196" font-size="40.5" textLength="12" lengthAdjust="spacingAndGlyphs">1</text>
+<text class="blue" x="1700" y="2196" font-size="40.5" textLength="19" lengthAdjust="spacingAndGlyphs">2</text>
+<text class="blue" x="2263" y="2196" font-size="40.5" textLength="20" lengthAdjust="spacingAndGlyphs">4</text>
+<text class="blue" x="2832" y="2196" font-size="40.5" textLength="19" lengthAdjust="spacingAndGlyphs">6</text>
+<text class="blue" x="3398" y="2196" font-size="40.5" textLength="19" lengthAdjust="spacingAndGlyphs">8</text>
+<text class="blue" x="3682" y="2196" font-size="40.5" textLength="19" lengthAdjust="spacingAndGlyphs">9</text>
+<text class="blue" x="3966" y="2196" font-size="40.5" textLength="19" lengthAdjust="spacingAndGlyphs">0</text>
+<text class="blue" x="2549" y="2196" font-size="39.1" textLength="19" lengthAdjust="spacingAndGlyphs">5</text>
+<text class="blue" x="3115" y="2196" font-size="39.1" textLength="19" lengthAdjust="spacingAndGlyphs">7</text>
+<text transform="translate(2892 2258) rotate(-90)" font-size="33.5" textLength="63" lengthAdjust="spacingAndGlyphs">HPF</text>
+<text transform="translate(2604 2258) rotate(-90)" font-size="33.5" textLength="59" lengthAdjust="spacingAndGlyphs">LPF</text>
+<text class="blue" x="1411" y="2477" font-size="44.7" textLength="28" lengthAdjust="spacingAndGlyphs">Q</text>
+<text class="blue" x="3676" y="2475" font-size="41.9" textLength="28" lengthAdjust="spacingAndGlyphs">O</text>
+<text class="blue" x="1693" y="2474" font-size="39.1" textLength="37" lengthAdjust="spacingAndGlyphs">W</text>
+<text class="blue" x="1975" y="2474" font-size="39.1" textLength="22" lengthAdjust="spacingAndGlyphs">E</text>
+<text class="blue" x="2262" y="2474" font-size="39.1" textLength="25" lengthAdjust="spacingAndGlyphs">R</text>
+<text class="blue" x="2544" y="2474" font-size="39.1" textLength="23" lengthAdjust="spacingAndGlyphs">T</text>
+<text class="blue" x="2827" y="2474" font-size="39.1" textLength="26" lengthAdjust="spacingAndGlyphs">Y</text>
+<text class="blue" x="3113" y="2475" font-size="40.5" textLength="23" lengthAdjust="spacingAndGlyphs">U</text>
+<text class="blue" x="3964" y="2474" font-size="39.1" textLength="22" lengthAdjust="spacingAndGlyphs">P</text>
+<text transform="translate(4021 2823) rotate(-90)" font-size="33.5" textLength="134" lengthAdjust="spacingAndGlyphs">REVERB</text>
+<text transform="translate(2322 2821) rotate(-90)" font-size="33.5" textLength="125" lengthAdjust="spacingAndGlyphs">UNISON</text>
+<text transform="translate(3740 2824) rotate(-90)" font-size="32.1" textLength="127" lengthAdjust="spacingAndGlyphs">MOD FX</text>
+<text class="blue" x="4526" y="2759" font-size="47.5" textLength="42" lengthAdjust="spacingAndGlyphs">L</text>
+<text class="blue" x="1409" y="2759" font-size="40.5" textLength="28" lengthAdjust="spacingAndGlyphs">A</text>
+<text class="blue" x="1694" y="2759" font-size="40.5" textLength="23" lengthAdjust="spacingAndGlyphs">S</text>
+<text class="blue" x="1975" y="2759" font-size="40.5" textLength="24" lengthAdjust="spacingAndGlyphs">D</text>
+<text class="blue" x="2262" y="2759" font-size="40.5" textLength="19" lengthAdjust="spacingAndGlyphs">F</text>
+<text class="blue" x="2545" y="2759" font-size="40.5" textLength="27" lengthAdjust="spacingAndGlyphs">G</text>
+<text class="blue" x="2830" y="2759" font-size="40.5" textLength="23" lengthAdjust="spacingAndGlyphs">H</text>
+<text class="blue" x="3398" y="2759" font-size="40.5" textLength="25" lengthAdjust="spacingAndGlyphs">K</text>
+<text class="blue" x="1974" y="3043" font-size="41.9" textLength="25" lengthAdjust="spacingAndGlyphs">C</text>
+<text class="blue" x="1410" y="3042" font-size="39.1" textLength="23" lengthAdjust="spacingAndGlyphs">Z</text>
+<text class="blue" x="1693" y="3042" font-size="39.1" textLength="25" lengthAdjust="spacingAndGlyphs">X</text>
+<text class="blue" x="2259" y="3042" font-size="39.1" textLength="26" lengthAdjust="spacingAndGlyphs">V</text>
+<text class="blue" x="2546" y="3042" font-size="39.1" textLength="24" lengthAdjust="spacingAndGlyphs">B</text>
+<text class="blue" x="2830" y="3042" font-size="39.1" textLength="22" lengthAdjust="spacingAndGlyphs">N</text>
+<text class="blue" x="3113" y="3042" font-size="39.1" textLength="27" lengthAdjust="spacingAndGlyphs">M</text>
+<text transform="translate(4589 3673) rotate(-90)" font-size="33.5" textLength="248" lengthAdjust="spacingAndGlyphs">MOD SOURCES</text>
+<text transform="translate(2889 3673) rotate(-90)" font-size="33.5" textLength="205" lengthAdjust="spacingAndGlyphs">ENVELOPE 2</text>
+<text transform="translate(2605 3673) rotate(-90)" font-size="33.5" textLength="201" lengthAdjust="spacingAndGlyphs">ENVELOPE 1</text>
+<text transform="translate(3172 3673) rotate(-90)" font-size="33.5" textLength="180" lengthAdjust="spacingAndGlyphs">SIDECHAIN</text>
+<text transform="translate(620 3675) rotate(-90)" font-size="32.1" textLength="163" lengthAdjust="spacingAndGlyphs">SAMPLE 2</text>
+<text transform="translate(336 3675) rotate(-90)" font-size="33.5" textLength="160" lengthAdjust="spacingAndGlyphs">SAMPLE 1</text>
+<text transform="translate(1756 3674) rotate(-90)" font-size="33.5" textLength="159" lengthAdjust="spacingAndGlyphs">FM MOD 2</text>
+<text transform="translate(1471 3674) rotate(-90)" font-size="33.5" textLength="155" lengthAdjust="spacingAndGlyphs">FM MOD 1</text>
+<text transform="translate(2038 3674) rotate(-90)" font-size="33.5" textLength="137" lengthAdjust="spacingAndGlyphs">MASTER</text>
+<text x="4284" y="3591" font-size="30.7" textLength="24" lengthAdjust="spacingAndGlyphs">Y</text>
+<text transform="translate(2321 3676) rotate(-90)" font-size="33.5" textLength="101" lengthAdjust="spacingAndGlyphs">VOICE</text>
+<text transform="translate(1188 3675) rotate(-90)" font-size="33.5" textLength="97" lengthAdjust="spacingAndGlyphs">OSC 2</text>
+<text transform="translate(904 3675) rotate(-90)" font-size="33.5" textLength="93" lengthAdjust="spacingAndGlyphs">OSC 1</text>
+<text transform="translate(4024 3674) rotate(-90)" font-size="33.5" textLength="90" lengthAdjust="spacingAndGlyphs">LFO 2</text>
+<text transform="translate(4308 3676) rotate(-90)" font-size="33.5" textLength="88" lengthAdjust="spacingAndGlyphs">DELAY</text>
+<text transform="translate(3739 3677) rotate(-90)" font-size="33.5" textLength="86" lengthAdjust="spacingAndGlyphs">LFO 1</text>
+<text transform="translate(3454 3670) rotate(-90)" font-size="33.5" textLength="68" lengthAdjust="spacingAndGlyphs">ARP</text>
+</g>
+</svg>

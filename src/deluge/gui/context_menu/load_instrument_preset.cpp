@@ -22,7 +22,7 @@
 #include "hid/display/display.h"
 
 namespace deluge::gui::context_menu {
-LoadInstrumentPreset loadInstrumentPreset{};
+PLACE_SDRAM_BSS LoadInstrumentPreset loadInstrumentPreset{};
 
 char const* LoadInstrumentPreset::getTitle() {
 	using enum l10n::String;

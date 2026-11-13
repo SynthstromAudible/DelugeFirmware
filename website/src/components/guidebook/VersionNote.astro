@@ -1,0 +1,27 @@
+---
+/**
+ * A small change a later firmware made to the section it sits in: too small for a heading, so it
+ * has no sidebar or contents entry. Any children say where to read about it for now. Replace it
+ * with your own sentence (and a Badge) when writing the section.
+ */
+import { Badge } from "@astrojs/starlight/components"
+
+type Props = {
+  version: string
+  label: string
+}
+
+const { version, label } = Astro.props
+const { editUrl } = Astro.locals.starlightRoute
+const id = label.toLowerCase().replace(/[^a-z0-9]+/g, "-")
+---
+
+<div class="gb-version-note" id={id}>
+  <Badge text={version} variant="tip" />
+  <strong>{label}.</strong>
+  <span data-pagefind-ignore>
+    Unwritten: you can help by{" "}
+    {editUrl ? <a href={editUrl}>adding content</a> : "adding content"}.
+    <slot />
+  </span>
+</div>

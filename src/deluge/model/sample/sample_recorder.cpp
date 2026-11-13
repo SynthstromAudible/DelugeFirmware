@@ -297,7 +297,26 @@ gotError:
 	return Error::NONE;
 }
 
+StereoFloatSample SampleRecorder::getInputLevels() {
+	// The audio routine only touches the pending levels between calls to this (it isn't run from an interrupt), so
+	// there's no need to guard against it updating them part-way through
+	if (pendingLevelNumSamples > 0) {
+		approxRMSLevel =
+		    envelopeFollower.calcApproxRMSFromMeans(pendingPeakMeanL, pendingPeakMeanR, pendingLevelNumSamples);
+		pendingPeakMeanL = 0;
+		pendingPeakMeanR = 0;
+		pendingLevelNumSamples = 0;
+	}
+	return approxRMSLevel;
+}
+
 void SampleRecorder::setRecordingThreshold(RecorderConfig config) {
+	// reset threshold recording RMS level for both channels
+	approxRMSLevel = {0.0f, 0.0f};
+	pendingPeakMeanL = 0;
+	pendingPeakMeanR = 0;
+	pendingLevelNumSamples = 0;
+
 	if (config.neverUseThreshold) {
 		D_PRINTLN("ignoring threshold");
 	}
@@ -980,6 +999,14 @@ doFinishCapturing:
 			}
 
 			std::byte* __restrict__ writePosNow = reinterpret_cast<std::byte*>(writePos);
+
+			// Audio clips only need levels while waiting; the standalone OLED meter also needs them after triggering.
+			// The levels are summed in the loops below, rather than in a second pass over the input, since the input
+			// is usually the codec's uncached RX buffer.
+			const bool measureLevels = thresholdRecording || monitorInputLevels;
+			uint64_t levelSumL = 0;
+			uint64_t levelSumR = 0;
+
 			// Balanced input. For this, we skip a bunch of stat-grabbing, cos we know this is just for AudioClips.
 			// We also know that applyGain is false - that's just for the MIX option
 			if (mode == AudioInputChannel::BALANCED) {
@@ -988,11 +1015,22 @@ doFinishCapturing:
 
 					// Copy the last 24 bits (lower 3 bytes) to writePosNow
 					writePosNow = std::copy_n(&reinterpret_cast<std::byte*>(&rxBalanced)[1], 3, writePosNow);
+
+					if (measureLevels) [[unlikely]] {
+						levelSumL += (sample.l >= 0) ? sample.l : -1 - sample.l;
+						levelSumR += (sample.r >= 0) ? sample.r : -1 - sample.r;
+					}
 				}
 			}
 
 			// Or, all other, non-balanced input types
 			else {
+				// recordSumL / recordSumR already accumulate the absolute values, so take this cycle's levels from
+				// them. They're post-gain, but gain is only applied to internal sources, which never use the threshold
+				// or the level meter.
+				const uint64_t recordSumLBefore = recordSumL;
+				const uint64_t recordSumRBefore = recordSumR;
+
 				for (auto [rxL, rxR] : input.first(numSamplesThisCycle)) {
 					if (applyGain) {
 						rxL = lshiftAndSaturateUnknown(rxL, gainToApply);
@@ -1055,15 +1093,34 @@ doFinishCapturing:
 						}
 					}
 				}
+
+				levelSumL = recordSumL - recordSumLBefore;
+				// mono recordings only measure the channel being recorded
+				levelSumR = (recordingNumChannels == 2) ? recordSumR - recordSumRBefore : levelSumL;
 			}
 			writePos = reinterpret_cast<char*>(writePosNow);
 			numSamplesCaptured += numSamplesThisCycle;
+
+			if (measureLevels) [[unlikely]] {
+				const float numSamplesFloat = numSamplesThisCycle;
+				const float meanL = levelSumL / numSamplesFloat;
+				const float meanR = levelSumR / numSamplesFloat;
+				if (thresholdRecording) {
+					// needed right away, to decide whether to trigger
+					approxRMSLevel = envelopeFollower.calcApproxRMSFromMeans(meanL, meanR, numSamplesThisCycle);
+				}
+				else {
+					// only needed for display, so leave the envelope maths to getInputLevels()
+					pendingPeakMeanL = std::max(pendingPeakMeanL, meanL);
+					pendingPeakMeanR = std::max(pendingPeakMeanR, meanR);
+					pendingLevelNumSamples += numSamplesThisCycle;
+				}
+			}
 
 			// if we're threshold recording and didn't detect audio in previous cycles
 			// check if there's any audio in this cycle
 			if (thresholdRecording) [[unlikely]] {
 				size_t samples_to_copy = minThresholdMargin;
-				StereoFloatSample approxRMSLevel = envelopeFollower.calcApproxRMS(input);
 				if (std::max(approxRMSLevel.l, approxRMSLevel.r) > startValueThreshold) {
 					thresholdRecording = false;
 					samples_to_copy += numSamplesThisCycle;

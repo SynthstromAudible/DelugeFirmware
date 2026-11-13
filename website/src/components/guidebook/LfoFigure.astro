@@ -1,0 +1,90 @@
+---
+/**
+ * The LFO shapes (6.3): every shape the Deluge's LFOs have, each a small plot in the book's style
+ * with its name (and the book's description, for the two it described). With JavaScript the
+ * signals advance, as on a scope, slowed to half a cycle a second; the random shapes draw new
+ * values each cycle by the firmware's rules (see lfo/lfo.ts). Pause stops them; they start paused
+ * for readers who prefer reduced motion, and stop while off screen.
+ *
+ * Without JavaScript, and in print, each plot is a still trace (from a fixed seed).
+ */
+import "../../styles/guidebook.css"
+import "../../styles/guidebook-lfo.css"
+import { LfoStream, SHAPES, seeded } from "./lfo/lfo.ts"
+import { TILE, renderTile } from "./lfo/lfo-plot.ts"
+import { PER_CYCLE, PREROLL, SCALE, WINDOW } from "./lfo/lfo-view.ts"
+
+type Props = { id: string; alt: string }
+const { id, alt } = Astro.props
+
+const tiles = SHAPES.map((shape, i) => {
+  const stream = new LfoStream(shape.id, seeded(i + 1), {
+    perCycle: PER_CYCLE,
+  })
+  for (let k = 0; k < PREROLL; k++) stream.next()
+  const values = Array.from({ length: WINDOW + 1 }, () => stream.next())
+  return {
+    ...shape,
+    svg: renderTile(values, {
+      clipId: `${id}-${shape.id}`,
+      scale: SCALE[shape.id],
+    }),
+  }
+})
+---
+
+<figure
+  class="gb-figure gb-lfo not-content"
+  id={id}
+  aria-label={alt}
+  data-scope="lfo"
+>
+  <div class="gb-lfo-grid">
+    {tiles.map((t) => (
+      <div class="gb-lfo-tile" data-shape={t.id}>
+        <p class="gb-lfo-name">{t.name}</p>
+        <svg
+          class="gb-lfo-plot"
+          viewBox={`0 0 ${TILE.w} ${TILE.h}`}
+          role="img"
+          aria-label={t.about ? `${t.name}: ${t.about}` : `${t.name} LFO`}
+          set:html={t.svg}
+        />
+        {t.about && <p class="gb-lfo-about">{t.about}</p>}
+      </div>
+    ))}
+  </div>
+  <div class="gb-lfo-actions" hidden>
+    <button type="button" class="gb-lfo-pause" aria-pressed="false">
+      Pause
+    </button>
+  </div>
+</figure>
+
+<script>
+  import { LfoStream, SHAPES, type ShapeId } from "./lfo/lfo.ts"
+  import { bindScope } from "./lfo/scope.ts"
+  import { PER_CYCLE, PREROLL, SCALE, SPEED, WINDOW } from "./lfo/lfo-view.ts"
+
+  // Live: fresh random values each visit, as on the Deluge.
+  document
+    .querySelectorAll<HTMLElement>('figure.gb-lfo[data-scope="lfo"]')
+    .forEach((figure) => {
+      const tiles = [
+        ...figure.querySelectorAll<HTMLElement>(".gb-lfo-tile"),
+      ].flatMap((tile) => {
+        const shape = tile.dataset.shape as ShapeId
+        const svg = tile.querySelector<SVGSVGElement>("svg")
+        if (!svg || !SHAPES.some((s) => s.id === shape)) return []
+        const stream = new LfoStream(shape, Math.random, {
+          perCycle: PER_CYCLE,
+        })
+        return [{ key: shape, svg, stream, scale: SCALE[shape] }]
+      })
+      bindScope(figure, tiles, {
+        window: WINDOW,
+        preroll: PREROLL,
+        speed: SPEED,
+      })
+    })
+</script>

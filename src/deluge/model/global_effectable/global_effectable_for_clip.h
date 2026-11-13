@@ -21,6 +21,7 @@
 #include "dsp/stereo_sample.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/sample/sample_recorder.h"
+#include <optional>
 
 class ParamManagerForTimeline;
 class TimelineCounter;
@@ -55,6 +56,31 @@ public:
 	std::array<uint32_t, 2> lastSaturationTanHWorkingValue = {2147483648u, 2147483648u};
 
 protected:
+	// The clip's volume and pitch adjust, and the reverb amount for what renderGlobalEffectableForClip() renders.
+	// Worked out on first use: an idle clip renders nothing, and reading its params and their cached conversions
+	// (cold memory) every render was most of what skipping it cost
+	class RenderAdjustments {
+	public:
+		RenderAdjustments(GlobalEffectableForClip& owner, ParamManager& paramManager, int32_t reverbAmountAdjust,
+		                  bool reverbFollowsVolume)
+		    : owner_(owner), paramManager_(paramManager), reverbAmountAdjust_(reverbAmountAdjust),
+		      reverbFollowsVolume_(reverbFollowsVolume) {}
+		int32_t volume();
+		int32_t pitch();
+		int32_t reverbAmount() {
+			return reverbFollowsVolume_ ? multiply_32x32_rshift32_rounded(reverbAmountAdjust_, volume()) << 5
+			                            : reverbAmountAdjust_;
+		}
+
+	private:
+		GlobalEffectableForClip& owner_;
+		ParamManager& paramManager_;
+		int32_t reverbAmountAdjust_;
+		bool reverbFollowsVolume_;
+		std::optional<int32_t> volume_;
+		std::optional<int32_t> pitch_;
+	};
+
 	int32_t getParameterFromKnob(int32_t whichModEncoder) final;
 	void renderOutput(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
 	                  std::span<StereoSample> output, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
@@ -64,11 +90,24 @@ protected:
 	virtual bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
 	                                           std::span<StereoSample> globalEffectableBuffer,
 	                                           int32_t* bufferToTransferTo, int32_t* reverbBuffer,
-	                                           int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-	                                           bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
+	                                           RenderAdjustments& adjustments, int32_t sideChainHitPending,
+	                                           bool shouldLimitDelayFeedback, bool isClipActive,
 	                                           int32_t amplitudeAtStart, int32_t amplitudeAtEnd) = 0;
 
 	virtual bool willRenderAsOneChannelOnlyWhichWillNeedCopying() { return false; }
 
 	bool renderedLastTime = false;
+
+private:
+	// Render skipping once nothing renders and the FX tails have died away, renderOutput()
+	// skips the FX chain only asking renderGlobalEffectableForClip() whether it has anything yet
+	bool skippingRendering = false;
+	bool compressorClearedWhileSkipping = false; // Next to skippingRendering, so checking it costs no cache miss
+	uint32_t startSkippingRenderingAtTime = 0;   // Valid when not 0: when to start skipping, after mod FX / comp tails
+	uint32_t timeStartedSkippingRendering = 0;
+	void reassessRenderSkippingStatus(ParamManager* paramManager, SampleRecorder* recorder);
+	void startSkippingRendering();
+	void stopSkippingRendering(ParamManager* paramManager);
+	void tickParamAutomation(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
+	                         size_t numSamples, bool isClipActive);
 };

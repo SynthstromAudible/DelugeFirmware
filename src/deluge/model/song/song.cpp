@@ -40,6 +40,7 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_clip_existence.h"
+#include "model/global_effectable/output_stage_gain.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -384,9 +385,19 @@ bool Song::ensureAtLeastOneSessionClip() {
 	}
 
 	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
+	if (!memory) {
+		// Same as the Instrument allocation below - a Song must have a Clip, and there's no recovering this early
+		display->displayError(Error::INSUFFICIENT_RAM);
+		while (1) {}
+	}
 	InstrumentClip* firstClip = new (memory) InstrumentClip(this);
 
-	sessionClips.insertClipAtIndex(firstClip, 0);
+	if (sessionClips.insertClipAtIndex(firstClip, 0) != Error::NONE) {
+		firstClip->~InstrumentClip();
+		delugeDealloc(memory);
+		display->displayError(Error::INSUFFICIENT_RAM);
+		while (1) {}
+	}
 
 	firstClip->loopLength = kDefaultClipLength << insideWorldTickMagnitude;
 
@@ -2022,7 +2033,9 @@ loadOutput:
 						if (error != Error::NONE) {
 							goto gotError;
 						}
-						((Instrument*)newOutput)->mightExistOnCard = true;
+						if (newOutput->type != OutputType::AUDIO) {
+							static_cast<Instrument*>(newOutput)->mightExistOnCard = true;
+						}
 						*lastPointer = newOutput;
 						lastPointer = &newOutput->next;
 						reader.match('}');
@@ -2187,17 +2200,19 @@ loadOutput:
 			anyOutputsSoloingInArrangement = true;
 		}
 
-		if (thisOutput->clipInstances.getNumElements() == 0
-		    && getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisOutput, nullptr) == nullptr
-		    && thisOutput->type == OutputType::AUDIO) {
-			// This clip has no way to get a param manager, and no clips to help it out. Need to create a backup or
-			// things will go wrong later.
-			ParamManagerForTimeline paramManager{};
+		if (thisOutput->type == OutputType::AUDIO && thisOutput->clipInstances.getNumElements() == 0) {
+			// Backups are keyed by the ModControllableAudio subobject, which isn't at the start of an AudioOutput
+			auto* modControllable = static_cast<ModControllableAudio*>(thisOutput->toModControllable());
+			if (getBackedUpParamManagerPreferablyWithClip(modControllable, nullptr) == nullptr) {
+				// This clip has no way to get a param manager, and no clips to help it out. Need to create a backup or
+				// things will go wrong later.
+				ParamManagerForTimeline paramManager{};
 
-			paramManager.setupUnpatched();
-			GlobalEffectable::initParams(&paramManager);
+				paramManager.setupUnpatched();
+				GlobalEffectable::initParams(&paramManager);
 
-			this->backUpParamManager((ModControllableAudio*)thisOutput->toModControllable(), nullptr, &paramManager);
+				this->backUpParamManager(modControllable, nullptr, &paramManager);
+			}
 		}
 
 		for (int32_t i = 0; i < thisOutput->clipInstances.getNumElements(); i++) {
@@ -2489,7 +2504,7 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 	    getFinalParameterValueVolume(
 	        134217728,
 	        cableToLinearParamShortcut(paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME)))
-	    >> 1;
+	    >> kSongVolumeAdjustmentShift;
 
 	// A "post-FX volume" calculation also happens in audioDriver.render(), which is a bit more relevant really
 	// because that's where filters are happening
@@ -2498,7 +2513,9 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	AudioEngine::logAction("Start output render");
-	for (Output* output = firstOutput; output; output = output->next) {
+	for (Output *output = firstOutput, *next; output; output = next) {
+		// Read alongside inValidState (same cache line): rendering this Output often evicts it
+		next = output->next;
 		if (!output->inValidState) {
 			continue;
 		}
@@ -4815,7 +4832,7 @@ bool Song::shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequi
 	}
 }
 
-Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset) {
+Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset, Clip* displayClip) {
 	if (output->type == OutputType::AUDIO) {
 		return output;
 	}
@@ -4916,13 +4933,13 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 			((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
 		}
 
-		view.displayOutputName(oldNonAudioInstrument);
+		view.displayOutputName(oldNonAudioInstrument, true, displayClip);
 	}
 
 	// Or if we're on a Kit or Synth...
 	else {
-		PresetNavigationResult results =
-		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true);
+		PresetNavigationResult results = loadInstrumentPresetUI.doPresetNavigation(
+		    offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true, displayClip);
 		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
 removeWorkingAnimationAndGetOut:
 			if (display->haveOLED()) {
@@ -5965,7 +5982,7 @@ doHibernatingInstruments:
 }
 
 void Song::getCurrentRootNoteAndScaleName(StringBuf& buffer) {
-	char noteName[5];
+	char noteName[kNoteCodeStringBufferSize];
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
 	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural);
 

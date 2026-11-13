@@ -119,6 +119,10 @@ public:
 	std::array<Cluster*, kNumClustersLoadedAhead> clusters = {nullptr, nullptr};
 
 private:
+	template <int32_t numChannels, int32_t numChannelsAfterCondensing>
+	void readSamplesLinear(int32_t* __restrict__& oscBufferPos, int32_t const* oscBufferEnd, int32_t jumpAmount,
+	                       int32_t byteDepth, int32_t phaseIncrement, int32_t& amplitude, int32_t amplitudeIncrement,
+	                       bool skipFirstJump);
 	bool assignClusters(SamplePlaybackGuide* guide, Sample* sample, int32_t clusterIndex, int32_t priorityRating);
 	bool fillInterpolationBufferForward(SamplePlaybackGuide* guide, Sample* sample, int32_t interpolationBufferSize,
 	                                    bool loopingAtLowLevel, int32_t numSpacesToFill, int32_t priorityRating);

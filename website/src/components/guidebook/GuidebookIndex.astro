@@ -1,0 +1,185 @@
+---
+/**
+ * The Guidebook's back-of-book index (see index/build-index.ts), from every converted page's
+ * title and headings as Astro renders them (so the anchors are the real ones) and the headwords
+ * in src/data/guidebook-index.json. A filter box narrows it when JavaScript runs.
+ */
+import { getCollection, render } from "astro:content"
+import "../../styles/guidebook-index.css"
+import vocabJson from "../../data/guidebook-index.json"
+import {
+  buildIndex,
+  type IndexPage,
+  type IndexVocab,
+} from "./index/build-index.ts"
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "")
+const withBase = (href: string) =>
+  href.startsWith("/") ? `${base}${href}` : href
+
+const entries = await getCollection(
+  "docs",
+  (e) =>
+    e.id.startsWith("guidebook/") &&
+    e.id !== "guidebook/appendix/e-community-guide-os-41" &&
+    Boolean(e.data.guidebook),
+)
+const pages: IndexPage[] = await Promise.all(
+  entries.map(async (e) => {
+    const { headings } = await render(e)
+    return {
+      section: e.data.guidebook?.section ?? "",
+      title: e.data.title.replace(/^(?:[\d.]+\s+|Appendix [A-Z]: )/, ""),
+      href: `/${e.id}`,
+      headings,
+    }
+  }),
+)
+const index = buildIndex(pages, vocabJson as IndexVocab)
+---
+
+<div class="gb-index not-content">
+  <div class="gb-index-tools">
+    <label class="gb-index-filter" hidden>
+      <span>Filter</span>
+      <input
+        type="search"
+        placeholder="e.g. clip, delete, swing"
+        autocomplete="off"
+      />
+    </label>
+    <nav class="gb-index-letters" aria-label="Index letters">
+      {index.map((g) => (
+        <a href={`#index-${g.letter.toLowerCase()}`}>{g.letter}</a>
+      ))}
+    </nav>
+  </div>
+  <p class="gb-index-none" hidden>
+    Nothing in the index matches.
+  </p>
+  {index.map((g) => (
+    <section class="gb-index-group" id={`index-${g.letter.toLowerCase()}`}>
+      <h2>{g.letter}</h2>
+      <ul class="gb-index-entries">
+        {g.entries.map((e) => (
+          <li
+            class="gb-index-entry"
+            id={`index-${e.head.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+          >
+            <span class="gb-index-head">{e.head}</span>
+            {e.see && (
+              <span class="gb-index-see">
+                {" "}
+                → see{" "}
+                <span class="gb-index-list">
+                  {e.see.map((s) => (
+                    <span>
+                      <a
+                        href={`#index-${s.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                        set:text={s}
+                      />
+                    </span>
+                  ))}
+                </span>
+              </span>
+            )}
+            {e.external && (
+              <span class="gb-index-see">
+                {" "}
+                → <a href={withBase(e.external.href)}>{e.external.label}</a>
+              </span>
+            )}
+            {e.subs.length > 0 && (
+              <ul class="gb-index-subs">
+                {e.subs.map((s) => (
+                  <li>
+                    <span class="gb-index-label">{s.label}</span>
+                    <span class="gb-index-links">
+                      {s.links.map((l) => (
+                        <a href={withBase(l.href)}>{l.text}</a>
+                      ))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {e.also && (
+              <p class="gb-index-also">
+                See also{" "}
+                <span class="gb-index-list">
+                  {e.also.map((s) => (
+                    <span>
+                      <a
+                        href={`#index-${s.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                        set:text={s}
+                      />
+                    </span>
+                  ))}
+                </span>
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  ))}
+</div>
+
+<script>
+  // Filter: keep entries whose headword or a subentry contains every word typed; within a
+  // matching entry, show only the matching subentries unless the headword itself matched.
+  document.querySelectorAll<HTMLElement>(".gb-index").forEach((root) => {
+    const label = root.querySelector<HTMLElement>(".gb-index-filter")
+    const input = label?.querySelector("input")
+    const none = root.querySelector<HTMLElement>(".gb-index-none")
+    if (!label || !input || !none) return
+    const has = (el: Element, words: string[]) => {
+      const text = (el.textContent ?? "").toLowerCase()
+      return words.every((w) => text.includes(w))
+    }
+    // "delete" should find "deleting", "clone" "cloning": match on the word less its ending
+    const stem = (w: string) => {
+      const s = w.replace(/(ing|ed|es|e|s)$/, "")
+      return s.length >= 3 ? s : w
+    }
+    const apply = () => {
+      const words = input.value
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(stem)
+      let shown = 0
+      for (const group of root.querySelectorAll<HTMLElement>(
+        ".gb-index-group",
+      )) {
+        let any = false
+        for (const entry of group.querySelectorAll<HTMLElement>(
+          ".gb-index-entry",
+        )) {
+          const head = entry.querySelector(".gb-index-head")
+          const subs = entry.querySelectorAll<HTMLElement>(
+            ".gb-index-subs > li",
+          )
+          // a "see" or external entry has no subentries: match its whole line
+          const headHit =
+            !words.length ||
+            (head !== null && has(head, words)) ||
+            (subs.length === 0 && has(entry, words))
+          let subHit = false
+          for (const li of subs) {
+            const hit = headHit || has(li, words)
+            li.hidden = !hit
+            subHit ||= has(li, words)
+          }
+          entry.hidden = !(headHit || subHit)
+          any ||= !entry.hidden
+        }
+        group.hidden = !any
+        if (any) shown++
+      }
+      none.hidden = shown > 0
+    }
+    input.addEventListener("input", apply)
+    label.hidden = false
+  })
+</script>

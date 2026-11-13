@@ -9,6 +9,16 @@
 @import "./directives/screen.css";
 @import "./sidebar-topics.css";
 
+/* Starlight 0.38 dropped `ui-sans-serif, system-ui` from the front of its body
+   font stack, which swaps the desktop UI font for Roboto on Linux. Keep the
+   previous stack (from the Starlight changelog). */
+:root {
+  --sl-font-system:
+    ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol", "Noto Color Emoji";
+}
+
 @font-face {
   font-family: "Deluge LED";
   src: url("../assets/fonts/deluge-led.ttf") format("truetype");
@@ -349,4 +359,12 @@
 
 .menu-hierarchy-page .menu-hierarchy-row-label {
   min-width: 0;
+}
+
+/* Guidebook cross-links added at build time (remark-cross-links): quieter than authored links. */
+.sl-markdown-content a.xref:not(:hover, :focus-visible) {
+  color: inherit;
+  text-decoration-style: dotted;
+  text-decoration-color: var(--sl-color-gray-3);
+  text-underline-offset: 0.2em;
 }

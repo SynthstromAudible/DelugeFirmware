@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp/oscillators/supersaw.h"
 #include "model/sample/sample.h"
 #include <gsl/gsl>
 
@@ -39,13 +40,22 @@ public:
 	bool getPitchAndSpeedParams(Source* source, VoiceSamplePlaybackGuide* voiceSource, uint32_t* phaseIncrement,
 	                            uint32_t* timeStretchRatio, uint32_t* noteLengthInSamples);
 	uint32_t getSpeedParamForNoSyncing(Source* source, int32_t phaseIncrement, int32_t pitchAdjustNeutralValue);
+	/// (pitchAdjustNeutralValue << 24) / phaseIncrement, the time-stretch ratio that undoes a pitch change. The 64-bit
+	/// divide is a call to the software divide, and the pitch rarely changes between renders, so the last one is kept.
+	uint32_t getStretchToUndoPitch(int32_t pitchAdjustNeutralValue, uint32_t phaseIncrement);
 
 	uint32_t oscPos; // FKA phase. No longer used for Sample playback / rate conversion position. Only waves, including
 	                 // wavetable.
+	deluge::dsp::Supersaw::SidePhases supersawPhases = deluge::dsp::Supersaw::sidePhasesFrom(0);
 	uint32_t phaseIncrementStoredValue;
 	int32_t carrierFeedback;
 	bool active;
 	VoiceSample* voiceSample = nullptr;
 	LivePitchShifter* livePitchShifter = nullptr;
 	gsl::owner<DxVoice*> dxVoice = nullptr;
+
+private:
+	int32_t stretchToUndoPitchNeutral_ = 0;
+	uint32_t stretchToUndoPitchIncrement_ = 0;
+	uint32_t stretchToUndoPitch_ = 0;
 };

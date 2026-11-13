@@ -634,7 +634,7 @@ doActualSimpleChange:
 							if (instrument->type != newOutputType) {
 								Instrument* newInstrument = currentSong->changeOutputType(instrument, newOutputType);
 								if (newInstrument) {
-									view.displayOutputName(newInstrument);
+									view.displayOutputName(newInstrument, true, clip);
 									view.setActiveModControllableTimelineCounter(newInstrument->getActiveClip());
 								}
 							}
@@ -1331,7 +1331,7 @@ void SessionView::commandChangeClipPreset(int8_t offset) {
 		}
 		case SessionLayoutType::SessionLayoutTypeGrid: {
 			Output* oldOutput = clip->output;
-			Output* newOutput = currentSong->navigateThroughPresetsForInstrument(oldOutput, offset);
+			Output* newOutput = currentSong->navigateThroughPresetsForInstrument(oldOutput, offset, clip);
 			if (oldOutput != newOutput) {
 				view.setActiveModControllableTimelineCounter(newOutput->getActiveClip());
 				requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
@@ -4556,8 +4556,13 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 	}
 
 	if (getCurrentUI() != &deluge::gui::context_menu::midiLearnMode) {
+		const bool endingInteraction = currentUIMode != UI_MODE_NONE || gridFirstPadActive();
 		gridResetPresses();
-		clipPressEnded();
+		// Ordinary scrolling only changes the pad viewport. Ending a nonexistent clip press
+		// would unnecessarily reset the knob context and redraw the unchanged OLED.
+		if (endingInteraction) {
+			clipPressEnded();
+		}
 	}
 
 	// Fix the range
@@ -4881,10 +4886,11 @@ Output* SessionView::getOutputFromPad(int32_t x, int32_t y) {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		return gridTrackFromX(x, gridTrackCount());
 	}
-	else {
-		return getClipOnScreen(y)->output;
-	}
-	return nullptr;
+
+	// row layout
+	Clip* clip = getClipOnScreen(y);
+	// ensure there's actually a clip on this row
+	return clip ? clip->output : nullptr;
 }
 
 Cartesian SessionView::gridXYFromClip(Clip& clip) {
@@ -4968,8 +4974,9 @@ void SessionView::gridPulseSelectedClip() {
 
 	// get the X, Y coordinates of the current clip
 	Cartesian pad = gridXYFromClip(*clip);
-	// don't render pulse if clip is scrolled out of view (coords = - 1)
-	if (pad.x < 0 && pad.y < 0) {
+	// Either coordinate can be negative when the clip is offscreen. Both must be valid
+	// before PadLEDs::set indexes the image, otherwise pulsing writes outside the pad buffer.
+	if (pad.x < 0 || pad.y < 0) {
 		return;
 	}
 

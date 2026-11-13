@@ -688,6 +688,9 @@ char const* oscTypeToString(OscType oscType) {
 	case OscType::ANALOG_SAW_2:
 		return "analogSaw";
 
+	case OscType::SUPERSAW:
+		return "supersaw";
+
 	case OscType::ANALOG_SQUARE:
 		return "analogSquare";
 
@@ -733,6 +736,9 @@ OscType stringToOscType(char const* string) {
 	}
 	else if (!strcmp(string, "saw")) {
 		return OscType::SAW;
+	}
+	else if (!strcmp(string, "supersaw")) {
+		return OscType::SUPERSAW;
 	}
 	else if (!strcmp(string, "sine")) {
 		return OscType::SINE;
@@ -1335,7 +1341,9 @@ bool isAudioFilename(char const* filename) {
 		return false;
 	}
 	auto* dotPos = strrchr(filename, '.');
-	return (!strcasecmp(dotPos, ".WAV") || !strcasecmp(dotPos, ".AIF") || !strcasecmp(dotPos, ".AIFF"));
+	return (
+	    dotPos != nullptr
+	    && (strcasecmp(dotPos, ".WAV") == 0 || strcasecmp(dotPos, ".AIF") == 0 || strcasecmp(dotPos, ".AIFF") == 0));
 }
 
 bool isAiffFilename(char const* filename) {
@@ -1588,8 +1596,14 @@ int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from) {
 
 void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot, bool appendOctaveNo) {
 	char* thisChar = buffer;
-	int32_t octave = (noteCode) / 12 - 2;
-	int32_t noteCodeWithinOctave = (uint16_t)(noteCode + 120) % (uint8_t)12;
+	// Floor division / positive modulo so negative note codes (e.g. from transposing below C-2) land in the right
+	// octave rather than truncating toward zero
+	int32_t noteCodeWithinOctave = noteCode % 12;
+	int32_t octave = noteCode / 12 - 2;
+	if (noteCodeWithinOctave < 0) {
+		noteCodeWithinOctave += 12;
+		octave--;
+	}
 
 	bool useSharps = FlashStorage::defaultUseSharps;
 

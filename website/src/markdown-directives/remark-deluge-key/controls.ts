@@ -53,23 +53,23 @@ const ControlDefinitionSchema = z
      */
     didYouMean: z.string().array().optional().default([]),
 
-    toAction: z
-      .function()
-      .args(
+    toAction: z.function({
+      input: [
         z.string().describe("The name of the control"),
         z.string().array().describe("List of modifiers"),
         z
           .string()
           .array()
           .describe("All keywords (name and modifiers) in original order"),
-      )
-      .returns(ActionSchema),
+      ],
+      output: ActionSchema,
+    }),
 
     display: z.string().optional(),
   })
   .strict()
 
-const ControlData = z.record(ControlDefinitionSchema)
+const ControlData = z.record(z.string(), ControlDefinitionSchema)
 
 const parseModifiers = (
   modifiers: string[],
@@ -107,7 +107,7 @@ const parseModifiers = (
 
 const labelledButtonToAction =
   (override: Partial<z.infer<typeof ActionSchema>> = {}) =>
-  (text: string, modifiers: string[]): typeof ActionSchema._input => {
+  (text: string, modifiers: string[]): z.input<typeof ActionSchema> => {
     if (modifiers.length > 0) {
       throw new Error(
         `Can't add modifiets to ${text}. (Modifiers used: ${modifiers.join(" ")})`,
@@ -135,7 +135,7 @@ const knobToAction =
       return undefined
     },
   ) =>
-  (text: string, modifiers: string[]): typeof ActionSchema._input => {
+  (text: string, modifiers: string[]): z.input<typeof ActionSchema> => {
     // Separate icon modifiers from the modifier list
     const {
       before: modifiersBefore,
@@ -267,6 +267,38 @@ export const CONTROLS = ControlData.parse({
 
   // TODO: Implement parameter buttons (gold knob selectors)
   Param: { toAction: labelledButtonToAction() },
+  // Parameter buttons above the gold knobs, by their printed labels
+  // (used by the 4.1 Guidebook pages).
+  LevelPan: {
+    toAction: labelledButtonToAction(),
+    display: "Level/Pan",
+    didYouMean: ["Level", "Pan"],
+  },
+  CutoffRes: {
+    toAction: labelledButtonToAction(),
+    display: "Cutoff/Res",
+    didYouMean: ["Cutoff", "Res", "Resonance"],
+  },
+  DelayTimeAmount: {
+    toAction: labelledButtonToAction(),
+    display: "Delay Time/Amount",
+    didYouMean: ["Delay"],
+  },
+  SidechainReverb: {
+    toAction: labelledButtonToAction(),
+    display: "Sidechain/Reverb",
+    didYouMean: ["Sidechain", "Reverb"],
+  },
+  ModRateDepth: {
+    toAction: labelledButtonToAction(),
+    display: "Mod Rate/Depth",
+    didYouMean: ["Mod", "ModRate"],
+  },
+  StutterCustom1: {
+    toAction: labelledButtonToAction(),
+    display: "Stutter/Custom 1",
+    didYouMean: ["Stutter", "Custom1"],
+  },
 
   // Knobs
   Horizontal: { toAction: knobToAction() },
@@ -291,7 +323,7 @@ export const CONTROLS = ControlData.parse({
   // Pads
   Pad: {
     // TODO: parse pad ID from modifiers
-    toAction: (name, modifiers): typeof ActionSchema._input => {
+    toAction: (name, modifiers): z.input<typeof ActionSchema> => {
       return {
         label: titleCase(modifiers.length > 0 ? modifiers.join(" ") : name),
         isPad: true,
@@ -301,4 +333,49 @@ export const CONTROLS = ControlData.parse({
       }
     },
   },
-} as typeof ControlData._input)
+} as z.input<typeof ControlData>)
+
+/** The keys of a `:key[...]` sequence: chords split by `>`, keys within a chord by `+`. */
+export const sequenceKeys = (sequence: string): string[][] => {
+  const invalidCharacters = [...sequence.matchAll(/[^a-zA-Z\d>+/\s]/g)]
+
+  if (invalidCharacters.length)
+    throw new Error(
+      `Invalid character(s) found: ${JSON.stringify(invalidCharacters.flat())}`,
+    )
+
+  return sequence.split(/\s?>\s?/).map((chord) => chord.split(/\s?\+\s?/))
+}
+
+/** Which control a key names (`Turn Select` -> Select, modifiers [turn]). Throws on unknown keys. */
+export const resolveControl = (
+  key: string,
+): { name: string; modifiers: string[]; keywords: string[] } => {
+  const keywords = key.split(/\s+/).map((keyword) => keyword.toLowerCase())
+
+  const control = Object.keys(CONTROLS).find((control) =>
+    keywords.includes(control.toLowerCase()),
+  )
+
+  if (!control) {
+    const didYouMean = Object.entries(CONTROLS).find(([, { didYouMean }]) =>
+      didYouMean.some((alternative) =>
+        keywords.includes(alternative.toLowerCase()),
+      ),
+    )
+
+    if (didYouMean) {
+      throw new Error(
+        `Unknown action: ${keywords.join(" ")}. Did you mean: ${didYouMean[0]}?`,
+      )
+    } else {
+      throw new Error(`Unknown action: ${keywords.join(" ")}`)
+    }
+  }
+
+  const modifiers = keywords.filter(
+    (keyword) => keyword.toLowerCase() !== control.toLowerCase(),
+  )
+
+  return { name: control, modifiers, keywords }
+}

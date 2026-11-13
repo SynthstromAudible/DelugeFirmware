@@ -1,0 +1,81 @@
+---
+/**
+ * The oscillator shapes (4.9), one group of the book's: Digital (Triangle, Sine, Sawtooth, Square)
+ * or Analog (Sawtooth, ASquare). Each a small plot in the book's style; with JavaScript the signals
+ * advance like the LFO figure's (see lfo/scope.ts). The shapes are the firmware's at C3:
+ * see osc/osc.ts.
+ *
+ * Without JavaScript, and in print, each plot is a still trace.
+ */
+import "../../styles/guidebook.css"
+import "../../styles/guidebook-lfo.css"
+import oscJson from "../../data/guidebook-osc.json"
+import { TILE, renderTile } from "./lfo/lfo-plot.ts"
+import { PER_CYCLE, WINDOW } from "./lfo/lfo-view.ts"
+import { OscDataSchema, OscStream, SHAPES } from "./osc/osc.ts"
+
+type Props = { id: string; alt: string; group: "digital" | "analog" }
+const { id, alt, group } = Astro.props
+
+const data = OscDataSchema.parse(oscJson)
+const kind = group === "digital" ? "digital" : "analog"
+const tiles = SHAPES[group].map((shape) => {
+  const stream = new OscStream(shape.id, data, { perCycle: PER_CYCLE })
+  const values = Array.from({ length: WINDOW + 1 }, () => stream.next())
+  return {
+    ...shape,
+    svg: renderTile(values, { clipId: `${id}-${shape.id}` }),
+  }
+})
+---
+
+<figure
+  class="gb-figure gb-lfo gb-osc not-content"
+  id={id}
+  aria-label={alt}
+  data-scope="osc"
+  data-group={group}
+>
+  <div class="gb-lfo-grid">
+    {tiles.map((t) => (
+      <div class="gb-lfo-tile" data-shape={t.id}>
+        <p class="gb-lfo-name">{t.name}</p>
+        <svg
+          class="gb-lfo-plot"
+          viewBox={`0 0 ${TILE.w} ${TILE.h}`}
+          role="img"
+          aria-label={`${t.name}, ${kind} oscillator`}
+          set:html={t.svg}
+        />
+      </div>
+    ))}
+  </div>
+  <div class="gb-lfo-actions" hidden>
+    <button type="button" class="gb-lfo-pause" aria-pressed="false">
+      Pause
+    </button>
+  </div>
+</figure>
+
+<script>
+  import oscJson from "../../data/guidebook-osc.json"
+  import { PER_CYCLE, SPEED, WINDOW } from "./lfo/lfo-view.ts"
+  import { bindScope } from "./lfo/scope.ts"
+  import { OscDataSchema, OscStream, type OscShapeId } from "./osc/osc.ts"
+
+  const data = OscDataSchema.parse(oscJson)
+  document
+    .querySelectorAll<HTMLElement>('figure.gb-lfo[data-scope="osc"]')
+    .forEach((figure) => {
+      const tiles = [
+        ...figure.querySelectorAll<HTMLElement>(".gb-lfo-tile"),
+      ].flatMap((tile) => {
+        const shape = tile.dataset.shape as OscShapeId
+        const svg = tile.querySelector<SVGSVGElement>("svg")
+        if (!svg) return []
+        const stream = new OscStream(shape, data, { perCycle: PER_CYCLE })
+        return [{ key: shape, svg, stream }]
+      })
+      bindScope(figure, tiles, { window: WINDOW, preroll: 0, speed: SPEED })
+    })
+</script>

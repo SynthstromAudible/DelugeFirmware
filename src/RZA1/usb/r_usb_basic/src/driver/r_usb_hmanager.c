@@ -68,7 +68,7 @@ static void usb_hstd_mgr_rel_mpl(usb_utr_t* ptr, uint16_t n);
 /* Manager */
 uint16_t g_usb_hstd_enum_seq[USB_NUM_USBIP]; /* Enumeration request */
 uint16_t g_usb_hstd_device_descriptor[USB_NUM_USBIP][USB_DEVICESIZE / 2u];
-uint16_t g_usb_hstd_config_descriptor[USB_NUM_USBIP][USB_CONFIGSIZE / 2u];
+PLACE_SDRAM_BSS uint16_t g_usb_hstd_config_descriptor[USB_NUM_USBIP][USB_CONFIGSIZE / 2u];
 uint16_t g_usb_hstd_suspend_pipe[USB_NUM_USBIP][USB_MAX_PIPE_NO + 1u];
 
 uint16_t g_usb_hstd_check_enu_result[USB_NUM_USBIP];
@@ -183,6 +183,10 @@ static uint16_t usb_hstd_enumeration(usb_utr_t* ptr)
 
                 /* Set Address */
                 case 1:
+
+                    /* Allow recovery after SET_ADDRESS before using the new address (USB 2.0 section 9.2.6.3).
+                     * Use 10 ms for compatibility with devices such as the Sequential Take 5. */
+                    usb_cpu_delay_xms(10);
 
                     descriptor_table = (uint8_t*)g_usb_hstd_device_descriptor[ptr->ip];
                     devsel           = (uint16_t)(g_usb_hstd_device_addr[ptr->ip] << USB_DEVADDRBIT);

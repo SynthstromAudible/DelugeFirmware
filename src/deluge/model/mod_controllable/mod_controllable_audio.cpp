@@ -41,7 +41,9 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
+#include "util/fast_divide.h"
 #include <algorithm>
+#include <arm_neon.h>
 
 namespace params = deluge::modulation::params;
 
@@ -211,6 +213,61 @@ void ModControllableAudio::processGrainFX(std::span<StereoSample> buffer, int32_
 	}
 }
 
+// Sends each sample to the reverb (if sendToReverb), then applies the volume, which first steps by the increment.
+// Two samples at a time with NEON, doing exactly the scalar arithmetic in each lane: multiply_32x32_rshift32() is the
+// top half of the 64-bit product, which is what vmull then vshrn #32 give.
+template <bool sendToReverb>
+[[gnu::always_inline]] static inline void
+applyReverbSendAndVolume(std::span<StereoSample> buffer, int32_t* __restrict__ reverbBuffer,
+                         int32_t reverbSendAmountAndPostFXVolume, int32_t volumeL, int32_t volumeR, int32_t incrementL,
+                         int32_t incrementR) {
+	StereoSample* __restrict__ sample = buffer.data();
+	size_t numPairs = buffer.size() / 2;
+
+	if (numPairs != 0) {
+		// The volumes for the two samples in each pair, and how much they step by from one pair to the next. Unsigned
+		// so that wrapping round is defined, as it is for the scalar adds
+		uint32x4_t volume = {(uint32_t)volumeL + (uint32_t)incrementL, (uint32_t)volumeR + (uint32_t)incrementR,
+		                     (uint32_t)volumeL + 2 * (uint32_t)incrementL,
+		                     (uint32_t)volumeR + 2 * (uint32_t)incrementR};
+		uint32x4_t step = {2 * (uint32_t)incrementL, 2 * (uint32_t)incrementR, 2 * (uint32_t)incrementL,
+		                   2 * (uint32_t)incrementR};
+		int32x2_t send = vdup_n_s32(reverbSendAmountAndPostFXVolume);
+
+		for (size_t i = 0; i < numPairs; i++) {
+			int32x4_t lr = vld1q_s32(&sample->l); // l0, r0, l1, r1
+
+			if constexpr (sendToReverb) {
+				int32x2_t sums = vpadd_s32(vget_low_s32(lr), vget_high_s32(lr)); // l0 + r0, l1 + r1
+				int32x2_t toReverb = vshl_n_s32(vshrn_n_s64(vmull_s32(sums, send), 32), 1);
+				vst1_s32(reverbBuffer, vadd_s32(vld1_s32(reverbBuffer), toReverb));
+				reverbBuffer += 2;
+			}
+
+			int32x4_t volumeNow = vreinterpretq_s32_u32(volume);
+			int32x2_t low = vshrn_n_s64(vmull_s32(vget_low_s32(lr), vget_low_s32(volumeNow)), 32);
+			int32x2_t high = vshrn_n_s64(vmull_s32(vget_high_s32(lr), vget_high_s32(volumeNow)), 32);
+			vst1q_s32(&sample->l, vshlq_n_s32(vcombine_s32(low, high), 5));
+
+			volume = vaddq_u32(volume, step);
+			sample += 2;
+		}
+		volumeL = (uint32_t)volumeL + 2 * numPairs * (uint32_t)incrementL;
+		volumeR = (uint32_t)volumeR + 2 * numPairs * (uint32_t)incrementR;
+	}
+
+	// An odd one left over
+	if (buffer.size() & 1) {
+		if constexpr (sendToReverb) {
+			*reverbBuffer += multiply_32x32_rshift32(sample->l + sample->r, reverbSendAmountAndPostFXVolume) << 1;
+		}
+		volumeL += incrementL;
+		volumeR += incrementR;
+		sample->l = multiply_32x32_rshift32(sample->l, volumeL) << 5;
+		sample->r = multiply_32x32_rshift32(sample->r, volumeR) << 5;
+	}
+}
+
 void ModControllableAudio::processReverbSendAndVolume(std::span<StereoSample> buffer, int32_t* reverbBuffer,
                                                       int32_t postFXVolume, int32_t postReverbVolume,
                                                       int32_t reverbSendAmount, int32_t pan,
@@ -218,14 +275,16 @@ void ModControllableAudio::processReverbSendAndVolume(std::span<StereoSample> bu
 
 	int32_t reverbSendAmountAndPostFXVolume = multiply_32x32_rshift32(postFXVolume, reverbSendAmount) << 5;
 
-	int32_t postFXAndReverbVolumeL, postFXAndReverbVolumeR, amplitudeIncrementL, amplitudeIncrementR;
+	int32_t postFXAndReverbVolumeL, postFXAndReverbVolumeR;
 	postFXAndReverbVolumeL = postFXAndReverbVolumeR = (multiply_32x32_rshift32(postReverbVolume, postFXVolume) << 5);
+	int32_t amplitudeIncrementL = 0;
+	int32_t amplitudeIncrementR = 0;
 
 	// The amplitude increment applies to the post-FX volume. We want to have it just so that we can respond better to
 	// sidechain volume ducking, which is done through post-FX volume.
 	if (doAmplitudeIncrement) {
-		auto postReverbSendVolumeIncrement =
-		    (int32_t)((double)(postReverbVolume - postReverbVolumeLastTime) / (double)buffer.size());
+		int32_t postReverbSendVolumeIncrement =
+		    deluge::divideBySmall(postReverbVolume - postReverbVolumeLastTime, (int32_t)buffer.size());
 		amplitudeIncrementL = amplitudeIncrementR =
 		    (multiply_32x32_rshift32(postFXVolume, postReverbSendVolumeIncrement) << 5);
 	}
@@ -243,20 +302,14 @@ void ModControllableAudio::processReverbSendAndVolume(std::span<StereoSample> bu
 		amplitudeIncrementR = multiply_32x32_rshift32(amplitudeIncrementR, amplitudeR) << 2;
 	}
 
-	for (StereoSample& sample : buffer) {
-		// Send to reverb
-		if (reverbSendAmount != 0) {
-			*(reverbBuffer++) += multiply_32x32_rshift32(sample.l + sample.r, reverbSendAmountAndPostFXVolume) << 1;
-		}
-
-		if (doAmplitudeIncrement) {
-			postFXAndReverbVolumeL += amplitudeIncrementL;
-			postFXAndReverbVolumeR += amplitudeIncrementR;
-		}
-
-		// Apply post-fx and post-reverb-send volume
-		sample.l = multiply_32x32_rshift32(sample.l, postFXAndReverbVolumeL) << 5;
-		sample.r = multiply_32x32_rshift32(sample.r, postFXAndReverbVolumeR) << 5;
+	// Send to reverb, and apply post-fx and post-reverb-send volume
+	if (reverbSendAmount != 0) {
+		applyReverbSendAndVolume<true>(buffer, reverbBuffer, reverbSendAmountAndPostFXVolume, postFXAndReverbVolumeL,
+		                               postFXAndReverbVolumeR, amplitudeIncrementL, amplitudeIncrementR);
+	}
+	else {
+		applyReverbSendAndVolume<false>(buffer, reverbBuffer, reverbSendAmountAndPostFXVolume, postFXAndReverbVolumeL,
+		                                postFXAndReverbVolumeR, amplitudeIncrementL, amplitudeIncrementR);
 	}
 
 	// We've generated some sound. If reverb is happening, make note
@@ -324,46 +377,58 @@ void ModControllableAudio::processSRRAndBitcrushing(std::span<StereoSample> buff
 		int32_t highSampleRateIncrement = ((uint32_t)0xFFFFFFFF / (lowSampleRateIncrement >> 6)) << 6;
 		// int32_t highSampleRateIncrement = getExp(4194304, -(int32_t)(positivePreset >> 3)); // This would work too
 
+		// Work in locals, which the compiler would otherwise have to reload after every store to the buffer
+		uint32_t lowPos = lowSampleRatePos;
+		uint32_t highPos = highSampleRatePos;
+		StereoSample last = lastSample;
+		StereoSample grabbed = grabbedSample;
+		StereoSample lastGrabbed = lastGrabbedSample;
+
 		for (StereoSample& sample : buffer) {
 			// Convert down.
 			// If time to "grab" another sample for down-conversion...
-			if (lowSampleRatePos < 4194304) {
-				int32_t strength2 = lowSampleRatePos;
+			if (lowPos < 4194304) {
+				int32_t strength2 = lowPos;
 				int32_t strength1 = 4194303 - strength2;
 
-				lastGrabbedSample = grabbedSample; // What was current is now last
-				grabbedSample.l = multiply_32x32_rshift32_rounded(lastSample.l, strength1 << 9)
-				                  + multiply_32x32_rshift32_rounded(sample.l, strength2 << 9);
-				grabbedSample.r = multiply_32x32_rshift32_rounded(lastSample.r, strength1 << 9)
-				                  + multiply_32x32_rshift32_rounded(sample.r, strength2 << 9);
-				grabbedSample.l &= bitCrushMaskForSRR;
-				grabbedSample.r &= bitCrushMaskForSRR;
+				lastGrabbed = grabbed; // What was current is now last
+				grabbed.l = multiply_32x32_rshift32_rounded(last.l, strength1 << 9)
+				            + multiply_32x32_rshift32_rounded(sample.l, strength2 << 9);
+				grabbed.r = multiply_32x32_rshift32_rounded(last.r, strength1 << 9)
+				            + multiply_32x32_rshift32_rounded(sample.r, strength2 << 9);
+				grabbed.l &= bitCrushMaskForSRR;
+				grabbed.r &= bitCrushMaskForSRR;
 
 				// Set the "time" at which we want to "grab" our next sample for down-conversion.
-				lowSampleRatePos += lowSampleRateIncrement;
+				lowPos += lowSampleRateIncrement;
 
 				// "Re-sync" the up-conversion spinner.
 				// I previously had it using strength2 instead of "lowSampleRatePos & 16777215", but that just works
 				// better. Ah, writing the massive explanation would take ages.
-				highSampleRatePos =
-				    multiply_32x32_rshift32_rounded(lowSampleRatePos & 4194303, highSampleRateIncrement << 8) << 2;
+				highPos = multiply_32x32_rshift32_rounded(lowPos & 4194303, highSampleRateIncrement << 8) << 2;
 			}
-			lowSampleRatePos -= 4194304; // We're one step closer to grabbing our next sample for down-conversion
-			lastSample = sample;
+			lowPos -= 4194304; // We're one step closer to grabbing our next sample for down-conversion
+			last = sample;
 
 			// Convert up
 			// Would only overshoot if we raised the sample rate during playback
-			int32_t strength2 = std::min(highSampleRatePos, (uint32_t)4194303);
+			int32_t strength2 = std::min(highPos, (uint32_t)4194303);
 			int32_t strength1 = 4194303 - strength2;
-			sample.l = (multiply_32x32_rshift32_rounded(lastGrabbedSample.l, strength1 << 9)
-			            + multiply_32x32_rshift32_rounded(grabbedSample.l, strength2 << 9))
+			sample.l = (multiply_32x32_rshift32_rounded(lastGrabbed.l, strength1 << 9)
+			            + multiply_32x32_rshift32_rounded(grabbed.l, strength2 << 9))
 			           << 2;
-			sample.r = (multiply_32x32_rshift32_rounded(lastGrabbedSample.r, strength1 << 9)
-			            + multiply_32x32_rshift32_rounded(grabbedSample.r, strength2 << 9))
+			sample.r = (multiply_32x32_rshift32_rounded(lastGrabbed.r, strength1 << 9)
+			            + multiply_32x32_rshift32_rounded(grabbed.r, strength2 << 9))
 			           << 2;
 
-			highSampleRatePos += highSampleRateIncrement;
+			highPos += highSampleRateIncrement;
 		}
+
+		lowSampleRatePos = lowPos;
+		highSampleRatePos = highPos;
+		lastSample = last;
+		grabbedSample = grabbed;
+		lastGrabbedSample = lastGrabbed;
 	}
 	else {
 		sampleRateReductionOnLastTime = false;
@@ -1491,6 +1556,28 @@ void ModControllableAudio::clearModFXMemory() {
 	else if (modFXType_ != ModFXType::NONE) {
 		modfx.resetMemory();
 	}
+}
+
+int32_t ModControllableAudio::getSamplesUntilFXTailsEnd(ModFXType modFXType) const {
+	if (modFXType == ModFXType::NONE && compressor.getThreshold() <= 0) {
+		return 0;
+	}
+	int32_t modFXSamples = 0;
+	switch (modFXType) {
+	case ModFXType::NONE:
+		break;
+	case ModFXType::CHORUS:
+		[[fallthrough]];
+	case ModFXType::CHORUS_STEREO:
+		modFXSamples = 20 * 44;
+		break;
+	case ModFXType::GRAIN:
+		modFXSamples = (grainFX != nullptr) ? grainFX->getSamplesToShutdown() : 0;
+		break;
+	default:
+		modFXSamples = 90 * 441;
+	}
+	return std::max(modFXSamples, static_cast<int32_t>(compressor.getReleaseMS() * 44));
 }
 
 bool ModControllableAudio::setModFXType(ModFXType newType) {

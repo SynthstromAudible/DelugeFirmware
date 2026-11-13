@@ -2184,8 +2184,9 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 
 		if (skippingStatusNow) {
 
-			// We wanna start, skipping, but if MOD fx are on...
-			if ((modFXType_ != ModFXType::NONE) || compressor.getThreshold() > 0) {
+			// We wanna start, skipping, but if MOD fx or the compressor are on...
+			int32_t waitSamples = getSamplesUntilFXTailsEnd(modFXType_);
+			if (waitSamples != 0) {
 
 				// If we didn't start the wait-time yet, start it now
 				if (!startSkippingRenderingAtTime) {
@@ -2197,21 +2198,6 @@ doCutModFXTail:
 						goto yupStartSkipping;
 					}
 
-					int32_t waitSamplesModfx = 0;
-					switch (modFXType_) {
-					case ModFXType::CHORUS:
-						[[fallthrough]];
-					case ModFXType::CHORUS_STEREO:
-						waitSamplesModfx = 20 * 44;
-						break;
-					case ModFXType::GRAIN:
-						waitSamplesModfx = grainFX->getSamplesToShutdown();
-						break;
-					default:
-						waitSamplesModfx = (90 * 441);
-					}
-					int32_t waitSamples =
-					    std::max(waitSamplesModfx, static_cast<int32_t>(compressor.getReleaseMS() * 44));
 					startSkippingRenderingAtTime = AudioEngine::audioSampleTimer + waitSamples;
 				}
 
@@ -2459,12 +2445,12 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
-	if (arpSettings != nullptr) {
-		arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
-	}
 	ArpReturnInstruction instruction;
 
 	if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
+		// Only the arp reads these here. With it off, noteOn() refreshes them before it uses them, so don't touch
+		// them (cold memory) every render
+		arpSettings->updateParamsFromUnpatchedParamSet(unpatchedParams);
 		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
 		uint32_t phaseIncrement =
 		    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
@@ -3397,16 +3383,25 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 		}
 		else if (!strcmp(tagName, "dx7patch")) {
 			DxPatch* patch = source->ensureDxPatch();
+			if (patch == nullptr) {
+				return Error::INSUFFICIENT_RAM;
+			}
 			int len = reader.readTagOrAttributeValueHexBytes(patch->params, 156);
 			reader.exitTag("dx7patch");
 		}
 		else if (!strcmp(tagName, "dx7randomdetune")) {
 			DxPatch* patch = source->ensureDxPatch();
+			if (patch == nullptr) {
+				return Error::INSUFFICIENT_RAM;
+			}
 			patch->random_detune = reader.readTagOrAttributeValueInt();
 			reader.exitTag("dx7randomdetune");
 		}
 		else if (!strcmp(tagName, "dx7enginemode")) {
 			DxPatch* patch = source->ensureDxPatch();
+			if (patch == nullptr) {
+				return Error::INSUFFICIENT_RAM;
+			}
 			patch->setEngineMode(reader.readTagOrAttributeValueInt());
 			reader.exitTag("dx7enginemode");
 		}

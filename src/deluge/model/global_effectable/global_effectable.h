@@ -72,6 +72,42 @@ protected:
 	virtual int32_t getParameterFromKnob(int32_t whichModEncoder);
 	ModFXType getActiveModFXType(ParamManager* paramManager);
 
+	// Caches a param in its converted form, only reconverts if changed
+	class CachedConversion {
+	public:
+		template <typename Convert>
+		int32_t operator()(int32_t raw, Convert convert) {
+			if (!valid_ || raw != raw_) {
+				raw_ = raw;
+				value_ = convert(raw);
+				valid_ = true;
+			}
+			return value_;
+		}
+
+	private:
+		int32_t raw_ = 0;
+		int32_t value_ = 0;
+		bool valid_ = false;
+	};
+
+	struct ParamConversions {
+		CachedConversion volume;
+		CachedConversion pitchAdjust;
+		CachedConversion lpfFrequency;
+		CachedConversion lpfResonance;
+		CachedConversion lpfMorph;
+		CachedConversion hpfFrequency;
+		CachedConversion hpfResonance;
+		CachedConversion hpfMorph;
+		CachedConversion delayFeedback;
+		CachedConversion delayRate;
+		CachedConversion modFXRate;
+		CachedConversion modFXDepth;
+	};
+
+	ParamConversions conversions;
+
 private:
 	void ensureModFXParamIsValid();
 	void displayCompressorAndReverbSettings(bool on);

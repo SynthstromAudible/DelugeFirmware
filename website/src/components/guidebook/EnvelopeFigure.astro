@@ -1,0 +1,281 @@
+---
+/**
+ * The envelope explorer: the book's ADSR figure (6.3) drawn from the firmware's own envelope
+ * (see envelope/envelope.ts), with its four OLED readouts as the controls. Drag a readout's bar
+ * (or use the arrow keys) to change a stage; "Hold note" plays a note in real time, released when
+ * let go. As in the book, it starts on "Other destination": the envelope bipolar about the
+ * destination's own value, between ± mod depth; "Volume" draws it from silence to full.
+ *
+ * Without JavaScript, and in print, it is a still figure at the given settings (the book's by
+ * default) with the note held long enough to show every stage.
+ */
+import "../../styles/guidebook.css"
+import "../../styles/guidebook-envelope.css"
+import envelopeJson from "../../data/guidebook-envelope.json"
+import { EnvelopeDataSchema } from "./envelope/envelope-data.ts"
+import {
+  type Settings,
+  defaultGate,
+  formatTime,
+  sustainCaption,
+  timing,
+} from "./envelope/envelope.ts"
+import { VIEW, renderPlot } from "./envelope/plot.ts"
+
+type Props = {
+  id: string
+  alt: string
+  /** Knob positions 0..50; the book's figure by default. */
+  attack?: number
+  decay?: number
+  sustain?: number
+  release?: number
+}
+
+const {
+  id,
+  alt,
+  attack = 30,
+  decay = 20,
+  sustain = 25,
+  release = 30,
+} = Astro.props
+const data = EnvelopeDataSchema.parse(envelopeJson)
+const settings: Settings = { attack, decay, sustain, release }
+const t = timing(data, settings)
+const plot = renderPlot(data, settings, {
+  gate: defaultGate(data, settings),
+  destination: "other",
+})
+const readouts = [
+  { key: "attack", title: "ATTACK", caption: formatTime(t.attack) },
+  { key: "decay", title: "DECAY", caption: formatTime(t.decay) },
+  {
+    key: "sustain",
+    title: "SUSTAIN",
+    caption: sustainCaption(t, settings, "other"),
+  },
+  { key: "release", title: "RELEASE", caption: formatTime(t.release) },
+] as const
+---
+
+<figure class="gb-figure gb-env not-content" id={id}>
+  <svg
+    class="gb-env-plot"
+    viewBox={`0 0 ${VIEW.w} ${VIEW.h}`}
+    role="img"
+    aria-label={alt}
+    set:html={plot}
+  />
+  <div class="gb-env-readouts">
+    {readouts.map(({ key, title, caption }) => (
+      <label class="gb-env-oled">
+        <span class="gb-env-oled-title">ENV1 {title}</span>
+        <output>{settings[key]}</output>
+        <input
+          type="range"
+          min="0"
+          max="50"
+          step="1"
+          value={settings[key]}
+          data-param={key}
+          autocomplete="off"
+          aria-label={`Envelope ${key}`}
+          style={`--fill: ${settings[key] * 2}%`}
+          disabled
+        />
+        <span class="gb-env-oled-caption">{caption}</span>
+      </label>
+    ))}
+    <p class="gb-env-sticker" hidden>
+      <svg class="gb-env-sticker-leader" aria-hidden="true" height="10">
+        <line x1="7.7" y1="5" x2="100%" y2="5"></line>
+        <path d="M0.5 5L7.7 1.15L7.7 8.85Z"></path>
+      </svg>
+      <span class="gb-env-sticker-text">
+        <span class="gb-env-sticker-title">TRY IT</span>
+        <span class="gb-env-sticker-hint">
+          (drag a bar, <br />
+          or hold a note)
+        </span>
+      </span>
+    </p>
+  </div>
+  <div class="gb-env-actions" hidden>
+    <button type="button" class="gb-env-hold" aria-pressed="false">
+      Hold note
+    </button>
+    <fieldset class="gb-env-dest-choice">
+      <legend>Modulating</legend>
+      <label>
+        <input type="radio" name={`${id}-dest`} value="volume" /> Volume
+      </label>
+      <label>
+        <input type="radio" name={`${id}-dest`} value="other" checked /> Other
+        destination
+      </label>
+    </fieldset>
+  </div>
+</figure>
+
+<script>
+  import envelopeJson from "../../data/guidebook-envelope.json"
+  import {
+    type EnvelopeData,
+    type Settings,
+    defaultGate,
+    endTime,
+    formatTime,
+    sustainCaption,
+    timing,
+  } from "./envelope/envelope.ts"
+  import { type Destination, VIEW, renderPlot } from "./envelope/plot.ts"
+
+  // Validated at build time (the figure's still render); not re-parsed here, to keep zod off the page.
+  const data = envelopeJson as EnvelopeData
+
+  function bind(figure: HTMLElement) {
+    const svg = figure.querySelector<SVGSVGElement>(".gb-env-plot")
+    const inputs = [
+      ...figure.querySelectorAll<HTMLInputElement>("input[data-param]"),
+    ]
+    const hold = figure.querySelector<HTMLButtonElement>(".gb-env-hold")
+    const actions = figure.querySelector<HTMLElement>(".gb-env-actions")
+    if (!svg || !hold || !actions) return
+
+    const settings = () =>
+      Object.fromEntries(
+        inputs.map((i) => [i.dataset.param, Number(i.value)]),
+      ) as Settings
+    let destination: Destination = "other"
+    // the note being played (performance.now() at note on; gate once let go), and the last one played
+    let note: { start: number; gate?: number } | undefined
+    let played: number | undefined
+    let frame = 0
+
+    const captions = () => {
+      const s = settings()
+      const t = timing(data, s)
+      for (const input of inputs) {
+        const key = input.dataset.param as keyof Settings
+        const label = input.closest("label")!
+        label.querySelector("output")!.textContent = input.value
+        input.style.setProperty("--fill", `${Number(input.value) * 2}%`)
+        const sustain = sustainCaption(t, s, destination)
+        label.querySelector(".gb-env-oled-caption")!.textContent =
+          key === "sustain" ? sustain : formatTime(t[key])
+      }
+    }
+
+    // Drawn at the width shown, so the plot's text keeps its size on small screens.
+    let width = VIEW.w
+    const draw = () => {
+      const s = settings()
+      const base = endTime(data, s, defaultGate(data, s))
+      if (!note) {
+        const gate = played ?? defaultGate(data, s)
+        svg.innerHTML = renderPlot(data, s, {
+          gate,
+          destination,
+          width,
+          tMax: Math.max(base, endTime(data, s, gate)),
+        })
+        return
+      }
+      const now = (performance.now() - note.start) / 1000
+      const t = timing(data, s)
+      const gate = note.gate ?? now
+      const end = endTime(data, s, gate)
+      svg.innerHTML = renderPlot(data, s, {
+        gate,
+        destination,
+        now: Math.min(now, end),
+        holding: note.gate === undefined,
+        width,
+        tMax: Math.max(base, gate + t.release),
+      })
+      if (note.gate !== undefined && now >= end) {
+        // played out: keep the note's shape on show
+        played = note.gate
+        note = undefined
+        hold.textContent = "Hold note"
+        draw()
+        return
+      }
+      frame = requestAnimationFrame(draw)
+    }
+
+    const press = () => {
+      if (note && note.gate === undefined) return
+      cancelAnimationFrame(frame)
+      note = { start: performance.now() }
+      hold.setAttribute("aria-pressed", "true")
+      hold.textContent = "Release note"
+      draw()
+    }
+    const letGo = () => {
+      if (!note || note.gate !== undefined) return
+      note.gate = (performance.now() - note.start) / 1000
+      hold.setAttribute("aria-pressed", "false")
+      hold.textContent = "Hold note"
+    }
+    hold.addEventListener("pointerdown", (e) => {
+      hold.setPointerCapture(e.pointerId)
+      press()
+    })
+    hold.addEventListener("pointerup", letGo)
+    hold.addEventListener("pointercancel", letGo)
+    hold.addEventListener("keydown", (e) => {
+      if ((e.key === " " || e.key === "Enter") && !e.repeat) {
+        e.preventDefault()
+        press()
+      }
+    })
+    hold.addEventListener("keyup", (e) => {
+      if (e.key === " " || e.key === "Enter") letGo()
+    })
+    // a click with no pointer (assistive tech): play a short note
+    hold.addEventListener("click", (e) => {
+      if (e.detail !== 0) return
+      press()
+      setTimeout(letGo, 1000 * defaultGate(data, settings()))
+    })
+
+    for (const input of inputs) {
+      input.disabled = false
+      input.addEventListener("input", () => {
+        cancelAnimationFrame(frame)
+        note = undefined
+        played = undefined
+        hold.setAttribute("aria-pressed", "false")
+        hold.textContent = "Hold note"
+        captions()
+        draw()
+      })
+    }
+    for (const radio of figure.querySelectorAll<HTMLInputElement>(
+      ".gb-env-dest-choice input",
+    ))
+      radio.addEventListener("change", () => {
+        destination = radio.value as Destination
+        captions()
+        if (!note) draw()
+      })
+    actions.hidden = false
+    figure
+      .querySelector<HTMLElement>(".gb-env-sticker")
+      ?.removeAttribute("hidden")
+    // Match whatever the readouts hold now (a browser may restore them on reload), at this width.
+    new ResizeObserver(() => {
+      const shown = Math.max(320, Math.round(svg.getBoundingClientRect().width))
+      if (shown === width) return
+      width = shown
+      svg.setAttribute("viewBox", `0 0 ${width} ${VIEW.h}`)
+      if (!note) draw()
+    }).observe(svg)
+    captions()
+    draw()
+  }
+
+  document.querySelectorAll<HTMLElement>("figure.gb-env").forEach(bind)
+</script>

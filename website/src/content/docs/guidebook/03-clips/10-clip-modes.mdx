@@ -1,0 +1,69 @@
+---
+title: "3.10 Clip Modes"
+sidebar:
+  order: 9
+banner:
+  content: "Based on the Deluge Manual \u2013 Amadeus Edition (draft). Being updated for community firmware up to C1.3."
+guidebook:
+  section: "3.10"
+  chapter: 3
+  pdfPages: [160, 161, 162, 163, 164, 165, 166, 167, 168]
+  printedPages: [154, 155, 156, 157, 158, 159, 160, 161, 162]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_3_10_1 from "../../../../assets/guidebook/figs/03-clips__10-clip-modes--1.svg?raw"
+import { Steps } from "@astrojs/starlight/components"
+import { Badge } from "@astrojs/starlight/components"
+import Unwritten from "../../../../components/guidebook/Unwritten.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+<StepFocus />
+
+### Fill Clips
+
+A clip can operate in default mode or be set as a fill clip. Instead of aligning a triggered clip start, a fill clip is designed to play at the end of a loop, coming to an end at the point of starting the next loop. A fill clip when triggered it will automatically be scheduled to start so that it finishes at the start of the next loop. If the fill clip is longer than the remaining time, it is triggered immediately at a point midway through. The loop length is set by the longest playing clip, or by the total length of a section times the repeat count set for that section. Note that a fill clip is still subject to the one clip per instrument behavior of the Deluge. Fill clips can steal an output from another fill, but they cannot steal from a non-fill. This can lead to some fills never starting since a default type clip has the needed instrument. This can be worked around by cloning the instrument to an independent copy.
+
+## Configuring a fill clip in session view
+
+<Steps>
+
+1. Press :key[Song]
+2. Hold :key[Launch Pad + Select] on an existing clip row.
+3. The fill clip pop-up menu will appear. The default clip mode is normally set but can be changed to a fill clip.
+4. :key[Turn Select] to highlight ‘FILL CLIP’.
+5. Press :key[Select] to select and confirm the option highlighted.
+6. The clip playback will operate to the fill clip launch behaviour. When triggered it will play by aligning its end point with the loop end / next loop start.
+
+</Steps>
+
+<Figure
+  id="fig-3.10-1"
+  src={fig_fig_3_10_1}
+  alt={"OLED screen: LAUNCH STYLE DEFAULT CLIP FILL CLIP Launch Behaviour"}
+  page={157}
+/>
+
+## Once clips <Badge text="C1.1" variant="tip" />
+
+{/* TODO(kate): community_features: 4.1.3; CHANGELOG.mdx: L869, L893 */}
+
+<Unwritten>
+  See [Fill Clips and Once
+  Clips](/features/community_features#413---fill-clips-and-once-clips).
+</Unwritten>
+
+## Clip Settings menu <Badge text="C1.2" variant="tip" />
+
+{/* TODO(kate): community_features: 3.28; CHANGELOG.mdx: L608, L610, L636 */}
+
+<Unwritten>
+  See [Add Clip Settings Menu in Session View to set Clip Mode and Clip Name and
+  convert Instrument Clips to Audio
+  Clips](/features/community_features#328---add-clip-settings-menu-in-session-view-to-set-clip-mode-and-clip-name-and-convert-instrument-clips-to-audio-clips).
+</Unwritten>
