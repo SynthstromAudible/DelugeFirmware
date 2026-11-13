@@ -268,6 +268,9 @@ A scenario gate is a stepped scenario the Embassy host harness runs (`runner = "
    `complete`, `dispatch_step`, `step_done` and `failures`, and a row in `integration/scenarios/scenario_table.cpp`,
    which declares them the same way. Only the host tree compiles that directory, so it needs no `DELUGE_HOST` guard,
    and includes are `"scenarios/…"`.
+   Report failures through a `ScenarioReport` (`integration/scenarios/support/scenario_report.h`): `fail()` prints
+   `<PREFIX>-FAIL <what>`, `printResult()` the result line, and `failures()` is the row's `failures`. A stage that
+   waits for something polls a `Wait` with a tick budget; one that runs out is a recorded failure.
    The row also names the scenario's pacing (`ScenarioPacing`, default virtual time) and card (`ScenarioCard`,
    default empty); golden_vt_render applies both and runs any row by name, so nothing on the Rust side changes. A
    card of the scenario's own is a manifest beside it, `integration/scenarios/<name>.card`, in the format
