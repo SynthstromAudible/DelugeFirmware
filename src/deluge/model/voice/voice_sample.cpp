@@ -79,11 +79,11 @@ void VoiceSample::considerStartingLoopCrossfade(SamplePlaybackGuide* guide, Samp
 	}
 
 	if (loopIncoming == nullptr) {
-		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(LoopIncomingReader));
+		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SampleLowLevelReader));
 		if (memory == nullptr) {
 			return; // Just loop without the crossfade
 		}
-		loopIncoming = new (memory) LoopIncomingReader();
+		loopIncoming = new (memory) SampleLowLevelReader();
 	}
 
 	loopIncoming->oscPos = oscPos;
@@ -102,7 +102,6 @@ bool VoiceSample::finishLoopCrossfade(SamplePlaybackGuide* guide, Sample* sample
                                       int32_t priorityRating) {
 	static_cast<SampleLowLevelReader&>(*this) = std::move(*loopIncoming);
 	loopCrossfadeLength = 0;
-	loopIncoming->currentPassOnBottomRows = !loopIncoming->currentPassOnBottomRows;
 
 	// The incoming reader didn't obey the markers, and a note-off may have moved the end since, so work out again where
 	// to stop or loop
@@ -119,7 +118,7 @@ void VoiceSample::cancelLoopCrossfade() {
 
 void VoiceSample::freeLoopIncoming() {
 	if (loopIncoming != nullptr) {
-		loopIncoming->~LoopIncomingReader(); // Unassigns its Clusters
+		loopIncoming->~SampleLowLevelReader(); // Unassigns its Clusters
 		GeneralMemoryAllocator::get().dealloc(loopIncoming);
 		loopIncoming = nullptr;
 	}
@@ -1950,14 +1949,11 @@ int32_t VoiceSample::getPlaySample(Sample* sample, SamplePlaybackGuide* guide) {
 	}
 }
 
-// Where the incoming pass of a loop crossfade has got to, or -1 if there's no crossfade going on. Passes alternate
-// between the waveform view's top and bottom rows, and currentPassOnBottomRows says where this (outgoing) one goes
-int32_t VoiceSample::getLoopCrossfadeIncomingPlaySample(Sample* sample, SamplePlaybackGuide* guide,
-                                                        bool* currentPassOnBottomRows) {
+// Where the incoming pass of a loop crossfade has got to, or -1 if there's no crossfade going on
+int32_t VoiceSample::getLoopCrossfadeIncomingPlaySample(Sample* sample, SamplePlaybackGuide* guide) {
 	if (!isLoopCrossfading()) {
 		return -1;
 	}
-	*currentPassOnBottomRows = loopIncoming->currentPassOnBottomRows;
 	int32_t bytePosFromAudioDataStart =
 	    loopIncoming->getPlayByteLowLevel(sample, guide) - sample->audioDataStartPosBytes;
 	return bytePosFromAudioDataStart / (sample->byteDepth * sample->numChannels);

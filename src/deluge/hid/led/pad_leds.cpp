@@ -88,6 +88,7 @@ uint8_t flashCursor;
 
 uint8_t slowFlashSquares[kDisplayHeight];
 uint8_t slowFlashColours[kDisplayHeight];
+uint8_t slowFlashExtraColumn = 255; // A second cursor, the full height of the grid. 255 means none
 
 int32_t explodeAnimationYOriginBig;
 int32_t explodeAnimationXStartBig;
@@ -123,6 +124,7 @@ constexpr uint32_t kClipExpandCollapseRefreshMs = 25;
 
 void init() {
 	memset(slowFlashSquares, 255, sizeof(slowFlashSquares));
+	slowFlashExtraColumn = 255;
 }
 
 bool shouldNotRenderDuringTimerRoutine() {
@@ -144,9 +146,13 @@ void clearTickSquares(bool shouldSend) {
 				colsToSend |= (1 << (slowFlashSquares[y] >> 1));
 			}
 		}
+		if (slowFlashExtraColumn != 255) {
+			colsToSend |= (1 << (slowFlashExtraColumn >> 1));
+		}
 	}
 
 	memset(slowFlashSquares, 255, sizeof(slowFlashSquares));
+	slowFlashExtraColumn = 255;
 
 	if (shouldSend && flashCursor == FLASH_CURSOR_SLOW && !shouldNotRenderDuringTimerRoutine()) {
 		if (colsToSend) {
@@ -166,7 +172,7 @@ void clearTickSquares(bool shouldSend) {
 	}
 }
 
-void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
+void setTickSquares(const uint8_t* squares, const uint8_t* colours, uint8_t extraColumn) {
 
 	uint32_t colsToSend = 0;
 
@@ -184,6 +190,14 @@ void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 					if (slowFlashSquares[y] != 255) {
 						colsToSend |= (1 << (slowFlashSquares[y] >> 1));
 					}
+				}
+			}
+			if (extraColumn != slowFlashExtraColumn) {
+				if (extraColumn != 255) {
+					colsToSend |= (1 << (extraColumn >> 1));
+				}
+				if (slowFlashExtraColumn != 255) {
+					colsToSend |= (1 << (slowFlashExtraColumn >> 1));
 				}
 			}
 		}
@@ -212,10 +226,18 @@ void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 				PadLEDs::flashMainPad(squares[y], y, colour);
 			}
 		}
+		if (extraColumn != slowFlashExtraColumn && extraColumn != 255) {
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				if (squares[y] != extraColumn) {
+					PadLEDs::flashMainPad(extraColumn, y, 0);
+				}
+			}
+		}
 	}
 
 	memcpy(slowFlashSquares, squares, kDisplayHeight);
 	memcpy(slowFlashColours, colours, kDisplayHeight);
+	slowFlashExtraColumn = extraColumn;
 
 	if (flashCursor == FLASH_CURSOR_SLOW && !shouldNotRenderDuringTimerRoutine()) {
 		// Actually send everything, if there was a change
@@ -293,6 +315,10 @@ RGB prepareColour(int32_t x, int32_t y, RGB colourSource) {
 		else { // Otherwise, pull from a referenced table line
 			colourSource = flashColours[slowFlashColours[y]];
 		}
+	}
+	else if (flashCursor == FLASH_CURSOR_SLOW && slowFlashExtraColumn == x
+	         && currentUIMode != UI_MODE_HORIZONTAL_SCROLL) {
+		colourSource = flashColours[0];
 	}
 
 	if ((greyoutRows || greyoutCols)
