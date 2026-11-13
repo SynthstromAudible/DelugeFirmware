@@ -135,6 +135,12 @@ public:
 	/// @brief [interaction] Are the focus's ids in the current song? With no song, or a focus another song's, the knobs
 	///        point at nothing.
 	[[nodiscard]] bool knobsOnCurrentSong() const;
+	/// @brief [interaction] The engine stack of the owner the knobs move, resolved from the focus.
+	/// @param memory MODEL_STACK_MAX_SIZE bytes, aligned as ModelStackWithAutoParam, which the stack lives in.
+	/// @return The stack, or null while the knobs point at nothing (`knobsOnCurrentSong`, or no owner).
+	[[nodiscard]] ModelStackWithThreeMainThings* knobOwnerStack(void* memory) const;
+	/// @brief [interaction] The clip (its take while the arrangement records it) or song the knobs are on, or null.
+	[[nodiscard]] TimelineCounter* knobTimelineCounter() const;
 	/// @brief [interaction] Take the knobs' param manager, which the render compares automation against, from the
 	///        focus now.
 	void refreshKnobParamManager();
@@ -299,9 +305,6 @@ private:
 	/// @brief Set the focus's owner from @p stack, a view's stack for its target, keeping its region, compressor view
 	///        and VU meter.
 	void setKnobFocusFrom(const ModelStackWithThreeMainThings* stack);
-	/// @brief The compressor view a push may move: the focus's for the song; none (the push moves a view nothing
-	///        keeps) for any other owner.
-	[[nodiscard]] deluge::controls::CompView* knobCompToMove();
 	deluge::controls::KnobFocus knobFocus_{};
 	/// The song the focus's ids are in, as an identity only: never dereferenced.
 	const Song* knobSong_{};

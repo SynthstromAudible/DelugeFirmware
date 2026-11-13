@@ -565,9 +565,9 @@ RULES = [
     ),
     (
         # A view acts on the knobs' owner by address (bridge::stutterAt, the focus's comp view, knobMode), not through
-        # an engine cast of an owner it resolves (View::KnobStack, or any `->modControllable` / `.owner()` read). Two
-        # are outside it until the scenes ship on the device: View itself, whose engine knob functions name the owner,
-        # and the automation view with its editor layout, which still read the stack.
+        # an engine cast of an owner it resolves (any `->modControllable` / `.owner()` read). Two are outside it until
+        # the scenes ship on the device: View itself, whose value popup names the owner, and the automation view with
+        # its editor layout, which still read the stack.
         "views-no-knob-owner-cast",
         (
             "src/deluge/gui/views/**",
@@ -576,7 +576,7 @@ RULES = [
             "src/deluge/gui/views/automation/**",
         ),
         "symbol",
-        r"\(\s*ModControllableAudio\s*\*\s*\)\s*(View::KnobStack|[\w.]+(->|\.)(modControllable|owner\(\)))",
+        r"\(\s*ModControllableAudio\s*\*\s*\)\s*[\w.]+(->|\.)(modControllable|owner\(\))",
         "2026-10-18-scenes-bind-to-model-design.md",
     ),
     (

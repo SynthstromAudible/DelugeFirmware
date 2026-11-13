@@ -100,16 +100,12 @@ namespace {
 
 using Root = MenuContext::Root;
 
-/// @brief Whether the view's knobs move @p controllable: its focus's owner stack, resolved only while the focus is on
-/// the
-///        current song.
+/// @brief Whether the view's knobs move @p controllable: its focus's owner stack, resolved only while the focus is
+///        on the current song.
 /// @param controllable The mod controllable to look for.
 bool knobs_move(ModControllable* controllable) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	const ModelStackWithThreeMainThings* owner =
-	    currentSong != nullptr && view.knobsOnCurrentSong()
-	        ? deluge::bridge::knobOwnerStackAt(*currentSong, view.knobFocus(), memory)
-	        : nullptr;
+	const ModelStackWithThreeMainThings* owner = view.knobOwnerStack(memory);
 	return owner != nullptr && owner->modControllable == controllable;
 }
 

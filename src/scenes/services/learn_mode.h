@@ -4,7 +4,7 @@
 /// @brief `LearnMode` -- the one question the rest of the scenes layer asks MIDI learn.
 ///
 /// **This header is the boundary between `GlobalControls` and `MidiLearn`.** It exists because `View::buttonAction`
-/// (`gui/views/view.cpp:141-488`) asks `currentUIMode == UI_MODE_MIDI_LEARN` in three of its arms and then does
+/// asks `currentUIMode == UI_MODE_MIDI_LEARN` in three of its arms and then does
 /// *transport* work in the same function -- and splitting `View` in two without a seam would mean spelling that test
 /// twice, in two services, from two copies of the mode. Duplicating a question in both halves of a
 /// split is how `View` reached 2,908 lines in the first place.

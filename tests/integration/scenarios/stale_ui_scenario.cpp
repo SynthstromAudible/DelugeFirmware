@@ -83,10 +83,7 @@ namespace {
 ///        the current song.
 struct KnobOwner {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* stack =
-	    currentSong != nullptr && view.knobsOnCurrentSong()
-	        ? deluge::bridge::knobOwnerStackAt(*currentSong, view.knobFocus(), memory)
-	        : nullptr;
+	ModelStackWithThreeMainThings* stack = view.knobOwnerStack(memory);
 	KnobOwner() = default;
 	KnobOwner(const KnobOwner&) = delete;
 	KnobOwner& operator=(const KnobOwner&) = delete;

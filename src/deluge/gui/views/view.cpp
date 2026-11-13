@@ -41,8 +41,6 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "hid/encoder_input.h"
-#include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -55,18 +53,10 @@
 #include "lib/printf.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
-#include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
-#include "model/consequence/consequence.h"
 #include "model/drum/drum.h"
-#include "model/edits/bend_range_for.h"
-#include "model/edits/delete_param_automation.h"
-#include "model/edits/edit.h"
 #include "model/edits/learn_mapping.h"
-#include "model/edits/param_address_for.h"
-#include "model/edits/set_mod_knob_mode.h"
-#include "model/edits/set_param_value.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/instrument.h"
@@ -94,8 +84,6 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
-#include "processing/sound/sound_instrument.h"
-#include "processing/stem_export/stem_export.h"
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
@@ -108,7 +96,6 @@
 #include <optional>
 
 namespace params = deluge::modulation::params;
-namespace encoders = deluge::hid::encoders;
 using namespace deluge;
 using namespace gui;
 using deluge::project::SessionMacro;
@@ -799,9 +786,7 @@ int32_t View::calculateKnobPosForModEncoderTurn(params::Kind kind, int32_t knobP
 	return newKnobPos;
 }
 
-// for param's that are bipolar / should indicate middle value
-// this will blink the middle value when middle knob pos is reached
-// and make it harder to turn the knob past the middle value
+// Blink the indicator at a centred position of a param that shows its middle; stop the blink otherwise.
 void View::potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStackWithAutoParam* modelStackWithParam,
                                              int32_t newKnobPos) {
 	params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
@@ -875,8 +860,7 @@ void View::adoptModEncoderValuePopup(params::Kind kind, int32_t paramID, int32_t
 void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32_t newKnobPos, PatchSource source1,
                                        PatchSource source2) {
 	alignas(ModelStackWithAutoParam) char knobsMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* knobs =
-	    knobsOnCurrentSong() ? deluge::bridge::knobOwnerStackAt(*currentSong, knobFocus_, knobsMemory) : nullptr;
+	ModelStackWithThreeMainThings* knobs = knobOwnerStack(knobsMemory);
 	auto* knobOwner = knobs != nullptr ? (ModControllableAudio*)knobs->modControllable : nullptr;
 
 	auto& [last_param_kind, last_param_id, last_display_value, last_source1, last_source2, display_owner_kind,
@@ -1511,10 +1495,6 @@ const deluge::controls::CompView& View::knobComp() const {
 	return std::holds_alternative<deluge::controls::SongFocus>(knobFocus_.owner) ? knobFocus_.comp : kNone;
 }
 
-deluge::controls::CompView* View::knobCompToMove() {
-	return std::holds_alternative<deluge::controls::SongFocus>(knobFocus_.owner) ? &knobFocus_.comp : nullptr;
-}
-
 void View::knobFocusChanged() {
 	knobSong_ = currentSong;
 	compSong_ = currentSong;
@@ -1526,10 +1506,19 @@ bool View::knobsOnCurrentSong() const {
 	return currentSong != nullptr && knobSong_ == currentSong;
 }
 
+ModelStackWithThreeMainThings* View::knobOwnerStack(void* memory) const {
+	return knobsOnCurrentSong() ? deluge::bridge::knobOwnerStackAt(*currentSong, knobFocus_, memory) : nullptr;
+}
+
+TimelineCounter* View::knobTimelineCounter() const {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* stack = knobOwnerStack(memory);
+	return stack != nullptr ? stack->getTimelineCounterAllowNull() : nullptr;
+}
+
 void View::refreshKnobParamManager() {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* stack =
-	    knobsOnCurrentSong() ? deluge::bridge::knobOwnerStackAt(*currentSong, knobFocus_, memory) : nullptr;
+	ModelStackWithThreeMainThings* stack = knobOwnerStack(memory);
 	knobParamManager_.store(stack != nullptr ? stack->paramManager : nullptr, std::memory_order_relaxed);
 }
 

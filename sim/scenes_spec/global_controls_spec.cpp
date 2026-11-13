@@ -1,7 +1,7 @@
 /// @file
 /// @brief `services::GlobalControls` -- driven against the real legacy it ports,
-///        `Buttons::buttonAction` (`hid/buttons.cpp:75-235`) and `View::buttonAction`
-///        (`gui/views/view.cpp:141-488`), on a real `Song` built by `support/song_fixture.h`.
+///        `Buttons::buttonAction` (`hid/buttons.cpp:75-235`) and `View::buttonAction`,
+///        on a real `Song` built by `support/song_fixture.h`.
 ///
 /// @par The oracle, and what "each side from its own sentinel" can mean here
 ///
@@ -38,11 +38,11 @@
 ///   * **`View::buttonAction`'s four MIDI-learn arms** (`:148-166`, `:185-196`, `:199-212`,
 ///     `:215-228`). `MidiLearn`'s; this spec asserts only that they are declined here, and that the
 ///     transport arms they share a button with are correctly suppressed while learn is active.
-///   * **The dedicated undo/redo buttons** (`view.cpp:425-448`). Dead code: they are inside
+///   * **The dedicated undo/redo buttons** (`View::buttonAction`'s `undo` and `redo` arms). Dead code: they are inside
 ///     `#ifdef undoButtonX` and `undoButtonX` is defined nowhere in this tree, so there is nothing
 ///     to drive on either side.
-///   * **The UNDO-vs-REDO choice** at `view.cpp:416-417`. `playbackHandler.slowRoutine()` at
-///     `:417` consumes the pending command inside the same call
+///   * **The UNDO-vs-REDO choice** in `View::buttonAction`'s BACK arm. `playbackHandler.slowRoutine()`
+///     there consumes the pending command inside the same call
 ///     (`PlaybackHandler::slowRoutine`) and a spec cannot make `deluge::sync::sd_busy()`
 ///     true, so both spellings read `NONE` by the time control returns. The arm's *body running*
 ///     is covered; which of the two it chose is not. See the BACK example.
@@ -755,7 +755,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		pending_global_midi_clusters() = kPoison;
 		const Result back_off_root = rig.press(ButtonId::Back, true, 42'000);
 		expect(back_off_root.handled).to_be_false();
-		expect(pending_global_midi_clusters() == kPoison).to_be_true(); // `view.cpp:418` never ran
+		expect(pending_global_midi_clusters() == kPoison).to_be_true(); // the BACK arm's write never ran
 		rig.press(ButtonId::Back, false, 42'010);
 
 		// The tail is NOT gated: a RECORD tap from the same non-root scene still toggles recording,
@@ -1104,7 +1104,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Back), true);
 		const int32_t legacy_result = pending_global_midi_clusters();
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Back), false);
-		expect(legacy_result == 0).to_be_true(); // `view.cpp:418` ran
+		expect(legacy_result == 0).to_be_true(); // the BACK arm's write ran
 
 		// Re-poison, so a port that writes nothing cannot inherit legacy's zero.
 		pending_global_midi_clusters() = kPoison;

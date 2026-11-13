@@ -103,10 +103,13 @@ public:
 };
 
 /// The one presentation the root views show through.
-RootKnobPresentation rootPresentation;
+RootKnobPresentation root_presentation;
 
 /// @brief The shared knobs, told the song and the root view now, or null when the focus is not in the current song
-///        (`View::knobOwnerStack`'s guard: such knobs point at nothing).
+///        (`View::knobsOnCurrentSong`: such knobs point at nothing).
+/// @note `refresh_indicators` runs this from inside `ModKnobs::push` and `ModKnobs::section_button`, through the
+///       presentation's `indicators_changed` and `mode_changed`. Those are each gesture's last statement, and the
+///       state this re-tells is what the service already holds, so nothing in the gesture reads a changed value.
 ModKnobs* knobs_now() {
 	refreshKnobsForRoot();
 	return view.knobsOnCurrentSong() ? &sharedModKnobs() : nullptr;
@@ -116,7 +119,7 @@ ModKnobs* knobs_now() {
 
 void turn(int32_t knob, int32_t offset) {
 	if (ModKnobs* knobs = knobs_now()) {
-		knobs->turn(knob, offset, shellHostUI.nowMs(), rootPresentation);
+		knobs->turn(knob, offset, shellHostUI.nowMs(), root_presentation);
 	}
 }
 
@@ -132,12 +135,12 @@ void push(uint8_t knob, bool on) {
 	            {.shift = Buttons::isShiftButtonPressed(),
 	             .learn = Buttons::isButtonPressed(deluge::hid::button::LEARN),
 	             .mode_held = mode_held},
-	            rootPresentation);
+	            root_presentation);
 }
 
 void mod_button(uint8_t button, bool on) {
 	if (ModKnobs* knobs = knobs_now()) {
-		knobs->section_button(button, on, rootPresentation);
+		knobs->section_button(button, on, root_presentation);
 	}
 }
 

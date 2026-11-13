@@ -58,7 +58,8 @@
 ///          It is benign only because `GlobalMIDICommand` has a negative enumerator (`NONE = -1`,
 ///          `definitions_cxx.hpp:584`) and so takes `int` as its underlying type, making the two
 ///          spellings the same size and the one value written (`GlobalMIDICommand::PLAYBACK_RESTART`
-///          == 0, `view.cpp:418`) the same bits as the `0` the dead-code twin writes at `:437`.
+///          == 0, by `View::buttonAction`'s BACK arm) the same bits as the `0` its dead-code undo
+///          and redo arm writes.
 ///          Declared with the *defining* type here, and 0 written, rather than reproducing the pun.
 /// @{
 extern GlobalMIDICommand pendingGlobalMIDICommand;
@@ -157,7 +158,7 @@ GlobalControls::UiMode GlobalControls::effective_ui_mode() const {
 	return view_.ui_mode;
 }
 
-// -- `View::buttonAction` (`gui/views/view.cpp:141-488`) -----------------------------------------
+// -- `View::buttonAction` ----------------------------------------------------------------------------
 
 bool GlobalControls::load_save_allowed(const UiContext& ctx) const {
 	// `view.cpp:235-238` and its identical twin at `:280-283`. Note the guard wraps the WHOLE arm

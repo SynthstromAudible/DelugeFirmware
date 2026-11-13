@@ -46,23 +46,10 @@ using namespace deluge::gui;
 
 namespace {
 
-/// @brief The gold knobs' owner stack, in @p memory; null while they point at nothing.
-ModelStackWithThreeMainThings* knobStackInMemory(void* memory) {
-	return view.knobsOnCurrentSong() ? deluge::bridge::knobOwnerStackAt(*currentSong, view.knobFocus(), memory)
-	                                 : nullptr;
-}
-
-/// @brief The clip (its take while the arrangement records it) or song the gold knobs are on, or null.
-TimelineCounter* knobTimelineCounter() {
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* stack = knobStackInMemory(memory);
-	return stack != nullptr ? stack->getTimelineCounterAllowNull() : nullptr;
-}
-
 /// @brief The gold knobs' owner, or null.
 ModControllableAudio* knobOwner() {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* stack = knobStackInMemory(memory);
+	ModelStackWithThreeMainThings* stack = view.knobOwnerStack(memory);
 	return stack != nullptr ? static_cast<ModControllableAudio*>(stack->modControllable) : nullptr;
 }
 
@@ -706,7 +693,7 @@ void AutomationEditorLayoutModControllable::automationModEncoderActionForUnselec
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
-		if (modelStackWithParam->getTimelineCounter() == knobTimelineCounter()) {
+		if (modelStackWithParam->getTimelineCounter() == view.knobTimelineCounter()) {
 
 			int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, view.modPos());
 
@@ -1028,7 +1015,7 @@ void AutomationEditorLayoutModControllable::updateAutomationModPosition(ModelSta
 
 	if (!playbackHandler.isEitherClockActive() || getPadSelectionOn()) {
 		if (modelStack && modelStack->autoParam) {
-			if (modelStack->getTimelineCounter() == knobTimelineCounter()) {
+			if (modelStack->getTimelineCounter() == view.knobTimelineCounter()) {
 
 				if (const std::optional<deluge::project::ParamAddress> owner =
 				        deluge::controls::knob_owner(view.knobFocus())) {
