@@ -668,4 +668,31 @@ mod tests {
         assert!(err.to_string().contains("/nonexistent-repo/b/c"), "{err}");
         let _ = std::fs::remove_dir_all(&card);
     }
+    #[test]
+    fn every_committed_manifest_parses_and_builds() {
+        let repo = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(3)
+            .expect("src/bsp/rust is 3 below the repo root");
+        let scenarios = repo.join("tests/integration/scenarios");
+        let mut manifests: Vec<PathBuf> = std::fs::read_dir(&scenarios)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| path.extension().is_some_and(|e| e == "card"))
+            .collect();
+        manifests.sort();
+        assert!(
+            !manifests.is_empty(),
+            "no .card file under {}",
+            scenarios.display()
+        );
+        for manifest in manifests {
+            let card = scratch(&format!(
+                "committed-{}",
+                manifest.file_stem().unwrap().to_string_lossy()
+            ));
+            build_file(repo, &manifest, &card).unwrap_or_else(|e| panic!("{e}"));
+            let _ = std::fs::remove_dir_all(&card);
+        }
+    }
 }

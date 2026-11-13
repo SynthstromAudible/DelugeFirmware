@@ -773,18 +773,13 @@ fn install_staged(root: &std::path::Path) {
 
 /// The cards whose contents a manifest cannot describe, by the name a `Builder` row gives.
 const BUILDERS: &[(&str, fn(&Path))] = &[
-    ("audio_load_ab", |_| fill_audio_load_ab_card()),
-    ("card_reinsert", |_| fill_card_reinsert_card()),
     ("clear_song_undo", |_| fill_clear_song_undo_card()),
     ("load_cancel", |_| fill_load_cancel_card()),
     ("load_policy", fill_load_policy_card),
     ("preset_load", |_| fill_preset_load_card()),
     ("sample_claim", |_| fill_sample_claim_card()),
-    ("sample_collect", |_| fill_sample_collect_card()),
-    ("sample_load_tree", |_| fill_sample_load_tree_card()),
     ("song_load_channel", |_| fill_song_load_channel_card()),
     ("song_preview_ab", fill_song_preview_ab_card),
-    ("song_save_channel", |_| fill_song_save_card()),
 ];
 
 /// Installs scenario `name`'s card. Exits 2 when the card cannot be made: a required variable unset, a manifest
@@ -830,184 +825,6 @@ fn install_card(name: &str, card: Card, repo_root: &Path, fixture: &str) {
 /// The corpus fixture's tree, for scenario `name`.
 fn corpus_fixture(_name: &str, repo_root: &Path, fixture: &str) -> std::path::PathBuf {
     sd_image::golden_fixture_tree(repo_root, fixture)
-}
-
-/// Stages the song-save scenario's card: an empty `SONGS` directory.
-///
-/// The fixture that matters is the song, which the scenario inflates in memory until its document
-/// outgrows the staging buffer.
-fn fill_song_save_card() {
-    let root = staging_dir("deluge-song-save-card");
-    std::fs::create_dir_all(root.join("SONGS")).expect("creating the fixture SONGS directory");
-    install_staged(&root);
-}
-
-/// Stages the sample-collect scenario's card: small WAVs with different lengths and fills, so a
-/// copy that fetched the wrong file shows in the checksum.
-///
-/// The two `RECORD/` files make the ordering check able to fail. A collect-media save renames only
-/// a recording (`REC` + five characters + `.WAV`), appending a random `_XXXXX`; ordinary samples
-/// never move in the audio-file vector. `REC12345.WAV` is that recording. `REC123450.WAV` is not
-/// renamed, and sorts (case-insensitively) after `REC12345.WAV` and before `REC12345_XXXXX.WAV`
-/// (`.` < `0` < `_`), so the rename must move the recording across it: rewriting the path without
-/// removing and reinserting the entry leaves the vector out of order at that index.
-fn fill_sample_collect_card() {
-    let root = staging_dir("deluge-sample-collect-card");
-    let samples = root.join("SAMPLES");
-    let recordings = samples.join("RECORD");
-    std::fs::create_dir_all(&recordings).expect("creating the sample-collect fixture directories");
-    std::fs::create_dir_all(root.join("SONGS")).expect("creating the fixture SONGS directory");
-    write_test_wav(&samples.join("COLL1.WAV"), 1, 16, 512, 0x41);
-    write_test_wav(&samples.join("COLL2.WAV"), 2, 16, 1024, 0x42);
-    write_test_wav(&recordings.join("REC12345.WAV"), 1, 16, 768, 0x43);
-    write_test_wav(&recordings.join("REC123450.WAV"), 1, 16, 640, 0x44);
-    install_staged(&root);
-}
-
-/// Stages the card-reinsert scenario's card: three samples, one per fate the reinsert walk
-/// distinguishes.
-///
-/// The scenario removes `CRLOST.WAV` between ejection and re-insertion, so its resident Sample must
-/// be marked unloadable. The other two stay on the card; their fates depend on whether a project
-/// still holds them.
-fn fill_card_reinsert_card() {
-    let root = staging_dir("deluge-card-reinsert-card");
-    let samples = root.join("SAMPLES");
-    for dir in [&samples, &root.join("SONGS")] {
-        std::fs::create_dir_all(dir).expect("creating the card-reinsert fixture directories");
-    }
-    write_test_wav(&samples.join("CRSURV.WAV"), 1, 16, 4096, 0x71);
-    write_test_wav(&samples.join("CRLOST.WAV"), 1, 16, 3072, 0x72);
-    write_test_wav(&samples.join("CREVICT.WAV"), 1, 16, 2048, 0x73);
-    install_staged(&root);
-}
-
-/// Stages the sample-load tree scenario's card.
-///
-/// - `SAMPLES/SLTSYN.WAV`, `SLTWT.WAV`, `SLTKIT.WAV` and `SLTAUD.WAV` are the song's samples: the
-///   synth's sample source, its wavetable source (one 2048-sample cycle), the kit drum and the
-///   audio clip. The scenario collects them into the song's folder when it saves, then removes the
-///   first three from here, so the song load can only find their collected copies.
-/// - `SYNTHS/SLTPSYN/SLTPSYN.WAV` and `KITS/SLTPKIT/SLTPKA.WAV` / `SLTPKB.WAV` are the presets'
-///   samples. Each preset names its sample under `SAMPLES/`, where no such file exists, so the load
-///   must find it in the preset's own folder and rewrite the holder's path.
-/// - `SAMPLES/SLTCKA.WAV`, `SLTCKB.WAV`, `SLTCKC.WAV`, `SLTCSB.WAV` and `SLTCAB.WAV` belong to the
-///   crucial-only load's song (a second kit's three drums, a second synth, a second audio clip),
-///   collected and removed the same way.
-fn fill_sample_load_tree_card() {
-    let root = staging_dir("deluge-sample-load-tree-card");
-    let samples = root.join("SAMPLES");
-    let synth_folder = root.join("SYNTHS").join("SLTPSYN");
-    let kit_folder = root.join("KITS").join("SLTPKIT");
-    for dir in [&samples, &synth_folder, &kit_folder, &root.join("SONGS")] {
-        std::fs::create_dir_all(dir).expect("creating the sample-load tree fixture directories");
-    }
-    write_test_wav(&samples.join("SLTSYN.WAV"), 1, 16, 4096, 0x51);
-    write_test_wav(&samples.join("SLTWT.WAV"), 1, 16, 4096, 0x52);
-    write_test_wav(&samples.join("SLTKIT.WAV"), 1, 16, 3072, 0x53);
-    write_test_wav(&samples.join("SLTAUD.WAV"), 1, 16, 2048, 0x54);
-    write_test_wav(&samples.join("SLTCKA.WAV"), 1, 16, 2048, 0x61);
-    write_test_wav(&samples.join("SLTCKB.WAV"), 1, 16, 2048, 0x62);
-    write_test_wav(&samples.join("SLTCKC.WAV"), 1, 16, 2048, 0x63);
-    write_test_wav(&samples.join("SLTCSB.WAV"), 1, 16, 2048, 0x64);
-    write_test_wav(&samples.join("SLTCAB.WAV"), 1, 16, 2048, 0x65);
-    write_test_wav(&synth_folder.join("SLTPSYN.WAV"), 1, 16, 2048, 0x55);
-    write_test_wav(&kit_folder.join("SLTPKA.WAV"), 1, 16, 2048, 0x56);
-    write_test_wav(&kit_folder.join("SLTPKB.WAV"), 1, 16, 2048, 0x57);
-    install_staged(&root);
-}
-
-/// Stages the audio-load A/B scenario's card. Every file is load-bearing:
-///
-/// - `SAMPLES/BOTH.WAV` is in the regular directory and in `SAMPLES/ALT`, with a different length
-///   and fill in each, so a wrong candidate order moves the geometry, the recorded path and the
-///   stream fingerprint together.
-/// - `SAMPLES/BOTH2.WAV` has the same shape but is asked for after the alternate directory is
-///   probed, with both candidates live (`BOTH.WAV`'s request carries one). It is the file that
-///   tests the candidate order itself.
-/// - `SAMPLES/ONLYALT.WAV` is only in `SAMPLES/ALT`: the probe must find it, and its regular-path
-///   miss promotes the load's alternate-dir status for every later case.
-/// - `SAMPLES/ONLYREG.WAV` and `SAMPLES/STEREO24.WAV` come after that promotion and see the changed
-///   try order; `STEREO24.WAV` (2 channels, 24-bit) differs in both fields compared first.
-/// - `SAMPLES/BADREG.WAV` is garbage at the regular path with a good copy in `SAMPLES/ALT`, asked
-///   for while the alternate dir is unprobed. A parse verdict is not a miss: the load must fail as
-///   `FILE_UNSUPPORTED` without trying the alternate.
-/// - `SAMPLES/GARBAGE.WAV` opens and fails to parse; `SAMPLES/EMPTY.WAV` is empty;
-///   `SAMPLES/MISSING.WAV` is never written. The backings must fail with the same `Error`, not
-///   merely both fail.
-/// - `SAMPLES/ALT/SELFDIR.WAV` sits inside the alternate directory, the one shape where the
-///   bare-name alternate candidate equals the regular path, so "an alternate won" must be decided
-///   by candidate position.
-/// - `SAMPLES/PREVIEW.WAV` is previewed once and must then load and draw with only per-tick calls
-///   driving it.
-/// - `SAMPLES/CANCEL.WAV` is asked for and abandoned before its load runs, and must never load or
-///   draw.
-/// - `SAMPLES/STALL.WAV` is previewed while the loader holds every load past the browser's bound;
-///   the preview must give up without loading or drawing it.
-/// - `SAMPLES/DRAWSTALL.WAV` is previewed while the streaming loader holds every cluster fill; the
-///   redraw must give up.
-/// - `SAMPLES/SWAP.WAV`, `SWAPB.WAV` and `WITNESS.WAV` serve the card-ejection stage (see the
-///   comment at their writes).
-///
-/// The staging tree is deleted once the card holds it: a full `/tmp` can wedge an unrelated stem
-/// export.
-fn fill_audio_load_ab_card() {
-    let root = staging_dir("deluge-audio-load-ab-card");
-    let samples = root.join("SAMPLES");
-    let alt = samples.join("ALT");
-    let kit = samples.join("KIT");
-    std::fs::create_dir_all(&alt).expect("creating the A/B fixture card directories");
-    std::fs::create_dir_all(&kit).expect("creating the A/B fixture card directories");
-
-    write_test_wav(&samples.join("BOTH.WAV"), 1, 16, 2048, 0x11);
-    write_test_wav(&alt.join("BOTH.WAV"), 1, 16, 4096, 0x22);
-    write_test_wav(&alt.join("ONLYALT.WAV"), 1, 16, 1536, 0x33);
-    write_test_wav(&samples.join("BOTH2.WAV"), 1, 16, 1792, 0x66);
-    write_test_wav(&alt.join("BOTH2.WAV"), 1, 16, 3584, 0x77);
-    write_test_wav(&samples.join("ONLYREG.WAV"), 1, 16, 2560, 0x44);
-    write_test_wav(&samples.join("STEREO24.WAV"), 2, 24, 3072, 0x55);
-    // The nested case: three locations, three lengths. Only a nested regular path makes the
-    // flattened alternate candidate (`ALT/KIT_SNARE.WAV`) and the bare-name one (`ALT/SNARE.WAV`)
-    // distinct.
-    write_test_wav(&kit.join("SNARE.WAV"), 1, 16, 1024, 0x88);
-    write_test_wav(&alt.join("KIT_SNARE.WAV"), 1, 16, 2304, 0x99);
-    write_test_wav(&alt.join("SNARE.WAV"), 1, 16, 3072, 0xAA);
-    // The self-directory case (`selfdir` in `audio_load_ab_scenario.cpp`'s kCases). There is
-    // deliberately no flattened `ALT/ALT_SELFDIR.WAV`: that candidate must miss so the ambiguous
-    // bare-name one wins.
-    write_test_wav(&alt.join("SELFDIR.WAV"), 1, 16, 1280, 0xBB);
-    // kPreviewPath: asked for by no case above, so it is not resident when the stage begins and
-    // its load goes through the loader.
-    write_test_wav(&samples.join("PREVIEW.WAV"), 1, 16, 2816, 0xCC);
-    // kCancelPath: loadable on purpose, so "nothing loaded or drew it" cannot pass because the file
-    // could not load.
-    write_test_wav(&samples.join("CANCEL.WAV"), 1, 16, 3328, 0xDD);
-    // kStallPath: loadable, for the same reason as CANCEL.WAV.
-    write_test_wav(&samples.join("STALL.WAV"), 1, 16, 3840, 0xDE);
-    // The preview-draw stall file: six 32 KB clusters, so each view column covers less than two and
-    // reads its cluster directly, which a held fill leaves non-resident. At 16 clusters or more
-    // each column spans whole clusters, which the draw takes from the overview without waiting.
-    write_test_wav(&samples.join("DRAWSTALL.WAV"), 1, 16, 196_608, 0xDF);
-
-    // The card-ejection stage (`audio_load_ab_scenario.cpp`'s kSwapPath): the loader parses
-    // SWAP.WAV before the ejection; SWAPB.WAV, the "other card's" file, is moved onto its path once
-    // the card is marked gone. They differ in every asserted field, so a header parsed from one and
-    // applied to the other cannot pass. WITNESS.WAV is queued behind SWAP.WAV, so its completion
-    // tells the stage SWAP.WAV's result is published.
-    write_test_wav(&samples.join("SWAP.WAV"), 1, 16, 2048, 0xE1);
-    write_test_wav(&samples.join("SWAPB.WAV"), 2, 24, 6144, 0xE2);
-    write_test_wav(&samples.join("WITNESS.WAV"), 1, 16, 1536, 0xE3);
-
-    std::fs::write(samples.join("BADREG.WAV"), vec![0x7Eu8; 512])
-        .expect("writing the A/B fixture's garbage-at-the-regular-path file");
-    write_test_wav(&alt.join("BADREG.WAV"), 1, 16, 2048, 0xBB);
-    std::fs::write(samples.join("GARBAGE.WAV"), vec![0x7Eu8; 512])
-        .expect("writing the A/B fixture's unparseable file");
-    // A third failure shape: the file opens and there is nothing in it.
-    std::fs::write(samples.join("EMPTY.WAV"), Vec::<u8>::new())
-        .expect("writing the A/B fixture's zero-length file");
-
-    install_staged(&root);
 }
 
 // The song-preview A/B fixture
