@@ -5,6 +5,7 @@ Run directly with:
     python3 scripts/tasks/test_harness_registry.py
 """
 
+import contextlib
 import dataclasses
 import hashlib
 import importlib.util
@@ -584,6 +585,35 @@ class CiMatrixTest(unittest.TestCase):
         self.assertEqual(
             matrix["include"], [{"group": "unit", "tests": "p", "prebuilt": ""}]
         )
+
+    def test_no_build_product_requires_a_local_only_item(self):
+        root = Path(__file__).resolve().parents[2]
+        for name, product in tb.products(root).items():
+            with self.subTest(product=name):
+                self.assertTrue(hr.LOCAL_ONLY.isdisjoint(product.requires))
+
+    def test_list_marks_local_only_entries(self):
+        root = Path(__file__).resolve().parents[2]
+        corpus = dataclasses.replace(entry("c"), requires=["song-corpus"])
+        out = io.StringIO()
+        with (
+            mock.patch.object(hr, "probe", return_value=True),
+            contextlib.redirect_stdout(out),
+        ):
+            tt.cmd_list(root, [corpus], False, [corpus])
+        self.assertIn("[local-only: not run in CI]", out.getvalue())
+
+    def test_doctor_marks_a_missing_local_only_requirement(self):
+        root = Path(__file__).resolve().parents[2]
+        corpus = dataclasses.replace(entry("c"), requires=["song-corpus"])
+        out = io.StringIO()
+        with (
+            mock.patch.object(hr, "probe", return_value=False),
+            contextlib.redirect_stdout(out),
+        ):
+            code = tt.cmd_doctor(root, [corpus])
+        self.assertEqual(code, 1)
+        self.assertIn("song-corpus   (local-only: CI never has it)", out.getvalue())
 
     def test_local_only(self):
         self.assertTrue(
