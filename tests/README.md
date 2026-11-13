@@ -256,23 +256,41 @@ harness directory adds up to tens of gigabytes of duplicate build trees. Prefer 
 
 ## Adding a test
 
-Add a `[[harness]]` block to `registry.toml` and regenerate the table. `gates`, `status` and `job` are mandatory: a test
-that cannot state the regression it catches is one nobody can later decide to delete: a crate whose own header
-declares it throwaway survives indefinitely when nothing records that fact anywhere a reader would look.
+Add a `[[harness]]` block to `registry.toml` and regenerate the table. `name`, `level`, `runner`, `kind`, `status`,
+`gates`, `tier`, `job` and `runtime_s` are mandatory: a test that cannot state the regression it catches is one nobody
+can later decide to delete: a crate whose own header declares it throwaway survives indefinitely when nothing records
+that fact anywhere a reader would look. The loader refuses a field it does not know.
 
-`gates` is one sentence of at most 160 characters, with no full stop: what the test gates, as the table shows it.
-Everything else a reader needs -- the legs, the markers, why a check exists -- goes in a block in the file that judges
-the test: a check module's docstring (scenario entries with a `check`), the scenario's or driver's `.cpp` comment
-(scenario entries without one), the corpus runner's docstring, the script's own header, the crate's `Cargo.toml` or the
-tree's `CMakeLists.txt`:
+### Writing an entry
 
-    Gate <name>:
-        <the explanation, indented under the header>
+- **`gates`** is one sentence of at most 160 characters, with no full stop: what the test gates, as the table shows
+  it. Everything else a reader needs -- the legs, the markers, why a check exists -- goes in a block in the file that
+  judges the test: a check module's docstring (scenario entries with a `check`), the scenario's or driver's `.cpp`
+  comment (scenario entries without one), the corpus runner's docstring, the script's own header, the crate's
+  `Cargo.toml` or the tree's `CMakeLists.txt`:
 
-A check whose entries' explanations would swamp its docstring keeps them in a notes file beside it, one `## <name>`
-section per entry (`harness_registry.CHECK_NOTES`: `render_song.py`'s are in `render_song_cases.md`).
-`./dbt test --list --verbose <name>` prints the explanation, and a registry unit test refuses a block whose entry is
-gone.
+      Gate <name>:
+          <the explanation, indented under the header>
+
+  A check whose entries' explanations would swamp its docstring keeps them in a notes file beside it, one
+  `## <name>` section per entry (`harness_registry.CHECK_NOTES`: `render_song.py`'s are in `render_song_cases.md`).
+  `./dbt test --list --verbose <name>` prints the explanation, and a registry unit test refuses a block whose entry
+  is gone.
+- **`runtime_s`** is the whole seconds a run takes with its build products already built. A cold build's cost goes in
+  a comment above it. A test with no natural end states its usual run, and a comment says so.
+- **`path`** belongs only to `cargo` and `script` entries: the directory their commands run in. A ctest entry runs in
+  its `source`.
+- **`requires`** lists the probes the test needs (`./dbt test --doctor` names the missing ones); leave it out when it
+  needs none.
+- **Templates.** `template = "<name>"` takes the fields of `[template.<name>]` at the top of `registry.toml`
+  (`render-song`, `render-preset`, `scenario-driver`, `scenario`, `corpus`, `unittest`). An entry that sets a field its
+  template also sets must list it, `override = ["markers"]`; an undeclared difference, an override that changes
+  nothing and an override of a field the entry does not set are all refused. Templates do not nest.
+- **Variants.** `variants = ["asan"]` on a scenario entry generates `app-asan-<name>`: the entry's scenario, markers,
+  result and check on the host app built with AddressSanitizer (`[variant.asan]` gives its builds, environment, job
+  and tier). `variant_fields = { asan = { runtime_s = N } }` sets the copy's run time. A copy never owns a baseline.
+- `./dbt test --dump-expanded` prints every entry as the runner sees it, templates and variants applied; a rewrite of
+  the registry that changes no test leaves it identical.
 
 ### A scenario gate
 

@@ -28,6 +28,8 @@
 #         block in the file that judges the test -- ./dbt test --list --verbose <name> prints it
 # template: [template.<name>] holds fields its entries share; an entry that sets one of them anyway lists it in
 #         `override`, or the loader refuses it. Templates do not nest.
+# variants: ["asan"] generates [variant.asan]'s copy of the entry after every entry written here; the copy never
+#         owns a baseline. variant_fields = { asan = { runtime_s = N } } sets that copy's run time.
 
 # A song rendered on the audio tier through the real load browser, compared with its record in songs.json
 # (tests/integration/checks/render_song.py).
@@ -91,6 +93,19 @@ status = "gate"
 tier = "pr"
 job = "tooling"
 runtime_s = 1
+
+# A base entry's checks on the host app built with AddressSanitizer, UBSan and the allocator's heap poisoning:
+# `variants = ["asan"]` on the base generates app-asan-<base>, after every entry written here.
+[variant.asan]
+name = "app-asan-{base}"
+gates = "the {base} gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning"
+kind = "sanitizer"
+builds = ["golden-vt-render-asan"]
+requires = ["clang-asan"]
+env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }
+tier = "nightly"
+job = "unit"
+runtime_s = 300
 
 [[harness]]
 name = "fs-differential"
@@ -456,6 +471,7 @@ check = "tests/integration/checks/sample_load_tree.py"
 tier = "nightly"
 job = "app"
 runtime_s = 300
+variants = ["asan"]
 
 # The sample browser's claim, from the browser a user opens: what each claim binds, and where its load runs.
 [[harness]]
@@ -471,6 +487,8 @@ env = { GOLDEN_VIRTUAL_BUDGET_MS = "180000" }
 tier = "nightly"
 job = "app"
 runtime_s = 180
+variants = ["asan"]
+variant_fields = { asan = { runtime_s = 900 } }
 
 # The preset browser's own loads, from the browser a user opens: what each load binds, and where its card work runs.
 [[harness]]
@@ -486,6 +504,7 @@ env = { GOLDEN_VIRTUAL_BUDGET_MS = "180000" }
 tier = "nightly"
 job = "app"
 runtime_s = 180
+variants = ["asan"]
 
 [[harness]]
 name = "song-save-channel"
@@ -731,6 +750,7 @@ result = "RT-RESULT failures=0"
 tier = "pr"
 job = "app"
 runtime_s = 5
+variants = ["asan"]
 
 [[harness]]
 name = "stale-ui"
@@ -785,6 +805,7 @@ baseline = ["tests/golden/ui/menu", "tests/golden/ui/scenes", "tests/golden/ui/s
 tier = "pr"
 job = "app"
 runtime_s = 10
+variants = ["asan"]
 
 [[harness]]
 name = "load-cancel"
@@ -1456,6 +1477,8 @@ scenario = "effect_owners"
 tier = "pr"
 job = "model"
 runtime_s = 1
+variants = ["asan"]
+variant_fields = { asan = { runtime_s = 20 } }
 
 [[harness]]
 name = "edit-substrate"
@@ -1466,6 +1489,7 @@ scenario = "edit_substrate"
 tier = "pr"
 job = "model"
 runtime_s = 1
+variants = ["asan"]
 
 [[harness]]
 name = "mapping-dispatch"
@@ -1819,131 +1843,3 @@ template = "unittest"
 path = "tools/deluge_trace"
 gates = "the PTM trace tool's host side"
 run = ["python3", "-m", "unittest", "discover", "-p", "test_*.py"]
-
-[[harness]]
-name = "app-asan-sample-load-tree"
-level = "integration"
-runner = "scenario"
-kind = "sanitizer"
-status = "gate"
-gates = "the sample-load-tree gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning"
-scenario = "sample_load_tree"
-markers = ["SLT-ARM", "SLT-SETUP", "SLT-HOLDER", "SLT-CLIP", "SLT-SONG", "SLT-SYNTH", "SLT-KIT", "SLT-CRUCIAL", "SLT-CRUCIAL-SUMMARY", "SLT-ASYNC"]
-result = "SLT-RESULT failures=0"
-check = "tests/integration/checks/sample_load_tree.py"
-builds = ["golden-vt-render-asan"]
-requires = ["clang-asan"]
-tier = "nightly"
-job = "unit"
-runtime_s = 300
-
-# The sample browser's claim, from the browser a user opens: what each claim binds, and where its load runs.
-env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }
-
-[[harness]]
-name = "app-asan-sample-claim"
-level = "integration"
-runner = "scenario"
-kind = "sanitizer"
-status = "gate"
-gates = "the sample-claim gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning"
-scenario = "sample_claim"
-check = "tests/integration/checks/sample_claim.py"
-markers = ["SC-SETUP", "SC-SELECT", "SC-SYNTH", "SC-WAVETABLE", "SC-WAVETABLE-RESIDENT", "SC-WAVETABLE-CONVERTED", "SC-FALLBACK", "SC-GATE", "SC-STALL", "SC-SUPERSEDE", "SC-PITCH", "SC-PITCH-STALL", "SC-TIER", "SC-KIT", "SC-AUDIOCLIP", "SC-SHELL-SLICE", "SC-SHELL-SLICE-MANUAL", "SC-SHELL-SLICE-BACK", "SC-SHELL-SLICE-FAIL", "RD-ONE", "RD-ALL", "RD-TIER", "RD-GATE", "RD-STALL", "RD-CANCELSCAN", "IM-KIT", "IM-MULTI", "IM-TIER", "IM-GATE", "IM-EMPTY", "IM-STALL"]
-result = "SC-RESULT failures=0"
-env = { GOLDEN_VIRTUAL_BUDGET_MS = "180000" }
-builds = ["golden-vt-render-asan"]
-requires = ["clang-asan"]
-tier = "nightly"
-job = "unit"
-runtime_s = 900
-env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }
-
-[[harness]]
-name = "app-asan-preset-load"
-level = "integration"
-runner = "scenario"
-kind = "sanitizer"
-status = "gate"
-gates = "the preset-load gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning"
-scenario = "preset_load"
-markers = ["PL-SETUP", "PL-LISTING-EDGE", "PL-SELECT", "PL-SYNTH", "PL-KIT", "PL-ROW", "PL-CLONE", "PL-TIER", "PL-RACE", "PL-SUPERSEDE", "PL-GATE", "PL-STALL", "AQ-NEW", "AQ-CHANGE", "AQ-CHANGE-TIER", "AQ-CHANGE-NAMED", "AQ-CHANGE-NEXT", "AQ-CHANGE-MISSING", "AQ-CHANGE-STALL", "AQ-NAVIGATE", "AQ-NAV-TIER", "AQ-NAV-WRAP", "AQ-NAV-ADD", "AQ-NAV-PILE", "AQ-NAV-STALL", "AQ-SUPERSEDE", "AQ-REFUSE", "AQ-CLONE", "AQ-TAP", "AQ-STALL", "AQ-SLOT", "AQ-SLOT-STALL", "AQ-EXT", "AQ-TIER", "RV-CARD", "RV-MEMORY", "RV-STALL", "MD-BROWSER", "BS-BOOT", "BS-CLEAR", "BS-EDITED", "PW-WALK-FOUND", "PW-WALK-DEPTH", "PW-WALK-PAGED", "PW-WALK-EXHAUST", "PW-WALK-TIER"]
-result = "PL-RESULT failures=0"
-check = "tests/integration/checks/preset_load.py"
-env = { GOLDEN_VIRTUAL_BUDGET_MS = "180000" }
-builds = ["golden-vt-render-asan"]
-requires = ["clang-asan"]
-tier = "nightly"
-job = "unit"
-runtime_s = 300
-env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }
-
-[[harness]]
-name = "app-asan-recorder-take"
-level = "integration"
-runner = "scenario"
-kind = "sanitizer"
-status = "gate"
-gates = "the recorder-take gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning"
-scenario = "recorder_take"
-check = "tests/integration/checks/recorder_take.py"
-markers = ["RT-OPEN", "RT-TAKE", "RT-ATTACH", "RT-REFUSED", "RT-CLOSED", "RT-SECOND", "RT-NULLED", "RT-REPLACED", "RT-NEXT-RUN", "RT-NEXT-ATTACH", "RT-NEXT"]
-result = "RT-RESULT failures=0"
-builds = ["golden-vt-render-asan"]
-requires = ["clang-asan"]
-tier = "nightly"
-job = "unit"
-runtime_s = 300
-env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }
-
-[[harness]]
-name = "app-asan-ui-scenes-spec"
-level = "integration"
-runner = "scenario"
-kind = "sanitizer"
-status = "gate"
-gates = "the ui-scenes-spec gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning"
-scenario = "scenes_spec"
-check = "tests/integration/checks/scenes_spec.py"
-markers = ["SCENES-SPEC"]
-result = "SCENES-SPEC-RESULT failures=0"
-builds = ["golden-vt-render-asan"]
-requires = ["clang-asan"]
-tier = "nightly"
-job = "unit"
-runtime_s = 300
-env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }
-
-[[harness]]
-name = "app-asan-effect-owners"
-level = "integration"
-runner = "scenario"
-kind = "sanitizer"
-status = "gate"
-gates = "the effect-owners gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning"
-scenario = "effect_owners"
-markers = ["DRV-EXIT"]
-result = "DRV-EXIT code=0"
-builds = ["golden-vt-render-asan"]
-requires = ["clang-asan"]
-tier = "nightly"
-job = "unit"
-runtime_s = 20
-env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }
-
-[[harness]]
-name = "app-asan-edit-substrate"
-level = "integration"
-runner = "scenario"
-kind = "sanitizer"
-status = "gate"
-gates = "the edit-substrate gate's checks, on a host app built with AddressSanitizer and UBSan and the allocator's heap poisoning"
-scenario = "edit_substrate"
-markers = ["DRV-EXIT"]
-result = "DRV-EXIT code=0"
-builds = ["golden-vt-render-asan"]
-requires = ["clang-asan"]
-tier = "nightly"
-job = "unit"
-runtime_s = 300
-env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS = "print_stacktrace=1" }

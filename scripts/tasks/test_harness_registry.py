@@ -30,6 +30,8 @@ from pathlib import Path
 from typing import ClassVar
 from unittest import mock
 
+import tomllib
+
 sys.path.insert(0, str(Path(__file__).parent))
 
 import corpus_gate as cg
@@ -363,7 +365,6 @@ class BaselineDeclarationTest(unittest.TestCase):
     NOT_OWNERS: ClassVar[dict[str, str]] = {
         "golden-synth-arm": "the ARM render must equal the x86 records golden-synth makes",
         "upgrade-differential-corpus": "its part records nothing: upgrade_run.py refuses to re-record it",
-        "app-asan-ui-scenes-spec": "a sanitizer run of ui-scenes-spec's specs",
     }
 
     def _code(self, h: hr.Harness) -> str:
@@ -378,6 +379,10 @@ class BaselineDeclarationTest(unittest.TestCase):
     def test_an_entry_lists_a_baseline_exactly_when_it_records_one(self):
         for h in hr.load_registry(self.ROOT):
             with self.subTest(h.name):
+                if h.variant_of:
+                    # A variant copy runs its base's checks on another build; the loader gives it no baseline.
+                    self.assertEqual(h.baseline, [])
+                    continue
                 records = h.name in self.CPP_OWNERS or (
                     h.name not in self.NOT_OWNERS
                     and any(mark in self._code(h) for mark in self.RECORDS)
@@ -393,6 +398,27 @@ class BaselineDeclarationTest(unittest.TestCase):
     def test_the_lists_here_name_registry_entries(self):
         names = {h.name for h in hr.load_registry(self.ROOT)}
         self.assertLessEqual(self.CPP_OWNERS | set(self.NOT_OWNERS), names)
+
+
+class RegistryVariantTest(unittest.TestCase):
+    ROOT = Path(__file__).resolve().parents[2]
+
+    def test_no_sanitizer_copy_is_written_by_hand(self):
+        raw = tomllib.loads((self.ROOT / "tests" / "registry.toml").read_text())
+        self.assertEqual(
+            [h["name"] for h in raw["harness"] if h["name"].startswith("app-asan-")], []
+        )
+
+    def test_the_sanitizer_copies_are_generated(self):
+        copies = {
+            h.name: h.variant_of
+            for h in hr.load_registry(self.ROOT)
+            if h.name.startswith("app-asan-")
+        }
+        self.assertEqual(len(copies), 7)
+        self.assertTrue(
+            all(base and name == f"app-asan-{base}" for name, base in copies.items())
+        )
 
 
 class StemExportBaselineTest(unittest.TestCase):
