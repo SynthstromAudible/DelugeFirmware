@@ -149,8 +149,10 @@ bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* m
 			int32_t attack = getExp(attackNeutralValue, -(activeAudioClip.attack / 4));
 
 renderEnvelope:
-			int32_t amplitudeLocal =
-			    (envelope.render(render.size(), attack, 8388608, 2147483647, 0, decayTableSmall4) >> 1) + 1073741824;
+			int32_t amplitudeLocal = (envelope.render(render.size(), attack, 8388608, 2147483647, 0,
+			                                          deluge::modulation::kAudioClipEnvelopeConfig)
+			                          >> 1)
+			                         + 1073741824;
 
 			if (envelope.state >= EnvelopeStage::OFF) {
 				if (activeAudioClip.doingLateStart) {

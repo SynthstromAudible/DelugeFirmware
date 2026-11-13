@@ -36,4 +36,28 @@ for i in range(4):
             name="STRING_FOR_RELEASE",
             title="STRING_FOR_ENV_RELEASE_MENU_TITLE",
         ),
+        Menu(
+            "envelope::Mode",
+            f"env{i + 1}ModeMenu",
+            ["{name}", "{title}", f"{i}"],
+            "envelope/mode.md",
+            name="STRING_FOR_MODE",
+            title="STRING_FOR_ENV_MODE_MENU_TITLE",
+        ),
+        Menu(
+            "envelope::Curve",
+            f"env{i + 1}CurveMenu",
+            ["{name}", "{title}", f"{i}"],
+            "envelope/curve.md",
+            name="STRING_FOR_CURVE",
+            title="STRING_FOR_ENV_CURVE_MENU_TITLE",
+        ),
+        Menu(
+            "envelope::Follow",
+            f"env{i + 1}FollowMenu",
+            ["{name}", "{title}", f"{i}"],
+            "envelope/follow.md",
+            name="STRING_FOR_FOLLOW",
+            title="STRING_FOR_ENV_FOLLOW_MENU_TITLE",
+        ),
     ]

@@ -141,12 +141,12 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 
 		// If no attack-stage...
 		if (paramManager->getPatchedParamSet()->getValue(params::LOCAL_ENV_0_ATTACK + e) == -2147483648u) {
-			envelopes[e].lastValue = 2147483647;
+			envelopes[e].lastValue = 1.f;
 		}
 
 		// Otherwise...
 		else {
-			envelopes[e].lastValue = 0;
+			envelopes[e].lastValue = 0.f;
 		}
 	}
 
@@ -750,10 +750,13 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 			if (e == 0 && overrideAmplitudeEnvelopeReleaseRate) {
 				release = overrideAmplitudeEnvelopeReleaseRate;
 			}
-			sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e] =
-			    envelopes[e].render(numSamples, paramFinalValues[params::LOCAL_ENV_0_ATTACK + e],
-			                        paramFinalValues[params::LOCAL_ENV_0_DECAY + e],
-			                        paramFinalValues[params::LOCAL_ENV_0_SUSTAIN + e], release, decayTableSmall8);
+			sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e] = envelopes[e].render(
+			    numSamples, paramFinalValues[params::LOCAL_ENV_0_ATTACK + e],
+			    paramFinalValues[params::LOCAL_ENV_0_DECAY + e], paramFinalValues[params::LOCAL_ENV_0_SUSTAIN + e],
+			    release, sound.envelopeConfig[e],
+			    sourceValues[util::to_underlying(sound.envelopeConfig[e].follow == deluge::modulation::EnvelopeFollow::Y
+			                                         ? PatchSource::Y
+			                                         : PatchSource::AFTERTOUCH)]);
 			uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::ENVELOPE_0) + e]);
 			sourcesChanged |= anyChange << (util::to_underlying(PatchSource::ENVELOPE_0) + e);
 		}
@@ -976,7 +979,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 			// Just do this for the amplitude envelope
 			overrideAmplitudeEnvelopeReleaseRate = 8388608 / highestNumSamplesLeft;
 			if (envelopes[0].state == EnvelopeStage::ATTACK && envelopes[0].pos == 0) {
-				envelopes[0].lastValue = 2147483647;
+				envelopes[0].lastValue = 1.f;
 			}
 			envelopes[0].unconditionalRelease();
 		}

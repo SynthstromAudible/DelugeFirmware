@@ -101,6 +101,7 @@ add_executable(UnitTests
         fast_pythag_tests.cpp
         fast_divide_tests.cpp
         tick_interpolation_tests.cpp
+        envelope_curve_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)

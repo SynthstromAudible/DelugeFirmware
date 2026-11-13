@@ -20,53 +20,101 @@
 #include "model/voice/voice.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
+#include "util/fixedpoint.h"
+#include <cstring>
+#include <limits>
 
 namespace params = deluge::modulation::params;
+using deluge::modulation::EnvelopeConfig;
+using deluge::modulation::EnvelopeMode;
+using deluge::modulation::EnvelopeShape;
+using deluge::modulation::fastExp2;
 
 Envelope::Envelope() {
 }
 
+namespace {
+constexpr float kInvStageLength = 1.f / Envelope::kStageLength;
+
+/// Level in [0, 1] -> bipolar q31 patch source value, matching the old integer envelope exactly at the ends
+[[gnu::always_inline]] inline int32_t toSourceValue(float level) {
+	int32_t q = q31_from_float(level); // saturates at 1
+	return (q - 1073741824) << 1;
+}
+
+[[gnu::always_inline]] inline float stagePosition(uint32_t pos) {
+	return static_cast<float>(pos) * kInvStageLength;
+}
+} // namespace
+
 int32_t Envelope::render(uint32_t numSamples, uint32_t attack, uint32_t decay, uint32_t sustain, uint32_t release,
-                         const uint16_t* releaseTable) {
+                         const EnvelopeConfig& config, int32_t followInput) {
+	const auto& shape = config.shape;
+
+	// AHD reuses the ADSR params: hold time from decay, decay time from release, and no sustain
+	uint32_t hold = kStageLength; // any rate that finishes the stage in one render
+	if (config.mode == EnvelopeMode::AHD) {
+		// A decay stage is the time to fall 48 dB, which is long for a flat hold. An eighth of it - about the time the
+		// classic decay takes to fall 6 dB - makes the hold knob feel like the decay knob. Capped so it can't overflow
+		hold = (decay >= kStageLength / kAhdHoldSpeedup) ? kStageLength : decay * kAhdHoldSpeedup;
+		decay = release;
+		sustain = 0;
+	}
+	else if ((config.mode == EnvelopeMode::AR || config.mode == EnvelopeMode::MPE) && state < EnvelopeStage::RELEASE) {
+		// AR slews to its level alone; MPE adds an expression input on top
+		return follow(numSamples, attack, sustain, release, shape,
+		              (config.mode == EnvelopeMode::MPE) ? followInput : 0);
+	}
+
+	// otherwise modulating sustain with aftertouch causes un smoothed jumps downstream because params don't smooth
+	// the envelope value and envelopes are rendered before other params are  calculated (including the envelopes
+	// own sustain). To fix this properly we'd first patch and smooth expression to the envelope, then render the
+	// envelope, then render everything else, but that seems too complicated right now. This works and doesn't make
+	// a huge difference since we'd usually need to smooth it anyway
+	auto smoothSustain = [&] {
+		float target = q31_to_float(static_cast<int32_t>(sustain));
+		float amount = std::min(static_cast<float>(numSamples) * (1.f / 512.f), 1.f);
+		smoothedSustain += (target - smoothedSustain) * amount;
+	};
 
 considerEnvelopeStage:
 	switch (state) {
 	case EnvelopeStage::ATTACK:
 		pos += attack * numSamples; // Increment the pos *before* taking a value, so we can skip the attack section
 		                            // entirely with a high posIncrease
-		if (pos >= 8388608) {
+		if (pos >= kStageLength) {
+			pos = 0;
+			setState(config.mode == EnvelopeMode::AHD ? EnvelopeStage::HOLD : EnvelopeStage::DECAY);
+			goto considerEnvelopeStage;
+		}
+		// Never exactly 0 while attacking
+		lastValue = std::max(shape.attack.rising(stagePosition(pos)), 0x1p-31f);
+		break;
+
+	case EnvelopeStage::HOLD:
+		pos += hold * numSamples;
+		if (pos >= kStageLength) {
 			pos = 0;
 			setState(EnvelopeStage::DECAY);
 			goto considerEnvelopeStage;
 		}
-		// lastValue = pos << 8;
-		lastValue = 2147483647 - getDecay4(pos, 23); // Makes curved attack
-		lastValue = std::max(lastValue, (int32_t)1);
+		lastValue = 1.f;
 		break;
-		// TODO: this would be cool
-		//	case EnvelopeStage::HOLD:
-		//		lastValue = 2147483647;
-		//		break;
-	case EnvelopeStage::DECAY:
-		// otherwise modulating sustain with aftertouch causes un smoothed jumps downstream because params don't smooth
-		// the envelope value and envelopes are rendered before other params are  calculated (including the envelopes
-		// own sustain). To fix this properly we'd first patch and smooth expression to the envelope, then render the
-		// envelope, then render everything else, but that seems too complicated right now. This works and doesn't make
-		// a huge difference since we'd usually need to smooth it anyway
 
-		smoothedSustain = add_saturate(smoothedSustain, numSamples * (((int32_t)sustain - smoothedSustain) >> 9));
-		lastValue = smoothedSustain + multiply_32x32_rshift32(getDecay8(pos, 23), 2147483647 - smoothedSustain) * 2;
+	case EnvelopeStage::DECAY:
+		smoothSustain();
+		lastValue = smoothedSustain + shape.decay.falling(stagePosition(pos)) * (1.f - smoothedSustain);
 
 		pos += decay * numSamples;
 
-		if (pos >= 8388608) {
+		if (pos >= kStageLength) {
 			setState(EnvelopeStage::SUSTAIN);
 		}
 
 		break;
 
 	case EnvelopeStage::SUSTAIN:
-		smoothedSustain = add_saturate(smoothedSustain, numSamples * (((int32_t)sustain - smoothedSustain) >> 9));
+		smoothSustain();
 		lastValue = smoothedSustain;
 		// If sustain is equal to 0, we may as well be switched off already
 		if (sustain == 0) {
@@ -79,15 +127,12 @@ considerEnvelopeStage:
 
 	case EnvelopeStage::RELEASE:
 		pos += release * numSamples;
-		if (pos >= 8388608) {
+		if (pos >= kStageLength) {
 			setState(EnvelopeStage::OFF);
-			lastValue = 0;
-			return -2147483648;
+			lastValue = 0.f;
+			return std::numeric_limits<int32_t>::min();
 		}
-		// int32_t thisValue = multiply_32x32_rshift32(getDecay8(pos, 23), lastValue) << 1;
-		// int32_t negativePos = (8388608 - pos) >> 13;
-		// int32_t thisValue = multiply_32x32_rshift32(negativePos * negativePos * negativePos, lastValue) << 2;
-		lastValue = multiply_32x32_rshift32(interpolateTable(pos, 23, releaseTable), lastValuePreCurrentStage) << 1;
+		lastValue = shape.release.falling(stagePosition(pos)) * lastValuePreCurrentStage;
 		break;
 
 	case EnvelopeStage::FAST_RELEASE:
@@ -96,42 +141,72 @@ considerEnvelopeStage:
 			fastReleaseIncrement = release;
 		}
 		pos += fastReleaseIncrement * numSamples;
-		if (pos >= 8388608) {
+		if (pos >= kStageLength) {
 			setState(EnvelopeStage::OFF);
-			return -2147483648;
+			return std::numeric_limits<int32_t>::min();
 		}
 
-		// lastValue = multiply_32x32_rshift32((8388608 - pos) << 8, lastValuePreRelease) << 1;
-
-		// This alternative line does the release in a sine shape, which you'd think would cause less high-frequency
-		// content than the above kinda "triangle" one, but it sounds about the same somehow Actually no it does sound a
-		// bit better for Kody's deep bass sample
-		lastValue =
-		    multiply_32x32_rshift32((getSine(pos + (8388608 >> 1), 24) >> 1) + 1073741824, lastValuePreCurrentStage)
-		    << 1;
+		// Release in a raised-cosine shape. You'd think it would have less high-frequency content than a linear
+		// ramp, and it sounds about the same - though a bit better on Kody's deep bass sample
+		lastValue = (0.5f + 0.5f * q31_to_float(getSine(pos + (kStageLength >> 1), 24))) * lastValuePreCurrentStage;
 		break;
 
 	default: // OFF
-		return -2147483648;
+		return std::numeric_limits<int32_t>::min();
 	}
 
-	return (lastValue - 1073741824) << 1; // Centre the range of the envelope around 0
+	return toSourceValue(lastValue); // Centre the range of the envelope around 0
 }
 
-int32_t Envelope::noteOn(bool directlyToDecay, int32_t sustain) {
-	smoothedSustain = sustain;
-	ignoredNoteOff = false;
-	pos = 0;
-	if (!directlyToDecay) {
-		setState(EnvelopeStage::ATTACK);
-		lastValue = 0;
-	}
-	else {
-		setState(EnvelopeStage::DECAY);
-		lastValue = 2147483647;
+int32_t Envelope::follow(uint32_t numSamples, uint32_t attack, uint32_t sustain, uint32_t release,
+                         const EnvelopeShape& shape, int32_t followInput) {
+	// While the note is held we sit in SUSTAIN, whatever the level is doing, so culling treats us as a held note
+	if (state != EnvelopeStage::SUSTAIN) {
+		setState(EnvelopeStage::SUSTAIN);
 	}
 
-	return (lastValue - 1073741824) << 1; // Centre the range of the envelope around 0
+	// The input is read as stored: 0 to 1 for pressure and mod wheel, -1 to 1 for per-note MPE Y, which below centre
+	// pulls the target under the level
+	float level = q31_to_float(static_cast<int32_t>(sustain));
+	float input = q31_to_float(followInput);
+	float target = std::clamp(level + (1.f - level) * input, 0.f, 1.f);
+
+	// How far through a full-scale stage this render takes us, at the rate for the direction we're going
+	uint32_t rate = (target > lastValue) ? attack : release;
+	float distance = static_cast<float>(rate) * static_cast<float>(numSamples) * kInvStageLength;
+
+	float k = shape.decay.k();
+	if (k > 0.f) {
+		// Exponential approach: covering a full-scale stage leaves 2^-k of the gap
+		lastValue = target + (lastValue - target) * fastExp2(-k * distance);
+	}
+	else {
+		// Straight line at full scale per stage time
+		float gap = target - lastValue;
+		lastValue += std::clamp(gap, -distance, distance);
+	}
+
+	// The voice is freed when envelope 0 sits at exactly 0 outside attack or decay, and a level of 0 must not mean that
+	lastValue = std::max(lastValue, 0x1p-31f);
+	return toSourceValue(lastValue);
+}
+
+int32_t Envelope::noteOn(bool directlyToDecay, int32_t sustain, EnvelopeMode mode) {
+	smoothedSustain = (mode == EnvelopeMode::AHD) ? 0.f : q31_to_float(sustain);
+	ignoredNoteOff = false;
+	pos = 0;
+	lastValue = 0.f;
+	// The followers (AR, MPE) get to their target on the first render even without an attack stage, since the attack
+	// rate is then huge
+	if (!directlyToDecay || mode == EnvelopeMode::AR || mode == EnvelopeMode::MPE) {
+		setState(EnvelopeStage::ATTACK);
+	}
+	else {
+		setState(mode == EnvelopeMode::AHD ? EnvelopeStage::HOLD : EnvelopeStage::DECAY);
+		lastValue = 1.f;
+	}
+
+	return toSourceValue(lastValue); // Centre the range of the envelope around 0
 }
 
 int32_t Envelope::noteOn(uint8_t envelopeIndex, Sound* sound, Voice* voice) {
@@ -139,7 +214,7 @@ int32_t Envelope::noteOn(uint8_t envelopeIndex, Sound* sound, Voice* voice) {
 	int32_t sustain = voice->paramFinalValues[params::LOCAL_ENV_0_SUSTAIN + envelopeIndex];
 	bool directlyToDecay = (attack > 245632);
 
-	return noteOn(directlyToDecay, sustain);
+	return noteOn(directlyToDecay, sustain, sound->envelopeConfig[envelopeIndex].mode);
 }
 
 void Envelope::noteOff(uint8_t envelopeIndex, Sound* sound, ParamManagerForTimeline* paramManager) {
@@ -185,8 +260,49 @@ void Envelope::unconditionalRelease(EnvelopeStage typeOfRelease, uint32_t newFas
 	}
 }
 
-void Envelope::resumeAttack(int32_t oldLastValue) {
+void Envelope::resumeAttack(float oldLastValue, const EnvelopeConfig& config) {
 	if (state == EnvelopeStage::ATTACK) {
-		pos = interpolateTableInverse(2147483647 - oldLastValue, 23, decayTableSmall4);
+		if (config.mode == EnvelopeMode::AR || config.mode == EnvelopeMode::MPE) {
+			lastValue = oldLastValue; // carry on following from where the old note was
+		}
+		else {
+			pos = static_cast<uint32_t>(config.shape.attack.risingInverse(oldLastValue) * kStageLength);
+		}
 	}
 }
+
+namespace deluge::modulation {
+char const* envelopeModeToString(EnvelopeMode mode) {
+	switch (mode) {
+	case EnvelopeMode::AHD:
+		return "ahd";
+	case EnvelopeMode::AR:
+		return "ar";
+	case EnvelopeMode::MPE:
+		return "mpe";
+	default:
+		return "adsr";
+	}
+}
+
+EnvelopeMode stringToEnvelopeMode(char const* string) {
+	if (!strcmp(string, "ahd")) {
+		return EnvelopeMode::AHD;
+	}
+	if (!strcmp(string, "ar")) {
+		return EnvelopeMode::AR;
+	}
+	if (!strcmp(string, "mpe")) {
+		return EnvelopeMode::MPE;
+	}
+	return EnvelopeMode::ADSR;
+}
+
+char const* envelopeFollowToString(EnvelopeFollow follow) {
+	return (follow == EnvelopeFollow::Y) ? "y" : "z";
+}
+
+EnvelopeFollow stringToEnvelopeFollow(char const* string) {
+	return !strcmp(string, "y") ? EnvelopeFollow::Y : EnvelopeFollow::Z;
+}
+} // namespace deluge::modulation
