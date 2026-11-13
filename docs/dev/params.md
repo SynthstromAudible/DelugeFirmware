@@ -295,6 +295,24 @@ and stay param-free.
 param_table_check holds the fragments to the runtime: a curved fragment's neutral and curve are the instrument's for
 the same param, and a global-effectable row's mapping and flags are its fragment's.
 
+## Controls
+
+The gold knobs and the mod buttons read pages, not tables. An owner publishes its remote-controls pages
+(`plugin::RemotePage`, `plugin-api`): per section (on the Deluge, a mod button), a page is a set of slots, each naming
+the param a turn moves (a `ParamId` in the owner's `ENGINE` space), its `ParamKind`, and a `PressAction` with the
+setting it steps. `controls::page_of` (`src/controls/page.h`) turns a published page into targets in the owner's
+spaces; `SectionPages` holds the page the knobs are on, the section's cycle in `NEXT_PAGE` order, and the page each
+group enters at. A press-stepped setting (filter modes, the sync levels, the mod FX type) is a setting param: it
+carries `ParamFlag::SETTING | STEPPED | ENUM`, a stepper (`effects::step_setting`) and its codec name
+(`effects::kSettingParams`), so a press edits it by address like any param.
+
+`controls::resolve_turn` and `resolve_press` (`src/controls/resolve.h`) are pure: given the `KnobFocus`, the section's
+pages and a slot, they return the one `Target` the control means: a `ParamWrite`, a `StepSetting`, a `SelectPage` or a
+`HostCommand` (stutter, reverb preset, MIDI CC select). `NEXT_PAGE` moves within the pressed slot's group and takes
+along every other slot still on the page's own param, so a slot the user mapped elsewhere stays where it is. The scenes
+and the legacy views apply the target through the control sink and read through the facts (`src/controls/sink.h`,
+`facts.h`), so the same pages drive the shell and the legacy views.
+
 ## Instrument-private rules
 
 The instrument's patching (`synth::matrix::kParamRules`, `src/synth/matrix/descriptors.h`) keeps each patched param's
