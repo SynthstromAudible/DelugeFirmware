@@ -42,7 +42,10 @@ public:
 	// nulling timeStretcher mid-flight and orphaning it (leaking its reasons -> E078, see TimeStretcher::hopEnd).
 	// Assign through the SampleLowLevelReader base subobject instead when you only mean to replace the reader state.
 	explicit VoiceSample(SampleLowLevelReader&& other) : SampleLowLevelReader{std::move(other)} {}
-	~VoiceSample() override { endTimeStretching(); }
+	~VoiceSample() override {
+		endTimeStretching();
+		freeLoopIncoming();
+	}
 	VoiceSample& operator=(const VoiceSample& other) = delete;
 	// Deleted: the defaulted memberwise move-assign would overwrite timeStretcher/cache without endTimeStretching(),
 	// leaking whatever the destination currently owns. VoiceSamples are pool-managed and referenced by pointer, so no
@@ -60,7 +63,7 @@ public:
 	bool render(SamplePlaybackGuide* guide, int32_t* oscBuffer, int32_t numSamples, Sample* sample, int32_t numChannels,
 	            LoopType loopingType, int32_t phaseIncrement, int32_t timeStretchRatio, int32_t amplitude,
 	            int32_t amplitudeIncrement, int32_t bufferSize, InterpolationMode desiredInterpolationMode,
-	            int32_t priorityRating);
+	            int32_t priorityRating, int32_t loopCrossfadeSamples = 0);
 	void beenUnassigned(bool wontBeUsedAgain);
 
 	// AudioClips don't obey markers because they "fudge" instead.
@@ -79,6 +82,7 @@ public:
 	bool sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, bool reversed, MarkerType markerType,
 	                       LoopType loopingType, int32_t priorityRating, bool forAudioClip = false);
 	int32_t getPlaySample(Sample* sample, SamplePlaybackGuide* guide);
+	int32_t getLoopCrossfadeIncomingPlaySample(Sample* sample, SamplePlaybackGuide* guide);
 	bool stopUsingCache(SamplePlaybackGuide* guide, Sample* sample, int32_t priorityRating, bool loopingAtLowLevel);
 	bool possiblySetUpCache(SampleControls* sampleControls, SamplePlaybackGuide* guide, int32_t phaseIncrement,
 	                        int32_t timeStretchRatio, int32_t priorityRating, LoopType loopingType);
@@ -96,6 +100,22 @@ public:
 	bool writingToCache = false; // Value is only valid if cache assigned
 
 private:
+	void considerStartingLoopCrossfade(SamplePlaybackGuide* guide, Sample* sample, int32_t wantedLength,
+	                                   int32_t priorityRating);
+	[[nodiscard]] bool isLoopCrossfading() const { return loopCrossfadeLength != 0; }
+	bool finishLoopCrossfade(SamplePlaybackGuide* guide, Sample* sample, LoopType loopingType, int32_t priorityRating);
+	void cancelLoopCrossfade();
+	void freeLoopIncoming();
+	bool readLoopCrossfadeIncoming(SamplePlaybackGuide* guide, Sample* sample, int32_t* outputBuffer,
+	                               int32_t numSamples, int32_t numChannels, int32_t numChannelsInOutputBuffer,
+	                               int32_t phaseIncrement, int32_t amplitude, int32_t amplitudeIncrement,
+	                               int32_t interpolationBufferSize, int32_t whichKernel, int32_t priorityRating);
+
+	// Loop crossfade: the next pass through the loop, started early so it can fade in while we fade out. Only allocated
+	// once the note first crossfades, so it costs nothing when the feature isn't used
+	SampleLowLevelReader* loopIncoming = nullptr;
+	int32_t loopCrossfadeLength = 0; // In source samples, for the crossfade in progress. 0 when not crossfading
+
 	bool weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuide* guide, int32_t numSamples,
 	                                 int32_t phaseIncrement, int32_t timeStretchRatio, int32_t playDirection,
 	                                 int32_t priorityRating, LoopType loopingType);

@@ -186,6 +186,7 @@
 #include "gui/menu_item/sample/browser_preview/mode.h"
 #include "gui/menu_item/sample/end.h"
 #include "gui/menu_item/sample/interpolation.h"
+#include "gui/menu_item/sample/loop_crossfade.h"
 #include "gui/menu_item/sample/pitch_speed.h"
 #include "gui/menu_item/sample/repeat.h"
 #include "gui/menu_item/sample/reverse.h"
