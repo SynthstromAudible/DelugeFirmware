@@ -1942,3 +1942,96 @@ class ExplanationTest(unittest.TestCase):
         ):
             tt.cmd_list(root, [h], False, [h], verbose=True)
         self.assertIn("beta, explained", out.getvalue())
+
+
+TEMPLATED = """
+[template.t]
+level = "unit"
+runner = "cargo"
+kind = "unit"
+status = "gate"
+tier = "pr"
+job = "storage"
+runtime_s = 5
+requires = ["cargo"]
+
+[[harness]]
+name = "one"
+template = "t"
+path = "a"
+gates = "one holds"
+run = ["cargo", "test"]
+"""
+
+
+class TemplateTest(unittest.TestCase):
+    def _load(self, text):
+        root = Path(tempfile.mkdtemp())
+        (root / "tests").mkdir()
+        (root / "tests" / "registry.toml").write_text(text)
+        return hr.load_registry(root)
+
+    def test_an_entry_takes_its_templates_fields(self):
+        h = self._load(TEMPLATED)[0]
+        self.assertEqual(
+            (h.level, h.runner, h.job, h.runtime_s, h.requires),
+            ("unit", "cargo", "storage", 5, ["cargo"]),
+        )
+
+    def test_a_declared_override_wins(self):
+        h = self._load(TEMPLATED + 'runtime_s = 9\noverride = ["runtime_s"]\n')[0]
+        self.assertEqual(h.runtime_s, 9)
+
+    def test_an_undeclared_override_is_refused(self):
+        with self.assertRaisesRegex(
+            ValueError, "one: sets runtime_s, which template 't' sets too"
+        ):
+            self._load(TEMPLATED + "runtime_s = 9\n")
+
+    def test_an_override_the_entry_does_not_make_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "'override' lists tier"):
+            self._load(TEMPLATED + 'override = ["tier"]\n')
+
+    def test_an_override_to_the_templates_own_value_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "template 't''s own value"):
+            self._load(TEMPLATED + 'runtime_s = 5\noverride = ["runtime_s"]\n')
+
+    def test_an_unknown_template_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "unknown template 'u'"):
+            self._load(TEMPLATED.replace('template = "t"', 'template = "u"'))
+
+    def test_an_override_without_a_template_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "has no template"):
+            self._load(MINIMAL + 'override = ["tier"]\n')
+
+    def test_templates_do_not_nest(self):
+        with self.assertRaisesRegex(ValueError, "templates do not nest"):
+            self._load(
+                TEMPLATED.replace("[template.t]\n", '[template.t]\ntemplate = "s"\n')
+            )
+
+    def test_a_template_does_not_name_or_claim(self):
+        for field_ in ('name = "x"', 'gates = "x"', 'override = ["x"]'):
+            with (
+                self.subTest(field_),
+                self.assertRaisesRegex(ValueError, "a template cannot set"),
+            ):
+                self._load(
+                    TEMPLATED.replace("[template.t]\n", f"[template.t]\n{field_}\n")
+                )
+
+    def test_a_template_field_must_exist(self):
+        with self.assertRaisesRegex(
+            ValueError, r"template 't': unknown field\(s\) colour"
+        ):
+            self._load(
+                TEMPLATED.replace("[template.t]\n", '[template.t]\ncolour = "x"\n')
+            )
+
+    def test_the_expanded_entry_is_validated(self):
+        with self.assertRaisesRegex(ValueError, "one: missing required field 'tier'"):
+            self._load(TEMPLATED.replace('tier = "pr"\n', ""))
+
+    def test_an_unknown_table_is_refused(self):
+        with self.assertRaisesRegex(ValueError, r"unknown table\(s\) templates"):
+            self._load(MINIMAL + '[templates.x]\nlevel = "unit"\n')

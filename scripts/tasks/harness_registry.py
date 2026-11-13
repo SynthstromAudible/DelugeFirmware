@@ -183,6 +183,75 @@ PATH_RUNNERS = ("cargo", "script")
 ENTRY_FIELDS = frozenset(f.name for f in dataclasses.fields(Harness))
 
 
+# How an entry is written rather than what it is: the loader consumes these before validating the entry.
+SOURCE_FIELDS = frozenset({"template", "override"})
+# A template supplies fields entries share; never an entry's name or its claim, nor another template.
+TEMPLATE_EXCLUDED = frozenset({"name", "gates"}) | SOURCE_FIELDS
+
+
+def _templates(raw: dict) -> dict[str, dict]:
+    templates = raw.get("template", {})
+    for name, shared in templates.items():
+        if "template" in shared:
+            raise ValueError(f"template '{name}': templates do not nest")
+        if unknown := sorted(set(shared) - ENTRY_FIELDS - SOURCE_FIELDS):
+            raise ValueError(
+                f"template '{name}': unknown field(s) {', '.join(unknown)}"
+            )
+        if excluded := sorted(set(shared) & TEMPLATE_EXCLUDED):
+            raise ValueError(
+                f"template '{name}': a template cannot set {', '.join(excluded)}"
+            )
+    return templates
+
+
+def _with_template(where: str, item: dict, templates: dict[str, dict]) -> dict:
+    """`item` over its template's fields. A field both set must be listed in the entry's `override`."""
+    declared = item.get("override", [])
+    if not isinstance(declared, list) or not all(isinstance(k, str) for k in declared):
+        raise ValueError(f"{where}: override is a list of field names")
+    if "template" not in item:
+        if declared:
+            raise ValueError(
+                f"{where}: 'override' names template fields, but the entry has no template"
+            )
+        return dict(item)
+    name = item["template"]
+    if name not in templates:
+        raise ValueError(f"{where}: unknown template '{name}'")
+    shared = templates[name]
+    own = {k: v for k, v in item.items() if k not in SOURCE_FIELDS}
+    both = sorted(set(own) & set(shared))
+    if undeclared := [k for k in both if k not in declared]:
+        raise ValueError(
+            f"{where}: sets {', '.join(undeclared)}, which template '{name}' sets too; list it in 'override' if the "
+            "difference is meant"
+        )
+    if stale := [k for k in declared if k not in both]:
+        raise ValueError(
+            f"{where}: 'override' lists {', '.join(stale)}, which it does not set over template '{name}'"
+        )
+    if same := [k for k in both if own[k] == shared[k]]:
+        raise ValueError(
+            f"{where}: sets {', '.join(same)} to template '{name}''s own value"
+        )
+    return {**shared, **own}
+
+
+def expand(raw: dict) -> list[dict]:
+    """The registry's entries as the runner sees them: each written entry over its template."""
+    if stray := sorted(set(raw) - {"harness", "template"}):
+        raise ValueError(f"unknown table(s) {', '.join(stray)}")
+    templates = _templates(raw)
+    items = []
+    for i, item in enumerate(raw.get("harness", [])):
+        where = item.get("name", f"entry #{i}")
+        if unknown := sorted(set(item) - ENTRY_FIELDS - SOURCE_FIELDS):
+            raise ValueError(f"{where}: unknown field(s) {', '.join(unknown)}")
+        items.append(_with_template(where, item, templates))
+    return items
+
+
 # The longest `gates` line: one sentence a reader takes in from the README table. What it leaves out is the test's
 # explanation, a `Gate <name>:` block in the file that judges the test (explanation_source).
 GATES_MAX = 160
@@ -321,186 +390,176 @@ def _runs_golden_vt_render(where: str, item: dict) -> None:
 def load_registry(root: Path) -> list[Harness]:
     """Parse and validate tests/registry.toml under `root`."""
     raw = tomllib.loads((root / "tests" / "registry.toml").read_text())
-    entries: list[Harness] = []
     seen: set[str] = set()
+    return [
+        _validate(root, item, item.get("name", f"entry #{i}"), seen)
+        for i, item in enumerate(expand(raw))
+    ]
 
-    if unknown := sorted(set(raw) - {"harness"}):
-        raise ValueError(f"registry.toml: unknown table(s) {', '.join(unknown)}")
 
-    for i, item in enumerate(raw.get("harness", [])):
-        where = item.get("name", f"entry #{i}")
-        if unknown := sorted(set(item) - ENTRY_FIELDS):
-            raise ValueError(f"{where}: unknown field(s) {', '.join(unknown)}")
-
-        for required in (
-            "name",
-            "level",
-            "runner",
-            "kind",
-            "status",
-            "gates",
-            "tier",
-            "job",
-            "runtime_s",
-        ):
-            if required not in item or item[required] in ("", [], None):
-                raise ValueError(f"{where}: missing required field '{required}'")
-        if problem := gates_problem(item["gates"]):
-            raise ValueError(
-                f"{where}: gates {problem}: state what the test gates in one sentence, and put the rest in a "
-                f"'Gate {item['name']}:' block in the file that judges it (tests/README.md, Adding a test)"
-            )
-
-        for key, allowed in (
-            ("status", STATUSES),
-            ("level", LEVELS),
-            ("runner", RUNNERS),
-            ("kind", KINDS),
-            ("tier", TIERS),
-            ("job", tuple(JOBS)),
-        ):
-            if item[key] not in allowed:
-                raise ValueError(
-                    f"{where}: {key} '{item[key]}' must be one of {allowed}"
-                )
-
-        if item["runner"] in PATH_RUNNERS and not item.get("path"):
-            raise ValueError(
-                f"{where}: a {item['runner']} test runs its commands in 'path', so it needs one"
-            )
-        if item["runner"] not in PATH_RUNNERS and "path" in item:
-            raise ValueError(
-                f"{where}: only {' and '.join(PATH_RUNNERS)} tests run commands in a 'path'; a {item['runner']} test "
-                "takes none"
-            )
-
-        if item["runner"] == "ctest":
-            for required in ("source", "tree"):
-                if not item.get(required):
-                    raise ValueError(f"{where}: a ctest test needs '{required}'")
-            if item.get("build") or item.get("run"):
-                raise ValueError(
-                    f"{where}: a ctest test is built and run from 'source' and 'tree', not 'build'/'run'"
-                )
-        elif item["runner"] == "scenario":
-            if not item.get("scenario"):
-                raise ValueError(
-                    f"{where}: scenario must name a row of scenario_table.cpp"
-                )
-            if not item.get("markers") or not item.get("result"):
-                raise ValueError(
-                    f"{where}: a scenario gate names the markers each run must print and the result line that says "
-                    "it passed"
-                )
-            _runs_golden_vt_render(where, item)
-        elif item["runner"] == "corpus":
-            runner = item.get("corpus_runner", "")
-            if not runner:
-                raise ValueError(
-                    f"{where}: a corpus gate names its runner in 'corpus_runner'"
-                )
-            if not (root / CORPUS_RUNNERS / f"{runner}_run.py").is_file():
-                raise ValueError(
-                    f"{where}: corpus_runner '{runner}': no {CORPUS_RUNNERS / f'{runner}_run.py'}"
-                )
-            for name in SCENARIO_ONLY:
-                if name in item:
-                    raise ValueError(
-                        f"{where}: a corpus gate's runner judges its own runs, so it takes no '{name}'"
-                    )
-            _runs_golden_vt_render(where, item)
-        elif not item.get("run"):
-            raise ValueError(f"{where}: missing required field 'run'")
-        if item.get("corpus_runner") and item["runner"] != "corpus":
-            raise ValueError(f"{where}: only a corpus gate names a corpus_runner")
-        if item.get("check") and not (root / item["check"]).is_file():
-            raise ValueError(f"{where}: check '{item['check']}' does not exist")
-
-        seconds = item["runtime_s"]
-        if not isinstance(seconds, int) or isinstance(seconds, bool) or seconds <= 0:
-            raise ValueError(
-                f"{where}: runtime_s is a whole number of seconds above zero, not {seconds!r}"
-            )
-
-        prebuilt = JOBS[item["job"]]
-        if prebuilt and item.get("builds", []) != [prebuilt]:
-            raise ValueError(
-                f"{where}: job '{item['job']}' runs prebuilt, so a test in it builds only {prebuilt}"
-            )
-        # A script or build step could build at run time, which a prebuilt job must not.
-        if prebuilt and item["runner"] not in ("scenario", "corpus"):
-            raise ValueError(
-                f"{where}: job '{item['job']}' runs prebuilt, so it holds only scenario and corpus gates"
-            )
-
-        known_products = test_builds.products(root)
-        for product in item.get("builds", []):
-            if product not in known_products:
-                raise ValueError(
-                    f"{where}: unknown build product '{product}'; add it to test_builds.py"
-                )
-
-        for req in item.get("requires", []):
-            if req not in PROBES:
-                raise ValueError(
-                    f"{where}: unknown requirement '{req}'; add a probe to PROBES"
-                )
-        baseline = item.get("baseline", [])
-        if not isinstance(baseline, list) or not all(
-            isinstance(p, str)
-            and p
-            and not Path(p).is_absolute()
-            and ".." not in Path(p).parts
-            for p in baseline
-        ):
-            raise ValueError(
-                f"{where}: baseline lists the files or directories the test re-records, each relative to the "
-                "repository root"
-            )
-        for table in ("env", "env_default"):
-            if CORPUS_DECLARED in item.get(table, {}):
-                raise ValueError(
-                    f'{where}: {table} may not set {CORPUS_DECLARED}; declare requires = ["song-corpus"] instead'
-                )
-
-        if item["name"] in seen:
-            raise ValueError(f"duplicate test name '{item['name']}'")
-        seen.add(item["name"])
-
-        entries.append(
-            Harness(
-                name=item["name"],
-                path=item.get("path", "."),
-                level=item["level"],
-                runner=item["runner"],
-                kind=item["kind"],
-                status=item["status"],
-                gates=item["gates"],
-                tier=item["tier"],
-                build=item.get("build", []),
-                run=item.get("run", []),
-                requires=item.get("requires", []),
-                runtime_s=item["runtime_s"],
-                env=item.get("env", {}),
-                env_default=item.get("env_default", {}),
-                source=item.get("source", ""),
-                tree=item.get("tree", ""),
-                configure=item.get("configure", []),
-                ctest_args=item.get("ctest_args", []),
-                junit=item.get("junit", ""),
-                builds=item.get("builds", []),
-                scenario=item.get("scenario"),
-                markers=item.get("markers", []),
-                result=item.get("result", ""),
-                check=item.get("check", ""),
-                corpus_runner=item.get("corpus_runner", ""),
-                alone=item.get("alone", False),
-                baseline=baseline,
-                job=item["job"],
-            )
+def _validate(root: Path, item: dict, where: str, seen: set[str]) -> Harness:
+    """`item`, an expanded entry, as a Harness; `seen` holds the names validated before it."""
+    for required in (
+        "name",
+        "level",
+        "runner",
+        "kind",
+        "status",
+        "gates",
+        "tier",
+        "job",
+        "runtime_s",
+    ):
+        if required not in item or item[required] in ("", [], None):
+            raise ValueError(f"{where}: missing required field '{required}'")
+    if problem := gates_problem(item["gates"]):
+        raise ValueError(
+            f"{where}: gates {problem}: state what the test gates in one sentence, and put the rest in a "
+            f"'Gate {item['name']}:' block in the file that judges it (tests/README.md, Adding a test)"
         )
 
-    return entries
+    for key, allowed in (
+        ("status", STATUSES),
+        ("level", LEVELS),
+        ("runner", RUNNERS),
+        ("kind", KINDS),
+        ("tier", TIERS),
+        ("job", tuple(JOBS)),
+    ):
+        if item[key] not in allowed:
+            raise ValueError(f"{where}: {key} '{item[key]}' must be one of {allowed}")
+
+    if item["runner"] in PATH_RUNNERS and not item.get("path"):
+        raise ValueError(
+            f"{where}: a {item['runner']} test runs its commands in 'path', so it needs one"
+        )
+    if item["runner"] not in PATH_RUNNERS and "path" in item:
+        raise ValueError(
+            f"{where}: only {' and '.join(PATH_RUNNERS)} tests run commands in a 'path'; a {item['runner']} test "
+            "takes none"
+        )
+
+    if item["runner"] == "ctest":
+        for required in ("source", "tree"):
+            if not item.get(required):
+                raise ValueError(f"{where}: a ctest test needs '{required}'")
+        if item.get("build") or item.get("run"):
+            raise ValueError(
+                f"{where}: a ctest test is built and run from 'source' and 'tree', not 'build'/'run'"
+            )
+    elif item["runner"] == "scenario":
+        if not item.get("scenario"):
+            raise ValueError(f"{where}: scenario must name a row of scenario_table.cpp")
+        if not item.get("markers") or not item.get("result"):
+            raise ValueError(
+                f"{where}: a scenario gate names the markers each run must print and the result line that says "
+                "it passed"
+            )
+        _runs_golden_vt_render(where, item)
+    elif item["runner"] == "corpus":
+        runner = item.get("corpus_runner", "")
+        if not runner:
+            raise ValueError(
+                f"{where}: a corpus gate names its runner in 'corpus_runner'"
+            )
+        if not (root / CORPUS_RUNNERS / f"{runner}_run.py").is_file():
+            raise ValueError(
+                f"{where}: corpus_runner '{runner}': no {CORPUS_RUNNERS / f'{runner}_run.py'}"
+            )
+        for name in SCENARIO_ONLY:
+            if name in item:
+                raise ValueError(
+                    f"{where}: a corpus gate's runner judges its own runs, so it takes no '{name}'"
+                )
+        _runs_golden_vt_render(where, item)
+    elif not item.get("run"):
+        raise ValueError(f"{where}: missing required field 'run'")
+    if item.get("corpus_runner") and item["runner"] != "corpus":
+        raise ValueError(f"{where}: only a corpus gate names a corpus_runner")
+    if item.get("check") and not (root / item["check"]).is_file():
+        raise ValueError(f"{where}: check '{item['check']}' does not exist")
+
+    seconds = item["runtime_s"]
+    if not isinstance(seconds, int) or isinstance(seconds, bool) or seconds <= 0:
+        raise ValueError(
+            f"{where}: runtime_s is a whole number of seconds above zero, not {seconds!r}"
+        )
+
+    prebuilt = JOBS[item["job"]]
+    if prebuilt and item.get("builds", []) != [prebuilt]:
+        raise ValueError(
+            f"{where}: job '{item['job']}' runs prebuilt, so a test in it builds only {prebuilt}"
+        )
+    # A script or build step could build at run time, which a prebuilt job must not.
+    if prebuilt and item["runner"] not in ("scenario", "corpus"):
+        raise ValueError(
+            f"{where}: job '{item['job']}' runs prebuilt, so it holds only scenario and corpus gates"
+        )
+
+    known_products = test_builds.products(root)
+    for product in item.get("builds", []):
+        if product not in known_products:
+            raise ValueError(
+                f"{where}: unknown build product '{product}'; add it to test_builds.py"
+            )
+
+    for req in item.get("requires", []):
+        if req not in PROBES:
+            raise ValueError(
+                f"{where}: unknown requirement '{req}'; add a probe to PROBES"
+            )
+    baseline = item.get("baseline", [])
+    if not isinstance(baseline, list) or not all(
+        isinstance(p, str)
+        and p
+        and not Path(p).is_absolute()
+        and ".." not in Path(p).parts
+        for p in baseline
+    ):
+        raise ValueError(
+            f"{where}: baseline lists the files or directories the test re-records, each relative to the "
+            "repository root"
+        )
+    for table in ("env", "env_default"):
+        if CORPUS_DECLARED in item.get(table, {}):
+            raise ValueError(
+                f'{where}: {table} may not set {CORPUS_DECLARED}; declare requires = ["song-corpus"] instead'
+            )
+
+    if item["name"] in seen:
+        raise ValueError(f"duplicate test name '{item['name']}'")
+    seen.add(item["name"])
+
+    return Harness(
+        name=item["name"],
+        path=item.get("path", "."),
+        level=item["level"],
+        runner=item["runner"],
+        kind=item["kind"],
+        status=item["status"],
+        gates=item["gates"],
+        tier=item["tier"],
+        build=item.get("build", []),
+        run=item.get("run", []),
+        requires=item.get("requires", []),
+        runtime_s=item["runtime_s"],
+        env=item.get("env", {}),
+        env_default=item.get("env_default", {}),
+        source=item.get("source", ""),
+        tree=item.get("tree", ""),
+        configure=item.get("configure", []),
+        ctest_args=item.get("ctest_args", []),
+        junit=item.get("junit", ""),
+        builds=item.get("builds", []),
+        scenario=item.get("scenario"),
+        markers=item.get("markers", []),
+        result=item.get("result", ""),
+        check=item.get("check", ""),
+        corpus_runner=item.get("corpus_runner", ""),
+        alone=item.get("alone", False),
+        baseline=baseline,
+        job=item["job"],
+    )
 
 
 def select(
@@ -681,6 +740,7 @@ __all__ = [
     "RUNNERS",
     "SCENARIO_SOURCES",
     "SCENARIO_TABLE",
+    "SOURCE_FIELDS",
     "TABLE_BEGIN",
     "TABLE_END",
     "TIERS",
@@ -689,6 +749,7 @@ __all__ = [
     "corpus_fixture_scenarios",
     "declares_corpus",
     "dump_expanded",
+    "expand",
     "explanation",
     "explanation_blocks",
     "explanation_source",
