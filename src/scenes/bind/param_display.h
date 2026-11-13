@@ -2,7 +2,7 @@
 
 /// @file
 /// @brief How a menu shows a param's stored word, per its row's mapping kind: the plugin API's menu mapping
-/// (`plugin-api/types/param_mapping.h`), which reproduces legacy's value scaling (`gui/menu_item/value_scaling.cpp`).
+/// (`plugin-api/types/param_mapping.h`), which reproduces legacy's value scaling (`util/value_scaling.cpp`).
 
 #include "plugin-api/types/param.h"
 

@@ -55,15 +55,18 @@
 ///       `osc::AudioRecorder::renderInHorizontalMenu`, `osc/audio_recorder.h:81-114`), and the hooks are
 ///       their transcriptions, not the items.
 ///
-/// @note **`range_dependent`.** Four legacy classes in this subtree override
+/// @note **`range_specific` and `range_dependent`.** Four legacy classes in this subtree override
 ///       `checkPermissionToBeginSession` to route through
 ///       `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`: `sample::Transpose`
-///       (`sample/transpose.h:120-135`, which also overrides `isRangeDependent()` at `:137`),
-///       `LoopPoint` (`sample/loop_point.cpp:38-58`, `loop_point.h:31`), `FileSelector`
-///       (`file_selector.cpp:68-86`) and `osc::AudioRecorder` (`osc/audio_recorder.h:65-74`). That is
-///       exactly `node.h`'s own list minus `multi_range.h`, so ten nodes here carry the flag
-///       (`nodes.h`'s `kRangeDependentNodes`); the validator's `Flag::RangeDependent` audit
-///       re-checks it.
+///       (`origin/main:src/deluge/gui/menu_item/sample/transpose.h`, which also overrides `isRangeDependent()`),
+///       `LoopPoint` (`origin/main:src/deluge/gui/menu_item/sample/loop_point.cpp`, also `isRangeDependent()`),
+///       `FileSelector` (`origin/main:src/deluge/gui/menu_item/file_selector.cpp`) and `osc::AudioRecorder`
+///       (`origin/main:src/deluge/gui/menu_item/osc/audio_recorder.h`), each in its
+///       `checkPermissionToBeginSession`. Ten nodes
+///       here carry `range_specific` (`nodes.h`'s `kRangeSpecificNodes`; the validator's
+///       `Flag::RangeSpecific` audit re-checks it). Only the transposes and the loop points
+///       override `isRangeDependent()`, so only they carry `range_dependent` (`with_range_dependent`
+///       sets both; the file selectors and the recorders take `with_range_specific`).
 ///
 /// @note **The four transposes carry a learn-only `ParamRef`** beside their `get`/`set`
 ///       (`with_learn_param`, `detail.h`). Legacy `sample::Transpose` and `modulator::Transpose`
@@ -80,9 +83,8 @@
 ///
 /// @note `submenu::ActualSource::getTitle()` swaps to `STRING_FOR_OSC_SAMPLE_MENU_TITLE` once the source is a sample
 ///       and the page is past the first (`submenu/actual_source.h:29-40`): `source<i>_page_title`.
-///       `sample::Repeat` is a `FormattedTitle` given no argument (`sample/repeat.h:35`), so
-///       `sample<i>_repeat` carries no `title_arg`; every other `FormattedTitle` here carries its
-///       source number.
+///       Every `FormattedTitle` here carries its source number. `sample::Repeat` is given none on `main`, whose
+///       title then reads empty; `sample<i>_repeat` fills the digit as the reverse items do (DIFFERENCES D149).
 ///       `sample::PitchSpeed::isToggle()` is true (`sample/pitch_speed.h:80`): `Node::selection_is_toggle`,
 ///       so a select press or an already-focused button press flips the two-option `Kind::Enum` in place.
 ///
@@ -185,7 +187,7 @@ constexpr Node retrigger_phase_screen(Node n) {
 	                          osc##i##_type_art)),                                                                     \
 	                      &osc##i##_type_chain, kOscTypeChain);                                                        \
 	inline constexpr Node file##i##_selector =                                                                         \
-	    with_value_text(with_column_art(with_allow_session_from_horizontal(with_range_dependent(                       \
+	    with_value_text(with_column_art(with_allow_session_from_horizontal(with_range_specific(                        \
 	                                        custom(sid(deluge::l10n::String::STRING_FOR_FILE_BROWSER),                 \
 	                                               &kFile##i##Selector, relevance::osc##i##_file_selector))),          \
 	                                    file_selector_art),                                                            \
@@ -253,11 +255,13 @@ constexpr Node retrigger_phase_screen(Node n) {
 	        sid(deluge::l10n::String::STRING_FOR_PLAY)),                                                               \
 	    reverse_always));                                                                                              \
 	inline constexpr Node sample##i##_repeat = with_affect_entire(with_value_text(                                     \
-	    with_column_art(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_REPEAT_MODE), Kind::Enum,         \
-	                                            {.kind = deluge::scenes::bind::Target::Kind::SOUND,                    \
-	                                             .path = osc_path "/loopMode"}),                                       \
-	                               sid(deluge::l10n::String::STRING_FOR_SAMP_REPEAT_MENU_TITLE)),                      \
-	                    repeat_art),                                                                                   \
+	    with_column_art(                                                                                               \
+	        with_title_arg(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_REPEAT_MODE), Kind::Enum,      \
+	                                               {.kind = deluge::scenes::bind::Target::Kind::SOUND,                 \
+	                                                .path = osc_path "/loopMode"}),                                    \
+	                                  sid(deluge::l10n::String::STRING_FOR_SAMP_REPEAT_MENU_TITLE)),                   \
+	                       (i) + 1),                                                                                   \
+	        repeat_art),                                                                                               \
 	    repeat_text));                                                                                                 \
 	inline constexpr Node sample##i##_time_stretch = with_affect_entire(with_column_name(                              \
 	    with_title_arg(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SPEED), Kind::Int,                 \
@@ -367,7 +371,7 @@ inline constexpr Node modulator1 = submenu(sid(deluge::l10n::String::STRING_FOR_
 // `AudioRecorder::getOccupiedSlots()` (`osc/audio_recorder.h`).
 inline constexpr Node sample0_recorder =
     with_column_draw(without_notification(without_column_label(
-                         with_title_arg(with_slots(with_allow_session_from_horizontal(with_range_dependent(
+                         with_title_arg(with_slots(with_allow_session_from_horizontal(with_range_specific(
                                                        custom(sid(deluge::l10n::String::STRING_FOR_RECORD_TO_SAMPLE),
                                                               &kSample0Recorder, relevance::is_subtractive))),
                                                    2),
@@ -375,7 +379,7 @@ inline constexpr Node sample0_recorder =
                      recorder0_draw);
 inline constexpr Node sample1_recorder =
     with_column_draw(without_notification(without_column_label(
-                         with_title_arg(with_slots(with_allow_session_from_horizontal(with_range_dependent(
+                         with_title_arg(with_slots(with_allow_session_from_horizontal(with_range_specific(
                                                        custom(sid(deluge::l10n::String::STRING_FOR_RECORD_TO_SAMPLE),
                                                               &kSample1Recorder, relevance::is_subtractive))),
                                                    2),

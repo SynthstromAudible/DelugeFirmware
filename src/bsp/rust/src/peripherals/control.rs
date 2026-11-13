@@ -16,7 +16,7 @@ use embassy_sync::channel::Channel;
 use embassy_sync::signal::Signal;
 
 use crate::sys::{
-    DelugeBootInfo, DelugeColour, DelugeInputEvent,
+    DelugeBootInfo, DelugeColour, DelugeEncoderEdges, DelugeInputEvent,
     DelugeInputEventKind_DELUGE_EVENT_BUTTON as KIND_BUTTON,
     DelugeInputEventKind_DELUGE_EVENT_NO_PRESSES as KIND_NO_PRESSES,
     DelugeInputEventKind_DELUGE_EVENT_PAD as KIND_PAD,
@@ -212,23 +212,58 @@ pub extern "C" fn deluge_encoder_take_quadrature_edges(encoder: u8) -> i8 {
     if i >= encoder::NUM_ENCODERS {
         return 0;
     }
-    encoder::ENCODER_DELTAS[ENC_REMAP[i]].swap(0, Ordering::Relaxed)
+    encoder::take_edges(ENC_REMAP[i])
+}
+
+// The header sizes the app's buffer for every run the board keeps, and one for untimed edges.
+const _: () =
+    assert!(crate::sys::DELUGE_ENCODER_EDGE_RUNS as usize == encoder::EDGE_LOG_CAPACITY + 1);
+
+/// Takes `encoder`'s edges (an app ordinal) as the runs they were decoded in, oldest first, each with
+/// the time it was decoded, into `out`; returns how many of its `capacity` slots were written.
+///
+/// # Safety
+///
+/// `out` must be valid for writes of `capacity` [`DelugeEncoderEdges`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_encoder_take_timed_quadrature_edges(
+    encoder: u8,
+    out: *mut DelugeEncoderEdges,
+    capacity: u8,
+) -> u8 {
+    let i = encoder as usize;
+    if i >= encoder::NUM_ENCODERS || out.is_null() || capacity == 0 {
+        return 0;
+    }
+    let mut runs = [encoder::EdgeEvent::default(); encoder::EDGE_LOG_CAPACITY + 1];
+    let slots = usize::from(capacity).min(runs.len());
+    let n = encoder::take_timed_edges(ENC_REMAP[i], &mut runs[..slots], now_us());
+    for (k, run) in runs[..n].iter().enumerate() {
+        // SAFETY: k < n <= capacity, and the caller passes `capacity` writable slots.
+        unsafe {
+            out.add(k).write(DelugeEncoderEdges {
+                time_us: run.time_us,
+                edges: run.edges,
+            })
+        };
+    }
+    n as u8
+}
+
+/// `getSystemTime()`'s clock in microseconds: the clock the encoder runs are stamped on.
+fn now_us() -> u64 {
+    embassy_time::Instant::now().as_micros()
 }
 
 /// Adds `edges` to the app's encoder `index` (its ordinal, as `deluge_encoder_take_quadrature_edges` takes
-/// it), saturating at the accumulator's range, and wakes the app's encoder wait.
+/// it), saturating at the accumulator's range, stamped now, and wakes the app's encoder wait.
 pub fn add_encoder_edges_for_harness(index: u8, edges: i32) {
     let i = index as usize;
     if i >= encoder::NUM_ENCODERS {
         return;
     }
     let add = edges.clamp(i8::MIN as i32, i8::MAX as i32) as i8;
-    let _ = encoder::ENCODER_DELTAS[ENC_REMAP[i]].try_update(
-        Ordering::Relaxed,
-        Ordering::Relaxed,
-        |v| Some(v.saturating_add(add)),
-    );
-    encoder::ENCODER_WAKER.wake();
+    encoder::record_edges(ENC_REMAP[i], add, now_us());
 }
 
 // Control-surface output (LEDs, pads)
@@ -623,4 +658,5 @@ abi_pin!(
     deluge_control_set_pad_columns,
     deluge_control_set_refresh_time,
     deluge_encoder_take_quadrature_edges,
+    deluge_encoder_take_timed_quadrature_edges,
 );

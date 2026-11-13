@@ -17,9 +17,8 @@
 
 #include "storage/flash_storage.h"
 #include "definitions_cxx.hpp"
+#include "gui/colour/pad_colour.h"
 #include "gui/l10n/l10n.h"
-#include "gui/menu_item/colour.h"
-#include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/display/oled_canvas/canvas.h"
 #include "hid/led/pad_leds.h"
@@ -40,14 +39,7 @@
 #include <cstdint>
 #include <modulation/patch/patch_cable.h>
 
-#include "gui/menu_item/integer_range.h"
-#include "gui/menu_item/key_range.h"
-
 using namespace deluge;
-
-extern gui::menu_item::IntegerRange defaultTempoMenu;
-extern gui::menu_item::IntegerRange defaultSwingAmountMenu;
-extern gui::menu_item::KeyRange defaultKeyMenu;
 
 namespace FlashStorage {
 
@@ -289,10 +281,25 @@ Polarity defaultPatchCablePolarity = Polarity::BIPOLAR;
 
 bool defaultUseSharps = true;
 
+uint8_t shortcutsVersion = kShortcutsVersion3;
+
 /// The six pad colours (`flash_storage.h`). Zero-initialised here and given real defaults by
 /// `resetSettings`; `gui::menu_item::Colour::value` is a reference onto one of these.
 uint8_t padColours[NUM_PAD_COLOUR_SLOTS] = {};
 DefaultRange defaultRanges[NUM_DEFAULT_RANGE_SLOTS] = {};
+
+int32_t drawDefaultRange(DefaultRangeSlot slot) {
+	const DefaultRange& range = defaultRanges[slot];
+	if (range.lower == range.upper) {
+		return range.lower;
+	}
+	int32_t span = range.upper - range.lower;
+	if (slot == DEFAULT_RANGE_KEY && span < 0) {
+		span += 12;
+	}
+	return range.lower + random(span);
+}
+
 bool usbAudioEnabled = true;
 
 void resetSettings() {
@@ -329,18 +336,18 @@ void resetSettings() {
 	AudioEngine::inputMonitoringMode = InputMonitoringMode::SMART;
 	recordQuantizeLevel = 8;
 
-	defaultTempoMenu.lower = 120;
-	defaultTempoMenu.upper = 120;
+	defaultRanges[DEFAULT_RANGE_TEMPO].lower = 120;
+	defaultRanges[DEFAULT_RANGE_TEMPO].upper = 120;
 
-	defaultSwingAmountMenu.lower = 50;
-	defaultSwingAmountMenu.upper = 50;
+	defaultRanges[DEFAULT_RANGE_SWING_AMOUNT].lower = 50;
+	defaultRanges[DEFAULT_RANGE_SWING_AMOUNT].upper = 50;
 
-	defaultKeyMenu.lower = 0;
-	defaultKeyMenu.upper = 0;
+	defaultRanges[DEFAULT_RANGE_KEY].lower = 0;
+	defaultRanges[DEFAULT_RANGE_KEY].upper = 0;
 
 	defaultScale = 0;
 
-	soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
+	shortcutsVersion = kShortcutsVersion3;
 
 	audioClipRecordMargins = true;
 	playbackHandler.countInBars = 0;
@@ -349,13 +356,13 @@ void resetSettings() {
 
 	defaultVelocity = 64;
 
-	gui::menu_item::activeColourMenu.value = gui::menu_item::Colour::GREEN; // Green
-	gui::menu_item::stoppedColourMenu.value = gui::menu_item::Colour::RED;  // Red
-	gui::menu_item::mutedColourMenu.value = gui::menu_item::Colour::YELLOW; // Yellow
-	gui::menu_item::soloColourMenu.value = gui::menu_item::Colour::BLUE;    // Blue
+	padColours[PAD_COLOUR_ACTIVE] = deluge::gui::GREEN; // Green
+	padColours[PAD_COLOUR_STOPPED] = deluge::gui::RED;  // Red
+	padColours[PAD_COLOUR_MUTED] = deluge::gui::YELLOW; // Yellow
+	padColours[PAD_COLOUR_SOLOED] = deluge::gui::BLUE;  // Blue
 
-	gui::menu_item::fillColourMenu.value = gui::menu_item::Colour::AMBER;
-	gui::menu_item::onceColourMenu.value = gui::menu_item::Colour::MAGENTA;
+	padColours[PAD_COLOUR_FILL] = deluge::gui::AMBER;
+	padColours[PAD_COLOUR_ONCE] = deluge::gui::MAGENTA;
 
 	defaultMagnitude = 2;
 
@@ -562,27 +569,27 @@ void readSettings() {
 	}
 
 	if (buffer[53] == 0u) { // Remove the true!
-		defaultTempoMenu.lower = 120;
-		defaultTempoMenu.upper = 120;
+		defaultRanges[DEFAULT_RANGE_TEMPO].lower = 120;
+		defaultRanges[DEFAULT_RANGE_TEMPO].upper = 120;
 
-		defaultSwingAmountMenu.lower = 50;
-		defaultSwingAmountMenu.upper = 50;
+		defaultRanges[DEFAULT_RANGE_SWING_AMOUNT].lower = 50;
+		defaultRanges[DEFAULT_RANGE_SWING_AMOUNT].upper = 50;
 
-		defaultKeyMenu.lower = 0;
-		defaultKeyMenu.upper = 0;
+		defaultRanges[DEFAULT_RANGE_KEY].lower = 0;
+		defaultRanges[DEFAULT_RANGE_KEY].upper = 0;
 
 		defaultScale = 0;
 	}
 
 	else {
-		defaultTempoMenu.lower = buffer[53];
-		defaultTempoMenu.upper = buffer[54];
+		defaultRanges[DEFAULT_RANGE_TEMPO].lower = buffer[53];
+		defaultRanges[DEFAULT_RANGE_TEMPO].upper = buffer[54];
 
-		defaultSwingAmountMenu.lower = buffer[55];
-		defaultSwingAmountMenu.upper = buffer[56];
+		defaultRanges[DEFAULT_RANGE_SWING_AMOUNT].lower = buffer[55];
+		defaultRanges[DEFAULT_RANGE_SWING_AMOUNT].upper = buffer[56];
 
-		defaultKeyMenu.lower = buffer[57];
-		defaultKeyMenu.upper = buffer[58];
+		defaultRanges[DEFAULT_RANGE_KEY].lower = buffer[57];
+		defaultRanges[DEFAULT_RANGE_KEY].upper = buffer[58];
 
 		if (buffer[59] == OFFICIAL_FIRMWARE_RANDOM_SCALE_INDEX) {
 			// If the old value was set to RANDOM,
@@ -602,7 +609,7 @@ void readSettings() {
 		}
 	}
 
-	soundEditor.setShortcutsVersion(buffer[60]);
+	shortcutsVersion = buffer[60];
 	audioClipRecordMargins = buffer[61];
 	playbackHandler.countInBars = buffer[62];
 	keyboardLayout =
@@ -616,20 +623,16 @@ void readSettings() {
 	}
 
 	// Range-guarded the same way bytes 165/166 (FILL and ONCE) are, falling back to each slot's
-	// `resetSettings` default. This was missing: the four bytes were cast straight into
-	// `Colour::Option` however far out of range they were, where the two below have always been
-	// checked. Harmless while `Colour::getRGB()` was the only consumer -- its `switch` has a
-	// `default` arm -- but `src/scenes`' COLOURS page now formats a colour *name* off the same
-	// storage (`menu/nodes/settings.cpp`, `bindings::names` over a nine-entry table), so an
-	// out-of-range byte reaches a second consumer that indexes rather than switches.
-	const auto pad_colour = [](uint8_t stored, gui::menu_item::Colour::Option fallback) {
-		return stored >= gui::menu_item::kNumPadColours ? fallback
-		                                                : static_cast<gui::menu_item::Colour::Option>(stored);
+	// `resetSettings` default: `padColourValueRGB` has no arm for a value past `kNumPadColours`, and
+	// `src/scenes`' COLOURS page indexes a nine-entry name table with the stored byte
+	// (`menu/nodes/settings.cpp`).
+	const auto pad_colour = [](uint8_t stored, deluge::gui::PadColour fallback) {
+		return stored >= deluge::gui::kNumPadColours ? fallback : static_cast<deluge::gui::PadColour>(stored);
 	};
-	gui::menu_item::activeColourMenu.value = pad_colour(buffer[74], gui::menu_item::Colour::GREEN);
-	gui::menu_item::stoppedColourMenu.value = pad_colour(buffer[75], gui::menu_item::Colour::RED);
-	gui::menu_item::mutedColourMenu.value = pad_colour(buffer[76], gui::menu_item::Colour::YELLOW);
-	gui::menu_item::soloColourMenu.value = pad_colour(buffer[77], gui::menu_item::Colour::BLUE);
+	padColours[PAD_COLOUR_ACTIVE] = pad_colour(buffer[74], deluge::gui::GREEN);
+	padColours[PAD_COLOUR_STOPPED] = pad_colour(buffer[75], deluge::gui::RED);
+	padColours[PAD_COLOUR_MUTED] = pad_colour(buffer[76], deluge::gui::YELLOW);
+	padColours[PAD_COLOUR_SOLOED] = pad_colour(buffer[77], deluge::gui::BLUE);
 
 	defaultMagnitude = buffer[78];
 
@@ -767,27 +770,23 @@ void readSettings() {
 
 	defaultPadBrightness = buffer[164] == 0 ? kMaxLedBrightness : buffer[164];
 
-	if (buffer[165] >= gui::menu_item::kNumPadColours) {
-		gui::menu_item::fillColourMenu.value = gui::menu_item::Colour::AMBER;
+	if (buffer[165] >= deluge::gui::kNumPadColours) {
+		padColours[PAD_COLOUR_FILL] = deluge::gui::AMBER;
 	}
 	else {
-		gui::menu_item::fillColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[165]);
+		padColours[PAD_COLOUR_FILL] = static_cast<deluge::gui::PadColour>(buffer[165]);
 	}
-	// `onceColourMenu`, not `fillColourMenu`: byte 166 is the ONCE colour (`writeSettings` below
-	// writes it from `onceColourMenu.value`), and both arms of this branch used to assign it to
-	// `fillColourMenu` -- so the ONCE colour never survived a reboot and the FILL colour was
-	// immediately overwritten by ONCE's byte.
-	if (buffer[166] >= gui::menu_item::kNumPadColours) {
-		gui::menu_item::onceColourMenu.value = gui::menu_item::Colour::MAGENTA;
+	// Byte 166 is the ONCE colour (`writeSettings` below writes it from `padColours[PAD_COLOUR_ONCE]`).
+	if (buffer[166] >= deluge::gui::kNumPadColours) {
+		padColours[PAD_COLOUR_ONCE] = deluge::gui::MAGENTA;
 	}
 	else {
-		gui::menu_item::onceColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[166]);
+		padColours[PAD_COLOUR_ONCE] = static_cast<deluge::gui::PadColour>(buffer[166]);
 	}
-	if (gui::menu_item::fillColourMenu.value == gui::menu_item::Colour::RED
-	    && gui::menu_item::onceColourMenu.value == gui::menu_item::Colour::RED) {
+	if (padColours[PAD_COLOUR_FILL] == deluge::gui::RED && padColours[PAD_COLOUR_ONCE] == deluge::gui::RED) {
 		// Reset to default if both red, as they will be first time.
-		gui::menu_item::fillColourMenu.value = gui::menu_item::Colour::AMBER;
-		gui::menu_item::onceColourMenu.value = gui::menu_item::Colour::MAGENTA;
+		padColours[PAD_COLOUR_FILL] = deluge::gui::AMBER;
+		padColours[PAD_COLOUR_ONCE] = deluge::gui::MAGENTA;
 	}
 
 	if (buffer[167] >= kNumRepeatModes) {
@@ -1077,18 +1076,18 @@ void writeSettings() {
 
 	buffer[51] = recordQuantizeLevel - 8;
 
-	buffer[53] = defaultTempoMenu.lower;
-	buffer[54] = defaultTempoMenu.upper;
+	buffer[53] = defaultRanges[DEFAULT_RANGE_TEMPO].lower;
+	buffer[54] = defaultRanges[DEFAULT_RANGE_TEMPO].upper;
 
-	buffer[55] = defaultSwingAmountMenu.lower;
-	buffer[56] = defaultSwingAmountMenu.upper;
+	buffer[55] = defaultRanges[DEFAULT_RANGE_SWING_AMOUNT].lower;
+	buffer[56] = defaultRanges[DEFAULT_RANGE_SWING_AMOUNT].upper;
 
-	buffer[57] = defaultKeyMenu.lower;
-	buffer[58] = defaultKeyMenu.upper;
+	buffer[57] = defaultRanges[DEFAULT_RANGE_KEY].lower;
+	buffer[58] = defaultRanges[DEFAULT_RANGE_KEY].upper;
 
 	buffer[59] = OFFICIAL_FIRMWARE_NONE_SCALE_INDEX; // tombstone value for official firmware Default Scale slot
 	buffer[148] = defaultScale;
-	buffer[60] = soundEditor.shortcutsVersion;
+	buffer[60] = shortcutsVersion;
 
 	buffer[61] = audioClipRecordMargins;
 	buffer[62] = playbackHandler.countInBars;
@@ -1098,10 +1097,10 @@ void writeSettings() {
 
 	buffer[73] = defaultVelocity;
 
-	buffer[74] = gui::menu_item::activeColourMenu.value;
-	buffer[75] = gui::menu_item::stoppedColourMenu.value;
-	buffer[76] = gui::menu_item::mutedColourMenu.value;
-	buffer[77] = gui::menu_item::soloColourMenu.value;
+	buffer[74] = padColours[PAD_COLOUR_ACTIVE];
+	buffer[75] = padColours[PAD_COLOUR_STOPPED];
+	buffer[76] = padColours[PAD_COLOUR_MUTED];
+	buffer[77] = padColours[PAD_COLOUR_SOLOED];
 
 	buffer[78] = defaultMagnitude;
 	buffer[79] = MIDIDeviceManager::differentiatingInputsByDevice;
@@ -1145,8 +1144,8 @@ void writeSettings() {
 	buffer[163] = util::to_underlying(defaultStartupSongMode);
 	buffer[164] = defaultPadBrightness;
 
-	buffer[165] = gui::menu_item::fillColourMenu.value;
-	buffer[166] = gui::menu_item::onceColourMenu.value;
+	buffer[165] = padColours[PAD_COLOUR_FILL];
+	buffer[166] = padColours[PAD_COLOUR_ONCE];
 
 	buffer[167] = util::to_underlying(defaultSliceMode);
 

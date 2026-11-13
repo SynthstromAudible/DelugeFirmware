@@ -59,7 +59,7 @@ Deluge).
 ## Input (`input_lowering.h`, `router.h`)
 
 **Lowering.** `InputLowering` owns all input state (held buttons and pads, press times, used-up
-presses, the sticky-shift latch, partial detents, the gold-knob wiggle debounce). `begin_tick`
+presses, the sticky-shift latch, partial detents). `begin_tick`
 clears the per-tick state and claims; `end_tick(now_ms)` stamps the tick's clock and assembles the
 snapshot every frame reads. The routed FIFO survives `begin_tick`: a late event is delivered on a
 later tick, not dropped.
@@ -141,8 +141,7 @@ two slots is ticked once but routed to once per slot.
 
 The real services (`src/scenes/services/`) are built over the shell's own `stack()` and
 `lowering()`, so the application builds the `Shell` with `Services{}`, constructs them, then calls
-`Shell::set_services`; re-installing is safe. A service may also reach shared lowering state
-directly (`ModKnobs` calls `InputLowering::pretend_knob_untouched`).
+`Shell::set_services`; re-installing is safe.
 
 `Service::timer_repaints()` defaults to `{false, false}`: a service timer is a wake only. A service
 has no stack position, so a claim is honoured unconditionally, and an OLED claim is an unconditional
@@ -259,8 +258,7 @@ LED starts blinking on it.
 ## The firmware host
 
 `gui::ui::ShellHostUI` (`gui/ui/shell_host_ui.h`) is a legacy `UI` holding one `Shell` over a
-`GuestSurfaceSet`, opened by `openShellMenu` (`util/shell_menu_entry.h`) unless the Legacy Menu
-runtime setting is on.
+`GuestSurfaceSet`, opened by `openShellMenu` (`util/shell_menu_entry.h`).
 
 | shell | guest |
 |---|---|
@@ -304,9 +302,8 @@ and both overwrite, so the host polls every tick:
 The shell's specs are in `tests/unit/spec/shell/` (`./dbt test unit`). `uitest::FakeSurfaceSet`
 records every sink call; `tests/golden/shell/*.pbm` pin the popup at both panel heights and an
 overlay's composition. `Shell::state_lines()` is the shell's half of the UI scripts' `.state`
-snapshot. At firmware level, `tests/ui-scripts/app/menu.txt` runs on two cards that differ only in
-the Legacy Menu setting, ShellMenu on and off (`tests/fixtures/card`, `tests/fixtures/card-legacy-menu`), and
-`scripts/ui_app_ab_check.py` requires every OLED panel of the two runs to be byte-identical.
+snapshot. At firmware level,
+`tests/ui-scripts/app/menu.txt` drives the menu through the whole app (`tests/golden/ui/app/menu`).
 
 ## Not yet ported
 

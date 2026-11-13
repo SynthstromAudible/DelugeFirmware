@@ -30,7 +30,7 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../../src/deluge/util/lookuptables.cpp
         ../../../src/deluge/util/synth_noise.cpp
         # For value scaling
-        ../../../src/deluge/gui/menu_item/value_scaling.cpp
+        ../../../src/deluge/util/value_scaling.cpp
         # For scale tests
         ../../../src/music-theory/musical_key.cpp
         ../../../src/music-theory/note_set.cpp
@@ -67,7 +67,7 @@ file(GLOB_RECURSE deluge_SOURCES
         # mock_file_io.cpp (borrowed from tests/unit/io) backs deluge::io::File with an in-memory card.
         ../../../src/deluge/storage/song_preview.cpp
         ../../../src/deluge/storage/file_reader.cpp
-        # deluge::runtime::nowUs(), the clock behind the stall bounds file_reader.cpp and slicer.cpp construct.
+        # deluge::runtime::nowUs(), the clock behind the stall bounds file_reader.cpp and slice_core.cpp construct.
         ../../../src/deluge/runtime/app_loop.cpp
         # The storage channels' C ABI as "no channel here": the Rust BSP defines them everywhere else.
         ../../support/mocks/storage_channel_mocks.cpp
@@ -78,10 +78,9 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../../src/serialization/firmware_version.cpp
         ../../../src/serialization/semver.cpp
         ../io/mock_file_io.cpp
-        # For the slicer audition specs: the REAL UI translation unit, so the specs drive the
-        # shipped preview()/graphicsRoutine() instead of a restatement of them. Its world is
+        # For the slicer audition specs: the REAL SliceCore translation unit, so the specs drive the
+        # shipped audition()/tick_audition() instead of a restatement of them. Its world is
         # mocks/slicer_env_mock.cpp (globbed above).
-        ../../../src/deluge/gui/ui/slicer.cpp
         ../../../src/deluge/gui/ui/slice_core.cpp
         # For the DX cartridge window spec: the REAL sysex parser, so the spec measures what
         # DX7Cartridge::load actually does with a truncated bank rather than restating arithmetic.
@@ -155,7 +154,7 @@ target_include_directories(UnitTests PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR}/generated # util/firmware_version.h, configured just above
 )
 
-# argon's NEON backend: slicer_preview_tests.cpp drives the REAL gui/ui/slicer.cpp rather than a restatement of it,
+# argon's NEON backend: slicer_preview_tests.cpp drives the REAL gui/ui/slice_core.cpp rather than a restatement of it,
 # and that file reaches <argon.hpp> transitively (model/song/song.h -> effects/master_chain.h).
 deluge_test_neon(UnitTests)
 

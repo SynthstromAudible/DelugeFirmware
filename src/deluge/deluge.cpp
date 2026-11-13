@@ -17,7 +17,6 @@
 
 #include "deluge.h"
 #include "definitions_cxx.hpp"
-#include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_claim.h"
@@ -30,7 +29,6 @@
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/save/save_song_ui.h"
 #include "gui/ui/shell_action_dispatch.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
@@ -84,6 +82,7 @@
 #include "playback/render_requests.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "processing/recording/foreground_recording.h"
 #include "processing/stem_export/stem_export.h"
 #include "runtime/app_loop.h"
 #include "storage/audio/audio_file_manager.h"
@@ -542,11 +541,7 @@ void registerJobs() {
 	appLoop.add("audio file slow", [] { audioFileManager.slowRoutine(); }, us(0.2), 0);
 	// It can call finishRecording(), which frees the SampleRecorder. Jobs run one at a time on this tier, so no other
 	// job is part-way through using that recorder when it does.
-	appLoop.add("audio recorder slow", [] { audioRecorder.slowRoutine(); }, us(0.1), 0);
-	// An audio-input take: ends it on a card error, attaches its sample once it settles, and keeps the recorder's
-	// status line current. Requested when a take starts, and asks for its own next run while the take is in progress
-	// -- see AudioRecorder::tick. It and the job above never finish the same take: each owns one kind of source.
-	audioRecorder.jobId = appLoop.add("audio recorder", [] { audioRecorder.tick(); }, kNever, 0);
+	appLoop.add("audio recorder slow", [] { deluge::recording::slowRoutine(); }, us(0.1), 0);
 	// Actions undo/redo MIDI commands that had to wait for the card. Requested where a command is made to wait, and
 	// again while the card is busy -- see PlaybackHandler::slowRoutine.
 	playbackHandler.slowJob = appLoop.add("playback slow routine", [] { playbackHandler.slowRoutine(); }, kNever, 0);
@@ -683,10 +678,8 @@ static void deluge_boot(const DelugeBoard* board) {
 	//
 	//   * **The screensaver timeout** is pushed from `Screensaver::settingsChanged()`
 	//     (`hid/display/screensaver.cpp`), where all its writers funnel, including the call below.
-	//   * **The shortcut layout** (flash byte 60) is pushed from inside
-	//     `SoundEditor::setShortcutsVersion`, the sole writer of `shortcutsVersion`, which every
-	//     change path goes through: boot, the legacy settings item, and both factory-reset menus via
-	//     `FlashStorage::resetSettings`.
+	//   * **The shortcut layout** (flash byte 60) needs no push: the scenes read `FlashStorage::shortcutsVersion`
+	//     where they select a layout.
 	//   * **The menu highlighting** (flash byte 175) is pushed by `gui::ui::pushShellHighlighting`, from the
 	//     settings item, a factory reset, the ported menu's `MenuAction::HighlightingChanged` and the call below.
 	//   * **The play-cursor flash** (flash byte 36) needs no push: the scenes read `PadLEDs::flashCursor` through
@@ -703,13 +696,16 @@ static void deluge_boot(const DelugeBoard* board) {
 	// ordering constraint of its own (see `shell_note_bridge.h`).
 	deluge::gui::ui::wireShellNoteBridge();
 
-	// Install the ported slicer's host: the same `SliceCore` the legacy slicer drives.
+	// Install the slicer's host: `SlicerScene`'s slices, performed with `SliceCore`.
 	deluge::gui::ui::wireShellSliceOps();
 
 	// Install the notification sink: the shell's `Notice::Kind::Notification` consumer, pointed at
 	// the same `display->displayNotification` call legacy's `drain_notifications` makes for that
 	// kind, so whichever of the two pops a horizontal-menu notification, legacy's popup slot holds it.
 	deluge::gui::ui::wireShellNotificationSink();
+
+	// Install the audio clip clone follower: a cloned clip's marker-editor view starts as the original's.
+	deluge::gui::ui::wireShellClipCloneViews();
 
 	// Build the three real services over the guest's `Shell` and install them. After
 	// `setupBlankSong()` above: all three take `currentSong`, and `ModKnobs` also mirrors `View`'s

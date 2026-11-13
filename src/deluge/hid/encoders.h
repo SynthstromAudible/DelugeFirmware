@@ -18,9 +18,13 @@
 #pragma once
 
 #include "hid/encoder_acceleration.h"
+#include <algorithm>
+#include <array>
 #include <atomic>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
 namespace deluge::hid::encoders {
 
@@ -36,13 +40,28 @@ public:
 	DetentedEncoder(const DetentedEncoder&) = delete;
 	DetentedEncoder& operator=(const DetentedEncoder&) = delete;
 
-	void applyEdges(int8_t edges);
+	void applyEdges(int8_t edges) {
+		// Thresholds depend on the last click's direction: see the class comment.
+		edgeAccumulator += edges;
+		int32_t ticks = 0;
+		while (edgeAccumulator >= positiveThreshold()) {
+			edgeAccumulator -= positiveThreshold();
+			lastDirection = 1;
+			++ticks;
+		}
+		while (edgeAccumulator <= -negativeThreshold()) {
+			edgeAccumulator += negativeThreshold();
+			lastDirection = -1;
+			--ticks;
+		}
+		pos.fetch_add(ticks, std::memory_order_relaxed);
+	}
 
 	/// True if any detent steps are waiting to be consumed.
 	bool pending() const { return pos.load(std::memory_order_relaxed) != 0; }
 
 	/// Returns the accumulated signed detent count and resets pos to 0.
-	int32_t take();
+	int32_t take() { return pos.exchange(0, std::memory_order_relaxed); }
 
 private:
 	int32_t positiveThreshold() const { return lastDirection == 0 ? 3 : (lastDirection == 1 ? 4 : 2); }
@@ -53,27 +72,102 @@ private:
 	std::atomic_int32_t pos = 0; ///< Written by applyEdges, drained by the encoder task.
 };
 
+/// One turn of a detented encoder: the detents a run of edges completed, and when the board decoded that run, on
+/// `getSystemTime()`'s clock in microseconds (0: no time).
+struct TimedDetents {
+	int32_t detents;
+	uint64_t timeUs;
+};
+
+/// @brief Fold @p runs (each with `edges` and `time_us`, oldest first) into @p encoder, and write each run that
+///        completed any detent as one turn into @p turns, after the detents already waiting in it as one turn with
+///        no time. `main`'s encoder task takes the detents as the edges arrive, a turn at a time.
+/// @param turns Room for one more turn than there are runs.
+/// @return How many turns were written.
+template <typename Run>
+size_t splitIntoTurns(DetentedEncoder& encoder, std::span<const Run> runs, std::span<TimedDetents> turns) {
+	size_t count = 0;
+	if (encoder.pending()) {
+		turns[count++] = {.detents = encoder.take(), .timeUs = 0};
+	}
+	for (const Run& run : runs) {
+		encoder.applyEdges(run.edges);
+		if (encoder.pending()) {
+			turns[count++] = {.detents = encoder.take(), .timeUs = run.time_us};
+		}
+	}
+	return count;
+}
+
 /// Gold mod encoders (MOD_0, MOD_1) are continuous, and accumulate raw edges for velocity: four per
 /// quadrature cycle, as in 1.x.
+///
+/// The edges are kept as the runs the board decoded them in, each with its own time, because the acceleration
+/// grows with how fast they came. `main`'s encoder task takes each run as its interrupt arrives
+/// (`origin/main:src/deluge/hid/encoders.cpp`'s `encoderIrqHandler`); here the app takes them later, in batches,
+/// and `actionTurns` replays each run on its own time, so the result does not depend on when the app ran.
 class ContinuousEncoder {
 public:
+	/// The runs kept between two `actionTurns`: the board's per-take maximum (`DELUGE_ENCODER_EDGE_RUNS`).
+	static constexpr size_t kMaxRuns = 17;
+
 	ContinuousEncoder() = default;
 	ContinuousEncoder(const ContinuousEncoder&) = delete;
 	ContinuousEncoder& operator=(const ContinuousEncoder&) = delete;
 
-	void applyEdges(int8_t edges) { pos.fetch_add(edges, std::memory_order_relaxed); }
+	/// @brief Queue a run of \p edges the board decoded at \p time.
+	/// @param time `getSystemTime()`'s clock, in seconds. When the queue is full the run folds into the newest one.
+	void applyEdges(int8_t edges, double time) {
+		if (edges == 0) {
+			return;
+		}
+		if (count_ < kMaxRuns) {
+			runs_[count_++] = Run{edges, time};
+			return;
+		}
+		Run& newest = runs_[kMaxRuns - 1];
+		newest.edges = static_cast<int8_t>(std::clamp(newest.edges + edges, -128, 127));
+		newest.time = time;
+	}
 
-	/// True if any ticks are waiting to be consumed.
-	bool pending() const { return pos.load(std::memory_order_relaxed) != 0; }
+	/// @brief Queue a run of \p edges decoded now (`getSystemTime()`).
+	void applyEdges(int8_t edges);
 
-	/// Returns the accumulated tick count and resets pos to 0.
-	int8_t take();
+	/// True if any runs are waiting to be actioned.
+	[[nodiscard]] bool pending() const { return count_ != 0; }
 
-	/// Returns multiplier for encoder offset
-	double calcNextKnobSpeed(int8_t offset);
+	/// @brief Hand each queued run to \p action as `main`'s `interpretEncoders` hands each turn it takes, oldest
+	///        first, and empty the queue.
+	///
+	/// Every run goes out, as its edges times the gold acceleration at the run's own time, truncated to `int8_t` as
+	/// `main`'s `offset_accelerated` is. `main`'s wiggle test writes no turn off: it compares the turn against
+	/// `modEncoderInitialTurnDirection`, which nothing sets to anything but 0
+	/// (`origin/main:src/deluge/hid/encoder_input.cpp`).
+	/// @param action Called with each actioned turn's accelerated offset.
+	/// @return Whether any run was queued.
+	bool actionTurns(std::invocable<int8_t> auto&& action) {
+		const size_t count = count_;
+		count_ = 0;
+		for (size_t i = 0; i < count; i++) {
+			const Run run = runs_[i];
+			if (run.edges == 0) {
+				continue; // a fold that added up to nothing: `main` acts only `if (offset != 0)`
+			}
+			action(
+			    static_cast<int8_t>(run.edges * acceleration_.advance(run.edges, run.time, kGoldEncoderAcceleration)));
+		}
+		return count != 0;
+	}
 
 private:
-	std::atomic_int8_t pos = 0; ///< Written by applyEdges, drained by the encoder task.
+	/// One run of edges and when the board decoded it.
+	struct Run {
+		int8_t edges = 0;
+		double time = 0.0; ///< `getSystemTime()`'s clock, in seconds.
+	};
+
+	std::array<Run, kMaxRuns> runs_{};
+	size_t count_ = 0;
 	EncoderAcceleration acceleration_;
 };
 

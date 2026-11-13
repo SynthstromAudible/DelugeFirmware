@@ -26,7 +26,7 @@
 /// `BrowserScene::take_choice()` hands it out exactly once; the claim's completion answers `deferred_load_done`.
 ///
 /// **Why it is deferred at all.** `SampleBrowser::enterKeyPress`'s file arm requests a claim from
-/// `deluge::gui::sampleClaim` (`gui/ui/browser/sample_claim.h`), whose phases reach `soundEditor`,
+/// `deluge::gui::sampleClaim` (`gui/ui/browser/sample_claim.h`), whose phases reach the sample browser,
 /// `AudioEngine`, `slicer`, `PadLEDs` and `instrumentClipView` -- `gui/` and `hid/` symbols the
 /// scenes layer may not name (`scenes-includes-outside`, `scripts/check_layer_rules.py`).
 /// `Descriptor::accept`'s own note says the same thing from the other side
@@ -43,9 +43,14 @@
 /// `tests/spec/gui/support/fake_legacy_ui.cpp`, exactly as it stubs `dispatchShellActions` and
 /// `wireShellGuestServices`.
 
+#include "gui/ui/sound_target.h"
+
 #include <cstdint>
 #include <optional>
 #include <string_view>
+
+class ModControllableAudio;
+class ParamManagerForTimeline;
 
 namespace deluge::gui {
 struct ClaimRequest;
@@ -53,6 +58,13 @@ struct FolderImportRequest;
 } // namespace deluge::gui
 
 namespace deluge::gui::ui {
+
+class SamplePreviewer;
+
+/// @brief The sample browser's preview, recording each load's path as the last file loaded
+///        (`deluge::model::lastFilePathLoaded`), which the browser opens beside.
+/// @return The one previewer, made on first use.
+SamplePreviewer& shellPreviewer();
 
 /// @brief A chosen file split into a directory and a filename.
 ///
@@ -92,28 +104,19 @@ struct SampleClaimArgs {
 	int32_t mayDoSingleCycle;
 	/// As above.
 	int32_t mayDoWaveTable;
-	/// Keep the browser open once the file is claimed. **A correctness requirement**: the legacy
-	/// browser was never opened under the guest, so it is not in `uiNavigationHierarchy`, and
-	/// `SampleClaim::stepFinish`'s exit would `closeUI` a browser that is not there.
-	bool loadWithoutExiting;
 };
 
-/// @brief What `dispatchShellChoices` claims with: the browser's three defaults, and
-///        `loadWithoutExiting = true`.
+/// @brief What `dispatchShellChoices` claims with: the browser's three defaults.
 ///
-/// The same four values the Load button's auto-load claims with: load the file into the sound as if
-/// confirmed, without exiting a browser.
+/// The same values the Load button's auto-load claims with: load the file into the sound as if
+/// confirmed. The ported browser waits on the claim's completion and closes itself.
 inline constexpr SampleClaimArgs kShellSampleClaimArgs{
-    .mayDoPitchDetection = 1, .mayDoSingleCycle = 1, .mayDoWaveTable = 1, .loadWithoutExiting = true};
+    .mayDoPitchDetection = 1, .mayDoSingleCycle = 1, .mayDoWaveTable = 1};
 
 /// @brief The completion `dispatchShellChoices` gives the claim it requests for a `Sample` choice.
 ///
-/// `loadWithoutExiting` skips `SampleClaim::stepFinish`'s browser exit, the legacy menu re-rooting
-/// and its `uiNeedsRendering(&audioClipView)`. On success this pays back the two the guest still
-/// wants: the render request, and the re-rooting in the ported world's own terms,
-/// `MenuScene::reroot_to_scene_opener_page()` against `MenuState::path`/`depth`. The legacy
-/// `menuItemHeadingTo`/`parentMenuHeadingTo` pair is left alone: nothing on the ported path writes
-/// it, and a stale pair from a legacy session would re-root the legacy editor.
+/// On success it asks for the render and re-roots the menu over the claimed source,
+/// `MenuScene::reroot_to_scene_opener_page()` against `MenuState::path`/`depth`.
 ///
 /// It answers the waiting browser first (`BrowserScene::deferred_load_done`): a success closes it, a failure leaves it
 /// up for another file, as `claimCurrentFile`'s error arm leaves `main`'s up.
@@ -182,9 +185,19 @@ using FolderImportDispatch = void (*)(deluge::gui::FolderImportRequest request);
 /// @param dispatch The dispatcher, or null to put the shipped one back.
 void setFolderImportDispatch(FolderImportDispatch dispatch);
 
-/// @brief Point `soundEditor`'s current sound, source and range at what the ported menu edits, before an operation
-///        that reads them on the menu's behalf.
-void adoptShellMenuContext();
+/// @brief Publish the owner and params of what the ported menu edits now, for `shellMenuModControllable` and
+///        `shellMenuParamManager`. The menu's context-adopted hook, and every open and re-root of the guest, call it.
+void publishShellMenuTarget();
+
+/// @brief The owner the ported menu edits, as last published.
+ModControllableAudio* shellMenuModControllable();
+
+/// @brief The params the ported menu edits, as last published. Safe on the audio tier.
+ParamManagerForTimeline* shellMenuParamManager();
+
+/// @brief The engine objects the ported menu's context names now, resolved in the current song: what a claim, an import
+///        or a slice started from the menu acts on.
+deluge::gui::SoundTarget shellMenuTarget();
 
 /// @brief Tell the ported browser whether its next open is the drum creator's: `InstrumentClipView::enterDrumCreator`
 ///        opens the browser with no `SoundEditor::beginScreen` after it, so only the browser's own BROWSE blink runs.

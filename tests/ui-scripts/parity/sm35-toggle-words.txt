@@ -1,0 +1,46 @@
+# ShellMenu with HorizontalMenus off: what a toggle draws. SETTINGS > COMMUNITY FEATURES' DRUM RANDOMIZER (a
+# SettingToggle) shows a checkbox that SELECT flips in place, twice. OSC SYNC (Shift + pad (3,7), legacy's osc::Sync,
+# a Toggle) opens alone: main lists DISABLED and ENABLED, ours OFF and ON (D134, accepted); a Select detent moves
+# between them. PING-PONG (Shift +
+# pad (14,4), a toggle Selection) opens alone and lists its own options. A black encoder drops the first detent of its
+# first turn after boot and of a reversal: COMMUNITY FEATURES is row 11, so +12.
+100   snapshot boot
+300   button Shift down
+400   button SelectEnc down
+420   button SelectEnc up
+500   button Shift up
+1200  snapshot settings
+1500  encoder Select +12
+2200  snapshot community-row
+2500  button SelectEnc down
+2520  button SelectEnc up
+3200  snapshot community
+3500  button SelectEnc down
+3520  button SelectEnc up
+4200  snapshot randomizer-flipped
+4500  button SelectEnc down
+4520  button SelectEnc up
+5200  snapshot randomizer-back
+5500  button Back down
+5520  button Back up
+6000  button Back down
+6020  button Back up
+7000  snapshot closed
+7500  button Shift down
+7600  pad 3 7 down
+7640  pad 3 7 up
+7700  button Shift up
+8700  snapshot osc-sync
+9000  encoder Select +1
+10000 snapshot osc-sync-turned
+10500 button Back down
+10520 button Back up
+11500 snapshot osc-sync-closed
+12000 button Shift down
+12100 pad 14 4 down
+12140 pad 14 4 up
+12200 button Shift up
+13200 snapshot ping-pong
+13700 button Back down
+13720 button Back up
+14700 snapshot ping-pong-closed

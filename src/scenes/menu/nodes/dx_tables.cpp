@@ -27,8 +27,14 @@ constexpr std::array<uint8_t, 18> kGlobalLimits{
     7,                              // 143: pitch sensitivity
 };
 
-// `desc_global_long` (`param.cpp:274-277`).
-constexpr std::array<std::string_view, 18> kGlobalTitles{
+// `desc_op_long` (`origin/main:src/deluge/gui/menu_item/dx/param.cpp`).
+constexpr std::array<std::string_view, kOperatorParams> kOperatorLongNames{
+    "env rate1",  "env rate2",     "env rate3",  "env rate4",   "env level1", "env level2",  "env level3",
+    "env level4", "breakpoint",    "left depth", "right depth", "left curve", "right curve", "rate scale",
+    "ampmod",     "velocity sens", "level",      "mode",        "coarse",     "fine",        "detune"};
+
+// `desc_global_long` (`origin/main:src/deluge/gui/menu_item/dx/param.cpp`).
+constexpr std::array<std::string_view, kLastParam + 1 - kFirstGlobal> kGlobalTitles{
     "DX7 pitch R1",  "DX7 pitch R2",  "DX7 pitch R3", "DX7 pitch R4", "DX7 pitch l1",     "DX7 pitch l2",
     "DX7 pitch l3",  "DX7 pitch l4",  "algorithm",    "DX7 feedback", "DX7 osc Sync",     "DX7 LFO rate",
     "DX7 LFO delay", "DX7 LFO pitch", "DX7 LFO amp",  "DX7 LFO sync", "DX7 LFO waveform", "DX7 pitch sens",
@@ -122,6 +128,14 @@ int16_t global_row_param(int32_t row) {
 int16_t operator_row_param(int32_t op, int32_t row) {
 	return static_cast<int16_t>(op * kOperatorParams
 	                            + kOperatorRowTable[std::clamp<int32_t>(row, 0, kOperatorRows - 1)].index);
+}
+
+std::string_view operator_param_name(int16_t index) {
+	return index >= 0 && index < std::ssize(kOperatorLongNames) ? kOperatorLongNames[index] : std::string_view{};
+}
+
+std::string_view global_param_name(int16_t index) {
+	return index >= 0 && index < std::ssize(kGlobalTitles) ? kGlobalTitles[index] : std::string_view{};
 }
 
 std::string_view curve_name(uint8_t value) {

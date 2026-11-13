@@ -37,6 +37,7 @@
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/recording/foreground_recording.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
 
@@ -335,10 +336,10 @@ void GlobalControls::handle_settings_menu(const UiContext& ctx, Result& result) 
 	// `:461-462` `soundEditor.setup(); openUI(&soundEditor);`.
 	//
 	// `SoundEditor::setup`'s default `clip` argument is `nullptr` (`gui/ui/sound_editor.h`), so
-	// this call always takes the `else` at `sound_editor.cpp:1815`, and both of that branch's
+	// this call always takes the `else` in `SoundEditor::setup`, and both of that branch's
 	// view tests are `&& !Buttons::isShiftButtonPressed()` (`:1761`, `:1764`) -- which is false
 	// here by construction, because this arm's own condition is `b == SELECT_ENC &&
-	// Buttons::isShiftButtonPressed()` (`view.cpp:451`). So the root is `settingsRootMenu`
+	// Buttons::isShiftButtonPressed()` (`View::buttonAction`). So the root is `settingsRootMenu`
 	// (`:1769`) whatever view is on screen, and `context_for`'s two matching arguments are passed
 	// false for exactly that reason rather than because the view is unknown here.
 	menu::MenuContext menu_ctx = menu::context_for(*song_, services::MenuView{}, /*source_index=*/0,
@@ -466,9 +467,8 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 			return r;
 		}
 		const bool record_held = ctx.held.has(ButtonId::Record);
-		// `:147` `audioRecorder.recordingSource > AudioInputChannel::NONE`, read through the one
-		// seam that exists for it (`AudioEngine::foregroundRecordingSource`, the same storage --
-		// see `scenes/recorder/recorder_scene.h`).
+		// `AudioEngine::foregroundRecordingSource() > AudioInputChannel::NONE`, the same test
+		// legacy's PLAY arm makes on the same storage (see `scenes/recorder/recorder_scene.h`).
 		const bool output_recording = AudioEngine::foregroundRecordingSource() > AudioInputChannel::NONE;
 		if (output_recording && record_held) {
 			// `:149-151` -- stop output-recording at end of loop.
@@ -481,13 +481,8 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 			playbackHandler.playButtonPressed(kInternalButtonPressLatency); // `:157`
 			if (record_held && playbackHandler.playbackState != 0
 			    && !lowering_.press_used_up(ButtonId::Record)) { // `:160`
-				// `:161` `audioRecorder.beginOutputRecording()`.
-				//
-				// @warning **Not ported** -- `audioRecorder` is a `gui/` global this layer may not
-				//          name and the output recorder deliberately stayed on it (see the class
-				//          doc). The *decision* is ported: this is the RECORD-held-while-PLAY
-				//          combo, and its other, observable half -- the used-up bit below -- is.
-				count_unported(UnportedOpen::OutputRecordFromPlay);
+				// Begin output-recording simultaneously with playback.
+				(void)deluge::recording::beginOutputRecording();
 			}
 		}
 		// `:165` `recordButtonPressUsedUp = true`, INSIDE `if (on)` and OUTSIDE the if/else above
@@ -516,9 +511,7 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 			// every button on its own press.
 			if (AudioEngine::foregroundRecordingSource() == AudioInputChannel::NONE) { // `:180`
 				if (ctx.shift) {                                                       // `:181`
-					// `:182` `audioRecorder.beginOutputRecording()` -- @warning not ported, as
-					// above.
-					count_unported(UnportedOpen::OutputRecordFromShift);
+					(void)deluge::recording::beginOutputRecording();
 					lowering_.mark_press_used_up(ButtonId::Record); // `:183`
 				}
 			}
@@ -538,12 +531,12 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 			    record_press_ms_.has_value() && record_press_ms_ == lowering_.last_press_ms(ButtonId::Record);
 			if (own_press && !lowering_.press_used_up(ButtonId::Record)
 			    && lowering_.was_short_press(ButtonId::Record, ctx.now_ms)) {
-				// `:195-197` `audioRecorder.isCurrentlyResampling()` ->
-				// `audioRecorder.endRecordingSoon(kInternalButtonPressLatency)` -- @warning not
-				// ported; `isCurrentlyResampling` reads `audioRecorder.recorder`'s status
-				// (`AudioRecorder::isCurrentlyResampling`), which no seam exposes. The port always
-				// takes the `else`.
-				playbackHandler.recordButtonPressed(); // `:199`
+				if (deluge::recording::isCurrentlyResampling()) {
+					deluge::recording::endRecordingSoon(kInternalButtonPressLatency);
+				}
+				else {
+					playbackHandler.recordButtonPressed();
+				}
 			}
 		}
 		r.handled = true;
@@ -691,8 +684,8 @@ void GlobalControls::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 
 	if (clip_arm_flash_deadline_ms_.has_value() && static_cast<int32_t>(now_ms - *clip_arm_flash_deadline_ms_) >= 0) {
 		// `View::flashPlayRoutine`: toggle the phase, then ask for a render.
-		// The re-arm is `SessionView::flashPlayRoutine`'s (`gui/views/session_view.cpp:2441-2442`,
-		// `:2441-2444`) and is view-side, so this fires once per `flash_play_enable()`.
+		// The re-arm is `SessionView::flashPlayRoutine`'s call of `View::flashPlayEnable`
+		// (`gui/views/session_view.cpp`) and is view-side, so this fires once per `flash_play_enable()`.
 		clip_arm_flash_on_ = !clip_arm_flash_on_;
 		clip_arm_flash_deadline_ms_.reset();
 	}

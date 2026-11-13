@@ -39,6 +39,7 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/nodes.h"
+#include "storage/flash_storage.h"
 
 #include <array>
 #include <cstddef>
@@ -135,9 +136,8 @@ constexpr const Node* kSoundSecondColumns[kShortcutCols][kShortcutRows] = {
 
 /// `paramShortcutsForAudioClips` (`gui/ui/menus.cpp:2213`).
 ///
-/// `audio_clip_waveform` stands in for `audioClipSampleMarkerEditorMenuEnd`: the port has one
-/// waveform/marker-editor node where legacy has a start and an end item, and only the end one is in
-/// this table under `SHORTCUTS_VERSION_3`.
+/// `audio_clip_waveform` is `audioClipSampleMarkerEditorMenuEnd`, the only marker item this table holds under
+/// `SHORTCUTS_VERSION_3`; the START item is `audio_clip_waveform_start`, in the V1 table alone.
 constexpr const Node* kAudioClipColumns[kShortcutCols][kShortcutRows] = {
     {nullptr              , &n::audio_clip_reverse  , nullptr                    , &n::sample0_pitch_speed , nullptr             , &n::file0_selector , &n::audio_clip_interpolation, &n::audio_clip_waveform}, // x=0
     {nullptr              , &n::audio_clip_reverse  , nullptr                    , &n::sample0_pitch_speed , nullptr             , &n::file0_selector , &n::audio_clip_interpolation, &n::audio_clip_waveform}, // x=1
@@ -245,15 +245,16 @@ static_assert(kSoundCells[cell_index(1, 6)] == &n::sample1_interpolation);
 constexpr Cells kSoundV1Cells = with_cell(with_cell(kSoundCells, 0, 6, &n::sample0_end), 1, 6, &n::sample1_end);
 constexpr Cells kDrumV1Cells = with_drum_name(kSoundV1Cells);
 
-// `paramShortcutsForAudioClips[0..1][7]` is assigned the marker editor's *start* item and `[0..1][6]`
-// its *end* item (`sound_editor.cpp:157-162`). The port has one node for both, and `(0..1, 7)`
-// already holds it, so only the `y = 6` pair moves.
+// `setShortcutsVersion(V1)` assigns `paramShortcutsForAudioClips[0..1][7]` the marker editor's START item and
+// `[0..1][6]` its END item.
 static_assert(kAudioClipCells[cell_index(0, 7)] == &n::audio_clip_waveform);
 static_assert(kAudioClipCells[cell_index(1, 7)] == &n::audio_clip_waveform);
 static_assert(kAudioClipCells[cell_index(0, 6)] == &n::audio_clip_interpolation);
 static_assert(kAudioClipCells[cell_index(1, 6)] == &n::audio_clip_interpolation);
-constexpr Cells kAudioClipV1Cells =
-    with_cell(with_cell(kAudioClipCells, 0, 6, &n::audio_clip_waveform), 1, 6, &n::audio_clip_waveform);
+constexpr Cells kAudioClipV1Cells = with_cell(
+    with_cell(with_cell(with_cell(kAudioClipCells, 0, 6, &n::audio_clip_waveform), 1, 6, &n::audio_clip_waveform), 0, 7,
+              &n::audio_clip_waveform_start),
+    1, 7, &n::audio_clip_waveform_start);
 /// @}
 
 /// @brief The four cells the MIDI/CV and non-audio-drum arm resolves that are **not** in any legacy
@@ -274,10 +275,10 @@ constexpr Cells kAudioClipV1Cells =
 /// (`x in {14, 15}`, `:1180-1268`, which walks `patchingSourceShortcutPress` up the menu stack).
 constexpr Cells kMidiExtraCells = [] {
 	Cells out{};
-	out[cell_index(4, 7)] = &n::sequence_direction;     // `sound_editor.cpp:1351-1353`
-	out[cell_index(15, 1)] = &n::spread_velocity_midi;  // `:1288-1289`
-	out[cell_index(15, 2)] = &n::randomizer_lock;       // `:1290-1291`
-	out[cell_index(15, 3)] = &n::note_probability_midi; // `:1292-1293`
+	out[cell_index(4, 7)] = &n::sequence_direction;     // `SoundEditor::get_basic_shortcut_action`
+	out[cell_index(15, 1)] = &n::spread_velocity_midi;  // ditto
+	out[cell_index(15, 2)] = &n::randomizer_lock;       // ditto
+	out[cell_index(15, 3)] = &n::note_probability_midi; // ditto
 	return out;
 }();
 
@@ -368,13 +369,9 @@ constexpr Layers kByRootV1[static_cast<size_t>(MenuContext::Root::Count)] = {
     {&kNoCells, &kNoCells},                                                      // NoteRowEditor
 };
 
-/// The layout in force. A file-scope value rather than a `MenuContext` field because it is a global
-/// *setting* -- legacy keeps it on `soundEditor`, one per application, not per open menu.
-ShortcutsVersion g_version = ShortcutsVersion::V3;
-
 const Layers& layers_for(MenuContext::Root root) {
 	const auto i = static_cast<size_t>(root);
-	const Layers* by_root = g_version == ShortcutsVersion::V1 ? kByRootV1 : kByRootV3;
+	const Layers* by_root = shortcuts_version() == ShortcutsVersion::V1 ? kByRootV1 : kByRootV3;
 	return i < static_cast<size_t>(MenuContext::Root::Count)
 	           ? by_root[i]
 	           : by_root[static_cast<size_t>(MenuContext::Root::Settings)];
@@ -450,8 +447,8 @@ bool shortcut_coming_soon(MenuContext::Root root, uint8_t x, uint8_t y) {
 
 ShortcutPos shortcut_pos(MenuContext::Root root, const Node& node) {
 	const Layers& l = layers_for(root);
-	// Second layer first, the order `updatePadLightsFor` scans in (`sound_editor.cpp:905` before
-	// `:872`) -- an item that is in both layers blinks at the pad it is reached from second.
+	// Second layer first, the order `updatePadLightsFor` scans in -- an item that is in both layers blinks at the pad
+	// it is reached from second.
 	if (l.second != l.first) {
 		if (ShortcutPos pos = find_in(*l.second, node); pos.valid) {
 			pos.second_layer = true;
@@ -461,12 +458,16 @@ ShortcutPos shortcut_pos(MenuContext::Root root, const Node& node) {
 	return find_in(*l.first, node);
 }
 
+static_assert(FlashStorage::kShortcutsVersion1 == static_cast<uint8_t>(ShortcutsVersion::V1));
+static_assert(FlashStorage::kShortcutsVersion3 == static_cast<uint8_t>(ShortcutsVersion::V3));
+
 ShortcutsVersion shortcuts_version() {
-	return g_version;
+	return FlashStorage::shortcutsVersion == FlashStorage::kShortcutsVersion1 ? ShortcutsVersion::V1
+	                                                                          : ShortcutsVersion::V3;
 }
 
 void set_shortcuts_version(ShortcutsVersion version) {
-	g_version = version;
+	FlashStorage::shortcutsVersion = static_cast<uint8_t>(version);
 }
 
 } // namespace deluge::scenes::menu

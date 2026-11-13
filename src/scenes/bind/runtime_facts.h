@@ -92,6 +92,16 @@ struct IsomorphicKeyboard {
 	bool operator==(const IsomorphicKeyboard&) const = default;
 };
 
+/// @brief What a recording is taken for, each part by the identity that names that object alone: the take attaches
+/// there, or nowhere.
+struct TakeTarget {
+	std::optional<project::ClipAddress> clip; ///< the clip the take was begun over
+	project::SlotAddress slot{};              ///< the sound: a synth track's output, or a kit row's drum
+	uint8_t source{0};                        ///< which of the sound's two sources
+	std::optional<uint64_t> range;            ///< the range's identity (`RuntimeFacts::range_identity`)
+	bool operator==(const TakeTarget&) const = default;
+};
+
 /// @brief The facts a menu needs that are not settings, each answered by the host. Nothing else a binding reads comes
 /// from outside the model.
 class RuntimeFacts {
@@ -122,6 +132,28 @@ public:
 		(void)source;
 		return std::nullopt;
 	}
+	/// @brief The identity of range @p range of source @p source of the sound at @p slot (`MultiRange::identity`). It
+	/// names the range itself: it moves with the range as ranges are inserted or deleted before it, and stays while
+	/// another file is loaded into it. Never 0: identities count from 1, so 0 names no range. None where the address
+	/// names no range.
+	[[nodiscard]] virtual std::optional<uint64_t> range_identity(project::SlotAddress slot, uint8_t source,
+	                                                             uint16_t range) const {
+		(void)slot;
+		(void)source;
+		(void)range;
+		return std::nullopt;
+	}
+	/// @brief Where the take @p target names may still land: the index its range now has among its source's ranges,
+	/// while the clip is still in the current song, still playing the sound. Range identities are run-unique and never
+	/// saved, so a range in another song never matches. None otherwise, and for a host that records nothing.
+	[[nodiscard]] virtual std::optional<uint16_t> take_range(const TakeTarget& target) const {
+		(void)target;
+		return std::nullopt;
+	}
+	/// @brief Whether a load that can replace an output or a sound's sample is running: an instrument, pattern, song,
+	/// drum-randomizer, sample-claim, folder-import or reversion load. A recording does not start over one: what it
+	/// would attach to could be swapped out from under it. False for a host that loads nothing.
+	[[nodiscard]] virtual bool output_may_be_replaced() const { return false; }
 	/// @brief The DX7 bank the last `.syx` read loaded, which the cartridge page lists; none before one has loaded or
 	/// for a host that reads none.
 	[[nodiscard]] virtual std::optional<DxCartridgeNames> dx_cartridge() const { return std::nullopt; }

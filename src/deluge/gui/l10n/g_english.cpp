@@ -558,7 +558,6 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL, "Show Battery Level"},
         {STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS, "Rounded Corners"},
         {STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY, "Shortcut Overlay"},
-        {STRING_FOR_COMMUNITY_FEATURE_LEGACY_MENU, "Legacy Menu"},
         {STRING_FOR_SHORTCUT_OVERLAY_MENU_ONLY, "On - Menu only"},
         {STRING_FOR_SHORTCUT_OVERLAY_MENU_AND_CLIP, "On - Menu + Clip"},
         {STRING_FOR_TRACK_STILL_HAS_CLIPS_IN_SESSION, "Track still has clips in session"},
@@ -1025,6 +1024,10 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CHORD_KEYBOARD_MODE_ROW, "Chord Row Mode"},
         {STRING_FOR_CHORD_KEYBOARD_MODE_COLUMN, "Chord Column Mode"},
         {STRING_FOR_CHOICE_UNAVAILABLE, "n/a"},
+        {STRING_FOR_LOOP_LOCKED, "LOCK"},
+        {STRING_FOR_LOOP_FREE, "FREE"},
+        {STRING_FOR_NEXT_SONG_AFTER_TAKE, "Next song after take"},
+        {STRING_FOR_NEXT_SONG_AFTER_SLICE, "Next song after slice"},
     },
 };
 } // namespace deluge::l10n::built_in

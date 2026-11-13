@@ -19,6 +19,7 @@
 #pragma once
 
 #include "definitions.h"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/chords.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
 #include "util/const_functions.h"

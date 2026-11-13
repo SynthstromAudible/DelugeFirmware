@@ -60,7 +60,7 @@ checksum = "790eea4361631c5e7d22598ecd5723ff611904e3344ce8720784c93e3d83d40b"
 [[package]]
 name = "deluge-audio-format"
 version = "0.2.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=3a6260680857c48d3f70f4eaa5077c01e9685e4f#3a6260680857c48d3f70f4eaa5077c01e9685e4f"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d#5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d"
 
 [[package]]
 name = "deluge_alloc"

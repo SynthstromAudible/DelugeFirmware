@@ -212,7 +212,7 @@ private:
 	bool attempt_display(deluge::modulation::params::Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
 	                     PatchSource source2, uint32_t now_ms, PopupContext context);
 
-	static constexpr size_t kTextCap = 40; // `etl::string<40>` (view.cpp:1125-1126).
+	static constexpr size_t kTextCap = 40; // `etl::string<40>` (`View::displayModEncoderValuePopup`).
 	char name_[kTextCap + 1] = {};
 	size_t name_len_ = 0;
 	char value_[kTextCap + 1] = {};

@@ -28,13 +28,8 @@
 /// (`gui/ui/sound_editor.cpp:1474-1517`) and its tail (`:1520-1545`) -- the part of that function
 /// that runs only once `potentialShortcutPadAction` (`:1468`) has already said no.
 ///
-/// **What deliberately stays on the other side of the wall.** The firmware-version diagnostics
-/// inside the tail (`:1521-1543`) are a **partial** gap: the three popups themselves (reading
-/// `sram_size()`, `AudioEngine::getNumVoices()`, `picFirmwareVersion` and calling
-/// `display->displayPopup`) are a deliberate gap -- behaviour this switch does not carry, named here
-/// rather than silently dropped. But the **"the menu stays open" half of the same three pads is
-/// ported** -- `onFirmwareVersionMenu` in the `.cpp` and the clause on the tail's `else if` --
-/// because leaving it unported would make the guest close the menu where legacy keeps it open. The
+/// The firmware-version diagnostics inside the tail are `PadForwardTarget::FirmwareDiagnostic`: the
+/// three pads pop up their number through the shell's notices and keep the menu open. The
 /// `automationView` arm (`:1507-1512`) is **not** a gap: it is ported as
 /// `PadForwardTarget::Automation` -- see `menuShowsAutomationParam` in the
 /// `.cpp` for why that arm asks the ported menu rather than calling
@@ -80,10 +75,12 @@ enum class PadForwardTarget : uint8_t {
 	/// `menuShowsAutomationParam` in the `.cpp` for why it is not a call into that function.
 	Automation,
 	/// `:1545` -- `exitCompletely()`, ported as `closePortedMenu()`. Not returned for the three
-	/// firmware-version diagnostic pads (`:1521-1543`) -- `None` is, instead, so the menu stays
-	/// open there as it does in legacy. Also the note editor's sidebar half (`:1487-1489`), which
-	/// is the same `exitCompletely()` with no `on` or UI-mode test in front of it.
+	/// firmware-version diagnostic pads, which are `FirmwareDiagnostic`. Also the note editor's sidebar half
+	/// (`:1487-1489`), which is the same `exitCompletely()` with no `on` or UI-mode test in front of it.
 	Exit,
+	/// The tail's firmware-version arm: on the firmware-version item, a press on (13, 7), (14, 7) or (15, 7) pops up
+	/// the PIC firmware version, the voice count or the internal memory's size, and the menu stays open.
+	FirmwareDiagnostic,
 	/// `:1483-1485` -- `instrumentClipView.handleNoteEditorEditPadAction`, the main grid only, while
 	/// the note editor is on. Performed through `noteModeLegacyCalls()` (`gui/ui/shell_note_mode.h`).
 	NoteEditorEdit,

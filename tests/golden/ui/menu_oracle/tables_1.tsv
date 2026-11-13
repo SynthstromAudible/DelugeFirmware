@@ -1,0 +1,961 @@
+# Reference answers of upstream main's menu, one row per answer: path, column, values (tab-separated).
+# A row changes only to follow main's source (git show origin/main:<path>); tests/golden/README.md says how.
+b1/0	name	Filters
+b1/0	title	Filters
+b1/0	kids	3
+b1/0/0	name	Lpf
+b1/0/0	title	Lpf
+b1/0/0	kids	4
+b1/0/0/0	name	Mode
+b1/0/0/0	title	LPF mode
+b1/0/0/0	ae	1
+b1/0/0/0	edits	1
+b1/0/0/0	slots	1
+b1/0/0/0	range_dep	0
+b1/0/0/1	name	Frequency
+b1/0/0/1	title	LPF frequency
+b1/0/0/1	ae	1
+b1/0/0/1	edits	1
+b1/0/0/1	slots	1
+b1/0/0/1	range_dep	0
+b1/0/0/1	param_index	24
+b1/0/0/2	name	Resonance
+b1/0/0/2	title	LPF resonance
+b1/0/0/2	ae	1
+b1/0/0/2	edits	1
+b1/0/0/2	slots	1
+b1/0/0/2	range_dep	0
+b1/0/0/2	param_index	11
+b1/0/0/3	ae	1
+b1/0/0/3	edits	1
+b1/0/0/3	slots	1
+b1/0/0/3	range_dep	0
+b1/0/0/3	param_index	17
+b1/0/1	name	Hpf
+b1/0/1	title	Hpf
+b1/0/1	kids	4
+b1/0/1/0	name	Mode
+b1/0/1/0	title	HPF mode
+b1/0/1/0	ae	1
+b1/0/1/0	edits	1
+b1/0/1/0	slots	1
+b1/0/1/0	range_dep	0
+b1/0/1/1	name	Frequency
+b1/0/1/1	title	HPF frequency
+b1/0/1/1	ae	1
+b1/0/1/1	edits	1
+b1/0/1/1	slots	1
+b1/0/1/1	range_dep	0
+b1/0/1/1	param_index	30
+b1/0/1/2	name	Resonance
+b1/0/1/2	title	HPF resonance
+b1/0/1/2	ae	1
+b1/0/1/2	edits	1
+b1/0/1/2	slots	1
+b1/0/1/2	range_dep	0
+b1/0/1/2	param_index	12
+b1/0/1/3	ae	1
+b1/0/1/3	edits	1
+b1/0/1/3	slots	1
+b1/0/1/3	range_dep	0
+b1/0/1/3	param_index	18
+b1/0/2	name	Filter Route
+b1/0/2	title	Filter Route
+b1/0/2	ae	1
+b1/0/2	edits	1
+b1/0/2	slots	4
+b1/0/2	range_dep	0
+b1/1	name	Compressor
+b1/1	title	Compressor
+b1/1	kids	6
+b1/1/0	name	Threshold
+b1/1/0	title	Comp threshold
+b1/1/0	ae	1
+b1/1/0	edits	1
+b1/1/0	slots	1
+b1/1/0	range_dep	0
+b1/1/0	param_index	10
+b1/1/1	name	Ratio
+b1/1/1	title	Ratio
+b1/1/1	ae	0
+b1/1/1	edits	1
+b1/1/1	slots	1
+b1/1/1	range_dep	0
+b1/1/2	name	Blend
+b1/1/2	title	Blend
+b1/1/2	ae	0
+b1/1/2	edits	1
+b1/1/2	slots	1
+b1/1/2	range_dep	0
+b1/1/3	name	Attack
+b1/1/3	title	Attack
+b1/1/3	ae	0
+b1/1/3	edits	1
+b1/1/3	slots	1
+b1/1/3	range_dep	0
+b1/1/4	name	Release
+b1/1/4	title	Release
+b1/1/4	ae	0
+b1/1/4	edits	1
+b1/1/4	slots	1
+b1/1/4	range_dep	0
+b1/1/5	name	Hpf
+b1/1/5	title	Hpf
+b1/1/5	ae	0
+b1/1/5	edits	1
+b1/1/5	slots	1
+b1/1/5	range_dep	0
+b1/2	name	Unison
+b1/2	title	Unison
+b1/2	kids	3
+b1/2/0	name	Number
+b1/2/0	title	Unison number
+b1/2/0	ae	1
+b1/2/0	edits	1
+b1/2/0	slots	1
+b1/2/0	range_dep	0
+b1/2/1	name	Detune
+b1/2/1	title	Unison detune
+b1/2/1	ae	1
+b1/2/1	edits	1
+b1/2/1	slots	1
+b1/2/1	range_dep	0
+b1/2/2	name	Spread
+b1/2/2	title	Unison stereo spread
+b1/2/2	ae	1
+b1/2/2	edits	1
+b1/2/2	slots	1
+b1/2/2	range_dep	0
+b1/3	name	Sample recorder
+b1/3	title	Sample recorder
+b1/3	kids	2
+b1/3/0	name	Record to sample 1
+b1/3/0	title	Record to sample 1
+b1/3/0	ae	0
+b1/3/0	edits	0
+b1/3/0	slots	2
+b1/3/0	range_dep	0
+b1/3/1	name	Record to sample 2
+b1/3/1	title	Record to sample 2
+b1/3/1	ae	0
+b1/3/1	edits	0
+b1/3/1	slots	2
+b1/3/1	range_dep	0
+b1/4	kids	14
+b1/4/0	name	Type
+b1/4/0	title	Osc1 type
+b1/4/0	ae	0
+b1/4/0	edits	1
+b1/4/0	slots	1
+b1/4/0	range_dep	0
+b1/4/1	name	File browser
+b1/4/1	title	File browser
+b1/4/1	ae	0
+b1/4/1	edits	0
+b1/4/1	slots	1
+b1/4/1	range_dep	0
+b1/4/2	name	Transpose
+b1/4/2	title	Osc1 transpose
+b1/4/2	ae	1
+b1/4/2	edits	1
+b1/4/2	slots	1
+b1/4/2	range_dep	1
+b1/4/3	name	Wave-index
+b1/4/3	title	Osc1 wave-index
+b1/4/3	ae	1
+b1/4/3	edits	1
+b1/4/3	slots	1
+b1/4/3	range_dep	0
+b1/4/3	param_index	21
+b1/4/4	name	Pulse Width
+b1/4/4	title	Osc1 p. width
+b1/4/4	ae	1
+b1/4/4	edits	1
+b1/4/4	slots	1
+b1/4/4	range_dep	0
+b1/4/4	param_index	19
+b1/4/5	name	Feedback
+b1/4/5	title	Carrier1 feedb
+b1/4/5	ae	1
+b1/4/5	edits	1
+b1/4/5	slots	1
+b1/4/5	range_dep	0
+b1/4/5	param_index	9
+b1/4/6	name	Retrigger phase
+b1/4/6	title	Osc1 r. phase
+b1/4/6	ae	0
+b1/4/6	edits	1
+b1/4/6	slots	1
+b1/4/6	range_dep	0
+b1/4/7	name	Reverse
+b1/4/7	title	Samp1 reverse
+b1/4/7	ae	1
+b1/4/7	edits	1
+b1/4/7	slots	1
+b1/4/7	range_dep	0
+b1/4/8	name	Repeat Mode
+b1/4/8	title	Samp1 repeat
+b1/4/8	ae	1
+b1/4/8	edits	1
+b1/4/8	slots	1
+b1/4/8	range_dep	0
+b1/4/9	name	Speed
+b1/4/9	title	Samp1 speed
+b1/4/9	ae	1
+b1/4/9	edits	1
+b1/4/9	slots	1
+b1/4/9	range_dep	0
+b1/4/10	name	Pitch/Speed
+b1/4/10	title	Pitch/Speed
+b1/4/10	ae	1
+b1/4/10	edits	1
+b1/4/10	slots	1
+b1/4/10	range_dep	0
+b1/4/11	name	Interpolation
+b1/4/11	title	Samp1 interp
+b1/4/11	ae	1
+b1/4/11	edits	1
+b1/4/11	slots	1
+b1/4/11	range_dep	0
+b1/4/12	name	Start-point
+b1/4/12	title	Start-point
+b1/4/12	ae	0
+b1/4/12	edits	0
+b1/4/12	slots	1
+b1/4/12	range_dep	1
+b1/4/13	name	End-point
+b1/4/13	title	End-point
+b1/4/13	ae	0
+b1/4/13	edits	0
+b1/4/13	slots	1
+b1/4/13	range_dep	1
+b1/5	kids	14
+b1/5/0	name	Type
+b1/5/0	title	Osc2 type
+b1/5/0	ae	0
+b1/5/0	edits	1
+b1/5/0	slots	1
+b1/5/0	range_dep	0
+b1/5/1	name	File browser
+b1/5/1	title	File browser
+b1/5/1	ae	0
+b1/5/1	edits	0
+b1/5/1	slots	1
+b1/5/1	range_dep	0
+b1/5/2	name	Transpose
+b1/5/2	title	Osc2 transpose
+b1/5/2	ae	1
+b1/5/2	edits	1
+b1/5/2	slots	1
+b1/5/2	range_dep	1
+b1/5/3	name	Wave-index
+b1/5/3	title	Osc2 wave-index
+b1/5/3	ae	1
+b1/5/3	edits	1
+b1/5/3	slots	1
+b1/5/3	range_dep	0
+b1/5/3	param_index	22
+b1/5/4	name	Pulse Width
+b1/5/4	title	Osc2 p. width
+b1/5/4	ae	1
+b1/5/4	edits	1
+b1/5/4	slots	1
+b1/5/4	range_dep	0
+b1/5/4	param_index	20
+b1/5/5	name	Feedback
+b1/5/5	title	Carrier2 feedb
+b1/5/5	ae	1
+b1/5/5	edits	1
+b1/5/5	slots	1
+b1/5/5	range_dep	0
+b1/5/5	param_index	10
+b1/5/6	name	Retrigger phase
+b1/5/6	title	Osc2 r. phase
+b1/5/6	ae	0
+b1/5/6	edits	1
+b1/5/6	slots	1
+b1/5/6	range_dep	0
+b1/5/7	name	Reverse
+b1/5/7	title	Samp2 reverse
+b1/5/7	ae	1
+b1/5/7	edits	1
+b1/5/7	slots	1
+b1/5/7	range_dep	0
+b1/5/8	name	Repeat Mode
+b1/5/8	title	Samp2 repeat
+b1/5/8	ae	1
+b1/5/8	edits	1
+b1/5/8	slots	1
+b1/5/8	range_dep	0
+b1/5/9	name	Speed
+b1/5/9	title	Samp2 speed
+b1/5/9	ae	1
+b1/5/9	edits	1
+b1/5/9	slots	1
+b1/5/9	range_dep	0
+b1/5/10	name	Pitch/Speed
+b1/5/10	title	Pitch/Speed
+b1/5/10	ae	1
+b1/5/10	edits	1
+b1/5/10	slots	1
+b1/5/10	range_dep	0
+b1/5/11	name	Interpolation
+b1/5/11	title	Samp2 interp
+b1/5/11	ae	1
+b1/5/11	edits	1
+b1/5/11	slots	1
+b1/5/11	range_dep	0
+b1/5/12	name	Start-point
+b1/5/12	title	Start-point
+b1/5/12	ae	0
+b1/5/12	edits	0
+b1/5/12	slots	1
+b1/5/12	range_dep	1
+b1/5/13	name	End-point
+b1/5/13	title	End-point
+b1/5/13	ae	0
+b1/5/13	edits	0
+b1/5/13	slots	1
+b1/5/13	range_dep	1
+b1/6	name	FM mod 1
+b1/6	title	FM mod 1
+b1/6	kids	3
+b1/6/0	name	Transpose
+b1/6/0	title	FM Mod1 tran
+b1/6/0	ae	1
+b1/6/0	edits	1
+b1/6/0	slots	1
+b1/6/0	range_dep	0
+b1/6/1	name	Feedback
+b1/6/1	title	FM Mod1 feedb
+b1/6/1	ae	1
+b1/6/1	edits	1
+b1/6/1	slots	1
+b1/6/1	range_dep	0
+b1/6/1	param_index	7
+b1/6/2	name	Retrigger phase
+b1/6/2	title	FM Mod1 retrig
+b1/6/2	ae	0
+b1/6/2	edits	1
+b1/6/2	slots	1
+b1/6/2	range_dep	0
+b1/7	name	FM mod 2
+b1/7	title	FM mod 2
+b1/7	kids	4
+b1/7/0	name	Transpose
+b1/7/0	title	FM Mod2 tran
+b1/7/0	ae	1
+b1/7/0	edits	1
+b1/7/0	slots	1
+b1/7/0	range_dep	0
+b1/7/1	name	Feedback
+b1/7/1	title	FM Mod2 feedb
+b1/7/1	ae	1
+b1/7/1	edits	1
+b1/7/1	slots	1
+b1/7/1	range_dep	0
+b1/7/1	param_index	8
+b1/7/2	name	Retrigger phase
+b1/7/2	title	FM Mod2 retrig
+b1/7/2	ae	0
+b1/7/2	edits	1
+b1/7/2	slots	1
+b1/7/2	range_dep	0
+b1/7/3	name	Destination
+b1/7/3	title	FM Mod2 dest
+b1/7/3	ae	1
+b1/7/3	edits	1
+b1/7/3	slots	1
+b1/7/3	range_dep	0
+b1/8	name	Osc mixer
+b1/8	title	Osc mixer
+b1/8	kids	6
+b1/8/0	name	Osc1 level
+b1/8/0	title	Osc1 level
+b1/8/0	ae	1
+b1/8/0	edits	1
+b1/8/0	slots	1
+b1/8/0	range_dep	0
+b1/8/0	param_index	0
+b1/8/1	name	Osc2 level
+b1/8/1	title	Osc2 level
+b1/8/1	ae	1
+b1/8/1	edits	1
+b1/8/1	slots	1
+b1/8/1	range_dep	0
+b1/8/1	param_index	1
+b1/8/2	name	FM Mod1 level
+b1/8/2	title	FM Mod1 level
+b1/8/2	ae	1
+b1/8/2	edits	1
+b1/8/2	slots	1
+b1/8/2	range_dep	0
+b1/8/2	param_index	4
+b1/8/3	name	FM Mod2 level
+b1/8/3	title	FM Mod2 level
+b1/8/3	ae	1
+b1/8/3	edits	1
+b1/8/3	slots	1
+b1/8/3	range_dep	0
+b1/8/3	param_index	5
+b1/8/4	name	Noise level
+b1/8/4	title	Noise level
+b1/8/4	ae	1
+b1/8/4	edits	1
+b1/8/4	slots	1
+b1/8/4	range_dep	0
+b1/8/4	param_index	3
+b1/8/5	name	Oscillator sync
+b1/8/5	title	Oscillator sync
+b1/8/5	ae	1
+b1/8/5	edits	1
+b1/8/5	slots	1
+b1/8/5	range_dep	0
+b1/9	name	Envelope 1
+b1/9	title	Envelope 1
+b1/9	kids	4
+b1/9/0	name	Attack
+b1/9/0	title	Env1 attack
+b1/9/0	ae	1
+b1/9/0	edits	1
+b1/9/0	slots	1
+b1/9/0	range_dep	0
+b1/9/0	param_index	33
+b1/9/1	name	Decay
+b1/9/1	title	Env1 decay
+b1/9/1	ae	1
+b1/9/1	edits	1
+b1/9/1	slots	1
+b1/9/1	range_dep	0
+b1/9/1	param_index	37
+b1/9/2	name	Sustain
+b1/9/2	title	Env1 sustain
+b1/9/2	ae	1
+b1/9/2	edits	1
+b1/9/2	slots	1
+b1/9/2	range_dep	0
+b1/9/2	param_index	13
+b1/9/3	name	Release
+b1/9/3	title	Env1 release
+b1/9/3	ae	1
+b1/9/3	edits	1
+b1/9/3	slots	1
+b1/9/3	range_dep	0
+b1/9/3	param_index	41
+b1/10	name	Envelope 2
+b1/10	title	Envelope 2
+b1/10	kids	4
+b1/10/0	name	Attack
+b1/10/0	title	Env2 attack
+b1/10/0	ae	1
+b1/10/0	edits	1
+b1/10/0	slots	1
+b1/10/0	range_dep	0
+b1/10/0	param_index	34
+b1/10/1	name	Decay
+b1/10/1	title	Env2 decay
+b1/10/1	ae	1
+b1/10/1	edits	1
+b1/10/1	slots	1
+b1/10/1	range_dep	0
+b1/10/1	param_index	38
+b1/10/2	name	Sustain
+b1/10/2	title	Env2 sustain
+b1/10/2	ae	1
+b1/10/2	edits	1
+b1/10/2	slots	1
+b1/10/2	range_dep	0
+b1/10/2	param_index	14
+b1/10/3	name	Release
+b1/10/3	title	Env2 release
+b1/10/3	ae	1
+b1/10/3	edits	1
+b1/10/3	slots	1
+b1/10/3	range_dep	0
+b1/10/3	param_index	42
+b1/11	name	Envelope 3
+b1/11	title	Envelope 3
+b1/11	kids	4
+b1/11/0	name	Attack
+b1/11/0	title	Env3 attack
+b1/11/0	ae	1
+b1/11/0	edits	1
+b1/11/0	slots	1
+b1/11/0	range_dep	0
+b1/11/0	param_index	35
+b1/11/1	name	Decay
+b1/11/1	title	Env3 decay
+b1/11/1	ae	1
+b1/11/1	edits	1
+b1/11/1	slots	1
+b1/11/1	range_dep	0
+b1/11/1	param_index	39
+b1/11/2	name	Sustain
+b1/11/2	title	Env3 sustain
+b1/11/2	ae	1
+b1/11/2	edits	1
+b1/11/2	slots	1
+b1/11/2	range_dep	0
+b1/11/2	param_index	15
+b1/11/3	name	Release
+b1/11/3	title	Env3 release
+b1/11/3	ae	1
+b1/11/3	edits	1
+b1/11/3	slots	1
+b1/11/3	range_dep	0
+b1/11/3	param_index	43
+b1/12	name	Envelope 4
+b1/12	title	Envelope 4
+b1/12	kids	4
+b1/12/0	name	Attack
+b1/12/0	title	Env4 attack
+b1/12/0	ae	1
+b1/12/0	edits	1
+b1/12/0	slots	1
+b1/12/0	range_dep	0
+b1/12/0	param_index	36
+b1/12/1	name	Decay
+b1/12/1	title	Env4 decay
+b1/12/1	ae	1
+b1/12/1	edits	1
+b1/12/1	slots	1
+b1/12/1	range_dep	0
+b1/12/1	param_index	40
+b1/12/2	name	Sustain
+b1/12/2	title	Env4 sustain
+b1/12/2	ae	1
+b1/12/2	edits	1
+b1/12/2	slots	1
+b1/12/2	range_dep	0
+b1/12/2	param_index	16
+b1/12/3	name	Release
+b1/12/3	title	Env4 release
+b1/12/3	ae	1
+b1/12/3	edits	1
+b1/12/3	slots	1
+b1/12/3	range_dep	0
+b1/12/3	param_index	44
+b1/13	name	LFO 1
+b1/13	title	LFO 1
+b1/13	kids	3
+b1/13/0	name	Shape
+b1/13/0	title	LFO1 shape
+b1/13/0	ae	1
+b1/13/0	edits	1
+b1/13/0	slots	1
+b1/13/0	range_dep	0
+b1/13/1	name	Sync
+b1/13/1	title	LFO1 sync
+b1/13/1	ae	1
+b1/13/1	edits	1
+b1/13/1	slots	1
+b1/13/1	range_dep	0
+b1/13/2	name	Rate
+b1/13/2	title	LFO1 rate
+b1/13/2	ae	1
+b1/13/2	edits	1
+b1/13/2	slots	1
+b1/13/2	range_dep	0
+b1/13/2	param_index	52
+b1/14	name	LFO 2
+b1/14	title	LFO 2
+b1/14	kids	3
+b1/14/0	name	Shape
+b1/14/0	title	LFO2 shape
+b1/14/0	ae	1
+b1/14/0	edits	1
+b1/14/0	slots	1
+b1/14/0	range_dep	0
+b1/14/1	name	Sync
+b1/14/1	title	LFO2 sync
+b1/14/1	ae	1
+b1/14/1	edits	1
+b1/14/1	slots	1
+b1/14/1	range_dep	0
+b1/14/2	name	Rate
+b1/14/2	title	LFO2 rate
+b1/14/2	ae	1
+b1/14/2	edits	1
+b1/14/2	slots	1
+b1/14/2	range_dep	0
+b1/14/2	param_index	31
+b1/15	name	LFO 3
+b1/15	title	LFO 3
+b1/15	kids	3
+b1/15/0	name	Shape
+b1/15/0	title	LFO3 shape
+b1/15/0	ae	1
+b1/15/0	edits	1
+b1/15/0	slots	1
+b1/15/0	range_dep	0
+b1/15/1	name	Sync
+b1/15/1	title	LFO3 sync
+b1/15/1	ae	1
+b1/15/1	edits	1
+b1/15/1	slots	1
+b1/15/1	range_dep	0
+b1/15/2	name	Rate
+b1/15/2	title	LFO3 rate
+b1/15/2	ae	1
+b1/15/2	edits	1
+b1/15/2	slots	1
+b1/15/2	range_dep	0
+b1/15/2	param_index	53
+b1/16	name	LFO 4
+b1/16	title	LFO 4
+b1/16	kids	3
+b1/16/0	name	Shape
+b1/16/0	title	LFO4 shape
+b1/16/0	ae	1
+b1/16/0	edits	1
+b1/16/0	slots	1
+b1/16/0	range_dep	0
+b1/16/1	name	Sync
+b1/16/1	title	LFO4 sync
+b1/16/1	ae	1
+b1/16/1	edits	1
+b1/16/1	slots	1
+b1/16/1	range_dep	0
+b1/16/2	name	Rate
+b1/16/2	title	LFO4 rate
+b1/16/2	ae	1
+b1/16/2	edits	1
+b1/16/2	slots	1
+b1/16/2	range_dep	0
+b1/16/2	param_index	32
+b1/0	rel	1
+b1/0/0	rel	1
+b1/0/0/0	rel	1
+b1/0/0/0	read	1
+b1/0/0/0	options	12dB Ladder	24dB Ladder	Drive	SVF Bandpass	SVF Notch	Off
+b1/0/0/1	rel	1
+b1/0/0/1	read	28
+b1/0/0/1	learn	24
+b1/0/0/1	param_kind	1
+b1/0/0/2	rel	1
+b1/0/0/2	read	7
+b1/0/0/2	learn	11
+b1/0/0/2	param_kind	1
+b1/0/0/3	rel	1
+b1/0/0/3	read	0
+b1/0/0/3	learn	17
+b1/0/0/3	param_kind	1
+b1/0/1	rel	1
+b1/0/1/0	rel	1
+b1/0/1/0	read	2
+b1/0/1/0	options	SVF Bandpass	SVF Notch	HP Ladder	Off
+b1/0/1/1	rel	1
+b1/0/1/1	read	0
+b1/0/1/1	learn	30
+b1/0/1/1	param_kind	1
+b1/0/1/2	rel	1
+b1/0/1/2	read	0
+b1/0/1/2	learn	12
+b1/0/1/2	param_kind	1
+b1/0/1/3	rel	1
+b1/0/1/3	read	0
+b1/0/1/3	learn	18
+b1/0/1/3	param_kind	1
+b1/0/2	rel	1
+b1/0/2	read	0
+b1/0/2	options	Hpf > Lpf	Lpf > Hpf	Parallel
+b1/1	rel	1
+b1/1/0	rel	1
+b1/1/0	read	0
+b1/1/0	learn	100
+b1/1/0	param_kind	3
+b1/1/1	rel	1
+b1/1/1	read	64
+b1/1/2	rel	1
+b1/1/2	read	127
+b1/1/3	rel	1
+b1/1/3	read	5
+b1/1/4	rel	1
+b1/1/4	read	5
+b1/1/5	rel	1
+b1/1/5	read	0
+b1/2	rel	1
+b1/2/0	rel	1
+b1/2/0	read	4
+b1/2/1	rel	1
+b1/2/1	read	10
+b1/2/2	rel	1
+b1/2/2	read	0
+b1/3	rel	1
+b1/3/0	rel	1
+b1/3/1	rel	1
+b1/4	rel	1
+b1/4/0	rel	1
+b1/4/0	read	4
+b1/4/0	options	Sine	Triangle	Square	Analog square	Saw	Analog saw	Supersaw	Wavetable	Sample	Dx7	Input (left)	Input (right)	Input (stereo)
+b1/4/1	rel	1
+b1/4/2	rel	1
+b1/4/2	read	0
+b1/4/2	learn	26
+b1/4/3	rel	0
+b1/4/3	learn	21
+b1/4/3	param_kind	1
+b1/4/4	rel	1
+b1/4/4	read	0
+b1/4/4	learn	19
+b1/4/4	param_kind	1
+b1/4/5	rel	0
+b1/4/5	learn	9
+b1/4/5	param_kind	1
+b1/4/6	rel	1
+b1/4/6	read	-1
+b1/4/7	rel	0
+b1/4/8	rel	0
+b1/4/8	options	Cut	Once	Loop	Stretch
+b1/4/9	rel	0
+b1/4/10	rel	0
+b1/4/10	options	Linked	Independent
+b1/4/11	rel	0
+b1/4/11	options	Linear	Sinc
+b1/4/12	rel	0
+b1/4/13	rel	0
+b1/5	rel	1
+b1/5/0	rel	1
+b1/5/0	read	2
+b1/5/0	options	Sine	Triangle	Square	Analog square	Saw	Analog saw	Supersaw	Wavetable	Sample	Input (left)	Input (right)	Input (stereo)
+b1/5/1	rel	1
+b1/5/2	rel	1
+b1/5/2	read	-1200
+b1/5/2	learn	27
+b1/5/3	rel	0
+b1/5/3	learn	22
+b1/5/3	param_kind	1
+b1/5/4	rel	1
+b1/5/4	read	0
+b1/5/4	learn	20
+b1/5/4	param_kind	1
+b1/5/5	rel	0
+b1/5/5	learn	10
+b1/5/5	param_kind	1
+b1/5/6	rel	1
+b1/5/6	read	-1
+b1/5/7	rel	0
+b1/5/8	rel	0
+b1/5/8	options	Cut	Once	Loop	Stretch
+b1/5/9	rel	0
+b1/5/10	rel	0
+b1/5/10	options	Linked	Independent
+b1/5/11	rel	0
+b1/5/11	options	Linear	Sinc
+b1/5/12	rel	0
+b1/5/13	rel	0
+b1/6	rel	0
+b1/6/0	rel	0
+b1/6/0	learn	28
+b1/6/1	rel	0
+b1/6/1	learn	7
+b1/6/1	param_kind	1
+b1/6/2	rel	0
+b1/7	rel	0
+b1/7/0	rel	0
+b1/7/0	learn	29
+b1/7/1	rel	0
+b1/7/1	learn	8
+b1/7/1	param_kind	1
+b1/7/2	rel	0
+b1/7/3	rel	0
+b1/7/3	options	Carriers	Modulator 1
+b1/8	rel	1
+b1/8/0	rel	1
+b1/8/0	read	50
+b1/8/0	learn	0
+b1/8/0	param_kind	1
+b1/8/1	rel	1
+b1/8/1	read	39
+b1/8/1	learn	1
+b1/8/1	param_kind	1
+b1/8/2	rel	0
+b1/8/2	learn	4
+b1/8/2	param_kind	1
+b1/8/3	rel	0
+b1/8/3	learn	5
+b1/8/3	param_kind	1
+b1/8/4	rel	1
+b1/8/4	read	0
+b1/8/4	learn	3
+b1/8/4	param_kind	1
+b1/8/5	rel	1
+b1/8/5	read	0
+b1/9	rel	1
+b1/9/0	rel	1
+b1/9/0	read	0
+b1/9/0	learn	33
+b1/9/0	param_kind	1
+b1/9/1	rel	1
+b1/9/1	read	20
+b1/9/1	learn	37
+b1/9/1	param_kind	1
+b1/9/2	rel	1
+b1/9/2	read	50
+b1/9/2	learn	13
+b1/9/2	param_kind	1
+b1/9/3	rel	1
+b1/9/3	read	1
+b1/9/3	learn	41
+b1/9/3	param_kind	1
+b1/10	rel	1
+b1/10/0	rel	1
+b1/10/0	read	7
+b1/10/0	learn	34
+b1/10/0	param_kind	1
+b1/10/1	rel	1
+b1/10/1	read	7
+b1/10/1	learn	38
+b1/10/1	param_kind	1
+b1/10/2	rel	1
+b1/10/2	read	25
+b1/10/2	learn	14
+b1/10/2	param_kind	1
+b1/10/3	rel	1
+b1/10/3	read	20
+b1/10/3	learn	42
+b1/10/3	param_kind	1
+b1/11	rel	1
+b1/11/0	rel	1
+b1/11/0	read	25
+b1/11/0	learn	35
+b1/11/0	param_kind	1
+b1/11/1	rel	1
+b1/11/1	read	25
+b1/11/1	learn	39
+b1/11/1	param_kind	1
+b1/11/2	rel	1
+b1/11/2	read	25
+b1/11/2	learn	15
+b1/11/2	param_kind	1
+b1/11/3	rel	1
+b1/11/3	read	25
+b1/11/3	learn	43
+b1/11/3	param_kind	1
+b1/12	rel	1
+b1/12/0	rel	1
+b1/12/0	read	25
+b1/12/0	learn	36
+b1/12/0	param_kind	1
+b1/12/1	rel	1
+b1/12/1	read	25
+b1/12/1	learn	40
+b1/12/1	param_kind	1
+b1/12/2	rel	1
+b1/12/2	read	25
+b1/12/2	learn	16
+b1/12/2	param_kind	1
+b1/12/3	rel	1
+b1/12/3	read	25
+b1/12/3	learn	44
+b1/12/3	param_kind	1
+b1/13	rel	1
+b1/13/0	rel	1
+b1/13/0	read	1
+b1/13/0	options	Sine	Triangle	Square	Saw	S&H	Random Walk	Warble
+b1/13/1	rel	1
+b1/13/1	read	0
+b1/13/2	rel	1
+b1/13/2	read	30
+b1/13/2	learn	52
+b1/13/2	param_kind	1
+b1/14	rel	1
+b1/14/0	rel	1
+b1/14/0	read	1
+b1/14/0	options	Sine	Triangle	Square	Saw	S&H	Random Walk	Warble
+b1/14/1	rel	1
+b1/14/1	read	0
+b1/14/2	rel	1
+b1/14/2	read	25
+b1/14/2	learn	31
+b1/14/2	param_kind	1
+b1/15	rel	1
+b1/15/0	rel	1
+b1/15/0	read	1
+b1/15/0	options	Sine	Triangle	Square	Saw	S&H	Random Walk	Warble
+b1/15/1	rel	1
+b1/15/1	read	0
+b1/15/2	rel	1
+b1/15/2	read	30
+b1/15/2	learn	53
+b1/15/2	param_kind	1
+b1/16	rel	1
+b1/16/0	rel	1
+b1/16/0	read	1
+b1/16/0	options	Sine	Triangle	Square	Saw	S&H	Random Walk	Warble
+b1/16/1	rel	1
+b1/16/1	read	0
+b1/16/2	rel	1
+b1/16/2	read	25
+b1/16/2	learn	32
+b1/16/2	param_kind	1
+b1/4/2	write/-9600	-9600	-9600
+b1/4/2	write/0	0	0
+b1/4/2	write/9600	9600	9600
+b1/5/2	write/-9600	-9600	-9600
+b1/5/2	write/0	0	0
+b1/5/2	write/9600	9600	9600
+picker/r3/0	label	Bottom - B1
+picker/r3/1	label	C2     - B3
+picker/r3/2	label	C4     - top
+picker/low/0	label	Bottom - A#-4
+picker/low/1	label	B-4    - B-3
+picker/low/2	label	C-2    - top
+picker/edge/0/R/1	range	BOTTOM-40	41-41	42-60	61-32767
+picker/edge/0/R/-1	range	BOTTOM-1	2-41	42-60	61-32767
+picker/edge/1/L/1	range	BOTTOM-40	41-41	42-60	61-32767
+picker/edge/1/L/-1	range	BOTTOM-0	1-41	42-60	61-32767
+picker/edge/1/R/1	range	BOTTOM-40	41-59	60-60	61-32767
+picker/edge/1/R/-1	range	BOTTOM-40	41-41	42-60	61-32767
+picker/edge/2/L/1	range	BOTTOM-40	41-59	60-60	61-32767
+picker/edge/2/L/-1	range	BOTTOM-40	41-41	42-60	61-32767
+picker/edge/2/R/1	range	BOTTOM-40	41-41	42-126	127-32767
+picker/edge/2/R/-1	range	BOTTOM-40	41-41	42-42	43-32767
+picker/edge/3/L/1	range	BOTTOM-40	41-41	42-127	128-32767
+picker/edge/3/L/-1	range	BOTTOM-40	41-41	42-42	43-32767
+picker/hedge/0/off/1	edge	right
+picker/hedge/0/off/-1	edge	off
+picker/hedge/0/left/1	edge	right
+picker/hedge/0/left/-1	edge	off
+picker/hedge/0/right/1	edge	off
+picker/hedge/0/right/-1	edge	off
+picker/hedge/1/off/1	edge	right
+picker/hedge/1/off/-1	edge	left
+picker/hedge/1/left/1	edge	right
+picker/hedge/1/left/-1	edge	off
+picker/hedge/1/right/1	edge	off
+picker/hedge/1/right/-1	edge	left
+picker/hedge/2/off/1	edge	off
+picker/hedge/2/off/-1	edge	left
+picker/hedge/2/left/1	edge	off
+picker/hedge/2/left/-1	edge	off
+picker/hedge/2/right/1	edge	off
+picker/hedge/2/right/-1	edge	left
+picker/insert/0/1	ranges	BOTTOM-20	21-40	41-41	42-60	61-32767
+picker/insert/0/1	cursor	1
+picker/insert/0/-1	ranges	BOTTOM-20	21-40	41-41	42-60	61-32767
+picker/insert/0/-1	cursor	0
+picker/insert/1/1	ranges	refused
+picker/insert/1/-1	ranges	refused
+picker/insert/2/1	ranges	BOTTOM-40	41-41	42-51	52-60	61-32767
+picker/insert/2/1	cursor	3
+picker/insert/2/-1	ranges	BOTTOM-40	41-41	42-51	52-60	61-32767
+picker/insert/2/-1	cursor	2
+picker/insert/3/1	ranges	BOTTOM-40	41-41	42-60	61-94	95-127
+picker/insert/3/1	cursor	4
+picker/insert/3/-1	ranges	BOTTOM-40	41-41	42-60	61-94	95-32767
+picker/insert/3/-1	cursor	3
+picker/delete/4/0	ranges	BOTTOM-50	51-60	61-32767
+picker/delete/4/0	cursor	0
+picker/delete/4/1	ranges	BOTTOM-45	46-60	61-32767
+picker/delete/4/1	cursor	0
+picker/delete/4/2	ranges	BOTTOM-40	41-55	56-32767
+picker/delete/4/2	cursor	1
+picker/delete/4/3	ranges	BOTTOM-40	41-50	51-32767
+picker/delete/4/3	cursor	2
+picker/delete/1/0	ranges	refused
+picker/scroll/open	scroll	2
+picker/scroll/down1	scroll	2
+picker/scroll/down3	scroll	1
+picker/scroll/up1	scroll	1
+picker/scroll/insert_before	scroll	2

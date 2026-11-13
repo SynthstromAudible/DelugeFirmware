@@ -83,7 +83,7 @@ public:
 	/// `UI::modEncoderAction` and `UI::modButtonAction` (`gui/ui/ui.cpp:35-41`) are the
 	/// **base-class** implementations, and both do nothing but forward to `view` -- so the current
 	/// UI gets first refusal and `View` is the fallback. Six UIs override the first
-	/// (`SoundEditor`, `gui/ui/sound_editor.h:80`; `ArrangerView`, `gui/views/arranger_view.h:49`;
+	/// (`SoundEditor`; `ArrangerView`, `gui/views/arranger_view.h:49`;
 	/// `AutomationView`, `gui/views/automation_view.h:116`; `PerformanceView`,
 	/// `gui/views/performance_view.h:96`; `SessionView`, `gui/views/session_view.h:100`;
 	/// `InstrumentClipView`, `gui/views/instrument_clip_view.h:215`) and two override the second
@@ -100,7 +100,7 @@ public:
 	/// own `buttonAction` at `:134`, and what it runs there is
 	/// `getCurrentUI()->modEncoderButtonAction(n, on)` -- `UI::modEncoderButtonAction`
 	/// (`gui/ui/ui.cpp:43-45`) being another bare forward to `view`, overridden by five UIs
-	/// (`gui/views/instrument_clip_view.h:199`, `gui/ui/sound_editor.h:81`,
+	/// (`gui/views/instrument_clip_view.h:199`, `SoundEditor::modEncoderButtonAction` in `gui/ui/sound_editor.h`,
 	/// `gui/views/session_view.h:80`, `gui/views/performance_view.h:97`,
 	/// `gui/views/automation_view.h:117`). Every `Result` along the way is `apply()`d immediately,
 	/// whether or not it reports `handled`, and routing stops at the first `handled` step.
@@ -154,13 +154,17 @@ public:
 	/// @return The `notify::Notice::popup_type` value `apply()` last stored, or 0 if none is
 	///         pending (0 also means "unspecified", per `Action::popup_type`'s own note).
 	uint8_t pending_popup_type() const { return popup_type_; }
-	/// @brief Clear the pending popup string and type together.
+	/// @brief Whether the pending popup shows only if no popup is up.
+	/// @return The `Action::popup_if_free` of the most recent `Popup` action.
+	bool pending_popup_if_free() const { return popup_if_free_; }
+	/// @brief Clear the pending popup string, type and if-free flag together.
 	///
-	/// Read and cleared by `Notices`; the two are stored and cleared as a pair so a reader
+	/// Read and cleared by `Notices`; the three are stored and cleared together so a reader
 	/// never sees one updated without the other.
 	void clear_pending_popup() {
 		popup_string_ = 0;
 		popup_type_ = 0;
+		popup_if_free_ = false;
 	}
 
 	/// @brief How many events fell off the end of the chain with nothing handling them.
@@ -193,6 +197,7 @@ private:
 	bool grid_repaint_ = false;
 	uint16_t popup_string_ = 0;
 	uint8_t popup_type_ = 0;
+	bool popup_if_free_ = false;
 	uint32_t dropped_ = 0;
 };
 

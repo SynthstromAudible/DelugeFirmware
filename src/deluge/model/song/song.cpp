@@ -338,16 +338,11 @@ Song::~Song() {
 	deleteHibernatingMIDIInstrument();
 }
 
-#include "gui/menu_item/integer_range.h"
-#include "gui/menu_item/key_range.h"
 #include "libdeluge/system.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
 #include "util/structural_edit_probe.h"
-extern gui::menu_item::IntegerRange defaultTempoMenu;
-extern gui::menu_item::IntegerRange defaultSwingAmountMenu;
-extern gui::menu_item::KeyRange defaultKeyMenu;
 
 namespace {
 // Relocate a ParamSet's read-populated own DOM store into the project tree `dest`, then re-bind the engine set to the
@@ -372,9 +367,9 @@ void Song::setupDefault() {
 
 	seedRandom();
 
-	setBPM(defaultTempoMenu.getRandomValueInRange(), false);
-	project.groove.swing_amount = defaultSwingAmountMenu.getRandomValueInRange() - 50;
-	project.scale.key.rootNote = defaultKeyMenu.getRandomValueInRange();
+	setBPM(FlashStorage::drawDefaultRange(FlashStorage::DEFAULT_RANGE_TEMPO), false);
+	project.groove.swing_amount = FlashStorage::drawDefaultRange(FlashStorage::DEFAULT_RANGE_SWING_AMOUNT) - 50;
+	project.scale.key.rootNote = FlashStorage::drawDefaultRange(FlashStorage::DEFAULT_RANGE_KEY);
 
 	// Do scale
 	project.scale.disabled_preset_scales = FlashStorage::defaultDisabledPresetScales;
@@ -5022,14 +5017,26 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 }
 
 Output* Song::applyNavigateThroughPresets(Instrument* oldInstrument, const deluge::storage::AcquireResult& acquired) {
-	if (acquired.error != Error::NONE) {
-		if (acquired.error != Error::NO_ERROR_BUT_GET_OUT) {
-			deluge::notify::notice(acquired.error);
-		}
+	// Every turn that stays where it is leaves through here: `main`'s `removeWorkingAnimationAndGetOut`
+	// (`origin/main:src/deluge/model/song/song.cpp`'s `Song::navigateThroughPresetsForInstrument`).
+	const auto removeWorkingAnimationAndGetOut = [oldInstrument]() -> Output* {
 		auto oled = static_cast<deluge::hid::display::OLED*>(display);
 		oled->consoleTimerEvent();
 		oled->removeWorkingAnimation();
 		return oldInstrument;
+	};
+	if (acquired.error != Error::NONE) {
+		if (acquired.error != Error::NO_ERROR_BUT_GET_OUT) {
+			deluge::notify::notice(acquired.error);
+		}
+		return removeWorkingAnimationAndGetOut();
+	}
+	if (acquired.alreadyInSong) {
+		// The walk passes instruments already in the song over until its second wrap, and then takes one. There is
+		// nothing to swap, and replaceInstrument() freezes (i009) on an Instrument already in its output list, so the
+		// turn stays where it is, as a walk that found nowhere to go does, with the old instrument's name redrawn.
+		view.displayOutputName(oldInstrument, false);
+		return removeWorkingAnimationAndGetOut();
 	}
 	Instrument* newInstrument = acquired.instrument;
 	if (acquired.wasHibernating) {

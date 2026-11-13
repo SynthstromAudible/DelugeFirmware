@@ -1,6 +1,5 @@
 /// @file
-/// @brief Who gets a MIDI message offered for learn: `PlaybackHandler`'s four dispatchers, the base `UI` answer, and
-///        `SoundEditor`'s.
+/// @brief Who gets a MIDI message offered for learn: `PlaybackHandler`'s four dispatchers and the base `UI` answer.
 ///
 /// The expectations are `main`'s dispatch, split where it is decided:
 ///
@@ -9,16 +8,10 @@
 /// - The base `UI` answer is what `main`'s dispatchers did for a UI with no learn of its own: outside learn mode,
 ///   nothing (the message plays); in learn mode, the view's learn for a note-on, a program change and a CC, and the
 ///   message is used up; a pitch bend is never used.
-/// - `SoundEditor` learns into the focused item in learn mode with Shift up. A note-on learns whatever Shift does,
-///   and an item that does not use it hands it to the view's learn. A program change or CC with Shift held gets the
-///   base answer; a pitch bend with Shift held plays.
 
-#include "gui/menu_item/menu_item.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "hid/buttons.h"
 #include "hid/display/oled_canvas/canvas.h"
 #include "io/midi/learned_midi.h"
 #include "io/midi/midi_device.h"
@@ -55,7 +48,7 @@ SpecCable& cable() {
 }
 
 /// @brief Which learn message reached a UI or an item, and with what.
-enum class Got { Nothing, NoteOn, ProgramChange, Cc, PitchBend, Knob };
+enum class Got { Nothing, NoteOn, ProgramChange, Cc, PitchBend };
 
 struct Record {
 	Got got = Got::Nothing;
@@ -89,22 +82,6 @@ struct SpecUI final : UI {
 	UIType getUIType() override { return UIType::NONE; }
 };
 
-/// @brief The focused menu item: records the learn it was given; `learnNoteOn` answers `uses_note`.
-struct SpecItem final : MenuItem {
-	Record seen;
-	bool uses_note = true;
-
-	bool learnNoteOn(MIDICable&, int32_t channel, int32_t note) override {
-		seen = {Got::NoteOn, channel, note};
-		return uses_note;
-	}
-	void learnProgramChange(MIDICable&, int32_t channel, int32_t program) override {
-		seen = {Got::ProgramChange, channel, program};
-	}
-	void learnCC(MIDICable&, int32_t channel, int32_t cc, int32_t) override { seen = {Got::Cc, channel, cc}; }
-	void learnKnob(MIDICable*, int32_t which, int32_t, int32_t channel) override { seen = {Got::Knob, channel, which}; }
-};
-
 constexpr uint8_t kPoisonChannel = 0xEE;
 
 /// @brief The view's learn target: the PLAY command held for learn, its slot poisoned so a write shows.
@@ -129,19 +106,13 @@ struct ViewLearnHeld {
 	[[nodiscard]] bool written() const { return slot.channelOrZone != kPoisonChannel; }
 };
 
-/// @brief Learn mode and Shift for one example, put back after it.
+/// @brief Learn mode for one example, put back after it.
 struct Mode {
 	int32_t saved_mode = currentUIMode;
-	explicit Mode(bool learning, bool shift = false) {
-		currentUIMode = learning ? UI_MODE_MIDI_LEARN : UI_MODE_NONE;
-		if (shift) {
-			Buttons::commandToggleShift(true);
-		}
-	}
-	~Mode() {
-		Buttons::commandToggleShift(false);
-		currentUIMode = saved_mode;
-	}
+	explicit Mode(bool learning) { currentUIMode = learning ? UI_MODE_MIDI_LEARN : UI_MODE_NONE; }
+	~Mode() { currentUIMode = saved_mode; }
+	Mode(const Mode&) = delete;
+	Mode& operator=(const Mode&) = delete;
 };
 
 /// @brief A song with no tracks, and @p ui as the only open UI, for one example. A message the dispatcher passes on
@@ -157,20 +128,6 @@ struct Current {
 	~Current() {
 		nullifyUIs();
 		currentSong = saved_song;
-	}
-};
-
-/// @brief `soundEditor` focused on @p item for one example.
-struct EditorOn {
-	uint8_t saved_depth = soundEditor.navigationDepth;
-	MenuItem* saved_item = soundEditor.menuItemNavigationRecord[0];
-	explicit EditorOn(MenuItem& item) {
-		soundEditor.navigationDepth = 0;
-		soundEditor.menuItemNavigationRecord[0] = &item;
-	}
-	~EditorOn() {
-		soundEditor.navigationDepth = saved_depth;
-		soundEditor.menuItemNavigationRecord[0] = saved_item;
 	}
 };
 
@@ -309,78 +266,6 @@ describe learn_dispatch_base("the base UI answer is the view's learn, in learn m
 		expect(ui.pitchBendReceivedForMidiLearn(cable(), 2, 0, 64)).to_be_false();
 	});
 });
-
-describe learn_dispatch_sound_editor("SoundEditor learns into the focused item", $ {
-	it("outside learn mode uses nothing and the item learns nothing", _ {
-		SpecItem item;
-		Current current{soundEditor};
-		EditorOn on{item};
-		Mode mode{false};
-		UI& ui = soundEditor;
-		expect(ui.noteOnReceivedForMidiLearn(cable(), 2, 60, 100)).to_be_false();
-		expect(ui.pcReceivedForMidiLearn(cable(), 2, 7)).to_be_false();
-		expect(ui.ccReceivedForMidiLearn(cable(), 2, 74, 64)).to_be_false();
-		expect(ui.pitchBendReceivedForMidiLearn(cable(), 2, 0, 64)).to_be_false();
-		expect(item.seen.got == Got::Nothing).to_be_true();
-	});
-
-	it("in learn mode with Shift up, each message learns into the item and is used", _ {
-		SpecItem item;
-		Current current{soundEditor};
-		EditorOn on{item};
-		Mode mode{true};
-		UI& ui = soundEditor;
-		expect(ui.noteOnReceivedForMidiLearn(cable(), 2, 60, 100)).to_be_true();
-		expect(item.seen.got == Got::NoteOn).to_be_true();
-		expect(ui.pcReceivedForMidiLearn(cable(), 3, 7)).to_be_true();
-		expect(item.seen.got == Got::ProgramChange).to_be_true();
-		expect(item.seen.number).to_equal(7);
-		expect(ui.ccReceivedForMidiLearn(cable(), 4, 74, 64)).to_be_true();
-		expect(item.seen.got == Got::Cc).to_be_true();
-		expect(item.seen.number).to_equal(74);
-		expect(ui.pitchBendReceivedForMidiLearn(cable(), 5, 0, 64)).to_be_true();
-		expect(item.seen.got == Got::Knob).to_be_true();
-		expect(item.seen.number).to_equal(128);
-		expect(item.seen.channel).to_equal(5);
-	});
-
-	it("a note-on the item does not use goes to the view's learn, and is used", _ {
-		SpecItem item;
-		item.uses_note = false;
-		Current current{soundEditor};
-		EditorOn on{item};
-		Mode mode{true};
-		ViewLearnHeld held;
-		UI& ui = soundEditor;
-		expect(ui.noteOnReceivedForMidiLearn(cable(), 2, 60, 100)).to_be_true();
-		expect(item.seen.got == Got::NoteOn).to_be_true();
-		expect(held.slot.noteOrCC).to_equal(60);
-	});
-
-	it("with Shift held a note-on still learns into the item", _ {
-		SpecItem item;
-		Current current{soundEditor};
-		EditorOn on{item};
-		Mode mode{true, true};
-		UI& ui = soundEditor;
-		expect(ui.noteOnReceivedForMidiLearn(cable(), 2, 60, 100)).to_be_true();
-		expect(item.seen.got == Got::NoteOn).to_be_true();
-	});
-
-	it("with Shift held a CC goes to the view's learn, a program change is used, a pitch bend plays", _ {
-		SpecItem item;
-		Current current{soundEditor};
-		EditorOn on{item};
-		Mode mode{true, true};
-		ViewLearnHeld held;
-		UI& ui = soundEditor;
-		expect(ui.ccReceivedForMidiLearn(cable(), 2, 74, 64)).to_be_true();
-		expect(held.slot.noteOrCC).to_equal(74);
-		expect(ui.pcReceivedForMidiLearn(cable(), 2, 7)).to_be_true();
-		expect(ui.pitchBendReceivedForMidiLearn(cable(), 2, 0, 64)).to_be_false();
-		expect(item.seen.got == Got::Nothing).to_be_true();
-	});
-});
 // clang-format on
 
-DELUGE_SPEC(learn_dispatch_spec, learn_dispatch_offers, learn_dispatch_base, learn_dispatch_sound_editor)
+DELUGE_SPEC(learn_dispatch_spec, learn_dispatch_offers, learn_dispatch_base)

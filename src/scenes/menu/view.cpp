@@ -23,6 +23,7 @@
 #include "scenes/menu/walk.h"
 
 #include "scenes/menu/bindings.h"
+#include "scenes/menu/nodes/detail.h"
 
 #include "ui/oled/list.h"
 #include "ui/oled/text.h"
@@ -138,6 +139,27 @@ void MenuView::render_vertical(MenuCore core, deluge::ui::oled::OledFrame& f, co
 	                           std::span<const deluge::ui::oled::ListRow>{rows, n}, st.scroll[st.depth]);
 }
 
+int32_t MenuView::accelerated_detents(deluge::ui::oled::OledFrame& f, int8_t turned) {
+	// `main`'s encoder task hands each turn over as the board decodes it, and `HorizontalMenu::selectEncoderAction`
+	// accelerates each on the clock as it is handed over, truncating each product to an int. The tick holds the turns
+	// that came since the last one: each is accelerated on the time the board decoded it, or on the tick's clock when
+	// the host gave it none.
+	const double tick_time = static_cast<double>(f.acceleration_clock_ms()) / 1000.0;
+	const std::span<const deluge::ui::TimedTurn> turns = f.turns();
+	if (turns.empty()) {
+		return static_cast<int32_t>(
+		    turned * horizontal_acceleration_.advance(turned, tick_time, deluge::ui::kHorizontalMenuAcceleration));
+	}
+	int32_t detents = 0;
+	for (const deluge::ui::TimedTurn& turn : turns) {
+		const double time = turn.time_us != 0 ? static_cast<double>(turn.time_us) / 1'000'000.0 : tick_time;
+		detents += static_cast<int32_t>(
+		    turn.detents
+		    * horizontal_acceleration_.advance(turn.detents, time, deluge::ui::kHorizontalMenuAcceleration));
+	}
+	return detents;
+}
+
 void MenuView::render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, const Node& node) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
@@ -167,10 +189,7 @@ void MenuView::render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, 
 		// nothing and raises no notification here -- the hook raises its own popup, exactly as
 		// legacy's side effect does.
 		if (target.bind.permitted == nullptr || target.bind.permitted(ctx)) {
-			auto detents = static_cast<int32_t>(
-			    turned
-			    * horizontal_acceleration_.advance(turned, static_cast<double>(f.acceleration_clock_ms()) / 1000.0,
-			                                       deluge::ui::kHorizontalMenuAcceleration));
+			int32_t detents = accelerated_detents(f, turned);
 			if (target.bind.reverse_in_horizontal != nullptr && target.bind.reverse_in_horizontal(ctx)) {
 				detents = -detents;
 			}
@@ -459,8 +478,8 @@ void MenuView::render_leaf_toggle(MenuCore core, deluge::ui::oled::OledFrame& f,
 
 	TextScratch off_scratch;
 	TextScratch on_scratch;
-	const std::string_view off = text_of(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_OFF), off_scratch);
-	const std::string_view on = text_of(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ON), on_scratch);
+	const std::string_view off = text_of(nodes::kToggleWords[0], off_scratch);
+	const std::string_view on = text_of(nodes::kToggleWords[1], on_scratch);
 
 	// A `bool&`, no `focused`; a select press reports `entered` and leaves `changed` false
 	// (`toggle` in `ui/oled/values.h`).

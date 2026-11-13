@@ -157,6 +157,21 @@ public:
 	/// @return True if at least one line is `active` and not yet past its `expire_ms`.
 	bool any_active(uint32_t now_ms) const;
 
+	/// @brief How long until the earliest line still showing expires.
+	/// @param now_ms The tick's wall clock.
+	/// @return Milliseconds until that line's `expire_ms`; `std::nullopt` when no line is still showing.
+	std::optional<uint32_t> remaining_ms(uint32_t now_ms) const;
+
+	/// @brief Move the clock `next_timer()` measures from; `Notices::tick` calls it every tick.
+	/// @param now_ms The tick's wall clock.
+	void set_now(uint32_t now_ms) { now_ms_ = now_ms; }
+
+	/// @brief The next line's expiry, legacy's `TimerName::OLED_CONSOLE`. A scene timer rather than a `Notices` one
+	///        because it repaints: a line can expire while a later one keeps the strip stacked, and only the timer's
+	///        repaint erases it.
+	/// @return Milliseconds from the last `set_now()` or `append()`, or `std::nullopt` when no line is showing.
+	std::optional<uint32_t> next_timer() const override { return remaining_ms(now_ms_); }
+
 	void render_oled(SurfaceRole role, ui::oled::OledFrame& frame) override;
 	/// @brief Always transparent: the console draws only its own strip and leaves the rest of the
 	///        surface for the scene beneath, which must still be drawn.
@@ -189,6 +204,8 @@ private:
 	};
 	/// Index 0 is the most recently appended line; `append` shifts the rest down.
 	Line lines_[kMaxLines]{};
+	/// The clock `next_timer()` measures from.
+	uint32_t now_ms_ = 0;
 };
 
 /// @brief The "busy, please wait" corner animation: legacy's `updateWorkingAnimation`/
@@ -313,6 +330,11 @@ public:
 	/// @return True once @p now_ms reaches the deadline the last `show()` computed.
 	bool expired(uint32_t now_ms) const;
 
+	/// @brief How long the banner has left.
+	/// @param now_ms The tick's wall clock.
+	/// @return Milliseconds until `expired()` turns true; 0 once it has.
+	uint32_t remaining_ms(uint32_t now_ms) const;
+
 	/// @return The title last shown, NUL-terminated.
 	const char* title() const { return title_; }
 	/// @return The value last shown, NUL-terminated; empty for a title-only notification.
@@ -406,13 +428,20 @@ public:
 	/// @param now_ms The tick's wall clock.
 	void drain(notify::NoticeQueue& queue, uint32_t now_ms);
 
+	/// @brief Disarm the working animation and take it off the stack, with no notice.
+	///
+	/// For a host taking every scene down: what armed the animation went with them, and a `ClearWorking` posted for
+	/// it would reach whichever consumer shows notices next. Left armed, it would hold the next session's popups and
+	/// banners up (`next_timer`).
+	void disarm_working();
+
 	/// @brief Show (or update) the popup scene at the ordinary (non-persistent) timeout computed
 	///        from \p popup_type.
 	///
 	/// The path the shell (outside this class) is meant to call from a
-	/// `Router::pending_popup_string()`/`pending_popup_type()` pair once it has resolved the
-	/// string id through the profile -- `Action::Kind::Popup` and a non-`Warn` `Notice::Kind::Text`
-	/// both end up drawing the same popup, through the same underlying mechanism
+	/// `Router::pending_popup_string()`/`pending_popup_type()`/`pending_popup_if_free()` triple once it has resolved
+	/// the string id through the profile -- `Action::Kind::Popup` and a non-`Warn` `Notice::Kind::Text` both end up
+	/// drawing the same popup, through the same underlying mechanism
 	/// (`show_popup_with_timeout()`). `drain()`'s `Kind::Text` case does **not** call this
 	/// overload -- it calls `show_popup_with_timeout()` directly, so it can pass 0 for a `Warn`
 	/// notice instead of always computing `timeout_for(popup_type)` -- see `drain()`'s own doc.
@@ -445,6 +474,14 @@ public:
 	/// @param dt_ms  Unused: all three checks are level tests against the scenes' own state, not
 	///               accumulators -- there is nothing to integrate.
 	void tick(uint32_t now_ms, uint32_t dt_ms) override;
+
+	/// @brief When `tick()` next has a notice to take down: the stacked popup's or banner's expiry.
+	///
+	/// Legacy's `TimerName::DISPLAY` fires `OLED::timerRoutine` at the expiry whatever else is armed, so the shell
+	/// must wake for it too; without this the notice stays up until an unrelated wake. Nothing while the working
+	/// animation runs, which holds both up until `ClearWorking`, itself a notice that wakes the shell.
+	/// @return Milliseconds from the last `tick()`'s clock, or `std::nullopt` when nothing is due.
+	std::optional<uint32_t> next_timer() const override;
 
 	/// @brief How long a popup of \p popup_type should stay up before `tick()` pops it.
 	///
@@ -513,6 +550,8 @@ private:
 	NotificationScene& notification_;
 	/// What raised the popup `popup_` currently holds; see `last_notice_kind()`.
 	notify::Notice::Kind last_notice_kind_ = notify::Notice::Kind::Text;
+	/// The clock of the last `tick()`, which `next_timer()` measures from.
+	uint32_t now_ms_ = 0;
 	bool popup_retargeted_ = false;
 };
 

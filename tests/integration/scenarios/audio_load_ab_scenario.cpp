@@ -18,17 +18,26 @@
 #include "scenarios/audio_load_ab_scenario.h"
 
 #include "definitions_cxx.hpp"
-#include "gui/ui/browser/sample_browser.h"         // the real caller, driven end to end below
-#include "gui/views/instrument_clip_view.h"        // fileBrowserShouldNotPreview
-#include "gui/waveform/waveform_basic_navigator.h" // proof the preview actually DREW
-#include "io/file.hpp"                             // the card swap's unlink + rename
-#include "libdeluge/audio_load.h"                  // deluge_audio_load_set_latency_ms
+#include "gui/ui/browser/sample_preview.h" // the loader the ported browser previews through
+#include "gui/ui/shell_choice_dispatch.h"  // shellPreviewer
+#include "gui/ui/shell_host_ui.h"
+#include "gui/ui/ui.h"
+#include "gui/views/instrument_clip_view.h" // fileBrowserShouldNotPreview
+#include "io/file.hpp"                      // the card swap's unlink + rename
+#include "libdeluge/audio_load.h"           // deluge_audio_load_set_latency_ms
+#include "model/clip/clip.h"
+#include "model/output.h"
+#include "model/sample/last_file_path_loaded.h"
 #include "model/sample/sample.h"
-#include "runtime/app_loop.h"                // nowUs, the stall bounds' clock
-#include "scenarios/load_invariants.h"       // checkLoadInvariants -- shared with load_policy
+#include "model/song/song.h"
+#include "runtime/app_loop.h"          // nowUs, the stall bounds' clock
+#include "scenarios/guest_drive.h"     // the ported guest: its tick, its browser
+#include "scenarios/load_invariants.h" // checkLoadInvariants -- shared with load_policy
+#include "scenes/browser/browser_scene.h"
 #include "storage/audio/async_sample_load.h" // AsyncSampleLoad::kMaxStalledUs
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h" // bytes::interactionTierIo
+#include "util/shell_menu_entry.h"
 
 #include <array>
 #include <cstddef>
@@ -201,19 +210,24 @@ bool g_summaryPrinted = false;
 // because the gate's driver IS the handler that caller lacks.
 //
 // This stage removes the harness from that role. It calls the production entry
-// (`SampleBrowser::previewFile`) ONCE, and from then on drives only
-// `SampleBrowser::graphicsRoutine()` -- the per-tick surface, with no further
-// "user input" of any kind. If the browser ever stops re-asking for a deferred
-// preview, it simply never lands and this fails.
+// (`SamplePreviewer::request`) ONCE, and from then on drives only the guest's tick -- the per-tick surface, with no
+// further "user input" of any kind. If the browser ever stops re-asking for a deferred preview, it simply never lands
+// and this fails.
 
 /// The file the preview stage loads. Exists only at its regular path, and is
 /// asked for by nothing above, so it is never resident when this stage starts.
 constexpr const char* kPreviewPath = "SAMPLES/PREVIEW.WAV";
 
 /// Ticks the preview stage may take before it is called wedged. Each is one
-/// graphicsRoutine() call plus a dispatch round trip, so this is generous: a
+/// guestTick() call plus a dispatch round trip, so this is generous: a
 /// healthy load lands within a few.
 constexpr int32_t kMaxPreviewTicks = 2000;
+
+/// Guest ticks the browser's opening may take to list and settle before the stages begin.
+constexpr int32_t kMaxOpenTicks = 400;
+
+/// Consecutive idle guest ticks (no listing, no preview) that show the browser's opening is done.
+constexpr int32_t kOpenIdleTicks = 30;
 
 // ── The preview cancellation stage ──────────────────────────────────────────
 //
@@ -224,9 +238,9 @@ constexpr int32_t kMaxPreviewTicks = 2000;
 //
 // In the real UI the move is onto a folder or an empty selection — the one
 // cursor move that dispatches no replacement, so latest-wins supersession never
-// fires. This harness calls previewFile() directly and never populates a file
+// fires. This harness calls request() directly and never populates a file
 // list, so it cannot reach that branch; it drives the same invalidation through
-// `SampleBrowser::cancelPreview()`, which is what that branch calls.
+// `SamplePreviewer::cancel()`, which is what that branch calls.
 //
 // The order below is the defect exactly: preview a file, and before any tick has
 // started its load, cancel. If the load starts anyway, the browser draws (and on a
@@ -236,7 +250,7 @@ constexpr int32_t kMaxPreviewTicks = 2000;
 /// nothing else, so "it drew" and "it loaded" can only be this stage's doing.
 constexpr const char* kCancelPath = "SAMPLES/CANCEL.WAV";
 
-/// graphicsRoutine() calls the cancellation stage makes after cancelling.
+/// guestTick() calls the cancellation stage makes after cancelling.
 ///
 /// Fixed rather than "until something happens": the property is that nothing EVER happens, so
 /// there is nothing to wait for. Generous enough for the queued op to have run and reported back
@@ -264,10 +278,14 @@ constexpr uint64_t kStallWindowUs = deluge::storage::AsyncSampleLoad::kMaxStalle
 constexpr uint32_t kStallHoldMs = 30000;
 static_assert(uint64_t{kStallHoldMs} * 1000 > kStallWindowUs, "the hold must outlast the stall stage's wait");
 
-/// graphicsRoutine() calls after the wait ends, with the hold lifted, in which nothing may be pending again.
+/// guestTick() calls after the wait ends, with the hold lifted, in which nothing may be pending again.
 constexpr int32_t kStallSettleTicks = 64;
 
 extern "C" void deluge_streaming_set_fill_latency_ms(uint32_t ms); // host harness only; streaming_loader.rs
+
+/// How long the streaming loader holds each drain pass during the preview stage: long enough that the first draw finds
+/// its cluster unfilled, and well inside the browser's redraw give-up.
+constexpr uint32_t kPreviewFillHoldMs = 10;
 
 /// The preview-draw stall stage's file (see the Rust fixture): six clusters, each column reading its own.
 constexpr const char* kDrawStallPath = "SAMPLES/DRAWSTALL.WAV";
@@ -360,15 +378,15 @@ std::string g_ejectReferenceLine{};
 /// browser-driven stages deliberately — see runOneStep()'s hand-off for why it cannot follow them.
 enum class Stage : uint8_t { Cases, Eject, Preview, PrescanRange, Cancel, DrawStall, Stall, Done };
 Stage g_stage = Stage::Cases;
-/// Whether previewFile() has been called. It is called exactly once.
+/// Whether request() has been called. It is called exactly once.
 bool g_previewStarted = false;
-/// graphicsRoutine() calls made since then.
+/// guestTick() calls made since then.
 int32_t g_previewTicks = 0;
 /// Of those, how many found a deferred preview still waiting.
 int32_t g_previewRedrives = 0;
-/// Whether the cancellation stage has issued its previewFile()/cancelPreview() pair.
+/// Whether the cancellation stage has issued its request()/cancelPreview() pair.
 bool g_cancelStarted = false;
-/// graphicsRoutine() calls made since then.
+/// guestTick() calls made since then.
 int32_t g_cancelTicks = 0;
 /// Where the stall stage is.
 enum class StallStep : uint8_t { Start, Wait, Settle, Finished };
@@ -381,8 +399,7 @@ int32_t g_dsGiveUpsBefore = 0;
 bool g_dsPendingAtEnd = false;
 bool g_dsMovedDrawn = false;
 /// previewDraws() before the stall preview and before the move: the stage's witnesses. Deliberately NOT
-/// waveformBasicNavigator.sample -- starting the next preview releases the sample it points at, and reading its
-/// filePath then is a use-after-free.
+/// the drawn sample -- starting the next preview releases it, and reading its filePath then is a use-after-free.
 int32_t g_dsDrawsBefore = 0;
 int32_t g_dsMoveDrawsBefore = 0;
 int32_t g_dsCompleteBefore = 0;
@@ -394,15 +411,15 @@ bool g_dsPendingAfterRelease = true;
 int32_t g_dsStallDraws = 0;
 int32_t g_dsStallComplete = 0;
 int32_t g_dsStallTicks = 0;
-/// graphicsRoutine() calls made while the stalled preview was pending.
+/// guestTick() calls made while the stalled preview was pending.
 int32_t g_stallTicks = 0;
 /// When the stall stage asked for its preview, on the stall bound's clock.
 uint64_t g_stallStartUs = 0;
 /// How long the stall stage waited before the preview gave up, or the whole window.
 uint64_t g_stallWaitedUs = 0;
-/// graphicsRoutine() calls made after the wait ended.
+/// guestTick() calls made after the wait ended.
 int32_t g_stallSettleTicks = 0;
-/// SampleBrowser::previewGiveUps() when the stage began.
+/// the previewer's giveUps() when the stage began.
 int32_t g_stallGiveUpsBefore = 0;
 /// Whether the preview was still pending when the wait ended.
 bool g_stallPendingAtEnd = false;
@@ -678,17 +695,69 @@ void runOneStep() {
 	}
 }
 
+/// The resident sample at @p path, or null.
+Sample* residentSample(const char* path) {
+	for (AudioFile* file : audioFileManager.audioFiles) {
+		if (file != nullptr && file->type == AudioFileType::SAMPLE && file->filePath == path) {
+			return static_cast<Sample*>(file);
+		}
+	}
+	return nullptr;
+}
+
+/// The resident sample at @p path when the ported browser has drawn its waveform, else null. The pointer is compared,
+/// never read through, by the browser.
+Sample* drawnSample(const char* path) {
+	Sample* sample = residentSample(path);
+	return deluge::scenes::browser::browser_scene().shown_waveform(sample) != nullptr ? sample : nullptr;
+}
+
+/// Open the ported browser on the boot song's first synth clip, as a user opens a source's file selector, and let its
+/// own opening listing and preview settle: the stages below then drive only what they mean to.
+/// @return Whether the browser is on top and idle.
+bool openGuestBrowser() {
+	Output* synth = nullptr;
+	for (Output* output = currentSong->live.media.first_output; output != nullptr && synth == nullptr;
+	     output = output->next) {
+		if (output->type == OutputType::SYNTH) {
+			synth = output;
+		}
+	}
+	Clip* clip = synth != nullptr ? currentSong->getClipWithOutput(synth) : nullptr;
+	if (clip == nullptr) {
+		return false;
+	}
+	deluge::harness::guestClose();
+	currentSong->setCurrentClip(clip);
+	changeRootUI(&instrumentClipView);
+	const bool opened =
+	    deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
+	                                   /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
+	                                   /*kitGlobalFx=*/false, deluge::gui::ui::ShellMenuNode::Osc0FileSelector);
+	for (int32_t t = 0; opened && t < 16 && !deluge::harness::browserOnTop(); t++) {
+		deluge::harness::guestTick();
+	}
+	int32_t idleTicks = 0;
+	for (int32_t t = 0; deluge::harness::browserOnTop() && t < kMaxOpenTicks && idleTicks < kOpenIdleTicks; t++) {
+		deluge::harness::guestTick();
+		const bool busy =
+		    deluge::scenes::browser::browser_scene().listing_in_flight() || deluge::gui::ui::shellPreviewer().pending();
+		idleTicks = busy ? 0 : idleTicks + 1;
+	}
+	printf("AB-PROBE guest opened=%d browserOnTop=%d\n", opened ? 1 : 0, deluge::harness::browserOnTop() ? 1 : 0);
+	return deluge::harness::browserOnTop();
+}
+
 /// Has the preview actually DRAWN its waveform for `kPreviewPath`?
 ///
-/// `waveformBasicNavigator.sample` is assigned by `SampleBrowser::showPreview` on the one
-/// path that renders the waveform, so a non-null pointer naming this file is direct evidence that
+/// The ported browser keeps the view it drew a sample's waveform through (`shown_waveform`) only on the
+/// path that renders the waveform, so a view naming this file's sample is direct evidence that
 /// the preview reached the screen -- not merely that the file became resident somewhere. That
 /// distinction is the whole point here: the defect this stage exists for left the file unloaded, the
 /// waveform undrawn and no error shown, which from outside looks identical to "the user did not
 /// scroll here".
 bool previewHasDrawn() {
-	const Sample* drawn = waveformBasicNavigator.sample;
-	return drawn != nullptr && drawn->filePath == kPreviewPath;
+	return drawnSample(kPreviewPath) != nullptr;
 }
 
 /// One tick of the preview stage. See the Stage/kPreviewPath comments above.
@@ -697,40 +766,49 @@ void runOnePreviewTick() {
 		// The ONE user-driven action of this stage: the browser is told which file to preview,
 		// exactly as a cursor move tells it. Nothing below ever calls this again.
 		g_previewStarted = true;
-		// Its waveform is what the draw legs watch, and the browser draws none with the keyboard up.
-		sampleBrowser.hideKeyboardForHarness();
+		// The guest's browser, opened before the first preview; it draws the waveform until a main pad is pressed.
+		if (!openGuestBrowser()) {
+			printf("FAIL [audioLoadAB/preview]: the ported browser could not be opened on the boot song\n");
+			g_failures++;
+			g_previewTicks = kMaxPreviewTicks;
+			return;
+		}
 		g_previewTier = markTier();
-		g_drawsBefore = sampleBrowser.previewDraws();
-		g_redrawsBefore = sampleBrowser.previewRedraws();
-		g_drawsCompleteBefore = sampleBrowser.previewDrawsComplete();
-		sampleBrowser.previewFile(kPreviewPath, /*movementDirection=*/0);
+		// The ported browser draws a frame after the load lands, by which time the host's fill has already delivered
+		// this small file's cluster; a short hold keeps the first draw ahead of the card, as the stage needs.
+		deluge_streaming_set_fill_latency_ms(kPreviewFillHoldMs);
+		g_drawsBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws;
+		g_redrawsBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().redraws;
+		g_drawsCompleteBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().complete;
+		deluge::gui::ui::shellPreviewer().request(kPreviewPath, /*movementDirection=*/0);
 		return;
 	}
 
 	g_previewTicks++;
-	if (sampleBrowser.previewLoadPending()) {
+	if (deluge::gui::ui::shellPreviewer().pending()) {
 		g_previewRedrives++;
 	}
 	// The per-tick surface, and the ONLY thing driven from here on.
-	sampleBrowser.graphicsRoutine();
+	deluge::harness::guestTick();
 }
 
 /// Print the preview stage's outcome and assert it.
 ///
 /// Not compared against a reference: the synchronous path never defers, so its re-drive counts have nothing to say.
 void finishPreviewStage(bool drawn) {
+	deluge_streaming_set_fill_latency_ms(0);
 	printf("AB-PREVIEW drawn=%d ticks=%d redrives=%d pending=%d\n", drawn ? 1 : 0, g_previewTicks, g_previewRedrives,
-	       sampleBrowser.previewLoadPending() ? 1 : 0);
+	       deluge::gui::ui::shellPreviewer().pending() ? 1 : 0);
 
 	if (!drawn) {
-		printf("FAIL [audioLoadAB/preview]: after ONE previewFile() and %d graphicsRoutine() tick(s) with no "
+		printf("FAIL [audioLoadAB/preview]: after ONE request() and %d guestTick() tick(s) with no "
 		       "further input, the preview never sounded or drew '%s'. A deferred preview that nothing asks "
 		       "for again is silent, blank and errorless -- indistinguishable to the user from a file that "
 		       "does not exist.\n",
 		       g_previewTicks, kPreviewPath);
 		g_failures++;
 	}
-	if (sampleBrowser.previewLoadPending()) {
+	if (deluge::gui::ui::shellPreviewer().pending()) {
 		printf("FAIL [audioLoadAB/preview]: a deferral is STILL pending after this stage -- either it was never "
 		       "answered (see above), or the re-drive state is not cleared once it lands and will fire again "
 		       "over whatever the user looks at next\n");
@@ -744,15 +822,17 @@ void finishPreviewStage(bool drawn) {
 		       "test\n");
 		g_failures++;
 	}
-	const int32_t draws = sampleBrowser.previewDraws() - g_drawsBefore;
-	const int32_t redraws = sampleBrowser.previewRedraws() - g_redrawsBefore;
-	const int32_t complete = sampleBrowser.previewDrawsComplete() - g_drawsCompleteBefore;
+	const int32_t draws = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws - g_drawsBefore;
+	const int32_t redraws = deluge::scenes::browser::browser_scene().waveform_draw_stats().redraws - g_redrawsBefore;
+	const int32_t complete =
+	    deluge::scenes::browser::browser_scene().waveform_draw_stats().complete - g_drawsCompleteBefore;
 	printf("AB-PREVIEW-DRAW draws=%d redraws=%d complete=%d redrawPending=%d\n", draws, redraws, complete,
-	       sampleBrowser.previewRedrawPending() ? 1 : 0);
+	       deluge::scenes::browser::browser_scene().waveform_redraw_pending() ? 1 : 0);
 	// redraws >= 1 is measured, not assumed: the preview's first draw finds its cluster enqueued but not yet filled,
 	// and one redraw finishes it (measured redraws=1). A draw that completed at once would be a draw that waited for
 	// the card.
-	if (draws != 1 || redraws < 1 || complete < 1 || sampleBrowser.previewRedrawPending()) {
+	if (draws != 1 || redraws < 1 || complete < 1
+	    || deluge::scenes::browser::browser_scene().waveform_redraw_pending()) {
 		printf("FAIL [audioLoadAB/preview-draw]: the preview must be drawn once, without waiting for its clusters, and "
 		       "end on a complete render with nothing left to redraw\n");
 		g_failures++;
@@ -783,7 +863,7 @@ int32_t investigatedClusters(const Sample& sample) {
 /// One tick of the pre-scan stage: the background overview scan, as the idle loop runs it.
 void runOnePrescanTick() {
 	if (g_prescanTicks == 0) {
-		Sample* sample = waveformBasicNavigator.sample;
+		Sample* sample = drawnSample(kPreviewPath);
 		g_prescanBefore = PrescanMark{.sample = sample,
 		                              .min = sample != nullptr ? sample->minValueFound : 0,
 		                              .max = sample != nullptr ? sample->maxValueFound : 0,
@@ -799,7 +879,7 @@ void runOnePrescanTick() {
 /// widened by whole-cluster peaks draws the next render's bars smaller than main's.
 void finishPrescanStage() {
 	Sample* sample = g_prescanBefore.sample;
-	const bool sameSample = sample != nullptr && sample == waveformBasicNavigator.sample;
+	const bool sameSample = sample != nullptr && sample == drawnSample(kPreviewPath);
 	const int32_t investigated = sameSample ? investigatedClusters(*sample) : 0;
 	const int32_t min = sameSample ? sample->minValueFound : 0;
 	const int32_t max = sameSample ? sample->maxValueFound : 0;
@@ -820,12 +900,11 @@ void finishPrescanStage() {
 
 /// Has anything drawn the cancelled file's waveform?
 ///
-/// Same witness as previewHasDrawn(): `waveformBasicNavigator.sample` is assigned only on
-/// `showPreview`'s waveform path. It still names the PREVIOUS stage's file, which is
-/// exactly right -- what must not have happened is this file replacing it.
+/// Same witness as previewHasDrawn(): the browser's view of a sample is set only on its waveform path. It still
+/// names the PREVIOUS stage's file, which is exactly right -- what must not have happened is this file replacing
+/// it.
 bool cancelledHasDrawn() {
-	const Sample* drawn = waveformBasicNavigator.sample;
-	return drawn != nullptr && drawn->filePath == kCancelPath;
+	return drawnSample(kCancelPath) != nullptr;
 }
 
 /// Was the cancelled file loaded (and, on a device, sounded) at all?
@@ -835,7 +914,7 @@ bool cancelledHasDrawn() {
 /// `cancelledHasDrawn()` misses while the load is still in flight. `AudioEngine::soundPreview`,
 /// called when that load ends, is what starts the note.
 bool cancelledWasLoaded() {
-	return sampleBrowser.lastFilePathLoaded == kCancelPath;
+	return deluge::model::lastFilePathLoaded() == kCancelPath;
 }
 
 /// One tick of the cancellation stage. See the block comment above kCancelPath.
@@ -845,16 +924,16 @@ void runOneCancelTick() {
 		g_cancelTier = markTier();
 		// The user-driven preview, exactly as a cursor move issues it. This only records the file;
 		// nothing starts its load until a tick.
-		sampleBrowser.previewFile(kCancelPath, /*movementDirection=*/0);
+		deluge::gui::ui::shellPreviewer().request(kCancelPath, /*movementDirection=*/0);
 		// And then the cursor moves onto something with nothing to preview, before any tick has started the load.
-		sampleBrowser.cancelPreview();
+		deluge::gui::ui::shellPreviewer().cancel();
 		return;
 	}
 
 	g_cancelTicks++;
 	// The per-tick surface, and the only thing driven from here on -- the same surface that
 	// ticks a preview's load. If the cancelled preview re-arms itself, this is what keeps it alive.
-	sampleBrowser.graphicsRoutine();
+	deluge::harness::guestTick();
 }
 
 /// Print the cancellation stage's outcome and assert it.
@@ -862,7 +941,7 @@ void finishCancelStage() {
 	const bool drawn = cancelledHasDrawn();
 	const bool loaded = cancelledWasLoaded();
 	printf("AB-CANCEL drawn=%d loaded=%d ticks=%d pending=%d\n", drawn ? 1 : 0, loaded ? 1 : 0, g_cancelTicks,
-	       sampleBrowser.previewLoadPending() ? 1 : 0);
+	       deluge::gui::ui::shellPreviewer().pending() ? 1 : 0);
 
 	if (drawn) {
 		printf("FAIL [audioLoadAB/cancel]: the preview was cancelled before its load ran, and its waveform "
@@ -877,7 +956,7 @@ void finishCancelStage() {
 		       kCancelPath);
 		g_failures++;
 	}
-	if (sampleBrowser.previewLoadPending()) {
+	if (deluge::gui::ui::shellPreviewer().pending()) {
 		printf("FAIL [audioLoadAB/cancel]: a cancelled preview is STILL pending after %d tick(s) -- it re-armed "
 		       "itself and will be re-driven every frame until it lands, and then rendered\n",
 		       g_cancelTicks);
@@ -888,8 +967,7 @@ void finishCancelStage() {
 
 /// Has anything drawn the stalled file's waveform? Same witness as previewHasDrawn().
 bool stallHasDrawn() {
-	const Sample* drawn = waveformBasicNavigator.sample;
-	return drawn != nullptr && drawn->filePath == kStallPath;
+	return drawnSample(kStallPath) != nullptr;
 }
 
 /// One tick of the stall stage. See the block comment above kStallPath.
@@ -897,22 +975,22 @@ void runOneStallTick() {
 	switch (g_stallStep) {
 	case StallStep::Start:
 		deluge_audio_load_set_latency_ms(kStallHoldMs);
-		g_stallGiveUpsBefore = sampleBrowser.previewGiveUps();
+		g_stallGiveUpsBefore = deluge::gui::ui::shellPreviewer().giveUps();
 		g_stallTier = markTier();
 		// The ONE user-driven action of this stage. The load it asks for is held from here on.
-		sampleBrowser.previewFile(kStallPath, /*movementDirection=*/0);
+		deluge::gui::ui::shellPreviewer().request(kStallPath, /*movementDirection=*/0);
 		g_stallStartUs = deluge::runtime::nowUs();
 		g_stallStep = StallStep::Wait;
 		return;
 
 	case StallStep::Wait:
-		// Read at the top of the tick, before graphicsRoutine() ticks the load again.
-		if (sampleBrowser.previewLoadPending() && deluge::runtime::nowUs() - g_stallStartUs < kStallWindowUs) {
+		// Read at the top of the tick, before guestTick() ticks the load again.
+		if (deluge::gui::ui::shellPreviewer().pending() && deluge::runtime::nowUs() - g_stallStartUs < kStallWindowUs) {
 			g_stallTicks++;
-			sampleBrowser.graphicsRoutine();
+			deluge::harness::guestTick();
 			return;
 		}
-		g_stallPendingAtEnd = sampleBrowser.previewLoadPending();
+		g_stallPendingAtEnd = deluge::gui::ui::shellPreviewer().pending();
 		g_stallWaitedUs = deluge::runtime::nowUs() - g_stallStartUs;
 		deluge_audio_load_set_latency_ms(0);
 		g_stallStep = StallStep::Settle;
@@ -921,7 +999,7 @@ void runOneStallTick() {
 	case StallStep::Settle:
 		if (g_stallSettleTicks < kStallSettleTicks) {
 			g_stallSettleTicks++;
-			sampleBrowser.graphicsRoutine();
+			deluge::harness::guestTick();
 			return;
 		}
 		g_stallStep = StallStep::Finished;
@@ -934,9 +1012,9 @@ void runOneStallTick() {
 
 /// Print the stall stage's outcome and assert it.
 void finishStallStage() {
-	const int32_t giveUps = sampleBrowser.previewGiveUps() - g_stallGiveUpsBefore;
+	const int32_t giveUps = deluge::gui::ui::shellPreviewer().giveUps() - g_stallGiveUpsBefore;
 	const bool drawn = stallHasDrawn();
-	const bool pendingAfter = sampleBrowser.previewLoadPending();
+	const bool pendingAfter = deluge::gui::ui::shellPreviewer().pending();
 	printf("AB-PREVIEW-STALL ticks=%d waitedUs=%llu boundUs=%llu giveUps=%d pendingAtEnd=%d drawn=%d pendingAfter=%d\n",
 	       g_stallTicks, static_cast<unsigned long long>(g_stallWaitedUs),
 	       static_cast<unsigned long long>(deluge::storage::AsyncSampleLoad::kMaxStalledUs), giveUps,
@@ -944,7 +1022,7 @@ void finishStallStage() {
 
 	if (g_stallPendingAtEnd || giveUps != 1) {
 		printf("FAIL [audioLoadAB/stall]: a preview whose load was held %u ms did not give up once (pending=%d after "
-		       "%d graphicsRoutine() tick(s), %d give-up(s)) -- a load that never answers would be asked for on every "
+		       "%d guestTick() tick(s), %d give-up(s)) -- a load that never answers would be asked for on every "
 		       "frame, silent and undrawn, for as long as the card takes\n",
 		       static_cast<unsigned>(kStallHoldMs), g_stallPendingAtEnd ? 1 : 0, g_stallTicks, giveUps);
 		g_failures++;
@@ -969,50 +1047,54 @@ void runOneDrawStallTick() {
 	case DrawStallStep::Start:
 		g_drawStallTier = markTier();
 		deluge_streaming_set_fill_latency_ms(kDrawStallHoldMs);
-		sampleBrowser.previewFile(kDrawStallPath, /*movementDirection=*/0);
+		deluge::gui::ui::shellPreviewer().request(kDrawStallPath, /*movementDirection=*/0);
 		g_drawStallStep = DrawStallStep::Armed;
 		return;
 	case DrawStallStep::Armed:
 		// First, a release with a redraw pending: Select (enterKeyPress) and a typed move release the preview's sample
 		// through stopAnyPreviewing() without moving the generation. The redraw must not read the released sample.
-		if (!sampleBrowser.previewRedrawPending() && g_drawStallTicks < kMaxDrawStallTicks) {
+		if (!deluge::scenes::browser::browser_scene().waveform_redraw_pending()
+		    && g_drawStallTicks < kMaxDrawStallTicks) {
 			g_drawStallTicks++;
-			sampleBrowser.graphicsRoutine();
+			deluge::harness::guestTick();
 			return;
 		}
-		g_dsArmed = sampleBrowser.previewRedrawPending();
+		g_dsArmed = deluge::scenes::browser::browser_scene().waveform_redraw_pending();
 		g_drawStallStep = DrawStallStep::Release;
 		return;
 	case DrawStallStep::Release: {
-		const int32_t redrawsBefore = sampleBrowser.previewRedraws();
+		const int32_t redrawsBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().redraws;
 		AudioEngine::stopAnyPreviewing();
-		sampleBrowser.graphicsRoutine();
-		g_dsRedrawsAfterRelease = sampleBrowser.previewRedraws() - redrawsBefore;
-		g_dsPendingAfterRelease = sampleBrowser.previewRedrawPending();
+		deluge::harness::guestTick();
+		g_dsRedrawsAfterRelease =
+		    deluge::scenes::browser::browser_scene().waveform_draw_stats().redraws - redrawsBefore;
+		g_dsPendingAfterRelease = deluge::scenes::browser::browser_scene().waveform_redraw_pending();
 		g_drawStallStep = DrawStallStep::Restart;
 		return;
 	}
 	case DrawStallStep::Restart:
 		// Then the give-up: the same file previewed again, its clusters still held.
 		g_drawStallTicks = 0;
-		g_dsRedrawsBefore = sampleBrowser.previewRedraws();
-		g_dsGiveUpsBefore = sampleBrowser.previewDrawGiveUps();
-		g_dsDrawsBefore = sampleBrowser.previewDraws();
-		g_dsCompleteBefore = sampleBrowser.previewDrawsComplete();
-		sampleBrowser.previewFile(kDrawStallPath, /*movementDirection=*/0);
+		g_dsRedrawsBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().redraws;
+		g_dsGiveUpsBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().give_ups;
+		g_dsDrawsBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws;
+		g_dsCompleteBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().complete;
+		deluge::gui::ui::shellPreviewer().request(kDrawStallPath, /*movementDirection=*/0);
 		g_drawStallStep = DrawStallStep::Wait;
 		return;
 	case DrawStallStep::Wait: {
-		const bool drawnAtAll = sampleBrowser.previewDraws() > g_dsDrawsBefore;
-		const bool settled = drawnAtAll && !sampleBrowser.previewRedrawPending() && !sampleBrowser.previewLoadPending();
+		const bool drawnAtAll = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws > g_dsDrawsBefore;
+		const bool settled = drawnAtAll && !deluge::scenes::browser::browser_scene().waveform_redraw_pending()
+		                     && !deluge::gui::ui::shellPreviewer().pending();
 		if (!settled && g_drawStallTicks < kMaxDrawStallTicks) {
 			g_drawStallTicks++;
-			sampleBrowser.graphicsRoutine();
+			deluge::harness::guestTick();
 			return;
 		}
-		g_dsPendingAtEnd = sampleBrowser.previewRedrawPending();
-		g_dsStallDraws = sampleBrowser.previewDraws() - g_dsDrawsBefore;
-		g_dsStallComplete = sampleBrowser.previewDrawsComplete() - g_dsCompleteBefore;
+		g_dsPendingAtEnd = deluge::scenes::browser::browser_scene().waveform_redraw_pending();
+		g_dsStallDraws = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws - g_dsDrawsBefore;
+		g_dsStallComplete =
+		    deluge::scenes::browser::browser_scene().waveform_draw_stats().complete - g_dsCompleteBefore;
 		g_dsStallTicks = g_drawStallTicks;
 		deluge_streaming_set_fill_latency_ms(0);
 		g_drawStallStep = DrawStallStep::Move;
@@ -1020,17 +1102,18 @@ void runOneDrawStallTick() {
 	}
 	case DrawStallStep::Move:
 		// A cursor move onto another file, with the hold lifted: the browser must still preview it.
-		g_dsMoveDrawsBefore = sampleBrowser.previewDraws();
-		sampleBrowser.previewFile(kPreviewPath, /*movementDirection=*/0);
+		g_dsMoveDrawsBefore = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws;
+		deluge::gui::ui::shellPreviewer().request(kPreviewPath, /*movementDirection=*/0);
 		g_drawStallTicks = 0;
 		g_drawStallStep = DrawStallStep::MoveWait;
 		return;
 	case DrawStallStep::MoveWait:
-		g_dsMovedDrawn = sampleBrowser.previewDraws() > g_dsMoveDrawsBefore
-		                 && sampleBrowser.lastFilePathLoaded == kPreviewPath && !sampleBrowser.previewRedrawPending();
+		g_dsMovedDrawn = deluge::scenes::browser::browser_scene().waveform_draw_stats().draws > g_dsMoveDrawsBefore
+		                 && deluge::model::lastFilePathLoaded() == kPreviewPath
+		                 && !deluge::scenes::browser::browser_scene().waveform_redraw_pending();
 		if (!g_dsMovedDrawn && g_drawStallTicks < kMaxPreviewTicks) {
 			g_drawStallTicks++;
-			sampleBrowser.graphicsRoutine();
+			deluge::harness::guestTick();
 			return;
 		}
 		g_drawStallStep = DrawStallStep::Finished;
@@ -1041,8 +1124,8 @@ void runOneDrawStallTick() {
 }
 
 void finishDrawStallStage() {
-	const int32_t redraws = sampleBrowser.previewRedraws() - g_dsRedrawsBefore;
-	const int32_t giveUps = sampleBrowser.previewDrawGiveUps() - g_dsGiveUpsBefore;
+	const int32_t redraws = deluge::scenes::browser::browser_scene().waveform_draw_stats().redraws - g_dsRedrawsBefore;
+	const int32_t giveUps = deluge::scenes::browser::browser_scene().waveform_draw_stats().give_ups - g_dsGiveUpsBefore;
 	printf("AB-PREVIEW-DRAW-STALL draws=%d complete=%d ticks=%d redraws=%d giveUps=%d pendingAtEnd=%d movedDrawn=%d\n",
 	       g_dsStallDraws, g_dsStallComplete, g_dsStallTicks, redraws, giveUps, g_dsPendingAtEnd ? 1 : 0,
 	       g_dsMovedDrawn ? 1 : 0);
@@ -1326,13 +1409,13 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 	if (g_stage == Stage::Preview || g_stage == Stage::PrescanRange || g_stage == Stage::Cancel
 	    || g_stage == Stage::Stall || g_stage == Stage::DrawStall) {
 		// The browser-driven stages run on the UI tier, not as the card step -- that is where the
-		// real browser calls these from. graphicsRoutine() ticks the preview's load here and
-		// draws it on this tier. The cancellation stage's window needs no ordering: previewFile() only
+		// real browser calls these from. guestTick() ticks the preview's load here and
+		// draws it on this tier. The cancellation stage's window needs no ordering: request() only
 		// records the file, so cancelPreview() lands before any tick has started its load.
 		g_stepDone = false;
 		if (g_stage == Stage::Preview) {
 			runOnePreviewTick();
-			const bool drawn = previewHasDrawn() && !sampleBrowser.previewRedrawPending();
+			const bool drawn = previewHasDrawn() && !deluge::scenes::browser::browser_scene().waveform_redraw_pending();
 			if (drawn || g_previewTicks >= kMaxPreviewTicks) {
 				finishPreviewStage(drawn);
 				g_stage = Stage::PrescanRange;

@@ -2,10 +2,11 @@
 import data from "../data/generated/menu-hierarchies.json"
 
 type MenuNode = {
-  varName: string
-  token: string
+  key: string
   oled: string
+  title: string
   code: string
+  option?: boolean
   tag?: string
   children: MenuNode[]
 }
@@ -21,12 +22,9 @@ const root = trees[treeKey]
 const rootTag = root?.tag ?? ""
 
 // Anchor ids for cross-links from the Guidebook (see remark-cross-links/terms.ts menuAnchor):
-// menu-<treeKey>-<varName>, on the first appearance of each item in this tree.
-const anchored = new Set<string>()
+// menu-<treeKey>-<key>. A row's key is unique in its tree.
 function anchorAttr(node: MenuNode): string {
-  if (anchored.has(node.varName)) return ""
-  anchored.add(node.varName)
-  return ` id="menu-${escapeHtml(treeKey)}-${escapeHtml(node.varName)}"`
+  return ` id="menu-${escapeHtml(treeKey)}-${escapeHtml(node.key)}"`
 }
 
 function escapeHtml(value: string): string {
@@ -51,8 +49,8 @@ function renderTagBadges(node: MenuNode): string {
   return `<span class="menu-hierarchy-node-tag menu-hierarchy-node-tag--${normalizedTagClass}" data-tag="${escapeHtml(node.tag)}" aria-label="Menu tag ${escapeHtml(node.tag)}">${escapeHtml(node.tag)}</span>`
 }
 
-function renderNodeLabel(node: MenuNode, labelOverride?: string): string {
-  return labelOverride ?? `${node.oled} (${node.code})`
+function renderNodeLabel(node: MenuNode): string {
+  return `${node.oled} (${node.code})`
 }
 
 function renderRowContent(label: string, tags: string): string {
@@ -68,8 +66,8 @@ function renderBranch(
   return `<details class="menu-hierarchy-tree-item"${id}><summary>${renderRowContent(label, tags)}</summary><ul>${children}</ul></details>`
 }
 
-function renderNestedBranch(node: MenuNode, labelOverride?: string): string {
-  const label = renderNodeLabel(node, labelOverride)
+function renderNestedBranch(node: MenuNode): string {
+  const label = renderNodeLabel(node)
   const tags = renderTagBadges(node)
   const children = node.children
     .map((child) => renderNestedList(child))
@@ -78,27 +76,15 @@ function renderNestedBranch(node: MenuNode, labelOverride?: string): string {
   return `<li class="menu-hierarchy-tree-node">${renderBranch(label, tags, children, anchorAttr(node))}</li>`
 }
 
-function renderNestedList(node: MenuNode, labelOverride?: string): string {
-  const label = renderNodeLabel(node, labelOverride)
+function renderNestedList(node: MenuNode): string {
+  const label = renderNodeLabel(node)
   const tags = renderTagBadges(node)
-
-  if (node.varName === "delayAnalogMenu" && node.children.length === 3) {
-    const [digitalMenu, analogShortMenu, analogFullMenu] = node.children
-
-    const digital = renderNestedList(digitalMenu)
-    const analog = renderNestedList(
-      analogFullMenu,
-      `${analogFullMenu.oled} (${analogShortMenu.code})`,
-    )
-
-    return `<li class="menu-hierarchy-tree-node">${renderBranch(label, tags, `${digital}${analog}`, anchorAttr(node))}</li>`
-  }
 
   if (!node.children.length) {
     return `<li class="menu-hierarchy-tree-leaf"${anchorAttr(node)}>${renderRowContent(label, tags)}</li>`
   }
 
-  return renderNestedBranch(node, labelOverride)
+  return renderNestedBranch(node)
 }
 
 function renderTopLevelSection(node: MenuNode): string {

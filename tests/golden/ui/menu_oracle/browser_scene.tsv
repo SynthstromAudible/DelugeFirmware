@@ -1,0 +1,10 @@
+# Reference answers of upstream main's menu, one row per answer: path, column, values (tab-separated).
+# A row changes only to follow main's source (git show origin/main:<path>); tests/golden/README.md says how.
+browse/open	state	0	0	0	0	CLAP
+browse/four_turns	state	4	2	0	0	TOM
+browse/wrap_back	state	4	2	0	0	TOM
+browse/type_s	state	3	1	1	0	SNARE
+browse/ascend	state	2	2	0	0	KICKS
+browse/ascend	dir	SAMPLES
+browse/descend	state	0	0	0	0	KICK1
+browse/descend	dir	SAMPLES/KICKS

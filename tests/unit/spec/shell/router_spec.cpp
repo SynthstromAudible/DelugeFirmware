@@ -178,7 +178,7 @@ describe shell_router("shell::Router", $ {
 	// `UI::modEncoderAction` and `UI::modButtonAction` (`gui/ui/ui.cpp:35-41`) are the BASE-class
 	// implementations, whose whole body is a forward to `view`. So the current UI gets first
 	// refusal and `View` -- which is what `services.mod_knobs` ports -- is the fallback. Six UIs
-	// override the first (`gui/ui/sound_editor.h:80`, `gui/views/arranger_view.h:49`,
+	// override the first (`SoundEditor`, `gui/views/arranger_view.h:49`,
 	// `gui/views/automation_view.h:116`, `gui/views/performance_view.h:96`,
 	// `gui/views/session_view.h:100`, `gui/views/instrument_clip_view.h:215`) and two override the
 	// second (`gui/views/session_view.h`, `gui/views/performance_view.h`).
@@ -458,7 +458,7 @@ describe shell_router("shell::Router", $ {
 		// what it runs there is `getCurrentUI()->modEncoderButtonAction(n, on)`, whose base
 		// implementation (`UI::modEncoderButtonAction`, `gui/ui/ui.cpp:43-45`) is another bare
 		// forward to `view`, overridden by five UIs (`gui/views/instrument_clip_view.h:199`,
-		// `gui/ui/sound_editor.h:81`, `gui/views/session_view.h:80`,
+		// `SoundEditor::modEncoderButtonAction` in `gui/ui/sound_editor.h`, `gui/views/session_view.h:80`,
 		// `gui/views/performance_view.h:97`, `gui/views/automation_view.h:117`).
 		//
 		// `mod_knobs` must not exclude these two on the observation that legacy reaches them only
@@ -517,6 +517,7 @@ describe shell_router("shell::Router", $ {
 		popup.kind = Action::Kind::Popup;
 		popup.popup_string = 42;
 		popup.popup_type = 7;
+		popup.popup_if_free = true;
 		Result res;
 		res.handled = true;
 		res.actions.push_back(popup);
@@ -526,9 +527,11 @@ describe shell_router("shell::Router", $ {
 
 		expect(r.router.pending_popup_string()).to_equal(uint16_t(42));
 		expect(r.router.pending_popup_type()).to_equal(uint8_t(7));
+		expect(r.router.pending_popup_if_free()).to_be_true();
 		r.router.clear_pending_popup();
 		expect(r.router.pending_popup_string()).to_equal(uint16_t(0));
 		expect(r.router.pending_popup_type()).to_equal(uint8_t(0));
+		expect(r.router.pending_popup_if_free()).to_be_false();
 	});
 
 	it("Shift and mod buttons are modifiers: consumed by bookkeeping, scenes still see them", _ {

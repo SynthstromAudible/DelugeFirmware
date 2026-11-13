@@ -17,11 +17,9 @@
 
 #include "dx.h"
 #include "dsp-next/fixed/dx7/algorithms.h"
-#include "gui/menu_item/dx/param.h"
-#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
-#include "gui/ui/sound_editor.h"
 #include "hid/buttons.h"
+#include "model/edits/setting_edit.h"
 #include "processing/dx7/dx_patch.h"
 #include "processing/sound/sound_instrument.h"
 #include "util/shell_menu_entry.h"
@@ -99,12 +97,7 @@ void DXColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCo
 
 	int op = 8 - pad.y - 1; // op 0-5
 	if (Buttons::isShiftButtonPressed()) {
-		if (deluge::gui::ui::shellMenuEnabled()) {
-			(void)deluge::gui::ui::openShellDxColumn(op);
-		}
-		else {
-			menu_item::dxParam.openForOpOrGlobal(op);
-		}
+		(void)deluge::gui::ui::openShellDxColumn(op);
 	}
 	else if (op < 6) {
 		// The column's patch is the current synth's first source's (getCurrentDxPatch).
@@ -112,7 +105,7 @@ void DXColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCo
 		if (std::optional<deluge::instrument::DxPatchState> changed = deluge::bridge::dxPatchOf(sound->sources[0])) {
 			changed->params[155] ^=
 			    static_cast<uint8_t>(1 << op); // the op switches: one bit per op, as DxPatch::opSwitch reads them
-			deluge::gui::menu_item::dxPatchFor(*sound, 0, *changed);
+			deluge::edits::dxPatchFor(*sound, 0, *changed);
 		}
 	}
 };

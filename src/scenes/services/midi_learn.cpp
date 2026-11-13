@@ -58,8 +58,8 @@ constexpr deluge::ui::LedId led(ButtonId b) {
 
 /// @brief The slot @p c binds, as a live reference into the MIDI engine.
 ///
-/// `midiEngine.globalMIDICommands[util::to_underlying(c)]` (`view.cpp:157`, `:209`, `:225`,
-/// `:804`, `:808`, `:812`), spelled with a `static_cast` because `util/` is outside this layer's
+/// `midiEngine.globalMIDICommands[util::to_underlying(c)]` (`View::buttonAction` and
+/// `View::midiLearnFlash` in `view.cpp`), spelled with a `static_cast` because `util/` is outside this layer's
 /// include allowance (`scripts/check_layer_rules.py`'s `scenes-includes-outside`) --
 /// `menu/nodes/midi_command.cpp`'s `slot_for` makes the identical substitution for the identical
 /// reason.
@@ -236,7 +236,8 @@ void MidiLearn::thing_pressed(LearnTarget target, bool on) {
 		return;
 	}
 	if (on) {
-		end_press_session(target); // `view.cpp` / `View::buttonAction`'s TAP_TEMPO arm
+		end_press_session(
+		    target); // `View::endMidiLearnPressSession` in `view.cpp` / `View::buttonAction`'s TAP_TEMPO arm
 		delete_on_release_ = true; // `:521` / `:153`
 		// `:522` `learnedThing = &…` is `end_press_session`'s own assignment of `target.thing`.
 		return;
@@ -458,9 +459,9 @@ void MidiLearn::leds(deluge::ui::LedFrame& frame) {
 		return;
 	}
 
-	// `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`view.cpp`): forever, on the fast
-	// blink every `blinkingType` 1 LED shares -- legacy drives this LED from that blinker phase, NOT
-	// from `midiLearnFlashOn`.
+	// `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`View::startMIDILearn` in `view.cpp`): forever, on the
+	// fast blink every `blinkingType` 1 LED shares -- legacy drives this LED from that blinker phase, NOT from
+	// `midiLearnFlashOn`.
 	(void)frame.set(led(ButtonId::Learn), deluge::ui::LedState::shared(deluge::ui::BlinkRate::Fast));
 
 	// `View::midiLearnFlash`'s three writes (`view.cpp`). Each is declared only when its

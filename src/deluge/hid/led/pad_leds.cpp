@@ -21,7 +21,7 @@
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
 #include "dsp-next/fixed/osc/sine_table.h"
 #include "gui/colour/colour.h"
-#include "gui/menu_item/colour.h"
+#include "gui/colour/pad_colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -200,7 +200,7 @@ void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 
 				int32_t colour = 0;
 				if (colours[y] == 1) { // "Muted" colour
-					RGB mutedColour = gui::menu_item::mutedColourMenu.getRGB();
+					RGB mutedColour = deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_MUTED);
 					auto transform = [](uint8_t& channel, size_t idx) {
 						if (channel >= 64) {
 							channel += (1 << idx);
@@ -295,7 +295,7 @@ const RGB flashColours[3] = {
 RGB prepareColour(int32_t x, int32_t y, RGB colourSource) {
 	if (flashCursor == FLASH_CURSOR_SLOW && slowFlashSquares[y] == x && currentUIMode != UI_MODE_HORIZONTAL_SCROLL) {
 		if (slowFlashColours[y] == 1) { // If it's to be the "muted" colour, get that
-			colourSource = gui::menu_item::mutedColourMenu.getRGB();
+			colourSource = deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_MUTED);
 		}
 		else { // Otherwise, pull from a referenced table line
 			colourSource = flashColours[slowFlashColours[y]];

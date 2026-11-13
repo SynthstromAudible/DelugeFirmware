@@ -27,7 +27,7 @@
 #include "scenes/menu/nodes/settings.h"
 
 #include "scenes/l10n_bridge.h"
-#include "scenes/menu/action.h" // MenuAction -- `set_shortcuts_version` files one
+#include "scenes/menu/action.h" // MenuAction -- the settings setters file one
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h" // MenuState, kMenuDepth -- for the CustomItems below
 #include "scenes/menu/shortcuts.h"  // `shortcuts_version` selects a layer here
@@ -68,9 +68,9 @@
 
 // `battery::Level::isRelevant` reads `runtimeFeatureSettings` (`relevance::battery_shown`, this
 // file's own relevance.cpp); the value itself is `batteryMV`, a plain global the main loop sets
-// (`deluge.cpp:93,150`) -- declared bare and at global scope, exactly as `sound_editor.cpp:1458`
-// and `battery/level.h:26` both do (a namespaced `extern` here would name a *different*,
-// unlinked variable rather than referring to the one `deluge.cpp` defines).
+// (`deluge.cpp:93,150`) -- declared bare and at global scope, exactly as `sound_editor.cpp`'s `extern uint16_t
+// batteryMV` and `battery/level.h:26` both do (a namespaced `extern` here would name a *different*, unlinked variable
+// rather than referring to the one `deluge.cpp` defines).
 extern uint16_t batteryMV;
 
 // `PadLEDs::flashCursor` (`hid/led/pad_leds.h:47`), the one byte the play-cursor item edits. Named
@@ -664,7 +664,7 @@ namespace {
 /// screensaver until the next boot. The argument in full is on
 /// `MenuAction::ScreensaverSettingsChanged` (`scenes/menu/action.h`).
 ///
-/// Filed through `menu_scene().request_action` for `set_shortcuts_version`'s reason, verbatim: a
+/// Filed through `menu_scene().request_action` because a
 /// `Binding::set` hook is handed no `MenuState` (`SetFn` in `node.h`), and the commit and the
 /// drain are the same `after_render` -- `commit_value` (`ValueSession::commit`), then the move into the
 /// outbox (`MenuScene::after_render`'s `pending_action` drain).
@@ -694,13 +694,15 @@ void set_screensaver_timeout(const MenuContext&, int32_t value) {
 // Pads
 
 int32_t get_pads_keyboard_layout(const MenuContext&) {
-	return static_cast<int32_t>(FlashStorage::keyboardLayout); // `keyboard/layout.h:27 readCurrentValue`
+	// `origin/main:src/deluge/gui/menu_item/keyboard/layout.h` `Layout::readCurrentValue`
+	return static_cast<int32_t>(FlashStorage::keyboardLayout);
 }
 void set_pads_keyboard_layout(const MenuContext&, int32_t value) {
 	FlashStorage::keyboardLayout = static_cast<KeyboardLayout>(value); // `:12`
 }
 size_t pads_keyboard_layout_names(const MenuContext&, std::span<std::string_view> out) {
-	static constexpr std::string_view kNames[] = {"QWERTY", "AZERTY", "QWERTZ"}; // `keyboard/layout.h:13-20`
+	// `origin/main:src/deluge/gui/menu_item/keyboard/layout.h` `Layout::getOptions`
+	static constexpr std::string_view kNames[] = {"QWERTY", "AZERTY", "QWERTZ"};
 	size_t n = 0;
 	for (std::string_view name : kNames) {
 		if (n < out.size()) {
@@ -879,40 +881,10 @@ int32_t get_shortcuts_version(const MenuContext&) {
 	return static_cast<int32_t>(menu::shortcuts_version()); // `shortcuts/version.h:26`
 }
 void set_shortcuts_version(const MenuContext&, int32_t value) {
-	// `shortcuts::Version::writeCurrentValue` (`shortcuts/version.h:27`) ->
-	// `SoundEditor::setShortcutsVersion` (`gui/ui/sound_editor.cpp`).
-	//
-	// **TWO WRITES, AND NEITHER IS REDUNDANT. Do not delete one for the other.**
-	//
-	//   1. `menu::set_shortcuts_version` is this layer's own copy -- what `get_shortcuts_version`
-	//      above reads back for the display, and what every shortcut-pad lookup in
-	//      `menu/shortcuts.cpp` resolves against. It has to happen here, synchronously, because the
-	//      item's own readout is drawn from it on the very next frame.
-	//   2. `request_action` is what reaches flash. `SoundEditor::shortcutsVersion` is the byte
-	//      `FlashStorage::writeSettings` stores at byte 60 (`storage/flash_storage.cpp:982`), and
-	//      `src/scenes` may not name `SoundEditor` (`scenes-includes-outside`,
-	//      `scripts/check_layer_rules.py`) -- so the write is asked for rather than made, and
-	//      `gui::ui::dispatchShellActions` performs it (`gui/ui/shell_action_dispatch.cpp`'s
-	//      `SetShortcutsVersion` arm). Without it, a layout
-	//      chosen from the *ported* settings menu would be in force for the session and gone at the next
-	//      power-on. The reverse direction needs nothing:
-	//      `SoundEditor::setShortcutsVersion` pushes into this layer, so a layout chosen from the
-	//      legacy menu, at boot, or by a factory reset is followed here.
-	//
-	// The two do not fight and cannot loop: the dispatcher's callee mirrors back into (1) by calling
-	// `menu::set_shortcuts_version` -- the free function, not this hook -- with the same value, so
-	// the lap terminates. The argument in full is on `MenuAction::SetShortcutsVersion`
-	// (`scenes/menu/action.h`).
-	//
-	// `value` crosses to the dispatcher **unnormalised**, exactly as legacy's `getValue()` does:
-	// `SoundEditor::setShortcutsVersion`'s own `switch` is what decides that anything other than
-	// `SHORTCUTS_VERSION_1` means V3, and duplicating that decision here would be two mappings to
-	// keep in step instead of one. The normalisation below is only for (1), whose enum has no
-	// "anything else" member to hold an out-of-range index.
+	// `shortcuts::Version::writeCurrentValue`: the write that persists, flash byte 60
+	// (`FlashStorage::shortcutsVersion`), which the shortcut lookups read and `FlashStorage::writeSettings` stores.
 	menu::set_shortcuts_version(value == static_cast<int32_t>(ShortcutsVersion::V1) ? ShortcutsVersion::V1
 	                                                                                : ShortcutsVersion::V3);
-	menu_scene().request_action(
-	    MenuActionRequest{.action = MenuAction::SetShortcutsVersion, .arg = static_cast<uint16_t>(value)});
 }
 
 // The six `pad_colour_*` nodes are six instantiations of `settings.h`'s `get_pad_colour` /
@@ -929,10 +901,11 @@ static_assert(static_cast<int>(FlashStorage::PAD_COLOUR_ONCE) == 5);
 static_assert(static_cast<int>(FlashStorage::NUM_PAD_COLOUR_SLOTS) == 6);
 
 int32_t pad_colour_get(int32_t slot) {
-	return FlashStorage::padColours[slot]; // `menu_item::Colour::readCurrentValue`, `colour.h:43`
+	// `menu_item::Colour::readCurrentValue`, `origin/main:src/deluge/gui/menu_item/colour.h`
+	return FlashStorage::padColours[slot];
 }
 void pad_colour_set(int32_t slot, int32_t value) {
-	// `Colour::writeCurrentValue` (`colour.h:44-47`); its `renderingNeededRegardlessOfUI()` is
+	// `Colour::writeCurrentValue`; its `renderingNeededRegardlessOfUI()` is
 	// `MenuAction::PadColoursChanged`.
 	FlashStorage::padColours[slot] = static_cast<uint8_t>(value);
 	menu_scene().request_action(MenuActionRequest{.action = MenuAction::PadColoursChanged});
@@ -966,7 +939,7 @@ void set_cv_volts(const MenuContext& ctx, int32_t value) {
 
 int32_t get_cv_transpose(const MenuContext& ctx) {
 	// `cv::Transpose::readCurrentValue` (`cv/transpose.h:34-37`), over
-	// `computeCurrentValueForTranspose` (`gui/menu_item/value_scaling.cpp`) -- the same
+	// `computeCurrentValueForTranspose` (`util/value_scaling.cpp`) -- the same
 	// packing `sound_osc.cpp` and `roots.cpp` transcribe for the other transposes.
 	const CVChannel& channel = cvEngine.cvChannels[output_index(ctx, NUM_PHYSICAL_CV_CHANNELS)];
 	return channel.transpose * 100 + channel.cents;

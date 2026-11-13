@@ -18,13 +18,13 @@
 #include "scenarios/streaming_scenario.h"
 
 #include "definitions_cxx.hpp"
-#include "gui/ui/audio_recorder.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "io/file.hpp"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
+#include "processing/recording/foreground_recording.h"
 #include "processing/stem_export/stem_export.h"
 
 #include <cstdint>
@@ -101,7 +101,7 @@ bool deluge_scenario_playback_active() {
 }
 
 bool deluge_scenario_start_recording() {
-	return audioRecorder.beginOutputRecording();
+	return deluge::recording::beginOutputRecording();
 }
 
 uint32_t deluge_scenario_debug_ui_mode() {

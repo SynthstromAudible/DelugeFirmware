@@ -115,7 +115,7 @@ using IntRange = deluge::ui::oled::Range;
 
 /// @brief Which arithmetic converts a `ParamRef`'s stored `int32_t` to and from the menu units the
 ///        user sees, i.e. which of legacy's `readCurrentValue`/`getFinalValue` pairs a param item
-///        used (`gui/menu_item/value_scaling.cpp`).
+///        used (`util/value_scaling.cpp`).
 ///
 /// Legacy encoded this in the *class* of the menu item; as plain data it is one enumerator on the
 /// `Binding`. Only a `ParamRef` binding is scaled at all -- a `get`/`set` hook owns its own units --
@@ -127,8 +127,9 @@ using IntRange = deluge::ui::oled::Range;
 ///     inputs" (`value_scaling.cpp`): `osc::PulseWidth` (`osc/pulse_width.h:32,34-37`) and
 ///     `audio_compressor::CompParam` (`audio_compressor/compressor_params.h`).
 ///   * `Pan` -- INT32 range <-> -25..25, and a -25..25 range rather than 0..50:
-///     `patched_param::Pan` (`patched_param/pan.cpp:28-34`, `pan.h:26-27`) and
-///     `unpatched_param::Pan` (`unpatched_param/pan.cpp:29-36`, `pan.h:28-29`).
+///     `patched_param::Pan` (`patched_param/pan.cpp:28-34`, `origin/main:src/deluge/gui/menu_item/patched_param/pan.h`
+///     `Pan::getMaxValue`) and `unpatched_param::Pan` (`unpatched_param/pan.cpp:29-36`,
+///     `origin/main:src/deluge/gui/menu_item/unpatched_param/pan.h` `Pan::getMaxValue`).
 enum class Scaling : uint8_t { Standard, HalfPrecision, Pan };
 
 /// @brief Which model parameter a `Binding` reads and writes through `ModelStack`, or an invalid
@@ -328,7 +329,9 @@ inline constexpr size_t kMaxNodes = 1024;
 ///
 /// Normally exactly one of `param` or `get`+`set` is set; `names`/`dynamic_names` only matter for
 /// `Kind::Enum`. `names` holds l10n string ids (`uint16_t`), not `l10n::String`, so this header
-/// stays free of `gui/l10n`.
+/// stays free of `gui/l10n`. On a `Kind::Custom` or `Kind::Int` node, which the menu never asks for
+/// names, they are the words its page draws for its values (`with_value_names`), for the menu dump
+/// that the website's menu reference is built from.
 ///
 /// @note **Precedence when both are set: `get`/`set` wins, and `param` is then a *learn* target
 ///       only.** Legacy has four items that are simultaneously a `Decimal` with their own
@@ -552,6 +555,12 @@ struct CustomItem {
 	///        redeclares the frame, so leaving the screen puts them out with no hook.
 	virtual void leds(deluge::ui::LedFrame& /*f*/, const MenuContext& /*ctx*/, const MenuState& /*state*/) const {}
 
+	/// @brief The source a range-specific item's range rule is about: its own `source_id_` in `main`'s
+	///        `checkPermissionToBeginSessionForRangeSpecificParam(sound, source_id_, ...)`, which can differ from the
+	///        menu's (the SAMPLE RECORDER page's REC 2 under oscillator 1's context).
+	/// @return Negative for the menu's own source.
+	virtual int8_t range_source() const { return -1; }
+
 	/// @par The focus hooks: three names, two questions
 	///
 	/// **`on_focus`, `on_focus_backward` and `FocusCause` look like three spellings of one
@@ -609,9 +618,10 @@ struct CustomItem {
 	/// Do-nothing default, and that is the *right* answer for almost every item: an item whose
 	/// legacy backward arm restores a cursor gets it for free, because the cursor lives in
 	/// `MenuState::list[depth]` and `ascend` deliberately leaves that alone. `PatchCablesItem`
-	/// (legacy's `currentValue = savedVal`, `patch_cables.cpp:16-26`) and `SourceSelectionItem`
-	/// (legacy's "walk back to the source `s`", `source_selection.cpp:110-116`) are both exactly
-	/// that case and both stay on the default; each says so at its own `on_focus`.
+	/// (legacy's `currentValue = savedVal`, `origin/main:src/deluge/gui/menu_item/patch_cables.cpp`
+	/// `PatchCables::beginSession`) and `SourceSelectionItem` (legacy's "walk back to the source `s`",
+	/// `source_selection.cpp:110-116`) are both exactly that case and both stay on the default; each says so at its own
+	/// `on_focus`.
 	///
 	/// **This hook exists because "leave `MenuState` alone" is not always the backward
 	/// arm.** Skipping `Kind::Custom` on the way back would be sound only while every chain-source
@@ -730,24 +740,6 @@ struct CustomItem {
 	///       firing a one-shot verb.
 	virtual bool on_focus_is_press() const { return false; }
 
-	/// @brief Does a select-encoder press on this item, while it is the focused column of a
-	///        horizontal page, open it directly -- no permission check, no range check, no
-	///        notification?
-	///
-	/// The port of `FileSelector::selectButtonPress` (`gui/menu_item/file_selector.cpp`):
-	/// `beginSession(nullptr); return NO_NAVIGATION;`, called by `Submenu::selectButtonPress`'s
-	/// horizontal forward (`submenu.cpp`) with **no call to `checkPermissionToBeginSession`
-	/// at all** -- unlike every other way into this item (a button focus, an already-focused button
-	/// press) which does check it (`horizontal_menu.cpp:427-428`, `:663-668`). `Node::
-	/// allow_session_from_horizontal`'s own doc says how a select press reads that bit; whether the
-	/// column opens without entering is the one place its answer differs by item, so it is a hook
-	/// rather than a second `Node` flag.
-	///
-	/// Only `FileBrowserItem` overrides this to true. A select press enters every other
-	/// `allow_session_from_horizontal` column (`Submenu::selectButtonPress` returns the column itself,
-	/// `submenu.cpp`), through `enter_child` with its permission and range checks.
-	virtual bool opens_directly_on_horizontal_select() const { return false; }
-
 	/// @name MIDI-learn hooks -- the port of `MenuItem`'s own learn overrides.
 	///
 	/// Legacy declares these on `MenuItem` itself (`gui/menu_item/menu_item.h:194-199`:
@@ -781,7 +773,8 @@ struct CustomItem {
 	virtual bool unlearn() const { return false; }
 
 	/// @brief Does this item want the LEARN LED blinking while it is focused?
-	///        `MenuItem::shouldBlinkLearnLed` (`sound_editor.cpp:949-954`, `:488-492`).
+	///        `MenuItem::shouldBlinkLearnLed`, which `SoundEditor::buttonAction` and `SoundEditor::updatePadLightsFor`
+	///        read (`origin/main:src/deluge/gui/ui/sound_editor.cpp`).
 	virtual bool wants_learn_blink() const { return false; }
 
 	/// @brief The patched param whose shortcut pad blinks while this item is focused and has no pad of its own --
@@ -886,6 +879,10 @@ struct Node {
 	Binding bind{};
 	std::span<const Node* const> children{};
 	RelevantFn relevant = nullptr;
+	/// @brief On a target node, `relevant` answers alone instead of narrowing where the descriptor applies: for a
+	///        legacy `isRelevant` that asks only what the editor edits, where the target's owner may not hold the
+	///        setting (`with_own_relevance`).
+	bool relevance_replaces_target = false;
 	DynamicChildrenFn dynamic_children = nullptr;
 	const CustomItem* custom = nullptr;
 
@@ -912,23 +909,29 @@ struct Node {
 
 	uint8_t slots = 1;
 
-	/// @brief Does this item edit something that belongs to one `MultiRange` rather than to the
-	///        `Sound` as a whole? The port of `MenuItem::isRangeDependent()`
-	///        (`MenuItem::isRangeDependent`, "only relevant to some note ranges").
+	/// @brief Is this item "only relevant to some note ranges"? The port of `MenuItem::isRangeDependent()`.
+	///
+	/// The legacy items that override it to true are `sample::Transpose` and `LoopPoint`
+	/// (`origin/main:src/deluge/gui/menu_item/sample/transpose.h`, `.../sample/loop_point.h`) and the picker itself
+	/// (`origin/main:src/deluge/gui/menu_item/multi_range.h` `MultiRange::isRangeDependent`, not set on
+	/// `nodes::multi_range`, whose own answers are spelled where they are read). It decides whether the selected range
+	/// survives a horizontal page's session (`menu::begin_submenu_range`) and whether the root highlights the range's
+	/// notes (`rangeDependentMenuOpen`). Every item that sets it also sets `range_specific`.
+	bool range_dependent = false;
+
+	/// @brief Does this item's permission check go through the range rule? The port of the overrides of
+	///        `checkPermissionToBeginSession` that end in
+	///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`.
 	///
 	/// This, not "has a `bind.param`", is what makes the menu's permission rule fire
-	/// (`menu::permission_for`). The distinction matters: an ordinary patched param such as LPF
-	/// frequency lives on the `Sound` and is editable on a multisampled synth without picking a
-	/// range first, while a range-dependent item's value lives in the range itself
-	/// (`sample/transpose.h:139-165` writes `sampleHolder.transpose` / `source.transpose`) and has
-	/// nowhere to go until one is chosen.
+	/// (`menu::permission_for`), and what allocates a source's first range on open. The distinction matters: an
+	/// ordinary patched param such as LPF frequency lives on the `Sound` and is editable on a multisampled synth
+	/// without picking a range first, while a range-specific item's value lives in the range itself and has nowhere
+	/// to go until one is chosen.
 	///
-	/// The legacy items that override `isRangeDependent()` to true, and so are the ones that set
-	/// this: `sample/transpose.h:137`, `sample/loop_point.h:31`, and
-	/// `multi_range.h:32` (the picker itself). `file_selector` and `osc/audio_recorder` reach the
-	/// same rule through `checkPermissionToBeginSessionForRangeSpecificParam` without the override,
-	/// and set this too.
-	bool range_dependent = false;
+	/// Four legacy classes route through the rule: the two that set `range_dependent` and `FileSelector` and
+	/// `osc::AudioRecorder`, which do not override `isRangeDependent()`.
+	bool range_specific = false;
 
 	/// @brief Does this item open itself directly from a horizontal page, bypassing the normal
 	///        range-picker gate and column-press notification? The port of
@@ -959,8 +962,7 @@ struct Node {
 	///
 	/// A select press reads it too: `Submenu::selectButtonPress`'s horizontal forward (`submenu.cpp`, #4854)
 	/// returns the focused column itself when this is true, and the select arm enters it the general way, which is
-	/// `MenuScene::after_render_navigation`'s `column_press` arm calling `enter_child`. `FileSelector` alone opens
-	/// without entering (`CustomItem::opens_directly_on_horizontal_select`).
+	/// `MenuScene::after_render_navigation`'s `column_press` arm calling `enter_child`.
 	bool allow_session_from_horizontal = false;
 
 	/// @brief Does a select press or an already-focused button press flip this column's value in
@@ -1011,7 +1013,7 @@ struct Node {
 
 	/// @brief Legacy's `MenuItem::usesAffectEntire()` for an item whose binding does not say so: AFFECT ENTIRE held on
 	///        it in a kit row's menu is the hold mode that writes every drum, not the clip's own toggle. A PATCHED or
-	///        UNPATCHED_SOUND param answers true without it (`node_uses_affect_entire`).
+	///        unpatched param answers true without it (`node_uses_affect_entire`).
 	bool uses_affect_entire = false;
 
 	/// @brief The column is the item's full option list across the page under a rule, as its leaf screen draws it:
@@ -1069,15 +1071,22 @@ constexpr Node with_title_arg(Node n, uint8_t arg) {
 	return n;
 }
 
-/// @brief `n` with `range_dependent` set -- a `constexpr` post-hoc modifier rather than a trailing
-///        argument on all nine builders.
+/// @brief `n` with `range_dependent` and `range_specific` set -- a `constexpr` post-hoc modifier rather than a
+///        trailing argument on all nine builders.
 ///
-/// Only a handful of nodes in the whole tree are range-dependent (the five named on
-/// `Node::range_dependent`), so paying for the flag in every builder signature would be the wrong
-/// trade: `with_range_dependent(param(...))` reads as the exception it is, and no existing call site or
-/// `static_assert` changes.
+/// Only a handful of nodes in the whole tree are range-dependent (the ones named on `Node::range_dependent`), so
+/// paying for the flag in every builder signature would be the wrong trade: `with_range_dependent(param(...))` reads
+/// as the exception it is, and no existing call site or `static_assert` changes.
 constexpr Node with_range_dependent(Node n) {
 	n.range_dependent = true;
+	n.range_specific = true;
+	return n;
+}
+
+/// @brief `n` with `range_specific` set alone: an item whose permission check goes through the range rule but which
+///        is not range-dependent (`Node::range_specific`).
+constexpr Node with_range_specific(Node n) {
+	n.range_specific = true;
 	return n;
 }
 
@@ -1122,6 +1131,13 @@ constexpr bool stays_on_page(const Node& n) {
 	return n.kind == Kind::Enum && (n.select_chain == nullptr || n.chain_falls_back_to_selection);
 }
 
+/// @brief `n` with @p rel as its whole relevance (`relevance_replaces_target`).
+constexpr Node with_own_relevance(Node n, RelevantFn rel) {
+	n.relevant = rel;
+	n.relevance_replaces_target = true;
+	return n;
+}
+
 /// @brief `n` with `uses_affect_entire` set.
 constexpr Node with_affect_entire(Node n) {
 	n.uses_affect_entire = true;
@@ -1129,11 +1145,17 @@ constexpr Node with_affect_entire(Node n) {
 }
 
 /// @brief Legacy's `usesAffectEntire()` for one item: every `patched_param::Integer` and `UnpatchedParam` (the
-///        PATCHED and UNPATCHED_SOUND bindings, the learn-only ones of the transposes included), and the items marked
-///        with `with_affect_entire`.
+///        PATCHED and UNPATCHED_SOUND bindings, the learn-only ones of the transposes included, and the
+///        UNPATCHED_GLOBAL bindings whose param is what they edit), and the items marked with `with_affect_entire`.
+///        The audio clip's transpose only learns its global param: its legacy item is no `UnpatchedParam`.
 constexpr bool node_uses_affect_entire(const Node& n) {
-	return n.uses_affect_entire || n.bind.param.kind == deluge::modulation::params::Kind::PATCHED
-	       || n.bind.param.kind == deluge::modulation::params::Kind::UNPATCHED_SOUND;
+	namespace params = deluge::modulation::params;
+	const bool edits_its_param =
+	    n.bind.get == nullptr
+	    && (!n.bind.target.valid() || n.bind.target.kind == deluge::scenes::bind::Target::Kind::PARAM);
+	return n.uses_affect_entire || n.bind.param.kind == params::Kind::PATCHED
+	       || n.bind.param.kind == params::Kind::UNPATCHED_SOUND
+	       || (n.bind.param.kind == params::Kind::UNPATCHED_GLOBAL && edits_its_param);
 }
 
 /// @brief `n` with `option_list_column` set.
@@ -1324,6 +1346,20 @@ constexpr Node with_decimal_places(Node n, uint8_t places) {
 ///        set this.
 constexpr Node with_value_text(Node n, ValueTextFn fn) {
 	n.bind.value_text = fn;
+	return n;
+}
+
+/// @brief `n` with the words its page draws for its values: a custom page's list or a number spelled as words.
+///
+/// The menu reads neither on a `Kind::Custom` or `Kind::Int` node; the menu dump lists them as the node's values.
+constexpr Node with_value_names(Node n, std::span<const uint16_t> names) {
+	n.bind.names = names;
+	return n;
+}
+
+/// @brief `n` with a hook that gives the words its page draws for its values, where they are not l10n strings.
+constexpr Node with_value_names(Node n, DynamicNamesFn names) {
+	n.bind.dynamic_names = names;
 	return n;
 }
 
@@ -1546,7 +1582,7 @@ constexpr Node sync_level_item(uint16_t name, uint16_t title, GetFn get, SetFn s
 /// @param spec  The upper edge and the two per-item rules. Required: a null one is a
 ///              `validate_tree` issue, not a defaulted-to-something.
 /// @param r     The bounds both ends live inside, and the select detent's step --
-///              `IntegerRange::minValue`/`maxValue` (`integer_range.h:45`), or `KeyRange`'s own
+///              `IntegerRange::minValue`/`maxValue`, or `KeyRange`'s own
 ///              `KEY_MIN`/`KEY_MAX` locals (`key_range.cpp:29-30`).
 constexpr Node range_item(uint16_t name, uint16_t title, GetFn get_lower, SetFn set_lower, const RangeSpec* spec,
                           IntRange r, RelevantFn rel = nullptr) {

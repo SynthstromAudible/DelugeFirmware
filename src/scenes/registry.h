@@ -55,21 +55,13 @@ uint16_t assigned_node_ids();
 /// the top of `main` either, because two of the three are settings the user can change while the
 /// firmware is running.
 ///
-///   * **`menu::set_shortcuts_version()` (`menu/shortcuts.h`).** The pre-3.0 / current shortcut
-///     layout, flash byte 60. Pushed from `SoundEditor::setShortcutsVersion`
-///     (`gui/ui/sound_editor.cpp`), which is the sole writer of `SoundEditor::shortcutsVersion` --
-///     the `gui/` member this layer may not name and keeps its own copy beside the tables the
-///     setting selects -- and which is already called from **all four** places the value can come
-///     from, in both layers: `FlashStorage::readSettings` at boot
-///     (`storage/flash_storage.cpp`'s `readSettings`, from byte 60), `FlashStorage::resetSettings` --
-///     which the *ported* reset menu reaches as well as the legacy one
-///     (`scenes/context_menu/context_menu_scene.cpp`'s `accept_reset_flash` / `accept_reset_all`) --
-///     the legacy settings item (`gui::menu_item::shortcuts::Version::writeCurrentValue`), and this layer's own
-///     `nodes::set_shortcuts_version`, which calls `menu::set_shortcuts_version` directly and does
-///     not go through `SoundEditor` at all (see the `@warning` at that hook).
-///     Covered by `sim/scenes_spec/boot_wiring_spec.cpp`;
-///     the setting's own behaviour is `sim/scenes_spec/tables_3_spec.cpp`'s batch-4 group and
-///     `shortcuts_spec.cpp`'s `SHORTCUTS_VERSION_1 layer` group.
+///   * **`menu::shortcuts_version()` (`menu/shortcuts.h`).** The pre-3.0 / current shortcut
+///     layout, flash byte 60 -- `FlashStorage::shortcutsVersion` itself, which this layer reads
+///     where it needs it, so no push is wired. `FlashStorage::readSettings` fills it at boot,
+///     `FlashStorage::resetSettings` resets it (the ported reset menu reaches that) and `nodes::set_shortcuts_version`
+///     writes it from the ported settings item. Covered by `sim/scenes_spec/boot_wiring_spec.cpp`; the setting's own
+///     behaviour is `sim/scenes_spec/tables_3_spec.cpp`'s batch-4 group and `shortcuts_spec.cpp`'s `SHORTCUTS_VERSION_1
+///     layer` group.
 ///
 ///   * **`ShellConfig::screensaver_idle_ms` (`shell/shell.h`).** The screensaver's timeout and its
 ///     off switch, `screensaverMode == ScreensaverMode::OFF ? 0 : screensaverTimeoutMinutes * 60000`

@@ -117,6 +117,8 @@ void InputLowering::begin_tick(uint32_t now_ms) {
 		d = 0;
 	}
 	pad_events_.clear();
+	turns_.clear();
+	turns_first_ = 0;
 	ctx_.begin_tick(now_ms);
 	// What the last tick deferred belongs to this one: back into the sums and edges this tick's
 	// snapshot is assembled from.
@@ -128,6 +130,9 @@ void InputLowering::begin_tick(uint32_t now_ms) {
 			const size_t r = static_cast<size_t>(e.encoder);
 			if (r < kEncoderCount) {
 				tick_delta_[r] = saturating_add(tick_delta_[r], e.delta);
+			}
+			if (e.encoder == EncoderRole::Select) {
+				add_turn(e.delta, e.time_us);
 			}
 			break;
 		}
@@ -164,6 +169,8 @@ void InputLowering::discard_pending() {
 		d = 0;
 	}
 	pad_events_.clear();
+	turns_.clear();
+	turns_first_ = 0;
 }
 
 void InputLowering::end_tick(uint32_t now_ms) {
@@ -180,6 +187,7 @@ void InputLowering::end_tick(uint32_t now_ms) {
 	snap_.shift = shift();
 	snap_.select_held = held_.has(ButtonId::SelectEnc);
 	snap_.pads = std::span<const ui::PadEvent>(pad_events_.begin(), pad_events_.size());
+	sync_snapshot_turns();
 	snap_.held_pads = held_pads_;
 	snap_.now_ms = now_ms_;
 	snap_.acceleration_clock_ms = acceleration_clock_ms_;
@@ -265,14 +273,54 @@ void InputLowering::set_sd_busy(bool busy) {
 	}
 }
 
-void InputLowering::on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms) {
+void InputLowering::on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms, uint64_t time_us) {
 	if (input_locked_) {
 		return;
 	}
-	apply_encoder_edges(index, edges, now_ms);
+	apply_encoder_edges(index, edges, now_ms, time_us);
 }
 
-void InputLowering::apply_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms) {
+void InputLowering::add_turn(int8_t detents, uint64_t time_us) {
+	if (turns_.size() < kTurnCapacity) {
+		(void)turns_.push_back(ui::TimedTurn{.detents = detents, .time_us = time_us});
+		return;
+	}
+	ui::TimedTurn& last = turns_[turns_.size() - 1];
+	last.detents = saturating_add(last.detents, detents);
+	last.time_us = time_us;
+}
+
+void InputLowering::withdraw_first_turn(int8_t delta) {
+	if (turns_first_ >= turns_.size()) {
+		return;
+	}
+	// A folded turn holds several events' detents: it leaves once all of them have.
+	ui::TimedTurn& first = turns_[turns_first_];
+	first.detents = saturating_add(first.detents, -delta);
+	if (first.detents == 0) {
+		turns_first_++;
+	}
+	sync_snapshot_turns();
+}
+
+void InputLowering::withdraw_last_turn(int8_t delta) {
+	if (turns_first_ >= turns_.size()) {
+		return;
+	}
+	ui::TimedTurn& last = turns_[turns_.size() - 1];
+	last.detents = saturating_add(last.detents, -delta);
+	if (last.detents == 0) {
+		turns_.pop_back();
+	}
+	sync_snapshot_turns();
+}
+
+void InputLowering::sync_snapshot_turns() {
+	const size_t first = std::min<size_t>(turns_first_, turns_.size());
+	snap_.turns = std::span<const ui::TimedTurn>(turns_.begin() + first, turns_.size() - first);
+}
+
+void InputLowering::apply_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms, uint64_t time_us) {
 	if (index >= profile_.encoder_by_index.size()) {
 		return;
 	}
@@ -296,47 +344,22 @@ void InputLowering::apply_encoder_edges(uint8_t index, int8_t edges, uint32_t no
 	}
 	else {
 		// `ContinuousEncoder::applyEdges`: the raw edge count is the magnitude; acceleration is
-		// applied by whoever consumes it, through `calc_next_knob_speed`.
+		// applied by whoever consumes it, through `calc_next_knob_speed`. Every turn is acted on.
 		delta = edges;
-		if (delta != 0 && !action_gold_turn(r, delta, now_ms)) {
-			return;
-		}
 	}
 	if (delta == 0) {
 		return;
 	}
 	tick_delta_[r] = saturating_add(tick_delta_[r], delta);
+	if (role == EncoderRole::Select) {
+		add_turn(delta, time_us);
+	}
 
 	UiEvent e{UiEvent::Kind::Encoder};
 	e.encoder = role;
 	e.delta = delta;
+	e.time_us = time_us;
 	emit(e);
-}
-
-bool InputLowering::action_gold_turn(size_t role_index, int8_t delta, uint32_t now_ms) {
-	// The mod-knob block of `interpretEncoders` in its pre-overhaul form. The current legacy code
-	// keeps the `modEncoderInitialTurnDirection` test but dropped the `turnedRecently` branch that
-	// is the only thing that ever sets the field, so the surviving code can no longer reach its own
-	// wiggle case (`hid/encoder_input.cpp:178-205`); this restores the working shape.
-	const bool turned_recently = (now_ms - last_turn_ms_[role_index]) < cfg_.short_press_ms;
-	last_turn_ms_[role_index] = now_ms;
-	if (!turned_recently) {
-		// The first turn after a pause is not acted on: remember which way it went, so that going
-		// straight back the other way can be written off as an accidental wiggle.
-		//
-		// Legacy also closes the action logger's pending value change here when the *other* gold
-		// knob has been still too; that is an undo-history concern rather than a lowering one, and
-		// belongs to whoever owns the mod knobs.
-		initial_turn_direction_[role_index] = delta;
-		return false;
-	}
-	if (delta + initial_turn_direction_[role_index] == 0) {
-		// Exactly cancels the remembered turn: an accidental wiggle.
-		initial_turn_direction_[role_index] = delta;
-		return false;
-	}
-	initial_turn_direction_[role_index] = 0;
-	return true;
 }
 
 void InputLowering::on_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut_without_shift) {
@@ -496,8 +519,15 @@ void InputLowering::defer_rest(const UiEvent& e) {
 	size_t pads = 0;
 	for (uint8_t i = 0; i < in_snapshot_; i++) {
 		const UiEvent& q = queue_[(queue_head_ + i) % kQueueCapacity];
-		withdraw(q);
+		withdraw_sums(q);
 		pads += q.kind == UiEvent::Kind::Pad ? 1 : 0;
+	}
+	// The deferred turns are the last ones this window took, newest last: trimmed from the end, as the pads are.
+	for (uint8_t i = in_snapshot_; i > 0; i--) {
+		const UiEvent& q = queue_[(queue_head_ + i - 1) % kQueueCapacity];
+		if (q.kind == UiEvent::Kind::Encoder && q.encoder == EncoderRole::Select) {
+			withdraw_last_turn(q.delta);
+		}
 	}
 	// The deferred pads are the last ones this window took, so the snapshot keeps the ones before.
 	snap_.pads = snap_.pads.first(snap_.pads.size() - std::min(pads, snap_.pads.size()));
@@ -506,6 +536,13 @@ void InputLowering::defer_rest(const UiEvent& e) {
 }
 
 void InputLowering::withdraw(const UiEvent& e) {
+	withdraw_sums(e);
+	if (e.kind == UiEvent::Kind::Encoder && e.encoder == EncoderRole::Select) {
+		withdraw_first_turn(e.delta);
+	}
+}
+
+void InputLowering::withdraw_sums(const UiEvent& e) {
 	switch (e.kind) {
 	case UiEvent::Kind::Encoder:
 		switch (e.encoder) {
@@ -594,24 +631,13 @@ std::optional<uint32_t> InputLowering::last_press_ms(ButtonId b) const {
 }
 
 double InputLowering::calc_next_knob_speed(EncoderRole role, int8_t delta, uint32_t now_ms) {
-	// `ContinuousEncoder::calcNextKnobSpeed` (`hid/encoders.cpp`): legacy's curve, one per role, on this clock.
+	// `ContinuousEncoder::calcNextKnobSpeed` (`origin/main:src/deluge/hid/encoders.cpp`): main's curve, one per role,
+	// on this clock.
 	const size_t r = static_cast<size_t>(role);
 	if (r >= kEncoderCount) {
 		return ui::kGoldEncoderAcceleration.min_multiplier;
 	}
 	return knob_acceleration_[r].advance(delta, static_cast<double>(now_ms) / 1000.0, ui::kGoldEncoderAcceleration);
-}
-
-void InputLowering::pretend_knob_untouched(EncoderRole role, uint32_t now_ms) {
-	// `View::pretendModKnobsUntouchedForAWhile`:
-	// `timeModEncoderLastTurned[i] = AudioEngine::audioSampleTimer - kSampleRate`. Unsigned wrap is
-	// the same wrap `turned_recently`'s own `now_ms - last_turn_ms_` does, so backdating past zero
-	// is well defined and still reads as "a second ago".
-	const size_t r = static_cast<size_t>(role);
-	if (r >= kEncoderCount) {
-		return;
-	}
-	last_turn_ms_[r] = now_ms - kPretendUntouchedMs;
 }
 
 // -- UiContext's lowering-backed queries (declared in scene.h) --------------------------------

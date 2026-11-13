@@ -1,8 +1,8 @@
 #pragma once
 
 /// @file
-/// @brief What the DX7 specs share: a synth whose first oscillator is DX7 with legacy's DX7 items pointed at it, the
-///        ported menu over it on a `Shell` over the fake surfaces, and the panel readers the pixel examples compare.
+/// @brief What the DX7 specs and the menu oracle freezer share: a synth whose first oscillator is DX7, the ported menu
+///        over it on a `Shell` over the fake surfaces, and the panel readers the pixel examples compare.
 ///
 /// For the spec files only: it names `gui/` objects, which the scenes library may not.
 
@@ -18,27 +18,23 @@
 #include "shell/shell.h"
 
 #include "gui/l10n/l10n.h"
-#include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
-#include "hid/display/oled.h"
 #include "notify/notice_queue.h"
 #include "processing/dx7/dx_patch.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 
-#include "spec/gfx/support/pbm.h"
 #include "spec/shell/support/fake_surfaces.h"
+#include "support/menu_engine.h"
+#include "support/oracle_table.h"
 #include "support/song_fixture.h"
 
 #include <cstdint>
+#include <fstream>
+#include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
-
-/// @brief Legacy's held-Shift state, which `Buttons::isShiftButtonPressed` reads and `hid/buttons.h` does not declare.
-namespace Buttons {
-extern bool shiftCurrentlyPressed;
-extern bool shiftCurrentlyStuck;
-} // namespace Buttons
 
 namespace deluge::scenes::spec::dx_rig {
 
@@ -51,9 +47,9 @@ using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
 namespace nodes = deluge::scenes::menu::nodes;
 
-/// @brief A synth whose first oscillator is DX7, set up for legacy's DX7 items.
+/// @brief A synth whose first oscillator is DX7.
 ///
-/// Legacy's items read `soundEditor.currentSound`; `setOscType` gives the source its patch, as it does on the device.
+/// `setOscType` gives the source its patch, as it does on the device.
 struct DxRig {
 	spec::SongFixture song = spec::make_synth_song();
 	Song* saved = currentSong;
@@ -63,14 +59,8 @@ struct DxRig {
 		currentSong = song.song;
 		sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
 		sound->sources[0].setOscType(OscType::DX7);
-		soundEditor.currentSound = sound;
-		soundEditor.currentSource = &sound->sources[0];
-		soundEditor.currentSourceIndex = 0;
 	}
-	~DxRig() {
-		set_shift(false);
-		currentSong = saved;
-	}
+	~DxRig() { currentSong = saved; }
 	DxRig(const DxRig&) = delete;
 	DxRig& operator=(const DxRig&) = delete;
 
@@ -80,25 +70,21 @@ struct DxRig {
 		return *menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false)
 		            .addresses.slot;
 	}
-
-	/// @brief Hold or release Shift on legacy's side, which is all `isShiftButtonPressed` reads.
-	static void set_shift(bool on) {
-		::Buttons::shiftCurrentlyPressed = on;
-		::Buttons::shiftCurrentlyStuck = false;
-	}
 };
 
-/// @brief The language the port's and legacy's text come from, and no notice left over from another example.
+/// @brief The language the menu's text comes from, and no notice left over from another example.
 inline void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 	deluge::notify::Notice discard;
 	while (deluge::notify::notices().pop(discard)) {}
 }
 
-/// @brief `OLED::main`, into which every legacy `renderOLED()` draws, as a PBM.
-inline std::string legacy_panel_pbm() {
-	const auto& canvas = deluge::hid::display::OLED::main;
-	return page_major_to_pbm(canvas.bytes().data(), OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS);
+/// @brief The panel `pixels/<name>.pbm` of the reference tables holds, or nothing where there is no such file.
+inline std::string frozen_panel(std::string_view name) {
+	std::ifstream in(oracle_dir() + "/pixels/" + std::string{name} + ".pbm");
+	std::stringstream text;
+	text << in.rdbuf();
+	return text.str();
 }
 
 /// @brief @p pbm without the five rows above the 48-row panel's visible top, which the port's root frame cannot ink.

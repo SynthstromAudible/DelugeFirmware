@@ -20,7 +20,6 @@
 
 #include "gui/ui/shell_automation_glue.h"
 
-#include "gui/ui/audio_recorder.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/shell_note_mode.h"
@@ -39,6 +38,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
+#include "processing/engines/audio_engine.h"
 #include "synth/modulation/cable.h"
 
 #include "scenes/browser/browser_scene.h"
@@ -369,13 +369,22 @@ bool browserTakesRecord() {
 	const deluge::scenes::browser::BrowserScene& browser = deluge::scenes::browser::browser_scene();
 	return &shellHostUI.shell().stack().input_top() == &browser
 	       && browser.browser_id() == deluge::scenes::browser::BrowserId::Sample
-	       && audioRecorder.recordingSource == AudioInputChannel::NONE && getCurrentClip() != nullptr
+	       && AudioEngine::foregroundRecordingSource() == AudioInputChannel::NONE && getCurrentClip() != nullptr
 	       && getCurrentClip()->type != ClipType::AUDIO;
 }
 
 bool recorderTakesRecord(bool on) {
 	const deluge::scenes::recorder::RecorderScene& recorder = deluge::scenes::recorder::recorder_scene();
 	return on && &shellHostUI.shell().stack().input_top() == &recorder && recorder.recording();
+}
+
+bool recorderPassesFillRelease(deluge::hid::Button b, bool on) {
+	return !on && b == deluge::hid::button::SYNC_SCALING && currentSong != nullptr && currentSong->isFillModeActive()
+	       && &shellHostUI.shell().stack().input_top() == &deluge::scenes::recorder::recorder_scene();
+}
+
+ActionResult rootViewButtonAction(deluge::hid::Button b, bool on) {
+	return getRootUI()->buttonAction(b, on);
 }
 
 std::optional<ActionResult> forwardBrowserVertical(int32_t offset) {

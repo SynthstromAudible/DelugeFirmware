@@ -32,10 +32,12 @@
 #include "model/edits/edit.h"
 #include "model/edits/set_clip_length.h"
 #include "model/edits/shift_clip.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
+#include "util/shell_menu_entry.h"
 
 uint32_t ClipView::getMaxZoom() {
 	return getCurrentClip()->getMaxZoom();
@@ -423,8 +425,7 @@ bool ClipView::maybeRenderShortcutsOverview(uint32_t whichRows, RGB image[][kDis
 	if (shouldRenderShortcutsOverview()) {
 		renderedShortcutOverview = true;
 		D_PRINTLN("rendering shortcuts for %x", getModControllableAudioOrNone());
-		SoundEditor::renderMainShortcutsOnly(getModControllableAudioOrNone(), image, occupancyMask,
-		                                     SoundEditor::shouldEditKitAffectEntire());
+		deluge::gui::ui::renderClipShortcutsOverview(image, occupancyMask);
 		return true;
 	}
 	if (renderedShortcutOverview) {

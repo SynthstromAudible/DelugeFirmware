@@ -111,6 +111,29 @@ struct ShellRig {
 	}
 };
 
+/// @brief A real `OLED` that records a freeze instead of hanging, installed as `display` for one example's scope.
+struct FreezeRecordingDisplay {
+	struct Oled final : OLED {
+		void freezeWithError(char const* text) override { frozen = text; }
+		std::string frozen;
+	} oled;
+	decltype(display) saved = display;
+	FreezeRecordingDisplay() { display = &oled; }
+	~FreezeRecordingDisplay() { display = saved; }
+	FreezeRecordingDisplay(const FreezeRecordingDisplay&) = delete;
+	FreezeRecordingDisplay& operator=(const FreezeRecordingDisplay&) = delete;
+};
+
+/// @brief A notification sink whose banner takes every UI down, as a song load does: called from the shell's drain,
+///        inside the guest's tick.
+struct TeardownSink {
+	static constexpr deluge::ui::shell::NotificationSink kSink{.show = [](const char*, const char*) { nullifyUIs(); }};
+	TeardownSink() { deluge::ui::shell::set_notification_sink(&kSink); }
+	~TeardownSink() { deluge::ui::shell::set_notification_sink(nullptr); }
+	TeardownSink(const TeardownSink&) = delete;
+	TeardownSink& operator=(const TeardownSink&) = delete;
+};
+
 bool any_lit(const std::vector<uint8_t>& bytes) {
 	for (uint8_t b : bytes) {
 		if (b != 0) {
@@ -280,6 +303,24 @@ describe notification_sink_spec_body("the horizontal-menu notification's two app
 
 		uiTimerManager.unsetTimer(TimerName::DISPLAY);
 		AudioEngine::audioSampleTimer = saved_timer;
+	});
+
+	it("freezes when every UI is taken down from inside the guest's own tick", _ {
+		// The teardown resets the stack, which a tick is walking: it runs only between ticks.
+		FreezeRecordingDisplay frozen;
+		TeardownSink sink;
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
+		expect(deluge::scenes::spec::open_note_mode_over_clip_view(fx, deluge::scenes::menu::MenuContext::Root::Song))
+		    .to_be_true();
+		deluge::notify::notice_notification("TITLE", "VALUE");
+		(void)shellHostUI.timerCallback();
+		expect(frozen.oled.frozen).to_equal(std::string("SHT1"));
+		frozen.oled.frozen.clear();
+		nullifyUIs(); // between ticks, as a song load runs it
+		expect(frozen.oled.frozen.empty()).to_be_true();
+		expect(isUIOpen(&shellHostUI)).to_be_false();
 	});
 
 	it("a guest that closes with no popup up leaves legacy's display clear", _ {

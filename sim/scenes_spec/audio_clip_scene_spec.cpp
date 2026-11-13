@@ -263,7 +263,7 @@ void ensure_display() {
 	}
 	// `l10n::chosenLanguage` is null until the app constructs its `Display` (`gui/l10n/l10n.cpp:6`),
 	// and legacy's clip-clear arm calls `deluge::l10n::get(...)` unconditionally
-	// (`audio_clip_view.cpp:456`, `:459`) -- which dereferences it. Every other scenes spec that
+	// (`AudioClipView::padAction`'s clip-clear arm) -- which dereferences it. Every other scenes spec that
 	// drives a legacy popup sets it the same way (`context_menu_scene_spec.cpp`).
 	if (deluge::l10n::chosenLanguage == nullptr) {
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
@@ -871,7 +871,7 @@ struct NavProbe : ClipNavigationTimelineView {
 /// `AudioClipView::endMarkerVisible` is **private** and the class is `final`, so there is no probe
 /// subclass to reach it with (the trick `timeline_spec.cpp`'s `TickProbe` uses for
 /// `ClipView::getTickSquare` needs a protected member). What there IS is `padAction`
-/// (`audio_clip_view.cpp:566-574`), which sets it, and `getMaxLength` (`:875-880`), which is
+/// (`audio_clip_view.cpp`), which sets it, and `getMaxLength`, which is
 /// **public** and returns `loopLength + 1` if and only if it is set. So the flag is raised by
 /// legacy's own gesture and read back through legacy's own accessor; the caller asserts on the
 /// return.
@@ -1129,7 +1129,7 @@ describe audio_clip_scene_spec_body(
 
 		        // Both sides raise the marker through their own front door, BEFORE the first tick:
 		        // `set_end_marker_visible` is a state write, not an event, so it dirties no repaint gate --
-		        // legacy's own `uiNeedsRendering(this, 0xFFFFFFFF, 0)` (`audio_clip_view.cpp:573`) is the
+		        // legacy's own `uiNeedsRendering(this, 0xFFFFFFFF, 0)` (`AudioClipView::padAction`) is the
 		        // half of that arm the shell owns rather than the scene. Found by writing the tick after
 		        // the setter and watching the port render the frame from before it.
 		        // `raise_legacy_end_marker` asserts legacy's flag took, by reading legacy's own
@@ -1137,7 +1137,7 @@ describe audio_clip_scene_spec_body(
 		        expect(raise_legacy_end_marker(r)).to_be_true();
 		        r.scene().set_end_marker_visible(true);
 		        // Both start on the bright half: legacy's `padAction` sets `blinkOn = true`
-		        // (`audio_clip_view.cpp:571`), the port's setter does the same.
+		        // (`AudioClipView::padAction`), the port's setter does the same.
 		        expect(r.scene().blink_on()).to_be_true();
 		        r.tick(0);
 		        // The end column at scroll 0, zoom 48 and length 768 is `(768 - 1) / 48` = 15, and on
@@ -1923,7 +1923,7 @@ describe audio_clip_scene_spec_body(
 	        "writes the same start marker as legacy when the start marker is dragged", _ {
 		        spec_fixture::QuietAudio quiet;
 		        // The start-marker gesture is behind `RuntimeFeatureSettingType::TrimFromStartOfAudioClip`
-		        // (`audio_clip_view.cpp:578`), which is off by default; both sides read the same global,
+		        // (`AudioClipView::padAction`), which is off by default; both sides read the same global,
 		        // so it is turned on once, for both, and put back.
 		        const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::TrimFromStartOfAudioClip);
 		        runtimeFeatureSettings.set(RuntimeFeatureSettingType::TrimFromStartOfAudioClip,

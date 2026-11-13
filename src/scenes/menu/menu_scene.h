@@ -72,6 +72,9 @@ struct AutomationParam {
 	[[nodiscard]] constexpr bool operator==(const AutomationParam&) const = default;
 };
 
+/// @brief The `SceneKind` this scene is registered under: `FirstApp` (`registry.h`).
+inline constexpr deluge::ui::shell::SceneKind kMenuSceneKind = deluge::ui::shell::SceneKind::FirstApp;
+
 /// @brief The menu interpreter. One instance for the whole application (`registry.h`'s
 ///        `menu_scene()`).
 class MenuScene final : public deluge::ui::shell::Scene {
@@ -99,6 +102,10 @@ public:
 	/// @param root The node to show. See the warning: `on_enter` decides the final one.
 	/// @param ctx  What the menu edits.
 	void open(const Node& root, const MenuContext& ctx);
+
+	/// @brief Forget what the menu was open on, for its host's teardown of every UI: the song may go next, and the
+	///        next `open()` installs a fresh context anyway.
+	void forget_context() { ctx_ = MenuContext{}; }
 
 	/// @brief Back to what a boot leaves: every submenu's remembered row forgotten (each legacy `Submenu` keeps its
 	///        `current_item_` for the life of the firmware, and this scene is as long-lived), the horizontal encoder's
@@ -328,8 +335,8 @@ public:
 	void unlearn();
 	/// @brief Does the focused item want the LEARN LED blinking? `MenuItem::shouldBlinkLearnLed`.
 	///
-	/// Read by `leds()`, which is the port of `SoundEditor::beginScreen`'s own tail
-	/// (`sound_editor.cpp:949-954`). Public because the LED is also legacy's own answer at `:488`,
+	/// Read by `leds()`, which is the port of `SoundEditor::beginScreen`'s own tail (`SoundEditor::updatePadLightsFor`,
+	/// reached from it). Public because the LED is also legacy's own answer in `SoundEditor::buttonAction`,
 	/// on the way *out* of learn mode -- **not** because it is the gate into it. See the second
 	/// `@warning` above: that gate is `allowsLearnMode()`, which this is not a synonym for.
 	bool wants_learn_blink() const;
@@ -393,10 +400,10 @@ public:
 	/// anything in. `gui::ui::dispatchShellActions` (`gui/ui/shell_action_dispatch.h`) polls this
 	/// after ticking the shell, and is where each verb's legacy statement lands.
 	///
-	/// @note **All seven of these actions are performed.** The consumer polls once per guest tick and
+	/// @note **Every one of these actions is performed.** The consumer polls once per guest tick and
 	///       has a body for each: `OpenPerformanceView`, `StartStemExport`, the three one-line verbs
-	///       (`SetClipLengthToSampleLength`, `OpenSongMidiLearn`, `OpenSongMacros`), `SetShortcutsVersion`
-	///       and `ScreensaverSettingsChanged`. What each
+	///       (`SetClipLengthToSampleLength`, `OpenSongMidiLearn`, `OpenSongMacros`) and the settings
+	///       writes from `ScreensaverSettingsChanged` on. What each
 	///       arm still owes is a named residue per arm, recorded at the arms themselves
 	///       (`gui/ui/shell_action_dispatch.h`) rather than here.
 	///
@@ -421,9 +428,9 @@ public:
 	///          "once each" is exactly the pair this paragraph needs to rule out, and it does not
 	///          rule it out.
 	///
-	///          What rules it out is which items exist. The only caller of `request_action` is
-	///          `nodes::set_shortcuts_version` (`menu/nodes/settings.cpp`), and its node is an
-	///          ordinary `Kind::Enum` leaf with no `select_chain` and no `CustomItem` under it --
+	///          What rules it out is which items exist. The callers of `request_action` are the
+	///          settings setters in `menu/nodes/settings.cpp`, and each one's node is an
+	///          ordinary leaf with no `select_chain` and no `CustomItem` under it --
 	///          so the `after_render` that commits its value has nothing to descend into, and
 	///          cannot also reach an `on_focus` that files. **That is a fact about today's tables,
 	///          not an invariant**: an item that filed from both routes in one tick would silently
@@ -441,6 +448,11 @@ public:
 	///        browser read a bank. `DxSyxBrowser`'s `enterSubmenu(&dxCartridge)` then cleared
 	///        `shouldGoUpOneLevelOnBegin`, so the page sits under "load DX7 .syx file", whose BACK reopens the browser.
 	void land_dx_cartridge() { land_dx_cartridge_ = true; }
+	/// @brief A folder import from the browser this menu opened made range @p index of the menu's source current, as
+	///        `SoundEditor::setCurrentMultiRange` does. The resume that brings the menu back applies it before its step
+	///        up, and the level the step lands on keeps or drops it, as main's does (`begin_submenu_range`). Dropped by
+	///        `open`.
+	void import_chose_range(int32_t index) { import_range_ = static_cast<int16_t>(index); }
 	/// @brief Shift + the keyboard's DX column pad for operator @p op with the menu open: `openForOpOrGlobal`. On the
 	///        parameter page it moves the param (`dx::column_param`'s toggle and carry); anywhere else the menu moves
 	///        to the page on the operator's param, as legacy's `setup()` re-roots, on its next tick. Either way the
@@ -462,9 +474,9 @@ public:
 	/// `CustomItem`, whose `on_focus`/`render` are handed `MenuState&` and write the field directly
 	/// (`nodes/actions.cpp`).
 	///
-	/// Its only caller today is `nodes::set_shortcuts_version` (`nodes/settings.cpp`), which files
-	/// `MenuAction::SetShortcutsVersion` beside its own mirror write -- see `scenes/menu/action.h`'s
-	/// "the sixth item" for why that item's write, rather than its press, is what crosses the wall.
+	/// Its callers are the settings setters in `nodes/settings.cpp` (`nodes::set_screensaver_mode` and its
+	/// siblings) -- see `scenes/menu/action.h`'s "settings writes" for why an item's write, rather than its press,
+	/// is what crosses the wall.
 	///
 	/// @par The timing, which is what makes this safe rather than merely convenient
 	///
@@ -543,6 +555,8 @@ public:
 	///
 	/// Arms the landing exactly as the menu's own Shift + pad does, so the `Replace` the caller files lands the
 	/// same way (`on_enter`). An item the context refuses raises "PARAMETER NOT APPLICABLE", as legacy's `setup`.
+	/// Unlike the menu's own Shift + pad, a non-param item is taken over the automation view too: main makes that
+	/// refusal only while its editor is the current UI.
 	/// @param x,y The pad.
 	/// @return The menu `SceneId` to replace with, or nothing: no item there, not this root's, or refused.
 	std::optional<deluge::ui::shell::SceneId> shortcut_jump(uint8_t x, uint8_t y);
@@ -603,9 +617,9 @@ private:
 	                                       const deluge::ui::shell::UiContext& ctx);
 	/// @brief The scene's context and state, for a unit's call.
 	MenuCore core() { return {ctx_, st_}; }
-	/// @brief The kit's own effects for a shortcut press on a kit's row, from the host
-	/// (`set_kit_global_shortcut_source`),
-	///        or `nullopt` off a kit row or while the host's latch is clear. The note editors and Settings take no
+	/// @brief The kit's own effects for a shortcut press on a kit's row root: the menu's own context when it was opened
+	///        on them, else the host's (`set_kit_global_shortcut_source`); `nullopt` off a kit row or while the host's
+	///        latch is clear. The note editors and Settings take no
 	///        shortcut press, as `SoundEditor::padAction` skips them.
 	std::optional<MenuContext> kit_global_shortcut_context() const;
 	/// @brief The root whose shortcut table and horizontal chain a press reads: the kit's own while
@@ -684,6 +698,8 @@ private:
 	bool landing_survives_resume_ = false;
 	/// The `.syx` browser over the menu read a bank: its resume lands on the cartridge page (`land_dx_cartridge`).
 	bool land_dx_cartridge_ = false;
+	/// `import_chose_range`'s range, until the next resume spends it; -1 for none.
+	int16_t import_range_ = -1;
 	/// `arm_refused_recorder_landing`'s node, until the next resume from a push spends it.
 	const Node* refused_recorder_landing_ = nullptr;
 	/// The kind of the scene the last `pending_scene` drain pushed, until the resume that follows it.
@@ -739,35 +755,34 @@ public:
 	///
 	/// They belong beside `read_value_again()` in spirit.
 	/// @{
-	/// @brief One level up the path -- `SoundEditor::goUpOneLevel` (`gui/ui/sound_editor.cpp`), for a
-	///        caller outside the scene.
+	/// @brief One level up the path -- `SoundEditor::goUpOneLevel`
+	///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), for a caller outside the scene.
 	///
 	/// For the note-mode handlers that call `soundEditor.goUpOneLevel()` themselves
 	/// (`gui/views/instrument_clip_view.cpp`'s `nudgeNotes`, and `SoundEditor::toggleNoteEditorParamMenu`'s
-	/// release arm). The step is `ascend()`, which is
-	/// already this scene's port of the loop at `:714-722` and of `beginScreen(oldItem)` at `:728`.
+	/// release arm). The step is `ascend()`, which is already this scene's port of `SoundEditor::goUpOneLevel`'s
+	/// permission loop and of its closing `beginScreen(oldItem)`.
 	///
 	/// @return **false where legacy exits completely instead**, having moved nothing in the first case:
-	///         the loop's `if (navigationDepth == 0) { exitCompletely(); return; }` (`:715-717`) fires
-	///         either on the first pass, at depth 0, or on a later pass, when the loop has stepped down to
-	///         depth 0 and `:720-722` refuses that level too. Closing the whole editor is the
+	///         the loop's `if (navigationDepth == 0) { exitCompletely(); return; }` fires either on the first
+	///         pass, at depth 0, or on a later pass, when the loop has stepped down to depth 0 and the permission
+	///         check refuses that level too. Closing the whole editor is the
 	///         application's act, not the scene's -- `gui::ui::closePortedMenu()` -- so the caller does it
 	///         on false. `ascend()` at depth 0 asks for the scene's own close instead, which these callers
 	///         do not want, so this takes that request back on false.
 	bool go_up_one_level();
 	/// @brief Push @p node one level below the focused node -- `SoundEditor::enterSubmenu`
-	///        (`gui/ui/sound_editor.cpp`), for a caller outside the scene.
+	///        (`origin/main:src/deluge/gui/ui/sound_editor.cpp`), for a caller outside the scene.
 	///
-	/// For `SoundEditor::toggleNoteEditorParamMenu`'s press arm
-	/// (`:1967-1969`). Legacy's body is `endScreen()`, `navigationDepth++`, the record write and
-	/// `beginScreen(navigatedBackwardFrom)` (`:364-368`), and `beginScreen` begins the item's session
-	/// without asking `checkPermissionToBeginSession` (`:957-976`) -- so this is `descend_to`, which
-	/// asks no permission either, and nothing more. **`menu_context()` is untouched**: unlike `open()`,
-	/// this never replaces `ctx_`.
+	/// For `SoundEditor::toggleNoteEditorParamMenu`'s press arm. Legacy's body is `endScreen()`, `navigationDepth++`,
+	/// the record write and `beginScreen(navigatedBackwardFrom)` (`SoundEditor::enterSubmenu`), and `beginScreen`
+	/// begins the item's session without asking `checkPermissionToBeginSession` (`SoundEditor::beginScreen`) -- so this
+	/// is `descend_to`, which asks no permission either, and nothing more. **`menu_context()` is untouched**: unlike
+	/// `open()`, this never replaces `ctx_`.
 	///
 	/// @note **A recorded divergence: the focus the entered page lands on.** Legacy's `beginScreen`
-	///       begins the entered item's session (`gui/ui/sound_editor.cpp:959`), and the toggle names no
-	///       item to navigate back from (`:1968`). For a `HorizontalMenu` that is
+	///       begins the entered item's session (`SoundEditor::beginScreen`), and the toggle names no
+	///       item to navigate back from (`SoundEditor::toggleNoteEditorParamMenu`). For a `HorizontalMenu` that is
 	///       `HorizontalMenu::beginSession` (`gui/menu_item/horizontal_menu.cpp:40-48`) ->
 	///       `Submenu::beginSession` (`gui/menu_item/submenu.cpp:11-19`) -> `focusChild(nullptr)`
 	///       (`:21-37`), which keeps the process-lifetime object's `current_item_`: a second toggle hold

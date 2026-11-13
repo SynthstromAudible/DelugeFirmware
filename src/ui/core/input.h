@@ -19,6 +19,14 @@ struct PadEvent {
 	bool pressed;
 }; // velocity 0 = release
 
+/// @brief One Select-encoder turn as the host handed it over: its detents, and when the board decoded them.
+struct TimedTurn {
+	int8_t detents = 0;
+	/// On `getSystemTime()`'s clock, in microseconds; 0 when the host gave no time, which times the turn on
+	/// `InputSnapshot::acceleration_clock_ms`.
+	uint64_t time_us = 0;
+};
+
 /// @brief Which pads are down *right now*, as a bitmask -- the level to `PadEvent`'s edge.
 ///
 /// A press and its release are separated by many ticks, so `Response::held` cannot be answered
@@ -93,6 +101,10 @@ struct InputSnapshot {
 	/// Is the Select button down? A level, like `shift`: legacy's `Buttons::isButtonPressed(SELECT_ENC)`, which a
 	/// value edit reads to use up the press it is turning under (`Value::selectEncoderAction`).
 	bool select_held = false;
+	/// This tick's Select detents as the turns they came in, oldest first; their detents add up to `turn`. What an
+	/// accelerated select edit reads, timing each turn on its own time, as `main`'s `HorizontalMenu` times each turn
+	/// its encoder task takes.
+	std::span<const TimedTurn> turns{};
 };
 
 } // namespace deluge::ui

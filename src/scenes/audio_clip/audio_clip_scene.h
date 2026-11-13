@@ -516,7 +516,7 @@ private:
 	/// @return What the shell should do.
 	deluge::ui::shell::Result pad_action(const deluge::ui::shell::UiEvent& event,
 	                                     const deluge::ui::shell::UiContext& ctx);
-	/// @brief `AudioClipView::horizontalEncoderAction` (`audio_clip_view.cpp:805-814`).
+	/// @brief `AudioClipView::horizontalEncoderAction` (`audio_clip_view.cpp`).
 	/// @param offset Signed detents.
 	/// @param ctx    The world around the turn.
 	/// @return What the shell should do.
@@ -635,7 +635,7 @@ private:
 	/// @brief The flash-cursor setting, from the host (`RuntimeFacts::flash_cursor`); the factory's Slow with none.
 	FlashCursor flash_cursor() const { return facts_ != nullptr ? facts_->flash_cursor() : FlashCursor::Slow; }
 
-	/// Legacy's `currentUIMode` (`gui/ui/ui.cpp:428`), restricted to the two values this scene sets.
+	/// Legacy's `currentUIMode` (`gui/ui/ui.cpp`), restricted to the two values this scene sets.
 	/// See the class docstring's `@par` on the UI modes.
 	uint32_t ui_mode_ = kUiModeNone;
 

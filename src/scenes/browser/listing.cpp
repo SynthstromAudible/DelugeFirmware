@@ -252,7 +252,7 @@ Error Listing::run_action(ListingResult& out) {
 		}
 
 		// `searchFileItems` reads the name comparator's globals, which `sortFileItems` has just
-		// pinned for this listing (`file_catalogue.cpp:396 sortFileItems`). When the catalogue came
+		// pinned for this listing (`file_catalogue.cpp`'s `FileCatalogue::sortFileItems`). When the catalogue came
 		// back empty the sort did not run, but the search then has nothing to compare against and
 		// returns 0 regardless -- which is why this file never touches `util/name_compare`'s flags.
 		out.file_index = FileCatalogue::searchFileItems(out.entered_text.c_str(), &out.found_exact);
@@ -297,15 +297,24 @@ Error Listing::list_current_dir(char const* filename_to_start_at) {
 	                                                    filename_to_start_at, request_.max_num_file_items, direction,
 	                                                    request_.interpret_note_names);
 
-	// The default-directory retry (`browser.cpp:293-300`), once, on legacy's condition. A missing directory comes back
-	// as FILE_NOT_FOUND, not FOLDER_DOESNT_EXIST, so like legacy's this retry does not fire for it. Legacy's third
-	// arm -- `mkdir` the default directory and try a third time (`:289`) -- is not ported: see listing.h.
+	// `readFileItemsFromFolderAndMemory`'s missing-folder arms, each taken once. A missing folder gives way to the
+	// default folder, read from its start; a missing default folder is created and read, empty, so the browser opens
+	// on it instead of failing. The create is a card write in the same op as the reads around it.
 	if (error == Error::FOLDER_DOESNT_EXIST && !request_.default_dir.empty()
 	    && !caseless_equals(FileCatalogue::currentDir, request_.default_dir)) {
 		FileCatalogue::currentDir = request_.default_dir;
 		error = FileCatalogue::readFileItemsForFolder(nullptr, request_.allow_folders, request_.allowed_extensions,
 		                                              nullptr, request_.max_num_file_items, CATALOG_SEARCH_RIGHT,
 		                                              request_.interpret_note_names);
+	}
+	if (error == Error::FOLDER_DOESNT_EXIST && !request_.default_dir.empty()
+	    && caseless_equals(FileCatalogue::currentDir, request_.default_dir)) {
+		error = FileCatalogue::makeFolder(request_.default_dir);
+		if (error == Error::NONE) {
+			error = FileCatalogue::readFileItemsForFolder(nullptr, request_.allow_folders, request_.allowed_extensions,
+			                                              nullptr, request_.max_num_file_items, CATALOG_SEARCH_RIGHT,
+			                                              request_.interpret_note_names);
+		}
 	}
 
 	if (error != Error::NONE) {

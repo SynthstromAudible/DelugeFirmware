@@ -15,7 +15,7 @@ What the checks cover (tests/integration/scenarios/audio_load_ab_scenario.cpp wr
             that stage's deferral counts. A post-swap collect that deferred ZERO times is itself the bug (a flushed
             path reports UNKNOWN and is asked for again; a stale one is READY on the first ask).
   AB-PREVIEW
-            a real CALLER, driven end to end: SampleBrowser previews one file ONCE and is then driven only by its
+            a real CALLER, driven end to end: the sample browser previews one file ONCE and is then driven only by its
             per-tick surface. It must defer at least once and eventually draw.
   AB-CANCEL a preview asked for and then abandoned before its load runs: nothing may load, draw or stay pending.
   AB-PREVIEW-STALL

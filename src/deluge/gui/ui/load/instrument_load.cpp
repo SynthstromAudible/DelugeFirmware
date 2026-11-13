@@ -35,6 +35,8 @@
 #include "util/functions.h"
 
 #include <algorithm>
+#include <optional>
+#include <utility>
 
 namespace deluge::gui {
 
@@ -64,6 +66,17 @@ bool isCreation(const InstrumentLoadRequest& request) {
 /// device definition.
 bool neverSuperseded(const InstrumentLoadRequest& request) {
 	return isCreation(request) || request.kind == Kind::Revert || request.kind == Kind::MidiDefinition;
+}
+
+/// Whether @p a and @p b are preset turns of one gesture on one output: the same consumer, clip and instrument.
+bool sameTurnTarget(const deluge::storage::PresetRequest& a, const deluge::storage::PresetRequest& b) {
+	return deluge::storage::isNavigateConsumer(a.consumer) && a.consumer == b.consumer && a.clip == b.clip
+	       && a.oldInstrument == b.oldInstrument;
+}
+
+/// Whether @p request is a preset turn on the output @p other (a turn queued, or in flight) was made on.
+bool turnsTheSameOutput(const InstrumentLoadRequest& request, const InstrumentLoadRequest& other) {
+	return request.kind == Kind::Acquire && other.kind == Kind::Acquire && sameTurnTarget(request.preset, other.preset);
 }
 
 /// Whether a request is a plain commit of the file @p active is already loading, and so promotes it.
@@ -99,6 +112,22 @@ LoadTicket InstrumentLoad::request(const InstrumentLoadRequest& request) {
 	}
 	InstrumentLoadRequest ticketed = request;
 	ticketed.generation = ticket.generation;
+	// Main's detents pile up only while `doPresetNavigation` runs for the same output; behind anything else (a new
+	// track, a change of type, another output's turn) its turn arrives on its own and moves one preset.
+	ticketed.preset.behindLoad =
+	    coalescer_.in_flight() && phase_ != Phase::Idle && turnsTheSameOutput(ticketed, active_);
+	if (const std::optional<InstrumentLoadRequest>& queued = coalescer_.queued();
+	    queued.has_value() && turnsTheSameOutput(ticketed, *queued)) {
+		// A turn made while the one before it waits behind a load moves on by both, as main's detents pile up in the
+		// encoder until `doPresetNavigation` takes them all: replacing the queued turn would lose its detents.
+		ticketed.preset.offset += queued->preset.offset;
+		ticketed.preset.behindLoad = queued->preset.behindLoad;
+		if (ticketed.preset.offset == 0) {
+			// Turned back to where the load in flight is going: that load is the one wanted.
+			coalescer_.clear_queued();
+			return ticket;
+		}
+	}
 	if (!coalescer_.request(ticketed)) {
 		// Queued: the load in flight is cancelled at its next phase boundary, unless it is a creation.
 		deluge::runtime::appLoop.request(jobId);
@@ -125,7 +154,7 @@ CancelResult InstrumentLoad::cancel(LoadTicket ticket) {
 		if (phase_ != Phase::Idle && !neverSuperseded(active_)) {
 			// The load in flight was to be dropped for this one at its next phase boundary, so it goes with it:
 			// cancelling the newest of a fast scroll leaves none of it loading.
-			originValid_ = false;
+			pileOrigin_.reset();
 			dropActive();
 		}
 		// A queued commit closed the gate as it was asked for; only a commit still in flight keeps it closed.
@@ -145,7 +174,7 @@ CancelResult InstrumentLoad::cancel(LoadTicket ticket) {
 		return CancelResult::Stale; // a newer request has replaced it, and drops it at its next phase boundary
 	}
 	// Where a navigate's walk landed is not where the clip is any more: the next navigate walks on from the clip.
-	originValid_ = false;
+	pileOrigin_.reset();
 	cancellations_++;
 	dropActive();
 	return CancelResult::Cancelled;
@@ -247,6 +276,11 @@ void InstrumentLoad::start(const InstrumentLoadRequest& request) {
 	                                                  : Phase::Decide;
 }
 
+bool InstrumentLoad::pileQueued() const {
+	const std::optional<InstrumentLoadRequest>& queued = coalescer_.queued();
+	return queued.has_value() && queued->preset.behindLoad && turnsTheSameOutput(*queued, active_);
+}
+
 bool InstrumentLoad::supersede() {
 	const bool commit = active_.commit;
 	abandon();
@@ -261,8 +295,13 @@ bool InstrumentLoad::supersede() {
 bool InstrumentLoad::step() {
 	// A newer request cancels this one at a phase boundary. The swap runs in one pass, so it never is one; a walk's is
 	// once it has landed (stepWalk()).
-	if ((phase_ == Phase::Stage || phase_ == Phase::Samples) && coalescer_.queued().has_value()
-	    && !neverSuperseded(active_)) {
+	// Main's `doPresetNavigation` reads the landed preset's document before it takes the detents that piled up behind
+	// it, so a turn queued behind a navigate of its own output waits out the document: one that fails to load ends the
+	// navigation with its error, and the detents arrive as a turn of their own.
+	const std::optional<InstrumentLoadRequest>& queued = coalescer_.queued();
+	const bool pileWaitsForDocument = phase_ == Phase::Stage && pileQueued();
+	if ((phase_ == Phase::Stage || phase_ == Phase::Samples) && queued.has_value() && !neverSuperseded(active_)
+	    && !pileWaitsForDocument) {
 		return supersede();
 	}
 	switch (phase_) {
@@ -302,19 +341,18 @@ bool InstrumentLoad::stepWalk() {
 	if (!walkStarted_) {
 		if (!walkBegun_) {
 			walkBegun_ = true;
+			// Whatever this request is, the landing before it is only ever moved on from by it.
+			std::optional<deluge::storage::NavigationPile> landing = std::exchange(pileOrigin_, std::nullopt);
 			// The gesture's card-free prologue, as the request starts: a request superseded while queued never runs it.
 			if (!loadInstrumentPresetUI.beginAcquisition(active_.preset, &walk_)) {
 				return finish(Error::NONE, false);
 			}
-			if (walk_.walk == deluge::storage::AcquireWalk::Navigate) {
-				if (originValid_) {
-					// A navigate superseding a navigate walks on from where that one's walk landed.
-					walk_.name = originName_;
-					walk_.dirPath = originDir_;
-				}
-			}
-			else {
-				originValid_ = false;
+			if (walk_.walk == deluge::storage::AcquireWalk::Navigate && active_.preset.behindLoad) {
+				// Main's `doPresetNavigation` moves one preset on whatever the turn, then by every detent that piled up
+				// while it read and loaded: the detents of a turn made behind one of the same output, moved from where
+				// that one landed. With no landing (that turn failed, or was cancelled) they are a turn of their own,
+				// from the clip's own instrument.
+				walk_.pile = std::move(landing);
 			}
 			// Counted for song-preview-ab: an acquisition that runs, not one coalesced away.
 			LoadInstrumentPresetUI::presetAcquisitionsRun_++;
@@ -331,10 +369,13 @@ bool InstrumentLoad::stepWalk() {
 
 	// The walk has landed.
 	const bool navigate = walk_.walk == deluge::storage::AcquireWalk::Navigate;
-	if (navigate && walked_.error == Error::NONE) {
-		originValid_ = true;
-		originName_ = walked_.name;
-		originDir_ = walked_.dirPath;
+	if (navigate && walked_.error != Error::NONE) {
+		// Main's `doPresetNavigation` returns the error, which is shown, before the detents that piled up meanwhile
+		// arrive as a turn of their own: a turn queued behind this one starts after it, from the clip's own instrument.
+		return finish(walked_.error);
+	}
+	if (navigate) {
+		pileOrigin_ = navigation_.landing();
 		echoNavigation();
 	}
 	if (coalescer_.queued().has_value() && !neverSuperseded(active_)) {
@@ -601,6 +642,11 @@ bool InstrumentLoad::stepParse() {
 	}
 	else {
 		if (acquire) {
+			// Main's `doPresetNavigation` takes the detents that piled up once the document is read, before
+			// `loadAllAudioFiles`: the preset turned past never loads its samples.
+			if (pileQueued()) {
+				return supersede();
+			}
 			acquired_.instrument = newInstrument_;
 			acquired_.loadedFromFile = true;
 		}
@@ -708,13 +754,15 @@ bool InstrumentLoad::finish(Error error, bool deliver) {
 	abandon();
 	phase_ = Phase::Idle;
 	std::optional<InstrumentLoadRequest> next = coalescer_.complete();
+	if (error != Error::NONE || !next.has_value()) {
+		// Main's `doPresetNavigation` returns the error, after which the detents that piled up arrive as a turn of
+		// their own; or it returns with none pending, and a later turn is a new navigation.
+		pileOrigin_.reset();
+	}
 	if (commit) {
 		openGate();
 	}
 	if (acquire && deliver) {
-		if (walk_.walk == deluge::storage::AcquireWalk::Navigate) {
-			originValid_ = false; // the song's Instrument is where the walk landed now
-		}
 		loadInstrumentPresetUI.deliverAcquisition(preset, acquired);
 	}
 	else if (completion != nullptr) {

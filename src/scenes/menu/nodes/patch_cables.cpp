@@ -200,7 +200,8 @@ std::string_view destination_short_name(const MenuContext& ctx, int32_t p) {
 
 /// @brief `((int64_t)paramValue * kMaxMenuPatchCableValue + (1 << 29)) >> 30` -- the stored-to-menu
 ///        rescale `PatchCableStrength::readCurrentValue` and `PatchCables::renderOptions` share
-///        (`patch_cable_strength.cpp:200-204`, `patch_cables.cpp:74-75`).
+///        (`patch_cable_strength.cpp:200-204`, `origin/main:src/deluge/gui/menu_item/patch_cables.cpp`
+///        `PatchCables::renderOptions`).
 int32_t cable_value_to_menu(int32_t param_value) {
 	return static_cast<int32_t>((static_cast<int64_t>(param_value) * kMaxMenuPatchCableValue + (1 << 29)) >> 30);
 }
@@ -312,13 +313,12 @@ int32_t ducking_strength(const MenuContext& ctx) {
 // PatchCablesItem -- `menu_item::PatchCables`.
 
 void PatchCablesItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
-	// `PatchCables::beginSession` (`patch_cables.cpp:16-26`): the cursor starts at 0 on a forward
-	// entry and is restored from `savedVal` on the way back. The port needs no `savedVal`: coming
-	// *back* from a chained page runs `MenuScene::ascend`, which does not call `on_focus` at all, so
-	// `list[depth]` still holds the cursor the user left. This hook is therefore the forward-entry
-	// arm alone, and `on_focus_backward` (the port of the `savedVal` restore) is left on
-	// its do-nothing default -- deliberately, not by omission: `list[depth]` already holding the
-	// value `savedVal` would restore is exactly what makes the default correct here, unlike
+	// `PatchCables::beginSession` (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`): the cursor starts at 0 on
+	// a forward entry and is restored from `savedVal` on the way back. The port needs no `savedVal`: coming *back* from
+	// a chained page runs `MenuScene::ascend`, which does not call `on_focus` at all, so `list[depth]` still holds the
+	// cursor the user left. This hook is therefore the forward-entry arm alone, and `on_focus_backward` (the port of
+	// the `savedVal` restore) is left on its do-nothing default -- deliberately, not by omission: `list[depth]` already
+	// holding the value `savedVal` would restore is exactly what makes the default correct here, unlike
 	// `GateSelectionItem`'s (`nodes/dynamic.cpp`), which needs the hook because its own cursor is
 	// not what legacy restores.
 	state.list[depth_of(state)] = deluge::ui::ListState{};
@@ -337,10 +337,10 @@ void PatchCablesItem::on_reread(const MenuContext& ctx, MenuState& state) const 
 void PatchCablesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	draw_title_for(f, state);
 
-	// `PatchCables::renderOptions` (`patch_cables.cpp:42-89`). Legacy keeps its row buffers in
-	// SDRAM BSS because its `options` vector holds views into them across frames; this port rebuilds
-	// them every frame in the render frame's own stack, which is what an immediate-mode widget wants
-	// and costs 32 x 32 bytes.
+	// `PatchCables::renderOptions` (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`). Legacy keeps its row
+	// buffers in SDRAM BSS because its `options` vector holds views into them across frames; this port rebuilds them
+	// every frame in the render frame's own stack, which is what an immediate-mode widget wants and costs 32 x 32
+	// bytes.
 	constexpr size_t kRowChars = 32;
 	static_assert(kMaxNumPatchCables <= 64, "the row buffer below is sized for legacy's 32 cables");
 	char bufs[kMaxNumPatchCables][kRowChars];
@@ -541,7 +541,7 @@ deluge::synth::CableTarget PatchCableStrengthItem::learn_descriptor(const MenuCo
 }
 
 void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) const {
-	// `PatchCables::selectButtonPress`'s own assignments (`patch_cables.cpp:177-189`):
+	// `PatchCables::selectButtonPress`'s own assignments (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`):
 	// `soundEditor.patchingParamSelected = dest`, `source_selection::regularMenu.s = cable->from`,
 	// and for a cable whose destination is itself a cable, `rangeMenu.s = cable->from` with
 	// `regularMenu.s` taking the top-level source instead. A `SelectChainFn` is handed a
@@ -811,9 +811,9 @@ const Node* patch_cable_strength_chain(const MenuContext& /*ctx*/, const MenuSta
 }
 
 const Node* patch_cables_chain(const MenuContext& ctx, const MenuState& state) {
-	// `PatchCables::selectButtonPress` (`patch_cables.cpp:164-190`). The cable the cursor is on
-	// decides: a cable whose destination is a bare param opens the regular strength page, one whose
-	// destination is itself a cable opens the range strength page.
+	// `PatchCables::selectButtonPress` (`origin/main:src/deluge/gui/menu_item/patch_cables.cpp`). The cable the cursor
+	// is on decides: a cable whose destination is a bare param opens the regular strength page, one whose destination
+	// is itself a cable opens the range strength page.
 	const deluge::scenes::bind::CableList cables = cables_of(ctx);
 	const int32_t cursor = state.list[state.depth < kMenuDepth ? state.depth : 0].cursor;
 	if (cursor < 0 || static_cast<size_t>(cursor) >= cables.size()) {

@@ -54,6 +54,7 @@ void runAccept() {
 	}
 
 	actionLogger.deleteAllLogs();
+	playbackHandler.dropHeldNextSong();
 
 	nullifyUIs();
 	if (!playbackHandler.isEitherClockActive()) {

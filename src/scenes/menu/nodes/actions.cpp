@@ -31,6 +31,7 @@
 #include "ui/oled/values.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <string_view>
 
@@ -39,7 +40,7 @@ namespace deluge::scenes::menu {
 namespace {
 /// @brief The mirror `action.h` documents. Seeded to legacy's own start-of-day state:
 ///        `PerformanceView::defaultEditingMode` starts `false` in its constructor
-///        (`gui/views/performance_view.cpp:239`) and `focusRegained` never touches it, which
+///        (`PerformanceView::PerformanceView`) and `focusRegained` never touches it, which
 ///        `EditingMode::readCurrentValue` maps to
 ///        `DISABLED` (`performance_session_view/editing_mode.h:36-38`).
 PerformanceEditingMode g_perform_mode = PerformanceEditingMode::DISABLED;
@@ -127,19 +128,22 @@ void PerformEditorItem::on_reread(const MenuContext& /*ctx*/, MenuState& state) 
 	state.list[depth_of(state)].cursor = static_cast<int16_t>(performance_editing_mode());
 }
 
-void PerformEditorItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
-	draw_title_for(f, state);
-
-	// `EditingMode::getOptions` (`editing_mode.h:99-107`), in its own order -- the order IS the
-	// `PerformanceEditingMode` numbering, which is what makes the cursor the value.
+std::array<std::string_view, 3> PerformEditorItem::option_names() {
 	static_assert(static_cast<int32_t>(PerformanceEditingMode::DISABLED) == 0);
 	static_assert(static_cast<int32_t>(PerformanceEditingMode::VALUE) == 1);
 	static_assert(static_cast<int32_t>(PerformanceEditingMode::PARAM) == 2);
-	const std::string_view names[] = {
-	    deluge::scenes::text_lookup(sid(String::STRING_FOR_DISABLED)),
-	    deluge::scenes::text_lookup(sid(String::STRING_FOR_PERFORM_EDIT_VALUE)),
-	    deluge::scenes::text_lookup(sid(String::STRING_FOR_PERFORM_EDIT_PARAM)),
+	static_assert(std::size(kPerformEditingModeNames) == 3);
+	return {
+	    deluge::scenes::text_lookup(kPerformEditingModeNames[0]),
+	    deluge::scenes::text_lookup(kPerformEditingModeNames[1]),
+	    deluge::scenes::text_lookup(kPerformEditingModeNames[2]),
 	};
+}
+
+void PerformEditorItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
+	draw_title_for(f, state);
+
+	const std::array<std::string_view, 3> names = option_names();
 
 	const size_t d = depth_of(state);
 	int32_t index = state.list[d].cursor;

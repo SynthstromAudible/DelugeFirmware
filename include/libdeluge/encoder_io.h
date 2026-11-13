@@ -45,6 +45,25 @@ extern "C" {
 /// [task] [isr]
 int8_t deluge_encoder_take_quadrature_edges(uint8_t encoder) DELUGE_NOEXCEPT;
 
+/// One run of quadrature edges and when the board decoded it.
+typedef struct DelugeEncoderEdges {
+	uint64_t time_us; ///< When the run was decoded: getSystemTime()'s clock, in microseconds.
+	int8_t edges;     ///< The signed edge count, as deluge_encoder_take_quadrature_edges() counts them.
+} DelugeEncoderEdges;
+
+/// How many runs deluge_encoder_take_timed_quadrature_edges() can write: the runs the board keeps per encoder,
+/// plus one for edges it holds without a time.
+#define DELUGE_ENCODER_EDGE_RUNS 17
+
+/// Take `encoder`'s edges as the runs the board decoded them in, oldest first, each with its own time, into
+/// `out` (`capacity` slots); returns how many slots were written. An application that acts on the edges later
+/// than they came, in batches, can still time each one, as an encoder's acceleration needs. When `capacity` is
+/// short, the later runs fold into the last slot. Takes the edges deluge_encoder_take_quadrature_edges() would
+/// have: use one or the other for an encoder.
+/// [task]
+uint8_t deluge_encoder_take_timed_quadrature_edges(uint8_t encoder, DelugeEncoderEdges* out,
+                                                   uint8_t capacity) DELUGE_NOEXCEPT;
+
 #ifdef __cplusplus
 }
 #endif

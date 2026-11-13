@@ -62,32 +62,33 @@
 ///
 /// @par What this scene is NOT
 ///
-/// `AudioRecorder` the object is also the **output recorder**: `beginOutputRecording` (`:143`) is
-/// called by `playbackHandler` and `StemExport` for resampling and stem export, `slowRoutine`
-/// (`:168`) reaps that recording, and `isCurrentlyResampling` (`:282`) is read from eight places.
-/// **None of that is a UI**, none of it is opened from a menu item, and all of it stays on the
-/// legacy `audioRecorder` object. This scene ports only the menu-driven mic/line capture:
-/// `opened()`, `process()`, `renderOLED`, `buttonAction`, `endRecordingSoon`, `finishRecording` and
+/// The **output recording** -- resampling and stem export, started from `Buttons::buttonAction`,
+/// `StemExport` and the views -- is the engine's foreground recording (`deluge::recording`,
+/// `processing/recording/foreground_recording.h`): `beginOutputRecording` starts it,
+/// `slowRoutine` reaps it, and `isCurrentlyResampling` is read from several places. **None of that
+/// is a UI**, none of it is opened from a menu item, and this scene does not touch it. This scene
+/// ports only the menu-driven mic/line capture: `AudioRecorder`'s `opened()`, `process()`,
+/// `renderOLED`, `buttonAction`, `endRecordingSoon`, `finishRecording` and
 /// `getGreyoutColsAndRows`.
 ///
-/// @par `recordingSource` is not bookkeeping, and this scene publishes it
+/// @par The foreground recording is not bookkeeping, and this scene publishes it
 ///
-/// `AudioRecorder::recordingSource` and `::recorder` (`audio_recorder.h`) are read by **nine
-/// subsystems** as "a foreground recording is live". Most consequentially
-/// `AudioEngine::setMonitoringMode` (`audio_engine.cpp`) enables input monitoring only
-/// when `recordingSource` is `STEREO` or `LEFT` -- exactly the two values `opened()` sets -- and
-/// derives `monitoringAction` (differential / no-right-channel) from the recorder pointer. The
-/// other eight are `hid/buttons.cpp:147,180` (shift+RECORD must not start an *output* recording on
-/// top of a live mic one), `processing/stem_export/stem_export.cpp:195,412,460,594,716`,
-/// `playback/playback_handler.cpp` (the RECORD LED), `playback/mode/arrangement.cpp:329`,
-/// `gui/ui/keyboard/keyboard_screen.cpp:305`, `gui/views/instrument_clip_view.cpp:356,5535` and
-/// `gui/ui/browser/sample_browser.cpp`.
+/// The foreground recording's channel and recorder (`AudioEngine::foregroundRecordingSource()`,
+/// `AudioEngine::foregroundRecorder()`) are read by **many subsystems** as "a foreground recording
+/// is live". Most consequentially `AudioEngine::setMonitoringMode` (`audio_engine.cpp`) enables
+/// input monitoring only when the channel is `STEREO` or `LEFT` -- exactly the two values
+/// `opened()` sets -- and derives `monitoringAction` (differential / no-right-channel) from the
+/// recorder pointer. The others are `Buttons::buttonAction` (shift+RECORD must not start an
+/// *output* recording on top of a live mic one), `StemExport`, `PlaybackHandler::setLedStates`
+/// (the RECORD LED), the arrangement's tick, the keyboard screen, the instrument clip view's
+/// RECORD and audition arms and the sample browser's RECORD arm.
 ///
-/// This layer may not name `audioRecorder` (`check_layer_rules.py`, `scenes-no-root-ui`), so both
-/// directions go through `AudioEngine::setForegroundRecording` /
+/// Both directions go through `AudioEngine::setForegroundRecording` /
 /// `AudioEngine::foregroundRecordingSource` (`processing/engines/audio_engine.h`) -- **the same
-/// storage, not a proxy for it**. `setup_recording` publishes, `finish_recording` and `on_exit`
-/// clear, and `can()` reads it for legacy's own `recordingSource > NONE` refusal (`:69-71`).
+/// storage every other writer and reader uses**. `setup_recording` publishes and `finish_recording`
+/// clears; `on_exit` and `taken_down` hand a take still running to `deluge::recording::orphanInputTake`, which
+/// clears once the recorder has settled; and `can()` reads it for legacy's own "already recording"
+/// refusal in `AudioRecorder::opened`.
 ///
 /// The first version of this scene did none of that: it guessed at legacy's refusal with
 /// `AudioEngine::isAnyInternalRecordingHappening()` (which does not see an external recording at
@@ -99,16 +100,15 @@
 /// `recorder_ != nullptr` remains as a second, scene-local test in `on_enter`: it is the same fact
 /// once the publication exists, kept because it is the one this scene can assert about *itself*.
 ///
+/// @par SYNC_SCALING
+///
+/// A SYNC_SCALING release with fill mode on goes to the root view (`recorderPassesFillRelease`), as main's
+/// `AudioRecorder::buttonAction` sends it; the scene itself does not name a root UI.
+///
 /// @par What is deliberately not ported
 ///
-///   * **`PadLEDs::clearTickSquares(true)`** (`:90`). Tick squares are a `PadLEDs` facility with no
-///     shell equivalent yet -- the same gap `MarkerScene` records for the playhead.
 ///   * **`instrumentClipView.cancelAllAuditioning()`** (`:109-111`), a root-UI call this layer may
 ///     not make (`scenes-no-root-ui`).
-///   * **`buttonAction`'s `SYNC_SCALING` release arm** (`:259-262`), which forwards to
-///     `getRootUI()` so a held fill mode can be turned off. The scene simply does not handle the
-///     event, and the shell routes it to the scene beneath -- which is the same outcome without
-///     naming a root UI.
 ///   * **`checkPermissionToBeginSession`'s FM refusal** (`osc/audio_recorder.h:65-74`). It is
 ///     unreachable from the menu: `isRelevant` and the ported `relevance::is_subtractive` on
 ///     `nodes::sample0_recorder` hide the item in FM mode in the first place, so the popup only
@@ -144,6 +144,7 @@
 ///          scene's to file. `LockInput` would *drop* those presses instead, and could not be
 ///          released from `on_exit()`.
 
+#include "scenes/bind/runtime_facts.h"
 #include "scenes/menu/context.h"
 #include "shell/scene.h"
 #include "ui/grid/effects.h"
@@ -227,6 +228,10 @@ public:
 	bool on_enter(const deluge::ui::shell::SceneId& id) override;
 	void on_exit() override;
 	std::optional<uint32_t> next_timer() const override;
+	/// @brief Every UI is being taken down with this scene up: end a running take as `on_exit` does, but post no
+	///        `ClearWorking`. The host disarms the shell's working animation itself (`Notices::disarm_working`), and
+	///        whatever animation the legacy display shows is the taker-down's own.
+	void taken_down();
 
 	/// @brief `AudioRecorder::getGreyoutColsAndRows`: every column of the grid, sidebar included, greyed.
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0xFFFFFFFFu, 0}; }
@@ -250,7 +255,7 @@ public:
 	/// @return Is this a threshold take -- the song's threshold mode was on as the take was armed? Legacy's
 	///         `isThresholdRecording`: the recorder keeps the threshold it was given after the input has passed it.
 	bool threshold_take() const;
-	/// @return Has a stop been asked for -- legacy's `endRecordingSoon` having run (`:159-166`)?
+	/// @return Has a stop been asked for -- `deluge::recording::endRecordingSoon` having run?
 	bool stopping() const { return stopping_; }
 	/// @return The armed recorder, or null. A spec drives the state machine through it, exactly as
 	///         the audio engine does on the device.
@@ -258,26 +263,31 @@ public:
 	/// @}
 
 private:
-	/// @brief `AudioRecorder::setupRecordingToFile` (`:121-141`), minus the `recordingSource`
-	///        member -- `recorder_ != nullptr` is the same fact.
+	/// @brief `deluge::recording`'s `setupRecordingToFile`, minus the published channel as the
+	///        scene's own test -- `recorder_ != nullptr` is the same fact.
 	/// @return False when no recorder could be allocated (legacy's `INSUFFICIENT_RAM` arm).
 	bool setup_recording();
 	/// @brief `AudioRecorder::getThresholdMeterState`, for a panel @p width wide.
 	deluge::ui::oled::ThresholdMeter meter_state(int32_t width) const;
-	/// @brief `AudioRecorder::endRecordingSoon` (`:159-166`).
+	/// @brief `deluge::recording::endRecordingSoon`.
 	void end_recording_soon();
-	/// @brief `AudioRecorder::finishRecording` (`:245-253`).
+	/// @brief `deluge::recording`'s `finishRecording`.
 	void finish_recording();
+	/// @brief End a running take with its screen gone: its file stays on the card, attached to nothing
+	///        (`deluge::recording::orphanInputTake`). Forgets the target and the stop either way.
+	void orphan_take();
 	/// @brief `opened()`'s kit arm (`:74-88`): name the drum being recorded into "REC".
 	/// @return False on the error legacy shows and refuses on.
 	bool name_drum();
 	/// @brief `process()`'s success arm (`:212-218`): hand the finished sample to the source.
 	void attach_sample();
+	/// @brief `opened()`'s `target_`: what the take is for, each part by its identity.
+	bind::TakeTarget take_target() const;
 
 	menu::MenuContext ctx_{};
 
-	/// The armed recorder. Legacy's `AudioRecorder::recorder` (`audio_recorder.h:42`), except that
-	/// this one is not shared with the output-recording path -- see the class docstring.
+	/// The armed recorder, as published to `AudioEngine::foregroundRecorder()` while the take runs --
+	/// see the class docstring.
 	SampleRecorder* recorder_ = nullptr;
 
 	/// Legacy has no member for this: `endRecordingSoon` is idempotent by testing
@@ -289,6 +299,8 @@ private:
 	bool blink_restart_ = false;
 	/// Whether the last `on_enter` refused; see `last_enter_refused`.
 	bool last_enter_refused_ = false;
+	/// What the take is for: it attaches there or nowhere (`RuntimeFacts::take_range`).
+	bind::TakeTarget target_{};
 	/// When the shortcut blink's counter started: the take's first grid pass.
 	std::optional<uint32_t> blink_anchor_ms_{};
 	/// The counter step last fired, so two repaints inside one step flash once.

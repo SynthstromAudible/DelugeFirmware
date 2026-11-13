@@ -30,7 +30,7 @@
 /// @par Acceleration
 ///
 /// The turn's acceleration is `InputLowering::calc_next_knob_speed`: legacy's `EncoderAcceleration`, one ramp per gold
-/// knob as legacy keeps one per `ContinuousEncoder` (`hid/encoders.h:77`). Legacy's clock is sub-millisecond; the
+/// knob as legacy keeps one per `ContinuousEncoder` (`hid/encoders.h`). Legacy's clock is sub-millisecond; the
 /// port's is whole milliseconds.
 ///
 /// @par Not this service's
@@ -40,11 +40,10 @@
 ///
 /// @note **Not inert before it is bound.** `leds()` drives the eight mod LEDs every frame and, with no bound
 ///       owner, clears both gold knobs' indicator levels to 0 (`declare_indicators`). Installing the service takes
-///       those LEDs from legacy whether or not a `ModTarget` is set. `pretend_knobs_untouched()` also reaches shared
-///       `InputLowering` state outside the router: it backdates the turn time the gold-knob wiggle debounce reads.
+///       those LEDs from legacy whether or not a `ModTarget` is set.
 ///
 /// @warning **No wall clock.** `Service::tick(now_ms, dt_ms)` is the only place a clock arrives; the `set_*` entry
-///          points backdate against the last `now_ms` the service was ticked with (`pretend_knobs_untouched()`).
+///          points use the last `now_ms` the service was ticked with.
 
 #include "effects/state.h"
 #include "scenes/bind/knob_focus.h"
@@ -77,7 +76,7 @@ namespace deluge::scenes::services {
 /// @brief The two gold knobs: what they point at, what turning, pushing and their mod buttons do, and how fast.
 class ModKnobs final : public deluge::ui::shell::Service {
 public:
-	/// @brief How many gold knobs there are (`mod0`/`mod1`, `hid/encoders.h:81-82`).
+	/// @brief How many gold knobs there are (`hid/encoders.h`'s `mod0`/`mod1`).
 	static constexpr int32_t kKnobCount = 2;
 
 	/// @param popup    The value popup this service shows through.
@@ -166,9 +165,6 @@ public:
 	/// @brief Is the VU meter shown? (the focus's, which View keeps too), which pressing the selected mod button 0
 	///        outside a clip minder toggles; its one effect here is the blinking volume mod LED.
 	bool display_vu_meter() const { return focus_->vu_meter; }
-
-	/// @brief Backdate both knobs' "last turned" clocks -- `View::pretendModKnobsUntouchedForAWhile`.
-	void pretend_knobs_untouched();
 
 	/// @brief A param was automated -- `View::notifyParamAutomationOccurred`: arms the
 	///        automation display and the MIDI-follow feedback deadlines when it is the knobs' owner's.

@@ -42,8 +42,8 @@ using deluge::scenes::slicing::PreviewRequest;
 using deluge::scenes::slicing::SliceCommit;
 using deluge::scenes::slicing::slicer_scene;
 
-/// @brief `SlicerScene`'s host: every call resolves `soundEditor` to what the ported menu edits, then does what the
-///        legacy `Slicer` does through the same `SliceCore`.
+/// @brief `SlicerScene`'s host: every call names the sound the ported menu edits (`shellMenuTarget`), then does what
+///        the legacy `Slicer` does through the same `SliceCore`.
 class HostSliceOps final : public deluge::scenes::slicing::SliceOps {
 public:
 	/// The preview's sound stops, as `AudioEngine::stopAnyPreviewing`'s does; its holder stays bound, because it is
@@ -51,24 +51,22 @@ public:
 	void stop_previewing() override { AudioEngine::sampleForPreview->killAllVoices(); }
 	void kill_voices() override { core_.kill_voices(); }
 	void audition(const PreviewRequest& req) override {
-		if (sample_ == nullptr) {
+		if (sample_ == nullptr || !retargetToMenu()) {
 			return;
 		}
-		adoptShellMenuContext();
 		core_.audition(*sample_, SliceCore::AuditionTarget{.startPoint = req.start_point,
 		                                                   .endPoint = req.end_point,
 		                                                   .transpose = req.transpose,
 		                                                   .on = req.on});
 	}
 	void cancel_audition() override { core_.cancel_audition(); }
-	/// The position `poll` read this tick: the scene asks while it renders, which must not move `soundEditor`.
+	/// The position `poll` read this tick: the scene asks while it renders, which walks no voices.
 	std::optional<int32_t> play_position() override { return play_position_; }
 	void restore_full_range() override { (void)core_.restore_full_range(); }
 	bool begin_commit(const SliceCommit& commit) override {
-		if (core_.slicing() || path_.empty()) {
+		if (core_.slicing() || path_.empty() || !retargetToMenu()) {
 			return false;
 		}
-		adoptShellMenuContext();
 		SliceCore::Target target{};
 		target.isManual = commit.is_manual;
 		target.sliceCount = commit.slice_count;
@@ -81,10 +79,22 @@ public:
 		return true;
 	}
 
-	/// @brief Start loading @p path into the preview's drum, for the slicer to open on.
+	/// @brief Open the slicer on @p path: at once, with the preview left sounding, when the preview's drum already
+	/// holds
+	///        that file (main's `openUI(&slicer)` stops nothing); else start loading it into the preview's drum.
 	void open(std::string_view path) {
 		path_ = std::string{path};
 		sample_ = nullptr;
+		if (const auto* held = heldPreview(); held != nullptr && held->sampleHolder.filePath == path_) {
+			if (auto* sample = static_cast<Sample*>(held->sampleHolder.audioFile); sample != nullptr) {
+				// An earlier open still loading would land over this one.
+				open_load_.cancel();
+				sample_ = sample;
+				slicer_scene().open(sample, deluge::scenes::browser::browser_scene().shown_waveform(sample));
+				deluge::scenes::browser::browser_scene().slice_ready(true);
+				return;
+			}
+		}
 		AudioEngine::stopAnyPreviewing(); // also unbinds the preview's holder, so the load looks the path up
 		MultisampleRange* range =
 		    static_cast<MultisampleRange*>(AudioEngine::sampleForPreview->sources[0].getOrCreateFirstRange());
@@ -108,9 +118,9 @@ public:
 			play_position_.reset();
 			return;
 		}
-		// The audition and the slice act on what the ported menu edits, and another UI may have moved `soundEditor`
-		// since they were asked for.
-		adoptShellMenuContext();
+		// The audition and the slice act on what the ported menu edits now; one that names no sound leaves them on
+		// the one they began on.
+		(void)retargetToMenu();
 		poll_open();
 		core_.tick_audition();
 		if (const std::optional<SliceCore::SliceEnd> end = core_.tick_slice()) {
@@ -127,12 +137,13 @@ public:
 		play_position_ = sample_ != nullptr ? core_.play_position() : std::nullopt;
 	}
 
-	/// @brief Drop what the guest's close leaves behind: a pending open and a held audition, which would otherwise
-	///        land in whatever the next guest edits. A slice that is out cannot be dropped; the close is refused
-	///        while one is (`slicing`).
+	/// @brief Drop what the guest's close leaves behind: a pending open, the sample the slicer was open on and a held
+	///        audition, which would otherwise land in whatever the next guest edits. A slice that is out cannot be
+	///        dropped; the close is refused while one is (`slicing`).
 	void release() {
 		open_load_.cancel();
 		core_.cancel_audition();
+		sample_ = nullptr;
 		play_position_.reset();
 	}
 
@@ -140,6 +151,28 @@ public:
 	[[nodiscard]] bool busy() const { return open_load_.pending() || core_.slicing() || core_.audition_pending(); }
 
 private:
+	/// @brief Aim the slice at the sound the ported menu edits; false, aiming at nothing, when the menu names no sound
+	///        with a source and range (its context forgotten by a teardown), so a commit or an audition is refused.
+	bool retargetToMenu() {
+		const deluge::gui::SoundTarget target = shellMenuTarget();
+		if (target.sound == nullptr || target.source == nullptr || target.range == nullptr) {
+			return false;
+		}
+		core_.retarget(target);
+		return true;
+	}
+
+	/// @brief The preview drum's range while it holds a sample file, else null.
+	static const MultisampleRange* heldPreview() {
+		Source& source = AudioEngine::sampleForPreview->sources[0];
+		if (source.ranges.empty()) {
+			return nullptr;
+		}
+		const auto* range = static_cast<const MultisampleRange*>(source.ranges.getElement(0));
+		const AudioFile* file = range->sampleHolder.audioFile;
+		return file != nullptr && file->type == AudioFileType::SAMPLE ? range : nullptr;
+	}
+
 	void poll_open() {
 		using Result = deluge::storage::LatestSampleLoad<uint32_t>::Result;
 		using Reason = deluge::storage::AsyncSampleLoad::Reason;

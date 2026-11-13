@@ -1,0 +1,18 @@
+# Reference answers of upstream main's menu, one row per answer: path, column, values (tab-separated).
+# A row changes only to follow main's source (git show origin/main:<path>); tests/golden/README.md says how.
+sample/subtractive+sample+loaded/0	rel	1	1	1
+sample/subtractive+sample+loaded/1	rel	1	1	1
+sample/subtractive+sample+empty/0	rel	1	0	0
+sample/subtractive+sample+empty/1	rel	1	0	0
+sample/subtractive+wavetable+loaded/0	rel	1	0	0
+sample/subtractive+wavetable+loaded/1	rel	1	0	0
+sample/subtractive+square/0	rel	1	0	0
+sample/subtractive+square/1	rel	1	0	0
+sample/ringmod+sample+loaded/0	rel	0	0	0
+sample/ringmod+sample+loaded/1	rel	0	0	0
+sample/ringmod+wavetable+loaded/0	rel	1	0	0
+sample/ringmod+wavetable+loaded/1	rel	1	0	0
+sample/fm+sample+loaded/0	rel	0	0	0
+sample/fm+sample+loaded/1	rel	0	0	0
+sample/fm+wavetable+loaded/0	rel	0	0	0
+sample/fm+wavetable+loaded/1	rel	0	0	0

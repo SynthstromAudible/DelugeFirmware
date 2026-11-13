@@ -1,0 +1,2482 @@
+# Reference answers of upstream main's menu, one row per answer: path, column, values (tab-separated).
+# A row changes only to follow main's source (git show origin/main:<path>); tests/golden/README.md says how.
+sound	name	Sound
+sound	title	Sound
+sound	kids	27
+sound/0	name	Actions
+sound/0	title	Actions
+sound/0	kids	3
+sound/0/0	name	Edit Name
+sound/0/0	title	Edit Name
+sound/0/0	kids	2
+sound/0/0/0	name	Edit Track Name
+sound/0/0/0	title	Edit Track Name
+sound/0/0/0	ae	0
+sound/0/0/0	edits	0
+sound/0/0/0	slots	1
+sound/0/0/0	range_dep	0
+sound/0/0/1	name	Edit Clip Name
+sound/0/0/1	title	Edit Clip Name
+sound/0/0/1	ae	0
+sound/0/0/1	edits	0
+sound/0/0/1	slots	1
+sound/0/0/1	range_dep	0
+sound/0/1	name	Record to sample 1
+sound/0/1	title	Record to sample 1
+sound/0/1	ae	0
+sound/0/1	edits	0
+sound/0/1	slots	2
+sound/0/1	range_dep	0
+sound/0/2	name	Record to sample 2
+sound/0/2	title	Record to sample 2
+sound/0/2	ae	0
+sound/0/2	edits	0
+sound/0/2	slots	2
+sound/0/2	range_dep	0
+sound/1	name	Master
+sound/1	title	Master
+sound/1	kids	5
+sound/1/0	name	Synth Mode
+sound/1/0	title	Synth Mode
+sound/1/0	ae	1
+sound/1/0	edits	1
+sound/1/0	slots	1
+sound/1/0	range_dep	0
+sound/1/1	name	Volume
+sound/1/1	title	Master level
+sound/1/1	ae	1
+sound/1/1	edits	1
+sound/1/1	slots	1
+sound/1/1	range_dep	0
+sound/1/1	param_index	45
+sound/1/2	name	Pan
+sound/1/2	title	Pan
+sound/1/2	ae	1
+sound/1/2	edits	1
+sound/1/2	slots	1
+sound/1/2	range_dep	0
+sound/1/2	param_index	23
+sound/1/3	name	Master transpose
+sound/1/3	title	Master trans
+sound/1/3	ae	1
+sound/1/3	edits	1
+sound/1/3	slots	1
+sound/1/3	range_dep	0
+sound/1/4	name	Vibrato
+sound/1/4	title	Vibrato
+sound/1/4	ae	0
+sound/1/4	edits	1
+sound/1/4	slots	1
+sound/1/4	range_dep	0
+sound/2	name	Arpeggiator
+sound/2	title	Arpeggiator
+sound/2	kids	5
+sound/2/0	name	Enabled
+sound/2/0	title	Arp enabled
+sound/2/0	ae	1
+sound/2/0	edits	1
+sound/2/0	slots	1
+sound/2/0	range_dep	0
+sound/2/1	name	Basic
+sound/2/1	title	Arp basic
+sound/2/1	kids	4
+sound/2/1/0	name	Preset
+sound/2/1/0	title	Arp preset
+sound/2/1/0	ae	1
+sound/2/1/0	edits	1
+sound/2/1/0	slots	1
+sound/2/1/0	range_dep	0
+sound/2/1/1	name	Gate
+sound/2/1/1	title	Arp gate
+sound/2/1/1	ae	1
+sound/2/1/1	edits	1
+sound/2/1/1	slots	1
+sound/2/1/1	range_dep	0
+sound/2/1/1	param_index	11
+sound/2/1/2	name	Sync
+sound/2/1/2	title	Arp sync
+sound/2/1/2	ae	1
+sound/2/1/2	edits	1
+sound/2/1/2	slots	1
+sound/2/1/2	range_dep	0
+sound/2/1/3	name	Rate
+sound/2/1/3	title	Arp rate
+sound/2/1/3	ae	1
+sound/2/1/3	edits	1
+sound/2/1/3	slots	1
+sound/2/1/3	range_dep	0
+sound/2/1/3	param_index	54
+sound/2/2	name	Pattern
+sound/2/2	title	Arp pattern
+sound/2/2	kids	10
+sound/2/2/0	name	Octaves
+sound/2/2/0	title	Arp octaves
+sound/2/2/0	ae	1
+sound/2/2/0	edits	1
+sound/2/2/0	slots	1
+sound/2/2/0	range_dep	0
+sound/2/2/1	name	Step Repeat
+sound/2/2/1	title	Arp step repeat
+sound/2/2/1	ae	1
+sound/2/2/1	edits	1
+sound/2/2/1	slots	1
+sound/2/2/1	range_dep	0
+sound/2/2/2	name	Octave Mode
+sound/2/2/2	title	Arp octave mode
+sound/2/2/2	ae	1
+sound/2/2/2	edits	1
+sound/2/2/2	slots	1
+sound/2/2/2	range_dep	0
+sound/2/2/3	name	Note Mode
+sound/2/2/3	title	Arp note mode
+sound/2/2/3	ae	0
+sound/2/2/3	edits	1
+sound/2/2/3	slots	1
+sound/2/2/3	range_dep	0
+sound/2/2/4	name	Note Mode
+sound/2/2/4	title	Arp note mode
+sound/2/2/4	ae	1
+sound/2/2/4	edits	1
+sound/2/2/4	slots	1
+sound/2/2/4	range_dep	0
+sound/2/2/5	name	Chord Simulator
+sound/2/2/5	title	Arp chord sim
+sound/2/2/5	ae	1
+sound/2/2/5	edits	1
+sound/2/2/5	slots	1
+sound/2/2/5	range_dep	0
+sound/2/2/6	name	Rhythm
+sound/2/2/6	title	Arp rhythm
+sound/2/2/6	ae	1
+sound/2/2/6	edits	1
+sound/2/2/6	slots	2
+sound/2/2/6	range_dep	0
+sound/2/2/6	param_index	12
+sound/2/2/7	name	Rhythm
+sound/2/2/7	title	Arp rhythm
+sound/2/2/7	ae	0
+sound/2/2/7	edits	1
+sound/2/2/7	slots	2
+sound/2/2/7	range_dep	0
+sound/2/2/8	name	Sequence Length
+sound/2/2/8	title	Arp seq length
+sound/2/2/8	ae	1
+sound/2/2/8	edits	1
+sound/2/2/8	slots	1
+sound/2/2/8	range_dep	0
+sound/2/2/8	param_index	13
+sound/2/2/9	name	Sequence Length
+sound/2/2/9	title	Arp seq length
+sound/2/2/9	ae	0
+sound/2/2/9	edits	1
+sound/2/2/9	slots	1
+sound/2/2/9	range_dep	0
+sound/2/3	name	MPE
+sound/2/3	title	MPE
+sound/2/3	kids	1
+sound/2/3/0	name	Velocity
+sound/2/3/0	title	Velocity
+sound/2/3/0	ae	1
+sound/2/3/0	edits	1
+sound/2/3/0	slots	1
+sound/2/3/0	range_dep	0
+sound/2/4	name	Include in Kit Arp
+sound/2/4	title	Include in Kit Arp
+sound/2/4	ae	1
+sound/2/4	edits	1
+sound/2/4	slots	1
+sound/2/4	range_dep	0
+sound/3	name	Randomizer
+sound/3	title	Randomizer
+sound/3	kids	24
+sound/3/0	name	Lock Randomizer
+sound/3/0	title	Arp lock rand
+sound/3/0	ae	1
+sound/3/0	edits	1
+sound/3/0	slots	1
+sound/3/0	range_dep	0
+sound/3/1	name	Gate Spread
+sound/3/1	title	Arp gate spread
+sound/3/1	ae	1
+sound/3/1	edits	1
+sound/3/1	slots	1
+sound/3/1	range_dep	0
+sound/3/1	param_index	23
+sound/3/2	name	Gate Spread
+sound/3/2	title	Arp gate spread
+sound/3/2	ae	0
+sound/3/2	edits	1
+sound/3/2	slots	1
+sound/3/2	range_dep	0
+sound/3/3	name	Octave Spread
+sound/3/3	title	Arp octa spread
+sound/3/3	ae	1
+sound/3/3	edits	1
+sound/3/3	slots	1
+sound/3/3	range_dep	0
+sound/3/3	param_index	24
+sound/3/4	name	Octave Spread
+sound/3/4	title	Arp octa spread
+sound/3/4	ae	0
+sound/3/4	edits	1
+sound/3/4	slots	1
+sound/3/4	range_dep	0
+sound/3/5	name	Velocity Spread
+sound/3/5	title	Velocity spread
+sound/3/5	ae	1
+sound/3/5	edits	1
+sound/3/5	slots	1
+sound/3/5	range_dep	0
+sound/3/5	param_index	25
+sound/3/6	name	Velocity Spread
+sound/3/6	title	Velocity spread
+sound/3/6	ae	0
+sound/3/6	edits	1
+sound/3/6	slots	1
+sound/3/6	range_dep	0
+sound/3/7	name	Ratchet Amount
+sound/3/7	title	Arp ratc amount
+sound/3/7	ae	1
+sound/3/7	edits	1
+sound/3/7	slots	1
+sound/3/7	range_dep	0
+sound/3/7	param_index	15
+sound/3/8	name	Ratchet Amount
+sound/3/8	title	Arp ratc amount
+sound/3/8	ae	0
+sound/3/8	edits	1
+sound/3/8	slots	1
+sound/3/8	range_dep	0
+sound/3/9	name	Ratchet Probability
+sound/3/9	title	Arp ratc prob
+sound/3/9	ae	1
+sound/3/9	edits	1
+sound/3/9	slots	1
+sound/3/9	range_dep	0
+sound/3/9	param_index	22
+sound/3/10	name	Ratchet Probability
+sound/3/10	title	Arp ratc prob
+sound/3/10	ae	0
+sound/3/10	edits	1
+sound/3/10	slots	1
+sound/3/10	range_dep	0
+sound/3/11	name	Chord Polyphony
+sound/3/11	title	Arp chord poly
+sound/3/11	ae	1
+sound/3/11	edits	1
+sound/3/11	slots	1
+sound/3/11	range_dep	0
+sound/3/11	param_index	14
+sound/3/12	name	Chord Polyphony
+sound/3/12	title	Arp chord poly
+sound/3/12	ae	0
+sound/3/12	edits	1
+sound/3/12	slots	1
+sound/3/12	range_dep	0
+sound/3/13	name	Chord Probability
+sound/3/13	title	Arp chord prob
+sound/3/13	ae	1
+sound/3/13	edits	1
+sound/3/13	slots	1
+sound/3/13	range_dep	0
+sound/3/13	param_index	21
+sound/3/14	name	Chord Probability
+sound/3/14	title	Arp chord prob
+sound/3/14	ae	0
+sound/3/14	edits	1
+sound/3/14	slots	1
+sound/3/14	range_dep	0
+sound/3/15	name	Note Probability
+sound/3/15	title	Note prob
+sound/3/15	ae	1
+sound/3/15	edits	1
+sound/3/15	slots	1
+sound/3/15	range_dep	0
+sound/3/15	param_index	16
+sound/3/16	name	Note Probability
+sound/3/16	title	Note prob
+sound/3/16	ae	0
+sound/3/16	edits	1
+sound/3/16	slots	1
+sound/3/16	range_dep	0
+sound/3/17	name	Swap Probability
+sound/3/17	title	Arp swap prob
+sound/3/17	ae	1
+sound/3/17	edits	1
+sound/3/17	slots	1
+sound/3/17	range_dep	0
+sound/3/17	param_index	19
+sound/3/18	name	Swap Probability
+sound/3/18	title	Arp swap prob
+sound/3/18	ae	0
+sound/3/18	edits	1
+sound/3/18	slots	1
+sound/3/18	range_dep	0
+sound/3/19	name	Bass Probability
+sound/3/19	title	Arp bass prob
+sound/3/19	ae	1
+sound/3/19	edits	1
+sound/3/19	slots	1
+sound/3/19	range_dep	0
+sound/3/19	param_index	18
+sound/3/20	name	Bass Probability
+sound/3/20	title	Arp bass prob
+sound/3/20	ae	0
+sound/3/20	edits	1
+sound/3/20	slots	1
+sound/3/20	range_dep	0
+sound/3/21	name	Glide Probability
+sound/3/21	title	Arp glide prob
+sound/3/21	ae	1
+sound/3/21	edits	1
+sound/3/21	slots	1
+sound/3/21	range_dep	0
+sound/3/21	param_index	20
+sound/3/22	name	Glide Probability
+sound/3/22	title	Arp glide prob
+sound/3/22	ae	0
+sound/3/22	edits	1
+sound/3/22	slots	1
+sound/3/22	range_dep	0
+sound/3/23	name	Reverse Probability
+sound/3/23	title	Reverse prob
+sound/3/23	ae	1
+sound/3/23	edits	1
+sound/3/23	slots	1
+sound/3/23	range_dep	0
+sound/3/23	param_index	17
+sound/4	name	Compressor
+sound/4	title	Compressor
+sound/4	kids	6
+sound/4/0	name	Threshold
+sound/4/0	title	Comp threshold
+sound/4/0	ae	1
+sound/4/0	edits	1
+sound/4/0	slots	1
+sound/4/0	range_dep	0
+sound/4/0	param_index	10
+sound/4/1	name	Ratio
+sound/4/1	title	Ratio
+sound/4/1	ae	0
+sound/4/1	edits	1
+sound/4/1	slots	1
+sound/4/1	range_dep	0
+sound/4/2	name	Blend
+sound/4/2	title	Blend
+sound/4/2	ae	0
+sound/4/2	edits	1
+sound/4/2	slots	1
+sound/4/2	range_dep	0
+sound/4/3	name	Attack
+sound/4/3	title	Attack
+sound/4/3	ae	0
+sound/4/3	edits	1
+sound/4/3	slots	1
+sound/4/3	range_dep	0
+sound/4/4	name	Release
+sound/4/4	title	Release
+sound/4/4	ae	0
+sound/4/4	edits	1
+sound/4/4	slots	1
+sound/4/4	range_dep	0
+sound/4/5	name	Hpf
+sound/4/5	title	Hpf
+sound/4/5	ae	0
+sound/4/5	edits	1
+sound/4/5	slots	1
+sound/4/5	range_dep	0
+sound/5	name	Filters
+sound/5	title	Filters
+sound/5	kids	3
+sound/5/0	name	Lpf
+sound/5/0	title	Lpf
+sound/5/0	kids	4
+sound/5/0/0	name	Mode
+sound/5/0/0	title	LPF mode
+sound/5/0/0	ae	1
+sound/5/0/0	edits	1
+sound/5/0/0	slots	1
+sound/5/0/0	range_dep	0
+sound/5/0/1	name	Frequency
+sound/5/0/1	title	LPF frequency
+sound/5/0/1	ae	1
+sound/5/0/1	edits	1
+sound/5/0/1	slots	1
+sound/5/0/1	range_dep	0
+sound/5/0/1	param_index	24
+sound/5/0/2	name	Resonance
+sound/5/0/2	title	LPF resonance
+sound/5/0/2	ae	1
+sound/5/0/2	edits	1
+sound/5/0/2	slots	1
+sound/5/0/2	range_dep	0
+sound/5/0/2	param_index	11
+sound/5/0/3	ae	1
+sound/5/0/3	edits	1
+sound/5/0/3	slots	1
+sound/5/0/3	range_dep	0
+sound/5/0/3	param_index	17
+sound/5/1	name	Hpf
+sound/5/1	title	Hpf
+sound/5/1	kids	4
+sound/5/1/0	name	Mode
+sound/5/1/0	title	HPF mode
+sound/5/1/0	ae	1
+sound/5/1/0	edits	1
+sound/5/1/0	slots	1
+sound/5/1/0	range_dep	0
+sound/5/1/1	name	Frequency
+sound/5/1/1	title	HPF frequency
+sound/5/1/1	ae	1
+sound/5/1/1	edits	1
+sound/5/1/1	slots	1
+sound/5/1/1	range_dep	0
+sound/5/1/1	param_index	30
+sound/5/1/2	name	Resonance
+sound/5/1/2	title	HPF resonance
+sound/5/1/2	ae	1
+sound/5/1/2	edits	1
+sound/5/1/2	slots	1
+sound/5/1/2	range_dep	0
+sound/5/1/2	param_index	12
+sound/5/1/3	ae	1
+sound/5/1/3	edits	1
+sound/5/1/3	slots	1
+sound/5/1/3	range_dep	0
+sound/5/1/3	param_index	18
+sound/5/2	name	Filter Route
+sound/5/2	title	Filter Route
+sound/5/2	ae	1
+sound/5/2	edits	1
+sound/5/2	slots	4
+sound/5/2	range_dep	0
+sound/6	name	FX
+sound/6	title	FX
+sound/6	kids	7
+sound/6/0	name	EQ
+sound/6/0	title	EQ
+sound/6/0	kids	4
+sound/6/0/0	name	Bass
+sound/6/0/0	title	Bass
+sound/6/0/0	ae	1
+sound/6/0/0	edits	1
+sound/6/0/0	slots	1
+sound/6/0/0	range_dep	0
+sound/6/0/0	param_index	1
+sound/6/0/1	name	Bass Frequency
+sound/6/0/1	title	Bass Frequency
+sound/6/0/1	ae	1
+sound/6/0/1	edits	1
+sound/6/0/1	slots	1
+sound/6/0/1	range_dep	0
+sound/6/0/1	param_index	3
+sound/6/0/2	name	Treble Frequency
+sound/6/0/2	title	Treble Frequency
+sound/6/0/2	ae	1
+sound/6/0/2	edits	1
+sound/6/0/2	slots	1
+sound/6/0/2	range_dep	0
+sound/6/0/2	param_index	4
+sound/6/0/3	name	Treble
+sound/6/0/3	title	Treble
+sound/6/0/3	ae	1
+sound/6/0/3	edits	1
+sound/6/0/3	slots	1
+sound/6/0/3	range_dep	0
+sound/6/0/3	param_index	2
+sound/6/1	name	Delay
+sound/6/1	title	Delay
+sound/6/1	kids	5
+sound/6/1/0	name	Amount
+sound/6/1/0	title	Delay amount
+sound/6/1/0	ae	1
+sound/6/1/0	edits	1
+sound/6/1/0	slots	1
+sound/6/1/0	range_dep	0
+sound/6/1/0	param_index	49
+sound/6/1/1	name	Pingpong
+sound/6/1/1	title	Delay pingpong
+sound/6/1/1	ae	1
+sound/6/1/1	edits	1
+sound/6/1/1	slots	1
+sound/6/1/1	range_dep	0
+sound/6/1/2	name	Sync
+sound/6/1/2	title	Delay sync
+sound/6/1/2	ae	1
+sound/6/1/2	edits	1
+sound/6/1/2	slots	1
+sound/6/1/2	range_dep	0
+sound/6/1/3	name	Rate
+sound/6/1/3	title	Delay rate
+sound/6/1/3	ae	1
+sound/6/1/3	edits	1
+sound/6/1/3	slots	1
+sound/6/1/3	range_dep	0
+sound/6/1/3	param_index	50
+sound/6/1/4	name	Type
+sound/6/1/4	title	Delay type
+sound/6/1/4	ae	1
+sound/6/1/4	edits	1
+sound/6/1/4	slots	1
+sound/6/1/4	range_dep	0
+sound/6/2	name	Reverb
+sound/6/2	title	Reverb
+sound/6/2	kids	9
+sound/6/2/0	name	Amount
+sound/6/2/0	title	Reverb amount
+sound/6/2/0	ae	1
+sound/6/2/0	edits	1
+sound/6/2/0	slots	1
+sound/6/2/0	range_dep	0
+sound/6/2/0	param_index	47
+sound/6/2/1	ae	0
+sound/6/2/1	edits	1
+sound/6/2/1	slots	1
+sound/6/2/1	range_dep	0
+sound/6/2/2	name	Damping
+sound/6/2/2	title	Damping
+sound/6/2/2	ae	0
+sound/6/2/2	edits	1
+sound/6/2/2	slots	1
+sound/6/2/2	range_dep	0
+sound/6/2/3	ae	0
+sound/6/2/3	edits	1
+sound/6/2/3	slots	1
+sound/6/2/3	range_dep	0
+sound/6/2/4	name	Model
+sound/6/2/4	title	Model
+sound/6/2/4	ae	0
+sound/6/2/4	edits	1
+sound/6/2/4	slots	1
+sound/6/2/4	range_dep	0
+sound/6/2/5	name	Pan
+sound/6/2/5	title	Reverb pan
+sound/6/2/5	ae	0
+sound/6/2/5	edits	1
+sound/6/2/5	slots	1
+sound/6/2/5	range_dep	0
+sound/6/2/6	name	Hpf
+sound/6/2/6	title	Hpf
+sound/6/2/6	ae	0
+sound/6/2/6	edits	1
+sound/6/2/6	slots	1
+sound/6/2/6	range_dep	0
+sound/6/2/7	name	Lpf
+sound/6/2/7	title	Lpf
+sound/6/2/7	ae	0
+sound/6/2/7	edits	1
+sound/6/2/7	slots	1
+sound/6/2/7	range_dep	0
+sound/6/2/8	name	Sidechain
+sound/6/2/8	title	Reverb sidech
+sound/6/2/8	kids	5
+sound/6/2/8/0	name	Volume ducking
+sound/6/2/8/0	title	Volume ducking
+sound/6/2/8/0	ae	0
+sound/6/2/8/0	edits	1
+sound/6/2/8/0	slots	1
+sound/6/2/8/0	range_dep	0
+sound/6/2/8/1	name	Shape
+sound/6/2/8/1	title	Sidech shape
+sound/6/2/8/1	ae	0
+sound/6/2/8/1	edits	1
+sound/6/2/8/1	slots	1
+sound/6/2/8/1	range_dep	0
+sound/6/2/8/2	name	Attack
+sound/6/2/8/2	title	Sidech attack
+sound/6/2/8/2	ae	1
+sound/6/2/8/2	edits	1
+sound/6/2/8/2	slots	1
+sound/6/2/8/2	range_dep	0
+sound/6/2/8/3	name	Release
+sound/6/2/8/3	title	Sidech release
+sound/6/2/8/3	ae	1
+sound/6/2/8/3	edits	1
+sound/6/2/8/3	slots	1
+sound/6/2/8/3	range_dep	0
+sound/6/2/8/4	name	Sync
+sound/6/2/8/4	title	Sidechain sync
+sound/6/2/8/4	ae	1
+sound/6/2/8/4	edits	1
+sound/6/2/8/4	slots	1
+sound/6/2/8/4	range_dep	0
+sound/6/3	name	Stutter
+sound/6/3	title	Stutter
+sound/6/3	kids	3
+sound/6/3/0	name	Rate
+sound/6/3/0	title	Stutter Rate
+sound/6/3/0	ae	1
+sound/6/3/0	edits	1
+sound/6/3/0	slots	1
+sound/6/3/0	range_dep	0
+sound/6/3/0	param_index	0
+sound/6/3/1	name	Direction
+sound/6/3/1	title	Direction
+sound/6/3/1	ae	1
+sound/6/3/1	edits	1
+sound/6/3/1	slots	1
+sound/6/3/1	range_dep	0
+sound/6/3/2	name	Quantize
+sound/6/3/2	title	Quantize
+sound/6/3/2	ae	1
+sound/6/3/2	edits	1
+sound/6/3/2	slots	1
+sound/6/3/2	range_dep	0
+sound/6/4	name	Mod-FX
+sound/6/4	title	Mod-FX
+sound/6/4	kids	5
+sound/6/4/0	name	Type
+sound/6/4/0	title	MOD-FX type
+sound/6/4/0	ae	1
+sound/6/4/0	edits	1
+sound/6/4/0	slots	4
+sound/6/4/0	range_dep	0
+sound/6/4/1	ae	1
+sound/6/4/1	edits	1
+sound/6/4/1	slots	1
+sound/6/4/1	range_dep	0
+sound/6/4/1	param_index	48
+sound/6/4/2	name	Rate
+sound/6/4/2	title	MOD-FX rate
+sound/6/4/2	ae	1
+sound/6/4/2	edits	1
+sound/6/4/2	slots	1
+sound/6/4/2	range_dep	0
+sound/6/4/2	param_index	51
+sound/6/4/3	ae	1
+sound/6/4/3	edits	1
+sound/6/4/3	slots	1
+sound/6/4/3	range_dep	0
+sound/6/4/3	param_index	8
+sound/6/4/4	ae	1
+sound/6/4/4	edits	1
+sound/6/4/4	slots	1
+sound/6/4/4	range_dep	0
+sound/6/4/4	param_index	7
+sound/6/5	name	Distortion
+sound/6/5	title	Distortion
+sound/6/5	kids	4
+sound/6/5/0	name	Saturation
+sound/6/5/0	title	Saturation
+sound/6/5/0	ae	1
+sound/6/5/0	edits	1
+sound/6/5/0	slots	1
+sound/6/5/0	range_dep	0
+sound/6/5/1	name	Bitcrush
+sound/6/5/1	title	Bitcrush
+sound/6/5/1	ae	1
+sound/6/5/1	edits	1
+sound/6/5/1	slots	1
+sound/6/5/1	range_dep	0
+sound/6/5/1	param_index	6
+sound/6/5/2	name	Decimation
+sound/6/5/2	title	Decimation
+sound/6/5/2	ae	1
+sound/6/5/2	edits	1
+sound/6/5/2	slots	1
+sound/6/5/2	range_dep	0
+sound/6/5/2	param_index	5
+sound/6/5/3	name	Wavefold
+sound/6/5/3	title	Wavefold
+sound/6/5/3	ae	1
+sound/6/5/3	edits	1
+sound/6/5/3	slots	1
+sound/6/5/3	range_dep	0
+sound/6/5/3	param_index	6
+sound/6/6	name	Noise level
+sound/6/6	title	Noise level
+sound/6/6	ae	1
+sound/6/6	edits	1
+sound/6/6	slots	1
+sound/6/6	range_dep	0
+sound/6/6	param_index	3
+sound/7	name	Sidechain
+sound/7	title	Sidechain
+sound/7	kids	6
+sound/7/0	name	Volume ducking
+sound/7/0	title	Volume ducking
+sound/7/0	ae	0
+sound/7/0	edits	1
+sound/7/0	slots	1
+sound/7/0	range_dep	0
+sound/7/1	name	Sync
+sound/7/1	title	Sidechain sync
+sound/7/1	ae	1
+sound/7/1	edits	1
+sound/7/1	slots	1
+sound/7/1	range_dep	0
+sound/7/2	name	Shape
+sound/7/2	title	Sidech shape
+sound/7/2	ae	1
+sound/7/2	edits	1
+sound/7/2	slots	1
+sound/7/2	range_dep	0
+sound/7/2	param_index	9
+sound/7/3	name	Send to sidechain
+sound/7/3	title	Send to sidech
+sound/7/3	ae	1
+sound/7/3	edits	1
+sound/7/3	slots	1
+sound/7/3	range_dep	0
+sound/7/4	name	Attack
+sound/7/4	title	Sidech attack
+sound/7/4	ae	1
+sound/7/4	edits	1
+sound/7/4	slots	1
+sound/7/4	range_dep	0
+sound/7/5	name	Release
+sound/7/5	title	Sidech release
+sound/7/5	ae	1
+sound/7/5	edits	1
+sound/7/5	slots	1
+sound/7/5	range_dep	0
+sound/8	kids	14
+sound/8/0	name	Type
+sound/8/0	title	Osc1 type
+sound/8/0	ae	0
+sound/8/0	edits	1
+sound/8/0	slots	1
+sound/8/0	range_dep	0
+sound/8/1	name	File browser
+sound/8/1	title	File browser
+sound/8/1	ae	0
+sound/8/1	edits	0
+sound/8/1	slots	1
+sound/8/1	range_dep	0
+sound/8/2	name	Transpose
+sound/8/2	title	Osc1 transpose
+sound/8/2	ae	1
+sound/8/2	edits	1
+sound/8/2	slots	1
+sound/8/2	range_dep	1
+sound/8/3	name	Wave-index
+sound/8/3	title	Osc1 wave-index
+sound/8/3	ae	1
+sound/8/3	edits	1
+sound/8/3	slots	1
+sound/8/3	range_dep	0
+sound/8/3	param_index	21
+sound/8/4	name	Pulse Width
+sound/8/4	title	Osc1 p. width
+sound/8/4	ae	1
+sound/8/4	edits	1
+sound/8/4	slots	1
+sound/8/4	range_dep	0
+sound/8/4	param_index	19
+sound/8/5	name	Feedback
+sound/8/5	title	Carrier1 feedb
+sound/8/5	ae	1
+sound/8/5	edits	1
+sound/8/5	slots	1
+sound/8/5	range_dep	0
+sound/8/5	param_index	9
+sound/8/6	name	Retrigger phase
+sound/8/6	title	Osc1 r. phase
+sound/8/6	ae	0
+sound/8/6	edits	1
+sound/8/6	slots	1
+sound/8/6	range_dep	0
+sound/8/7	name	Reverse
+sound/8/7	title	Samp1 reverse
+sound/8/7	ae	1
+sound/8/7	edits	1
+sound/8/7	slots	1
+sound/8/7	range_dep	0
+sound/8/8	name	Repeat Mode
+sound/8/8	title	Samp1 repeat
+sound/8/8	ae	1
+sound/8/8	edits	1
+sound/8/8	slots	1
+sound/8/8	range_dep	0
+sound/8/9	name	Speed
+sound/8/9	title	Samp1 speed
+sound/8/9	ae	1
+sound/8/9	edits	1
+sound/8/9	slots	1
+sound/8/9	range_dep	0
+sound/8/10	name	Pitch/Speed
+sound/8/10	title	Pitch/Speed
+sound/8/10	ae	1
+sound/8/10	edits	1
+sound/8/10	slots	1
+sound/8/10	range_dep	0
+sound/8/11	name	Interpolation
+sound/8/11	title	Samp1 interp
+sound/8/11	ae	1
+sound/8/11	edits	1
+sound/8/11	slots	1
+sound/8/11	range_dep	0
+sound/8/12	name	Start-point
+sound/8/12	title	Start-point
+sound/8/12	ae	0
+sound/8/12	edits	0
+sound/8/12	slots	1
+sound/8/12	range_dep	1
+sound/8/13	name	End-point
+sound/8/13	title	End-point
+sound/8/13	ae	0
+sound/8/13	edits	0
+sound/8/13	slots	1
+sound/8/13	range_dep	1
+sound/9	kids	14
+sound/9/0	name	Type
+sound/9/0	title	Osc2 type
+sound/9/0	ae	0
+sound/9/0	edits	1
+sound/9/0	slots	1
+sound/9/0	range_dep	0
+sound/9/1	name	File browser
+sound/9/1	title	File browser
+sound/9/1	ae	0
+sound/9/1	edits	0
+sound/9/1	slots	1
+sound/9/1	range_dep	0
+sound/9/2	name	Transpose
+sound/9/2	title	Osc2 transpose
+sound/9/2	ae	1
+sound/9/2	edits	1
+sound/9/2	slots	1
+sound/9/2	range_dep	1
+sound/9/3	name	Wave-index
+sound/9/3	title	Osc2 wave-index
+sound/9/3	ae	1
+sound/9/3	edits	1
+sound/9/3	slots	1
+sound/9/3	range_dep	0
+sound/9/3	param_index	22
+sound/9/4	name	Pulse Width
+sound/9/4	title	Osc2 p. width
+sound/9/4	ae	1
+sound/9/4	edits	1
+sound/9/4	slots	1
+sound/9/4	range_dep	0
+sound/9/4	param_index	20
+sound/9/5	name	Feedback
+sound/9/5	title	Carrier2 feedb
+sound/9/5	ae	1
+sound/9/5	edits	1
+sound/9/5	slots	1
+sound/9/5	range_dep	0
+sound/9/5	param_index	10
+sound/9/6	name	Retrigger phase
+sound/9/6	title	Osc2 r. phase
+sound/9/6	ae	0
+sound/9/6	edits	1
+sound/9/6	slots	1
+sound/9/6	range_dep	0
+sound/9/7	name	Reverse
+sound/9/7	title	Samp2 reverse
+sound/9/7	ae	1
+sound/9/7	edits	1
+sound/9/7	slots	1
+sound/9/7	range_dep	0
+sound/9/8	name	Repeat Mode
+sound/9/8	title	Samp2 repeat
+sound/9/8	ae	1
+sound/9/8	edits	1
+sound/9/8	slots	1
+sound/9/8	range_dep	0
+sound/9/9	name	Speed
+sound/9/9	title	Samp2 speed
+sound/9/9	ae	1
+sound/9/9	edits	1
+sound/9/9	slots	1
+sound/9/9	range_dep	0
+sound/9/10	name	Pitch/Speed
+sound/9/10	title	Pitch/Speed
+sound/9/10	ae	1
+sound/9/10	edits	1
+sound/9/10	slots	1
+sound/9/10	range_dep	0
+sound/9/11	name	Interpolation
+sound/9/11	title	Samp2 interp
+sound/9/11	ae	1
+sound/9/11	edits	1
+sound/9/11	slots	1
+sound/9/11	range_dep	0
+sound/9/12	name	Start-point
+sound/9/12	title	Start-point
+sound/9/12	ae	0
+sound/9/12	edits	0
+sound/9/12	slots	1
+sound/9/12	range_dep	1
+sound/9/13	name	End-point
+sound/9/13	title	End-point
+sound/9/13	ae	0
+sound/9/13	edits	0
+sound/9/13	slots	1
+sound/9/13	range_dep	1
+sound/10	name	FM mod 1
+sound/10	title	FM mod 1
+sound/10	kids	3
+sound/10/0	name	Transpose
+sound/10/0	title	FM Mod1 tran
+sound/10/0	ae	1
+sound/10/0	edits	1
+sound/10/0	slots	1
+sound/10/0	range_dep	0
+sound/10/1	name	Feedback
+sound/10/1	title	FM Mod1 feedb
+sound/10/1	ae	1
+sound/10/1	edits	1
+sound/10/1	slots	1
+sound/10/1	range_dep	0
+sound/10/1	param_index	7
+sound/10/2	name	Retrigger phase
+sound/10/2	title	FM Mod1 retrig
+sound/10/2	ae	0
+sound/10/2	edits	1
+sound/10/2	slots	1
+sound/10/2	range_dep	0
+sound/11	name	FM mod 2
+sound/11	title	FM mod 2
+sound/11	kids	4
+sound/11/0	name	Transpose
+sound/11/0	title	FM Mod2 tran
+sound/11/0	ae	1
+sound/11/0	edits	1
+sound/11/0	slots	1
+sound/11/0	range_dep	0
+sound/11/1	name	Feedback
+sound/11/1	title	FM Mod2 feedb
+sound/11/1	ae	1
+sound/11/1	edits	1
+sound/11/1	slots	1
+sound/11/1	range_dep	0
+sound/11/1	param_index	8
+sound/11/2	name	Retrigger phase
+sound/11/2	title	FM Mod2 retrig
+sound/11/2	ae	0
+sound/11/2	edits	1
+sound/11/2	slots	1
+sound/11/2	range_dep	0
+sound/11/3	name	Destination
+sound/11/3	title	FM Mod2 dest
+sound/11/3	ae	1
+sound/11/3	edits	1
+sound/11/3	slots	1
+sound/11/3	range_dep	0
+sound/12	name	Osc mixer
+sound/12	title	Osc mixer
+sound/12	kids	6
+sound/12/0	name	Osc1 level
+sound/12/0	title	Osc1 level
+sound/12/0	ae	1
+sound/12/0	edits	1
+sound/12/0	slots	1
+sound/12/0	range_dep	0
+sound/12/0	param_index	0
+sound/12/1	name	Osc2 level
+sound/12/1	title	Osc2 level
+sound/12/1	ae	1
+sound/12/1	edits	1
+sound/12/1	slots	1
+sound/12/1	range_dep	0
+sound/12/1	param_index	1
+sound/12/2	name	FM Mod1 level
+sound/12/2	title	FM Mod1 level
+sound/12/2	ae	1
+sound/12/2	edits	1
+sound/12/2	slots	1
+sound/12/2	range_dep	0
+sound/12/2	param_index	4
+sound/12/3	name	FM Mod2 level
+sound/12/3	title	FM Mod2 level
+sound/12/3	ae	1
+sound/12/3	edits	1
+sound/12/3	slots	1
+sound/12/3	range_dep	0
+sound/12/3	param_index	5
+sound/12/4	name	Noise level
+sound/12/4	title	Noise level
+sound/12/4	ae	1
+sound/12/4	edits	1
+sound/12/4	slots	1
+sound/12/4	range_dep	0
+sound/12/4	param_index	3
+sound/12/5	name	Oscillator sync
+sound/12/5	title	Oscillator sync
+sound/12/5	ae	1
+sound/12/5	edits	1
+sound/12/5	slots	1
+sound/12/5	range_dep	0
+sound/13	name	Envelope 1
+sound/13	title	Envelope 1
+sound/13	kids	4
+sound/13/0	name	Attack
+sound/13/0	title	Env1 attack
+sound/13/0	ae	1
+sound/13/0	edits	1
+sound/13/0	slots	1
+sound/13/0	range_dep	0
+sound/13/0	param_index	33
+sound/13/1	name	Decay
+sound/13/1	title	Env1 decay
+sound/13/1	ae	1
+sound/13/1	edits	1
+sound/13/1	slots	1
+sound/13/1	range_dep	0
+sound/13/1	param_index	37
+sound/13/2	name	Sustain
+sound/13/2	title	Env1 sustain
+sound/13/2	ae	1
+sound/13/2	edits	1
+sound/13/2	slots	1
+sound/13/2	range_dep	0
+sound/13/2	param_index	13
+sound/13/3	name	Release
+sound/13/3	title	Env1 release
+sound/13/3	ae	1
+sound/13/3	edits	1
+sound/13/3	slots	1
+sound/13/3	range_dep	0
+sound/13/3	param_index	41
+sound/14	name	Envelope 2
+sound/14	title	Envelope 2
+sound/14	kids	4
+sound/14/0	name	Attack
+sound/14/0	title	Env2 attack
+sound/14/0	ae	1
+sound/14/0	edits	1
+sound/14/0	slots	1
+sound/14/0	range_dep	0
+sound/14/0	param_index	34
+sound/14/1	name	Decay
+sound/14/1	title	Env2 decay
+sound/14/1	ae	1
+sound/14/1	edits	1
+sound/14/1	slots	1
+sound/14/1	range_dep	0
+sound/14/1	param_index	38
+sound/14/2	name	Sustain
+sound/14/2	title	Env2 sustain
+sound/14/2	ae	1
+sound/14/2	edits	1
+sound/14/2	slots	1
+sound/14/2	range_dep	0
+sound/14/2	param_index	14
+sound/14/3	name	Release
+sound/14/3	title	Env2 release
+sound/14/3	ae	1
+sound/14/3	edits	1
+sound/14/3	slots	1
+sound/14/3	range_dep	0
+sound/14/3	param_index	42
+sound/15	name	Envelope 3
+sound/15	title	Envelope 3
+sound/15	kids	4
+sound/15/0	name	Attack
+sound/15/0	title	Env3 attack
+sound/15/0	ae	1
+sound/15/0	edits	1
+sound/15/0	slots	1
+sound/15/0	range_dep	0
+sound/15/0	param_index	35
+sound/15/1	name	Decay
+sound/15/1	title	Env3 decay
+sound/15/1	ae	1
+sound/15/1	edits	1
+sound/15/1	slots	1
+sound/15/1	range_dep	0
+sound/15/1	param_index	39
+sound/15/2	name	Sustain
+sound/15/2	title	Env3 sustain
+sound/15/2	ae	1
+sound/15/2	edits	1
+sound/15/2	slots	1
+sound/15/2	range_dep	0
+sound/15/2	param_index	15
+sound/15/3	name	Release
+sound/15/3	title	Env3 release
+sound/15/3	ae	1
+sound/15/3	edits	1
+sound/15/3	slots	1
+sound/15/3	range_dep	0
+sound/15/3	param_index	43
+sound/16	name	Envelope 4
+sound/16	title	Envelope 4
+sound/16	kids	4
+sound/16/0	name	Attack
+sound/16/0	title	Env4 attack
+sound/16/0	ae	1
+sound/16/0	edits	1
+sound/16/0	slots	1
+sound/16/0	range_dep	0
+sound/16/0	param_index	36
+sound/16/1	name	Decay
+sound/16/1	title	Env4 decay
+sound/16/1	ae	1
+sound/16/1	edits	1
+sound/16/1	slots	1
+sound/16/1	range_dep	0
+sound/16/1	param_index	40
+sound/16/2	name	Sustain
+sound/16/2	title	Env4 sustain
+sound/16/2	ae	1
+sound/16/2	edits	1
+sound/16/2	slots	1
+sound/16/2	range_dep	0
+sound/16/2	param_index	16
+sound/16/3	name	Release
+sound/16/3	title	Env4 release
+sound/16/3	ae	1
+sound/16/3	edits	1
+sound/16/3	slots	1
+sound/16/3	range_dep	0
+sound/16/3	param_index	44
+sound/17	name	LFO 1
+sound/17	title	LFO 1
+sound/17	kids	3
+sound/17/0	name	Shape
+sound/17/0	title	LFO1 shape
+sound/17/0	ae	1
+sound/17/0	edits	1
+sound/17/0	slots	1
+sound/17/0	range_dep	0
+sound/17/1	name	Sync
+sound/17/1	title	LFO1 sync
+sound/17/1	ae	1
+sound/17/1	edits	1
+sound/17/1	slots	1
+sound/17/1	range_dep	0
+sound/17/2	name	Rate
+sound/17/2	title	LFO1 rate
+sound/17/2	ae	1
+sound/17/2	edits	1
+sound/17/2	slots	1
+sound/17/2	range_dep	0
+sound/17/2	param_index	52
+sound/18	name	LFO 2
+sound/18	title	LFO 2
+sound/18	kids	3
+sound/18/0	name	Shape
+sound/18/0	title	LFO2 shape
+sound/18/0	ae	1
+sound/18/0	edits	1
+sound/18/0	slots	1
+sound/18/0	range_dep	0
+sound/18/1	name	Sync
+sound/18/1	title	LFO2 sync
+sound/18/1	ae	1
+sound/18/1	edits	1
+sound/18/1	slots	1
+sound/18/1	range_dep	0
+sound/18/2	name	Rate
+sound/18/2	title	LFO2 rate
+sound/18/2	ae	1
+sound/18/2	edits	1
+sound/18/2	slots	1
+sound/18/2	range_dep	0
+sound/18/2	param_index	31
+sound/19	name	LFO 3
+sound/19	title	LFO 3
+sound/19	kids	3
+sound/19/0	name	Shape
+sound/19/0	title	LFO3 shape
+sound/19/0	ae	1
+sound/19/0	edits	1
+sound/19/0	slots	1
+sound/19/0	range_dep	0
+sound/19/1	name	Sync
+sound/19/1	title	LFO3 sync
+sound/19/1	ae	1
+sound/19/1	edits	1
+sound/19/1	slots	1
+sound/19/1	range_dep	0
+sound/19/2	name	Rate
+sound/19/2	title	LFO3 rate
+sound/19/2	ae	1
+sound/19/2	edits	1
+sound/19/2	slots	1
+sound/19/2	range_dep	0
+sound/19/2	param_index	53
+sound/20	name	LFO 4
+sound/20	title	LFO 4
+sound/20	kids	3
+sound/20/0	name	Shape
+sound/20/0	title	LFO4 shape
+sound/20/0	ae	1
+sound/20/0	edits	1
+sound/20/0	slots	1
+sound/20/0	range_dep	0
+sound/20/1	name	Sync
+sound/20/1	title	LFO4 sync
+sound/20/1	ae	1
+sound/20/1	edits	1
+sound/20/1	slots	1
+sound/20/1	range_dep	0
+sound/20/2	name	Rate
+sound/20/2	title	LFO4 rate
+sound/20/2	ae	1
+sound/20/2	edits	1
+sound/20/2	slots	1
+sound/20/2	range_dep	0
+sound/20/2	param_index	32
+sound/21	name	Voice
+sound/21	title	Voice
+sound/21	kids	5
+sound/21/0	name	Priority
+sound/21/0	title	Priority
+sound/21/0	ae	1
+sound/21/0	edits	1
+sound/21/0	slots	1
+sound/21/0	range_dep	0
+sound/21/1	name	Polyphony
+sound/21/1	title	Polyphony
+sound/21/1	ae	1
+sound/21/1	edits	1
+sound/21/1	slots	1
+sound/21/1	range_dep	0
+sound/21/2	name	Max Voices
+sound/21/2	title	Max Voices
+sound/21/2	ae	1
+sound/21/2	edits	1
+sound/21/2	slots	1
+sound/21/2	range_dep	0
+sound/21/3	name	Portamento
+sound/21/3	title	Portamento
+sound/21/3	ae	1
+sound/21/3	edits	1
+sound/21/3	slots	1
+sound/21/3	range_dep	0
+sound/21/3	param_index	26
+sound/21/4	name	Unison
+sound/21/4	title	Unison
+sound/21/4	kids	3
+sound/21/4/0	name	Number
+sound/21/4/0	title	Unison number
+sound/21/4/0	ae	1
+sound/21/4/0	edits	1
+sound/21/4/0	slots	1
+sound/21/4/0	range_dep	0
+sound/21/4/1	name	Detune
+sound/21/4/1	title	Unison detune
+sound/21/4/1	ae	1
+sound/21/4/1	edits	1
+sound/21/4/1	slots	1
+sound/21/4/1	range_dep	0
+sound/21/4/2	name	Spread
+sound/21/4/2	title	Unison stereo spread
+sound/21/4/2	ae	1
+sound/21/4/2	edits	1
+sound/21/4/2	slots	1
+sound/21/4/2	range_dep	0
+sound/22	name	Bend range
+sound/22	title	Bend range
+sound/22	kids	2
+sound/22/0	name	Normal
+sound/22/0	title	Normal
+sound/22/0	ae	0
+sound/22/0	edits	1
+sound/22/0	slots	1
+sound/22/0	range_dep	0
+sound/22/1	name	Poly / Finger / MPE
+sound/22/1	title	Poly / Finger / MPE
+sound/22/1	ae	0
+sound/22/1	edits	1
+sound/22/1	slots	1
+sound/22/1	range_dep	0
+sound/23	name	Bend range
+sound/23	title	Bend range
+sound/23	ae	0
+sound/23	edits	1
+sound/23	slots	1
+sound/23	range_dep	0
+sound/24	name	Mod matrix
+sound/24	title	Mod matrix
+sound/24	ae	0
+sound/24	edits	0
+sound/24	slots	1
+sound/24	range_dep	0
+sound/25	name	Play direction
+sound/25	title	Play direction
+sound/25	ae	0
+sound/25	edits	1
+sound/25	slots	1
+sound/25	range_dep	0
+sound/26	name	MIDI
+sound/26	title	MIDI
+sound/26	kids	2
+sound/26/0	name	Channel
+sound/26/0	title	Channel
+sound/26/0	ae	1
+sound/26/0	edits	1
+sound/26/0	slots	1
+sound/26/0	range_dep	0
+sound/26/1	name	Note
+sound/26/1	title	Note
+sound/26/1	ae	1
+sound/26/1	edits	1
+sound/26/1	slots	1
+sound/26/1	range_dep	0
+sound	rel@synth	1
+sound/0	rel@synth	1
+sound/0/0	rel@synth	1
+sound/0/0/0	rel@synth	1
+sound/0/0/1	rel@synth	1
+sound/0/1	rel@synth	1
+sound/0/2	rel@synth	1
+sound/1	rel@synth	1
+sound/1/0	rel@synth	1
+sound/1/0	read@synth	0
+sound/1/0	options@synth	Subtractive	Fm	Ringmod
+sound/1/1	rel@synth	1
+sound/1/1	read@synth	41
+sound/1/1	learn@synth	45
+sound/1/1	param_kind@synth	1
+sound/1/2	rel@synth	1
+sound/1/2	read@synth	0
+sound/1/2	learn@synth	23
+sound/1/2	param_kind@synth	1
+sound/1/3	rel@synth	1
+sound/1/3	read@synth	-1200
+sound/1/3	learn@synth	25
+sound/1/4	rel@synth	1
+sound/2	rel@synth	1
+sound/2/0	rel@synth	1
+sound/2/0	read@synth	0
+sound/2/0	options@synth	Off	On
+sound/2/1	rel@synth	1
+sound/2/1/0	rel@synth	1
+sound/2/1/0	read@synth	0
+sound/2/1/0	options@synth	Off	Up	Down	Both	Random	Walk	Custom
+sound/2/1/1	rel@synth	1
+sound/2/1/1	read@synth	25
+sound/2/1/1	learn@synth	101
+sound/2/1/1	param_kind@synth	3
+sound/2/1/2	rel@synth	1
+sound/2/1/2	read@synth	6
+sound/2/1/3	rel@synth	1
+sound/2/1/3	read@synth	25
+sound/2/1/3	learn@synth	54
+sound/2/1/3	param_kind@synth	1
+sound/2/2	rel@synth	1
+sound/2/2/0	rel@synth	1
+sound/2/2/0	read@synth	2
+sound/2/2/1	rel@synth	1
+sound/2/2/1	read@synth	1
+sound/2/2/2	rel@synth	1
+sound/2/2/2	read@synth	0
+sound/2/2/2	options@synth	Up	Down	Up & Down	Alternate	Random
+sound/2/2/3	rel@synth	1
+sound/2/2/3	read@synth	0
+sound/2/2/3	options@synth	Up	Down	Up & Down	Random	Walk1	Walk2	Walk3	Played Order	Pattern
+sound/2/2/4	rel@synth	0
+sound/2/2/5	rel@synth	0
+sound/2/2/5	options@synth	None	5th	Sus2	Min	Maj	Sus4	Min7	Dom7	Maj7
+sound/2/2/6	rel@synth	1
+sound/2/2/6	read@synth	0
+sound/2/2/6	learn@synth	102
+sound/2/2/6	param_kind@synth	3
+sound/2/2/7	rel@synth	0
+sound/2/2/8	rel@synth	1
+sound/2/2/8	read@synth	0
+sound/2/2/8	learn@synth	103
+sound/2/2/8	param_kind@synth	3
+sound/2/2/9	rel@synth	0
+sound/2/3	rel@synth	1
+sound/2/3/0	rel@synth	1
+sound/2/3/0	read@synth	0
+sound/2/3/0	options@synth	Disabled	Aftertouch	MPE Y
+sound/2/4	rel@synth	0
+sound/2/4	options@synth	Off	On
+sound/3	rel@synth	1
+sound/3/0	rel@synth	1
+sound/3/0	read@synth	0
+sound/3/0	options@synth	Off	On
+sound/3/1	rel@synth	0
+sound/3/1	learn@synth	113
+sound/3/1	param_kind@synth	3
+sound/3/2	rel@synth	0
+sound/3/3	rel@synth	0
+sound/3/3	learn@synth	114
+sound/3/3	param_kind@synth	3
+sound/3/4	rel@synth	0
+sound/3/5	rel@synth	1
+sound/3/5	read@synth	0
+sound/3/5	learn@synth	115
+sound/3/5	param_kind@synth	3
+sound/3/6	rel@synth	0
+sound/3/7	rel@synth	0
+sound/3/7	learn@synth	105
+sound/3/7	param_kind@synth	3
+sound/3/8	rel@synth	0
+sound/3/9	rel@synth	0
+sound/3/9	learn@synth	112
+sound/3/9	param_kind@synth	3
+sound/3/10	rel@synth	0
+sound/3/11	rel@synth	0
+sound/3/11	learn@synth	104
+sound/3/11	param_kind@synth	3
+sound/3/12	rel@synth	0
+sound/3/13	rel@synth	0
+sound/3/13	learn@synth	111
+sound/3/13	param_kind@synth	3
+sound/3/14	rel@synth	0
+sound/3/15	rel@synth	1
+sound/3/15	read@synth	50
+sound/3/15	learn@synth	106
+sound/3/15	param_kind@synth	3
+sound/3/16	rel@synth	0
+sound/3/17	rel@synth	0
+sound/3/17	learn@synth	109
+sound/3/17	param_kind@synth	3
+sound/3/18	rel@synth	0
+sound/3/19	rel@synth	0
+sound/3/19	learn@synth	108
+sound/3/19	param_kind@synth	3
+sound/3/20	rel@synth	0
+sound/3/21	rel@synth	0
+sound/3/21	learn@synth	110
+sound/3/21	param_kind@synth	3
+sound/3/22	rel@synth	0
+sound/3/23	rel@synth	1
+sound/3/23	read@synth	0
+sound/3/23	learn@synth	107
+sound/3/23	param_kind@synth	3
+sound/4	rel@synth	1
+sound/4/0	rel@synth	1
+sound/4/0	read@synth	0
+sound/4/0	learn@synth	100
+sound/4/0	param_kind@synth	3
+sound/4/1	rel@synth	1
+sound/4/1	read@synth	64
+sound/4/2	rel@synth	1
+sound/4/2	read@synth	127
+sound/4/3	rel@synth	1
+sound/4/3	read@synth	5
+sound/4/4	rel@synth	1
+sound/4/4	read@synth	5
+sound/4/5	rel@synth	1
+sound/4/5	read@synth	0
+sound/5	rel@synth	1
+sound/5/0	rel@synth	1
+sound/5/0/0	rel@synth	1
+sound/5/0/0	read@synth	1
+sound/5/0/0	options@synth	12dB Ladder	24dB Ladder	Drive	SVF Bandpass	SVF Notch	Off
+sound/5/0/1	rel@synth	1
+sound/5/0/1	read@synth	28
+sound/5/0/1	learn@synth	24
+sound/5/0/1	param_kind@synth	1
+sound/5/0/2	rel@synth	1
+sound/5/0/2	read@synth	7
+sound/5/0/2	learn@synth	11
+sound/5/0/2	param_kind@synth	1
+sound/5/0/3	rel@synth	1
+sound/5/0/3	read@synth	0
+sound/5/0/3	learn@synth	17
+sound/5/0/3	param_kind@synth	1
+sound/5/1	rel@synth	1
+sound/5/1/0	rel@synth	1
+sound/5/1/0	read@synth	2
+sound/5/1/0	options@synth	SVF Bandpass	SVF Notch	HP Ladder	Off
+sound/5/1/1	rel@synth	1
+sound/5/1/1	read@synth	0
+sound/5/1/1	learn@synth	30
+sound/5/1/1	param_kind@synth	1
+sound/5/1/2	rel@synth	1
+sound/5/1/2	read@synth	0
+sound/5/1/2	learn@synth	12
+sound/5/1/2	param_kind@synth	1
+sound/5/1/3	rel@synth	1
+sound/5/1/3	read@synth	0
+sound/5/1/3	learn@synth	18
+sound/5/1/3	param_kind@synth	1
+sound/5/2	rel@synth	1
+sound/5/2	read@synth	0
+sound/5/2	options@synth	Hpf > Lpf	Lpf > Hpf	Parallel
+sound/6	rel@synth	1
+sound/6/0	rel@synth	1
+sound/6/0/0	rel@synth	1
+sound/6/0/0	read@synth	25
+sound/6/0/0	learn@synth	91
+sound/6/0/0	param_kind@synth	3
+sound/6/0/1	rel@synth	1
+sound/6/0/1	read@synth	25
+sound/6/0/1	learn@synth	93
+sound/6/0/1	param_kind@synth	3
+sound/6/0/2	rel@synth	1
+sound/6/0/2	read@synth	25
+sound/6/0/2	learn@synth	94
+sound/6/0/2	param_kind@synth	3
+sound/6/0/3	rel@synth	1
+sound/6/0/3	read@synth	25
+sound/6/0/3	learn@synth	92
+sound/6/0/3	param_kind@synth	3
+sound/6/1	rel@synth	1
+sound/6/1/0	rel@synth	1
+sound/6/1/0	read@synth	0
+sound/6/1/0	learn@synth	49
+sound/6/1/0	param_kind@synth	1
+sound/6/1/1	rel@synth	1
+sound/6/1/1	read@synth	1
+sound/6/1/1	options@synth	Off	On
+sound/6/1/2	rel@synth	1
+sound/6/1/2	read@synth	6
+sound/6/1/3	rel@synth	1
+sound/6/1/3	read@synth	25
+sound/6/1/3	learn@synth	50
+sound/6/1/3	param_kind@synth	1
+sound/6/1/4	rel@synth	1
+sound/6/1/4	read@synth	0
+sound/6/1/4	options@synth	Off	Digital	Analog
+sound/6/2	rel@synth	1
+sound/6/2/0	rel@synth	1
+sound/6/2/0	read@synth	0
+sound/6/2/0	learn@synth	47
+sound/6/2/0	param_kind@synth	1
+sound/6/2/1	rel@synth	1
+sound/6/2/1	read@synth	30
+sound/6/2/2	rel@synth	1
+sound/6/2/2	read@synth	36
+sound/6/2/3	rel@synth	1
+sound/6/2/3	read@synth	50
+sound/6/2/4	rel@synth	1
+sound/6/2/4	read@synth	1
+sound/6/2/4	options@synth	Freeverb	Mutable	Digital
+sound/6/2/5	rel@synth	1
+sound/6/2/5	read@synth	0
+sound/6/2/6	rel@synth	1
+sound/6/2/6	read@synth	0
+sound/6/2/7	rel@synth	1
+sound/6/2/7	read@synth	50
+sound/6/2/8	rel@synth	1
+sound/6/2/8/0	rel@synth	1
+sound/6/2/8/0	read@synth	-1
+sound/6/2/8/1	rel@synth	0
+sound/6/2/8/2	rel@synth	0
+sound/6/2/8/3	rel@synth	0
+sound/6/2/8/4	rel@synth	0
+sound/6/2/8/4	read@synth	4
+sound/6/3	rel@synth	1
+sound/6/3/0	rel@synth	1
+sound/6/3/0	read@synth	25
+sound/6/3/0	learn@synth	90
+sound/6/3/0	param_kind@synth	3
+sound/6/3/1	rel@synth	1
+sound/6/3/1	read@synth	0
+sound/6/3/1	options@synth	Use Song Settings	Forward	Reversed	Forw-Ping	Rvrs-Ping
+sound/6/3/2	rel@synth	0
+sound/6/3/2	read@synth	1
+sound/6/4	rel@synth	1
+sound/6/4/0	rel@synth	1
+sound/6/4/0	read@synth	0
+sound/6/4/0	options@synth	Disabled	Flanger	Chorus	Phaser	Stereo Chorus	Warble	Dimension	Grain
+sound/6/4/1	rel@synth	0
+sound/6/4/1	learn@synth	48
+sound/6/4/1	param_kind@synth	1
+sound/6/4/2	rel@synth	0
+sound/6/4/2	learn@synth	51
+sound/6/4/2	param_kind@synth	1
+sound/6/4/3	rel@synth	0
+sound/6/4/3	learn@synth	98
+sound/6/4/3	param_kind@synth	3
+sound/6/4/4	rel@synth	0
+sound/6/4/4	learn@synth	97
+sound/6/4/4	param_kind@synth	3
+sound/6/5	rel@synth	1
+sound/6/5/0	rel@synth	1
+sound/6/5/0	read@synth	0
+sound/6/5/1	rel@synth	1
+sound/6/5/1	read@synth	0
+sound/6/5/1	learn@synth	96
+sound/6/5/1	param_kind@synth	3
+sound/6/5/2	rel@synth	1
+sound/6/5/2	read@synth	0
+sound/6/5/2	learn@synth	95
+sound/6/5/2	param_kind@synth	3
+sound/6/5/3	rel@synth	1
+sound/6/5/3	read@synth	0
+sound/6/5/3	learn@synth	6
+sound/6/5/3	param_kind@synth	1
+sound/6/6	rel@synth	1
+sound/6/6	read@synth	0
+sound/6/6	learn@synth	3
+sound/6/6	param_kind@synth	1
+sound/7	rel@synth	1
+sound/7/0	rel@synth	1
+sound/7/1	rel@synth	1
+sound/7/1	read@synth	5
+sound/7/2	rel@synth	1
+sound/7/2	read@synth	18
+sound/7/2	learn@synth	99
+sound/7/2	param_kind@synth	3
+sound/7/3	rel@synth	0
+sound/7/4	rel@synth	1
+sound/7/4	read@synth	7
+sound/7/5	rel@synth	1
+sound/7/5	read@synth	28
+sound/8	rel@synth	1
+sound/8/0	rel@synth	1
+sound/8/0	read@synth	4
+sound/8/0	options@synth	Sine	Triangle	Square	Analog square	Saw	Analog saw	Supersaw	Wavetable	Sample	Dx7	Input (left)	Input (right)	Input (stereo)
+sound/8/1	rel@synth	1
+sound/8/2	rel@synth	1
+sound/8/2	read@synth	0
+sound/8/2	learn@synth	26
+sound/8/3	rel@synth	0
+sound/8/3	learn@synth	21
+sound/8/3	param_kind@synth	1
+sound/8/4	rel@synth	1
+sound/8/4	read@synth	0
+sound/8/4	learn@synth	19
+sound/8/4	param_kind@synth	1
+sound/8/5	rel@synth	0
+sound/8/5	learn@synth	9
+sound/8/5	param_kind@synth	1
+sound/8/6	rel@synth	1
+sound/8/6	read@synth	-1
+sound/8/7	rel@synth	0
+sound/8/8	rel@synth	0
+sound/8/8	options@synth	Cut	Once	Loop	Stretch
+sound/8/9	rel@synth	0
+sound/8/10	rel@synth	0
+sound/8/10	options@synth	Linked	Independent
+sound/8/11	rel@synth	0
+sound/8/11	options@synth	Linear	Sinc
+sound/8/12	rel@synth	0
+sound/8/13	rel@synth	0
+sound/9	rel@synth	1
+sound/9/0	rel@synth	1
+sound/9/0	read@synth	2
+sound/9/0	options@synth	Sine	Triangle	Square	Analog square	Saw	Analog saw	Supersaw	Wavetable	Sample	Input (left)	Input (right)	Input (stereo)
+sound/9/1	rel@synth	1
+sound/9/2	rel@synth	1
+sound/9/2	read@synth	-1200
+sound/9/2	learn@synth	27
+sound/9/3	rel@synth	0
+sound/9/3	learn@synth	22
+sound/9/3	param_kind@synth	1
+sound/9/4	rel@synth	1
+sound/9/4	read@synth	0
+sound/9/4	learn@synth	20
+sound/9/4	param_kind@synth	1
+sound/9/5	rel@synth	0
+sound/9/5	learn@synth	10
+sound/9/5	param_kind@synth	1
+sound/9/6	rel@synth	1
+sound/9/6	read@synth	-1
+sound/9/7	rel@synth	0
+sound/9/8	rel@synth	0
+sound/9/8	options@synth	Cut	Once	Loop	Stretch
+sound/9/9	rel@synth	0
+sound/9/10	rel@synth	0
+sound/9/10	options@synth	Linked	Independent
+sound/9/11	rel@synth	0
+sound/9/11	options@synth	Linear	Sinc
+sound/9/12	rel@synth	0
+sound/9/13	rel@synth	0
+sound/10	rel@synth	0
+sound/10/0	learn@synth	28
+sound/10/1	learn@synth	7
+sound/10/1	param_kind@synth	1
+sound/11	rel@synth	0
+sound/11/0	learn@synth	29
+sound/11/1	learn@synth	8
+sound/11/1	param_kind@synth	1
+sound/11/3	options@synth	Carriers	Modulator 1
+sound/12	rel@synth	1
+sound/12/0	rel@synth	1
+sound/12/0	read@synth	50
+sound/12/0	learn@synth	0
+sound/12/0	param_kind@synth	1
+sound/12/1	rel@synth	1
+sound/12/1	read@synth	39
+sound/12/1	learn@synth	1
+sound/12/1	param_kind@synth	1
+sound/12/2	rel@synth	0
+sound/12/2	learn@synth	4
+sound/12/2	param_kind@synth	1
+sound/12/3	rel@synth	0
+sound/12/3	learn@synth	5
+sound/12/3	param_kind@synth	1
+sound/12/4	rel@synth	1
+sound/12/4	read@synth	0
+sound/12/4	learn@synth	3
+sound/12/4	param_kind@synth	1
+sound/12/5	rel@synth	1
+sound/12/5	read@synth	0
+sound/13	rel@synth	1
+sound/13/0	rel@synth	1
+sound/13/0	read@synth	0
+sound/13/0	learn@synth	33
+sound/13/0	param_kind@synth	1
+sound/13/1	rel@synth	1
+sound/13/1	read@synth	20
+sound/13/1	learn@synth	37
+sound/13/1	param_kind@synth	1
+sound/13/2	rel@synth	1
+sound/13/2	read@synth	50
+sound/13/2	learn@synth	13
+sound/13/2	param_kind@synth	1
+sound/13/3	rel@synth	1
+sound/13/3	read@synth	1
+sound/13/3	learn@synth	41
+sound/13/3	param_kind@synth	1
+sound/14	rel@synth	1
+sound/14/0	rel@synth	1
+sound/14/0	read@synth	7
+sound/14/0	learn@synth	34
+sound/14/0	param_kind@synth	1
+sound/14/1	rel@synth	1
+sound/14/1	read@synth	7
+sound/14/1	learn@synth	38
+sound/14/1	param_kind@synth	1
+sound/14/2	rel@synth	1
+sound/14/2	read@synth	25
+sound/14/2	learn@synth	14
+sound/14/2	param_kind@synth	1
+sound/14/3	rel@synth	1
+sound/14/3	read@synth	20
+sound/14/3	learn@synth	42
+sound/14/3	param_kind@synth	1
+sound/15	rel@synth	1
+sound/15/0	rel@synth	1
+sound/15/0	read@synth	25
+sound/15/0	learn@synth	35
+sound/15/0	param_kind@synth	1
+sound/15/1	rel@synth	1
+sound/15/1	read@synth	25
+sound/15/1	learn@synth	39
+sound/15/1	param_kind@synth	1
+sound/15/2	rel@synth	1
+sound/15/2	read@synth	25
+sound/15/2	learn@synth	15
+sound/15/2	param_kind@synth	1
+sound/15/3	rel@synth	1
+sound/15/3	read@synth	25
+sound/15/3	learn@synth	43
+sound/15/3	param_kind@synth	1
+sound/16	rel@synth	1
+sound/16/0	rel@synth	1
+sound/16/0	read@synth	25
+sound/16/0	learn@synth	36
+sound/16/0	param_kind@synth	1
+sound/16/1	rel@synth	1
+sound/16/1	read@synth	25
+sound/16/1	learn@synth	40
+sound/16/1	param_kind@synth	1
+sound/16/2	rel@synth	1
+sound/16/2	read@synth	25
+sound/16/2	learn@synth	16
+sound/16/2	param_kind@synth	1
+sound/16/3	rel@synth	1
+sound/16/3	read@synth	25
+sound/16/3	learn@synth	44
+sound/16/3	param_kind@synth	1
+sound/17	rel@synth	1
+sound/17/0	rel@synth	1
+sound/17/0	read@synth	1
+sound/17/0	options@synth	Sine	Triangle	Square	Saw	S&H	Random Walk	Warble
+sound/17/1	rel@synth	1
+sound/17/1	read@synth	0
+sound/17/2	rel@synth	1
+sound/17/2	read@synth	30
+sound/17/2	learn@synth	52
+sound/17/2	param_kind@synth	1
+sound/18	rel@synth	1
+sound/18/0	rel@synth	1
+sound/18/0	read@synth	1
+sound/18/0	options@synth	Sine	Triangle	Square	Saw	S&H	Random Walk	Warble
+sound/18/1	rel@synth	1
+sound/18/1	read@synth	0
+sound/18/2	rel@synth	1
+sound/18/2	read@synth	25
+sound/18/2	learn@synth	31
+sound/18/2	param_kind@synth	1
+sound/19	rel@synth	1
+sound/19/0	rel@synth	1
+sound/19/0	read@synth	1
+sound/19/0	options@synth	Sine	Triangle	Square	Saw	S&H	Random Walk	Warble
+sound/19/1	rel@synth	1
+sound/19/1	read@synth	0
+sound/19/2	rel@synth	1
+sound/19/2	read@synth	30
+sound/19/2	learn@synth	53
+sound/19/2	param_kind@synth	1
+sound/20	rel@synth	1
+sound/20/0	rel@synth	1
+sound/20/0	read@synth	1
+sound/20/0	options@synth	Sine	Triangle	Square	Saw	S&H	Random Walk	Warble
+sound/20/1	rel@synth	1
+sound/20/1	read@synth	0
+sound/20/2	rel@synth	1
+sound/20/2	read@synth	25
+sound/20/2	learn@synth	32
+sound/20/2	param_kind@synth	1
+sound/21	rel@synth	1
+sound/21/0	rel@synth	1
+sound/21/0	read@synth	1
+sound/21/0	options@synth	Low	Medium	High
+sound/21/1	rel@synth	1
+sound/21/1	read@synth	1
+sound/21/1	options@synth	Auto	Polyphonic	Monophonic	Legato
+sound/21/2	rel@synth	1
+sound/21/2	read@synth	8
+sound/21/3	rel@synth	1
+sound/21/3	read@synth	0
+sound/21/3	learn@synth	116
+sound/21/3	param_kind@synth	3
+sound/21/4	rel@synth	1
+sound/21/4/0	rel@synth	1
+sound/21/4/0	read@synth	4
+sound/21/4/1	rel@synth	1
+sound/21/4/1	read@synth	10
+sound/21/4/2	rel@synth	1
+sound/21/4/2	read@synth	0
+sound/22	rel@synth	1
+sound/22/0	rel@synth	1
+sound/22/0	read@synth	2
+sound/22/1	rel@synth	1
+sound/22/1	read@synth	48
+sound/23	rel@synth	0
+sound/24	rel@synth	1
+sound/25	rel@synth	1
+sound/25	read@synth	0
+sound/25	options@synth	Forward	Reversed	Ping-Pong
+sound/26	rel@synth	1
+sound/26/0	rel@synth	1
+sound/26/0	read@synth	0
+sound/26/1	rel@synth	0
+sound	rel@kit row	1
+sound/0	rel@kit row	1
+sound/0/0	rel@kit row	1
+sound/0/0/0	rel@kit row	1
+sound/0/0/1	rel@kit row	1
+sound/0/1	rel@kit row	1
+sound/0/2	rel@kit row	1
+sound/1	rel@kit row	1
+sound/1/0	rel@kit row	0
+sound/1/1	rel@kit row	1
+sound/1/1	read@kit row	40
+sound/1/1	learn@kit row	45
+sound/1/1	param_kind@kit row	1
+sound/1/2	rel@kit row	1
+sound/1/2	read@kit row	0
+sound/1/2	learn@kit row	23
+sound/1/2	param_kind@kit row	1
+sound/1/3	rel@kit row	1
+sound/1/3	read@kit row	0
+sound/1/3	learn@kit row	25
+sound/1/4	rel@kit row	1
+sound/2	rel@kit row	1
+sound/2/0	rel@kit row	1
+sound/2/0	read@kit row	0
+sound/2/0	options@kit row	Off	On
+sound/2/1	rel@kit row	1
+sound/2/1/0	rel@kit row	1
+sound/2/1/0	read@kit row	0
+sound/2/1/0	options@kit row	Off	Up	Down	Both	Random	Walk	Custom
+sound/2/1/1	rel@kit row	1
+sound/2/1/1	read@kit row	25
+sound/2/1/1	learn@kit row	101
+sound/2/1/1	param_kind@kit row	3
+sound/2/1/2	rel@kit row	1
+sound/2/1/2	read@kit row	6
+sound/2/1/3	rel@kit row	1
+sound/2/1/3	read@kit row	25
+sound/2/1/3	learn@kit row	54
+sound/2/1/3	param_kind@kit row	1
+sound/2/2	rel@kit row	1
+sound/2/2/0	rel@kit row	1
+sound/2/2/0	read@kit row	2
+sound/2/2/1	rel@kit row	1
+sound/2/2/1	read@kit row	1
+sound/2/2/2	rel@kit row	1
+sound/2/2/2	read@kit row	0
+sound/2/2/2	options@kit row	Up	Down	Up & Down	Alternate	Random
+sound/2/2/3	rel@kit row	0
+sound/2/2/4	rel@kit row	1
+sound/2/2/4	read@kit row	0
+sound/2/2/4	options@kit row	Up	Down	Up & Down	Random	Walk1	Walk2	Walk3
+sound/2/2/5	rel@kit row	1
+sound/2/2/5	read@kit row	0
+sound/2/2/5	options@kit row	None	5th	Sus2	Min	Maj	Sus4	Min7	Dom7	Maj7
+sound/2/2/6	rel@kit row	1
+sound/2/2/6	read@kit row	0
+sound/2/2/6	learn@kit row	102
+sound/2/2/6	param_kind@kit row	3
+sound/2/2/7	rel@kit row	0
+sound/2/2/8	rel@kit row	1
+sound/2/2/8	read@kit row	0
+sound/2/2/8	learn@kit row	103
+sound/2/2/8	param_kind@kit row	3
+sound/2/2/9	rel@kit row	0
+sound/2/3	rel@kit row	1
+sound/2/3/0	rel@kit row	1
+sound/2/3/0	read@kit row	0
+sound/2/3/0	options@kit row	Disabled	Aftertouch	MPE Y
+sound/2/4	rel@kit row	1
+sound/2/4	read@kit row	1
+sound/2/4	options@kit row	Off	On
+sound/3	rel@kit row	1
+sound/3/0	rel@kit row	1
+sound/3/0	read@kit row	0
+sound/3/0	options@kit row	Off	On
+sound/3/1	rel@kit row	0
+sound/3/2	rel@kit row	0
+sound/3/3	rel@kit row	0
+sound/3/4	rel@kit row	0
+sound/3/5	rel@kit row	1
+sound/3/5	read@kit row	0
+sound/3/5	learn@kit row	115
+sound/3/5	param_kind@kit row	3
+sound/3/6	rel@kit row	0
+sound/3/7	rel@kit row	0
+sound/3/8	rel@kit row	0
+sound/3/9	rel@kit row	0
+sound/3/10	rel@kit row	0
+sound/3/11	rel@kit row	0
+sound/3/12	rel@kit row	0
+sound/3/13	rel@kit row	0
+sound/3/14	rel@kit row	0
+sound/3/15	rel@kit row	1
+sound/3/15	read@kit row	50
+sound/3/15	learn@kit row	106
+sound/3/15	param_kind@kit row	3
+sound/3/16	rel@kit row	0
+sound/3/17	rel@kit row	0
+sound/3/18	rel@kit row	0
+sound/3/19	rel@kit row	0
+sound/3/20	rel@kit row	0
+sound/3/21	rel@kit row	0
+sound/3/22	rel@kit row	0
+sound/3/23	rel@kit row	1
+sound/3/23	read@kit row	0
+sound/3/23	learn@kit row	107
+sound/3/23	param_kind@kit row	3
+sound/4	rel@kit row	1
+sound/4/0	rel@kit row	1
+sound/4/0	read@kit row	0
+sound/4/0	learn@kit row	100
+sound/4/0	param_kind@kit row	3
+sound/4/1	rel@kit row	1
+sound/4/1	read@kit row	64
+sound/4/2	rel@kit row	1
+sound/4/2	read@kit row	127
+sound/4/3	rel@kit row	1
+sound/4/3	read@kit row	5
+sound/4/4	rel@kit row	1
+sound/4/4	read@kit row	5
+sound/4/5	rel@kit row	1
+sound/4/5	read@kit row	0
+sound/5	rel@kit row	1
+sound/5/0	rel@kit row	1
+sound/5/0/0	rel@kit row	1
+sound/5/0/0	read@kit row	1
+sound/5/0/0	options@kit row	12dB Ladder	24dB Ladder	Drive	SVF Bandpass	SVF Notch	Off
+sound/5/0/1	rel@kit row	1
+sound/5/0/1	read@kit row	50
+sound/5/0/1	learn@kit row	24
+sound/5/0/1	param_kind@kit row	1
+sound/5/0/2	rel@kit row	1
+sound/5/0/2	read@kit row	0
+sound/5/0/2	learn@kit row	11
+sound/5/0/2	param_kind@kit row	1
+sound/5/0/3	rel@kit row	1
+sound/5/0/3	read@kit row	0
+sound/5/0/3	learn@kit row	17
+sound/5/0/3	param_kind@kit row	1
+sound/5/1	rel@kit row	1
+sound/5/1/0	rel@kit row	1
+sound/5/1/0	read@kit row	2
+sound/5/1/0	options@kit row	SVF Bandpass	SVF Notch	HP Ladder	Off
+sound/5/1/1	rel@kit row	1
+sound/5/1/1	read@kit row	0
+sound/5/1/1	learn@kit row	30
+sound/5/1/1	param_kind@kit row	1
+sound/5/1/2	rel@kit row	1
+sound/5/1/2	read@kit row	0
+sound/5/1/2	learn@kit row	12
+sound/5/1/2	param_kind@kit row	1
+sound/5/1/3	rel@kit row	1
+sound/5/1/3	read@kit row	0
+sound/5/1/3	learn@kit row	18
+sound/5/1/3	param_kind@kit row	1
+sound/5/2	rel@kit row	1
+sound/5/2	read@kit row	0
+sound/5/2	options@kit row	Hpf > Lpf	Lpf > Hpf	Parallel
+sound/6	rel@kit row	1
+sound/6/0	rel@kit row	1
+sound/6/0/0	rel@kit row	1
+sound/6/0/0	read@kit row	25
+sound/6/0/0	learn@kit row	91
+sound/6/0/0	param_kind@kit row	3
+sound/6/0/1	rel@kit row	1
+sound/6/0/1	read@kit row	25
+sound/6/0/1	learn@kit row	93
+sound/6/0/1	param_kind@kit row	3
+sound/6/0/2	rel@kit row	1
+sound/6/0/2	read@kit row	25
+sound/6/0/2	learn@kit row	94
+sound/6/0/2	param_kind@kit row	3
+sound/6/0/3	rel@kit row	1
+sound/6/0/3	read@kit row	25
+sound/6/0/3	learn@kit row	92
+sound/6/0/3	param_kind@kit row	3
+sound/6/1	rel@kit row	1
+sound/6/1/0	rel@kit row	1
+sound/6/1/0	read@kit row	0
+sound/6/1/0	learn@kit row	49
+sound/6/1/0	param_kind@kit row	1
+sound/6/1/1	rel@kit row	1
+sound/6/1/1	read@kit row	1
+sound/6/1/1	options@kit row	Off	On
+sound/6/1/2	rel@kit row	1
+sound/6/1/2	read@kit row	6
+sound/6/1/3	rel@kit row	1
+sound/6/1/3	read@kit row	25
+sound/6/1/3	learn@kit row	50
+sound/6/1/3	param_kind@kit row	1
+sound/6/1/4	rel@kit row	1
+sound/6/1/4	read@kit row	0
+sound/6/1/4	options@kit row	Off	Digital	Analog
+sound/6/2	rel@kit row	1
+sound/6/2/0	rel@kit row	1
+sound/6/2/0	read@kit row	0
+sound/6/2/0	learn@kit row	47
+sound/6/2/0	param_kind@kit row	1
+sound/6/2/1	rel@kit row	1
+sound/6/2/1	read@kit row	30
+sound/6/2/2	rel@kit row	1
+sound/6/2/2	read@kit row	36
+sound/6/2/3	rel@kit row	1
+sound/6/2/3	read@kit row	50
+sound/6/2/4	rel@kit row	1
+sound/6/2/4	read@kit row	1
+sound/6/2/4	options@kit row	Freeverb	Mutable	Digital
+sound/6/2/5	rel@kit row	1
+sound/6/2/5	read@kit row	0
+sound/6/2/6	rel@kit row	1
+sound/6/2/6	read@kit row	0
+sound/6/2/7	rel@kit row	1
+sound/6/2/7	read@kit row	50
+sound/6/2/8	rel@kit row	1
+sound/6/2/8/0	rel@kit row	1
+sound/6/2/8/0	read@kit row	-1
+sound/6/2/8/1	rel@kit row	0
+sound/6/2/8/2	rel@kit row	0
+sound/6/2/8/3	rel@kit row	0
+sound/6/2/8/4	rel@kit row	0
+sound/6/3	rel@kit row	1
+sound/6/3/0	rel@kit row	1
+sound/6/3/0	read@kit row	25
+sound/6/3/0	learn@kit row	90
+sound/6/3/0	param_kind@kit row	3
+sound/6/3/1	rel@kit row	1
+sound/6/3/1	read@kit row	0
+sound/6/3/1	options@kit row	Use Song Settings	Forward	Reversed	Forw-Ping	Rvrs-Ping
+sound/6/3/2	rel@kit row	0
+sound/6/4	rel@kit row	1
+sound/6/4/0	rel@kit row	1
+sound/6/4/0	read@kit row	0
+sound/6/4/0	options@kit row	Disabled	Flanger	Chorus	Phaser	Stereo Chorus	Warble	Dimension	Grain
+sound/6/4/1	rel@kit row	0
+sound/6/4/2	rel@kit row	0
+sound/6/4/3	rel@kit row	0
+sound/6/4/4	rel@kit row	0
+sound/6/5	rel@kit row	1
+sound/6/5/0	rel@kit row	1
+sound/6/5/0	read@kit row	0
+sound/6/5/1	rel@kit row	1
+sound/6/5/1	read@kit row	0
+sound/6/5/1	learn@kit row	96
+sound/6/5/1	param_kind@kit row	3
+sound/6/5/2	rel@kit row	1
+sound/6/5/2	read@kit row	0
+sound/6/5/2	learn@kit row	95
+sound/6/5/2	param_kind@kit row	3
+sound/6/5/3	rel@kit row	1
+sound/6/5/3	read@kit row	0
+sound/6/5/3	learn@kit row	6
+sound/6/5/3	param_kind@kit row	1
+sound/6/6	rel@kit row	1
+sound/6/6	read@kit row	0
+sound/6/6	learn@kit row	3
+sound/6/6	param_kind@kit row	1
+sound/7	rel@kit row	1
+sound/7/0	rel@kit row	1
+sound/7/1	rel@kit row	1
+sound/7/1	read@kit row	5
+sound/7/2	rel@kit row	1
+sound/7/2	read@kit row	18
+sound/7/2	learn@kit row	99
+sound/7/2	param_kind@kit row	3
+sound/7/3	rel@kit row	1
+sound/7/3	read@kit row	0
+sound/7/4	rel@kit row	1
+sound/7/4	read@kit row	7
+sound/7/5	rel@kit row	1
+sound/7/5	read@kit row	28
+sound/8	rel@kit row	1
+sound/8/0	rel@kit row	1
+sound/8/0	read@kit row	8
+sound/8/0	options@kit row	Sine	Triangle	Square	Analog square	Saw	Analog saw	Supersaw	Wavetable	Sample	Dx7	Input (left)	Input (right)	Input (stereo)
+sound/8/1	rel@kit row	1
+sound/8/2	rel@kit row	0
+sound/8/3	rel@kit row	0
+sound/8/4	rel@kit row	0
+sound/8/5	rel@kit row	0
+sound/8/6	rel@kit row	0
+sound/8/7	rel@kit row	0
+sound/8/8	rel@kit row	0
+sound/8/9	rel@kit row	0
+sound/8/10	rel@kit row	0
+sound/8/11	rel@kit row	0
+sound/8/12	rel@kit row	0
+sound/8/13	rel@kit row	0
+sound/9	rel@kit row	1
+sound/9/0	rel@kit row	1
+sound/9/0	read@kit row	8
+sound/9/0	options@kit row	Sine	Triangle	Square	Analog square	Saw	Analog saw	Supersaw	Wavetable	Sample	Input (left)	Input (right)	Input (stereo)
+sound/9/1	rel@kit row	1
+sound/9/2	rel@kit row	0
+sound/9/3	rel@kit row	0
+sound/9/4	rel@kit row	0
+sound/9/5	rel@kit row	0
+sound/9/6	rel@kit row	0
+sound/9/7	rel@kit row	0
+sound/9/8	rel@kit row	0
+sound/9/9	rel@kit row	0
+sound/9/10	rel@kit row	0
+sound/9/11	rel@kit row	0
+sound/9/12	rel@kit row	0
+sound/9/13	rel@kit row	0
+sound/10	rel@kit row	0
+sound/11	rel@kit row	0
+sound/12	rel@kit row	1
+sound/12/0	rel@kit row	1
+sound/12/0	read@kit row	50
+sound/12/0	learn@kit row	0
+sound/12/0	param_kind@kit row	1
+sound/12/1	rel@kit row	1
+sound/12/1	read@kit row	0
+sound/12/1	learn@kit row	1
+sound/12/1	param_kind@kit row	1
+sound/12/2	rel@kit row	0
+sound/12/3	rel@kit row	0
+sound/12/4	rel@kit row	1
+sound/12/4	read@kit row	0
+sound/12/4	learn@kit row	3
+sound/12/4	param_kind@kit row	1
+sound/12/5	rel@kit row	0
+sound/13	rel@kit row	1
+sound/13/0	rel@kit row	1
+sound/13/0	read@kit row	0
+sound/13/0	learn@kit row	33
+sound/13/0	param_kind@kit row	1
+sound/13/1	rel@kit row	1
+sound/13/1	read@kit row	20
+sound/13/1	learn@kit row	37
+sound/13/1	param_kind@kit row	1
+sound/13/2	rel@kit row	1
+sound/13/2	read@kit row	50
+sound/13/2	learn@kit row	13
+sound/13/2	param_kind@kit row	1
+sound/13/3	rel@kit row	1
+sound/13/3	read@kit row	0
+sound/13/3	learn@kit row	41
+sound/13/3	param_kind@kit row	1
+sound/14	rel@kit row	1
+sound/14/0	rel@kit row	1
+sound/14/0	read@kit row	20
+sound/14/0	learn@kit row	34
+sound/14/0	param_kind@kit row	1
+sound/14/1	rel@kit row	1
+sound/14/1	read@kit row	20
+sound/14/1	learn@kit row	38
+sound/14/1	param_kind@kit row	1
+sound/14/2	rel@kit row	1
+sound/14/2	read@kit row	25
+sound/14/2	learn@kit row	14
+sound/14/2	param_kind@kit row	1
+sound/14/3	rel@kit row	1
+sound/14/3	read@kit row	20
+sound/14/3	learn@kit row	42
+sound/14/3	param_kind@kit row	1
+sound/15	rel@kit row	1
+sound/15/0	rel@kit row	1
+sound/15/0	read@kit row	25
+sound/15/0	learn@kit row	35
+sound/15/0	param_kind@kit row	1
+sound/15/1	rel@kit row	1
+sound/15/1	read@kit row	25
+sound/15/1	learn@kit row	39
+sound/15/1	param_kind@kit row	1
+sound/15/2	rel@kit row	1
+sound/15/2	read@kit row	25
+sound/15/2	learn@kit row	15
+sound/15/2	param_kind@kit row	1
+sound/15/3	rel@kit row	1
+sound/15/3	read@kit row	25
+sound/15/3	learn@kit row	43
+sound/15/3	param_kind@kit row	1
+sound/16	rel@kit row	1
+sound/16/0	rel@kit row	1
+sound/16/0	read@kit row	25
+sound/16/0	learn@kit row	36
+sound/16/0	param_kind@kit row	1
+sound/16/1	rel@kit row	1
+sound/16/1	read@kit row	25
+sound/16/1	learn@kit row	40
+sound/16/1	param_kind@kit row	1
+sound/16/2	rel@kit row	1
+sound/16/2	read@kit row	25
+sound/16/2	learn@kit row	16
+sound/16/2	param_kind@kit row	1
+sound/16/3	rel@kit row	1
+sound/16/3	read@kit row	25
+sound/16/3	learn@kit row	44
+sound/16/3	param_kind@kit row	1
+sound/17	rel@kit row	1
+sound/17/0	rel@kit row	1
+sound/17/0	read@kit row	1
+sound/17/0	options@kit row	Sine	Triangle	Square	Saw	S&H	Random Walk	Warble
+sound/17/1	rel@kit row	1
+sound/17/1	read@kit row	0
+sound/17/2	rel@kit row	1
+sound/17/2	read@kit row	30
+sound/17/2	learn@kit row	52
+sound/17/2	param_kind@kit row	1
+sound/18	rel@kit row	1
+sound/18/0	rel@kit row	1
+sound/18/0	read@kit row	1
+sound/18/0	options@kit row	Sine	Triangle	Square	Saw	S&H	Random Walk	Warble
+sound/18/1	rel@kit row	1
+sound/18/1	read@kit row	0
+sound/18/2	rel@kit row	1
+sound/18/2	read@kit row	25
+sound/18/2	learn@kit row	31
+sound/18/2	param_kind@kit row	1
+sound/19	rel@kit row	1
+sound/19/0	rel@kit row	1
+sound/19/0	read@kit row	1
+sound/19/0	options@kit row	Sine	Triangle	Square	Saw	S&H	Random Walk	Warble
+sound/19/1	rel@kit row	1
+sound/19/1	read@kit row	0
+sound/19/2	rel@kit row	1
+sound/19/2	read@kit row	30
+sound/19/2	learn@kit row	53
+sound/19/2	param_kind@kit row	1
+sound/20	rel@kit row	1
+sound/20/0	rel@kit row	1
+sound/20/0	read@kit row	1
+sound/20/0	options@kit row	Sine	Triangle	Square	Saw	S&H	Random Walk	Warble
+sound/20/1	rel@kit row	1
+sound/20/1	read@kit row	0
+sound/20/2	rel@kit row	1
+sound/20/2	read@kit row	25
+sound/20/2	learn@kit row	32
+sound/20/2	param_kind@kit row	1
+sound/21	rel@kit row	1
+sound/21/0	rel@kit row	1
+sound/21/0	read@kit row	1
+sound/21/0	options@kit row	Low	Medium	High
+sound/21/1	rel@kit row	1
+sound/21/1	read@kit row	0
+sound/21/1	options@kit row	Auto	Polyphonic	Monophonic	Legato	Choke
+sound/21/2	rel@kit row	0
+sound/21/3	rel@kit row	1
+sound/21/3	read@kit row	0
+sound/21/3	learn@kit row	116
+sound/21/3	param_kind@kit row	3
+sound/21/4	rel@kit row	1
+sound/21/4/0	rel@kit row	1
+sound/21/4/0	read@kit row	1
+sound/21/4/1	rel@kit row	1
+sound/21/4/1	read@kit row	8
+sound/21/4/2	rel@kit row	1
+sound/21/4/2	read@kit row	0
+sound/22	rel@kit row	0
+sound/23	rel@kit row	1
+sound/23	read@kit row	2
+sound/24	rel@kit row	1
+sound/25	rel@kit row	1
+sound/25	read@kit row	3
+sound/25	options@kit row	Forward	Reversed	Ping-Pong	None
+sound/26	rel@kit row	1
+sound/26/0	rel@kit row	1
+sound/26/0	read@kit row	0
+sound/26/1	rel@kit row	1
+sound/26/1	read@kit row	60
+chain/arp_octave_mode_to_note_mode	ae	1
+chain/arp_octave_mode_to_note_mode_drums	ae	1
+chain/arp_note_mode_from_octave_mode	ae	0
+chain/arp_note_mode_from_octave_mode_drums	ae	1
+sound/2/1/0	chain@synth/6	arp_octave_mode_to_note_mode
+sound/2/1/0	chain@synth/1	<ascend>
+sound/2/1/0	chain@synth/0	<ascend>
+sound/21/1	chain@synth/1	voice_count
+sound/21/1	chain@synth/2	<ascend>
+sound/21/1	chain@synth/0	<ascend>
+sound/21/4/0	chain@synth/1	unison_spread
+sound/21/4/0	chain@synth/4	unison_spread
+chain/arp_octave_mode_to_note_mode	chain@synth/0	arp_note_mode_from_octave_mode
+chain/arp_octave_mode_to_note_mode_drums	chain@synth/0	arp_note_mode_from_octave_mode_drums
+sound/2/1/0	chain@kit row/6	arp_octave_mode_to_note_mode_drums
+cables/patch_cables	name	Mod matrix
+cables/vibrato	name	Vibrato
+cables/sidechain_volume	name	Volume ducking
+cables/source_selection_regular	chain	patch_cable_strength_regular
+cables/patch_cable_strength_regular	chain	source_selection_range
+cables/source_selection_range	chain	patch_cable_strength_range
+cables/patch_cable_strength_range	chain	source_selection_range
+cables/vibrato	chain	source_selection_range
+cables/sidechain_volume	chain	source_selection_range
+cables/lpf_freq	chain	source_selection_regular
+strength/seed	read	1234
+strength/seed	learn	4294902808
+strength/sentinel	read	-2500
+strength/commit	write/4321	4321
+cables/row/0	page	patch_cable_strength_regular
+cables/row/0	sources	24	13
+cables/row/1	page	patch_cable_strength_regular
+cables/row/1	sources	24	4
+cables/row/2	page	patch_cable_strength_regular
+cables/row/2	sources	24	12
+cables/row/3	page	patch_cable_strength_regular
+cables/row/3	sources	24	10
+cables/row/4	page	patch_cable_strength_regular
+cables/row/4	sources	2	11
+cables/row/5	page	patch_cable_strength_regular
+cables/row/5	sources	2	12
+cables/row/6	page	patch_cable_strength_regular
+cables/row/6	sources	12	6
+cables/row/7	page	patch_cable_strength_regular
+cables/row/7	sources	18	0
+cables/row/8	page	patch_cable_strength_regular
+cables/row/8	sources	26	0
+cables/row/9	page	patch_cable_strength_range
+cables/row/9	sources	24	4	0
+cables/row/end	page	<ascend>
+sound/1/1	automation	1
+sound/1/2	automation	1
+sound/1/3	automation	1
+sound/1/4	automation	1
+sound/2/1/1	automation	1
+sound/2/1/3	automation	1
+sound/2/2/6	automation	1
+sound/2/2/8	automation	1
+sound/3/1	automation	1
+sound/3/3	automation	1
+sound/3/5	automation	1
+sound/3/7	automation	1
+sound/3/9	automation	1
+sound/3/11	automation	1
+sound/3/13	automation	1
+sound/3/15	automation	1
+sound/3/17	automation	1
+sound/3/19	automation	1
+sound/3/21	automation	1
+sound/3/23	automation	1
+sound/4/0	automation	1
+sound/5/0/1	automation	1
+sound/5/0/2	automation	1
+sound/5/0/3	automation	1
+sound/5/1/1	automation	1
+sound/5/1/2	automation	1
+sound/5/1/3	automation	1
+sound/6/0/0	automation	1
+sound/6/0/1	automation	1
+sound/6/0/2	automation	1
+sound/6/0/3	automation	1
+sound/6/1/0	automation	1
+sound/6/1/3	automation	1
+sound/6/2/0	automation	1
+sound/6/3/0	automation	1
+sound/6/4/1	automation	1
+sound/6/4/2	automation	1
+sound/6/4/3	automation	1
+sound/6/4/4	automation	1
+sound/6/5/1	automation	1
+sound/6/5/2	automation	1
+sound/6/5/3	automation	1
+sound/6/6	automation	1
+sound/7/0	automation	1
+sound/7/2	automation	1
+sound/8/2	automation	1
+sound/8/3	automation	1
+sound/8/4	automation	1
+sound/8/5	automation	1
+sound/9/2	automation	1
+sound/9/3	automation	1
+sound/9/4	automation	1
+sound/9/5	automation	1
+sound/10/0	automation	1
+sound/10/1	automation	1
+sound/11/0	automation	1
+sound/11/1	automation	1
+sound/12/0	automation	1
+sound/12/1	automation	1
+sound/12/2	automation	1
+sound/12/3	automation	1
+sound/12/4	automation	1
+sound/13/0	automation	1
+sound/13/1	automation	1
+sound/13/2	automation	1
+sound/13/3	automation	1
+sound/14/0	automation	1
+sound/14/1	automation	1
+sound/14/2	automation	1
+sound/14/3	automation	1
+sound/15/0	automation	1
+sound/15/1	automation	1
+sound/15/2	automation	1
+sound/15/3	automation	1
+sound/16/0	automation	1
+sound/16/1	automation	1
+sound/16/2	automation	1
+sound/16/3	automation	1
+sound/17/2	automation	1
+sound/18/2	automation	1
+sound/19/2	automation	1
+sound/20/2	automation	1
+sound/21/3	automation	1
+sound/6/2/8/0	write@synth/-1	-1	-1
+sound/6/2/8/0	write@synth/24	24	24
+sound/6/2/8/0	write@synth/50	50	50
+sound/6/2/8/4	write@synth/0	0	0
+sound/6/2/8/4	write@synth/4	4	4
+sound/6/2/8/4	write@synth/9	9	9
+sound/6/3/1	write@synth/0	0	0
+sound/6/3/1	write@synth/2	2	2
+sound/6/3/1	write@synth/4	4	4
+sound/6/3/2	write@synth/0	0	0
+sound/6/3/2	write@synth/1	1	1
+sound/8/2	write@synth/-9600	-9600	-9600
+sound/8/2	write@synth/0	0	0
+sound/8/2	write@synth/9600	9600	9600
+sound/9/2	write@synth/-9600	-9600	-9600
+sound/9/2	write@synth/0	0	0
+sound/9/2	write@synth/9600	9600	9600
+sound/25	write@synth/0	0	0
+sound/25	write@synth/1	1	1
+sound/25	write@synth/2	2	2
+sound/6/2/8/0	write@kit row/-1	-1	-1
+sound/6/2/8/0	write@kit row/24	24	24
+sound/6/2/8/0	write@kit row/50	50	50
+sound/6/2/8/4	write@kit row/0	0	0
+sound/6/2/8/4	write@kit row/4	4	4
+sound/6/2/8/4	write@kit row/9	9	9
+sound/6/3/1	write@kit row/0	0	0
+sound/6/3/1	write@kit row/2	2	2
+sound/6/3/1	write@kit row/4	4	4
+sound/6/3/2	write@kit row/0	0	0
+sound/6/3/2	write@kit row/1	1	1
+sound/25	write@kit row/0	0	0
+sound/25	write@kit row/1	1	1
+sound/25	write@kit row/3	3	3
+sweep/sound/6/2/8/0	drum_a	50
+sweep/sound/6/2/8/0	drum_b	50
+sweep/sound/6/2/8/4	drum_a	9
+sweep/sound/6/2/8/4	drum_b	9
+sweep/sound/6/3/1	drum_a	4
+sweep/sound/6/3/1	drum_b	4
+sweep/sound/6/3/2	drum_a	1
+sweep/sound/6/3/2	drum_b	1
+sweep/sound/8/2	drum_a	0
+sweep/sound/8/2	drum_b	0
+sweep/sound/9/2	drum_a	0
+sweep/sound/9/2	drum_b	0
+sweep/sound/25	drum_a	3
+sweep/sound/25	drum_b	0

@@ -21,8 +21,8 @@
 ///       `hid/`/`gui/` wall this layer may not cross has a real node:
 ///
 ///         * **`hid/` state.** `flash_status` (`PadLEDs::flashCursor`, `flash/status.h:26-32`),
-///           `shortcuts_version` (`soundEditor.shortcutsVersion`, `shortcuts/version.h:26-27`) and the
-///           six `pad_colour_*` (`menu_item::Colour::value`, `colour.h:66`) are ordinary `Kind::Enum`
+///           `shortcuts_version` (`FlashStorage::shortcutsVersion`) and the
+///           six `pad_colour_*` (`menu_item::Colour::value`) are ordinary `Kind::Enum`
 ///           nodes with get/set hooks, because none needed a bespoke item, only a reachable byte:
 ///             - `flashCursor` is a plain namespace-scope `uint8_t` (`hid/led/pad_leds.h:47`) that
 ///               a declaration reaches without including anything from `hid/`, exactly as
@@ -31,14 +31,12 @@
 ///               where the persistence code that reads and writes them
 ///               (`storage/flash_storage.cpp:576-579`, `:972-975`) lives, and `Colour::value` is a
 ///               reference onto one of them. A member of a `gui/` class could not be reached from here.
-///             - `shortcutsVersion` selects a shortcut *layer*, and this layer owns its own tables,
-///               so the port keeps the setting in `menu/shortcuts.cpp` beside them
-///               (`menu::set_shortcuts_version`). That is the one item whose value legacy and the
-///               port hold separately; `tables_3_spec.cpp`'s `value_is_port_owned` says so.
+///             - `shortcutsVersion` is flash byte 60 (`FlashStorage::shortcutsVersion`), which selects a shortcut
+///               *layer* of this layer's own tables (`menu::shortcuts_version`).
 ///           `battery_level` and `firmware_version` do not reach behind the `hid/` wall either --
 ///           `batteryMV` is a plain global set from `deluge.cpp`'s main loop, the same one
-///           `sound_editor.cpp:1458` reads with its own bare `extern` -- so they are real, finished
-///           `CustomItem`s; see "12-13. Battery and firmware" below.
+///           `sound_editor.cpp`'s `extern uint16_t batteryMV` reads with its own bare `extern` -- so they are real,
+///           finished `CustomItem`s; see "12-13. Battery and firmware" below.
 ///         * **UI navigation.** `cv_selection` / `gate_selection` (`cv/selection.h:27-55`,
 ///           `gate/selection.h:29-72`: `Selection`s whose select press *navigates* to a page rather than
 ///           committing a value) and `midi_devices` (`midi/devices.h:24-39`, a scrolling device list) are
@@ -354,23 +352,17 @@ void set_flash_status(const MenuContext& ctx, int32_t value);
 
 /// @brief `shortcuts::Version`'s read and write (`shortcuts/version.h:26-27`).
 ///
-/// Legacy keeps the setting on `soundEditor` and applies it by *mutating* ten cells of two shortcut
-/// tables in place (`SoundEditor::setShortcutsVersion`, `gui/ui/sound_editor.cpp:112-181`). The
-/// port keeps it in `menu/shortcuts.cpp` beside the tables it selects, and selects a whole layer
-/// rather than editing one -- see `menu::set_shortcuts_version`.
-///
-/// **The write does two things**, and both are needed: the layer selection above,
-/// and a `MenuAction::SetShortcutsVersion` request (`scenes/menu/action.h`) that the dispatcher
-/// turns into `soundEditor.setShortcutsVersion(...)` -- which is what reaches flash byte 60. Without
-/// the request a layout chosen from the ported menu would be gone at the next power-on. The reasoning
-/// is at the hook itself.
+/// Legacy applies the setting by *mutating* ten cells of two shortcut tables in place
+/// (`SoundEditor::setShortcutsVersion`). The port selects a whole layer of its own tables on flash byte 60
+/// (`FlashStorage::shortcutsVersion`) rather than editing one -- see `menu::set_shortcuts_version`. The write is the
+/// byte, which persists it.
 /// @{
 int32_t get_shortcuts_version(const MenuContext& ctx);
 void set_shortcuts_version(const MenuContext& ctx, int32_t value);
 /// @}
 
-/// @brief `menu_item::Colour`'s read and write (`colour.h:43-47`), with the slot as a template
-///        argument rather than an object identity.
+/// @brief `menu_item::Colour`'s read and write (`origin/main:src/deluge/gui/menu_item/colour.h`
+///        `Colour::readCurrentValue`), with the slot as a template argument rather than an object identity.
 ///
 /// The six colour items differ in exactly one thing -- which of `FlashStorage::padColours` they
 /// edit -- so they are six distinct addresses of the two templates below, the shape
@@ -379,7 +371,7 @@ void set_shortcuts_version(const MenuContext& ctx, int32_t value);
 /// against `FlashStorage::PadColourSlot` with a `static_assert`, exactly as it pins `ResetItem`'s
 /// `DescriptorId` literals.
 ///
-/// `writeCurrentValue`'s `renderingNeededRegardlessOfUI()` (`colour.h:46`) does not come along --
+/// `writeCurrentValue`'s `renderingNeededRegardlessOfUI()` does not come along --
 /// it is the same class of `hid/` immediate-apply the file note lists as a gap. The stored byte,
 /// which is all any renderer reads, is written identically.
 /// @{
@@ -509,12 +501,16 @@ inline const Node* cv_selection_chain(const MenuContext&, const MenuState&) {
 const Node* gate_selection_chain(const MenuContext& ctx, const MenuState& state);
 /// @}
 
-inline constexpr Node cv_selection = with_select_chain(
-    with_title(custom(sid(String::STRING_FOR_CV), &kCvSelectionItem), sid(String::STRING_FOR_CV_OUTPUTS)),
-    cv_selection_chain, kCvSelectionChain);
-inline constexpr Node gate_selection = with_select_chain(
-    with_title(custom(sid(String::STRING_FOR_GATE), &kGateSelectionItem), sid(String::STRING_FOR_GATE_OUTPUTS)),
-    gate_selection_chain, kGateSelectionChain);
+inline constexpr Node cv_selection =
+    with_value_names(with_select_chain(with_title(custom(sid(String::STRING_FOR_CV), &kCvSelectionItem),
+                                                  sid(String::STRING_FOR_CV_OUTPUTS)),
+                                       cv_selection_chain, kCvSelectionChain),
+                     kCvOutputNames);
+inline constexpr Node gate_selection =
+    with_value_names(with_select_chain(with_title(custom(sid(String::STRING_FOR_GATE), &kGateSelectionItem),
+                                                  sid(String::STRING_FOR_GATE_OUTPUTS)),
+                                       gate_selection_chain, kGateSelectionChain),
+                     kGateOutputNames);
 
 // ---------------------------------------------------------------------------------------------
 // 4. Trigger clock
@@ -930,7 +926,8 @@ inline constexpr Node default_swing_interval = with_sync_name_magnitude(
 
 inline constexpr Node default_scale =
     dynamic_enumeration(sid(String::STRING_FOR_INIT_SCALE), default_scale_names, get_default_scale, set_default_scale);
-inline constexpr Node default_active_scale = custom(sid(String::STRING_FOR_ACTIVE_SCALES), &kDefaultActiveScalesItem);
+inline constexpr Node default_active_scale =
+    with_value_names(custom(sid(String::STRING_FOR_ACTIVE_SCALES), &kDefaultActiveScalesItem), preset_scale_names);
 inline constexpr const Node* kDefaultScalesChildren[] = {&default_scale, &default_active_scale};
 inline constexpr Node default_scales = submenu(sid(String::STRING_FOR_SCALE), kDefaultScalesChildren);
 
@@ -1054,8 +1051,8 @@ inline constexpr Node pads_keyboard_layout =
                                    get_pads_keyboard_layout, set_pads_keyboard_layout),
                sid(String::STRING_FOR_KEY_LAYOUT));
 
-/// `menu_item::Colour::getOptions` (`colour.h:48-56`) -- nine names, shared by all six items, in
-/// `Colour::Option` order (`colour.h:27-37`).
+/// `menu_item::Colour::getOptions` -- nine names, shared by all six items, in `Colour::Option`
+/// order.
 inline constexpr uint16_t kPadColourNames[] = {
     sid(String::STRING_FOR_RED),    sid(String::STRING_FOR_GREEN), sid(String::STRING_FOR_BLUE),
     sid(String::STRING_FOR_YELLOW), sid(String::STRING_FOR_CYAN),  sid(String::STRING_FOR_MAGENTA),
@@ -1148,7 +1145,7 @@ inline constexpr Node record_settings = submenu(sid(String::STRING_FOR_RECORDING
 // 11. Community features
 //
 // `runtime_feature::Settings` is a `Submenu` over `subMenuEntries`
-// (`runtime_feature/settings.cpp`), 24 items in that array's order. All but one are
+// (`runtime_feature/settings.cpp`), 23 items in that array's order. All but one are
 // `SettingToggle`s -- `Selection`s flagged `isToggle()` (`runtime_feature/setting.h`) -- which is
 // `Kind::Toggle` here; `SyncScalingAction` is a plain two-option `Setting` and `ShortcutOverlay` a
 // three-option one.
@@ -1178,7 +1175,6 @@ DELUGE_RUNTIME_TOGGLE(feature_grid_loop_pads, 16, STRING_FOR_COMMUNITY_FEATURE_G
 DELUGE_RUNTIME_TOGGLE(feature_alt_tap_tempo, 17, STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_TAP_TEMPO_BEHAVIOUR);
 DELUGE_RUNTIME_TOGGLE(feature_trim_from_start, 19, STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP);
 DELUGE_RUNTIME_TOGGLE(feature_show_battery_level, 20, STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL);
-DELUGE_RUNTIME_TOGGLE(feature_legacy_menu, 23, STRING_FOR_COMMUNITY_FEATURE_LEGACY_MENU);
 
 #undef DELUGE_RUNTIME_TOGGLE
 
@@ -1229,8 +1225,7 @@ inline constexpr const Node* kRuntimeFeatureChildren[] = {&feature_drum_randomiz
                                                           &feature_rounded_corners,
                                                           &feature_trim_from_start,
                                                           &feature_show_battery_level,
-                                                          &feature_shortcut_overlay,
-                                                          &feature_legacy_menu};
+                                                          &feature_shortcut_overlay};
 inline constexpr Node runtime_features =
     submenu(sid(String::STRING_FOR_COMMUNITY_FTS), kRuntimeFeatureChildren, Layout::Vertical, nullptr,
             sid(String::STRING_FOR_COMMUNITY_FTS_MENU_TITLE));

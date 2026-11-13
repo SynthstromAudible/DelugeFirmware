@@ -20,6 +20,7 @@
 
 #include "scenes/menu/nodes/edit_name.h"
 
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/profile.h"
 #include "scenes/rename/rename_scene.h"
@@ -30,7 +31,13 @@
 namespace deluge::scenes::menu::nodes {
 
 void EditNameItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
-	// Drawn for at most the one tick between `on_focus` asking for the push and the router applying
+	// A shortcut pad opens the menu on this item, which is then the menu's root: the rename window is all
+	// that is on screen, as `SoundEditor::renderOLED`'s early return at depth 0 leaves it. From a page's
+	// list (depth > 0) the title shows beneath the transparent rename scene.
+	if (state.depth == 0) {
+		return;
+	}
+	// Below the root, drawn for at most the one tick between `on_focus` asking for the push and the router applying
 	// it, so what matters is only that it is never a blank frame: the item's own title, exactly what
 	// `PendingCustom::render` draws. (Legacy never draws this item at all -- `beginSession` opens
 	// the rename UI before `SoundEditor` gets to render anything.)
@@ -49,6 +56,8 @@ deluge::ui::shell::Result EditNameItem::handle(const deluge::ui::shell::UiEvent&
 }
 
 void EditNameItem::on_focus(const MenuContext& ctx, MenuState& state) const {
+	// `EditName::beginSession`: on an instrument clip, every audition ends before the editor opens.
+	host_end_audition(AuditionEnd::ClipViewForInstrumentClip);
 	// `EditName::beginSession` (`gui/menu_item/edit_name.cpp:29-54`): point the editor at the model
 	// and open it. `open()` is the `renameClipUI.clip = clip` / `renameOutputUI.output = ...`
 	// assignment, generalised -- the target table reads whichever member of the context it needs.

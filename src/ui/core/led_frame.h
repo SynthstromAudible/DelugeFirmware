@@ -18,7 +18,7 @@ enum class LedId : uint8_t;
 /// `whichKnob`, which is the *mod encoder* number -- `View::setKnobIndicatorLevel(whichModEncoder)`
 /// (`src/deluge/gui/views/view.cpp`) -> `indicator_leds::setKnobIndicatorLevel` ->
 /// `deluge_control_set_indicator(whichKnob, …)` (`src/deluge/hid/led/indicator_leds.cpp:241`) --
-/// and mod encoder 0 is `mod0`, the LOWER gold encoder (`src/deluge/hid/encoders.h:80-81`).
+/// and mod encoder 0 is `mod0`, the LOWER gold encoder (`src/deluge/hid/encoders.h`'s `mod0`/`mod1`).
 /// Numbering these the other way round would make the pass-through silently swap the two knobs.
 enum class IndicatorId : uint8_t { Lower, Upper };
 /// @brief The two blink rates every blinking LED shares a phase with, as `indicator_leds::blinkLed`'s

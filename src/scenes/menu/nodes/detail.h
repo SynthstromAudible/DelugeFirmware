@@ -23,6 +23,13 @@ constexpr uint16_t sid(deluge::l10n::String s) {
 	return static_cast<uint16_t>(s);
 }
 
+/// @brief The words a toggle's own page lists for its two states, off then on (`MenuView::render_leaf_toggle`):
+///        main's `Toggle::getNameFor`, DISABLED and ENABLED.
+///
+/// The menu dump spells every toggle with them, and a toggle drawn as a custom checkbox row names them as its values.
+inline constexpr uint16_t kToggleWords[] = {sid(deluge::l10n::String::STRING_FOR_DISABLED),
+                                            sid(deluge::l10n::String::STRING_FOR_ENABLED)};
+
 /// @brief @p n with a title that differs from its name.
 ///
 /// `param()` and `submenu()` take a trailing `title`; `enumeration()`, `toggle_item()`,

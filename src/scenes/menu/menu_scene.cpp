@@ -89,20 +89,21 @@ void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	refused_recorder_landing_ = nullptr;
 	pushed_kind_ = SceneKind::Null;
 	pushed_scene_refused_ = false;
+	import_range_ = -1;
 	const DxState dx = st_.dx;
 	st_ = MenuState{};
 	st_.dx = dx;
 	pending_transition_.reset();
 	transition_.reset();
 	cable_edge_until_ms_ = 0;
-	visit_ = {}; // `blinkLed(IndicatorLED::BACK)` as the editor opens (`sound_editor.cpp:571`), among the rest
+	visit_ = {}; // `blinkLed(IndicatorLED::BACK)` as the editor opens (`SoundEditor::setLedStates`), among the rest
 	holding_affect_entire_ = false;
 	pads_.forget_landing();
 	retarget(root);
 }
 
 SceneKind MenuScene::kind() const {
-	return SceneKind::FirstApp;
+	return kMenuSceneKind;
 }
 
 std::span<const Node* const> MenuScene::roots() {
@@ -159,7 +160,7 @@ bool MenuScene::on_enter(const SceneId& id) {
 		// **The allocation legacy's permission check performs before it opens a named item.**
 		// `SoundEditor::setup(clip, item, sourceIndex)` runs
 		// `item->checkPermissionToBeginSession(...)` on the item it was asked for
-		// (`SoundEditor::setup`'s item arm), and for every range-dependent item that lands in
+		// (`SoundEditor::setup`'s item arm), and for every range-specific item that lands in
 		// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`, whose **first
 		// statement** is `source->getOrCreateFirstRange()` -- a *create*, not a read,
 		// which fails only with `INSUFFICIENT_RAM`.
@@ -170,8 +171,8 @@ bool MenuScene::on_enter(const SceneId& id) {
 		// &menu_item::file0SelectorMenu, 0)`, `InstrumentClipView::buttonAction`'s auditioning LOAD/KIT arm -- and the
 		// shortcut-pad jump, which comes back through here as an `Action::Kind::Replace`
 		// (`handle`'s `Replace` arm), both arrived with no range selected on a source with no
-		// ranges yet. **Measured** at level 3 on a fresh synth clip: the ShellMenu-off leg opened the
-		// sample browser and the ShellMenu-on leg did not, because `browser::sample_can` refuses a
+		// ranges yet. **Measured** at level 3 on a fresh synth clip: legacy opened the
+		// sample browser and the menu did not, because `browser::sample_can` refuses a
 		// null `AudioFileHolder` (`scenes/browser/browser_scene.cpp`) and the push was
 		// declined, leaving the menu parked on the file selector's own title page.
 		//
@@ -185,29 +186,30 @@ bool MenuScene::on_enter(const SceneId& id) {
 		// (`gui/menu_item/menu_item.cpp:27-31`, relevance and nothing else) plus the range rule, so
 		// calling it here would refuse site 8 on a default SAW synth that legacy opens. That gap --
 		// `Node` has no port of an item-specific `checkPermissionToBeginSession` that bypasses
-		// relevance -- is listed in `src/scenes/README.md`'s "Legacy features not yet ported" rather than half-closed
-		// here.
+		// relevance -- is listed in `src/scenes/README.md`'s "Features `main` has that the scenes do not" rather than
+		// half-closed here.
 		//
 		// What is NOT skipped is the range half, both of its arms. Paying only the allocation and
 		// dropping `MUST_SELECT_RANGE` would be a partial port of a two-armed gate, which is worse
 		// than paying neither: the half that is there makes it look complete. It is latent on a
 		// fresh source (0 ranges becomes 1, so the item just opens) and fires the moment a user
 		// presses LOAD on a multisampled oscillator.
-		if (target != nullptr && target->range_dependent) {
-			if (!ensure_first_range(ctx_)) {
+		if (target != nullptr) {
+			// About the item's own source (`range_rule_context`): a recorder for oscillator 2 under oscillator 1's
+			// context makes oscillator 2's range, and its picker test reads oscillator 2.
+			const Permission range = ensure_item_first_range(*target, ctx_);
+			if (range == Permission::No) {
 				deluge::notify::notice_string(
 				    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));
 				return false;
 			}
-			// `:2005-2014`, the two arms after that allocation. `ensure_first_range` has already
-			// applied the first -- a kit row or a single range is unambiguous, so it points
-			// `ctx_.range_index` at range 0 (`:2005-2007`). What is left is legacy's own
-			// `MUST_SELECT_RANGE` (`:2014`): a range-dependent item on a source with more than one
-			// range and none remembered. Spelled as "the allocation did not resolve one" rather
-			// than by calling `permission_for`, whose first statement is the relevance fold above.
-			// A context with no sound took `ensure_first_range`'s no-op success and must not land on a
-			// picker.
-			if (ctx_.addresses.slot && ctx_.range_index < 0) {
+			// The two arms after that allocation in `main`'s
+			// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`. The allocation has already applied the
+			// first -- a kit row or a single range is unambiguous, so it points the range index at range 0. What is
+			// left is `MUST_SELECT_RANGE`: a range-specific item on a source with more than one range and none
+			// remembered. Spelled as "the allocation did not resolve one" rather than by calling `permission_for`,
+			// whose first statement is the relevance fold above.
+			if (range == Permission::MustSelectRange) {
 				// `SoundEditor::setup`: `multiRangeMenu.menuItemHeadingTo =
 				// horizontal_menu_child; newItem = &multiRangeMenu;` -- the picker is opened
 				// *instead of* the item, and the item is remembered for the picker's own select
@@ -233,13 +235,16 @@ bool MenuScene::on_enter(const SceneId& id) {
 	if (target == nullptr) {
 		return false;
 	}
+	// A shortcut's page: `beginScreen` begins it, which keeps a range only for a range-dependent column
+	// (`HorizontalMenu::beginSession`).
 	if (page != nullptr) {
 		visit_ = {};
 		retarget(*page);
 		walk_.focus_column(core(), *target);
+		begin_submenu_range(ctx_, st_, nullptr);
 		return true;
 	}
-	// `beginScreen`: a new screen, with `blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:571`). Reset only on a
+	// `beginScreen`: a new screen, with `blinkLed(LEARN)` as `SoundEditor::updatePadLightsFor` runs. Reset only on a
 	// screen that opens: a refused id leaves the menu the visit it was, as the shell rolls the move back.
 	visit_ = {};
 	retarget(*target);
@@ -257,6 +262,8 @@ uint16_t MenuScene::arm_page_landing(const Node& page, const Node& column) {
 void MenuScene::on_resume() {
 	// Input went elsewhere, and so did LEARN's release: the menu is not learning when it comes back.
 	visit_.learn.cancel();
+	// A folder import's range is this resume's to apply (on the step up below) or to drop.
+	const int16_t imported = std::exchange(import_range_, int16_t{-1});
 	visit_.blink_restart = true; // `focusRegained`'s `setLedStates` -> `blinkLed(IndicatorLED::BACK)`
 	                             // (`SoundEditor::focusRegained` in `sound_editor.cpp`)
 	// `SoundEditor::focusRegained` (`gui/ui/sound_editor.cpp`): "If just came back from a
@@ -298,6 +305,12 @@ void MenuScene::on_resume() {
 			retarget(*landing);
 		}
 		else {
+			// A folder import left its range current, as `SoundEditor::setCurrentMultiRange` does. The level the step
+			// lands on keeps it or drops it as main's does: the picker opens on it, and a submenu that begins drops it
+			// (`begin_submenu_range`).
+			if (imported >= 0) {
+				select_range(ctx_, imported);
+			}
 			walk_.ascend(core(), visit_.session);
 		}
 	}
@@ -315,8 +328,10 @@ std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
 		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
 		return std::nullopt;
 	}
+	// Over the automation view any item is taken: `potentialShortcutPadAction` refuses a non-param one only while
+	// the editor itself is the current UI, and here the scene over the menu is.
 	const Node* target = shortcut_node(press.root, false, x, y);
-	if (target == nullptr || (press.root_is_automation && !is_automation_item(*target))) {
+	if (target == nullptr) {
 		return std::nullopt;
 	}
 	if (!shortcut_applies(*target, press)) {
@@ -343,13 +358,22 @@ std::optional<SceneId> MenuScene::shortcut_jump(uint8_t x, uint8_t y) {
 }
 
 std::optional<MenuContext> MenuScene::kit_global_shortcut_context() const {
-	if (kit_global_shortcut_source_ == nullptr || !ctx_.is_kit || ctx_.is_kit_global_fx) {
+	if (!ctx_.is_kit) {
 		return std::nullopt;
 	}
 	switch (ctx_.root) {
 	case MenuContext::Root::Drum:
 	case MenuContext::Root::MidiDrum:
 	case MenuContext::Root::GateDrum:
+		// A row's root opened on the kit's own effects already edits them; its shortcuts are the kit's own.
+		if (ctx_.is_kit_global_fx) {
+			MenuContext kit_global = ctx_;
+			kit_global.root = MenuContext::Root::KitGlobalFx;
+			return kit_global;
+		}
+		if (kit_global_shortcut_source_ == nullptr) {
+			return std::nullopt;
+		}
 		return kit_global_shortcut_source_(ctx_);
 	default:
 		return std::nullopt;
@@ -980,13 +1004,6 @@ Result MenuScene::after_render_navigation() {
 				flip_in_place(*column);
 				repaint = true;
 			}
-			else if (column->custom != nullptr && column->custom->opens_directly_on_horizontal_select()) {
-				// `FileBrowserItem` (`nodes/sample.h`): `FileSelector::selectButtonPress` opens the
-				// browser outright with no permission or range check at all (`file_selector.cpp:
-				// 49-52`) -- `enter_child`/`enter_range_picker_if_needed` must not run for this one,
-				// see `CustomItem::opens_directly_on_horizontal_select`'s doc.
-				walk_.descend_to(core(), visit_.session, *column);
-			}
 			else if (column->allow_session_from_horizontal) {
 				// `Submenu::selectButtonPress` returns the item itself when it begins its own session from the
 				// horizontal page (`submenu.cpp:191-193`), and the select arm enters it the general way.
@@ -1045,19 +1062,9 @@ Result MenuScene::after_render_navigation() {
 		// this item" -- so the test is on the action's own identity rather than on a flag, and a
 		// sixth action added without deciding this question fails the `switch`'s coverage warning.
 		//
-		// **The sixth, `SetShortcutsVersion`, does NOT ascend**, and the rule above is what decides
-		// it rather than a preference. `SetShortcutsVersion` is filed from a `Binding::set` hook,
-		// which runs from `commit_value` a few lines above -- not from `on_focus`, and not from any
-		// press. It is also the other half of the same rule: legacy DOES enter this item. It is a
-		// plain `menu_item::Selection` (`gui/menu_item/shortcuts/version.h:23`) and overrides
-		// nothing, so `shouldEnterSubmenu()` is the base's `return true`
-		// (`MenuItem::shouldEnterSubmenu`) -- `SoundEditor` navigates into its page and
-		// `writeCurrentValue` (`shortcuts/version.h:27`) runs on every detent while the user stands
-		// on it. Ascending here would close that page under the user on the first turn, which is UI
-		// the port would be inventing.
-		//
-		// **The seventh, `ScreensaverSettingsChanged`, has the sixth's shape exactly, so it takes the sixth's answer.**
-		// `ScreensaverSettingsChanged` is filed from the same `Binding::set` route, by two hooks
+		// **`ScreensaverSettingsChanged` does NOT ascend**, and the rule above is what decides it rather than a
+		// preference. It is filed from a `Binding::set` hook, which runs from `commit_value` a few lines above -- not
+		// from `on_focus`, and not from any press -- by two hooks
 		// (`nodes::set_screensaver_mode`, `nodes::set_screensaver_timeout`); and legacy enters both
 		// of their items too. `ScreensaverModeMenu` is a `Selection` and `ScreensaverTimeout` an
 		// `Integer` (`gui/menu_item/defaults/screensaver.h:34`, `:54`), neither overrides
@@ -1072,7 +1079,6 @@ Result MenuScene::after_render_navigation() {
 			walk_.ascend(core(), visit_.session);
 			break;
 		case MenuAction::OpenPerformanceView:
-		case MenuAction::SetShortcutsVersion:
 		case MenuAction::ScreensaverSettingsChanged:
 		// The settings writes below are the screensaver's shape: filed by a `Binding::set` hook on every detent of an
 		// item legacy enters.
@@ -1115,8 +1121,8 @@ Result MenuScene::after_render_navigation() {
 		pushed_kind_ = st_.walk.pending_scene.kind;
 		st_.walk.pending_scene = SceneId{};
 		st_.walk.go_up_on_resume = true;
-		// `sampleBrowser.menuItemHeadingTo = item` (`gui/ui/sound_editor.cpp:2090`), and
-		// `osc::AudioRecorder::menuItemHeadingTo` (`:2101`) for the recorder half. Legacy writes it
+		// `sampleBrowser.menuItemHeadingTo = item` (`SoundEditor::maybeGetParentMenu`), and
+		// `osc::AudioRecorder::menuItemHeadingTo` for the recorder half. Legacy writes it
 		// on the way in, from `maybeGetParentMenu`, which is exactly here: the statement beside its
 		// own `openUI`. Items with no return affordance record one too and nothing reads it; the
 		// recorder's return is `MenuWalkState::resume_landing`, which its item writes.
@@ -1227,8 +1233,8 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 	// A custom item owns its input while it is focused: it sees every event first and, if it
 	// consumes it, the scene does nothing else this call -- the same precedence legacy gives a
 	// `MenuItem`'s own `buttonAction` override over the rest of `SoundEditor::buttonAction`
-	// (`gui/ui/sound_editor.cpp:636`: `currentMenuItem->buttonAction(...)` runs before anything else
-	// in that branch looks at the result). Checked before the shortcut-pad jump and the root `Back`
+	// (`SoundEditor::buttonAction` in `gui/ui/sound_editor.cpp`: `currentMenuItem->buttonAction(...)` runs before
+	// anything else in that branch looks at the result). Checked before the shortcut-pad jump and the root `Back`
 	// below, not after: a bespoke item's own input (the patch-cable pages' pad presses, a file browser's
 	// scroll) is exactly the kind of thing this layer cannot interpret generically, so it must not
 	// be shadowed by a case that happens to match the same event shape.

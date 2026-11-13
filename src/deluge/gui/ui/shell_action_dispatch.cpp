@@ -27,8 +27,7 @@
 #include "gui/context_menu/midi_learn_mode.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/shell_host_ui.h"
-#include "gui/ui/sound_editor.h" // soundEditor.setShortcutsVersion -- the SetShortcutsVersion arm
-#include "gui/ui/ui.h"           // openUI, getRootUI
+#include "gui/ui/ui.h" // openUI, getRootUI
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
@@ -306,7 +305,6 @@ bool opensOrMoves(MenuAction action) {
 	case MenuAction::OpenSongMacros:
 	case MenuAction::FileSelectorOpened:
 		return true;
-	case MenuAction::SetShortcutsVersion:
 	case MenuAction::ScreensaverSettingsChanged:
 	case MenuAction::PadBrightnessChanged:
 	case MenuAction::HighlightingChanged:
@@ -377,7 +375,7 @@ void performMenuAction(const MenuActionRequest& req) {
 		// defined `gui/views/audio_clip_view.cpp:758-769`) opens with
 		// `AudioClip& audioClip = *getCurrentAudioClip();` (`:759`), and `getCurrentAudioClip()`
 		// answers `nullptr` whenever `currentSong->getCurrentClip()` is not an `AudioClip`
-		// (`model/song/song.cpp:98-104`); the next line reads `audioClip.guide` (`:771`) through it.
+		// (`model/song/song.cpp:98-104`); the next line reads `audioClip.guide` through it.
 		// Neither of legacy's two callers tests it either. `AudioClipView::buttonAction`'s
 		// X_ENC + Y_ENC chord (`audio_clip_view.cpp:384-393`, the call at `:391`) relies on
 		// `audioClipView` being the open view; `SetClipLengthEqualToSampleLength::selectButtonPress`
@@ -417,36 +415,6 @@ void performMenuAction(const MenuActionRequest& req) {
 		// discard costs nothing at this site -- see the header for the site where it does.
 		(void)gui::context_menu::configureSongMacros.setupAndCheckAvailability();
 		openUI(&gui::context_menu::configureSongMacros);
-		break;
-
-	case MenuAction::SetShortcutsVersion:
-		// `shortcuts::Version::writeCurrentValue`'s one statement
-		// (`gui/menu_item/shortcuts/version.h:27`), on the real `soundEditor`. No helper: there is
-		// no branch to transcribe, and the value is legacy's own -- `writeCurrentValue` passes
-		// `this->getValue()` through unnormalised and so does the port, so the two-way mapping
-		// between the enum index and the setting is decided in exactly one place,
-		// `SoundEditor::setShortcutsVersion`'s own `switch` (whose `default` arm is
-		// "Uses defaults").
-		//
-		// **This is the arm that reaches flash**, which no other arm in this switch does:
-		// `SoundEditor::shortcutsVersion` (`gui/ui/sound_editor.cpp:114`) is what
-		// `FlashStorage::writeSettings` stores at byte 60 (`storage/flash_storage.cpp:982`) and
-		// `readSettings` hands back at boot. The ported settings item must therefore make this call
-		// as well as write `deluge::scenes::menu`'s mirror, or the layout a user chose would survive
-		// only until power-off.
-		//
-		// **It does not loop**, and the reason is worth having here as well as at the enumerator,
-		// because this is the call that would close the loop if it ever did.
-		// `setShortcutsVersion` mirrors back into the port -- it calls
-		// `deluge::scenes::menu::set_shortcuts_version`. That callee assigns one
-		// file-scope variable in `scenes/menu/shortcuts.cpp`. It is **not**
-		// `nodes::set_shortcuts_version`, the item hook that filed this request; it writes no
-		// `MenuState`, files nothing, and calls nothing. One lap, then it stops.
-		//
-		// The mirror write it makes is also the same value the hook already wrote, by the same rule
-		// spelled the same way on both sides (`V1` for `SHORTCUTS_VERSION_1`, `V3` otherwise), so
-		// the lap is idempotent rather than merely finite.
-		soundEditor.setShortcutsVersion(static_cast<int32_t>(req.arg));
 		break;
 
 	case MenuAction::ScreensaverSettingsChanged:
@@ -504,7 +472,7 @@ void performMenuAction(const MenuActionRequest& req) {
 		break;
 
 	case MenuAction::PadColoursChanged:
-		// `Colour::writeCurrentValue`'s second statement (`colour.h:46`).
+		// `Colour::writeCurrentValue`'s second statement.
 		renderingNeededRegardlessOfUI();
 		break;
 

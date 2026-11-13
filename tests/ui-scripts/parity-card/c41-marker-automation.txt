@@ -1,0 +1,92 @@
+# The sample marker editor over the automation view. c10's BASIC load, BACK out of the menu; Shift + (0,7) makes
+# oscillator 1 a sample and opens the editor, which the mute column then leaves; BACK to the clip view, CLIP to the
+# automation overview, SELECT for the sound menu over it, OSCILLATOR 1, CROSS SCREEN twice to the page with START and
+# SYNTH (the page's first item) into the editor. Then Shift + (0,6), the automation view's interpolation pad, is the
+# editor's own press, and Shift + (7,1), POLYPHONY, jumps to its page although it is no param.
+100   snapshot boot
+5000  button Shift down
+5100  pad 0 5 down
+5150  pad 0 5 up
+5200  button Shift up
+7000  snapshot browser
+7500  button SelectEnc down
+7700  snapshot held-short
+8200  snapshot folder-menu
+8300  button SelectEnc up
+9000  snapshot folder-menu-released
+9500  button Back down
+9520  button Back up
+10500 snapshot folder-menu-closed
+11000 encoder Select +2
+12000 snapshot on-drums
+12500 button SelectEnc down
+12520 button SelectEnc up
+14500 snapshot in-drums
+15000 button SelectEnc down
+15020 button SelectEnc up
+17000 snapshot in-block
+17500 button SelectEnc down
+17700 snapshot file-held-short
+18200 snapshot file-menu
+18300 button SelectEnc up
+19000 encoder Select +1
+20000 snapshot file-menu-basic
+20500 button SelectEnc down
+20520 button SelectEnc up
+26000 snapshot loaded
+26500 button Back down
+26520 button Back up
+27000 snapshot back-1
+27500 button Back down
+27520 button Back up
+28000 snapshot back-2
+28100 button Shift down
+28200 pad 0 7 down
+28250 pad 0 7 up
+28300 button Shift up
+29100 pad 0 2 down
+29200 pad 16 0 down
+29250 pad 16 0 up
+29300 pad 0 2 up
+29400 pad 16 0 down
+29450 pad 16 0 up
+29700 button Back down
+29720 button Back up
+30000 button Back down
+30020 button Back up
+31000 button Clip down
+31020 button Clip up
+32000 snapshot overview
+32500 button SelectEnc down
+32520 button SelectEnc up
+33500 snapshot menu
+34000 encoder Select +8
+35000 snapshot osc1-row
+35500 button SelectEnc down
+35520 button SelectEnc up
+37000 snapshot osc1-page
+38000 button CrossScreen down
+38020 button CrossScreen up
+38500 button CrossScreen down
+38520 button CrossScreen up
+39000 button Synth down
+39020 button Synth up
+42000 snapshot on-start
+42500 button SelectEnc down
+42520 button SelectEnc up
+44000 snapshot marker
+44500 encoder Select +3
+45000 snapshot moved
+45500 button Shift down
+45600 pad 0 6 down
+45650 pad 0 6 up
+45700 button Shift up
+46200 snapshot kept-pad
+46500 button Shift down
+46600 pad 7 1 down
+46650 pad 7 1 up
+46700 button Shift up
+48000 snapshot jumped-polyphony
+48500 button Back down
+48520 button Back up
+49500 snapshot after-back

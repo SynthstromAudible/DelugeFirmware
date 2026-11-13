@@ -13,7 +13,7 @@
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
 /// | `note_editor_root` | `noteEditorRootMenu` (`:1880`) | `HorizontalMenu` | Submenu (Horizontal) |
-/// | `note_velocity` | `noteVelocityMenu` | `note::Velocity` (`note/velocity.h:31`) | Int |
+/// | `note_velocity` | `noteVelocityMenu` | `note::Velocity` (`origin/main:src/deluge/gui/menu_item/note/velocity.h`) | Int |
 /// | `note_editor_probability` | `noteProbabilityMenu` | `note::Probability` (`note/probability.h:32`) | Int |
 /// | `note_iterance` | `noteIteranceMenu` | `note::IterancePreset` (`note/iterance_preset.h`) | Int |
 /// | `note_fill` | `noteFillMenu` | `note::Fill` (`note/fill.h:32`) | Int |
@@ -102,6 +102,8 @@ bool permitted_row(const MenuContext& ctx);
 ValueText value_text_probability(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 ValueText value_text_iterance(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 ValueText value_text_fill(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// The words a Fill page draws for its values, OFF, NOT FILL and FILL (`with_value_names`).
+size_t fill_names(const MenuContext& ctx, std::span<std::string_view> out);
 /// `Probability::drawPixelsForOled` (both editors): the percentage, then " (L)" when it latches.
 ValueText leaf_text_probability(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// `Fill::drawPixelsForOled` (both editors): `InstrumentClipView::getFillString`, the notification's text.
@@ -227,14 +229,16 @@ inline constexpr Node note_editor_probability = with_leaf_text(
                    permitted_note),
     leaf_text_probability);
 
-inline constexpr Node note_fill = with_leaf_text(
-    with_permitted(
-        with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_EDITOR_FILL), get_note_fill,
-                                             nullptr, IntRange{FillMode::OFF, FillMode::FILL, 1}, Hint::None),
-                                    adjust_note_fill),
-                        value_text_fill),
-        permitted_note),
-    leaf_text_fill);
+inline constexpr Node note_fill = with_value_names(
+    with_leaf_text(
+        with_permitted(
+            with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_EDITOR_FILL), get_note_fill,
+                                                 nullptr, IntRange{FillMode::OFF, FillMode::FILL, 1}, Hint::None),
+                                        adjust_note_fill),
+                            value_text_fill),
+            permitted_note),
+        leaf_text_fill),
+    fill_names);
 
 /// `IterancePreset::selectButtonPress()` (`note/iterance_preset.h:59-67`): only `kCustomIterancePreset`
 /// opens anything; every other value ascends. Defined here, not the `.cpp` -- see the file-level note.
@@ -299,14 +303,16 @@ inline constexpr Node note_row_probability = with_leaf_text(
         permitted_row),
     leaf_text_probability);
 
-inline constexpr Node note_row_fill = with_leaf_text(
-    with_permitted(with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_ROW_EDITOR_FILL),
-                                                        get_note_row_fill, nullptr,
-                                                        IntRange{FillMode::OFF, FillMode::FILL, 1}, Hint::None),
-                                               adjust_note_row_fill),
-                                   value_text_fill),
-                   permitted_row),
-    leaf_text_fill);
+inline constexpr Node note_row_fill = with_value_names(
+    with_leaf_text(
+        with_permitted(with_value_text(with_adjust(int_item(sid(deluge::l10n::String::STRING_FOR_NOTE_ROW_EDITOR_FILL),
+                                                            get_note_row_fill, nullptr,
+                                                            IntRange{FillMode::OFF, FillMode::FILL, 1}, Hint::None),
+                                                   adjust_note_row_fill),
+                                       value_text_fill),
+                       permitted_row),
+        leaf_text_fill),
+    fill_names);
 
 /// `IterancePreset::selectButtonPress()` (`note_row/iterance_preset.h:72-80`). Defined here, not the
 /// `.cpp` -- see the file-level note.

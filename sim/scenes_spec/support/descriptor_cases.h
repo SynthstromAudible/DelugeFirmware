@@ -1,8 +1,9 @@
 #pragma once
 
 /// @file
-/// @brief The setting rows a menu shows, each with the legacy menu item that shows it, and the named skips: what
-///        `descriptor_legacy_spec.cpp` and `setting_names_spec.cpp` both walk.
+/// @brief The setting rows a menu shows, the named skips, and the checks that compare each row with the reference
+///        rows of `tests/golden/ui/menu_oracle/descriptors.tsv`: what `descriptor_legacy_spec.cpp`,
+///        `setting_names_spec.cpp` and `descriptor_coherence_spec.cpp` all walk.
 ///
 /// @warning Include this BEFORE `<cppspec.hpp>` (see `card_access.h`); it does so itself, in that order.
 
@@ -14,7 +15,9 @@
 
 #include "deluge-project/setting_group.h"
 #include "gui/l10n/l10n.h"
-#include "gui/ui/sound_editor.h"
+#include "gui/l10n/setting_names.h"
+#include "gui/l10n/short_label.h"
+#include "gui/l10n/strings.h"
 #include "memory/heaps.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
@@ -24,6 +27,7 @@
 #include "model/edits/setting_edit.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/kit.h"
+#include "model/instrument/non_audio_instrument.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/setting_projection.h"
 #include "model/sample/sample.h"
@@ -34,258 +38,15 @@
 #include "processing/sound/sound_drum.h"
 #include "scenes/menu/context.h"
 
-// The legacy items' headers, in `gui/ui/menus.cpp`'s own order: several reach names (`OLED`, `oled_canvas`, `Icon`,
-// `FormattedTitle`) only through a header an earlier one includes there.
-#include "hid/display/oled.h"
-namespace deluge::gui::menu_item {
-using deluge::hid::display::OLED;
-} // namespace deluge::gui::menu_item
-#include "gui/l10n/setting_names.h"
-#include "gui/l10n/short_label.h"
-#include "gui/l10n/strings.h"
-#include "gui/menu_item/active_scales.h"
-#include "gui/menu_item/arpeggiator/arp_unpatched_param.h"
-#include "gui/menu_item/arpeggiator/chord_type.h"
-#include "gui/menu_item/arpeggiator/include_in_kit_arp.h"
-#include "gui/menu_item/arpeggiator/midi_cv/gate.h"
-#include "gui/menu_item/arpeggiator/midi_cv/rate.h"
-#include "gui/menu_item/arpeggiator/midi_cv/rhythm.h"
-#include "gui/menu_item/arpeggiator/midi_cv/sequence_length.h"
-#include "gui/menu_item/arpeggiator/mode.h"
-#include "gui/menu_item/arpeggiator/mpe_velocity.h"
-#include "gui/menu_item/arpeggiator/note_mode.h"
-#include "gui/menu_item/arpeggiator/note_mode_for_drums.h"
-#include "gui/menu_item/arpeggiator/octave_mode.h"
-#include "gui/menu_item/arpeggiator/octaves.h"
-#include "gui/menu_item/arpeggiator/preset_mode.h"
-#include "gui/menu_item/arpeggiator/rate.h"
-#include "gui/menu_item/arpeggiator/rhythm.h"
-#include "gui/menu_item/arpeggiator/sequence_length.h"
-#include "gui/menu_item/arpeggiator/step_repeat.h"
-#include "gui/menu_item/arpeggiator/sync.h"
-#include "gui/menu_item/audio_clip/attack.h"
-#include "gui/menu_item/audio_clip/audio_source_selector.h"
-#include "gui/menu_item/audio_clip/reverse.h"
-#include "gui/menu_item/audio_clip/sample_marker_editor.h"
-#include "gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h"
-#include "gui/menu_item/audio_clip/specific_output_source_selector.h"
-#include "gui/menu_item/audio_clip/transpose.h"
-#include "gui/menu_item/audio_compressor/compressor_params.h"
-#include "gui/menu_item/audio_compressor/compressor_values.h"
-#include "gui/menu_item/audio_interpolation.h"
-#include "gui/menu_item/battery/level.h"
-#include "gui/menu_item/bend_range/main.h"
-#include "gui/menu_item/bend_range/per_finger.h"
-#include "gui/menu_item/colour.h"
-#include "gui/menu_item/cpu/voice_usage.h"
-#include "gui/menu_item/cv/cv2Mapping.h"
-#include "gui/menu_item/cv/selection.h"
-#include "gui/menu_item/cv/submenu.h"
-#include "gui/menu_item/cv/transpose.h"
-#include "gui/menu_item/cv/volts.h"
-#include "gui/menu_item/defaults/accessibility_menu_highlighting.h"
-#include "gui/menu_item/defaults/bend_range.h"
-#include "gui/menu_item/defaults/favourites_layout.h"
-#include "gui/menu_item/defaults/grid_default_active_mode.h"
-#include "gui/menu_item/defaults/hold_time.h"
-#include "gui/menu_item/defaults/keyboard_layout.h"
-#include "gui/menu_item/defaults/magnitude.h"
-#include "gui/menu_item/defaults/metronome_volume.h"
-#include "gui/menu_item/defaults/pad_brightness.h"
-#include "gui/menu_item/defaults/patch_cable_polarity.h"
-#include "gui/menu_item/defaults/scale.h"
-#include "gui/menu_item/defaults/screensaver.h"
-#include "gui/menu_item/defaults/session_layout.h"
-#include "gui/menu_item/defaults/slice_mode.h"
-#include "gui/menu_item/defaults/startup_song_mode.h"
-#include "gui/menu_item/defaults/swing_interval.h"
-#include "gui/menu_item/defaults/ui/clip_type/default_new_clip_type.h"
-#include "gui/menu_item/defaults/velocity.h"
-#include "gui/menu_item/delay/amount.h"
-#include "gui/menu_item/delay/amount_unpatched.h"
-#include "gui/menu_item/delay/ping_pong.h"
-#include "gui/menu_item/delay/sync.h"
-#include "gui/menu_item/delay/type.h"
-#include "gui/menu_item/dx/browse.h"
-#include "gui/menu_item/dx/engine_select.h"
-#include "gui/menu_item/dx/global_params.h"
-#include "gui/menu_item/edit_name.h"
-#include "gui/menu_item/envelope/envelope_menu.h"
-#include "gui/menu_item/envelope/segment.h"
-#include "gui/menu_item/eq/eq_menu.h"
-#include "gui/menu_item/eq/eq_unpatched_param.h"
-#include "gui/menu_item/file_selector.h"
-#include "gui/menu_item/filter/filter_container.h"
-#include "gui/menu_item/filter/mode.h"
-#include "gui/menu_item/filter/param.h"
-#include "gui/menu_item/filter_route.h"
-#include "gui/menu_item/firmware/version.h"
-#include "gui/menu_item/flash/status.h"
-#include "gui/menu_item/fx/clipping.h"
-#include "gui/menu_item/gate/mode.h"
-#include "gui/menu_item/gate/off_time.h"
-#include "gui/menu_item/gate/selection.h"
-#include "gui/menu_item/horizontal_menu.h"
-#include "gui/menu_item/horizontal_menu_container.h"
-#include "gui/menu_item/horizontal_menu_group.h"
-#include "gui/menu_item/integer_range.h"
-#include "gui/menu_item/key_range.h"
-#include "gui/menu_item/keyboard/layout.h"
-#include "gui/menu_item/lfo/sync.h"
-#include "gui/menu_item/lfo/type.h"
-#include "gui/menu_item/master_transpose.h"
-#include "gui/menu_item/menu_item.h"
-#include "gui/menu_item/midi/after_touch_to_mono.h"
-#include "gui/menu_item/midi/bank.h"
-#include "gui/menu_item/midi/command.h"
-#include "gui/menu_item/midi/default_velocity_to_level.h"
-#include "gui/menu_item/midi/device.h"
-#include "gui/menu_item/midi/device_definition/hide_unlabeled.h"
-#include "gui/menu_item/midi/device_definition/linked.h"
-#include "gui/menu_item/midi/device_definition/submenu.h"
-#include "gui/menu_item/midi/device_is_relative.h"
-#include "gui/menu_item/midi/device_receive_clock.h"
-#include "gui/menu_item/midi/device_send_clock.h"
-#include "gui/menu_item/midi/device_send_thru.h"
-#include "gui/menu_item/midi/devices.h"
-#include "gui/menu_item/midi/follow/follow_channel.h"
-#include "gui/menu_item/midi/follow/follow_feedback_automation.h"
-#include "gui/menu_item/midi/follow/follow_feedback_channel_type.h"
-#include "gui/menu_item/midi/follow/follow_kit_root_note.h"
-#include "gui/menu_item/midi/mpe_to_mono.h"
-#include "gui/menu_item/midi/pgm.h"
-#include "gui/menu_item/midi/program.h"
-#include "gui/menu_item/midi/receive_clock.h"
-#include "gui/menu_item/midi/send_clock.h"
-#include "gui/menu_item/midi/sound/channel.h"
-#include "gui/menu_item/midi/sound/note_for_drum.h"
-#include "gui/menu_item/midi/sub.h"
-#include "gui/menu_item/midi/takeover.h"
-#include "gui/menu_item/midi/transpose.h"
-#include "gui/menu_item/midi/y_axis_to_cc1.h"
-#include "gui/menu_item/mod_fx/depth_patched.h"
-#include "gui/menu_item/mod_fx/depth_unpatched.h"
-#include "gui/menu_item/mod_fx/feedback.h"
-#include "gui/menu_item/mod_fx/offset.h"
-#include "gui/menu_item/mod_fx/rate.h"
-#include "gui/menu_item/mod_fx/rate_unpatched.h"
-#include "gui/menu_item/mod_fx/type.h"
-#include "gui/menu_item/modulator/destination.h"
-#include "gui/menu_item/modulator/transpose.h"
-#include "gui/menu_item/monitor/mode.h"
-#include "gui/menu_item/mpe/direction_selector.h"
-#include "gui/menu_item/note/fill.h"
-#include "gui/menu_item/note/iterance_divisor.h"
-#include "gui/menu_item/note/iterance_preset.h"
-#include "gui/menu_item/note/iterance_step_toggle.h"
-#include "gui/menu_item/note/probability.h"
-#include "gui/menu_item/note/velocity.h"
-#include "gui/menu_item/note_row/fill.h"
-#include "gui/menu_item/note_row/iterance_divisor.h"
-#include "gui/menu_item/note_row/iterance_preset.h"
-#include "gui/menu_item/note_row/iterance_step_toggle.h"
-#include "gui/menu_item/note_row/probability.h"
-#include "gui/menu_item/osc/audio_recorder.h"
-#include "gui/menu_item/osc/pulse_width.h"
-#include "gui/menu_item/osc/retrigger_phase.h"
-#include "gui/menu_item/osc/source/feedback.h"
-#include "gui/menu_item/osc/source/volume.h"
-#include "gui/menu_item/osc/source/wave_index.h"
-#include "gui/menu_item/osc/sync.h"
-#include "gui/menu_item/osc/type.h"
-#include "gui/menu_item/patch_cable_strength/fixed.h"
-#include "gui/menu_item/patch_cables.h"
-#include "gui/menu_item/patched_param/integer.h"
-#include "gui/menu_item/patched_param/integer_non_fm.h"
-#include "gui/menu_item/patched_param/pan.h"
-#include "gui/menu_item/performance_session_view/editing_mode.h"
-#include "gui/menu_item/randomizer/midi_cv/bass_probability.h"
-#include "gui/menu_item/randomizer/midi_cv/chord_polyphony.h"
-#include "gui/menu_item/randomizer/midi_cv/chord_probability.h"
-#include "gui/menu_item/randomizer/midi_cv/glide_probability.h"
-#include "gui/menu_item/randomizer/midi_cv/note_probability.h"
-#include "gui/menu_item/randomizer/midi_cv/ratchet_amount.h"
-#include "gui/menu_item/randomizer/midi_cv/ratchet_probability.h"
-#include "gui/menu_item/randomizer/midi_cv/spread_gate.h"
-#include "gui/menu_item/randomizer/midi_cv/spread_octave.h"
-#include "gui/menu_item/randomizer/midi_cv/spread_velocity.h"
-#include "gui/menu_item/randomizer/midi_cv/swap_probability.h"
-#include "gui/menu_item/randomizer/randomizer_lock.h"
-#include "gui/menu_item/randomizer/randomizer_unpatched_param.h"
-#include "gui/menu_item/record/countin.h"
-#include "gui/menu_item/record/quantize.h"
-#include "gui/menu_item/record/threshold_mode.h"
-#include "gui/menu_item/reset_settings/reset.h"
-#include "gui/menu_item/reverb/amount.h"
-#include "gui/menu_item/reverb/amount_unpatched.h"
-#include "gui/menu_item/reverb/damping.h"
-#include "gui/menu_item/reverb/hpf.h"
-#include "gui/menu_item/reverb/lpf.h"
-#include "gui/menu_item/reverb/model.h"
-#include "gui/menu_item/reverb/pan.h"
-#include "gui/menu_item/reverb/room_size.h"
-#include "gui/menu_item/reverb/sidechain/shape.h"
-#include "gui/menu_item/reverb/sidechain/volume.h"
-#include "gui/menu_item/reverb/width.h"
-#include "gui/menu_item/runtime_feature/settings.h"
-#include "gui/menu_item/sample/browser_preview/mode.h"
-#include "gui/menu_item/sample/end.h"
-#include "gui/menu_item/sample/interpolation.h"
-#include "gui/menu_item/sample/pitch_speed.h"
-#include "gui/menu_item/sample/repeat.h"
-#include "gui/menu_item/sample/reverse.h"
-#include "gui/menu_item/sample/start.h"
-#include "gui/menu_item/sample/time_stretch.h"
-#include "gui/menu_item/sample/transpose.h"
-#include "gui/menu_item/sequence/direction.h"
-#include "gui/menu_item/shortcuts/version.h"
-#include "gui/menu_item/sidechain/attack.h"
-#include "gui/menu_item/sidechain/release.h"
-#include "gui/menu_item/sidechain/send.h"
-#include "gui/menu_item/sidechain/shape.h"
-#include "gui/menu_item/sidechain/sync.h"
-#include "gui/menu_item/sidechain/volume.h"
-#include "gui/menu_item/sidechain/volume_global.h"
-#include "gui/menu_item/song/configure_macros.h"
-#include "gui/menu_item/song/midi_learn.h"
-#include "gui/menu_item/source/patched_param/modulator_feedback.h"
-#include "gui/menu_item/source/patched_param/modulator_level.h"
-#include "gui/menu_item/stem_export/start.h"
-#include "gui/menu_item/stutter/direction.h"
-#include "gui/menu_item/stutter/quantized.h"
-#include "gui/menu_item/stutter/rate.h"
-#include "gui/menu_item/submenu.h"
-#include "gui/menu_item/submenu/MPE.h"
-#include "gui/menu_item/submenu/actual_source.h"
-#include "gui/menu_item/submenu/arp_mpe_submenu.h"
-#include "gui/menu_item/submenu/bend.h"
-#include "gui/menu_item/submenu/mod_fx.h"
-#include "gui/menu_item/submenu/modulator.h"
-#include "gui/menu_item/swing/interval.h"
-#include "gui/menu_item/synth_mode.h"
-#include "gui/menu_item/trigger/in/ppqn.h"
-#include "gui/menu_item/trigger/out/ppqn.h"
-#include "gui/menu_item/unison/count.h"
-#include "gui/menu_item/unison/detune.h"
-#include "gui/menu_item/unison/stereoSpread.h"
-#include "gui/menu_item/unpatched_param.h"
-#include "gui/menu_item/unpatched_param/pan.h"
-#include "gui/menu_item/voice/polyphony.h"
-#include "gui/menu_item/voice/portamento.h"
-#include "gui/menu_item/voice/priority.h"
-#include "io/midi/midi_device_manager.h"
-#include "io/midi/midi_engine.h"
-#include "model/instrument/non_audio_instrument.h"
-#include "modulation/params/param.h"
-#include "playback/playback_handler.h"
-#include "storage/flash_storage.h"
-
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
 #include "support/menu_engine.h"
+#include "support/oracle_table.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
 
+#include <algorithm>
+#include <charconv>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -300,140 +61,7 @@ using deluge::hid::display::OLED;
 
 #include "spec/support/spec_main.h"
 
-namespace legacy = deluge::gui::menu_item;
 namespace spec = deluge::scenes::spec;
-
-/// @name The legacy items, `gui/ui/menus.cpp`'s globals.
-/// @{
-extern legacy::voice::PolyphonyType polyphonyMenu;
-extern legacy::voice::Priority priorityMenu;
-extern legacy::sidechain::Send sidechainSendMenu;
-extern legacy::SynthModeSelection synthModeMenu;
-extern legacy::MasterTranspose masterTransposeMenu;
-extern legacy::osc::Type osc0TypeMenu;
-extern legacy::osc::Type osc1TypeMenu;
-extern legacy::sample::Transpose source0TransposeMenu;
-extern legacy::sample::Transpose source1TransposeMenu;
-extern legacy::osc::RetriggerPhase osc0PhaseMenu;
-extern legacy::osc::RetriggerPhase osc1PhaseMenu;
-extern legacy::sample::Reverse sample0ReverseMenu;
-extern legacy::sample::Reverse sample1ReverseMenu;
-extern legacy::sample::Repeat sample0RepeatMenu;
-extern legacy::sample::Repeat sample1RepeatMenu;
-extern legacy::sample::TimeStretch sample0TimeStretchMenu;
-extern legacy::sample::TimeStretch sample1TimeStretchMenu;
-extern legacy::sample::PitchSpeed sample0PitchSpeedMenu;
-extern legacy::sample::PitchSpeed sample1PitchSpeedMenu;
-extern legacy::sample::Interpolation sample0InterpolationMenu;
-extern legacy::sample::Interpolation sample1InterpolationMenu;
-extern legacy::osc::Sync oscSyncMenu;
-extern legacy::lfo::Type lfo1TypeMenu;
-extern legacy::lfo::Type lfo2TypeMenu;
-extern legacy::lfo::Type lfo3TypeMenu;
-extern legacy::lfo::Type lfo4TypeMenu;
-extern legacy::lfo::Sync lfo1SyncMenu;
-extern legacy::lfo::Sync lfo2SyncMenu;
-extern legacy::lfo::Sync lfo3SyncMenu;
-extern legacy::lfo::Sync lfo4SyncMenu;
-extern legacy::modulator::Transpose modulator0TransposeMenu;
-extern legacy::modulator::Transpose modulator1TransposeMenu;
-extern legacy::osc::RetriggerPhase modulator0PhaseMenu;
-extern legacy::osc::RetriggerPhase modulator1PhaseMenu;
-extern legacy::modulator::Destination modulatorDestMenu;
-extern legacy::unison::CountToStereoSpread numUnisonMenu;
-extern legacy::unison::Detune unisonDetuneMenu;
-extern legacy::midi::sound::OutputMidiChannel outputMidiChannelMenu;
-extern legacy::midi::sound::OutputMidiNoteForDrum outputMidiNoteForDrumMenu;
-extern legacy::mod_fx::Type modFXTypeMenu;
-extern legacy::filter::FilterModeSelection lpfModeMenu;
-extern legacy::filter::FilterModeSelection hpfModeMenu;
-extern legacy::FilterRouting filterRoutingMenu;
-extern legacy::fx::Clipping clippingMenu;
-extern legacy::delay::PingPong delayPingPongMenu;
-extern legacy::delay::Type delayTypeMenu;
-extern legacy::delay::Sync delaySyncMenu;
-extern legacy::sidechain::Attack sidechainAttackMenu;
-extern legacy::sidechain::Release sidechainReleaseMenu;
-extern legacy::sidechain::Sync sidechainSyncMenu;
-extern legacy::audio_compressor::Attack compAttack;
-extern legacy::audio_compressor::Release compRelease;
-extern legacy::audio_compressor::Ratio compRatio;
-extern legacy::audio_compressor::SideHPF compHPF;
-extern legacy::audio_compressor::Blend compBlend;
-extern legacy::stutter::QuantizedStutter stutterQuantizedMenu;
-extern legacy::arpeggiator::Mode arpModeMenu;
-extern legacy::arpeggiator::OctaveMode arpOctaveModeMenu;
-extern legacy::arpeggiator::NoteMode arpNoteModeMenu;
-extern legacy::arpeggiator::NoteModeForDrums arpNoteModeMenuForDrums;
-extern legacy::arpeggiator::ArpMpeVelocity arpMpeVelocityMenu;
-extern legacy::arpeggiator::Octaves arpOctavesMenu;
-extern legacy::arpeggiator::StepRepeat arpStepRepeatMenu;
-extern legacy::arpeggiator::ChordType arpChordSimulatorMenuKit;
-extern legacy::arpeggiator::Sync arpSyncMenu;
-extern legacy::arpeggiator::IncludeInKitArp arpIncludeInKitArpMenu;
-extern legacy::arpeggiator::PresetMode arpPresetModeMenu;
-extern legacy::randomizer::RandomizerLock randomizerLockMenu;
-extern legacy::arpeggiator::midi_cv::Gate arpGateMenuMIDIOrCV;
-extern legacy::arpeggiator::midi_cv::Rate arpRateMenuMIDIOrCV;
-extern legacy::arpeggiator::midi_cv::Rhythm arpRhythmMenuMIDIOrCV;
-extern legacy::arpeggiator::midi_cv::SequenceLength arpSequenceLengthMenuMIDIOrCV;
-extern legacy::randomizer::midi_cv::SpreadGate spreadGateMenuMIDIOrCV;
-extern legacy::randomizer::midi_cv::SpreadOctave spreadOctaveMenuMIDIOrCV;
-extern legacy::randomizer::midi_cv::SpreadVelocity spreadVelocityMenuMIDIOrCV;
-extern legacy::randomizer::midi_cv::RatchetAmount ratchetAmountMenuMIDIOrCV;
-extern legacy::randomizer::midi_cv::RatchetProbability ratchetProbabilityMenuMIDIOrCV;
-extern legacy::randomizer::midi_cv::ChordPolyphony chordPolyphonyMenuMIDIOrCV;
-extern legacy::randomizer::midi_cv::ChordProbability chordProbabilityMenuMIDIOrCV;
-extern legacy::randomizer::midi_cv::NoteProbability randomizerNoteProbabilityMenuMIDIOrCV;
-extern legacy::randomizer::midi_cv::SwapProbability swapProbabilityMenuMIDIOrCV;
-extern legacy::randomizer::midi_cv::BassProbability bassProbabilityMenuMIDIOrCV;
-extern legacy::randomizer::midi_cv::GlideProbability glideProbabilityMenuMIDIOrCV;
-extern legacy::audio_clip::Transpose audioClipTransposeMenu;
-extern legacy::AudioInterpolation audioClipInterpolationMenu;
-extern legacy::reverb::Pan reverbPanMenu;
-extern legacy::sidechain::Attack reverbSidechainAttackMenu;
-extern legacy::reverb::RoomSize reverbRoomSizeMenu;
-extern legacy::reverb::Damping reverbDampingMenu;
-extern legacy::reverb::Width reverbWidthMenu;
-extern legacy::reverb::HPF reverbHPFMenu;
-extern legacy::reverb::LPF reverbLPFMenu;
-extern legacy::reverb::Model reverbModelMenu;
-extern legacy::reverb::sidechain::Shape reverbSidechainShapeMenu;
-extern legacy::reverb::sidechain::Volume reverbSidechainVolumeMenu;
-extern legacy::swing::Interval swingIntervalMenu;
-extern legacy::audio_clip::Reverse audioClipReverseMenu;
-extern legacy::audio_clip::Attack audioClipAttackMenu;
-extern legacy::sequence::Direction sequenceDirectionMenu;
-extern legacy::midi::MPEYToModWheel mpeyToModWheelMenu;
-extern legacy::cv::DualCVSelection cv2SourceMenu;
-extern legacy::midi::AftertouchToMono midiAftertouchCollapseMenu;
-extern legacy::midi::MPEToMono midiMPECollapseMenu;
-extern legacy::midi::device_definition::HideUnlabeled hideUnlabeledCCMenu;
-extern legacy::midi::device_definition::Linked midiDeviceLinkedMenu;
-extern legacy::audio_clip::AudioSourceSelector audioSourceSelectorMenu;
-extern legacy::audio_clip::SpecificSourceOutputSelector specificOutputSelectorMenu;
-extern legacy::midi::Bank midiBankMenu;
-extern legacy::midi::Sub midiSubMenu;
-extern legacy::midi::PGM midiPGMMenu;
-extern legacy::bend_range::Main mainBendRangeMenu;
-extern legacy::bend_range::PerFinger perFingerBendRangeMenu;
-extern legacy::bend_range::PerFinger drumBendRangeMenu;
-extern legacy::sidechain::Release reverbSidechainReleaseMenu;
-extern legacy::sidechain::Sync reverbSidechainSyncMenu;
-/// @}
-
-/// @name The legacy root menus `SoundEditor::setup` opens, and the note-row editor's.
-/// @{
-extern legacy::Submenu soundEditorRootMenu;
-extern legacy::Submenu soundEditorRootMenuDrum;
-extern legacy::Submenu soundEditorRootMenuMIDIOrCV;
-extern legacy::Submenu soundEditorRootMenuMidiDrum;
-extern legacy::Submenu soundEditorRootMenuGateDrum;
-extern legacy::Submenu soundEditorRootMenuAudioClip;
-extern legacy::Submenu soundEditorRootMenuSongView;
-extern legacy::Submenu soundEditorRootMenuKitGlobalFX;
-extern legacy::HorizontalMenu noteRowEditorRootMenu;
-/// @}
 
 /// The cases and rigs, in a named namespace (and inline) so every spec that includes this header shares one copy.
 namespace descriptor_cases {
@@ -450,81 +78,15 @@ using Owner = SettingContext::Owner;
 using Range = std::pair<int32_t, int32_t>;
 
 // ---------------------------------------------------------------------------------------------
-// The legacy items, read and written as the sound editor does.
-
-/// `Value<T>::writeCurrentValue` is protected; name it through a derived class ([class.protected]), as
-/// `tables_2_spec.cpp` does.
-template <typename T>
-struct ValuePeek : legacy::Value<T> {
-	static void write(legacy::Value<T>& value) { (value.*(&ValuePeek::writeCurrentValue))(); }
-};
-
-/// `Number::getMinValue` and `getMaxValue` are protected; named the same way.
-struct NumberPeek : legacy::Number {
-	static Range range_of(const legacy::Number& number) {
-		return {(number.*(&NumberPeek::getMinValue))(), (number.*(&NumberPeek::getMaxValue))()};
-	}
-};
-
-/// The item's menu range: a number's least and greatest value, an enumeration's options, a toggle's two.
-inline Range legacy_range(::MenuItem* item) {
-	if (auto* number = dynamic_cast<legacy::Number*>(item); number != nullptr) {
-		return NumberPeek::range_of(*number);
-	}
-	if (auto* list = dynamic_cast<legacy::Enumeration*>(item); list != nullptr) {
-		return {0, static_cast<int32_t>(list->size()) - 1};
-	}
-	if (dynamic_cast<legacy::Value<bool>*>(item) != nullptr) {
-		return {0, 1};
-	}
-	return {std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::min()};
-}
-
-/// The item's value after its `readCurrentValue`.
-inline int32_t legacy_read(::MenuItem* item) {
-	if (auto* v = dynamic_cast<legacy::Value<int32_t>*>(item); v != nullptr) {
-		v->readCurrentValue();
-		return v->getValue();
-	}
-	if (auto* v = dynamic_cast<legacy::Value<bool>*>(item); v != nullptr) {
-		v->readCurrentValue();
-		return v->getValue() ? 1 : 0;
-	}
-	return std::numeric_limits<int32_t>::min();
-}
-
-/// The item's `writeCurrentValue` of menu value @p menu.
-inline void legacy_write(::MenuItem* item, int32_t menu) {
-	if (auto* v = dynamic_cast<legacy::Value<int32_t>*>(item); v != nullptr) {
-		v->setValue(menu);
-		ValuePeek<int32_t>::write(*v);
-	}
-	else if (auto* b = dynamic_cast<legacy::Value<bool>*>(item); b != nullptr) {
-		b->setValue(menu != 0);
-		ValuePeek<bool>::write(*b);
-	}
-}
-
-// ---------------------------------------------------------------------------------------------
 // The fixtures and the contexts.
 
-/// Point the `soundEditor` globals at what @p ctx edits, as the sound editor's setup does.
+/// Point the song and the clip at what @p ctx edits.
 inline void install(const MenuContext& ctx, Song* song) {
 	currentSong = song;
 	const spec::MenuEngine engine = spec::menu_engine(ctx);
 	if (engine.clip != nullptr) {
 		song->setCurrentClip(engine.clip);
 	}
-	soundEditor.currentSound = engine.sound;
-	soundEditor.currentModControllable = deluge::scenes::spec::menu_engine(ctx).mod;
-	soundEditor.currentParamManager = engine.params;
-	soundEditor.currentSourceIndex = ctx.source_index;
-	soundEditor.currentSource = engine.source;
-	soundEditor.currentMultiRange = engine.range;
-	soundEditor.currentMultiRangeIndex = ctx.range_index;
-	soundEditor.currentArpSettings = engine.arp;
-	soundEditor.setupKitGlobalFXMenu = ctx.is_kit_global_fx;
-	soundEditor.allowsNoteTails = true;
 	currentUIMode = 0;
 }
 
@@ -1080,29 +642,126 @@ inline std::optional<int32_t> get_stored(Family family, const MenuContext& ctx, 
 // ---------------------------------------------------------------------------------------------
 // The cases.
 
-/// One row and the legacy item that shows it.
+/// One row, where it is shown, and the values its checks probe.
 struct Case {
 	std::string_view path;
 	Family family;
-	::MenuItem* item;
 	Where where{Where::SYNTH};
 	int8_t source{0};              ///< the oscillator the item edits
 	std::vector<int32_t> stored{}; ///< stored values to read, beyond the row's stored edges and default
 	std::vector<Range> pairs{};    ///< two-row kinds: {stored, partner stored} pairs to read
-	bool writes{true};             ///< false where the legacy write is not compared (a booted UI, a named exception)
+	bool writes{true};             ///< false where the item's write is not compared (a booted UI, a named exception)
 	bool lossy{false};             ///< the record holds the value as a float: a set value reads back rounded
-	std::vector<int32_t> skip_writes{}; ///< menu values whose legacy write is not compared (a named exception's)
+	std::vector<int32_t> skip_writes{}; ///< menu values whose item write is not compared (a named exception's)
 	int32_t menu_step{0};               ///< nonzero: the item shows stored / menu_step and writes menu * menu_step
 };
+
+/// @brief An enumerator's name as written in its enum.
+inline std::string_view name_of(Family family) {
+	switch (family) {
+	case Family::INSTRUMENT:
+		return "INSTRUMENT";
+	case Family::EFFECT:
+		return "EFFECT";
+	case Family::ARP:
+		return "ARP";
+	case Family::ARP_HOST:
+		return "ARP_HOST";
+	case Family::AUDIO_CLIP:
+		return "AUDIO_CLIP";
+	case Family::SONG:
+		return "SONG";
+	case Family::CLIP_VALUES:
+		return "CLIP_VALUES";
+	case Family::NOTE_ROW:
+		return "NOTE_ROW";
+	case Family::CLIP:
+		return "CLIP";
+	case Family::INSTRUMENT_DEVICE:
+		return "INSTRUMENT_DEVICE";
+	case Family::AUDIO_INPUT:
+		return "AUDIO_INPUT";
+	}
+	return "";
+}
+
+/// @brief An enumerator's name as written in its enum.
+inline std::string_view name_of(Where where) {
+	switch (where) {
+	case Where::SYNTH:
+		return "SYNTH";
+	case Where::SYNTH_SAMPLE:
+		return "SYNTH_SAMPLE";
+	case Where::SYNTH_FM:
+		return "SYNTH_FM";
+	case Where::SYNTH_RINGMOD:
+		return "SYNTH_RINGMOD";
+	case Where::KIT_LANE:
+		return "KIT_LANE";
+	case Where::KIT:
+		return "KIT";
+	case Where::KIT_GATE_ROW:
+		return "KIT_GATE_ROW";
+	case Where::MIDI_DRUM:
+		return "MIDI_DRUM";
+	case Where::GATE_DRUM:
+		return "GATE_DRUM";
+	case Where::MIDI_CLIP:
+		return "MIDI_CLIP";
+	case Where::CV_CLIP:
+		return "CV_CLIP";
+	case Where::AUDIO_CLIP:
+		return "AUDIO_CLIP";
+	case Where::SONG:
+		return "SONG";
+	}
+	return "";
+}
+
+/// @brief A case's path in the reference tables: `case/<family>/<row path>@<where>#<source>`.
+inline std::string case_key(const Case& c) {
+	return "case/" + std::string{name_of(c.family)} + "/" + std::string{c.path} + "@" + std::string{name_of(c.where)}
+	       + "#" + std::to_string(c.source);
+}
+
+/// @brief The reference rows of the setting descriptors.
+inline spec::OracleTable& frozen() {
+	return spec::OracleTable::named("descriptors");
+}
+
+/// @brief Value @p at of the row (@p path, @p column), or `<no row>` / `<no value>` so a miss prints as one.
+inline std::string cell(std::string_view path, std::string_view column, size_t at = 0) {
+	const std::vector<std::string>* values = frozen().find(path, column);
+	if (values == nullptr) {
+		return "<no row>";
+	}
+	return at < values->size() ? (*values)[at] : std::string{"<no value>"};
+}
+
+/// @brief The same, in the case @p c's own rows.
+inline std::string cell(const Case& c, std::string_view column, size_t at = 0) {
+	return cell(case_key(c), column, at);
+}
+
+/// @brief Value @p at of the row (@p path, @p column) as a number; nothing for a missing row or a value that is not
+/// one.
+inline std::optional<int32_t> cell_int(std::string_view path, std::string_view column, size_t at = 0) {
+	const std::string text = cell(path, column, at);
+	int32_t out = 0;
+	const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), out);
+	if (error != std::errc{} || end != text.data() + text.size()) {
+		return std::nullopt;
+	}
+	return out;
+}
 
 /// How far a lossy case's value may read back from what it was set to: the float record's rounding step.
 inline constexpr int32_t kLossyStep = 256;
 
-/// Legacy writes this spec cannot drive: each reaches a UI global only a booted app has.
-///   * `SynthModeSelection::writeCurrentValue` calls `view.setKnobIndicatorLevels()` (`synth_mode.h`);
-///   * `arpeggiator::Mode` and `PresetMode` silence notes over `soundEditor.getCurrentModelStack` (`mode.h`,
-///     `preset_mode.h`).
-inline constexpr bool kNoLegacyWrite = false;
+/// Writes the reference rows hold none of: each reaches a UI global only a booted app has.
+///   * `SynthModeSelection::writeCurrentValue` calls `view.setKnobIndicatorLevels()`;
+///   * `arpeggiator::Mode` and `PresetMode` silence notes over the sound editor's model stack.
+inline constexpr bool kNoFrozenWrite = false;
 /// The volume ducking menu's step: the stored value is the menu value times it.
 inline constexpr int32_t kDuckingVolumeStep = 21474836;
 
@@ -1118,8 +777,19 @@ inline const SettingInfo* partner_of(const Case& c, const SettingInfo& row) {
 	return partner.empty() ? nullptr : deluge::plugin::find_setting(table_of(c.family), partner);
 }
 
+inline std::string show(const Case& c, std::string_view what, int64_t at, std::string_view value) {
+	return std::string{c.path} + " " + std::string{what} + "(" + std::to_string(at) + ") = " + std::string{value};
+}
 inline std::string show(const Case& c, std::string_view what, int64_t at, int64_t value) {
-	return std::string{c.path} + " " + std::string{what} + "(" + std::to_string(at) + ") = " + std::to_string(value);
+	return show(c, what, at, std::to_string(value));
+}
+
+/// @brief A case's frozen menu range: the item's least and greatest value (`range`), or the sentinel where no row
+///        holds one, which the range comparison then names.
+inline Range frozen_range(const Case& c, std::string_view variant = {}) {
+	const std::string column = "range" + std::string{variant};
+	constexpr int32_t kNone = std::numeric_limits<int32_t>::min();
+	return {cell_int(case_key(c), column, 0).value_or(kNone), cell_int(case_key(c), column, 1).value_or(kNone)};
 }
 
 /// The menu values to write: the edges, one in from each, and the middle.
@@ -1133,15 +803,18 @@ inline std::vector<int32_t> menu_probes(Range range) {
 	return probes;
 }
 
-/// Each numeric case: its range, its reads at the stored probes and its writes at the menu edges.
-inline void check_numeric(auto& self, const Case& c) {
+/// Each numeric case: its range, its reads at the stored probes and its writes at the menu edges, against the item's
+/// rows. @p variant is the column suffix of a state the rows were also taken in (`@plugged`).
+inline void check_numeric(auto& self, const Case& c, std::string_view variant = {}) {
 	const MenuContext& ctx = enter(c.where, c.source);
 	const SettingInfo& row = row_of(c);
+	const std::string key = case_key(c);
+	const auto column = [&](const std::string& base) { return base + std::string{variant}; };
 	expect(std::string{c.path} + " has a row").to_equal(std::string{row.path} + " has a row");
 	const Range range = menu_range(row);
 	expect(std::string{c.path} + " range " + std::to_string(range.first) + ".." + std::to_string(range.second))
-	    .to_equal(std::string{c.path} + " range " + std::to_string(legacy_range(c.item).first) + ".."
-	              + std::to_string(legacy_range(c.item).second));
+	    .to_equal(std::string{c.path} + " range " + cell(key, column("range"), 0) + ".."
+	              + cell(key, column("range"), 1));
 
 	const SettingInfo* partner = partner_of(c, row);
 	if (partner == nullptr) {
@@ -1159,7 +832,8 @@ inline void check_numeric(auto& self, const Case& c) {
 			else {
 				expect(show(c, "set", stored, now.value_or(-99999))).to_equal(show(c, "set", stored, held));
 			}
-			expect(show(c, "read", held, legacy_read(c.item))).to_equal(show(c, "read", held, to_menu(row, held)));
+			expect(show(c, "read", held, to_menu(row, held)))
+			    .to_equal(show(c, "read", held, cell(key, column("read/" + std::to_string(held)))));
 		}
 	}
 	else {
@@ -1167,33 +841,31 @@ inline void check_numeric(auto& self, const Case& c) {
 			set_stored(c.family, ctx, c.where, row, stored);
 			set_stored(c.family, ctx, c.where, *partner, partner_stored);
 			const int64_t at = int64_t{stored} * 1000 + partner_stored;
-			expect(show(c, "read", at, legacy_read(c.item)))
-			    .to_equal(show(c, "read", at, to_menu(row, stored, partner_stored)));
+			expect(show(c, "read", at, to_menu(row, stored, partner_stored)))
+			    .to_equal(show(c, "read", at, cell(key, column("read/" + std::to_string(at)))));
 		}
 	}
 
 	if (!c.writes) {
 		return;
 	}
-	// The legacy item's own range bounds its writes: a value past it indexes past its tables.
-	for (int32_t menu : menu_probes(legacy_range(c.item))) {
+	// The item's own range bounds its writes: a value past it indexes past its tables.
+	for (int32_t menu : menu_probes(frozen_range(c, variant))) {
 		if (std::ranges::find(c.skip_writes, menu) != c.skip_writes.end()) {
 			continue;
 		}
-		legacy_write(c.item, menu);
 		const std::optional<std::pair<int32_t, int32_t>> want = from_menu(row, menu);
-		const int64_t got = get_stored(c.family, ctx, c.where, row).value_or(-99999);
 		int64_t expected = want ? want->first : -12345;
 		if (c.lossy && want) {
 			// The record rounds what either write stores alike: compare what it holds after each.
 			set_stored(c.family, ctx, c.where, row, want->first);
 			expected = get_stored(c.family, ctx, c.where, row).value_or(-12345);
 		}
-		expect(show(c, "write", menu, got)).to_equal(show(c, "write", menu, expected));
+		const std::string at = column("write/" + std::to_string(menu));
+		expect(show(c, "write", menu, expected)).to_equal(show(c, "write", menu, cell(key, at)));
 		if (partner != nullptr) {
-			const int64_t got_partner = get_stored(c.family, ctx, c.where, *partner).value_or(-99999);
-			expect(show(c, "write partner", menu, got_partner))
-			    .to_equal(show(c, "write partner", menu, want ? want->second : -12345));
+			expect(show(c, "write partner", menu, want ? want->second : -12345))
+			    .to_equal(show(c, "write partner", menu, cell(key, at, 1)));
 		}
 	}
 }
@@ -1346,26 +1018,31 @@ inline std::string choice_text(const SettingNames& names, size_t index, bool sho
 
 /// A CHOICE case in its context: the list's length is the options' count, each applicable choice reads as its
 /// position in the list, and each position writes that choice.
-inline void check_choices(auto& self, const Case& c) {
+inline void check_choices(auto& self, const Case& c, std::string_view variant = {}) {
 	const MenuContext& ctx = enter(c.where, c.source);
 	const SettingInfo& row = row_of(c);
+	const std::string key = case_key(c);
+	const auto column = [&](const std::string& base) { return base + std::string{variant}; };
 	const std::vector<int32_t> choices = applicable(row, context_of(c.where, c.family), ctx, c.where);
-	const Range legacy = legacy_range(c.item);
+	const Range frozen_items = frozen_range(c, variant);
+	const std::string listed = cell_int(key, column("range"), 1) ? std::to_string(int64_t{frozen_items.second} + 1)
+	                                                             : cell(key, column("range"), 1);
 	expect(std::string{c.path} + " offers " + std::to_string(choices.size()) + ": " + list_of(choices))
-	    .to_equal(std::string{c.path} + " offers " + std::to_string(legacy.second + 1) + ": " + list_of(choices));
+	    .to_equal(std::string{c.path} + " offers " + listed + ": " + list_of(choices));
 	for (size_t position = 0; position < choices.size(); ++position) {
 		set_stored(c.family, ctx, c.where, row, choices[position]);
-		expect(show(c, "read", choices[position], legacy_read(c.item)))
-		    .to_equal(show(c, "read", choices[position], static_cast<int64_t>(position)));
+		expect(show(c, "read", choices[position], static_cast<int64_t>(position)))
+		    .to_equal(
+		        show(c, "read", choices[position], cell(key, column("read/" + std::to_string(choices[position])))));
 	}
 	if (!c.writes) {
 		return;
 	}
-	for (size_t position = 0; position < choices.size() && static_cast<int32_t>(position) <= legacy.second;
+	for (size_t position = 0; position < choices.size() && static_cast<int32_t>(position) <= frozen_items.second;
 	     ++position) {
-		legacy_write(c.item, static_cast<int32_t>(position));
-		expect(show(c, "write", static_cast<int64_t>(position), get_stored(c.family, ctx, c.where, row).value_or(-1)))
-		    .to_equal(show(c, "write", static_cast<int64_t>(position), choices[position]));
+		expect(show(c, "write", static_cast<int64_t>(position), choices[position]))
+		    .to_equal(show(c, "write", static_cast<int64_t>(position),
+		                   cell(key, column("write/" + std::to_string(position)))));
 	}
 }
 
@@ -1374,29 +1051,30 @@ inline void check_choices(auto& self, const Case& c) {
 inline void check_scaled(auto& self, const Case& c) {
 	const MenuContext& ctx = enter(c.where, c.source);
 	const SettingInfo& row = row_of(c);
+	const std::string key = case_key(c);
 	expect(std::string{c.path} + " has a row").to_equal(std::string{row.path} + " has a row");
 	const int32_t step = c.menu_step;
 	std::vector<int32_t> probes{-step, -1, 0, step - 1, step, 5 * step + 1000, 50 * step, 51 * step - 1};
 	probes.insert(probes.end(), c.stored.begin(), c.stored.end());
 	for (const int32_t stored : probes) {
 		set_stored(c.family, ctx, c.where, row, stored);
-		expect(show(c, "read", stored, legacy_read(c.item))).to_equal(show(c, "read", stored, stored / step));
+		expect(show(c, "read", stored, stored / step))
+		    .to_equal(show(c, "read", stored, cell(key, "read/" + std::to_string(stored))));
 	}
-	for (const int32_t menu : menu_probes(legacy_range(c.item))) {
-		legacy_write(c.item, menu);
-		const int64_t got = get_stored(c.family, ctx, c.where, row).value_or(-99999);
-		expect(show(c, "write", menu, got)).to_equal(show(c, "write", menu, int64_t{menu} * step));
+	for (const int32_t menu : menu_probes(frozen_range(c))) {
+		expect(show(c, "write", menu, int64_t{menu} * step))
+		    .to_equal(show(c, "write", menu, cell(key, "write/" + std::to_string(menu))));
 	}
 }
 
-inline void check(auto& self, const Case& c) {
+inline void check(auto& self, const Case& c, std::string_view variant = {}) {
 	const SettingInfo& row = row_of(c);
 	if (row.kind == SettingKind::CHOICE
 	    && deluge::plugin::mapping_of(row).kind == deluge::plugin::DisplayMappingKind::LINEAR) {
-		check_choices(self, c);
+		check_choices(self, c, variant);
 	}
 	else {
-		check_numeric(self, c);
+		check_numeric(self, c, variant);
 	}
 }
 
@@ -1415,210 +1093,125 @@ inline const std::vector<int32_t> kPhases{-1, 0, 11930463, 11930464, 2147483520,
 
 inline const std::vector<Case>& voice_cases() {
 	static const std::vector<Case> cases{
-	    {.path = "polyphonic", .family = Family::INSTRUMENT, .item = &polyphonyMenu},
-	    {.path = "polyphonic", .family = Family::INSTRUMENT, .item = &polyphonyMenu, .where = Where::KIT_LANE},
-	    {.path = "voicePriority", .family = Family::INSTRUMENT, .item = &priorityMenu},
-	    {.path = "maxVoices",
-	     .family = Family::INSTRUMENT,
-	     .item = &legacy::voice::polyphonicVoiceCountMenu,
-	     .stored = {1, 16, 17, 126, 127}},
+	    {.path = "polyphonic", .family = Family::INSTRUMENT},
+	    {.path = "polyphonic", .family = Family::INSTRUMENT, .where = Where::KIT_LANE},
+	    {.path = "voicePriority", .family = Family::INSTRUMENT},
+	    {.path = "maxVoices", .family = Family::INSTRUMENT, .stored = {1, 16, 17, 126, 127}},
 	    {.path = "sideChainSend",
 	     .family = Family::INSTRUMENT,
-	     .item = &sidechainSendMenu,
 	     .where = Where::KIT_LANE,
 	     .stored = {21474836, 21474837, 42949673, 1073741823, 2126008811, 2126008812}},
-	    {.path = "mode", .family = Family::INSTRUMENT, .item = &synthModeMenu, .writes = kNoLegacyWrite},
-	    {.path = "transpose", .family = Family::INSTRUMENT, .item = &masterTransposeMenu, .pairs = kTransposePairs},
+	    {.path = "mode", .family = Family::INSTRUMENT, .writes = kNoFrozenWrite},
+	    {.path = "transpose", .family = Family::INSTRUMENT, .pairs = kTransposePairs},
 	};
 	return cases;
 }
 
 inline const std::vector<Case>& oscillator_cases() {
 	static const std::vector<Case> cases{
-	    {.path = "osc1/type", .family = Family::INSTRUMENT, .item = &osc0TypeMenu},
-	    {.path = "osc2/type", .family = Family::INSTRUMENT, .item = &osc1TypeMenu, .source = 1},
-	    {.path = "osc1/type", .family = Family::INSTRUMENT, .item = &osc0TypeMenu, .where = Where::SYNTH_RINGMOD},
-	    {.path = "osc1/type", .family = Family::INSTRUMENT, .item = &osc0TypeMenu, .where = Where::KIT_LANE},
-	    {.path = "osc1/transpose",
-	     .family = Family::INSTRUMENT,
-	     .item = &source0TransposeMenu,
-	     .pairs = kTransposePairs},
-	    {.path = "osc2/transpose",
-	     .family = Family::INSTRUMENT,
-	     .item = &source1TransposeMenu,
-	     .source = 1,
-	     .pairs = kTransposePairs},
-	    {.path = "osc1/retrigPhase", .family = Family::INSTRUMENT, .item = &osc0PhaseMenu, .stored = kPhases},
-	    {.path = "osc2/retrigPhase",
-	     .family = Family::INSTRUMENT,
-	     .item = &osc1PhaseMenu,
-	     .source = 1,
-	     .stored = kPhases},
-	    {.path = "osc1/loopMode",
-	     .family = Family::INSTRUMENT,
-	     .item = &sample0RepeatMenu,
-	     .where = Where::SYNTH_SAMPLE},
-	    {.path = "osc2/loopMode",
-	     .family = Family::INSTRUMENT,
-	     .item = &sample1RepeatMenu,
-	     .where = Where::SYNTH_SAMPLE,
-	     .source = 1},
-	    {.path = "osc1/reversed",
-	     .family = Family::INSTRUMENT,
-	     .item = &sample0ReverseMenu,
-	     .where = Where::SYNTH_SAMPLE},
-	    {.path = "osc2/reversed",
-	     .family = Family::INSTRUMENT,
-	     .item = &sample1ReverseMenu,
-	     .where = Where::SYNTH_SAMPLE,
-	     .source = 1},
-	    {.path = "osc1/timeStretchEnable",
-	     .family = Family::INSTRUMENT,
-	     .item = &sample0PitchSpeedMenu,
-	     .where = Where::SYNTH_SAMPLE},
-	    {.path = "osc2/timeStretchEnable",
-	     .family = Family::INSTRUMENT,
-	     .item = &sample1PitchSpeedMenu,
-	     .where = Where::SYNTH_SAMPLE,
-	     .source = 1},
-	    {.path = "osc1/timeStretchAmount",
-	     .family = Family::INSTRUMENT,
-	     .item = &sample0TimeStretchMenu,
-	     .where = Where::SYNTH_SAMPLE},
-	    {.path = "osc2/timeStretchAmount",
-	     .family = Family::INSTRUMENT,
-	     .item = &sample1TimeStretchMenu,
-	     .where = Where::SYNTH_SAMPLE,
-	     .source = 1},
-	    {.path = "osc1/linearInterpolation",
-	     .family = Family::INSTRUMENT,
-	     .item = &sample0InterpolationMenu,
-	     .where = Where::SYNTH_SAMPLE},
-	    {.path = "osc2/linearInterpolation",
-	     .family = Family::INSTRUMENT,
-	     .item = &sample1InterpolationMenu,
-	     .where = Where::SYNTH_SAMPLE,
-	     .source = 1},
-	    {.path = "osc2/oscillatorSync", .family = Family::INSTRUMENT, .item = &oscSyncMenu},
+	    {.path = "osc1/type", .family = Family::INSTRUMENT},
+	    {.path = "osc2/type", .family = Family::INSTRUMENT, .source = 1},
+	    {.path = "osc1/type", .family = Family::INSTRUMENT, .where = Where::SYNTH_RINGMOD},
+	    {.path = "osc1/type", .family = Family::INSTRUMENT, .where = Where::KIT_LANE},
+	    {.path = "osc1/transpose", .family = Family::INSTRUMENT, .pairs = kTransposePairs},
+	    {.path = "osc2/transpose", .family = Family::INSTRUMENT, .source = 1, .pairs = kTransposePairs},
+	    {.path = "osc1/retrigPhase", .family = Family::INSTRUMENT, .stored = kPhases},
+	    {.path = "osc2/retrigPhase", .family = Family::INSTRUMENT, .source = 1, .stored = kPhases},
+	    {.path = "osc1/loopMode", .family = Family::INSTRUMENT, .where = Where::SYNTH_SAMPLE},
+	    {.path = "osc2/loopMode", .family = Family::INSTRUMENT, .where = Where::SYNTH_SAMPLE, .source = 1},
+	    {.path = "osc1/reversed", .family = Family::INSTRUMENT, .where = Where::SYNTH_SAMPLE},
+	    {.path = "osc2/reversed", .family = Family::INSTRUMENT, .where = Where::SYNTH_SAMPLE, .source = 1},
+	    {.path = "osc1/timeStretchEnable", .family = Family::INSTRUMENT, .where = Where::SYNTH_SAMPLE},
+	    {.path = "osc2/timeStretchEnable", .family = Family::INSTRUMENT, .where = Where::SYNTH_SAMPLE, .source = 1},
+	    {.path = "osc1/timeStretchAmount", .family = Family::INSTRUMENT, .where = Where::SYNTH_SAMPLE},
+	    {.path = "osc2/timeStretchAmount", .family = Family::INSTRUMENT, .where = Where::SYNTH_SAMPLE, .source = 1},
+	    {.path = "osc1/linearInterpolation", .family = Family::INSTRUMENT, .where = Where::SYNTH_SAMPLE},
+	    {.path = "osc2/linearInterpolation", .family = Family::INSTRUMENT, .where = Where::SYNTH_SAMPLE, .source = 1},
+	    {.path = "osc2/oscillatorSync", .family = Family::INSTRUMENT},
 	};
 	return cases;
 }
 
 inline const std::vector<Case>& lfo_and_modulator_cases() {
 	static const std::vector<Case> cases{
-	    {.path = "lfo1/type", .family = Family::INSTRUMENT, .item = &lfo1TypeMenu},
-	    {.path = "lfo2/type", .family = Family::INSTRUMENT, .item = &lfo2TypeMenu},
-	    {.path = "lfo3/type", .family = Family::INSTRUMENT, .item = &lfo3TypeMenu},
-	    {.path = "lfo4/type", .family = Family::INSTRUMENT, .item = &lfo4TypeMenu},
-	    {.path = "lfo1/syncLevel", .family = Family::INSTRUMENT, .item = &lfo1SyncMenu, .pairs = kSyncPairs},
-	    {.path = "lfo2/syncLevel", .family = Family::INSTRUMENT, .item = &lfo2SyncMenu, .pairs = kSyncPairs},
-	    {.path = "lfo3/syncLevel", .family = Family::INSTRUMENT, .item = &lfo3SyncMenu, .pairs = kSyncPairs},
-	    {.path = "lfo4/syncLevel", .family = Family::INSTRUMENT, .item = &lfo4SyncMenu, .pairs = kSyncPairs},
+	    {.path = "lfo1/type", .family = Family::INSTRUMENT},
+	    {.path = "lfo2/type", .family = Family::INSTRUMENT},
+	    {.path = "lfo3/type", .family = Family::INSTRUMENT},
+	    {.path = "lfo4/type", .family = Family::INSTRUMENT},
+	    {.path = "lfo1/syncLevel", .family = Family::INSTRUMENT, .pairs = kSyncPairs},
+	    {.path = "lfo2/syncLevel", .family = Family::INSTRUMENT, .pairs = kSyncPairs},
+	    {.path = "lfo3/syncLevel", .family = Family::INSTRUMENT, .pairs = kSyncPairs},
+	    {.path = "lfo4/syncLevel", .family = Family::INSTRUMENT, .pairs = kSyncPairs},
 	    {.path = "modulator1/transpose",
 	     .family = Family::INSTRUMENT,
-	     .item = &modulator0TransposeMenu,
 	     .where = Where::SYNTH_FM,
 	     .pairs = kTransposePairs},
 	    {.path = "modulator2/transpose",
 	     .family = Family::INSTRUMENT,
-	     .item = &modulator1TransposeMenu,
 	     .where = Where::SYNTH_FM,
 	     .source = 1,
 	     .pairs = kTransposePairs},
-	    {.path = "modulator1/retrigPhase",
-	     .family = Family::INSTRUMENT,
-	     .item = &modulator0PhaseMenu,
-	     .where = Where::SYNTH_FM,
-	     .stored = kPhases},
+	    {.path = "modulator1/retrigPhase", .family = Family::INSTRUMENT, .where = Where::SYNTH_FM, .stored = kPhases},
 	    {.path = "modulator2/retrigPhase",
 	     .family = Family::INSTRUMENT,
-	     .item = &modulator1PhaseMenu,
 	     .where = Where::SYNTH_FM,
 	     .source = 1,
 	     .stored = kPhases},
-	    {.path = "modulator2/toModulator1",
-	     .family = Family::INSTRUMENT,
-	     .item = &modulatorDestMenu,
-	     .where = Where::SYNTH_FM},
+	    {.path = "modulator2/toModulator1", .family = Family::INSTRUMENT, .where = Where::SYNTH_FM},
 	};
 	return cases;
 }
 
 inline const std::vector<Case>& unison_and_midi_cases() {
 	static const std::vector<Case> cases{
-	    {.path = "unison/num", .family = Family::INSTRUMENT, .item = &numUnisonMenu},
-	    {.path = "unison/detune", .family = Family::INSTRUMENT, .item = &unisonDetuneMenu},
-	    {.path = "unison/spread", .family = Family::INSTRUMENT, .item = &legacy::unison::stereoSpreadMenu},
-	    {.path = "midiOutput/channel", .family = Family::INSTRUMENT, .item = &outputMidiChannelMenu},
-	    {.path = "midiOutput/noteForDrum",
-	     .family = Family::INSTRUMENT,
-	     .item = &outputMidiNoteForDrumMenu,
-	     .where = Where::KIT_LANE},
+	    {.path = "unison/num", .family = Family::INSTRUMENT},
+	    {.path = "unison/detune", .family = Family::INSTRUMENT},
+	    {.path = "unison/spread", .family = Family::INSTRUMENT},
+	    {.path = "midiOutput/channel", .family = Family::INSTRUMENT},
+	    {.path = "midiOutput/noteForDrum", .family = Family::INSTRUMENT, .where = Where::KIT_LANE},
 	};
 	return cases;
 }
 
 inline const std::vector<Case>& effect_cases() {
 	static const std::vector<Case> cases{
-	    {.path = "modFXType", .family = Family::EFFECT, .item = &modFXTypeMenu},
-	    {.path = "lpfMode", .family = Family::EFFECT, .item = &lpfModeMenu},
-	    {.path = "hpfMode", .family = Family::EFFECT, .item = &hpfModeMenu},
-	    {.path = "filterRoute", .family = Family::EFFECT, .item = &filterRoutingMenu},
-	    {.path = "clippingAmount", .family = Family::EFFECT, .item = &clippingMenu},
-	    {.path = "delay/pingPong", .family = Family::EFFECT, .item = &delayPingPongMenu},
-	    {.path = "delay/type", .family = Family::EFFECT, .item = &delayTypeMenu},
-	    {.path = "delay/syncLevel", .family = Family::EFFECT, .item = &delaySyncMenu, .pairs = kSyncPairs},
-	    {.path = "sidechain/attack",
-	     .family = Family::EFFECT,
-	     .item = &sidechainAttackMenu,
-	     .stored = {327244, 1048576, 256, 255}},
-	    {.path = "sidechain/release",
-	     .family = Family::EFFECT,
-	     .item = &sidechainReleaseMenu,
-	     .stored = {936, 261528, 256, 264}},
-	    {.path = "sidechain/syncLevel",
-	     .family = Family::EFFECT,
-	     .item = &sidechainSyncMenu,
-	     .pairs = {{0, 0}, {1, 0}, {9, 0}, {4, 0}}},
+	    {.path = "modFXType", .family = Family::EFFECT},
+	    {.path = "lpfMode", .family = Family::EFFECT},
+	    {.path = "hpfMode", .family = Family::EFFECT},
+	    {.path = "filterRoute", .family = Family::EFFECT},
+	    {.path = "clippingAmount", .family = Family::EFFECT},
+	    {.path = "delay/pingPong", .family = Family::EFFECT},
+	    {.path = "delay/type", .family = Family::EFFECT},
+	    {.path = "delay/syncLevel", .family = Family::EFFECT, .pairs = kSyncPairs},
+	    {.path = "sidechain/attack", .family = Family::EFFECT, .stored = {327244, 1048576, 256, 255}},
+	    {.path = "sidechain/release", .family = Family::EFFECT, .stored = {936, 261528, 256, 264}},
+	    {.path = "sidechain/syncLevel", .family = Family::EFFECT, .pairs = {{0, 0}, {1, 0}, {9, 0}, {4, 0}}},
 	    {.path = "audioCompressor/attack",
 	     .family = Family::EFFECT,
-	     .item = &compAttack,
 	     .stored = {5 << 24, (5 << 24) + 0xFFFFFF, 127 << 24}},
-	    {.path = "audioCompressor/release",
-	     .family = Family::EFFECT,
-	     .item = &compRelease,
-	     .stored = {5 << 24, 127 << 24}},
-	    {.path = "audioCompressor/ratio", .family = Family::EFFECT, .item = &compRatio, .stored = {64 << 24, 1}},
-	    {.path = "audioCompressor/compHPF", .family = Family::EFFECT, .item = &compHPF, .stored = {(3 << 24) - 1}},
-	    {.path = "audioCompressor/compBlend", .family = Family::EFFECT, .item = &compBlend, .stored = {127 << 24}},
-	    {.path = "stutter/quantized", .family = Family::EFFECT, .item = &stutterQuantizedMenu},
+	    {.path = "audioCompressor/release", .family = Family::EFFECT, .stored = {5 << 24, 127 << 24}},
+	    {.path = "audioCompressor/ratio", .family = Family::EFFECT, .stored = {64 << 24, 1}},
+	    {.path = "audioCompressor/compHPF", .family = Family::EFFECT, .stored = {(3 << 24) - 1}},
+	    {.path = "audioCompressor/compBlend", .family = Family::EFFECT, .stored = {127 << 24}},
+	    {.path = "stutter/quantized", .family = Family::EFFECT},
 	};
 	return cases;
 }
 
 inline const std::vector<Case>& arp_cases() {
 	static const std::vector<Case> cases{
-	    {.path = "arpeggiator/arpMode", .family = Family::ARP, .item = &arpModeMenu, .writes = kNoLegacyWrite},
-	    {.path = "arpeggiator/octaveMode", .family = Family::ARP, .item = &arpOctaveModeMenu},
-	    {.path = "arpeggiator/noteMode", .family = Family::ARP, .item = &arpNoteModeMenu},
-	    {.path = "arpeggiator/noteMode",
-	     .family = Family::ARP,
-	     .item = &arpNoteModeMenuForDrums,
-	     .where = Where::KIT_LANE},
-	    {.path = "arpeggiator/mpeVelocity", .family = Family::ARP, .item = &arpMpeVelocityMenu},
-	    {.path = "arpeggiator/numOctaves", .family = Family::ARP, .item = &arpOctavesMenu},
-	    {.path = "arpeggiator/stepRepeat", .family = Family::ARP, .item = &arpStepRepeatMenu},
-	    {.path = "arpeggiator/chordType",
-	     .family = Family::ARP,
-	     .item = &arpChordSimulatorMenuKit,
-	     .where = Where::KIT_LANE},
-	    {.path = "arpeggiator/syncLevel", .family = Family::ARP, .item = &arpSyncMenu, .pairs = kSyncPairs},
-	    {.path = "arpeggiator/randomizerLock", .family = Family::ARP, .item = &randomizerLockMenu},
-	    {.path = "arpeggiator/kitArp",
-	     .family = Family::ARP,
-	     .item = &arpIncludeInKitArpMenu,
-	     .where = Where::KIT_LANE},
-	    {.path = "arpeggiator/preset", .family = Family::ARP, .item = &arpPresetModeMenu, .writes = kNoLegacyWrite},
+	    {.path = "arpeggiator/arpMode", .family = Family::ARP, .writes = kNoFrozenWrite},
+	    {.path = "arpeggiator/octaveMode", .family = Family::ARP},
+	    {.path = "arpeggiator/noteMode", .family = Family::ARP},
+	    {.path = "arpeggiator/noteMode", .family = Family::ARP, .where = Where::KIT_LANE},
+	    {.path = "arpeggiator/mpeVelocity", .family = Family::ARP},
+	    {.path = "arpeggiator/numOctaves", .family = Family::ARP},
+	    {.path = "arpeggiator/stepRepeat", .family = Family::ARP},
+	    {.path = "arpeggiator/chordType", .family = Family::ARP, .where = Where::KIT_LANE},
+	    {.path = "arpeggiator/syncLevel", .family = Family::ARP, .pairs = kSyncPairs},
+	    {.path = "arpeggiator/randomizerLock", .family = Family::ARP},
+	    {.path = "arpeggiator/kitArp", .family = Family::ARP, .where = Where::KIT_LANE},
+	    {.path = "arpeggiator/preset", .family = Family::ARP, .writes = kNoFrozenWrite},
 	};
 	return cases;
 }
@@ -1628,30 +1221,26 @@ inline const std::vector<int32_t> kQ31Probes{0, -1, 1, 85899345, 42949672, 42949
 
 inline const std::vector<Case>& arp_host_cases() {
 	static const std::vector<Case> cases = [] {
-		const std::pair<std::string_view, ::MenuItem*> items[] = {
-		    {"arpeggiator/gate", &arpGateMenuMIDIOrCV},
-		    {"arpeggiator/rate", &arpRateMenuMIDIOrCV},
-		    {"arpeggiator/rhythm", &arpRhythmMenuMIDIOrCV},
-		    {"arpeggiator/sequenceLength", &arpSequenceLengthMenuMIDIOrCV},
-		    {"arpeggiator/chordPolyphony", &chordPolyphonyMenuMIDIOrCV},
-		    {"arpeggiator/ratchetAmount", &ratchetAmountMenuMIDIOrCV},
-		    {"arpeggiator/noteProbability", &randomizerNoteProbabilityMenuMIDIOrCV},
-		    {"arpeggiator/bassProbability", &bassProbabilityMenuMIDIOrCV},
-		    {"arpeggiator/swapProbability", &swapProbabilityMenuMIDIOrCV},
-		    {"arpeggiator/glideProbability", &glideProbabilityMenuMIDIOrCV},
-		    {"arpeggiator/chordProbability", &chordProbabilityMenuMIDIOrCV},
-		    {"arpeggiator/ratchetProbability", &ratchetProbabilityMenuMIDIOrCV},
-		    {"arpeggiator/spreadVelocity", &spreadVelocityMenuMIDIOrCV},
-		    {"arpeggiator/spreadGate", &spreadGateMenuMIDIOrCV},
-		    {"arpeggiator/spreadOctave", &spreadOctaveMenuMIDIOrCV},
+		static constexpr std::string_view paths[] = {
+		    "arpeggiator/gate",
+		    "arpeggiator/rate",
+		    "arpeggiator/rhythm",
+		    "arpeggiator/sequenceLength",
+		    "arpeggiator/chordPolyphony",
+		    "arpeggiator/ratchetAmount",
+		    "arpeggiator/noteProbability",
+		    "arpeggiator/bassProbability",
+		    "arpeggiator/swapProbability",
+		    "arpeggiator/glideProbability",
+		    "arpeggiator/chordProbability",
+		    "arpeggiator/ratchetProbability",
+		    "arpeggiator/spreadVelocity",
+		    "arpeggiator/spreadGate",
+		    "arpeggiator/spreadOctave",
 		};
 		std::vector<Case> out;
-		for (const auto& [path, item] : items) {
-			out.push_back({.path = path,
-			               .family = Family::ARP_HOST,
-			               .item = item,
-			               .where = Where::MIDI_CLIP,
-			               .stored = kQ31Probes});
+		for (const std::string_view path : paths) {
+			out.push_back({.path = path, .family = Family::ARP_HOST, .where = Where::MIDI_CLIP, .stored = kQ31Probes});
 		}
 		return out;
 	}();
@@ -1674,87 +1263,49 @@ inline const std::vector<Case>& model_cases() {
 	static const std::vector<Case> cases{
 	    // Driven as a numeric row against legacy's DualCVSelection: stored 1 (pitch), a mode the menu does not list,
 	    // reads as off.
-	    {.path = "cv2Source",
-	     .family = Family::INSTRUMENT_DEVICE,
-	     .item = &cv2SourceMenu,
-	     .where = Where::CV_CLIP,
-	     .stored = {1, 2, 3}},
-	    {.path = "transpose",
-	     .family = Family::AUDIO_CLIP,
-	     .item = &audioClipTransposeMenu,
-	     .where = Where::AUDIO_CLIP,
-	     .pairs = kTransposePairs},
-	    {.path = "linearInterpolation",
-	     .family = Family::AUDIO_CLIP,
-	     .item = &audioClipInterpolationMenu,
-	     .where = Where::AUDIO_CLIP},
+	    {.path = "cv2Source", .family = Family::INSTRUMENT_DEVICE, .where = Where::CV_CLIP, .stored = {1, 2, 3}},
+	    {.path = "transpose", .family = Family::AUDIO_CLIP, .where = Where::AUDIO_CLIP, .pairs = kTransposePairs},
+	    {.path = "linearInterpolation", .family = Family::AUDIO_CLIP, .where = Where::AUDIO_CLIP},
 	    {.path = "reverb/roomSize",
 	     .family = Family::SONG,
-	     .item = &reverbRoomSizeMenu,
 	     .where = Where::SONG,
 	     .stored = kFractionProbes,
 	     .lossy = true},
 	    {.path = "reverb/dampening",
 	     .family = Family::SONG,
-	     .item = &reverbDampingMenu,
 	     .where = Where::SONG,
 	     .stored = kFractionProbes,
 	     .lossy = true},
 	    {.path = "reverb/width",
 	     .family = Family::SONG,
-	     .item = &reverbWidthMenu,
 	     .where = Where::SONG,
 	     .stored = kFractionProbes,
 	     .lossy = true},
-	    {.path = "reverb/hpf",
-	     .family = Family::SONG,
-	     .item = &reverbHPFMenu,
-	     .where = Where::SONG,
-	     .stored = kFractionProbes,
-	     .lossy = true},
-	    {.path = "reverb/lpf",
-	     .family = Family::SONG,
-	     .item = &reverbLPFMenu,
-	     .where = Where::SONG,
-	     .stored = kFractionProbes,
-	     .lossy = true},
-	    {.path = "reverb/pan",
-	     .family = Family::SONG,
-	     .item = &reverbPanMenu,
-	     .where = Where::SONG,
-	     .stored = {0, 1, -1, 85899344}},
-	    {.path = "reverb/model", .family = Family::SONG, .item = &reverbModelMenu, .where = Where::SONG},
+	    {.path = "reverb/hpf", .family = Family::SONG, .where = Where::SONG, .stored = kFractionProbes, .lossy = true},
+	    {.path = "reverb/lpf", .family = Family::SONG, .where = Where::SONG, .stored = kFractionProbes, .lossy = true},
+	    {.path = "reverb/pan", .family = Family::SONG, .where = Where::SONG, .stored = {0, 1, -1, 85899344}},
+	    {.path = "reverb/model", .family = Family::SONG, .where = Where::SONG},
 	    {.path = "reverb/compressor/shape",
 	     .family = Family::SONG,
-	     .item = &reverbSidechainShapeMenu,
 	     .where = Where::SONG,
 	     .stored = {0, -601295438, 85899345},
 	     .skip_writes = {50}},
-	    {.path = "swingInterval", .family = Family::SONG, .item = &swingIntervalMenu, .where = Where::SONG},
-	    {.path = "priority", .family = Family::AUDIO_CLIP, .item = &priorityMenu, .where = Where::AUDIO_CLIP},
-	    {.path = "reversed", .family = Family::AUDIO_CLIP, .item = &audioClipReverseMenu, .where = Where::AUDIO_CLIP},
-	    {.path = "pitchSpeedIndependent",
-	     .family = Family::AUDIO_CLIP,
-	     .item = &sample0PitchSpeedMenu,
-	     .where = Where::AUDIO_CLIP},
-	    {.path = "attack",
-	     .family = Family::AUDIO_CLIP,
-	     .item = &audioClipAttackMenu,
-	     .where = Where::AUDIO_CLIP,
-	     .stored = {0, -1, 1, 85899345}},
-	    {.path = "midiBank", .family = Family::CLIP_VALUES, .item = &midiBankMenu, .where = Where::MIDI_CLIP},
-	    {.path = "midiSub", .family = Family::CLIP_VALUES, .item = &midiSubMenu, .where = Where::MIDI_CLIP},
-	    {.path = "midiPGM", .family = Family::CLIP_VALUES, .item = &midiPGMMenu, .where = Where::MIDI_CLIP},
-	    {.path = "bendRange", .family = Family::CLIP_VALUES, .item = &mainBendRangeMenu},
-	    {.path = "bendRangeMPE", .family = Family::CLIP_VALUES, .item = &perFingerBendRangeMenu},
+	    {.path = "swingInterval", .family = Family::SONG, .where = Where::SONG},
+	    {.path = "priority", .family = Family::AUDIO_CLIP, .where = Where::AUDIO_CLIP},
+	    {.path = "reversed", .family = Family::AUDIO_CLIP, .where = Where::AUDIO_CLIP},
+	    {.path = "pitchSpeedIndependent", .family = Family::AUDIO_CLIP, .where = Where::AUDIO_CLIP},
+	    {.path = "attack", .family = Family::AUDIO_CLIP, .where = Where::AUDIO_CLIP, .stored = {0, -1, 1, 85899345}},
+	    {.path = "midiBank", .family = Family::CLIP_VALUES, .where = Where::MIDI_CLIP},
+	    {.path = "midiSub", .family = Family::CLIP_VALUES, .where = Where::MIDI_CLIP},
+	    {.path = "midiPGM", .family = Family::CLIP_VALUES, .where = Where::MIDI_CLIP},
+	    {.path = "bendRange", .family = Family::CLIP_VALUES},
+	    {.path = "bendRangeMPE", .family = Family::CLIP_VALUES},
 	    {.path = "reverb/compressor/attack",
 	     .family = Family::SONG,
-	     .item = &reverbSidechainAttackMenu,
 	     .where = Where::SONG,
 	     .stored = {327244, 1048576, 256, 255}},
 	    {.path = "reverb/compressor/release",
 	     .family = Family::SONG,
-	     .item = &reverbSidechainReleaseMenu,
 	     .where = Where::SONG,
 	     .stored = {936, 261528, 256, 264}},
 	};
@@ -1834,7 +1385,6 @@ inline const std::vector<Case>& scaled_cases() {
 	static const std::vector<Case> cases{
 	    {.path = "reverb/compressor/volume",
 	     .family = Family::SONG,
-	     .item = &reverbSidechainVolumeMenu,
 	     .where = Where::SONG,
 	     .menu_step = kDuckingVolumeStep},
 	};
@@ -1855,87 +1405,75 @@ inline const SettingInfo& table_row(Family family, std::string_view path) {
 	return row != nullptr ? *row : kMissing;
 }
 
-/// An unset note (stored 255, which no menu value of the row stores) shows as `to_menu(row, 255)`, the note it plays.
-/// The note the probe changes is put back.
-inline bool note_for_drum_differs() {
-	const MenuContext& ctx = enter(Where::KIT_LANE);
-	const SettingInfo& row = table_row(Family::INSTRUMENT, "midiOutput/noteForDrum");
-	Sound& sound = *spec::menu_engine(ctx).sound;
-	const uint8_t before = sound.outputMidiNoteForDrum;
-	sound.outputMidiNoteForDrum = MIDI_NOTE_NONE;
-	const int32_t shown = legacy_read(&outputMidiNoteForDrumMenu);
-	sound.outputMidiNoteForDrum = before;
-	const int32_t unset = int32_t{MIDI_NOTE_NONE};
-	return unset > deluge::plugin::stored_bounds(row).second && shown == to_menu(row, unset);
+/// @brief The frozen readings of the exception for @p path: `exception/<path>`, `probe`.
+inline std::string probe_cell(std::string_view path, size_t at = 0) {
+	return cell("exception/" + std::string{path}, "probe", at);
+}
+inline std::optional<int32_t> probe_int(std::string_view path, size_t at = 0) {
+	return cell_int("exception/" + std::string{path}, "probe", at);
 }
 
-/// With no input plugged in the item lists one input, so a stored right or stereo input reads past its list. The
-/// oscillator type and the plugged flags are put back.
-inline bool input_reads_past_list(std::string_view path, int8_t source, ::MenuItem* item) {
+/// An unset note (stored 255, which no menu value of the row stores) shows as `to_menu(row, 255)`, the note it plays;
+/// the item's reading of it is the frozen probe.
+inline bool note_for_drum_differs() {
+	const SettingInfo& row = table_row(Family::INSTRUMENT, "midiOutput/noteForDrum");
+	const std::optional<int32_t> shown = probe_int("midiOutput/noteForDrum");
+	const int32_t unset = int32_t{MIDI_NOTE_NONE};
+	return shown && unset > deluge::plugin::stored_bounds(row).second && *shown == to_menu(row, unset);
+}
+
+/// With no input plugged in the item lists one input, so a stored right or stereo input reads past its list: the
+/// item's two readings (right, then stereo) are the frozen probes.
+inline bool input_reads_past_list(std::string_view path, int8_t source) {
 	const bool mic = AudioEngine::micPluggedIn;
 	const bool line_in = AudioEngine::lineInPluggedIn;
 	AudioEngine::micPluggedIn = false;
 	AudioEngine::lineInPluggedIn = false;
-	const MenuContext& ctx = enter(Where::SYNTH, source);
+	enter(Where::SYNTH, source);
 	const SettingInfo& row = table_row(Family::INSTRUMENT, path);
-	const std::optional<int32_t> before = get_stored(Family::INSTRUMENT, ctx, Where::SYNTH, row);
 	const auto listed = static_cast<int32_t>(applicable(row, Where::SYNTH, Family::INSTRUMENT).size());
 	bool past = true;
-	for (const OscType input : {OscType::INPUT_R, OscType::INPUT_STEREO}) {
-		set_stored(Family::INSTRUMENT, ctx, Where::SYNTH, row, std::to_underlying(input));
-		past = past && legacy_read(item) >= listed;
-	}
-	if (before) {
-		set_stored(Family::INSTRUMENT, ctx, Where::SYNTH, row, *before);
+	for (const size_t input : {size_t{0}, size_t{1}}) {
+		const std::optional<int32_t> read = probe_int(path, input);
+		past = past && read && *read >= listed;
 	}
 	AudioEngine::micPluggedIn = mic;
 	AudioEngine::lineInPluggedIn = line_in;
 	return past;
 }
 inline bool first_oscillator_type_differs() {
-	return input_reads_past_list("osc1/type", 0, &osc0TypeMenu);
+	return input_reads_past_list("osc1/type", 0);
 }
 inline bool second_oscillator_type_differs() {
-	return input_reads_past_list("osc2/type", 1, &osc1TypeMenu);
+	return input_reads_past_list("osc2/type", 1);
 }
 
-/// The item's write of its top step stores a different value from the row's. The stored shape is put back.
+/// The item's write of its top step stores a different value from the row's. The probe holds the step it wrote, which
+/// must be the row's top, and what the item stored (`none` where the record held nothing).
 inline bool compressor_shape_differs() {
-	const MenuContext& ctx = enter(Where::SONG);
 	const SettingInfo& row = table_row(Family::SONG, "reverb/compressor/shape");
-	const std::optional<int32_t> before = get_stored(Family::SONG, ctx, Where::SONG, row);
-	const int32_t top = legacy_range(&reverbSidechainShapeMenu).second;
-	legacy_write(&reverbSidechainShapeMenu, top);
-	const std::optional<std::pair<int32_t, int32_t>> want = from_menu(row, top);
-	const bool differs = want && want->first != get_stored(Family::SONG, ctx, Where::SONG, row).value_or(want->first);
-	if (before) {
-		set_stored(Family::SONG, ctx, Where::SONG, row, *before);
+	const int32_t top = menu_range(row).second;
+	if (probe_int("reverb/compressor/shape", 0) != top) {
+		return false;
 	}
-	return differs;
+	const std::optional<std::pair<int32_t, int32_t>> want = from_menu(row, top);
+	const std::optional<int32_t> stored = probe_int("reverb/compressor/shape", 1);
+	return want && want->first != stored.value_or(want->first);
 }
 
-/// The item's list holds 0, which its encoder never lands on: `swing::Interval::selectEncoderAction` sets
-/// `wrapSwingIntervalSyncLevel(value + offset)` (`swing/interval.h`), so that function is the encoder's path, and
-/// stepping down from 1 lands elsewhere than 0.
+/// The item's list holds 0, which its encoder never lands on: `wrapSwingIntervalSyncLevel` is the encoder's path, and
+/// stepping down from 1 lands elsewhere than 0. The probe is the item's least value.
 inline bool swing_interval_differs() {
 	const SettingInfo& row = table_row(Family::SONG, "swingInterval");
-	return legacy_range(&swingIntervalMenu).first == 0 && menu_range(row).first == 0
-	       && wrapSwingIntervalSyncLevel(1 - 1) != 0;
+	return probe_int("swingInterval") == 0 && menu_range(row).first == 0 && wrapSwingIntervalSyncLevel(1 - 1) != 0;
 }
 
 /// The item shows the stored volume as stored / kDuckingVolumeStep, truncating (5 steps and 1000 shows 5); the row's
-/// menu is the stored value itself. The stored volume is put back.
+/// menu is the stored value itself. The probe is what the item showed.
 inline bool reverb_volume_differs() {
-	const MenuContext& ctx = enter(Where::SONG);
 	const SettingInfo& row = table_row(Family::SONG, "reverb/compressor/volume");
-	const std::optional<int32_t> before = get_stored(Family::SONG, ctx, Where::SONG, row);
 	const int32_t stored = 5 * kDuckingVolumeStep + 1000;
-	set_stored(Family::SONG, ctx, Where::SONG, row, stored);
-	const int32_t shown = legacy_read(&reverbSidechainVolumeMenu);
-	if (before) {
-		set_stored(Family::SONG, ctx, Where::SONG, row, *before);
-	}
-	return shown == 5 && to_menu(row, stored) == stored;
+	return probe_int("reverb/compressor/volume") == 5 && to_menu(row, stored) == stored;
 }
 
 /// The rows a legacy item shows but this spec reads only around a named difference. Each is checked to still differ
@@ -2033,41 +1571,17 @@ inline bool skipped(const NamesOwner& owner, std::string_view path) {
 /// are named and compared by name only.
 inline const std::vector<Case>& group_cases() {
 	static const std::vector<Case> cases{
-	    {.path = "sequenceDirection", .family = Family::CLIP, .item = &sequenceDirectionMenu},
-	    {.path = "sequenceDirection",
-	     .family = Family::NOTE_ROW,
-	     .item = &sequenceDirectionMenu,
-	     .where = Where::KIT_LANE},
-	    {.path = "bendRange", .family = Family::NOTE_ROW, .item = &drumBendRangeMenu, .where = Where::KIT_LANE},
-	    {.path = "outputMpeY",
-	     .family = Family::INSTRUMENT_DEVICE,
-	     .item = &mpeyToModWheelMenu,
-	     .where = Where::MIDI_CLIP},
-	    {.path = "collapseAftertouch",
-	     .family = Family::INSTRUMENT_DEVICE,
-	     .item = &midiAftertouchCollapseMenu,
-	     .where = Where::MIDI_CLIP},
-	    {.path = "collapseMpe",
-	     .family = Family::INSTRUMENT_DEVICE,
-	     .item = &midiMPECollapseMenu,
-	     .where = Where::MIDI_CLIP},
-	    {.path = "hideUnlabeledCC",
-	     .family = Family::INSTRUMENT_DEVICE,
-	     .item = &hideUnlabeledCCMenu,
-	     .where = Where::MIDI_CLIP},
-	    {.path = "deviceDefinitionFileName",
-	     .family = Family::INSTRUMENT_DEVICE,
-	     .item = &midiDeviceLinkedMenu,
-	     .where = Where::MIDI_CLIP},
-	    {.path = "mode", .family = Family::AUDIO_INPUT, .item = &audioSourceSelectorMenu, .where = Where::AUDIO_CLIP},
-	    {.path = "inputChannel",
-	     .family = Family::AUDIO_INPUT,
-	     .item = &audioSourceSelectorMenu,
-	     .where = Where::AUDIO_CLIP},
-	    {.path = "outputRecordingFrom",
-	     .family = Family::AUDIO_INPUT,
-	     .item = &specificOutputSelectorMenu,
-	     .where = Where::AUDIO_CLIP},
+	    {.path = "sequenceDirection", .family = Family::CLIP},
+	    {.path = "sequenceDirection", .family = Family::NOTE_ROW, .where = Where::KIT_LANE},
+	    {.path = "bendRange", .family = Family::NOTE_ROW, .where = Where::KIT_LANE},
+	    {.path = "outputMpeY", .family = Family::INSTRUMENT_DEVICE, .where = Where::MIDI_CLIP},
+	    {.path = "collapseAftertouch", .family = Family::INSTRUMENT_DEVICE, .where = Where::MIDI_CLIP},
+	    {.path = "collapseMpe", .family = Family::INSTRUMENT_DEVICE, .where = Where::MIDI_CLIP},
+	    {.path = "hideUnlabeledCC", .family = Family::INSTRUMENT_DEVICE, .where = Where::MIDI_CLIP},
+	    {.path = "deviceDefinitionFileName", .family = Family::INSTRUMENT_DEVICE, .where = Where::MIDI_CLIP},
+	    {.path = "mode", .family = Family::AUDIO_INPUT, .where = Where::AUDIO_CLIP},
+	    {.path = "inputChannel", .family = Family::AUDIO_INPUT, .where = Where::AUDIO_CLIP},
+	    {.path = "outputRecordingFrom", .family = Family::AUDIO_INPUT, .where = Where::AUDIO_CLIP},
 	};
 	return cases;
 }

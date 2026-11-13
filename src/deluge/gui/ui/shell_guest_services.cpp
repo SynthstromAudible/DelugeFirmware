@@ -24,7 +24,6 @@
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/shell_note_mode.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
@@ -35,6 +34,7 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
@@ -55,6 +55,7 @@
 #include "scenes/services/global_controls.h"
 #include "scenes/services/midi_learn.h"
 #include "scenes/services/mod_knobs.h"
+#include "scenes/services/view_state.h"
 #include "scenes/slicing/slicer_scene.h"
 #include "util/shell_menu_entry.h"
 #include "util/sound_menu_open.h"
@@ -136,9 +137,7 @@ void setViewStates(GuestServices& services) {
 } // namespace
 
 void handOffGuestOverlays(uint32_t now_ms) {
-	// The menu's kit context goes with it (`adoptShellMenuContext` wrote it at open), as legacy's `exitCompletely`
-	// clears it; a legacy menu opened afterwards sets it only when it means it.
-	soundEditor.setupKitGlobalFXMenu = false;
+	// The kit-global-FX latch goes with the menu, as `exitCompletely` clears it.
 	clearShellKitGlobalFx();
 	// The automation view's follow of the closing menu's last move goes with the menu (`closeGuest` has applied the
 	// flush's settings already). On the tick's close path the drain after `Shell::tick` has emptied it.
@@ -303,7 +302,7 @@ void refreshShellRangeDisplay() {
 		}
 		return;
 	}
-	// `SoundEditor::possibleChangeToCurrentRangeDisplay` (`sound_editor.cpp:1223-1232`).
+	// `SoundEditor::possibleChangeToCurrentRangeDisplay`.
 	if (root == &keyboardScreen) {
 		uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
 	}
@@ -340,6 +339,14 @@ void refreshShellSamplePreviewSounds() {
 	                            || menu.descriptor_id() == DescriptorId::SampleBrowserSynth))
 	                    || top == &deluge::scenes::slicing::slicer_scene();
 	guestPreviewSounds.store(sounds, std::memory_order_relaxed);
+}
+
+void forgetShellMenuContext() {
+	deluge::scenes::menu_scene().forget_context();
+}
+
+void endShellRecorderTakeForTeardown() {
+	deluge::scenes::recorder::recorder_scene().taken_down();
 }
 
 bool shellSamplePreviewSounds() {
@@ -412,6 +419,9 @@ bool guestKnobsSeeAutomationEditor() {
 void wireShellGuestServices() {
 	GuestServices& services = guestServices();
 	ShellHostUI::setCloseHook(&handOffGuestOverlays);
+	// From boot on, not from the first open: the slicer's and the drum creator's state is dropped on a teardown
+	// whether the guest is up or not.
+	setUITeardownHook([] { shellHostUI.uisTakenDown(); });
 	wireShellKitGlobalShortcuts();
 
 	// `currentSong`, which `src/scenes` may not read for itself (`check_layer_rules.py`'s
@@ -420,8 +430,6 @@ void wireShellGuestServices() {
 	services.learn.set_song(currentSong);
 	services.knobs.set_song(currentSong);
 	services.controls.set_song(currentSong);
-	// A guest opens with the knobs untouched, so its first turn is not taken as a repeat of the last.
-	services.knobs.pretend_knobs_untouched();
 	// The clip the views have open, which the global buttons and MIDI learn ask about.
 	deluge::scenes::services::view_state().set_current_view(currentSong != nullptr
 	                                                            ? deluge::gui::menuViewOf(currentSong->getCurrentClip())
@@ -434,6 +442,14 @@ void wireShellGuestServices() {
 	// second call neither double-ticks nor strands a slot (`shell/shell.h`'s `set_services`).
 	shellHostUI.shell().set_services(
 	    {.mod_knobs = &services.knobs, .global_controls = &services.controls, .midi_learn = &services.learn});
+}
+
+void wireShellClipCloneViews() {
+	deluge::model::setAudioClipCloneFollower([](uint32_t from, uint32_t to) {
+		using deluge::scenes::services::ViewKey;
+		deluge::scenes::services::view_state().copy_view(ViewKey{.kind = ViewKey::Kind::AUDIO_CLIP, .id = from},
+		                                                 ViewKey{.kind = ViewKey::Kind::AUDIO_CLIP, .id = to});
+	});
 }
 
 } // namespace deluge::gui::ui

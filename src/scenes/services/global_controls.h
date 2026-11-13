@@ -115,15 +115,6 @@
 ///     (`scenes/context_menu/`), but the *clear-song* menu is not among the ported context
 ///     menus, and its `setupAndCheckAvailability()` is a `gui/` call. Decision ported, open
 ///     missing.
-///   * **`audioRecorder.beginOutputRecording()`** (`Buttons::buttonAction`'s PLAY/RECORD arms),
-///     **`audioRecorder.isCurrentlyResampling()`** (same tail) and
-///     **`audioRecorder.endRecordingSoon()`** (`:196`). `audioRecorder` is on
-///     `scenes-no-root-ui`'s list, and `RecorderScene`'s own class doc records the split this sits
-///     on the wrong side of: *"`AudioRecorder` the object is also the output recorder ... none of
-///     that is a UI ... all of it stays on the legacy `audioRecorder` object"*
-///     (`scenes/recorder/recorder_scene.h`). `AudioEngine::foregroundRecordingSource()` is the one
-///     seam that already exists and it is read-only, so the two *tests* legacy makes on
-///     `recordingSource` (`Buttons::buttonAction`'s PLAY and RECORD arms) ARE ported; the three verbs are not.
 ///   * **`display->hasPopupOfType(PopupType::THRESHOLD_RECORDING_MODE)`** and the `cancelPopup()`
 ///     it guards (`hid/buttons.cpp:190-192`). `scenes-no-display` forbids `display->`, and the
 ///     seam that would replace it does not reach: that popup is raised by *model* code straight to
@@ -248,8 +239,8 @@ public:
 		MidiLearn,     ///< `UI_MODE_MIDI_LEARN`. Never set through `ViewState`; see `LearnMode`.
 		RecordCountIn, ///< `UI_MODE_RECORD_COUNT_IN` -- read by the `TAP_TEMPO` arm (`View::buttonAction`).
 		Auditioning,   ///< `UI_MODE_AUDITIONING` -- read by the `LOAD` release arm (`view.cpp:328`).
-		HoldingSave,   ///< `UI_MODE_HOLDING_SAVE_BUTTON` (`view.cpp:242`). Owned here.
-		HoldingLoad,   ///< `UI_MODE_HOLDING_LOAD_BUTTON` (`view.cpp:299`). Owned here.
+		HoldingSave,   ///< `UI_MODE_HOLDING_SAVE_BUTTON` (`View::buttonAction` in `view.cpp`). Owned here.
+		HoldingLoad,   ///< `UI_MODE_HOLDING_LOAD_BUTTON` (`View::buttonAction` in `view.cpp`). Owned here.
 		Other,         ///< Any other mode: active, and none of the above.
 	};
 
@@ -265,8 +256,8 @@ public:
 		/// here: `effective_ui_mode()` takes that from `LearnMode::active()` instead, so there is
 		/// one owner of the mode and not two.
 		UiMode ui_mode = UiMode::None;
-		/// `getCurrentUI()->toClipMinder() != nullptr` (`view.cpp`, `:375`). Decides whether
-		/// the SYNC_SCALING LED blinks and whether sync scaling may be started at all.
+		/// `getCurrentUI()->toClipMinder() != nullptr` (`View::buttonAction` and `View::setTimeBaseScaleLedState` in
+		/// `view.cpp`). Decides whether the SYNC_SCALING LED blinks and whether sync scaling may be started at all.
 		bool current_ui_is_clip_minder = false;
 		/// `getRootUI() == &performanceView` (`view.cpp:238`, `:283`) -- the fifth term of the
 		/// SAVE/LOAD guard, which lets KEYBOARD+SAVE through only in performance view.
@@ -383,17 +374,17 @@ public:
 	/// @brief Is the SAVE button being held down for the save gesture? `UI_MODE_HOLDING_SAVE_BUTTON`
 	///        (`View::buttonAction`).
 	bool holding_save() const { return holding_save_; }
-	/// @brief Is the LOAD button being held down? `UI_MODE_HOLDING_LOAD_BUTTON` (`view.cpp:299`,
-	///        cleared at `:310`).
+	/// @brief Is the LOAD button being held down? `UI_MODE_HOLDING_LOAD_BUTTON` (`View::buttonAction` in `view.cpp`,
+	///        which also clears it).
 	bool holding_load() const { return holding_load_; }
-	/// @brief The five call sites this port reaches but cannot make -- see the class doc's
+	/// @brief The three call sites this port reaches but cannot make -- see the class doc's
 	///        "deliberately NOT ported".
 	///
-	/// One enumerator per *site*, not one per kind of thing: `beginOutputRecording` is reached from
-	/// two different arms with two different conditions, and a single total cannot tell them apart.
-	/// Fix round 1, minor 5: a spec asserting `unported_opens() == 1` after a SAVE gesture could be
-	/// satisfied by a PLAY+RECORD combo instead, which would make the counter's only claim -- "the
-	/// arm's decision reached the point legacy opens a UI at" -- unfalsifiable.
+	/// One enumerator per *site*, not one per kind of thing: the LOAD arm reaches two different opens
+	/// under two different conditions, and a single total could not tell them apart -- a spec
+	/// asserting one open after a LOAD gesture could be satisfied by the other, which would make the
+	/// counter's only claim -- "the arm's decision reached the point legacy opens a UI at" --
+	/// unfalsifiable.
 	///
 	/// @note The doc for each enumerator is on its own line above it, not trailing: a trailing
 	///       `///<` shares a line with code, and `scripts/check_layer_rules.py`'s `is_comment_line`
@@ -406,10 +397,6 @@ public:
 		LoadSong,
 		/// The clear-song context menu's open (`View::buttonAction`'s LOAD arm).
 		ClearSong,
-		/// Output recording begun from the PLAY arm (`hid/buttons.cpp:161`).
-		OutputRecordFromPlay,
-		/// Output recording begun from shift+RECORD (`Buttons::buttonAction`).
-		OutputRecordFromShift,
 		Count,
 	};
 
@@ -521,7 +508,7 @@ private:
 	Song* song_ = nullptr;
 	ViewState view_{};
 
-	/// `UI_MODE_HOLDING_SAVE_BUTTON` / `UI_MODE_HOLDING_LOAD_BUTTON` (`view.cpp:242`, `:299`).
+	/// `UI_MODE_HOLDING_SAVE_BUTTON` / `UI_MODE_HOLDING_LOAD_BUTTON` (`View::buttonAction` in `view.cpp`).
 	bool holding_save_ = false;
 	bool holding_load_ = false;
 	/// `View::timeSaveButtonPressed` (`gui/views/view.h:128`) -- **one** member, shared by both

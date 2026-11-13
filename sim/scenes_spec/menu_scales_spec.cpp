@@ -1,18 +1,15 @@
 /// @file
-/// @brief The two preset-scale checklists -- `active_scales` and `default_active_scale` -- against
-///        the real legacy `ActiveScaleMenu` objects they port.
+/// @brief The two preset-scale checklists -- `active_scales` and `default_active_scale` -- against the reference rows
+///        `tests/golden/ui/menu_oracle/menu_scales.tsv` and `pixels/menu_scales_*.pbm` hold for main's
+///        `ActiveScaleMenu`.
 ///
-/// Both sides are reachable (`activeScaleMenu` and `defaultActiveScaleMenu` are the shipped
-/// singletons, and the two bitsets they edit are model/`FlashStorage` state the port reads through
-/// the same names) and both sides are **driven** in every comparison: legacy through
-/// `selectEncoderAction` / `selectButtonPress` / `renderOLED`, the port through a real `Shell` and
-/// the real input path, each from its own copy of the same sentinel bitset.
+/// Every comparison drives the port through a real `Shell` and the real input path from its own copy of the same
+/// sentinel bitset, and compares what it left with the frozen answer main gave.
 ///
-/// The trap this spec is shaped against is the one that matters for a *pair* of near-identical
-/// items: `active_scales` edits the song's bitset and `default_active_scale` edits
-/// `FlashStorage`'s, and nothing about the two renders distinguishes them. So the item-to-bitset
-/// mapping is proved by mutation -- each item is driven and the *other* bitset is asserted
-/// unchanged -- rather than by reading the two `ScaleSet` values back out of the items that carry
+/// The trap this spec is shaped against is the one that matters for a *pair* of near-identical items: `active_scales`
+/// edits the song's bitset and `default_active_scale` edits `FlashStorage`'s, and nothing about the two renders
+/// distinguishes them. So the item-to-bitset mapping is proved by mutation -- each item is driven and the *other*
+/// bitset is asserted unchanged -- rather than by reading the two `ScaleSet` values back out of the items that carry
 /// them.
 
 #include "gui/ui/menu_view_of.h"
@@ -31,12 +28,12 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "gui/menu_item/active_scales.h"
-#include "hid/display/oled.h"
 #include "model/scale/preset_scales.h"
 #include "model/song/song.h"
 #include "storage/flash_storage.h"
 
+#include "support/menu_scales_fixtures.h"
+#include "support/oracle_table.h"
 #include "support/song_fixture.h"
 
 #include "spec/gfx/support/golden.h"
@@ -45,18 +42,16 @@
 
 #include "cppspec.hpp"
 
+#include <algorithm>
 #include <bitset>
 #include <cstdint>
+#include <fstream>
 #include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "spec/support/spec_main.h"
-
-/// The two real legacy items (`defaultActiveScaleMenu` and `activeScaleMenu` in `gui/ui/menus.cpp`). Declared here
-/// because `gui/ui/menus.h` exports neither -- the same situation `tables_3_spec.cpp`'s `extern` block handles.
-extern deluge::gui::menu_item::ActiveScaleMenu defaultActiveScaleMenu;
-extern deluge::gui::menu_item::ActiveScaleMenu activeScaleMenu;
 
 using namespace deluge::scenes;
 using deluge::l10n::String;
@@ -72,6 +67,9 @@ using deluge::ui::shell::ShellConfig;
 namespace {
 
 namespace nodes = deluge::scenes::menu::nodes;
+using spec::scales::bits_hex;
+using spec::scales::ScalesGuard;
+using spec::scales::sentinel_bits;
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
@@ -85,27 +83,6 @@ constexpr uint8_t kSelectEncoder = 3;
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 
 constexpr const Node* kRoots[] = {&nodes::root_settings, &nodes::root_song};
-
-/// @brief Saves and restores both bitsets, so no example leaks into the next.
-struct ScalesGuard {
-	std::bitset<NUM_PRESET_SCALES> saved_flash = FlashStorage::defaultDisabledPresetScales;
-	std::bitset<NUM_PRESET_SCALES> saved_song{};
-	Song* song = currentSong;
-
-	ScalesGuard() {
-		if (song != nullptr) {
-			saved_song = song->project.scale.disabled_preset_scales;
-		}
-	}
-	ScalesGuard(const ScalesGuard&) = delete;
-	ScalesGuard& operator=(const ScalesGuard&) = delete;
-	~ScalesGuard() {
-		FlashStorage::defaultDisabledPresetScales = saved_flash;
-		if (song != nullptr) {
-			song->project.scale.disabled_preset_scales = saved_song;
-		}
-	}
-};
 
 /// @brief A 128x64 single-panel board (`menu_scene_spec.cpp`'s `board_64`).
 constexpr DelugeDisplayDesc kDisplays64[] = {{128, 64, 0}};
@@ -188,35 +165,16 @@ menu::MenuScene& scene() {
 	return menu_scene();
 }
 
-/// @brief Move the legacy item's own `currentPos` to @p row, from wherever the last example left it.
-///
-/// `currentPos` is private and persists across visits (`beginSession` is only a redraw,
-/// `active_scales.cpp:17-19`), so it is driven to a known row rather than assumed: enough single
-/// down-detents to reach the bottom, then @p row single up-detents.
-///
-/// @note **One detent at a time, deliberately.** `ActiveScaleMenu::selectEncoderAction`
-///       (`active_scales.cpp:101-106`) is
-///       `std::clamp((int8_t)(currentPos + offset), (int8_t)0, (int8_t)LAST_PRESET_SCALE)` -- the sum
-///       is narrowed to `int8_t` **before** the clamp, so a large offset wraps and lands somewhere
-///       unrelated: `selectEncoderAction(-1000)` from row 0 gives `(int8_t)(-1000) == 24`, which
-///       clamps *up* to `LAST_PRESET_SCALE` rather than staying at 0. Found by this spec, which was
-///       written with the big-offset spelling and produced exactly that off-by-a-list. It is
-///       unreachable on the device -- the encoder delivers one detent per pass -- and it is not
-///       ported: `ui::oled::list` walks the cursor one selectable row per detent and clamps in
-///       `int32_t`. Recorded here rather than silently normalised away.
-void legacy_walk_to(deluge::gui::menu_item::ActiveScaleMenu& item, int32_t row) {
-	for (int32_t i = 0; i <= static_cast<int32_t>(LAST_PRESET_SCALE); i++) {
-		item.selectEncoderAction(-1);
-	}
-	for (int32_t i = 0; i < row; i++) {
-		item.selectEncoderAction(1);
-	}
+spec::OracleTable& table() {
+	return spec::OracleTable::named("menu_scales");
 }
 
-/// @brief `OLED::main` -- what `MenuItem::renderOLED` draws into -- as a PBM.
-std::string legacy_panel_pbm() {
-	const auto& canvas = deluge::hid::display::OLED::main;
-	return page_major_to_pbm(canvas.bytes().data(), OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS);
+/// @brief The panel `pixels/<name>.pbm` holds.
+std::string frozen_panel(std::string_view name) {
+	std::ifstream in(spec::oracle_dir() + "/pixels/" + std::string{name} + ".pbm");
+	std::stringstream text;
+	text << in.rdbuf();
+	return text.str();
 }
 
 /// @brief Drop the five bezel rows the port's root frame cannot ink, from both sides.
@@ -237,16 +195,6 @@ std::string below_bezel(const std::string& pbm) {
 	}
 	out += pbm.substr(pos);
 	return out;
-}
-
-/// @brief A repeatable, asymmetric starting bitset -- not all-on and not all-off, so a renderer that
-///        drew one box for every row would be visible.
-std::bitset<NUM_PRESET_SCALES> sentinel_bits() {
-	std::bitset<NUM_PRESET_SCALES> bits;
-	for (size_t i = 0; i < NUM_PRESET_SCALES; i++) {
-		bits[i] = (i % 3) == 1;
-	}
-	return bits;
 }
 
 } // namespace
@@ -276,38 +224,42 @@ describe menu_scales_table("scenes::menu the two scale checklists: the table", $
 	});
 
 	it("draws one row per preset scale, and no scalelike beyond them", _ {
-		// `selectEncoderAction` clamps to `LAST_PRESET_SCALE` (`active_scales.cpp:104`), so
-		// `USER_SCALE` and everything else in `NUM_SCALELIKE` is out of reach -- driven on the real
-		// legacy item rather than read off the constant.
-		spec::SongFixture fixture = spec::make_synth_song(); // legacy reads `currentSong` directly
+		// Main's list ends at `LAST_PRESET_SCALE`, so `USER_SCALE` and everything else in `NUM_SCALELIKE` is out of
+		// reach: the port is walked well past its end, and the row its press toggles is the last one the frozen list
+		// names.
+		select_language();
+		const std::string count = table().value("scales", "count");
+		expect(count.find_first_not_of("0123456789")).to_equal(std::string::npos);
+		const size_t rows = count.empty() ? 0 : std::stoul(count);
+		expect(rows).to_equal(static_cast<size_t>(NUM_PRESET_SCALES));
+		const size_t listed = std::min(rows, static_cast<size_t>(NUM_PRESET_SCALES));
+		for (size_t i = 0; i < listed; i++) {
+			const std::string path = "scales/" + std::to_string(i);
+			expect(path + " " + std::string{scalelikeNames[i]}).to_equal(path + " " + table().value(path, "name"));
+		}
+		Rig r;
 		ScalesGuard guard;
-		legacy_walk_to(activeScaleMenu, 1000); // one detent at a time, well past the end
-		// The item is now on its last row; toggling proves which one that is.
-		activeScaleMenu.selectButtonPress();
-		expect(bool{currentSong->project.scale.disabled_preset_scales[LAST_PRESET_SCALE]}).to_be_true();
-		activeScaleMenu.selectButtonPress();
-		expect(bool{currentSong->project.scale.disabled_preset_scales[LAST_PRESET_SCALE]}).to_be_false();
+		currentSong->project.scale.disabled_preset_scales.reset();
+		(void)r.open(nodes::active_scales);
+		r.shell.tick(5);
+		uint32_t at = 10;
+		r.walk_to(static_cast<int32_t>(listed) + 8, at); // one detent at a time, well past the end
+		r.press(at);
+		r.shell.tick(at + 5);
+		const auto& after = currentSong->project.scale.disabled_preset_scales;
+		expect(after.count()).to_equal(size_t{1});
+		expect(bool{after[listed - 1]}).to_be_true();
 	});
 });
 
 describe menu_scales_write("scenes::menu the two scale checklists: the write", $ {
-	it("toggles the row the cursor is on, exactly where legacy toggles it", _ {
+	it("toggles the row the cursor is on, exactly where main toggles it", _ {
 		select_language();
 		for (const int32_t row : {0, 1, 4, static_cast<int32_t>(LAST_PRESET_SCALE)}) {
-			// The Rig builds the song and points `currentSong` at it, which is what the *legacy*
-			// half reads (`active_scales.cpp:118-120`). So the Rig comes first and both halves run
-			// over the one song -- with the sentinel rewritten between them, which is the whole
-			// point: the two halves must not see each other's result.
 			Rig r;
 			ScalesGuard guard;
 
-			// --- legacy, driven from the sentinel
-			currentSong->project.scale.disabled_preset_scales = sentinel_bits();
-			legacy_walk_to(activeScaleMenu, row);
-			activeScaleMenu.selectButtonPress();
-			const std::bitset<NUM_PRESET_SCALES> after_legacy = currentSong->project.scale.disabled_preset_scales;
-
-			// --- port, from the SAME sentinel, through the real input path
+			// --- the port, from the sentinel, through the real input path
 			currentSong->project.scale.disabled_preset_scales = sentinel_bits();
 			(void)r.open(nodes::active_scales);
 			r.shell.tick(5);
@@ -317,7 +269,9 @@ describe menu_scales_write("scenes::menu the two scale checklists: the write", $
 			r.press(at);
 			r.shell.tick(at + 5);
 
-			expect(currentSong->project.scale.disabled_preset_scales == after_legacy).to_be_true();
+			const std::string path = "scales/toggle/" + std::to_string(row);
+			expect(path + " " + bits_hex(currentSong->project.scale.disabled_preset_scales))
+			    .to_equal(path + " " + table().value(path, "bits"));
 			// ... and something actually moved, or the comparison proves nothing.
 			expect(currentSong->project.scale.disabled_preset_scales == sentinel_bits()).to_be_false();
 		}
@@ -443,20 +397,12 @@ describe menu_scales_write("scenes::menu the two scale checklists: the write", $
 });
 
 describe menu_scales_pixels("scenes::menu the two scale checklists: pixels", $ {
-	it("draws exactly what the real legacy ActiveScaleMenu draws, at three cursor positions", _ {
+	it("draws exactly what main's ActiveScaleMenu draws, at three cursor positions", _ {
 		select_language();
 		for (const int32_t row : {0, 4, static_cast<int32_t>(LAST_PRESET_SCALE)}) {
-			Rig r; // builds the song both halves read through `currentSong`
+			Rig r; // builds the song the port reads through `currentSong`
 			ScalesGuard guard;
 
-			// --- legacy
-			currentSong->project.scale.disabled_preset_scales = sentinel_bits();
-			legacy_walk_to(activeScaleMenu, row);
-			deluge::hid::display::OLED::main.clear();
-			activeScaleMenu.renderOLED();
-			const std::string legacy = below_bezel(legacy_panel_pbm());
-
-			// --- port, same bitset, same row, driven
 			currentSong->project.scale.disabled_preset_scales = sentinel_bits();
 			(void)r.open(nodes::active_scales);
 			r.shell.tick(5);
@@ -465,7 +411,10 @@ describe menu_scales_pixels("scenes::menu the two scale checklists: pixels", $ {
 			r.shell.tick(at + 10);
 			const std::string port = below_bezel(r.fake.pbm(0));
 
-			expect(port).to_equal(legacy);
+			const std::string name = row == static_cast<int32_t>(LAST_PRESET_SCALE) ? "last" : std::to_string(row);
+			const std::string frozen = frozen_panel("menu_scales_" + name);
+			expect(frozen.empty()).to_be_false();
+			expect(port).to_equal(below_bezel(frozen));
 		}
 	});
 
@@ -526,6 +475,15 @@ describe menu_scales_pixels("scenes::menu the two scale checklists: pixels", $ {
 		expect(currentSong->project.scale.disabled_preset_scales == sentinel_bits()).to_be_true();
 	});
 });
+
+describe menu_scales_reference_rows("scenes::menu the two scale checklists: the reference rows", $ {
+	it("parses menu_scales.tsv clean and asks every row of it", _ {
+		spec::OracleTable& t = table();
+		expect(t.problems().size()).to_equal(size_t{0});
+		expect(t.size() > size_t{20}).to_be_true();
+		expect(t.unasked()).to_equal(std::string{});
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(menu_scales_spec, menu_scales_table, menu_scales_write, menu_scales_pixels)
+DELUGE_SPEC(menu_scales_spec, menu_scales_table, menu_scales_write, menu_scales_pixels, menu_scales_reference_rows)

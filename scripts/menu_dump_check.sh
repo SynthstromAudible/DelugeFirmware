@@ -15,6 +15,8 @@
 #   - "select_chain" is a SECOND nesting key beside "children": the pages a select press on that
 #     node opens (legacy's MenuItem::selectButtonPress). Eleven pages appear in the dump ONLY
 #     there, so a walker that recurses on "children" alone silently misses them.
+#   - "rows" lists the rows a page draws in its own list ("DX7 parameters"), each {"name", "options"?, "rows"?}:
+#     no node stands for them, so they carry no "id".
 #   - "ref": true marks a chain target already open above it on the same path -- a cycle stub,
 #     carrying the same "id" as the full entry but no "children" and no "select_chain". The
 #     patch-cable pages loop on purpose (legacy does), so a recursive walker MUST stop at "ref"

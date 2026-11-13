@@ -298,10 +298,10 @@ void Shell::on_host_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut_wi
 	lowering_.on_host_pad(x, y, velocity, shortcut_without_shift, now_ms);
 }
 
-void Shell::on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms) {
+void Shell::on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms, uint64_t time_us) {
 	ensure_tick_window(now_ms);
 	screensaver_.note_activity(now_ms);
-	lowering_.on_encoder_edges(index, edges, now_ms);
+	lowering_.on_encoder_edges(index, edges, now_ms, time_us);
 }
 
 bool Shell::route_midi(const UiEvent& event, uint32_t now_ms) {
@@ -368,14 +368,18 @@ void Shell::tick(uint32_t now_ms) {
 	pump_input(now_ms);
 	// A `Action::Kind::Popup` applied anywhere above leaves its string id on the router; the
 	// router has no l10n and `Notices` takes text, so the shell is the one place both are in
-	// scope. Read and cleared as a pair, per `Router::clear_pending_popup`.
+	// scope. Read and cleared together, per `Router::clear_pending_popup`.
 	if (router_.pending_popup_string() != 0) {
 		// `scratch` outlives `text`, which points into it when the profile has no `text` hook and
 		// the id is spelled as digits instead (`BoardProfile::text_or_digits`); `show_popup` copies
 		// before either goes out of scope.
 		TextScratch scratch;
 		const std::string_view text = profile_.text_or_digits(router_.pending_popup_string(), scratch);
-		notices_.show_popup(text, router_.pending_popup_type(), now_ms);
+		const bool popup_up =
+		    std::ranges::any_of(stack_.scenes(), [](const Scene* scene) { return scene->kind() == SceneKind::Popup; });
+		if (!router_.pending_popup_if_free() || !popup_up) {
+			notices_.show_popup(text, router_.pending_popup_type(), now_ms);
+		}
 		router_.clear_pending_popup();
 	}
 	// A popup re-targeted in place changed its text and no stack: repaint the panels it draws on.

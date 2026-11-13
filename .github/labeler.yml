@@ -38,8 +38,6 @@
   - changed-files:
       - any-glob-to-any-file:
           - src/deluge/processing/engines/cv_engine*
-          - src/deluge/gui/menu_item/cv/**
-          - src/deluge/gui/menu_item/gate/**
           - src/deluge/model/drum/gate_drum.*
           - src/deluge/model/instrument/cv_instrument.*
 
@@ -47,6 +45,7 @@
   - changed-files:
       - any-glob-to-any-file:
           - src/deluge/gui/ui/browser/**
+          - src/scenes/browser/**
 
 "area: files":
   - changed-files:
@@ -56,9 +55,8 @@
 "area: menus":
   - changed-files:
       - any-glob-to-any-file:
-          - src/deluge/gui/menu_item/**
+          - src/scenes/menu/**
           - src/deluge/gui/context_menu/**
-          - src/deluge/gui/ui/menus.*
 
 "area: ui":
   - changed-files:

@@ -161,6 +161,37 @@ bool is_horizontal(const MenuContext& ctx, const Node& node) {
 	return renders_horizontal(node, ctx);
 }
 
+namespace {
+
+/// @brief `MenuItem::isRangeDependent()`: the transposes and the loop points.
+bool is_range_dependent_item(const Node* node) {
+	return node != nullptr && node->range_dependent;
+}
+
+} // namespace
+
+void begin_submenu_range(MenuContext& ctx, const MenuState& st, const Node* left) {
+	const Node* const submenu = focused(st);
+	if (submenu == nullptr || submenu->kind != Kind::Submenu || ctx.range_index < 0) {
+		return;
+	}
+	if (is_horizontal(ctx, *submenu)) {
+		// `goUpOneLevel` hands the page the item the picker heads to, not the picker.
+		if (left == &nodes::multi_range) {
+			left = st.walk.pending_after_range;
+		}
+		if (is_range_dependent_item(selected_child(ctx, st, *submenu)) || is_range_dependent_item(left)) {
+			return;
+		}
+	}
+	// With one range, or on a kit row, main's range check selects the first range again before anything reads it, and
+	// its readers fall back to range 0: the context keeps the 0 `context_for` gave it.
+	if (ctx.is_kit || range_count(ctx) <= 1) {
+		return;
+	}
+	ctx.range_index = -1; // `currentMultiRange = nullptr`
+}
+
 size_t build_column_list(const MenuContext& ctx, const Node& node, std::span<const Node*> kids,
                          std::span<deluge::ui::oled::Column> cols, std::span<NodeText> label_scratch) {
 	const size_t n = visible_children(ctx, node, kids);
@@ -237,13 +268,15 @@ std::string_view page_title(const MenuContext& ctx, const MenuState& st, NodeTex
 	return display_text(titled, ValueTextUse::Title, ctx, scratch);
 }
 
-bool MenuWalk::enter_range_picker_if_needed(MenuCore core, ValueSession& session, const Node& child,
-                                            bool suppress_when_allowed) {
+RangeGate MenuWalk::enter_range_picker_if_needed(MenuCore core, ValueSession& session, const Node& child,
+                                                 bool suppress_when_allowed) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
-	if (child.range_dependent && !ensure_first_range(ctx)) {
+	// The first range goes to the source the item's own rule is about (`range_rule_context`): REC 2's oscillator, not
+	// the menu's. A refusal is `main`'s `displayError(INSUFFICIENT_RAM)` and `MenuPermission::NO`.
+	if (ensure_item_first_range(child, ctx) == Permission::No) {
 		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));
-		return true;
+		return RangeGate::Refused;
 	}
 	// `handleInstrumentButtonPress`'s own suppression (`horizontal_menu.cpp:427-428`):
 	// `MUST_SELECT_RANGE && !allowToBeginSessionFromHorizontalMenu()`. Only that ONE caller passes
@@ -252,15 +285,15 @@ bool MenuWalk::enter_range_picker_if_needed(MenuCore core, ValueSession& session
 	// unconditionally, exactly as their own legacy call sites do (`:424`, `:669-677`, neither reads
 	// `allowToBeginSessionFromHorizontalMenu` at all).
 	if (suppress_when_allowed && child.allow_session_from_horizontal) {
-		return false;
+		return RangeGate::Proceed;
 	}
 	if (permission_for(child, ctx) != Permission::MustSelectRange) {
-		return false;
+		return RangeGate::Proceed;
 	}
 	st.walk.range_picker_pending = true;
 	st.walk.pending_after_range = &child;
 	descend_to(core, session, nodes::multi_range);
-	return true;
+	return RangeGate::Picker;
 }
 
 void MenuWalk::enter_horizontal_item(MenuCore core, ValueSession& session, const Node& child) {
@@ -270,12 +303,13 @@ void MenuWalk::enter_horizontal_item(MenuCore core, ValueSession& session, const
 	// answer -- `Yes`, and `No`, which `handleItemAction` never even reads -- enters unconditionally
 	// (`soundEditor.enterSubmenu(menuItem)`, no `shouldEnterSubmenu()`/`Permission::No` gate at all,
 	// unlike `enter_child`'s general descend).
-	if (!enter_range_picker_if_needed(core, session, child, /*suppress_when_allowed=*/false)) {
+	if (enter_range_picker_if_needed(core, session, child, /*suppress_when_allowed=*/false) != RangeGate::Picker) {
 		descend_to(core, session, child);
 	}
 }
 
-void MenuWalk::descend_to(MenuCore core, ValueSession& session, const Node& child) {
+void MenuWalk::descend_to(MenuCore core, ValueSession& session, const Node& child,
+                          const Node* navigated_backward_from) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	if (st.depth + 1 >= kMenuDepth) {
@@ -301,6 +335,12 @@ void MenuWalk::descend_to(MenuCore core, ValueSession& session, const Node& chil
 	}
 	else {
 		restore_row(core);
+		// `Submenu::beginSession`'s `focusChild(navigatedBackwardFrom)`: the item the page is entered for is its
+		// focused column before the range test reads it, as `focusChild` runs before `enterSubmenu`.
+		if (navigated_backward_from != nullptr) {
+			focus_column(core, *navigated_backward_from);
+		}
+		begin_submenu_range(ctx, st, navigated_backward_from);
 	}
 }
 
@@ -312,7 +352,7 @@ void MenuWalk::enter_child(MenuCore core, ValueSession& session, const Node& chi
 	// `MUST_SELECT_RANGE` substitution (`:1857-1858`): both factored into
 	// `enter_range_picker_if_needed`, which `handle()`'s button-focus code shares -- see its own
 	// doc for why the two callers need the same piece.
-	if (enter_range_picker_if_needed(core, session, child, /*suppress_when_allowed=*/false)) {
+	if (enter_range_picker_if_needed(core, session, child, /*suppress_when_allowed=*/false) != RangeGate::Proceed) {
 		return;
 	}
 	if (permission_for(child, ctx) == Permission::No) {
@@ -327,10 +367,10 @@ void MenuWalk::enter_child(MenuCore core, ValueSession& session, const Node& chi
 	}
 	// `SoundEditor`'s select arm (`sound_editor.cpp:630-634`, the `maybeGetParentMenu` / `focusChild` pair before
 	// `enterSubmenu`): an item a chained page lists is entered on that page, focused on it, unless that page is the one
-	// already shown.
+	// already shown. The page begins as if it came back from the item (`enterSubmenu(parent, newItem)`), which keeps a
+	// range-dependent item's range.
 	if (const Node* page = shortcut_landing_page(ctx, child); page != nullptr && page != focused(st)) {
-		descend_to(core, session, *page);
-		focus_column(core, child);
+		descend_to(core, session, *page, &child);
 		return;
 	}
 	descend_to(core, session, child);
@@ -355,14 +395,17 @@ void MenuWalk::ascend(MenuCore core, ValueSession& session) {
 	if (on_horizontal_page(ctx, st)) {
 		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
 	}
+	const Node* left = nullptr;
 	do {
 		if (st.depth == 0) {
 			close_requested_ = true;
 			return;
 		}
+		left = st.path[st.depth]; // `oldItem`: the level directly above the landing
 		st.path[st.depth] = nullptr;
 		st.depth--;
 	} while (st.path[st.depth] != nullptr && permission_for(*st.path[st.depth], ctx) == Permission::No);
+	begin_submenu_range(ctx, st, left);
 
 	// `goUpOneLevel` ends with `beginScreen(oldItem)`, i.e. it re-runs
 	// `beginSession` on the item it lands on -- so a value leaf reached by going *up* re-reads its
@@ -521,6 +564,9 @@ bool MenuWalk::switch_chained_page(MenuCore core, ValueSession& session, int32_t
 			continue; // no relevant items: on to the next menu
 		}
 		retarget(core, session, target);
+		// `switchHorizontalMenu` begins the page before it moves the focus: the column the page remembers decides
+		// whether the range stays (`HorizontalMenu::beginSession`).
+		begin_submenu_range(ctx, st, nullptr);
 		st.columns[0] = deluge::ui::ColumnsState{};
 		// Mod FX opens on its second page, the selected effect's controls (`:383`).
 		if (&target == &nodes::mod_fx || &target == &nodes::global_mod_fx) {

@@ -110,15 +110,26 @@ bool other_source_pad_held(const deluge::ui::PadMask& held, uint8_t x, uint8_t y
 	return false;
 }
 
-void paint_shortcut_colours(deluge::ui::grid::GridFrame& f, const MenuContext& ctx) {
-	for (uint8_t x = 0; x < kShortcutCols; x++) {
+RGB shortcut_colour(const MenuContext& ctx, uint8_t x, uint8_t y, bool ask_relevance) {
+	const Node* node = shortcut_node(ctx.root, false, x, y);
+	if (node == nullptr) {
+		return kNone;
+	}
+	if (ask_relevance) {
 		// `isRelevant(forThing, item, x % 2)`: an oscillator pair's two columns are asked for their own source.
 		MenuContext source_ctx = ctx;
 		source_ctx.source_index = static_cast<int8_t>(x % 2);
+		if (!bindings::relevant(*node, source_ctx)) {
+			return kNone;
+		}
+	}
+	return kShortcutColours[x][y];
+}
+
+void paint_shortcut_colours(deluge::ui::grid::GridFrame& f, const MenuContext& ctx) {
+	for (uint8_t x = 0; x < kShortcutCols; x++) {
 		for (uint8_t y = 0; y < kShortcutRows; y++) {
-			const Node* node = shortcut_node(ctx.root, false, x, y);
-			const bool relevant = node != nullptr && bindings::relevant(*node, source_ctx);
-			(void)f.pad(x, y, relevant ? kShortcutColours[x][y] : kNone);
+			(void)f.pad(x, y, shortcut_colour(ctx, x, y));
 		}
 	}
 }

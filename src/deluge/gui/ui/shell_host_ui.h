@@ -59,18 +59,18 @@ namespace deluge::gui::ui {
 /// overridden below and the other eleven are listed here with the reason.
 ///
 // clang-format off
-/// | not overridden | line | why |
+/// | not overridden | declared in | why |
 /// |---|---|---|
-/// | `~UI` | `ui.h:94` | Defaulted. This class owns its members by value; the implicit destructor is correct. |
-/// | `graphicsRoutine` | `ui.h:108` | **Deliberately kept.** The base runs the *root* view's per-frame animation whenever `canSeeViewUnderneath()` (`ui.cpp:76-80`), and `SoundEditor` does not override it either -- so the clip view under an open menu keeps its playhead moving. Overriding it would stop that. |
-/// | `toClipMinder` | `ui.h:122` | Null, as `SoundEditor` leaves it. A guest is not a clip minder; `currentUIIsClipMinderScreen()` must keep answering about the view underneath. |
-/// | `toTimelineView` | `ui.h:127` | Null, as `SoundEditor` leaves it, for the same reason. |
+/// | `~UI` | `ui.h` | Defaulted. This class owns its members by value; the implicit destructor is correct. |
+/// | `graphicsRoutine` | `ui.h` | **Deliberately kept.** The base runs the *root* view's per-frame animation whenever `canSeeViewUnderneath()` (`ui.cpp:76-80`), and `SoundEditor` does not override it either -- so the clip view under an open menu keeps its playhead moving. Overriding it would stop that. |
+/// | `toClipMinder` | `ui.h` | Null, as `SoundEditor` leaves it. A guest is not a clip minder; `currentUIIsClipMinderScreen()` must keep answering about the view underneath. |
+/// | `toTimelineView` | `ui.h` | Null, as `SoundEditor` leaves it, for the same reason. |
 /// | `getUI` | `ui.h` | Returns `this`, which is right: the guest is not a chooser that opens a different UI. |
 /// | `getUIContextType` | `ui.h` | Defaults to `getUIType()`, as `SoundEditor` leaves it. |
 /// | `getUIModControllableContext` | `ui.h` | `NONE`, as `SoundEditor` leaves it. |
-/// | `canDisplayFavourites` | `ui.h:200` | False, as `SoundEditor` leaves it. |
-/// | `isFavouritesVisible` | `ui.h:201` | False, as `SoundEditor` leaves it. |
-/// | `isBanksVisible` | `ui.h:202` | False, as `SoundEditor` leaves it. |
+/// | `canDisplayFavourites` | `ui.h` | False, as `SoundEditor` leaves it. |
+/// | `isFavouritesVisible` | `ui.h` | False, as `SoundEditor` leaves it. |
+/// | `isBanksVisible` | `ui.h` | False, as `SoundEditor` leaves it. |
 // clang-format on
 ///
 /// One answer is a gap rather than settled: `displayOrLanguageChanged`, which **is** overridden below but only to
@@ -198,11 +198,9 @@ namespace deluge::gui::ui {
 /// `View` keep one focus (`View::knobFocus()`), so what the knobs point at is the same either side
 /// of an open guest.
 ///
-///  - **A turn arrives lowered.** `interpretEncoders` has applied legacy's wiggle check and
-///    `calcNextKnobSpeed` before it calls `modEncoderAction` (`hid/encoder_input.cpp`), so the turn
-///    goes to `Shell::route_lowered_turn`, not into the lowering: the lowering's `action_gold_turn`
-///    would swallow the first turn after a pause, which legacy's own (dead) wiggle check never does,
-///    and `ModKnobs` would accelerate it a second time.
+///  - **A turn arrives lowered.** `interpretEncoders` has accelerated it (`ContinuousEncoder::actionTurns`) before
+///    it calls `modEncoderAction`, so the turn goes to `Shell::route_lowered_turn`, not into the lowering, where
+///    `ModKnobs` would accelerate it a second time.
 ///  - **A push is fed once.** `Buttons::buttonAction` delivers MOD_ENCODER_0/1 twice: to
 ///    `buttonAction`, which feeds it, and to `modEncoderButtonAction` in its tail, which does
 ///    nothing then.
@@ -360,11 +358,18 @@ public:
 	///        SESSION). The same hand-back as the guest's own two close paths (`closeGuest`).
 	void closeNow() { closeGuest(); }
 
-	/// @brief Mark this visit as one legacy runs with no editor open: the drum creator's browser or take, opened
-	///        straight over the clip view. Its close then leaves `currentUIMode` alone, as the legacy browser's and
+	/// @brief Mark this visit as one `main` runs with no editor open: the drum creator's browser or take, opened
+	///        straight over the clip view. Its close then leaves `currentUIMode` alone, as `main`'s browser's and
 	///        recorder's own exits do; every other close ends the mode, as `SoundEditor::exitCompletely` does. Call it
 	///        after the open succeeded; the next `opened()` forgets it.
 	void markVisitWithoutEditor() { visitWithoutEditor_ = true; }
+
+	/// @brief Every UI is being taken down under the guest (`nullifyUIs`, a song load or a clear): end every scene
+	///        it holds, so each scene's `on_exit` runs (a recorder's take ends, attached to nothing), and forget the
+	///        menu's song. Nothing ticks a guest that is no longer open, so this cannot wait for one. The slicer's held
+	///        audition and the drum creator's drum are dropped whether the guest is open or not. Installed as
+	///        `nullifyUIs`'s hook by `wireShellGuestServices()`, at boot and on every open.
+	void uisTakenDown();
 	bool opened() override;
 	void focusRegained() override;
 	void displayOrLanguageChanged() override;
@@ -399,9 +404,10 @@ public:
 	///         the wrap costs one interval, not correctness.
 	uint32_t nowMs() const;
 
-	/// @brief The clock legacy times an encoder's acceleration on: the scheduler's seconds (`getSystemTime()`), as
-	///        `ContinuousEncoder::calcNextKnobSpeed` and `HorizontalMenu::calcNextKnobSpeed` read them, in
-	///        milliseconds. Legacy keeps the two apart, and so does the guest (`UiContext::acceleration_clock_ms`).
+	/// @brief The clock `main` times an encoder's acceleration on: the scheduler's seconds (`getSystemTime()`), as
+	///        `main`'s `ContinuousEncoder::calcNextKnobSpeed` and `HorizontalMenu::calcNextKnobSpeed` read them, in
+	///        milliseconds. The gold knobs here are timed by the board instead (`ContinuousEncoder::actionTurns`).
+	///        Legacy keeps the two apart, and so does the guest (`UiContext::acceleration_clock_ms`).
 	/// @return Milliseconds since the scheduler started; 0 before it has.
 	static uint32_t accelerationClockMs();
 
@@ -430,28 +436,26 @@ private:
 	/// @brief Feed one already-detented encoder turn to the shell as A-pin edges.
 	///
 	/// Legacy's four function encoders reach a `UI` in **detents** -- `interpretEncoders` calls
-	/// `DetentedEncoder::take()` and hands the result over (`hid/encoder_input.cpp:112`,
-	/// `hid/encoders.cpp:28-38`) -- while the shell's entry point takes **edges** and divides by
-	/// `LoweringConfig::edges_per_detent` itself. So this
-	/// multiplies back up. Feeding the detent count straight through would halve every turn.
+	/// `DetentedEncoder::take()` and hands the result over (`hid/encoder_input.cpp`'s
+	/// `interpretEncoders`, `DetentedEncoder::applyEdges`) -- while the shell's entry point takes **edges** and divides
+	/// by `LoweringConfig::edges_per_detent` itself. So this multiplies back up. Feeding the detent count straight
+	/// through would halve every turn.
 	///
 	/// @warning **The `int8_t` ceiling, and why this saturates instead of wrapping.**
 	///          `Shell::on_encoder_edges` takes an `int8_t`, so the product
 	///          must fit in -128..127; the warning on `InputLowering::apply_encoder_edges` records what
 	///          happens when it does not. **The guest can exceed it.** Legacy's
 	///          `detentDelta` is an `int32_t` accumulated in `DetentedEncoder::pos` across however
-	///          many `applyEdges` calls happen before a `take()`, and `interpretEncoders` skips the
-	///          `take()` entirely while the SD routine is yielding (`hid/encoder_input.cpp:96-106`,
-	///          the `continue`s at `:100` and `:105`) and while a stem export is running (`:66-68`,
-	///          after the `applyEdges` calls at `:58-63`). Each skipped pass can add up to 63
-	///          detents (`deluge_encoder_take_edges` reports an `int8_t`, halved at
-	///          `hid/encoders.cpp:31`), so a knob turned through a multi-second song load delivers
-	///          the whole accumulation in one call. So the clamp is `+-(127 / edges_per_detent)`,
-	///          i.e. +-63 detents at the Deluge's two edges per detent, applied **before** the
-	///          multiply. That is legacy's own choice for two of its four encoders -- tempo and
-	///          select get `clamp(detentDelta, -128, 127)` (`hid/encoder_input.cpp:117`) -- and a
+	///          many `applyEdges` calls happen before a `take()`, and `interpretEncoders` returns before
+	///          any `take()` while a stem export is running, after its `applyEdges` calls. Each skipped
+	///          pass can add about 32 detents (`deluge_encoder_take_quadrature_edges` reports an `int8_t`
+	///          of edges, and `DetentedEncoder::applyEdges` counts 4 edges a detent after the first), so a
+	///          knob turned through a stem export delivers the whole accumulation in one call. So the clamp
+	///          is `+-(127 / edges_per_detent)`, i.e. +-63 detents at two edges per detent, applied
+	///          **before** the multiply. That is legacy's own choice for two of its four encoders -- tempo and
+	///          select get `clamp(detentDelta, -128, 127)` (`interpretEncoders`) -- and a
 	///          divergence from it for the other two, which legacy hands the full `int32_t` "for
-	///          natural acceleration" (`:124`, `:140`). Saturating loses the excess of an
+	///          natural acceleration" (the horizontal and vertical actions). Saturating loses the excess of an
 	///          impossible turn; wrapping would reverse an ordinary one.
 	/// @param role    Which encoder the turn belongs to. Resolved to a board index through
 	///                `BoardProfile::encoder_by_index` rather than hard-coded, because that table
@@ -459,7 +463,9 @@ private:
 	///                (`InputLowering::apply_encoder_edges`) and a profile may order it differently.
 	///                A role no index carries is dropped.
 	/// @param detents The signed detent count legacy handed over.
-	void feedDetents(deluge::ui::EncoderRole role, int32_t detents);
+	/// @param time_us When the board decoded the turn, on `getSystemTime()`'s clock in microseconds, which the
+	///                lowering hands the turn's consumer with it; 0 for none, which times it on the tick's clock.
+	void feedDetents(deluge::ui::EncoderRole role, int32_t detents, uint64_t time_us = 0);
 
 	/// @brief Feed one decoded board event, stamped with `nowMs()`.
 	/// @param ev The event.
@@ -481,7 +487,7 @@ private:
 	///
 	/// A `std::nullopt` deadline means "nothing is armed; sleep until the next input" -- so nothing
 	/// is armed here either, and the timer stays inactive (`UITimerManager::routine` cleared it
-	/// before calling, `gui/ui_timer_manager.cpp:67`). **With one exception**: while the lowering
+	/// before calling, `UITimerManager::routine`). **With one exception**: while the lowering
 	/// holds the SD-routine lock its deferred queue is waiting on a fact no scene can express as a
 	/// deadline, so the guest keeps polling. That is what makes the release time-driven rather than
 	/// input-driven.
@@ -533,6 +539,8 @@ private:
 	bool visitWithoutEditor_ = false;
 	/// @brief `flushPendingInput`'s tick is running.
 	bool flushing_ = false;
+	/// @brief The shell's tick is running (`tickShell`, which `flushPendingInput` runs too): `uisTakenDown` must not.
+	bool ticking_ = false;
 
 	/// @brief Hand each pad region between legacy and the guest when the stack changes who owns it,
 	///        and re-read the greyout when the stack changes it.
@@ -585,8 +593,8 @@ private:
 
 } // namespace deluge::gui::ui
 
-/// @brief The one guest, named the way legacy names its UIs (`extern SoundEditor soundEditor;`).
+/// @brief The one guest, named the way legacy names its UIs (`extern SessionView sessionView;`).
 ///
 /// Constructed over `deluge::scenes::scene_registry()`. The menu entry points push it with
-/// `openUI(&shellHostUI)` while `RuntimeFeatureSettingType::LegacyMenu` is Off (`shellMenuEnabled`).
+/// `openUI(&shellHostUI)`.
 extern deluge::gui::ui::ShellHostUI shellHostUI;

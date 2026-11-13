@@ -28,7 +28,7 @@
 namespace deluge::gui::ui {
 
 /// @brief A DX7 cartridge read: a `.syx` file's bytes through the file prefix channel, parsed into
-/// `menu_item::dxCartridge` when they arrive.
+/// the DX7 bank (`dxCartridgeBank`) when they arrive.
 ///
 /// Both menus' `.syx` browsers read through the one instance @ref dxCartridgeRead returns, so one read is in flight
 /// at a time, as the channel's single slot is. The browser that started it stays up until it ends: a failure leaves
@@ -39,7 +39,7 @@ public:
 	enum class Status : uint8_t {
 		Idle,    ///< no read in flight
 		Pending, ///< the read is in flight
-		Loaded,  ///< the read ended with a cartridge parsed into `menu_item::dxCartridge`
+		Loaded,  ///< the read ended with a cartridge parsed into the DX7 bank (`dxCartridgeBank`)
 		Failed,  ///< the read ended without one; a popup said why
 	};
 
@@ -95,7 +95,7 @@ private:
 	int32_t give_ups_ = 0;
 };
 
-/// @brief The one cartridge read both menus' `.syx` browsers share.
+/// @brief The one cartridge read the menu's `.syx` browser uses.
 DxCartridgeRead& dxCartridgeRead();
 
 } // namespace deluge::gui::ui

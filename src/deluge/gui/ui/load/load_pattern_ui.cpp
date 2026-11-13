@@ -18,6 +18,7 @@
 #include "gui/ui/load/load_pattern_ui.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/buttons.h"

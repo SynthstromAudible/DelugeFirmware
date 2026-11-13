@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include <cstdint>
+#include <optional>
 #include <string>
 
 class Clip;
@@ -142,6 +143,17 @@ constexpr bool isCreationConsumer(PresetConsumer consumer) {
 	return false;
 }
 
+/// @brief Whether `consumer`'s gesture is a preset turn, to the preset `PresetRequest::offset` detents along.
+///
+/// Turns made while one loads add up rather than replace each other, as main's select detents do: they pile up in the
+/// encoder while `LoadInstrumentPresetUI::doPresetNavigation` reads, and it moves on by all of them at once.
+/// @param consumer The gesture's consumer.
+/// @return true for the three preset-turn gestures.
+constexpr bool isNavigateConsumer(PresetConsumer consumer) {
+	return consumer == PresetConsumer::ArrangerNavigate || consumer == PresetConsumer::SessionNavigate
+	       || consumer == PresetConsumer::ViewNavigateClipPreset;
+}
+
 /// @brief Everything an acquisition needs, captured at dispatch time.
 ///
 /// @note This is the snapshot. Once dispatched, the op reads ONLY these fields for anything that
@@ -153,7 +165,14 @@ struct PresetRequest {
 	OutputType outputType{OutputType::SYNTH};
 	Availability availability{Availability::ANY};
 
-	int32_t offset{};   ///< Navigate only: scroll direction.
+	/// @brief Navigate only: the detents turned, signed. A turn moves one preset whatever its detents, as main's first
+	///        move does; one made behind a turn of the same output (@ref behindLoad) moves by every detent.
+	int32_t offset{};
+	/// @brief Navigate only: made while a turn of the same gesture and output was out (or added to one waiting behind
+	///        such a turn), so it moves @ref offset presets on from where that turn landed, as main's
+	///        `doPresetNavigation` moves by the detents that piled up while it read and loaded. Set by
+	///        `InstrumentLoad::request`.
+	bool behindLoad{};
 	bool doBlink{};     ///< Navigate and ViewChangeType/SessionRowsChangeType: whether the redrawn name
 	                    ///< should blink.
 	int32_t yPressed{}; ///< The view row the gesture was made on, captured before any yield.
@@ -227,6 +246,24 @@ enum class AcquireWalk : uint8_t {
 	UnusedSlot, ///< Browser::getUnusedSlot(): a name no preset of the type has. Nothing is loaded.
 };
 
+/// @brief Where a preset turn's walk landed: what main's `doPresetNavigation` still holds when it takes the detents
+///        that piled up meanwhile and moves on by them.
+struct NavigationPile {
+	std::string dirPath;    ///< The folder the landing is in.
+	std::string listedFrom; ///< The search name (extension included) of the read that held the landing; empty for a
+	                        ///< read from the folder's far end.
+	bool listedRight{true}; ///< That read's direction.
+	std::string landed;     ///< The landed entry's display name.
+	/// The landed entry's Instrument, when it is one already in memory: it is found by that, not by name.
+	Instrument* landedInstrument{};
+	/// Main's `oldNameString` after the landing, which a move past the window's trimmed edge reads again from: the
+	/// landed file's name, or, on an Instrument, the name the walk held before it (the last file landed on, the
+	/// preset moved on from, or empty after a read from the far end).
+	std::string oldName;
+	/// Main's `wrapped` at the landing: the wraps made in its window, which a pile moved from it keeps.
+	int32_t wraps{};
+};
+
 /// @brief The walk an acquisition asks for, fixed by its gesture's prologue before the walk is queued.
 struct AcquireWalkSpec {
 	AcquireWalk walk{AcquireWalk::Unlaunched};
@@ -237,7 +274,10 @@ struct AcquireWalkSpec {
 	bool includeSong{true};
 	std::string dirPath; ///< The folder the walk starts in.
 	std::string name;    ///< Confirm: the preset asked for. Navigate: the preset moved on from, without extension.
-	int32_t offset{};    ///< Navigate: which way to move.
+	int32_t offset{};    ///< Navigate: which way to move; with @ref pile, the detents to move by.
+	/// Navigate: set for a turn made behind a turn of the same output, which moves on by all its detents from where
+	/// that turn landed (main's pending detents); unset, the walk moves one preset on from @ref name.
+	std::optional<NavigationPile> pile;
 	/// Navigate: the Instrument moved on from. The walk compares it and never reads through it.
 	Instrument* oldInstrument{};
 	bool blink{}; ///< Navigate: whether the name shown when the walk lands blinks.

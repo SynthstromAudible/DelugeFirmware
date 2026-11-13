@@ -46,8 +46,8 @@
 /// (it is idempotent over one root set, but a later call over a DIFFERENT set is what makes ids
 /// valid for that set -- see `node_id.h`), so blocks never depend on execution order.
 ///
-/// **The range-permission script is the one target with no real host.** Every `range_dependent` node
-/// in the committed tables (`nodes::kRangeDependentArray`, `nodes/nodes.h`) is a value column of a
+/// **The range-permission script is the one target with no real host.** Every `range_specific` node
+/// in the committed tables (`nodes::kRangeSpecificArray`, `nodes/nodes.h`) is a value column of a
 /// `Layout::Horizontal` page (`source0`/`source1`), and a horizontal page's `columns` widget claims
 /// `entered` only for a `Kind::Submenu` column (`ui/oled/columns.cpp`) -- so `enter_child` (the only
 /// caller of `permission_for`) is never reached through the real committed tree. To still exercise
@@ -82,20 +82,7 @@
 ///     `Replace`), so the item is at depth 0 and `go_up_on_resume`'s ascend out of it closes the
 ///     menu, as legacy's `goUpOneLevel` does at depth 0 (`exitCompletely()`). Each script's last
 ///     frame is therefore the view under the menu;
-///   * a gold-knob turn is **swallowed** unless another gold turn happened within
-///     `LoweringConfig::short_press_ms` (500 ms) -- `InputLowering::action_gold_turn`'s wiggle
-///     debounce. The scripts that turn a gold knob before t=500 are inside that window from the
-///     shell's own zero; `menu_midi_device` edits at t=800 and has to spend a detent arming it.
-///
-/// **And the second of those has a consequence for the whole directory, which no test covers.**
-/// `last_turn_ms_` starts at 0 and `now_ms` is a script's own clock here, but on the device it is
-/// uptime -- so on real hardware the debounce is *never* pre-armed and **the first gold turn after
-/// boot, and after every 500 ms pause, is always swallowed**. Every gold-turn golden in this
-/// directory therefore depicts the armed arm, which is the second detent of a gesture, and none of
-/// them depicts the arm a user actually meets first. The goldens are not vacuous -- each records a
-/// real edit and fails if that edit breaks -- but "one detent moves the value" is not what the
-/// device does from cold, and nothing at any level asserts what it does instead. Closing it means
-/// a script whose clock starts past `short_press_ms`, which `RunOptions` has no way to express.
+///   * a gold-knob turn acts on every detent, as `main`'s `interpretEncoders` does.
 ///
 /// @par The twelve gold-turn scripts install the real three, UNSEEDED -- and what that does not settle
 ///
@@ -119,61 +106,8 @@
 /// repeated pair is not the ambiguous two-cause diff that the one-cause-per-golden-change rule
 /// exists to prevent.
 ///
-/// @warning **Unseeded is exactly the configuration in which the swallowed-turn defect cannot
-///          bite.** Do not read these goldens as settling anything about gold turns under real
-///          services. What swallows a turn is `InputLowering::action_gold_turn`'s wiggle debounce
-///          (below), and what arms it is `ModKnobs::pretend_knobs_untouched()` -- which
-///          `RealServices::installer()` reaches **only when a `mod_target` is seeded**. With a null
-///          target nothing backdates the knob clock, so every gold turn in these frames acts exactly
-///          as it did under `Services{}`. These 57 frames record the *services being present*. They
-///          record nothing about the gesture.
-///
-/// **Still owed, as a named edit:** seed `svc.mod_target`, arm the debounce in each script the way
-/// `tests/ui-scripts/shell/menu_gold_turn.txt` already does (one leading detent inside
-/// `short_press_ms`), and re-record. Measured cost of that step with targets seeded: `led Mod1 on`
-/// on 57 frames plus **11 `.pbm` files moving pixels** -- `menu_chain` (3), `menu_int` (1),
-/// `menu_patch_cables` (1), `menu_range` (4), `menu_submenu_horizontal` (2) -- and two C++ value
-/// assertions changing, which is precisely the diff the debounce arming is there to prevent.
-///
-/// @par Why a seeded install swallows the turn: a service reaching into the lowering behind the router
-///
-/// One might expect the split to be decided by the page: a turn the page's widget CLAIMS is never
-/// routed to `Router::run_chain` (`Scene::owns`), so installing the services would change nothing,
-/// while an unclaimed turn would fall through and make `ModKnobs` push a `ParamPopupScene`.
-/// **Neither half holds.** No `ParamPopupScene` appears anywhere (not one added or removed `scene`
-/// line, in either the seeded or the unseeded recording), and the CLAIMED turns change under
-/// seeding. The mechanism is three files away and the router is not in it, which is why looking at
-/// the router finds nothing:
-///
-///   1. The gold path runs `InputLowering::action_gold_turn` **unconditionally** -- the Continuous
-///      arm of `InputLowering::apply_encoder_edges`, which `InputLowering::on_encoder_edges`
-///      forwards to, gated on no service at all. Its wiggle debounce is
-///      `(now_ms - last_turn_ms_[role]) < cfg_.short_press_ms` (with `short_press_ms` = 500, see
-///      `LoweringConfig`), and a turn that fails it is recorded and **swallowed**.
-///   2. `ModKnobs::pretend_knobs_untouched()` writes that same array from the other side, through
-///      `InputLowering::pretend_knob_untouched`: `last_turn_ms_[role] = now_ms -
-///      kPretendUntouchedMs`, and `kPretendUntouchedMs` is 1000.
-///   3. `RealServices::installer()` reaches it twice at construction -- `set_focus` and
-///      `set_mod_region` -- but **only when a `mod_target` is
-///      seeded**, since both are skipped for a null one. That is the whole reason the fixture below
-///      leaves it null.
-///
-/// The arithmetic closes it exactly, at this file's `300 encoder GoldUpper +2`:
-///
-/// | fixture | `last_turn_ms_[GoldUpper]` | test at t=300 | result |
-/// |---|---|---|---|
-/// | `Services{}` | 0 | `300 - 0 = 300 < 500` | acted -> **4** |
-/// | real three, `mod_target = nullptr` (**what runs here**) | 0 | same | acted -> **4** |
-/// | real three, `mod_target` seeded | `0 - 1000` (unsigned wrap) | `1300 >= 500` | swallowed -> **0** |
-///
-/// And it explains the disagreement with `scene_scripts_spec.cpp`'s `menu_gold_turn`, which drives
-/// the same node with the same services SEEDED and still reads 4: its script turns `+1` at t=100
-/// first, which sets `last_turn_ms_` to 100, so the `+2` at t=150 sees `50 < 500` and acts. That
-/// leading detent is the whole difference, and it is the edit the scripts here are owed.
-///
-/// **The seam worth naming for whoever installs the next service**: a service mutated shared
-/// `InputLowering` state at construction, and the effect is observable in a debounce that no
-/// routed event passes through. "The router never gave it the event" was true and irrelevant.
+/// **Still owed, as a named edit:** seed `svc.mod_target` and re-record (`led Mod1 on` on the frames that install the
+/// services).
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/browser/browser_scene.h"
@@ -209,6 +143,7 @@
 #include "model/edits/setting_edit.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
+#include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
 #include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -870,7 +805,8 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(menu_scene().state().walk.range_picker_pending).to_be_true();
 		expect(menu_scene().state().walk.pending_after_range == &nodes::source0_transpose).to_be_true();
 		// And the picker really ran `MultiRange::beginSession` on this source: nothing was remembered,
-		// so it took `numRanges >> 1` (`multi_range.cpp:48-51`), which the picker writes back to `Source::defaultRangeI`.
+		// so it took `numRanges >> 1` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`
+		// `MultiRange::beginSession`), which the picker writes back to `Source::defaultRangeI`.
 		expect(static_cast<SoundInstrument*>(song.instrument)->sources[0].defaultRangeI).to_equal(1);
 		// The leaf itself was never opened, so its model value is untouched.
 		expect(bindings::read(nodes::source0_transpose, ctx)).to_equal(before);
@@ -1305,9 +1241,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// arm of all three -- and then turned the select encoder twice on the member-channel count.
 		// `int_value` edits on the select encoder, not the gold knobs (`ui/oled/values.cpp`'s
 		// `select_delta`); a `GoldUpper` turn would test nothing, since `int_value` claims no gold
-		// input. The script's two turns are `encoder Select +2` -- and unlike the gold knobs, the select encoder is not
-		// `EncoderKind::Accelerating`, so it has no wiggle debounce to swallow the first one: both
-		// turns act, landing the count at `0 -> 4`. `commit` writes `15 - 4` into the UPPER zone's
+		// input. The script's two turns are `encoder Select +2`, landing the count at `0 -> 4`. `commit` writes `15 - 4` into the UPPER zone's
 		// field (`mpe/zone_num_member_channels.cpp:66-77`).
 		expect(static_cast<int>(usb.ports[1].mpeUpperZoneLastMemberChannel)).to_equal(11);
 		// And to that one field only. Every other one of the eight is still at its fixture value, so

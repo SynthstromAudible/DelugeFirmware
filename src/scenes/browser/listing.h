@@ -93,9 +93,9 @@
 /// @par What this seam does NOT do
 ///
 /// It performs the **SD half** of legacy's `Browser::arrivedInNewFolder` --
-/// `FileCatalogue::readFileItemsForFolder`, the default-directory retry, `sortFileItems`,
-/// `deleteFolderAndDuplicateItems` -- and stops there. Three things legacy does around it are
-/// deliberately absent:
+/// `FileCatalogue::readFileItemsForFolder`, the default-directory retry, creating a missing default
+/// directory, `sortFileItems`, `deleteFolderAndDuplicateItems` -- and stops there. Two things legacy
+/// does around it are deliberately absent:
 ///
 /// 1. **The in-memory instrument merge.** `readFileItemsFromFolderAndMemory` calls
 ///    `song->addInstrumentsToFileItems(outputType)`. That needs a `Song`, and
@@ -103,12 +103,7 @@
 ///    `scenes-currentSong`). The scene that owns a `MenuContext` has a `Song&` and can do the merge
 ///    itself between `take_result()` and its next render; the seam takes no `Song` so it cannot be
 ///    the place that quietly reintroduces the global.
-/// 2. **Creating the default directory.** Legacy `mkdir`s `defaultDirToAlsoTry` when it does not
-///    exist (`browser.cpp:308`). A *listing* that writes to the card is a surprise; the seam only
-///    falls back to an existing default directory and reports the card's own error otherwise.
-///    (The fallback itself has one deliberate divergence from legacy's condition, because legacy's
-///    is dead code today -- see `Listing::list_current_dir` in listing.cpp.)
-/// 3. **Selection, scroll and text state.** `fileIndexSelected`, `scrollPosVertical`, `enteredText`
+/// 2. **Selection, scroll and text state.** `fileIndexSelected`, `scrollPosVertical`, `enteredText`
 ///    and the `renderUIsForOled()` calls stay with the scene. `ListingResult` carries the two facts
 ///    a caller cannot re-derive (`entered_text`, `file_index`) and nothing else.
 ///
@@ -189,8 +184,9 @@ struct ListingRequest {
 	/// named by the path), so a caller need not.
 	std::string filename_to_start_at;
 
-	/// Legacy's `defaultDirToAlsoTry` (`browser.cpp:264`): where to look when `path` does not
-	/// exist. Tried at most once, and never created -- see the file docstring.
+	/// Main's `defaultDirToAlsoTry`: where to look when `path` does not exist, tried at most once,
+	/// and created (with any missing folders above it) when it does not exist either. Empty for
+	/// none.
 	std::string default_dir;
 
 	/// NULL-terminated extension list, as `FileCatalogue::readFileItemsForFolder` takes it.
@@ -395,8 +391,8 @@ private:
 	/// @param out The result being filled in; the per-action fields are written here.
 	/// @return The listing's error.
 	Error run_action(ListingResult& out);
-	/// @brief The SD half of `arrivedInNewFolder`: read, retry in
-	///        `default_dir`, sort, de-duplicate.
+	/// @brief The SD half of `arrivedInNewFolder`: read, retry in `default_dir`, create
+	///        `default_dir` when it is missing too, sort, de-duplicate.
 	/// @param filename_to_start_at The name a `CATALOG_SEARCH_BOTH` cull centres on; may be null.
 	/// @return The listing's error.
 	Error list_current_dir(char const* filename_to_start_at);

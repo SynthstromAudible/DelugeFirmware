@@ -4,8 +4,8 @@
 ///
 /// Carriers are drawn as filled boxes with an inverted digit, modulators as outlined boxes. Each is a column-major
 /// 1-bit bitmap for `Canvas::draw_graphic_multi_line`: `num_bytes_tall` bytes per column, least significant bit at the
-/// top pixel. The data lives in SDRAM, which is why it lives here, where both the legacy menu and the ported one may
-/// include it, rather than in the UI toolkit, which has no memory placement of its own.
+/// top pixel. The data lives in SDRAM, which is why it lives here, where the menu may include it, rather than in the UI
+/// toolkit, which has no memory placement of its own.
 
 #include <cstdint>
 

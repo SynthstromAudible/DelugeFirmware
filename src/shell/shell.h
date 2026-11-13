@@ -334,7 +334,8 @@ public:
 	/// @param index  The board's encoder index.
 	/// @param edges  Signed A-pin edge count since the last call.
 	/// @param now_ms The wall clock.
-	void on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms);
+	/// @param time_us When the board decoded them (`InputLowering::on_encoder_edges`); 0 for none.
+	void on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms, uint64_t time_us = 0);
 
 	/// @brief Route one MIDI-learn message through the chain **now**, and say whether anything took
 	///        it.
@@ -357,10 +358,9 @@ public:
 	/// @return True if the top scene or a service reported `handled`, which the caller should
 	///         return to legacy so its `else` does not also run.
 	bool route_midi(const UiEvent& event, uint32_t now_ms);
-	/// @brief Route a gold-knob turn a host has already lowered -- its wiggle check and its acceleration applied --
+	/// @brief Route a gold-knob turn a host has already lowered -- its acceleration applied --
 	///        as an `Encoder` event marked `lowered`, which the knobs' service applies as it is. Like `route_midi`, it
-	///        does not enter the lowering or open its tick window, so the lowering's own gold-turn debounce never
-	///        sees it.
+	///        does not enter the lowering or open its tick window.
 	/// @param role   The gold knob: `GoldLower` or `GoldUpper`.
 	/// @param offset The turn, as the host's knob path hands it over.
 	/// @param now_ms The wall clock, for the `UiContext` and the screensaver.

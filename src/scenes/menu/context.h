@@ -48,8 +48,9 @@ struct Node;
 /// resolved. The engine objects it was built from stay in the builder.
 struct MenuContext {
 	/// @brief The `HorizontalMenus` community feature, read when the context is made: off, every horizontal page
-	///        renders and edits as a vertical list and the horizontal-menu chains answer nothing
-	///        (`horizontal_menu.cpp:592-597`, `sound_editor.cpp:2326-2328`).
+	///        renders and edits as a vertical list and the horizontal-menu chains answer nothing, as on `main`
+	///        (`gui/menu_item/horizontal_menu.cpp`'s `HorizontalMenu::renderingStyle` and `gui/ui/sound_editor.cpp`'s
+	///        `SoundEditor::getCurrentHorizontalMenusChain` on `origin/main`).
 	bool horizontal_menus = true;
 	/// @brief The SHIFT shortcut overlay setting is on (`RuntimeFeatureSettingType::ShortcutOverlay` not `Off`; on
 	///        by default, as `MenuOnly` is).
@@ -121,6 +122,11 @@ struct MenuContext {
 	///        Latched by `MenuScene` when the item is entered or its column focused; cleared by a re-root.
 	bool selected_note_row = false;
 	bool is_drum = false;
+	/// @brief `SoundEditor::editingNonAudioDrumRow`: the kit's selected drum is a MIDI or gate drum, whatever the menu
+	///        edits -- set on the kit's own effects too, where `is_drum` is not.
+	bool non_audio_drum_row = false;
+	/// @brief `SoundEditor::editingGateDrumRow`: the kit's selected drum is a gate drum, whatever the menu edits.
+	bool gate_drum_row = false;
 	bool is_audio_clip = false;
 	bool is_song_view = false;
 
@@ -129,7 +135,7 @@ struct MenuContext {
 	///        `gui/menu_item/song/configure_macros.h:35-37`)?
 	///
 	/// `is_song_view` above is the *other* legacy expression, `!rootUIIsClipMinderScreen()`
-	/// (`sound_editor.cpp:1687`), and one song root serves three views: `setup()` picks
+	/// (`SoundEditor::setup` in `sound_editor.cpp`), and one song root serves three views: `setup()` picks
 	/// `soundEditorRootMenuSongView` for `sessionView`, `arrangerView` **and** `automationView`
 	/// alike (`sound_editor.cpp:1819-1822`). Only two items in that root care which of the three it
 	/// is, and they are the two `getRootUI()` reads above; `relevance::is_session_view` is what
@@ -238,14 +244,19 @@ enum class Permission : uint8_t {
 /// relevance only) plus the range rule the range-specific overrides share via
 /// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` (`sound_editor.cpp`).
 ///
-/// The range rule fires on `Node::range_dependent` -- legacy's `MenuItem::isRangeDependent()`
-/// (`MenuItem::isRangeDependent`) -- **not** on "has a `bind.param`". An ordinary patched param
-/// on a multisampled sound takes the base rule and opens (`Yes`); only a range-dependent item on a
-/// source with more than one `MultiRange` and none selected gets `MustSelectRange`.
+/// The range rule fires on `Node::range_specific` -- the items whose override ends in that call --
+/// **not** on "has a `bind.param`". An ordinary patched param on a multisampled sound takes the
+/// base rule and opens (`Yes`); only a range-specific item on a source with more than one
+/// `MultiRange` and none selected gets `MustSelectRange`.
 /// @param node The node a session would begin on.
 /// @param ctx  The menu's context.
 /// @return `Yes`, `No`, or `MustSelectRange`.
 Permission permission_for(const Node& node, const MenuContext& ctx);
+
+/// @brief @p ctx as @p node's range rule reads it: about the item's own source (`CustomItem::range_source`) when that
+///        is not the menu's, with no range of that source remembered (`main`'s `currentSourceIndex == whichThing`
+///        fails); @p ctx itself otherwise.
+MenuContext range_rule_context(const Node& node, const MenuContext& ctx);
 
 /// @brief How many ranges the addressed source records.
 ///
@@ -267,28 +278,36 @@ int32_t range_top_note(const MenuContext& ctx, int32_t index);
 std::vector<deluge::instrument::RangeState> ranges_of(const MenuContext& ctx);
 
 /// @brief Make sure @p ctx's source has at least one `MultiRange`, and point @p ctx at it when the
-///        choice is unambiguous -- `Source::getOrCreateFirstRange()` in
-///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`.
+///        choice is unambiguous -- `Source::getOrCreateFirstRange()` in `main`'s
+///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` (`src/deluge/gui/ui/sound_editor.cpp`).
 ///
 /// **This is the allocation `permission_for` deliberately does not do** (see this file's `.cpp`,
-/// "Not owned by this file"): legacy's `checkPermissionToBeginSessionForRangeSpecificParam` *creates* the first
-/// range before it answers anything, and can fail with `INSUFFICIENT_RAM`. `permission_for` is a
-/// pure predicate, so **every** caller that actually opens a range-dependent item does this first.
-/// There are two, because legacy has two ways in and makes no distinction between them:
-/// `MenuScene::enter_child` for a descent, and `MenuScene::on_enter` for a `SceneId::arg` deep link
-/// (the eight gated `openShellMenu` sites and the shortcut-pad jump's `Action::Kind::Replace`).
-/// The second exists because the ported file selector, reached by the deep link, refuses to
-/// open its browser on a source with no ranges.
+/// "Not owned by this file"): main's rule *creates* the first range before it answers anything, and can fail with
+/// `INSUFFICIENT_RAM`. `permission_for` is a pure predicate, so the menu makes the first range of a range-specific
+/// item wherever main runs that rule on one, through @ref ensure_item_first_range.
 ///
-/// On success it also mirrors legacy's `*previouslySelectedRange = firstRange` (`:1951`): when the
-/// choice cannot be ambiguous (a kit row, or exactly one range) `ctx.range_index` is pointed at
-/// range 0, exactly as `context_for` does for a context resolved with ranges already present.
+/// On success it also mirrors main's `*previouslySelectedRange = firstRange`: when the choice cannot be ambiguous (a
+/// kit row, or exactly one range) `ctx.range_index` is pointed at range 0, exactly as `context_for` does for a context
+/// resolved with ranges already present.
 ///
 /// @param ctx The context to top up; only its sound and source matter. A context with no sound is a
 ///            no-op success -- nothing is being edited that could want a range.
-/// @return False only where the sink refused the first range -- legacy's `INSUFFICIENT_RAM`, its
-///         `MenuPermission::NO` arm at `:1939-1942`.
+/// @return False only where the sink refused the first range -- main's `INSUFFICIENT_RAM`, answered with
+///         `MenuPermission::NO`.
 bool ensure_first_range(MenuContext& ctx);
+
+/// @brief The first range of the source @p node's range rule is about (`range_rule_context`), made as main's
+///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` makes it: in the menu's context when the
+///        rule is about the menu's own source, else in that other source's.
+///
+/// The menu runs it where main runs that rule on a range-specific item: a descent or a press on a horizontal item
+/// (`MenuWalk::enter_range_picker_if_needed`), a deep link (`MenuScene::on_enter`) and a page switch, which discards
+/// the answer (`HorizontalMenu::switchVisiblePage`).
+/// @param node The item; one that is not range-specific makes nothing and answers `Yes`.
+/// @param ctx  The menu's context, whose range index the first range resolves when the rule is about its source.
+/// @return `No` where the sink refused the first range; `MustSelectRange` where the rule's context edits a sound whose
+///         range is still unresolved (more than one, none remembered); `Yes` otherwise.
+Permission ensure_item_first_range(const Node& node, MenuContext& ctx);
 
 /// @brief Point @p ctx at range @p index -- `SoundEditor::setCurrentMultiRange` (`sound_editor.cpp`).
 ///

@@ -17,7 +17,6 @@
 
 #include "playback/mode/arrangement.h"
 #include "definitions_cxx.hpp"
-#include "gui/ui/audio_recorder.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/session_view.h"
@@ -33,6 +32,7 @@
 #include "playback/move_section.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/recording/foreground_recording.h"
 #include "util/functions.h"
 #include "util/notify.h"
 #include <iterator>
@@ -327,10 +327,10 @@ justDoArp:
 	    && playbackHandler.isInternalClockActive()
 	    // Only do this if not recording MIDI - but override that and do do it if we're "resampling"
 	    && (playbackHandler.recording == RecordingMode::OFF
-	        || audioRecorder.recordingSource >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION)) {
+	        || AudioEngine::foregroundRecordingSource() >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION)) {
 
-		if (playbackHandler.stopOutputRecordingAtLoopEnd && audioRecorder.isCurrentlyResampling()) {
-			audioRecorder.endRecordingSoon();
+		if (playbackHandler.stopOutputRecordingAtLoopEnd && deluge::recording::isCurrentlyResampling()) {
+			deluge::recording::endRecordingSoon();
 		}
 
 		playbackHandler.endPlayback();

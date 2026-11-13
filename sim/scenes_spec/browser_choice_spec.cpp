@@ -60,12 +60,12 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/browser/folder_import.h"
-#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/shell_choice_dispatch.h"
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/sound_target.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/button.h"
 #include "hid/buttons.h"
@@ -74,6 +74,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/slot_bridge.h"
+#include "model/sample/last_file_path_loaded.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -85,9 +86,11 @@
 #include "storage/file_item.h"
 #include "storage/multi_range/multisample_range.h"
 #include "util/sample_preview_open.h"
+#include "util/shell_menu_entry.h"
 
 #include "support/global_guest_menu.h"
 #include "support/song_fixture.h"
+#include "support/torn_down_take.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
 // headers this drags in (`audio_engine.h` -> `util/container/ordered_pos_vector.h`).
@@ -177,7 +180,7 @@ struct CleanBrowser {
 		check("a browser singleton was still busy when an example started");
 		// A file an earlier example previewed is the browsers' last file loaded, which a fresh browser opens beside, as
 		// legacy's does; each example starts from none, and with no preview waiting.
-		sampleBrowser.lastFilePathLoaded.clear();
+		deluge::model::lastFilePathLoaded().clear();
 		(void)browser::browser_scene().take_preview();
 	}
 	~CleanBrowser() { check("an example finished with a browser singleton still busy"); }
@@ -248,7 +251,6 @@ struct ClaimSpy {
 		const auto& args = deluge::gui::ui::kShellSampleClaimArgs;
 		return last.path == path && last.enteredText == entered && last.mayDoPitchDetection == args.mayDoPitchDetection
 		       && last.mayDoSingleCycle == args.mayDoSingleCycle && last.mayDoWaveTable == args.mayDoWaveTable
-		       && last.loadWithoutExiting == args.loadWithoutExiting
 		       && last.completion == &deluge::gui::ui::shellSampleClaimDone;
 	}
 
@@ -404,10 +406,13 @@ struct ShellRig {
 	/// (`scenes/menu/menu_scene.cpp`'s `on_enter`), which is exactly what the jump's `Action::Kind::
 	/// Replace` produces (`handle`'s pad arm) -- and today the pad is the only way to focus a file
 	/// selector at all (see the group's own note).
-	void open_menu_at(const Node& node) {
+	void open_menu_at(const Node& node) { open_menu_at(node, model.ctx()); }
+
+	/// @brief `open_menu_at` on @p ctx instead of the model's single-range context.
+	void open_menu_at(const Node& node, const MenuContext& ctx) {
 		select_language();
 		(void)menu::assign_node_ids(nodes::kAllRoots);
-		menu_scene().open(node, model.ctx());
+		menu_scene().open(node, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(node)});
 		for (int32_t i = 0; i < 4; i++) {
 			step();
@@ -630,6 +635,10 @@ struct ImportSpy {
 
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 constexpr uint8_t kSelectEncoder = 3;
+constexpr uint8_t kBackButtonX = 7, kBackButtonY = 1;
+constexpr uint8_t kShiftButtonX = 8, kShiftButtonY = 0;
+constexpr uint8_t kCrossScreenButtonX = 6, kCrossScreenButtonY = 2;
+constexpr uint8_t kKitButtonX = 5, kKitButtonY = 1;
 
 /// @brief Hold Select on @p shell until the long press answers, then let go.
 void long_press(Shell& shell, uint32_t& clock) {
@@ -658,6 +667,115 @@ void pick(Shell& shell, uint32_t& clock, int32_t detents) {
 		clock += 10;
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, kSelectEncButtonX, kSelectEncButtonY, v}, clock);
 		shell.tick(clock);
+	}
+}
+
+/// @brief Turn the select encoder @p detents one detent at a time, each its own event and tick, as a hand turns it.
+void turn_detents(Shell& shell, uint32_t& clock, int32_t detents) {
+	const int16_t edges = detents < 0 ? -2 : 2;
+	for (int32_t i = 0; i < std::abs(detents); i++) {
+		clock += 10;
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, kSelectEncoder, 0, edges}, clock);
+		shell.tick(clock);
+	}
+}
+
+/// @brief Press and release BACK, a tick after each.
+void press_back(Shell& shell, uint32_t& clock) {
+	for (const int16_t v : {int16_t{255}, int16_t{0}}) {
+		clock += 10;
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, kBackButtonX, kBackButtonY, v}, clock);
+		shell.tick(clock);
+	}
+}
+
+/// @brief BACK out of the browser the menu opened inside `SAMPLES/OSC_A`: up to `SAMPLES`, then out
+///        (`BrowserScene::back`), letting each listing land.
+void leave_browser(ShellRig& r) {
+	for (int32_t press = 0; press < 2; press++) {
+		press_back(r.shell, r.clock);
+		for (int32_t i = 0; i < 4; i++) {
+			r.step();
+		}
+	}
+}
+
+/// @brief Give @p model's oscillator 0 three ranges, each on a sample at `kChosenPath`, recorded as a load records
+///        them: the shape a MULTISAMPLES import of three pitches leaves.
+void give_three_ranges(SongRig& model) {
+	auto* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(model.song.instrument->toModControllable()));
+	model.range->topNote = 59;
+	for (int32_t i = 1; i < 3; i++) {
+		auto* range = static_cast<MultisampleRange*>(model.source->ranges.insertMultiRange(i));
+		if (range == nullptr) {
+			spec_bail("no memory for a range");
+		}
+		Sample* sample = make_sample();
+		sample->filePath = std::string{kChosenPath};
+		range->topNote = i == 1 ? 71 : 32767;
+		range->sampleHolder.audioFile = sample;
+		range->sampleHolder.filePath = std::string{kChosenPath};
+		range->sampleHolder.startPos = 0;
+		range->sampleHolder.endPos = sample->lengthInSamples;
+	}
+	model.range = static_cast<MultisampleRange*>(model.source->ranges.getElement(0));
+	deluge::bridge::recordLoadedSound(*sound, *model.song.song);
+}
+
+/// @brief Shift + (0,5) on @p r's several ranges: the note-range picker, standing in for the file selector. Turn it to
+///        the bottom range, SELECT to open the browser from it, and ask for a MULTISAMPLES import of the browser's
+///        file's folder from its long-press menu.
+void import_from_picker(ShellRig& r) {
+	MenuContext ctx = r.model.ctx();
+	ctx.range_index = -1; // several ranges and none chosen, as `context_for` leaves them
+	r.open_menu_at(nodes::file0_selector, ctx);
+	turn_detents(r.shell, r.clock, -3);
+	pick(r.shell, r.clock, 0); // the picker heads to the file selector, which pushes the browser
+	for (int32_t i = 0; i < 4; i++) {
+		r.step();
+	}
+	long_press(r.shell, r.clock);
+	pick(r.shell, r.clock, 0); // MULTISAMPLES
+	deluge::gui::ui::dispatchShellChoices();
+}
+
+/// @brief A walk at depth 0 on @p submenu, with its column and its row both at @p focused.
+menu::MenuState state_on(const Node& submenu, int32_t focused) {
+	menu::MenuState st{};
+	st.path[0] = &submenu;
+	st.columns[0].focused = static_cast<int8_t>(focused);
+	st.list[0].cursor = static_cast<int16_t>(focused);
+	return st;
+}
+
+/// @brief Press and release the button at (@p x, @p y), past the page buttons' shared 140 ms debounce, with SHIFT held
+///        around it when @p shift.
+void press_button(Shell& shell, uint32_t& clock, uint8_t x, uint8_t y, bool shift) {
+	clock += 200;
+	const auto send = [&](uint8_t bx, uint8_t by, int16_t v) {
+		clock += 10;
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, bx, by, v}, clock);
+		shell.tick(clock);
+	};
+	if (shift) {
+		send(kShiftButtonX, kShiftButtonY, 255);
+	}
+	send(x, y, 255);
+	send(x, y, 0);
+	if (shift) {
+		send(kShiftButtonX, kShiftButtonY, 0);
+	}
+}
+
+/// @brief Open the menu on @p page with @p column focused, as a shortcut pad's page landing does, on @p ctx.
+void open_page_at(ShellRig& r, const Node& page, const Node& column, const MenuContext& ctx) {
+	select_language();
+	(void)menu::assign_node_ids(nodes::kAllRoots);
+	menu_scene().open(page, ctx);
+	const uint16_t arg = menu_scene().arm_page_landing(page, column);
+	r.shell.init(SceneId{SceneKind::FirstApp, arg});
+	for (int32_t i = 0; i < 4; i++) {
+		r.step();
 	}
 }
 
@@ -913,16 +1031,32 @@ describe browser_choice_claim(
 		        expect(std::string{Browser::currentDir}).to_equal(std::string{"SOMEWHERE/ELSE"});
 		        expect(std::string{QwertyUI::enteredText}).to_equal(std::string{"STALE"});
 
-		        // Exactly one request, and it is the guest's own: legacy's default arguments claim
-		        // with `loadWithoutExiting = false`, which ends in `exitAndNeverDeleteDrum()` ->
-		        // `closeUI(&sampleBrowser)` on a browser the guest never opened, i.e. an index `-1`
-		        // read of `uiNavigationHierarchy` and `numUIsOpen = 0` from inside the running
-		        // `timerCallback` (`gui/ui/ui.cpp:213-227`). See the example below.
+		        // Exactly one request, and it is the guest's own.
 		        expect(spy.dispatches).to_equal(1);
 		        expect(ClaimSpy::last_is_guest_claim_of("SAMPLES/OSC_A/A1.WAV", "A1")).to_be_true();
 		        // ...and the drain emptied the outbox on the way, so a mutant that stops reading it
 		        // fails by comparison here rather than by `CleanBrowser`'s abort.
 		        expect(browser::browser_scene().take_choice().has_value()).to_be_false();
+	        });
+
+	    it(
+	        "names the menu's sound, source and range in the request", _ {
+		        CleanBrowser clean;
+		        ClaimSpy spy;
+		        ScratchCard card;
+		        ShellRig r;
+		        r.open_browser();
+		        r.enter();
+		        Sound* const sound = static_cast<Sound*>(
+		            static_cast<ModControllableAudio*>(r.model.song.instrument->toModControllable()));
+		        deluge::gui::ui::dispatchShellChoices();
+
+		        expect(spy.dispatches).to_equal(1);
+		        expect(ClaimSpy::last.target.sound == sound).to_be_true();
+		        expect(ClaimSpy::last.target.source == r.model.source).to_be_true();
+		        expect(ClaimSpy::last.target.range == static_cast<::MultiRange*>(r.model.range)).to_be_true();
+		        expect(static_cast<int32_t>(ClaimSpy::last.target.rangeIndex)).to_equal(0);
+		        expect(static_cast<int32_t>(ClaimSpy::last.target.sourceIndex)).to_equal(0);
 	        });
 
 	    it(
@@ -1012,30 +1146,12 @@ describe browser_choice_claim(
 	        });
 
 	    it(
-	        "claims without exiting, because there is no legacy browser open to close", _ {
-		        // **The device defect this pins.** `claimCurrentFile`'s success tail is gated on
-		        // `!loadWithoutExiting` (`gui/ui/browser/sample_browser.cpp:966`), and its first
-		        // statement is `exitAndNeverDeleteDrum()` (`:1109`) -- which is `close()` (`:258-260`),
-		        // `Browser::close()`, `UI::close()` and finally
-		        // `closeUI(this)` (`gui/ui/ui.cpp:87-89`). Under the guest `sampleBrowser` was never
-		        // opened, so `closeUI`'s search falls out at `u == 0` and reads
-		        // `uiNavigationHierarchy[u - 1]` (`gui/ui/ui.cpp:213-223`), then sets `numUIsOpen = 0`
-		        // and unsets `TimerName::UI_SPECIFIC` (`:195-197`) -- from inside the very
-		        // `ShellHostUI::timerCallback` that is running the drain.
-		        //
-		        // **This is the strongest form the pin can take, and the limit is the seam's own.**
-		        // Reaching `closeUI` means running a real `claimCurrentFile`: a card read and an
-		        // `AudioFileManager` allocation inside the assertion. So what an example can say is
-		        // which op the drain dispatches -- above -- and what that op will claim with, which is
-		        // here. Flip `loadWithoutExiting` and this reddens.
-		        //
-		        // The values are legacy's own, from the one call site that already needed this: the
-		        // auto-load feature's claim in `SampleBrowser::tickPreview` (`sample_browser.cpp:654-659`),
-		        // "load it into the instrument as if you had confirmed, but keep the browser open".
+	        "claims with the browser's three detection defaults, as the auto-load does", _ {
+		        // The values the auto-load feature's claim uses (`SampleBrowser::tickPreview`): "load it into the
+		        // instrument as if you had confirmed".
 		        expect(deluge::gui::ui::kShellSampleClaimArgs.mayDoPitchDetection).to_equal(1);
 		        expect(deluge::gui::ui::kShellSampleClaimArgs.mayDoSingleCycle).to_equal(1);
 		        expect(deluge::gui::ui::kShellSampleClaimArgs.mayDoWaveTable).to_equal(1);
-		        expect(deluge::gui::ui::kShellSampleClaimArgs.loadWithoutExiting).to_be_true();
 	        });
 
 	    it(
@@ -1261,7 +1377,7 @@ describe browser_choice_reroot(
 		        // four ticks -- but the menu is opened on `sound_root` rather than on the item that
 		        // pushes the browser, so nothing ever recorded an opener. Legacy's guard is the same
 		        // shape: the re-rooting is inside `if (menuItemHeadingTo != nullptr &&
-		        // parentMenuHeadingTo != nullptr)` (`SampleClaim::stepFinish`).
+		        // parentMenuHeadingTo != nullptr)` (`SampleBrowser::finishLegacyClaim`).
 		        CleanBrowser clean;
 		        ClaimSpy spy;
 		        ScratchCard card;
@@ -1292,10 +1408,10 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 		ShellRig r;
 		r.open_browser();
 		expect(browser::browser_scene().preview_outstanding()).to_be_true();
-		expect(sampleBrowser.lastFilePathLoaded.empty()).to_be_true();
+		expect(deluge::model::lastFilePathLoaded().empty()).to_be_true();
 		deluge::gui::ui::dispatchShellChoices();
 		expect(browser::browser_scene().take_preview().has_value()).to_be_false();
-		expect(sampleBrowser.lastFilePathLoaded).to_equal(std::string{kChosenPath});
+		expect(deluge::model::lastFilePathLoaded()).to_equal(std::string{kChosenPath});
 		expect(spy.dispatches).to_equal(0);
 		// No load ends in a spec process: the browser still waits for the answer.
 		expect(browser::browser_scene().preview_outstanding()).to_be_true();
@@ -1344,8 +1460,8 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 	});
 
 	it("claims an auto-loaded preview keeping the browser open and the menu where it was", _ {
-		// `SampleBrowser::tickPreview`'s auto-load: `ClaimOrigin::AutoLoad`, `loadWithoutExiting`, and no completion to
-		// close or re-root anything.
+		// `SampleBrowser::tickPreview`'s auto-load: `ClaimOrigin::AutoLoad`, and no completion to close or re-root
+		// anything.
 		CleanBrowser clean;
 		ClaimSpy spy;
 		ScratchCard card;
@@ -1361,7 +1477,6 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 		expect(spy.dispatches).to_equal(1);
 		expect(ClaimSpy::last.path).to_equal(std::string{kChosenPath});
 		expect(ClaimSpy::last.origin == deluge::gui::ClaimOrigin::AutoLoad).to_be_true();
-		expect(ClaimSpy::last.loadWithoutExiting).to_be_true();
 		expect(ClaimSpy::last.completion == nullptr).to_be_true();
 		r.step();
 		r.step();
@@ -1542,11 +1657,13 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, true) == ActionResult::DEALT_WITH).to_be_true();
 		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, false) == ActionResult::NOT_DEALT_WITH)
 		    .to_be_true();
-		// The press ended the take; tear the stack down so the recorder is thrown away rather than left armed.
+		// The press ended the take; tear the stack down so the recorder is ended rather than left armed, and settle it.
 		while (shellHostUI.shell().stack().depth() > 0) {
 			shellHostUI.shell().stack().pop(SceneKind::Null);
 		}
 		expect(deluge::scenes::recorder::recorder_scene().recording()).to_be_false();
+		spec::settle_torn_down_take();
+		expect(AudioEngine::foregroundRecorder() == nullptr).to_be_true();
 	});
 
 	it("hands a vertical turn to the instrument clip view beneath, and keeps it with X_ENC held", _ {
@@ -1631,7 +1748,6 @@ describe browser_choice_long_press(
 			        expect(ClaimSpy::last.mayDoPitchDetection).to_equal(w.pitch);
 			        expect(ClaimSpy::last.mayDoSingleCycle).to_equal(w.single_cycle);
 			        expect(ClaimSpy::last.mayDoWaveTable).to_equal(w.wavetable);
-			        expect(ClaimSpy::last.loadWithoutExiting).to_be_true();
 		        }
 	        });
 
@@ -1651,7 +1767,211 @@ describe browser_choice_long_press(
 		            .to_equal(static_cast<int>(deluge::gui::FolderImportKind::Multisamples));
 		        expect(ImportSpy::last.folder).to_equal(std::string{"SAMPLES/OSC_A"});
 		        expect(ImportSpy::last.previouslyViewedFilename).to_equal(std::string{"A1.WAV"});
-		        expect(ImportSpy::last.exitBrowser).to_be_false();
+	        });
+
+	    it(
+	        "names the menu's source in a MULTISAMPLES import, and hands the ranges it makes current to the menu", _ {
+		        CleanBrowser clean;
+		        ImportSpy spy;
+		        ScratchCard card;
+		        ShellRig r;
+		        r.open_browser();
+		        long_press(r.shell, r.clock);
+		        pick(r.shell, r.clock, 0);
+		        deluge::gui::ui::dispatchShellChoices();
+		        expect(spy.dispatches).to_equal(1);
+		        expect(ImportSpy::last.target.source == r.model.source).to_be_true();
+		        expect(ImportSpy::last.rangeChosen != nullptr).to_be_true();
+	        });
+
+	    it(
+	        "lands the picker the import's browser closes onto on the middle range the import left current", _ {
+		        CleanBrowser clean;
+		        ImportSpy spy;
+		        ScratchCard card;
+		        ShellRig r;
+		        give_three_ranges(r.model);
+		        import_from_picker(r);
+		        expect(spy.dispatches).to_equal(1);
+		        expect(menu_scene().state().path[0] == &nodes::multi_range).to_be_true();
+		        expect(static_cast<int32_t>(menu_scene().state().depth)).to_equal(1);
+		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(0);
+
+		        // `FolderImport::finishMulti`: range 0 current while it builds, then `numSamples >> 1`.
+		        expect(ImportSpy::last.rangeChosen != nullptr).to_be_true();
+		        if (ImportSpy::last.rangeChosen != nullptr) {
+			        ImportSpy::last.rangeChosen(0);
+			        ImportSpy::last.rangeChosen(1);
+		        }
+		        ImportSpy::last.completion(true);
+		        for (int32_t i = 0; i < 4; i++) {
+			        r.step();
+		        }
+
+		        expect(r.browser_on_stack()).to_be_false();
+		        expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(1);
+		        expect(static_cast<int32_t>(menu_scene().state().list[0].cursor)).to_equal(1);
+	        });
+
+	    it(
+	        "drops the menu's range when the import's browser closes onto a page, as Submenu::beginSession drops "
+	        "main's",
+	        _ {
+		        CleanBrowser clean;
+		        ImportSpy spy;
+		        ScratchCard card;
+		        ShellRig r;
+		        r.open_menu_at(nodes::sound_root);
+		        menu_scene().enter_submenu(nodes::source_group);
+		        menu_scene().enter_submenu(nodes::file0_selector);
+		        // `enter_submenu` runs outside a tick and asks for no frame, so the item's push waits for the shell's
+		        // next one: tick until the browser is up, then twice more for its listing.
+		        for (int32_t i = 0; i < 40 && !r.browser_on_stack(); i++) {
+			        r.step();
+		        }
+		        r.step();
+		        r.step();
+		        expect(r.browser_on_stack()).to_be_true();
+		        long_press(r.shell, r.clock);
+		        pick(r.shell, r.clock, 0); // MULTISAMPLES
+		        deluge::gui::ui::dispatchShellChoices();
+		        expect(spy.dispatches).to_equal(1);
+
+		        give_three_ranges(r.model); // what the import built
+		        if (ImportSpy::last.rangeChosen != nullptr) {
+			        ImportSpy::last.rangeChosen(0);
+			        ImportSpy::last.rangeChosen(1);
+		        }
+		        ImportSpy::last.completion(true);
+		        for (int32_t i = 0; i < 4; i++) {
+			        r.step();
+		        }
+
+		        expect(r.browser_on_stack()).to_be_false();
+		        expect(static_cast<int32_t>(menu_scene().state().depth)).to_equal(1);
+		        expect(menu_scene().state().path[1] == &nodes::source_group).to_be_true();
+		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(-1);
+		        // The transpose column's button then opens the picker first, as main's does.
+		        expect(menu::permission_for(nodes::source0_transpose, menu_scene().menu_context())
+		               == menu::Permission::MustSelectRange)
+		            .to_be_true();
+	        });
+
+	    it(
+	        "drops a range the picker chose when the walk enters a submenu", _ {
+		        CleanBrowser clean;
+		        ScratchCard card;
+		        ShellRig r;
+		        give_three_ranges(r.model);
+		        MenuContext ctx = r.model.ctx();
+		        ctx.range_index = 1;
+		        r.open_menu_at(nodes::sound_root, ctx);
+		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(1);
+		        menu_scene().enter_submenu(nodes::source_group);
+		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(-1);
+	        });
+
+	    it(
+	        "spends the import's range on the resume it lands: the picker's next trip to the browser keeps its own", _ {
+		        CleanBrowser clean;
+		        ImportSpy spy;
+		        ScratchCard card;
+		        ShellRig r;
+		        give_three_ranges(r.model);
+		        import_from_picker(r);
+		        if (ImportSpy::last.rangeChosen != nullptr) {
+			        ImportSpy::last.rangeChosen(0);
+			        ImportSpy::last.rangeChosen(1);
+		        }
+		        ImportSpy::last.completion(true);
+		        for (int32_t i = 0; i < 4; i++) {
+			        r.step();
+		        }
+
+		        turn_detents(r.shell, r.clock, -2);
+		        pick(r.shell, r.clock, 0); // the browser again, from the bottom range
+		        for (int32_t i = 0; i < 4; i++) {
+			        r.step();
+		        }
+		        expect(r.browser_on_stack()).to_be_true();
+		        leave_browser(r);
+
+		        expect(r.browser_on_stack()).to_be_false();
+		        expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(0);
+		        expect(static_cast<int32_t>(menu_scene().state().list[0].cursor)).to_equal(0);
+	        });
+
+	    it(
+	        "applies no range an earlier visit was told, when a failed import's browser is left with BACK", _ {
+		        CleanBrowser clean;
+		        ImportSpy spy;
+		        ScratchCard card;
+		        ShellRig r;
+		        give_three_ranges(r.model);
+		        menu_scene().import_chose_range(2); // told to a visit that closed before its browser returned
+		        import_from_picker(r);
+		        ImportSpy::last.completion(false); // the listing failed: no range was made current
+		        for (int32_t i = 0; i < 3; i++) {
+			        r.step();
+		        }
+		        expect(r.browser_on_stack()).to_be_true();
+		        leave_browser(r);
+
+		        expect(r.browser_on_stack()).to_be_false();
+		        expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(0);
+	        });
+
+	    it(
+	        "asks for a range when SELECT lands on a focused file column of a multisample, as main's select arm does",
+	        _ {
+		        CleanBrowser clean;
+		        ScratchCard card;
+		        ShellRig r;
+		        give_three_ranges(r.model);
+		        MenuContext ctx = r.model.ctx();
+		        ctx.range_index = -1; // several ranges, none chosen
+		        // Shift + (2,2), then KIT: the file column takes the focus with no picker
+		        // (`handleInstrumentButtonPress`'s `allowToBeginSessionFromHorizontalMenu` suppression).
+		        open_page_at(r, nodes::source_group, nodes::osc0_type, ctx);
+		        press_button(r.shell, r.clock, kKitButtonX, kKitButtonY, /*shift=*/false);
+		        r.step();
+		        expect(r.browser_on_stack()).to_be_false();
+		        expect(menu_scene().focused() == &nodes::source_group).to_be_true();
+		        expect(static_cast<int32_t>(menu_scene().state().columns[0].focused))
+		            .to_equal(visible_index_of(ctx, nodes::source_group, nodes::file0_selector));
+
+		        pick(r.shell, r.clock, 0); // SELECT
+		        for (int32_t i = 0; i < 4; i++) {
+			        r.step();
+		        }
+
+		        expect(r.browser_on_stack()).to_be_false();
+		        expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		        expect(menu_scene().state().walk.pending_after_range == &nodes::file0_selector).to_be_true();
+	        });
+
+	    it(
+	        "opens the browser when SELECT lands on a focused file column of a single sample", _ {
+		        CleanBrowser clean;
+		        ScratchCard card;
+		        ShellRig r;
+		        open_page_at(r, nodes::source_group, nodes::osc0_type, r.model.ctx());
+		        press_button(r.shell, r.clock, kKitButtonX, kKitButtonY, /*shift=*/false);
+		        r.step();
+		        expect(r.browser_on_stack()).to_be_false();
+		        expect(static_cast<int32_t>(menu_scene().state().columns[0].focused))
+		            .to_equal(visible_index_of(r.model.ctx(), nodes::source_group, nodes::file0_selector));
+
+		        pick(r.shell, r.clock, 0); // SELECT
+		        for (int32_t i = 0; i < 4; i++) {
+			        r.step();
+		        }
+
+		        expect(r.browser_on_stack()).to_be_true();
+		        expect(menu_scene().state().path[1] == &nodes::file0_selector).to_be_true();
 	        });
 
 	    it(
@@ -1703,5 +2023,177 @@ describe browser_choice_long_press(
 	        });
     });
 
+// clang-format off
+describe browser_choice_submenu_range("menu::begin_submenu_range, Submenu::beginSession's drop of the range", $ {
+	it("keeps it on a page whose focused column is range-dependent", _ {
+		SongRig model;
+		give_three_ranges(model);
+		MenuContext ctx = model.ctx();
+		ctx.range_index = 1;
+		const menu::MenuState st =
+		    state_on(nodes::source_group, visible_index_of(ctx, nodes::source_group, nodes::source0_transpose));
+		menu::begin_submenu_range(ctx, st, nullptr);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(1);
+	});
+
+	it("keeps it on a page come back to from a range-dependent item", _ {
+		SongRig model;
+		give_three_ranges(model);
+		MenuContext ctx = model.ctx();
+		ctx.range_index = 1;
+		menu::begin_submenu_range(ctx, state_on(nodes::source_group, 0), &nodes::source0_transpose);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(1);
+	});
+
+	it("keeps it on a page come back to from the picker heading to a range-dependent item", _ {
+		SongRig model;
+		give_three_ranges(model);
+		MenuContext ctx = model.ctx();
+		ctx.range_index = 1;
+		menu::MenuState st = state_on(nodes::source_group, 0);
+		st.walk.pending_after_range = &nodes::source0_transpose;
+		menu::begin_submenu_range(ctx, st, &nodes::multi_range);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(1);
+	});
+
+	it("drops it on a page come back to from the picker heading to the file selector", _ {
+		SongRig model;
+		give_three_ranges(model);
+		MenuContext ctx = model.ctx();
+		ctx.range_index = 1;
+		menu::MenuState st = state_on(nodes::source_group, 0);
+		st.walk.pending_after_range = &nodes::file0_selector;
+		menu::begin_submenu_range(ctx, st, &nodes::multi_range);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(-1);
+	});
+
+	it("drops it on a page come back to from the file selector, which main does not count as range-dependent", _ {
+		SongRig model;
+		give_three_ranges(model);
+		MenuContext ctx = model.ctx();
+		ctx.range_index = 1;
+		menu::begin_submenu_range(ctx, state_on(nodes::source_group, 0), &nodes::file0_selector);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(-1);
+	});
+
+	it("drops it on a page come back to from the other file selector", _ {
+		SongRig model;
+		give_three_ranges(model);
+		MenuContext ctx = model.ctx();
+		ctx.range_index = 1;
+		menu::begin_submenu_range(ctx, state_on(nodes::source_group, 0), &nodes::file1_selector);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(-1);
+	});
+
+	it("drops it on a page come back to from a recorder, which main does not count as range-dependent", _ {
+		SongRig model;
+		give_three_ranges(model);
+		MenuContext ctx = model.ctx();
+		ctx.range_index = 1;
+		menu::begin_submenu_range(ctx, state_on(nodes::source_group, 0), &nodes::sample0_recorder);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(-1);
+		ctx.range_index = 1;
+		menu::begin_submenu_range(ctx, state_on(nodes::source_group, 0), &nodes::sample1_recorder);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(-1);
+	});
+
+	it("tests the item a page is entered for, not the column it remembers, as focusChild runs before enterSubmenu",
+	   _ {
+		   SongRig model;
+		   give_three_ranges(model);
+		   MenuContext ctx = model.ctx();
+		   ctx.range_index = 1;
+		   menu::MenuWalk walk;
+		   menu::ValueSession session;
+		   // The page remembers transpose: leaving it from there records the column.
+		   menu::MenuState st = state_on(nodes::source_group,
+		                                 visible_index_of(ctx, nodes::source_group, nodes::source0_transpose));
+		   walk.ascend(menu::MenuCore{ctx, st}, session);
+		   expect(static_cast<int32_t>(ctx.range_index)).to_equal(1);
+
+		   // `enter_child`'s shortcut arm enters the page for the oscillator type, which is not range-dependent.
+		   st = state_on(nodes::sound_root, 0);
+		   walk.descend_to(menu::MenuCore{ctx, st}, session, nodes::source_group, &nodes::osc0_type);
+		   expect(menu::selected_child(ctx, st, nodes::source_group) == &nodes::osc0_type).to_be_true();
+		   expect(static_cast<int32_t>(ctx.range_index)).to_equal(-1);
+	   });
+
+	it("tests the level directly above the landing when the step up skips a level it may no longer enter", _ {
+		SongRig model;
+		give_three_ranges(model);
+		MenuContext ctx = model.ctx();
+		ctx.range_index = 1;
+		menu::MenuWalk walk;
+		menu::ValueSession session;
+		// The FM modulator page is not relevant on this subtractive sound, so the step up from transpose skips it and
+		// lands on the source page, as `goUpOneLevel`'s permission loop does; main's `oldItem` is the modulator page.
+		menu::MenuState st = state_on(nodes::source_group, 0);
+		st.path[1] = &nodes::modulator0;
+		st.path[2] = &nodes::source0_transpose;
+		st.depth = 2;
+		expect(menu::permission_for(nodes::modulator0, ctx) == menu::Permission::No).to_be_true();
+		walk.ascend(menu::MenuCore{ctx, st}, session);
+		expect(static_cast<int32_t>(st.depth)).to_equal(0);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(-1);
+	});
+
+	it("drops it on a list whatever it came back from", _ {
+		SongRig model;
+		give_three_ranges(model);
+		MenuContext ctx = model.ctx();
+		ctx.range_index = 1;
+		menu::begin_submenu_range(ctx, state_on(nodes::sound_root, 0), &nodes::source0_transpose);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(-1);
+	});
+
+	it("keeps a single range, which main's range check selects again before anything reads it", _ {
+		SongRig model;
+		MenuContext ctx = model.ctx(); // one range, range_index 0
+		menu::begin_submenu_range(ctx, state_on(nodes::source_group, 0), nullptr);
+		expect(static_cast<int32_t>(ctx.range_index)).to_equal(0);
+	});
+
+	it("drops it when SHIFT + CROSS SCREEN switches to the next chained page, as switchHorizontalMenu begins it", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		ShellRig r;
+		give_three_ranges(r.model);
+		MenuContext ctx = r.model.ctx();
+		ctx.range_index = 1; // picked through the transpose column's picker
+		open_page_at(r, nodes::source_group, nodes::source0_transpose, ctx);
+		expect(menu_scene().state().path[0] == &nodes::source_group).to_be_true();
+		expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(1);
+
+		press_button(r.shell, r.clock, kCrossScreenButtonX, kCrossScreenButtonY, /*shift=*/true);
+		r.step();
+
+		expect(menu_scene().state().path[0] != &nodes::source_group).to_be_true();
+		expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(-1);
+	});
+
+	it("keeps the picked range when the picker's SELECT enters its item on the item's page, as main's select arm does", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		ShellRig r;
+		give_three_ranges(r.model);
+		MenuContext ctx = r.model.ctx();
+		ctx.range_index = -1; // several ranges and none chosen: the shortcut opens the picker heading to transpose
+		r.open_menu_at(nodes::source0_transpose, ctx);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		turn_detents(r.shell, r.clock, 3);
+		pick(r.shell, r.clock, 0);
+		r.step();
+
+		// `maybeGetParentMenu` -> `focusChild` -> `enterSubmenu(parent, newItem)`: the page begins having come back
+		// from transpose, so `HorizontalMenu::beginSession` keeps the range the picker chose.
+		expect(menu_scene().focused() == &nodes::source_group).to_be_true();
+		expect(menu::selected_child(menu_scene().menu_context(), menu_scene().state(), nodes::source_group)
+		       == &nodes::source0_transpose)
+		    .to_be_true();
+		expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(2);
+	});
+});
+// clang-format on
+
 DELUGE_SPEC(browser_choice_spec, browser_choice_target, browser_choice_dispatch, browser_choice_claim,
-            browser_choice_reroot, browser_choice_long_press, browser_choice_preview)
+            browser_choice_reroot, browser_choice_long_press, browser_choice_preview, browser_choice_submenu_range)

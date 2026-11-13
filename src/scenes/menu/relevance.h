@@ -102,10 +102,22 @@ bool is_kit_row(const MenuContext& ctx);
 ///        (`octaves.h`), `OctaveMode` (`octave_mode.h:44-46`) and `submenu::ArpMpeSubmenu`
 ///        (`submenu/arp_mpe_submenu.h:22-24`) -- one predicate, three items.
 bool not_gate_drum_or_kit_fx(const MenuContext& ctx);
+/// @brief Neither a MIDI or gate drum row nor a kit's own effects: `arpeggiator::Rate::isRelevant`
+///        (`arpeggiator/rate.h`), `!editingNonAudioDrumRow() && !editingKitAffectEntire()`. Its third term,
+///        `!editingCVOrMIDIClip()`, is the param target's own: a MIDI or CV clip has no sound to hold the rate.
+bool not_non_audio_drum_or_kit_fx(const MenuContext& ctx);
+/// @brief Not a MIDI or gate drum row: `arpeggiator::ArpUnpatchedParam::isRelevant` (`arp_unpatched_param.h`) and
+///        the first test of `randomizer::RandomizerUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h`),
+///        `!editingNonAudioDrumRow()`. Their `!editingCVOrMIDIClip()` is the param target's own.
+bool not_non_audio_drum_row(const MenuContext& ctx);
+/// @brief Not a gate drum row: `arpeggiator::StepRepeat::isRelevant` (`arpeggiator/step_repeat.h`),
+///        `!editingGateDrumRow()`, the kit's selected drum whatever the menu edits.
+bool not_gate_drum_row(const MenuContext& ctx);
 
 /// @brief Is reverb ducking set to something other than AUTO? `reverb::sidechain::Shape::isRelevant`
 ///        (`reverb/sidechain/shape.h`), `sidechain::Attack` / `Release` / `Sync` in their
-///        reverb spelling (`sidechain/attack.h:57-59`, `release.h:57-59`, `sync.h:56-58`).
+///        reverb spelling (`sidechain/attack.h:57-59`, `release.h:57-59`,
+///        `origin/main:src/deluge/gui/menu_item/sidechain/sync.h` `Sync::isRelevant`).
 bool reverb_sidechain_on(const MenuContext& ctx);
 
 /// @brief May stutter quantization be edited? `stutter::QuantizedStutter::isRelevant`
@@ -125,7 +137,7 @@ bool bend_submenu(const MenuContext& ctx);
 ///        (`gui/menu_item/midi/preset.h:31-33`, i.e. the bank / sub-bank / PGM items),
 ///        `midi::MPEYToModWheel` (`midi/y_axis_to_cc1.h:29-33`), `submenu::PolyMonoConversion`
 ///        (`submenu/MPE.h:22-26`), `device_definition::DeviceDefinitionSubmenu`
-///        (`midi/device_definition/submenu.h:26-34`), `Linked` (`linked.h:44-47`) and
+///        (`midi/device_definition/submenu.h:26-34`), `Linked` (`midi/device_definition/linked.h`) and
 ///        `HideUnlabeled` (`hide_unlabeled.h:33-36`) -- six items, one test.
 bool is_midi_out(const MenuContext& ctx);
 

@@ -14,23 +14,23 @@
 /// `Permission::MustSelectRange`, having first recorded the item it was heading to in
 /// `MenuWalkState::pending_after_range`. `multi_range_chain` -- this page's `Node::select_chain` -- then
 /// returns that item, which is precisely `MultiRange::selectButtonPress`'s `return menuItemHeadingTo`
-/// (`multi_range.cpp`).
+/// (`origin/main:src/deluge/gui/menu_item/multi_range.cpp` `MultiRange::selectButtonPress`).
 ///
-/// `Node::chain_targets` is therefore `nodes::kRangeDependentNodes`: the only nodes that can ever
+/// `Node::chain_targets` is therefore `nodes::kRangeSpecificNodes`: the only nodes that can ever
 /// set `pending_after_range` are the ones `permission_for`'s range rule fires on, i.e. exactly the
-/// nodes carrying `Node::range_dependent` (`nodes/nodes.h`, ten of them). That span is also what
+/// nodes carrying `Node::range_specific` (`nodes/nodes.h`, ten of them). That span is also what
 /// makes this page *reachable* for `assign_node_ids` / `validate_tree` / the menu dump, which
 /// walk `children` and `chain_targets` -- see `nodes.h`, where the page joins `kAllRoots` for the
 /// same reason `root_cv` did.
 ///
-/// ## `Node::range_dependent` is deliberately NOT set on this node
+/// ## Neither range flag is set on this node
 ///
-/// Legacy's `MultiRange::isRangeDependent()` returns true (`multi_range.h:32`), but legacy never
-/// runs its own permission check against the picker -- the substitution at `:1802-1803` happens
-/// *after* the check, on the item being opened. Setting the flag here would make
-/// `permission_for(multi_range, ctx)` answer `MustSelectRange` and `enter_child` descend into the
-/// picker from the picker, forever. `nodes::kRangeDependentArray` accordingly still holds ten nodes,
-/// not eleven, and `nodes.h` says so.
+/// Legacy never runs its own permission check against the picker -- `SoundEditor::setup` substitutes it *after* the
+/// check, on the item being opened. Setting `Node::range_specific` here would make `permission_for(multi_range, ctx)`
+/// answer `MustSelectRange` and `enter_child` descend into the picker from the picker, forever, so
+/// `nodes::kRangeSpecificArray` holds ten nodes, not eleven. Legacy's `MultiRange::isRangeDependent()` does return
+/// true (`origin/main:src/deluge/gui/menu_item/multi_range.h`); the two places that read it name the picker
+/// themselves (`menu::begin_submenu_range`, `shellRangeDependentOpen`).
 ///
 /// ## Editing a range edge
 ///
@@ -55,7 +55,7 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
-#include "scenes/menu/nodes/sound_osc.h" // the ten `range_dependent` nodes this page chains to
+#include "scenes/menu/nodes/sound_osc.h" // the ten `range_specific` nodes this page chains to
 
 #include "instruments/deluge/sound_state.h"
 #include "ui/oled/values.h" // RangeEdge
@@ -71,7 +71,7 @@
 namespace deluge::scenes::menu::nodes {
 
 /// @brief The note-range picker. One row per `MultiRange` on the addressed `Source`, labelled with
-///        the note span it covers (`MultiRange::getText`, `multi_range.cpp`).
+///        the note span it covers (`MultiRange::getText`, `origin/main:src/deluge/gui/menu_item/multi_range.cpp`).
 class MultiRangeItem final : public CustomItem {
 public:
 	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
@@ -197,10 +197,10 @@ bool range_note_press(MenuContext& ctx, MenuState& state, int32_t note);
 /// no chain gives, and the only thing it could mean with no item to head to.
 const Node* multi_range_chain(const MenuContext& ctx, const MenuState& state);
 
-/// @brief Every node `multi_range_chain` may return: the ten `Node::range_dependent` nodes, which
+/// @brief Every node `multi_range_chain` may return: the ten `Node::range_specific` nodes, which
 ///        are the only ones `permission_for` can answer `MustSelectRange` for.
 ///
-/// Spelled out here rather than reusing `nodes::kRangeDependentNodes` (`nodes/nodes.h`) because that
+/// Spelled out here rather than reusing `nodes::kRangeSpecificNodes` (`nodes/nodes.h`) because that
 /// header includes this one; the two are asserted equal in `tables_1_spec`, so they cannot drift.
 inline constexpr const Node* kMultiRangeChainArray[] = {
     &sample0_recorder,  &sample1_recorder, &file0_selector, &file1_selector, &source0_transpose,
@@ -208,7 +208,8 @@ inline constexpr const Node* kMultiRangeChainArray[] = {
 };
 inline constexpr std::span<const Node* const> kMultiRangeChain{kMultiRangeChainArray};
 
-/// @brief The picker's node -- title `STRING_FOR_NOTE_RANGE` (`multi_range.h:43`).
+/// @brief The picker's node -- title `STRING_FOR_NOTE_RANGE`
+///        (`origin/main:src/deluge/gui/menu_item/multi_range.h` `MultiRange::getTitle`).
 inline constexpr Node multi_range = with_select_chain(
     custom(sid(deluge::l10n::String::STRING_FOR_NOTE_RANGE), &kMultiRangeItem), &multi_range_chain, kMultiRangeChain);
 

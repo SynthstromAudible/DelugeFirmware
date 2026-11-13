@@ -34,6 +34,12 @@ public:
 	bool empty() const { return n_ == 0; }
 	/// @brief Discard every element (`size()` becomes 0); capacity is unchanged.
 	void clear() { n_ = 0; }
+	/// @brief Discard the last element; does nothing when empty.
+	void pop_back() {
+		if (n_ != 0) {
+			n_--;
+		}
+	}
 
 	/// @name Iteration
 	/// @{

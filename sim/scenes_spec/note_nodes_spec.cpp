@@ -1,8 +1,7 @@
 /// @file
 /// @brief The note editor and note-row editor menu trees
 ///        (`scenes/menu/nodes/note.h`), tested against `FakeNoteBridgeGuard`
-///        (`support/fake_note_bridge.h`), and their shape against the live legacy objects
-///        (`gui/ui/menus.cpp`) rather than a copied list.
+///        (`support/fake_note_bridge.h`), and their shape against main's note editors.
 ///
 /// Covered:
 ///
@@ -15,16 +14,9 @@
 ///     `kCustomIterancePreset`;
 ///   * the three `value_text` hooks produce legacy's strings, including
 ///     probability's latching and fill's strike;
-///   * the shape: each root and custom root has legacy's own child count, read from the live
-///     `noteEditorRootMenu`/`noteRowEditorRootMenu`/`noteCustomIteranceRootMenu`/
-///     `noteRowCustomIteranceRootMenu` objects rather than a second copy of the list (the way
-///     `tables_3_spec.cpp` does for `settingsRootMenu`);
+///   * the shape: each root and custom root has the child count main's note editors have (4, 4, 9, 9);
 ///   * `validate_tree` over `kAllRoots` reports nothing about any node this file declares.
 ///
-/// @note The spec may include `gui/menu_item/` and `gui/ui/menus.h` (for the legacy objects); the
-///       library may not (`scripts/check_layer_rules.py`'s `scenes-includes-outside`). Same rule
-///       `tables_2_spec.cpp` and `tables_3_spec.cpp` run under.
-
 #include "gui/ui/menu_view_of.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
@@ -44,18 +36,11 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "gui/menu_item/horizontal_menu.h"
-#include "gui/menu_item/submenu.h"
-// `gui/ui/menus.h` itself includes `note/iterance_preset.h` and `note_row/iterance_preset.h`
-// (whose extern `noteCustomIteranceRootMenu`/`noteRowCustomIteranceRootMenu` this file reads), and
-// `note/fill.h` (included earlier in `menus.h`'s own chain) is not self-contained -- it relies on
-// something ahead of it in the *same translation unit* having already brought in
-// `gui/menu_item/integer.h` for its `SelectedNote` base's base. Pre-including either iterance
-// header standalone, ahead of `menus.h`, breaks that ordering; `gui/ui/menus.h` alone is enough.
-#include "gui/ui/menus.h" // extern noteEditorRootMenu, noteRowEditorRootMenu, noteCustomIteranceRootMenu, noteRowCustomIteranceRootMenu
 
 #include "cppspec.hpp"
 
+#include <algorithm>
+#include <iterator>
 #include <set>
 #include <span>
 #include <string>
@@ -73,19 +58,12 @@ using deluge::scenes::menu::ValueTextUse;
 using deluge::scenes::spec::FakeNoteBridge;
 using deluge::scenes::spec::FakeNoteBridgeGuard;
 using String = deluge::l10n::String;
-namespace legacy = deluge::gui::menu_item;
 
 namespace {
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 }
-
-/// @brief `Submenu::items` is protected with no public accessor; only `HorizontalMenu` exposes
-///        `getItems()`. Reads it the same way `tables_2_spec.cpp`/`tables_3_spec.cpp` do.
-struct SubmenuPeek : legacy::Submenu {
-	static const deluge::vector<::MenuItem*>& items_of(legacy::Submenu& menu) { return menu.*(&SubmenuPeek::items); }
-};
 
 std::string drain_last_notice() {
 	deluge::notify::Notice n;
@@ -463,28 +441,24 @@ describe note_nodes_select_chain("scenes::menu note editor/note-row editor: the 
 	});
 });
 
-describe note_nodes_shape("scenes::menu note editor/note-row editor: shape against the live legacy objects", $ {
-	it("gives note_editor_root legacy's own four children, in the horizontal menu itself", _ {
-		expect(noteEditorRootMenu.getItems().size()).to_equal(size_t(4));
+describe note_nodes_shape("scenes::menu note editor/note-row editor: shape, as main's note editors have it", $ {
+	it("gives note_editor_root main's four children, in the horizontal menu itself", _ {
 		expect(nodes::note_editor_root.children.size()).to_equal(size_t(4));
 		expect(nodes::note_editor_root.layout == menu::Layout::Horizontal).to_be_true();
 	});
 
-	it("gives note_row_editor_root legacy's own four children, sequence direction first", _ {
-		expect(noteRowEditorRootMenu.getItems().size()).to_equal(size_t(4));
+	it("gives note_row_editor_root main's four children, sequence direction first", _ {
 		expect(nodes::note_row_editor_root.children.size()).to_equal(size_t(4));
 		expect(nodes::note_row_editor_root.children[0] == &nodes::sequence_direction).to_be_true();
 		expect(nodes::note_row_editor_root.layout == menu::Layout::Horizontal).to_be_true();
 	});
 
-	it("gives note_custom_iterance_root legacy's own nine children (divisor + 8 steps)", _ {
-		expect(SubmenuPeek::items_of(noteCustomIteranceRootMenu).size()).to_equal(size_t(9));
+	it("gives note_custom_iterance_root main's nine children (divisor + 8 steps)", _ {
 		expect(nodes::note_custom_iterance_root.children.size()).to_equal(size_t(9));
 		expect(nodes::note_custom_iterance_root.layout == menu::Layout::Vertical).to_be_true();
 	});
 
-	it("gives note_row_custom_iterance_root legacy's own nine children (divisor + 8 steps)", _ {
-		expect(SubmenuPeek::items_of(noteRowCustomIteranceRootMenu).size()).to_equal(size_t(9));
+	it("gives note_row_custom_iterance_root main's nine children (divisor + 8 steps)", _ {
 		expect(nodes::note_row_custom_iterance_root.children.size()).to_equal(size_t(9));
 		expect(nodes::note_row_custom_iterance_root.layout == menu::Layout::Vertical).to_be_true();
 	});
@@ -521,7 +495,7 @@ describe note_nodes_validation("scenes::menu note editor/note-row editor: valida
 		const menu::MenuContext ctx =
 		    menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false, false);
 		const menu::MenuContext contexts[] = {ctx};
-		const auto issues = menu::validate_tree(nodes::kAllRoots, contexts, nodes::kRangeDependentNodes,
+		const auto issues = menu::validate_tree(nodes::kAllRoots, contexts, nodes::kRangeSpecificNodes,
 		                                        nodes::kHalfPrecisionNodes, menu::ValidateOptions{});
 		const std::set<const Node*> ours = {
 		    &nodes::note_editor_root,

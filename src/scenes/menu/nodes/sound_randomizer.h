@@ -45,8 +45,8 @@
 ///
 /// @note **The `midi_cv` items use the *unsigned* value scaling** --
 ///       `computeCurrentValueForUnsignedMenuItem` / `computeFinalValueForUnsignedMenuItem`
-///       (`gui/menu_item/value_scaling.cpp`) -- because the `ArpeggiatorSettings`
-///       fields they read are `uint32_t` (`modulation/arpeggiator.h:142-150`). That is a *third*
+///       (`util/value_scaling.cpp`) -- because the `ArpeggiatorSettings`
+///       fields they read are `uint32_t` (`modulation/arpeggiator.h`). That is a *third*
 ///       scaling, distinct from `Scaling::Standard` and `Scaling::HalfPrecision`, but it is not a
 ///       new `Scaling` enumerator: `Scaling` only ever applies to a `ParamRef` binding
 ///       (`node.h`'s doc), and none of these is one. The hooks call
@@ -81,12 +81,15 @@ namespace deluge::scenes::menu::nodes {
 	    with_title(setting_item(sid(deluge::l10n::String::name_id), Kind::Int, arp_row(path, false), hint),            \
 	               sid(deluge::l10n::String::title_id)))
 
-/// @brief One sound-side randomizer column: an unpatched `ParamRef`.
+/// @brief One sound-side randomizer column: an unpatched `ParamRef`, never with a MIDI or gate drum selected, which
+///        the kit's own effects keep selected (`RandomizerUnpatchedParam::isRelevant`'s `editingNonAudioDrumRow()`).
 #define DELUGE_RANDOMIZER_PARAM(node_name, name_id, title_id, param_id, rel, hint)                                     \
-	inline constexpr Node node_name = with_short_column_label(                                                         \
-	    param(sid(deluge::l10n::String::name_id),                                                                      \
-	          {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::param_id}, hint, rel,    \
-	          sid(deluge::l10n::String::title_id)))
+	inline constexpr Node node_name =                                                                                  \
+	    with_relevant(with_short_column_label(param(                                                                   \
+	                      sid(deluge::l10n::String::name_id),                                                          \
+	                      {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::param_id},   \
+	                      hint, rel, sid(deluge::l10n::String::title_id))),                                            \
+	                  relevance::not_non_audio_drum_row)
 
 inline constexpr Node randomizer_lock =
     with_affect_entire(with_column_art(with_short_column_label(with_flips_in_list(with_selection_is_toggle(with_title(
@@ -108,8 +111,13 @@ DELUGE_RANDOMIZER_PARAM(spread_octave, STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_
 DELUGE_RANDOMIZER_MIDI(spread_octave_midi, STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE,
                        "arpeggiator/spreadOctave", Hint::Bar);
 
-DELUGE_RANDOMIZER_PARAM(spread_velocity, STRING_FOR_SPREAD_VELOCITY, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE,
-                        UNPATCHED_SPREAD_VELOCITY, ParamShows{}, Hint::Bar);
+/// A global id, so with the arp off too; not on a MIDI or gate drum row, which the kit's own effects keep selected.
+inline constexpr Node spread_velocity = with_relevant(
+    with_short_column_label(param(
+        sid(deluge::l10n::String::STRING_FOR_SPREAD_VELOCITY),
+        {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_SPREAD_VELOCITY},
+        Hint::Bar, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_SPREAD_VELOCITY_MENU_TITLE))),
+    relevance::not_non_audio_drum_row);
 DELUGE_RANDOMIZER_MIDI(spread_velocity_midi, STRING_FOR_SPREAD_VELOCITY, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE,
                        "arpeggiator/spreadVelocity", Hint::Bar);
 

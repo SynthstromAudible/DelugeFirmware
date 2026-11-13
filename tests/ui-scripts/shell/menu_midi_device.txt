@@ -34,11 +34,9 @@
 700   button SelectEnc down
 720   button SelectEnc up
 740   snapshot after_channels_press  # the member-channel count for out/upper: 15-15 = 0, drawn OFF
-# `int_value` edits with the select turn (`ui/oled/values.cpp`'s `select_delta`). A gold knob is
-# `EncoderKind::Accelerating` and swallows its first turn after `LoweringConfig::short_press_ms`
-# (500 ms) of stillness -- the wiggle debounce, `InputLowering::action_gold_turn`; the select encoder
-# is not `Accelerating` and has no such debounce, so both turns below act: two edits of `+2` each.
-800   encoder Select +2              # 0 -> 2: the select encoder has no wiggle debounce to swallow it
+# `int_value` edits with the select turn (`ui/oled/values.cpp`'s `select_delta`): both turns below act, two
+# edits of `+2` each.
+800   encoder Select +2              # 0 -> 2
 820   encoder Select +2              # 2 -> 4
 840   snapshot after_select_edit     # `int_value` owns the select encoder: 0 -> 4, both turns count
 900   button Back down

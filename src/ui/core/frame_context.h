@@ -302,6 +302,13 @@ struct FrameInput {
 		set_claim(mask.turn, &InputClaims::turn);
 		return mask.turn ? ctx.input.turn : int8_t{0};
 	}
+	/// @brief This tick's Select-encoder turns, each with the time the board decoded it (`InputSnapshot::turns`).
+	/// @note Claims as `turn()` does.
+	/// @return The turns, or none if this frame's mask does not grant `turn`.
+	std::span<const TimedTurn> turns() const {
+		set_claim(mask.turn, &InputClaims::turn);
+		return mask.turn ? ctx.input.turns : std::span<const TimedTurn>{};
+	}
 	/// @brief This tick's gold-encoder detent count for knob \p i.
 	///
 	/// @note \p i is 0 (GoldUpper, coarse) or 1 (GoldLower, fine); anything else reads 0 and claims

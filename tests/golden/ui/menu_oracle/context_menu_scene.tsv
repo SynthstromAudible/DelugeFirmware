@@ -1,0 +1,26 @@
+# Reference answers of upstream main's menu, one row per answer: path, column, values (tab-separated).
+# A row changes only to follow main's source (git show origin/main:<path>); tests/golden/README.md says how.
+reset/flash	midi_thru	0
+reset/flash	analog_in_ppqn	24
+reset/flash	use_sharps	1
+reset/flash	follow_root_note	99
+reset/flash	follow_display_param	1
+reset/flash	drum_randomizer	0
+reset/midi_follow	midi_thru	1
+reset/midi_follow	analog_in_ppqn	99
+reset/midi_follow	use_sharps	0
+reset/midi_follow	follow_root_note	36
+reset/midi_follow	follow_display_param	0
+reset/midi_follow	drum_randomizer	0
+reset/community_features	midi_thru	1
+reset/community_features	analog_in_ppqn	99
+reset/community_features	use_sharps	0
+reset/community_features	follow_root_note	99
+reset/community_features	follow_display_param	1
+reset/community_features	drum_randomizer	1
+reset/midi_devices	midi_thru	1
+reset/midi_devices	analog_in_ppqn	99
+reset/midi_devices	use_sharps	0
+reset/midi_devices	follow_root_note	99
+reset/midi_devices	follow_display_param	1
+reset/midi_devices	drum_randomizer	0

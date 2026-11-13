@@ -19,6 +19,7 @@
 #include "gui/ui/shell_slice_ops.h"
 #include "gui/ui/ui.h"
 
+#include "foundation/panic.h" // FREEZE_WITH_ERROR
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_automation_glue.h"
 #include "gui/ui/shell_choice_dispatch.h"
@@ -30,14 +31,18 @@
 #include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/display/oled.h"
+#include "hid/encoder_input.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "libdeluge/scheduler.h" // getSystemTime()
 #include "model/settings/runtime_feature_settings.h"
 #include "notify/notice_queue.h"
 #include "processing/engines/audio_engine.h" // audioSampleTimer
+#include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/marker/marker_scene.h"
+#include "scenes/menu/menu_scene.h"
 #include "scenes/profile.h"
+#include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
 #include "shell/profiles/deluge.h"
 #include "storage/flash_storage.h"
@@ -178,7 +183,7 @@ bool ShellHostUI::opened() {
 	// to check where the boundary is.
 	wireShellGuestServices();
 
-	// `SoundEditor::opened` asks for the root's pads (`gui/ui/sound_editor.cpp:498`): while the guest
+	// `SoundEditor::opened` asks for the root's pads: while the guest
 	// owns none they are the UI underneath's, greyed by the mask `openUI` read before the scene was
 	// on the stack -- so the greyout is read again now.
 	using deluge::ui::shell::PadRegions;
@@ -275,6 +280,12 @@ bool ShellHostUI::canSeeViewUnderneath() {
 	// (`gui/ui/sound_editor.h`) and `MenuScene::occludes_grid` is false
 	// (`scenes/menu/menu_scene.h`). Mapping it to `oled_transparent(Main)` would have made
 	// it false and frozen the clip view's playhead under an open menu.
+	// The recorder is a plain `UI` in main, whose `canSeeViewUnderneath` is false: the root's animation stops for the
+	// take.
+	if (shell_.stack().has_input_scene()
+	    && shell_.stack().input_top().kind() == deluge::scenes::recorder::kRecorderSceneKind) {
+		return false;
+	}
 	return !shell_.stack().top().occludes_grid();
 }
 
@@ -570,11 +581,10 @@ ActionResult ShellHostUI::timerCallback() {
 	// legacy closes this UI when it happens**: `close()` lived only on `exitUI`'s path.
 	//
 	// What that left is precisely the state `opened()` refuses to create -- "An empty guest is worse
-	// than no guest: it would swallow every pad while drawing nothing" (`ShellHostUI::opened`). With ShellMenu on,
+	// than no guest: it would swallow every pad while drawing nothing" (`ShellHostUI::opened`).
 	// Back from the ported menu's root left `shellHostUI` current with an empty stack, `renderOLED` painting nothing
-	// over legacy's cleared frame, and every later button (Session, Select) swallowed. The ShellMenu-off leg of the
-	// same script exited to the clip view. So the close belongs on both paths, and this is the one that carries the
-	// short press.
+	// over legacy's cleared frame, and every later button (Session, Select) swallowed. So the close belongs on both
+	// paths, and this is the one that carries the short press.
 	//
 	// **After the tick, not before**: the tick is what routes the Back and applies the `Remove`
 	// (`Shell::tick`), so the stack cannot be seen empty until it has run. And **before
@@ -619,10 +629,10 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 	// `closeGuest()` as an implementation for it (`gui/ui/shell_action_dispatch.cpp`). The path none
 	// of the three covers: **three of the `MenuAction` arms end in `openUI(...)`** --
 	// `openPerformanceView` and the two context menus (`OpenSongMidiLearn`, `OpenSongMacros`) --
-	// while `SetShortcutsVersion` and `ScreensaverSettingsChanged` open nothing. And legacy's own `NO_NAVIGATION`
-	// semantics mean the ported menu correctly stays on the shell stack when they do. So `timerCallback`'s
-	// no-input-scene close does not fire, control reaches the `rearmTimer` below, and the UI that has just been opened
-	// over the guest gets the timer.
+	// while the settings writes (`ScreensaverSettingsChanged` and its siblings) open nothing. And legacy's own
+	// `NO_NAVIGATION` semantics mean the ported menu correctly stays on the shell stack when they do. So
+	// `timerCallback`'s no-input-scene close does not fire, control reaches the `rearmTimer` below, and the UI that has
+	// just been opened over the guest gets the timer.
 	//
 	// **The guard is on `getCurrentUI()`, not on that list**, so it does not go stale when the list
 	// does -- which matters, because the `take_choice` dispatcher shares the same drain.
@@ -631,7 +641,7 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 	// `return DEALT_WITH` (`gui/ui/ui.h`) and no `gui/context_menu/` class overrides it, so for
 	// those two it is inert. `PerformanceView::timerCallback` is not inert: it forwards into
 	// `sessionView.timerCallback()` or `arrangerView.timerCallback()`
-	// (`PerformanceView::timerCallback`). ShellMenu-on only, and not a wedge -- but a
+	// (`PerformanceView::timerCallback`). Not a wedge -- but a
 	// `timerCallback` legacy never delivers.
 	//
 	// **Returning early cannot strand the guest, and that is by construction rather than by luck.**
@@ -761,11 +771,11 @@ void ShellHostUI::feedPad(uint8_t x, uint8_t y, int32_t velocity, bool shortcutW
 	shell_.on_host_pad(x, y, static_cast<uint8_t>(velocity), shortcutWithoutShift, nowMs());
 }
 
-void ShellHostUI::feedDetents(EncoderRole role, int32_t detents) {
+void ShellHostUI::feedDetents(EncoderRole role, int32_t detents, uint64_t time_us) {
 	if (detents == 0) {
-		// `interpretEncoders` only calls a hook when `fe.pending()` (`hid/encoder_input.cpp:109`),
-		// so a zero is not something legacy produces -- but `selectEncoderAction` is also reachable
-		// from the SD test mode (`:83`) and from anything else that decides to drive a UI directly,
+		// `interpretEncoders` (`hid/encoder_input.cpp`) only calls a hook when `fe.pending()`, so a zero is
+		// not something legacy produces -- but `selectEncoderAction` is also reachable from its SD test
+		// mode (`SD_TEST_MODE_ENABLED`) and from anything else that decides to drive a UI directly,
 		// and a zero-edge feed would still set `had_input_this_tick` and wake the repaint gate.
 		return;
 	}
@@ -779,7 +789,7 @@ void ShellHostUI::feedDetents(EncoderRole role, int32_t detents) {
 		if (byIndex[i] != role) {
 			continue;
 		}
-		shell_.on_encoder_edges(static_cast<uint8_t>(i), edges, nowMs());
+		shell_.on_encoder_edges(static_cast<uint8_t>(i), edges, nowMs(), time_us);
 		return;
 	}
 	// A profile with no encoder in that role. Dropped rather than guessed at, the same way
@@ -1014,6 +1024,11 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on) {
 		return ActionResult::DEALT_WITH;
 	}
 
+	// The recorder hands a SYNC_SCALING release to the root view while fill mode is on, and answers as the view does.
+	if (recorderPassesFillRelease(b, on)) {
+		return rootViewButtonAction(b, on);
+	}
+
 	// **`NOT_DEALT_WITH`, and it is load-bearing three times over.** It is what `SoundEditor`
 	// returns for every button with an observable consequence in `Buttons::buttonAction`'s tail:
 	// its `if`/`else if` chain has no arm for Play, Shift, Record, Tempo-enc or either mod-encoder
@@ -1145,7 +1160,7 @@ void ShellHostUI::selectEncoderAction(int8_t offset) {
 	// (`MenuScene::learn_mode`). The press's gate, a different test, is the menu's (`MenuScene::set_host_mode_gates`).
 	// Only the menu is a sound editor screen; a scene it opened takes its turns as before.
 	const deluge::ui::shell::Scene& top = shell_.stack().input_top();
-	if (top.kind() == deluge::ui::shell::SceneKind::FirstApp
+	if (top.kind() == deluge::scenes::menu::kMenuSceneKind
 	    && (!isUIModeWithinRange(selectEncoderUIModes) || shellMenuLearnMode())) {
 		return;
 	}
@@ -1153,8 +1168,9 @@ void ShellHostUI::selectEncoderAction(int8_t offset) {
 	// (`UI::selectEncoderAction`), so unlike the other two this hook has no way to say
 	// "not now" even in legacy. The offset arrives already saturated to `int8_t`
 	// (`hid/encoder_input.cpp`), so `feedDetents`'s clamp can only bite on
-	// the outer 64 values of that range.
-	feedDetents(EncoderRole::Select, offset);
+	// the outer 64 values of that range. The turn carries when the board decoded it, which a horizontal page's
+	// acceleration is timed on.
+	feedDetents(EncoderRole::Select, offset, deluge::hid::encoders::selectTurnTimeUs());
 	armTickSoon();
 }
 
@@ -1166,7 +1182,41 @@ void ShellHostUI::tickShell(uint32_t now) {
 	shell_.set_screensaver_inhibit(legacyInhibitsScreensaver());
 	shell_.set_acceleration_clock_ms(accelerationClockMs());
 	shell_.set_owns_notices(getCurrentUI() == this);
+	const bool outer = std::exchange(ticking_, true);
 	shell_.tick(now);
+	ticking_ = outer;
+}
+
+void ShellHostUI::uisTakenDown() {
+	// Never from inside the guest's tick, which would have its stack reset under it.
+	if (ticking_) {
+		FREEZE_WITH_ERROR("SHT1");
+		return; // reached only on a host whose display does not freeze
+	}
+	// At once: both takers-down (`LoadSongUI`'s load job and `ClearSong`'s accept) run outside the guest's tick, and
+	// a guest no longer open is never ticked again to do it later.
+	//
+	// The slicer's held audition names a row of the outgoing song's kit, and the drum creator's drum is in it: both are
+	// dropped whether the guest is up or not (a close has already dropped them). A slice out cannot be dropped, which
+	// is why a MIDI next-song waits for it (`PlaybackHandler::tryGlobalMIDICommands`).
+	releaseShellSlicerBeforeClose();
+	forgetShellDrumCreator();
+	// The menu's context outlives the guest (its close paths read the root), so it names the outgoing song whether the
+	// guest is up or not.
+	forgetShellMenuContext();
+	if (!isUIOpen(this)) {
+		return;
+	}
+	// The recorder's take ends with no `ClearWorking`: the legacy display, which shows notices once the guest is gone,
+	// would take the taker-down's own animation down with it. The shell's animation goes here instead.
+	endShellRecorderTakeForTeardown();
+	shell_.stack().reset();
+	shell_.notices().disarm_working();
+	shell_.discard_pending_input();
+	padsOwned_ = deluge::ui::shell::PadRegions::None;
+	padsAnswered_ = deluge::ui::shell::PadRegions::None;
+	visitWithoutEditor_ = false;
+	refreshShellSamplePreviewSounds();
 }
 
 void ShellHostUI::flushPendingInput() {
@@ -1223,7 +1273,7 @@ ActionResult ShellHostUI::exitUI() {
 	//     question asked, however honest it is about the press.
 	//   * Every legacy implementation that closes itself answers `ACTIONED_AND_CAUSED_CHANGE`,
 	//     including the tenant this guest stands in for: `SoundEditor::exitUI` is `exitCompletely()`
-	//     (`gui/ui/sound_editor.h`), whose last line is that value. With ShellMenu on, the guest
+	//     (`gui/ui/sound_editor.h`), whose last line is that value. The guest
 	//     does what `SoundEditor` does.
 	//   * It is provably safe: the two readers above are the only ones, one tests a different
 	//     value and the other cannot run.
@@ -1260,6 +1310,11 @@ ActionResult ShellHostUI::exitUI() {
 	// A turn or press fed since the last tick is the scene's that is up now, as legacy gives it to the current UI at
 	// once; a BACK among them may leave nothing for this exit to remove.
 	flushPendingInput();
+	// No context menu overrides `exitUI` in main: `UI::exitUI` does nothing, so a long BACK leaves the menu up.
+	if (shell_.stack().has_input_scene()
+	    && shell_.stack().input_top().kind() == deluge::scenes::context_menu::kContextMenuSceneKind) {
+		return ActionResult::DEALT_WITH;
+	}
 	if (shell_.stack().has_input_scene()) {
 		(void)shell_.stack().remove(shell_.stack().input_top().kind());
 	}
@@ -1364,10 +1419,10 @@ void ShellHostUI::closeGuest() {
 	close();
 
 	// `exitCompletely`'s last statement, after its `close()`: the modes the menu was left under end with it (a held
-	// AFFECT ENTIRE, the audition the note-row editor keeps, a browser scroll). Two cases keep legacy's value instead.
-	// A stem export a menu item started has engaged its own mode before this close, where legacy resets first and
-	// engages after, so that mode is what is left. A visit legacy runs with no editor open (`markVisitWithoutEditor`)
-	// ends as the legacy browser's and recorder's exits do, with the mode untouched.
+	// AFFECT ENTIRE, the audition the note-row editor keeps, a browser scroll). Two cases keep `main`'s value instead.
+	// A stem export a menu item started has engaged its own mode before this close, where `main` resets first and
+	// engages after, so that mode is what is left. A visit `main` runs with no editor open (`markVisitWithoutEditor`)
+	// ends as `main`'s browser's and recorder's exits do, with the mode untouched.
 	if (!std::exchange(visitWithoutEditor_, false)) {
 		currentUIMode =
 		    (currentUIMode & EXCLUSIVE_UI_MODES_MASK) == UI_MODE_STEM_EXPORT ? UI_MODE_STEM_EXPORT : UI_MODE_NONE;

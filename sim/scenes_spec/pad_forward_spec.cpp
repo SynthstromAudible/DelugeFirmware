@@ -24,8 +24,7 @@
 /// `toggleNoteEditorParamMenu` in `gui/views/instrument_clip_view.cpp` -- are gated on the ported
 /// note mode, and `note_mode_reads_spec.cpp` runs them.)
 ///
-/// What this deliberately does not cover: the tail's firmware-version diagnostics, out of scope for
-/// this switch -- `shell_pad_forward.h`'s own note says why. And nothing here asks
+/// Nothing here asks
 /// `Scene::grid_pad_claim()`: that question is asked by this function's caller, before `forwardGridPad` is ever
 /// reached.
 
@@ -54,8 +53,12 @@
 #include "model/edits/setting_edit.h"
 #include "processing/sound/sound_instrument.h"
 
+#include "extern.h" // picFirmwareVersion
+#include "memory/heaps.h"
 #include "modulation/params/param.h" // params::Kind, LOCAL_LPF_FREQ, UNPATCHED_BASS -- the param nodes
 #include "notify/dirty_set.h"
+#include "notify/notice_queue.h"
+#include "processing/engines/audio_engine.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/marker/marker_scene.h"
 #include "scenes/menu/bindings.h"
@@ -93,7 +96,6 @@ using deluge::scenes::spec::GlobalGuestGuard;
 using deluge::scenes::spec::open_menu_on_global_guest_at;
 using deluge::scenes::spec::open_shortcut_over;
 using deluge::scenes::spec::open_shortcut_over_automation;
-using deluge::scenes::spec::ShellMenuOn;
 using deluge::scenes::spec::ShiftHeld;
 using deluge::scenes::spec::UiStackGuard;
 
@@ -311,27 +313,51 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		currentUIMode = UI_MODE_NONE;
 	});
 
-	it("does not exit on the three firmware-version diagnostic pads", _ {
-		// `sound_editor.cpp:1521-1543`: while `&firmwareVersionMenu` is open, `y == 7` and `x` in
-		// {13, 14, 15} return `DEALT_WITH` **without** falling to `exitCompletely()` -- the popups
-		// themselves stay unported (`shell_pad_forward.h`'s own note), but the "menu stays open"
-		// half is legacy's own behaviour and is what this pins. `open_menu_node` focuses the ported
-		// menu on `nodes::firmware_version` directly, the same shape the automation examples above
-		// use for their own node.
+	it("answers the three firmware-version diagnostic pads with their popups, and does not exit", _ {
+		// `SoundEditor::padAction`'s tail (`origin/main:src/deluge/gui/ui/sound_editor.cpp`): while `&firmwareVersionMenu`
+		// is open, `y == 7` and `x` in {13, 14, 15} pop up the PIC version, the voice count and the internal memory, and
+		// return `DEALT_WITH` without falling to `exitCompletely()`.
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
 		open_menu_node(*fx.song, fx.clip, nodes::firmware_version);
 		setRootUILowLevel(&sessionView); // any root with no matching forwarding arm
 		currentUIMode = UI_MODE_NONE;
 
-		expect(deluge::gui::ui::forwardGridPad(15, 7, 64)).to_equal(PadForwardTarget::None); // SRAM
-		expect(deluge::gui::ui::forwardGridPad(14, 7, 64)).to_equal(PadForwardTarget::None); // voices
-		expect(deluge::gui::ui::forwardGridPad(13, 7, 64)).to_equal(PadForwardTarget::None); // PIC ver
+		expect(deluge::gui::ui::forwardGridPad(15, 7, 64)).to_equal(PadForwardTarget::FirmwareDiagnostic); // SRAM
+		expect(deluge::gui::ui::forwardGridPad(14, 7, 64)).to_equal(PadForwardTarget::FirmwareDiagnostic); // voices
+		expect(deluge::gui::ui::forwardGridPad(13, 7, 64)).to_equal(PadForwardTarget::FirmwareDiagnostic); // PIC
+		// A release is not a press: swallowed.
+		expect(deluge::gui::ui::forwardGridPad(14, 7, 0)).to_equal(PadForwardTarget::None);
 
 		// Control: a pad this carve-out does not name, on the same open menu, still exits -- the
 		// clause is additive, not a blanket "firmware-version menu never exits".
 		expect(deluge::gui::ui::forwardGridPad(12, 7, 64)).to_equal(PadForwardTarget::Exit);
 		expect(deluge::gui::ui::forwardGridPad(15, 6, 64)).to_equal(PadForwardTarget::Exit);
+	});
+
+	it("pops up the diagnostic each pad names, as main's displayPopup of the number", _ {
+		deluge::gui::ui::setPadForwardPerform(nullptr);
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		open_menu_node(*fx.song, fx.clip, nodes::firmware_version);
+		setRootUILowLevel(&sessionView);
+		currentUIMode = UI_MODE_NONE;
+		const auto popped = [](int32_t x) {
+			deluge::notify::Notice n;
+			while (deluge::notify::notices().pop(n)) {} // what was queued before
+			(void)deluge::gui::ui::forwardGridPad(x, 7, 64);
+			std::string text;
+			while (deluge::notify::notices().pop(n)) {
+				if (n.kind == deluge::notify::Notice::Kind::Text) {
+					text = n.text;
+				}
+			}
+			return text;
+		};
+		expect(popped(15)).to_equal(std::to_string(deluge::memory::sram_size()));
+		expect(popped(14)).to_equal(std::to_string(AudioEngine::getNumVoices() + AudioEngine::getNumAudio()));
+		expect(popped(13)).to_equal(std::to_string(picFirmwareVersion));
+		expect(deluge::scenes::menu_scene().focused() == &nodes::firmware_version).to_be_true();
 	});
 
 	it("does exit on the same three pads when a different node is focused", _ {
@@ -550,7 +576,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	it("sends a main-grid pad to automation view from a horizontal page whose focused column is the view's param", _ {
 		// `SoundEditor::isEditingAutomationViewParam` asks `getCurrentMenuItem()->getParamKind()`, which on a
 		// horizontal page answers for its focused column (`Submenu::getParamKind`).
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -566,7 +591,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	it("sends a main-grid pad to automation view from the page of the cable the view shows", _ {
 		// A cable's param kind is `PATCH_CABLE` and its id the cable's descriptor word
 		// (`PatchCableStrength::getModelStack`), as the automation view records a selected cable.
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -580,7 +604,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("falls through to the tail from a cable page when the view shows another cable", _ {
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -597,7 +620,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		// `SoundEditor::potentialShortcutPadAction` exempts the interpolation and pad-selection pads from the
 		// shortcuts when the root is the automation view; on the view's param they reach `padAction`
 		// (`AutomationView::shortcutPadAction` toggles them).
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -617,7 +639,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 
 	it("closes the menu on Shift + (0,6) over the automation view off its param", _ {
 		// Legacy's own outcome: the pad is no shortcut there, and `padAction`'s tail closes the menu.
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -632,7 +653,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("still claims Shift + (0,6) as a shortcut over any other root", _ {
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -659,7 +679,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	it("takes SAVE under the menu as the sound editor's arm: Shift deletes the picker's range, a plain press saves", _ {
 		// `SoundEditor::buttonAction`'s SAVE arm (`sound_editor.cpp:719-730`), through the guest's
 		// `forwardMenuSaveButton`: only with no UI mode up and an instrument clip's view at the root.
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -696,7 +715,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 
 	it("swaps the clip view and the keyboard screen under the menu on KEYBOARD, and lights KEYBOARD", _ {
 		// `SoundEditor::buttonAction`'s KEYBOARD arm: on a press with no UI mode, over an instrument clip's view.
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -716,7 +734,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("takes KEYBOARD from the keyboard screen back to the automation view when the clip was on it", _ {
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -729,7 +746,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("swallows KEYBOARD under the menu with a UI mode up, and leaves the root", _ {
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -742,7 +758,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 
 	it("leaves the menu for the session view on SESSION, or for the arranger when a clip instance was entered", _ {
 		// `SoundEditor::buttonAction`'s SESSION_VIEW arm: `exitCompletely()`, then `changeRootUI`.
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -764,7 +779,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("refuses SESSION with a UI mode up, except the note-row editor's own audition", _ {
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -788,7 +802,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("holds fill on SYNC-SCALING under the menu when its action is Fill, on the press and the release", _ {
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -813,7 +826,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	it("leaves KEYBOARD, SESSION and SYNC-SCALING to a scene over the menu", _ {
 		// Legacy's arms are `SoundEditor`'s, reached only while it is the current UI: under a browser it opened they
 		// are the browser's. With nothing taking input but the menu, `menuTakesInput` is what is false here.
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -848,7 +860,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("claims an audition-held main-grid press over the clip view, and the menu jumps on it", _ {
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -864,7 +875,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("swallows a shift-held main-grid press under the menu while notes are pressed", _ {
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -884,7 +894,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 
 	it("opens the note-row editor on PLAY DIRECTION from the open menu on audition + the sequence-direction pad", _ {
 		// `potentialShortcutPadAction`'s special case: an instrument clip, OLED, HorizontalMenus on, one row auditioning.
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -906,7 +915,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("jumps rather than entering the note-row editor when two rows audition", _ {
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -926,7 +934,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("keeps the kit's selected drum while the ported menu is current, as while the sound editor is", _ {
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_kit_song();
@@ -966,7 +973,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("keeps the kit's selected drum while the ported drum rename is over the menu, and not under a clip rename", _ {
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_kit_song();
@@ -997,7 +1003,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	it("on a kit row's item that uses it, AFFECT ENTIRE holds; elsewhere it toggles the clip's affect-entire", _ {
 		// `SoundEditor::buttonAction`'s AFFECT_ENTIRE arm: the hold mode on `editingKitRow() && usesAffectEntire()`,
 		// otherwise `instrumentClipView.InstrumentClipMinder::buttonAction`.
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_kit_song();
@@ -1040,7 +1045,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	it("re-renders the clip view's sidebar on every screen change, as beginScreen does", _ {
 		// `SoundEditor::beginScreen` -> `possibleChangeToCurrentRangeDisplay`: the sidebar redraws on each new screen,
 		// which is when a kit's selected-drum pad goes dark under affect-entire (`drawAuditionSquare`).
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -1060,7 +1064,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		// `InstrumentClipView::potentiallyUpdateMultiRangeMenu` -> `noteOnToChangeRange`, `drawAuditionSquare`'s
 		// selecting-ranges test (`isUntransposedNoteWithinRange`), and `possibleChangeToCurrentRangeDisplay`, each
 		// asking the guest when the ported menu is up.
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
@@ -1102,6 +1105,22 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 			shellHostUI.shell().tick(1);
 			deluge::gui::ui::refreshShellRangeDisplay(); // and comes back
 			expect(whichSideRowsNeedRendering != 0).to_be_true();
+			// `MenuItem::isRangeDependent` is true for the transposes and the loop points only: the file selector
+			// and the recorder check the range on open but do not highlight it.
+			for (const Node* item : {&nodes::file0_selector, &nodes::sample0_recorder}) {
+				menu_scene().open(*item, ctx);
+				shellHostUI.shell().tick(1);
+				expect(deluge::gui::ui::rangeDependentMenuOpen()).to_be_false();
+			}
+			for (const Node* item : {&nodes::source0_transpose, &nodes::sample0_start, &nodes::sample0_end}) {
+				menu_scene().open(*item, ctx);
+				shellHostUI.shell().tick(1);
+				expect(deluge::gui::ui::rangeDependentMenuOpen()).to_be_true();
+			}
+			menu_scene().open(nodes::multi_range, ctx);
+			shellHostUI.shell().tick(1);
+			deluge::gui::ui::refreshShellRangeDisplay();
+			whichSideRowsNeedRendering = 0;
 		}
 		{
 			// A range deleted under the same index: the root re-renders, as `deletePress` has it do.
@@ -1174,7 +1193,6 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	it("selects a keyboard note's range under the picker and highlights the range on the isomorphic keyboard", _ {
 		// `KeyboardScreen::evaluateActiveNote`'s `noteOnToChangeRange` arm and `KeyboardLayoutIsomorphic::renderPads`'
 		// +35, each asking the guest when the ported menu is up over the keyboard.
-		ShellMenuOn on;
 		GlobalGuestGuard guest_guard;
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();

@@ -26,37 +26,19 @@
 /// legacy `ContextMenu` subclasses the port does not have, so even `pending_scene` could not
 /// spell them.
 ///
-/// ## The sixth item, which is a different shape
+/// ## The settings writes, which are a different shape
 ///
-/// `shortcuts_version` is **not** one of those five and must not be read as one. Its select press
-/// does nothing special: it is an ordinary `Kind::Enum` leaf, and legacy's own
-/// `menu_item::shortcuts::Version` is an ordinary `Selection` the user opens and edits in place.
-/// What crosses the wall is its **write**. `shortcuts::Version::writeCurrentValue`
-/// (`gui/menu_item/shortcuts/version.h:27`) is `soundEditor.setShortcutsVersion(this->getValue())`,
-/// and `SoundEditor::shortcutsVersion` is the byte `FlashStorage::writeSettings` stores at flash
-/// byte 60 (`storage/flash_storage.cpp:982`). The ported hook can reach neither symbol, so it
-/// writes only this layer's mirror (`menu::set_shortcuts_version`, `scenes/menu/shortcuts.h`), so without
-/// the action a layout chosen from the ported settings menu would be in force for the session and gone
-/// at the next power-on. `MenuAction::SetShortcutsVersion` is the legacy half of that write.
-///
-/// Two consequences follow from "a write, not a press", and both are load-bearing below:
-///
-///   * it is filed from a `Binding::set` hook, which is handed no `MenuState`
-///     (`SetFn`, `node.h`) -- hence `MenuScene::request_action`, whose own doc argues the timing;
-///   * it must **not** ascend the menu, because legacy stays on the item while the user turns the
-///     encoder. See the `switch` in `MenuScene::after_render` that decides that question.
-///
-/// ## The seventh, which is the sixth's shape again, twice over
-///
-/// `screensaver_mode` and `screensaver_timeout` are two more writes, not presses, and they share
-/// **one** enumerator. Legacy's `ScreensaverModeMenu::writeCurrentValue` and
+/// `screensaver_mode` and `screensaver_timeout` are writes, not presses, and they share
+/// **one** enumerator. Each is filed from a `Binding::set` hook, which is handed no `MenuState`
+/// (`SetFn`, `node.h`) -- hence `MenuScene::request_action`, whose own doc argues the timing -- and
+/// none ascends the menu, because the user stays on the item while turning the encoder (the `switch`
+/// in `MenuScene::after_render` decides that question). Legacy's `ScreensaverModeMenu::writeCurrentValue` and
 /// `ScreensaverTimeout::writeCurrentValue` (`gui/menu_item/defaults/screensaver.h:38-41`, `:60-63`)
 /// are each two statements: a `FlashStorage` assignment, and
 /// `hid::display::Screensaver::settingsChanged()`. The port already makes the assignment -- the two
 /// hooks write `FlashStorage::screensaverMode` and `screensaverTimeoutMinutes` themselves
-/// (the screensaver setters in `nodes/settings.cpp`), so **these settings persist**, which is the one
-/// way this differs from `shortcuts_version`. What the hooks cannot do is the second statement:
-/// `settingsChanged()` is `hid/`, which `src/scenes` may not include. Without the action both
+/// (the screensaver setters in `nodes/settings.cpp`), so **these settings persist**. What the hooks cannot do is the
+/// second statement: `settingsChanged()` is `hid/`, which `src/scenes` may not include. Without the action both
 /// screensavers would keep their old timings until the next boot or the next edit made from the
 /// legacy menu.
 ///
@@ -70,9 +52,9 @@
 /// The verb counterpart of the noun that already works:
 ///
 ///   1. `MenuAction` -- a closed enum of the actions a menu item may request.
-///   2. `MenuActionRequest` -- that enumerator plus one `uint16_t` payload, for the two actions
-///      whose meaning is not fixed by their identity (`OpenPerformanceView` carries which editing
-///      mode; `SetShortcutsVersion` carries which layout).
+///   2. `MenuActionRequest` -- that enumerator plus one `uint16_t` payload, for the action
+///      whose meaning is not fixed by its identity (`OpenPerformanceView` carries which editing
+///      mode).
 ///   3. `MenuWalkState::pending_action` -- the field an item writes, exactly as it writes
 ///      `pending_scene` (`menu_scene.h`); or, for a hook that is handed no state,
 ///      `MenuScene::request_action`, which writes that same field.
@@ -145,40 +127,13 @@ enum class MenuAction : uint8_t {
 	///        unused.
 	OpenSongMacros,
 
-	/// @brief `soundEditor.setShortcutsVersion(arg)` -- the legacy half of the ported
-	///        `shortcuts_version` item's write. `arg` is the value the item was set to.
-	///
-	/// The dispatcher performs `shortcuts::Version::writeCurrentValue`'s one statement
-	/// (`gui/menu_item/shortcuts/version.h:27`) on the real `soundEditor`, which is the single writer covering all four
-	/// legacy paths that change this setting
-	/// (`SoundEditor::setShortcutsVersion`, `gui/ui/sound_editor.cpp:112-181`, the census in its own
-	/// comment). That is what puts the choice in flash byte 60
-	/// (`FlashStorage::writeSettings`, `storage/flash_storage.cpp:982`).
-	///
-	/// **`arg` is legacy's own unnormalised value, deliberately.** `writeCurrentValue` passes
-	/// `this->getValue()` straight through and lets `setShortcutsVersion`'s `switch` decide what a
-	/// value that is neither enumerator means ("Uses defaults", i.e. V3); the port passes the enum
-	/// index straight through for the same reason, so the two cannot disagree about the mapping
-	/// because neither of them applies one.
-	///
-	/// **This does not loop, and that is a design constraint rather than an observation.**
-	/// `SoundEditor::setShortcutsVersion` mirrors *into* this layer -- it calls
-	/// `menu::set_shortcuts_version` (`scenes/menu/shortcuts.h`). That callee is the
-	/// free function that assigns one file-scope `ShortcutsVersion` in `menu/shortcuts.cpp`; it is
-	/// **not** `nodes::set_shortcuts_version`, files no request and touches no `MenuState`. So the
-	/// round trip is exactly one lap: hook -> request -> dispatcher -> legacy write -> mirror write,
-	/// and it terminates there. Anything later that makes the *mirror* setter file a request would
-	/// close that loop, which is why the mirror setter must stay a plain assignment.
-	SetShortcutsVersion,
-
 	/// @brief `hid::display::Screensaver::settingsChanged()` -- the notify half of **both** ported
 	///        screensaver setters' writes. `arg` is unused.
 	///
 	/// The dispatcher performs the second statement of `ScreensaverModeMenu::writeCurrentValue` and
 	/// of `ScreensaverTimeout::writeCurrentValue` (`gui/menu_item/defaults/screensaver.h:40`, `:62`).
 	/// The first statement of each -- the `FlashStorage` assignment -- is already made by the ported
-	/// hook itself, so unlike `SetShortcutsVersion` **no value is lost at power-off**; all that is
-	/// needed is the immediate apply.
+	/// hook itself; all that is needed is the immediate apply.
 	///
 	/// **One call updates both screensavers, which is why one enumerator is enough.**
 	/// `Screensaver::settingsChanged()` (`hid/display/screensaver.cpp:200-241`) does three things:
@@ -214,7 +169,8 @@ enum class MenuAction : uint8_t {
 	/// `flash::Status::writeCurrentValue`'s `PadLEDs::clearTickSquares()` when the old value was the slow flash
 	/// (`flash/status.h:27-31`).
 	FlashStatusLeftSlow,
-	/// `Colour::writeCurrentValue`'s `renderingNeededRegardlessOfUI()` (`colour.h:44-47`).
+	/// `Colour::writeCurrentValue`'s `renderingNeededRegardlessOfUI()`
+	/// (`origin/main:src/deluge/gui/menu_item/colour.h`).
 	PadColoursChanged,
 
 	/// @brief The file selector opened: `FileSelector::beginSession` leaves the keyboard's audition mode
@@ -224,10 +180,9 @@ enum class MenuAction : uint8_t {
 	/// @}
 };
 
-/// @brief One request: which action, and the one payload word `OpenPerformanceView` and
-///        `SetShortcutsVersion` need.
+/// @brief One request: which action, and the one payload word `OpenPerformanceView` needs.
 ///
-/// A `uint16_t` rather than a variant because the payload is one small number in both cases, and
+/// A `uint16_t` rather than a variant because the payload is one small number, and
 /// because it is the same width `ui::shell::SceneId::arg` uses for the same job on the noun side.
 struct MenuActionRequest {
 	MenuAction action = MenuAction::None;
@@ -244,15 +199,13 @@ struct MenuActionRequest {
 /// (`gui/views/performance_view.h:112-113`), read and written from thirty-odd places inside that
 /// view. There is no bare-`extern` escape from a class member (the trick `settings.cpp` uses for
 /// `PadLEDs::flashCursor`), and unlike `Colour::value` these are not one setting byte that
-/// obviously belongs in `FlashStorage` -- they are that view's live mode. So the port owns a mirror,
-/// which is exactly the arrangement `menu::shortcuts_version()` already documents for
-/// `soundEditor.shortcutsVersion` (`scenes/menu/shortcuts.h`).
+/// obviously belongs in `FlashStorage` -- they are that view's live mode. So the port owns a mirror.
 ///
 /// **Who keeps the mirror in step.** The mirror is
 /// authoritative for what the menu *shows* and for what `MenuAction::OpenPerformanceView` carries.
 /// It is not authoritative for the view, so `set_performance_editing_mode()` has to be called at
-/// **every** site that moves those two bools. There are **five writers: four inside
-/// `PerformanceView`, plus legacy's own menu item.** The four are each a
+/// **every** site that moves those two bools. There are **four writers, all inside
+/// `PerformanceView`**, besides the ported item, which sets the mirror itself. The four are each a
 /// `syncEditingModeMirror(*this)` immediately below the write they answer, in
 /// `gui/views/performance_view.cpp`:
 ///
@@ -269,30 +222,14 @@ struct MenuActionRequest {
 ///      when the press entered editing mode and `PARAM` when it cycled within it, which is why the
 ///      call sits after **both** writes.
 ///
-/// The fifth is `EditingMode::selectButtonPress` itself
-/// (`gui/menu_item/performance_session_view/editing_mode.h:50-97`, the writes at `:56-57` and
-/// `:60-61`, the call at `:84`) -- **the legacy menu item this node ports**, and the only writer outside the view.
-///
-/// **Why the fifth is a sync site like the four.** "Behind the menu's
-/// back" reads like it excludes the menu's own item, but it does not. An exclusion holds only with
-/// **ShellMenu on**. With ShellMenu off, this item is the way into an editing mode from a menu
-/// (the `else` branch of `PerformanceView::buttonAction`'s SELECT_ENC arm), it writes both bools, and a mirror it
-/// does not maintain sits stale until ShellMenu is turned on -- at which point `PerformEditorItem`
-/// seeds its cursor from the rot (`PerformEditorItem::on_focus`). That is the same flip-on staleness
-/// that makes gating the other four calls a bug, so the same answer applies: the mirror is
-/// maintained by **every** writer, ShellMenu on and off alike, or it is not maintained at all. The call
-/// passes `currentMode` rather than re-deriving, because the branch above it set the bools *from*
-/// that value; and it sits after the `if`/`else` chain so the `DISABLED` arm -- which returns at
-/// `:52` without writing either bool -- does not reach it, matching what `PerformEditorItem` does.
-///
 /// **The writer set is now closed**, which is the claim that makes the rest true. Recipe, so it can
 /// be re-checked rather than believed: `grep -rn "defaultEditingMode\|editingParam" src sim` and
 /// keep the assignments. Nine are in `PerformanceView` (the four sites above, eight lines, plus the
-/// constructor); four are `EditingMode::selectButtonPress`'s two arms; two pairs are
+/// constructor); two pairs are
 /// the `OpenPerformanceView` arm of `gui/ui/shell_action_dispatch.cpp`, this seam's own arm, which runs *from* a mirror
 /// the node has already set. Nothing else in the tree writes either bool. Every one of those either syncs or is a pair
 /// that starts in agreement -- the constructor's `defaultEditingMode = false`
-/// (`gui/views/performance_view.cpp:239`) against this mirror's own `DISABLED` initialiser
+/// (`PerformanceView::PerformanceView`) against this mirror's own `DISABLED` initialiser
 /// (the mirror's initialiser in `menu/nodes/actions.cpp`). That constructor write is deliberately **not** a sync site:
 /// it runs at static init, the two already agree, and a call there would only add a dependency on two translation
 /// units' initialisation order. The reasoning is repeated at that line, so a reader who counts four calls against nine
@@ -301,21 +238,19 @@ struct MenuActionRequest {
 /// `PerformanceView::focusRegained` writes neither bool, so it is not a sync site; the one write
 /// near it is the constructor's.
 ///
-/// With all five the mirror and the view agree at every point the menu can observe, **ShellMenu on
-/// and off alike**. This is the single node excluded from the generic port-vs-legacy value
-/// comparison, for the same reason and with the same name as `shortcuts_version`.
+/// With all four the mirror and the view agree at every point the menu can observe. This is the single node excluded
+/// from the generic port-vs-legacy value comparison, for the same reason and with the same name as `shortcuts_version`.
 ///
-/// All five calls are **ungated**, in legacy files, whichever menu the Legacy Menu setting selects.
-/// `syncEditingModeMirror`'s own comment carries the argument at length; the short form is that they
-/// write one `static` inside `libdeluge_scenes`, read nothing, and cannot fail, so with ShellMenu
-/// off each is a store to a byte no one loads. Both files are in `LEGACY_PORT_SEAMS`
+/// All four calls are **ungated**, in `gui/views/performance_view.cpp`. `syncEditingModeMirror`'s own comment carries
+/// the argument at length; the short form is that they write one `static` inside `libdeluge_scenes`, read nothing, and
+/// cannot fail. The file is in `LEGACY_PORT_SEAMS`
 /// (`scripts/check_layer_rules.py`), which is where that kind of decision is recorded.
 ///
-/// @warning Nothing in this repository can check that list stays complete: a sixth writer, or a
+/// @warning Nothing in this repository can check that list stays complete: a fifth writer, or a
 ///          fifth caller added to `releaseViewOnExit`, would desync the mirror silently -- no
 ///          checker here is content-aware enough to see either. The examples in
 ///          `sim/scenes_spec/menu_actions_spec.cpp`'s `menu_action_perform_mirror` group pin all
-///          five sites and all four of that helper's callers, but they can only fail for a site
+///          four sites and all four of that helper's callers, but they can only fail for a site
 ///          that exists; they cannot notice a new one. The durable fix is to move the two bools out
 ///          of the view, which is a larger legacy change; until then this
 ///          comment is the contract.
@@ -324,9 +259,8 @@ struct MenuActionRequest {
 /// @brief What `EditingMode::readCurrentValue` would report.
 PerformanceEditingMode performance_editing_mode();
 
-/// @brief Set the mirror. Called by the ported item's own select press, by the four
-///        `syncEditingModeMirror` sites in `gui/views/performance_view.cpp`, and by legacy's own
-///        `EditingMode::selectButtonPress` (see above).
+/// @brief Set the mirror. Called by the ported item's own select press and by the four
+///        `syncEditingModeMirror` sites in `gui/views/performance_view.cpp` (see above).
 void set_performance_editing_mode(PerformanceEditingMode mode);
 
 /// @}

@@ -29,5 +29,19 @@ public:
 
 	virtual AudioFileHolder* getAudioFileHolder() = 0;
 
+	/// @brief This range's identity: no other range made in this run has it. The range keeps it while its source's
+	///        ranges are inserted and deleted around it and while another file is loaded into it; a range a type change
+	///        or a load makes has its own. Never 0: identities count from 1. Never saved: what is keyed by it (the
+	///        marker editor's view) is not either.
+	[[nodiscard]] uint64_t identity() const { return identity_; }
+
 	int16_t topNote{};
+
+private:
+	/// @brief The next identity: counts up for the whole run.
+	static uint64_t nextIdentity();
+
+	/// Minted by every constructor but the move, which carries it: the source's vector moves a range as others are
+	/// inserted or erased, and the range is still the same one.
+	uint64_t identity_{nextIdentity()};
 };

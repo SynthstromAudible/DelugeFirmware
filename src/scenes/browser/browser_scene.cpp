@@ -36,6 +36,7 @@
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
 #include "instruments/deluge/sound_state.h"
+#include "processing/engines/audio_engine.h"
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/bind_host.h"
@@ -181,7 +182,7 @@ bool sample_can(const menu::MenuContext& ctx) {
 
 void sample_start_at(const menu::MenuContext& ctx, std::string& dir, std::string& name) {
 	// `SampleBrowser::opened` (`sample_browser.cpp:136-171`): take the holder's path; one that is blank or outside
-	// SAMPLES/ gives way to the file last previewed or loaded (`SampleBrowser::lastFilePathLoaded`, which the host
+	// SAMPLES/ gives way to the file last previewed or loaded (`deluge::model::lastFilePathLoaded`, which the host
 	// answers), and only when that is blank too to the default folder. Then dissect it into a directory and the
 	// filename to select.
 	const std::optional<std::string> held = sample_path(ctx);
@@ -313,15 +314,14 @@ void dx_syx_start_at(const menu::MenuContext& /*ctx*/, std::string& dir, std::st
 }
 
 AcceptOutcome dx_syx_accept(const menu::MenuContext& /*ctx*/, std::string_view /*path*/, Error& /*error*/) {
-	// `DxSyxBrowser::enterKeyPress`'s file arm reads the bank through `dxCartridge`, a `gui/` object this layer may
-	// not name, and closes only once the read has parsed: the host reads it and answers `deferred_load_done`.
+	// `DxSyxBrowser::enterKeyPress`'s file arm reads the bank through `loadDxCartridgeFile`, a `gui/` function this
+	// layer may not name, and closes only once the read has parsed: the host reads it and answers `deferred_load_done`.
 	return AcceptOutcome::DeferAndWait;
 }
 
 const std::array<Descriptor, static_cast<size_t>(BrowserId::Count)> kDescriptors{{
-    // `SampleBrowser::SampleBrowser` (`sample_browser.cpp:88-95`) plus `SampleBrowser::opened`
-    // (`:110-113`): the wave icon, "Audio files", the audio extensions, note names interpreted, and
-    // folders allowed to share a name with a file.
+    // `SampleBrowser::SampleBrowser` plus `SampleBrowser::opened` (`sample_browser.cpp`): the wave icon, "Audio files",
+    // the audio extensions, note names interpreted, and folders allowed to share a name with a file.
     {
         .title = "Audio files",
         .extensions = kAudioExtensions,
@@ -409,6 +409,10 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	}
 	id_ = static_cast<BrowserId>(id.arg);
 	holding_ = false;
+	backspace_due_ms_.reset();
+	backspace_pad_down_ = false;
+	keyboard_led_touched_ = false;
+	load_led_touched_ = false;
 	hold_deadline_ms_.reset();
 	long_press_done_.reset();
 	awaiting_load_ = false;
@@ -419,6 +423,12 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	slice_from_shift_ = false;
 	if (!descriptor(id_).can(ctx_)) {
 		return false;
+	}
+	if (id_ == BrowserId::Sample) {
+		// `SampleBrowser::opened`: a held audition ends as the browser opens.
+		menu::host_end_audition(menu::AuditionEnd::ClipViewWhenAuditioning);
+		// `SampleBrowser::opened`: undo history ends at the browser.
+		menu::host_forget_undo();
 	}
 
 	entered_len_ = 0;
@@ -751,7 +761,6 @@ ListingRequest BrowserScene::make_request(ListingAction action) const {
 	req.allow_folders = true; // `Browser::arrivedInNewFolder` passes `allowFolders = true`
 	req.allow_folders_sharing_name_with_file = d.allow_folders_sharing_name_with_file;
 	req.interpret_note_names = d.interpret_note_names;
-	req.default_dir = d.default_dir;
 	return req;
 }
 
@@ -764,6 +773,9 @@ void BrowserScene::request_open() {
 		dir = d.default_dir;
 	}
 	ListingRequest req = make_request(ListingAction::Open);
+	// Only the opening listing has a default folder to fall back to and create, as main's `opened()`: entering,
+	// leaving and reloading a folder that has gone is the card's error.
+	req.default_dir = d.default_dir;
 	req.path = std::move(dir);
 	req.filename_to_start_at = name;
 	select_after_listing_ = std::move(name);
@@ -1064,6 +1076,10 @@ void BrowserScene::type_char(char c) {
 	entered_[entered_len_++] = nc;
 	edit_.cursor = static_cast<int16_t>(entered_len_);
 	run_search_after_typing(pos);
+}
+
+void BrowserScene::arm_backspace_hold() {
+	backspace_due_ms_ = last_render_ms_ + deluge::ui::grid::kBackspaceRepeatDelayMs;
 }
 
 void BrowserScene::backspace() {
@@ -1404,6 +1420,8 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f)
 void BrowserScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	grid_pass_ = true;
 	last_render_ms_ = f.now_ms();
+	// Read off the pads whatever they show: the hold outlasts a waveform landing over the keys.
+	backspace_pad_down_ = deluge::ui::grid::text_keyboard_backspace_held(f, deluge::ui::grid::kTextKeyboardHomeRow);
 	if (pads_ != BrowserPads::Keyboard || !keyboard_visible_) {
 		// `SampleBrowser::padAction`'s main-pad arm with the keyboard hidden, or with keys on the pads that are not
 		// `qwertyVisible`, acted on by `after_render`.
@@ -1469,7 +1487,9 @@ void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
 	const int32_t rows = std::min<int32_t>(f.bounds().h, kDisplayHeight);
 	if (!info) {
 		// The preview stopped and gave its sample up (Shift+SAVE frees the file): `main`'s pads keep the waveform they
-		// were last sent, so these keep the last one painted.
+		// were last sent, so these keep the last one painted. A redraw still waiting on that sample's clusters is
+		// dropped with it.
+		redraw_resolved_cols_ = -1;
 		for (int32_t y = 0; y < rows; y++) {
 			for (int32_t x = 0; x < main_cols; x++) {
 				(void)f.pad(x, y, waveform_shown_[y][x]);
@@ -1478,7 +1498,11 @@ void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
 		return;
 	}
 	const uint32_t now = f.now_ms();
+	bool first = false;
 	if (info->identity != nav_identity_) {
+		first = true;
+		draw_stats_.draws++;
+		redraw_given_up_ = false;
 		nav_identity_ = info->identity;
 		nav_.sample = nullptr;
 		nav_.length_samples = info->length_samples;
@@ -1494,8 +1518,15 @@ void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
 			waveform_shown_[y][x] = f.peek(x, y);
 		}
 	}
+	if (!first && redraw_resolved_cols_ >= 0) {
+		draw_stats_.redraws++;
+	}
 	if (complete) {
+		if (first || redraw_resolved_cols_ >= 0) {
+			draw_stats_.complete++;
+		}
 		redraw_resolved_cols_ = -1;
+		redraw_given_up_ = false;
 		return;
 	}
 	// `tickPreviewRedraw`: a render the card has not caught up with yet is drawn again as its clusters land, until it
@@ -1510,6 +1541,10 @@ void BrowserScene::render_waveform(deluge::ui::grid::GridFrame& f) {
 	}
 	if (static_cast<int32_t>(now - redraw_progress_ms_) < static_cast<int32_t>(kWaveformRedrawGiveUpMs)) {
 		f.grid_gate().request_repaint_after(kListingPollMs, now);
+	}
+	else if (!redraw_given_up_) {
+		redraw_given_up_ = true;
+		draw_stats_.give_ups++;
 	}
 }
 
@@ -1538,9 +1573,13 @@ void BrowserScene::leds(deluge::ui::LedFrame& f) {
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::CrossScreen), state(false));
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Session), state(false));
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Scale), state(false));
-	// `SampleBrowser::buttonAction`'s two toggles light their buttons.
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Keyboard), state(keyboard_always_visible_));
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Load), state(auto_load_));
+	// `SampleBrowser::buttonAction`'s two toggles light their buttons; before a press `opened` has set neither.
+	if (keyboard_led_touched_) {
+		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Keyboard), state(keyboard_always_visible_));
+	}
+	if (load_led_touched_) {
+		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Load), state(auto_load_));
+	}
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1663,9 +1702,23 @@ Result BrowserScene::after_render() {
 		}
 	}
 
+	// 5b. A held backspace repeats: `QwertyUI::timerCallback` deletes once and re-arms 80 ms from the callback. The
+	//     hold lasts until the pad lifts, whatever the pads are showing meanwhile.
+	if (backspace_due_ms_.has_value() && grid_pass) {
+		if (!backspace_pad_down_) {
+			backspace_due_ms_.reset();
+		}
+		else if (static_cast<int32_t>(last_render_ms_ - *backspace_due_ms_) >= 0) {
+			backspace();
+			backspace_due_ms_ = last_render_ms_ + deluge::ui::grid::kBackspaceRepeatMs;
+			r.handled = true;
+			(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+		}
+	}
+
 	// 6. A key typed while Select is held is dropped: `QwertyUI::padAction` types only with no UI mode set. So is one
 	//    typed while a sample load runs (`SampleBrowser::padAction`'s gate).
-	if (holding_ || load_running()) {
+	if (mode_up() || load_running()) {
 		return r;
 	}
 
@@ -1715,6 +1768,9 @@ Result BrowserScene::after_render() {
 		                                                             deluge::ui::grid::kTextKeyboardHomeRow, shift_)
 		                   : 0;
 		const Result typed = c != 0 ? press_key(c) : repaint_all();
+		if (c == deluge::ui::grid::kTextKeyboardBackspace) {
+			arm_backspace_hold();
+		}
 		r.handled = true;
 		for (const Action& a : typed.actions) {
 			(void)r.actions.push_back(a);
@@ -1733,6 +1789,9 @@ Result BrowserScene::after_render() {
 			return r;
 		}
 		(void)press_key(c);
+		if (c == deluge::ui::grid::kTextKeyboardBackspace) {
+			arm_backspace_hold();
+		}
 		changed = true;
 	}
 
@@ -1800,6 +1859,29 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 				return *taken;
 			}
 		}
+		if (id_ == BrowserId::DxSyx && event.button == ButtonId::Save && shift_) {
+			// `Browser::buttonAction`'s Shift+SAVE, which every browser but the sample browser takes unchanged: a
+			// file offers to be deleted, a folder is refused.
+			Result r;
+			r.handled = true;
+			const FileItem* item = item_at(file_index_);
+			if (!event.on || mode_up() || item == nullptr) {
+				return r;
+			}
+			if (item->isFolder) {
+				(void)r.actions.push_back(Action{
+				    .kind = Action::Kind::Popup,
+				    .surface = SurfaceRole::Main,
+				    .popup_string = static_cast<uint16_t>(String::STRING_FOR_FOLDERS_CANNOT_BE_DELETED_ON_THE_DELUGE)});
+				return r;
+			}
+			context_menu::context_menu_scene().open(ctx_);
+			(void)r.actions.push_back(
+			    Action{.kind = Action::Kind::Push,
+			           .id = SceneId{context_menu::kContextMenuSceneKind,
+			                         static_cast<uint16_t>(context_menu::DescriptorId::DeleteFile)}});
+			return r;
+		}
 		if (event.button == ButtonId::Back) {
 			// `Browser::buttonAction`'s BACK arm (`browser.cpp:1783-1787`): a press, with no UI mode up (a Select hold
 			// or a held X_ENC is one). Claimed either way.
@@ -1844,7 +1926,7 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 		}
 		// `SampleBrowser::padAction`'s mute-column arm: a press with no UI mode stops the preview and exits.
 		if (id_ == BrowserId::Sample && event.x == kDisplayWidth) {
-			if (event.velocity != 0 && !holding_) {
+			if (event.velocity != 0 && !mode_up()) {
 				return close();
 			}
 			Result r;
@@ -1856,8 +1938,9 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 		break;
 
 	case UiEvent::Kind::Encoder:
-		if (event.encoder == deluge::ui::EncoderRole::Select && holding_) {
-			// `Browser::selectEncoderAction` turns only with no UI mode set, and a hold is one.
+		if (event.encoder == deluge::ui::EncoderRole::Select && (mode_up() || load_running())) {
+			// `Browser::selectEncoderAction` turns only with no UI mode set: a hold is one, and so is the loading mode
+			// an explicit sample load or a folder import holds while it runs.
 			Result r;
 			r.handled = true;
 			return r;
@@ -1920,9 +2003,10 @@ Result BrowserScene::horizontal_turn(int32_t delta) {
 	if (id_ == BrowserId::Sample && showing_preview_ && nav_identity_ != 0 && (xenc_held_ || nav_.is_zoomed_in())) {
 		// `SampleBrowser::horizontalEncoderAction`: X_ENC held zooms, and zoomed in a turn scrolls, with no other
 		// mode up. Either draws the waveform over whatever the pads showed.
-		if (!holding_ && (xenc_held_ ? nav_.zoom(delta) : nav_.scroll(delta))) {
+		if (!holding_ && !backspace_due_ms_.has_value() && (xenc_held_ ? nav_.zoom(delta) : nav_.scroll(delta))) {
 			pads_ = BrowserPads::Waveform;
 			redraw_resolved_cols_ = -1; // a new view: its redraw counts its own columns
+			redraw_given_up_ = false;
 			(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 		}
 		return r;
@@ -1962,6 +2046,7 @@ std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
 			return std::nullopt;
 		}
 		if (!on) {
+			load_led_touched_ = true;
 			auto_load_ = !auto_load_;
 		}
 		return r;
@@ -1969,11 +2054,10 @@ std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
 		// The recorder replaces the browser with no UI mode up -- a held audition pad is `main`'s
 		// `UI_MODE_AUDITIONING`, which legacy holds because the view beneath takes that pad -- and never for an audio
 		// clip, whose RECORD goes on to the base browser and then to the global RECORD.
-		if (ctx_.is_audio_clip) {
+		if (ctx_.is_audio_clip || AudioEngine::foregroundRecordingSource() != AudioInputChannel::NONE) {
 			return std::nullopt;
 		}
-		const bool auditioning = ctx_.facts != nullptr && ctx_.facts->auditioning();
-		if (on && !mode_up() && !auditioning) {
+		if (on && !mode_up()) {
 			// `changeUISideways(&audioRecorder)`: the browser goes (by kind, as `close` removes it, so a notice above
 			// it is not what leaves) and the recorder takes its place.
 			recorder::recorder_scene().open(ctx_);
@@ -2012,6 +2096,7 @@ std::optional<Result> BrowserScene::sample_button(ButtonId button, bool on) {
 		if (!on) {
 			return std::nullopt;
 		}
+		keyboard_led_touched_ = true;
 		keyboard_always_visible_ = !keyboard_always_visible_;
 		keyboard_visible_ = keyboard_always_visible_;
 		if (keyboard_visible_) {
@@ -2156,6 +2241,13 @@ std::optional<uint32_t> BrowserScene::next_timer() const {
 	// guest is woken.
 	if (preview_outstanding_ || awaiting_deferred_) {
 		next = next.has_value() ? std::min(*next, kListingPollMs) : kListingPollMs;
+	}
+
+	// The held backspace's next repeat renders the scene.
+	if (backspace_due_ms_.has_value()) {
+		const int32_t left = static_cast<int32_t>(*backspace_due_ms_ - last_render_ms_);
+		const uint32_t in = left > 0 ? static_cast<uint32_t>(left) : 0;
+		next = next.has_value() ? std::min(*next, in) : in;
 	}
 
 	// A folder menu's load that ended, or a slice the host opened, is acted on by `after_render`, on the next render.

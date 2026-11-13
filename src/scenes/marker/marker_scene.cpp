@@ -162,16 +162,24 @@ bool MarkerScene::reversed() const {
 	return source != nullptr && source->reversed;
 }
 
-std::string MarkerScene::file() const {
-	const deluge::instrument::RangeState* range = range_state();
-	return range != nullptr ? range->file_path : std::string{};
+std::optional<services::ViewKey> MarkerScene::view_key_of() const {
+	// Main keeps the view and the lock on the sample holder: the audio clip's own, or the range's. The range's
+	// identity names that range object, so its view stays with it whatever file is loaded into it and wherever it
+	// moves among its source's ranges.
+	if (where_.kind == services::WaveformAddress::Kind::AUDIO_CLIP) {
+		return services::ViewKey{.kind = services::ViewKey::Kind::AUDIO_CLIP, .id = where_.clip.clip_id};
+	}
+	const std::optional<uint64_t> range =
+	    ctx_.facts != nullptr ? ctx_.facts->range_identity(where_.slot, where_.source, where_.range) : std::nullopt;
+	if (!range) {
+		return std::nullopt;
+	}
+	return services::ViewKey{.kind = services::ViewKey::Kind::RANGE, .id = *range};
 }
 
 services::SampleView MarkerScene::view() const {
-	// A view remembered for another file -- the range now holds a different sample -- is not this one's.
-	services::SampleView v = services::view_state().sample_view(where_, file()).value_or(services::SampleView{});
-	v.file = file();
-	return v;
+	return view_key_ ? services::view_state().sample_view(*view_key_).value_or(services::SampleView{})
+	                 : services::SampleView{};
 }
 
 void MarkerScene::follow_waveform(const services::WaveformInfo& info) {
@@ -239,6 +247,7 @@ bool MarkerScene::on_enter(const SceneId& id) {
 	                   : MarkerType::START;
 
 	where_ = *address_of(ctx_);
+	view_key_ = view_key_of();
 	services::view_state().forget_unless(ctx_.model != nullptr ? ctx_.model->identity() : 0);
 	nav_.sample = nullptr;
 	waveform_identity_ = 0;
@@ -327,11 +336,11 @@ int32_t end_pos_from_col(const deluge::sample::WaveformNav& nav, int32_t col) {
 
 void MarkerScene::record_scroll_and_zoom() {
 	// `SampleMarkerEditor::recordScrollAndZoom` (`:140`), into the view-state store.
-	if (marker_type_ != MarkerType::NONE) {
+	if (marker_type_ != MarkerType::NONE && view_key_) {
 		services::SampleView v = view();
 		v.scroll = nav_.xScroll;
 		v.zoom = nav_.xZoom;
-		services::view_state().set_sample_view(where_, v);
+		services::view_state().set_sample_view(*view_key_, v);
 	}
 }
 
@@ -347,22 +356,19 @@ bool MarkerScene::allow_extra_scroll_right() const {
 	return source != nullptr && source->repeat_mode == SampleRepeatMode::STRETCH;
 }
 
-void MarkerScene::set_loop_locked(bool locked) {
-	// `loopLock`/`loopUnlock` (`:1225`, `:1231`) minus their popups.
-	//
-	// The two popups are NOT filed, and that is a limitation rather than a choice: legacy raises
-	// `display->displayPopup("FREE")` / `("LOCK")` with **raw literals**, and `Action::Kind::Popup`
-	// carries a `uint16_t` l10n id (`shell/scene.h`). Neither word is in `gui/l10n/strings.h`, so
-	// filing them would mean inventing two string ids and their translation entries -- a change to
-	// the l10n data rather than a port of the editor. The same argument `BrowserScene::Descriptor`
-	// makes for its two literal titles, with the opposite conclusion available there because a
-	// title is a `string_view` and a popup is not.
+void MarkerScene::set_loop_locked(bool locked, bool announce) {
+	// `loopLock` / `loopUnlock` (`displayPopup("LOCK")` / `("FREE")`).
 	if (ctx_.is_audio_clip) {
 		return;
 	}
-	services::SampleView v = view();
-	v.loop_locked = locked;
-	services::view_state().set_sample_view(where_, v);
+	if (view_key_) {
+		services::SampleView v = view();
+		v.loop_locked = locked;
+		services::view_state().set_sample_view(*view_key_, v);
+	}
+	if (announce) {
+		pending_popup_ = locked ? String::STRING_FOR_LOOP_LOCKED : String::STRING_FOR_LOOP_FREE;
+	}
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -771,9 +777,9 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 		}
 
 		// temporarily unlock the loop so we can write the end without moving the start
-		set_loop_locked(false);
+		set_loop_locked(false, /*announce=*/false);
 		write_value(proposed_end, MarkerType::LOOP_END);
-		set_loop_locked(true);
+		set_loop_locked(true, /*announce=*/false);
 		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 		return r;
 	}
@@ -901,15 +907,23 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 			r.handled = true;
 			return r;
 		}
-		// SHIFT + a main pad with no UI mode up is `soundEditor.potentialShortcutPadAction` (`:350-356`): a shortcut
-		// with an item leaves the editor for that item's page (`changeUIAtLevel(&soundEditor, 1)`), and any other is
-		// swallowed, the editor staying.
-		if (event.on && ctx.shift && x < kDisplayWidth && !mode_up()) {
+		// `padAction` -> `potentialShortcutPadAction` with SHIFT held: under a marker hold, X_ENC or a slide the mode
+		// is not one `shortcutPadUIModes` lists, and the press is swallowed; auditioning alone goes on to the pad. With
+		// no mode up a shortcut with an item leaves the editor for that item's page (`changeUIAtLevel(&soundEditor,
+		// 1)`), and any other is swallowed, the editor staying.
+		const bool only_auditioning = auditioning() && !holding_ && !xenc_held_ && !sliding();
+		// With the automation view as the root, its interpolation and pad-selection pads (x 0, y 6 and 7) are no
+		// shortcut (`potentialShortcutPadAction`'s `ignoreAction`): with SHIFT they go on to the editor's own arms
+		// below, under any mode.
+		const bool root_keeps_pad = ctx_.root_is_automation && x == 0 && (event.y == 6 || event.y == 7);
+		if (event.on && ctx.shift && !root_keeps_pad && x < kDisplayWidth && !only_auditioning) {
 			r.handled = true;
-			if (const std::optional<SceneId> page =
-			        menu_scene().shortcut_jump(static_cast<uint8_t>(x), static_cast<uint8_t>(event.y))) {
-				(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kMarkerSceneKind});
-				(void)r.actions.push_back(Action{.kind = Action::Kind::Replace, .id = *page});
+			if (!mode_up()) {
+				if (const std::optional<SceneId> page =
+				        menu_scene().shortcut_jump(static_cast<uint8_t>(x), static_cast<uint8_t>(event.y))) {
+					(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kMarkerSceneKind});
+					(void)r.actions.push_back(Action{.kind = Action::Kind::Replace, .id = *page});
+				}
 			}
 			return r;
 		}
@@ -921,6 +935,10 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 		pad_action(x, event.y, event.on);
 		r.handled = true;
 		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+		if (pending_popup_.has_value()) {
+			(void)r.actions.push_back(Action{.kind = Action::Kind::Popup, .popup_string = sid(*pending_popup_)});
+			pending_popup_.reset();
+		}
 		return r;
 	}
 

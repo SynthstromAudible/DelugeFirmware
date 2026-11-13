@@ -3,6 +3,8 @@
 
 #include "scenes/slicing/slicer_scene.h"
 
+#include "scenes/bind/runtime_facts.h"
+#include "scenes/browser/browser_scene.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/services/waveform_paint.h"
 
@@ -360,6 +362,10 @@ bool SlicerScene::add_slice_at(int32_t sample_pos) {
 	return true;
 }
 
+const bind::RuntimeFacts& SlicerScene::facts() const {
+	return facts_ != nullptr ? *facts_ : menu::host_runtime_facts();
+}
+
 Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
 	Result r;
 	const bool on = velocity != 0;
@@ -435,9 +441,23 @@ Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
 		return r;
 	}
 
-	// `:567` hands a REGION pad to the sample browser beneath, whose keyboard would move the file under a slicer
-	// slicing another. Swallowed instead (DIFFERENCES records it).
+	// `:567` hands a REGION pad to `SampleBrowser::padAction`. Its mute-column arm (`possiblyExit`): a press stops the
+	// preview and exits the browser, and the slicer over it with it. Its audition column is the view beneath's
+	// (`grid_pad_claim`). Its keyboard would move the file under a slicer slicing another: swallowed instead
+	// (DIFFERENCES D57).
 	r.handled = true;
+	// `possiblyExit`'s `!currentUIMode`. Under `main`'s slicer only two UI modes can be up: an audition held on the
+	// view beneath (`UI_MODE_AUDITIONING`) and a slice commit (`UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES`, this scene's
+	// `committing_`, whose pads `handle` swallows before they reach here). The browser's own modes (a held Select or
+	// X_ENC, a held backspace, a scroll) need inputs the slicer takes for itself or swallows.
+	if (x == kDisplayWidth && on && !facts().auditioning()) {
+		if (ops_ != nullptr) {
+			ops_->stop_previewing();
+		}
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kSlicerSceneKind});
+		(void)r.actions.push_back(
+		    Action{.kind = Action::Kind::Remove, .pop_to = deluge::scenes::browser::kBrowserSceneKind});
+	}
 	return r;
 }
 
@@ -650,7 +670,7 @@ void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 			}
 		}
 	}
-	const bind::FlashCursor cursor = menu::host_runtime_facts().flash_cursor();
+	const bind::FlashCursor cursor = facts().flash_cursor();
 	if (cursor == bind::FlashCursor::Slow) {
 		deluge::ui::grid::tick_squares(f, per_row, deluge::gui::colours::black);
 	}

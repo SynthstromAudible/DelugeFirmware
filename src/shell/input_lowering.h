@@ -20,7 +20,7 @@ namespace deluge::ui::shell {
 /// `defaultHoldTime (2) * kSampleRate / 20` audio samples (`storage/flash_storage.cpp:349-350`),
 /// which is 100 ms at 44.1 kHz; `kShortPressTime` is `kSampleRate / 2`
 /// (`definitions_cxx.hpp:1028`), 500 ms; and `DetentedEncoder::applyEdges` takes two A-pin edges
-/// -- one quadrature cycle -- per detent click (`hid/encoders.cpp:28-34`).
+/// -- one quadrature cycle -- per detent click (`DetentedEncoder::applyEdges`).
 struct LoweringConfig {
 	/// A press shorter than this counts as a tap for the sticky-shift rule.
 	uint16_t hold_time_ms = 100;
@@ -36,11 +36,11 @@ struct LoweringConfig {
 /// @brief The one object between the board's raw input and the shell's `UiEvent`s.
 ///
 /// It owns every piece of input state the legacy firmware scattered across `Buttons::`
-/// (`hid/buttons.cpp`), `MatrixDriver::padStates` (`hid/matrix/matrix_driver.cpp:65-84`) and the
-/// encoder accumulators (`hid/encoders.cpp`): which buttons and pads are down, when each press
-/// began, whether a press has been consumed, the sticky-shift latch, and each encoder's partial
-/// detent. From that it produces two things per tick: the `UiEvent` queue (`next()`) and the
-/// toolkit's `ui::InputSnapshot` (`snapshot()`).
+/// (`hid/buttons.cpp`), `MatrixDriver::padStates` (`MatrixDriver::padAction` and `isPadPressed`,
+/// `hid/matrix/matrix_driver.cpp`) and the encoder accumulators (`hid/encoders.cpp`): which buttons and pads are down,
+/// when each press began, whether a press has been consumed, the sticky-shift latch, and each encoder's partial detent.
+/// From that it produces two things per tick: the `UiEvent` queue (`next()`) and the toolkit's `ui::InputSnapshot`
+/// (`snapshot()`).
 ///
 /// # The tick
 ///
@@ -63,31 +63,11 @@ struct LoweringConfig {
 /// `withdraw()`n from the snapshot and routed, so no event is consumed twice and none waits for
 /// the render to be delivered.
 ///
-/// # The gold-knob wiggle debounce
+/// # The gold knobs act on every turn
 ///
-/// An `EncoderKind::Accelerating` encoder does not act on every turn. The first turn after it has
-/// been still for `LoweringConfig::short_press_ms` is recorded but swallowed, and a turn that
-/// exactly cancels the recorded one is written off as an accidental wiggle and swallowed too; only
-/// a turn that carries on past the recorded direction is lowered. Ported from the mod-knob block
-/// of `interpretEncoders` in its pre-overhaul form -- the current legacy file dropped the
-/// `turnedRecently` half and left the surviving `modEncoderInitialTurnDirection` test unreachable
-/// (`hid/encoder_input.cpp:178-205`). A swallowed turn produces no `UiEvent` and contributes nothing
-/// to the snapshot, but still counts as input.
-///
-/// @warning **The first gold turn after boot is always swallowed on device, and every committed
-///          script depicts the other arm.** `last_turn_ms_` starts at 0 and the test is
-///          `(now_ms - last_turn_ms_[i]) < short_press_ms` (`input_lowering.cpp` `action_gold_turn`),
-///          so "has it been still for 500 ms" answers *no* for the first 500 ms of the clock and
-///          *yes* ever after. On device `now_ms` is uptime, which is long past 500 by the time a
-///          user reaches a knob -- so the very first turn of a session takes the `!turned_recently`
-///          arm and is recorded-but-swallowed. In a script the clock starts at 0, so a gold turn
-///          before `t = 500` takes the *acted-on* arm; every committed script that turns gold does so
-///          inside that window, by luck rather than design, and their goldens therefore show
-///          behaviour the device never presents first. `was_short_press` above
-///          carries a deliberate guard against exactly this shape ("false for a button that has
-///          never been pressed"); this function has none. Deciding whether that is a defect to fix
-///          or legacy behaviour to keep needs a device, so it is documented rather than changed --
-///          see `src/scenes/README.md`, "Defects this port found in shipping firmware".
+/// An `EncoderKind::Accelerating` encoder lowers every turn, as `interpretEncoders` does on `main`
+/// (`origin/main:src/deluge/hid/encoder_input.cpp`): its wiggle test compares the turn against
+/// `modEncoderInitialTurnDirection`, which nothing sets to anything but 0, so no turn is written off.
 ///
 /// # What is dropped
 ///
@@ -110,6 +90,8 @@ public:
 	/// `held_pads()` and `next()`, so only a widget reading the tick's edges loses it. Every pad on
 	/// the Deluge's grid would have to change state in a single tick to reach that.
 	static constexpr uint8_t kPadEventCapacity = 32;
+	/// @brief How many Select turns one tick's snapshot keeps apart; a later one folds into the last.
+	static constexpr uint8_t kTurnCapacity = 16;
 
 	/// @brief Build a lowering for one board.
 	/// @param profile The board's tables. Copied in -- a `BoardProfile` is a handful of spans over
@@ -124,8 +106,8 @@ public:
 	///
 	/// `DELUGE_EVENT_PAD`, `DELUGE_EVENT_BUTTON` and `DELUGE_EVENT_NO_PRESSES` are the device's
 	/// three shapes. `DELUGE_EVENT_ENCODER` never arrives on this channel on the Deluge
-	/// (`deluge.cpp:281`) but the host injector uses it; its `x` is the encoder index and its
-	/// `value` is a signed count of A-pin *edges*, the same unit `deluge_encoder_take_edges`
+	/// (`deluge.cpp`) but the host injector uses it; its `x` is the encoder index and its
+	/// `value` is a signed count of A-pin *edges*, the same unit `deluge_encoder_take_quadrature_edges`
 	/// reports, so it is handed straight to the encoder path.
 	/// @param ev     The event.
 	/// @param now_ms The wall clock at which it arrived.
@@ -136,17 +118,19 @@ public:
 	///        input is locked.
 	void on_host_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut_without_shift, uint32_t now_ms);
 	/// @brief Lower the A-pin edges one encoder has accumulated -- the device path
-	///        (`deluge_encoder_take_edges`, folded in by `hid/encoder_input.cpp:56-63`).
+	///        (`deluge_encoder_take_quadrature_edges`, folded in by `hid/encoder_input.cpp`'s `interpretEncoders`).
 	///
 	/// @note Unlike `on_board_event`, this is never deferred by `sd_busy()`: the legacy
 	///       `applyEdges` runs unconditionally and leaves the detents pending in the encoder's own
 	///       accumulator for whenever the routine ends, and the routed FIFO plays that part here.
 	///       `input_locked()` does drop it, matching the stem-export bail-out at
-	///       `encoder_input.cpp:66-68`.
+	///       `encoder_input.cpp`'s `interpretEncoders`.
 	/// @param index  The board's encoder index, looked up in `BoardProfile::encoder_by_index`.
 	/// @param edges  Signed A-pin edge count since the last call.
 	/// @param now_ms The wall clock.
-	void on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms);
+	/// @param time_us When the board decoded them, on `getSystemTime()`'s clock in microseconds, which a Select turn
+	///                carries into the snapshot's `turns`; 0 for none.
+	void on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms, uint64_t time_us = 0);
 	/// @}
 
 	/// @name The tick
@@ -389,7 +373,7 @@ public:
 	/// @brief Release everything held: a synthetic release per held button and pad, then
 	///        `AllReleased`.
 	///
-	/// The safety net behind `DELUGE_EVENT_NO_PRESSES` (`matrix_driver.cpp:53-64`,
+	/// The safety net behind `DELUGE_EVENT_NO_PRESSES` (`MatrixDriver::noPressesHappening`, `matrix_driver.cpp`;
 	/// `buttons.cpp:315-323`). The synthetic releases run through the same path a real release
 	/// takes, so the sticky-shift rule sees a released shift exactly as it would have, and each
 	/// lands in whichever queue that event would normally have gone to.
@@ -397,8 +381,9 @@ public:
 	void clear_all_held(uint32_t now_ms);
 	/// @}
 
-	/// @brief The gold-knob acceleration multiplier for one turn: `ContinuousEncoder::calcNextKnobSpeed`
-	///        (`hid/encoders.cpp`), through the same `ui::EncoderAcceleration` legacy uses, one per encoder role.
+	/// @brief The gold-knob acceleration multiplier for one turn: `main`'s `ContinuousEncoder::calcNextKnobSpeed`
+	///        (`origin/main:src/deluge/hid/encoders.cpp`), through the same `ui::EncoderAcceleration` legacy uses, one
+	///        per encoder role.
 	///
 	/// Speed builds while the knob keeps turning the same way and resets when the direction changes or the knob
 	/// pauses past the threshold. Only the sign of \p delta counts, and a turn in the same millisecond as the last
@@ -409,34 +394,7 @@ public:
 	/// @return A multiplier in [1.0, 3.0].
 	double calc_next_knob_speed(EncoderRole role, int8_t delta, uint32_t now_ms);
 
-	/// @brief Backdate \p role's "last turned" clock so the next turn counts as the first after a
-	///        pause -- `View::pretendModKnobsUntouchedForAWhile`.
-	///
-	/// The state it writes is `last_turn_ms_`, which is `timeModEncoderLastTurned`
-	/// (`hid/encoder_input.cpp`) and is read by `action_gold_turn`'s `turned_recently` test
-	/// alone. Backdating it makes that test false, so the next detent is remembered as the
-	/// gesture's initial direction rather than actioned -- which is exactly what "harder to turn"
-	/// means, and what legacy spends it on in `View::potentiallyMakeItHarderToTurnKnob`
-	/// and at the three `setActiveModControllable*`/`setModRegion` entry points.
-	///
-	/// @note **In current legacy this write is inert**, and here it is not. The encoder overhaul
-	///       dropped the `turnedRecently` branch that read `timeModEncoderLastTurned`
-	///       (`hid/encoder_input.cpp:178-205` has no such test left), so legacy's four callers
-	///       write a field nothing reads; `action_gold_turn` deliberately restores the working
-	///       shape (see its own comment), which makes this setter live.
-	/// @param role   Which encoder to backdate; anything but `GoldUpper`/`GoldLower` is still
-	///               accepted (the array is per role) but only the gold pair is ever consulted.
-	/// @param now_ms The wall clock to backdate from.
-	void pretend_knob_untouched(EncoderRole role, uint32_t now_ms);
-
 private:
-	/// @brief How far `pretend_knob_untouched` backdates: legacy subtracts a whole `kSampleRate`
-	///        worth of `audioSampleTimer` ticks, i.e. one second (`view.cpp`).
-	///
-	/// Only has to exceed `LoweringConfig::short_press_ms`, which is what `turned_recently`
-	/// compares against; one second is legacy's own number and clears it by a wide margin.
-	static constexpr uint32_t kPretendUntouchedMs = 1000;
-
 	/// @brief One board event waiting out the SD routine, with the clock it arrived at.
 	struct DeferredEvent {
 		DelugeInputEvent ev{};
@@ -459,7 +417,7 @@ private:
 	///
 	///          **Legacy saturates where this wraps, and does so on the far side of the detent
 	///          division.** `interpretEncoders` takes whole detents from the encoder
-	///          (`hid/encoder_input.cpp:112`, `int32_t detentDelta = fe.take()`) and then makes two
+	///          (`hid/encoder_input.cpp`'s `interpretEncoders`, `int32_t detentDelta = fe.take()`) and then makes two
 	///          different choices, in a comment that says so: tempo and select get
 	///          `static_cast<int8_t>(std::clamp(detentDelta, -128, 127))` (`:117`), while
 	///          horizontal and vertical are handed the **full `int32_t`** (`:124`, `:140`) "for
@@ -474,11 +432,22 @@ private:
 	/// @param index  The board's encoder index, resolved through `BoardProfile::encoder_by_index`.
 	/// @param edges  Signed quadrature edges since the last event; see the warning.
 	/// @param now_ms The tick's clock.
-	void apply_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms);
+	/// @param time_us When the board decoded them; 0 for none.
+	void apply_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms, uint64_t time_us = 0);
+	/// @brief Add a Select turn to the tick's `turns`, folding it into the last when they are full.
+	void add_turn(int8_t detents, uint64_t time_us);
+	/// @brief Take a routed Select turn of @p delta out of the snapshot's `turns`: the oldest still in it, which is
+	///        the one `next()` handed out.
+	void withdraw_first_turn(int8_t delta);
+	/// @brief Take a deferred Select turn of @p delta out of the snapshot's `turns`: the newest still in it.
+	void withdraw_last_turn(int8_t delta);
+	/// @brief Point the snapshot's `turns` at what is left of @ref turns_.
+	void sync_snapshot_turns();
+	/// @brief `withdraw` without the `turns` bookkeeping, which its two callers do from opposite ends.
+	void withdraw_sums(const UiEvent& e);
 	void on_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut_without_shift = false);
 	void on_matrix(uint8_t x, uint8_t y, bool on, uint32_t now_ms);
 	void on_button(ButtonId b, bool on, uint32_t now_ms);
-	bool action_gold_turn(size_t role_index, int8_t delta, uint32_t now_ms);
 	void toggle_shift(bool on, uint32_t now_ms);
 	void emit(const UiEvent& e);
 	void push_out(const UiEvent& e);
@@ -508,8 +477,6 @@ private:
 	int8_t tick_delta_[kEncoderCount]{};                         ///< What each encoder contributed to this tick.
 	uint32_t acceleration_clock_ms_ = 0;                         ///< See set_acceleration_clock_ms().
 	ui::EncoderAcceleration knob_acceleration_[kEncoderCount]{}; ///< `ContinuousEncoder`'s acceleration, per role.
-	int8_t initial_turn_direction_[kEncoderCount]{};             ///< `modEncoderInitialTurnDirection`, per role.
-	uint32_t last_turn_ms_[kEncoderCount]{};                     ///< `timeModEncoderLastTurned`, per role.
 	/// @}
 
 	/// @name Queues
@@ -532,6 +499,9 @@ private:
 	/// @name Per-tick state, reset by `begin_tick`
 	/// @{
 	FixedVector<ui::PadEvent, kPadEventCapacity> pad_events_;
+	FixedVector<ui::TimedTurn, kTurnCapacity> turns_; ///< The tick's Select turns (`ui::InputSnapshot::turns`).
+	/// The first of @ref turns_ still in the snapshot: the ones before it were routed (`withdraw`).
+	uint8_t turns_first_ = 0;
 	uint32_t now_ms_ = 0;
 	bool had_input_ = false;
 	bool select_edge_ = false;

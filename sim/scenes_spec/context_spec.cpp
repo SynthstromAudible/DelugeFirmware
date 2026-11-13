@@ -30,8 +30,8 @@ namespace {
 constexpr menu::Node param_node =
     menu::param(1, {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ});
 
-/// @brief The same node marked range-dependent -- legacy's `MenuItem::isRangeDependent()`,
-///        the actual discriminator for the range-dependence rule.
+/// @brief The same node marked range-specific (and range-dependent) -- an item whose permission routes through
+///        `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`, the discriminator for the range rule.
 constexpr menu::Node range_dependent_node = menu::with_range_dependent(param_node);
 
 /// @brief A node with neither a bound param nor the range flag.
@@ -103,6 +103,31 @@ describe menu_context("scenes::menu::context_for", $ {
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::Drum));
 		expect(ctx.addresses.slot == std::optional{drum_slot(*drum)}).to_be_true();
 		expect(ctx.addresses.note_row.has_value()).to_be_true();
+	});
+
+	it("edits the kit's own chain under the row's root when kit_global_fx is set with affect-entire off", _ {
+		// `SoundEditor::setup` (`origin/main:src/deluge/gui/ui/sound_editor.cpp`) picks the root from the clip's
+		// `affectEntire` and what it edits from `setupKitGlobalFXMenu`, which a pad pressed earlier with affect-entire
+		// on leaves set.
+		auto f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		f.clip->affectEntire = false;
+		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
+		                                          /*kit_global_fx=*/true);
+		expect(root_of(ctx)).to_equal(static_cast<int>(Root::Drum));
+		expect(ctx.is_kit_global_fx).to_be_true();
+		expect(ctx.is_drum).to_be_false();
+		expect(ctx.addresses.slot.has_value()).to_be_false();
+		expect(ctx.addresses.chain.has_value() && ctx.addresses.chain_owner == bind::ChainOwner::KIT).to_be_true();
+
+		// A MIDI row selected: the MIDI drum's root, still over the kit's own chain.
+		auto m = spec::make_kit_song();
+		(void)spec::add_drum<MIDIDrum>(m);
+		m.clip->affectEntire = false;
+		const MenuContext midi = menu::context_for(*m.song, deluge::gui::menuViewOf(m.clip), 0, false, false, false,
+		                                           /*kit_global_fx=*/true);
+		expect(root_of(midi)).to_equal(static_cast<int>(Root::MidiDrum));
+		expect(midi.is_kit_global_fx).to_be_true();
 	});
 
 	it("resolves a kit clip with a selected sound drum to the drum root", _ {
@@ -236,7 +261,7 @@ describe menu_permission("scenes::menu::permission_for", $ {
 		deluge::edits::recordRanges(*sound, 0); // recorded, as a gesture records them
 
 		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, /*kit_global_fx=*/false);
-		expect(param_node.range_dependent).to_be_false();
+		expect(param_node.range_specific).to_be_false();
 		expect(static_cast<int>(menu::permission_for(param_node, ctx))).to_equal(static_cast<int>(Permission::Yes));
 	});
 

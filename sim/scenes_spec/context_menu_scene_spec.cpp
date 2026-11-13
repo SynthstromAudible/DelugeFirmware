@@ -1,18 +1,17 @@
 /// @file
 /// @brief `ContextMenuScene` -- the one scene that replaces legacy's `gui::ContextMenu` hierarchy
-///        -- driven through a real `Shell` over `uitest::FakeSurfaceSet`, and compared pixel for
-///        pixel against the *real* `gui::context_menu::resetSettings` instance.
+///        -- driven through a real `Shell` over `uitest::FakeSurfaceSet`, and checked against main's
+///        reset menus as `tests/golden/ui/menu_oracle/context_menu_scene.tsv` and its `pixels/` hold them.
 ///
-/// Four parts: the `Descriptor` table (the five
-/// `reset_settings::Reset` items' `getTitle()`/`getOptions()`/`acceptCurrentOption()` as data), the
-/// scene's behaviour (`selectEncoderAction` / `buttonAction` / `padAction` /
-/// `setupAndCheckAvailability` / `getGreyoutColsAndRows`), and the pixels.
+/// Four parts: the `Descriptor` table (main's five reset confirmations and the other context menus as data),
+/// the scene's behaviour (`selectEncoderAction` / `buttonAction` / `padAction` / `setupAndCheckAvailability` /
+/// `getGreyoutColsAndRows`), and the pixels.
 ///
-/// **The pixel comparison here is against the legacy object itself**, not a transcription: this
-/// executable links `deluge_app`, so `gui::context_menu::resetSettings.renderOLED(...)` can be
-/// called on a real `oled_canvas::Canvas` and diffed against what the shell blitted.
-/// `tests/spec/ui/option_window_spec.cpp` does the transcribed-oracle half, at option counts and
-/// window positions no shipped descriptor can reach.
+/// Each reset is checked by what it leaves behind: run from `kPerturbed`, it must leave the witness
+/// (`support/reset_witness.h`) the table's `reset/<action>` rows say main's leaves. The confirmation window is
+/// compared byte for byte, below the bezel, with main's panel for each action
+/// (`pixels/context_menu_reset_<action>.pbm`). `tests/spec/ui/option_window_spec.cpp` checks the window at option
+/// counts and positions no shipped descriptor reaches.
 ///
 /// @note The spec may include `gui/`; the library may not. Same rule `menu_scene_spec.cpp` and
 ///       `rename_scene_spec.cpp` run under.
@@ -31,7 +30,6 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
-#include "gui/context_menu/reset_settings.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "hid/display/oled_canvas/canvas.h"
@@ -42,6 +40,8 @@
 #include "storage/flash_storage.h"
 
 #include "support/host_flash.h"
+#include "support/oracle_table.h"
+#include "support/reset_witness.h"
 #include "support/song_fixture.h"
 
 #include "spec/gfx/support/golden.h"
@@ -50,11 +50,16 @@
 
 #include "cppspec.hpp"
 
+#include <array>
 #include <cstdint>
 #include <cstdlib>
+#include <fstream>
+#include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include "spec/support/spec_main.h"
 
@@ -84,22 +89,13 @@ namespace {
 /// same name (`rename_scene_spec.cpp` makes the same alias for the same reason).
 using ShellAction = deluge::ui::shell::Action;
 
-/// @brief Per-example reset of the process-global state this spec touches.
-///
-/// The language and the notice queue, as every scenes spec resets; plus the two accessibility
-/// globals the *legacy* renderer reads, pinned to their defaults so the oracle below cannot be
-/// steered by whatever ran before it. `Canvas::menuHighlightingInverts` is the flag
-/// `invertLeftEdgeForMenuHighlighting` branches on and `FlashStorage::accessibilityMenuHighlighting`
-/// is what `ContextMenu::renderOLED` reads for the label's x -- the pair
-/// `style.highlighting != Highlighting::NoInversion` stands in for on the port's side.
+/// @brief Per-example reset of the process-global state this spec touches: the menu's rows, the notice queue, and the
+/// panel globals main's confirmation window was drawn under (`support/reset_witness.h`).
 void reset_globals() {
 	menu_scene().reset_process_state(); // each example starts with the rows a boot has
-	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 	deluge::notify::Notice discard;
 	while (deluge::notify::notices().pop(discard)) {}
-	FlashStorage::accessibilityMenuHighlighting = MenuHighlighting::FULL_INVERSION;
-	deluge::hid::display::oled_canvas::Canvas::menuHighlightingInverts = true;
-	deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled = true;
+	spec::reset::pin_panel_globals();
 }
 
 /// @brief A 128x64 single-panel board, so the same scene can be recorded at the other shipped
@@ -129,10 +125,35 @@ constexpr uint8_t kSelectEncoder = 3;
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 constexpr uint8_t kBackX = 7, kBackY = 1;
 
+/// @brief An opaque scene that declares no LED and does nothing: what goes over a menu and comes off again.
+constexpr SceneKind kBlinklessKind = static_cast<SceneKind>(static_cast<uint8_t>(SceneKind::FirstApp) + 30);
+
+class BlinklessScene final : public deluge::ui::shell::Scene {
+public:
+	SceneKind kind() const override { return kBlinklessKind; }
+	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
+	void render_oled(deluge::ui::shell::SurfaceRole, deluge::ui::oled::OledFrame&) override {}
+};
+
+/// @brief The application's registry with the blinkless scene added.
+deluge::ui::shell::SceneRegistry registry_with_blinkless() {
+	static BlinklessScene scene;
+	static const std::array<deluge::ui::shell::Scene*, deluge::ui::shell::kMaxSceneKinds> table = [] {
+		std::array<deluge::ui::shell::Scene*, deluge::ui::shell::kMaxSceneKinds> t{};
+		const auto app = scene_registry().by_kind;
+		for (size_t i = 0; i < app.size() && i < t.size(); i++) {
+			t[i] = app[i];
+		}
+		t[static_cast<size_t>(kBlinklessKind)] = &scene;
+		return t;
+	}();
+	return deluge::ui::shell::SceneRegistry{std::span<deluge::ui::shell::Scene* const>{table}};
+}
+
 /// @brief A `Shell` over `FakeSurfaceSet` with the application's own scene registry installed.
 struct Rig {
 	const BoardProfile& profile;
-	deluge::ui::shell::SceneRegistry reg = scene_registry();
+	deluge::ui::shell::SceneRegistry reg = registry_with_blinkless();
 	uitest::FakeSurfaceSet fake;
 	Shell shell{fake, profile, reg, deluge::ui::shell::Services{}, ShellConfig{}};
 
@@ -222,88 +243,41 @@ std::string below_bezel(const std::string& pbm, int visible_top) {
 	return pbm.substr(at);
 }
 
-/// @brief The globals the five reset actions are told apart by.
-///
-/// One field per subsystem, chosen so that each action moves its own and leaves the others alone:
-///
-///  - `midi_thru` / `analog_in_ppqn` / `use_sharps` -- `FlashStorage::resetSettings`,
-///    and nothing else writes them.
-///  - `follow_root_note` / `follow_display_param` -- `MidiFollow::factoryReset`.
-///    `resetSettings` does NOT touch either, which is exactly what
-///    makes them a discriminator.
-///  - `drum_randomizer` -- `RuntimeFeatureSettings::factoryReset`.
-///
-/// This is what turns "the five `accept` pointers are distinct" into "each descriptor reaches the
-/// hook it claims": swap two entries in `kDescriptors` and the port's witness stops matching the
-/// legacy object's for both of them.
-struct ResetWitness {
-	bool midi_thru;
-	uint32_t analog_in_ppqn;
-	bool use_sharps;
-	uint8_t follow_root_note;
-	bool follow_display_param;
-	uint32_t drum_randomizer;
-	bool operator==(const ResetWitness&) const = default;
-};
+using spec::reset::kPerturbed;
+using spec::reset::ResetWitness;
+using spec::reset::restore;
+using spec::reset::witness;
 
-ResetWitness witness() {
-	return ResetWitness{midiEngine.midiThru,
-	                    playbackHandler.analogInTicksPPQN,
-	                    FlashStorage::defaultUseSharps,
-	                    midiEngine.midiFollowKitRootNote,
-	                    midiEngine.midiFollowDisplayParam,
-	                    runtimeFeatureSettings.get(RuntimeFeatureSettingType::DrumRandomizer)};
+spec::OracleTable& table() {
+	return spec::OracleTable::named("context_menu_scene");
 }
 
-void restore(const ResetWitness& w) {
-	midiEngine.midiThru = w.midi_thru;
-	playbackHandler.analogInTicksPPQN = w.analog_in_ppqn;
-	FlashStorage::defaultUseSharps = w.use_sharps;
-	midiEngine.midiFollowKitRootNote = w.follow_root_note;
-	midiEngine.midiFollowDisplayParam = w.follow_display_param;
-	runtimeFeatureSettings.set(RuntimeFeatureSettingType::DrumRandomizer, w.drum_randomizer);
+/// @brief The witness main's reset @p action left from `kPerturbed`, as the table's `reset/<action>` rows hold it;
+///        nothing when a row is missing or is not one number.
+std::optional<ResetWitness> frozen_witness(std::string_view action) {
+	const std::string path = "reset/" + std::string{action};
+	std::array<uint32_t, spec::reset::kWitnessColumns.size()> values{};
+	for (size_t i = 0; i < values.size(); i++) {
+		const std::vector<std::string>* row = table().find(path, spec::reset::kWitnessColumns[i]);
+		if (row == nullptr || row->size() != 1) {
+			return std::nullopt;
+		}
+		const std::optional<uint32_t> v = spec::reset::number_of(row->front());
+		if (!v) {
+			return std::nullopt;
+		}
+		values[i] = *v;
+	}
+	return spec::reset::witness_of(values);
 }
 
-/// @brief The state every driven reset starts from: every field moved OFF the value its own reset
-///        writes, so "the reset ran" and "the reset did not run" are always distinguishable.
-constexpr ResetWitness kPerturbed{
-    /*midi_thru=*/true,                                                        // resetSettings writes false
-    /*analog_in_ppqn=*/99,                                                     // ...24
-    /*use_sharps=*/false,                                                      // ...true
-    /*follow_root_note=*/99,                                                   // MidiFollow::factoryReset writes 36
-    /*follow_display_param=*/true,                                             // ...false
-    /*drum_randomizer=*/static_cast<uint32_t>(RuntimeFeatureStateToggle::Off), // ...On
-};
-
-/// @brief Run one legacy reset through the shipped `ResetSettings` object.
-///
-/// The half of `reset_settings::Reset::selectButtonPress` that acts: `setAction` then
-/// `acceptCurrentOption()`, which is the virtual `ContextMenu::buttonAction` calls.
-/// @param action Which reset.
-/// @return The witness afterwards.
-ResetWitness run_legacy(deluge::gui::context_menu::ResetSettingsAction action) {
-	restore(kPerturbed);
-	deluge::gui::context_menu::resetSettings.setAction(action);
-	(void)deluge::gui::context_menu::resetSettings.acceptCurrentOption();
-	return witness();
-}
-
-/// @brief The REAL legacy renderer's output for one reset action, as a PBM.
-///
-/// Not a transcription: `gui::context_menu::resetSettings` is the shipped object, and this is the
-/// `setAction` / `setupAndCheckAvailability` / `renderOLED` sequence
-/// `reset_settings::Reset::selectButtonPress` (`gui/menu_item/reset_settings/reset.h:29-33`) runs,
-/// minus the `openUI`.
-///
-/// @param action Which reset the menu is confirming.
-/// @return The 128x48 canvas legacy would have shown, as a PBM.
-std::string legacy_pbm(deluge::gui::context_menu::ResetSettingsAction action) {
-	static deluge::hid::display::oled_canvas::Canvas canvas;
-	canvas.clear();
-	deluge::gui::context_menu::resetSettings.setAction(action);
-	(void)deluge::gui::context_menu::resetSettings.setupAndCheckAvailability();
-	deluge::gui::context_menu::resetSettings.renderOLED(canvas);
-	return page_major_to_pbm(canvas.bytes().data(), 128, 48);
+/// @brief Main's confirmation window for @p action, the whole 128x48 panel as `pixels/context_menu_reset_<action>.pbm`
+///        holds it; empty when the file is missing.
+std::string frozen_panel(std::string_view action) {
+	std::ifstream in(spec::oracle_dir() + "/pixels/context_menu_reset_" + std::string{action} + ".pbm");
+	std::stringstream text;
+	text << in.rdbuf();
+	return text.str();
 }
 
 } // namespace
@@ -544,6 +518,60 @@ describe cm_open("scenes::context_menu::ContextMenuScene opening", $ {
 	});
 });
 
+describe cm_sidebar("scenes::context_menu::ContextMenuScene beneath a sample browser", $ {
+	it("leaves the audition column to the clip view under a sample-browser menu", _ {
+		// `Kit::padAction` and `Synth::padAction` hand the pad to the browser beneath, whose audition column is the clip
+		// view's; every other menu's pad closes it and takes every pad.
+		reset_globals();
+		spec::SongFixture f = spec::make_synth_song();
+		{
+			Rig r;
+			r.open(context_of(f), DescriptorId::SampleBrowserKit);
+			expect(context_menu_scene().grid_pad_claim() == deluge::ui::shell::GridPadClaim::AllButAudition)
+			    .to_be_true();
+		}
+		{
+			Rig r;
+			r.open(context_of(f), DescriptorId::DeleteFile);
+			expect(context_menu_scene().grid_pad_claim() == deluge::ui::shell::GridPadClaim::All).to_be_true();
+		}
+	});
+
+	it("restarts the BACK blink when a scene above it closes, as focusRegained does", _ {
+		reset_globals();
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open(context_of(f), DescriptorId::ResetMidiFollow);
+		constexpr uint8_t kBackLed = 16;
+		const auto back_lit = [&r] {
+			bool lit = false;
+			for (const auto& [led, on] : r.fake.led_writes) {
+				if (led == kBackLed) {
+					lit = on;
+				}
+			}
+			return lit;
+		};
+		for (uint32_t t = 1000; t <= 1300; t += 10) {
+			r.tick(t);
+		}
+		expect(back_lit()).to_be_false(); // past the first 250 ms lit phase
+		// A scene that draws no BACK blink of its own goes over the menu and comes off: the stack fires `on_resume`.
+		expect(r.shell.stack().push(SceneId{kBlinklessKind, 0})).to_be_true();
+		r.tick(1310);
+		expect(r.shell.stack().remove(kBlinklessKind)).to_be_true();
+		for (uint32_t t = 1320; t <= 1540; t += 10) {
+			r.tick(t);
+		}
+		expect(r.shell.stack().input_top().kind() == context_menu::kContextMenuSceneKind).to_be_true();
+		expect(back_lit()).to_be_true(); // restarted on the resume, inside its lit 250 ms
+		for (uint32_t t = 1550; t <= 1600; t += 10) {
+			r.tick(t);
+		}
+		expect(back_lit()).to_be_false();
+	});
+});
+
 describe cm_input("scenes::context_menu::ContextMenuScene input", $ {
 	it("closes on BACK without acting", _ {
 		reset_globals();
@@ -676,17 +704,15 @@ describe cm_input("scenes::context_menu::ContextMenuScene input", $ {
 });
 
 describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
-	/// @brief Drive @p id through the real input path and report the witness afterwards.
+	/// @brief Drive @p id through the real input path from `kPerturbed` and report the witness afterwards.
 	///
-	/// The whole `reset_settings::Reset::selectButtonPress` path the port replaces: open the scene
-	/// on the descriptor, press the select encoder, and let `acceptCurrentOption` close it.
+	/// The whole path main's reset item runs: open the scene on the descriptor, press the select encoder,
+	/// and let the accept hook close it.
 	static const auto run_ported = [](spec::SongFixture& f, DescriptorId id) {
 		restore(kPerturbed);
-		// The legacy half ran first and every reset raises a notice (`FlashStorage::factoryReset`
-		// and friends all call `notify::notice(...)`). Left queued, the shell would push a notice
-		// overlay on this Rig's very first tick and the stack would still be one deep after the
-		// menu removed itself -- which is correct behaviour (and exactly why `close()` spells
-		// `Remove` rather than `Pop`), but it is not what this example is measuring.
+		// Every reset raises a notice. One left queued by an earlier example would make the shell push a notice
+		// overlay on this Rig's first tick, and the stack would still be one deep after the menu removed itself:
+		// correct (it is why `close()` spells `Remove` rather than `Pop`), but not what these examples measure.
 		deluge::notify::Notice discard;
 		while (deluge::notify::notices().pop(discard)) {}
 		Rig r;
@@ -698,81 +724,81 @@ describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
 		return std::pair<ResetWitness, size_t>{witness(), r.shell.stack().depth()};
 	};
 
-	it("runs the flash reset, and only the flash reset, exactly as legacy does", _ {
+	it("runs the flash reset, and only the flash reset, exactly as main does", _ {
 		reset_globals();
 		spec::ErasedFlash flash; // this example programs the settings sector -- see `support/host_flash.h`
 		const ResetWitness entry = witness();
 		spec::SongFixture f = spec::make_synth_song();
 
-		// `FlashStorage::factoryReset` is `resetSettings()` + `writeSettings()`. On the host the
-		// write goes to a RAM-backed model of the settings sector
-		// (`src/bsp/host/host_bsp.c`'s `flash.h` stub, `src/bsp/rust/src/flash.rs:67`) rather than
-		// to a device, which is why this one CAN be driven. It is a real program, though, and the
-		// buffer is process-global: `ErasedFlash` above is what keeps those 256 bytes from being
-		// readable by every example that runs after this one. The C++ globals are saved and
-		// restored separately, the idiom `tables_3_spec.cpp` already uses for these same globals.
-		const ResetWitness legacy = run_legacy(deluge::gui::context_menu::ResetSettingsAction::Flash);
+		// `FlashStorage::factoryReset` is `resetSettings()` + `writeSettings()`. On the host the write goes to a
+		// RAM-backed model of the settings sector, which is why this one can be driven; `ErasedFlash` keeps those
+		// bytes from every example after this one. The C++ globals are saved and restored separately.
+		const std::optional<ResetWitness> frozen = frozen_witness("flash");
+		expect(frozen.has_value()).to_be_true();
+		const ResetWitness main_after = frozen.value_or(kPerturbed);
 		const auto [ported, depth] = run_ported(f, DescriptorId::ResetFlash);
 
-		expect(depth).to_equal(size_t(0));            // `acceptCurrentOption` returns false -> exit
-		expect(ported == legacy).to_be_true();        // the whole point: same action, same object
-		expect(legacy == kPerturbed).to_be_false();   // ...and it did something
+		expect(depth).to_equal(size_t(0));              // `acceptCurrentOption` returns false -> exit
+		expect(ported == main_after).to_be_true();      // the same reset leaves the same globals
+		expect(main_after == kPerturbed).to_be_false(); // ...and it did something
 
-		// Its own subsystem moved and no other did -- what makes a ResetFlash/ResetMidiFollow swap
-		// fail here rather than pass silently and factory-reset the wrong thing on the device.
-		expect(legacy.midi_thru).to_be_false();
-		expect(static_cast<int>(legacy.analog_in_ppqn)).to_equal(24);
-		expect(legacy.use_sharps).to_be_true();
-		expect(static_cast<int>(legacy.follow_root_note)).to_equal(static_cast<int>(kPerturbed.follow_root_note));
-		expect(legacy.follow_display_param).to_equal(kPerturbed.follow_display_param);
-		expect(static_cast<int>(legacy.drum_randomizer)).to_equal(static_cast<int>(kPerturbed.drum_randomizer));
+		// Its own subsystem moved and no other did: a ResetFlash/ResetMidiFollow swap fails here rather than
+		// factory-resetting the wrong thing on the device.
+		expect(main_after.midi_thru).to_be_false();
+		expect(static_cast<int>(main_after.analog_in_ppqn)).to_equal(24);
+		expect(main_after.use_sharps).to_be_true();
+		expect(static_cast<int>(main_after.follow_root_note)).to_equal(static_cast<int>(kPerturbed.follow_root_note));
+		expect(main_after.follow_display_param).to_equal(kPerturbed.follow_display_param);
+		expect(static_cast<int>(main_after.drum_randomizer)).to_equal(static_cast<int>(kPerturbed.drum_randomizer));
 
 		restore(entry);
 		reset_globals();
 	});
 
-	it("runs the MIDI-follow reset, and only that, exactly as legacy does", _ {
+	it("runs the MIDI-follow reset, and only that, exactly as main does", _ {
 		reset_globals();
 		const ResetWitness entry = witness();
 		spec::SongFixture f = spec::make_synth_song();
 
 		// `MidiFollow::factoryReset` is an `unlink` (of the in-memory card's copy -- it never reaches
-		// `tests/fixtures`), five in-memory writes, and a re-read that finds nothing. All observable,
-		// all reversible.
-		const ResetWitness legacy = run_legacy(deluge::gui::context_menu::ResetSettingsAction::MidiFollow);
+		// `tests/fixtures`), five in-memory writes, and a re-read that finds nothing. All observable, all reversible.
+		const std::optional<ResetWitness> frozen = frozen_witness("midi_follow");
+		expect(frozen.has_value()).to_be_true();
+		const ResetWitness main_after = frozen.value_or(kPerturbed);
 		const auto [ported, depth] = run_ported(f, DescriptorId::ResetMidiFollow);
 
 		expect(depth).to_equal(size_t(0));
-		expect(ported == legacy).to_be_true();
-		expect(legacy == kPerturbed).to_be_false();
+		expect(ported == main_after).to_be_true();
+		expect(main_after == kPerturbed).to_be_false();
 
-		expect(static_cast<int>(legacy.follow_root_note)).to_equal(36);
-		expect(legacy.follow_display_param).to_be_false();
-		expect(legacy.midi_thru).to_equal(kPerturbed.midi_thru);   // flash untouched
-		expect(static_cast<int>(legacy.analog_in_ppqn)).to_equal(static_cast<int>(kPerturbed.analog_in_ppqn));
-		expect(static_cast<int>(legacy.drum_randomizer)).to_equal(static_cast<int>(kPerturbed.drum_randomizer));
+		expect(static_cast<int>(main_after.follow_root_note)).to_equal(36);
+		expect(main_after.follow_display_param).to_be_false();
+		expect(main_after.midi_thru).to_equal(kPerturbed.midi_thru); // flash untouched
+		expect(static_cast<int>(main_after.analog_in_ppqn)).to_equal(static_cast<int>(kPerturbed.analog_in_ppqn));
+		expect(static_cast<int>(main_after.drum_randomizer)).to_equal(static_cast<int>(kPerturbed.drum_randomizer));
 
 		restore(entry);
 		reset_globals();
 	});
 
-	it("runs the community-features reset, and only that, exactly as legacy does", _ {
+	it("runs the community-features reset, and only that, exactly as main does", _ {
 		reset_globals();
 		const ResetWitness entry = witness();
 		spec::SongFixture f = spec::make_synth_song();
 
-		const ResetWitness legacy =
-		    run_legacy(deluge::gui::context_menu::ResetSettingsAction::CommunityFeatures);
+		const std::optional<ResetWitness> frozen = frozen_witness("community_features");
+		expect(frozen.has_value()).to_be_true();
+		const ResetWitness main_after = frozen.value_or(kPerturbed);
 		const auto [ported, depth] = run_ported(f, DescriptorId::ResetCommunityFeatures);
 
 		expect(depth).to_equal(size_t(0));
-		expect(ported == legacy).to_be_true();
-		expect(legacy == kPerturbed).to_be_false();
+		expect(ported == main_after).to_be_true();
+		expect(main_after == kPerturbed).to_be_false();
 
-		expect(static_cast<int>(legacy.drum_randomizer))
+		expect(static_cast<int>(main_after.drum_randomizer))
 		    .to_equal(static_cast<int>(RuntimeFeatureStateToggle::On));
-		expect(legacy.midi_thru).to_equal(kPerturbed.midi_thru);
-		expect(static_cast<int>(legacy.follow_root_note)).to_equal(static_cast<int>(kPerturbed.follow_root_note));
+		expect(main_after.midi_thru).to_equal(kPerturbed.midi_thru);
+		expect(static_cast<int>(main_after.follow_root_note)).to_equal(static_cast<int>(kPerturbed.follow_root_note));
 
 		restore(entry);
 		reset_globals();
@@ -783,19 +809,18 @@ describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
 		const ResetWitness entry = witness();
 		spec::SongFixture f = spec::make_synth_song();
 
-		// This one is driven for what it does NOT do. `MIDIDeviceManager::factoryReset`
-		// placement-news over the four global MIDI cable
-		// objects and re-reads the card; none of that reaches a witness field. Asserting the
-		// witness is *unchanged* is still a real discriminator, because `Deluge::factoryReset`
-		// (the only other undriven action) calls `FlashStorage::factoryReset` among its four
-		// (`deluge.cpp:223-229`) and would therefore move the flash fields -- so a
-		// ResetMidiDevices/ResetAll swap fails right here.
-		const ResetWitness legacy = run_legacy(deluge::gui::context_menu::ResetSettingsAction::MidiDevices);
+		// Driven for what it does NOT do. `MIDIDeviceManager::factoryReset` placement-news over the four global MIDI
+		// cable objects and re-reads the card; none of that reaches a witness field. The unchanged witness still
+		// discriminates: `Deluge::factoryReset`, the one undriven reset, runs `FlashStorage::factoryReset` among its
+		// four and would move the flash fields, so a ResetMidiDevices/ResetAll swap fails here.
+		const std::optional<ResetWitness> frozen = frozen_witness("midi_devices");
+		expect(frozen.has_value()).to_be_true();
+		const ResetWitness main_after = frozen.value_or(ResetWitness{});
 		const auto [ported, depth] = run_ported(f, DescriptorId::ResetMidiDevices);
 
 		expect(depth).to_equal(size_t(0));
-		expect(ported == legacy).to_be_true();
-		expect(legacy == kPerturbed).to_be_true(); // nothing in the witness moved
+		expect(ported == main_after).to_be_true();
+		expect(main_after == kPerturbed).to_be_true(); // nothing in the witness moved
 
 		restore(entry);
 		reset_globals();
@@ -830,27 +855,28 @@ describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
 });
 
 describe cm_pixels("scenes::context_menu::ContextMenuScene pixels", $ {
-	it("draws exactly what the real legacy ResetSettings menu draws", _ {
+	it("draws exactly what main's ResetSettings menu draws, for each of the five", _ {
 		reset_globals();
 		spec::SongFixture f = spec::make_synth_song();
 
-		// One pair per `ResetSettingsAction`: all five draw the same window, and asserting that
-		// against the legacy object for each is what pins the *table* as well as the renderer.
-		using deluge::gui::context_menu::ResetSettingsAction;
-		const std::pair<DescriptorId, ResetSettingsAction> kPairs[] = {
-		    {DescriptorId::ResetFlash, ResetSettingsAction::Flash},
-		    {DescriptorId::ResetCommunityFeatures, ResetSettingsAction::CommunityFeatures},
-		    {DescriptorId::ResetMidiFollow, ResetSettingsAction::MidiFollow},
-		    {DescriptorId::ResetMidiDevices, ResetSettingsAction::MidiDevices},
-		    {DescriptorId::ResetAll, ResetSettingsAction::All},
+		// All five draw the same window. Checking each against its own frozen panel pins the table as well as the
+		// renderer.
+		const std::pair<DescriptorId, std::string_view> kPanels[] = {
+		    {DescriptorId::ResetFlash, "flash"},
+		    {DescriptorId::ResetCommunityFeatures, "community_features"},
+		    {DescriptorId::ResetMidiFollow, "midi_follow"},
+		    {DescriptorId::ResetMidiDevices, "midi_devices"},
+		    {DescriptorId::ResetAll, "all"},
 		};
-		for (const auto& [id, action] : kPairs) {
+		for (const auto& [id, name] : kPanels) {
 			Rig r;
 			r.open(context_of(f), id);
 			r.tick(0);
-			// The five bezel rows legacy inks and the port clips are dropped from both sides; see
-			// `below_bezel`. Everything the glass shows is compared byte for byte.
-			expect(below_bezel(r.fake.pbm(0), 5)).to_equal(below_bezel(legacy_pbm(action), 5));
+			const std::string frozen = frozen_panel(name);
+			expect(frozen.empty()).to_be_false();
+			// The five bezel rows main inks and the port clips are dropped from both sides; see `below_bezel`.
+			// Everything the glass shows is compared byte for byte.
+			expect(below_bezel(r.fake.pbm(0), 5)).to_equal(below_bezel(frozen, 5));
 		}
 	});
 
@@ -894,6 +920,7 @@ describe cm_pixels("scenes::context_menu::ContextMenuScene pixels", $ {
 		// widget instead: `tests/golden/ui/widgets/option_window_scrolled_{48,64}.pbm`.
 	});
 });
+
 describe cm_live_settings("scenes::context_menu resets re-apply on the guest what main reads live", $ {
 	it("a community-features reset reaches the guest's shift machine and the open menu's layout", _ {
 		reset_globals();
@@ -972,7 +999,16 @@ describe cm_live_settings("scenes::context_menu resets re-apply on the guest wha
 		reset_globals();
 	});
 });
+
+describe cm_reference_rows("scenes::context_menu: the reference rows", $ {
+	it("parses context_menu_scene.tsv clean and asks every row of it", _ {
+		spec::OracleTable& t = table();
+		expect(t.problems().size()).to_equal(size_t{0});
+		expect(t.size() > size_t{23}).to_be_true();
+		expect(t.unasked()).to_equal(std::string{});
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(context_menu_scene_spec, cm_descriptors, cm_window, cm_composition, cm_open, cm_input, cm_actions,
-            cm_pixels, cm_live_settings)
+DELUGE_SPEC(context_menu_scene_spec, cm_descriptors, cm_window, cm_composition, cm_open, cm_sidebar, cm_input,
+            cm_actions, cm_pixels, cm_live_settings, cm_reference_rows)

@@ -1,12 +1,12 @@
 /// @file
-/// @brief The nine menu items that open a card-backed scene (`scenes/menu/nodes/sample.h`): which
+/// @brief The ten menu items that open a card-backed scene (`scenes/menu/nodes/sample.h`): which
 ///        node carries which item, and what each one actually opens when the menu focuses it.
 ///
 /// Two groups, and they are deliberately different kinds of claim:
 ///
-///   * **The mapping**, asserted by *identity* -- every one of the nine nodes carries the item its
+///   * **The mapping**, asserted by *identity* -- every one of the ten nodes carries the item its
 ///     legacy class became, with the source index and marker that class was constructed with, and
-///     no other node in `nodes::kAllRoots` carries one of these items. Nine near-identical items
+///     no other node in `nodes::kAllRoots` carries one of these items. Ten near-identical items
 ///     across two macro-generated oscillator pages is exactly the shape where a positional check
 ///     looks strong and pins nothing, so the observed table is compared whole and a deliberately
 ///     swapped copy is asserted **not** to match.
@@ -16,18 +16,15 @@
 ///     different folder, a different sample length, a range that exists on one source and not the
 ///     other -- so an item wired to the wrong source fails rather than passing on symmetry.
 ///
-/// Plus the relevance half of the task: `osc<i>_file_selector` and `osc<i>_is_sample` are compared
-/// against the legacy `isRelevant()` overrides they port over **eight** oscillator configurations
-/// rather than the single fixture `tables_1_spec.cpp` uses, with each side driven from its own
-/// sentinel (`SoundEditor`'s globals are written immediately before legacy is asked, and the port is
-/// asked through a `MenuContext` built from the same model state).
-///
-/// @note The spec may include `gui/` (for the legacy menu items); the library may not. Same rule
-///       `tables_1_spec.cpp`, `browser_scene_spec.cpp` and `marker_scene_spec.cpp` run under.
+/// Plus the relevance half of the task: the file selector, loop start and loop end nodes' relevance
+/// is compared with the reference rows main's `isRelevant()` overrides gave over **eight** oscillator
+/// configurations rather than the single fixture `tables_1_spec.cpp` uses, the port asked through a
+/// `MenuContext` built from the model state the rows were taken in.
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/marker/marker_scene.h"
+#include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
@@ -35,6 +32,7 @@
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/nodes/sample.h"
 #include "scenes/menu/relevance.h"
+#include "scenes/menu/shortcuts.h"
 #include "scenes/menu/validate.h"
 #include "scenes/profile.h"
 #include "scenes/recorder/recorder_scene.h"
@@ -44,14 +42,10 @@
 #include "shell/shell.h"
 
 #include "gui/l10n/l10n.h"
-#include "gui/menu_item/file_selector.h"
-#include "gui/menu_item/sample/end.h"
-#include "gui/menu_item/sample/start.h"
-#include "gui/ui/menus.h"
-#include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "model/clip/audio_clip.h"
+#include "model/edits/setting_edit.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
@@ -62,7 +56,10 @@
 #include "storage/multi_range/multisample_range.h"
 
 #include "support/menu_engine.h"
+#include "support/oracle_table.h"
+#include "support/sample_items_fixtures.h"
 #include "support/song_fixture.h"
+#include "support/torn_down_take.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
 // headers this drags in (`audio_engine.h` -> `util/container/ordered_pos_vector.h`).
@@ -84,6 +81,7 @@
 #include "spec/support/spec_main.h"
 
 using namespace deluge::scenes;
+using namespace deluge::scenes::spec::sampleitems;
 using deluge::scenes::menu::MenuContext;
 using deluge::scenes::menu::Node;
 using deluge::ui::shell::BoardProfile;
@@ -107,40 +105,6 @@ struct ScratchCard {
 
 // ---------------------------------------------------------------------------------------------
 // The samples the marker examples open on
-
-constexpr size_t kClusterSize = 32768;
-constexpr int32_t kBytesPerFrame = 2;
-
-/// @brief A `Sample` with a fully investigated overview cache, so nothing reads the card.
-///
-/// `marker_scene_spec.cpp`'s fixture, parameterised by cluster count: **two clusters per display
-/// column is a cliff**, not a preference (`waveform_scan.cpp`'s `numClustersSpan >= 2`), so the two
-/// samples here are 32 and 64 clusters long -- both over the line, and different enough that
-/// `WaveformNav::max_zoom()` tells them apart.
-Sample* make_sample(int32_t num_clusters) {
-	Cluster::set_size(kClusterSize);
-	const uint64_t length = static_cast<uint64_t>(kClusterSize) * num_clusters / kBytesPerFrame;
-
-	// Placed in the deluge heap and never freed -- `song_fixture.h`'s own rule, and for its reason.
-	void* memory = deluge::memory::alloc_fast(sizeof(Sample));
-	auto* s = new (memory) Sample();
-	s->byteDepth = 2;
-	s->numChannels = 1;
-	s->sampleRate = 44100;
-	s->audioDataStartPosBytes = 0;
-	s->audioDataLengthBytes = length * kBytesPerFrame;
-	s->lengthInSamples = length;
-	s->maxValueFound = 127 << 24;
-	s->minValueFound = -128 << 24;
-	s->resizeOverviewCache(num_clusters);
-	for (int32_t i = 0; i < num_clusters; i++) {
-		OverviewCacheEntry& e = s->overviewCacheEntry(static_cast<uint32_t>(i));
-		e.min = static_cast<int8_t>(-(16 + i));
-		e.max = static_cast<int8_t>(16 + i);
-		e.investigated = true;
-	}
-	return s;
-}
 
 /// `WaveformNav::max_zoom()` for a sample of @p num_clusters clusters.
 int64_t zoom_max(int32_t num_clusters) {
@@ -259,12 +223,13 @@ struct SoundRig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
+		spec::settle_torn_down_take();      // a take ended with its screen keeps the next one out until it is freed
 		menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	}
 
 	/// @param second_source True to give oscillator 1 a sample source of its own; false to leave it
 	///                      a square wave with no `MultiRange` at all, which is the shape that makes
-	///                      "the item selected source 1" observable as a refusal.
+	///                      "the item selected source 1" observable as the range it gives that source.
 	explicit SoundRig(bool second_source)
 	    : fake(deluge::ui::shell::kDelugeBoard, deluge_profile()),
 	      shell(fake, deluge_profile(), reg, deluge::ui::shell::Services{}, ShellConfig{}) {
@@ -404,6 +369,7 @@ std::vector<Wiring> observed_wiring() {
 	    wiring_of("sample0_end", nodes::sample0_end),
 	    wiring_of("sample1_end", nodes::sample1_end),
 	    wiring_of("audio_clip_waveform", nodes::audio_clip_waveform),
+	    wiring_of("audio_clip_waveform_start", nodes::audio_clip_waveform_start),
 	    wiring_of("sample0_recorder", nodes::sample0_recorder),
 	    wiring_of("sample1_recorder", nodes::sample1_recorder),
 	};
@@ -430,6 +396,8 @@ std::vector<Wiring> expected_wiring() {
 	    // `audioClipSampleMarkerEditorMenuEnd` (`gui/ui/menus.cpp:1183`) -- `MarkerType::END`, and
 	    // **no** `setCurrentSource` (`audio_clip/sample_marker_editor.cpp:43-51`), which is the -1.
 	    {"audio_clip_waveform", 1, -1, 3},
+	    // `audioClipSampleMarkerEditorMenuStart`: the same, on `MarkerType::START`.
+	    {"audio_clip_waveform_start", 1, -1, 0},
 	    // `osc::AudioRecorder::beginSession` (`osc/audio_recorder.h:38,50`).
 	    {"sample0_recorder", 2, 0, -1},
 	    {"sample1_recorder", 2, 1, -1},
@@ -439,35 +407,20 @@ std::vector<Wiring> expected_wiring() {
 // ---------------------------------------------------------------------------------------------
 // The relevance comparison
 
-/// @brief One oscillator configuration to compare the two relevance predicates under.
-struct OscCase {
-	const char* name;
-	::SynthMode synth_mode;
-	OscType osc_type;
-	bool load_file;
-};
-
-constexpr OscCase kOscCases[] = {
-    {"subtractive+sample+loaded", ::SynthMode::SUBTRACTIVE, OscType::SAMPLE, true},
-    {"subtractive+sample+empty", ::SynthMode::SUBTRACTIVE, OscType::SAMPLE, false},
-    {"subtractive+wavetable+loaded", ::SynthMode::SUBTRACTIVE, OscType::WAVETABLE, true},
-    {"subtractive+square", ::SynthMode::SUBTRACTIVE, OscType::SQUARE, false},
-    {"ringmod+sample+loaded", ::SynthMode::RINGMOD, OscType::SAMPLE, true},
-    {"ringmod+wavetable+loaded", ::SynthMode::RINGMOD, OscType::WAVETABLE, true},
-    {"fm+sample+loaded", ::SynthMode::FM, OscType::SAMPLE, true},
-    {"fm+wavetable+loaded", ::SynthMode::FM, OscType::WAVETABLE, true},
-};
+spec::OracleTable& table() {
+	return spec::OracleTable::named("sample_items");
+}
 
 } // namespace
 
 // clang-format off
 describe sample_items_mapping("scenes::menu the sample items: the mapping", $ {
 
-	it("carries the item its legacy class became, on every one of the nine nodes", _ {
+	it("carries the item its legacy class became, on every one of the ten nodes", _ {
 		// Compared as one whole table rather than node by node, so a failure prints which row moved.
 		expect(format_wiring(observed_wiring())).to_equal(format_wiring(expected_wiring()));
 
-		// ... and the comparison is not vacuous. Nine near-identical items over two macro-generated
+		// ... and the comparison is not vacuous. Ten near-identical items over two macro-generated
 		// oscillator pages is precisely the shape where a positional check passes with two of them
 		// crossed over, so a deliberately crossed copy is asserted NOT to match. (The real proof is
 		// the source mutation recorded in the task report; this is the guard that keeps the
@@ -485,16 +438,17 @@ describe sample_items_mapping("scenes::menu the sample items: the mapping", $ {
 		expect(format_wiring(crossed_markers) == format_wiring(expected_wiring())).to_be_false();
 	});
 
-	it("puts these items on those nine nodes and on nothing else in the tree", _ {
+	it("puts these items on those ten nodes and on nothing else in the tree", _ {
 		// By identity over the whole reachable tree, not by a count: an item accidentally attached to
-		// a tenth node somewhere else would leave every assertion above passing.
+		// an eleventh node somewhere else would leave every assertion above passing.
 		select_language();
 		const uint16_t assigned = menu::assign_node_ids(nodes::kAllRoots);
 
 		const Node* const kExpected[] = {
 		    &nodes::file0_selector,   &nodes::file1_selector,   &nodes::sample0_start,
 		    &nodes::sample1_start,    &nodes::sample0_end,      &nodes::sample1_end,
-		    &nodes::audio_clip_waveform, &nodes::sample0_recorder, &nodes::sample1_recorder,
+		    &nodes::audio_clip_waveform, &nodes::audio_clip_waveform_start, &nodes::sample0_recorder,
+		    &nodes::sample1_recorder,
 		};
 		std::set<const Node*> want{std::begin(kExpected), std::end(kExpected)};
 
@@ -628,6 +582,66 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		expect(static_cast<int64_t>(marker::marker_scene().x_zoom())).to_equal(zoom_max(48));
 	});
 
+	it("audio_clip_waveform_start opens the marker editor on the clip's own holder, on START", _ {
+		// `audioClipSampleMarkerEditorMenuStart`: the START spelling, reached by the V1 shortcut cells.
+		spec::QuietAudio quiet;
+		CleanScenes clean;
+		ClipRig r;
+		r.focus(nodes::audio_clip_waveform_start);
+
+		expect(r.on_stack(marker::kMarkerSceneKind)).to_be_true();
+		expect(static_cast<int>(marker::marker_scene().marker_type())).to_equal(static_cast<int>(MarkerType::START));
+		expect(static_cast<int64_t>(marker::marker_scene().x_zoom())).to_equal(zoom_max(48));
+	});
+
+	it("opens the marker editor over the keyboard root with the greyout shown at once", _ {
+		// `MarkerItem::on_focus` hands the menu's context to the editor, `root_is_keyboard` included.
+		spec::QuietAudio quiet;
+		CleanScenes clean;
+		ClipRig r;
+		MenuContext c = r.ctx();
+		c.root_is_keyboard = true;
+		focus_in(r.shell, c, nodes::audio_clip_waveform);
+		expect(r.on_stack(marker::kMarkerSceneKind)).to_be_true();
+		expect(marker::marker_scene().greyout_changes_instantly()).to_be_true();
+	});
+
+	it("lands the V1 shortcut (0, 7) on the marker editor's START through the shell, and BACK leaves the menu too", _ {
+		spec::QuietAudio quiet;
+		CleanScenes clean;
+		ClipRig r;
+		const menu::ShortcutsVersion saved = menu::shortcuts_version();
+		menu::set_shortcuts_version(menu::ShortcutsVersion::V1);
+		// The menu is open on an audio clip item; SHIFT + pad (0, 7) is the START item's shortcut.
+		focus_in(r.shell, r.ctx(), nodes::audio_clip_reverse);
+		expect(r.on_stack(marker::kMarkerSceneKind)).to_be_false();
+		uint32_t at = 100;
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 8, 0, 255}, at += 10);
+		r.shell.tick(at += 10);
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, 0, 7, 255}, at += 10);
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, 0, 7, 0}, at += 10);
+		for (int i = 0; i < 4; i++) {
+			r.shell.tick(at += 10);
+		}
+		const bool landed = r.on_stack(marker::kMarkerSceneKind);
+		const int type = static_cast<int>(marker::marker_scene().marker_type());
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 8, 0, 0}, at += 10);
+		// BACK (matrix (7, 1)).
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 7, 1, 255}, at += 10);
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 7, 1, 0}, at += 10);
+		for (int i = 0; i < 4; i++) {
+			r.shell.tick(at += 10);
+		}
+		const bool still = r.on_stack(marker::kMarkerSceneKind);
+		const size_t depth = r.shell.stack().depth();
+		menu::set_shortcuts_version(saved);
+		expect(landed).to_be_true();
+		expect(type).to_equal(static_cast<int>(MarkerType::START));
+		expect(still).to_be_false();
+		// The item sat at depth 0 (main opens it so), so BACK leaves the menu with the editor.
+		expect(depth).to_equal(size_t(0));
+	});
+
 	it("refuses to open the marker editor when the clip has no sample, as legacy refuses", _ {
 		// `audio_clip::SampleMarkerEditor::checkPermissionToBeginSession`
 		// (`audio_clip/sample_marker_editor.cpp:35-38`) as `MarkerScene::can`'s audio-clip arm: the
@@ -652,25 +666,81 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		expect(recorder::recorder_scene().recording()).to_be_true();
 	});
 
-	it("sample1_recorder opens it over source 1, which is what a missing range proves", _ {
-		// The per-source discriminator for this scene. Oscillator 1 is left a square wave with no
-		// `MultiRange` at all, so `RecorderScene::can`'s no-range refusal fires -- but
-		// only if the item re-pointed the context at source 1. Wired to source 0 it would find source
-		// 0's range and open, which is what makes this a test of `select_source` and not of `can`.
+	it("sample1_recorder gives source 1 its first range and opens the recorder on it, as main's AudioRecorder does", _ {
+		// `osc::AudioRecorder::checkPermissionToBeginSession` asks
+		// `checkPermissionToBeginSessionForRangeSpecificParam` about its own `source_id_`, whose first statement is
+		// `getOrCreateFirstRange()`: a square-wave oscillator 2 with no `MultiRange` gets one and records into it. The
+		// menu's context stays on source 0 (`SoundRig::ctx`), so only an item that asks about source 1 itself makes the
+		// range there; source 0 keeps the one range it had.
 		spec::QuietAudio quiet;
 		CleanScenes clean;
 		ScratchCard card;
 		SoundRig r{/*second_source=*/false};
-		expect(r.source[1] == nullptr).to_be_true();
+		expect(r.sound->sources[1].ranges.size()).to_equal(size_t{0});
 
 		r.focus(nodes::sample1_recorder);
-		expect(r.on_stack(recorder::kRecorderSceneKind)).to_be_false();
+		expect(r.on_stack(recorder::kRecorderSceneKind)).to_be_true();
+		expect(recorder::recorder_scene().recording()).to_be_true();
+		expect(r.sound->sources[1].ranges.size()).to_equal(size_t{1});
+		expect(r.sound->sources[0].ranges.size()).to_equal(size_t{1});
+	});
 
-		// And the same rig opens on source 0, so the refusal above is about the source rather than
-		// about the rig being unable to record at all.
-		SoundRig r2{/*second_source=*/false};
-		r2.focus(nodes::sample0_recorder);
-		expect(r2.on_stack(recorder::kRecorderSceneKind)).to_be_true();
+	it("sample1_recorder asks about source 1's ranges, not the menu's multisampled source 0, as main's whichThing", _ {
+		// `checkPermissionToBeginSessionForRangeSpecificParam(sound, source_id_, ...)`: oscillator 2 has one range once
+		// it is made, so REC 2 opens with no picker, however many ranges oscillator 1 has and whether one is picked.
+		spec::QuietAudio quiet;
+		CleanScenes clean;
+		ScratchCard card;
+		SoundRig r{/*second_source=*/false};
+		r.source[0]->ranges.insertMultiRange(1);
+		deluge::edits::recordRanges(*r.sound, 0);
+		MenuContext c = r.ctx();
+		c.range_index = -1; // oscillator 1 multisampled, no range picked
+		expect(menu::permission_for(nodes::sample0_recorder, c) == menu::Permission::MustSelectRange).to_be_true();
+		expect(menu::permission_for(nodes::sample1_recorder, c) == menu::Permission::Yes).to_be_true();
+
+		focus_in(r.shell, c, nodes::sample1_recorder);
+		expect(r.on_stack(recorder::kRecorderSceneKind)).to_be_true();
+		expect(r.sound->sources[1].ranges.size()).to_equal(size_t{1});
+		expect(r.sound->sources[0].ranges.size()).to_equal(size_t{2});
+	});
+
+	it("sample1_recorder makes a range on source 1 alone, never on the menu's source 0", _ {
+		// `main` allocates in the item's own permission check, on `source_id_`; oscillator 1 here has no range and
+		// gets none.
+		spec::QuietAudio quiet;
+		CleanScenes clean;
+		ScratchCard card;
+		SoundRig r{/*second_source=*/false};
+		r.range[0]->sampleHolder.audioFile = nullptr; // the rig placed the sample without a reason to drop
+		r.source[0]->ranges.clear();
+		r.range[0] = nullptr;
+		deluge::edits::recordRanges(*r.sound, 0);
+		MenuContext c = r.ctx();
+		c.range_index = -1;
+
+		focus_in(r.shell, c, nodes::sample1_recorder);
+		expect(r.on_stack(recorder::kRecorderSceneKind)).to_be_true();
+		expect(r.sound->sources[1].ranges.size()).to_equal(size_t{1});
+		expect(r.sound->sources[0].ranges.size()).to_equal(size_t{0});
+	});
+
+	it("sample1_recorder whose first range cannot be made refuses to open, as main's refused permission", _ {
+		// `checkPermissionToBeginSessionForRangeSpecificParam`'s `displayError(INSUFFICIENT_RAM)` and `NO`: `setup`
+		// refuses, so the menu does not open on the item and the recorder does not open at all. The menu's refusal is
+		// `on_enter` answering false, which the shell rolls back. A context with no sink is one whose range request is
+		// refused.
+		spec::QuietAudio quiet;
+		CleanScenes clean;
+		SoundRig r{/*second_source=*/false};
+		MenuContext c = r.ctx();
+		c.sink = nullptr;
+		select_language();
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::sample1_recorder, c);
+		expect(menu_scene().on_enter(SceneId{menu::kMenuSceneKind, menu::node_id(nodes::sample1_recorder)})).to_be_false();
+		expect(r.on_stack(recorder::kRecorderSceneKind)).to_be_false();
+		expect(r.sound->sources[1].ranges.size()).to_equal(size_t{0});
 	});
 
 	it("does not leave source 0's range behind when it selects source 1", _ {
@@ -706,59 +776,35 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 	});
 });
 
-describe sample_items_relevance("scenes::menu the sample items: relevance against legacy", $ {
+describe sample_items_relevance("scenes::menu the sample items: relevance against main", $ {
 
 	it("agrees with FileSelector::isRelevant and isSampleModeSample in every oscillator mode", _ {
-		// `tables_1_spec.cpp` already compares every batch-1 node's predicate against its legacy
-		// item, but on ONE fixture sound -- which for these two predicates exercises one of the eight
-		// configurations below. Each side is driven from its own sentinel: the model is written, then
-		// legacy is asked through `soundEditor`'s globals, then the model is written again and the
+		// `tables_1_spec.cpp` already compares every batch-1 node's relevance with its reference row, but on ONE fixture
+		// sound -- which for these nodes exercises one of the eight configurations below. The model is written, then the
 		// port is asked through a freshly built `MenuContext`.
 		select_language();
 		spec::SongFixture song = spec::make_synth_song();
 		auto* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
 		Sample* sample = make_sample(32);
 
-		const auto seed = [&](const OscCase& c, int32_t which) {
-			sound->assignSynthMode(c.synth_mode);
-			for (int32_t i = 0; i < 2; i++) {
-				Source& s = sound->sources[i];
-				s.oscType = i == which ? c.osc_type : OscType::SQUARE;
-				auto* range = static_cast<MultisampleRange*>(s.getOrCreateFirstRange());
-				range->sampleHolder.audioFile = (i == which && c.load_file) ? sample : nullptr;
-			}
-			deluge::bridge::recordLoadedSound(*sound, *song.song); // the record the port reads
-		};
-
 		std::vector<std::string> observed;
 		std::vector<std::string> want;
 		for (const OscCase& c : kOscCases) {
 			for (int32_t which = 0; which < 2; which++) {
-				// --- legacy, from its own sentinel
-				seed(c, which);
-				soundEditor.currentSound = sound;
-				soundEditor.currentSourceIndex = static_cast<int8_t>(which);
-				soundEditor.currentSource = &sound->sources[which];
-				const bool legacy_file = (which == 0 ? deluge::gui::menu_item::file0SelectorMenu
-				                                     : deluge::gui::menu_item::file1SelectorMenu)
-				                             .isRelevant(sound, which);
-				const bool legacy_loop = (which == 0 ? sample0StartMenu : sample1StartMenu).isRelevant(sound, which);
-				const bool legacy_end = (which == 0 ? sample0EndMenu : sample1EndMenu).isRelevant(sound, which);
-
-				// --- port, same sentinel written again, through its own context
-				seed(c, which);
-				const MenuContext ctx =
-				    menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), static_cast<int8_t>(which), false, false, false, false);
-				const bool port_file = (which == 0 ? menu::relevance::osc0_file_selector
-				                                   : menu::relevance::osc1_file_selector)(ctx);
-				const bool port_sample =
-				    (which == 0 ? menu::relevance::osc0_is_sample : menu::relevance::osc1_is_sample)(ctx);
-
-				const std::string tag = std::string{c.name} + "/osc" + std::to_string(which) + ":";
-				want.push_back(tag + (legacy_file ? "F1" : "F0") + (legacy_loop ? "S1" : "S0")
-				               + (legacy_end ? "E1" : "E0"));
-				observed.push_back(tag + (port_file ? "F1" : "F0") + (port_sample ? "S1" : "S0")
-				                   + (port_sample ? "E1" : "E0"));
+				seed_osc_case(*sound, *song.song, sample, c, which);
+				const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip),
+				                                          static_cast<int8_t>(which), false, false, false, false);
+				const std::string path = std::string{"sample/"} + c.name + "/" + std::to_string(which);
+				const std::vector<std::string>* frozen = table().find(path, "rel");
+				const auto flag = [](bool on) { return std::string{on ? "1" : "0"}; };
+				want.push_back(path + ":"
+				               + (frozen != nullptr && frozen->size() == 3
+				                      ? flag((*frozen)[0] == "1") + flag((*frozen)[1] == "1") + flag((*frozen)[2] == "1")
+				                      : std::string{"<no row>"}));
+				observed.push_back(path + ":"
+				                   + flag(menu::bindings::relevant(which == 0 ? nodes::file0_selector : nodes::file1_selector, ctx))
+				                   + flag(menu::bindings::relevant(which == 0 ? nodes::sample0_start : nodes::sample1_start, ctx))
+				                   + flag(menu::bindings::relevant(which == 0 ? nodes::sample0_end : nodes::sample1_end, ctx)));
 			}
 		}
 		expect(observed).to_equal(want);
@@ -772,6 +818,16 @@ describe sample_items_relevance("scenes::menu the sample items: relevance agains
 		expect(answers.size() > size_t(1)).to_be_true();
 	});
 });
+
+describe sample_items_reference_rows("scenes::menu the sample items: the reference rows", $ {
+	it("parses sample_items.tsv clean and asks every row of it", _ {
+		spec::OracleTable& t = table();
+		expect(t.problems().size()).to_equal(size_t{0});
+		expect(t.size() > size_t{15}).to_be_true();
+		expect(t.unasked()).to_equal(std::string{});
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(sample_items_spec, sample_items_mapping, sample_items_opening, sample_items_relevance)
+DELUGE_SPEC(sample_items_spec, sample_items_mapping, sample_items_opening, sample_items_relevance,
+            sample_items_reference_rows)

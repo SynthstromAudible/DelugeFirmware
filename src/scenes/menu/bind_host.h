@@ -9,6 +9,7 @@
 #include "scenes/services/favourites.h"
 #include "scenes/services/waveforms.h"
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -33,13 +34,26 @@ void host_settings_reset();
 
 /// @brief The waveforms of the song the app plays.
 const deluge::scenes::services::Waveforms& host_waveforms();
-/// @brief The file the sample browser last started to preview or load (legacy's `SampleBrowser::lastFilePathLoaded`),
+/// @brief The file the sample browser last started to preview or load (`deluge::model::lastFilePathLoaded`),
 ///        which a sample browser opens beside when its holder names no file in SAMPLES/.
 std::string host_last_sample_path();
 /// @brief Stop the preview's sound and drop the sample file @p path from memory, unless the song uses it: the sample
 ///        browser's Shift+SAVE, before it offers to delete the file (`SampleBrowser::buttonAction`).
 /// @return False when the song uses the file, which may then not be deleted.
 bool host_release_sample_file(std::string_view path);
+/// @brief How an opener ends a held audition, each as its legacy opener does.
+enum class AuditionEnd : uint8_t {
+	ClipViewWhenAuditioning,   ///< `AudioRecorder::opened`, `SampleBrowser::opened`
+	ClipViewForInstrumentClip, ///< `EditName::beginSession`
+	KeyboardWhenAuditioning,   ///< `LoopPoint::beginSession`
+};
+/// @brief End a held audition the way @p how names, before a scene opens over it: the scene claims every pad, so the
+///        held pad's release never reaches the view that started the note.
+void host_end_audition(AuditionEnd how);
+/// @brief Clear the playhead squares: what main's recorder does as it opens.
+void host_clear_tick_squares();
+/// @brief Forget the undo history: what main's sample browser does as it opens.
+void host_forget_undo();
 /// @brief The favourites bank the app's browsers share.
 deluge::scenes::services::Favourites& host_favourites();
 

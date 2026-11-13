@@ -16,7 +16,6 @@
  */
 
 #include "definitions_cxx.hpp"
-#include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"

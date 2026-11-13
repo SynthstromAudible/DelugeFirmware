@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/sound_target.h"
 #include "storage/audio/latest_sample_load.h"
 
 #include <cstdint>
@@ -42,8 +43,8 @@ namespace deluge::gui::ui {
 /// The legacy `Slicer` and the ported slicer's host both drive one of these, so the two UIs slice the same way. Both
 /// loads are asynchronous; the caller ticks them (`tick_audition`, `tick_slice`) while its slicer is up.
 ///
-/// @pre Everything reads the current kit (`getCurrentKit()`), and the slice reads `soundEditor`'s current sound and
-///      source: a caller that is not the sound editor resolves them first.
+/// @pre Everything reads the current kit (`getCurrentKit()`); the slice and the first drum's audition read the sound
+///      the caller last named (`retarget`).
 class SliceCore {
 public:
 	/// @brief One audition: play the first drum from @p startPoint to @p endPoint (-1 keeps the end), transposed.
@@ -66,6 +67,9 @@ public:
 		bool landed; ///< The drums were made (and, for a manual slice, painted).
 		Error error; ///< The reason it did not land, or a slice error; `NONE` for a landed slice.
 	};
+
+	/// @brief The sound the next audition, slice or play-position read acts on. The caller sets it before each.
+	void retarget(const deluge::gui::SoundTarget& target) { target_ = target; }
 
 	/// @brief Press or release one audition of @p sample on the first drum.
 	///
@@ -118,6 +122,7 @@ private:
 	deluge::storage::LatestSampleLoad<uint32_t> slice_load_{};
 	bool slicing_{false};
 	Target pending_{};
+	deluge::gui::SoundTarget target_{};
 };
 
 } // namespace deluge::gui::ui

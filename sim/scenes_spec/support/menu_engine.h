@@ -20,6 +20,8 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/source.h"
 
+#include <optional>
+
 namespace deluge::scenes::spec {
 
 /// @brief What a menu context edits, as engine objects.
@@ -100,25 +102,6 @@ inline bool learns_as(const std::optional<deluge::project::OwnerParamTarget>& po
 	                                          : deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
 	return port && port->owner == deluge::scenes::menu::bindings::controls_owner(ctx)
 	       && port->param == deluge::bridge::controlTargetOf(legacy, unpatched);
-}
-
-/// @brief Can the sound @p ctx edits hold note tails: `Sound::allowNoteTails` over the stack `SoundEditor::setup`
-///        builds for it. No sound always can.
-inline bool sound_allows_note_tails(const deluge::scenes::menu::MenuContext& ctx) {
-	const MenuEngine e = menu_engine(ctx);
-	if (e.sound == nullptr || e.clip == nullptr) {
-		return true;
-	}
-	NoteRow* note_row = nullptr;
-	int32_t note_row_index = 0;
-	if (ctx.is_drum && e.clip->type == ClipType::INSTRUMENT) {
-		note_row =
-		    static_cast<InstrumentClip*>(e.clip)->getNoteRowForDrum(static_cast<SoundDrum*>(e.sound), &note_row_index);
-	}
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithThreeMainThings* stack = setupModelStackWithThreeMainThingsIncludingNoteRow(
-	    memory, ctx.song, e.clip, note_row_index, note_row, e.mod, e.params);
-	return e.sound->allowNoteTails(stack->addSoundFlags(), /*disregardSampleLoop=*/true);
 }
 
 } // namespace deluge::scenes::spec

@@ -29,6 +29,8 @@
 #include "scenes/menu/present.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
+#include "ui/oled/list.h"
+#include "ui/oled/values.h"
 
 #include "notify/dirty_set.h"
 #include "shell/profiles/deluge.h"
@@ -274,6 +276,28 @@ describe leaf_words("scenes::menu full-screen Decimal words", $ {
 		rig.reference.draw_string_centred("Hz/V", 20, 18, 20);
 		expect(rows_match(rig, 20, 42)).to_be_true();
 		cvEngine.cvChannels[0].voltsPerOctave = saved;
+	});
+
+	it("lists a toggle's own page as DISABLED and ENABLED, as main's Toggle::getNameFor", _ {
+		Rig r;
+		menu::bindings::write(nodes::osc_sync, r.ctx, 0);
+		r.open(nodes::osc_sync);
+		deluge::ui::test::Rig48 rig;
+		draw(rig, 0);
+		// The same list drawn with main's two words, below the title.
+		deluge::ui::test::Rig48 main_words;
+		bool off = false;
+		deluge::ui::ScrollText scroll;
+		(void)deluge::ui::oled::toggle(main_words.frame, deluge::ui::oled::menu_rect(main_words.frame), off,
+		                               deluge::l10n::get(String::STRING_FOR_DISABLED),
+		                               deluge::l10n::get(String::STRING_FOR_ENABLED), scroll);
+		bool same = true;
+		for (int y = 19; y < 48; y++) {
+			for (int x = 0; x < 128; x++) {
+				same = same && rig.lit(x, y) == main_words.lit(x, y);
+			}
+		}
+		expect(same).to_be_true();
 	});
 
 	it("draws retrigger phase's free-running value as OFF, and the first detent up lands on 0", _ {
@@ -569,6 +593,17 @@ describe leaf_sync_names("scenes::menu sync-level names", $ {
 		char buf[32];
 		expect(std::string{menu::column_notification(nodes::record_quantize, r.ctx, 7, buf)})
 		    .to_equal(std::string{"16th-notes"});
+	});
+
+	it("notifies a custom column with its name alone", _ {
+		// `MenuItem::getNotificationValue` is empty, and `FileSelector`, `LoopPoint` and `SampleMarkerEditor` keep it:
+		// the banner reads "FILE BROWSER", with no value after it.
+		Rig r;
+		char buf[32];
+		for (const Node* node : {&nodes::file0_selector, &nodes::file1_selector, &nodes::sample0_start,
+		                         &nodes::sample0_end, &nodes::audio_clip_waveform}) {
+			expect(std::string{menu::column_notification(*node, r.ctx, 0, buf)}).to_equal(std::string{});
+		}
 	});
 });
 // clang-format on

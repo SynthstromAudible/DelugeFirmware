@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/file_listing.h"
+#include "gui/ui/load/navigation_step.h"
 #include "storage/preset_acquisition.h"
 
 #include <cstdint>
@@ -35,17 +36,23 @@ namespace deluge::gui {
 ///
 /// Reads the folder a window at a time into a listing of its OWN, through the browser's resumable read, and hands
 /// each window to decideNavigation. A read that is not ready leaves it in Read; the next tick asks for the same open.
-/// The walk's wraps are summed here, across windows, which is what bounds it: a page only moves forward, and a
-/// read from the far end is a wrap.
+/// A step's wraps are summed here, across windows, which is what bounds it: a page only moves forward, and a read
+/// from the far end is a wrap.
+///
+/// A pile (the detents of a turn made while one of the same output loaded) reads the window the earlier turn landed
+/// in again, finds its landing there and moves from it by the whole pile, by main's rules (movePile). Those rules
+/// start the wrap count again with each read, as main's `wrapped` does, so they do not bound a pile: one passing
+/// presets in the song past a window's trimmed edge, or past the folder's end, reads the same window again, where
+/// main's `doPresetNavigation` would spin for ever. The read backstop (@ref kMaxNavigationReads) ends it.
 ///
 /// @note The FileItem* handed back points into this walk's own listing and stays valid until it is armed again.
 class PresetNavigation {
 public:
-	/// A backstop: termination does not depend on it, but a machine that could spin for ever should not rest on
-	/// that alone. Hitting it gets out and is counted.
+	/// The reads a walk may make: a step never needs it, and a pile that keeps reading the same window ends on it.
+	/// Hitting it gets out and is counted.
 	static constexpr int32_t kMaxNavigationReads = 64;
 
-	/// @brief Start a scroll from @p spec's preset, in @p spec's direction.
+	/// @brief Start a scroll from @p spec's preset, one preset on in its direction, or by its pile.
 	void arm(LoadInstrumentPresetUI& ui, const deluge::storage::AcquireWalkSpec& spec);
 	/// @return Whether it is still waiting on a folder open.
 	bool tick();
@@ -53,21 +60,37 @@ public:
 	/// The folder it read: where the landed preset lives.
 	[[nodiscard]] const std::string& dir() const { return dir_; }
 	[[nodiscard]] int32_t giveUps() const { return giveUps_; }
+	/// @return Where a walk that landed did: what a pile turned meanwhile moves on from. Valid once result() holds.
+	[[nodiscard]] const deluge::storage::NavigationPile& landing() const { return landing_; }
 
 private:
 	enum class Phase : uint8_t { Idle, Read, Done };
+	/// One preset on (decideNavigation); finding a pile's earlier landing in its window; moving a pile on after a read.
+	enum class Mode : uint8_t { Step, FindLanding, MovePile };
 
 	void finish(std::expected<FileItem*, Error> result);
+	/// @param wraps The wraps made in the window it landed in, which a pile moved from it keeps.
+	void land(int32_t index, int32_t wraps);
+	/// @brief Act on a pile's decision for the window just read.
+	void followPile(const PileDecision& decision);
 
 	Phase phase_{Phase::Idle};
+	Mode mode_{Mode::Step};
 	deluge::gui::browser::FileListing listing_;
 	LoadInstrumentPresetUI* ui_{};
 	std::string dir_;
 	std::string searchName_; ///< with its extension; empty once a read from the far end has cleared it
+	/// Main's `oldNameString`: the preset moved on from, then each file landed on, which a pile past a trimmed edge
+	/// reads again from; cleared by a read from the far end, and kept by a landing on an Instrument.
+	std::string oldName_;
+	int32_t pileWraps_{};    ///< MovePile/FindLanding: the wraps already made in the window being moved in
+	bool searchRight_{true}; ///< the next read's direction
 	int32_t offset_{};
 	Instrument* oldInstrument_{};
 	OutputType outputType_{OutputType::SYNTH};
 	bool skipInSong_{};
+	deluge::storage::NavigationPile pile_; ///< FindLanding/MovePile: the earlier landing
+	deluge::storage::NavigationPile landing_;
 	int32_t wraps_{};
 	int32_t reads_{};
 	int32_t giveUps_{};

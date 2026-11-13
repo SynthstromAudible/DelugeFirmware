@@ -80,8 +80,8 @@ using deluge::ui::shell::SurfaceRole;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
-// The real global `battery_level`'s `CustomItem` reads (`deluge.cpp:94`) -- declared bare and at
-// global scope, exactly as `settings.cpp` and `sound_editor.cpp:1458` both do (a declaration
+// The real global `battery_level`'s `CustomItem` reads (`deluge.cpp:93`) -- declared bare and at
+// global scope, exactly as `settings.cpp` and `sound_editor.cpp`'s `extern uint16_t batteryMV` both do (a declaration
 // inside this file's own anonymous namespace below would name a different, unlinked variable).
 extern uint16_t batteryMV;
 
@@ -419,12 +419,7 @@ struct Rig {
 	/// @brief \p delta detents of a gold knob.
 	///
 	/// The gold knobs are `EncoderKind::Accelerating`, so the raw edge count IS the magnitude and
-	/// no `edges_per_detent` division applies. `InputLowering::action_gold_turn`
-	/// additionally swallows the first turn after a *pause*
-	/// longer than `short_press_ms` (500 ms) as a possible accidental wiggle -- but
-	/// `last_turn_ms_` starts at 0, so every clock this spec uses (all under 500 ms) already
-	/// counts as "turned recently" and one event is one acted-on turn. Keep spec clocks under
-	/// 500 ms, or the first gold turn will be silently swallowed.
+	/// no `edges_per_detent` division applies; one event is one acted-on turn.
 	void gold(uint8_t index, int16_t delta, uint32_t at_ms) { edges(index, delta, at_ms); }
 	/// @brief One button press/release at matrix (\p x, \p y).
 	void button(uint8_t x, uint8_t y, bool on, uint32_t at_ms) {
@@ -1164,7 +1159,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("a select turn on a bespoke Value page uses the held press up", _ {
 		// The CV output selection is a `Selection` (`cv/selection.h:27`): `Value::selectEncoderAction` uses the press
-		// up while Select is held (`value.h:64-67`), so the release neither opens the output nor ascends.
+		// up while Select is held (`origin/main:src/deluge/gui/menu_item/value.h` `Value<T>::selectEncoderAction`), so
+		// the release neither opens the output nor ascends.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -1194,8 +1190,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.shell.tick(0);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 
-		// `handle()` directly, so the `Result` itself is the assertion (`sound_editor.cpp:456` ->
-		// `:433` `goUpOneLevel()` -> `:678` `exitCompletely()`). `Remove`, not `Pop`:
+		// `handle()` directly, so the `Result` itself is the assertion (`SoundEditor::buttonAction`'s BACK arm ->
+		// `goUpOneLevel()` -> `exitCompletely()`). `Remove`, not `Pop`:
 		// `Pop{.pop_to = kind}` still pops everything ABOVE `kind` too
 		// (`SceneStack::pop`), which is wrong for "close just me" the moment a `Notices`
 		// overlay legitimately sits above this scene (see the test right after this one).
@@ -1675,6 +1671,44 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().focused_value() == &nodes::source0_transpose).to_be_true();
 	});
 
+	it("a jump to a page whose column is not range-dependent drops the picked range, as main's beginSession", _ {
+		// `setup()` keeps `currentMultiRange` in the open editor, then `beginScreen` begins the landing's page:
+		// `HorizontalMenu::beginSession` keeps the range only for a range-dependent column, so a jump to the LPF page
+		// drops it and a later jump to the transpose asks for a range again.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		sound->sources[0].ranges.insertMultiRange(0);
+		sound->sources[0].ranges.insertMultiRange(1);
+		deluge::edits::recordRanges(*sound, 0);
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		const auto jump = [&](int32_t x, int32_t y, uint32_t at) {
+			r.button(kShiftX, kShiftY, true, at);
+			r.pad(x, y, 64, at + 10);
+			r.shell.tick(at + 20);
+			r.pad(x, y, 0, at + 25);
+			r.button(kShiftX, kShiftY, false, at + 30);
+			r.shell.tick(at + 40);
+		};
+		jump(2, 1, 10);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 60);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 60);
+		r.shell.tick(70);
+		r.shell.tick(90);
+		expect(menu_scene().focused_value() == &nodes::source0_transpose).to_be_true();
+		expect(menu_scene().menu_context().range_index >= 0).to_be_true();
+
+		jump(kLpfFreqX, kLpfFreqY, 200);
+		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().menu_context().range_index).to_equal(-1);
+
+		jump(2, 1, 400);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+	});
+
 	it("lands on the leaf itself with the HorizontalMenus feature off", _ {
 		// `getCurrentHorizontalMenusChain` answers nothing with the feature off, so `setup()` opens
 		// the item alone.
@@ -1763,14 +1797,15 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().state().walk.pending_after_range == &transpose_leaf).to_be_true();
 
 		// Both ranges are on screen, and the picker has selected one -- `SoundEditor::setCurrentMultiRange`, applied by `after_render` from `MenuWalkState::range_choice`.
-		// `MultiRange::beginSession` (`multi_range.cpp:48-51`): a `defaultRangeI` of -1 is invalid, so
-		// the picker opens on `numRanges >> 1` -- range 1 of the two -- and writes that back to
+		// `MultiRange::beginSession` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): a `defaultRangeI` of -1
+		// is invalid, so the picker opens on `numRanges >> 1` -- range 1 of the two -- and writes that back to
 		// `Source::defaultRangeI`, as legacy does.
 		expect(cursor_of(1)).to_equal(1);
 		expect(static_cast<SoundInstrument*>(r.song.instrument)->sources[0].defaultRangeI).to_equal(1);
 
 		// A select press on the picker chains to the node it stood in for -- `MultiRange::selectButtonPress`
-		// returning `menuItemHeadingTo` (`multi_range.cpp`) -- and this time the permission
+		// returning `menuItemHeadingTo` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`
+		// `MultiRange::selectButtonPress`) -- and this time the permission
 		// rule answers YES, because a range is now selected (`context.cpp`'s already-selected arm).
 		//
 		// Landing on the leaf is itself the proof that `select_range` reached the scene's own
@@ -1827,7 +1862,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("remembers a flick in the source, and a note played under the open picker moves the memory and not the cursor", _ {
-		// `selectEncoderAction`'s flick writes `defaultRangeI` (`multi_range.cpp`); a voice start writes it too
+		// `selectEncoderAction`'s flick writes `defaultRangeI` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`
+		// `MultiRange::selectEncoderAction`); a voice start writes it too
 		// (`Source::getRange`), and the open picker's cursor stays where it was.
 		select_language();
 		deluge::notify::dirty().drain();
@@ -2146,8 +2182,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// shortcut-pad jump, which re-enters through `Action::Kind::Replace` carrying the same
 		// `arg`. Measured at level 3 before the fix: the ported file selector's browser refused to
 		// open on a fresh synth clip -- `browser::sample_can` wants a non-null `AudioFileHolder`
-		// (`sample_can` in `scenes/browser/browser_scene.cpp`) and `ctx.range` was still null -- while the
-		// ShellMenu-off leg opened it. `tests/ui-scripts/app/menu.txt`'s `file-selector` snapshot is
+		// (`sample_can` in `scenes/browser/browser_scene.cpp`) and `ctx.range` was still null -- while
+		// legacy opened it. `tests/ui-scripts/app/menu.txt`'s `file-selector` snapshot is
 		// that measurement; this is the same claim at fixture level.
 		select_language();
 		deluge::notify::dirty().drain();
@@ -2202,7 +2238,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	it("a deep link to a node that is NOT range-dependent allocates nothing", _ {
 		// The other half of the guard, so the arm above cannot be satisfied by allocating for every
 		// deep link. Legacy runs the range check only for the items whose
-		// `checkPermissionToBeginSession` routes into it -- `MenuItem::isRangeDependent()`, which is `Node::range_dependent` -- and an ordinary
+		// `checkPermissionToBeginSession` routes into it -- `Node::range_specific` -- and an ordinary
 		// param takes `MenuItem::checkPermissionToBeginSession` (`menu_item.cpp:27-31`), which
 		// never looks at a range at all.
 		select_language();
@@ -2257,8 +2293,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("a leaf's select press opens the menu its select_chain names, instead of ascending", _ {
-		// The port of `MenuItem::selectButtonPress` returning a menu (`gui/ui/sound_editor.cpp:395`
-		// -> `enterSubmenu`). `chain_source_leaf`'s hook chains only on an odd value, so this drives
+		// The port of `MenuItem::selectButtonPress` returning a menu (`SoundEditor::buttonAction`'s SELECT
+		// arm -> `enterSubmenu`). `chain_source_leaf`'s hook chains only on an odd value, so this drives
 		// both answers through the real shell and asserts each.
 		select_language();
 		deluge::notify::dirty().drain();
@@ -2987,7 +3023,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		expect(menu_scene().state().blink_anchor_ms).to_equal(first);
 
 		// ... but jumping to another pad re-anchors, exactly as `setupShortcutBlink`'s
-		// `shortcutBlinkCounter = 0` does (`sound_editor.cpp:1195`). Without that the port would
+		// `shortcutBlinkCounter = 0` does. Without that the port would
 		// free-run and a freshly focused pad could flash mid-cycle.
 		r.pad(kHpfFreqX, kHpfFreqY, 64, 600);
 		r.shell.tick(601);

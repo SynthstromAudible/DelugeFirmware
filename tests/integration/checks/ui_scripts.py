@@ -1,12 +1,12 @@
 """The level-3 UI scripts on golden_vt_render.
 
 Every app script in tests/ui-scripts/app runs and each of its snapshots must match the golden in tests/golden/ui/app.
-The menu script runs a second time on the Legacy Menu (tests/fixtures/card-legacy-menu): its panels must match the
-default leg's and at least one .state must differ; and a third time on a card that still says shellMenu=0
-(tests/fixtures/card-old-shell-menu), the setting the Legacy Menu replaced, which must change nothing: every snapshot
-equals the default leg's. The runner's own self-tests (tests/ui-scripts/selftest) pin what it does with a press due
-in a snapshot's millisecond, a snapshot before the first frame and a script that never quits. A script with a `board`
-step needs more panels than the Deluge has and is skipped, named.
+The menu script runs again on two cards that still carry a menu setting this firmware no longer has
+(tests/fixtures/card-old-shell-menu says shellMenu=0, tests/fixtures/card-old-legacy-menu says legacyMenu=1): each is
+an unknown setting, so every snapshot must equal the default leg's. The runner's own self-tests
+(tests/ui-scripts/selftest) pin what it does with a press due in a snapshot's millisecond, a snapshot before the first
+frame and a script that never quits. A script with a `board` step needs more panels than the Deluge has and is
+skipped, named.
 """
 
 import re
@@ -58,46 +58,24 @@ def _app_scripts(gate, card: Path) -> None:
             gate.show(run)
 
 
-def _menu_ab(gate, card: Path) -> None:
+def _stale_keys(gate) -> None:
+    # Settings that once chose between two menus, still on a card: unknown now, so the default leg exactly.
     menu = gate.root / "tests/ui-scripts/app/menu.txt"
-    legacy_card = gate.root / "tests/fixtures/card-legacy-menu"
-    got_legacy = gate.tmp / "got" / "menu_legacy"
-    run = _run(gate, menu, got_legacy, legacy_card)
-    if not gate.require_standard(run):
-        gate.show(run)
-        return
-    _diff(gate, got_legacy, gate.root / "tests/golden/ui/app/menu_legacy")
-    r = subprocess.run(
-        [
-            sys.executable,
-            str(gate.root / "scripts/ui_app_ab_check.py"),
-            str(got_legacy),
-            str(gate.tmp / "got" / "menu"),
-            "--fixture-off",
-            str(legacy_card),
-            "--fixture-on",
-            str(card),
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if r.returncode != 0:
-        gate.fail(f"menu A/B: {r.stdout}{r.stderr}")
-
-    # The setting the Legacy Menu replaced, still on a card: unknown, so the default leg exactly.
-    old_card = gate.root / "tests/fixtures/card-old-shell-menu"
-    got_old = gate.tmp / "got" / "menu_old_shell_menu"
-    run = _run(gate, menu, got_old, old_card)
-    if gate.require_standard(run):
-        _diff(
-            gate,
-            got_old,
-            gate.tmp / "got" / "menu",
-            "menu_old_shell_menu: a card with the replaced shellMenu key ran differently from the default card",
-        )
-    else:
-        gate.show(run)
+    for fixture, key in (
+        ("card-old-shell-menu", "shellMenu=0"),
+        ("card-old-legacy-menu", "legacyMenu=1"),
+    ):
+        got = gate.tmp / "got" / f"menu_{fixture.replace('-', '_')}"
+        run = _run(gate, menu, got, gate.root / "tests/fixtures" / fixture)
+        if gate.require_standard(run):
+            _diff(
+                gate,
+                got,
+                gate.tmp / "got" / "menu",
+                f"{got.name}: a card that says {key} ran differently from the default card",
+            )
+        else:
+            gate.show(run)
 
 
 def _self_tests(gate, card: Path) -> None:
@@ -128,5 +106,5 @@ def _self_tests(gate, card: Path) -> None:
 def run(gate) -> None:
     card = gate.root / "tests/fixtures/card"
     _app_scripts(gate, card)
-    _menu_ab(gate, card)
+    _stale_keys(gate)
     _self_tests(gate, card)

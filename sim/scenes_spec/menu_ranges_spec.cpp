@@ -1,21 +1,11 @@
 /// @file
-/// @brief The three `Kind::Range` items -- `default_tempo`, `default_swing_amount`, `default_key` --
-///        against the real legacy `IntegerRange`/`KeyRange` objects they port.
+/// @brief The three `Kind::Range` items -- `default_tempo`, `default_swing_amount`, `default_key` -- against the
+///        reference rows `tests/golden/ui/menu_oracle/menu_ranges.tsv` holds for main's `IntegerRange` and `KeyRange`.
 ///
-/// Both sides are reachable and both sides are **driven** in every comparison below. That is not a
-/// formality: a comparison that reads stale state passes with the port wrong, and a range item is exactly the shape
-/// that invites it -- legacy's `IntegerRange::lower`/`upper` and the port's hooks now name the *same* storage
-/// (`FlashStorage::defaultRanges`, `storage/flash_storage.h`), so a comparison that forgets to reset
-/// between the two halves is comparing a value with itself. Every value example here therefore:
-///
-///   1. writes a **sentinel** starting state,
-///   2. drives *legacy* (`selectEncoderAction` / `horizontalEncoderAction` / `beginSession`) and
-///      records what it produced,
-///   3. writes the **same sentinel** again, and
-///   4. drives the *port* through a real `Shell` and the real input path,
-///
-/// then compares. `RangeStorageGuard` restores whatever the process had before, so no example leaks
-/// into the next one.
+/// Every value example drives the **port** through a real `Shell` and the real input path from a **sentinel** starting
+/// state in `FlashStorage::defaultRanges`, then compares what it left with the frozen answer main gave for the same
+/// start, edge and turn. `RangeStorageGuard` restores whatever the process had before, so no example leaks into the
+/// next.
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/l10n_bridge.h"
@@ -34,14 +24,11 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "gui/menu_item/integer_range.h"
-#include "gui/menu_item/key_range.h"
-#include "gui/menu_item/range.h"
-#include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
 #include "model/song/song.h"
 #include "storage/flash_storage.h"
 
+#include "support/oracle_table.h"
 #include "support/song_fixture.h"
 
 #include "spec/gfx/support/golden.h"
@@ -52,23 +39,17 @@
 
 #include <array>
 #include <cstdint>
+#include <fstream>
 #include <set>
 #include <span>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include "spec/support/spec_main.h"
 
-/// The three real legacy items. Defined at global scope in `gui/ui/menus.cpp:1645-1650`; only
-/// `startStemExportMenu`'s neighbours make it into `gui/ui/menus.h`, so these are declared here --
-/// the situation `tables_3_spec.cpp`'s `extern` block already handles for the other file-scope menu globals.
-extern deluge::gui::menu_item::IntegerRange defaultTempoMenu;
-extern deluge::gui::menu_item::IntegerRange defaultSwingAmountMenu;
-extern deluge::gui::menu_item::KeyRange defaultKeyMenu;
-
 using namespace deluge::scenes;
-using deluge::gui::menu_item::RangeEdit;
 using deluge::l10n::String;
 using deluge::scenes::menu::MenuContext;
 using deluge::scenes::menu::Node;
@@ -97,16 +78,13 @@ constexpr uint8_t kGoldLower = 5;
 
 constexpr const Node* kRoots[] = {&nodes::root_settings};
 
-/// @brief Saves and restores every `FlashStorage::defaultRanges` slot, plus the two globals the
-///        comparisons steer.
+/// @brief Saves and restores every `FlashStorage::defaultRanges` slot, plus the global the comparisons steer.
 ///
-/// `defaultUseSharps` decides which note table `KeyRange::getText` and `format_range_key` read;
-/// `soundEditor.editingRangeEdge` is legacy's single global edge. An example that moved either and
-/// did not put it back would steer the next one.
+/// `defaultUseSharps` decides which note table `format_range_key` reads. An example that moved either and did not put
+/// it back would steer the next one.
 struct RangeStorageGuard {
 	std::array<FlashStorage::DefaultRange, FlashStorage::NUM_DEFAULT_RANGE_SLOTS> saved{};
 	bool saved_sharps = FlashStorage::defaultUseSharps;
-	RangeEdit saved_edge = soundEditor.editingRangeEdge;
 
 	RangeStorageGuard() {
 		for (size_t i = 0; i < saved.size(); i++) {
@@ -120,7 +98,6 @@ struct RangeStorageGuard {
 			FlashStorage::defaultRanges[i] = saved[i];
 		}
 		FlashStorage::defaultUseSharps = saved_sharps;
-		soundEditor.editingRangeEdge = saved_edge;
 	}
 };
 
@@ -168,8 +145,7 @@ struct Rig {
 	void detent(uint8_t index, int32_t detents, uint32_t at_ms) {
 		edges(index, static_cast<int16_t>(detents * 2), at_ms);
 	}
-	/// A gold knob is `EncoderKind::Accelerating`, so the raw edge count IS the magnitude. Keep the
-	/// clock under 500 ms or `InputLowering::action_gold_turn` swallows the first turn as a wiggle.
+	/// A gold knob is `EncoderKind::Accelerating`, so the raw edge count IS the magnitude.
 	void gold(uint8_t index, int16_t delta, uint32_t at_ms) { edges(index, delta, at_ms); }
 };
 
@@ -214,12 +190,6 @@ FlashStorage::DefaultRangeSlot slot_of(const Node& node) {
 	return static_cast<FlashStorage::DefaultRangeSlot>(answer - 1000);
 }
 
-/// @brief `OLED::main`, into which every legacy `renderOLED()` draws, as a PBM.
-std::string legacy_panel_pbm() {
-	const auto& canvas = deluge::hid::display::OLED::main;
-	return page_major_to_pbm(canvas.bytes().data(), OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS);
-}
-
 /// @brief The rows the port's root frame can actually ink on the 48-row panel.
 ///
 /// The Deluge panel has a five-row bezel (`kDelugeBoard`'s `DelugeDisplayDesc{128, 48, 5}`), and the
@@ -251,14 +221,70 @@ std::string port_panel_pbm(Rig& r) {
 	return r.fake.pbm(0);
 }
 
-/// @brief One driven comparison of an edit: the same start, the same detents, both sides.
+/// @brief One driven comparison of an edit: a start, an edge and some detents, against the frozen answer.
 struct EditCase {
 	const char* what;
 	int32_t start_lower;
 	int32_t start_upper;
-	RangeEdit edge;
+	RangeEdge edge;
 	int32_t detents; // one select detent == `Range::step`, which is 1 for all three items
 };
+
+spec::OracleTable& table() {
+	return spec::OracleTable::named("menu_ranges");
+}
+
+std::string_view edge_name(RangeEdge e) {
+	return e == RangeEdge::Left ? "left" : e == RangeEdge::Right ? "right" : "off";
+}
+
+/// @brief The panel `pixels/<name>.pbm` holds.
+std::string frozen_panel(std::string_view name) {
+	std::ifstream in(spec::oracle_dir() + "/pixels/" + std::string{name} + ".pbm");
+	std::stringstream text;
+	text << in.rdbuf();
+	return text.str();
+}
+
+/// @brief Steer the open range's edge to @p want with the horizontal encoder, as a user does; @p at advances.
+void steer_edge(Rig& r, RangeEdge want, uint32_t& at) {
+	for (int i = 0; i < 4 && scene().state().edit_edge != want; i++) {
+		r.detent(kHorizontalEncoder, want == RangeEdge::Right ? 1 : -1, at);
+		r.shell.tick(at + 5);
+		at += 10;
+	}
+}
+
+/// @brief Open @p node on the range @p lower..@p upper in @p slot, steer to @p edge, turn the select encoder
+///        @p detents, and say where the two ends went.
+std::string port_edit(const Node& node, FlashStorage::DefaultRangeSlot slot, int32_t lower, int32_t upper,
+                      RangeEdge edge, int32_t detents) {
+	FlashStorage::defaultRanges[slot] = {.lower = lower, .upper = upper};
+	Rig r;
+	(void)r.open(node);
+	r.shell.tick(5);
+	uint32_t at = 10;
+	steer_edge(r, edge, at);
+	if (scene().state().edit_edge != edge) {
+		return "edge not reached";
+	}
+	r.detent(kSelectEncoder, detents, at);
+	r.shell.tick(at + 5);
+	return std::to_string(FlashStorage::defaultRanges[slot].lower) + " "
+	       + std::to_string(FlashStorage::defaultRanges[slot].upper);
+}
+
+/// @brief A two-value row as "a b", or "<path> <no row>" so a miss prints where it was looked for.
+std::string frozen_pair(const std::string& path, std::string_view column) {
+	const std::vector<std::string>* v = table().find(path, column);
+	return v == nullptr || v->size() != 2 ? path + " <no row>" : (*v)[0] + " " + (*v)[1];
+}
+
+std::string frozen_edit(std::string_view item, int32_t lower, int32_t upper, RangeEdge edge, int32_t detents) {
+	return frozen_pair(std::string{item} + "/" + std::to_string(lower) + "-" + std::to_string(upper) + "/"
+	                       + std::string{edge_name(edge)} + "/" + std::to_string(detents),
+	                   "edit");
+}
 
 } // namespace
 
@@ -305,328 +331,186 @@ describe menu_range_tables("scenes::menu Kind::Range -- the table", $ {
 		expect(swapped == expected).to_be_false();
 	});
 
-	it("takes its bounds from the real legacy objects", _ {
-		// `IntegerRange`'s bounds are constructor arguments and are readable; `KeyRange` has none at
-		// all -- `selectEncoderAction` uses two locals (`key_range.cpp:29-30`) -- so that one is
-		// transcribed and said to be.
-		expect(nodes::kDefaultTempoRange.min).to_equal(defaultTempoMenu.minValue);
-		expect(nodes::kDefaultTempoRange.max).to_equal(defaultTempoMenu.maxValue);
-		expect(nodes::kDefaultSwingAmountRange.min).to_equal(defaultSwingAmountMenu.minValue);
-		expect(nodes::kDefaultSwingAmountRange.max).to_equal(defaultSwingAmountMenu.maxValue);
-		expect(nodes::kDefaultKeyRange.min).to_equal(0);   // KEY_MIN, `key_range.cpp:29`
-		expect(nodes::kDefaultKeyRange.max).to_equal(11);  // KEY_MAX, `key_range.cpp:30`
+	it("takes main's bounds", _ {
+		expect(std::to_string(nodes::kDefaultTempoRange.min) + " " + std::to_string(nodes::kDefaultTempoRange.max))
+		    .to_equal(frozen_pair("default_tempo", "bounds"));
+		expect(std::to_string(nodes::kDefaultSwingAmountRange.min) + " "
+		       + std::to_string(nodes::kDefaultSwingAmountRange.max))
+		    .to_equal(frozen_pair("default_swing_amount", "bounds"));
+		expect(nodes::kDefaultKeyRange.min).to_equal(0);  // KEY_MIN
+		expect(nodes::kDefaultKeyRange.max).to_equal(11); // KEY_MAX
 	});
 
-	it("shares its storage with the legacy items, in both directions", _ {
-		// The premise every comparison below rests on. Checked *both ways* so a one-way alias (a copy
-		// made at construction, say) cannot pass.
+	it("reads and writes FlashStorage::defaultRanges through its hooks, both ends", _ {
 		RangeStorageGuard guard;
 		const MenuContext ctx{};
 		FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO] = {.lower = 77, .upper = 188};
-		expect(defaultTempoMenu.lower).to_equal(77);
-		expect(defaultTempoMenu.upper).to_equal(188);
 		expect(nodes::default_tempo.bind.get(ctx)).to_equal(77);
 		expect(nodes::default_tempo.bind.range_spec->get_upper(ctx)).to_equal(188);
-
-		defaultTempoMenu.lower = 61;
-		defaultTempoMenu.upper = 239;
-		expect(nodes::default_tempo.bind.get(ctx)).to_equal(61);
-		expect(nodes::default_tempo.bind.range_spec->get_upper(ctx)).to_equal(239);
-
 		nodes::default_tempo.bind.set(ctx, 100);
 		nodes::default_tempo.bind.range_spec->set_upper(ctx, 200);
-		expect(defaultTempoMenu.lower).to_equal(100);
-		expect(defaultTempoMenu.upper).to_equal(200);
+		expect(FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].lower).to_equal(100);
+		expect(FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].upper).to_equal(200);
 	});
 });
 
 describe menu_range_text("scenes::menu Kind::Range -- the spellings", $ {
-	it("spells an integer end exactly as IntegerRange::getText does, over the whole range", _ {
-		RangeStorageGuard guard;
+	it("spells an integer end as main does, over the whole range", _ {
 		char scratch[deluge::ui::oled::kRangeTextMax];
-		for (int32_t v = defaultTempoMenu.minValue; v <= defaultTempoMenu.maxValue; v++) {
-			// Legacy is *driven*: `getText` reads `lower`, so the value has to be installed first.
-			defaultTempoMenu.lower = v;
-			defaultTempoMenu.upper = v;
-			char legacy_buf[64] = {};
-			int32_t left_len = 0, right_len = 0;
-			defaultTempoMenu.getText(legacy_buf, &left_len, &right_len, /*mayShowJustOne=*/true);
-			expect(right_len).to_equal(0);
-
-			const std::string_view port = nodes::format_range_integer(v, std::span{scratch});
-			expect(std::string(port)).to_equal(std::string(legacy_buf, static_cast<size_t>(left_len)));
+		for (int32_t v = nodes::kDefaultTempoRange.min; v <= nodes::kDefaultTempoRange.max; v++) {
+			const std::string at = "tempo " + std::to_string(v) + " ";
+			expect(at + std::string(nodes::format_range_integer(v, std::span{scratch})))
+			    .to_equal(at + table().value("tempo/" + std::to_string(v), "text"));
 		}
 	});
 
-	it("spells a note end exactly as KeyRange::getText does, in both sharps and flats", _ {
+	it("spells a note end as main does, in both sharps and flats", _ {
 		RangeStorageGuard guard;
 		char scratch[deluge::ui::oled::kRangeTextMax];
 		for (const bool sharps : {true, false}) {
 			FlashStorage::defaultUseSharps = sharps;
 			for (int32_t v = 0; v <= 11; v++) {
-				defaultKeyMenu.lower = v;
-				defaultKeyMenu.upper = v;
-				char legacy_buf[64] = {};
-				int32_t left_len = 0, right_len = 0;
-				defaultKeyMenu.getText(legacy_buf, &left_len, &right_len, /*mayShowJustOne=*/true);
-
-				const std::string_view port = nodes::format_range_key(v, std::span{scratch});
-				expect(std::string(port)).to_equal(std::string(legacy_buf, static_cast<size_t>(left_len)));
+				const std::string path = std::string{"key/"} + (sharps ? "sharps/" : "flats/") + std::to_string(v);
+				expect(path + " " + std::string(nodes::format_range_key(v, std::span{scratch})))
+				    .to_equal(path + " " + table().value(path, "text"));
 			}
 		}
-		// And the two tables really do differ, so the loop above is not comparing one table with
-		// itself: D# and Eb are the same note code and different spellings.
-		FlashStorage::defaultUseSharps = true;
-		const std::string sharp(nodes::format_range_key(3, std::span{scratch}));
-		FlashStorage::defaultUseSharps = false;
-		const std::string flat(nodes::format_range_key(3, std::span{scratch}));
-		expect(sharp == flat).to_be_false();
+		expect(table().value("key/sharps/3", "text") == table().value("key/flats/3", "text")).to_be_false();
 	});
 });
 
-describe menu_range_edit("scenes::menu Kind::Range -- editing, against legacy", $ {
-	it("moves both ends exactly as IntegerRange::selectEncoderAction does", _ {
+describe menu_range_edit("scenes::menu Kind::Range -- editing", $ {
+	it("moves both ends of an integer range as main's IntegerRange does", _ {
 		select_language();
 		const EditCase cases[] = {
-		    {"coincident, no edge: moves as one", 120, 120, RangeEdit::OFF, 5},
-		    {"split, no edge: refuses to move", 90, 150, RangeEdit::OFF, 5},
-		    {"left edge up drags the upper", 120, 120, RangeEdit::LEFT, 7},
-		    {"left edge down leaves the upper", 120, 150, RangeEdit::LEFT, -7},
-		    {"right edge down drags the lower", 120, 120, RangeEdit::RIGHT, -7},
-		    {"right edge clamps at maxValue", 200, 238, RangeEdit::RIGHT, 9},
-		    {"left edge clamps at minValue", 62, 200, RangeEdit::LEFT, -9},
+		    {"coincident, no edge: moves as one", 120, 120, RangeEdge::Off, 5},
+		    {"split, no edge: refuses to move", 90, 150, RangeEdge::Off, 5},
+		    {"left edge up drags the upper", 120, 120, RangeEdge::Left, 7},
+		    {"left edge down leaves the upper", 120, 150, RangeEdge::Left, -7},
+		    {"right edge down drags the lower", 120, 120, RangeEdge::Right, -7},
+		    {"right edge clamps at maxValue", 200, 238, RangeEdge::Right, 9},
+		    {"left edge clamps at minValue", 62, 200, RangeEdge::Left, -9},
 		};
 		for (const EditCase& c : cases) {
 			RangeStorageGuard guard;
-
-			// --- legacy, driven from the sentinel
-			FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO] = {.lower = c.start_lower,
-			                                                                 .upper = c.start_upper};
-			soundEditor.editingRangeEdge = c.edge;
-			defaultTempoMenu.selectEncoderAction(c.detents);
-			const int32_t legacy_lower = defaultTempoMenu.lower;
-			const int32_t legacy_upper = defaultTempoMenu.upper;
-
-			// --- port, driven from the SAME sentinel, through the real input path
-			FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO] = {.lower = c.start_lower,
-			                                                                 .upper = c.start_upper};
-			Rig r;
-			(void)r.open(nodes::default_tempo);
-			r.shell.tick(5);
-			// The port's edge is `MenuState::edit_edge`; steer it with the horizontal encoder, which
-			// is what a user has. `enter_leaf` seeds LEFT on a split pair, so ask for OFF explicitly
-			// where the case wants it.
-			uint32_t at = 10;
-			for (int guard_count = 0; guard_count < 4 && scene().state().edit_edge != static_cast<RangeEdge>(c.edge);
-			     guard_count++) {
-				r.detent(kHorizontalEncoder, c.edge == RangeEdit::RIGHT ? 1 : -1, at);
-				r.shell.tick(at + 5);
-				at += 10;
-			}
-			expect(static_cast<int>(scene().state().edit_edge)).to_equal(static_cast<int>(c.edge));
-
-			// `range_value` edits the selected edge on the select encoder now, as legacy's
-			// `IntegerRange::selectEncoderAction` does (`ui/oled/values.cpp`'s `select_delta`) -- so
-			// this is driven on `kSelectEncoder`, not `kGoldUpper`. `detent()` already multiplies by
-			// `edges_per_detent` (2), so `c.detents` select detents is exactly the offset
-			// `defaultTempoMenu.selectEncoderAction(c.detents)` was called with above.
-			r.detent(kSelectEncoder, c.detents, at);
-			r.shell.tick(at + 5);
-
-			expect(FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].lower).to_equal(legacy_lower);
-			expect(FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].upper).to_equal(legacy_upper);
-			// ... and the case actually moved something on at least one side, or it proves nothing.
-			const bool moved = legacy_lower != c.start_lower || legacy_upper != c.start_upper;
-			expect(moved).to_equal(c.detents != 0 && !(c.edge == RangeEdit::OFF && c.start_lower != c.start_upper));
+			const std::string at = std::string{c.what} + ": ";
+			expect(at + port_edit(nodes::default_tempo, FlashStorage::DEFAULT_RANGE_TEMPO, c.start_lower, c.start_upper,
+			                      c.edge, c.detents))
+			    .to_equal(at + frozen_edit("tempo", c.start_lower, c.start_upper, c.edge, c.detents));
 		}
+		// A case that moves nothing proves nothing: the frozen answers move where the case says they do.
+		expect(frozen_edit("tempo", 120, 120, RangeEdge::Off, 5)).to_equal(std::string{"125 125"});
+		expect(frozen_edit("tempo", 90, 150, RangeEdge::Off, 5)).to_equal(std::string{"90 150"});
 	});
 
-	it("moves both ends exactly as KeyRange::selectEncoderAction does", _ {
+	it("moves both ends of a key range as main's KeyRange does", _ {
 		select_language();
 		const EditCase cases[] = {
-		    {"coincident, no edge", 5, 5, RangeEdit::OFF, 3},
-		    {"split, no edge: refuses", 2, 9, RangeEdit::OFF, 3},
-		    {"left edge stops at the upper", 5, 5, RangeEdit::LEFT, 4},
-		    {"left edge walks up to the upper", 2, 9, RangeEdit::LEFT, 4},
-		    {"right edge stops at the lower", 2, 9, RangeEdit::RIGHT, -10},
-		    {"right edge clamps at KEY_MAX", 0, 10, RangeEdit::RIGHT, 5},
+		    {"coincident, no edge", 5, 5, RangeEdge::Off, 3},
+		    {"split, no edge: refuses", 2, 9, RangeEdge::Off, 3},
+		    {"left edge stops at the upper", 5, 5, RangeEdge::Left, 4},
+		    {"left edge walks up to the upper", 2, 9, RangeEdge::Left, 4},
+		    {"right edge stops at the lower", 2, 9, RangeEdge::Right, -10},
+		    {"right edge clamps at KEY_MAX", 0, 10, RangeEdge::Right, 5},
 		};
 		for (const EditCase& c : cases) {
 			RangeStorageGuard guard;
-
-			FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_KEY] = {.lower = c.start_lower,
-			                                                               .upper = c.start_upper};
-			soundEditor.editingRangeEdge = c.edge;
-			defaultKeyMenu.selectEncoderAction(c.detents);
-			const int32_t legacy_lower = defaultKeyMenu.lower;
-			const int32_t legacy_upper = defaultKeyMenu.upper;
-
-			FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_KEY] = {.lower = c.start_lower,
-			                                                               .upper = c.start_upper};
-			Rig r;
-			(void)r.open(nodes::default_key);
-			r.shell.tick(5);
-			uint32_t at = 10;
-			for (int guard_count = 0; guard_count < 4 && scene().state().edit_edge != static_cast<RangeEdge>(c.edge);
-			     guard_count++) {
-				r.detent(kHorizontalEncoder, c.edge == RangeEdit::RIGHT ? 1 : -1, at);
-				r.shell.tick(at + 5);
-				at += 10;
-			}
-			expect(static_cast<int>(scene().state().edit_edge)).to_equal(static_cast<int>(c.edge));
-
-			// As the `IntegerRange` block above: driven on `kSelectEncoder`, matching legacy's
-			// `KeyRange::selectEncoderAction` now that `range_value` reads the select encoder.
-			r.detent(kSelectEncoder, c.detents, at);
-			r.shell.tick(at + 5);
-
-			expect(FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_KEY].lower).to_equal(legacy_lower);
-			expect(FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_KEY].upper).to_equal(legacy_upper);
+			const std::string at = std::string{c.what} + ": ";
+			expect(at + port_edit(nodes::default_key, FlashStorage::DEFAULT_RANGE_KEY, c.start_lower, c.start_upper,
+			                      c.edge, c.detents))
+			    .to_equal(at + frozen_edit("key", c.start_lower, c.start_upper, c.edge, c.detents));
 		}
 	});
 
-	it("the two clamp rules really do differ, so the parameter is doing work", _ {
-		// The falsification: run the *same* start and the *same* detent through both legacy items and
-		// require the answers to disagree. If they agreed, `RangeClamp` would be untested by
-		// construction and either value would pass both loops above.
+	it("clamps the two kinds differently from one start, so the clamp parameter does work", _ {
 		RangeStorageGuard guard;
-		FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO] = {.lower = 5, .upper = 5};
-		FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_KEY] = {.lower = 5, .upper = 5};
-		soundEditor.editingRangeEdge = RangeEdit::LEFT;
-		defaultTempoMenu.selectEncoderAction(1);   // Push: 5-5 -> 6-6 ... but 5 is below minValue 60,
-		defaultKeyMenu.selectEncoderAction(1);     // Bound: 5-5 -> 5-5
-		// `IntegerRange` clamps into [60, 240] first, so the left end lands on 60 and drags the upper.
-		expect(defaultTempoMenu.lower).to_equal(60);
-		expect(defaultTempoMenu.upper).to_equal(60);
-		expect(defaultKeyMenu.lower).to_equal(5);
-		expect(defaultKeyMenu.upper).to_equal(5);
-		expect(defaultTempoMenu.lower == defaultKeyMenu.lower).to_be_false();
+		select_language();
+		expect(port_edit(nodes::default_tempo, FlashStorage::DEFAULT_RANGE_TEMPO, 5, 5, RangeEdge::Left, 1))
+		    .to_equal(frozen_edit("tempo", 5, 5, RangeEdge::Left, 1));
+		expect(port_edit(nodes::default_key, FlashStorage::DEFAULT_RANGE_KEY, 5, 5, RangeEdge::Left, 1))
+		    .to_equal(frozen_edit("key", 5, 5, RangeEdge::Left, 1));
+		expect(frozen_edit("tempo", 5, 5, RangeEdge::Left, 1) == frozen_edit("key", 5, 5, RangeEdge::Left, 1))
+		    .to_be_false();
 	});
 
-	it("selects an edge exactly as Range::horizontalEncoderAction does", _ {
+	it("selects an edge on a horizontal turn as main does", _ {
 		select_language();
-		struct Step {
-			RangeEdit from;
-			int32_t horizontal;
-			RangeEdit to;
-		};
-		const Step steps[] = {
-		    {RangeEdit::OFF, -1, RangeEdit::LEFT},   {RangeEdit::OFF, 1, RangeEdit::RIGHT},
-		    {RangeEdit::LEFT, -1, RangeEdit::OFF},   {RangeEdit::LEFT, 1, RangeEdit::RIGHT},
-		    {RangeEdit::RIGHT, 1, RangeEdit::OFF},   {RangeEdit::RIGHT, -1, RangeEdit::LEFT},
-		};
-		for (const Step& step : steps) {
-			RangeStorageGuard guard;
-
-			// legacy
-			soundEditor.editingRangeEdge = step.from;
-			defaultTempoMenu.horizontalEncoderAction(step.horizontal);
-			const RangeEdit legacy_edge = soundEditor.editingRangeEdge;
-			expect(static_cast<int>(legacy_edge)).to_equal(static_cast<int>(step.to));
-
-			// port, from the same starting edge, through the real horizontal encoder
-			FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO] = {.lower = 90, .upper = 150};
-			Rig r;
-			(void)r.open(nodes::default_tempo);
-			r.shell.tick(5);
-			uint32_t at = 10;
-			for (int i = 0; i < 4 && scene().state().edit_edge != static_cast<RangeEdge>(step.from); i++) {
-				r.detent(kHorizontalEncoder, step.from == RangeEdit::RIGHT ? 1 : -1, at);
+		for (const RangeEdge from : {RangeEdge::Off, RangeEdge::Left, RangeEdge::Right}) {
+			for (const int32_t h : {-1, 1}) {
+				RangeStorageGuard guard;
+				FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO] = {.lower = 90, .upper = 150};
+				Rig r;
+				(void)r.open(nodes::default_tempo);
+				r.shell.tick(5);
+				uint32_t at = 10;
+				steer_edge(r, from, at);
+				expect(static_cast<int>(scene().state().edit_edge)).to_equal(static_cast<int>(from));
+				r.detent(kHorizontalEncoder, h, at);
 				r.shell.tick(at + 5);
-				at += 10;
+				const std::string path = "tempo/" + std::string{edge_name(from)} + "/" + std::to_string(h);
+				expect(path + " " + std::string{edge_name(scene().state().edit_edge)})
+				    .to_equal(path + " " + table().value(path, "edge"));
 			}
-			expect(static_cast<int>(scene().state().edit_edge)).to_equal(static_cast<int>(step.from));
-			r.detent(kHorizontalEncoder, step.horizontal, at);
-			r.shell.tick(at + 5);
-			expect(static_cast<int>(scene().state().edit_edge)).to_equal(static_cast<int>(legacy_edge));
 		}
 	});
 
-	it("seeds the edge on entry exactly as each item's beginSession does", _ {
+	it("seeds the edge on entry as main does", _ {
 		select_language();
-		// `IntegerRange::beginSession` takes LEFT when the ends differ (`integer_range.cpp:26-31`);
-		// `KeyRange` has no override, so `Range::beginSession`'s bare OFF stands (`range.cpp:30-33`).
-		// Both sides driven, per item, for both a split and a coincident pair.
 		struct Seed {
 			const Node* node;
+			const char* item;
 			FlashStorage::DefaultRangeSlot slot;
-			bool integer;
 			int32_t lower;
 			int32_t upper;
 		};
 		const Seed seeds[] = {
-		    {&nodes::default_tempo, FlashStorage::DEFAULT_RANGE_TEMPO, true, 120, 120},
-		    {&nodes::default_tempo, FlashStorage::DEFAULT_RANGE_TEMPO, true, 90, 150},
-		    {&nodes::default_key, FlashStorage::DEFAULT_RANGE_KEY, false, 5, 5},
-		    {&nodes::default_key, FlashStorage::DEFAULT_RANGE_KEY, false, 2, 9},
+		    {&nodes::default_tempo, "tempo", FlashStorage::DEFAULT_RANGE_TEMPO, 120, 120},
+		    {&nodes::default_tempo, "tempo", FlashStorage::DEFAULT_RANGE_TEMPO, 90, 150},
+		    {&nodes::default_key, "key", FlashStorage::DEFAULT_RANGE_KEY, 5, 5},
+		    {&nodes::default_key, "key", FlashStorage::DEFAULT_RANGE_KEY, 2, 9},
 		};
-		for (const Seed& seed : seeds) {
+		for (const Seed& s : seeds) {
 			RangeStorageGuard guard;
-
-			FlashStorage::defaultRanges[seed.slot] = {.lower = seed.lower, .upper = seed.upper};
-			soundEditor.editingRangeEdge = RangeEdit::RIGHT; // a value neither arm can produce
-			if (seed.integer) {
-				defaultTempoMenu.beginSession(nullptr);
-			}
-			else {
-				defaultKeyMenu.beginSession(nullptr);
-			}
-			const RangeEdit legacy_edge = soundEditor.editingRangeEdge;
-
-			FlashStorage::defaultRanges[seed.slot] = {.lower = seed.lower, .upper = seed.upper};
+			FlashStorage::defaultRanges[s.slot] = {.lower = s.lower, .upper = s.upper};
 			Rig r;
-			(void)r.open(*seed.node);
+			(void)r.open(*s.node);
 			r.shell.tick(5);
-			expect(static_cast<int>(scene().state().edit_edge)).to_equal(static_cast<int>(legacy_edge));
+			const std::string path = std::string{s.item} + "/" + std::to_string(s.lower) + "-" + std::to_string(s.upper);
+			expect(path + " " + std::string{edge_name(scene().state().edit_edge)})
+			    .to_equal(path + " " + table().value(path, "seed"));
 		}
-		// ... and the two seeds differ on the split pair, so the loop is not vacuous.
 		expect(nodes::default_tempo.bind.range_spec->focus_left_when_split).to_be_true();
 		expect(nodes::default_key.bind.range_spec->focus_left_when_split).to_be_false();
 	});
 });
 
-describe menu_range_pixels("scenes::menu Kind::Range -- pixels, against legacy", $ {
-	it("draws exactly what the real legacy Range::renderOLED draws, in every edge state", _ {
+describe menu_range_pixels("scenes::menu Kind::Range -- pixels", $ {
+	it("draws exactly what main's range page draws, in every edge state", _ {
 		select_language();
 		struct Shot {
 			const char* name;
 			int32_t lower;
 			int32_t upper;
-			RangeEdit edge;
+			RangeEdge edge;
 		};
 		const Shot shots[] = {
-		    {"point", 120, 120, RangeEdit::OFF},
-		    {"split", 90, 150, RangeEdit::OFF},
-		    {"left", 90, 150, RangeEdit::LEFT},
-		    {"right", 90, 150, RangeEdit::RIGHT},
+		    {"point", 120, 120, RangeEdge::Off},
+		    {"split", 90, 150, RangeEdge::Off},
+		    {"left", 90, 150, RangeEdge::Left},
+		    {"right", 90, 150, RangeEdge::Right},
 		};
 		for (const Shot& shot : shots) {
 			RangeStorageGuard guard;
-
-			// --- legacy, into its own canvas
-			FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO] = {.lower = shot.lower,
-			                                                                 .upper = shot.upper};
-			soundEditor.editingRangeEdge = shot.edge;
-			deluge::hid::display::OLED::main.clear();
-			defaultTempoMenu.renderOLED();
-			const std::string legacy = below_bezel(legacy_panel_pbm());
-
-			// --- port, same state, through the real Shell
-			FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO] = {.lower = shot.lower,
-			                                                                 .upper = shot.upper};
+			FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO] = {.lower = shot.lower, .upper = shot.upper};
 			Rig r;
 			(void)r.open(nodes::default_tempo);
 			r.shell.tick(5);
 			uint32_t at = 10;
-			for (int i = 0; i < 4 && scene().state().edit_edge != static_cast<RangeEdge>(shot.edge); i++) {
-				r.detent(kHorizontalEncoder, shot.edge == RangeEdit::RIGHT ? 1 : -1, at);
-				r.shell.tick(at + 5);
-				at += 10;
-			}
+			steer_edge(r, shot.edge, at);
 			r.shell.tick(at + 10);
-			const std::string port = below_bezel(port_panel_pbm(r));
-
-			expect(port).to_equal(legacy);
+			const std::string frozen = frozen_panel(std::string{"menu_range_"} + shot.name);
+			expect(frozen.empty()).to_be_false();
+			expect(below_bezel(port_panel_pbm(r))).to_equal(below_bezel(frozen));
 		}
 	});
 
@@ -684,6 +568,16 @@ describe menu_range_pixels("scenes::menu Kind::Range -- pixels, against legacy",
 		expect(scene().next_timer().has_value()).to_be_false();
 	});
 });
+
+describe menu_range_reference_rows("scenes::menu Kind::Range: the reference rows", $ {
+	it("parses menu_ranges.tsv clean and asks every row of it", _ {
+		spec::OracleTable& t = table();
+		expect(t.problems().size()).to_equal(size_t{0});
+		expect(t.size() > size_t{200}).to_be_true();
+		expect(t.unasked()).to_equal(std::string{});
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(menu_ranges_spec, menu_range_tables, menu_range_text, menu_range_edit, menu_range_pixels)
+DELUGE_SPEC(menu_ranges_spec, menu_range_tables, menu_range_text, menu_range_edit, menu_range_pixels,
+            menu_range_reference_rows)

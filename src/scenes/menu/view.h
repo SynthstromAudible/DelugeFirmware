@@ -28,6 +28,10 @@ public:
 private:
 	void render_vertical(MenuCore core, deluge::ui::oled::OledFrame& f, const Node& node);
 	void render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, const Node& node);
+	/// @brief The edit a horizontal page's select turn makes: each of the tick's turns times
+	///        `HorizontalMenu::calcNextKnobSpeed`'s multiplier on its own time, truncated, added up.
+	/// @param turned The tick's detents, timed on the tick's clock when the host gave no turns.
+	int32_t accelerated_detents(deluge::ui::oled::OledFrame& f, int8_t turned);
 	// One helper per kind: each owns the widget's own argument shapes rather than sharing an
 	// `edit_value` the widgets do not agree on.
 	void render_leaf_int(MenuCore core, deluge::ui::oled::OledFrame& f, const Node& node);

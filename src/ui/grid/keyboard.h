@@ -35,7 +35,18 @@ struct TextKeyboardState {
 	/// so a scene that needs to know whether shift is down (e.g. to redraw something else) can
 	/// read it without touching the matrix driver directly.
 	bool shift = false;
+	/// True if a backspace pad is held. Read from the pads themselves, so it stays true while a
+	/// character key is held beside it (`Response::held_index` names only the first held key).
+	bool backspace_held = false;
 };
+
+/// @brief How long a held backspace pad waits before it repeats, and how fast it repeats after
+///        that. The press itself deletes one character, so a hold is one deletion, a pause of
+///        `kBackspaceRepeatDelayMs`, then one every `kBackspaceRepeatMs`.
+/// @{
+constexpr uint32_t kBackspaceRepeatDelayMs = 500;
+constexpr uint32_t kBackspaceRepeatMs = 80;
+/// @}
 
 /// @brief Default home row for the text keyboard; it occupies rows `home_row - 2` through
 ///        `home_row + 2`.
@@ -108,6 +119,12 @@ std::optional<RGB> text_keyboard_key_colour(int32_t x, int32_t y, int32_t home_r
 /// @param home_row Row the keyboard is centred on.
 /// @return True if the pad is a shift pad.
 bool text_keyboard_is_shift_pad(int32_t x, int32_t y, int32_t home_row);
+
+/// @brief Is a backspace pad down, wherever the frame's pads are showing something else?
+/// @param f        Frame whose held-pad level is read.
+/// @param home_row Row the keyboard is centred on.
+/// @return True if either backspace pad is held.
+bool text_keyboard_backspace_held(const GridFrame& f, int32_t home_row = kTextKeyboardHomeRow);
 
 /// @brief Paint the on-pad keyboard for one frame and report this tick's key press.
 ///

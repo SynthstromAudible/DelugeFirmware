@@ -5,7 +5,7 @@
 # (8,7) reads row 0's LPF back. Last, with row 0's menu open again, row 0 auditioned + the sequence-direction shortcut
 # (4,7) opens the note-row editor on PLAY DIRECTION, the row held after the release. The script stops there: BACK
 # from that editor sticks on main (its second sound editor), which is accepted as main's bug. Every snapshot has a
-# 1 s window. Run on the content card with ShellMenu on (sweep-shellmenu.img).
+# 1 s window. Run on the content card (sweep-shellmenu.img).
 1600  button SelectEnc down
 1620  button SelectEnc up
 2600  snapshot menu

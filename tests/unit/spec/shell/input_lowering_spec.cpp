@@ -167,7 +167,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 	it("two edges make one detent; accelerating encoders pass edges through", _ {
 		InputLowering in(uitest::test_profile_input(), {});
 		in.begin_tick(5);
-		in.on_encoder_edges(3, 2, 5);                     // select, encoders.cpp:28-34
+		in.on_encoder_edges(3, 2, 5);                     // select, `DetentedEncoder::applyEdges`
 		in.end_tick(5);
 		UiEvent e = only_queued(in);
 		expect(e.kind == UiEvent::Kind::Encoder).to_be_true();
@@ -175,7 +175,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		expect(e.delta).to_equal(int8_t(1));
 		expect(in.snapshot().turn).to_equal(int8_t(1));
 
-		// Index 4 is mod1, the upper gold knob (encoders.h:80-81, encoder_input.cpp:57).
+		// Index 4 is mod1, the upper gold knob (`encoders.h`'s `modEncoderAt`, `encoder_input.cpp`'s `interpretEncoders`).
 		in.begin_tick(6);
 		in.on_encoder_edges(4, 3, 6);                     // gold knob: raw edges through
 		in.end_tick(6);
@@ -212,9 +212,65 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		expect(in.snapshot().turn).to_equal(int8_t(1));
 	});
 
+	it("keeps a tick's select turns apart, each with the time the board decoded it", _ {
+		// `interpretEncoders` hands the select encoder over a run of edges at a time, each with its decode time, and
+		// the horizontal menu accelerates each on its own: the snapshot keeps them apart rather than only their sum.
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(20);
+		in.on_encoder_edges(3, 2, 20, 600'000);
+		in.on_encoder_edges(3, 4, 20, 610'000);
+		in.on_encoder_edges(2, 2, 20, 615'000); // tempo: not a select turn
+		in.on_encoder_edges(3, 2, 20);          // a turn the host gave no time
+		in.end_tick(20);
+		expect(in.snapshot().turn).to_equal(int8_t(4));
+		const std::span<const deluge::ui::TimedTurn> turns = in.snapshot().turns;
+		expect(turns.size()).to_equal(size_t(3));
+		expect(turns[0].detents).to_equal(int8_t(1));
+		expect(turns[0].time_us).to_equal(uint64_t(600'000));
+		expect(turns[1].detents).to_equal(int8_t(2));
+		expect(turns[1].time_us).to_equal(uint64_t(610'000));
+		expect(turns[2].detents).to_equal(int8_t(1));
+		expect(turns[2].time_us).to_equal(uint64_t(0));
+
+		in.begin_tick(21);
+		in.end_tick(21);
+		expect(in.snapshot().turns.empty()).to_be_true();
+	});
+
+	it("takes a routed select turn from the front of the tick's turns and deferred ones from the back", _ {
+		// `withdraw` takes the event `next()` handed out, the oldest; `defer_rest` hands the rest to the next tick,
+		// which lists them again, so no turn is read by two ticks.
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(30);
+		in.on_encoder_edges(3, 2, 30, 100);
+		in.on_encoder_edges(3, 4, 30, 200);
+		in.on_encoder_edges(3, 6, 30, 300);
+		in.end_tick(30);
+		UiEvent e{UiEvent::Kind::AllReleased};
+		expect(in.next(e)).to_be_true();
+		in.withdraw(e);
+		std::span<const deluge::ui::TimedTurn> turns = in.snapshot().turns;
+		expect(turns.size()).to_equal(size_t(2));
+		expect(turns[0].time_us).to_equal(uint64_t(200));
+		expect(in.snapshot().turn).to_equal(int8_t(5));
+
+		expect(in.next(e)).to_be_true();
+		in.defer_rest(e);
+		expect(in.snapshot().turns.empty()).to_be_true();
+		expect(in.snapshot().turn).to_equal(int8_t(0));
+
+		in.begin_tick(31);
+		in.end_tick(31);
+		turns = in.snapshot().turns;
+		expect(turns.size()).to_equal(size_t(2));
+		expect(turns[0].time_us).to_equal(uint64_t(200));
+		expect(turns[1].time_us).to_equal(uint64_t(300));
+		expect(in.snapshot().turn).to_equal(int8_t(5));
+	});
+
 	it("reproduces the legacy gold-knob acceleration curve", _ {
 		InputLowering in(uitest::test_profile_input(), {});
-		// encoders.cpp:57-75. First call: 1.0 s since the zero-initialised last time, past the
+		// `EncoderAcceleration::advance`. First call: 1.0 s since the zero-initialised last time, past the
 		// 0.3 s reset threshold, so the speed resets and clamps up to min_speed.
 		expect(in.calc_next_knob_speed(EncoderRole::GoldUpper, 1, 1000)).to_be_within(1e-9).of(1.0);
 		// 10 ms later, same direction: speed = 0*0.9 + (1/0.01)*0.1 = 10; 10*0.15 = 1.5.
@@ -480,55 +536,30 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		expect(in.sticky()).to_be_true();
 	});
 
-	it("debounces the first turn and an immediate reversal of a gold knob", _ {
+	it("acts on every gold-knob turn, after a pause and straight back, as main's interpretEncoders does", _ {
+		// `interpretEncoders` (`origin/main:src/deluge/hid/encoder_input.cpp`) acts unless the turn cancels
+		// `modEncoderInitialTurnDirection`, which nothing ever sets to anything but 0: every turn is acted on.
 		InputLowering in(uitest::test_profile_input(), {});
-		UiEvent e;
 
-		// First turn after a pause longer than short_press_ms (500): recorded, not actioned.
+		// The first turn after a pause longer than short_press_ms (500).
 		in.begin_tick(1000);
 		in.on_encoder_edges(4, 1, 1000);
 		in.end_tick(1000);
-		expect(in.snapshot().edit[0]).to_equal(int8_t(0));
-		expect(in.had_input_this_tick()).to_be_true();    // legacy still sets `anything`
-		expect(in.next(e)).to_be_false();
+		expect(drain_count(in)).to_equal(size_t(1));
+		expect(in.snapshot().edit[0]).to_equal(int8_t(1));
 
-		// Straight back the other way, inside the window: an accidental wiggle, also swallowed.
+		// Straight back the other way, inside the window.
 		in.begin_tick(1100);
 		in.on_encoder_edges(4, -1, 1100);
 		in.end_tick(1100);
-		expect(in.next(e)).to_be_false();
-		expect(in.snapshot().edit[0]).to_equal(int8_t(0));
-
-		// Carrying on that way is a real turn.
-		in.begin_tick(1200);
-		in.on_encoder_edges(4, -1, 1200);
-		in.end_tick(1200);
 		expect(drain_count(in)).to_equal(size_t(1));
 		expect(in.snapshot().edit[0]).to_equal(int8_t(-1));
 
-		// And so is the next one, in either direction, now that the record is cleared.
-		in.begin_tick(1300);
-		in.on_encoder_edges(4, 1, 1300);
-		in.end_tick(1300);
-		expect(in.snapshot().edit[0]).to_equal(int8_t(1));
-
-		// Pausing past the window arms the debounce again.
-		in.begin_tick(2000);
-		in.on_encoder_edges(4, 1, 2000);
-		in.end_tick(2000);
-		expect(in.snapshot().edit[0]).to_equal(int8_t(0));
-
-		// The other gold knob keeps its own record.
+		// The other gold knob, after its own pause.
 		in.begin_tick(2010);
 		in.on_encoder_edges(5, 1, 2010);
 		in.end_tick(2010);
-		expect(in.snapshot().edit[1]).to_equal(int8_t(0));
-
-		// Detented encoders are not debounced.
-		in.begin_tick(3000);
-		in.on_encoder_edges(3, 2, 3000);
-		in.end_tick(3000);
-		expect(in.snapshot().turn).to_equal(int8_t(1));
+		expect(in.snapshot().edit[1]).to_equal(int8_t(1));
 	});
 
 	it("maps each widget-owned shape onto the claim that owns it", _ {

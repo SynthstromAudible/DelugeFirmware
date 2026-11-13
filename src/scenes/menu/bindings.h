@@ -51,6 +51,21 @@ enum class ListFor : uint8_t { Rows, Columns };
 size_t listed_children(const Node& node, const MenuContext& ctx, std::span<const Node*> out,
                        ListFor list_for = ListFor::Rows);
 
+/// @brief What a MIDI/CV arpeggiator or randomizer column edits on the kit's own effects.
+///
+/// There the kit's arp reads each of these from the kit's params on every render (`Kit::setupAndRenderArpPreOutput`),
+/// so the column reads and writes its sound twin's param on the kit, and is listed by main's own rule for the column
+/// (`editingNonAudioDrumRow()`, `editingMidiDrumRow()` and the arp's mode, read off the kit's selected drum).
+struct KitFxTwin {
+	/// The sound column whose param the MIDI/CV column edits.
+	const Node* param;
+	/// Main's `isRelevant` for the MIDI/CV column, on the kit's own effects.
+	bool (*listed)(const MenuContext& ctx);
+};
+
+/// @brief @p node's twin on the kit's own effects, or null for a node that has none (`nodes/sound_randomizer.cpp`).
+const KitFxTwin* kit_fx_twin(const Node& node);
+
 /// @brief The member page column @p column of @p group's listed columns belongs to.
 /// @param group  A group (`Node::is_group`); any other node is its own member.
 /// @param ctx    The menu's context.

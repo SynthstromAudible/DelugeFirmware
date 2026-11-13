@@ -1,13 +1,14 @@
-"""The sample-claim gate: files claimed from the real sample browser bind what a user's claim binds.
+"""The sample-claim gate: files claimed from the sample browser bind what a user's claim binds.
 
-Claims files from the real sample browser into the boot song's synth, a kit drum and an audio clip, and slices a kit,
-through the gestures a user makes: the sound editor's file selector opens the browser, a by-path listing selects the
-file, and the Select encoder claims it.
+Claims files from the sample browser into the boot song's synth, a kit drum and an audio clip, and slices a kit,
+through the gestures a user makes: the menu's file selector opens the browser, a favourite's by-path listing brings
+it to the file, and the Select encoder claims it.
 
 What the checks cover (tests/integration/scenarios/sample_claim_scenario.cpp writes the lines):
-    SC-SETUP   per leg: whether the sound editor could be set up and the sample browser opened on it.
-    SC-SELECT  per leg: the file the by-path listing selected.
-    SC-SYNTH   the synth claim: the file bound, the oscillator type, the repeat mode and the transpose.
+    SC-SETUP   per leg: whether the menu opened and its file selector put the sample browser on top.
+    SC-SELECT  per leg: the item the browser was brought to, which must be the leg's.
+    SC-SYNTH   the synth claim: the file bound, the oscillator type, the repeat mode and the transpose, and the
+               browser closed once its claim landed.
     SC-WAVETABLE
                the synth context menu's WaveTable claim of a single-cycle file: bound, as a wavetable oscillator.
     SC-FALLBACK
@@ -36,8 +37,9 @@ What the checks cover (tests/integration/scenarios/sample_claim_scenario.cpp wri
     SC-KIT     the kit drum claim: the file bound, the repeat mode, the drum's name and its side-chain send.
     SC-AUDIOCLIP
                the audio clip claim: the file bound, and the clip's loop length and attack.
-    SC-SLICE   the slicer's four-region slice: how many drums the kit ends with, how many are bound to the sliced
-               sample, and how many NoteRows have a drum.
+    SC-SHELL-SLICE, SC-SHELL-SLICE-MANUAL
+               the slicer opened on the file itself: a four-region slice, and a manual slice into three with the
+               points as they were at Select, each drum bound to the sliced sample with a NoteRow.
     RD-ONE     the Drum Randomizer on one selected drum: it must end on a file from the folder its sample sat in,
                named after that file, with every other row untouched.
     RD-ALL     the same gesture with affect-entire held: every unmuted row that has notes must end on a file from
@@ -55,8 +57,9 @@ What the checks cover (tests/integration/scenarios/sample_claim_scenario.cpp wri
     IM-KIT     the kit context menu's "Load All" over a folder of its own: one drum per file in filename order, each
                named after its file without the folder's shared prefix, bound to it and with a NoteRow; the kit
                edited and the browser closed.
-    IM-MULTI   the synth context menu's "Multisamples" over three sines an octave apart: one range per file in pitch
-               order, each bound to its file with the transpose its detection gives it, and the browser closed.
+    IM-MULTI   the synth context menu's "Multisamples" over three sines an octave apart, into a wavetable oscillator:
+               a sample oscillator with one range per file in pitch order, each bound to its file with the transpose
+               its detection gives it, the browser closed, and the menu left on the middle range.
     IM-TIER    per folder import: a listing ran, and no sample was read from the card on the interaction tier.
     IM-GATE    a kit import whose loads the loader holds: while it is out, BACK and a second Select on the menu must be
                refused; once it ends, the gate released and the kit holding its drums.
@@ -65,10 +68,6 @@ What the checks cover (tests/integration/scenarios/sample_claim_scenario.cpp wri
     IM-STALL   a multisample import whose second file's load is held past the stall bound: it must abort with the
                synth's ranges and the loaded files' reasons as they were, just the menu closed, the browser open and
                the gate released.
-    SC-SLICE-MANUAL
-               a second kit sliced in manual mode into three slices, the live slice points changed straight after
-               Select: every drum bound to the sliced sample, with a NoteRow, and painted from the points as they
-               were when Select was pressed.
 
 The registry entry requires each marker and the result line, and gives the run a 180 s virtual-time budget: three legs
 hold the loader for 30 virtual seconds each (SC-STALL, RD-STALL's randomize, IM-STALL) and the pitch legs hold the

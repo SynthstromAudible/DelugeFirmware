@@ -17,7 +17,6 @@
 
 #include "hid/buttons.h"
 #include "definitions_cxx.hpp"
-#include "gui/ui/audio_recorder.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -29,6 +28,7 @@
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/recording/foreground_recording.h"
 #include "storage/flash_storage.h"
 #include <map>
 #include <string>
@@ -141,7 +141,7 @@ ActionResult buttonAction(deluge::hid::Button b, bool on) {
 	if (b == PLAY) {
 		if (on) {
 
-			if (audioRecorder.recordingSource > AudioInputChannel::NONE && isButtonPressed(RECORD)) {
+			if (AudioEngine::foregroundRecordingSource() > AudioInputChannel::NONE && isButtonPressed(RECORD)) {
 				// Stop output-recording at end of loop
 				if (!recordButtonPressUsedUp && playbackHandler.isEitherClockActive()) {
 					currentPlaybackMode->stopOutputRecordingAtLoopEnd();
@@ -154,7 +154,7 @@ ActionResult buttonAction(deluge::hid::Button b, bool on) {
 
 				// Begin output-recording simultaneously with playback
 				if (isButtonPressed(RECORD) && playbackHandler.playbackState && !recordButtonPressUsedUp) {
-					audioRecorder.beginOutputRecording();
+					deluge::recording::beginOutputRecording();
 				}
 			}
 
@@ -173,9 +173,9 @@ ActionResult buttonAction(deluge::hid::Button b, bool on) {
 
 			recordButtonPressUsedUp = false;
 
-			if (audioRecorder.recordingSource == AudioInputChannel::NONE) {
+			if (AudioEngine::foregroundRecordingSource() == AudioInputChannel::NONE) {
 				if (isShiftButtonPressed()) {
-					audioRecorder.beginOutputRecording();
+					deluge::recording::beginOutputRecording();
 					recordButtonPressUsedUp = true;
 				}
 			}
@@ -188,8 +188,8 @@ ActionResult buttonAction(deluge::hid::Button b, bool on) {
 			}
 			else if (!recordButtonPressUsedUp
 			         && (int32_t)(AudioEngine::audioSampleTimer - timeRecordButtonPressed) < kShortPressTime) {
-				if (audioRecorder.isCurrentlyResampling()) {
-					audioRecorder.endRecordingSoon(kInternalButtonPressLatency);
+				if (deluge::recording::isCurrentlyResampling()) {
+					deluge::recording::endRecordingSoon(kInternalButtonPressLatency);
 				}
 				else {
 					playbackHandler.recordButtonPressed();

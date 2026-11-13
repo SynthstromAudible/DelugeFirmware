@@ -1,0 +1,7 @@
+# Reference answers of upstream main's menu, one row per answer: path, column, values (tab-separated).
+# A row changes only to follow main's source (git show origin/main:<path>); tests/golden/README.md says how.
+perform	options	Disabled	Value	Param
+perform/0,0	mode	0
+perform/1,0	mode	1
+perform/1,1	mode	2
+perform/0,1	mode	0

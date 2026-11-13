@@ -6,6 +6,7 @@
 #include "sequence/iterance.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdio>
 #include <cstring>
 
@@ -22,6 +23,11 @@ size_t write_text(std::string_view text, std::span<char> out) {
 	}
 	return n;
 }
+
+/// `InstrumentClipView::getFillString` (`gui/views/instrument_clip_view.cpp`): each `FillMode`'s word, by value.
+constexpr std::array<std::string_view, 3> kFillWords{"OFF", "NOT FILL", "FILL"};
+static_assert(FillMode::OFF == 0 && FillMode::NOT_FILL == 1 && FillMode::FILL == 2,
+              "kFillWords is indexed by FillMode");
 
 /// @brief `IteranceDivisor::readCurrentValue`/`writeCurrentValue`'s "OFF becomes 1of1" conversion
 ///        (`note/iterance_divisor.h:45-49,59-63`, `note_row/iterance_divisor.h:49-53,68-72`),
@@ -250,17 +256,18 @@ ValueText value_text_fill(const MenuContext&, int32_t value, ValueTextUse use, s
 		return kValueTextFallback;
 	}
 	if (use == ValueTextUse::Column) {
-		const std::string_view text = value == FillMode::OFF ? "OFF" : "FILL";
+		const std::string_view text = kFillWords[value == FillMode::OFF ? FillMode::OFF : FillMode::FILL];
 		return ValueText{write_text(text, out), value == FillMode::NOT_FILL};
 	}
-	std::string_view text = "OFF";
-	if (value == FillMode::FILL) {
-		text = "FILL";
-	}
-	else if (value == FillMode::NOT_FILL) {
-		text = "NOT FILL";
-	}
+	const std::string_view text =
+	    value == FillMode::FILL || value == FillMode::NOT_FILL ? kFillWords[value] : kFillWords[FillMode::OFF];
 	return ValueText{write_text(text, out), false};
+}
+
+size_t fill_names(const MenuContext& /*ctx*/, std::span<std::string_view> out) {
+	const size_t count = std::min(kFillWords.size(), out.size());
+	std::copy_n(kFillWords.begin(), count, out.begin());
+	return count;
 }
 
 ValueText leaf_text_probability(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
@@ -292,10 +299,12 @@ ValueText leaf_text_iterance(const MenuContext& ctx, int32_t value, ValueTextUse
 // -------------------------------------------------------------------------------------------
 
 int32_t get_note_velocity(const MenuContext&) {
-	return note_bridge()->note_velocity(); // `note/velocity.h:44-52`
+	// `origin/main:src/deluge/gui/menu_item/note/velocity.h` `Velocity::readCurrentValue`
+	return note_bridge()->note_velocity();
 }
 void adjust_note_velocity(const MenuContext&, int32_t offset) {
-	note_bridge()->adjust_note_velocity(offset); // `note/velocity.h:54-57`
+	// `origin/main:src/deluge/gui/menu_item/note/velocity.h` `Velocity::selectEncoderAction`
+	note_bridge()->adjust_note_velocity(offset);
 }
 
 int32_t get_note_probability(const MenuContext&) {

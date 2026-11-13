@@ -18,7 +18,6 @@
 #include "model/instrument/kit.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/stereo_sample.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
@@ -55,6 +54,7 @@
 #include "storage/value_tree_deserializer.h"
 #include "util/functions.h" // stringToInt (id-first drum peek)
 #include "util/notify.h"
+#include "util/sound_menu_open.h"
 #include "util/structural_edit_probe.h"
 #include <cstring>
 #include <variant>
@@ -2128,8 +2128,8 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKit(ModelStackWithTimelin
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 
 	if (useMenuStack) {
-		modelStackWithThreeMainThings = modelStack->addOtherTwoThingsButNoNoteRow(soundEditor.currentModControllable,
-		                                                                          soundEditor.currentParamManager);
+		modelStackWithThreeMainThings = modelStack->addOtherTwoThingsButNoNoteRow(
+		    deluge::gui::ui::soundMenuModControllable(), deluge::gui::ui::soundMenuParamManager());
 	}
 	else {
 		modelStackWithThreeMainThings =
@@ -2159,7 +2159,7 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKitRow(ModelStackWithTime
 
 			if (useMenuStack) {
 				modelStackWithThreeMainThings = modelStackWithNoteRow->addOtherTwoThings(
-				    soundEditor.currentModControllable, soundEditor.currentParamManager);
+				    deluge::gui::ui::soundMenuModControllable(), deluge::gui::ui::soundMenuParamManager());
 			}
 			else {
 				modelStackWithThreeMainThings = modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();

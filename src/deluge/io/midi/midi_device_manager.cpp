@@ -20,7 +20,6 @@
 #include "deluge/deluge.h" // setTimeUSBInitializationEnds (app-owned popup-suppression window)
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "io/file.hpp"

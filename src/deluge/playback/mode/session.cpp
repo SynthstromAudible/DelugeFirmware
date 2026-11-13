@@ -17,7 +17,6 @@
 
 #include "playback/mode/session.h"
 #include "definitions_cxx.hpp"
-#include "gui/ui/audio_recorder.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
@@ -38,6 +37,7 @@
 #include "playback/render_requests.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "processing/recording/foreground_recording.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
 #include <iterator>
@@ -2439,8 +2439,8 @@ traverseClips:
 		// If no more repeats remain, do the actual launch event now!
 		if (numRepeatsTilLaunch <= 0) {
 
-			if (playbackHandler.stopOutputRecordingAtLoopEnd && audioRecorder.isCurrentlyResampling()) {
-				audioRecorder.endRecordingSoon();
+			if (playbackHandler.stopOutputRecordingAtLoopEnd && deluge::recording::isCurrentlyResampling()) {
+				deluge::recording::endRecordingSoon();
 			}
 
 			// If we're doing a song swap...

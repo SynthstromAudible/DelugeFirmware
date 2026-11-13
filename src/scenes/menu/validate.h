@@ -88,8 +88,8 @@ struct Issue {
 
 /// @brief Which flag a `FlagMismatch` is about (`Issue::detail`).
 enum class Flag : uint16_t {
-	/// @brief `Node::range_dependent` (`node.h`, legacy `MenuItem::isRangeDependent()`).
-	RangeDependent,
+	/// @brief `Node::range_specific` (`node.h`, the items whose permission check takes the range rule).
+	RangeSpecific,
 	/// @brief `Binding::scaling == Scaling::HalfPrecision` (`bindings.h`'s two named exceptions).
 	HalfPrecision,
 	/// @brief Exactly one of `Node::select_chain` and `Node::chain_targets` is set.
@@ -112,10 +112,12 @@ enum class Flag : uint16_t {
 	/// of one node, like the two flags just above.
 	AdjustWithoutGet,
 	/// @brief A node with a `Binding::target` that also sets a hook the target replaces: `get`, `set`, `range`,
-	///        `fixed_range`, `names`, `dynamic_names`, `relevant`, `adjust` or `range_spec`. A target node's value,
-	///        range, choices and relevance come from its descriptor; a hook beside it would be a second, silently
-	///        ignored, source. A `param` beside a target is learn-only (what `learn_target` binds), as beside a `get`;
-	///        `value_text` and `permitted` stay the node's own (how the value reads, and when it may be edited).
+	///        `fixed_range`, `names`, `dynamic_names`, `adjust` or `range_spec`. A target node's value, range, choices
+	///        and relevance come from its descriptor; a hook beside it would be a second, silently ignored, source. A
+	///        `param` beside a target is learn-only (what `learn_target` binds), as beside a `get`; `value_text` and
+	///        `permitted` stay the node's own (how the value reads, and when it may be edited). A `relevant` beside a
+	///        target narrows where the descriptor applies, for a legacy `isRelevant` that asks what the editor edits
+	///        rather than the owner's rows (`bindings::relevant` asks both).
 	TargetWithHooks,
 };
 
@@ -127,19 +129,19 @@ enum class Flag : uint16_t {
 /// today, but a distinct-instance count would stay at 1 if a table pointed many nodes at one shared
 /// stand-in, and `TooManyCustom` could never fire however many custom nodes it added.
 ///
-/// The shipped tree has **61** `Kind::Custom` nodes reachable from `nodes::kAllRoots`, behind **61
+/// The shipped tree has **62** `Kind::Custom` nodes reachable from `nodes::kAllRoots`, behind **62
 /// distinct items, every one of them real**. The cap is pinned exactly one above that count: it is
 /// a ratchet against the escape hatch growing unnoticed, not a claim that any smaller number was
 /// achievable. A cap sitting further above the count would be that many bespoke items an
-/// inattentive table could add for free. `sim/scenes_spec/shortcuts_spec.cpp` asserts the exact 61
+/// inattentive table could add for free. `sim/scenes_spec/shortcuts_spec.cpp` asserts the exact 62
 /// separately, so a table that adds a custom node has to say so in two places.
-inline constexpr size_t kMaxCustomNodes = 62;
+inline constexpr size_t kMaxCustomNodes = 63;
 
 /// @brief The number of `Kind::Custom` nodes the shipped tree actually has (`kAllRoots`).
 ///
 /// Named here so `kMaxCustomNodes`'s headroom is visible rather than a magic gap, and asserted
 /// against the live tree by `sim/scenes_spec/shortcuts_spec.cpp`.
-inline constexpr size_t kShippedCustomNodes = 61;
+inline constexpr size_t kShippedCustomNodes = 62;
 
 /// @brief How many of `kShippedCustomNodes` still point at `nodes::kPending`.
 ///
@@ -191,7 +193,7 @@ struct ValidateOptions {
 ///                  context" quantifier of the `EmptySubmenu` rule. An empty span skips relevance
 ///                  filtering entirely (every declared child counts as visible), which is what a
 ///                  structural-only check wants.
-/// @param expected_range_dependent Every node that must carry `Node::range_dependent`, and no
+/// @param expected_range_specific Every node that must carry `Node::range_specific`, and no
 ///                  others.
 /// @param expected_half_precision  Every node whose binding must use `Scaling::HalfPrecision`, and
 ///                  no others.
@@ -200,7 +202,7 @@ struct ValidateOptions {
 ///         exhaustive list to be rejected).
 deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* const> roots,
                                                         std::span<const MenuContext> contexts,
-                                                        std::span<const Node* const> expected_range_dependent = {},
+                                                        std::span<const Node* const> expected_range_specific = {},
                                                         std::span<const Node* const> expected_half_precision = {},
                                                         ValidateOptions options = {});
 

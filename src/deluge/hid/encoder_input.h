@@ -25,6 +25,14 @@ namespace deluge::hid::encoders {
 /// Written here and by view.cpp to reset the "turned recently" window.
 extern uint32_t timeModEncoderLastTurned[];
 
+/// @brief When the board decoded the select turn being actioned, on `getSystemTime()`'s clock in microseconds.
+///
+/// `interpretEncoders` hands the select encoder's detents out as the runs of edges that completed them, one
+/// `selectEncoderAction` each, and this is that run's time while the call is made: what an accelerated select edit
+/// is timed on, as `main`'s `HorizontalMenu::calcNextKnobSpeed` times each turn its encoder task takes as the edges
+/// arrive. 0 outside such a call.
+uint64_t selectTurnTimeUs();
+
 /// Translate accumulated encoder ticks into UI actions.
 ///
 /// @return true if any encoder produced an action this call.

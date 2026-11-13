@@ -67,6 +67,11 @@ namespace deluge::gui::ui {
 /// uncovered.
 void wireShellGuestServices();
 
+/// @brief Install the audio clip clone follower: a cloned clip's marker-editor view starts as the original's, as main's
+///        clone copies its sample holder's. It holds no `Song` (the store forgets another song's views itself), so it
+///        has no ordering constraint of its own; call it at boot.
+void wireShellClipCloneViews();
+
 /// @brief Re-read the facts about the root UI that the open menu and the knobs hold: the menu's greyout arm and
 ///        whether the root is the keyboard screen or the automation view (`MenuScene::set_root_facts`), and the two
 ///        `ViewState` blocks. Called whenever the root, or the automation view's editor, changes under the menu.
@@ -115,6 +120,14 @@ void refreshShellDxColumn();
 ///        menus or the slicer, for `shellSamplePreviewSounds`. Called on every guest tick, after the shell's, and as
 ///        the guest closes.
 void refreshShellSamplePreviewSounds();
+
+/// @brief Forget the song and the rest of what the ported menu was open on, for a teardown of every UI under the
+///        guest (`ShellHostUI::uisTakenDown`): the song may go next.
+void forgetShellMenuContext();
+
+/// @brief End the recorder's running take for a teardown of every UI under the guest (`ShellHostUI::uisTakenDown`),
+///        posting no `ClearWorking` (`RecorderScene::taken_down`). A no-op with no take running.
+void endShellRecorderTakeForTeardown();
 
 /// @brief Whether the guest is the current UI and, at its last tick, its frontmost scene was the sample browser, one of
 ///        the sample browser's long-press menus or the slicer: the guest's half of "does the sample preview sound"

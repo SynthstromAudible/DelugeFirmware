@@ -30,6 +30,7 @@
 ///       `static_assert` in the one translation unit that sees both (`context_menu_items.cpp`).
 
 #include "scenes/menu/node.h"
+#include "scenes/menu/nodes/detail.h"
 
 #include <cstdint>
 
@@ -67,6 +68,16 @@ inline const ContextMenuItem kResetMidiFollowItem{2};        ///< `DescriptorId:
 inline const ContextMenuItem kResetMidiDevicesItem{3};       ///< `DescriptorId::ResetMidiDevices`
 inline const ContextMenuItem kResetAllItem{4};               ///< `DescriptorId::ResetAll`
 inline const ContextMenuItem kAudioSourceItem{5};            ///< `DescriptorId::AudioSource`
+
+/// `AudioInputSelector::getOptions` (`gui/context_menu/audio_input_selector.cpp`), in its own order: the audio
+/// source page's nine options, which `context_menu_scene.cpp`'s descriptor lists and the menu dump names.
+inline constexpr uint16_t kAudioSourceOptions[] = {
+    sid(deluge::l10n::String::STRING_FOR_DISABLED),       sid(deluge::l10n::String::STRING_FOR_LEFT_INPUT),
+    sid(deluge::l10n::String::STRING_FOR_RIGHT_INPUT),    sid(deluge::l10n::String::STRING_FOR_STEREO_INPUT),
+    sid(deluge::l10n::String::STRING_FOR_BALANCED_INPUT), sid(deluge::l10n::String::STRING_FOR_USB_INPUT),
+    sid(deluge::l10n::String::STRING_FOR_MIX_PRE_FX),     sid(deluge::l10n::String::STRING_FOR_MIX_POST_FX),
+    sid(deluge::l10n::String::STRING_FOR_TRACK),
+};
 /// @}
 
 } // namespace deluge::scenes::menu::nodes

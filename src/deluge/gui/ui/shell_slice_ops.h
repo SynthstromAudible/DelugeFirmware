@@ -17,12 +17,13 @@
 
 #pragma once
 
+#include "util/shell_slice_out.h" // shellSliceOut
+
 #include <cstdint>
 #include <string_view>
 
 /// @file
-/// @brief The ported slicer's host: `SlicerScene`'s `SliceOps`, performed with the same `SliceCore` the legacy slicer
-///        drives.
+/// @brief The slicer's host: `SlicerScene`'s `SliceOps`, performed with `SliceCore`.
 ///
 /// This header names no `scenes/` type; `shell_slice_ops.cpp` is where the scene is reached.
 
@@ -44,9 +45,6 @@ void pollShellSlicer();
 
 /// @return Whether one of the slicer's loads is out, so the guest keeps ticking to finish it.
 bool shellSlicerBusy();
-
-/// @return Whether a slice is out. The guest refuses to close while one is: its drums land in the kit it was asked for.
-bool shellSliceOut();
 
 /// @brief Drop the slicer's pending open and held audition as the guest closes, so neither lands in what the next guest
 ///        edits.

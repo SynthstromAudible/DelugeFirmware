@@ -3,18 +3,20 @@
 #include "gui/ui/shell_slice_ops.h"
 #include "gui/ui/ui.h"
 #include "hid/led/pad_leds.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/voice/sound_voice.h"
 #include "model/voice/voice_sample.h"
 
 #include "deluge-project/setting_group.h"
 #include "effects/plugin.h"
 #include "effects/settings.h"
-#include "gui/menu_item/dx/cartridge.h"
+#include "gui/ui/browser/dx_cartridge_bank.h"
 #include "gui/ui/browser/folder_import.h"
-#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/load/output_replacement.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "instruments/deluge/settings.h"
@@ -61,6 +63,7 @@
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/setting_projection.h"
 #include "model/project_bridge/slot_bridge.h"
+#include "model/sample/last_file_path_loaded.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "model/sample/waveform_scan.h"
@@ -254,6 +257,8 @@ public:
 		return deluge::gui::sampleClaim.explicitInFlight() || deluge::gui::folderImport.inFlight()
 		       || deluge::gui::ui::shellSlicerBusy();
 	}
+	[[nodiscard]] bool output_may_be_replaced() const override { return deluge::gui::anOutputMayBeReplaced(); }
+	[[nodiscard]] std::optional<uint16_t> take_range(const deluge::scenes::bind::TakeTarget& target) const override;
 	[[nodiscard]] bool auditioning() const override { return isUIModeActive(UI_MODE_AUDITIONING); }
 	[[nodiscard]] deluge::scenes::bind::FlashCursor flash_cursor() const override {
 		return static_cast<deluge::scenes::bind::FlashCursor>(PadLEDs::flashCursor);
@@ -281,7 +286,7 @@ public:
 		return runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine) == RuntimeFeatureStateToggle::On;
 	}
 	[[nodiscard]] std::optional<deluge::scenes::bind::DxCartridgeNames> dx_cartridge() const override {
-		DX7Cartridge* bank = deluge::gui::menu_item::dxCartridge.pd;
+		DX7Cartridge* bank = deluge::gui::dxCartridgeBank();
 		if (bank == nullptr) {
 			return std::nullopt;
 		}
@@ -305,6 +310,14 @@ public:
 			return std::nullopt;
 		}
 		return static_cast<uint16_t>(i);
+	}
+	[[nodiscard]] std::optional<uint64_t> range_identity(deluge::project::SlotAddress slot, uint8_t source,
+	                                                     uint16_t range) const override {
+		const ::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
+		if (sound == nullptr || source >= kNumSources || range >= std::ssize(sound->sources[source].ranges)) {
+			return std::nullopt;
+		}
+		return sound->sources[source].ranges.getElement(range)->identity();
 	}
 	[[nodiscard]] uint8_t loaded_sources(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] const deluge::instrument::SoundState* sound_state(deluge::project::SlotAddress slot) const override;
@@ -340,6 +353,50 @@ public:
 ::AudioClip* audioClipAt(deluge::project::ClipAddress clip) {
 	::Clip* found = currentSong != nullptr ? currentSong->clipForId(clip.clip_id) : nullptr;
 	return found != nullptr && found->type == ClipType::AUDIO ? static_cast<::AudioClip*>(found) : nullptr;
+}
+
+/// Whether @p clip plays the sound @p slot names: a synth clip its own track, a kit clip one of its kit's sound rows. A
+/// replaced synth kept hibernating under its id is not one: no clip plays it.
+bool clipPlaysSlot(const ::Clip& clip, deluge::project::SlotAddress slot) {
+	using Kind = deluge::project::SlotAddress::Kind;
+	if (clip.output == nullptr) {
+		return false;
+	}
+	if (slot.kind == Kind::OUTPUT) {
+		return clip.output->type == OutputType::SYNTH && clip.output->id() == slot.id;
+	}
+	if (clip.output->type != OutputType::KIT) {
+		return false;
+	}
+	for (const Drum* drum = static_cast<const Kit*>(clip.output)->firstDrum; drum != nullptr; drum = drum->next) {
+		if (drum->type == DrumType::SOUND && drum->id() == slot.id) {
+			return true;
+		}
+	}
+	return false;
+}
+
+std::optional<uint16_t> ShellRuntimeFacts::take_range(const deluge::scenes::bind::TakeTarget& target) const {
+	// `AudioRecorder::targetStillHeld`, by identity: the clip and what it plays, then the range wherever it now sits.
+	// Range identities are run-unique and never saved, so a range in another song cannot match.
+	if (currentSong == nullptr || !target.clip || !target.range || target.source >= kNumSources) {
+		return std::nullopt;
+	}
+	::Clip* clip = currentSong->clipForId(target.clip->clip_id);
+	if (clip == nullptr || !clipPlaysSlot(*clip, target.slot)) {
+		return std::nullopt;
+	}
+	const ::Sound* sound = deluge::bridge::soundAt(*currentSong, target.slot);
+	if (sound == nullptr) {
+		return std::nullopt;
+	}
+	const MultiRangeArray& ranges = sound->sources[target.source].ranges;
+	for (int32_t i = 0; i < std::ssize(ranges); i++) {
+		if (ranges.getElement(i)->identity() == *target.range) {
+			return static_cast<uint16_t>(i);
+		}
+	}
+	return std::nullopt;
 }
 
 static_assert(kMaxNumPatchCables <= deluge::scenes::bind::kMaxCables);
@@ -554,7 +611,7 @@ namespace {
 
 /// Whether another of @p owner's siblings already has @p name: another clip of the clip's track, another audio track,
 /// another drum of the lane's kit, as legacy's rename editors refuse a name (`rename_clip_ui.cpp:35`,
-/// `rename_output_ui.cpp:35`, `rename_drum_ui.cpp:52`). Letter case does not count.
+/// `rename_output_ui.cpp:35`, `RenameDrumUI`). Letter case does not count.
 bool name_taken(const deluge::project::SettingAddress& owner, std::string_view name) {
 	if (const auto* clip_at = std::get_if<deluge::project::ClipAddress>(&owner.owner)) {
 		::Clip* clip = currentSong->clipForId(clip_at->clip_id);
@@ -632,12 +689,12 @@ bool ShellEditSink::write_dx_patch(deluge::project::SlotAddress slot, uint8_t so
 
 bool ShellEditSink::load_dx_program(deluge::project::SlotAddress slot, uint8_t source, int32_t program) {
 	::Sound* sound = currentSong != nullptr ? deluge::bridge::soundAt(*currentSong, slot) : nullptr;
-	DX7Cartridge* bank = deluge::gui::menu_item::dxCartridge.pd;
+	DX7Cartridge* bank = deluge::gui::dxCartridgeBank();
 	if (sound == nullptr || bank == nullptr || source >= kNumSources || sound->sources[source].oscType != OscType::DX7
 	    || program < 0 || program >= bank->numPatches()) {
 		return false;
 	}
-	deluge::gui::menu_item::loadDxProgram(*sound, source, *bank, program);
+	deluge::gui::loadDxProgram(*sound, source, *bank, program);
 	return true;
 }
 
@@ -787,7 +844,7 @@ bool ShellEditSink::write_source_transpose(const deluge::scenes::bind::Addresses
 	if (currentSong == nullptr || source >= kNumSources) {
 		return false;
 	}
-	// `computeFinalValuesForTranspose` (`gui/menu_item/value_scaling.cpp`).
+	// `computeFinalValuesForTranspose` (`util/value_scaling.cpp`).
 	const int32_t current = menu_value + 25600;
 	const int32_t semitones = (current + 50) / 100;
 	const int32_t cents = current - semitones * 100;
@@ -1335,7 +1392,7 @@ const deluge::scenes::services::Waveforms& host_waveforms() {
 }
 
 std::string host_last_sample_path() {
-	return sampleBrowser.lastFilePathLoaded;
+	return deluge::model::lastFilePathLoaded();
 }
 
 namespace {
@@ -1383,6 +1440,34 @@ deluge::scenes::services::Favourites& host_favourites() {
 bool host_release_sample_file(std::string_view path) {
 	AudioEngine::stopAnyPreviewing();
 	return audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(std::string{path}.c_str());
+}
+
+void host_forget_undo() {
+	actionLogger.deleteAllLogs();
+}
+
+void host_clear_tick_squares() {
+	PadLEDs::clearTickSquares(true);
+}
+
+void host_end_audition(AuditionEnd how) {
+	switch (how) {
+	case AuditionEnd::ClipViewWhenAuditioning:
+		if (currentUIMode == UI_MODE_AUDITIONING) {
+			instrumentClipView.cancelAllAuditioning();
+		}
+		break;
+	case AuditionEnd::ClipViewForInstrumentClip:
+		if (::Clip* clip = getCurrentClip(); clip != nullptr && clip->type == ClipType::INSTRUMENT) {
+			instrumentClipView.cancelAllAuditioning();
+		}
+		break;
+	case AuditionEnd::KeyboardWhenAuditioning:
+		if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) {
+			keyboardScreen.exitAuditionMode();
+		}
+		break;
+	}
 }
 
 const deluge::scenes::bind::RuntimeFacts& host_runtime_facts() {

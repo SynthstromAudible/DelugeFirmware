@@ -24,7 +24,6 @@
 #include "gui/ui/shell_action_dispatch.h" // closePortedMenu()
 #include "gui/ui/shell_guest_services.h"  // shellMenuFrontmost
 #include "gui/ui/shell_host_ui.h"         // shellHostUI
-#include "gui/ui/sound_editor.h"          // soundEditor
 #include "gui/ui/ui.h"                    // uiNeedsRendering
 #include "gui/views/instrument_clip_view.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -188,9 +187,9 @@ std::optional<ActionResult> forwardNoteButton(deluge::hid::Button b, bool on) {
 	// as `DEALT_WITH` (`:3762`, `:4057`).
 	const NoteModeLegacyCalls& calls = noteModeLegacyCalls();
 	if (mode == NoteModeKind::NoteEditor) {
-		return calls.noteEditorButton(b, on); // `sound_editor.cpp:617-619`
+		return calls.noteEditorButton(b, on); // `SoundEditor::buttonAction`
 	}
-	return calls.noteRowEditorButton(b, on); // `sound_editor.cpp:621-623`
+	return calls.noteRowEditorButton(b, on); // `SoundEditor::buttonAction`
 }
 
 std::optional<ActionResult> forwardNoteHorizontalEncoder(int32_t offset) {
@@ -245,7 +244,7 @@ void exitNoteModeBeforeClose() {
 	case NoteModeKind::NoteEditor:
 		noteModeLegacyCalls().exitNoteEditor(); // `SoundEditor::exitCompletely`, `gui/ui/sound_editor.cpp`
 		// `exitCompletely`'s "refresh grid to potentially unhighlight edited notes" step is `uiNeedsRendering(this,
-		// 0xFFFFFFFF, 0)`, where `this` is the menu UI about to close -- with ShellMenu on, this guest.
+		// 0xFFFFFFFF, 0)`, where `this` is the menu UI about to close -- this guest.
 		// `uiNeedsRendering` queues every main row against the guest's place in the hierarchy,
 		// and legacy's `close()` follows with the rows still pending (`SoundEditor::exitCompletely`), as
 		// `closeGuest`'s does here.
@@ -281,7 +280,8 @@ bool shouldEnterSubmenu(const Node& item, const MenuContext& ctx) {
 
 bool noteModeCurrentMenuItemIs(NoteModeMenuItem item) {
 	// `getCurrentMenuItem()` is `menuItemNavigationRecord[navigationDepth]`
-	// (`gui/ui/sound_editor.cpp:1906-1908`); `MenuScene::focused()` is `path[depth]`, its port.
+	// (`SoundEditor::getCurrentMenuItem` in `gui/ui/sound_editor.cpp`); `MenuScene::focused()` is `path[depth]`, its
+	// port.
 	const Node* const focused = deluge::scenes::menu_scene().focused();
 	switch (item) {
 	case NoteModeMenuItem::NoteEditorRoot:

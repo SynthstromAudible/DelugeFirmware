@@ -96,22 +96,18 @@ inline constexpr const Node* kBatch1RootArray[] = {
 };
 inline constexpr std::span<const Node* const> kBatch1Roots{kBatch1RootArray};
 
-/// @brief Every node in the whole sound tree that must carry `Node::range_dependent`.
+/// @brief Every node in the whole sound tree that must carry `Node::range_specific`.
 ///
-/// The validator's `Flag::RangeDependent` audit compares this against what the tree actually sets,
+/// The validator's `Flag::RangeSpecific` audit compares this against what the tree actually sets,
 /// so a table that forgets the flag fails loudly rather than quietly editing whichever `MultiRange`
-/// happened to be first. The sound tree contains four of the five legacy classes `node.h` names -- both
-/// oscillators' file selector, sample-transpose, audio recorder and start/end loop points -- which
-/// is **ten** nodes.
-///
-/// **No other node is range dependent.** The fifth legacy class, `multi_range.h:32`, is the range
-/// picker itself, which is a custom item; nothing else in the sound-editor root overrides
-/// `isRangeDependent()`.
-inline constexpr const Node* kRangeDependentArray[] = {
+/// happened to be first. The four legacy classes `Node::range_specific` names are, in the sound tree, both
+/// oscillators' file selector, sample-transpose, audio recorder and start/end loop points: **ten** nodes. The
+/// transposes and the loop points also carry `Node::range_dependent`; the file selectors and the recorders do not.
+inline constexpr const Node* kRangeSpecificArray[] = {
     &sample0_recorder,  &sample1_recorder, &file0_selector, &file1_selector, &source0_transpose,
     &source1_transpose, &sample0_start,    &sample0_end,    &sample1_start,  &sample1_end,
 };
-inline constexpr std::span<const Node* const> kRangeDependentNodes{kRangeDependentArray};
+inline constexpr std::span<const Node* const> kRangeSpecificNodes{kRangeSpecificArray};
 
 /// @brief Every node in the whole sound tree whose binding must use `Scaling::HalfPrecision`.
 ///
@@ -161,6 +157,9 @@ inline constexpr std::span<const Node* const> kHalfPrecisionNodes{kHalfPrecision
 /// The SAMPLE RECORDER page (`recorder`) follows the cartridge page: only the horizontal-menu chains list it, so
 /// without a place here the shortcut to an oscillator's recorder could not land on it, and `MenuPads::arm_landing`
 /// would re-root onto the item itself, which opens the recorder.
+///
+/// The audio clip's marker editor on START (`audio_clip_waveform_start`) is last: only the V1 shortcut cells name it,
+/// and a shortcut can land on a node only once it has an id.
 inline constexpr const Node* kAllRootArray[] = {
     &sound_root,
     &root_drum,
@@ -189,6 +188,7 @@ inline constexpr const Node* kAllRootArray[] = {
     &source_group,
     &dx_cartridge,
     &recorder,
+    &audio_clip_waveform_start,
 };
 inline constexpr std::span<const Node* const> kAllRoots{kAllRootArray};
 

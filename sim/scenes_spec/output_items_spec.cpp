@@ -10,21 +10,16 @@
 ///     a deliberately crossed copy of the observed table is asserted *not* to match, so the
 ///     comparison cannot be passing on an all-null read. A behaviour check alone passes with the
 ///     wrong item on the node, which is why this is an identity table too.
-///   * **The behaviour, against legacy on the same fixture.** `midi::device_definition::Linked` and
-///     `audio_clip::SpecificSourceOutputSelector` are both reachable from a spec process, so both
-///     are run: the real `midiDeviceLinkedMenu`'s `readCurrentValue`, and the real
-///     `specificOutputSelectorMenu`'s `beginSession` / `selectEncoderAction` / `drawPixelsForOled`.
-///     Each side is driven from its **own** sentinel -- the model is written, legacy is asked
-///     through its globals, the model is written again, and the port is asked through a freshly
-///     built `MenuContext` -- so a comparison cannot pass by reading state the other side left
-///     behind.
+///   * **The behaviour, against main's answers on the same fixture.** The reference rows
+///     (`tests/golden/ui/menu_oracle/output_items.tsv` and its panels) hold what main's
+///     `midi::device_definition::Linked` and `audio_clip::SpecificSourceOutputSelector` answer: the
+///     `readCurrentValue` of the link, and the selector's landings, walks, relevance and panels. The
+///     port is driven through a freshly built `MenuContext` on the same fixture and compared with them.
 ///   * **The milestone.** `validate_tree(kAllRoots, ...)` with strict `ValidateOptions` reports
 ///     **zero** `PlaceholderCustom`, `kPendingCustomNodes` is 0, and nothing reachable from the
 ///     roots answers `is_placeholder()`. `ValidateOptions` has no `allow_placeholder_custom` flag, so there is no flag
 ///     that could hide a regression here.
 ///
-/// @note The spec may include `gui/` (for the legacy menu items); the library may not. Same rule
-///       `tables_1_spec.cpp`, `menu_actions_spec.cpp` and `browser_scene_spec.cpp` run under.
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/bind/write_sink.h"
@@ -47,22 +42,15 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
-// Before the legacy item headers: `specific_output_source_selector.h:76` names
-// `NonAudioInstrument` without including it, and only compiles inside `gui/ui/menus.cpp` because
-// something earlier in that translation unit already had.
-#include "model/instrument/non_audio_instrument.h"
-
 #include "gfx/oled/icons.h" // the two checkbox icons `row_icon` chooses between
 #include "gui/l10n/l10n.h"
-#include "gui/menu_item/audio_clip/specific_output_source_selector.h"
-#include "gui/menu_item/midi/device_definition/linked.h"
 #include "hid/display/display.h"
-#include "hid/display/oled.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
 #include "processing/audio_output.h"
-#include "storage/storage_manager.h"
 
+#include "support/oracle_table.h"
+#include "support/output_items_fixtures.h"
 #include "support/song_fixture.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project
@@ -75,23 +63,22 @@
 
 #include "cppspec.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <set>
+#include <sstream>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include "spec/support/spec_main.h"
 
-/// The real legacy singletons. Declared bare at global scope because `gui/ui/menus.cpp` defines
-/// them there (`:905` and `:1151`) and `gui/ui/menus.h` does not export either -- the same
-/// situation `menu_actions_spec.cpp` records for `performEditorMenu`.
-extern deluge::gui::menu_item::midi::device_definition::Linked midiDeviceLinkedMenu;
-extern deluge::gui::menu_item::audio_clip::SpecificSourceOutputSelector specificOutputSelectorMenu;
-
 using namespace deluge::scenes;
+using namespace deluge::scenes::spec::outputitems;
 using deluge::scenes::menu::MenuContext;
 using deluge::scenes::menu::Node;
 using deluge::ui::shell::BoardProfile;
@@ -115,25 +102,6 @@ void select_language() {
 	deluge::notify::Notice discard;
 	while (deluge::notify::notices().pop(discard)) {}
 }
-
-/// @brief The minimum `Display` the legacy items need. `display` is null in a spec process
-///        (`hid/display/display.cpp:4`).
-struct QuietDisplay final : deluge::hid::Display {
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-};
 
 /// @brief The card these examples list: `tests/fixtures/scenes_spec/output_items`, installed for this file before boot
 ///        (`tests/integration/checks/scenes_spec_cards.txt`). Constructing one checks it is the installed card.
@@ -274,88 +242,6 @@ bool load_blinks(const deluge::ui::LedFrame& f) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The fixtures
-
-/// @brief An audio clip whose output records from a specific track, in a song with four outputs.
-///
-/// The order is the discriminator the whole `SpecificOutputItem` group leans on: the walk must skip
-/// the audio track itself (`canRecordFrom` refuses `this`) and the MIDI one (it refuses
-/// `MIDI_OUT` outright, `processing/audio_output.h:109-111`), so a port that walked raw song
-/// indices would land on a different output from legacy at almost every step.
-///
-/// Indices, after `addOutput(..., atStart=false)` appends each one:
-///   0 = the `AudioOutput` being edited (**not** recordable -- itself)
-///   1 = a synth                       (recordable)
-///   2 = a MIDI instrument             (**not** recordable)
-///   3 = a second synth                (recordable)
-struct ClipRig {
-	spec::AudioSongFixture song = spec::make_audio_clip_song();
-	/// The song current before the example, put back after it: the fixture's song is made current, so the app's sink
-	/// binds it.
-	Song* const saved_song = currentSong;
-	Instrument* synth_a = nullptr;
-	Instrument* midi = nullptr;
-	Instrument* synth_b = nullptr;
-
-	ClipRig(const ClipRig&) = delete;
-	ClipRig& operator=(const ClipRig&) = delete;
-
-	~ClipRig() {
-		currentSong = saved_song;
-		menu_scene().reset_process_state(); // each example starts with the rows a boot has
-	}
-
-	ClipRig() {
-		currentSong = song.song;
-		song.output->setInputChannel(AudioInputChannel::SPECIFIC_OUTPUT);
-		synth_a = add_synth("A");
-		midi = add_midi();
-		synth_b = add_synth("B");
-	}
-
-	Instrument* add_synth(const char* name) {
-		ParamManagerForTimeline params;
-		auto* synth = static_cast<Instrument*>(StorageManager::createNewInstrument(OutputType::SYNTH, &params));
-		synth->dirPath = "SYNTHS";
-		synth->name = name;
-		song.song->addOutput(synth, /*atStart=*/false);
-		return synth;
-	}
-
-	Instrument* add_midi() {
-		auto* m = static_cast<Instrument*>(StorageManager::createNewNonAudioInstrument(OutputType::MIDI_OUT, 0, 0));
-		m->name = "M";
-		song.song->addOutput(m, /*atStart=*/false);
-		return m;
-	}
-
-	MenuContext ctx() {
-		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                         /*kit_global_fx=*/false);
-	}
-};
-
-/// @brief A MIDI clip, for `midi_device_linked`.
-struct MidiRig {
-	spec::SongFixture song = spec::make_midi_song();
-	Song* const saved_song = currentSong;
-
-	MidiRig(const MidiRig&) = delete;
-	MidiRig& operator=(const MidiRig&) = delete;
-	MidiRig() { currentSong = song.song; }
-	~MidiRig() {
-		currentSong = saved_song;
-		menu_scene().reset_process_state(); // each example starts with the rows a boot has
-	}
-
-	MIDIInstrument* instrument() { return static_cast<MIDIInstrument*>(song.instrument); }
-	MenuContext ctx() {
-		return menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
-		                         /*kit_global_fx=*/false);
-	}
-};
-
-// ---------------------------------------------------------------------------------------------
 // The mapping, as a value that can be compared whole
 
 /// @brief Which item class a node carries, plus what it was constructed with.
@@ -409,13 +295,24 @@ std::vector<Wiring> expected_wiring() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The legacy oracle for the output picker
+// The reference rows
 
-/// @brief `OLED::main`, into which every legacy `renderOLED()` draws, as a PBM
-///        (`menu_ranges_spec.cpp`'s helper).
-std::string legacy_panel_pbm() {
-	const auto& canvas = deluge::hid::display::OLED::main;
-	return page_major_to_pbm(canvas.bytes().data(), OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_HEIGHT_PIXELS);
+spec::OracleTable& table() {
+	return spec::OracleTable::named("output_items");
+}
+
+/// @brief The panel `pixels/<name>.pbm` holds.
+std::string frozen_panel(std::string_view name) {
+	std::ifstream in(spec::oracle_dir() + "/pixels/" + std::string{name} + ".pbm");
+	std::stringstream text;
+	text << in.rdbuf();
+	return text.str();
+}
+
+/// @brief The output index the row (@p path, "at") holds, or -2 where there is no such row.
+int32_t frozen_index(std::string_view path, std::string_view column) {
+	const std::vector<std::string>* v = table().find(path, column);
+	return v == nullptr || v->empty() ? -2 : std::stoi(v->front());
 }
 
 /// @brief The rows the port's root frame can actually ink on the 48-row panel.
@@ -442,21 +339,32 @@ std::string below_bezel(const std::string& pbm) {
 	return out;
 }
 
-/// @brief Run the real `specificOutputSelectorMenu` over whatever `currentSong` currently says, and
-///        report which output it ended up on.
-///
-/// Driven from its **own** sentinel: `beginSession` re-resolves `audioOutputBeingEdited` and
-/// `numOutputs` from `getCurrentOutput()` / `currentSong` on entry, so nothing the port left behind
-/// can be what this reads.
-/// @param detents How many select-encoder detents to apply after `beginSession`, one at a time.
-Output* legacy_pick(int32_t detents) {
-	midiDeviceLinkedMenu.readCurrentValue(); // unrelated; keeps the two globals' state independent
-	specificOutputSelectorMenu.beginSession(nullptr);
-	const int32_t step = detents >= 0 ? 1 : -1;
-	for (int32_t i = 0; i < (detents >= 0 ? detents : -detents); i++) {
-		specificOutputSelectorMenu.selectEncoderAction(step);
+/// @brief Drive the port over @p walk's fixture one detent at a time, and say where the track records from after each.
+std::string port_walk(Rig& r, ClipRig& rig, const Walk& walk) {
+	store_source(rig, walk.start);
+	press_child(r, nodes::root_audio_clip, nodes::specific_output_selector, rig.ctx());
+	std::string seen;
+	for (int32_t i = 1; i <= (walk.detents >= 0 ? walk.detents : -walk.detents); i++) {
+		r.turn(walk.detents >= 0 ? 1 : -1);
+		r.step();
+		seen +=
+		    std::string{walk.name} + "/" + std::to_string(i) + " " + std::to_string(rig.recording_from_index()) + "\n";
 	}
-	return static_cast<AudioOutput*>(getCurrentOutput())->getOutputRecordingFrom();
+	return seen;
+}
+
+/// @brief The same lines from the reference rows.
+std::string frozen_walk(const Walk& walk) {
+	std::string want;
+	for (int32_t i = 1; i <= (walk.detents >= 0 ? walk.detents : -walk.detents); i++) {
+		const std::string path = std::string{"selector/"} + walk.name + "/" + std::to_string(i);
+		want += std::string{walk.name} + "/" + std::to_string(i) + " " + table().value(path, "at") + "\n";
+	}
+	return want;
+}
+
+const Walk& walk_named(std::string_view name) {
+	return *std::ranges::find(kWalks, name, &Walk::name);
 }
 
 } // namespace
@@ -579,24 +487,20 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 	});
 
 	it("agrees with Linked::readCurrentValue about whether a definition is linked", _ {
-		// Three model states, each side driven from its own sentinel: the model is written, legacy
-		// is asked through `getCurrentOutput()`, and the port is asked through a freshly built
-		// `MenuContext`.
+		// Three model states; the port is asked through a freshly built `MenuContext`.
 		MidiRig rig;
-		const char* const kPaths[] = {"", "MIDI_DEVICES/DEFINITION/DEVICE1.XML", ""};
-		std::vector<int> legacy;
-		std::vector<int> port;
-		for (const char* path : kPaths) {
-			rig.instrument()->setDeviceDefinitionFileName(path);
-			midiDeviceLinkedMenu.readCurrentValue();
-			legacy.push_back(midiDeviceLinkedMenu.getValue() ? 1 : 0);
-
-			rig.instrument()->setDeviceDefinitionFileName(path);
-			port.push_back(nodes::MidiDeviceLinkedItem::linked(rig.ctx()) ? 1 : 0);
+		std::vector<std::string> frozen;
+		std::vector<std::string> port;
+		for (const LinkedCase& c : kLinkedCases) {
+			const std::string path = std::string{"linked/"} + c.name;
+			rig.instrument()->setDeviceDefinitionFileName(c.path);
+			frozen.push_back(path + " " + table().value(path, "value"));
+			port.push_back(path + " " + (nodes::MidiDeviceLinkedItem::linked(rig.ctx()) ? "1" : "0"));
 		}
-		expect(port).to_equal(legacy);
+		expect(port).to_equal(frozen);
 		// Not all one answer, so a constant-returning port could not pass.
-		expect(legacy).to_equal(std::vector<int>{0, 1, 0});
+		expect(table().value("linked/empty", "value")).to_equal(std::string{"0"});
+		expect(table().value("linked/device1", "value")).to_equal(std::string{"1"});
 	});
 
 	it("draws the checkbox its parent's row wants, not the CustomItem default arrow", _ {
@@ -615,6 +519,17 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx()) == &deluge::gfx::oled::icons::checkedBox).to_be_true();
 
 		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx()) == &deluge::gfx::oled::icons::submenuArrow).to_be_false();
+	});
+
+	it("names its two states with the words a toggle's own page lists, its row being a checkbox", _ {
+		// The page draws no words (its row is a checkbox, `row_icon` above), so the menu dump and the website's
+		// reference spell it as every toggle: the table `MenuView::render_leaf_toggle` draws, Disabled then Enabled.
+		expect(nodes::midi_device_linked.bind.names.data() == nodes::kToggleWords).to_be_true();
+		expect(nodes::midi_device_linked.bind.names.size()).to_equal(std::size(nodes::kToggleWords));
+		expect(std::string{deluge::scenes::text_lookup(nodes::midi_device_linked.bind.names[0])})
+		    .to_equal(std::string{"Disabled"});
+		expect(std::string{deluge::scenes::text_lookup(nodes::midi_device_linked.bind.names[1])})
+		    .to_equal(std::string{"Enabled"});
 	});
 
 	it("notes the linked file's name, without its folders, as Linked::renderSubmenuItemTypeForOled does", _ {
@@ -830,46 +745,34 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 
 	it("lands where SpecificSourceOutputSelector::beginSession lands, from an invalid stored source", _ {
 		ClipRig rig;
-		// Nothing recorded from yet, which is `beginSession`'s repair arm (`:36-41`).
-		rig.song.output->setOutputRecordingFrom(nullptr);
-		Output* legacy = legacy_pick(0);
-
-		rig.song.output->setOutputRecordingFrom(nullptr);
+		// Nothing recorded from yet, which is `beginSession`'s repair arm.
+		store_source(rig, Start::None);
 		Rig r;
 		press_child(r, nodes::root_audio_clip, nodes::specific_output_selector, rig.ctx());
-		expect(rig.song.output->getOutputRecordingFrom() == legacy).to_be_true();
+		expect(rig.recording_from_index()).to_equal(frozen_index("selector/invalid_source", "lands"));
 		// The repair really moved something: index 0 is the audio track itself, which it may not
 		// record from, so the first valid target is the synth at index 1.
-		expect(legacy == rig.synth_a).to_be_true();
+		expect(frozen_index("selector/invalid_source", "lands")).to_equal(rig.index_of(rig.synth_a));
 	});
 
 	it("keeps a stored source that is still valid, exactly as beginSession does", _ {
 		ClipRig rig;
-		rig.song.output->setOutputRecordingFrom(rig.synth_b);
-		Output* legacy = legacy_pick(0);
-
-		rig.song.output->setOutputRecordingFrom(rig.synth_b);
+		store_source(rig, Start::SynthB);
 		Rig r;
 		press_child(r, nodes::root_audio_clip, nodes::specific_output_selector, rig.ctx());
-		expect(rig.song.output->getOutputRecordingFrom() == legacy).to_be_true();
-		expect(legacy == rig.synth_b).to_be_true();
+		expect(rig.recording_from_index()).to_equal(frozen_index("selector/valid_source", "lands"));
+		expect(frozen_index("selector/valid_source", "lands")).to_equal(rig.index_of(rig.synth_b));
 	});
 
 	it("skips the outputs it cannot record from, exactly as selectEncoderAction does", _ {
 		// One detent from the synth at index 1 must land on the synth at index **3**, skipping the
 		// MIDI instrument at index 2 -- the discriminator this fixture exists for.
 		ClipRig rig;
-		rig.song.output->setOutputRecordingFrom(rig.synth_a);
-		Output* legacy = legacy_pick(1);
-
-		rig.song.output->setOutputRecordingFrom(rig.synth_a);
 		Rig r;
-		press_child(r, nodes::root_audio_clip, nodes::specific_output_selector, rig.ctx());
-		r.turn(1);
-		r.step();
-		expect(rig.song.output->getOutputRecordingFrom() == legacy).to_be_true();
-		expect(legacy == rig.synth_b).to_be_true();
-		expect(legacy != rig.midi).to_be_true();
+		const Walk& walk = walk_named("skip");
+		expect(port_walk(r, rig, walk)).to_equal(frozen_walk(walk));
+		expect(frozen_index("selector/skip/1", "at")).to_equal(rig.index_of(rig.synth_b));
+		expect(frozen_index("selector/skip/1", "at") != rig.index_of(rig.midi)).to_be_true();
 	});
 
 	it("steps five outputs a click while shift is held, skipping those it cannot record from", _ {
@@ -878,34 +781,34 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 		ClipRig rig;
 		(void)rig.add_synth("C");
 		Instrument* const last = rig.add_synth("D");
-		rig.song.output->setOutputRecordingFrom(rig.synth_a);
-		Output* legacy = legacy_pick(5);
-
-		rig.song.output->setOutputRecordingFrom(rig.synth_a);
+		store_source(rig, Start::SynthA);
 		Rig r;
 		press_child(r, nodes::root_audio_clip, nodes::specific_output_selector, rig.ctx());
 		r.button(8, 0, true); // SHIFT
 		r.turn(1);
 		r.step();
 		r.button(8, 0, false);
-		expect(rig.song.output->getOutputRecordingFrom() == legacy).to_be_true();
-		expect(legacy == last).to_be_true();
+		expect(rig.recording_from_index()).to_equal(frozen_index("selector/shift/click", "at"));
+		// ... which is where five single detents end.
+		expect(rig.recording_from_index()).to_equal(frozen_index("selector/shift/5", "at"));
+		expect(frozen_index("selector/shift/5", "at")).to_equal(rig.index_of(last));
+	});
+
+	it("walks the shift fixture's five single detents as main does", _ {
+		ClipRig rig;
+		(void)rig.add_synth("C");
+		(void)rig.add_synth("D");
+		Rig r;
+		const Walk& walk = walk_named("shift");
+		expect(port_walk(r, rig, walk)).to_equal(frozen_walk(walk));
 	});
 
 	it("stops at the end of the list rather than wrapping", _ {
 		ClipRig rig;
-		rig.song.output->setOutputRecordingFrom(rig.synth_a);
-		Output* legacy = legacy_pick(5);
-
-		rig.song.output->setOutputRecordingFrom(rig.synth_a);
 		Rig r;
-		press_child(r, nodes::root_audio_clip, nodes::specific_output_selector, rig.ctx());
-		for (int i = 0; i < 5; i++) {
-			r.turn(1);
-			r.step();
-		}
-		expect(rig.song.output->getOutputRecordingFrom() == legacy).to_be_true();
-		expect(legacy == rig.synth_b).to_be_true(); // the last recordable one, not past it
+		const Walk& walk = walk_named("end");
+		expect(port_walk(r, rig, walk)).to_equal(frozen_walk(walk));
+		expect(rig.recording_from_index()).to_equal(rig.index_of(rig.synth_b)); // the last recordable one, not past it
 	});
 
 	it("stops at the bottom of the list too, rather than falling off it", _ {
@@ -915,33 +818,19 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 		// record from -- and `setOutputRecordingFrom` would then store null. Found by mutating the
 		// end guard; the forward end could not see it, because index 3 happens to be valid.
 		ClipRig rig;
-		rig.song.output->setOutputRecordingFrom(rig.synth_a);
-		Output* legacy = legacy_pick(-3);
-
-		rig.song.output->setOutputRecordingFrom(rig.synth_a);
 		Rig r;
-		press_child(r, nodes::root_audio_clip, nodes::specific_output_selector, rig.ctx());
-		for (int i = 0; i < 3; i++) {
-			r.turn(-1);
-			r.step();
-		}
-		expect(rig.song.output->getOutputRecordingFrom() == legacy).to_be_true();
-		expect(legacy == rig.synth_a).to_be_true(); // the first recordable one, not index 0
+		const Walk& walk = walk_named("bottom");
+		expect(port_walk(r, rig, walk)).to_equal(frozen_walk(walk));
+		expect(rig.recording_from_index()).to_equal(rig.index_of(rig.synth_a)); // the first recordable one, not index 0
 		expect(rig.song.output->getOutputRecordingFrom() != nullptr).to_be_true();
 	});
 
 	it("walks back down again, skipping the same output on the way", _ {
 		ClipRig rig;
-		rig.song.output->setOutputRecordingFrom(rig.synth_b);
-		Output* legacy = legacy_pick(-1);
-
-		rig.song.output->setOutputRecordingFrom(rig.synth_b);
 		Rig r;
-		press_child(r, nodes::root_audio_clip, nodes::specific_output_selector, rig.ctx());
-		r.turn(-1);
-		r.step();
-		expect(rig.song.output->getOutputRecordingFrom() == legacy).to_be_true();
-		expect(legacy == rig.synth_a).to_be_true();
+		const Walk& walk = walk_named("back");
+		expect(port_walk(r, rig, walk)).to_equal(frozen_walk(walk));
+		expect(rig.recording_from_index()).to_equal(rig.index_of(rig.synth_a));
 	});
 
 	it("draws what SpecificSourceOutputSelector::drawPixelsForOled draws", _ {
@@ -956,14 +845,11 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 		press_child(r, nodes::root_audio_clip, nodes::specific_output_selector, rig.ctx());
 		r.step(); // the frame after the descent, so the item is what the panel shows
 
-		// The oracle runs SECOND and from its own state -- `beginSession` re-resolves everything it
-		// draws with. `renderOLED()` is `drawScreenTitle` + `drawPixelsForOled`
-		// (`gui/menu_item/menu_item.cpp:37-41`), which is what the port's `draw_title_for` plus its
-		// two `text` calls are.
-		deluge::hid::display::OLED::main.clear();
-		specificOutputSelectorMenu.beginSession(nullptr);
-		specificOutputSelectorMenu.renderOLED();
-		expect(below_bezel(r.fake.pbm(0))).to_equal(below_bezel(legacy_panel_pbm()));
+		// The frozen panel is main's `renderOLED()`: `drawScreenTitle` + `drawPixelsForOled`, which is what the port's
+		// `draw_title_for` plus its two `text` calls are.
+		const std::string frozen = frozen_panel("output_selector");
+		expect(frozen.empty()).to_be_false();
+		expect(below_bezel(r.fake.pbm(0))).to_equal(below_bezel(frozen));
 	});
 
 	it("draws the same empty page when nothing can be recorded from", _ {
@@ -979,29 +865,29 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 		press_child(r, nodes::root_audio_clip, nodes::specific_output_selector, ctx);
 		r.step();
 
-		deluge::hid::display::OLED::main.clear();
-		specificOutputSelectorMenu.beginSession(nullptr);
-		specificOutputSelectorMenu.renderOLED();
-		expect(below_bezel(r.fake.pbm(0))).to_equal(below_bezel(legacy_panel_pbm()));
+		const std::string frozen = frozen_panel("output_selector_empty");
+		expect(frozen.empty()).to_be_false();
+		expect(below_bezel(r.fake.pbm(0))).to_equal(below_bezel(frozen));
 	});
 
 	it("agrees with SpecificSourceOutputSelector::isRelevant about when it is offered", _ {
-		// `isRelevant` (`:102-105`) is `inputChannel == SPECIFIC_OUTPUT` on the current audio
-		// output; the node carries `relevance::audio_source_is_specific`. Compared over the two
-		// answers plus a non-audio output, each side from its own sentinel.
+		// `isRelevant` is `inputChannel == SPECIFIC_OUTPUT` on the current audio output; the node carries
+		// `relevance::audio_source_is_specific`. Compared over the two answers, then on a non-audio output.
 		ClipRig rig;
-		std::vector<int> legacy;
-		std::vector<int> port;
-		for (const AudioInputChannel ch : {AudioInputChannel::SPECIFIC_OUTPUT, AudioInputChannel::LEFT}) {
-			rig.song.output->setInputChannel(ch);
-			legacy.push_back(specificOutputSelectorMenu.isRelevant(nullptr, 0) ? 1 : 0);
-			rig.song.output->setInputChannel(ch);
-			port.push_back(menu::relevance::audio_source_is_specific(rig.ctx()) ? 1 : 0);
+		std::vector<std::string> frozen;
+		std::vector<std::string> port;
+		for (const auto& [name, channel] : {std::pair{"specific", AudioInputChannel::SPECIFIC_OUTPUT},
+		                                    std::pair{"left", AudioInputChannel::LEFT}}) {
+			const std::string path = std::string{"selector/"} + name;
+			rig.song.output->setInputChannel(channel);
+			frozen.push_back(path + " " + table().value(path, "rel"));
+			port.push_back(path + " " + (menu::relevance::audio_source_is_specific(rig.ctx()) ? "1" : "0"));
 		}
-		expect(port).to_equal(legacy);
-		expect(legacy).to_equal(std::vector<int>{1, 0});
+		expect(port).to_equal(frozen);
+		expect(table().value("selector/specific", "rel")).to_equal(std::string{"1"});
+		expect(table().value("selector/left", "rel")).to_equal(std::string{"0"});
 
-		// And on a MIDI clip -- where legacy's unguarded cast would be reading the wrong type -- the
+		// And on a MIDI clip -- where main's unguarded cast would be reading the wrong type -- the
 		// port simply says no.
 		MidiRig midi;
 		expect(menu::relevance::audio_source_is_specific(midi.ctx())).to_be_false();
@@ -1046,7 +932,16 @@ describe midi_instrument_records("scenes::menu MIDI instrument writes reach the 
 		expect(rig.instrument()->docOutput_->device_definition_file_name).to_equal(std::string{});
 	});
 });
+
+describe output_items_reference_rows("scenes::menu the two output items: the reference rows", $ {
+	it("parses output_items.tsv clean and asks every row of it", _ {
+		spec::OracleTable& t = table();
+		expect(t.problems().size()).to_equal(size_t{0});
+		expect(t.size() > size_t{20}).to_be_true();
+		expect(t.unasked()).to_equal(std::string{});
+	});
+});
 // clang-format on
 
 DELUGE_SPEC(output_items_spec, output_items_mapping, output_items_milestone, midi_device_linked_item,
-            specific_output_item, midi_instrument_records)
+            specific_output_item, midi_instrument_records, output_items_reference_rows)

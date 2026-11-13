@@ -25,12 +25,10 @@
 #include "gui/l10n/strings.h"
 #include "gui/ui/browser/dx_cartridge_read.h"
 #include "gui/ui/browser/folder_import.h"
-#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/browser/sample_preview.h"
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/shell_host_ui.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/audio_clip_view.h"
 #include "hid/led/pad_leds.h"
@@ -42,6 +40,7 @@
 #include "model/output.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/slot_bridge.h"
+#include "model/sample/last_file_path_loaded.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
@@ -54,6 +53,7 @@
 #include "util/notify.h"
 #include "util/shell_menu_entry.h"
 
+#include <atomic>
 #include <cstring>
 #include <optional>
 #include <string>
@@ -68,7 +68,7 @@ using deluge::scenes::browser::PreviewRequest;
 
 namespace {
 
-/// @brief The shipped claim dispatcher: the one `SampleBrowser::requestClaim` asks.
+/// @brief The shipped claim dispatcher: what a browser choice's claim asks unless a spec installs another.
 void requestSampleClaim(const deluge::gui::ClaimRequest& request) {
 	deluge::gui::sampleClaim.request(request);
 }
@@ -145,17 +145,16 @@ std::string enteredTextFor(std::string_view name) {
 ///        `SoundEditor::setup` would have resolved for the same visit.
 /// @param menuCtx The menu's context.
 /// @return The sound, its source, range and sample controls, the clip's (or kit row's) params and arp.
-SoundEditor::ResolvedContext resolvedFor(const deluge::scenes::menu::MenuContext& menuCtx) {
-	SoundEditor::ResolvedContext resolved{.sound = nullptr,
-	                                      .mod = nullptr,
-	                                      .params = nullptr,
-	                                      .arp = nullptr,
-	                                      .range = nullptr,
-	                                      .rangeIndex = menuCtx.range_index,
-	                                      .sourceIndex = menuCtx.source_index,
-	                                      .source = nullptr,
-	                                      .sampleControls = nullptr,
-	                                      .kitGlobalFx = shellKitGlobalFx()};
+deluge::gui::SoundTarget resolvedFor(const deluge::scenes::menu::MenuContext& menuCtx) {
+	deluge::gui::SoundTarget resolved{.sound = nullptr,
+	                                  .mod = nullptr,
+	                                  .params = nullptr,
+	                                  .arp = nullptr,
+	                                  .range = nullptr,
+	                                  .rangeIndex = menuCtx.range_index,
+	                                  .sourceIndex = menuCtx.source_index,
+	                                  .source = nullptr,
+	                                  .sampleControls = nullptr};
 	if (currentSong == nullptr) {
 		return resolved;
 	}
@@ -196,12 +195,7 @@ SoundEditor::ResolvedContext resolvedFor(const deluge::scenes::menu::MenuContext
 
 /// @brief Load the chosen sample, the way `SampleBrowser::enterKeyPress`'s file arm does.
 ///
-/// The claim reads the editor's resolved context (`soundEditor.currentSound`, `currentSource`,
-/// `currentMultiRange` and their indices) throughout, and with ShellMenu on `SoundEditor::setup`
-/// never ran -- `openShellMenu` opens the guest instead, so on a fresh boot `currentSound` is still
-/// `nullptr`. The context is mirrored first from `MenuScene`'s own `MenuContext`, the one
-/// `openShellMenu` resolved for this visit, so it is a mirror of a resolution rather than a second
-/// one. See `SoundEditor::adoptResolvedContext`.
+/// The request names the sound the menu edits (`shellMenuTarget`); the claim reads nothing else for it.
 ///
 /// Only a claim reaches here: Shift+Select on a file in a kit is decided by `BrowserScene` with the press, which parks
 /// a slice or refuses, so the shift state never has to be read a tick later.
@@ -214,20 +208,25 @@ SoundEditor::ResolvedContext resolvedFor(const deluge::scenes::menu::MenuContext
 void claimSampleFile(std::string_view path, const SampleClaimTarget& target, const SampleClaimArgs& args,
                      void (*completion)(bool success),
                      deluge::gui::ClaimOrigin origin = deluge::gui::ClaimOrigin::Explicit) {
-	adoptShellMenuContext();
 	claimDispatch({
 	    .path = std::string{path},
 	    .enteredText = enteredTextFor(target.name),
 	    .mayDoPitchDetection = args.mayDoPitchDetection,
 	    .mayDoSingleCycle = args.mayDoSingleCycle,
 	    .mayDoWaveTable = args.mayDoWaveTable,
-	    .loadWithoutExiting = args.loadWithoutExiting,
 	    .origin = origin,
 	    .completion = completion,
+	    .target = shellMenuTarget(),
 	});
 }
 
-/// @brief `SampleBrowser::requestFolderImport` (`sample_browser.cpp:437-453`) for a folder menu's choice: the item's
+/// @brief `FolderImportRequest::rangeChosen` for an import the ported browser asked for: the range the import makes
+///        current goes to the menu beneath, as `SoundEditor::setCurrentMultiRange` makes it the legacy editor's.
+void shellImportRangeChosen(int32_t index) {
+	deluge::scenes::menu_scene().import_chose_range(index);
+}
+
+/// @brief `SampleBrowser::requestFolderImport` for a folder menu's choice: the item's
 ///        own folder, or the folder it is in, starting from it. The ported browser closes itself, so the import does
 ///        not.
 void importFolder(const BrowserChoice& choice, deluge::gui::FolderImportKind kind) {
@@ -236,9 +235,10 @@ void importFolder(const BrowserChoice& choice, deluge::gui::FolderImportKind kin
 	}
 	// An auto-load claim would bind into the sound the import is replacing.
 	claimCancel();
-	soundEditor.adoptResolvedContext(resolvedFor(deluge::scenes::menu_scene().menu_context()));
-	deluge::gui::FolderImportRequest request{
-	    .kind = kind, .completion = &shellLongPressImportDone, .exitBrowser = false};
+	deluge::gui::FolderImportRequest request{.kind = kind,
+	                                         .completion = &shellLongPressImportDone,
+	                                         .target = shellMenuTarget(),
+	                                         .rangeChosen = &shellImportRangeChosen};
 	if (choice.is_folder) {
 		request.folder = choice.path;
 	}
@@ -280,18 +280,19 @@ void requestMidiDefinitionLoad(std::string_view path) {
 	}
 }
 
-/// @brief The ported browser's preview. Its own previewer (the legacy browser keeps one too; only one browser is up at
-///        a time), recording each load's path as legacy's browser's last file loaded, which both browsers open beside.
+} // namespace
+
 SamplePreviewer& shellPreviewer() {
-	static SamplePreviewer previewer{&sampleBrowser.lastFilePathLoaded};
+	static SamplePreviewer previewer{&deluge::model::lastFilePathLoaded()};
 	return previewer;
 }
 
-/// @brief The sound a ported preview is headed for: the menu's resolved sound and params (a kit row's, for a drum), and
-///        for a kit its clip, whose output volume the preview folds in -- what the legacy browser reads from the sound
-///        editor.
+namespace {
+
+/// @brief The sound a preview is headed for: the menu's resolved sound and params (a kit row's, for a drum), and for a
+///        kit its clip, whose output volume the preview folds in -- what `main`'s browser reads from the sound editor.
 PreviewSound previewSoundFor(const deluge::scenes::menu::MenuContext& menuCtx) {
-	const SoundEditor::ResolvedContext resolved = resolvedFor(menuCtx);
+	const deluge::gui::SoundTarget resolved = resolvedFor(menuCtx);
 	::Clip* clip = currentSong != nullptr && menuCtx.addresses.clip
 	                   ? currentSong->clipForId(menuCtx.addresses.clip->clip_id)
 	                   : nullptr;
@@ -456,8 +457,28 @@ void setShellBrowserFromDrumCreator(bool fromCreator) {
 	browser_scene().set_drum_creator_next(fromCreator);
 }
 
-void adoptShellMenuContext() {
-	soundEditor.adoptResolvedContext(resolvedFor(deluge::scenes::menu_scene().menu_context()));
+namespace {
+/// What `publishShellMenuTarget` last published. Read by playback automation on the audio tier, hence atomic.
+std::atomic<ModControllableAudio*> publishedMod{nullptr};
+std::atomic<ParamManagerForTimeline*> publishedParams{nullptr};
+} // namespace
+
+void publishShellMenuTarget() {
+	const deluge::gui::SoundTarget target = shellMenuTarget();
+	publishedMod.store(target.mod, std::memory_order_relaxed);
+	publishedParams.store(target.params, std::memory_order_relaxed);
+}
+
+ModControllableAudio* shellMenuModControllable() {
+	return publishedMod.load(std::memory_order_relaxed);
+}
+
+ParamManagerForTimeline* shellMenuParamManager() {
+	return publishedParams.load(std::memory_order_relaxed);
+}
+
+deluge::gui::SoundTarget shellMenuTarget() {
+	return resolvedFor(deluge::scenes::menu_scene().menu_context());
 }
 
 namespace {
@@ -518,8 +539,7 @@ void dispatchChoice(const BrowserChoice& choice) {
 				claimSampleFile(choice.path, *target,
 				                {.mayDoPitchDetection = choice.claim.pitch,
 				                 .mayDoSingleCycle = choice.claim.single_cycle,
-				                 .mayDoWaveTable = choice.claim.wavetable,
-				                 .loadWithoutExiting = true},
+				                 .mayDoWaveTable = choice.claim.wavetable},
 				                &shellLongPressClaimDone);
 			}
 			break;
@@ -543,6 +563,10 @@ void dispatchChoice(const BrowserChoice& choice) {
 		break;
 
 	case BrowserId::DxSyx:
+		if (choice.op == BrowserChoice::Op::DeleteFile) {
+			deleteDispatch(choice.path);
+			break;
+		}
 		dxCartridgeReadSettled(dxCartridgeRead().start(choice.path));
 		break;
 

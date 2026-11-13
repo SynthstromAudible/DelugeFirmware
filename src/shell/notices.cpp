@@ -140,6 +140,7 @@ void ConsoleScene::append(std::string_view line, uint32_t now_ms, uint8_t popup_
 	Line& l = lines_[0];
 	copy_bounded(l.text, sizeof(l.text), line);
 	l.expire_ms = now_ms + kConsoleLineMs;
+	now_ms_ = now_ms;
 	l.active = true;
 	l.popup_type = popup_type;
 }
@@ -154,6 +155,18 @@ bool ConsoleScene::any_active(uint32_t now_ms) const {
 		}
 	}
 	return false;
+}
+
+std::optional<uint32_t> ConsoleScene::remaining_ms(uint32_t now_ms) const {
+	std::optional<uint32_t> next;
+	for (const Line& line : lines_) {
+		// Difference form, as `any_active`; a line already past its time is skipped, not answered as 0.
+		const auto left = static_cast<int32_t>(line.expire_ms - now_ms);
+		if (line.active && left > 0) {
+			next = next.has_value() ? std::min(*next, static_cast<uint32_t>(left)) : static_cast<uint32_t>(left);
+		}
+	}
+	return next;
 }
 
 void ConsoleScene::render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {
@@ -206,6 +219,12 @@ void NotificationScene::show(std::string_view title, std::string_view value, uin
 bool NotificationScene::expired(uint32_t now_ms) const {
 	// Difference form for the clock-wrap reason `PopupScene::expired` gives.
 	return static_cast<int32_t>(now_ms - deadline_ms_) >= 0;
+}
+
+uint32_t NotificationScene::remaining_ms(uint32_t now_ms) const {
+	// Difference form, as `expired`.
+	const auto left = static_cast<int32_t>(deadline_ms_ - now_ms);
+	return left > 0 ? static_cast<uint32_t>(left) : 0U;
 }
 
 void NotificationScene::render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {
@@ -430,6 +449,8 @@ void Notices::show_popup_with_timeout(std::string_view text, uint8_t popup_type,
 
 void Notices::tick(uint32_t now_ms, uint32_t dt_ms) {
 	(void)dt_ms;
+	now_ms_ = now_ms;
+	console_.set_now(now_ms);
 	// All three are `remove(kind)` rather than "pop while it is the top" or "pop by kind": a popup,
 	// the working animation and the console strip are all `input_transparent()`, so a scene pushed
 	// over any of them got there legitimately and must not be taken down just because the notice
@@ -460,6 +481,32 @@ void Notices::tick(uint32_t now_ms, uint32_t dt_ms) {
 	if (!working_.armed() && notification_.expired(now_ms)) {
 		stack_.remove(SceneKind::Notification);
 	}
+}
+
+void Notices::disarm_working() {
+	working_.clear();
+	stack_.remove(SceneKind::Working);
+}
+
+std::optional<uint32_t> Notices::next_timer() const {
+	std::optional<uint32_t> next;
+	const auto consider = [&next](std::optional<uint32_t> in) {
+		if (in.has_value()) {
+			next = next.has_value() ? std::min(*next, *in) : *in;
+		}
+	};
+	// The working animation holds the popup and the banner past their time (`tick()`). The console's lines are the
+	// console scene's own timer (`ConsoleScene::next_timer`).
+	const bool held = working_.armed();
+	for (const Scene* scene : stack_.scenes()) {
+		if (scene->kind() == SceneKind::Popup && !held) {
+			consider(popup_.remaining_ms(now_ms_));
+		}
+		else if (scene->kind() == SceneKind::Notification && !held) {
+			consider(notification_.remaining_ms(now_ms_));
+		}
+	}
+	return next;
 }
 
 std::optional<Notices::ShownPopup> Notices::shown_popup(uint32_t now_ms) const {

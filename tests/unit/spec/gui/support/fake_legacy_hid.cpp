@@ -1,6 +1,7 @@
 #include "fake_legacy_hid.h"
 
 #include "hid/display/oled.h"
+#include "hid/encoder_input.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "libdeluge/control_surface.h"
@@ -83,6 +84,18 @@ void reassessGreyout(bool doInstantly) {
 }
 
 } // namespace PadLEDs
+
+// ---------------------------------------------------------------------------
+// hid/encoder_input.cpp's share: no select turn is being handed out with a time, so the guest's turns are timed on
+// the tick's clock.
+// ---------------------------------------------------------------------------
+namespace deluge::hid::encoders {
+
+uint64_t selectTurnTimeUs() {
+	return 0;
+}
+
+} // namespace deluge::hid::encoders
 
 // ---------------------------------------------------------------------------
 // hid/led/indicator_leds.cpp's share: the one entry point the guest calls.

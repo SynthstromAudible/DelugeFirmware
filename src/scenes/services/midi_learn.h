@@ -92,7 +92,7 @@
 ///       both from the one `midiLearnFlashOn` bit (`View::midiLearnFlash`) and so
 ///       does this. The LEARN LED is the exception and *is* a `Blink`, because legacy drives that
 ///       one from a separate blinker with its own phase --
-///       `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`view.cpp`), whose
+///       `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`View::startMIDILearn` in `view.cpp`), whose
 ///       `blinkingType` 1 period is `kFastFlashTime` (`hid/led/indicator_leds.cpp:81-92`).
 ///
 /// @warning **No wall clock.** `Service::tick(now_ms, dt_ms)` is the only place a clock arrives
@@ -209,7 +209,7 @@ struct LearnTarget {
 	/// @param output_id The track's id.
 	/// @return The target.
 	static LearnTarget instrument_input(uint32_t output_id);
-	/// @brief The `PLAY`/`RECORD`/`TAP_TEMPO` button targets (`view.cpp:157`, `:209`, `:225`):
+	/// @brief The `PLAY`/`RECORD`/`TAP_TEMPO` button targets (`View::buttonAction` in `view.cpp`):
 	///        `&midiEngine.globalMIDICommands[to_underlying(command)]`.
 	/// @param command Which global command; `PLAY`, `RECORD` or `TAP` are the three reachable here.
 	/// @return The target, with `kind` the matching `PLAY_BUTTON`/`RECORD_BUTTON`/

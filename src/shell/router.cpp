@@ -20,7 +20,7 @@ namespace {
 /// `:134`), and the line it runs there is `getCurrentUI()->modEncoderButtonAction(n, on)` -- again a
 /// hook whose base implementation (`UI::modEncoderButtonAction`, `gui/ui/ui.cpp:43-45`) is a bare
 /// forward to `view`, and which five UIs override (`gui/views/instrument_clip_view.h:199`,
-/// `gui/ui/sound_editor.h:81`, `gui/views/session_view.h:80`,
+/// `SoundEditor::modEncoderButtonAction` in `gui/ui/sound_editor.h`, `gui/views/session_view.h:80`,
 /// `gui/views/performance_view.h:97`, `gui/views/automation_view.h:117`). Scene first, then here.
 ///
 /// @note Legacy reaches the two pushes only *after* the current UI. In a service-first chain that
@@ -115,6 +115,7 @@ void Router::apply(const Result& result) {
 		case Action::Kind::Popup:
 			popup_string_ = action.popup_string;
 			popup_type_ = action.popup_type;
+			popup_if_free_ = action.popup_if_free;
 			break;
 		case Action::Kind::Repaint: {
 			// SurfaceRole::None keeps its "no surface, never matches" meaning (surfaces.h): it is

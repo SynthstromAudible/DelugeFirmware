@@ -8,11 +8,9 @@ using namespace deluge::scenes::services;
 
 namespace {
 
-const WaveformAddress kRange{.kind = WaveformAddress::Kind::RANGE,
-                             .slot = {deluge::project::SlotAddress::Kind::OUTPUT, 7},
-                             .source = 1,
-                             .range = 2};
-const WaveformAddress kClip{.kind = WaveformAddress::Kind::AUDIO_CLIP, .clip = {9}};
+const ViewKey kRange{.kind = ViewKey::Kind::RANGE, .id = 7};
+const ViewKey kClip{.kind = ViewKey::Kind::AUDIO_CLIP, .id = 9};
+const ViewKey kClone{.kind = ViewKey::Kind::AUDIO_CLIP, .id = 10};
 
 } // namespace
 
@@ -36,12 +34,23 @@ describe scenes_view_state("a scene's view state", ${
 		expect(store.sample_view(kRange).has_value()).to_be_false();
 	});
 
-	it("forgets a remembered view whose waveform is now another file", _ {
+	it("keeps a view for its key alone, and tells a range's from a clip's of the same number", _ {
 		ViewStateStore store;
 		store.forget_unless(1);
-		store.set_sample_view(kRange, {.scroll = 100, .zoom = 4, .loop_locked = true, .file = "A.WAV"});
-		expect(store.sample_view(kRange, "A.WAV").has_value()).to_be_true();
-		expect(store.sample_view(kRange, "B.WAV").has_value()).to_be_false();
+		store.set_sample_view(kRange, {.scroll = 100, .zoom = 4, .loop_locked = true});
+		expect(store.sample_view(kRange).has_value() && store.sample_view(kRange)->loop_locked).to_be_true();
+		expect(store.sample_view(ViewKey{.kind = ViewKey::Kind::AUDIO_CLIP, .id = 7}).has_value()).to_be_false();
+	});
+
+	it("gives another key the scroll and zoom remembered for one, without the loop lock", _ {
+		ViewStateStore store;
+		store.forget_unless(1);
+		store.set_sample_view(kClip, {.scroll = 5, .zoom = 2, .loop_locked = true});
+		store.copy_view(kClip, kClone);
+		const auto view = store.sample_view(kClone);
+		expect(view.has_value() && view->scroll == 5 && view->zoom == 2 && !view->loop_locked).to_be_true();
+		store.copy_view(kRange, ViewKey{.kind = ViewKey::Kind::RANGE, .id = 8}); // nothing remembered for kRange
+		expect(store.sample_view(ViewKey{.kind = ViewKey::Kind::RANGE, .id = 8}).has_value()).to_be_false();
 	});
 });
 

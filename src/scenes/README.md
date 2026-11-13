@@ -8,16 +8,10 @@ Everything on screen comes from the `src/ui` toolkit; the shell (`src/shell`) ow
 tick, input lowering and the flush. This layer is what knows about songs, sounds and clips, and it
 reaches them through `scenes/bind` and a `MenuContext` rather than through legacy's globals.
 
-The library is linked into the firmware and the host app and is the default menu. The **Legacy Menu** community
-feature (default Off) brings back legacy's `SoundEditor` and its `MenuItem` classes (`src/deluge/gui/menu_item/`) at
-every gated entry point until 3d; with it off, every gated `openUI(&soundEditor)` site opens this tree,
-inside `ShellHostUI` (see "Coexistence with legacy" below).
+The library is linked into the firmware and the host app and is the menu.
 
-> **Read this before adding a menu item.** A menu item users must be able to open goes into
-> `gui/menu_item/` + `gui/ui/menus.cpp`, the legacy tree, *and* a node goes here. A node is a port
-> of a legacy item, kept in step with it and cross-checked against it by
-> `sim/scenes_spec/tables_*_spec.cpp`: a node with no legacy item fails the lockstep walk at once,
-> but a legacy item with no node fails nothing, so adding to one tree only silently diverges them.
+A menu item is a node here: add it to the node table of its root (`menu/nodes/*.h`), and `ui-menu-dump` shows it
+in `website/src/data/generated/menu-tree.json`.
 
 ## Layout
 
@@ -70,7 +64,7 @@ nothing.
   (`scenes-no-engine-pointers`). `currentSong` is never named (`scenes-currentSong`): the song
   arrives through `MenuContext` or `Services`.
 * **No legacy UI.** No root-UI global or UI-stack call (`scenes-no-root-ui`: `getRootUI(`,
-  `openUI(`, `soundEditor`, `slicer`, …), no `display->` (`scenes-no-display`), no legacy output
+  `openUI(`, `sessionView`, `renameClipUI`, `loadSongUI`, …), no `display->` (`scenes-no-display`), no legacy output
   driver (`scenes-no-legacy-hid-drivers`: `uiNeedsRendering(`, `PadLEDs::`, `indicator_leds::`,
   `uiTimerManager.`), no legacy waveform renderer or navigator (`scenes-no-legacy-waveform`), no
   stem-export process call (`scenes-no-stem-export-process`). Where a ported item has to run a
@@ -194,7 +188,7 @@ mailbox goes in whichever band its effect falls into. The per-band table is on `
 * **The validator** (`validate.h`). `validate_tree` walks every reachable node and checks: no empty
   `Submenu`, every `ParamRef` resolves, every `Enum` has names, every shortcut cell points at a node,
   no `NullCustom`, no `DuplicateName` among siblings that can be on screen together, the
-  `range_dependent` and half-precision sets equal what the caller expects, at most
+  `range_specific` and half-precision sets equal what the caller expects, at most
   `kMaxCustomNodes` custom nodes, and no `PlaceholderCustom` — unconditionally; the one opt-out left
   is `skip_shortcut_sweep`, for a caller validating a subtree.
 * **Node ids** (`node_id.h`). `assign_node_ids(roots)` numbers every statically reachable node
@@ -239,9 +233,9 @@ for the host to run (see "The action seam"). A shape that will not clear three r
 
 `Kind::Custom` is the escape hatch for a bespoke item. **The cap counts nodes that point at a custom
 item, not distinct `CustomItem` instances**, so many nodes sharing one stand-in cannot hide behind a
-count of one. The shipped tree has **60** custom nodes behind 60 distinct, real items
+count of one. The shipped tree has **62** custom nodes behind 62 distinct, real items
 (`validate.h`'s `kShippedCustomNodes`, asserted against the live tree by
-`sim/scenes_spec/shortcuts_spec.cpp`), and the cap `kMaxCustomNodes` is **61**, one above: a ratchet,
+`sim/scenes_spec/shortcuts_spec.cpp`), and the cap `kMaxCustomNodes` is **63**, one above: a ratchet,
 so adding one means bumping both constants on purpose. `kPendingCustomNodes` is 0 and must stay 0
 (`output_items_spec.cpp` asserts it three ways).
 
@@ -295,9 +289,8 @@ opened the scene, and `MenuScene::reroot_to_scene_opener_page()` lands the user 
 `pending_scene` works because every scene a menu opens lives in `src/scenes`. Some ported items run
 legacy root-UI behaviour instead — `openUI(&performanceView)`,
 `audioClipView.setClipLengthEqualToSampleLength()`, the stem export, the song MIDI-learn and macros
-modes — or a settings write's side effect this layer cannot reach (`SoundEditor::setShortcutsVersion`,
-`Screensaver::settingsChanged()`, the pad brightness and colours, sticky shift, …). Those name the
-action for the host:
+modes — or a settings write's side effect this layer cannot reach (`Screensaver::settingsChanged()`,
+the pad brightness and colours, sticky shift, …). Those name the action for the host:
 
 1. `MenuAction` is a **closed** enum, so a dispatcher can `switch` over it with no `default:` and
    `-Werror=switch` breaks on a new enumerator.
@@ -324,7 +317,7 @@ same file, as are the sound editor's KEYBOARD, SESSION and Fill arms (`forwardMe
 
 `nodes::PerformEditorItem` shows a mirror of two `PerformanceView` bools; every site that moves them
 calls `syncEditingModeMirror`, including legacy's own `EditingMode::selectButtonPress`, so the
-mirror holds with ShellMenu on and off. `menu/action.h` has the writer list.
+mirror holds. `menu/action.h` has the writer list.
 
 ### The note-range picker (`menu/nodes/multi_range.h`)
 
@@ -343,8 +336,8 @@ reach past the page.
 * **Shift+SAVE reaches it from the host.** The guest's SAVE arm (`forwardMenuSaveButton`, in
   `gui/ui/shell_guest_services.cpp`) hands the press to `MenuScene::delete_range_press`.
 * **The root views ask the guest through `util/sound_menu_open.h`.** `rangePickerOpen`,
-  `rangeDependentMenuOpen`, `noteWithinCurrentRange` and `changeRangeForNote` answer for legacy's
-  `SoundEditor` or the ported menu, so a note played under the picker selects its range and the
+  `rangeDependentMenuOpen`, `noteWithinCurrentRange` and `changeRangeForNote` answer for the
+  ported menu, so a note played under the picker selects its range and the
   sidebar highlights the range's notes; `refreshShellRangeDisplay` repaints the root after each
   guest tick when the range, the source, the highlight or the range count changed.
 
@@ -358,7 +351,7 @@ MOD7+SYNTH opens it on a new FM synth (site 11 of `gui/ui/shell_menu_entry.cpp`'
 * **The state is legacy's singletons'.** `MenuState::dx` holds the param the page shows and the two lists' cursors,
   which `MenuScene::open` carries from one menu to the next; `MenuScene::land_dx` sets it.
 * **The tables are legacy's own**, in `nodes/dx_tables.h`, compared with legacy row by row in `dx_pages_spec`. The
-  32 algorithm diagrams live in `processing/dx7/algorithm_diagrams.h`, where both menus may include them and they keep
+  32 algorithm diagrams live in `processing/dx7/algorithm_diagrams.h`, where the menu may include them and they keep
   their SDRAM placement.
 * **Every write is the whole patch**, `WriteSink::write_dx_patch`, over legacy's `SetDxPatch` Edit: no undo, and the
   auto engine mode is not chosen again for a new algorithm, as `main` does not.
@@ -402,7 +395,8 @@ three virtuals; those are a `rename::Target` row indexed by `SceneId::arg`. Thre
 `Clip`, `Output`, `Drum` — because those are what the tree reaches; `renameMidiCCUI` is opened only
 by the automation view. The pixels are the toolkit's (`ui::grid::text_keyboard`,
 `ui::oled::text_edit`); the scene owns the typing rules and legacy's backspace auto-repeat
-(`kBackspaceRepeatDelayMs` 500, then `kBackspaceRepeatMs` 80), read from `Response::held_index`.
+(`kBackspaceRepeatDelayMs` 500, then `kBackspaceRepeatMs` 80), read from `TextKeyboardState::backspace_held`.
+While the hold is up, the keys, Enter, BACK, SELECT and the sidebar do nothing.
 
 ### The context menu (`context_menu/`)
 
@@ -425,7 +419,7 @@ menu tree reaches: `BrowserId::Sample`, `BrowserId::MidiDeviceDefinition` and `B
 * **`accept` has three outcomes.** `Close` and `Stay` are legacy's; `DeferAndWait` parks the choice in
   `take_choice()` and stays up until the host answers `deferred_load_done`, because the sample claim, the MIDI
   definition load and the `.syx` read reach objects this layer may not name, and each legacy browser stays up until
-  its load ends. `gui::ui::dispatchShellChoices` performs it (the claim with `loadWithoutExiting = true`), and the
+  its load ends. `gui::ui::dispatchShellChoices` performs it (a claim that leaves the browser to close itself), and the
   claim's success re-roots the covered menu onto the page the chain lists the file selector on (an oscillator's
   `source_group`, focused on the selector) before the browser closes over it.
 * **Shift+Select on a file while editing a kit** is legacy's whole `editingKit() && shift` branch,
@@ -442,7 +436,7 @@ menu tree reaches: `BrowserId::Sample`, `BrowserId::MidiDeviceDefinition` and `B
   a `PreviewRequest` in `take_preview()`: the file's path, or an empty path to stop. The host drains it
   after `take_choice()` and previews it with the shared `gui::ui::SamplePreviewer` (the legacy
   browser's own load and sound), answering through `preview_settled`; `next_timer` polls while the
-  answer is owed. Each load's path becomes `SampleBrowser::lastFilePathLoaded`, which the browser
+  answer is owed. Each load's path becomes `deluge::model::lastFilePathLoaded`, which the browser
   opens beside when its holder names no file in SAMPLES/ (`menu::host_last_sample_path`).
 * **The pads.** `BrowserPads` is what the main pads show: `Root` (the root view greyed), `Waveform` (the preview's, zoomed and scrolled with X_ENC) or `Keyboard`. Beside it the scene keeps
   legacy's own flags (`qwertyVisible`, the keys drawn, the preview showing, KEYBOARD's always-visible), because
@@ -506,18 +500,20 @@ frame to the new view's bare waveform over 110 ms, a step every 50 ms, every inp
 The playhead is the newest voice's column on every row, painted with the flash cursor Slow and flashed with it Fast; the host walks
 the voices (`Waveforms::play_position`). A vertical turn reaches the clip view beneath through the host
 (`forwardMarkerVertical`), and SHIFT + a main pad with no mode up is the menu's shortcut jump
-(`MenuScene::shortcut_jump`), leaving the editor for that item's page. The audition column is the host's
-(`GridPadClaim::AllButClipAudition`), and auditioning is a UI mode the editor's gates read
+(`MenuScene::shortcut_jump`), leaving the editor for that item's page, any item even over the automation view. With
+the automation view as the root, SHIFT + (0,6) and (0,7) are the editor's own presses. The audition column is the
+host's (`GridPadClaim::AllButClipAudition`), and auditioning is a UI mode the editor's gates read
 (`RuntimeFacts::auditioning`).
 
 ### The audio recorder (`recorder/`)
 
 `recorder::RecorderScene` ports `AudioRecorder`'s record-to-sample UI; the output-recording half
-(resampling, stem export) is not a UI and stays on the legacy object. Legacy's `process()` loop in
+(resampling, stem export) is not a UI and is the engine's (`deluge::recording`,
+`processing/recording/foreground_recording.h`). Legacy's `process()` loop in
 the item's own stack frame is the shell's tick plus a poll in `after_render`, every 10 ms.
 
-**`AudioEngine::recordingSource` is published, not re-derived.** Nine subsystems read it as "the
-recorder UI is live", `setMonitoringMode` among them, so the scene writes that same storage through
+**The foreground recording is published, not re-derived.** Many subsystems read its channel as "a
+recording is live", `setMonitoringMode` among them, so the scene writes that same storage through
 `AudioEngine::setForegroundRecording`, in the order that keeps the pointer's visible window around
 the channel's (see the use-after-free in the ledger below).
 
@@ -628,10 +624,7 @@ shell's; every model-aware implementation is here, as with `Scene`.
   construct the services over `shell.stack()`/`shell.lowering()`, then `Shell::set_services`.
 * **Installing is not sufficient.** A `ModKnobs` with no focus declares all eight mod LEDs off and
   both indicators at 0 every tick, so the application's reads and moves `View::knobFocus()`
-  (`use_focus`), and the wiring re-seeds the song and the view state on every open. A service can
-  also reach shared shell state out of band: `ModKnobs::pretend_knobs_untouched()` writes
-  `InputLowering`'s `last_turn_ms_`, which the gold-knob debounce reads, so it changes what the next
-  gesture does. Check for that before installing a fourth service.
+  (`use_focus`), and the wiring re-seeds the song and the view state on every open.
 
 ## Repaint and timers
 
@@ -652,12 +645,11 @@ The shell's tick is described in `src/shell/README.md`; what a scene needs from 
   or `Fast`, restarted with `LedFrame::restart` where legacy calls `blinkLed` mid-blink. A model fact
   a scene raises (a `notify::Dirty` fact) is drawn on the next tick, with no zero-millisecond timer.
 
-## Coexistence with legacy
+## The guest
 
 The guest is `deluge::gui::ui::ShellHostUI`, a legacy `UI` holding a `Shell` built over this
-registry. `openShellMenu` (`util/shell_menu_entry.h`) is the door: every gated
-`openUI(&soundEditor)` site routes through it when `shellMenuEnabled()`, and runs its exact legacy statements
-otherwise. Site 10, the legacy browser's own, is unreachable with ShellMenu on. `gui/ui/shell_menu_entry.cpp`'s table names all fifteen.
+registry. `openShellMenu` (`util/shell_menu_entry.h`) is the door: every entry site routes through it.
+`gui/ui/shell_menu_entry.cpp`'s table names all fourteen.
 
 * **Pads.** `ShellHostUI::claimsGridPad` asks the input top's `grid_pad_claim()`: `All` (the shell
   takes every pad), `ShortcutsOnly` (shift-held main-grid pads; the rest go to the legacy root view
@@ -669,6 +661,10 @@ otherwise. Site 10, the legacy browser's own, is unreachable with ShellMenu on. 
   guest's `timerCallback` closes it. `closeGuest` clears the knob indicators, runs the note mode's
   exit, the settings save, the drum-creator and slicer releases, and hands a still-showing knob
   popup to legacy's display.
+* **Teardown.** `nullifyUIs` (a song load or a clear) reaches `ShellHostUI::uisTakenDown`, which resets the stack so
+  every scene's `on_exit` runs (the recorder's take ends through `RecorderScene::taken_down`, with no notice),
+  disarms the shell's working animation, releases the slicer and the drum creator, and forgets the menu's song. It
+  hands no pads back, saves no settings and runs no note-mode exit, as `main`'s `nullifyUIs` does none of them.
 * **Activity.** Every pad, button and encoder the guest sees, forwarded or not, is screensaver
   activity (`Shell::note_activity`).
 * **MIDI learn.** `PlaybackHandler` offers note-on, program change, CC and pitch bend to the current UI
@@ -680,11 +676,8 @@ otherwise. Site 10, the legacy browser's own, is unreachable with ShellMenu on. 
 
 `registry.h`'s boot-wiring record is the authority; the short version:
 
-* **The shortcut layout** (`menu::set_shortcuts_version`, flash byte 60) is pushed from inside
-  `SoundEditor::setShortcutsVersion`, the sole writer, so boot, both reset menus (legacy's and the
-  ported one) and the legacy settings item all reach it. The ported settings item writes the mirror
-  and files `MenuAction::SetShortcutsVersion`, whose dispatch performs the legacy write that
-  persists it.
+* **The shortcut layout** is flash byte 60, `FlashStorage::shortcutsVersion`, which `menu::shortcuts_version` reads
+  and `menu::set_shortcuts_version` writes. The ported settings item writes it.
 * **The screensaver timeout** (`ShellConfig::screensaver_idle_ms`) is pushed through
   `Shell::set_screensaver_idle_ms` from `Screensaver::settingsChanged()`; the ported setters file
   `MenuAction::ScreensaverSettingsChanged`.
@@ -698,7 +691,8 @@ otherwise. Site 10, the legacy browser's own, is unreachable with ShellMenu on. 
 
 ## Defects this port found in shipping firmware
 
-None introduced by the port, none fixed by it. Where the port's job is to agree with legacy and the
+None introduced by the port, and one fixed on this tree: the recorder use-after-free below, as every take now ends
+through `AudioEngine::setForegroundRecording` (`main` still has it). Where the port's job is to agree with legacy and the
 defect has no crash, it **reproduces** the defect and asserts both sides, because a one-sided fix
 would be a silent divergence; where reproducing it would mean a crash or undefined behaviour, it does
 not. They are recorded here and at the port-side sites rather than in the legacy files, which this
@@ -708,11 +702,10 @@ stack cites by line hundreds of times.
 |---|---|---|
 | **`Slicer` declares 432 bytes of stack it never touches, twice.** `renderMainPads`' REGION arm declares `RGB myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth]` and renders into the caller's `image`; `buttonAction`'s BACK arm declares the same array and renders into `PadLEDs::image`. Both are uninitialised, unread and unwritten — 8 × 18 × 3 bytes each on a small UI stack — the residue of the MANUAL arm, the one place the array is used. Harmless as written; nothing to port. | cosmetic / stack pressure | this row; `slicing/slicer_scene.cpp`'s `button_action` BACK comment |
 | **`Slicer::selectEncoderAction`'s slice-count wrap fires only on an exact hit.** The REGION arm is `numClips += offset; if (numClips == 257) numClips = 2; else if (numClips == 1) numClips = 256;` — equality, and `offset` is whole detents, so a fast turn steps over both ends: 256 + 2 is 258, and from the opening 16 a single −20 turn lands on **−4**, which the page shows and nothing re-checks before `doSlice`. The port reproduces it, including the `int16_t` width. | user-visible, not a crash | `slicing/slicer_scene.cpp`'s `select_encoder`; the "steps past the wrap" and "drive the REGION count negative" examples in `sim/scenes_spec/slicer_scene_spec.cpp` |
-| **Use-after-free in `AudioRecorder::finishRecording`.** It frees through the member (`discardRecorder` → `~SampleRecorder` + `delugeDealloc`) and only then clears `recorder` and `recordingSource`. In that window the pointer dangles while the channel still says LEFT/STEREO, and `AudioEngine::setMonitoringMode`, reached from `renderAudio` on the priority-0 audio task — which runs on the **preemptive** executor — tests that pair and dereferences the recorder. The `recorder != nullptr` check does not help: the pointer is non-null and freed. The port clears the channel first, then the pointer, then frees, with a compiler barrier between the stores; legacy is not patched because those members have five other writers. | **crash / memory corruption** | `gui/ui/audio_recorder.cpp`'s `finishRecording` warning; `AudioEngine::setForegroundRecording`'s contract |
+| **Use-after-free in `main`'s `AudioRecorder::finishRecording`.** It frees through the member (`discardRecorder` → `~SampleRecorder` + `delugeDealloc`) and only then clears `recorder` and `recordingSource`. In that window the pointer dangles while the channel still says LEFT/STEREO, and `AudioEngine::setMonitoringMode`, reached from `renderAudio` on the priority-0 audio task — which runs on the **preemptive** executor — tests that pair and dereferences the recorder. The `recorder != nullptr` check does not help: the pointer is non-null and freed. The port clears the channel first, then the pointer, then frees, with a compiler barrier between the stores. Every take on this tree now ends that way: the pair has one writer, `AudioEngine::setForegroundRecording`, and `deluge::recording`'s `finishRecording` clears through it before it frees; `main` still frees first. | **crash / memory corruption** | `AudioEngine::setForegroundRecording`'s contract; `processing/recording/foreground_recording.cpp`'s `finishRecording` |
 | **`View::modButtonAction` dereferences a pointer its sibling null-checks.** `ModControllable::getModKnobMode()` returns null for a controllable without mod-knob banks; `View::getModKnobMode` tests it, while `modButtonAction` reads `*owner->getModKnobMode()` unguarded on a press outside the clip-minder views. `CVInstrument` is the one active mod controllable that does not override the default, so the case is a mod button pressed while a CV clip's knobs are the target. Established by reading, not reproduced. The port guards it; the guard differs from legacy only where legacy faults. | **crash (null dereference)** | `services/mod_knobs.cpp`'s `mod_button_action` |
 | **`View::setKnobIndicatorLevel` reads an uninitialised `int32_t`.** `knobPos` is assigned when the param has an `autoParam`, when `paramId == 255`, and when the descriptor is not just a param, and left unassigned on the fourth path — no `autoParam`, `paramId != 255`, `(paramId & 0x0000FF00) == 0x0000FF00` — then passed to `indicator_leds::setKnobIndicatorLevel`, which lights the gold knob's column from whatever was on the stack. The port declares nothing for that knob, which leaves the column as it was (the shell's rule for an undeclared indicator). | undefined behaviour; a wrong indicator | `services/mod_knobs.cpp`'s `indicator_level`; `services/mod_target.h`'s `ModIndicatorInfo` |
 | **`ClipView::getTickSquare` compares a scroll against the zoom.** The arm that stops following an auto-extending linear recording restores the remembered scroll only `if (newXScroll != …xZoom[NAVIGATION_CLIP])`; the guard's purpose — skip a restore that moves nothing — needs `xScroll`. So the restore is skipped whenever the remembered scroll equals the current zoom (the view stays where the follow pushed it), and performed when it equals the current scroll (a redraw, and a scroll popup, for a move of zero). Reached whenever a linear recording auto-extends past the right edge and stops. Established by driving legacy's `getTickSquare` from both sides; the port reproduces it. | user-visible, not a crash | `timeline/timeline.h`'s `tick_square` warning; `timeline/timeline.cpp`'s file comment; `sim/scenes_spec/timeline_spec.cpp` |
-| **The first gold-knob turn after boot is always swallowed.** The wiggle debounce in `InputLowering::action_gold_turn` asks whether the knob has been still for `short_press_ms`, against a `last_turn_ms_` that starts at 0; on a device, where `now_ms` is uptime, the answer is always yes by the time a user reaches a knob, so the first turn of every session is recorded and swallowed. `was_short_press` guards exactly this shape; this function does not. The UI scripts turn gold before `t = 500`, inside the window, so their goldens show the arm a device never presents first. Whether this is a defect or legacy behaviour to keep needs a device. | user-visible, not a crash | `src/shell/input_lowering.h`'s gold-knob debounce warning |
 | **`AudioClipView::setClipLengthEqualToSampleLength`'s "NO SAMPLE" arm is dead, and the live arm misleads.** The guard tests `audioClip.guide.audioFileHolder`, which `AudioClip`'s constructor points permanently at its own member, so the `else` is unreachable. With no sample loaded the taken arm adjusts by `getLoopLengthAtSystemSampleRate`, which falls back to the clip's own loop length, and tells the user "CLIP LENGTH ADJUSTED" over a change of zero. `MenuAction::SetClipLengthToSampleLength` calls the same method, so the ported menu reaches it too. | user-visible, not a crash | this row |
 
 ## Divergences from legacy
@@ -721,7 +714,6 @@ What a user can see differ between the two menus today, beyond the not-yet-porte
 
 | divergence | where it is recorded |
 |---|---|
-| The first gold-knob turn after boot is swallowed by the lowering's debounce, as legacy's `timeModEncoderLastTurned` starts at 0 too; accepted, and whether the mechanism is a defect needs a device (see the ledger). | `src/shell/input_lowering.h` |
 | Encoder acceleration is legacy's `EncoderAcceleration`, on a whole-millisecond clock where legacy's is finer, which caps the acceleration term. | `InputLowering::calc_next_knob_speed`, `MenuView`'s horizontal turn |
 | For about a millisecond after the `Exit` forward empties the guest's stack, the empty stack's `NullScene` answers `GridPadClaim::All`, so a pad landing then is claimed rather than given to the root view. | `ShellHostUI::timerCallback`; `tests/ui-scripts/parity/DIFFERENCES.md` D99 |
 | `openShellMenu` clears a kit's `affectEntire` before its `openUI`, so a refused open leaves it cleared; legacy clears after a successful `setup()`. | `gui/ui/shell_menu_entry.cpp`; `tests/ui-scripts/parity/DIFFERENCES.md` D99 |
@@ -735,14 +727,14 @@ What a user can see differ between the two menus today, beyond the not-yet-porte
 | The note leaves' `get`, `adjust`, `permitted` and `value_text` hooks call the note bridge unguarded: a harness that opens a note root without `wireShellNoteBridge()` crashes on the first read. | `menu/nodes/note.cpp` |
 | Toolkit features with no legacy counterpart — `GestureEvent::Hold`, the widened `SecondPad`, `ui/oled/popup.h`'s progress bar, `ui/oled/misc.h`'s `vu`/`adsr` — have no caller here, so they ship no UX; each becomes a divergence the moment a scene calls it. | this row |
 
-## Legacy features not yet ported
+## Features `main` has that the scenes do not
 
-Legacy's menus are the truth the tree transcribes. A feature-level legacy behaviour the scenes lag is
-listed here; the specs that walk both trees in lockstep step over it by identity
-(`tables_3_spec.cpp`'s `unported_legacy`) or pin the divergence, so porting it fails that spec until
-it leaves both lists.
+`main` is the truth the scenes match (read with `git show origin/main:<path>`); every way they differ is a
+`tests/ui-scripts/parity/DIFFERENCES.md` row, fixed or accepted. A feature-level `main` behaviour the scenes lag is
+listed here, and the specs over the frozen legacy rows pin each divergence by identity
+(`sim/scenes_spec/support/known_differences.h`), so porting it fails that spec until the pin goes.
 
-| legacy | gap | what porting it takes |
+| `main` | gap | what porting it takes |
 |---|---|---|
 | an item's own `checkPermissionToBeginSession` | `permission_for` is the base rule (relevance) plus the range rule; the five scene-opener items override it and skip relevance (`FileSelector` opens on any subtractive sound). `MenuScene::on_enter` asks only the range half, so nothing diverges until something asks `permission_for` about one of them | a per-item permission hook consulted ahead of `relevant` |
 | the load/save browsers | the song, preset, pattern and kit-row browsers, and `SlotBrowser`'s brand-new-name machinery; they are reached from root UIs, so the menu walk cannot exercise them | `Descriptor`s or a second scene, a `SlotBrowser` equivalent, and an oracle that is not the menu walk |
@@ -753,5 +745,4 @@ it leaves both lists.
 | clip-row rendering | `AudioClip::renderAsSingleRow` draws from `model/` and includes the legacy waveform renderer | moving it into `SessionScene` |
 | pad MIDI learn | no scene answers `learnable_at(pad)`, so `MidiLearn::thing_pressed` gets only its own TAP/PLAY/RECORD arms | the root scenes answering it |
 | `Submenu::shouldForwardButtons`' `buttonAction` | legacy forwards a horizontal page's buttons to its focused value column; the port routes `CustomItem::handle` to the focused node, which on a horizontal page is the page | forwarding `handle` to a focused custom column; `tests/ui-scripts/parity/DIFFERENCES.md` D95 |
-| the firmware-version diagnostics | on the firmware-version item, pads 13–15 of row 7 pop up the SRAM size, the voice count and the PIC version; the guest keeps the menu open on them, as legacy does, but shows no popup | three popups |
 | the timeline's scroll and zoom animations | `TimelineState` takes the arithmetic of `initiateXScroll`/`initiateXZoom`, not the `PadLEDs` animation | the zoom through `ui::grid::ZoomTransition`, as the marker editor's; a scroll transition |

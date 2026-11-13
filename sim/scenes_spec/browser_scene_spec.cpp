@@ -4,9 +4,8 @@
 ///        against a real card.
 ///
 /// Three halves: the `Descriptor` table (what each browser is for, as data), the scene's behaviour
-/// over the async listing seam, and its navigation and pixels compared **against the legacy
-/// `Browser` itself, driven from its own inputs** -- see `SpecBrowser` and the
-/// `browser_legacy_pixels` group.
+/// over the async listing seam, and its navigation and pixels compared **against what main's
+/// `Browser` answers for the same inputs** -- see the `browser_main_pixels` group.
 ///
 /// @par Why every example installs a deferring dispatcher
 ///
@@ -26,10 +25,11 @@
 /// flat and nearly empty -- it cannot descend, ascend, or produce a folder with enough entries to
 /// search. `git status --porcelain tests/fixtures` stays clean.
 ///
-/// @note The spec may include `gui/` (for `l10n::String` ids and the legacy renderer); the library
+/// @note The spec may include `gui/` (for `l10n::String` ids); the library
 ///       may not. Same rule `menu_scene_spec.cpp` and `context_menu_scene_spec.cpp` run under.
 
 #include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_slice_ops.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/context.h"
@@ -50,12 +50,16 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "gui/ui/browser/sample_browser.h"
+#include "gui/ui/ui.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "model/action/action.h"
+#include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/sample/last_file_path_loaded.h"
 #include "model/sample/sample.h"
 #include "model/sample/waveform_navigator.h"
 #include "processing/engines/audio_engine.h"
@@ -69,7 +73,10 @@
 #include "storage/multi_range/multisample_range.h"
 #include "util/name_compare.h"
 
+#include "support/browser_scene_fixtures.h"
 #include "support/forwarding_facts.h"
+#include "support/oracle_files.h"
+#include "support/oracle_table.h"
 #include "support/song_fixture.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
@@ -119,300 +126,36 @@ using deluge::ui::shell::SurfaceRole;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
-/// The shipped audio-extension list itself (`sample_browser.cpp:86`), which has no header. Declared
-/// here at global scope -- where its definition lives -- rather than re-spelled, so `SpecBrowser`
-/// lists through the same array `SampleBrowser::opened` installs (`sample_browser.cpp:111`).
-extern char const* allowedFileExtensionsAudio[];
-
 namespace {
 
 /// `Action` unqualified is the model's own undo `Action` (`model/action/action.h`, pulled in through
 /// the model closure); the shell's is a different type with the same name.
 using ShellAction = deluge::ui::shell::Action;
 
-// ---------------------------------------------------------------------------------------------
-// Process-global scaffolding
-
-/// @brief A dispatcher that stores the op instead of running it -- see the file docstring.
-struct Deferred {
-	static inline void (*fn)(void*) = nullptr;
-	static inline void* ctx = nullptr;
-	/// Set false to model `Owner::run` returning false -- the queue-full drop (`owner.h:43`).
-	static inline bool accept = true;
-
-	static bool dispatch(void (*f)(void*), void* c) {
-		if (!accept) {
-			return false;
-		}
-		fn = f;
-		ctx = c;
-		return true;
-	}
-	static bool pending() { return fn != nullptr; }
-	/// @brief Run the stored op, as the owner fiber eventually would.
-	static void run() {
-		void (*f)(void*) = fn;
-		void* c = ctx;
-		fn = nullptr;
-		ctx = nullptr;
-		if (f != nullptr) {
-			f(c);
-		}
-	}
-	static void reset() {
-		fn = nullptr;
-		ctx = nullptr;
-		accept = true;
-	}
-};
-
-/// @brief The minimum `Display` the legacy renderer needs.
-///
-/// `Browser::renderOLED` reads `display->getNumBrowserAndMenuLines()` (`browser.cpp:945`) and
-/// `clampFileSelectionAndScroll` reads it again (`:1029`); `display` is null in a spec process
-/// (`hid/display/display.cpp:4`). 3 is `OLED::getNumBrowserAndMenuLines`'s own literal
-/// (`hid/display/oled.h:152`) -- note that legacy hard-codes it on **every** panel height, which is
-/// where the port deliberately diverges (see the row-count note in `render_oled`).
-struct BrowserDisplay final : deluge::hid::Display {
-	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
-	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
-	void popupText(char const*, PopupType) override {}
-	void popupTextTemporary(char const*, PopupType) override {}
-	void cancelPopup() override {}
-	void freezeWithError(char const*) override {}
-	void displayError(Error) override {}
-	void removeWorkingAnimation() override {}
-	void displayLoadingAnimationText(char const*, bool, bool) override {}
-	void removeLoadingAnimation() override {}
-	bool hasPopup() override { return false; }
-	bool hasPopupOfType(PopupType) override { return false; }
-	void consoleText(char const*) override {}
-	void timerRoutine() override {}
-};
-
-/// @brief The legacy sample browser, **driven from its own inputs**.
-///
-/// @par What this is for
-///
-/// Legacy is handed the *inputs*, never the port's state: a `mirror()` that copied the scene's
-/// `file_index`/`scroll`/`enteredText`/cursor onto legacy's statics before rendering would validate
-/// the renderer and nothing else, because legacy's navigation --
-/// `Browser::clampFileSelectionAndScroll`, `Browser::selectEncoderAction` (`:549`),
-/// `Browser::finishSelectEncoderAction` (`:702`), `Browser::predictExtendedText` (`:782`),
-/// `Browser::arrivedInNewFolder` (`:367`) -- would never run, so a port that navigated wrongly
-/// would still match, the oracle having been handed the port's answer. Legacy gets the same
-/// encoder detents and the same pad coordinates, computes its own selection, scroll, text and
-/// cursor, and both sides' answers are compared.
-///
-/// @par Why a subclass and not `sampleBrowser` itself
-///
-/// `SampleBrowser` is `final`, and `SampleBrowser::opened()` cannot run in a spec process: it
-/// dereferences `soundEditor.getCurrentAudioFileHolder()` (`SampleBrowser::opened`) and drives
-/// `actionLogger`, `favouritesManager` and `instrumentClipView` (`:105-122`). So this derives from
-/// `Browser` and `open_samples()` performs `SampleBrowser::opened`'s **configuration** assignments,
-/// each cited. Everything past that point -- the listing, the search, the clamp, the prediction --
-/// is `Browser`'s own unmodified code, and the state it computes lives in `Browser`/`QwertyUI`
-/// statics, which is why the shipped `sampleBrowser` object can still be the thing that renders it
-/// (`legacy_pbm()`). The configuration transcription is seven flags; the behaviour under test is
-/// not transcribed at all.
-class SpecBrowser : public Browser {
-public:
-	SpecBrowser() {
-		// `SampleBrowser::SampleBrowser` (`sample_browser.cpp:88-95`), minus the two members
-		// `legacy_pbm()` renders through `sampleBrowser` instead (`fileIcon`, `title`).
-		shouldWrapFolderContents = false;
-		qwertyAlwaysVisible = false;
-		shouldInterpretNoteNamesForThisBrowser = true;
-		// `Browser::Browser` already leaves `mayDefaultToBrandNewNameOnEntry = false` and
-		// `filePrefix = NULL` (`browser.cpp:88,91`), which is what `SampleBrowser` inherits.
-	}
-
-	std::string getCurrentFilePath() override { return {}; }
-	UIType getUIType() override { return UIType::SAMPLE_BROWSER; }
-
-	/// @brief `SampleBrowser::enterKeyPress`'s folder arm (`sample_browser.cpp:334-361`).
-	///
-	/// Two things from that body are deliberately absent. `AudioEngine::stopAnyPreviewing()` (`:342`)
-	/// tears down a preview only `SampleBrowser::currentFileChanged` ever starts, and `Browser`'s
-	/// hook is empty -- there is nothing to stop. The file arm, `claimCurrentFile()` (`:398`), names
-	/// `soundEditor`, `slicer`, `PadLEDs` and `instrumentClipView`; the port cannot perform it either
-	/// and parks the path instead (`sample_accept`), so it has no counterpart to compare against and
-	/// is recorded as uncovered.
-	void enterKeyPress() override {
-		FileItem* item = getCurrentFileItem();
-		if (item == nullptr) {
-			return;
-		}
-		if (item->isFolder) {
-			if (deluge::string::caselessEquals(item->filename, "TEMP")
-			    && deluge::string::caselessEquals(currentDir, "SAMPLES/CLIPS")) {
-				return; // `:347-352`
-			}
-			goIntoFolder(item->filename.c_str());
-		}
-	}
-
-	/// `Browser::isFavouritesVisible` opens with `getCurrentUI()`, which indexes
-	/// `uiNavigationHierarchy[numUIsOpen - 1]` with `numUIsOpen == 0` in a spec process. Both answers
-	/// are false in legacy too through every state this spec drives, because `SampleBrowser::opened`
-	/// leaves `qwertyVisible` false (`sample_browser.cpp:114`) and the layout defaults to
-	/// `FavouritesDefaultLayoutOff`; the override is what makes them *reachable*, not what makes them
-	/// false. The favourites row itself has no port counterpart -- it is uncovered
-	/// by the migration.
-	bool isFavouritesVisible() override { return false; }
-	bool isBanksVisible() override { return false; }
-
-	/// @brief `SampleBrowser::opened`'s configuration and its listing, on an empty catalogue.
-	///
-	/// `Browser::opened()` (`browser.cpp:178-188`) runs for real -- it is what resets
-	/// `numCharsInPrefix`, `arrivedAtFileByTyping`, `numberEditPos` and (through `QwertyUI::opened`,
-	/// `qwerty_ui.cpp:51-73`) `enteredText`/`enteredTextEditPos`. The assignments after it are
-	/// `SampleBrowser::opened`'s own, cited line by line.
-	///
-	/// The `currentDir`/`filenameToStartAt` pair is the *blank-path* arm of that function's
-	/// dissection (`sample_browser.cpp:136-147`): with the holder's `filePath` empty and
-	/// `lastFilePathLoaded` empty, legacy takes `currentDir = "SAMPLES"` and a null search filename.
-	/// `expects_blank_start_path()` below is what holds the fixture to that arm, so the arm is
-	/// chosen by the fixture rather than assumed.
-	void open_samples() {
-		Browser::opened();
-		allowedFileExtensions = allowedFileExtensionsAudio; // `sample_browser.cpp:111`
-		allowFoldersSharingNameWithFile = true;             // `:111`
-		outputTypeToLoad = OutputType::NONE;                // `:112`
-		qwertyVisible = false;                              // `:113`
-		fileIndexSelected = 0;                              // `:119`
-		currentDir = "SAMPLES";                             // `:145`
-		// `sample_browser.cpp:166-171`, settled at once: the comparison is of where each side lands,
-		// not of the ticks between.
-		beginListing({.action = ListingAction::Open, .direction = 1, .filenameToStartAt = "", .defaultDir = "SAMPLES"});
-		settle();
-	}
-
-	/// @brief `Browser::backButtonAction`'s ascend (`browser.cpp:1283-1300`).
-	///
-	/// The gate that arm wraps, `listingInProgress_`, is false here because every entry point settles
-	/// its listing, and `exitAction()` on the root-level refusal is `close()`, which the ascend example
-	/// never reaches.
-	void back() {
-		(void)goUpOneDirectoryLevel();
-		settle();
-	}
-
-	/// @brief Run the listing an entry point began to its end, as the interaction tier's ticks do.
-	///
-	/// Legacy lists from `graphicsRoutine()` (`Browser::runPendingListing`), a tick after the entry
-	/// point asks; before boot finishes each directory opens directly, so one pass completes it.
-	/// Every entry point the drives use settles, so each sees the previous one's listing done.
-	void settle() {
-		for (int32_t pass = 0; pass < 64 && isListingInProgress(); pass++) {
-			runPendingListing();
-		}
-		if (isListingInProgress()) {
-			std::fprintf(stderr, "browser_scene_spec: a legacy listing was still running after 64 passes\n");
-			std::abort();
-		}
-	}
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override {
-		const ActionResult result = Browser::padAction(x, y, velocity);
-		settle();
-		return result;
-	}
-	void selectEncoderAction(int8_t offset) override {
-		Browser::selectEncoderAction(offset);
-		settle();
-	}
-
-	static int32_t index() { return fileIndexSelected; }
-	static int32_t scroll() { return scrollPosVertical; }
-	static int32_t cursor() { return enteredTextEditPos; }
-	static int32_t text_scroll() { return scrollPosHorizontal; }
-	static std::string text() { return QwertyUI::enteredText; }
-
-	/// @brief Poison every static this spec compares, so a legacy run that silently did nothing
-	///        fails loudly instead of agreeing with whatever ran before it.
-	static void poison() {
-		fileIndexSelected = -99;
-		scrollPosVertical = -99;
-		QwertyUI::enteredText = "<<never-listed>>";
-		enteredTextEditPos = -99;
-		scrollPosHorizontal = -99;
-	}
-};
-
-/// @brief Per-example reset of everything process-global this spec touches.
-///
-/// The scene is a singleton and its `Listing` is a member of it, so an example that left a listing
-/// dispatched would decide the next example's result by link order -- and `set_dispatch` asserts the
-/// seam is `Idle`. Quiescing is therefore three steps in order: run whatever op is parked, let
-/// `on_exit` collect the result (which is also what hands `FileCatalogue`'s claim back), then clear
-/// the catalogue.
-///
-/// `QuietAudio` is declared first so the latch is held before anything erases: without it a spec
-/// that drives a listing does not fail, it segfaults (`support/card_access.h`).
-struct CleanBrowser {
-	QuietAudio quiet;
-	deluge::hid::Display* saved_display;
-	BrowserDisplay display_impl;
-
-	CleanBrowser() : saved_display(display) {
-		display = &display_impl;
-		reset();
-	}
-	~CleanBrowser() {
-		reset();
-		display = saved_display;
-	}
-	static void reset() {
-		while (Deferred::pending()) {
-			Deferred::run();
-		}
-		// Collects an uncollected result (releasing the catalogue claim) and empties the catalogue.
-		browser_scene().on_exit();
-		// Drops the stop that exit filed, and the last file an example previewed, which a fresh browser opens beside.
-		(void)browser_scene().take_preview();
-		browser_scene().preview_settled(false);
-		sampleBrowser.lastFilePathLoaded.clear();
-		Deferred::reset();
-		FileCatalogue::emptyFileItems();
-		FileCatalogue::numFileItemsDeletedAtStart = 0;
-		FileCatalogue::numFileItemsDeletedAtEnd = 0;
-		FileCatalogue::firstFileItemRemaining.clear();
-		FileCatalogue::lastFileItemRemaining.clear();
-		FileCatalogue::filenameToStartSearchAt = nullptr;
-		FileCatalogue::currentDir.clear();
-		// The comparator's globals decide what `strcmpspecial` *means*, so a stale `true` turns a
-		// later example's expected order into a different valid order rather than into a crash.
-		shouldInterpretNoteNames = false;
-		octaveStartsFromA = false;
-		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-		deluge::notify::Notice discard;
-		while (deluge::notify::notices().pop(discard)) {}
-		deluge::notify::dirty().drain();
-	}
-	CleanBrowser(const CleanBrowser&) = delete;
-	CleanBrowser& operator=(const CleanBrowser&) = delete;
-};
-
-/// @brief The card these examples list: `tests/fixtures/scenes_spec/browser_scene`, installed for this file before boot
-///        (`tests/integration/checks/scenes_spec_cards.txt`). Constructing one checks it is the installed card.
-///
-/// ```
-/// SAMPLES/CLAP.WAV  SAMPLES/SNARE.WAV  SAMPLES/TOM.WAV
-/// SAMPLES/KICKS/KICK1.WAV  SAMPLES/KICKS/KICK2 WITH A LONG ROOM TAIL.WAV   (wider than the row: side-scrolls)
-/// SAMPLES/CLIPS/TEMP/            (the folder SampleBrowser refuses to enter)
-/// SAMPLES/CLIPS/{A3,C3,C4}.WAV   (note names -- see below)
-/// MIDI_DEVICES/DEFINITION/DEVICE1.XML
-/// ```
-///
-/// The three note-named files live one level down, in `CLIPS`, on purpose: the sample descriptor
-/// interprets note names, so their order is the one thing on this card that **differs between the
-/// two comparator pinnings** (`A3, C3, C4` with note names off; `C3, A3, C4` with them on, octave
-/// from C), which is what the `repinComparator` example needs. Putting them at the top level would
-/// have changed every recorded golden for a fixture detail.
-struct ScratchCard {
-	std::filesystem::path dir = std::filesystem::path(DELUGE_REPO_ROOT) / "tests/fixtures/scenes_spec/browser_scene";
-	SdRoot root{dir.string()};
-};
+namespace bf = deluge::scenes::spec::browser_fx;
+using bf::blank_start_path;
+using bf::BrowserState;
+using bf::CleanBrowser;
+using bf::context_of;
+using bf::Deferred;
+using bf::kBackX;
+using bf::kBackY;
+using bf::kKeyboardX;
+using bf::kKeyboardY;
+using bf::kLoadX;
+using bf::kLoadY;
+using bf::kSaveX;
+using bf::kSaveY;
+using bf::kSelectEncButtonX;
+using bf::kSelectEncButtonY;
+using bf::kShiftX;
+using bf::kShiftY;
+using bf::kXEncX;
+using bf::kXEncY;
+using bf::Pad;
+using bf::pad_for;
+using bf::Rig;
+using bf::ScratchCard;
 
 /// @brief A 128x64 single-panel board, so the same scene can be recorded at the other shipped panel
 ///        geometry.
@@ -436,179 +179,6 @@ const BoardProfile& profile_64() {
 	return p;
 }
 
-/// Board encoder indices and matrix coordinates (`shell/profiles/deluge.cpp`).
-constexpr uint8_t kSelectEncoder = 3;
-constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
-/// SHIFT, at matrix (8, 0) (`shell/profiles/deluge.cpp`).
-constexpr uint8_t kShiftX = 8, kShiftY = 0;
-constexpr uint8_t kBackX = 7, kBackY = 1;
-/// X_ENC's push, LOAD and KEYBOARD, and the horizontal and vertical encoders' indices (`shell/profiles/deluge.cpp`).
-constexpr uint8_t kXEncX = 0, kXEncY = 1;
-constexpr uint8_t kLoadX = 6, kLoadY = 1;
-constexpr uint8_t kKeyboardX = 3, kKeyboardY = 3;
-constexpr uint8_t kRecordX = 8, kRecordY = 2;
-constexpr uint8_t kSaveX = 6, kSaveY = 3;
-constexpr uint8_t kHorizontalEncoder = 1, kVerticalEncoder = 0;
-constexpr int32_t kHomeRow = deluge::ui::grid::kTextKeyboardHomeRow;
-
-struct Pad {
-	int32_t x = -1, y = -1;
-};
-
-/// @brief The pad that types @p c on the QWERTY layout, found by asking the toolkit's own lookup
-///        rather than transcribing the table a second time.
-Pad pad_for(char c) {
-	for (int32_t y = 0; y < 8; y++) {
-		for (int32_t x = 0; x < deluge::ui::grid::kTextKeyboardCols; x++) {
-			if (deluge::ui::grid::text_keyboard_char_at(deluge::ui::grid::KeyboardLayoutKind::Qwerty, x, y, kHomeRow,
-			                                            false)
-			    == c) {
-				return Pad{x, y};
-			}
-		}
-	}
-	return Pad{};
-}
-
-/// @brief A `Shell` over `FakeSurfaceSet` with the application's own scene registry installed.
-struct Rig {
-	const BoardProfile& profile;
-	deluge::ui::shell::SceneRegistry reg = scene_registry();
-	uitest::FakeSurfaceSet fake;
-	Shell shell{fake, profile, reg, deluge::ui::shell::Services{}, ShellConfig{}};
-	uint32_t clock = 0;
-
-	Rig(const Rig&) = delete;
-	Rig& operator=(const Rig&) = delete;
-
-	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
-	///
-	/// `BrowserScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
-	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
-	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
-	/// `recorder_scene_spec.cpp`'s `~Rig` was written to stop (a leaked recorder there made the next
-	/// `on_enter` refuse outright and killed 13 of 16 examples on one mutant's first run). Popping
-	/// unconditionally means every example starts from the same place whatever the one before it did.
-	~Rig() {
-		while (shell.stack().depth() > 0) {
-			shell.stack().pop(SceneKind::Null);
-		}
-	}
-
-	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
-	    : profile(p), fake(board, p) {}
-
-	/// @brief Open the browser on @p id over @p ctx, with the deferring dispatcher installed.
-	/// @return What `Shell::init` reported.
-	void open(const MenuContext& ctx, BrowserId id) {
-		browser_scene().set_dispatch(&Deferred::dispatch);
-		browser_scene().open(ctx);
-		shell.init(SceneId{kBrowserSceneKind, static_cast<uint16_t>(id)});
-	}
-
-	void tick(uint32_t at) {
-		clock = at;
-		shell.tick(at);
-	}
-	/// @brief Advance one 10 ms tick.
-	void step() { tick(clock + 10); }
-	/// @brief Run the parked listing op and settle the scene on its result.
-	///
-	/// **Two ticks, and the second is not padding.** `Shell::tick` renders at steps 5-6 and calls
-	/// `after_render()` at step 7 (`Shell::tick`), so the tick that *collects* the
-	/// listing draws the state from before it landed; the `RepaintAll` that collection files is for
-	/// the tick after. Anything comparing pixels needs both.
-	void land() {
-		Deferred::run();
-		step();
-		step();
-	}
-	/// @brief One more tick, so a change made after this tick's render reaches the framebuffer.
-	///
-	/// Needed after an encoder turn or a keystroke for the same reason `land()` takes two ticks: a
-	/// turn is a widget-owned shape delivered at step 8, *after* the frame was built, and a typed
-	/// character is acted on in `after_render` at step 7.
-	void settle() { step(); }
-	/// @brief Open, run the initial listing, and settle on the result.
-	void open_and_land(const MenuContext& ctx, BrowserId id) {
-		open(ctx, id);
-		tick(0);
-		land();
-	}
-
-	void button(uint8_t x, uint8_t y, bool on, uint32_t at) {
-		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(on ? 255 : 0)}, at);
-	}
-	void pad(uint8_t x, uint8_t y, uint8_t velocity, uint32_t at) {
-		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, x, y, static_cast<int16_t>(velocity)}, at);
-	}
-	/// @brief One detent of the (detented, 2 edges per click) select encoder.
-	void turn(int32_t detents, uint32_t at) {
-		shell.on_board_event(
-		    DelugeInputEvent{DELUGE_EVENT_ENCODER, kSelectEncoder, 0, static_cast<int16_t>(detents * 2)}, at);
-	}
-
-	/// @brief One detent of the horizontal encoder, then a tick.
-	void horizontal(int32_t detents) {
-		shell.on_board_event(
-		    DelugeInputEvent{DELUGE_EVENT_ENCODER, kHorizontalEncoder, 0, static_cast<int16_t>(detents * 2)},
-		    clock + 10);
-		step();
-	}
-	/// @brief Press and release a button, one tick each.
-	void click(uint8_t x, uint8_t y) {
-		button(x, y, true, clock + 10);
-		step();
-		button(x, y, false, clock + 10);
-		step();
-	}
-
-	/// @brief Press and release the pad that types @p c, one tick each.
-	void type(char c) {
-		const Pad p = pad_for(c);
-		pad(static_cast<uint8_t>(p.x), static_cast<uint8_t>(p.y), 64, clock + 10);
-		step();
-		pad(static_cast<uint8_t>(p.x), static_cast<uint8_t>(p.y), 0, clock + 10);
-		step();
-	}
-	void type(std::string_view s) {
-		for (const char c : s) {
-			type(c);
-		}
-	}
-	/// @brief Press the enter pad -- the commit, through the real input path.
-	void enter() { type(deluge::ui::grid::kTextKeyboardEnter); }
-	void backspace() { type(deluge::ui::grid::kTextKeyboardBackspace); }
-
-	/// @brief Is a `SceneKind::Working` scene on the stack right now?
-	bool working_shown() {
-		for (const deluge::ui::shell::Scene* scene : shell.stack().scenes()) {
-			if (scene->kind() == SceneKind::Working) {
-				return true;
-			}
-		}
-		return false;
-	}
-	bool browser_on_stack() {
-		for (const deluge::ui::shell::Scene* scene : shell.stack().scenes()) {
-			if (scene->kind() == kBrowserSceneKind) {
-				return true;
-			}
-		}
-		return false;
-	}
-};
-
-MenuContext context_of(spec::SongFixture& f) {
-	return menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
-	                         /*kit_global_fx=*/false);
-}
-
-MenuContext context_of(spec::AudioSongFixture& f) {
-	return menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false,
-	                         /*kit_global_fx=*/false);
-}
-
 /// @brief The catalogue's contents as one comma-joined string, so an order mismatch prints as an
 ///        order rather than as a container diff.
 std::string catalogue_order() {
@@ -622,16 +192,6 @@ std::string catalogue_order() {
 	return out;
 }
 
-/// @brief One side's answer: the four navigation numbers, the text, and the panel.
-struct BrowserState {
-	int32_t index = 0;
-	int32_t scroll = 0;
-	int32_t cursor = 0;
-	int32_t text_scroll = 0;
-	std::string text;
-	std::string pbm;
-};
-
 /// @brief What the scene currently holds, and what it currently shows.
 BrowserState port_state(Rig& r) {
 	const BrowserScene& s = browser_scene();
@@ -639,77 +199,33 @@ BrowserState port_state(Rig& r) {
 	                    r.fake.pbm(0)};
 }
 
-/// @brief Wipe both sides' listings, so the legacy run below lists the card for itself.
-///
-/// The port's listing left `FileCatalogue::fileItems` populated and its bookkeeping set, and an
-/// earlier legacy run leaves `Browser`'s own listing and directory. Emptied here so the only thing
-/// the two runs share is the card.
-void clear_catalogue() {
-	Browser::emptyFileItems();
-	Browser::currentDir.clear();
-	FileCatalogue::emptyFileItems();
-	FileCatalogue::numFileItemsDeletedAtStart = 0;
-	FileCatalogue::numFileItemsDeletedAtEnd = 0;
-	FileCatalogue::firstFileItemRemaining.clear();
-	FileCatalogue::lastFileItemRemaining.clear();
-	FileCatalogue::filenameToStartSearchAt = nullptr;
-	FileCatalogue::currentDir.clear();
+/// @brief `browser_scene.tsv`: where main's browser lands after each input sequence below.
+spec::OracleTable& table() {
+	return spec::OracleTable::named("browser_scene");
 }
 
-/// @brief Open the legacy sample browser on an empty catalogue, run @p drive, and read its answer.
-///
-/// @param drive The same input sequence the scene was given, spelled in legacy's own entry points.
-/// @return Legacy's own selection, scroll, text, cursor and rendered panel.
-template <typename Drive>
-BrowserState legacy_run(Drive&& drive) {
-	clear_catalogue();
-	SpecBrowser::poison();
-	SpecBrowser browser;
-	browser.open_samples();
-	drive(browser);
-
-	// `sampleBrowser` is the shipped object -- its constructor set `fileIcon` to `OLED::waveIcon` and
-	// `title` to "Audio files" (`sample_browser.cpp:89-90`) -- and every number it renders from is a
-	// `Browser`/`QwertyUI` static that the `SpecBrowser` run above computed. This is
-	// `Browser::renderOLED` itself, over legacy's own state.
-	static deluge::hid::display::oled_canvas::Canvas canvas;
-	canvas.clear();
-	sampleBrowser.renderOLED(canvas);
-	return BrowserState{SpecBrowser::index(),  SpecBrowser::scroll(),
-	                    SpecBrowser::cursor(), SpecBrowser::text_scroll(),
-	                    SpecBrowser::text(),   page_major_to_pbm(canvas.bytes().data(), 128, 48)};
-}
-
-/// @brief Assert the two sides agree, numbers first so a navigation divergence prints as a number.
+/// @brief Assert the port's answer is main's for the same inputs, as `browse/<name> state` and
+///        `pixels/browser_<name>.pbm` hold it, numbers first so a navigation divergence prints as a number.
 ///
 /// Pixels last and deliberately: a frame diff is unreadable next to "index 4 vs index 3".
 /// @param self The enclosing `it(...)` block's own lambda parameter -- `expect(...)` expands to
 ///             `self.expect(...)`, exactly as `expect_golden` documents.
 template <typename Self>
-void expect_same(Self& self, const BrowserState& port, const BrowserState& legacy) {
-	expect(port.index).to_equal(legacy.index);
-	expect(port.scroll).to_equal(legacy.scroll);
-	expect(port.text).to_equal(legacy.text);
-	expect(port.cursor).to_equal(legacy.cursor);
-	expect(port.text_scroll).to_equal(legacy.text_scroll);
-	// The FULL 128x48 panel, title rows included. The old comparison trimmed the top five rows on the
-	// grounds that the port's root frame has origin `(0, visible_top)` and legacy's canvas does not
-	// -- but `OLED_MAIN_TOPMOST_PIXEL` is 5 (`board_config.h:64`) and legacy offsets its own drawing
-	// by it (`Browser::renderOLED`; `Canvas::draw_screen_title`), so rows 0-4 are
-	// blank on both sides and the trim was hiding `drawScreenTitle` rather than normalising anything.
-	// Compared, and they match.
-	expect(port.pbm).to_equal(legacy.pbm);
-}
-
-/// @brief Hold the fixture to the arm of `SampleBrowser::opened`'s dissection that `open_samples()`
-///        spells (`sample_browser.cpp:136-147`).
-///
-/// If a future fixture gave the audio clip a real sample path, legacy would enter on that file's
-/// folder and the transcription in `open_samples()` would silently stop matching. This fails first.
-/// Read off the model, not off either side's dissection of it -- `SoundEditor::getCurrentAudioFileHolder`
-/// resolves an audio clip to its own `sampleHolder` (`sound_editor.cpp:2024-2033`).
-bool blank_start_path(spec::AudioSongFixture& f) {
-	return f.clip->sampleHolder.filePath.empty();
+void expect_same(Self& self, const BrowserState& port, std::string_view name) {
+	const std::vector<std::string>* main = table().find("browse/" + std::string{name}, "state");
+	expect(main != nullptr && main->size() == size_t{5}).to_be_true();
+	if (main == nullptr || main->size() != size_t{5}) {
+		return;
+	}
+	expect(std::to_string(port.index)).to_equal((*main)[0]);
+	expect(std::to_string(port.scroll)).to_equal((*main)[1]);
+	expect(port.text).to_equal((*main)[4]);
+	expect(std::to_string(port.cursor)).to_equal((*main)[2]);
+	expect(std::to_string(port.text_scroll)).to_equal((*main)[3]);
+	// The FULL 128x48 panel, title rows included: `OLED_MAIN_TOPMOST_PIXEL` is 5 and main offsets its
+	// own drawing by it (`Browser::renderOLED`; `Canvas::draw_screen_title`), so rows 0-4 are blank on
+	// both sides and there is nothing to normalise away.
+	expect(port.pbm).to_equal(spec::OracleFiles::pixels("browser_" + std::string{name}));
 }
 
 /// @brief A 16-bit mono sample whose overview cache already holds every cluster's peaks, so a scan reads no card.
@@ -930,8 +446,8 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 		const browser::Descriptor& sample = browser::descriptor(BrowserId::Sample);
 		const browser::Descriptor& midi = browser::descriptor(BrowserId::MidiDeviceDefinition);
 
-		// `allowedFileExtensionsAudio` (`sample_browser.cpp:86`) vs the base's
-		// `allowedFileExtensionsXML` (`browser.cpp:181`).
+		// `allowedFileExtensionsAudio` (`SampleBrowser`'s constructor) vs the base's
+		// `allowedFileExtensionsXML` (`Browser::opened`).
 		expect(std::string{sample.extensions[0]}).to_equal(std::string{"WAV"});
 		expect(std::string{sample.extensions[1]}).to_equal(std::string{"AIFF"});
 		expect(std::string{sample.extensions[2]}).to_equal(std::string{"AIF"});
@@ -941,13 +457,13 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 		expect(std::string{sample.default_dir}).to_equal(std::string{"SAMPLES"});
 		expect(std::string{midi.default_dir}).to_equal(std::string{"MIDI_DEVICES/DEFINITION"});
 
-		// `shouldInterpretNoteNamesForThisBrowser = true` (`sample_browser.cpp:93`); the base leaves
+		// `shouldInterpretNoteNamesForThisBrowser = true` (`SampleBrowser`'s constructor); the base leaves
 		// it false.
 		expect(sample.interpret_note_names).to_be_true();
 		expect(midi.interpret_note_names).to_be_false();
 
 		// `SampleBrowser::opened` sets `allowFoldersSharingNameWithFile = true`
-		// (`sample_browser.cpp:113`); `Browser::opened` leaves it false (`browser.cpp:182`).
+		// (`SampleBrowser`'s constructor); `Browser::opened` leaves it false.
 		expect(sample.allow_folders_sharing_name_with_file).to_be_true();
 		expect(midi.allow_folders_sharing_name_with_file).to_be_false();
 
@@ -956,7 +472,7 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 	});
 
 	it("gives each browser its own row icon, and only the MIDI one a second piece", _ {
-		// `SampleBrowser`'s `fileIcon = OLED::waveIcon` (`sample_browser.cpp:89`);
+		// `SampleBrowser`'s `fileIcon = OLED::waveIcon` (`SampleBrowser`'s constructor);
 		// `LoadMidiDeviceDefinitionUI`'s `fileIcon = OLED::midiIcon` plus `fileIconPt2 =
 		// OLED::midiIconPt2` at width 1 (`load_midi_device_definition_ui.cpp:87-90`).
 		const browser::Descriptor& sample = browser::descriptor(BrowserId::Sample);
@@ -1130,6 +646,25 @@ describe browser_open("scenes::browser::BrowserScene opening", $ {
 		// on the previous song's pointers.
 		expect(browser_scene().on_enter(SceneId{kBrowserSceneKind,
 		                                        static_cast<uint16_t>(BrowserId::Sample)})).to_be_false();
+	});
+
+	it("creates DX7 when the card has none and opens on it, empty, as DxSyxBrowser does", _ {
+		// `readFileItemsFromFolderAndMemory`: the folder `DxSyxBrowser::opened` lists is its default one, so a missing
+		// one is created and listed, and the browser stays up on the empty folder. This card has no DX7.
+		CleanBrowser clean;
+		ScratchCard card;
+		expect(deluge::io::Directory::open("DX7").has_value()).to_be_false();
+		spec::SongFixture f = spec::make_synth_song();
+		expect(browser::descriptor(BrowserId::DxSyx).can(context_of(f))).to_be_true();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::DxSyx);
+
+		expect(r.browser_on_stack()).to_be_true();
+		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"DX7"});
+		expect(catalogue_order()).to_equal(std::string(""));
+		expect(browser_scene().file_index()).to_equal(-1);
+		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{""});
+		expect(deluge::io::Directory::open("DX7").has_value()).to_be_true();
 	});
 });
 
@@ -1425,7 +960,7 @@ describe browser_preview("scenes::browser::BrowserScene asking for previews", $ 
 		ScratchCard card;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		expect(blank_start_path(f)).to_be_true();
-		sampleBrowser.lastFilePathLoaded = "SAMPLES/KICKS/KICK1.WAV";
+		deluge::model::lastFilePathLoaded() = "SAMPLES/KICKS/KICK1.WAV";
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::Sample);
 		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"SAMPLES/KICKS"});
@@ -1537,6 +1072,66 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		expect(r.shell.next_wake().has_value() && *r.shell.next_wake() - r.clock <= kListingPollMs).to_be_true();
 		run_until(r, r.clock + 400);
 		expect(r.shell.next_wake().has_value() && *r.shell.next_wake() - r.clock <= kListingPollMs).to_be_false();
+	});
+
+	it("counts one draw per previewed sample, a redraw per unfinished repaint, and the completed render", _ {
+		// A render the card has not caught up with is repainted as its clusters land: one draw, then a redraw that
+		// finishes it.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Sample* sample = make_overview_sample(16);
+		PreviewHeld held(sample);
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		const browser::WaveformDrawStats before = browser_scene().waveform_draw_stats();
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+		expect(browser_scene().waveform_redraw_pending()).to_be_true();
+		for (int32_t i = 16; i < 32; i++) {
+			sample->overviewCacheEntry(static_cast<uint32_t>(i)).investigated = true;
+		}
+		run_until(r, r.clock + 50);
+		const browser::WaveformDrawStats& s = browser_scene().waveform_draw_stats();
+		expect(s.draws - before.draws).to_equal(1);
+		expect(s.redraws - before.redraws >= 1).to_be_true();
+		expect(s.complete - before.complete).to_equal(1);
+		expect(s.give_ups - before.give_ups).to_equal(0);
+		expect(browser_scene().waveform_redraw_pending()).to_be_false();
+	});
+
+	it("counts one give-up when the card stops resolving columns for the give-up time", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample(16));
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		const browser::WaveformDrawStats before = browser_scene().waveform_draw_stats();
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+		expect(browser_scene().waveform_redraw_pending()).to_be_true();
+		run_until(r, r.clock + 400);
+		const browser::WaveformDrawStats& s = browser_scene().waveform_draw_stats();
+		expect(s.give_ups - before.give_ups).to_equal(1);
+		expect(s.complete - before.complete).to_equal(0);
+		expect(browser_scene().waveform_redraw_pending()).to_be_false();
+	});
+
+	it("drops a pending redraw when the preview gives its sample up", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample(16));
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+		expect(browser_scene().waveform_redraw_pending()).to_be_true();
+		held.range->sampleHolder.audioFile = nullptr;
+		deluge::notify::raise(deluge::notify::Dirty::GridMain);
+		run_until(r, r.clock + 50);
+		expect(browser_scene().waveform_redraw_pending()).to_be_false();
 	});
 
 	it("returns to the root state, blinking again, when the preview settles with no sample", _ {
@@ -1785,6 +1380,28 @@ describe browser_navigation("scenes::browser::BrowserScene navigation", $ {
 		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"SAMPLES/KICKS"});
 	});
 
+	it("closes with the card's error when the folder it enters has gone, without falling back to SAMPLES", _ {
+		// `goIntoFolder` lists with no default folder, so a folder that vanished under the browser fails the listing
+		// and `onListingFailed` closes it; only the opening listing falls back.
+		CleanBrowser clean;
+		ScratchCard card;
+		expect(deluge::io::mkdir("SAMPLES/GONE").has_value()).to_be_true();
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		expect(catalogue_order()).to_equal(std::string("CLAP.WAV,CLIPS,GONE,KICKS,SNARE.WAV,TOM.WAV"));
+
+		r.turn(2, r.clock + 10);
+		r.step();
+		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"GONE"});
+		expect(deluge::io::unlink("SAMPLES/GONE").has_value()).to_be_true();
+		r.enter();
+		r.land();
+
+		expect(r.browser_on_stack()).to_be_false();
+		expect(deluge::io::Directory::open("SAMPLES/GONE").has_value()).to_be_false();
+	});
+
 	it("refuses to enter SAMPLES/CLIPS/TEMP, and says why", _ {
 		CleanBrowser clean;
 		ScratchCard card;
@@ -1907,6 +1524,229 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 		r.backspace();
 		expect(browser_scene().cursor()).to_equal(1);
 		expect(browser_scene().file_index()).to_equal(3);
+	});
+
+	it("repeats backspace every 80 ms after a 500 ms hold, and refuses other input meanwhile", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		r.type(std::string_view{"SNARE"});
+		const int32_t start = browser_scene().cursor();
+		expect(start).to_equal(5);
+		// `QwertyUI::padAction` deletes at the press and arms a 500 ms timer; `timerCallback` repeats every 80 ms.
+		r.pad_backspace(true, 1000);
+		r.tick(1000);
+		expect(browser_scene().cursor()).to_equal(start - 1);
+		r.tick(1499);
+		expect(browser_scene().cursor()).to_equal(start - 1);
+		r.tick(1500);
+		expect(browser_scene().cursor()).to_equal(start - 2);
+		r.tick(1579);
+		expect(browser_scene().cursor()).to_equal(start - 2);
+		r.tick(1580);
+		expect(browser_scene().cursor()).to_equal(start - 3); // the press, then 500 and 580 ms
+		r.tick(1650);
+		expect(browser_scene().cursor()).to_equal(start - 3);
+		// UI_MODE_HOLDING_BACKSPACE refuses a key, Enter, BACK, SELECT and the sidebar.
+		const std::string dir{browser_scene().current_dir()};
+		DirectCtx d;
+		const Result back = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Back}, d.ctx);
+		const Result select = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::SelectEnc}, d.ctx);
+		const Result sidebar = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Pad, .x = kDisplayWidth, .y = 3, .velocity = 64}, d.ctx);
+		expect(back.handled && back.actions.empty()).to_be_true();
+		expect(select.handled && select.actions.empty()).to_be_true();
+		expect(sidebar.handled && sidebar.actions.empty()).to_be_true();
+		const Pad key = pad_for('A');
+		r.pad(static_cast<uint8_t>(key.x), static_cast<uint8_t>(key.y), 64, 1651);
+		r.tick(1651);
+		r.pad(static_cast<uint8_t>(key.x), static_cast<uint8_t>(key.y), 0, 1652);
+		r.tick(1652);
+		const Pad enter = pad_for(deluge::ui::grid::kTextKeyboardEnter);
+		r.pad(static_cast<uint8_t>(enter.x), static_cast<uint8_t>(enter.y), 64, 1653);
+		r.tick(1653);
+		r.pad(static_cast<uint8_t>(enter.x), static_cast<uint8_t>(enter.y), 0, 1654);
+		r.tick(1654);
+		expect(browser_scene().cursor()).to_equal(start - 3); // neither the key nor Enter acted
+		r.button(kBackX, kBackY, true, 1655);
+		r.tick(1655);
+		r.button(kBackX, kBackY, false, 1656);
+		r.tick(1656);
+		expect(browser_scene().current_dir()).to_equal(dir);
+		expect(r.browser_on_stack()).to_be_true();
+		// The repeat stops when the pad lifts.
+		r.pad_backspace(false, 1700);
+		r.tick(1700);
+		const int32_t stopped = browser_scene().cursor();
+		r.tick(2500);
+		expect(browser_scene().cursor()).to_equal(stopped);
+		// ...and the keys type again.
+		r.type('A');
+		expect(browser_scene().cursor()).to_equal(stopped + 1);
+	});
+
+	it("neither deletes nor holds backspace while Select is held, as QwertyUI::padAction's mode gate", _ {
+		// `QwertyUI::padAction`: `else if (!currentUIMode)` covers both `processBackspace` and the hold.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		r.type(std::string_view{"SNARE"});
+		const int32_t start = browser_scene().cursor();
+		const uint32_t down = press_select(r);
+		expect(browser_scene().holding()).to_be_true();
+		r.pad_backspace(true, down + 10);
+		r.tick(down + 10);
+		expect(browser_scene().cursor()).to_equal(start);
+		// Past the hold's 500 ms, still nothing: no repeat was armed.
+		r.tick(down + 400);
+		expect(browser_scene().cursor()).to_equal(start);
+		r.pad_backspace(false, down + 420);
+		r.tick(down + 420);
+	});
+
+	it("asks to be woken for the next backspace repeat", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		r.type(std::string_view{"SNARE"});
+		r.pad_backspace(true, 1000);
+		r.tick(1000);
+		const std::optional<uint32_t> first = browser_scene().next_timer();
+		expect(first.has_value()).to_be_true();
+		expect(first.value() <= deluge::ui::grid::kBackspaceRepeatDelayMs).to_be_true();
+		r.tick(1500);
+		const std::optional<uint32_t> next = browser_scene().next_timer();
+		expect(next.has_value()).to_be_true();
+		expect(next.value() <= deluge::ui::grid::kBackspaceRepeatMs).to_be_true();
+		r.pad_backspace(false, 1520);
+		r.tick(1520);
+	});
+
+	it("keeps repeating when a preview lands mid-hold, until the pad lifts", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		r.type(std::string_view{"SNARE"});
+		r.turn(1, r.clock + 10);
+		r.step();
+		r.horizontal(5);
+		const int32_t start = browser_scene().cursor();
+		expect(start).to_equal(3);
+		r.pad_backspace(true, r.clock + 1000);
+		const uint32_t at = r.clock + 1000;
+		r.tick(at);
+		browser_scene().preview_settled(true);
+		r.tick(at + 10);
+		expect(browser_scene().pads() == BrowserPads::Waveform).to_be_true();
+		r.tick(at + 500);
+		expect(browser_scene().cursor()).to_equal(start - 2); // the waveform over the keys does not end the hold
+		r.pad_backspace(false, at + 520);
+		r.tick(at + 520);
+		r.tick(at + 1200);
+		expect(browser_scene().cursor()).to_equal(start - 2);
+	});
+
+	it("arms the hold from a blind backspace under a waveform", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		r.type(std::string_view{"SNARE"});
+		r.turn(1, r.clock + 10);
+		r.step();
+		r.horizontal(5);
+		browser_scene().preview_settled(true);
+		r.step();
+		expect(browser_scene().pads() == BrowserPads::Waveform).to_be_true();
+		const int32_t start = browser_scene().cursor();
+		const uint32_t at = r.clock + 1000;
+		r.pad_backspace(true, at);
+		r.tick(at);
+		expect(browser_scene().cursor()).to_equal(start - 1);
+		r.tick(at + 500);
+		expect(browser_scene().cursor()).to_equal(start - 2);
+		r.pad_backspace(false, at + 520);
+		r.tick(at + 520);
+
+	});
+
+	it("enters the hold from a first backspace press on keys that are not drawn", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig hidden;
+		hidden.open_and_land(sound_context(f), BrowserId::Sample);
+		hidden.pad_backspace(true, hidden.clock + 100);
+		hidden.step();
+		const std::string dir{browser_scene().current_dir()};
+		hidden.button(kBackX, kBackY, true, hidden.clock + 10);
+		hidden.step();
+		hidden.button(kBackX, kBackY, false, hidden.clock + 10);
+		hidden.step();
+		expect(std::string{browser_scene().current_dir()}).to_equal(dir);
+		expect(hidden.browser_on_stack()).to_be_true();
+		hidden.pad_backspace(false, hidden.clock + 10);
+		hidden.step();
+	});
+
+	it("re-arms the repeat 80 ms after the callback that ran it, not after the schedule", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		r.type(std::string_view{"SNARE"});
+		const int32_t start = browser_scene().cursor();
+		const uint32_t at = r.clock + 1000;
+		r.pad_backspace(true, at);
+		r.tick(at);
+		r.tick(at + 530); // 30 ms late
+		expect(browser_scene().cursor()).to_equal(start - 2);
+		r.tick(at + 580); // the schedule said now; the callback said 610
+		expect(browser_scene().cursor()).to_equal(start - 2);
+		r.tick(at + 610);
+		expect(browser_scene().cursor()).to_equal(start - 3);
+		r.pad_backspace(false, at + 620);
+		r.tick(at + 620);
+	});
+
+	it("neither scrolls nor zooms a waveform while backspace is held", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		PreviewHeld held(make_overview_sample());
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
+		r.button(kXEncX, kXEncY, true, r.clock + 10);
+		r.step();
+		r.horizontal(1);
+		r.button(kXEncX, kXEncY, false, r.clock + 10);
+		r.step();
+		expect(browser_scene().waveform_nav().is_zoomed_in()).to_be_true();
+		r.pad_backspace(true, r.clock + 10);
+		r.step();
+		const int64_t scroll = browser_scene().waveform_nav().xScroll;
+		r.horizontal(1);
+		expect(browser_scene().waveform_nav().xScroll).to_equal(scroll);
+		r.pad_backspace(false, r.clock + 10);
+		r.step();
+		browser_scene().preview_settled(true);
+		run_until(r, r.clock + 50);
 	});
 
 	it("types across folders and files alike, and moves the viewport to the match", _ {
@@ -2143,23 +1983,17 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 	});
 });
 
-/// @par Each side from its own sentinel
+/// @par Against main's own navigation
 ///
-/// Every example here runs the SAME inputs twice: once through the shell into `BrowserScene`, and
-/// once through `Browser`'s own entry points on a freshly emptied catalogue (`legacy_run`). Neither
-/// run reads anything the other computed -- the only thing they share is the card on disk. Then both
-/// answers are compared: `fileIndexSelected`, `scrollPosVertical`, `enteredText`,
-/// `enteredTextEditPos`, `scrollPosHorizontal`, and the 128x48 panel.
-///
-/// That is what makes `Browser::arrivedInNewFolder`,
-/// `Browser::selectEncoderAction` (`:549`), `Browser::finishSelectEncoderAction` (`:702`),
-/// `Browser::clampFileSelectionAndScroll` (`:1009`), `Browser::goIntoFolderImpl` and
-/// `Browser::predictExtendedText` (`:782`) part of the oracle rather than dead code beside it. Both
-/// mutation directions were checked when this was written: an off-by-one in the port's clamp
-/// (`browser_scene.cpp`'s `clamp_selection_and_scroll`) fails these, and an off-by-one in
-/// `Browser::clampFileSelectionAndScroll` fails them too.
-describe browser_legacy_pixels("scenes::browser::BrowserScene against the legacy browser", $ {
-	it("lists and selects the same entry as Browser::arrivedInNewFolder", _ {
+/// Every example here runs inputs through the shell into `BrowserScene` and compares where it lands
+/// with where main's `Browser` landed after the same inputs on a freshly emptied catalogue over the
+/// same card, as `browser_scene.tsv`'s `browse/<case>` rows and `pixels/browser_<case>.pbm` hold it:
+/// `fileIndexSelected`, `scrollPosVertical`, `enteredText`, `enteredTextEditPos`,
+/// `scrollPosHorizontal`, the directory where a case walks, and the 128x48 panel. That is what puts
+/// main's `Browser::arrivedInNewFolder`, `selectEncoderAction`, `finishSelectEncoderAction`,
+/// `clampFileSelectionAndScroll`, `goIntoFolderImpl` and `predictExtendedText` behind these examples.
+describe browser_main_pixels("scenes::browser::BrowserScene against main's browser", $ {
+	it("lists and selects the same entry as main's Browser::arrivedInNewFolder", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
@@ -2171,10 +2005,10 @@ describe browser_legacy_pixels("scenes::browser::BrowserScene against the legacy
 		expect(port.index).to_equal(0);
 
 		// No input to replay: opening IS the input. Legacy lists the same folder for itself.
-		expect_same(self, port, legacy_run([](SpecBrowser&) {}));
+		expect_same(self, port, "open");
 	});
 
-	it("scrolls the same way as four turns of Browser::selectEncoderAction", _ {
+	it("scrolls the same way as four turns of main's Browser::selectEncoderAction", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
@@ -2195,14 +2029,10 @@ describe browser_legacy_pixels("scenes::browser::BrowserScene against the legacy
 
 		// Four detents, four `selectEncoderAction(+1)` calls -- the shell lowers one detent to one
 		// select-encoder step, which is the mapping this comparison is also pinning.
-		expect_same(self, port, legacy_run([](SpecBrowser& b) {
-			for (int i = 0; i < 4; i++) {
-				b.selectEncoderAction(1);
-			}
-		}));
+		expect_same(self, port, "four_turns");
 	});
 
-	it("wraps the same way as Browser::selectEncoderAction past the ends", _ {
+	it("wraps the same way as main's Browser::selectEncoderAction past the ends", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
@@ -2211,7 +2041,7 @@ describe browser_legacy_pixels("scenes::browser::BrowserScene against the legacy
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::Sample);
 		// One detent backwards from row 0: `selectEncoderAction`'s `newFileIndex < 0` arm
-		// (`browser.cpp:637-660`). With nothing culled at either end it wraps to the last entry and
+		// (`Browser::selectEncoderAction`). With nothing culled at either end it wraps to the last entry and
 		// `clampFileSelectionAndScroll` re-derives the window -- the arm neither example above
 		// reaches.
 		r.turn(-1, r.clock + 10);
@@ -2220,10 +2050,10 @@ describe browser_legacy_pixels("scenes::browser::BrowserScene against the legacy
 		const BrowserState port = port_state(r);
 		expect(port.index).to_equal(4);
 
-		expect_same(self, port, legacy_run([](SpecBrowser& b) { b.selectEncoderAction(-1); }));
+		expect_same(self, port, "wrap_back");
 	});
 
-	it("predicts the same text as Browser::predictExtendedText after typing", _ {
+	it("predicts the same text as main's Browser::predictExtendedText after typing", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
@@ -2235,22 +2065,18 @@ describe browser_legacy_pixels("scenes::browser::BrowserScene against the legacy
 		r.settle();
 		const BrowserState port = port_state(r);
 		// Cursor mid-string is `drawTextForOLEDEditing`'s OTHER arm -- the inversion from the cursor
-		// to the panel's right edge (`qwerty_ui.cpp:156-170`) -- so this compares a code path the
+		// to the panel's right edge (`QwertyUI::drawTextForOLEDEditing`) -- so this compares a code path the
 		// examples above do not reach.
 		expect(port.cursor).to_equal(1);
 		expect(static_cast<int>(port.text.size())).to_equal(5);
 
 		// The SAME pad, by coordinate. Legacy maps it through `keyboardChars`
-		// (`qwerty_ui.cpp:267-268`) and the port through `text_keyboard_char_at`; feeding both the
+		// (`QwertyUI::padAction`) and the port through `text_keyboard_char_at`; feeding both the
 		// coordinate rather than the character is what puts that mapping under the comparison too.
-		const Pad p = pad_for('S');
-		expect_same(self, port, legacy_run([p](SpecBrowser& b) {
-			b.padAction(p.x, p.y, 64);
-			b.padAction(p.x, p.y, 0);
-		}));
+		expect_same(self, port, "type_s");
 	});
 
-	it("ascends the same way as Browser::goUpOneDirectoryLevelImpl, landing on the folder it left", _ {
+	it("ascends the same way as main's Browser::goUpOneDirectoryLevelImpl, landing on the folder it left", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
@@ -2271,21 +2097,14 @@ describe browser_legacy_pixels("scenes::browser::BrowserScene against the legacy
 		const BrowserState port = port_state(r);
 		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"SAMPLES"});
 		// `goUpOneDirectoryLevelImpl` assigns the segment it dropped to `enteredText` and lists
-		// starting at it (`browser.cpp:1385-1392`), so the folder just left is the selection.
+		// starting at it (`Browser::goUpOneDirectoryLevelImpl`), so the folder just left is the selection.
 		expect(port.text).to_equal(std::string{"KICKS"});
 
-		const Pad enter_pad = pad_for(deluge::ui::grid::kTextKeyboardEnter);
-		expect_same(self, port, legacy_run([enter_pad](SpecBrowser& b) {
-			b.selectEncoderAction(1);
-			b.selectEncoderAction(1);
-			b.padAction(enter_pad.x, enter_pad.y, 64);
-			b.padAction(enter_pad.x, enter_pad.y, 0);
-			b.back();
-		}));
-		expect(Browser::currentDir).to_equal(std::string{"SAMPLES"});
+		expect_same(self, port, "ascend");
+		expect(std::string{browser_scene().current_dir()}).to_equal(table().value("browse/ascend", "dir"));
 	});
 
-	it("descends into a folder the same way as Browser::goIntoFolderImpl", _ {
+	it("descends into a folder the same way as main's Browser::goIntoFolderImpl", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
@@ -2305,16 +2124,10 @@ describe browser_legacy_pixels("scenes::browser::BrowserScene against the legacy
 		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"SAMPLES/KICKS"});
 		expect(port.text).to_equal(std::string{"KICK1"});
 
-		const Pad enter_pad = pad_for(deluge::ui::grid::kTextKeyboardEnter);
-		expect_same(self, port, legacy_run([enter_pad](SpecBrowser& b) {
-			b.selectEncoderAction(1);
-			b.selectEncoderAction(1);
-			b.padAction(enter_pad.x, enter_pad.y, 64);
-			b.padAction(enter_pad.x, enter_pad.y, 0);
-		}));
-		// Legacy walked into the same folder for itself, through `Browser::goIntoFolderImpl`
+		expect_same(self, port, "descend");
+		// Main walked into the same folder for itself, through `Browser::goIntoFolderImpl`
 		// rather than through a name this spec supplied.
-		expect(Browser::currentDir).to_equal(std::string{"SAMPLES/KICKS"});
+		expect(std::string{browser_scene().current_dir()}).to_equal(table().value("browse/descend", "dir"));
 	});
 });
 
@@ -2441,6 +2254,74 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		expect(browser_scene().take_choice().has_value()).to_be_false();
 	});
 
+	it("exits the browser and its folder menu on a mute-column press, as Kit::padAction hands it to the browser", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		const uint32_t down = press_select(r);
+		run_until(r, down + 410);
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		r.pad(kDisplayWidth, 2, 64, r.clock + 10);
+		r.step();
+		run_until(r, r.clock + 20);
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(r.browser_on_stack()).to_be_false();
+	});
+
+	it("refuses BACK and SELECT under the folder menu while an audition pad is held", _ {
+		// `ContextMenu::buttonAction` acts only in `buttonAndPadActionUIModes`, which a held audition pad is not.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		MenuContext ctx = sound_context(f);
+		spec::ForwardingFacts facts{*ctx.facts, {.auditioning = false}};
+		ctx.facts = &facts;
+		Rig r;
+		r.open_and_land(ctx, BrowserId::Sample);
+		const uint32_t down = press_select(r);
+		run_until(r, down + 410);
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		facts.set({.auditioning = true});
+		r.button(kBackX, kBackY, true, r.clock + 10);
+		r.step();
+		r.button(kBackX, kBackY, false, r.clock + 10);
+		r.step();
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, r.clock + 10);
+		r.step();
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, r.clock + 10);
+		r.step();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		expect(r.browser_on_stack()).to_be_true();
+		expect(browser_scene().take_choice().has_value()).to_be_false(); // the refused SELECT started no import
+		facts.set({.auditioning = false});
+	});
+
+	it("leaves every other button to the UI beneath under the folder menu while an audition pad is held", _ {
+		// `ContextMenu::buttonAction` refuses only BACK and SELECT; PLAY returns NOT_DEALT_WITH and falls through.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		MenuContext ctx = sound_context(f);
+		spec::ForwardingFacts facts{*ctx.facts, {.auditioning = false}};
+		ctx.facts = &facts;
+		Rig r;
+		r.open_and_land(ctx, BrowserId::Sample);
+		const uint32_t down = press_select(r);
+		run_until(r, down + 410);
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		facts.set({.auditioning = true});
+		DirectCtx d;
+		const Result play = context_menu_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Play}, d.ctx);
+		expect(play.handled).to_be_false();
+		facts.set({.auditioning = false});
+	});
+
 	it("ignores a Select turn while held", _ {
 		CleanBrowser clean;
 		ScratchCard card;
@@ -2489,6 +2370,23 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		const std::string name{browser_scene().entered_text()};
 		r.type(name.empty() ? 'C' : name[static_cast<size_t>(before)]);
 		expect(browser_scene().cursor()).to_equal(before);
+	});
+
+	it("refuses a Select turn while a sample load runs", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		MenuContext ctx = sound_context(f);
+		const spec::ForwardingFacts loading{*ctx.facts, {.sample_load_in_flight = true}};
+		ctx.facts = &loading;
+		Rig r;
+		r.open_and_land(ctx, BrowserId::Sample);
+		const int32_t before = browser_scene().file_index();
+		expect(static_cast<int32_t>(FileCatalogue::fileItems.size())).to_be_greater_than(1);
+		// `Browser::selectEncoderAction` turns only with no UI mode set, and the load holds one.
+		r.turn(1, r.clock + 10);
+		r.settle();
+		expect(browser_scene().file_index()).to_equal(before);
 	});
 
 	it("ignores a key typed while Select is held", _ {
@@ -2726,6 +2624,41 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		select_folder(r, true);
 		expect(kit.options_now != nullptr ? kit.options_now(sound_context(f), out) : 0).to_equal(size_t(1));
 		expect(static_cast<int>(out[0])).to_equal(0);
+	});
+
+	it("opens the slicer on the file the preview already holds without stopping it, as main's openUI(&slicer)", _ {
+		// `SampleBrowser`'s SLICE door is `openUI(&slicer)` with the preview left sounding: nothing stops it.
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		// The spec's sample has no lease, so a stop's unbind would freeze on it (E220): the open must not unbind.
+		Sample* const sample = make_overview_sample();
+		PreviewHeld held{sample};
+		held.range->sampleHolder.filePath = "SAMPLES/HELD.WAV";
+		deluge::gui::ui::openShellSlice("SAMPLES/HELD.WAV");
+		expect(held.range->sampleHolder.audioFile == sample).to_be_true();
+		expect(deluge::gui::ui::shellSlicerBusy()).to_be_false();
+		expect(deluge::scenes::slicing::slicer_scene().has_sample()).to_be_true();
+		deluge::gui::ui::releaseShellSlicerBeforeClose();
+		deluge::scenes::slicing::slicer_scene().open(nullptr);
+		held.range->sampleHolder.filePath.clear();
+	});
+
+	it("drops an open still loading when the slicer opens on the file the preview holds", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		// An open of another file, its load not yet run: the slicer waits on it.
+		deluge::gui::ui::openShellSlice("SAMPLES/OTHER.WAV");
+		expect(deluge::gui::ui::shellSlicerBusy()).to_be_true();
+		Sample* const sample = make_overview_sample();
+		PreviewHeld held{sample};
+		held.range->sampleHolder.filePath = "SAMPLES/HELD.WAV";
+		deluge::gui::ui::openShellSlice("SAMPLES/HELD.WAV");
+		// The slicer is open on the held file, and nothing is left to land over it.
+		expect(deluge::scenes::slicing::slicer_scene().has_sample()).to_be_true();
+		expect(deluge::gui::ui::shellSlicerBusy()).to_be_false();
+		deluge::gui::ui::releaseShellSlicerBeforeClose();
+		deluge::scenes::slicing::slicer_scene().open(nullptr);
+		held.range->sampleHolder.filePath.clear();
 	});
 
 	it("SLICE parks a slice of the selected file and keeps the menu", _ {
@@ -2976,7 +2909,7 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 	});
 
 	it("with auto-load on, a landed preview files a claim that keeps the browser open; a stop files none", _ {
-		// `SampleBrowser::tickPreview`: the landed file is claimed as Select would, with `loadWithoutExiting`.
+		// `SampleBrowser::tickPreview`: the landed file is claimed as Select would, keeping the browser open.
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
@@ -3077,7 +3010,7 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
-		sampleBrowser.lastFilePathLoaded = "SAMPLES/KICKS/KICK2 WITH A LONG ROOM TAIL.WAV";
+		deluge::model::lastFilePathLoaded() = "SAMPLES/KICKS/KICK2 WITH A LONG ROOM TAIL.WAV";
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"KICK2 WITH A LONG ROOM TAIL"});
@@ -3281,6 +3214,128 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		const Result opened = browser_scene().handle(
 		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Record}, d.ctx);
 		expect(find_action(opened, ShellAction::Kind::Push) != nullptr).to_be_true();
+	});
+
+	it("takes no BACK, SELECT, Select turn, key or mute-column press while an audition pad is held", _ {
+		// `Browser::buttonAction`, `Browser::selectEncoderAction`, `QwertyUI::padAction` and `SampleBrowser::padAction`
+		// each test `currentUIMode`, and a held audition pad is `UI_MODE_AUDITIONING`.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		MenuContext ctx = sound_context(f);
+		spec::ForwardingFacts facts{*ctx.facts, {.auditioning = false}};
+		ctx.facts = &facts;
+		Rig r;
+		r.open_and_land(ctx, BrowserId::Sample);
+		const std::string dir{browser_scene().current_dir()};
+		const int32_t index = browser_scene().file_index();
+		facts.set({.auditioning = true});
+		DirectCtx d;
+		Result taken[4];
+		taken[0] = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Back}, d.ctx);
+		taken[1] = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::SelectEnc}, d.ctx);
+		taken[2] = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = deluge::ui::EncoderRole::Select, .delta = 1}, d.ctx);
+		taken[3] = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Pad, .x = kDisplayWidth, .y = 3, .velocity = 64}, d.ctx);
+		// BACK, SELECT, the Select turn and the mute column: each is claimed and does nothing.
+		expect(taken[0].handled && taken[0].actions.empty()).to_be_true();
+		expect(taken[1].handled && taken[1].actions.empty()).to_be_true();
+		expect(taken[2].handled && taken[2].actions.empty()).to_be_true();
+		expect(taken[3].handled && taken[3].actions.empty()).to_be_true();
+		expect(browser_scene().holding()).to_be_false();
+		const Result released = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::SelectEnc}, d.ctx);
+		expect(released.actions.empty()).to_be_true();
+		// A key on the keyboard pads is not typed either.
+		r.click(kKeyboardX, kKeyboardY);
+		const std::string typed{browser_scene().entered_text()};
+		r.type('T');
+		r.backspace();
+		r.enter();
+		expect(std::string{browser_scene().entered_text()}).to_equal(typed);
+		expect(std::string{browser_scene().current_dir()}).to_equal(dir);
+		expect(browser_scene().file_index()).to_equal(index);
+		expect(r.browser_on_stack()).to_be_true();
+		facts.set({.auditioning = false});
+	});
+
+	it("walks nothing while X_ENC is held", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		const int32_t index = browser_scene().file_index();
+		r.button(kXEncX, kXEncY, true, r.clock + 10);
+		r.step();
+		r.turn(1, r.clock + 10);
+		r.step();
+		r.button(kXEncX, kXEncY, false, r.clock + 10);
+		r.step();
+		expect(browser_scene().file_index()).to_equal(index);
+	});
+
+	it("leaves RECORD to the global RECORD while a foreground recording is live, and stays up", _ {
+		// `SampleBrowser::buttonAction`'s RECORD arm needs `audioRecorder.recordingSource == NONE`.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::OUTPUT);
+		DirectCtx d;
+		const Result pressed = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Record}, d.ctx);
+		AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);
+		expect(pressed.handled).to_be_false();
+		expect(pressed.actions.empty()).to_be_true();
+		expect(r.browser_on_stack()).to_be_true();
+		expect(recorder::recorder_scene().recording()).to_be_false();
+	});
+
+	it("forgets the undo log as it opens, as SampleBrowser::opened does", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		// `getNewAction` refuses unless the current UI is the root, so a root is set for the seed and taken down again.
+		{
+			struct RootGuard {
+				RootGuard() { setRootUILowLevel(&instrumentClipView); }
+				~RootGuard() { nullifyUIs(); }
+				RootGuard(const RootGuard&) = delete;
+				RootGuard& operator=(const RootGuard&) = delete;
+			} root;
+			actionLogger.deleteAllLogs();
+			(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
+			expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		}
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
+	});
+
+	it("leaves KEYBOARD's and LOAD's LEDs as the view left them until each is pressed", _ {
+		// `SampleBrowser::opened` sets neither: over the keyboard screen KEYBOARD stays lit until its first press.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		expect(r.fake.leds().desired_declared[static_cast<size_t>(ButtonId::Keyboard)]).to_be_false();
+		expect(r.fake.leds().desired_declared[static_cast<size_t>(ButtonId::Load)]).to_be_false();
+		r.click(kKeyboardX, kKeyboardY);
+		expect(r.fake.leds().desired_declared[static_cast<size_t>(ButtonId::Keyboard)]).to_be_true();
+		expect(r.fake.leds().desired_declared[static_cast<size_t>(ButtonId::Load)]).to_be_false();
+		// `buttonAction` sets the LOAD LED on the release only: held, it is still the view's.
+		r.button(kLoadX, kLoadY, true, r.clock + 10);
+		r.step();
+		expect(r.fake.leds().desired_declared[static_cast<size_t>(ButtonId::Load)]).to_be_false();
+		r.button(kLoadX, kLoadY, false, r.clock + 10);
+		r.step();
+		expect(r.fake.leds().desired_declared[static_cast<size_t>(ButtonId::Load)]).to_be_true();
 	});
 
 	it("takes no BACK, RECORD or Shift+SAVE while Select is held, nor a Select press while X_ENC is", _ {
@@ -3573,9 +3628,22 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		expect(fake.bank).to_equal(uint8_t(5));
 	});
 });
+
+describe browser_scene_reference_rows("browser_scene: the reference rows", $ {
+	it("parses browser_scene.tsv clean and asks every row of it", _ {
+		spec::OracleTable& t = spec::OracleTable::named("browser_scene");
+		expect(t.problems().size()).to_equal(size_t{0});
+		expect(t.size()).to_equal(size_t{8});
+		expect(t.unasked()).to_equal(std::string{});
+	});
+
+	it("reads every panel frozen beside it", _ {
+		expect(spec::OracleFiles::unread("browser_")).to_equal(std::string{});
+	});
+});
     // clang-format on
 
     DELUGE_SPEC(browser_scene_spec, browser_descriptors, browser_composition, browser_open, browser_in_flight,
-                browser_navigation, browser_typing, browser_accept, browser_legacy_pixels, browser_goldens,
+                browser_navigation, browser_typing, browser_accept, browser_main_pixels, browser_goldens,
                 browser_long_press, browser_slicer_doors, browser_preview, browser_pads, browser_keyboard,
-                browser_scroll, browser_record_delete, browser_favourites)
+                browser_scroll, browser_record_delete, browser_favourites, browser_scene_reference_rows)

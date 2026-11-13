@@ -203,7 +203,7 @@ struct Descriptor {
 	/// @brief What accepting a *file* does. Legacy's `enterKeyPress`, minus the folder arm.
 	///
 	/// @note **Every file descriptor answers `DeferAndWait`, and that is a finding rather than a stub.** (The `.syx`
-	///       one's read goes through `dxCartridge`, for the same reason as the two below.)
+	///       one's read goes through `loadDxCartridgeFile` into the bank, for the same reason as the two below.)
 	///       `SampleBrowser`'s file arm requests a sample claim (`gui/ui/browser/sample_claim.h`),
 	///       which reaches `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and
 	///       `instrumentClipView`; `LoadMidiDeviceDefinitionUI`'s requests the instrument load
@@ -217,7 +217,7 @@ struct Descriptor {
 	///       `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp`, its
 	///       file-selector arm) writes `sampleBrowser.menuItemHeadingTo` and
 	///       `parentMenuHeadingTo` on the way *in*, and the claim's last step reads them back
-	///       (`SampleClaim::stepFinish`; `SampleBrowser::claimCurrentFile` on `main`) to re-root
+	///       (`SampleBrowser::finishLegacyClaim`; `SampleBrowser::claimCurrentFile` on `main`) to re-root
 	///       `soundEditor.menuItemNavigationRecord` onto the oscillator's horizontal page with the
 	///       file selector focused. So accepting a file lands the user on the source page, not back
 	///       on the item that opened the browser.
@@ -389,6 +389,14 @@ enum class BrowseBlink : uint8_t {
 	Browser, ///< The browser's own, every other cycle (`possiblySetUpBlinking`'s `setupExclusiveShortcutBlink`).
 };
 
+/// @brief What the preview waveform's renders came to, for a harness that drives the browser as a user does.
+struct WaveformDrawStats {
+	int32_t draws = 0;    ///< renders of a newly previewed sample
+	int32_t redraws = 0;  ///< renders of the same sample while it was unfinished
+	int32_t complete = 0; ///< renders that finished the sample's waveform
+	int32_t give_ups = 0; ///< unfinished waveforms left after `kWaveformRedrawGiveUpMs` with no column resolved
+};
+
 /// @brief The file browser. One instance for the whole application (`registry.h`).
 class BrowserScene final : public deluge::ui::shell::Scene {
 public:
@@ -439,7 +447,7 @@ public:
 	///
 	/// The sample browser greys the mute column only while its keyboard or a waveform shows, or over the keyboard
 	/// screen, and every column but the audition column otherwise: `SampleBrowser::getGreyoutColsAndRows`
-	/// (`gui/ui/browser/sample_browser.cpp:576-587`). The MIDI device definition browser greys every column, keyboard
+	/// (`gui/ui/browser/sample_browser.cpp`). The MIDI device definition browser greys every column, keyboard
 	/// included, as `LoadMidiDeviceDefinitionUI` does (`gui/ui/load/load_midi_device_definition_ui.cpp:41-44`).
 	deluge::ui::grid::GreyoutMask greyout_mask() const override {
 		if (id_ == BrowserId::MidiDeviceDefinition) {
@@ -492,6 +500,10 @@ public:
 	bool auto_load() const { return auto_load_; }
 	/// @brief The previewed waveform's scroll and zoom.
 	const deluge::sample::WaveformNav& waveform_nav() const { return nav_; }
+	/// @brief The preview waveform's render counts since the process began.
+	const WaveformDrawStats& waveform_draw_stats() const { return draw_stats_; }
+	/// @brief Whether an unfinished waveform is still being repainted as its clusters land.
+	bool waveform_redraw_pending() const { return redraw_resolved_cols_ >= 0 && !redraw_given_up_; }
 	/// @brief The navigator the preview drew @p sample's waveform through, or null when the preview shows another
 	///        waveform or none. `main`'s slicer renders through this view, `waveformBasicNavigator`, which only
 	///        `SampleBrowser::showPreview` sets up.
@@ -594,8 +606,8 @@ private:
 
 	/// @brief Build and file the request that opens the browser (`ListingAction::Open`).
 	void request_open();
-	/// @brief Fill in the fields every request of this scene's shares (extensions, flags, default
-	///        directory).
+	/// @brief Fill in the fields every request of this scene's shares (extensions, flags). The
+	///        opening listing adds the default directory itself (`request_open`).
 	/// @param action Which listing.
 	/// @return The request, ready for `file_request`.
 	ListingRequest make_request(ListingAction action) const;
@@ -711,14 +723,27 @@ private:
 	/// @return True when nothing outside `after_render` may touch `FileCatalogue` or file a
 	///         listing.
 	bool seam_busy() const { return listing_.in_flight() || listing_.has_result() || pending_.has_value(); }
-	/// @brief Whether a legacy UI mode is up: Select held for a long press, or X_ENC held. The buttons that legacy
-	///        gates on `currentUIMode` (BACK, Select's press, RECORD, Shift+SAVE, X_ENC) do nothing meanwhile.
-	bool mode_up() const { return holding_ || xenc_held_; }
+	/// @brief Whether a legacy UI mode is up: Select held for a long press, X_ENC held, or a backspace pad held
+	///        (`UI_MODE_HOLDING_BACKSPACE`). The buttons that legacy gates on `currentUIMode` (BACK, Select's press,
+	///        RECORD, Shift+SAVE, X_ENC) do nothing meanwhile.
+	bool mode_up() const {
+		return holding_ || xenc_held_ || backspace_due_ms_.has_value()
+		       || (ctx_.facts != nullptr && ctx_.facts->auditioning());
+	}
 	/// @brief The sample browser's gate (`SampleBrowser::buttonAction` and `padAction`): an explicit sample load or a
 	///        folder import is running, and every button and key is refused until it ends.
 	bool load_running() const {
 		return id_ == BrowserId::Sample && ctx_.facts != nullptr && ctx_.facts->sample_load_in_flight();
 	}
+
+	/// `QwertyUI::padAction`'s `UI_MODE_HOLDING_BACKSPACE`: set by a backspace press, holding the tick the next repeat
+	/// is due, and reset when the pad lifts. `backspace_pad_down_` is the pad's level as the last grid pass read it.
+	/// @{
+	std::optional<uint32_t> backspace_due_ms_{};
+	bool backspace_pad_down_ = false;
+	/// @}
+	/// @brief Enter the hold: the first repeat is due `kBackspaceRepeatDelayMs` from this tick.
+	void arm_backspace_hold();
 
 	menu::MenuContext ctx_{};
 	BrowserId id_ = BrowserId::Sample;
@@ -771,6 +796,10 @@ private:
 	bool keys_drawn_ = false;
 	bool showing_preview_ = false;
 	bool keyboard_always_visible_ = false;
+	/// Whether KEYBOARD / LOAD has been pressed since the open: `SampleBrowser::opened` sets neither LED, so until then
+	/// the view's state stands.
+	bool keyboard_led_touched_ = false;
+	bool load_led_touched_ = false;
 	bool auto_load_ = false;
 	/// X_ENC is held: legacy's `UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`, entered only with no other mode.
 	bool xenc_held_ = false;
@@ -803,6 +832,9 @@ private:
 	/// The incomplete render's progress: the columns it had resolved, and when that last grew (-1: none pending).
 	int32_t redraw_resolved_cols_ = -1;
 	uint32_t redraw_progress_ms_ = 0;
+	/// The unfinished render stopped being repainted for want of progress.
+	bool redraw_given_up_ = false;
+	WaveformDrawStats draw_stats_{};
 	/// The BROWSE pad's blink: which one runs, the cycle's start (reset whenever one is armed), and the last step
 	/// flashed.
 	BrowseBlink browse_blink_ = BrowseBlink::Off;

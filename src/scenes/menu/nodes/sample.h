@@ -39,13 +39,18 @@
 ///
 /// @note **No refusal is spelled here, deliberately.** Legacy refuses in
 ///       `checkPermissionToBeginSession`, which `SoundEditor::setup` consults *before* navigating;
-///       the port splits that in two. The range half is `menu::permission_for` +
-///       `MenuScene::enter_child` (`Node::range_dependent`, which all but `audio_clip_waveform`
-///       carry -- exactly as legacy, whose `audio_clip::SampleMarkerEditor` overrides no
-///       `isRangeDependent`). The rest -- `LoopPoint`'s "make sure a Sample is loaded"
-///       (`sample/loop_point.cpp:50-55`), `audio_clip::SampleMarkerEditor`'s null `sampleHolder.
-///       audioFile` (`audio_clip/sample_marker_editor.cpp:35-38`), `AudioRecorder`'s
-///       "already recording" (`gui/ui/audio_recorder.cpp:70-72`) -- is each scene's own `can()`,
+///       the port splits that in two. The range half is `menu::permission_for` and the walk's range
+///       gate (`MenuWalk::enter_range_picker_if_needed`, `MenuScene::on_enter`'s deep link), which
+///       make the first range and refuse with INSUFFICIENT_RAM before the item is focused, so
+///       `on_focus` never meets a source without one. They ask about the item's own source
+///       (`CustomItem::range_source`, `menu::range_rule_context`), as `main`'s overrides pass their
+///       own `source_id_`: REC 2 under oscillator 1's context is about oscillator 2.
+///       `Node::range_specific` is carried by all but `audio_clip_waveform` -- exactly as legacy,
+///       whose `audio_clip::SampleMarkerEditor` does not route through
+///       `checkPermissionToBeginSessionForRangeSpecificParam`. The rest -- `LoopPoint`'s "make sure a Sample is
+///       loaded" (`sample/loop_point.cpp:50-55`), `audio_clip::SampleMarkerEditor`'s null
+///       `sampleHolder.audioFile` (`audio_clip/sample_marker_editor.cpp:35-38`), `AudioRecorder`'s
+///       "already recording" (`AudioRecorder::opened`) -- is each scene's own `can()`,
 ///       consulted by its `on_enter`. A refused push is not a lost frame: `SceneStack::push`
 ///       (`shell/scene_stack.cpp`) unwinds and resumes the input top, which is the menu
 ///       whenever the refused scene is an opaque one (all of these are) -- and that is where
@@ -73,6 +78,7 @@ public:
 	///        (the audio clip's waveform view). Exposed so a spec can assert the item-to-source
 	///        mapping by identity rather than re-deriving it.
 	int8_t source_index() const { return source_index_; }
+	int8_t range_source() const final { return source_index_; }
 
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const final;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
@@ -95,12 +101,6 @@ class FileBrowserItem final : public SampleSceneItem {
 public:
 	explicit FileBrowserItem(int8_t source_index) : SampleSceneItem{source_index} {}
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
-
-	/// `FileSelector::selectButtonPress` opens the browser outright, bypassing every permission and
-	/// range check (`file_selector.cpp:49-52`) -- see `CustomItem::opens_directly_on_horizontal_
-	/// select`'s own doc. `MarkerItem` and `AudioRecorderItem` take no such override: their legacy
-	/// classes inherit the base `selectButtonPress()`, so a select press on them just ascends.
-	bool opens_directly_on_horizontal_select() const override { return true; }
 };
 
 /// @brief `sample::Start` / `sample::End` / `audio_clip::SampleMarkerEditor` -- opens the sample
@@ -154,12 +154,13 @@ inline const MarkerItem kSample0Start{0, 0}; ///< `MarkerType::START`
 inline const MarkerItem kSample1Start{1, 0}; ///< `MarkerType::START`
 inline const MarkerItem kSample0End{0, 3};   ///< `MarkerType::END`
 inline const MarkerItem kSample1End{1, 3};   ///< `MarkerType::END`
-/// `audioClipSampleMarkerEditorMenuEnd` (`gui/ui/menus.cpp:1183`) -- the **END** marker, and the
-/// only one of the pair the audio-clip root shows (`menus.cpp:1193`, `audioClipSampleMenu`). Its
-/// sibling `audioClipSampleMarkerEditorMenuStart` (`:1182`) is reachable only from the grid
-/// shortcut table (`gui/ui/sound_editor.cpp:157-158`), which is `menu/shortcuts.h`'s business and
-/// not a node in any submenu.
+/// `audioClipSampleMarkerEditorMenuEnd` -- the **END** marker, and the only one of the pair the audio-clip root shows
+/// (`audioClipSampleMenu` in `gui/ui/menus.cpp`). Its sibling `audioClipSampleMarkerEditorMenuStart` is reachable only
+/// from the V1 grid shortcut table (`setShortcutsVersion` in `gui/ui/sound_editor.cpp`), which is
+/// `menu/shortcuts.h`'s business and not a node in any submenu.
 inline const MarkerItem kAudioClipWaveform{-1, 3};
+/// `audioClipSampleMarkerEditorMenuStart`: the **START** marker of the audio clip's waveform.
+inline const MarkerItem kAudioClipWaveformStart{-1, 0};
 
 inline const AudioRecorderItem kSample0Recorder{0};
 inline const AudioRecorderItem kSample1Recorder{1};

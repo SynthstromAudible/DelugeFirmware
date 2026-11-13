@@ -329,6 +329,19 @@ deluge::ui::shell::Result DxCartridgeItem::handle(const deluge::ui::shell::UiEve
 // ---------------------------------------------------------------------------------------------
 // `DxEngineSelect` (`gui/menu_item/dx/engine_select.cpp`)
 
+namespace {
+
+/// The three engine modes, in the order `DxEngineSelect::drawPixelsForOled` lists them.
+constexpr std::array<std::string_view, 3> kEngineModes{"auto", "modern", "vintage"};
+
+} // namespace
+
+size_t dx_engine_names(const MenuContext& /*ctx*/, std::span<std::string_view> out) {
+	const size_t count = std::min(kEngineModes.size(), out.size());
+	std::copy_n(kEngineModes.begin(), count, out.begin());
+	return count;
+}
+
 void DxEngineSelectItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	const std::optional<deluge::instrument::DxPatchState> patch = patch_of(ctx);
 	focus_list(state, static_cast<int16_t>(patch ? patch->engine_mode : 0));
@@ -345,11 +358,10 @@ void DxEngineSelectItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 	deluge::ui::ListState& list = state.list[depth_of(state)];
 	// `selectEncoderAction` (`engine_select.cpp:51-65`): a turn that would leave the three modes does nothing at all,
 	// rather than stopping at the end.
-	constexpr std::array<std::string_view, 3> kModes{"auto", "modern", "vintage"};
 	list.freeze_cursor = true;
 	if (const auto t = static_cast<int32_t>(deluge::ui::oled::select_delta(f)); t != 0) {
 		const int32_t next = list.cursor + t;
-		if (next >= 0 && next < std::ssize(kModes)) {
+		if (next >= 0 && next < std::ssize(kEngineModes)) {
 			if (std::optional<deluge::instrument::DxPatchState> patch = patch_of(ctx)) {
 				patch->engine_mode = static_cast<uint8_t>(next);
 				write_patch(ctx, *patch);
@@ -358,7 +370,7 @@ void DxEngineSelectItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 			f.gate().request_repaint();
 		}
 	}
-	(void)draw_list(f, state, kModes); // SELECT ascends: `selectButtonPress` answers nothing
+	(void)draw_list(f, state, kEngineModes); // SELECT ascends: `selectButtonPress` answers nothing
 }
 
 deluge::ui::InputClaims DxEngineSelectItem::owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const {

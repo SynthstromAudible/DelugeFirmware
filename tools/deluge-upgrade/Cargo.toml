@@ -11,7 +11,7 @@ license = "GPL-3.0-or-later"
 thiserror = "2"
 # The firmware's own WAV/AIFF header decoding, for the sample lengths and rates a zone in milliseconds needs.
 # Keep the rev with src/bsp/rust/Cargo.toml's deluge-sdk pin.
-deluge_audio_format = { package = "deluge-audio-format", git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "3a6260680857c48d3f70f4eaa5077c01e9685e4f" }
+deluge_audio_format = { package = "deluge-audio-format", git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d" }
 
 # A desktop tool, built on its own: not a member of the firmware's Rust workspaces.
 [workspace]

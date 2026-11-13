@@ -40,7 +40,7 @@ inline constexpr uint32_t kMinUpdateIntervalMs = 45;     // kSampleRate / 22, ~4
 inline constexpr uint32_t kPopupLifetimeMs = 2000;
 
 /// @brief A bounded, no-allocation append target -- `etl::string<40>`'s append-and-truncate
-///        behaviour (`view.cpp`'s `parameter_name`/`parameter_value`), without the
+///        behaviour (`View::displayModEncoderValuePopup`'s `parameter_name`/`parameter_value`), without the
 ///        dependency.
 struct FixedAppend {
 	char* buf;

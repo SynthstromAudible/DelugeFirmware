@@ -37,14 +37,14 @@ open	src/deluge/gui/ui/ui.cpp	^setRootUILowLevel\(UI\*\)$	audio×interaction	sta
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderReverb\(unsigned long\)$	audio×interaction	state: global 'AudioEngine::mustUpdateReverbParamsBeforeNextRender'
 open	src/deluge/processing/engines/audio_engine.cpp	^_ZZN11AudioEngine12getNumVoicesEvENK3\$_0clIP5SoundEEDaT_$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' — AudioEngine::sounds / Sound::voices_ walked by audio while mutated; SEGV in 2/10 triage runs — C2
 open	src/deluge/deluge.cpp	^deleteOldSongBeforeLoadingNew\(\)$	audio×interaction	state: global 'currentSong'
-open	src/deluge/gui/ui/audio_recorder.cpp	^AudioRecorder::beginOutputRecording\(AudioRecordingFolder, AudioInputChannel, bool, bool\)$	audio×interaction	state: global 'AudioEngine::bypassCulling'
+open	src/deluge/processing/recording/foreground_recording.cpp	^deluge::recording::beginOutputRecording\(AudioRecordingFolder, AudioInputChannel, bool, bool\)$	audio×interaction	state: global 'AudioEngine::bypassCulling'
 open	src/deluge/gui/ui/ui.cpp	^nullifyUIs\(\)$	audio×interaction	state: global 'numUIsOpen'
 open	src/deluge/io/debug/resource_clock.cpp	^deluge_debug_now_frames$	audio×storage	state: global 'AudioEngine::audioSampleTimer'
 open	src/deluge/model/output.cpp	^Output::setActiveClip\(ModelStackWithTimelineCounter\*, PgmChangeSend\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL'
 open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::doSongSwap\(bool\)$	audio×interaction	state: global 'AudioEngine::bypassCulling'
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::getNumSamplesLeftToOutputFromPreviousRender\(\)$	audio×interaction	state: global 'AudioEngine::renderingBufferOutputPos'
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::getReverbParamsFromSong\(Song\*\)$	audio×interaction	state: global 'AudioEngine::reverbSidechainVolume'
-open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::setMonitoringMode\(\)$	audio×interaction	state: global 'audioRecorder'
+open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::setMonitoringMode\(\)$	audio×interaction	state: globals 'AudioEngine::(anonymous namespace)::foregroundSource', 'AudioEngine::(anonymous namespace)::foregroundRecorderPtr'
 open	src/deluge/processing/sound/sound.cpp	^Sound::renderingVoicesInStereo\(ModelStackWithSoundFlags\*\)$	audio×interaction	state: global 'AudioEngine::renderInStereo'
 open	src/deluge/modulation/arpeggiator.cpp	^ArpeggiatorSettings::updateParamsFromUnpatchedParamSet\(UnpatchedParamSet\*\)$	audio×interaction	state: arpeggiator settings written by the UI while the render reads them (seen in the 2026-09-26 probe, 10+ hits; not in the 10-run triage)
 open	src/deluge/modulation/arpeggiator.cpp	^ArpeggiatorSettings::cloneFrom\(ArpeggiatorSettings const\*\)$	audio×interaction	state: arpeggiator settings copied while the render reads them (2026-09-26 probe; not in the 10-run triage)
@@ -59,7 +59,7 @@ open	src/deluge/gui/ui/ui.cpp	^changeRootUI\(UI\*\)$	audio×interaction	state: g
 open	src/deluge/model/sample/sample_recorder.cpp	^SampleRecorder::feedAudio\(std::span<(deluge::dsp::)?StereoSample, 18446744073709551615ul>, bool, unsigned char\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen once runs stopped crashing: C2a Lens 2 pass, 2026-09-27)
 open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::actionTimerTick\(\)$	audio×interaction	state: global 'playbackHandler' (first seen once runs stopped crashing: C2a Lens 2 pass, 2026-09-27)
 open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::scheduleNextTimerTick\(unsigned int\)$	audio×interaction	state: global 'playbackHandler' (first seen once runs stopped crashing: C2a Lens 2 pass, 2026-09-27)
-open	src/deluge/gui/ui/audio_recorder.cpp	^AudioRecorder::setupRecordingToFile\(AudioInputChannel, int, AudioRecordingFolder, bool, bool\)$	audio×interaction	state: global 'audioRecorder' (first seen once runs stopped crashing: C2a Lens 2 pass, 2026-09-27)
+open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::setForegroundRecording\(SampleRecorder\*, AudioInputChannel\)$	audio×interaction	state: globals 'AudioEngine::(anonymous namespace)::foregroundSource', 'AudioEngine::(anonymous namespace)::foregroundRecorderPtr' (first seen once runs stopped crashing: C2a Lens 2 pass, 2026-09-27)
 open	src/deluge/gui/ui_timer_manager.cpp	^UITimerManager::setTimerSamples\(TimerName, int\)$	audio×interaction	state: global 'AudioEngine::audioSampleTimer' (first seen once runs stopped crashing: C2a Lens 2 pass, 2026-09-27)
 open	src/deluge/playback/playback_handler.h	^PlaybackHandler::isExternalClockActive\(\)$	audio×interaction	state: global 'playbackHandler' (first seen once runs stopped crashing: C2a Lens 2 pass, 2026-09-27)
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::outputStage\(DelugeStereoSample\*, unsigned int, unsigned int\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen once runs stopped crashing: C2a Lens 2 pass, 2026-09-27)
@@ -107,7 +107,8 @@ open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderAppBlock
 #   Render-routine globals (audioSampleTimer, renderingBufferOutputPos, renderInStereo,
 #     bypassCulling): deluge_app_render, AudioEngine::renderAppBlock,
 #     getNumSamplesLeftToOutputFromPreviousRender, UITimerManager::workOutNextEventTime, deluge_debug_now_frames, PadLEDs::reassessGreyout,
-#     Sound::renderingVoicesInStereo, deluge::model::hostFxInputs, inputRoutine, AudioRecorder::beginOutputRecording, PlaybackHandler::doSongSwap
+#     Sound::renderingVoicesInStereo, deluge::model::hostFxInputs, inputRoutine, deluge::recording::beginOutputRecording, PlaybackHandler::doSongSwap,
+#     deluge::sample::advance_overview_scan
 #   Reverb (reverbSidechainVolume, mustUpdateReverbParamsBeforeNextRender): updateReverbParams, getReverbParamsFromSong, renderReverb
 #     (AudioEngine::reverb's knobs and model reach the render through effects::Reverb::publish and
 #     begin_change/commit, inside AudioExcludedSections; a song swap at a launch rebuilds it on the audio tier, and
@@ -116,8 +117,8 @@ open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderAppBlock
 #     Output::setActiveClip
 #   The UI navigation stack (uiNavigationHierarchy, numUIsOpen): getCurrentUI, uiStackEmpty, openUI, setRootUILowLevel, nullifyUIs,
 #     changeRootUI
-#   The recorder list and monitoring (AudioEngine::firstRecorder, audioRecorder): getNewRecorder, setMonitoringMode,
-#     Song::renderAudio, SampleRecorder::feedAudio, AudioRecorder::setupRecordingToFile, AudioEngine::outputStage
+#   The recorder list and monitoring (AudioEngine::firstRecorder, the foreground recording): getNewRecorder, setMonitoringMode,
+#     Song::renderAudio, SampleRecorder::feedAudio, AudioEngine::setForegroundRecording, AudioEngine::outputStage
 #   Debug log buffer (logDebug::buffer): printf _out_buffer
 #   Memory the render read, freed and reused by the interaction tier (heap arena; TSan sees a constructor writing
 #     where audio last read): Song::Song, ModControllableAudio, AutoParam, FilterSet, the ladders' Linked, DelayBuffer,

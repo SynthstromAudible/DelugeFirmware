@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/sound_target.h"
 #include "model/sample/pitch_scan.h"
 #include "runtime/app_loop.h"
 #include "storage/audio/latest_sample_load.h"
@@ -29,6 +30,8 @@
 class AudioFile;
 class AudioFileHolder;
 class Sample;
+class SoundDrum;
+class Source;
 
 namespace deluge::gui {
 
@@ -48,9 +51,10 @@ struct ClaimRequest {
 	int32_t mayDoSingleCycle = 1;
 	int32_t mayDoWaveTable = 1;
 	/// @}
-	bool loadWithoutExiting = false; ///< Keep the browser open once the file is claimed (auto-load).
 	ClaimOrigin origin = ClaimOrigin::Explicit;
 	void (*completion)(bool success) = nullptr; ///< Told how the claim ended. A cancelled claim tells it nothing.
+	/// The sound the claim loads into: the menu's resolved sound, source and range.
+	SoundTarget target{};
 };
 
 /// @brief The sample browser's claim: loading the file the browser is on into the current synth, kit drum or audio
@@ -177,5 +181,12 @@ private:
 };
 
 extern SampleClaim sampleClaim;
+
+/// @brief Make a kit drum whose one-shot sample's name says kick or bd send to the sidechain at full level, as a sample
+///        browser load does.
+/// @param drum     The drum that took the sample.
+/// @param source   The source holding the sample; only a ONCE repeat mode qualifies.
+/// @param fileName The sample's file name or path.
+void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName);
 
 } // namespace deluge::gui

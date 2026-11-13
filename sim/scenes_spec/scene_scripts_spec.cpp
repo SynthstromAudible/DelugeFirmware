@@ -740,8 +740,8 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 
 		// **`ModKnobs` DOES see the turn now, and shows it.** With `int_value` claiming only the
 		// turn, the two `GoldUpper` steps reach `services::ModKnobs::mod_encoder_action`, the port of
-		// `View::modEncoderAction` -- the `+1` at 100 ms is swallowed by
-		// `pretend_knobs_untouched()` exactly as before, and the `+2` at 150 ms edits whatever real
+		// `View::modEncoderAction` -- the `+1` at 100 ms is swallowed
+		// exactly as before, and the `+2` at 150 ms edits whatever real
 		// modulation param GoldUpper is currently pointed at (not `nodes::saturation`, per above),
 		// moving that param's own knob-indicator ring: `idle`'s `indicator upper` is `16`, and
 		// `after_gold_turn`'s is `36`. `ModKnobs::popup_suppressed`, the port

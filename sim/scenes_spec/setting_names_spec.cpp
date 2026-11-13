@@ -1,14 +1,12 @@
 /// @file
-/// @brief The host's name table against the legacy menu items and the legacy param names.
+/// @brief The host's name table against the reference rows of the menu items and the legacy param names.
 ///
 /// Every setting row a menu shows, in every table that owns one (the engines' and each model setting group), has
-/// names under its owner, equal to what its legacy item shows: its title and name, and for a list its options (full
-/// and short) in each context the list changes with. A row with no single legacy item is one of
-/// `descriptor_legacy_spec.cpp`'s named skips, and a row no menu shows is named below; neither has names. Every param
-/// of the two engine tables has a name equal to `getParamDisplayName`'s, the morph params under each pair of filter
-/// modes included, and an id outside an engine's table has none.
-///
-/// @note The SPEC may include `gui/menu_item/`; the library may not (`scripts/check_layer_rules.py`).
+/// names under its owner, equal to what its item showed (`tests/golden/ui/menu_oracle/descriptors.tsv`): its title and
+/// name, and for a list its options (full and short) in each context the list changes with. A row with no single item
+/// is one of `descriptor_legacy_spec.cpp`'s named skips, and a row no menu shows is named below; neither has names.
+/// Every param of the two engine tables has a name equal to `getParamDisplayName`'s, the morph params under each pair
+/// of filter modes included, and an id outside an engine's table has none.
 
 #include "support/descriptor_cases.h"
 #include "support/menu_engine.h"
@@ -113,19 +111,9 @@ bool covered(const NamesOwner& owner, std::string_view path) {
 	return false;
 }
 
-/// @brief The legacy item's options, full or short.
-std::vector<std::string> options_of(::MenuItem* item, legacy::Selection::OptType type) {
-	std::vector<std::string> out;
-	if (auto* list = dynamic_cast<legacy::Selection*>(item); list != nullptr) {
-		for (std::string_view option : list->getOptions(type)) {
-			out.emplace_back(option);
-		}
-	}
-	return out;
-}
-
-bool has_options(::MenuItem* item) {
-	return dynamic_cast<legacy::Selection*>(item) != nullptr;
+/// @brief Whether the item showing @p c lists options, which its rows say by holding them.
+bool has_options(const Case& c) {
+	return frozen().find(case_key(c), "options/full") != nullptr;
 }
 
 /// @brief The groups whose rows are named but not driven by the range, read and write checks: their cases list the
@@ -135,12 +123,15 @@ bool named_only(const Case& c) {
 	       || c.family == Family::AUDIO_INPUT;
 }
 
-/// @brief One case's names, under each owner of its table, against its legacy item in its context.
-void check_names(auto& self, const Case& c) {
+/// @brief One case's names, under each owner of its table, against its item's rows in its context.
+/// @param variant The column suffix of a state the rows were also taken in (`@plugged`).
+void check_names(auto& self, const Case& c, std::string_view variant = {}) {
 	enter(c.where, c.source);
 	const SettingInfo& row = row_of(c);
-	const std::vector<std::string> full = options_of(c.item, legacy::Selection::OptType::FULL);
-	const std::vector<std::string> shortened = options_of(c.item, legacy::Selection::OptType::SHORT);
+	const std::string key = case_key(c);
+	const auto column = [&](const std::string& base) { return base + std::string{variant}; };
+	const std::vector<std::string>* full = frozen().find(key, column("options/full"));
+	const std::vector<std::string>* shortened = frozen().find(key, column("options/short"));
 	for (const NamesOwner& owner : owners_of(c.family)) {
 		const SettingNames* names = setting_names(owner, c.path, context_of(c.where, c.family));
 		expect(std::string{c.path} + (names != nullptr ? " has names" : " has no names"))
@@ -149,12 +140,16 @@ void check_names(auto& self, const Case& c) {
 			continue;
 		}
 		expect(std::string{c.path} + " title " + title_of(*names, c.path))
-		    .to_equal(std::string{c.path} + " title " + std::string{c.item->getTitle()});
+		    .to_equal(std::string{c.path} + " title " + cell(key, column("title")));
 		expect(std::string{c.path} + " name " + text(names->name))
-		    .to_equal(std::string{c.path} + " name " + std::string{c.item->getName()});
-		if (!has_options(c.item)) {
+		    .to_equal(std::string{c.path} + " name " + cell(key, column("name")));
+		if (full == nullptr) {
 			expect(std::string{c.path} + " lists " + std::to_string(names->choices.size()))
 			    .to_equal(std::string{c.path} + " lists 0");
+			continue;
+		}
+		expect(shortened != nullptr).to_be_true(std::string{c.path} + " has short options");
+		if (shortened == nullptr) {
 			continue;
 		}
 		// A CHOICE row's list is its applicable choices in order; any other row's is its menu values.
@@ -162,19 +157,22 @@ void check_names(auto& self, const Case& c) {
 		    applicable(row, context_of(c.where, c.family), enter(c.where, c.source), c.where);
 		if (row.kind != SettingKind::CHOICE || named_only(c)) {
 			choices.clear();
-			for (size_t i = 0; i < full.size(); ++i) {
+			for (size_t i = 0; i < full->size(); ++i) {
 				choices.push_back(static_cast<int32_t>(i));
 			}
 		}
-		expect(std::string{c.path} + " offers " + std::to_string(full.size()))
+		expect(std::string{c.path} + " offers " + std::to_string(full->size()))
 		    .to_equal(std::string{c.path} + " offers " + std::to_string(choices.size()));
-		for (size_t position = 0; position < choices.size() && position < full.size(); ++position) {
+		expect(std::string{c.path} + " short options " + std::to_string(shortened->size()))
+		    .to_equal(std::string{c.path} + " short options " + std::to_string(full->size()));
+		for (size_t position = 0; position < choices.size() && position < full->size() && position < shortened->size();
+		     ++position) {
 			const int32_t choice = choices[position];
 			const std::string at = std::string{c.path} + " choice " + std::to_string(choice);
 			expect(at + " " + choice_text(*names, static_cast<size_t>(choice), false))
-			    .to_equal(at + " " + full[position]);
+			    .to_equal(at + " " + (*full)[position]);
 			expect(at + " short " + choice_text(*names, static_cast<size_t>(choice), true, c.where == Where::KIT_LANE))
-			    .to_equal(at + " short " + shortened[position]);
+			    .to_equal(at + " short " + (*shortened)[position]);
 		}
 	}
 }
@@ -192,7 +190,7 @@ void run_plugged_names(auto& self) {
 	AudioEngine::micPluggedIn = true;
 	for (const Case* c : all_cases()) {
 		if (c->path.starts_with("osc") && c->path.ends_with("/type")) {
-			check_names(self, *c);
+			check_names(self, *c, "@plugged");
 		}
 	}
 	AudioEngine::micPluggedIn = false;
@@ -312,10 +310,10 @@ describe setting_names_spec_body("The host's name table", $ {
 		expect(text_of(plugin::kDelugeInstrument, "mode")).to_equal(std::string{"Synth Mode"});
 		expect(setting_names(SettingGroupId::TRACK, "mode") == nullptr).to_be_true();
 	});
-	it("gives a CHOICE row with a legacy list one name per choice", _ {
+	it("gives a CHOICE row with a list one name per choice", _ {
 		for (const Case* c : all_name_cases()) {
 			const SettingInfo& row = row_of(*c);
-			if (row.kind != SettingKind::CHOICE || !has_options(c->item)) {
+			if (row.kind != SettingKind::CHOICE || !has_options(*c)) {
 				continue;
 			}
 			for (const NamesOwner& owner : owners_of(c->family)) {
@@ -329,30 +327,30 @@ describe setting_names_spec_body("The host's name table", $ {
 			}
 		}
 	});
-	it("names each row as its legacy item does: the voice rows", _ {
+	it("names each row as its item's rows do: the voice rows", _ {
 		run_names(self, voice_cases());
 	});
-	it("names each row as its legacy item does: the oscillator rows", _ {
+	it("names each row as its item's rows do: the oscillator rows", _ {
 		run_names(self, oscillator_cases());
 		run_plugged_names(self);
 	});
-	it("names each row as its legacy item does: the LFO and modulator rows", _ {
+	it("names each row as its item's rows do: the LFO and modulator rows", _ {
 		run_names(self, lfo_and_modulator_cases());
 	});
-	it("names each row as its legacy item does: the unison and MIDI rows", _ {
+	it("names each row as its item's rows do: the unison and MIDI rows", _ {
 		run_names(self, unison_and_midi_cases());
 	});
-	it("names each row as its legacy item does: the effect rows", _ {
+	it("names each row as its item's rows do: the effect rows", _ {
 		run_names(self, effect_cases());
 	});
-	it("names each row as its legacy item does: the arp rows", _ {
+	it("names each row as its item's rows do: the arp rows", _ {
 		run_names(self, arp_cases());
 		run_names(self, arp_host_cases());
 	});
-	it("names each row as its legacy item does: the model rows", _ {
+	it("names each row as its item's rows do: the model rows", _ {
 		run_names(self, model_cases());
 	});
-	it("names each row as its legacy item does: the note row, clip, instrument device and audio input rows", _ {
+	it("names each row as its item's rows do: the note row, clip, instrument device and audio input rows", _ {
 		run_names(self, group_cases());
 	});
 	it("names every instrument param as getParamDisplayName does", _ {
@@ -386,6 +384,15 @@ describe setting_names_spec_body("The host's name table", $ {
 		expect(deluge::l10n::param_name(plugin::PluginId{"other.engine"}, ParamId{90}, state) == none).to_be_true();
 	});
 });
+
+describe setting_names_reference_rows("setting_names_spec: the reference rows", $ {
+	it("parses descriptors.tsv clean and asks every row of its title, name and options columns", _ {
+		spec::OracleTable& t = spec::OracleTable::named("descriptors");
+		expect(t.problems().size()).to_equal(size_t{0});
+		expect(t.size() > size_t{3000}).to_be_true();
+		expect(t.unasked({"title", "name", "options/"})).to_equal(std::string{});
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(setting_names_spec, setting_names_spec_body)
+DELUGE_SPEC(setting_names_spec, setting_names_spec_body, setting_names_reference_rows)

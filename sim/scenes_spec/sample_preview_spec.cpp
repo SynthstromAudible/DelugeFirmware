@@ -1,10 +1,9 @@
-// The sample preview both browsers share: a request is only recorded and the next tick starts its load (a later
+// The sample browser's preview: a request is only recorded and the next tick starts its load (a later
 // request replaces it first, and only the file being started is recorded as the last loaded); a cancel drops the
 // request and moves the generation; the preview's volume is the target sound's, with the song's and a kit's output
-// stages folded in. A spec process never runs the
-// loader's tasks, so no load here ends: a load's landing, its sound and a superseded load that never lands are pinned
-// through the legacy browser, which drives this previewer, by audio-load-ab and the sample-claim scenario's supersede
-// legs.
+// stages folded in. A spec process never runs the loader's tasks, so no load here ends: a load's landing, its sound and
+// a superseded load that never lands are pinned through the browser by audio-load-ab and the sample-claim scenario's
+// supersede legs.
 
 #include "gui/ui/browser/sample_preview.h"
 

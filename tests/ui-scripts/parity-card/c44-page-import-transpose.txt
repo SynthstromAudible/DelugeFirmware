@@ -1,0 +1,28 @@
+# MULTISAMPLES imported from the OSC1 page's file column, then the transpose column's button (MIDI). The browser closes
+# onto the page, whose begin drops main's selected range, so with several ranges now the button opens the note-range
+# picker first.
+100   snapshot boot
+5000  button Shift down
+5100  pad 2 2 down
+5150  pad 2 2 up
+5200  button Shift up
+6000  snapshot type-page
+6500  button Kit down
+6520  button Kit up
+7000  snapshot file-column
+7500  button Kit down
+7520  button Kit up
+9500  snapshot browser
+10000 encoder Select +2
+11000 button SelectEnc down
+11020 button SelectEnc up
+13000 snapshot in-drums
+13500 button SelectEnc down
+14200 snapshot folder-menu
+14300 button SelectEnc up
+15000 button SelectEnc down
+15020 button SelectEnc up
+33000 snapshot imported-page
+33500 button Midi down
+33520 button Midi up
+34500 snapshot transpose-button

@@ -47,6 +47,7 @@
 #include "cppspec.hpp"
 
 #include <cstdint>
+#include <cstdlib>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -294,6 +295,61 @@ std::string last_notice() {
 	return text;
 }
 
+/// @brief Is the pixel at (@p x, @p y) lit in the P1 PBM @p pbm?
+///
+/// Reads the header (comment lines skipped, then the magic, width and height) and the pixel digits that follow, so
+/// the answer does not depend on how the text is laid out.
+/// @return the pixel, or nullopt when the text is not a P1 PBM or (@p x, @p y) lies outside it
+std::optional<bool> pbm_lit(const std::string& pbm, int32_t x, int32_t y) {
+	size_t pos = 0;
+	auto skip_blank = [&] {
+		while (pos < pbm.size()) {
+			if (pbm[pos] == '#') {
+				while (pos < pbm.size() && pbm[pos] != '\n') {
+					pos++;
+				}
+			}
+			else if (pbm[pos] == ' ' || pbm[pos] == '\n' || pbm[pos] == '\r' || pbm[pos] == '\t') {
+				pos++;
+			}
+			else {
+				break;
+			}
+		}
+	};
+	auto token = [&] {
+		skip_blank();
+		const size_t start = pos;
+		while (pos < pbm.size() && pbm[pos] != ' ' && pbm[pos] != '\n' && pbm[pos] != '\r' && pbm[pos] != '\t') {
+			pos++;
+		}
+		return pbm.substr(start, pos - start);
+	};
+	if (token() != "P1") {
+		return std::nullopt;
+	}
+	const int32_t width = std::atoi(token().c_str());
+	const int32_t height = std::atoi(token().c_str());
+	if (x < 0 || y < 0 || x >= width || y >= height) {
+		return std::nullopt;
+	}
+	skip_blank();
+	// P1 pixels are single digits, whitespace between them optional.
+	size_t seen = 0;
+	const size_t target = static_cast<size_t>(y) * static_cast<size_t>(width) + static_cast<size_t>(x);
+	for (; pos < pbm.size(); pos++) {
+		if (pbm[pos] == '0' || pbm[pos] == '1') {
+			if (seen++ == target) {
+				return pbm[pos] == '1';
+			}
+		}
+	}
+	return std::nullopt;
+}
+
+/// The 48-row panel's top bezel: rows the frame's origin carries as `visible_top` (`OLED_MAIN_TOPMOST_PIXEL`).
+constexpr int32_t kVisibleTop48 = 5;
+
 } // namespace
 
 // clang-format off
@@ -363,6 +419,62 @@ describe rename_open("scenes::rename::RenameScene opening", $ {
 		expect(rename_scene().cursor()).to_equal(0);
 	});
 
+	it("blinks BACK when nothing beneath does", _ {
+		// Opened straight over a view that declares no BACK blink (the clip view's rename shortcut).
+		select_language();
+		spec::SongFixture f = kit_fixture();
+		kit_of(f)->selectedDrum->setName("Snare");
+		Rig r;
+		r.open_rename(context_of(f), TargetId::Drum);
+		constexpr uint8_t kBackLed = 16;
+		bool lit = false;
+		for (uint32_t t = 1000; t <= 1240; t += 10) {
+			r.tick(t);
+		}
+		for (const auto& [led, on] : r.fake.led_writes) {
+			if (led == kBackLed) {
+				lit = on;
+			}
+		}
+		expect(lit).to_be_true();
+		expect(r.fake.leds().desired_declared[static_cast<size_t>(deluge::ui::shell::ButtonId::Back)]).to_be_true();
+	});
+
+	it("restarts BACK's blink where it opens, as QwertyUI::opened does: lit 250 ms, then off", _ {
+		// `indicator_leds::blinkLed(IndicatorLED::BACK)`: the normal blink, restarted at the open even when the menu
+		// beneath already blinks BACK. BACK is board LED 16 on the Deluge profile.
+		select_language();
+		spec::SongFixture f = kit_fixture();
+		kit_of(f)->selectedDrum->setName("Snare");
+		Rig r;
+		constexpr uint8_t kBackLed = 16;
+		const auto back_lit = [&r] {
+			bool lit = false;
+			for (const auto& [led, on] : r.fake.led_writes) {
+				if (led == kBackLed) {
+					lit = on;
+				}
+			}
+			return lit;
+		};
+		r.open_menu(nodes::drum_actions, nodes::drum_actions, context_of(f));
+		for (uint32_t t = 1000; t <= 1300; t += 10) {
+			r.tick(t);
+		}
+		expect(back_lit()).to_be_false(); // the menu's blink, past its first 250 ms lit
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 1310);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 1310);
+		for (uint32_t t = 1310; t <= 1540; t += 10) {
+			r.tick(t);
+		}
+		expect(&r.shell.stack().input_top() == &rename_scene()).to_be_true();
+		expect(back_lit()).to_be_true(); // restarted at the open, inside its lit 250 ms
+		for (uint32_t t = 1570; t <= 1600; t += 10) {
+			r.tick(t);
+		}
+		expect(back_lit()).to_be_false();
+	});
+
 	it("forgets its context on exit, so a re-entry without open() refuses", _ {
 		select_language();
 		spec::SongFixture f = kit_fixture();
@@ -420,6 +532,35 @@ describe rename_open("scenes::rename::RenameScene opening", $ {
 });
 
 describe rename_typing("scenes::rename::RenameScene typing", $ {
+	it("keeps a long existing name whole and types a long one, as QwertyUI's unbounded enteredText", _ {
+		// A drum named from a long sample file name: `QwertyUI::enteredText` is a `std::string`, so neither the open
+		// nor the commit cuts it, and a key typed at its end appends.
+		select_language();
+		spec::SongFixture f = kit_fixture();
+		const std::string long_name(200, 'a');
+		kit_of(f)->selectedDrum->setName(long_name.c_str());
+		Rig r;
+		r.open_rename(context_of(f), TargetId::Drum);
+		r.tick(0);
+		r.clock = 10;
+		expect(std::string{rename_scene().entered_text()}).to_equal(long_name);
+		(void)commit(rename_scene());
+		expect(std::string{kit_of(f)->selectedDrum->name()}).to_equal(long_name);
+
+		// And a typed name runs past 64 characters too.
+		kit_of(f)->selectedDrum->setName("");
+		Rig typed;
+		typed.open_rename(context_of(f), TargetId::Drum);
+		typed.tick(0);
+		typed.clock = 10;
+		std::string digits;
+		for (int i = 0; i < 7; i++) {
+			digits += "1234567890";
+		}
+		typed.type(std::string_view{digits});
+		expect(std::string{rename_scene().entered_text()}).to_equal(digits);
+	});
+
 	it("types a name on the grid and commits it on enter", _ {
 		select_language();
 		spec::SongFixture f = kit_fixture();
@@ -582,23 +723,80 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		// the ticks below, which is the assertion a wrong constant fails.)
 		const std::optional<uint32_t> armed = rename_scene().next_timer();
 		expect(armed.has_value()).to_be_true();
-		expect(armed.value() <= rename::kBackspaceRepeatDelayMs).to_be_true();
+		expect(armed.value() <= deluge::ui::grid::kBackspaceRepeatDelayMs).to_be_true();
 
 		// One millisecond short of the delay: still four characters.
-		r.tick(1000 + rename::kBackspaceRepeatDelayMs - 1);
+		r.tick(1000 + deluge::ui::grid::kBackspaceRepeatDelayMs - 1);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcd"});
 		// On the delay: the first repeat.
-		r.tick(1000 + rename::kBackspaceRepeatDelayMs);
+		r.tick(1000 + deluge::ui::grid::kBackspaceRepeatDelayMs);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abc"});
 
 		// Then every 80 ms, not every 500.
-		const uint32_t first = 1000 + rename::kBackspaceRepeatDelayMs;
-		r.tick(first + rename::kBackspaceRepeatMs - 1);
+		const uint32_t first = 1000 + deluge::ui::grid::kBackspaceRepeatDelayMs;
+		r.tick(first + deluge::ui::grid::kBackspaceRepeatMs - 1);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abc"});
-		r.tick(first + rename::kBackspaceRepeatMs);
+		r.tick(first + deluge::ui::grid::kBackspaceRepeatMs);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Ab"});
-		r.tick(first + 2 * rename::kBackspaceRepeatMs);
+		r.tick(first + 2 * deluge::ui::grid::kBackspaceRepeatMs);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"A"});
+	});
+
+	it("ignores a key, Enter, BACK, SELECT and the sidebar while backspace is held, and keeps repeating", _ {
+		select_language();
+		spec::SongFixture f = kit_fixture();
+		Rig r;
+		r.open_rename(context_of(f), TargetId::Drum);
+		r.tick(0);
+		r.clock = 10;
+		r.type(std::string_view{"ABCDEFG"});
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcdefg"});
+		r.press(deluge::ui::grid::kTextKeyboardBackspace, 1000);
+		r.tick(1000);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcdef"});
+		// A letter pressed beside the hold: swallowed, and the hold carries on (`QwertyUI::padAction`).
+		r.press('A', 1100);
+		r.tick(1100);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcdef"});
+		r.press(deluge::ui::grid::kTextKeyboardEnter, 1150);
+		r.tick(1150);
+		expect(r.shell.stack().depth()).to_equal(size_t(1));
+		r.button(kBackX, kBackY, true, 1200);
+		r.tick(1200);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 1250);
+		r.tick(1250);
+		r.pad(16, 3, 64, 1300);
+		r.tick(1300);
+		expect(r.shell.stack().depth()).to_equal(size_t(1));
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcdef"});
+		r.tick(1000 + deluge::ui::grid::kBackspaceRepeatDelayMs);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcde"});
+		// Once the pad lifts, BACK closes again.
+		r.release(deluge::ui::grid::kTextKeyboardBackspace, 1600);
+		r.tick(1600);
+		r.button(kBackX, kBackY, true, 1700);
+		r.tick(1700);
+		expect(r.shell.stack().depth()).to_equal(size_t(0));
+	});
+
+	it("re-arms the repeat 80 ms after the callback that ran it, not after the schedule", _ {
+		select_language();
+		spec::SongFixture f = kit_fixture();
+		Rig r;
+		r.open_rename(context_of(f), TargetId::Drum);
+		r.tick(0);
+		r.clock = 10;
+		r.type(std::string_view{"ABCDE"});
+		r.press(deluge::ui::grid::kTextKeyboardBackspace, 1000);
+		r.tick(1000);
+		r.tick(1530); // 30 ms late
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abc"});
+		r.tick(1580);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abc"});
+		r.tick(1610);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Ab"});
+		r.release(deluge::ui::grid::kTextKeyboardBackspace, 1620);
+		r.tick(1620);
 	});
 
 	it("stops repeating the moment the backspace pad goes up", _ {
@@ -612,7 +810,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 
 		r.press(deluge::ui::grid::kTextKeyboardBackspace, 1000);
 		r.tick(1000);
-		r.tick(1000 + rename::kBackspaceRepeatDelayMs); // one repeat
+		r.tick(1000 + deluge::ui::grid::kBackspaceRepeatDelayMs); // one repeat
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abc"});
 
 		// `padAction`'s release arm unsets the timer (`qwerty_ui.cpp:223-228`); here the hold is a
@@ -917,7 +1115,8 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		expect(static_cast<int>(rename_scene().target_id())).to_equal(static_cast<int>(TargetId::Drum));
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Snare"});
 
-		// `soundEditor.shouldGoUpOneLevelOnBegin = true` (`edit_name.cpp:50`): closing the editor
+		// `soundEditor.shouldGoUpOneLevelOnBegin = true` (`origin/main:src/deluge/gui/menu_item/edit_name.cpp`
+		// `EditName::beginSession`): closing the editor
 		// lands one level ABOVE the item, not back on it -- otherwise `on_focus` would reopen it on
 		// the very next tick.
 		r.button(kBackX, kBackY, true, 100);
@@ -928,6 +1127,32 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		// ...and it stays closed.
 		r.tick(110);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
+	});
+
+	it("draws no menu title beneath the drum rename opened from its shortcut pad", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		spec::SongFixture f = kit_fixture();
+		kit_of(f)->selectedDrum->setName("Snare");
+		const MenuContext ctx = context_of(f);
+		const menu::Node* node = menu::shortcut_node(MenuContext::Root::Drum, false, 11, 5);
+		expect(node == &nodes::drum_name_edit).to_be_true();
+
+		// Shift + (11,5) opens the menu ON the name item, so the item is the menu's root and
+		// `SoundEditor::renderOLED` returns before drawing anything beneath the rename window.
+		Rig r;
+		r.open_menu(*node, *node, ctx);
+		r.tick(0);
+		r.tick(10);
+		expect(&r.shell.stack().input_top() == &rename_scene()).to_be_true();
+		expect(static_cast<int>(menu_scene().state().depth)).to_equal(0);
+
+		// The title's rule runs the panel's width on its last title row; the rename window covers
+		// only the middle, so its two ends show whatever the menu beneath drew.
+		const std::string pbm = r.fake.pbm(0);
+		constexpr int32_t kRuleRow = kVisibleTop48 + deluge::ui::kTitleSeparatorY;
+		expect(pbm_lit(pbm, 1, kRuleRow) == std::optional<bool>{false}).to_be_true();
+		expect(pbm_lit(pbm, 126, kRuleRow) == std::optional<bool>{false}).to_be_true();
 	});
 
 	it("reopens the editor when a menu parked on the item is restored", _ {

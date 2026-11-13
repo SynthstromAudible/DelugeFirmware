@@ -1,0 +1,493 @@
+import { strict as assert } from "node:assert"
+import fs from "node:fs"
+import { test } from "node:test"
+import {
+  MENU_TREES,
+  UNDOCUMENTED_ROOTS,
+  buildReference,
+  clipSettingsRoot,
+  convertTree,
+  fillSlot,
+  placeRoots,
+} from "./generate-menu-hierarchies.mjs"
+
+const leaf = (id, name, extra = {}) => ({
+  id,
+  name,
+  title: name,
+  type: "basic",
+  ...extra,
+})
+const submenu = (id, name, children, extra = {}) => ({
+  children,
+  id,
+  name,
+  title: name,
+  type: "submenu",
+  ...extra,
+})
+const labels = (node) => node.children.map((c) => c.oled)
+const noTags = new Map()
+
+test("a slot item's star is its place among the siblings that share its name", () => {
+  assert.equal(fillSlot("Envelope *", 2, 4), "Envelope 3")
+  assert.equal(fillSlot("Channel Track**", 0, 16), "Channel Track01")
+  assert.equal(fillSlot("CV output *", 0, 1), "CV output *")
+})
+
+test("slot siblings become one row per slot", () => {
+  const root = submenu(1, "Sound", [
+    leaf(2, "Envelope *"),
+    leaf(3, "Envelope *"),
+  ])
+  assert.deepEqual(labels(convertTree(root, "s", noTags)), [
+    "Envelope 1",
+    "Envelope 2",
+  ])
+})
+
+test("siblings of the same shape are one row", () => {
+  const root = submenu(1, "Randomizer", [
+    leaf(2, "Gate Spread"),
+    leaf(3, "Gate Spread", { available_when: "is_midi_out" }),
+    submenu(4, "Bend range", [leaf(5, "Normal")]),
+    leaf(6, "Bend range"),
+  ])
+  assert.deepEqual(labels(convertTree(root, "s", noTags)), [
+    "Gate Spread",
+    "Bend range",
+    "Bend range",
+  ])
+})
+
+test("a page a select press opens is a row of the first item that opens it", () => {
+  const depth = leaf(9, "Modulate depth")
+  const opener = (id, name) =>
+    leaf(id, name, {
+      select_chain: [
+        { ...depth, select_chain: [{ ...leaf(id, name), ref: true }] },
+      ],
+    })
+  const root = submenu(1, "Sound", [opener(2, "Volume"), opener(3, "Pan")])
+  const tree = convertTree(root, "s", noTags)
+  assert.deepEqual(labels(tree.children[0]), ["Modulate depth"])
+  assert.deepEqual(labels(tree.children[0].children[0]), [])
+  assert.deepEqual(labels(tree.children[1]), [])
+})
+
+test("two pages of the same shape that one item opens are one row", () => {
+  const root = submenu(1, "Preset", [
+    leaf(2, "Preset", {
+      select_chain: [leaf(3, "Octave Mode"), leaf(4, "Octave Mode")],
+    }),
+  ])
+  assert.deepEqual(labels(convertTree(root, "s", noTags).children[0]), [
+    "Octave Mode",
+  ])
+})
+
+test("a page a list names is not repeated where a select press opens it", () => {
+  const voices = leaf(3, "Max Voices")
+  const root = submenu(1, "Voice", [
+    leaf(2, "Polyphony", { select_chain: [voices] }),
+    voices,
+  ])
+  const tree = convertTree(root, "s", noTags)
+  assert.deepEqual(labels(tree), ["Polyphony", "Max Voices"])
+  assert.deepEqual(labels(tree.children[0]), [])
+})
+
+test("keys are the label path, made unique within the section", () => {
+  const root = submenu(1, "Sound", [
+    submenu(2, "Bend range", [leaf(3, "Normal")]),
+    leaf(4, "Bend range"),
+  ])
+  const tree = convertTree(root, "s", noTags)
+  assert.deepEqual(
+    [
+      tree.children[0].key,
+      tree.children[0].children[0].key,
+      tree.children[1].key,
+    ],
+    ["bend-range", "bend-range-normal", "bend-range-2"],
+  )
+})
+
+test("a section's own tag entry wins over the key's", () => {
+  const root = submenu(1, "Audio clip", [leaf(2, "Actions"), leaf(3, "Tplts")])
+  const tags = new Map([
+    ["actions", "c1.3"],
+    ["audioClipMenu/actions", "c1.2"],
+  ])
+  const tree = convertTree(root, "audioClipMenu", tags)
+  assert.equal(tree.children[0].tag, "c1.2")
+  assert.equal(tree.children[1].tag, "c1.0")
+  assert.equal(convertTree(root, "kitFxMenu", tags).children[0].tag, "c1.3")
+})
+
+test("a node's values are option rows before its children and its pages", () => {
+  const root = submenu(1, "Sound", [
+    leaf(2, "Octave Mode", {
+      options: ["Up", "Down"],
+      select_chain: [leaf(3, "Note Mode")],
+    }),
+  ])
+  const mode = convertTree(root, "s", noTags).children[0]
+  assert.deepEqual(labels(mode), ["Up", "Down", "Note Mode"])
+  assert.deepEqual(
+    mode.children.map((r) => [r.key, r.option ?? false]),
+    [
+      ["octave-mode-up", true],
+      ["octave-mode-down", true],
+      ["octave-mode-note-mode", false],
+    ],
+  )
+})
+
+test("a section hides the rows its availability names", () => {
+  const root = submenu(1, "CV instrument", [
+    leaf(2, "Device Definition", { available_when: "is_midi_out" }),
+    leaf(3, "Play direction"),
+  ])
+  assert.deepEqual(labels(convertTree(root, "cv", noTags, ["is_midi_out"])), [
+    "Play direction",
+  ])
+})
+
+const everyRoot = () => {
+  const counts = new Map()
+  const roots = MENU_TREES.map(({ name }) => {
+    counts.set(name, (counts.get(name) ?? 0) + 1)
+    return submenu(counts.get(name), name, [])
+  })
+  return [...roots, ...UNDOCUMENTED_ROOTS.map((name) => leaf(99, name))]
+}
+
+test("every root of the dump is placed or named as undocumented", () => {
+  assert.equal(placeRoots(everyRoot()).length, MENU_TREES.length)
+  assert.throws(
+    () => placeRoots([...everyRoot(), submenu(100, "Looper", [])]),
+    /does not place: "Looper"/,
+  )
+  assert.throws(
+    () => placeRoots(everyRoot().filter((r) => r.name !== "Settings")),
+    /no root "Settings"/,
+  )
+})
+
+test("the clip settings menu reads its labels from the English strings", () => {
+  const english = {
+    STRING_FOR_CONVERT_TO_AUDIO: "Convert to Audio",
+    STRING_FOR_CLIP_MODE: "Clip Mode",
+    STRING_FOR_DEFAULT_LAUNCH: "Infinite",
+    STRING_FOR_FILL_LAUNCH: "Fill",
+    STRING_FOR_ONCE_LAUNCH: "Once",
+    STRING_FOR_CLIP_NAME: "Clip Name",
+  }
+  const tree = convertTree(clipSettingsRoot(english), "c", noTags)
+  assert.deepEqual(labels(tree), ["Convert to Audio", "Clip Mode", "Clip Name"])
+  assert.deepEqual(labels(tree.children[1]), ["Infinite", "Fill", "Once"])
+  assert.throws(
+    () => clipSettingsRoot({}),
+    /has no STRING_FOR_CONVERT_TO_AUDIO/,
+  )
+})
+
+test("the reference is the sections, the clip settings menu, and its inputs", () => {
+  const english = {
+    STRING_FOR_CONVERT_TO_AUDIO: "a",
+    STRING_FOR_CLIP_MODE: "b",
+    STRING_FOR_DEFAULT_LAUNCH: "c",
+    STRING_FOR_FILL_LAUNCH: "d",
+    STRING_FOR_ONCE_LAUNCH: "e",
+    STRING_FOR_CLIP_NAME: "f",
+  }
+  const reference = JSON.parse(buildReference(everyRoot(), english, {}))
+  assert.deepEqual(Object.keys(reference.trees), [
+    ...MENU_TREES.map((t) => t.treeKey),
+    "songClipSettingsMenu",
+  ])
+  assert.deepEqual(Object.keys(reference.sourceFiles), [
+    "menuTree",
+    "english",
+    "menuTags",
+  ])
+})
+
+const committedDump = JSON.parse(
+  fs.readFileSync(
+    new URL("../src/data/generated/menu-tree.json", import.meta.url),
+    "utf8",
+  ),
+)
+const at = (names) => {
+  let nodes = committedDump
+  let node
+  for (const name of names) {
+    node = nodes.find((n) => n.name === name)
+    assert.ok(node, `the dump has no ${names.join(" > ")}`)
+    nodes = [...(node.children ?? []), ...(node.select_chain ?? [])]
+  }
+  return node
+}
+
+test("the committed dump names the values each kind of list offers", () => {
+  // static names
+  assert.deepEqual(
+    at(["Settings", "Community Features", "Shortcut Overlay"]).options,
+    ["Off", "On - Menu only", "On - Menu + Clip"],
+  )
+  // toggles, a Community Feature's and any other, as our toggle page draws them
+  assert.deepEqual(
+    at(["Settings", "Community Features", "Drum Randomizer"]).options,
+    ["Disabled", "Enabled"],
+  )
+  assert.deepEqual(at(["Sound", "Osc mixer", "Oscillator sync"]).options, [
+    "Disabled",
+    "Enabled",
+  ])
+  // a names hook, asked with no owner and then as the boot song's clip and its row editor see it: a note row adds NONE
+  assert.deepEqual(at(["Sound", "Play direction"]).options, [
+    "Forward",
+    "Reversed",
+    "Ping-Pong",
+    "None",
+  ])
+  // a sound adds USE SONG SETTINGS, ahead of the rest
+  assert.deepEqual(at(["Sound", "FX", "Stutter", "Direction"]).options, [
+    "Use Song Settings",
+    "Forward",
+    "Reversed",
+    "Forw-Ping",
+    "Rvrs-Ping",
+  ])
+  // a setting row's name table, and with no audio input plugged in, the one "Input" after the rest
+  assert.deepEqual(at(["Sound", "Oscillator 1", "Type"]).options.slice(0, 3), [
+    "Sine",
+    "Triangle",
+    "Square",
+  ])
+  assert.deepEqual(at(["Sound", "Oscillator 1", "Type"]).options.slice(-4), [
+    "Input (left)",
+    "Input (right)",
+    "Input (stereo)",
+    "Input",
+  ])
+})
+
+test("the committed dump lists the rows DX7 parameters draws, each with the params it reaches", () => {
+  const rows = at([
+    "Sound",
+    "Oscillator 1",
+    "Type",
+    "DX7 source",
+    "DX7 parameters",
+  ]).rows
+  assert.deepEqual(
+    rows.map((r) => r.name),
+    [
+      "algorithm",
+      "feedback",
+      "sync",
+      "operator 1",
+      "operator 2",
+      "operator 3",
+      "operator 4",
+      "operator 5",
+      "operator 6",
+      "pitch envelope",
+      "lfo",
+    ],
+  )
+  const operator = rows[3].rows
+  assert.deepEqual(
+    operator.map((r) => [r.name, r.rows.map((p) => p.name)]),
+    [
+      ["pitch", ["mode", "coarse", "fine", "detune"]],
+      ["level", ["level"]],
+      [
+        "envelope",
+        [
+          "env rate1",
+          "env rate2",
+          "env rate3",
+          "env rate4",
+          "env level1",
+          "env level2",
+          "env level3",
+          "env level4",
+        ],
+      ],
+      ["velocity sense", ["velocity sens"]],
+      [
+        "note scaling",
+        [
+          "breakpoint",
+          "left depth",
+          "right depth",
+          "left curve",
+          "right curve",
+        ],
+      ],
+      ["rate scaling", ["rate scale"]],
+      ["ampmod", ["ampmod"]],
+    ],
+  )
+  assert.deepEqual(operator[0].rows[0].options, ["ratio", "fixed"])
+  assert.deepEqual(operator[4].rows[3].options, [
+    "lin-",
+    "exp-",
+    "exp+",
+    "lin+",
+  ])
+  assert.deepEqual(rows[9].rows.map((p) => p.name).slice(0, 2), [
+    "DX7 pitch R1",
+    "DX7 pitch R2",
+  ])
+  const lfo = rows[10].rows
+  assert.equal(lfo.length, 7)
+  assert.deepEqual(lfo[5].options, [
+    "tri",
+    "saw down",
+    "saw up",
+    "square",
+    "sin",
+    "s-hold",
+  ])
+})
+
+test("a page's drawn rows are its reference rows in place of its select chain; the mod matrix's are main's", () => {
+  const dx = leaf(2, "DX7 parameters", {
+    rows: [
+      { name: "lfo", rows: [{ name: "DX7 LFO waveform", options: ["tri"] }] },
+    ],
+    select_chain: [leaf(3, "DX7 param")],
+  })
+  const tree = convertTree(
+    submenu(1, "Sound", [
+      dx,
+      leaf(4, "Mod matrix", { select_chain: [leaf(5, "Modulate with")] }),
+    ]),
+    "s",
+    noTags,
+  )
+  const [dxRow, modMatrix] = tree.children
+  assert.deepEqual(labels(dxRow), ["lfo"])
+  assert.deepEqual(labels(dxRow.children[0]), ["DX7 LFO waveform"])
+  assert.deepEqual(labels(dxRow.children[0].children[0]), ["tri"])
+  assert.deepEqual(labels(modMatrix), ["Selected Patch Cable"])
+  assert.deepEqual(labels(modMatrix.children[0]), [
+    "Regular destination",
+    "Range destination",
+  ])
+  assert.deepEqual(labels(modMatrix.children[0].children[1]), ["Strength"])
+})
+
+test("the page the Dx7 value opens is listed under that value in every type list, as main's", () => {
+  const dxSource = submenu(9, "DX7 source", [
+    leaf(10, "load DX7 .syx file"),
+    leaf(11, "engine version"),
+  ])
+  const type = (id) =>
+    leaf(id, "Type", { options: ["Saw", "Dx7"], select_chain: [dxSource] })
+  const tree = convertTree(
+    submenu(1, "Sound", [
+      submenu(2, "Oscillator 1", [type(3)]),
+      submenu(4, "Oscillator 2", [type(5)]),
+    ]),
+    "s",
+    noTags,
+  )
+  for (const osc of tree.children) {
+    const [typeRow] = osc.children
+    assert.deepEqual(labels(typeRow), ["Saw", "Dx7"])
+    assert.deepEqual(labels(typeRow.children[1]), [
+      "load DX7 .syx file",
+      "engine version",
+    ])
+    assert.equal(typeRow.children[1].option, true)
+    assert.equal(
+      typeRow.children[1].children[0].key,
+      `${typeRow.key}-dx7-load-dx7-syx-file`,
+    )
+  }
+})
+
+test("a page a value opens stays a page row of a list that does not offer the value", () => {
+  const dxSource = submenu(9, "DX7 source", [leaf(10, "engine version")])
+  const tree = convertTree(
+    submenu(1, "Sound", [
+      leaf(2, "Type", { options: ["Saw"], select_chain: [dxSource] }),
+    ]),
+    "s",
+    noTags,
+  )
+  assert.deepEqual(labels(tree.children[0]), ["Saw", "DX7 source"])
+})
+
+test("every root of the committed dump is placed, the nameless start marker editor as undocumented", () => {
+  assert.equal(placeRoots(committedDump).length, MENU_TREES.length)
+  assert.ok(committedDump.some((root) => root.name === ""))
+})
+
+test("the committed dump names the values a custom page or a worded number lists", () => {
+  // an Int whose page spells each value as a word
+  assert.deepEqual(at(["Note Editor", "Fill"]).options, [
+    "OFF",
+    "NOT FILL",
+    "FILL",
+  ])
+  assert.deepEqual(at(["Row Editor", "Fill"]).options, [
+    "OFF",
+    "NOT FILL",
+    "FILL",
+  ])
+  // custom pages; File Linked's row is a checkbox, so its words are a toggle's
+  assert.deepEqual(
+    at(["MIDI instr", "Device Definition", "File Linked"]).options,
+    ["Disabled", "Enabled"],
+  )
+  assert.deepEqual(
+    at(["Sound", "Oscillator 1", "Type", "DX7 source", "engine version"])
+      .options,
+    ["auto", "modern", "vintage"],
+  )
+  assert.deepEqual(at(["Perform FX", "Editing Mode"]).options, [
+    "Disabled",
+    "Value",
+    "Param",
+  ])
+  const source = at(["Audio clip", "Audio source"]).options
+  assert.equal(source.length, 9)
+  assert.deepEqual(
+    [source[0], source[5], source[8]],
+    ["Disabled", "USB input", "Specific Track"],
+  )
+  for (const scales of [
+    at(["Song", "Active Scales"]),
+    at(["Settings", "Defaults", "Scale", "Active Scales"]),
+  ]) {
+    assert.equal(scales.options.length, 16)
+    assert.deepEqual(scales.options.slice(0, 2), ["MAJOR", "MINOR"])
+    assert.equal(scales.options[15], "HIRAJOSHI")
+  }
+  // the output selectors list the outputs; Gate's last row opens the off-time page
+  assert.deepEqual(at(["Settings", "CV"]).options, [
+    "CV Output 1",
+    "CV Output 2",
+  ])
+  assert.deepEqual(at(["Settings", "Gate"]).options, [
+    "Gate Output 1",
+    "Gate Output 2",
+    "Gate Output 3",
+    "Gate Output 4",
+    "Minimum Off-Time",
+  ])
+  // a names hook asked for each output: gate outputs 3 and 4 add RUN SIGNAL and CLOCK
+  assert.deepEqual(at(["Settings", "Gate", "Gate out* mode"]).options, [
+    "V-Trig",
+    "S-Trig",
+    "Run signal",
+    "Clock",
+  ])
+})

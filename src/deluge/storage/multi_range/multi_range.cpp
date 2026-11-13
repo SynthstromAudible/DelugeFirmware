@@ -23,3 +23,8 @@ MultiRange::MultiRange() {
 
 MultiRange::~MultiRange() {
 }
+
+uint64_t MultiRange::nextIdentity() {
+	static uint64_t last = 0;
+	return ++last;
+}

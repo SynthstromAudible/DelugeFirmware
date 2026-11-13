@@ -19,11 +19,12 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/clip_settings/new_clip_type.h" // the picker's chosen type, set by the grid ENTER probe
-#include "gui/menu_item/dx/cartridge.h"                   // dxCartridge, the bank the DX stage reads back
-#include "gui/ui/browser/dx_browser.h"                    // dxBrowser, driven by the DX stage
+#include "gui/ui/browser/dx_cartridge_bank.h"             // dxCartridgeBank, the bank the DX stage reads back
+#include "gui/ui/browser/dx_cartridge_read.h"             // dxCartridgeRead, the read the DX stage waits on
 #include "gui/ui/load/load_instrument_preset_ui.h"        // presetAcquisitionsRun(), the acquire stage's inert counter
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_song_ui.h"   // the real caller, driven end to end below
+#include "gui/ui/shell_host_ui.h"       // shellHostUI, the ported menu the DX stage drives
 #include "gui/ui/ui.h"                  // currentUIMode, UI_MODE_NONE -- View's gestures gate on it
 #include "gui/views/arranger_view.h"    // beginNewInstrumentAcquisition(), the acquire stage's REAL gesture entry point
 #include "gui/views/session_view.h"     // the `sessionView` global driving SessionView's three gestures
@@ -41,14 +42,20 @@
 #include "model/song/song.h"                               // currentSong, getNonAudioInstrumentToSwitchTo
 #include "modulation/params/param_manager.h"               // ParamManagerForTimeline, for the preset fixture writer
 #include "processing/sound/sound_instrument.h"             // setupAsBlankSynth(), for the preset fixture writer
+#include "processing/source.h"                             // the DX7 oscillator the stage gives the clip
 #include "runtime/app_loop.h"                              // nowUs, the stall bounds' clock
+#include "scenarios/guest_drive.h"                         // the guest's tick, input and what it has on top
+#include "scenes/menu/menu_scene.h"                        // the cartridge page the read lands on
+#include "scenes/menu/nodes/nodes.h"                       // nodes::dx_cartridge
+#include "scenes/registry.h"                               // menu_scene()
 #include "storage/DX7Cartridge.h"                          // the bank's layout and checksum
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h"
 #include "storage/file_item.h"
 #include "storage/song_preview.h"
 #include "storage/storage_manager.h"
-#include "util/functions.h" // getInstrumentFolder, to pin kAcqDir against drift
+#include "util/functions.h"        // getInstrumentFolder, to pin kAcqDir against drift
+#include "util/shell_menu_entry.h" // openShellMenu, the DX stage's door to the ported menu
 #include "util/string.h"
 
 #include <algorithm>
@@ -2789,7 +2796,7 @@ constexpr uint64_t kStallMarginUs = 2'000'000;
 /// How long, in virtual time, a listing stall case waits for the browser to give up: its bound and a margin.
 constexpr uint64_t kListingStallWindowUs = Browser::kDirectoryStallUs + kStallMarginUs;
 /// How long the DX stall case waits for the cartridge load to give up: its bound and a margin.
-constexpr uint64_t kDxStallWindowUs = DxSyxBrowser::kCartridgeStallUs + kStallMarginUs;
+constexpr uint64_t kDxStallWindowUs = deluge::gui::ui::DxCartridgeRead::kStallUs + kStallMarginUs;
 /// How long the preview stall case waits for the preview to give up: its bound and a margin.
 constexpr uint64_t kPreviewStallWindowUs = LoadSongUI::kPreviewStallUs + kStallMarginUs;
 static_assert(uint64_t{kStallHoldMs} * 1000 > kListingStallWindowUs && uint64_t{kStallHoldMs} * 1000 > kDxStallWindowUs
@@ -3275,32 +3282,34 @@ void runByPathTick() {
 
 // ── Stage: the DX cartridge load ────────────────────────────────────────────
 //
-// The prefix channel's other consumer. A cartridge picked in the DX browser is read whole through the channel and
-// parsed into `dxCartridge`, and SP-DX requires what the fixture holds.
+// The prefix channel's other consumer. A cartridge picked in the ported DX7 browser is read whole through the channel
+// and parsed into `dxCartridgeBank()`, and SP-DX requires what the fixture holds, with the menu landed on the
+// cartridge page the read ends on.
 //
-// The bank is a real 32-voice DX7 dump with a correct checksum, and a SysEx ID the parser refuses. The refusal is
-// deliberate. It comes after the checksum, so a bank that reaches it arrived whole and in order, and the patch count
-// and first name are read from the bytes that arrived. And it stops the load before the success tail, which enters the
-// cartridge submenu: that submenu loads the patch through `soundEditor.currentSource`, which no headless scenario sets.
+// The bank is a real 32-voice DX7 dump with a correct checksum and Yamaha's ID, so it parses and the cartridge page
+// loads its first program into the clip's synth. The synth is the boot song's first session clip with a DX7 first
+// oscillator, the source the menu's DX7 row edits.
 
 /// The folder the DX browser lists, and the one bank in it.
 constexpr const char* kDxDir = "DX7";
-constexpr const char* kDxBankName = "BADID.SYX";
-constexpr const char* kDxBankPath = "DX7/BADID.SYX";
+constexpr const char* kDxBankPath = "DX7/SPBANK.SYX";
 /// The first voice's name, exactly as `DX7Cartridge::getProgramName` normalises it: ten printable characters.
 constexpr const char* kDxFirstName = "SPDXBANK01";
 
-enum class DxStep : uint8_t { Fixture, Open, ListingWait, Enter, LoadWait, StallEnter, StallWait, Finished };
+enum class DxStep : uint8_t { Fixture, Open, ListingWait, Enter, LoadWait, Reopen, StallEnter, StallWait, Finished };
 DxStep g_dxStep = DxStep::Fixture;
+/// Where the listing wait goes on to once the browser is listed.
+DxStep g_dxAfterListing = DxStep::Enter;
+/// Ticks the menu has had to land after the read ended.
+int32_t g_dxLandTicks = 0;
 int32_t g_dxTicks = 0;
 int32_t g_dxGiveUpsBefore = 0;
 
-/// The bank: the sysex header with its ID byte changed, 32 voices of in-range data (never 0xF7, which the parser takes
+/// The bank: the sysex header, 32 voices of in-range data (never 0xF7, which the parser takes
 /// as the end of the message), the first voice's name, the checksum over the 4096 voice bytes, and EOX.
 std::array<std::byte, kSysexSize> makeDxBank() {
 	std::array<std::byte, kSysexSize> bank{};
 	std::ranges::copy(kSysexHeader, bank.begin());
-	bank[1] = std::byte{0x44}; // Yamaha's is 0x43: refused after the checksum, see the stage comment
 	for (size_t i = 0; i < 4096; i++) {
 		bank[6 + i] = static_cast<std::byte>((i * 7 + 3) & 0x7F);
 	}
@@ -3328,15 +3337,43 @@ bool buildDxFixture() {
 	return size.has_value() && *size == kSysexSize;
 }
 
-/// End the stage, leaving no browser on the UI stack.
+/// End the stage, leaving no ported menu or browser on the UI stack.
 void finishDxStage() {
-	if (getCurrentUI() == &dxBrowser) {
-		dxBrowser.close();
-	}
+	deluge::harness::guestClose();
 	g_dxStep = DxStep::Finished;
 }
 
+/// The first session clip's synth, given a DX7 first oscillator; null when the song has no synth clip.
+Clip* makeDxClip() {
+	if (currentSong->live.clips.session_clips.empty()) {
+		(void)currentSong->ensureAtLeastOneSessionClip();
+	}
+	Clip* clip = currentSong->live.clips.session_clips.empty() ? nullptr : currentSong->live.clips.session_clips[0];
+	if (clip == nullptr || clip->output == nullptr || clip->output->type != OutputType::SYNTH) {
+		return nullptr;
+	}
+	auto* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(clip->output->toModControllable()));
+	sound->sources[0].setOscType(OscType::DX7);
+	currentSong->setCurrentClip(clip);
+	return clip;
+}
+
+/// Whether the menu has landed on the cartridge page, with the browser closed.
+bool dxLanded() {
+	return deluge::harness::guestTop(deluge::scenes::menu::kMenuSceneKind)
+	       && deluge::scenes::menu_scene().focused() == &deluge::scenes::menu::nodes::dx_cartridge;
+}
+
+/// Fail the stage as hung on @p what.
+void dxStall(const char* what) {
+	printf("SP-DX FAIL %s\n", what);
+	g_failures++;
+	finishDxStage();
+}
+
 void runDxTick() {
+	using deluge::harness::browserOnTop;
+	using deluge::harness::guestTick;
 	switch (g_dxStep) {
 	case DxStep::Fixture:
 		if (!buildDxFixture()) {
@@ -3348,49 +3385,53 @@ void runDxTick() {
 		g_dxStep = DxStep::Open;
 		return;
 
-	case DxStep::Open:
-		// openUI() needs a root UI beneath it, and the acquire stage before this one runs without one. Before the
+	case DxStep::Open: {
+		// The menu needs a root UI beneath it, and the acquire stage before this one runs without one. Before the
 		// by-path stage, not after: its stall cases leave a 30 s directory-channel hold in flight, and the DX
 		// browser's listing would queue behind it.
 		changeRootUI(&arrangerView);
 		g_dxTicks = 0;
-		if (!openUI(&dxBrowser)) {
-			printf("SP-DX FAIL the DX browser did not open\n");
+		Clip* clip = makeDxClip();
+		if (clip == nullptr
+		    || !deluge::gui::ui::openShellMenu(clip, 0, false, false, false, false,
+		                                       deluge::gui::ui::ShellMenuNode::Dx)) {
+			printf("SP-DX FAIL the DX7 menu did not open on a DX7 synth clip\n");
 			g_failures++;
 			finishDxStage();
 			return;
 		}
+		// The DX7 source's first row is BROWSE: Select opens the .syx browser.
+		deluge::harness::guestSelect();
+		g_dxAfterListing = DxStep::Enter;
 		g_dxStep = DxStep::ListingWait;
 		return;
+	}
 
 	case DxStep::ListingWait:
-		// Nothing ticks a browser in this harness unless the scenario does.
-		if (BrowserListingAbProbe::inProgress()) {
-			dxBrowser.graphicsRoutine();
-			if (BrowserListingAbProbe::inProgress()) {
-				if (++g_dxTicks > kMaxRunTicks) {
-					printf("SP-DX FAIL the DX browser's listing never finished\n");
-					g_failures++;
-					finishDxStage();
-				}
-				return;
+		// Nothing ticks the guest in this harness unless the scenario does.
+		guestTick();
+		if (deluge::scenes::browser::browser_scene().listing_in_flight()) {
+			if (++g_dxTicks > kMaxRunTicks) {
+				dxStall("the DX browser's listing never finished");
 			}
+			return;
 		}
-		if (getCurrentUI() != &dxBrowser) {
+		if (!browserOnTop()) {
 			printf("SP-DX FAIL the DX browser's listing failed (error %d) and closed it\n",
 			       static_cast<int>(Browser::lastListingFailure()));
 			g_failures++;
-			g_dxStep = DxStep::Finished;
+			finishDxStage();
 			return;
 		}
-		g_dxStep = DxStep::Enter;
+		g_dxStep = g_dxAfterListing;
 		return;
 
 	case DxStep::Enter:
 		g_dxTicks = 0;
-		dxBrowser.enterKeyPress();
-		if (!DxSyxBrowser::cartridgeLoadInFlight()) {
-			printf("SP-DX FAIL Enter on the listed bank started no load\n");
+		g_dxLandTicks = 0;
+		deluge::harness::guestSelect();
+		if (!deluge::gui::ui::dxCartridgeRead().busy()) {
+			printf("SP-DX FAIL Select on the listed bank started no load\n");
 			g_failures++;
 			finishDxStage();
 			return;
@@ -3399,56 +3440,59 @@ void runDxTick() {
 		return;
 
 	case DxStep::LoadWait: {
-		// The collect runs in the browser's tick.
-		if (DxSyxBrowser::cartridgeLoadInFlight()) {
-			dxBrowser.graphicsRoutine();
-			if (DxSyxBrowser::cartridgeLoadInFlight()) {
-				if (++g_dxTicks > kMaxRunTicks) {
-					printf("SP-DX FAIL the cartridge load never finished\n");
-					g_failures++;
-					finishDxStage();
-				}
-				return;
+		// The collect runs in the guest's tick.
+		guestTick();
+		if (deluge::gui::ui::dxCartridgeRead().busy()) {
+			if (++g_dxTicks > kMaxRunTicks) {
+				dxStall("the cartridge load never finished");
 			}
+			return;
 		}
-		const int32_t selected = BrowserListingAbProbe::selectedIndex();
-		const std::string file = (selected >= 0 && selected < Browser::listing.size())
-		                             ? Browser::listing.items()[selected].filename
-		                             : std::string{"-"};
-		DX7Cartridge* pd = deluge::gui::menu_item::dxCartridge.pd;
+		// A good read ends on the cartridge page, which the menu reaches on the ticks after the read.
+		if (!dxLanded() && ++g_dxLandTicks < 16) {
+			return;
+		}
+		DX7Cartridge* pd = deluge::gui::dxCartridgeBank();
 		const int32_t patches = pd != nullptr ? pd->numPatches() : 0;
 		char first[11] = "-";
 		if (pd != nullptr) {
 			pd->getProgramName(0, first);
 		}
-		const bool open = getCurrentUI() == &dxBrowser;
-		printf("SP-DX file=%s inFlight=0 patches=%d first=%s open=%d\n", file.c_str(), patches, first, open ? 1 : 0);
-		printf("SP-DX-WAIT ticks=%d\n", g_dxTicks);
-		if (file != kDxBankName || patches != 32 || strcmp(first, kDxFirstName) != 0 || !open) {
-			printf("SP-DX FAIL the bank did not arrive whole: file=%s patches=%d first=%s open=%d, wanted file=%s "
-			       "patches=32 first=%s open=1\n",
-			       file.c_str(), patches, first, open ? 1 : 0, kDxBankName, kDxFirstName);
+		const bool landed = dxLanded();
+		printf("SP-DX inFlight=0 patches=%d first=%s landed=%d\n", patches, first, landed ? 1 : 0);
+		if (patches != 32 || strcmp(first, kDxFirstName) != 0 || !landed) {
+			printf("SP-DX FAIL the bank did not arrive whole: patches=%d first=%s landed=%d, wanted patches=32 "
+			       "first=%s landed=1\n",
+			       patches, first, landed ? 1 : 0, kDxFirstName);
 			g_failures++;
 		}
-		if (!open) {
+		if (!landed) {
 			finishDxStage();
 			return;
 		}
-		g_dxStep = DxStep::StallEnter;
+		g_dxStep = DxStep::Reopen;
 		return;
 	}
 
+	case DxStep::Reopen:
+		// BACK from the cartridge page reopens the browser on the folder it read from.
+		g_dxTicks = 0;
+		deluge::harness::guestBack();
+		g_dxAfterListing = DxStep::StallEnter;
+		g_dxStep = DxStep::ListingWait;
+		return;
+
 	case DxStep::StallEnter:
-		// SP-DX-STALL. The same bank, with every prefix read held far past the load's bound: Enter must give
+		// SP-DX-STALL. The same bank, with every prefix read held far past the load's bound: Select must give
 		// up with the read-error popup, clear the flag and leave the browser open. The hold outlasts this stage, and
 		// the preview stall after it wants one too.
 		deluge_file_prefix_set_latency_ms(kStallHoldMs);
 		g_dxTicks = 0;
 		g_stallStartUs = deluge::runtime::nowUs();
-		g_dxGiveUpsBefore = DxSyxBrowser::cartridgeGiveUps();
-		dxBrowser.enterKeyPress();
-		if (!DxSyxBrowser::cartridgeLoadInFlight()) {
-			printf("SP-DX-STALL FAIL Enter on the listed bank started no load\n");
+		g_dxGiveUpsBefore = deluge::gui::ui::dxCartridgeRead().give_ups();
+		deluge::harness::guestSelect();
+		if (!deluge::gui::ui::dxCartridgeRead().busy()) {
+			printf("SP-DX-STALL FAIL Select on the listed bank started no load\n");
 			g_failures++;
 			finishDxStage();
 			return;
@@ -3457,20 +3501,18 @@ void runDxTick() {
 		return;
 
 	case DxStep::StallWait: {
-		if (DxSyxBrowser::cartridgeLoadInFlight()) {
-			dxBrowser.graphicsRoutine();
-			if (DxSyxBrowser::cartridgeLoadInFlight()) {
-				++g_dxTicks;
-				if (stallWindowPassed(kDxStallWindowUs)) {
-					printf("SP-DX-STALL FAIL still waiting after %d ticks -- it never gave up\n", g_dxTicks);
-					g_failures++;
-					finishDxStage();
-				}
-				return;
+		guestTick();
+		if (deluge::gui::ui::dxCartridgeRead().busy()) {
+			++g_dxTicks;
+			if (stallWindowPassed(kDxStallWindowUs)) {
+				printf("SP-DX-STALL FAIL still waiting after %d ticks -- it never gave up\n", g_dxTicks);
+				g_failures++;
+				finishDxStage();
 			}
+			return;
 		}
-		const int32_t giveUps = DxSyxBrowser::cartridgeGiveUps() - g_dxGiveUpsBefore;
-		const bool open = getCurrentUI() == &dxBrowser;
+		const int32_t giveUps = deluge::gui::ui::dxCartridgeRead().give_ups() - g_dxGiveUpsBefore;
+		const bool open = browserOnTop();
 		printf("SP-DX-STALL giveUps=%d inFlight=0 open=%d ticks=%d\n", giveUps, open ? 1 : 0, g_dxTicks);
 		if (giveUps != 1 || !open) {
 			printf("SP-DX-STALL FAIL giveUps=%d open=%d, wanted one give-up with the browser still open\n", giveUps,

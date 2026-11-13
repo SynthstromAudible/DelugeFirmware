@@ -1,0 +1,25 @@
+# Reference answers of upstream main's menu, one row per answer: path, column, values (tab-separated).
+# A row changes only to follow main's source (git show origin/main:<path>); tests/golden/README.md says how.
+linked/empty	value	0
+linked/device1	value	1
+linked/empty_again	value	0
+selector/invalid_source	lands	1
+selector/valid_source	lands	3
+selector/skip/1	at	3
+selector/shift/1	at	3
+selector/shift/2	at	4
+selector/shift/3	at	5
+selector/shift/4	at	5
+selector/shift/5	at	5
+selector/shift/click	at	5
+selector/end/1	at	3
+selector/end/2	at	3
+selector/end/3	at	3
+selector/end/4	at	3
+selector/end/5	at	3
+selector/bottom/1	at	1
+selector/bottom/2	at	1
+selector/bottom/3	at	1
+selector/back/1	at	1
+selector/specific	rel	1
+selector/left	rel	0

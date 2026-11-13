@@ -1,0 +1,4 @@
+# Reference answers of upstream main's menu, one row per answer: path, column, values (tab-separated).
+# A row changes only to follow main's source (git show origin/main:<path>); tests/golden/README.md says how.
+bank	names	PROG 0	PROG 1	PROG 2	PROG 3	PROG 4	PROG 5	PROG 6	PROG 7	PROG 8	PROG 9	PROG 10	PROG 11	PROG 12	PROG 13	PROG 14	PROG 15	PROG 16	PROG 17	PROG 18	PROG 19	PROG 20	PROG 21	PROG 22	PROG 23	PROG 24	PROG 25	PROG 26	PROG 27	PROG 28	PROG 29	PROG 30	PROG 31
+bank/5	params	3	4	5	6	7	8	9	10	11	12	0	2	3	7	0	4	17	0	9	19	1	20	21	22	23	24	25	26	27	28	29	0	3	3	0	1	0	2	1	1	4	0	5	6	7	8	9	10	11	12	13	14	0	0	0	1	2	4	19	0	10	21	2	22	23	24	25	26	27	28	29	30	31	0	1	0	2	3	0	4	1	2	6	0	7	8	9	10	11	12	13	14	15	16	0	2	0	3	0	5	21	0	11	23	2	24	25	26	27	28	29	30	31	0	1	0	3	0	4	1	1	6	1	3	8	0	9	10	11	12	13	14	15	16	17	2	0	19	20	21	22	1	11	0	24	80	82	79	71	32	53	32	32	32	32	63

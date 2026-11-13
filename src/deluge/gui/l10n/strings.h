@@ -148,7 +148,7 @@ enum class String : size_t {
 	STRING_FOR_FILL_LAUNCH,
 	STRING_FOR_ONCE_LAUNCH,
 
-	// gui/context_menu/sample_browser/kit.cpp
+	// The kit folder menu (`context_menu_scene.cpp`)
 	STRING_FOR_LOAD_ALL,
 	STRING_FOR_SLICE,
 
@@ -587,7 +587,6 @@ enum class String : size_t {
 	STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL,
 	STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS,
 	STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY,
-	STRING_FOR_COMMUNITY_FEATURE_LEGACY_MENU,
 	STRING_FOR_SHORTCUT_OVERLAY_MENU_ONLY,
 	STRING_FOR_SHORTCUT_OVERLAY_MENU_AND_CLIP,
 	STRING_FOR_TRACK_STILL_HAS_CLIPS_IN_SESSION,
@@ -1153,17 +1152,21 @@ enum class String : size_t {
 	STRING_FOR_CHORD_KEYBOARD_MODE_ROW,
 	STRING_FOR_CHORD_KEYBOARD_MODE_COLUMN,
 
-	// The rename scene's box titles. Legacy hard-coded these two as English literals at the
-	// RenameUI subclass's construction (`RenameDrumUI renameDrumUI{"Drum Name"}`,
-	// gui/ui/rename/rename_drum_ui.cpp:32; `RenameOutputUI renameOutputUI{"Track name"}`,
-	// rename_output_ui.cpp:29) and so they were never localisable; `RenameClipUI`'s "Clip Name"
-	// already had an id (STRING_FOR_CLIP_NAME). Appended at the end so no existing enumerator's
-	// value moves.
+	// The rename scene's box titles: the drum's (`rename::TargetId::Drum`) and the track's
+	// (`RenameOutputUI renameOutputUI{"Track name"}`, `rename_output_ui.cpp`), which main hard-codes as
+	// English literals; `RenameClipUI`'s "Clip Name" already had an id (STRING_FOR_CLIP_NAME).
+	// Appended at the end so no existing enumerator's value moves.
 	STRING_FOR_DRUM_NAME,
 	STRING_FOR_TRACK_NAME,
 	// A menu's mark on a stored choice that no longer applies ("DX7 (n/a)"): listed so the user sees what is set,
 	// though the menu cannot choose it again.
 	STRING_FOR_CHOICE_UNAVAILABLE,
+	// The sample marker editor's loop lock popups, which show the loop lock as a state.
+	STRING_FOR_LOOP_LOCKED,
+	STRING_FOR_LOOP_FREE,
+	// A MIDI next song held back until an input take or a slice has landed.
+	STRING_FOR_NEXT_SONG_AFTER_TAKE,
+	STRING_FOR_NEXT_SONG_AFTER_SLICE,
 
 	STRING_LAST
 };

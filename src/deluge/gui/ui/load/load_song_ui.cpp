@@ -707,6 +707,7 @@ void LoadSongUI::runBeginSegment() {
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	indicator_leds::setLedState(IndicatorLED::LOAD, false);
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
+	playbackHandler.dropHeldNextSong();
 
 	nullifyUIs();
 

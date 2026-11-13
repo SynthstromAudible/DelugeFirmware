@@ -108,10 +108,8 @@ std::optional<Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSes
 						// `switchVisiblePage` runs `initializeItem(*current_item_)` on the newly
 						// landed item and discards the result entirely (`:359`) -- not even
 						// `MUST_SELECT_RANGE` is acted on here, only the allocation side effect a
-						// range-dependent item's permission check performs matters.
-						if (kids[target]->range_dependent) {
-							(void)ensure_first_range(ctx);
-						}
+						// range-specific item's permission check performs matters.
+						(void)ensure_item_first_range(*kids[target], ctx);
 						// `switchVisiblePage` cancels the notification unconditionally once past its
 						// own `totalPages <= 1` guard (`:363-365`) -- `page_switch` returning a
 						// different column already implies that guard passed.
@@ -155,8 +153,10 @@ std::optional<Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSes
 						// is assigned before the range check, so the focus below happens whether or
 						// not the picker ends up opening over it.
 						st.columns[st.depth].focused = static_cast<int8_t>(target);
-						if (!walk.enter_range_picker_if_needed(core, session, *kids[target],
-						                                       /*suppress_when_allowed=*/true)) {
+						// A refused first range (`NO`) still shows the column's notification, after the error.
+						if (walk.enter_range_picker_if_needed(core, session, *kids[target],
+						                                      /*suppress_when_allowed=*/true)
+						    != RangeGate::Picker) {
 							notify_column(ctx, *kids[target]);
 						}
 						repaint = true;

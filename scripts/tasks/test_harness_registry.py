@@ -910,6 +910,47 @@ class RenderCardCacheTest(unittest.TestCase):
         )
         self.assertEqual(list(self.cache_root.rglob("*.tmp-*")), [])
 
+    def test_a_sample_written_twice_keeps_the_inode_cards_link(self):
+        # Two writers that both found the sample missing: the second must not unlink the first's inode, which a card
+        # being filled may be linking at that moment (ENOENT from os.link).
+        key, generator = self.cache._generator(self.REPO)
+        base = self.cache_root / key
+        path = generator.samples_for("RS_KIT_FX")[0]
+        first = self.cache._sample(base, generator, path)
+        inode = first.stat().st_ino
+        with mock.patch.object(Path, "is_file", return_value=False):
+            second = self.cache._sample(base, generator, path)
+        self.assertEqual(second.stat().st_ino, inode)
+        self.assertEqual(list(base.rglob("*.tmp-*")), [])
+
+    def test_a_failed_sample_write_leaves_no_temporary_sample(self):
+        key, generator = self.cache._generator(self.REPO)
+        base = self.cache_root / key
+        path = generator.samples_for("RS_KIT_FX")[0]
+        real = Path.write_bytes
+
+        def short_write(target, data):
+            real(target, data[:16])  # the file is made, then the disk fills
+            raise OSError("disk full")
+
+        with (
+            mock.patch.object(Path, "write_bytes", short_write),
+            self.assertRaises(OSError),
+        ):
+            self.cache._sample(base, generator, path)
+        self.assertEqual(list(base.rglob("*.tmp-*")), [])
+
+    def test_a_failed_fill_leaves_no_temporary_card(self):
+        _, generator = self.cache._generator(self.REPO)
+        with (
+            mock.patch.object(
+                generator, "write_song", side_effect=OSError("disk full")
+            ),
+            self.assertRaises(OSError),
+        ):
+            self.cache.card(self.REPO, "RS_KIT_FX", self.cache_root)
+        self.assertEqual(list(self.cache_root.rglob("*.tmp-*")), [])
+
     def test_unknown_song_raises(self):
         with self.assertRaises(ValueError):
             self.cache.card(self.REPO, "RS_NO_SUCH_SONG", self.cache_root)

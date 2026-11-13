@@ -190,6 +190,9 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 			chain = project::ChainAddress{.kind = project::ChainAddress::Kind::OUTPUT, .id = track};
 		}
 		else if (ctx.is_kit) {
+			ctx.non_audio_drum_row =
+			    view.selected_row.has_value() && view.selected_row_type != project::DrumType::SOUND;
+			ctx.gate_drum_row = view.selected_row.has_value() && view.selected_row_type == project::DrumType::GATE;
 			// `:1708-1713` -- affect-entire ("kit global FX"), which the caller says (`setupKitGlobalFXMenu`): the
 			// kit's own chain. Not the clip's affect-entire: the kit-row grid shortcut enters with it on and edits the
 			// row.
@@ -225,22 +228,25 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 	ctx.affect_entire = ctx.is_kit && !ctx.is_audio_clip && view.affect_entire;
 
 	// ---------------------------------------------------------------------------------------
-	// Part 2: which root menu (`:1769-1827`, the `item == nullptr` arm). The kit arms read `is_kit_global_fx` where
-	// legacy reads the clip's affect-entire: the same fact wherever no item is passed, and on the grid shortcut it
-	// keeps the root consistent with what part 1 edits. The note-editor roots are the caller's (`NoteMode`).
+	// Part 2: which root menu (`:1769-1827`, the `item == nullptr` arm). Legacy picks the kit roots from the clip's
+	// affect-entire and edits what `setupKitGlobalFXMenu` says, and the two can disagree: the kit's own root is taken
+	// when both say the kit, and otherwise the row's root by the selected drum's type, as legacy's arms run. The grid
+	// shortcut (affect-entire on, the row edited) so lands on the row's root, which is where its item lives; with
+	// affect-entire off and the fact set it is legacy's drum root over the kit's own effects. The note-editor roots
+	// are the caller's (`NoteMode`).
 	// ---------------------------------------------------------------------------------------
 	if (view.clip) { // `:1770`
 		if (!view.audio_clip) {
 			if (view.kind == TrackKind::MIDI_OUT || view.kind == TrackKind::CV) { // `:1780-1788`
 				ctx.root = MenuContext::Root::MidiOrCv;
 			}
-			else if (ctx.is_kit && ctx.is_kit_global_fx) { // `:1790-1792`
+			else if (ctx.is_kit && ctx.is_kit_global_fx && view.affect_entire) { // `:1790-1792`
 				ctx.root = MenuContext::Root::KitGlobalFx;
 			}
-			else if (ctx.is_kit && ctx.is_drum && view.selected_row_type == project::DrumType::MIDI) { // `:1794-1798`
-				ctx.root = MenuContext::Root::MidiDrum;
+			else if (ctx.is_kit && view.selected_row && view.selected_row_type == project::DrumType::MIDI) {
+				ctx.root = MenuContext::Root::MidiDrum; // `:1794-1798`
 			}
-			else if (ctx.is_kit && ctx.is_drum && view.selected_row_type == project::DrumType::GATE) { // `:1800-1804`
+			else if (ctx.is_kit && view.selected_row && view.selected_row_type == project::DrumType::GATE) {
 				ctx.root = MenuContext::Root::GateDrum;
 			}
 			else { // `:1806-1808`
@@ -331,6 +337,45 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 	return ctx;
 }
 
+MenuContext range_rule_context(const Node& node, const MenuContext& ctx) {
+	MenuContext own = ctx;
+	const int8_t source = node.custom != nullptr ? node.custom->range_source() : int8_t{-1};
+	if (source >= 0 && source != ctx.source_index && ctx.addresses.slot) {
+		own.source_index = source;
+		own.range_index = -1;
+	}
+	return own;
+}
+
+namespace {
+
+/// @brief The context @p node's first range is made in and its picker test reads: @p ctx itself when the rule is
+///        about the menu's own source, so the range it resolves stays the menu's; @p own, filled with
+///        `range_rule_context`'s answer, when it is about another source.
+/// @param node The range-specific item.
+/// @param ctx  The menu's context.
+/// @param own  Storage for the other source's context; must outlive the returned reference.
+/// @return @p ctx or @p own.
+MenuContext& range_rule_target(const Node& node, MenuContext& ctx, MenuContext& own) {
+	own = range_rule_context(node, ctx);
+	return own.source_index == ctx.source_index ? ctx : own;
+}
+
+} // namespace
+
+Permission ensure_item_first_range(const Node& node, MenuContext& ctx) {
+	if (!node.range_specific) {
+		return Permission::Yes;
+	}
+	MenuContext own;
+	MenuContext& rule_ctx = range_rule_target(node, ctx, own);
+	if (!ensure_first_range(rule_ctx)) {
+		return Permission::No;
+	}
+	// A context with no sound took the no-op success, and has no range to select.
+	return (rule_ctx.addresses.slot && rule_ctx.range_index < 0) ? Permission::MustSelectRange : Permission::Yes;
+}
+
 Permission permission_for(const Node& node, const MenuContext& ctx) {
 	// The base implementation, `MenuItem::checkPermissionToBeginSession`
 	// (`gui/menu_item/menu_item.cpp:27-31`): relevance, and nothing else. The `relevant`
@@ -345,19 +390,19 @@ Permission permission_for(const Node& node, const MenuContext& ctx) {
 	// (`gui/menu_item/sample/transpose.h:120-135`), which after its own relevance and osc-type test
 	// defers to it verbatim.
 	//
-	// The discriminator is `Node::range_dependent`, the port of `MenuItem::isRangeDependent()`
-	// (`MenuItem::isRangeDependent`; true at `sample/transpose.h:137`, `sample/loop_point.h:31`,
-	// `multi_range.h:32`) -- NOT "the node has a `bind.param`". Everything else, an ordinary
-	// patched param on a multisampled sound included, takes the base rule above and opens: legacy
-	// routes it through `MenuItem::checkPermissionToBeginSession` (`menu_item.cpp:27-31`), which
-	// returns YES without ever looking at a range.
-	if (!node.range_dependent || !ctx.addresses.slot) {
+	// The discriminator is `Node::range_specific`, the items whose override ends in that call -- NOT "the node has a
+	// `bind.param`". Everything else, an ordinary patched param on a multisampled sound included, takes the base rule
+	// above and opens: legacy routes it through `MenuItem::checkPermissionToBeginSession` (`menu_item.cpp:27-31`),
+	// which returns YES without ever looking at a range.
+	if (!node.range_specific || !ctx.addresses.slot) {
 		return Permission::Yes;
 	}
+	// `main` asks about the item's own source (`whichThing`), which a per-oscillator item names itself.
+	const MenuContext rule_ctx = range_rule_context(node, ctx);
 
 	// `:1950` -- a kit row is always range-unambiguous (one range per drum), and so is a source
 	// with exactly one range. `context_for` has already pointed `ctx.range_index` at that range.
-	if (ctx.is_kit || range_count(ctx) <= 1) {
+	if (rule_ctx.is_kit || range_count(rule_ctx) <= 1) {
 		return Permission::Yes;
 	}
 
@@ -371,7 +416,7 @@ Permission permission_for(const Node& node, const MenuContext& ctx) {
 	// Unreachable for a context straight out of `context_for`: the only cases that set `ctx.range_index`
 	// (kit row, single range) already returned `Yes` above. This is the entry point for a picker: once it
 	// writes a chosen range back into the context, this is the arm that lets the item open.
-	if (ctx.range_index >= 0) {
+	if (rule_ctx.range_index >= 0) {
 		return Permission::Yes;
 	}
 

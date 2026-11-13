@@ -1,0 +1,2103 @@
+# Reference answers of upstream main's menu, one row per answer: path, column, values (tab-separated).
+# A row changes only to follow main's source (git show origin/main:<path>); tests/golden/README.md says how.
+cell/sounds/v3/0,0	item	sound/8/8 drum/8/8
+cell/sounds/v3/0,0	name	Repeat Mode
+cell/sounds/v3/0,1	item	sound/8/7 drum/8/7
+cell/sounds/v3/0,1	name	Reverse
+cell/sounds/v3/0,2	item	sound/8/9 drum/8/9
+cell/sounds/v3/0,2	name	Speed
+cell/sounds/v3/0,3	item	sound/8/10 drum/8/10 audio clip/8/3
+cell/sounds/v3/0,3	name	Pitch/Speed
+cell/sounds/v3/0,4	item	sound/0/1 drum/0/1 midi drum/0/1 gate drum/0/1
+cell/sounds/v3/0,4	name	Record to sample 1
+cell/sounds/v3/0,5	item	sound/8/1 drum/8/1 audio clip/8/0
+cell/sounds/v3/0,5	name	File browser
+cell/sounds/v3/0,6	item	sound/8/11 drum/8/11
+cell/sounds/v3/0,6	name	Interpolation
+cell/sounds/v3/0,7	item	sound/8/12 drum/8/12
+cell/sounds/v3/0,7	name	Start-point
+cell/sounds/v3/1,0	item	sound/9/8 drum/9/8
+cell/sounds/v3/1,0	name	Repeat Mode
+cell/sounds/v3/1,1	item	sound/9/7 drum/9/7
+cell/sounds/v3/1,1	name	Reverse
+cell/sounds/v3/1,2	item	sound/9/9 drum/9/9
+cell/sounds/v3/1,2	name	Speed
+cell/sounds/v3/1,3	item	sound/9/10 drum/9/10
+cell/sounds/v3/1,3	name	Pitch/Speed
+cell/sounds/v3/1,4	item	sound/0/2 drum/0/2 midi drum/0/2 gate drum/0/2
+cell/sounds/v3/1,4	name	Record to sample 2
+cell/sounds/v3/1,5	item	sound/9/1 drum/9/1
+cell/sounds/v3/1,5	name	File browser
+cell/sounds/v3/1,6	item	sound/9/11 drum/9/11
+cell/sounds/v3/1,6	name	Interpolation
+cell/sounds/v3/1,7	item	sound/9/12 drum/9/12
+cell/sounds/v3/1,7	name	Start-point
+cell/sounds/v3/2,0	item	sound/12/0 drum/12/0
+cell/sounds/v3/2,0	name	Osc1 level
+cell/sounds/v3/2,1	item	sound/8/2 drum/8/2
+cell/sounds/v3/2,1	name	Transpose
+cell/sounds/v3/2,2	item	sound/8/0 drum/8/0
+cell/sounds/v3/2,2	name	Type
+cell/sounds/v3/2,3	item	sound/8/4 drum/8/4
+cell/sounds/v3/2,3	name	Pulse Width
+cell/sounds/v3/2,4	item	sound/8/6 drum/8/6
+cell/sounds/v3/2,4	name	Retrigger phase
+cell/sounds/v3/2,5	item	sound/8/5 drum/8/5
+cell/sounds/v3/2,5	name	Feedback
+cell/sounds/v3/2,6	item	sound/8/3 drum/8/3
+cell/sounds/v3/2,6	name	Wave-index
+cell/sounds/v3/2,7	item	sound/6/6 sound/12/4 drum/6/6 drum/12/4
+cell/sounds/v3/2,7	name	Noise level
+cell/sounds/v3/3,0	item	sound/12/1 drum/12/1
+cell/sounds/v3/3,0	name	Osc2 level
+cell/sounds/v3/3,1	item	sound/9/2 drum/9/2
+cell/sounds/v3/3,1	name	Transpose
+cell/sounds/v3/3,2	item	sound/9/0 drum/9/0
+cell/sounds/v3/3,2	name	Type
+cell/sounds/v3/3,3	item	sound/9/4 drum/9/4
+cell/sounds/v3/3,3	name	Pulse Width
+cell/sounds/v3/3,4	item	sound/9/6 drum/9/6
+cell/sounds/v3/3,4	name	Retrigger phase
+cell/sounds/v3/3,5	item	sound/9/5 drum/9/5
+cell/sounds/v3/3,5	name	Feedback
+cell/sounds/v3/3,6	item	sound/9/3 drum/9/3
+cell/sounds/v3/3,6	name	Wave-index
+cell/sounds/v3/3,7	item	sound/12/5 drum/12/5
+cell/sounds/v3/3,7	name	Oscillator sync
+cell/sounds/v3/4,0	item	sound/12/2 drum/12/2
+cell/sounds/v3/4,0	name	FM Mod1 level
+cell/sounds/v3/4,1	item	sound/10/0 drum/10/0
+cell/sounds/v3/4,1	name	Transpose
+cell/sounds/v3/4,2	item	-
+cell/sounds/v3/4,2	soon
+cell/sounds/v3/4,3	item	-
+cell/sounds/v3/4,3	soon
+cell/sounds/v3/4,4	item	sound/10/2 drum/10/2
+cell/sounds/v3/4,4	name	Retrigger phase
+cell/sounds/v3/4,5	item	sound/10/1 drum/10/1
+cell/sounds/v3/4,5	name	Feedback
+cell/sounds/v3/4,6	item	-
+cell/sounds/v3/4,6	soon
+cell/sounds/v3/4,7	item	sound/25 drum/25 midi/cv/9
+cell/sounds/v3/4,7	name	Play direction
+cell/sounds/v3/5,0	item	sound/12/3 drum/12/3
+cell/sounds/v3/5,0	name	FM Mod2 level
+cell/sounds/v3/5,1	item	sound/11/0 drum/11/0
+cell/sounds/v3/5,1	name	Transpose
+cell/sounds/v3/5,2	item	-
+cell/sounds/v3/5,2	soon
+cell/sounds/v3/5,3	item	-
+cell/sounds/v3/5,3	soon
+cell/sounds/v3/5,4	item	sound/11/2 drum/11/2
+cell/sounds/v3/5,4	name	Retrigger phase
+cell/sounds/v3/5,5	item	sound/11/1 drum/11/1
+cell/sounds/v3/5,5	name	Feedback
+cell/sounds/v3/5,6	item	sound/11/3 drum/11/3
+cell/sounds/v3/5,6	name	Destination
+cell/sounds/v3/5,7	item	sound/6/3/0 drum/6/3/0 audio clip/6/3/0 performance/2/3/0 song/2/3/0 kit global fx/5/3/0
+cell/sounds/v3/5,7	name	Rate
+cell/sounds/v3/6,0	item	sound/1/1 drum/1/1
+cell/sounds/v3/6,0	name	Volume
+cell/sounds/v3/6,1	item	sound/1/3 drum/1/3
+cell/sounds/v3/6,1	name	Master transpose
+cell/sounds/v3/6,2	item	sound/1/4 drum/1/4
+cell/sounds/v3/6,2	name	Vibrato
+cell/sounds/v3/6,3	item	sound/1/2 drum/1/2
+cell/sounds/v3/6,3	name	Pan
+cell/sounds/v3/6,4	item	sound/1/0 drum/1/0
+cell/sounds/v3/6,4	name	Synth Mode
+cell/sounds/v3/6,5	item	sound/6/5/2 drum/6/5/2 audio clip/6/5/2 performance/2/5/0 song/2/5/0 kit global fx/5/5/0
+cell/sounds/v3/6,5	name	Decimation
+cell/sounds/v3/6,6	item	sound/6/5/1 drum/6/5/1 audio clip/6/5/1 performance/2/5/1 song/2/5/1 kit global fx/5/5/1
+cell/sounds/v3/6,6	name	Bitcrush
+cell/sounds/v3/6,7	item	sound/6/5/0 drum/6/5/0 audio clip/6/5/0
+cell/sounds/v3/6,7	name	Saturation
+cell/sounds/v3/7,0	item	sound/21/3 drum/21/3
+cell/sounds/v3/7,0	name	Portamento
+cell/sounds/v3/7,1	item	sound/21/1 drum/21/1
+cell/sounds/v3/7,1	name	Polyphony
+cell/sounds/v3/7,2	item	sound/21/0 drum/21/0 audio clip/10
+cell/sounds/v3/7,2	name	Priority
+cell/sounds/v3/7,3	item	sound/21/4/1 drum/21/4/1
+cell/sounds/v3/7,3	name	Detune
+cell/sounds/v3/7,4	item	sound/21/4/0 drum/21/4/0
+cell/sounds/v3/7,4	name	Number
+cell/sounds/v3/7,5	item	sound/4/0 drum/4/0 audio clip/4/0 kit global fx/3/0
+cell/sounds/v3/7,5	name	Threshold
+cell/sounds/v3/7,6	item	-
+cell/sounds/v3/7,7	item	sound/6/5/3 drum/6/5/3
+cell/sounds/v3/7,7	name	Wavefold
+cell/sounds/v3/8,0	item	sound/13/3 drum/13/3
+cell/sounds/v3/8,0	name	Release
+cell/sounds/v3/8,1	item	sound/13/2 drum/13/2
+cell/sounds/v3/8,1	name	Sustain
+cell/sounds/v3/8,2	item	sound/13/1 drum/13/1
+cell/sounds/v3/8,2	name	Decay
+cell/sounds/v3/8,3	item	sound/13/0 drum/13/0
+cell/sounds/v3/8,3	name	Attack
+cell/sounds/v3/8,4	item	sound/5/0/3 drum/5/0/3
+cell/sounds/v3/8,4	name	Drive
+cell/sounds/v3/8,5	item	sound/5/0/0 drum/5/0/0 audio clip/5/0/0 performance/1/0/0 song/1/0/0 kit global fx/4/0/0
+cell/sounds/v3/8,5	name	Mode
+cell/sounds/v3/8,6	item	sound/5/0/2 drum/5/0/2
+cell/sounds/v3/8,6	name	Resonance
+cell/sounds/v3/8,7	item	sound/5/0/1 drum/5/0/1
+cell/sounds/v3/8,7	name	Frequency
+cell/sounds/v3/9,0	item	sound/14/3 drum/14/3
+cell/sounds/v3/9,0	name	Release
+cell/sounds/v3/9,1	item	sound/14/2 drum/14/2
+cell/sounds/v3/9,1	name	Sustain
+cell/sounds/v3/9,2	item	sound/14/1 drum/14/1
+cell/sounds/v3/9,2	name	Decay
+cell/sounds/v3/9,3	item	sound/14/0 drum/14/0
+cell/sounds/v3/9,3	name	Attack
+cell/sounds/v3/9,4	item	sound/5/1/3 drum/5/1/3
+cell/sounds/v3/9,4	name	Fm
+cell/sounds/v3/9,5	item	sound/5/1/0 drum/5/1/0 audio clip/5/1/0 performance/1/1/0 song/1/1/0 kit global fx/4/1/0
+cell/sounds/v3/9,5	name	Mode
+cell/sounds/v3/9,6	item	sound/5/1/2 drum/5/1/2
+cell/sounds/v3/9,6	name	Resonance
+cell/sounds/v3/9,7	item	sound/5/1/1 drum/5/1/1
+cell/sounds/v3/9,7	name	Frequency
+cell/sounds/v3/10,0	item	sound/7/5 drum/7/5 audio clip/7/4 kit global fx/6/4
+cell/sounds/v3/10,0	name	Release
+cell/sounds/v3/10,1	item	sound/7/1 drum/7/1 audio clip/7/1 kit global fx/6/1
+cell/sounds/v3/10,1	name	Sync
+cell/sounds/v3/10,2	item	sound/7/0 drum/7/0
+cell/sounds/v3/10,2	name	Volume ducking
+cell/sounds/v3/10,3	item	sound/7/4 drum/7/4 audio clip/7/3 kit global fx/6/3
+cell/sounds/v3/10,3	name	Attack
+cell/sounds/v3/10,4	item	sound/7/2 drum/7/2 audio clip/7/2 kit global fx/6/2
+cell/sounds/v3/10,4	name	Shape
+cell/sounds/v3/10,5	item	sound/7/3 drum/7/3
+cell/sounds/v3/10,5	name	Send to sidechain
+cell/sounds/v3/10,6	item	sound/6/0/0 drum/6/0/0 audio clip/6/0/0 performance/2/0/0 song/2/0/0 kit global fx/5/0/0
+cell/sounds/v3/10,6	name	Bass
+cell/sounds/v3/10,7	item	sound/6/0/1 drum/6/0/1 audio clip/6/0/1 performance/2/0/1 song/2/0/1 kit global fx/5/0/1
+cell/sounds/v3/10,7	name	Bass Frequency
+cell/sounds/v3/11,0	item	sound/2/1/3 drum/2/1/3
+cell/sounds/v3/11,0	name	Rate
+cell/sounds/v3/11,1	item	sound/2/1/2 drum/2/1/2 midi/cv/3/1/2 midi drum/1/1/2 gate drum/1/1/2 kit global fx/2/1/2
+cell/sounds/v3/11,1	name	Sync
+cell/sounds/v3/11,2	item	sound/2/1/1 drum/2/1/1 kit global fx/2/1/1
+cell/sounds/v3/11,2	name	Gate
+cell/sounds/v3/11,3	item	sound/2/2/0 drum/2/2/0 midi/cv/3/2/0 midi drum/1/2/0 gate drum/1/2/0 kit global fx/2/2/0
+cell/sounds/v3/11,3	name	Octaves
+cell/sounds/v3/11,4	item	sound/2/1/0 drum/2/1/0 midi/cv/3/1/0 midi drum/1/1/0 gate drum/1/1/0 kit global fx/2/1/0
+cell/sounds/v3/11,4	name	Preset
+cell/sounds/v3/11,5	item	sound/0/0 midi/cv/0/0 audio clip/0/0 kit global fx/0/0
+cell/sounds/v3/11,5	name	Edit Name
+cell/sounds/v3/11,6	item	sound/6/0/3 drum/6/0/3 audio clip/6/0/3 performance/2/0/3 song/2/0/3 kit global fx/5/0/3
+cell/sounds/v3/11,6	name	Treble
+cell/sounds/v3/11,7	item	sound/6/0/2 drum/6/0/2 audio clip/6/0/2 performance/2/0/2 song/2/0/2 kit global fx/5/0/2
+cell/sounds/v3/11,7	name	Treble Frequency
+cell/sounds/v3/12,0	item	sound/17/2 drum/17/2
+cell/sounds/v3/12,0	name	Rate
+cell/sounds/v3/12,1	item	sound/17/1 drum/17/1
+cell/sounds/v3/12,1	name	Sync
+cell/sounds/v3/12,2	item	sound/17/0 drum/17/0
+cell/sounds/v3/12,2	name	Shape
+cell/sounds/v3/12,3	item	sound/6/4/0 drum/6/4/0 audio clip/6/4/0 performance/2/4/0 song/2/4/0 kit global fx/5/4/0
+cell/sounds/v3/12,3	name	Type
+cell/sounds/v3/12,4	item	sound/6/4/4 drum/6/4/4 audio clip/6/4/4 performance/2/4/4 song/2/4/4 kit global fx/5/4/4
+cell/sounds/v3/12,4	name	Offset
+cell/sounds/v3/12,5	item	sound/6/4/3 drum/6/4/3 audio clip/6/4/3 performance/2/4/3 song/2/4/3 kit global fx/5/4/3
+cell/sounds/v3/12,5	name	Feedback
+cell/sounds/v3/12,6	item	sound/6/4/1 drum/6/4/1
+cell/sounds/v3/12,6	name	Depth
+cell/sounds/v3/12,7	item	sound/6/4/2 drum/6/4/2
+cell/sounds/v3/12,7	name	Rate
+cell/sounds/v3/13,0	item	sound/18/2 drum/18/2
+cell/sounds/v3/13,0	name	Rate
+cell/sounds/v3/13,1	item	sound/18/1 drum/18/1
+cell/sounds/v3/13,1	name	Sync
+cell/sounds/v3/13,2	item	sound/18/0 drum/18/0
+cell/sounds/v3/13,2	name	Shape
+cell/sounds/v3/13,3	item	sound/6/2/0 drum/6/2/0
+cell/sounds/v3/13,3	name	Amount
+cell/sounds/v3/13,4	item	sound/6/2/5 drum/6/2/5 audio clip/6/2/5 performance/2/2/5 song/2/2/5 kit global fx/5/2/5
+cell/sounds/v3/13,4	name	Pan
+cell/sounds/v3/13,5	item	sound/6/2/3 drum/6/2/3 audio clip/6/2/3 performance/2/2/3 song/2/2/3 kit global fx/5/2/3
+cell/sounds/v3/13,5	name	Width
+cell/sounds/v3/13,6	item	sound/6/2/2 drum/6/2/2 audio clip/6/2/2 performance/2/2/2 song/2/2/2 kit global fx/5/2/2
+cell/sounds/v3/13,6	name	Damping
+cell/sounds/v3/13,7	item	sound/6/2/1 drum/6/2/1 audio clip/6/2/1 performance/2/2/1 song/2/2/1 kit global fx/5/2/1
+cell/sounds/v3/13,7	name	Room Size
+cell/sounds/v3/14,0	item	sound/6/1/3 drum/6/1/3
+cell/sounds/v3/14,0	name	Rate
+cell/sounds/v3/14,1	item	sound/6/1/2 drum/6/1/2 audio clip/6/1/2 performance/2/1/2 song/2/1/2 kit global fx/5/1/2
+cell/sounds/v3/14,1	name	Sync
+cell/sounds/v3/14,2	item	sound/6/1/4 drum/6/1/4 audio clip/6/1/4 performance/2/1/4 song/2/1/4 kit global fx/5/1/4
+cell/sounds/v3/14,2	name	Type
+cell/sounds/v3/14,3	item	sound/6/1/0 drum/6/1/0
+cell/sounds/v3/14,3	name	Amount
+cell/sounds/v3/14,4	item	sound/6/1/1 drum/6/1/1 audio clip/6/1/1 performance/2/1/1 song/2/1/1 kit global fx/5/1/1
+cell/sounds/v3/14,4	name	Pingpong
+cell/sounds/v3/14,5	item	-
+cell/sounds/v3/14,6	item	-
+cell/sounds/v3/14,7	item	-
+cell/sounds/v3/15,0	item	-
+cell/sounds/v3/15,1	item	sound/3/5 drum/3/5 midi/cv/4/5 midi drum/2/5 gate drum/2/5 kit global fx/2/3/5
+cell/sounds/v3/15,1	name	Velocity Spread
+cell/sounds/v3/15,2	item	sound/3/0 drum/3/0 midi/cv/4/0 midi drum/2/0 gate drum/2/0 kit global fx/2/3/0
+cell/sounds/v3/15,2	name	Lock Randomizer
+cell/sounds/v3/15,3	item	sound/3/15 drum/3/15 midi/cv/4/15 midi drum/2/15 gate drum/2/15 kit global fx/2/3/15
+cell/sounds/v3/15,3	name	Note Probability
+cell/sounds/v3/15,4	item	-
+cell/sounds/v3/15,5	item	-
+cell/sounds/v3/15,6	item	-
+cell/sounds/v3/15,7	item	-
+cell/sounds_second/v3/0,0	item	-
+cell/sounds_second/v3/0,1	item	-
+cell/sounds_second/v3/0,2	item	-
+cell/sounds_second/v3/0,3	item	-
+cell/sounds_second/v3/0,4	item	-
+cell/sounds_second/v3/0,5	item	-
+cell/sounds_second/v3/0,6	item	-
+cell/sounds_second/v3/0,7	item	-
+cell/sounds_second/v3/1,0	item	-
+cell/sounds_second/v3/1,1	item	-
+cell/sounds_second/v3/1,2	item	-
+cell/sounds_second/v3/1,3	item	-
+cell/sounds_second/v3/1,4	item	-
+cell/sounds_second/v3/1,5	item	-
+cell/sounds_second/v3/1,6	item	-
+cell/sounds_second/v3/1,7	item	-
+cell/sounds_second/v3/2,0	item	-
+cell/sounds_second/v3/2,1	item	-
+cell/sounds_second/v3/2,2	item	-
+cell/sounds_second/v3/2,3	item	-
+cell/sounds_second/v3/2,4	item	-
+cell/sounds_second/v3/2,5	item	-
+cell/sounds_second/v3/2,6	item	-
+cell/sounds_second/v3/2,7	item	-
+cell/sounds_second/v3/3,0	item	-
+cell/sounds_second/v3/3,1	item	-
+cell/sounds_second/v3/3,2	item	-
+cell/sounds_second/v3/3,3	item	-
+cell/sounds_second/v3/3,4	item	-
+cell/sounds_second/v3/3,5	item	-
+cell/sounds_second/v3/3,6	item	-
+cell/sounds_second/v3/3,7	item	-
+cell/sounds_second/v3/4,0	item	-
+cell/sounds_second/v3/4,1	item	-
+cell/sounds_second/v3/4,2	item	-
+cell/sounds_second/v3/4,3	item	-
+cell/sounds_second/v3/4,4	item	-
+cell/sounds_second/v3/4,5	item	-
+cell/sounds_second/v3/4,6	item	-
+cell/sounds_second/v3/4,7	item	-
+cell/sounds_second/v3/5,0	item	-
+cell/sounds_second/v3/5,1	item	-
+cell/sounds_second/v3/5,2	item	-
+cell/sounds_second/v3/5,3	item	-
+cell/sounds_second/v3/5,4	item	-
+cell/sounds_second/v3/5,5	item	-
+cell/sounds_second/v3/5,6	item	-
+cell/sounds_second/v3/5,7	item	sound/6/3/1 drum/6/3/1 audio clip/6/3/1 performance/2/3/1 song/2/3/1 kit global fx/5/3/1
+cell/sounds_second/v3/5,7	name	Direction
+cell/sounds_second/v3/6,0	item	-
+cell/sounds_second/v3/6,1	item	-
+cell/sounds_second/v3/6,2	item	-
+cell/sounds_second/v3/6,3	item	-
+cell/sounds_second/v3/6,4	item	-
+cell/sounds_second/v3/6,5	item	-
+cell/sounds_second/v3/6,6	item	-
+cell/sounds_second/v3/6,7	item	-
+cell/sounds_second/v3/7,0	item	-
+cell/sounds_second/v3/7,1	item	sound/21/2 drum/21/2
+cell/sounds_second/v3/7,1	name	Max Voices
+cell/sounds_second/v3/7,2	item	-
+cell/sounds_second/v3/7,3	item	-
+cell/sounds_second/v3/7,4	item	sound/21/4/2 drum/21/4/2
+cell/sounds_second/v3/7,4	name	Spread
+cell/sounds_second/v3/7,5	item	sound/4/1 drum/4/1 audio clip/4/1 kit global fx/3/1
+cell/sounds_second/v3/7,5	name	Ratio
+cell/sounds_second/v3/7,6	item	-
+cell/sounds_second/v3/7,7	item	-
+cell/sounds_second/v3/8,0	item	sound/15/3 drum/15/3
+cell/sounds_second/v3/8,0	name	Release
+cell/sounds_second/v3/8,1	item	sound/15/2 drum/15/2
+cell/sounds_second/v3/8,1	name	Sustain
+cell/sounds_second/v3/8,2	item	sound/15/1 drum/15/1
+cell/sounds_second/v3/8,2	name	Decay
+cell/sounds_second/v3/8,3	item	sound/15/0 drum/15/0
+cell/sounds_second/v3/8,3	name	Attack
+cell/sounds_second/v3/8,4	item	-
+cell/sounds_second/v3/8,5	item	-
+cell/sounds_second/v3/8,6	item	-
+cell/sounds_second/v3/8,7	item	-
+cell/sounds_second/v3/9,0	item	sound/16/3 drum/16/3
+cell/sounds_second/v3/9,0	name	Release
+cell/sounds_second/v3/9,1	item	sound/16/2 drum/16/2
+cell/sounds_second/v3/9,1	name	Sustain
+cell/sounds_second/v3/9,2	item	sound/16/1 drum/16/1
+cell/sounds_second/v3/9,2	name	Decay
+cell/sounds_second/v3/9,3	item	sound/16/0 drum/16/0
+cell/sounds_second/v3/9,3	name	Attack
+cell/sounds_second/v3/9,4	item	-
+cell/sounds_second/v3/9,5	item	-
+cell/sounds_second/v3/9,6	item	-
+cell/sounds_second/v3/9,7	item	-
+cell/sounds_second/v3/10,0	item	-
+cell/sounds_second/v3/10,1	item	-
+cell/sounds_second/v3/10,2	item	-
+cell/sounds_second/v3/10,3	item	-
+cell/sounds_second/v3/10,4	item	-
+cell/sounds_second/v3/10,5	item	-
+cell/sounds_second/v3/10,6	item	-
+cell/sounds_second/v3/10,7	item	-
+cell/sounds_second/v3/11,0	item	-
+cell/sounds_second/v3/11,1	item	-
+cell/sounds_second/v3/11,2	item	-
+cell/sounds_second/v3/11,3	item	-
+cell/sounds_second/v3/11,4	item	-
+cell/sounds_second/v3/11,5	item	-
+cell/sounds_second/v3/11,6	item	-
+cell/sounds_second/v3/11,7	item	-
+cell/sounds_second/v3/12,0	item	sound/19/2 drum/19/2
+cell/sounds_second/v3/12,0	name	Rate
+cell/sounds_second/v3/12,1	item	sound/19/1 drum/19/1
+cell/sounds_second/v3/12,1	name	Sync
+cell/sounds_second/v3/12,2	item	sound/19/0 drum/19/0
+cell/sounds_second/v3/12,2	name	Shape
+cell/sounds_second/v3/12,3	item	-
+cell/sounds_second/v3/12,4	item	-
+cell/sounds_second/v3/12,5	item	-
+cell/sounds_second/v3/12,6	item	-
+cell/sounds_second/v3/12,7	item	-
+cell/sounds_second/v3/13,0	item	sound/20/2 drum/20/2
+cell/sounds_second/v3/13,0	name	Rate
+cell/sounds_second/v3/13,1	item	sound/20/1 drum/20/1
+cell/sounds_second/v3/13,1	name	Sync
+cell/sounds_second/v3/13,2	item	sound/20/0 drum/20/0
+cell/sounds_second/v3/13,2	name	Shape
+cell/sounds_second/v3/13,3	item	-
+cell/sounds_second/v3/13,4	item	-
+cell/sounds_second/v3/13,5	item	-
+cell/sounds_second/v3/13,6	item	-
+cell/sounds_second/v3/13,7	item	-
+cell/sounds_second/v3/14,0	item	-
+cell/sounds_second/v3/14,1	item	-
+cell/sounds_second/v3/14,2	item	-
+cell/sounds_second/v3/14,3	item	-
+cell/sounds_second/v3/14,4	item	-
+cell/sounds_second/v3/14,5	item	-
+cell/sounds_second/v3/14,6	item	-
+cell/sounds_second/v3/14,7	item	-
+cell/sounds_second/v3/15,0	item	-
+cell/sounds_second/v3/15,1	item	-
+cell/sounds_second/v3/15,2	item	-
+cell/sounds_second/v3/15,3	item	-
+cell/sounds_second/v3/15,4	item	-
+cell/sounds_second/v3/15,5	item	-
+cell/sounds_second/v3/15,6	item	-
+cell/sounds_second/v3/15,7	item	-
+cell/audio_clips/v3/0,0	item	-
+cell/audio_clips/v3/0,1	item	audio clip/8/2
+cell/audio_clips/v3/0,1	name	Reverse
+cell/audio_clips/v3/0,2	item	-
+cell/audio_clips/v3/0,3	item	sound/8/10 drum/8/10 audio clip/8/3
+cell/audio_clips/v3/0,3	name	Pitch/Speed
+cell/audio_clips/v3/0,4	item	-
+cell/audio_clips/v3/0,5	item	sound/8/1 drum/8/1 audio clip/8/0
+cell/audio_clips/v3/0,5	name	File browser
+cell/audio_clips/v3/0,6	item	audio clip/8/5
+cell/audio_clips/v3/0,6	name	Interpolation
+cell/audio_clips/v3/0,7	item	audio clip/8/4
+cell/audio_clips/v3/0,7	name	Waveform
+cell/audio_clips/v3/1,0	item	-
+cell/audio_clips/v3/1,1	item	audio clip/8/2
+cell/audio_clips/v3/1,1	name	Reverse
+cell/audio_clips/v3/1,2	item	-
+cell/audio_clips/v3/1,3	item	sound/8/10 drum/8/10 audio clip/8/3
+cell/audio_clips/v3/1,3	name	Pitch/Speed
+cell/audio_clips/v3/1,4	item	-
+cell/audio_clips/v3/1,5	item	sound/8/1 drum/8/1 audio clip/8/0
+cell/audio_clips/v3/1,5	name	File browser
+cell/audio_clips/v3/1,6	item	audio clip/8/5
+cell/audio_clips/v3/1,6	name	Interpolation
+cell/audio_clips/v3/1,7	item	audio clip/8/4
+cell/audio_clips/v3/1,7	name	Waveform
+cell/audio_clips/v3/2,0	item	-
+cell/audio_clips/v3/2,1	item	audio clip/8/1
+cell/audio_clips/v3/2,1	name	Transpose
+cell/audio_clips/v3/2,2	item	-
+cell/audio_clips/v3/2,3	item	-
+cell/audio_clips/v3/2,4	item	-
+cell/audio_clips/v3/2,5	item	-
+cell/audio_clips/v3/2,6	item	-
+cell/audio_clips/v3/2,7	item	-
+cell/audio_clips/v3/3,0	item	-
+cell/audio_clips/v3/3,1	item	audio clip/8/1
+cell/audio_clips/v3/3,1	name	Transpose
+cell/audio_clips/v3/3,2	item	-
+cell/audio_clips/v3/3,3	item	-
+cell/audio_clips/v3/3,4	item	-
+cell/audio_clips/v3/3,5	item	-
+cell/audio_clips/v3/3,6	item	-
+cell/audio_clips/v3/3,7	item	-
+cell/audio_clips/v3/4,0	item	-
+cell/audio_clips/v3/4,1	item	-
+cell/audio_clips/v3/4,2	item	-
+cell/audio_clips/v3/4,3	item	-
+cell/audio_clips/v3/4,4	item	-
+cell/audio_clips/v3/4,5	item	-
+cell/audio_clips/v3/4,6	item	-
+cell/audio_clips/v3/4,7	item	-
+cell/audio_clips/v3/5,0	item	-
+cell/audio_clips/v3/5,1	item	-
+cell/audio_clips/v3/5,2	item	-
+cell/audio_clips/v3/5,3	item	-
+cell/audio_clips/v3/5,4	item	-
+cell/audio_clips/v3/5,5	item	-
+cell/audio_clips/v3/5,6	item	-
+cell/audio_clips/v3/5,7	item	sound/6/3/0 drum/6/3/0 audio clip/6/3/0 performance/2/3/0 song/2/3/0 kit global fx/5/3/0
+cell/audio_clips/v3/5,7	name	Rate
+cell/audio_clips/v3/6,0	item	audio clip/3/0 song/0/0 kit global fx/1/0
+cell/audio_clips/v3/6,0	name	Volume
+cell/audio_clips/v3/6,1	item	audio clip/8/1
+cell/audio_clips/v3/6,1	name	Transpose
+cell/audio_clips/v3/6,2	item	-
+cell/audio_clips/v3/6,3	item	audio clip/3/1 song/0/1 kit global fx/1/1
+cell/audio_clips/v3/6,3	name	Pan
+cell/audio_clips/v3/6,4	item	-
+cell/audio_clips/v3/6,5	item	sound/6/5/2 drum/6/5/2 audio clip/6/5/2 performance/2/5/0 song/2/5/0 kit global fx/5/5/0
+cell/audio_clips/v3/6,5	name	Decimation
+cell/audio_clips/v3/6,6	item	sound/6/5/1 drum/6/5/1 audio clip/6/5/1 performance/2/5/1 song/2/5/1 kit global fx/5/5/1
+cell/audio_clips/v3/6,6	name	Bitcrush
+cell/audio_clips/v3/6,7	item	sound/6/5/0 drum/6/5/0 audio clip/6/5/0
+cell/audio_clips/v3/6,7	name	Saturation
+cell/audio_clips/v3/7,0	item	-
+cell/audio_clips/v3/7,1	item	-
+cell/audio_clips/v3/7,2	item	sound/21/0 drum/21/0 audio clip/10
+cell/audio_clips/v3/7,2	name	Priority
+cell/audio_clips/v3/7,3	item	-
+cell/audio_clips/v3/7,4	item	-
+cell/audio_clips/v3/7,5	item	sound/4/0 drum/4/0 audio clip/4/0 kit global fx/3/0
+cell/audio_clips/v3/7,5	name	Threshold
+cell/audio_clips/v3/7,6	item	-
+cell/audio_clips/v3/7,7	item	-
+cell/audio_clips/v3/7,7	soon
+cell/audio_clips/v3/8,0	item	-
+cell/audio_clips/v3/8,1	item	-
+cell/audio_clips/v3/8,2	item	-
+cell/audio_clips/v3/8,3	item	audio clip/9
+cell/audio_clips/v3/8,3	name	Attack
+cell/audio_clips/v3/8,4	item	audio clip/5/0/3 performance/1/0/3 song/1/0/3 kit global fx/4/0/3
+cell/audio_clips/v3/8,4	name	Drive
+cell/audio_clips/v3/8,5	item	sound/5/0/0 drum/5/0/0 audio clip/5/0/0 performance/1/0/0 song/1/0/0 kit global fx/4/0/0
+cell/audio_clips/v3/8,5	name	Mode
+cell/audio_clips/v3/8,6	item	audio clip/5/0/2 performance/1/0/2 song/1/0/2 kit global fx/4/0/2
+cell/audio_clips/v3/8,6	name	Resonance
+cell/audio_clips/v3/8,7	item	audio clip/5/0/1 performance/1/0/1 song/1/0/1 kit global fx/4/0/1
+cell/audio_clips/v3/8,7	name	Frequency
+cell/audio_clips/v3/9,0	item	-
+cell/audio_clips/v3/9,1	item	-
+cell/audio_clips/v3/9,2	item	-
+cell/audio_clips/v3/9,3	item	audio clip/9
+cell/audio_clips/v3/9,3	name	Attack
+cell/audio_clips/v3/9,4	item	audio clip/5/1/3 performance/1/1/3 song/1/1/3 kit global fx/4/1/3
+cell/audio_clips/v3/9,4	name	Fm
+cell/audio_clips/v3/9,5	item	sound/5/1/0 drum/5/1/0 audio clip/5/1/0 performance/1/1/0 song/1/1/0 kit global fx/4/1/0
+cell/audio_clips/v3/9,5	name	Mode
+cell/audio_clips/v3/9,6	item	audio clip/5/1/2 performance/1/1/2 song/1/1/2 kit global fx/4/1/2
+cell/audio_clips/v3/9,6	name	Resonance
+cell/audio_clips/v3/9,7	item	audio clip/5/1/1 performance/1/1/1 song/1/1/1 kit global fx/4/1/1
+cell/audio_clips/v3/9,7	name	Frequency
+cell/audio_clips/v3/10,0	item	sound/7/5 drum/7/5 audio clip/7/4 kit global fx/6/4
+cell/audio_clips/v3/10,0	name	Release
+cell/audio_clips/v3/10,1	item	sound/7/1 drum/7/1 audio clip/7/1 kit global fx/6/1
+cell/audio_clips/v3/10,1	name	Sync
+cell/audio_clips/v3/10,2	item	audio clip/7/0 kit global fx/6/0
+cell/audio_clips/v3/10,2	name	Volume ducking
+cell/audio_clips/v3/10,3	item	sound/7/4 drum/7/4 audio clip/7/3 kit global fx/6/3
+cell/audio_clips/v3/10,3	name	Attack
+cell/audio_clips/v3/10,4	item	sound/7/2 drum/7/2 audio clip/7/2 kit global fx/6/2
+cell/audio_clips/v3/10,4	name	Shape
+cell/audio_clips/v3/10,5	item	-
+cell/audio_clips/v3/10,6	item	sound/6/0/0 drum/6/0/0 audio clip/6/0/0 performance/2/0/0 song/2/0/0 kit global fx/5/0/0
+cell/audio_clips/v3/10,6	name	Bass
+cell/audio_clips/v3/10,7	item	sound/6/0/1 drum/6/0/1 audio clip/6/0/1 performance/2/0/1 song/2/0/1 kit global fx/5/0/1
+cell/audio_clips/v3/10,7	name	Bass Frequency
+cell/audio_clips/v3/11,0	item	-
+cell/audio_clips/v3/11,1	item	-
+cell/audio_clips/v3/11,2	item	-
+cell/audio_clips/v3/11,3	item	-
+cell/audio_clips/v3/11,4	item	-
+cell/audio_clips/v3/11,5	item	sound/0/0 midi/cv/0/0 audio clip/0/0 kit global fx/0/0
+cell/audio_clips/v3/11,5	name	Edit Name
+cell/audio_clips/v3/11,6	item	sound/6/0/3 drum/6/0/3 audio clip/6/0/3 performance/2/0/3 song/2/0/3 kit global fx/5/0/3
+cell/audio_clips/v3/11,6	name	Treble
+cell/audio_clips/v3/11,7	item	sound/6/0/2 drum/6/0/2 audio clip/6/0/2 performance/2/0/2 song/2/0/2 kit global fx/5/0/2
+cell/audio_clips/v3/11,7	name	Treble Frequency
+cell/audio_clips/v3/12,0	item	-
+cell/audio_clips/v3/12,1	item	-
+cell/audio_clips/v3/12,2	item	-
+cell/audio_clips/v3/12,3	item	sound/6/4/0 drum/6/4/0 audio clip/6/4/0 performance/2/4/0 song/2/4/0 kit global fx/5/4/0
+cell/audio_clips/v3/12,3	name	Type
+cell/audio_clips/v3/12,4	item	sound/6/4/4 drum/6/4/4 audio clip/6/4/4 performance/2/4/4 song/2/4/4 kit global fx/5/4/4
+cell/audio_clips/v3/12,4	name	Offset
+cell/audio_clips/v3/12,5	item	sound/6/4/3 drum/6/4/3 audio clip/6/4/3 performance/2/4/3 song/2/4/3 kit global fx/5/4/3
+cell/audio_clips/v3/12,5	name	Feedback
+cell/audio_clips/v3/12,6	item	audio clip/6/4/1 performance/2/4/1 song/2/4/1 kit global fx/5/4/1
+cell/audio_clips/v3/12,6	name	Depth
+cell/audio_clips/v3/12,7	item	audio clip/6/4/2 performance/2/4/2 song/2/4/2 kit global fx/5/4/2
+cell/audio_clips/v3/12,7	name	Rate
+cell/audio_clips/v3/13,0	item	-
+cell/audio_clips/v3/13,1	item	-
+cell/audio_clips/v3/13,2	item	-
+cell/audio_clips/v3/13,3	item	audio clip/6/2/0 performance/2/2/0 song/2/2/0 kit global fx/5/2/0
+cell/audio_clips/v3/13,3	name	Amount
+cell/audio_clips/v3/13,4	item	sound/6/2/5 drum/6/2/5 audio clip/6/2/5 performance/2/2/5 song/2/2/5 kit global fx/5/2/5
+cell/audio_clips/v3/13,4	name	Pan
+cell/audio_clips/v3/13,5	item	sound/6/2/3 drum/6/2/3 audio clip/6/2/3 performance/2/2/3 song/2/2/3 kit global fx/5/2/3
+cell/audio_clips/v3/13,5	name	Width
+cell/audio_clips/v3/13,6	item	sound/6/2/2 drum/6/2/2 audio clip/6/2/2 performance/2/2/2 song/2/2/2 kit global fx/5/2/2
+cell/audio_clips/v3/13,6	name	Damping
+cell/audio_clips/v3/13,7	item	sound/6/2/1 drum/6/2/1 audio clip/6/2/1 performance/2/2/1 song/2/2/1 kit global fx/5/2/1
+cell/audio_clips/v3/13,7	name	Room Size
+cell/audio_clips/v3/14,0	item	audio clip/6/1/3 performance/2/1/3 song/2/1/3 kit global fx/5/1/3
+cell/audio_clips/v3/14,0	name	Rate
+cell/audio_clips/v3/14,1	item	sound/6/1/2 drum/6/1/2 audio clip/6/1/2 performance/2/1/2 song/2/1/2 kit global fx/5/1/2
+cell/audio_clips/v3/14,1	name	Sync
+cell/audio_clips/v3/14,2	item	sound/6/1/4 drum/6/1/4 audio clip/6/1/4 performance/2/1/4 song/2/1/4 kit global fx/5/1/4
+cell/audio_clips/v3/14,2	name	Type
+cell/audio_clips/v3/14,3	item	audio clip/6/1/0 performance/2/1/0 song/2/1/0 kit global fx/5/1/0
+cell/audio_clips/v3/14,3	name	Amount
+cell/audio_clips/v3/14,4	item	sound/6/1/1 drum/6/1/1 audio clip/6/1/1 performance/2/1/1 song/2/1/1 kit global fx/5/1/1
+cell/audio_clips/v3/14,4	name	Pingpong
+cell/audio_clips/v3/14,5	item	-
+cell/audio_clips/v3/14,6	item	-
+cell/audio_clips/v3/14,7	item	-
+cell/audio_clips/v3/15,0	item	-
+cell/audio_clips/v3/15,1	item	-
+cell/audio_clips/v3/15,2	item	-
+cell/audio_clips/v3/15,3	item	-
+cell/audio_clips/v3/15,4	item	-
+cell/audio_clips/v3/15,5	item	-
+cell/audio_clips/v3/15,6	item	-
+cell/audio_clips/v3/15,7	item	-
+cell/song_view/v3/0,0	item	-
+cell/song_view/v3/0,1	item	-
+cell/song_view/v3/0,2	item	-
+cell/song_view/v3/0,3	item	-
+cell/song_view/v3/0,4	item	-
+cell/song_view/v3/0,5	item	-
+cell/song_view/v3/0,6	item	-
+cell/song_view/v3/0,7	item	-
+cell/song_view/v3/1,0	item	-
+cell/song_view/v3/1,1	item	-
+cell/song_view/v3/1,2	item	-
+cell/song_view/v3/1,3	item	-
+cell/song_view/v3/1,4	item	-
+cell/song_view/v3/1,5	item	-
+cell/song_view/v3/1,6	item	-
+cell/song_view/v3/1,7	item	-
+cell/song_view/v3/2,0	item	-
+cell/song_view/v3/2,1	item	-
+cell/song_view/v3/2,2	item	-
+cell/song_view/v3/2,3	item	-
+cell/song_view/v3/2,4	item	-
+cell/song_view/v3/2,5	item	-
+cell/song_view/v3/2,6	item	-
+cell/song_view/v3/2,7	item	-
+cell/song_view/v3/3,0	item	-
+cell/song_view/v3/3,1	item	-
+cell/song_view/v3/3,2	item	-
+cell/song_view/v3/3,3	item	-
+cell/song_view/v3/3,4	item	-
+cell/song_view/v3/3,5	item	-
+cell/song_view/v3/3,6	item	-
+cell/song_view/v3/3,7	item	-
+cell/song_view/v3/4,0	item	-
+cell/song_view/v3/4,1	item	-
+cell/song_view/v3/4,2	item	-
+cell/song_view/v3/4,3	item	-
+cell/song_view/v3/4,4	item	-
+cell/song_view/v3/4,5	item	-
+cell/song_view/v3/4,6	item	-
+cell/song_view/v3/4,7	item	-
+cell/song_view/v3/5,0	item	-
+cell/song_view/v3/5,1	item	-
+cell/song_view/v3/5,2	item	-
+cell/song_view/v3/5,3	item	-
+cell/song_view/v3/5,4	item	-
+cell/song_view/v3/5,5	item	-
+cell/song_view/v3/5,6	item	-
+cell/song_view/v3/5,7	item	sound/6/3/0 drum/6/3/0 audio clip/6/3/0 performance/2/3/0 song/2/3/0 kit global fx/5/3/0
+cell/song_view/v3/5,7	name	Rate
+cell/song_view/v3/6,0	item	audio clip/3/0 song/0/0 kit global fx/1/0
+cell/song_view/v3/6,0	name	Volume
+cell/song_view/v3/6,1	item	-
+cell/song_view/v3/6,2	item	-
+cell/song_view/v3/6,3	item	audio clip/3/1 song/0/1 kit global fx/1/1
+cell/song_view/v3/6,3	name	Pan
+cell/song_view/v3/6,4	item	-
+cell/song_view/v3/6,5	item	sound/6/5/2 drum/6/5/2 audio clip/6/5/2 performance/2/5/0 song/2/5/0 kit global fx/5/5/0
+cell/song_view/v3/6,5	name	Decimation
+cell/song_view/v3/6,6	item	sound/6/5/1 drum/6/5/1 audio clip/6/5/1 performance/2/5/1 song/2/5/1 kit global fx/5/5/1
+cell/song_view/v3/6,6	name	Bitcrush
+cell/song_view/v3/6,7	item	-
+cell/song_view/v3/7,0	item	-
+cell/song_view/v3/7,1	item	-
+cell/song_view/v3/7,2	item	-
+cell/song_view/v3/7,3	item	-
+cell/song_view/v3/7,4	item	-
+cell/song_view/v3/7,5	item	sound/4/0 drum/4/0 audio clip/4/0 kit global fx/3/0
+cell/song_view/v3/7,5	name	Threshold
+cell/song_view/v3/7,6	item	-
+cell/song_view/v3/7,7	item	-
+cell/song_view/v3/8,0	item	-
+cell/song_view/v3/8,1	item	-
+cell/song_view/v3/8,2	item	-
+cell/song_view/v3/8,3	item	-
+cell/song_view/v3/8,4	item	audio clip/5/0/3 performance/1/0/3 song/1/0/3 kit global fx/4/0/3
+cell/song_view/v3/8,4	name	Drive
+cell/song_view/v3/8,5	item	sound/5/0/0 drum/5/0/0 audio clip/5/0/0 performance/1/0/0 song/1/0/0 kit global fx/4/0/0
+cell/song_view/v3/8,5	name	Mode
+cell/song_view/v3/8,6	item	audio clip/5/0/2 performance/1/0/2 song/1/0/2 kit global fx/4/0/2
+cell/song_view/v3/8,6	name	Resonance
+cell/song_view/v3/8,7	item	audio clip/5/0/1 performance/1/0/1 song/1/0/1 kit global fx/4/0/1
+cell/song_view/v3/8,7	name	Frequency
+cell/song_view/v3/9,0	item	-
+cell/song_view/v3/9,1	item	-
+cell/song_view/v3/9,2	item	-
+cell/song_view/v3/9,3	item	-
+cell/song_view/v3/9,4	item	audio clip/5/1/3 performance/1/1/3 song/1/1/3 kit global fx/4/1/3
+cell/song_view/v3/9,4	name	Fm
+cell/song_view/v3/9,5	item	sound/5/1/0 drum/5/1/0 audio clip/5/1/0 performance/1/1/0 song/1/1/0 kit global fx/4/1/0
+cell/song_view/v3/9,5	name	Mode
+cell/song_view/v3/9,6	item	audio clip/5/1/2 performance/1/1/2 song/1/1/2 kit global fx/4/1/2
+cell/song_view/v3/9,6	name	Resonance
+cell/song_view/v3/9,7	item	audio clip/5/1/1 performance/1/1/1 song/1/1/1 kit global fx/4/1/1
+cell/song_view/v3/9,7	name	Frequency
+cell/song_view/v3/10,0	item	-
+cell/song_view/v3/10,1	item	-
+cell/song_view/v3/10,2	item	-
+cell/song_view/v3/10,3	item	-
+cell/song_view/v3/10,4	item	-
+cell/song_view/v3/10,5	item	-
+cell/song_view/v3/10,6	item	sound/6/0/0 drum/6/0/0 audio clip/6/0/0 performance/2/0/0 song/2/0/0 kit global fx/5/0/0
+cell/song_view/v3/10,6	name	Bass
+cell/song_view/v3/10,7	item	sound/6/0/1 drum/6/0/1 audio clip/6/0/1 performance/2/0/1 song/2/0/1 kit global fx/5/0/1
+cell/song_view/v3/10,7	name	Bass Frequency
+cell/song_view/v3/11,0	item	-
+cell/song_view/v3/11,1	item	-
+cell/song_view/v3/11,2	item	-
+cell/song_view/v3/11,3	item	-
+cell/song_view/v3/11,4	item	-
+cell/song_view/v3/11,5	item	-
+cell/song_view/v3/11,6	item	sound/6/0/3 drum/6/0/3 audio clip/6/0/3 performance/2/0/3 song/2/0/3 kit global fx/5/0/3
+cell/song_view/v3/11,6	name	Treble
+cell/song_view/v3/11,7	item	sound/6/0/2 drum/6/0/2 audio clip/6/0/2 performance/2/0/2 song/2/0/2 kit global fx/5/0/2
+cell/song_view/v3/11,7	name	Treble Frequency
+cell/song_view/v3/12,0	item	-
+cell/song_view/v3/12,1	item	-
+cell/song_view/v3/12,2	item	-
+cell/song_view/v3/12,3	item	sound/6/4/0 drum/6/4/0 audio clip/6/4/0 performance/2/4/0 song/2/4/0 kit global fx/5/4/0
+cell/song_view/v3/12,3	name	Type
+cell/song_view/v3/12,4	item	sound/6/4/4 drum/6/4/4 audio clip/6/4/4 performance/2/4/4 song/2/4/4 kit global fx/5/4/4
+cell/song_view/v3/12,4	name	Offset
+cell/song_view/v3/12,5	item	sound/6/4/3 drum/6/4/3 audio clip/6/4/3 performance/2/4/3 song/2/4/3 kit global fx/5/4/3
+cell/song_view/v3/12,5	name	Feedback
+cell/song_view/v3/12,6	item	audio clip/6/4/1 performance/2/4/1 song/2/4/1 kit global fx/5/4/1
+cell/song_view/v3/12,6	name	Depth
+cell/song_view/v3/12,7	item	audio clip/6/4/2 performance/2/4/2 song/2/4/2 kit global fx/5/4/2
+cell/song_view/v3/12,7	name	Rate
+cell/song_view/v3/13,0	item	-
+cell/song_view/v3/13,1	item	-
+cell/song_view/v3/13,2	item	-
+cell/song_view/v3/13,3	item	audio clip/6/2/0 performance/2/2/0 song/2/2/0 kit global fx/5/2/0
+cell/song_view/v3/13,3	name	Amount
+cell/song_view/v3/13,4	item	sound/6/2/5 drum/6/2/5 audio clip/6/2/5 performance/2/2/5 song/2/2/5 kit global fx/5/2/5
+cell/song_view/v3/13,4	name	Pan
+cell/song_view/v3/13,5	item	sound/6/2/3 drum/6/2/3 audio clip/6/2/3 performance/2/2/3 song/2/2/3 kit global fx/5/2/3
+cell/song_view/v3/13,5	name	Width
+cell/song_view/v3/13,6	item	sound/6/2/2 drum/6/2/2 audio clip/6/2/2 performance/2/2/2 song/2/2/2 kit global fx/5/2/2
+cell/song_view/v3/13,6	name	Damping
+cell/song_view/v3/13,7	item	sound/6/2/1 drum/6/2/1 audio clip/6/2/1 performance/2/2/1 song/2/2/1 kit global fx/5/2/1
+cell/song_view/v3/13,7	name	Room Size
+cell/song_view/v3/14,0	item	audio clip/6/1/3 performance/2/1/3 song/2/1/3 kit global fx/5/1/3
+cell/song_view/v3/14,0	name	Rate
+cell/song_view/v3/14,1	item	sound/6/1/2 drum/6/1/2 audio clip/6/1/2 performance/2/1/2 song/2/1/2 kit global fx/5/1/2
+cell/song_view/v3/14,1	name	Sync
+cell/song_view/v3/14,2	item	sound/6/1/4 drum/6/1/4 audio clip/6/1/4 performance/2/1/4 song/2/1/4 kit global fx/5/1/4
+cell/song_view/v3/14,2	name	Type
+cell/song_view/v3/14,3	item	audio clip/6/1/0 performance/2/1/0 song/2/1/0 kit global fx/5/1/0
+cell/song_view/v3/14,3	name	Amount
+cell/song_view/v3/14,4	item	sound/6/1/1 drum/6/1/1 audio clip/6/1/1 performance/2/1/1 song/2/1/1 kit global fx/5/1/1
+cell/song_view/v3/14,4	name	Pingpong
+cell/song_view/v3/14,5	item	-
+cell/song_view/v3/14,6	item	-
+cell/song_view/v3/14,7	item	-
+cell/song_view/v3/15,0	item	-
+cell/song_view/v3/15,1	item	-
+cell/song_view/v3/15,2	item	-
+cell/song_view/v3/15,3	item	-
+cell/song_view/v3/15,4	item	-
+cell/song_view/v3/15,5	item	-
+cell/song_view/v3/15,6	item	-
+cell/song_view/v3/15,7	item	-
+cell/kit_global_fx/v3/0,0	item	-
+cell/kit_global_fx/v3/0,1	item	-
+cell/kit_global_fx/v3/0,2	item	-
+cell/kit_global_fx/v3/0,3	item	-
+cell/kit_global_fx/v3/0,4	item	-
+cell/kit_global_fx/v3/0,5	item	-
+cell/kit_global_fx/v3/0,6	item	-
+cell/kit_global_fx/v3/0,7	item	-
+cell/kit_global_fx/v3/1,0	item	-
+cell/kit_global_fx/v3/1,1	item	-
+cell/kit_global_fx/v3/1,2	item	-
+cell/kit_global_fx/v3/1,3	item	-
+cell/kit_global_fx/v3/1,4	item	-
+cell/kit_global_fx/v3/1,5	item	-
+cell/kit_global_fx/v3/1,6	item	-
+cell/kit_global_fx/v3/1,7	item	-
+cell/kit_global_fx/v3/2,0	item	-
+cell/kit_global_fx/v3/2,1	item	-
+cell/kit_global_fx/v3/2,2	item	-
+cell/kit_global_fx/v3/2,3	item	-
+cell/kit_global_fx/v3/2,4	item	-
+cell/kit_global_fx/v3/2,5	item	-
+cell/kit_global_fx/v3/2,6	item	-
+cell/kit_global_fx/v3/2,7	item	-
+cell/kit_global_fx/v3/3,0	item	-
+cell/kit_global_fx/v3/3,1	item	-
+cell/kit_global_fx/v3/3,2	item	-
+cell/kit_global_fx/v3/3,3	item	-
+cell/kit_global_fx/v3/3,4	item	-
+cell/kit_global_fx/v3/3,5	item	-
+cell/kit_global_fx/v3/3,6	item	-
+cell/kit_global_fx/v3/3,7	item	-
+cell/kit_global_fx/v3/4,0	item	-
+cell/kit_global_fx/v3/4,1	item	-
+cell/kit_global_fx/v3/4,2	item	-
+cell/kit_global_fx/v3/4,3	item	-
+cell/kit_global_fx/v3/4,4	item	-
+cell/kit_global_fx/v3/4,5	item	-
+cell/kit_global_fx/v3/4,6	item	-
+cell/kit_global_fx/v3/4,7	item	-
+cell/kit_global_fx/v3/5,0	item	-
+cell/kit_global_fx/v3/5,1	item	-
+cell/kit_global_fx/v3/5,2	item	-
+cell/kit_global_fx/v3/5,3	item	-
+cell/kit_global_fx/v3/5,4	item	-
+cell/kit_global_fx/v3/5,5	item	-
+cell/kit_global_fx/v3/5,6	item	-
+cell/kit_global_fx/v3/5,7	item	-
+cell/kit_global_fx/v3/6,0	item	audio clip/3/0 song/0/0 kit global fx/1/0
+cell/kit_global_fx/v3/6,0	name	Volume
+cell/kit_global_fx/v3/6,1	item	kit global fx/1/2
+cell/kit_global_fx/v3/6,1	name	Pitch
+cell/kit_global_fx/v3/6,2	item	-
+cell/kit_global_fx/v3/6,3	item	audio clip/3/1 song/0/1 kit global fx/1/1
+cell/kit_global_fx/v3/6,3	name	Pan
+cell/kit_global_fx/v3/6,4	item	-
+cell/kit_global_fx/v3/6,5	item	sound/6/5/2 drum/6/5/2 audio clip/6/5/2 performance/2/5/0 song/2/5/0 kit global fx/5/5/0
+cell/kit_global_fx/v3/6,5	name	Decimation
+cell/kit_global_fx/v3/6,6	item	sound/6/5/1 drum/6/5/1 audio clip/6/5/1 performance/2/5/1 song/2/5/1 kit global fx/5/5/1
+cell/kit_global_fx/v3/6,6	name	Bitcrush
+cell/kit_global_fx/v3/6,7	item	-
+cell/kit_global_fx/v3/7,0	item	-
+cell/kit_global_fx/v3/7,1	item	-
+cell/kit_global_fx/v3/7,2	item	-
+cell/kit_global_fx/v3/7,3	item	-
+cell/kit_global_fx/v3/7,4	item	-
+cell/kit_global_fx/v3/7,5	item	sound/4/0 drum/4/0 audio clip/4/0 kit global fx/3/0
+cell/kit_global_fx/v3/7,5	name	Threshold
+cell/kit_global_fx/v3/7,6	item	-
+cell/kit_global_fx/v3/7,7	item	-
+cell/kit_global_fx/v3/8,0	item	-
+cell/kit_global_fx/v3/8,1	item	-
+cell/kit_global_fx/v3/8,2	item	-
+cell/kit_global_fx/v3/8,3	item	-
+cell/kit_global_fx/v3/8,4	item	audio clip/5/0/3 performance/1/0/3 song/1/0/3 kit global fx/4/0/3
+cell/kit_global_fx/v3/8,4	name	Drive
+cell/kit_global_fx/v3/8,5	item	sound/5/0/0 drum/5/0/0 audio clip/5/0/0 performance/1/0/0 song/1/0/0 kit global fx/4/0/0
+cell/kit_global_fx/v3/8,5	name	Mode
+cell/kit_global_fx/v3/8,6	item	audio clip/5/0/2 performance/1/0/2 song/1/0/2 kit global fx/4/0/2
+cell/kit_global_fx/v3/8,6	name	Resonance
+cell/kit_global_fx/v3/8,7	item	audio clip/5/0/1 performance/1/0/1 song/1/0/1 kit global fx/4/0/1
+cell/kit_global_fx/v3/8,7	name	Frequency
+cell/kit_global_fx/v3/9,0	item	-
+cell/kit_global_fx/v3/9,1	item	-
+cell/kit_global_fx/v3/9,2	item	-
+cell/kit_global_fx/v3/9,3	item	-
+cell/kit_global_fx/v3/9,4	item	audio clip/5/1/3 performance/1/1/3 song/1/1/3 kit global fx/4/1/3
+cell/kit_global_fx/v3/9,4	name	Fm
+cell/kit_global_fx/v3/9,5	item	sound/5/1/0 drum/5/1/0 audio clip/5/1/0 performance/1/1/0 song/1/1/0 kit global fx/4/1/0
+cell/kit_global_fx/v3/9,5	name	Mode
+cell/kit_global_fx/v3/9,6	item	audio clip/5/1/2 performance/1/1/2 song/1/1/2 kit global fx/4/1/2
+cell/kit_global_fx/v3/9,6	name	Resonance
+cell/kit_global_fx/v3/9,7	item	audio clip/5/1/1 performance/1/1/1 song/1/1/1 kit global fx/4/1/1
+cell/kit_global_fx/v3/9,7	name	Frequency
+cell/kit_global_fx/v3/10,0	item	sound/7/5 drum/7/5 audio clip/7/4 kit global fx/6/4
+cell/kit_global_fx/v3/10,0	name	Release
+cell/kit_global_fx/v3/10,1	item	sound/7/1 drum/7/1 audio clip/7/1 kit global fx/6/1
+cell/kit_global_fx/v3/10,1	name	Sync
+cell/kit_global_fx/v3/10,2	item	audio clip/7/0 kit global fx/6/0
+cell/kit_global_fx/v3/10,2	name	Volume ducking
+cell/kit_global_fx/v3/10,3	item	sound/7/4 drum/7/4 audio clip/7/3 kit global fx/6/3
+cell/kit_global_fx/v3/10,3	name	Attack
+cell/kit_global_fx/v3/10,4	item	sound/7/2 drum/7/2 audio clip/7/2 kit global fx/6/2
+cell/kit_global_fx/v3/10,4	name	Shape
+cell/kit_global_fx/v3/10,5	item	-
+cell/kit_global_fx/v3/10,6	item	sound/6/0/0 drum/6/0/0 audio clip/6/0/0 performance/2/0/0 song/2/0/0 kit global fx/5/0/0
+cell/kit_global_fx/v3/10,6	name	Bass
+cell/kit_global_fx/v3/10,7	item	sound/6/0/1 drum/6/0/1 audio clip/6/0/1 performance/2/0/1 song/2/0/1 kit global fx/5/0/1
+cell/kit_global_fx/v3/10,7	name	Bass Frequency
+cell/kit_global_fx/v3/11,0	item	sound/2/1/3 drum/2/1/3
+cell/kit_global_fx/v3/11,0	name	Rate
+cell/kit_global_fx/v3/11,1	item	sound/2/1/2 drum/2/1/2 midi/cv/3/1/2 midi drum/1/1/2 gate drum/1/1/2 kit global fx/2/1/2
+cell/kit_global_fx/v3/11,1	name	Sync
+cell/kit_global_fx/v3/11,2	item	sound/2/1/1 drum/2/1/1 kit global fx/2/1/1
+cell/kit_global_fx/v3/11,2	name	Gate
+cell/kit_global_fx/v3/11,3	item	sound/2/2/0 drum/2/2/0 midi/cv/3/2/0 midi drum/1/2/0 gate drum/1/2/0 kit global fx/2/2/0
+cell/kit_global_fx/v3/11,3	name	Octaves
+cell/kit_global_fx/v3/11,4	item	sound/2/1/0 drum/2/1/0 midi/cv/3/1/0 midi drum/1/1/0 gate drum/1/1/0 kit global fx/2/1/0
+cell/kit_global_fx/v3/11,4	name	Preset
+cell/kit_global_fx/v3/11,5	item	sound/0/0 midi/cv/0/0 audio clip/0/0 kit global fx/0/0
+cell/kit_global_fx/v3/11,5	name	Edit Name
+cell/kit_global_fx/v3/11,6	item	sound/6/0/3 drum/6/0/3 audio clip/6/0/3 performance/2/0/3 song/2/0/3 kit global fx/5/0/3
+cell/kit_global_fx/v3/11,6	name	Treble
+cell/kit_global_fx/v3/11,7	item	sound/6/0/2 drum/6/0/2 audio clip/6/0/2 performance/2/0/2 song/2/0/2 kit global fx/5/0/2
+cell/kit_global_fx/v3/11,7	name	Treble Frequency
+cell/kit_global_fx/v3/12,0	item	-
+cell/kit_global_fx/v3/12,1	item	-
+cell/kit_global_fx/v3/12,2	item	-
+cell/kit_global_fx/v3/12,3	item	sound/6/4/0 drum/6/4/0 audio clip/6/4/0 performance/2/4/0 song/2/4/0 kit global fx/5/4/0
+cell/kit_global_fx/v3/12,3	name	Type
+cell/kit_global_fx/v3/12,4	item	sound/6/4/4 drum/6/4/4 audio clip/6/4/4 performance/2/4/4 song/2/4/4 kit global fx/5/4/4
+cell/kit_global_fx/v3/12,4	name	Offset
+cell/kit_global_fx/v3/12,5	item	sound/6/4/3 drum/6/4/3 audio clip/6/4/3 performance/2/4/3 song/2/4/3 kit global fx/5/4/3
+cell/kit_global_fx/v3/12,5	name	Feedback
+cell/kit_global_fx/v3/12,6	item	audio clip/6/4/1 performance/2/4/1 song/2/4/1 kit global fx/5/4/1
+cell/kit_global_fx/v3/12,6	name	Depth
+cell/kit_global_fx/v3/12,7	item	audio clip/6/4/2 performance/2/4/2 song/2/4/2 kit global fx/5/4/2
+cell/kit_global_fx/v3/12,7	name	Rate
+cell/kit_global_fx/v3/13,0	item	-
+cell/kit_global_fx/v3/13,1	item	-
+cell/kit_global_fx/v3/13,2	item	-
+cell/kit_global_fx/v3/13,3	item	audio clip/6/2/0 performance/2/2/0 song/2/2/0 kit global fx/5/2/0
+cell/kit_global_fx/v3/13,3	name	Amount
+cell/kit_global_fx/v3/13,4	item	sound/6/2/5 drum/6/2/5 audio clip/6/2/5 performance/2/2/5 song/2/2/5 kit global fx/5/2/5
+cell/kit_global_fx/v3/13,4	name	Pan
+cell/kit_global_fx/v3/13,5	item	sound/6/2/3 drum/6/2/3 audio clip/6/2/3 performance/2/2/3 song/2/2/3 kit global fx/5/2/3
+cell/kit_global_fx/v3/13,5	name	Width
+cell/kit_global_fx/v3/13,6	item	sound/6/2/2 drum/6/2/2 audio clip/6/2/2 performance/2/2/2 song/2/2/2 kit global fx/5/2/2
+cell/kit_global_fx/v3/13,6	name	Damping
+cell/kit_global_fx/v3/13,7	item	sound/6/2/1 drum/6/2/1 audio clip/6/2/1 performance/2/2/1 song/2/2/1 kit global fx/5/2/1
+cell/kit_global_fx/v3/13,7	name	Room Size
+cell/kit_global_fx/v3/14,0	item	audio clip/6/1/3 performance/2/1/3 song/2/1/3 kit global fx/5/1/3
+cell/kit_global_fx/v3/14,0	name	Rate
+cell/kit_global_fx/v3/14,1	item	sound/6/1/2 drum/6/1/2 audio clip/6/1/2 performance/2/1/2 song/2/1/2 kit global fx/5/1/2
+cell/kit_global_fx/v3/14,1	name	Sync
+cell/kit_global_fx/v3/14,2	item	sound/6/1/4 drum/6/1/4 audio clip/6/1/4 performance/2/1/4 song/2/1/4 kit global fx/5/1/4
+cell/kit_global_fx/v3/14,2	name	Type
+cell/kit_global_fx/v3/14,3	item	audio clip/6/1/0 performance/2/1/0 song/2/1/0 kit global fx/5/1/0
+cell/kit_global_fx/v3/14,3	name	Amount
+cell/kit_global_fx/v3/14,4	item	sound/6/1/1 drum/6/1/1 audio clip/6/1/1 performance/2/1/1 song/2/1/1 kit global fx/5/1/1
+cell/kit_global_fx/v3/14,4	name	Pingpong
+cell/kit_global_fx/v3/14,5	item	-
+cell/kit_global_fx/v3/14,6	item	-
+cell/kit_global_fx/v3/14,7	item	-
+cell/kit_global_fx/v3/15,0	item	-
+cell/kit_global_fx/v3/15,1	item	sound/3/5 drum/3/5 midi/cv/4/5 midi drum/2/5 gate drum/2/5 kit global fx/2/3/5
+cell/kit_global_fx/v3/15,1	name	Velocity Spread
+cell/kit_global_fx/v3/15,2	item	sound/3/0 drum/3/0 midi/cv/4/0 midi drum/2/0 gate drum/2/0 kit global fx/2/3/0
+cell/kit_global_fx/v3/15,2	name	Lock Randomizer
+cell/kit_global_fx/v3/15,3	item	sound/3/15 drum/3/15 midi/cv/4/15 midi drum/2/15 gate drum/2/15 kit global fx/2/3/15
+cell/kit_global_fx/v3/15,3	name	Note Probability
+cell/kit_global_fx/v3/15,4	item	-
+cell/kit_global_fx/v3/15,5	item	-
+cell/kit_global_fx/v3/15,6	item	-
+cell/kit_global_fx/v3/15,7	item	-
+cell/midi_cv/v3/11,0	item	midi/cv/3/1/3 midi drum/1/1/3 gate drum/1/1/3
+cell/midi_cv/v3/11,0	name	Rate
+cell/midi_cv/v3/11,1	item	sound/2/1/2 drum/2/1/2 midi/cv/3/1/2 midi drum/1/1/2 gate drum/1/1/2 kit global fx/2/1/2
+cell/midi_cv/v3/11,1	name	Sync
+cell/midi_cv/v3/11,2	item	midi/cv/3/1/1 midi drum/1/1/1 gate drum/1/1/1
+cell/midi_cv/v3/11,2	name	Gate
+cell/midi_cv/v3/11,3	item	sound/2/2/0 drum/2/2/0 midi/cv/3/2/0 midi drum/1/2/0 gate drum/1/2/0 kit global fx/2/2/0
+cell/midi_cv/v3/11,3	name	Octaves
+cell/midi_cv/v3/11,4	item	sound/2/1/0 drum/2/1/0 midi/cv/3/1/0 midi drum/1/1/0 gate drum/1/1/0 kit global fx/2/1/0
+cell/midi_cv/v3/11,4	name	Preset
+cell/midi_cv/v3/11,5	item	sound/0/0 midi/cv/0/0 audio clip/0/0 kit global fx/0/0
+cell/midi_cv/v3/11,5	name	Edit Name
+cell/midi_cv/v3/11,6	item	-
+cell/midi_cv/v3/11,7	item	-
+cell/gate_drum/v3/11,0	item	midi/cv/3/1/3 midi drum/1/1/3 gate drum/1/1/3
+cell/gate_drum/v3/11,0	name	Rate
+cell/gate_drum/v3/11,1	item	sound/2/1/2 drum/2/1/2 midi/cv/3/1/2 midi drum/1/1/2 gate drum/1/1/2 kit global fx/2/1/2
+cell/gate_drum/v3/11,1	name	Sync
+cell/gate_drum/v3/11,2	item	midi/cv/3/1/1 midi drum/1/1/1 gate drum/1/1/1
+cell/gate_drum/v3/11,2	name	Gate
+cell/gate_drum/v3/11,3	item	sound/2/2/7 drum/2/2/7 midi/cv/3/2/7 midi drum/1/2/7 gate drum/1/2/7 kit global fx/2/2/7
+cell/gate_drum/v3/11,3	name	Rhythm
+cell/gate_drum/v3/11,4	item	sound/2/0 drum/2/0 midi/cv/3/0 midi drum/1/0 gate drum/1/0 kit global fx/2/0
+cell/gate_drum/v3/11,4	name	Enabled
+cell/gate_drum/v3/11,5	item	drum/0/0 midi drum/0/0 gate drum/0/0
+cell/gate_drum/v3/11,5	name	Rename drum
+cell/gate_drum/v3/11,6	item	-
+cell/gate_drum/v3/11,7	item	-
+cell/sounds/v1/0,0	item	sound/8/8 drum/8/8
+cell/sounds/v1/0,1	item	sound/8/7 drum/8/7
+cell/sounds/v1/0,2	item	sound/8/9 drum/8/9
+cell/sounds/v1/0,3	item	sound/8/10 drum/8/10 audio clip/8/3
+cell/sounds/v1/0,4	item	sound/0/1 drum/0/1 midi drum/0/1 gate drum/0/1
+cell/sounds/v1/0,5	item	sound/8/1 drum/8/1 audio clip/8/0
+cell/sounds/v1/0,6	item	sound/8/13 drum/8/13
+cell/sounds/v1/0,7	item	sound/8/12 drum/8/12
+cell/sounds/v1/1,0	item	sound/9/8 drum/9/8
+cell/sounds/v1/1,1	item	sound/9/7 drum/9/7
+cell/sounds/v1/1,2	item	sound/9/9 drum/9/9
+cell/sounds/v1/1,3	item	sound/9/10 drum/9/10
+cell/sounds/v1/1,4	item	sound/0/2 drum/0/2 midi drum/0/2 gate drum/0/2
+cell/sounds/v1/1,5	item	sound/9/1 drum/9/1
+cell/sounds/v1/1,6	item	sound/9/13 drum/9/13
+cell/sounds/v1/1,7	item	sound/9/12 drum/9/12
+cell/sounds/v1/2,0	item	sound/12/0 drum/12/0
+cell/sounds/v1/2,1	item	sound/8/2 drum/8/2
+cell/sounds/v1/2,2	item	sound/8/0 drum/8/0
+cell/sounds/v1/2,3	item	sound/8/4 drum/8/4
+cell/sounds/v1/2,4	item	sound/8/6 drum/8/6
+cell/sounds/v1/2,5	item	sound/8/5 drum/8/5
+cell/sounds/v1/2,6	item	sound/8/3 drum/8/3
+cell/sounds/v1/2,7	item	sound/6/6 sound/12/4 drum/6/6 drum/12/4
+cell/sounds/v1/3,0	item	sound/12/1 drum/12/1
+cell/sounds/v1/3,1	item	sound/9/2 drum/9/2
+cell/sounds/v1/3,2	item	sound/9/0 drum/9/0
+cell/sounds/v1/3,3	item	sound/9/4 drum/9/4
+cell/sounds/v1/3,4	item	sound/9/6 drum/9/6
+cell/sounds/v1/3,5	item	sound/9/5 drum/9/5
+cell/sounds/v1/3,6	item	sound/9/3 drum/9/3
+cell/sounds/v1/3,7	item	sound/12/5 drum/12/5
+cell/sounds/v1/4,0	item	sound/12/2 drum/12/2
+cell/sounds/v1/4,1	item	sound/10/0 drum/10/0
+cell/sounds/v1/4,2	item	-
+cell/sounds/v1/4,3	item	-
+cell/sounds/v1/4,4	item	sound/10/2 drum/10/2
+cell/sounds/v1/4,5	item	sound/10/1 drum/10/1
+cell/sounds/v1/4,6	item	-
+cell/sounds/v1/4,7	item	sound/25 drum/25 midi/cv/9
+cell/sounds/v1/5,0	item	sound/12/3 drum/12/3
+cell/sounds/v1/5,1	item	sound/11/0 drum/11/0
+cell/sounds/v1/5,2	item	-
+cell/sounds/v1/5,3	item	-
+cell/sounds/v1/5,4	item	sound/11/2 drum/11/2
+cell/sounds/v1/5,5	item	sound/11/1 drum/11/1
+cell/sounds/v1/5,6	item	sound/11/3 drum/11/3
+cell/sounds/v1/5,7	item	sound/6/3/0 drum/6/3/0 audio clip/6/3/0 performance/2/3/0 song/2/3/0 kit global fx/5/3/0
+cell/sounds/v1/6,0	item	sound/1/1 drum/1/1
+cell/sounds/v1/6,1	item	sound/1/3 drum/1/3
+cell/sounds/v1/6,2	item	sound/1/4 drum/1/4
+cell/sounds/v1/6,3	item	sound/1/2 drum/1/2
+cell/sounds/v1/6,4	item	sound/1/0 drum/1/0
+cell/sounds/v1/6,5	item	sound/6/5/2 drum/6/5/2 audio clip/6/5/2 performance/2/5/0 song/2/5/0 kit global fx/5/5/0
+cell/sounds/v1/6,6	item	sound/6/5/1 drum/6/5/1 audio clip/6/5/1 performance/2/5/1 song/2/5/1 kit global fx/5/5/1
+cell/sounds/v1/6,7	item	sound/6/5/0 drum/6/5/0 audio clip/6/5/0
+cell/sounds/v1/7,0	item	sound/21/3 drum/21/3
+cell/sounds/v1/7,1	item	sound/21/1 drum/21/1
+cell/sounds/v1/7,2	item	sound/21/0 drum/21/0 audio clip/10
+cell/sounds/v1/7,3	item	sound/21/4/1 drum/21/4/1
+cell/sounds/v1/7,4	item	sound/21/4/0 drum/21/4/0
+cell/sounds/v1/7,5	item	sound/4/0 drum/4/0 audio clip/4/0 kit global fx/3/0
+cell/sounds/v1/7,6	item	-
+cell/sounds/v1/7,7	item	sound/6/5/3 drum/6/5/3
+cell/sounds/v1/8,0	item	sound/13/3 drum/13/3
+cell/sounds/v1/8,1	item	sound/13/2 drum/13/2
+cell/sounds/v1/8,2	item	sound/13/1 drum/13/1
+cell/sounds/v1/8,3	item	sound/13/0 drum/13/0
+cell/sounds/v1/8,4	item	sound/5/0/3 drum/5/0/3
+cell/sounds/v1/8,5	item	sound/5/0/0 drum/5/0/0 audio clip/5/0/0 performance/1/0/0 song/1/0/0 kit global fx/4/0/0
+cell/sounds/v1/8,6	item	sound/5/0/2 drum/5/0/2
+cell/sounds/v1/8,7	item	sound/5/0/1 drum/5/0/1
+cell/sounds/v1/9,0	item	sound/14/3 drum/14/3
+cell/sounds/v1/9,1	item	sound/14/2 drum/14/2
+cell/sounds/v1/9,2	item	sound/14/1 drum/14/1
+cell/sounds/v1/9,3	item	sound/14/0 drum/14/0
+cell/sounds/v1/9,4	item	sound/5/1/3 drum/5/1/3
+cell/sounds/v1/9,5	item	sound/5/1/0 drum/5/1/0 audio clip/5/1/0 performance/1/1/0 song/1/1/0 kit global fx/4/1/0
+cell/sounds/v1/9,6	item	sound/5/1/2 drum/5/1/2
+cell/sounds/v1/9,7	item	sound/5/1/1 drum/5/1/1
+cell/sounds/v1/10,0	item	sound/7/5 drum/7/5 audio clip/7/4 kit global fx/6/4
+cell/sounds/v1/10,1	item	sound/7/1 drum/7/1 audio clip/7/1 kit global fx/6/1
+cell/sounds/v1/10,2	item	sound/7/0 drum/7/0
+cell/sounds/v1/10,3	item	sound/7/4 drum/7/4 audio clip/7/3 kit global fx/6/3
+cell/sounds/v1/10,4	item	sound/7/2 drum/7/2 audio clip/7/2 kit global fx/6/2
+cell/sounds/v1/10,5	item	sound/7/3 drum/7/3
+cell/sounds/v1/10,6	item	sound/6/0/0 drum/6/0/0 audio clip/6/0/0 performance/2/0/0 song/2/0/0 kit global fx/5/0/0
+cell/sounds/v1/10,7	item	sound/6/0/1 drum/6/0/1 audio clip/6/0/1 performance/2/0/1 song/2/0/1 kit global fx/5/0/1
+cell/sounds/v1/11,0	item	sound/2/1/3 drum/2/1/3
+cell/sounds/v1/11,1	item	sound/2/1/2 drum/2/1/2 midi/cv/3/1/2 midi drum/1/1/2 gate drum/1/1/2 kit global fx/2/1/2
+cell/sounds/v1/11,2	item	sound/2/1/1 drum/2/1/1 kit global fx/2/1/1
+cell/sounds/v1/11,3	item	sound/2/2/0 drum/2/2/0 midi/cv/3/2/0 midi drum/1/2/0 gate drum/1/2/0 kit global fx/2/2/0
+cell/sounds/v1/11,4	item	sound/2/1/0 drum/2/1/0 midi/cv/3/1/0 midi drum/1/1/0 gate drum/1/1/0 kit global fx/2/1/0
+cell/sounds/v1/11,5	item	sound/0/0 midi/cv/0/0 audio clip/0/0 kit global fx/0/0
+cell/sounds/v1/11,6	item	sound/6/0/3 drum/6/0/3 audio clip/6/0/3 performance/2/0/3 song/2/0/3 kit global fx/5/0/3
+cell/sounds/v1/11,7	item	sound/6/0/2 drum/6/0/2 audio clip/6/0/2 performance/2/0/2 song/2/0/2 kit global fx/5/0/2
+cell/sounds/v1/12,0	item	sound/17/2 drum/17/2
+cell/sounds/v1/12,1	item	sound/17/1 drum/17/1
+cell/sounds/v1/12,2	item	sound/17/0 drum/17/0
+cell/sounds/v1/12,3	item	sound/6/4/0 drum/6/4/0 audio clip/6/4/0 performance/2/4/0 song/2/4/0 kit global fx/5/4/0
+cell/sounds/v1/12,4	item	sound/6/4/4 drum/6/4/4 audio clip/6/4/4 performance/2/4/4 song/2/4/4 kit global fx/5/4/4
+cell/sounds/v1/12,5	item	sound/6/4/3 drum/6/4/3 audio clip/6/4/3 performance/2/4/3 song/2/4/3 kit global fx/5/4/3
+cell/sounds/v1/12,6	item	sound/6/4/1 drum/6/4/1
+cell/sounds/v1/12,7	item	sound/6/4/2 drum/6/4/2
+cell/sounds/v1/13,0	item	sound/18/2 drum/18/2
+cell/sounds/v1/13,1	item	sound/18/1 drum/18/1
+cell/sounds/v1/13,2	item	sound/18/0 drum/18/0
+cell/sounds/v1/13,3	item	sound/6/2/0 drum/6/2/0
+cell/sounds/v1/13,4	item	sound/6/2/5 drum/6/2/5 audio clip/6/2/5 performance/2/2/5 song/2/2/5 kit global fx/5/2/5
+cell/sounds/v1/13,5	item	sound/6/2/3 drum/6/2/3 audio clip/6/2/3 performance/2/2/3 song/2/2/3 kit global fx/5/2/3
+cell/sounds/v1/13,6	item	sound/6/2/2 drum/6/2/2 audio clip/6/2/2 performance/2/2/2 song/2/2/2 kit global fx/5/2/2
+cell/sounds/v1/13,7	item	sound/6/2/1 drum/6/2/1 audio clip/6/2/1 performance/2/2/1 song/2/2/1 kit global fx/5/2/1
+cell/sounds/v1/14,0	item	sound/6/1/3 drum/6/1/3
+cell/sounds/v1/14,1	item	sound/6/1/2 drum/6/1/2 audio clip/6/1/2 performance/2/1/2 song/2/1/2 kit global fx/5/1/2
+cell/sounds/v1/14,2	item	sound/6/1/4 drum/6/1/4 audio clip/6/1/4 performance/2/1/4 song/2/1/4 kit global fx/5/1/4
+cell/sounds/v1/14,3	item	sound/6/1/0 drum/6/1/0
+cell/sounds/v1/14,4	item	sound/6/1/1 drum/6/1/1 audio clip/6/1/1 performance/2/1/1 song/2/1/1 kit global fx/5/1/1
+cell/sounds/v1/14,5	item	-
+cell/sounds/v1/14,6	item	-
+cell/sounds/v1/14,7	item	-
+cell/sounds/v1/15,0	item	-
+cell/sounds/v1/15,1	item	sound/3/5 drum/3/5 midi/cv/4/5 midi drum/2/5 gate drum/2/5 kit global fx/2/3/5
+cell/sounds/v1/15,2	item	sound/3/0 drum/3/0 midi/cv/4/0 midi drum/2/0 gate drum/2/0 kit global fx/2/3/0
+cell/sounds/v1/15,3	item	sound/3/15 drum/3/15 midi/cv/4/15 midi drum/2/15 gate drum/2/15 kit global fx/2/3/15
+cell/sounds/v1/15,4	item	-
+cell/sounds/v1/15,5	item	-
+cell/sounds/v1/15,6	item	-
+cell/sounds/v1/15,7	item	-
+cell/audio_clips/v1/0,0	item	-
+cell/audio_clips/v1/0,1	item	audio clip/8/2
+cell/audio_clips/v1/0,2	item	-
+cell/audio_clips/v1/0,3	item	sound/8/10 drum/8/10 audio clip/8/3
+cell/audio_clips/v1/0,4	item	-
+cell/audio_clips/v1/0,5	item	sound/8/1 drum/8/1 audio clip/8/0
+cell/audio_clips/v1/0,6	item	audio clip/8/4
+cell/audio_clips/v1/0,7	item	name:
+cell/audio_clips/v1/1,0	item	-
+cell/audio_clips/v1/1,1	item	audio clip/8/2
+cell/audio_clips/v1/1,2	item	-
+cell/audio_clips/v1/1,3	item	sound/8/10 drum/8/10 audio clip/8/3
+cell/audio_clips/v1/1,4	item	-
+cell/audio_clips/v1/1,5	item	sound/8/1 drum/8/1 audio clip/8/0
+cell/audio_clips/v1/1,6	item	audio clip/8/4
+cell/audio_clips/v1/1,7	item	name:
+cell/audio_clips/v1/2,0	item	-
+cell/audio_clips/v1/2,1	item	audio clip/8/1
+cell/audio_clips/v1/2,2	item	-
+cell/audio_clips/v1/2,3	item	-
+cell/audio_clips/v1/2,4	item	-
+cell/audio_clips/v1/2,5	item	-
+cell/audio_clips/v1/2,6	item	-
+cell/audio_clips/v1/2,7	item	-
+cell/audio_clips/v1/3,0	item	-
+cell/audio_clips/v1/3,1	item	audio clip/8/1
+cell/audio_clips/v1/3,2	item	-
+cell/audio_clips/v1/3,3	item	-
+cell/audio_clips/v1/3,4	item	-
+cell/audio_clips/v1/3,5	item	-
+cell/audio_clips/v1/3,6	item	-
+cell/audio_clips/v1/3,7	item	-
+cell/audio_clips/v1/4,0	item	-
+cell/audio_clips/v1/4,1	item	-
+cell/audio_clips/v1/4,2	item	-
+cell/audio_clips/v1/4,3	item	-
+cell/audio_clips/v1/4,4	item	-
+cell/audio_clips/v1/4,5	item	-
+cell/audio_clips/v1/4,6	item	-
+cell/audio_clips/v1/4,7	item	-
+cell/audio_clips/v1/5,0	item	-
+cell/audio_clips/v1/5,1	item	-
+cell/audio_clips/v1/5,2	item	-
+cell/audio_clips/v1/5,3	item	-
+cell/audio_clips/v1/5,4	item	-
+cell/audio_clips/v1/5,5	item	-
+cell/audio_clips/v1/5,6	item	-
+cell/audio_clips/v1/5,7	item	sound/6/3/0 drum/6/3/0 audio clip/6/3/0 performance/2/3/0 song/2/3/0 kit global fx/5/3/0
+cell/audio_clips/v1/6,0	item	audio clip/3/0 song/0/0 kit global fx/1/0
+cell/audio_clips/v1/6,1	item	audio clip/8/1
+cell/audio_clips/v1/6,2	item	-
+cell/audio_clips/v1/6,3	item	audio clip/3/1 song/0/1 kit global fx/1/1
+cell/audio_clips/v1/6,4	item	-
+cell/audio_clips/v1/6,5	item	sound/6/5/2 drum/6/5/2 audio clip/6/5/2 performance/2/5/0 song/2/5/0 kit global fx/5/5/0
+cell/audio_clips/v1/6,6	item	sound/6/5/1 drum/6/5/1 audio clip/6/5/1 performance/2/5/1 song/2/5/1 kit global fx/5/5/1
+cell/audio_clips/v1/6,7	item	sound/6/5/0 drum/6/5/0 audio clip/6/5/0
+cell/audio_clips/v1/7,0	item	-
+cell/audio_clips/v1/7,1	item	-
+cell/audio_clips/v1/7,2	item	sound/21/0 drum/21/0 audio clip/10
+cell/audio_clips/v1/7,3	item	-
+cell/audio_clips/v1/7,4	item	-
+cell/audio_clips/v1/7,5	item	sound/4/0 drum/4/0 audio clip/4/0 kit global fx/3/0
+cell/audio_clips/v1/7,6	item	-
+cell/audio_clips/v1/7,7	item	-
+cell/audio_clips/v1/8,0	item	-
+cell/audio_clips/v1/8,1	item	-
+cell/audio_clips/v1/8,2	item	-
+cell/audio_clips/v1/8,3	item	audio clip/9
+cell/audio_clips/v1/8,4	item	audio clip/5/0/3 performance/1/0/3 song/1/0/3 kit global fx/4/0/3
+cell/audio_clips/v1/8,5	item	sound/5/0/0 drum/5/0/0 audio clip/5/0/0 performance/1/0/0 song/1/0/0 kit global fx/4/0/0
+cell/audio_clips/v1/8,6	item	audio clip/5/0/2 performance/1/0/2 song/1/0/2 kit global fx/4/0/2
+cell/audio_clips/v1/8,7	item	audio clip/5/0/1 performance/1/0/1 song/1/0/1 kit global fx/4/0/1
+cell/audio_clips/v1/9,0	item	-
+cell/audio_clips/v1/9,1	item	-
+cell/audio_clips/v1/9,2	item	-
+cell/audio_clips/v1/9,3	item	audio clip/9
+cell/audio_clips/v1/9,4	item	audio clip/5/1/3 performance/1/1/3 song/1/1/3 kit global fx/4/1/3
+cell/audio_clips/v1/9,5	item	sound/5/1/0 drum/5/1/0 audio clip/5/1/0 performance/1/1/0 song/1/1/0 kit global fx/4/1/0
+cell/audio_clips/v1/9,6	item	audio clip/5/1/2 performance/1/1/2 song/1/1/2 kit global fx/4/1/2
+cell/audio_clips/v1/9,7	item	audio clip/5/1/1 performance/1/1/1 song/1/1/1 kit global fx/4/1/1
+cell/audio_clips/v1/10,0	item	sound/7/5 drum/7/5 audio clip/7/4 kit global fx/6/4
+cell/audio_clips/v1/10,1	item	sound/7/1 drum/7/1 audio clip/7/1 kit global fx/6/1
+cell/audio_clips/v1/10,2	item	audio clip/7/0 kit global fx/6/0
+cell/audio_clips/v1/10,3	item	sound/7/4 drum/7/4 audio clip/7/3 kit global fx/6/3
+cell/audio_clips/v1/10,4	item	sound/7/2 drum/7/2 audio clip/7/2 kit global fx/6/2
+cell/audio_clips/v1/10,5	item	-
+cell/audio_clips/v1/10,6	item	sound/6/0/0 drum/6/0/0 audio clip/6/0/0 performance/2/0/0 song/2/0/0 kit global fx/5/0/0
+cell/audio_clips/v1/10,7	item	sound/6/0/1 drum/6/0/1 audio clip/6/0/1 performance/2/0/1 song/2/0/1 kit global fx/5/0/1
+cell/audio_clips/v1/11,0	item	-
+cell/audio_clips/v1/11,1	item	-
+cell/audio_clips/v1/11,2	item	-
+cell/audio_clips/v1/11,3	item	-
+cell/audio_clips/v1/11,4	item	-
+cell/audio_clips/v1/11,5	item	sound/0/0 midi/cv/0/0 audio clip/0/0 kit global fx/0/0
+cell/audio_clips/v1/11,6	item	sound/6/0/3 drum/6/0/3 audio clip/6/0/3 performance/2/0/3 song/2/0/3 kit global fx/5/0/3
+cell/audio_clips/v1/11,7	item	sound/6/0/2 drum/6/0/2 audio clip/6/0/2 performance/2/0/2 song/2/0/2 kit global fx/5/0/2
+cell/audio_clips/v1/12,0	item	-
+cell/audio_clips/v1/12,1	item	-
+cell/audio_clips/v1/12,2	item	-
+cell/audio_clips/v1/12,3	item	sound/6/4/0 drum/6/4/0 audio clip/6/4/0 performance/2/4/0 song/2/4/0 kit global fx/5/4/0
+cell/audio_clips/v1/12,4	item	sound/6/4/4 drum/6/4/4 audio clip/6/4/4 performance/2/4/4 song/2/4/4 kit global fx/5/4/4
+cell/audio_clips/v1/12,5	item	sound/6/4/3 drum/6/4/3 audio clip/6/4/3 performance/2/4/3 song/2/4/3 kit global fx/5/4/3
+cell/audio_clips/v1/12,6	item	audio clip/6/4/1 performance/2/4/1 song/2/4/1 kit global fx/5/4/1
+cell/audio_clips/v1/12,7	item	audio clip/6/4/2 performance/2/4/2 song/2/4/2 kit global fx/5/4/2
+cell/audio_clips/v1/13,0	item	-
+cell/audio_clips/v1/13,1	item	-
+cell/audio_clips/v1/13,2	item	-
+cell/audio_clips/v1/13,3	item	audio clip/6/2/0 performance/2/2/0 song/2/2/0 kit global fx/5/2/0
+cell/audio_clips/v1/13,4	item	sound/6/2/5 drum/6/2/5 audio clip/6/2/5 performance/2/2/5 song/2/2/5 kit global fx/5/2/5
+cell/audio_clips/v1/13,5	item	sound/6/2/3 drum/6/2/3 audio clip/6/2/3 performance/2/2/3 song/2/2/3 kit global fx/5/2/3
+cell/audio_clips/v1/13,6	item	sound/6/2/2 drum/6/2/2 audio clip/6/2/2 performance/2/2/2 song/2/2/2 kit global fx/5/2/2
+cell/audio_clips/v1/13,7	item	sound/6/2/1 drum/6/2/1 audio clip/6/2/1 performance/2/2/1 song/2/2/1 kit global fx/5/2/1
+cell/audio_clips/v1/14,0	item	audio clip/6/1/3 performance/2/1/3 song/2/1/3 kit global fx/5/1/3
+cell/audio_clips/v1/14,1	item	sound/6/1/2 drum/6/1/2 audio clip/6/1/2 performance/2/1/2 song/2/1/2 kit global fx/5/1/2
+cell/audio_clips/v1/14,2	item	sound/6/1/4 drum/6/1/4 audio clip/6/1/4 performance/2/1/4 song/2/1/4 kit global fx/5/1/4
+cell/audio_clips/v1/14,3	item	audio clip/6/1/0 performance/2/1/0 song/2/1/0 kit global fx/5/1/0
+cell/audio_clips/v1/14,4	item	sound/6/1/1 drum/6/1/1 audio clip/6/1/1 performance/2/1/1 song/2/1/1 kit global fx/5/1/1
+cell/audio_clips/v1/14,5	item	-
+cell/audio_clips/v1/14,6	item	-
+cell/audio_clips/v1/14,7	item	-
+cell/audio_clips/v1/15,0	item	-
+cell/audio_clips/v1/15,1	item	-
+cell/audio_clips/v1/15,2	item	-
+cell/audio_clips/v1/15,3	item	-
+cell/audio_clips/v1/15,4	item	-
+cell/audio_clips/v1/15,5	item	-
+cell/audio_clips/v1/15,6	item	-
+cell/audio_clips/v1/15,7	item	-
+blink/leaf sound/0/0/0	plan	
+blink/leaf sound/0/0/1	plan	
+blink/leaf sound/0/1	plan	param 0,4 f0 white;
+blink/leaf sound/0/2	plan	param 1,4 f0 white;
+blink/leaf sound/1/0	plan	param 6,4 f0 white;
+blink/leaf sound/1/1	plan	param 6,0 f0 white; src 1,0 f3 white src 1,1 f3 white
+blink/leaf sound/1/2	plan	param 6,3 f0 white;
+blink/leaf sound/1/3	plan	param 6,1 f0 white;
+blink/leaf sound/1/4	plan	param 6,2 f0 white;
+blink/leaf sound/2/0	plan	
+blink/leaf sound/2/1/0	plan	param 11,4 f0 white;
+blink/leaf sound/2/1/1	plan	param 11,2 f0 white;
+blink/leaf sound/2/1/2	plan	param 11,1 f0 white;
+blink/leaf sound/2/1/3	plan	param 11,0 f0 white;
+blink/leaf sound/2/2/0	plan	param 11,3 f0 white;
+blink/leaf sound/2/2/1	plan	
+blink/leaf sound/2/2/2	plan	
+blink/leaf sound/2/2/3	plan	
+blink/leaf sound/2/2/4	plan	
+blink/leaf sound/2/2/5	plan	
+blink/leaf sound/2/2/6	plan	
+blink/leaf sound/2/2/7	plan	
+blink/leaf sound/2/2/8	plan	
+blink/leaf sound/2/2/9	plan	
+blink/leaf sound/2/3/0	plan	
+blink/leaf sound/2/4	plan	
+blink/leaf sound/3/0	plan	param 15,2 f0 white;
+blink/leaf sound/3/1	plan	
+blink/leaf sound/3/2	plan	
+blink/leaf sound/3/3	plan	
+blink/leaf sound/3/4	plan	
+blink/leaf sound/3/5	plan	param 15,1 f0 white;
+blink/leaf sound/3/6	plan	
+blink/leaf sound/3/7	plan	
+blink/leaf sound/3/8	plan	
+blink/leaf sound/3/9	plan	
+blink/leaf sound/3/10	plan	
+blink/leaf sound/3/11	plan	
+blink/leaf sound/3/12	plan	
+blink/leaf sound/3/13	plan	
+blink/leaf sound/3/14	plan	
+blink/leaf sound/3/15	plan	param 15,3 f0 white;
+blink/leaf sound/3/16	plan	
+blink/leaf sound/3/17	plan	
+blink/leaf sound/3/18	plan	
+blink/leaf sound/3/19	plan	
+blink/leaf sound/3/20	plan	
+blink/leaf sound/3/21	plan	
+blink/leaf sound/3/22	plan	
+blink/leaf sound/3/23	plan	
+blink/leaf sound/4/0	plan	param 7,5 f0 white;
+blink/leaf sound/4/1	plan	param 7,5 f0 yellow;
+blink/leaf sound/4/2	plan	
+blink/leaf sound/4/3	plan	
+blink/leaf sound/4/4	plan	
+blink/leaf sound/4/5	plan	
+blink/leaf sound/5/0/0	plan	param 8,5 f0 white;
+blink/leaf sound/5/0/1	plan	param 8,7 f0 white; src 0,5 f3 white src 1,1 f3 white src 1,3 f3 white src 1,6 f3 white alt src 1,7 f3 white
+blink/leaf sound/5/0/2	plan	param 8,6 f0 white;
+blink/leaf sound/5/0/3	plan	param 8,4 f0 white;
+blink/leaf sound/5/1/0	plan	param 9,5 f0 white;
+blink/leaf sound/5/1/1	plan	param 9,7 f0 white;
+blink/leaf sound/5/1/2	plan	param 9,6 f0 white;
+blink/leaf sound/5/1/3	plan	param 9,4 f0 white;
+blink/leaf sound/5/2	plan	
+blink/leaf sound/6/0/0	plan	param 10,6 f0 white;
+blink/leaf sound/6/0/1	plan	param 10,7 f0 white;
+blink/leaf sound/6/0/2	plan	param 11,7 f0 white;
+blink/leaf sound/6/0/3	plan	param 11,6 f0 white;
+blink/leaf sound/6/1/0	plan	param 14,3 f0 white;
+blink/leaf sound/6/1/1	plan	param 14,4 f0 white;
+blink/leaf sound/6/1/2	plan	param 14,1 f0 white;
+blink/leaf sound/6/1/3	plan	param 14,0 f0 white;
+blink/leaf sound/6/1/4	plan	param 14,2 f0 white;
+blink/leaf sound/6/2/0	plan	param 13,3 f0 white;
+blink/leaf sound/6/2/1	plan	param 13,7 f0 white;
+blink/leaf sound/6/2/2	plan	param 13,6 f0 white;
+blink/leaf sound/6/2/3	plan	param 13,5 f0 white;
+blink/leaf sound/6/2/4	plan	
+blink/leaf sound/6/2/5	plan	param 13,4 f0 white;
+blink/leaf sound/6/2/6	plan	
+blink/leaf sound/6/2/7	plan	
+blink/leaf sound/6/2/8/0	plan	
+blink/leaf sound/6/2/8/1	plan	
+blink/leaf sound/6/2/8/2	plan	
+blink/leaf sound/6/2/8/3	plan	
+blink/leaf sound/6/2/8/4	plan	
+blink/leaf sound/6/3/0	plan	param 5,7 f0 white;
+blink/leaf sound/6/3/1	plan	param 5,7 f0 yellow;
+blink/leaf sound/6/3/2	plan	
+blink/leaf sound/6/4/0	plan	param 12,3 f0 white;
+blink/leaf sound/6/4/1	plan	param 12,6 f0 white;
+blink/leaf sound/6/4/2	plan	param 12,7 f0 white;
+blink/leaf sound/6/4/3	plan	param 12,5 f0 white;
+blink/leaf sound/6/4/4	plan	param 12,4 f0 white;
+blink/leaf sound/6/5/0	plan	param 6,7 f0 white;
+blink/leaf sound/6/5/1	plan	param 6,6 f0 white;
+blink/leaf sound/6/5/2	plan	param 6,5 f0 white;
+blink/leaf sound/6/5/3	plan	param 7,7 f0 white;
+blink/leaf sound/6/6	plan	param 2,7 f0 white;
+blink/leaf sound/7/0	plan	param 10,2 f0 white;
+blink/leaf sound/7/1	plan	param 10,1 f0 white;
+blink/leaf sound/7/2	plan	param 10,4 f0 white;
+blink/leaf sound/7/3	plan	param 10,5 f0 white;
+blink/leaf sound/7/4	plan	param 10,3 f0 white;
+blink/leaf sound/7/5	plan	param 10,0 f0 white;
+blink/leaf sound/8/0	plan	param 2,2 f0 white;
+blink/leaf sound/8/1	plan	param 0,5 f0 white;
+blink/leaf sound/8/2	plan	param 2,1 f0 white;
+blink/leaf sound/8/3	plan	param 2,6 f0 white;
+blink/leaf sound/8/4	plan	param 2,3 f0 white;
+blink/leaf sound/8/5	plan	param 2,5 f0 white;
+blink/leaf sound/8/6	plan	param 2,4 f0 white;
+blink/leaf sound/8/7	plan	param 0,1 f0 white;
+blink/leaf sound/8/8	plan	param 0,0 f0 white;
+blink/leaf sound/8/9	plan	param 0,2 f0 white;
+blink/leaf sound/8/10	plan	param 0,3 f0 white;
+blink/leaf sound/8/11	plan	param 0,6 f0 white;
+blink/leaf sound/8/12	plan	
+blink/leaf sound/8/13	plan	
+blink/leaf sound/9/0	plan	param 3,2 f0 white;
+blink/leaf sound/9/1	plan	param 1,5 f0 white;
+blink/leaf sound/9/2	plan	param 3,1 f0 white;
+blink/leaf sound/9/3	plan	param 3,6 f0 white;
+blink/leaf sound/9/4	plan	param 3,3 f0 white;
+blink/leaf sound/9/5	plan	param 3,5 f0 white;
+blink/leaf sound/9/6	plan	param 3,4 f0 white;
+blink/leaf sound/9/7	plan	param 1,1 f0 white;
+blink/leaf sound/9/8	plan	param 1,0 f0 white;
+blink/leaf sound/9/9	plan	param 1,2 f0 white;
+blink/leaf sound/9/10	plan	param 1,3 f0 white;
+blink/leaf sound/9/11	plan	param 1,6 f0 white;
+blink/leaf sound/9/12	plan	
+blink/leaf sound/9/13	plan	
+blink/leaf sound/10/0	plan	param 4,1 f0 white;
+blink/leaf sound/10/1	plan	param 4,5 f0 white;
+blink/leaf sound/10/2	plan	param 4,4 f0 white;
+blink/leaf sound/11/0	plan	param 5,1 f0 white;
+blink/leaf sound/11/1	plan	param 5,5 f0 white;
+blink/leaf sound/11/2	plan	param 5,4 f0 white;
+blink/leaf sound/11/3	plan	param 5,6 f0 white;
+blink/leaf sound/12/0	plan	param 2,0 f0 white;
+blink/leaf sound/12/1	plan	param 3,0 f0 white;
+blink/leaf sound/12/2	plan	param 4,0 f0 white;
+blink/leaf sound/12/3	plan	param 5,0 f0 white;
+blink/leaf sound/12/4	plan	param 2,7 f0 white;
+blink/leaf sound/12/5	plan	param 3,7 f0 white;
+blink/leaf sound/13/0	plan	param 8,3 f0 white;
+blink/leaf sound/13/1	plan	param 8,2 f0 white;
+blink/leaf sound/13/2	plan	param 8,1 f0 white;
+blink/leaf sound/13/3	plan	param 8,0 f0 white;
+blink/leaf sound/14/0	plan	param 9,3 f0 white;
+blink/leaf sound/14/1	plan	param 9,2 f0 white;
+blink/leaf sound/14/2	plan	param 9,1 f0 white;
+blink/leaf sound/14/3	plan	param 9,0 f0 white;
+blink/leaf sound/15/0	plan	param 8,3 f0 yellow; src 1,2 f3 white
+blink/leaf sound/15/1	plan	param 8,2 f0 yellow;
+blink/leaf sound/15/2	plan	param 8,1 f0 yellow;
+blink/leaf sound/15/3	plan	param 8,0 f0 yellow;
+blink/leaf sound/16/0	plan	param 9,3 f0 yellow;
+blink/leaf sound/16/1	plan	param 9,2 f0 yellow;
+blink/leaf sound/16/2	plan	param 9,1 f0 yellow;
+blink/leaf sound/16/3	plan	param 9,0 f0 yellow;
+blink/leaf sound/17/0	plan	param 12,2 f0 white;
+blink/leaf sound/17/1	plan	param 12,1 f0 white;
+blink/leaf sound/17/2	plan	param 12,0 f0 white;
+blink/leaf sound/18/0	plan	param 13,2 f0 white;
+blink/leaf sound/18/1	plan	param 13,1 f0 white;
+blink/leaf sound/18/2	plan	param 13,0 f0 white;
+blink/leaf sound/19/0	plan	param 12,2 f0 yellow;
+blink/leaf sound/19/1	plan	param 12,1 f0 yellow;
+blink/leaf sound/19/2	plan	param 12,0 f0 yellow;
+blink/leaf sound/20/0	plan	param 13,2 f0 yellow;
+blink/leaf sound/20/1	plan	param 13,1 f0 yellow;
+blink/leaf sound/20/2	plan	param 13,0 f0 yellow;
+blink/leaf sound/21/0	plan	param 7,2 f0 white;
+blink/leaf sound/21/1	plan	param 7,1 f0 white;
+blink/leaf sound/21/2	plan	param 7,1 f0 yellow;
+blink/leaf sound/21/3	plan	param 7,0 f0 white;
+blink/leaf sound/21/4/0	plan	param 7,4 f0 white;
+blink/leaf sound/21/4/1	plan	param 7,3 f0 white;
+blink/leaf sound/21/4/2	plan	param 7,4 f0 yellow;
+blink/leaf sound/22/0	plan	
+blink/leaf sound/22/1	plan	
+blink/leaf sound/23	plan	
+blink/leaf sound/25	plan	param 4,7 f0 white;
+blink/leaf sound/26/0	plan	
+blink/leaf sound/26/1	plan	
+blink/regular source list p24	plan	param 8,7 f3 white; src 0,5 f3 white src 1,1 f3 white src 1,3 f3 white src 1,6 f3 white alt src 1,7 f3 white
+blink/regular strength p24 s4	plan	param 8,7 f3 white; src 1,5 f3 palette6 src 1,6 f0 white
+blink/range source list p24 s4	plan	param 8,7 f3 white; src 1,5 f3 white
+blink/range strength p24 s4 r7	plan	param 8,7 f3 white; src 1,5 f0 palette6 src 1,6 f3 white
+blink/range strength p24 s4 r12	plan	param 8,7 f3 white; src 1,1 f0 palette6 src 1,6 f3 white
+blink/regular strength p24 s6	plan	param 8,7 f3 white; src 1,6 f0 yellow
+blink/range source list p24 s6	plan	param 8,7 f3 white;
+blink/range strength p24 s6 r7	plan	param 8,7 f3 white; src 1,5 f0 palette6 src 1,6 f3 yellow
+blink/range strength p24 s6 r12	plan	param 8,7 f3 white; src 1,1 f0 palette6 src 1,6 f3 yellow
+blink/regular strength p24 s0	plan	param 8,7 f3 white; src 0,5 f0 white
+blink/range source list p24 s0	plan	param 8,7 f3 white;
+blink/range strength p24 s0 r7	plan	param 8,7 f3 white; src 0,5 f3 white src 1,5 f0 palette6
+blink/range strength p24 s0 r12	plan	param 8,7 f3 white; src 0,5 f3 white src 1,1 f0 palette6
+blink/regular strength p24 s11	plan	param 8,7 f3 white; src 1,0 f0 white
+blink/range source list p24 s11	plan	param 8,7 f3 white;
+blink/range strength p24 s11 r7	plan	param 8,7 f3 white; src 1,0 f3 white src 1,5 f0 palette6
+blink/range strength p24 s11 r12	plan	param 8,7 f3 white; src 1,0 f3 white src 1,1 f0 palette6
+blink/regular strength p24 s14	plan	param 8,7 f3 white; src 1,2 f0 white
+blink/range source list p24 s14	plan	param 8,7 f3 white;
+blink/range strength p24 s14 r7	plan	param 8,7 f3 white; src 1,2 f3 white src 1,5 f0 palette6
+blink/range strength p24 s14 r12	plan	param 8,7 f3 white; src 1,1 f0 palette6 src 1,2 f3 white
+blink/regular source list p45	plan	param 6,0 f3 white; src 1,0 f3 white src 1,1 f3 white
+blink/regular strength p45 s4	plan	param 6,0 f3 white; src 1,6 f0 white
+blink/range source list p45 s4	plan	param 6,0 f3 white;
+blink/range strength p45 s4 r7	plan	param 6,0 f3 white; src 1,5 f0 palette6 src 1,6 f3 white
+blink/range strength p45 s4 r12	plan	param 6,0 f3 white; src 1,1 f0 palette6 src 1,6 f3 white
+blink/regular strength p45 s6	plan	param 6,0 f3 white; src 1,6 f0 yellow
+blink/range source list p45 s6	plan	param 6,0 f3 white;
+blink/range strength p45 s6 r7	plan	param 6,0 f3 white; src 1,5 f0 palette6 src 1,6 f3 yellow
+blink/range strength p45 s6 r12	plan	param 6,0 f3 white; src 1,1 f0 palette6 src 1,6 f3 yellow
+blink/regular strength p45 s0	plan	param 6,0 f3 white; src 0,5 f0 white
+blink/range source list p45 s0	plan	param 6,0 f3 white;
+blink/range strength p45 s0 r7	plan	param 6,0 f3 white; src 0,5 f3 white src 1,5 f0 palette6
+blink/range strength p45 s0 r12	plan	param 6,0 f3 white; src 0,5 f3 white src 1,1 f0 palette6
+blink/regular strength p45 s11	plan	param 6,0 f3 white; src 1,0 f0 white
+blink/range source list p45 s11	plan	param 6,0 f3 white;
+blink/range strength p45 s11 r7	plan	param 6,0 f3 white; src 1,0 f3 white src 1,5 f0 palette6
+blink/range strength p45 s11 r12	plan	param 6,0 f3 white; src 1,0 f3 white src 1,1 f0 palette6
+blink/regular strength p45 s14	plan	param 6,0 f3 white; src 1,2 f0 white
+blink/range source list p45 s14	plan	param 6,0 f3 white;
+blink/range strength p45 s14 r7	plan	param 6,0 f3 white; src 1,2 f3 white src 1,5 f0 palette6
+blink/range strength p45 s14 r12	plan	param 6,0 f3 white; src 1,1 f0 palette6 src 1,2 f3 white
+blink/regular source list p2	plan	
+blink/regular strength p2 s4	plan	param 6,0 f3 white; src 1,6 f0 white
+blink/range source list p2 s4	plan	
+blink/range strength p2 s4 r7	plan	param 6,0 f3 white; src 1,5 f0 palette6 src 1,6 f3 white
+blink/range strength p2 s4 r12	plan	param 6,0 f3 white; src 1,1 f0 palette6 src 1,6 f3 white
+blink/regular strength p2 s6	plan	param 6,0 f3 white; src 1,6 f0 yellow
+blink/range source list p2 s6	plan	
+blink/range strength p2 s6 r7	plan	param 6,0 f3 white; src 1,5 f0 palette6 src 1,6 f3 yellow
+blink/range strength p2 s6 r12	plan	param 6,0 f3 white; src 1,1 f0 palette6 src 1,6 f3 yellow
+blink/regular strength p2 s0	plan	param 6,0 f3 white; src 0,5 f0 white
+blink/range source list p2 s0	plan	
+blink/range strength p2 s0 r7	plan	param 6,0 f3 white; src 0,5 f3 white src 1,5 f0 palette6
+blink/range strength p2 s0 r12	plan	param 6,0 f3 white; src 0,5 f3 white src 1,1 f0 palette6
+blink/regular strength p2 s11	plan	param 6,0 f3 white; src 1,0 f0 white
+blink/range source list p2 s11	plan	
+blink/range strength p2 s11 r7	plan	param 6,0 f3 white; src 1,0 f3 white src 1,5 f0 palette6
+blink/range strength p2 s11 r12	plan	param 6,0 f3 white; src 1,0 f3 white src 1,1 f0 palette6
+blink/regular strength p2 s14	plan	param 6,0 f3 white; src 1,2 f0 white
+blink/range source list p2 s14	plan	
+blink/range strength p2 s14 r7	plan	param 6,0 f3 white; src 1,2 f3 white src 1,5 f0 palette6
+blink/range strength p2 s14 r12	plan	param 6,0 f3 white; src 1,1 f0 palette6 src 1,2 f3 white
+blink/regular source list p46	plan	
+blink/regular strength p46 s4	plan	param 6,0 f3 white; src 1,6 f0 white
+blink/range source list p46 s4	plan	
+blink/range strength p46 s4 r7	plan	param 6,0 f3 white; src 1,5 f0 palette6 src 1,6 f3 white
+blink/range strength p46 s4 r12	plan	param 6,0 f3 white; src 1,1 f0 palette6 src 1,6 f3 white
+blink/regular strength p46 s6	plan	param 6,0 f3 white; src 1,6 f0 yellow
+blink/range source list p46 s6	plan	
+blink/range strength p46 s6 r7	plan	param 6,0 f3 white; src 1,5 f0 palette6 src 1,6 f3 yellow
+blink/range strength p46 s6 r12	plan	param 6,0 f3 white; src 1,1 f0 palette6 src 1,6 f3 yellow
+blink/regular strength p46 s0	plan	param 6,0 f3 white; src 0,5 f0 white
+blink/range source list p46 s0	plan	
+blink/range strength p46 s0 r7	plan	param 6,0 f3 white; src 0,5 f3 white src 1,5 f0 palette6
+blink/range strength p46 s0 r12	plan	param 6,0 f3 white; src 0,5 f3 white src 1,1 f0 palette6
+blink/regular strength p46 s11	plan	param 6,0 f3 white; src 1,0 f0 white
+blink/range source list p46 s11	plan	
+blink/range strength p46 s11 r7	plan	param 6,0 f3 white; src 1,0 f3 white src 1,5 f0 palette6
+blink/range strength p46 s11 r12	plan	param 6,0 f3 white; src 1,0 f3 white src 1,1 f0 palette6
+blink/regular strength p46 s14	plan	param 6,0 f3 white; src 1,2 f0 white
+blink/range source list p46 s14	plan	
+blink/range strength p46 s14 r7	plan	param 6,0 f3 white; src 1,2 f3 white src 1,5 f0 palette6
+blink/range strength p46 s14 r12	plan	param 6,0 f3 white; src 1,1 f0 palette6 src 1,2 f3 white
+blink/regular source list p35	plan	param 8,3 f3 yellow; src 1,2 f3 white
+blink/regular strength p35 s4	plan	param 8,3 f3 yellow; src 1,6 f0 white
+blink/range source list p35 s4	plan	param 8,3 f3 yellow;
+blink/range strength p35 s4 r7	plan	param 8,3 f3 yellow; src 1,5 f0 palette6 src 1,6 f3 white
+blink/range strength p35 s4 r12	plan	param 8,3 f3 yellow; src 1,1 f0 palette6 src 1,6 f3 white
+blink/regular strength p35 s6	plan	param 8,3 f3 yellow; src 1,6 f0 yellow
+blink/range source list p35 s6	plan	param 8,3 f3 yellow;
+blink/range strength p35 s6 r7	plan	param 8,3 f3 yellow; src 1,5 f0 palette6 src 1,6 f3 yellow
+blink/range strength p35 s6 r12	plan	param 8,3 f3 yellow; src 1,1 f0 palette6 src 1,6 f3 yellow
+blink/regular strength p35 s0	plan	param 8,3 f3 yellow; src 0,5 f0 white
+blink/range source list p35 s0	plan	param 8,3 f3 yellow;
+blink/range strength p35 s0 r7	plan	param 8,3 f3 yellow; src 0,5 f3 white src 1,5 f0 palette6
+blink/range strength p35 s0 r12	plan	param 8,3 f3 yellow; src 0,5 f3 white src 1,1 f0 palette6
+blink/regular strength p35 s11	plan	param 8,3 f3 yellow; src 1,0 f0 white
+blink/range source list p35 s11	plan	param 8,3 f3 yellow;
+blink/range strength p35 s11 r7	plan	param 8,3 f3 yellow; src 1,0 f3 white src 1,5 f0 palette6
+blink/range strength p35 s11 r12	plan	param 8,3 f3 yellow; src 1,0 f3 white src 1,1 f0 palette6
+blink/regular strength p35 s14	plan	param 8,3 f3 yellow; src 1,2 f0 white
+blink/range source list p35 s14	plan	param 8,3 f3 yellow;
+blink/range strength p35 s14 r7	plan	param 8,3 f3 yellow; src 1,2 f3 white src 1,5 f0 palette6
+blink/range strength p35 s14 r12	plan	param 8,3 f3 yellow; src 1,1 f0 palette6 src 1,2 f3 white
+blink/regular source list p25	plan	param 6,1 f3 white;
+blink/regular strength p25 s4	plan	param 6,1 f3 white; src 1,6 f0 white
+blink/range source list p25 s4	plan	param 6,1 f3 white;
+blink/range strength p25 s4 r7	plan	param 6,1 f3 white; src 1,5 f0 palette6 src 1,6 f3 white
+blink/range strength p25 s4 r12	plan	param 6,1 f3 white; src 1,1 f0 palette6 src 1,6 f3 white
+blink/regular strength p25 s6	plan	param 6,1 f3 white; src 1,6 f0 yellow
+blink/range source list p25 s6	plan	param 6,1 f3 white;
+blink/range strength p25 s6 r7	plan	param 6,1 f3 white; src 1,5 f0 palette6 src 1,6 f3 yellow
+blink/range strength p25 s6 r12	plan	param 6,1 f3 white; src 1,1 f0 palette6 src 1,6 f3 yellow
+blink/regular strength p25 s0	plan	param 6,1 f3 white; src 0,5 f0 white
+blink/range source list p25 s0	plan	param 6,1 f3 white;
+blink/range strength p25 s0 r7	plan	param 6,1 f3 white; src 0,5 f3 white src 1,5 f0 palette6
+blink/range strength p25 s0 r12	plan	param 6,1 f3 white; src 0,5 f3 white src 1,1 f0 palette6
+blink/regular strength p25 s11	plan	param 6,1 f3 white; src 1,0 f0 white
+blink/range source list p25 s11	plan	param 6,1 f3 white;
+blink/range strength p25 s11 r7	plan	param 6,1 f3 white; src 1,0 f3 white src 1,5 f0 palette6
+blink/range strength p25 s11 r12	plan	param 6,1 f3 white; src 1,0 f3 white src 1,1 f0 palette6
+blink/regular strength p25 s14	plan	param 6,1 f3 white; src 1,2 f0 white
+blink/range source list p25 s14	plan	param 6,1 f3 white;
+blink/range strength p25 s14 r7	plan	param 6,1 f3 white; src 1,2 f3 white src 1,5 f0 palette6
+blink/range strength p25 s14 r12	plan	param 6,1 f3 white; src 1,1 f0 palette6 src 1,2 f3 white
+blink/patch cables row 0	plan	param 8,7 f3 white; src 1,3 f0 palette6
+blink/patch cables row 1	plan	param 8,7 f3 white; src 1,6 f0 palette6
+blink/patch cables row 2	plan	param 8,7 f3 white; src 1,1 f0 palette6
+blink/patch cables row 3	plan	param 8,7 f3 white; src 1,7 f0 palette6
+blink/patch cables row 4	plan	param 8,7 f3 white; src 1,6 f0 yellow
+blink/patch cables row 5	plan	param 8,7 f3 white; src 0,5 f0 palette6
+blink/patch cables row 6	plan	param 6,0 f3 white; src 1,0 f0 palette6
+blink/patch cables row 7	plan	param 6,0 f3 white; src 1,1 f0 palette6
+blink/patch cables row 8	plan	param 8,3 f3 yellow; src 1,2 f0 palette6
+blink/patch cables row 9	plan	param 8,7 f3 white; src 1,5 f0 palette6 src 1,6 f3 white
+overlay/sound/0,0	rgb	0	0	0
+overlay/sound/0,1	rgb	0	0	0
+overlay/sound/0,2	rgb	0	0	0
+overlay/sound/0,3	rgb	0	0	0
+overlay/sound/0,4	rgb	0	255	0
+overlay/sound/0,5	rgb	0	255	0
+overlay/sound/0,6	rgb	0	0	0
+overlay/sound/0,7	rgb	0	0	0
+overlay/sound/1,0	rgb	0	0	0
+overlay/sound/1,1	rgb	0	0	0
+overlay/sound/1,2	rgb	0	0	0
+overlay/sound/1,3	rgb	0	0	0
+overlay/sound/1,4	rgb	0	255	0
+overlay/sound/1,5	rgb	0	255	0
+overlay/sound/1,6	rgb	0	0	0
+overlay/sound/1,7	rgb	0	0	0
+overlay/sound/2,0	rgb	0	0	255
+overlay/sound/2,1	rgb	0	0	255
+overlay/sound/2,2	rgb	0	0	255
+overlay/sound/2,3	rgb	0	0	255
+overlay/sound/2,4	rgb	0	0	255
+overlay/sound/2,5	rgb	0	0	0
+overlay/sound/2,6	rgb	0	0	0
+overlay/sound/2,7	rgb	0	128	255
+overlay/sound/3,0	rgb	0	0	255
+overlay/sound/3,1	rgb	0	0	255
+overlay/sound/3,2	rgb	0	0	255
+overlay/sound/3,3	rgb	0	0	255
+overlay/sound/3,4	rgb	0	0	255
+overlay/sound/3,5	rgb	0	0	0
+overlay/sound/3,6	rgb	0	0	0
+overlay/sound/3,7	rgb	0	0	255
+overlay/sound/4,0	rgb	0	0	0
+overlay/sound/4,1	rgb	0	0	0
+overlay/sound/4,2	rgb	0	0	0
+overlay/sound/4,3	rgb	0	0	0
+overlay/sound/4,4	rgb	0	0	0
+overlay/sound/4,5	rgb	0	0	0
+overlay/sound/4,6	rgb	0	0	0
+overlay/sound/4,7	rgb	127	127	127
+overlay/sound/5,0	rgb	0	0	0
+overlay/sound/5,1	rgb	0	0	0
+overlay/sound/5,2	rgb	0	0	0
+overlay/sound/5,3	rgb	0	0	0
+overlay/sound/5,4	rgb	0	0	0
+overlay/sound/5,5	rgb	0	0	0
+overlay/sound/5,6	rgb	0	0	0
+overlay/sound/5,7	rgb	255	48	0
+overlay/sound/6,0	rgb	255	48	0
+overlay/sound/6,1	rgb	255	48	0
+overlay/sound/6,2	rgb	255	48	0
+overlay/sound/6,3	rgb	255	48	0
+overlay/sound/6,4	rgb	255	48	0
+overlay/sound/6,5	rgb	255	0	0
+overlay/sound/6,6	rgb	255	0	0
+overlay/sound/6,7	rgb	255	0	0
+overlay/sound/7,0	rgb	255	48	0
+overlay/sound/7,1	rgb	255	48	0
+overlay/sound/7,2	rgb	255	48	0
+overlay/sound/7,3	rgb	255	48	0
+overlay/sound/7,4	rgb	255	48	0
+overlay/sound/7,5	rgb	255	0	0
+overlay/sound/7,6	rgb	0	0	0
+overlay/sound/7,7	rgb	255	0	0
+overlay/sound/8,0	rgb	0	255	0
+overlay/sound/8,1	rgb	0	255	0
+overlay/sound/8,2	rgb	0	255	0
+overlay/sound/8,3	rgb	0	255	0
+overlay/sound/8,4	rgb	255	64	0
+overlay/sound/8,5	rgb	255	64	0
+overlay/sound/8,6	rgb	255	64	0
+overlay/sound/8,7	rgb	255	64	0
+overlay/sound/9,0	rgb	0	255	0
+overlay/sound/9,1	rgb	0	255	0
+overlay/sound/9,2	rgb	0	255	0
+overlay/sound/9,3	rgb	0	255	0
+overlay/sound/9,4	rgb	255	64	0
+overlay/sound/9,5	rgb	255	64	0
+overlay/sound/9,6	rgb	255	64	0
+overlay/sound/9,7	rgb	255	64	0
+overlay/sound/10,0	rgb	255	160	0
+overlay/sound/10,1	rgb	255	160	0
+overlay/sound/10,2	rgb	255	160	0
+overlay/sound/10,3	rgb	255	160	0
+overlay/sound/10,4	rgb	255	160	0
+overlay/sound/10,5	rgb	0	0	0
+overlay/sound/10,6	rgb	128	0	128
+overlay/sound/10,7	rgb	128	0	128
+overlay/sound/11,0	rgb	51	109	145
+overlay/sound/11,1	rgb	51	109	145
+overlay/sound/11,2	rgb	51	109	145
+overlay/sound/11,3	rgb	51	109	145
+overlay/sound/11,4	rgb	51	109	145
+overlay/sound/11,5	rgb	127	127	127
+overlay/sound/11,6	rgb	128	0	128
+overlay/sound/11,7	rgb	128	0	128
+overlay/sound/12,0	rgb	85	182	72
+overlay/sound/12,1	rgb	85	182	72
+overlay/sound/12,2	rgb	85	182	72
+overlay/sound/12,3	rgb	255	128	0
+overlay/sound/12,4	rgb	0	0	0
+overlay/sound/12,5	rgb	0	0	0
+overlay/sound/12,6	rgb	0	0	0
+overlay/sound/12,7	rgb	0	0	0
+overlay/sound/13,0	rgb	85	182	72
+overlay/sound/13,1	rgb	85	182	72
+overlay/sound/13,2	rgb	85	182	72
+overlay/sound/13,3	rgb	255	0	0
+overlay/sound/13,4	rgb	255	0	0
+overlay/sound/13,5	rgb	255	0	0
+overlay/sound/13,6	rgb	255	0	0
+overlay/sound/13,7	rgb	255	0	0
+overlay/sound/14,0	rgb	0	128	128
+overlay/sound/14,1	rgb	0	128	128
+overlay/sound/14,2	rgb	0	128	128
+overlay/sound/14,3	rgb	0	128	128
+overlay/sound/14,4	rgb	0	128	128
+overlay/sound/14,5	rgb	0	0	0
+overlay/sound/14,6	rgb	0	0	0
+overlay/sound/14,7	rgb	0	0	0
+overlay/sound/15,0	rgb	0	0	0
+overlay/sound/15,1	rgb	255	48	0
+overlay/sound/15,2	rgb	255	48	0
+overlay/sound/15,3	rgb	255	48	0
+overlay/sound/15,4	rgb	0	0	0
+overlay/sound/15,5	rgb	0	0	0
+overlay/sound/15,6	rgb	0	0	0
+overlay/sound/15,7	rgb	0	0	0
+land/sound/0,0	page	group:source_group
+land/sound/0,1	page	group:source_group
+land/sound/0,2	page	group:source_group
+land/sound/0,3	page	group:source_group
+land/sound/0,4	page	name:Sample recorder
+land/sound/0,5	page	-
+land/sound/0,6	page	group:source_group
+land/sound/0,7	page	-
+land/sound/1,0	page	group:source_group
+land/sound/1,1	page	group:source_group
+land/sound/1,2	page	group:source_group
+land/sound/1,3	page	group:source_group
+land/sound/1,4	page	name:Sample recorder
+land/sound/1,5	page	-
+land/sound/1,6	page	group:source_group
+land/sound/1,7	page	-
+land/sound/2,0	page	group:source_group
+land/sound/2,1	page	group:source_group
+land/sound/2,2	page	group:source_group
+land/sound/2,3	page	group:source_group
+land/sound/2,4	page	group:source_group
+land/sound/2,5	page	group:source_group
+land/sound/2,6	page	group:source_group
+land/sound/2,7	page	group:source_group
+land/sound/3,0	page	group:source_group
+land/sound/3,1	page	group:source_group
+land/sound/3,2	page	group:source_group
+land/sound/3,3	page	group:source_group
+land/sound/3,4	page	group:source_group
+land/sound/3,5	page	group:source_group
+land/sound/3,6	page	group:source_group
+land/sound/3,7	page	group:source_group
+land/sound/4,0	page	group:source_group
+land/sound/4,1	page	group:source_group
+land/sound/4,4	page	group:source_group
+land/sound/4,5	page	group:source_group
+land/sound/4,7	page	-
+land/sound/5,0	page	group:source_group
+land/sound/5,1	page	group:source_group
+land/sound/5,4	page	group:source_group
+land/sound/5,5	page	group:source_group
+land/sound/5,6	page	group:source_group
+land/sound/5,7	page	sound/6/3
+land/sound/6,0	page	sound/1
+land/sound/6,1	page	sound/1
+land/sound/6,2	page	sound/1
+land/sound/6,3	page	sound/1
+land/sound/6,4	page	sound/1
+land/sound/6,5	page	sound/6/5
+land/sound/6,6	page	sound/6/5
+land/sound/6,7	page	sound/6/5
+land/sound/7,0	page	group:voice_group
+land/sound/7,1	page	group:voice_group
+land/sound/7,2	page	group:voice_group
+land/sound/7,3	page	group:voice_group
+land/sound/7,4	page	group:voice_group
+land/sound/7,5	page	sound/4
+land/sound/7,7	page	sound/6/5
+land/sound/8,0	page	group:env_group
+land/sound/8,1	page	group:env_group
+land/sound/8,2	page	group:env_group
+land/sound/8,3	page	group:env_group
+land/sound/8,4	page	group:filters_group
+land/sound/8,5	page	group:filters_group
+land/sound/8,6	page	group:filters_group
+land/sound/8,7	page	group:filters_group
+land/sound/9,0	page	group:env_group
+land/sound/9,1	page	group:env_group
+land/sound/9,2	page	group:env_group
+land/sound/9,3	page	group:env_group
+land/sound/9,4	page	group:filters_group
+land/sound/9,5	page	group:filters_group
+land/sound/9,6	page	group:filters_group
+land/sound/9,7	page	group:filters_group
+land/sound/10,0	page	sound/7
+land/sound/10,1	page	sound/7
+land/sound/10,2	page	sound/7
+land/sound/10,3	page	sound/7
+land/sound/10,4	page	sound/7
+land/sound/10,5	page	sound/7
+land/sound/10,6	page	sound/6/0
+land/sound/10,7	page	sound/6/0
+land/sound/11,0	page	group:arp_group
+land/sound/11,1	page	group:arp_group
+land/sound/11,2	page	group:arp_group
+land/sound/11,3	page	group:arp_group
+land/sound/11,4	page	group:arp_group
+land/sound/11,5	page	-
+land/sound/11,6	page	sound/6/0
+land/sound/11,7	page	sound/6/0
+land/sound/12,0	page	group:lfo_group
+land/sound/12,1	page	group:lfo_group
+land/sound/12,2	page	group:lfo_group
+land/sound/12,3	page	sound/6/4
+land/sound/12,4	page	sound/6/4
+land/sound/12,5	page	sound/6/4
+land/sound/12,6	page	sound/6/4
+land/sound/12,7	page	sound/6/4
+land/sound/13,0	page	group:lfo_group
+land/sound/13,1	page	group:lfo_group
+land/sound/13,2	page	group:lfo_group
+land/sound/13,3	page	group:reverb_group
+land/sound/13,4	page	group:reverb_group
+land/sound/13,5	page	group:reverb_group
+land/sound/13,6	page	group:reverb_group
+land/sound/13,7	page	group:reverb_group
+land/sound/14,0	page	sound/6/1
+land/sound/14,1	page	sound/6/1
+land/sound/14,2	page	sound/6/1
+land/sound/14,3	page	sound/6/1
+land/sound/14,4	page	sound/6/1
+land/sound/15,1	page	sound/3
+land/sound/15,2	page	sound/3
+land/sound/15,3	page	sound/3
+land/sound/2/5,7	page	sound/6/3
+land/sound/2/7,1	page	group:voice_group
+land/sound/2/7,4	page	group:voice_group
+land/sound/2/7,5	page	sound/4
+land/sound/2/8,0	page	group:env_group
+land/sound/2/8,1	page	group:env_group
+land/sound/2/8,2	page	group:env_group
+land/sound/2/8,3	page	group:env_group
+land/sound/2/9,0	page	group:env_group
+land/sound/2/9,1	page	group:env_group
+land/sound/2/9,2	page	group:env_group
+land/sound/2/9,3	page	group:env_group
+land/sound/2/12,0	page	group:lfo_group
+land/sound/2/12,1	page	group:lfo_group
+land/sound/2/12,2	page	group:lfo_group
+land/sound/2/13,0	page	group:lfo_group
+land/sound/2/13,1	page	group:lfo_group
+land/sound/2/13,2	page	group:lfo_group
+land/drum/0,0	page	group:source_group
+land/drum/0,1	page	group:source_group
+land/drum/0,2	page	group:source_group
+land/drum/0,3	page	group:source_group
+land/drum/0,4	page	name:Sample recorder
+land/drum/0,5	page	-
+land/drum/0,6	page	group:source_group
+land/drum/0,7	page	-
+land/drum/1,0	page	group:source_group
+land/drum/1,1	page	group:source_group
+land/drum/1,2	page	group:source_group
+land/drum/1,3	page	group:source_group
+land/drum/1,4	page	name:Sample recorder
+land/drum/1,5	page	-
+land/drum/1,6	page	group:source_group
+land/drum/1,7	page	-
+land/drum/2,0	page	group:source_group
+land/drum/2,1	page	group:source_group
+land/drum/2,2	page	group:source_group
+land/drum/2,3	page	group:source_group
+land/drum/2,4	page	group:source_group
+land/drum/2,5	page	group:source_group
+land/drum/2,6	page	group:source_group
+land/drum/2,7	page	group:source_group
+land/drum/3,0	page	group:source_group
+land/drum/3,1	page	group:source_group
+land/drum/3,2	page	group:source_group
+land/drum/3,3	page	group:source_group
+land/drum/3,4	page	group:source_group
+land/drum/3,5	page	group:source_group
+land/drum/3,6	page	group:source_group
+land/drum/3,7	page	group:source_group
+land/drum/4,0	page	group:source_group
+land/drum/4,1	page	group:source_group
+land/drum/4,4	page	group:source_group
+land/drum/4,5	page	group:source_group
+land/drum/4,7	page	-
+land/drum/5,0	page	group:source_group
+land/drum/5,1	page	group:source_group
+land/drum/5,4	page	group:source_group
+land/drum/5,5	page	group:source_group
+land/drum/5,6	page	group:source_group
+land/drum/5,7	page	drum/6/3
+land/drum/6,0	page	drum/1
+land/drum/6,1	page	drum/1
+land/drum/6,2	page	drum/1
+land/drum/6,3	page	drum/1
+land/drum/6,4	page	drum/1
+land/drum/6,5	page	drum/6/5
+land/drum/6,6	page	drum/6/5
+land/drum/6,7	page	drum/6/5
+land/drum/7,0	page	group:voice_group
+land/drum/7,1	page	group:voice_group
+land/drum/7,2	page	group:voice_group
+land/drum/7,3	page	group:voice_group
+land/drum/7,4	page	group:voice_group
+land/drum/7,5	page	drum/4
+land/drum/7,7	page	drum/6/5
+land/drum/8,0	page	group:env_group
+land/drum/8,1	page	group:env_group
+land/drum/8,2	page	group:env_group
+land/drum/8,3	page	group:env_group
+land/drum/8,4	page	group:filters_group
+land/drum/8,5	page	group:filters_group
+land/drum/8,6	page	group:filters_group
+land/drum/8,7	page	group:filters_group
+land/drum/9,0	page	group:env_group
+land/drum/9,1	page	group:env_group
+land/drum/9,2	page	group:env_group
+land/drum/9,3	page	group:env_group
+land/drum/9,4	page	group:filters_group
+land/drum/9,5	page	group:filters_group
+land/drum/9,6	page	group:filters_group
+land/drum/9,7	page	group:filters_group
+land/drum/10,0	page	drum/7
+land/drum/10,1	page	drum/7
+land/drum/10,2	page	drum/7
+land/drum/10,3	page	drum/7
+land/drum/10,4	page	drum/7
+land/drum/10,5	page	drum/7
+land/drum/10,6	page	drum/6/0
+land/drum/10,7	page	drum/6/0
+land/drum/11,0	page	group:arp_group
+land/drum/11,1	page	group:arp_group
+land/drum/11,2	page	group:arp_group
+land/drum/11,3	page	group:arp_group
+land/drum/11,4	page	group:arp_group
+land/drum/11,5	page	-
+land/drum/11,6	page	drum/6/0
+land/drum/11,7	page	drum/6/0
+land/drum/12,0	page	group:lfo_group
+land/drum/12,1	page	group:lfo_group
+land/drum/12,2	page	group:lfo_group
+land/drum/12,3	page	drum/6/4
+land/drum/12,4	page	drum/6/4
+land/drum/12,5	page	drum/6/4
+land/drum/12,6	page	drum/6/4
+land/drum/12,7	page	drum/6/4
+land/drum/13,0	page	group:lfo_group
+land/drum/13,1	page	group:lfo_group
+land/drum/13,2	page	group:lfo_group
+land/drum/13,3	page	group:reverb_group
+land/drum/13,4	page	group:reverb_group
+land/drum/13,5	page	group:reverb_group
+land/drum/13,6	page	group:reverb_group
+land/drum/13,7	page	group:reverb_group
+land/drum/14,0	page	drum/6/1
+land/drum/14,1	page	drum/6/1
+land/drum/14,2	page	drum/6/1
+land/drum/14,3	page	drum/6/1
+land/drum/14,4	page	drum/6/1
+land/drum/15,1	page	drum/3
+land/drum/15,2	page	drum/3
+land/drum/15,3	page	drum/3
+land/drum/2/5,7	page	drum/6/3
+land/drum/2/7,1	page	group:voice_group
+land/drum/2/7,4	page	group:voice_group
+land/drum/2/7,5	page	drum/4
+land/drum/2/8,0	page	group:env_group
+land/drum/2/8,1	page	group:env_group
+land/drum/2/8,2	page	group:env_group
+land/drum/2/8,3	page	group:env_group
+land/drum/2/9,0	page	group:env_group
+land/drum/2/9,1	page	group:env_group
+land/drum/2/9,2	page	group:env_group
+land/drum/2/9,3	page	group:env_group
+land/drum/2/12,0	page	group:lfo_group
+land/drum/2/12,1	page	group:lfo_group
+land/drum/2/12,2	page	group:lfo_group
+land/drum/2/13,0	page	group:lfo_group
+land/drum/2/13,1	page	group:lfo_group
+land/drum/2/13,2	page	group:lfo_group
+land/midi drum/11,0	page	-
+land/midi drum/11,1	page	group:arp_group
+land/midi drum/11,2	page	-
+land/midi drum/11,3	page	group:arp_group
+land/midi drum/11,4	page	group:arp_group
+land/midi drum/11,5	page	-
+land/gate drum/11,0	page	-
+land/gate drum/11,1	page	group:arp_group
+land/gate drum/11,2	page	-
+land/gate drum/11,3	page	group:arp_group
+land/gate drum/11,4	page	-
+land/gate drum/11,5	page	-
+land/kit global fx/6,0	page	kit global fx/1
+land/kit global fx/6,1	page	kit global fx/1
+land/kit global fx/6,3	page	kit global fx/1
+land/kit global fx/6,5	page	kit global fx/5/5
+land/kit global fx/6,6	page	kit global fx/5/5
+land/kit global fx/7,5	page	kit global fx/3
+land/kit global fx/8,4	page	group:global_filters_group
+land/kit global fx/8,5	page	group:global_filters_group
+land/kit global fx/8,6	page	group:global_filters_group
+land/kit global fx/8,7	page	group:global_filters_group
+land/kit global fx/9,4	page	group:global_filters_group
+land/kit global fx/9,5	page	group:global_filters_group
+land/kit global fx/9,6	page	group:global_filters_group
+land/kit global fx/9,7	page	group:global_filters_group
+land/kit global fx/10,0	page	kit global fx/6
+land/kit global fx/10,1	page	kit global fx/6
+land/kit global fx/10,2	page	kit global fx/6
+land/kit global fx/10,3	page	kit global fx/6
+land/kit global fx/10,4	page	kit global fx/6
+land/kit global fx/10,6	page	kit global fx/5/0
+land/kit global fx/10,7	page	kit global fx/5/0
+land/kit global fx/11,0	page	-
+land/kit global fx/11,1	page	group:arp_group_kit
+land/kit global fx/11,2	page	group:arp_group_kit
+land/kit global fx/11,3	page	group:arp_group_kit
+land/kit global fx/11,4	page	group:arp_group_kit
+land/kit global fx/11,5	page	-
+land/kit global fx/11,6	page	kit global fx/5/0
+land/kit global fx/11,7	page	kit global fx/5/0
+land/kit global fx/12,3	page	kit global fx/5/4
+land/kit global fx/12,4	page	kit global fx/5/4
+land/kit global fx/12,5	page	kit global fx/5/4
+land/kit global fx/12,6	page	kit global fx/5/4
+land/kit global fx/12,7	page	kit global fx/5/4
+land/kit global fx/13,3	page	group:global_reverb_group
+land/kit global fx/13,4	page	group:global_reverb_group
+land/kit global fx/13,5	page	group:global_reverb_group
+land/kit global fx/13,6	page	group:global_reverb_group
+land/kit global fx/13,7	page	group:global_reverb_group
+land/kit global fx/14,0	page	kit global fx/5/1
+land/kit global fx/14,1	page	kit global fx/5/1
+land/kit global fx/14,2	page	kit global fx/5/1
+land/kit global fx/14,3	page	kit global fx/5/1
+land/kit global fx/14,4	page	kit global fx/5/1
+land/kit global fx/15,1	page	kit global fx/2/3
+land/kit global fx/15,2	page	kit global fx/2/3
+land/kit global fx/15,3	page	kit global fx/2/3
+land/song/5,7	page	song/2/3
+land/song/6,0	page	song/0
+land/song/6,3	page	song/0
+land/song/6,5	page	song/2/5
+land/song/6,6	page	song/2/5
+land/song/7,5	page	outside:sound/4 drum/4 audio clip/4 kit global fx/3
+land/song/8,4	page	group:global_filters_group
+land/song/8,5	page	group:global_filters_group
+land/song/8,6	page	group:global_filters_group
+land/song/8,7	page	group:global_filters_group
+land/song/9,4	page	group:global_filters_group
+land/song/9,5	page	group:global_filters_group
+land/song/9,6	page	group:global_filters_group
+land/song/9,7	page	group:global_filters_group
+land/song/10,6	page	song/2/0
+land/song/10,7	page	song/2/0
+land/song/11,6	page	song/2/0
+land/song/11,7	page	song/2/0
+land/song/12,3	page	song/2/4
+land/song/12,4	page	song/2/4
+land/song/12,5	page	song/2/4
+land/song/12,6	page	song/2/4
+land/song/12,7	page	song/2/4
+land/song/13,3	page	group:global_reverb_group
+land/song/13,4	page	group:global_reverb_group
+land/song/13,5	page	group:global_reverb_group
+land/song/13,6	page	group:global_reverb_group
+land/song/13,7	page	group:global_reverb_group
+land/song/14,0	page	song/2/1
+land/song/14,1	page	song/2/1
+land/song/14,2	page	song/2/1
+land/song/14,3	page	song/2/1
+land/song/14,4	page	song/2/1
+land/performance/5,7	page	song/2/3
+land/performance/6,0	page	song/0
+land/performance/6,3	page	song/0
+land/performance/6,5	page	song/2/5
+land/performance/6,6	page	song/2/5
+land/performance/7,5	page	outside:sound/4 drum/4 audio clip/4 kit global fx/3
+land/performance/8,4	page	group:global_filters_group
+land/performance/8,5	page	group:global_filters_group
+land/performance/8,6	page	group:global_filters_group
+land/performance/8,7	page	group:global_filters_group
+land/performance/9,4	page	group:global_filters_group
+land/performance/9,5	page	group:global_filters_group
+land/performance/9,6	page	group:global_filters_group
+land/performance/9,7	page	group:global_filters_group
+land/performance/10,6	page	song/2/0
+land/performance/10,7	page	song/2/0
+land/performance/11,6	page	song/2/0
+land/performance/11,7	page	song/2/0
+land/performance/12,3	page	song/2/4
+land/performance/12,4	page	song/2/4
+land/performance/12,5	page	song/2/4
+land/performance/12,6	page	song/2/4
+land/performance/12,7	page	song/2/4
+land/performance/13,3	page	group:global_reverb_group
+land/performance/13,4	page	group:global_reverb_group
+land/performance/13,5	page	group:global_reverb_group
+land/performance/13,6	page	group:global_reverb_group
+land/performance/13,7	page	group:global_reverb_group
+land/performance/14,0	page	song/2/1
+land/performance/14,1	page	song/2/1
+land/performance/14,2	page	song/2/1
+land/performance/14,3	page	song/2/1
+land/performance/14,4	page	song/2/1
+land/audio clip/0,1	page	audio clip/8
+land/audio clip/0,3	page	audio clip/8
+land/audio clip/0,5	page	-
+land/audio clip/0,6	page	audio clip/8
+land/audio clip/0,7	page	-
+land/audio clip/1,1	page	audio clip/8
+land/audio clip/1,3	page	audio clip/8
+land/audio clip/1,5	page	-
+land/audio clip/1,6	page	audio clip/8
+land/audio clip/1,7	page	-
+land/audio clip/2,1	page	audio clip/8
+land/audio clip/3,1	page	audio clip/8
+land/audio clip/5,7	page	audio clip/6/3
+land/audio clip/6,0	page	audio clip/3
+land/audio clip/6,1	page	audio clip/8
+land/audio clip/6,3	page	audio clip/3
+land/audio clip/6,5	page	audio clip/6/5
+land/audio clip/6,6	page	audio clip/6/5
+land/audio clip/6,7	page	audio clip/6/5
+land/audio clip/7,2	page	-
+land/audio clip/7,5	page	audio clip/4
+land/audio clip/8,3	page	-
+land/audio clip/8,4	page	group:global_filters_group
+land/audio clip/8,5	page	group:global_filters_group
+land/audio clip/8,6	page	group:global_filters_group
+land/audio clip/8,7	page	group:global_filters_group
+land/audio clip/9,3	page	-
+land/audio clip/9,4	page	group:global_filters_group
+land/audio clip/9,5	page	group:global_filters_group
+land/audio clip/9,6	page	group:global_filters_group
+land/audio clip/9,7	page	group:global_filters_group
+land/audio clip/10,0	page	audio clip/7
+land/audio clip/10,1	page	audio clip/7
+land/audio clip/10,2	page	audio clip/7
+land/audio clip/10,3	page	audio clip/7
+land/audio clip/10,4	page	audio clip/7
+land/audio clip/10,6	page	audio clip/6/0
+land/audio clip/10,7	page	audio clip/6/0
+land/audio clip/11,5	page	-
+land/audio clip/11,6	page	audio clip/6/0
+land/audio clip/11,7	page	audio clip/6/0
+land/audio clip/12,3	page	audio clip/6/4
+land/audio clip/12,4	page	audio clip/6/4
+land/audio clip/12,5	page	audio clip/6/4
+land/audio clip/12,6	page	audio clip/6/4
+land/audio clip/12,7	page	audio clip/6/4
+land/audio clip/13,3	page	group:global_reverb_group
+land/audio clip/13,4	page	group:global_reverb_group
+land/audio clip/13,5	page	group:global_reverb_group
+land/audio clip/13,6	page	group:global_reverb_group
+land/audio clip/13,7	page	group:global_reverb_group
+land/audio clip/14,0	page	audio clip/6/1
+land/audio clip/14,1	page	audio clip/6/1
+land/audio clip/14,2	page	audio clip/6/1
+land/audio clip/14,3	page	audio clip/6/1
+land/audio clip/14,4	page	audio clip/6/1
+land/midi/cv/11,0	page	group:arp_group_midi
+land/midi/cv/11,1	page	group:arp_group_midi
+land/midi/cv/11,2	page	group:arp_group_midi
+land/midi/cv/11,3	page	group:arp_group_midi
+land/midi/cv/11,4	page	group:arp_group_midi
+land/midi/cv/11,5	page	-

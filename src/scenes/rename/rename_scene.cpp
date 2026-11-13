@@ -36,6 +36,7 @@
 
 #include <algorithm>
 #include <array>
+#include <utility>
 
 namespace deluge::scenes::rename {
 
@@ -216,8 +217,7 @@ bool RenameScene::on_enter(const SceneId& id) {
 	// *whole* existing name to its right, which is what makes typing a character that matches the
 	// one under the cursor simply step over it (see `type_char`).
 	const std::string current = t.read(ctx_);
-	len_ = static_cast<uint16_t>(std::min(current.size(), kMaxNameChars));
-	std::copy_n(current.data(), len_, buf_);
+	text_ = current;
 	edit_ = deluge::ui::oled::TextEditState{};
 	kb_ = deluge::ui::grid::TextKeyboardState{};
 	resp_ = {};
@@ -230,7 +230,16 @@ bool RenameScene::on_enter(const SceneId& id) {
 	cursor_blink_ = deluge::ui::Blink{};
 	repeat_armed_ = false;
 	repeat_at_ms_ = 0;
+	blink_restart_ = true;
 	return true;
+}
+
+void RenameScene::leds(deluge::ui::LedFrame& frame) {
+	if (std::exchange(blink_restart_, false)) {
+		frame.restart(deluge::ui::BlinkRate::Normal);
+	}
+	(void)frame.set(static_cast<deluge::ui::LedId>(ButtonId::Back),
+	                deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal));
 }
 
 void RenameScene::on_exit() {
@@ -269,7 +278,7 @@ void RenameScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 	// "Render-only"). Without `Shell::tick`'s step 8b the host would wake on `next_timer()` while
 	// `RepaintGate` still said no, and the bar would be computed correctly and never drawn. Only while
 	// the bar exists at all: mid-string `cursor_lit` gates nothing.
-	if (edit_.cursor == static_cast<int16_t>(len_)) {
+	if (edit_.cursor == static_cast<int16_t>(text_.size())) {
 		f.gate().request_repaint_after(deluge::ui::blink_next_flip_in(cursor_blink_, now), now);
 	}
 
@@ -337,13 +346,14 @@ Result RenameScene::after_render() {
 	// **Only on a tick the grid pass actually ran.** `resp_` is `render_grid`'s observation, and the
 	// shell calls `after_render()` for every scene that drew on any surface -- so on an OLED-only
 	// tick (the cursor blink's own repaint, or the menu underneath this overlay asking for one)
-	// `resp` is default-constructed and `held_index` is -1. Feeding that to `advance_repeat` reads
-	// as "the pad went up" and disarms the hold; see `RenameScene::grid_pass_`.
+	// the pads were not read at all; see `RenameScene::grid_pass_`.
 	const bool grid_pass = grid_pass_;
 	grid_pass_ = false;
-	bool changed = grid_pass && advance_repeat(resp.held_index, last_render_ms_);
+	bool changed = grid_pass && advance_repeat(kb_.backspace_held, last_render_ms_);
 
-	if (resp.index >= 0) {
+	// Keys and Enter are refused while the hold is up, backspace included: `QwertyUI::padAction` acts
+	// on them only with no UI mode set.
+	if (resp.index >= 0 && !repeat_armed_) {
 		const char c = static_cast<char>(resp.index);
 
 		if (c == deluge::ui::grid::kTextKeyboardEnter) {
@@ -353,12 +363,12 @@ Result RenameScene::after_render() {
 
 		if (c == deluge::ui::grid::kTextKeyboardBackspace) {
 			// `qwerty_ui.cpp:204-229`: delete one character now, then arm the hold at
-			// `kBackspaceRepeatDelayMs` -- legacy's `processBackspace()` followed by
+			// `deluge::ui::grid::kBackspaceRepeatDelayMs` -- legacy's `processBackspace()` followed by
 			// `setTimer(UI_SPECIFIC, 500)`, with `repeat_armed_` standing in for
 			// `currentUIMode = UI_MODE_HOLDING_BACKSPACE`.
 			backspace();
 			repeat_armed_ = true;
-			repeat_at_ms_ = last_render_ms_ + kBackspaceRepeatDelayMs;
+			repeat_at_ms_ = last_render_ms_ + deluge::ui::grid::kBackspaceRepeatDelayMs;
 		}
 		else {
 			type_char(c);
@@ -378,25 +388,14 @@ Result RenameScene::after_render() {
 	return r;
 }
 
-bool RenameScene::advance_repeat(int16_t held_char, uint32_t now) {
+bool RenameScene::advance_repeat(bool backspace_held, uint32_t now) {
 	if (!repeat_armed_) {
 		return false;
 	}
-	// `padAction`'s release arm (`qwerty_ui.cpp:223-228`): leaving `UI_MODE_HOLDING_BACKSPACE`
-	// unsets the timer. Here the hold is a *level* rather than a mode -- `held_index` is what the
-	// keyboard reports is still down (`ui/core/response.h`) -- so letting go, or sliding onto any
-	// other key, ends the repeat with no release event to catch.
-	//
-	// One named difference from legacy, in the two-handed case. `held_index` is the first *held*
-	// pad that types a character in the keyboard's bottom-up sweep, and every letter row sits below
-	// the backspace row -- so pressing a letter while backspace is still down reports the letter
-	// here and ends the repeat, and the letter is typed. Legacy instead swallows that press
-	// outright: its "normal keys" arm is gated on `!currentUIMode` (`QwertyUI::padAction`) and
-	// `currentUIMode` is `UI_MODE_HOLDING_BACKSPACE`, so the keystroke is simply lost while the
-	// repeat carries on. Keeping the keystroke and stopping the repeat is the friendlier of the two
-	// and needs no per-pad hold reporting; reproducing the swallow would mean `text_keyboard`
-	// answering "is *this* pad held", which no other caller wants.
-	if (held_char != deluge::ui::grid::kTextKeyboardBackspace) {
+	// `QwertyUI::padAction`'s release arm leaves `UI_MODE_HOLDING_BACKSPACE` and unsets the timer. Here the
+	// hold is a level: the keyboard reports whether a backspace pad is still down, so a letter pressed
+	// beside it does not end the repeat, as in `main`, where the press is swallowed.
+	if (!backspace_held) {
 		repeat_armed_ = false;
 		return false;
 	}
@@ -409,7 +408,7 @@ bool RenameScene::advance_repeat(int16_t held_char, uint32_t now) {
 	// cadence. Re-armed from `now` rather than from `repeat_at_ms_`, so a tick that arrived late
 	// (a long render, a card access) deletes one character and not a burst catching up.
 	backspace();
-	repeat_at_ms_ = now + kBackspaceRepeatMs;
+	repeat_at_ms_ = now + deluge::ui::grid::kBackspaceRepeatMs;
 	return true;
 }
 
@@ -423,6 +422,15 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 		// (`UI_MODE_HOLDING_BACKSPACE`, the prediction modes) are all QwertyUI's own and none of
 		// them survive the port.
 		if (!event.on) {
+			break;
+		}
+		if (repeat_armed_) {
+			// `RenameUI::buttonAction`: BACK and SELECT act only with no UI mode set.
+			if (event.button == ButtonId::Back || event.button == ButtonId::SelectEnc) {
+				Result r;
+				r.handled = true;
+				return r;
+			}
 			break;
 		}
 		if (event.button == ButtonId::Back) {
@@ -442,6 +450,11 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 		// which, in this stack, already claimed it while `render_grid` painted it, so anything
 		// arriving here is by definition outside the keyboard's columns. "Otherwise, exit."
 		if (event.on && event.x >= deluge::ui::grid::kTextKeyboardCols) {
+			if (repeat_armed_) {
+				Result r; // `RenameUI::padAction` exits only with no UI mode set
+				r.handled = true;
+				return r;
+			}
 			return close();
 		}
 		break;
@@ -453,7 +466,8 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 			// do-nothing `return true` for everything but `Browser` (`QwertyUI::predictExtendedText`), so on a
 			// rename the right-hand arm is exactly "already at the far right end, get out".
 			const int32_t at = edit_.cursor;
-			if ((event.delta > 0 && at >= len_) || (event.delta < 0 && at == 0) || event.delta == 0) {
+			if ((event.delta > 0 && at >= static_cast<int32_t>(text_.size())) || (event.delta < 0 && at == 0)
+			    || event.delta == 0) {
 				Result r;
 				r.handled = true;
 				return r;
@@ -461,7 +475,8 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 			// Legacy adds the offset unclamped, which an accelerated turn can push past the end of
 			// the string -- `enteredText.c_str()[enteredTextEditPos]` would then read past the
 			// terminator. Clamped here; every in-range turn lands where legacy's does.
-			edit_.cursor = static_cast<int16_t>(std::clamp<int32_t>(at + event.delta, 0, len_));
+			edit_.cursor =
+			    static_cast<int16_t>(std::clamp<int32_t>(at + event.delta, 0, static_cast<int32_t>(text_.size())));
 			Result r;
 			r.handled = true;
 			(void)r.actions.push_back(Action{.kind = Action::Kind::Repaint, .surface = SurfaceRole::Main});
@@ -503,7 +518,7 @@ void RenameScene::type_char(char c) {
 	// (`qwerty_ui.cpp:305-317`). On a rename there is no prediction, but the editor opens with the
 	// existing name to the right of the cursor, so this is what lets a user retype the prefix of a
 	// name they are only partly changing and keep the tail.
-	if (pos < len_ && char_case_equal(buf_[pos], c)) {
+	if (pos < static_cast<int32_t>(text_.size()) && char_case_equal(text_[pos], c)) {
 		edit_.cursor = static_cast<int16_t>(pos + 1);
 		return;
 	}
@@ -511,18 +526,15 @@ void RenameScene::type_char(char c) {
 	char nc = c;
 	// "If char is a letter... If following another letter, make it lowercase"
 	// (`qwerty_ui.cpp:334-343`).
-	if (nc >= 'A' && nc <= 'Z' && pos > 0 && is_ascii_letter(buf_[pos - 1])) {
+	if (nc >= 'A' && nc <= 'Z' && pos > 0 && is_ascii_letter(text_[pos - 1])) {
 		nc = static_cast<char>(nc + 32);
 	}
 
-	if (pos >= static_cast<int32_t>(kMaxNameChars)) {
-		return; // the buffer's own ceiling; see `kMaxNameChars`
-	}
 	// `enteredText.resize(enteredTextEditPos); enteredText.append(...)` (`qwerty_ui.cpp:350-353`):
 	// typing mid-string truncates the tail rather than inserting.
-	len_ = static_cast<uint16_t>(pos);
-	buf_[len_++] = nc;
-	edit_.cursor = static_cast<int16_t>(len_);
+	text_.resize(static_cast<size_t>(pos));
+	text_ += nc;
+	edit_.cursor = static_cast<int16_t>(text_.size());
 }
 
 void RenameScene::backspace() {
@@ -532,8 +544,8 @@ void RenameScene::backspace() {
 	if (edit_.cursor > 0) {
 		edit_.cursor--;
 	}
-	if (len_ != 0) {
-		len_ = static_cast<uint16_t>(edit_.cursor);
+	if (!text_.empty()) {
+		text_.resize(static_cast<size_t>(edit_.cursor));
 	}
 }
 
@@ -546,7 +558,7 @@ Result RenameScene::enter_key_press() {
 	// "if (enteredText.empty() && !allowEmpty()) return;" -- silently, with no popup. Only the
 	// drum target refuses an empty name, and legacy tells the user nothing about it, so neither
 	// does this.
-	if (len_ == 0 && !t.allow_empty) {
+	if (text_.empty() && !t.allow_empty) {
 		return r;
 	}
 
@@ -587,7 +599,7 @@ std::optional<uint32_t> RenameScene::next_timer() const {
 	// The cursor bar moves without input, but only while the cursor sits at the end of the string
 	// (`text_edit`: `cursor_lit` gates that arm and nothing else). Mid-string there is nothing to
 	// flash, so nothing to wake for.
-	if (cursor_blink_.armed() && edit_.cursor == static_cast<int16_t>(len_)) {
+	if (cursor_blink_.armed() && edit_.cursor == static_cast<int16_t>(text_.size())) {
 		next = deluge::ui::blink_next_flip_in(cursor_blink_, last_render_ms_);
 	}
 

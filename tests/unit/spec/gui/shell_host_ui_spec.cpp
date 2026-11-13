@@ -9,6 +9,7 @@
 #include "hid/led/pad_leds.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "notify/dirty_set.h"
+#include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/marker/marker_scene.h"
 #include "shell/profiles/deluge.h"
 #include "storage/flash_storage.h"
@@ -39,8 +40,8 @@ constexpr SceneKind kOver = static_cast<SceneKind>(static_cast<uint8_t>(SceneKin
 ///
 /// A real `UI` rather than a cast pointer: `rearmTimer`'s guard only ever compares the address, but
 /// an example that lies about a type to make a comparison come out right is one nobody can later
-/// change safely. `UI` has exactly two pure virtuals (`gui/ui/ui.h:186`, `:193`), and neither is
-/// reached here -- nothing renders this and nothing asks its type.
+/// change safely. `UI` has exactly two pure virtuals (`UI::renderOLED` and `UI::getUIType`, `gui/ui/ui.h`), and neither
+/// is reached here -- nothing renders this and nothing asks its type.
 class OtherUI final : public UI {
 public:
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas&) override {}
@@ -241,6 +242,8 @@ MIDICable& fake_cable() {
 struct Rig {
 	PatternScene base{kBase};
 	PatternScene over{kOver};
+	/// Registered under the context menu's kind, which the long-press exit leaves alone.
+	PatternScene menu{deluge::scenes::context_menu::kContextMenuSceneKind};
 	/// Registered under the marker editor's kind, which the guest's sidebar answer keys on.
 	PatternScene marker{deluge::scenes::marker::kMarkerSceneKind};
 	std::array<Scene*, kMaxSceneKinds> table{};
@@ -268,6 +271,7 @@ struct Rig {
 	const SceneRegistry& fill() {
 		table[static_cast<size_t>(kBase)] = &base;
 		table[static_cast<size_t>(kOver)] = &over;
+		table[static_cast<size_t>(deluge::scenes::context_menu::kContextMenuSceneKind)] = &menu;
 		table[static_cast<size_t>(deluge::scenes::marker::kMarkerSceneKind)] = &marker;
 		return reg;
 	}
@@ -872,7 +876,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	});
 
 	it("on opening over an overlay-only stack, asks legacy to draw the root's pads and re-reads the greyout", _ {
-		// `SoundEditor::opened` calls `uiNeedsRendering(this, 0xFFFFFFFF, 0)` (`sound_editor.cpp:498`),
+		// `SoundEditor::opened` calls `uiNeedsRendering(this, 0xFFFFFFFF, 0)` (`SoundEditor::opened`),
 		// and `openUI` re-reads the greyout before `opened()` -- when the guest's stack is still empty --
 		// so the guest re-reads it once its scene is on.
 		Rig r;
@@ -1236,6 +1240,20 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// Consumed, and the guest is still on legacy's hierarchy: closing here would pop it a level
 		// early, taking the whole guest down for a Back that only left one scene inside it.
 		expect(result == ActionResult::DEALT_WITH).to_be_true();
+		expect(fakelegacyui::closed.empty()).to_be_true();
+	});
+
+	it("leaves a context menu up on a long BACK, as UI::exitUI does", _ {
+		// No context menu overrides `exitUI` in main, so the long-press timer's call does nothing there.
+		Rig r;
+		expect(r.open()).to_be_true();
+		expect(r.guest.shell().stack().push(SceneId{deluge::scenes::context_menu::kContextMenuSceneKind, 0}))
+		    .to_be_true();
+		const ActionResult result = r.guest.exitUI();
+		expect(result == ActionResult::DEALT_WITH).to_be_true();
+		expect(r.guest.shell().stack().input_top().kind() == deluge::scenes::context_menu::kContextMenuSceneKind)
+		    .to_be_true();
+		expect(r.guest.shell().stack().depth()).to_equal(size_t(2));
 		expect(fakelegacyui::closed.empty()).to_be_true();
 	});
 
@@ -2325,7 +2343,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.open()).to_be_true();
 		r.base.seen.clear();
 
-		// Legacy hands a `UI` whole **detents** (`hid/encoder_input.cpp:112`, `:124`); the shell's
+		// Legacy hands a `UI` whole **detents** (`hid/encoder_input.cpp`'s `interpretEncoders`); the shell's
 		// entry point takes **edges** and divides by `edges_per_detent` itself. Feeding the detent count straight through would
 		// halve this to 1.
 		const ActionResult result = r.guest.horizontalEncoderAction(3);
@@ -2368,7 +2386,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// is the largest that fits and 64 (128 edges) narrows to -128, i.e. **-64 detents**.
 		// The guest can be handed more than 63: legacy's `detentDelta` accumulates in
 		// `DetentedEncoder::pos` across every pass `interpretEncoders` skips during the SD routine
-		// (`hid/encoder_input.cpp:96-106`) or a stem export (`:66-68`).
+		// (`hid/encoder_input.cpp`'s `interpretEncoders`) or a stem export.
 		r.base.seen.clear();
 		(void)r.guest.verticalEncoderAction(63);
 		r.guest.shell().tick(1);
@@ -2382,7 +2400,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		const PatternScene::Seen* past = first_of(r.base, UiEvent::Kind::Encoder);
 		expect(past != nullptr).to_be_true();
 		// Not -64, and not 0 either: saturated, the choice legacy makes for its own two narrowing
-		// encoders (`hid/encoder_input.cpp:117`).
+		// encoders (`hid/encoder_input.cpp`'s `interpretEncoders`).
 		expect(static_cast<int>(past->ev.delta)).to_equal(63);
 
 		r.base.seen.clear();

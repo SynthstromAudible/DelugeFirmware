@@ -16,9 +16,9 @@
  */
 
 #include "model/sample/sample_holder.h"
-#include "gui/ui/browser/sample_browser.h"
 #include "hid/display/display.h"
 #include "instruments/deluge/sound_state.h"
+#include "model/sample/last_file_path_loaded.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_reader_bridge.h"
 #include "model/song/song.h"
@@ -121,7 +121,7 @@ void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manual
 	if (audioFile) {
 
 		if (manuallySelected && ((Sample*)audioFile)->tempFilePathForRecording.empty()) {
-			sampleBrowser.lastFilePathLoaded = filePath;
+			deluge::model::lastFilePathLoaded() = filePath;
 		}
 
 		uint32_t lengthInSamples = ((Sample*)audioFile)->lengthInSamples;

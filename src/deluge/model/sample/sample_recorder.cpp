@@ -19,7 +19,6 @@
 #include "definitions.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/fixed_point.h"
-#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "io/file.hpp"
@@ -31,6 +30,7 @@
 #include "libdeluge/stream_io.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
+#include "model/sample/last_file_path_loaded.h"
 #include "model/sample/recorder_write_policy.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
@@ -762,7 +762,7 @@ Error SampleRecorder::finalizeBookkeeping() {
 	}
 
 	if (sample->tempFilePathForRecording.empty()) {
-		sampleBrowser.lastFilePathLoaded = sample->filePath;
+		deluge::model::lastFilePathLoaded() = sample->filePath;
 	}
 
 	return Error::NONE;

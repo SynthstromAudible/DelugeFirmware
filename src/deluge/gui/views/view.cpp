@@ -20,18 +20,15 @@
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "extern.h"
 #include "gui/colour/colour.h"
+#include "gui/colour/pad_colour.h"
 #include "gui/context_menu/clear_song.h"
 #include "gui/context_menu/clip_settings/clip_settings.h"
 #include "gui/l10n/l10n.h"
-#include "gui/menu_item/colour.h"
-#include "gui/menu_item/setting_edit.h"
-#include "gui/menu_item/submenu.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/save/save_song_ui.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
@@ -69,6 +66,7 @@
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_mod_knob_mode.h"
 #include "model/edits/set_param_value.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
@@ -439,21 +437,14 @@ possiblyRevert:
 				return ActionResult::DEALT_WITH;
 			}
 
-			// One of the shell menu's entry sites (`gui/ui/shell_menu_entry.cpp`'s table). The `else` is the legacy
-			// path.
-			if (deluge::gui::ui::shellMenuEnabled()) {
-				// SHIFT is held, so both of `setup()`'s view tests (`&& !shift`) are false and the root is
-				// `settingsRootMenu` whatever is on screen. All four UI facts therefore go in false -- the same
-				// reading `services::GlobalControls::handle_settings_menu` makes of this arm.
-				(void)deluge::gui::ui::openShellMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
-				                                     /*performanceView=*/false,
-				                                     /*sessionOrArrangerRoot=*/false,
-				                                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false);
-			}
-			else {
-				soundEditor.setup();
-				openUI(&soundEditor);
-			}
+			// Site 1 of `gui/ui/shell_menu_entry.cpp`'s table.
+			// SHIFT is held, so both of `setup()`'s view tests (`&& !shift`) are false and the root is
+			// `settingsRootMenu` whatever is on screen. All four UI facts therefore go in false -- the same
+			// reading `services::GlobalControls::handle_settings_menu` makes of this arm.
+			(void)deluge::gui::ui::openShellMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
+			                                     /*performanceView=*/false,
+			                                     /*sessionOrArrangerRoot=*/false,
+			                                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false);
 		}
 	}
 	else {
@@ -852,19 +843,10 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 		    performanceView.possiblyRefreshPerformanceViewDisplay(kind, modelStackWithParam->paramId, newKnobPos);
 	}
 
-	// let's see if we're editing the same param in the menu, if so, don't show pop-up
-	bool editingParamInMenu = false;
-	if (getCurrentUI() == &soundEditor) {
-		if ((soundEditor.getCurrentMenuItem()->getParamKind() == kind)
-		    && (soundEditor.getCurrentMenuItem()->getParamIndex() == modelStackWithParam->paramId)) {
-			editingParamInMenu = true;
-		}
-	}
-
 	// Browsing for a song, or a song load in flight (which has taken every UI down): its popup stays up.
 	bool inSongBrowser = loadSongUI.isLoadingSong();
 
-	if (!editingParamInPerformanceView && !editingParamInMenu && !inSongBrowser) {
+	if (!editingParamInPerformanceView && !inSongBrowser) {
 		PatchSource source1 = PatchSource::NONE;
 		PatchSource source2 = PatchSource::NONE;
 		if (kind == params::Kind::PATCH_CABLE) {
@@ -923,13 +905,6 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 	// indicate (blink) middle value
 	// then blink that middle value and make it harder to turn the knob past middle
 	potentiallyMakeItHarderToTurnKnob(whichModEncoder, modelStackWithParam, newKnobPos);
-
-	// if you're updating a param's value while in the sound editor menu
-	// and it's the same param displayed in the automation editor open underneath
-	// then refresh the automation editor grid
-	if ((getCurrentUI() == &soundEditor) && (getRootUI() == &automationView)) {
-		automationView.possiblyRefreshAutomationEditorGrid(getCurrentClip(), kind, modelStackWithParam->paramId);
-	}
 }
 
 int32_t View::calculateKnobPosForModEncoderTurn(params::Kind kind, int32_t knobPos, int32_t offset) {
@@ -1354,14 +1329,11 @@ void View::modEncoderButtonAction_changeModControllable(uint8_t whichModEncoder,
 	ModControllable* owner = stack->modControllable;
 	bool anyEditingDone = owner->modEncoderButtonAction(whichModEncoder, on, stack, knobCompToMove());
 	// A press may cycle a knob to its next param (LPF, HPF, EQ): its owner's mappings are the record's.
-	deluge::gui::menu_item::recordControlsOf(*owner);
+	deluge::edits::recordControlsOf(*owner);
 	if (anyEditingDone) {
 		instrumentBeenEdited();
 	}
 	setKnobIndicatorLevels(); // These might have changed as a result
-	if (getCurrentUI() == &soundEditor) {
-		soundEditor.getCurrentMenuItem()->readValueAgain();
-	}
 }
 
 void View::setKnobIndicatorLevels() {
@@ -1695,7 +1667,7 @@ int32_t View::getModKnobMode() {
 
 void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels) {
 	if ((paramManager != nullptr && paramManager == knobParamManager_.load(std::memory_order_relaxed))
-	    || (deluge::gui::ui::soundMenuCurrent() && paramManager == soundEditor.currentParamManager)) {
+	    || (deluge::gui::ui::soundMenuOpen() && paramManager == deluge::gui::ui::soundMenuParamManager())) {
 
 		// If timer wasn't set yet, set it now
 		if (!uiTimerManager.isTimerSet(TimerName::DISPLAY_AUTOMATION)) {
@@ -2863,7 +2835,7 @@ RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool allowMIDIFlas
 
 	// If it's soloed or armed to solo, blue
 	else if (clip->soloingInSessionMode || clip->armState == ArmState::ON_TO_SOLO) {
-		thisColour = menu_item::soloColourMenu.getRGB();
+		thisColour = deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_SOLOED);
 	}
 
 	// Or if not soloing...
@@ -2871,19 +2843,19 @@ RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool allowMIDIFlas
 		if (!clip->activeIfNoSolo) {
 			switch (clip->launchStyle()) {
 			case LaunchStyle::FILL:
-				thisColour = menu_item::fillColourMenu.getRGB(); // colours::red_orange;
+				thisColour = deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_FILL); // colours::red_orange;
 				break;
 			case LaunchStyle::ONCE:
-				thisColour = menu_item::onceColourMenu.getRGB(); // colours::red_orange;
+				thisColour = deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_ONCE); // colours::red_orange;
 				break;
 			default:
 				// If it's stopped, red.
-				thisColour = menu_item::stoppedColourMenu.getRGB();
+				thisColour = deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_STOPPED);
 			}
 		}
 		else {
 			// Active pads of any type go green (or the active colour from the menu).
-			thisColour = menu_item::activeColourMenu.getRGB();
+			thisColour = deluge::gui::padColourRGB(FlashStorage::PAD_COLOUR_ACTIVE);
 		}
 
 		if (currentSong->getAnyClipsSoloing()) {

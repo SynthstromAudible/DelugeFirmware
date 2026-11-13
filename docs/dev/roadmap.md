@@ -64,13 +64,12 @@ at language seams). That unlocks per-component language choice, CLAP, fault isol
 1. Song-state model completeness: done.
 2. Scenes bind to schema rows: done.
 3. Scenes ship on device:
-   - 3a, SDRAM placement and device link with ShellMenu off: done; device flash-test pending.
+   - 3a, SDRAM placement and the device link: done; device flash-test pending.
    - 3b, close the release blockers: done. Every difference from `main` the emulator shows is fixed or accepted
      (`tests/ui-scripts/parity/DIFFERENCES.md`).
-   - 3c, ShellMenu on by default: done. The Legacy Menu community feature (default Off) brings back legacy's
-     menus until 3d.
-   - **3d, next:** delete SoundEditor, menus and menu_item (~29k lines) after a device flash-test; freeze the 21
-     legacy-oracle specs as golden data first.
+   - 3c, ShellMenu on by default: done.
+   - 3d, delete the legacy menu: done. The legacy oracles were frozen to data first; the ported menu is the only
+     menu.
 4. Delete `ModControllableAudio` and `GlobalEffectable`, then the P3d-1d per-effect param tables.
 
 ### UI read interface
@@ -115,7 +114,7 @@ Stage placement is **(proposed)**. Exit for R2: the scene specs run against a fa
 ## Long-term ordering
 
 Four waves across five lanes. Shipping the UI on device is the one hard gate: the model deletions cannot start
-until the legacy menus are gone, because the shipping SoundEditor holds `ModControllableAudio` pointers.
+until the legacy menus are gone; they are deleted, so the model deletions are unblocked.
 
 | Lane | 1 Ship the UI | 2 Retire legacy | 3 Topology, clips | 4 Long term |
 | --- | --- | --- | --- | --- |
@@ -141,8 +140,8 @@ until the legacy menus are gone, because the shipping SoundEditor holds `ModCont
 
 | Replacement | Wave | Needs first | State |
 | --- | --- | --- | --- |
-| Legacy menus (SoundEditor, menu_item) | 2 | 3b closed, 3a flash-tested, oracle specs frozen | 3a done |
-| `ModControllableAudio`, `GlobalEffectable` | 2 | Legacy menus gone | Recorded dependency |
+| Legacy menus (SoundEditor, menu_item) | 2 | 3b closed, 3a flash-tested, oracle specs frozen | Deleted |
+| `ModControllableAudio`, `GlobalEffectable` | 2 | Legacy menus gone | Unblocked |
 | ModelStack stage 1: params and undo by address | 2 | MCA/GE gone; `Consequence::revert`, automation recording and AutoParam projection re-keyed | `bridge::paramStackAt` bridge exists; stage placement (proposed) |
 | ModelStack stage 2: clip, note-row, sequencer chain on ids | 3 | P5 topology and reconciler | (proposed) |
 | Scenes' direct runtime reads (54 files) | 2 | 3d; R1 ratchet in place | Readers exist for settings, slots and chains; (proposed) |

@@ -6,16 +6,16 @@ and covers one surface, so a divergence in one cannot hide the others. Format: `
 milliseconds after boot settles, and a snapshot waits for both panels to settle.
 
 Scripts named `sm*` are written for the ShellMenu card (`.superpowers/emu-card/shellmenu`): they enter the menus
-through SelectEnc, which opens the ported menu when ShellMenu is on. They remain valid with ShellMenu off, where the
-same presses walk the legacy menus.
+through SelectEnc, which opens the ported menu.
 
-ShellMenu is on by default. The emulator's ShellMenu cards still carry the old `shellMenu=1`, which the firmware now
-ignores, so they run the default; its legacy cards (`card.img`, `sweep-off.img`, `dx-off.img`) carry `legacyMenu=1`,
-the Legacy Menu community feature, which `main` ignores.
+The emulator's ShellMenu cards still carry the old `shellMenu=1`, which the firmware ignores.
+
+`.superpowers/emu-card/card.img` keeps the old `legacyMenu=1`, which the firmware keeps as an unknown key and ignores:
+the basic scripts run on it as well as on a bare card, and both must agree, so the stale key stays inert.
 
 `sm00-select-turn` checks the emulator's encoder input before anything leans on it: of five separate single Select
-detents, the first moves nothing and each of the others moves the sound menu's list one row, on both images, ShellMenu
-on and off. A black encoder drops the first detent of its first turn after boot and of any turn that reverses its
+detents, the first moves nothing and each of the others moves the sound menu's list one row, on both images. A black
+encoder drops the first detent of its first turn after boot and of any turn that reverses its
 direction (each decoder starts at its detent's resting state): count one extra detent for those turns. `sm10-patched-blink` covers the
 patched-param and patching-source blinks; its snapshots have 1 s windows because a source patched to a param flashes
 once every 800 ms, and a shorter window decides by phase alone whether it sees the flash.
@@ -23,15 +23,15 @@ once every 800 ms, and a shorter window decides by phase alone whether it sees t
 `sm13-midi-selftest` checks the emulator's DIN MIDI input the same way: a note and then a CC learned to RECORD each
 toggle its LED, once per message, on both images.
 
-`sm14-learn-commands` and `sm15-learn-params` cover MIDI learn in the menus, ShellMenu on and off: the MIDI commands
+`sm14-learn-commands` and `sm15-learn-params` cover MIDI learn in the menus: the MIDI commands
 (from the list and on an item, FILL's refusal), a param's gold-knob, CC and pitch-bend learn and unlearn, and the MIDI
 follow channel.
 
 `sm32-menu-value-follow` covers the open value following a change made behind the menu: a learned gold knob and a
 learned CC moving the LPF frequency that a page or a full screen shows, which `main` re-reads on the 25 ms
-`DISPLAY_AUTOMATION` timer, with no knob popup over the same param. Run it ShellMenu on with Horizontal Menus on
+`DISPLAY_AUTOMATION` timer, with no knob popup over the same param. Run it with Horizontal Menus on
 (`.superpowers/emu-card/shellmenu`: the page) and off (`tests/fixtures/card-shell-menu-vertical`: the full screen,
-`--card` takes the directory), and with ShellMenu off on `card.img` (`--sd`).
+`--card` takes the directory).
 
 `sm33-full-screen-values` runs on the same `tests/fixtures/card-shell-menu-vertical` (the ShellMenu card with
 HorizontalMenus off), where a shortcut opens its item alone: a transpose's cursor, step and Horizontal move, the
@@ -46,6 +46,11 @@ Menus on and off. It converts the boot song's empty clip to audio (a held clip p
 card's presets: run it on `.superpowers/emu-card/content-shellmenu` and on a copy whose `SETTINGS/CommunityFeatures.XML`
 is `.superpowers/emu-card/shellmenu-vertical`'s. The OLED, LEDs and UI stack agree at every snapshot; `claimed`, `back1`
 and `back2` differ only in the colour of the waveform row (y 4, 16 pads), the new audio clip's random hue (D11).
+
+`sm35-toggle-words` covers the words a toggle draws, on `tests/fixtures/card-shell-menu-vertical` (HorizontalMenus
+off, where a shortcut opens its item alone): a Community Feature's row is a checkbox SELECT flips in place, OSC
+SYNC's page lists Off and On where `main`'s lists Disabled and Enabled (D134, accepted), and PING-PONG's lists its
+options.
 
 `sm16-automation-retarget`, `sm17-automation-menu-view` and `sm18-automation-kit` cover the automation view under the
 menu: the param it follows as the menu moves (SELECT, BACK, column buttons, shortcuts), the pads, knobs and encoders
@@ -62,7 +67,7 @@ holds fill and lights its LED.
 
 `sm29-audition-shortcut` covers the shortcut pads with an audition held inside the sound menu, on a synth and on a kit
 row (the edit stays on the row the menu opened for, and so does the kit's selection), and the sequence-direction pad's
-note-row editor. It runs on the content card with ShellMenu on (`sweep-shellmenu.img`), in the sweep's `browser`
+note-row editor. It runs on the content card (`sweep-shellmenu.img`), in the sweep's `browser`
 group. It stops on the note-row editor: BACK there sticks on `main` (D92).
 
 `sm19-sample-browser-preview`, `sm20-sample-browser-waveform`, `sm21-sample-browser-buttons` and
@@ -70,8 +75,8 @@ group. It stops on the note-row editor: BACK there sticks on `main` (D92).
 root view and its BROWSE blink, the preview and its waveform, the horizontal scroll-in as the selection moves, the
 keyboard on demand and KEYBOARD, the X_ENC zoom and the waveform's scroll, LOAD's auto-load, SHIFT + SAVE's delete
 prompt and refusal, the audition column, RECORD's recorder, and the favourites row with its 500 ms flash. They run on
-the content card with ShellMenu on (`.superpowers/emu-card/content-shellmenu`: the content card plus the ShellMenu
-card's `SETTINGS/CommunityFeatures.XML`), ShellMenu off on `content`, and `sm19` with `--audio-wav`. Windows over a
+the content card with the ShellMenu card's settings (`.superpowers/emu-card/content-shellmenu`: the content card plus
+the ShellMenu card's `SETTINGS/CommunityFeatures.XML`), and `sm19` also with `--audio-wav`. Windows over a
 blink are at least 1 s; the scroll-in is read 100, 300 and 400 ms after the turn in short windows; a popup is read
 100 ms after the press, before it times out.
 

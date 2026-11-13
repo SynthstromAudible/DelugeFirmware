@@ -5,28 +5,39 @@ import { conceptTerms, menuTerms, type MenuData } from "./terms.ts"
 const data: MenuData = {
   trees: {
     synthSoundMenu: {
-      varName: "root",
+      key: "synthSoundMenu",
       oled: "Sound",
+      title: "Sound",
       children: [
         {
-          varName: "voiceMenu",
+          key: "voice",
           oled: "Voice",
+          title: "Voice",
           children: [
-            { varName: "unisonMenu", oled: "Unison" },
-            { varName: "synthModeMenu", oled: "Mode" },
+            { key: "voice-unison", oled: "Unison", title: "Unison" },
+            { key: "voice-mode", oled: "Mode", title: "Synth mode" },
           ],
         },
-        { varName: "interpolationMenu", oled: "Interpolation" },
-        { varName: "midiMenu", oled: "MIDI" },
+        {
+          key: "interpolation",
+          oled: "Interpolation",
+          title: "Samp* interp",
+        },
+        { key: "midi", oled: "MIDI", title: "MIDI" },
       ],
     },
     kitFxMenu: {
-      varName: "root2",
+      key: "kitFxMenu",
       oled: "Kit FX",
+      title: "Kit FX",
       children: [
-        { varName: "unisonMenu", oled: "Unison" }, // same item, second tree
-        { varName: "lpfModeMenu", oled: "Mode" },
-        { varName: "autoInterpolation", oled: "Interpolation" },
+        { key: "unison", oled: "Unison", title: "Unison" }, // same item, second tree
+        { key: "mode", oled: "Mode", title: "LPF mode" },
+        {
+          key: "auto-interpolation",
+          oled: "Interpolation",
+          title: "Interpolation",
+        },
       ],
     },
   },
@@ -39,7 +50,7 @@ test("a name used by one item links to its first tree", () => {
   const terms = byPhrase(menuTerms(data, { exclude: [], pin: [] }))
   assert.equal(
     terms["UNISON"],
-    "/reference/menu_hierarchies#menu-synthSoundMenu-unisonMenu",
+    "/reference/menu_hierarchies#menu-synthSoundMenu-voice-unison",
   )
 })
 
@@ -76,29 +87,57 @@ test("pins link ambiguous names to the item the book means", () => {
         {
           phrases: ["INTErpolation"],
           tree: "synthSoundMenu",
-          varName: "interpolationMenu",
+          key: "interpolation",
         },
       ],
     }),
   )
   assert.equal(
     terms["INTErpolation"],
-    "/reference/menu_hierarchies#menu-synthSoundMenu-interpolationMenu",
+    "/reference/menu_hierarchies#menu-synthSoundMenu-interpolation",
   )
 })
 
-test("option values (virtual selectors) are not menu items", () => {
+test("one setting listed for two kinds of owner is one item", () => {
+  const twice: MenuData = {
+    trees: {
+      synthSoundMenu: {
+        key: "synthSoundMenu",
+        oled: "Sound",
+        title: "Sound",
+        children: [
+          { key: "rhythm", oled: "Rhythm", title: "Arp rhythm" },
+          { key: "rhythm-2", oled: "Rhythm", title: "Arp rhythm" },
+        ],
+      },
+    },
+  }
+  const terms = byPhrase(menuTerms(twice, { exclude: [], pin: [] }))
+  assert.equal(
+    terms["RHYTHM"],
+    "/reference/menu_hierarchies#menu-synthSoundMenu-rhythm",
+  )
+})
+
+test("option values are not menu items", () => {
   const withValue: MenuData = {
     trees: {
       synthSoundMenu: {
-        varName: "root",
+        key: "synthSoundMenu",
         oled: "Sound",
+        title: "Sound",
         children: [
           {
-            varName: "polyphonyMenu",
+            key: "polyphony",
             oled: "Polyphony",
+            title: "Polyphony",
             children: [
-              { varName: "virtualSelector_polyphonyMenu_1", oled: "Legato" },
+              {
+                key: "polyphony-legato",
+                oled: "Legato",
+                title: "Legato",
+                option: true,
+              },
             ],
           },
         ],

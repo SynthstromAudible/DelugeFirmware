@@ -10,3 +10,7 @@ trim_trailing_whitespace = true
 
 [src/drivers/**.{c,h}]
 trim_trailing_whitespace = false
+
+[*.tsv]
+# A reference table row may end in an empty field, written as a trailing tab.
+trim_trailing_whitespace = false

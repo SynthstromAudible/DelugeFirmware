@@ -1,7 +1,7 @@
 """The recorder-take gate: an audio-input recording take leaves the app loop running.
 
-The take is started the way a user starts it, from the sound editor's recorder menu item, so the gesture must return
-with the take running under the recorder UI (RT-OPEN). A take that instead holds the caller until it settles holds the
+The take is started the way a user starts it, from the menu's recorder item, so the gesture must return with the take
+running under the recorder screen (RT-OPEN). A take that instead holds the caller until it settles holds the
 whole app loop inside one executor poll: on this single-threaded harness neither the virtual clock nor the storage
 channels the take writes through can then advance, so the run never ends. That is why this gate runs under a wall-clock
 bound, and reports a run that hits it as the freeze rather than as a crash.

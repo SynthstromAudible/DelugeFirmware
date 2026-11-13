@@ -10,6 +10,7 @@
 
 #include "scenes/bind/target.h"
 #include "scenes/bind/write_sink.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/shortcut_blink.h"
 #include "ui/grid/frame.h"
 
@@ -20,6 +21,7 @@
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/recording/foreground_recording.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -52,7 +54,7 @@ constexpr uint16_t sid(String s) {
 	return static_cast<uint16_t>(s);
 }
 
-/// The two words `renderOLED` draws (`audio_recorder.cpp:193`). Literals, not l10n ids, because
+/// The two words `AudioRecorder::renderOLED` draws. Literals, not l10n ids, because
 /// neither is in `gui/l10n/strings.h` -- exactly `BrowserScene::Descriptor::title`'s and
 /// `MarkerScene`'s situation and answer.
 /// @{
@@ -64,6 +66,9 @@ constexpr std::string_view kRecording = "Recording";
 /// raises the same thing: `Notices::drain` turns a `Working` notice into `SceneKind::Working` over
 /// this scene (`shell/notices.cpp`), and `ClearWorking` takes it away again.
 constexpr std::string_view kWorking = "Working";
+
+/// `opened()`'s `display->displayPopup("Loading")`: a literal, as legacy's is.
+constexpr std::string_view kLoading = "Loading";
 
 /// How many numbers `name_drum` tries after "REC" before it gives up: more than a kit has rows.
 constexpr int32_t kMaxRecNumber = 1000;
@@ -82,10 +87,9 @@ bool RecorderScene::can(const menu::MenuContext& ctx) {
 	if (!ctx.addresses.slot || ctx.range_index < 0) {
 		return false;
 	}
-	// `opened()`'s "If we're already recording (probably the output) then no!" (`:69-71`), which is
-	// exactly `recordingSource > AudioInputChannel::NONE`. `recordingSource` is a member of a
-	// `gui/` global this layer may not name (`scenes-no-root-ui`), so it is read through
-	// `AudioEngine::foregroundRecordingSource()` -- the same storage, not a proxy for it.
+	// `AudioRecorder::opened`'s "If we're already recording (probably the output) then no!", which
+	// is exactly `AudioEngine::foregroundRecordingSource() > AudioInputChannel::NONE`: the same
+	// storage every recording publishes to.
 	//
 	// Fix round 1: this used to be `AudioEngine::isAnyInternalRecordingHappening()`, which is NOT
 	// the same predicate -- it misses an external (mic/line) recording entirely, and, far worse,
@@ -132,7 +136,7 @@ bool RecorderScene::name_drum() {
 }
 
 bool RecorderScene::setup_recording() {
-	// `AudioRecorder::setupRecordingToFile` (`:121-141`), for the one call `opened()` makes
+	// `deluge::recording`'s `setupRecordingToFile`, for the one call `AudioRecorder::opened` makes
 	// (`:94-95`): stereo when something is plugged in, mono otherwise, into `RECORD`.
 	//
 	// Legacy's `ALPHA_OR_BETA_VERSION` freeze at `:124` guards `recordingSource > NONE`; the
@@ -167,6 +171,12 @@ bool RecorderScene::setup_recording() {
 bool RecorderScene::on_enter(const SceneId& id) {
 	(void)id;                   // No instance argument: there is exactly one recorder screen.
 	last_enter_refused_ = true; // until the take has begun
+	// `opened()`'s first refusal, ahead of the undo-log wipe so a refused take leaves the history intact: a load is
+	// running that may swap out what the take would attach to.
+	if (ctx_.facts != nullptr && ctx_.facts->output_may_be_replaced()) {
+		notify::notice_text(kLoading);
+		return false;
+	}
 	if (!can(ctx_)) {
 		return false;
 	}
@@ -189,35 +199,44 @@ bool RecorderScene::on_enter(const SceneId& id) {
 	if (!name_drum()) {
 		return false;
 	}
-	// `beginRecording`'s `blinkLed(BACK)` and `blinkLed(RECORD, 255, 1)` (`audio_recorder.cpp:116-117`) on success.
+	// `AudioRecorder::opened`'s `PadLEDs::clearTickSquares(true)`.
+	menu::host_clear_tick_squares();
+	// `beginRecording`'s `blinkLed(BACK)` and `blinkLed(RECORD, 255, 1)` (`AudioRecorder::opened`) on success.
 	blink_restart_ = setup_recording();
+	if (blink_restart_) {
+		target_ = take_target();
+	}
+	// `opened()`'s last statement, whether the take began or not.
+	menu::host_end_audition(menu::AuditionEnd::ClipViewWhenAuditioning);
 	last_enter_refused_ = !blink_restart_;
 	return blink_restart_;
 }
 
 void RecorderScene::on_exit() {
-	// **A divergence with no legacy counterpart, because legacy cannot reach it.** `process()`
-	// blocks inside the menu item until it has called `close()` itself, so the recorder UI is never
-	// torn down from outside. A scene can be: an external `Pop`, a `replace_root`, a song load. A
-	// recorder left armed there would keep capturing into a file nothing owns, and
-	// `finishRecording`'s `discardRecorder` would never run.
-	//
-	// So an armed recorder is thrown away exactly as `AudioClip::abortRecording` throws one away
-	// (`model/clip/audio_clip.cpp:121-133`): clear `pointerHeldElsewhere` *before* `abort()`, which
-	// is that function's own load-bearing comment, and drop the pointer. `abort()` deletes the
-	// part-written file; `doRecorderCardRoutines` reaps the object.
-	//
-	// The ordinary close path never gets here with a recorder: `after_render`'s completion arm has
-	// already run `finish_recording()`.
-	if (recorder_ != nullptr) {
-		recorder_->pointerHeldElsewhere = false;
-		// Unpublished before the abort, for `finish_recording`'s reason: nine subsystems read the
-		// pair, and none of them wants to see an aborted recording still described as live.
-		AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);
-		recorder_->abort();
-		recorder_ = nullptr;
+	// The screen is removed from outside while its take runs. What the take was for may be going too, so the take ends
+	// and its file stays on the card, attached to nothing; the foreground recording frees the recorder once it has
+	// settled (`deluge::recording::slowRoutine`). The ordinary close never gets here with a recorder:
+	// `after_render`'s completion arm has already finished it. Only the "Working" this scene showed is taken down.
+	const bool showed_working = recorder_ != nullptr && stopping_;
+	orphan_take();
+	if (showed_working) {
 		notify::notice_kind(notify::Notice::Kind::ClearWorking);
 	}
+}
+
+void RecorderScene::taken_down() {
+	// The whole stack is going (a song load or a clear), outside the guest's tick. A "Working" this scene showed is the
+	// shell's, which the host disarms with the rest of the guest; a `ClearWorking` posted now would reach the legacy
+	// display instead and take down the animation the taker-down put up ("Loading").
+	orphan_take();
+}
+
+void RecorderScene::orphan_take() {
+	if (recorder_ != nullptr) {
+		deluge::recording::orphanInputTake();
+		recorder_ = nullptr;
+	}
+	target_ = {};
 	stopping_ = false;
 }
 
@@ -233,7 +252,7 @@ bool RecorderScene::threshold_take() const {
 }
 
 void RecorderScene::end_recording_soon() {
-	// `AudioRecorder::endRecordingSoon` (`:159-166`). The status test is legacy's own guard against
+	// `deluge::recording::endRecordingSoon`. The status test is legacy's own guard against
 	// being called twice, which it says "a few scenarios" can do.
 	if (recorder_ == nullptr || recorder_->status != RecorderStatus::CAPTURING_DATA) {
 		return;
@@ -249,24 +268,44 @@ void RecorderScene::attach_sample() {
 	if (ctx_.sink == nullptr) {
 		return;
 	}
-	if (!ctx_.sink->attach_recording(*ctx_.addresses.slot, static_cast<uint8_t>(ctx_.source_index),
-	                                 static_cast<uint16_t>(ctx_.range_index), recorder_->sample->filePath.c_str())) {
+	// `targetStillHeld`: the take lands only on the range it began on, wherever that range now sits, and only while
+	// the same clip of the same song still plays its sound. Otherwise it stays on the card, attached to nothing, with
+	// no popup.
+	const std::optional<uint16_t> range = ctx_.facts != nullptr ? ctx_.facts->take_range(target_) : std::nullopt;
+	if (!range) {
+		return;
+	}
+	if (!ctx_.sink->attach_recording(target_.slot, target_.source, *range, recorder_->sample->filePath.c_str())) {
 		// The take is on the card, but the sound did not get it.
 		notify::notice_error_code(static_cast<int16_t>(Error::UNSPECIFIED));
 	}
 }
 
+bind::TakeTarget RecorderScene::take_target() const {
+	// The clip, the sound, its source and its range as the take begins, each by the identity that names that object
+	// alone, so a sound or a range that later takes its place is not mistaken for it.
+	const auto source = static_cast<uint8_t>(ctx_.source_index);
+	return bind::TakeTarget{
+	    .clip = ctx_.addresses.clip,
+	    .slot = *ctx_.addresses.slot,
+	    .source = source,
+	    .range = ctx_.facts != nullptr
+	                 ? ctx_.facts->range_identity(*ctx_.addresses.slot, source, static_cast<uint16_t>(ctx_.range_index))
+	                 : std::nullopt,
+	};
+}
+
 void RecorderScene::finish_recording() {
-	// `AudioRecorder::finishRecording` (`:245-253`). `recordingSource = NONE` is `recorder_ =
+	// `deluge::recording`'s `finishRecording`. Unpublishing the channel is `recorder_ =
 	// nullptr` here; `display->removeLoadingAnimation()` is the `ClearWorking` notice.
 	//
 	// **The caller must have checked `SampleRecorder::settled()` first** -- this frees, and
 	// `after_render()` is the one call site. See the arm there for why.
 	recorder_->pointerHeldElsewhere = false;
-	// DIVERGENCE, deliberate and narrow: legacy clears the published pair *after*
-	// `discardRecorder` (`:248-251`), so for the length of that call `audioRecorder.recorder` names
-	// a freed object while `recordingSource` still says a recording is live -- and
-	// `setMonitoringMode`, which dereferences that pointer, runs from the audio routine. Clearing
+	// Cleared before `discardRecorder`, as `deluge::recording`'s `finishRecording` does (`main`'s
+	// `AudioRecorder::finishRecording` clears after it, so for the length of that call the published
+	// recorder names a freed object while the channel still says a recording is live -- and
+	// `setMonitoringMode`, which dereferences that pointer, runs from the audio routine). Clearing
 	// first closes the window and changes nothing else: no reader wants either value *during* the
 	// discard.
 	AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);
@@ -282,25 +321,24 @@ Result RecorderScene::after_render() {
 		return r;
 	}
 
-	// A card error ends the take (`AudioRecorder::slowRoutine`'s card-error arm): stop capturing, and
-	// let the completion arm below wait for the recorder to settle.
+	// `AudioRecorder::tick`'s completion arm.
+	// A card error ends the take: stop capturing, then wait, as for any take, until the recorder has closed its file
+	// and the driver holds nothing of it. Freeing it any earlier frees memory a write may still be reading.
 	if (recorder_->hadCardError) {
 		end_recording_soon();
 	}
-
-	// `process()`'s completion arm (`:207-223`), on a settled recorder: closed, with no cluster
-	// write still out. `finish_recording()` frees the recorder, and a write still out borrows its
-	// buffer -- a take that ended on a card error can have one. Until then `next_timer()` re-polls at
-	// `kRecorderPollMs`. The whole arm waits, not just the free, because `attach_sample()` publishes
-	// a sample the recorder still owns -- legacy does both in one step and so does this.
+	// On a settled recorder: closed, with no cluster write still out. `finish_recording()` frees the recorder, and a
+	// write still out borrows its buffer -- a take that ended on a card error can have one. Until then `next_timer()`
+	// re-polls at `kRecorderPollMs`. The whole arm waits, not just the free, because `attach_sample()` publishes a
+	// sample the recorder still owns -- legacy does both in one step and so does this.
 	if (recorder_->settled()) {
-		// The `if (status == ABORTED || hadCardError) {}` empty arm at `:209` is legacy's way of
+		// The `if (status == ABORTED || hadCardError) {}` empty arm is legacy's way of
 		// saying "attach nothing"; spelled as the condition on the attach instead.
 		if (recorder_->status != RecorderStatus::ABORTED && !recorder_->hadCardError) {
 			attach_sample();
 		}
 		finish_recording();
-		// `close()` (`:221`). `Remove` and not `Pop`: a `Working` or `Popup` overlay can legally be
+		// `close()`. `Remove` and not `Pop`: a `Working` or `Popup` overlay can legally be
 		// on top of this scene by the time the router applies the action -- the `Working` this very
 		// scene raised on the way to stopping, in fact -- and a blind `Pop` would take that instead.
 		// See the note on `Action::Kind::Pop` in `shell/scene.h`.
@@ -309,14 +347,14 @@ Result RecorderScene::after_render() {
 		return r;
 	}
 
-	// `process()`'s ongoing arm (`:226-240`). The `!display->hasPopup()` gate at `:230` is the
-	// popup service's own business here: `Notices` decides whether a popup is already up, which is
-	// the same question asked one layer further out.
+	// `AudioRecorder::process`'s ongoing arm. `popup_if_free` is the `!display->hasPopup()` gate: the flag clears
+	// whether or not the popup shows.
 	if (recorder_->recordingClippedRecently) {
 		recorder_->recordingClippedRecently = false;
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Popup,
 		                                 .surface = SurfaceRole::Main,
-		                                 .popup_string = sid(String::STRING_FOR_CLIPPING_OCCURRED)});
+		                                 .popup_string = sid(String::STRING_FOR_CLIPPING_OCCURRED),
+		                                 .popup_if_free = true});
 	}
 	// The `Waiting` -> `Recording` flip is legacy's third arm (`:234-239`). Nothing to do here:
 	// `render_oled` reads `capturing()` on every frame, and the repaint gate it arms is what makes

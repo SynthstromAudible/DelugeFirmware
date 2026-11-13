@@ -34,9 +34,11 @@ Script lines (`#` starts a comment):
 
 import argparse
 import concurrent.futures
+import functools
 import hashlib
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -320,6 +322,107 @@ def differences(ref, test):
     return found
 
 
+# The OLED rows an output name's section line ("SECTION 1") takes on the name screen.
+SECTION_LINE_ROWS = range(37, 44)
+# The firmware's own font table; the section line is drawn in its 7 px font (`font_apple`).
+FONT_SOURCE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "..",
+    "..",
+    "..",
+    "src",
+    "gfx",
+    "oled",
+    "fonts",
+    "fonts.c",
+)
+OLED_WIDTH = 128
+TEXT_SPACING_X = (
+    6  # the 7 px font is monospaced: every character takes this many columns
+)
+
+
+@functools.cache
+def font_columns(source=FONT_SOURCE):
+    """{character: its glyph's columns} for `font_apple`; a column's bit n is pixel row n from the glyph's top."""
+    with open(source, encoding="utf-8") as f:
+        text = f.read()
+    data = text[text.index("const uint8_t font_apple[]") :]
+    data = data[: data.index("};")]
+    columns = [int(bits, 2) for bits in re.findall(r"0b([01]+)", data)]
+    desc = text[text.index("font_apple_desc[]") :]
+    desc = desc[: desc.index("};")]
+    entries = re.findall(r"\.w_px\s*=\s*(\d+),\s*\.glyph_index\s*=\s*(\d+)", desc)
+    return {
+        chr(code): columns[int(index) : int(index) + int(width)]
+        for code, (width, index) in enumerate(entries, 0x20)
+    }
+
+
+def render_centred(text, font):
+    """The 7 rows `Canvas::drawStringCentred` draws `text` in at the 7 px font: each character centred in its own
+    `TEXT_SPACING_X` cell, the line centred on the panel."""
+    rows = [["."] * OLED_WIDTH for _ in range(7)]
+    x = OLED_WIDTH // 2 - (len(text) * TEXT_SPACING_X >> 1)
+    for c in text:
+        glyph = font[c] if c != " " else []
+        left = x + ((TEXT_SPACING_X - len(glyph)) >> 1)
+        for dx, column in enumerate(glyph):
+            for row in range(7):
+                if column >> row & 1 and 0 <= left + dx < OLED_WIDTH:
+                    rows[row][left + dx] = "#"
+        x += TEXT_SPACING_X
+    return ["".join(row) for row in rows]
+
+
+def section_line_only(ref_oled, test_oled, font):
+    """Whether two OLED frames differ only as D77 describes: in the section line's rows alone, under the same name
+    screen, every differing row blank on `main` and on ours that row of "SECTION n" as the firmware draws it. A row of
+    the line that does not differ is one a popup covers on both sides."""
+    r, t = ref_oled.splitlines(), test_oled.splitlines()
+    if len(r) != len(t) or len(r) <= SECTION_LINE_ROWS[-1]:
+        return False
+    rows = [i for i, (a, b) in enumerate(zip(r, t)) if a != b]
+    if not rows or any(i not in SECTION_LINE_ROWS for i in rows):
+        return False
+    if not any(set(r[i]) - {"."} for i in range(SECTION_LINE_ROWS[0])):
+        return False  # no name screen above the line
+    for section in range(1, 100):
+        line = render_centred(f"SECTION {section}", font)
+        if all(
+            set(r[i]) <= {"."} and t[i] == line[i - SECTION_LINE_ROWS[0]] for i in rows
+        ) and all(
+            set(r[i]) - {"."} or set(line[i - SECTION_LINE_ROWS[0]]) <= {"."}
+            for i in SECTION_LINE_ROWS
+            if i not in rows
+        ):
+            return True
+    return False
+
+
+def classify(ref, test, parts, font=None):
+    """The accepted DIFFERENCES row a snapshot's difference is, or None.
+
+    D77: `main`'s `View::drawOutputNameFromDetails` draws the section line only when its caller passes a clip, and
+    several of `main`'s callers pass none, so its first frame of a kit's name lacks the line ours draws from the model.
+    Such a snapshot differs on the OLED alone, and every frame of ours in the window is one of `main`'s frames, or one
+    of them with only the section line added (`section_line_only`)."""
+    if parts != ["oled"]:
+        return None
+    font = font or font_columns()
+    for frame in test["frames"]:
+        if not any(
+            frame == other
+            or (
+                all(frame[k] == other[k] for k in ("pads", "leds", "gold"))
+                and section_line_only(other["oled"], frame["oled"], font)
+            )
+            for other in ref["frames"]
+        ):
+            return None
+    return "D77"
+
+
 def file_digest(path):
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -432,6 +535,7 @@ def main():
 
     total = 0
     differing = 0
+    accepted = 0
     for script in a.scripts:
         name = os.path.splitext(os.path.basename(script))[0]
         ref, test = results[(script, "ref")], results[(script, "test")]
@@ -442,8 +546,13 @@ def main():
                 json.dump(snaps, f, indent=1)
         diffs = differences(ref, test)
         total += len(ref)
-        differing += len(diffs)
         for label, parts in diffs:
+            row = classify(ref[label], test[label], parts) if label in test else None
+            if row is not None:
+                accepted += 1
+                print(f"{row} {name}/{label}: {', '.join(parts)} (accepted)")
+                continue
+            differing += 1
             print(f"DIFF {name}/{label}: {', '.join(parts)}")
             if "oled" in parts:
                 ref_oled = ref[label]["frames"][0]["oled"]
@@ -453,7 +562,9 @@ def main():
                         print(f"  {r} | {t}")
             if "midi" in parts:
                 print(f"  midi {ref[label]['midi']} | {test[label]['midi']}")
-    print(f"PARITY {total - differing} of {total} snapshots identical")
+    print(
+        f"PARITY {total - differing - accepted} of {total} snapshots identical, {accepted} an accepted difference"
+    )
     return 1 if differing else 0
 
 

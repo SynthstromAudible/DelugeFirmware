@@ -15,20 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// This scenario drives legacy's own recorder menu, so it opens the legacy sound editor. With the ported menu selected
-// `SoundEditor::opened` refuses, so `openRecorder` selects the legacy menu (the Legacy Menu setting) for the open only.
+// Every take starts from the menu's recorder item, opened on the clip as the user opens it, and runs on the ported
+// recorder screen. The open ticks the guest until the screen is pushed, so each leg checks its take on the step that
+// started it; after that the guest runs on its own wake, the UI timer the app loop fires.
 
 #include "scenarios/recorder_take_scenario.h"
 #include "scenarios/follow_channel.h"
+#include "scenarios/guest_drive.h"
 #include "scenarios/slot_coherence.h"
 
 #include "definitions_cxx.hpp"
-#include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_song_ui.h"
-#include "gui/ui/menus.h"
-#include "gui/ui/sound_editor.h"
+#include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/button.h"
@@ -44,19 +44,21 @@
 #include "model/output.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
+#include "scenes/recorder/recorder_scene.h"
+#include "shell/shell.h"
 #include "storage/audio/audio_file.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multi_range.h"
 #include "storage/preset_acquisition.h"
 #include "util/misc.h"
+#include "util/shell_menu_entry.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -160,20 +162,25 @@ void fail(const char* marker, const char* what) {
 	g_failures++;
 }
 
+using deluge::harness::guestTick;
+using deluge::harness::guestTop;
+using deluge::scenes::recorder::kRecorderSceneKind;
+using deluge::scenes::recorder::recorder_scene;
+
 bool inputTake() {
-	return audioRecorder.recordingSource == AudioInputChannel::LEFT
-	       || audioRecorder.recordingSource == AudioInputChannel::STEREO;
+	const AudioInputChannel source = AudioEngine::foregroundRecordingSource();
+	return source == AudioInputChannel::LEFT || source == AudioInputChannel::STEREO;
 }
 
 bool takeOver() {
-	return !isUIOpen(&audioRecorder) && audioRecorder.recordingSource == AudioInputChannel::NONE;
+	return !recorder_scene().recording() && AudioEngine::foregroundRecordingSource() == AudioInputChannel::NONE;
 }
 
 /// The recording's file path, once the recorder has made the file.
 void notePath() {
-	if (audioRecorder.recorder != nullptr && audioRecorder.recorder->sample != nullptr
-	    && !audioRecorder.recorder->sample->filePath.empty()) {
-		g_recordingPath = audioRecorder.recorder->sample->filePath;
+	SampleRecorder* recorder = recorder_scene().recorder();
+	if (recorder != nullptr && recorder->sample != nullptr && !recorder->sample->filePath.empty()) {
+		g_recordingPath = recorder->sample->filePath;
 	}
 }
 
@@ -199,23 +206,25 @@ bool frontClip(const char* marker) {
 	return true;
 }
 
-/// The user's gesture: the sound editor opened on the first source's recorder item. The item sits in a horizontal
-/// menu, so setup() opens that menu focused on it, and the user's Select enters it.
+/// The user's gesture: the menu opened on the first source's recorder item, which pushes the recorder screen on the
+/// guest's next tick.
 void openRecorder() {
-	const bool setup = soundEditor.setup(g_clip, &sample0RecorderMenu, 0);
-	g_sound = soundEditor.currentSound;
-	g_range = soundEditor.currentMultiRange;
-	// legacy's own editor, which the Legacy Menu setting keeps
-	const auto legacyMenuBefore =
-	    static_cast<RuntimeFeatureStateToggle>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LegacyMenu));
-	runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, RuntimeFeatureStateToggle::On);
-	if (setup && openUI(&soundEditor) && getCurrentUI() == &soundEditor) {
-		soundEditor.enterSubmenu(&sample0RecorderMenu);
+	auto* sound = static_cast<Sound*>(static_cast<SoundInstrument*>(g_clip->output));
+	g_sound = sound;
+	g_range = nullptr;
+	if (!deluge::gui::ui::openShellMenu(g_clip, /*sourceIndex=*/0, /*performanceView=*/false,
+	                                    /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
+	                                    /*kitGlobalFx=*/false, deluge::gui::ui::ShellMenuNode::Osc0Recorder)) {
+		return;
 	}
-	runtimeFeatureSettings.set(RuntimeFeatureSettingType::LegacyMenu, legacyMenuBefore);
+	for (int32_t t = 0; t < 8 && !guestTop(kRecorderSceneKind) && isUIOpen(&shellHostUI); t++) {
+		guestTick(0); // the menu's push of the recorder screen runs from the guest's tick
+	}
+	// Read once the menu is open: entering it gives a source with no range its first one.
+	g_range = !sound->sources[0].ranges.empty() ? sound->sources[0].ranges.getElement(0) : nullptr;
 }
 
-/// Starts a take for @p marker's leg; false (with the failure reported) when none is running under the recorder UI.
+/// Starts a take for @p marker's leg; false (with the failure reported) when none is running under the recorder screen.
 bool startTake(const char* marker) {
 	if (!frontClip(marker)) {
 		return false;
@@ -223,11 +232,11 @@ bool startTake(const char* marker) {
 	static_cast<Sound*>(static_cast<SoundInstrument*>(g_clip->output))->sources[0].setOscType(OscType::SAW);
 	g_recordingPath.clear();
 	openRecorder();
-	const bool recorderOnTop = getCurrentUI() == &audioRecorder;
-	printf("%s-OPEN recorderOnTop=%d source=%d\n", marker, recorderOnTop ? 1 : 0,
-	       static_cast<int>(audioRecorder.recordingSource));
-	if (!recorderOnTop || !inputTake() || g_sound == nullptr || g_range == nullptr) {
-		fail(marker, "the recorder item did not leave an input take running under the recorder UI");
+	const bool onTop = guestTop(kRecorderSceneKind);
+	printf("%s-OPEN recorderOnTop=%d source=%d\n", marker, onTop ? 1 : 0,
+	       static_cast<int>(AudioEngine::foregroundRecordingSource()));
+	if (!onTop || !inputTake() || g_sound == nullptr || g_range == nullptr) {
+		fail(marker, "the recorder item did not leave an input take running under the recorder screen");
 		return false;
 	}
 	g_steps = 0;
@@ -331,18 +340,18 @@ void stepMidiOpen() {
 
 /// While the take runs, MIDI must be handled: every scripted byte read, the note sounding, the clock followed.
 void stepMidiTake() {
-	if (getCurrentUI() != &audioRecorder || !inputTake()) {
+	if (!guestTop(kRecorderSceneKind) || !inputTake()) {
 		fail("RT-TAKE", "the take ended before BACK was pressed");
 		g_stage = Stage::MidiEnding;
 		return;
 	}
 	g_voicesMax = std::max(g_voicesMax, static_cast<int32_t>(AudioEngine::getNumVoices()));
 	g_externalClockSeen = g_externalClockSeen || playbackHandler.isExternalClockActive();
-	g_recordingShown = g_recordingShown || audioRecorder.updatedRecordingStatus;
+	g_recordingShown = g_recordingShown || recorder_scene().capturing();
 	// The render raises the clipping flag and only the recorder's own step lowers it, so a flag seen raised and then
 	// lowered shows that step ran mid-take.
-	if (audioRecorder.recorder != nullptr) {
-		const bool clipped = audioRecorder.recorder->recordingClippedRecently;
+	if (recorder_scene().recorder() != nullptr) {
+		const bool clipped = recorder_scene().recorder()->recordingClippedRecently;
 		g_clipConsumed = g_clipConsumed || (g_clipSeen && !clipped);
 		g_clipSeen = g_clipSeen || clipped;
 	}
@@ -365,10 +374,10 @@ void stepMidiTake() {
 	if (!g_externalClockSeen) {
 		fail("RT-TAKE", "MIDI Start and clock delivered during the take did not start playback on the external clock");
 	}
-	// The test input is a full-scale sawtooth, so the take clips every block, and the recorder shows clipping in
-	// preference to the Waiting to Recording change. Either shows the recorder's own step ran mid-take.
-	if (!g_recordingShown && !g_clipConsumed) {
-		fail("RT-TAKE", "the recorder handled neither clipping nor the Waiting to Recording change during the take");
+	// The test input is a full-scale sawtooth, so the take clips every block, and only the recorder screen's own
+	// step lowers the clipping flag.
+	if (!g_clipConsumed) {
+		fail("RT-TAKE", "the recorder screen's own step did not handle clipping during the take");
 	}
 	pressBack();
 	g_steps = 0;
@@ -389,7 +398,7 @@ void stepMidiEnding() {
 	printf("RT-ATTACH osc=%d attached=%d pathsAgree=%d frames=%llu path=%s editorOnTop=%d steps=%d\n",
 	       static_cast<int>(source.oscType), sample != nullptr ? 1 : 0, pathsAgree ? 1 : 0,
 	       static_cast<unsigned long long>(frames), sample != nullptr ? sample->filePath.c_str() : "(none)",
-	       getCurrentUI() == &soundEditor ? 1 : 0, g_steps);
+	       isUIOpen(&shellHostUI) ? 1 : 0, g_steps);
 	if (!isSample || sample == nullptr || !pathsAgree) {
 		fail("RT-ATTACH", "the take's sample was not attached to the source it was recorded for");
 	}
@@ -420,10 +429,10 @@ void stepRefuseStart() {
 	}
 	Action* const loggedBefore = actionLogger.firstAction[BEFORE];
 	openRecorder();
-	const bool recorderOnTop = getCurrentUI() == &audioRecorder;
+	const bool onTop = guestTop(kRecorderSceneKind);
 	const bool logKept = loggedBefore != nullptr && actionLogger.firstAction[BEFORE] == loggedBefore;
-	printf("RT-REFUSED loadInFlight=%d recorderOnTop=%d source=%d undoLogKept=%d\n", loading ? 1 : 0,
-	       recorderOnTop ? 1 : 0, static_cast<int>(audioRecorder.recordingSource), logKept ? 1 : 0);
+	printf("RT-REFUSED loadInFlight=%d recorderOnTop=%d source=%d undoLogKept=%d\n", loading ? 1 : 0, onTop ? 1 : 0,
+	       static_cast<int>(AudioEngine::foregroundRecordingSource()), logKept ? 1 : 0);
 	if (loggedBefore == nullptr) {
 		fail("RT-REFUSED", "no undo-log entry could be made before the recorder was opened, so nothing was tested");
 	}
@@ -433,11 +442,14 @@ void stepRefuseStart() {
 	if (!loading) {
 		fail("RT-REFUSED", "the acquisition was not in flight when the recorder was opened, so nothing was tested");
 	}
-	if (recorderOnTop || audioRecorder.recordingSource != AudioInputChannel::NONE) {
+	if (onTop || AudioEngine::foregroundRecordingSource() != AudioInputChannel::NONE) {
 		fail("RT-REFUSED", "the recorder started a take while a preset load that can replace its sound was in flight");
-		if (recorderOnTop) {
+		if (onTop) {
 			pressBack();
 		}
+	}
+	if (isUIOpen(&shellHostUI)) {
+		(void)shellHostUI.exitUI();
 	}
 	g_steps = 0;
 	g_stage = Stage::RefuseSettle;
@@ -472,13 +484,14 @@ void stepClosedWait() {
 	}
 	const Source& source = g_sound->sources[0];
 	const int64_t leases = leasesOn(g_recordingPath);
-	printf("RT-CLOSED source=%d osc=%d path=%s leases=%lld steps=%d\n", static_cast<int>(audioRecorder.recordingSource),
-	       static_cast<int>(source.oscType), g_recordingPath.c_str(), static_cast<long long>(leases), g_steps);
+	printf("RT-CLOSED source=%d osc=%d path=%s leases=%lld steps=%d\n",
+	       static_cast<int>(AudioEngine::foregroundRecordingSource()), static_cast<int>(source.oscType),
+	       g_recordingPath.c_str(), static_cast<long long>(leases), g_steps);
 	if (source.oscType == OscType::SAMPLE) {
-		fail("RT-CLOSED", "a take whose recorder UI was closed under it switched the source to SAMPLE");
+		fail("RT-CLOSED", "a take whose recorder screen was closed under it switched the source to SAMPLE");
 	}
 	if (g_recordingPath.empty() || leases > 0) {
-		fail("RT-CLOSED", "a take whose recorder UI was closed under it was attached to something");
+		fail("RT-CLOSED", "a take whose recorder screen was closed under it was attached to something");
 	}
 	g_stage = startTake("RT-SECOND") ? Stage::SecondRun : Stage::Report;
 }
@@ -523,8 +536,9 @@ void stepNulledWait() {
 	}
 	const Source& source = g_sound->sources[0];
 	const int64_t leases = leasesOn(g_recordingPath);
-	printf("RT-NULLED source=%d osc=%d path=%s leases=%lld steps=%d\n", static_cast<int>(audioRecorder.recordingSource),
-	       static_cast<int>(source.oscType), g_recordingPath.c_str(), static_cast<long long>(leases), g_steps);
+	printf("RT-NULLED source=%d osc=%d path=%s leases=%lld steps=%d\n",
+	       static_cast<int>(AudioEngine::foregroundRecordingSource()), static_cast<int>(source.oscType),
+	       g_recordingPath.c_str(), static_cast<long long>(leases), g_steps);
 	if (g_recordingPath.empty() || leases > 0) {
 		fail("RT-NULLED", "a take whose UI stack was nullified under it was attached to something");
 	}
@@ -548,7 +562,7 @@ void stepReplacedRun() {
 	acquired.name = "SYNT999";
 	(void)instrumentClipView.InstrumentClipMinder::createNewInstrument(static_cast<InstrumentClip*>(g_clip),
 	                                                                   OutputType::SYNTH, false, acquired);
-	if (getCurrentUI() == &audioRecorder) {
+	if (guestTop(kRecorderSceneKind)) {
 		pressBack();
 	}
 	g_steps = 0;
@@ -650,9 +664,9 @@ void stepNextListing() {
 void stepNextRun() {
 	notePath();
 	g_loadSeen = g_loadSeen || loadSongUI.loadInFlight();
-	if (getCurrentUI() != &audioRecorder || !inputTake()) {
+	if (!guestTop(kRecorderSceneKind) || !inputTake()) {
 		printf("RT-NEXT-RUN read=%d loadSeen=%d recorderOnTop=%d steps=%d\n", g_nextRead ? 1 : 0, g_loadSeen ? 1 : 0,
-		       getCurrentUI() == &audioRecorder ? 1 : 0, g_steps);
+		       guestTop(kRecorderSceneKind) ? 1 : 0, g_steps);
 		fail("RT-NEXT", "the take ended under a MIDI NEXT_SONG, before BACK was pressed");
 		g_steps = 0;
 		g_stage = Stage::NextLoad;

@@ -39,7 +39,7 @@
 ///     `MidiLearn::unported_calls(UnportedCall::ClearMonoExpression)`.
 ///   * **`iterateAndCallSpecificDeviceHook(HOOK_ON_MIDI_LEARN)`** (`View::endMidiLearnPressSession`). Same shape:
 ///     counted, not called, and nothing in this layer's model reach could observe it anyway.
-///   * **`FlashStorage::writeSettings()`** (`view.cpp`). Both sides guard it on
+///   * **`FlashStorage::writeSettings()`** (`View::endMIDILearn`). Both sides guard it on
 ///     `!AudioEngine::audioBusy()`, and `spec::QuietAudio` holds the audio tick for the whole
 ///     process -- so on both sides the call is skipped and the `shouldSaveSettingsAfterMidiLearn`
 ///     decision is what the button examples assert, not the write. (Driving it would put a spec
@@ -78,7 +78,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/setting_group.h"
 #include "gui/ui/root_ui.h"
-#include "gui/ui/sound_editor.h"
+#include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -701,7 +701,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		// itself, which is why the port runs the shared write for it after the extras rather than
 		// inside them.
 		static spec::SongFixture fixture = spec::make_synth_song();
-		give_active_clip(fixture); // learning an instrument's input reads its param manager (view.cpp:726)
+		// Learning an instrument's input reads its param manager
+		// (`View::clearMelodicInstrumentMonoExpressionIfPossible`).
+		give_active_clip(fixture);
 		::LearnedMIDI& slot = fixture.instrument->midiInput;
 
 		expect(reset_legacy_learn()).to_be_true();
@@ -1110,7 +1112,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	});
 
 	it("the LEARN LED blinks at kFastFlashTime while learn is on, and is declared off when it is not", _ {
-		// `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`view.cpp`) -- forever, at
+		// `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`View::startMIDILearn` in `view.cpp`) -- forever, at
 		// `blinkingType` 1's period -- and `setLedState(IndicatorLED::LEARN, false)` (`:499`).
 		LearnRig rig;
 		deluge::ui::LedFrame off_frame;
@@ -1351,9 +1353,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		slot.clear();
 		view.startMIDILearn();
 		expect(currentUIMode == UI_MODE_MIDI_LEARN).to_be_true(); // the base answer reaches `view` only in learn mode
-		// `getCurrentUI()` is `StubRootUI`, not `&soundEditor`, so the base answer -- `view.ccReceivedForMIDILearn` --
-		// is the branch this example is about. Asserted, because if it were `soundEditor` this would compare nothing.
-		expect(getCurrentUI() == static_cast<UI*>(&soundEditor)).to_be_false();
+		// The current UI is `StubRootUI`, not the menu, so the base answer, `view.ccReceivedForMIDILearn`, is the branch
+		// this example is about. Asserted, because under the menu this would compare nothing.
+		expect(getCurrentUI() == static_cast<UI*>(&shellHostUI)).to_be_false();
 		view.sectionMidiLearnPadPressed(true, 6);
 		bool thru = false;
 		playbackHandler.midiCCReceived(cables().a, 2, 74, 100, &thru);
@@ -1575,7 +1577,9 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 
 	it("INSTRUMENT_INPUT: a learn writes the track's input entry, and a bare press and release unlearns it", _ {
 		static spec::SongFixture fixture = spec::make_synth_song();
-		give_active_clip(fixture); // learning an instrument's input reads its param manager (view.cpp:726)
+		// Learning an instrument's input reads its param manager
+		// (`View::clearMelodicInstrumentMonoExpressionIfPossible`).
+		give_active_clip(fixture);
 		const deluge::project::TrackInputTarget target{*fixture.instrument->id()};
 
 		expect(reset_legacy_learn()).to_be_true();

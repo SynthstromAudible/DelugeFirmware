@@ -149,6 +149,9 @@ struct UiEvent {
 	ButtonId button = ButtonId::None; ///< `Button`/`EncoderButton`: which button.
 	EncoderRole encoder{};            ///< `Encoder`: which encoder turned.
 	int8_t delta = 0;                 ///< `Encoder`: signed turn magnitude.
+	/// `Encoder`: when the board decoded the turn, on `getSystemTime()`'s clock in microseconds; 0 when the host gave
+	/// no time.
+	uint64_t time_us = 0;
 	/// `Encoder`: @ref delta is a host's already-lowered turn (`Shell::route_lowered_turn`), filtered and accelerated,
 	/// which its consumer applies as it is.
 	bool lowered = false;
@@ -290,6 +293,8 @@ struct Action {
 	/// "no popup"; the popup service is what interprets the rest (how long it lingers, and what
 	/// `hasPopupOfType`-style gating it participates in).
 	uint8_t popup_type = 0;
+	/// `Popup`: shows only if no popup is up -- main's `!display->hasPopup()` gate.
+	bool popup_if_free = false;
 };
 
 /// @brief What one `handle()` or `after_render()` call decided.
@@ -612,7 +617,7 @@ public:
 	///     (`gui/ui/ui.cpp:35-45`). `grep "public RootUI"` finds exactly two classes in the tree,
 	///     `TimelineView` (`gui/views/timeline_view.h:27`) and `KeyboardScreen`
 	///     (`gui/ui/keyboard/keyboard_screen.h:35`), and **both** forward to `View::buttonAction`
-	///     (`gui/views/timeline_view.cpp:119-121`, `gui/ui/keyboard/keyboard_screen.cpp:591`). So
+	///     (`gui/views/timeline_view.cpp:119-121`, `KeyboardScreen::buttonAction`). So
 	///     "is the current UI the root UI" is not an approximation of that reachability rule -- it
 	///     **is** the rule, exactly.
 	///

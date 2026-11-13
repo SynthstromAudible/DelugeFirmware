@@ -17,9 +17,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
-#include "gui/menu_item/multi_range.h"
-#include "gui/ui/audio_recorder.h"
-#include "gui/ui/sound_editor.h"
+#include "gui/l10n/l10n.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
@@ -40,6 +38,7 @@
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/recording/foreground_recording.h"
 #include "processing/sound/sound_instrument.h"
 #include "util/sound_menu_open.h"
 #include <cstring>
@@ -99,9 +98,9 @@ void KeyboardScreen::killColumnSwitchKey(int32_t column) {
 }
 ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 	// Handle overruling shortcut presses
-	ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, velocity);
-	if (soundEditorResult != ActionResult::NOT_DEALT_WITH) {
-		return soundEditorResult;
+	ActionResult shortcutResult = deluge::gui::ui::menuShortcutPadAction(x, y, velocity);
+	if (shortcutResult != ActionResult::NOT_DEALT_WITH) {
+		return shortcutResult;
 	}
 
 	int32_t markDead = -1;
@@ -293,8 +292,8 @@ void KeyboardScreen::updateActiveNotes() {
 
 			// Begin resampling
 			if (Buttons::isButtonPressed(deluge::hid::button::RECORD)
-			    && audioRecorder.recordingSource == AudioInputChannel::NONE) {
-				audioRecorder.beginOutputRecording();
+			    && AudioEngine::foregroundRecordingSource() == AudioInputChannel::NONE) {
+				deluge::recording::beginOutputRecording();
 				Buttons::recordButtonPressUsedUp = true;
 			}
 		}

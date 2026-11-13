@@ -309,6 +309,11 @@ UI* getCurrentUI() {
 	return fakelegacyui::current_ui;
 }
 
+// `isUIOpen` walks the same hierarchy; the UI the rig declared current is the one open.
+bool isUIOpen(UI* ui) {
+	return ui == fakelegacyui::current_ui;
+}
+
 void exitUIMode(uint32_t uiMode) {
 	fakelegacyui::modes_exited.push_back(uiMode);
 }
@@ -316,7 +321,7 @@ void exitUIMode(uint32_t uiMode) {
 // `gui/ui/ui.cpp`'s, which `ShellHostUI::closeGuest` ends as `SoundEditor::exitCompletely` does.
 uint32_t currentUIMode = 0;
 
-// `gui/ui/sound_editor.cpp`'s list and `ui.cpp`'s check, which `ShellHostUI::selectEncoderAction` gates the menu's
+// `ui.cpp`'s list and check, which `ShellHostUI::selectEncoderAction` gates the menu's
 // turns on. This suite never sets a UI mode, and with none on every list admits it.
 const uint32_t selectEncoderUIModes[] = {0};
 bool isUIModeWithinRange(const uint32_t* /*modes*/) {
@@ -352,9 +357,9 @@ const deluge::ui::shell::BoardProfile& deluge_profile() {
 // model/settings/runtime_feature_settings.cpp's share: the one global, and the
 // one out-of-line member. `ShellHostUI::opened()` reads `ShiftIsSticky` out of
 // it to seed the shell's own copy of the setting, and `get()` is already inline
-// in the header (`model/settings/runtime_feature_settings.h:100`), so all this
+// in the header (`RuntimeFeatureSettings::get`), so all this
 // suite needs is storage plus a constructor -- the real one reads a file.
-// A spec sets the value through `set()`, which is inline too (`:108`).
+// A spec sets the value through `set()`, which is inline too.
 // ---------------------------------------------------------------------------
 RuntimeFeatureSettings runtimeFeatureSettings;
 
@@ -488,6 +493,18 @@ bool recorderTakesRecord(bool on) {
 	return false;
 }
 
+bool recorderPassesFillRelease(deluge::hid::Button b, bool on) {
+	(void)b;
+	(void)on;
+	return false;
+}
+
+ActionResult rootViewButtonAction(deluge::hid::Button b, bool on) {
+	(void)b;
+	(void)on;
+	return ActionResult::NOT_DEALT_WITH;
+}
+
 void dispatchMenuTransitions() {
 	fakelegacyui::transition_dispatches++;
 }
@@ -503,6 +520,12 @@ void refreshShellDxColumn() {
 }
 
 void refreshShellSamplePreviewSounds() {
+}
+
+void forgetShellMenuContext() {
+}
+
+void endShellRecorderTakeForTeardown() {
 }
 
 void dispatchShellActions() {
@@ -537,6 +560,10 @@ bool shellSlicerBusy() {
 bool shellSliceOut() {
 	return fakelegacyui::slice_out;
 }
+
+void forgetShellDrumCreator() {
+}
+
 void releaseShellSlicerBeforeClose() {
 	fakelegacyui::slicer_releases++;
 	fakelegacyui::slicer_release_saw_close = !fakelegacyui::closed.empty();

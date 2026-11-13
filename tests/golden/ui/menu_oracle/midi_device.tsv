@@ -1,0 +1,108 @@
+# Reference answers of upstream main's menu, one row per answer: path, column, values (tab-separated).
+# A row changes only to follow main's source (git show origin/main:<path>); tests/golden/README.md says how.
+device	kids	6
+device/0	name	MPE
+device/1	name	Velocity
+device/2	name	Clock Out
+device/3	name	Clock In
+device/4	name	Use Relative CC
+device/5	name	MIDI-Thru
+devices	chain	device
+mpe_direction	chain	mpe_zone
+mpe_zone	chain	mpe_members
+velocity/0	cable/0	0
+velocity/0	cable/1	1073741824
+velocity/0	state	CABLE A vel=0 sendClock=1 recvClock=0 relative=0 thru=1 in[3,12] out[5,10] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+velocity/0	read	0
+velocity/1	cable/0	21474836
+velocity/1	cable/1	1073741824
+velocity/1	state	CABLE A vel=21474836 sendClock=1 recvClock=0 relative=0 thru=1 in[3,12] out[5,10] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+velocity/1	read	1
+velocity/25	cable/0	536870900
+velocity/25	cable/1	1073741824
+velocity/25	state	CABLE A vel=536870900 sendClock=1 recvClock=0 relative=0 thru=1 in[3,12] out[5,10] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+velocity/25	read	25
+velocity/50	cable/0	1073741800
+velocity/50	cable/1	1073741824
+velocity/50	state	CABLE A vel=1073741800 sendClock=1 recvClock=0 relative=0 thru=1 in[3,12] out[5,10] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+velocity/50	read	50
+toggle/sendClock/0	fields	0	0	0	1
+toggle/sendClock/0	state	CABLE A vel=0 sendClock=0 recvClock=0 relative=0 thru=1 in[3,12] out[5,10] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+toggle/sendClock/0	read	0
+toggle/sendClock/1	fields	1	0	0	1
+toggle/sendClock/1	state	CABLE A vel=0 sendClock=1 recvClock=0 relative=0 thru=1 in[3,12] out[5,10] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+toggle/sendClock/1	read	1
+toggle/receiveClock/0	fields	1	0	0	1
+toggle/receiveClock/0	state	CABLE A vel=0 sendClock=1 recvClock=0 relative=0 thru=1 in[3,12] out[5,10] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+toggle/receiveClock/0	read	0
+toggle/receiveClock/1	fields	1	1	0	1
+toggle/receiveClock/1	state	CABLE A vel=0 sendClock=1 recvClock=1 relative=0 thru=1 in[3,12] out[5,10] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+toggle/receiveClock/1	read	1
+toggle/is_relative/0	fields	1	0	0	1
+toggle/is_relative/0	state	CABLE A vel=0 sendClock=1 recvClock=0 relative=0 thru=1 in[3,12] out[5,10] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+toggle/is_relative/0	read	0
+toggle/is_relative/1	fields	1	0	1	1
+toggle/is_relative/1	state	CABLE A vel=0 sendClock=1 recvClock=0 relative=1 thru=1 in[3,12] out[5,10] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+toggle/is_relative/1	read	1
+toggle/midi_thru/0	fields	1	0	0	0
+toggle/midi_thru/0	state	CABLE A vel=0 sendClock=1 recvClock=0 relative=0 thru=0 in[3,12] out[5,10] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+toggle/midi_thru/0	read	0
+toggle/midi_thru/1	fields	1	0	0	1
+toggle/midi_thru/1	state	CABLE A vel=0 sendClock=1 recvClock=0 relative=0 thru=1 in[3,12] out[5,10] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+toggle/midi_thru/1	read	1
+mpe/0/0	read@a	3
+mpe/0/0	max@a	11
+mpe/0/1	read@a	3
+mpe/0/1	max@a	11
+mpe/1/0	read@a	5
+mpe/1/0	max@a	9
+mpe/1/1	read@a	5
+mpe/1/1	max@a	9
+mpe/0/0	read@b	1
+mpe/0/0	max@b	13
+mpe/0/1	read@b	1
+mpe/0/1	max@b	13
+mpe/1/0	read@b	2
+mpe/1/0	max@b	12
+mpe/1/1	read@b	2
+mpe/1/1	max@b	12
+mpe/0/0/0	ports	0	12	5	10
+mpe/0/0/0	state	CABLE A vel=0 sendClock=1 recvClock=0 relative=0 thru=1 in[0,12] out[5,10] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+mpe/0/0/0	sent
+mpe/0/0/4	ports	4	12	5	10
+mpe/0/0/4	state	CABLE A vel=0 sendClock=1 recvClock=0 relative=0 thru=1 in[4,12] out[5,10] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+mpe/0/0/4	sent
+mpe/0/0/7	ports	7	12	5	10
+mpe/0/0/7	state	CABLE A vel=0 sendClock=1 recvClock=0 relative=0 thru=1 in[7,12] out[5,10] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+mpe/0/0/7	sent
+mpe/0/1/0	ports	3	15	5	10
+mpe/0/1/0	state	CABLE A vel=0 sendClock=1 recvClock=0 relative=0 thru=1 in[3,15] out[5,10] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+mpe/0/1/0	sent
+mpe/0/1/4	ports	3	11	5	10
+mpe/0/1/4	state	CABLE A vel=0 sendClock=1 recvClock=0 relative=0 thru=1 in[3,11] out[5,10] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+mpe/0/1/4	sent
+mpe/0/1/7	ports	3	8	5	10
+mpe/0/1/7	state	CABLE A vel=0 sendClock=1 recvClock=0 relative=0 thru=1 in[3,8] out[5,10] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+mpe/0/1/7	sent
+mpe/1/0/0	ports	3	12	0	10
+mpe/1/0/0	state	CABLE A vel=0 sendClock=1 recvClock=0 relative=0 thru=1 in[3,12] out[0,10] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+mpe/1/0/0	sent	0:100=6	0:101=0	0:6=0	0:100=127	0:101=127
+mpe/1/0/4	ports	3	12	4	10
+mpe/1/0/4	state	CABLE A vel=0 sendClock=1 recvClock=0 relative=0 thru=1 in[3,12] out[4,10] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+mpe/1/0/4	sent	0:100=6	0:101=0	0:6=4	0:100=127	0:101=127
+mpe/1/0/7	ports	3	12	7	10
+mpe/1/0/7	state	CABLE A vel=0 sendClock=1 recvClock=0 relative=0 thru=1 in[3,12] out[7,10] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+mpe/1/0/7	sent	0:100=6	0:101=0	0:6=7	0:100=127	0:101=127
+mpe/1/1/0	ports	3	12	5	15
+mpe/1/1/0	state	CABLE A vel=0 sendClock=1 recvClock=0 relative=0 thru=1 in[3,12] out[5,15] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+mpe/1/1/0	sent	15:100=6	15:101=0	15:6=0	15:100=127	15:101=127
+mpe/1/1/4	ports	3	12	5	11
+mpe/1/1/4	state	CABLE A vel=0 sendClock=1 recvClock=0 relative=0 thru=1 in[3,12] out[5,11] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+mpe/1/1/4	sent	15:100=6	15:101=0	15:6=4	15:100=127	15:101=127
+mpe/1/1/7	ports	3	12	5	8
+mpe/1/1/7	state	CABLE A vel=0 sendClock=1 recvClock=0 relative=0 thru=1 in[3,12] out[5,8] | CABLE B vel=1073741824 sendClock=0 recvClock=1 relative=1 thru=0 in[1,14] out[2,13]
+mpe/1/1/7	sent	15:100=6	15:101=0	15:6=7	15:100=127	15:101=127
+mpe/0	title	MPE input
+mpe/1	title	MPE output
+mpe_direction	options	In	Out
+mpe_zone	options	Lower zone	Upper zone

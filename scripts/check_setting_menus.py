@@ -217,17 +217,9 @@ SONG_STATE_ALLOWED: dict[str, dict[str, str]] = {
         "setChannel(-1)": "the channel search parks the instrument off every channel while it looks for a free one",
         "setChannel(oldChannel)": "and puts it back before the in-place re-channel, which is a SetSetting",
     },
-    "deluge/gui/menu_item/menu_item_with_cc_learning.cpp": {
-        "currentModControllable->learnKnob(": "a mod knob's learn (channel 16 and up) sets the owner's mod knobs, "
-        "which recordControlsOf records; a MIDI knob's goes through learnKnobFor",
-    },
     "scenes/menu/nodes/sound_fx.cpp": {
         "reverbSidechainSettings.sync_type = syncValueToSyncType(value)": "the reverb sidechain's sync type is the "
         "engine's alone, with no row to write; its level is the song's record, written through SetSetting",
-    },
-    "deluge/gui/menu_item/sidechain/sync.h": {
-        "reverbSidechainSettings.sync_type = syncValueToSyncType(current_value)": "the legacy menu's own write of "
-        "the same row-less sync type",
     },
     "deluge/gui/ui/browser/sample_claim.cpp": {
         "": "a claim records the sample it loaded onto an audio clip as a load does (syncSampleRecordFromEngine)",
@@ -442,7 +434,7 @@ def unrecorded(root: Path) -> list[str]:
 
 SCENES_ROOT = REPO / "src" / "scenes"
 # An engine follow-up the Edit that changed the setting owns: a scenes gesture leaves it to the Edit (SetEngineSetting
-# and SetSourceRanges retune a sound's voices). Legacy menus under src/deluge/gui still make the call themselves.
+# and SetSourceRanges retune a sound's voices).
 SCENES_FOLLOW_UP = re.compile(r"\b(recalculateAllVoicePhaseIncrements)\s*\(")
 # The reverb's recompute after a setting it copies (a sidechain's attack, release, sync level) is the setting's Edit's
 # too: SetEngineSetting and SetEffectSetting raise it, and the song reverb's own projection does. A scene file that

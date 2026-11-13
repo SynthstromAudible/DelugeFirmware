@@ -117,4 +117,17 @@ bool browserTakesRecord();
 /// @return Whether the press is the ported recorder's: it is the input top with a take armed.
 bool recorderTakesRecord(bool on);
 
+/// @brief `AudioRecorder::buttonAction`'s SYNC_SCALING arm: a release while fill mode is on goes to the root view,
+///        which ends it.
+/// @param b The button.
+/// @param on Whether this is the press.
+/// @return Whether the ported recorder is the input top and the release is one the root view is to see.
+bool recorderPassesFillRelease(deluge::hid::Button b, bool on);
+
+/// @brief The root view's answer to a button the guest passes on to it.
+/// @param b The button.
+/// @param on Whether this is the press.
+/// @return `getRootUI()->buttonAction(b, on)`.
+ActionResult rootViewButtonAction(deluge::hid::Button b, bool on);
+
 } // namespace deluge::gui::ui

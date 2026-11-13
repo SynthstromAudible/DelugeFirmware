@@ -1,0 +1,21 @@
+# The .syx browser on a card with no DX7 folder: MOD7 (the emulator's Mod6) held with SYNTH creates an FM synth and
+# opens "DX7 source"; SELECT on the browse row creates DX7 and opens the browser on it, empty, as main does. A Select
+# turn and SELECT on the empty list do nothing, and BACK leaves the browser. Run on `tests/fixtures/card-dx-no-folder`
+# (`--card`).
+100   snapshot boot
+5000  button Mod6 down
+5100  button Synth down
+5150  button Synth up
+5300  button Mod6 up
+7000  snapshot dx-menu
+7500  button SelectEnc down
+7520  button SelectEnc up
+8500  snapshot empty-browser
+9000  encoder Select +1
+9500  snapshot turned
+10000 button SelectEnc down
+10020 button SelectEnc up
+11000 snapshot selected
+11500 button Back down
+11520 button Back up
+12500 snapshot back

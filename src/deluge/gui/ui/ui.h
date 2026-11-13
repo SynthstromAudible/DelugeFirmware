@@ -73,7 +73,6 @@ private:
 #define UI_MODE_EXPLODE_ANIMATION 43
 #define UI_MODE_ANIMATION_FADE 44
 #define UI_MODE_RECORD_COUNT_IN 45
-#define UI_MODE_HOLDING_SAMPLE_MARKER 46
 #define UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS 47
 #define UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR 48
 #define UI_MODE_HOLDING_BACKSPACE 49
@@ -252,7 +251,15 @@ bool changeUIAtLevel(UI* newUI, int32_t level);
 bool isUIOpen(UI* ui);
 void setRootUILowLevel(UI* newUI);
 void swapOutRootUILowLevel(UI* newUI);
+/// @brief Take every UI down, as a song load or a song clear does before the outgoing song goes.
+///
+/// The installed teardown hook (`setUITeardownHook`) runs first, while the stack is still whole.
 void nullifyUIs();
+/// @brief What `nullifyUIs()` runs before it empties the stack: a UI that holds state of its own beyond the stack
+///        ends it there, since nothing calls a UI that is no longer open.
+using UITeardownHook = void (*)();
+/// @brief Install @p hook, or none (null).
+void setUITeardownHook(UITeardownHook hook);
 bool currentUIIsClipMinderScreen();
 bool rootUIIsClipMinderScreen();
 std::pair<uint32_t, uint32_t> getUIGreyoutColsAndRows();
@@ -273,8 +280,8 @@ void renderUIsForOled();
 bool isUIModeActive(uint32_t uiMode);
 bool isUIModeActiveExclusively(uint32_t uiMode);
 bool isUIModeWithinRange(const uint32_t* modes);
-/// @brief The UI modes `SoundEditor::selectEncoderAction` edits in, zero-terminated (defined beside it, in
-///        `sound_editor.cpp`); the ported menu's guest gates its select turns on the same list.
+/// @brief The UI modes in which the menu's select encoder edits, zero-terminated. The ported menu's guest gates its
+///        select turns on it.
 extern const uint32_t selectEncoderUIModes[];
 bool isNoUIModeActive();
 void exitUIMode(uint32_t uiMode);

@@ -139,9 +139,17 @@ bool is_kit_row(const MenuContext& ctx) {
 	return ctx.is_kit && !ctx.is_kit_global_fx;
 }
 bool not_gate_drum_or_kit_fx(const MenuContext& ctx) {
-	// `!editingGateDrumRow() && !editingKitAffectEntire()` (`sound_editor.cpp:203-240`). The kit's own global-FX page
-	// answers false whatever row is selected, so the selected row's kind matters only off it, where the root names it.
-	return ctx.root != MenuContext::Root::GateDrum && !(ctx.is_kit && ctx.is_kit_global_fx);
+	// `!editingGateDrumRow() && !editingKitAffectEntire()`: the kit's selected drum, whatever the menu edits.
+	return !ctx.gate_drum_row && !(ctx.is_kit && ctx.is_kit_global_fx);
+}
+bool not_non_audio_drum_row(const MenuContext& ctx) {
+	return !ctx.non_audio_drum_row;
+}
+bool not_gate_drum_row(const MenuContext& ctx) {
+	return !ctx.gate_drum_row;
+}
+bool not_non_audio_drum_or_kit_fx(const MenuContext& ctx) {
+	return !ctx.non_audio_drum_row && !(ctx.is_kit && ctx.is_kit_global_fx);
 }
 
 bool reverb_sidechain_on(const MenuContext& ctx) {
@@ -212,7 +220,7 @@ bool is_session_view(const MenuContext& ctx) {
 	// `song::MidiLearn::isRelevant` (`gui/menu_item/song/midi_learn.h:35-37`) and
 	// `song::ConfigureMacros::isRelevant` (`gui/menu_item/song/configure_macros.h:35-37`), both
 	// `return (getRootUI() == &sessionView);`. `is_session_view`, NOT `is_song_view`: the latter is
-	// `!rootUIIsClipMinderScreen()` (`sound_editor.cpp:1687`) and stays true in the arranger and the
+	// `!rootUIIsClipMinderScreen()` (`SoundEditor::setup` in `sound_editor.cpp`) and stays true in the arranger and the
 	// song automation view, the two places this test is what hides both items.
 	return ctx.is_session_view;
 }
@@ -268,7 +276,7 @@ namespace {
 		&fn, #fn                                                                                                       \
 	}
 
-constexpr std::array<NamedPredicate, 34> kRegistry{
+constexpr std::array<NamedPredicate, 37> kRegistry{
     DELUGE_RELEVANCE_ROW(is_fm),
     DELUGE_RELEVANCE_ROW(is_subtractive),
     DELUGE_RELEVANCE_ROW(osc0_file_selector),
@@ -279,6 +287,9 @@ constexpr std::array<NamedPredicate, 34> kRegistry{
     DELUGE_RELEVANCE_ROW(osc1_is_sample),
     DELUGE_RELEVANCE_ROW(is_kit_row),
     DELUGE_RELEVANCE_ROW(not_gate_drum_or_kit_fx),
+    DELUGE_RELEVANCE_ROW(not_non_audio_drum_or_kit_fx),
+    DELUGE_RELEVANCE_ROW(not_non_audio_drum_row),
+    DELUGE_RELEVANCE_ROW(not_gate_drum_row),
     DELUGE_RELEVANCE_ROW(reverb_sidechain_on),
     DELUGE_RELEVANCE_ROW(stutter_quantize_allowed),
     DELUGE_RELEVANCE_ROW(bend_submenu),
@@ -308,10 +319,10 @@ constexpr std::array<NamedPredicate, 34> kRegistry{
 
 #undef DELUGE_RELEVANCE_ROW
 
-// One row per predicate declared in `relevance.h` (18), plus the sixteen
+// One row per predicate declared in `relevance.h` (21), plus the sixteen
 // `nodes::relevant_*_iterance_step_*` rows: declared in `nodes/note.h`, not `relevance.h`, but
-// registered here for the reason this section's own note gives. 18 + 16 = 34.
-static_assert(kRegistry.size() == 34);
+// registered here for the reason this section's own note gives. 21 + 16 = 37.
+static_assert(kRegistry.size() == 37);
 
 } // namespace
 

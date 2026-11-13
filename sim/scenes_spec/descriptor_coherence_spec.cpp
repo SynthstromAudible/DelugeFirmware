@@ -1,9 +1,9 @@
 /// @file
 /// @brief The scenes' hand-written menu tables against what the engine descriptors and the host name table give.
 ///
-/// Each setting row a menu shows has one legacy item (`support/descriptor_cases.h`), and the scenes node that replaces
-/// that item is the one `tables_3_spec.cpp`'s lockstep walk pairs with it. This spec walks the same pairing and, for
-/// each node, compares what the node shows with what its row gives:
+/// Each setting row a menu shows has one item (`support/descriptor_cases.h`), and the scenes node that replaces that
+/// item is the one `tables_3_spec.cpp`'s lockstep walk paired with it: `descriptors.tsv` holds the tree paths of each
+/// case's nodes. This spec reads that pairing and, for each node, compares what the node shows with what its row gives:
 ///   * its range (`bindings::range`) is `plugin::menu_range`, or for a CHOICE row the count of applicable choices;
 ///   * its names (`bindings::names`) are the host name table's choices, in menu order, and its name and title are the
 ///     table's;
@@ -15,19 +15,21 @@
 /// with a read or a write hook that no row reaches is named with its reason: a device setting in `kDeviceSettings`, by
 /// its path from the settings root; a note editor, a stem export option or a skipped row's node in `subtrees` or
 /// `skipped_nodes`.
-///
-/// @note The SPEC may include `gui/menu_item/`; the library may not (`scripts/check_layer_rules.py`).
 
 #include "support/descriptor_cases.h"
 
 #include "effects/global_effectable/params.h"
-#include "gui/ui/menus.h"
 #include "instruments/deluge/params.h"
 #include "model/project_bridge/param_ids.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/nodes.h"
+#include "scenes/menu/present.h"
 #include "scenes/profile.h"
+
+#include "support/oracle_tree.h"
+#include "support/tables_2_fixtures.h"
+#include "support/tables_3_fixtures.h"
 
 #include <algorithm>
 #include <array>
@@ -45,80 +47,60 @@ namespace bindings = deluge::scenes::menu::bindings;
 namespace nodes = deluge::scenes::menu::nodes;
 
 // ---------------------------------------------------------------------------------------------
-// The pairing of legacy items with nodes.
+// The pairing of items with nodes.
 
-/// @brief `Submenu::items` is protected: name it through a derived class ([class.protected]), as `tables_3_spec.cpp`
-/// does.
-struct SubmenuPeek : legacy::Submenu {
-	static const deluge::vector<::MenuItem*>& items_of(legacy::Submenu& menu) { return menu.*(&SubmenuPeek::items); }
-};
-
-/// @brief A legacy item the scenes have not ported, which the lockstep walk steps over (`tables_3_spec.cpp`'s list).
-bool unported_legacy(const ::MenuItem* item) {
-	return dynamic_cast<const legacy::cpu::VoiceUsage*>(item) != nullptr;
-}
-
-using Pairing = std::map<const ::MenuItem*, std::vector<const Node*>>;
-
-void pair_walk(const Node& node, ::MenuItem& item, Pairing& out) {
-	std::vector<const Node*>& nodes_of_item = out[&item];
-	if (std::find(nodes_of_item.begin(), nodes_of_item.end(), &node) == nodes_of_item.end()) {
-		nodes_of_item.push_back(&node);
-	}
-	auto* submenu = dynamic_cast<legacy::Submenu*>(&item);
-	if (node.kind != Kind::Submenu || submenu == nullptr) {
-		return;
-	}
-	std::vector<::MenuItem*> kids;
-	for (::MenuItem* kid : SubmenuPeek::items_of(*submenu)) {
-		if (!unported_legacy(kid)) {
-			kids.push_back(kid);
-		}
-	}
-	for (size_t i = 0; i < kids.size() && i < node.children.size(); ++i) {
-		pair_walk(*node.children[i], *kids[i], out);
-	}
-}
-
-/// @brief The nodes that show a legacy item's row on a page no submenu names (a page only a select press chains to),
-/// so the lockstep walk cannot reach them.
+/// @brief Every node of the ten roots by its tree path, as `tables_3.tsv` keys it, and the pages only a select press
+///        chains to by `chain/<name>`.
 ///
-/// The preset's two chained pages (`arpOctaveModeToNoteModeMenu` and its drum twin) are the legacy octave mode item
-/// with a chain; the note mode pages they chain to are the legacy note mode items (`menus.cpp:511-523`).
-const Pairing& chained_pages() {
-	static const Pairing pages{
-	    {&arpOctaveModeMenu, {&nodes::arp_octave_mode_to_note_mode, &nodes::arp_octave_mode_to_note_mode_drums}},
-	    {&arpNoteModeMenu, {&nodes::arp_note_mode_from_octave_mode}},
-	    {&arpNoteModeMenuForDrums, {&nodes::arp_note_mode_from_octave_mode_drums}},
-	};
-	return pages;
-}
-
-/// @brief Every legacy item with the nodes the ten roots pair it with, and the chained pages.
-const Pairing& pairing() {
-	static const Pairing pairs = [] {
-		Pairing out;
-		const std::pair<::MenuItem*, const Node*> roots[] = {
-		    {&soundEditorRootMenu, &nodes::sound_root},
-		    {&soundEditorRootMenuDrum, &nodes::root_drum},
-		    {&soundEditorRootMenuMIDIOrCV, &nodes::root_midi_or_cv},
-		    {&soundEditorRootMenuMidiDrum, &nodes::root_midi_drum},
-		    {&soundEditorRootMenuGateDrum, &nodes::root_gate_drum},
-		    {&soundEditorRootMenuAudioClip, &nodes::root_audio_clip},
-		    {&soundEditorRootMenuPerformanceView, &nodes::root_performance},
-		    {&soundEditorRootMenuSongView, &nodes::root_song},
-		    {&soundEditorRootMenuKitGlobalFX, &nodes::root_kit_global_fx},
-		    {&settingsRootMenu, &nodes::root_settings},
-		};
-		for (const auto& [legacy_root, node_root] : roots) {
-			pair_walk(*node_root, *legacy_root, out);
+/// The preset's chained pages (the octave mode to note mode pages and their drum twins) are on no submenu, so the
+/// lockstep walk of the roots cannot reach them.
+const std::map<std::string, const Node*>& nodes_by_path() {
+	static const std::map<std::string, const Node*> by_path = [] {
+		std::map<std::string, const Node*> out;
+		for (const spec::tables3::TablesRoot& root : spec::tables3::roots()) {
+			for (const spec::TreeEntry& e : spec::tree_entries(root.name, *root.node)) {
+				out.emplace(e.path, e.node);
+			}
 		}
-		for (const auto& [item, pages] : chained_pages()) {
-			out[item].insert(out[item].end(), pages.begin(), pages.end());
+		for (const Node* page :
+		     {&nodes::arp_octave_mode_to_note_mode, &nodes::arp_octave_mode_to_note_mode_drums,
+		      &nodes::arp_note_mode_from_octave_mode, &nodes::arp_note_mode_from_octave_mode_drums}) {
+			out.emplace("chain/" + spec::tables2::chain_name(page), page);
 		}
 		return out;
 	}();
-	return pairs;
+	return by_path;
+}
+
+/// @brief The case @p c's `paths` row and the paths it names that no node answers to, one per line.
+struct Pairing {
+	std::vector<const Node*> nodes; ///< the distinct nodes at those paths, in the row's order
+	bool has_row = false;
+	std::string unresolved;
+};
+
+Pairing pairing_of(const Case& c) {
+	Pairing out;
+	const std::vector<std::string>* paths = frozen().find(case_key(c), "paths");
+	out.has_row = paths != nullptr;
+	if (paths == nullptr) {
+		return out;
+	}
+	for (const std::string& path : *paths) {
+		const auto found = nodes_by_path().find(path);
+		if (found == nodes_by_path().end()) {
+			out.unresolved += path + "\n";
+		}
+		else if (std::find(out.nodes.begin(), out.nodes.end(), found->second) == out.nodes.end()) {
+			out.nodes.push_back(found->second);
+		}
+	}
+	return out;
+}
+
+/// @brief The nodes that show @p c's row: the nodes at the tree paths its `paths` row names.
+std::vector<const Node*> paired_nodes(const Case& c) {
+	return pairing_of(c).nodes;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -165,14 +147,7 @@ const UnsetProbe* unset_probe_of(std::string_view path) {
 }
 
 const std::vector<NodeException>& node_exceptions() {
-	static const std::vector<NodeException> list{
-	    {Family::SONG, "reverb/roomSize", NAMES | TITLE,
-	     "legacy renames the item Time under the MUTABLE and DIGITAL reverb models and the table gives that one name; "
-	     "the node always shows the Freeverb name, Room Size (`tables_3_spec.cpp` parks it)"},
-	    {Family::SONG, "reverb/width", NAMES | TITLE,
-	     "legacy renames the item Diffusion under the MUTABLE and DIGITAL reverb models and the table gives that one "
-	     "name; the node always shows the Freeverb name, Width (`tables_3_spec.cpp` parks it)"},
-	};
+	static const std::vector<NodeException> list{};
 	return list;
 }
 
@@ -288,17 +263,30 @@ Findings compare(const Case& c, const Node& node, const NodeException* exception
 		if (names == nullptr) {
 			continue;
 		}
-		const std::string have_name = node_text(node.name);
+		// The name and title the menu shows in this context, as `getName()`/`getTitle()` answer them.
+		deluge::scenes::menu::NodeText name_scratch;
+		const std::string have_name{
+		    deluge::scenes::menu::display_text(node, deluge::scenes::menu::ValueTextUse::Name, ctx, name_scratch)};
 		const std::string want_name = text(names->name);
 		if (have_name != want_name) {
 			f.names.push_back(std::string{c.path} + " name node '" + have_name + "' row '" + want_name + "'");
 		}
-		const std::string have_title = node_title(node, c.path);
+		deluge::scenes::menu::NodeText title_scratch;
+		const std::string shown_title{
+		    deluge::scenes::menu::display_text(node, deluge::scenes::menu::ValueTextUse::Title, ctx, title_scratch)};
+		const std::string have_title =
+		    shown_title.find('*') != std::string::npos ? node_title(node, c.path) : shown_title;
 		const std::string want_title = title_of(*names, c.path);
 		if (have_title != want_title) {
 			f.title.push_back(std::string{c.path} + " title node '" + have_title + "' row '" + want_title + "'");
 		}
 		if (!node_lists_names(node)) {
+			continue;
+		}
+		// A custom page's or a worded number's words (`with_value_names`) are compared where its row names choices; a
+		// row naming none (a file name, or one of two rows the audio source list spans) has nothing to compare them
+		// with.
+		if ((node.kind == Kind::Custom || node.kind == Kind::Int) && names->choices.empty()) {
 			continue;
 		}
 		std::vector<std::string> have = node_names(node, ctx);
@@ -434,6 +422,7 @@ Findings compare(const Case& c, const Node& node, const NodeException* exception
 
 struct Tally {
 	std::vector<std::string> unpaired;
+	std::vector<std::string> unresolved;                          ///< paths a case's row names that no node answers to
 	std::set<std::tuple<Family, std::string_view, uint8_t>> seen; ///< the exceptions' aspects that did differ
 	std::set<const Node*> compared;                               ///< the distinct nodes a case was compared with
 	std::set<const Node*> excepted;                               ///< those of them an exception covers
@@ -481,13 +470,16 @@ void judge(auto& self, const Case& c, const Node& node, const Findings& f, const
 
 void run_cases(auto& self, const std::vector<const Case*>& cases) {
 	for (const Case* c : cases) {
-		const auto found = pairing().find(c->item);
-		if (found == pairing().end()) {
+		const Pairing paired = pairing_of(*c);
+		if (!paired.unresolved.empty()) {
+			tally().unresolved.push_back(case_key(*c) + " " + paired.unresolved);
+		}
+		if (paired.nodes.empty()) {
 			tally().unpaired.emplace_back(c->path);
 			continue;
 		}
 		const NodeException* exception = exception_of(c->family, c->path);
-		for (const Node* node : found->second) {
+		for (const Node* node : paired.nodes) {
 			tally().compared.insert(node);
 			if (exception != nullptr) {
 				tally().excepted.insert(node);
@@ -529,7 +521,6 @@ struct DeviceNode {
 };
 
 constexpr DeviceNode kDeviceSettings[] = {
-    {"Settings > Community Features > Legacy Menu", 1},
     {"Settings > Community Features > Shortcut Overlay", 1},
     {"Settings > Community Features > Show Battery Level", 1},
     {"Settings > Community Features > Trim From Start Of Audio Clips", 1},
@@ -802,6 +793,7 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 		}
 		expect(tally().compared.size()).to_be_greater_than(size_t{0});
 		expect(tally().unpaired.size()).to_equal(size_t(0));
+		expect(tally().unresolved.size()).to_equal(size_t(0));
 	});
 	it("names only rows a case shows, for each row it does not drive", _ {
 		for (const Undriven& u : undriven_rows()) {
@@ -834,7 +826,16 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 		run_all(self);
 		const SettingInfo& row = *deluge::plugin::find_setting(deluge::effects::kEffectSettings, "sidechain/syncLevel");
 		const SettingInfo& type = *deluge::plugin::find_setting(deluge::effects::kEffectSettings, "sidechain/syncType");
-		const Node& node = *pairing().at(&sidechainSyncMenu).front();
+		const Case* sidechain_sync = nullptr;
+		for (const Case* c : all_name_cases()) {
+			if (c->family == Family::EFFECT && c->path == "sidechain/syncLevel") {
+				sidechain_sync = c;
+			}
+		}
+		expect(sidechain_sync != nullptr).to_be_true();
+		const std::vector<const Node*> sync_nodes = paired_nodes(*sidechain_sync);
+		expect(sync_nodes.empty()).to_be_false();
+		const Node& node = *sync_nodes.front();
 		const MenuContext& ctx = enter(Where::SYNTH);
 		expect(bindings::range(node, ctx).max).to_equal(menu_range(row).second);
 		for (const auto& [level, kind] : std::vector<Range>{{1, 1}, {9, 1}, {1, 2}, {9, 2}, {4, 1}}) {
@@ -854,9 +855,9 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 			    .to_equal(at + " 4/1"); // as the last read left it
 		}
 	});
-	it("titles a param node as the item, which legacy does not title as the param's table name", _ {
+	it("titles a param node as the item, which the menu did not title as the param's table name", _ {
 		// A param's table name is `getParamDisplayName`, the knob popup's; the menu item's own title is what a node
-		// carries, and legacy's differs from the popup's name in the same places.
+		// carries, and the item's differed from the popup's name in the same places.
 		run_all(self);
 		size_t same = 0;
 		size_t differ = 0;
@@ -866,6 +867,7 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 		}
 		const MenuContext& ctx = enter(Where::SYNTH);
 		(void)ctx;
+		spec::OracleTable& reference = spec::OracleTable::named("tables_3");
 		for (const Node* node : all) {
 			const deluge::scenes::menu::ParamRef ref = node->bind.param;
 			if (!ref.valid() || node->bind.get != nullptr || node->bind.set != nullptr) {
@@ -891,20 +893,22 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 				continue;
 			}
 			++differ;
-			// Legacy's own item is titled otherwise too.
+			// The menu this replaced titled its item otherwise too: the title it answered at each place the node sits.
 			bool paired = false;
-			for (const auto& [item, nodes_of_item] : pairing()) {
-				if (std::find(nodes_of_item.begin(), nodes_of_item.end(), node) != nodes_of_item.end()) {
-					paired = true;
-					const std::string at = "param " + table_name + " item " + node_text(node->title);
-					expect(at + (folded(std::string{const_cast<::MenuItem*>(item)->getTitle()}) == folded(table_name)
-					                 ? " titled as the table"
-					                 : " titled otherwise"))
-					    .to_equal(at + " titled otherwise");
+			for (const auto& [path, at_path] : nodes_by_path()) {
+				if (at_path != node || path.starts_with("chain/")) {
+					continue;
 				}
+				paired = true;
+				const std::vector<std::string>* title = reference.find(path, "title");
+				const std::string at = "param " + table_name + " item " + node_text(node->title) + " at " + path;
+				const char* verdict = title == nullptr || title->empty() ? " has no title row"
+				                      : folded(title->front()) == folded(table_name) ? " titled as the table"
+				                                                                     : " titled otherwise";
+				expect(at + verdict).to_equal(at + " titled otherwise");
 			}
-			// A title that differs from the table's with no legacy item to compare would go unchecked.
-			expect(paired).to_be_true("param " + table_name + " titled " + node_text(node->title) + " has no legacy item");
+			// A title that differs from the table's with no item to compare would go unchecked.
+			expect(paired).to_be_true("param " + table_name + " titled " + node_text(node->title) + " has no item");
 		}
 		std::fprintf(stdout, "descriptor_coherence_spec: %zu param nodes titled as their table name, %zu titled as the item\n",
 		             same, differ);
@@ -939,6 +943,15 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 		}
 	});
 });
+
+describe descriptor_coherence_reference_rows("descriptor_coherence_spec: the reference rows", $ {
+	it("parses descriptors.tsv clean and asks every row of its node pairing", _ {
+		spec::OracleTable& t = spec::OracleTable::named("descriptors");
+		expect(t.problems().size()).to_equal(size_t{0});
+		expect(t.size() > size_t{3000}).to_be_true();
+		expect(t.unasked({"paths"})).to_equal(std::string{});
+	});
+});
 // clang-format on
 
-DELUGE_SPEC(descriptor_coherence_spec, descriptor_coherence_body)
+DELUGE_SPEC(descriptor_coherence_spec, descriptor_coherence_body, descriptor_coherence_reference_rows)

@@ -162,8 +162,8 @@ public:
 	void scrollVertical_potentiallySwitchOnAuditionedNotes(bool draggingNoteRow,
 	                                                       ModelStackWithTimelineCounter* modelStack,
 	                                                       InstrumentClip* clip, Output* output, OutputType outputType,
-	                                                       bool isKit, bool inSoundEditor, bool currentClipIsActive,
-	                                                       bool renderDisplay, bool updateDrumSelection);
+	                                                       bool isKit, bool currentClipIsActive, bool renderDisplay,
+	                                                       bool updateDrumSelection);
 	void scrollVertical_placeNotesPressed(ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, bool isKit);
 
 	/// OTHER uncategorized (yet)

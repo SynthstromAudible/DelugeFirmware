@@ -16,6 +16,8 @@ FIXTURE_CARD = "tests/fixtures/card"
 # A spec runs synchronously inside the app's init, where golden_vt_render's own deadlines cannot fire, so a hung file
 # is ended here (exit 124) and reported by name. Every file takes well under a second.
 RUN_TIMEOUT_S = 120
+# The runner's own self-specs, run below with their expected verdicts: built and listed, never run as specs.
+NOT_RUN = ("selftest/",)
 
 
 def _cards(root: Path) -> dict[str, str]:
@@ -37,7 +39,7 @@ def _spec_files(root: Path) -> set[str]:
     return {
         p.relative_to(base).with_suffix("").as_posix()
         for p in base.rglob("*_spec.cpp")
-        if not p.relative_to(base).as_posix().startswith("selftest/")
+        if not p.relative_to(base).as_posix().startswith(NOT_RUN)
     }
 
 
@@ -80,7 +82,7 @@ def run(gate) -> None:
     if listed is None:
         return
     files = _spec_files(gate.root)
-    in_table = {spec_id for spec_id in listed if not spec_id.startswith("selftest/")}
+    in_table = {spec_id for spec_id in listed if not spec_id.startswith(NOT_RUN)}
     for spec_id in sorted(files - in_table):
         gate.fail(
             f"{spec_id}: a spec file the entry table does not list (stale build?)"

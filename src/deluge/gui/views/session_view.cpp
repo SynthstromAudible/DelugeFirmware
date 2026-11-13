@@ -26,12 +26,10 @@
 #include "gui/context_menu/context_menu.h"
 #include "gui/context_menu/midi_learn_mode.h"
 #include "gui/context_menu/stem_export/cancel_stem_export.h"
-#include "gui/menu_item/colour.h"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
-#include "gui/ui/menus.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
@@ -534,24 +532,17 @@ moveAfterClipInstance:
 				}
 				// open Song FX menu
 				//
-				// Site 2 of `gui/ui/shell_menu_entry.cpp`'s table. The `else` is the
-				// two legacy statements unchanged.
-				if (deluge::gui::ui::shellMenuEnabled()) {
-					// No shift (`:506`) and the session view is the root, so `setup()` picks
-					// `soundEditorRootMenuSongView` (`gui/ui/sound_editor.cpp:1802-1805`) and
-					// `!rootUIIsClipMinderScreen()` is true -- the two legacy expressions
-					// `sessionOrArrangerRoot` fuses agree here by construction. `sessionViewRoot` is
-					// the narrower fact, and it is what the two `getRootUI() == &sessionView` items
-					// in that root read (`MenuContext::is_session_view`).
-					(void)deluge::gui::ui::openShellMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
-					                                     /*performanceView=*/false,
-					                                     /*sessionOrArrangerRoot=*/true,
-					                                     /*sessionViewRoot=*/true, /*kitGlobalFx=*/false);
-				}
-				else {
-					soundEditor.setup();
-					openUI(&soundEditor);
-				}
+				// Site 2 of `gui/ui/shell_menu_entry.cpp`'s table.
+				// No shift (`:506`) and the session view is the root, so `setup()` picks
+				// `soundEditorRootMenuSongView` (`gui/ui/sound_editor.cpp:1802-1805`) and
+				// `!rootUIIsClipMinderScreen()` is true -- the two legacy expressions
+				// `sessionOrArrangerRoot` fuses agree here by construction. `sessionViewRoot` is
+				// the narrower fact, and it is what the two `getRootUI() == &sessionView` items
+				// in that root read (`MenuContext::is_session_view`).
+				(void)deluge::gui::ui::openShellMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
+				                                     /*performanceView=*/false,
+				                                     /*sessionOrArrangerRoot=*/true,
+				                                     /*sessionViewRoot=*/true, /*kitGlobalFx=*/false);
 			}
 		}
 	}

@@ -98,6 +98,17 @@ std::optional<deluge::scenes::bind::View> target_view(const Node& node, const Me
 	return deluge::scenes::bind::view(node.bind.target, *ctx.model, ctx.addresses, *ctx.facts);
 }
 
+/// @brief The twin @p node edits in @p ctx: on the kit's own effects, its `kit_fx_twin`; null anywhere else.
+const KitFxTwin* twin_in(const Node& node, const MenuContext& ctx) {
+	return ctx.is_kit && ctx.is_kit_global_fx ? kit_fx_twin(node) : nullptr;
+}
+
+/// @brief The node whose binding @p node reads and writes in @p ctx: its twin's param on the kit's own effects.
+const Node& bound(const Node& node, const MenuContext& ctx) {
+	const KitFxTwin* twin = twin_in(node, ctx);
+	return twin != nullptr ? *twin->param : node;
+}
+
 /// The text of a choice listed although it no longer applies: "<name> (<n/a>)". One buffer per listed entry, valid
 /// until the next names() call, as the shell's TextScratch is.
 std::array<std::array<char, 40>, kMaxDynamicNames> unavailable_text{};
@@ -142,9 +153,15 @@ void write_song(const MenuContext& ctx, std::string_view path, int32_t value) {
 }
 
 bool relevant(const Node& node, const MenuContext& ctx) {
+	if (const KitFxTwin* twin = twin_in(node, ctx); twin != nullptr) {
+		return target_view(*twin->param, ctx).has_value() && twin->listed(ctx);
+	}
+	if (node.bind.target.valid() && node.relevance_replaces_target) {
+		return node.relevant == nullptr || node.relevant(ctx);
+	}
 	if (node.bind.target.valid()) {
 		const std::optional<deluge::scenes::bind::View> shown = target_view(node, ctx);
-		return shown && shown->applies;
+		return shown && shown->applies && (node.relevant == nullptr || node.relevant(ctx));
 	}
 	return node.relevant == nullptr || node.relevant(ctx);
 }
@@ -209,7 +226,8 @@ std::optional<int32_t> stored(const deluge::scenes::bind::Target& target, const 
 	return deluge::scenes::bind::SlotReader{*ctx.model, *ctx.addresses.slot, *ctx.facts}.read(target.path);
 }
 
-std::optional<int32_t> listed_choice(const Node& node, const MenuContext& ctx, int32_t value) {
+std::optional<int32_t> listed_choice(const Node& asked, const MenuContext& ctx, int32_t value) {
+	const Node& node = bound(asked, ctx);
 	if (!node.bind.target.valid() || ctx.model == nullptr || ctx.facts == nullptr) {
 		return std::nullopt;
 	}
@@ -221,7 +239,8 @@ std::optional<int32_t> listed_choice(const Node& node, const MenuContext& ctx, i
 	return request->menu_value;
 }
 
-int32_t read(const Node& node, const MenuContext& ctx) {
+int32_t read(const Node& asked, const MenuContext& ctx) {
+	const Node& node = bound(asked, ctx);
 	const Binding& bind = node.bind;
 
 	if (bind.target.valid()) {
@@ -239,7 +258,8 @@ int32_t read(const Node& node, const MenuContext& ctx) {
 	return 0;
 }
 
-void write(const Node& node, const MenuContext& ctx, int32_t value) {
+void write(const Node& asked, const MenuContext& ctx, int32_t value) {
+	const Node& node = bound(asked, ctx);
 	const Binding& bind = node.bind;
 
 	// A target node: the request goes to the menu's sink, which applies the target's Edit. The stale entry, a value
@@ -312,7 +332,8 @@ void adjust(const Node& node, const MenuContext& ctx, int32_t offset) {
 	}
 }
 
-IntRange range(const Node& node, const MenuContext& ctx) {
+IntRange range(const Node& asked, const MenuContext& ctx) {
+	const Node& node = bound(asked, ctx);
 	if (node.bind.target.valid()) {
 		const std::optional<deluge::scenes::bind::View> shown = target_view(node, ctx);
 		return shown ? IntRange{shown->least, shown->greatest, 1} : IntRange{0, 0, 1};
@@ -339,8 +360,8 @@ IntRange range(const Node& node, const MenuContext& ctx) {
 	}
 
 	default:
-		// `param.h:33-34` (`kMaxMenuValue` / `kMinMenuValue`), forwarded by
-		// `patched_param/integer.h:35-36` and `unpatched_param.h:42-43`.
+		// `origin/main:src/deluge/gui/menu_item/param.h` `Param::getMaxValue` (`kMaxMenuValue` / `kMinMenuValue`),
+		// forwarded by `patched_param/integer.h:35-36` and `unpatched_param.h:42-43`.
 		//
 		// This arm is also where `Kind::Bipolar`, `Range`, `MultiRange`, `Colour` and `SyncLevel`
 		// land. Each of them wants its own
@@ -498,7 +519,7 @@ bool has_instrument_clip(const MenuContext& ctx) {
 
 // `getIndividualNoteRow`'s non-kit auditioned-row arm (`sequence/direction.h:50-60`), gated as legacy gates it by
 // `soundEditor.selectedNoteRow` -- `MenuContext::selected_note_row`. Under `Root::NoteRowEditor` the latch is always
-// true: `InstrumentClipView::enterNoteRowEditor` (`instrument_clip_view.cpp:3790`) opens only with one row auditioning,
+// true: `InstrumentClipView::enterNoteRowEditor` (`instrument_clip_view.cpp`) opens only with one row auditioning,
 // and the editor's sidebar arm never ends that mode while it stays open (`:3855-3865`), so the root answers for it.
 bool note_row_bridge_direction(const MenuContext& ctx, int32_t* value) {
 	return (ctx.root == MenuContext::Root::NoteRowEditor || ctx.selected_note_row) && !ctx.is_kit

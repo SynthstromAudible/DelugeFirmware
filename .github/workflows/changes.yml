@@ -1,7 +1,8 @@
 name: Detect changes
 
-# Tells CI which halves a PR touches: anything outside the website (firmware), and the website or the firmware
-# sources its menu pages are generated from (website).
+# Tells CI which halves a PR touches: anything outside the website (firmware), and the website or the English
+# strings its menu reference reads (website). A menu change reaches the website through menu-tree.json, which the
+# ui-menu-dump gate makes every menu change commit.
 # Firmware checks are required, so callers skip jobs (which count as passing)
 # rather than filtering the whole workflow on paths (which leaves them pending).
 # Pushes, merge queue runs and manual runs always count as firmware changes.
@@ -13,7 +14,7 @@ on:
         description: "'true' if the change touches anything outside the website"
         value: ${{ jobs.changes.outputs.firmware }}
       website:
-        description: "'true' if the change touches the website or the menu sources it is generated from"
+        description: "'true' if the change touches the website or the English strings its menu reference reads"
         value: ${{ jobs.changes.outputs.website }}
 
 permissions: {}
@@ -47,7 +48,7 @@ jobs:
             echo "Only website files changed, skipping firmware jobs"
             echo "firmware=false" >> "$GITHUB_OUTPUT"
           fi
-          sources='^(website/|src/deluge/gui/ui/menus\.cpp$|src/deluge/gui/(menu_item|context_menu)/|src/deluge/gui/l10n/english\.json$|\.github/workflows/(ci|changes)\.yml$)'
+          sources='^(website/|src/deluge/gui/l10n/english\.json$|\.github/workflows/(ci|changes)\.yml$)'
           if grep -qE "$sources" <<< "$files"; then
             echo "website=true" >> "$GITHUB_OUTPUT"
           else

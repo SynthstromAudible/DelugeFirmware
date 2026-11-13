@@ -17,14 +17,13 @@
 
 #include "processing/source.h"
 #include "definitions_cxx.hpp"
-#include "gui/ui/browser/sample_browser.h"
-#include "gui/ui/sound_editor.h"
 #include "instruments/deluge/sound_state.h"
 #include "libdeluge/system.h" // AudioExcludedSection
 #include "memory/memory_allocator_interface.h"
 #include "model/sample/sample.h"
 #include "processing/dx7/dx_engine.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/ranges_retype.h"
 #include "processing/sound/sound.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
@@ -368,12 +367,12 @@ void Source::setOscType(OscType newType) {
 		multiRangeSize = sizeof(MultisampleRange);
 possiblyDeleteRanges:
 		if (ranges.currentElementSize() != multiRangeSize) {
-
+			bool cleared = false;
 doChangeType:
 			Error error = ranges.changeType(multiRangeSize);
 			if (error != Error::NONE) {
 				ranges.clear();
-				soundEditor.currentMultiRangeIndex = 0;
+				cleared = true;
 				goto doChangeType; // Can't fail now it's empty.
 			}
 
@@ -381,10 +380,7 @@ doChangeType:
 
 			getOrCreateFirstRange(); // Ensure there's at least 1. If this returns NULL and we're in the SoundEditor or
 			                         // something, we're screwed.
-
-			if (soundEditor.currentMultiRangeIndex >= 0 && soundEditor.currentMultiRangeIndex < std::ssize(ranges)) {
-				soundEditor.currentMultiRange = ranges.getElement(soundEditor.currentMultiRangeIndex);
-			}
+			RangesRetypeWatch::rangesRetyped(*this, cleared);
 		}
 	}
 	else if (newType == OscType::WAVETABLE) {

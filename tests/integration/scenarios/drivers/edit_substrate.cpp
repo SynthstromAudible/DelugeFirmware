@@ -40,7 +40,6 @@
 
 #include "deluge-project/instrument_slot.h"
 #include "effects/plugin.h"
-#include "gui/menu_item/setting_edit.h"
 #include "instruments/deluge/plugin.h"
 #include "instruments/deluge/settings.h"
 #include "io/midi/cable_types/usb_hosted.h"
@@ -53,6 +52,7 @@
 #include "model/edits/set_effect_setting.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/edits/set_source_ranges.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/controls_bridge.h"
@@ -1044,7 +1044,7 @@ void testKnobGesturesRecord(deluge::edits::Context& ctx) {
 
 	const deluge::modulation::KnobTarget drive = deluge::modulation::knobParam(params::LOCAL_LPF_RESONANCE);
 	check(sound.learnKnob(nullptr, drive, 1, 3, 16, &ctx.song), "knob gestures: a mod knob is learned");
-	deluge::gui::menu_item::recordControlsOf(sound);
+	deluge::edits::recordControlsOf(sound);
 	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "knob gestures: a learn is recorded");
 
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
@@ -1052,7 +1052,7 @@ void testKnobGesturesRecord(deluge::edits::Context& ctx) {
 	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, &ctx.song, &sound, nullptr, &paramManager);
 	for (int32_t press = 0; press < 3; press++) {
 		(void)sound.modEncoderButtonAction(1, true, ms);
-		deluge::gui::menu_item::recordControlsOf(sound);
+		deluge::edits::recordControlsOf(sound);
 		check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "knob gestures: a knob cycle is recorded");
 	}
 }

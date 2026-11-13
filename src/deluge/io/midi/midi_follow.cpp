@@ -25,6 +25,7 @@
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
+#include "hid/buttons.h"
 #include "instruments/deluge/params.h"
 #include "io/file.hpp"
 #include "io/midi/midi_device.h"

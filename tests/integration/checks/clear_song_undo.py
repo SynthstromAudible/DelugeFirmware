@@ -15,6 +15,7 @@ What the checks cover (tests/integration/scenarios/clear_song_undo_scenario.cpp 
     CS-SONG    the cleared song holds one clip whose preset came from SYNTHS through exactly one InstrumentLoad
                acquisition, with its sample bound.
     CS-GATE    the clear left no UI-mode gate closed behind it.
+    CS-NEXT    a next song held behind a take or a slice did not outlive the clear.
 
 The registry entry requires each marker and the result line.
 """

@@ -53,8 +53,8 @@
 ///
 /// @note **The MIDI/CV root carries two titles.** `SoundEditor::setup` rewrites the single
 ///       `soundEditorRootMenuMIDIOrCV` object's `title` member on the way in --
-///       `STRING_FOR_MIDI_INST_MENU_TITLE` for a MIDI output (`sound_editor.cpp:1781`),
-///       `STRING_FOR_CV_INSTRUMENT` for a CV one (`:1731`). One `Node::title` is one static id, so
+///       `STRING_FOR_MIDI_INST_MENU_TITLE` for a MIDI output,
+///       `STRING_FOR_CV_INSTRUMENT` for a CV one. One `Node::title` is one static id, so
 ///       the port declares **two nodes over one child list**: `root_midi_or_cv` (the MIDI title)
 ///       and `root_cv` (the CV one). `midi_or_cv_root(ctx)` picks between them from
 ///       the instrument kind in `MenuContext::addresses`, which is the same fact `setup()` branched on, and
@@ -316,8 +316,11 @@ inline constexpr Node midi_or_cv_actions = submenu(sid(String::STRING_FOR_ACTION
 /// `midiDeviceLinkedMenu` (`gui/ui/menus.cpp`), a `midi::device_definition::Linked` -- a
 /// `Toggle` whose ON arm opens `loadMidiDeviceDefinitionUI` and whose OFF arm clears the linked
 /// file name (`midi/device_definition/linked.h:37-49`). Both arms are `nodes::kMidiDeviceLinked`.
-inline constexpr Node midi_device_linked = with_relevant(
-    custom(sid(String::STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED), &kMidiDeviceLinked), relevance::is_midi_out);
+/// Its row is a checkbox and it has no page of its own, so its values are a toggle's: the words a toggle's page lists.
+inline constexpr Node midi_device_linked =
+    with_value_names(with_relevant(custom(sid(String::STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED), &kMidiDeviceLinked),
+                                   relevance::is_midi_out),
+                     kToggleWords);
 inline constexpr Node midi_hide_unlabeled =
     setting_item(sid(String::STRING_FOR_MIDI_DEVICE_DEFINITION_HIDE), Kind::Toggle,
                  {.kind = deluge::scenes::bind::Target::Kind::MODEL,
@@ -431,7 +434,8 @@ inline constexpr Node set_clip_length =
 inline constexpr const Node* kAudioClipActionsChildren[] = {&edit_name, &set_clip_length};
 inline constexpr Node audio_clip_actions = submenu(sid(String::STRING_FOR_ACTIONS), kAudioClipActionsChildren);
 
-inline constexpr Node audio_source_selector = custom(sid(String::STRING_FOR_AUDIO_SOURCE), &kAudioSourceItem);
+inline constexpr Node audio_source_selector =
+    with_value_names(custom(sid(String::STRING_FOR_AUDIO_SOURCE), &kAudioSourceItem), kAudioSourceOptions);
 /// `specificOutputSelectorMenu` (`gui/ui/menus.cpp`), an
 /// `audio_clip::SpecificSourceOutputSelector` -- the picker for which track this audio track
 /// records from, **not** a browser (`nodes/output_items.h`).
@@ -445,6 +449,11 @@ inline constexpr Node audio_clip_waveform = with_value_text(
                                                                relevance::audio_clip_has_sample)),
                      clip_end_draw),
     end_point_label);
+
+/// The audio clip's marker editor on START: `audioClipSampleMarkerEditorMenuStart`, which no submenu lists and whose
+/// name is empty; only the V1 shortcut cells `(0..1, 7)` reach it, so it has a place in `kAllRoots` and no menu row.
+inline constexpr Node audio_clip_waveform_start =
+    custom(sid(String::EMPTY_STRING), &kAudioClipWaveformStart, relevance::audio_clip_has_sample);
 
 inline constexpr const Node* kAudioClipDistortionChildren[] = {&saturation, &bitcrush, &decimation};
 inline constexpr Node audio_clip_distortion =
@@ -477,11 +486,11 @@ inline constexpr Node audio_clip_reverse = with_reverse_in_horizontal(
     reverse_always);
 
 inline constexpr Node audio_clip_interpolation =
-    with_title(setting_item(sid(String::STRING_FOR_INTERPOLATION), Kind::Enum,
-                            {.kind = deluge::scenes::bind::Target::Kind::MODEL,
-                             .path = "linearInterpolation",
-                             .group = deluge::project::SettingGroupId::AUDIO_CLIP}),
-               sid(String::STRING_FOR_AUDIO_INTERPOLATION));
+    with_affect_entire(with_title(setting_item(sid(String::STRING_FOR_INTERPOLATION), Kind::Enum,
+                                               {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                .path = "linearInterpolation",
+                                                .group = deluge::project::SettingGroupId::AUDIO_CLIP}),
+                                  sid(String::STRING_FOR_AUDIO_INTERPOLATION)));
 
 inline constexpr const Node* kAudioClipSampleChildren[] = {&file0_selector,      &audio_clip_transpose,
                                                            &audio_clip_reverse,  &sample0_pitch_speed,
@@ -503,7 +512,8 @@ inline constexpr Node root_audio_clip = submenu(sid(String::STRING_FOR_AUDIO_CLI
 // ---------------------------------------------------------------------------------------------
 // The performance-view root (`soundEditorRootMenuPerformanceView`, `:2008`)
 
-inline constexpr Node perform_editor = custom(sid(String::STRING_FOR_PERFORM_EDITOR), &kPerformEditorItem);
+inline constexpr Node perform_editor =
+    with_value_names(custom(sid(String::STRING_FOR_PERFORM_EDITOR), &kPerformEditorItem), kPerformEditingModeNames);
 
 inline constexpr const Node* kPerformanceRootChildren[] = {&perform_editor, &global_filters, &global_fx};
 inline constexpr Node root_performance = submenu(sid(String::STRING_FOR_PERFORM_FX), kPerformanceRootChildren);
@@ -556,7 +566,8 @@ inline constexpr Node swing_interval =
                               kSwingIntervalRange),
               swing_interval_turn);
 
-inline constexpr Node active_scales = custom(sid(String::STRING_FOR_ACTIVE_SCALES), &kSongActiveScalesItem);
+inline constexpr Node active_scales =
+    with_value_names(custom(sid(String::STRING_FOR_ACTIVE_SCALES), &kSongActiveScalesItem), preset_scale_names);
 /// The song root's two session-only items: `song::ConfigureMacros::isRelevant`
 /// (`gui/menu_item/song/configure_macros.h:35-37`) and `song::MidiLearn::isRelevant`
 /// (`gui/menu_item/song/midi_learn.h:35-37`) are both `getRootUI() == &sessionView`, so both are

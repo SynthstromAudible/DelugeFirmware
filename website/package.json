@@ -10,11 +10,13 @@
     "generate:pdf": "bash ./scripts/generate-pdf.sh",
     "generate:recent-changes": "node ./scripts/generate-recent-changes.mjs",
     "generate:menu-hierarchy": "node ./scripts/generate-menu-hierarchies.mjs",
+    "test:menu-hierarchy": "tsx --test scripts/generate-menu-hierarchies.test.mjs src/markdown-directives/remark-cross-links/terms.test.ts",
+    "check:menu-hierarchy": "node ./scripts/generate-menu-hierarchies.mjs --check",
     "build": "pnpm run generate:recent-changes && pnpm run generate:menu-hierarchy && tsx ./src/components/deluge_companion/utils/convert-md-to-json.ts && astro build",
     "preview": "pnpm run build && astro preview",
     "astro": "astro",
     "perf:guard": "node ./scripts/perf-guard.mjs",
-    "check": "pnpm run generate:menu-hierarchy && astro check && eslint . --max-warnings=0 && prettier . --check",
+    "check": "pnpm run test:menu-hierarchy && pnpm run check:menu-hierarchy && astro check && eslint . --max-warnings=0 && prettier . --check",
     "check:fix": "prettier . --write && eslint . --fix"
   },
   "dependencies": {

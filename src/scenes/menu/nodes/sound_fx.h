@@ -205,12 +205,11 @@ inline constexpr Node reverb_damping = setting_item(sid(deluge::l10n::String::ST
                                                      .group = deluge::project::SettingGroupId::SONG},
                                                     Hint::Knob);
 inline constexpr Node reverb_width =
-    with_name_text(with_value_text(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_WIDTH), Kind::Int,
-                                                           {.kind = deluge::scenes::bind::Target::Kind::MODEL,
-                                                            .path = "reverb/width",
-                                                            .group = deluge::project::SettingGroupId::SONG},
-                                                           Hint::Knob),
-                                              sid(deluge::l10n::String::STRING_FOR_REVERB_WIDTH)),
+    with_name_text(with_value_text(setting_item(sid(deluge::l10n::String::STRING_FOR_WIDTH), Kind::Int,
+                                                {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                 .path = "reverb/width",
+                                                 .group = deluge::project::SettingGroupId::SONG},
+                                                Hint::Knob),
                                    reverb_width_text),
                    reverb_width_text);
 inline constexpr Node reverb_model =

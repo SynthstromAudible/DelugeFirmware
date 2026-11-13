@@ -25,6 +25,7 @@
 #include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/menu/bind_host.h"
+#include "scenes/menu/nodes/context_menu_items.h"
 #include "scenes/profile.h"
 
 #include "ui/core/led_frame.h"
@@ -132,13 +133,9 @@ enum class AudioSourceOption : uint8_t {
 	Count,
 };
 
-/// `AudioInputSelector::getOptions()` (`:77-85`), in its own order. Nine fixed strings: there is
-/// no `isCurrentOptionAvailable()` override on this class, so nothing here is dynamic.
-constexpr uint16_t kAudioSourceOptions[] = {
-    sid(String::STRING_FOR_DISABLED),     sid(String::STRING_FOR_LEFT_INPUT),     sid(String::STRING_FOR_RIGHT_INPUT),
-    sid(String::STRING_FOR_STEREO_INPUT), sid(String::STRING_FOR_BALANCED_INPUT), sid(String::STRING_FOR_USB_INPUT),
-    sid(String::STRING_FOR_MIX_PRE_FX),   sid(String::STRING_FOR_MIX_POST_FX),    sid(String::STRING_FOR_TRACK),
-};
+/// `AudioInputSelector::getOptions()`, in its own order (`nodes::kAudioSourceOptions`, which the menu's node shares).
+/// Nine fixed strings: there is no `isCurrentOptionAvailable()` override on this class, so nothing here is dynamic.
+using deluge::scenes::menu::nodes::kAudioSourceOptions;
 static_assert(static_cast<size_t>(AudioSourceOption::Track) == project::kInputChannelSpecificTrack
                   && project::kInputChannelWords[static_cast<size_t>(AudioSourceOption::Usb)] == "usb",
               "each option is the channel word at its own index");
@@ -349,9 +346,12 @@ size_t sample_browser_synth_options_now(const menu::MenuContext& ctx, std::span<
 	return sample_browser_synth_options(ctx, browser::browser_scene().current_is_folder(), out);
 }
 
-/// `Kit::padAction` and `Synth::padAction` hand the pad to the browser beneath. Its keyboard reads the press itself
-/// as it draws under this menu, so the menu keeps the pad from closing it and does nothing more.
-Result sample_browser_pad(const UiEvent&, const UiContext&) {
+/// `Kit::padAction` and `Synth::padAction` return `SampleBrowser::padAction`. The mute column is the browser's exit,
+/// whose close takes this menu with it; every other pad does nothing here.
+Result sample_browser_pad(const UiEvent& event, const UiContext& ctx) {
+	if (event.x == kDisplayWidth) {
+		return browser::browser_scene().handle(event, ctx);
+	}
 	Result r;
 	r.handled = true;
 	return r;
@@ -563,6 +563,17 @@ void ContextMenuScene::leds(deluge::ui::LedFrame& f) {
 
 Result ContextMenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	const Descriptor& desc = descriptor(id_);
+	// `ContextMenu::buttonAction` refuses BACK and SELECT, and `padAction` every pad, outside
+	// `buttonAndPadActionUIModes`; an audition held under a sample-browser menu (its audition column is the clip
+	// view's) is not one of them. Every other button falls through, as in main.
+	const bool back_or_select = (event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton)
+	                            && (event.button == ButtonId::Back || event.button == ButtonId::SelectEnc);
+	if (desc.pad != nullptr && ctx_.facts != nullptr && ctx_.facts->auditioning()
+	    && (back_or_select || event.kind == UiEvent::Kind::Pad)) {
+		Result r;
+		r.handled = true;
+		return r;
+	}
 	const bool button_or_pad = event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton
 	                           || event.kind == UiEvent::Kind::Pad;
 	if (button_or_pad && desc.busy != nullptr && desc.busy(ctx_)) {
