@@ -193,6 +193,9 @@ TEMPLATE_EXCLUDED = frozenset({"name", "gates"}) | SOURCE_FIELDS
 
 def _templates(raw: dict) -> dict[str, dict]:
     templates = raw.get("template", {})
+    # A registry mistake is a ValueError, the one exception the runner reports, so TRY004 is waived here and below.
+    if not isinstance(templates, dict):
+        raise ValueError("'template' is a table of [template.<name>] tables")  # noqa: TRY004
     for name, shared in templates.items():
         if "template" in shared:
             raise ValueError(f"template '{name}': templates do not nest")
@@ -219,6 +222,8 @@ def _with_template(where: str, item: dict, templates: dict[str, dict]) -> dict:
             )
         return dict(item)
     name = item["template"]
+    if not isinstance(name, str):
+        raise ValueError(f"{where}: template is the name of a [template.<name>] table")  # noqa: TRY004
     if name not in templates:
         raise ValueError(f"{where}: unknown template '{name}'")
     shared = templates[name]
@@ -279,6 +284,17 @@ def _copies(items: list[dict], variants: dict[str, dict]) -> list[dict]:
         where = item.get("name", "?")
         wanted = item.get("variants", [])
         per_base = item.get("variant_fields", {})
+        if not isinstance(wanted, list) or not all(isinstance(v, str) for v in wanted):
+            raise ValueError(f"{where}: variants is a list of variant names")
+        if not isinstance(per_base, dict):
+            raise ValueError(  # noqa: TRY004
+                f"{where}: variant_fields is a table of [variant_fields.<variant>] tables"
+            )
+        if wanted and (runner := item.get("runner")) != "scenario":
+            raise ValueError(
+                f"{where}: variant '{wanted[0]}' swaps the render build, so it applies to scenario entries; this is a "
+                f"{runner} entry"
+            )
         if stray := sorted(set(per_base) - set(wanted)):
             raise ValueError(
                 f"{where}: variant_fields names {', '.join(stray)}, which 'variants' does not list"
@@ -287,6 +303,8 @@ def _copies(items: list[dict], variants: dict[str, dict]) -> list[dict]:
             if name not in variants:
                 raise ValueError(f"{where}: unknown variant '{name}'")
             own = per_base.get(name, {})
+            if not isinstance(own, dict):
+                raise ValueError(f"{where}: variant_fields.{name} is a table")  # noqa: TRY004
             if bad := sorted(set(own) - VARIANT_INSTANCE_FIELDS):
                 raise ValueError(
                     f"{where}: variant_fields.{name} may set only {', '.join(sorted(VARIANT_INSTANCE_FIELDS))}, "
@@ -297,8 +315,8 @@ def _copies(items: list[dict], variants: dict[str, dict]) -> list[dict]:
             copy.update(
                 {k: v for k, v in table.items() if k not in ("requires", "env_default")}
             )
-            copy["name"] = table["name"].format(base=item["name"])
-            copy["gates"] = table["gates"].format(base=item["name"])
+            copy["name"] = table["name"].replace("{base}", item["name"])
+            copy["gates"] = table["gates"].replace("{base}", item["name"])
             copy["requires"] = list(
                 dict.fromkeys([*item.get("requires", []), *table.get("requires", [])])
             )
@@ -329,7 +347,8 @@ def expand(raw: dict) -> list[dict]:
 
 
 # The longest `gates` line: one sentence a reader takes in from the README table. What it leaves out is the test's
-# explanation, a `Gate <name>:` block in the file that judges the test (explanation_source).
+# explanation, a `Gate <name>:` block in the file that judges the test or a `## <name>` section in its notes
+# (explanation_source).
 GATES_MAX = 160
 _SENTENCE_BREAK = re.compile(r"[.!?;][\"')\]]*\s")
 
@@ -385,6 +404,7 @@ def explanation_source(root: Path, h: Harness) -> Path | None:
 
 _BLOCK_HEAD = re.compile(r"^Gate (?P<name>[a-z0-9][a-z0-9-]*):$")
 _SECTION_HEAD = re.compile(r"^## (?P<name>[a-z0-9][a-z0-9-]*)$")
+_HEADING = re.compile(r"^#{1,6} ")
 _COMMENT = re.compile(r"^\s*(?:///|//|#)(?: |$)")
 
 
@@ -398,7 +418,7 @@ def _notes_sections(path: Path) -> dict[str, str]:
             if current in sections:
                 raise ValueError(f"{path}: two '## {current}' sections")
             sections[current] = []
-        elif line.startswith("#"):
+        elif _HEADING.match(line):
             current = None
         elif current is not None and line.strip():
             sections[current].append(line.strip())
@@ -490,8 +510,9 @@ def _validate(root: Path, item: dict, where: str, seen: set[str]) -> Harness:
             raise ValueError(f"{where}: missing required field '{required}'")
     if problem := gates_problem(item["gates"]):
         raise ValueError(
-            f"{where}: gates {problem}: state what the test gates in one sentence, and put the rest in a "
-            f"'Gate {item['name']}:' block in the file that judges it (tests/README.md, Writing an entry)"
+            f"{where}: gates {problem}: state what the test gates in one sentence, and put the rest in its explanation, "
+            f"a 'Gate {item['name']}:' block in the file that judges it or a '## {item['name']}' section in that "
+            "file's notes (tests/README.md, Writing an entry)"
         )
 
     for key, allowed in (

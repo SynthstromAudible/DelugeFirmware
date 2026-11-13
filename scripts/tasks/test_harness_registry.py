@@ -5,7 +5,7 @@ Run directly with:
     python3 scripts/tasks/test_harness_registry.py
 
 Gate registry-selftest:
-    this registry's loader, validation, selection and probes, the SDRAM content packer's format (the pack the boot
+    the registry loader, validation, selection and probes, the SDRAM content packer's format (the pack the boot
     inflates, and the Rust decoder's fixture as such a pack), the setting-menus checker's planted song-state writes and
     scene engine calls, and the layer rules' planted scenes rows
 """
@@ -150,8 +150,14 @@ class LoadRegistryTest(unittest.TestCase):
         text = MINIMAL.replace(
             'gates = "alpha must equal beta"', 'gates = "alpha holds. Beta too"'
         )
-        with self.assertRaisesRegex(ValueError, "sentence break"):
+        with self.assertRaises(ValueError) as caught:
             hr.load_registry(self._root_with(text))
+        self.assertEqual(
+            str(caught.exception),
+            "alpha: gates has a sentence break ('.'): state what the test gates in one sentence, and put the rest in "
+            "its explanation, a 'Gate alpha:' block in the file that judges it or a '## alpha' section in that "
+            "file's notes (tests/README.md, Writing an entry)",
+        )
 
     def test_runtime_s_is_required(self):
         with self.assertRaisesRegex(ValueError, "missing required field 'runtime_s'"):
@@ -1905,6 +1911,16 @@ class ExplanationTest(unittest.TestCase):
             {"alpha": "the long story more", "beta": "other"},
         )
 
+    def test_a_markdown_section_ends_only_at_a_heading(self):
+        path = self._file(
+            "n.md",
+            "## alpha\n\nfixed by\n#5263, and\n#not-a-heading either\n\n### Aside\n\nnot alpha's\n",
+        )
+        self.assertEqual(
+            hr.explanation_blocks(path),
+            {"alpha": "fixed by #5263, and #not-a-heading either"},
+        )
+
     def test_markdown_refuses_a_repeated_or_empty_section(self):
         with self.assertRaisesRegex(ValueError, "alpha"):
             hr.explanation_blocks(
@@ -1939,6 +1955,30 @@ class ExplanationTest(unittest.TestCase):
                 source = hr.explanation_source(self.ROOT, h)
                 self.assertIsNotNone(source)
                 self.assertTrue((self.ROOT / source).is_file())
+
+    # The entries whose gates line says everything. Any other entry with no explanation lost its block. A variant copy
+    # is no exception: it has its own block, under its own name, in its base's file.
+    NO_EXPLANATION = frozenset(
+        {
+            "fs-differential",
+            "region-fill-differential",
+            "region-read-differential",
+            "region-source-differential",
+            "recorder-roundtrip",
+            "snapshot-primitive-tsan",
+            "dsp-diff",
+        }
+    )
+
+    def test_every_entry_but_the_listed_has_an_explanation(self):
+        entries = hr.load_registry(self.ROOT)
+        self.assertLessEqual(self.NO_EXPLANATION, {h.name for h in entries})
+        for h in entries:
+            with self.subTest(h.name):
+                if h.name in self.NO_EXPLANATION:
+                    self.assertEqual(hr.explanation(self.ROOT, h), "")
+                else:
+                    self.assertNotEqual(hr.explanation(self.ROOT, h), "")
 
     def test_every_block_names_an_entry_of_its_file(self):
         names_by_source = {}
@@ -2057,6 +2097,31 @@ class TemplateTest(unittest.TestCase):
     def test_the_expanded_entry_is_validated(self):
         with self.assertRaisesRegex(ValueError, "one: missing required field 'tier'"):
             self._load(TEMPLATED.replace('tier = "pr"\n', ""))
+
+    def test_template_must_be_a_table_of_templates(self):
+        with self.assertRaises(ValueError) as caught:
+            self._load('template = "t"\n' + MINIMAL)
+        self.assertEqual(
+            str(caught.exception),
+            "'template' is a table of [template.<name>] tables",
+        )
+
+    def test_an_entrys_template_is_a_name(self):
+        for value in ("3", '["t"]'):
+            with self.subTest(value), self.assertRaises(ValueError) as caught:
+                self._load(TEMPLATED.replace('template = "t"', f"template = {value}"))
+            self.assertEqual(
+                str(caught.exception),
+                "one: template is the name of a [template.<name>] table",
+            )
+
+    def test_override_is_a_list(self):
+        for value in ('"runtime_s"', "[1]"):
+            with self.subTest(value), self.assertRaises(ValueError) as caught:
+                self._load(TEMPLATED + f"runtime_s = 9\noverride = {value}\n")
+            self.assertEqual(
+                str(caught.exception), "one: override is a list of field names"
+            )
 
     def test_an_unknown_table_is_refused(self):
         with self.assertRaisesRegex(ValueError, r"unknown table\(s\) templates"):
@@ -2217,10 +2282,68 @@ class VariantTest(unittest.TestCase):
             )
 
     def test_name_and_gates_name_the_base(self):
-        with self.assertRaisesRegex(ValueError, "must contain {base}"):
+        with self.assertRaisesRegex(
+            ValueError, "variant 'asan': name must contain {base}"
+        ):
             self._load(
                 VARIANTED.replace('name = "app-asan-{base}"', 'name = "app-asan"')
             )
+        with self.assertRaisesRegex(
+            ValueError, "variant 'asan': gates must contain {base}"
+        ):
+            self._load(
+                VARIANTED.replace(
+                    'gates = "the {base} gate\'s checks under ASan"',
+                    'gates = "the checks under ASan"',
+                )
+            )
+
+    def test_other_braces_in_name_and_gates_are_kept(self):
+        text = VARIANTED.replace(
+            'gates = "the {base} gate\'s checks under ASan"',
+            'gates = "the {base} gate\'s {0} {x} checks under ASan"',
+        )
+        self.assertEqual(
+            self._load(text)[-1].gates, "the gamma gate's {0} {x} checks under ASan"
+        )
+
+    def test_a_variant_applies_to_scenario_entries(self):
+        text = VARIANTED.replace(
+            "runtime_s = 1\n", 'runtime_s = 1\nvariants = ["asan"]\n'
+        )
+        with self.assertRaises(ValueError) as caught:
+            self._load(text)
+        self.assertEqual(
+            str(caught.exception),
+            "delta: variant 'asan' swaps the render build, so it applies to scenario entries; this is a script entry",
+        )
+
+    def test_variants_is_a_list_of_names(self):
+        for value in ('"asan"', "[1]", "{ asan = 1 }"):
+            with self.subTest(value), self.assertRaises(ValueError) as caught:
+                self._load(
+                    VARIANTED.replace('variants = ["asan"]', f"variants = {value}")
+                )
+            self.assertEqual(
+                str(caught.exception), "gamma: variants is a list of variant names"
+            )
+
+    def test_variant_fields_is_a_table_of_tables(self):
+        for value, message in (
+            (
+                "3",
+                "gamma: variant_fields is a table of [variant_fields.<variant>] tables",
+            ),
+            ("{ asan = 3 }", "gamma: variant_fields.asan is a table"),
+        ):
+            with self.subTest(value), self.assertRaises(ValueError) as caught:
+                self._load(
+                    VARIANTED.replace(
+                        'variants = ["asan"]',
+                        f'variants = ["asan"]\nvariant_fields = {value}',
+                    )
+                )
+            self.assertEqual(str(caught.exception), message)
 
     def test_a_copy_is_validated_like_any_entry(self):
         text = VARIANTED.replace(
