@@ -32,6 +32,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "instruments/deluge/codec.h"
+#include "instruments/deluge/pages.h"
 #include "instruments/deluge/sound_state.h"
 #include "io/midi/midi_engine.h"
 #include "libdeluge/clock.h"
@@ -178,33 +179,14 @@ Sound::Sound()
 	setLpfMode(FilterMode::TRANSISTOR_24DB); // Good for samples, I think
 
 	// LFO
-	modKnobs[0][1].target = deluge::modulation::knobParam(params::GLOBAL_VOLUME_POST_FX);
-	modKnobs[0][0].target = deluge::modulation::knobParam(params::LOCAL_PAN);
-
-	modKnobs[1][1].target = deluge::modulation::knobParam(params::LOCAL_LPF_FREQ);
-	modKnobs[1][0].target = deluge::modulation::knobParam(params::LOCAL_LPF_RESONANCE);
-
-	modKnobs[2][1].target = deluge::modulation::knobParam(params::LOCAL_ENV_0_ATTACK);
-	modKnobs[2][0].target = deluge::modulation::knobParam(params::LOCAL_ENV_0_RELEASE);
-
-	modKnobs[3][1].target = deluge::modulation::knobParam(params::GLOBAL_DELAY_RATE);
-	modKnobs[3][0].target = deluge::modulation::knobParam(params::GLOBAL_DELAY_FEEDBACK);
-
-	modKnobs[4][0].target = deluge::modulation::knobParam(params::GLOBAL_REVERB_AMOUNT);
-
-	modKnobs[5][1].target = deluge::modulation::knobParam(params::GLOBAL_LFO_FREQ_1);
-
-	modKnobs[4][1].target = deluge::modulation::knobTargetOf(
-	    deluge::synth::CableTarget::depth_of(params::GLOBAL_VOLUME_POST_REVERB_SEND, PatchSource::SIDECHAIN));
-	modKnobs[5][0].target = deluge::modulation::knobTargetOf(
-	    deluge::synth::CableTarget::depth_of(params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_1));
-
-	modKnobs[6][1].target = deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_STUTTER_RATE);
-	modKnobs[6][0].target = deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_PORTAMENTO);
-
-	modKnobs[7][1].target =
-	    deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_SAMPLE_RATE_REDUCTION);
-	modKnobs[7][0].target = deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING);
+	for (const deluge::plugin::RemotePage& page : deluge::instrument::kDevicePages) {
+		for (uint8_t knob = 0; knob < kNumPhysicalModKnobs; knob++) {
+			if (const auto& param = page.slots[knob].param) {
+				modKnobs[page.section][knob].target =
+				    deluge::bridge::knobOfControl(*param, params::Kind::UNPATCHED_SOUND);
+			}
+		}
+	}
 	expressionSourcesChangedAtSynthLevel.reset();
 
 	paramLPF.p = PARAM_LPF_OFF;
