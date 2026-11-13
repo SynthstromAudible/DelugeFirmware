@@ -28,6 +28,7 @@
 #include <fstream>
 #include <iterator>
 #include <optional>
+#include <print>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -51,11 +52,16 @@ namespace deluge::test::golden {
 inline constexpr const char* kSwitch = "DELUGE_GOLDEN_UPDATE";
 inline constexpr const char* kLog = "DELUGE_GOLDEN_UPDATE_LOG";
 
-/// @brief Prints @p what and the current errno's text, and exits with status 2: a baseline that could not be written,
-/// or a change that could not be logged, must fail the run so the runner puts every baseline back.
-[[noreturn]] inline void fail(const std::string& what) {
-	std::fprintf(stderr, "golden_update: %s: %s\n", what.c_str(), std::strerror(errno));
+/// @brief Prints @p what and @p error's text, and exits with status 2: a baseline that could not be written, or a
+/// change that could not be logged, must fail the run so the runner puts every baseline back.
+[[noreturn]] inline void fail(const std::string& what, int error) {
+	std::print(stderr, "golden_update: {}: {}\n", what, std::strerror(error));
 	std::exit(2);
+}
+
+/// @brief fail() with the current errno.
+[[noreturn]] inline void fail(const std::string& what) {
+	fail(what, errno);
 }
 
 /// @brief Says how a baseline is re-recorded and exits with status 2: what golden_update.py prints when the switch is
@@ -94,21 +100,25 @@ inline void append(std::string_view line) {
 	if (fd < 0) {
 		fail(std::string{"opening the update log "} + path);
 	}
-	::flock(fd, LOCK_EX);
+	if (::flock(fd, LOCK_EX) != 0) {
+		fail(std::string{"locking the update log "} + path);
+	}
 	std::string text{line};
 	text.push_back('\n');
 	const ssize_t written = ::write(fd, text.data(), text.size());
 	if (written != static_cast<ssize_t>(text.size())) {
 		fail(std::string{"appending to the update log "} + path);
 	}
-	::close(fd);
+	if (::close(fd) != 0) {
+		fail(std::string{"closing the update log "} + path);
+	}
 }
 
 namespace detail {
 
 /// @brief The SHA-256 digest of @p bytes (FIPS 180-4).
 [[nodiscard]] inline std::array<uint8_t, 32> sha256(std::string_view bytes) {
-	static constexpr std::array<uint32_t, 64> k{
+	static constexpr std::array<uint32_t, 64> kRoundConstants{
 	    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
 	    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
 	    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
@@ -145,8 +155,8 @@ namespace detail {
 		}
 		auto [a, b, c, d, e, f, g, hh] = h;
 		for (size_t i = 0; i < 64; ++i) {
-			const uint32_t t1 =
-			    hh + (std::rotr(e, 6) ^ std::rotr(e, 11) ^ std::rotr(e, 25)) + ((e & f) ^ (~e & g)) + k[i] + w[i];
+			const uint32_t t1 = hh + (std::rotr(e, 6) ^ std::rotr(e, 11) ^ std::rotr(e, 25)) + ((e & f) ^ (~e & g))
+			                    + kRoundConstants[i] + w[i];
 			const uint32_t t2 = (std::rotr(a, 2) ^ std::rotr(a, 13) ^ std::rotr(a, 22)) + ((a & b) ^ (a & c) ^ (b & c));
 			hh = g;
 			g = f;
@@ -181,7 +191,7 @@ namespace detail {
 	const std::array<uint8_t, 32> digest = detail::sha256(*bytes);
 	std::string word{"sha256="};
 	for (size_t i = 0; i < 8; ++i) {
-		static constexpr char kHex[] = "0123456789abcdef";
+		static constexpr std::string_view kHex{"0123456789abcdef"};
 		word.push_back(kHex[digest[i] >> 4]);
 		word.push_back(kHex[digest[i] & 0xf]);
 	}
@@ -242,18 +252,27 @@ inline void atomic_write(const std::filesystem::path& path, std::string_view byt
 			if (errno == EINTR) {
 				continue;
 			}
+			const int error = errno;
+			::close(fd);
 			::unlink(tmpl.c_str());
-			fail("writing " + tmpl);
+			fail("writing " + tmpl, error);
 		}
 		done += static_cast<size_t>(n);
 	}
-	if (::fsync(fd) != 0 || ::fchmod(fd, mode) != 0 || ::close(fd) != 0) {
+	// The descriptor is closed whatever the flush did, so a failure leaves neither it nor the temp file behind.
+	const bool flushed = ::fsync(fd) == 0 && ::fchmod(fd, mode) == 0;
+	int error = flushed ? 0 : errno;
+	if (::close(fd) != 0 && flushed) {
+		error = errno;
+	}
+	if (error != 0) {
 		::unlink(tmpl.c_str());
-		fail("flushing " + tmpl);
+		fail("flushing " + tmpl, error);
 	}
 	if (::rename(tmpl.c_str(), path.c_str()) != 0) {
+		const int failed = errno;
 		::unlink(tmpl.c_str());
-		fail("renaming " + tmpl + " over " + path.string());
+		fail("renaming " + tmpl + " over " + path.string(), failed);
 	}
 }
 

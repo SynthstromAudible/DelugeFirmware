@@ -846,7 +846,9 @@ inline RunResult expect_script_goldens(Self& self, std::string_view script_name,
 	std::vector<std::string> got_names;
 	if (fs::is_directory(got)) {
 		for (const fs::directory_entry& e : fs::directory_iterator(got)) {
-			got_names.push_back(e.path().filename().string());
+			if (e.is_regular_file()) {
+				got_names.push_back(e.path().filename().string());
+			}
 		}
 		std::sort(got_names.begin(), got_names.end());
 	}
@@ -862,8 +864,9 @@ inline RunResult expect_script_goldens(Self& self, std::string_view script_name,
 		}
 		std::vector<fs::path> stale;
 		if (fs::is_directory(golden)) {
+			// Only files are snapshots: anything else in the directory is not the run's to remove.
 			for (const fs::directory_entry& e : fs::directory_iterator(golden)) {
-				if (!std::ranges::binary_search(got_names, e.path().filename().string())) {
+				if (e.is_regular_file() && !std::ranges::binary_search(got_names, e.path().filename().string())) {
 					stale.push_back(e.path());
 				}
 			}

@@ -202,6 +202,51 @@ describe golden_update_spec("deluge::test::golden", $ {
 		fs::remove_all(dir);
 	});
 
+	it("keeps every line whole when processes append at once", _ {
+		const fs::path dir = fresh_dir();
+		const Switch on{dir / "log"};
+		constexpr int kChildren = 8;
+		constexpr int kLinesEach = 200;
+		std::cout.flush();
+		std::fflush(nullptr);
+		std::vector<pid_t> children;
+		for (int c = 0; c < kChildren; ++c) {
+			const pid_t pid = ::fork();
+			if (pid == 0) {
+				for (int i = 0; i < kLinesEach; ++i) {
+					golden::append("GOLDEN-UPDATED child" + std::to_string(c) + "/line" + std::to_string(i)
+					               + std::string(64, 'x'));
+				}
+				::_exit(0);
+			}
+			children.push_back(pid);
+		}
+		int clean = 0;
+		for (const pid_t pid : children) {
+			int status = 0;
+			::waitpid(pid, &status, 0);
+			clean += (WIFEXITED(status) && WEXITSTATUS(status) == 0) ? 1 : 0;
+		}
+		expect(clean).to_equal(kChildren);
+		std::vector<std::string> want;
+		for (int c = 0; c < kChildren; ++c) {
+			for (int i = 0; i < kLinesEach; ++i) {
+				want.push_back("GOLDEN-UPDATED child" + std::to_string(c) + "/line" + std::to_string(i)
+				               + std::string(64, 'x'));
+			}
+		}
+		std::vector<std::string> got;
+		std::istringstream lines{slurp(dir / "log")};
+		for (std::string line; std::getline(lines, line);) {
+			got.push_back(line);
+		}
+		std::ranges::sort(want);
+		std::ranges::sort(got);
+		expect(got.size()).to_equal(want.size());
+		expect(got).to_equal(want);
+		fs::remove_all(dir);
+	});
+
 	it("hands a record line over with its indentation", _ {
 		const fs::path dir = fresh_dir();
 		const Switch on{dir / "log"};
