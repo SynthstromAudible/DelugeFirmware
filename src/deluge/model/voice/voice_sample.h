@@ -82,7 +82,8 @@ public:
 	bool sampleZoneChanged(SamplePlaybackGuide* voiceSource, Sample* sample, bool reversed, MarkerType markerType,
 	                       LoopType loopingType, int32_t priorityRating, bool forAudioClip = false);
 	int32_t getPlaySample(Sample* sample, SamplePlaybackGuide* guide);
-	int32_t getLoopCrossfadeIncomingPlaySample(Sample* sample, SamplePlaybackGuide* guide);
+	int32_t getLoopCrossfadeIncomingPlaySample(Sample* sample, SamplePlaybackGuide* guide,
+	                                           bool* currentPassOnBottomRows);
 	bool stopUsingCache(SamplePlaybackGuide* guide, Sample* sample, int32_t priorityRating, bool loopingAtLowLevel);
 	bool possiblySetUpCache(SampleControls* sampleControls, SamplePlaybackGuide* guide, int32_t phaseIncrement,
 	                        int32_t timeStretchRatio, int32_t priorityRating, LoopType loopingType);
@@ -113,7 +114,11 @@ private:
 
 	// Loop crossfade: the next pass through the loop, started early so it can fade in while we fade out. Only allocated
 	// once the note first crossfades, so it costs nothing when the feature isn't used
-	SampleLowLevelReader* loopIncoming = nullptr;
+	struct LoopIncomingReader final : SampleLowLevelReader {
+		bool currentPassOnBottomRows =
+		    false; // Flips at each hand-over, so the waveform view keeps each pass on its rows
+	};
+	LoopIncomingReader* loopIncoming = nullptr;
 	int32_t loopCrossfadeLength = 0; // In source samples, for the crossfade in progress. 0 when not crossfading
 
 	bool weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuide* guide, int32_t numSamples,

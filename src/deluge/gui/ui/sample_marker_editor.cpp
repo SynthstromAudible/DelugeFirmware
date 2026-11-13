@@ -1048,17 +1048,21 @@ void SampleMarkerEditor::graphicsRoutine() {
 	};
 
 	int32_t incomingSamplePos = -1;
+	bool currentPassOnBottomRows = false;
 	if (voiceSample) {
 		newTickSquare = getTickSquare(voiceSample->getPlaySample(waveformBasicNavigator.sample, guide));
-		incomingSamplePos = voiceSample->getLoopCrossfadeIncomingPlaySample(waveformBasicNavigator.sample, guide);
+		incomingSamplePos = voiceSample->getLoopCrossfadeIncomingPlaySample(waveformBasicNavigator.sample, guide,
+		                                                                    &currentPassOnBottomRows);
 	}
 
 	uint8_t tickSquares[kDisplayHeight];
 	memset(tickSquares, newTickSquare, kDisplayHeight);
 
-	// During a loop crossfade, the bottom half of the rows follows the incoming pass
+	// During a loop crossfade, the incoming pass takes the other half of the rows. Passes alternate halves, so each one
+	// stays put for the whole crossfade
 	if (incomingSamplePos >= 0) {
-		memset(tickSquares, getTickSquare(incomingSamplePos), kDisplayHeight / 2);
+		uint8_t* incomingRows = currentPassOnBottomRows ? &tickSquares[kDisplayHeight / 2] : tickSquares;
+		memset(incomingRows, getTickSquare(incomingSamplePos), kDisplayHeight / 2);
 	}
 	PadLEDs::setTickSquares(tickSquares, zeroes);
 }
