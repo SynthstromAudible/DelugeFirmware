@@ -329,7 +329,7 @@ AudioFileHolder* firstHolder(Source& source) {
 	return (range != nullptr) ? range->getAudioFileHolder() : nullptr;
 }
 
-bool fail(const char* what) {
+bool setupFailed(const char* what) {
 	g_report.fail("SETUP %s", what);
 	return false;
 }
@@ -338,12 +338,12 @@ bool fail(const char* what) {
 SoundDrum* addSampleDrum(Kit& kit, Clip* clip, const char* name, const char* samplePath, bool load) {
 	ParamManagerForTimeline paramManager;
 	if (paramManager.setupWithPatching() != Error::NONE) {
-		fail("a drum's ParamManager could not be set up");
+		setupFailed("a drum's ParamManager could not be set up");
 		return nullptr;
 	}
 	void* memory = deluge::memory::alloc_fast(sizeof(SoundDrum));
 	if (memory == nullptr) {
-		fail("no memory for a drum");
+		setupFailed("no memory for a drum");
 		return nullptr;
 	}
 	auto* drum = new (memory) SoundDrum();
@@ -354,7 +354,7 @@ SoundDrum* addSampleDrum(Kit& kit, Clip* clip, const char* name, const char* sam
 	drum->sources[0].setOscType(OscType::SAMPLE);
 	AudioFileHolder* holder = firstHolder(drum->sources[0]);
 	if (holder == nullptr) {
-		fail("a drum has no sample range");
+		setupFailed("a drum has no sample range");
 		return nullptr;
 	}
 	holder->filePath = samplePath;
@@ -378,14 +378,14 @@ bool buildSong() {
 		}
 	}
 	if (synth == nullptr) {
-		return fail("the boot song has no synth");
+		return setupFailed("the boot song has no synth");
 	}
 	synth->sources[0].setOscType(OscType::SAMPLE);
 	synth->sources[1].setOscType(OscType::WAVETABLE);
 	AudioFileHolder* sampleHolder = firstHolder(synth->sources[0]);
 	AudioFileHolder* waveTableHolder = firstHolder(synth->sources[1]);
 	if (sampleHolder == nullptr || waveTableHolder == nullptr) {
-		return fail("the synth's sources have no ranges");
+		return setupFailed("the synth's sources have no ranges");
 	}
 	sampleHolder->filePath = kSynthSample;
 	waveTableHolder->filePath = kWaveTable;
@@ -401,7 +401,7 @@ bool buildSong() {
 	// The new-kit-track gesture, which loads kSongKitPath.
 	Clip* kitClipBase = deluge::harness::createNewInstrumentClip(OutputType::KIT, 1, kSongKitPath);
 	if (kitClipBase == nullptr || kitClipBase->output == nullptr || kitClipBase->output->type != OutputType::KIT) {
-		return fail("no kit clip could be created from the song kit preset");
+		return setupFailed("no kit clip could be created from the song kit preset");
 	}
 	AudioFileHolder* kitHolder = nullptr;
 	for (Drum* drum = static_cast<Kit*>(kitClipBase->output)->firstDrum; drum != nullptr; drum = drum->next) {
@@ -410,12 +410,12 @@ bool buildSong() {
 		}
 	}
 	if (kitHolder == nullptr) {
-		return fail("the kit clip has no SLTD1 drum");
+		return setupFailed("the kit clip has no SLTD1 drum");
 	}
 
 	Clip* audioClipBase = sessionView.createNewClip(OutputType::AUDIO, 2);
 	if (audioClipBase == nullptr || audioClipBase->type != ClipType::AUDIO) {
-		return fail("no audio clip could be created");
+		return setupFailed("no audio clip could be created");
 	}
 	auto* audioClip = static_cast<AudioClip*>(audioClipBase);
 	audioClip->sampleHolder.filePath = kClipSample;
@@ -465,11 +465,11 @@ void releaseSongFiles() {
 bool writeInstrumentDocument(Instrument& instrument, const char* path, const char* closingTag) {
 	Error error = StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
 	if (error != Error::NONE) {
-		return fail("a preset file could not be created");
+		return setupFailed("a preset file could not be created");
 	}
 	instrument.writeToFile(nullptr, currentSong);
 	error = GetSerializer().closeFileAfterWriting(path, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", closingTag);
-	return error == Error::NONE || fail("a preset file could not be closed");
+	return error == Error::NONE || setupFailed("a preset file could not be closed");
 }
 
 /// A kit preset with one sample drum per entry of @p drums (name, sample path), written through the firmware
@@ -478,7 +478,7 @@ bool writeKitPreset(const char* path, std::initializer_list<std::pair<const char
 	ParamManagerForTimeline kitParams;
 	Instrument* kitBase = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
 	if (kitBase == nullptr) {
-		return fail("no kit for a preset");
+		return setupFailed("no kit for a preset");
 	}
 	auto* kit = static_cast<Kit*>(kitBase);
 	currentSong->live.param_backup.backUp(*kit, nullptr, &kitParams, true);
@@ -496,14 +496,14 @@ bool writePresets() {
 	ParamManagerForTimeline synthParams;
 	Instrument* synthBase = StorageManager::createNewInstrument(OutputType::SYNTH, &synthParams);
 	if (synthBase == nullptr) {
-		return fail("no synth for the preset");
+		return setupFailed("no synth for the preset");
 	}
 	auto* synth = static_cast<SoundInstrument*>(synthBase);
 	synth->setupAsSample(&synthParams);
 	synth->sources[0].setOscType(OscType::SAMPLE);
 	AudioFileHolder* holder = firstHolder(synth->sources[0]);
 	if (holder == nullptr) {
-		return fail("the preset synth has no sample range");
+		return setupFailed("the preset synth has no sample range");
 	}
 	holder->filePath = kSynthPresetSample;
 	currentSong->live.param_backup.backUp(*synth, nullptr, &synthParams, true);
@@ -819,7 +819,7 @@ bool buildCrucialSong() {
 	// empty. Playing.
 	Clip* kitClipBase = deluge::harness::createNewInstrumentClip(OutputType::KIT, 3, kCrucialKitPath);
 	if (kitClipBase == nullptr || kitClipBase->output == nullptr || kitClipBase->output->type != OutputType::KIT) {
-		return fail("no kit clip could be created from the crucial kit preset");
+		return setupFailed("no kit clip could be created from the crucial kit preset");
 	}
 	auto* kitClip = static_cast<InstrumentClip*>(kitClipBase);
 	kitClip->activeIfNoSolo = true;
@@ -841,31 +841,31 @@ bool buildCrucialSong() {
 		ModelStackWithNoteRow* rowStack = kitClip->getNoteRowForDrum(modelStack, drum);
 		NoteRow* row = (rowStack != nullptr) ? rowStack->getNoteRowAllowNull() : nullptr;
 		if (row == nullptr) {
-			return fail("a crucial kit drum has no note row");
+			return setupFailed("a crucial kit drum has no note row");
 		}
 		if (row->attemptNoteAdd(0, 1, 64, row->getDefaultProbability(), row->getDefaultIterance(),
 		                        row->getDefaultFill(rowStack), rowStack, nullptr)
 		    == 0) {
-			return fail("a note could not be added to a crucial kit row");
+			return setupFailed("a note could not be added to a crucial kit row");
 		}
 		row->setMuted(name == kCrucialDrumB);
 	}
 	if (drums != 3) {
-		return fail("the crucial kit clip does not have its three drums");
+		return setupFailed("the crucial kit clip does not have its three drums");
 	}
 
 	// A second synth, from kSynthPresetPath, on its own sample. Not playing.
 	Clip* synthClipBase = deluge::harness::createNewInstrumentClip(OutputType::SYNTH, 4, kSynthPresetPath);
 	if (synthClipBase == nullptr || synthClipBase->output == nullptr
 	    || synthClipBase->output->type != OutputType::SYNTH) {
-		return fail("no second synth clip could be created");
+		return setupFailed("no second synth clip could be created");
 	}
 	synthClipBase->activeIfNoSolo = false;
 	auto* synthB = static_cast<SoundInstrument*>(synthClipBase->output);
 	synthB->sources[0].setOscType(OscType::SAMPLE);
 	AudioFileHolder* synthBHolder = firstHolder(synthB->sources[0]);
 	if (synthBHolder == nullptr) {
-		return fail("the second synth has no sample range");
+		return setupFailed("the second synth has no sample range");
 	}
 	synthBHolder->setAudioFile(nullptr);
 	synthBHolder->filePath = kCrucialSynthSample;
@@ -875,7 +875,7 @@ bool buildCrucialSong() {
 	// A second audio clip, on a track of its own: its track's active clip, but not playing.
 	Clip* audioClipBase = sessionView.createNewClip(OutputType::AUDIO, 5);
 	if (audioClipBase == nullptr || audioClipBase->type != ClipType::AUDIO) {
-		return fail("no second audio clip could be created");
+		return setupFailed("no second audio clip could be created");
 	}
 	auto* audioClipB = static_cast<AudioClip*>(audioClipBase);
 	audioClipB->activeIfNoSolo = false;

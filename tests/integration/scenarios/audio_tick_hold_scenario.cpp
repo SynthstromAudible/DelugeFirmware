@@ -144,6 +144,7 @@ void checkThrow() {
 } // namespace
 
 void deluge_scenario_audio_tick_hold_begin(void) {
+	g_report.reset();
 	checkIdle();
 	checkHold();
 	checkNested();

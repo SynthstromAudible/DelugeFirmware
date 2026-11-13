@@ -307,7 +307,7 @@ void reportAbortedDeletion(int /*signal*/) {
 	                      : "an abort inside the deletion";
 	char line[512];
 	int n = snprintf(line, sizeof(line),
-	                 "SL-%s destroyedWithLiveVoices=%d aborted=1 step=%s\nSL-%s FAIL the process ended with %s\n"
+	                 "SL-%s destroyedWithLiveVoices=%d aborted=1 step=%s\nSL-FAIL %s the process ended with %s\n"
 	                 "SL-RESULT failures=%d\n",
 	                 leg, Sound::soundsDestroyedWithLiveVoices() - g_before, step, leg, why, g_report.failures() + 1);
 	fflush(stdout);
@@ -459,7 +459,7 @@ void runBurstLeg() {
 	printf("SL-BURST drums=%d blocks=%d violations=%u pending=%u\n", kBurstDrums, blocks,
 	       static_cast<unsigned>(violations), static_cast<unsigned>(pending));
 	if (violations != 0 || pending != 0) {
-		g_report.count();
+		g_report.fail("BURST violations=%zu pending=%zu", violations, pending);
 	}
 }
 
@@ -550,7 +550,7 @@ void runTick() {
 		const std::size_t pending = AudioEngine::retiredPending();
 		printf("SL-RECLAIM pending=%u\n", static_cast<unsigned>(pending));
 		if (pending != 0) {
-			g_report.count();
+			g_report.fail("RECLAIM pending=%zu", pending);
 		}
 		g_stage = Stage::Summary;
 		break;

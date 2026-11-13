@@ -532,7 +532,7 @@ bool isRevertLeg(Leg leg) {
 	return leg == Leg::RevertCard || leg == Leg::RevertMemory || leg == Leg::RevertStall;
 }
 
-bool fail(const char* leg, const char* what) {
+bool setupFailed(const char* leg, const char* what) {
 	g_report.fail("SETUP leg=%s %s", leg, what);
 	return false;
 }
@@ -588,11 +588,11 @@ int32_t countOutputs() {
 bool writeInstrumentDocument(Instrument& instrument, const char* path, const char* closingTag) {
 	Error error = StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
 	if (error != Error::NONE) {
-		return fail(legName(g_leg), "a preset file could not be created");
+		return setupFailed(legName(g_leg), "a preset file could not be created");
 	}
 	instrument.writeToFile(nullptr, currentSong);
 	error = GetSerializer().closeFileAfterWriting(path, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", closingTag);
-	return error == Error::NONE || fail(legName(g_leg), "a preset file could not be closed");
+	return error == Error::NONE || setupFailed(legName(g_leg), "a preset file could not be closed");
 }
 
 /// @brief Rewrite the preset at @p path in the form a firmware without the delay type saves it.
@@ -606,17 +606,17 @@ bool writeLegacyDelay(const char* path) {
 	{
 		auto opened = deluge::io::File::open(path, DELUGE_FILE_READ);
 		if (!opened.has_value()) {
-			return fail(legName(g_leg), "a preset could not be read back");
+			return setupFailed(legName(g_leg), "a preset could not be read back");
 		}
 		auto size = opened->size();
 		if (!size.has_value() || *size == 0) {
-			return fail(legName(g_leg), "a preset could not be read back");
+			return setupFailed(legName(g_leg), "a preset could not be read back");
 		}
 		text.resize(*size);
 		auto read = opened->read(std::as_writable_bytes(std::span{text}));
 		std::ignore = opened->close();
 		if (!read.has_value() || read->size() != *size) {
-			return fail(legName(g_leg), "a preset could not be read back");
+			return setupFailed(legName(g_leg), "a preset could not be read back");
 		}
 	}
 	for (const auto& [word, flag] :
@@ -628,11 +628,12 @@ bool writeLegacyDelay(const char* path) {
 	}
 	auto opened = deluge::io::File::open(path, DELUGE_FILE_WRITE_CREATE);
 	if (!opened.has_value()) {
-		return fail(legName(g_leg), "a preset could not be rewritten");
+		return setupFailed(legName(g_leg), "a preset could not be rewritten");
 	}
 	auto written = opened->write(std::as_bytes(std::span{text}));
 	std::ignore = opened->close();
-	return (written.has_value() && *written == text.size()) || fail(legName(g_leg), "a preset could not be rewritten");
+	return (written.has_value() && *written == text.size())
+	       || setupFailed(legName(g_leg), "a preset could not be rewritten");
 }
 
 /// @brief Whether @p owner's delay type was worked out at its load as OFF, its feedback unable to sound.
@@ -645,19 +646,19 @@ bool delayResolvedOff(ModControllableAudio& owner) {
 /// A synth preset whose first oscillator plays @p samplePath (see deluge::harness::writeSampleSynthPreset()).
 bool writeSampleSynthPreset(const char* path, const char* samplePath) {
 	return deluge::harness::writeSampleSynthPreset(path, samplePath)
-	       || fail(legName(g_leg), "a synth preset could not be written");
+	       || setupFailed(legName(g_leg), "a synth preset could not be written");
 }
 
 /// A sample drum, the way the slicer builds one, added to @p kit.
 SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 	ParamManagerForTimeline paramManager;
 	if (paramManager.setupWithPatching() != Error::NONE) {
-		fail(legName(g_leg), "a drum's ParamManager could not be set up");
+		setupFailed(legName(g_leg), "a drum's ParamManager could not be set up");
 		return nullptr;
 	}
 	void* memory = deluge::memory::alloc_fast(sizeof(SoundDrum));
 	if (memory == nullptr) {
-		fail(legName(g_leg), "no memory for a drum");
+		setupFailed(legName(g_leg), "no memory for a drum");
 		return nullptr;
 	}
 	auto* drum = new (memory) SoundDrum();
@@ -668,7 +669,7 @@ SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 	drum->sources[0].setOscType(OscType::SAMPLE);
 	AudioFileHolder* holder = firstHolder(drum->sources[0]);
 	if (holder == nullptr) {
-		fail(legName(g_leg), "a drum has no sample range");
+		setupFailed(legName(g_leg), "a drum has no sample range");
 		return nullptr;
 	}
 	holder->filePath = samplePath;
@@ -683,7 +684,7 @@ bool writeKitPreset(const char* path, const char* const* names, const char* cons
 	ParamManagerForTimeline kitParams;
 	Instrument* kitBase = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
 	if (kitBase == nullptr) {
-		return fail(legName(g_leg), "no kit for a preset");
+		return setupFailed(legName(g_leg), "no kit for a preset");
 	}
 	auto* kit = static_cast<Kit*>(kitBase);
 	currentSong->live.param_backup.backUp(*kit, nullptr, &kitParams, true);
@@ -700,17 +701,17 @@ bool writeKitPreset(const char* path, const char* const* names, const char* cons
 bool writeMidiDefinition(const char* path) {
 	Instrument* instrument = StorageManager::createNewNonAudioInstrument(OutputType::MIDI_OUT, 2, -1);
 	if (instrument == nullptr) {
-		return fail("midi-def", "no MIDI instrument for a definition");
+		return setupFailed("midi-def", "no MIDI instrument for a definition");
 	}
 	auto* midiInstrument = static_cast<MIDIInstrument*>(instrument);
 	midiInstrument->setNameForCC(kMidiDefinitionCC, kMidiDefinitionLabel);
 	Error error = StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
 	if (error != Error::NONE) {
-		return fail("midi-def", "a definition file could not be created");
+		return setupFailed("midi-def", "a definition file could not be created");
 	}
 	midiInstrument->writeDeviceDefinitionFile(GetSerializer(), /*writeFileNameToPresetOrSong=*/false);
 	error = GetSerializer().closeFileAfterWriting(path, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", "\n");
-	return error == Error::NONE || fail("midi-def", "a definition file could not be closed");
+	return error == Error::NONE || setupFailed("midi-def", "a definition file could not be closed");
 }
 
 // ── Driving the browser ──────────────────────────────────────────────────────
@@ -754,11 +755,11 @@ bool openLeg() {
 		const bool opened = openUI(&loadMidiDeviceDefinitionUI);
 		printf("PL-SETUP leg=%s opened=%d browserOnTop=%d outputs=%d\n", leg, opened ? 1 : 0,
 		       getCurrentUI() == &loadMidiDeviceDefinitionUI ? 1 : 0, countOutputs());
-		return opened || fail(leg, "the device-definition browser could not be opened");
+		return opened || setupFailed(leg, "the device-definition browser could not be opened");
 	}
 	Clip* clip = (g_leg == Leg::Kit || g_leg == Leg::Row || g_leg == Leg::Supersede) ? g_kitClip : g_synthClip;
 	if (clip == nullptr || clip->output == nullptr) {
-		return fail(leg, "the leg's clip is missing");
+		return setupFailed(leg, "the leg's clip is missing");
 	}
 	currentSong->setCurrentClip(clip);
 	changeRootUI(&instrumentClipView);
@@ -769,7 +770,7 @@ bool openLeg() {
 		int32_t rowIndex = 0;
 		SoundDrum* drum = kitFirstDrum(&row, &rowIndex);
 		if (drum == nullptr) {
-			return fail(leg, "the kit clip has no first drum with a NoteRow");
+			return setupFailed(leg, "the kit clip has no first drum with a NoteRow");
 		}
 		g_rowIndex = rowIndex;
 		loadInstrumentPresetUI.setupLoadSynthToKit(instrument, instrumentClip, drum, row, rowIndex);
@@ -782,7 +783,7 @@ bool openLeg() {
 	const bool opened = openUI(&loadInstrumentPresetUI);
 	printf("PL-SETUP leg=%s opened=%d browserOnTop=%d outputs=%d\n", leg, opened ? 1 : 0,
 	       getCurrentUI() == &loadInstrumentPresetUI ? 1 : 0, g_outputsBefore);
-	return opened || fail(leg, "the preset browser could not be opened");
+	return opened || setupFailed(leg, "the preset browser could not be opened");
 }
 
 const char* legPreset() {
@@ -1831,7 +1832,7 @@ bool actAcquire() {
 			return true;
 		}
 		if (!focusClip(g_aqClip)) {
-			return fail(leg, "the new-track gesture made no clip");
+			return setupFailed(leg, "the new-track gesture made no clip");
 		}
 		// shift+SYNTH on the clip view.
 		markSlotScan();
@@ -1839,7 +1840,7 @@ bool actAcquire() {
 		return true;
 	case Leg::AqChange:
 		if (!focusClip(g_aqClip)) {
-			return fail(leg, "the new-track gesture made no clip");
+			return setupFailed(leg, "the new-track gesture made no clip");
 		}
 		(void)instrumentClipView.buttonAction(KIT, true);
 		(void)instrumentClipView.buttonAction(KIT, false);
@@ -1847,19 +1848,20 @@ bool actAcquire() {
 	case Leg::AqNavigate:
 		if (g_aqAct == 0) {
 			if (!focusClip(g_aqClip)) {
-				return fail(leg, "the new-track gesture made no clip");
+				return setupFailed(leg, "the new-track gesture made no clip");
 			}
 			instrumentClipView.selectEncoderAction(1);
 			return true;
 		}
 		if (g_aqAct == 1) {
-			return PresetAcquireProbe::turnInGrid(g_aqClip, 1) || fail(leg, "the clip's grid pad could not be held");
+			return PresetAcquireProbe::turnInGrid(g_aqClip, 1)
+			       || setupFailed(leg, "the clip's grid pad could not be held");
 		}
 		PresetAcquireProbe::turnInArranger(g_aqClip->output, 1);
 		return true;
 	case Leg::AqSupersede:
 		if (!focusClip(g_aqClip)) {
-			return fail(leg, "the new-track gesture made no clip");
+			return setupFailed(leg, "the new-track gesture made no clip");
 		}
 		deluge_audio_load_set_latency_ms(kHoldMs);
 		g_aqOrphansBefore = orphanedParamManagers();
@@ -1904,13 +1906,14 @@ bool actAcquire() {
 		return true;
 	case Leg::AqClone:
 		if (g_aqClip == nullptr) {
-			return fail(leg, "the new-track gesture made no clip");
+			return setupFailed(leg, "the new-track gesture made no clip");
 		}
 		PresetAcquireProbe::pressEmptyRow(emptyRow());
-		return PresetAcquireProbe::cloneIntoEmptyColumn(g_aqClip) || fail(leg, "the clip has no grid pad to copy");
+		return PresetAcquireProbe::cloneIntoEmptyColumn(g_aqClip)
+		       || setupFailed(leg, "the clip has no grid pad to copy");
 	case Leg::AqStall:
 		if (!focusClip(g_synthClip)) {
-			return fail(leg, "the synth clip is missing");
+			return setupFailed(leg, "the synth clip is missing");
 		}
 		deluge_audio_load_set_latency_ms(kStallHoldMs);
 		g_aqNameBefore = g_synthClip->output->name;
@@ -1919,7 +1922,7 @@ bool actAcquire() {
 	case Leg::AqChangeCases: {
 		using namespace deluge::hid::button;
 		if (!focusClip(g_aqClip)) {
-			return fail(leg, "the new-track gesture made no clip");
+			return setupFailed(leg, "the new-track gesture made no clip");
 		}
 		if ((g_aqAct % 2) == 0) {
 			(void)instrumentClipView.buttonAction(SYNTH, true);
@@ -1946,7 +1949,7 @@ bool actAcquire() {
 	}
 	case Leg::AqNavWrap: {
 		if (!focusClip(g_aqClip)) {
-			return fail(leg, "the new-track gesture made no clip");
+			return setupFailed(leg, "the new-track gesture made no clip");
 		}
 		if (g_aqAct == 0) {
 			// The clip's kit placed at the folder's last preset: what a navigate reads is its folder and name.
@@ -1973,7 +1976,7 @@ bool actAcquire() {
 		}
 		if (g_aqAct == 5 || g_aqAct == 6) {
 			if (g_synthClip == nullptr || g_synthClip->output == nullptr) {
-				return fail(leg, "the synth clip is missing");
+				return setupFailed(leg, "the synth clip is missing");
 			}
 			g_navOtherNameBefore = g_synthClip->output->name;
 			(void)focusClip(g_synthClip);
@@ -2008,18 +2011,18 @@ bool actAcquire() {
 			return true; // the second turn waits for the first's load to begin (runAcquireTick)
 		}
 		if (g_aqAct == 14) {
-			return armNavWrapMachine() || fail(leg, "the song has no second kit to put in the wrap folder");
+			return armNavWrapMachine() || setupFailed(leg, "the song has no second kit to put in the wrap folder");
 		}
 		if (g_aqAct == 15) {
 			if (!placeNavWrapKits()) {
-				return fail(leg, "the song has no second kit to put in the wrap folder");
+				return setupFailed(leg, "the song has no second kit to put in the wrap folder");
 			}
 			g_aqTurned = false;
 			g_navThirdBehindWalk = false;
 			deluge_file_directory_set_latency_ms(kNavReadHoldMs);
 			const bool held = PresetAcquireProbe::turnInGrid(g_aqClip, kNavWrapMoves[0])
 			                  && PresetAcquireProbe::turnInGrid(g_aqClip, kNavWrapMoves[1]);
-			return held || fail(leg, "the clip's grid pad could not be held");
+			return held || setupFailed(leg, "the clip's grid pad could not be held");
 		}
 		if (g_aqAct == 16) {
 			auto* kit = static_cast<Instrument*>(g_aqClip->output);
@@ -2064,7 +2067,7 @@ bool actAcquire() {
 		g_aqClip = (std::ssize(currentSong->live.clips.session_clips) > 0) ? currentSong->live.clips.session_clips[0]
 		                                                                   : nullptr;
 		if (!focusClip(g_aqClip) || g_aqClip->output->type != OutputType::SYNTH) {
-			return fail(leg, "the song has no synth clip to change to a kit");
+			return setupFailed(leg, "the song has no synth clip to change to a kit");
 		}
 		auto* clip = static_cast<InstrumentClip*>(g_aqClip);
 		clip->backedUpInstrumentDirPath[static_cast<size_t>(OutputType::KIT)] = "KITS/AQCHSTALL";
@@ -2083,7 +2086,7 @@ bool actAcquire() {
 		g_aqClip = (std::ssize(currentSong->live.clips.session_clips) > 0) ? currentSong->live.clips.session_clips[0]
 		                                                                   : nullptr;
 		if (!focusClip(g_aqClip)) {
-			return fail(leg, "the song has no session clip to navigate");
+			return setupFailed(leg, "the song has no session clip to navigate");
 		}
 		auto* synth = static_cast<Instrument*>(g_aqClip->output);
 		synth->dirPath = "SYNTHS/AQNAVSTALL";
@@ -2100,7 +2103,7 @@ bool actAcquire() {
 		g_aqClip = (std::ssize(currentSong->live.clips.session_clips) > 0) ? currentSong->live.clips.session_clips[0]
 		                                                                   : nullptr;
 		if (!focusClip(g_aqClip)) {
-			return fail(leg, "the song has no session clip to press Shift+SYNTH on");
+			return setupFailed(leg, "the song has no session clip to press Shift+SYNTH on");
 		}
 		g_slotStallOutputBefore = g_aqClip->output;
 		g_aqNameBefore = g_aqClip->output->name;
@@ -2813,28 +2816,28 @@ void runWalkMachineTick() {
 		       (int)g_walkTicks);
 
 		if (!descended) {
-			fail(legName(g_leg), "the preset search machine did not reach the nested preset");
+			setupFailed(legName(g_leg), "the preset search machine did not reach the nested preset");
 		}
 		if (!endedInNested) {
-			fail(legName(g_leg), "the preset search machine did not leave currentDir at the folder it found");
+			setupFailed(legName(g_leg), "the preset search machine did not leave currentDir at the folder it found");
 		}
 		if (g_walkMaxDepth < 2) {
-			fail(legName(g_leg), "the preset search machine never pushed a frame");
+			setupFailed(legName(g_leg), "the preset search machine never pushed a frame");
 		}
 		if (g_walkPagedReads < kWalkFolderCount) {
-			fail(legName(g_leg), "the preset search machine did not re-read a parent for every folder it left");
+			setupFailed(legName(g_leg), "the preset search machine did not re-read a parent for every folder it left");
 		}
 		if (g_walkGiveUps != 0) {
-			fail(legName(g_leg), "the preset search machine hit its depth bound on a one-deep fixture");
+			setupFailed(legName(g_leg), "the preset search machine hit its depth bound on a one-deep fixture");
 		}
 		if (!g_walkExhausted) {
-			fail(legName(g_leg), "an exhausted search machine did not report NO_FURTHER_FILES_THIS_DIRECTION");
+			setupFailed(legName(g_leg), "an exhausted search machine did not report NO_FURTHER_FILES_THIS_DIRECTION");
 		}
 		if (tierIo != 0) {
-			fail(legName(g_leg), "the preset search machine did card I/O on the interaction tier");
+			setupFailed(legName(g_leg), "the preset search machine did card I/O on the interaction tier");
 		}
 		if (g_walkTicks == 0) {
-			fail(legName(g_leg), "the preset search machine never suspended, so its tier leg proves nothing");
+			setupFailed(legName(g_leg), "the preset search machine never suspended, so its tier leg proves nothing");
 		}
 		nextLeg();
 		break;

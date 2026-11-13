@@ -125,7 +125,8 @@ constexpr uint32_t kRenderBlockFrames = 128;
 constexpr int32_t kBlocksBefore = 8;
 constexpr int32_t kBlocksAfter = 4;
 /// The most blocks rendered waiting for the render to action a timer tick of this playback. Not a wait: the leg judges
-/// the clock itself, by the failure at its Before stage, and the blocks rendered are its stimulus.
+/// the clock itself, with `CG-FAIL SETUP leg=<leg> the render actioned no ticks: the clock never ran`, and the blocks
+/// rendered are its stimulus.
 constexpr int32_t kMaxBlocksBefore = 400;
 /// A y beyond the grid: the new-clip gesture then appends the clip after every other session clip.
 constexpr int32_t kAppendY = 1000;

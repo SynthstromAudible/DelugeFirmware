@@ -510,7 +510,7 @@ const char* legName(Leg leg) {
 	return "?";
 }
 
-bool fail(const char* leg, const char* what) {
+bool setupFailed(const char* leg, const char* what) {
 	g_report.fail("SETUP leg=%s %s", leg, what);
 	return false;
 }
@@ -585,12 +585,12 @@ void armPitchLeg(uint32_t holdMs) {
 SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 	ParamManagerForTimeline paramManager;
 	if (paramManager.setupWithPatching() != Error::NONE) {
-		fail("kit", "a drum's ParamManager could not be set up");
+		setupFailed("kit", "a drum's ParamManager could not be set up");
 		return nullptr;
 	}
 	void* memory = deluge::memory::alloc_fast(sizeof(SoundDrum));
 	if (memory == nullptr) {
-		fail("kit", "no memory for a drum");
+		setupFailed("kit", "no memory for a drum");
 		return nullptr;
 	}
 	auto* drum = new (memory) SoundDrum();
@@ -601,7 +601,7 @@ SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 	drum->sources[0].setOscType(OscType::SAMPLE);
 	AudioFileHolder* holder = firstHolder(drum->sources[0]);
 	if (holder == nullptr) {
-		fail("kit", "a drum has no sample range");
+		setupFailed("kit", "a drum has no sample range");
 		return nullptr;
 	}
 	holder->filePath = samplePath;
@@ -622,7 +622,7 @@ bool writeKitPreset(const char* path, const KitPresetDrum* drums, int32_t count)
 	ParamManagerForTimeline kitParams;
 	Instrument* kitBase = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
 	if (kitBase == nullptr) {
-		return fail("kit", "no kit for the preset");
+		return setupFailed("kit", "no kit for the preset");
 	}
 	auto* kit = static_cast<Kit*>(kitBase);
 	currentSong->live.param_backup.backUp(*kit, nullptr, &kitParams, true);
@@ -633,11 +633,11 @@ bool writeKitPreset(const char* path, const KitPresetDrum* drums, int32_t count)
 	}
 	Error error = StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
 	if (error != Error::NONE) {
-		return fail("kit", "the kit preset file could not be created");
+		return setupFailed("kit", "the kit preset file could not be created");
 	}
 	kit->writeToFile(nullptr, currentSong);
 	error = GetSerializer().closeFileAfterWriting(path, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", "\n</kit>\n");
-	return error == Error::NONE || fail("kit", "the kit preset file could not be closed");
+	return error == Error::NONE || setupFailed("kit", "the kit preset file could not be closed");
 }
 
 /// A blank synth preset, written through the firmware's own new-synth and save paths (never hand-written: a
@@ -647,17 +647,17 @@ bool writeSynthPreset(const char* path) {
 	ParamManagerForTimeline paramManager;
 	Instrument* instrument = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
 	if (instrument == nullptr) {
-		return fail("import-multi", "no synth for the preset");
+		return setupFailed("import-multi", "no synth for the preset");
 	}
 	static_cast<SoundInstrument*>(instrument)->setupAsBlankSynth(&paramManager, false);
 	currentSong->live.param_backup.backUp(*instrument, nullptr, &paramManager, true);
 	Error error = StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
 	if (error != Error::NONE) {
-		return fail("import-multi", "the synth preset file could not be created");
+		return setupFailed("import-multi", "the synth preset file could not be created");
 	}
 	instrument->writeToFile(nullptr, currentSong);
 	error = GetSerializer().closeFileAfterWriting(path, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", "\n</sound>\n");
-	return error == Error::NONE || fail("import-multi", "the synth preset file could not be closed");
+	return error == Error::NONE || setupFailed("import-multi", "the synth preset file could not be closed");
 }
 
 // ── Driving the browser ──────────────────────────────────────────────────────
@@ -727,7 +727,7 @@ bool openBrowser(const char* leg, Clip* clip, UI* rootUI, SoundDrum* drum = null
 		}
 	}
 	printf("SC-SETUP leg=%s opened=%d browserOnTop=%d\n", leg, opened ? 1 : 0, browserOnTop() ? 1 : 0);
-	return browserOnTop() || fail(leg, "the sample browser could not be opened");
+	return browserOnTop() || setupFailed(leg, "the sample browser could not be opened");
 }
 
 /// The sample the browser's preview holds once its load has landed, or null while it loads or holds none.
@@ -765,7 +765,7 @@ SoundDrum* kitDrum() {
 /// gesture is a pad press in the clip view itself.
 bool openRandomizeLeg(const char* leg, SoundDrum* drum) {
 	if (g_kitClip == nullptr || g_kitClip->output == nullptr || g_kitClip->output->type != OutputType::KIT) {
-		return fail(leg, "the randomizer kit clip is missing");
+		return setupFailed(leg, "the randomizer kit clip is missing");
 	}
 	guestClose();
 	currentSong->setCurrentClip(g_kitClip);
@@ -778,14 +778,14 @@ bool openRandomizeLeg(const char* leg, SoundDrum* drum) {
 	const bool onTop = getCurrentUI() == &instrumentClipView;
 	printf("SC-SETUP leg=%s clipViewOnTop=%d selected=%d mode=%d\n", leg, onTop ? 1 : 0,
 	       (drum != nullptr && kit->selectedDrum == drum) ? 1 : 0, (int)currentUIMode);
-	return onTop || fail(leg, "the clip view could not be made current");
+	return onTop || setupFailed(leg, "the clip view could not be made current");
 }
 
 /// The kit clip current, its first drum selected, and the browser opened on that drum.
 bool openBrowserOnKitDrum(const char* leg) {
 	SoundDrum* drum = kitDrum();
 	if (drum == nullptr) {
-		return fail(leg, "the kit clip has no sound drum");
+		return setupFailed(leg, "the kit clip has no sound drum");
 	}
 	return openBrowser(leg, g_kitClip, &instrumentClipView, drum);
 }
@@ -800,7 +800,7 @@ bool openBrowserOnSynth(const char* leg, OscType osc) {
 	}
 	Clip* clip = (g_synth != nullptr) ? currentSong->getClipWithOutput(g_synth) : nullptr;
 	if (clip == nullptr) {
-		return fail(leg, "the boot song has no synth clip");
+		return setupFailed(leg, "the boot song has no synth clip");
 	}
 	g_synth->sources[0].setOscType(osc);
 	return openBrowser(leg, clip, &instrumentClipView);
@@ -885,7 +885,7 @@ void prepareLeg() {
 			}
 			g_kitClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 4, kRandomizeKitPresetPath);
 			if (g_kitClip == nullptr || g_kitClip->output == nullptr || g_kitClip->output->type != OutputType::KIT) {
-				fail("randomize-one", "no kit clip could be created from the randomizer preset");
+				setupFailed("randomize-one", "no kit clip could be created from the randomizer preset");
 				return;
 			}
 			// The rows a user would have: notes on three, one of them muted, and one row left empty. An affect-entire
@@ -901,14 +901,14 @@ void prepareLeg() {
 				ModelStackWithNoteRow* rowStack = kitClip->getNoteRowForDrum(modelStack, drum);
 				NoteRow* row = (rowStack != nullptr) ? rowStack->getNoteRowAllowNull() : nullptr;
 				if (row == nullptr) {
-					fail("randomize-one", "a randomizer kit drum has no note row");
+					setupFailed("randomize-one", "a randomizer kit drum has no note row");
 					return;
 				}
 				if (kRandomizeDrums[drumIndex].note) {
 					if (row->attemptNoteAdd(0, 1, 64, row->getDefaultProbability(), row->getDefaultIterance(),
 					                        row->getDefaultFill(rowStack), rowStack, nullptr)
 					    == 0) {
-						fail("randomize-one", "a note could not be added to a randomizer kit row");
+						setupFailed("randomize-one", "a note could not be added to a randomizer kit row");
 						return;
 					}
 					rowsWithNotes++;
@@ -929,7 +929,7 @@ void prepareLeg() {
 			SoundDrum* drum = kitDrum();
 			AudioFileHolder* holder = (drum != nullptr) ? firstHolder(drum->sources[0]) : nullptr;
 			if (holder == nullptr) {
-				fail("randomize-cancelscan", "the randomizer kit's first drum has no holder");
+				setupFailed("randomize-cancelscan", "the randomizer kit's first drum has no holder");
 				return;
 			}
 			holder->setAudioFile(nullptr);
@@ -943,7 +943,7 @@ void prepareLeg() {
 			SoundDrum* drum = kitDrum();
 			AudioFileHolder* holder = (drum != nullptr) ? firstHolder(drum->sources[0]) : nullptr;
 			if (holder == nullptr) {
-				fail("randomize-gate", "the randomizer kit's first drum has no holder");
+				setupFailed("randomize-gate", "the randomizer kit's first drum has no holder");
 				return;
 			}
 			holder->setAudioFile(nullptr);
@@ -954,7 +954,7 @@ void prepareLeg() {
 	case Leg::RandomizeStall:
 		buildFixture([] {
 			if (g_kitClip == nullptr || g_kitClip->output == nullptr || g_kitClip->output->type != OutputType::KIT) {
-				fail("randomize-stall", "the randomizer kit clip is missing");
+				setupFailed("randomize-stall", "the randomizer kit clip is missing");
 				return;
 			}
 			Drum* first = static_cast<Kit*>(g_kitClip->output)->firstDrum;
@@ -969,7 +969,7 @@ void prepareLeg() {
 			NoteRow* afterRow =
 			    (third != nullptr) ? static_cast<InstrumentClip*>(g_kitClip)->getNoteRowForDrum(third) : nullptr;
 			if (kept == nullptr || held == nullptr || after == nullptr || afterRow == nullptr) {
-				fail("randomize-stall", "the randomizer kit's first three drums have no holders or rows");
+				setupFailed("randomize-stall", "the randomizer kit's first three drums have no holders or rows");
 				return;
 			}
 			kept->setAudioFile(nullptr);
@@ -1126,7 +1126,7 @@ bool openLeg() {
 		// No browser: the ported slicer's host opens the slicer on the file itself, for the kit's first drum.
 		SoundDrum* drum = kitDrum();
 		if (drum == nullptr) {
-			return fail(legName(g_leg), "the kit clip has no sound drum");
+			return setupFailed(legName(g_leg), "the kit clip has no sound drum");
 		}
 		frontClip(legName(g_leg), g_kitClip, &instrumentClipView, drum);
 		return true;
@@ -1149,52 +1149,52 @@ bool openLeg() {
 	case Leg::ImportKit: {
 		if (g_importKitClip == nullptr || g_importKitClip->output == nullptr
 		    || g_importKitClip->output->type != OutputType::KIT) {
-			return fail("import-kit", "no kit clip could be created from the import preset");
+			return setupFailed("import-kit", "no kit clip could be created from the import preset");
 		}
 		Drum* drum = static_cast<Kit*>(g_importKitClip->output)->firstDrum;
 		if (drum == nullptr || drum->type != DrumType::SOUND) {
-			return fail("import-kit", "the import kit has no sound drum");
+			return setupFailed("import-kit", "the import kit has no sound drum");
 		}
 		return openBrowser("import-kit", g_importKitClip, &instrumentClipView, static_cast<SoundDrum*>(drum));
 	}
 	case Leg::ImportGate: {
 		if (g_importGateClip == nullptr || g_importGateClip->output == nullptr
 		    || g_importGateClip->output->type != OutputType::KIT) {
-			return fail("import-gate", "no kit clip could be created from the import gate preset");
+			return setupFailed("import-gate", "no kit clip could be created from the import gate preset");
 		}
 		Drum* drum = static_cast<Kit*>(g_importGateClip->output)->firstDrum;
 		if (drum == nullptr || drum->type != DrumType::SOUND) {
-			return fail("import-gate", "the import gate kit has no sound drum");
+			return setupFailed("import-gate", "the import gate kit has no sound drum");
 		}
 		return openBrowser("import-gate", g_importGateClip, &instrumentClipView, static_cast<SoundDrum*>(drum));
 	}
 	case Leg::ImportEmpty: {
 		if (g_importEmptyClip == nullptr || g_importEmptyClip->output == nullptr
 		    || g_importEmptyClip->output->type != OutputType::KIT) {
-			return fail("import-empty", "no kit clip could be created from the empty import preset");
+			return setupFailed("import-empty", "no kit clip could be created from the empty import preset");
 		}
 		Drum* drum = static_cast<Kit*>(g_importEmptyClip->output)->firstDrum;
 		if (drum == nullptr || drum->type != DrumType::SOUND) {
-			return fail("import-empty", "the empty import kit has no sound drum");
+			return setupFailed("import-empty", "the empty import kit has no sound drum");
 		}
 		return openBrowser("import-empty", g_importEmptyClip, &instrumentClipView, static_cast<SoundDrum*>(drum));
 	}
 	case Leg::ImportStall:
 		if (g_importSynthClip == nullptr || g_importSynthClip->output == nullptr) {
-			return fail("import-stall", "the multisample leg's synth clip is missing");
+			return setupFailed("import-stall", "the multisample leg's synth clip is missing");
 		}
 		return openBrowser("import-stall", g_importSynthClip, &instrumentClipView);
 	case Leg::ImportMulti:
 		if (g_importSynthClip == nullptr || g_importSynthClip->output == nullptr
 		    || g_importSynthClip->output->type != OutputType::SYNTH) {
-			return fail("import-multi", "no synth clip could be created");
+			return setupFailed("import-multi", "no synth clip could be created");
 		}
 		// A wavetable oscillator: the import makes it a sample one, and finds the range it fills again.
 		static_cast<SoundInstrument*>(g_importSynthClip->output)->sources[0].setOscType(OscType::WAVETABLE);
 		return openBrowser("import-multi", g_importSynthClip, &instrumentClipView);
 	case Leg::AudioClip:
 		if (g_audioClip == nullptr || g_audioClip->type != ClipType::AUDIO) {
-			return fail("audioclip", "no audio clip could be created");
+			return setupFailed("audioclip", "no audio clip could be created");
 		}
 		return openBrowser("audioclip", g_audioClip, &audioClipView);
 	case Leg::Done:
@@ -1449,7 +1449,7 @@ void actShellSlice() {
 		deluge::gui::ui::openShellSlice(legFile());
 		deluge::gui::ui::releaseShellSlicerBeforeClose();
 		if (deluge::gui::ui::shellSlicerBusy()) {
-			fail(legName(g_leg), "the guest's close left the slicer's open out");
+			setupFailed(legName(g_leg), "the guest's close left the slicer's open out");
 		}
 		// A commit with the menu's context forgotten, as a teardown leaves it: refused, with nothing cut or loaded.
 		if (scene.ops() != nullptr) {
@@ -1506,7 +1506,8 @@ void checkAuditionReleaseCoherent(deluge::scenes::slicing::SlicerScene& scene) {
 	printf("SC-PROBE leg=%s auditionReleased held=%d coherent=%d\n", legName(g_leg), held ? 1 : 0,
 	       g_report.failures() == failuresBefore ? 1 : 0);
 	if (!held) {
-		fail(legName(g_leg), "the slice's audition load was not out when it was released, so nothing was tested");
+		setupFailed(legName(g_leg),
+		            "the slice's audition load was not out when it was released, so nothing was tested");
 	}
 }
 
@@ -1576,7 +1577,7 @@ void tickShellSlice() {
 		}
 		g_shellCommitBegun = scene.ops() != nullptr && scene.ops()->begin_commit(commit);
 		if (!g_shellCommitBegun) {
-			fail(legName(g_leg), "the host refused the slice");
+			setupFailed(legName(g_leg), "the host refused the slice");
 			g_shellEnded = true;
 			return;
 		}
@@ -1587,7 +1588,7 @@ void tickShellSlice() {
 		const auto* range =
 		    static_cast<const MultisampleRange*>(AudioEngine::sampleForPreview->sources[0].ranges.getElement(0));
 		if (range->sampleHolder.audioFile == nullptr || range->sampleHolder.filePath != legFile()) {
-			fail(legName(g_leg), "the slice let go of the sample the slicer shows");
+			setupFailed(legName(g_leg), "the slice let go of the sample the slicer shows");
 		}
 		return;
 	}
@@ -1644,7 +1645,7 @@ void actLeg() {
 		printf("SC-PROBE leg=%s autoLoad=%d recalled=%d\n", legName(g_leg),
 		       deluge::scenes::browser::browser_scene().auto_load() ? 1 : 0, recalled ? 1 : 0);
 		if (!recalled) {
-			fail(legName(g_leg), "the leg's file could not be recalled with auto-load on");
+			setupFailed(legName(g_leg), "the leg's file could not be recalled with auto-load on");
 		}
 		return;
 	}
@@ -2454,7 +2455,7 @@ void tickSupersede() {
 	// and asks for the next claim at once.
 	const std::string_view second = supersedeSecond();
 	if (!deluge::harness::guestTurnTo(second.substr(second.rfind('/') + 1))) {
-		fail(legName(g_leg), "the cursor could not be moved onto the second file");
+		setupFailed(legName(g_leg), "the cursor could not be moved onto the second file");
 	}
 }
 
@@ -2649,7 +2650,7 @@ void runTick() {
 		const std::string selected = guestSelectedPath();
 		printf("SC-SELECT leg=%s file=%s steps=%d\n", legName(g_leg), selected.c_str(), g_browseSteps);
 		if (selected != legFile()) {
-			fail(legName(g_leg), "the browser could not be brought to the leg's item");
+			g_report.fail("SELECT leg=%s the browser could not be brought to the leg's item", legName(g_leg));
 			nextLeg();
 			break;
 		}

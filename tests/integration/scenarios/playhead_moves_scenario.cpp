@@ -80,8 +80,9 @@ using deluge::scenarios::ScenarioReport;
 constexpr uint32_t kRenderBlockFrames = 128;
 /// Blocks played before a leg's move, so the clock has ticked.
 constexpr int32_t kBlocksBefore = 8;
-/// The most blocks rendered waiting for the first tick. Not a wait: the leg judges the clock itself, by the failure
-/// below, and the blocks rendered are its stimulus.
+/// The most blocks rendered waiting for the first tick. Not a wait: the leg judges the clock itself, with
+/// `PM-FAIL SETUP leg=<leg> the render actioned no ticks: the clock never ran`, and the blocks rendered are its
+/// stimulus.
 constexpr int32_t kMaxBlocksBefore = 400;
 /// Blocks rendered after a leg's move; their output is the leg's hash.
 constexpr int32_t kBlocksAfter = 16;
@@ -151,7 +152,8 @@ uint32_t g_laneWritesBefore = 0;
 int32_t g_lanesStale = 0;
 /// CLIPSHIFT: whether, right after the shift, the volume cursor played the shifted lane's value at the playhead.
 bool g_cursorOnShiftedLane = false;
-/// Blocks a leg plays long enough to reach a node event or a launch: some 2.3 s.
+/// Blocks a leg plays long enough to reach a node event or a launch: some 2.3 s. A stimulus the leg's own lines judge,
+/// not a wait.
 constexpr int32_t kBlocksToEvent = 800;
 /// A mono-expression base set before a clip is stopped.
 constexpr int32_t kExpressionBase = 1 << 24;
