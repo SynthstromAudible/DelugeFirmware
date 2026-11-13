@@ -2208,7 +2208,15 @@ tree = "build/test-unit"
 configure = ["-G", "Ninja Multi-Config"]
 ctest_args = ["-C", "Debug"]
 requires = ["cmake", "clang"]
-baseline = ["tests/golden/gfx", "tests/golden/shell", "tests/golden/ui/widgets", "tests/golden/ui/shell", "tests/dsp/hop_scheduler_records.h", "tests/dsp/pitch_shift_component_records.h", "tests/dsp/dx7_workload_records.h"]
+baseline = [
+  "tests/golden/gfx",
+  "tests/golden/shell",
+  "tests/golden/ui/widgets",
+  "tests/golden/ui/shell",
+  "tests/dsp/hop_scheduler_records.h",
+  "tests/dsp/pitch_shift_component_records.h",
+  "tests/dsp/dx7_workload_records.h",
+]
 tier = "pr"
 group = "unit-cpp"
 runtime = "~2m first build, ~5s after"

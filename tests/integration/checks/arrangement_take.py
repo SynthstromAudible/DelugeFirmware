@@ -18,8 +18,9 @@ collection, a repeat was not staged and swapped in at its loop end or an audio t
 a spare or a staged snapshot was left once recording ended (RS-TAKE-LEFT), or a collection's published lanes are not
 its model's after the take (RS-TAKE-STALE).
 
-`./dbt test --update arrangement-take` records the baseline (tests/golden/arrangement_take_baselines/RS_ARRANGE_TAKE.txt)
-from a run whose other checks all passed, instead of comparing with it.
+`./dbt test --update arrangement-take` records the baseline
+(tests/golden/arrangement_take_baselines/RS_ARRANGE_TAKE.txt) from a run whose other checks all passed, instead of
+comparing with it.
 """
 
 import importlib.util

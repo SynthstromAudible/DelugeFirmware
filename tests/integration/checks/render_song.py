@@ -49,8 +49,8 @@ adds what depends on the song, and why each check is here:
 By default the song is generated for each run by tests/integration/golden/songs/make_render_song.py, so the card holds
 exactly the bytes the record was made from. An entry that names its own RENDER_SONG plays that song from its
 GOLDEN_FIXTURE corpus card instead (render-song-corpus). Either way the record is keyed by the song's name.
-`./dbt test --update <entry>` records the output instead of comparing it, once every other check of the run has passed; a
-changed hash is a finding to explain in the commit that records it.
+`./dbt test --update <entry>` records the output instead of comparing it, once every other check of the run has
+passed; a changed hash is a finding to explain in the commit that records it.
 """
 
 import hashlib

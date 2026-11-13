@@ -17,7 +17,7 @@ present the runner exits 77, which fails the preset-roundtrip corpus gate (corpu
 Usage:
     ./dbt test -n preset-roundtrip                  # build golden_vt_render
     python3 tests/golden/presets_run.py             # check (exit 1 on a regression)
-    ./dbt test --update preset-roundtrip              # re-record (builds first)
+    ./dbt test --update preset-roundtrip            # re-record (builds first)
     python3 tests/golden/presets_run.py --dump DIR  # also keep each settled gen1 in DIR
 """
 

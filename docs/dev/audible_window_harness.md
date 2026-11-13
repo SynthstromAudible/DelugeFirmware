@@ -63,4 +63,5 @@ same time, so a voice that ends earlier is reported once as a lifetime change.
 ## Accepting
 
 When the report is accepted, the goldens are re-recorded with `./dbt test --update golden-synth`, then
-`./dbt test golden-synth-arm` confirms the ARM render matches them, and the commit names the report it was accepted from.
+`./dbt test golden-synth-arm` confirms the ARM render matches them, and the commit names the report it was accepted
+from.

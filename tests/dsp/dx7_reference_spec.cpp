@@ -28,13 +28,14 @@ describe dx7_reference_spec("the DX7 reference", ${
 		const bool updating = kRecordsHere && golden::updating();
 		const dw::TableRecord record = dw::table_record(dw::reference_tables());
 		if (updating) {
-			char line[256];
-			std::snprintf(line, sizeof line,
-			              "inline constexpr TableRecord kRecordedTables{"
-			              "0x%llxULL, 0x%llxULL, 0x%llxULL, 0x%llxULL, 0x%llxULL};",
+			// Two lines, the second aligned under the first's brace, to keep the header within 120 columns.
+			char line[160];
+			std::snprintf(line, sizeof line, "inline constexpr TableRecord kRecordedTables{0x%llxULL, 0x%llxULL, 0x%llxULL,",
 			              (unsigned long long)record.exp2, (unsigned long long)record.sin,
-			              (unsigned long long)record.freq, (unsigned long long)record.sin_log,
-			              (unsigned long long)record.sin_exp);
+			              (unsigned long long)record.freq);
+			golden::record(kHeader, "kRecordedTables", line);
+			std::snprintf(line, sizeof line, "                                             0x%llxULL, 0x%llxULL};",
+			              (unsigned long long)record.sin_log, (unsigned long long)record.sin_exp);
 			golden::record(kHeader, "kRecordedTables", line);
 		}
 		if (!updating) {

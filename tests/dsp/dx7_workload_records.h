@@ -341,7 +341,8 @@ inline const std::array<WorkloadRecord, kWorkloadCount> kRecordedReference{{
 /// @brief The reference's tables.
 // clang-format off
 // GOLDEN-RECORDS BEGIN kRecordedTables
-inline constexpr TableRecord kRecordedTables{0xf41af9505d26224bULL, 0x6be14c4ca0e56dbdULL, 0xfbb3375360c0c5bULL, 0xa7e2f8331f1b344dULL, 0x4235cf2d96c95f5aULL};
+inline constexpr TableRecord kRecordedTables{0xf41af9505d26224bULL, 0x6be14c4ca0e56dbdULL, 0xfbb3375360c0c5bULL,
+                                             0xa7e2f8331f1b344dULL, 0x4235cf2d96c95f5aULL};
 // GOLDEN-RECORDS END kRecordedTables
 // clang-format on
 

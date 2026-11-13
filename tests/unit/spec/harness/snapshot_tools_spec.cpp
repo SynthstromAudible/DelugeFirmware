@@ -117,7 +117,8 @@ describe snapshot_tools("harness::snapshot_tools (ui_snapshot_diff.py, pbm2png.p
 		             (tmp / "got").string() + "' '" + (tmp / "golden").string() + "' > /dev/null 2>&1");
 		expect(rc).to_equal(0);
 		expect(read_file(tmp / "golden" / "a.state")).to_equal("scene Y\n");
-		expect(read_file(tmp / "update.log")).to_start_with("GOLDEN-UPDATED " + fs::weakly_canonical(tmp / "golden" / "a.state").string() + " ");
+		const std::string item = fs::weakly_canonical(tmp / "golden" / "a.state").string();
+		expect(read_file(tmp / "update.log")).to_start_with("GOLDEN-UPDATED " + item + " ");
 		fs::remove_all(tmp);
 	});
 

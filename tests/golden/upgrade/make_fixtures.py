@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Writes the upgrader's legacy fixtures: each a current-form preset given one old form (or one ordering of two), and
-stamped so that only the conversion it pins applies to it. Their round-trip hashes, recorded with a firmware that
-still reads the old forms, are in tests/golden/upgrade_fixtures.json (`./dbt test --update upgrade-differential`).
+stamped so that only the conversion it pins applies to it. Their round-trip hashes are in
+tests/golden/upgrade_fixtures.json. `./dbt test --update upgrade-differential` re-records only the hashes of fixtures
+with an oracle (`<name>.oracle.xml`, the same content in the current form), from that oracle. The others are frozen:
+the firmware reads only the current forms, so nothing re-records them.
 
     python3 tests/golden/upgrade/make_fixtures.py
 """

@@ -24,7 +24,7 @@ Usage:
     ./dbt test -n song-roundtrip                      # build golden_vt_render
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
     python3 tests/golden/songs_run.py                 # check fixtured songs (exit 1 on regression)
-    ./dbt test --update song-roundtrip                 # re-record (builds first; see tests/README.md)
+    ./dbt test --update song-roundtrip                # re-record (builds first; see tests/README.md)
     python3 tests/golden/songs_run.py --filter Bass   # subset (substring match)
 
 ARM-NEON oracle (must agree with x86 on the *same* fixtures): the qemu-arm build of golden_vt_render.

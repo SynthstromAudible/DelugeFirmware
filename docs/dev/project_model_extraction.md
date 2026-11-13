@@ -215,7 +215,8 @@ fills defaults, normalizes ordering, and drops tags it doesn't understand. So
 - **Regression contract during the refactor:** for every corpus song,
   `save(load(original))` must keep producing the committed `gen1` bytes. A
   refactor that changes serialization output breaks the hash → must be justified
-  and re-baselined (`./dbt test --update <name>`, with its GOLDEN-UPDATED lines and the reason in the commit), exactly like the audio harness.
+  and re-baselined (`./dbt test --update <name>`, with its GOLDEN-UPDATED
+  lines and the reason in the commit), exactly like the audio harness.
 
 ### Driver: direct in-memory round-trip
 

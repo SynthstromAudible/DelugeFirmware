@@ -74,8 +74,8 @@ public:
 	///             fails the checker if a `Service` is ever declared where the row cannot see it.
 	///
 	///          It is a ratchet and not a ban: if your service really does need the OLED armed,
-	///          make the case in the commit message, run `--update`, and extend flush_spec's OLED
-	///          leg to match.
+	///          make the case in the commit message, run `scripts/check_layer_rules.py --update`,
+	///          and extend flush_spec's OLED leg to match.
 	///
 	/// @return `{false, false}` by default: the timer is a wake and nothing more.
 	virtual Scene::RepaintSurfaces timer_repaints() const { return {.oled = false, .grid = false}; }

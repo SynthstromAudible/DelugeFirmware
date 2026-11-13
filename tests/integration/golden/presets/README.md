@@ -32,10 +32,11 @@ A case takes a fraction of a second of wall time (the harness runs in virtual ti
 
 ## Recording
 
-A changed record means the sound changed. When the change is meant, record it with `./dbt test
---update golden-synth` and put its `GOLDEN-UPDATED` lines in the commit, each case explained. Never record a silent render: the check fails any render whose peak is below
-16 in 16-bit terms, because silence means the preset never heard its notes. A preset that fails to load is caught
-earlier, by `RP-LOADED`: the default synth left in its place would play the notes.
+A changed record means the sound changed. When the change is meant, record it with
+`./dbt test --update golden-synth` and put its `GOLDEN-UPDATED` lines in the commit, each case explained. Never record
+a silent render: the check fails any render whose peak is below 16 in 16-bit terms, because silence means the preset
+never heard its notes. A preset that fails to load is caught earlier, by `RP-LOADED`: the default synth left in its
+place would play the notes.
 
 ## The corpus
 
