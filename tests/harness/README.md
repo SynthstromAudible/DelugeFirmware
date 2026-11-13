@@ -71,8 +71,8 @@ notice Error 248
 Only non-black pads, only lit/blinking LEDs, `scene` lines top→bottom, `lock` and
 `notice` only when present.
 
-`diff -r got/ golden/` is the assertion. `GFX_GOLDEN_UPDATE=1` re-records (the helper from
-the gfx plan). A snapshot that is identical to the previous one in the same script is
+`diff -r got/ golden/` is the assertion. `./dbt test --update <test>` re-records
+(tests/README.md). A snapshot that is identical to the previous one in the same script is
 still written -- silence is not a pass.
 
 ### `sorted_text()` ordering, precisely
@@ -138,13 +138,11 @@ will golden the wrong frame at whichever level and look correct doing it. Give a
 
 ## Re-recording goldens
 
-- **Level 2**: `GFX_GOLDEN_UPDATE=1 ctest --test-dir build/tests -R scripts_spec` (or whichever
-  spec binary hosts the script). Recording asserts the run produced at least one file first --
-  an empty directory would otherwise "pass" forever with nothing in it.
-- **Level 3**: `GFX_GOLDEN_UPDATE=1 ctest --test-dir build-sim -R ui_app_scripts`
-  (`scripts/ui_snapshot_diff.py`'s convention -- the exact string `"1"`, same as level 2).
-- Either way, **run again without the flag** immediately after recording, to confirm the fresh
-  golden actually passes rather than merely having been written.
+- **Level 2**: `./dbt test --update unit -- -R <spec>` (the spec binary that hosts the script). Recording asserts the
+  run produced at least one file first -- an empty directory would otherwise "pass" forever with nothing in it.
+- **Level 3**: `./dbt test --update ui-scripts`.
+- Either way the runner runs the test again without the switch straight after recording, so a fresh golden that
+  does not pass is put back.
 - Run the *whole* suite a second and third time and diff (or checksum) the output trees against
   each other: a script and a scene are accepted on **byte-identical** frames, so any run-to-run
   wobble is a determinism bug in the scene or the harness, not something to average away.

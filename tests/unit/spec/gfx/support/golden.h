@@ -1,6 +1,6 @@
 #pragma once
 #include "cppspec.hpp"
-#include <cstdlib>
+#include "support/golden_update.h"
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -18,18 +18,13 @@
 /// @param name   Path relative to GFX_GOLDEN_DIR, e.g. "oled/primitives.pbm".
 /// @param actual The value to compare against the golden (or, when re-recording, to write to it).
 ///
-/// @note Setting `GFX_GOLDEN_UPDATE=1` rewrites the golden file instead of comparing against it.
-///       The check is for exactly "1", not merely "set": `GFX_GOLDEN_UPDATE=0` -- the natural way
-///       to say "no" -- must not trigger it, nor must an empty or stray value inherited from the
-///       shell. Re-recording destroys the evidence that the port is behaviour-preserving (the
-///       rewritten file then matches whatever was just produced, so the comparison would pass
-///       vacuously), so make sure a re-record is deliberate, not accidental.
+/// @note Under `./dbt test --update` (deluge::test::golden::updating()) the golden is rewritten from @p actual, when it
+///       differs, before the comparison.
 template <typename Self>
 inline void expect_golden(Self& self, const std::string& name, const std::string& actual) {
 	const std::string path = std::string(GFX_GOLDEN_DIR) + "/" + name;
-	const char* update = std::getenv("GFX_GOLDEN_UPDATE");
-	if (update != nullptr && std::string(update) == "1") {
-		std::ofstream(path) << actual;
+	if (deluge::test::golden::updating()) {
+		deluge::test::golden::write_if_changed(path, actual);
 	}
 	std::ifstream in(path);
 	std::stringstream want;

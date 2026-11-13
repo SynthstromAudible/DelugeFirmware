@@ -828,6 +828,7 @@ markers = ["UI-SCRIPT"]
 result = "UI-SCRIPT-RESULT failures=0"
 builds = ["golden-vt-render"]
 requires = []
+baseline = ["tests/golden/ui/app"]
 tier = "pr"
 group = "app"
 runtime = "~60s"
@@ -864,6 +865,7 @@ markers = ["SCENES-SPEC"]
 result = "SCENES-SPEC-RESULT failures=0"
 builds = ["golden-vt-render"]
 requires = []
+baseline = ["tests/golden/ui/menu", "tests/golden/ui/scenes", "tests/golden/ui/shell"]
 tier = "pr"
 group = "app"
 runtime = "~10s"
@@ -2204,6 +2206,7 @@ tree = "build/test-unit"
 configure = ["-G", "Ninja Multi-Config"]
 ctest_args = ["-C", "Debug"]
 requires = ["cmake", "clang"]
+baseline = ["tests/golden/gfx", "tests/golden/shell", "tests/golden/ui/widgets", "tests/golden/ui/shell"]
 tier = "pr"
 group = "unit-cpp"
 runtime = "~2m first build, ~5s after"

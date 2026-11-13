@@ -37,14 +37,21 @@ bool python3_available() {
 	return available;
 }
 
-/// @brief Run a shell command, returning its process exit code (or -1 if it could not be spawned
-/// or did not exit normally).
+/// @brief Run a shell command without the update switch or log (the spec runs under `./dbt test --update unit` too),
+/// returning its exit code (or -1 if it could not be spawned or did not exit normally). A command sets them itself
+/// to exercise recording.
 int run(const std::string& cmd) {
-	int status = std::system(cmd.c_str());
+	const std::string clean = "env -u DELUGE_GOLDEN_UPDATE -u DELUGE_GOLDEN_UPDATE_LOG " + cmd;
+	int status = std::system(clean.c_str());
 	if (status == -1) {
 		return -1;
 	}
 	return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+}
+
+/// @brief The prefix that runs a tool re-recording, its log in @p dir.
+std::string recording(const fs::path& dir) {
+	return "DELUGE_GOLDEN_UPDATE=1 DELUGE_GOLDEN_UPDATE_LOG='" + (dir / "update.log").string() + "' ";
 }
 
 std::string repo_script(const char* name) {
@@ -100,16 +107,30 @@ describe snapshot_tools("harness::snapshot_tools (ui_snapshot_diff.py, pbm2png.p
 		fs::remove_all(tmp);
 	});
 
-	it("re-records under GFX_GOLDEN_UPDATE=1, exits 0, and updates the golden file", _ {
+	it("re-records under ./dbt test --update's switch, exits 0, updates the golden file and logs it", _ {
 		if (!python3_available()) { expect(true).to_be_true(); return; }
 		fs::path tmp = make_tmp_dir();
 		expect(!tmp.empty()).to_be_true(); // M-5: mkdtemp failed -- everything below would run relative to CWD
 		write_file(tmp / "golden" / "a.state", "scene X\n");
 		write_file(tmp / "got" / "a.state", "scene Y\n");
-		int rc = run("GFX_GOLDEN_UPDATE=1 python3 " + repo_script("ui_snapshot_diff.py") + " '" +
+		int rc = run(recording(tmp) + "python3 " + repo_script("ui_snapshot_diff.py") + " '" +
 		             (tmp / "got").string() + "' '" + (tmp / "golden").string() + "' > /dev/null 2>&1");
 		expect(rc).to_equal(0);
 		expect(read_file(tmp / "golden" / "a.state")).to_equal("scene Y\n");
+		expect(read_file(tmp / "update.log")).to_start_with("GOLDEN-UPDATED " + fs::weakly_canonical(tmp / "golden" / "a.state").string() + " ");
+		fs::remove_all(tmp);
+	});
+
+	it("refuses the switch without the update log, exits 2, and leaves the golden untouched", _ {
+		if (!python3_available()) { expect(true).to_be_true(); return; }
+		fs::path tmp = make_tmp_dir();
+		expect(tmp.empty()).to_be_false();
+		write_file(tmp / "golden" / "a.state", "scene X\n");
+		write_file(tmp / "got" / "a.state", "scene Y\n");
+		int rc = run("DELUGE_GOLDEN_UPDATE=1 python3 " + repo_script("ui_snapshot_diff.py") + " '" +
+		             (tmp / "got").string() + "' '" + (tmp / "golden").string() + "' > /dev/null 2>&1");
+		expect(rc).to_equal(2);
+		expect(read_file(tmp / "golden" / "a.state")).to_equal("scene X\n");
 		fs::remove_all(tmp);
 	});
 
@@ -121,7 +142,7 @@ describe snapshot_tools("harness::snapshot_tools (ui_snapshot_diff.py, pbm2png.p
 		// I-2 exists to catch. `golden/` starts with a real recorded file, which must survive.
 		fs::create_directories(tmp / "got");
 		write_file(tmp / "golden" / "a.state", "scene X\n");
-		int rc = run("GFX_GOLDEN_UPDATE=1 python3 " + repo_script("ui_snapshot_diff.py") + " '" +
+		int rc = run(recording(tmp) + "python3 " + repo_script("ui_snapshot_diff.py") + " '" +
 		             (tmp / "got").string() + "' '" + (tmp / "golden").string() + "' > /dev/null 2>&1");
 		expect(rc).to_equal(2);
 		expect(fs::exists(tmp / "golden" / "a.state")).to_be_true();

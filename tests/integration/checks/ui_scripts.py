@@ -6,13 +6,15 @@ The menu script runs again on two cards that still carry a menu setting this fir
 an unknown setting, so every snapshot must equal the default leg's. The runner's own self-tests
 (tests/ui-scripts/selftest) pin what it does with a press due in a snapshot's millisecond, a snapshot before the first
 frame and a script that never quits. A script with a `board` step needs more panels than the Deluge has and is
-skipped, named.
+skipped, named. Under `./dbt test --update ui-scripts` each app script's snapshots are recorded as its golden instead.
 """
 
 import re
 import subprocess
 import sys
 from pathlib import Path
+
+import golden_update
 
 BOARD_STEP = re.compile(r"^\s*\d+\s+board\b", re.MULTILINE)
 
@@ -27,7 +29,8 @@ def _run(gate, script: Path, got: Path, card: Path):
     )
 
 
-def _diff(gate, got: Path, golden: Path, what: str = "") -> None:
+def _diff(gate, got: Path, golden: Path, what: str = "", record: bool = False) -> None:
+    """Compare `got` with `golden` through ui_snapshot_diff.py; with `record`, under an update, record it instead."""
     r = subprocess.run(
         [
             sys.executable,
@@ -38,6 +41,7 @@ def _diff(gate, got: Path, golden: Path, what: str = "") -> None:
         capture_output=True,
         text=True,
         check=False,
+        env=gate.env if record else golden_update.without(gate.env),
     )
     if r.returncode != 0:
         what = what or f"{golden.name}: snapshots differ from the golden"
@@ -53,7 +57,7 @@ def _app_scripts(gate, card: Path) -> None:
         got = gate.tmp / "got" / name
         run = _run(gate, script, got, card)
         if gate.require_standard(run):
-            _diff(gate, got, gate.root / "tests/golden/ui/app" / name)
+            _diff(gate, got, gate.root / "tests/golden/ui/app" / name, record=True)
         else:
             gate.show(run)
 

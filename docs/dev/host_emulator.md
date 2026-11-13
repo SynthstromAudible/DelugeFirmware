@@ -106,5 +106,5 @@ GOLDEN_SCENARIO=scenes_spec SCENES_SPEC=browser_scene_spec SCENES_SPEC_CARD=test
 GOLDEN_SCENARIO=scenes_spec SCENES_SPEC=--list build/cargo-harness/release/golden_vt_render
 ```
 
-`GFX_GOLDEN_UPDATE=1` re-records a file's goldens. The net is temporary: as each scene moves onto model addresses and
-Edits, its specs move down to unit specs.
+`./dbt test --update ui-scenes-spec` re-records the files' goldens. The net is temporary: as each scene moves onto
+model addresses and Edits, its specs move down to unit specs.

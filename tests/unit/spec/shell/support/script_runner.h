@@ -8,6 +8,7 @@
 #include "shell/shell.h"
 
 #include "cppspec.hpp"
+#include "support/golden_update.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -780,9 +781,9 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 ///
 /// The diff is done here, in C++, rather than by shelling out to `scripts/ui_snapshot_diff.py`:
 /// every file in the golden directory must exist in the run's output and be byte-identical, and
-/// the run must not have produced a `.pbm`/`.state` the golden directory does not have. Setting
-/// `GFX_GOLDEN_UPDATE=1` records instead of comparing -- the same convention, and the same
-/// deliberate exact-"1" test, as `tests/spec/gfx/support/golden.h`'s `expect_golden`.
+/// the run must not have produced a `.pbm`/`.state` the golden directory does not have. Under
+/// `./dbt test --update` it records instead of comparing: each produced file is written where it
+/// differs and each golden file the run did not produce is removed, every change logged.
 /// @param self        The enclosing `it(...)` block's lambda parameter (see `expect_golden`).
 /// @param script_name The script's basename, without `.txt`.
 /// @param registry    The application's scene table.
@@ -850,8 +851,7 @@ inline RunResult expect_script_goldens(Self& self, std::string_view script_name,
 		std::sort(got_names.begin(), got_names.end());
 	}
 
-	const char* update = std::getenv("GFX_GOLDEN_UPDATE");
-	if (update != nullptr && std::string(update) == "1") {
+	if (deluge::test::golden::updating()) {
 		// A script that produced nothing would otherwise record an empty directory and then pass
 		// forever -- both file lists empty, nothing to compare. Recording is the one moment that
 		// mistake is still visible.
@@ -860,17 +860,26 @@ inline RunResult expect_script_goldens(Self& self, std::string_view script_name,
 		if (got_names.empty()) {
 			return result;
 		}
-		fs::remove_all(golden, ec);
-		fs::create_directories(golden, ec);
+		std::vector<fs::path> stale;
+		if (fs::is_directory(golden)) {
+			for (const fs::directory_entry& e : fs::directory_iterator(golden)) {
+				if (!std::ranges::binary_search(got_names, e.path().filename().string())) {
+					stale.push_back(e.path());
+				}
+			}
+		}
+		for (const fs::path& path : stale) {
+			deluge::test::golden::remove_if_present(path);
+		}
 		for (const std::string& file : got_names) {
-			fs::copy_file(got / file, golden / file, fs::copy_options::overwrite_existing, ec);
+			deluge::test::golden::write_if_changed(golden / file,
+			                                       deluge::test::golden::read(got / file).value_or(std::string{}));
 		}
 		return result;
 	}
 
 	const bool have_golden = fs::is_directory(golden);
-	expect(std::string(have_golden ? "recorded" : "MISSING (record it with GFX_GOLDEN_UPDATE=1)") + ": "
-	       + golden.string())
+	expect(std::string(have_golden ? "recorded" : "MISSING (./dbt test --update records it)") + ": " + golden.string())
 	    .to_equal("recorded: " + golden.string());
 	if (!have_golden) {
 		return result;
