@@ -30,6 +30,7 @@
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
 
 #include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/edit_guard.h"
@@ -74,10 +75,13 @@ DELUGE_SCENARIO_DECLARE(playhead_moves);
 
 namespace {
 
+using deluge::scenarios::ScenarioReport;
+
 constexpr uint32_t kRenderBlockFrames = 128;
 /// Blocks played before a leg's move, so the clock has ticked.
 constexpr int32_t kBlocksBefore = 8;
-/// The most blocks waited for the first tick.
+/// The most blocks rendered waiting for the first tick. Not a wait: the leg judges the clock itself, by the failure
+/// below, and the blocks rendered are its stimulus.
 constexpr int32_t kMaxBlocksBefore = 400;
 /// Blocks rendered after a leg's move; their output is the leg's hash.
 constexpr int32_t kBlocksAfter = 16;
@@ -123,7 +127,7 @@ Stage g_stage = Stage::Setup;
 Leg g_leg = Leg::Start;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-int32_t g_failures = 0;
+ScenarioReport g_report{"PM"};
 int32_t g_blocks = 0;
 uint32_t g_timerAtStart = 0;
 
@@ -206,11 +210,8 @@ const char* legName(Leg leg) {
 	return "?";
 }
 
-bool fail(const char* what) {
-	char line[160];
-	snprintf(line, sizeof(line), "PM-SETUP FAIL leg=%s %s\n", legName(g_leg), what);
-	std::fputs(line, stdout);
-	g_failures++;
+bool setupFailed(const char* what) {
+	g_report.fail("SETUP leg=%s %s", legName(g_leg), what);
 	return false;
 }
 
@@ -258,7 +259,7 @@ InstrumentClip* makeSynthClip() {
 	ParamManagerForTimeline paramManager;
 	Instrument* instrument = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
 	if (instrument == nullptr) {
-		fail("no synth");
+		setupFailed("no synth");
 		return nullptr;
 	}
 	auto* synth = static_cast<SoundInstrument*>(instrument);
@@ -269,7 +270,7 @@ InstrumentClip* makeSynthClip() {
 	acquired.loadedFromFile = true;
 	Clip* clip = sessionView.createNewInstrumentClipAcquired(OutputType::SYNTH, kAppendY, &acquired);
 	if (clip == nullptr) {
-		fail("the new-clip gesture made no clip");
+		setupFailed("the new-clip gesture made no clip");
 		return nullptr;
 	}
 	clip->activeIfNoSolo = true;
@@ -541,7 +542,7 @@ bool setupLeg() {
 	automateVolume(g_clip);
 	g_row = addNotes(g_clip, &g_rowIndex);
 	if (g_row == nullptr) {
-		return fail("no note row");
+		return setupFailed("no note row");
 	}
 	g_second = nullptr;
 	if (g_leg == Leg::LateStart || g_leg == Leg::InjectLaunch || g_leg == Leg::Unsolo) {
@@ -552,7 +553,7 @@ bool setupLeg() {
 		automateVolume(g_second);
 		int32_t index = -1;
 		if (addNotes(g_second, &index) == nullptr) {
-			return fail("no note row on the second clip");
+			return setupFailed("no note row on the second clip");
 		}
 		// A launch starts it; an unsolo restarts it.
 		g_second->activeIfNoSolo = (g_leg == Leg::Unsolo);
@@ -670,7 +671,7 @@ void move() {
 	case Leg::Undo: {
 		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::NOT_ALLOWED);
 		if (action == nullptr) {
-			fail("no action for the undo");
+			setupFailed("no action for the undo");
 			break;
 		}
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
@@ -893,7 +894,7 @@ void runTick() {
 			break;
 		}
 		if (!ticked) {
-			fail("the render actioned no ticks: the clock never ran");
+			setupFailed("the render actioned no ticks: the clock never ran");
 			g_stage = Stage::Summary;
 			break;
 		}
@@ -944,9 +945,7 @@ void runTick() {
 			std::fputs(snapshotLine, stdout);
 		}
 #endif
-		char line[48];
-		snprintf(line, sizeof(line), "PM-RESULT failures=%d\n", static_cast<int>(g_failures));
-		std::fputs(line, stdout);
+		g_report.printResult();
 		fflush(stdout);
 		g_summaryPrinted = true;
 		break;
@@ -964,12 +963,12 @@ void deluge_scenario_playhead_moves_begin(void) {
 	g_leg = Leg::Start;
 	g_stepDone = false;
 	g_summaryPrinted = false;
-	g_failures = 0;
+	g_report.reset();
 	selfTestEffects();
 	changeRootUI(&sessionView);
 	g_home = currentSong->live.clips.session_clips.size() > 0 ? currentSong->live.clips.session_clips[0] : nullptr;
 	if (g_home == nullptr) {
-		fail("the boot song has no clip");
+		setupFailed("the boot song has no clip");
 		g_stage = Stage::Summary;
 	}
 }
@@ -992,7 +991,7 @@ bool deluge_scenario_playhead_moves_step_done(void) {
 }
 
 int32_t deluge_scenario_playhead_moves_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

@@ -29,6 +29,7 @@
 /// then `ATH-RESULT failures=N`.
 
 #include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "libdeluge/app.h"
 #include "processing/engines/audio_engine.h"
@@ -47,7 +48,7 @@ DELUGE_SCENARIO_DECLARE(audio_tick_hold);
 
 namespace {
 
-int32_t g_failures = 0;
+deluge::scenarios::ScenarioReport g_report{"ATH"};
 
 /// How many times the routine body was reached since the last reset.
 int32_t g_reached = 0;
@@ -75,7 +76,7 @@ void reenter() {
 void report(const char* tag, bool ok, const char* detail) {
 	std::printf("%s ok=%d %s\n", tag, ok ? 1 : 0, detail);
 	if (!ok) {
-		g_failures++;
+		g_report.count();
 	}
 }
 
@@ -149,7 +150,7 @@ void deluge_scenario_audio_tick_hold_begin(void) {
 	checkHeldTick();
 	checkReentry();
 	checkThrow();
-	std::printf("ATH-RESULT failures=%d\n", static_cast<int>(g_failures));
+	g_report.printResult();
 	std::fflush(stdout);
 }
 
@@ -165,5 +166,5 @@ bool deluge_scenario_audio_tick_hold_step_done(void) {
 }
 
 int32_t deluge_scenario_audio_tick_hold_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }

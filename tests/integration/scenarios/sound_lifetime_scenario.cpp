@@ -25,6 +25,7 @@
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
 
 #include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "definitions_cxx.hpp"
 #include "extern.h"
@@ -62,13 +63,17 @@ DELUGE_SCENARIO_DECLARE(sound_lifetime);
 
 namespace {
 
+using deluge::scenarios::ScenarioReport;
+
 /// The note every leg holds. A blank synth sustains it until a note-off, which no leg sends.
 constexpr int32_t kNote = 60;
 /// The render block the scenario drives, and how many it renders with each note held before deleting it. Nothing
 /// else renders here: the golden harness skips the audio task's own render once boot has finished.
 constexpr uint32_t kRenderBlockFrames = 128;
 constexpr int32_t kRenderBlocksPerNote = 4;
-/// How many steps a leg waits after its deletion before it reads the count, so any deferred destruction has run.
+/// How many steps a leg waits after its deletion before it reads the count, so any deferred destruction has run. Not a
+/// wait: nothing signals that the destruction has run except the count, and the count read after the window is the
+/// property.
 constexpr int32_t kSettleTicks = 10;
 
 /// Each leg is one real deletion path, run on a Sound that is sounding when it is deleted.
@@ -82,7 +87,7 @@ Stage g_stage = Stage::Setup;
 Leg g_leg = Leg::Synth;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-int32_t g_failures = 0;
+ScenarioReport g_report{"SL"};
 int32_t g_ticks = 0;
 
 /// The running leg's objects: the synth is null on a kit leg, and the kit and drum are null on a synth leg.
@@ -131,9 +136,8 @@ const char* legName(Leg leg) {
 	return "DONE";
 }
 
-bool fail(const char* what) {
-	printf("SL-SETUP FAIL leg=%s %s\n", legName(g_leg), what);
-	g_failures++;
+bool setupFailed(const char* what) {
+	g_report.fail("SETUP leg=%s %s", legName(g_leg), what);
 	return false;
 }
 
@@ -142,7 +146,7 @@ SoundInstrument* makeSynth() {
 	ParamManagerForTimeline paramManager;
 	Instrument* instrument = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
 	if (instrument == nullptr) {
-		fail("no synth");
+		setupFailed("no synth");
 		return nullptr;
 	}
 	auto* synth = static_cast<SoundInstrument*>(instrument);
@@ -156,7 +160,7 @@ Kit* makeKitWithSynthDrum(SoundDrum** drumOut) {
 	ParamManagerForTimeline kitParams;
 	Instrument* instrument = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
 	if (instrument == nullptr) {
-		fail("no kit");
+		setupFailed("no kit");
 		return nullptr;
 	}
 	auto* kit = static_cast<Kit*>(instrument);
@@ -164,12 +168,12 @@ Kit* makeKitWithSynthDrum(SoundDrum** drumOut) {
 
 	ParamManagerForTimeline paramManager;
 	if (paramManager.setupWithPatching() != Error::NONE) {
-		fail("a drum's ParamManager could not be set up");
+		setupFailed("a drum's ParamManager could not be set up");
 		return nullptr;
 	}
 	void* memory = deluge::memory::alloc_fast(sizeof(SoundDrum));
 	if (memory == nullptr) {
-		fail("no memory for a drum");
+		setupFailed("no memory for a drum");
 		return nullptr;
 	}
 	auto* drum = new (memory) SoundDrum();
@@ -188,12 +192,12 @@ Kit* makeKitWithSynthDrum(SoundDrum** drumOut) {
 InstrumentClip* attachClip(Instrument* instrument) {
 	void* memory = deluge::memory::alloc_fast(sizeof(InstrumentClip));
 	if (memory == nullptr) {
-		fail("no memory for a clip");
+		setupFailed("no memory for a clip");
 		return nullptr;
 	}
 	auto* clip = new (memory) InstrumentClip(*currentSong);
 	if (clip->setAudioInstrument(instrument, currentSong, true, nullptr) != Error::NONE) {
-		fail("the clip could not take the instrument");
+		setupFailed("the clip could not take the instrument");
 		return nullptr;
 	}
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -211,14 +215,14 @@ InstrumentClip* attachClip(Instrument* instrument) {
 /// Hold a note on @p s, the audition path's shape: no note row.
 bool sound(Sound& s, ModControllable* mc, ArpeggiatorBase* arp, InstrumentClip* clip, ParamManager* paramManager) {
 	if (paramManager == nullptr) {
-		return fail("the sound has no ParamManager");
+		return setupFailed("the sound has no ParamManager");
 	}
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* ms =
 	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, mc, clip, paramManager);
 	s.Sound::noteOn(ms, arp, kNote, zeroMPEValues);
 	if (s.voices().empty()) {
-		return fail("the sound never sounded");
+		return setupFailed("the sound never sounded");
 	}
 	return true;
 }
@@ -249,7 +253,7 @@ bool setupLeg() {
 		}
 		else if (g_synth->editedByUser) {
 			// deleteOrAddToHibernationListOutput() would hibernate it, and nothing would be destroyed.
-			return fail("a new synth reads as edited by the user");
+			return setupFailed("a new synth reads as edited by the user");
 		}
 		g_sound = g_synth;
 		return sound(*g_synth, g_synth, &g_synth->arpeggiator, clip, &clip->paramManager);
@@ -270,7 +274,7 @@ bool setupLeg() {
 		g_inSong = true;
 		NoteRow* row = clip->getNoteRowForDrum(g_drum);
 		if (row == nullptr) {
-			return fail("the kit's clip has no row for the drum");
+			return setupFailed("the kit's clip has no row for the drum");
 		}
 		g_sound = g_drum;
 		return sound(*g_drum, g_drum, &g_drum->arpeggiator, clip, &row->paramManager);
@@ -305,7 +309,7 @@ void reportAbortedDeletion(int /*signal*/) {
 	int n = snprintf(line, sizeof(line),
 	                 "SL-%s destroyedWithLiveVoices=%d aborted=1 step=%s\nSL-%s FAIL the process ended with %s\n"
 	                 "SL-RESULT failures=%d\n",
-	                 leg, Sound::soundsDestroyedWithLiveVoices() - g_before, step, leg, why, g_failures + 1);
+	                 leg, Sound::soundsDestroyedWithLiveVoices() - g_before, step, leg, why, g_report.failures() + 1);
 	fflush(stdout);
 	if (n > 0) {
 		(void)write(STDOUT_FILENO, line, static_cast<size_t>(std::min<int>(n, sizeof(line) - 1)));
@@ -396,7 +400,7 @@ void renderBlocks(int32_t count) {
 SoundDrum* makeBlankDrum() {
 	void* memory = deluge::memory::alloc_fast(sizeof(SoundDrum));
 	if (memory == nullptr) {
-		fail("no memory for a blank drum");
+		setupFailed("no memory for a blank drum");
 		return nullptr;
 	}
 	return new (memory) SoundDrum();
@@ -408,7 +412,8 @@ constexpr int32_t kOpportunisticBlocks = 3;
 /// Drums BURST retires in one step: more than the retire ring's 64 slots, so the overflow list is used and the
 /// render's 16-per-block drain takes several blocks.
 constexpr int32_t kBurstDrums = 80;
-/// Blocks BURST renders, reclaiming after each, before it gives up waiting for everything to be freed.
+/// Blocks BURST renders, reclaiming after each, before it stops: the pending count it then reports is the judgement,
+/// and the blocks are the stimulus that frees the burst, within one step.
 constexpr int32_t kBurstMaxBlocks = 32;
 
 /// OPPORTUNISTIC, in one step: retire A, render until the render has let go of it and two blocks have begun, retire
@@ -426,7 +431,7 @@ void runOpportunisticLeg() {
 	const std::size_t pending = AudioEngine::retiredPending() - before;
 	printf("SL-OPPORTUNISTIC pending=%u\n", static_cast<unsigned>(pending));
 	if (pending != 1) {
-		g_failures++;
+		g_report.count();
 	}
 }
 
@@ -454,7 +459,7 @@ void runBurstLeg() {
 	printf("SL-BURST drums=%d blocks=%d violations=%u pending=%u\n", kBurstDrums, blocks,
 	       static_cast<unsigned>(violations), static_cast<unsigned>(pending));
 	if (violations != 0 || pending != 0) {
-		g_failures++;
+		g_report.count();
 	}
 }
 
@@ -493,7 +498,7 @@ void runTick() {
 		printf("SL-PROBE leg=%s voices=%d inSong=%d clockSamples=%u\n", legName(g_leg), voices, g_inSong ? 1 : 0,
 		       static_cast<unsigned>(samples));
 		if (samples == 0 || voices == 0) {
-			fail(samples == 0 ? "the render's clock never moved" : "the note ended before the deletion");
+			setupFailed(samples == 0 ? "the render's clock never moved" : "the note ended before the deletion");
 			g_stage = Stage::Summary;
 			break;
 		}
@@ -530,7 +535,7 @@ void runTick() {
 		fflush(stdout);
 		if (AudioEngine::retiredPending() != 0) {
 			// The count covers only what was destroyed: an object still waiting would not be in it.
-			fail("the deletion's objects were still waiting to be destroyed at the report");
+			setupFailed("the deletion's objects were still waiting to be destroyed at the report");
 		}
 		g_leg = static_cast<Leg>(static_cast<uint8_t>(g_leg) + 1);
 		g_stage = Stage::Setup;
@@ -545,13 +550,13 @@ void runTick() {
 		const std::size_t pending = AudioEngine::retiredPending();
 		printf("SL-RECLAIM pending=%u\n", static_cast<unsigned>(pending));
 		if (pending != 0) {
-			g_failures++;
+			g_report.count();
 		}
 		g_stage = Stage::Summary;
 		break;
 	}
 	case Stage::Summary:
-		printf("SL-RESULT failures=%d\n", g_failures);
+		g_report.printResult();
 		// The Rust runner ends a failing run with process::exit, which does NOT flush C stdio.
 		fflush(stdout);
 		g_summaryPrinted = true;
@@ -572,7 +577,7 @@ void deluge_scenario_sound_lifetime_begin(void) {
 	g_leg = Leg::Synth;
 	g_stepDone = false;
 	g_summaryPrinted = false;
-	g_failures = 0;
+	g_report.reset();
 	g_ticks = 0;
 }
 
@@ -595,7 +600,7 @@ bool deluge_scenario_sound_lifetime_step_done(void) {
 }
 
 int32_t deluge_scenario_sound_lifetime_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

@@ -37,6 +37,7 @@
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
 
 #include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "definitions_cxx.hpp"
 #include "extern.h"
@@ -105,6 +106,10 @@ extern "C" void deluge_scenario_clip_lifetime_boot(void);
 
 namespace {
 
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
+
 /// The note each leg holds on its clip's synth. A blank synth sustains it until a note-off, which no leg sends.
 constexpr int32_t kNote = 60;
 /// The render block the scenario drives. Nothing else renders here: the golden harness skips the audio task's own
@@ -114,7 +119,8 @@ constexpr uint32_t kRenderBlockFrames = 128;
 /// loop's jobs (the retirement's reclaim among them) run between them.
 constexpr int32_t kBlocksBefore = 8;
 constexpr int32_t kBlocksAfter = 8;
-/// The most blocks rendered waiting for the render to action a timer tick of this playback past tick 0.
+/// The most blocks rendered waiting for the render to action a timer tick of this playback past tick 0. Not a wait: the
+/// leg judges the clock itself (its CL-PROBE line and the no-ticks failure), and the blocks rendered are its stimulus.
 constexpr int32_t kMaxBlocksBefore = 400;
 /// Blocks rendered after each of UNDODELETE's undo, redo and log discard (and ARRANGERDELETE's discard), inside one
 /// step.
@@ -175,7 +181,7 @@ Stage g_stage = Stage::Setup;
 Leg g_leg = Leg::SessionDelete;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-int32_t g_failures = 0;
+ScenarioReport g_report{"CL"};
 int32_t g_ticks = 0;
 
 /// The clip the leg deletes. Once the deletion has run it may be freed: it is only compared, never dereferenced.
@@ -200,8 +206,8 @@ Kit* g_kit = nullptr;
 SoundDrum* g_drum = nullptr;
 /// SONGLOAD and SONGSWAP: the swing the fixture song was written with, which only a real load brings back.
 int8_t g_fixtureSwing = 0;
-/// Steps a song leg has waited for its listing, then its clear or load.
-int32_t g_awaitSteps = 0;
+/// A song leg's wait for its listing, then for its clear or load.
+Wait g_wait{g_report, "the clear or load", kMaxAwaitSteps};
 /// Whether CL-RECLAIM has been printed this run.
 bool g_reclaimDone = false;
 /// Song legs: AudioEngine::retiredPending() just after the clear or load returned or began, when the stopped-clock
@@ -306,9 +312,8 @@ bool legPlays(Leg leg) {
 	return !isStoppedSongLeg(leg) && !legFollowsExternalClock(leg);
 }
 
-bool fail(const char* what) {
-	printf("CL-SETUP FAIL leg=%s %s\n", legName(g_leg), what);
-	g_failures++;
+bool setupFailed(const char* what) {
+	g_report.fail("SETUP leg=%s %s", legName(g_leg), what);
 	return false;
 }
 
@@ -319,7 +324,7 @@ InstrumentClip* makeSynthClip() {
 	ParamManagerForTimeline paramManager;
 	Instrument* instrument = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
 	if (instrument == nullptr) {
-		fail("no synth");
+		setupFailed("no synth");
 		return nullptr;
 	}
 	auto* synth = static_cast<SoundInstrument*>(instrument);
@@ -331,7 +336,7 @@ InstrumentClip* makeSynthClip() {
 	acquired.loadedFromFile = true;
 	Clip* clip = sessionView.createNewInstrumentClipAcquired(OutputType::SYNTH, kAppendY, &acquired);
 	if (clip == nullptr) {
-		fail("the new-clip gesture made no clip");
+		setupFailed("the new-clip gesture made no clip");
 		return nullptr;
 	}
 	clip->activeIfNoSolo = true;
@@ -358,12 +363,12 @@ void holdNote(InstrumentClip* clip) {
 SoundDrum* makeDrum(Kit* kit) {
 	ParamManagerForTimeline paramManager;
 	if (paramManager.setupWithPatching() != Error::NONE) {
-		fail("a drum's ParamManager could not be set up");
+		setupFailed("a drum's ParamManager could not be set up");
 		return nullptr;
 	}
 	void* memory = deluge::memory::alloc_fast(sizeof(SoundDrum));
 	if (memory == nullptr) {
-		fail("no memory for a drum");
+		setupFailed("no memory for a drum");
 		return nullptr;
 	}
 	auto* drum = new (memory) SoundDrum();
@@ -380,7 +385,7 @@ InstrumentClip* makeKitClip() {
 	ParamManagerForTimeline kitParams;
 	Instrument* instrument = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
 	if (instrument == nullptr) {
-		fail("no kit");
+		setupFailed("no kit");
 		return nullptr;
 	}
 	auto* kit = static_cast<Kit*>(instrument);
@@ -395,7 +400,7 @@ InstrumentClip* makeKitClip() {
 	acquired.loadedFromFile = true;
 	Clip* clip = sessionView.createNewInstrumentClipAcquired(OutputType::KIT, kAppendY, &acquired);
 	if (clip == nullptr) {
-		fail("the new-clip gesture made no kit clip");
+		setupFailed("the new-clip gesture made no kit clip");
 		return nullptr;
 	}
 	clip->activeIfNoSolo = true;
@@ -407,7 +412,7 @@ InstrumentClip* makeKitClip() {
 /// Hold a note on @p drum, the audition path's shape (no note row), with @p paramManager.
 bool soundDrum(SoundDrum* drum, InstrumentClip* clip, ParamManager* paramManager) {
 	if (paramManager == nullptr) {
-		return fail("the drum has no ParamManager");
+		return setupFailed("the drum has no ParamManager");
 	}
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* ms =
@@ -434,7 +439,7 @@ bool writeFixtureSong() {
 	                  : StorageManager::createXMLFile(kSongPath.c_str(), smSerializer, /*mayOverwrite=*/true,
 	                                                  /*displayErrors=*/false);
 	if (error != Error::NONE) {
-		return fail("the fixture song could not be created");
+		return setupFailed("the fixture song could not be created");
 	}
 	deluge::bridge::saveSong(*currentSong, serializer);
 	const char* head = serializer.format() == deluge::storage::DocumentFormat::JSON
@@ -442,7 +447,7 @@ bool writeFixtureSong() {
 	                       : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
 	error = serializer.closeFileAfterWriting(kSongPath.c_str(), head, nullptr);
 	if (error != Error::NONE) {
-		return fail("the fixture song could not be closed");
+		return setupFailed("the fixture song could not be closed");
 	}
 	// The old song now differs from the file, so a real load can be told from none.
 	currentSong->project.groove.swing_amount = static_cast<int8_t>(g_fixtureSwing + kSwingDecoy);
@@ -468,13 +473,13 @@ Clip* cloneIntoSession(Clip* source) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* ms = setupModelStackWithSong(memory, currentSong)->addTimelineCounter(source);
 	if (source->clone(ms, false) != Error::NONE) {
-		fail("a clip could not be cloned");
+		setupFailed("a clip could not be cloned");
 		return nullptr;
 	}
 	Clip* clone = static_cast<Clip*>(ms->getTimelineCounter());
 	if (!currentSong->live.clips.session_clips.insertClipAt(
 	        clone, static_cast<int32_t>(currentSong->live.clips.session_clips.size()))) {
-		fail("no room for a cloned clip");
+		setupFailed("no room for a cloned clip");
 		return nullptr;
 	}
 	return clone;
@@ -528,17 +533,17 @@ bool buildBurstSong(InstrumentClip* first) {
 bool makeTempRecordedAudioClip() {
 	Clip* clip = sessionView.createNewAudioClipForHarness(kAppendY);
 	if (clip == nullptr || clip->type != ClipType::AUDIO) {
-		return fail("no audio clip");
+		return setupFailed("no audio clip");
 	}
 	void* memory = deluge::memory::alloc_external(sizeof(Sample), 16);
 	if (memory == nullptr) {
-		return fail("no memory for a Sample");
+		return setupFailed("no memory for a Sample");
 	}
 	auto* sample = new (memory) Sample;
 	audioFileManager.adoptAudioFileObject(sample);
 	sample->addReason();
 	if (sample->initialize(1) != Error::NONE) {
-		return fail("the Sample could not be initialised");
+		return setupFailed("the Sample could not be initialised");
 	}
 	sample->byteDepth = 3;
 	sample->numChannels = 1;
@@ -548,7 +553,7 @@ bool makeTempRecordedAudioClip() {
 	sample->filePath = "SAMPLES/CLIPS/CLPLAY.WAV";
 	sample->tempFilePathForRecording = "SAMPLES/CLIPS/TEMP/CLPLAY.WAV";
 	if (!audioFileManager.audioFiles.insertElement(sample)) {
-		return fail("the Sample could not be listed");
+		return setupFailed("the Sample could not be listed");
 	}
 	static_cast<AudioClip*>(clip)->sampleHolder.filePath = sample->filePath;
 	static_cast<AudioClip*>(clip)->sampleHolder.setAudioFile(sample);
@@ -591,7 +596,7 @@ bool setupLeg() {
 				return false;
 			}
 			if (currentSong->findNoteRowForDrum(g_kit, orphan) != nullptr) {
-				return fail("the orphan drum has a note row");
+				return setupFailed("the orphan drum has a note row");
 			}
 			g_drum = orphan;
 		}
@@ -600,7 +605,7 @@ bool setupLeg() {
 			// drum if the drum itself is not rendering.
 			NoteRow* row = clip->getNoteRowForDrum(g_drum);
 			if (row == nullptr || !row->hasNoNotes()) {
-				return fail("the kit clip has no empty note row for its drum");
+				return setupFailed("the kit clip has no empty note row for its drum");
 			}
 		}
 		g_sound = g_drum;
@@ -631,7 +636,7 @@ bool setupLeg() {
 		Output* output = clip->output;
 		const int32_t i = output->clipInstances.insertSorted(0).value_or(-1);
 		if (i < 0) {
-			return fail("no room for a clip instance");
+			return setupFailed("no room for a clip instance");
 		}
 		ClipInstance& instance = output->clipInstances[i];
 		instance.length = clip->loopLength();
@@ -639,7 +644,7 @@ bool setupLeg() {
 		currentSong->removeSessionClip(clip, currentSong->live.clips.session_clips.getIndexForClip(clip));
 		if (!clip->isArrangementOnlyClip()
 		    || currentSong->live.clips.arrangement_only_clips.getIndexForClip(clip) < 0) {
-			return fail("the clip did not become arrangement-only");
+			return setupFailed("the clip did not become arrangement-only");
 		}
 		// The user entered the clip from the arranger and came back out: it is still the current clip and the view's.
 		// The arranger's own gesture is made from the arranger.
@@ -678,7 +683,7 @@ bool setupLeg() {
 		g_kit = nullptr;
 		g_drum = nullptr;
 		if (row == nullptr || !soundDrum(drum, kitClip, &row->paramManager)) {
-			return fail("the old song's kit drum could not be sounded");
+			return setupFailed("the old song's kit drum could not be sounded");
 		}
 		break;
 	}
@@ -748,7 +753,7 @@ void reportAbortedDeletion(int signal) {
 	                 "CL-%s ABORTED the process ended with %s\nCL-RESULT failures=%d\n",
 	                 leg, Clip::clipsDestroyedWhileReferenced() - g_clipsBefore,
 	                 Song::songsDestroyedWhileReachable() - g_songsBefore,
-	                 Sound::soundsDestroyedWithLiveVoices() - g_soundsBefore, step, leg, why, g_failures);
+	                 Sound::soundsDestroyedWithLiveVoices() - g_soundsBefore, step, leg, why, g_report.failures());
 	fflush(stdout);
 	if (n > 0) {
 		(void)write(STDOUT_FILENO, line, static_cast<size_t>(std::min<int>(n, sizeof(line) - 1)));
@@ -784,7 +789,7 @@ void arrangerDeleteGesture(Clip* clip, bool logged) {
 		}
 	}
 	if (index < 0) {
-		fail("the clip has no instance in the arranger");
+		setupFailed("the clip has no instance in the arranger");
 		return;
 	}
 	ClipInstance* clipInstance = &output->clipInstances[index];
@@ -798,7 +803,7 @@ void arrangerDeleteGesture(Clip* clip, bool logged) {
 	    logged ? actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED) : nullptr;
 	if (logged && action == nullptr) {
 		// deletingClipInstanceForClip() would then take its no-undo-memory branch, which ARRANGERNOUNDO drives.
-		fail("no action for the arranger delete");
+		setupFailed("no action for the arranger delete");
 		return;
 	}
 
@@ -947,7 +952,7 @@ void cleanUpSongLeg() {
 	             ? currentSong->live.clips.session_clips[0]
 	             : nullptr;
 	if (g_home == nullptr) {
-		fail("the new song has no clip");
+		setupFailed("the new song has no clip");
 		return;
 	}
 	selectClip(g_home);
@@ -1158,7 +1163,7 @@ void runTick() {
 			       voices, viewNames(g_victim) ? 1 : 0);
 		}
 		if (plays && ticks <= 0) {
-			fail("the render actioned no ticks: the clock never ran");
+			setupFailed("the render actioned no ticks: the clock never ran");
 			g_stage = Stage::Summary;
 			break;
 		}
@@ -1194,7 +1199,6 @@ void runTick() {
 		}
 		g_step = nullptr;
 		g_ticks = 0;
-		g_awaitSteps = 0;
 		if (g_leg == Leg::ArrangerNoUndo || g_leg == Leg::SessionDelete) {
 			// Before any block: what the interaction tier itself can still read of the retired clip. Its handlers run
 			// between the retire and the render's let-go, so these must already be clear.
@@ -1207,48 +1211,56 @@ void runTick() {
 		else if (g_leg == Leg::SaveKit || g_leg == Leg::WontSound) {
 			printDrumDangling();
 		}
+		if (isLoadLeg(g_leg)) {
+			g_wait = Wait{g_report, "the load browser's listing", kMaxAwaitSteps};
+		}
+		else if (isClearLeg(g_leg)) {
+			g_wait = Wait{g_report, "the clear or load", kMaxAwaitSteps};
+		}
 		g_stage = isLoadLeg(g_leg) ? Stage::Listing : isClearLeg(g_leg) ? Stage::Await : Stage::After;
 		break;
-	case Stage::Listing:
+	case Stage::Listing: {
 		// The load browser's own listing lands first, as a LOAD press waits for it. Nothing else ticks a browser in
 		// the headless harness.
 		g_step = "listing";
 		if (legPlays(g_leg)) {
 			renderBlocks(1);
 		}
-		if (Browser::isListingInProgress()) {
+		const bool listing = Browser::isListingInProgress();
+		if (listing) {
 			loadSongUI.graphicsRoutine();
-			if (++g_awaitSteps > kMaxAwaitSteps) {
-				fail("the load browser's listing never finished");
-				g_stage = Stage::After;
-			}
+		}
+		switch (g_wait.poll(!listing)) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Expired:
+			g_stage = Stage::After;
+			break;
+		case WaitState::Met:
+			g_step = "beginLoad";
+			loadSongUI.beginLoad();
+			g_wait = Wait{g_report, "the clear or load", kMaxAwaitSteps};
+			g_stage = Stage::Await;
 			break;
 		}
-		g_step = "beginLoad";
-		loadSongUI.beginLoad();
-		g_awaitSteps = 0;
-		g_stage = Stage::Await;
 		break;
+	}
 	case Stage::Await: {
 		// The clear or load runs on its own, a tick at a time; an armed swap launches in the render, at the end of the
 		// longest clip's loop, and LoadSongUI then destroys the old song (runFinishSegment()).
 		g_step = "await";
 		renderBlocks(isLoadLeg(g_leg) && legPlays(g_leg) ? kSwapBlocksPerStep : 1);
-		const bool over = songLegOver();
-		if (!over && ++g_awaitSteps < kMaxAwaitSteps) {
+		if (g_wait.poll(songLegOver()) == WaitState::Pending) {
 			break;
-		}
-		if (!over) {
-			fail("the clear or load never finished");
 		}
 		if (isLoadLeg(g_leg)) {
 			const bool loaded = currentSong != nullptr && currentSong->project.groove.swing_amount == g_fixtureSwing;
-			printf("CL-LOADED leg=%s loaded=%d steps=%d\n", legName(g_leg), loaded ? 1 : 0, g_awaitSteps);
+			printf("CL-LOADED leg=%s loaded=%d steps=%d\n", legName(g_leg), loaded ? 1 : 0, g_wait.ticks());
 		}
 		else {
 			printf("CL-CLEARED leg=%s clips=%d steps=%d\n", legName(g_leg),
 			       currentSong != nullptr ? static_cast<int32_t>(currentSong->live.clips.session_clips.size()) : -1,
-			       g_awaitSteps);
+			       g_wait.ticks());
 		}
 		fflush(stdout);
 		if (isStoppedSongLeg(g_leg)) {
@@ -1336,14 +1348,14 @@ void runTick() {
 		restoreHandlers();
 		g_step = nullptr;
 		g_leg = static_cast<Leg>(static_cast<uint8_t>(g_leg) + 1);
-		g_stage = (g_failures > 0) ? Stage::Summary : Stage::Setup;
+		g_stage = (!g_report.clean()) ? Stage::Summary : Stage::Setup;
 		break;
 	}
 	case Stage::Reclaim:
 		runReclaim();
 		break;
 	case Stage::Summary:
-		printf("CL-RESULT failures=%d\n", g_failures);
+		g_report.printResult();
 		// The Rust runner ends a failing run with process::exit, which does NOT flush C stdio.
 		fflush(stdout);
 		g_summaryPrinted = true;
@@ -1416,7 +1428,7 @@ void deluge_scenario_clip_lifetime_begin(void) {
 	}
 	g_stepDone = false;
 	g_summaryPrinted = false;
-	g_failures = 0;
+	g_report.reset();
 	g_ticks = 0;
 	g_reclaimDone = false;
 	// Every leg's gesture is made from the session view. The root UI has to be it: the clip view the harness boots
@@ -1424,11 +1436,11 @@ void deluge_scenario_clip_lifetime_begin(void) {
 	changeRootUI(&sessionView);
 	g_home = currentSong->live.clips.session_clips.size() > 0 ? currentSong->live.clips.session_clips[0] : nullptr;
 	if (g_home == nullptr) {
-		fail("the boot song has no clip");
+		setupFailed("the boot song has no clip");
 		g_stage = Stage::Summary;
 	}
 	else if (g_leg == Leg::Done) {
-		fail("CLIP_LIFETIME_FROM names no leg");
+		setupFailed("CLIP_LIFETIME_FROM names no leg");
 		g_stage = Stage::Summary;
 	}
 }
@@ -1452,7 +1464,7 @@ bool deluge_scenario_clip_lifetime_step_done(void) {
 }
 
 int32_t deluge_scenario_clip_lifetime_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"
