@@ -498,6 +498,7 @@ enum class SampleRepeatMode {
 	STRETCH,
 };
 constexpr auto kNumRepeatModes = util::to_underlying(SampleRepeatMode::STRETCH) + 1;
+constexpr int32_t kMaxLoopCrossfadeMs = 1000;
 
 enum class FilterType {
 	LPF,

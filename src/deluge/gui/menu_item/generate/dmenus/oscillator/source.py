@@ -102,6 +102,15 @@ for i in range(2):
             available_when=_available_txt,
         ),
         Menu(
+            "sample::LoopCrossfade",
+            f"sample{i}LoopCrossfadeMenu",
+            ["{name}", "{title}", f"{i}"],
+            "oscillator/sample/loop_crossfade.md",
+            name="STRING_FOR_LOOP_CROSSFADE",
+            title="STRING_FOR_SAMP_LOOP_XFADE_MENU_TITLE",
+            available_when=_available_txt,
+        ),
+        Menu(
             "sample::TimeStretch",
             f"sample{i}TimeStretchMenu",
             ["{name}", "{title}", f"{i}"],
