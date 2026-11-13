@@ -131,8 +131,7 @@ void report(Micros elapsedUs) {
 		printf("IR-JOB runs=%llu perSecond=%.1f name=%s\n", static_cast<unsigned long long>(g_windowRuns[id]),
 		       perSecond, s.name);
 		if (isWakeDriven(s.name) && g_windowRuns[id] != 0) {
-			g_report.fail("job=%s", s.name);
-			g_report.fail("a wake-driven job ran on an idle app: something polls it");
+			g_report.fail("job=%s: a wake-driven job ran on an idle app: something polls it", s.name);
 		}
 		if (std::strcmp(s.name, kUiJob) == 0 && (perSecond < kUiMinPerSecond || perSecond > kUiMaxPerSecond)) {
 			g_report.fail("the ui routine ran outside its timers' rate");

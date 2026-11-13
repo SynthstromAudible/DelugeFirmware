@@ -61,6 +61,10 @@ DELUGE_SCENARIO_DECLARE(card_reinsert);
 
 namespace {
 
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
+
 // ── The fixture ─────────────────────────────────────────────────────────────
 //
 // Three residents, in the three states `cardReinserted()`'s walk distinguishes. All three must be
@@ -76,6 +80,8 @@ constexpr const char* kEvictPath = "SAMPLES/CREVICT.WAV";
 /// Ticks the boot's sample loads are given to land before the residents are counted. A count to elapse rather than a
 /// wait: no accessor says the loads landed, and the residents counted next are the evidence.
 constexpr int32_t kSettleTicks = 64;
+/// Ticks the blank song's preset request is given to land before the scenario acts on the boot clip.
+constexpr int32_t kBootSettleTicks = 2000;
 /// Ticks the re-insert is given to run. `cardEjected` is private, so there is no condition to poll; the fates reported
 /// afterwards are themselves the evidence that the walk ran. Far more than the queue-then-run round trip needs.
 constexpr int32_t kReinsertTicks = 256;
@@ -94,7 +100,9 @@ enum class Stage : uint8_t {
 Stage g_stage = Stage::Build;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-deluge::scenarios::ScenarioReport g_report{"CR"};
+ScenarioReport g_report{"CR"};
+/// The boot song's preset request landing; polled by the Build stage.
+Wait g_bootWait{g_report, "the blank song's preset request landing", kBootSettleTicks};
 int32_t g_waitTicks = 0;
 
 /// Residents counted at Snapshot, before anything is ejected.
@@ -203,26 +211,25 @@ bool buildFixture() {
 	return true;
 }
 
-/// Whether the blank song's own preset request has landed. The boot song starts on the built-in default
-/// synth and asks InstrumentLoad for the first SYNTHS preset on the interaction tier; a scenario that
-/// acted on the boot clip before that landed would be working on an Instrument about to be replaced --
-/// and would find its sources still range-less.
-bool bootSettled() {
-	static int32_t waited = 0;
-	if (currentSong != nullptr && (currentSong->blankPresetPending || deluge::gui::instrumentLoad.inFlight())
-	    && ++waited < 2000) {
-		return false;
-	}
-	return true;
-}
-
 void runTick() {
-	if (!bootSettled()) {
-		return;
-	}
 	switch (g_stage) {
 
 	case Stage::Build:
+		// The boot song starts on the built-in default synth and asks InstrumentLoad for the first SYNTHS preset on the
+		// interaction tier; acting on the boot clip before that landed would work on an Instrument about to be
+		// replaced, whose sources are still range-less.
+		if (currentSong != nullptr) {
+			const bool landed = !currentSong->blankPresetPending && !deluge::gui::instrumentLoad.inFlight();
+			switch (g_bootWait.poll(landed)) {
+			case WaitState::Pending:
+				return;
+			case WaitState::Met:
+				break;
+			case WaitState::Expired:
+				g_stage = Stage::Report;
+				return;
+			}
+		}
 		buildFixture([] {
 			if (!buildFixture()) {
 				g_stage = Stage::Report;
@@ -343,6 +350,7 @@ void deluge_scenario_card_reinsert_begin(void) {
 	g_stepDone = false;
 	g_summaryPrinted = false;
 	g_report.reset();
+	g_bootWait = Wait{g_report, "the blank song's preset request landing", kBootSettleTicks};
 	g_waitTicks = 0;
 	g_samplesBefore = 0;
 	g_referencedBefore = 0;

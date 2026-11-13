@@ -420,35 +420,34 @@ void runTick() {
 		}
 		break;
 
-	case Stage::Hold:
+	case Stage::Hold: {
 		// Ticked until the preview's read is issued, so the second press has to wait a held buffer out rather than
 		// drop a read the channel has not started.
 		tickLoad();
-		{
-			const bool issued = loadPatternUI.readIssued();
-			if (!issued && !loadPatternUI.loadInFlight()) {
-				deluge_file_bytes_set_latency_ms(0);
-				g_report.fail("the preview's load ended before its read was held");
-				g_stage = Stage::Report;
-				break;
-			}
-			switch (g_wait.poll(issued)) {
-			case WaitState::Pending:
-				break;
-			case WaitState::Met:
-				printf("PT-HELD leg=%s ticks=%d\n", legName(g_leg), g_wait.ticks());
-				actOverHeldRead();
-				deluge_file_bytes_set_latency_ms(0);
-				g_wait = Wait{g_report, "the leg's load settling", kLegTicks};
-				g_stage = Stage::Await;
-				break;
-			case WaitState::Expired:
-				deluge_file_bytes_set_latency_ms(0);
-				g_stage = Stage::Report;
-				break;
-			}
+		const bool issued = loadPatternUI.readIssued();
+		if (!issued && !loadPatternUI.loadInFlight()) {
+			deluge_file_bytes_set_latency_ms(0);
+			g_report.fail("the preview's load ended before its read was held");
+			g_stage = Stage::Report;
+			break;
+		}
+		switch (g_wait.poll(issued)) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
+			printf("PT-HELD leg=%s ticks=%d\n", legName(g_leg), g_wait.ticks());
+			actOverHeldRead();
+			deluge_file_bytes_set_latency_ms(0);
+			g_wait = Wait{g_report, "the leg's load settling", kLegTicks};
+			g_stage = Stage::Await;
+			break;
+		case WaitState::Expired:
+			deluge_file_bytes_set_latency_ms(0);
+			g_stage = Stage::Report;
+			break;
 		}
 		break;
+	}
 
 	case Stage::Await:
 		tickLoad();
