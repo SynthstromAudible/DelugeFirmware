@@ -21,6 +21,7 @@ import hashlib
 import json
 import os
 import sys
+import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -34,6 +35,14 @@ def _env(env: Mapping[str, str] | None) -> Mapping[str, str]:
     return os.environ if env is None else env
 
 
+def _refuse() -> None:
+    print(
+        f"{SWITCH}=1 is set by ./dbt test --update <name>, which builds first and collects what changed: run that",
+        file=sys.stderr,
+    )
+    raise SystemExit(2)
+
+
 def updating(env: Mapping[str, str] | None = None) -> bool:
     """Is this run re-recording? `env` is the gate's environment; None reads this process's (a runner or tool run as
     its own process). Exits with status 2 when the switch is set without the log."""
@@ -41,11 +50,7 @@ def updating(env: Mapping[str, str] | None = None) -> bool:
     if env.get(SWITCH) != "1":
         return False
     if not env.get(LOG):
-        print(
-            f"{SWITCH}=1 is set by ./dbt test --update <name>, which builds first and collects what changed: run that",
-            file=sys.stderr,
-        )
-        raise SystemExit(2)
+        _refuse()
     return True
 
 
@@ -73,13 +78,17 @@ def describe_value(value) -> str:
 
 
 def _append(line: str, env: Mapping[str, str] | None) -> None:
-    with open(_env(env)[LOG], "a") as log:
+    path = _env(env).get(LOG)
+    if not path:
+        _refuse()
+    with open(path, "a") as log:
         fcntl.flock(log, fcntl.LOCK_EX)
         log.write(line + "\n")
 
 
 def report(item: str, old: str, new: str, env: Mapping[str, str] | None = None) -> None:
-    """Log that `item` went from `old` to `new` (both one word); nothing when they are equal."""
+    """Log that `item` went from `old` to `new` (both one word); nothing when they are equal. The writers call this
+    after the atomic write, so a logged change is always on disk."""
     if old != new:
         _append(f"{TAG} {item} {old} -> {new}", env)
 
@@ -90,6 +99,24 @@ def item_file(line: str) -> str:
     return item.split(":", 1)[0]
 
 
+def atomic_write(path: Path, data: bytes) -> None:
+    """Replace `path` with `data` in one rename, keeping its mode: a reader or an interrupted run sees the old file or
+    the new one, never a torn one."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    mode = path.stat().st_mode & 0o7777 if path.exists() else 0o644
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
+    try:
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(data)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.chmod(tmp, mode)
+        os.replace(tmp, path)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
+
+
 def write_bytes(
     path: Path, data: bytes, item: str, env: Mapping[str, str] | None = None
 ) -> bool:
@@ -97,8 +124,7 @@ def write_bytes(
     old = path.read_bytes() if path.is_file() else None
     if old == data:
         return False
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(data)
+    atomic_write(path, data)
     report(item, describe_bytes(old), describe_bytes(data), env)
     return True
 
@@ -120,32 +146,33 @@ def remove(path: Path, item: str, env: Mapping[str, str] | None = None) -> bool:
 
 
 def _rewrite_json(path: Path, change, item: str, indent: int, env) -> int:
-    """Apply `change(old) -> new` to the JSON object in `path` under a lock (gates running at once share a records
-    file), write it as json.dumps(new, indent=indent, sort_keys=True) plus a newline, and report each key that
-    changed. Returns how many did."""
-    with open(path, "a+") as fh:
-        fcntl.flock(fh, fcntl.LOCK_EX)
-        fh.seek(0)
-        text = fh.read()
+    """Apply `change(old) -> new` to the JSON object in `path`, write it as json.dumps(new, indent=indent,
+    sort_keys=True) plus a newline, and report each key that changed. Returns how many did. Leaves the file alone when
+    the object is unchanged, whatever its formatting. Gates running at once share a records file, so the read-modify-
+    write holds a lock on `<file>.lock`: the write replaces the file's inode, which a lock on the file itself would not
+    survive. The lock file stays."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path.with_name(path.name + ".lock"), "a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        text = path.read_text() if path.exists() else ""
         old = json.loads(text) if text else {}
         new = change(dict(old))
-        body = json.dumps(new, indent=indent, sort_keys=True) + "\n"
-        if body == text:
+        if new == old:
             return 0
-        fh.seek(0)
-        fh.truncate()
-        fh.write(body)
-    changed = 0
-    for key in sorted(set(old) | set(new)):
-        if old.get(key) != new.get(key):
-            report(
-                f"{item}:{key}",
-                describe_value(old.get(key)),
-                describe_value(new.get(key)),
-                env,
-            )
-            changed += 1
-    return changed
+        atomic_write(
+            path, (json.dumps(new, indent=indent, sort_keys=True) + "\n").encode()
+        )
+        changed = 0
+        for key in sorted(set(old) | set(new)):
+            if old.get(key) != new.get(key):
+                report(
+                    f"{item}:{key}",
+                    describe_value(old.get(key)),
+                    describe_value(new.get(key)),
+                    env,
+                )
+                changed += 1
+        return changed
 
 
 def write_json(

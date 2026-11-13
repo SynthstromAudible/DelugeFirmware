@@ -19,6 +19,8 @@ hand (any value) and re-record.
 import hashlib
 from pathlib import Path
 
+import golden_update as gu
+
 TAG = "GOLDEN-RECORD"
 
 
@@ -53,24 +55,26 @@ def _describe(lines: list[str]) -> str:
     return f"lines={len(lines)},sha256={hashlib.sha256(text.encode()).hexdigest()[:16]}"
 
 
-def rewrite(text: str, region: str, lines: list[str]) -> tuple[str, list[str]]:
-    """`text` with `region`'s lines replaced by `lines` (aligned), and the lines the region held."""
-    src = text.splitlines(keepends=True)
-    begin, end = (
-        f"// GOLDEN-RECORDS BEGIN {region}\n",
-        f"// GOLDEN-RECORDS END {region}\n",
-    )
+def rewrite(
+    text: str, region: str, lines: list[str], header: str = ""
+) -> tuple[str, list[str]]:
+    """`text` with `region`'s lines replaced by `lines` (aligned), and the lines the region held. Every byte outside
+    the region survives, line endings included: the new lines take the ending of the BEGIN marker."""
+    src = text.split("\n")
+    stripped = [line.rstrip("\r") for line in src]
+    begin, end = f"// GOLDEN-RECORDS BEGIN {region}", f"// GOLDEN-RECORDS END {region}"
     if (
-        src.count(begin) != 1
-        or src.count(end) != 1
-        or src.index(end) < src.index(begin)
+        stripped.count(begin) != 1
+        or stripped.count(end) != 1
+        or stripped.index(end) < stripped.index(begin)
     ):
         raise ValueError(
-            f"region {region}: the header needs one '{begin.strip()}' line, then one '{end.strip()}'"
+            f"{header} region {region}: the header needs one '{begin}' line, then one '{end}'"
         )
-    i, j = src.index(begin), src.index(end)
-    old = [line.rstrip("\n") for line in src[i + 1 : j]]
-    return "".join(src[: i + 1] + [line + "\n" for line in align(lines)] + src[j:]), old
+    i, j = stripped.index(begin), stripped.index(end)
+    cr = "\r" if src[i].endswith("\r") else ""
+    old = stripped[i + 1 : j]
+    return "\n".join(src[: i + 1] + [line + cr for line in align(lines)] + src[j:]), old
 
 
 def apply(root: Path, lines) -> list[str]:
@@ -81,14 +85,14 @@ def apply(root: Path, lines) -> list[str]:
         by_header.setdefault(header, []).append((region, records))
     for header, regions in by_header.items():
         path = root / header
-        text = path.read_text()
+        text = path.read_bytes().decode()
         new = text
         for region, records in regions:
-            new, old = rewrite(new, region, records)
+            new, old = rewrite(new, region, records, header)
             if old != align(records):
                 updated.append(
                     f"GOLDEN-UPDATED {header}:{region} {_describe(old)} -> {_describe(align(records))}"
                 )
         if new != text:
-            path.write_text(new)
+            gu.atomic_write(path, new.encode())
     return updated
