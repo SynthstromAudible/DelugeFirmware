@@ -125,9 +125,27 @@ describe resolve("resolving a control", ${
 	});
 	it("walks a group's pages, skipping another group's", _{
 		const KnobFocus song{.owner = SongFocus{}};
-		const SelectPage next = std::get<SelectPage>(resolve_press(song, comp_section(1, 1), 0, true));
+		SectionPages pages = comp_section(1, 1);
+		const SelectPage next = std::get<SelectPage>(resolve_press(song, pages, 0, true));
 		expect(next.page_id).to_equal(2u);
 		expect(next.slots[0].target->id.value).to_equal(102u);
+		// Group 0's page between group 1's first two: the press passes over it.
+		pages.cycle[2].group = 0;
+		const SelectPage skipped = std::get<SelectPage>(resolve_press(song, pages, 0, true));
+		expect(skipped.page_id).to_equal(3u);
+		expect(skipped.slots[0].target->id.value).to_equal(103u);
+	});
+	it("turns nothing for a slot out of range, or with no owner to write", _{
+		const SectionPages pages{.current = page(0, 0, 121, 129)};
+		expect(std::holds_alternative<std::monostate>(resolve_turn(KnobFocus{.owner = SongFocus{}}, pages, 8))).to_be_true();
+		expect(std::holds_alternative<std::monostate>(resolve_turn(KnobFocus{.owner = SongFocus{}}, pages, -1))).to_be_true();
+		expect(std::holds_alternative<std::monostate>(resolve_turn(KnobFocus{.owner = MidiFocus{.track = {5}}}, pages, 0))).to_be_true();
+		expect(std::holds_alternative<std::monostate>(resolve_turn(KnobFocus{}, pages, 0))).to_be_true();
+	});
+	it("toggles to nothing where the other group has no entry page", _{
+		const KnobFocus song{.owner = SongFocus{}};
+		SectionPages pages = comp_section(0, 9);
+		expect(std::holds_alternative<std::monostate>(resolve_press(song, pages, 1, true))).to_be_true();
 	});
 	it("wraps from a group's last page to its first, past another group's page", _{
 		const KnobFocus song{.owner = SongFocus{}};

@@ -25,6 +25,11 @@ describe chain_pages("the host chains' pages", ${
 		expect(*pages[1].slots[0].press_param == st::kHpfMode).to_be_true();
 		expect(pages[2].slots[0].press == PressAction::NONE).to_be_true();
 		expect(*pages[2].slots[1].param == ge::kTreble).to_be_true();
+		for (const auto& page : pages) {
+			expect(page.slots[1].press == PressAction::NEXT_PAGE).to_be_true();
+			expect(page.slots[1].kind == plugin::ParamKind::UNPATCHED_GLOBAL).to_be_true();
+		}
+		expect(*pages[1].slots[1].param == ge::kHpfFrequency).to_be_true();
 	});
 	it("has no page on the envelopes' button", _{
 		expect(section_pages(2, {}).empty()).to_be_true();
@@ -69,6 +74,7 @@ describe chain_pages("the host chains' pages", ${
 		expect(*pages[0].slots[0].param == ge::kModFXFeedback).to_be_true();
 		expect(*pages[0].slots[1].param == ge::kModFXRate).to_be_true();
 		expect(*pages[0].slots[1].press_param == st::kModFXType).to_be_true();
+		expect(pages[0].slots[0].press == PressAction::NEXT_PAGE).to_be_true();
 		pages = section_pages(5, {.mod_fx_type = effects::ModFXType::CHORUS});
 		expect(pages.size()).to_equal(size_t{2});
 		expect(pages[1].page_id).to_equal(2u);
@@ -79,6 +85,21 @@ describe chain_pages("the host chains' pages", ${
 		expect(section_pages(6, {})[0].slots[1].press == PressAction::HOLD_STUTTER).to_be_true();
 		expect(*section_pages(6, {})[0].slots[0].param == ge::kPitchAdjust).to_be_true();
 		expect(section_pages(6, {.song = true})[0].slots[0].param.has_value()).to_be_false();
+	});
+	it("gives each section's page by id alone, as its cycle holds it", _{
+		for (uint32_t section = 0; section < 8; section++) {
+			for (const bool song : {false, true}) {
+				const global_effectable::PageInputs in{.song = song, .mod_fx_type = effects::ModFXType::CHORUS};
+				for (const auto& page : section_pages(section, in)) {
+					expect(global_effectable::section_page(section, page.page_id, in) == page).to_be_true();
+				}
+			}
+		}
+		expect(global_effectable::section_page(1, 3, {}).has_value()).to_be_false();
+		expect(global_effectable::section_page(4, 1, {}).has_value()).to_be_false();
+		expect(global_effectable::section_page(4, 6, {.song = true}).has_value()).to_be_false();
+		expect(global_effectable::section_page(5, 0, {.mod_fx_type = effects::ModFXType::FLANGER}).has_value())
+		    .to_be_false();
 	});
 	it("puts the sample rate reduction over the bitcrush", _{
 		const auto pages = section_pages(7, {});

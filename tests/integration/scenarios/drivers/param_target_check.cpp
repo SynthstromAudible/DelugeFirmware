@@ -521,8 +521,14 @@ void checkChainCells(Checker& check) {
 		const bind::KnobAssignment scenes = bind::knob_assignment(*song, focus, 0);
 		const std::optional<deluge::plugin::ParamId> legacy =
 		    GlobalEffectable::knobParam(4, 0, FilterType::LPF, ModFXParam::DEPTH, true);
-		if (legacy || std::get_if<bind::CompArm>(&scenes.target) == nullptr) {
-			check.fail("chain cell song mode 4 lower editing", legacy ? 1 : 0, 0, 0);
+		if (legacy) {
+			std::fprintf(check.io.err, "CHAIN-CELL song mode 4 lower editing: legacy names param %u, not a setting\n",
+			             legacy->value);
+			++check.disagreements;
+		}
+		if (std::get_if<bind::CompArm>(&scenes.target) == nullptr) {
+			std::fputs("CHAIN-CELL song mode 4 lower editing: the binding is not a compressor arm\n", check.io.err);
+			++check.disagreements;
 		}
 	}
 }

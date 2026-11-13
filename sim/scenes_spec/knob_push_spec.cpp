@@ -8,6 +8,8 @@
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/menu/bind_host.h"
 
+#include "effects/chain.h"
+#include "effects/words.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -33,6 +35,7 @@
 
 #include "spec/support/spec_main.h"
 
+#include <array>
 #include <cstdio>
 #include <functional>
 #include <string>
@@ -157,16 +160,16 @@ services::PushInputs inputs_of(const Side& side, bool held) {
 	if (const std::optional<services::EffectOwner> owner = services::effect_owner(side.focus)) {
 		if (const auto* slot = std::get_if<deluge::project::SlotAddress>(&*owner)) {
 			if (const deluge::instrument::SoundState* state = facts.sound_state(*slot)) {
-				inputs.effects = state->effects;
-				inputs.fm = state->synth_mode == SynthMode::FM;
+				inputs.pages.effects = state->effects;
+				inputs.pages.fm = state->synth_mode == SynthMode::FM;
 			}
 		}
 		else if (const deluge::effects::EffectStates* states =
 		             facts.chain_effects(std::get<deluge::project::ChainAddress>(*owner))) {
-			inputs.effects = *states;
+			inputs.pages.effects = *states;
 		}
 	}
-	inputs.alt_delay = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
+	inputs.pages.alt_delay = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
 	inputs.button_held = held;
 	inputs.clip_context = !std::holds_alternative<bind::SongFocus>(side.focus.owner);
 	return inputs;
@@ -304,6 +307,59 @@ std::vector<std::string> press_buttons(Side& legacy, Side& port, const std::stri
 	return found;
 }
 
+/// @brief Set @p side's chain's mod FX type to @p type and its view to @p view, through the app's sink as a menu sets
+///        them: the view moves to nothing the type has, which a type step would have fixed.
+/// @return Where the state was not reached, or empty.
+std::string set_mod_fx(Side& side, std::string_view type, std::string_view view) {
+	currentSong = side.song;
+	const std::optional<services::EffectOwner> owner = services::effect_owner(side.focus);
+	const auto* chain = owner ? std::get_if<deluge::project::ChainAddress>(&*owner) : nullptr;
+	if (chain == nullptr) {
+		return "no chain";
+	}
+	deluge::controls::Sink& sink = deluge::scenes::menu::host_controls_sink();
+	if (!sink.write_effect(*chain, "modFXType", deluge::serialization::Value::makeScalar(std::string{type}))
+	    || !sink.chain_view(*chain, "modFXCurrentParam", view)) {
+		return "sink refused " + std::string{type} + "/" + std::string{view};
+	}
+	const Outcome now = outcome_of(side, {});
+	if (deluge::effects::to_string(now.effects.mod_fx.type) != type
+	    || deluge::effects::kModFxParamWords[now.mod_fx_param] != view) {
+		return "state not reached for " + std::string{type} + "/" + std::string{view};
+	}
+	return {};
+}
+
+/// @brief The mod FX button's lower knob pushed three times from a view its type has no param for (a flanger on
+///        depth, a chorus on feedback), plain and held: the push moves on to the type's next view, on both sides.
+std::vector<std::string> push_from_missing_view(Side& legacy, Side& port, const std::string& label) {
+	constexpr uint8_t kModFxButton = 5;
+	constexpr std::array<std::pair<std::string_view, std::string_view>, 2> kStates{
+	    {{"flanger", "depth"}, {"chorus", "feedback"}}};
+	StubDisplay stub;
+	display = &stub;
+	std::vector<std::string> found;
+	for (const auto& [type, view] : kStates) {
+		for (const bool held : {false, true}) {
+			for (Side* side : {&legacy, &port}) {
+				if (std::string why = set_mod_fx(*side, type, view); !why.empty()) {
+					found.push_back(label + " " + why);
+				}
+				currentSong = side->song;
+				(void)deluge::edits::modKnobModeFor(side->mode_owner, kModFxButton);
+			}
+			for (int32_t n = 0; n < 3; n++) {
+				if (std::string why = push_both(legacy, port, kModFxButton, 0, held, stub); !why.empty()) {
+					found.push_back(label + " " + std::string{type} + " on " + std::string{view} + " push "
+					                + std::to_string(n) + " " + why);
+				}
+			}
+		}
+	}
+	display = nullptr;
+	return found;
+}
+
 void report(const std::vector<std::string>& found) {
 	for (const std::string& why : found) {
 		std::fputs(("KNOB-PUSH " + why + "\n").c_str(), stdout);
@@ -357,6 +413,21 @@ Side kit_chain_side(deluge::scenes::spec::SongFixture& f) {
 	                                        .owner = bind::ChainOwner::KIT,
 	                                        .clip = deluge::project::ClipAddress{f.clip->id()}}};
 	side.mode_owner = deluge::project::TrackAddress{*kit->id()};
+	return side;
+}
+
+/// @brief An audio track's chain's side of the twin.
+Side audio_side(deluge::scenes::spec::AudioSongFixture& f) {
+	Side side;
+	side.song = f.song;
+	side.engine = f.output;
+	side.stack_of = [song = f.song, audio = f.output, clip = f.clip](char* memory) {
+		return setupModelStackWithThreeMainThingsButNoNoteRow(memory, song, audio, clip, &clip->paramManager);
+	};
+	side.focus = {.owner = bind::ChainFocus{.chain = {deluge::project::ChainAddress::Kind::OUTPUT, *f.output->id()},
+	                                        .owner = bind::ChainOwner::AUDIO_TRACK,
+	                                        .clip = deluge::project::ClipAddress{f.clip->id()}}};
+	side.mode_owner = deluge::project::TrackAddress{*f.output->id()};
 	return side;
 }
 
@@ -442,22 +513,41 @@ describe knob_push("what a gold knob's push and a mod button do, from the record
 		Song* const before = currentSong;
 		deluge::scenes::spec::AudioSongFixture a = deluge::scenes::spec::make_audio_clip_song();
 		deluge::scenes::spec::AudioSongFixture b = deluge::scenes::spec::make_audio_clip_song();
-		const auto audio_side = [](deluge::scenes::spec::AudioSongFixture& f) {
-			Side side;
-			side.song = f.song;
-			side.engine = f.output;
-			side.stack_of = [song = f.song, audio = f.output, clip = f.clip](char* memory) {
-				return setupModelStackWithThreeMainThingsButNoNoteRow(memory, song, audio, clip, &clip->paramManager);
-			};
-			side.focus = {.owner = bind::ChainFocus{.chain = {deluge::project::ChainAddress::Kind::OUTPUT, *f.output->id()},
-			                                        .owner = bind::ChainOwner::AUDIO_TRACK,
-			                                        .clip = deluge::project::ClipAddress{f.clip->id()}}};
-			side.mode_owner = deluge::project::TrackAddress{*f.output->id()};
-			return side;
-		};
 		Side legacy = audio_side(a);
 		Side port = audio_side(b);
 		const auto found = push_everything(legacy, port, "audio");
+		report(found);
+		expect(found.empty()).to_be_true();
+		currentSong = before;
+	});
+
+	it("pushes a chain's mod FX knob from a view its type lacks as the engine does: a kit's, the song's, an audio track's", _ {
+		Song* const before = currentSong;
+		std::vector<std::string> found;
+		{
+			deluge::scenes::spec::SongFixture a = deluge::scenes::spec::make_kit_song();
+			deluge::scenes::spec::SongFixture b = deluge::scenes::spec::make_kit_song();
+			Side legacy = kit_chain_side(a);
+			Side port = kit_chain_side(b);
+			auto more = push_from_missing_view(legacy, port, "kit chain");
+			found.insert(found.end(), more.begin(), more.end());
+		}
+		{
+			deluge::scenes::spec::SongFixture a = deluge::scenes::spec::make_synth_song();
+			deluge::scenes::spec::SongFixture b = deluge::scenes::spec::make_synth_song();
+			Side legacy = song_side(a);
+			Side port = song_side(b);
+			auto more = push_from_missing_view(legacy, port, "song");
+			found.insert(found.end(), more.begin(), more.end());
+		}
+		{
+			deluge::scenes::spec::AudioSongFixture a = deluge::scenes::spec::make_audio_clip_song();
+			deluge::scenes::spec::AudioSongFixture b = deluge::scenes::spec::make_audio_clip_song();
+			Side legacy = audio_side(a);
+			Side port = audio_side(b);
+			auto more = push_from_missing_view(legacy, port, "audio");
+			found.insert(found.end(), more.begin(), more.end());
+		}
 		report(found);
 		expect(found.empty()).to_be_true();
 		currentSong = before;

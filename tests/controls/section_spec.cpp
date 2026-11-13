@@ -18,8 +18,8 @@ describe section("a mod button's press and release", ${
 		expect(resolve_section(kSound, 0, 3, false, {}).change_mode).to_be_false();
 	});
 	it("shows the button's popup on a press, and not on a release", _{
-		expect(resolve_section(kChain, 0, 3, true, {}).popup).to_be_true();
-		expect(resolve_section(kChain, 0, 3, false, {}).popup).to_be_false();
+		expect(resolve_section(kChain, 0, 3, true, {}).taken).to_be_true();
+		expect(resolve_section(kChain, 0, 3, false, {}).taken).to_be_false();
 	});
 	it("names no mode owner, and so changes no mode, with no focus", _{
 		expect(resolve_section(KnobFocus{}, 0, 3, true, {}).change_mode).to_be_false();

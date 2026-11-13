@@ -17,9 +17,24 @@ describe instrument_pages("the Deluge instrument's pages", ${
 		expect(*instrument::slot_for(ip::kDelayRate, {.alt_delay = true}).press_param
 		       == effects::setting::kDelaySyncType).to_be_true();
 	});
-	it("cycles the filter page from the frequency knob, but not in FM", _{
-		expect(instrument::slot_for(ip::kLpfFrequency, {}).press == plugin::PressAction::NEXT_PAGE).to_be_true();
-		expect(instrument::slot_for(ip::kLpfFrequency, {.fm = true}).press == plugin::PressAction::NONE).to_be_true();
+	it("steps the delay's type from the delay feedback's press, or its sync level with the alternative delay knobs", _{
+		expect(*instrument::slot_for(ip::kDelayFeedback, {}).press_param == effects::setting::kDelayType).to_be_true();
+		expect(*instrument::slot_for(ip::kDelayFeedback, {.alt_delay = true}).press_param
+		       == effects::setting::kDelaySyncLevel).to_be_true();
+	});
+	it("steps a filter's mode from its resonance", _{
+		expect(instrument::slot_for(ip::kLpfResonance, {}).press == plugin::PressAction::STEP_SETTING).to_be_true();
+		expect(*instrument::slot_for(ip::kLpfResonance, {}).press_param == effects::setting::kLpfMode).to_be_true();
+		expect(*instrument::slot_for(ip::kHpfResonance, {}).press_param == effects::setting::kHpfMode).to_be_true();
+	});
+	it("moves to the next reverb preset from the reverb amount", _{
+		expect(instrument::slot_for(ip::kReverbAmount, {}).press == plugin::PressAction::REVERB_PRESET).to_be_true();
+	});
+	it("cycles the filter page from each filter's frequency knob and the treble, but not in FM", _{
+		for (const plugin::ParamId id : {ip::kLpfFrequency, ip::kHpfFrequency, ip::kTreble}) {
+			expect(instrument::slot_for(id, {}).press == plugin::PressAction::NEXT_PAGE).to_be_true();
+			expect(instrument::slot_for(id, {.fm = true}).press == plugin::PressAction::NONE).to_be_true();
+		}
 	});
 	it("holds the stutter from the stutter rate", _{
 		expect(instrument::slot_for(ip::kStutterRate, {}).press == plugin::PressAction::HOLD_STUTTER).to_be_true();
