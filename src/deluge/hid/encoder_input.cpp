@@ -61,11 +61,15 @@ struct SelectTurn {
 };
 
 /// Fold the select encoder's runs the board has decoded into its detents, oldest first, and write each run that
-/// completed any as one turn into \p turns. @return How many turns were written.
-static size_t takeSelectTurns(std::span<SelectTurn, DELUGE_ENCODER_EDGE_RUNS> turns) {
+/// completed any as one turn into \p turns, after any detents already waiting, which have no time.
+/// @return How many turns were written.
+static size_t takeSelectTurns(std::span<SelectTurn, DELUGE_ENCODER_EDGE_RUNS + 1> turns) {
+	size_t count = 0;
+	if (select.pending()) {
+		turns[count++] = {.detents = select.take(), .timeUs = 0};
+	}
 	DelugeEncoderEdges runs[DELUGE_ENCODER_EDGE_RUNS];
 	const uint8_t n = deluge_encoder_take_timed_quadrature_edges(3, runs, DELUGE_ENCODER_EDGE_RUNS);
-	size_t count = 0;
 	for (uint8_t i = 0; i < n; i++) {
 		select.applyEdges(runs[i].edges);
 		if (select.pending()) {
@@ -105,7 +109,7 @@ bool interpretEncoders() {
 		return false;
 	}
 	// The select encoder's runs wait on the board meanwhile, each with its time.
-	std::array<SelectTurn, DELUGE_ENCODER_EDGE_RUNS> selectTurns;
+	std::array<SelectTurn, DELUGE_ENCODER_EDGE_RUNS + 1> selectTurns;
 	const size_t selectTurnCount = takeSelectTurns(selectTurns);
 
 	bool anything = false;
