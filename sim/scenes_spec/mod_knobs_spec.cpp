@@ -1118,52 +1118,55 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		display = &stub;
 		deluge::scenes::spec::UiStackGuard ui_guard;
 		setRootUILowLevel(&instrumentClipView);
-		spec::SongFixture f = spec::make_midi_song();
-		currentSong = f.song;
-		f.song->setCurrentClip(f.clip);
-		auto* instrument = static_cast<MIDIInstrument*>(f.instrument);
 		using Cc = deluge::project::ModKnobCc;
-		struct Case {
+		struct Lane {
 			uint8_t mode;
 			uint8_t knob;
 			Cc cc;
-			bool automate;
 		};
-		const Case cases[] = {
-		    {0, 0, {.kind = Cc::Kind::NUMBER, .number = 74}, true},
-		    {0, 1, {.kind = Cc::Kind::BEND}, true},
-		    {1, 0, {.kind = Cc::Kind::AFTERTOUCH}, true},
-		    {1, 1, {.kind = Cc::Kind::NUMBER, .number = Cc::kYAxisNumber}, true},
-		    {2, 0, {.kind = Cc::Kind::NUMBER, .number = 75}, false}, // a CC with no automation
+		const Lane lanes[] = {
+		    {0, 0, {.kind = Cc::Kind::NUMBER, .number = 74}},
+		    {0, 1, {.kind = Cc::Kind::BEND}},
+		    {1, 0, {.kind = Cc::Kind::AFTERTOUCH}},
+		    {1, 1, {.kind = Cc::Kind::NUMBER, .number = Cc::kYAxisNumber}},
 		};
-		for (const Case& at : cases) {
-			(void)deluge::edits::modKnobCCFor(deluge::project::TrackAddress{*instrument->id()},
-			                                  static_cast<uint8_t>(at.mode * 2 + at.knob), at.cc);
-			if (at.automate) {
-				(void)deluge::edits::modKnobModeForSlot(instrument->getModKnobMode(), at.mode);
+		auto& sink = deluge::scenes::menu::host_controls_sink();
+		// One song per lane, with only that lane automated: a lane read in place of another reads no automation.
+		for (size_t automated = 0; automated < std::size(lanes); automated++) {
+			spec::SongFixture f = spec::make_midi_song();
+			currentSong = f.song;
+			f.song->setCurrentClip(f.clip);
+			auto* instrument = static_cast<MIDIInstrument*>(f.instrument);
+			for (const Lane& lane : lanes) {
+				(void)deluge::edits::modKnobCCFor(deluge::project::TrackAddress{*instrument->id()},
+				                                  static_cast<uint8_t>(lane.mode * 2 + lane.knob), lane.cc);
+			}
+			{
+				const Lane& lane = lanes[automated];
+				(void)deluge::edits::modKnobModeForSlot(instrument->getModKnobMode(), lane.mode);
 				KnobRig rig;
 				rig.set_song(f.song);
 				rig.set_target_with_timeline(f.clip, false);
 				rig.knobs.set_mod_region(0, 24);
 				DirectCtx c{1000};
-				(void)rig.knobs.handle(gold_turn(at.knob == 0 ? EncoderRole::GoldLower : EncoderRole::GoldUpper, 5),
+				(void)rig.knobs.handle(gold_turn(lane.knob == 0 ? EncoderRole::GoldLower : EncoderRole::GoldUpper, 5),
 				                       c.ctx);
 			}
-		}
-		auto& sink = deluge::scenes::menu::host_controls_sink();
-		for (const Case& at : cases) {
-			(void)deluge::edits::modKnobModeForSlot(instrument->getModKnobMode(), at.mode);
-			const deluge::scenes::bind::KnobFocus focus = focus_of(*f.song, f.clip);
-			etl::string<30> name;
-			instrument->appendCCName(name, MIDIInstrument::engineCcOf(at.cc));
-			std::string expected = name.c_str();
-			if (at.automate) {
-				expected += "\n(automated)";
+			for (size_t pressed = 0; pressed < std::size(lanes); pressed++) {
+				const Lane& lane = lanes[pressed];
+				(void)deluge::edits::modKnobModeForSlot(instrument->getModKnobMode(), lane.mode);
+				const deluge::scenes::bind::KnobFocus focus = focus_of(*f.song, f.clip);
+				etl::string<30> name;
+				instrument->appendCCName(name, MIDIInstrument::engineCcOf(lane.cc));
+				std::string expected = name.c_str();
+				if (pressed == automated) {
+					expected += "\n(automated)";
+				}
+				stub.last_popup.clear();
+				expect(sink.midi_cc_select(focus, lane.knob, true)).to_be_true();
+				expect(stub.last_popup).to_equal(expected);
+				expect(sink.midi_cc_select(focus, lane.knob, false)).to_be_false();
 			}
-			stub.last_popup.clear();
-			expect(sink.midi_cc_select(focus, at.knob, true)).to_be_true();
-			expect(stub.last_popup).to_equal(expected);
-			expect(sink.midi_cc_select(focus, at.knob, false)).to_be_false();
 		}
 		currentUIMode = UI_MODE_NONE;
 		display = nullptr;
