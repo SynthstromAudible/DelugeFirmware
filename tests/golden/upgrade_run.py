@@ -48,6 +48,8 @@ LEGACY = HERE / "upgrade"
 LEGACY_FIXTURES = HERE / "upgrade_fixtures.json"
 # The originals of the golden millisecond-zone cases, each beside its sample.
 RENDER_ORIGINALS = LEGACY / "render"
+# The committed cases the tree holds today. Shrinking them is a deliberate change to this number, reviewed.
+MIN_COMMITTED = 39
 KINDS = {"synth": "SYNTH", "kit": "KIT", "song": "song"}
 
 
@@ -68,8 +70,13 @@ def shortfalls(part, ran, committed_owed, corpus_songs, corpus_presets):
     corpus_presets the corpus cases found. A part that finds nothing to run must fail rather than pass on zero.
     """
     out = []
-    if part in ("all", "committed") and ran < committed_owed:
-        out.append(f"committed part ran {ran} of {committed_owed} cases")
+    if part in ("all", "committed"):
+        if committed_owed == 0:
+            out.append("the committed part owns no cases")
+        if ran < max(committed_owed, MIN_COMMITTED):
+            out.append(
+                f"committed part ran {ran} of {max(committed_owed, MIN_COMMITTED)} cases"
+            )
     if part in ("all", "corpus"):
         if corpus_songs == 0:
             out.append("corpus part found no songs")
