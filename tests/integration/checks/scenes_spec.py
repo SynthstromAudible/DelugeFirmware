@@ -3,7 +3,7 @@
 The scenario lists its entry table (SCENES_SPEC=--list), which must name exactly the spec files under sim/scenes_spec,
 selftest/ aside: the table is generated from the files, so a mismatch means a stale build. Each file then runs in its
 own process on its card (tests/integration/checks/scenes_spec_cards.txt; the fixture card otherwise) and passes only
-on exit 0 and its own SCENES-SPEC-RESULT failures=0 line, so a crash or a file that never reaches its result line
+on exit 0 and its entry's markers and result line (SCENES-SPEC-RESULT failures=0), so a crash or a file that never reaches its result line
 fails by name, as does one still running after RUN_TIMEOUT_S. The runner's self-specs pin that a passing file and the
 card checks pass and that a failing, a crashing and an empty one (no examples) do not. Every file runs in a fresh process, so no file's leftover
 state (a stack song in currentSong, a guard it left open) can reach another.
@@ -11,7 +11,8 @@ state (a stack song in currentSong, a guard it left open) can reach another.
 
 from pathlib import Path
 
-RESULT_OK = "SCENES-SPEC-RESULT failures=0"
+from scenario_gate import after
+
 FIXTURE_CARD = "tests/fixtures/card"
 # A spec runs synchronously inside the app's init, where golden_vt_render's own deadlines cannot fire, so a hung file
 # is ended here (exit 124) and reported by name. Every file takes well under a second.
@@ -49,11 +50,11 @@ def _listed(gate) -> list[str] | None:
         gate.fail(f"--list exited {run.code}")
         gate.show(run)
         return None
-    return [line.split()[1] for line in run.lines if line.startswith("SCENES-SPEC-ID ")]
+    return [after(line, "SCENES-SPEC-ID ") for line in run.starting("SCENES-SPEC-ID ")]
 
 
-def _passes(run) -> bool:
-    return run.code == 0 and run.has_line(RESULT_OK)
+def _passes(gate, run) -> bool:
+    return run.code == 0 and gate.shortfall(run.lines) is None
 
 
 def _run_spec(gate, spec_id: str, cards: dict[str, str]):
@@ -68,7 +69,7 @@ def _run_spec(gate, spec_id: str, cards: dict[str, str]):
 
 def _report(gate, spec_id: str, run) -> None:
     gate.fail(
-        f"{spec_id}: exit {run.code}, {'its result line' if run.has_line(RESULT_OK) else 'no passing result line'}"
+        f"{spec_id}: exit {run.code}, {'its result line' if run.has_line(gate.entry.result) else 'no passing result line'}"
     )
     for line in run.lines[-30:]:
         gate.say(f"    {line}")
@@ -97,7 +98,7 @@ def run(gate) -> None:
     passed = 0
     for spec_id in sorted(in_table & files):
         run = _run_spec(gate, spec_id, cards)
-        if _passes(run):
+        if _passes(gate, run):
             passed += 1
         else:
             _report(gate, spec_id, run)
@@ -112,8 +113,8 @@ def run(gate) -> None:
         ("selftest/crash_spec", False),
     ):
         run = _run_spec(gate, spec_id, cards)
-        if _passes(run) != should_pass:
+        if _passes(gate, run) != should_pass:
             gate.fail(
-                f"{spec_id}: the runner reported it {'passing' if _passes(run) else 'failing'}"
+                f"{spec_id}: the runner reported it {'passing' if _passes(gate, run) else 'failing'}"
             )
             gate.show(run)

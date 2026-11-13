@@ -136,7 +136,7 @@ wedge.
 This module runs the scenario itself: once, or once more after each leg that ends the process.
 """
 
-import re
+from scenario_gate import field, fields, has_fields, int_field, starting, tag
 
 LEGS = [
     "EPOCH0",
@@ -184,10 +184,6 @@ STOPPED_SONG_LEGS = ["EPOCH0", "SONGCLEAR", "SONGLOAD", "BURSTSONG"]
 # set and usable once the clear or load has returned.
 AFTER_LEGS = ["SONGCLEAR", "SONGLOAD", "BURSTSONG"]
 
-ABORTED = re.compile(r"^CL-([A-Z0-9]+) .* aborted=1( |$)")
-RECLAIM = re.compile(r"^CL-RECLAIM pending=[0-9]+$")
-LEG_LINE = re.compile(r"^CL-[A-Z0-9]+ (restored=[01] )?clipsReferenced=")
-
 
 def _next_leg(leg: str) -> str:
     """The leg after `leg`, or "" after the last or for a name that is not a leg."""
@@ -197,12 +193,22 @@ def _next_leg(leg: str) -> str:
     return LEGS[i + 1] if i + 1 < len(LEGS) else ""
 
 
-def _has(lines: list[str], pattern: str) -> bool:
-    return any(re.search(pattern, line) for line in lines)
+def _leg(line: str) -> str | None:
+    """The leg a `CL-<leg>` result line reports -- its first field, after an optional `restored`, is clipsReferenced --
+    or None for any other line."""
+    keys = list(fields(line))
+    if keys[:1] == ["restored"]:
+        keys = keys[1:]
+    name = tag(line)
+    return (
+        name[3:]
+        if name and name.startswith("CL-") and keys[:1] == ["clipsReferenced"]
+        else None
+    )
 
 
-def _last(lines: list[str], pattern: str) -> str:
-    found = [line for line in lines if re.search(pattern, line)]
+def _last_leg(lines: list[str], leg: str) -> str:
+    found = [line for line in lines if _leg(line) == leg]
     return found[-1] if found else ""
 
 
@@ -215,7 +221,11 @@ def _runs(gate) -> list[str] | None:
         lines += result.starting("CL-")
         if result.code == 0:
             return lines
-        aborted = [m.group(1) for line in result.lines if (m := ABORTED.match(line))]
+        aborted = [
+            tag(line)[3:]
+            for line in starting(result.lines, "CL-")
+            if field(line, "aborted") == "1"
+        ]
         if not aborted:
             gate.fail(f"the run exited {result.code} with no leg reporting aborted=1")
             for line in lines or result.lines[:60]:
@@ -235,11 +245,11 @@ def _required_failures(lines: list[str]) -> str:
     """The required legs that failed, each followed by a space, in the order they are checked."""
     failed = ""
     for leg in REQUIRED_LEGS:
-        line = _last(lines, rf"^CL-{leg} (restored=[01] )?clipsReferenced=")
+        line = _last_leg(lines, leg)
         if (
-            not re.search(r"(^| )clipsReferenced=0( |$)", line)
+            not has_fields(line, clipsReferenced=0)
             or "aborted=1" in line
-            or (leg == "UNDODELETE" and " restored=1 " not in line)
+            or (leg == "UNDODELETE" and field(line, "restored") != "1")
         ):
             failed += f"{leg} "
         elif f"CL-FREED leg={leg} pending=0" not in lines:
@@ -253,40 +263,43 @@ def _required_failures(lines: list[str]) -> str:
     # The drum must be handed to the render (soundsLive=0) rather than destroyed on the spot, and the leg must not end
     # the process.
     for leg in REQUIRED_SOUND_LEGS:
-        line = _last(lines, rf"^CL-{leg} clipsReferenced=")
-        if (
-            not line
-            or "aborted=1" in line
-            or not re.search(r"(^| )soundsLive=0( |$)", line)
-        ):
+        line = _last_leg(lines, leg)
+        if not line or "aborted=1" in line or not has_fields(line, soundsLive=0):
             failed += f"{leg} "
     # The old song must be unreachable when ~Song runs.
     for leg in REQUIRED_SONG_LEGS:
-        line = _last(lines, rf"^CL-{leg} clipsReferenced=")
+        line = _last_leg(lines, leg)
         if (
             not line
             or "aborted=1" in line
-            or not re.search(
-                r" clipsReferenced=0 songsReachable=0 soundsLive=0( |$)", line
+            or not has_fields(
+                line,
+                clipsReferenced=0,
+                songsReachable=0,
+                soundsLive=0,
+                violations=0,
             )
-            or not re.search(r"(^| )violations=0( |$)", line)
         ):
             failed += f"{leg} "
     # The stopped-clock ones must free it before they build the new one.
     for leg in STOPPED_SONG_LEGS:
-        line = _last(lines, rf"^CL-{leg} clipsReferenced=")
-        if not re.search(r"(^| )pendingAtBuild=0( |$)", line) or not re.search(
-            r"(^| )pending=0( |$)", line
-        ):
+        line = _last_leg(lines, leg)
+        if not has_fields(line, pendingAtBuild=0, pending=0):
             failed += f"{leg}(pending) "
     # epoch=1 is the one block boot renders itself (setupBlankSong() -> setUIForLoadedSong() runs the audio routine
     # inline, before the render task exists); no scheduled render has run yet.
-    if not _has(lines, r"^CL-EPOCH0 .* epoch=[01] returned=1 "):
+    if not any(
+        field(line, "epoch") in ("0", "1") and has_fields(line, returned=1)
+        for line in starting(lines, "CL-EPOCH0 ")
+    ):
         failed += "EPOCH0(epoch) "
     # Create New Song with a clock running frees the temp-recorded Samples right after it hands the old song over: the
     # old song, whose audio clip holds one of them, must already be freed by then.
     if (
-        not _has(lines, r"^CL-CLEARPLAYING .* pendingAtFree=0 ")
+        not any(
+            has_fields(line, pendingAtFree=0)
+            for line in starting(lines, "CL-CLEARPLAYING ")
+        )
         or "CL-CLEARSAMPLE leg=CLEARPLAYING sampleFreed=1 pendingAtFree=0" not in lines
     ):
         failed += "CLEARPLAYING(order) "
@@ -297,13 +310,20 @@ def _required_failures(lines: list[str]) -> str:
 
 
 def _check(gate, lines: list[str]) -> None:
+    # The entry's leg markers and CL-RESULT failures=0, over every run's lines.
+    if not gate.require_markers(lines):
+        return
     for leg in LEGS:
-        if not _has(lines, rf"^CL-{leg} (restored=[01] )?clipsReferenced="):
+        if not any(_leg(line) == leg for line in lines):
             gate.fail(f"no CL-{leg} line: a leg never ran")
             for line in lines:
                 gate.say(line)
             return
-    reclaims = [line for line in lines if RECLAIM.match(line)]
+    reclaims = [
+        line
+        for line in starting(lines, "CL-RECLAIM ")
+        if (field(line, "pending") or "").isdigit()
+    ]
     if not reclaims:
         gate.fail("no CL-RECLAIM line")
         for line in lines:
@@ -332,22 +352,26 @@ def _check(gate, lines: list[str]) -> None:
 
     # Everything the render let go of, including the two direct-drum-destroy legs' retired drums, must actually have
     # been reclaimed by the end of the run.
-    if not reclaims[-1].endswith(" pending=0"):
+    if field(reclaims[-1], "pending") != "0":
         gate.fail(f"the final CL-RECLAIM did not read pending=0: {reclaims[-1]}")
         return
 
     red_legs = sorted(
         {
-            re.sub(r"^CL-([A-Z0-9]+) .*", r"\1", line)
+            _leg(line)
             for line in lines
-            if LEG_LINE.match(line)
-            and re.search(
-                r"aborted=1|(clipsReferenced|songsReachable|soundsLive)=[1-9]", line
+            if _leg(line)
+            and (
+                field(line, "aborted") == "1"
+                or any(
+                    (int_field(line, key) or 0) > 0
+                    for key in ("clipsReferenced", "songsReachable", "soundsLive")
+                )
             )
         }
     )
     red = "".join(f"{leg} " for leg in red_legs)
-    if _has(lines, r"^CL-RECLAIM pending=[1-9]"):
+    if any((int_field(line, "pending") or 0) > 0 for line in reclaims):
         red += "RECLAIM "
     gate.say(f"PASS — every required leg clean; red legs: {red or 'none'}")
 

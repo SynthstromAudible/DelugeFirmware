@@ -281,10 +281,12 @@ A scenario gate is a stepped scenario the Embassy host harness runs (`runner = "
    A row on the song-corpus fixture (`kCorpusFixture`) makes its tests local-only: each entry that runs it must
    require `song-corpus` (a registry unit test checks this, and golden_vt_render refuses the card otherwise).
 2. **The registry entry:** `scenario = "<name>"`, `builds = ["golden-vt-render"]`, the `markers` each run must print
-   and the `result` line that says it passed. `./dbt test` checks those, and the exit status, itself.
+   and the `result` line that says it passed (the loader refuses an entry without either). `./dbt test` checks those,
+   and the exit status, itself.
 3. **A check, only if the gate needs more:** `tests/integration/checks/<name>.py`, named by the entry's `check`,
-   defining `check(gate, run)` (after the standard run) or `run(gate)` (instead of it). See
-   `scripts/tasks/scenario_gate.py`.
+   defining `check(gate, run)` (after the standard run) or `run(gate)` (instead of it), which judges the entry's
+   markers and result itself through `gate.require_standard`, `gate.require_markers` or `gate.shortfall`. Read marker
+   lines through `scenario_gate`'s helpers. See `scripts/tasks/scenario_gate.py`.
 
 ### A corpus gate
 

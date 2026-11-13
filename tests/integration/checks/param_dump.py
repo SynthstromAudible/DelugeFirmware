@@ -28,8 +28,7 @@ def _render(gate, corpus: Path, where: Path, dump: Path | None) -> bytes | None:
     if dump is not None:
         env["RENDER_PARAM_DUMP"] = str(dump)
     run = gate.run(env=env, timeout=render_preset.RUN_TIMEOUT)
-    if run.code != 0:
-        gate.fail(f"the {'dumped' if dump else 'plain'} render exited {run.code}")
+    if not gate.require_standard(run):
         return None
     return (where / "out.pcm").read_bytes()
 

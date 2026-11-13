@@ -7,6 +7,8 @@ export -- run through the stem_export row of golden_vt_render's table -- and che
               before the hash so a zero-byte export reports what actually happened rather than an unhelpful mismatch.
   ST-RENDER   the exported WAV's sha256 matches stem-export-<fixture>.sha256, beside this module (field 1).
 
+The scenario prints the ST-RESULT line itself; the gate judges it with the entry's markers.
+
 The baseline is the Embassy render itself, recorded in the repo.
 
 THE BASELINE IS NOT EXPECTED TO MOVE. A walk's cadence is an implementation detail; rendered audio is not. If
@@ -14,8 +16,9 @@ ST-RENDER goes red, that is a finding to investigate -- never a re-baseline.
 """
 
 import hashlib
-import re
 from pathlib import Path
+
+from scenario_gate import field, starting
 
 
 def run(gate):
@@ -39,21 +42,18 @@ def run(gate):
     log = result.lines + result.err.splitlines()
     if result.code != 0:
         gate.fail(f"the render exited {result.code} (crash or wedge)")
-        for line in [
-            line for line in log if re.match(r"ST-|\[golden-scenario\]", line)
-        ][-20:]:
+        for line in starting(log, "ST-", "[golden-scenario]")[-20:]:
             gate.say(line)
         return
 
-    for line in log:
-        if line.startswith("ST-"):
-            gate.say(line)
+    for line in starting(log, "ST-"):
+        gate.say(line)
 
-    sizes = [
-        m.group(1)
-        for m in (re.match(r"ST-BYTES size=([0-9]*) ", line) for line in log)
-        if m
-    ]
+    # ST-BYTES is on stderr, the result line on stdout: the entry's markers and result are judged over both.
+    if not gate.require_markers(log):
+        return
+
+    sizes = [field(line, "size") or "" for line in starting(log, "ST-BYTES ")]
     written = sizes[-1] if sizes else ""
     if written in ("", "0"):
         gate.fail(
@@ -78,16 +78,10 @@ def run(gate):
             gate.say(f"  rendered: {got}")
             gate.say("  This is a FINDING, not a re-baseline. Bisect it.")
 
-    if not any(line.startswith("ST-BYTES ") for line in log):
-        gate.fail("ST-BYTES never appeared; the gate did not observe what it claims to")
-
     if gate.failures:
-        gate.say(f"ST-RESULT failures={len(gate.failures)}")
         return
-    gate.say("ST-RESULT failures=0")
-    for line in log:
-        if re.match(r"TIER-SYNC(-AT)? ", line):
-            gate.say(line)
+    for line in starting(log, "TIER-SYNC ", "TIER-SYNC-AT "):
+        gate.say(line)
     gate.say(
         f"PASS — the export rendered byte-identical audio, and wrote {written} bytes"
     )

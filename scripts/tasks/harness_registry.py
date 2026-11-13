@@ -215,6 +215,11 @@ def load_registry(root: Path) -> list[Harness]:
                 raise ValueError(
                     f"{where}: scenario must name a row of scenario_table.cpp"
                 )
+            if not item.get("markers") or not item.get("result"):
+                raise ValueError(
+                    f"{where}: a scenario gate names the markers each run must print and the result line that says "
+                    "it passed"
+                )
             _runs_golden_vt_render(where, item)
         elif item["runner"] == "corpus":
             runner = item.get("corpus_runner", "")

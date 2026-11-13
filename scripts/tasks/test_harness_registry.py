@@ -367,6 +367,20 @@ group = "render"
                 self._root_with(self.SCENARIO.replace('scenario = "gamma"\n', ""))
             )
 
+    def test_a_scenario_entry_names_its_markers(self):
+        with self.assertRaisesRegex(ValueError, "markers"):
+            hr.load_registry(
+                self._root_with(self.SCENARIO.replace('markers = ["GA-ONE"]\n', ""))
+            )
+
+    def test_a_scenario_entry_names_its_result(self):
+        with self.assertRaisesRegex(ValueError, "result"):
+            hr.load_registry(
+                self._root_with(
+                    self.SCENARIO.replace('result = "GA-RESULT failures=0"\n', "")
+                )
+            )
+
     def test_rejects_run(self):
         with self.assertRaises(ValueError):
             hr.load_registry(self._root_with(self.SCENARIO + 'run = ["x"]\n'))
@@ -375,6 +389,30 @@ group = "render"
         with self.assertRaises(ValueError) as cm:
             hr.load_registry(self._root_with(self.SCENARIO + 'check = "nope.py"\n'))
         self.assertIn("nope.py", str(cm.exception))
+
+
+class CheckModuleTest(unittest.TestCase):
+    ROOT = Path(__file__).resolve().parents[2]
+
+    def test_a_check_that_runs_the_binary_itself_judges_the_entrys_lines(self):
+        unjudged = sorted(
+            {
+                h.check
+                for h in hr.load_registry(self.ROOT)
+                if h.runner == "scenario"
+                and h.check
+                and "\ndef run(" in (text := (self.ROOT / h.check).read_text())
+                and not any(
+                    call in text
+                    for call in ("require_standard(", "require_markers(", "shortfall(")
+                )
+            }
+        )
+        self.assertEqual(
+            unjudged,
+            [],
+            "these run(gate) checks never apply their entry's markers and result (scenario_gate.Gate.require_standard)",
+        )
 
 
 def _load_task_test():

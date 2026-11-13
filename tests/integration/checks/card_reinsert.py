@@ -11,22 +11,11 @@ CR-RESIDENTS is not ceremony. `audio-load-ab` drives these same edges and reache
 residents=0 -- the edges fire and the loop body never runs. A gate for a walk must fail when the walk is empty, so
 CR-RESIDENTS is checked first and hardest.
 
-This module runs the scenario itself. Every leg is checked and every failing
-one reported.
+This module runs the scenario itself, after the entry's standard checks. Every leg is checked and every failing one
+reported.
 """
 
-import re
-
-RESIDENTS = re.compile(r"^CR-RESIDENTS samples=([0-9-]*) ")
-OK = re.compile(r"^[A-Z-]* ok=([0-9-]*)")
-
-
-def _count(value: str) -> int | None:
-    """A count, or None when the line does not carry a number."""
-    try:
-        return int(value)
-    except ValueError:
-        return None
+from scenario_gate import field, int_field
 
 
 def run(gate):
@@ -37,49 +26,37 @@ def run(gate):
             )
         }
     )
-    if result.code != 0:
-        gate.fail(f"the run exited {result.code} (crash or wedge)")
-        for line in [
-            l for l in result.lines if l.startswith(("CR-", "[golden-scenario]"))
-        ][-20:]:
-            gate.say(line)
+    if not gate.require_standard(result):
         return
     for line in result.starting("CR-"):
         gate.say(line)
 
     failed = False
-    residents = [m.group(1) for line in result.lines if (m := RESIDENTS.match(line))]
-    if not residents or not residents[-1]:
+    residents = result.last("CR-RESIDENTS ")
+    walked = field(residents, "samples")
+    count = int_field(residents, "samples")
+    if not walked:
         gate.fail(
             "CR-RESIDENTS — no CR-RESIDENTS line; the scenario never reached the snapshot"
         )
         failed = True
-    elif (count := _count(residents[-1])) is None or count <= 0:
+    elif count is None or count <= 0:
         gate.fail(
-            f"CR-RESIDENTS — the walk had {residents[-1]} resident sample(s): every other leg here would pass for free"
+            f"CR-RESIDENTS — the walk had {walked} resident sample(s): every other leg here would pass for free"
         )
         failed = True
 
+    # Each leg's line is one of the entry's markers, so it is there; its verdict is ok=1.
     for leg in ("CR-SURVIVE", "CR-LOST", "CR-EVICT"):
         line = result.last(leg + " ")
-        if line is None:
-            gate.fail(f"{leg} — no {leg} line")
-            failed = True
-            continue
-        m = OK.match(line)
-        if not m or m.group(1) != "1":
+        if field(line, "ok") != "1":
             gate.fail(f"{leg} — {line}")
             failed = True
 
-    if not result.has_line("CR-RESULT failures=0"):
-        gate.fail("\n".join(result.starting("CR-RESULT")) or "no CR-RESULT line")
-        failed = True
-
     if not failed:
-        for line in result.lines:
-            if re.match(r"TIER-SYNC(-AT)? ", line):
-                gate.say(line)
+        for line in result.starting("TIER-SYNC ", "TIER-SYNC-AT "):
+            gate.say(line)
         gate.say(
-            f"PASS — the swap walked {residents[-1]} resident sample(s): the intact one survived, the removed one was"
+            f"PASS — the swap walked {walked} resident sample(s): the intact one survived, the removed one was"
             " marked unloadable, the unreferenced one was evicted"
         )
