@@ -10,13 +10,17 @@ The song corpus and the SYNTHS and KITS folders beside it are kept upgraded (the
 `.json`, names); DELUGE_LEGACY_CORPUS names the original corpus they were upgraded from, and when it is set each
 original is upgraded again and must round-trip to its upgraded fixture's hash.
 
-Cases: the committed synthetic songs, the upgrader's legacy fixtures (tests/golden/upgrade/<group>/<name>.<kind>.XML,
-kind synth, kit or song; their hashes in tests/golden/upgrade_fixtures.json) and the golden preset corpus always; the
-song corpus and the SYNTHS and KITS folders beside it when DELUGE_SONG_CORPUS names one. --filter takes a substring of
-the cases to run. --record records the legacy fixtures' hashes from their originals instead: only a firmware that still
-reads their old forms can record them.
+Cases, in two parts (--part; both by default):
+  committed  the committed synthetic songs and the upgrader's legacy fixtures (tests/golden/upgrade/<group>/
+             <name>.<kind>.XML, kind synth, kit or song; their hashes in tests/golden/upgrade_fixtures.json). They need
+             nothing beyond the tree.
+  corpus     each original song in DELUGE_LEGACY_CORPUS and each SYNTHS and KITS preset beside it, and the golden
+             preset corpus upgraded and rendered (its factory presets upgraded from their originals in the backup's
+             SYNTHS). Asked for on its own without that corpus, it fails at once.
+--filter takes a substring of the cases to run. --record records the legacy fixtures' hashes from their originals
+instead: only a firmware that still reads their old forms can record them.
 
-    python3 tests/golden/upgrade_run.py [--filter S] [--no-render] [--record]
+    python3 tests/golden/upgrade_run.py [--part P] [--filter S] [--no-render] [--record]
 
 Prints UPGRADE OK=<n> FAIL=<n> REPORTED=<n>, and UPGRADE-FAIL <case>: <why> per failure; exits 1 on any failure.
 """
@@ -98,6 +102,13 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--filter", default="")
     ap.add_argument(
+        "--part",
+        choices=("all", "committed", "corpus"),
+        default="all",
+        help="committed: the legacy fixtures and the synthetic songs; corpus: DELUGE_LEGACY_CORPUS's songs and the "
+        "presets beside it, and the golden renders",
+    )
+    ap.add_argument(
         "--no-render", action="store_true", help="skip the golden preset renders"
     )
     ap.add_argument(
@@ -131,8 +142,19 @@ def main(argv=None) -> int:
             json.dumps(dict(sorted(legacy.items())), indent=2) + "\n"
         )
         return 0
-    tool = build_tool()
     corpus = os.environ.get("DELUGE_LEGACY_CORPUS") or ""
+    committed = args.part in ("all", "committed")
+    from_corpus = args.part in ("all", "corpus")
+    if args.part == "corpus" and not (
+        corpus and (Path(corpus).parent / "SYNTHS").is_dir()
+    ):
+        print(
+            "UPGRADE-FAIL legacy corpus: DELUGE_LEGACY_CORPUS must name a card backup's original SONGS, "
+            "with its SYNTHS beside it"
+        )
+        print("UPGRADE OK=0 FAIL=1 REPORTED=0")
+        return 1
+    tool = build_tool()
     songs = json.loads((HERE / "songs_fixtures.json").read_text())
     presets = json.loads((HERE / "presets_fixtures.json").read_text())
 
@@ -141,7 +163,7 @@ def main(argv=None) -> int:
     try:
         # Songs and corpus presets: the upgraded file's round trip hashes as its original's did.
         cases = []
-        for key, path, kind in legacy_cases():
+        for key, path, kind in legacy_cases() if committed else []:
             if args.filter not in key:
                 continue
             if key not in legacy:
@@ -154,8 +176,10 @@ def main(argv=None) -> int:
             if args.filter not in key:
                 continue
             if key.startswith(songs_run.SYNTHETIC_PREFIX):
+                if not committed:
+                    continue
                 source = HERE / key
-            elif corpus:
+            elif corpus and from_corpus:
                 source = original(Path(corpus), key)
             else:
                 continue
@@ -163,7 +187,7 @@ def main(argv=None) -> int:
                 # The round trip loads no samples: upgraded without a card, a zone in milliseconds stays (reported)
                 # and saves as the original's does there.
                 cases.append(("song", key, source, songs[key], None))
-        if corpus:
+        if corpus and from_corpus:
             beside = Path(corpus).parent
             for key in sorted(presets):
                 source = original(beside, key)
@@ -210,7 +234,11 @@ def main(argv=None) -> int:
                 print(f"UPGRADE-FAIL {key}: {why}")
 
         # Golden presets: the upgraded corpus renders exactly as recorded.
-        if not args.no_render and (not args.filter or "golden" in args.filter):
+        if (
+            from_corpus
+            and not args.no_render
+            and (not args.filter or "golden" in args.filter)
+        ):
             upgraded = work / "golden"
             reissued = 0
             shutil.copytree(

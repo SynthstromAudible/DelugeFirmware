@@ -73,11 +73,15 @@ PROBES = {
         "set DELUGE_SONG_CORPUS to a directory of .XML songs, or have them in DELUGE_BACKUP's SONGS "
         "(default ~/Deluge Backup/SONGS) -- the songs themselves, not fixtures rebuilt from them"
     ),
+    "legacy-corpus": (
+        "set DELUGE_LEGACY_CORPUS to the SONGS folder of a card backup as the firmware wrote it (not upgraded), with "
+        "that backup's SYNTHS folder beside it -- the upgrade differential upgrades the originals"
+    ),
 }
 
 # Requirements CI never has: a test that needs one runs only on a developer's machine. `--ci-matrix` leaves such
 # tests out, so a CI job never fails on a skip it cannot avoid; `--list` and `--doctor` still show them.
-LOCAL_ONLY = frozenset({"song-corpus", "song-xml-corpus"})
+LOCAL_ONLY = frozenset({"song-corpus", "song-xml-corpus", "legacy-corpus"})
 
 
 def local_only(h: "Harness") -> bool:
@@ -395,6 +399,15 @@ def probe(requirement: str, root: Path) -> bool:
                 candidates.append(str(Path(os.environ["DELUGE_BACKUP"]) / "SONGS"))
             candidates.append(str(Path.home() / "Deluge Backup" / "SONGS"))
             return any(c and Path(c).is_dir() for c in candidates)
+        case "legacy-corpus":
+            # What tests/golden/upgrade_run.py's corpus part reads: the original songs, and the factory presets'
+            # originals in the SYNTHS folder beside them.
+            value = os.environ.get("DELUGE_LEGACY_CORPUS")
+            return (
+                bool(value)
+                and Path(value).is_dir()
+                and (Path(value).parent / "SYNTHS").is_dir()
+            )
         case _:
             return False
 

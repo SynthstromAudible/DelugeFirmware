@@ -811,6 +811,17 @@ class GateShortfallTest(unittest.TestCase):
 
 
 class ProbeTest(unittest.TestCase):
+    def test_legacy_corpus_needs_synths_beside_it(self):
+        backup = Path(tempfile.mkdtemp())
+        songs = backup / "SONGS"
+        songs.mkdir()
+        with mock.patch.dict(os.environ, {"DELUGE_LEGACY_CORPUS": str(songs)}):
+            self.assertFalse(hr.probe("legacy-corpus", Path.cwd()))
+            (backup / "SYNTHS").mkdir()
+            self.assertTrue(hr.probe("legacy-corpus", Path.cwd()))
+        with mock.patch.dict(os.environ, {"DELUGE_LEGACY_CORPUS": ""}):
+            self.assertFalse(hr.probe("legacy-corpus", Path.cwd()))
+
     def test_cargo_is_present(self):
         self.assertTrue(hr.probe("cargo", Path.cwd()))
 
@@ -846,7 +857,9 @@ class CiMatrixTest(unittest.TestCase):
 
     def test_local_only_requirements_are_probes(self):
         self.assertLessEqual(hr.LOCAL_ONLY, set(hr.PROBES))
-        self.assertEqual(hr.LOCAL_ONLY, {"song-corpus", "song-xml-corpus"})
+        self.assertEqual(
+            hr.LOCAL_ONLY, {"song-corpus", "song-xml-corpus", "legacy-corpus"}
+        )
 
     def test_ci_matrix_omits_local_only_tests(self):
         corpus = dataclasses.replace(entry("c"), group="unit", requires=["song-corpus"])
@@ -1000,6 +1013,21 @@ class CorpusDeclarationTest(unittest.TestCase):
         with mock.patch.dict(os.environ, {hr.CORPUS_DECLARED: "1"}):
             env = tt._environment(self.ROOT, self._entry(["song-xml-corpus"]), {})
         self.assertNotIn(hr.CORPUS_DECLARED, env)
+
+    def test_the_legacy_corpus_does_not_declare_the_song_corpus(self):
+        with mock.patch.dict(os.environ, {hr.CORPUS_DECLARED: "1"}):
+            env = tt._environment(
+                self.ROOT, self._entry(["cargo", "legacy-corpus"]), {}
+            )
+        self.assertNotIn(hr.CORPUS_DECLARED, env)
+
+    def test_the_upgrade_differential_runs_its_committed_cases_in_ci(self):
+        by_name = {h.name: h for h in hr.load_registry(self.ROOT)}
+        self.assertFalse(hr.local_only(by_name["upgrade-differential"]))
+        self.assertEqual(
+            by_name["upgrade-differential-corpus"].requires,
+            ["cargo", "legacy-corpus"],
+        )
 
     def test_an_entry_cannot_set_it_through_env(self):
         root = Path(tempfile.mkdtemp())

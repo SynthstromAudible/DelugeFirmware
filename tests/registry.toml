@@ -35,8 +35,9 @@ tier = "pr"
 group = "storage"
 runtime = "~1m"
 
-# needs song-corpus: its golden factory-preset cases upgrade the originals in DELUGE_LEGACY_CORPUS's ../SYNTHS,
-# which only a developer's card backup holds (its scenarios boot an empty card).
+# The upgrader's differential, in two parts. The committed cases need only the tree. The corpus part upgrades the
+# originals in the card backup DELUGE_LEGACY_CORPUS names (the factory presets' originals are in its ../SYNTHS), which
+# only a developer's machine holds. Both boot only empty cards.
 [[harness]]
 name = "upgrade-differential"
 path = "."
@@ -44,11 +45,28 @@ level = "integration"
 runner = "script"
 kind = "differential"
 status = "gate"
-gates = "a file the upgrader (tools/deluge-upgrade) writes as JSON must load to exactly what its original loaded: each committed synthetic song and legacy fixture (tests/golden/upgrade, hashes in upgrade_fixtures.json), and each original corpus song and SYNTHS/KITS preset when DELUGE_LEGACY_CORPUS names them, upgraded, must round-trip to its fixture hash (the corpus fixtures are keyed by the upgraded .json names: DELUGE_SONG_CORPUS names the upgraded corpus), and the golden preset corpus upgraded must render exactly as recorded (through RENDER_PRESET_CORPUS; sample cases upgraded against their own sample)"
+gates = "a file the upgrader (tools/deluge-upgrade) writes as JSON must load to exactly what its original loaded: each committed synthetic song and legacy fixture (tests/golden/upgrade, hashes in upgrade_fixtures.json), upgraded, must round-trip to its fixture hash"
 build = []
-run = ["python3", "tests/golden/upgrade_run.py"]
+run = ["python3", "tests/golden/upgrade_run.py", "--part", "committed"]
 builds = ["golden-vt-render"]
-requires = ["cargo", "song-corpus"]
+requires = ["cargo"]
+tier = "nightly"
+alone = true
+group = "storage"
+runtime = "~10s"
+
+[[harness]]
+name = "upgrade-differential-corpus"
+path = "."
+level = "integration"
+runner = "script"
+kind = "differential"
+status = "gate"
+gates = "the upgrader against a real card backup: each original corpus song and SYNTHS/KITS preset in DELUGE_LEGACY_CORPUS, upgraded, must round-trip to its fixture hash (the fixtures are keyed by the upgraded .json names: DELUGE_SONG_CORPUS names the upgraded corpus), and the golden preset corpus upgraded, its factory presets from their originals in the backup's SYNTHS, must render exactly as recorded (through RENDER_PRESET_CORPUS; sample cases upgraded against their own sample)"
+build = []
+run = ["python3", "tests/golden/upgrade_run.py", "--part", "corpus"]
+builds = ["golden-vt-render"]
+requires = ["cargo", "legacy-corpus"]
 tier = "nightly"
 alone = true
 group = "storage"
