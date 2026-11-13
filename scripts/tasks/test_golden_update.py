@@ -78,8 +78,8 @@ class UpdatingTest(unittest.TestCase):
             gu.updating({gu.SWITCH: "1"})
         self.assertEqual(
             err.getvalue(),
-            "DELUGE_GOLDEN_UPDATE=1 is set by ./dbt test --update <name>, which builds first and collects what changed: "
-            "run that\n",
+            "DELUGE_GOLDEN_UPDATE=1 is set by ./dbt test --update <name>, "
+            "which builds first and collects what changed: run that\n",
         )
 
     def test_reporting_without_a_log_is_refused(self):
@@ -182,6 +182,19 @@ class WriterTest(unittest.TestCase):
             gu.write_json(path, {"a": "x"}, "f.json", indent=1, env=self.env), 0
         )
         self.assertEqual(path.stat().st_mtime, 1)
+
+    def test_a_failed_replace_leaves_the_target_and_no_temporary(self):
+        path = self.dir / "a.txt"
+        path.write_text("old\n")
+        broken = OSError("rename refused")
+        with (
+            mock.patch.object(gu.os, "replace", side_effect=broken),
+            self.assertRaises(OSError) as cm,
+        ):
+            gu.atomic_write(path, b"new\n")
+        self.assertIs(cm.exception, broken)
+        self.assertEqual(path.read_text(), "old\n")
+        self.assertEqual([p.name for p in self.dir.iterdir()], ["a.txt"])
 
     def test_parallel_key_updates_all_land(self):
         path = self.dir / "tree" / "songs.json"
@@ -483,7 +496,9 @@ class UpdateOneTest(unittest.TestCase):
 
     def _update(self, code, baseline=("base.txt",)):
         with tempfile.TemporaryFile("w+") as out, mock.patch.object(tt, "OUT", out):
-            before = tt._update_one(self.root, _script("t", code, baseline), [], {})
+            before, self.unrestored = tt._update_one(
+                self.root, _script("t", code, baseline), [], {}
+            )
             out.seek(0)
             return before, out.read()
 
@@ -529,6 +544,51 @@ class UpdateOneTest(unittest.TestCase):
         self.assertIn("GOLDEN-UPDATE-REVERTED other.txt", out)
         self.assertFalse((self.root / "other.txt").exists())
 
+    def saved(self, out, rel):
+        """The copy the REVERTED line for `rel` names, cleaned up with the test."""
+        (line,) = [
+            l
+            for l in out.splitlines()
+            if l.startswith(f"GOLDEN-UPDATE-REVERTED {rel} ")
+        ]
+        prefix = f"GOLDEN-UPDATE-REVERTED {rel} (saved: "
+        self.assertTrue(line.startswith(prefix) and line.endswith(")"), line)
+        copy = Path(line[len(prefix) : -1])
+        self.addCleanup(shutil.rmtree, copy.parents[len(Path(rel).parts) - 1], True)
+        return copy
+
+    def test_each_stray_is_saved_before_it_is_put_back(self):
+        before, out = self._update(
+            "import pathlib; pathlib.Path('other.txt').write_text('stray'); pathlib.Path('d').mkdir();"
+            " pathlib.Path('d/f').write_text('deep'); pathlib.Path('tracked.txt').write_text('run')"
+        )
+        self.assertIsNone(before)
+        other, deep, tracked = (
+            self.saved(out, rel) for rel in ("other.txt", "d/f", "tracked.txt")
+        )
+        self.assertEqual(other.read_text(), "stray")
+        self.assertEqual(deep.read_text(), "deep")
+        self.assertEqual(tracked.read_text(), "run")
+        self.assertEqual(other.parent, tracked.parent)
+        self.assertEqual(deep.parent.parent, other.parent)
+        self.assertFalse(other.parent.is_relative_to(self.root))
+        self.assertFalse((self.root / "other.txt").exists())
+        self.assertEqual((self.root / "tracked.txt").read_text(), "committed\n")
+
+    def test_a_deleted_file_has_nothing_to_save(self):
+        _, out = self._update("import pathlib; pathlib.Path('tracked.txt').unlink()")
+        self.assertIn("GOLDEN-UPDATE-REVERTED tracked.txt\n", out)
+
+    def test_a_stray_that_cannot_be_saved_is_not_touched(self):
+        with mock.patch.object(tt.shutil, "copy2", side_effect=OSError("no room")):
+            before, out = self._update(
+                "import pathlib; pathlib.Path('other.txt').write_text('stray')"
+            )
+        self.assertIsNone(before)
+        self.assertIn("GOLDEN-UPDATE-UNRESTORED t: other.txt: no room", out)
+        self.assertEqual((self.root / "other.txt").read_text(), "stray")
+        self.assertEqual(self.unrestored, ["other.txt"])
+
     def test_a_new_file_in_a_new_directory_is_removed_with_it(self):
         before, out = self._update(
             "import pathlib; pathlib.Path('d/e').mkdir(parents=True); pathlib.Path('d/e/f').write_text('x')"
@@ -558,7 +618,10 @@ class UpdateOneTest(unittest.TestCase):
     def test_a_change_of_the_callers_own_is_left(self):
         (self.root / "tracked.txt").write_text("mine\n")
         (self.root / "notes.txt").write_text("mine\n")
-        code = "import pathlib; pathlib.Path('tracked.txt').write_text('run'); pathlib.Path('notes.txt').write_text('run')"
+        code = (
+            "import pathlib; pathlib.Path('tracked.txt').write_text('run');"
+            " pathlib.Path('notes.txt').write_text('run')"
+        )
         before, out = self._update(code)
         self.assertIsNone(before)
         self.assertIn("GOLDEN-UPDATE-LEFT notes.txt", out)
@@ -678,7 +741,8 @@ class CmdUpdateTest(unittest.TestCase):
             "p = pathlib.Path('base.txt')\n"
             "if os.environ.get('DELUGE_GOLDEN_UPDATE') == '1':\n"
             "    p.write_text('new\\n')\n"
-            "    open(os.environ['DELUGE_GOLDEN_UPDATE_LOG'], 'a').write(f'GOLDEN-UPDATED {pathlib.Path.cwd()}/base.txt a -> b\\n')\n"
+            "    open(os.environ['DELUGE_GOLDEN_UPDATE_LOG'], 'a').write("
+            "f'GOLDEN-UPDATED {pathlib.Path.cwd()}/base.txt a -> b\\n')\n"
             "else:\n"
             "    sys.exit(0 if p.read_text() == 'never\\n' else 1)\n"
         )
@@ -693,6 +757,62 @@ class CmdUpdateTest(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertIn("GOLDEN-UPDATE-REVERTED base.txt", text)
         self.assertEqual((root / "base.txt").read_text(), "old\n")
+
+    def test_files_not_put_back_are_counted_in_the_outcome(self):
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root, True)
+        subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+        (root / "base.txt").write_text("old\n")
+        code = (
+            "import pathlib, sys; pathlib.Path('base.txt').write_text('x'); sys.exit(1)"
+        )
+        summarised = []
+        with (
+            tempfile.TemporaryFile("w+") as out,
+            mock.patch.object(tt, "OUT", out),
+            mock.patch.object(tt.tb, "products", return_value={}),
+            mock.patch.object(tt, "restore", side_effect=OSError("disk gone")),
+            mock.patch.object(
+                tt, "_summarise", lambda o, **_: summarised.extend(o) or 1
+            ),
+        ):
+            self.assertEqual(tt.cmd_update(root, [_script("t", code)], []), 1)
+        (outcome,) = summarised
+        self.assertEqual(
+            outcome.note,
+            "nothing re-recorded; 1 file(s) not put back (see GOLDEN-UPDATE-UNRESTORED)",
+        )
+
+    def test_files_a_roll_back_could_not_put_back_are_counted_in_the_outcome(self):
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root, True)
+        subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+        (root / "base.txt").write_text("old\n")
+        code = (
+            "import os, pathlib, sys\n"
+            "if os.environ.get('DELUGE_GOLDEN_UPDATE') == '1':\n"
+            "    pathlib.Path('base.txt').write_text('new\\n')\n"
+            "    open(os.environ['DELUGE_GOLDEN_UPDATE_LOG'], 'a').write("
+            "f'GOLDEN-UPDATED {pathlib.Path.cwd()}/base.txt a -> b\\n')\n"
+            "else:\n"
+            "    sys.exit(1)\n"
+        )
+        summarised = []
+        with (
+            tempfile.TemporaryFile("w+") as out,
+            mock.patch.object(tt, "OUT", out),
+            mock.patch.object(tt.tb, "products", return_value={}),
+            mock.patch.object(tt, "restore", side_effect=OSError("disk gone")),
+            mock.patch.object(
+                tt, "_summarise", lambda o, **_: summarised.extend(o) or 1
+            ),
+        ):
+            self.assertEqual(tt.cmd_update(root, [_script("t", code)], []), 1)
+        (outcome,) = summarised
+        self.assertEqual(
+            outcome.note,
+            "the new baseline fails a second run; 1 file(s) not put back (see GOLDEN-UPDATE-UNRESTORED)",
+        )
 
     @staticmethod
     def _recorder(rel):
@@ -749,6 +869,35 @@ class CmdUpdateTest(unittest.TestCase):
         self.assertEqual((root / "a.txt").read_text(), "new\n")
         self.assertEqual((root / "b.txt").read_text(), "old\n")
         self.assertEqual((root / "c.txt").read_text(), "old\n")
+
+
+class BaselineGroupsTest(unittest.TestCase):
+    @staticmethod
+    def names(selection):
+        return [[h.name for h in g] for g in tt.baseline_groups(selection)]
+
+    def test_overlap_joins_groups_transitively(self):
+        selection = [
+            _script("A", "pass", ("d/x.json",)),
+            _script("B", "pass", ("d",)),
+            _script("C", "pass", ("e",)),
+            _script("D", "pass", ("e/f", "d/y")),
+        ]
+        self.assertEqual(self.names(selection), [["A", "B", "C", "D"]])
+
+    def test_disjoint_baselines_are_groups_of_one(self):
+        selection = [
+            _script("A", "pass", ("d/x.json",)),
+            _script("B", "pass", ("d/y.json",)),
+            _script("C", "pass", ("e",)),
+        ]
+        self.assertEqual(self.names(selection), [["A"], ["B"], ["C"]])
+
+    def test_a_shared_name_prefix_is_not_an_overlap(self):
+        self.assertFalse(tt._overlap("d", "dd/x"))
+        self.assertFalse(tt._overlap("dd/x", "d"))
+        self.assertTrue(tt._overlap("d/", "d/x"))
+        self.assertTrue(tt._overlap("d/x", "d/x"))
 
 
 class SharedBaselineTest(unittest.TestCase):
@@ -823,10 +972,6 @@ class SharedBaselineTest(unittest.TestCase):
         self.assertEqual((root / "shared.txt").read_text(), "old\n")
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class PlanLegacyRecordTest(unittest.TestCase):
     """upgrade_run.plan_record: which legacy fixtures a recording writes, keeps frozen or refuses."""
 
@@ -848,3 +993,7 @@ class PlanLegacyRecordTest(unittest.TestCase):
     def test_filter_limits_the_cases(self):
         cases = [("x/a", True), ("y/b", False)]
         self.assertEqual(self.plan(cases, {"y/b": {}}, "y/"), ([], ["y/b"], []))
+
+
+if __name__ == "__main__":
+    unittest.main()

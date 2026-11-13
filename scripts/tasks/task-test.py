@@ -532,8 +532,7 @@ def restore(root: Path, before: dict[str, bytes], after: dict[str, bytes]) -> li
     for rel in reverted:
         path = root / rel
         if rel in before:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(before[rel])
+            golden_update.atomic_write(path, before[rel])
         else:
             path.unlink(missing_ok=True)
     return reverted
@@ -628,20 +627,46 @@ def existing_dirs(root: Path) -> set[str]:
     return found
 
 
+class StrayKeep:
+    """Where put_back_strays() copies what a stray holds before putting it back, so a write the run should not have
+    made can still be read: one directory per update run under the system temp directory, made on first use and never
+    removed."""
+
+    def __init__(self) -> None:
+        self.dir: Path | None = None
+
+    def save(self, root: Path, rel: str) -> Path | None:
+        """Copy `rel` (relative to `root`) into the kept directory; None when there is no file to copy."""
+        src = root / rel
+        if not (src.is_file() or src.is_symlink()):
+            return None
+        if self.dir is None:
+            self.dir = Path(tempfile.mkdtemp(prefix="dbt-test-update-strays."))
+        dst = self.dir / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst, follow_symlinks=False)
+        return dst
+
+
 def put_back_strays(
     root: Path,
     before: dict[str, str],
     after: dict[str, str],
     paths: list[str],
     dirs: set[str],
+    keep: StrayKeep,
 ) -> tuple[
-    list[str], list[str], list[tuple[str, OSError | subprocess.SubprocessError]]
+    list[tuple[str, Path | None]],
+    list[str],
+    list[tuple[str, OSError | subprocess.SubprocessError]],
 ]:
     """Undo the run's writes outside `paths`, given worktree_state() before and after it and existing_dirs() before
     it: a file that was clean takes its committed content again, a file that did not exist is deleted, with each
-    directory the run made for it. A path git already reported before the run holds the caller's own change, which
-    is never touched. Every path is attempted; returns those put back, those left, and those that could not be."""
-    reverted: list[str] = []
+    directory the run made for it. What the run left in each is first copied with `keep`; one that cannot be copied
+    is not touched. A path git already reported before the run holds the caller's own change, which is never
+    touched. Every path is attempted; returns those put back (each with where its copy went, None when the run
+    deleted it), those left, and those that could not be."""
+    reverted: list[tuple[str, Path | None]] = []
     left: list[str] = []
     failed: list[tuple[str, OSError | subprocess.SubprocessError]] = []
     for rel in strays(before, after, paths):
@@ -649,6 +674,7 @@ def put_back_strays(
             left.append(rel)
             continue
         try:
+            saved = keep.save(root, rel)
             committed = (
                 subprocess.run(
                     ["git", "cat-file", "-e", f"HEAD:{rel}"],
@@ -678,7 +704,7 @@ def put_back_strays(
         except RESTORE_ERRORS as exc:
             failed.append((rel, exc))
             continue
-        reverted.append(rel)
+        reverted.append((rel, saved))
     return reverted, left, failed
 
 
@@ -707,9 +733,11 @@ def _put_back(
     before: dict[str, bytes],
     tree_before: dict[str, str] | None = None,
     dirs: set[str] | None = None,
-) -> list[OSError | subprocess.SubprocessError]:
+    keep: StrayKeep | None = None,
+) -> list[tuple[str, OSError | subprocess.SubprocessError]]:
     """Put `h`'s baselines back as `before` holds them and, given the worktree before its run, undo its writes outside
-    them. Attempts everything, says what was done and what could not be, and returns the errors."""
+    them (copying each first with `keep`). Attempts everything, says what was done and what could not be, and returns
+    what could not be, each with its error."""
     failed: list[tuple[str, OSError | subprocess.SubprocessError]] = []
     try:
         failed += restore_each(root, before, baseline_snapshot(root, h.baseline))
@@ -718,11 +746,17 @@ def _put_back(
     if tree_before is not None:
         try:
             reverted, left, stray_failed = put_back_strays(
-                root, tree_before, worktree_state(root), h.baseline, dirs or set()
+                root,
+                tree_before,
+                worktree_state(root),
+                h.baseline,
+                dirs or set(),
+                keep or StrayKeep(),
             )
             failed += stray_failed
-            for rel in reverted:
-                print(f"GOLDEN-UPDATE-REVERTED {rel}", file=OUT)
+            for rel, saved in reverted:
+                note = f" (saved: {saved})" if saved else ""
+                print(f"GOLDEN-UPDATE-REVERTED {rel}{note}", file=OUT)
             for rel in left:
                 print(f"GOLDEN-UPDATE-LEFT {rel}", file=OUT)
         except RESTORE_ERRORS as exc:
@@ -730,7 +764,7 @@ def _put_back(
     for rel, exc in failed:
         print(f"GOLDEN-UPDATE-UNRESTORED {h.name}: {rel}: {exc}", file=OUT)
     OUT.flush()
-    return [exc for _, exc in failed]
+    return failed
 
 
 def _record(
@@ -793,11 +827,16 @@ def _record(
 
 
 def _update_one(
-    root: Path, h: hr.Harness, passthrough: list[str], products: dict[str, tb.Product]
-) -> dict[str, bytes] | None:
+    root: Path,
+    h: hr.Harness,
+    passthrough: list[str],
+    products: dict[str, tb.Product],
+    keep: StrayKeep | None = None,
+) -> tuple[dict[str, bytes] | None, list[str]]:
     """Run `h` once re-recording, print what changed, and keep it only if the run passed and every change is one of
-    its baselines and was said; otherwise put back the baselines and whatever else it wrote. Returns the baselines as
-    they were before (for a later restore), or None when nothing was kept.
+    its baselines and was said; otherwise put back the baselines and whatever else it wrote (each write outside the
+    baselines copied first with `keep`). Returns the baselines as they were before (for a later restore), or None when
+    nothing was kept, with the files that could not be put back.
 
     The log, and the locks golden_update keeps beside it, live in a directory of their own outside the repository,
     so recording leaves nothing in the worktree but the baselines. An interrupt (Ctrl-C) mid-write puts everything
@@ -806,18 +845,24 @@ def _update_one(
     before = baseline_snapshot(root, h.baseline)
     tree_before = worktree_state(root)
     dirs = existing_dirs(root)
+    keep = keep or StrayKeep()
     try:
         kept = _record(root, h, passthrough, products, before, tree_before)
     except BaseException as exc:
         # The interrupt is what is raised; a restore that failed on the way rides along as its cause.
-        errors = _put_back(root, h, before, tree_before, dirs)
+        errors = _put_back(root, h, before, tree_before, dirs, keep)
         if errors and exc.__cause__ is None:
-            raise exc from errors[0]
+            raise exc from errors[0][1]
         raise
     if not kept:
-        _put_back(root, h, before, tree_before, dirs)
-        return None
-    return before
+        failed = _put_back(root, h, before, tree_before, dirs, keep)
+        return None, [rel for rel, _ in failed]
+    return before, []
+
+
+def _unrestored(n: int) -> str:
+    """The outcome note for `n` files an update could not put back."""
+    return f"{n} file(s) not put back (see GOLDEN-UPDATE-UNRESTORED)"
 
 
 def _overlap(a: str, b: str) -> bool:
@@ -865,12 +910,20 @@ def cmd_update(root: Path, selection: list[hr.Harness], passthrough: list[str]) 
     snapshots: dict[int, dict[str, bytes]] = {}
     confirmed_groups: set[int] = set()
     rolled_back: dict[int, str] = {}
+    unrestored: dict[int, int] = {}
+    keep = StrayKeep()
 
-    def roll_back(g: list[hr.Harness], why: str) -> list:
+    def roll_back(g: list[hr.Harness], why: str, earlier: int = 0) -> list:
+        """Put `g`'s files back; `earlier` counts files outside them a member's own put-back could not restore."""
         key = id(g)
-        errors = _put_back(root, union(g), snapshots[key]) if key in snapshots else []
+        failed = _put_back(root, union(g), snapshots[key]) if key in snapshots else []
         rolled_back.setdefault(key, why)
-        return errors
+        unrestored[key] = unrestored.get(key, 0) + earlier + len(failed)
+        return [exc for _, exc in failed]
+
+    def restored(g: list[hr.Harness]) -> str:
+        n = unrestored.get(id(g), 0)
+        return _unrestored(n) if n else "restored"
 
     recorded: list[hr.Harness] = []
     try:
@@ -881,18 +934,30 @@ def cmd_update(root: Path, selection: list[hr.Harness], passthrough: list[str]) 
             missing = _missing(root, h, builds.known)
             why = f"needs {', '.join(missing)}" if missing else builds.blocker(h)
             if why:
-                outcomes[h.name] = Outcome(h.name, "FAIL", why)
                 print(f"--- {h.name}: not re-recorded, {why}", file=OUT, flush=True)
                 roll_back(g, f"{h.name} could not be re-recorded")
+                n = unrestored[id(g)]
+                outcomes[h.name] = Outcome(
+                    h.name, "FAIL", f"{why}; {_unrestored(n)}" if n else why
+                )
                 continue
             if id(g) not in snapshots:
                 snapshots[id(g)] = baseline_snapshot(root, union(g).baseline)
-            before = _update_one(
-                root, h, passthrough if h.runner == "ctest" else [], builds.known
+            before, failed = _update_one(
+                root, h, passthrough if h.runner == "ctest" else [], builds.known, keep
             )
             if before is None:
-                outcomes[h.name] = Outcome(h.name, "FAIL", "nothing re-recorded")
-                roll_back(g, f"{h.name} recorded nothing")
+                # The group's put-back retries its baselines; what is left of the member's own is outside them.
+                outside = [rel for rel in failed if not _under(rel, union(g).baseline)]
+                roll_back(g, f"{h.name} recorded nothing", len(outside))
+                n = unrestored[id(g)]
+                outcomes[h.name] = Outcome(
+                    h.name,
+                    "FAIL",
+                    f"nothing re-recorded; {_unrestored(n)}"
+                    if n
+                    else "nothing re-recorded",
+                )
             else:
                 recorded.append(h)
         recorded = [h for h in recorded if id(group_of[h.name]) not in rolled_back]
@@ -918,16 +983,22 @@ def cmd_update(root: Path, selection: list[hr.Harness], passthrough: list[str]) 
                 if all(m.name in passed_names for m in g):
                     confirmed_groups.add(id(g))
             else:
-                outcomes[h.name] = Outcome(
-                    h.name, "FAIL", "the new baseline fails a second run; restored"
-                )
                 roll_back(g, f"{h.name} fails a second run")
+                outcomes[h.name] = Outcome(
+                    h.name,
+                    "FAIL",
+                    f"the new baseline fails a second run; {restored(g)}",
+                )
         for h in selection:
             if h.name in outcomes:
                 continue
             why = rolled_back.get(id(group_of[h.name]))
             outcomes[h.name] = (
-                Outcome(h.name, "FAIL", f"not re-recorded: {why}; restored")
+                Outcome(
+                    h.name,
+                    "FAIL",
+                    f"not re-recorded: {why}; {restored(group_of[h.name])}",
+                )
                 if why
                 else Outcome(h.name, "PASS", "")
             )
