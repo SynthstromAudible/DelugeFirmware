@@ -147,16 +147,17 @@ group = "storage"
 runtime = "~1m"
 
 [[harness]]
-name = "golden-vt-render"
-path = "src/bsp/rust/harness/golden_vt_render"
+name = "recorder-roundtrip"
+path = "."
 level = "integration"
 runner = "scenario"
 kind = "simulation"
 status = "gate"
 gates = "the SampleRecorder record-then-read-back round trip must be byte-exact on the Embassy host BSP"
 scenario = "recorder_roundtrip"
+markers = ["RW-BUSY", "RW-STALL", "RW-DIR-STALL", "RW-OPEN-IOERR", "TK-ABORT-OPEN"]
+result = "RR-RESULT failures=0"
 builds = ["golden-vt-render"]
-requires = ["song-corpus"]
 tier = "nightly"
 group = "render"
 runtime = "~5m"
