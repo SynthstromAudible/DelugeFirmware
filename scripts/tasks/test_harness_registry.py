@@ -5,6 +5,7 @@ Run directly with:
     python3 scripts/tasks/test_harness_registry.py
 """
 
+import ast
 import contextlib
 import dataclasses
 import hashlib
@@ -1576,6 +1577,47 @@ class ChildStderrTest(unittest.TestCase):
         self.assertIn("to-err", text.splitlines())
 
 
+def switch_definitions(source: str) -> list[int]:
+    """The lines on which `source` calls an argparse `add_argument` naming --update or --record, however the call is
+    wrapped: any positional string of the call counts, so a short alias before it hides nothing."""
+    return sorted(
+        node.lineno
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "add_argument"
+        and any(
+            isinstance(a, ast.Constant) and a.value in ("--update", "--record")
+            for a in node.args
+        )
+    )
+
+
+class SwitchDefinitionsTest(unittest.TestCase):
+    def test_one_line(self):
+        self.assertEqual(
+            switch_definitions('p.add_argument("--update", action="store_true")\n'), [1]
+        )
+
+    def test_wrapped(self):
+        source = (
+            'x = 1\np.add_argument(\n    "--record",\n    action="store_true",\n)\n'
+        )
+        self.assertEqual(switch_definitions(source), [2])
+
+    def test_after_a_short_alias(self):
+        self.assertEqual(switch_definitions('p.add_argument("-u", "--update")\n'), [1])
+
+    def test_other_switches_and_mentions_are_not_definitions(self):
+        source = (
+            'p.add_argument("--update-readme")\n'
+            'flag = "--update"\n'
+            '# p.add_argument("--update")\n'
+            'p.add_argument(dest="update")\n'
+        )
+        self.assertEqual(switch_definitions(source), [])
+
+
 class RetiredSwitchTest(unittest.TestCase):
     """`./dbt test --update <name>` is the only way the tree re-records a baseline: no other switch is named."""
 
@@ -1595,14 +1637,23 @@ class RetiredSwitchTest(unittest.TestCase):
     )
     # A runner's own argparse switch for re-recording. The hygiene checkers keep their --update (it rewrites their
     # allowlists, not a test baseline), and `./dbt test --update` itself is the one switch the tree keeps.
-    SWITCH_DEFINITION = r'add_argument\(\s*"--(update|record)"'
     SWITCH_PATHS = (
-        "tests",
-        "tools",
-        "scripts",
+        "tests/*.py",
+        "tools/*.py",
+        "scripts/*.py",
         ":!scripts/check_*",
         ":!scripts/tasks/task-test.py",
     )
+
+    def tracked_python(self) -> list[str]:
+        found = subprocess.run(
+            ["git", "ls-files", "-z", "--", *self.SWITCH_PATHS],
+            cwd=self.ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return [p for p in found.stdout.split("\0") if p]
 
     def git_grep(self, *args):
         return subprocess.run(
@@ -1625,7 +1676,13 @@ class RetiredSwitchTest(unittest.TestCase):
             )
         )
 
+    def test_the_guard_reads_the_runners(self):
+        self.assertIn("tests/golden/songs_run.py", self.tracked_python())
+
     def test_no_runner_defines_its_own_re_record_switch(self):
-        self.assert_no_match(
-            self.git_grep("-E", self.SWITCH_DEFINITION, "--", *self.SWITCH_PATHS)
-        )
+        hits = [
+            f"{path}:{line}"
+            for path in self.tracked_python()
+            for line in switch_definitions((self.ROOT / path).read_text())
+        ]
+        self.assertEqual(hits, [])
