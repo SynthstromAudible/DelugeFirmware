@@ -184,6 +184,15 @@ struct Rig {
 
 using Calls = std::vector<std::string>;
 
+/// @brief @p calls as one comma-separated line, so a failure prints the whole sequence.
+std::string joined(const Calls& calls) {
+	std::string line;
+	for (const std::string& call : calls) {
+		line += line.empty() ? call : ", " + call;
+	}
+	return line;
+}
+
 } // namespace
 
 // clang-format off
@@ -197,10 +206,10 @@ describe knob_presentation_spec_body("scenes::services::KnobPresentation", $ {
 		expect(rig.set_value(deluge::modulation::params::LOCAL_PAN, 0)).to_be_true();
 
 		rig.knobs.turn(0, 1, 1000, rig.out);
-		expect(rig.out.take() == Calls{"suppress", "show 1", "written", "stop 0"}).to_be_true();
+		expect(joined(rig.out.take())).to_equal(joined(Calls{"suppress", "show 1", "written", "stop 0"}));
 
 		rig.knobs.turn(0, -1, 1010, rig.out);
-		expect(rig.out.take() == Calls{"suppress", "show 0", "written", "blink 0 bipolar"}).to_be_true();
+		expect(joined(rig.out.take())).to_equal(joined(Calls{"suppress", "show 0", "written", "blink 0 bipolar"}));
 	});
 
 	it("shows no popup when the presentation suppresses it, and still writes", _ {
@@ -209,7 +218,7 @@ describe knob_presentation_spec_body("scenes::services::KnobPresentation", $ {
 		expect(rig.set_value(deluge::modulation::params::LOCAL_PAN, 0)).to_be_true();
 		rig.out.suppress = true;
 		rig.knobs.turn(0, 1, 1000, rig.out);
-		expect(rig.out.take() == Calls{"suppress", "written", "stop 0"}).to_be_true();
+		expect(joined(rig.out.take())).to_equal(joined(Calls{"suppress", "written", "stop 0"}));
 	});
 
 	it("asks only for the popup when a turn moves nothing", _ {
@@ -217,7 +226,7 @@ describe knob_presentation_spec_body("scenes::services::KnobPresentation", $ {
 		rig.set_mode(0);
 		expect(rig.set_value(deluge::modulation::params::LOCAL_PAN, std::numeric_limits<int32_t>::max())).to_be_true();
 		rig.knobs.turn(0, 1, 1000, rig.out);
-		expect(rig.out.take() == Calls{"suppress", "show 64"}).to_be_true();
+		expect(joined(rig.out.take())).to_equal(joined(Calls{"suppress", "show 64"}));
 	});
 
 	it("reports changed note tails between the write and the blink", _ {
@@ -237,45 +246,44 @@ describe knob_presentation_spec_body("scenes::services::KnobPresentation", $ {
 			}
 		}
 		expect(flips).to_equal(1);
-		expect(flip.size()).to_equal(size_t{5});
-		expect(flip[0]).to_equal(std::string{"suppress"});
-		expect(flip[2]).to_equal(std::string{"written"});
-		expect(flip[3]).to_equal(std::string{"tails"});
-		expect(flip[4]).to_equal(std::string{"stop 0"});
+		// The popup's position is the turn's; any shown position will do, but it must be a show.
+		const std::string shown = flip.size() > 1 ? flip[1] : std::string{};
+		expect(shown.starts_with("show ")).to_be_true();
+		expect(joined(flip)).to_equal(joined(Calls{"suppress", shown, "written", "tails", "stop 0"}));
 	});
 
 	it("shows a filter-knob push's setting as a notice, then re-levels the indicators", _ {
 		Rig rig;
 		rig.set_mode(1); // the low-pass pair; the upper knob's push cycles it to high-pass
 		rig.knobs.push(1, true, {}, rig.out);
-		expect(rig.out.take() == Calls{"notice_text", "indicators"}).to_be_true(); // the filter type, as a notice
+		expect(joined(rig.out.take())).to_equal(joined(Calls{"notice_text", "indicators"})); // the filter type, as a notice
 	});
 
 	it("re-levels nothing on a learn push, which is a copy or paste", _ {
 		Rig rig;
 		rig.set_mode(1);
 		rig.knobs.push(1, true, {.learn = true}, rig.out);
-		expect(rig.out.take().empty()).to_be_true();
+		expect(joined(rig.out.take())).to_equal(std::string{});
 	});
 
 	it("shows a mod button's popup, then its mode change; outside a clip minder the VU sidebar first", _ {
 		Rig rig;
 		rig.knobs.set_view_state({.root_is_clip_minder = true});
 		rig.knobs.section_button(1, true, rig.out);
-		expect(rig.out.take() == Calls{"popup_text", "mode"}).to_be_true();
+		expect(joined(rig.out.take())).to_equal(joined(Calls{"popup_text", "mode"}));
 		rig.knobs.section_button(1, false, rig.out);
-		expect(rig.out.take() == Calls{"cancel"}).to_be_true();
+		expect(joined(rig.out.take())).to_equal(joined(Calls{"cancel"}));
 
 		rig.knobs.set_view_state({.root_is_clip_minder = false});
 		rig.knobs.section_button(1, true, rig.out);
-		expect(rig.out.take() == Calls{"vu", "popup_text", "mode"}).to_be_true();
+		expect(joined(rig.out.take())).to_equal(joined(Calls{"vu", "popup_text", "mode"}));
 	});
 
 	it("ignores a mod button in the automation editor", _ {
 		Rig rig;
 		rig.knobs.set_view_state({.in_automation_editor = true});
 		rig.knobs.section_button(1, true, rig.out);
-		expect(rig.out.take().empty()).to_be_true();
+		expect(joined(rig.out.take())).to_equal(std::string{});
 	});
 
 	it("shows the automation-deleted popup on a shift+push of an automated param, and re-levels nothing", _ {
@@ -290,7 +298,7 @@ describe knob_presentation_spec_body("scenes::services::KnobPresentation", $ {
 		changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
 		actionLogger.deleteAllLogs();
 		rig.knobs.push(0, true, {.shift = true}, rig.out);
-		expect(rig.out.take() == Calls{"popup automation_deleted"}).to_be_true();
+		expect(joined(rig.out.take())).to_equal(joined(Calls{"popup automation_deleted"}));
 		expect(rig.f.song->project.resolveParam(rig.patched(deluge::modulation::params::LOCAL_PAN))->nodes.empty())
 		    .to_be_true();
 		actionLogger.deleteAllLogs();
@@ -309,9 +317,8 @@ describe knob_presentation_spec_body("scenes::services::KnobPresentation", $ {
 
 		rig.knobs.turn(1, 3, 1000, rig.out); // the threshold
 		const std::string title{deluge::l10n::get(deluge::l10n::String::STRING_FOR_THRESHOLD)};
-		expect(rig.out.take()
-		       == Calls{"setting 1 " + std::to_string(before.non_existent_knob_pos + 3), "notification " + title})
-		    .to_be_true();
+		expect(joined(rig.out.take()))
+		    .to_equal(joined(Calls{"setting 1 " + std::to_string(before.non_existent_knob_pos + 3), "notification " + title}));
 	});
 
 	it("reads no indicator with no song", _ {

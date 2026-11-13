@@ -3,6 +3,8 @@
 // backup with no clip), and a setter leaves the focus's own view state (the region, the compressor view, the VU meter)
 // as it was.
 
+#include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/root_knobs.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
@@ -31,6 +33,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_stack.h"
 #include "model/song/reverb_presets.h"
 #include "model/song/song.h"
@@ -49,12 +52,18 @@
 
 #include "spec/support/spec_main.h"
 
+#include <array>
+#include <limits>
 #include <optional>
 #include <string>
 
 /// The host BSP's shadow of the knob indicator columns, four segment brightnesses each; declared rather than included
 /// because `host_script.h` is not on this target's include path.
 extern "C" const uint8_t* host_script_ring_shadow(uint8_t which);
+/// The rows `uiNeedsRendering` has asked for since `clearPendingUIRendering`; `gui/ui/ui.cpp`'s, which no header
+/// declares.
+extern uint32_t whichMainRowsNeedRendering;
+extern uint32_t whichSideRowsNeedRendering;
 
 namespace {
 
@@ -70,9 +79,7 @@ const controls::KnobFocus& focus() {
 /// @brief The owner stack of View's knob focus, resolved in @p memory: none unless the focus is on the current song.
 /// @param memory A model-stack buffer.
 ModelStackWithThreeMainThings* view_knob_stack(void* memory) {
-	return currentSong != nullptr && view.knobsOnCurrentSong()
-	           ? deluge::bridge::knobOwnerStackAt(*currentSong, view.knobFocus(), memory)
-	           : nullptr;
+	return view.knobOwnerStack(memory);
 }
 
 /// @brief A second synth on a second session clip of @p f's song.
@@ -126,8 +133,15 @@ struct StubDisplay final : deluge::hid::Display {
 	bool hasPopupOfType(PopupType) override { return false; }
 	void consoleText(char const*) override {}
 	void timerRoutine() override {}
-	void displayNotification(std::string_view, std::optional<std::string_view>) override {}
+	void displayNotification(std::string_view, std::optional<std::string_view>) override { notifications++; }
+	int32_t notifications = 0;
 };
+
+/// @brief Knob @p knob's indicator column as the host's LEDs show it, four segment brightnesses.
+std::array<uint8_t, 4> ring(uint8_t knob) {
+	const uint8_t* shadow = host_script_ring_shadow(knob);
+	return {shadow[0], shadow[1], shadow[2], shadow[3]};
+}
 
 /// @brief The arrangement recording @p f's session clip at 0, for as long as it lives.
 struct ArrangementRecording {
@@ -831,6 +845,133 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 			view.setModRegion();
 			view.releaseActiveModControllable();
 		}
+		currentSong = nullptr;
+	});
+	it("shows no value popup for a root turn while a song loads, and still writes the turn", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		(void)deluge::edits::modKnobModeFor(project::TrackAddress{*f.instrument->id()}, 0);
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		setRootUILowLevel(&sessionView);
+		deluge::gui::ui::root_knobs::turn(0, 5);
+		expect(stub.notifications).to_equal(1);
+
+		setRootUILowLevel(&loadSongUI); // the load UI is current: `isLoadingSong`
+		const std::optional<int32_t> before = panOn(f, f.clip->id());
+		deluge::gui::ui::root_knobs::turn(0, 5);
+		expect(stub.notifications).to_equal(1);
+		expect(panOn(f, f.clip->id()) != before).to_be_true();
+		nullifyUIs();
+		view.releaseActiveModControllable();
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("shows the song compressor knob at the top of its travel as 128 on a root turn", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		f.song->persistentView.affectEntire = true;
+		(void)deluge::edits::modKnobModeFor(project::SongAddress{}, 4);
+		view.setActiveModControllableTimelineCounter(f.song, false);
+		view.knobFocus().comp = {};
+		deluge::gui::ui::root_knobs::push(1, true); // into the compressor view: the upper knob is the threshold
+		deluge::gui::ui::root_knobs::push(1, false);
+		expect(view.knobFocus().comp.editing).to_be_true();
+		for (int32_t i = 0; i < 4; i++) {
+			deluge::gui::ui::root_knobs::turn(1, 40);
+		}
+		const std::array<uint8_t, 4> top = ring(1);
+		indicator_leds::setKnobIndicatorLevel(1, 127, false);
+		const std::array<uint8_t, 4> below = ring(1);
+		indicator_leds::setKnobIndicatorLevel(1, 128, false);
+		expect(top == ring(1)).to_be_true();
+		expect(top != below).to_be_true();
+		view.knobFocus().comp = {};
+		view.releaseActiveModControllable();
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("redraws the root's sidebar on a mod button only while the VU meter is drawn there", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		f.song->persistentView.affectEntire = true;
+		(void)deluge::edits::modKnobModeFor(project::SongAddress{}, 0);
+		view.setActiveModControllableTimelineCounter(f.song, false);
+		setRootUILowLevel(&sessionView);
+
+		clearPendingUIRendering();
+		deluge::gui::ui::root_knobs::mod_button(1, true);
+		deluge::gui::ui::root_knobs::mod_button(1, false);
+		expect(whichSideRowsNeedRendering).to_equal(0u);
+
+		(void)deluge::edits::modKnobModeFor(project::SongAddress{}, 0);
+		view.knobFocus().vu_meter = true;
+		RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+		expect(view.potentiallyRenderVUMeter(image)).to_be_true();
+		expect(view.vuMeterRendered()).to_be_true();
+		clearPendingUIRendering();
+		deluge::gui::ui::root_knobs::mod_button(1, true);
+		deluge::gui::ui::root_knobs::mod_button(1, false);
+		expect(whichSideRowsNeedRendering != 0u).to_be_true();
+		expect(whichMainRowsNeedRendering).to_equal(0u);
+
+		clearPendingUIRendering();
+		view.knobFocus().vu_meter = false;
+		nullifyUIs();
+		view.releaseActiveModControllable();
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("repaints a timeline root's pads when a root turn changes a synth's note tails, and no other root's", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		// The third mod button's lower knob is envelope 1's release; with no sustain, tails hold only while the decay
+		// is above the release.
+		(void)deluge::edits::modKnobModeFor(project::TrackAddress{*f.instrument->id()}, 2);
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		const auto set_value = [&](int32_t id, int32_t value) {
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithAutoParam* stack = deluge::bridge::paramStackAt(
+			    *f.song,
+			    {.owner = project::OwnerId::instrument(*f.instrument->id()),
+			     .space = project::ParamSpace::ENGINE,
+			     .id = deluge::bridge::paramIdOf(params::Kind::PATCHED, id),
+			     .clip_id = f.clip->id()},
+			    memory);
+			expect(stack != nullptr).to_be_true();
+			stack->autoParam->setCurrentValueWithNoReversionOrRecording(stack, value);
+		};
+		// Turns the release up until it passes the decay, and answers how many turns asked for every main pad.
+		const auto turn_past_decay = [&] {
+			set_value(params::LOCAL_ENV_0_SUSTAIN, std::numeric_limits<int32_t>::min());
+			set_value(params::LOCAL_ENV_0_DECAY, -(1 << 29));
+			set_value(params::LOCAL_ENV_0_RELEASE, std::numeric_limits<int32_t>::min());
+			int32_t repaints = 0;
+			for (int32_t i = 0; i < 60; i++) {
+				clearPendingUIRendering();
+				deluge::gui::ui::root_knobs::turn(0, 1);
+				repaints += whichMainRowsNeedRendering == 0xFFFFFFFF ? 1 : 0;
+			}
+			return repaints;
+		};
+		setRootUILowLevel(&sessionView);
+		expect(turn_past_decay()).to_equal(1);
+		setRootUILowLevel(&keyboardScreen);
+		expect(turn_past_decay()).to_equal(0);
+		clearPendingUIRendering();
+		nullifyUIs();
+		view.releaseActiveModControllable();
+		display = nullptr;
 		currentSong = nullptr;
 	});
 });

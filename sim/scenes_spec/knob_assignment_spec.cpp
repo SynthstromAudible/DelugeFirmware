@@ -48,12 +48,13 @@ using deluge::project::ModKnobCc;
 /// @param song       The song whose records the knobs are read from.
 /// @param focus      The owner the knobs point at.
 /// @param mode_owner Whose mod-knob mode each mode button sets.
+/// @param lane_owner The owner and clip every named lane must be on, spelt from the fixture rather than the focus.
 /// @param label      Names the owner in each disagreement.
 /// @param recorded   The param recorded for each (mode, knob), in the order the loop visits them.
 /// @param next       Where in @p recorded this call starts; advanced past what it read.
 std::vector<std::string> disagreements(::Song& song, const bind::KnobFocus& focus, const KnobModeOwner& mode_owner,
-                                       const std::string& label, std::span<const knob_recorded::NamedParam> recorded,
-                                       size_t& next) {
+                                       const deluge::project::ParamAddress& lane_owner, const std::string& label,
+                                       std::span<const knob_recorded::NamedParam> recorded, size_t& next) {
 	std::vector<std::string> found;
 	for (uint8_t mode = 0; mode < kNumModButtons; mode++) {
 		(void)deluge::edits::modKnobModeFor(mode_owner, mode);
@@ -62,11 +63,10 @@ std::vector<std::string> disagreements(::Song& song, const bind::KnobFocus& focu
 			const std::string at = label + " mode " + std::to_string(mode) + " knob " + std::to_string(knob) + ": ";
 			const knob_recorded::NamedParam want = recorded[next++];
 			if (const auto* named = std::get_if<deluge::project::ParamAddress>(&port.target)) {
-				// The lane is the recorded param on the focus's own owner and clip.
-				const std::optional<deluge::project::ParamAddress> owner = bind::knob_owner(focus);
+				// The lane is the recorded param on the owner and clip the fixture holds.
 				if (want.space != static_cast<int8_t>(named->space) || want.id != named->id.value
-				    || want.kind != static_cast<int8_t>(port.kind) || !owner || owner->owner != named->owner
-				    || owner->clip_id != named->clip_id) {
+				    || want.kind != static_cast<int8_t>(port.kind) || lane_owner.owner != named->owner
+				    || lane_owner.clip_id != named->clip_id) {
 					found.push_back(at + "differs from the recorded param");
 				}
 			}
@@ -113,7 +113,9 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 		    .slot = {deluge::project::SlotAddress::Kind::OUTPUT, *synth->id()},
 		    .clip = deluge::project::ClipAddress{f.clip->id()}}};
 		size_t next = 0;
-		const auto found = disagreements(*f.song, focus, deluge::project::TrackAddress{*synth->id()}, "synth",
+		const auto found = disagreements(*f.song, focus, deluge::project::TrackAddress{*synth->id()},
+		                                 {.owner = deluge::project::OwnerId::instrument(*synth->id()), .clip_id = f.clip->id()},
+		                                 "synth",
 		                                 knob_recorded::kSynthNames, next);
 		report(found);
 		expect(found.empty()).to_be_true();
@@ -136,7 +138,9 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 			    .row = deluge::project::NoteRowAddress{f.clip->id(), true, static_cast<int32_t>(*drum->id())},
 			    .kit = *kit->id()}};
 			size_t next = 0;
-			const auto found = disagreements(*f.song, focus, deluge::project::TrackAddress{*kit->id()}, "kit row",
+			const auto found = disagreements(*f.song, focus, deluge::project::TrackAddress{*kit->id()},
+			                                 {.owner = deluge::project::OwnerId::drum(*drum->id()), .clip_id = f.clip->id()},
+			                                 "kit row",
 			                                 knob_recorded::kKitRowNames, next);
 			report(found);
 			expect(found.empty()).to_be_true();
@@ -155,7 +159,9 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 		    .clip = deluge::project::ClipAddress{f.clip->id()}}};
 		size_t next = 0;
 		const auto found = over_views(*kit, [&](const std::string& view) {
-			return disagreements(*f.song, focus, deluge::project::TrackAddress{*kit->id()}, "kit chain " + view,
+			return disagreements(*f.song, focus, deluge::project::TrackAddress{*kit->id()},
+			                     {.owner = deluge::project::OwnerId::instrument(*kit->id()), .clip_id = f.clip->id()},
+			                     "kit chain " + view,
 			                     knob_recorded::kKitChainNames, next);
 		});
 		report(found);
@@ -174,7 +180,8 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 		    .clip = deluge::project::ClipAddress{f.clip->id()}}};
 		size_t next = 0;
 		const auto found = over_views(*audio, [&](const std::string& view) {
-			return disagreements(*f.song, focus, deluge::project::TrackAddress{*audio->id()}, "audio " + view,
+			return disagreements(*f.song, focus, deluge::project::TrackAddress{*audio->id()},
+			                     {.owner = deluge::project::OwnerId::clip(f.clip->id())}, "audio " + view,
 			                     knob_recorded::kAudioNames, next);
 		});
 		report(found);
@@ -194,6 +201,7 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 				const bind::KnobFocus focus{.owner = bind::SongFocus{}, .comp = {.editing = editing, .param = param}};
 				auto more = over_views(ge, [&](const std::string& view) {
 					return disagreements(*f.song, focus, deluge::project::SongAddress{},
+					                     {.owner = deluge::project::OwnerId::song()},
 					                     "song " + view + (editing ? " comp " + std::to_string(param) : ""),
 					                     knob_recorded::kSongNames, next);
 				});
@@ -239,7 +247,8 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 		(void)deluge::edits::modKnobCCFor(track, 3, {.kind = ModKnobCc::Kind::NUMBER, .number = ModKnobCc::kYAxisNumber});
 		const bind::KnobFocus focus{.owner = bind::MidiFocus{.track = track, .clip = deluge::project::ClipAddress{f.clip->id()}}};
 		size_t next = 0;
-		const auto found = disagreements(*f.song, focus, track, "midi", knob_recorded::kMidiNames, next);
+		const auto found = disagreements(*f.song, focus, track, {.owner = deluge::project::OwnerId::clip(f.clip->id())},
+		                                 "midi", knob_recorded::kMidiNames, next);
 		report(found);
 		expect(found.empty()).to_be_true();
 		const bind::KnobFocus no_clip{.owner = bind::MidiFocus{.track = track}};
