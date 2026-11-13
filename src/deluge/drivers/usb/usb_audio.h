@@ -61,6 +61,9 @@ void usbAudioStopAll(void);
 uint16_t usbAudioHandleBrdy(uint16_t pipeBits);
 /// From the USB interrupt, once per USB frame (1ms) while streaming either way
 void usbAudioHandleSof(void);
+/// From the USB task, with usbLock held. Reconnects us if the host's given up sending after a stall (see
+/// usb_audio.cpp)
+void usbAudioServiceTask(void);
 
 #ifdef __cplusplus
 }

@@ -16,6 +16,8 @@
  */
 
 #include "drivers/usb/usb_audio.h"
+#include "OSLikeStuff/scheduler_api.h"
+#include "OSLikeStuff/timers_interrupts/clock_type.h"
 #include "definitions.h"
 #include "drivers/usb/usb_audio_pcm.h"
 #include "io/debug/log.h"
@@ -40,6 +42,9 @@ extern "C" {
 void usb_cstd_set_buf(usb_utr_t* ptr, uint16_t pipe);
 void usb_cstd_set_nak(usb_utr_t* ptr, uint16_t pipe);
 void usb_cstd_clr_stall(usb_utr_t* ptr, uint16_t pipe);
+void usb_pstd_detach_process(void);
+void usb_pstd_self_clock(void);
+void hw_usb_pset_dprpu(void);
 void v7_dma_flush_range(uint32_t start, uint32_t end);
 }
 
@@ -140,6 +145,29 @@ uint32_t toHostDmaFrames = 0;
 // How many times the watchdog had to step in - for looking at in a debugger
 uint32_t fromHostRecoveries = 0;
 uint32_t toHostRecoveries = 0;
+
+// A host should send a packet every USB frame while it has the out stream's alternate setting selected. But if the
+// Deluge leaves USB unserviced long enough for our packets to the host to run out (a debugger halt does it), macOS can
+// stop sending for good - leaving the alternate setting selected, so nothing but reconnecting the device brings it
+// back. So the SOF interrupt watches for that: the host going quiet straight after such a stall, with nothing new
+// since. Then the USB task disconnects and reconnects us, just as unplugging the cable would. Needing the stall leaves
+// alone a host that's simply stopped sending without deselecting the stream, which Linux can do while paused
+constexpr uint32_t kStallFrames = 2; // The two packets queued for the host cover this many missed SOFs
+constexpr uint32_t kStallTicks = DELUGE_CLOCKS_PER / 400; // 2.5ms - the same, in case FRMNUM wrapped
+constexpr uint32_t kFreshPackets = 3;      // The pipe's two buffers can hold packets from before the stall
+constexpr uint32_t kAbandonedFrames = 200; // How long the host can go quiet after a stall before we reconnect
+int32_t lastSofFrame = -1; // FRMNUM at the last SOF interrupt. -1 when the interrupt's just been enabled
+uint32_t lastSofTicks = 0;
+uint32_t fromHostQuietFrames = 0; // SOF interrupts since a packet from the host last arrived
+bool fromHostEverArrived = false; // Whether this stream has had a packet yet
+bool fromHostStalled = false;     // Stalled while the host was sending, and it hasn't sent kFreshPackets since
+uint32_t fromHostPacketsSinceStall = 0;
+
+enum class Reconnect : uint8_t { IDLE, WANTED, DETACHED };
+volatile Reconnect reconnect = Reconnect::IDLE;
+uint32_t detachedTicks = 0;
+constexpr uint32_t kDetachedTicks = DELUGE_CLOCKS_PER / 4; // Long enough for the host to notice we've gone
+uint32_t reconnects = 0;                                   // For looking at in a debugger
 
 // SSI-RX-shaped ring holding the audio from the host (its first stereo input, with multitrack), for the rest of the
 // Deluge to read like an input
@@ -336,6 +364,11 @@ void startFromHostDma() {
 	uint16_t fifoCtr = USB200.D1FIFOCTR;
 	if (!(fifoCtr & USB_FRDY)) {
 		return;
+	}
+	fromHostQuietFrames = 0;
+	fromHostEverArrived = true;
+	if (fromHostStalled && ++fromHostPacketsSinceStall >= kFreshPackets) {
+		fromHostStalled = false; // The host's carried on
 	}
 	uint32_t numBytes = fifoCtr & USB_DTLN;
 	if (numBytes == 0 || numBytes > (multitrack ? USB_PAUDIO_MT_MAX_PACKET_BYTES_FROM_HOST : kMaxPacketBytes)) {
@@ -622,6 +655,30 @@ void serviceFromHost() {
 	if (recovered) {
 		fromHostRecoveries++;
 	}
+
+	if (fromHostQuietFrames < kAbandonedFrames) {
+		fromHostQuietFrames++;
+	}
+	else if (fromHostStalled && reconnect == Reconnect::IDLE) {
+		reconnect = Reconnect::WANTED; // The USB task takes it from here
+	}
+}
+
+// Notes whether USB just went unserviced for long enough that the host ran out of our packets, and the host was
+// sending to us right up to then
+void checkForStall() {
+	uint32_t frame = USB200.FRMNUM & USB_FRNM;
+	uint32_t ticks = getSystemTicks();
+	if (lastSofFrame >= 0) {
+		uint32_t frames = (frame - (uint32_t)lastSofFrame) & USB_FRNM; // 1, normally
+		bool stalled = frames > kStallFrames + 1 || (int32_t)(ticks - lastSofTicks) > (int32_t)kStallTicks;
+		if (stalled && fromHostStreaming && fromHostEverArrived && fromHostQuietFrames <= kStallFrames) {
+			fromHostStalled = true;
+			fromHostPacketsSinceStall = 0;
+		}
+	}
+	lastSofFrame = (int32_t)frame;
+	lastSofTicks = ticks;
 }
 
 void setSofInterrupt() {
@@ -629,6 +686,7 @@ void setSofInterrupt() {
 		if (!(USB200.INTENB0 & USB_SOFE)) {
 			USB200.INTSTS0 = (uint16_t)~USB_SOFR;
 			USB200.INTENB0 |= USB_SOFE;
+			lastSofFrame = -1; // There's been no SOF interrupt to measure a stall from
 		}
 	}
 	else {
@@ -669,6 +727,9 @@ void startFromHost() {
 
 	fromHostDmaBusy = false;
 	fromHostGeneration.fetch_add(1, std::memory_order_relaxed);
+	fromHostQuietFrames = 0;
+	fromHostEverArrived = false;
+	fromHostStalled = false;
 	fromHostStreaming = true;
 
 	USB200.BRDYSTS = (uint16_t)~(1 << kPipeFromHost);
@@ -909,6 +970,7 @@ extern "C" uint16_t usbAudioHandleBrdy(uint16_t pipeBits) {
 }
 
 extern "C" void usbAudioHandleSof(void) {
+	checkForStall();
 	serviceFromHost();
 
 	if (!toHostStreaming) {
@@ -929,6 +991,33 @@ extern "C" void usbAudioHandleSof(void) {
 	}
 
 	queueToHostPacket();
+}
+
+extern "C" void usbAudioServiceTask(void) {
+	switch (reconnect) {
+	case Reconnect::WANTED:
+		// Just as if the cable had been unplugged: streaming stops, the pipes are cleared, and the pull-up goes, which
+		// the host sees as us disconnecting
+		D_PRINTLN("USB audio: the host stopped sending after a stall - reconnecting");
+		usb_pstd_detach_process();
+		detachedTicks = getSystemTicks();
+		reconnect = Reconnect::DETACHED;
+		reconnects++;
+		break;
+
+	case Reconnect::DETACHED:
+		if ((int32_t)(getSystemTicks() - detachedTicks) >= (int32_t)kDetachedTicks) {
+			// And plugged back in: the host resets us and enumerates us all over again. Detaching stopped the
+			// transceiver's clock, which a USB interrupt would otherwise restart first
+			usb_pstd_self_clock();
+			hw_usb_pset_dprpu();
+			reconnect = Reconnect::IDLE;
+		}
+		break;
+
+	case Reconnect::IDLE:
+		break;
+	}
 }
 
 /*********************************************************************************************************************
