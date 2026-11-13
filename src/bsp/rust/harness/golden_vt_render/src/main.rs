@@ -68,6 +68,14 @@ enum Pacing {
     DevicePeriod = 2,
 }
 
+/// `ScenarioBoot` in `scenario_table.h`, in its order.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Boot {
+    Full = 0,
+    NoSettingsPrelude = 1,
+}
+
 impl Pacing {
     /// The pacing a row's byte names. The row's field is a byte, not this enum: a value outside the enum's range
     /// would be undefined behaviour in a Rust enum.
@@ -132,11 +140,17 @@ struct Scenario {
     step_done: Option<unsafe extern "C" fn() -> bool>,
     failures: Option<unsafe extern "C" fn() -> i32>,
     pacing: u8,
+    boot: u8,
+    drive: u8,
     card: CardSpec,
 }
 
 // scenario_table.cpp asserts the same offsets.
 const _: () = assert!(core::mem::offset_of!(Scenario, pacing) == 7 * core::mem::size_of::<usize>());
+const _: () =
+    assert!(core::mem::offset_of!(Scenario, boot) == 7 * core::mem::size_of::<usize>() + 1);
+const _: () =
+    assert!(core::mem::offset_of!(Scenario, drive) == 7 * core::mem::size_of::<usize>() + 2);
 const _: () = assert!(core::mem::offset_of!(Scenario, card) == 8 * core::mem::size_of::<usize>());
 
 // SAFETY: a row of a C++ `constexpr` table: immutable for the life of the process.
@@ -166,6 +180,15 @@ impl Scenario {
 
     fn pacing(&self) -> Pacing {
         Pacing::from_byte(self.pacing)
+    }
+
+    /// What boot runs for this row. `drive` is the table's own and is mirrored only so the layout is the C++ one.
+    fn boot(&self) -> Boot {
+        match self.boot {
+            0 => Boot::Full,
+            1 => Boot::NoSettingsPrelude,
+            other => panic!("golden_vt_render: boot {other} is not a ScenarioBoot"),
+        }
     }
 
     fn card(&self) -> Card {
@@ -278,11 +301,8 @@ async fn boot_task() {
         }
     }
 
-    // `stem_export`, which GOLDEN_SCENARIO selects by name or by being unset or empty, needs no boot settings, and
-    // the settings prelude's reads (and its write when MIDI_FOLLOW.XML is absent) would occupy the single-slot byte
-    // channel the export's folder search uses. Scenarios keep the prelude, which exercises it.
     // Must precede deluge_app_init, which registers the startup job.
-    if scenario_name() == "stem_export" {
+    if table_row(&scenario_name()).is_some_and(|row| row.boot() == Boot::NoSettingsPrelude) {
         // SAFETY: plain store to a C++ global, before deluge_app_init reads it.
         unsafe { sys::deluge_startup_skip_settings_prelude() };
     }

@@ -99,7 +99,7 @@ constexpr DelugeScenario kScenarios[] = {
      &deluge_scenario_audio_header_dump_step_done, &deluge_scenario_audio_header_dump_failures},
     {"audio_load_ab", nullptr, &deluge_scenario_audio_load_ab_begin, &deluge_scenario_audio_load_ab_complete,
      &deluge_scenario_audio_load_ab_dispatch_step, &deluge_scenario_audio_load_ab_step_done,
-     &deluge_scenario_audio_load_ab_failures, ScenarioPacing::Virtual,
+     &deluge_scenario_audio_load_ab_failures, ScenarioPacing::Virtual, ScenarioBoot::Full, ScenarioDrive::Interaction,
      manifest("tests/integration/scenarios/audio_load_ab.card")},
     {"audio_tick_hold", nullptr, &deluge_scenario_audio_tick_hold_begin, &deluge_scenario_audio_tick_hold_complete,
      &deluge_scenario_audio_tick_hold_dispatch_step, &deluge_scenario_audio_tick_hold_step_done,
@@ -109,11 +109,11 @@ constexpr DelugeScenario kScenarios[] = {
      &deluge_scenario_cable_decode_failures},
     {"card_reinsert", nullptr, &deluge_scenario_card_reinsert_begin, &deluge_scenario_card_reinsert_complete,
      &deluge_scenario_card_reinsert_dispatch_step, &deluge_scenario_card_reinsert_step_done,
-     &deluge_scenario_card_reinsert_failures, ScenarioPacing::Virtual,
+     &deluge_scenario_card_reinsert_failures, ScenarioPacing::Virtual, ScenarioBoot::Full, ScenarioDrive::Interaction,
      manifest("tests/integration/scenarios/card_reinsert.card")},
     {"clear_song_undo", nullptr, &deluge_scenario_clear_song_undo_begin, &deluge_scenario_clear_song_undo_complete,
      &deluge_scenario_clear_song_undo_dispatch_step, &deluge_scenario_clear_song_undo_step_done,
-     &deluge_scenario_clear_song_undo_failures, ScenarioPacing::Virtual,
+     &deluge_scenario_clear_song_undo_failures, ScenarioPacing::Virtual, ScenarioBoot::Full, ScenarioDrive::Interaction,
      manifest("tests/integration/scenarios/clear_song_undo.card")},
     {"clip_clone_roundtrip", nullptr, &deluge_scenario_clip_clone_roundtrip_begin,
      &deluge_scenario_clip_clone_roundtrip_complete, &deluge_scenario_clip_clone_roundtrip_dispatch_step,
@@ -180,11 +180,11 @@ constexpr DelugeScenario kScenarios[] = {
      &deluge_scenario_json_roundtrip_failures},
     {"load_cancel", nullptr, &deluge_scenario_load_cancel_begin, &deluge_scenario_load_cancel_complete,
      &deluge_scenario_load_cancel_dispatch_step, &deluge_scenario_load_cancel_step_done,
-     &deluge_scenario_load_cancel_failures, ScenarioPacing::Virtual,
+     &deluge_scenario_load_cancel_failures, ScenarioPacing::Virtual, ScenarioBoot::Full, ScenarioDrive::Interaction,
      manifest("tests/integration/scenarios/load_cancel.card")},
     {"load_policy", nullptr, &deluge_scenario_load_policy_begin, &deluge_scenario_load_policy_complete,
      &deluge_scenario_load_policy_dispatch_step, &deluge_scenario_load_policy_step_done,
-     &deluge_scenario_load_policy_failures, ScenarioPacing::Virtual,
+     &deluge_scenario_load_policy_failures, ScenarioPacing::Virtual, ScenarioBoot::Full, ScenarioDrive::Interaction,
      manifest("tests/integration/scenarios/load_policy.card")},
     {"model_decode_diff", nullptr, &deluge_scenario_model_decode_diff_begin,
      &deluge_scenario_model_decode_diff_complete, &deluge_scenario_model_decode_diff_dispatch_step,
@@ -221,7 +221,7 @@ constexpr DelugeScenario kScenarios[] = {
      &deluge_scenario_pattern_load_failures},
     {"preset_load", nullptr, &deluge_scenario_preset_load_begin, &deluge_scenario_preset_load_complete,
      &deluge_scenario_preset_load_dispatch_step, &deluge_scenario_preset_load_step_done,
-     &deluge_scenario_preset_load_failures, ScenarioPacing::Virtual,
+     &deluge_scenario_preset_load_failures, ScenarioPacing::Virtual, ScenarioBoot::Full, ScenarioDrive::Interaction,
      manifest("tests/integration/scenarios/preset_load.card")},
     {"preset_roundtrip", nullptr, &deluge_scenario_preset_roundtrip_begin, &deluge_scenario_preset_roundtrip_complete,
      &deluge_scenario_preset_roundtrip_dispatch_step, &deluge_scenario_preset_roundtrip_step_done,
@@ -233,22 +233,24 @@ constexpr DelugeScenario kScenarios[] = {
      &deluge_scenario_recorder_take_failures, ScenarioPacing::DevicePeriod},
     {"render_preset", nullptr, &deluge_scenario_render_preset_begin, &deluge_scenario_render_preset_complete,
      &deluge_scenario_render_preset_dispatch_step, &deluge_scenario_render_preset_step_done,
-     &deluge_scenario_render_preset_failures, ScenarioPacing::DevicePeriod, fromEnv("RENDER_TREE")},
+     &deluge_scenario_render_preset_failures, ScenarioPacing::DevicePeriod, ScenarioBoot::Full,
+     ScenarioDrive::Interaction, fromEnv("RENDER_TREE")},
     {"render_song", nullptr, &deluge_scenario_render_song_begin, &deluge_scenario_render_song_complete,
      &deluge_scenario_render_song_dispatch_step, &deluge_scenario_render_song_step_done,
-     &deluge_scenario_render_song_failures, ScenarioPacing::DevicePeriod, fromEnv("RENDER_TREE|corpus")},
+     &deluge_scenario_render_song_failures, ScenarioPacing::DevicePeriod, ScenarioBoot::Full,
+     ScenarioDrive::Interaction, fromEnv("RENDER_TREE|corpus")},
     {"sample_claim", nullptr, &deluge_scenario_sample_claim_begin, &deluge_scenario_sample_claim_complete,
      &deluge_scenario_sample_claim_dispatch_step, &deluge_scenario_sample_claim_step_done,
-     &deluge_scenario_sample_claim_failures, ScenarioPacing::Virtual,
+     &deluge_scenario_sample_claim_failures, ScenarioPacing::Virtual, ScenarioBoot::Full, ScenarioDrive::Interaction,
      manifest("tests/integration/scenarios/sample_claim.card")},
     {"sample_collect", nullptr, &deluge_scenario_sample_collect_begin, &deluge_scenario_sample_collect_complete,
      &deluge_scenario_sample_collect_dispatch_step, &deluge_scenario_sample_collect_step_done,
-     &deluge_scenario_sample_collect_failures, ScenarioPacing::Virtual,
+     &deluge_scenario_sample_collect_failures, ScenarioPacing::Virtual, ScenarioBoot::Full, ScenarioDrive::Interaction,
      manifest("tests/integration/scenarios/sample_collect.card")},
     {"sample_load_tree", nullptr, &deluge_scenario_sample_load_tree_begin, &deluge_scenario_sample_load_tree_complete,
      &deluge_scenario_sample_load_tree_dispatch_step, &deluge_scenario_sample_load_tree_step_done,
-     &deluge_scenario_sample_load_tree_failures, ScenarioPacing::Virtual,
-     manifest("tests/integration/scenarios/sample_load_tree.card")},
+     &deluge_scenario_sample_load_tree_failures, ScenarioPacing::Virtual, ScenarioBoot::Full,
+     ScenarioDrive::Interaction, manifest("tests/integration/scenarios/sample_load_tree.card")},
     {"save_roundtrip", nullptr, &deluge_scenario_save_roundtrip_begin, &deluge_scenario_save_roundtrip_complete,
      &deluge_scenario_save_roundtrip_dispatch_step, &deluge_scenario_save_roundtrip_step_done,
      &deluge_scenario_save_roundtrip_failures},
@@ -264,17 +266,18 @@ constexpr DelugeScenario kScenarios[] = {
     {"song_load_channel", nullptr, &deluge_scenario_song_load_channel_begin,
      &deluge_scenario_song_load_channel_complete, &deluge_scenario_song_load_channel_dispatch_step,
      &deluge_scenario_song_load_channel_step_done, &deluge_scenario_song_load_channel_failures, ScenarioPacing::Virtual,
-     manifest("tests/integration/scenarios/song_load_channel.card")},
+     ScenarioBoot::Full, ScenarioDrive::Interaction, manifest("tests/integration/scenarios/song_load_channel.card")},
     {"song_preview_ab", nullptr, &deluge_scenario_song_preview_ab_begin, &deluge_scenario_song_preview_ab_complete,
      &deluge_scenario_song_preview_ab_dispatch_step, &deluge_scenario_song_preview_ab_step_done,
-     &deluge_scenario_song_preview_ab_failures, ScenarioPacing::Virtual, builder("song_preview_ab")},
+     &deluge_scenario_song_preview_ab_failures, ScenarioPacing::Virtual, ScenarioBoot::Full, ScenarioDrive::Interaction,
+     builder("song_preview_ab")},
     {"song_roundtrip", nullptr, &deluge_scenario_song_roundtrip_begin, &deluge_scenario_song_roundtrip_complete,
      &deluge_scenario_song_roundtrip_dispatch_step, &deluge_scenario_song_roundtrip_step_done,
      &deluge_scenario_song_roundtrip_failures},
     {"song_save_channel", nullptr, &deluge_scenario_song_save_channel_begin,
      &deluge_scenario_song_save_channel_complete, &deluge_scenario_song_save_channel_dispatch_step,
      &deluge_scenario_song_save_channel_step_done, &deluge_scenario_song_save_channel_failures, ScenarioPacing::Virtual,
-     manifest("tests/integration/scenarios/song_save_channel.card")},
+     ScenarioBoot::Full, ScenarioDrive::Interaction, manifest("tests/integration/scenarios/song_save_channel.card")},
     {"sound_lifetime", nullptr, &deluge_scenario_sound_lifetime_begin, &deluge_scenario_sound_lifetime_complete,
      &deluge_scenario_sound_lifetime_dispatch_step, &deluge_scenario_sound_lifetime_step_done,
      &deluge_scenario_sound_lifetime_failures},
@@ -286,17 +289,19 @@ constexpr DelugeScenario kScenarios[] = {
      ScenarioPacing::DevicePeriod},
     // Driven by golden_vt_render itself: the offline stem export of the corpus fixture's song. It is the scenario
     // GOLDEN_SCENARIO selects by name or by being unset or empty.
-    {"stem_export", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, ScenarioPacing::Virtual, kCorpusFixture},
+    {"stem_export", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, ScenarioPacing::Virtual,
+     ScenarioBoot::NoSettingsPrelude, ScenarioDrive::Interaction, kCorpusFixture},
     {"menu_dump", nullptr, &deluge_scenario_menu_dump_begin, &deluge_scenario_menu_dump_complete,
      &deluge_scenario_menu_dump_dispatch_step, &deluge_scenario_menu_dump_step_done,
      &deluge_scenario_menu_dump_failures},
     {"scenes_spec", &deluge_scenario_scenes_spec_on_app_init, &deluge_scenario_scenes_spec_begin,
      &deluge_scenario_scenes_spec_complete, &deluge_scenario_scenes_spec_dispatch_step,
      &deluge_scenario_scenes_spec_step_done, &deluge_scenario_scenes_spec_failures, ScenarioPacing::Virtual,
-     fromEnv("SCENES_SPEC_CARD|tests/fixtures/card")},
+     ScenarioBoot::Full, ScenarioDrive::Interaction, fromEnv("SCENES_SPEC_CARD|tests/fixtures/card")},
     {"ui_script", nullptr, &deluge_scenario_ui_script_begin, &deluge_scenario_ui_script_complete,
      &deluge_scenario_ui_script_dispatch_step, &deluge_scenario_ui_script_step_done,
-     &deluge_scenario_ui_script_failures, ScenarioPacing::DevicePeriod, fromEnv("UI_CARD|tests/fixtures/card")},
+     &deluge_scenario_ui_script_failures, ScenarioPacing::DevicePeriod, ScenarioBoot::Full, ScenarioDrive::Interaction,
+     fromEnv("UI_CARD|tests/fixtures/card")},
     {"startup_failsafe", nullptr, &deluge_scenario_startup_failsafe_begin, &deluge_scenario_startup_failsafe_complete,
      &deluge_scenario_startup_failsafe_dispatch_step, &deluge_scenario_startup_failsafe_step_done,
      &deluge_scenario_startup_failsafe_failures},
@@ -317,17 +322,21 @@ void dispatchStepAsInteractionEntry() {
 	kScenarios[I].dispatchStep();
 }
 
-/// Row @p I's step as an interaction-tier entry, or null for a row the harness drives itself.
+/// Row @p I's step: an interaction-tier entry, the scenario's own for an OwnClock row, or null for a row without steps.
 template <std::size_t I>
 constexpr StepFn interactionEntry() {
-	return kScenarios[I].dispatchStep != nullptr ? &dispatchStepAsInteractionEntry<I> : nullptr;
+	if (kScenarios[I].dispatchStep == nullptr) {
+		return nullptr;
+	}
+	return kScenarios[I].drive == ScenarioDrive::Interaction ? &dispatchStepAsInteractionEntry<I>
+	                                                         : kScenarios[I].dispatchStep;
 }
 
 template <std::size_t... I>
 constexpr std::array<DelugeScenario, sizeof...(I)> withInteractionEntries(std::index_sequence<I...>) {
 	return {DelugeScenario{kScenarios[I].name, kScenarios[I].onAppInit, kScenarios[I].begin, kScenarios[I].complete,
 	                       interactionEntry<I>(), kScenarios[I].stepDone, kScenarios[I].failures, kScenarios[I].pacing,
-	                       kScenarios[I].card}...};
+	                       kScenarios[I].boot, kScenarios[I].drive, kScenarios[I].card}...};
 }
 
 /// A row has all five step functions (a stepped scenario) or none (one the harness drives itself).
@@ -338,10 +347,13 @@ constexpr bool stepsAllOrNone(const DelugeScenario& row) {
 }
 static_assert(std::ranges::all_of(kScenarios, stepsAllOrNone), "a scenario row has all five step functions or none");
 
-// golden_vt_render's `Scenario` mirrors this layout and asserts the same offsets: seven pointers, the pacing byte,
-// then the card at the next pointer boundary, on the 64-bit host and the 32-bit ARM leg alike.
+// golden_vt_render's `Scenario` mirrors this layout and asserts the same offsets: seven pointers, the pacing, boot and
+// drive bytes, then the card at the next pointer boundary, on the 64-bit host and the 32-bit ARM leg alike.
 static_assert(sizeof(ScenarioPacing) == 1 && sizeof(ScenarioCard::Kind) == 1);
 static_assert(offsetof(DelugeScenario, pacing) == 7 * sizeof(void*));
+static_assert(offsetof(DelugeScenario, boot) == 7 * sizeof(void*) + 1);
+static_assert(offsetof(DelugeScenario, drive) == 7 * sizeof(void*) + 2);
+static_assert(sizeof(ScenarioBoot) == 1 && sizeof(ScenarioDrive) == 1);
 static_assert(offsetof(DelugeScenario, card) == 8 * sizeof(void*));
 
 /// The rows the driver is given.

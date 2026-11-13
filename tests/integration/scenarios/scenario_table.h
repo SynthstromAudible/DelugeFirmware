@@ -40,6 +40,26 @@ enum class ScenarioPacing : uint8_t {
 	DevicePeriod,
 };
 
+/// What boot runs before a scenario starts, set before deluge_app_init.
+enum class ScenarioBoot : uint8_t {
+	/// The full boot, settings prelude included: the prelude is itself exercised.
+	Full,
+	/// No startup settings prelude (deluge_startup_skip_settings_prelude): its reads, and its write when
+	/// MIDI_FOLLOW.XML is absent, would occupy the single-slot byte channel a scenario that needs no settings uses.
+	NoSettingsPrelude,
+};
+
+/// How a scenario's step functions map onto virtual time.
+enum class ScenarioDrive : uint8_t {
+	/// `dispatchStep` is an interaction-tier entry (the render's requests are applied first) and runs one tick of
+	/// the scenario; the runner waits a virtual millisecond before `stepDone` and another after it.
+	Interaction,
+	/// The scenario keeps its own clock of one tick per virtual millisecond: `dispatchStep` and `stepDone` each run
+	/// one tick and `stepDone` always answers true, so ticks fall on consecutive milliseconds. Neither is an
+	/// interaction-tier entry: the scenario drives the app's machines the way a BSP task does.
+	OwnClock,
+};
+
 /// The memory card a scenario boots with. The harness installs it before any task is spawned (the host SD opens its
 /// disk once, on first access), which is why a scenario cannot build its card in `onAppInit`.
 struct ScenarioCard {
@@ -73,6 +93,8 @@ struct DelugeScenario {
 	bool (*stepDone)(void);
 	int32_t (*failures)(void);
 	ScenarioPacing pacing = ScenarioPacing::Virtual;
+	ScenarioBoot boot = ScenarioBoot::Full;
+	ScenarioDrive drive = ScenarioDrive::Interaction;
 	ScenarioCard card{};
 };
 
