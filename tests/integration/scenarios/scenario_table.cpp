@@ -71,7 +71,7 @@ namespace {
 
 using StepFn = void (*)();
 
-/// The cards rows name, for short rows.
+/// Shorthands for the cards a row names.
 constexpr ScenarioCard kCorpusFixture{ScenarioCard::Kind::CorpusFixture};
 constexpr ScenarioCard fromEnv(const char* spec) {
 	return {ScenarioCard::Kind::FromEnv, spec};
@@ -278,7 +278,8 @@ constexpr DelugeScenario kScenarios[] = {
     {"stale_ui", nullptr, &deluge_scenario_stale_ui_begin, &deluge_scenario_stale_ui_complete,
      &deluge_scenario_stale_ui_dispatch_step, &deluge_scenario_stale_ui_step_done, &deluge_scenario_stale_ui_failures,
      ScenarioPacing::DevicePeriod},
-    // Driven by golden_vt_render itself: the offline stem export of the corpus fixture's song (GOLDEN_SCENARIO unset).
+    // Driven by golden_vt_render itself: the offline stem export of the corpus fixture's song. It is the scenario
+    // GOLDEN_SCENARIO selects by name or by being unset or empty.
     {"stem_export", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, ScenarioPacing::Virtual, kCorpusFixture},
     {"menu_dump", nullptr, &deluge_scenario_menu_dump_begin, &deluge_scenario_menu_dump_complete,
      &deluge_scenario_menu_dump_dispatch_step, &deluge_scenario_menu_dump_step_done,

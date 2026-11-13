@@ -2,9 +2,9 @@
 //! a fixture tree, and runs one scenario deterministically.
 //!
 //! `GOLDEN_SCENARIO` names a row of `tests/integration/scenarios/scenario_table.cpp`: a stepped scenario, the
-//! recorder round trip, or (unset) `stem_export`, an offline `StemExport` of the fixture song whose stem WAVs it
-//! copies out. Sample cluster fills drain through the BSP's async `streaming_fill_task`, so a sample-backed fixture
-//! renders real audio.
+//! recorder round trip, or `stem_export`, which `GOLDEN_SCENARIO` selects by name or by being unset or empty: an
+//! offline `StemExport` of the fixture song whose stem WAVs it copies out. Sample cluster fills drain through the BSP's
+//! async `streaming_fill_task`, so a sample-backed fixture renders real audio.
 //!
 //! # Why a separate package
 //!
@@ -40,7 +40,7 @@
 use core::ffi::c_char;
 use core::sync::atomic::{AtomicBool, Ordering};
 use std::ffi::{CStr, CString};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use embassy_executor::raw;
 use embassy_time::{Duration, Instant, Timer};
@@ -278,8 +278,8 @@ async fn boot_task() {
         }
     }
 
-    // The stem export (GOLDEN_SCENARIO unset) needs no boot settings, and the settings prelude's
-    // reads (and its write when MIDI_FOLLOW.XML is absent) would occupy the single-slot byte
+    // `stem_export`, which GOLDEN_SCENARIO selects by name or by being unset or empty, needs no boot settings, and
+    // the settings prelude's reads (and its write when MIDI_FOLLOW.XML is absent) would occupy the single-slot byte
     // channel the export's folder search uses. Scenarios keep the prelude, which exercises it.
     // Must precede deluge_app_init, which registers the startup job.
     if scenario_name() == "stem_export" {
@@ -731,14 +731,14 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
 
 /// An empty directory to stage a scenario's card tree in, named for this process so that runs of the same scenario at
 /// once never share one.
-fn staging_dir(name: &str) -> std::path::PathBuf {
+fn staging_dir(name: &str) -> PathBuf {
     let root = std::env::temp_dir().join(format!("{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     root
 }
 
 /// Installs the tree staged at `root` as the card, then removes it: the card holds a copy.
-fn install_staged(root: &std::path::Path) {
+fn install_staged(root: &Path) {
     memory_card::install(Some(root));
     let _ = std::fs::remove_dir_all(root);
 }
@@ -796,7 +796,7 @@ const CORPUS_DECLARED: &str = "DELUGE_CORPUS_DECLARED";
 /// A test that boots the corpus fixture runs only where the maintainer's card backup is, so its registry entry must
 /// say so (`requires = ["song-corpus"]`, which keeps it out of CI). Refusing here makes a scenario given the corpus
 /// card by mistake fail on every machine, instead of passing where the backup happens to be and failing in CI.
-fn corpus_fixture(name: &str, repo_root: &Path, fixture: &str) -> std::path::PathBuf {
+fn corpus_fixture(name: &str, repo_root: &Path, fixture: &str) -> PathBuf {
     if std::env::var_os(CORPUS_DECLARED).is_none_or(|value| value != "1") {
         eprintln!(
             "golden_vt_render: {name} boots the song-corpus fixture '{fixture}', but this run does not declare the \
@@ -874,14 +874,14 @@ fn uniform_preview_song(value: u8) -> String {
 /// # Panics
 ///
 /// Panics if a file cannot be written, or if a named corpus stages no song.
-fn fill_song_preview_ab_card(repo_root: &std::path::Path) {
+fn fill_song_preview_ab_card(repo_root: &Path) {
     let root = staging_dir("deluge-song-preview-ab-card");
     let songs = root.join("SONGS");
     let corpus_dir = songs.join("CORPUS");
     std::fs::create_dir_all(&corpus_dir)
         .expect("creating the song-preview fixture card directories");
 
-    let write = |path: std::path::PathBuf, text: String| {
+    let write = |path: PathBuf, text: String| {
         std::fs::write(&path, text)
             .unwrap_or_else(|e| panic!("writing the song-preview fixture {}: {e}", path.display()));
     };
@@ -949,15 +949,14 @@ fn fill_song_preview_ab_card(repo_root: &std::path::Path) {
     write(songs.join("JSONP.Json"), json_song);
 
     // Real songs, when a corpus is available; without one the synthetic cases still run.
-    let corpus = std::env::var_os("DELUGE_SONG_CORPUS").or_else(|| {
-        std::env::var_os("DELUGE_BACKUP").map(|b| std::path::Path::new(&b).join("SONGS").into())
-    });
+    let corpus = std::env::var_os("DELUGE_SONG_CORPUS")
+        .or_else(|| std::env::var_os("DELUGE_BACKUP").map(|b| Path::new(&b).join("SONGS").into()));
     let mut copied = 0usize;
     // One letter a staged song, in case order: `X` for XML, `J` for JSON.
     let mut kinds = String::new();
     let corpus_was_named = corpus.is_some();
     if let Some(corpus) = corpus {
-        let mut entries: Vec<std::path::PathBuf> = std::fs::read_dir(&corpus)
+        let mut entries: Vec<PathBuf> = std::fs::read_dir(&corpus)
             .map(|dir| {
                 dir.filter_map(Result::ok)
                     .map(|e| e.path())
@@ -991,7 +990,7 @@ fn fill_song_preview_ab_card(repo_root: &std::path::Path) {
         assert!(
             copied > 0,
             "DELUGE_SONG_CORPUS names {} but no .XML or .json song could be staged from it",
-            std::path::Path::new(&corpus).display()
+            Path::new(&corpus).display()
         );
     }
     // Always written, zero included: the C++ side reads it (`kCorpusCountPath`) and fails if it is
@@ -1069,6 +1068,14 @@ fn main() {
         .nth(5)
         .expect("CARGO_MANIFEST_DIR (src/bsp/rust/harness/golden_vt_render) has a repo root 5 levels up")
         .to_path_buf();
+    if std::env::var_os("GOLDEN_CARD_ONLY").is_some()
+        && std::env::var_os("DELUGE_SD_IMAGE").is_some()
+    {
+        eprintln!(
+            "golden_vt_render: GOLDEN_CARD_ONLY dumps the scenario's card; DELUGE_SD_IMAGE replaces it"
+        );
+        std::process::exit(2);
+    }
     row.pacing().apply();
     // DELUGE_SD_IMAGE, when set, names an image file to use as the card instead.
     if std::env::var_os("DELUGE_SD_IMAGE").is_none() {
