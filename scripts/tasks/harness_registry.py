@@ -163,6 +163,8 @@ class Harness:
     # The files and directories (repository paths) the test writes under `./dbt test --update`, and only they: the
     # runner snapshots them, restores them when the run fails, and fails a run that writes anywhere else.
     baseline: list[str] = field(default_factory=list)
+    # A generated copy (a variant): the name of the entry it copies. Never written in the registry.
+    variant_of: str = ""
 
 
 # How each test judges what it gates. unit: one function or module; property: an invariant over generated or real
@@ -180,11 +182,11 @@ KINDS = (
 # Runners that run the entry's own `build` and `run` commands; they run them in `path`.
 PATH_RUNNERS = ("cargo", "script")
 # The fields an entry may set: everything the runner reads.
-ENTRY_FIELDS = frozenset(f.name for f in dataclasses.fields(Harness))
+ENTRY_FIELDS = frozenset(f.name for f in dataclasses.fields(Harness)) - {"variant_of"}
 
 
 # How an entry is written rather than what it is: the loader consumes these before validating the entry.
-SOURCE_FIELDS = frozenset({"template", "override"})
+SOURCE_FIELDS = frozenset({"template", "override", "variants", "variant_fields"})
 # A template supplies fields entries share; never an entry's name or its claim, nor another template.
 TEMPLATE_EXCLUDED = frozenset({"name", "gates"}) | SOURCE_FIELDS
 
@@ -220,7 +222,7 @@ def _with_template(where: str, item: dict, templates: dict[str, dict]) -> dict:
     if name not in templates:
         raise ValueError(f"{where}: unknown template '{name}'")
     shared = templates[name]
-    own = {k: v for k, v in item.items() if k not in SOURCE_FIELDS}
+    own = {k: v for k, v in item.items() if k not in ("template", "override")}
     both = sorted(set(own) & set(shared))
     if undeclared := [k for k in both if k not in declared]:
         raise ValueError(
@@ -238,18 +240,92 @@ def _with_template(where: str, item: dict, templates: dict[str, dict]) -> dict:
     return {**shared, **own}
 
 
+# What a [variant.<name>] table may set: the copy's name and gates (each with "{base}" for the base's name), and what
+# the copy runs differently. requires and env_default add to the base's; every other field replaces it.
+VARIANT_FIELDS = frozenset(
+    {
+        "name",
+        "gates",
+        "kind",
+        "builds",
+        "requires",
+        "env_default",
+        "tier",
+        "job",
+        "runtime_s",
+    }
+)
+# What one base may set for its own copy: variant_fields = { <variant> = { runtime_s = N } }.
+VARIANT_INSTANCE_FIELDS = frozenset({"runtime_s"})
+# A copy checks; it never owns what its base re-records.
+_NOT_COPIED = frozenset({"variants", "variant_fields", "baseline"})
+
+
+def _variant_tables(raw: dict) -> dict[str, dict]:
+    variants = raw.get("variant", {})
+    for name, table in variants.items():
+        if unknown := sorted(set(table) - VARIANT_FIELDS):
+            raise ValueError(f"variant '{name}': unknown field(s) {', '.join(unknown)}")
+        for key in ("name", "gates"):
+            if "{base}" not in table.get(key, ""):
+                raise ValueError(f"variant '{name}': {key} must contain {{base}}")
+    return variants
+
+
+def _copies(items: list[dict], variants: dict[str, dict]) -> list[dict]:
+    """Every variant copy the entries ask for, in entry order."""
+    copies = []
+    for item in items:
+        where = item.get("name", "?")
+        wanted = item.get("variants", [])
+        per_base = item.get("variant_fields", {})
+        if stray := sorted(set(per_base) - set(wanted)):
+            raise ValueError(
+                f"{where}: variant_fields names {', '.join(stray)}, which 'variants' does not list"
+            )
+        for name in wanted:
+            if name not in variants:
+                raise ValueError(f"{where}: unknown variant '{name}'")
+            own = per_base.get(name, {})
+            if bad := sorted(set(own) - VARIANT_INSTANCE_FIELDS):
+                raise ValueError(
+                    f"{where}: variant_fields.{name} may set only {', '.join(sorted(VARIANT_INSTANCE_FIELDS))}, "
+                    f"not {', '.join(bad)}"
+                )
+            table = variants[name]
+            copy = {k: v for k, v in item.items() if k not in _NOT_COPIED}
+            copy.update(
+                {k: v for k, v in table.items() if k not in ("requires", "env_default")}
+            )
+            copy["name"] = table["name"].format(base=item["name"])
+            copy["gates"] = table["gates"].format(base=item["name"])
+            copy["requires"] = list(
+                dict.fromkeys([*item.get("requires", []), *table.get("requires", [])])
+            )
+            copy["env_default"] = {
+                **item.get("env_default", {}),
+                **table.get("env_default", {}),
+            }
+            copy.update(own)
+            copy["variant_of"] = item["name"]
+            copies.append(copy)
+    return copies
+
+
 def expand(raw: dict) -> list[dict]:
-    """The registry's entries as the runner sees them: each written entry over its template."""
-    if stray := sorted(set(raw) - {"harness", "template"}):
+    """The registry's entries as the runner sees them: each written entry over its template, then every variant
+    copy."""
+    if stray := sorted(set(raw) - {"harness", "template", "variant"}):
         raise ValueError(f"unknown table(s) {', '.join(stray)}")
     templates = _templates(raw)
+    variants = _variant_tables(raw)
     items = []
     for i, item in enumerate(raw.get("harness", [])):
         where = item.get("name", f"entry #{i}")
         if unknown := sorted(set(item) - ENTRY_FIELDS - SOURCE_FIELDS):
             raise ValueError(f"{where}: unknown field(s) {', '.join(unknown)}")
         items.append(_with_template(where, item, templates))
-    return items
+    return items + _copies(items, variants)
 
 
 # The longest `gates` line: one sentence a reader takes in from the README table. What it leaves out is the test's
@@ -415,7 +491,7 @@ def _validate(root: Path, item: dict, where: str, seen: set[str]) -> Harness:
     if problem := gates_problem(item["gates"]):
         raise ValueError(
             f"{where}: gates {problem}: state what the test gates in one sentence, and put the rest in a "
-            f"'Gate {item['name']}:' block in the file that judges it (tests/README.md, Adding a test)"
+            f"'Gate {item['name']}:' block in the file that judges it (tests/README.md, Writing an entry)"
         )
 
     for key, allowed in (
@@ -559,6 +635,7 @@ def _validate(root: Path, item: dict, where: str, seen: set[str]) -> Harness:
         alone=item.get("alone", False),
         baseline=baseline,
         job=item["job"],
+        variant_of=item.get("variant_of", ""),
     )
 
 
@@ -744,6 +821,8 @@ __all__ = [
     "TABLE_BEGIN",
     "TABLE_END",
     "TIERS",
+    "VARIANT_FIELDS",
+    "VARIANT_INSTANCE_FIELDS",
     "Harness",
     "ci_matrix",
     "corpus_fixture_scenarios",

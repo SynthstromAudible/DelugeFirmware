@@ -2035,3 +2035,204 @@ class TemplateTest(unittest.TestCase):
     def test_an_unknown_table_is_refused(self):
         with self.assertRaisesRegex(ValueError, r"unknown table\(s\) templates"):
             self._load(MINIMAL + '[templates.x]\nlevel = "unit"\n')
+
+
+VARIANTED = """
+[variant.asan]
+name = "app-asan-{base}"
+gates = "the {base} gate's checks under ASan"
+kind = "sanitizer"
+builds = ["golden-vt-render-asan"]
+requires = ["clang-asan"]
+env_default = { ASAN_OPTIONS = "x" }
+tier = "nightly"
+job = "unit"
+runtime_s = 300
+
+[[harness]]
+name = "gamma"
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "gamma holds"
+scenario = "gamma"
+markers = ["GA-ONE"]
+result = "GA-RESULT failures=0"
+check = "c.py"
+builds = ["golden-vt-render"]
+requires = ["cargo"]
+env = { BUDGET = "1" }
+env_default = { KEEP = "1" }
+baseline = ["tests/golden/g"]
+tier = "pr"
+job = "render"
+runtime_s = 5
+variants = ["asan"]
+
+[[harness]]
+name = "delta"
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "delta holds"
+path = "."
+run = ["true"]
+tier = "pr"
+job = "tooling"
+runtime_s = 1
+"""
+
+
+class VariantTest(unittest.TestCase):
+    def _load(self, text):
+        root = Path(tempfile.mkdtemp())
+        (root / "tests").mkdir()
+        (root / "tests" / "registry.toml").write_text(text)
+        (root / "c.py").write_text("")
+        return hr.load_registry(root)
+
+    def test_a_copy_follows_every_written_entry(self):
+        self.assertEqual(
+            [h.name for h in self._load(VARIANTED)],
+            ["gamma", "delta", "app-asan-gamma"],
+        )
+
+    def test_the_copy_runs_its_bases_checks_on_the_variants_build(self):
+        base, _, copy = self._load(VARIANTED)
+        self.assertEqual(
+            (
+                copy.scenario,
+                copy.markers,
+                copy.result,
+                copy.check,
+                copy.env,
+                copy.level,
+                copy.status,
+            ),
+            (
+                base.scenario,
+                base.markers,
+                base.result,
+                base.check,
+                base.env,
+                base.level,
+                base.status,
+            ),
+        )
+        self.assertEqual(
+            (
+                copy.gates,
+                copy.kind,
+                copy.builds,
+                copy.tier,
+                copy.job,
+                copy.runtime_s,
+                copy.variant_of,
+            ),
+            (
+                "the gamma gate's checks under ASan",
+                "sanitizer",
+                ["golden-vt-render-asan"],
+                "nightly",
+                "unit",
+                300,
+                "gamma",
+            ),
+        )
+
+    def test_requires_and_env_default_add_to_the_bases(self):
+        copy = self._load(VARIANTED)[2]
+        self.assertEqual(copy.requires, ["cargo", "clang-asan"])
+        self.assertEqual(copy.env_default, {"KEEP": "1", "ASAN_OPTIONS": "x"})
+
+    def test_a_copy_owns_no_baseline(self):
+        base, _, copy = self._load(VARIANTED)
+        self.assertEqual(
+            (base.baseline, copy.baseline, base.variant_of),
+            (["tests/golden/g"], [], ""),
+        )
+
+    def test_a_base_sets_its_copys_runtime(self):
+        text = VARIANTED.replace(
+            'variants = ["asan"]',
+            'variants = ["asan"]\nvariant_fields = { asan = { runtime_s = 900 } }',
+        )
+        self.assertEqual(self._load(text)[2].runtime_s, 900)
+
+    def test_a_base_sets_nothing_else_of_its_copy(self):
+        text = VARIANTED.replace(
+            'variants = ["asan"]',
+            'variants = ["asan"]\nvariant_fields = { asan = { tier = "pr" } }',
+        )
+        with self.assertRaisesRegex(ValueError, "may set only runtime_s"):
+            self._load(text)
+
+    def test_variant_fields_for_an_unlisted_variant_are_refused(self):
+        text = VARIANTED.replace(
+            'variants = ["asan"]', "variant_fields = { asan = { runtime_s = 9 } }"
+        )
+        with self.assertRaisesRegex(ValueError, "which 'variants' does not list"):
+            self._load(text)
+
+    def test_an_unknown_variant_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "unknown variant 'tsan'"):
+            self._load(VARIANTED.replace('variants = ["asan"]', 'variants = ["tsan"]'))
+
+    def test_a_variant_table_field_must_be_one_it_may_set(self):
+        with self.assertRaisesRegex(
+            ValueError, r"variant 'asan': unknown field\(s\) markers"
+        ):
+            self._load(
+                VARIANTED.replace(
+                    "[variant.asan]\n", '[variant.asan]\nmarkers = ["X"]\n'
+                )
+            )
+
+    def test_name_and_gates_name_the_base(self):
+        with self.assertRaisesRegex(ValueError, "must contain {base}"):
+            self._load(
+                VARIANTED.replace('name = "app-asan-{base}"', 'name = "app-asan"')
+            )
+
+    def test_a_copy_is_validated_like_any_entry(self):
+        text = VARIANTED.replace(
+            'job = "unit"\nruntime_s = 300', 'job = "render"\nruntime_s = 300'
+        )
+        with self.assertRaisesRegex(
+            ValueError, "app-asan-gamma: job 'render' runs prebuilt"
+        ):
+            self._load(text)
+
+    def test_a_copys_name_cannot_collide(self):
+        clash = (
+            '\n[[harness]]\nname = "app-asan-gamma"\nlevel = "unit"\nrunner = "script"\nkind = "unit"\n'
+            'status = "gate"\ngates = "clash"\npath = "."\nrun = ["true"]\ntier = "pr"\njob = "tooling"\nruntime_s = 1\n'
+        )
+        with self.assertRaisesRegex(ValueError, "duplicate test name 'app-asan-gamma'"):
+            self._load(VARIANTED + clash)
+
+    def test_variant_of_is_not_written(self):
+        with self.assertRaisesRegex(ValueError, r"unknown field\(s\) variant_of"):
+            self._load(VARIANTED.replace('variants = ["asan"]', 'variant_of = "x"'))
+
+    def test_the_gates_rule_points_at_writing_an_entry(self):
+        with self.assertRaisesRegex(ValueError, r"tests/README\.md, Writing an entry"):
+            self._load(
+                VARIANTED.replace('gates = "delta holds"', 'gates = "delta holds."')
+            )
+
+    def test_an_entry_over_a_template_has_its_copy(self):
+        text = VARIANTED.replace(
+            '[[harness]]\nname = "gamma"\nlevel = "integration"\n',
+            '[template.s]\nlevel = "integration"\n\n[[harness]]\nname = "gamma"\ntemplate = "s"\n',
+        )
+        self.assertEqual(
+            [(h.name, h.level) for h in self._load(text)],
+            [
+                ("gamma", "integration"),
+                ("delta", "unit"),
+                ("app-asan-gamma", "integration"),
+            ],
+        )
