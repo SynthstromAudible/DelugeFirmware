@@ -3437,9 +3437,6 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 	         && (ourModKnobBottom->target == deluge::modulation::knobParam(params::GLOBAL_REVERB_AMOUNT))) {
 		displaySidechainAndReverbSettings(on);
 	}
-	else {
-		displayOtherModKnobSettings(whichModButton, on);
-	}
 }
 
 ModelStackWithAutoParam* Sound::getParamFromModEncoder(int32_t whichModEncoder,

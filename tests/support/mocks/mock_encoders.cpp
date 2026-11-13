@@ -21,6 +21,4 @@ ContinuousEncoder& modEncoderAt(size_t i) {
 	return *table[i];
 }
 
-uint32_t timeModEncoderLastTurned[2];
-
 } // namespace deluge::hid::encoders

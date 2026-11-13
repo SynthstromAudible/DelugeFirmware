@@ -73,6 +73,7 @@
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
 #include "model/project_bridge/param_ids.h"
+#include "model/project_bridge/param_stack.h"
 #include "model/sample/sample.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -126,6 +127,20 @@ const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIO
 
 constexpr int32_t kNumNonGlobalParamsForAutomation = params::kSoundParamsForAutomation.size();
 constexpr int32_t kNumGlobalParamsForAutomation = params::kGlobalParamsForAutomation.size();
+
+namespace {
+
+/// @brief The clip (its take while the arrangement records it) or song the gold knobs are on, or null.
+TimelineCounter* knobTimelineCounter() {
+	if (!view.knobsOnCurrentSong()) {
+		return nullptr;
+	}
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* stack = deluge::bridge::knobOwnerStackAt(*currentSong, view.knobFocus(), memory);
+	return stack != nullptr ? stack->getTimelineCounterAllowNull() : nullptr;
+}
+
+} // namespace
 
 namespace {
 
@@ -894,7 +909,7 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 
-			if (modelStackWithParam->getTimelineCounter() == View::KnobStack{view}.counter()) {
+			if (modelStackWithParam->getTimelineCounter() == knobTimelineCounter()) {
 
 				int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, view.modPos()) + kKnobPosOffset;
 

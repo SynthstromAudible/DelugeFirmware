@@ -44,6 +44,30 @@ namespace params = deluge::modulation::params;
 
 using namespace deluge::gui;
 
+namespace {
+
+/// @brief The gold knobs' owner stack, in @p memory; null while they point at nothing.
+ModelStackWithThreeMainThings* knobStackInMemory(void* memory) {
+	return view.knobsOnCurrentSong() ? deluge::bridge::knobOwnerStackAt(*currentSong, view.knobFocus(), memory)
+	                                 : nullptr;
+}
+
+/// @brief The clip (its take while the arrangement records it) or song the gold knobs are on, or null.
+TimelineCounter* knobTimelineCounter() {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* stack = knobStackInMemory(memory);
+	return stack != nullptr ? stack->getTimelineCounterAllowNull() : nullptr;
+}
+
+/// @brief The gold knobs' owner, or null.
+ModControllableAudio* knobOwner() {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* stack = knobStackInMemory(memory);
+	return stack != nullptr ? static_cast<ModControllableAudio*>(stack->modControllable) : nullptr;
+}
+
+} // namespace
+
 constexpr int32_t kParamNodeWidth = 3;
 
 // VU meter style colours for the automation editor
@@ -374,12 +398,11 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 				parameterName.append(" -> ");
 			}
 
-			parameterName.append(params::getPatchedParamShortName(
-			    lastSelectedParamID, (ModControllableAudio*)View::KnobStack{view}.owner()));
+			parameterName.append(params::getPatchedParamShortName(lastSelectedParamID, knobOwner()));
 		}
 		else {
-			parameterName.append(deluge::modulation::params::getParamDisplayName(
-			    lastSelectedParamKind, lastSelectedParamID, (ModControllableAudio*)View::KnobStack{view}.owner()));
+			parameterName.append(deluge::modulation::params::getParamDisplayName(lastSelectedParamKind,
+			                                                                     lastSelectedParamID, knobOwner()));
 		}
 	}
 	else {
@@ -683,7 +706,7 @@ void AutomationEditorLayoutModControllable::automationModEncoderActionForUnselec
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
-		if (modelStackWithParam->getTimelineCounter() == View::KnobStack{view}.counter()) {
+		if (modelStackWithParam->getTimelineCounter() == knobTimelineCounter()) {
 
 			int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, view.modPos());
 
@@ -1005,7 +1028,7 @@ void AutomationEditorLayoutModControllable::updateAutomationModPosition(ModelSta
 
 	if (!playbackHandler.isEitherClockActive() || getPadSelectionOn()) {
 		if (modelStack && modelStack->autoParam) {
-			if (modelStack->getTimelineCounter() == View::KnobStack{view}.counter()) {
+			if (modelStack->getTimelineCounter() == knobTimelineCounter()) {
 
 				if (const std::optional<deluge::project::ParamAddress> owner =
 				        deluge::controls::knob_owner(view.knobFocus())) {

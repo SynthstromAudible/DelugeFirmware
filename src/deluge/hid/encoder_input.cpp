@@ -42,8 +42,6 @@
 
 namespace deluge::hid::encoders {
 
-uint32_t timeModEncoderLastTurned[2];
-
 static uint32_t timeNextSDTestAction = 0;
 static int32_t nextSDTestDirection = 1;
 

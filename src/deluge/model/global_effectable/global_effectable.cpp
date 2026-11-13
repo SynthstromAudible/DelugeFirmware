@@ -151,13 +151,6 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 	else if (whichModButton == 5) {
 		displayModFXSettings(on);
 	}
-	// Other Mod Buttons
-	else {
-		// Env Attack / Release not relevant for global effectable context
-		if (whichModButton != 2) {
-			displayOtherModKnobSettings(whichModButton, on);
-		}
-	}
 }
 
 void GlobalEffectable::displayCompressorAndReverbSettings(bool on, const deluge::controls::CompView& comp) {

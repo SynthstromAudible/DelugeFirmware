@@ -21,10 +21,6 @@
 
 namespace deluge::hid::encoders {
 
-/// Last AudioEngine::audioSampleTimer tick at which a mod encoder changed.
-/// Written here and by view.cpp to reset the "turned recently" window.
-extern uint32_t timeModEncoderLastTurned[];
-
 /// @brief When the board decoded the select turn being actioned, on `getSystemTime()`'s clock in microseconds.
 ///
 /// `interpretEncoders` hands the select encoder's detents out as the runs of edges that completed them, one
