@@ -119,6 +119,9 @@ const uint32_t auditionPadActionUIModes[] = {UI_MODE_NOTES_PRESSED,
 
 const uint32_t editPadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, 0};
 
+const uint32_t editPadReleaseUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING,
+                                          UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
+
 const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, 0};
 
 const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0};
@@ -1297,6 +1300,11 @@ passToOthers:
 void AutomationView::handleSessionButtonAction(Clip* clip, bool on) {
 	// if shift is pressed, go back to automation overview
 	if (on && Buttons::isShiftButtonPressed()) {
+		// Note edits store the selected note row, not the physical pad row used by overview releases.
+		// End them while leaving the editor, before discarding that context.
+		if (inNoteEditor()) {
+			instrumentClipView.endAllEditPadPresses();
+		}
 		initParameterSelection();
 		blinkShortcuts();
 		uiNeedsRendering(&automationView);
@@ -1304,6 +1312,8 @@ void AutomationView::handleSessionButtonAction(Clip* clip, bool on) {
 	// go back to song / arranger view
 	else if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
 		if (padSelectionOn) {
+			// Song / Arranger View cannot release the automation editor's held pads.
+			endAutomationEditPadPresses();
 			initPadSelection();
 		}
 		// automation arranger view transitioning back to arranger view
@@ -1322,6 +1332,8 @@ void AutomationView::handleSessionButtonAction(Clip* clip, bool on) {
 void AutomationView::handleKeyboardButtonAction(bool on) {
 	if (on && (currentUIMode == UI_MODE_NONE || (currentUIMode == UI_MODE_NOTES_PRESSED && padSelectionOn))) {
 		if (padSelectionOn) {
+			// Keyboard / Performance View cannot release the automation editor's held pads.
+			endAutomationEditPadPresses();
 			initPadSelection();
 		}
 		if (onArrangerView) {
@@ -1341,6 +1353,11 @@ void AutomationView::handleKeyboardButtonAction(bool on) {
 void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 	// if audition pad or shift is pressed, go back to automation overview
 	if (on && (currentUIMode == UI_MODE_AUDITIONING || Buttons::isShiftButtonPressed())) {
+		// Note edits store the selected note row, not the physical pad row used by overview releases.
+		// End them while leaving the editor, before discarding that context.
+		if (inNoteEditor()) {
+			instrumentClipView.endAllEditPadPresses();
+		}
 		initParameterSelection();
 		blinkShortcuts();
 		uiNeedsRendering(&automationView);
@@ -1464,6 +1481,14 @@ void AutomationView::handleCVButtonAction(OutputType outputType, bool on) {
 }
 // called by button action if b == X_ENC
 bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioClip) {
+	// Always let TimelineView clear the held-encoder mode, regardless of shortcut modifiers.
+	if (!on) {
+		if (isUIModeActive(UI_MODE_AUDITIONING)) {
+			instrumentClipView.timeHorizontalKnobLastReleased = AudioEngine::audioSampleTimer;
+		}
+		return true;
+	}
+
 	// copy / paste automation (same shortcut used for notes)
 	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
 		if (inAutomationEditor()) {
@@ -1536,11 +1561,6 @@ bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioCl
 
 	// Otherwise...
 	else {
-		if (isUIModeActive(UI_MODE_AUDITIONING)) {
-			if (!on) {
-				instrumentClipView.timeHorizontalKnobLastReleased = AudioEngine::audioSampleTimer;
-			}
-		}
 		return true;
 	}
 	return false;
@@ -1702,9 +1722,12 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 	// if we're in a midi clip, with a midi cc selected and we press the name shortcut
 	// while holding shift, then enter the rename midi cc UI
 	if (outputType == OutputType::MIDI_OUT) {
-		if (Buttons::isShiftButtonPressed() && x == 11 && y == 5) {
+		if (velocity && Buttons::isShiftButtonPressed() && x == 11 && y == 5) {
 			if (!onAutomationOverview()) {
-				openUI(&renameMidiCCUI);
+				// Keep releases in Automation View until all held edits and other UI modes have ended.
+				if (isNoUIModeActive()) {
+					openUI(&renameMidiCCUI);
+				}
 				return ActionResult::DEALT_WITH;
 			}
 		}
@@ -1780,16 +1803,34 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
                                                  int32_t effectiveLength, int32_t x, int32_t y, int32_t velocity,
                                                  SquareInfo& squareInfo) {
 
+	// A pad can still be held when Shift+Clip / Shift+Song returns to the overview.
+	// Retire its registered press even though there is no longer a parameter to edit.
+	if (!velocity && onAutomationOverview()) {
+		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+			auto& press = instrumentClipView.editPadPresses[i];
+			if (press.isActive && press.xDisplay == x && press.yDisplay == y) {
+				instrumentClipView.endEditPadPress(i);
+				instrumentClipView.checkIfAllEditPadPressesEnded();
+				break;
+			}
+		}
+		return ActionResult::DEALT_WITH;
+	}
+
 	if (onArrangerView && isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 		return ActionResult::DEALT_WITH;
 	}
 
 	// potentially enter or refresh note velocity editor if you're in an instrument clip, holding audition pad and
 	// pressing PatchSource::Velocity shortcut
-	if (!onArrangerView && clip->type == ClipType::INSTRUMENT && isUIModeActive(UI_MODE_AUDITIONING)
+	if (velocity && !onArrangerView && clip->type == ClipType::INSTRUMENT && isUIModeActive(UI_MODE_AUDITIONING)
 	    && isNoteVelocityEditorShortcut(x, y)) {
 		// don't enter if we're in a kit with affect entire enabled
 		if (!(outputType == OutputType::KIT && getAffectEntire())) {
+			// Automation edits store physical pad rows, which note-editor releases cannot match.
+			if (inAutomationEditor()) {
+				endAutomationEditPadPresses();
+			}
 			if (outputType == OutputType::KIT) {
 				potentiallyVerticalScrollToSelectedDrum((InstrumentClip*)clip, output);
 			}
@@ -1821,7 +1862,10 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 	}
 
 	// regular automation / note editing action
-	if (isUIModeWithinRange(editPadActionUIModes) && isSquareDefined(x, xScroll, xZoom)) {
+	// Holding the horizontal encoder blocks new presses, but must not swallow releases of existing ones.
+	const uint32_t* allowedModes = velocity ? editPadActionUIModes : editPadReleaseUIModes;
+	// Enabling triplets can make a held pad's column undefined; its release must still end the press.
+	if (isUIModeWithinRange(allowedModes) && (!velocity || isSquareDefined(x, xScroll, xZoom))) {
 		if (inAutomationEditor()) {
 			automationEditorLayoutModControllable.automationEditPadAction(modelStackWithParam, clip, x, y, velocity,
 			                                                              effectiveLength, xScroll, xZoom);
@@ -2000,6 +2044,9 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 
 	resetParameterShortcutBlinking();
 	if (inNoteEditor()) {
+		// Note edits use the selected note row; parameter edits release by physical pad row.
+		// Finish held note edits before switching to the parameter editor.
+		instrumentClipView.endAllEditPadPresses();
 		automationParamType = AutomationParamType::PER_SOUND;
 		instrumentClipView.resetSelectedNoteRowBlinking();
 	}
@@ -2078,9 +2125,8 @@ ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentC
 			bool auditioningSilently = Buttons::isShiftButtonPressed();
 			if (inNoteEditor()) {
 				if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
-					// special handling for note editor and holding a note and we changed row selection
-					// don't process audition pad action as it leads to stuck notes
-					if (instrumentClipView.lastAuditionedYDisplay != y) {
+					// Don't change row selection while holding a note, but always release held audition pads.
+					if (velocity && instrumentClipView.lastAuditionedYDisplay != y) {
 						return ActionResult::DEALT_WITH;
 					}
 				}
@@ -2183,7 +2229,10 @@ ActionResult AutomationView::auditionPadAction(InstrumentClip* clip, Output* out
 
 	// Or if auditioning this NoteRow just finished...
 	else {
-		instrumentClipView.finishAuditioningRow(yDisplay, modelStackWithNoteRowOnCurrentClip, noteRowOnActiveClip);
+		// Keep the held note edit attached to its row even if other audition pads remain held.
+		bool changeRowSelection = !inNoteEditor() || !isUIModeActive(UI_MODE_NOTES_PRESSED);
+		instrumentClipView.finishAuditioningRow(yDisplay, modelStackWithNoteRowOnCurrentClip, noteRowOnActiveClip,
+		                                        changeRowSelection);
 		if (display->have7SEG()) {
 			renderDisplay();
 		}
@@ -3073,6 +3122,16 @@ void AutomationView::initParameterSelection(bool updateDisplay) {
 	if (updateDisplay) {
 		renderDisplay();
 	}
+}
+
+void AutomationView::endAutomationEditPadPresses() {
+	// Automation records contain value-pad rows, so do not reassess note audition for these rows.
+	for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+		if (instrumentClipView.editPadPresses[i].isActive) {
+			instrumentClipView.endEditPadPress(i);
+		}
+	}
+	instrumentClipView.checkIfAllEditPadPressesEnded();
 }
 
 // exit pad selection mode, reset pad press statuses

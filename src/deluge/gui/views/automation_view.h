@@ -176,6 +176,7 @@ public:
 	bool isNoteVelocityEditorShortcut(int32_t x, int32_t y);
 
 private:
+	void endAutomationEditPadPresses();
 	// button action functions
 	void handleSessionButtonAction(Clip* clip, bool on);
 	void handleKeyboardButtonAction(bool on);
