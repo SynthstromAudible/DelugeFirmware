@@ -24,7 +24,7 @@ esac
 
 PROJ="$GOLDEN_DIR/${FIXTURE}_proj"
 
-# Rebuild the Cordae project tree from the backup. The backup stores the song's samples in a
+# Rebuild the fixture's project tree from the backup. The backup stores the song's samples in a
 # flat folder next to the song, with '/' replaced by '_' in the names (e.g. SAMPLES/DRUMS/Kick/
 # Kick 21.wav -> Cordae/DRUMS_Kick_Kick 21.wav); reverse that into a normal SD-card tree.
 reconstruct_project() {
