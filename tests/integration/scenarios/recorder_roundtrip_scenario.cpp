@@ -50,14 +50,15 @@
 #include "storage/cluster/cluster.h"
 #include "util/functions.h"
 
-#include <memory>
-
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <expected>
+#include <format>
+#include <memory>
 #include <optional>
 #include <span>
 #include <string>
@@ -88,8 +89,16 @@ DELUGE_SCENARIO_DECLARE(recorder_roundtrip);
 
 namespace {
 
-int g_failures = 0;
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
+
+/// The round trip's failures: every check that fails prints one `RW-FAIL` line, and a `ticked_` case whose evidence
+/// line carries its own verdict counts one.
+ScenarioReport g_rtReport{"RW"};
+/// The matrix cases begun, and how many of them failed, for the "n/m cases passed" line.
 int g_cases = 0;
+int g_failedCases = 0;
 
 /// Deterministic 24-bit ramp, distinct per channel, spanning near the full signed 24-bit range —
 /// pseudo-random-looking (so it can't pass by coincidence, e.g. all-zero bytes) but perfectly
@@ -113,28 +122,28 @@ struct Case {
 	uint32_t frames;
 };
 
-// Read the whole file back via deluge::io::File (open/seek/read — the general-purpose, read-capable
-// port; deluge::io::Stream's READ mode reads through read_at_via()) into a plain host buffer.
-bool readWholeFile(const std::string& path, std::vector<std::byte>& out) {
+/// Read the whole file back via deluge::io::File (open/seek/read — the general-purpose, read-capable
+/// port; deluge::io::Stream's READ mode reads through read_at_via()) into a plain host buffer.
+///
+/// A caller that checks the file is gone reads a failure as the answer, so this reports nothing itself.
+/// @return Nothing when the file was read whole; otherwise what went wrong.
+std::expected<void, std::string> readWholeFile(const std::string& path, std::vector<std::byte>& out) {
 	auto opened = deluge::io::File::open(path, DELUGE_FILE_READ);
 	if (!opened) {
-		fprintf(stderr, "  FAIL: could not reopen '%s' for read (status=%d)\n", path.c_str(),
-		        static_cast<int>(opened.error()));
-		return false;
+		return std::unexpected{
+		    std::format("could not reopen '{}' for read (status={})", path, static_cast<int>(opened.error()))};
 	}
 	deluge::io::File file = std::move(opened.value());
 	auto sizeResult = file.size();
 	if (!sizeResult) {
-		fprintf(stderr, "  FAIL: size() failed on '%s'\n", path.c_str());
-		return false;
+		return std::unexpected{std::format("size() failed on '{}'", path)};
 	}
 	out.assign(*sizeResult, std::byte{0});
 	size_t totalRead = 0;
 	while (totalRead < out.size()) {
 		auto chunk = file.read(std::span<std::byte>(out.data() + totalRead, out.size() - totalRead));
 		if (!chunk) {
-			fprintf(stderr, "  FAIL: read() failed on '%s' at offset %zu\n", path.c_str(), totalRead);
-			return false;
+			return std::unexpected{std::format("read() failed on '{}' at offset {}", path, totalRead)};
 		}
 		if (chunk->empty()) {
 			break; // EOF
@@ -142,10 +151,9 @@ bool readWholeFile(const std::string& path, std::vector<std::byte>& out) {
 		totalRead += chunk->size();
 	}
 	if (totalRead != out.size()) {
-		fprintf(stderr, "  FAIL: short read on '%s' (%zu of %zu bytes)\n", path.c_str(), totalRead, out.size());
-		return false;
+		return std::unexpected{std::format("short read on '{}' ({} of {} bytes)", path, totalRead, out.size())};
 	}
-	return true;
+	return {};
 }
 
 uint32_t readU32LE(const std::vector<std::byte>& b, size_t off) {
@@ -192,14 +200,14 @@ bool pumpOnce(SampleRecorder& rec) {
 		return true;
 	}
 	if (++g_case.pumpTicks > 200000) {
-		fprintf(stderr, "  FAIL: cardRoutine() never reached COMPLETE (phase=%d issued=%d status=%d)\n",
-		        (int)rec.finalizePhaseForDiag(), (int)rec.finalizeIssuedForDiag(),
-		        (int)rec.status.load(std::memory_order_acquire));
+		g_rtReport.fail("cardRoutine() never reached COMPLETE (phase=%d issued=%d status=%d)",
+		                (int)rec.finalizePhaseForDiag(), (int)rec.finalizeIssuedForDiag(),
+		                (int)rec.status.load(std::memory_order_acquire));
 		return false;
 	}
 	Error e = rec.cardRoutine();
 	if (e != Error::NONE && e != Error::MAX_FILE_SIZE_REACHED) {
-		fprintf(stderr, "  FAIL: cardRoutine() returned error %d\n", static_cast<int>(e));
+		g_rtReport.fail("cardRoutine() returned error %d", static_cast<int>(e));
 		return false;
 	}
 	return true;
@@ -211,7 +219,8 @@ bool pumpOnce(SampleRecorder& rec) {
 bool verifyRecordedFile(const std::string& path, uint8_t channels, uint32_t frames, bool extraMargins) {
 	const Case c{/*name=*/"", channels, extraMargins, frames};
 	std::vector<std::byte> bytes;
-	if (!readWholeFile(path, bytes)) {
+	if (auto read = readWholeFile(path, bytes); !read) {
+		g_rtReport.fail("%s", read.error().c_str());
 		return false;
 	}
 
@@ -226,43 +235,43 @@ bool verifyRecordedFile(const std::string& path, uint8_t channels, uint32_t fram
 
 	bool ok = true;
 	if (bytes.size() != headerLen + dataLen) {
-		fprintf(stderr, "  FAIL: file size %zu != expected %u\n", bytes.size(), headerLen + dataLen);
+		g_rtReport.fail("file size %zu != expected %u", bytes.size(), headerLen + dataLen);
 		ok = false;
 	}
 	if (!tagEquals(bytes, 0, "RIFF")) {
-		fprintf(stderr, "  FAIL: missing RIFF tag\n");
+		g_rtReport.fail("missing RIFF tag");
 		ok = false;
 	}
 	if (!tagEquals(bytes, 8, "WAVE")) {
-		fprintf(stderr, "  FAIL: missing WAVE tag\n");
+		g_rtReport.fail("missing WAVE tag");
 		ok = false;
 	}
 	if (!tagEquals(bytes, 12, "fmt ")) {
-		fprintf(stderr, "  FAIL: missing fmt tag\n");
+		g_rtReport.fail("missing fmt tag");
 		ok = false;
 	}
 	uint32_t riffSize = readU32LE(bytes, 4);
 	if (riffSize != dataLen + headerLen - 8) {
-		fprintf(stderr, "  FAIL: RIFF chunk size %u != expected %u\n", riffSize, dataLen + headerLen - 8);
+		g_rtReport.fail("RIFF chunk size %u != expected %u", riffSize, dataLen + headerLen - 8);
 		ok = false;
 	}
 	uint16_t fmtChannels = static_cast<uint16_t>(bytes[22]) | (static_cast<uint16_t>(bytes[23]) << 8);
 	if (fmtChannels != c.channels) {
-		fprintf(stderr, "  FAIL: fmt numChannels %u != expected %u\n", fmtChannels, c.channels);
+		g_rtReport.fail("fmt numChannels %u != expected %u", fmtChannels, c.channels);
 		ok = false;
 	}
 	uint16_t bitsPerSample = static_cast<uint16_t>(bytes[34]) | (static_cast<uint16_t>(bytes[35]) << 8);
 	if (bitsPerSample != 24) {
-		fprintf(stderr, "  FAIL: bitsPerSample %u != 24\n", bitsPerSample);
+		g_rtReport.fail("bitsPerSample %u != 24", bitsPerSample);
 		ok = false;
 	}
 	if (!tagEquals(bytes, headerLen - 8, "data")) {
-		fprintf(stderr, "  FAIL: missing data tag at offset %u\n", headerLen - 8);
+		g_rtReport.fail("missing data tag at offset %u", headerLen - 8);
 		ok = false;
 	}
 	uint32_t dataChunkSize = readU32LE(bytes, headerLen - 4);
 	if (dataChunkSize != dataLen) {
-		fprintf(stderr, "  FAIL: data chunk size %u != expected %u\n", dataChunkSize, dataLen);
+		g_rtReport.fail("data chunk size %u != expected %u", dataChunkSize, dataLen);
 		ok = false;
 	}
 
@@ -280,8 +289,7 @@ bool verifyRecordedFile(const std::string& path, uint8_t channels, uint32_t fram
 				// signed range.
 				int32_t gotSigned = static_cast<int32_t>(got << 8) >> 8;
 				if (gotSigned != expected) {
-					fprintf(stderr, "  FAIL: frame %u ch %u: got %d expected %d (offset %zu)\n", i, ch, gotSigned,
-					        expected, off);
+					g_rtReport.fail("frame %u ch %u: got %d expected %d (offset %zu)", i, ch, gotSigned, expected, off);
 					mismatches++;
 					ok = false;
 				}
@@ -322,7 +330,7 @@ bool beginCase(const Case& c) {
 	                      /*shouldRecordExtraMargins=*/c.extraMargins, AudioRecordingFolder::RESAMPLE,
 	                      /*buttonPressLatency=*/0, /*outputRecordingFrom=*/nullptr);
 	if (err != Error::NONE) {
-		fprintf(stderr, "  FAIL: setup() returned error %d\n", static_cast<int>(err));
+		g_rtReport.fail("setup() returned error %d", static_cast<int>(err));
 		return false;
 	}
 
@@ -356,7 +364,7 @@ bool verifyCase() {
 	const Case& c = *g_case.c;
 	g_case.path = rec.filePathCreated;
 	if (g_case.path.empty()) {
-		fprintf(stderr, "  FAIL: no file path recorded\n");
+		g_rtReport.fail("no file path recorded");
 		return false;
 	}
 	return verifyRecordedFile(g_case.path, c.channels, c.frames, c.extraMargins);
@@ -381,10 +389,6 @@ bool stepCase() {
 	}
 	return false;
 }
-
-} // namespace
-
-namespace {
 
 /// The `ticked_` recording cases: a real `SampleRecorder` driven ENTIRELY by the caller's ticks,
 /// the shape the device actually uses, with the shapes the eight cases above do not take -- the
@@ -672,7 +676,7 @@ void tickedBegin(int32_t mode) {
 	                                g_ticked.openIoErr ? AudioRecordingFolder::RECORD : AudioRecordingFolder::RESAMPLE,
 	                                /*buttonPressLatency=*/0, /*outputRecordingFrom=*/nullptr);
 	if (err != Error::NONE) {
-		fprintf(stderr, "  FAIL: setup() returned error %d\n", static_cast<int>(err));
+		g_rtReport.fail("setup() returned error %d", static_cast<int>(err));
 		g_ticked.rec.reset();
 		return;
 	}
@@ -719,7 +723,7 @@ int32_t tickedTick() {
 				g_ticked.ticks = 0;
 			}
 			else if (++g_ticked.ticks > 20000) {
-				fprintf(stderr, "  FAIL: %s never saw the channel opening the file\n", name);
+				g_rtReport.fail("%s never saw the channel opening the file", name);
 				g_ticked.rec.reset();
 				return 2;
 			}
@@ -730,7 +734,7 @@ int32_t tickedTick() {
 		                         && rec.abortPhaseForDiag() == kAbortPhaseDone;
 		if (!cleanupDone) {
 			if (++g_ticked.ticks > 20000) {
-				fprintf(stderr, "  FAIL: %s cleanup never finished (phase=%d)\n", name, (int)rec.abortPhaseForDiag());
+				g_rtReport.fail("%s cleanup never finished (phase=%d)", name, (int)rec.abortPhaseForDiag());
 				g_ticked.rec.reset();
 				return 2;
 			}
@@ -755,10 +759,10 @@ int32_t tickedTick() {
 		       kStreamWriteSlots, (int)ok);
 		fflush(nullptr);
 		if (!gone) {
-			fprintf(stderr, "  FAIL: %s left its file behind\n", name);
+			g_rtReport.fail("%s left its file behind", name);
 		}
 		if (freeSlots != kStreamWriteSlots) {
-			fprintf(stderr, "  FAIL: %s leaked a stream-write handle\n", name);
+			g_rtReport.fail("%s leaked a stream-write handle", name);
 		}
 		return ok ? 1 : 2;
 	}
@@ -775,9 +779,9 @@ int32_t tickedTick() {
 		                         && rec.abortPhaseForDiag() == kAbortPhaseDone;
 		if (!cleanupDone) {
 			if (++g_ticked.ticks > 2000) {
-				fprintf(stderr, "  FAIL: abort cleanup never finished (status=%d phase=%d held=%d)\n",
-				        (int)rec.status.load(std::memory_order_acquire), (int)rec.abortPhaseForDiag(),
-				        (int)rec.pointerHeldElsewhere);
+				g_rtReport.fail("abort cleanup never finished (status=%d phase=%d held=%d)",
+				                (int)rec.status.load(std::memory_order_acquire), (int)rec.abortPhaseForDiag(),
+				                (int)rec.pointerHeldElsewhere);
 				g_ticked.rec.reset();
 				return 2;
 			}
@@ -798,10 +802,10 @@ int32_t tickedTick() {
 		       (int)(gone && noLeak));
 		fflush(nullptr);
 		if (!noLeak) {
-			fprintf(stderr, "  FAIL: aborted recording leaked clusters (%u -> %u)\n", g_ticked.freeBefore, freeAfter);
+			g_rtReport.fail("aborted recording leaked clusters (%u -> %u)", g_ticked.freeBefore, freeAfter);
 		}
 		if (!gone) {
-			fprintf(stderr, "  FAIL: aborted recording left its file behind\n");
+			g_rtReport.fail("aborted recording left its file behind");
 		}
 		return (gone && noLeak) ? 1 : 2;
 	}
@@ -828,7 +832,7 @@ int32_t tickedTick() {
 		const std::string path = rec.filePathCreated;
 		g_ticked.rec.reset(); // closes the stream and releases the capture buffers
 		if (path.empty()) {
-			fprintf(stderr, "  FAIL: no file path recorded\n");
+			g_rtReport.fail("no file path recorded");
 			return 2;
 		}
 		const bool ok = verifyRecordedFile(path, /*channels=*/1, kTickedFrames, /*extraMargins=*/false);
@@ -843,7 +847,7 @@ int32_t tickedTick() {
 	}
 
 	if (++g_ticked.ticks > 400000) {
-		fprintf(stderr, "  FAIL: ticked recording never reached COMPLETE (%d ticks)\n", g_ticked.ticks);
+		g_rtReport.fail("ticked recording never reached COMPLETE (%d ticks)", g_ticked.ticks);
 		g_ticked.rec.reset();
 		return 2;
 	}
@@ -852,7 +856,7 @@ int32_t tickedTick() {
 	// boot every card operation it starts goes through a channel.
 	Error e = rec.cardRoutine();
 	if (e != Error::NONE && e != Error::MAX_FILE_SIZE_REACHED) {
-		fprintf(stderr, "  FAIL: ticked cardRoutine() returned error %d\n", static_cast<int>(e));
+		g_rtReport.fail("ticked cardRoutine() returned error %d", static_cast<int>(e));
 		g_ticked.rec.reset();
 		return 2;
 	}
@@ -872,8 +876,8 @@ void tickedReport() {
 /// @brief Set the round trip up: print the cluster size, and build the case list. Blocks on nothing; tick
 ///        casesTick() after it.
 void oracleSetUp() {
-	g_failures = 0;
 	g_cases = 0;
+	g_failedCases = 0;
 
 	printf("Cluster::size = %zu\n", Cluster::size);
 
@@ -937,11 +941,11 @@ int32_t casesTick() {
 		if (g_case.step != CaseStep::Begin) {
 			// The previous case finished; count it and move on.
 			if (g_case.step == CaseStep::Failed) {
-				g_failures++;
+				g_failedCases++;
 			}
 			g_caseCursor++;
 			if (g_caseCursor >= g_caseList.size()) {
-				printf("%d/%d cases passed\n", g_cases - g_failures, g_cases);
+				printf("%d/%d cases passed\n", g_cases - g_failedCases, g_cases);
 				return 1;
 			}
 		}
@@ -997,9 +1001,7 @@ void reportLive() {
 	printf("recorder live-readback probe: state=%u (1=READY 2=LOADING 3=UNAVAILABLE 0=harness-error)\n",
 	       g_rest.liveState);
 	if (g_rest.liveState != DELUGE_REGION_LOADING) {
-		fprintf(stderr, "  NOTE: still-recording live-readback probe did not resolve LOADING (state=%u)\n",
-		        g_rest.liveState);
-		g_failures++;
+		g_rtReport.fail("still-recording live-readback probe did not resolve LOADING (state=%u)", g_rest.liveState);
 	}
 }
 
@@ -1013,11 +1015,9 @@ void reportFinalizedAndSummary() {
 	bool regressionOk =
 	    (tableClusters != 0) && (tableClusters >= expectedClusters) && (g_rest.finalizedState == 1) && (bytesOk == 1);
 	if (!regressionOk) {
-		fprintf(stderr,
-		        "  FAIL: finalized multi-cluster regression gate -- table_clusters=%u expected_clusters=%u "
-		        "acquire_state=%u bytes_ok=%u\n",
-		        tableClusters, expectedClusters, g_rest.finalizedState, bytesOk);
-		g_failures++;
+		g_rtReport.fail("finalized multi-cluster regression gate -- table_clusters=%u expected_clusters=%u "
+		                "acquire_state=%u bytes_ok=%u",
+		                tableClusters, expectedClusters, g_rest.finalizedState, bytesOk);
 	}
 	printf("  %s\n", regressionOk ? "PASS" : "FAIL");
 
@@ -1028,15 +1028,15 @@ void reportFinalizedAndSummary() {
 	       (int)AudioEngine::recorderDrainTicks());
 	// A terminator, so a run that aborted part-way is a gate FAILURE rather than a silently
 	// truncated log: a stage that never ran asserts nothing, and the failure count cannot show that.
-	printf("RW-RESULT failures=%d\n", (int)g_failures);
-	fflush(nullptr);
+	g_rtReport.printResult();
 }
 
 /// Start the oracle's tail -- the live-readback probe, the finalized probe's acquire, the summary -- once the cases and
-/// the finalized probe's pump are done. Probe live read-back of a still-recording sample: it must NOT resolve READY
-/// anywhere -- a still-recording Sample has no valid reader. The failed read is re-queued
-/// at lowest priority rather than failed outright (the async fill task's fill_once, streaming_loader.rs), so the
-/// acquire is expected to stay LOADING, not settle on UNAVAILABLE.
+/// the finalized probe's pump are done.
+///
+/// The live probe reads back a still-recording sample: it must NOT resolve READY anywhere, since a still-recording
+/// Sample has no valid reader. The failed read is re-queued at lowest priority rather than failed outright (the async
+/// fill task's fill_once, streaming_loader.rs), so the acquire is expected to stay LOADING, not settle on UNAVAILABLE.
 void restBegin() {
 	g_rest = RestRun{};
 	if (deluge_harness_recorder_probe(/*numChannels=*/1, /*numFrames=*/50) == 0) {
@@ -1097,19 +1097,6 @@ int32_t restTick() {
 	return 1;
 }
 
-/// The oracle's failure count so far (0 = all passed); final once the tail has returned 1.
-int32_t oracleFailures() {
-	return g_failures;
-}
-
-} // namespace
-
-namespace {
-
-using deluge::scenarios::ScenarioReport;
-using deluge::scenarios::Wait;
-using deluge::scenarios::WaitState;
-
 /// The round trip's parts, in the order they run.
 enum class Phase : uint8_t { Cases, Finalized, Rest, Ticked, Done };
 
@@ -1136,11 +1123,10 @@ constexpr size_t kFirstGiveUpCase = 3;
 /// its 300,001st without an answer.
 constexpr int32_t kPhaseTicks = 300'001;
 
-/// The round trip's failures: the oracle's count, or one for a `ticked_` case that failed.
-ScenarioReport g_rtReport{"RW"};
 Phase g_phase = Phase::Done;
 size_t g_tickedCase = 0;
-bool g_giveUpFailed = false;
+/// The report's count when the running `ticked_` case began.
+int32_t g_failuresBeforeCase = 0;
 Wait g_phaseWait{g_rtReport, "the recorder cases", kPhaseTicks};
 
 const char* phaseName() {
@@ -1166,6 +1152,7 @@ void startPhase(Phase phase) {
 
 void startTickedCase(size_t index) {
 	g_tickedCase = index;
+	g_failuresBeforeCase = g_rtReport.failures();
 	tickedBegin(kTickedCases[index].mode);
 	startPhase(Phase::Ticked);
 }
@@ -1182,8 +1169,7 @@ void finishPhase(int32_t state) {
 		startPhase(Phase::Rest);
 		return;
 	case Phase::Rest:
-		if (const int32_t failures = oracleFailures(); failures != 0) {
-			g_rtReport.count(failures);
+		if (!g_rtReport.clean()) {
 			g_phase = Phase::Done;
 			return;
 		}
@@ -1191,12 +1177,14 @@ void finishPhase(int32_t state) {
 		return;
 	case Phase::Ticked:
 		if (state != 1) {
-			if (g_tickedCase < kFirstGiveUpCase) {
+			// A case that failed without an RW-FAIL line failed on its evidence line, which carries the verdict.
+			if (g_rtReport.failures() == g_failuresBeforeCase) {
 				g_rtReport.count();
+			}
+			if (g_tickedCase < kFirstGiveUpCase) {
 				g_phase = Phase::Done;
 				return;
 			}
-			g_giveUpFailed = true;
 		}
 		if (g_tickedCase + 1 < kTickedCases.size()) {
 			startTickedCase(g_tickedCase + 1);
@@ -1204,9 +1192,6 @@ void finishPhase(int32_t state) {
 		}
 		// Over every `ticked_` case: a synchronous card operation is a violation whichever case made it.
 		tickedReport();
-		if (g_giveUpFailed) {
-			g_rtReport.count();
-		}
 		g_phase = Phase::Done;
 		return;
 	case Phase::Done:
@@ -1251,7 +1236,6 @@ void slot() {
 
 extern "C" void deluge_scenario_recorder_roundtrip_begin(void) {
 	g_rtReport.reset();
-	g_giveUpFailed = false;
 	oracleSetUp();
 	startPhase(Phase::Cases);
 }
