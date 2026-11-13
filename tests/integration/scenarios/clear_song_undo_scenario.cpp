@@ -25,6 +25,7 @@
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
 
 #include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "gui/context_menu/clear_song.h"
 #include "gui/ui/browser/browser.h"
@@ -70,6 +71,10 @@ extern int32_t pendingGlobalMIDICommandNumClustersWritten;
 
 namespace {
 
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
+
 /// The preset the cleared song must land on, and the sample it binds. Written through the firmware at the first
 /// stage: a fixture is never hand-written XML.
 constexpr const char* kSynthPreset = "SYNTHS/CSSYN.XML";
@@ -86,10 +91,11 @@ constexpr const char* kUndoSampleA = "SAMPLES/CS/CSUNA.WAV";
 constexpr const char* kUndoSampleB = "SAMPLES/CS/CSUNB.WAV";
 constexpr const char* kUndoSampleGone = "SAMPLES/CS/CSGONE.WAV";
 
+/// How many ticks the boot song's preset request gets to land, and the clear to end.
 constexpr int32_t kMaxSettleTicks = 400;
 constexpr int32_t kMaxClearTicks = 2000;
-/// How long a reversion is given to land before the leg reads its result. One that loads samples finishes on later
-/// ticks, as the reversion task runs; one with no sample in it lands in the press and needs nothing.
+/// How many ticks a reversion gets to land before the leg reads its result. One that loads samples finishes on later
+/// ticks, as the reversion task runs; one with no sample in it lands in the press.
 constexpr int32_t kUndoSettleTicks = 40;
 
 /// Which undo leg is running. They share one set-sample fixture and differ in what they ask of the reversion.
@@ -99,15 +105,15 @@ enum class Stage : uint8_t { Fixture, Settle, UnSetup, UnAct, UnWait, UnCheck, C
 Stage g_stage = Stage::Fixture;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-int32_t g_failures = 0;
-int32_t g_ticks = 0;
+ScenarioReport g_report{"CS"};
+/// The wait of the stage running (the boot song settling, the clear ending, a reversion landing).
+Wait g_wait{g_report, "the boot song's preset landing", kMaxSettleTicks};
 
 bool g_fixtureWritten = false;
 
 /// The undo legs' state: which leg, the clip it works on, and what the reversion was seen to do.
 UnLeg g_unLeg = UnLeg::Sample;
 AudioClip* g_unClip = nullptr;
-int32_t g_unTicks = 0;
 bool g_unLandedInPress = false;
 int32_t g_unAcceptedCommands = 0;
 int8_t g_unSwingBefore = 0;
@@ -266,9 +272,8 @@ void checkTier() {
 	printf("CS-TIER swappedOnReturn=%d modeReleased=%d readsInClear=%d loadsInClear=%d\n", g_swappedOnReturn ? 1 : 0,
 	       g_modeReleasedOnReturn ? 1 : 0, reads, loads);
 	if (!g_swappedOnReturn || !g_modeReleasedOnReturn || reads != 0 || loads != 0) {
-		printf("CS-TIER FAIL the clear did not run to completion on the caller's tier, or it read the card doing "
-		       "it\n");
-		g_failures++;
+		g_report.fail("TIER the clear did not run to completion on the caller's tier, or it read the card doing "
+		              "it");
 	}
 }
 
@@ -280,10 +285,9 @@ void checkSong() {
 	    (currentSong != nullptr) ? static_cast<int32_t>(currentSong->live.clips.session_clips.size()) : 0;
 	const int32_t runs = LoadInstrumentPresetUI::presetAcquisitionsRun() - g_runsBefore;
 	printf("CS-SONG clips=%d name=%s bound=%d acquisitions=%d ticks=%d\n", clips, name.c_str(), clipBound() ? 1 : 0,
-	       runs, g_ticks);
+	       runs, g_wait.ticks());
 	if (clips != 1 || name.empty() || name == kDefaultSynthName || name == kOldSongMark || !clipBound() || runs != 1) {
-		printf("CS-SONG FAIL the cleared song did not land on a SYNTHS preset acquired by InstrumentLoad\n");
-		g_failures++;
+		g_report.fail("SONG the cleared song did not land on a SYNTHS preset acquired by InstrumentLoad");
 	}
 }
 
@@ -294,8 +298,7 @@ void checkGate() {
 	const bool accepted = released && getCurrentUI() != nullptr;
 	printf("CS-GATE released=%d accepted=%d\n", released ? 1 : 0, accepted ? 1 : 0);
 	if (!released || !accepted) {
-		printf("CS-GATE FAIL the clear left the UI-mode gate closed behind it\n");
-		g_failures++;
+		g_report.fail("GATE the clear left the UI-mode gate closed behind it");
 	}
 }
 
@@ -304,8 +307,7 @@ void checkGate() {
 void checkHeldNextSong() {
 	printf("CS-NEXT heldAfterClear=%d\n", g_nextHeldAfterClear ? 1 : 0);
 	if (g_nextHeldAfterClear) {
-		printf("CS-NEXT FAIL a next song held before the clear was still held after it\n");
-		g_failures++;
+		g_report.fail("NEXT a next song held before the clear was still held after it");
 	}
 }
 
@@ -319,54 +321,48 @@ void checkUndoLeg() {
 		// claim instead -- a reversion runs on the caller's tier, so one with no sample in it lands inside the
 		// press.
 		printf("UN-SAMPLE bound=%s file=%d preloads=%d ticks=%d\n", bound.c_str(), g_unBoundToFile ? 1 : 0,
-		       g_unPreloads, g_unTicks);
+		       g_unPreloads, g_wait.ticks());
 		// The pre-load clause arrives with the machine: before it there was nothing to count, and no leg could tell
 		// WHO read the sample -- the revert's own loadFile() brings it back either way.
 		if (bound != kUndoSampleA || !g_unBoundToFile || g_unPreloads != 1) {
-			printf("UN-SAMPLE FAIL the undo did not put the first sample back and bind it\n");
-			g_failures++;
+			g_report.fail("UN-SAMPLE the undo did not put the first sample back and bind it");
 		}
 		break;
 	case UnLeg::Redo:
-		printf("UN-REDO bound=%s file=%d ticks=%d\n", bound.c_str(), g_unBoundToFile ? 1 : 0, g_unTicks);
+		printf("UN-REDO bound=%s file=%d ticks=%d\n", bound.c_str(), g_unBoundToFile ? 1 : 0, g_wait.ticks());
 		if (bound != kUndoSampleB || !g_unBoundToFile) {
-			printf("UN-REDO FAIL redo did not put the second sample back\n");
-			g_failures++;
+			g_report.fail("UN-REDO redo did not put the second sample back");
 		}
 		break;
 	case UnLeg::Plain:
 		printf("UN-PLAIN landedInPress=%d swing=%d wanted=%d ticks=%d\n", g_unLandedInPress ? 1 : 0,
 		       static_cast<int>(currentSong->project.groove.swing_amount), static_cast<int>(g_unSwingBefore),
-		       g_unTicks);
+		       g_wait.ticks());
 		if (!g_unLandedInPress || currentSong->project.groove.swing_amount != g_unSwingBefore) {
-			printf("UN-PLAIN FAIL an undo with no sample in it did not land in the tick it was asked for\n");
-			g_failures++;
+			g_report.fail("UN-PLAIN an undo with no sample in it did not land in the tick it was asked for");
 		}
 		break;
 	case UnLeg::Refuse:
 		printf("UN-REFUSE bound=%s file=%d commands=%d ticks=%d\n", bound.c_str(), g_unBoundToFile ? 1 : 0,
-		       g_unAcceptedCommands, g_unTicks);
+		       g_unAcceptedCommands, g_wait.ticks());
 		if (bound != kUndoSampleA || !g_unBoundToFile || g_unAcceptedCommands != 2) {
-			printf("UN-REFUSE FAIL the redo pressed while the undo was still out was not refused\n");
-			g_failures++;
+			g_report.fail("UN-REFUSE the redo pressed while the undo was still out was not refused");
 		}
 		break;
 	case UnLeg::Missing:
 		// The revert happens, the path comes back, and the holder is EMPTY because the file is gone: exactly what
 		// revert() does today when its own loadFile() fails.
-		printf("UN-MISSING bound=%s file=%d ticks=%d\n", bound.c_str(), g_unBoundToFile ? 1 : 0, g_unTicks);
+		printf("UN-MISSING bound=%s file=%d ticks=%d\n", bound.c_str(), g_unBoundToFile ? 1 : 0, g_wait.ticks());
 		if (bound != kUndoSampleGone || g_unBoundToFile) {
-			printf("UN-MISSING FAIL the revert did not happen, or it bound a file that is not on the card\n");
-			g_failures++;
+			g_report.fail("UN-MISSING the revert did not happen, or it bound a file that is not on the card");
 		}
 		break;
 	case UnLeg::Midi:
 		printf("UN-MIDI swing=%d wanted=%d commands=%d ticks=%d\n",
 		       static_cast<int>(currentSong->project.groove.swing_amount), static_cast<int>(g_unSwingBefore),
-		       g_unAcceptedCommands, g_unTicks);
+		       g_unAcceptedCommands, g_wait.ticks());
 		if (currentSong->project.groove.swing_amount != g_unSwingBefore) {
-			printf("UN-MIDI FAIL a MIDI UNDO left waiting by the midi routine was never actioned\n");
-			g_failures++;
+			g_report.fail("UN-MIDI a MIDI UNDO left waiting by the midi routine was never actioned");
 		}
 		break;
 	case UnLeg::Done:
@@ -412,14 +408,19 @@ void runTick() {
 	case Stage::Fixture:
 		g_fixtureWritten = writeSampleSynthPreset(kSynthPreset, kSynthSample);
 		printf("CS-PROBE fixture written=%d\n", g_fixtureWritten ? 1 : 0);
-		g_ticks = 0;
+		g_wait = Wait{g_report, "the boot song's preset landing", kMaxSettleTicks};
 		g_stage = Stage::Settle;
 		break;
 	case Stage::Settle: {
 		// The boot song asks InstrumentLoad for its own first preset; acting before that lands would work on an
 		// Instrument about to be replaced, which no user can do.
 		const bool pending = currentSong != nullptr && currentSong->blankPresetPending;
-		if ((pending || deluge::gui::instrumentLoad.inFlight()) && ++g_ticks < kMaxSettleTicks) {
+		const WaitState settled = g_wait.poll(!pending && !deluge::gui::instrumentLoad.inFlight());
+		if (settled == WaitState::Pending) {
+			break;
+		}
+		if (settled == WaitState::Expired) {
+			g_stage = Stage::Summary;
 			break;
 		}
 		if (Instrument* instrument = firstInstrument(); instrument != nullptr) {
@@ -427,8 +428,7 @@ void runTick() {
 			// the old one just freed, so a pointer comparison never fires.
 			instrument->name = kOldSongMark;
 		}
-		printf("CS-PROBE settled ticks=%d fixture=%d\n", g_ticks, g_fixtureWritten ? 1 : 0);
-		g_ticks = 0;
+		printf("CS-PROBE settled ticks=%d fixture=%d\n", g_wait.ticks(), g_fixtureWritten ? 1 : 0);
 		g_unLeg = UnLeg::Sample;
 		g_stage = Stage::UnSetup;
 		break;
@@ -451,7 +451,7 @@ void runTick() {
 		g_loadsOnReturn = deluge::gui::instrumentLoad.sampleLoads();
 		printf("CS-PROBE cleared swappedOnReturn=%d modeReleased=%d\n", g_swappedOnReturn ? 1 : 0,
 		       g_modeReleasedOnReturn ? 1 : 0);
-		g_ticks = 0;
+		g_wait = Wait{g_report, "the clear ending", kMaxClearTicks};
 		g_stage = Stage::Wait;
 		break;
 	}
@@ -461,10 +461,16 @@ void runTick() {
 		const bool cleared = currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 		const bool acquired = LoadInstrumentPresetUI::presetAcquisitionsRun() > g_runsBefore;
 		const bool ended = cleared && acquired && !deluge::gui::instrumentLoad.inFlight();
-		if (!ended && ++g_ticks < kMaxClearTicks) {
+		switch (g_wait.poll(ended)) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
+			g_stage = Stage::Report;
+			break;
+		case WaitState::Expired:
+			g_stage = Stage::Summary;
 			break;
 		}
-		g_stage = Stage::Report;
 		break;
 	}
 	case Stage::Report:
@@ -476,14 +482,13 @@ void runTick() {
 		break;
 	case Stage::UnSetup:
 		if (!setupUndoLeg()) {
-			printf("UN-PROBE FAIL leg=%d the fixture could not be built\n", static_cast<int>(g_unLeg));
-			g_failures++;
+			g_report.fail("UN-PROBE leg=%d the fixture could not be built", static_cast<int>(g_unLeg));
 			g_stage = Stage::Summary;
 			break;
 		}
 		g_unAcceptedCommands = 0;
 		g_unLandedInPress = false;
-		g_unTicks = 0;
+		g_wait = Wait{g_report, "the reversion landing", kUndoSettleTicks};
 		g_unPreloadsBefore = deluge::gui::reversion.preloads();
 		g_stage = Stage::UnAct;
 		break;
@@ -509,10 +514,17 @@ void runTick() {
 		g_stage = Stage::UnWait;
 		break;
 	}
-	case Stage::UnWait:
+	case Stage::UnWait: {
 		// A reversion that loads samples finishes on later ticks, as the reversion task runs; one with none is already
-		// done. The same bounded wait covers both, so neither is read too early.
-		if (++g_unTicks < kUndoSettleTicks) {
+		// done. The one wait covers both, so neither is read too early.
+		// Idle needs both: the command the midi routine has not yet actioned is no reversion in flight yet.
+		const WaitState landed =
+		    g_wait.poll(pendingGlobalMIDICommand == GlobalMIDICommand::NONE && !deluge::gui::reversion.inFlight());
+		if (landed == WaitState::Pending) {
+			break;
+		}
+		if (landed == WaitState::Expired) {
+			g_stage = Stage::Summary;
 			break;
 		}
 		g_unBoundAfter = boundPath();
@@ -520,6 +532,8 @@ void runTick() {
 		g_unPreloads = deluge::gui::reversion.preloads() - g_unPreloadsBefore;
 		g_stage = Stage::UnCheck;
 		break;
+	}
+
 	case Stage::UnCheck:
 		checkUndoLeg();
 		g_unLeg = static_cast<UnLeg>(static_cast<uint8_t>(g_unLeg) + 1);
@@ -528,7 +542,7 @@ void runTick() {
 		g_stage = (g_unLeg == UnLeg::Done) ? Stage::Clear : Stage::UnSetup;
 		break;
 	case Stage::Summary:
-		printf("CS-RESULT failures=%d\n", g_failures);
+		g_report.printResult();
 		// The Rust runner ends a failing run with process::exit, which does NOT flush C stdio. These lines ARE the
 		// gate's evidence, so losing them exactly when the gate fails is the one case that must not happen.
 		fflush(stdout);
@@ -549,8 +563,7 @@ void deluge_scenario_clear_song_undo_begin(void) {
 	g_stage = Stage::Fixture;
 	g_stepDone = false;
 	g_summaryPrinted = false;
-	g_failures = 0;
-	g_ticks = 0;
+	g_report.reset();
 	g_fixtureWritten = false;
 	g_swappedOnReturn = false;
 	g_modeReleasedOnReturn = false;
@@ -576,7 +589,7 @@ bool deluge_scenario_clear_song_undo_step_done(void) {
 }
 
 int32_t deluge_scenario_clear_song_undo_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

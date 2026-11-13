@@ -33,6 +33,7 @@
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app`. Inert unless called.
 
 #include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/save/save_song_ui.h"
@@ -87,6 +88,10 @@ public:
 
 namespace {
 
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
+
 constexpr const char* kSaveDir = "SONGS";
 constexpr const char* kSaveName = "SCTEST01";
 constexpr const char* kSampleA = "SAMPLES/COLL1.WAV";
@@ -104,8 +109,7 @@ enum class Stage : uint8_t { Residents, Fixture, FixtureWait, Save, SaveWait, Ve
 Stage g_stage = Stage::Residents;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-int32_t g_failures = 0;
-int32_t g_waitTicks = 0;
+ScenarioReport g_report{"SC"};
 int32_t g_resident = 0;
 /// Ticks on which the audio-file vector was inspected mid-collection, and whether it was ever
 /// caught broken. Counted so a run that never looked cannot report success.
@@ -118,6 +122,9 @@ std::vector<AudioFile*> g_referenced;
 std::vector<std::string> g_sourcePaths;
 
 constexpr int32_t kMaxWaitTicks = 200000;
+
+/// The wait of the stage running; each stage that waits starts its own.
+Wait g_wait{g_report, "the save finishing", kMaxWaitTicks};
 
 uint32_t crc32(const void* data, size_t len) {
 	const auto* p = static_cast<const uint8_t*>(data);
@@ -155,8 +162,7 @@ void makeReferenced(const char* path) {
 	    fileName, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
 	    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::Blocking);
 	if (file == nullptr) {
-		printf("SC-SETUP FAIL %s did not load (error %d)\n", path, static_cast<int>(error));
-		g_failures++;
+		g_report.fail("SETUP %s did not load (error %d)", path, static_cast<int>(error));
 		return;
 	}
 	file->addReason();
@@ -175,11 +181,13 @@ void makeReferenced(const char* path) {
 /// A mutation applied during the planning walk is invisible to SC-ORDERED: the apply pass removes
 /// and reinserts the entry afterwards and, when its search happens to land, tidies the damage away
 /// before anything asks. The window is the defect, so the window is what has to be watched.
-bool listOrdered(const char* marker) {
+///
+/// Each finding is a failure of its own, printed under `stage` (a marker suffix: "ATOMIC", "ORDERED").
+bool listOrdered(const char* stage) {
 	bool ok = true;
 	for (AudioFile* file : g_referenced) {
 		if (audioFileManager.audioFiles.searchForExactObject(file) < 0) {
-			printf("%s FAIL %s is resident but no longer findable in the list\n", marker, file->filePath.c_str());
+			g_report.fail("%s %s is resident but no longer findable in the list", stage, file->filePath.c_str());
 			ok = false;
 		}
 	}
@@ -187,7 +195,7 @@ bool listOrdered(const char* marker) {
 		const char* previous = audioFileManager.audioFiles[i - 1]->filePath.c_str();
 		const char* current = audioFileManager.audioFiles[i]->filePath.c_str();
 		if (strcasecmp(previous, current) > 0) {
-			printf("%s FAIL the list is out of order at %zu: \"%s\" before \"%s\"\n", marker, i, previous, current);
+			g_report.fail("%s the list is out of order at %zu: \"%s\" before \"%s\"", stage, i, previous, current);
 			ok = false;
 		}
 	}
@@ -202,7 +210,7 @@ void runTick() {
 		makeReferenced(kRecording);
 		makeReferenced(kRecordingNeighbour);
 		printf("SC-SETUP resident=%d\n", g_resident);
-		g_stage = (g_failures == 0) ? Stage::Fixture : Stage::Report;
+		g_stage = g_report.clean() ? Stage::Fixture : Stage::Report;
 		break;
 	}
 	case Stage::Fixture: {
@@ -231,20 +239,20 @@ void runTick() {
 		// behind itself.
 		if (saveSongUI.collectInFlight()) {
 			g_inflightTicks++;
-			if (!g_atomicBroken && !listOrdered("SC-ATOMIC")) {
+			if (!g_atomicBroken && !listOrdered("ATOMIC")) {
 				g_atomicBroken = true;
-				g_failures++;
 			}
 		}
 		// Both machines: the collection parks between ticks, and the save around it does too.
-		if (!saveSongUI.collectInFlight() && !SaveUI::saveInFlight()) {
+		switch (g_wait.poll(!saveSongUI.collectInFlight() && !SaveUI::saveInFlight())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			g_stage = Stage::Verify;
 			break;
-		}
-		if (++g_waitTicks > kMaxWaitTicks) {
-			printf("SC-COPIED FAIL the save never finished (%d ticks)\n", g_waitTicks);
-			g_failures++;
+		case WaitState::Expired:
 			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	}
@@ -276,8 +284,7 @@ void runTick() {
 			expected += "/";
 			const int32_t dirLength = static_cast<int32_t>(expected.size());
 			if (audioFileManager.setupAlternateAudioFilePath(expected, dirLength, file->filePath) != Error::NONE) {
-				printf("SC-COPIED FAIL could not build the collected path for %s\n", file->filePath.c_str());
-				g_failures++;
+				g_report.fail("COPIED could not build the collected path for %s", file->filePath.c_str());
 				continue;
 			}
 
@@ -287,28 +294,23 @@ void runTick() {
 			// renamed copy, which was never written to the regular directory.
 			const bool haveSource = readWholeFile(sourcePath.c_str(), source);
 			if (!readWholeFile(expected.c_str(), collected)) {
-				printf("SC-COPIED FAIL %s was not collected to %s\n", file->filePath.c_str(), expected.c_str());
-				g_failures++;
+				g_report.fail("COPIED %s was not collected to %s", file->filePath.c_str(), expected.c_str());
 				continue;
 			}
 			const uint32_t collectedCrc = crc32(collected.data(), collected.size());
 			printf("SC-COPIED to=%s bytes=%zu crc=%08X\n", expected.c_str(), collected.size(), collectedCrc);
 			if (haveSource && crc32(source.data(), source.size()) != collectedCrc) {
-				printf("SC-COPIED FAIL the collected copy of %s differs from its source\n", file->filePath.c_str());
-				g_failures++;
+				g_report.fail("COPIED the collected copy of %s differs from its source", file->filePath.c_str());
 			}
 		}
 		if (g_atomicBroken) {
 			// Already counted at the tick it broke; reported here so the marker is always present.
-			printf("SC-ATOMIC FAIL the list was observable broken during the collection\n");
+			printf("SC-ATOMIC broken ticks=%d\n", g_inflightTicks);
 		}
 		else {
 			printf("SC-ATOMIC ok ticks=%d\n", g_inflightTicks);
 		}
-		if (!listOrdered("SC-ORDERED")) {
-			g_failures++;
-		}
-		else {
+		if (listOrdered("ORDERED")) {
 			printf("SC-ORDERED ok entries=%zu\n", audioFileManager.audioFiles.size());
 		}
 		g_stage = Stage::Report;
@@ -320,7 +322,7 @@ void runTick() {
 		// the other arm.
 		printf("SC-SUMMARY served=%d inlineServed=%d channelTicks=%d\n", (int)SaveSongUI::transferChannelServedOps(),
 		       (int)SaveSongUI::transferInlineServedOps(), (int)SaveSongUI::channelTransferTicks());
-		printf("SC-RESULT failures=%d\n", g_failures);
+		g_report.printResult();
 		fflush(stdout);
 		g_summaryPrinted = true;
 		g_stage = Stage::Done;
@@ -340,8 +342,7 @@ void deluge_scenario_sample_collect_begin(void) {
 	g_stage = Stage::Residents;
 	g_stepDone = false;
 	g_summaryPrinted = false;
-	g_failures = 0;
-	g_waitTicks = 0;
+	g_report.reset();
 	g_resident = 0;
 	g_referenced.clear();
 }
@@ -365,7 +366,7 @@ bool deluge_scenario_sample_collect_step_done(void) {
 }
 
 int32_t deluge_scenario_sample_collect_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

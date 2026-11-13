@@ -39,6 +39,7 @@
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app`. Inert unless called.
 
 #include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "gui/context_menu/overwrite_file.h"
 #include "gui/ui/browser/browser.h"
@@ -137,6 +138,10 @@ public:
 
 namespace {
 
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
+
 constexpr const char* kSaveName = "DSTEST01";
 constexpr const char* kKitRowName = "DSKITROW";
 constexpr const char* kSongGuardName = "DSSONG01";
@@ -228,8 +233,7 @@ enum class Stage : uint8_t {
 Stage g_stage = Stage::Fixture;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-int32_t g_failures = 0;
-int32_t g_waitTicks = 0;
+ScenarioReport g_report{"DS"};
 uint32_t g_crc = 0;
 size_t g_bytes = 0;
 std::string g_path;
@@ -265,6 +269,9 @@ uint32_t g_overwriteCrcBefore = 0;
 /// A save spans ticks by construction; this bound exists so a save that never lands ends the run with
 /// a REPORT rather than a silent timeout.
 constexpr int32_t kMaxWaitTicks = 200000;
+
+/// The wait of the stage running; each stage that waits starts its own.
+Wait g_wait{g_report, "the save finishing", kMaxWaitTicks};
 
 uint32_t crc32(const void* data, size_t len) {
 	const auto* p = static_cast<const uint8_t*>(data);
@@ -319,12 +326,12 @@ bool buildKitRowFixture() {
 	// Outlives the save: the document is serialised on a later tick than this runs.
 	static ParamManagerForTimeline paramManager;
 	if (paramManager.setupWithPatching() != Error::NONE) {
-		printf("DS-KITROW FAIL could not set up the drum's ParamManager\n");
+		printf("DS-KITROW could not set up the drum's ParamManager\n");
 		return false;
 	}
 	void* memory = deluge::memory::alloc_fast(sizeof(SoundDrum));
 	if (memory == nullptr) {
-		printf("DS-KITROW FAIL no memory for the drum\n");
+		printf("DS-KITROW no memory for the drum\n");
 		return false;
 	}
 	auto* drum = new (memory) SoundDrum();
@@ -375,50 +382,47 @@ void runTick() {
 		const bool backBlocked = getCurrentUI() == &saveInstrumentPresetUI;
 		printf("DS-BACKMIDSAVE inFlight=%d back=%d\n", (int)inFlight, (int)backBlocked);
 		if (!inFlight) {
-			printf("DS-BACKMIDSAVE FAIL the save had already finished; nothing was pressed mid-save, so this proves "
-			       "nothing\n");
-			g_failures++;
+			g_report.fail("BACKMIDSAVE the save had already finished; nothing was pressed mid-save, so this proves "
+			              "nothing");
 		}
 		else if (!backBlocked) {
-			printf("DS-BACKMIDSAVE FAIL BACK closed the preset save screen while the save was still running\n");
-			g_failures++;
+			g_report.fail("BACKMIDSAVE BACK closed the preset save screen while the save was still running");
 		}
 		if (backBlocked) {
 			(void)saveInstrumentPresetUI.exitUI();
 			const bool exitBlocked = getCurrentUI() == &saveInstrumentPresetUI;
 			printf("DS-EXITMIDSAVE exit=%d\n", (int)exitBlocked);
 			if (!exitBlocked) {
-				printf(
-				    "DS-EXITMIDSAVE FAIL a long-press exit closed the preset save screen while the save was running\n");
-				g_failures++;
+				g_report.fail("EXITMIDSAVE a long-press exit closed the preset save screen while the save was running");
 			}
 		}
 		else {
 			printf("DS-EXITMIDSAVE exit=skipped\n");
 		}
 		deluge_file_bytes_set_latency_ms(0);
+		g_wait = Wait{g_report, "the preset save finishing", kMaxWaitTicks};
 		g_stage = Stage::SaveWait;
 		break;
 	}
 	case Stage::SaveWait: {
 		// saveInFlight(), NOT the UI being open: a staged save parks between ticks, and the save
 		// screen stays up either way.
-		if (!SaveUI::saveInFlight()) {
+		switch (g_wait.poll(!SaveUI::saveInFlight())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			g_stage = Stage::Verify;
 			break;
-		}
-		if (++g_waitTicks > kMaxWaitTicks) {
-			printf("DS-SAVED FAIL the save never finished (%d ticks)\n", g_waitTicks);
-			g_failures++;
+		case WaitState::Expired:
 			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	}
 	case Stage::Verify: {
 		std::vector<uint8_t> bytes;
 		if (!readWholeFile(g_path.c_str(), bytes)) {
-			printf("DS-SAVED FAIL nothing was written to %s\n", g_path.c_str());
-			g_failures++;
+			g_report.fail("SAVED nothing was written to %s", g_path.c_str());
 			g_stage = Stage::Report;
 			break;
 		}
@@ -428,17 +432,15 @@ void runTick() {
 		// These two catch the shapes that would make the later CRC comparisons vacuous -- a document with
 		// no prolog (which is what a staged save that forgot it produces) or one too short to be real.
 		if (bytes.size() < 100 || memcmp(bytes.data(), "<?xml", 5) != 0) {
-			printf("DS-SAVED FAIL the written document is short or has no prolog (%zu bytes)\n", bytes.size());
-			g_failures++;
+			g_report.fail("SAVED the written document is short or has no prolog (%zu bytes)", bytes.size());
 		}
 		// The file being here says nothing about whether the save SUCCEEDED: a save rejected by its
 		// read-back has already written it. Only the counters taken where a save genuinely completes
 		// can say that.
 		if (SaveUI::stagedSavesCompleted() != 1 || SaveUI::stagedSavesVerified() != 1) {
-			printf("DS-VERIFIED FAIL the preset save left a file but did not complete a verified save "
-			       "(completed=%d verified=%d)\n",
-			       (int)SaveUI::stagedSavesCompleted(), (int)SaveUI::stagedSavesVerified());
-			g_failures++;
+			g_report.fail("VERIFIED the preset save left a file but did not complete a verified save "
+			              "(completed=%d verified=%d)",
+			              (int)SaveUI::stagedSavesCompleted(), (int)SaveUI::stagedSavesVerified());
 		}
 		printf("DS-SAVED path=%s bytes=%zu crc=%08X\n", g_path.c_str(), g_bytes, g_crc);
 		{
@@ -453,14 +455,13 @@ void runTick() {
 			const bool alreadyNamed = g_nameBefore == kSaveName;
 			const bool named = !alreadyNamed && instrument != nullptr && instrument->name == kSaveName;
 			if (alreadyNamed) {
-				printf("DS-FINISHED FAIL the instrument was already named %s before saving; the rename check "
+				printf("DS-FINISHED the instrument was already named %s before saving; the rename check "
 				       "cannot tell anything and the fixture is contaminated\n",
 				       kSaveName);
 			}
 			printf("DS-FINISHED closed=%d named=%d\n", (int)closed, (int)named);
 			if (!closed || !named) {
-				printf("DS-FINISHED FAIL the preset was written but the save never finished\n");
-				g_failures++;
+				g_report.fail("FINISHED the preset was written but the save never finished");
 			}
 		}
 		g_stage = Stage::OccupiedOpen;
@@ -485,13 +486,20 @@ void runTick() {
 		// write -- silently replacing somebody's preset is the failure this stage exists to catch.
 		DocumentSaveChannelProbe::typeName(kSaveName);
 		DocumentSaveChannelProbe::pressEnter();
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the refused save ending", kMaxWaitTicks};
 		g_stage = Stage::OccupiedWait;
 		break;
 	}
 	case Stage::OccupiedWait: {
-		if (!SaveUI::saveInFlight() || ++g_waitTicks > kMaxWaitTicks) {
+		switch (g_wait.poll(!SaveUI::saveInFlight())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			g_stage = Stage::OccupiedCheck;
+			break;
+		case WaitState::Expired:
+			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	}
@@ -502,12 +510,10 @@ void runTick() {
 		const uint32_t crcNow = stillThere ? crc32(bytes.data(), bytes.size()) : 0;
 		printf("DS-OCCUPIED prompted=%d unchanged=%d\n", (int)prompted, (int)(stillThere && crcNow == g_crc));
 		if (!prompted) {
-			printf("DS-OCCUPIED FAIL a taken name did not prompt\n");
-			g_failures++;
+			g_report.fail("OCCUPIED a taken name did not prompt");
 		}
 		if (!stillThere || crcNow != g_crc) {
-			printf("DS-OCCUPIED FAIL the existing document was modified without the user agreeing\n");
-			g_failures++;
+			g_report.fail("OCCUPIED the existing document was modified without the user agreeing");
 		}
 		g_stage = Stage::KitOpen;
 		break;
@@ -517,8 +523,7 @@ void runTick() {
 		// rather than stacking a second save screen on top of it.
 		changeRootUI(&arrangerView);
 		if (!buildKitRowFixture() || !DocumentSaveChannelProbe::openKitRow()) {
-			printf("DS-KITROW FAIL the kit-row save screen did not open\n");
-			g_failures++;
+			g_report.fail("KITROW the kit-row save screen did not open");
 			g_stage = Stage::Report;
 			break;
 		}
@@ -541,19 +546,20 @@ void runTick() {
 		// and the bookkeeping it relies on were both lost together.
 		DocumentSaveChannelProbe::typeName(kSaveName);
 		DocumentSaveChannelProbe::pressEnterKitRow();
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the refused kit-row save ending", kMaxWaitTicks};
 		g_stage = Stage::KitGuardWait;
 		break;
 	}
 	case Stage::KitGuardWait: {
-		if (!SaveUI::saveInFlight()) {
+		switch (g_wait.poll(!SaveUI::saveInFlight())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			g_stage = Stage::KitGuardCheck;
 			break;
-		}
-		if (++g_waitTicks > kMaxWaitTicks) {
-			printf("DS-GUARD FAIL the refused save never ended (%d ticks)\n", g_waitTicks);
-			g_failures++;
+		case WaitState::Expired:
 			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	}
@@ -566,12 +572,10 @@ void runTick() {
 		const bool unchanged = stillThere && crc32(bytes.data(), bytes.size()) == g_crc;
 		printf("DS-GUARD refused=%d unchanged=%d\n", (int)refused, (int)unchanged);
 		if (!refused) {
-			printf("DS-GUARD FAIL a kit row was allowed to take a slot another instrument in the song holds\n");
-			g_failures++;
+			g_report.fail("GUARD a kit row was allowed to take a slot another instrument in the song holds");
 		}
 		if (!unchanged) {
-			printf("DS-GUARD FAIL the preset occupying that slot was modified\n");
-			g_failures++;
+			g_report.fail("GUARD the preset occupying that slot was modified");
 		}
 		if (getCurrentUI() != &saveKitRowUI) {
 			// Whatever took the screen (the overwrite prompt, on a build without the guard), put the
@@ -597,27 +601,27 @@ void runTick() {
 		g_kitPath = DocumentSaveChannelProbe::targetPath();
 		(void)deluge::io::unlink(g_kitPath.c_str());
 		DocumentSaveChannelProbe::pressEnterKitRow();
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the kit-row save finishing", kMaxWaitTicks};
 		g_stage = Stage::KitSaveWait;
 		break;
 	}
 	case Stage::KitSaveWait: {
-		if (!SaveUI::saveInFlight()) {
+		switch (g_wait.poll(!SaveUI::saveInFlight())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			g_stage = Stage::KitCheck;
 			break;
-		}
-		if (++g_waitTicks > kMaxWaitTicks) {
-			printf("DS-KITROW FAIL the kit-row save never finished (%d ticks)\n", g_waitTicks);
-			g_failures++;
+		case WaitState::Expired:
 			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	}
 	case Stage::KitCheck: {
 		std::vector<uint8_t> bytes;
 		if (!readWholeFile(g_kitPath.c_str(), bytes)) {
-			printf("DS-KITROW FAIL nothing was written to %s\n", g_kitPath.c_str());
-			g_failures++;
+			g_report.fail("KITROW nothing was written to %s", g_kitPath.c_str());
 			g_stage = Stage::Report;
 			break;
 		}
@@ -626,9 +630,8 @@ void runTick() {
 		// Two completed, two verified: the preset and this. The occupied save between them opened a
 		// prompt and wrote nothing, so a third would itself be the counting defect.
 		if (SaveUI::stagedSavesCompleted() != 2 || SaveUI::stagedSavesVerified() != 2) {
-			printf("DS-KITROW FAIL the kit-row save did not complete a verified save (completed=%d verified=%d)\n",
-			       (int)SaveUI::stagedSavesCompleted(), (int)SaveUI::stagedSavesVerified());
-			g_failures++;
+			g_report.fail("KITROW the kit-row save did not complete a verified save (completed=%d verified=%d)",
+			              (int)SaveUI::stagedSavesCompleted(), (int)SaveUI::stagedSavesVerified());
 		}
 		{
 			const bool closed = getCurrentUI() != &saveKitRowUI;
@@ -636,8 +639,7 @@ void runTick() {
 			const char* path = g_kitDrum != nullptr ? g_kitDrum->path.c_str() : "";
 			printf("DS-KITFINISHED closed=%d named=%d path=%s\n", (int)closed, (int)named, path);
 			if (!closed || !named) {
-				printf("DS-KITFINISHED FAIL the kit row was written but the save never finished\n");
-				g_failures++;
+				g_report.fail("KITFINISHED the kit row was written but the save never finished");
 			}
 		}
 		g_stage = Stage::SongGuardOpen;
@@ -651,8 +653,7 @@ void runTick() {
 		(void)deluge::io::unlink(kSongGuardPresetPath);
 		changeRootUI(&arrangerView);
 		if (!DocumentSaveChannelProbe::openSongSave()) {
-			printf("DS-GUARD-SONG FAIL the song save screen did not open\n");
-			g_failures++;
+			g_report.fail("GUARD-SONG the song save screen did not open");
 			g_stage = Stage::Report;
 			break;
 		}
@@ -672,43 +673,39 @@ void runTick() {
 		deluge_file_bytes_set_latency_ms(kSongGuardLatencyMs);
 		DocumentSaveChannelProbe::typeName(kSongGuardName);
 		DocumentSaveChannelProbe::pressEnterSong();
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the song save reaching its collection or document machine", kMaxWaitTicks};
 		g_stage = Stage::SongGuardDispatch;
 		break;
 	}
 	case Stage::SongGuardDispatch: {
 		const bool songRunning = saveSongUI.collectInFlight() || saveSongUI.docInFlight();
-		if (songRunning && !SaveUI::saveInFlight()) {
+		const WaitState reached = g_wait.poll(!SaveUI::saveInFlight());
+		if (reached == WaitState::Pending) {
+			break;
+		}
+		if (reached == WaitState::Met && songRunning) {
 			// The window: the song save is still running, and the guard dispatchSave() checks before proceeding is
 			// down.
 			g_songGuardTried = true;
 			g_songGuardRefused = !DocumentSaveChannelProbe::dispatchPresetSave(kSongGuardPresetName);
-			g_stage = Stage::SongGuardWait;
-			break;
 		}
-		if (!songRunning && !SaveUI::saveInFlight()) {
-			// The song save ended without the window ever opening; SongGuardCheck reports that nothing was tested.
-			g_stage = Stage::SongGuardWait;
-			break;
-		}
-		if (++g_waitTicks > kMaxWaitTicks) {
-			printf("DS-GUARD-SONG FAIL the song save never reached its collection or document machine (%d ticks)\n",
-			       g_waitTicks);
-			g_failures++;
-			g_stage = Stage::SongGuardWait;
-		}
+		// Otherwise the song save ended without the window ever opening, or the wait ran out; SongGuardCheck reports
+		// that nothing was tested.
+		g_wait = Wait{g_report, "the song save finishing", kMaxWaitTicks};
+		g_stage = Stage::SongGuardWait;
 		break;
 	}
 	case Stage::SongGuardWait: {
-		if (!saveSongUI.collectInFlight() && !saveSongUI.docInFlight() && !SaveUI::saveInFlight()) {
+		switch (g_wait.poll(!saveSongUI.collectInFlight() && !saveSongUI.docInFlight() && !SaveUI::saveInFlight())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			deluge_file_bytes_set_latency_ms(0);
 			g_stage = Stage::SongGuardCheck;
 			break;
-		}
-		if (++g_waitTicks > kMaxWaitTicks) {
-			printf("DS-GUARD-SONG FAIL the song save never finished (%d ticks)\n", g_waitTicks);
-			g_failures++;
+		case WaitState::Expired:
 			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	}
@@ -722,21 +719,17 @@ void runTick() {
 		printf("DS-GUARD-SONG tried=%d refused=%d songSaved=%d presetWritten=%d\n", (int)g_songGuardTried,
 		       (int)g_songGuardRefused, (int)songSaved, (int)presetWritten);
 		if (!g_songGuardTried) {
-			printf("DS-GUARD-SONG FAIL no preset save was dispatched while the song save ran with the guard down; "
-			       "this proves nothing\n");
-			g_failures++;
+			g_report.fail("GUARD-SONG no preset save was dispatched while the song save ran with the guard down; "
+			              "this proves nothing");
 		}
 		else if (!g_songGuardRefused) {
-			printf("DS-GUARD-SONG FAIL a preset save was accepted while a song save was still running\n");
-			g_failures++;
+			g_report.fail("GUARD-SONG a preset save was accepted while a song save was still running");
 		}
 		if (!songSaved) {
-			printf("DS-GUARD-SONG FAIL the song save did not leave a whole document at %s\n", kSongGuardPath);
-			g_failures++;
+			g_report.fail("GUARD-SONG the song save did not leave a whole document at %s", kSongGuardPath);
 		}
 		if (presetWritten) {
-			printf("DS-GUARD-SONG FAIL the refused preset save wrote a file or counted a save\n");
-			g_failures++;
+			g_report.fail("GUARD-SONG the refused preset save wrote a file or counted a save");
 		}
 		g_stage = Stage::AccountOpen;
 		break;
@@ -766,34 +759,38 @@ void runTick() {
 		g_tampered = false;
 		deluge_file_bytes_set_latency_ms(kAccountLatencyMs);
 		DocumentSaveChannelProbe::pressEnter();
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the save's write landing", kMaxWaitTicks};
 		g_stage = Stage::AccountTamper;
 		break;
 	}
 	case Stage::AccountTamper: {
-		if (SaveUI::writeChannelServedOps() > g_writeServedBefore) {
+		const bool landed = SaveUI::writeChannelServedOps() > g_writeServedBefore;
+		const WaitState written = g_wait.poll(landed || !SaveUI::saveInFlight());
+		if (written == WaitState::Pending) {
+			break;
+		}
+		if (written == WaitState::Met && landed) {
 			// The write has landed and the read-back has begun; its stat is held by the latency.
 			(void)deluge::io::unlink(g_accountPath.c_str());
 			g_tampered = true;
-			g_stage = Stage::AccountWait;
-			break;
 		}
-		if (!SaveUI::saveInFlight() || ++g_waitTicks > kMaxWaitTicks) {
-			// Ended before its write landed: nothing to remove. AccountCheck reports that nothing was tested.
-			g_stage = Stage::AccountWait;
-		}
+		// Otherwise the save ended before its write landed, so there is nothing to remove; AccountCheck reports that
+		// nothing was tested.
+		g_wait = Wait{g_report, "the save finishing", kMaxWaitTicks};
+		g_stage = Stage::AccountWait;
 		break;
 	}
 	case Stage::AccountWait: {
-		if (!SaveUI::saveInFlight()) {
+		switch (g_wait.poll(!SaveUI::saveInFlight())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			deluge_file_bytes_set_latency_ms(0);
 			g_stage = Stage::AccountCheck;
 			break;
-		}
-		if (++g_waitTicks > kMaxWaitTicks) {
-			printf("DS-ACCOUNTED FAIL the save never finished (%d ticks)\n", g_waitTicks);
-			g_failures++;
+		case WaitState::Expired:
 			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	}
@@ -802,14 +799,12 @@ void runTick() {
 		const int32_t verifyServed = SaveUI::verifyChannelServedOps() - g_verifyServedBefore;
 		printf("DS-ACCOUNTED tampered=%d failed=%d verifyServed=%d\n", (int)g_tampered, (int)failed, (int)verifyServed);
 		if (!g_tampered || !failed) {
-			printf("DS-ACCOUNTED FAIL the read-back was not made to fail, so the count proves nothing\n");
-			g_failures++;
+			g_report.fail("ACCOUNTED the read-back was not made to fail, so the count proves nothing");
 		}
 		else if (verifyServed != 1) {
-			printf("DS-ACCOUNTED FAIL the read-back's length stat was answered and failed the save, but the served "
-			       "count moved by %d, not 1\n",
-			       (int)verifyServed);
-			g_failures++;
+			g_report.fail("ACCOUNTED the read-back's length stat was answered and failed the save, but the served "
+			              "count moved by %d, not 1",
+			              (int)verifyServed);
 		}
 		g_stage = Stage::OverwriteOpen;
 		break;
@@ -833,17 +828,21 @@ void runTick() {
 	case Stage::OverwriteSave: {
 		DocumentSaveChannelProbe::typeName(kSaveName);
 		DocumentSaveChannelProbe::pressEnter();
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the overwrite prompt", kMaxWaitTicks};
 		g_stage = Stage::OverwritePrompt;
 		break;
 	}
 	case Stage::OverwritePrompt: {
-		if (SaveUI::saveInFlight() && ++g_waitTicks <= kMaxWaitTicks) {
+		const WaitState prompt = g_wait.poll(!SaveUI::saveInFlight());
+		if (prompt == WaitState::Pending) {
+			break;
+		}
+		if (prompt == WaitState::Expired) {
+			g_stage = Stage::OverwriteFailOpen;
 			break;
 		}
 		if (!DocumentSaveChannelProbe::overwritePromptOpen()) {
-			printf("DS-OVERWRITE FAIL fixture: saving onto %s again did not prompt\n", kSaveName);
-			g_failures++;
+			g_report.fail("OVERWRITE fixture: saving onto %s again did not prompt", kSaveName);
 			g_stage = Stage::OverwriteFailOpen;
 			break;
 		}
@@ -851,15 +850,21 @@ void runTick() {
 		g_overwriteVerifiedBefore = SaveUI::stagedSavesVerified();
 		g_swapServedBefore = SaveUI::swapChannelServedOps();
 		DocumentSaveChannelProbe::confirmOverwrite();
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the confirmed overwrite finishing", kMaxWaitTicks};
 		g_stage = Stage::OverwriteWait;
 		break;
 	}
 	case Stage::OverwriteWait: {
-		if (SaveUI::saveInFlight() && ++g_waitTicks <= kMaxWaitTicks) {
+		switch (g_wait.poll(!SaveUI::saveInFlight())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
+			g_stage = Stage::OverwriteCheck;
+			break;
+		case WaitState::Expired:
+			g_stage = Stage::OverwriteFailOpen;
 			break;
 		}
-		g_stage = Stage::OverwriteCheck;
 		break;
 	}
 	case Stage::OverwriteCheck: {
@@ -875,34 +880,24 @@ void runTick() {
 		printf("DS-OVERWRITE completed=%d verified=%d usedTemp=%d swapServed=%d whole=%d tmpLeft=%d promptClosed=%d\n",
 		       (int)completed, (int)verified, (int)usedTemp, (int)swapServed, (int)whole, (int)tmpLeft,
 		       (int)promptClosed);
-		if (SaveUI::saveInFlight()) {
-			printf("DS-OVERWRITE FAIL the confirmed overwrite never finished (%d ticks)\n", g_waitTicks);
-			g_failures++;
-		}
 		if (completed != 1 || verified != 1) {
-			printf("DS-OVERWRITE FAIL the confirmed overwrite did not complete a verified save\n");
-			g_failures++;
+			g_report.fail("OVERWRITE the confirmed overwrite did not complete a verified save");
 		}
 		if (!usedTemp) {
-			printf("DS-OVERWRITE FAIL the confirmed overwrite wrote straight onto the document it replaces, not a temp "
-			       "file\n");
-			g_failures++;
+			g_report.fail("OVERWRITE the confirmed overwrite wrote straight onto the document it replaces, not a temp "
+			              "file");
 		}
 		if (swapServed < 2) {
-			printf("DS-OVERWRITE FAIL the temp file was not swapped into place through the byte channel\n");
-			g_failures++;
+			g_report.fail("OVERWRITE the temp file was not swapped into place through the byte channel");
 		}
 		if (!whole) {
-			printf("DS-OVERWRITE FAIL %s holds no whole document after the overwrite\n", g_path.c_str());
-			g_failures++;
+			g_report.fail("OVERWRITE %s holds no whole document after the overwrite", g_path.c_str());
 		}
 		if (tmpLeft) {
-			printf("DS-OVERWRITE FAIL the temp file is still on the card after a successful overwrite\n");
-			g_failures++;
+			g_report.fail("OVERWRITE the temp file is still on the card after a successful overwrite");
 		}
 		if (!promptClosed) {
-			printf("DS-OVERWRITE FAIL the overwrite prompt is still open after the save finished\n");
-			g_failures++;
+			g_report.fail("OVERWRITE the overwrite prompt is still open after the save finished");
 		}
 		g_stage = Stage::OverwriteFailOpen;
 		break;
@@ -924,17 +919,21 @@ void runTick() {
 	case Stage::OverwriteFailSave: {
 		DocumentSaveChannelProbe::typeName(kSaveName);
 		DocumentSaveChannelProbe::pressEnter();
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the overwrite prompt", kMaxWaitTicks};
 		g_stage = Stage::OverwriteFailPrompt;
 		break;
 	}
 	case Stage::OverwriteFailPrompt: {
-		if (SaveUI::saveInFlight() && ++g_waitTicks <= kMaxWaitTicks) {
+		const WaitState prompt = g_wait.poll(!SaveUI::saveInFlight());
+		if (prompt == WaitState::Pending) {
+			break;
+		}
+		if (prompt == WaitState::Expired) {
+			g_stage = Stage::Report;
 			break;
 		}
 		if (!DocumentSaveChannelProbe::overwritePromptOpen()) {
-			printf("DS-OVERWRITE-FAIL FAIL fixture: saving onto %s again did not prompt\n", kSaveName);
-			g_failures++;
+			g_report.fail("OVERWRITE-FAIL fixture: saving onto %s again did not prompt", kSaveName);
 			g_stage = Stage::Report;
 			break;
 		}
@@ -948,12 +947,17 @@ void runTick() {
 		// is checked.
 		deluge_file_bytes_set_latency_ms(kOverwriteLatencyMs);
 		DocumentSaveChannelProbe::confirmOverwrite();
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the failing overwrite's write landing", kMaxWaitTicks};
 		g_stage = Stage::OverwriteFailTamper;
 		break;
 	}
 	case Stage::OverwriteFailTamper: {
-		if (SaveUI::writeChannelServedOps() > g_overwriteWriteServedBefore) {
+		const bool landed = SaveUI::writeChannelServedOps() > g_overwriteWriteServedBefore;
+		const WaitState written = g_wait.poll(landed || !SaveUI::saveInFlight());
+		if (written == WaitState::Pending) {
+			break;
+		}
+		if (written == WaitState::Met && landed) {
 			// The write has landed and the read-back has begun; its first answer is held by the latency.
 			const std::string temp = g_path + ".tmp";
 			if (fileOnCard(temp.c_str())) {
@@ -963,35 +967,40 @@ void runTick() {
 					g_overwriteTampered = true;
 				}
 			}
-			g_stage = Stage::OverwriteFailWait;
-			break;
 		}
-		if (!SaveUI::saveInFlight() || ++g_waitTicks > kMaxWaitTicks) {
-			// Ended before its write landed: nothing to truncate. OverwriteFailCheck reports that nothing was tested.
-			g_stage = Stage::OverwriteFailWait;
-		}
+		// Otherwise the save ended before its write landed, so there is nothing to truncate; OverwriteFailCheck
+		// reports that nothing was tested.
+		g_wait = Wait{g_report, "the save finishing", kMaxWaitTicks};
+		g_stage = Stage::OverwriteFailWait;
 		break;
 	}
 	case Stage::OverwriteFailWait: {
-		if (SaveUI::saveInFlight()) {
-			if (++g_waitTicks > kMaxWaitTicks) {
-				printf("DS-OVERWRITE-FAIL FAIL the save never finished (%d ticks)\n", g_waitTicks);
-				g_failures++;
-				g_stage = Stage::Report;
-			}
+		switch (g_wait.poll(!SaveUI::saveInFlight())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
+			deluge_file_bytes_set_latency_ms(0);
+			g_wait = Wait{g_report, "the temp file's removal draining", kMaxWaitTicks};
+			g_stage = Stage::OverwriteFailDrain;
+			break;
+		case WaitState::Expired:
+			g_stage = Stage::Report;
 			break;
 		}
-		deluge_file_bytes_set_latency_ms(0);
-		g_waitTicks = 0;
-		g_stage = Stage::OverwriteFailDrain;
 		break;
 	}
 	case Stage::OverwriteFailDrain: {
 		// A failed save queues the temp file's removal on the byte channel; let it run before looking for the file.
-		if (!deluge::storage::bytes::idle() && ++g_waitTicks <= kMaxWaitTicks) {
+		switch (g_wait.poll(deluge::storage::bytes::idle())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
+			g_stage = Stage::OverwriteFailCheck;
+			break;
+		case WaitState::Expired:
+			g_stage = Stage::Report;
 			break;
 		}
-		g_stage = Stage::OverwriteFailCheck;
 		break;
 	}
 	case Stage::OverwriteFailCheck: {
@@ -1004,22 +1013,18 @@ void runTick() {
 		printf("DS-OVERWRITE-FAIL tampered=%d failed=%d targetUnchanged=%d tmpLeft=%d\n", (int)g_overwriteTampered,
 		       (int)failed, (int)unchanged, (int)tmpLeft);
 		if (!g_overwriteTampered) {
-			printf("DS-OVERWRITE-FAIL FAIL the read-back was not made to fail: there was no temp file to truncate, so "
-			       "nothing was tested\n");
-			g_failures++;
+			g_report.fail("OVERWRITE-FAIL the read-back was not made to fail: there was no temp file to truncate, so "
+			              "nothing was tested");
 		}
 		if (!failed) {
-			printf("DS-OVERWRITE-FAIL FAIL a confirmed overwrite whose read-back was made to fail still counted as "
-			       "verified\n");
-			g_failures++;
+			g_report.fail("OVERWRITE-FAIL a confirmed overwrite whose read-back was made to fail still counted as "
+			              "verified");
 		}
 		if (!unchanged) {
-			printf("DS-OVERWRITE-FAIL FAIL the document a failed overwrite was replacing is gone or changed\n");
-			g_failures++;
+			g_report.fail("OVERWRITE-FAIL the document a failed overwrite was replacing is gone or changed");
 		}
 		if (tmpLeft) {
-			printf("DS-OVERWRITE-FAIL FAIL the temp file of a failed overwrite is still on the card\n");
-			g_failures++;
+			g_report.fail("OVERWRITE-FAIL the temp file of a failed overwrite is still on the card");
 		}
 		g_stage = Stage::HeldOpen;
 		break;
@@ -1048,25 +1053,33 @@ void runTick() {
 		g_heldWriteServedBefore = SaveUI::writeChannelServedOps();
 		deluge_file_bytes_set_write_from_latency_ms(kHeldLatencyMs);
 		DocumentSaveChannelProbe::pressEnter();
-		g_waitTicks = 0;
+		g_wait = Wait{g_report, "the held save finishing", kMaxWaitTicks};
 		g_stage = Stage::HeldWait;
 		break;
 	}
 	case Stage::HeldWait: {
-		if (!SaveUI::saveInFlight() || ++g_waitTicks > kMaxWaitTicks) {
+		switch (g_wait.poll(!SaveUI::saveInFlight())) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
 			deluge_file_bytes_set_write_from_latency_ms(0);
 			g_stage = Stage::HeldCheck;
+			break;
+		case WaitState::Expired:
+			deluge_file_bytes_set_write_from_latency_ms(0);
+			(void)deluge::io::unlink(g_heldPath.c_str());
+			g_stage = Stage::Report;
+			break;
 		}
 		break;
 	}
 	case Stage::HeldCheck: {
 		const int32_t completed = SaveUI::stagedSavesCompleted() - g_heldCompletedBefore;
 		const int32_t verified = SaveUI::stagedSavesVerified() - g_heldVerifiedBefore;
-		printf("DS-HELD completed=%d verified=%d ticks=%d\n", (int)completed, (int)verified, g_waitTicks);
+		printf("DS-HELD completed=%d verified=%d ticks=%d\n", (int)completed, (int)verified, g_wait.ticks());
 		if (completed != 1 || verified != 1) {
-			printf("DS-HELD FAIL a preset save whose write the channel held past the stall bound did not complete "
-			       "and verify\n");
-			g_failures++;
+			g_report.fail("HELD a preset save whose write the channel held past the stall bound did not complete "
+			              "and verify");
 		}
 		(void)deluge::io::unlink(g_heldPath.c_str());
 		g_stage = Stage::Report;
@@ -1078,7 +1091,7 @@ void runTick() {
 		printf("DS-SUMMARY served=%d channelTicks=%d verifyServed=%d verifyInline=%d\n",
 		       (int)SaveUI::writeChannelServedOps(), (int)SaveUI::channelSaveTicks(),
 		       (int)SaveUI::verifyChannelServedOps(), (int)SaveUI::verifyInlineServedOps());
-		printf("DS-RESULT failures=%d\n", g_failures);
+		g_report.printResult();
 		// Leave the card as we found it: these images are fingerprint-keyed and SHARED between gates,
 		// and a file left behind here changes what another gate's browser listing sees.
 		if (!g_path.empty()) {
@@ -1116,8 +1129,7 @@ void deluge_scenario_document_save_channel_begin(void) {
 	g_stage = Stage::Fixture;
 	g_stepDone = false;
 	g_summaryPrinted = false;
-	g_failures = 0;
-	g_waitTicks = 0;
+	g_report.reset();
 	g_crc = 0;
 	g_bytes = 0;
 	g_path.clear();
@@ -1164,7 +1176,7 @@ bool deluge_scenario_document_save_channel_step_done(void) {
 }
 
 int32_t deluge_scenario_document_save_channel_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"
