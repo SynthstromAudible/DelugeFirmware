@@ -23,15 +23,19 @@
 #include "plugin-api/types/param_mapping.h"
 #include "serialization/value.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <optional>
 
 namespace deluge::effects {
 
-/// @brief The ids of the settings a gold-knob press changes. They start at 1024, clear of both plugins' param tables.
+/// @brief The first setting id, clear of both plugins' param tables (each table's header checks its ids stay below it).
+inline constexpr uint32_t kFirstSettingId = 1024;
+
+/// @brief The ids of the settings a gold-knob press changes, from kFirstSettingId.
 namespace setting {
-inline constexpr plugin::ParamId kDelayPingPong{1024};
+inline constexpr plugin::ParamId kDelayPingPong{kFirstSettingId};
 inline constexpr plugin::ParamId kDelayType{1025};
 inline constexpr plugin::ParamId kDelaySyncType{1026};
 inline constexpr plugin::ParamId kDelaySyncLevel{1027};
@@ -46,9 +50,6 @@ inline constexpr plugin::ParamId kCompRelease{1035};
 inline constexpr plugin::ParamId kCompHpf{1036};
 inline constexpr plugin::ParamId kCompBlend{1037};
 } // namespace setting
-
-/// @brief The first setting id.
-inline constexpr uint32_t kFirstSettingId = 1024;
 
 /// @brief The setting params. Each row's file name is the path SetEffectSetting takes. The first eight step through
 /// their choices; the compressor's six are continuous and have no stepper.
@@ -103,6 +104,14 @@ struct Stepped {
 /// @param ctx What the step needs beyond @p fx.
 /// @return The state after the step and the value to write, or nullopt for a continuous or unknown setting.
 [[nodiscard]] std::optional<Stepped> step_setting(plugin::ParamId id, const EffectStates& fx, const StepContext& ctx);
+
+/// @brief The last setting id: a cable depth's flag must stay clear of it.
+inline constexpr uint32_t kLastSettingId = setting::kCompBlend.value;
+static_assert(std::ranges::all_of(kSettingParams,
+                                  [](const plugin::ParamInfo& p) {
+	                                  return p.id.value >= kFirstSettingId && p.id.value <= kLastSettingId;
+                                  }),
+              "every setting id lies between the first and the last");
 
 /// @brief The setting param with id @p id.
 /// @param id A param id.

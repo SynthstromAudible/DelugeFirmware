@@ -1,5 +1,6 @@
 #include "scenes/bind/section_pages.h"
 
+#include "controls/mod_buttons.h"
 #include "effects/global_effectable/pages.h"
 #include "instruments/deluge/pages.h"
 
@@ -14,13 +15,10 @@ using controls::Page;
 using controls::SectionPages;
 using project::ParamSpace;
 
-/// The song's compressor settings the lower knob edits, one page each after the reverb page.
-constexpr uint32_t kCompPages = 5;
+namespace mod_button = controls::mod_button;
+
 /// The filter cycle's last page, EQ: a filter view past it is EQ.
 constexpr uint32_t kEqPage = 2;
-constexpr uint8_t kFilterButton = 1;
-constexpr uint8_t kCompButton = 4;
-constexpr uint8_t kModFxButton = 5;
 
 /// Converts @p pages to the controls' pages.
 std::vector<Page> pages_of(const auto& pages) {
@@ -52,9 +50,8 @@ std::vector<Page> sound_filter_cycle(uint8_t mode) {
 	return out;
 }
 
-/// A sound's pages: its saved knobs for @p mode, and the filter cycle.
-SectionPages sound_pages(const project::Song& song, const controls::SoundFocus& focus, uint8_t mode,
-                         const PageInputs& inputs) {
+/// A sound's saved knobs for @p mode: the first mapping of each knob.
+Page sound_page(const project::Song& song, const controls::SoundFocus& focus, uint8_t mode, const PageInputs& inputs) {
 	const std::vector<project::ControllerMapping>* controls = nullptr;
 	if (focus.slot.kind == project::SlotAddress::Kind::DRUM) {
 		const project::DocDrum* drum = song.drum_structure.find(focus.slot.id);
@@ -74,51 +71,58 @@ SectionPages sound_pages(const project::Song& song, const controls::SoundFocus& 
 			}
 		}
 	}
-	return {.current = controls::page_of(saved), .cycle = sound_filter_cycle(mode)};
+	return controls::page_of(saved);
 }
 
-/// A chain's pages: the global effectable's for @p mode, the current one the view @p chain holds and, on the song,
-/// the compressor view of @p focus.
-SectionPages chain_pages(const KnobFocus& focus, const project::FxChain& chain, bool is_song, uint8_t mode,
-                         const PageInputs& inputs) {
-	SectionPages out{
-	    .cycle = pages_of(global_effectable::section_pages(
-	        mode, {.song = is_song, .mod_fx_type = inputs.effects.mod_fx.type, .alt_delay = inputs.alt_delay})),
-	    .group_entry = {0, 1 + (focus.comp.param % kCompPages)}};
-	out.current.section = mode;
-	if (mode == kModFxButton) {
-		out.current = controls::page_of(global_effectable::mod_fx_page(chain.mod_fx_param));
-		return out;
+/// What changes a chain's pages, for the global effectable.
+global_effectable::PageInputs chain_inputs(bool is_song, const PageInputs& inputs) {
+	return {.song = is_song, .mod_fx_type = inputs.effects.mod_fx.type, .alt_delay = inputs.alt_delay};
+}
+
+/// The song's compressor page the lower knob edits in @p focus's compressor view.
+uint32_t comp_page(const KnobFocus& focus) {
+	return 1 + (focus.comp.param % global_effectable::kCompPages);
+}
+
+/// Which values a chain's knobs edit, as its record holds them.
+struct ChainView {
+	uint8_t mod_fx_param{project::FxChain{}.mod_fx_param};
+	uint8_t filter_type{project::FxChain{}.filter_type};
+};
+
+/// A chain's page for @p mode: the view @p chain holds and, on the song, the compressor view of @p focus.
+Page chain_page(const KnobFocus& focus, ChainView chain, bool is_song, uint8_t mode, const PageInputs& inputs) {
+	if (mode == mod_button::kModFx) {
+		return controls::page_of(global_effectable::mod_fx_page(chain.mod_fx_param));
 	}
 	uint32_t current = 0;
-	if (mode == kFilterButton) {
+	if (mode == mod_button::kFilter) {
 		current = std::min<uint32_t>(chain.filter_type, kEqPage);
 	}
-	else if (mode == kCompButton && is_song && focus.comp.editing) {
-		current = out.group_entry[1];
+	else if (mode == mod_button::kCompressor && is_song && focus.comp.editing) {
+		current = comp_page(focus);
 	}
-	const auto found = std::ranges::find_if(out.cycle, [&](const Page& p) { return p.page_id == current; });
-	if (found != out.cycle.end()) {
-		out.current = *found;
+	if (const std::optional<plugin::RemotePage> page =
+	        global_effectable::section_page(mode, current, chain_inputs(is_song, inputs))) {
+		return controls::page_of(*page);
 	}
-	return out;
+	return Page{.section = mode};
 }
 
 /// A MIDI track's page: the CCs its record names for @p mode's knobs, in its clip; a press picks a knob's CC, with
 /// or without a clip (the host turns the selection down where it cannot take it).
-SectionPages midi_pages(const project::Song& song, const controls::MidiFocus& focus, uint8_t mode) {
-	SectionPages out;
-	out.current.section = mode;
+Page midi_page(const project::Song& song, const controls::MidiFocus& focus, uint8_t mode) {
+	Page out{.section = mode};
 	constexpr size_t kKnobs = 2;
 	for (size_t knob = 0; knob < kKnobs; knob++) {
-		out.current.slots[knob].press = plugin::PressAction::MIDI_CC_SELECT;
+		out.slots[knob].press = plugin::PressAction::MIDI_CC_SELECT;
 	}
 	const project::DocOutput* output = song.output_structure.find(focus.track.output_id);
 	if (output == nullptr || !focus.clip) {
 		return out;
 	}
 	for (size_t knob = 0; knob < kKnobs; knob++) {
-		controls::Slot& slot = out.current.slots[knob];
+		controls::Slot& slot = out.slots[knob];
 		const size_t at = (static_cast<size_t>(mode) * kKnobs) + knob;
 		if (at >= output->mod_knob_ccs.size()) {
 			continue;
@@ -150,24 +154,52 @@ SectionPages midi_pages(const project::Song& song, const controls::MidiFocus& fo
 	return out;
 }
 
+/// The view of the chain @p focus names, or none for another owner; a chain that does not resolve has a new chain's.
+std::optional<ChainView> focused_chain(const project::Song& song, const KnobFocus& focus) {
+	const project::FxChain* record = nullptr;
+	if (std::holds_alternative<SongFocus>(focus.owner)) {
+		record = &song.master_effects;
+	}
+	else if (const auto* chain = std::get_if<ChainFocus>(&focus.owner)) {
+		record = song.resolveChain(chain->chain);
+		if (record == nullptr) {
+			return ChainView{};
+		}
+	}
+	else {
+		return std::nullopt;
+	}
+	return ChainView{.mod_fx_param = record->mod_fx_param, .filter_type = record->filter_type};
+}
+
 } // namespace
 
-controls::SectionPages section_pages(const project::Song& song, const KnobFocus& focus, const PageInputs& inputs) {
+controls::Page current_page(const project::Song& song, const KnobFocus& focus, const PageInputs& inputs) {
 	const uint8_t mode = knob_mode(song, focus);
 	if (const auto* sound = std::get_if<SoundFocus>(&focus.owner)) {
-		return sound_pages(song, *sound, mode, inputs);
-	}
-	if (std::holds_alternative<SongFocus>(focus.owner)) {
-		return chain_pages(focus, song.master_effects, true, mode, inputs);
-	}
-	if (const auto* chain = std::get_if<ChainFocus>(&focus.owner)) {
-		const project::FxChain* record = song.resolveChain(chain->chain);
-		return chain_pages(focus, record != nullptr ? *record : project::FxChain{}, false, mode, inputs);
+		return sound_page(song, *sound, mode, inputs);
 	}
 	if (const auto* midi = std::get_if<MidiFocus>(&focus.owner)) {
-		return midi_pages(song, *midi, mode);
+		return midi_page(song, *midi, mode);
+	}
+	if (const std::optional<ChainView> chain = focused_chain(song, focus)) {
+		return chain_page(focus, *chain, std::holds_alternative<SongFocus>(focus.owner), mode, inputs);
 	}
 	return {};
+}
+
+controls::SectionPages section_pages(const project::Song& song, const KnobFocus& focus, const PageInputs& inputs) {
+	SectionPages out{.current = current_page(song, focus, inputs)};
+	const uint8_t mode = knob_mode(song, focus);
+	if (std::holds_alternative<SoundFocus>(focus.owner)) {
+		out.cycle = sound_filter_cycle(mode);
+	}
+	else if (std::holds_alternative<SongFocus>(focus.owner) || std::holds_alternative<ChainFocus>(focus.owner)) {
+		const bool is_song = std::holds_alternative<SongFocus>(focus.owner);
+		out.cycle = pages_of(global_effectable::section_pages(mode, chain_inputs(is_song, inputs)));
+		out.group_entry = {0, comp_page(focus)};
+	}
+	return out;
 }
 
 } // namespace deluge::scenes::bind

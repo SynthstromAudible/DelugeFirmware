@@ -94,7 +94,7 @@ Target toggle_group(const SectionPages& pages) {
 	if (found == pages.cycle.end()) {
 		return {};
 	}
-	return SelectPage{.section = found->section, .page_id = found->page_id, .slots = found->slots};
+	return SelectPage{.section = pages.current.section, .page_id = found->page_id, .slots = found->slots};
 }
 
 } // namespace

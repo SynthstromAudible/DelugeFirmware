@@ -1,3 +1,20 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #pragma once
 
 /// @file
@@ -21,7 +38,7 @@ inline constexpr std::size_t kRemoteControlsCount = 8;
 /// @brief What pressing a slot's knob does. CLAP's pages carry no press; these stay on the Deluge side of the L3
 ///        adapter.
 enum class PressAction : uint8_t {
-	NONE,
+	NONE,           ///< a press does nothing
 	STEP_SETTING,   ///< step the setting param @c press_param to its next choice
 	HOLD_STUTTER,   ///< stutter while held
 	NEXT_PAGE,      ///< the section's next page in its group
@@ -36,6 +53,7 @@ struct RemoteSlot {
 	ParamKind kind{ParamKind::NONE};      ///< which of the owner's collections holds @c param
 	PressAction press{PressAction::NONE}; ///< what a press does
 	std::optional<ParamId> press_param;   ///< the setting a STEP_SETTING press steps
+	/// @brief Whether two slots turn, and press, alike: every field equal.
 	[[nodiscard]] constexpr bool operator==(const RemoteSlot&) const = default;
 };
 
@@ -47,6 +65,7 @@ struct RemotePage {
 	std::string_view name; ///< the page's name
 	std::array<RemoteSlot, kRemoteControlsCount> slots{};
 	bool for_preset{false}; ///< the sound's own page (its saved knobs), not the device's default
+	/// @brief Whether two pages are the same page with the same slots: every field equal, the name by its text.
 	[[nodiscard]] constexpr bool operator==(const RemotePage&) const = default;
 };
 

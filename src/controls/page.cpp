@@ -17,6 +17,8 @@
 
 #include "controls/page.h"
 
+#include <cstddef>
+
 namespace deluge::controls {
 
 Page page_of(const plugin::RemotePage& page) {

@@ -12,6 +12,7 @@
 #include "effects/state.h"
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/bind/knob_focus.h"
+#include "scenes/bind/section_pages.h"
 #include "scenes/bind/write_sink.h"
 #include "serialization/value.h"
 
@@ -27,11 +28,9 @@ namespace deluge::scenes::services {
 
 /// @brief What a push reads beyond the song's records.
 struct PushInputs {
-	effects::EffectStates effects{}; ///< the owner's effect settings: a sound's own, or its chain's
-	bool fm{false};                  ///< a sound in FM mode, whose filter knob does not cycle
-	bool alt_delay{false};           ///< the AltGoldenKnobDelayParams device setting
-	bool button_held{false};         ///< the mode's mod button is held, so the push re-shows its button's popup
-	bool clip_context{false};        ///< the knobs are on a clip, not the song (the stutter button's names)
+	bind::PageInputs pages{}; ///< what changes the owner's pages: its effect settings, FM, the alt delay knobs
+	bool button_held{false};  ///< the mode's mod button is held, so the push re-shows its button's popup
+	bool clip_context{false}; ///< the knobs are on a clip, not the song (the stutter button's names)
 };
 
 using bind::EffectOwner;

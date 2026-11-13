@@ -10,14 +10,20 @@ KnobAssignment knob_assignment(const project::Song& song, const KnobFocus& focus
 	if (knob < 0 || knob > 1) {
 		return {};
 	}
-	const controls::Target target = controls::resolve_turn(focus, section_pages(song, focus, {}), knob);
+	// A turn reads only the page the knobs are on: this runs for the knobs' indicators every tick.
+	const controls::Target target =
+	    controls::resolve_turn(focus, controls::SectionPages{.current = current_page(song, focus, {})}, knob);
 	const auto* write = std::get_if<controls::ParamWrite>(&target);
 	if (write == nullptr) {
 		return {};
 	}
-	// A setting has no param: the song's compressor knobs edit theirs by path.
+	// A setting has no param: the song's compressor knobs edit theirs by path. Only the song's pages publish a
+	// setting slot, and a CompArm writes the song's chain, so a setting on another owner moves nothing.
 	if (write->address.space == project::ParamSpace::ENGINE) {
 		if (const plugin::ParamInfo* setting = effects::find_setting(write->address.id)) {
+			if (!std::holds_alternative<SongFocus>(focus.owner)) {
+				return {};
+			}
 			return {.target = CompArm{setting->file_name}};
 		}
 	}

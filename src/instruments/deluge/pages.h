@@ -26,9 +26,15 @@
 #include "instruments/deluge/params.h"
 #include "plugin-api/types/remote_controls.h"
 
+#include <algorithm>
 #include <array>
 
 namespace deluge::instrument {
+
+static_assert(std::ranges::all_of(kParams,
+                                  [](const plugin::ParamInfo& p) { return p.id.value < effects::kFirstSettingId; }),
+              "the instrument's param ids stay below the setting ids");
+static_assert(kCableDepthFlag > effects::kLastSettingId, "a cable depth's id stays above the setting ids");
 
 /// @brief What changes a slot's press.
 struct PressInputs {
@@ -36,16 +42,16 @@ struct PressInputs {
 	bool alt_delay{false}; ///< the alternative delay knobs: the delay presses step the sync settings
 };
 
-namespace detail {
-/// @brief Whether @p id is a cable from the sidechain alone.
+/// @brief Whether @p id is the depth of a cable from the sidechain alone (not a depth-of-depth).
+/// @param id A param id of the instrument's table.
+/// @return True for a level-1 cable whose source is the sidechain.
 [[nodiscard]] constexpr bool is_sidechain_cable(plugin::ParamId id) {
-	if (!is_cable_depth(id) || depth_level(id.value) != 1) {
+	if (!is_cable_depth(id) || detail::depth_level(id.value) != 1) {
 		return false;
 	}
 	const std::optional<CableRoute> route = cable_route(id);
 	return route && route->source == PatchSource::SIDECHAIN;
 }
-} // namespace detail
 
 /// @brief The slot that turns @p target and what its press does.
 /// @param target The param the knob moves.
@@ -83,7 +89,7 @@ namespace detail {
 	else if (target == param::kReverbAmount) {
 		slot.press = plugin::PressAction::REVERB_PRESET;
 	}
-	else if (detail::is_sidechain_cable(target)) {
+	else if (is_sidechain_cable(target)) {
 		step(setting::kSidechainSyncLevel);
 	}
 	else if ((target == param::kLpfFrequency || target == param::kHpfFrequency || target == param::kTreble) && !in.fm) {

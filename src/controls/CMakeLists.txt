@@ -1,5 +1,6 @@
 # deluge_controls — the controls' vocabulary: what a gold knob points at, as addresses into the model (deluge::controls).
-# It includes only the model and the plugin API; scripts/check_library_boundary.py holds it to that.
+# It includes only the model (and the serialization values a written setting carries) and the plugin API;
+# scripts/check_library_boundary.py holds it to that.
 
 add_library(deluge_controls STATIC knob_focus.cpp page.cpp resolve.cpp section.cpp)
 # Headers are included as "controls/..."; the include root is src/ (this directory's parent).

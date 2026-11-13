@@ -11,7 +11,8 @@ include(${CMAKE_CURRENT_LIST_DIR}/library_warnings.cmake)
 # evaluator 15 % slower with only always_inline functions inlined). DELUGE_LIBRARY marks the target so that the app's
 # threshold leaves it alone.
 function(deluge_library_target target)
-  if(NOT DELUGE_HOST AND CMAKE_SYSTEM_PROCESSOR MATCHES "^([Aa][Rr][Mm])")
+  # 32-bit ARM only: "arm" (the device and unit-arm toolchains) or "armv7l" and the like; arm64 hosts have no -marm.
+  if(NOT DELUGE_HOST AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|armv[0-9].*)$")
     set(arm_mode "-marm")
   else()
     set(arm_mode "")

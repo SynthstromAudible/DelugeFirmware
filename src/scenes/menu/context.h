@@ -184,14 +184,16 @@ struct MenuContext {
 	Root root = Root::Settings;
 
 	/// @name What a target node binds through
-	/// The model and addresses a target resolves against, the host's runtime facts, and the sink its writes go to.
+	/// The model and addresses a target resolves against, the host's runtime facts, the sink its writes go to, and the
+	/// same host's controls sink, which takes the gold knobs' writes and an effect setting's exact word.
 	/// @{
 	const deluge::project::Song* model = nullptr;
 	deluge::scenes::bind::Addresses addresses{};
 	const deluge::scenes::bind::RuntimeFacts* facts = nullptr;
 	deluge::scenes::bind::WriteSink* sink = nullptr;
-	deluge::controls::Sink* controls_sink = nullptr; ///< the same host's knob writes
-	                                                 /// @}
+	/// The same host's controls sink: the gold knobs' writes and an effect setting's exact word.
+	deluge::controls::Sink* controls_sink = nullptr;
+	/// @}
 };
 
 /// @brief Resolve what a menu opened over @p clip would edit -- `SoundEditor::setup`'s context half,

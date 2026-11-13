@@ -8,6 +8,8 @@ if(DEFINED DELUGE_CXX_STANDARD)
   set_target_properties(deluge_global_effectable PROPERTIES CXX_STANDARD ${DELUGE_CXX_STANDARD} CXX_STANDARD_REQUIRED ON
                                                             CXX_EXTENSIONS ON)
 endif()
+# deluge_effects for the headers its own headers include (effects/words.h, effects/setting_params.h), whose include
+# root it carries: PUBLIC, as every includer of pages.h needs them. Its code calls nothing compiled there.
 target_link_libraries(deluge_global_effectable PUBLIC deluge_plugin_types deluge_effects)
 target_compile_options(deluge_global_effectable PUBLIC ${DELUGE_COMMON_COMPILE_OPTIONS})
 include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/library_warnings.cmake)

@@ -39,7 +39,7 @@ struct SectionResult {
 	bool change_mode{false};     ///< the knobs' owner takes the button as its mode
 	bool end_stutter{false};     ///< the owner's stutter ends
 	bool toggle_vu_meter{false}; ///< the song's VU meter shows, or stops showing, in place of the knobs' levels
-	bool popup{false};           ///< the button's popup shows
+	bool taken{false};           ///< the rules took the press: the button's popup shows
 	[[nodiscard]] constexpr bool operator==(const SectionResult&) const = default;
 };
 

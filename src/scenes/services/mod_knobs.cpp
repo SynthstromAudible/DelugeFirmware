@@ -146,6 +146,21 @@ const effects::EffectStates* ModKnobs::owner_effects() const {
 	return facts.chain_effects(std::get<project::ChainAddress>(*owner));
 }
 
+PushInputs ModKnobs::push_inputs(bool mode_held) const {
+	PushInputs inputs;
+	if (const effects::EffectStates* fx = owner_effects()) {
+		inputs.pages.effects = *fx;
+	}
+	if (const auto* sound = std::get_if<bind::SoundFocus>(&focus_->owner)) {
+		const instrument::SoundState* state = menu::host_runtime_facts().sound_state(sound->slot);
+		inputs.pages.fm = state != nullptr && state->synth_mode == SynthMode::FM;
+	}
+	inputs.pages.alt_delay = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
+	inputs.button_held = mode_held;
+	inputs.clip_context = is_clip_context(*focus_);
+	return inputs;
+}
+
 bool ModKnobs::owner_stutter_quantized() const {
 	const effects::EffectStates* fx = owner_effects();
 	const effects::EffectStates* song =
@@ -161,20 +176,21 @@ void ModKnobs::set_focus(const bind::KnobFocus& focus, bool send_midi_feedback) 
 	}
 	selecting_cc_ = false;
 	if (send_midi_feedback) {
-		send_midi_follow_feedback(Kind::NONE, 0, kNoSelection, false, false); // `:1896` / `:1920`
+		// `View::setActiveModControllableTimelineCounter`, `View::setActiveModControllableWithoutTimelineCounter`.
+		send_midi_follow_feedback(Kind::NONE, 0, kNoSelection, false, false);
 	}
 }
 
 void ModKnobs::set_mod_region(uint32_t pos, uint32_t length, int32_t note_row_id) {
-	focus_->region = {.pos = pos, .length = length, .note_row_id = note_row_id}; // `:1925-1926`
+	focus_->region = {.pos = pos, .length = length, .note_row_id = note_row_id}; // `View::setModRegion`
 	if (focus_changed_) {
 		focus_changed_();
 	}
-	// `:1931-1935` -- holding a note on a stopped clip grabs its params' values from there.
+	// Holding a note on a stopped clip grabs its params' values from there.
 	if (length != 0 && is_clip_context(*focus_) && !playbackHandler.isEitherClockActive() && bound()) {
 		(void)menu::host_controls_sink().grab_region(*focus_, pos);
 	}
-	// `:1946-1947` -- unless midi follow feedback automation is disabled.
+	// Unless midi follow feedback automation is disabled.
 	if (midiEngine.midiFollowFeedbackAutomation != MIDIFollowFeedbackAutomationMode::DISABLED) {
 		send_midi_follow_feedback(Kind::NONE, 0, kNoSelection, false, true);
 	}
@@ -194,15 +210,15 @@ void ModKnobs::notify_param_automation_occurred(const ParamAddress& owner, bool 
 	if (!ours || !(ours->owner == owner.owner) || ours->clip_id != owner.clip_id) {
 		return;
 	}
-	if (!automation_display_ms_.has_value()) { // `:1696` `isTimerSet(DISPLAY_AUTOMATION)`
+	if (!automation_display_ms_.has_value()) { // `isTimerSet(DISPLAY_AUTOMATION)`
 		automation_updates_mod_levels_ = update_mod_levels;
-		automation_display_ms_ = now_ms_ + kAutomationTimerMs; // `:1698`
+		automation_display_ms_ = now_ms_ + kAutomationTimerMs;
 	}
-	else if (update_mod_levels) { // `:1701-1705`
+	else if (update_mod_levels) {
 		automation_updates_mod_levels_ = true;
 	}
 	if (!automation_feedback_ms_.has_value()) {
-		automation_feedback_ms_ = now_ms_ + kAutomationTimerMs; // `:1708`
+		automation_feedback_ms_ = now_ms_ + kAutomationTimerMs;
 	}
 }
 
@@ -223,7 +239,7 @@ Result ModKnobs::handle(const deluge::ui::shell::UiEvent& event, const deluge::u
 		return Result::unhandled();
 	}
 
-	// A gold knob's push: `buttonAction`'s tail (`hid/buttons.cpp:225-231`).
+	// A gold knob's push: `buttonAction`'s tail (`hid/buttons.cpp`'s `buttonAction`).
 	if (event.kind == UiEvent::Kind::EncoderButton) {
 		if (event.button == ButtonId::ModEnc0 || event.button == ButtonId::ModEnc1) {
 			const int32_t current = mode();
@@ -266,7 +282,7 @@ Result ModKnobs::mod_encoder_action(int32_t which_encoder, int32_t offset, uint3
 		return result;
 	}
 	Result result = turn_knob(which_encoder, offset, now_ms);
-	// `:840` -- every turn on a clip marks its instrument edited, whatever it wrote.
+	// Every turn on a clip marks its instrument edited, whatever it wrote.
 	if (is_clip_context(*focus_)) {
 		(void)menu::host_controls_sink().instrument_edited(*focus_);
 	}
@@ -297,7 +313,7 @@ Result ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_m
 		return result;
 	}
 
-	// `modEncoderAction_existentParam` (`:853-948`). A knob on a param its owner does not hold yet reads 0: the write
+	// `View::modEncoderAction_existentParam`. A knob on a param its owner does not hold yet reads 0: the write
 	// makes it.
 	const deluge::plugin::ParamInfo* info = info_of(*address, assignment.kind);
 	const bool at_region = focus_->region.pos != 0xFFFFFFFF;
@@ -308,13 +324,13 @@ Result ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_m
 	turn.old_knob_pos = bind::knob_pos_of(*address, info, value.value_or(0));
 	turn.new_knob_pos = bind::turn(bind::knob_kind(*address), turn.old_knob_pos, offset);
 
-	// `:868-899` -- the popup, and the tests that suppress it.
+	// The popup, and the tests that suppress it.
 	if (!popup_suppressed(turn) && show_popup(turn, now_ms)) {
 		(void)result.actions.push_back(
 		    Action{.kind = Action::Kind::Repaint, .surface = deluge::ui::shell::SurfaceRole::Main});
 	}
 	if (turn.new_knob_pos == turn.old_knob_pos) {
-		return result; // `:902-904`
+		return result;
 	}
 
 	const auto* sound = std::get_if<bind::SoundFocus>(&focus_->owner);
@@ -325,34 +341,33 @@ Result ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_m
 		return result; // refused: nothing changed, so nothing is fed back
 	}
 	turn.value_changed = true;
-	turn.note_tails_changed =
-	    sound != nullptr && sound->clip && tails_before != facts.allows_note_tails(sound->slot); // `:929`
+	turn.note_tails_changed = sound != nullptr && sound->clip && tails_before != facts.allows_note_tails(sound->slot);
 
 	turn.should_indicate_middle_value =
 	    bind::indicates_middle(*address, info, owner_stutter_quantized(), facts.stutter_active());
 
-	send_midi_follow_feedback(turn.kind, turn.param_id, turn.new_knob_pos, true, false); // `:908`
+	send_midi_follow_feedback(turn.kind, turn.param_id, turn.new_knob_pos, true, false);
 	if (turn.note_tails_changed) {
-		(void)result.actions.push_back(Action{.kind = Action::Kind::RepaintAll}); // `:929-933`
+		(void)result.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 	}
-	potentially_make_it_harder_to_turn_knob(which_encoder, turn); // `:939`
+	potentially_make_it_harder_to_turn_knob(which_encoder, turn);
 	return result;
 }
 
 bool ModKnobs::popup_suppressed(const ModTurn& turn) const {
-	// `:876-882` -- "let's see if we're editing the same param in the menu, if so, don't show
-	// pop-up". `SoundEditor`'s port is `MenuScene`, so legacy's `getCurrentUI() == &soundEditor` is
-	// this identity test against the one menu interpreter (`scenes/registry.h`'s `menu_scene()`) --
-	// not a `kind()` comparison, which would only *infer* that the scene on top is that object.
+	// `View::modEncoderAction_existentParam`'s "let's see if we're editing the same param in the menu, if so, don't
+	// show pop-up". `SoundEditor`'s port is `MenuScene`, so legacy's `getCurrentUI() == &soundEditor` is this identity
+	// test against the one menu interpreter (`scenes/registry.h`'s `menu_scene()`) -- not a `kind()` comparison, which
+	// would only *infer* that the scene on top is that object.
 	//
-	// The other two arms (`:869-874` performance view, `:885` the song browser) have no scene to
+	// The other two arms (performance view, the song browser) have no scene to
 	// ask yet; the header records both as uncovered rather than guessed at.
 	if (&stack_.input_top() != static_cast<const deluge::ui::shell::Scene*>(&menu_scene())) {
 		return false;
 	}
 	// `focused_value()`, not `focused()`: legacy's same-param test forwards through a horizontal
 	// page to the focused value column (`Submenu::shouldForwardButtons`,
-	// `gui/menu_item/submenu.cpp:181-185`) -- the page node itself has no `bind.param` to compare
+	// `Submenu::shouldForwardButtons`) -- the page node itself has no `bind.param` to compare
 	// against, so `focused()` alone would never suppress the popup on a horizontal menu at all.
 	const menu::Node* focused = menu_scene().focused_value();
 	if (focused == nullptr || !focused->bind.param.valid()) {
@@ -362,7 +377,7 @@ bool ModKnobs::popup_suppressed(const ModTurn& turn) const {
 }
 
 bool ModKnobs::show_popup(const ModTurn& turn, uint32_t now_ms) {
-	// `:887-899` -- the two patch sources, then the popup itself.
+	// The two patch sources, then the popup itself.
 	PatchSource source1 = PatchSource::NONE;
 	PatchSource source2 = PatchSource::NONE;
 	if (turn.kind == Kind::PATCH_CABLE) {
@@ -412,12 +427,12 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 	}
 	int32_t knob_pos = turn.new_knob_pos;
 	if (turn.kind == Kind::PATCH_CABLE) {
-		// `:1063-1065` -- a patch cable is -128..+128; fold it into the indicator's range so "the
+		// A patch cable is -128..+128; fold it into the indicator's range so "the
 		// middle" is the same number the indicator blinks at.
 		knob_pos = bind::fold_cable(knob_pos + kKnobPosOffset) - kKnobPosOffset;
 	}
 
-	if (knob_pos == 0 && turn.should_indicate_middle_value) { // `:1071`
+	if (knob_pos == 0 && turn.should_indicate_middle_value) {
 		// One indicator blinks at a time (`indicator_leds.cpp`'s `whichLevelIndicatorBlinking`): starting
 		// this knob's blink ends the other's, which then shows its level again.
 		for (int32_t k = 0; k < kKnobCount; k++) {
@@ -425,19 +440,18 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 			blink_indicator_start_ms_[k] = 0;
 		}
 		blink_indicator_[which_encoder] = true;
-		blink_indicator_bipolar_[which_encoder] =
-		    deluge::modulation::params::isParamBipolar(turn.kind, turn.param_id); // `:1072`
+		blink_indicator_bipolar_[which_encoder] = deluge::modulation::params::isParamBipolar(turn.kind, turn.param_id);
 		// `blinkKnobIndicator` restarts the flash from the top on every qualifying turn
-		// (`indicator_leds.cpp:290-294` re-seeds `levelIndicatorBlinksLeft`), so the phase origin
+		// (`indicator_leds::blinkKnobIndicator` re-seeds `levelIndicatorBlinksLeft`), so the phase origin
 		// moves with it.
 		blink_indicator_start_ms_[which_encoder] = now_ms_;
-		// `:1074` `indicator_leds::blinkKnobIndicator(whichModEncoder, isBipolar)` -- recorded here,
+		// `indicator_leds::blinkKnobIndicator(whichModEncoder, isBipolar)` -- recorded here,
 		// declared by `leds()`.
 		// `main`'s `pretendModKnobsUntouchedForAWhile` here writes `timeModEncoderLastTurned`, which nothing reads,
 		// so it has no port.
 	}
 	else {
-		blink_indicator_[which_encoder] = false; // `:1080` `stopBlinkingKnobIndicator`
+		blink_indicator_[which_encoder] = false; // `stopBlinkingKnobIndicator`
 		blink_indicator_start_ms_[which_encoder] = 0;
 	}
 }
@@ -447,12 +461,12 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 	// `View::modButtonAction`.
 
-	// `:1500-1506` -- the automation editor ignores a mod button, except mod button 0 on the arranger's, which keeps
+	// The automation editor ignores a mod button, except mod button 0 on the arranger's, which keeps
 	// the VU meter toggleable there.
 	if (view_.in_automation_editor && !(view_.automation_on_arranger && which_button == 0)) {
 		return;
 	}
-	if (std::holds_alternative<std::monostate>(focus_->owner) || !bound()) { // `:1510`
+	if (std::holds_alternative<std::monostate>(focus_->owner) || !bound()) {
 		return;
 	}
 	controls::Sink& sink = menu::host_controls_sink();
@@ -472,7 +486,7 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 	                              {.root_is_performance = view_.root_is_performance,
 	                               .mod_button_ui_mode_in_range = view_.mod_button_ui_mode_in_range,
 	                               .root_is_clip_minder = view_.root_is_clip_minder});
-	if (on && !section.popup) {
+	if (on && !section.taken) {
 		return;
 	}
 	if (section.toggle_vu_meter) {
@@ -484,22 +498,12 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 	if (section.end_stutter) {
 		(void)sink.stutter(*focus_, false);
 	}
-	if (!section.popup) {
+	if (!section.taken) {
 		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelPopup);
 		return;
 	}
-	PushInputs inputs;
-	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
-	if (const effects::EffectStates* fx = owner_effects()) {
-		inputs.effects = *fx;
-	}
-	if (const auto* sound = std::get_if<bind::SoundFocus>(&focus_->owner)) {
-		const instrument::SoundState* state = facts.sound_state(sound->slot);
-		inputs.fm = state != nullptr && state->synth_mode == SynthMode::FM;
-	}
-	inputs.alt_delay = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
-	inputs.clip_context = is_clip_context(*focus_);
-	if (const std::string text = mod_button_popup(song_->project, *focus_, which_button, inputs); !text.empty()) {
+	if (const std::string text = mod_button_popup(song_->project, *focus_, which_button, push_inputs(false));
+	    !text.empty()) {
 		popup_text(text);
 	}
 }
@@ -509,11 +513,11 @@ Result ModKnobs::mod_encoder_button_action(int32_t which_encoder, bool on, bool 
 	Result result;
 	result.handled = true;
 	if (learn || std::holds_alternative<std::monostate>(focus_->owner) || !bound()) {
-		return result; // `:1336-1340`
+		return result;
 	}
 	controls::Sink& sink = menu::host_controls_sink();
 
-	if (shift && on) { // `:1342-1344` -- delete the knob's automation
+	if (shift && on) { // `View::modEncoderButtonAction_deleteAutomation`
 		const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder);
 		const auto* address = std::get_if<ParamAddress>(&assignment.target);
 		if (address != nullptr && menu::host_runtime_facts().param_value(*address).has_value()
@@ -526,26 +530,14 @@ Result ModKnobs::mod_encoder_button_action(int32_t which_encoder, bool on, bool 
 		return result;
 	}
 
-	// `modEncoderButtonAction_changeModControllable` (`:1363-1377`): the push's table, sent to the sink.
-	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
-	PushInputs inputs;
-	if (const effects::EffectStates* fx = owner_effects()) {
-		inputs.effects = *fx;
-	}
-	if (const auto* sound = std::get_if<bind::SoundFocus>(&focus_->owner)) {
-		const instrument::SoundState* state = facts.sound_state(sound->slot);
-		inputs.fm = state != nullptr && state->synth_mode == SynthMode::FM;
-	}
-	inputs.alt_delay = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
-	inputs.button_held = mode_held;
-	inputs.clip_context = is_clip_context(*focus_);
-	const KnobPush push = knob_push(song_->project, *focus_, which_encoder, on, inputs);
+	// `View::modEncoderButtonAction_changeModControllable`: the push's table, sent to the sink.
+	const KnobPush push = knob_push(song_->project, *focus_, which_encoder, on, push_inputs(mode_held));
 	if (push.midi_cc_select) {
 		// The instrument takes it from a clip minder with no UI mode active; a release ends it.
 		selecting_cc_ = sink.midi_cc_select(*focus_, which_encoder, on) && on;
 		selecting_knob_ = which_encoder;
 	}
-	// `:1371` -- a push that edited the instrument marks it, on a clip.
+	// A push that edited the instrument marks it, on a clip.
 	if (apply_push(menu::host_write_sink(), sink, *focus_, push) && push.edited && is_clip_context(*focus_)) {
 		(void)sink.instrument_edited(*focus_);
 	}
@@ -559,7 +551,7 @@ Result ModKnobs::mod_encoder_button_action(int32_t which_encoder, bool on, bool 
 		deluge::notify::notice_text(push.notice);
 	}
 	if (&stack_.input_top() == static_cast<const deluge::ui::shell::Scene*>(&menu_scene())) {
-		menu_scene().read_value_again(); // `:1374-1376`
+		menu_scene().read_value_again();
 	}
 	return result;
 }
@@ -573,12 +565,12 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 
 	if (info.has_auto_param) {
 		int32_t knob_pos = info.knob_pos;
-		// `:1419-1427` -- the same "never drag a position that is already below the limit up"
+		// The same "never drag a position that is already below the limit up"
 		// clamp `calculateKnobPosForModEncoderTurn` uses, with the same two limits.
 		const int32_t lower_limit = info.kind == Kind::PATCH_CABLE ? std::min(-192, knob_pos) : std::min(-64, knob_pos);
 		knob_pos = std::clamp(knob_pos, lower_limit, 64);
 
-		if (info.quantized_stutter && !stuttering) { // `:1428-1446`
+		if (info.quantized_stutter && !stuttering) {
 			// The five stutter rate buckets, each snapped to the position that lights that many of
 			// the four segments: 4ths none, 8ths one, 16ths two, 32nds three, 64ths all four.
 			if (knob_pos < -39) {
@@ -597,9 +589,9 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 				knob_pos = 64;
 			}
 		}
-		knob_pos += kKnobPosOffset; // `:1447`
+		knob_pos += kKnobPosOffset;
 
-		if (info.kind == Kind::PATCH_CABLE) { // `:1449-1451`
+		if (info.kind == Kind::PATCH_CABLE) {
 			knob_pos = bind::fold_cable(knob_pos);
 		}
 		out.declared = true;
@@ -609,7 +601,7 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 		// it to `indicator_leds::setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level, bool)`
 		// (`View::setKnobIndicatorLevel` calling `indicator_leds::setKnobIndicatorLevel`), so the value is
 		// truncated by an implicit conversion at exactly this point. The `>> 5` and `& 31` the
-		// review cites (`hid/led/indicator_leds.cpp:196-206`) run on that already-truncated
+		// review cites (`indicator_leds::actuallySetKnobIndicatorLevel`) run on that already-truncated
 		// parameter, not on the `int32_t` -- there is no wider legacy arithmetic to be faithful to.
 		// An explicit cast where legacy has an implicit one is the same value and a visible one.
 		out.level = static_cast<uint8_t>(knob_pos);
@@ -617,14 +609,14 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 		return out;
 	}
 
-	if (info.non_existent_param) { // `:1454-1458`
+	if (info.non_existent_param) {
 		out.declared = true;
 		// Same implicit-narrowing point as above.
 		out.level = static_cast<uint8_t>(info.non_existent_knob_pos + kKnobPosOffset);
 		out.bipolar = false;
 		return out;
 	}
-	if (info.patch_cable_default) { // `:1460-1465`
+	if (info.patch_cable_default) {
 		out.declared = true;
 		out.level = 64; // "equals 0 (midpoint) in -128 to +128 range"
 		out.bipolar = true;
@@ -636,8 +628,8 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 	// @warning **Legacy defect (the fifth entry), recorded in `src/scenes/README.md`'s "Defects this port
 	//          found in shipping firmware".** `View::setKnobIndicatorLevel` declares
 	//          `int32_t knobPos;` with no initialiser (`View::setKnobIndicatorLevel`) and assigns it on three of
-	//          its four paths -- `:1413`, `:1454`, `:1460` -- leaving it **uninitialised** on this
-	//          one. It is then passed to `indicator_leds::setKnobIndicatorLevel` at `:1468`, which
+	//          its four paths -- an `autoParam`'s, a non-existent param's and a patch cable's default -- leaving it
+	//          **uninitialised** on this one. It is then passed to `indicator_leds::setKnobIndicatorLevel`, which
 	//          truncates it to `uint8_t` and lights the gold knob's four-segment column from it:
 	//          undefined behaviour with a visible symptom. There is no behaviour to preserve, so
 	//          nothing is declared here and the knob keeps whatever it was last showing -- the
@@ -699,22 +691,22 @@ ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
 
 void ModKnobs::declare_indicators(deluge::ui::LedFrame& frame) {
 	// `View::setKnobIndicatorLevels`.
-	// `:1380-1382` -- no root UI: an empty scene stack.
+	// No root UI: an empty scene stack.
 	if (stack_.depth() == 0) {
 		return;
 	}
 	if (view_.in_automation_editor) {
-		return; // `:1385-1388` -- the automation editor's own display owns the columns
+		return; // the automation editor's own display owns the columns
 	}
 	if (std::holds_alternative<std::monostate>(focus_->owner) || !bound()) {
-		// `:1398-1400` `indicator_leds::clearKnobIndicatorLevels()`.
+		// `indicator_leds::clearKnobIndicatorLevels()`.
 		for (int32_t k = 0; k < kKnobCount; k++) {
 			(void)frame.indicator(static_cast<deluge::ui::IndicatorId>(k), deluge::ui::knob_indicator_levels(0, false));
 		}
 		return;
 	}
 	const bool stuttering = menu::host_runtime_facts().stutter_active();
-	for (int32_t k = 0; k < kKnobCount; k++) { // `:1390-1396`
+	for (int32_t k = 0; k < kKnobCount; k++) {
 		if (indicator_blinking(k)) {
 			// A blinking knob is driven by its blink's phase.
 			(void)frame.indicator(
@@ -734,8 +726,8 @@ void ModKnobs::leds(deluge::ui::LedFrame& frame) {
 	// `View::setModLedStates`' final block, "Sort out actual mod LEDs". The
 	// three LED groups above it (AFFECT_ENTIRE, CLIP_VIEW, SESSION_VIEW) are root-view questions
 	// and are not this service's -- see the class doc.
-	const bool its_the_song = !is_clip_context(*focus_); // `:1559`
-	const int32_t mod_knob_mode = mode();                // `:1660`
+	const bool its_the_song = !is_clip_context(*focus_); // `itsTheSong`
+	const int32_t mod_knob_mode = mode();
 
 	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
 	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
@@ -743,17 +735,17 @@ void ModKnobs::leds(deluge::ui::LedFrame& frame) {
 	// the normal blink every `blinkingType` 0 LED shares, MenuScene's BACK and LEARN among them.
 	constexpr deluge::ui::LedState kBlink = deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal);
 
-	for (int32_t i = 0; i < kNumModButtons; i++) { // `:1662`
-		const bool on = (i == mod_knob_mode);      // `:1663`
+	for (int32_t i = 0; i < kNumModButtons; i++) {
+		const bool on = (i == mod_knob_mode);
 		deluge::ui::LedState state = kOff;
 		if (its_the_song && on && mod_knob_mode == 0 && focus_->vu_meter) {
-			state = kBlink; // `:1666-1667` -- the volume mod LED blinks while the VU meter is up
+			state = kBlink; // the volume mod LED blinks while the VU meter is up
 		}
 		else if (view_.in_automation_editor) {
-			state = kOff; // `:1670-1671` -- every mod LED off in the automation editor
+			state = kOff; // every mod LED off in the automation editor
 		}
 		else {
-			state = on ? kOn : kOff; // `:1674-1675`
+			state = on ? kOn : kOff;
 		}
 		(void)frame.set(static_cast<deluge::ui::LedId>(static_cast<uint8_t>(ButtonId::Mod0) + i), state);
 	}
@@ -767,7 +759,7 @@ void ModKnobs::send_midi_follow_feedback(Kind kind, int32_t param_id, int32_t kn
 	if (!midiFollow.isFeedbackEnabled()) {
 		return;
 	}
-	if (!is_clip_context(*focus_)) { // `:1716` -- don't send feedback for song params
+	if (!is_clip_context(*focus_)) { // don't send feedback for song params
 		return;
 	}
 	if (have_param) {
@@ -792,7 +784,7 @@ void ModKnobs::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 	now_ms_ = now_ms;
 
 	if (automation_display_ms_.has_value() && static_cast<int32_t>(now_ms - *automation_display_ms_) >= 0) {
-		// `TimerName::DISPLAY_AUTOMATION`'s callback (`gui/ui_timer_manager.cpp:158-170`) is
+		// `TimerName::DISPLAY_AUTOMATION`'s callback (`UITimerManager::routine`) is
 		// `automationView.displayAutomation()` / `view.displayAutomation()`, both view-side and not
 		// ported. Disarming is all this can do; `automation_display_pending()` is the fact
 		// `leds()` reads, exactly as legacy reads `isTimerSet(DISPLAY_AUTOMATION)`.
@@ -801,7 +793,7 @@ void ModKnobs::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 
 	if (automation_feedback_ms_.has_value() && static_cast<int32_t>(now_ms - *automation_feedback_ms_) >= 0) {
 		automation_feedback_ms_.reset();
-		// `TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION`'s callback (`ui_timer_manager.cpp:172-175`):
+		// `TimerName::SEND_MIDI_FEEDBACK_FOR_AUTOMATION`'s callback (`UITimerManager::routine`):
 		// only while playback is active, and only when feedback automation is not disabled. The
 		// LOW/MEDIUM/HIGH send-rate re-arm below those lines is `ui_timer_manager`'s own and is not
 		// ported here -- it is not part of any `View` function this service ports.
@@ -827,7 +819,7 @@ std::optional<uint32_t> ModKnobs::next_timer() const {
 	consider(automation_display_ms_);
 	consider(automation_feedback_ms_);
 	// A blinking indicator needs a frame every half-period, and one more when the flash ends and
-	// the ordinary level comes back (`indicator_leds.cpp:304-312`'s 20 ms re-arm).
+	// the ordinary level comes back (`indicator_leds::blinkKnobIndicatorLevelTimeout`'s 20 ms re-arm).
 	for (int32_t k = 0; k < kKnobCount; k++) {
 		if (indicator_blinking(k)) {
 			const uint32_t elapsed = now_ms_ - blink_indicator_start_ms_[k];

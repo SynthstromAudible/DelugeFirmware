@@ -12,7 +12,8 @@
 
 namespace deluge::scenes::bind {
 
-/// @brief A gold knob that edits one of the song's compressor settings, which has no param: its setting's path.
+/// @brief A gold knob that edits one of the song's compressor settings, which has no param: its setting's path. Only
+///        the song's knobs resolve to one; the knobs write it to the song's chain.
 struct CompArm {
 	std::string_view path;
 	bool operator==(const CompArm&) const = default;

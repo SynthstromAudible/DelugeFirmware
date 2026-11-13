@@ -240,7 +240,7 @@ struct GestureRequest {
 };
 
 /// @brief A param write by address, as a RecordingSink keeps it.
-struct ParamWrite {
+struct RecordedParamWrite {
 	project::ParamAddress address;
 	int32_t value{0};
 	int32_t pos{0};
@@ -288,7 +288,7 @@ public:
 	bool instrument_edited(const KnobFocus& focus) override;
 	std::vector<WriteRequest> requests;
 	std::vector<GestureRequest> gestures;
-	std::vector<ParamWrite> param_writes;
+	std::vector<RecordedParamWrite> param_writes;
 	std::vector<project::ParamAddress> deletes;
 	std::vector<std::pair<project::ClipAddress, int32_t>> undo_scrolls; ///< each set_undo_scroll_after, in order
 };

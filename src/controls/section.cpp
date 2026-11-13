@@ -17,17 +17,12 @@
 
 #include "controls/section.h"
 
+#include "controls/mod_buttons.h"
+
 #include <utility>
 #include <variant>
 
 namespace deluge::controls {
-
-namespace {
-
-/// The compressor button: a clip chain's stutter outlives a press of it.
-constexpr int32_t kCompressorButton = 4;
-
-} // namespace
 
 SectionResult resolve_section(const KnobFocus& focus, uint8_t mode, int32_t button, bool on, const SectionInputs& in) {
 	if (on && !in.mod_button_ui_mode_in_range && !in.root_is_performance) {
@@ -37,12 +32,13 @@ SectionResult resolve_section(const KnobFocus& focus, uint8_t mode, int32_t butt
 	if (on) {
 		out.toggle_vu_meter = !in.root_is_clip_minder && std::cmp_equal(mode, button) && button == 0;
 		out.change_mode = knob_mode_owner(focus).has_value();
-		out.popup = true;
+		out.taken = true;
 	}
 	const bool chain = std::holds_alternative<ChainFocus>(focus.owner);
 	const bool song = std::holds_alternative<SongFocus>(focus.owner);
+	// A clip chain's stutter outlives a press of its reverb button.
 	out.end_stutter = std::holds_alternative<SoundFocus>(focus.owner)
-	                  || (chain && button != kCompressorButton && !in.root_is_performance)
+	                  || (chain && button != mod_button::kCompressor && !in.root_is_performance)
 	                  || (song && !in.root_is_performance);
 	return out;
 }

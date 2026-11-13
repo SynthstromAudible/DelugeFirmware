@@ -17,6 +17,7 @@
 
 #include "controls/knob_focus.h"
 
+#include "controls/mod_buttons.h"
 #include "deluge-project/song.h"
 
 #include <algorithm>
@@ -25,14 +26,13 @@ namespace deluge::controls {
 
 namespace {
 
-/// The highest mod button: a mode past it is the last.
-constexpr uint8_t kLastModButton = 7;
-
+/// @p mode, or the last mod button past it.
 uint8_t capped(uint8_t mode) {
-	return std::min(mode, kLastModButton);
+	return std::min(mode, mod_button::kLast);
 }
 
-/// The output whose mode the focus's knobs follow, or none for the song's or no focus.
+/// The output whose mode the focus's knobs follow: a synth's, a kit row's kit's, a kit's or audio track's, a MIDI
+/// track's. None for the song's, no focus, or a drum that names no kit.
 std::optional<uint32_t> mode_output(const KnobFocus& focus) {
 	if (const auto* sound = std::get_if<SoundFocus>(&focus.owner)) {
 		if (sound->kit) {
@@ -82,14 +82,8 @@ std::optional<project::KnobModeOwner> knob_mode_owner(const KnobFocus& focus) {
 	if (std::holds_alternative<SongFocus>(focus.owner)) {
 		return project::SongAddress{};
 	}
-	if (const auto* sound = std::get_if<SoundFocus>(&focus.owner)) {
-		return project::TrackAddress{sound->kit.value_or(sound->slot.id)};
-	}
-	if (const auto* chain = std::get_if<ChainFocus>(&focus.owner)) {
-		return project::TrackAddress{chain->chain.id};
-	}
-	if (const auto* midi = std::get_if<MidiFocus>(&focus.owner)) {
-		return midi->track;
+	if (const std::optional<uint32_t> id = mode_output(focus)) {
+		return project::TrackAddress{*id};
 	}
 	return std::nullopt;
 }

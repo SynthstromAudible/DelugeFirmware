@@ -50,7 +50,7 @@ struct Target {
 	/// A fact a drum must also hold to take a kit-wide write, beyond its row's conditions.
 	enum class FanOutFact : uint8_t {
 		NONE,
-		NOTE_TAILS, ///< a sound drum takes it only where it can hold note tails (RuntimeFacts::allows_note_tails)
+		NOTE_TAILS, ///< a sound drum takes it only where it can hold note tails (controls::Facts::allows_note_tails)
 	};
 	Kind kind{Kind::NONE};
 	std::string_view path; ///< the row's path, e.g. "osc1/type"

@@ -178,7 +178,7 @@ Sound::Sound()
 
 	setLpfMode(FilterMode::TRANSISTOR_24DB); // Good for samples, I think
 
-	// LFO
+	// The default knobs: the instrument's published page for each mod button.
 	for (const deluge::plugin::RemotePage& page : deluge::instrument::kDevicePages) {
 		for (uint8_t knob = 0; knob < kNumPhysicalModKnobs; knob++) {
 			if (const auto& param = page.slots[knob].param) {
