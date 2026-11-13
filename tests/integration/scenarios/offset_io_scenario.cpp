@@ -622,12 +622,18 @@ void runTick() {
 		if (reply == WaitState::Pending) {
 			break;
 		}
+		deluge_file_directory_set_latency_ms(0);
 		if (reply == WaitState::Expired) {
-			deluge_file_directory_set_latency_ms(0);
+			// The listing's own evidence needs a reply; the tier count does not.
+			const int32_t expiredTier =
+			    deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Sysex);
+			printf("OI-TIER sysex=%d\n", expiredTier);
+			if (expiredTier != 0) {
+				g_report.fail("TIER %d SysEx directory open(s) began synchronously after boot", expiredTier);
+			}
 			g_stage = Stage::Summary;
 			break;
 		}
-		deluge_file_directory_set_latency_ms(0);
 		const int32_t err = replyAttr(g_cable.lastReply, "err");
 		const bool listed = g_cable.lastReply.find("SRC.BIN") != std::string::npos;
 		const int32_t timeout = static_cast<int32_t>(deluge::storage::FsWireStatus::Timeout);

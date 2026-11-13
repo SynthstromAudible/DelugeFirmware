@@ -195,9 +195,12 @@ Wait g_loadWait{g_report, "the load finishing", kMaxLoadTicks};
 /// outstanding when BACK is pressed. A tick is about a virtual millisecond.
 constexpr uint32_t kHoldMs = 300;
 /// Ticks the cancel-in-STAGE leg runs on after BACK, past every hold, to see that nothing of the dropped load comes
-/// back, and ticks the completed load gets for its settings write to land. Not a wait: the property is that nothing
-/// of the dropped load comes back within this window, and no signal says it will not.
+/// back. Not a wait: the property is that nothing of the dropped load comes back within this window, and no signal
+/// says it will not.
 constexpr int32_t kAfterTicks = 1000;
+/// Ticks the completed load gets for its settings write to land. A fixed window: polling for the file would add card
+/// reads to the step.
+constexpr int32_t kSettingsTicks = 1000;
 
 /// cancel_in_stage: the song before the load, and the staging buffers parked when BACK was pressed.
 Song* g_songBefore = nullptr;
@@ -462,7 +465,7 @@ void runTick() {
 	}
 	case Stage::LastOpenedWait: {
 		// The settings write is handed to the byte channel as the load ends; give it time to land.
-		if (++g_cancelTicks < kAfterTicks) {
+		if (++g_cancelTicks < kSettingsTicks) {
 			break;
 		}
 		const bool settingsWritten = fileExists(kSettingsPath);

@@ -578,6 +578,10 @@ void runTick() {
 		if (listed == WaitState::Pending) {
 			break;
 		}
+		if (listed == WaitState::Expired) {
+			g_stage = Stage::DeleteClose;
+			break;
+		}
 		g_wait = Wait{g_report, "the delete folder listed and the byte channel idle", kMaxDeleteTicks};
 		g_stage = Stage::DeleteListWait;
 		break;

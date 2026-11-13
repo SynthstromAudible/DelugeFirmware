@@ -228,6 +228,8 @@ ScenarioReport g_report{"SC"};
 /// The seam wait of the stage running; `waitIdleThen` starts a fresh one for each stage that waits.
 Wait g_wait{g_report, "the settings seam going idle", kMaxWaitTicks};
 bool g_waitFresh = true;
+/// The stage that started `g_wait`.
+Stage g_waitStage = Stage::Write;
 uint32_t g_wrote = 0;
 uint32_t g_read = 0;
 uint32_t g_original = 0;
@@ -310,9 +312,11 @@ bool readWholeFile(const char* path, std::vector<uint8_t>& out) {
 /// Advance to `next` once the seam is idle; the wait reports it and the scenario moves to `onTimeout` if it never is.
 /// @param what Names the wait, stage first ("BUSY the settings seam going idle"); a literal that outlives the wait.
 void waitIdleThen(const char* what, Stage next, Stage onTimeout) {
-	if (g_waitFresh) {
+	// A stage that moved on by its own idle check never finished its wait, so freshness is also the stage owning it.
+	if (g_waitFresh || g_waitStage != g_stage) {
 		g_wait = Wait{g_report, what, kMaxWaitTicks};
 		g_waitFresh = false;
+		g_waitStage = g_stage;
 	}
 	switch (g_wait.poll(deluge::storage::bytes::idle())) {
 	case WaitState::Pending:
@@ -897,6 +901,7 @@ void deluge_scenario_settings_channel_begin(void) {
 	g_stage = Stage::Write;
 	g_stepDone = false;
 	g_summaryPrinted = false;
+	g_waitFresh = true;
 	g_report.reset();
 	g_wrote = 0;
 	g_read = 0;
