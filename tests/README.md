@@ -265,8 +265,10 @@ A scenario gate is a stepped scenario the Embassy host harness runs (`runner = "
 1. **The scenario:** `integration/scenarios/<name>_scenario.{h,cpp}`, exporting `begin`, `complete`,
    `dispatch_step`, `step_done` and `failures`, and a row in `integration/scenarios/scenario_table.cpp`. Only the host
    tree compiles that directory, so it needs no `DELUGE_HOST` guard, and includes are `"scenarios/<name>.h"`.
-   golden_vt_render's one stepped driver runs any row by name; nothing on the Rust side changes, unless the scenario
-   needs its own card (`main.rs`, the `match` on the scenario name).
+   The row also names the scenario's pacing (`ScenarioPacing`, default virtual time) and card (`ScenarioCard`,
+   default empty); golden_vt_render applies both and runs any row by name, so nothing on the Rust side changes. A
+   card of the scenario's own is a manifest beside it, `integration/scenarios/<name>.card`, in the format
+   `src/bsp/rust/src/storage/card_manifest.rs` documents.
 2. **The registry entry:** `scenario = "<name>"`, `builds = ["golden-vt-render"]`, the `markers` each run must print
    and the `result` line that says it passed. `./dbt test` checks those, and the exit status, itself.
 3. **A check, only if the gate needs more:** `tests/integration/checks/<name>.py`, named by the entry's `check`,

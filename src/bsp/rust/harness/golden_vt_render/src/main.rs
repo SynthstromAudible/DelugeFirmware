@@ -1,11 +1,10 @@
 //! `golden_vt_render`: boots the real C++ app on the BSP under a virtual clock, fills the card with
 //! a fixture tree, and runs one scenario deterministically.
 //!
-//! By default the scenario is an offline `StemExport` of the fixture song, whose stem WAVs it
-//! copies out; otherwise it is the scenario `GOLDEN_SCENARIO` names — the recorder round-trip, or a
-//! stepped scenario from `tests/integration/scenarios/scenario_table.cpp`. Sample cluster fills
-//! drain through the BSP's async `streaming_fill_task`, so a sample-backed fixture renders real
-//! audio.
+//! `GOLDEN_SCENARIO` names a row of `tests/integration/scenarios/scenario_table.cpp`: a stepped scenario, the
+//! recorder round trip, or (unset) `stem_export`, an offline `StemExport` of the fixture song whose stem WAVs it
+//! copies out. Sample cluster fills drain through the BSP's async `streaming_fill_task`, so a sample-backed fixture
+//! renders real audio.
 //!
 //! # Why a separate package
 //!
@@ -22,12 +21,13 @@
 //! Card transfers complete synchronously here. Where a gate needs storage time, the async fill
 //! task models it (`deluge_streaming_set_fill_*`).
 //!
-//! # The card is chosen before any task is spawned
+//! # The card and the pacing come from the scenario's row, before any task is spawned
 //!
-//! The BSP's host SD opens its disk once, lazily, on first access, and embassy does not order the
-//! first polls of tasks spawned together. So `main` installs the memory card before the executor
-//! exists; installed from a task, a poll order that reached [`boot_task`]'s SD bring-up first
-//! would open the wrong backing, silently.
+//! Each row carries its card (`ScenarioCard`: empty, the corpus fixture, a directory an environment variable
+//! names, a card manifest, or one of [`BUILDERS`]) and its pacing (`ScenarioPacing`). `main` applies both before the
+//! executor exists. The BSP's host SD opens its disk once, lazily, on first access, and embassy does not order the
+//! first polls of tasks spawned together, so a card installed from a task could lose to [`boot_task`]'s SD bring-up
+//! and open the wrong backing, silently.
 //!
 //! `GOLDEN_CARD_ONLY=1` installs the scenario's card and exits before anything runs, so `GOLDEN_SD_DUMP=<path>`
 //! writes out exactly the card the scenario boots with.
@@ -36,7 +36,8 @@
 
 use core::ffi::c_char;
 use core::sync::atomic::{AtomicBool, Ordering};
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
+use std::path::Path;
 
 use embassy_executor::raw;
 use embassy_time::{Duration, Instant, Timer};
@@ -52,16 +53,95 @@ use deluge_bsp_rust::channel::{
 use deluge_bsp_rust::deluge_bsp;
 use deluge_bsp_rust::peripherals::{board, control, display};
 use deluge_bsp_rust::storage::efatfs::host as efatfs_host;
-use deluge_bsp_rust::storage::{memory_card, sd, sd_image, streaming_loader};
+use deluge_bsp_rust::storage::{card_manifest, memory_card, sd, sd_image, streaming_loader};
 use deluge_bsp_rust::{app_loop, boot, sys, tier_meter};
 
-/// A stepped scenario, as `tests/integration/scenarios/scenario_table.h` declares it: found by
-/// name, then driven by [`run_stepped_scenario`]: `begin` once, then `dispatch_step` and
-/// `step_done` until `complete`.
+/// How a scenario's audio is paced: `ScenarioPacing` in `scenario_table.h`, in its order.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Pacing {
+    Virtual = 0,
+    Realtime = 1,
+    DevicePeriod = 2,
+}
+
+impl Pacing {
+    /// The pacing a row's byte names. The row's field is a byte, not this enum: a value outside the enum's range
+    /// would be undefined behaviour in a Rust enum.
+    fn from_byte(byte: u8) -> Self {
+        [Self::Virtual, Self::Realtime, Self::DevicePeriod]
+            .into_iter()
+            .find(|pacing| *pacing as u8 == byte)
+            .unwrap_or_else(|| panic!("golden_vt_render: pacing {byte} is not a ScenarioPacing"))
+    }
+
+    /// Sets the render up for this pacing. Called before the render task is spawned.
+    fn apply(self) {
+        match self {
+            Self::Virtual => {}
+            Self::Realtime => audio_host::set_realtime_render(true),
+            Self::DevicePeriod => {
+                audio_host::set_realtime_render(true);
+                render::set_period_override_us(2902, 0);
+            }
+        }
+    }
+}
+
+/// `ScenarioCard::Kind` in `scenario_table.h`, in its order.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CardKind {
+    Empty = 0,
+    CorpusFixture = 1,
+    FromEnv = 2,
+    Manifest = 3,
+    Builder = 4,
+}
+
+/// `ScenarioCard`: its kind as a byte, and its argument (null for `Empty` and `CorpusFixture`).
+#[repr(C)]
+struct CardSpec {
+    kind: u8,
+    arg: *const c_char,
+}
+
+/// A row's card, decoded.
+enum Card {
+    Empty,
+    CorpusFixture,
+    FromEnv {
+        var: &'static str,
+        fallback: Option<&'static str>,
+    },
+    Manifest(&'static str),
+    Builder(&'static str),
+}
+
+/// A row of `tests/integration/scenarios/scenario_table.cpp`, as `scenario_table.h` declares it.
 #[repr(C)]
 struct Scenario {
     name: *const c_char,
     on_app_init: Option<unsafe extern "C" fn()>,
+    begin: Option<unsafe extern "C" fn()>,
+    complete: Option<unsafe extern "C" fn() -> bool>,
+    dispatch_step: Option<unsafe extern "C" fn()>,
+    step_done: Option<unsafe extern "C" fn() -> bool>,
+    failures: Option<unsafe extern "C" fn() -> i32>,
+    pacing: u8,
+    card: CardSpec,
+}
+
+// scenario_table.cpp asserts the same offsets.
+const _: () = assert!(core::mem::offset_of!(Scenario, pacing) == 7 * core::mem::size_of::<usize>());
+const _: () = assert!(core::mem::offset_of!(Scenario, card) == 8 * core::mem::size_of::<usize>());
+
+// SAFETY: a row of a C++ `constexpr` table: immutable for the life of the process.
+unsafe impl Sync for Scenario {}
+
+/// A stepped scenario's five functions, driven by [`run_stepped_scenario`].
+#[derive(Clone, Copy)]
+struct Steps {
     begin: unsafe extern "C" fn(),
     complete: unsafe extern "C" fn() -> bool,
     dispatch_step: unsafe extern "C" fn(),
@@ -69,14 +149,80 @@ struct Scenario {
     failures: unsafe extern "C" fn() -> i32,
 }
 
-// SAFETY: a row of a C++ `constexpr` table: immutable for the life of the process.
-unsafe impl Sync for Scenario {}
+impl Scenario {
+    /// The row's steps, or `None` for a row the harness drives itself. The table asserts a row has all five or none.
+    fn steps(&self) -> Option<Steps> {
+        Some(Steps {
+            begin: self.begin?,
+            complete: self.complete?,
+            dispatch_step: self.dispatch_step?,
+            step_done: self.step_done?,
+            failures: self.failures?,
+        })
+    }
 
-/// The stepped scenario `GOLDEN_SCENARIO` names, if it names one.
-fn stepped_scenario(name: &str) -> Option<&'static Scenario> {
-    let name = std::ffi::CString::new(name).ok()?;
-    // SAFETY: host scenario C-ABI; `name` is NUL-terminated and outlives the call, and the table
-    // the answer points into is static.
+    fn pacing(&self) -> Pacing {
+        Pacing::from_byte(self.pacing)
+    }
+
+    fn card(&self) -> Card {
+        let kind = [
+            CardKind::Empty,
+            CardKind::CorpusFixture,
+            CardKind::FromEnv,
+            CardKind::Manifest,
+            CardKind::Builder,
+        ]
+        .into_iter()
+        .find(|kind| *kind as u8 == self.card.kind)
+        .unwrap_or_else(|| {
+            panic!(
+                "golden_vt_render: card kind {} is not a ScenarioCard::Kind",
+                self.card.kind
+            )
+        });
+        let arg = || -> &'static str {
+            assert!(
+                !self.card.arg.is_null(),
+                "golden_vt_render: a {kind:?} card needs its argument"
+            );
+            // SAFETY: a string literal in a C++ `constexpr` table: NUL-terminated and static.
+            unsafe { CStr::from_ptr(self.card.arg) }
+                .to_str()
+                .expect("golden_vt_render: a card argument is UTF-8")
+        };
+        match kind {
+            CardKind::Empty => Card::Empty,
+            CardKind::CorpusFixture => Card::CorpusFixture,
+            CardKind::FromEnv => match arg().split_once('|') {
+                Some((var, fallback)) => Card::FromEnv {
+                    var,
+                    fallback: Some(fallback),
+                },
+                None => Card::FromEnv {
+                    var: arg(),
+                    fallback: None,
+                },
+            },
+            CardKind::Manifest => Card::Manifest(arg()),
+            CardKind::Builder => Card::Builder(arg()),
+        }
+    }
+}
+
+/// The scenario this run plays: GOLDEN_SCENARIO, or `stem_export` when it is unset or empty.
+fn scenario_name() -> String {
+    std::env::var("GOLDEN_SCENARIO")
+        .ok()
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| "stem_export".to_string())
+}
+
+/// The table row named `name`, if there is one.
+fn table_row(name: &str) -> Option<&'static Scenario> {
+    let name = CString::new(name).ok()?;
+    // SAFETY: host scenario C-ABI; `name` is NUL-terminated and outlives the call, and the table the answer points
+    // into is static.
     unsafe { deluge_scenario_find(name.as_ptr()).as_ref() }
 }
 
@@ -133,10 +279,7 @@ async fn boot_task() {
     // reads (and its write when MIDI_FOLLOW.XML is absent) would occupy the single-slot byte
     // channel the export's folder search uses. Scenarios keep the prelude, which exercises it.
     // Must precede deluge_app_init, which registers the startup job.
-    if std::env::var("GOLDEN_SCENARIO")
-        .unwrap_or_default()
-        .is_empty()
-    {
+    if scenario_name() == "stem_export" {
         // SAFETY: plain store to a C++ global, before deluge_app_init reads it.
         unsafe { sys::deluge_startup_skip_settings_prelude() };
     }
@@ -146,9 +289,7 @@ async fn boot_task() {
     unsafe { sys::deluge_app_init(board::deluge_board()) };
     // A stepped scenario's hook for this moment: boot has not been marked finished, so neither the
     // app loop nor the render has run yet.
-    if let Some(on_app_init) =
-        stepped_scenario(&std::env::var("GOLDEN_SCENARIO").unwrap_or_default())
-            .and_then(|scenario| scenario.on_app_init)
+    if let Some(on_app_init) = table_row(&scenario_name()).and_then(|scenario| scenario.on_app_init)
     {
         // SAFETY: host scenario C ABI through the table row, after deluge_app_init.
         unsafe { on_app_init() };
@@ -201,11 +342,7 @@ fn stem_export_mode() -> i32 {
 /// `dispatch_step` per virtual millisecond, each waited out until `step_done`, until `complete`.
 /// Exits 1 on in-process failures, 2 on a wedge.
 #[embassy_executor::task]
-async fn run_stepped_scenario(
-    scenario: &'static Scenario,
-    name: &'static str,
-    done: &'static AtomicBool,
-) {
+async fn run_stepped_scenario(steps: Steps, name: &'static str, done: &'static AtomicBool) {
     log::info!("golden_vt_render: {name}: awaiting boot+mount");
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
@@ -221,28 +358,28 @@ async fn run_stepped_scenario(
 
     // SAFETY (every call below): host scenario C ABI through the scenario's table row; boot has run
     // `deluge_app_init`.
-    unsafe { (scenario.begin)() };
+    unsafe { (steps.begin)() };
 
     let deadline = Instant::now() + Duration::from_secs(600);
     loop {
-        if unsafe { (scenario.complete)() } {
+        if unsafe { (steps.complete)() } {
             break;
         }
         if Instant::now() >= deadline {
             log::error!("golden_vt_render: {name} did not complete within 600s — wedged");
             hard_exit(2);
         }
-        unsafe { (scenario.dispatch_step)() };
+        unsafe { (steps.dispatch_step)() };
         // One virtual millisecond per step before asking whether it is done: the gates' tick
         // counts and races are paced in these milliseconds.
         Timer::after_millis(1).await;
-        while !unsafe { (scenario.step_done)() } {
+        while !unsafe { (steps.step_done)() } {
             Timer::after_millis(1).await;
         }
         Timer::after_millis(1).await;
     }
 
-    let failures = unsafe { (scenario.failures)() };
+    let failures = unsafe { (steps.failures)() };
     if failures != 0 {
         log::error!(
             "golden_vt_render: {name} FAILED ({failures} in-process failure(s) — see the log above)"
@@ -632,6 +769,67 @@ fn staging_dir(name: &str) -> std::path::PathBuf {
 fn install_staged(root: &std::path::Path) {
     memory_card::install(Some(root));
     let _ = std::fs::remove_dir_all(root);
+}
+
+/// The cards whose contents a manifest cannot describe, by the name a `Builder` row gives.
+const BUILDERS: &[(&str, fn(&Path))] = &[
+    ("audio_load_ab", |_| fill_audio_load_ab_card()),
+    ("card_reinsert", |_| fill_card_reinsert_card()),
+    ("clear_song_undo", |_| fill_clear_song_undo_card()),
+    ("load_cancel", |_| fill_load_cancel_card()),
+    ("load_policy", fill_load_policy_card),
+    ("preset_load", |_| fill_preset_load_card()),
+    ("sample_claim", |_| fill_sample_claim_card()),
+    ("sample_collect", |_| fill_sample_collect_card()),
+    ("sample_load_tree", |_| fill_sample_load_tree_card()),
+    ("song_load_channel", |_| fill_song_load_channel_card()),
+    ("song_preview_ab", fill_song_preview_ab_card),
+    ("song_save_channel", |_| fill_song_save_card()),
+];
+
+/// Installs scenario `name`'s card. Exits 2 when the card cannot be made: a required variable unset, a manifest
+/// that does not parse or build, a builder name `BUILDERS` lacks.
+fn install_card(name: &str, card: Card, repo_root: &Path, fixture: &str) {
+    match card {
+        Card::Empty => memory_card::install(None),
+        Card::CorpusFixture => {
+            memory_card::install(Some(&corpus_fixture(name, repo_root, fixture)))
+        }
+        Card::FromEnv { var, fallback } => match (std::env::var_os(var), fallback) {
+            (Some(value), _) if value == "none" => memory_card::install(None),
+            (Some(value), _) => memory_card::install(Some(Path::new(&value))),
+            (None, Some("corpus")) => {
+                memory_card::install(Some(&corpus_fixture(name, repo_root, fixture)))
+            }
+            (None, Some(dir)) => memory_card::install(Some(&repo_root.join(dir))),
+            (None, None) => {
+                eprintln!("golden_vt_render: {name} needs {var}: the directory its card holds");
+                std::process::exit(2);
+            }
+        },
+        Card::Manifest(path) => {
+            let root = staging_dir(&format!("deluge-{name}-card"));
+            if let Err(e) = card_manifest::build_file(repo_root, &repo_root.join(path), &root) {
+                eprintln!("golden_vt_render: {name}'s card: {e}");
+                std::process::exit(2);
+            }
+            install_staged(&root);
+        }
+        Card::Builder(builder) => {
+            let Some((_, build)) = BUILDERS.iter().find(|(known, _)| *known == builder) else {
+                eprintln!(
+                    "golden_vt_render: {name} names card builder '{builder}', which BUILDERS does not hold"
+                );
+                std::process::exit(2);
+            };
+            build(repo_root);
+        }
+    }
+}
+
+/// The corpus fixture's tree, for scenario `name`.
+fn corpus_fixture(_name: &str, repo_root: &Path, fixture: &str) -> std::path::PathBuf {
+    sd_image::golden_fixture_tree(repo_root, fixture)
 }
 
 /// Stages the song-save scenario's card: an empty `SONGS` directory.
@@ -1435,111 +1633,44 @@ fn main() {
         .and_then(|s| s.parse().ok())
         .unwrap_or(60_000);
 
-    // GOLDEN_SCENARIO selects the scenario: unset for the stem export, `recorder_roundtrip`, or a
-    // stepped scenario by name.
-    let scenario = std::env::var("GOLDEN_SCENARIO").unwrap_or_default();
-    let recorder_mode = scenario == "recorder_roundtrip";
-    let stepped = stepped_scenario(&scenario);
-    log::info!(
-        "golden_vt_render: fixture={fixture} budget_ms={budget_ms} scenario={}",
-        if scenario.is_empty() {
-            "stem_export"
-        } else {
-            scenario.as_str()
-        }
-    );
-    // A name the table does not hold is a mistake (a scenario not registered in scenario_table.cpp,
-    // or a typo), not a request for the stem export, which would run for minutes and report nothing
-    // about the scenario.
-    if !scenario.is_empty() && !recorder_mode && stepped.is_none() {
+    // GOLDEN_SCENARIO names a row of the scenario table; unset, it is the stem export.
+    let scenario = scenario_name();
+    log::info!("golden_vt_render: fixture={fixture} budget_ms={budget_ms} scenario={scenario}");
+    // A name the table does not hold is a mistake (a scenario not registered in scenario_table.cpp, or a typo), not
+    // a request for the stem export, which would run for minutes and report nothing about the scenario.
+    let Some(row) = table_row(&scenario) else {
         eprintln!(
             "golden_vt_render: no scenario named '{scenario}' (tests/integration/scenarios/scenario_table.cpp)"
         );
         std::process::exit(2);
+    };
+    enum Driver {
+        Stepped(Steps),
+        RecorderRoundtrip,
+        StemExport,
     }
+    let driver = match (row.steps(), scenario.as_str()) {
+        (Some(steps), _) => Driver::Stepped(steps),
+        (None, "recorder_roundtrip") => Driver::RecorderRoundtrip,
+        (None, "stem_export") => Driver::StemExport,
+        (None, other) => {
+            eprintln!(
+                "golden_vt_render: scenario '{other}' has no steps, and the harness has no driver of its own for it"
+            );
+            std::process::exit(2);
+        }
+    };
 
-    // The card must be chosen here, before any task is spawned (see the module doc).
-    let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+    // The card and the pacing must be set here, before any task is spawned (see the module doc).
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(5)
         .expect("CARGO_MANIFEST_DIR (src/bsp/rust/harness/golden_vt_render) has a repo root 5 levels up")
         .to_path_buf();
-    // render_song and render_preset play as the device does: every block rendered on the audio
-    // tier after boot, one 128-frame block per 2,902 virtual microseconds, so their timing checks
-    // compare against the device's audio period. Set before the render task is spawned.
-    if scenario == "render_song" || scenario == "render_preset" {
-        audio_host::set_realtime_render(true);
-        render::set_period_override_us(2902, 0);
-    }
-    // clock_input's analog-clock transport times its input ticks by AudioEngine::audioSampleTimer,
-    // which only real rendering advances. It has no golden timing, so no period override.
-    if scenario == "clock_input" {
-        audio_host::set_realtime_render(true);
-    }
-    // ui_timer_deadline compares UI timers, which run on AudioEngine::audioSampleTimer, with the app
-    // loop's virtual clock, so the sample clock keeps the device's pace: one block per 2,902 µs.
-    // idle_job_rates counts the ui routine's runs, which follow the same timers, so it keeps that pace too.
-    // recorder_take records the test input signal and plays a DIN script during the take, both of which follow the
-    // render, so it renders every block at the device's pace too. stale_ui plays a DIN script and waits on an armed
-    // song swap, which the playing song's loop launches, and on the UI timers it sets while the swap waits.
-    if scenario == "ui_timer_deadline"
-        || scenario == "idle_job_rates"
-        || scenario == "recorder_take"
-        || scenario == "stale_ui"
-        || scenario == "ui_script"
-    {
-        audio_host::set_realtime_render(true);
-        render::set_period_override_us(2902, 0);
-    }
-    // The card: a memory disk holding the scenario's fixture tree, unless DELUGE_SD_IMAGE names an
-    // image file.
+    row.pacing().apply();
+    // DELUGE_SD_IMAGE, when set, names an image file to use as the card instead.
     if std::env::var_os("DELUGE_SD_IMAGE").is_none() {
-        match scenario.as_str() {
-            "recorder_roundtrip" | "sound_lifetime" | "clip_lifetime" | "container_guard"
-            | "audio_header_dump" | "ui_timer_deadline" | "idle_job_rates" | "recorder_take"
-            | "stale_ui" | "menu_dump" => memory_card::install(None),
-            "audio_load_ab" => fill_audio_load_ab_card(),
-            "song_preview_ab" => fill_song_preview_ab_card(&repo_root),
-            "song_save_channel" => fill_song_save_card(),
-            "sample_collect" => fill_sample_collect_card(),
-            "card_reinsert" => fill_card_reinsert_card(),
-            "sample_load_tree" => fill_sample_load_tree_card(),
-            "sample_claim" => fill_sample_claim_card(),
-            "preset_load" => fill_preset_load_card(),
-            "load_cancel" => fill_load_cancel_card(),
-            "load_policy" => fill_load_policy_card(&repo_root),
-            "clear_song_undo" => fill_clear_song_undo_card(),
-            "song_load_channel" => fill_song_load_channel_card(),
-            // The card tree to play from: RENDER_TREE, or the GOLDEN_FIXTURE corpus fixture's.
-            "render_song" => {
-                memory_card::install(Some(&std::env::var_os("RENDER_TREE").map_or_else(
-                    || sd_image::golden_fixture_tree(&repo_root, &fixture),
-                    std::path::PathBuf::from,
-                )))
-            }
-            // The card tree run.py stages for one preset case; there is no fixture to fall back on.
-            // A scenes spec file's card: SCENES_SPEC_CARD ("none" for an empty card), or the fixture.
-            "scenes_spec" => match std::env::var("SCENES_SPEC_CARD").as_deref() {
-                Ok("none") => memory_card::install(None),
-                Ok(dir) => memory_card::install(Some(std::path::Path::new(dir))),
-                Err(_) => memory_card::install(Some(&repo_root.join("tests/fixtures/card"))),
-            },
-            // The card a UI script plays on: UI_CARD, or the scripts' own fixture.
-            "ui_script" => memory_card::install(Some(&std::env::var_os("UI_CARD").map_or_else(
-                || repo_root.join("tests/fixtures/card"),
-                std::path::PathBuf::from,
-            ))),
-            "render_preset" => memory_card::install(Some(&std::path::PathBuf::from(
-                std::env::var_os("RENDER_TREE").expect("render_preset needs RENDER_TREE"),
-            ))),
-            // Scenarios that build their song in memory and read nothing from a card: an empty one, so they run
-            // where the song corpus is absent (CI).
-            "clock_input" | "mapping_dispatch" | "param_projection" | "param_table_check"
-            | "param_target_check" | "param_clone" | "patch_routing" | "document_version"
-            | "preset_parse" | "effect_owners" | "edit_substrate" | "xml_replay_diff"
-            | "model_decode_diff" | "audio_tick_hold" => memory_card::install(None),
-            _ => memory_card::install(Some(&sd_image::golden_fixture_tree(&repo_root, &fixture))),
-        }
+        install_card(&scenario, row.card(), &repo_root, &fixture);
     }
     // GOLDEN_CARD_ONLY: stop once the card is installed, so GOLDEN_SD_DUMP holds exactly what the scenario boots
     // with and nothing it writes.
@@ -1574,14 +1705,16 @@ fn main() {
     spawner.spawn(file_stream::file_stream_task().unwrap());
 
     static DONE: AtomicBool = AtomicBool::new(false);
-    if let Some(stepped) = stepped {
-        let name: &'static str = Box::leak(scenario.clone().into_boxed_str());
-        spawner.spawn(run_stepped_scenario(stepped, name, &DONE).unwrap());
-    } else if recorder_mode {
-        spawner.spawn(run_recorder_roundtrip_scenario(&DONE).unwrap());
-    } else {
-        let fixture_static: &'static str = Box::leak(fixture.into_boxed_str());
-        spawner.spawn(run_stem_export_scenario(fixture_static, &DONE).unwrap());
+    match driver {
+        Driver::Stepped(steps) => {
+            let name: &'static str = Box::leak(scenario.clone().into_boxed_str());
+            spawner.spawn(run_stepped_scenario(steps, name, &DONE).unwrap());
+        }
+        Driver::RecorderRoundtrip => spawner.spawn(run_recorder_roundtrip_scenario(&DONE).unwrap()),
+        Driver::StemExport => {
+            let fixture_static: &'static str = Box::leak(fixture.into_boxed_str());
+            spawner.spawn(run_stem_export_scenario(fixture_static, &DONE).unwrap());
+        }
     }
 
     // The discrete-event loop: poll to quiescence, then jump the virtual clock to the next due
