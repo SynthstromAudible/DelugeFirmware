@@ -109,10 +109,14 @@ These are reference data, not recordings: nothing in the tree regenerates them. 
 reading its source with `git show origin/main:<path>`, and name that source in the commit.
 
 The rows were frozen from `next`'s legacy menu at 16b2d012b, before it was deleted, and audited against `origin/main`
-96c002803 item by item over the menu code `next` changed. They hold `main`'s answer except where `next`'s menu
-differs from `main` on purpose, each a row of `tests/ui-scripts/parity/DIFFERENCES.md`: the sample repeat titles
-(D149, accepted), the delay's three types (D155), the community features `main` has and `next` removed (D156) and the
-audio clip attack's write (D157).
+96c002803 by reading code, not by regenerating them (nothing can produce the rows from `main`): every one of the 86
+`fix` and `feat` commits since the merge base 4cdf49002 that touches the menu items, `gui/l10n` or the runtime
+settings was reviewed, the other 114 such commits were scanned for changes to titles, options, ranges, relevance and
+learn, and a sample of items was checked against `main`'s source. Refactors were assumed to preserve behaviour where
+their diffs changed no answer. Rows changed since the freeze followed `main` (`b0aee86a8`, `cb63476d1`). The rows hold
+`main`'s answer except where they differ from `main` and the difference is accepted, each a row of
+`tests/ui-scripts/parity/DIFFERENCES.md`: the sample repeat titles (D149), the delay's three types (D155), the
+community features `main` has and `next` removed (D156) and the audio clip attack's write (D157).
 
 Where an answer is a model value main's item left behind rather than text the item returned, the row is that value as
 the port's `bindings::read` reads it after main's write: the first value of every `write/<v>` row, and the
