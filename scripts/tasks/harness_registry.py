@@ -96,8 +96,13 @@ def declares_corpus(h: "Harness") -> bool:
 
 
 def corpus_fixture_scenarios(root: Path) -> set[str]:
-    """The scenario_table.cpp rows whose card is the corpus fixture (`kCorpusFixture`)."""
-    text = (root / SCENARIO_TABLE).read_text()
+    """The scenario_table.cpp rows whose card is the corpus fixture (`kCorpusFixture`).
+
+    A `fromEnv("VAR|corpus")` row reaches the corpus only when VAR is unset, which only the run knows;
+    golden_vt_render's run-time refusal covers those.
+    """
+    lines = (root / SCENARIO_TABLE).read_text().splitlines()
+    text = "\n".join(line for line in lines if not line.strip().startswith("//"))
     start = text.index("kScenarios[] = {")
     body = text[start : text.index("\n};", start)]
     return {

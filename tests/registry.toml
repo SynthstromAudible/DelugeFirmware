@@ -302,6 +302,22 @@ runtime = "~5m"
 
 # tier = "nightly": needs song-corpus (the cordae project tree is reconstructed from it).
 [[harness]]
+name = "corpus-guard"
+path = "."
+level = "integration"
+runner = "script"
+kind = "property"
+status = "gate"
+gates = "golden_vt_render exits 2 with its refusal when a run that does not declare the song corpus asks for the corpus fixture's card (stem_export with GOLDEN_CARD_ONLY), so a scenario given the corpus card by mistake fails on every machine"
+build = []
+run = ["python3", "tests/integration/checks/corpus_guard.py"]
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+group = "unit"
+runtime = "~1s"
+
+[[harness]]
 name = "embassy-layout-invariance"
 path = "."
 level = "integration"

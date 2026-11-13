@@ -743,6 +743,19 @@ class CorpusDeclarationTest(unittest.TestCase):
     def test_the_table_has_corpus_fixture_rows(self):
         self.assertIn(hr.STEM_EXPORT_ROW, hr.corpus_fixture_scenarios(self.ROOT))
 
+    def test_a_comment_naming_the_corpus_fixture_does_not_mark_a_row(self):
+        root = Path(tempfile.mkdtemp())
+        table = root / hr.SCENARIO_TABLE
+        table.parent.mkdir(parents=True)
+        table.write_text(
+            "kScenarios[] = {\n"
+            '    {"quiet", nullptr, ScenarioPacing::Virtual},\n'
+            "    // Not kCorpusFixture: the row above boots an empty card.\n"
+            '    {"loud", nullptr, ScenarioPacing::Virtual, kCorpusFixture},\n'
+            "};\n"
+        )
+        self.assertEqual(hr.corpus_fixture_scenarios(root), {"loud"})
+
     def test_every_scenario_entry_on_the_corpus_fixture_declares_it(self):
         rows = hr.corpus_fixture_scenarios(self.ROOT)
         undeclared = [
