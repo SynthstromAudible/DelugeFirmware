@@ -56,6 +56,7 @@ def _script(name, code, baseline=("base.txt",)):
         run=[sys.executable, "-c", code],
         requires=[],
         runtime_s=1,
+        job="unit",
         baseline=list(baseline),
     )
 

@@ -6,9 +6,13 @@
 #         component   -- one component against a reference, a stress load or a fuzzer
 #         integration -- the whole app, booted, driven end to end
 # runner: ctest    -- configured, built and run from `source` into `tree`
-#         cargo    -- a cargo test suite, run from `path`
-#         scenario -- a golden_vt_render scenario, driven by its script
-#         script   -- anything else, run from `path`
+#         cargo    -- a cargo test suite, run in `path`
+#         scenario -- a golden_vt_render scenario, judged by its markers, result and check
+#         corpus   -- a tests/golden/<corpus_runner>_run.py sweep, which judges itself
+#         script   -- anything else, run in `path`
+# kind:   unit | property | differential | regression | sanitizer | simulation | benchmark (harness_registry.KINDS)
+# path:   cargo and script entries only -- the directory their commands run in
+# requires: probes (harness_registry.PROBES) the test needs; none when absent
 # status: gate          -- a standing regression gate; breakage is a real signal
 #         investigative -- a rig for answering a question, run on demand
 #         unavailable   -- cannot run here; NOT scheduled for deletion -- see
@@ -91,7 +95,6 @@ runtime_s = 30
 
 [[harness]]
 name = "load-policy"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "regression"
@@ -101,7 +104,6 @@ scenario = "load_policy"
 markers = ["LP-ABANDON", "LP-CANDIDATES", "LP-ADMISSION", "LP-OPEN-PATH", "LP-DEFAULT", "LP-INVARIANTS", "LP-WT-PIN", "LP-PITCH-PIN", "LP-WT-ZEROBAND", "LP-WT-FAIL"]
 result = "LP-RESULT failures=0"
 builds = ["golden-vt-render"]
-requires = []
 baseline = ["tests/dsp/wavetable_band_records.h", "tests/integration/scenarios/pitch_pin_records.h"]
 tier = "pr"
 job = "app"
@@ -109,7 +111,6 @@ runtime_s = 10
 
 [[harness]]
 name = "load-policy-wavetable-churn"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -120,7 +121,6 @@ markers = ["LP-WT-CHURN", "LP-INVARIANTS"]
 result = "LP-RESULT failures=0"
 env = { DELUGE_SIM_SDRAM_MB = "5", LOAD_POLICY_ONLY = "wt-churn" }
 builds = ["golden-vt-render"]
-requires = []
 tier = "nightly"
 job = "app"
 runtime_s = 60
@@ -172,7 +172,6 @@ runtime_s = 60
 
 [[harness]]
 name = "recorder-roundtrip"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "simulation"
@@ -196,7 +195,6 @@ runtime_s = 300
 # sibling golden_vt_render gates it can run anywhere.
 [[harness]]
 name = "audio-load-ab"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "differential"
@@ -207,7 +205,6 @@ markers = ["AB-PREVIEW", "AB-CANCEL", "AB-PREVIEW-STALL", "AB-PREVIEW-TIER", "AB
 result = "AB-RESULT failures=0"
 check = "tests/integration/checks/audio_load_ab.py"
 builds = ["golden-vt-render"]
-requires = []
 tier = "pr"
 job = "app"
 runtime_s = 300
@@ -224,7 +221,6 @@ runtime_s = 300
 # here wrote -- worth passing locally, not required.
 [[harness]]
 name = "song-preview-ab"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "differential"
@@ -235,7 +231,6 @@ markers = ["SP-WINDOW", "SP-SWAP-BEFORE", "SP-EJECT", "SP-SWAP-SUMMARY", "SP-LIS
 result = "SP-RESULT failures=0"
 check = "tests/integration/checks/song_preview_ab.py"
 builds = ["golden-vt-render"]
-requires = []
 tier = "nightly"
 job = "render"
 runtime_s = 300
@@ -276,7 +271,6 @@ runtime_s = 180
 
 [[harness]]
 name = "dsp-ubsan"
-path = "tests/dsp-ubsan"
 level = "unit"
 runner = "ctest"
 kind = "sanitizer"
@@ -334,7 +328,6 @@ gates = "golden_vt_render exits 2 with its refusal when a run that does not decl
 build = []
 run = ["python3", "tests/integration/checks/corpus_guard.py"]
 builds = ["golden-vt-render"]
-requires = []
 tier = "pr"
 job = "unit"
 runtime_s = 1
@@ -358,7 +351,6 @@ runtime_s = 45
 
 [[harness]]
 name = "save-roundtrip"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -375,7 +367,6 @@ runtime_s = 300
 
 [[harness]]
 name = "document-save-channel"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -392,7 +383,6 @@ runtime_s = 600
 
 [[harness]]
 name = "sample-collect-channel"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -403,7 +393,6 @@ result = "SC-RESULT failures=0"
 markers = ["SC-SETUP", "SC-COPIED", "SC-RENAMED", "SC-ATOMIC", "SC-ORDERED", "SC-SUMMARY"]
 check = "tests/integration/checks/sample_collect_channel.py"
 builds = ["golden-vt-render"]
-requires = []
 tier = "nightly"
 job = "app"
 runtime_s = 600
@@ -414,7 +403,6 @@ runtime_s = 600
 # $SAMPLE_LOAD_TREE_TRACE when set, so a restructuring of the load path can be compared call for call.
 [[harness]]
 name = "sample-load-tree"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -425,7 +413,6 @@ markers = ["SLT-ARM", "SLT-SETUP", "SLT-HOLDER", "SLT-CLIP", "SLT-SONG", "SLT-SY
 result = "SLT-RESULT failures=0"
 check = "tests/integration/checks/sample_load_tree.py"
 builds = ["golden-vt-render"]
-requires = []
 tier = "nightly"
 job = "app"
 runtime_s = 300
@@ -433,7 +420,6 @@ runtime_s = 300
 # The sample browser's claim, from the browser a user opens: what each claim binds, and where its load runs.
 [[harness]]
 name = "sample-claim"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -445,7 +431,6 @@ result = "SC-RESULT failures=0"
 check = "tests/integration/checks/sample_claim.py"
 env = { GOLDEN_VIRTUAL_BUDGET_MS = "180000" }
 builds = ["golden-vt-render"]
-requires = []
 tier = "nightly"
 job = "app"
 runtime_s = 180
@@ -453,7 +438,6 @@ runtime_s = 180
 # The preset browser's own loads, from the browser a user opens: what each load binds, and where its card work runs.
 [[harness]]
 name = "preset-load"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -465,14 +449,12 @@ result = "PL-RESULT failures=0"
 check = "tests/integration/checks/preset_load.py"
 env = { GOLDEN_VIRTUAL_BUDGET_MS = "180000" }
 builds = ["golden-vt-render"]
-requires = []
 tier = "nightly"
 job = "app"
 runtime_s = 180
 
 [[harness]]
 name = "song-save-channel"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -483,14 +465,12 @@ markers = ["SS-BACKMIDSAVE", "SS-EXITMIDSAVE", "SS-GREW", "SS-SAVED", "SS-VERIFI
 result = "SS-RESULT failures=0"
 check = "tests/integration/checks/song_save_channel.py"
 builds = ["golden-vt-render"]
-requires = []
 tier = "nightly"
 job = "app"
 runtime_s = 720
 
 [[harness]]
 name = "clear-song-undo"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -501,14 +481,12 @@ markers = ["CS-PROBE", "CS-TIER", "CS-SONG", "CS-GATE", "CS-NEXT", "UN-PROBE", "
 result = "CS-RESULT failures=0"
 check = "tests/integration/checks/clear_song_undo.py"
 builds = ["golden-vt-render"]
-requires = []
 tier = "nightly"
 job = "app"
 runtime_s = 60
 
 [[harness]]
 name = "sound-lifetime"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -519,14 +497,12 @@ markers = ["SL-SYNTH", "SL-UNEDITED", "SL-KIT", "SL-DELETEDRUM", "SL-OPPORTUNIST
 result = "SL-RESULT failures=0"
 check = "tests/integration/checks/sound_lifetime.py"
 builds = ["golden-vt-render"]
-requires = []
 tier = "nightly"
 job = "app"
 runtime_s = 60
 
 [[harness]]
 name = "clip-lifetime"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -537,14 +513,12 @@ markers = ["CL-EPOCH0", "CL-PROBE", "CL-WINDOW", "CL-DANGLING", "CL-FREED", "CL-
 result = "CL-RESULT failures=0"
 check = "tests/integration/checks/clip_lifetime.py"
 builds = ["golden-vt-render"]
-requires = []
 tier = "nightly"
 job = "app"
 runtime_s = 60
 
 [[harness]]
 name = "container-guard"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -555,14 +529,12 @@ markers = ["CG-NOTEADD", "CG-NODES", "CG-NOTEDEL", "CG-ROWADD", "CG-ROWDEL", "CG
 result = "CG-RESULT failures=0"
 check = "tests/integration/checks/container_guard.py"
 builds = ["golden-vt-render"]
-requires = []
 tier = "nightly"
 job = "app"
 runtime_s = 60
 
 [[harness]]
 name = "playhead-moves"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -579,7 +551,6 @@ runtime_s = 30
 
 [[harness]]
 name = "card-reinsert"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -590,14 +561,12 @@ markers = ["CR-SETUP", "CR-RESIDENTS", "CR-SURVIVE", "CR-LOST", "CR-EVICT"]
 result = "CR-RESULT failures=0"
 check = "tests/integration/checks/card_reinsert.py"
 builds = ["golden-vt-render"]
-requires = []
 tier = "nightly"
 job = "app"
 runtime_s = 6
 
 [[harness]]
 name = "audio-tick-hold"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "regression"
@@ -607,14 +576,12 @@ scenario = "audio_tick_hold"
 markers = ["ATH-IDLE", "ATH-HOLD", "ATH-NESTED", "ATH-HELD", "ATH-REENTRY", "ATH-THROW"]
 result = "ATH-RESULT failures=0"
 builds = ["golden-vt-render"]
-requires = []
 tier = "pr"
 job = "app"
 runtime_s = 2
 
 [[harness]]
 name = "stem-export"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -632,7 +599,6 @@ runtime_s = 12
 
 [[harness]]
 name = "song-load-channel"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -643,14 +609,12 @@ result = "SL-RESULT failures=0"
 markers = ["SL-SETUP", "SL-CANCEL-BACK", "SL-CANCEL-LASTOPENED", "SL-CANCEL", "SL-REFUSED", "SL-LOADED-LASTOPENED", "SL-LOADED", "SL-ORDER", "SL-NEXT", "SL-SUMMARY"]
 check = "tests/integration/checks/song_load_channel.py"
 builds = ["golden-vt-render"]
-requires = []
 tier = "nightly"
 job = "app"
 runtime_s = 600
 
 [[harness]]
 name = "settings-channel"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -668,7 +632,6 @@ runtime_s = 240
 
 [[harness]]
 name = "favourites-channel"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -685,7 +648,6 @@ runtime_s = 300
 
 [[harness]]
 name = "startup-failsafe"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -702,7 +664,6 @@ runtime_s = 240
 
 [[harness]]
 name = "path-operations"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -719,7 +680,6 @@ runtime_s = 240
 
 [[harness]]
 name = "offset-io"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -736,7 +696,6 @@ runtime_s = 240
 
 [[harness]]
 name = "pattern-load"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -752,7 +711,6 @@ runtime_s = 60
 
 [[harness]]
 name = "staging-release"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -768,7 +726,6 @@ runtime_s = 60
 
 [[harness]]
 name = "clock-input"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -778,14 +735,12 @@ scenario = "clock_input"
 markers = ["TC-INPUT", "TC-BURST"]
 result = "TC-RESULT failures=0"
 builds = ["golden-vt-render"]
-requires = []
 tier = "pr"
 job = "app"
 runtime_s = 60
 
 [[harness]]
 name = "recorder-take"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -796,14 +751,12 @@ check = "tests/integration/checks/recorder_take.py"
 markers = ["RT-OPEN", "RT-TAKE", "RT-ATTACH", "RT-REFUSED", "RT-CLOSED", "RT-SECOND", "RT-NULLED", "RT-REPLACED", "RT-NEXT-RUN", "RT-NEXT-ATTACH", "RT-NEXT"]
 result = "RT-RESULT failures=0"
 builds = ["golden-vt-render"]
-requires = []
 tier = "pr"
 job = "app"
 runtime_s = 5
 
 [[harness]]
 name = "stale-ui"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -813,14 +766,12 @@ scenario = "stale_ui"
 markers = ["SU-INERT", "SU-REPEATS", "SU-POPUP", "SU-KNOBUNDO", "SU-RETIRED", "SU-SWAPWORK", "SU-AUDITION", "SU-SWAPDROP", "SU-UNDO", "SU-HOLD", "SU-FAILED", "SU-ARRANGE", "SU-STACK", "SU-SWAP"]
 result = "SU-RESULT failures=0"
 builds = ["golden-vt-render"]
-requires = []
 tier = "pr"
 job = "app"
 runtime_s = 5
 
 [[harness]]
 name = "ui-scripts"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "regression"
@@ -831,7 +782,6 @@ check = "tests/integration/checks/ui_scripts.py"
 markers = ["UI-SCRIPT"]
 result = "UI-SCRIPT-RESULT failures=0"
 builds = ["golden-vt-render"]
-requires = []
 baseline = ["tests/golden/ui/app"]
 tier = "pr"
 job = "app"
@@ -839,7 +789,6 @@ runtime_s = 60
 
 [[harness]]
 name = "ui-menu-dump"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "regression"
@@ -850,7 +799,6 @@ check = "tests/integration/checks/menu_dump.py"
 markers = ["MENU-DUMP"]
 result = "MENU-DUMP-RESULT failures=0"
 builds = ["golden-vt-render"]
-requires = []
 baseline = ["website/src/data/generated/menu-tree.json"]
 tier = "pr"
 job = "app"
@@ -858,7 +806,6 @@ runtime_s = 2
 
 [[harness]]
 name = "ui-scenes-spec"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "regression"
@@ -869,7 +816,6 @@ check = "tests/integration/checks/scenes_spec.py"
 markers = ["SCENES-SPEC"]
 result = "SCENES-SPEC-RESULT failures=0"
 builds = ["golden-vt-render"]
-requires = []
 baseline = ["tests/golden/ui/menu", "tests/golden/ui/scenes", "tests/golden/ui/shell"]
 tier = "pr"
 job = "app"
@@ -877,7 +823,6 @@ runtime_s = 10
 
 [[harness]]
 name = "load-cancel"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -887,14 +832,12 @@ scenario = "load_cancel"
 markers = ["LC-SETUP", "LC-STAGE-BACK", "LC-STAGE", "LC-SAMPLES-BACK", "LC-SAMPLES", "LC-QUEUED-BACK", "LC-QUEUED", "LC-STALE-FINISHED", "LC-STALE-QUEUED", "LC-STALE-REPLACED", "LC-STALE", "LC-REFUSED-CANCEL", "LC-REFUSED"]
 result = "LC-RESULT failures=0"
 builds = ["golden-vt-render"]
-requires = []
 tier = "pr"
 job = "app"
 runtime_s = 5
 
 [[harness]]
 name = "ui-timer-deadline"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -904,14 +847,12 @@ scenario = "ui_timer_deadline"
 markers = ["UT-RATE", "UT-EARLIER"]
 result = "UT-RESULT failures=0"
 builds = ["golden-vt-render"]
-requires = []
 tier = "pr"
 job = "app"
 runtime_s = 60
 
 [[harness]]
 name = "idle-job-rates"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -921,14 +862,12 @@ scenario = "idle_job_rates"
 markers = ["IR-WINDOW", "IR-JOB"]
 result = "IR-RESULT failures=0"
 builds = ["golden-vt-render"]
-requires = []
 tier = "pr"
 job = "app"
 runtime_s = 5
 
 [[harness]]
 name = "render-song"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -939,7 +878,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
 job = "render"
@@ -947,7 +885,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-kit-fx"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -958,7 +895,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_KIT_FX" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -967,7 +903,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-kit-filters"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -978,7 +913,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_KIT_FILTERS" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -987,7 +921,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-filters"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -998,7 +931,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_FILTERS" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1007,7 +939,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-master-filters"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1018,7 +949,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_MASTER_FILTERS" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1027,7 +957,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-fx"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1038,7 +967,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_FX" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1047,7 +975,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-master-fx"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1058,7 +985,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_MASTER_FX" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1067,7 +993,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-master-pan-stereo"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1078,7 +1003,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_MASTER_PAN", RENDER_STEREO = "1" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1087,7 +1011,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-master-arranger"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1098,7 +1021,6 @@ markers = ["RS-LOADED", "RS-SONGPARAMS", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_MASTER_ARRANGER", RENDER_SONG_AUTOMATED = "1" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1107,7 +1029,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-master-grain-off"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1118,7 +1039,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_MASTER_GRAIN_OFF" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1127,7 +1047,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-kit-svf-morph"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1138,7 +1057,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_KIT_SVF_MORPH" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1147,7 +1065,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-drive"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1158,7 +1075,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_DRIVE" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1167,7 +1083,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-kit-filter-fade"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1178,7 +1093,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_KIT_FILTER_FADE" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1187,7 +1101,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-filter-fade"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1198,7 +1111,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_FILTER_FADE" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1207,7 +1119,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-audio-ducked"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1218,7 +1129,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_DUCKED" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1227,7 +1137,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-duck-shapes"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1238,7 +1147,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_DUCK_SHAPES" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1247,7 +1155,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-kit-comp"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1258,7 +1165,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_KIT_COMP" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1267,7 +1173,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-kit-delay"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1278,7 +1183,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_KIT_DELAY" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1287,7 +1191,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-delay-owners"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1298,7 +1201,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_DELAY_OWNERS" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1307,7 +1209,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-stutter-audio"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1318,7 +1219,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_STUTTER_AUDIO", RENDER_STUTTER = "100:600:audio" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1327,7 +1227,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-stutter-synth"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1338,7 +1237,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_STUTTER_SYNTH", RENDER_STUTTER = "100:600:synth" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1347,7 +1245,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-stutter-kit"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1358,7 +1255,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_STUTTER_KIT", RENDER_STUTTER = "150:700:kit" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1367,7 +1263,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-stutter-master"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1378,7 +1273,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_STUTTER_MASTER", RENDER_STUTTER = "100:900:master" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1387,7 +1281,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-stutter-rate"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1398,7 +1291,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_STUTTER_RATE", RENDER_STUTTER = "100:900:audio", RENDER_STUTTER_RATE = "400:0x30000000" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1407,7 +1299,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-stutter-handoff"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1418,7 +1309,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_STUTTER_HANDOFF", RENDER_STUTTER = "100:400:audio,400:800:kit" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1427,7 +1317,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-tempo-delays"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1438,7 +1327,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_TEMPO_DELAYS", RENDER_TEMPO = "300:70" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1447,7 +1335,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-delay"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1458,7 +1345,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_DELAY" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1467,7 +1353,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-kit-pingpong-stereo"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1478,7 +1363,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_KIT_PINGPONG", RENDER_STEREO = "1" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1487,7 +1371,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-delay-toggle"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1498,7 +1381,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_DELAY_TOGGLE" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1507,7 +1389,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-delay-switch"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1518,7 +1399,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_DELAY_SWITCH", RENDER_DELAY_SWITCH = "600,1000" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1527,7 +1407,6 @@ runtime_s = 40
 
 [[harness]]
 name = "render-pingpong-stereo-sweep"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1538,7 +1417,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_PINGPONG_SWEEP", RENDER_STEREO = "1" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1547,7 +1425,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-delay-extremes"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1558,7 +1435,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_DELAY_EXTREMES" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1567,7 +1443,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-low-clip"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1578,7 +1453,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_LOW_CLIP" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1587,7 +1461,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-bitcrush"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1598,7 +1471,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_BITCRUSH" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1607,7 +1479,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-eq-bands"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1618,7 +1489,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_EQ_BANDS" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1627,7 +1497,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-reverb-duck-override"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1638,7 +1507,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_REVERB_DUCK_OVERRIDE" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1647,7 +1515,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-reverb-duck-override-track"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1658,7 +1525,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_REVERB_DUCK_OVERRIDE_TRACK" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1667,7 +1533,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-metronome"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1678,7 +1543,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_METRONOME", RENDER_METRONOME = "200" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1687,7 +1551,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-comp-onset"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1698,7 +1561,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_COMP_ONSET" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1707,7 +1569,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-comp-reset"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1718,7 +1579,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_COMP_RESET" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1727,7 +1587,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-audio-track-comp-blend"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1738,7 +1597,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_AUDIO_COMP_BLEND" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1747,7 +1605,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-modfx-mono"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1758,7 +1615,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_MODFX_MONO" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1767,7 +1623,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-modfx-stereo-a"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1778,7 +1633,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_MODFX_STEREO_A", RENDER_STEREO = "1" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1787,7 +1641,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-modfx-stereo-b"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1798,7 +1651,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_MODFX_STEREO_B", RENDER_STEREO = "1" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1807,7 +1659,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-modfx-soft-off"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1818,7 +1669,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_MODFX_SOFT_OFF" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1827,7 +1677,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-modfx-switch"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1838,7 +1687,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_MODFX_SWITCH", RENDER_MODFX_SWITCH = "600:chorus,1000:TapeWarble" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1847,7 +1695,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-modfx-clear"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1858,7 +1705,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_MODFX_CLEAR", RENDER_MODFX_SWITCH = "1400:phaser", RENDER_MODFX_CLEAR = "1000,1800" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1867,7 +1713,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-grain-mono"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1878,7 +1723,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_GRAIN_MONO" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1887,7 +1731,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-grain-stereo"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1898,7 +1741,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_GRAIN_STEREO", RENDER_STEREO = "1" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1907,7 +1749,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-grain-switch"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1918,7 +1759,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_GRAIN_SWITCH", RENDER_MODFX_SWITCH = "600:grainFX,1800:chorus", RENDER_MODFX_CLEAR = "1300" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1927,7 +1767,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-grain-master"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1938,7 +1777,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_GRAIN_MASTER", RENDER_MODFX_SWITCH = "600:grainFX:master,1800:chorus:master" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1947,7 +1785,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-reverb-freeverb"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1958,7 +1795,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_REVERB_FREEVERB" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1967,7 +1803,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-reverb-mutable"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1978,7 +1813,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_REVERB_MUTABLE" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -1987,7 +1821,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-reverb-digital"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -1998,7 +1831,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_REVERB_DIGITAL", RENDER_STEREO = "1" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -2007,7 +1839,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-reverb-switch"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -2018,7 +1849,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_REVERB_SWITCH", RENDER_REVERB_SWITCH = "600:model=2,800:hpf=0.2,1000:model=0,1200:width=0.25,1400:room=0.3,1600:model=1,1800:lpf=0.8" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -2027,7 +1857,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-grain-restart"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -2038,7 +1867,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_GRAIN_RESTART", RENDER_BLOCKS = "4000" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -2047,7 +1875,6 @@ runtime_s = 25
 
 [[harness]]
 name = "render-grain-owners"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -2058,7 +1885,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { RENDER_GENERATED = "RS_GRAIN_OWNERS", RENDER_MODFX_SWITCH = "500:chorus:RSG,1200:grainFX:RSG", RENDER_MODFX_CLEAR = "1700:RSG,1800:RSK,1900:master" }
 baseline = ["tests/integration/golden/songs.json"]
 tier = "pr"
@@ -2067,7 +1893,6 @@ runtime_s = 20
 
 [[harness]]
 name = "render-song-corpus"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -2087,7 +1912,6 @@ runtime_s = 30
 
 [[harness]]
 name = "golden-synth"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "differential"
@@ -2098,7 +1922,6 @@ markers = ["RP-LOADED", "RP-MIDI", "RP-RENDER", "RP-TIER-SYNC-AUDIO", "RP-CAPTUR
 result = "RP-RESULT failures=0"
 check = "tests/integration/checks/render_preset.py"
 builds = ["golden-vt-render"]
-requires = []
 baseline = ["tests/integration/golden/presets.json"]
 tier = "pr"
 job = "render"
@@ -2106,7 +1929,6 @@ runtime_s = 20
 
 [[harness]]
 name = "param-dump"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "regression"
@@ -2117,14 +1939,12 @@ markers = ["RP-LOADED", "RP-MIDI", "RP-RENDER", "RP-TIER-SYNC-AUDIO", "RP-CAPTUR
 result = "RP-RESULT failures=0"
 check = "tests/integration/checks/param_dump.py"
 builds = ["golden-vt-render"]
-requires = []
 tier = "nightly"
 job = "render"
 runtime_s = 5
 
 [[harness]]
 name = "golden-synth-arm"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "differential"
@@ -2135,14 +1955,12 @@ markers = ["RP-LOADED", "RP-MIDI", "RP-RENDER", "RP-TIER-SYNC-AUDIO", "RP-CAPTUR
 result = "RP-RESULT failures=0"
 check = "tests/integration/checks/render_preset.py"
 builds = ["golden-vt-render-arm"]
-requires = []
 tier = "nightly"
 job = "unit"
 runtime_s = 60
 
 [[harness]]
 name = "streaming-margin"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -2153,7 +1971,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/streaming_margin.py"
 builds = ["golden-vt-render"]
-requires = []
 tier = "nightly"
 alone = true
 job = "render"
@@ -2161,7 +1978,6 @@ runtime_s = 30
 
 [[harness]]
 name = "streaming-margin-sweep"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "simulation"
@@ -2172,7 +1988,6 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/streaming_margin.py"
 builds = ["golden-vt-render"]
-requires = []
 env = { MARGIN_SWEEP = "0,50,100,125,150,200,300,500" }
 tier = "manual"
 alone = true
@@ -2182,7 +1997,6 @@ runtime_s = 60
 # needs song-corpus: recorder_write.py's offline drain renders the Cordae fixture.
 [[harness]]
 name = "recorder-write"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -2200,7 +2014,6 @@ runtime_s = 600
 
 [[harness]]
 name = "unit"
-path = "tests/unit"
 level = "unit"
 runner = "ctest"
 kind = "unit"
@@ -2227,7 +2040,6 @@ runtime_s = 5
 
 [[harness]]
 name = "unit-arm"
-path = "tests/unit-arm"
 level = "unit"
 runner = "ctest"
 kind = "unit"
@@ -2293,7 +2105,6 @@ runtime_s = 60
 # (`runner = "corpus"`) run their tests/golden runner, named by `corpus_runner`.
 [[harness]]
 name = "param-projection"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "unit"
@@ -2303,14 +2114,12 @@ scenario = "param_projection"
 markers = ["DRV-EXIT"]
 result = "DRV-EXIT code=0"
 builds = ["golden-vt-render"]
-requires = []
 tier = "pr"
 job = "model"
 runtime_s = 1
 
 [[harness]]
 name = "param-table-check"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "unit"
@@ -2320,14 +2129,12 @@ scenario = "param_table_check"
 markers = ["DRV-EXIT"]
 result = "DRV-EXIT code=0"
 builds = ["golden-vt-render"]
-requires = []
 tier = "pr"
 job = "model"
 runtime_s = 1
 
 [[harness]]
 name = "param-target-check"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "unit"
@@ -2337,14 +2144,12 @@ scenario = "param_target_check"
 markers = ["DRV-EXIT"]
 result = "DRV-EXIT code=0"
 builds = ["golden-vt-render"]
-requires = []
 tier = "pr"
 job = "model"
 runtime_s = 1
 
 [[harness]]
 name = "param-clone"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "unit"
@@ -2354,14 +2159,12 @@ scenario = "param_clone"
 markers = ["DRV-EXIT"]
 result = "DRV-EXIT code=0"
 builds = ["golden-vt-render"]
-requires = []
 tier = "pr"
 job = "model"
 runtime_s = 1
 
 [[harness]]
 name = "patch-routing"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -2371,14 +2174,12 @@ scenario = "patch_routing"
 markers = ["DRV-EXIT"]
 result = "DRV-EXIT code=0"
 builds = ["golden-vt-render"]
-requires = []
 tier = "pr"
 job = "model"
 runtime_s = 2
 
 [[harness]]
 name = "document-version"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "unit"
@@ -2388,14 +2189,12 @@ scenario = "document_version"
 markers = ["DRV-EXIT"]
 result = "DRV-EXIT code=0"
 builds = ["golden-vt-render"]
-requires = []
 tier = "pr"
 job = "model"
 runtime_s = 1
 
 [[harness]]
 name = "preset-parse"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "unit"
@@ -2405,14 +2204,12 @@ scenario = "preset_parse"
 markers = ["DRV-EXIT"]
 result = "DRV-EXIT code=0"
 builds = ["golden-vt-render"]
-requires = []
 tier = "pr"
 job = "model"
 runtime_s = 1
 
 [[harness]]
 name = "effect-owners"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "unit"
@@ -2422,14 +2219,12 @@ scenario = "effect_owners"
 markers = ["DRV-EXIT"]
 result = "DRV-EXIT code=0"
 builds = ["golden-vt-render"]
-requires = []
 tier = "pr"
 job = "model"
 runtime_s = 1
 
 [[harness]]
 name = "edit-substrate"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "unit"
@@ -2439,14 +2234,12 @@ scenario = "edit_substrate"
 markers = ["DRV-EXIT"]
 result = "DRV-EXIT code=0"
 builds = ["golden-vt-render"]
-requires = []
 tier = "pr"
 job = "model"
 runtime_s = 1
 
 [[harness]]
 name = "mapping-dispatch"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -2456,14 +2249,12 @@ scenario = "mapping_dispatch"
 markers = ["DRV-OUT MAPPING-DISPATCH"]
 result = "DRV-EXIT code=0"
 builds = ["golden-vt-render"]
-requires = []
 tier = "pr"
 job = "app"
 runtime_s = 5
 
 [[harness]]
 name = "xml-replay-diff"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "differential"
@@ -2473,14 +2264,12 @@ scenario = "xml_replay_diff"
 markers = ["DRV-EXIT"]
 result = "DRV-EXIT code=0"
 builds = ["golden-vt-render"]
-requires = []
 tier = "pr"
 job = "model"
 runtime_s = 1
 
 [[harness]]
 name = "song-roundtrip"
-path = "."
 level = "integration"
 runner = "corpus"
 kind = "regression"
@@ -2511,7 +2300,6 @@ runtime_s = 2
 
 [[harness]]
 name = "preset-roundtrip"
-path = "."
 level = "integration"
 runner = "corpus"
 kind = "regression"
@@ -2528,7 +2316,6 @@ runtime_s = 10
 
 [[harness]]
 name = "serializer-check"
-path = "."
 level = "integration"
 runner = "corpus"
 kind = "property"
@@ -2544,7 +2331,6 @@ runtime_s = 10
 
 [[harness]]
 name = "cable-decode"
-path = "."
 level = "integration"
 runner = "corpus"
 kind = "property"
@@ -2561,7 +2347,6 @@ runtime_s = 20
 
 [[harness]]
 name = "host-effect-settings"
-path = "."
 level = "integration"
 runner = "corpus"
 kind = "property"
@@ -2577,7 +2362,6 @@ runtime_s = 30
 
 [[harness]]
 name = "engine-settings"
-path = "."
 level = "integration"
 runner = "corpus"
 kind = "property"
@@ -2593,7 +2377,6 @@ runtime_s = 30
 
 [[harness]]
 name = "song-settings"
-path = "."
 level = "integration"
 runner = "corpus"
 kind = "property"
@@ -2609,7 +2392,6 @@ runtime_s = 30
 
 [[harness]]
 name = "instrument-codec-decode"
-path = "."
 level = "integration"
 runner = "corpus"
 kind = "property"
@@ -2625,7 +2407,6 @@ runtime_s = 20
 
 [[harness]]
 name = "instrument-codec-encode"
-path = "."
 level = "integration"
 runner = "corpus"
 kind = "property"
@@ -2641,7 +2422,6 @@ runtime_s = 20
 
 [[harness]]
 name = "instrument-state-roundtrip"
-path = "."
 level = "integration"
 runner = "corpus"
 kind = "property"
@@ -2657,7 +2437,6 @@ runtime_s = 20
 
 [[harness]]
 name = "json-roundtrip"
-path = "."
 level = "integration"
 runner = "corpus"
 kind = "property"
@@ -2673,7 +2452,6 @@ runtime_s = 10
 
 [[harness]]
 name = "model-decode-diff"
-path = "."
 level = "integration"
 runner = "corpus"
 kind = "property"
@@ -2681,7 +2459,6 @@ status = "gate"
 gates = "decode reads a saved song's model records exactly as the engine loader does: every synthetic song (and every corpus song when there is a corpus) is loaded, saved, and the saved bytes both loaded by the engine and decoded by the model alone; the song-level records, the arrangement, the MIDI mapping table and every clip, audio clip, output and drum record must be equal"
 corpus_runner = "model_decode_diff"
 builds = ["golden-vt-render"]
-requires = []
 tier = "pr"
 alone = true
 job = "model"
@@ -2689,7 +2466,6 @@ runtime_s = 10
 
 [[harness]]
 name = "song-edit-roundtrip"
-path = "."
 level = "integration"
 runner = "corpus"
 kind = "property"
@@ -2705,7 +2481,6 @@ runtime_s = 10
 
 [[harness]]
 name = "param-record-diff"
-path = "."
 level = "integration"
 runner = "corpus"
 kind = "regression"
@@ -2722,7 +2497,6 @@ runtime_s = 5
 
 [[harness]]
 name = "arrangement-take"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "regression"
@@ -2734,7 +2508,6 @@ result = "RS-RESULT failures=0"
 check = "tests/integration/checks/arrangement_take.py"
 env = { RENDER_ARRANGE_RECORD = "1", RENDER_KNOB = "400:synth:lpf:268435456,500:kit:volume:-536870912,600:audio:lpf:536870912,1100:synth:volume:-1073741824,1360:synth:lpf:-1073741824,1370:kit:volume:536870912", RENDER_SOURCE_EDIT = "1500" }
 builds = ["golden-vt-render"]
-requires = []
 baseline = ["tests/golden/arrangement_take_baselines"]
 tier = "nightly"
 job = "render"
@@ -2742,7 +2515,6 @@ runtime_s = 20
 
 [[harness]]
 name = "audio-clip-edit-diff"
-path = "."
 level = "integration"
 runner = "corpus"
 kind = "regression"
@@ -2759,7 +2531,6 @@ runtime_s = 5
 
 [[harness]]
 name = "edit-undo-redo"
-path = "."
 level = "integration"
 runner = "corpus"
 kind = "property"
@@ -2775,7 +2546,6 @@ runtime_s = 10
 
 [[harness]]
 name = "clip-clone-roundtrip"
-path = "."
 level = "integration"
 runner = "corpus"
 kind = "property"
@@ -2791,7 +2561,6 @@ runtime_s = 10
 
 [[harness]]
 name = "param-snapshot-bench"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "benchmark"
@@ -3041,7 +2810,6 @@ runtime_s = 1
 
 [[harness]]
 name = "app-asan-sample-load-tree"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "sanitizer"
@@ -3062,7 +2830,6 @@ env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS =
 
 [[harness]]
 name = "app-asan-preset-load"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "sanitizer"
@@ -3082,7 +2849,6 @@ env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS =
 
 [[harness]]
 name = "app-asan-recorder-take"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "sanitizer"
@@ -3101,7 +2867,6 @@ env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS =
 
 [[harness]]
 name = "app-asan-sample-claim"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "sanitizer"
@@ -3121,7 +2886,6 @@ env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS =
 
 [[harness]]
 name = "app-asan-ui-scenes-spec"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "sanitizer"
@@ -3140,7 +2904,6 @@ env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS =
 
 [[harness]]
 name = "app-asan-effect-owners"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "sanitizer"
@@ -3158,7 +2921,6 @@ env_default = { ASAN_OPTIONS = "detect_leaks=0:halt_on_error=1", UBSAN_OPTIONS =
 
 [[harness]]
 name = "app-asan-edit-substrate"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "sanitizer"

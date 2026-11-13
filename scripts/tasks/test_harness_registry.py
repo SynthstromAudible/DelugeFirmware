@@ -59,7 +59,6 @@ job = "storage"
 CTEST = """
 [[harness]]
 name = "beta"
-path = "x"
 level = "unit"
 runner = "ctest"
 kind = "unit"
@@ -88,6 +87,7 @@ def entry(name, level="unit", tier="pr", status="gate"):
         run=["true"],
         requires=[],
         runtime_s=1,
+        job="unit",
     )
 
 
@@ -190,8 +190,41 @@ class LoadRegistryTest(unittest.TestCase):
 
     def test_a_group_field_is_not_read_as_the_job(self):
         text = MINIMAL.replace('job = "storage"', 'group = "storage"')
-        with self.assertRaisesRegex(ValueError, "missing required field 'job'"):
+        with self.assertRaisesRegex(ValueError, r"unknown field\(s\) group"):
             hr.load_registry(self._root_with(text))
+
+    def test_an_unknown_field_is_refused(self):
+        with self.assertRaisesRegex(ValueError, r"alpha: unknown field\(s\) colour"):
+            hr.load_registry(self._root_with(MINIMAL + 'colour = "blue"\n'))
+
+    def test_an_unknown_table_is_refused(self):
+        with self.assertRaisesRegex(ValueError, r"unknown table\(s\) extras"):
+            hr.load_registry(self._root_with(MINIMAL + "[extras]\nx = 1\n"))
+
+    def test_an_unknown_kind_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "kind 'vibes' must be one of"):
+            hr.load_registry(
+                self._root_with(
+                    MINIMAL.replace('kind = "differential"', 'kind = "vibes"')
+                )
+            )
+
+    def test_cargo_and_script_need_a_path(self):
+        with self.assertRaisesRegex(ValueError, "runs its commands in 'path'"):
+            hr.load_registry(
+                self._root_with(MINIMAL.replace('path = "harness/rust/alpha"\n', ""))
+            )
+
+    def test_other_runners_take_no_path(self):
+        with self.assertRaisesRegex(ValueError, "takes none"):
+            hr.load_registry(self._root_with(CTEST + 'path = "x"\n'))
+
+    def test_path_defaults_to_the_root(self):
+        self.assertEqual(hr.load_registry(self._root_with(CTEST))[0].path, ".")
+
+    def test_requires_defaults_to_none(self):
+        text = MINIMAL.replace('requires = ["cargo"]\n', "")
+        self.assertEqual(hr.load_registry(self._root_with(text))[0].requires, [])
 
     def test_unknown_job_is_rejected(self):
         text = MINIMAL.replace('job = "storage"', 'job = "misc"')
@@ -362,7 +395,6 @@ class CorpusEntryTest(unittest.TestCase):
     CORPUS = """
 [[harness]]
 name = "delta"
-path = "."
 level = "integration"
 runner = "corpus"
 kind = "regression"
@@ -434,7 +466,6 @@ class ScenarioEntryTest(unittest.TestCase):
     SCENARIO = """
 [[harness]]
 name = "gamma"
-path = "."
 level = "integration"
 runner = "scenario"
 kind = "property"
@@ -758,6 +789,7 @@ class ScenarioGateTest(unittest.TestCase):
             run=[],
             requires=[],
             runtime_s=1,
+            job="unit",
             builds=["golden-vt-render"],
             scenario="g",
             markers=list(markers),
@@ -1384,6 +1416,10 @@ class CorpusGateTest(unittest.TestCase):
 
 
 class CtestStepsTest(unittest.TestCase):
+    def test_a_ctest_entry_runs_in_its_source(self):
+        h = hr.load_registry(LoadRegistryTest()._root_with(CTEST))[0]
+        self.assertEqual(tt._workdir(Path("/r"), h), Path("/r/x"))
+
     def test_ctest_runs_its_tests_in_parallel(self):
         h = entry("u")
         h.runner = "ctest"

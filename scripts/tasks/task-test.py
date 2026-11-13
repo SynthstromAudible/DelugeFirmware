@@ -321,6 +321,11 @@ def _steps(
     return steps
 
 
+def _workdir(root: Path, h: hr.Harness) -> Path:
+    """Where `h`'s commands run: a ctest tree's source, otherwise its path."""
+    return root / (h.source if h.runner == "ctest" else h.path)
+
+
 def _run_one(
     root: Path,
     h: hr.Harness,
@@ -356,7 +361,7 @@ def _run_one(
         if not passed:
             print(f"test: '{h.name}' failed", file=sys.stderr)
         return passed
-    workdir = root / h.path
+    workdir = _workdir(root, h)
     for phase, argv in _steps(root, h, passthrough, junit_dir):
         if build_only and phase == "run":
             break

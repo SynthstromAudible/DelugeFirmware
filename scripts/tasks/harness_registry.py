@@ -123,17 +123,19 @@ def corpus_fixture_scenarios(root: Path) -> set[str]:
 @dataclass
 class Harness:
     name: str
-    path: str
     level: str
     runner: str
     kind: str
     status: str
     gates: str
     tier: str
-    build: list[str]
-    run: list[str]
-    requires: list[str]
+    job: str
     runtime_s: int
+    # runner = "cargo" | "script": the directory `build` and `run` run in, relative to the repository root.
+    path: str = "."
+    build: list[str] = field(default_factory=list)
+    run: list[str] = field(default_factory=list)
+    requires: list[str] = field(default_factory=list)
     # Set over the caller's environment.
     env: dict[str, str] = field(default_factory=dict)
     # Set only where the caller's environment does not already say.
@@ -143,7 +145,6 @@ class Harness:
     tree: str = ""
     configure: list[str] = field(default_factory=list)
     ctest_args: list[str] = field(default_factory=list)
-    job: str = ""
     # A JUnit file the run leaves behind, relative to the repo root; `${CARGO_TARGET_DIR}` is expanded.
     junit: str = ""
     # Build products (test_builds.py) the runner makes before this test runs.
@@ -161,6 +162,24 @@ class Harness:
     # The files and directories (repository paths) the test writes under `./dbt test --update`, and only they: the
     # runner snapshots them, restores them when the run fails, and fails a run that writes anywhere else.
     baseline: list[str] = field(default_factory=list)
+
+
+# How each test judges what it gates. unit: one function or module; property: an invariant over generated or real
+# inputs; differential: two implementations agree; regression: output equals a committed record; sanitizer: a
+# sanitizer finds nothing; simulation: a modelled run whose output is read, not compared; benchmark: timing only.
+KINDS = (
+    "unit",
+    "property",
+    "differential",
+    "regression",
+    "sanitizer",
+    "simulation",
+    "benchmark",
+)
+# Runners that run the entry's own `build` and `run` commands; they run them in `path`.
+PATH_RUNNERS = ("cargo", "script")
+# The fields an entry may set: everything the runner reads.
+ENTRY_FIELDS = frozenset(f.name for f in dataclasses.fields(Harness))
 
 
 def _runs_golden_vt_render(where: str, item: dict) -> None:
@@ -182,12 +201,16 @@ def load_registry(root: Path) -> list[Harness]:
     entries: list[Harness] = []
     seen: set[str] = set()
 
+    if unknown := sorted(set(raw) - {"harness"}):
+        raise ValueError(f"registry.toml: unknown table(s) {', '.join(unknown)}")
+
     for i, item in enumerate(raw.get("harness", [])):
         where = item.get("name", f"entry #{i}")
+        if unknown := sorted(set(item) - ENTRY_FIELDS):
+            raise ValueError(f"{where}: unknown field(s) {', '.join(unknown)}")
 
         for required in (
             "name",
-            "path",
             "level",
             "runner",
             "kind",
@@ -204,6 +227,7 @@ def load_registry(root: Path) -> list[Harness]:
             ("status", STATUSES),
             ("level", LEVELS),
             ("runner", RUNNERS),
+            ("kind", KINDS),
             ("tier", TIERS),
             ("job", tuple(JOBS)),
         ):
@@ -211,6 +235,16 @@ def load_registry(root: Path) -> list[Harness]:
                 raise ValueError(
                     f"{where}: {key} '{item[key]}' must be one of {allowed}"
                 )
+
+        if item["runner"] in PATH_RUNNERS and not item.get("path"):
+            raise ValueError(
+                f"{where}: a {item['runner']} test runs its commands in 'path', so it needs one"
+            )
+        if item["runner"] not in PATH_RUNNERS and "path" in item:
+            raise ValueError(
+                f"{where}: only {' and '.join(PATH_RUNNERS)} tests run commands in a 'path'; a {item['runner']} test "
+                "takes none"
+            )
 
         if item["runner"] == "ctest":
             for required in ("source", "tree"):
@@ -308,7 +342,7 @@ def load_registry(root: Path) -> list[Harness]:
         entries.append(
             Harness(
                 name=item["name"],
-                path=item["path"],
+                path=item.get("path", "."),
                 level=item["level"],
                 runner=item["runner"],
                 kind=item["kind"],
@@ -507,9 +541,12 @@ def dump_expanded(entries: list[Harness]) -> str:
 __all__ = [
     "CORPUS_DECLARED",
     "CORPUS_RUNNERS",
+    "ENTRY_FIELDS",
     "JOBS",
+    "KINDS",
     "LEVELS",
     "LOCAL_ONLY",
+    "PATH_RUNNERS",
     "PROBES",
     "RUNNERS",
     "SCENARIO_TABLE",
