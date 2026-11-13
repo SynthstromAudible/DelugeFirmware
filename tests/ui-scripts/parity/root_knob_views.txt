@@ -1,9 +1,10 @@
 # The gold knobs at the root views that no other script drives: performance view, the automation view's overview, a
 # MIDI track's CC select and a synth clip's note tails.
 #
-# 1 Performance view (song view, a short KEYBOARD press): mod button 1 and its knobs turned with no pad held; a pad
-#   held while the knob turns (the display shows the param, no popup); mod button 6 with a stutter pad held and the
-#   upper knob pushed, then the pad released.
+# 1 Performance view (song view, a short KEYBOARD press): mod button 1 and its knobs turned with no pad held; the
+#   pad of the param a knob turns held while that knob turns (the display shows the param, no popup), and a pad
+#   of the other knob's param held; mod button 6 with a stutter pad held and the upper knob pushed, then the pad
+#   released. Back in the song view, mod button 0 pressed until the VU meter toggles in the sidebar.
 # 2 Automation view overview on the boot synth clip: a turn, the upper knob's push, and Learn + lower knob's push
 #   (copy) and Shift + Learn + the lower knob's push (paste).
 # 3 A MIDI clip at its root: each knob's push, held (the CC select popup shows while it is down) with turns, then
@@ -98,14 +99,19 @@ turn UPPER 1
 snapshot perf_mod1_turn_upper
 turn LOWER 1
 snapshot perf_mod1_turn_lower
-paddown 3 5
+paddown 0 5
 snapshot perf_pad_held
 turn UPPER 2
 snapshot perf_pad_held_turn_upper
 turn LOWER 1
 snapshot perf_pad_held_turn_lower
-padup 3 5
+padup 0 5
 snapshot perf_pad_released
+paddown 1 5
+turn LOWER 1
+snapshot perf_pad_held_turn_lower_same
+padup 1 5
+snapshot perf_pad_released_lower
 press MOD6
 snapshot perf_mod6
 paddown 5 7
@@ -120,6 +126,14 @@ press MOD_ENCODER_1
 snapshot perf_mod6_upper_push
 press KEYBOARD 20
 snapshot perf_closed
+# Mod button 0 in the song view: the first press leaves mode 6 for mode 0, the next two toggle the VU meter in the
+# sidebar on and off.
+press MOD0
+snapshot vu_mode0
+press MOD0
+snapshot vu_on
+press MOD0
+snapshot vu_off
 #
 # Section 2: automation view overview on the boot synth clip.
 press CLIP_VIEW
