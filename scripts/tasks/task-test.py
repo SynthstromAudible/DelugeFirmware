@@ -9,7 +9,7 @@
 ./dbt test --list [--markdown]               # the registry, with prerequisites resolved
 ./dbt test --doctor                          # what is missing, and how to get it
 ./dbt test --capture <label>                 # run the estate and record its marker lines
-./dbt test --ci-matrix --tier pr             # the selection by CI group, as JSON
+./dbt test --ci-matrix --tier pr             # the selection by CI job, as JSON
 ./dbt test --update-readme                   # regenerate tests/README.md's table
 ./dbt test --update golden-synth             # re-record the named tests' baselines
 ./dbt test --clean                           # drop the shared cargo target dir
@@ -106,7 +106,7 @@ def argparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--ci-matrix",
         action="store_true",
-        help="Print the selection as a CI matrix, one entry per registry group (JSON)",
+        help="Print the selection as a CI matrix, one row per CI job (JSON)",
     )
     parser.add_argument(
         "--strict",
@@ -134,7 +134,7 @@ def argparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--list-outputs",
         action="store_true",
-        help="Print the files the selection's prebuilt groups need (--prebuilt), relative to the repository root",
+        help="Print the files the selection's prebuilt jobs need (--prebuilt), relative to the repository root",
     )
     parser.add_argument(
         "--junit", metavar="DIR", help="Collect each test's JUnit XML into DIR"
@@ -1254,7 +1254,7 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_update(root, selection, passthrough)
 
     if args.list_outputs:
-        names = [name for h in selection if hr.GROUPS[h.group] for name in h.builds]
+        names = [name for h in selection if hr.JOBS[h.job] for name in h.builds]
         try:
             outputs = tb.prebuilt_outputs(names, tb.products(root), root)
         except ValueError as exc:

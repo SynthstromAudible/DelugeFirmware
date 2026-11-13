@@ -32,9 +32,9 @@ SCENARIO_RENDERERS = (
     "golden-vt-render-arm",
     "golden-vt-render-asan",
 )
-# CI runs each group as one job. A group naming a product runs against that product built once by an earlier job
-# (`dbt test --prebuilt`), so its tests may build nothing else; a group naming None builds its own.
-GROUPS = {
+# CI runs each job as one GitHub job. A job naming a product runs against that product built once by an earlier job
+# (`dbt test --prebuilt`), so its tests may build nothing else; a job naming None builds its own.
+JOBS = {
     "render": "golden-vt-render",
     "app": "golden-vt-render",
     "model": "golden-vt-render",
@@ -143,7 +143,7 @@ class Harness:
     tree: str = ""
     configure: list[str] = field(default_factory=list)
     ctest_args: list[str] = field(default_factory=list)
-    group: str = ""
+    job: str = ""
     # A JUnit file the run leaves behind, relative to the repo root; `${CARGO_TARGET_DIR}` is expanded.
     junit: str = ""
     # Build products (test_builds.py) the runner makes before this test runs.
@@ -194,7 +194,7 @@ def load_registry(root: Path) -> list[Harness]:
             "status",
             "gates",
             "tier",
-            "group",
+            "job",
         ):
             if not item.get(required):
                 raise ValueError(f"{where}: missing required field '{required}'")
@@ -204,7 +204,7 @@ def load_registry(root: Path) -> list[Harness]:
             ("level", LEVELS),
             ("runner", RUNNERS),
             ("tier", TIERS),
-            ("group", tuple(GROUPS)),
+            ("job", tuple(JOBS)),
         ):
             if item[key] not in allowed:
                 raise ValueError(
@@ -253,15 +253,15 @@ def load_registry(root: Path) -> list[Harness]:
         if item.get("check") and not (root / item["check"]).is_file():
             raise ValueError(f"{where}: check '{item['check']}' does not exist")
 
-        prebuilt = GROUPS[item["group"]]
+        prebuilt = JOBS[item["job"]]
         if prebuilt and item.get("builds", []) != [prebuilt]:
             raise ValueError(
-                f"{where}: group '{item['group']}' runs prebuilt, so a test in it builds only {prebuilt}"
+                f"{where}: job '{item['job']}' runs prebuilt, so a test in it builds only {prebuilt}"
             )
-        # A script or build step could build at run time, which a prebuilt group must not.
+        # A script or build step could build at run time, which a prebuilt job must not.
         if prebuilt and item["runner"] not in ("scenario", "corpus"):
             raise ValueError(
-                f"{where}: group '{item['group']}' runs prebuilt, so it holds only scenario and corpus gates"
+                f"{where}: job '{item['job']}' runs prebuilt, so it holds only scenario and corpus gates"
             )
 
         known_products = test_builds.products(root)
@@ -327,7 +327,7 @@ def load_registry(root: Path) -> list[Harness]:
                 corpus_runner=item.get("corpus_runner", ""),
                 alone=item.get("alone", False),
                 baseline=baseline,
-                group=item["group"],
+                job=item["job"],
             )
         )
 
@@ -431,7 +431,7 @@ def probe(requirement: str, root: Path) -> bool:
 
 
 def ci_matrix(selection: list[Harness]) -> dict:
-    """The CI matrix for `selection`: one entry per group that has a selected test, in GROUPS order.
+    """The CI matrix for `selection`: one row per job that has a selected test, in JOBS order.
 
     Local-only tests (LOCAL_ONLY) are left out.
     """
@@ -439,12 +439,12 @@ def ci_matrix(selection: list[Harness]) -> dict:
     return {
         "include": [
             {
-                "group": group,
-                "tests": " ".join(h.name for h in selection if h.group == group),
+                "job": job,
+                "tests": " ".join(h.name for h in selection if h.job == job),
                 "prebuilt": prebuilt or "",
             }
-            for group, prebuilt in GROUPS.items()
-            if any(h.group == group for h in selection)
+            for job, prebuilt in JOBS.items()
+            if any(h.job == job for h in selection)
         ],
     }
 
@@ -452,7 +452,7 @@ def ci_matrix(selection: list[Harness]) -> dict:
 def markdown_table(harnesses: list[Harness]) -> str:
     """The generated table for tests/README.md."""
     lines = [
-        "| Test | Level | Runner | Kind | Status | Gates | Tier | Group | Runtime |",
+        "| Test | Level | Runner | Kind | Status | Gates | Tier | Job | Runtime |",
         "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for h in harnesses:
@@ -460,7 +460,7 @@ def markdown_table(harnesses: list[Harness]) -> str:
         escaped_gates = h.gates.replace("|", "\\|")
         escaped_runtime = h.runtime.replace("|", "\\|")
         lines.append(
-            f"| {h.name} | {h.level} | {h.runner} | {h.kind} | {h.status} | {escaped_gates} | {h.tier} | {h.group} "
+            f"| {h.name} | {h.level} | {h.runner} | {h.kind} | {h.status} | {escaped_gates} | {h.tier} | {h.job} "
             f"| {escaped_runtime} |"
         )
     return "\n".join(lines) + "\n"
@@ -494,7 +494,7 @@ def dump_expanded(entries: list[Harness]) -> str:
 __all__ = [
     "CORPUS_DECLARED",
     "CORPUS_RUNNERS",
-    "GROUPS",
+    "JOBS",
     "LEVELS",
     "LOCAL_ONLY",
     "PROBES",

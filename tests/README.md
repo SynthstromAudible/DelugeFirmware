@@ -15,8 +15,8 @@ runner, tier and prerequisites. `./dbt test` runs any selection of them:
 A test whose prerequisites are missing is reported as skipped, with the reason; `--strict` (which CI passes) makes
 a skip fail the run.
 
-Each test also names its CI **group** (`render`, `app`, `model`, `storage`, `unit`, `unit-cpp`, `unit-cpp-variants`, `tooling`): CI runs one job per
-group, and `./dbt test --ci-matrix` prints that matrix. `render`, `app` and `model` run against a `golden_vt_render`
+Each test also names its CI **job** (`render`, `app`, `model`, `storage`, `unit`, `unit-cpp`, `unit-cpp-variants`, `tooling`): CI runs one GitHub job per
+value, and `./dbt test --ci-matrix` prints that matrix. `render`, `app` and `model` run against a `golden_vt_render`
 built once for the whole run (`./dbt test --prebuilt`), so a test in them builds only `golden-vt-render`.
 
 **The table below is generated.** Edit `registry.toml`, then regenerate it (the pre-commit hook does this when
@@ -25,7 +25,7 @@ built once for the whole run (`./dbt test --prebuilt`), so a test in them builds
     ./dbt test --update-readme
 
 <!-- BEGIN GENERATED TABLE -->
-| Test | Level | Runner | Kind | Status | Gates | Tier | Group | Runtime |
+| Test | Level | Runner | Kind | Status | Gates | Tier | Job | Runtime |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | fs-differential | component | cargo | differential | gate | embedded-fatfs must agree with the reference FAT implementation on every filesystem operation | pr | storage | ~1m |
 | upgrade-differential | integration | script | differential | gate | a file the upgrader (tools/deluge-upgrade) writes as JSON must load to exactly what its original loaded: each committed synthetic song and legacy fixture (tests/golden/upgrade, hashes in upgrade_fixtures.json), upgraded, must round-trip to its fixture hash | nightly | storage | ~10s |
@@ -256,7 +256,7 @@ harness directory adds up to tens of gigabytes of duplicate build trees. Prefer 
 
 ## Adding a test
 
-Add a `[[harness]]` block to `registry.toml` and regenerate the table. `gates`, `status` and `group` are mandatory: a test
+Add a `[[harness]]` block to `registry.toml` and regenerate the table. `gates`, `status` and `job` are mandatory: a test
 that cannot state the regression it catches is one nobody can later decide to delete: a crate whose own header
 declares it throwaway survives indefinitely when nothing records that fact anywhere a reader would look.
 

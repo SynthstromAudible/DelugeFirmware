@@ -52,7 +52,7 @@ run = ["cargo", "test"]
 requires = ["cargo"]
 tier = "pr"
 runtime = "~1m"
-group = "storage"
+job = "storage"
 """
 
 
@@ -69,7 +69,7 @@ source = "x"
 tree = "build/x"
 ctest_args = ["-C", "Debug"]
 tier = "pr"
-group = "unit"
+job = "unit"
 """
 
 
@@ -154,28 +154,33 @@ class LoadRegistryTest(unittest.TestCase):
         h = hr.load_registry(self._root_with(MINIMAL))[0]
         self.assertEqual(h.env, {})
 
-    def test_missing_group_is_rejected(self):
-        text = MINIMAL.replace('group = "storage"\n', "")
+    def test_missing_job_is_rejected(self):
+        text = MINIMAL.replace('job = "storage"\n', "")
         with self.assertRaises(ValueError) as cm:
             hr.load_registry(self._root_with(text))
-        self.assertIn("missing required field 'group'", str(cm.exception))
+        self.assertIn("missing required field 'job'", str(cm.exception))
 
-    def test_unknown_group_is_rejected(self):
-        text = MINIMAL.replace('group = "storage"', 'group = "misc"')
+    def test_a_group_field_is_not_read_as_the_job(self):
+        text = MINIMAL.replace('job = "storage"', 'group = "storage"')
+        with self.assertRaisesRegex(ValueError, "missing required field 'job'"):
+            hr.load_registry(self._root_with(text))
+
+    def test_unknown_job_is_rejected(self):
+        text = MINIMAL.replace('job = "storage"', 'job = "misc"')
         with self.assertRaises(ValueError) as cm:
             hr.load_registry(self._root_with(text))
-        self.assertIn("group 'misc' must be one of", str(cm.exception))
+        self.assertIn("job 'misc' must be one of", str(cm.exception))
 
-    def test_prebuilt_group_builds_only_its_product(self):
-        text = MINIMAL.replace('group = "storage"', 'group = "render"').replace(
+    def test_prebuilt_job_builds_only_its_product(self):
+        text = MINIMAL.replace('job = "storage"', 'job = "render"').replace(
             'requires = ["cargo"]', 'builds = ["host-app"]\nrequires = ["cargo"]'
         )
         with self.assertRaises(ValueError) as cm:
             hr.load_registry(self._root_with(text))
         self.assertIn("builds only golden-vt-render", str(cm.exception))
 
-    def test_prebuilt_group_holds_only_scenario_gates(self):
-        text = MINIMAL.replace('group = "storage"', 'group = "model"').replace(
+    def test_prebuilt_job_holds_only_scenario_gates(self):
+        text = MINIMAL.replace('job = "storage"', 'job = "model"').replace(
             'requires = ["cargo"]',
             'builds = ["golden-vt-render"]\nrequires = ["cargo"]',
         )
@@ -338,7 +343,7 @@ gates = "delta holds"
 corpus_runner = "fake"
 builds = ["golden-vt-render"]
 tier = "nightly"
-group = "model"
+job = "model"
 """
 
     def _root_with(self, text, runners=("fake",)):
@@ -393,7 +398,7 @@ group = "model"
         root = Path(__file__).resolve().parents[2]
         corpus = [h for h in hr.load_registry(root) if h.runner == "corpus"]
         self.assertEqual(len(corpus), 17)
-        self.assertTrue(all(h.group == "model" and h.alone for h in corpus))
+        self.assertTrue(all(h.job == "model" and h.alone for h in corpus))
 
 
 class ScenarioEntryTest(unittest.TestCase):
@@ -411,7 +416,7 @@ markers = ["GA-ONE"]
 result = "GA-RESULT failures=0"
 builds = ["golden-vt-render"]
 tier = "nightly"
-group = "render"
+job = "render"
 """
 
     def _root_with(self, text):
@@ -573,7 +578,7 @@ class BuildsTest(unittest.TestCase):
     def test_prebuilt_missing_output_fails(self):
         task_test = _load_task_test()
         root = Path(tempfile.mkdtemp())
-        h = dataclasses.replace(entry("r"), group="render", builds=["golden-vt-render"])
+        h = dataclasses.replace(entry("r"), job="render", builds=["golden-vt-render"])
         args = types.SimpleNamespace(
             junit=None,
             skip_checks=True,
@@ -614,7 +619,7 @@ class BuildsTest(unittest.TestCase):
     def test_prebuilt_checks_products_before_probes(self):
         h = dataclasses.replace(
             entry("r"),
-            group="render",
+            job="render",
             builds=["golden-vt-render"],
             requires=["cargo-fuzz"],
         )
@@ -626,7 +631,7 @@ class BuildsTest(unittest.TestCase):
         passing = entry("passes")
         failing = dataclasses.replace(entry("fails"), run=["false"])
         blocked = dataclasses.replace(
-            entry("blocked"), group="render", builds=["golden-vt-render"]
+            entry("blocked"), job="render", builds=["golden-vt-render"]
         )
         self._run([passing, failing, blocked], junit=str(junit), prebuilt=True)
         cases = {
@@ -939,14 +944,14 @@ class CiMatrixTest(unittest.TestCase):
         )
 
     def test_ci_matrix_omits_local_only_tests(self):
-        corpus = dataclasses.replace(entry("c"), group="unit", requires=["song-corpus"])
+        corpus = dataclasses.replace(entry("c"), job="unit", requires=["song-corpus"])
         xml = dataclasses.replace(
-            entry("x"), group="unit", requires=["cargo", "song-xml-corpus"]
+            entry("x"), job="unit", requires=["cargo", "song-xml-corpus"]
         )
-        plain = dataclasses.replace(entry("p"), group="unit")
+        plain = dataclasses.replace(entry("p"), job="unit")
         matrix = hr.ci_matrix([corpus, plain, xml])
         self.assertEqual(
-            matrix["include"], [{"group": "unit", "tests": "p", "prebuilt": ""}]
+            matrix["include"], [{"job": "unit", "tests": "p", "prebuilt": ""}]
         )
 
     def test_no_build_product_requires_a_local_only_item(self):
@@ -988,26 +993,26 @@ class CiMatrixTest(unittest.TestCase):
 
     def test_ci_matrix_entry_shape(self):
         selection = [
-            dataclasses.replace(entry("a"), group="unit"),
-            dataclasses.replace(entry("r"), group="render"),
-            dataclasses.replace(entry("b"), group="unit"),
+            dataclasses.replace(entry("a"), job="unit"),
+            dataclasses.replace(entry("r"), job="render"),
+            dataclasses.replace(entry("b"), job="unit"),
         ]
         self.assertEqual(
             hr.ci_matrix(selection),
             {
                 "include": [
-                    {"group": "render", "tests": "r", "prebuilt": "golden-vt-render"},
-                    {"group": "unit", "tests": "a b", "prebuilt": ""},
+                    {"job": "render", "tests": "r", "prebuilt": "golden-vt-render"},
+                    {"job": "unit", "tests": "a b", "prebuilt": ""},
                 ],
             },
         )
 
 
 class MarkdownTableTest(unittest.TestCase):
-    def test_table_has_a_group_column_after_tier(self):
+    def test_table_has_a_job_column_after_tier(self):
         table = hr.markdown_table(hr.load_registry(self._root()))
         header = [c.strip() for c in table.split("\n")[0].strip("|").split("|")]
-        self.assertEqual(header[header.index("Tier") + 1], "Group")
+        self.assertEqual(header[header.index("Tier") + 1], "Job")
         self.assertIn("| pr | storage |", table)
 
     def test_table_has_a_row_per_harness(self):
