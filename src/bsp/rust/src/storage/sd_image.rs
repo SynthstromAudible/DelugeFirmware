@@ -54,7 +54,8 @@ pub fn golden_fixture_tree(repo_root: &Path, fixture: &str) -> PathBuf {
         assert!(
             status.success(),
             "scripts/reconstruct_golden_fixture.sh failed for fixture '{fixture}' — is DELUGE_BACKUP \
-             (default '~/Deluge Backup') present?"
+             (default '~/Deluge Backup') present? A scenario that boots the corpus fixture must declare \
+             requires = [\"song-corpus\"] in tests/registry.toml"
         );
         assert!(
             proj.is_dir(),
