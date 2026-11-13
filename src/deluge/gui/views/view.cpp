@@ -2545,12 +2545,19 @@ gotAnInstrument:
 
 		PresetNavigationResult results =
 		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, availabilityRequirement, false, clip);
+		if (results.pending) {
+			return;
+		}
+
 		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
 getOut:
 			display->removeWorkingAnimation();
 			return;
 		}
 		if (results.error != Error::NONE) {
+			// The candidate name was shown while navigating, but the clip still
+			// uses the original instrument. Restore it beneath the error popup.
+			displayOutputName(oldInstrument, doBlink, clip);
 			display->displayError(results.error);
 			goto getOut;
 		}

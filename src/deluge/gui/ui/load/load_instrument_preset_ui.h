@@ -17,12 +17,14 @@
 
 #pragma once
 
+#include "OSLikeStuff/scheduler_api.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
 #include "model/instrument/kit.h"
 #include "model/note/note_row.h"
 #include "processing/sound/sound_drum.h"
+#include "storage/file_item.h"
 
 class Instrument;
 class InstrumentClip;
@@ -32,6 +34,8 @@ class LoadInstrumentPresetUI final : public LoadUI {
 public:
 	LoadInstrumentPresetUI() = default;
 	bool opened() override;
+	void focusRegained() override;
+	void previewTimerCallback();
 	// void selectEncoderAction(int8_t offset);
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
@@ -86,6 +90,53 @@ protected:
 	void currentFileChanged(int32_t movementDirection) override;
 
 private:
+	void cancelPendingPreview();
+	void startPresetLoadingIndicator();
+	void stopPresetLoadingIndicator();
+	bool loadingIndicatorActive = false;
+	struct LoadingIndicatorGuard {
+		LoadInstrumentPresetUI& ui;
+		bool keepActive = false;
+		~LoadingIndicatorGuard() {
+			if (!keepActive) {
+				ui.stopPresetLoadingIndicator();
+			}
+		}
+	};
+	void clearPresetNavigationCursor();
+	Error rememberPresetNavigationCandidate(Instrument* origin, FileItem* candidate, Clip* targetClip);
+	void cancelPresetNavigation();
+	bool presetNavigationContextMatches() const;
+	static bool presetNavigationReady();
+	static void resumePresetNavigation();
+	PresetNavigationResult loadNavigatedPreset(FileItem* item, Instrument* oldInstrument, Clip* displayClip);
+	struct {
+		TaskID task = -1;
+		bool resuming = false;
+		double deadline = 0;
+		Song* song = nullptr;
+		UI* ui = nullptr;
+		int32_t uiMode = 0;
+		Clip* currentClip = nullptr;
+		Clip* selectedClip = nullptr;
+		Clip* displayClip = nullptr;
+		Instrument* instrument = nullptr;
+		bool doBlink = false;
+		FileItem item;
+		String displayName;
+	} presetNavigation;
+	struct {
+		Song* song = nullptr;
+		Instrument* instrument = nullptr;
+		Clip* clip = nullptr;
+		UI* ui = nullptr;
+		Clip* targetClip = nullptr;
+		String sourceName;
+		String dir;
+		String filename;
+	} presetNavigationCursor;
+	void loadPendingPreview();
+	bool previewPending = false;
 	bool showingAuditionPads();
 	Error setupForOutputType();
 	void changeOutputType(OutputType newOutputType);

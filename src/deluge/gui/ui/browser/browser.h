@@ -40,9 +40,10 @@ class Song;
 
 // FIXME: std::expected<std::pair<bool, FileItem*>, Error>
 struct PresetNavigationResult {
-	FileItem* fileItem;
-	bool loadedFromFile;
-	Error error;
+	FileItem* fileItem = nullptr;
+	bool loadedFromFile = false;
+	Error error = Error::NONE;
+	bool pending = false;
 };
 
 struct Slot {

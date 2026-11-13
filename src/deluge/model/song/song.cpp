@@ -4940,6 +4940,10 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 	else {
 		PresetNavigationResult results = loadInstrumentPresetUI.doPresetNavigation(
 		    offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true, displayClip);
+		if (results.pending) {
+			return output;
+		}
+
 		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
 removeWorkingAnimationAndGetOut:
 			if (display->haveOLED()) {
@@ -4950,6 +4954,8 @@ removeWorkingAnimationAndGetOut:
 			return output;
 		}
 		else if (results.error != Error::NONE) {
+			// Failed navigation leaves this output unchanged, including its name.
+			view.displayOutputName(oldInstrument, true, displayClip);
 			display->displayError(results.error);
 			goto removeWorkingAnimationAndGetOut;
 		}

@@ -3271,6 +3271,11 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 	ParamManagerForTimeline paramManager;
 
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		// Preset navigation can move on before this sound has finished parsing.
+		// The caller owns cleanup of the partially loaded instrument/drum.
+		if (shouldAbortLoading()) {
+			return Error::ABORTED_BY_USER;
+		}
 		Error result = readTagFromFileOrError(reader, tagName, &paramManager, readAutomationUpToPos, arpSettings,
 		                                      modelStack->song);
 		if (result == Error::NONE) {}
@@ -3536,6 +3541,11 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 		else if (!strcmp(tagName, "sampleRanges") || !strcmp(tagName, "wavetableRanges")) {
 			reader.match('[');
 			while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
+				// Check before constructing the temporary range, whose lifetime must
+				// finish normally before returning from this loop.
+				if (shouldAbortLoading()) {
+					return Error::ABORTED_BY_USER;
+				}
 
 				if (!strcmp(tagName, "sampleRange") || !strcmp(tagName, "wavetableRange")) {
 					// is a sampleRange or wavetableRange
