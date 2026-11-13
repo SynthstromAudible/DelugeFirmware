@@ -3,10 +3,11 @@
 The scenario lists its entry table (SCENES_SPEC=--list), which must name exactly the spec files under sim/scenes_spec,
 selftest/ aside: the table is generated from the files, so a mismatch means a stale build. Each file then runs in its
 own process on its card (tests/integration/checks/scenes_spec_cards.txt; the fixture card otherwise) and passes only
-on exit 0 and its entry's markers and result line (SCENES-SPEC-RESULT failures=0), so a crash or a file that never reaches its result line
-fails by name, as does one still running after RUN_TIMEOUT_S. The runner's self-specs pin that a passing file and the
-card checks pass and that a failing, a crashing and an empty one (no examples) do not. Every file runs in a fresh process, so no file's leftover
-state (a stack song in currentSong, a guard it left open) can reach another.
+on exit 0 and its entry's markers and result line (SCENES-SPEC-RESULT failures=0), so a crash or a file that never
+reaches its result line fails by name, as does one still running after RUN_TIMEOUT_S. The gate fails when no spec file
+ran at all. The runner's self-specs pin that a passing file and the card checks pass and that a failing, a crashing and
+an empty one (no examples) do not. Every file runs in a fresh process, so no file's leftover state (a stack song in
+currentSong, a guard it left open) can reach another.
 """
 
 from pathlib import Path
@@ -68,9 +69,12 @@ def _run_spec(gate, spec_id: str, cards: dict[str, str]):
 
 
 def _report(gate, spec_id: str, run) -> None:
-    gate.fail(
-        f"{spec_id}: exit {run.code}, {'its result line' if run.has_line(gate.entry.result) else 'no passing result line'}"
+    seen = (
+        "its result line"
+        if run.has_line(gate.entry.result)
+        else "no passing result line"
     )
+    gate.fail(f"{spec_id}: exit {run.code}, {seen}")
     for line in run.lines[-30:]:
         gate.say(f"    {line}")
     for line in run.err.splitlines()[-10:]:
@@ -95,6 +99,10 @@ def run(gate) -> None:
             f"{spec_id}: scenes_spec_cards.txt names a card for a file that does not exist"
         )
 
+    if not in_table & files:
+        gate.fail(
+            "no scenes spec file ran: the entry table and sim/scenes_spec share none"
+        )
     passed = 0
     for spec_id in sorted(in_table & files):
         run = _run_spec(gate, spec_id, cards)

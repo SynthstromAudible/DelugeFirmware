@@ -18,14 +18,14 @@ UI. Which tier those run on does not depend on which branch reached them.
 The registry entry requires each marker and the result line; this module adds SF-CHANNEL's non-zero count.
 """
 
-from scenario_gate import count_field
+from scenario_gate import count_field, field
 
 
 def check(gate, run):
     served = count_field(run.first("SF-CHANNEL "), "served")
     if not served:
         gate.fail(
-            f"SF-CHANNEL served={'none' if served is None else served}: the byte channel served nothing, "
+            f"SF-CHANNEL served={field(run.first('SF-CHANNEL '), 'served') or 'none'}: the byte channel served nothing, "
             "so the async arm never ran"
         )
         return

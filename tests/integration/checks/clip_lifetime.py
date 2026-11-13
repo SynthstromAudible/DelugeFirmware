@@ -224,7 +224,7 @@ def _runs(gate) -> list[str] | None:
         aborted = [
             tag(line)[3:]
             for line in starting(result.lines, "CL-")
-            if field(line, "aborted") == "1"
+            if tag(line) and field(line, "aborted") == "1"
         ]
         if not aborted:
             gate.fail(f"the run exited {result.code} with no leg reporting aborted=1")

@@ -36,7 +36,7 @@ def check(gate, run):
     served = count_field(run.first("PO-CHANNEL "), "served")
     if not served:
         gate.fail(
-            f"PO-CHANNEL served={'none' if served is None else served}: the byte channel served nothing, "
+            f"PO-CHANNEL served={field(run.first('PO-CHANNEL '), 'served') or 'none'}: the byte channel served nothing, "
             "so the async arm never ran"
         )
         return

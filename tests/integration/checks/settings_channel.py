@@ -31,14 +31,14 @@ rather than a silently truncated log. The registry entry requires each marker an
 SC-CHANNEL's count.
 """
 
-from scenario_gate import count_field
+from scenario_gate import count_field, field
 
 
 def check(gate, run):
     served = count_field(run.first("SC-CHANNEL "), "served")
     if not served:
         gate.fail(
-            f"SC-CHANNEL served={'none' if served is None else served}: the byte channel served nothing, "
+            f"SC-CHANNEL served={field(run.first('SC-CHANNEL '), 'served') or 'none'}: the byte channel served nothing, "
             "so the async arm never ran"
         )
         return

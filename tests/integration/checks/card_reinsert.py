@@ -50,7 +50,7 @@ def run(gate):
     for leg in ("CR-SURVIVE", "CR-LOST", "CR-EVICT"):
         line = result.last(leg + " ")
         if field(line, "ok") != "1":
-            gate.fail(f"{leg} — {line}")
+            gate.fail(f"{leg} — {line or 'no ' + leg + ' line'}")
             failed = True
 
     if not failed:

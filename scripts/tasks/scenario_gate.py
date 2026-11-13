@@ -14,7 +14,8 @@ fixture tree a gate's runs staged in the temp dir is removed after it.
 A `run(gate)` check judges the entry's markers and result itself: `gate.require_standard(run)` on a run, or
 `gate.require_markers(lines)` over several runs' output or stdout and stderr together, or `gate.shortfall(lines)` where
 a run is expected to fall short. Checks read marker lines through the helpers here (`tag`, `fields`, `field`,
-`int_field`, `has_fields`, `starting`, `after`); a registry unit test refuses a check that parses them with `re`.
+`count_field`, `int_field`, `has_fields`, `starting`, `after`); a registry unit test refuses a check that parses them
+with `re`.
 """
 
 import importlib.util
@@ -30,7 +31,8 @@ from pathlib import Path
 
 # A marker line: an upper-case tag followed by a space, '=', ':' or a further '-TAG'.
 MARKER = re.compile(r"^[A-Z][A-Z0-9_]*(-[A-Z0-9_]+)*([ =:]|$)")
-# One `key=value` on a marker line: the key runs from a space (or the line's start) to '='; the value ends at whitespace.
+# One `key=value` on a marker line: the key runs from a space (or the line's start) to '='; the value ends at
+# whitespace.
 _FIELD = re.compile(r"(?:^| )([^\s=]+)=(\S*)")
 
 
@@ -67,10 +69,7 @@ class Run:
 
 def field(line: str | None, key: str) -> str | None:
     """The value of `key=value` in `line`, or None. Values end at whitespace."""
-    if line is None:
-        return None
-    m = re.search(r"(?:^| )" + re.escape(key) + r"=(\S*)", line)
-    return m.group(1) if m else None
+    return fields(line).get(key) if line is not None else None
 
 
 def int_field(line: str | None, key: str) -> int | None:
@@ -272,6 +271,7 @@ __all__ = [
     "Gate",
     "Run",
     "after",
+    "count_field",
     "field",
     "fields",
     "has_fields",
