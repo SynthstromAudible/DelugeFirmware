@@ -211,7 +211,7 @@ markers = ["SP-RESULT", "SP-WINDOW", "SP-SWAP-BEFORE", "SP-EJECT", "SP-SWAP-SUMM
 result = "SP-RESULT failures=0"
 check = "tests/integration/checks/song_preview_ab.py"
 builds = ["golden-vt-render"]
-requires = ["song-corpus"]
+requires = []
 tier = "nightly"
 group = "render"
 runtime = "~5m"
