@@ -12,15 +12,14 @@
 //!   commands shift that framebuffer as the PIC's own does;
 //! - every OLED frame ([`deluge_bsp::oled`]'s host capture) is copied to the panel;
 //! - the panel's input comes back as the PIC would send it: pad and button events as PIC bytes through
-//!   [`deluge_bsp::pic::read_byte`], for the program's own PIC parser, and encoder turns as edges in
-//!   [`deluge_bsp::encoder::ENCODER_DELTAS`], as the encoder interrupt records them.
+//!   [`deluge_bsp::pic::read_byte`], for the program's own PIC parser, and encoder turns as edges
+//!   through [`deluge_bsp::encoder::record_edges`], as the encoder interrupt records them.
 //!
 //! So a program drives the simulator through the same BSP calls it makes on the device. [`install`] is called
 //! once, by the host runtime (inside `deluge_simulator::run_brain`), before the program starts; until then
 //! the BSP's host arms stay the no-ops they otherwise are.
 
 use std::collections::VecDeque;
-use std::sync::atomic::Ordering;
 use std::sync::{Mutex, OnceLock, PoisonError};
 
 use deluge_simulator::link::audio::BrainEnds;
@@ -258,12 +257,11 @@ fn encode_input(event: InputEvent, bytes: &mut VecDeque<u8>) {
             bytes.push_back(BUTTON_BASE + id);
         }
         InputEvent::Encoder { index, delta } => {
-            if let Some(edges) = deluge_bsp::encoder::ENCODER_DELTAS.get(usize::from(index)) {
-                let _ = edges.try_update(Ordering::Relaxed, Ordering::Relaxed, |e| {
-                    Some(e.saturating_add(delta.saturating_mul(4)))
-                });
-                deluge_bsp::encoder::ENCODER_WAKER.wake();
-            }
+            deluge_bsp::encoder::record_edges(
+                usize::from(index),
+                delta.saturating_mul(4),
+                embassy_time::Instant::now().as_micros(),
+            );
         }
     }
 }
@@ -339,8 +337,7 @@ mod tests {
 
     #[test]
     fn an_encoder_turn_adds_four_edges_a_detent() {
-        use deluge_bsp::encoder::ENCODER_DELTAS;
-        ENCODER_DELTAS[3].store(0, Ordering::Relaxed);
+        let _ = deluge_bsp::encoder::take_edges(3);
         assert!(
             round_trip(InputEvent::Encoder {
                 index: 3,
@@ -348,7 +345,7 @@ mod tests {
             })
             .is_empty()
         );
-        assert_eq!(ENCODER_DELTAS[3].swap(0, Ordering::Relaxed), -8);
+        assert_eq!(deluge_bsp::encoder::take_edges(3), -8);
     }
 
     #[test]

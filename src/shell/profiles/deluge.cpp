@@ -64,8 +64,8 @@ static_assert(kLedByButton[static_cast<size_t>(ButtonId::Record)] == 26);
 static_assert(kLedByButton[static_cast<size_t>(ButtonId::AffectEntire)] == 3);
 static_assert(kLedByButton[static_cast<size_t>(ButtonId::Session)] == 12);
 
-// Encoder order from encoder_input.cpp:56-63: 0=scrollY 1=scrollX 2=tempo 3=select 4=mod1(upper) 5=mod0(lower).
-// 4=mod1=upper gold; 5=mod0=lower gold (encoders.h:80-81).
+// Encoder order from encoder_input.cpp's interpretEncoders: 0=scrollY 1=scrollX 2=tempo 3=select 4=mod1(upper)
+// 5=mod0(lower). 4=mod1=upper gold; 5=mod0=lower gold (encoders.h's mod0/mod1).
 static constexpr EncoderRole kEncoders[] = {
     EncoderRole::Vertical,   // 0
     EncoderRole::Horizontal, // 1

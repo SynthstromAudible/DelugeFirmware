@@ -39,10 +39,18 @@
 namespace deluge::hid::encoders {
 
 uint32_t timeModEncoderLastTurned[2];
-static int8_t modEncoderInitialTurnDirection[2];
 
 static uint32_t timeNextSDTestAction = 0;
 static int32_t nextSDTestDirection = 1;
+
+/// Queue the gold encoder's runs the board has decoded at \p index, each at the time it was decoded.
+static void takeTimedEdges(ContinuousEncoder& encoder, uint8_t index) {
+	DelugeEncoderEdges runs[DELUGE_ENCODER_EDGE_RUNS];
+	const uint8_t n = deluge_encoder_take_timed_quadrature_edges(index, runs, DELUGE_ENCODER_EDGE_RUNS);
+	for (uint8_t i = 0; i < n; i++) {
+		encoder.applyEdges(runs[i].edges, static_cast<double>(runs[i].time_us) / 1'000'000.0);
+	}
+}
 
 void interpretEncodersTask() {
 	interpretEncoders();
@@ -51,14 +59,15 @@ void interpretEncodersTask() {
 bool interpretEncoders() {
 	// Fold the quadrature edges the board has decoded since last time into each encoder.
 	// Detent reduction (DetentedEncoder) and gold-knob velocity (ContinuousEncoder) happen in
-	// applyEdges; this runs in task context now, not the ISR. The board's edge index order matches
+	// applyEdges; this runs in task context now, not the ISR. The gold knobs take their edges with the time
+	// each run was decoded, which their acceleration is computed on. The board's edge index order matches
 	// EncoderName: 0=scrollY 1=scrollX 2=tempo 3=select 4=mod1 5=mod0.
 	functionEncoderAt(0).applyEdges(deluge_encoder_take_quadrature_edges(0)); // scrollY
 	functionEncoderAt(1).applyEdges(deluge_encoder_take_quadrature_edges(1)); // scrollX
 	functionEncoderAt(2).applyEdges(deluge_encoder_take_quadrature_edges(2)); // tempo
 	functionEncoderAt(3).applyEdges(deluge_encoder_take_quadrature_edges(3)); // select
-	modEncoderAt(1).applyEdges(deluge_encoder_take_quadrature_edges(4));      // mod1
-	modEncoderAt(0).applyEdges(deluge_encoder_take_quadrature_edges(5));      // mod0
+	takeTimedEdges(modEncoderAt(1), 4);                                       // mod1
+	takeTimedEdges(modEncoderAt(0), 5);                                       // mod0
 
 	// do not interpret encoders when stem export is underway
 	if (stemExport.processStarted) {
@@ -148,30 +157,11 @@ bool interpretEncoders() {
 		}
 	}
 
-	// Mod knobs
+	// Mod knobs: each run the board decoded is one of `main`'s turns, on its own time.
 	for (int32_t e = 0; e < 2; e++) {
 		// 0=mod0 (lower gold), 1=mod1 (upper gold)
-		auto& encoder = modEncoderAt(e);
-
-		int8_t offset = encoder.take();
-
-		// If encoder turned...
-		if (offset != 0) {
+		if (modEncoderAt(e).actionTurns([e](int8_t offset) { getCurrentUI()->modEncoderAction(e, offset); })) {
 			anything = true;
-
-			// Do it, only if
-			if (offset + modEncoderInitialTurnDirection[e] != 0) {
-				int8_t offset_accelerated = offset * encoder.calcNextKnobSpeed(offset);
-
-				getCurrentUI()->modEncoderAction(e, offset_accelerated);
-
-				modEncoderInitialTurnDirection[e] = 0;
-			}
-
-			// Otherwise, write this off as an accidental wiggle
-			else {
-				modEncoderInitialTurnDirection[e] = offset;
-			}
 		}
 	}
 

@@ -3,7 +3,6 @@
 //! script's gestures on the same input path a player's take. `tests/harness/level3/host_script.c` is
 //! the only caller of the C ABI here; its header declares it.
 
-use core::sync::atomic::Ordering;
 use std::sync::Mutex;
 
 use deluge_bsp::encoder;
@@ -107,8 +106,8 @@ pub fn reset_for_test() {
     };
     // SAFETY: `ev` is a valid DelugeInputEvent.
     while unsafe { control::deluge_control_poll_event(&mut ev) } {}
-    for d in &encoder::ENCODER_DELTAS {
-        d.store(0, Ordering::Relaxed);
+    for index in 0..encoder::NUM_ENCODERS {
+        let _ = encoder::take_edges(index);
     }
 }
 

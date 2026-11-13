@@ -22,6 +22,8 @@
 
 namespace deluge::hid::encoders {
 
+static_assert(ContinuousEncoder::kMaxRuns == DELUGE_ENCODER_EDGE_RUNS);
+
 // ── DetentedEncoder ────────────────────────────────────────────────────────
 
 void DetentedEncoder::applyEdges(int8_t edges) {
@@ -47,12 +49,8 @@ int32_t DetentedEncoder::take() {
 
 // -- ContinuousEncoder ------------------------------------------------------
 
-int8_t ContinuousEncoder::take() {
-	return pos.exchange(0, std::memory_order_relaxed);
-}
-
-double ContinuousEncoder::calcNextKnobSpeed(int8_t offset) {
-	return acceleration_.advance(offset, getSystemTime(), kGoldEncoderAcceleration);
+void ContinuousEncoder::applyEdges(int8_t edges) {
+	applyEdges(edges, getSystemTime());
 }
 
 // ── Named encoder globals ──────────────────────────────────────────────────

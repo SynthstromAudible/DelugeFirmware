@@ -1,6 +1,7 @@
 #include "CppUTest/TestHarness.h"
 
 #include "hid/encoder_acceleration.h"
+#include "hid/encoders.h"
 
 using deluge::hid::encoders::EncoderAcceleration;
 using deluge::hid::encoders::kGoldEncoderAcceleration;
@@ -91,4 +92,26 @@ TEST(EncoderAccelerationTest, ExplicitResetClearsHorizontalMenuAcceleration) {
 	acceleration.reset();
 
 	DOUBLES_EQUAL(1.0, acceleration.advance(1, 1.02, kHorizontalMenuAcceleration), 0.000001);
+}
+
+TEST_GROUP(ContinuousEncoderTimedRunsTest) {
+	deluge::hid::encoders::ContinuousEncoder encoder;
+
+	/// Every turn the encoder hands out since the last call, summed.
+	int32_t actioned() {
+		int32_t sum = 0;
+		encoder.actionTurns([&](int8_t offset) { sum += offset; });
+		return sum;
+	}
+};
+
+// Edges the app takes in one batch, late, accelerate on the times the board decoded them: `main`'s encoder task
+// takes each edge of a fast turn alone (`origin/main:src/deluge/hid/encoder_input.cpp`'s `interpretEncoders`), so
+// eleven edges 3 ms apart give 1 and then ten at the 3x cap.
+TEST(ContinuousEncoderTimedRunsTest, BatchedRunsAccelerateOnTheirOwnTimes) {
+	for (int32_t i = 0; i < 11; i++) {
+		encoder.applyEdges(1, 1.0 + 0.003 * i);
+	}
+	LONGS_EQUAL(1 + 10 * 3, actioned());
+	LONGS_EQUAL(0, actioned());
 }

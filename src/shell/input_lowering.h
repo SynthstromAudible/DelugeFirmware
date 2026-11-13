@@ -20,7 +20,7 @@ namespace deluge::ui::shell {
 /// `defaultHoldTime (2) * kSampleRate / 20` audio samples (`storage/flash_storage.cpp:349-350`),
 /// which is 100 ms at 44.1 kHz; `kShortPressTime` is `kSampleRate / 2`
 /// (`definitions_cxx.hpp:1028`), 500 ms; and `DetentedEncoder::applyEdges` takes two A-pin edges
-/// -- one quadrature cycle -- per detent click (`hid/encoders.cpp:28-34`).
+/// -- one quadrature cycle -- per detent click (`DetentedEncoder::applyEdges`).
 struct LoweringConfig {
 	/// A press shorter than this counts as a tap for the sticky-shift rule.
 	uint16_t hold_time_ms = 100;
@@ -116,13 +116,13 @@ public:
 	///        input is locked.
 	void on_host_pad(uint8_t x, uint8_t y, uint8_t velocity, bool shortcut_without_shift, uint32_t now_ms);
 	/// @brief Lower the A-pin edges one encoder has accumulated -- the device path
-	///        (`deluge_encoder_take_edges`, folded in by `hid/encoder_input.cpp:56-63`).
+	///        (`deluge_encoder_take_edges`, folded in by `hid/encoder_input.cpp`'s `interpretEncoders`).
 	///
 	/// @note Unlike `on_board_event`, this is never deferred by `sd_busy()`: the legacy
 	///       `applyEdges` runs unconditionally and leaves the detents pending in the encoder's own
 	///       accumulator for whenever the routine ends, and the routed FIFO plays that part here.
 	///       `input_locked()` does drop it, matching the stem-export bail-out at
-	///       `encoder_input.cpp:66-68`.
+	///       `encoder_input.cpp`'s `interpretEncoders`.
 	/// @param index  The board's encoder index, looked up in `BoardProfile::encoder_by_index`.
 	/// @param edges  Signed A-pin edge count since the last call.
 	/// @param now_ms The wall clock.
@@ -412,7 +412,7 @@ private:
 	///
 	///          **Legacy saturates where this wraps, and does so on the far side of the detent
 	///          division.** `interpretEncoders` takes whole detents from the encoder
-	///          (`hid/encoder_input.cpp:112`, `int32_t detentDelta = fe.take()`) and then makes two
+	///          (`hid/encoder_input.cpp`'s `interpretEncoders`, `int32_t detentDelta = fe.take()`) and then makes two
 	///          different choices, in a comment that says so: tempo and select get
 	///          `static_cast<int8_t>(std::clamp(detentDelta, -128, 127))` (`:117`), while
 	///          horizontal and vertical are handed the **full `int32_t`** (`:124`, `:140`) "for

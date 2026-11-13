@@ -635,7 +635,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		view.modEncoderAction(0, 5);
 
 		// The port, through its own -- a routed gold-knob turn on the LOWER knob, which is mod
-		// encoder 0 (`hid/encoders.h:80-81`).
+		// encoder 0 (`hid/encoders.h`'s `mod0`/`mod1`).
 		KnobRig rig;
 		rig.set_song(f.song);
 		rig.set_target_with_timeline(port_clip, false);

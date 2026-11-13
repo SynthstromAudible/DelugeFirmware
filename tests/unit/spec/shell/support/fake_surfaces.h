@@ -219,7 +219,7 @@ inline BoardProfile test_profile_two_oleds() {
 /// The matrix mirrors the `*ButtonCoord` constants in `src/definitions_cxx.hpp:59-84` and the
 /// mod-button table in `src/deluge/hid/button.h:20-21`; `(4,0)` and `(4,2)` are the two cells the
 /// Deluge does not populate and map to `ButtonId::None`. The encoder order is the one
-/// `interpretEncoders` folds edges in (`src/deluge/hid/encoder_input.cpp:56-63`): 0=scrollY,
+/// `interpretEncoders` folds edges in (`src/deluge/hid/encoder_input.cpp`'s `interpretEncoders`): 0=scrollY,
 /// 1=scrollX, 2=tempo, 3=select, 4=mod1 (upper gold), 5=mod0 (lower gold). The real board profile lands with the
 /// Deluge board tables; this one exists so the input specs have something to lower against.
 /// @return The profile, viewing static storage.
@@ -237,7 +237,8 @@ inline BoardProfile test_profile_input() {
 	};
 	// clang-format on
 	static_assert(sizeof(kMatrix) / sizeof(kMatrix[0]) == 9 * 4);
-	// 4 = mod1 = upper gold, 5 = mod0 = lower gold (`encoders.h:80-81`, `encoder_input.cpp:57`).
+	// 4 = mod1 = upper gold, 5 = mod0 = lower gold (`encoders.h`'s `modEncoderAt`, `encoder_input.cpp`'s
+	// `interpretEncoders`).
 	static constexpr EncoderRole kEncoders[] = {EncoderRole::Vertical, EncoderRole::Horizontal, EncoderRole::Tempo,
 	                                            EncoderRole::Select,   EncoderRole::GoldUpper,  EncoderRole::GoldLower};
 	// Indexed by EncoderRole: Select, Horizontal, Vertical, GoldUpper, GoldLower, Tempo.

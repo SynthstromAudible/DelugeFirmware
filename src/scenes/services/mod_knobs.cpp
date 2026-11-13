@@ -62,7 +62,8 @@ using deluge::ui::shell::UiEvent;
 
 namespace {
 
-/// @brief Which `EncoderRole` mod encoder @p which_encoder is: 0 is `mod0`, the lower (`hid/encoders.h:80-81`).
+/// @brief Which `EncoderRole` mod encoder @p which_encoder is: 0 is `mod0`, the lower (`hid/encoders.h`'s
+/// `mod0`/`mod1`).
 EncoderRole role_of(int32_t which_encoder) {
 	return which_encoder == 0 ? EncoderRole::GoldLower : EncoderRole::GoldUpper;
 }

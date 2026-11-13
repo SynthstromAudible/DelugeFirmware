@@ -167,7 +167,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 	it("two edges make one detent; accelerating encoders pass edges through", _ {
 		InputLowering in(uitest::test_profile_input(), {});
 		in.begin_tick(5);
-		in.on_encoder_edges(3, 2, 5);                     // select, encoders.cpp:28-34
+		in.on_encoder_edges(3, 2, 5);                     // select, `DetentedEncoder::applyEdges`
 		in.end_tick(5);
 		UiEvent e = only_queued(in);
 		expect(e.kind == UiEvent::Kind::Encoder).to_be_true();
@@ -175,7 +175,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		expect(e.delta).to_equal(int8_t(1));
 		expect(in.snapshot().turn).to_equal(int8_t(1));
 
-		// Index 4 is mod1, the upper gold knob (encoders.h:80-81, encoder_input.cpp:57).
+		// Index 4 is mod1, the upper gold knob (`encoders.h`'s `modEncoderAt`, `encoder_input.cpp`'s `interpretEncoders`).
 		in.begin_tick(6);
 		in.on_encoder_edges(4, 3, 6);                     // gold knob: raw edges through
 		in.end_tick(6);
@@ -214,7 +214,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 
 	it("reproduces the legacy gold-knob acceleration curve", _ {
 		InputLowering in(uitest::test_profile_input(), {});
-		// encoders.cpp:57-75. First call: 1.0 s since the zero-initialised last time, past the
+		// `EncoderAcceleration::advance`. First call: 1.0 s since the zero-initialised last time, past the
 		// 0.3 s reset threshold, so the speed resets and clamps up to min_speed.
 		expect(in.calc_next_knob_speed(EncoderRole::GoldUpper, 1, 1000)).to_be_within(1e-9).of(1.0);
 		// 10 ms later, same direction: speed = 0*0.9 + (1/0.01)*0.1 = 10; 10*0.15 = 1.5.

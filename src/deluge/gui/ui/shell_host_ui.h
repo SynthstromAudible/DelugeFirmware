@@ -198,8 +198,8 @@ namespace deluge::gui::ui {
 /// `View` keep one focus (`View::knobFocus()`), so what the knobs point at is the same either side
 /// of an open guest.
 ///
-///  - **A turn arrives lowered.** `interpretEncoders` has applied legacy's wiggle check and
-///    `calcNextKnobSpeed` before it calls `modEncoderAction` (`hid/encoder_input.cpp`), so the turn
+///  - **A turn arrives lowered.** `interpretEncoders` has applied legacy's wiggle check and the gold
+///    acceleration (`ContinuousEncoder::actionTurns`) before it calls `modEncoderAction`, so the turn
 ///    goes to `Shell::route_lowered_turn`, not into the lowering, where `ModKnobs` would accelerate it a
 ///    second time.
 ///  - **A push is fed once.** `Buttons::buttonAction` delivers MOD_ENCODER_0/1 twice: to
@@ -405,9 +405,10 @@ public:
 	///         the wrap costs one interval, not correctness.
 	uint32_t nowMs() const;
 
-	/// @brief The clock legacy times an encoder's acceleration on: the scheduler's seconds (`getSystemTime()`), as
-	///        `ContinuousEncoder::calcNextKnobSpeed` and `HorizontalMenu::calcNextKnobSpeed` read them, in
-	///        milliseconds. Legacy keeps the two apart, and so does the guest (`UiContext::acceleration_clock_ms`).
+	/// @brief The clock `main` times an encoder's acceleration on: the scheduler's seconds (`getSystemTime()`), as
+	///        `main`'s `ContinuousEncoder::calcNextKnobSpeed` and `HorizontalMenu::calcNextKnobSpeed` read them, in
+	///        milliseconds. The gold knobs here are timed by the board instead (`ContinuousEncoder::actionTurns`).
+	///        Legacy keeps the two apart, and so does the guest (`UiContext::acceleration_clock_ms`).
 	/// @return Milliseconds since the scheduler started; 0 before it has.
 	static uint32_t accelerationClockMs();
 
@@ -436,10 +437,10 @@ private:
 	/// @brief Feed one already-detented encoder turn to the shell as A-pin edges.
 	///
 	/// Legacy's four function encoders reach a `UI` in **detents** -- `interpretEncoders` calls
-	/// `DetentedEncoder::take()` and hands the result over (`hid/encoder_input.cpp:112`,
-	/// `hid/encoders.cpp:28-38`) -- while the shell's entry point takes **edges** and divides by
-	/// `LoweringConfig::edges_per_detent` itself. So this
-	/// multiplies back up. Feeding the detent count straight through would halve every turn.
+	/// `DetentedEncoder::take()` and hands the result over (`hid/encoder_input.cpp`'s
+	/// `interpretEncoders`, `DetentedEncoder::applyEdges`) -- while the shell's entry point takes **edges** and divides
+	/// by `LoweringConfig::edges_per_detent` itself. So this multiplies back up. Feeding the detent count straight
+	/// through would halve every turn.
 	///
 	/// @warning **The `int8_t` ceiling, and why this saturates instead of wrapping.**
 	///          `Shell::on_encoder_edges` takes an `int8_t`, so the product
@@ -447,17 +448,17 @@ private:
 	///          happens when it does not. **The guest can exceed it.** Legacy's
 	///          `detentDelta` is an `int32_t` accumulated in `DetentedEncoder::pos` across however
 	///          many `applyEdges` calls happen before a `take()`, and `interpretEncoders` skips the
-	///          `take()` entirely while the SD routine is yielding (`hid/encoder_input.cpp:96-106`,
-	///          the `continue`s at `:100` and `:105`) and while a stem export is running (`:66-68`,
-	///          after the `applyEdges` calls at `:58-63`). Each skipped pass can add up to 63
-	///          detents (`deluge_encoder_take_edges` reports an `int8_t`, halved at
-	///          `hid/encoders.cpp:31`), so a knob turned through a multi-second song load delivers
+	///          `take()` entirely while the SD routine is yielding (its
+	///          `continue`s) and while a stem export is running (its early return, after the
+	///          `applyEdges` calls). Each skipped pass can add up to 63
+	///          detents (`deluge_encoder_take_edges` reports an `int8_t`, halved by
+	///          `DetentedEncoder::applyEdges`), so a knob turned through a multi-second song load delivers
 	///          the whole accumulation in one call. So the clamp is `+-(127 / edges_per_detent)`,
 	///          i.e. +-63 detents at the Deluge's two edges per detent, applied **before** the
 	///          multiply. That is legacy's own choice for two of its four encoders -- tempo and
-	///          select get `clamp(detentDelta, -128, 127)` (`hid/encoder_input.cpp:117`) -- and a
+	///          select get `clamp(detentDelta, -128, 127)` (`interpretEncoders`) -- and a
 	///          divergence from it for the other two, which legacy hands the full `int32_t` "for
-	///          natural acceleration" (`:124`, `:140`). Saturating loses the excess of an
+	///          natural acceleration" (the horizontal and vertical actions). Saturating loses the excess of an
 	///          impossible turn; wrapping would reverse an ordinary one.
 	/// @param role    Which encoder the turn belongs to. Resolved to a board index through
 	///                `BoardProfile::encoder_by_index` rather than hard-coded, because that table

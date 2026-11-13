@@ -30,7 +30,7 @@
 /// @par Acceleration
 ///
 /// The turn's acceleration is `InputLowering::calc_next_knob_speed`: legacy's `EncoderAcceleration`, one ramp per gold
-/// knob as legacy keeps one per `ContinuousEncoder` (`hid/encoders.h:77`). Legacy's clock is sub-millisecond; the
+/// knob as legacy keeps one per `ContinuousEncoder` (`hid/encoders.h`). Legacy's clock is sub-millisecond; the
 /// port's is whole milliseconds.
 ///
 /// @par Not this service's
@@ -76,7 +76,7 @@ namespace deluge::scenes::services {
 /// @brief The two gold knobs: what they point at, what turning, pushing and their mod buttons do, and how fast.
 class ModKnobs final : public deluge::ui::shell::Service {
 public:
-	/// @brief How many gold knobs there are (`mod0`/`mod1`, `hid/encoders.h:81-82`).
+	/// @brief How many gold knobs there are (`hid/encoders.h`'s `mod0`/`mod1`).
 	static constexpr int32_t kKnobCount = 2;
 
 	/// @param popup    The value popup this service shows through.

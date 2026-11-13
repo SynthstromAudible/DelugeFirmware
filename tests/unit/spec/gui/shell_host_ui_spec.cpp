@@ -2343,7 +2343,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.open()).to_be_true();
 		r.base.seen.clear();
 
-		// Legacy hands a `UI` whole **detents** (`hid/encoder_input.cpp:112`, `:124`); the shell's
+		// Legacy hands a `UI` whole **detents** (`hid/encoder_input.cpp`'s `interpretEncoders`); the shell's
 		// entry point takes **edges** and divides by `edges_per_detent` itself. Feeding the detent count straight through would
 		// halve this to 1.
 		const ActionResult result = r.guest.horizontalEncoderAction(3);
@@ -2386,7 +2386,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// is the largest that fits and 64 (128 edges) narrows to -128, i.e. **-64 detents**.
 		// The guest can be handed more than 63: legacy's `detentDelta` accumulates in
 		// `DetentedEncoder::pos` across every pass `interpretEncoders` skips during the SD routine
-		// (`hid/encoder_input.cpp:96-106`) or a stem export (`:66-68`).
+		// (`hid/encoder_input.cpp`'s `interpretEncoders`) or a stem export.
 		r.base.seen.clear();
 		(void)r.guest.verticalEncoderAction(63);
 		r.guest.shell().tick(1);
@@ -2400,7 +2400,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		const PatternScene::Seen* past = first_of(r.base, UiEvent::Kind::Encoder);
 		expect(past != nullptr).to_be_true();
 		// Not -64, and not 0 either: saturated, the choice legacy makes for its own two narrowing
-		// encoders (`hid/encoder_input.cpp:117`).
+		// encoders (`hid/encoder_input.cpp`'s `interpretEncoders`).
 		expect(static_cast<int>(past->ev.delta)).to_equal(63);
 
 		r.base.seen.clear();

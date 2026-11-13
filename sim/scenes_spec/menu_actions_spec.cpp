@@ -289,7 +289,7 @@ struct GuestRig {
 
 	/// One detent of the select encoder, through the guest's own hook. `ShellHostUI::selectEncoderAction`
 	/// is the override legacy's `interpretEncoders` calls
-	/// (`hid/encoder_input.cpp:112`, `:117`), and it queues into the same lowering `press_enter`
+	/// (`hid/encoder_input.cpp`'s `interpretEncoders`), and it queues into the same lowering `press_enter`
 	/// does -- so, as there, nothing moves until the guest is ticked.
 	void turn_select(int32_t detents) { ui.selectEncoderAction(static_cast<int8_t>(detents)); }
 };

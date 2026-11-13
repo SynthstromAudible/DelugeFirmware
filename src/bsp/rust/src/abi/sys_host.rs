@@ -36,6 +36,17 @@ pub struct DelugeInputEvent {
     pub value: i16, // offset 4
 } // size: 6 bytes
 
+/// `libdeluge/encoder_io.h`'s `DelugeEncoderEdges`: 16 bytes, seven pad bytes after `edges`.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct DelugeEncoderEdges {
+    pub time_us: u64,
+    pub edges: i8,
+}
+
+/// `libdeluge/encoder_io.h`'s `DELUGE_ENCODER_EDGE_RUNS`.
+pub const DELUGE_ENCODER_EDGE_RUNS: u32 = 17;
+
 /// `libdeluge/control_surface.h`'s `DelugeColour`.
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -69,9 +80,11 @@ abi_layout!(type self::DelugeStatus => sys DelugeStatus);
 abi_layout!(type self::DelugeInputEventKind => sys DelugeInputEventKind);
 abi_layout!(self::DelugeInputEvent => sys DelugeInputEvent { kind, x, y, value });
 abi_layout!(self::DelugeColour => sys DelugeColour { r, g, b });
+abi_layout!(self::DelugeEncoderEdges => sys DelugeEncoderEdges { time_us, edges });
 abi_layout!(self::DelugeBootInfo => sys DelugeBootInfo { pic_firmware_version, oled_present,
     factory_reset_requested });
 abi_const!(
+    self::DELUGE_ENCODER_EDGE_RUNS => DELUGE_ENCODER_EDGE_RUNS,
     self::DelugeStatus_DELUGE_OK => DelugeStatus_DELUGE_OK,
     self::DelugeStatus_DELUGE_ERR_PARAM => DelugeStatus_DELUGE_ERR_PARAM,
     self::DelugeStatus_DELUGE_ERR_IO => DelugeStatus_DELUGE_ERR_IO,

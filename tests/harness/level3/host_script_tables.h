@@ -47,8 +47,8 @@ int ui_script_button_xy(const char* name, uint8_t* x, uint8_t* y);
 /// @brief Which firmware encoder index an `EncoderRole` name is wired to.
 ///
 /// `0=scrollY(Vertical) 1=scrollX(Horizontal) 2=tempo 3=select 4=mod1(GoldUpper) 5=mod0(GoldLower)`
-/// — `hid/encoder_input.cpp:56-63` for the order, `hid/encoders.h:80-81` for which gold knob each
-/// `mod` is. This is the index `deluge_encoder_take_edges()` is called with.
+/// — `hid/encoder_input.cpp`'s `interpretEncoders` for the order, `hid/encoders.h`'s `mod0`/`mod1` for which gold knob
+/// each `mod` is. This is the index `deluge_encoder_take_edges()` is called with.
 /// @param role Role name, spelled as the level-2 runner spells it.
 /// @return The index, or -1 when \p role names no encoder.
 int ui_script_encoder_index(const char* role);
