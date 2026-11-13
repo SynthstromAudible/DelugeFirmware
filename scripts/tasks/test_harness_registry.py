@@ -230,10 +230,48 @@ class LoadRegistryTest(unittest.TestCase):
             )
 
     def test_cargo_and_script_need_a_path(self):
-        with self.assertRaisesRegex(ValueError, "runs its commands in 'path'"):
-            hr.load_registry(
-                self._root_with(MINIMAL.replace('path = "harness/rust/alpha"\n', ""))
+        script = MINIMAL.replace('runner = "cargo"', 'runner = "script"')
+        for runner, text in (("cargo", MINIMAL), ("script", script)):
+            for path in ('path = ""\n', ""):
+                with (
+                    self.subTest(runner=runner, path=path),
+                    self.assertRaises(ValueError) as caught,
+                ):
+                    hr.load_registry(
+                        self._root_with(
+                            text.replace('path = "harness/rust/alpha"\n', path)
+                        )
+                    )
+                self.assertEqual(
+                    str(caught.exception),
+                    f"alpha: a {runner} test runs its commands in 'path', so it needs a non-empty 'path'",
+                )
+
+    def test_a_script_entry_with_a_path_loads(self):
+        script = MINIMAL.replace('runner = "cargo"', 'runner = "script"')
+        h = hr.load_registry(self._root_with(script))[0]
+        self.assertEqual((h.runner, h.path), ("script", "harness/rust/alpha"))
+
+    def test_harness_is_a_list_of_tables(self):
+        for text in ("harness = 3\n", "harness = [3]\n"):
+            with self.subTest(text), self.assertRaises(ValueError) as caught:
+                hr.load_registry(self._root_with(text))
+            self.assertEqual(
+                str(caught.exception), "'harness' is a list of [[harness]] tables"
             )
+
+    def test_name_and_gates_are_strings(self):
+        for old, new, message in (
+            ('name = "alpha"', "name = 3", "entry #0: name is a string"),
+            (
+                'gates = "alpha must equal beta"',
+                "gates = 3",
+                "alpha: gates is a string",
+            ),
+        ):
+            with self.subTest(new), self.assertRaises(ValueError) as caught:
+                hr.load_registry(self._root_with(MINIMAL.replace(old, new)))
+            self.assertEqual(str(caught.exception), message)
 
     def test_other_runners_take_no_path(self):
         with self.assertRaisesRegex(ValueError, "takes none"):
@@ -1693,12 +1731,12 @@ class ChildStderrTest(unittest.TestCase):
         self.assertIn("to-err", text.splitlines())
 
 
-def switch_definitions(source: str) -> list[int]:
+def switch_definitions(source: str, filename: str = "<unknown>") -> list[int]:
     """The lines on which `source` calls an argparse `add_argument` naming --update or --record, however the call is
     wrapped: any positional string of the call counts, so a short alias before it hides nothing."""
     return sorted(
         node.lineno
-        for node in ast.walk(ast.parse(source))
+        for node in ast.walk(ast.parse(source, filename=filename))
         if isinstance(node, ast.Call)
         and isinstance(node.func, ast.Attribute)
         and node.func.attr == "add_argument"
@@ -1723,6 +1761,11 @@ class SwitchDefinitionsTest(unittest.TestCase):
 
     def test_after_a_short_alias(self):
         self.assertEqual(switch_definitions('p.add_argument("-u", "--update")\n'), [1])
+
+    def test_a_syntax_error_names_its_file(self):
+        with self.assertRaises(SyntaxError) as caught:
+            switch_definitions("def (\n", "tools/broken.py")
+        self.assertEqual(caught.exception.filename, "tools/broken.py")
 
     def test_other_switches_and_mentions_are_not_definitions(self):
         source = (
@@ -1753,12 +1796,88 @@ class DumpExpandedTest(unittest.TestCase):
         two = hr.dump_expanded(hr.load_registry(self._root_with(CTEST + MINIMAL)))
         self.assertEqual(one, two)
 
-    def test_the_runner_prints_the_registrys_dump(self):
+    def test_the_runner_prints_the_registrys_dump_and_nothing_else(self):
+        # A child process, so a write to file descriptor 1 that bypasses sys.stdout lands in what is read too.
         root = Path(__file__).resolve().parents[2]
-        out = io.StringIO()
-        with contextlib.redirect_stdout(out):
-            self.assertEqual(tt.main(["--dump-expanded"]), 0)
-        self.assertEqual(out.getvalue(), hr.dump_expanded(hr.load_registry(root)))
+        run = subprocess.run(
+            [
+                sys.executable,
+                str(Path(__file__).parent / "task-test.py"),
+                "--dump-expanded",
+            ],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual(
+            json.loads(run.stdout),
+            json.loads(hr.dump_expanded(hr.load_registry(root))),
+        )
+
+
+class OwnersRefusalTest(unittest.TestCase):
+    def test_an_entry_without_a_baseline_is_refused(self):
+        self.assertEqual(
+            tt.owners_refusal([entry("plain")]),
+            "--update: plain list(s) no baseline in the registry",
+        )
+
+    def test_a_variant_copy_names_its_base(self):
+        copy = dataclasses.replace(entry("app-asan-x"), variant_of="x")
+        self.assertEqual(
+            tt.owners_refusal([copy]),
+            "--update: app-asan-x is a variant of x: it checks, and ./dbt test --update x re-records",
+        )
+
+    def test_an_entry_with_a_baseline_passes(self):
+        self.assertIsNone(
+            tt.owners_refusal([dataclasses.replace(entry("x"), baseline=["a"])])
+        )
+
+
+class ModeRefusalTest(unittest.TestCase):
+    def _main(self, argv):
+        # A refusal returns before anything runs; were it missing, the stubs keep the test from running a selection.
+        err = io.StringIO()
+        with (
+            mock.patch.object(tt, "cmd_run", return_value=99),
+            mock.patch.object(tt, "cmd_update", return_value=99),
+            mock.patch.object(tt, "cmd_list", return_value=99),
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(err),
+        ):
+            code = tt.main(argv)
+        return code, err.getvalue()
+
+    def test_verbose_needs_list(self):
+        self.assertEqual(
+            self._main(["--verbose", "registry-selftest"]),
+            (
+                2,
+                "test: --verbose adds each test's explanation to --list: ./dbt test --list --verbose <name>...\n",
+            ),
+        )
+
+    def test_dump_expanded_takes_nothing_else(self):
+        for argv, clash in (
+            (["--dump-expanded", "--list"], "--list"),
+            (["--dump-expanded", "--tier", "nightly", "x"], "test names, --tier"),
+            (["--dump-expanded", "--update", "x"], "test names, --update"),
+            (["--dump-expanded", "--", "-R", "x"], "arguments after --"),
+        ):
+            with self.subTest(argv):
+                self.assertEqual(
+                    self._main(argv),
+                    (
+                        2,
+                        (
+                            "test: --dump-expanded prints every entry, so it takes no other option or test name: "
+                            f"{clash}\n"
+                        ),
+                    ),
+                )
 
 
 class RetiredSwitchTest(unittest.TestCase):
@@ -1826,7 +1945,7 @@ class RetiredSwitchTest(unittest.TestCase):
         hits = [
             f"{path}:{line}"
             for path in self.tracked_python()
-            for line in switch_definitions((self.ROOT / path).read_text())
+            for line in switch_definitions((self.ROOT / path).read_text(), path)
         ]
         self.assertEqual(hits, [])
 
@@ -1928,6 +2047,66 @@ class ExplanationTest(unittest.TestCase):
             )
         with self.assertRaisesRegex(ValueError, "empty"):
             hr.explanation_blocks(self._file("n.md", "## alpha\n\n## beta\n\nb\n"))
+
+    def test_a_python_syntax_error_names_its_file(self):
+        path = self._file("c.py", '"""Gate alpha:\n    a\n"""\ndef (\n')
+        with self.assertRaises(SyntaxError) as caught:
+            hr.explanation_blocks(path)
+        self.assertEqual(caught.exception.filename, str(path))
+
+    def _script(self, run, path="tools/probe"):
+        return dataclasses.replace(entry("probe"), path=path, run=run)
+
+    def test_script_sources_by_command(self):
+        for run, source in (
+            (["./run.sh", "10"], "tools/probe/run.sh"),
+            (["python3", "probe.py", "x"], "tools/probe/probe.py"),
+            (["python3", "-m", "unittest"], "tools/probe/probe.py"),
+            (
+                ["python3", "-m", "unittest", "discover", "-p", "test_*.py"],
+                "tools/probe/probe.py",
+            ),
+            (
+                ["python3", "-m", "unittest", "test_a", "test_b"],
+                "tools/probe/test_a.py",
+            ),
+            (["python3", "-m", "probe_main", "--fast"], "tools/probe/probe_main.py"),
+        ):
+            with self.subTest(run):
+                self.assertEqual(
+                    hr.explanation_source(self.ROOT, self._script(run)), Path(source)
+                )
+
+    def test_a_script_command_that_names_no_file_is_refused(self):
+        for run, message in (
+            (["python3"], "probe: run names no script after python3"),
+            (["python3", "-u", "probe.py"], "probe: run names no script after python3"),
+            (["python3", "-m"], "probe: run names no module after python3 -m"),
+            (
+                ["python3", "-m", "unittest", "-v", "test_a"],
+                (
+                    "probe: run names an option before the first module after -m unittest; name the modules first, "
+                    "since the explanation is read from the first"
+                ),
+            ),
+        ):
+            with self.subTest(run), self.assertRaises(ValueError) as caught:
+                hr.explanation_source(self.ROOT, self._script(run))
+            self.assertEqual(str(caught.exception), message)
+
+    def test_the_loader_refuses_a_script_command_that_names_no_file(self):
+        root = Path(tempfile.mkdtemp())
+        (root / "tests").mkdir()
+        (root / "tests" / "registry.toml").write_text(
+            MINIMAL.replace('runner = "cargo"', 'runner = "script"').replace(
+                'run = ["cargo", "test"]', 'run = ["python3", "-m"]'
+            )
+        )
+        with self.assertRaises(ValueError) as caught:
+            hr.load_registry(root)
+        self.assertEqual(
+            str(caught.exception), "alpha: run names no module after python3 -m"
+        )
 
     def test_sources_by_runner(self):
         cases = {
@@ -2059,8 +2238,12 @@ class TemplateTest(unittest.TestCase):
             self._load(TEMPLATED + 'override = ["tier"]\n')
 
     def test_an_override_to_the_templates_own_value_is_refused(self):
-        with self.assertRaisesRegex(ValueError, "template 't''s own value"):
+        with self.assertRaises(ValueError) as caught:
             self._load(TEMPLATED + 'runtime_s = 5\noverride = ["runtime_s"]\n')
+        self.assertEqual(
+            str(caught.exception),
+            "one: sets runtime_s to the value template 't' already sets",
+        )
 
     def test_an_unknown_template_is_refused(self):
         with self.assertRaisesRegex(ValueError, "unknown template 'u'"):
@@ -2105,6 +2288,11 @@ class TemplateTest(unittest.TestCase):
             str(caught.exception),
             "'template' is a table of [template.<name>] tables",
         )
+
+    def test_each_template_is_a_table(self):
+        with self.assertRaises(ValueError) as caught:
+            self._load("template = { t = 1 }\n" + MINIMAL)
+        self.assertEqual(str(caught.exception), "template 't' is a table of fields")
 
     def test_an_entrys_template_is_a_name(self):
         for value in ("3", '["t"]'):
@@ -2344,6 +2532,34 @@ class VariantTest(unittest.TestCase):
                     )
                 )
             self.assertEqual(str(caught.exception), message)
+
+    def test_variant_is_a_table_of_tables(self):
+        for text, message in (
+            ("variant = 3\n", "'variant' is a table of [variant.<name>] tables"),
+            ("variant = { asan = 1 }\n", "variant 'asan' is a table of fields"),
+        ):
+            with self.subTest(text), self.assertRaises(ValueError) as caught:
+                self._load(text + VARIANTED.split("[variant.asan]")[0])
+            self.assertEqual(str(caught.exception), message)
+
+    def test_a_variants_name_and_gates_are_strings(self):
+        for old, new, key in (
+            ('name = "app-asan-{base}"', "name = 3", "name"),
+            ('gates = "the {base} gate\'s checks under ASan"', "gates = 3", "gates"),
+        ):
+            with self.subTest(key), self.assertRaises(ValueError) as caught:
+                self._load(VARIANTED.replace(old, new))
+            self.assertEqual(
+                str(caught.exception),
+                f"variant 'asan': {key} is a string containing {{base}}",
+            )
+
+    def test_a_base_without_a_name_is_refused(self):
+        with self.assertRaises(ValueError) as caught:
+            self._load(VARIANTED.replace('name = "gamma"\n', ""))
+        self.assertEqual(
+            str(caught.exception), "entry #0: missing required field 'name'"
+        )
 
     def test_a_copy_is_validated_like_any_entry(self):
         text = VARIANTED.replace(

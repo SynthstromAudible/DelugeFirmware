@@ -197,6 +197,8 @@ def _templates(raw: dict) -> dict[str, dict]:
     if not isinstance(templates, dict):
         raise ValueError("'template' is a table of [template.<name>] tables")  # noqa: TRY004
     for name, shared in templates.items():
+        if not isinstance(shared, dict):
+            raise ValueError(f"template '{name}' is a table of fields")  # noqa: TRY004
         if "template" in shared:
             raise ValueError(f"template '{name}': templates do not nest")
         if unknown := sorted(set(shared) - ENTRY_FIELDS - SOURCE_FIELDS):
@@ -240,7 +242,7 @@ def _with_template(where: str, item: dict, templates: dict[str, dict]) -> dict:
         )
     if same := [k for k in both if own[k] == shared[k]]:
         raise ValueError(
-            f"{where}: sets {', '.join(same)} to template '{name}''s own value"
+            f"{where}: sets {', '.join(same)} to the value template '{name}' already sets"
         )
     return {**shared, **own}
 
@@ -268,10 +270,18 @@ _NOT_COPIED = frozenset({"variants", "variant_fields", "baseline"})
 
 def _variant_tables(raw: dict) -> dict[str, dict]:
     variants = raw.get("variant", {})
+    if not isinstance(variants, dict):
+        raise ValueError("'variant' is a table of [variant.<name>] tables")  # noqa: TRY004
     for name, table in variants.items():
+        if not isinstance(table, dict):
+            raise ValueError(f"variant '{name}' is a table of fields")  # noqa: TRY004
         if unknown := sorted(set(table) - VARIANT_FIELDS):
             raise ValueError(f"variant '{name}': unknown field(s) {', '.join(unknown)}")
         for key in ("name", "gates"):
+            if not isinstance(table.get(key, ""), str):
+                raise ValueError(  # noqa: TRY004
+                    f"variant '{name}': {key} is a string containing {{base}}"
+                )
             if "{base}" not in table.get(key, ""):
                 raise ValueError(f"variant '{name}': {key} must contain {{base}}")
     return variants
@@ -280,8 +290,8 @@ def _variant_tables(raw: dict) -> dict[str, dict]:
 def _copies(items: list[dict], variants: dict[str, dict]) -> list[dict]:
     """Every variant copy the entries ask for, in entry order."""
     copies = []
-    for item in items:
-        where = item.get("name", "?")
+    for i, item in enumerate(items):
+        where = item.get("name", f"entry #{i}")
         wanted = item.get("variants", [])
         per_base = item.get("variant_fields", {})
         if not isinstance(wanted, list) or not all(isinstance(v, str) for v in wanted):
@@ -290,6 +300,8 @@ def _copies(items: list[dict], variants: dict[str, dict]) -> list[dict]:
             raise ValueError(  # noqa: TRY004
                 f"{where}: variant_fields is a table of [variant_fields.<variant>] tables"
             )
+        if wanted and "name" not in item:
+            raise ValueError(f"{where}: missing required field 'name'")
         if wanted and (runner := item.get("runner")) != "scenario":
             raise ValueError(
                 f"{where}: variant '{wanted[0]}' swaps the render build, so it applies to scenario entries; this is a "
@@ -337,8 +349,15 @@ def expand(raw: dict) -> list[dict]:
         raise ValueError(f"unknown table(s) {', '.join(stray)}")
     templates = _templates(raw)
     variants = _variant_tables(raw)
+    written = raw.get("harness", [])
+    if not isinstance(written, list) or not all(
+        isinstance(item, dict) for item in written
+    ):
+        raise ValueError("'harness' is a list of [[harness]] tables")
     items = []
-    for i, item in enumerate(raw.get("harness", [])):
+    for i, item in enumerate(written):
+        if not isinstance(item.get("name", ""), str):
+            raise ValueError(f"entry #{i}: name is a string")  # noqa: TRY004
         where = item.get("name", f"entry #{i}")
         if unknown := sorted(set(item) - ENTRY_FIELDS - SOURCE_FIELDS):
             raise ValueError(f"{where}: unknown field(s) {', '.join(unknown)}")
@@ -378,8 +397,34 @@ CHECK_NOTES = {
 }
 
 
+def _script_source(h: Harness) -> Path:
+    """The file a script entry's command runs, which holds its explanation: the program, the script after python3,
+    the module after `python3 -m`, or for `python3 -m unittest` the first module it names (with none named, or
+    `discover`, the module named after `path`'s last directory)."""
+    run = h.run
+    if run[0] != "python3":
+        return Path(h.path) / run[0]
+    if len(run) < 2 or (run[1].startswith("-") and run[1] != "-m"):
+        raise ValueError(f"{h.name}: run names no script after python3")
+    if run[1] != "-m":
+        return Path(h.path) / run[1]
+    if len(run) < 3:
+        raise ValueError(f"{h.name}: run names no module after python3 -m")
+    if run[2] != "unittest":
+        return Path(h.path) / f"{run[2]}.py"
+    if len(run) == 3 or run[3] == "discover":
+        return Path(h.path) / f"{Path(h.path).name}.py"
+    if run[3].startswith("-"):
+        raise ValueError(
+            f"{h.name}: run names an option before the first module after -m unittest; name the modules first, since "
+            "the explanation is read from the first"
+        )
+    return Path(h.path) / f"{run[3]}.py"
+
+
 def explanation_source(root: Path, h: Harness) -> Path | None:
-    """The file that holds `h`'s explanation: the code that judges it, or the file its command runs."""
+    """The file that holds `h`'s explanation: the code that judges it, or that file's notes (CHECK_NOTES), or the
+    file its command runs."""
     match h.runner:
         case "scenario":
             if h.check:
@@ -395,11 +440,7 @@ def explanation_source(root: Path, h: Harness) -> Path | None:
             return Path(h.path) / "Cargo.toml"
         case "ctest":
             return Path(h.source) / "CMakeLists.txt"
-    run = h.run
-    if run[:3] == ["python3", "-m", "unittest"]:
-        module = f"{Path(h.path).name}.py" if run[3] == "discover" else f"{run[3]}.py"
-        return Path(h.path) / module
-    return Path(h.path) / (run[1] if run[0] == "python3" else run[0])
+    return _script_source(h)
 
 
 _BLOCK_HEAD = re.compile(r"^Gate (?P<name>[a-z0-9][a-z0-9-]*):$")
@@ -436,7 +477,9 @@ def explanation_blocks(path: Path) -> dict[str, str]:
         return _notes_sections(path)
     text = path.read_text()
     if path.suffix == ".py":
-        lines = (ast.get_docstring(ast.parse(text), clean=True) or "").splitlines()
+        lines = (
+            ast.get_docstring(ast.parse(text, filename=str(path)), clean=True) or ""
+        ).splitlines()
     else:
         lines = [
             _COMMENT.sub("", line, count=1) if _COMMENT.match(line) else ""
@@ -508,6 +551,8 @@ def _validate(root: Path, item: dict, where: str, seen: set[str]) -> Harness:
     ):
         if required not in item or item[required] in ("", [], None):
             raise ValueError(f"{where}: missing required field '{required}'")
+    if not isinstance(item["gates"], str):
+        raise ValueError(f"{where}: gates is a string")  # noqa: TRY004
     if problem := gates_problem(item["gates"]):
         raise ValueError(
             f"{where}: gates {problem}: state what the test gates in one sentence, and put the rest in its explanation, "
@@ -528,7 +573,7 @@ def _validate(root: Path, item: dict, where: str, seen: set[str]) -> Harness:
 
     if item["runner"] in PATH_RUNNERS and not item.get("path"):
         raise ValueError(
-            f"{where}: a {item['runner']} test runs its commands in 'path', so it needs one"
+            f"{where}: a {item['runner']} test runs its commands in 'path', so it needs a non-empty 'path'"
         )
     if item["runner"] not in PATH_RUNNERS and "path" in item:
         raise ValueError(
@@ -627,7 +672,7 @@ def _validate(root: Path, item: dict, where: str, seen: set[str]) -> Harness:
         raise ValueError(f"duplicate test name '{item['name']}'")
     seen.add(item["name"])
 
-    return Harness(
+    h = Harness(
         name=item["name"],
         path=item.get("path", "."),
         level=item["level"],
@@ -658,6 +703,10 @@ def _validate(root: Path, item: dict, where: str, seen: set[str]) -> Harness:
         job=item["job"],
         variant_of=item.get("variant_of", ""),
     )
+    if h.runner == "script":
+        # Refuses a command whose explanation file it cannot name.
+        _script_source(h)
+    return h
 
 
 def select(

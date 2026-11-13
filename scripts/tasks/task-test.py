@@ -7,13 +7,14 @@
 ./dbt test pattern-load song-save-channel    # by name, whatever their tier
 ./dbt test unit -- -R mem_guard              # arguments after -- go to ctest
 ./dbt test --list [--markdown]               # the registry, with prerequisites resolved
-./dbt test --list --verbose song-roundtrip    # a test's explanation, from the file that judges it
+./dbt test --list --verbose song-roundtrip   # a test's explanation, from the file that judges it
 ./dbt test --doctor                          # what is missing, and how to get it
 ./dbt test --capture <label>                 # run the estate and record its marker lines
 ./dbt test --ci-matrix --tier pr             # the selection by CI job, as JSON
 ./dbt test --update-readme                   # regenerate tests/README.md's table
 ./dbt test --update golden-synth             # re-record the named tests' baselines
 ./dbt test --clean                           # drop the shared cargo target dir
+./dbt test --dump-expanded                   # every entry as the runner sees it (JSON)
 """
 
 import argparse
@@ -505,11 +506,38 @@ def update_refusal(args) -> str | None:
 
 
 def owners_refusal(selection: list[hr.Harness]) -> str | None:
-    """Why `--update` refuses some of `selection`: an entry that lists no baseline has nothing to re-record."""
-    none = [h.name for h in selection if not h.baseline]
+    """Why `--update` refuses some of `selection`: a variant copy only checks what its base records, and any other
+    entry that lists no baseline has nothing to re-record."""
+    why = [
+        f"{h.name} is a variant of {h.variant_of}: it checks, and ./dbt test --update {h.variant_of} re-records"
+        for h in selection
+        if h.variant_of
+    ]
+    if none := [h.name for h in selection if not h.baseline and not h.variant_of]:
+        why.append(f"{', '.join(none)} list(s) no baseline in the registry")
+    return f"--update: {'; '.join(why)}" if why else None
+
+
+def mode_refusal(args, passthrough: list[str]) -> str | None:
+    """Why the options asked for do not combine, or None: --verbose belongs to --list, and --dump-expanded prints
+    every entry whatever else is asked."""
+    if args.verbose and not args.list:
+        return "--verbose adds each test's explanation to --list: ./dbt test --list --verbose <name>..."
+    if not args.dump_expanded:
+        return None
+    parser = argparser()
+    defaults = vars(parser.parse_args([]))
+    clash = [
+        action.option_strings[-1] if action.option_strings else "test names"
+        for action in parser._actions
+        if action.dest not in ("help", "dump_expanded")
+        and getattr(args, action.dest) != defaults[action.dest]
+    ]
+    if passthrough:
+        clash.append("arguments after --")
     return (
-        f"--update: {', '.join(none)} list(s) no baseline in the registry"
-        if none
+        f"--dump-expanded prints every entry, so it takes no other option or test name: {', '.join(clash)}"
+        if clash
         else None
     )
 
@@ -1233,6 +1261,9 @@ def main(argv: list[str] | None = None) -> int:
                 f"test: {name} in the environment is ignored: ./dbt test --update <name> sets it",
                 file=sys.stderr,
             )
+    if why := mode_refusal(args, passthrough):
+        print(f"test: {why}", file=sys.stderr)
+        return 2
     if args.update and (why := update_refusal(args)):
         print(f"test: {why}", file=sys.stderr)
         return 2
