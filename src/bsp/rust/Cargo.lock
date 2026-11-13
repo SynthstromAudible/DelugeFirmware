@@ -1246,11 +1246,12 @@ dependencies = [
 
 [[package]]
 name = "deluge-bsp"
-version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=318154f11ea299f0c9102157f65c4f91dc963a8c#318154f11ea299f0c9102157f65c4f91dc963a8c"
+version = "0.2.0"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d#5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d"
 dependencies = [
  "cortex-ar",
  "critical-section",
+ "deluge-flash-protect",
  "deluge-usb-classes",
  "embassy-executor",
  "embassy-futures",
@@ -1303,14 +1304,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "deluge-flash-protect"
+version = "0.2.0"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d#5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d"
+
+[[package]]
 name = "deluge-panel-protocol"
-version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=318154f11ea299f0c9102157f65c4f91dc963a8c#318154f11ea299f0c9102157f65c4f91dc963a8c"
+version = "0.2.0"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d#5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d"
 
 [[package]]
 name = "deluge-simulator"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=318154f11ea299f0c9102157f65c4f91dc963a8c#318154f11ea299f0c9102157f65c4f91dc963a8c"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d#5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d"
 dependencies = [
  "clap",
  "cpal",
@@ -1331,8 +1337,8 @@ dependencies = [
 
 [[package]]
 name = "deluge-usb-classes"
-version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=318154f11ea299f0c9102157f65c4f91dc963a8c#318154f11ea299f0c9102157f65c4f91dc963a8c"
+version = "0.2.0"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d#5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d"
 dependencies = [
  "critical-section",
  "embassy-futures",
@@ -3118,8 +3124,8 @@ dependencies = [
 
 [[package]]
 name = "max5136"
-version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=318154f11ea299f0c9102157f65c4f91dc963a8c#318154f11ea299f0c9102157f65c4f91dc963a8c"
+version = "0.2.0"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d#5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d"
 dependencies = [
  "embedded-hal 1.0.0",
 ]
@@ -4630,7 +4636,7 @@ dependencies = [
 [[package]]
 name = "rza1-hal"
 version = "0.2.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=318154f11ea299f0c9102157f65c4f91dc963a8c#318154f11ea299f0c9102157f65c4f91dc963a8c"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d#5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d"
 dependencies = [
  "cortex-ar",
  "critical-section",
@@ -4653,12 +4659,12 @@ dependencies = [
 [[package]]
 name = "rza1-pac"
 version = "0.2.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=318154f11ea299f0c9102157f65c4f91dc963a8c#318154f11ea299f0c9102157f65c4f91dc963a8c"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d#5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d"
 
 [[package]]
 name = "rza1-rt"
 version = "0.2.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=318154f11ea299f0c9102157f65c4f91dc963a8c#318154f11ea299f0c9102157f65c4f91dc963a8c"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d#5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d"
 dependencies = [
  "rza1-rt-macros",
 ]
@@ -4666,7 +4672,7 @@ dependencies = [
 [[package]]
 name = "rza1-rt-macros"
 version = "0.2.0"
-source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=318154f11ea299f0c9102157f65c4f91dc963a8c#318154f11ea299f0c9102157f65c4f91dc963a8c"
+source = "git+https://github.com/FirestormAudio/deluge-sdk.git?rev=5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d#5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d"
 dependencies = [
  "proc-macro2",
  "quote",

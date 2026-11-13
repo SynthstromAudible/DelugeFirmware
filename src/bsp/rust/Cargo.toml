@@ -38,17 +38,17 @@ deluge_sample_fill = { path = "../../../crates/deluge_sample_fill", features = [
 # and its own C `rza1_cpu_fault_report` (every CPU fault vector calls it), not the BSP's
 # `fault-blink` handler. `zero-init-below-image`: the SRAM heap starts at the image's boot-only
 # tail (linker/sdram_sections.x), so the zero-init data has to sit below the image.
-deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "318154f11ea299f0c9102157f65c4f91dc963a8c", default-features = false, features = [
+deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d", default-features = false, features = [
     "flash",
     "zero-init-below-image",
 ] }
 # The USB-MIDI and USB Audio Class 2.0 device classes.
-deluge-usb-classes = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "318154f11ea299f0c9102157f65c4f91dc963a8c", features = [
+deluge-usb-classes = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d", features = [
     "device-audio",
     "device-midi",
 ] }
 # The chip HAL. `unstable-driver-steal`: the fault path stops the PIC TX DMA through `Dma::steal`.
-rza1-hal = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "318154f11ea299f0c9102157f65c4f91dc963a8c", features = [
+rza1-hal = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d", features = [
     "rza1l",
     "unstable-driver-steal",
 ] }
@@ -107,7 +107,7 @@ block-device-driver = { path = "../../../crates/block-device-driver", optional =
 block-device-adapters = { path = "../../../crates/block-device-adapters", optional = true }
 aligned = { version = "0.4", optional = true }
 # The desktop simulator window for `sim`.
-deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "318154f11ea299f0c9102157f65c4f91dc963a8c", optional = true }
+deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-sdk.git", rev = "5d3e91d61cb0d1d0c0bb5898d0c9a36c7ca9648d", optional = true }
 
 [features]
 default = ["host-runtime"]
