@@ -219,7 +219,7 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 		    .id = deluge::instrument::param::kLpfFrequency,
 		    .clip_id = f.clip->id()};
 		report("synth-region", 0, "lpfFrequency", time_requests([&](int32_t i) {
-			       (void)menu::host_write_sink().write_param(lpf, (i % 2) != 0 ? 0x40000000 : -0x40000000, 0, 24);
+			       (void)menu::host_controls_sink().write_param(lpf, (i % 2) != 0 ? 0x40000000 : -0x40000000, 0, 24);
 		       }));
 		nullifyUIs();
 	});

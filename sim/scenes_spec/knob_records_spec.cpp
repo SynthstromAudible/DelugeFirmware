@@ -7,6 +7,7 @@
 #include "model/edits/setting_edit.h"
 
 #include "deluge-project/structure_codec.h"
+#include "instruments/deluge/pages.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
@@ -15,10 +16,12 @@
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/midi/midi_param_collection.h"
+#include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
 
 #include "integration/scenarios/drivers/driver.h"
@@ -426,6 +429,21 @@ describe knob_records("the knob records, by Edit", ${
 			expect(static_cast<int32_t>(midi->modKnobCCAssignments[0])).to_equal(*moved);
 		}
 		currentSong = before;
+	});
+
+	it("a freshly made synth's knobs are the instrument's default pages", _ {
+		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
+		std::vector<deluge::project::ControllerMapping> expected;
+		for (const deluge::plugin::RemotePage& page : deluge::instrument::kDevicePages) {
+			for (uint8_t knob = 0; knob < 2; knob++) {
+				if (const auto& param = page.slots[knob].param) {
+					expected.push_back({deluge::project::ModKnobControl{static_cast<uint8_t>(page.section), knob}, *param});
+				}
+			}
+		}
+		const std::vector<deluge::project::ControllerMapping> made =
+		    deluge::bridge::controlsOf(*static_cast<Sound*>(static_cast<SoundInstrument*>(f.instrument)));
+		expect(made == expected).to_be_true();
 	});
 });
 // clang-format on

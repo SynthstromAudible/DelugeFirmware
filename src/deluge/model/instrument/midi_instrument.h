@@ -128,16 +128,16 @@ public:
 
 	// ModControllable implementation
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack,
-	                            deluge::project::CompView* comp = nullptr) override;
+	                            deluge::controls::CompView* comp = nullptr) override;
 	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
-	                     const deluge::project::CompView& comp = {}) override;
+	                     const deluge::controls::CompView& comp = {}) override;
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                                                bool allowCreation,
-	                                                const deluge::project::CompView& comp = {}) override;
+	                                                const deluge::controls::CompView& comp = {}) override;
 	uint8_t* getModKnobMode() override { return &modKnobMode; }
 
 	int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack,
-	                                      const deluge::project::CompView& comp = {}) override;
+	                                      const deluge::controls::CompView& comp = {}) override;
 	ModelStackWithAutoParam* getParamToControlFromInputMIDIChannel(int32_t cc,
 	                                                               ModelStackWithThreeMainThings* modelStack) override;
 	bool doesAutomationExistOnMIDIParam(ModelStackWithThreeMainThings* modelStack, int32_t cc);

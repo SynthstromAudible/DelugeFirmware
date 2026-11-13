@@ -10,6 +10,7 @@ add_subdirectory(effects/global_effectable) # deluge_global_effectable: the prov
 add_subdirectory(music-theory) # deluge_music_theory: note sets, scales, keys and scale mapping
 add_subdirectory(midi)       # deluge_midi: pure MIDI protocol library (app + tests)
 add_subdirectory(deluge-project) # deluge_project: the project model (deluge::project::Song)
+add_subdirectory(controls)   # deluge_controls: the gold knobs' focus and the controls vocabulary
 add_subdirectory(synth)      # deluge_synth: the synth library (sources, modulation core)
 add_subdirectory(gfx)        # deluge_gfx_oled / deluge_gfx_grid: pure drawing primitives
 add_subdirectory(ui)         # deluge_ui_core / deluge_ui_oled / deluge_ui_grid: the immediate-mode toolkit

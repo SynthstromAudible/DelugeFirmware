@@ -46,6 +46,9 @@ enum class ParamFlag : uint16_t {
 	FLOAT_INTERPOLATION = 1 << 3, ///< automation interpolates in float
 	SMOOTHED = 1 << 4,            ///< value changes pass the param smoother, from automation too
 	SMOOTHED_USER_ONLY = 1 << 5,  ///< only a user's changes pass the smoother; automation steps land at once
+	STEPPED = 1 << 6,             ///< takes whole steps: a choice index or a count, never a knob word between
+	ENUM = 1 << 7,                ///< each step is a named choice
+	SETTING = 1 << 8,             ///< a setting the host stores at its file name's path, not automated and not undone
 };
 
 /// @brief A set of ParamFlag.

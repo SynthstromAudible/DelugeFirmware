@@ -12,10 +12,11 @@
 ///
 /// The knobs point at a `bind::KnobFocus`: addresses into the song's records, and the view's knob state (the mod
 /// region, the song compressor's view). What a knob moves is `bind::knob_assignment` over the records; a value is the
-/// `RuntimeFacts::param_value` fact, or the record's automation at a held region; the position is `bind/knob_math`'s.
-/// A turn is a `WriteSink::write_param` request (the Edit makes what the knob turns and writes a take being
-/// recorded); a push and a mod button are `services/knob_push`'s pure tables, sent to the sink. The service holds no
-/// engine object.
+/// `controls::Facts::param_value` fact, or the record's automation at a held region; the position is
+/// `bind/knob_math`'s. A turn is a `controls::Sink::write_param` request (the Edit makes what the knob turns and writes
+/// a take being recorded); a push and a mod button resolve through the controls library (`controls::resolve_press`,
+/// `controls::resolve_section`) into `services/knob_push`'s requests, sent to the sink. The service holds no engine
+/// object.
 ///
 /// @par Why a service in `src/scenes/` and not in `src/shell/`
 ///
@@ -25,7 +26,8 @@
 /// @par What the router sends here
 ///
 /// A mod button, a gold-knob turn and a gold-knob push, each only after the top scene has declined it
-/// (`shell/router.h`'s `route()`): `View` is what `UI`'s base-class hooks forward to (`gui/ui/ui.cpp:35-45`).
+/// (`shell/router.h`'s `route()`): `View` is what `UI`'s base-class hooks forward to (`UI::modEncoderAction`,
+/// `UI::modButtonAction`, `UI::modEncoderButtonAction`).
 ///
 /// @par Acceleration
 ///
@@ -72,6 +74,8 @@ struct ParamAddress;
 }
 
 namespace deluge::scenes::services {
+
+struct PushInputs;
 
 /// @brief The two gold knobs: what they point at, what turning, pushing and their mod buttons do, and how fast.
 class ModKnobs final : public deluge::ui::shell::Service {
@@ -139,8 +143,8 @@ public:
 		/// The root is performance view (`View::modButtonAction`): a mod button is taken whatever UI mode is active,
 		/// and it leaves a stutter playing.
 		bool root_is_performance = false;
-		/// The root is a clip minder (`gui/ui/ui.cpp:187-190`): the VU meter is not offered. Not the same question as
-		/// `is_clip_context`: in session view with a clip pressed the knobs are on the clip and the root is not one.
+		/// The root is a clip minder (`rootUIIsClipMinderScreen`): the VU meter is not offered. Not the same question
+		/// as `is_clip_context`: in session view with a clip pressed the knobs are on the clip and the root is not one.
 		bool root_is_clip_minder = false;
 		/// `View::modButtonUIModeInRange`: true with no UI mode active.
 		bool mod_button_ui_mode_in_range = true;
@@ -241,6 +245,10 @@ private:
 	const effects::EffectStates* owner_effects() const;
 	/// @brief A stutter-rate knob on the focus's owner is quantized.
 	bool owner_stutter_quantized() const;
+	/// @brief What a push or a mod button's popup reads beyond the records: the owner's effects, FM, the alt delay
+	/// knobs.
+	/// @param mode_held The knobs' mode's mod button is held.
+	PushInputs push_inputs(bool mode_held) const;
 
 	overlay::ParamPopupScene& popup_;
 	deluge::ui::shell::SceneStack& stack_;

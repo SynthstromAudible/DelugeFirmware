@@ -232,8 +232,10 @@ add_subdirectory(${REPO_ROOT}/src/serialization ${CMAKE_BINARY_DIR}/serializatio
 add_subdirectory(${REPO_ROOT}/src/plugin-api ${CMAKE_BINARY_DIR}/plugin-api) # deluge_plugin_api
 add_subdirectory(${REPO_ROOT}/src/effects ${CMAKE_BINARY_DIR}/effects) # deluge_effects
 add_subdirectory(${REPO_ROOT}/src/instruments/deluge ${CMAKE_BINARY_DIR}/instruments-deluge) # deluge_instrument
+add_subdirectory(${REPO_ROOT}/src/effects/global_effectable ${CMAKE_BINARY_DIR}/global-effectable) # deluge_global_effectable
 add_subdirectory(${REPO_ROOT}/src/music-theory ${CMAKE_BINARY_DIR}/music-theory) # deluge_music_theory
 add_subdirectory(${REPO_ROOT}/src/deluge-project ${CMAKE_BINARY_DIR}/deluge-project) # deluge_project (model)
+add_subdirectory(${REPO_ROOT}/src/controls ${CMAKE_BINARY_DIR}/controls) # deluge_controls
 add_subdirectory(${REPO_ROOT}/src/midi       ${CMAKE_BINARY_DIR}/midi)       # deluge_midi
 add_subdirectory(${REPO_ROOT}/src/gfx        ${CMAKE_BINARY_DIR}/gfx)        # deluge_gfx_oled / deluge_gfx_grid
 add_subdirectory(${REPO_ROOT}/src/ui         ${CMAKE_BINARY_DIR}/ui)         # deluge_ui_core / deluge_ui_oled / deluge_ui_grid

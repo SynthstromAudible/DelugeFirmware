@@ -3,6 +3,7 @@
 /// @file
 /// @brief The facts a menu needs that the model does not hold.
 
+#include "controls/facts.h"
 #include "deluge-project/clip_address.h"
 #include "deluge-project/fx_chain.h"
 #include "deluge-project/instrument_slot.h"
@@ -103,8 +104,9 @@ struct TakeTarget {
 };
 
 /// @brief The facts a menu needs that are not settings, each answered by the host. Nothing else a binding reads comes
-/// from outside the model.
-class RuntimeFacts {
+/// from outside the model. The knobs' reads (the param's live value, the stutter, note tails) are @ref
+/// controls::Facts, which the host answers with the rest.
+class RuntimeFacts : public controls::Facts {
 public:
 	virtual ~RuntimeFacts() = default;
 	/// @brief Hardware: whether a mic or line input is plugged in. No record holds it; it changes under the song.
@@ -182,20 +184,9 @@ public:
 	/// @param owner The clip's (CLIP_VALUES) or row's (NOTE_ROW) group and owner.
 	/// @param which 0 for the main bend range, 1 for the MPE (per-finger) one.
 	[[nodiscard]] virtual int32_t played_bend_range(const project::SettingAddress& owner, int32_t which) const = 0;
-	/// @brief Whether the sound drum at @p slot can hold note tails, which its kit-arp inclusion needs: its params
-	/// (envelope sustain, noise) decide it, which no setting holds.
-	[[nodiscard]] virtual bool allows_note_tails(project::SlotAddress slot) const = 0;
 	/// @brief The arp preset the engine holds for the arp @p address names (a CLIP_ARP or LANE_ARP owner), as an index
 	/// of plugin::kArpPresetWords: a record derives its preset from its fields, so Custom is the engine's alone.
 	[[nodiscard]] virtual uint8_t arp_preset(const project::SettingAddress& address) const = 0;
-	/// @brief The value the param at @p address plays now: the engine's cursor, which automation moves at the
-	/// playhead, a latch or override holds, and stutter-type effects and recording change, where the record holds the
-	/// saved base value; nullopt where the song holds no such param.
-	[[nodiscard]] virtual std::optional<int32_t> param_value(const project::ParamAddress& address) const = 0;
-	/// @brief @p address's value at @p pos in its clip, as its automation reads there (the take's while the
-	/// arrangement records the clip, in the clip's or the note row's own loop); its current value at 0xFFFFFFFF.
-	[[nodiscard]] virtual std::optional<int32_t> param_value_at(const project::ParamAddress& address,
-	                                                            uint32_t pos) const = 0;
 	/// @brief The patch cables of the sound @p owner names (a synth or a sound drum, with its clip; the id is not
 	/// read), in the order the engine holds them; empty where there is no such sound. The cables are its engine's: one
 	/// made this session is one before the song is saved.
@@ -214,9 +205,6 @@ public:
 	[[nodiscard]] virtual bool clip_arrangement_only(project::ClipAddress clip) const = 0;
 	/// @brief Recording: whether @p clip records a take linearly now, which a recorder holds while it captures.
 	[[nodiscard]] virtual bool clip_recording_linearly(project::ClipAddress clip) const = 0;
-	/// @brief Whether a stutter is playing: the song's stutter, which a gold knob's push begins, is live state no
-	/// record holds.
-	[[nodiscard]] virtual bool stutter_active() const = 0;
 	/// @brief The view of the audio clip @p clip at @p scroll and @p zoom ticks, in samples: what the waveform scan
 	/// takes. A take recorded without the clock measures from what it has captured.
 	/// @return The scroll and the zoom (samples per column); {0, 0} where there is no such audio clip.

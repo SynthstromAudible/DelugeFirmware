@@ -199,7 +199,7 @@ LIBRARIES: dict[str, Library] = {
     "global-effectable": Library(
         REPO / "src" / "effects" / "global_effectable",
         "effects/global_effectable/",
-        ("plugin-api/types/",),
+        ("plugin-api/types/", "effects/words.h", "effects/setting_params.h"),
     ),
     "serialization": Library(
         REPO / "src" / "serialization", "serialization/", ("foundation/panic.h",)
@@ -220,11 +220,17 @@ LIBRARIES: dict[str, Library] = {
             "foundation/panic.h",
         ),
     ),
+    "controls": Library(
+        REPO / "src" / "controls",
+        "controls/",
+        ("deluge-project/", "plugin-api/", "serialization/", "foundation/panic.h"),
+    ),
     "scenes-bind": Library(
         REPO / "src" / "scenes" / "bind",
         "scenes/bind/",
         (
             "deluge-project/",
+            "controls/",
             "plugin-api/",
             "instruments/deluge/",
             "effects/",

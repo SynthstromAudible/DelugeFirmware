@@ -24,7 +24,7 @@
 /// that still need one (undo's pre-log, recording automation, the engine's projection of a write) take it from here,
 /// below the Edit, so nothing above an Edit builds one.
 
-#include "deluge-project/knob_focus.h"
+#include "controls/knob_focus.h"
 #include "deluge-project/param_address.h"
 
 #include <cstdint>
@@ -157,7 +157,7 @@ bool midiCcSelectAt(::Song& song, const project::ParamAddress& owner, int32_t kn
 /// @param focus  What the knobs point at.
 /// @param memory MODEL_STACK_MAX_SIZE bytes, aligned as ModelStackWithAutoParam, which the stack lives in.
 /// @return The stack, or null for no focus (a CV track's included) or an owner @p song does not hold.
-[[nodiscard]] ::ModelStackWithThreeMainThings* knobOwnerStackAt(::Song& song, const project::KnobFocus& focus,
+[[nodiscard]] ::ModelStackWithThreeMainThings* knobOwnerStackAt(::Song& song, const controls::KnobFocus& focus,
                                                                 void* memory);
 
 /// @brief The patch cables of the sound @p owner names (a synth or a sound drum, with its clip; the id is not read).

@@ -16,8 +16,8 @@
  */
 
 #pragma once
+#include "controls/knob_focus.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/knob_focus.h"
 #include "modulation/params/param.h"
 
 class ParamManagerForTimeline;
@@ -47,22 +47,21 @@ public:
 	/// ignores; a push into or around it moves the view it is given, and none given moves a view nothing keeps.
 	/// @{
 	virtual bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack,
-	                                    deluge::project::CompView* comp = nullptr) {
+	                                    deluge::controls::CompView* comp = nullptr) {
 		return false;
 	} // Returns whether Instrument was changed
 	virtual void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
-	                             const deluge::project::CompView& comp = {}) {};
+	                             const deluge::controls::CompView& comp = {}) {};
 	/// Check that autoParam isn't NULL, after calling this. allowCreation: the caller writes it.
 	virtual ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder,
 	                                                        ModelStackWithThreeMainThings* modelStack,
 	                                                        bool allowCreation,
-	                                                        const deluge::project::CompView& comp = {});
+	                                                        const deluge::controls::CompView& comp = {});
 
 	/// Check that autoParam isn't NULL, after calling this
 	virtual ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack);
 
 	virtual uint8_t* getModKnobMode(); // Return NULL if different modes not supported
-	virtual bool isKit() { return false; }
 	virtual bool isSong() { return false; }
 	virtual bool valueChangedEnoughToMatter(int32_t old_value, int32_t new_value, deluge::modulation::params::Kind kind,
 	                                        uint32_t paramID) {
@@ -70,10 +69,10 @@ public:
 	}
 	virtual int32_t getKnobPosForNonExistentParam(
 	    int32_t whichModEncoder, ModelStackWithAutoParam* modelStack,
-	    const deluge::project::CompView& comp = {}); // modelStack->autoParam will be NULL in this rare case!!
+	    const deluge::controls::CompView& comp = {}); // modelStack->autoParam will be NULL in this rare case!!
 	virtual ActionResult modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
 	                                                         ModelStackWithAutoParam* modelStack,
-	                                                         const deluge::project::CompView& comp = {}) {
+	                                                         const deluge::controls::CompView& comp = {}) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
 	/// @}
@@ -82,11 +81,4 @@ public:
 	                                                      int32_t channelOrNoteNumber,
 	                                                      MIDICharacteristic whichCharacteristic) {}
 	virtual void monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) {}
-
-protected:
-	/// What kind of unpatched parameters this ModControllable uses.
-	///
-	/// This should be UNPATCHED_GLOBAL for GlobalEffectable and UNPATCHED_SOUND for Sound. If a new ModControllable
-	/// subclass is
-	deluge::modulation::params::Kind unpatchedParamKind_;
 };

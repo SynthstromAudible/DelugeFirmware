@@ -52,7 +52,7 @@ std::optional<deluge::plugin::ParamId> GlobalEffectableForClip::clipKnobParam(in
 	return std::nullopt;
 }
 
-int32_t GlobalEffectableForClip::getParameterFromKnob(int32_t whichModEncoder, const deluge::project::CompView& comp) {
+int32_t GlobalEffectableForClip::getParameterFromKnob(int32_t whichModEncoder, const deluge::controls::CompView& comp) {
 	if (std::optional<deluge::plugin::ParamId> param = clipKnobParam(*getModKnobMode(), whichModEncoder)) {
 		return *deluge::global_effectable::runtime_index(*param);
 	}
@@ -60,7 +60,7 @@ int32_t GlobalEffectableForClip::getParameterFromKnob(int32_t whichModEncoder, c
 }
 
 void GlobalEffectableForClip::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
-                                              const deluge::project::CompView& comp) {
+                                              const deluge::controls::CompView& comp) {
 	if (whichModButton == 4) {
 		displaySidechainAndReverbSettings(on);
 		return;
@@ -71,7 +71,7 @@ void GlobalEffectableForClip::modButtonAction(uint8_t whichModButton, bool on, P
 
 bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
                                                      ModelStackWithThreeMainThings* modelStack,
-                                                     deluge::project::CompView* comp) {
+                                                     deluge::controls::CompView* comp) {
 
 	if (on && !Buttons::isShiftButtonPressed()) {
 		int32_t modKnobMode = *getModKnobMode();

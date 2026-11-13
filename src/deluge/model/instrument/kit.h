@@ -131,7 +131,6 @@ public:
 	void setupWithoutActiveClip(ModelStack* modelStack) override;
 	[[nodiscard]] deluge::model::ReverbCandidate reverbCandidate(deluge::model::ReverbCandidate best) override;
 	uint8_t* getModKnobMode() override { return &modKnobMode; }
-	Output* toOutput() override { return this; }
 
 	bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) override;
 	bool allowNoteTails(NoteRow* noteRow);
@@ -167,9 +166,6 @@ public:
 	                     int16_t const* mpeValues, int32_t fromMIDIChannel = MIDI_CHANNEL_NONE,
 	                     uint32_t sampleSyncLength = 0, int32_t ticksLate = 0, uint32_t samplesLate = 0);
 	void noteOffPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum, int32_t velocity = kDefaultLiftValue);
-
-protected:
-	bool isKit() override { return true; }
 
 private:
 	/// @brief Renders the kit's drums into its channel's buffer, each through its own effects.

@@ -41,12 +41,12 @@ public:
 	                                                                      bool editingCompressor);
 	static void initParamsForAudioClip(ParamManagerForTimeline* paramManager);
 	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
-	                     const deluge::project::CompView& comp = {}) override;
+	                     const deluge::controls::CompView& comp = {}) override;
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack,
-	                            deluge::project::CompView* comp = nullptr) override;
+	                            deluge::controls::CompView* comp = nullptr) override;
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                                                bool allowCreation,
-	                                                const deluge::project::CompView& comp = {}) override;
+	                                                const deluge::controls::CompView& comp = {}) override;
 
 	void writeAttributesToFile(Serializer& writer, bool writeToFile);
 	/// @brief Writes this owner's tags: its default params, when @p paramManager, then its effect tags and learned
@@ -84,13 +84,10 @@ public:
 	static bool readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
 	int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack,
-	                                      const deluge::project::CompView& comp = {}) override;
+	                                      const deluge::controls::CompView& comp = {}) override;
 	ActionResult modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
 	                                                 ModelStackWithAutoParam* modelStack,
-	                                                 const deluge::project::CompView& comp = {}) override;
-	/// @brief The chain's filters: a track chain's or the master's.
-	/// @return The filters.
-	[[nodiscard]] virtual deluge::effects::Filter& filter() = 0;
+	                                                 const deluge::controls::CompView& comp = {}) override;
 	/// @brief Sets which value the mod FX knob and which filter the filter knobs edit, in the bound record while there
 	/// is one, and projects the render copy.
 	/// @param param Which mod FX value.
@@ -119,7 +116,7 @@ public:
 	[[nodiscard]] std::optional<ModFXParam> projectedModFXParam() const override;
 
 protected:
-	virtual int32_t getParameterFromKnob(int32_t whichModEncoder, const deluge::project::CompView& comp);
+	virtual int32_t getParameterFromKnob(int32_t whichModEncoder, const deluge::controls::CompView& comp);
 
 private:
 	/// @brief Sets which mod FX value and filter the knobs edit, in the bound record while there is one, without
@@ -131,9 +128,9 @@ private:
 	/// @brief The compressor threshold the comp-edit knob shows: the render's.
 	/// @return The threshold (Q31).
 	[[nodiscard]] int32_t displayedCompressorThreshold();
-	void displayCompressorAndReverbSettings(bool on, const deluge::project::CompView& comp);
-	static char const* getCompressorModeDisplayName(const deluge::project::CompView& comp);
-	static char const* getCompressorParamDisplayName(const deluge::project::CompView& comp);
+	void displayCompressorAndReverbSettings(bool on, const deluge::controls::CompView& comp);
+	static char const* getCompressorModeDisplayName(const deluge::controls::CompView& comp);
+	static char const* getCompressorParamDisplayName(const deluge::controls::CompView& comp);
 	void displayModFXSettings(bool on);
 	char const* getModFXTypeDisplayName();
 	char const* getModFXParamDisplayName();

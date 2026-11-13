@@ -55,7 +55,6 @@ public:
 	virtual ~ModControllableAudio();
 	virtual void cloneFrom(ModControllableAudio* other);
 
-	void writeAttributesToFile(Serializer& writer);
 	/// @brief Writes @p states' effect attributes.
 	/// @param writer Destination.
 	/// @param states The effect settings to write.
@@ -117,8 +116,6 @@ public:
 	                                       int32_t* valuesForOverride = nullptr);
 	static void writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
 	                                 int32_t* valuesForOverride = nullptr);
-	static bool readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
-	                                 int32_t readAutomationUpToPos);
 	/// @brief Sets the shared params (EQ, arpeggiator, stutter, mod FX, bitcrush, compressor) to their defaults.
 	/// @param paramManager The param manager to initialise.
 	/// @param defaults     Whose table's defaults: UNPATCHED_SOUND for a sound, UNPATCHED_GLOBAL for a global
@@ -293,6 +290,4 @@ protected:
 private:
 	ModelStackWithThreeMainThings* addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack,
 	                                                       int32_t noteRowIndex);
-	void switchHPFModeWithOff();
-	void switchLPFModeWithOff();
 };

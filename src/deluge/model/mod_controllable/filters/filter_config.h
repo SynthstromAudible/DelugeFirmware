@@ -32,12 +32,12 @@ enum class String : size_t;
 using deluge::effects::FilterMode;
 constexpr int32_t kNumFilterModes = util::to_underlying(FilterMode::OFF) + 1;
 constexpr FilterMode kLastLadder = FilterMode::TRANSISTOR_24DB_DRIVE;
-constexpr int32_t kNumLPFModes = util::to_underlying(FilterMode::SVF_NOTCH) + 1;
+using deluge::effects::kNumLPFModes;
 constexpr FilterMode lastLpfMode = FilterMode::SVF_NOTCH;
 constexpr FilterMode firstHPFMode = FilterMode::SVF_BAND;
-constexpr int32_t kFirstHPFMode = util::to_underlying(FilterMode::SVF_BAND);
-constexpr int32_t kNumHPFModes = util::to_underlying(FilterMode::OFF) - kFirstHPFMode;
 using deluge::effects::FilterRoute;
+using deluge::effects::kFirstHPFMode;
+using deluge::effects::kNumHPFModes;
 
 constexpr int32_t kNumFilterRoutes = util::to_underlying(FilterRoute::PARALLEL) + 1;
 

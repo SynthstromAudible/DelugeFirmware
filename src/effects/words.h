@@ -19,6 +19,7 @@
 
 #include <cstdint>
 #include <string_view>
+#include <utility>
 
 namespace deluge::effects {
 
@@ -52,6 +53,13 @@ enum class ModFXType : uint8_t {
 	DIMENSION,
 	GRAIN,
 };
+
+/// @brief How many modes the low-pass filter cycles through: the modes up to and including SVF_NOTCH.
+inline constexpr int32_t kNumLPFModes = std::to_underlying(FilterMode::SVF_NOTCH) + 1;
+/// @brief The first high-pass mode, as an index.
+inline constexpr int32_t kFirstHPFMode = std::to_underlying(FilterMode::SVF_BAND);
+/// @brief How many modes the high-pass filter cycles through: SVF_BAND up to, not including, OFF.
+inline constexpr int32_t kNumHPFModes = std::to_underlying(FilterMode::OFF) - kFirstHPFMode;
 
 /// @brief @p mode as a file writes it.
 [[nodiscard]] constexpr std::string_view to_string(FilterMode mode) noexcept {
@@ -108,6 +116,9 @@ enum class ModFXType : uint8_t {
 	}
 	return FilterRoute::PARALLEL;
 }
+
+/// @brief How many mod-FX types a type cycle runs through.
+inline constexpr int32_t kNumModFXTypes = std::to_underlying(ModFXType::GRAIN) + 1;
 
 /// @brief @p type as a file writes it.
 [[nodiscard]] constexpr std::string_view to_string(ModFXType type) noexcept {

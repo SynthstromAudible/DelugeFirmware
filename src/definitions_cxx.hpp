@@ -355,8 +355,8 @@ using deluge::instrument::LFOType;
 
 constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::WARBLER) + 1;
 
+using deluge::effects::kNumModFXTypes;
 using deluge::effects::ModFXType;
-constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::GRAIN) + 1;
 
 using deluge::instrument::SynthMode;
 constexpr int kNumSynthModes = util::to_underlying(::SynthMode::RINGMOD) + 1;

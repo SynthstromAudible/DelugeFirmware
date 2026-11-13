@@ -4,6 +4,7 @@
 /// @brief What a gold knob's push and a mod button's press do, as functions of the song's records: the settings they
 ///        write, the knob views they change, and the popup text they show.
 
+#include "controls/sink.h"
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/fx_chain.h"
 #include "deluge-project/instrument_slot.h"
@@ -11,6 +12,7 @@
 #include "effects/state.h"
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/bind/knob_focus.h"
+#include "scenes/bind/section_pages.h"
 #include "scenes/bind/write_sink.h"
 #include "serialization/value.h"
 
@@ -26,11 +28,9 @@ namespace deluge::scenes::services {
 
 /// @brief What a push reads beyond the song's records.
 struct PushInputs {
-	effects::EffectStates effects{}; ///< the owner's effect settings: a sound's own, or its chain's
-	bool fm{false};                  ///< a sound in FM mode, whose filter knob does not cycle
-	bool alt_delay{false};           ///< the AltGoldenKnobDelayParams device setting
-	bool button_held{false};         ///< the mode's mod button is held, so the push re-shows its button's popup
-	bool clip_context{false};        ///< the knobs are on a clip, not the song (the stutter button's names)
+	bind::PageInputs pages{}; ///< what changes the owner's pages: its effect settings, FM, the alt delay knobs
+	bool button_held{false};  ///< the mode's mod button is held, so the push re-shows its button's popup
+	bool clip_context{false}; ///< the knobs are on a clip, not the song (the stutter button's names)
 };
 
 using bind::EffectOwner;
@@ -92,9 +92,10 @@ struct CompTurn {
 /// @brief Turn the song's compressor setting @p arm by @p offset knob steps.
 [[nodiscard]] CompTurn comp_turn(const bind::CompArm& arm, const effects::EffectStates& effects, int32_t offset);
 
-/// @brief Send @p push's requests to @p sink: its effect settings, song settings, chain view, knobs and stutter.
-/// @return Whether the sink took every one.
-bool apply_push(bind::WriteSink& sink, const bind::KnobFocus& focus, const KnobPush& push);
+/// @brief Send @p push's requests: its song settings to @p sink, and its effect settings, chain view, knobs and stutter
+/// to @p controls.
+/// @return Whether the sinks took every one.
+bool apply_push(bind::WriteSink& sink, controls::Sink& controls, const bind::KnobFocus& focus, const KnobPush& push);
 
 /// @brief A note length's name, as the song's tick magnitude names it (`Song::getNoteLengthName`).
 /// @param note_length    The length, in ticks of the song's input.

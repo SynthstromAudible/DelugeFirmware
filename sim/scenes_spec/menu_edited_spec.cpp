@@ -25,6 +25,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
 
+#include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_core.h"
@@ -44,6 +45,7 @@
 
 #include "cppspec.hpp"
 
+#include <algorithm>
 #include <set>
 #include <vector>
 
@@ -149,6 +151,13 @@ menu::MenuState on(const menu::Node& node, int16_t at = 0) {
 	return st;
 }
 
+/// @brief How many times @p sink was asked to mark an instrument edited.
+std::ptrdiff_t edited_marks(const deluge::scenes::bind::RecordingSink& sink) {
+	return std::ranges::count_if(sink.gestures, [](const deluge::scenes::bind::GestureRequest& g) {
+		return g.kind == deluge::scenes::bind::GestureRequest::Kind::INSTRUMENT_EDITED;
+	});
+}
+
 } // namespace
 
 // clang-format off
@@ -163,6 +172,37 @@ describe menu_edited_guest("the ported menu marks the instrument it edits, as So
 		expect(fx.instrument->editedByUser).to_be_false(); // opening edits nothing
 		select_turn();
 		expect(fx.instrument->editedByUser).to_be_true();
+	});
+
+	it("marks it through the context's controls sink", _ {
+		spec::UiStackGuard ui_guard;
+		spec::GlobalGuestGuard guest_guard;
+		spec::UiModeGuard mode_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		deluge::scenes::bind::RecordingSink recording;
+		menu::MenuContext ctx = spec::menu_context_at(fx, menu::MenuContext::Root::Sound);
+		ctx.sink = &recording;
+		ctx.controls_sink = &recording;
+		expect(open_on_guest(nodes::synth_mode, ctx)).to_be_true();
+		select_turn();
+		expect(static_cast<int>(edited_marks(recording))).to_equal(1);
+		const auto* sound = std::get_if<deluge::scenes::bind::SoundFocus>(&recording.gestures.back().focus.owner);
+		expect(sound != nullptr && sound->slot == *ctx.addresses.slot).to_be_true();
+	});
+
+	it("marks nothing where the context has no controls sink", _ {
+		spec::UiStackGuard ui_guard;
+		spec::GlobalGuestGuard guest_guard;
+		spec::UiModeGuard mode_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		deluge::scenes::bind::RecordingSink recording;
+		menu::MenuContext ctx = spec::menu_context_at(fx, menu::MenuContext::Root::Sound);
+		ctx.sink = &recording;
+		ctx.controls_sink = nullptr;
+		expect(open_on_guest(nodes::synth_mode, ctx)).to_be_true();
+		select_turn();
+		expect(static_cast<int>(edited_marks(recording))).to_equal(0);
+		expect(fx.instrument->editedByUser).to_be_false();
 	});
 
 	it("marks it after a turn on a param column of a horizontal page", _ {

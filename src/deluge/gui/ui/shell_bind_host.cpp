@@ -166,7 +166,7 @@ void kit_arp_note_off(Kit* kit) {
 /// effect target's request is the same on a sound's slot, and on a host chain (the whole kit's, an audio track's, the
 /// master's) SetEffectSetting on the chain, its partner second. A request whose slot or chain does not resolve, or a
 /// sound with no slot, is refused: logged and counted, never applied through the runtime's setter alone.
-class ShellEditSink final : public deluge::scenes::bind::WriteSink {
+class ShellEditSink final : public deluge::scenes::bind::WriteSink, public deluge::controls::Sink {
 public:
 	bool write(const WriteRequest& request) override;
 	bool write_param(const deluge::project::ParamAddress& address, int32_t value, int32_t pos, int32_t length) override;
@@ -1373,6 +1373,10 @@ bool host_binds(const ::Song& song) {
 }
 
 deluge::scenes::bind::WriteSink& host_write_sink() {
+	return gui::shell_edit_sink();
+}
+
+deluge::controls::Sink& host_controls_sink() {
 	return gui::shell_edit_sink();
 }
 

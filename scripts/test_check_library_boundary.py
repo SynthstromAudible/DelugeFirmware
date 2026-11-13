@@ -126,6 +126,21 @@ class LibraryBoundaryTest(unittest.TestCase):
             len(self.check('#include "deluge-project/song.h"\n', library=plugin_api)), 1
         )
 
+    def test_controls_may_use_the_model_and_plugin_api_but_not_instruments(self):
+        controls = LIBRARIES["controls"]
+        self.assertEqual(
+            self.check('#include "deluge-project/song.h"\n', library=controls), []
+        )
+        self.assertEqual(
+            self.check('#include "plugin-api/plugin.h"\n', library=controls), []
+        )
+        self.assertEqual(
+            len(
+                self.check('#include "instruments/deluge/words.h"\n', library=controls)
+            ),
+            1,
+        )
+
     def test_the_instrument_may_use_the_plugin_api_but_not_the_app(self):
         instrument = LIBRARIES["instrument"]
         self.assertEqual(

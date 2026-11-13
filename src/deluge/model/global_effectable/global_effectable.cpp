@@ -127,7 +127,7 @@ void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramMana
 }
 
 void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
-                                       const deluge::project::CompView& comp) {
+                                       const deluge::controls::CompView& comp) {
 
 	// leave stutter running in perfomance session view
 	if (getRootUI() != &performanceView) {
@@ -160,7 +160,7 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 	}
 }
 
-void GlobalEffectable::displayCompressorAndReverbSettings(bool on, const deluge::project::CompView& comp) {
+void GlobalEffectable::displayCompressorAndReverbSettings(bool on, const deluge::controls::CompView& comp) {
 	if (on) {
 		etl::string<100> popupMsg;
 		popupMsg.append("Comp Mode: ");
@@ -186,11 +186,11 @@ void GlobalEffectable::displayCompressorAndReverbSettings(bool on, const deluge:
 	}
 }
 
-char const* GlobalEffectable::getCompressorModeDisplayName(const deluge::project::CompView& comp) {
+char const* GlobalEffectable::getCompressorModeDisplayName(const deluge::controls::CompView& comp) {
 	return comp.editing ? "FULL" : "ONE";
 }
 
-char const* GlobalEffectable::getCompressorParamDisplayName(const deluge::project::CompView& comp) {
+char const* GlobalEffectable::getCompressorParamDisplayName(const deluge::controls::CompView& comp) {
 	const char* params[util::to_underlying(CompParam::LAST)] = {"ratio", "attack", "release", "hpf", "blend"};
 	return params[comp.param % util::to_underlying(CompParam::LAST)];
 }
@@ -225,10 +225,10 @@ char const* GlobalEffectable::getModFXParamDisplayName() {
 // Returns whether Instrument changed
 bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
                                               ModelStackWithThreeMainThings* modelStack,
-                                              deluge::project::CompView* comp) {
+                                              deluge::controls::CompView* comp) {
 	// A push with no comp view to move edits a view of its own, which nothing keeps.
-	deluge::project::CompView unkept{};
-	deluge::project::CompView& compView = comp != nullptr ? *comp : unkept;
+	deluge::controls::CompView unkept{};
+	deluge::controls::CompView& compView = comp != nullptr ? *comp : unkept;
 	using enum l10n::String;
 	int32_t modKnobMode = *getModKnobMode();
 
@@ -482,7 +482,7 @@ int32_t GlobalEffectable::displayedCompressorThreshold() {
 }
 
 int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack,
-                                                        const deluge::project::CompView& comp) {
+                                                        const deluge::controls::CompView& comp) {
 	int current = 0;
 	if (*getModKnobMode() == 4) {
 
@@ -526,7 +526,7 @@ int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder,
 
 ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
                                                                    ModelStackWithAutoParam* modelStack,
-                                                                   const deluge::project::CompView& comp) {
+                                                                   const deluge::controls::CompView& comp) {
 	if (*getModKnobMode() == 4) {
 		etl::string<40> parameterName;
 		etl::string<40> parameterValue;
@@ -688,7 +688,7 @@ std::optional<deluge::plugin::ParamId> GlobalEffectable::knobParam(int32_t modKn
 	return cell.params[0];
 }
 
-int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder, const deluge::project::CompView& comp) {
+int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder, const deluge::controls::CompView& comp) {
 	// The compressor view is the song's alone: a track's chain keeps its reverb send.
 	std::optional<deluge::plugin::ParamId> param =
 	    knobParam(*getModKnobMode(), whichModEncoder, filterType(), modFXParam(), comp.editing && isSong());
@@ -698,7 +698,7 @@ int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder, const de
 ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int32_t whichModEncoder,
                                                                   ModelStackWithThreeMainThings* modelStack,
                                                                   bool allowCreation,
-                                                                  const deluge::project::CompView& comp) {
+                                                                  const deluge::controls::CompView& comp) {
 	ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
 	ParamCollection* paramCollection = summary->paramCollection;
 	int32_t paramId;

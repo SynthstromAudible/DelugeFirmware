@@ -20,7 +20,10 @@
 // its recorded characterisation holds.
 // Exit: 0 agree; 3 a check disagrees (each printed).
 
+#include "controls/knob_focus.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/song.h"
+#include "effects/global_effectable/params.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/performance_view.h"
 #include "io/midi/midi_follow.h"
@@ -36,12 +39,16 @@
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/midi_follow_xml_reference.h"
 #include "scenarios/drivers/param_target_tables_reference.h"
+#include "scenes/bind/knob_assignment.h"
 #include "storage/storage_manager.h"
 
+#include <array>
 #include <cstdio>
+#include <memory>
 #include <optional>
 #include <span>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace {
@@ -437,6 +444,95 @@ void checkKnobWords(Checker& check) {
 	}
 }
 
+/// What the legacy layout (or the scenes' binding) puts on a chain knob, for the cell's printed line.
+std::string cellText(const std::optional<deluge::plugin::ParamId>& id) {
+	return id ? std::to_string(id->value) : "none";
+}
+
+/// The scenes' binding of every chain knob cell, against the legacy layout's: both name the same param, or none.
+/// The song's compressor cells that edit a setting have no param on the legacy side (it falls back to the compressor
+/// settings), so they must be the binding's compressor arms instead.
+void checkChainCells(Checker& check) {
+	namespace bind = deluge::scenes::bind;
+	namespace project = deluge::project;
+	constexpr uint32_t kKit = 1;
+	constexpr uint32_t kClip = 1;
+	auto song = std::make_unique<project::Song>();
+	project::DocOutput& output = song->output_structure.getOrCreate(kKit);
+	output.effects.emplace();
+
+	constexpr std::array kFilters{FilterType::LPF, FilterType::HPF, FilterType::EQ};
+	constexpr std::array kModFX{ModFXParam::DEPTH, ModFXParam::FEEDBACK, ModFXParam::OFFSET};
+	for (bool isSong : {true, false}) {
+		bind::KnobFocus focus;
+		if (isSong) {
+			focus.owner = bind::SongFocus{};
+		}
+		else {
+			focus.owner = bind::ChainFocus{.chain = {.kind = project::ChainAddress::Kind::OUTPUT, .id = kKit},
+			                               .owner = controls::ChainOwner::KIT,
+			                               .clip = project::ClipAddress{.clip_id = kClip}};
+		}
+		project::FxChain& chain = isSong ? song->master_effects : *output.effects;
+		for (uint8_t m = 0; m < kNumModButtons; ++m) {
+			song->mod_knob_mode = m;
+			output.mod_knob_mode = m;
+			for (int32_t k = 0; k < kNumPhysicalModKnobs; ++k) {
+				for (FilterType f : kFilters) {
+					for (ModFXParam x : kModFX) {
+						chain.filter_type = static_cast<uint8_t>(f);
+						chain.mod_fx_param = static_cast<uint8_t>(x);
+						std::optional<deluge::plugin::ParamId> legacy =
+						    isSong ? std::nullopt : GlobalEffectableForClip::clipKnobParam(m, k);
+						if (!legacy) {
+							legacy = GlobalEffectable::knobParam(m, k, f, x, false);
+						}
+						const bind::KnobAssignment scenes = bind::knob_assignment(*song, focus, k);
+						const auto* address = std::get_if<project::ParamAddress>(&scenes.target);
+						const auto* comp = std::get_if<bind::CompArm>(&scenes.target);
+						const std::optional<deluge::plugin::ParamId> got =
+						    address ? std::optional{address->id} : std::nullopt;
+						// song mode 4 upper: the legacy layout has no param, the binding the compressor threshold
+						const bool compFallback = isSong && m == 4 && k == 1 && !legacy && comp != nullptr
+						                          && comp->path == "audioCompressor/thresh";
+						if (got == legacy && comp == nullptr) {
+							continue;
+						}
+						if (compFallback) {
+							continue;
+						}
+						std::fprintf(check.io.err,
+						             "CHAIN-CELL mode=%d knob=%d filter=%d modfx=%d song=%d legacy=%s scenes=%s%s\n", m,
+						             k, static_cast<int>(f), static_cast<int>(x), isSong, cellText(legacy).c_str(),
+						             comp ? "comp:" : cellText(got).c_str(),
+						             comp ? std::string(comp->path).c_str() : "");
+						++check.disagreements;
+					}
+				}
+			}
+		}
+	}
+	// song mode 4 lower while editing the compressor: a setting, with no param on either side
+	{
+		bind::KnobFocus focus;
+		focus.owner = bind::SongFocus{};
+		focus.comp.editing = true;
+		song->mod_knob_mode = 4;
+		const bind::KnobAssignment scenes = bind::knob_assignment(*song, focus, 0);
+		const std::optional<deluge::plugin::ParamId> legacy =
+		    GlobalEffectable::knobParam(4, 0, FilterType::LPF, ModFXParam::DEPTH, true);
+		if (legacy) {
+			std::fprintf(check.io.err, "CHAIN-CELL song mode 4 lower editing: legacy names param %u, not a setting\n",
+			             legacy->value);
+			++check.disagreements;
+		}
+		if (std::get_if<bind::CompArm>(&scenes.target) == nullptr) {
+			std::fputs("CHAIN-CELL song mode 4 lower editing: the binding is not a compressor arm\n", check.io.err);
+			++check.disagreements;
+		}
+	}
+}
+
 int param_target_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	Checker check{io};
 	checkRoundTrip(check);
@@ -445,6 +541,7 @@ int param_target_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	checkMidiFollow(check);
 	checkPerformanceTables(check);
 	checkKnobs(check);
+	checkChainCells(check);
 	checkKnobWords(check);
 	std::fprintf(io.out, "%d disagreement(s)\n", check.disagreements);
 	return check.disagreements == 0 ? 0 : 3;

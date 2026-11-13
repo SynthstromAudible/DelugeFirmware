@@ -4,6 +4,7 @@
 /// @brief The app's write sink and runtime facts, which a menu opened in the app binds its target nodes through.
 /// Declared here and defined by the app (gui/ui/shell_bind_host.cpp), as the scenes link the app.
 
+#include "controls/sink.h"
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/services/favourites.h"
@@ -22,6 +23,8 @@ namespace deluge::scenes::menu {
 bool host_binds(const ::Song& song);
 /// @brief The sink that applies a menu's writes as their targets' Edits.
 deluge::scenes::bind::WriteSink& host_write_sink();
+/// @brief The same sink as the controls' interface: the gold knobs' writes (@ref host_write_sink is the menus').
+deluge::controls::Sink& host_controls_sink();
 /// @brief The facts a menu needs that the model does not hold, answered from the running app.
 const deluge::scenes::bind::RuntimeFacts& host_runtime_facts();
 /// @brief Set the song's tempo from the audio clip @p clip's length, as a held tempo encoder and a pad do: a command to

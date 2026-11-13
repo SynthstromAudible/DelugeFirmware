@@ -3,7 +3,7 @@
 /// @file
 /// @brief The gold knobs' focus, as addresses, from the engine stack a legacy view points them at.
 
-#include "deluge-project/knob_focus.h"
+#include "controls/knob_focus.h"
 
 class ModelStackWithThreeMainThings;
 class Song;
@@ -16,6 +16,6 @@ namespace deluge::gui {
 /// @param song  The song the stack is in.
 /// @param stack The view's stack: its timeline counter, mod controllable and note row.
 /// @return The focus's owner, with no region, compressor view or VU meter: those are the knobs' own view state.
-[[nodiscard]] project::KnobFocus knobFocusFromStack(::Song& song, const ModelStackWithThreeMainThings& stack);
+[[nodiscard]] controls::KnobFocus knobFocusFromStack(::Song& song, const ModelStackWithThreeMainThings& stack);
 
 } // namespace deluge::gui

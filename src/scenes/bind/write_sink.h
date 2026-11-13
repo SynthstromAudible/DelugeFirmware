@@ -3,6 +3,7 @@
 /// @file
 /// @brief Where a menu's writes go: requests a host applies as Edits, so the scenes name no Edit and no engine object.
 
+#include "controls/sink.h"
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/fx_chain.h"
 #include "deluge-project/mapping_table.h"
@@ -72,7 +73,7 @@ enum class ResizeKind : uint8_t {
 };
 
 /// @brief Whose effect settings a write names: a sound's slot, or a chain.
-using EffectOwner = std::variant<project::SlotAddress, project::ChainAddress>;
+using controls::EffectOwner;
 
 /// @brief Takes a menu's writes. The app's sink applies each as the target's Edit; a spec's records them.
 class WriteSink {
@@ -81,14 +82,6 @@ public:
 	/// @brief Apply, or record, @p request.
 	/// @return Whether it was taken: false where the app refused it, which left the song as it was.
 	virtual bool write(const WriteRequest& request) = 0;
-	/// @brief Write the param at @p address over a region, as a gold knob turns it; no MIDI-follow feedback (the knob
-	/// sends its own).
-	/// @param address The param's address.
-	/// @param value   The new value, as the engine stores it.
-	/// @param pos     The region's start; with @p length 0, the value is set at the playhead.
-	/// @param length  The region's length, or 0.
-	/// @return Whether it was taken.
-	virtual bool write_param(const project::ParamAddress& address, int32_t value, int32_t pos, int32_t length) = 0;
 	/// @brief Delete the automation of the param at @p address.
 	/// @return Whether it was taken.
 	virtual bool delete_automation(const project::ParamAddress& address) = 0;
@@ -176,44 +169,10 @@ public:
 	/// @return Whether it was taken.
 	virtual bool write_source_transpose(const Addresses& where, uint8_t source, std::optional<uint16_t> range,
 	                                    int32_t menu_value) = 0;
-	/// @brief Set @p owner's gold-knob mode to @p mode.
-	/// @return Whether it was taken: false for a mode past the last button or a track the song does not hold.
-	virtual bool knob_mode(project::KnobModeOwner owner, uint8_t mode) = 0;
-	/// @brief Set the view word @p word of @p chain's view key @p key (`currentFilterType`, `modFXCurrentParam`): which
-	/// value its knobs edit.
-	/// @return Whether it was taken: false for a chain, key or word that does not resolve.
-	virtual bool chain_view(project::ChainAddress chain, std::string_view key, std::string_view word) = 0;
-	/// @brief Make @p controls the knob mappings of @p owner, as a push that cycles a knob's param leaves them.
-	/// @return Whether it was taken.
-	virtual bool write_controls(project::ControlsAddress owner, std::vector<project::ControllerMapping> controls) = 0;
-	/// @brief Begin (or end) the stutter on @p focus's owner: a runtime command, nothing saved.
-	/// @return Whether it was taken: false where @p focus names no owner with a chain.
-	virtual bool stutter(const KnobFocus& focus, bool begin) = 0;
-	/// @brief Set @p focus's params to their automated values at @p pos in its clip, as a held pad grabs them: a
-	/// runtime command, nothing saved.
-	/// @return Whether it was taken: false where @p focus names no owner.
-	virtual bool grab_region(const KnobFocus& focus, uint32_t pos) = 0;
-	/// @brief Write effect setting @p path of @p owner as the word @p value: a gesture's exact value, which a menu
-	/// value may not name.
-	/// @return Whether it was taken: false for an owner, path or value the effects refuse.
-	virtual bool write_effect(const EffectOwner& owner, std::string_view path, const serialization::Value& value) = 0;
-	/// @brief Enter (or leave, @p on false) choosing knob @p knob's CC on @p focus's MIDI track with the select
-	/// encoder: a runtime command on the clip minder's state.
-	/// @return Whether it was taken.
-	virtual bool midi_cc_select(const KnobFocus& focus, int32_t knob, bool on) = 0;
 	/// @brief Give every synth and sound kit row whose input is @p cable its velocity-to-level default, in every clip:
 	/// the device menu's "for everything", a default set up for the user with no undo step.
 	/// @return Whether it was taken.
 	virtual bool velocity_to_level_everywhere(const ::MIDICable& cable) = 0;
-	/// @brief Delete the automation of the param at @p address as a gold knob's shift+push does: while the arrangement
-	/// records the clip, in its take.
-	/// @return Whether it was taken.
-	virtual bool delete_knob_automation(const project::ParamAddress& address) = 0;
-	/// @brief Mark the instrument @p focus's knobs edit as edited by the user (a synth, a kit row's kit, a kit's own
-	/// chain): a runtime flag no record holds, which a gesture that edited it sets, and the menu after a select turn on
-	/// an item that edits a sound's instrument.
-	/// @return Whether it was taken.
-	virtual bool instrument_edited(const KnobFocus& focus) = 0;
 };
 
 /// @brief A gesture request, as a RecordingSink keeps it.
@@ -281,7 +240,7 @@ struct GestureRequest {
 };
 
 /// @brief A param write by address, as a RecordingSink keeps it.
-struct ParamWrite {
+struct RecordedParamWrite {
 	project::ParamAddress address;
 	int32_t value{0};
 	int32_t pos{0};
@@ -289,7 +248,7 @@ struct ParamWrite {
 };
 
 /// @brief A sink that records every request, in order.
-class RecordingSink final : public WriteSink {
+class RecordingSink final : public WriteSink, public controls::Sink {
 public:
 	bool write(const WriteRequest& request) override;
 	bool write_param(const project::ParamAddress& address, int32_t value, int32_t pos, int32_t length) override;
@@ -329,7 +288,7 @@ public:
 	bool instrument_edited(const KnobFocus& focus) override;
 	std::vector<WriteRequest> requests;
 	std::vector<GestureRequest> gestures;
-	std::vector<ParamWrite> param_writes;
+	std::vector<RecordedParamWrite> param_writes;
 	std::vector<project::ParamAddress> deletes;
 	std::vector<std::pair<project::ClipAddress, int32_t>> undo_scrolls; ///< each set_undo_scroll_after, in order
 };
