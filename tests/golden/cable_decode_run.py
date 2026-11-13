@@ -82,6 +82,9 @@ def main(argv=None):
         print(f"recorded {len(recorded)} fingerprints")
     print("=" * 60)
     print(f"OK={ok} FAIL={fail} SKIP={skip}  (cable_decode, corpus={args.corpus})")
+    if not ok and not fail and not args.update:
+        print("FAIL: nothing was checked")
+        return 77
     return 1 if fail else 0
 
 

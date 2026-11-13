@@ -50,6 +50,9 @@ def main(argv=None):
             fail += 1
     print("=" * 60)
     print(f"OK={ok} FAIL={fail}")
+    if not ok and not fail:
+        print("FAIL: nothing was checked")
+        return 77
     return 1 if fail else 0
 
 

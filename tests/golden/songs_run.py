@@ -12,13 +12,13 @@ the serialized project model changed — a refactor in the extraction must justi
 and re-baseline it (--update). Mirrors the audio golden harness conventions.
 
 The driver is the song_roundtrip scenario of golden_vt_render (driver.py), and `./dbt test song-roundtrip` runs
-this check (tests/integration/checks/song_roundtrip.py).
+this runner as a corpus gate (scripts/tasks/corpus_gate.py).
 
 CORPUS IS BRING-YOUR-OWN. Only the hashes (songs_fixtures.json) live in the repo;
 the song .XML files stay out-of-repo (privacy/licensing). Point the runner at a
 corpus via $DELUGE_SONG_CORPUS or --corpus (default: driver.default_corpus()).
-When none of the fixtured songs are present locally, the check
-SKIPs (exit 77) instead of failing — so CI without the corpus stays green.
+When none of the fixtured songs are present locally, the runner exits 77, which fails the song-roundtrip corpus gate
+(corpus_gate.py): an entry that requires the corpus and finds none has a broken setup.
 
 Usage:
     ./dbt test -n song-roundtrip                      # build golden_vt_render

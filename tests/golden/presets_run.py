@@ -11,7 +11,7 @@ presets_fixtures.json. A hash change means what a preset saves as changed: justi
 
 The presets are the SYNTHS and KITS folders beside the song corpus ($DELUGE_SONG_CORPUS or --corpus; see
 driver.default_corpus()). They stay out of the repo; only the hashes live here. With none of the fixtured presets
-present the check SKIPs (exit 77).
+present the runner exits 77, which fails the preset-roundtrip corpus gate (corpus_gate.py).
 
 Usage:
     ./dbt test -n preset-roundtrip                  # build golden_vt_render

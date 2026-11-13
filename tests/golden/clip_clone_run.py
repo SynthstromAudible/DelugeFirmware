@@ -70,6 +70,9 @@ def main(argv=None):
         f"SKIP_NOCLIP={skip_noclip} SKIP_LOAD={skip_load}  "
         f"(corpus={args.corpus}, {len(songs)} songs)"
     )
+    if not cloned and not regressions:
+        print("FAIL: nothing was checked")
+        return 77
     return 1 if regressions else 0
 
 
