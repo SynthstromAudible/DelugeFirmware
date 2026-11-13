@@ -59,6 +59,12 @@ public:
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxLoopCrossfadeMs; }
 
+	// A time in ms, drawn as a ramp like the compressor and sidechain attack times
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return ATTACK; }
+	void getColumnLabel(StringBuf& label) override {
+		label.append(l10n::get(l10n::String::STRING_FOR_LOOP_CROSSFADE_SHORT));
+	}
+
 private:
 	uint8_t source_id_;
 };
