@@ -2,8 +2,8 @@
 //! a fixture tree, and runs one scenario deterministically.
 //!
 //! `GOLDEN_SCENARIO` names a row of `tests/integration/scenarios/scenario_table.cpp`, stepped by
-//! [`run_stepped_scenario`]; Sample cluster
-//! fills drain through the BSP's async `streaming_fill_task`, so a sample-backed fixture renders real audio.
+//! [`run_stepped_scenario`]. Sample cluster fills drain through the BSP's async `streaming_fill_task`, so a
+//! sample-backed fixture renders real audio.
 //!
 //! # Why a separate package
 //!
@@ -67,14 +67,6 @@ enum Pacing {
     DevicePeriod = 2,
 }
 
-/// `ScenarioBoot` in `scenario_table.h`, in its order.
-#[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Boot {
-    Full = 0,
-    NoSettingsPrelude = 1,
-}
-
 impl Pacing {
     /// The pacing a row's byte names. The row's field is a byte, not this enum: a value outside the enum's range
     /// would be undefined behaviour in a Rust enum.
@@ -96,6 +88,14 @@ impl Pacing {
             }
         }
     }
+}
+
+/// `ScenarioBoot` in `scenario_table.h`, in its order.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Boot {
+    Full = 0,
+    NoSettingsPrelude = 1,
 }
 
 /// `ScenarioCard::Kind` in `scenario_table.h`, in its order.
@@ -285,8 +285,9 @@ async fn boot_task() {
         }
     }
 
+    let row = table_row(&scenario_name());
     // Must precede deluge_app_init, which registers the startup job.
-    if table_row(&scenario_name()).is_some_and(|row| row.boot() == Boot::NoSettingsPrelude) {
+    if row.is_some_and(|row| row.boot() == Boot::NoSettingsPrelude) {
         // SAFETY: plain store to a C++ global, before deluge_app_init reads it.
         unsafe { sys::deluge_startup_skip_settings_prelude() };
     }
@@ -296,8 +297,7 @@ async fn boot_task() {
     unsafe { sys::deluge_app_init(board::deluge_board()) };
     // A stepped scenario's hook for this moment: boot has not been marked finished, so neither the
     // app loop nor the render has run yet.
-    if let Some(on_app_init) = table_row(&scenario_name()).and_then(|scenario| scenario.on_app_init)
-    {
+    if let Some(on_app_init) = row.and_then(|scenario| scenario.on_app_init) {
         // SAFETY: host scenario C ABI through the table row, after deluge_app_init.
         unsafe { on_app_init() };
     }
@@ -669,8 +669,8 @@ fn main() {
     // GOLDEN_SCENARIO names a row of the scenario table; unset or empty is refused.
     let scenario = scenario_name();
     log::info!("golden_vt_render: fixture={fixture} budget_ms={budget_ms} scenario={scenario}");
-    // A name the table does not hold is a mistake (a scenario not registered in scenario_table.cpp, or a typo), not
-    // a request for another scenario.
+    // A name the table does not hold fails fast with exit 2 (a typo, or a scenario not registered in
+    // scenario_table.cpp).
     let Some(row) = table_row(&scenario) else {
         eprintln!(
             "golden_vt_render: no scenario named '{scenario}' (tests/integration/scenarios/scenario_table.cpp)"

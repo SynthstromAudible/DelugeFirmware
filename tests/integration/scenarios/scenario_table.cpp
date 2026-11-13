@@ -291,9 +291,9 @@ constexpr DelugeScenario kScenarios[] = {
     {"stale_ui", nullptr, &deluge_scenario_stale_ui_begin, &deluge_scenario_stale_ui_complete,
      &deluge_scenario_stale_ui_dispatch_step, &deluge_scenario_stale_ui_step_done, &deluge_scenario_stale_ui_failures,
      ScenarioPacing::DevicePeriod},
-    // The offline stem export of the corpus fixture's song. It skips the settings prelude, whose reads (and its write
-    // when MIDI_FOLLOW.XML is absent) would occupy the single-slot byte channel. No gate observes the difference: a
-    // full boot exports the same audio and prints the same markers.
+    // The offline stem export of the corpus fixture's song. The single-slot byte channel stays free for the export:
+    // the settings prelude, whose reads (and its write when MIDI_FOLLOW.XML is absent) would occupy it, is skipped.
+    // No gate observes the difference: a full boot exports the same audio and prints the same markers.
     {"stem_export", nullptr, &deluge_scenario_stem_export_begin, &deluge_scenario_stem_export_complete,
      &deluge_scenario_stem_export_dispatch_step, &deluge_scenario_stem_export_step_done,
      &deluge_scenario_stem_export_failures, ScenarioPacing::Virtual, ScenarioBoot::NoSettingsPrelude,

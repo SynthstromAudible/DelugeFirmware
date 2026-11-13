@@ -24,7 +24,10 @@
 ///
 /// Every scenario is stepped, driven one tick at a time by golden_vt_render's generic driver: `begin` once, then
 /// `dispatchStep` and `stepDone` until `complete`, then `failures`. Adding one means writing its five functions and a
-/// row in scenario_table.cpp, which also names its card and pacing; the harness needs no change.
+/// row in scenario_table.cpp, which also names its card, pacing, boot and drive; the harness needs no change. A row
+/// takes `ScenarioBoot::NoSettingsPrelude` when the scenario needs the byte channel free from the first tick and reads
+/// no settings, and `ScenarioDrive::OwnClock` when it drives the app's machines as a BSP task does rather than as
+/// interaction-tier entries.
 extern "C" {
 
 /// How the harness paces a scenario's audio, set before the render task is spawned.
