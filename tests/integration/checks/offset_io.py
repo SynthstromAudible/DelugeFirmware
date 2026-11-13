@@ -2,8 +2,8 @@
 
     OI-TRANSFER  that THREE blocks written at ascending offsets are all still on the card. Three, not one: a write_at
                  that truncated would leave only the last block, and a single-block round trip would pass against
-                 exactly that bug -- efatfs::portable::create_context truncates unconditionally, and the correct open mode
-                 looks like a mistake.
+                 exactly that bug -- efatfs::portable::create_context truncates unconditionally, and the correct
+                 open mode looks like a mistake.
     OI-COPY      that a copy reproduces its source byte-for-byte, and that copying a missing source reports an error.
                  Without the error case, a handler replying before its operation finished reports the same err=0 a
                  correct one does.
@@ -30,8 +30,8 @@ def check(gate, run):
     served = count_field(run.first("OI-CHANNEL "), "served")
     if not served:
         gate.fail(
-            f"OI-CHANNEL served={field(run.first('OI-CHANNEL '), 'served') or 'none'}: the byte channel served nothing, "
-            "so the async arm never ran"
+            f"OI-CHANNEL served={field(run.first('OI-CHANNEL '), 'served') or 'none'}: "
+            "the byte channel served nothing, so the async arm never ran"
         )
         return
     gate.say(

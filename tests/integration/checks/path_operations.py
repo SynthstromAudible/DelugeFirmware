@@ -1,6 +1,7 @@
 """The path-operations gate: SysEx path requests, the browser's folder creation, and deleting a file from a browser.
 
-What the checks cover (tests/integration/scenarios/path_operations_scenario.cpp writes the lines), and why each is separate:
+What the checks cover (tests/integration/scenarios/path_operations_scenario.cpp writes the lines), and why each is
+separate:
     PO-SYSEX     that the protocol still answers. A real request for each covered verb must produce its ^verb reply,
                  captured from a loopback MIDICable rather than inferred from the filesystem -- asserting the effect
                  alone would pass for a request path that stopped replying, which is exactly what deferring a reply
@@ -36,8 +37,8 @@ def check(gate, run):
     served = count_field(run.first("PO-CHANNEL "), "served")
     if not served:
         gate.fail(
-            f"PO-CHANNEL served={field(run.first('PO-CHANNEL '), 'served') or 'none'}: the byte channel served nothing, "
-            "so the async arm never ran"
+            f"PO-CHANNEL served={field(run.first('PO-CHANNEL '), 'served') or 'none'}: "
+            "the byte channel served nothing, so the async arm never ran"
         )
         return
     probes = [field(line, "n") or "" for line in run.starting("TIER-SYNC-PROBE ")]

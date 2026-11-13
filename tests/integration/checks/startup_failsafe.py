@@ -1,7 +1,7 @@
 """The startup fail-safe gate: none of the fail-safe's file I/O begins on the interaction tier.
 
-Drives the real startup fail-safe. What the checks cover (tests/integration/scenarios/startup_failsafe_scenario.cpp writes the
-lines), and why each is separate:
+Drives the real startup fail-safe. What the checks cover
+(tests/integration/scenarios/startup_failsafe_scenario.cpp writes the lines), and why each is separate:
     SF-ORDER    the machine never advances past the canary write without a terminal answer, and the canary is on the
                 card before the load is allowed to proceed.
     SF-TIER     that no fail-safe file operation ran on the interaction tier. This is the evidence.
@@ -25,8 +25,8 @@ def check(gate, run):
     served = count_field(run.first("SF-CHANNEL "), "served")
     if not served:
         gate.fail(
-            f"SF-CHANNEL served={field(run.first('SF-CHANNEL '), 'served') or 'none'}: the byte channel served nothing, "
-            "so the async arm never ran"
+            f"SF-CHANNEL served={field(run.first('SF-CHANNEL '), 'served') or 'none'}: "
+            "the byte channel served nothing, so the async arm never ran"
         )
         return
     gate.say(
