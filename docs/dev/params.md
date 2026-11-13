@@ -320,10 +320,12 @@ page the cycle lacks (a mod FX view its type has no param for) it moves to the g
 `controls::resolve_section` (`src/controls/section.h`) answers a mod button: whether its owner's mode changes, the VU
 meter toggles, the stutter ends, and the popup shows.
 
-The shell's gold knobs (`scenes::services::ModKnobs`, while a menu is up) resolve through these and apply each target
-through `controls::Sink`, reading values through `controls::Facts` (`src/controls/sink.h`, `facts.h`). The root views
-keep their own path (`View::modEncoderAction`, `ModControllable::getParamFromModEncoder`, `GlobalEffectable::knobParam`)
-until they forward their knobs to `ModKnobs`; param-target-check and the scenes specs hold the two to the same layout.
+The gold knobs (`scenes::services::ModKnobs`) resolve through these and apply each target through `controls::Sink`,
+reading values through `controls::Facts` (`src/controls/sink.h`, `facts.h`). The shell calls them while a menu is up;
+the root views call the same object through `deluge::gui::ui::root_knobs` (`turn`, `push`, `mod_button`), which hands it
+a `KnobPresentation` that shows each popup, indicator and blink as the view does. No other knob path remains: `View`
+keeps no gold-knob code, and the engine classes hold no knob overrides. param-target-check and the scenes specs hold the
+published pages to the engine's param layout.
 
 ## Instrument-private rules
 
