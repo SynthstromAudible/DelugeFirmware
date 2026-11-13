@@ -19,10 +19,13 @@ REFUSAL = "does not declare the corpus"
 
 
 def main() -> int:
-    target = os.environ.get("CARGO_TARGET_DIR") or str(
-        REPO / "src/bsp/rust/harness/golden_vt_render/target"
+    target = os.environ.get("CARGO_TARGET_DIR") or str(REPO / "build" / "cargo-harness")
+    binary = (
+        Path(target)
+        / os.environ.get("GOLDEN_VT_RENDER_TARGET", "")
+        / "release"
+        / "golden_vt_render"
     )
-    binary = Path(target) / "release" / "golden_vt_render"
     if not binary.is_file():
         print(
             f"ERROR: '{binary}' is not built -- run this gate through ./dbt test, which builds it first"

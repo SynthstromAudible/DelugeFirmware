@@ -300,7 +300,6 @@ tier = "nightly"
 group = "unit"
 runtime = "~5m"
 
-# tier = "nightly": needs song-corpus (the cordae project tree is reconstructed from it).
 [[harness]]
 name = "corpus-guard"
 path = "."
@@ -317,6 +316,7 @@ tier = "pr"
 group = "unit"
 runtime = "~1s"
 
+# tier = "nightly": needs song-corpus (the cordae project tree is reconstructed from it).
 [[harness]]
 name = "embassy-layout-invariance"
 path = "."
