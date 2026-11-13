@@ -32,6 +32,7 @@
 #include "modulation/automation/record_events.h"
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
+#include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
@@ -61,6 +62,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/clip/instrument_clip_minder.h"
 #include "model/edits/set_mod_knob_cc.h"
 #include "model/edits/set_mod_knob_mode.h"
 #include "model/global_effectable/global_effectable.h"
@@ -1069,6 +1071,42 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		deluge::notify::Notice raised;
 		expect(deluge::notify::notices().pop(raised)).to_be_true();
 		expect(raised.kind == deluge::notify::Notice::Kind::CancelPopup).to_be_true();
+		currentUIMode = UI_MODE_NONE;
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("selects the CC its track's record names for the knob and mode, and ends on a release", _ {
+		StubDisplay stub;
+		display = &stub;
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		setRootUILowLevel(&instrumentClipView);
+		spec::SongFixture f = spec::make_midi_song();
+		currentSong = f.song;
+		auto* instrument = static_cast<MIDIInstrument*>(f.instrument);
+		// The record names the CC; the engine's assignment agrees with it for every knob of every mode.
+		(void)deluge::edits::modKnobCCFor(deluge::project::TrackAddress{*instrument->id()}, 1,
+		                                  {.kind = deluge::project::ModKnobCc::Kind::NUMBER, .number = 74});
+		const deluge::project::DocOutput* record = f.song->project.output_structure.find(*instrument->id());
+		expect(record != nullptr).to_be_true();
+		for (size_t at = 0; at < record->mod_knob_ccs.size(); at++) {
+			expect(static_cast<int32_t>(instrument->modKnobCCAssignments[at]))
+			    .to_equal(static_cast<int32_t>(MIDIInstrument::engineCcOf(record->mod_knob_ccs[at])));
+		}
+		const deluge::scenes::bind::KnobFocus focus = focus_of(*f.song, f.clip);
+		auto& sink = deluge::scenes::menu::host_controls_sink();
+		expect(sink.midi_cc_select(focus, 1, true)).to_be_true();
+		expect(currentUIMode).to_equal(UI_MODE_SELECTING_MIDI_CC);
+		expect(InstrumentClipMinder::editingMIDICCForWhichModKnob).to_equal(1);
+		// A select already running takes no second press.
+		expect(sink.midi_cc_select(focus, 0, true)).to_be_false();
+		expect(InstrumentClipMinder::editingMIDICCForWhichModKnob).to_equal(1);
+		expect(sink.midi_cc_select(focus, 1, false)).to_be_false();
+		expect(currentUIMode).to_equal(UI_MODE_NONE);
+		// A release with no select running leaves a menu's mode alone.
+		currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
+		expect(sink.midi_cc_select(focus, 1, false)).to_be_false();
+		expect(currentUIMode).to_equal(UI_MODE_HORIZONTAL_SCROLL);
 		currentUIMode = UI_MODE_NONE;
 		display = nullptr;
 		currentSong = nullptr;

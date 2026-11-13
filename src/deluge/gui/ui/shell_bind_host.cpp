@@ -19,6 +19,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/words.h"
 #include "io/debug/log.h"
@@ -26,6 +27,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/clip/instrument_clip_minder.h"
 #include "model/drum/drum.h"
 #include "model/edits/attach_recorded_sample.h"
 #include "model/edits/clear_clip.h"
@@ -52,6 +54,7 @@
 #include "model/favourite/favourite_manager.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
+#include "model/instrument/midi_instrument.h"
 #include "model/instrument/non_audio_instrument.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -1248,9 +1251,65 @@ bool ShellEditSink::instrument_edited(const deluge::scenes::bind::KnobFocus& foc
 	return true;
 }
 
+namespace {
+
+/// The lane of @p clip that a MIDI track's knob sending @p cc moves; none for a knob that sends nothing.
+std::optional<deluge::project::ParamAddress> midiKnobLane(deluge::project::ClipAddress clip,
+                                                          const deluge::project::ModKnobCc& cc) {
+	using Kind = deluge::project::ModKnobCc::Kind;
+	using deluge::project::ParamSpace;
+	const auto lane = [clip](ParamSpace space, uint32_t id) {
+		return deluge::project::ParamAddress::of(deluge::project::OwnerId::clip(clip.clip_id),
+		                                         {space, deluge::plugin::ParamId{id}});
+	};
+	switch (cc.kind) {
+	case Kind::BEND:
+		return lane(ParamSpace::EXPRESSION, 0);
+	case Kind::AFTERTOUCH:
+		return lane(ParamSpace::EXPRESSION, 2);
+	case Kind::NUMBER:
+		return cc.number == deluge::project::ModKnobCc::kYAxisNumber ? lane(ParamSpace::EXPRESSION, 1)
+		                                                             : lane(ParamSpace::MIDI_CC, cc.number);
+	case Kind::NONE:
+		break;
+	}
+	return std::nullopt;
+}
+
+} // namespace
+
 bool ShellEditSink::midi_cc_select(const deluge::scenes::bind::KnobFocus& focus, int32_t knob, bool on) {
-	const std::optional<deluge::project::ParamAddress> owner = deluge::scenes::bind::knob_owner(focus);
-	return currentSong != nullptr && owner && deluge::bridge::midiCcSelectAt(*currentSong, *owner, knob, on);
+	if (!on) {
+		if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
+			currentUIMode = UI_MODE_NONE;
+			deluge::hid::display::OLED::removePopup();
+		}
+		return false;
+	}
+	const auto* midi = std::get_if<deluge::scenes::bind::MidiFocus>(&focus.owner);
+	if (currentSong == nullptr || midi == nullptr || !midi->clip || currentUIMode != UI_MODE_NONE
+	    || getCurrentUI()->toClipMinder() == nullptr) {
+		return false;
+	}
+	const deluge::project::DocOutput* output = currentSong->project.output_structure.find(midi->track.output_id);
+	if (output == nullptr) {
+		return false;
+	}
+	const size_t at =
+	    (static_cast<size_t>(deluge::scenes::bind::knob_mode(currentSong->project, focus)) * kNumPhysicalModKnobs)
+	    + static_cast<size_t>(knob);
+	const deluge::project::ModKnobCc cc =
+	    at < output->mod_knob_ccs.size() ? output->mod_knob_ccs[at] : deluge::project::ModKnobCc{};
+	bool automated = false;
+	if (const auto lane = midiKnobLane(*midi->clip, cc)) {
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		const ModelStackWithAutoParam* stack = deluge::bridge::paramStackFollowingTake(*currentSong, *lane, memory);
+		automated = stack != nullptr && stack->autoParam != nullptr && stack->autoParam->isAutomated(*stack->doc());
+	}
+	currentUIMode = UI_MODE_SELECTING_MIDI_CC;
+	InstrumentClipMinder::editingMIDICCForWhichModKnob = static_cast<uint8_t>(knob);
+	InstrumentClipMinder::drawMIDIControlNumber(MIDIInstrument::engineCcOf(cc), automated);
+	return true;
 }
 
 std::optional<int32_t> ShellRuntimeFacts::param_value(const deluge::project::ParamAddress& address) const {

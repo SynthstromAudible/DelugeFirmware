@@ -129,15 +129,6 @@ bool stutterAt(::Song& song, const project::ParamAddress& owner, bool begin);
 /// @return Whether the owner resolved.
 bool grabRegionAt(::Song& song, const project::ParamAddress& owner, uint32_t pos);
 
-/// @brief Press (or release) gold knob @p knob on @p owner's MIDI clip: the instrument's own CC-select gesture, which
-/// sets the clip minder's state.
-/// @param song  The song holding the clip.
-/// @param owner The MIDI clip, as an address with no param.
-/// @param knob  0 the lower, 1 the upper.
-/// @param on    Press (true) or release.
-/// @return Whether the instrument took the gesture (legacy's: from a clip minder with no UI mode active).
-bool midiCcSelectAt(::Song& song, const project::ParamAddress& owner, int32_t knob, bool on);
-
 /// @brief The engine stack naming the cable at @p address (a synth's or a sound drum's depth), made with @p polarity
 /// where the sound does not hold it yet: the cable's record takes it, and the polarity change is recorded into the open
 /// Action as a mod matrix edit.
