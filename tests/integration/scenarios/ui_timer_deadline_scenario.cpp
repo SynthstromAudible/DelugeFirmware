@@ -21,6 +21,7 @@
 /// (UT-EARLIER).
 
 #include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "gui/ui_timer_manager.h"
 #include "processing/engines/audio_engine.h"
@@ -41,10 +42,15 @@ DELUGE_SCENARIO_DECLARE(ui_timer_deadline);
 namespace {
 
 using deluge::runtime::appLoop;
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
 
 /// Driver steps (about 2 virtual ms each) after boot before anything is measured, so boot's own timers have settled.
+/// A precondition window with no condition to poll, so a count to elapse rather than a wait.
 constexpr int32_t kSettleTicks = 100;
-/// Driver steps the job's run count is measured over for UT-RATE.
+/// Driver steps the job's run count is measured over for UT-RATE: the window the rate is defined over, not a condition
+/// to wait for.
 constexpr int32_t kRateTicks = 250;
 /// UT-RATE's bounds, in runs per second of the sample clock. The graphics routine alone re-arms every 15 ms (about 67
 /// a second), so the job must run at least this often or the timers have stopped. A deadline can take a few runs: the
@@ -64,7 +70,7 @@ constexpr int32_t kMinLeadSamples = 600;
 /// clock, which moves a block at a time.
 constexpr int32_t kMaxFireSamples = kProbeMs * 44 + 2 * 128;
 static_assert(kMaxFireSamples < kMinLeadSamples - 128);
-/// Ticks to find a moment with that lead, and ticks for the probe to fire.
+/// Ticks to find a moment with that lead, and ticks for the probe to fire: the budgets of the two waits below.
 constexpr int32_t kArmTicks = 500;
 constexpr int32_t kFireTicks = 50;
 
@@ -73,18 +79,16 @@ enum class Stage : uint8_t { Settle, Rate, Arm, Fire, Done };
 Stage g_stage = Stage::Settle;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-int32_t g_failures = 0;
+ScenarioReport g_report{"UT"};
+/// Driver steps counted by the two fixed windows (settle and rate).
 int32_t g_ticks = 0;
+/// The wait of the stage in progress: the moment to arm the probe, then the probe firing.
+Wait g_wait{g_report, "a moment with every timer at least 600 samples off", kArmTicks};
 uint32_t g_runsAtStart = 0;
 uint32_t g_samplesAtStart = 0;
 uint32_t g_graphicsTrigger = 0;
 uint32_t g_probeSetAt = 0;
 int32_t g_lead = 0;
-
-void fail(const char* what) {
-	printf("UT-FAIL %s\n", what);
-	g_failures++;
-}
 
 uint32_t jobRuns() {
 	return appLoop.stats(uiTimerManager.jobId).runs;
@@ -124,12 +128,12 @@ void runTick() {
 		printf("UT-RATE runs=%lld samples=%lld perSecond=%lld\n", static_cast<long long>(runs),
 		       static_cast<long long>(samples), static_cast<long long>(perSecond));
 		if (perSecond < kMinRunsPerSecond) {
-			fail("the ui routine job ran too seldom for the graphics routine's 15 ms timer");
+			g_report.fail("the ui routine job ran too seldom for the graphics routine's 15 ms timer");
 		}
 		if (perSecond > kMaxRunsPerSecond) {
-			fail("the ui routine job runs far more often than its timers are due: it is still polling");
+			g_report.fail("the ui routine job runs far more often than its timers are due: it is still polling");
 		}
-		g_ticks = 0;
+		g_wait = Wait{g_report, "a moment with every timer at least 600 samples off", kArmTicks};
 		g_graphicsTrigger = uiTimerManager.getTimer(TimerName::GRAPHICS_ROUTINE).triggerTime;
 		g_stage = Stage::Arm;
 		break;
@@ -140,44 +144,46 @@ void runTick() {
 		const uint32_t graphics = uiTimerManager.getTimer(TimerName::GRAPHICS_ROUTINE).triggerTime;
 		const bool rearmed = graphics != g_graphicsTrigger;
 		g_graphicsTrigger = graphics;
+		bool armed = false;
 		if (rearmed && !uiTimerManager.isTimerSet(kProbe)) {
 			g_lead = soonestTimer();
-			if (g_lead >= kMinLeadSamples) {
-				g_probeSetAt = AudioEngine::audioSampleTimer;
-				uiTimerManager.setTimer(kProbe, kProbeMs);
-				g_ticks = 0;
-				g_stage = Stage::Fire;
-				break;
-			}
+			armed = g_lead >= kMinLeadSamples;
 		}
-		if (++g_ticks >= kArmTicks) {
+		switch (g_wait.poll(armed)) {
+		case WaitState::Pending:
+			break;
+		case WaitState::Met:
+			g_probeSetAt = AudioEngine::audioSampleTimer;
+			uiTimerManager.setTimer(kProbe, kProbeMs);
+			g_wait = Wait{g_report, "the 2 ms probe timer firing", kFireTicks};
+			g_stage = Stage::Fire;
+			break;
+		case WaitState::Expired:
+			// The check reads this line.
 			printf("UT-EARLIER armed=0\n");
-			fail("no moment with every timer at least 600 samples off");
 			g_stage = Stage::Done;
+			break;
 		}
 		break;
 	}
 
 	case Stage::Fire: {
 		const bool fired = !uiTimerManager.isTimerSet(kProbe);
-		if (!fired && ++g_ticks < kFireTicks) {
+		if (g_wait.poll(fired) == WaitState::Pending) {
 			break;
 		}
 		const auto elapsed = static_cast<int32_t>(AudioEngine::audioSampleTimer - g_probeSetAt);
 		printf("UT-EARLIER armed=1 fired=%d lead=%d elapsed=%d max=%d\n", fired ? 1 : 0, static_cast<int>(g_lead),
 		       static_cast<int>(elapsed), static_cast<int>(kMaxFireSamples));
-		if (!fired) {
-			fail("a 2 ms timer never fired");
-		}
-		else if (elapsed > kMaxFireSamples) {
-			fail("a timer set earlier than the job's pending run waited for that run");
+		if (fired && elapsed > kMaxFireSamples) {
+			g_report.fail("a timer set earlier than the job's pending run waited for that run");
 		}
 		g_stage = Stage::Done;
 		break;
 	}
 
 	case Stage::Done:
-		printf("UT-RESULT failures=%d\n", static_cast<int>(g_failures));
+		g_report.printResult();
 		g_summaryPrinted = true;
 		break;
 	}
@@ -192,8 +198,9 @@ void deluge_scenario_ui_timer_deadline_begin(void) {
 	g_stage = Stage::Settle;
 	g_stepDone = false;
 	g_summaryPrinted = false;
-	g_failures = 0;
+	g_report.reset();
 	g_ticks = 0;
+	g_wait = Wait{g_report, "a moment with every timer at least 600 samples off", kArmTicks};
 }
 
 bool deluge_scenario_ui_timer_deadline_complete(void) {
@@ -214,7 +221,7 @@ bool deluge_scenario_ui_timer_deadline_step_done(void) {
 }
 
 int32_t deluge_scenario_ui_timer_deadline_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

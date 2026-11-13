@@ -28,6 +28,7 @@
 ///       app's sources).
 
 #include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/load/instrument_load.h"
@@ -72,8 +73,12 @@ constexpr const char* kLostPath = "SAMPLES/CRLOST.WAV";
 /// Loaded and then released, so it is resident but referenced by nothing. Must be evicted.
 constexpr const char* kEvictPath = "SAMPLES/CREVICT.WAV";
 
-/// Ticks any one wait may take before the stage is called wedged.
-constexpr int32_t kMaxWaitTicks = 4000;
+/// Ticks the boot's sample loads are given to land before the residents are counted. A count to elapse rather than a
+/// wait: no accessor says the loads landed, and the residents counted next are the evidence.
+constexpr int32_t kSettleTicks = 64;
+/// Ticks the re-insert is given to run. `cardEjected` is private, so there is no condition to poll; the fates reported
+/// afterwards are themselves the evidence that the walk ran. Far more than the queue-then-run round trip needs.
+constexpr int32_t kReinsertTicks = 256;
 
 enum class Stage : uint8_t {
 	Build,
@@ -89,18 +94,12 @@ enum class Stage : uint8_t {
 Stage g_stage = Stage::Build;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
-int32_t g_failures = 0;
+deluge::scenarios::ScenarioReport g_report{"CR"};
 int32_t g_waitTicks = 0;
 
 /// Residents counted at Snapshot, before anything is ejected.
 int32_t g_samplesBefore = 0;
 int32_t g_referencedBefore = 0;
-
-bool fail(const char* what) {
-	printf("CR-FAIL %s\n", what);
-	g_failures++;
-	return false;
-}
 
 /// The resident `AudioFile` at @p path, or nullptr when it is no longer in memory.
 AudioFile* residentAt(const char* path) {
@@ -166,19 +165,22 @@ bool buildFixture() {
 		}
 	}
 	if (synth == nullptr) {
-		return fail("the boot song has no synth");
+		g_report.fail("the boot song has no synth");
+		return false;
 	}
 	synth->sources[0].setOscType(OscType::SAMPLE);
 	AudioFileHolder* surviveHolder = firstHolder(synth->sources[0]);
 	if (surviveHolder == nullptr) {
-		return fail("the synth's source has no range");
+		g_report.fail("the synth's source has no range");
+		return false;
 	}
 	surviveHolder->filePath = kSurvivePath;
 	(void)synth->loadAllAudioFiles(true);
 
 	Clip* lostClipBase = sessionView.createNewClip(OutputType::AUDIO, 1);
 	if (lostClipBase == nullptr || lostClipBase->type != ClipType::AUDIO) {
-		return fail("no audio clip could be created for the lost sample");
+		g_report.fail("no audio clip could be created for the lost sample");
+		return false;
 	}
 	auto* lostClip = static_cast<AudioClip*>(lostClipBase);
 	lostClip->sampleHolder.filePath = kLostPath;
@@ -188,7 +190,8 @@ bool buildFixture() {
 	// holding it. That is precisely the state the walk's `!isProjectReferenced()` branch prunes.
 	Clip* evictClipBase = sessionView.createNewClip(OutputType::AUDIO, 2);
 	if (evictClipBase == nullptr || evictClipBase->type != ClipType::AUDIO) {
-		return fail("no audio clip could be created for the evicted sample");
+		g_report.fail("no audio clip could be created for the evicted sample");
+		return false;
 	}
 	auto* evictClip = static_cast<AudioClip*>(evictClipBase);
 	evictClip->sampleHolder.filePath = kEvictPath;
@@ -235,7 +238,7 @@ void runTick() {
 	case Stage::Settle:
 		// Loads span ticks; let them land before anything is counted.
 		AudioEngine::routine();
-		if (++g_waitTicks < 64) {
+		if (++g_waitTicks < kSettleTicks) {
 			return;
 		}
 		g_stage = Stage::Snapshot;
@@ -269,7 +272,7 @@ void runTick() {
 		// limitation stated at length.
 		const bool removed = deluge::io::unlink(kLostPath).has_value();
 		if (!removed) {
-			(void)fail("the lost sample's file could not be removed");
+			g_report.fail("the lost sample's file could not be removed");
 		}
 		g_waitTicks = 0;
 		g_stage = Stage::Reinsert;
@@ -280,9 +283,8 @@ void runTick() {
 		// Through slowRoutine(), NOT reinitEjectedCard() directly: slowRoutine is the path the device takes.
 		audioFileManager.slowRoutine();
 		AudioEngine::routine();
-		// Bounded rather than conditional: `cardEjected` is private, and the fates below are themselves
-		// the evidence that the walk ran. 256 ticks is far more than the queue-then-run round trip needs.
-		if (++g_waitTicks < 256) {
+		// Bounded rather than conditional: see kReinsertTicks.
+		if (++g_waitTicks < kReinsertTicks) {
 			return;
 		}
 		g_stage = Stage::Report;
@@ -307,19 +309,19 @@ void runTick() {
 		printf("CR-EVICT ok=%d stillResident=%d\n", (int)(evicted == nullptr), (int)(evicted != nullptr));
 
 		if (g_samplesBefore <= 0) {
-			(void)fail("the walk had no resident samples to visit");
+			g_report.fail("the walk had no resident samples to visit");
 		}
 		if (survivorUnloadable != 0) {
-			(void)fail("the intact sample did not survive the swap");
+			g_report.fail("the intact sample did not survive the swap");
 		}
 		if (lostUnloadable != 1) {
-			(void)fail("the removed sample was not marked unloadable");
+			g_report.fail("the removed sample was not marked unloadable");
 		}
 		if (evicted != nullptr) {
-			(void)fail("the unreferenced resident was not evicted");
+			g_report.fail("the unreferenced resident was not evicted");
 		}
 
-		printf("CR-RESULT failures=%d\n", (int)g_failures);
+		g_report.printResult();
 		fflush(nullptr);
 		g_summaryPrinted = true;
 		g_stage = Stage::Done;
@@ -340,7 +342,7 @@ void deluge_scenario_card_reinsert_begin(void) {
 	g_stage = Stage::Build;
 	g_stepDone = false;
 	g_summaryPrinted = false;
-	g_failures = 0;
+	g_report.reset();
 	g_waitTicks = 0;
 	g_samplesBefore = 0;
 	g_referencedBefore = 0;
@@ -368,7 +370,7 @@ bool deluge_scenario_card_reinsert_step_done(void) {
 }
 
 int32_t deluge_scenario_card_reinsert_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"

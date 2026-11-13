@@ -54,6 +54,7 @@
 
 #include "scenarios/follow_channel.h"
 #include "scenarios/support/scenario_declare.h"
+#include "scenarios/support/scenario_report.h"
 
 #include "gui/ui/load/instrument_load.h"
 #include "libdeluge/tier.h"
@@ -102,6 +103,10 @@ void inputRoutine();
 
 namespace {
 
+using deluge::scenarios::ScenarioReport;
+using deluge::scenarios::Wait;
+using deluge::scenarios::WaitState;
+
 enum class Stage : uint8_t { Loading, Start, Capturing, Report, Done };
 
 /// Ticks the preset load is given before it counts as a failure. A tick is about two virtual milliseconds.
@@ -110,8 +115,10 @@ constexpr uint64_t kBlockFrames = 128;
 constexpr double kFramesPerSecond = 44100.0;
 
 Stage g_stage = Stage::Loading;
-int32_t g_failures = 0;
-int32_t g_ticks = 0;
+ScenarioReport g_report{"RP"};
+/// The load's wait, then the capture's. The capture's budget depends on the blocks asked for and is an int32_t, which
+/// holds any RENDER_SECONDS below about 8 hours of audio (2 hours is about 5.6 million ticks).
+Wait g_wait{g_report, "the blank song's preset load", kMaxLoadTicks};
 
 std::string g_midiPath;
 /// The harness test signal the audio input is fed (RENDER_INPUT), 0 for silence.
@@ -140,19 +147,17 @@ std::string g_settingPath;
 std::string g_settingValue;
 bool g_settingApplied = false;
 
-void fail(const char* marker, const char* what) {
-	printf("%s FAIL %s\n", marker, what);
-	g_failures++;
-}
-
 /// The load is over once the blank song has asked for its preset and nothing it asked for is still in flight.
 void stepLoading() {
-	if (currentSong->blankPresetPending || deluge::gui::instrumentLoad.acquisitionInFlight()) {
-		if (++g_ticks > kMaxLoadTicks) {
-			fail("RP-LOADED", "the blank song's preset load never finished");
-			g_stage = Stage::Report;
-		}
+	const bool loaded = !currentSong->blankPresetPending && !deluge::gui::instrumentLoad.acquisitionInFlight();
+	switch (g_wait.poll(loaded)) {
+	case WaitState::Pending:
 		return;
+	case WaitState::Expired:
+		g_stage = Stage::Report;
+		return;
+	case WaitState::Met:
+		break;
 	}
 	const Output* output =
 	    currentSong->live.clips.session_clips.empty() ? nullptr : currentSong->live.clips.session_clips[0]->output;
@@ -161,7 +166,7 @@ void stepLoading() {
 	const bool swapped = currentSong->blankPresetInstrument == nullptr;
 	printf("RP-LOADED name=%s swapped=%d\n", output != nullptr ? output->name.c_str() : "(none)", swapped ? 1 : 0);
 	if (output == nullptr || output->type != OutputType::SYNTH || !swapped) {
-		fail("RP-LOADED", "the preset did not replace the built-in default synth");
+		g_report.fail("LOADED the preset did not replace the built-in default synth");
 		g_stage = Stage::Report;
 		return;
 	}
@@ -171,10 +176,10 @@ void stepLoading() {
 /// Capture and the note script start on the same frame, so the script's frames count from the capture's first.
 void stepStart() {
 	if (!g_midiPath.empty()) {
-		scenarios::followChannelOne();
+		::scenarios::followChannelOne();
 		g_midiEvents = deluge_host_midi_script_start(g_midiPath.c_str());
 		if (g_midiEvents < 0) {
-			fail("RP-MIDI", "the note script could not be read");
+			g_report.fail("MIDI the note script could not be read");
 			g_stage = Stage::Report;
 			return;
 		}
@@ -189,7 +194,9 @@ void stepStart() {
 	g_audioSyncBase = deluge_tier_sync_audio_total();
 	g_allocationBase = deluge::memory::audioTierAllocations();
 	deluge_host_capture_start();
-	g_ticks = 0;
+	// A block takes about 2.9 virtual milliseconds and a tick about two, so twice the blocks in ticks is ample.
+	g_wait = Wait{g_report, "RENDER the render reaching the blocks asked for",
+	              static_cast<int32_t>(g_blocksWanted * 2 + 1000)};
 	g_stage = Stage::Capturing;
 }
 
@@ -218,7 +225,7 @@ void applySettingNow() {
 	const Error error = deluge::bridge::applySetting(
 	    sound, g_settingPath, deluge::serialization::Value::makeScalar(g_settingValue), *currentSong);
 	if (error != Error::NONE) {
-		fail("RP-SETTING", "the setting was refused");
+		g_report.fail("SETTING the setting was refused");
 		return;
 	}
 	printf("RP-SETTING block=%llu path=%s value=%s\n", static_cast<unsigned long long>(g_blocksRendered),
@@ -240,18 +247,15 @@ void stepCapturing() {
 		g_settingApplied = true;
 		applySettingNow();
 	}
-	if (g_blocksRendered >= g_blocksWanted) {
+	switch (g_wait.poll(g_blocksRendered >= g_blocksWanted)) {
+	case WaitState::Pending:
+		return;
+	case WaitState::Met:
+	case WaitState::Expired:
 		g_captured = deluge_host_capture_stop();
 		deluge_host_test_input(0);
 		g_stage = Stage::Report;
 		return;
-	}
-	// A block takes about 2.9 virtual milliseconds and a tick about two, so twice the blocks in ticks is ample.
-	if (++g_ticks > static_cast<int64_t>(g_blocksWanted) * 2 + 1000) {
-		fail("RP-RENDER", "the render stopped short of the blocks asked for");
-		g_captured = deluge_host_capture_stop();
-		deluge_host_test_input(0);
-		g_stage = Stage::Report;
 	}
 }
 
@@ -259,19 +263,19 @@ void report() {
 	const uint32_t released = deluge_host_midi_script_released();
 	printf("RP-MIDI events=%d released=%u\n", std::max(g_midiEvents, 0), released);
 	if (g_midiEvents > 0 && released != static_cast<uint32_t>(g_midiEvents)) {
-		fail("RP-MIDI", "the app did not read every scripted event before capture ended");
+		g_report.fail("MIDI the app did not read every scripted event before capture ended");
 	}
 	printf("RP-RENDER blocks=%llu voices_max=%d direness_max=%d\n", static_cast<unsigned long long>(g_blocksRendered),
 	       g_voicesMax, g_direnessMax);
 	if (g_direnessMax != 0) {
-		fail("RP-RENDER", "CPU direness rose, so the render took reduced-quality paths");
+		g_report.fail("RENDER CPU direness rose, so the render took reduced-quality paths");
 	}
 	const uint32_t allocations = deluge::memory::audioTierAllocations() - g_allocationBase;
 #if ALPHA_OR_BETA_VERSION
 	const uint32_t storeEdits = deluge::renderStructuralEdits(deluge::StructuralContainer::PARAM_STORE);
 	printf("RP-STORE render_edits=%u\n", storeEdits);
 	if (storeEdits != 0) {
-		fail("RP-STORE", "the render changed a lane store");
+		g_report.fail("STORE the render changed a lane store");
 	}
 #endif
 	// Reported, not gated: the live-input pitch shift, the sample timestretch and the voice cache paths allocate on
@@ -280,33 +284,33 @@ void report() {
 	const uint32_t audioSync = deluge_tier_sync_audio_total() - g_audioSyncBase;
 	printf("RP-TIER-SYNC-AUDIO total=%u\n", audioSync);
 	if (audioSync != 0) {
-		fail("RP-TIER-SYNC-AUDIO", "the render made a synchronous card call");
+		g_report.fail("TIER-SYNC-AUDIO the render made a synchronous card call");
 	}
 	printf("RP-CAPTURE frames=%llu input=%u stereo=%d\n", static_cast<unsigned long long>(g_captured), g_testInput,
 	       g_stereo ? 1 : 0);
 	if (g_wrongWidthTicks != 0) {
-		fail("RP-CAPTURE", g_stereo ? "the app rendered in mono with headphones plugged in"
-		                            : "the app rendered in stereo with nothing plugged in");
+		g_report.fail("CAPTURE %s", g_stereo ? "the app rendered in mono with headphones plugged in"
+		                                     : "the app rendered in stereo with nothing plugged in");
 	}
 #if ALPHA_OR_BETA_VERSION
 	printf("RP-SNAPSHOT model_reads=%u render_writes=%u requests_dropped=%u\n", deluge::modulation::renderModelReads,
 	       deluge::modulation::renderModelWrites, deluge::modulation::laneRequestOverflows);
 	if (deluge::modulation::renderModelReads != 0 || deluge::modulation::renderModelWrites != 0) {
-		fail("RP-SNAPSHOT", "the render read or wrote a lane in the model");
+		g_report.fail("SNAPSHOT the render read or wrote a lane in the model");
 	}
 	if (deluge::modulation::laneRequestOverflows != 0) {
-		fail("RP-SNAPSHOT", "a lane request the render made found the queue full");
+		g_report.fail("SNAPSHOT a lane request the render made found the queue full");
 	}
 	printf("RP-LANES unheld_writes=%u splits=%u\n", deluge::modulation::unheldLaneWrites,
 	       deluge::modulation::laneSplits);
 	if (deluge::modulation::laneSplits != 0) {
-		fail("RP-LANES", "the interaction tier resolved a lane the render does not read");
+		g_report.fail("LANES the interaction tier resolved a lane the render does not read");
 	}
 	if (deluge::modulation::unheldLaneWrites != 0) {
-		fail("RP-LANES", "the render's unheld lane was written");
+		g_report.fail("LANES the render's unheld lane was written");
 	}
 #endif
-	printf("RP-RESULT failures=%d\n", g_failures);
+	g_report.printResult();
 	g_stage = Stage::Done;
 }
 
@@ -317,8 +321,8 @@ extern "C" {
 void deluge_scenario_render_preset_begin(void) {
 	setvbuf(stdout, nullptr, _IOLBF, 0);
 	g_stage = Stage::Loading;
-	g_failures = 0;
-	g_ticks = 0;
+	g_report.reset();
+	g_wait = Wait{g_report, "the blank song's preset load", kMaxLoadTicks};
 	g_midiEvents = 0;
 	g_direnessMax = 0;
 	g_voicesMax = 0;
@@ -349,7 +353,7 @@ void deluge_scenario_render_preset_begin(void) {
 		const std::string pair = rest != nullptr ? rest : "";
 		const size_t path_start = pair.find_first_not_of(' ');
 		if (path_start == std::string::npos) {
-			fail("RP-SETTING", "RENDER_SETTING names no setting");
+			g_report.fail("SETTING RENDER_SETTING names no setting");
 			g_settingBlock = 0;
 		}
 		else {
@@ -391,7 +395,7 @@ bool deluge_scenario_render_preset_step_done(void) {
 }
 
 int32_t deluge_scenario_render_preset_failures(void) {
-	return g_failures;
+	return g_report.failures();
 }
 
 } // extern "C"
