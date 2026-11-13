@@ -1,3 +1,20 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #include "scenarios/support/scenario_report.h"
 
 #include <cstdarg>
@@ -12,8 +29,12 @@ void ScenarioReport::fail(const char* fmt, ...) {
 	va_copy(measure, args);
 	const int size = std::vsnprintf(nullptr, 0, fmt, measure);
 	va_end(measure);
-	std::string what(size > 0 ? static_cast<size_t>(size) : 0, '\0');
-	if (size > 0) {
+	std::string what;
+	if (size < 0) {
+		what = std::string{"(unformattable) "} + fmt;
+	}
+	else if (size > 0) {
+		what.resize(static_cast<size_t>(size));
 		// Writes the terminator over what[size()], which holds '\0' already.
 		std::vsnprintf(what.data(), what.size() + 1, fmt, args);
 	}

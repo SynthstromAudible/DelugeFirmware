@@ -1,4 +1,20 @@
-// tests/unit/scenario_support/scenario_report_spec.cpp
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #include "scenarios/support/scenario_report.h"
 
 #include "output_matchers.h"
@@ -6,6 +22,7 @@
 #include "cppspec.hpp"
 
 #include <cstdio>
+#include <cstdlib>
 #include <sstream>
 #include <string>
 
@@ -17,9 +34,19 @@ using deluge::test::HaveLinesStartingWith;
 
 namespace {
 
+/// A temporary file; a spec that cannot make one cannot capture anything, so it aborts.
+std::FILE* openTemporary() {
+	std::FILE* file = std::tmpfile();
+	if (file == nullptr) {
+		std::perror("scenario_report_spec: tmpfile");
+		std::abort();
+	}
+	return file;
+}
+
 /// A report writing into a temporary file, and what it wrote.
 struct Captured {
-	std::FILE* file = std::tmpfile();
+	std::FILE* file = openTemporary();
 	ScenarioReport report{"SR", file};
 
 	std::string text() {

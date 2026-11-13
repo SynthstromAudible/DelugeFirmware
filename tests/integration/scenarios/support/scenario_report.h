@@ -1,3 +1,20 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #pragma once
 
 #include <cstdint>
@@ -62,7 +79,8 @@ std::ostream& operator<<(std::ostream& out, WaitState state);
 /// state it ended in and count nothing.
 class Wait {
 public:
-	/// @param what What is awaited, as the failure names it ("the staged open issuing its read").
+	/// @param what What is awaited, as the failure names it ("the staged open issuing its read"): a literal, or
+	/// storage that outlives the Wait (not a temporary's c_str()).
 	/// @param budgetTicks Unmet polls allowed; the poll that makes them this many expires the wait.
 	Wait(ScenarioReport& report, const char* what, int32_t budgetTicks)
 	    : report_{&report}, what_{what}, budget_{budgetTicks} {}
