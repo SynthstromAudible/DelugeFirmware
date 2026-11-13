@@ -110,6 +110,9 @@ using deluge::modulation::params::unpatchedNonGlobalParamShortcuts;
 
 using namespace deluge::gui;
 
+// Set true to use the MIDI Follow shortcut layout instead of the sequential CC overview.
+constexpr bool kUseMIDIFollowAutomationOverview = false;
+
 const uint32_t auditionPadActionUIModes[] = {UI_MODE_NOTES_PRESSED,
                                              UI_MODE_AUDITIONING,
                                              UI_MODE_HORIZONTAL_SCROLL,
@@ -393,6 +396,25 @@ void AutomationView::initMIDICCShortcutsForAutomation() {
 	midiCCShortcutsForAutomation[14][7] = CC_NUMBER_PITCH_BEND;
 	midiCCShortcutsForAutomation[15][0] = CC_NUMBER_AFTERTOUCH;
 	midiCCShortcutsForAutomation[15][7] = CC_NUMBER_Y_AXIS;
+}
+
+// Fill the grid in CC order, reserving the usual X, Y and Z expression shortcuts.
+uint32_t AutomationView::getMIDICCForAutomation(int32_t x, int32_t y) const {
+	if (kUseMIDIFollowAutomationOverview) {
+		return midiCCShortcutsForAutomation[x][y];
+	}
+	if (x == 14 && y == 7) {
+		return CC_NUMBER_PITCH_BEND;
+	}
+	if (x == 15 && y == 7) {
+		return CC_NUMBER_Y_AXIS;
+	}
+	if (x == 15 && y == 0) {
+		return CC_NUMBER_AFTERTOUCH;
+	}
+	// Z occupies the last pad of the bottom row. X and Y are after the final CC.
+	uint32_t cc = y * kDisplayWidth + x - (y > 0 ? 1 : 0);
+	return cc < kNumRealCCNumbers ? cc : kNoParamID;
 }
 
 // called everytime you open up the automation view
@@ -851,9 +873,9 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 			}
 
 			else if (outputType == OutputType::MIDI_OUT) {
-				if (midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
-					modelStackWithParam = getModelStackWithParamForClip(
-					    modelStackWithTimelineCounter, clip, midiCCShortcutsForAutomation[xDisplay][yDisplay]);
+				if (getMIDICCForAutomation(xDisplay, yDisplay) != kNoParamID) {
+					modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip,
+					                                                    getMIDICCForAutomation(xDisplay, yDisplay));
 				}
 			}
 			else if (outputType == OutputType::CV) {
@@ -874,6 +896,15 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 					};
 				}
 
+				else if (!onArrangerView && outputType == OutputType::MIDI_OUT && !kUseMIDIFollowAutomationOverview
+				         && getMIDICCForAutomation(xDisplay, yDisplay) < kNumRealCCNumbers) {
+					// Restore the original overview's green-to-red CC gradient.
+					uint32_t cc = getMIDICCForAutomation(xDisplay, yDisplay);
+					uint8_t colourOffset = (cc * 51) / (kNumRealCCNumbers - 1);
+					pixel = {.r = static_cast<uint8_t>(2 + colourOffset),
+					         .g = static_cast<uint8_t>(53 - colourOffset),
+					         .b = 2};
+				}
 				else {
 					pixel = colours::grey;
 				}
@@ -1969,10 +2000,10 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 		getLastSelectedGlobalParamArrayPosition(clip);
 	}
 
-	else if (outputType == OutputType::MIDI_OUT && midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
+	else if (outputType == OutputType::MIDI_OUT && getMIDICCForAutomation(xDisplay, yDisplay) != kNoParamID) {
 
 		// if you are in a midi clip and the shortcut is valid, set the current selected ParamID
-		clip->lastSelectedParamID = midiCCShortcutsForAutomation[xDisplay][yDisplay];
+		clip->lastSelectedParamID = getMIDICCForAutomation(xDisplay, yDisplay);
 	}
 	// expression params, so sounds or midi/cv, or a single drum
 	else if ((util::one_of(outputType, {OutputType::MIDI_OUT, OutputType::CV, OutputType::SYNTH})
@@ -2288,7 +2319,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 		return ActionResult::DEALT_WITH;
 	}
 
-	// else if showing the Parameter selection grid menu, disable this action
+	// The overview layout is fixed; horizontal scrolling only applies in the editor.
 	else if (onAutomationOverview()) {
 		return ActionResult::DEALT_WITH;
 	}
@@ -2953,7 +2984,7 @@ void AutomationView::getLastSelectedParamShortcut(Clip* clip) {
 				}
 			}
 			else if (clip->output->type == OutputType::MIDI_OUT) {
-				if (midiCCShortcutsForAutomation[x][y] == clip->lastSelectedParamID) {
+				if (getMIDICCForAutomation(x, y) == clip->lastSelectedParamID) {
 					clip->lastSelectedParamShortcutX = x;
 					clip->lastSelectedParamShortcutY = y;
 					paramShortcutFound = true;
