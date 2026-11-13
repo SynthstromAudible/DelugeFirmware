@@ -32,7 +32,7 @@ struct ModTurn {
 	bool value_changed = false;
 	/// The sound's note tails changed with the value (`View::modEncoderAction_existentParam`): the pads repaint.
 	bool note_tails_changed = false;
-	/// The param shows its middle (`potentiallyMakeItHarderToTurnKnob`'s detent).
+	/// The param shows its middle (`potentiallyMakeItHarderToTurnKnob`'s centre blink).
 	bool should_indicate_middle_value = false;
 };
 

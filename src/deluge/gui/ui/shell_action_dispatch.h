@@ -202,7 +202,7 @@ void reapplyLiveSettingsAfterReset();
 /// `deluge_scenes_spec` links that default. An example that let the real arm reach
 /// `startStemExportProcess` would therefore run `StemExport::runStemExportProcess` for real inside
 /// the assertion -- arming the recorder, writing stems to `DELUGE_SD_ROOT`, and blocking in
-/// `renderWait` (`stem_export.cpp:587-596`) for a transport that nothing in a spec is driving.
+/// `renderWait` (in `stem_export.cpp`) for a transport that nothing in a spec is driving.
 ///
 /// So the fan-out is named, and `sim/scenes_spec/menu_actions_spec.cpp` drives it directly from each
 /// of the root UIs legacy names. The dispatcher's own arm is still covered end to end, but only down
@@ -211,8 +211,8 @@ void reapplyLiveSettingsAfterReset();
 ///
 /// @return The type legacy would export, or `std::nullopt` where legacy's `if`/`else if` chain falls
 ///         through: any root that is not one of the three named, `instrumentClipView` over a
-///         non-`KIT` output, and a null root (`getRootUI()` answers `nullptr` while `numUIsOpen ==
-///         0`, `gui/ui/ui.cpp:175-180`, which is "during song load / swap", `:95`).
+///         non-`KIT` output, and a null root (`getRootUI` in `gui/ui/ui.cpp` answers `nullptr` while
+///         `numUIsOpen` is 0, which is "during song load / swap").
 std::optional<StemExportType> stemExportTypeForRootUI();
 
 } // namespace deluge::gui::ui
