@@ -5056,6 +5056,14 @@ Output* Song::applyNavigateThroughPresets(Instrument* oldInstrument, const delug
 		oled->removeWorkingAnimation();
 		return oldInstrument;
 	}
+	if (acquired.alreadyInSong) {
+		// The walk passes instruments already in the song over until its second wrap, and then takes one. There is
+		// nothing to swap, and replaceInstrument() freezes (i009) on an Instrument already in its output list, so the
+		// turn stays where it is, as a walk that found nowhere to go does.
+		deluge::notify::notice_clear_working();
+		view.displayOutputName(oldInstrument, false);
+		return oldInstrument;
+	}
 	Instrument* newInstrument = acquired.instrument;
 	if (acquired.wasHibernating) {
 		removeInstrumentFromHibernationList(newInstrument);

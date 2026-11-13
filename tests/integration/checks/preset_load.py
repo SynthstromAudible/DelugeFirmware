@@ -61,6 +61,8 @@ The acquisition legs pick presets without the browser, by the gestures a user ma
                more behind it land on FAIL4 with one sample load. A pile keeps the wraps its landing made: on the
                walk itself, in a folder whose first kit is in the song, on from the last passes it and lands on
                WRAP1, three more wrap once and land on WRAP3, and one more wraps again and takes the in-song kit.
+               The same moves made by turns of the clip's held grid pad, the third behind the pile's walk, end on
+               the in-song kit, which leaves the clip on WRAP4 (main freezes with i009).
     AQ-NAV-STALL
                a navigate with its folder open held past the bound: SD_CARD, clip kept, nothing in flight.
     AQ-SUPERSEDE

@@ -301,10 +301,12 @@ constexpr uint32_t kNavReadHoldMs = 50;
 /// behind it, wrap once, pass WRAP0 and land on WRAP3. One more, piled behind that, wraps a second time and takes the
 /// in-song kit; a pile that forgot its landing's wrap would pass it again and land on WRAP1.
 ///
-/// Run on the walk itself, not through a turn: a landing on an in-song instrument only happens where the walk passes
-/// them over, which is a turn from the session or arranger view (main's `Song::navigateThroughPresetsForInstrument`,
-/// where `Song::replaceInstrument` freezes with i009 on an instrument already in the song) or from the clip view on a
-/// clip with an arranger instance (where main's `View::navigateThroughPresetsForInstrumentClip` assumes there is none).
+/// Run twice: on the walk itself, and then as turns of the clip's held grid pad, the second made with the first out and
+/// the third behind the pile's walk, so InstrumentLoad hands each pile its landing's wraps. A landing on an in-song
+/// instrument only happens where the walk passes them over, which is a turn from the session or arranger view (main's
+/// `Song::navigateThroughPresetsForInstrument`) or from the clip view on a clip with an arranger instance. There main's
+/// `Song::replaceInstrument` freezes with i009 on an instrument already in the song; ours leaves the clip on the kit
+/// it had, as a walk that found nowhere to go does, so the turns end with the clip still on kNavWrapFrom.
 constexpr const char* kNavWrapDir = "KITS/AQWRAP";
 constexpr int32_t kNavWrapCount = 5;
 constexpr const char* kNavWrapFrom = "WRAP4";
@@ -1433,7 +1435,7 @@ bool isAcquireLeg(Leg leg) {
 int32_t acquireActs(Leg leg) {
 	return leg == Leg::AqChangeCases ? 6
 	       : leg == Leg::AqTap       ? 5
-	       : leg == Leg::AqNavWrap   ? 15
+	       : leg == Leg::AqNavWrap   ? 16
 	       : leg == Leg::AqNavigate  ? 3
 	       : leg == Leg::AqNew       ? 2
 	                                 : 1;
@@ -1600,24 +1602,9 @@ void aqFail(const char* marker, const char* what);
 /// The pile-wrapped-twice walk's moves: one on from the clip's kit, then each pile from the move before's landing.
 constexpr std::array<int32_t, 3> kNavWrapMoves{1, kNavWrapPile, 1};
 
-/// Arm pile-wrapped-twice's walk for its next move.
-void armNavWrapMove() {
-	auto* kit = static_cast<Instrument*>(g_aqClip->output);
-	deluge::storage::AcquireWalkSpec spec{.walk = deluge::storage::AcquireWalk::Navigate,
-	                                      .outputType = OutputType::KIT,
-	                                      .availability = Availability::INSTRUMENT_UNUSED,
-	                                      .dirPath = kNavWrapDir,
-	                                      .name = kNavWrapFrom,
-	                                      .offset = kNavWrapMoves[g_navWrapMove],
-	                                      .oldInstrument = kit};
-	if (g_navWrapMove > 0) {
-		spec.pile = g_navWrapWalk.landing();
-	}
-	g_navWrapWalk.arm(loadInstrumentPresetUI, spec);
-}
-
-/// Set pile-wrapped-twice up and start its first move. @return False when the song has no second kit to use.
-bool armNavWrapMachine() {
+/// Make the other kit of the song kNavWrapInSong, its clips stopped, and put the clip's kit at kNavWrapFrom.
+/// @return False when the song has no second kit to use.
+bool placeNavWrapKits() {
 	g_navWrapOther = nullptr;
 	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
 		if (output->type == OutputType::KIT && output != g_aqClip->output) {
@@ -1643,6 +1630,44 @@ bool armNavWrapMachine() {
 	kit->dirPath = kNavWrapDir;
 	kit->name = kNavWrapFrom;
 	g_aqNameBefore = kNavWrapFrom;
+	return true;
+}
+
+/// Put the other kit and its clips back as placeNavWrapKits() found them.
+void restoreNavWrapKits() {
+	loadInstrumentPresetUI.emptyFileItems();
+	for (Clip* clip : g_navWrapStopped) {
+		clip->activeIfNoSolo = true;
+	}
+	g_navWrapStopped.clear();
+	if (g_navWrapOther != nullptr) {
+		g_navWrapOther->name = g_navWrapOtherName;
+		g_navWrapOther->dirPath = g_navWrapOtherDir;
+	}
+	g_navWrapOther = nullptr;
+}
+
+/// Arm pile-wrapped-twice's walk for its next move.
+void armNavWrapMove() {
+	auto* kit = static_cast<Instrument*>(g_aqClip->output);
+	deluge::storage::AcquireWalkSpec spec{.walk = deluge::storage::AcquireWalk::Navigate,
+	                                      .outputType = OutputType::KIT,
+	                                      .availability = Availability::INSTRUMENT_UNUSED,
+	                                      .dirPath = kNavWrapDir,
+	                                      .name = kNavWrapFrom,
+	                                      .offset = kNavWrapMoves[g_navWrapMove],
+	                                      .oldInstrument = kit};
+	if (g_navWrapMove > 0) {
+		spec.pile = g_navWrapWalk.landing();
+	}
+	g_navWrapWalk.arm(loadInstrumentPresetUI, spec);
+}
+
+/// Set pile-wrapped-twice up and start its first move. @return False when the song has no second kit to use.
+bool armNavWrapMachine() {
+	if (!placeNavWrapKits()) {
+		return false;
+	}
 	g_navWrapMove = 0;
 	g_navWrapTicks = 0;
 	g_navWrapLanded.fill("");
@@ -1688,14 +1713,23 @@ void checkNavWrapMachine() {
 		aqFail("AQ-NAV-PILE", "a pile past a second wrap, from a landing that had wrapped once, did not take the "
 		                      "in-song kit");
 	}
-	loadInstrumentPresetUI.emptyFileItems();
-	for (Clip* clip : g_navWrapStopped) {
-		clip->activeIfNoSolo = true;
+	restoreNavWrapKits();
+}
+
+/// Check pile-wrapped-twice made by turns: the third turn was made behind the pile's walk, and the landing on the
+/// in-song kit left the clip on the kit it had.
+void checkNavWrapTurned(const std::string& name) {
+	const bool stayed = name == kNavWrapFrom && g_aqClip->output != g_navWrapOther;
+	printf("AQ-NAV-PILE turns=pile-wrapped-twice-turned before=%s name=%s want=%s third-behind-walk=%d\n",
+	       g_aqNameBefore.c_str(), name.c_str(), kNavWrapFrom, g_navThirdBehindWalk ? 1 : 0);
+	if (!g_navThirdBehindWalk) {
+		aqFail("AQ-NAV-PILE", "the third turn was not made behind the pile's walk");
 	}
-	if (g_navWrapOther != nullptr) {
-		g_navWrapOther->name = g_navWrapOtherName;
-		g_navWrapOther->dirPath = g_navWrapOtherDir;
+	if (!stayed) {
+		aqFail("AQ-NAV-PILE", "turns whose pile wrapped twice onto the in-song kit did not leave the clip on its kit");
 	}
+	PresetAcquireProbe::releasePress();
+	restoreNavWrapKits();
 }
 
 /// Make the leg's gesture. False when it could not be made, recorded as a failure.
@@ -1910,6 +1944,17 @@ bool actAcquire() {
 		}
 		if (g_aqAct == 14) {
 			return armNavWrapMachine() || fail(leg, "the song has no second kit to put in the wrap folder");
+		}
+		if (g_aqAct == 15) {
+			if (!placeNavWrapKits()) {
+				return fail(leg, "the song has no second kit to put in the wrap folder");
+			}
+			g_aqTurned = false;
+			g_navThirdBehindWalk = false;
+			deluge_file_directory_set_latency_ms(kNavReadHoldMs);
+			const bool held = PresetAcquireProbe::turnInGrid(g_aqClip, kNavWrapMoves[0])
+			                  && PresetAcquireProbe::turnInGrid(g_aqClip, kNavWrapMoves[1]);
+			return held || fail(leg, "the clip's grid pad could not be held");
 		}
 		if (g_aqAct == 11) {
 			static_cast<Instrument*>(g_aqClip->output)->name = kNavInstrumentFrom;
@@ -2269,6 +2314,11 @@ void checkAcquireAct() {
 			checkNavWrapMachine();
 			break;
 		}
+		if (g_aqAct == 15) {
+			deluge_file_directory_set_latency_ms(0);
+			checkNavWrapTurned(name);
+			break;
+		}
 		if (g_aqAct >= 5) {
 			static constexpr const char* kTurns[] = {
 			    "other-other-on", "two-behind-other",     "pile-past-end",      "pile-past-window",  "pile-back",
@@ -2433,6 +2483,15 @@ void runAcquireTick() {
 			                       && static_cast<Instrument*>(g_aqClip->output)->name == kNavInstrumentFrom;
 			(void)focusClip(g_aqClip);
 			instrumentClipView.selectEncoderAction(kNavPastWindowPile);
+			g_aqTurned = true;
+			break;
+		}
+		if (g_leg == Leg::AqNavWrap && g_aqAct == 15 && !g_aqTurned
+		    && LoadInstrumentPresetUI::presetAcquisitionsRun() - g_aqRunsBefore == 2) {
+			// The first turn has landed and the pile behind it is walking: one more, behind that walk.
+			g_navThirdBehindWalk =
+			    loadInstrumentPresetUI.presetAcquisitionInFlight() && g_aqClip->output->name == kNavWrapFrom;
+			(void)PresetAcquireProbe::turnInGrid(g_aqClip, kNavWrapMoves[2]);
 			g_aqTurned = true;
 			break;
 		}

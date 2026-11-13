@@ -417,7 +417,8 @@ public:
 	///        applied by applyNavigateThroughPresets(); this returns @p output unchanged for one.
 	Output* navigateThroughPresetsForInstrument(Output* output, int32_t offset);
 	/// @brief Swap in the Synth or Kit a navigate acquired for @p oldInstrument.
-	/// @return The new Instrument, or @p oldInstrument when the acquisition found nothing (its error shown).
+	/// @return The new Instrument, or @p oldInstrument when the acquisition found nothing (its error shown) or landed
+	///         on an Instrument already in the song.
 	Output* applyNavigateThroughPresets(Instrument* oldInstrument, const deluge::storage::AcquireResult& acquired);
 	void instrumentSwapped(Instrument* newInstrument);
 	/// @brief Change @p oldInstrument to a MIDI or CV Instrument. A Synth or Kit is acquired by InstrumentLoad and

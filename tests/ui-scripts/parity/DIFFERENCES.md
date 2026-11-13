@@ -212,6 +212,7 @@ so their tests are param_target_check's legs:
 - MIDI follow's EQ feedback goes out on the CCs that control the EQ (86, 87, 84, 85), not the filters' (71, 82, 74, 81).
 
 Accepted, Kate 2026-10-31.
+| D158 | A preset turn from the session or arranger view (held grid pad, auditioned arranger row) whose walk takes a kit or synth already in the song: `main` freezes with i009; ours stays on the preset it had | accepted (Kate, 2026-11-12): `main`'s bug, to be reported upstream (TODO.md) | `main`'s `LoadInstrumentPresetUI::doPresetNavigation` (`origin/main:src/deluge/gui/ui/load/load_instrument_preset_ui.cpp`) passes instruments already in the song over while `wrapped < 2`, then takes one, so a pile whose landing wrapped once and that wraps again, or a folder whose only other preset is in the song, lands on it; `Song::navigateThroughPresetsForInstrument` (`origin/main:src/deluge/model/song/song.cpp`) hands it to `Song::replaceInstrument`, which freezes with i009 on an instrument already in the output list. Ours treats such a landing as a walk that found nowhere to go (`Song::applyNavigateThroughPresets`), as the blank song's preset already did (`Song::completeBlankPreset`) | `preset-load` `AQ-NAV-PILE` `pile-wrapped-twice-turned`: on, three more and one more by a held grid pad from WRAP4, the last wrapping twice onto the in-song WRAP0, leave the clip on WRAP4 | — |
 
 ### What the runner tolerates
 
