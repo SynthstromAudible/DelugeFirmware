@@ -862,7 +862,9 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
                                        PatchSource source2) {
 	alignas(ModelStackWithAutoParam) char knobsMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* knobs = knobOwnerStack(knobsMemory);
-	auto* knobOwner = knobs != nullptr ? (ModControllableAudio*)knobs->modControllable : nullptr;
+	const std::optional<deluge::model::EffectsOwner> knobEffects =
+	    knobs != nullptr && knobs->modControllable != nullptr ? knobs->modControllable->effectsOwner() : std::nullopt;
+	const deluge::model::EffectsOwner* knobOwner = knobEffects ? &*knobEffects : nullptr;
 
 	auto& [last_param_kind, last_param_id, last_display_value, last_source1, last_source2, display_owner_kind,
 	       display_owner_param_id, display_owner_source1, display_owner_source2, display_ownership_start_time,

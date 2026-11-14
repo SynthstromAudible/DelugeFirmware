@@ -41,6 +41,10 @@ public:
 	void cloneFrom(ModControllableAudio* other) override;
 	[[nodiscard]] deluge::model::TrackChannel& channel() override { return channel_; }
 	[[nodiscard]] const deluge::model::TrackChannel& channel() const override { return channel_; }
+	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() override {
+		return deluge::model::EffectsOwner{
+		    .core = &channel_.core(), .binding = &channel_.binding(), .view = &channel_.view()};
+	}
 
 	void renderOutput(ModelStack* modelStack, std::span<StereoSample> buffer, deluge::dsp::Q<31>* reverbBuffer,
 	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,

@@ -83,12 +83,12 @@ bool isParamStutter(Kind kind, int32_t paramID) {
 	       && static_cast<UnpatchedShared>(paramID) == UNPATCHED_STUTTER_RATE;
 }
 
-bool isParamQuantizedStutter(Kind kind, int32_t paramID, ModControllableAudio* modControllableAudio) {
+bool isParamQuantizedStutter(Kind kind, int32_t paramID, const deluge::model::EffectsOwner* owner) {
 	return (kind == Kind::UNPATCHED_GLOBAL || kind == Kind::UNPATCHED_SOUND)
-	       && static_cast<UnpatchedShared>(paramID) == UNPATCHED_STUTTER_RATE && modControllableAudio
-	       && (modControllableAudio->effects().stutter.use_song_stutter
+	       && static_cast<UnpatchedShared>(paramID) == UNPATCHED_STUTTER_RATE && owner != nullptr
+	       && (owner->effects().stutter.use_song_stutter
 	               ? currentSong->live.global_effectable.effects().stutter.quantized
-	               : modControllableAudio->effects().stutter.quantized);
+	               : owner->effects().stutter.quantized);
 }
 
 char const* getPatchedParamShortName(ParamType type) {
@@ -162,11 +162,11 @@ char const* getPatchedParamShortName(ParamType type) {
 	}
 }
 
-char const* getPatchedParamShortName(ParamType type, ModControllableAudio* modControllable) {
-	if (modControllable == nullptr) {
+char const* getPatchedParamShortName(ParamType type, const deluge::model::EffectsOwner* owner) {
+	if (owner == nullptr) {
 		return getPatchedParamShortName(type);
 	}
-	const auto& filter = modControllable->modControllableSnapshot().effects.filter;
+	const auto& filter = owner->binding->snapshot().effects.filter;
 	return getPatchedParamShortName(type, filter.lpf_mode, filter.hpf_mode);
 }
 
@@ -338,11 +338,11 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 	return l10n::get(STRING_FOR_NONE);
 }
 
-char const* getParamDisplayName(Kind kind, int32_t p, ModControllableAudio* modControllable) {
-	if (modControllable == nullptr) {
+char const* getParamDisplayName(Kind kind, int32_t p, const deluge::model::EffectsOwner* owner) {
+	if (owner == nullptr) {
 		return getParamDisplayName(kind, p);
 	}
-	const auto& filter = modControllable->modControllableSnapshot().effects.filter;
+	const auto& filter = owner->binding->snapshot().effects.filter;
 	return getParamDisplayName(kind, p, filter.lpf_mode, filter.hpf_mode);
 }
 

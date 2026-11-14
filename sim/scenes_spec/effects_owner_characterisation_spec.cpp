@@ -17,7 +17,6 @@
 #include "model/edits/edit.h"
 #include "model/edits/set_effect_setting.h"
 #include "model/instrument/kit.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/param_stack.h"
 #include "model/song/song.h"
@@ -48,7 +47,7 @@ namespace {
 
 /// @brief The settings @p owner plays.
 const deluge::effects::EffectStates& effectsOf(ModControllable& owner) {
-	return static_cast<ModControllableAudio&>(owner).effects();
+	return owner.effectsOwner()->effects();
 }
 
 /// @brief The song's master stutter set quantized or free, by the Edit its menu makes.

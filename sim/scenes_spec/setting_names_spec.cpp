@@ -251,15 +251,15 @@ void check_morphs(auto& self) {
 			                                Value::makeScalar(std::string{deluge::effects::to_string(lpf_mode)}));
 			deluge::edits::effectSettingFor(*deluge::scenes::spec::menu_engine(ctx).mod, "hpfMode",
 			                                Value::makeScalar(std::string{deluge::effects::to_string(hpf_mode)}));
+			const std::optional<deluge::model::EffectsOwner> owner =
+			    deluge::scenes::spec::menu_engine(ctx).mod->effectsOwner();
 			for (const Morph& morph : morphs) {
 				const Legacy legacy = legacy_of(morph.id, morph.engine);
 				const ParamNameContext state{.lpf_mode = lpf_mode, .hpf_mode = hpf_mode};
 				const std::string at = "morph " + std::to_string(morph.id.value) + " lpf " + std::to_string(lpf)
 				                       + " hpf " + std::to_string(hpf) + " ";
 				expect(at + param_text(morph.engine, morph.id, state))
-				    .to_equal(at
-				              + params::getParamDisplayName(legacy.kind, legacy.index,
-				                                            deluge::scenes::spec::menu_engine(ctx).mod));
+				    .to_equal(at + params::getParamDisplayName(legacy.kind, legacy.index, &*owner));
 			}
 		}
 	}

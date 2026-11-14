@@ -5566,37 +5566,6 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 	}
 }
 
-ModControllableAudio* InstrumentClipView::getModControllableAudioOrNone() {
-	InstrumentClip* clip = getCurrentInstrumentClip();
-	auto output = clip->output;
-	auto type = output->type;
-
-	switch (type) {
-		using enum OutputType;
-
-	case SYNTH:
-		return static_cast<SoundInstrument*>(output);
-	case KIT: {
-		if (getAffectEntire()) {
-			return static_cast<ModControllableAudio*>(output->toModControllable());
-		}
-		// Use the same selected drum as the sound editor when checking shortcut relevance.
-		Drum* drum = static_cast<Kit*>(output)->selectedDrum;
-		if (drum != nullptr && drum->type == DrumType::SOUND) {
-			return static_cast<SoundDrum*>(drum);
-		}
-		break;
-	}
-	case MIDI_OUT:
-	case CV:
-	case AUDIO:
-	case NONE:
-		break;
-	}
-
-	return nullptr;
-}
-
 void InstrumentClipView::deleteDrum(SoundDrum* drum) {
 
 	// RemoveKitRow removes the drum, reassigns/prunes the row, retires automation and deallocs.

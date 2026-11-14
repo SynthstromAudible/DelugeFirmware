@@ -115,22 +115,15 @@ void ModControllableAudio::writeAttributesToFile(Serializer& writer, const delug
 }
 
 void ModControllableAudio::setEffects(const deluge::effects::EffectStates& next) {
-	binding_->store(next);
-	projectModControllableSnapshot();
+	deluge::model::storeEffects(*effectsOwner(), next);
 }
 
 void ModControllableAudio::bindEffects(deluge::effects::EffectStates* record) {
-	binding_->bind(record);
-	projectModControllableSnapshot();
+	deluge::model::bindEffects(*effectsOwner(), record);
 }
 
 void ModControllableAudio::projectModControllableSnapshot() {
-	const deluge::effects::DelayType delayType = effects().delay.type;
-	const std::size_t delayReserve =
-	    (delayType != deluge::effects::DelayType::OFF && currentSong != nullptr)
-	        ? deluge::model::delayReserveFrames(*currentSong, core(), effects().delay, asSound() != nullptr)
-	        : 0;
-	binding_->project(core(), delayReserve, projectedModFXParam());
+	deluge::model::projectEffects(*effectsOwner());
 }
 
 namespace {

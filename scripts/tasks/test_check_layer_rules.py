@@ -150,19 +150,19 @@ class ViewKnobRows(unittest.TestCase):
         )
         self.assertEqual(counts.get("views-no-knob-owner-cast"), 1)
 
-    def test_view_itself_is_not_yet(self):
+    def test_view_itself_is_counted(self):
         counts = self.counts(
             "src/deluge/gui/views/view.cpp",
             "void f() {\n\tauto* a = (ModControllableAudio*)stack->modControllable;\n}\n",
         )
-        self.assertNotIn("views-no-knob-owner-cast", counts)
+        self.assertEqual(counts.get("views-no-knob-owner-cast"), 1)
 
-    def test_the_automation_view_is_not_yet(self):
+    def test_the_automation_view_is_counted(self):
         counts = self.counts(
             "src/deluge/gui/views/automation/editor_layout/planted.cpp",
             "void f() {\n\t(void)(ModControllableAudio*)stack->modControllable;\n}\n",
         )
-        self.assertNotIn("views-no-knob-owner-cast", counts)
+        self.assertEqual(counts.get("views-no-knob-owner-cast"), 1)
 
     def test_the_tree_holds_neither(self):
         found = {

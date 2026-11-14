@@ -37,7 +37,9 @@
 ///   - Exp (exponential) params have different sources added together, converted to an exponential scale, then
 ///   multiplied by the neutral value
 
-class ModControllableAudio;
+namespace deluge::model {
+struct EffectsOwner;
+}
 
 namespace deluge::plugin {
 struct ParamInfo;
@@ -248,20 +250,20 @@ bool isParamBipolar(Kind kind, int32_t paramID);
 bool isParamPitchBend(Kind kind, int32_t paramID);
 bool isParamArpRhythm(Kind kind, int32_t paramID);
 bool isParamStutter(Kind kind, int32_t paramID);
-bool isParamQuantizedStutter(Kind kind, int32_t paramID, ModControllableAudio* modControllableAudio);
+bool isParamQuantizedStutter(Kind kind, int32_t paramID, const deluge::model::EffectsOwner* owner);
 
 char const* getPatchedParamDisplayName(int32_t p);
 /// Get the short version of a param name, for use in the OLED mod matrix display (maximum 10 characters)
 char const* getPatchedParamShortName(ParamType type);
 /// As above, but resolves the LPF/HPF morph params to the name the current filter mode gives them. Falls back to the
 /// mode-agnostic name if modControllable is null.
-char const* getPatchedParamShortName(ParamType type, ModControllableAudio* modControllable);
+char const* getPatchedParamShortName(ParamType type, const deluge::model::EffectsOwner* owner);
 /// As above, with the sound's filter modes given rather than read off its owner.
 char const* getPatchedParamShortName(ParamType type, deluge::effects::FilterMode lpf, deluge::effects::FilterMode hpf);
 char const* getParamDisplayName(Kind kind, int32_t p);
 /// As above, but resolves the LPF/HPF morph params to the name the current filter mode gives them (the ladder filters
 /// call it drive and FM respectively). Falls back to the mode-agnostic name if modControllable is null.
-char const* getParamDisplayName(Kind kind, int32_t p, ModControllableAudio* modControllable);
+char const* getParamDisplayName(Kind kind, int32_t p, const deluge::model::EffectsOwner* owner);
 /// As above, with the owner's filter modes given rather than read off it.
 char const* getParamDisplayName(Kind kind, int32_t p, deluge::effects::FilterMode lpf, deluge::effects::FilterMode hpf);
 

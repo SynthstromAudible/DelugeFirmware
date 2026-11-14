@@ -18,7 +18,10 @@
 #pragma once
 #include "controls/knob_focus.h"
 #include "definitions_cxx.hpp"
+#include "model/fx/effects_owner.h"
 #include "modulation/params/param.h"
+
+#include <optional>
 
 class ParamManagerForTimeline;
 class ParamManagerForTimeline;
@@ -41,6 +44,10 @@ class ModControllable {
 public:
 	ModControllable() = default;
 	virtual ~ModControllable() = default;
+	/// @brief This owner's effects, for code that holds only the ModelStack's owner slot. A bridge: it goes with the
+	/// slot when ModelStack is retired; an owner in a song is otherwise found by address.
+	/// @return The owner's effects; nullopt for an owner without any (a MIDI or CV instrument).
+	[[nodiscard]] virtual std::optional<deluge::model::EffectsOwner> effectsOwner() { return std::nullopt; }
 	virtual bool valueChangedEnoughToMatter(int32_t old_value, int32_t new_value, deluge::modulation::params::Kind kind,
 	                                        uint32_t paramID) {
 		return old_value != new_value;

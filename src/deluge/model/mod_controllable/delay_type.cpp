@@ -237,22 +237,22 @@ DelayParamRole delayParamRole(const ModelStackWithAutoParam& modelStack) {
 
 void onDelayParamModified(const ModelStackWithAutoParam& modelStack, int32_t oldValue, bool automatedBefore) {
 	const DelayParamRole role = delayParamRole(modelStack);
+	if (role == DelayParamRole::NONE) {
+		return;
+	}
+	const deluge::model::EffectsOwner effects = *modelStack.modControllable->effectsOwner();
+	auto& owner = *static_cast<ModControllableAudio*>(modelStack.modControllable);
 	if (role == DelayParamRole::RATE) {
-		auto& owner = *static_cast<ModControllableAudio*>(modelStack.modControllable);
-		if (currentSong != nullptr && owner.effects().delay.type != deluge::effects::DelayType::OFF) {
+		if (currentSong != nullptr && effects.effects().delay.type != deluge::effects::DelayType::OFF) {
 			refreshDelayReserve(*currentSong, owner);
 		}
 		return;
 	}
-	if (role != DelayParamRole::FEEDBACK) {
-		return;
-	}
-	auto& owner = *static_cast<ModControllableAudio*>(modelStack.modControllable);
-	if (owner.effects().delay.type != deluge::effects::DelayType::OFF) {
+	if (effects.effects().delay.type != deluge::effects::DelayType::OFF) {
 		return;
 	}
 	ParamManager& paramManager = *modelStack.paramManager;
-	const bool sound = owner.asSound() != nullptr;
+	const bool sound = effects.sound != nullptr;
 	if (!delayCouldSound(paramManager, sound)
 	    || delayCouldSound(paramManager, sound,
 	                       {.param = modelStack.autoParam, .value = oldValue, .automated = automatedBefore})) {
