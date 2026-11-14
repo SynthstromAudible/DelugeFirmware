@@ -8,6 +8,8 @@
 #include <cstdlib>
 #include <filesystem>
 #include <span>
+#include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -40,9 +42,19 @@ std::vector<uint8_t> prefixOf(auto& self, const std::filesystem::path& p, uint32
 	return buf;
 }
 
-/// Copy a host-filesystem file into the mock card at the same path, so the file walk can open it
-/// through the ordinary deserializer. The mock (tests/support/mocks/mock_file_io.cpp) backs deluge::io::File
-/// with an in-memory map keyed by path, so any path string will do as a key.
+/// Write bytes into the mock card under `key`, so the file walk can open them through the ordinary
+/// deserializer. The mock (tests/support/mocks/mock_file_io.cpp) backs deluge::io::File with an in-memory
+/// map keyed by path, so any path string will do as a key.
+void stageBytesOnCard(auto& self, const char* key, const std::vector<uint8_t>& whole) {
+	DelugeHandle handle = DELUGE_HANDLE_NONE;
+	expect(deluge_efatfs_file_open(key, DELUGE_FILE_WRITE_CREATE, &handle)).to_equal(DELUGE_OK);
+	uint32_t written = 0;
+	expect(deluge_efatfs_file_write(handle, whole.data(), whole.size(), &written)).to_equal(DELUGE_OK);
+	expect(written).to_equal(whole.size());
+	deluge_efatfs_file_close(handle);
+}
+
+/// Copy a host-filesystem file into the mock card at the same path.
 void stageOnCard(auto& self, const std::filesystem::path& p) {
 	std::vector<uint8_t> whole;
 	std::FILE* f = std::fopen(p.c_str(), "rb");
@@ -55,13 +67,23 @@ void stageOnCard(auto& self, const std::filesystem::path& p) {
 		whole.insert(whole.end(), chunk.begin(), chunk.begin() + got);
 	}
 	std::fclose(f);
+	stageBytesOnCard(self, p.c_str(), whole);
+}
 
-	DelugeHandle handle = DELUGE_HANDLE_NONE;
-	expect(deluge_efatfs_file_open(p.c_str(), DELUGE_FILE_WRITE_CREATE, &handle)).to_equal(DELUGE_OK);
-	uint32_t written = 0;
-	expect(deluge_efatfs_file_write(handle, whole.data(), whole.size(), &written)).to_equal(DELUGE_OK);
-	expect(written).to_equal(whole.size());
-	deluge_efatfs_file_close(handle);
+/// The JSON fixture with every seventh hex digit of its `preview` payload set to 'f'. The fixture's own
+/// payload is all zeros, so two walks of it agree even when one draws nothing; lit pixels make a walk
+/// that skipped the payload differ.
+std::vector<uint8_t> litJsonFixture(auto& self) {
+	std::vector<uint8_t> song = prefixOf(self, kJsonFixture, deluge::storage::kSongPreviewWindow);
+	constexpr std::string_view kKey = "\"preview\":\"";
+	const auto at = std::ranges::search(song, kKey);
+	expect(at.empty()).to_be_false(std::string{"fixture must contain a JSON preview attribute"});
+	for (auto digit = at.end(); digit != song.end() && *digit != '"'; ++digit) {
+		if ((digit - at.end()) % 7 == 0) {
+			*digit = 'f';
+		}
+	}
+	return song;
 }
 
 } // namespace
@@ -123,19 +145,23 @@ describe song_preview_decode_group("song preview decode", ${
 
 	/// The checked-in JSON fixture is the only JSON song there is, so run the differential on it whether or
 	/// not the corpus is mounted -- otherwise the JSON arm of the buffer walk is never compared to anything.
+	/// Both walks read a copy whose preview has lit pixels (litJsonFixture), and the file walk's image is
+	/// checked to differ from a blank one, so the comparison covers pixels and not only the outcome.
 	it("the buffer walk matches the file walk on the json fixture", _ {
 		std::array<Row, kDisplayHeight> fromBuffer{};
 		std::array<Row, kDisplayHeight> fromFile{};
 
-		auto buf = prefixOf(self, kJsonFixture, deluge::storage::kSongPreviewWindow);
-		const auto outcome = deluge::storage::decodeSongPreview(buf, true, fromBuffer.data());
+		auto song = litJsonFixture(self);
+		const auto outcome = deluge::storage::decodeSongPreview(song, true, fromBuffer.data());
 
+		constexpr const char* kKey = "SONGS/LIT.JSON";
 		mock_file_io_reset();
-		stageOnCard(self, kJsonFixture);
-		const auto reference = deluge::storage::decodeSongPreviewFromFile(kJsonFixture, fromFile.data());
+		stageBytesOnCard(self, kKey, song);
+		const auto reference = deluge::storage::decodeSongPreviewFromFile(kKey, fromFile.data());
 
 		expect(static_cast<int>(reference)).to_equal(static_cast<int>(deluge::storage::SongPreviewOutcome::Rendered));
 		expect(static_cast<int>(outcome)).to_equal(static_cast<int>(reference));
+		expect(firstDifference(fromFile, std::array<Row, kDisplayHeight>{})).not_().to_equal(sizeof(fromFile));
 		expect(firstDifference(fromFile, fromBuffer)).to_equal(sizeof(fromFile));
 	});
 
