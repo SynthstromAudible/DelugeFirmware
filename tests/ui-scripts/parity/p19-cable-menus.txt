@@ -1,5 +1,6 @@
 # Patch-cable menus: MODULATE WITH (source selection), the cable strength menu, MODULATE DEPTH (range source
 # selection) and the range strength menu, from OSC1 level on the boot synth clip, every source in each list.
+# card: content/bare.img
 100   button Shift down
 350   pad 2 0 down
 470   pad 2 0 up

@@ -1,3 +1,4 @@
 # A snapshot before the app has drawn anything fails the run.
+# card: tests/fixtures/card
 0 snapshot too_early
 100 quit

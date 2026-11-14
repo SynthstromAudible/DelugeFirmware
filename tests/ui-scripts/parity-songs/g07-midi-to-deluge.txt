@@ -1,9 +1,10 @@
-# Sampling (c1.2.0, eleven audio clips): load it from the song view, then look at it stopped, playing and in its clip.
+# 241217 Midi To Deluge Test 9 (c1.3.0, MIDI): load it from the song view, then look at it stopped, playing and in its clip.
 # Snapshots leave up to 8 s before the next step: a long name scrolls on the OLED, and the window takes its whole cycle.
+# card: content/sweep-bare.img
 100   snapshot boot
 8200  button Session down
 8220  button Session up
-9000  load sampling
+9000  load 241217
 14000 snapshot loaded
 22000 button Play down
 22020 button Play up

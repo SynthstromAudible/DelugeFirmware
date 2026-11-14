@@ -204,5 +204,10 @@ class NamesTest(unittest.TestCase):
             self.assertNotRegex(bad, cards.NUMBERED)
 
 
+class TreeTest(unittest.TestCase):
+    def test_every_card_taking_script_is_numbered_and_names_its_cards(self):
+        self.assertEqual(cards.problems(), [])
+
+
 if __name__ == "__main__":
     unittest.main()

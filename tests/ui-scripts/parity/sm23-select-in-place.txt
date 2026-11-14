@@ -3,6 +3,9 @@
 # flips it back. From the song view, SETTINGS > USB AUDIO: SELECT on INPUT (a Toggle) flips its box on the list, twice,
 # and BACK twice leaves the menu. Then SHIFT + the polyphony shortcut opens the VOICE page on POLYPHONY: turned to MONO,
 # SELECT stays on the page (Selection's NO_NAVIGATION once the mode is not POLY), and BACK leaves the menu.
+# card: content/bare.img
+# card: content/shellmenu
+# card: content/card.img
 100   snapshot boot
 300   button SelectEnc down
 320   button SelectEnc up

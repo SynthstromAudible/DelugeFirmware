@@ -1,10 +1,12 @@
 # ShellMenu: the two patch-cable columns of the sound menu's horizontal pages, as `main` draws and opens them: the
 # SIDECHAIN page's DUCK column draws the ducking meter (`drawSidechainDucking`, over +/-50.00), the MASTER page's
 # VIBRATO column draws its strength as `0.00` in the column face (`Decimal::renderInHorizontalMenu`), and SELECT on
-# either column opens that cable's own strength page (`allowToBeginSessionFromHorizontalMenu`, #4854), whose SELECT
-# goes on to the MODULATE DEPTH picker; BACK walks back through the strength page to the column. The strength pages
-# hold 0, which `main` draws exactly (a non-zero value with hidden zero places truncates there, D71). Run on the
-# ShellMenu card.
+# either column opens that cable's own strength page (`allowToBeginSessionFromHorizontalMenu`, #4854), whose SELECT goes
+# on to the MODULATE DEPTH picker; BACK walks back through the strength page to the column. The strength pages hold 0,
+# which `main` draws exactly (a non-zero value with hidden zero places truncates there, D71).
+# card: content/bare.img
+# card: content/shellmenu
+# card: content/card.img
 100   snapshot boot
 300   button Shift down
 400   pad 10 2 down

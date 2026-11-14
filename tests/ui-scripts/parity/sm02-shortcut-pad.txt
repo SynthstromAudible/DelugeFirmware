@@ -1,6 +1,9 @@
 # ShellMenu: SHIFT + a parameter's shortcut pad from the boot clip view opens the sound menu where `main` opens it --
 # the horizontal page that lists the parameter, focused on it -- and an edit, another shortcut and BACK behave as
-# `main`'s do. Run on the ShellMenu card; the same steps as p13-shortcut-blink.
+# `main`'s do.
+# card: content/bare.img
+# card: content/shellmenu
+# card: content/card.img
 100   snapshot boot
 300   button Shift down
 400   pad 6 0 down

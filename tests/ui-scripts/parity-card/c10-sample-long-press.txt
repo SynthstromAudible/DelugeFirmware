@@ -1,5 +1,6 @@
 # The sample browser's long press on a synth: held on a folder it offers MULTISAMPLES only; held on a file all four
 # loads, and BASIC loads the file and closes the browser.
+# card: content/sweep-bare.img
 100   snapshot boot
 5000  button Shift down
 5100  pad 0 5 down

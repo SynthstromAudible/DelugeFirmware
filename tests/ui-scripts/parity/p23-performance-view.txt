@@ -1,5 +1,6 @@
 # Performance view (song view, a short KEYBOARD press; a held one only peeks): every FX column at three values, a held pad with the select encoder
 # turned, and the param editor (select-encoder press).
+# card: content/bare.img
 100   button Session down
 220   button Session up
 1470  button Keyboard down

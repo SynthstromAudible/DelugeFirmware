@@ -1,6 +1,7 @@
 # Automation view on a synth clip (boot: synth clip, preset 000 RICH SAW BASS).
 # Every overview cell (patched, unpatched-sound, patch-cable and expression shortcuts), then the select-encoder walk
 # through the whole order and into the patch cables, then the selection kept across leaving the view.
+# card: content/bare.img
 100    button Clip down
 220    button Clip up
 470    snapshot overview

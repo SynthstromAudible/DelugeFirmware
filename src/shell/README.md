@@ -303,7 +303,7 @@ The shell's specs are in `tests/unit/shell/` (`./dbt test unit`). `uitest::FakeS
 records every sink call; `tests/golden/shell/*.pbm` pin the popup at both panel heights and an
 overlay's composition. `Shell::state_lines()` is the shell's half of the UI scripts' `.state`
 snapshot. At firmware level,
-`tests/ui-scripts/app/menu.txt` drives the menu through the whole app (`tests/golden/ui/app/menu`).
+`tests/ui-scripts/app/a02-menu.txt` drives the menu through the whole app (`tests/golden/ui/app/a02-menu`).
 
 ## Not yet ported
 

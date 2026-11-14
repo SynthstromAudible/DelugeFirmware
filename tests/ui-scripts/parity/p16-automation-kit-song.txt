@@ -1,5 +1,6 @@
 # Automation view on a kit row and on a kit with affect-entire, and on the song (global params).
 # Boot is a synth clip; KIT makes it a kit and the select encoder loads kit 001; the song's from the arranger.
+# card: content/bare.img
 100     button Kit down
 220     button Kit up
 2470    encoder Select +1

@@ -5,6 +5,7 @@
 # input poll, so nothing has been drawn at 0 ms and a snapshot there has no panel to record (the
 # run fails rather than record a blank). The first frame lands between 5 and 10 ms; 50 gives that
 # a comfortable margin while still being the app's very first screen.
+# card: tests/fixtures/card
 50     snapshot boot
 2000   snapshot idle
 2100   quit

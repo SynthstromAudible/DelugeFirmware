@@ -1,4 +1,7 @@
 # The song load and save browsers from the boot clip view.
+# card: content/bare.img
+# card: content/shellmenu
+# card: content/card.img
 100   snapshot boot
 300   button Load down
 320   button Load up

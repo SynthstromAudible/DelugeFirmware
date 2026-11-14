@@ -1,9 +1,7 @@
-# Level 3: **the acceptance test for the menu.** One script, run on three SD-card fixtures
-# (the `ui-scripts` gate, `tests/integration/checks/ui_scripts.py`):
-#
-#   menu         card tests/fixtures/card                         -> the golden
-#   (no golden)  card tests/fixtures/card-old-shell-menu.card     -> a stale `shellMenu=0`, unknown: equals `menu`
-#   (no golden)  card tests/fixtures/card-old-legacy-menu.card    -> a stale `legacyMenu=1`, unknown: equals `menu`
+# Level 3: **the acceptance test for the menu.** The ui-scripts gate (`tests/integration/checks/ui_scripts.py`) runs
+# it on each card below: on the fixture card every snapshot must match the golden; on the two cards that still say a
+# menu setting this firmware no longer has (`shellMenu=0`, `legacyMenu=1`, both unknown now) it must run exactly as
+# on the fixture card.
 #
 # The stale legs are a genuine boot-from-settings on the mechanism the device uses
 # (`RuntimeFeatureSettings::readSettingsFromFile`), not a test-only door.
@@ -37,6 +35,9 @@
 #
 # 50 ms rather than 0: the legacy app blits its first OLED frame from inside the main loop, after
 # its first input poll, so nothing has been drawn at 0 ms (boot.txt's own note).
+# card: tests/fixtures/card
+# card: tests/fixtures/card-old-shell-menu.card
+# card: tests/fixtures/card-old-legacy-menu.card
 50     snapshot boot
 
 # Site 6: SELECT with no shift from the instrument clip view -> the SOUND root.

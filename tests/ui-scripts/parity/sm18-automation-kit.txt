@@ -1,9 +1,12 @@
-# ShellMenu: the automation view on a kit. SHIFT + KIT makes the boot clip a fresh kit, SELECT loads TONE into its
-# drum and BACK leaves the menu the drum creator opened (the ShellMenu card has no kit presets); with drum row 0
-# selected, CLIP opens the row's automation overview and SelectEnc its sound menu, where SHIFT + the LPF frequency
-# shortcut selects the row's param in the view. With AFFECT ENTIRE on the same steps reach the kit's own params. Then
-# from the clip view, the row's LPF page opened with AFFECT ENTIRE off, AFFECT ENTIRE turned on and CLIP: the view
-# edits the row's automation, not the kit's. Every snapshot has a 1 s window (blinks). Run on the ShellMenu card.
+# ShellMenu: the automation view on a kit. SHIFT + KIT makes the boot clip a fresh kit, SELECT loads TONE into its drum
+# and BACK leaves the menu the drum creator opened (the ShellMenu card has no kit presets); with drum row 0 selected,
+# CLIP opens the row's automation overview and SelectEnc its sound menu, where SHIFT + the LPF frequency shortcut
+# selects the row's param in the view. With AFFECT ENTIRE on the same steps reach the kit's own params. Then from the
+# clip view, the row's LPF page opened with AFFECT ENTIRE off, AFFECT ENTIRE turned on and CLIP: the view edits the
+# row's automation, not the kit's. Every snapshot has a 1 s window (blinks).
+# card: content/bare.img
+# card: content/shellmenu
+# card: content/card.img
 100   snapshot boot
 300   button Shift down
 350   button Kit down

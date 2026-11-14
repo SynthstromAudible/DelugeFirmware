@@ -5,18 +5,13 @@ image under test in delugemu and requires identical panels at every snapshot. Ea
 and covers one surface, so a divergence in one cannot hide the others. Format: `tests/harness/README.md`; times are
 milliseconds after boot settles, and a snapshot waits for both panels to settle.
 
-`p16`–`p24` are longer walks on `.superpowers/emu-card/bare.img`: the automation view on a kit and the song
-(`p16`), a MIDI clip (`p17`) and a synth (`p18`), the cable menus (`p19`), learn (`p20`), MIDI follow's CCs (`p21`),
-the mod knobs (`p22`), the performance view (`p23`) and param undo (`p24`). They make an input every 250 ms (a press
-held 120 ms), and each snapshot is a 1 s window. Their results are in `DIFFERENCES.md`'s `p16`–`p24` section.
+`p16`–`p24` are longer walks: the automation view on a kit and the song (`p16`), a MIDI clip (`p17`) and a synth
+(`p18`), the cable menus (`p19`), learn (`p20`), MIDI follow's CCs (`p21`), the mod knobs (`p22`), the performance view
+(`p23`) and param undo (`p24`). They make an input every 250 ms (a press held 120 ms), and each snapshot is a 1 s
+window. Their results are in `DIFFERENCES.md`'s `p16`–`p24` section.
 
-Scripts named `sm*` are written for the ShellMenu card (`.superpowers/emu-card/shellmenu`): they enter the menus
-through SelectEnc, which opens the ported menu.
-
-The emulator's ShellMenu cards still carry the old `shellMenu=1`, which the firmware ignores.
-
-`.superpowers/emu-card/card.img` keeps the old `legacyMenu=1`, which the firmware keeps as an unknown key and ignores:
-the basic scripts run on it as well as on a bare card, and both must agree, so the stale key stays inert.
+Each script's `# card:` lines name the cards it runs on, and `tools/emu_parity.py tests/ui-scripts/parity` runs it on
+each. Scripts named `sm*` enter the menus through SelectEnc, which opens the ported menu.
 
 `sm00-select-turn` checks the emulator's encoder input before anything leans on it: of five separate single Select
 detents, the first moves nothing and each of the others moves the sound menu's list one row, on both images. A black
@@ -34,28 +29,21 @@ follow channel.
 
 `sm32-menu-value-follow` covers the open value following a change made behind the menu: a learned gold knob and a
 learned CC moving the LPF frequency that a page or a full screen shows, which `main` re-reads on the 25 ms
-`DISPLAY_AUTOMATION` timer, with no knob popup over the same param. Run it with Horizontal Menus on
-(`.superpowers/emu-card/shellmenu`: the page) and off (`tests/fixtures/card-shell-menu-vertical.card`: the full screen,
-`--card` takes the directory).
+`DISPLAY_AUTOMATION` timer, with no knob popup over the same param.
 
-`sm33-full-screen-values` runs on the same `tests/fixtures/card-shell-menu-vertical.card` (the ShellMenu card with
-HorizontalMenus off), where a shortcut opens its item alone: a transpose's cursor, step and Horizontal move, the
-coming-soon popup inside the menu, and retrigger phase's cursor. Its popup is read 100 ms after the press. Run both with
-`tools/emu_parity.py --ref main.elf --test deluge.elf --card tests/fixtures/card-shell-menu-vertical.card`. For a
-ready-made image, write the `CommunityFeatures.XML` text from that manifest's `text` block in with mtools: `mcopy -i
-card.img -o CommunityFeatures.XML ::/SETTINGS/CommunityFeatures.XML`.
+`sm33-full-screen-values` runs with HorizontalMenus off, where a shortcut opens its item alone: a transpose's cursor,
+step and Horizontal move, the coming-soon popup inside the menu, and retrigger phase's cursor. Its popup is read 100 ms
+after the press.
 
 `sm34-claim-back` covers a sample claim made from the audio clip's SAMPLE page (opened from the clip's root list) and
 the BACKs after it: the claim returns to the SAMPLE page and the first BACK leaves the menu, on both images, Horizontal
-Menus on and off. It converts the boot song's empty clip to audio (a held clip pad + SELECT), so it needs the content
-card's presets: run it on `.superpowers/emu-card/content-shellmenu` and on a copy whose `SETTINGS/CommunityFeatures.XML`
-is `.superpowers/emu-card/shellmenu-vertical`'s. The OLED, LEDs and UI stack agree at every snapshot; `claimed`, `back1`
-and `back2` differ only in the colour of the waveform row (y 4, 16 pads), the new audio clip's random hue (D11).
+Menus on and off. It converts the boot song's empty clip to audio (a held clip pad + SELECT), so it needs a content
+card's presets. The OLED, LEDs and UI stack agree at every snapshot; `claimed`, `back1` and `back2` differ only in the
+colour of the waveform row (y 4, 16 pads), the new audio clip's random hue (D11).
 
-`sm35-toggle-words` covers the words a toggle draws, on `tests/fixtures/card-shell-menu-vertical.card` (HorizontalMenus
-off, where a shortcut opens its item alone): a Community Feature's row is a checkbox SELECT flips in place, OSC
-SYNC's page lists Off and On where `main`'s lists Disabled and Enabled (D134, accepted), and PING-PONG's lists its
-options.
+`sm35-toggle-words` covers the words a toggle draws, with HorizontalMenus off (where a shortcut opens its item alone): a
+Community Feature's row is a checkbox SELECT flips in place, OSC SYNC's page lists Off and On where `main`'s lists
+Disabled and Enabled (D134, accepted), and PING-PONG's lists its options.
 
 `sm16-automation-retarget`, `sm17-automation-menu-view` and `sm18-automation-kit` cover the automation view under the
 menu: the param it follows as the menu moves (SELECT, BACK, column buttons, shortcuts), the pads, knobs and encoders
@@ -66,24 +54,20 @@ moves are several turns; the sound menu reopens on the row it last showed; BACK 
 the menu.
 
 `sm28-menu-view-buttons` covers the sound editor's view buttons under the menu: KEYBOARD over the clip view, the
-keyboard screen and the automation view, SESSION, and SYNC-SCALING. Run it on the ShellMenu card and on
-`.superpowers/emu-card/shellmenu-fill` (the ShellMenu card with `syncScalingAction` 1, Fill), where SYNC-SCALING
-holds fill and lights its LED.
+keyboard screen and the automation view, SESSION, and SYNC-SCALING. On `content/shellmenu-fill` (`syncScalingAction` 1,
+Fill) SYNC-SCALING holds fill and lights its LED.
 
 `sm29-audition-shortcut` covers the shortcut pads with an audition held inside the sound menu, on a synth and on a kit
 row (the edit stays on the row the menu opened for, and so does the kit's selection), and the sequence-direction pad's
-note-row editor. It runs on the content card (`sweep-shellmenu.img`), in the sweep's `browser`
-group. It stops on the note-row editor: BACK there sticks on `main` (D92).
+note-row editor. It stops on the note-row editor: BACK there sticks on `main` (D92).
 
 `sm19-sample-browser-preview`, `sm20-sample-browser-waveform`, `sm21-sample-browser-buttons` and
-`sm22-sample-browser-favourites` cover the sample browser that SHIFT + BROWSE opens from the synth clip: the greyed
-root view and its BROWSE blink, the preview and its waveform, the horizontal scroll-in as the selection moves, the
-keyboard on demand and KEYBOARD, the X_ENC zoom and the waveform's scroll, LOAD's auto-load, SHIFT + SAVE's delete
-prompt and refusal, the audition column, RECORD's recorder, and the favourites row with its 500 ms flash. They run on
-the content card with the ShellMenu card's settings (`.superpowers/emu-card/content-shellmenu`: the content card plus
-the ShellMenu card's `SETTINGS/CommunityFeatures.XML`), and `sm19` also with `--audio-wav`. Windows over a
-blink are at least 1 s; the scroll-in is read 100, 300 and 400 ms after the turn in short windows; a popup is read
-100 ms after the press, before it times out.
+`sm22-sample-browser-favourites` cover the sample browser that SHIFT + BROWSE opens from the synth clip: the greyed root
+view and its BROWSE blink, the preview and its waveform, the horizontal scroll-in as the selection moves, the keyboard
+on demand and KEYBOARD, the X_ENC zoom and the waveform's scroll, LOAD's auto-load, SHIFT + SAVE's delete prompt and
+refusal, the audition column, RECORD's recorder, and the favourites row with its 500 ms flash. `sm19` runs with
+`--audio-wav` as well. Windows over a blink are at least 1 s; the scroll-in is read 100, 300 and 400 ms after the turn
+in short windows; a popup is read 100 ms after the press, before it times out.
 
 `sm23-select-in-place` covers SELECT on an item main does not enter: the arpeggiator's ENABLED row and USB AUDIO's
 INPUT toggle flip on their list, and a choice column (POLYPHONY on the VOICE page, set to MONO) stays on its page. Its

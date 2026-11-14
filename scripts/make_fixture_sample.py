@@ -3,7 +3,7 @@
 
 The variants of the card are manifests over it, so they carry this sample too.
 
-**Why this exists rather than a file checked in from somewhere.** `tests/ui-scripts/app/menu.txt`'s
+**Why this exists rather than a file checked in from somewhere.** `tests/ui-scripts/app/a02-menu.txt`'s
 file-selector arm drives a real `SampleBrowser`/`BrowserScene` over a real `UI_CARD`, so the
 card has to hold an audio file the firmware can actually parse and load. A sample copied from a
 sound library — or from another repository — is a licensing question nobody can answer years later,

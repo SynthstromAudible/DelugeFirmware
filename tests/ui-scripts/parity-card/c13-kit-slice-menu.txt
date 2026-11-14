@@ -1,5 +1,6 @@
 # The sample browser's long press on a file in a fresh kit (Shift + Kit, one drum on row 0): SAMPLES offers SLICE, which
 # opens the slicer; four regions, a look at manual mode, then Select slices and lands in the clip view.
+# card: content/sweep-bare.img
 100   snapshot boot
 6000  button Shift down
 6050  button Kit down

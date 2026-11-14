@@ -1,5 +1,8 @@
 # E3: the BACK LED blinks while the sound menu is open (SoundEditor sets it blinking on open). Open the menu and
 # hold still for two seconds, a snapshot every 50 ms, so the blink phase can be compared with main frame by frame.
+# card: content/bare.img
+# card: content/shellmenu
+# card: content/card.img
 100   snapshot boot
 300   button SelectEnc down
 320   button SelectEnc up

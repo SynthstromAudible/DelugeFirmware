@@ -1,4 +1,5 @@
 # Automation view on a MIDI clip: every CC shortcut cell and the select-encoder walk over the CCs.
+# card: content/bare.img
 100    button Midi down
 220    button Midi up
 1470   button Clip down

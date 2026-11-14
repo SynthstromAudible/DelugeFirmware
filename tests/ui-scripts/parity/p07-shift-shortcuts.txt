@@ -1,4 +1,7 @@
 # Shift+pad shortcuts into the sound menu, and back out.
+# card: content/bare.img
+# card: content/shellmenu
+# card: content/card.img
 100   snapshot boot
 300   button Shift down
 400   pad 0 0 down

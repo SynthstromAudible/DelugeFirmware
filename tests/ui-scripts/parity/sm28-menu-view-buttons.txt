@@ -2,8 +2,10 @@
 # KEYBOARD swaps the root to the keyboard screen under the menu and KEYBOARD again swaps it back. SYNC-SCALING is held
 # and released (with syncScalingAction Fill it holds fill mode and lights its LED; otherwise it does nothing). BACK
 # closes the menu; CLIP enters the automation view and SELECT opens the menu over it, where KEYBOARD leaves for the
-# keyboard screen and KEYBOARD again returns to the automation view. SESSION leaves the menu for the session view.
-# Every snapshot has a 1 s window. Run on the ShellMenu card and on its Fill variant.
+# keyboard screen and KEYBOARD again returns to the automation view. SESSION leaves the menu for the session view. Every
+# snapshot has a 1 s window.
+# card: content/bare.img
+# card: content/shellmenu-fill
 100   snapshot boot
 300   button SelectEnc down
 320   button SelectEnc up

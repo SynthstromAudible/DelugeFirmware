@@ -3,6 +3,7 @@
 # automation overview, SELECT for the sound menu over it, OSCILLATOR 1, CROSS SCREEN twice to the page with START and
 # SYNTH (the page's first item) into the editor. Then Shift + (0,6), the automation view's interpolation pad, is the
 # editor's own press, and Shift + (7,1), POLYPHONY, jumps to its page although it is no param.
+# card: content/sweep-bare.img
 100   snapshot boot
 5000  button Shift down
 5100  pad 0 5 down

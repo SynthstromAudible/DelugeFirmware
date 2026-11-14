@@ -1,4 +1,5 @@
 # Shift + Select on a file in a kit of many drums refuses the slicer with a popup, and the browser stays.
+# card: content/sweep-bare.img
 100   snapshot boot
 6000  button Kit down
 6020  button Kit up

@@ -2,9 +2,8 @@
 # clip pad and press SELECT to turn the empty clip into an audio clip, open it, SELECT into its root list and turn to
 # SAMPLE (eight turns: the first detent after boot is dropped), SELECT opens the SAMPLE page (the vertical card: its
 # list) on the file selector, SELECT opens the browser, Select +1 and SELECT enter CLIPS, SELECT on its first file
-# claims it, then BACK twice. Run on the content card with Horizontal Menus on (`.superpowers/emu-card/content-shellmenu`)
-# and off (the same card with that card's SETTINGS/CommunityFeatures.XML replaced by
-# `.superpowers/emu-card/shellmenu-vertical`'s); `--card` takes the directory.
+# claims it, then BACK twice.
+# card: content/content-shellmenu
 100 snapshot boot
 500 button Session down
 520 button Session up

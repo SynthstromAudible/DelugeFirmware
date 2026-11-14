@@ -1,6 +1,7 @@
 # Learning a gold knob to a param menu and to a patch-cable menu (hold LEARN, turn the knob), then turning the
 # learned knob outside the menu. Boot synth clip; OSC1 level from the OSC mixer shortcut; the ENV4 -> OSC1 level cable
 # from its MODULATE WITH list.
+# card: content/bare.img
 100   button Shift down
 350   pad 2 0 down
 470   pad 2 0 up

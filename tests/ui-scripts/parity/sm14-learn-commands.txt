@@ -2,6 +2,9 @@
 # the cursor on PLAY in the list, LEARN held takes a note, a program change and a CC (the CC is D72: main's list drops
 # it), and SHIFT + LEARN forgets PLAY's command; then PLAY's own screen learns a note and a program change, FILL refuses
 # a program change, and out of the menu the learned program change starts and stops playback.
+# card: content/bare.img
+# card: content/shellmenu
+# card: content/card.img
 100   snapshot boot
 300   button Session down
 320   button Session up

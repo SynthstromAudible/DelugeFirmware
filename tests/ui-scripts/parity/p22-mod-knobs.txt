@@ -1,5 +1,6 @@
 # Each mod button's two gold knobs: popups, knob LEDs and the MIDI-follow feedback they send.
 # On the boot synth clip, on a kit row, on a kit with affect-entire, and on the song.
+# card: content/bare.img
 100    button Mod0 down
 220    button Mod0 up
 470    snapshot synth_mod0

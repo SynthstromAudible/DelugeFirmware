@@ -1,5 +1,6 @@
 # The sample browser's LOAD ALL on a fresh kit, on a folder holding only folders (SAMPLES/Artists): no audio file to
 # import.
+# card: content/sweep-bare.img
 100   snapshot boot
 6000  button Shift down
 6050  button Kit down

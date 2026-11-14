@@ -1,6 +1,7 @@
 # MIDI follow: channel A = channel 1, feedback on channel A, display param on (settings, from song view).
 # Then every CC 0..122 at two values into the synth clip, a kit row, a kit with affect-entire and the song, and the
 # mod knobs' feedback on each. Snapshots carry the popups and the DIN MIDI the image sent back.
+# card: content/bare.img
 100     button Session down
 220     button Session up
 1470    button Shift down

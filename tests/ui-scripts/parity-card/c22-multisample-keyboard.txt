@@ -1,5 +1,6 @@
 # The keyboard screen under the note-range picker on a multisample: the current range's notes are highlighted, and a
 # keyboard note selects its range. KEYBOARD is pressed before any menu opens.
+# card: content/sweep-bare.img
 100   snapshot boot
 5000  button Shift down
 5100  pad 0 5 down

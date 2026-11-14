@@ -1,5 +1,6 @@
 # Open/close stress (rig checklist item 10): SELECT opens the sound menu, a turn, BACK closes it, 30 times
 # at 300 ms a cycle; then the menu must still open and close. Device vs delugemu on the same image.
+# card: content/card.img
 100   snapshot boot
 300   button SelectEnc down
 320   button SelectEnc up
