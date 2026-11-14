@@ -169,14 +169,12 @@ function(deluge_specs_driver name)
   endforeach()
 endfunction()
 
-# deluge_test_directory(TREES <tree>... [BUILDS_OWN_SPECS])
+# deluge_test_directory(TREES <tree>...)
 #
 # Names the trees that build a test directory holding no spec driver (a CppUTest executable, a standalone driver, a
 # codegen probe). deluge_spec_directories reads the declaration from the file; the call checks the names.
-# BUILDS_OWN_SPECS says the file builds the *_spec.cpp files below it itself (an executable and a test per spec), so
-# deluge_spec_directories accepts specs whose nearest CMakeLists.txt it is; without it such a spec fails the configure.
 function(deluge_test_directory)
-  cmake_parse_arguments(PARSE_ARGV 0 arg "BUILDS_OWN_SPECS" "" "TREES")
+  cmake_parse_arguments(PARSE_ARGV 0 arg "" "" "TREES")
   if(arg_UNPARSED_ARGUMENTS OR NOT arg_TREES)
     message(FATAL_ERROR "${CMAKE_CURRENT_SOURCE_DIR}: write deluge_test_directory(TREES <${DELUGE_TEST_TREES}>...)")
   endif()
@@ -193,16 +191,15 @@ endfunction()
 
 # deluge_spec_directories(<dir>)
 #
-# Adds every directory below <dir> whose CMakeLists.txt names this tree, in path order, each built into <binary
-# dir>/<dir's name>/<its path below dir>. A file names its trees in a deluge_specs_driver(<name> TREES ...) or
-# deluge_test_directory(TREES ...) call, as the words after TREES on TREES's own line (TREES itself may follow the name
-# on the next line), or with an ONLY_<TREE> keyword; comments are not read. Every CMakeLists.txt below <dir> must name
-# its trees, whichever directory it belongs to, since all of them are read: one that names no tree, or an unknown one,
-# fails the configure, because no tree would build it and a test that never runs looks like one that passed. So does a
-# *_spec.cpp whose nearest CMakeLists.txt between it and <dir> declares no deluge_specs_driver and no
-# deluge_test_directory(... BUILDS_OWN_SPECS), or that has none, since nothing would compile it. Every file read, and
-# the set of spec files, is a configure dependency, so a directory that starts naming this tree, or a new spec, is
-# picked up by the next build.
+# Adds every directory below <dir> whose CMakeLists.txt names this tree, in path order, each built into
+# <binary dir>/<dir's name>/<its path below dir>. A file names its trees in a deluge_specs_driver(<name> TREES ...) or
+# deluge_test_directory(TREES ...) call, as the words after TREES on TREES's own line (TREES itself may follow the
+# name on the next line), or with an ONLY_<TREE> keyword; comments are not read. Every CMakeLists.txt below <dir> must
+# name its trees, whichever directory it belongs to, since all of them are read: one that names no tree, or an
+# unknown one, fails the configure, because no tree would build it and a test that never runs looks like one that
+# passed. So does a *_spec.cpp whose nearest CMakeLists.txt between it and <dir> declares no deluge_specs_driver, or
+# that has none, since no driver would compile it. Every file read, and the set of spec files, is a configure
+# dependency, so a directory that starts naming this tree, or a new spec, is picked up by the next build.
 function(deluge_spec_directories base)
   get_filename_component(_base ${base} ABSOLUTE)
   get_filename_component(_base_name ${_base} NAME)
@@ -223,11 +220,9 @@ function(deluge_spec_directories base)
                           "builds it: declare deluge_specs_driver(<name> TREES ...) in one")
     endif()
     _deluge_read_list_file(${_driver} _text)
-    if(NOT _text MATCHES "deluge_specs_driver\\("
-       AND NOT _text MATCHES "deluge_test_directory\\([^)]*[ \t\r\n]BUILDS_OWN_SPECS[ \t\r\n)]")
+    if(NOT _text MATCHES "deluge_specs_driver\\(")
       message(FATAL_ERROR "${_spec}: ${_driver}, the nearest CMakeLists.txt above it, declares no "
-                          "deluge_specs_driver and no deluge_test_directory(... BUILDS_OWN_SPECS), so nothing "
-                          "builds it")
+                          "deluge_specs_driver, so no driver builds it")
     endif()
   endforeach()
   file(GLOB_RECURSE _list_files CONFIGURE_DEPENDS ${_base}/CMakeLists.txt)
