@@ -127,7 +127,6 @@ public:
 	virtual void wontBeRenderedForAWhile();
 	void beginStutter(ParamManagerForTimeline* paramManager);
 	void endStutter(ParamManagerForTimeline* paramManager);
-	virtual ModFXType getModFXType() = 0;
 	/// @brief This owner as a sound.
 	/// @return The sound, or nullptr for a kit, an audio track or the song master.
 	[[nodiscard]] virtual ::Sound* asSound() { return nullptr; }

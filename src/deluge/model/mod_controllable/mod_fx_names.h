@@ -25,10 +25,6 @@
 /// @brief The mod FX types' and their knobs' display names, for the menus and the OLED.
 namespace modfx {
 
-/// @brief Each mod FX type's name.
-/// @return The names, indexed by ModFXType value.
-deluge::vector<std::string_view> getModNames();
-
 /// @brief The name of @p type's knob @p param: the grain names its knobs apart from the delay-line types.
 /// @param type      The mod FX type.
 /// @param param     The knob to name.

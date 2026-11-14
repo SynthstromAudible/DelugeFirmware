@@ -60,7 +60,6 @@
 #include "model/edits/set_tempo.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/sample/sample_holder.h"
 #include "model/settings/runtime_feature_settings.h"

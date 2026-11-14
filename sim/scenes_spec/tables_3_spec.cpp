@@ -1038,11 +1038,11 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 
 		{ // --- mod_fx_type: `ModControllableAudio::setModFXType` on the target -------------------
 			const TablesRoot& sound = installed_root("sound");
-			const ModFXType before = deluge::scenes::spec::menu_engine(sound.ctx).mod->getModFXType();
+			const ModFXType before = deluge::scenes::spec::menu_engine(sound.ctx).mod->modControllableSnapshot().effects.mod_fx.type;
 			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::NONE));
-			expect(deluge::scenes::spec::menu_engine(sound.ctx).mod->getModFXType() == ModFXType::NONE).to_be_true();
+			expect(deluge::scenes::spec::menu_engine(sound.ctx).mod->modControllableSnapshot().effects.mod_fx.type == ModFXType::NONE).to_be_true();
 			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::FLANGER));
-			expect(deluge::scenes::spec::menu_engine(sound.ctx).mod->getModFXType() == ModFXType::FLANGER).to_be_true();
+			expect(deluge::scenes::spec::menu_engine(sound.ctx).mod->modControllableSnapshot().effects.mod_fx.type == ModFXType::FLANGER).to_be_true();
 			(void)deluge::scenes::spec::menu_engine(sound.ctx).mod->setModFXType(before);
 			covered.insert(&nodes::mod_fx_type);
 		}

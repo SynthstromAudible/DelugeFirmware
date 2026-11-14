@@ -1734,10 +1734,8 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "activeModFunction")) {
-				// The record keeps what the song says; the engine uses it capped at its last mod button.
+				// The record keeps what the song says; the knobs use it capped at the board's last section.
 				project.mod_knob_mode = static_cast<uint8_t>(reader.readTagOrAttributeValueInt());
-				live.global_effectable.modKnobMode =
-				    std::min(project.mod_knob_mode, static_cast<uint8_t>(kNumModButtons - 1));
 				reader.exitTag("activeModFunction");
 			}
 

@@ -19,7 +19,6 @@
 
 GlobalEffectableForSong::GlobalEffectableForSong(deluge::model::MasterChannel& channel) : channel_{channel} {
 	bindBinding(channel_.binding());
-	modKnobMode = 1;
 }
 
 GlobalEffectableForSong::~GlobalEffectableForSong() {

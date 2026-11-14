@@ -401,10 +401,6 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 	doneReadingFromFile();
 }
 
-ModFXType Sound::getModFXType() {
-	return modControllableSnapshot().effects.mod_fx.type;
-}
-
 void Sound::patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,
                                            int32_t newValue) {
 

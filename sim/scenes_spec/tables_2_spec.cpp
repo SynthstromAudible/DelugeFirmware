@@ -1463,11 +1463,11 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		}
 
 		{ // --- mod_fx_type -------------------------------------------------------------------
-			const ModFXType before = deluge::scenes::spec::menu_engine(f.ctx).mod->getModFXType();
+			const ModFXType before = deluge::scenes::spec::menu_engine(f.ctx).mod->modControllableSnapshot().effects.mod_fx.type;
 			menu::bindings::write(nodes::mod_fx_type, f.ctx, static_cast<int32_t>(ModFXType::NONE));
-			expect(deluge::scenes::spec::menu_engine(f.ctx).mod->getModFXType() == ModFXType::NONE).to_be_true();
+			expect(deluge::scenes::spec::menu_engine(f.ctx).mod->modControllableSnapshot().effects.mod_fx.type == ModFXType::NONE).to_be_true();
 			menu::bindings::write(nodes::mod_fx_type, f.ctx, static_cast<int32_t>(ModFXType::FLANGER));
-			expect(deluge::scenes::spec::menu_engine(f.ctx).mod->getModFXType() == ModFXType::FLANGER).to_be_true();
+			expect(deluge::scenes::spec::menu_engine(f.ctx).mod->modControllableSnapshot().effects.mod_fx.type == ModFXType::FLANGER).to_be_true();
 			(void)deluge::scenes::spec::menu_engine(f.ctx).mod->setModFXType(before);
 			covered++;
 		}

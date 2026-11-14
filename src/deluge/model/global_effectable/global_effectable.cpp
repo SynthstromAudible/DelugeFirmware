@@ -126,10 +126,6 @@ void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramMana
 	                                                          -536870912);
 }
 
-ModFXType GlobalEffectable::getModFXType() {
-	return modControllableSnapshot().effects.mod_fx.type;
-}
-
 void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutomation) {
 	// Its record's, while it plays one.
 	writer.writeAttribute("modFXCurrentParam", modFXParamToString(modFXParam()));
@@ -255,22 +251,6 @@ void GlobalEffectable::readEffectsFromElement(const deluge::serialization::Value
 }
 
 namespace modfx {
-// note this is dumb but it needs to match the enum order currently
-deluge::vector<std::string_view> getModNames() {
-	using enum deluge::l10n::String;
-	using namespace deluge;
-	return {
-	    l10n::getView(STRING_FOR_DISABLED),      //<
-	    l10n::getView(STRING_FOR_FLANGER),       //<
-	    l10n::getView(STRING_FOR_CHORUS),        //<
-	    l10n::getView(STRING_FOR_PHASER),        //<
-	    l10n::getView(STRING_FOR_STEREO_CHORUS), //<
-	    l10n::getView(STRING_FOR_WARBLE),
-	    l10n::getView(STRING_FOR_DIMENSION), //<
-	    l10n::getView(STRING_FOR_GRAIN),     //<
-	};
-}
-
 const char* getParamName(ModFXType type, ModFXParam param, bool shortName) {
 	using enum deluge::l10n::String;
 	using namespace deluge;

@@ -94,7 +94,6 @@ public:
 	/// @return Which filter the filter knobs edit.
 	[[nodiscard]] FilterType filterType() const;
 
-	ModFXType getModFXType() override;
 	[[nodiscard]] std::optional<ModFXParam> projectedModFXParam() const override;
 
 private:

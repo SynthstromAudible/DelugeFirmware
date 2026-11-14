@@ -6,6 +6,8 @@
 #include "model/edits/set_mod_knob_mode.h"
 #include "model/edits/setting_edit.h"
 
+#include "board_controls.hpp"
+#include "controls/knob_focus.h"
 #include "deluge-project/structure_codec.h"
 #include "instruments/deluge/pages.h"
 #include "memory/general_memory_allocator.h"
@@ -102,6 +104,11 @@ std::string saved(Song& song) {
 	return length > 0 ? std::string(buffer.data(), static_cast<size_t>(length)) : std::string{};
 }
 
+/// @brief The song's own knobs, as the knob focus names them.
+deluge::controls::KnobFocus songFocus() {
+	return deluge::controls::KnobFocus{.owner = deluge::controls::SongFocus{}};
+}
+
 } // namespace
 
 using deluge::edits::KnobModeOwner;
@@ -115,26 +122,26 @@ describe knob_records("the knob records, by Edit", ${
 		expect(plain != nullptr && plain->project.mod_knob_mode == 1).to_be_true();
 		Song* four = load_song(song_xml(R"(activeModFunction="4")"));
 		expect(four != nullptr && four->project.mod_knob_mode == 4).to_be_true();
-		expect(four != nullptr && four->live.global_effectable.modKnobMode == 4).to_be_true();
+		expect(four != nullptr && deluge::controls::knob_mode(four->project, songFocus(), kDelugeControls) == 4).to_be_true();
 		currentSong = before;
 	});
 
-	it("a song that says a mode past the last button keeps it in its record, and the engine uses the last", _ {
+	it("a song that says a mode past the last button keeps it in its record, and the knobs use the last", _ {
 		Song* const before = currentSong;
 		Song* nine = load_song(song_xml(R"(activeModFunction="9")"));
 		expect(nine != nullptr && nine->project.mod_knob_mode == 9).to_be_true();
-		expect(nine != nullptr && nine->live.global_effectable.modKnobMode == kNumModButtons - 1).to_be_true();
+		expect(nine != nullptr && deluge::controls::knob_mode(nine->project, songFocus(), kDelugeControls) == kNumModButtons - 1).to_be_true();
 		currentSong = before;
 	});
 
-	it("SetModKnobMode on the song writes the record and the engine, and takes no undo step", _ {
+	it("SetModKnobMode on the song writes the record the knobs read, and takes no undo step", _ {
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
 		actionLogger.deleteAllLogs();
 		expect(deluge::edits::modKnobModeFor(KnobModeOwner{deluge::project::SongAddress{}}, 5)).to_be_true();
 		expect(f.song->project.mod_knob_mode).to_equal(uint8_t{5});
-		expect(f.song->live.global_effectable.modKnobMode).to_equal(uint8_t{5});
+		expect(deluge::controls::knob_mode(f.song->project, songFocus(), kDelugeControls)).to_equal(uint8_t{5});
 		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
 		expect(deluge::edits::modKnobModeFor(KnobModeOwner{deluge::project::SongAddress{}}, kNumModButtons))
 		    .to_be_false();

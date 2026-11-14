@@ -61,7 +61,6 @@
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
 #include "model/instrument/kit.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
 #include "model/voice/sound_voice.h"

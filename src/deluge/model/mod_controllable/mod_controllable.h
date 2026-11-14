@@ -41,7 +41,6 @@ class ModControllable {
 public:
 	ModControllable() = default;
 	virtual ~ModControllable() = default;
-	virtual bool isSong() { return false; }
 	virtual bool valueChangedEnoughToMatter(int32_t old_value, int32_t new_value, deluge::modulation::params::Kind kind,
 	                                        uint32_t paramID) {
 		return old_value != new_value;

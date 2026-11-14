@@ -33,12 +33,7 @@ public:
 	[[nodiscard]] deluge::model::ChainView& chainView() override { return channel_.view(); }
 	[[nodiscard]] const deluge::model::ChainView& chainView() const override { return channel_.view(); }
 
-	uint8_t modKnobMode;
-
 private:
 	/// @brief The song's master channel: its chain around the reverb, its settings and view.
 	deluge::model::MasterChannel& channel_;
-
-protected:
-	bool isSong() override { return true; }
 };
