@@ -27,6 +27,7 @@
 
 #include "cppspec.hpp"
 
+#include <array>
 #include <cstdint>
 #include <string>
 
@@ -73,16 +74,11 @@ describe tables("level-3 name tables cross-checked against deluge_profile()", $ 
 			uint8_t got_x = 0xFF;
 			uint8_t got_y = 0xFF;
 			const int ok = ui_script_button_xy(name.c_str(), &got_x, &got_y);
-			// Labelled strings, not a bare bool/int compare: `Matchers::Equal` drops any custom
-			// failure message (`script_runner.h`'s own note on this), so the entry's own name has
-			// to be baked into both sides for a mismatch to say which button it is about.
-			expect(name + ": known to ui_script_button_xy")
-			    .to_equal(name + ": " + (ok ? "known to ui_script_button_xy" : "UNKNOWN to ui_script_button_xy"));
+			expect(ok).not_().to_equal(0, name + " is unknown to ui_script_button_xy");
 			if (!ok) {
 				continue;
 			}
-			expect(name + ": (" + std::to_string(got_x) + "," + std::to_string(got_y) + ")")
-			    .to_equal(name + ": (" + std::to_string(want_x) + "," + std::to_string(want_y) + ")");
+			expect(std::array{int{got_x}, int{got_y}}).to_equal(std::array{int{want_x}, int{want_y}}, name);
 		}
 	});
 

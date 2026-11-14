@@ -484,6 +484,13 @@ inline std::string first_mismatch(const std::filesystem::path& a, const std::fil
 	return {};
 }
 
+/// @brief "line <n>: <message>" for a run that stopped on an error; empty for one that ran to completion.
+/// @param run The run.
+/// @return The error, or an empty string.
+inline std::string error_text(const RunResult& run) {
+	return run.error ? "line " + std::to_string(run.error->line) + ": " + run.error->message : std::string{};
+}
+
 } // namespace detail
 
 /// @brief Run \p script_text against a fresh `Shell` over a fresh `FakeSurfaceSet`, writing every
@@ -799,16 +806,11 @@ inline RunResult expect_script_goldens(Self& self, std::string_view script_name,
 	const fs::path got = fs::path(UI_GOT_DIR) / "shell" / name;
 	const fs::path golden = fs::path(GOLDEN_ROOT) / "ui" / "shell" / name;
 
-	// Every assertion below compares *labelled strings* rather than passing cppspec's optional
-	// failure message: `Matchers::Equal` overrides `failure_message()` and never consults the
-	// custom one, so a message given that way is silently dropped and the values print bare. Baking
-	// the label into both sides is what makes a failure say which file, and which script, it is
-	// about while still printing the two texts side by side.
+	// Each expectation names its script, file or run in its message, which a failure prints above the values.
 	std::ifstream in(script);
 	std::stringstream text;
 	text << in.rdbuf();
-	expect(std::string(in.good() ? "readable" : "MISSING") + ": " + script.string())
-	    .to_equal("readable: " + script.string());
+	expect(in.good()).to_be_true("cannot read " + script.string());
 
 	// A stale file from an earlier run of a since-renamed snapshot would otherwise look like an
 	// extra the golden directory is missing, forever.
@@ -816,10 +818,7 @@ inline RunResult expect_script_goldens(Self& self, std::string_view script_name,
 	fs::remove_all(got, ec);
 
 	RunResult result = run_script(text.str(), registry, services, got.string(), opts);
-	expect(name + ": "
-	       + (result.error ? "line " + std::to_string(result.error->line) + ": " + result.error->message
-	                       : std::string("ran to completion")))
-	    .to_equal(name + ": ran to completion");
+	expect(detail::error_text(result)).to_equal(std::string{}, name + " did not run to completion");
 	if (result.error) {
 		return result;
 	}
@@ -830,16 +829,12 @@ inline RunResult expect_script_goldens(Self& self, std::string_view script_name,
 		const fs::path got_second = fs::path(UI_GOT_DIR) / "shell" / (name + "-second");
 		fs::remove_all(got_second, ec);
 		const RunResult second = run_script(text.str(), *opts.second_registry, services, got_second.string(), opts);
-		expect(name + " (second run): "
-		       + (second.error ? "line " + std::to_string(second.error->line) + ": " + second.error->message
-		                       : std::string("ran to completion")))
-		    .to_equal(name + " (second run): ran to completion");
+		expect(detail::error_text(second)).to_equal(std::string{}, name + " (second run) did not run to completion");
 		if (second.error) {
 			return result;
 		}
 		const std::string mismatch = detail::first_mismatch(got, got_second);
-		expect(name + ": " + (mismatch.empty() ? "identical" : "first differing file: " + mismatch))
-		    .to_equal(name + ": identical");
+		expect(mismatch).to_equal(std::string{}, name + ": the first file the second run wrote differently");
 		return result;
 	}
 
@@ -857,8 +852,7 @@ inline RunResult expect_script_goldens(Self& self, std::string_view script_name,
 		// A script that produced nothing would otherwise record an empty directory and then pass
 		// forever -- both file lists empty, nothing to compare. Recording is the one moment that
 		// mistake is still visible.
-		expect(name + ": " + (got_names.empty() ? "produced nothing to record" : "produced files to record"))
-		    .to_equal(name + ": produced files to record");
+		expect(got_names.empty()).to_be_false(name + " produced nothing to record");
 		if (got_names.empty()) {
 			return result;
 		}
@@ -882,8 +876,7 @@ inline RunResult expect_script_goldens(Self& self, std::string_view script_name,
 	}
 
 	const bool have_golden = fs::is_directory(golden);
-	expect(std::string(have_golden ? "recorded" : "MISSING (./dbt test --update records it)") + ": " + golden.string())
-	    .to_equal("recorded: " + golden.string());
+	expect(have_golden).to_be_true(golden.string() + " is not recorded: ./dbt test --update records it");
 	if (!have_golden) {
 		return result;
 	}
@@ -900,12 +893,9 @@ inline RunResult expect_script_goldens(Self& self, std::string_view script_name,
 		std::ifstream gi(got / file);
 		std::stringstream have;
 		have << gi.rdbuf();
-		// The whole file goes into the comparison, under a header naming it, so a `.state` mismatch
-		// prints both texts and a `.pbm` mismatch prints both images -- with the file's name on
-		// both sides of the diff either way.
-		const std::string label = "--- " + name + "/" + file + " ---\n";
-		expect(label + (gi.good() ? have.str() : std::string("<not produced by the run>\n")))
-		    .to_equal(label + want.str());
+		// The whole file goes into the comparison: a .state mismatch prints both texts, a .pbm mismatch both images.
+		expect(gi.good() ? have.str() : std::string("<not produced by the run>\n"))
+		    .to_equal(want.str(), name + "/" + file);
 	}
 
 	// Joined into one string rather than compared as vectors: an extra or missing file then shows
@@ -918,8 +908,7 @@ inline RunResult expect_script_goldens(Self& self, std::string_view script_name,
 		}
 		return s;
 	};
-	const std::string files_label = "--- files in " + name + " ---\n";
-	expect(files_label + join(got_names)).to_equal(files_label + join(want_names));
+	expect(join(got_names)).to_equal(join(want_names), "the files " + name + " produced");
 	return result;
 }
 
