@@ -19,8 +19,9 @@ out="$(mktemp -d)"
 trap 'rm -rf "$out"' EXIT
 
 # Match the firmware/host builds: C++23, signed char. Test at -O0 and -O2 (catches
-# optimisation-dependent divergence, e.g. UB the optimiser exploits differently).
-common=(-std=gnu++23 -fsigned-char -I "$root/src/deluge" -I "$root/src")
+# optimisation-dependent divergence, e.g. UB the optimiser exploits differently). tests/ is an
+# include root too, so a test header is named by its path there ("unit/deluge/dsp-next/raw_words.h").
+common=(-std=gnu++23 -fsigned-char -I "$root/src/deluge" -I "$root/src" -I "$root/tests")
 
 # argon (vendored via the host-app build's FetchContent, the `host-app` product this
 # entry declares) for tests touching the vectorised DSP. On x86 its <arm/neon.h>

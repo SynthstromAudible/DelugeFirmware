@@ -67,8 +67,6 @@
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
 
-#include "../../unit/deluge/dsp-next/wavetable_band_crc.h"
-#include "../../unit/deluge/dsp-next/wavetable_band_records.h"
 #include "memory/general_memory_allocator.h" // GeneralMemoryAllocator::resourceManager()
 #include "memory/heaps.h"                    // failNextAllocationOfSize, allocationFailurePending
 #include "model/sample/pitch_scan.h"
@@ -82,6 +80,8 @@
 #include "storage/wave_table/wave_table.h"
 #include "storage/wave_table/wave_table_holder.h"
 #include "support/golden_update.h"
+#include "unit/deluge/dsp-next/wavetable_band_crc.h"
+#include "unit/deluge/dsp-next/wavetable_band_records.h"
 
 #include "deluge_resource.h"   // DelugeResourceStats, deluge_resource_stats(_reset)
 #include "libdeluge/channel.h" // DELUGE_PATH_MAX
