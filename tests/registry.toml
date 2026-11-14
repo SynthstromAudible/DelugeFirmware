@@ -24,8 +24,8 @@
 #         (harness_registry.JOBS); render, app and model run a golden_vt_render built once, so their tests build
 #         only golden-vt-render
 # runtime_s: whole seconds a run takes with its build products already built (a comment gives a cold build's)
-# baseline: what `dbt test --update <name>` re-records: paths under tests/golden/<consumer>/, or a record header
-#         (tests/…/*_records.h) beside the spec it pins (harness_registry.baseline_problem)
+# baseline: what `dbt test --update <name>` re-records: paths under tests/golden/<consumer>/, or any record header
+#         named tests/**/*_records.h, kept beside the spec it pins (harness_registry.baseline_problem)
 # gates:  one sentence, at most 160 characters (harness_registry.gates_problem); the rest is a "Gate <name>:"
 #         block in the file that judges the test, or a `## <name>` section in its check's notes
 #         (harness_registry.CHECK_NOTES) -- ./dbt test --list --verbose <name> prints it

@@ -385,9 +385,9 @@ cover them, and golden_vt_render's run-time refusal does. `scripts/tasks/corpus_
 
 A test that compares with something committed -- a fixture hash, a golden snapshot, a render record, a record header --
 lists it in its registry entry's `baseline`: files or directories under `tests/golden/<consumer>/`
-(`tests/golden/README.md` names each directory and what reads it), or a record header (`*_records.h`) beside the spec it
-pins. The loader refuses a baseline anywhere else; the one exception is the website's generated menu tree, which
-`ui-menu-dump` keeps equal to the app's. One command re-records it:
+(`tests/golden/README.md` names each directory and what reads it), or a record header beside the spec it pins: the
+loader accepts any `tests/**/*_records.h` by its name. The loader refuses a baseline anywhere else; the one exception is
+the website's generated menu tree, which `ui-menu-dump` keeps equal to the app's. One command re-records it:
 
     ./dbt test --update <name>...                   # e.g. ./dbt test --update golden-synth render-kit-fx
     ./dbt test --update unit -- -R <spec>           # a ctest tree: arguments after -- go to ctest

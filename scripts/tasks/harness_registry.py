@@ -25,7 +25,8 @@ RUNNERS = ("ctest", "cargo", "scenario", "corpus", "script")
 CORPUS_RUNNERS = Path("tests/integration/corpus")
 # Every baseline lives under GOLDEN_ROOT, in the directory of what reads it (tests/golden/README.md lists them).
 GOLDEN_ROOT = Path("tests/golden")
-# A record header is compiled into the spec that checks it, so it stays beside that spec, under tests/.
+# A record header is compiled into the spec that checks it, so it stays beside that spec. The loader accepts one by
+# its name alone: any tests/**/*_records.h.
 RECORD_HEADER_SUFFIX = "_records.h"
 # The menu tree is a website build input; the ui-menu-dump gate keeps it equal to the app's.
 BASELINES_ELSEWHERE = ("website/src/data/generated/menu-tree.json",)
@@ -392,8 +393,12 @@ def gates_problem(gates: str) -> str | None:
 
 
 def baseline_problem(path: str) -> str | None:
-    """Why `path` cannot be a registry `baseline`, or None when it can: it is under GOLDEN_ROOT/<consumer>/, a record
-    header under tests/, or one of BASELINES_ELSEWHERE."""
+    """Why `path` cannot be a registry `baseline`, or None when it can: it is under GOLDEN_ROOT, any file named
+    tests/**/*_records.h, or one of BASELINES_ELSEWHERE.
+
+    Any path below GOLDEN_ROOT is accepted, a direct child included: a consumer's whole directory is a baseline
+    (tests/golden/param_record), and the loader reads no files, so it cannot tell that from a file directly in the
+    root. The tree's layout (tests/golden/README.md) keeps every file in a consumer's directory."""
     parts = Path(path).parts
     root = GOLDEN_ROOT.parts
     if parts[: len(root)] == root and len(parts) > len(root):

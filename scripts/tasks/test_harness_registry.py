@@ -527,8 +527,91 @@ def golden_strays(paths: list[str]) -> list[str]:
     ]
 
 
-# A string literal that names a golden relative to another consumer's directory instead of under GOLDEN_ROOT.
-GOLDEN_ESCAPE = re.compile(r'"\.\./(?:ui|shell|gfx)/')
+# Where a spec names a golden: the arguments of a golden-reading helper, or the `/` chain after golden_root().
+GOLDEN_CALL = re.compile(
+    r"\b(?:expect_golden|expect_script_goldens)\s*\(|\bgolden_root\(\)"
+)
+STRING_LITERAL = re.compile(r'"(?:[^"\\\n]|\\.)*"')
+GOLDEN_ROOT_CHAIN = re.compile(r'(?:\s*/\s*(?:"(?:[^"\\\n]|\\.)*"|[\w:.]+(?:\(\))?))*')
+
+
+def golden_name_escapes(name: str) -> bool:
+    """Whether `name`, a golden named relative to GOLDEN_ROOT, can leave it: an absolute path or a `..` segment."""
+    return name.startswith("/") or ".." in name.split("/")
+
+
+def _call_span(text: str, start: int) -> int:
+    """The end of the argument list whose opening parenthesis is at `start - 1`, skipping string literals."""
+    depth = 1
+    i = start
+    while i < len(text) and depth:
+        if text[i] == '"':
+            literal = STRING_LITERAL.match(text, i)
+            i = literal.end() if literal else i + 1
+            continue
+        depth += {"(": 1, ")": -1}.get(text[i], 0)
+        i += 1
+    return i
+
+
+def golden_escapes(source: str) -> list[tuple[int, str]]:
+    """The (line, literal) pairs in C++ `source` where a golden-reading helper is handed a name that leaves
+    GOLDEN_ROOT. `#include` lines are not golden names."""
+    text = "\n".join(
+        "" if line.lstrip().startswith("#include") else line
+        for line in source.splitlines()
+    )
+    found = []
+    for call in GOLDEN_CALL.finditer(text):
+        if call.group().endswith("("):
+            end = _call_span(text, call.end())
+        else:
+            end = GOLDEN_ROOT_CHAIN.match(text, call.end()).end()
+        for literal in STRING_LITERAL.finditer(text, call.end(), end):
+            if golden_name_escapes(literal.group()[1:-1]):
+                found.append(
+                    (text.count("\n", 0, literal.start()) + 1, literal.group()[1:-1])
+                )
+    return found
+
+
+class GoldenEscapeTest(unittest.TestCase):
+    def test_a_name_that_leaves_the_root_escapes(self):
+        for bad in (
+            "../ui/x.pbm",
+            "../shell/x.pbm",
+            "../gfx/x.pbm",
+            "../render/x.pbm",
+            "../../x",
+            "/abs/x",
+            "ui/../x",
+        ):
+            with self.subTest(bad):
+                self.assertTrue(golden_name_escapes(bad))
+
+    def test_a_name_under_the_root_does_not(self):
+        for good in ("ui/menu/x_48.pbm", "ui/menu/", "render", "gfx/oled/a..b.pbm"):
+            with self.subTest(good):
+                self.assertFalse(golden_name_escapes(good))
+
+    def test_escapes_are_found_in_every_call_shape(self):
+        source = """\
+#include "../ui/support/golden.h"
+expect_golden(self, "ui/menu/x_48.pbm", r.oled());
+expect_golden(self, std::string{"ui/menu/"} + name + "_48.pbm", r.oled());
+expect_golden(self, "../render/x.pbm", r.oled());
+expect_golden(self, tall ? "ui/menu/a.pbm"
+              : "/abs/x", f(g("x")));
+uitest::expect_script_goldens(self, "../../x", reg, Services{});
+load(wavetable_fixture::golden_root() / "render" / record.file);
+load(wavetable_fixture::golden_root() / "ui/../x");
+return std::string{GOLDEN_ROOT} + "/ui/menu_oracle";
+log("../elsewhere");
+"""
+        self.assertEqual(
+            golden_escapes(source),
+            [(4, "../render/x.pbm"), (6, "/abs/x"), (7, "../../x"), (9, "ui/../x")],
+        )
 
 
 class GoldenTreeTest(unittest.TestCase):
@@ -564,12 +647,11 @@ class GoldenTreeTest(unittest.TestCase):
 
     def test_no_spec_names_a_golden_outside_the_root(self):
         hits = [
-            f"{path}:{n}"
+            f"{path}:{n}: {name}"
             for path in self._tracked("*.cpp", "*.h")
-            for n, line in enumerate(
-                (self.ROOT / path).read_text(errors="replace").splitlines(), 1
+            for n, name in golden_escapes(
+                (self.ROOT / path).read_text(errors="replace")
             )
-            if GOLDEN_ESCAPE.search(line) and not line.lstrip().startswith("#include")
         ]
         self.assertEqual(hits, [])
 

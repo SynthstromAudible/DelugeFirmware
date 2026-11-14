@@ -28,7 +28,8 @@ C++ specs name a golden by its path under `GOLDEN_ROOT` (`tests/support/cmake/go
 | `upgrade/` | the upgrader's legacy fixtures (`<group>/<name>.<kind>.XML`, each oracle beside its fixture, made by `make_fixtures.py`) and their hashes (`fixtures.json`, keyed by path under `tests/golden/`) | `upgrade_run.py` | `upgrade-differential` |
 | `stem_export/` | the stem export's render hash and size (`<fixture>.sha256`) | `stem_export.py` | by hand only (`stem_export.py` says how) |
 
-Record headers (`*_records.h`) stay beside the specs that compile them; their entries list them in `baseline` too.
+Record headers stay beside the specs that compile them; their entries list them in `baseline` too, and the loader
+accepts any `tests/**/*_records.h` there by its name.
 
 ## Menu reference tables (`ui/menu_oracle/`)
 
