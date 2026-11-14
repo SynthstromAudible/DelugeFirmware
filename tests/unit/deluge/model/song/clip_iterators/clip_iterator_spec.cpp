@@ -249,7 +249,7 @@ describe clip_iterator_group("clip iterator", ${
 			Clip* clip = *iter;
 			if (clip->type == ClipType::INSTRUMENT) {
 				iter.deleteClip(InstrumentRemoval::NONE);
-				expect(clip->deleted).to_equal(true);
+				expect(clip->deleted).to_be_true();
 				n++;
 			}
 			else {
