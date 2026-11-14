@@ -120,6 +120,12 @@ with affect-entire, and the song's reverb amount; the first three close the menu
 knobs' rings, the song's keeps its page open, where the new value shows. A fresh CC knob is relative until a value from
 16 to 111 shows it is not, so the 0 moves nothing and the 64 that follows is the first absolute move.
 
+`midi_follow` plays every CC of MIDI follow on a synth clip, a kit row, a kit with affect-entire and the song, so the
+sound table, the global table and the affect-entire choice of `midi::followFocus` (`controls::resolve_follow`) all show
+in its popups, knob LEDs and the DIN bytes of the feedback. No script sends a pitch bend (the runner has no bend verb) or
+unlearns a knob on a sound with a non-zero pitch adjust, so the two accepted learned-MIDI differences (D160, D161 in
+`DIFFERENCES.md`) are pinned by specs.
+
 `root_knob_views` is also a `run_parity.py` script; it pins the gold knobs at the root views, in the order its sections
 run:
 - note tails (`tail_*`, `menu_tail_*`): a long note on the boot synth, envelope-1 sustain set to its minimum from the menu

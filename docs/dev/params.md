@@ -29,11 +29,12 @@ one way between the two numberings; until the model stack is retired, the views 
 What names params by target:
 
 - the pad-grid shortcuts and the automation view's param orders (`modulation/params/param_targets.h`);
-- MIDI follow's maps, with `MidiFollow::ccOf(owner, target)` for the CC that follows a param, and the performance view's
-  params, layout and shortcuts (global-effectable `ParamId`s);
-- mod and MIDI knobs (`Knob::target`, a `modulation::KnobTarget`; `knobWord` and `knobTargetOf` convert it to and from
-  the descriptor word the files and the model stack use), the global effectable's default knob layout, and what a
-  learning menu teaches a knob (`getLearningThing()`);
+- MIDI follow's maps (`controls::FollowTables`), with `MidiFollow::ccOf(owner, target)` for the CC that follows a
+  param, and the performance view's params, layout and shortcuts (global-effectable `ParamId`s);
+- mod knobs (`ModKnob::target`, a `modulation::KnobTarget`; `knobWord` and `knobTargetOf` convert it to and from
+  the descriptor word the files and the model stack use), learned MIDI knobs (an `OwnerParamTarget` in the song's
+  mapping table), the global effectable's default knob layout, and what a learning menu teaches a knob
+  (`getLearningThing()`);
 - the cable set and the patch-cable menus, by `synth::CableTarget` word.
 
 A clip's and the song's automation selection (`lastSelectedParamKind`, `lastSelectedParamID`) stays the runtime pair:
@@ -353,6 +354,36 @@ and `wavetable_released`. `remap_for_mode` takes the sound's saved knobs, the sy
 the wavetable functions take the saved knobs and the oscillator (0 or 1) that claimed or released the wavetable. Each
 returns the knobs the sound takes. `writeKnobPairs` (`controls_bridge.h`) writes them through the controls record
 (`SetControls`, or both copies directly when it refuses), so the engine's knob array and the record stay equal.
+
+Learned MIDI and MIDI follow reach params by address through the same library; the engine holds no learned knobs and no
+dispatch of its own. A learned knob is an entry of the song's mapping table (`project::MappingTable`): the source it is
+learned to, the `OwnerParamTarget` it turns and whether it is relative. `controls::dispatch_song_cc` moves the song's
+knobs a CC is learned to; the host offers each output in play order, and `controls::dispatch_output_cc` and
+`controls::dispatch_output_bend` move that output's knobs, a kit's rows' after its own, each before the output hears
+the message itself, so a hit's take is made before the output reads its active clip. The outputs that play and a kit's
+sound rows come from `controls::Facts::playing_outputs` and `sound_rows`: an output with no active clip hears nothing.
+`controls::resolve_learned` turns a knob's target into the `ParamAddress` on the owner that plays it, and a hit writes
+through `controls::Sink::write_param` with `Resolution::LEARNED` (`SetParamValue::Resolve::LEARNED`): the take is made
+while the arrangement records and a missing cable is made, as a gold knob's, but no instrument or drum is marked
+edited. The write keeps the default `Write::USER`, so it makes an undo step and records automation. The app reaches
+the dispatch through `learnedCcToSong`, `learnedCcToOutput` and `learnedPitchBendToOutput`
+(`io/midi/learned_dispatch.h`), defined with the binding host.
+
+`controls::TakeoverStore` holds each knob's `TakeoverState` by (owner, param, source), the key of its table entry, so a
+relearn in place (`TakeoverStore::relearn`), a flipped relative flag and an unchanged re-index leave it where it is, and
+a cloned output inherits it; it is dropped on a song change. `controls::knob_pos_after` is the arithmetic of the four
+takeover modes. The store allocates, so it lives on the app loop: the render never writes the mapping table, and the
+writes it makes (forgets, arrivals and the copy half of a clone) wait in the held queue (`kPendingMappingOps`) for the
+app loop to apply them to the table and the store together.
+
+A learned knob's file element names its param by `ParamRef`; `decode_knobs` (`src/deluge-project/mapping_codec.h`)
+resolves it through the owner's `ParamNaming::id_of`, then through `mod_knob_target`, which sends a knob on a volume to
+the param the runtime uses, so the codec is the one place that rule lives.
+
+MIDI follow resolves the same way: `controls::resolve_follow` (`src/controls/follow.h`) turns a CC and the followed
+clip's `KnobFocus` (`midi::followFocus`, which reads `gui::knobFocusOfClip`: a kit's selected row unless the clip has
+affect-entire) into the address, from the sound table or the global one, and refuses portamento on a kit row. A
+followed write's position arithmetic is a gold knob's (`src/controls/knob_math.h`).
 
 ## Instrument-private rules
 

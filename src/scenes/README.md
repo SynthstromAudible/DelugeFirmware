@@ -632,6 +632,11 @@ shell's; every model-aware implementation is here, as with `Scene`.
   `scenes/bind` supplies the publishers (`app_publishers`), the focus a view names and the host's reading of a chain's
   view, and `controls::current_page` / `section_pages` build the page the knobs are on. A CV track and a MIDI or gate
   drum focus on `NoControlsFocus`, whose page is empty.
+* **Learned MIDI and MIDI follow are not here either.** A learned CC or pitch bend is dispatched by
+  `controls::dispatch_song_cc`, `dispatch_output_cc` and `dispatch_output_bend`, and a followed CC resolved by
+  `controls::resolve_follow`, both in `src/controls`; each write goes through the `Sink` the host binds
+  (`scenes::menu::host_controls_sink`) over the `Facts` it binds (`host_runtime_facts`). The menu's learn and unlearn
+  write the mapping table through the same sink; `controls::TakeoverStore` holds the takeover states those entries key.
 
 ## Repaint and timers
 
