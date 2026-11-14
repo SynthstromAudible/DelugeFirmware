@@ -90,21 +90,30 @@ describe instrument_pages("the Deluge instrument's pages", ${
 		}
 		expect(record.get(ctx, 8, out)).to_be_false();
 	});
-	it("finds every device page and filter-cycle page, and nothing else", _{
+	it("finds the sound's whole filter cycle on any section: ids 0-2 in group 0, 3-5 in group 1 with the slots swapped", _{
 		const auto& record = instrument::kRemoteControls;
 		const plugin::PageContext ctx;
 		plugin::RemotePage out;
-		for (const auto& page : instrument::kDevicePages) {
-			expect(record.find(ctx, page.section, page.page_id, out)).to_be_true();
-			expect(out == page).to_be_true();
+		for (uint32_t section = 0; section < 8; section++) {
+			for (uint32_t id = 0; id < 6; id++) {
+				plugin::RemotePage want = instrument::kFilterCycle[id % 3];
+				want.section = section;
+				if (id >= 3) {
+					want.group = 1;
+					want.page_id = id;
+					std::swap(want.slots[0], want.slots[1]);
+				}
+				expect(record.find(ctx, section, id, out)).to_be_true();
+				expect(out == want).to_be_true();
+				expect(out.section).to_equal(section);
+				expect(out.group).to_equal(static_cast<uint8_t>(id >= 3 ? 1 : 0));
+				expect(out.page_id).to_equal(id);
+			}
+			expect(record.find(ctx, section, 6, out)).to_be_false();
 		}
-		for (const auto& page : instrument::kFilterCycle) {
-			expect(record.find(ctx, page.section, page.page_id, out)).to_be_true();
-			expect(out == page).to_be_true();
-		}
-		expect(record.find(ctx, 1, 3, out)).to_be_false();
-		expect(record.find(ctx, 2, 1, out)).to_be_false();
-		expect(record.find(ctx, 8, 0, out)).to_be_false();
+		expect(record.find(ctx, 1, 3, out)).to_be_true();
+		expect(*out.slots[1].param == ip::kLpfResonance).to_be_true();
+		expect(*out.slots[0].param == ip::kLpfFrequency).to_be_true();
 	});
 	it("decorates a param as slot_for does, reading FM from the owner's state and alt delay from the context", _{
 		const auto& record = instrument::kRemoteControls;

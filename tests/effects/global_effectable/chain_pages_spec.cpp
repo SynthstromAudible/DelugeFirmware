@@ -153,7 +153,7 @@ describe chain_pages("the host chains' pages", ${
 					for (uint32_t section = 0; section < 8; section++) {
 						for (uint32_t page_id = 0; page_id < 8; page_id++) {
 							const auto want = section_page(section, page_id, in);
-							const bool lacking_view = section == 5 && page_id < 3;
+							const bool lacking_view = section == 5; // mod_fx_page clamps a view past the last to feedback
 							if (lacking_view) {
 								expect(record.find(ctx, section, page_id, out)).to_be_true();
 								expect(out == global_effectable::mod_fx_page(page_id)).to_be_true();

@@ -20,12 +20,11 @@
 #include "instruments/deluge/plugin.h"
 
 #include <optional>
+#include <utility>
 
 namespace deluge::instrument {
 
 namespace {
-
-constexpr uint32_t kFilterSection = 1;
 
 uint32_t count_pages(const plugin::PageContext& /*ctx*/) {
 	return static_cast<uint32_t>(kDevicePages.size());
@@ -40,20 +39,18 @@ bool get_page(const plugin::PageContext& /*ctx*/, uint32_t index, plugin::Remote
 }
 
 bool find_page(const plugin::PageContext& /*ctx*/, uint32_t section, uint32_t page_id, plugin::RemotePage& out) {
-	if (section == kFilterSection) {
-		if (page_id >= kFilterCycle.size()) {
-			return false;
-		}
-		out = kFilterCycle[page_id];
-		return true;
+	const uint32_t cycle = kFilterCycle.size();
+	if (page_id >= 2 * cycle) {
+		return false;
 	}
-	for (const plugin::RemotePage& page : kDevicePages) {
-		if (page.section == section && page.page_id == page_id) {
-			out = page;
-			return true;
-		}
+	out = kFilterCycle[page_id % cycle];
+	out.section = section;
+	if (page_id >= cycle) {
+		out.page_id = page_id;
+		out.group = 1;
+		std::swap(out.slots[0], out.slots[1]);
 	}
-	return false;
+	return true;
 }
 
 plugin::RemoteSlot decorate_slot(const plugin::PageContext& ctx, plugin::ParamId param) {

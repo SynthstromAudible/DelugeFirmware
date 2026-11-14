@@ -219,9 +219,6 @@ bool get_page(const plugin::PageContext& ctx, uint32_t index, RemotePage& out) {
 bool find_page(const plugin::PageContext& ctx, uint32_t section, uint32_t page_id, RemotePage& out) {
 	constexpr uint32_t kModFxSection = 5;
 	if (section == kModFxSection) {
-		if (page_id >= kModFxViews) {
-			return false;
-		}
 		out = mod_fx_page(page_id);
 		return true;
 	}
