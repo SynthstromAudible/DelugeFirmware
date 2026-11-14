@@ -7,7 +7,6 @@ Gate usbmidi:
 """
 
 import pytest
-import rtmidi
 import usb
 
 
@@ -50,9 +49,3 @@ def test_deluge_midi_interface(deluge_midi_if):
     assert deluge_midi_if.bInterfaceSubClass == 3
 
     assert deluge_midi_if.bNumEndpoints == 2
-
-
-midiin = rtmidi.MidiIn()
-midiout = rtmidi.MidiOut()
-
-print(midiin.get_ports())
