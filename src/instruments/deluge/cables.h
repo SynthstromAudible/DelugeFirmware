@@ -72,13 +72,14 @@ enum class Polarity : uint8_t { UNIPOLAR, BIPOLAR };
 	return name == "unipolar" ? Polarity::UNIPOLAR : Polarity::BIPOLAR;
 }
 
-/// @brief The bit every cable depth id has and no param id has.
+/// @brief The bit every cable depth id has and no param id has: plugin::kCableDepthFlag, which the controls library
+/// reads too.
 ///
 /// A depth id is `kCableDepthFlag | p | (s1+1) << 8 | (s2+1) << 14 | (s3+1) << 20`: `p` (8 bits) the destination
 /// param's id, `s1` the source of the cable nearest the param, `s2` and `s3` the sources of cables controlling the
 /// depth below them; each source field is 6 bits holding the source's value + 1, 0 when absent. Pinned forever by
 /// tests/instruments/deluge/cables_spec.cpp.
-inline constexpr uint32_t kCableDepthFlag = 0x4000'0000;
+using plugin::kCableDepthFlag;
 
 /// @brief The destination of a cable whose destination name the instrument does not know. The runtime keeps such a
 /// cable and leaves it out of patching.

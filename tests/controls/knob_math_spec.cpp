@@ -6,9 +6,6 @@
 using namespace deluge;
 using namespace deluge::controls;
 
-// The controls library cannot include the instrument's header, so it names the flag itself: the two stay equal.
-static_assert(kCableDepthFlag == instrument::kCableDepthFlag);
-
 namespace {
 const project::ParamAddress kEngine{.space = project::ParamSpace::ENGINE, .id = plugin::ParamId{7}};
 const project::ParamAddress kCable{.space = project::ParamSpace::ENGINE, .id = plugin::ParamId{instrument::kCableDepthFlag | 7}};

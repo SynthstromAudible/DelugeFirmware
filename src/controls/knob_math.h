@@ -1,3 +1,20 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #pragma once
 
 /// @file
@@ -9,10 +26,6 @@
 #include <cstdint>
 
 namespace deluge::controls {
-
-/// @brief The bit an instrument's cable-depth param ids carry and its other param ids do not; a knob over such an id is
-/// a cable's, whose stored word is a Q30 depth.
-inline constexpr uint32_t kCableDepthFlag = 0x4000'0000;
 
 /// @brief How far a gold knob turns: a cable's depth reaches further down, a MIDI CC stops short of the top.
 enum class KnobKind : uint8_t { PARAM, CABLE, MIDI_CC };

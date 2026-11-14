@@ -34,6 +34,10 @@ struct ParamId {
 	[[nodiscard]] constexpr auto operator<=>(const ParamId&) const = default;
 };
 
+/// @brief The bit a cable depth's param id carries and no other param id does: a knob over such an id turns a cable,
+/// whose stored word is a Q30 depth. A plugin's other ids stay below it.
+inline constexpr uint32_t kCableDepthFlag = 0x4000'0000;
+
 /// @brief Whether a param can take a different value in each voice, or has one value for the whole instance.
 enum class ParamScope : uint8_t { PER_VOICE, PER_SOUND };
 
