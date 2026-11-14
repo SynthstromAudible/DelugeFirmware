@@ -38,6 +38,10 @@ describe cpath_group("CPath", ${
 
 	it("the view is the path", _ {
 		auto path = CPath::from("KITS/KIT000.XML");
+		expect(path.has_value()).to_be_true();
+		if (!path) {
+			return;
+		}
 		expect(std::string{path->view()}).to_equal(std::string{"KITS/KIT000.XML"});
 	});
 });
