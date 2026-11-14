@@ -1,11 +1,11 @@
 #pragma once
-#include "fake_surfaces.h"
 #include "harness/snapshot.h"
 #include "harness/ui_script.h"
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
+#include "support/mocks/fake_surfaces.h"
 
 #include "cppspec.hpp"
 #include "support/golden_update.h"

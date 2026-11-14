@@ -82,8 +82,8 @@
 // I/O. `SdRoot` would assert a card touch that does not happen, as `QuietAudio` would a hold on the
 // audio routine nothing here needs.
 
+#include "support/mocks/fake_surfaces.h"
 #include "unit/gfx/support/golden.h"
-#include "unit/shell/support/fake_surfaces.h"
 
 #include "cppspec.hpp"
 

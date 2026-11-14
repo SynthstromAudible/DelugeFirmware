@@ -20,7 +20,7 @@
 
 #include "support/song_fixture.h"
 
-#include "unit/shell/support/fake_surfaces.h"
+#include "support/mocks/fake_surfaces.h"
 
 #include "cppspec.hpp"
 

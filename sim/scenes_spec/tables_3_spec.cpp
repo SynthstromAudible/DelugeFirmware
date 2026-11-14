@@ -86,8 +86,8 @@
 #include "support/song_fixture.h"
 #include "support/tables_3_fixtures.h"
 
+#include "support/mocks/fake_surfaces.h"
 #include "unit/gfx/support/golden.h"
-#include "unit/shell/support/fake_surfaces.h"
 
 #include "cppspec.hpp"
 

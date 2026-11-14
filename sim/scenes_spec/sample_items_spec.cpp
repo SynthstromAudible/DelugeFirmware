@@ -65,7 +65,7 @@
 // headers this drags in (`audio_engine.h` -> `util/container/ordered_pos_vector.h`).
 #include "support/card_access.h"
 
-#include "unit/shell/support/fake_surfaces.h"
+#include "support/mocks/fake_surfaces.h"
 
 #include "cppspec.hpp"
 

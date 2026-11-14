@@ -36,10 +36,10 @@
 
 #include "support/dx_pages_fixtures.h"
 #include "support/dx_rig.h"
+#include "support/mocks/fake_surfaces.h"
 #include "support/oracle_table.h"
 #include "support/song_fixture.h"
 #include "unit/gfx/support/pbm.h"
-#include "unit/shell/support/fake_surfaces.h"
 #include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"

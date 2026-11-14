@@ -13,7 +13,7 @@
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
-#include "unit/shell/support/fake_surfaces.h"
+#include "support/mocks/fake_surfaces.h"
 
 #include "instruments/deluge/sound_state.h"
 #include "model/edits/setting_edit.h"

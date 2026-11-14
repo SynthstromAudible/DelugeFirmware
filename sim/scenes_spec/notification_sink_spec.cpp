@@ -30,8 +30,8 @@
 #include "shell/shell.h"
 
 #include "support/global_guest_menu.h"
+#include "support/mocks/fake_surfaces.h"
 #include "support/song_fixture.h"
-#include "unit/shell/support/fake_surfaces.h"
 
 #include "cppspec.hpp"
 

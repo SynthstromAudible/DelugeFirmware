@@ -1,7 +1,7 @@
 #include "shell/profile.h"
 #include "shell/profiles/deluge.h"
 #include "shell/profiles/test_board.h"
-#include "support/fake_surfaces.h"
+#include "support/mocks/fake_surfaces.h"
 #include "ui/core/input.h"
 
 #include "cppspec.hpp"

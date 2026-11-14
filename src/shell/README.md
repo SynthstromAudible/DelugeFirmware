@@ -45,7 +45,7 @@ renders needs a non-null `style`. The sinks (`blit`, `oled_busy`, `send_columns`
 | backend | sinks go to |
 |---|---|
 | `BoardSurfaceSet` | libdeluge |
-| `uitest::FakeSurfaceSet` (`tests/unit/shell/support/fake_surfaces.h`) | recorders, so a spec runs the exact flush path |
+| `uitest::FakeSurfaceSet` (`tests/support/mocks/fake_surfaces.h`) | recorders, so a spec runs the exact flush path |
 | `GuestSurfaceSet` (`gui/ui/shell_guest_surfaces.h`) | legacy's `OLED::main`, `PadLEDs::image`, `indicator_leds` |
 
 `GuestSurfaceSet` **copies; it does not alias**: `PadGrid` is wider than `PadLEDs::image`, and legacy

@@ -12,7 +12,7 @@
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
-#include "unit/shell/support/fake_surfaces.h"
+#include "support/mocks/fake_surfaces.h"
 
 #include "definitions_cxx.hpp"
 #include "memory/heaps.h"

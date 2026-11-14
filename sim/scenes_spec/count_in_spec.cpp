@@ -61,9 +61,9 @@
 #include "playback/playback_handler.h"
 #include "util/c_string.h"
 
+#include "support/mocks/fake_surfaces.h"
 #include "unit/gfx/support/golden.h"
 #include "unit/gfx/support/pbm.h"
-#include "unit/shell/support/fake_surfaces.h"
 
 #include "cppspec.hpp"
 

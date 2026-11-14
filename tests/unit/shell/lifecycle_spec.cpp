@@ -1,6 +1,6 @@
 #include "notify/notice_queue.h"
 #include "shell/shell.h"
-#include "support/fake_surfaces.h"
+#include "support/mocks/fake_surfaces.h"
 
 #include "cppspec.hpp"
 
