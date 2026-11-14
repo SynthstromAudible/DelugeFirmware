@@ -36,7 +36,7 @@ MidiCommand cc(uint8_t channel, uint8_t number) {
 	return MidiCommand{.channel_or_zone = channel, .note_or_cc = number};
 }
 OwnerParamTarget out_param(uint32_t output, uint32_t param) {
-	return OwnerParamTarget{{ControlsAddress::Kind::OUTPUT, output}, deluge::plugin::ParamId{param}};
+	return OwnerParamTarget{{ControlsAddress::Kind::OUTPUT, output}, deluge::project::engine_target(param)};
 }
 Mapping knob(MidiCommand source, OwnerParamTarget target) {
 	return Mapping{.source = source, .target = target};
@@ -69,6 +69,43 @@ describe mapping_table("the song's mapping table", ${
 		table.learn(knob(cc(1, 5), out_param(1, 2)));
 		table.learn(knob(cc(1, 5), out_param(1, 2)));
 		expect(table.entries().size()).to_equal(size_t{1});
+	});
+
+	it("keeps a learned knob's param space", _ {
+		MappingTable table;
+		const OwnerParamTarget expression{{ControlsAddress::Kind::OUTPUT, 1},
+		                                  {deluge::project::ParamSpace::EXPRESSION, deluge::plugin::ParamId{2}}};
+		const Mapping& learned = table.learn(knob(cc(1, 5), expression));
+		expect(std::get<OwnerParamTarget>(learned.target).param.space).to_equal(deluge::project::ParamSpace::EXPRESSION);
+		expect(table.find(expression)->source).to_equal(cc(1, 5));
+	});
+
+	it("tells two targets with one id in different spaces apart", _ {
+		MappingTable table;
+		const OwnerParamTarget engine = out_param(1, 2);
+		const OwnerParamTarget midi_cc{{ControlsAddress::Kind::OUTPUT, 1},
+		                               {deluge::project::ParamSpace::MIDI_CC, deluge::plugin::ParamId{2}}};
+		table.learn(knob(cc(1, 5), engine));
+		table.learn(knob(cc(1, 5), midi_cc));
+		expect(table.entries().size()).to_equal(size_t{2});
+		expect(table.unlearn(midi_cc)).to_equal(size_t{1});
+		expect(table.find(engine)->source).to_equal(cc(1, 5));
+		expect(table.find(midi_cc)).to_equal(static_cast<const Mapping*>(nullptr));
+	});
+
+	it("writes no knob for a target outside the engine's params, and the engine's knob as before", _ {
+		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, 5};
+		MappingTable table;
+		table.learn(knob(cc(1, 5), OwnerParamTarget{owner,
+		                                            {deluge::project::ParamSpace::MIDI_CC, deluge::plugin::ParamId{2}}}));
+		auto element = deluge::serialization::Value::makeMap();
+		encode_mappings(table, owner, element, &deluge::global_effectable::kNaming);
+		expect(element.find("midiKnobs") == nullptr).to_be_true();
+		table.learn(knob(cc(1, 6), OwnerParamTarget{owner, deluge::project::engine_target(
+		                                                       deluge::global_effectable::param::kLpfFrequency.value)}));
+		auto both = deluge::serialization::Value::makeMap();
+		encode_mappings(table, owner, both, &deluge::global_effectable::kNaming);
+		expect(both.find("midiKnobs")->items().size()).to_equal(size_t{1});
 	});
 
 	it("keeps two sources on one param until the param is unlearned", _ {
@@ -260,7 +297,7 @@ describe mapping_table("the song's mapping table", ${
 		table.learn(Mapping{.source = cc(0, 1), .target = ClipMuteTarget{1}});
 		table.learn(Mapping{.source = cc(0, 2), .target = DrumMuteTarget{1}});
 		table.learn(Mapping{.source = cc(0, 3), .target = LaneInputTarget{1}});
-		table.learn(knob(cc(0, 4), OwnerParamTarget{{ControlsAddress::Kind::DRUM, 1}, deluge::plugin::ParamId{1}}));
+		table.learn(knob(cc(0, 4), OwnerParamTarget{{ControlsAddress::Kind::DRUM, 1}, deluge::project::engine_target(1)}));
 		table.learn(knob(cc(0, 5), out_param(1, 1)));
 		table.learn(Mapping{.source = cc(0, 6), .target = TrackInputTarget{1}});
 		table.learn(Mapping{.source = cc(0, 7), .target = SectionLaunchTarget{1}});
@@ -303,7 +340,7 @@ describe mapping_table("the song's mapping table", ${
 		expect(table.params_of({ControlsAddress::Kind::OUTPUT, 1}).empty()).to_be_true();
 		expect(table.entries().size()).to_equal(size_t{2});
 		const std::array<Mapping, 1> drum{
-		    Mapping{cc(0, 5), OwnerParamTarget{{ControlsAddress::Kind::DRUM, 5}, deluge::plugin::ParamId{1}}}};
+		    Mapping{cc(0, 5), OwnerParamTarget{{ControlsAddress::Kind::DRUM, 5}, deluge::project::engine_target(1)}}};
 		table.set_params({ControlsAddress::Kind::DRUM, 5}, drum);
 		expect(table.entries().size()).to_equal(size_t{3});
 		expect(table.entries()[2]).to_equal(drum[0]);
@@ -322,8 +359,10 @@ describe mapping_table("the song's mapping table", ${
 		expect(m.relative).to_be_true();
 		expect(m.target).to_equal(MappingTarget{OwnerParamTarget{
 		    {ControlsAddress::Kind::DRUM, 3},
-		    *deluge::instrument::cable_depth_id(deluge::instrument::PatchSource::LFO_GLOBAL_1,
-		                                        deluge::instrument::param::kPitch)}});
+		    deluge::project::engine_target(
+		        deluge::instrument::cable_depth_id(deluge::instrument::PatchSource::LFO_GLOBAL_1,
+		                                           deluge::instrument::param::kPitch)
+		            ->value)}});
 	});
 
 	it("reads and writes a kit's knob from a port", _ {
@@ -336,7 +375,8 @@ describe mapping_table("the song's mapping table", ${
 		expect(m.source.device->port).to_equal(MidiDeviceRef::Port::DIN);
 		expect(m.relative).to_be_false();
 		expect(m.target).to_equal(MappingTarget{
-		    OwnerParamTarget{{ControlsAddress::Kind::OUTPUT, 5}, deluge::global_effectable::param::kLpfFrequency}});
+		    OwnerParamTarget{{ControlsAddress::Kind::OUTPUT, 5},
+		                     deluge::project::engine_target(deluge::global_effectable::param::kLpfFrequency.value)}});
 	});
 
 	it("reads and writes the song's knob", _ {

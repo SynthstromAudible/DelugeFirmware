@@ -63,21 +63,6 @@ public:
 	bool isSkippingRendering() override;
 	[[nodiscard]] deluge::model::ReverbCandidate reverbCandidate(deluge::model::ReverbCandidate best) override;
 
-	// A TimelineCounter is required
-	void offerReceivedCCToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
-	                                    ModelStackWithTimelineCounter* modelStack) override {
-		if (id()) {
-			ModControllableAudio::offerReceivedCCToLearnedParamsForClip(
-			    {deluge::project::ControlsAddress::Kind::OUTPUT, *id()}, cable, channel, ccNumber, value, modelStack);
-		}
-	}
-	bool offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
-	                                           ModelStackWithTimelineCounter* modelStack) override {
-		return id()
-		       && ModControllableAudio::offerReceivedPitchBendToLearnedParams(
-		           {deluge::project::ControlsAddress::Kind::OUTPUT, *id()}, cable, channel, data1, data2, modelStack);
-	}
-
 	char const* getXMLTag() override { return "audioTrack"; }
 
 	Envelope envelope;

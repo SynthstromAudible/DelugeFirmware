@@ -26,6 +26,7 @@
 
 #include "controls/knob_focus.h"
 #include "deluge-project/param_address.h"
+#include "plugin-api/types/param_kind.h"
 
 #include <cstdint>
 #include <optional>
@@ -63,6 +64,14 @@ namespace deluge::bridge {
 /// @return The stack, or null where @p song holds no such owner or the param cannot be made.
 [[nodiscard]] ::ModelStackWithAutoParam* paramStackForWrite(::Song& song, project::ParamAddress& address, void* memory);
 
+/// @brief The clip a write to @p output's active clip lands in: the take the arrangement records it into, made on the
+/// first call (the clip cloned) and found by later ones; else the active clip itself.
+///
+/// @param song      The song holding the output.
+/// @param output_id The output's id.
+/// @return The clip's id, or nullopt where the song holds no such output or it has no active clip.
+[[nodiscard]] std::optional<uint32_t> takeFor(::Song& song, uint32_t output_id);
+
 /// @brief The engine stack a read of @p address shows: the clip's take while the arrangement records it, and an
 /// INSTRUMENT or DRUM owner with no clip id's backed-up params; else as paramStackAt. Nothing is made, the take
 /// included.
@@ -73,6 +82,19 @@ namespace deluge::bridge {
 /// @return The stack, or null where @p song holds no such owner or param.
 [[nodiscard]] ::ModelStackWithAutoParam* paramStackFollowingTake(::Song& song, const project::ParamAddress& address,
                                                                  void* memory);
+
+/// @brief A param as the views show it: its collection's kind and its runtime id.
+struct ParamLane {
+	plugin::ParamKind kind;
+	int32_t id;
+};
+
+/// @brief The param a read of @p address shows (paramStackFollowingTake's), as the views name it: what a view that
+/// shows a param refreshes for a write to it.
+/// @param song    The song holding the owner.
+/// @param address The param's address.
+/// @return The param's kind and id, or none where @p song holds no such owner or param.
+[[nodiscard]] std::optional<ParamLane> paramLaneFollowingTake(::Song& song, const project::ParamAddress& address);
 
 /// @brief The engine stack naming exactly what @p address names: the clip by id, never following the take the
 /// arrangement records it into; an INSTRUMENT or DRUM owner with no clip id, its backed-up params. A MIDI CC or

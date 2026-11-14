@@ -22,6 +22,8 @@ public:
 		       ///< the arrangement records, and an INSTRUMENT or DRUM owner marked edited
 		EXACT, ///< the param the address names exactly (bridge::paramStackExact): the lane a caller's own engine stack
 		       ///< names, whose address it passes
+		LEARNED, ///< as WRITE (bridge::paramStackForWrite): the take written while the arrangement records and a
+		         ///< missing cable made; no INSTRUMENT or DRUM owner marked edited, as a learned MIDI knob writes
 	};
 
 	/// @brief How the value is written.
@@ -68,8 +70,8 @@ private:
 	Write write_;
 };
 
-/// @brief The engine stack of the param at @p address, found as @p resolve says; with WRITE, @p address moves to the
-/// take the write lands in.
+/// @brief The engine stack of the param at @p address, found as @p resolve says; with WRITE or LEARNED, @p address
+/// moves to the take the write lands in.
 /// @param song    The song holding the owner.
 /// @param address The param's address.
 /// @param resolve How it is found.

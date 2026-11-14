@@ -3625,36 +3625,27 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 	// during that call.
 	((Instrument*)newOutput)->midiInput = ((Instrument*)oldOutput)->midiInput;
 	((Instrument*)oldOutput)->midiInput.clear();
-	bool knobsHandedOver = false;
-
-	// if we're replacing the same output type
-	if (newOutput->type == oldOutput->type) {
-		// exclude MIDI and CV instruments from this
-		// only audio instruments have a midi knob array
-		if (newOutput->type == OutputType::SYNTH || newOutput->type == OutputType::KIT) {
-			// Migrate any midi learned params for synth and kit clip preset changes
-			// For kit clips it will migrate only kit affect entire midi learned params
-			// Scenario:
-			// - you create a clip
-			// - you midi learn a controller to that clip's params
-			// - you then go to change the preset for that clip
-			// - you expect that you can continue controlling the same params for the new preset
-			auto* old_mca = static_cast<ModControllableAudio*>(oldOutput->toModControllable());
-			if (old_mca != nullptr) {
-				size_t num_knobs = old_mca->midi_knobs.size();
-				if (num_knobs > 0) {
-					auto& new_mca = static_cast<ModControllableAudio&>(*newOutput->toModControllable());
-					new_mca.midi_knobs.clear();
-					std::swap(new_mca.midi_knobs, old_mca->midi_knobs);
-					old_mca->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this);
-					knobsHandedOver = true;
-				}
-			}
+	// A synth or kit replaced by a preset of its own type hands its learned knobs to the preset, which drops its own
+	// (a kit's are its affect-entire knobs): a knob learned to the clip's params keeps controlling the same params
+	// through the preset change. One with none leaves the preset's own.
+	ModControllableAudio* handedOverFrom = nullptr;
+	if (newOutput->type == oldOutput->type
+	    && (newOutput->type == OutputType::SYNTH || newOutput->type == OutputType::KIT)) {
+		auto* old_mca = static_cast<ModControllableAudio*>(oldOutput->toModControllable());
+		if (old_mca != nullptr && deluge::bridge::handsOverKnobs(*this, *oldOutput)) {
+			auto& new_mca = static_cast<ModControllableAudio&>(*newOutput->toModControllable());
+			// Knobs the table does not hold yet (this song's own read) move here; the table's move below.
+			new_mca.loaded_knobs = std::move(old_mca->loaded_knobs);
+			old_mca->loaded_knobs.clear();
+			handedOverFrom = old_mca;
 		}
 	}
 
 	if (tableFollows) {
-		deluge::bridge::handOverInstrument(*this, *oldOutput->id(), *newOutput->id(), knobsHandedOver);
+		deluge::bridge::handOverInstrument(*this, *oldOutput->id(), *newOutput->id(), handedOverFrom != nullptr);
+	}
+	if (handedOverFrom != nullptr) {
+		handedOverFrom->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this);
 	}
 	// A kit's rows give their commands up to the clips' rows, and a new kit's rows take them: the table as it was names
 	// their devices. The handover above leaves every row's entry as it was.

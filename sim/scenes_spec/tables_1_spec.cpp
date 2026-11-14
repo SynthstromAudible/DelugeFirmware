@@ -225,7 +225,7 @@ describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 			}
 			const std::optional<deluge::project::OwnerParamTarget> got = menu::bindings::learn_target(*e.node, f.ctx);
 			const std::string at = e.path + " " + text_of(e.node->name) + " learns ";
-			expect(at + (got ? std::to_string(got->param.value) : std::string{"none"}))
+			expect(at + (got ? std::to_string(got->param.id.value) : std::string{"none"}))
 			    .to_equal(at + (want->empty() ? std::string{"<no value>"} : want->front()));
 			expect(!got || got->owner == menu::bindings::controls_owner(f.ctx)).to_be_true();
 			learnable++;

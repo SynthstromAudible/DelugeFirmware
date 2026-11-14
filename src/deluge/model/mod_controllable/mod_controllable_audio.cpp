@@ -23,16 +23,11 @@
 #include "effects/codec.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
-#include "gui/views/automation_view.h"
-#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "instruments/deluge/sound_state.h"
 #include "io/debug/log.h"
-#include "io/midi/mapping_index.h"
-#include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
-#include "io/midi/midi_takeover.h"
 #include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
@@ -40,15 +35,11 @@
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/change_effect.h"
-#include "model/edits/edit.h"
-#include "model/edits/param_address_for.h"
-#include "model/edits/set_param_value.h"
 #include "model/fx/channel_setup.h"
 #include "model/fx/song_stutter.h"
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/delay_type.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
-#include "model/note/note_row.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/midi_command.h"
@@ -56,12 +47,12 @@
 #include "model/project_bridge/param_serialization.h"
 #include "model/song/reverb_presets.h"
 #include "model/song/song.h"
-#include "modulation/knob.h"
 #include "modulation/params/param_set.h"
 #include "modulation/sidechain/sidechain.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
+#include "storage/value_tree_deserializer.h"
 #include "util/etl_string.h"
 #include "util/functions.h"
 #include "util/structural_edit_probe.h"
@@ -98,7 +89,7 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	next.delay = from.delay;
 	next.stutter = from.stutter;
 	setEffects(next);
-	midi_knobs = other->midi_knobs; // Could fail if no RAM... not too big a concern
+	loaded_knobs = other->loaded_knobs; // an owner no song holds keeps its knobs here (empty for one a song holds)
 }
 
 void ModControllableAudio::initParams(ParamManager* paramManager, params::Kind defaults) {
@@ -282,7 +273,15 @@ void ModControllableAudio::writeMidiKnobsToFile(Serializer& writer, Song* song,
                                                 std::optional<deluge::project::ControlsAddress> owner) {
 	std::optional<std::vector<deluge::project::Mapping>> saved =
 	    song != nullptr ? deluge::bridge::savedKnobsOf(*song, *this, owner) : std::nullopt;
+	if (!saved && !loaded_knobs.empty()) {
+		saved = loaded_knobs; // an owner no song holds keeps its knobs here
+	}
 	if (saved) {
+		// The file names engine params only.
+		std::erase_if(*saved, [](const deluge::project::Mapping& knob) {
+			return std::get<deluge::project::OwnerParamTarget>(knob.target).param.space
+			       != deluge::project::ParamSpace::ENGINE;
+		});
 		if (saved->empty()) {
 			return;
 		}
@@ -297,18 +296,7 @@ void ModControllableAudio::writeMidiKnobsToFile(Serializer& writer, Song* song,
 			              [&] { deluge::bridge::write_reference(writer, "device", *knob.source.device); });
 		}
 		writer.writeArrayEnding("midiKnobs");
-		return;
 	}
-	if (midi_knobs.empty()) {
-		return;
-	}
-	writer.writeArrayStart("midiKnobs");
-	for (MIDIKnob& knob : midi_knobs) {
-		writeMidiKnob(writer, knob.midiInput, knob.relative, deluge::modulation::knobWord(knob.target),
-		              unpatchedParamKind_, knob.midiInput.cable != nullptr,
-		              [&] { knob.midiInput.cable->writeReferenceToFile(writer); });
-	}
-	writer.writeArrayEnding("midiKnobs");
 }
 
 void ModControllableAudio::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager,
@@ -347,97 +335,11 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 	}
 
 	else if (!strcmp(tagName, "midiKnobs")) {
-		reader.match('[');
-		// Standard array-of-boxes idiom (mirrors the noteRows/clips loops): match('{') enters the box, the
-		// name is read, then the value object is entered. Reading the name before match('{') would rely on XML
-		// implicit descent and read nothing in JSON mode. match('{')/match('}') are no-ops in XML.
-		while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "midiKnob")) {
-
-				MIDICable* cable = nullptr;
-				uint8_t channel = 0;
-				uint8_t ccNumber = 0;
-				bool relative = false;
-				uint8_t p = params::GLOBAL_NONE;
-				PatchSource s = PatchSource::NOT_AVAILABLE;
-				PatchSource s2 = PatchSource::NOT_AVAILABLE;
-
-				reader.match('{'); // enter the midiKnob value object
-				while (*(tagName = reader.readNextTagOrAttributeName())) {
-					if (!strcmp(tagName, "device")) {
-						cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
-					}
-					else if (!strcmp(tagName, "channel")) {
-						channel = reader.readTagOrAttributeValueInt();
-					}
-					else if (!strcmp(tagName, "mpeZone")) { // a knob learned on an MPE zone
-						const std::string_view zone = reader.readTagOrAttributeValue();
-						if (zone == "lower") {
-							channel = MIDI_CHANNEL_MPE_LOWER_ZONE;
-						}
-						else if (zone == "upper") {
-							channel = MIDI_CHANNEL_MPE_UPPER_ZONE;
-						}
-					}
-					else if (!strcmp(tagName, "ccNumber")) {
-						ccNumber = reader.readTagOrAttributeValueInt();
-					}
-					else if (!strcmp(tagName, "relative")) {
-						relative = reader.readTagOrAttributeValueInt();
-					}
-					else if (!strcmp(tagName, "controlsParam")) {
-						// if the unpatched kind for the current mod controllable is sound then we also want to check
-						// against patched params. Otherwise skip them to avoid a bug from patched volume params having
-						// the same name in files as unpatched global volumes
-						p = params::fileStringToParam(unpatchedParamKind_, reader.readTagOrAttributeValue(),
-						                              unpatchedParamKind_
-						                                  == deluge::modulation::params::Kind::UNPATCHED_SOUND);
-					}
-					else if (!strcmp(tagName, "patchAmountFromSource")) {
-						s = stringToSource(reader.readTagOrAttributeValue());
-					}
-					else if (!strcmp(tagName, "patchAmountFromSecondSource")) {
-						s2 = stringToSource(reader.readTagOrAttributeValue());
-					}
-					reader.exitTag();
-				}
-				reader.match('}'); // close the midiKnob value object.
-
-				if (p != params::GLOBAL_NONE && p != params::PLACEHOLDER_RANGE) {
-					try {
-						MIDIKnob& new_knob = midi_knobs.emplace_back();
-						new_knob.midiInput.cable = cable;
-						new_knob.midiInput.channelOrZone = channel;
-						new_knob.midiInput.noteOrCC = ccNumber;
-						new_knob.relative = relative;
-
-						if (s == PatchSource::NOT_AVAILABLE) {
-							new_knob.target = deluge::modulation::knobParam(p);
-						}
-						else if (s2 == PatchSource::NOT_AVAILABLE) {
-							new_knob.target =
-							    deluge::modulation::knobTargetOf(deluge::synth::CableTarget::depth_of(p, s));
-						}
-						else {
-							new_knob.target =
-							    deluge::modulation::knobTargetOf(deluge::synth::CableTarget::depth_of_depth(p, s, s2));
-						}
-					} catch (deluge::exception e) {
-						if (e == deluge::exception::BAD_ALLOC) {
-							// If we run out of memory, we just ignore the knob
-							// TODO(@stellar-aria): This is bad practice, we should handle this better, but it
-							//  currently follows the previous implementation
-						}
-						else {
-							throw e;
-						}
-					}
-				}
-			}
-			reader.match('}'); // close the box.
-			reader.exitTag(nullptr, true);
+		// The model's codec reads the learned knobs; the song's table takes them once a song holds this owner.
+		if (const deluge::storage::Value* knobs = deluge::storage::treeReaderOf(reader).currentValue()) {
+			loaded_knobs = deluge::bridge::loadedKnobsOf(
+			    *knobs, unpatchedParamKind_ == deluge::modulation::params::Kind::UNPATCHED_SOUND);
 		}
-		reader.match(']'); // close array.
 		reader.exitTag("midiKnobs");
 	}
 
@@ -446,337 +348,6 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 	}
 
 	return Error::NONE;
-}
-
-ModelStackWithAutoParam* ModControllableAudio::getParamFromMIDIKnob(MIDIKnob& knob,
-                                                                    ModelStackWithThreeMainThings* modelStack) {
-
-	ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
-	ParamCollection* paramCollection = summary->paramCollection;
-
-	int32_t param_id = deluge::modulation::knobWord(knob.target).param_index() - params::UNPATCHED_START;
-
-	ModelStackWithParamId* modelStackWithParamId =
-	    modelStack->addParamCollectionAndId(paramCollection, summary, param_id);
-
-	ModelStackWithAutoParam* modelStackWithAutoParam = paramCollection->getAutoParamFromId(modelStackWithParamId);
-
-	return modelStackWithAutoParam;
-}
-
-ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack,
-                                                                             int32_t noteRowIndex) {
-	NoteRow* noteRow = nullptr;
-	int32_t noteRowId = 0;
-	ParamManager* paramManager;
-
-	if (noteRowIndex != -1) {
-		InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
-		if (noteRowIndex >= std::ssize(clip->noteRows)) {
-			FREEZE_WITH_ERROR("E406");
-			// If resumed, fall back to the Clip-level paramManager rather than reading past the end of noteRows
-			return modelStack->addNoteRow(0, nullptr)->addOtherTwoThings(this, &clip->paramManager);
-		}
-		noteRow = &clip->noteRows[noteRowIndex];
-		noteRowId = clip->getNoteRowId(noteRow, noteRowIndex);
-		paramManager = &noteRow->paramManager;
-	}
-	else {
-		if (modelStack->timelineCounterIsSet()) {
-			paramManager = &modelStack->getTimelineCounter()->paramManager;
-		}
-		else {
-			// Null for an owner with none backed up.
-			const std::optional<deluge::bridge::BackupOwner> owner =
-			    deluge::bridge::backupOwnerOf(*this, *modelStack->song);
-			paramManager = owner ? modelStack->song->live.param_backup.getPreferablyWithClip(*owner, nullptr) : nullptr;
-		}
-	}
-
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    modelStack->addNoteRow(noteRowId, noteRow)->addOtherTwoThings(this, paramManager);
-	return modelStackWithThreeMainThings;
-}
-
-namespace {
-
-/// @p owner's learned knobs that @p cc (128 for pitch bend) from @p cable on @p channel moves, copied out of the
-/// index before any is acted on.
-deluge::midi::IndexedHits learnedKnobHits(const deluge::project::ControlsAddress& owner, MIDICable& cable,
-                                          int32_t channel, int32_t cc) {
-	deluge::midi::IndexedHits hits;
-	deluge::midi::mappingIndex().forEachKnob(owner, cable, channel, cc,
-	                                         [&](const deluge::midi::IndexedEntry& hit) { hits.push_back(hit); });
-	return hits;
-}
-
-/// @brief The knob of @p knobs at @p hit's place, or nullptr past their end. In a debug build, a knob that does not
-/// play what @p hit says freezes: the index's places and the owner's knob list are out of step.
-/// @param knobs The owner's learned knobs.
-/// @param hit   The index entry that matched the message.
-/// @return The knob, or nullptr.
-MIDIKnob* knobAt(std::span<MIDIKnob> knobs, const deluge::midi::IndexedEntry& hit) {
-	if (hit.ordinal >= knobs.size()) {
-		return nullptr;
-	}
-	MIDIKnob& knob = knobs[hit.ordinal];
-#if !defined(NDEBUG)
-	if (!deluge::bridge::knobPlays(knob, hit.target, hit.note_or_cc)) {
-		FREEZE_WITH_ERROR("E467");
-	}
-#endif
-	return &knob;
-}
-
-} // namespace
-
-bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(deluge::project::ControlsAddress owner,
-                                                                 MIDICable& cable, uint8_t channel, uint8_t ccNumber,
-                                                                 uint8_t value,
-                                                                 ModelStackWithTimelineCounter* modelStack,
-                                                                 int32_t noteRowIndex) {
-	const deluge::midi::IndexedHits hits = learnedKnobHits(owner, cable, channel, ccNumber);
-	for (const deluge::midi::IndexedEntry& hit : hits) {
-		// A knob's ordinal is its place in the owner's knob list, which holds the owner's knobs in table order.
-		if (MIDIKnob* knob = knobAt(midi_knobs, hit)) {
-			handleLearnedKnob(*knob, cable, value, modelStack, noteRowIndex);
-		}
-	}
-	return !hits.empty();
-}
-
-void ModControllableAudio::handleLearnedKnob(MIDIKnob& knob, MIDICable& cable, uint8_t value,
-                                             ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex) {
-	// See if this message is evidence that the knob is not "relative"
-	if (value >= 16 && value < 112 && knob.relative) {
-		knob.relative = false;
-		deluge::bridge::knobNoLongerRelative(*this, knob, *modelStack->song);
-	}
-
-	int32_t modPos = 0;
-	int32_t modLength = 0;
-	bool isStepEditing = false;
-
-	if (modelStack->timelineCounterIsSet()) {
-		TimelineCounter* timelineCounter = modelStack->getTimelineCounter();
-
-		// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
-		// region.
-		if (view.stepEditRegionHolds(*timelineCounter)) {
-			modPos = view.modPos();
-			modLength = view.modLength();
-			isStepEditing = true;
-		}
-
-		timelineCounter->possiblyCloneForArrangementRecording(modelStack);
-	}
-
-	// Ok, that above might have just changed modelStack->timelineCounter. So we're basically starting from
-	// scratch now from that.
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = addNoteRowIndexAndStuff(modelStack, noteRowIndex);
-
-	ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
-
-	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		int32_t newKnobPos;
-		int32_t currentValue;
-
-		// get current value
-		if (isStepEditing) {
-			currentValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
-		}
-		else {
-			currentValue = modelStackWithParam->autoParam->getCurrentValue();
-		}
-
-		// convert current value to knobPos to compare to cc value being received
-		int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(currentValue, modelStackWithParam);
-
-		// calculate new knob position based on value received and deluge current value
-		newKnobPos = MidiTakeover::calculateKnobPos(cable, knobPos, value, &knob, false, CC_NUMBER_NONE, isStepEditing);
-
-		// is the cc being received for the same value as the current knob pos? If so, do nothing
-		if (newKnobPos == knobPos) {
-			return;
-		}
-
-		// Convert the New Knob Position to a Parameter Value
-		int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
-
-		// Set the new Parameter Value for the MIDI Learned Parameter
-		deluge::edits::Context editCtx{*currentSong, currentSong->project};
-		if (const std::optional<deluge::project::ParamAddress> editAddress =
-		        deluge::edits::addressFor(*modelStackWithParam)) {
-			deluge::edits::SetParamValue edit{*editAddress, newValue, modPos, modLength,
-			                                  deluge::edits::SetParamValue::Resolve::EXACT};
-			deluge::edits::apply(editCtx, edit);
-		}
-
-		// if you're in automation view and editing the same parameter that was just updated
-		// by a learned midi knob, then re-render the pads on the automation editor grid
-		if (getRootUI() == &automationView && !automationView.onArrangerView) {
-			Clip* clip = (Clip*)modelStack->getTimelineCounter();
-			// check that the clip that the param is being edited for is the same as the
-			// current clip as the current clip is what's actively displayed in automation view
-			if (clip == getCurrentClip()) {
-				// pass the current clip because you want to check that you're editing the param
-				// for the same clip active in automation view
-				int32_t id = modelStackWithParam->paramId;
-				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-				automationView.possiblyRefreshAutomationEditorGrid(clip, kind, id);
-			}
-		}
-	}
-}
-
-bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
-    MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
-    ModelStackWithThreeMainThings* modelStackWithThreeMainThings) {
-	const deluge::midi::IndexedHits hits =
-	    learnedKnobHits({deluge::project::ControlsAddress::Kind::SONG, 0}, cable, channel, ccNumber);
-	for (const deluge::midi::IndexedEntry& hit : hits) {
-		if (MIDIKnob* knob = knobAt(midi_knobs, hit)) {
-			handleLearnedKnob(*knob, cable, value, modelStackWithThreeMainThings);
-		}
-	}
-	return !hits.empty();
-}
-
-void ModControllableAudio::handleLearnedKnob(MIDIKnob& knob, MIDICable& cable, uint8_t value,
-                                             ModelStackWithThreeMainThings* modelStackWithThreeMainThings) {
-	// See if this message is evidence that the knob is not "relative"
-	if (value >= 16 && value < 112 && knob.relative) {
-		knob.relative = false;
-		deluge::bridge::knobNoLongerRelative(*this, knob, *modelStackWithThreeMainThings->song);
-	}
-
-	int32_t modPos = 0;
-	int32_t modLength = 0;
-	bool isStepEditing = false;
-
-	if (modelStackWithThreeMainThings->timelineCounterIsSet()) {
-		TimelineCounter* timelineCounter = modelStackWithThreeMainThings->getTimelineCounter();
-
-		// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
-		// region.
-		if (view.stepEditRegionHolds(*timelineCounter)) {
-			modPos = view.modPos();
-			modLength = view.modLength();
-			isStepEditing = true;
-		}
-	}
-
-	ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
-
-	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		int32_t newKnobPos;
-		int32_t currentValue;
-
-		// get current value
-		if (isStepEditing) {
-			currentValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
-		}
-		else {
-			currentValue = modelStackWithParam->autoParam->getCurrentValue();
-		}
-
-		// convert current value to knobPos to compare to cc value being received
-		int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(currentValue, modelStackWithParam);
-
-		// calculate new knob position based on value received and deluge current value
-		newKnobPos = MidiTakeover::calculateKnobPos(cable, knobPos, value, &knob, false, CC_NUMBER_NONE, isStepEditing);
-
-		// is the cc being received for the same value as the current knob pos? If so, do nothing
-		if (newKnobPos == knobPos) {
-			return;
-		}
-
-		// Convert the New Knob Position to a Parameter Value
-		int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
-
-		// Set the new Parameter Value for the MIDI Learned Parameter
-		deluge::edits::Context editCtx{*currentSong, currentSong->project};
-		if (const std::optional<deluge::project::ParamAddress> editAddress =
-		        deluge::edits::addressFor(*modelStackWithParam)) {
-			deluge::edits::SetParamValue edit{*editAddress, newValue, modPos, modLength,
-			                                  deluge::edits::SetParamValue::Resolve::EXACT};
-			deluge::edits::apply(editCtx, edit);
-		}
-
-		// check if you're currently editing the same learned param in automation view or
-		// performance view if so, you will need to refresh the automation editor grid or the
-		// performance view
-		RootUI* rootUI = getRootUI();
-		if (rootUI == &automationView || rootUI == &performanceView) {
-			int32_t id = modelStackWithParam->paramId;
-			params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-
-			if (rootUI == &automationView) {
-				automationView.possiblyRefreshAutomationEditorGrid(nullptr, kind, id);
-			}
-			else {
-				performanceView.possiblyRefreshPerformanceViewDisplay(kind, id, newKnobPos);
-			}
-		}
-	}
-}
-
-// Returns true if the message was used by something
-bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(deluge::project::ControlsAddress owner,
-                                                                 MIDICable& cable, uint8_t channel, uint8_t data1,
-                                                                 uint8_t data2,
-                                                                 ModelStackWithTimelineCounter* modelStack,
-                                                                 int32_t noteRowIndex) {
-	// 128 stands for pitch bend among a knob's CC numbers.
-	const deluge::midi::IndexedHits hits = learnedKnobHits(owner, cable, channel, 128);
-	for (const deluge::midi::IndexedEntry& hit : hits) {
-		MIDIKnob* knob = knobAt(midi_knobs, hit);
-		if (knob != nullptr && handleLearnedPitchBend(*knob, data1, data2, modelStack, noteRowIndex)) {
-			return true;
-		}
-	}
-	return !hits.empty();
-}
-
-bool ModControllableAudio::handleLearnedPitchBend(MIDIKnob& knob, uint8_t data1, uint8_t data2,
-                                                  ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex) {
-	// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
-	// region.
-	int32_t modPos = 0;
-	int32_t modLength = 0;
-
-	if (modelStack->timelineCounterIsSet()) {
-		TimelineCounter* timelineCounter = modelStack->getTimelineCounter();
-		if (view.stepEditRegionHolds(*timelineCounter)) {
-			modPos = view.modPos();
-			modLength = view.modLength();
-		}
-
-		timelineCounter->possiblyCloneForArrangementRecording(modelStack);
-	}
-
-	// Ok, that above might have just changed modelStack->timelineCounter. So we're basically starting from
-	// scratch now from that.
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = addNoteRowIndexAndStuff(modelStack, noteRowIndex);
-
-	ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
-
-	if (modelStackWithParam == nullptr || modelStackWithParam->autoParam == nullptr) {
-		return false;
-	}
-
-	uint32_t value14 = (uint32_t)data1 | ((uint32_t)data2 << 7);
-
-	int32_t newValue = (value14 << 18) - 2147483648;
-
-	deluge::edits::Context editCtx{*currentSong, currentSong->project};
-	if (const std::optional<deluge::project::ParamAddress> editAddress =
-	        deluge::edits::addressFor(*modelStackWithParam)) {
-		deluge::edits::SetParamValue edit{*editAddress, newValue, modPos, modLength,
-		                                  deluge::edits::SetParamValue::Resolve::EXACT};
-		deluge::edits::apply(editCtx, edit);
-	}
-	return true;
 }
 
 const uint32_t stutterUIModes[] = {UI_MODE_CLIP_PRESSED_IN_SONG_VIEW, UI_MODE_HOLDING_ARRANGEMENT_ROW,
@@ -886,50 +457,4 @@ bool ModControllableAudio::setModFXType(ModFXType newType) {
 	// the next effects edit.
 	assignModFXType(newType);
 	return true;
-}
-
-// whichKnob is either which physical mod knob, or which MIDI CC code.
-// For mod knobs, supply midiChannel as 255
-// Returns false if fail due to insufficient RAM.
-bool ModControllableAudio::learnKnob(MIDICable* cable, deluge::modulation::KnobTarget target, uint8_t whichKnob,
-                                     uint8_t modKnobMode, uint8_t midiChannel, Song* song) {
-	// If a mod knob
-	if (midiChannel >= 16) {
-		return false;
-	}
-
-	// Was there a MIDI knob already set to control this thing?
-	auto result = std::ranges::find_if(midi_knobs, [&](const MIDIKnob& knob) -> bool {
-		return knob.midiInput.equalsNoteOrCC(cable, midiChannel, whichKnob) && target == knob.target;
-	});
-
-	try {
-		MIDIKnob& knob = result != midi_knobs.end()
-		                     ? *result                    // If it already exists, use that one
-		                     : midi_knobs.emplace_back(); // If it doesn't exist, create a new one
-		knob.midiInput.noteOrCC = whichKnob;
-		knob.midiInput.channelOrZone = midiChannel;
-		knob.midiInput.cable = cable;
-		knob.target = target;
-		knob.relative = (whichKnob != 128); // Guess that it's relative, unless this is a pitch-bend "knob"
-		return true;
-
-	} catch (...) {
-		return false;
-	}
-}
-
-// Returns whether anything was found to unlearn
-bool ModControllableAudio::unlearnKnobs(deluge::modulation::KnobTarget target, Song* song) {
-	// I've deactivated the unlearning of mod knobs, mainly because, if you want to unlearn a MIDI knob, you might not
-	// want to also deactivate a mod knob to the same param at the same time
-	size_t erased = std::erase_if(midi_knobs, [&](const MIDIKnob& knob) -> bool {
-		return knob.target == target; //<
-	});
-
-	if (erased > 0) {
-		ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(song);
-	}
-
-	return erased > 0;
 }

@@ -56,11 +56,11 @@ struct DxRig {
 	Sound* sound = nullptr;
 
 	DxRig() {
-		currentSong = song.song;
+		deluge::scenes::spec::make_current(song.song);
 		sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
 		sound->sources[0].setOscType(OscType::DX7);
 	}
-	~DxRig() { currentSong = saved; }
+	~DxRig() { deluge::scenes::spec::make_current(saved); }
 	DxRig(const DxRig&) = delete;
 	DxRig& operator=(const DxRig&) = delete;
 

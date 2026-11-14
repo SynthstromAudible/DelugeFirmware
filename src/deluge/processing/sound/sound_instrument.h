@@ -39,21 +39,6 @@ public:
 	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
 	                  bool isClipActive) override;
 
-	// A timelineCounter is required
-	void offerReceivedCCToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
-	                                    ModelStackWithTimelineCounter* modelStack) override {
-		if (id()) {
-			Sound::offerReceivedCCToLearnedParamsForClip({deluge::project::ControlsAddress::Kind::OUTPUT, *id()}, cable,
-			                                             channel, ccNumber, value, modelStack);
-		}
-	}
-	bool offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
-	                                           ModelStackWithTimelineCounter* modelStack) override {
-		return id()
-		       && Sound::offerReceivedPitchBendToLearnedParams({deluge::project::ControlsAddress::Kind::OUTPUT, *id()},
-		                                                       cable, channel, data1, data2, modelStack);
-	}
-
 	deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) override;
 	void resyncLFOs(bool reset_state = false) override;
 	ModControllable* toModControllable() override;

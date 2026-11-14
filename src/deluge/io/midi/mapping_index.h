@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "controls/takeover.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/mapping_table.h"
@@ -45,8 +46,8 @@ struct IndexedEntry {
 	/// The cable the binding listens to when inputs are told apart by device: nullptr for any device, and
 	/// MappingIndex::absentDevice() for a device the Deluge has no cable for, which no message arrives on.
 	MIDICable* cable{};
-	/// Its place: a section's number, a clip's index in the session, a knob's place in its owner's list of learned
-	/// knobs (table order, as the owner's knob list holds them), a row's place in its kit.
+	/// Its place: a section's number, a clip's index in the session, a knob's place among its owner's table entries
+	/// (table order, the order its hits are offered in), a row's place in its kit.
 	uint32_t ordinal{0};
 };
 
@@ -107,6 +108,7 @@ private:
 		uint8_t channel;
 		project::ControlsAddress owner;
 		IndexedEntry entry;
+		project::MidiCommand source; ///< what it is learned to, which its takeover state is kept by
 	};
 	/// A kit row's input or mute. Sorted by kit, channel, the row's place, then input before mute.
 	struct Lane {
@@ -158,12 +160,35 @@ public:
 	template <class Fn>
 	void forEachKnob(const project::ControlsAddress& owner, MIDICable& from, int32_t channel, int32_t cc,
 	                 Fn&& fn) const {
+		forEachKnobWithSource(owner, from, channel, cc,
+		                      [&](const IndexedEntry& entry, const project::MidiCommand& /*source*/) { fn(entry); });
+	}
+
+	/// @brief Whether any owner has a learned knob that a CC (or, as 128, a pitch bend) @p cc from @p from on
+	/// @p channel moves, as forEachKnob matches it.
+	/// @param from    The cable the MIDI came from.
+	/// @param channel The incoming channel.
+	/// @param cc      The CC number, or 128 for pitch bend.
+	/// @return True if one does.
+	[[nodiscard]] bool anyKnob(MIDICable& from, int32_t channel, int32_t cc) const {
+		const auto [first, last] =
+		    std::ranges::equal_range(knobs_, channel, {}, [](const Knob& k) { return int32_t{k.channel}; });
+		return std::ranges::any_of(
+		    first, last, [&](const Knob& k) { return k.entry.note_or_cc == cc && fromDevice(k.entry, from); });
+	}
+
+	/// @brief As forEachKnob, with each hit's source too: what the knob is learned to, which its takeover state is kept
+	/// by.
+	/// @param fn Called with each IndexedEntry hit and its source, in order.
+	template <class Fn>
+	void forEachKnobWithSource(const project::ControlsAddress& owner, MIDICable& from, int32_t channel, int32_t cc,
+	                           Fn&& fn) const {
 		const auto key = std::tuple{channel, owner.kind, owner.id};
 		const auto [first, last] = std::ranges::equal_range(
 		    knobs_, key, {}, [](const Knob& k) { return std::tuple{int32_t{k.channel}, k.owner.kind, k.owner.id}; });
 		for (auto it = first; it != last; ++it) {
 			if (it->entry.note_or_cc == cc && fromDevice(it->entry, from)) {
-				fn(it->entry);
+				fn(it->entry, it->source);
 			}
 		}
 	}
@@ -239,6 +264,11 @@ private:
 
 /// @brief The index of the current song's bindings.
 MappingIndex& mappingIndex();
+
+/// @brief The takeover state of the current song's learned knobs, kept beside its index. App loop only: the render's
+/// table writes reach it only when the app loop applies them (bridge::applyPendingMappingOps). Emptied at the first
+/// call after another song is made current (markSongChanged), and when the current song's mappings are loaded.
+controls::TakeoverStore& takeoverStore();
 
 /// @brief [task] Bring the index into line with @p song's mapping table, when @p song is the current song. Excludes the
 /// render only while it applies the table writes the render held (bridge::applyPendingMappingOps) and copies the

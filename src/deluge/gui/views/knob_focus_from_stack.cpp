@@ -1,6 +1,7 @@
 #include "gui/views/knob_focus_from_stack.h"
 
 #include "model/clip/clip.h"
+#include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -115,6 +116,23 @@ controls::KnobFocus knobFocusFromStack(::Song& song, const ModelStackWithThreeMa
 		focus.owner = controls::SongFocus{};
 	}
 	return focus;
+}
+
+controls::KnobFocus knobFocusOfClip(::Clip& clip) {
+	if (clip.output == nullptr) {
+		return {};
+	}
+	if (clip.output->type != OutputType::KIT || static_cast<::InstrumentClip&>(clip).affectEntire) {
+		return outputFocus(*clip.output, &clip);
+	}
+	// Without affect-entire a kit's knobs are its selected sound row's, which the clip has a note row for.
+	auto& kit = static_cast<::Kit&>(*clip.output);
+	::Drum* selected = kit.selectedDrum;
+	if (selected == nullptr || selected->type != DrumType::SOUND
+	    || static_cast<::InstrumentClip&>(clip).getNoteRowForDrum(selected) == nullptr) {
+		return {};
+	}
+	return drumFocus(kit, *static_cast<::SoundDrum*>(selected), &clip);
 }
 
 } // namespace deluge::gui

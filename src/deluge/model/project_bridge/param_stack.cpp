@@ -345,6 +345,20 @@ ModelStackWithAutoParam* paramStackForWrite(::Song& song, project::ParamAddress&
 	return paramInOwner(ownerOrBackedStack(song, address, memory), address, true, true);
 }
 
+std::optional<uint32_t> takeFor(::Song& song, uint32_t output_id) {
+	for (::Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
+		if (output->id() == output_id) {
+			::Clip* active = output->getActiveClip();
+			if (active == nullptr) {
+				return std::nullopt;
+			}
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+			return takeOf(song, *active, true, memory)->id();
+		}
+	}
+	return std::nullopt;
+}
+
 ModelStackWithAutoParam* paramStackExact(::Song& song, const project::ParamAddress& address, void* memory) {
 	return paramInOwner(ownerOrBackedStack(song, address, memory), address, true, false);
 }
@@ -396,6 +410,15 @@ bool grabRegionAt(::Song& song, const project::ParamAddress& owner, uint32_t pos
 ModelStackWithAutoParam* paramStackFollowingTake(::Song& song, const project::ParamAddress& address, void* memory) {
 	const project::ParamAddress followed = followingTake(song, address, memory);
 	return paramInOwner(ownerOrBackedStack(song, followed, memory), followed, false, false);
+}
+
+std::optional<ParamLane> paramLaneFollowingTake(::Song& song, const project::ParamAddress& address) {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	const ModelStackWithAutoParam* stack = paramStackFollowingTake(song, address, memory);
+	if (stack == nullptr || stack->paramCollection == nullptr) {
+		return std::nullopt;
+	}
+	return ParamLane{.kind = stack->paramCollection->getParamKind(), .id = stack->paramId};
 }
 
 std::optional<int32_t> paramValueAt(::Song& song, const project::ParamAddress& address, uint32_t pos) {

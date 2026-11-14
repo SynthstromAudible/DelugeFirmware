@@ -146,7 +146,7 @@ void MappingIndex::clear() {
 void MappingIndex::rebuild(MappingSnapshot snapshot) {
 	clear();
 	const Awake awake{snapshot};
-	// Each owner's knobs in table order: the place of each in its owner's knob list. Sorted by owner.
+	// Each owner's knobs in table order: the place of each among its owner's entries. Sorted by owner.
 	std::vector<std::pair<ControlsAddress, uint32_t>> knobCounts;
 	const auto nextOrdinal = [&](ControlsAddress owner) {
 		const auto key = [](const std::pair<ControlsAddress, uint32_t>& count) {
@@ -165,7 +165,8 @@ void MappingIndex::rebuild(MappingSnapshot snapshot) {
 			    if constexpr (std::is_same_v<T, project::OwnerParamTarget>) {
 				    const uint32_t ordinal = nextOrdinal(target.owner);
 				    if (mapping.source.contains_something() && awake.hasOwner(target.owner)) {
-					    knobs_.push_back({mapping.source.channel_or_zone, target.owner, entryOf(mapping, ordinal)});
+					    knobs_.push_back(
+					        {mapping.source.channel_or_zone, target.owner, entryOf(mapping, ordinal), mapping.source});
 				    }
 			    }
 			    else if constexpr (std::is_same_v<T, project::SectionLaunchTarget>) {
@@ -208,6 +209,18 @@ void MappingIndex::rebuild(MappingSnapshot snapshot) {
 MappingIndex& mappingIndex() {
 	static MappingIndex index;
 	return index;
+}
+
+controls::TakeoverStore& takeoverStore() {
+	static controls::TakeoverStore store;
+	static uint32_t generation = 0;
+	// Another song is current (the old one freed and the new built at its address, or not): its knobs' states are not
+	// the store's.
+	if (generation != songGeneration()) {
+		store.clear();
+		generation = songGeneration();
+	}
+	return store;
 }
 
 void rebuildMappingIndex(::Song& song) {

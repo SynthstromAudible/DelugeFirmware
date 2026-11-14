@@ -38,7 +38,7 @@ struct CoherenceChecks {
 	bool runtime = true;       ///< the runtime's state == the record (dump_state of seededState() vs the bound state)
 	bool bound = true;         ///< the sound plays its slot's state: the record's, not a copy of it
 	bool snapshot = true;      ///< the snapshot == projectSnapshot() of the record
-	bool controls = true;      ///< the owner's controls record and its table knobs == the runtime's knobs
+	bool controls = true;      ///< its controls record == its mod knobs; no learned knob outside the table
 	bool decode = true;        ///< the record encoded at the slot's magnitude, then decoded == the record
 	bool chains = true;        ///< each host chain (a kit's, an audio track's, the master's) == its owner's encoding
 	bool song_settings = true; ///< every setting group's record == its engine copy (songSettingsIncoherence)
@@ -81,12 +81,23 @@ std::string songSettingsIncoherence(::Song& song);
 
 /// @brief Find the first MIDI binding of an owner @p song holds (the song's knobs; each output's, playing or
 ///        hibernating, with a kit's rows; each clip) whose mapping-table entries differ from the engine field that
-///        plays them: an owner's learned knob list (in order, by param, relative flag and what each plays), a track's
-///        or a kit row's input, a kit row's or a clip's mute. Commands compare by what they play (cable, channel or
-///        zone, note or CC), so an entry naming a device that is not connected agrees with a field with no cable.
+///        plays them: a track's or a kit row's input, a kit row's or a clip's mute; or whose owner holds learned
+///        knobs outside the table, which holds them alone; then knobIndexIncoherence(). Commands compare by what they
+///        play (cable, channel or zone, note or CC), so an entry naming a device that is not connected agrees with a
+///        field with no cable.
 /// @param song The song.
-/// @return The break as "MAPPINGS <kind> <owner id>: table=<a> engine=<b>", or empty if every binding agrees.
+/// @return The break as "MAPPINGS <kind> <owner id>: table=<a> engine=<b>" (outside=<b> for knobs), or empty if every
+///         binding agrees.
 std::string mappingIncoherence(::Song& song);
+
+/// @brief Find the first learned knob of @p song's table that the mapping index does not play as the table holds it:
+///        rebuilt, the index must play each knob of the song, of an output in the song's main list and of such a kit's
+///        rows, as its own target and relative flag; and an index not marked stale must play what the rebuild does (a
+///        table write that left it stale unmarked breaks this). Rebuilds the index. A song that is not current breaks
+///        nothing.
+/// @param song The song.
+/// @return The break as "MAPPINGS KNOB_INDEX <owner kind> <id> knob <param>=<source>: <what>", or empty.
+std::string knobIndexIncoherence(::Song& song);
 
 /// @brief Find the first of @p paths at @p address whose record differs from its engine copy.
 /// @param song    The song.

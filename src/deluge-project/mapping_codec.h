@@ -24,6 +24,7 @@
 
 #include <cstdint>
 #include <variant>
+#include <vector>
 
 namespace deluge::project {
 
@@ -62,6 +63,17 @@ using MappingOwner = std::variant<ControlsAddress, ClipOwner, DrumOwner, TrackOw
 /// @param naming  How the owner's engine names its params.
 void decode_mappings(const serialization::Value& element, MappingOwner owner, MappingTable& table,
                      const deluge::plugin::ParamNaming* naming = nullptr);
+
+/// @brief The learned knobs an owner's `midiKnobs` element holds, as @p owner's entries in file order: each knob's
+/// `channel` or `mpeZone`, `ccNumber`, `relative`, `device`, and the param @p naming gives its `controlsParam` and
+/// patch sources, moved by @p naming's mod-knob rule when it has one (a sound's knob on a volume turns the one the
+/// runtime uses). A knob @p naming names no param for is left out.
+/// @param element The owner's `midiKnobs` element.
+/// @param owner   Whose knobs these are.
+/// @param naming  How the owner's engine names its params.
+/// @return The knobs.
+[[nodiscard]] std::vector<Mapping> decode_knobs(const serialization::Value& element, ControlsAddress owner,
+                                                const deluge::plugin::ParamNaming& naming);
 
 /// @brief Write @p owner's bindings in @p table into @p element as decode_mappings reads them.
 /// @param table   The table holding them.

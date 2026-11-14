@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/controller_mapping.h"
+#include "deluge-project/mapping_table.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "effects/delay.h"
 #include "hid/button.h"
@@ -26,21 +27,23 @@
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "model/snapshot/mod_controllable_snapshot.h"
-#include "modulation/knob.h"
+#include "modulation/knob_target.h"
 #include "modulation/params/param_set.h"
+#include "modulation/sync.h"
 #include "synth/modulation/cable.h"
 #include "synth/modulation/lfo.h"
 #include "util/functions.h"
 #include <optional>
+#include <vector>
 
 #include "effects/chain_core.h"
 #include "effects/state.h"
 #include "plugin-api/plugin.h"
 
+class ArpeggiatorSettings;
 class Clip;
 class GlobalEffectable;
 class Sound;
-class Knob;
 class MIDICable;
 class ModelStack;
 class ModelStackWithTimelineCounter;
@@ -71,7 +74,7 @@ public:
 	                     std::optional<int32_t> compressorThreshold = std::nullopt);
 	/// @brief Writes the learned MIDI knobs' tag, which a file writes between the delay and the other effect tags: the
 	/// knobs @p song's mapping table holds for @p owner, in table order. An owner @p song does not hold (a preset
-	/// loaded outside it) has no table, so its own knob list is written.
+	/// loaded outside it) writes those it holds outside a table (loaded_knobs), and none when it holds none.
 	/// @param writer Destination.
 	/// @param song   The song being saved, or the one a preset is saved from; nullptr when there is none.
 	/// @param owner  Whose controls these are, if known.
@@ -168,80 +171,34 @@ public:
 	void setCompressorSidechainHpf(int32_t value);
 	void setCompressorBlend(int32_t value);
 	/// @}
-	/// @brief Move the params of this owner's learned knobs that a CC moves, found through the mapping index.
-	/// @param owner        Whose knobs these are, as the mapping table names them.
-	/// @param cable        The cable the CC came from.
-	/// @param channel      The CC's channel.
-	/// @param ccNumber     The CC number.
-	/// @param value        The CC's value.
-	/// @param modelStack   The owner's clip; a learned param may clone it for arrangement recording.
-	/// @param noteRowIndex The kit row's place in the clip, for a kit row's knobs; -1 otherwise.
-	/// @return Whether any knob was learned to the CC.
-	bool offerReceivedCCToLearnedParamsForClip(deluge::project::ControlsAddress owner, MIDICable& cable,
-	                                           uint8_t channel, uint8_t ccNumber, uint8_t value,
-	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
-	/// @brief Move the params of the song's learned knobs that a CC moves, found through the mapping index.
-	/// @param cable                         The cable the CC came from.
-	/// @param channel                       The CC's channel.
-	/// @param ccNumber                      The CC number.
-	/// @param value                         The CC's value.
-	/// @param modelStackWithThreeMainThings The song, as its own timeline counter.
-	/// @return Whether any knob was learned to the CC.
-	bool offerReceivedCCToLearnedParamsForSong(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
-	                                           ModelStackWithThreeMainThings* modelStackWithThreeMainThings);
-	/// @brief Set the param of this owner's first learned knob that a pitch bend moves (a knob learned to CC 128),
-	/// found through the mapping index.
-	/// @param owner        Whose knobs these are, as the mapping table names them.
-	/// @param cable        The cable the bend came from.
-	/// @param channel      The bend's channel.
-	/// @param data1        The bend's low seven bits.
-	/// @param data2        The bend's high seven bits.
-	/// @param modelStack   The owner's clip; a learned param may clone it for arrangement recording.
-	/// @param noteRowIndex The kit row's place in the clip, for a kit row's knobs; -1 otherwise.
-	/// @return Whether any knob was learned to pitch bend.
-	bool offerReceivedPitchBendToLearnedParams(deluge::project::ControlsAddress owner, MIDICable& cable,
-	                                           uint8_t channel, uint8_t data1, uint8_t data2,
-	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
-	/// @brief Move @p knob's param to where a CC of @p value puts it, under the MIDI takeover mode; a value in the
-	/// middle of the range marks the knob as not sending relative changes.
-	/// @param knob         One of this owner's learned knobs, which the CC was learned to.
-	/// @param cable        The cable the CC came from.
-	/// @param value        The CC's value.
-	/// @param modelStack   The owner's clip; the param may clone it for arrangement recording.
-	/// @param noteRowIndex The kit row's place in the clip, for a kit row's knobs; -1 otherwise.
-	void handleLearnedKnob(MIDIKnob& knob, MIDICable& cable, uint8_t value, ModelStackWithTimelineCounter* modelStack,
-	                       int32_t noteRowIndex);
-	/// @brief The song's handleLearnedKnob: no clip to clone, and the views showing the param are refreshed.
-	/// @param knob                          One of the song's learned knobs, which the CC was learned to.
-	/// @param cable                         The cable the CC came from.
-	/// @param value                         The CC's value.
-	/// @param modelStackWithThreeMainThings The song, as its own timeline counter.
-	void handleLearnedKnob(MIDIKnob& knob, MIDICable& cable, uint8_t value,
-	                       ModelStackWithThreeMainThings* modelStackWithThreeMainThings);
-	/// @brief Set @p knob's param from a pitch bend's 14-bit value.
-	/// @param knob         One of this owner's learned knobs, which pitch bend was learned to.
-	/// @param data1        The bend's low seven bits.
-	/// @param data2        The bend's high seven bits.
-	/// @param modelStack   The owner's clip; the param may clone it for arrangement recording.
-	/// @param noteRowIndex The kit row's place in the clip, for a kit row's knobs; -1 otherwise.
-	/// @return Whether the knob's param exists, and was set.
-	bool handleLearnedPitchBend(MIDIKnob& knob, uint8_t data1, uint8_t data2, ModelStackWithTimelineCounter* modelStack,
-	                            int32_t noteRowIndex);
-	/// Learna knob to a particular parameter.
-	///
-	/// @param cable The source MIDI cable, or null if learning a mod knob
-	virtual bool learnKnob(MIDICable* cable, deluge::modulation::KnobTarget target, uint8_t whichKnob,
-	                       uint8_t modKnobMode, uint8_t midiChannel, Song* song);
-	bool unlearnKnobs(deluge::modulation::KnobTarget target, Song* song);
+	/// @brief Learn mod knob @p whichKnob of mode @p modKnobMode to @p target. Only a sound has mod knobs; a learned
+	/// MIDI knob lives in the song's mapping table.
+	/// @param target      The param the knob turns.
+	/// @param whichKnob   The mod knob: 0 lower, 1 upper.
+	/// @param modKnobMode The mod knob mode it is learned in.
+	/// @param song        The song the owner belongs to, or nullptr.
+	/// @return Whether the knob was learned.
+	virtual bool learnModKnob(deluge::modulation::KnobTarget target, uint8_t whichKnob, uint8_t modKnobMode,
+	                          Song* song) {
+		return false;
+	}
 	virtual void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {} // Song may be NULL
-	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) override;
 
 	/// @brief The effect components every owner has, in its chain: a sound's, a clip chain's or the master's.
 	/// @return The chain's core.
 	[[nodiscard]] virtual deluge::effects::ChainCore& core() = 0;
 	[[nodiscard]] virtual const deluge::effects::ChainCore& core() const = 0;
 
-	deluge::fast_vector<MIDIKnob> midi_knobs{};
+	/// @brief The learned knobs this owner holds outside a song's table: those its file's `midiKnobs` read, in file
+	/// order, each target's owner a placeholder. The table takes them when the owner joins a song (a song's load, an
+	/// arrival, a preset change's hand-over), and they are emptied then; an owner a song holds keeps its knobs in the
+	/// table alone. A save of an owner no song holds writes these.
+	std::vector<deluge::project::Mapping> loaded_knobs{};
+
+	/// @brief The output whose learned knobs this one, a clone the render made, takes in the table, until the app loop
+	/// copies them there (bridge::cloneOutputMappings). Should the render's held copy be lost, the drain that finds the
+	/// loss copies them from it, before any held forget lands.
+	std::optional<uint32_t> knobs_cloned_from{};
 
 private:
 	/// The binding that holds this owner's settings and the render's copy; set first in each owner's constructor.
@@ -264,8 +221,4 @@ protected:
 	/// This should be UNPATCHED_GLOBAL for GlobalEffectable and UNPATCHED_SOUND for Sound. If a new ModControllable
 	/// subclass is
 	deluge::modulation::params::Kind unpatchedParamKind_;
-
-private:
-	ModelStackWithThreeMainThings* addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack,
-	                                                       int32_t noteRowIndex);
 };

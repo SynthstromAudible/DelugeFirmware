@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
@@ -87,6 +88,20 @@ public:
 	[[nodiscard]] bool clip_recording_linearly(project::ClipAddress /*clip*/) const override { return false; }
 	[[nodiscard]] bool stutter_active() const override { return false; }
 	[[nodiscard]] bool alt_delay() const override { return false; }
+	[[nodiscard]] std::span<const controls::PlayingOutput> playing_outputs() const override { return {}; }
+	[[nodiscard]] std::span<const controls::KitRow> sound_rows(uint32_t /*clip_id*/) const override { return {}; }
+	[[nodiscard]] controls::TakeoverInputs takeover_inputs(bool cable_relative) const override {
+		return {.cable_relative = cable_relative};
+	}
+	[[nodiscard]] std::optional<std::pair<int32_t, int32_t>>
+	step_region(std::optional<uint32_t> /*clip_id*/) const override {
+		return std::nullopt;
+	}
+	[[nodiscard]] bool param_automated(const project::ParamAddress& /*address*/) const override { return false; }
+	[[nodiscard]] std::optional<int32_t> clip_param_value(const project::ParamAddress& /*address*/,
+	                                                      std::optional<uint32_t> /*pos*/) const override {
+		return std::nullopt;
+	}
 	[[nodiscard]] std::optional<int32_t> param_value_at(const project::ParamAddress& /*address*/,
 	                                                    uint32_t /*pos*/) const override {
 		return std::nullopt;

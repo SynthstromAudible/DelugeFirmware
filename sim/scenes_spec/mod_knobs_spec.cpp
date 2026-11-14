@@ -41,9 +41,10 @@
 #include "scenes/registry.h"
 #include "scenes/services/mod_knobs.h"
 
+#include "controls/knob_math.h"
+
 #include "gui/views/knob_focus_from_stack.h"
 #include "scenes/bind/knob_assignment.h"
-#include "scenes/bind/knob_math.h"
 
 #include "shell/input_lowering.h"
 #include "shell/profiles/deluge.h"
@@ -634,10 +635,10 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			for (const int32_t pos : positions) {
 				for (const int32_t offset : offsets) {
 					const int32_t legacy = view.calculateKnobPosForModEncoderTurn(kind, pos, offset);
-					const auto knob = kind == Kind::PATCH_CABLE ? deluge::scenes::bind::KnobKind::CABLE
-					                  : kind == Kind::MIDI      ? deluge::scenes::bind::KnobKind::MIDI_CC
-					                                            : deluge::scenes::bind::KnobKind::PARAM;
-					const int32_t port = deluge::scenes::bind::turn(knob, pos, offset);
+					const auto knob = kind == Kind::PATCH_CABLE ? deluge::controls::KnobKind::CABLE
+					                  : kind == Kind::MIDI      ? deluge::controls::KnobKind::MIDI_CC
+					                                            : deluge::controls::KnobKind::PARAM;
+					const int32_t port = deluge::controls::turn(knob, pos, offset);
 					if (legacy != port) {
 						// Name the disagreeing triple rather than just "false is not true".
 						const std::string where = "kind=" + std::to_string(static_cast<int>(kind))
@@ -656,7 +657,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	it("folds a patch cable's position exactly as View::convertPatchCableKnobPosToIndicatorLevel does", _ {
 		for (int32_t pos = -192; pos <= 192; pos++) {
 			const int32_t legacy = view.convertPatchCableKnobPosToIndicatorLevel(pos);
-			const int32_t port = deluge::scenes::bind::fold_cable(pos);
+			const int32_t port = deluge::controls::fold_cable(pos);
 			if (legacy != port) {
 				expect("pos=" + std::to_string(pos) + " port=" + std::to_string(port)).to_equal(
 				    "pos=" + std::to_string(pos) + " legacy=" + std::to_string(legacy));

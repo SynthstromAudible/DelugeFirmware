@@ -25,6 +25,7 @@
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/mapping_table.h"
 #include "deluge-project/midi_command.h"
+#include "serialization/value.h"
 
 #include <cstdint>
 #include <optional>
@@ -33,7 +34,6 @@
 
 class Drum;
 class Kit;
-class MIDIKnob;
 class ModControllableAudio;
 class Output;
 class Song;
@@ -45,30 +45,53 @@ namespace deluge::bridge {
 /// @param mapping The binding, not a knob.
 void recordLoadedMapping(::Song& song, const deluge::project::Mapping& mapping);
 
-/// @brief The runtime's learned knobs of @p knobs as @p owner's table entries, in the runtime's order.
-/// @param owner   Whose knobs.
-/// @param knobs   The runtime owner holding them.
-/// @param isSound Whether @p knobs is a sound (its unpatched params are a sound's).
-/// @return The entries.
-[[nodiscard]] std::vector<deluge::project::Mapping> knobsOf(deluge::project::ControlsAddress owner,
-                                                            const ::ModControllableAudio& knobs, bool isSound);
+/// @brief The learned knobs an owner's `midiKnobs` element holds, read by the model's codec with the naming of the
+/// owner's engine (the Deluge instrument's for a sound, the global effectable's otherwise), each target's owner a
+/// placeholder the table's taking re-addresses. Each device is named as the cable it resolves to names itself: one is
+/// found, or made, in the device list, as a load always has.
+/// @param element The owner's `midiKnobs` element.
+/// @param isSound Whether the owner is a sound.
+/// @return The knobs, in file order.
+[[nodiscard]] std::vector<deluge::project::Mapping> loadedKnobsOf(const deluge::serialization::Value& element,
+                                                                  bool isSound);
 
-/// @brief Put into @p song's table each binding @p output brings into it that the table holds nothing for: its learned
-/// knobs, its input, and a kit's rows' knobs, mutes and inputs, as the runtime read them.
+/// @brief Whether output @p output has learned knobs a preset change hands over to the instrument replacing it: an
+/// engine param's knob @p song's table holds for it, or a knob it holds outside the table. The writes the render held
+/// land first.
+/// @param song   The song.
+/// @param output The instrument being replaced.
+/// @return True if it has any.
+[[nodiscard]] bool handsOverKnobs(::Song& song, ::Output& output);
+
+/// @brief Whether a learned knob of @p owner turns @p param: one it holds outside the table, or one @p song's table
+/// holds at @p address when @p song holds @p owner there, or nothing there (an owner a preset change hands knobs to
+/// before it joins the song's lists).
+/// @param song    The song, or null for none.
+/// @param owner   The knobs' owner.
+/// @param address The owner's own address (its id's), if it has one.
+/// @param param   The param.
+/// @return True if one does.
+[[nodiscard]] bool learnedKnobTurns(::Song* song, const ::ModControllableAudio& owner,
+                                    std::optional<deluge::project::ControlsAddress> address,
+                                    const deluge::project::ParamTarget& param);
+
+/// @brief Put into @p song's table each binding @p output brings into it that the table holds nothing for: the learned
+/// knobs it and a kit's rows hold outside the table (ModControllableAudio::loaded_knobs, emptied then), its input, and
+/// a kit's rows' mutes and inputs, as the runtime read them.
 /// @param output An output joining @p song, with its id.
 /// @param song   The song it joins.
 void recordArrivingOutput(::Output& output, ::Song& song);
 
-/// @brief Put into @p song's table each binding @p drum brings into it that the table holds nothing for: a sound row's
-/// learned knobs, its mute and its input, as the runtime read them.
+/// @brief Put into @p song's table each binding @p drum brings into it that the table holds nothing for: the learned
+/// knobs a sound row holds outside the table (emptied then), its mute and its input, as the runtime read them.
 /// @param drum A kit row joining @p song, with its id.
 /// @param song The song it joins.
 void recordArrivingDrum(::Drum& drum, ::Song& song);
 
 /// @brief [task] [audio] Give output @p to copies of output @p from's learned knobs in @p song's table (in place of its
-/// own), and project them onto @p to's knob list, as an audio track cloned from another takes its knobs: at once on the
-/// app loop, held for it on the render (an auto-overdub's clone on the song's tick), whose engine knobs, copied with
-/// the rest of the output, play meanwhile.
+/// own) and their takeover states, as an audio track cloned from another takes its knobs: at once on the app loop, held
+/// for it on the render (an auto-overdub's clone on the song's tick), which marks @p to with @p from
+/// (ModControllableAudio::knobs_cloned_from) so a reconcile can make the copy should the held one be lost.
 /// @param from The output cloned from.
 /// @param to   The clone.
 /// @param song The song both belong to.
@@ -81,8 +104,8 @@ void cloneOutputMappings(const ::Output& from, ::Output& to, ::Song& song);
 [[nodiscard]] bool onRenderTier();
 
 /// @brief How many table writes the render can hold before the app loop applies them. Past that, the app loop brings
-/// the table into line with what the song holds (drops entries of owners gone, records what owners play that it holds
-/// nothing for): coarser, but the same table.
+/// the table into line with what the song holds (copies the knobs of each clone the render made from its source, drops
+/// entries of owners gone, records what owners bring that it holds nothing for): coarser, but the same table.
 ///
 /// The render holds a write only where the song's tick changes what the song holds. An audio clip that overdubs holds
 /// at most three per loop it crosses: the clone of its track's knobs for the overdub's new track, then, when a pending
@@ -125,6 +148,10 @@ enum class OverflowReconcile : uint8_t {
 /// @return Whether a reconcile was deferred: the index is to stay stale for it.
 bool applyPendingMappingOps(::Song& song, OverflowReconcile reconcile = OverflowReconcile::NOW);
 
+/// @brief [task] Whether the render holds table writes (or lost some) that no drain has applied yet: the table does not
+/// show them. Does not drain.
+[[nodiscard]] bool mappingOpsHeld();
+
 /// @brief [task] [audio] Drop the table writes the render held: the song they were for is no longer current.
 void discardPendingMappingOps();
 
@@ -136,14 +163,16 @@ void discardPendingMappingOps();
 /// @param knobs Whether the learned knobs move too.
 void handOverInstrument(::Song& song, uint32_t from, uint32_t to, bool knobs);
 
-/// @brief Project the table's learned knobs and input of output @p output onto its engine fields.
+/// @brief Project the table's input of output @p output onto its engine field, give the devices its learned knobs name
+/// their entries, and rebuild the index (which plays the knobs).
 /// @param song   The song.
 /// @param output The output's id.
 void projectOutputMappings(::Song& song, uint32_t output);
 
 /// @brief Project again every binding of @p song whose source names a hosted device, as the device list now resolves
 /// it: a device plugged in since its binding was projected is played from its own cable. Makes the device entries
-/// first, then excludes the render only while it projects each target.
+/// first (a learned knob's too, which the index resolves), then excludes the render only while it projects each target
+/// that has an engine field.
 /// @param song The song.
 void projectDeviceMappings(::Song& song);
 
@@ -189,17 +218,19 @@ void recordMovedDrumCommands(::Kit& kit, std::span<const deluge::project::Mappin
 /// @return The ids, in row order.
 [[nodiscard]] std::vector<uint32_t> rowIdsOf(const ::Output* output);
 
-/// @brief Clear the relative flag of @p knob's entry in @p song's table: a CC value only an absolute controller sends
-/// arrived on it. A plain table write, run from the MIDI input path.
-/// @param owner The knob's owner.
-/// @param knob  The knob, its own flag already cleared.
-/// @param song  The song @p owner belongs to.
-void knobNoLongerRelative(::ModControllableAudio& owner, const ::MIDIKnob& knob, ::Song& song);
+/// @brief Clear the relative flag of the entry that plays @p source onto @p target in @p song's table: a CC value only
+/// an absolute controller sends arrived on it. A plain table write, run from the MIDI input path.
+/// @param target The entry's target.
+/// @param source The entry's source.
+/// @param song   The song whose table holds it.
+void mappingNoLongerRelative(const deluge::project::OwnerParamTarget& target,
+                             const deluge::project::MidiCommand& source, ::Song& song);
 
-/// @brief Fill @p song's table from every binding its runtime read, once a load has read the song and given each
-/// output and drum its id: the sections' commands it already holds stay first, then the song's knobs, then each
-/// output's (its knobs, its input, and each of a kit's rows' knobs, mute and input) in output order, then each clip's
-/// mute, session clips before arrangement-only ones.
+/// @brief Fill @p song's table from every binding the load read, once it has read the song and given each output and
+/// drum its id: the sections' commands it already holds stay first, then the song's knobs, then each output's (its
+/// knobs, its input, and each of a kit's rows' knobs, mute and input) in output order, then each clip's mute, session
+/// clips before arrangement-only ones. Each owner's knobs come from those the codec read onto it
+/// (ModControllableAudio::loaded_knobs), emptied then.
 /// @param song The song just read.
 void recordLoadedMappings(::Song& song);
 
@@ -217,31 +248,14 @@ void recordLoadedMappings(::Song& song);
 void setSectionCommand(deluge::project::MappingTable& mappings, uint8_t section,
                        const deluge::project::MidiCommand& command);
 
-/// @brief Make the engine field that plays @p target what @p song's table holds for it: an owner's learned knob list
-/// (a knob the table leaves as it is stays whole, with its device and takeover state), a clip's or a kit row's mute
-/// command, a track's or a kit row's input. A section's command lives in the table alone.
+/// @brief Make the engine field that plays @p target what @p song's table holds for it: a clip's or a kit row's mute
+/// command, a track's or a kit row's input. A section's command and an owner's learned knobs live in the table alone
+/// (the knobs play through the mapping index; a hosted device they name is given its entry, as a load gives it one).
 /// @param song   The song.
 /// @param target The target to project.
 /// @return Error::UNSPECIFIED, with nothing changed, when @p target's owner is not in @p song (no such output, drum or
 ///         clip, playing or hibernating; no such section); otherwise Error::NONE.
 Error projectMapping(::Song& song, const deluge::project::MappingTarget& target);
-
-/// @brief projectMapping() of @p target after a relearn put @p source in place of the knob that played @p replaced:
-/// the knob that now plays @p source keeps that knob's takeover state, as a knob learned again in place always has.
-/// @param song     The song.
-/// @param target   The param the knob turns.
-/// @param replaced The source of the knob the relearn replaced.
-/// @param source   The source it learned.
-/// @return As projectMapping().
-Error projectRelearnedKnob(::Song& song, const deluge::project::OwnerParamTarget& target,
-                           const deluge::project::MidiCommand& replaced, const deluge::project::MidiCommand& source);
-
-/// @brief Whether @p knob plays what an index hit says the knob at its place does: @p noteOrCC, on @p target's param.
-/// @param knob     The knob at the hit's place in its owner's list.
-/// @param target   The hit's target.
-/// @param noteOrCC The hit's CC number (128 for pitch bend).
-/// @return True if it does.
-[[nodiscard]] bool knobPlays(const ::MIDIKnob& knob, const deluge::project::MappingTarget& target, uint8_t noteOrCC);
 
 /// @brief Whether @p song holds @p output, playing or hibernating: a save then writes its bindings from the table.
 /// @param song   The song.

@@ -153,12 +153,13 @@ struct Rig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
-		currentSong = saved_song;
+		deluge::scenes::spec::make_current(saved_song);
 	}
 
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
 	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
-		currentSong = song.song; // the app's sink and waveforms resolve addresses in the current song
+		deluge::scenes::spec::make_current(
+		    song.song); // the app's sink and waveforms resolve addresses in the current song
 		sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
 		source = &sound->sources[0];
 		source->oscType = OscType::SAMPLE;
@@ -330,7 +331,8 @@ struct AudioRig {
 	explicit AudioRig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard,
 	                  const BoardProfile& p = deluge_profile())
 	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
-		currentSong = f.song; // the app's sink and waveforms resolve addresses in the current song
+		deluge::scenes::spec::make_current(
+		    f.song); // the app's sink and waveforms resolve addresses in the current song
 		f.clip->sampleHolder.audioFile = sample;
 		f.clip->sampleHolder.neutralPhaseIncrement = kMaxSampleValue;
 		f.clip->sampleHolder.waveformViewZoom = 0;
@@ -343,7 +345,7 @@ struct AudioRig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
-		currentSong = saved_song;
+		deluge::scenes::spec::make_current(saved_song);
 	}
 
 	/// @brief Open the scene on @p marker over the audio clip.

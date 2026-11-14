@@ -977,74 +977,6 @@ void Kit::beenEdited(bool shouldMoveToEmptySlot) {
 	Instrument::beenEdited(shouldMoveToEmptySlot);
 }
 
-// offer the CC to kit gold knobs without also offering to all drums
-void Kit::offerReceivedCCToModControllable(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
-                                           ModelStackWithTimelineCounter* modelStack) {
-	if (!id()) {
-		return;
-	}
-	// NOTE: this call may change modelStack->timelineCounter etc!
-	ModControllableAudio::offerReceivedCCToLearnedParamsForClip({deluge::project::ControlsAddress::Kind::OUTPUT, *id()},
-	                                                            cable, channel, ccNumber, value, modelStack);
-}
-void Kit::offerReceivedCCToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
-                                         ModelStackWithTimelineCounter* modelStack) {
-
-	// Do it for this whole Kit
-	// NOTE: this call may change modelStack->timelineCounter etc!
-	offerReceivedCCToModControllable(cable, channel, ccNumber, value, modelStack);
-
-	// Now do it for each NoteRow / Drum
-	// This is always actually true currently for calls to this function, but let's make this safe and future proof.
-	if (modelStack->timelineCounterIsSet()) {
-		InstrumentClip* clip =
-		    (InstrumentClip*)modelStack->getTimelineCounter(); // May have been changed by call above!
-		for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
-			NoteRow* thisNoteRow = &clip->noteRows[i];
-			Drum* thisDrum = thisNoteRow->drum;
-			if (thisDrum && thisDrum->type == DrumType::SOUND && thisDrum->id()) {
-				((SoundDrum*)thisDrum)
-				    ->offerReceivedCCToLearnedParamsForClip(
-				        {deluge::project::ControlsAddress::Kind::DRUM, *thisDrum->id()}, cable, channel, ccNumber,
-				        value, modelStack, i);
-			}
-		}
-	}
-}
-
-// not updated for midi follow, this seems dumb and is just left for backwards compatibility
-/// Pitch bend is available in the mod matrix as X and shouldn't be learned to params anymore (post 4.0)
-bool Kit::offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
-                                                ModelStackWithTimelineCounter* modelStack) {
-
-	// Do it for this whole Kit
-	// NOTE: this call may change modelStack->timelineCounter etc!
-	bool messageUsed =
-	    id()
-	    && ModControllableAudio::offerReceivedPitchBendToLearnedParams(
-	        {deluge::project::ControlsAddress::Kind::OUTPUT, *id()}, cable, channel, data1, data2, modelStack);
-
-	if (modelStack->timelineCounterIsSet()) { // This is always actually true currently for calls to this function, but
-		                                      // let's make this safe and future proof.
-		InstrumentClip* clip =
-		    (InstrumentClip*)modelStack->getTimelineCounter(); // May have been changed by call above!
-		for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
-			NoteRow* thisNoteRow = &clip->noteRows[i];
-			Drum* thisDrum = thisNoteRow->drum;
-			if (thisDrum && thisDrum->type == DrumType::SOUND && thisDrum->id()) {
-				if (((SoundDrum*)thisDrum)
-				        ->offerReceivedPitchBendToLearnedParams(
-				            {deluge::project::ControlsAddress::Kind::DRUM, *thisDrum->id()}, cable, channel, data1,
-				            data2, modelStack)) {
-					messageUsed = true;
-				}
-			}
-		}
-	}
-
-	return messageUsed;
-}
-
 void Kit::choke() {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		thisDrum->choke(nullptr);
@@ -1146,7 +1078,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 				}
 
 				soundDrum->ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(
-				    (ParamManagerForTimeline*)paramManager);
+				    (ParamManagerForTimeline*)paramManager, modelStack->song);
 
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 				    modelStack->addOtherTwoThingsButNoNoteRow(soundDrum, paramManager);

@@ -25,11 +25,14 @@
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/fx_chain.h"
 #include "deluge-project/instrument_slot.h"
+#include "deluge-project/mapping_table.h"
+#include "deluge-project/midi_command.h"
 #include "deluge-project/param_address.h"
 #include "deluge-project/setting_group.h"
 #include "serialization/value.h"
 
 #include <cstdint>
+#include <optional>
 #include <string_view>
 #include <variant>
 #include <vector>
@@ -39,19 +42,48 @@ namespace deluge::controls {
 /// @brief Whose effects a write names: a sound's, or a host chain's (a kit's, an audio track's, the song's).
 using EffectOwner = std::variant<project::SlotAddress, project::ChainAddress>;
 
+/// @brief How a param write finds its param, and what it leaves marked.
+enum class Resolution : uint8_t {
+	KNOB,    ///< as a gold knob writes it: what it turns is made, the take written while the arrangement records, and
+	         ///< the instrument marked edited
+	LEARNED, ///< as a learned or followed MIDI knob writes it: the same, with no owner marked edited
+};
+
 /// @brief Takes the writes a gold knob makes. The app's sink applies each as the target's Edit or runtime command; a
 /// spec's records them.
 class Sink {
 public:
 	virtual ~Sink() = default;
-	/// @brief Write the param at @p address over a region, as a gold knob turns it; no MIDI-follow feedback (the knob
-	/// sends its own).
+	/// @brief Write the param at @p address over a region, as a gold knob or a learned or followed MIDI knob writes it
+	/// (@p resolution says which); no MIDI-follow feedback (the caller sends its own).
 	/// @param address The param's address.
 	/// @param value   The new value, as the engine stores it.
 	/// @param pos     The region's start; with @p length 0, the value is set at the playhead.
 	/// @param length  The region's length, or 0.
+	/// @param resolution How the param is found, and whether the instrument is marked edited. Always named, so no
+	///                   caller leaves it to a default a derived sink would not see.
 	/// @return Whether it was taken.
-	virtual bool write_param(const project::ParamAddress& address, int32_t value, int32_t pos, int32_t length) = 0;
+	virtual bool write_param(const project::ParamAddress& address, int32_t value, int32_t pos, int32_t length,
+	                         Resolution resolution) = 0;
+	/// @brief The app's UI follows a learned write: the automation editor's grid and the performance view's display
+	/// show the param that moved.
+	/// @param address  The param written, as the write landed (a take's clip id, where there is one).
+	/// @param knob_pos The knob position the write moved the param to, -64..64.
+	virtual void learned_written(const project::ParamAddress& address, int32_t knob_pos) = 0;
+	/// @brief Make the take the arrangement records @p output_id's active clip into, once; later calls find it.
+	/// @param output_id The output's id.
+	/// @return The id of the clip writes to the output now go to (the active clip itself where no take is made), or
+	///         nullopt where the song holds no such output or it has no active clip.
+	virtual std::optional<uint32_t> take_for(uint32_t output_id) = 0;
+	/// @brief Make the param at @p address where the song does not hold it yet, as a learned knob does before it reads
+	/// the param, whether or not it then moves it: a cable's depth is added at 0, in an undo step of its own when no
+	/// write follows. Nothing is written.
+	/// @return Whether the song holds the param now.
+	virtual bool make_param(const project::ParamAddress& address) = 0;
+	/// @brief A knob learned as relative was sent an absolute value (16..111): clear its relative flag in the table.
+	/// @param target The knob's target.
+	/// @param source The command the knob is learned to.
+	virtual void knob_absolute(const project::OwnerParamTarget& target, const project::MidiCommand& source) = 0;
 	/// @brief Set @p owner's gold-knob mode to @p mode.
 	/// @return Whether it was taken: false for a mode past the last button or a track the song does not hold.
 	virtual bool knob_mode(project::KnobModeOwner owner, uint8_t mode) = 0;

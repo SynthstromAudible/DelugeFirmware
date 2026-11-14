@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <optional>
 #include <variant>
+#include <vector>
 
 namespace deluge::edits {
 
@@ -68,8 +69,10 @@ std::optional<deluge::project::OwnerParamTarget> knobTargetIn(::ModControllableA
 	}
 	namespace params = deluge::modulation::params;
 	return deluge::project::OwnerParamTarget{
-	    *address, deluge::bridge::controlTargetOf(param, isSound ? params::Kind::UNPATCHED_SOUND
-	                                                             : params::Kind::UNPATCHED_GLOBAL)};
+	    *address,
+	    deluge::project::engine_target(deluge::bridge::controlTargetOf(param, isSound ? params::Kind::UNPATCHED_SOUND
+	                                                                                  : params::Kind::UNPATCHED_GLOBAL)
+	                                       .value)};
 }
 
 /// The kit whose row @p drum is.
@@ -216,18 +219,37 @@ Error LearnMapping::apply(Context& ctx) {
 	                       && std::ranges::any_of(before.entries(), [&](const deluge::project::Mapping& entry) {
 		                          return entry.target == mapping_.target && entry.source == *replaces_;
 	                          });
+	// The flag of the entry a plain learn finds already there: a learn that changes it makes the knob a new one.
+	std::optional<bool> relativeBefore;
+	if (!replacing && param != nullptr) {
+		for (const deluge::project::Mapping& entry : before.entries()) {
+			if (entry.target == mapping_.target && entry.source == mapping_.source) {
+				relativeBefore = entry.relative;
+			}
+		}
+	}
 	if (replaces_) {
 		ctx.model.mappings.relearn(*replaces_, mapping_);
 	}
 	else {
 		ctx.model.mappings.learn(mapping_);
 	}
-	// A knob learned again in place keeps its takeover state, whatever else of it changed.
-	const Error projected = replacing
-	                            ? deluge::bridge::projectRelearnedKnob(ctx.song, *param, *replaces_, mapping_.source)
-	                            : deluge::bridge::projectMapping(ctx.song, mapping_.target);
-	const Error result = project(ctx, projected, std::move(before));
+	const Error result = project(ctx, deluge::bridge::projectMapping(ctx.song, mapping_.target), std::move(before));
 	if (result == Error::NONE) {
+		// Only an engine param's knob has a takeover state to carry or to lose.
+		if (param != nullptr && param->param.space == deluge::project::ParamSpace::ENGINE && &ctx.song == currentSong) {
+			if (replacing) { // a knob learned again in place keeps its state, whatever else of it changed
+				deluge::midi::takeoverStore().relearn(*param, *replaces_, mapping_.source);
+			}
+			else if (relativeBefore) {
+				for (const deluge::project::Mapping& entry : ctx.model.mappings.entries()) {
+					if (entry.target == mapping_.target && entry.source == mapping_.source
+					    && entry.relative != *relativeBefore) {
+						deluge::midi::takeoverStore().forget(*param, mapping_.source);
+					}
+				}
+			}
+		}
 		inputLearned(ctx, mapping_.target, input_);
 	}
 	return result;
@@ -236,9 +258,24 @@ Error LearnMapping::apply(Context& ctx) {
 Error UnlearnMapping::apply(Context& ctx) {
 	deluge::bridge::applyPendingMappingOps(ctx.song); // a write the render made first lands first
 	deluge::project::MappingTable before = ctx.model.mappings;
+	// The sources the knobs of the param play from, which the unlearn forgets.
+	std::vector<deluge::project::MidiCommand> sources;
+	const auto* param = std::get_if<deluge::project::OwnerParamTarget>(&target_);
+	if (param != nullptr) {
+		for (const deluge::project::Mapping& entry : before.entries()) {
+			if (entry.target == target_) {
+				sources.push_back(entry.source);
+			}
+		}
+	}
 	ctx.model.mappings.unlearn(target_);
 	const Error result = project(ctx, deluge::bridge::projectMapping(ctx.song, target_), std::move(before));
 	if (result == Error::NONE) {
+		if (&ctx.song == currentSong) {
+			for (const deluge::project::MidiCommand& source : sources) {
+				deluge::midi::takeoverStore().forget(*param, source);
+			}
+		}
 		inputLearned(ctx, target_, std::nullopt);
 	}
 	return result;
@@ -278,7 +315,7 @@ bool learnKnobFor(::ModControllableAudio& owner, const deluge::modulation::KnobT
                   uint8_t noteOrCC, uint8_t channel) {
 	const std::optional<deluge::project::OwnerParamTarget> target = knobTargetIn(owner, param);
 	if (!target) {
-		return owner.learnKnob(cable, param, noteOrCC, 0, channel, currentSong);
+		return false; // a learned knob lives in the song's table, so its owner is one the song holds
 	}
 	::LearnedMIDI learned;
 	learned.cable = cable;
@@ -302,7 +339,8 @@ bool learnKnobFor(::ModControllableAudio& owner, const deluge::modulation::KnobT
 bool learnKnobOn(::ModControllableAudio& owner, const deluge::modulation::KnobTarget& param, ::MIDICable* cable,
                  int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
 	if (midiChannel >= 16) { // a mod knob: the owner's controls
-		if (!owner.learnKnob(cable, param, whichKnob, modKnobMode, midiChannel, currentSong)) {
+		if (!owner.learnModKnob(param, static_cast<uint8_t>(whichKnob), static_cast<uint8_t>(modKnobMode),
+		                        currentSong)) {
 			return false;
 		}
 		recordControlsOf(owner);
@@ -310,23 +348,6 @@ bool learnKnobOn(::ModControllableAudio& owner, const deluge::modulation::KnobTa
 	}
 	// a MIDI knob: the song's mapping table
 	return learnKnobFor(owner, param, cable, whichKnob, midiChannel);
-}
-
-bool unlearnKnobsFor(::ModControllableAudio& owner, const deluge::modulation::KnobTarget& param) {
-	const std::optional<deluge::project::OwnerParamTarget> target = knobTargetIn(owner, param);
-	if (!target) {
-		return owner.unlearnKnobs(param, currentSong);
-	}
-	if (currentSong->project.mappings.find(*target) == nullptr) {
-		return false;
-	}
-	Context ctx{*currentSong, currentSong->project};
-	UnlearnMapping edit{*target};
-	if (deluge::edits::apply(ctx, edit) != Error::NONE) {
-		return false;
-	}
-	owner.ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(currentSong);
-	return true;
 }
 
 } // namespace deluge::edits

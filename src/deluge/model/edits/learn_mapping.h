@@ -31,7 +31,7 @@ struct InputLearn {
 void velocityCableFor(Context& ctx, project::OwnerId owner, ::Clip& clip, const ::MIDICable& cable);
 
 /// @brief Learn a binding: write it into the song's mapping table, then project the target's entries onto the engine
-/// field that plays them.
+/// field that plays them, where there is one (a learned knob plays from the table, through the mapping index).
 ///
 /// The table (`deluge-project/mapping_table.h`) is the bindings' truth; the projection
 /// (`model/project_bridge/mapping_bridge.h`) brings the engine's copy into line.
@@ -100,7 +100,7 @@ void learnedMappingFor(deluge::project::MappingTarget target, const ::LearnedMID
                        std::optional<InputLearn> input = std::nullopt);
 
 /// @brief A menu's learn of a MIDI knob: @p cable's @p noteOrCC on @p channel turns @p param of @p owner. Through
-/// LearnMapping when @p owner holds controls of the current song; on @p owner's knob list alone otherwise. A knob on
+/// LearnMapping when @p owner holds controls of the current song; refused otherwise. A knob on
 /// @p param that this MIDI would trigger (LearnedMIDI's rule, devices told apart only by the setting that tells inputs
 /// apart) is rebound to it in place; otherwise the knob is added.
 /// @param owner    The owner whose param the knob turns.
@@ -123,14 +123,6 @@ bool learnKnobFor(::ModControllableAudio& owner, const deluge::modulation::KnobT
 /// @return Whether the knob was learned.
 bool learnKnobOn(::ModControllableAudio& owner, const deluge::modulation::KnobTarget& param, ::MIDICable* cable,
                  int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel);
-
-/// @brief A menu's unlearn of every MIDI knob on @p param of @p owner. Through UnlearnMapping when @p owner holds
-/// controls of the current song; on @p owner's knob list alone otherwise. A preset value no knob can reach any more is
-/// zeroed, as an unlearn always has.
-/// @param owner The owner.
-/// @param param The param.
-/// @return Whether any knob was unlearned.
-bool unlearnKnobsFor(::ModControllableAudio& owner, const deluge::modulation::KnobTarget& param);
 
 /// @brief A gesture's learn: @p source to @p target in the current song, through LearnMapping (no-op without a song).
 /// @param source The command learned.

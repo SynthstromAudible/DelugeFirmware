@@ -305,9 +305,18 @@ public:
 
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) final; // Song may be NULL
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(ModelStackWithThreeMainThings* modelStack);
-	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(ParamManager* paramManager);
+	/// @param song The song whose table holds this sound's learned knobs, or null for none.
+	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(ParamManager* paramManager,
+	                                                                              Song* song);
 	void ensureParamPresetValueWithoutKnobIsZero(ModelStackWithAutoParam* modelStack);
-	void ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManager* paramManager, int32_t p);
+	void ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManager* paramManager, int32_t p, Song* song);
+	/// @brief Whether a learned MIDI knob of this sound turns patched param @p p: one @p song's table holds at this
+	/// sound's id, or, before the table takes them, one it holds outside the table
+	/// (ModControllableAudio::loaded_knobs).
+	/// @param song The song, or null for none.
+	/// @param p    The patched param.
+	/// @return True if one does.
+	[[nodiscard]] bool learnedKnobTurns(Song* song, int32_t p);
 
 	PatchCableAcceptance maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* paramManager);
 
@@ -315,8 +324,7 @@ public:
 
 	int8_t getKnobPos(uint8_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
 	int32_t getKnobPosBig(int32_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
-	bool learnKnob(MIDICable* cable, deluge::modulation::KnobTarget target, uint8_t whichKnob, uint8_t modKnobMode,
-	               uint8_t midiChannel, Song* song) final;
+	bool learnModKnob(deluge::modulation::KnobTarget target, uint8_t whichKnob, uint8_t modKnobMode, Song* song) final;
 
 	bool hasFilters();
 
@@ -434,7 +442,6 @@ public:
 	                             int32_t oldValue, int32_t newValue, bool fromAutomation);
 	void deleteMultiRange(int32_t s, int32_t r);
 	void wontBeRenderedForAWhile() override;
-	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) final;
 	virtual ArpeggiatorBase* getArp() = 0;
 
 	deluge::dsp::UQ<32> getSyncedLFOPhaseIncrement(const LFOConfig& config);
@@ -495,7 +502,7 @@ private:
 	void setupUnisonStereoSpread();
 	void computeUnisonDetuners();
 	void calculateEffectiveVolume();
-	void ensureKnobReferencesCorrectVolume(Knob& knob);
+	void ensureKnobReferencesCorrectVolume(ModKnob& knob);
 	Error readTagFromFileOrError(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                             int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
 

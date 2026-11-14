@@ -62,19 +62,18 @@ void forEachSound(Output& output, const std::function<void(Sound&, const std::st
 	}
 }
 
-/// Whether the song's table holds @p owner's learned knobs as the runtime's @p knobs are.
-bool knobsCoherent(deluge::project::ControlsAddress owner, const ::ModControllableAudio& knobs, bool isSound,
-                   ::Song& song) {
-	return song.project.mappings.params_of(owner) == deluge::bridge::knobsOf(owner, knobs, isSound);
+/// Whether @p owner, which a song holds, keeps its learned knobs in the song's table alone: none outside it.
+bool knobsCoherent(const ::ModControllableAudio& owner) {
+	return owner.loaded_knobs.empty();
 }
 
-/// The kits', audio tracks' and the song's own learned knobs checked against the song's table; each break printed.
-/// How many broke.
+/// The kits', audio tracks' and the song's own learned knobs checked to be the song's table's alone, and the index to
+/// play the table's knobs; each break printed. How many broke.
 int32_t ownControlsIncoherent(::Song& song, const char* leg, const char* label) {
 	int32_t failures = 0;
 	auto check = [&](::ModControllableAudio& owner, const std::string& name) {
 		const std::optional<deluge::project::ControlsAddress> address = deluge::bridge::controlsAddressOf(owner, song);
-		if (address && !knobsCoherent(*address, owner, false, song)) {
+		if (address && !knobsCoherent(owner)) {
 			std::printf("SLOT-COHERENT %s leg=%s %s: controls\n", label, leg, name.c_str());
 			failures++;
 		}
@@ -94,6 +93,10 @@ int32_t ownControlsIncoherent(::Song& song, const char* leg, const char* label) 
 		visit(*sleeping);
 	}
 	check(song.live.global_effectable, "song");
+	if (const std::string what = knobIndexIncoherence(song); !what.empty()) {
+		std::printf("SLOT-COHERENT %s leg=%s %s\n", label, leg, what.c_str());
+		failures++;
+	}
 	return failures;
 }
 
@@ -140,7 +143,7 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 		if (controls == nullptr || *controls != deluge::bridge::controlsOf(sound)) {
 			return "controls";
 		}
-		if (!knobsCoherent(*owner, sound, true, song)) {
+		if (!knobsCoherent(sound)) {
 			return "learned knobs";
 		}
 	}

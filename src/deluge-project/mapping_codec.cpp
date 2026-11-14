@@ -116,29 +116,11 @@ void encode_note(const MappingTable& table, const MappingTarget& target, std::st
 	}
 }
 
-void decode_knobs(const Value& element, ControlsAddress owner, MappingTable& table,
-                  const deluge::plugin::ParamNaming* naming) {
-	std::vector<Mapping> knobs;
-	if (const Value* midiKnobs = element.find("midiKnobs"); midiKnobs != nullptr && naming != nullptr) {
-		for (const Value* knob : serialization::elements_named(*midiKnobs, "midiKnob")) {
-			if (!knob->isMap()) {
-				continue;
-			}
-			const std::optional<deluge::plugin::ParamId> param = naming->id_of(ref_in(*knob));
-			if (!param) {
-				continue;
-			}
-			Mapping& learned = knobs.emplace_back();
-			learned.target = OwnerParamTarget{owner, *param};
-			learned.source.channel_or_zone = with_zone(byte_of(knob->find("channel")), knob->find("mpeZone"));
-			learned.source.note_or_cc = byte_of(knob->find("ccNumber"));
-			learned.relative = serialization::int_of(knob->find("relative")).value_or(0) != 0;
-			if (const Value* device = knob->find("device")) {
-				learned.source.device = decode_device(*device);
-			}
-		}
-	}
-	table.set_params(owner, knobs);
+void decode_owner_knobs(const Value& element, ControlsAddress owner, MappingTable& table,
+                        const deluge::plugin::ParamNaming* naming) {
+	const Value* knobs = element.find("midiKnobs");
+	table.set_params(owner, knobs != nullptr && naming != nullptr ? decode_knobs(*knobs, owner, *naming)
+	                                                              : std::vector<Mapping>{});
 }
 
 void encode_knobs(const MappingTable& table, ControlsAddress owner, Value& element,
@@ -148,6 +130,10 @@ void encode_knobs(const MappingTable& table, ControlsAddress owner, Value& eleme
 	}
 	Value midiKnobs = Value::makeArray();
 	for (const Mapping& entry : table.params_of(owner)) {
+		const ParamTarget& param = std::get<OwnerParamTarget>(entry.target).param;
+		if (param.space != ParamSpace::ENGINE) {
+			continue; // the file names engine params only
+		}
 		Value knob = Value::makeMap();
 		const uint8_t channel = entry.source.channel_or_zone;
 		if (channel == kLowerZone || channel == kUpperZone) {
@@ -158,7 +144,7 @@ void encode_knobs(const MappingTable& table, ControlsAddress owner, Value& eleme
 		}
 		knob.set("ccNumber", Value::makeNumber(entry.source.note_or_cc));
 		knob.set("relative", Value::makeNumber(entry.relative ? 1 : 0));
-		set_ref(knob, naming->ref_of(std::get<OwnerParamTarget>(entry.target).param));
+		set_ref(knob, naming->ref_of(param.id));
 		if (entry.source.device) {
 			knob.set("device", encode_device(*entry.source.device));
 		}
@@ -204,13 +190,39 @@ void encode_track_input(const MappingTable& table, uint32_t output_id, Value& el
 
 } // namespace
 
+std::vector<Mapping> decode_knobs(const Value& element, ControlsAddress owner,
+                                  const deluge::plugin::ParamNaming& naming) {
+	std::vector<Mapping> knobs;
+	for (const Value* knob : serialization::elements_named(element, "midiKnob")) {
+		if (!knob->isMap()) {
+			continue;
+		}
+		std::optional<deluge::plugin::ParamId> param = naming.id_of(ref_in(*knob));
+		if (!param) {
+			continue;
+		}
+		if (naming.mod_knob_target != nullptr) {
+			param = naming.mod_knob_target(*param); // a knob on a volume turns the one the runtime uses
+		}
+		Mapping& learned = knobs.emplace_back();
+		learned.target = OwnerParamTarget{owner, engine_target(param->value)};
+		learned.source.channel_or_zone = with_zone(byte_of(knob->find("channel")), knob->find("mpeZone"));
+		learned.source.note_or_cc = byte_of(knob->find("ccNumber"));
+		learned.relative = serialization::int_of(knob->find("relative")).value_or(0) != 0;
+		if (const Value* device = knob->find("device")) {
+			learned.source.device = decode_device(*device);
+		}
+	}
+	return knobs;
+}
+
 void decode_mappings(const Value& element, MappingOwner owner, MappingTable& table,
                      const deluge::plugin::ParamNaming* naming) {
 	if (!element.isMap()) {
 		return;
 	}
 	if (const auto* controls = std::get_if<ControlsAddress>(&owner)) {
-		decode_knobs(element, *controls, table, naming);
+		decode_owner_knobs(element, *controls, table, naming);
 	}
 	else if (const auto* clip = std::get_if<ClipOwner>(&owner)) {
 		decode_note(element, "muteMidiCommand", ClipMuteTarget{clip->clip_id}, table);

@@ -6,7 +6,6 @@ src/deluge/io/midi/midi_device_manager.cpp	model-includes-ui	1
 src/deluge/io/midi/midi_engine.cpp	model-includes-ui	3
 src/deluge/io/midi/midi_follow.cpp	model-calls-ui	2
 src/deluge/io/midi/midi_follow.cpp	model-includes-ui	7
-src/deluge/io/midi/midi_takeover.cpp	model-includes-ui	2
 src/deluge/io/midi/midi_transpose.cpp	model-calls-ui	3
 src/deluge/io/midi/midi_transpose.cpp	model-includes-ui	5
 src/deluge/io/midi/sysex.cpp	model-includes-ui	1

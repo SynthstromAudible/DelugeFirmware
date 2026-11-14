@@ -8,6 +8,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
@@ -78,6 +79,13 @@ public:
 	[[nodiscard]] std::optional<int32_t> param_value(const deluge::project::ParamAddress& address) const override {
 		return real_.param_value(address);
 	}
+	[[nodiscard]] bool param_automated(const deluge::project::ParamAddress& address) const override {
+		return real_.param_automated(address);
+	}
+	[[nodiscard]] std::optional<int32_t> clip_param_value(const deluge::project::ParamAddress& address,
+	                                                      std::optional<uint32_t> pos) const override {
+		return real_.clip_param_value(address, pos);
+	}
 	[[nodiscard]] std::optional<int32_t> param_value_at(const deluge::project::ParamAddress& address,
 	                                                    uint32_t pos) const override {
 		return real_.param_value_at(address, pos);
@@ -104,6 +112,19 @@ public:
 	}
 	[[nodiscard]] bool stutter_active() const override { return real_.stutter_active(); }
 	[[nodiscard]] bool alt_delay() const override { return real_.alt_delay(); }
+	[[nodiscard]] std::span<const deluge::controls::PlayingOutput> playing_outputs() const override {
+		return real_.playing_outputs();
+	}
+	[[nodiscard]] std::span<const deluge::controls::KitRow> sound_rows(uint32_t clip_id) const override {
+		return real_.sound_rows(clip_id);
+	}
+	[[nodiscard]] deluge::controls::TakeoverInputs takeover_inputs(bool cable_relative) const override {
+		return real_.takeover_inputs(cable_relative);
+	}
+	[[nodiscard]] std::optional<std::pair<int32_t, int32_t>>
+	step_region(std::optional<uint32_t> clip_id) const override {
+		return real_.step_region(clip_id);
+	}
 	[[nodiscard]] std::pair<int64_t, int64_t> audio_clip_samples(deluge::project::ClipAddress clip, int32_t scroll,
 	                                                             int32_t zoom) const override {
 		return real_.audio_clip_samples(clip, scroll, zoom);

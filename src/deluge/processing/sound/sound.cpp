@@ -51,6 +51,7 @@
 #include "model/project_bridge/arp_bridge.h"
 #include "model/project_bridge/cable_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
@@ -75,6 +76,7 @@
 #include "processing/render_scratch.h"
 #include "processing/sound/param_dump.h"
 #include "processing/sound/sound_chain_inputs.h"
+#include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
@@ -612,7 +614,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 }
 
 // Exists for the purpose of potentially correcting an incorrect file as it's loaded
-void Sound::ensureKnobReferencesCorrectVolume(Knob& knob) {
+void Sound::ensureKnobReferencesCorrectVolume(ModKnob& knob) {
 	int32_t p = deluge::modulation::knobWord(knob.target).param_index();
 
 	if (p == params::GLOBAL_VOLUME_POST_REVERB_SEND || p == params::GLOBAL_VOLUME_POST_FX
@@ -2325,31 +2327,17 @@ void Sound::resyncGlobalLFOs(bool reset_state) {
 // ModControllable implementation
 // ------------------------------------
 
-// whichKnob is either which physical mod knob, or which MIDI CC code.
-// For mod knobs, supply midiChannel as 255
-// Returns false if fail due to insufficient RAM.
-bool Sound::learnKnob(MIDICable* cable, deluge::modulation::KnobTarget target, uint8_t whichKnob, uint8_t modKnobMode,
-                      uint8_t midiChannel, Song* song) {
+bool Sound::learnModKnob(deluge::modulation::KnobTarget target, uint8_t whichKnob, uint8_t modKnobMode, Song* song) {
+	// If that knob was patched to something else...
+	bool overwroteExistingKnob = (modKnobs[modKnobMode][whichKnob].target != target);
 
-	// If a mod knob
-	if (midiChannel >= 16) {
+	modKnobs[modKnobMode][whichKnob].target = target;
 
-		// If that knob was patched to something else...
-		bool overwroteExistingKnob = (modKnobs[modKnobMode][whichKnob].target != target);
-
-		modKnobs[modKnobMode][whichKnob].target = target;
-
-		if (overwroteExistingKnob) {
-			ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(song);
-		}
-
-		return true;
+	if (overwroteExistingKnob) {
+		ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(song);
 	}
 
-	// If a MIDI knob
-	else {
-		return ModControllableAudio::learnKnob(cable, target, whichKnob, modKnobMode, midiChannel, song);
-	}
+	return true;
 }
 
 // Song may be NULL
@@ -2367,22 +2355,34 @@ void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {
 			    ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(modelStackWithThreeMainThings);
 		    }
 		    else {
-			    ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(&params);
+			    ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(&params, song);
 		    }
 	    });
 
 	song->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this); // What does this do exactly, again?
 }
 
+bool Sound::learnedKnobTurns(Song* song, int32_t p) {
+	const deluge::project::ParamTarget param = deluge::project::engine_target(
+	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(p), params::Kind::UNPATCHED_SOUND).value);
+	using Kind = deluge::project::ControlsAddress::Kind;
+	const std::optional<uint32_t> id =
+	    isDrum() ? static_cast<SoundDrum*>(this)->id() : static_cast<SoundInstrument*>(this)->id();
+	const std::optional<deluge::project::ControlsAddress> address =
+	    id ? std::optional{deluge::project::ControlsAddress{isDrum() ? Kind::DRUM : Kind::OUTPUT, *id}} : std::nullopt;
+	return deluge::bridge::learnedKnobTurns(song, *this, address, param);
+}
+
 const uint8_t patchedParamsWhichShouldBeZeroIfNoKnobAssigned[] = {
     params::LOCAL_PITCH_ADJUST, params::LOCAL_OSC_A_PITCH_ADJUST, params::LOCAL_OSC_B_PITCH_ADJUST,
     params::LOCAL_MODULATOR_0_PITCH_ADJUST, params::LOCAL_MODULATOR_1_PITCH_ADJUST};
 
-void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(ParamManager* paramManager) {
+void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(ParamManager* paramManager,
+                                                                                     Song* song) {
 
 	for (int32_t i = 0; i < sizeof(patchedParamsWhichShouldBeZeroIfNoKnobAssigned); i++) {
 		int32_t p = patchedParamsWhichShouldBeZeroIfNoKnobAssigned[i];
-		ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(paramManager, p);
+		ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(paramManager, p, song);
 	}
 }
 
@@ -2419,17 +2419,14 @@ void Sound::ensureParamPresetValueWithoutKnobIsZero(ModelStackWithAutoParam* mod
 		}
 	}
 
-	bool any_assigned = std::ranges::any_of(midi_knobs, [&](const MIDIKnob& knob) {
-		return (knob.target == deluge::modulation::knobParam(modelStack->paramId));
-	});
-
 	// No knobs were assigned to this param, so make it 0
-	if (!any_assigned) {
+	if (!learnedKnobTurns(modelStack->song, modelStack->paramId)) {
 		modelStack->autoParam->setCurrentValueWithNoReversionOrRecording(modelStack, 0);
 	}
 }
 
-void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManager* paramManager, int32_t p) {
+void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManager* paramManager, int32_t p,
+                                                                      Song* song) {
 
 	AutoParam* param = &paramManager->getPatchedParamSet()->params[p];
 
@@ -2446,12 +2443,8 @@ void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManag
 		}
 	}
 
-	bool any_assigned = std::ranges::any_of(midi_knobs, [&](const MIDIKnob& knob) {
-		return (knob.target == deluge::modulation::knobParam(p)); //<
-	});
-
 	// No knobs were assigned to this param, so make it 0 (in the store — the persisted source — and the cursor).
-	if (!any_assigned) {
+	if (!learnedKnobTurns(song, p)) {
 		param->setBase(*paramManager->getPatchedParamSet()->docForParam(p), 0);
 	}
 }
@@ -2793,11 +2786,6 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 	}
 
 	doneReadingFromFile();
-
-	// Ensure all MIDI knobs reference correct volume...
-	for (MIDIKnob& knob : midi_knobs) {
-		ensureKnobReferencesCorrectVolume(knob);
-	}
 
 	return Error::NONE;
 }
@@ -3528,42 +3516,6 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 
 	// No stereo stuff found - we're rendering in mono.
 	return false;
-}
-
-ModelStackWithAutoParam* Sound::getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) {
-
-	ParamCollectionSummary* summary;
-	int32_t paramId;
-
-	if (deluge::modulation::knobWord(knob.target).is_param()) {
-
-		int32_t p = deluge::modulation::knobWord(knob.target).param_index();
-
-		// Unpatched parameter
-		if (p >= params::UNPATCHED_START) {
-			return ModControllableAudio::getParamFromMIDIKnob(knob, modelStack);
-		}
-
-		// Actual (patched) parameter
-		else {
-			summary = modelStack->paramManager->getPatchedParamSetSummary();
-			paramId = p;
-		}
-	}
-
-	// Patch cable strength
-	else {
-		summary = modelStack->paramManager->getPatchCableSetSummary();
-		paramId = deluge::modulation::knobWord(knob.target).word;
-	}
-
-	ModelStackWithParamId* modelStackWithParamId =
-	    modelStack->addParamCollectionAndId(summary->paramCollection, summary, paramId);
-
-	ModelStackWithAutoParam* modelStackWithAutoParam = summary->paramCollection->getAutoParamFromId(
-	    modelStackWithParamId, true); // Allow patch cable creation. TODO: think this through better...
-
-	return modelStackWithAutoParam;
 }
 
 // **** This is the main function that enacts the unassigning of the Voice

@@ -113,11 +113,11 @@ struct DxSong {
 	Sound* sound = nullptr;
 
 	DxSong() {
-		currentSong = song.song;
+		deluge::scenes::spec::make_current(song.song);
 		sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
 		sound->sources[0].setOscType(OscType::DX7);
 	}
-	~DxSong() { currentSong = saved; }
+	~DxSong() { deluge::scenes::spec::make_current(saved); }
 	DxSong(const DxSong&) = delete;
 	DxSong& operator=(const DxSong&) = delete;
 

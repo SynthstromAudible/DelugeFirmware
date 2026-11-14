@@ -207,7 +207,7 @@ std::string describe(const deluge::project::Mapping& mapping) {
 		    if constexpr (std::is_same_v<T, OwnerParamTarget>) {
 			    static constexpr const char* kKinds[] = {"output", "drum", "song"};
 			    return std::string("knob of ") + kKinds[static_cast<int>(target.owner.kind)] + " "
-			           + std::to_string(target.owner.id) + " on param " + std::to_string(target.param.value);
+			           + std::to_string(target.owner.id) + " on param " + std::to_string(target.param.id.value);
 		    }
 		    else if constexpr (std::is_same_v<T, ClipMuteTarget>) {
 			    return "mute of clip " + std::to_string(target.clip_id);

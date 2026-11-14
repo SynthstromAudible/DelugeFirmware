@@ -541,7 +541,7 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 			if (const std::vector<std::string>* want = table().find(e.path, "learn"); want != nullptr) {
 				const std::optional<deluge::project::OwnerParamTarget> got =
 				    menu::bindings::learn_target(*e.node, root->ctx);
-				expect(at + " learns " + (got ? std::to_string(got->param.value) : std::string{"none"}))
+				expect(at + " learns " + (got ? std::to_string(got->param.id.value) : std::string{"none"}))
 				    .to_equal(at + " learns " + (want->empty() ? std::string{"<no value>"} : want->front()));
 				expect(!got || got->owner == menu::bindings::controls_owner(root->ctx)).to_be_true();
 				learned++;

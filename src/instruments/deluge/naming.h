@@ -22,9 +22,10 @@
 namespace deluge::instrument {
 
 /// @brief How files name the Deluge instrument's params: a param by its file name, a cable's depth by its param and
-/// its sources (nearest the param first). A mod knob pointed at a volume points at the one the runtime uses: a plain
-/// volume knob at `volumePostFX`, a knob on a sidechain cable's depth at `volumePostReverbSend`, a knob on another
-/// cable's depth at `volume`.
+/// its sources (nearest the param first). A knob (a mod knob or a learned MIDI knob) a file points at a volume points
+/// at the one the runtime uses (`mod_knob_target`): a plain volume knob at `volumePostFX`, a knob on a sidechain
+/// cable's depth at `volumePostReverbSend`, a knob on another cable's depth at `volume`. A cable's pre-3.2 `range`
+/// names no param.
 extern const plugin::ParamNaming kNaming;
 
 } // namespace deluge::instrument

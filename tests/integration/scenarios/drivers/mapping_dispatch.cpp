@@ -24,7 +24,8 @@
 /// upstream USB or from a hosted device the Deluge did not know. Each table is projected onto the engine fields and
 /// the index rebuilt. Each random message (from DIN or upstream USB, with inputs told apart by device or not, and
 /// random MPE zones on both cables) is then matched by the index and by a transcription of the scans the dispatch makes
-/// over the engine fields, and the two sequences of hits (target and position, in order) must be equal.
+/// (an owner's knobs read from the mapping table in table order, the rest over the engine fields), and the two
+/// sequences of hits (target and position, in order) must be equal.
 ///
 /// Projecting a binding to a hosted device the Deluge did not know makes the device an entry, as a song's load does,
 /// which no message arrives on. A section's command is not projected, so a section learned from a device the Deluge
@@ -75,7 +76,6 @@
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
-#include "modulation/knob.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -280,11 +280,13 @@ Song* loadSong(std::string_view text, FILE* err) {
 
 /// The table's name for patched param @p p of a sound, or (when @p unpatchedKind is given) unpatched param @p p of that
 /// kind.
-deluge::plugin::ParamId knobParam(int32_t p, std::optional<params::Kind> unpatchedKind = std::nullopt) {
+deluge::project::ParamTarget knobParam(int32_t p, std::optional<params::Kind> unpatchedKind = std::nullopt) {
 	deluge::synth::CableTarget descriptor =
 	    deluge::synth::CableTarget::param(unpatchedKind ? params::UNPATCHED_START + p : p);
-	return deluge::bridge::controlTargetOf(deluge::modulation::knobTargetOf(descriptor),
-	                                       unpatchedKind.value_or(params::Kind::UNPATCHED_SOUND));
+	return deluge::project::engine_target(
+	    deluge::bridge::controlTargetOf(deluge::modulation::knobTargetOf(descriptor),
+	                                    unpatchedKind.value_or(params::Kind::UNPATCHED_SOUND))
+	        .value);
 }
 
 /// One match: what it reaches, and its position (a section's number, a clip's session index, a knob's place in its
@@ -352,7 +354,7 @@ bool playing(Song& song, const Output* output) {
 }
 
 /// The oracle: today's scan of sections and session clips (PlaybackHandler::offerNoteToLearnedThings).
-std::vector<Hit> legacyCommands(Song& song, MIDICable& cable, int32_t channel, int32_t note) {
+std::vector<Hit> engineCommands(Song& song, MIDICable& cable, int32_t channel, int32_t note) {
 	std::vector<Hit> hits;
 	for (int32_t s = 0; s < kMaxNumSections; s++) {
 		if (deluge::bridge::matches(deluge::bridge::sectionCommand(song.project.mappings, s), cable, channel, note)) {
@@ -369,14 +371,12 @@ std::vector<Hit> legacyCommands(Song& song, MIDICable& cable, int32_t channel, i
 	return hits;
 }
 
-/// The oracle: today's scan of one owner's learned knobs (ModControllableAudio::offerReceivedCCToLearnedParams*); a
+/// The oracle: each of one owner's learned knobs, in the table's order for the owner, that the message triggers. A
 /// hibernating owner is never offered MIDI.
-std::vector<Hit> legacyKnobs(Song& song, ControlsAddress owner, MIDICable& cable, int32_t channel, int32_t cc,
-                             std::string& broken) {
+std::vector<Hit> tableKnobs(Song& song, ControlsAddress owner, MIDICable& cable, int32_t channel, int32_t cc) {
 	std::vector<Hit> hits;
 	bool isSound = false;
-	ModControllableAudio* knobs = deluge::bridge::controlsOwnerAt(song, owner, &isSound);
-	if (knobs == nullptr) {
+	if (deluge::bridge::controlsOwnerAt(song, owner, &isSound) == nullptr) {
 		return hits;
 	}
 	if (owner.kind != ControlsAddress::Kind::SONG) {
@@ -396,12 +396,8 @@ std::vector<Hit> legacyKnobs(Song& song, ControlsAddress owner, MIDICable& cable
 		}
 	}
 	const std::vector<Mapping> entries = song.project.mappings.params_of(owner);
-	if (entries.size() != knobs->midi_knobs.size()) {
-		broken = "an owner's knob list is not its table entries";
-		return hits;
-	}
 	for (size_t i = 0; i < entries.size(); i++) {
-		if (knobs->midi_knobs[i].midiInput.equalsNoteOrCC(&cable, channel, cc)) {
+		if (deluge::bridge::matches(entries[i].source, cable, channel, cc)) {
 			hits.push_back({entries[i].target, static_cast<uint32_t>(i)});
 		}
 	}
@@ -410,7 +406,7 @@ std::vector<Hit> legacyKnobs(Song& song, ControlsAddress owner, MIDICable& cable
 
 /// The oracle: today's scan of a kit's rows after its own input (Kit::offerReceivedNote): a row's input, or failing
 /// that its mute. A hibernating kit is never offered MIDI.
-std::vector<Hit> legacyLanes(Song& song, uint32_t kitId, MIDICable& cable, int32_t channel, int32_t note) {
+std::vector<Hit> engineLanes(Song& song, uint32_t kitId, MIDICable& cable, int32_t channel, int32_t note) {
 	std::vector<Hit> hits;
 	Kit* kit = nullptr;
 	for (Output* o = song.live.media.first_output; o != nullptr; o = o->next) {
@@ -492,7 +488,7 @@ MappingTable randomTable(std::mt19937& rng, const Fixture& f) {
 		switch (rng() % 6) {
 		case 0: {
 			const size_t o = rng() % f.owners.size();
-			const deluge::plugin::ParamId param =
+			const deluge::project::ParamTarget param =
 			    f.ownerIsSound[o] ? (rng() % 2 ? knobParam(params::LOCAL_PAN) : knobParam(params::LOCAL_LPF_FREQ))
 			                      : knobParam(rng() % 2 ? params::UNPATCHED_DELAY_AMOUNT : params::UNPATCHED_LPF_FREQ,
 			                                  params::Kind::UNPATCHED_GLOBAL);
@@ -537,10 +533,7 @@ void install(const Fixture& f, MappingTable table) {
 	for (uint32_t id : f.outputIds) {
 		(void)deluge::bridge::projectMapping(song, deluge::project::TrackInputTarget{id});
 	}
-	for (const ControlsAddress& owner : f.owners) {
-		(void)deluge::bridge::projectMapping(song, deluge::project::OwnerParamTarget{owner, {}});
-	}
-	deluge::midi::rebuildMappingIndex(song);
+	deluge::midi::rebuildMappingIndex(song); // the knobs play from the table
 }
 
 /// Random MPE zones on @p port: each zone off half the time.
@@ -871,8 +864,9 @@ std::string rowRemovedLeg(Stage& s) {
 	return what;
 }
 
-/// A new audio track made and given @p from's engine knobs, as an auto-overdub's clone of an audio track is.
-Output* engineClone(Song& song, Output& from) {
+/// A new audio track made a clone of @p from, as an auto-overdub's clone of an audio track is: its knobs come from the
+/// table's copy (cloneOutputMappings), none from the clone itself.
+Output* audioClone(Song& song, Output& from) {
 	std::vector<Output*> before;
 	for (Output* o = song.live.media.first_output; o != nullptr; o = o->next) {
 		before.push_back(o);
@@ -894,16 +888,16 @@ Output* engineClone(Song& song, Output& from) {
 	if (fromKnobs == nullptr || toKnobs == nullptr) {
 		return nullptr;
 	}
-	toKnobs->midi_knobs = fromKnobs->midi_knobs;
+	toKnobs->cloneFrom(fromKnobs);
 	return to;
 }
 
-/// An auto-overdub's clone of an audio track, made on the song's tick, which may be the audio tier: its engine knobs
-/// play at once, the table and the device list are untouched until the app loop's refresh, and the refresh leaves the
-/// table as a clone on the app loop would. The tick's own entry point (AudioClip::cloneOutput) is reached only by
-/// linear recording starting on a pending overdub, so the leg makes the same calls it makes: a new audio track with its
-/// source's engine knobs, then cloneOutputMappings, inside the render block. A full queue falls back to recording the
-/// clone's knobs from its engine.
+/// An auto-overdub's clone of an audio track, made on the song's tick, which may be the audio tier: the table and the
+/// device list are untouched until the app loop's refresh (which runs before any message is matched), and the refresh
+/// leaves the table as a clone on the app loop would, the index offering the clone's knobs. The tick's own entry point
+/// (AudioClip::cloneOutput) is reached only by linear recording starting on a pending overdub, so the leg makes the
+/// same calls it makes: a new audio track cloned from its source, then cloneOutputMappings, inside the render block. A
+/// full queue falls back to copying the clone's knobs from its source's.
 std::string cloneLeg(Stage& s) {
 	Output* from = nullptr;
 	for (Output* o = s.song.live.media.first_output; o != nullptr && from == nullptr; o = o->next) {
@@ -936,7 +930,7 @@ std::string cloneLeg(Stage& s) {
 	std::string what;
 	refresh(what);
 
-	Output* to = engineClone(s.song, *from);
+	Output* to = audioClone(s.song, *from);
 	if (to == nullptr) {
 		return "no clone";
 	}
@@ -948,8 +942,6 @@ std::string cloneLeg(Stage& s) {
 	deluge::memory::noteRenderBlock(true); // the song's tick, on the render
 	deluge::bridge::cloneOutputMappings(*from, *to, s.song);
 	deluge::memory::noteRenderBlock(false);
-	bool isSound = false;
-	ModControllableAudio* toEngine = deluge::bridge::controlsOwnerAt(s.song, toKnobs, &isSound);
 	if (what.empty()
 	    && !std::ranges::equal(before, std::vector<Mapping>{s.song.project.mappings.entries().begin(),
 	                                                        s.song.project.mappings.entries().end()})) {
@@ -963,11 +955,6 @@ std::string cloneLeg(Stage& s) {
 	              deluge::project::OwnerParamTarget{
 	                  fromKnobs, knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)})) {
 		what = "the source's knob stopped matching";
-	}
-	if (what.empty()
-	    && (toEngine->midi_knobs.size() != 1
-	        || !toEngine->midi_knobs[0].midiInput.equalsNoteOrCC(s.cables[0], 14, 31))) {
-		what = "the clone's engine knob does not play at once";
 	}
 	if (what.empty() && !deluge::mappingIndexStale()) {
 		what = "the clone left nothing for the refresh";
@@ -983,11 +970,11 @@ std::string cloneLeg(Stage& s) {
 	if (what.empty() && (made == nullptr || made->connectionFlags != 0)) {
 		what = "the refresh made no unconnected entry for the device";
 	}
-	if (what.empty()
-	    && (toEngine->midi_knobs.size() != 2 || std::ranges::none_of(toEngine->midi_knobs, [&](const MIDIKnob& k) {
-		        return k.midiInput.cable == made;
-	        }))) {
-		what = "the refresh did not project the clone's knobs";
+	if (what.empty() && made != nullptr
+	    && !hitOn(knobHits(toKnobs, *made, 14, 30),
+	              deluge::project::OwnerParamTarget{
+	                  toKnobs, knobParam(params::UNPATCHED_DELAY_AMOUNT, params::Kind::UNPATCHED_GLOBAL)})) {
+		what = "the index does not offer the clone's knob on the device's entry";
 	}
 	if (what.empty()
 	    && !hitOn(knobHits(toKnobs, *s.cables[0], 14, 31),
@@ -996,8 +983,8 @@ std::string cloneLeg(Stage& s) {
 		what = "the index does not offer the clone's knob";
 	}
 
-	// A full queue: the clone's knobs are recorded from its engine.
-	Output* overflowed = engineClone(s.song, *from);
+	// A full queue: the clone's knobs are copied from its source's.
+	Output* overflowed = audioClone(s.song, *from);
 	if (what.empty() && overflowed == nullptr) {
 		what = "no second clone";
 	}
@@ -1009,16 +996,13 @@ std::string cloneLeg(Stage& s) {
 		deluge::bridge::cloneOutputMappings(*from, *overflowed, s.song);
 		deluge::memory::noteRenderBlock(false);
 		refresh(what);
-		ModControllableAudio* engine =
-		    deluge::bridge::controlsOwnerAt(s.song, {ControlsAddress::Kind::OUTPUT, *overflowed->id()}, &isSound);
-		const std::vector<Mapping> knobs =
-		    s.song.project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *overflowed->id()});
-		if (what.empty()
-		    && (knobs.empty() || knobs.size() != engine->midi_knobs.size()
-		        || knobs
-		               != deluge::bridge::knobsOf({ControlsAddress::Kind::OUTPUT, *overflowed->id()}, *engine,
-		                                          false))) {
-			what = "after a full queue the clone's knobs are not recorded from its engine";
+		const ControlsAddress overflowedKnobs{ControlsAddress::Kind::OUTPUT, *overflowed->id()};
+		std::vector<Mapping> wanted = s.song.project.mappings.params_of(fromKnobs);
+		for (Mapping& knob : wanted) {
+			std::get<deluge::project::OwnerParamTarget>(knob.target).owner = overflowedKnobs;
+		}
+		if (what.empty() && (wanted.empty() || s.song.project.mappings.params_of(overflowedKnobs) != wanted)) {
+			what = "after a full queue the clone's knobs are not its source's";
 		}
 	}
 	return what;
@@ -1068,7 +1052,7 @@ std::string renderWritesLeg(Stage& s) {
 	                                      knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)}}))) {
 		what = "no audio track learned a knob";
 	}
-	Output* to = from != nullptr ? engineClone(s.song, *from) : nullptr;
+	Output* to = from != nullptr ? audioClone(s.song, *from) : nullptr;
 	if (what.empty() && to == nullptr) {
 		what = "no audio track with knobs to clone";
 	}
@@ -1152,7 +1136,7 @@ std::string appLoopCloneLeg(Stage& s) {
 	}
 	std::string what;
 	refresh(what);
-	Output* to = engineClone(s.song, *from);
+	Output* to = audioClone(s.song, *from);
 	if (to == nullptr) {
 		return "no clone";
 	}
@@ -1843,15 +1827,14 @@ int mapping_dispatch_main(int /*argc*/, char** /*argv*/, deluge::scenarios::driv
 	int32_t cases = 0;
 	int32_t mismatches = 0;
 	std::map<std::string, int32_t> seen;
-	std::string broken;
 	auto report = [&](const char* what, const std::string& message, const std::vector<Hit>& index,
-	                  const std::vector<Hit>& legacy) {
+	                  const std::vector<Hit>& expected) {
 		if (mismatches++ < 10) {
-			std::fprintf(io.err, "MAPPING-DISPATCH MISMATCH %s %s index=%s legacy=%s\n", what, message.c_str(),
-			             describe(index).c_str(), describe(legacy).c_str());
+			std::fprintf(io.err, "MAPPING-DISPATCH MISMATCH %s %s index=%s expected=%s\n", what, message.c_str(),
+			             describe(index).c_str(), describe(expected).c_str());
 		}
 	};
-	// Count what the legacy scan hit, so a run that never reaches a kind of match fails.
+	// Count what the expected scan hit, so a run that never reaches a kind of match fails.
 	auto tally = [&](const std::vector<Hit>& hits, bool zoned) {
 		for (const Hit& hit : hits) {
 			constexpr std::array<const char*, 6> kKinds{"knob", "clip", "rowmute", "section", "track", "rowinput"};
@@ -1901,32 +1884,32 @@ int mapping_dispatch_main(int /*argc*/, char** /*argv*/, deluge::scenarios::driv
 			std::vector<Hit> fromIndex;
 			index.forEachCommand(cable, commandChannel, number,
 			                     [&](const deluge::midi::IndexedEntry& e) { fromIndex.push_back(hitOf(e)); });
-			std::vector<Hit> legacy = legacyCommands(song, cable, commandChannel, number);
-			if (fromIndex != legacy) {
-				report("commands", message, fromIndex, legacy);
+			std::vector<Hit> expected = engineCommands(song, cable, commandChannel, number);
+			if (fromIndex != expected) {
+				report("commands", message, fromIndex, expected);
 			}
-			tally(legacy, false);
+			tally(expected, false);
 
 			for (const ControlsAddress& owner : f.owners) {
 				fromIndex.clear();
 				index.forEachKnob(owner, cable, channel, number,
 				                  [&](const deluge::midi::IndexedEntry& e) { fromIndex.push_back(hitOf(e)); });
-				legacy = legacyKnobs(song, owner, cable, channel, number, broken);
-				if (fromIndex != legacy) {
-					report("knobs", message, fromIndex, legacy);
+				expected = tableKnobs(song, owner, cable, channel, number);
+				if (fromIndex != expected) {
+					report("knobs", message, fromIndex, expected);
 				}
-				tally(legacy, false);
+				tally(expected, false);
 			}
 
 			for (uint32_t kit : f.kitIds) {
 				fromIndex.clear();
 				index.forEachLaneMatch(kit, cable, channel, number,
 				                       [&](const deluge::midi::IndexedEntry& e) { fromIndex.push_back(hitOf(e)); });
-				legacy = legacyLanes(song, kit, cable, channel, number);
-				if (fromIndex != legacy) {
-					report("lanes", message, fromIndex, legacy);
+				expected = engineLanes(song, kit, cable, channel, number);
+				if (fromIndex != expected) {
+					report("lanes", message, fromIndex, expected);
 				}
-				tally(legacy, port.channelToZone(channel) != channel);
+				tally(expected, port.channelToZone(channel) != channel);
 			}
 		}
 	}
@@ -1944,10 +1927,6 @@ int mapping_dispatch_main(int /*argc*/, char** /*argv*/, deluge::scenarios::driv
 	std::fprintf(io.out, "MAPPING-DISPATCH cases=%d mismatches=%d hits:%s\n", static_cast<int>(cases),
 	             static_cast<int>(mismatches), hits.c_str());
 	int32_t failures = mismatches + legFailures;
-	if (!broken.empty()) {
-		std::fprintf(io.err, "MAPPING-DISPATCH FAIL %s\n", broken.c_str());
-		failures++;
-	}
 	constexpr std::array<const char*, 10> kRequired{"knob",
 	                                                "clip",
 	                                                "rowmute",

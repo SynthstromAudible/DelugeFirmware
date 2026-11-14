@@ -349,12 +349,12 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 			return;
 		}
 		const uint8_t mode = r.song.clip->output->modKnobMode;
-		expect(knob_param(target->owner, mode, 1) != std::optional{target->param}).to_be_true();
+		expect(knob_param(target->owner, mode, 1) != std::optional{target->param.id}).to_be_true();
 		(void)last_notice_string();
 		(void)button(ButtonId::Learn, true);
 		expect(gold(deluge::ui::EncoderRole::GoldUpper).handled).to_be_true();
 		(void)button(ButtonId::Learn, false);
-		expect(knob_param(target->owner, mode, 1) == std::optional{target->param}).to_be_true();
+		expect(knob_param(target->owner, mode, 1) == std::optional{target->param.id}).to_be_true();
 		expect(last_notice_string()).to_equal(uint16_t(deluge::l10n::String::STRING_FOR_LEARNED));
 	});
 

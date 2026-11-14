@@ -108,7 +108,7 @@ describe param_backup("the song's param backup, by owner and clip id", ${
 			}
 			expect(song->live.param_backup.pending.empty()).to_be_true();
 		}
-		currentSong = saved;
+		deluge::scenes::spec::make_current(saved);
 	});
 
 	it("a drum made in the clip view finds its backed-up params under its own id", _ {
@@ -116,7 +116,7 @@ describe param_backup("the song's param backup, by owner and clip id", ${
 		display = &stub;
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
 		Song* const saved = currentSong;
-		currentSong = f.song;
+		deluge::scenes::spec::make_current(f.song);
 		NoteRow* row = f.clip->noteRows.insertNoteRowAtIndex(0);
 		expect(row != nullptr).to_be_true();
 		if (row != nullptr) {
@@ -130,14 +130,14 @@ describe param_backup("the song's param backup, by owner and clip id", ${
 			expect(row->paramManager.containsAnyMainParamCollections()).to_be_true();
 			expect(f.song->live.param_backup.pending.empty()).to_be_true();
 		}
-		currentSong = saved;
+		deluge::scenes::spec::make_current(saved);
 		display = nullptr;
 	});
 
 	it("an owner not yet adopted is backed up by itself, and moves under its id when adopted", _ {
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_kit_song();
 		Song* const saved = currentSong;
-		currentSong = f.song;
+		deluge::scenes::spec::make_current(f.song);
 		void* memory = GeneralMemoryAllocator::get().alloc(sizeof(SoundDrum));
 		auto* drum = new (memory) SoundDrum();
 		ParamManagerForTimeline params;
@@ -153,13 +153,13 @@ describe param_backup("the song's param backup, by owner and clip id", ${
 		if (drum->id()) {
 			expect(f.song->live.param_backup.map.count({OwnerId::drum(*drum->id()), std::nullopt})).to_equal(size_t{1});
 		}
-		currentSong = saved;
+		deluge::scenes::spec::make_current(saved);
 	});
 
 	it("an audio track the arranger makes in place of another is adopted, its backup under its id", _ {
 		deluge::scenes::spec::AudioSongFixture f = deluge::scenes::spec::make_audio_clip_song();
 		Song* const saved = currentSong;
-		currentSong = f.song;
+		deluge::scenes::spec::make_current(f.song);
 		Output* old = f.clip->output;
 		AudioOutput* made = f.song->createNewAudioOutput(old);
 		expect(made != nullptr).to_be_true();
@@ -171,7 +171,7 @@ describe param_backup("the song's param backup, by owner and clip id", ${
 				    .to_equal(size_t{1});
 			}
 		}
-		currentSong = saved;
+		deluge::scenes::spec::make_current(saved);
 	});
 });
 // clang-format on

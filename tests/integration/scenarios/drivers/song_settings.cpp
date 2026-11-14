@@ -291,11 +291,13 @@ int32_t saveLegs(Song& song, deluge::scenarios::driver::Io io) {
 
 /// @brief The table's name for patched param @p p of a sound, or (when @p unpatchedKind is given) unpatched param @p p
 ///        of that kind.
-deluge::plugin::ParamId knobParam(int32_t p, std::optional<params::Kind> unpatchedKind = std::nullopt) {
+deluge::project::ParamTarget knobParam(int32_t p, std::optional<params::Kind> unpatchedKind = std::nullopt) {
 	deluge::synth::CableTarget descriptor =
 	    deluge::synth::CableTarget::param(unpatchedKind ? params::UNPATCHED_START + p : p);
-	return deluge::bridge::controlTargetOf(deluge::modulation::knobTargetOf(descriptor),
-	                                       unpatchedKind.value_or(params::Kind::UNPATCHED_SOUND));
+	return deluge::project::engine_target(
+	    deluge::bridge::controlTargetOf(deluge::modulation::knobTargetOf(descriptor),
+	                                    unpatchedKind.value_or(params::Kind::UNPATCHED_SOUND))
+	        .value);
 }
 
 /// @brief @p mapping as a failure shows it: its target's kind (the MappingTarget alternative), its source's channel or
@@ -303,7 +305,7 @@ deluge::plugin::ParamId knobParam(int32_t p, std::optional<params::Kind> unpatch
 std::string describeMapping(const deluge::project::Mapping& mapping) {
 	std::string text = "target#" + std::to_string(mapping.target.index()) + " ";
 	if (const auto* knob = std::get_if<deluge::project::OwnerParamTarget>(&mapping.target)) {
-		text += "param " + std::to_string(knob->param.value) + " ";
+		text += "param " + std::to_string(knob->param.id.value) + " ";
 	}
 	text += std::to_string(mapping.source.channel_or_zone) + "/" + std::to_string(mapping.source.note_or_cc);
 	if (const auto& device = mapping.source.device) {

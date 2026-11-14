@@ -114,6 +114,20 @@ five kit snapshots that differ from `main` (`entire_menu`, `entire_mod1`, `entir
 the same way between `next` 18998b56c and `main`; with the kit's menu opened from its LPF shortcut instead, its whole
 kit half differs there (that page draws a marker on its bar that `main`'s does not).
 
+`learned_cc` is a `run_parity.py` script too: a MIDI CC learned from the sound menu (LEARN held, then the CC) onto a
+param, then played at 0, 64, 127 and 64. It learns the boot synth's low-pass frequency, a kit's first row's, the kit's
+with affect-entire, and the song's reverb amount; the first three close the menu and read the value off the filter
+knobs' rings, the song's keeps its page open, where the new value shows. A fresh CC knob is relative until a value from
+16 to 111 shows it is not, so the 0 moves nothing and the 64 that follows is the first absolute move.
+
+`midi_follow` plays every CC of MIDI follow on a synth clip, a kit row, a kit with affect-entire and the song. The
+synth, kit-row and song sections show the sound table and the global table in their popups, knob LEDs and the DIN bytes
+of the feedback; the kit affect-entire section shows only error-popup frames, on `main` too, with no feedback, so the
+script does not see the affect-entire choice of `midi::followFocus` (`controls::resolve_follow`). That choice is pinned
+by `tests/controls/follow_spec.cpp` and `sim/scenes_spec/midi_follow_spec.cpp`. No script sends a pitch bend (the runner
+has no bend verb) or unlearns a knob on a sound with a non-zero pitch adjust, so the two accepted learned-MIDI
+differences (D160, D161 in `DIFFERENCES.md`) are pinned by specs.
+
 `root_knob_views` is also a `run_parity.py` script; it pins the gold knobs at the root views, in the order its sections
 run:
 - note tails (`tail_*`, `menu_tail_*`): a long note on the boot synth, envelope-1 sustain set to its minimum from the menu

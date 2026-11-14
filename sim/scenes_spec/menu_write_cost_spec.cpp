@@ -219,7 +219,7 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 		    .id = deluge::instrument::param::kLpfFrequency,
 		    .clip_id = f.clip->id()};
 		report("synth-region", 0, "lpfFrequency", time_requests([&](int32_t i) {
-			       (void)menu::host_controls_sink().write_param(lpf, (i % 2) != 0 ? 0x40000000 : -0x40000000, 0, 24);
+			       (void)menu::host_controls_sink().write_param(lpf, (i % 2) != 0 ? 0x40000000 : -0x40000000, 0, 24, deluge::controls::Resolution::KNOB);
 		       }));
 		nullifyUIs();
 	});
@@ -227,7 +227,7 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 	it("measures a marker detent on a synth's sample source", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		Song* const saved = currentSong;
-		currentSong = f.song;
+		deluge::scenes::spec::make_current(f.song);
 		const deluge::project::SlotAddress slot{deluge::project::SlotAddress::Kind::OUTPUT, *f.instrument->id()};
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		deluge::edits::settingFor(sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
@@ -242,7 +242,7 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 			       (void)menu::host_write_sink().write_ranges(slot, 0, ranges, marker);
 		       }));
 		expect(menu::host_runtime_facts().sound_state(slot)->sources[0].ranges[0].end_pos).to_equal(uint64_t{100000});
-		currentSong = saved;
+		deluge::scenes::spec::make_current(saved);
 	});
 
 	it("measures a compressor knob detent on the master's chain and on a full kit's", _ {

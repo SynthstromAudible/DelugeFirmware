@@ -7,9 +7,28 @@ bool RecordingSink::write(const WriteRequest& request) {
 	return true;
 }
 
-bool RecordingSink::write_param(const project::ParamAddress& address, int32_t value, int32_t pos, int32_t length) {
-	param_writes.push_back({address, value, pos, length});
+bool RecordingSink::write_param(const project::ParamAddress& address, int32_t value, int32_t pos, int32_t length,
+                                controls::Resolution resolution) {
+	param_writes.push_back({address, value, pos, length, resolution});
 	return true;
+}
+
+void RecordingSink::learned_written(const project::ParamAddress& address, int32_t knob_pos) {
+	learned_follows.emplace_back(address, knob_pos);
+}
+
+std::optional<uint32_t> RecordingSink::take_for(uint32_t output_id) {
+	take_requests.push_back(output_id);
+	return take_answer;
+}
+
+bool RecordingSink::make_param(const project::ParamAddress& address) {
+	made.push_back(address);
+	return true;
+}
+
+void RecordingSink::knob_absolute(const project::OwnerParamTarget& target, const project::MidiCommand& source) {
+	absolutes.emplace_back(target, source);
 }
 
 bool RecordingSink::delete_automation(const project::ParamAddress& address) {

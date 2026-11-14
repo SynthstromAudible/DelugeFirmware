@@ -55,14 +55,7 @@ PLANTED = {
     "track input": "instrument->midiInput = learned;",
     "lane input cleared": "drum->midiInput.clear();",
     "input cable": "melodicInstrument->midiInput.cable = cable;",
-    "knob learned raw": "sound->learnKnob(cable, param, 0, 0, channel, song);",
-    "knobs unlearned raw": "modControllable->unlearnKnobs(param, song);",
-    "knob list grown": "owner->midi_knobs.push_back(knob);",
-    "knob list set": "owner.midi_knobs = std::move(knobs);",
-    "knob list cleared": "owner.midi_knobs.clear();",
-    "knob in the list": "owner.midi_knobs[0].relative = false;",
-    "knob list erased by a function": "std::erase_if(owner->midi_knobs, isStale);",
-    "knob list sorted by a function": "std::ranges::sort(owner.midi_knobs, byParam);",
+    "mod knob learned raw": "sound->learnModKnob(target, whichKnob, modKnobMode, song);",
     "section launch command": "section.launch_midi_command = command;",
 }
 
@@ -284,14 +277,7 @@ class SongStateWrites(unittest.TestCase):
             "learnedThing = &whichClip->muteMIDICommand;",
             "if (drum->midiInput.containsSomething()) {}",
             "midiInput.cable = &cable;",
-            "(*current_item_)->learnKnob(cable, whichKnob, modKnobMode, midiChannel);",
-            "getCurrentMenuItem()->learnKnob(nullptr, whichModEncoder, mode, 255);",
-            "MenuItemWithCCLearning::learnKnob(cable, whichKnob, modKnobMode, midiChannel);",
-            "void learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final {",
             "deluge::edits::learnKnobFor(*owner, param, cable, whichKnob, channel);",
-            "for (const MIDIKnob& knob : owner->midi_knobs) {}",
-            "if (owner.midi_knobs[0].relative == true) {}",
-            "const auto at = std::ranges::find_if(owner.midi_knobs, isPan);",
             "const auto n = std::erase_if(copy, isStale);",
             "// owner.launch_midi_command = command;",
             "const int x = 1; // section.launch_midi_command = command;",
@@ -304,14 +290,14 @@ class SongStateWrites(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "documented.cpp").write_text(
-                "/**\n * A gesture used to set section.launch_midi_command = command;\n * and owner.midi_knobs.clear();\n */\n"
+                "/**\n * A gesture used to set section.launch_midi_command = command;\n * and drum->midiInput.clear();\n */\n"
                 "void gesture() { /* output->setName(n); */ int x = 1; }\n"
                 "/* opened here\n   and output->setName(n);\n   closed */ void other() {}\n"
             )
             self.assertEqual(csm.song_state_writes((root,), allowed={}), [])
             (root / "documented.cpp").write_text(
-                "/* a comment */ owner.midi_knobs.clear();\n"
-                "/* opened\n closed */ owner.midi_knobs.clear();\n"
+                "/* a comment */ drum->midiInput.clear();\n"
+                "/* opened\n closed */ drum->midiInput.clear();\n"
             )
             self.assertEqual(len(csm.song_state_writes((root,), allowed={})), 2)
 
@@ -442,6 +428,30 @@ class KnobWrites(unittest.TestCase):
         for root in csm.DEFAULT_ROOTS:
             found += csm.knob_writes(root)
         self.assertEqual(found, [])
+
+
+class UnrecordedWrites(unittest.TestCase):
+    """A file that learns a mod knob itself also records the owner's controls."""
+
+    def check(self, text: str) -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "planted.cpp").write_text(text)
+            return csm.unrecorded(root)
+
+    def test_a_mod_knob_learned_without_its_record_is_reported(self):
+        found = self.check(
+            "void learn() { sound->learnModKnob(target, 0, 0, song); }\n"
+        )
+        self.assertEqual(len(found), 1, found)
+
+    def test_one_recorded_is_not(self):
+        self.assertEqual(
+            self.check(
+                "void learn() { sound->learnModKnob(target, 0, 0, song); recordControlsOf(*sound); }\n"
+            ),
+            [],
+        )
 
 
 if __name__ == "__main__":

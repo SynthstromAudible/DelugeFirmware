@@ -198,14 +198,6 @@ public:
 	/// If there's a clip matching the name on this output, returns it.
 	Clip* getClipFromName(std::string_view name);
 
-	/// Pitch bend is available in the mod matrix as X and shouldn't be learned to params anymore (post 4.0)
-	virtual bool offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
-	                                                   ModelStackWithTimelineCounter* modelStack) {
-		return false;
-	} // A TimelineCounter is required
-	virtual void offerReceivedCCToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
-	                                            ModelStackWithTimelineCounter* modelStack) {
-	} // A TimelineCounter is required
 	virtual int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) { return 2147483647; }
 	void endAnyArrangementRecording(Song* song, int32_t actualEndPos, uint32_t timeRemainder);
 	virtual bool wantsToBeginArrangementRecording() { return armedForRecording; }

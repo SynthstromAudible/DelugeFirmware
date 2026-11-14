@@ -37,6 +37,7 @@
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
+#include "io/midi/learned_dispatch.h"
 #include "io/midi/mapping_index.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
@@ -1575,8 +1576,9 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 	Song* const outgoing = currentSong;
 	deluge::bridge::discardPendingMappingOps(); // the table writes the render held were for the song going
 	currentSong = preLoadedSong;
-	// The index is the current song's. A swap may run on the song's tick, so the rebuild waits for the app loop.
-	deluge::markMappingIndexStale();
+	// The index and the takeover states are the current song's. A swap may run on the song's tick, so the app loop
+	// acts on it.
+	deluge::markSongChanged();
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	preLoadedSong = nullptr;
 
@@ -3274,20 +3276,15 @@ void PlaybackHandler::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8
 	// Go through all Outputs...
 	for (Output* thisOutput = currentSong->live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-		    modelStack->addTimelineCounter(thisOutput->getActiveClip());
-
-		bool usedForParam = false;
-
-		if (!isMPE && modelStackWithTimelineCounter->timelineCounterIsSet()) { // Do we still need to check this?
-			// See if it's learned to a parameter
-			usedForParam = thisOutput->offerReceivedPitchBendToLearnedParams(
-			    cable, channel, data1, data2,
-			    modelStackWithTimelineCounter); // NOTE: this call may change
-			                                    // modelStackWithTimelineCounter->timelineCounter etc!
-		}
+		// A learned knob that hears it takes it from the instrument. It may move the output onto the take the
+		// arrangement records, so the stack is set up after.
+		const bool usedForParam = !isMPE && thisOutput->getActiveClip() != nullptr
+		                          && deluge::midi::learnedPitchBendToOutput(
+		                              *thisOutput, cable, channel, static_cast<uint16_t>(data1 | (data2 << 7)));
 
 		if (!usedForParam) {
+			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+			    modelStack->addTimelineCounter(thisOutput->getActiveClip());
 			thisOutput->offerReceivedPitchBend(modelStackWithTimelineCounter, cable, channel, data1, data2,
 			                                   doingMidiThru);
 		}
@@ -3322,34 +3319,21 @@ void PlaybackHandler::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t 
 	// See if midi cc received should be processed by midi follow mode
 	midiFollow.midiCCReceived(cable, channel, ccNumber, value, doingMidiThru, modelStack);
 
-	// See if midi cc received has been learned to a song param
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-	if (modelStackWithThreeMainThings) {
-		ModControllableAudio* modControllable = (ModControllableAudio*)modelStackWithThreeMainThings->modControllable;
-		if (modControllable) {
-			modControllable->offerReceivedCCToLearnedParamsForSong(cable, channel, ccNumber, value,
-			                                                       modelStackWithThreeMainThings);
-		}
-	}
+	// The song's learned knobs hear it on any channel.
+	deluge::midi::learnedCcToSong(cable, channel, ccNumber, value);
 
 	// Go through all Outputs...
 	for (Output* thisOutput = currentSong->live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 
-		// If it has an activeClip... (Hmm, interesting, we don't allow MIDI control of params when no activeClip?
-		// Yeah this checks out, as the various offerReceivedCCToLearnedParams()'s require a timelineCounter, but
-		// this seems restrictive for the user...)
+		// Only an output with an active clip is offered MIDI control, as only it is offered its learned knobs.
 		if (thisOutput->getActiveClip()) {
+			if (!isMPE) {
+				// May move the output onto the take the arrangement records, which its own offer then sees.
+				deluge::midi::learnedCcToOutput(*thisOutput, cable, channel, ccNumber, value);
+			}
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 			    modelStack->addTimelineCounter(thisOutput->getActiveClip());
-
-			if (!isMPE) {
-				// See if it's learned to a parameter
-				// NOTE: this call may change modelStackWithTimelineCounter->timelineCounter etc!
-				thisOutput->offerReceivedCCToLearnedParams(cable, channel, ccNumber, value,
-				                                           modelStackWithTimelineCounter);
-			}
 
 			thisOutput->offerReceivedCC(modelStackWithTimelineCounter, cable, channel, ccNumber, value, doingMidiThru);
 		}

@@ -407,8 +407,10 @@ describe menu_edited_unlearn("MenuItemWithCCLearning::unlearnAction through the 
 		expect(getCurrentInstrument() == fx.instrument).to_be_true();
 		const deluge::project::OwnerParamTarget knob{
 		    {deluge::project::ControlsAddress::Kind::OUTPUT, *fx.instrument->id()},
-		    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::LOCAL_VOLUME),
-		                                    params::Kind::UNPATCHED_SOUND)};
+		    deluge::project::engine_target(
+		        deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::LOCAL_VOLUME),
+		                                        params::Kind::UNPATCHED_SOUND)
+		            .value)};
 		deluge::edits::learnMappingFor(deluge::project::MidiCommand{.channel_or_zone = 1, .note_or_cc = 74}, knob);
 		expect(fx.song->project.mappings.find(knob) != nullptr).to_be_true();
 		fx.instrument->editedByUser = false;

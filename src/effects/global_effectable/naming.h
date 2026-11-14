@@ -23,8 +23,11 @@
 namespace deluge::global_effectable {
 
 namespace detail {
+/// The name a cable's range had before 3.2: it names no param a knob can turn.
+inline constexpr std::string_view kOldRangeName = "range";
+
 inline std::optional<plugin::ParamId> id_of(const plugin::ParamRef& ref) {
-	if (!ref.source.empty() || !ref.second_source.empty()) {
+	if (ref.param == kOldRangeName || !ref.source.empty() || !ref.second_source.empty()) {
 		return std::nullopt;
 	}
 	const plugin::ParamInfo* row = plugin::find_param(kParams, ref.param);
@@ -38,7 +41,7 @@ inline plugin::ParamRef ref_of(plugin::ParamId id) {
 } // namespace detail
 
 /// @brief How files name the provisional global-effectable params: by file name only (they have no cables) and
-/// with no mod-knob rule.
+/// with no mod-knob rule. A cable's pre-3.2 `range` names no param.
 inline constexpr plugin::ParamNaming kNaming{plugin::kGlobalEffectable, &detail::id_of, &detail::ref_of, nullptr};
 
 } // namespace deluge::global_effectable

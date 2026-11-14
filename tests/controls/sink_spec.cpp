@@ -10,12 +10,30 @@ namespace {
 /// A sink that keeps what it was asked, to show the interface needs nothing from the app.
 class RecordingKnobSink final : public Sink {
 public:
-	bool write_param(const project::ParamAddress& address, int32_t value, int32_t pos, int32_t length) override {
+	bool write_param(const project::ParamAddress& address, int32_t value, int32_t pos, int32_t length,
+	                 Resolution resolution) override {
 		written = address;
+		written_resolution = resolution;
 		written_value = value;
 		written_pos = pos;
 		written_length = length;
 		return true;
+	}
+	void learned_written(const project::ParamAddress& address, int32_t knob_pos) override {
+		followed = address;
+		followed_pos = knob_pos;
+	}
+	std::optional<uint32_t> take_for(uint32_t output_id) override {
+		take_asked = output_id;
+		return output_id + 1000;
+	}
+	bool make_param(const project::ParamAddress& address) override {
+		made = address;
+		return true;
+	}
+	void knob_absolute(const project::OwnerParamTarget& target, const project::MidiCommand& source) override {
+		absolute_target = target;
+		absolute_source = source;
 	}
 	bool delete_knob_automation(const project::ParamAddress&) override { return false; }
 	bool knob_mode(project::KnobModeOwner, uint8_t mode) override {
@@ -47,6 +65,13 @@ public:
 	}
 
 	project::ParamAddress written{};
+	Resolution written_resolution{Resolution::KNOB};
+	project::ParamAddress followed{};
+	project::ParamAddress made{};
+	int32_t followed_pos{0};
+	uint32_t take_asked{0};
+	project::OwnerParamTarget absolute_target{};
+	project::MidiCommand absolute_source{};
 	int32_t written_value{0};
 	int32_t written_pos{0};
 	int32_t written_length{0};
@@ -65,10 +90,26 @@ public:
 	[[nodiscard]] std::optional<int32_t> param_value_at(const project::ParamAddress&, uint32_t pos) const override {
 		return static_cast<int32_t>(pos);
 	}
+	[[nodiscard]] bool param_automated(const project::ParamAddress&) const override { return false; }
+	[[nodiscard]] std::optional<int32_t> clip_param_value(const project::ParamAddress&,
+	                                                      std::optional<uint32_t>) const override {
+		return std::nullopt;
+	}
 	[[nodiscard]] bool stutter_active() const override { return true; }
 	[[nodiscard]] bool alt_delay() const override { return false; }
+	[[nodiscard]] std::span<const PlayingOutput> playing_outputs() const override { return {}; }
+	[[nodiscard]] std::span<const KitRow> sound_rows(uint32_t) const override { return {}; }
+	[[nodiscard]] TakeoverInputs takeover_inputs(bool cable_relative) const override {
+		return {.cable_relative = cable_relative};
+	}
+	[[nodiscard]] std::optional<std::pair<int32_t, int32_t>> step_region(std::optional<uint32_t>) const override {
+		return std::nullopt;
+	}
 	[[nodiscard]] bool allows_note_tails(project::SlotAddress, std::optional<project::ClipAddress>) const override {
 		return false;
+	}
+	[[nodiscard]] const plugin::ParamInfo* param_info(plugin::PluginId, const project::ParamTarget&) const override {
+		return nullptr;
 	}
 };
 } // namespace
@@ -78,7 +119,8 @@ describe sink("the controls' sink and facts", ${
 		RecordingKnobSink recording;
 		Sink& sink = recording;
 		project::ParamAddress address{};
-		expect(sink.write_param(address, 5, 96, 24)).to_be_true();
+		expect(sink.write_param(address, 5, 96, 24, Resolution::LEARNED)).to_be_true();
+		expect(recording.written_resolution == Resolution::LEARNED).to_be_true();
 		expect(recording.written_value).to_equal(5);
 		expect(recording.written_pos).to_equal(96);
 		expect(recording.written_length).to_equal(24);
@@ -88,6 +130,21 @@ describe sink("the controls' sink and facts", ${
 		expect(recording.stuttering).to_be_true();
 		expect(sink.midi_cc_select(KnobFocus{}, 2, true)).to_be_true();
 		expect(recording.selecting).to_equal(2);
+	});
+	it("takes a learned knob's follow, take and absolute notice through the interface", _{
+		RecordingKnobSink recording;
+		Sink& sink = recording;
+		sink.learned_written(project::ParamAddress{.owner = project::OwnerId::instrument(3)}, -12);
+		expect(recording.followed.owner == project::OwnerId::instrument(3)).to_be_true();
+		expect(recording.followed_pos).to_equal(-12);
+		expect(sink.take_for(7) == std::optional<uint32_t>{1007}).to_be_true();
+		expect(sink.make_param(project::ParamAddress{.owner = project::OwnerId::instrument(4)})).to_be_true();
+		expect(recording.made.owner == project::OwnerId::instrument(4)).to_be_true();
+		const project::OwnerParamTarget target{{project::ControlsAddress::Kind::OUTPUT, 7}, {}};
+		const project::MidiCommand source{.channel_or_zone = 2, .note_or_cc = 5};
+		sink.knob_absolute(target, source);
+		expect(recording.absolute_target == target).to_be_true();
+		expect(recording.absolute_source == source).to_be_true();
 	});
 	it("takes a chain's effect word and view word", _{
 		RecordingKnobSink recording;

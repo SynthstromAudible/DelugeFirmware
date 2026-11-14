@@ -1,11 +1,31 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #pragma once
+
+/// @file
+/// @brief The gold knob's arithmetic: position (-64..64) to stored word and back, and the turn.
 
 #include "deluge-project/param_address.h"
 #include "plugin-api/types/param.h"
 
 #include <cstdint>
 
-namespace deluge::scenes::bind {
+namespace deluge::controls {
 
 /// @brief How far a gold knob turns: a cable's depth reaches further down, a MIDI CC stops short of the top.
 enum class KnobKind : uint8_t { PARAM, CABLE, MIDI_CC };
@@ -47,4 +67,4 @@ enum class KnobKind : uint8_t { PARAM, CABLE, MIDI_CC };
 /// @brief A cable's knob position (-192..64) folded onto its indicator, centred on 64 and reaching it only at 0.
 [[nodiscard]] int32_t fold_cable(int32_t knob_pos);
 
-} // namespace deluge::scenes::bind
+} // namespace deluge::controls

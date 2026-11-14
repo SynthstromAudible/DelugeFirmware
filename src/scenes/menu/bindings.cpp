@@ -458,7 +458,8 @@ std::optional<deluge::project::OwnerParamTarget> learn_target(const Node& node, 
 	if (!node.bind.param.valid() || !owner) {
 		return std::nullopt;
 	}
-	return deluge::project::OwnerParamTarget{.owner = *owner, .param = param_id_of(node.bind.param)};
+	return deluge::project::OwnerParamTarget{
+	    .owner = *owner, .param = deluge::project::engine_target(param_id_of(node.bind.param).value)};
 }
 
 // ---------------------------------------------------------------------------------------------
