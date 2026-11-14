@@ -423,6 +423,16 @@ class LoadRegistryTest(unittest.TestCase):
             ):
                 hr.load_registry(self._root_with(text))
 
+    def test_a_baseline_outside_the_golden_root_is_refused(self):
+        text = MINIMAL.replace(
+            'tier = "pr"', 'baseline = ["tests/unit/x.json"]\ntier = "pr"'
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            r"baseline 'tests/unit/x\.json' is outside tests/golden/<consumer>/",
+        ):
+            hr.load_registry(self._root_with(text))
+
 
 class BaselineDeclarationTest(unittest.TestCase):
     ROOT = Path(__file__).resolve().parents[2]
@@ -473,6 +483,95 @@ class BaselineDeclarationTest(unittest.TestCase):
     def test_the_lists_here_name_registry_entries(self):
         names = {h.name for h in hr.load_registry(self.ROOT)}
         self.assertLessEqual(self.CPP_OWNERS | set(self.NOT_OWNERS), names)
+
+
+class GoldenRootTest(unittest.TestCase):
+    def test_a_baseline_lives_under_the_golden_root(self):
+        for good in (
+            "tests/golden/songs/fixtures.json",
+            "tests/golden/ui/app",
+            "tests/unit/deluge/dsp-next/x_records.h",
+            "tests/integration/scenarios/pitch_pin_records.h",
+            "website/src/data/generated/menu-tree.json",
+        ):
+            with self.subTest(good):
+                self.assertIsNone(hr.baseline_problem(good))
+
+    def test_a_baseline_elsewhere_is_refused(self):
+        for bad in (
+            "tests/golden",
+            "tests/goldenx/a.json",
+            "tests/integration/checks/x.sha256",
+            "tests/unit/x.h",
+            "src/instruments/deluge/cable_records.h",
+            "build/golden/a.json",
+        ):
+            with self.subTest(bad):
+                self.assertIn(
+                    "is outside tests/golden/<consumer>/",
+                    hr.baseline_problem(bad) or "",
+                )
+
+
+def golden_strays(paths: list[str]) -> list[str]:
+    """The paths among `paths` that are golden data outside tests/golden: a file under a directory named `golden`,
+    or a snapshot or hash file (.pbm, .state, .sha256)."""
+    return [
+        path
+        for path in paths
+        if Path(path).parts[:2] != ("tests", "golden")
+        and (
+            "golden" in Path(path).parts[:-1]
+            or Path(path).suffix in (".pbm", ".state", ".sha256")
+        )
+    ]
+
+
+# A string literal that names a golden relative to another consumer's directory instead of under GOLDEN_ROOT.
+GOLDEN_ESCAPE = re.compile(r'"\.\./(?:ui|shell|gfx)/')
+
+
+class GoldenTreeTest(unittest.TestCase):
+    ROOT = Path(__file__).resolve().parents[2]
+
+    def _tracked(self, *patterns: str) -> list[str]:
+        found = subprocess.run(
+            ["git", "ls-files", "-z", "--", *patterns],
+            cwd=self.ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return [p for p in found.stdout.split("\0") if p]
+
+    def test_golden_strays_names_data_outside_the_root(self):
+        self.assertEqual(
+            golden_strays(
+                [
+                    "tests/golden/gfx/a.pbm",
+                    "docs/golden/a.json",
+                    "tests/integration/checks/a.sha256",
+                    "src/a.state",
+                    "src/bsp/rust/harness/golden_vt_render/src/main.rs",
+                    "tests/golden/README.md",
+                ]
+            ),
+            ["docs/golden/a.json", "tests/integration/checks/a.sha256", "src/a.state"],
+        )
+
+    def test_no_golden_data_lives_outside_the_root(self):
+        self.assertEqual(golden_strays(self._tracked()), [])
+
+    def test_no_spec_names_a_golden_outside_the_root(self):
+        hits = [
+            f"{path}:{n}"
+            for path in self._tracked("*.cpp", "*.h")
+            for n, line in enumerate(
+                (self.ROOT / path).read_text(errors="replace").splitlines(), 1
+            )
+            if GOLDEN_ESCAPE.search(line) and not line.lstrip().startswith("#include")
+        ]
+        self.assertEqual(hits, [])
 
 
 class RegistryVariantTest(unittest.TestCase):

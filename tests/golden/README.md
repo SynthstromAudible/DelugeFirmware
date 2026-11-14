@@ -3,6 +3,33 @@
 What the tests compare with, one directory per consumer. The corpus runners that read and record part of it are
 in `tests/integration/corpus/` (its README says how they run).
 
+## Layout
+
+One directory per consumer: what reads it, and which registry entry re-records it (`./dbt test --update <entry>`).
+C++ specs name a golden by its path under `GOLDEN_ROOT` (`tests/support/cmake/golden.cmake`), e.g.
+`gfx/oled/icons.pbm`; Python checks by its repository path, and the corpus runners through `driver.GOLDEN`.
+
+| Directory | Holds | Read by | Re-recorded by |
+| --- | --- | --- | --- |
+| `gfx/` | the gfx primitives' OLED panels (`oled/`) and grid states (`grid/`) | the gfx specs | `unit` |
+| `shell/` | the shell's popup and overlay panels | the shell specs | `unit` |
+| `ui/widgets/` | the UI widgets' panels and grid states | the ui specs | `unit` |
+| `ui/shell/<script>/` | each level-2 script's snapshots (`tests/ui-scripts/shell/`) | `expect_script_goldens`, in the unit specs and `sim/scenes_spec` | `unit`, `ui-scenes-spec` |
+| `ui/menu/`, `ui/scenes/` | the ported menu's and scenes' panels | `sim/scenes_spec` | `ui-scenes-spec` |
+| `ui/app/<script>/` | each level-3 app script's snapshots (`tests/ui-scripts/app/`) | `tests/integration/checks/ui_scripts.py` | `ui-scripts` |
+| `ui/menu_oracle/` | upstream `main`'s menu answers (below) | `sim/scenes_spec/support/oracle_table.h`, `oracle_files.h` | nothing: rows change by hand to follow `main` |
+| `render/` | the synth golden masters' presets (`presets/`, made by `presets/make_corpus.py`) and their records (`presets.json`); the render-song generator (`songs/make_render_song.py`) and its records (`songs.json`); synthetic wavetables (`wavetable_pins/`); `compare_renders.py`, which compares two sets of renders | `render_preset.py`, `render_song.py`, `load_policy.card`, the dsp band-builder and FFT specs, `engine_settings_run.py`, `upgrade_run.py` | `golden-synth` (`presets.json`), each render-song entry (`songs.json`) |
+| `songs/` | save(load(song)) hashes (`fixtures.json`) and the committed synthetic songs (`synthetic/`) | `songs_run.py`, `upgrade_run.py`, `model_decode_diff_run.py`, `model_equality_synthetic` | `song-roundtrip` |
+| `presets/` | save(load(preset)) hashes (`fixtures.json`) | `presets_run.py`, `upgrade_run.py` | `preset-roundtrip` |
+| `cable_decode/` | each file's decoded cables, fingerprinted (`fixtures.json`) | `cable_decode_run.py` | `cable-decode` |
+| `param_record/` | each song's recorded lanes, their undo and redo, and its reload (`<song>.txt`) | `param_record_run.py` | `param-record-diff` |
+| `audio_clip_edit/` | each song's audio-clip descriptor edits (`<song>.txt`) | `audio_clip_edit_run.py` | `audio-clip-edit-diff` |
+| `arrangement_take/` | the arrangement takes' lanes and render (`RS_ARRANGE_TAKE.txt`) | `arrangement_take.py` | `arrangement-take` |
+| `upgrade/` | the upgrader's legacy fixtures (`<group>/<name>.<kind>.XML`, each oracle beside its fixture, made by `make_fixtures.py`) and their hashes (`fixtures.json`, keyed by path under `tests/golden/`) | `upgrade_run.py` | `upgrade-differential` |
+| `stem_export/` | the stem export's render hash and size (`<fixture>.sha256`) | `stem_export.py` | by hand only (`stem_export.py` says how) |
+
+Record headers (`*_records.h`) stay beside the specs that compile them; their entries list them in `baseline` too.
+
 ## Menu reference tables (`ui/menu_oracle/`)
 
 Upstream `main`'s menu answers, one row per answer, which the ported menu's scenes specs check it against

@@ -23,6 +23,12 @@ LEVELS = ("unit", "component", "integration")
 RUNNERS = ("ctest", "cargo", "scenario", "corpus", "script")
 # Where a corpus gate's runner lives: `corpus_runner = "<name>"` runs <CORPUS_RUNNERS>/<name>_run.py.
 CORPUS_RUNNERS = Path("tests/integration/corpus")
+# Every baseline lives under GOLDEN_ROOT, in the directory of what reads it (tests/golden/README.md lists them).
+GOLDEN_ROOT = Path("tests/golden")
+# A record header is compiled into the spec that checks it, so it stays beside that spec, under tests/.
+RECORD_HEADER_SUFFIX = "_records.h"
+# The menu tree is a website build input; the ui-menu-dump gate keeps it equal to the app's.
+BASELINES_ELSEWHERE = ("website/src/data/generated/menu-tree.json",)
 # A corpus gate's runner names its scenario and judges its own runs, so these mean nothing on one.
 SCENARIO_ONLY = ("scenario", "markers", "result", "check")
 # Cumulative, in this order: selecting a tier selects every tier before it too.
@@ -385,6 +391,23 @@ def gates_problem(gates: str) -> str | None:
     return None
 
 
+def baseline_problem(path: str) -> str | None:
+    """Why `path` cannot be a registry `baseline`, or None when it can: it is under GOLDEN_ROOT/<consumer>/, a record
+    header under tests/, or one of BASELINES_ELSEWHERE."""
+    parts = Path(path).parts
+    root = GOLDEN_ROOT.parts
+    if parts[: len(root)] == root and len(parts) > len(root):
+        return None
+    if parts[:1] == ("tests",) and path.endswith(RECORD_HEADER_SUFFIX):
+        return None
+    if path in BASELINES_ELSEWHERE:
+        return None
+    return (
+        f"'{path}' is outside {GOLDEN_ROOT}/<consumer>/; only a record header (tests/…/*{RECORD_HEADER_SUFFIX}) "
+        f"or {', '.join(BASELINES_ELSEWHERE)} lives elsewhere"
+    )
+
+
 # Where a scenario without a check is written: its stepped scenario, or its driver.
 SCENARIO_SOURCES = (
     "tests/integration/scenarios/{scenario}_scenario.cpp",
@@ -666,6 +689,9 @@ def _validate(root: Path, item: dict, where: str, seen: set[str]) -> Harness:
             f"{where}: baseline lists the files or directories the test re-records, each relative to the "
             "repository root"
         )
+    for p in baseline:
+        if problem := baseline_problem(p):
+            raise ValueError(f"{where}: baseline {problem}")
     for table in ("env", "env_default"):
         if CORPUS_DECLARED in item.get(table, {}):
             raise ValueError(
@@ -877,17 +903,20 @@ def dump_expanded(entries: list[Harness]) -> str:
 
 
 __all__ = [
+    "BASELINES_ELSEWHERE",
     "CHECK_NOTES",
     "CORPUS_DECLARED",
     "CORPUS_RUNNERS",
     "ENTRY_FIELDS",
     "GATES_MAX",
+    "GOLDEN_ROOT",
     "JOBS",
     "KINDS",
     "LEVELS",
     "LOCAL_ONLY",
     "PATH_RUNNERS",
     "PROBES",
+    "RECORD_HEADER_SUFFIX",
     "RUNNERS",
     "SCENARIO_SOURCES",
     "SCENARIO_TABLE",
@@ -898,6 +927,7 @@ __all__ = [
     "VARIANT_FIELDS",
     "VARIANT_INSTANCE_FIELDS",
     "Harness",
+    "baseline_problem",
     "ci_matrix",
     "corpus_fixture_scenarios",
     "declares_corpus",
