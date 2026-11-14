@@ -8,8 +8,8 @@ Usage:
 The device side boots HARNESS_ELF (a `rig-harness` build: tools/bench_image.py --features rig-harness) once per
 script through tools/rig_session.py and drives it in real time; the reference side runs --emu-ref in delugemu, on the
 card the scripts' `# card:` header names, or --card/--sd, which must hold what the rig's SD card holds. Both go
-through tools/emu_parity.py's script runner and its comparison, so the output is emu_parity's: one MATCH/DIFF line
-per snapshot and DIR/report.json.
+through tools/emu_parity.py's script runner and its `differences`: one MATCH/DIFF line per snapshot, and
+DIR/report.json mapping each snapshot to its differences.
 
 Settings: unless --flash names a flash image, the rig's own settings sector is read (read only: the core is
 halted for the copy, and QSPI is never written) and delugemu starts from it, so a difference in saved settings
@@ -304,14 +304,7 @@ def compare(args: argparse.Namespace, sd: Path, flash: Path, device, buttons) ->
                 got["test"] = exc
             try:
                 got["ref"] = refs[script].result()
-            except (
-                AssertionError,
-                RuntimeError,
-                OSError,
-                KeyError,
-                ValueError,
-                TypeError,
-            ) as exc:
+            except emu_parity.RUN_FAILURES as exc:
                 got["ref"] = exc
             errors = [
                 f"{side}: {r}"

@@ -90,6 +90,9 @@ WINDOW_MS = 8000
 LOAD_OPEN_MS = 1500
 LOAD_KEY_MS = 150
 LOAD_SETTLE_MS = 800
+# What one side's run raises when it fails (a fault, the emulator, the script): reported as that side's `run` row,
+# so the other scripts and sides still run.
+RUN_FAILURES = (AssertionError, RuntimeError, OSError, KeyError, ValueError, TypeError)
 
 # The OLED rows an output name's section line ("SECTION n") takes on the name screen (DIFFERENCES.md D77).
 SECTION_LINE_ROWS = range(37, 44)
@@ -1027,15 +1030,8 @@ def run_legs(args, plan, images: dict[str, tuple[Path, bool]]) -> int:
             for side, future in pending.items():
                 try:
                     got[side] = future.result()
-                except (
-                    AssertionError,
-                    RuntimeError,
-                    OSError,
-                    KeyError,
-                    ValueError,
-                    TypeError,
-                ) as e:
-                    got[side] = e  # a fault, the emulator, the script
+                except RUN_FAILURES as e:
+                    got[side] = e
         errors = [
             f"{side}: {r}" for side, r in got.items() if isinstance(r, BaseException)
         ]
