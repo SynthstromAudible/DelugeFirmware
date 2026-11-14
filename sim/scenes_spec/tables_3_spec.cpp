@@ -2883,9 +2883,7 @@ describe tables_4_items("scenes::menu batch-4 items: the last placeholders that 
 			expect(n->kind).to_equal(menu::Kind::Enum);
 			expect(n->custom).to_be_null();
 			expect(n->bind.get).not_().to_be_null();
-			if (n->bind.get != nullptr) {
-				expect(n->bind.set).not_().to_be_null();
-			}
+			expect(n->bind.set).not_().to_be_null();
 		}
 	});
 });

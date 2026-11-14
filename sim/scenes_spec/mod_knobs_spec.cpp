@@ -1328,7 +1328,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		const auto* sound = std::get_if<deluge::scenes::bind::SoundFocus>(&rig.knobs.focus().owner);
 		expect(sound).not_().to_be_null();
 		if (sound != nullptr) {
-			expect(!sound->clip).to_be_true(); // no clip: an arranger row's backed params
+			expect(sound->clip.has_value()).to_be_false(); // no clip: an arranger row's backed params
 		}
 	});
 

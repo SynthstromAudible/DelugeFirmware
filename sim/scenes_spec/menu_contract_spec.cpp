@@ -218,8 +218,8 @@ describe menu_contract_visit("scenes::MenuScene -- a visit's state", $ {
 		const deluge::ui::PadMask pads{};
 		const deluge::ui::shell::UiContext ui{held, pads, false, false, 0, deluge_profile()};
 		(void)menu_scene().handle(
-		    deluge::ui::shell::UiEvent{.kind = deluge::ui::shell::UiEvent::Kind::Button,
-		                               .button = deluge::ui::shell::ButtonId::Learn, .on = true},
+		    deluge::ui::shell::UiEvent{.kind = deluge::ui::shell::UiEvent::Kind::Button, .on = true,
+		                               .button = deluge::ui::shell::ButtonId::Learn},
 		    ui);
 		expect(menu_scene().select_release_blocked()).to_be_true(); // learn mode
 		expect(menu_scene().on_enter(SceneId{SceneKind::FirstApp, 0xFFFF})).to_be_false();

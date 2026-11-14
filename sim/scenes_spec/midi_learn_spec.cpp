@@ -1488,7 +1488,6 @@ describe midi_learn_reference("bridge::command_of: the device a learned command 
 		learned.cable = &cable;
 		const deluge::project::MidiCommand command = deluge::bridge::command_of(learned);
 		expect(command.device.has_value()).to_be_true();
-		expect(command.device.has_value()).to_be_true();
 		if (command.device.has_value()) {
 			expect(command.device->port).to_equal(deluge::project::MidiDeviceRef::Port::HOSTED);
 		}

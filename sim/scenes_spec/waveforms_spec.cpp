@@ -118,7 +118,7 @@ describe waveforms("a waveform by its address", ${
 			expect(info->channels).to_equal(1);
 			expect(info->centre).to_equal(sample->getFoundValueCentrePoint());
 			expect(info->span).to_equal(sample->getValueSpan());
-			expect(!info->recording).to_be_true();
+			expect(info->recording).to_be_false();
 		}
 
 		spec::AudioSongFixture audio = spec::make_audio_clip_song();
@@ -171,7 +171,7 @@ describe waveforms("a waveform by its address", ${
 			expect(info->length_samples).to_equal(kSampleLength);
 			expect(info->centre).to_equal(sample->getFoundValueCentrePoint());
 			expect(info->span).to_equal(sample->getValueSpan());
-			expect(!info->recording).to_be_true();
+			expect(info->recording).to_be_false();
 		}
 		sound.hold(nullptr);
 		expect(waveforms.info(preview).has_value()).to_be_false();

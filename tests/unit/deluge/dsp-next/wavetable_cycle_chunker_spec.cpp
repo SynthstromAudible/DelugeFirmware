@@ -188,7 +188,7 @@ describe wavetable_cycle_chunker("deluge::dsp::fixed WavetableCycleChunker", ${
 		WaveTableData table = make_table(/*num_cycles=*/4, /*transitions_magnitude=*/2, /*wave_index_multiplier=*/0x40000000);
 		std::vector<CycleChunk> chunks = collect(table, std::span<int32_t>{buffer}, /*wave_index_increment=*/0);
 		expect(chunks.size()).to_equal(static_cast<std::size_t>(1));
-		expect(!chunks[0].single_cycle).to_be_truthy();
+		expect(chunks[0].single_cycle).to_be_false();
 		expect(chunks[0].first_cycle).to_equal(0);
 		expect(static_cast<int32_t>(chunks[0].output.size())).to_equal(kBlock);
 	});
@@ -201,7 +201,7 @@ describe wavetable_cycle_chunker("deluge::dsp::fixed WavetableCycleChunker", ${
 		expect(chunks.size() > 1).to_be_truthy();
 		int32_t total = 0;
 		for (std::size_t k = 0; k < chunks.size(); ++k) {
-			expect(!chunks[k].single_cycle).to_be_truthy();
+			expect(chunks[k].single_cycle).to_be_false();
 			expect(chunks[k].band != nullptr).to_be_truthy();
 			expect(static_cast<int32_t>(chunks[k].output.size()) >= 1).to_be_truthy();
 			if (k > 0) {

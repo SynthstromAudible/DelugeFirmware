@@ -652,7 +652,7 @@ describe tree_rules("scenes::menu every value item's turn and draw rule", $ {
 		expect(count_where([](const Node& n) { return n.bind.leaf_text != nullptr; })).to_equal(size_t(21));
 		expect(count_where([](const Node& n) { return n.bind.leaf_draw != nullptr; })).to_equal(size_t(19));
 		expect(count_where([](const Node& n) { return !n.bind.style.unit.empty(); })).to_equal(size_t(1));
-		expect(!nodes::screensaver_timeout.bind.style.unit.empty()).to_be_true();
+		expect(nodes::screensaver_timeout.bind.style.unit.empty()).to_be_false();
 		expect(count_where([](const Node& n) { return n.bind.style.label_in_digits; })).to_equal(size_t(1));
 		expect(nodes::arp_rhythm.bind.style.label_in_digits).to_be_true();
 	});

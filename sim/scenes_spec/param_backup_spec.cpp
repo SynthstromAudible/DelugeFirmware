@@ -172,9 +172,7 @@ describe param_backup("the song's param backup, by owner and clip id", ${
 		expect(made).not_().to_be_null();
 		if (made != nullptr) {
 			expect(made->docOutput_).not_().to_be_null();
-			if (made->docOutput_ != nullptr) {
-				expect(made->id().has_value()).to_be_true();
-			}
+			expect(made->id().has_value()).to_be_true();
 			expect(f.song->live.param_backup.pending.empty()).to_be_true();
 			if (made->id()) {
 				expect(f.song->live.param_backup.map.count({OwnerId::instrument(*made->id()), std::nullopt}))
