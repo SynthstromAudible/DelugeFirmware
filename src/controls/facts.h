@@ -68,6 +68,9 @@ public:
 	/// playhead, a latch or override holds, and stutter-type effects and recording change, where the record holds the
 	/// saved base value; nullopt where the song holds no such param.
 	[[nodiscard]] virtual std::optional<int32_t> param_value(const project::ParamAddress& address) const = 0;
+	/// @brief Whether the param at @p address holds automation (nodes the playhead follows): false for a param the song
+	/// holds no such lane of.
+	[[nodiscard]] virtual bool param_automated(const project::ParamAddress& address) const = 0;
 	/// @brief @p address's value at @p pos in its clip, as its automation reads there (the take's while the
 	/// arrangement records the clip, in the clip's or the note row's own loop); its current value at 0xFFFFFFFF.
 	[[nodiscard]] virtual std::optional<int32_t> param_value_at(const project::ParamAddress& address,

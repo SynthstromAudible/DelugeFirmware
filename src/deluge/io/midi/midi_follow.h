@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "controls/follow.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_address.h"
 #include "model/global_effectable/global_effectable.h"
@@ -68,13 +69,6 @@ public:
 	/// @brief `deluge::storage::bytes::AbsentFn`: no MIDIFollow.XML, so write one.
 	static void writeDefaultsAbsent(void* ctx);
 
-	/// @brief The lane, in the context of @p clip, of the param a CC follows: @p sound for a sound (a synth, a kit
-	/// row),
-	/// @p global for a global effectable (a kit's affect-entire, an audio clip).
-	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                                Clip* clip, std::optional<deluge::project::ParamTarget> sound,
-	                                                std::optional<deluge::project::ParamTarget> global,
-	                                                bool displayError = true);
 	void noteMessageReceived(MIDICable& cable, bool on, int32_t channel, int32_t note, int32_t velocity,
 	                         bool* doingMidiThru, bool shouldRecordNotesNowNow, ModelStack* modelStack);
 	Output* sendNoteToClip(MIDICable& cable, Clip* clip, MIDIMatchType match, bool on, int32_t channel, int32_t note,
@@ -118,8 +112,8 @@ public:
 	/// Resolve the configured MIDI Follow feedback targets and send a learned CC value to each one.
 	void sendCCForMidiFollowFeedback(int32_t ccNumber, int32_t knobPos);
 
-	void handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounter& modelStack, Clip* clip, int32_t ccNumber,
-	                      int32_t ccValue);
+	/// @brief Move the param @p ccNumber follows on @p clip's owner, as takeover and the value @p ccValue say.
+	void handleReceivedCC(MIDICable& cable, Clip* clip, int32_t ccNumber, int32_t ccValue);
 
 private:
 	// initialize
@@ -166,19 +160,12 @@ private:
 	[[nodiscard]] const size_t getTrackCount() const;
 	Output* getTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack);
 
-	// get model stack with auto param for midi follow cc-param control
 	using Target = std::optional<deluge::project::ParamTarget>;
-	ModelStackWithAutoParam* getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                                       Clip* clip, Target sound, Target global);
-	ModelStackWithAutoParam*
-	getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-	                                   Target sound);
-	ModelStackWithAutoParam*
-	getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-	                                 Target sound, Target global);
-	ModelStackWithAutoParam*
-	getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-	                                   Target global);
+	/// The CC assignments, as the controls library reads them.
+	[[nodiscard]] deluge::controls::FollowTables followTables() const;
+	/// A write follow made moved the param at @p address on @p clip: refresh the editor or view showing it, and show
+	/// its new value unless the view is editing it.
+	void showWrittenParam(Clip* clip, const deluge::project::ParamAddress& address, int32_t newKnobPos);
 	void displayParamControlError(Target sound, Target global);
 
 	MIDIMatchType checkMidiFollowMatch(MIDICable& cable, uint8_t channel);

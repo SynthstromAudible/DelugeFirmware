@@ -90,6 +90,7 @@ public:
 	[[nodiscard]] std::optional<int32_t> param_value_at(const project::ParamAddress&, uint32_t pos) const override {
 		return static_cast<int32_t>(pos);
 	}
+	[[nodiscard]] bool param_automated(const project::ParamAddress&) const override { return false; }
 	[[nodiscard]] bool stutter_active() const override { return true; }
 	[[nodiscard]] bool alt_delay() const override { return false; }
 	[[nodiscard]] std::span<const PlayingOutput> playing_outputs() const override { return {}; }

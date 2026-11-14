@@ -598,7 +598,7 @@ void ModControllableAudio::handleLearnedKnob(MIDIKnob& knob, MIDICable& cable, u
 		int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(currentValue, modelStackWithParam);
 
 		// calculate new knob position based on value received and deluge current value
-		newKnobPos = MidiTakeover::calculateKnobPos(cable, knobPos, value, &knob, false, CC_NUMBER_NONE, isStepEditing);
+		newKnobPos = MidiTakeover::calculateKnobPos(cable, knobPos, value, knob, isStepEditing);
 
 		// is the cc being received for the same value as the current knob pos? If so, do nothing
 		if (newKnobPos == knobPos) {
@@ -689,7 +689,7 @@ void ModControllableAudio::handleLearnedKnob(MIDIKnob& knob, MIDICable& cable, u
 		int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(currentValue, modelStackWithParam);
 
 		// calculate new knob position based on value received and deluge current value
-		newKnobPos = MidiTakeover::calculateKnobPos(cable, knobPos, value, &knob, false, CC_NUMBER_NONE, isStepEditing);
+		newKnobPos = MidiTakeover::calculateKnobPos(cable, knobPos, value, knob, isStepEditing);
 
 		// is the cc being received for the same value as the current knob pos? If so, do nothing
 		if (newKnobPos == knobPos) {

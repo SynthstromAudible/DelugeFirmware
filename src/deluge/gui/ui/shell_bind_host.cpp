@@ -20,6 +20,7 @@
 #include "gui/ui/shell_host_ui.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/knob_focus_from_stack.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -28,6 +29,7 @@
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/words.h"
 #include "io/debug/log.h"
+#include "io/midi/follow_host.h"
 #include "io/midi/learned_dispatch.h"
 #include "io/midi/mapping_index.h"
 #include "io/midi/midi_engine.h"
@@ -353,6 +355,7 @@ public:
 	                                     std::optional<deluge::project::ClipAddress> clip) const override;
 	[[nodiscard]] uint8_t arp_preset(const deluge::project::SettingAddress& address) const override;
 	[[nodiscard]] std::optional<int32_t> param_value(const deluge::project::ParamAddress& address) const override;
+	[[nodiscard]] bool param_automated(const deluge::project::ParamAddress& address) const override;
 	[[nodiscard]] std::optional<int32_t> param_value_at(const deluge::project::ParamAddress& address,
 	                                                    uint32_t pos) const override {
 		return currentSong != nullptr ? deluge::bridge::paramValueAt(*currentSong, address, pos) : std::nullopt;
@@ -1433,6 +1436,15 @@ std::optional<int32_t> ShellRuntimeFacts::param_value(const deluge::project::Par
 	                                                       : std::nullopt;
 }
 
+bool ShellRuntimeFacts::param_automated(const deluge::project::ParamAddress& address) const {
+	if (currentSong == nullptr) {
+		return false;
+	}
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	const ModelStackWithAutoParam* stack = deluge::bridge::paramStackFollowingTake(*currentSong, address, memory);
+	return stack != nullptr && stack->autoParam != nullptr && stack->autoParam->isAutomated(*stack->doc());
+}
+
 std::span<const deluge::controls::PlayingOutput> ShellRuntimeFacts::playing_outputs() const {
 	using Kind = deluge::controls::PlayingOutput::Kind;
 	outputs_.clear();
@@ -1789,6 +1801,18 @@ bool learnedPitchBendToOutput(const Output& output, MIDICable& cable, uint8_t ch
 	    *output.id(), knobHits(cable, channel, kPitchBend), scenes::menu::host_runtime_facts(),
 	    scenes::menu::host_controls_sink(),
 	    {.channel = channel, .number = kPitchBend, .value = value14, .cable_relative = cable.is_relative});
+}
+
+const controls::Facts& followFacts() {
+	return scenes::menu::host_runtime_facts();
+}
+
+controls::KnobFocus followFocus(Clip& clip) {
+	return gui::knobFocusOfClip(clip);
+}
+
+controls::Sink& followSink() {
+	return scenes::menu::host_controls_sink();
 }
 
 } // namespace deluge::midi

@@ -21,7 +21,6 @@
 #include "gui/colour/colour.h" // namespace gui (was reached transitively via util/functions.h)
 #include "hid/display/display.h"
 #include "io/midi/midi_engine.h"
-#include "io/midi/midi_follow.h"
 
 using namespace deluge;
 using namespace gui;
@@ -34,32 +33,18 @@ static_assert(static_cast<TakeoverMode>(MIDITakeoverMode::PICKUP) == TakeoverMod
 static_assert(static_cast<TakeoverMode>(MIDITakeoverMode::SCALE) == TakeoverMode::SCALE);
 static_assert(static_cast<TakeoverMode>(MIDITakeoverMode::RELATIVE) == TakeoverMode::RELATIVE);
 
-/// The controller's remembered position, from where this message's controller keeps it: the learned knob, or the MIDI
-/// follow table's slot for the CC; none for a message with neither.
-controls::TakeoverState stateOf(const MIDIKnob* knob, bool doingMidiFollow, int32_t ccNumber) {
-	if (knob != nullptr) {
-		if (knob->previousPositionSaved) {
-			return {knob->previousPosition};
-		}
-	}
-	else if (doingMidiFollow && midiFollow.previousKnobPos[ccNumber] != kNoSelection) {
-		return {midiFollow.previousKnobPos[ccNumber]};
-	}
-	return {};
+/// The controller's remembered position, from the learned knob: none until it has been sent one.
+controls::TakeoverState stateOf(const MIDIKnob& knob) {
+	return knob.previousPositionSaved ? controls::TakeoverState{knob.previousPosition} : controls::TakeoverState{};
 }
 
-/// Keeps the takeover's new remembered position where stateOf found it.
-void keep(const controls::TakeoverState& state, MIDIKnob* knob, bool doingMidiFollow, int32_t ccNumber) {
+/// Keeps the takeover's new remembered position on the knob.
+void keep(const controls::TakeoverState& state, MIDIKnob& knob) {
 	if (!state.previous) {
 		return;
 	}
-	if (knob != nullptr) {
-		knob->previousPosition = *state.previous;
-		knob->previousPositionSaved = true;
-	}
-	else if (doingMidiFollow) {
-		midiFollow.previousKnobPos[ccNumber] = *state.previous;
-	}
+	knob.previousPosition = *state.previous;
+	knob.previousPositionSaved = true;
 }
 
 } // namespace
@@ -67,17 +52,17 @@ void keep(const controls::TakeoverState& state, MIDIKnob* knob, bool doingMidiFo
 /// based on the midi takeover default setting of RELATIVE, JUMP, PICKUP, or SCALE
 /// this function will calculate the knob position that the deluge parameter that the midi cc
 /// received is learned to should be set at based on the midi cc value received
-int32_t MidiTakeover::calculateKnobPos(MIDICable& cable, int32_t knobPos, int32_t ccValue, MIDIKnob* knob,
-                                       bool doingMidiFollow, int32_t ccNumber, bool isStepEditing) {
+int32_t MidiTakeover::calculateKnobPos(MIDICable& cable, int32_t knobPos, int32_t ccValue, MIDIKnob& knob,
+                                       bool isStepEditing) {
 	const controls::TakeoverInputs inputs{
 	    .mode = static_cast<TakeoverMode>(midiEngine.midiTakeover),
 	    .cable_relative = cable.is_relative,
-	    .knob_relative = knob != nullptr && knob->relative,
+	    .knob_relative = knob.relative,
 	    .recording = playbackHandler.isEitherClockActive() && (playbackHandler.recording != RecordingMode::OFF),
 	    .step_editing = isStepEditing,
 	};
-	controls::TakeoverState state = stateOf(knob, doingMidiFollow, ccNumber);
+	controls::TakeoverState state = stateOf(knob);
 	const int32_t newKnobPos = controls::knob_pos_after(knobPos, static_cast<uint8_t>(ccValue), inputs, state);
-	keep(state, knob, doingMidiFollow, ccNumber);
+	keep(state, knob);
 	return newKnobPos;
 }

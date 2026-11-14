@@ -16,6 +16,11 @@
  */
 
 #include "io/midi/midi_follow.h"
+#include "controls/facts.h"
+#include "controls/follow.h"
+#include "controls/knob_math.h"
+#include "controls/sink.h"
+#include "controls/takeover.h"
 #include "definitions_cxx.hpp"
 #include "effects/global_effectable/params.h"
 #include "gui/l10n/l10n.h"
@@ -28,6 +33,7 @@
 #include "hid/buttons.h"
 #include "instruments/deluge/params.h"
 #include "io/file.hpp"
+#include "io/midi/follow_host.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_takeover.h"
@@ -43,6 +49,7 @@
 #include "model/instrument/melodic_instrument.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/param_ids.h"
+#include "model/project_bridge/param_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
@@ -84,6 +91,8 @@ using deluge::project::ParamTarget;
 #define MIDI_DEFAULTS_CC_TAG "cc_mappings"
 
 namespace {
+
+static_assert(deluge::controls::kFollowRefusedOnKitRow == deluge::instrument::param::kPortamento.value);
 
 /// The runtime param a sound's target names, if any.
 std::optional<RuntimeParam> soundParamOf(const std::optional<ParamTarget>& target) {
@@ -435,101 +444,6 @@ Output* MidiFollow::getTrackFromIndex(uint32_t track_index, uint32_t maxTrack) {
 	return nullptr;
 }
 
-/// based on the current context, as determined by clip returned from the getSelectedClip function
-/// obtain the modelStackWithParam for that context and return it so it can be used by midi follow
-ModelStackWithAutoParam*
-MidiFollow::getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-                                   Target sound, Target global, bool displayError) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	// non-null clip means you're dealing with the clip context
-	if (clip) {
-		if (modelStackWithTimelineCounter) {
-			modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, sound, global);
-		}
-	}
-
-	if (displayError && (!modelStackWithParam || !modelStackWithParam->autoParam)) {
-		displayParamControlError(sound, global);
-	}
-
-	return modelStackWithParam;
-}
-
-ModelStackWithAutoParam*
-MidiFollow::getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-                                          Target sound, Target global) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	OutputType outputType = clip->output->type;
-
-	switch (outputType) {
-	case OutputType::SYNTH:
-		modelStackWithParam = getModelStackWithParamForSynthClip(modelStackWithTimelineCounter, clip, sound);
-		break;
-	case OutputType::KIT:
-		modelStackWithParam = getModelStackWithParamForKitClip(modelStackWithTimelineCounter, clip, sound, global);
-		break;
-	case OutputType::AUDIO:
-		modelStackWithParam = getModelStackWithParamForAudioClip(modelStackWithTimelineCounter, clip, global);
-		break;
-	// explicit fallthrough cases
-	case OutputType::CV:
-	case OutputType::MIDI_OUT:
-	case OutputType::NONE:;
-	}
-
-	return modelStackWithParam;
-}
-
-// MIDI follow's params are a sound's or a kit's own, never a cable's depth, so its lookups never create a cable.
-ModelStackWithAutoParam*
-MidiFollow::getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-                                               Target sound) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	if (std::optional<RuntimeParam> param = soundParamOf(sound)) {
-		// Note: useMenuContext parameter will always be false for MidiFollow
-		modelStackWithParam = clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, param->index,
-		                                                           param->kind, true, false, false);
-	}
-
-	return modelStackWithParam;
-}
-
-ModelStackWithAutoParam*
-MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-                                             Target sound, Target global) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	InstrumentClip* instrumentClip = (InstrumentClip*)clip;
-
-	std::optional<RuntimeParam> param = instrumentClip->affectEntire ? globalParamOf(global) : soundParamOf(sound);
-	// don't allow control of Portamento in Kit's
-	if (param && param->kind == params::Kind::UNPATCHED_SOUND && param->index == params::UNPATCHED_PORTAMENTO) {
-		param = std::nullopt;
-	}
-
-	if (param) {
-		// Note: useMenuContext parameter will always be false for MidiFollow
-		modelStackWithParam = clip->output->getModelStackWithParam(
-		    modelStackWithTimelineCounter, clip, param->index, param->kind, instrumentClip->affectEntire, false, false);
-	}
-
-	return modelStackWithParam;
-}
-
-ModelStackWithAutoParam*
-MidiFollow::getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-                                               Target global) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	if (std::optional<RuntimeParam> param = globalParamOf(global)) {
-		// Note: useMenuContext parameter will always be false for MidiFollow
-		modelStackWithParam = clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, param->index,
-		                                                           param->kind, true, false, false);
-	}
-
-	return modelStackWithParam;
-}
-
 void MidiFollow::displayParamControlError(Target sound, Target global) {
 	std::optional<RuntimeParam> param = sound ? soundParamOf(sound) : globalParamOf(global);
 
@@ -828,12 +742,8 @@ Output* MidiFollow::midiCCReceivedForSelectedOrActiveClip(MIDICable& cable, uint
 			                && ((AudioEngine::audioSampleTimer - timeLastCCSent[ccNumber]) >= kSampleRate))))) {
 				// setup model stack for the active context
 				if (modelStack) {
-					auto modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
-
-					if (modelStackWithTimelineCounter) {
-						// See if it's learned to a parameter
-						handleReceivedCC(cable, *modelStackWithTimelineCounter, clip, ccNumber, ccValue);
-					}
+					// See if it's learned to a parameter
+					handleReceivedCC(cable, clip, ccNumber, ccValue);
 				}
 			}
 		}
@@ -907,12 +817,8 @@ void MidiFollow::midiCCReceivedForSpecificTrack(MIDICable& cable, uint8_t channe
 				                && ((AudioEngine::audioSampleTimer - timeLastCCSent[ccNumber]) >= kSampleRate))))) {
 					// setup model stack for the active context
 					if (modelStack) {
-						auto modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
-
-						if (modelStackWithTimelineCounter) {
-							// See if it's learned to a parameter
-							handleReceivedCC(cable, *modelStackWithTimelineCounter, clip, ccNumber, ccValue);
-						}
+						// See if it's learned to a parameter
+						handleReceivedCC(cable, clip, ccNumber, ccValue);
 					}
 				}
 			}
@@ -935,29 +841,32 @@ void MidiFollow::midiCCReceivedForSpecificTrack(MIDICable& cable, uint8_t channe
 	}
 }
 
+/// The tables of which param each CC follows, as the controls library reads them.
+controls::FollowTables MidiFollow::followTables() const {
+	return {.sound = ccToSoundTarget, .global = ccToGlobalTarget};
+}
+
 /// checks if the ccNumber received has been learned to any parameters in midi learning view
 /// if the cc has been learned, it sets the new value for that parameter
 /// this function works by first checking the active context to see if there is an active clip
 /// to determine if the cc intends to control a song level or clip level parameter
-void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounter& modelStackWithTimelineCounter,
-                                  Clip* clip, int32_t ccNumber, int32_t ccValue) {
+void MidiFollow::handleReceivedCC(MIDICable& cable, Clip* clip, int32_t ccNumber, int32_t ccValue) {
+	if (currentSong == nullptr || clip == nullptr) {
+		return;
+	}
+	const controls::Facts& facts = deluge::midi::followFacts();
+	controls::Sink& sink = deluge::midi::followSink();
 
-	int32_t modPos = 0;
-	int32_t modLength = 0;
-	bool isStepEditing = false;
+	// Only if this exact clip is having automation step-edited, we can set the value for just a region. It is read
+	// before the arrangement's take is made, which holds the region the clip it records does.
+	const std::optional<std::pair<int32_t, int32_t>> region = facts.step_region(clip->id());
 
-	if (modelStackWithTimelineCounter.timelineCounterIsSet()) {
-		TimelineCounter* timelineCounter = modelStackWithTimelineCounter.getTimelineCounter();
-
-		// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
-		// region.
-		if (view.stepEditRegionHolds(*timelineCounter)) {
-			modPos = view.modPos();
-			modLength = view.modLength();
-			isStepEditing = true;
+	// A clip the arrangement records is cloned into its take whether or not the CC follows anything.
+	if (clip->output != nullptr && clip->output->id()) {
+		const Clip* active = clip->output->getActiveClip();
+		if (active == clip || (active != nullptr && active->beingRecordedFromClip == clip)) {
+			(void)sink.take_for(*clip->output->id());
 		}
-
-		timelineCounter->possiblyCloneForArrangementRecording(&modelStackWithTimelineCounter);
 	}
 
 	// directly access the parameter from the CC number
@@ -968,71 +877,76 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 		return;
 	}
 
-	ModelStackWithAutoParam* modelStackWithParam =
-	    getModelStackWithParam(&modelStackWithTimelineCounter, clip, sound, global, midiEngine.midiFollowDisplayParam);
-	// check if model stack is valid
-	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		int32_t currentValue;
-
-		// get current value
-		if (isStepEditing) {
-			currentValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+	const controls::KnobFocus focus = deluge::midi::followFocus(*clip);
+	const std::optional<deluge::project::ParamAddress> address =
+	    controls::resolve_follow(focus, followTables(), static_cast<uint8_t>(ccNumber));
+	std::optional<int32_t> currentValue;
+	if (address) {
+		currentValue =
+		    region ? facts.param_value_at(*address, static_cast<uint32_t>(region->first)) : facts.param_value(*address);
+	}
+	if (!currentValue) {
+		if (midiEngine.midiFollowDisplayParam) {
+			displayParamControlError(sound, global);
 		}
-		else {
-			currentValue = modelStackWithParam->autoParam->getCurrentValue();
-		}
+		return;
+	}
 
-		// convert current value to knobPos to compare to cc value being received
-		int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(currentValue, modelStackWithParam);
+	// convert current value to knobPos to compare to cc value being received
+	const plugin::ParamInfo* info = facts.param_info(controls::follow_plugin(focus), address->target());
+	const int32_t knobPos = controls::knob_pos_of(*address, info, *currentValue);
 
-		// calculate new knob position based on cc value received and deluge current value
-		int32_t newKnobPos =
-		    MidiTakeover::calculateKnobPos(cable, knobPos, ccValue, nullptr, true, ccNumber, isStepEditing);
+	// calculate new knob position based on cc value received and deluge current value
+	controls::TakeoverInputs inputs = facts.takeover_inputs(cable.is_relative);
+	inputs.step_editing = region.has_value();
+	controls::TakeoverState state;
+	if (previousKnobPos[ccNumber] != kNoSelection) {
+		state.previous = previousKnobPos[ccNumber];
+	}
+	const int32_t newKnobPos = controls::knob_pos_after(knobPos, static_cast<uint8_t>(ccValue), inputs, state);
+	if (state.previous) {
+		previousKnobPos[ccNumber] = *state.previous;
+	}
 
-		// is the cc being received for the same value as the current knob pos? If so, do nothing
-		if (newKnobPos != knobPos) {
-			// Convert the New Knob Position to a Parameter Value
-			int32_t newValue =
-			    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
+	// is the cc being received for the same value as the current knob pos? If so, do nothing
+	if (newKnobPos == knobPos) {
+		return;
+	}
 
-			// Set the new Parameter Value for the MIDI Learned Parameter
-			deluge::edits::Context editCtx{*currentSong, currentSong->project};
-			if (const std::optional<deluge::project::ParamAddress> editAddress =
-			        deluge::edits::addressFor(*modelStackWithParam)) {
-				deluge::edits::SetParamValue edit{*editAddress, newValue, modPos, modLength,
-				                                  deluge::edits::SetParamValue::Resolve::EXACT};
-				deluge::edits::apply(editCtx, edit);
-			}
+	// Set the new Parameter Value for the MIDI Learned Parameter
+	const auto [modPos, modLength] = region.value_or(std::pair<int32_t, int32_t>{0, 0});
+	(void)sink.write_param(*address, controls::value_of_knob(*address, info, newKnobPos), modPos, modLength,
+	                       controls::Resolution::LEARNED);
+	showWrittenParam(clip, *address, newKnobPos);
+}
 
-			// check if you're currently editing the same learned param in automation view or
-			// performance view if so, you will need to refresh the automation editor grid or the
-			// performance view
-			bool editingParamInAutomationOrPerformanceView = false;
-			RootUI* rootUI = getRootUI();
-			if (rootUI == &automationView || rootUI == &performanceView) {
-				int32_t id = modelStackWithParam->paramId;
-				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+/// check if you're currently editing the same learned param in automation view or performance view; if so, you will
+/// need to refresh the automation editor grid or the performance view, and if you're not editing it, display the name
+/// of the parameter that was changed and the value that has been set
+void MidiFollow::showWrittenParam(Clip* clip, const deluge::project::ParamAddress& address, int32_t newKnobPos) {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	const ModelStackWithAutoParam* stack = deluge::bridge::paramStackFollowingTake(*currentSong, address, memory);
+	if (stack == nullptr || stack->paramCollection == nullptr) {
+		return;
+	}
+	const int32_t id = stack->paramId;
+	const params::Kind kind = stack->paramCollection->getParamKind();
 
-				if (rootUI == &automationView) {
-					// pass the current clip because you want to check that you're editing the param
-					// for the same clip active in automation view
-					editingParamInAutomationOrPerformanceView =
-					    automationView.possiblyRefreshAutomationEditorGrid(clip, kind, id);
-				}
-				else {
-					editingParamInAutomationOrPerformanceView =
-					    performanceView.possiblyRefreshPerformanceViewDisplay(kind, id, newKnobPos);
-				}
-			}
+	bool editingParamInAutomationOrPerformanceView = false;
+	RootUI* rootUI = getRootUI();
+	if (rootUI == &automationView) {
+		// pass the current clip because you want to check that you're editing the param
+		// for the same clip active in automation view
+		editingParamInAutomationOrPerformanceView = automationView.possiblyRefreshAutomationEditorGrid(clip, kind, id);
+	}
+	else if (rootUI == &performanceView) {
+		editingParamInAutomationOrPerformanceView =
+		    performanceView.possiblyRefreshPerformanceViewDisplay(kind, id, newKnobPos);
+	}
 
-			// check if you should display name of the parameter that was changed and the value that
-			// has been set if you're in the automation view editor or performance view non-editing
-			// mode don't display popup if you're currently editing the same param
-			if (midiEngine.midiFollowDisplayParam && !editingParamInAutomationOrPerformanceView) {
-				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-				view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
-			}
-		}
+	// don't display popup if you're currently editing the same param
+	if (midiEngine.midiFollowDisplayParam && !editingParamInAutomationOrPerformanceView) {
+		view.displayModEncoderValuePopup(kind, id, newKnobPos);
 	}
 }
 
@@ -1179,72 +1093,43 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation)
 		return;
 	}
 
-	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
-
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
-
 	// obtain clip for active context
 	Clip* clip = getSelectedOrActiveClip();
+	if (clip == nullptr || currentSong == nullptr) {
+		return;
+	}
+	const controls::Facts& facts = deluge::midi::followFacts();
 
-	// setup model stack for the active context
-	if (clip) {
-		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-		if (modelStack) {
-			modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
-		}
+	// Only if this exact clip is having automation step-edited, we can send the value for just a region.
+	const std::optional<std::pair<int32_t, int32_t>> region = facts.step_region(clip->id());
+	// don't send automation feedback if you're step editing
+	if (region && isAutomation) {
+		return;
 	}
 
-	// check that model stack is valid
-	if (modelStackWithTimelineCounter) {
-		int32_t modPos = 0;
-		bool isStepEditing = false;
-
-		if (modelStackWithTimelineCounter->timelineCounterIsSet()) {
-			TimelineCounter* timelineCounter = modelStackWithTimelineCounter->getTimelineCounter();
-
-			// Only if this exact TimelineCounter is having automation step-edited, we can send the value for just a
-			// region.
-			if (view.stepEditRegionHolds(*timelineCounter)) {
-
-				// don't send automation feedback if you're step editing
-				if (isAutomation) {
-					return;
-				}
-
-				modPos = view.modPos();
-				isStepEditing = true;
-			}
+	// loop through all params to see if any parameters have been learned
+	const controls::KnobFocus focus = deluge::midi::followFocus(*clip);
+	const plugin::PluginId plugin = controls::follow_plugin(focus);
+	const controls::FollowTables tables = followTables();
+	for (int32_t ccNumber = 0; ccNumber <= kMaxMIDIValue; ccNumber++) {
+		// the param that has been learned to this cc
+		const std::optional<deluge::project::ParamAddress> address =
+		    controls::resolve_follow(focus, tables, static_cast<uint8_t>(ccNumber));
+		if (!address || (isAutomation && !facts.param_automated(*address))) {
+			continue;
 		}
-
-		// loop through all params to see if any parameters have been learned
-		for (int32_t ccNumber = 0; ccNumber <= kMaxMIDIValue; ccNumber++) {
-			// obtain the model stack for the parameter that has been learned
-			ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(
-			    modelStackWithTimelineCounter, clip, ccToSoundTarget[ccNumber], ccToGlobalTarget[ccNumber], false);
-			// check that model stack is valid
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
-				if (!isAutomation
-				    || (isAutomation && modelStackWithParam->autoParam->isAutomated(*modelStackWithParam->doc()))) {
-					int32_t currentValue;
-					// obtain current value of the learned parameter
-					if (isStepEditing) {
-						currentValue =
-						    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
-					}
-					else {
-						currentValue = modelStackWithParam->autoParam->getCurrentValue();
-					}
-
-					// convert current value to a knob position
-					int32_t knobPos =
-					    modelStackWithParam->paramCollection->paramValueToKnobPos(currentValue, modelStackWithParam);
-
-					// send midi feedback to the ccNumber learned to the param with the current knob
-					// position
-					sendCCForMidiFollowFeedback(feedbackChannelTypes, numChannelTypes, ccNumber, knobPos);
-				}
-			}
+		// obtain current value of the learned parameter
+		const std::optional<int32_t> currentValue =
+		    region ? facts.param_value_at(*address, static_cast<uint32_t>(region->first)) : facts.param_value(*address);
+		if (!currentValue) {
+			continue;
 		}
+		// convert current value to a knob position
+		const int32_t knobPos =
+		    controls::knob_pos_of(*address, facts.param_info(plugin, address->target()), *currentValue);
+
+		// send midi feedback to the ccNumber learned to the param with the current knob position
+		sendCCForMidiFollowFeedback(feedbackChannelTypes, numChannelTypes, ccNumber, knobPos);
 	}
 }
 

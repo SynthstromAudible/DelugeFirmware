@@ -95,6 +95,7 @@ public:
 		world_.events.push_back("value " + name(address) + " at " + std::to_string(pos));
 		return value(address);
 	}
+	[[nodiscard]] bool param_automated(const ParamAddress&) const override { return false; }
 	[[nodiscard]] bool stutter_active() const override { return false; }
 	[[nodiscard]] bool allows_note_tails(project::SlotAddress, std::optional<project::ClipAddress>) const override {
 		return false;

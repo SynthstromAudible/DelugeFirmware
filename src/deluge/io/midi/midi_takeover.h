@@ -22,6 +22,8 @@
 #include "modulation/params/param_set.h"
 
 namespace MidiTakeover {
-int32_t calculateKnobPos(MIDICable& cable, int32_t knobPos, int32_t ccValue, MIDIKnob* knob = nullptr,
-                         bool doingMidiFollow = false, int32_t ccNumber = MIDI_CC_NONE, bool isStepEditing = false);
+/// @brief The knob position the CC value @p ccValue moves the learned knob @p knob to, by the global takeover mode; the
+/// controller's last position is kept on the knob.
+int32_t calculateKnobPos(MIDICable& cable, int32_t knobPos, int32_t ccValue, MIDIKnob& knob,
+                         bool isStepEditing = false);
 } // namespace MidiTakeover
