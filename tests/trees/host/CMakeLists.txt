@@ -1,7 +1,9 @@
 # Gate unit:
-#     every CppUTest and CppSpec suite under tests/unit/: policies, parsers, storage state machines, the UI's pure
-#     steps, DSP kernels against scalar references. Pass extra ctest arguments after --, e.g. `dbt test unit -- -R
-#     stitch_spec`; the CppUTest suites are one ctest test, UnitTests.
+#     every test directory under tests/unit that names the host tree (tests/support/cmake/specs.cmake): the CppSpec
+#     drivers, the CppUTest suites (one ctest test, UnitTests) and the model-equality driver on the committed songs;
+#     the dsp-next specs and the synth library's link closure (tests/dsp); and the gfx-layer and layer-rules checks,
+#     on the -m32 host: policies, parsers, storage state machines, the UI's pure steps, DSP kernels against scalar
+#     references. Pass extra ctest arguments after --, e.g. `dbt test unit -- -R stitch_spec`
 
 cmake_minimum_required(VERSION 3.24)
 project(DelugeTests)

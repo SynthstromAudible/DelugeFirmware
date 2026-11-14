@@ -143,7 +143,7 @@ builds only `golden-vt-render`.
 | streaming-margin | integration | scenario | property | gate | sample playback must keep up when storage is as slow as the device's | nightly | render | ~30s |
 | streaming-margin-sweep | integration | scenario | simulation | investigative | nothing: it prints the streaming margin curve, the underruns at each fill-task wait in MARGIN_SWEEP | manual | render | ~1m |
 | recorder-write | integration | scenario | property | gate | a real recording must still read back byte-correctly | nightly | app | ~10m |
-| unit | unit | ctest | unit | gate | every CppUTest and CppSpec suite under tests/unit/ | pr | unit-cpp | ~5s |
+| unit | unit | ctest | unit | gate | the test directories under tests/unit that name the host tree, the dsp-next specs (tests/dsp), and the gfx-layer and layer-rules checks, on the -m32 host | pr | unit-cpp | ~5s |
 | unit-arm | unit | ctest | unit | gate | the fixed-point, VFP and NEON specs must hold on ARM, cross-built and run under qemu | pr | unit-cpp-variants | ~5s |
 | crates | unit | cargo | unit | gate | every #[test] in the crates/ workspace | pr | unit | ~20s |
 | bsp-host | unit | cargo | unit | gate | the Rust BSP's host tests and in-crate #[test]s | pr | unit | ~30s |
@@ -307,6 +307,28 @@ that fact anywhere a reader would look. The loader refuses a field it does not k
   `./dbt test --update <name>` re-records the base, and the copy only checks.
 - `./dbt test --dump-expanded` prints every entry as the runner sees it, templates and variants applied; a rewrite of
   the registry that changes no test leaves it identical.
+
+### A unit spec
+
+`tests/unit/<path>/` holds the specs for `src/<path>/`: a top-level library's specs are in its directory
+(`tests/unit/effects/`, `tests/unit/ui/`), a library nested in another has its own (`tests/unit/scenes/bind/`), and the
+app's are by subsystem (`tests/unit/deluge/storage/`, `tests/unit/deluge/gui/`). Specs of code outside `src/` keep its
+path: `tests/unit/crates/<crate>/` for a crate's C ABI, `tests/unit/harness/` for `tests/harness/`,
+`tests/unit/integration/scenarios/support/` for the scenarios' shared support.
+
+A directory's `CMakeLists.txt` declares its driver and the trees that build it, on the call's first line:
+
+    deluge_specs_driver(<name> TREES host arm [NEON] [ONLY_ARM <spec>...] [SOURCES ...] [LIBRARIES ...] [INCLUDES ...])
+
+(`tests/support/cmake/specs.cmake` documents every argument). Every `*_spec.cpp` below the directory, down to the
+next directory with its own `CMakeLists.txt`, joins the driver as one ctest test named after its file, and its entry
+point is named after the file's stem: `CPPSPEC_SPEC(<stem without _spec>)`, or `DELUGE_SPEC(<stem>, ...)` from
+`tests/support/spec_main.h`. The three trees (`tests/trees/host`, `tests/trees/arm`, `tests/trees/ubsan`) find spec
+directories by these declarations, so a new directory needs no other edit, and one that names no tree fails the
+configure. A directory with no spec driver (a CppUTest executable, a standalone driver) declares its trees with
+`deluge_test_directory(TREES ...)`. `tests/support/cmake/libs.cmake` adds each `src/` library once per tree; a spec
+directory only links them. A spec includes a header from another test directory by its path under `tests/`
+(`"support/spec_main.h"`, `"unit/gfx/support/golden.h"`, `"harness/ui_script.h"`), never by `../`.
 
 ### A scenario gate
 
