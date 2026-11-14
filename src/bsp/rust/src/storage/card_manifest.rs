@@ -15,7 +15,7 @@
 //! | `copy <dst> from=<file>` | a copy of `<file>` |
 //! | `copyall <dir> from=<dir> ext=<ext>` | a copy of each file in `from` whose extension is exactly `ext` |
 //! | `base <dir>` | a copy of the repository tree `<dir>`, empty directories included; only as the first operation |
-//! | `text <path> <<MARK` | the lines after it up to the line `MARK`, as written, each ending in a newline |
+//! | `text <path> <<MARK` | the lines after it up to the line `MARK` (trailing whitespace allowed), as written, each ending in a newline |
 //! | `delete <path>` | nothing: removes the file or directory tree at `<path>`, which must exist |
 //!
 //! A `text` heredoc's lines are taken as they stand: a `#` in them is text, and a tab stays a tab. A manifest that
@@ -131,9 +131,9 @@ fn parse_text<'a>(
         .ok_or_else(usage)?;
     let mut bytes = Vec::new();
     for (_, line) in lines.by_ref() {
-        if line == mark {
+        if line.trim_end() == mark {
             return Ok(Op::Text {
-                path: relative(path)?,
+                path: named_path(path, "card")?,
                 bytes,
             });
         }
@@ -242,11 +242,11 @@ fn parse_op(name: &str, words: &[&str]) -> Result<Op, String> {
         }
         "base" => {
             let [dir] = fields.positional("base <dir>")?;
-            Op::Base(relative(dir)?)
+            Op::Base(named_path(dir, "repository")?)
         }
         "delete" => {
             let [path] = fields.positional("delete <path>")?;
-            Op::Delete(relative(path)?)
+            Op::Delete(named_path(path, "card")?)
         }
         other => return Err(format!("unknown operation `{other}`")),
     };
@@ -332,6 +332,17 @@ impl Value for f64 {
     const WHAT: &'static str = "number";
     fn parse(text: &str) -> Option<Self> {
         text.parse::<f64>().ok().filter(|value| value.is_finite())
+    }
+}
+
+/// `text` as a path that names something below `root` (`"card"` or `"repository"`): `relative`, with at least one named
+/// component, so `.` never stands for the whole tree.
+fn named_path(text: &str, root: &str) -> Result<PathBuf, String> {
+    let path = relative(text)?;
+    if path.components().any(|c| matches!(c, Component::Normal(_))) {
+        Ok(path)
+    } else {
+        Err(format!("`{text}` must name a path below the {root}"))
     }
 }
 
@@ -829,6 +840,33 @@ mod tests {
     }
 
     #[test]
+    fn a_terminator_may_carry_trailing_whitespace() {
+        assert_eq!(
+            parse_ok("text A <<EOF\nx\nEOF  \ndir B\n"),
+            vec![
+                Op::Text {
+                    path: PathBuf::from("A"),
+                    bytes: b"x\n".to_vec(),
+                },
+                Op::Dir(PathBuf::from("B")),
+            ]
+        );
+    }
+
+    #[test]
+    fn base_delete_and_text_need_a_named_path() {
+        for text in [
+            "base .\n",
+            "delete .\n",
+            "delete ./\n",
+            "text . <<EOF\nEOF\n",
+        ] {
+            let message = parse_err(text);
+            assert!(message.contains("must name a path"), "{text:?}: {message}");
+        }
+    }
+
+    #[test]
     fn builds_a_base_tree_with_a_path_replaced() {
         let repo = scratch("base-repo");
         for (path, text) in [
@@ -842,13 +880,16 @@ mod tests {
         }
         std::fs::create_dir_all(repo.join("card/EMPTY")).unwrap();
         let card = scratch("base-card");
-        let ops = parse_ok("base card\ndelete SAMPLES\ntext SAMPLES <<EOF\nnot a folder\nEOF\n");
+        let ops = parse_ok(
+            "base card\ndelete SAMPLES\ndelete KITS/.keep\ntext SAMPLES <<EOF\nnot a folder\nEOF\n",
+        );
         build(&repo, &ops, &card).unwrap();
         assert_eq!(
             std::fs::read(card.join("SAMPLES")).unwrap(),
             b"not a folder\n"
         );
-        assert_eq!(std::fs::read(card.join("KITS/.keep")).unwrap(), b"");
+        assert!(!card.join("KITS/.keep").exists());
+        assert!(card.join("KITS").is_dir());
         assert!(card.join("SONGS/.keep").is_file());
         assert!(card.join("EMPTY").is_dir());
         let _ = std::fs::remove_dir_all(&repo);
