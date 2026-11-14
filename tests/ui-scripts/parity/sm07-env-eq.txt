@@ -3,7 +3,6 @@
 # an edit there; SHIFT + SCALE back along the chain to MASTER, and a select detent on TRAN (a semitone; a cent with
 # SHIFT held).
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   button Shift down

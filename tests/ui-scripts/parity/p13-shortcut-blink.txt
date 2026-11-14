@@ -2,7 +2,6 @@
 # firmware blinks that pad, and the pads of the sources patched to it, with the PIC's own pad flash; editing keeps
 # the blink, another shortcut moves it, and leaving the menu stops it.
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   button Shift down

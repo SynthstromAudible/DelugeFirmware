@@ -4,7 +4,6 @@
 # portamento) and the delay (amount past 24); back to MOD FX and its type list. Navigation presses are 200 ms apart,
 # past the 140 ms debounce.
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   button Shift down

@@ -3,7 +3,6 @@
 # UNASSIGNED, on to MPE UPPER ZONE and MPE LOWER ZONE, up past the upper zone to UNASSIGNED again and on to CHANNEL 1;
 # then LEARN and a note on channel 1 name DIN PORTS as the device. A turn that reverses counts one extra detent.
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   button Session down

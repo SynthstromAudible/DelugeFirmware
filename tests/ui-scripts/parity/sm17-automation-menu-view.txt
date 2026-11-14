@@ -6,7 +6,6 @@
 # there swaps the clip view for the keyboard. Last, KEYBOARD from the LPF page's menu view opens the keyboard under the
 # menu, and KEYBOARD again leaves it. Every snapshot has a 1 s window (blinks).
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   button Shift down

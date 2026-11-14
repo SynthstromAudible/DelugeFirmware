@@ -6,7 +6,6 @@
 # editor freezes on one (E379). The black encoders' first turns each drop a detent, so each turn is +2. Every other
 # snapshot has a 1 s window (the pad-selection shortcut's blink).
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   button Clip down

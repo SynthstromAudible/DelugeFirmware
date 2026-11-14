@@ -1,6 +1,5 @@
 # Each encoder in the boot clip view, both directions where it matters.
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   encoder Tempo +1

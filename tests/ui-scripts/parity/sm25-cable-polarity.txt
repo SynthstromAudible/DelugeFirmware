@@ -7,7 +7,6 @@
 # is hidden: with zero places hidden `main` truncates a non-zero value (D71). The ENV1 page holds 0, which it draws
 # exactly at every cursor place.
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   button Shift down

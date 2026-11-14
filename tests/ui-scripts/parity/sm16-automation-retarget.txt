@@ -5,7 +5,6 @@
 # gold push with SHIFT, a Select turn with a pad held, X_ENC with a Horizontal turn, a Horizontal turn and a Vertical
 # turn reach the view; BACK out of the menu leaves the view on its param. Every snapshot has a 1 s window (blinks).
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   button Clip down

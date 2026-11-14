@@ -3,7 +3,6 @@
 # Then from the sound menu, FILTERS > FILTER ROUTE opens the group on its routing page, and ACTIONS > RECORD TO SAMPLE
 # opens the SAMPLE RECORDER page.
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   button Shift down

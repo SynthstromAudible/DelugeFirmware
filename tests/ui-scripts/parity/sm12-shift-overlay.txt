@@ -3,7 +3,6 @@
 # rule while a source pad is held on a cable page -- and hands the pads back on release, on BACK, and not at all in the
 # settings menu.
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   button SelectEnc down

@@ -4,7 +4,6 @@
 # Then from the sound menu: down its list to PLAY DIRECTION, entered while row 2 is auditioning (the row's), turned; row
 # 6's audition re-reads it for row 6.
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   button Shift down

@@ -5,7 +5,6 @@
 # clip view, the row's LPF page opened with AFFECT ENTIRE off, AFFECT ENTIRE turned on and CLIP: the view edits the
 # row's automation, not the kit's. Every snapshot has a 1 s window (blinks).
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   button Shift down

@@ -1,7 +1,6 @@
 # The legacy sample browser from oscillator 1's BROWSE shortcut: open it, step to the next file, then type on the
 # pad keyboard: the first press shows the keyboard and types.
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   button Shift down

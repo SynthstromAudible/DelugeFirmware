@@ -3,7 +3,6 @@
 # draws; then DEFAULTS > pad brightness turned up (the PIC's dimmer interval); then out, to the clip view, and SHIFT +
 # the LPF frequency shortcut for a horizontal page under the new highlighting.
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   button Session down

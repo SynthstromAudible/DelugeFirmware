@@ -1,6 +1,5 @@
 # Play, record and tap tempo.
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   button Play down

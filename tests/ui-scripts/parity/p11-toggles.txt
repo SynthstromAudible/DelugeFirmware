@@ -1,6 +1,5 @@
 # Scale, triplets, cross-screen, learn and sync-scaling in the boot clip view.
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   button Scale down

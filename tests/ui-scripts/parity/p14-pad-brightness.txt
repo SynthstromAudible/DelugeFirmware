@@ -1,7 +1,6 @@
 # Pad brightness: SHIFT + LEARN held while the vertical encoder turns sets the PIC's pad dimmer interval (and with
 # it the pad refresh time), from the boot clip view.
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   button Shift down

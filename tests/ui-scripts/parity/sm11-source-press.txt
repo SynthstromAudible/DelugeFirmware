@@ -3,7 +3,6 @@
 # second one open the range page; the active source's pad pressed again takes its second layer (ENV1 -> ENV3); on an
 # item that takes no source, (15,0) does nothing and (15,1..3) are the randomizer shortcuts.
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   button Shift down

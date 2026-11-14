@@ -3,7 +3,6 @@
 # menu; on the MASTER page with VIBRATO focused, MIDI and CV change nothing, and the cable's strength page still reads
 # BI, as it does with no press (`sm24`). Neither column switches the cable's polarity.
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   button Shift down

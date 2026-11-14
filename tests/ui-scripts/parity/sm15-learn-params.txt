@@ -4,7 +4,6 @@
 # from the song view, settings > MIDI > FOLLOW > CHANNEL: from the list, a note learns channel A; on A's own screen a CC
 # learns it again; SHIFT + LEARN forgets it.
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   button Shift down

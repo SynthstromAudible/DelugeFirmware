@@ -5,7 +5,6 @@
 # on to the MODULATE DEPTH picker; BACK walks back through the strength page to the column. The strength pages hold 0,
 # which `main` draws exactly (a non-zero value with hidden zero places truncates there, D71).
 # card: content/bare.img
-# card: content/shellmenu
 # card: content/card.img
 100   snapshot boot
 300   button Shift down
