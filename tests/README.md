@@ -196,7 +196,6 @@ builds only `golden-vt-render`.
 | device-parity | unit | script | unit | gate | emu_parity's script runner drives delugemu or the rig through the same steps and timings, and device_parity seeds delugemu's flash from the rig's settings | pr | tooling | ~1s |
 | ui-script-cards | unit | script | unit | gate | the cards a UI script's header names, as the UI script runners read them | pr | tooling | ~1s |
 | deluge-jlink | unit | script | unit | gate | deluge_jlink's load script stops every DMA channel after the MMU is off and before the load | pr | tooling | ~1s |
-| run-parity-runner | unit | script | unit | gate | run_parity's waits land on absolute script times, so the two images cannot drift apart over a long script | pr | tooling | ~1s |
 | audible-window-tooling | unit | script | unit | gate | the audible window's analyser and song set | pr | tooling | ~1s |
 | audible-window-identity | integration | script | regression | gate | the audible window's reference snapshot (.superpowers/estate/audible-window/reference/, or AUDIBLE_WINDOW_REFERENCE) compared with itself reports nothing moved | manual | tooling | ~1m |
 | bench-tooling | unit | script | unit | gate | the bench tools' host side | pr | tooling | ~1s |

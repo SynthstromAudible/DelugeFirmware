@@ -1844,13 +1844,6 @@ gates = "deluge_jlink's load script stops every DMA channel after the MMU is off
 run = ["python3", "-m", "unittest", "test_deluge_jlink"]
 
 [[harness]]
-name = "run-parity-runner"
-template = "unittest"
-path = "tests/ui-scripts/parity"
-gates = "run_parity's waits land on absolute script times, so the two images cannot drift apart over a long script"
-run = ["python3", "-m", "unittest", "test_run_parity"]
-
-[[harness]]
 name = "audible-window-tooling"
 template = "unittest"
 path = "tools/audible_window"

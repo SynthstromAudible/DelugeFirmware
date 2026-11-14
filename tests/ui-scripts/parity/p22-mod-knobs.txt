@@ -1,0 +1,366 @@
+# Each mod button's two gold knobs: popups, knob LEDs and the MIDI-follow feedback they send.
+# On the boot synth clip, on a kit row, on a kit with affect-entire, and on the song.
+100    button Mod0 down
+220    button Mod0 up
+470    snapshot synth_mod0
+1470   encoder GoldUpper +1
+1720   snapshot synth_mod0_upper_up
+2720   encoder GoldUpper -2
+2970   snapshot synth_mod0_upper_down
+3970   encoder GoldLower +1
+4220   snapshot synth_mod0_lower_up
+5220   encoder GoldLower -2
+5470   snapshot synth_mod0_lower_down
+6470   button Mod1 down
+6590   button Mod1 up
+6840   snapshot synth_mod1
+7840   encoder GoldUpper +1
+8090   snapshot synth_mod1_upper_up
+9090   encoder GoldUpper -2
+9340   snapshot synth_mod1_upper_down
+10340  encoder GoldLower +1
+10590  snapshot synth_mod1_lower_up
+11590  encoder GoldLower -2
+11840  snapshot synth_mod1_lower_down
+12840  button Mod2 down
+12960  button Mod2 up
+13210  snapshot synth_mod2
+14210  encoder GoldUpper +1
+14460  snapshot synth_mod2_upper_up
+15460  encoder GoldUpper -2
+15710  snapshot synth_mod2_upper_down
+16710  encoder GoldLower +1
+16960  snapshot synth_mod2_lower_up
+17960  encoder GoldLower -2
+18210  snapshot synth_mod2_lower_down
+19210  button Mod3 down
+19330  button Mod3 up
+19580  snapshot synth_mod3
+20580  encoder GoldUpper +1
+20830  snapshot synth_mod3_upper_up
+21830  encoder GoldUpper -2
+22080  snapshot synth_mod3_upper_down
+23080  encoder GoldLower +1
+23330  snapshot synth_mod3_lower_up
+24330  encoder GoldLower -2
+24580  snapshot synth_mod3_lower_down
+25580  button Mod4 down
+25700  button Mod4 up
+25950  snapshot synth_mod4
+26950  encoder GoldUpper +1
+27200  snapshot synth_mod4_upper_up
+28200  encoder GoldUpper -2
+28450  snapshot synth_mod4_upper_down
+29450  encoder GoldLower +1
+29700  snapshot synth_mod4_lower_up
+30700  encoder GoldLower -2
+30950  snapshot synth_mod4_lower_down
+31950  button Mod5 down
+32070  button Mod5 up
+32320  snapshot synth_mod5
+33320  encoder GoldUpper +1
+33570  snapshot synth_mod5_upper_up
+34570  encoder GoldUpper -2
+34820  snapshot synth_mod5_upper_down
+35820  encoder GoldLower +1
+36070  snapshot synth_mod5_lower_up
+37070  encoder GoldLower -2
+37320  snapshot synth_mod5_lower_down
+38320  button Mod6 down
+38440  button Mod6 up
+38690  snapshot synth_mod6
+39690  encoder GoldUpper +1
+39940  snapshot synth_mod6_upper_up
+40940  encoder GoldUpper -2
+41190  snapshot synth_mod6_upper_down
+42190  encoder GoldLower +1
+42440  snapshot synth_mod6_lower_up
+43440  encoder GoldLower -2
+43690  snapshot synth_mod6_lower_down
+44690  button Mod7 down
+44810  button Mod7 up
+45060  snapshot synth_mod7
+46060  encoder GoldUpper +1
+46310  snapshot synth_mod7_upper_up
+47310  encoder GoldUpper -2
+47560  snapshot synth_mod7_upper_down
+48560  encoder GoldLower +1
+48810  snapshot synth_mod7_lower_up
+49810  encoder GoldLower -2
+50060  snapshot synth_mod7_lower_down
+51060  button Kit down
+51180  button Kit up
+53430  encoder Select +1
+# the selected drum's audition pad shows its row's random colour
+57680  random_colour 17 0
+57680  pad 17 0 down
+57800  pad 17 0 up
+58050  button Mod0 down
+58170  button Mod0 up
+58420  snapshot row_mod0
+59420  encoder GoldUpper +1
+59670  snapshot row_mod0_upper_up
+60670  encoder GoldUpper -2
+60920  snapshot row_mod0_upper_down
+61920  encoder GoldLower +1
+62170  snapshot row_mod0_lower_up
+63170  encoder GoldLower -2
+63420  snapshot row_mod0_lower_down
+64420  button Mod1 down
+64540  button Mod1 up
+64790  snapshot row_mod1
+65790  encoder GoldUpper +1
+66040  snapshot row_mod1_upper_up
+67040  encoder GoldUpper -2
+67290  snapshot row_mod1_upper_down
+68290  encoder GoldLower +1
+68540  snapshot row_mod1_lower_up
+69540  encoder GoldLower -2
+69790  snapshot row_mod1_lower_down
+70790  button Mod2 down
+70910  button Mod2 up
+71160  snapshot row_mod2
+72160  encoder GoldUpper +1
+72410  snapshot row_mod2_upper_up
+73410  encoder GoldUpper -2
+73660  snapshot row_mod2_upper_down
+74660  encoder GoldLower +1
+74910  snapshot row_mod2_lower_up
+75910  encoder GoldLower -2
+76160  snapshot row_mod2_lower_down
+77160  button Mod3 down
+77280  button Mod3 up
+77530  snapshot row_mod3
+78530  encoder GoldUpper +1
+78780  snapshot row_mod3_upper_up
+79780  encoder GoldUpper -2
+80030  snapshot row_mod3_upper_down
+81030  encoder GoldLower +1
+81280  snapshot row_mod3_lower_up
+82280  encoder GoldLower -2
+82530  snapshot row_mod3_lower_down
+83530  button Mod4 down
+83650  button Mod4 up
+83900  snapshot row_mod4
+84900  encoder GoldUpper +1
+85150  snapshot row_mod4_upper_up
+86150  encoder GoldUpper -2
+86400  snapshot row_mod4_upper_down
+87400  encoder GoldLower +1
+87650  snapshot row_mod4_lower_up
+88650  encoder GoldLower -2
+88900  snapshot row_mod4_lower_down
+89900  button Mod5 down
+90020  button Mod5 up
+90270  snapshot row_mod5
+91270  encoder GoldUpper +1
+91520  snapshot row_mod5_upper_up
+92520  encoder GoldUpper -2
+92770  snapshot row_mod5_upper_down
+93770  encoder GoldLower +1
+94020  snapshot row_mod5_lower_up
+95020  encoder GoldLower -2
+95270  snapshot row_mod5_lower_down
+96270  button Mod6 down
+96390  button Mod6 up
+96640  snapshot row_mod6
+97640  encoder GoldUpper +1
+97890  snapshot row_mod6_upper_up
+98890  encoder GoldUpper -2
+99140  snapshot row_mod6_upper_down
+100140 encoder GoldLower +1
+100390 snapshot row_mod6_lower_up
+101390 encoder GoldLower -2
+101640 snapshot row_mod6_lower_down
+102640 button Mod7 down
+102760 button Mod7 up
+103010 snapshot row_mod7
+104010 encoder GoldUpper +1
+104260 snapshot row_mod7_upper_up
+105260 encoder GoldUpper -2
+105510 snapshot row_mod7_upper_down
+106510 encoder GoldLower +1
+106760 snapshot row_mod7_lower_up
+107760 encoder GoldLower -2
+108010 snapshot row_mod7_lower_down
+109010 button AffectEntire down
+109130 button AffectEntire up
+109380 button Mod0 down
+109500 button Mod0 up
+109750 snapshot entire_mod0
+110750 encoder GoldUpper +1
+111000 snapshot entire_mod0_upper_up
+112000 encoder GoldUpper -2
+112250 snapshot entire_mod0_upper_down
+113250 encoder GoldLower +1
+113500 snapshot entire_mod0_lower_up
+114500 encoder GoldLower -2
+114750 snapshot entire_mod0_lower_down
+115750 button Mod1 down
+115870 button Mod1 up
+116120 snapshot entire_mod1
+117120 encoder GoldUpper +1
+117370 snapshot entire_mod1_upper_up
+118370 encoder GoldUpper -2
+118620 snapshot entire_mod1_upper_down
+119620 encoder GoldLower +1
+119870 snapshot entire_mod1_lower_up
+120870 encoder GoldLower -2
+121120 snapshot entire_mod1_lower_down
+122120 button Mod2 down
+122240 button Mod2 up
+122490 snapshot entire_mod2
+123490 encoder GoldUpper +1
+123740 snapshot entire_mod2_upper_up
+124740 encoder GoldUpper -2
+124990 snapshot entire_mod2_upper_down
+125990 encoder GoldLower +1
+126240 snapshot entire_mod2_lower_up
+127240 encoder GoldLower -2
+127490 snapshot entire_mod2_lower_down
+128490 button Mod3 down
+128610 button Mod3 up
+128860 snapshot entire_mod3
+129860 encoder GoldUpper +1
+130110 snapshot entire_mod3_upper_up
+131110 encoder GoldUpper -2
+131360 snapshot entire_mod3_upper_down
+132360 encoder GoldLower +1
+132610 snapshot entire_mod3_lower_up
+133610 encoder GoldLower -2
+133860 snapshot entire_mod3_lower_down
+134860 button Mod4 down
+134980 button Mod4 up
+135230 snapshot entire_mod4
+136230 encoder GoldUpper +1
+136480 snapshot entire_mod4_upper_up
+137480 encoder GoldUpper -2
+137730 snapshot entire_mod4_upper_down
+138730 encoder GoldLower +1
+138980 snapshot entire_mod4_lower_up
+139980 encoder GoldLower -2
+140230 snapshot entire_mod4_lower_down
+141230 button Mod5 down
+141350 button Mod5 up
+141600 snapshot entire_mod5
+142600 encoder GoldUpper +1
+142850 snapshot entire_mod5_upper_up
+143850 encoder GoldUpper -2
+144100 snapshot entire_mod5_upper_down
+145100 encoder GoldLower +1
+145350 snapshot entire_mod5_lower_up
+146350 encoder GoldLower -2
+146600 snapshot entire_mod5_lower_down
+147600 button Mod6 down
+147720 button Mod6 up
+147970 snapshot entire_mod6
+148970 encoder GoldUpper +1
+149220 snapshot entire_mod6_upper_up
+150220 encoder GoldUpper -2
+150470 snapshot entire_mod6_upper_down
+151470 encoder GoldLower +1
+151720 snapshot entire_mod6_lower_up
+152720 encoder GoldLower -2
+152970 snapshot entire_mod6_lower_down
+153970 button Mod7 down
+154090 button Mod7 up
+154340 snapshot entire_mod7
+155340 encoder GoldUpper +1
+155590 snapshot entire_mod7_upper_up
+156590 encoder GoldUpper -2
+156840 snapshot entire_mod7_upper_down
+157840 encoder GoldLower +1
+158090 snapshot entire_mod7_lower_up
+159090 encoder GoldLower -2
+159340 snapshot entire_mod7_lower_down
+160340 button Session down
+160460 button Session up
+161710 button Mod0 down
+161830 button Mod0 up
+162080 snapshot song_mod0
+163080 encoder GoldUpper +1
+163330 snapshot song_mod0_upper_up
+164330 encoder GoldUpper -2
+164580 snapshot song_mod0_upper_down
+165580 encoder GoldLower +1
+165830 snapshot song_mod0_lower_up
+166830 encoder GoldLower -2
+167080 snapshot song_mod0_lower_down
+168080 button Mod1 down
+168200 button Mod1 up
+168450 snapshot song_mod1
+169450 encoder GoldUpper +1
+169700 snapshot song_mod1_upper_up
+170700 encoder GoldUpper -2
+170950 snapshot song_mod1_upper_down
+171950 encoder GoldLower +1
+172200 snapshot song_mod1_lower_up
+173200 encoder GoldLower -2
+173450 snapshot song_mod1_lower_down
+174450 button Mod2 down
+174570 button Mod2 up
+174820 snapshot song_mod2
+175820 encoder GoldUpper +1
+176070 snapshot song_mod2_upper_up
+177070 encoder GoldUpper -2
+177320 snapshot song_mod2_upper_down
+178320 encoder GoldLower +1
+178570 snapshot song_mod2_lower_up
+179570 encoder GoldLower -2
+179820 snapshot song_mod2_lower_down
+180820 button Mod3 down
+180940 button Mod3 up
+181190 snapshot song_mod3
+182190 encoder GoldUpper +1
+182440 snapshot song_mod3_upper_up
+183440 encoder GoldUpper -2
+183690 snapshot song_mod3_upper_down
+184690 encoder GoldLower +1
+184940 snapshot song_mod3_lower_up
+185940 encoder GoldLower -2
+186190 snapshot song_mod3_lower_down
+187190 button Mod4 down
+187310 button Mod4 up
+187560 snapshot song_mod4
+188560 encoder GoldUpper +1
+188810 snapshot song_mod4_upper_up
+189810 encoder GoldUpper -2
+190060 snapshot song_mod4_upper_down
+191060 encoder GoldLower +1
+191310 snapshot song_mod4_lower_up
+192310 encoder GoldLower -2
+192560 snapshot song_mod4_lower_down
+193560 button Mod5 down
+193680 button Mod5 up
+193930 snapshot song_mod5
+194930 encoder GoldUpper +1
+195180 snapshot song_mod5_upper_up
+196180 encoder GoldUpper -2
+196430 snapshot song_mod5_upper_down
+197430 encoder GoldLower +1
+197680 snapshot song_mod5_lower_up
+198680 encoder GoldLower -2
+198930 snapshot song_mod5_lower_down
+199930 button Mod6 down
+200050 button Mod6 up
+200300 snapshot song_mod6
+201300 encoder GoldUpper +1
+201550 snapshot song_mod6_upper_up
+202550 encoder GoldUpper -2
+202800 snapshot song_mod6_upper_down
+203800 encoder GoldLower +1
+204050 snapshot song_mod6_lower_up
+205050 encoder GoldLower -2
+205300 snapshot song_mod6_lower_down
+206300 button Mod7 down
+206420 button Mod7 up
+206670 snapshot song_mod7
+207670 encoder GoldUpper +1
+207920 snapshot song_mod7_upper_up
+208920 encoder GoldUpper -2
+209170 snapshot song_mod7_upper_down
+210170 encoder GoldLower +1
+210420 snapshot song_mod7_lower_up
+211420 encoder GoldLower -2
+211670 snapshot song_mod7_lower_down
+212670 quit

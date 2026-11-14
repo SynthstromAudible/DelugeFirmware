@@ -1,0 +1,122 @@
+# Undo and redo of param edits on the boot synth clip: a gold knob turn, a sound-menu value, an automation-editor pad,
+# a MIDI follow CC (follow on channel A, set up as midi_follow.txt does). BACK undoes outside a menu; SHIFT+BACK redoes.
+100   button Mod0 down
+220   button Mod0 up
+470   encoder GoldUpper +3
+720   snapshot knob_turned
+1720  button Back down
+1840  button Back up
+2090  snapshot knob_undone
+3090  button Shift down
+3340  button Back down
+3460  button Back up
+3710  button Shift up
+3960  snapshot knob_redone
+4960  button SelectEnc down
+5080  button SelectEnc up
+5330  encoder Select +2
+5580  button SelectEnc down
+5700  button SelectEnc up
+5950  snapshot menu_item
+6950  encoder Select +3
+7200  snapshot menu_edited
+8200  button Back down
+8320  button Back up
+8570  button Back down
+8690  button Back up
+8940  button Back down
+9060  button Back up
+9310  snapshot menu_left
+10310 button Back down
+10430 button Back up
+10680 snapshot menu_undone
+11680 button Shift down
+11930 button Back down
+12050 button Back up
+12300 button Shift up
+12550 snapshot menu_redone
+13550 button Clip down
+13670 button Clip up
+13920 snapshot automation_overview
+14920 pad 0 0 down
+15040 pad 0 0 up
+15290 snapshot automation_lane
+16290 pad 3 4 down
+16410 pad 3 4 up
+16660 snapshot automation_pad
+17660 pad 6 6 down
+17780 pad 6 6 up
+18030 snapshot automation_pad2
+19030 button Back down
+19150 button Back up
+19400 snapshot automation_undone
+20400 button Shift down
+20650 button Back down
+20770 button Back up
+21020 button Shift up
+21270 snapshot automation_redone
+22270 button Shift down
+22520 button Clip down
+22640 button Clip up
+22890 button Shift up
+23140 button Clip down
+23260 button Clip up
+24510 button Session down
+24630 button Session up
+25880 button Shift down
+26130 button SelectEnc down
+26250 button SelectEnc up
+26500 button Shift up
+26750 encoder Select +4
+27000 button SelectEnc down
+27120 button SelectEnc up
+27370 encoder Select +1
+27620 button SelectEnc down
+27740 button SelectEnc up
+27990 encoder Select +3
+28240 button SelectEnc down
+28360 button SelectEnc up
+28610 encoder Select -4
+28860 button SelectEnc down
+28980 button SelectEnc up
+29230 button SelectEnc down
+29350 button SelectEnc up
+29600 encoder Select +2
+29850 snapshot channel_a
+30850 button Back down
+30970 button Back up
+31220 button Back down
+31340 button Back up
+31590 encoder Select +2
+31840 button SelectEnc down
+31960 button SelectEnc up
+32210 button SelectEnc down
+32330 button SelectEnc up
+32580 encoder Select +1
+32830 snapshot feedback_a
+33830 button Back down
+33950 button Back up
+34200 button Back down
+34320 button Back up
+34570 button Back down
+34690 button Back up
+34940 button Back down
+35060 button Back up
+35310 button Back down
+35430 button Back up
+35680 snapshot settings_closed
+36680 button Clip down
+36800 button Clip up
+37050 button Clip down
+37170 button Clip up
+38420 cc 1 74 100
+38670 snapshot follow_cc
+39670 button Back down
+39790 button Back up
+40040 snapshot follow_undone
+41040 button Shift down
+41290 button Back down
+41410 button Back up
+41660 button Shift up
+41910 snapshot follow_redone
+42910 quit

@@ -1,0 +1,179 @@
+# Performance view (song view, a short KEYBOARD press; a held one only peeks): every FX column at three values, a held pad with the select encoder
+# turned, and the param editor (select-encoder press).
+100   button Session down
+220   button Session up
+1470  button Keyboard down
+1490  button Keyboard up
+1740  snapshot opened
+2740  pad 0 0 down
+2860  pad 0 0 up
+3110  snapshot col_0_0
+4110  pad 0 4 down
+4230  pad 0 4 up
+4480  snapshot col_0_4
+5480  pad 0 7 down
+5600  pad 0 7 up
+5850  snapshot col_0_7
+6850  pad 1 0 down
+6970  pad 1 0 up
+7220  snapshot col_1_0
+8220  pad 1 4 down
+8340  pad 1 4 up
+8590  snapshot col_1_4
+9590  pad 1 7 down
+9710  pad 1 7 up
+9960  snapshot col_1_7
+10960 pad 2 0 down
+11080 pad 2 0 up
+11330 snapshot col_2_0
+12330 pad 2 4 down
+12450 pad 2 4 up
+12700 snapshot col_2_4
+13700 pad 2 7 down
+13820 pad 2 7 up
+14070 snapshot col_2_7
+15070 pad 3 0 down
+15190 pad 3 0 up
+15440 snapshot col_3_0
+16440 pad 3 4 down
+16560 pad 3 4 up
+16810 snapshot col_3_4
+17810 pad 3 7 down
+17930 pad 3 7 up
+18180 snapshot col_3_7
+19180 pad 4 0 down
+19300 pad 4 0 up
+19550 snapshot col_4_0
+20550 pad 4 4 down
+20670 pad 4 4 up
+20920 snapshot col_4_4
+21920 pad 4 7 down
+22040 pad 4 7 up
+22290 snapshot col_4_7
+23290 pad 5 0 down
+23410 pad 5 0 up
+23660 snapshot col_5_0
+24660 pad 5 4 down
+24780 pad 5 4 up
+25030 snapshot col_5_4
+26030 pad 5 7 down
+26150 pad 5 7 up
+26400 snapshot col_5_7
+27400 pad 6 0 down
+27520 pad 6 0 up
+27770 snapshot col_6_0
+28770 pad 6 4 down
+28890 pad 6 4 up
+29140 snapshot col_6_4
+30140 pad 6 7 down
+30260 pad 6 7 up
+30510 snapshot col_6_7
+31510 pad 7 0 down
+31630 pad 7 0 up
+31880 snapshot col_7_0
+32880 pad 7 4 down
+33000 pad 7 4 up
+33250 snapshot col_7_4
+34250 pad 7 7 down
+34370 pad 7 7 up
+34620 snapshot col_7_7
+35620 pad 8 0 down
+35740 pad 8 0 up
+35990 snapshot col_8_0
+36990 pad 8 4 down
+37110 pad 8 4 up
+37360 snapshot col_8_4
+38360 pad 8 7 down
+38480 pad 8 7 up
+38730 snapshot col_8_7
+39730 pad 9 0 down
+39850 pad 9 0 up
+40100 snapshot col_9_0
+41100 pad 9 4 down
+41220 pad 9 4 up
+41470 snapshot col_9_4
+42470 pad 9 7 down
+42590 pad 9 7 up
+42840 snapshot col_9_7
+43840 pad 10 0 down
+43960 pad 10 0 up
+44210 snapshot col_10_0
+45210 pad 10 4 down
+45330 pad 10 4 up
+45580 snapshot col_10_4
+46580 pad 10 7 down
+46700 pad 10 7 up
+46950 snapshot col_10_7
+47950 pad 11 0 down
+48070 pad 11 0 up
+48320 snapshot col_11_0
+49320 pad 11 4 down
+49440 pad 11 4 up
+49690 snapshot col_11_4
+50690 pad 11 7 down
+50810 pad 11 7 up
+51060 snapshot col_11_7
+52060 pad 12 0 down
+52180 pad 12 0 up
+52430 snapshot col_12_0
+53430 pad 12 4 down
+53550 pad 12 4 up
+53800 snapshot col_12_4
+54800 pad 12 7 down
+54920 pad 12 7 up
+55170 snapshot col_12_7
+56170 pad 13 0 down
+56290 pad 13 0 up
+56540 snapshot col_13_0
+57540 pad 13 4 down
+57660 pad 13 4 up
+57910 snapshot col_13_4
+58910 pad 13 7 down
+59030 pad 13 7 up
+59280 snapshot col_13_7
+60280 pad 14 0 down
+60400 pad 14 0 up
+60650 snapshot col_14_0
+61650 pad 14 4 down
+61770 pad 14 4 up
+62020 snapshot col_14_4
+63020 pad 14 7 down
+63140 pad 14 7 up
+63390 snapshot col_14_7
+64390 pad 15 0 down
+64510 pad 15 0 up
+64760 snapshot col_15_0
+65760 pad 15 4 down
+65880 pad 15 4 up
+66130 snapshot col_15_4
+67130 pad 15 7 down
+67250 pad 15 7 up
+67500 snapshot col_15_7
+68500 pad 3 5 down
+68750 encoder Select +2
+69000 snapshot held_turn
+70000 pad 3 5 up
+70250 snapshot held_released
+71250 button SelectEnc down
+71370 button SelectEnc up
+71620 snapshot editor
+72620 encoder Select +1
+72870 snapshot editor_1
+73870 pad 5 2 down
+73990 pad 5 2 up
+74240 snapshot editor_pad
+75240 button Back down
+75360 button Back up
+75610 snapshot editor_back
+76610 button Shift down
+76860 pad 8 7 down
+76980 pad 8 7 up
+77230 button Shift up
+77480 snapshot shift_pad_lpf
+78480 button Back down
+78600 button Back up
+78850 snapshot shift_pad_back
+79850 button Keyboard down
+79870 button Keyboard up
+80120 snapshot closed
+81120 quit

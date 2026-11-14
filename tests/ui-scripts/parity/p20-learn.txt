@@ -1,0 +1,67 @@
+# Learning a gold knob to a param menu and to a patch-cable menu (hold LEARN, turn the knob), then turning the
+# learned knob outside the menu. Boot synth clip; OSC1 level from the OSC mixer shortcut; the ENV4 -> OSC1 level cable
+# from its MODULATE WITH list.
+100   button Shift down
+350   pad 2 0 down
+470   pad 2 0 up
+720   button Shift up
+970   button Learn down
+1220  encoder GoldUpper +1
+1470  button Learn up
+1720  snapshot param_learned
+2720  button Back down
+2840  button Back up
+3090  button Back down
+3210  button Back up
+3460  encoder GoldUpper +1
+3710  snapshot param_knob
+4710  button Mod2 down
+4830  button Mod2 up
+5080  button Shift down
+5330  pad 2 0 down
+5450  pad 2 0 up
+5700  button Shift up
+5950  button SelectEnc down
+6070  button SelectEnc up
+6320  encoder Select +3
+6570  button SelectEnc down
+6690  button SelectEnc up
+6940  button Learn down
+7190  encoder GoldLower +1
+7440  button Learn up
+7690  snapshot cable_learned
+8690  button Back down
+8810  button Back up
+9060  button Back down
+9180  button Back up
+9430  button Back down
+9550  button Back up
+9800  button Back down
+9920  button Back up
+10170 encoder GoldLower +1
+10420 snapshot cable_knob
+11420 button Mod1 down
+11540 button Mod1 up
+11790 encoder GoldUpper +1
+12040 snapshot mod1_upper
+13040 button Kit down
+13160 button Kit up
+15410 encoder Select +1
+19660 button AffectEntire down
+19780 button AffectEntire up
+20030 button Shift down
+20280 pad 8 7 down
+20400 pad 8 7 up
+20650 button Shift up
+20900 snapshot entire_menu
+21900 button Learn down
+22150 encoder GoldUpper +1
+22400 button Learn up
+22650 snapshot entire_learned
+23650 button Back down
+23770 button Back up
+24020 button Back down
+24140 button Back up
+24390 encoder GoldUpper +1
+24640 snapshot entire_knob
+25640 quit
