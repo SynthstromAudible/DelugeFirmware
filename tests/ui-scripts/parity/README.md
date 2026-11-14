@@ -121,12 +121,12 @@ knobs' rings, the song's keeps its page open, where the new value shows. A fresh
 16 to 111 shows it is not, so the 0 moves nothing and the 64 that follows is the first absolute move.
 
 `midi_follow` plays every CC of MIDI follow on a synth clip, a kit row, a kit with affect-entire and the song. The
-synth, kit-row and song sections show the sound table and the global table in their popups, knob LEDs and the DIN
-bytes of the feedback; the kit affect-entire section shows only error-popup frames, on `main` too, with no feedback, so
-the script does not see the affect-entire choice of `midi::followFocus` (`controls::resolve_follow`). That choice is
-pinned by `tests/controls/follow_spec.cpp` and `sim/scenes_spec/midi_follow_spec.cpp`. No script sends a pitch bend (the runner has no bend verb) or
-unlearns a knob on a sound with a non-zero pitch adjust, so the two accepted learned-MIDI differences (D160, D161 in
-`DIFFERENCES.md`) are pinned by specs.
+synth, kit-row and song sections show the sound table and the global table in their popups, knob LEDs and the DIN bytes
+of the feedback; the kit affect-entire section shows only error-popup frames, on `main` too, with no feedback, so the
+script does not see the affect-entire choice of `midi::followFocus` (`controls::resolve_follow`). That choice is pinned
+by `tests/controls/follow_spec.cpp` and `sim/scenes_spec/midi_follow_spec.cpp`. No script sends a pitch bend (the runner
+has no bend verb) or unlearns a knob on a sound with a non-zero pitch adjust, so the two accepted learned-MIDI
+differences (D160, D161 in `DIFFERENCES.md`) are pinned by specs.
 
 `root_knob_views` is also a `run_parity.py` script; it pins the gold knobs at the root views, in the order its sections
 run:
