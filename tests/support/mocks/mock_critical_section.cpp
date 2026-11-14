@@ -19,7 +19,8 @@
 //
 // deluge_resource's masking discipline (crates/deluge_resource/src/sync.rs) calls all three across
 // the C ABI on every acquire/release, so any host driver that links a Rust staticlib re-exporting
-// deluge_resource needs bodies for them even when the spec itself never contends.
+// deluge_resource needs bodies for them even when the spec itself never contends. It is also the interrupt half of the
+// spec binaries' HAL (mock_hal.cpp).
 //
 // The no-op/false bodies are exact rather than merely adequate: these drivers are single-threaded
 // and never run in ISR context, so there is nothing to mask and no interrupt to report.

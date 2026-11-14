@@ -7,4 +7,4 @@ deluge_specs_driver(scenes_bind_specs TREES host
           # the name table's definitions; in the app they come from the app's own build of the file
           ${DELUGE_REPO_ROOT}/src/deluge/gui/l10n/setting_names.cpp
   LIBRARIES deluge_scenes_bind deluge_global_effectable
-  INCLUDES ${DELUGE_REPO_ROOT}/tests/unit/deluge-project ${DELUGE_REPO_ROOT}/tests/support/mocks)
+  INCLUDES ${DELUGE_REPO_ROOT}/tests/support/mocks)
