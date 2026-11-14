@@ -1,9 +1,9 @@
 # Gate unit:
 #     every test directory under tests/unit that names the host tree (tests/support/cmake/specs.cmake): the CppSpec
-#     drivers, the CppUTest suites (one ctest test, UnitTests) and the model-equality driver on the committed songs;
-#     the dsp-next specs and the synth library's link closure (tests/dsp); and the gfx-layer and layer-rules checks,
-#     on the -m32 host: policies, parsers, storage state machines, the UI's pure steps, DSP kernels against scalar
-#     references. Pass extra ctest arguments after --, e.g. `dbt test unit -- -R stitch_spec`
+#     drivers, the CppUTest suites (one ctest test, UnitTests) and the model-equality driver on the committed songs; the
+#     dsp-next specs and the synth library's link closure (tests/unit/deluge/dsp-next); and the gfx-layer and
+#     layer-rules checks, on the -m32 host: policies, parsers, storage state machines, the UI's pure steps, DSP kernels
+#     against scalar references. Pass extra ctest arguments after --, e.g. `dbt test unit -- -R stitch_spec`
 
 cmake_minimum_required(VERSION 3.24)
 project(DelugeTests)
@@ -107,10 +107,6 @@ if (UNIX AND NOT APPLE)
     add_library(deluge_rust_rs_sim STATIC IMPORTED GLOBAL)
     set_target_properties(deluge_rust_rs_sim PROPERTIES IMPORTED_LOCATION ${RUST_LIB_SIM})
     add_dependencies(deluge_rust_rs_sim deluge_rust_rs_sim_build)
-
-    # The synth library's specs (tests/dsp), shared with the ARM and UBSan trees. Linux only: they assume the -m32 host
-    # build above, as the host sim does.
-    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../dsp dsp-next)
 elseif (APPLE)
     # macOS gets the umbrella staticlib too, because deluge_spec needs it: audio_file_format.cpp's
     # header parse IS the Rust decoder (deluge-sdk's deluge-audio-format). Built for the DEFAULT host

@@ -14,6 +14,7 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-// The float kernels' spec under the firmware's float flags (-O2 -funsafe-math-optimizations, set in
-// tests/dsp/CMakeLists.txt): the headers pin their own arithmetic, so every result must still match bit for bit.
-#include "float_kernels_spec.cpp" // NOLINT(bugprone-suspicious-include)
+
+// The float ladder spec under the firmware's float flags (-O2 -funsafe-math-optimizations;
+// tests/unit/deluge/dsp-next/CMakeLists.txt).
+#include "float_ladder_spec.cpp" // NOLINT(bugprone-suspicious-include)

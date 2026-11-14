@@ -14,7 +14,7 @@
 namespace dp = dx7_asm_pin;
 namespace golden = deluge::test::golden;
 
-constexpr std::string_view kHeader = "tests/dsp/dx7_asm_pin_records.h";
+constexpr std::string_view kHeader = "tests/unit/deluge/dsp-next/dx7_asm_pin_records.h";
 
 // clang-format off
 describe dx7_asm_pin_spec("the NEON FM kernel, pinned", ${

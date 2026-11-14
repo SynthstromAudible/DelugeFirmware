@@ -17,7 +17,7 @@
 #include "dsp-next/fixed/noise/congruential_step.h"
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
 #include "dsp-next/fixed/shaping/tanh.h"
-#include "dsp/raw_words.h"
+#include "unit/deluge/dsp-next/raw_words.h"
 #include "util/synth_noise.h"
 
 #include <algorithm>
@@ -35,8 +35,8 @@
 #include <utility>
 #include <vector>
 
-#include "dsp/raw_frame.h"
-#include "dsp/raw_shaping.h"
+#include "unit/deluge/dsp-next/raw_frame.h"
+#include "unit/deluge/dsp-next/raw_shaping.h"
 #include <cppspec.hpp>
 
 using namespace deluge::bench;

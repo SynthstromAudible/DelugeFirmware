@@ -89,7 +89,7 @@ endfunction()
 # below the directory the file sits, so a spec moves without an edit. SOURCES are the code under test and any mocks;
 # relative paths resolve against the calling directory. Every spec includes against the calling directory and then
 # tests/, so a header from another test directory is named by its path there ("support/golden_update.h",
-# "harness/ui_script.h", "dsp/raw_words.h"). NEON links argon as deluge_test_neon() does.
+# "harness/ui_script.h", "unit/deluge/dsp-next/raw_words.h"). NEON links argon as deluge_test_neon() does.
 function(deluge_specs_driver name)
   cmake_parse_arguments(PARSE_ARGV 1 arg "NEON" "" "TREES;ONLY_HOST;ONLY_ARM;ONLY_UBSAN;SOURCES;LIBRARIES;INCLUDES")
   if(arg_UNPARSED_ARGUMENTS)

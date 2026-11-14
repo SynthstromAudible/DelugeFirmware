@@ -47,7 +47,7 @@ using deluge::dsp::Q;
 using deluge::dsp::StereoSample;
 using deluge::synth::InputChannel;
 
-constexpr std::string_view kHeader = "tests/dsp/hop_scheduler_records.h";
+constexpr std::string_view kHeader = "tests/unit/deluge/dsp-next/hop_scheduler_records.h";
 
 // The records are the host's: the ARM tree runs this spec as a check of them, so there it always compares.
 #ifdef __arm__

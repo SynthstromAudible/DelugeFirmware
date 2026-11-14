@@ -15,6 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The float pack's spec, built with -mfma so that kFusedMulAdd holds on the x86 host: the fused policy, which an
-// AArch64 or VFPv4 target runs, held to the same lane-for-lane equalities (tests/dsp/CMakeLists.txt sets the flag).
-#include "pack_f32_spec.cpp" // NOLINT(bugprone-suspicious-include)
+// The float drift spec under the firmware's float flags (-O2 -funsafe-math-optimizations;
+// tests/unit/deluge/dsp-next/CMakeLists.txt).
+#include "float_drift_spec.cpp" // NOLINT(bugprone-suspicious-include)

@@ -14,6 +14,6 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
-// The float drift spec under the firmware's float flags (-O2 -funsafe-math-optimizations; tests/dsp/CMakeLists.txt).
-#include "float_drift_spec.cpp" // NOLINT(bugprone-suspicious-include)
+// The float envelope spec under the fused policy (-mfma on the x86 host; tests/unit/deluge/dsp-next/CMakeLists.txt sets
+// it).
+#include "float_envelope_spec.cpp" // NOLINT(bugprone-suspicious-include)

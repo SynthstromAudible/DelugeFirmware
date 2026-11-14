@@ -14,6 +14,6 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-// Poly's spec under the firmware's float flags (-O2 -funsafe-math-optimizations, set in tests/dsp/CMakeLists.txt):
-// the headers pin their own arithmetic, so every result must still match bit for bit.
-#include "poly_spec.cpp" // NOLINT(bugprone-suspicious-include)
+// The float oscillators' spec under the fused policy (-mfma on the x86 host; tests/unit/deluge/dsp-next/CMakeLists.txt
+// sets it).
+#include "float_oscillators_spec.cpp" // NOLINT(bugprone-suspicious-include)

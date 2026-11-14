@@ -172,7 +172,7 @@ of the scalar operation with the same per-lane meaning:
 A kernel keeps `Argon` at its interface and converts with `from_raw` and `raw()`, so its callers are unchanged. Helpers
 private to one family of kernels may pass the vectors between themselves: the windowed sinc's `SincWindow` holds
 `Q16Vec<15>`, for its blend, its dot product and their two window loaders. `lane(i)` reads one lane through memory, for
-tests. The lane spec (`tests/dsp/fixed_point_neon_spec.cpp`) checks each operation lane by lane against the scalar
+tests. The lane spec (`tests/unit/deluge/dsp-next/fixed_point_neon_spec.cpp`) checks each operation lane by lane against the scalar
 operation: on the x86 host through SIMDe, and under qemu on the A9's own instructions.
 
 ## Where the types are used
@@ -357,7 +357,7 @@ source change, so an empty result is not the gate. Each changed function is clas
 - **The raw helpers** (`dsp-next/core/detail/raw_ops.h`, in `deluge::dsp::detail`) are the arithmetic of the raw
   references the typed operations are checked against, and of the few raw sites that say why they are raw: the high-pass
   ladder's asm saturate, the granular grain size and the wavetable chunker's index scaling, integer products of a count
-  and a fraction. They are not for new code. The specs reach them through `tests/dsp/raw_words.h`, with the full-scale
+  and a fraction. They are not for new code. The specs reach them through `tests/unit/deluge/dsp-next/raw_words.h`, with the full-scale
   words the references were written with.
 - **The words that stay** outside dsp-next, each with its reason in a comment where it crosses:
   - codec and DMA words: the audio engine's input and output rings, the CV DAC, the MIDI wire;

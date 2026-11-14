@@ -48,14 +48,14 @@
 ///     synchronous backing, which a call with the mode omitted shows by loading at once while the same call made
 ///     explicitly AsyncOrBlocking first reports LOAD_IN_PROGRESS (LP-DEFAULT); the wavetables each fixture builds
 ///     (LP-WT-PIN: every band's range, geometry and samples, as a CRC per file under
-///     tests/dsp/wavetable_band_records.h, for the synthetic set in tests/integration/golden/wavetable_pins and the
-///     golden presets' wavetables); the pitch each sample's detection finds (LP-PITCH-PIN, by its bits, against
-///     tests/integration/scenarios/pitch_pin_records.h); and a single-band table's load (LP-WT-ZEROBAND, an 8-sample
-///     cycle, which must hold one band with a non-empty cycle range so no band index below 0 is selected); each
-///     allocation of a wavetable load from a file, failed once (LP-WT-FAIL): a band's samples, the band list, the cycle
-///     buffer and the spectrum fail the load with INSUFFICIENT_RAM and leave nothing resident, a missing band-0 FFT
-///     table leaves one band holding every cycle, a missing smaller band's table drops that band alone, and a missing
-///     pitch window table ends the detection with no pitch.
+///     tests/unit/deluge/dsp-next/wavetable_band_records.h, for the synthetic set in
+///     tests/integration/golden/wavetable_pins and the golden presets' wavetables); the pitch each sample's detection
+///     finds (LP-PITCH-PIN, by its bits, against tests/integration/scenarios/pitch_pin_records.h); and a single-band
+///     table's load (LP-WT-ZEROBAND, an 8-sample cycle, which must hold one band with a non-empty cycle range so no
+///     band index below 0 is selected); each allocation of a wavetable load from a file, failed once (LP-WT-FAIL): a
+///     band's samples, the band list, the cycle buffer and the spectrum fail the load with INSUFFICIENT_RAM and leave
+///     nothing resident, a missing band-0 FFT table leaves one band holding every cycle, a missing smaller band's table
+///     drops that band alone, and a missing pitch window table ends the detection with no pitch.
 ///
 /// Gate load-policy-wavetable-churn:
 ///     wavetables evicted under memory pressure reload as they were built: sixteen distinct copies of a golden
@@ -67,8 +67,8 @@
 #include "scenarios/support/scenario_declare.h"
 #include "scenarios/support/scenario_report.h"
 
-#include "../../dsp/wavetable_band_crc.h"
-#include "../../dsp/wavetable_band_records.h"
+#include "../../unit/deluge/dsp-next/wavetable_band_crc.h"
+#include "../../unit/deluge/dsp-next/wavetable_band_records.h"
 #include "memory/general_memory_allocator.h" // GeneralMemoryAllocator::resourceManager()
 #include "memory/heaps.h"                    // failNextAllocationOfSize, allocationFailurePending
 #include "model/sample/pitch_scan.h"
@@ -117,7 +117,7 @@ using deluge::scenarios::WaitState;
 ScenarioReport g_report{"LP"};
 
 namespace golden = deluge::test::golden;
-constexpr std::string_view kWaveTableHeader = "tests/dsp/wavetable_band_records.h";
+constexpr std::string_view kWaveTableHeader = "tests/unit/deluge/dsp-next/wavetable_band_records.h";
 constexpr std::string_view kPitchHeader = "tests/integration/scenarios/pitch_pin_records.h";
 
 /// Pin proposeLoadCandidates()'s policy: which paths a load tries, in what order. The async loader opens candidates

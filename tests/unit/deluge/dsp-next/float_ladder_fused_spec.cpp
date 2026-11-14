@@ -15,5 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The float drift spec under the fused policy (-mfma on the x86 host; tests/dsp/CMakeLists.txt sets it).
-#include "float_drift_spec.cpp" // NOLINT(bugprone-suspicious-include)
+// The float ladder spec under the fused policy (-mfma on the x86 host; tests/unit/deluge/dsp-next/CMakeLists.txt sets
+// it).
+#include "float_ladder_spec.cpp" // NOLINT(bugprone-suspicious-include)

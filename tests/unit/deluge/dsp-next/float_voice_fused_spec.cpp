@@ -14,6 +14,6 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
-// The float ladder spec under the fused policy (-mfma on the x86 host; tests/dsp/CMakeLists.txt sets it).
-#include "float_ladder_spec.cpp" // NOLINT(bugprone-suspicious-include)
+// The float voice spec under the fused policy (-mfma on the x86 host; tests/unit/deluge/dsp-next/CMakeLists.txt sets
+// it).
+#include "float_voice_spec.cpp" // NOLINT(bugprone-suspicious-include)

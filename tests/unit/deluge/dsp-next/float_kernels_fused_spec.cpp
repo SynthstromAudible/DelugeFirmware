@@ -14,5 +14,6 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-// The float oscillators' spec under the fused policy (-mfma on the x86 host; tests/dsp/CMakeLists.txt sets it).
-#include "float_oscillators_spec.cpp" // NOLINT(bugprone-suspicious-include)
+// The float kernels' spec under the fused policy (-mfma on the x86 host; tests/unit/deluge/dsp-next/CMakeLists.txt sets
+// it).
+#include "float_kernels_spec.cpp" // NOLINT(bugprone-suspicious-include)

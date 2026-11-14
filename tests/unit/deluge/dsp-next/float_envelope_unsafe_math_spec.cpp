@@ -15,5 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 // The float envelope spec under the firmware's float flags (-O2 -funsafe-math-optimizations, set in
-// tests/dsp/CMakeLists.txt): the headers pin their own arithmetic, so every result must still match bit for bit.
+// tests/unit/deluge/dsp-next/CMakeLists.txt): the headers pin their own arithmetic, so every result must still match
+// bit for bit.
 #include "float_envelope_spec.cpp" // NOLINT(bugprone-suspicious-include)

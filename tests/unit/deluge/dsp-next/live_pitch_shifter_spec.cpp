@@ -51,7 +51,7 @@ namespace golden = deluge::test::golden;
 namespace pw = pitch_shift_workloads;
 using deluge::synth::InputChannel;
 
-constexpr std::string_view kHeader = "tests/dsp/pitch_shift_component_records.h";
+constexpr std::string_view kHeader = "tests/unit/deluge/dsp-next/pitch_shift_component_records.h";
 
 // The records are the host's: the ARM tree runs this spec as a check of them, so there it always compares.
 #ifdef __arm__

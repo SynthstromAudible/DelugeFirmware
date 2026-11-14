@@ -13,7 +13,7 @@
 namespace dw = dx7_workloads;
 namespace golden = deluge::test::golden;
 
-constexpr std::string_view kHeader = "tests/dsp/dx7_workload_records.h";
+constexpr std::string_view kHeader = "tests/unit/deluge/dsp-next/dx7_workload_records.h";
 
 // The records are the host's: the ARM tree runs this spec as a check of them, so there it always compares.
 #ifdef __arm__

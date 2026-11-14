@@ -5,9 +5,27 @@
 #   tests/trees/arm/CMakeLists.txt   -> ARM Cortex-A9, real NEON, run via qemu (sets DSP_SPEC_ARM)
 #   tests/trees/ubsan/CMakeLists.txt -> the x86 build under UndefinedBehaviorSanitizer
 # Every assertion is therefore also an x86-vs-NEON cross-check of the vectorised
-# kernel. See tests/dsp/README.md and docs/dev/synth_phase1_l0_plan.md.
+# kernel. See tests/unit/deluge/dsp-next/README.md and docs/dev/synth_phase1_l0_plan.md.
 
-set(_repo_root ${CMAKE_CURRENT_LIST_DIR}/../..)
+# Each spec here is its own executable and test, built by this file rather than by a spec driver.
+deluge_test_directory(TREES host arm ubsan
+  BUILDS_OWN_SPECS)
+# triangle_distribution_spec defines its entry point (CPPSPEC_SPEC) rather than a main, and the host tree alone builds
+# it, on every host platform: a one-spec driver calls it there.
+if(DELUGE_TEST_TREE STREQUAL "host")
+  create_test_sourcelist(_triangle_sources triangle_distribution_main.cpp triangle_distribution_spec.cpp)
+  add_executable(triangle_distribution_spec ${_triangle_sources})
+  target_link_libraries(triangle_distribution_spec PRIVATE c++spec)
+  target_include_directories(triangle_distribution_spec PRIVATE ${DELUGE_REPO_ROOT}/src/deluge ${DELUGE_REPO_ROOT}/src)
+  set_target_properties(triangle_distribution_spec PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES)
+  add_test(NAME triangle_distribution_spec COMMAND triangle_distribution_spec triangle_distribution_spec --verbose)
+endif()
+if(DELUGE_TEST_TREE STREQUAL "host" AND NOT (UNIX AND NOT APPLE))
+  # The other specs assume the -m32 host build the Linux host tree is, as the host sim's DSP does.
+  return()
+endif()
+
+set(_repo_root ${DELUGE_REPO_ROOT})
 
 # CppSpec, argon and SIMDe come from the including tree's tests/support/cmake/specs.cmake, at the pins in
 # cmake/deps.cmake; deluge_test_neon() gives each target argon's NEON backend, through SIMDe on a host without NEON.
@@ -420,6 +438,8 @@ endforeach()
 
 # CONFIGURE_DEPENDS: a spec file added to an already-configured tree is built (and run) on the next build.
 file(GLOB _specs CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)
+# Built above, by its own driver.
+list(REMOVE_ITEM _specs ${CMAKE_CURRENT_LIST_DIR}/triangle_distribution_spec.cpp)
 foreach(_spec_path IN LISTS _specs)
   cmake_path(GET _spec_path STEM _name)
   if(NOT DSP_SPEC_ARM AND _name IN_LIST _arm_only_specs)

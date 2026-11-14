@@ -41,10 +41,10 @@ ctest --test-dir build-tests-arm --output-on-failure
 
 ## Adding a spec
 
-1. Write `tests/dsp/<name>_spec.cpp` with CppSpec (`describe`/`context`/`it`/
+1. Write `tests/unit/deluge/dsp-next/<name>_spec.cpp` with CppSpec (`describe`/`context`/`it`/
    `expect(...).to_equal(...)`, …), ending with `CPPSPEC_MAIN(<describe_obj>);`
    so it builds as a standalone CTest executable.
-2. In `tests/dsp/CMakeLists.txt`, set `<name>_spec_DEPS` to the dsp-next source
+2. In `tests/unit/deluge/dsp-next/CMakeLists.txt`, set `<name>_spec_DEPS` to the dsp-next source
    file(s) the spec exercises (compiled into the spec executable).
 
 Prefer assertions that are **exact** where the maths allows (the sine spec uses

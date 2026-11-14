@@ -14,5 +14,8 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-// The float voice spec under the fused policy (-mfma on the x86 host; tests/dsp/CMakeLists.txt sets it).
-#include "float_voice_spec.cpp" // NOLINT(bugprone-suspicious-include)
+
+// The float pack's spec, built with -mfma so that kFusedMulAdd holds on the x86 host: the fused policy, which an
+// AArch64 or VFPv4 target runs, held to the same lane-for-lane equalities (tests/unit/deluge/dsp-next/CMakeLists.txt
+// sets the flag).
+#include "pack_f32_spec.cpp" // NOLINT(bugprone-suspicious-include)

@@ -28,7 +28,7 @@
 #include <cstring>
 #include <vector>
 
-#include "dsp/raw_words.h"
+#include "unit/deluge/dsp-next/raw_words.h"
 #include "util/audio_format_helpers.h" // swapEndianness32, swapEndianness2x16
 
 namespace {

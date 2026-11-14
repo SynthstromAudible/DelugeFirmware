@@ -6,7 +6,8 @@
  */
 
 // Today's patching arithmetic, site by site, with values worked from the formulas; the random cases the matrix specs
-// draw from; and the frozen reference patcher (tests/dsp/reference_patcher.*) the matrix is compared against.
+// draw from; and the frozen reference patcher (tests/unit/deluge/dsp-next/reference_patcher.*) the matrix is compared
+// against.
 
 #include "alloc_seams.h"
 #include "patch_cases.h"

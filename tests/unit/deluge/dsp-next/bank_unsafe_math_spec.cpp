@@ -14,6 +14,7 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
-// The float ladder spec under the firmware's float flags (-O2 -funsafe-math-optimizations; tests/dsp/CMakeLists.txt).
-#include "float_ladder_spec.cpp" // NOLINT(bugprone-suspicious-include)
+// Bank's spec under the firmware's float flags (-O2 -funsafe-math-optimizations, set in
+// tests/unit/deluge/dsp-next/CMakeLists.txt): the headers pin their own arithmetic, so every result must still match
+// bit for bit.
+#include "bank_spec.cpp" // NOLINT(bugprone-suspicious-include)
