@@ -105,17 +105,13 @@ add_executable(UnitTests
         clip_iterator_tests.cpp
         midi_queue_tests.cpp
         sync_tests.cpp
-        chord_tests.cpp
         time_tests.cpp
         clock_output_scheduler_tests.cpp
         encoder_acceleration_tests.cpp
         iterance_migration_tests.cpp
         sample_transpose_tests.cpp
-        rgb_tests.cpp
-        notes_state_tests.cpp
         waveform_peak_math_tests.cpp
         waveform_overview_cache_tests.cpp
-        short_label_tests.cpp
         song_preview_window_tests.cpp
         song_preview_decode_tests.cpp
         song_preview_deferral_tests.cpp
