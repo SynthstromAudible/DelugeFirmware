@@ -1,19 +1,12 @@
 # Gate unit:
 #     every test directory under tests/unit that names the host tree (tests/support/cmake/specs.cmake): the CppSpec
-#     drivers, the CppUTest suites (one ctest test, UnitTests) and the model-equality driver on the committed songs; the
-#     dsp-next specs and the synth library's link closure (tests/unit/deluge/dsp-next); and the gfx-layer and
-#     layer-rules checks, on the -m32 host: policies, parsers, storage state machines, the UI's pure steps, DSP kernels
-#     against scalar references. Pass extra ctest arguments after --, e.g. `dbt test unit -- -R stitch_spec`
+#     drivers and the model-equality driver on the committed songs; the dsp-next specs and the synth library's link
+#     closure (tests/unit/deluge/dsp-next); and the gfx-layer and layer-rules checks, on the -m32 host: policies,
+#     parsers, storage state machines, the UI's pure steps, DSP kernels against scalar references. Pass extra ctest arguments after --, e.g. `dbt test unit -- -R stitch_spec`
 
 cmake_minimum_required(VERSION 3.24)
 project(DelugeTests)
 include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/ccache.cmake)
-
-if (WIN32 AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Gcc")
-    # CPPUTEST_PLATFORM defaults to Gcc, which causes the test binaries to
-    # segfault on Windows/Clang builds, since they use the stdlib from MSVC.
-    set(CPPUTEST_PLATFORM VisualCpp)
-endif ()
 
 # MAINTAINER_MODE, DELUGE_C_STANDARD / DELUGE_CXX_STANDARD and DELUGE_COMMON_COMPILE_OPTIONS,
 # also included by the device (top-level CMakeLists.txt) and host-sim (sim/CMakeLists.txt)
@@ -33,7 +26,7 @@ if (Python3_Interpreter_FOUND)
 endif ()
 
 # ETL (etl::string) is used by util/string helpers pulled in transitively via functions.h,
-# so make it available to the spec drivers and UnitTests.
+# so make it available to the spec drivers.
 include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/deps.cmake)
 FetchContent_MakeAvailable(etl)
 link_libraries(etl::etl)

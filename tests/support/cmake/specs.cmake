@@ -57,10 +57,9 @@ endfunction()
 # TrackingAllocator's outstanding-allocation set (tests/unit/deluge/memory/tracking_allocator_spec.cpp) instead.
 option(DELUGE_TEST_SANITIZERS "Build the spec drivers with AddressSanitizer + UndefinedBehaviorSanitizer" OFF)
 
-# Applies the sanitizers to one target. Nothing is instrumented globally: the CppUTest, CppSpec and etl dependencies
-# come through FetchContent with their own benign UB (CppUTest's millis*1000 timing overflow) that would halt every
-# run. ASan's runtime intercepts malloc/free process-wide regardless, so the uninstrumented framework objects are still
-# covered for heap errors.
+# Applies the sanitizers to one target. Nothing is instrumented globally: the CppSpec and etl dependencies are fetched
+# third-party code, and a sanitizer report from inside them is not a finding about ours. ASan's runtime intercepts
+# malloc/free process-wide regardless, so the uninstrumented framework objects are still covered for heap errors.
 function(deluge_apply_test_sanitizers target)
   if(DELUGE_TEST_SANITIZERS AND UNIX AND NOT APPLE)
     target_compile_options(${target} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer
@@ -180,8 +179,8 @@ endfunction()
 
 # deluge_test_directory(TREES <tree>...)
 #
-# Names the trees that build a test directory holding no spec driver (a CppUTest executable, a standalone driver, a
-# codegen probe). deluge_spec_directories reads the declaration from the file; the call checks the names.
+# Names the trees that build a test directory holding no spec driver (a standalone driver, a codegen probe).
+# deluge_spec_directories reads the declaration from the file; the call checks the names.
 function(deluge_test_directory)
   cmake_parse_arguments(PARSE_ARGV 0 arg "" "" "TREES")
   if(arg_UNPARSED_ARGUMENTS OR NOT arg_TREES)

@@ -337,7 +337,7 @@ directories by these declarations, so a directory with its own `CMakeLists.txt` 
 holding specs needs that `CMakeLists.txt`, or a parent's below `tests/unit`, declaring a `deluge_specs_driver`: a
 `*_spec.cpp` whose nearest `CMakeLists.txt` declares none, or that has none, fails the configure, as does a
 `CMakeLists.txt` that names no tree. The trees read every `CMakeLists.txt` under `tests/unit`, so each one declares its
-trees; a directory with no spec driver (a CppUTest executable, a standalone driver) declares them with
+trees; a directory with no spec driver (a standalone driver) declares them with
 `deluge_test_directory(TREES ...)`. A tree that builds none of a directory's specs gets no driver target from it, so a
 call on that target after `deluge_specs_driver` goes inside `if(TARGET <name>)`.
 `tests/support/cmake/libs.cmake` adds each `src/` library once per tree; a spec directory only links them.
