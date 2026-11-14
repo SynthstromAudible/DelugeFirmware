@@ -18,11 +18,10 @@ if(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm")
 endif()
 
 # deluge_dsp_spec_flags(<driver>): every dsp spec checks the standard library's preconditions, span bounds among them,
-# so a read past the end of a span fails the spec instead of going unseen at the trees' optimisation levels; the FFT
-# and wavetable specs read fixtures from the repository root (DELUGE_REPO_ROOT); and on the A9 the DX7 specs also run
-# the asm (DELUGE_DX7_ASM_PIN).
+# so a read past the end of a span fails the spec instead of going unseen at the trees' optimisation levels; and on the
+# A9 the DX7 specs also run the asm (DELUGE_DX7_ASM_PIN).
 function(deluge_dsp_spec_flags driver)
-  target_compile_definitions(${driver} PRIVATE _GLIBCXX_ASSERTIONS DELUGE_REPO_ROOT="${DELUGE_REPO_ROOT}")
+  target_compile_definitions(${driver} PRIVATE _GLIBCXX_ASSERTIONS)
   if(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm")
     target_compile_definitions(${driver} PRIVATE DELUGE_DX7_ASM_PIN=1)
   endif()

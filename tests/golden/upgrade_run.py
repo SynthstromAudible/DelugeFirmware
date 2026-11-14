@@ -3,7 +3,7 @@
 
 The upgrader (tools/deluge-upgrade) writes each song and preset as the firmware's JSON. The round-trip fixtures already
 record what the firmware saves after loading each original: tests/golden/songs_fixtures.json and
-tests/golden/presets_fixtures.json hash save(load(file)), and tests/integration/golden/presets.json records each golden
+tests/golden/presets_fixtures.json hash save(load(file)), and tests/golden/render/presets.json records each golden
 preset's render. So the upgraded file's round trip must hash, and its render match, exactly what its original's did.
 
 The song corpus and the SYNTHS and KITS folders beside it are kept upgraded (their fixtures keyed by the upgraded,
@@ -63,7 +63,7 @@ import presets_run
 import songs_run
 
 TOOL = ROOT / "tools" / "deluge-upgrade"
-GOLDEN = ROOT / "tests" / "integration" / "golden" / "presets"
+GOLDEN = ROOT / "tests/golden/render/presets"
 LEGACY = HERE / "upgrade"
 LEGACY_FIXTURES = HERE / "upgrade_fixtures.json"
 # The originals of the golden millisecond-zone cases, each beside its sample.

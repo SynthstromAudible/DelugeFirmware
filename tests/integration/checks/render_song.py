@@ -43,10 +43,10 @@ adds what depends on the song, and why each check is here:
                       RENDER_MODFX_CLEAR, RENDER_REVERB_SWITCH, RENDER_TEMPO, RENDER_STUTTER, RENDER_METRONOME) only:
                       the same song rendered
                       unswitched must render differently, or the switches never reached the render.
-    RS-PCM            the rendered output, against its record in tests/integration/golden/songs.json: the same
+    RS-PCM            the rendered output, against its record in tests/golden/render/songs.json: the same
                       record the synth golden masters keep (sha256, frames, peak, rms_db).
 
-By default the song is generated for each run by tests/integration/golden/songs/make_render_song.py, so the card holds
+By default the song is generated for each run by tests/golden/render/songs/make_render_song.py, so the card holds
 exactly the bytes the record was made from. An entry that names its own RENDER_SONG plays that song from its
 GOLDEN_FIXTURE corpus card instead (render-song-corpus). Either way the record is keyed by the song's name.
 `./dbt test --update <entry>` records the output instead of comparing it, once every other check of the run has
@@ -65,7 +65,7 @@ from pathlib import Path
 import golden_update
 from scenario_gate import field, int_field
 
-RECORDS = Path("tests/integration/golden/songs.json")
+RECORDS = Path("tests/golden/render/songs.json")
 
 
 def _load_sibling(name: str):
@@ -139,7 +139,7 @@ def dry_twin(name: str, songs) -> str | None:
 
 def _dry_twin(gate, name: str) -> str | None:
     """The generator's dry twin of generated song @p name (see dry_twin)."""
-    path = gate.root / "tests/integration/golden/songs/make_render_song.py"
+    path = gate.root / "tests/golden/render/songs/make_render_song.py"
     spec = importlib.util.spec_from_file_location("make_render_song", path)
     generator = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(generator)

@@ -146,7 +146,7 @@ describe band_builder("fixed::BandBuilder", ${
 	it("builds every pinned wavetable's bands as recorded", _ {
 		for (const auto& record : wavetable_band_records::kRecords) {
 			const auto fixture =
-			    wavetable_fixture::load(wavetable_fixture::repo_root() / "tests/integration/golden" / record.file);
+			    wavetable_fixture::load(wavetable_fixture::golden_root() / "render" / record.file);
 			expect(fixture.has_value()).to_equal(true);
 			if (!fixture) {
 				continue;

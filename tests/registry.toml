@@ -44,7 +44,7 @@ markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STRE
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/render_song.py"
 builds = ["golden-vt-render"]
-baseline = ["tests/integration/golden/songs.json"]
+baseline = ["tests/golden/render/songs.json"]
 tier = "pr"
 job = "render"
 runtime_s = 20
@@ -1235,7 +1235,7 @@ kind = "differential"
 gates = "every synth golden master must render as recorded"
 check = "tests/integration/checks/render_preset.py"
 builds = ["golden-vt-render"]
-baseline = ["tests/integration/golden/presets.json"]
+baseline = ["tests/golden/render/presets.json"]
 tier = "pr"
 job = "render"
 runtime_s = 20

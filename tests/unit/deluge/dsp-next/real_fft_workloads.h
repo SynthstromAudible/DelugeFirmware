@@ -67,11 +67,11 @@ inline uint32_t seed(InputSet set, int32_t magnitude) {
 	return 0x9E3779B9U ^ (static_cast<uint32_t>(magnitude) << 8) ^ static_cast<uint32_t>(set);
 }
 
-/// @brief The real-cycles fixture's samples: tests/integration/golden/presets/wavetable/static.wav.
+/// @brief The real-cycles fixture's samples: tests/golden/render/presets/wavetable/static.wav.
 inline const std::vector<int32_t>& real_cycles() {
 	static const std::vector<int32_t> samples = [] {
-		const auto f = wavetable_fixture::load(wavetable_fixture::repo_root()
-		                                       / "tests/integration/golden/presets/wavetable/static.wav");
+		const auto f =
+		    wavetable_fixture::load(wavetable_fixture::golden_root() / "render/presets/wavetable/static.wav");
 		assert(f.has_value() && f->samples.size() >= 8193);
 		return f->samples;
 	}();

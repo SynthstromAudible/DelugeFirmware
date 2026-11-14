@@ -5,7 +5,7 @@ The committed XMLs are the source of truth (the render-preset gate reads only th
 script exists so the family of presets stays consistent when extending the
 corpus. Re-run it after editing and commit the changed XMLs:
 
-    python3 tests/integration/golden/presets/make_corpus.py
+    python3 tests/golden/render/presets/make_corpus.py
 
 Preset values are q31 hex strings as serialized by Sound::writeParamsToFile.
 Key reference points: 0x7FFFFFFF = max, 0x80000000 = min/off, 0x00000000 =

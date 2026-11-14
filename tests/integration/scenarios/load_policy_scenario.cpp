@@ -49,7 +49,7 @@
 ///     explicitly AsyncOrBlocking first reports LOAD_IN_PROGRESS (LP-DEFAULT); the wavetables each fixture builds
 ///     (LP-WT-PIN: every band's range, geometry and samples, as a CRC per file under
 ///     tests/unit/deluge/dsp-next/wavetable_band_records.h, for the synthetic set in
-///     tests/integration/golden/wavetable_pins and the golden presets' wavetables); the pitch each sample's detection
+///     tests/golden/render/wavetable_pins and the golden presets' wavetables); the pitch each sample's detection
 ///     finds (LP-PITCH-PIN, by its bits, against tests/integration/scenarios/pitch_pin_records.h); and a single-band
 ///     table's load (LP-WT-ZEROBAND, an 8-sample cycle, which must hold one band with a non-empty cycle range so no
 ///     band index below 0 is selected); each allocation of a wavetable load from a file, failed once (LP-WT-FAIL): a

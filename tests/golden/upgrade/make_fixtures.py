@@ -12,7 +12,7 @@ import re
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-PRESETS = HERE.parents[1] / "integration" / "golden" / "presets"
+PRESETS = HERE.parent / "render" / "presets"
 SYNTH = (PRESETS / "community" / "Basic Bass.XML").read_text()
 
 

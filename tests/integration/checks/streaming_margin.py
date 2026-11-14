@@ -1,6 +1,6 @@
 """The streaming-margin gate: whether sample playback keeps up when storage is as slow as the device's.
 
-Plays the render-song song (tests/integration/golden/songs/make_render_song.py) under a storage model: the fill task
+Plays the render-song song (tests/golden/render/songs/make_render_song.py) under a storage model: the fill task
 waits `fill_delay_ms` to be scheduled before each pass, and each chunk's read takes `fill_read_us`. The figures are
 the device's, measured per interval on the Rust BSP (storage-execution-model design, Appendix C): a 16 ms mean wait
 (25 ms at most) in steady playback, 260 ms during a song load, and 5.8 ms to read a 32 KB chunk. On the device about

@@ -1,6 +1,6 @@
 """Generated render cards, made once per generator and kept under the build tree.
 
-tests/integration/golden/songs/make_render_song.py is deterministic: a card depends only on the song's name and the
+tests/golden/render/songs/make_render_song.py is deterministic: a card depends only on the song's name and the
 generator's source. So each card is generated once into build/render-cards/<generator key>/<SONG>/ and every later run
 plays that directory read-only. The samples every song shares are synthesised once per key, into <key>/samples/, and
 hard-linked into each card.
@@ -17,7 +17,7 @@ import shutil
 import threading
 from pathlib import Path
 
-GENERATOR = Path("tests/integration/golden/songs/make_render_song.py")
+GENERATOR = Path("tests/golden/render/songs/make_render_song.py")
 
 _loaded: dict[str, object] = {}
 _loading = threading.Lock()

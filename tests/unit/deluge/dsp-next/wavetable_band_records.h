@@ -21,7 +21,7 @@
 #include <cstdint>
 
 /// @file
-/// @brief The bands each pinned wavetable builds, by CRC: the synthetic set in tests/integration/golden/wavetable_pins
+/// @brief The bands each pinned wavetable builds, by CRC: the synthetic set in tests/golden/render/wavetable_pins
 /// and the golden presets' wavetables.
 ///
 /// `./dbt test --update load-policy` rewrites the lines between the GOLDEN-RECORDS markers from the run
@@ -30,7 +30,7 @@ namespace wavetable_band_records {
 
 /// @brief One wavetable's recorded build.
 struct Record {
-	const char* file;  ///< Its path under tests/integration/golden/ (the card holds wavetable_pins/ as SAMPLES/WTP/ and
+	const char* file;  ///< Its path under tests/golden/render/ (the card holds wavetable_pins/ as SAMPLES/WTP/ and
 	                   ///< presets/wavetable*/ as SAMPLES/WTG/).
 	int32_t num_bands; ///< The bands it builds.
 	uint32_t crc;      ///< wavetable_band_crc of the table WaveTable::setup builds from the file.

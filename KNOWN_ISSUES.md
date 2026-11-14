@@ -39,7 +39,7 @@ So it is **inaudible for real (band-limited) audio**, but a full-spectrum probe 
    paths? (Impulses can only be injected via INPUT; confirm other sources by reading the output-write code.)
 3. **Decide desirability before changing anything** — it may be intentional interpolation / anti-imaging. If it
    is undesirable, removing it is a deliberate **device sound change** and requires a full re-baseline of the
-   golden masters (`golden-synth`, `tests/integration/golden/presets/`); treat it as its own firmware-audio task.
+   golden masters (`golden-synth`, `tests/golden/render/presets/`); treat it as its own firmware-audio task.
 
 ### Reproduction
 The Embassy host's test input (`deluge_host_test_input` in `src/bsp/rust/src/audio/host.rs`, armed by

@@ -140,9 +140,9 @@ namespace detail {
 	return f;
 }
 
-/// @brief The repository's root, from the DELUGE_REPO_ROOT definition the spec targets get.
-[[nodiscard]] inline std::filesystem::path repo_root() {
-	return std::filesystem::path{DELUGE_REPO_ROOT};
+/// @brief The golden root (tests/golden), from the GOLDEN_ROOT definition every spec driver gets.
+[[nodiscard]] inline std::filesystem::path golden_root() {
+	return std::filesystem::path{GOLDEN_ROOT};
 }
 
 } // namespace wavetable_fixture

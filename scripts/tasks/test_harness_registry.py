@@ -1578,7 +1578,7 @@ class RenderCardCacheTest(unittest.TestCase):
     """Generated render cards come from a cache keyed by the generator, byte for byte what the generator writes."""
 
     REPO = Path(__file__).parents[2]
-    GENERATOR = REPO / "tests/integration/golden/songs/make_render_song.py"
+    GENERATOR = REPO / "tests/golden/render/songs/make_render_song.py"
 
     def setUp(self):
         self.cache = _load_check_module("render_card_cache")
@@ -1621,7 +1621,7 @@ class RenderCardCacheTest(unittest.TestCase):
 
     def test_generator_change_misses(self):
         root = Path(tempfile.mkdtemp())
-        generator = root / "tests/integration/golden/songs/make_render_song.py"
+        generator = root / "tests/golden/render/songs/make_render_song.py"
         generator.parent.mkdir(parents=True)
         generator.write_text(self.GENERATOR.read_text())
         old_key = self.cache.generator_key(root)
@@ -1700,7 +1700,7 @@ class RenderCardCacheTest(unittest.TestCase):
     def test_the_key_and_the_card_come_from_the_same_generator_bytes(self):
         # The file changes between reads (an edit mid-run): the bytes the key hashes are on disk no longer.
         root = Path(tempfile.mkdtemp())
-        generator = root / "tests/integration/golden/songs/make_render_song.py"
+        generator = root / "tests/golden/render/songs/make_render_song.py"
         generator.parent.mkdir(parents=True)
         read = self.GENERATOR.read_bytes()
         generator.write_bytes(read.replace(b'"RSA"', b'"RSZ"'))

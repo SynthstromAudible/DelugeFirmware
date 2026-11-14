@@ -4,7 +4,7 @@
 A changed hash cannot say whether the sound survived. This compares what the two renders sound like: their level,
 their envelope over time, their spectrum, and (where the sound has no randomness) their waveform.
 
-    python3 tests/integration/golden/compare_renders.py OLD NEW [--report FILE]
+    python3 tests/golden/render/compare_renders.py OLD NEW [--report FILE]
 
 OLD and NEW are directories of renders named by case (`factory/000 Rich Saw Bass.wav`, or `.pcm`): either 16-bit
 stereo WAVs, as the C-host harness kept them, or raw interleaved little-endian i32, as `RENDER_PRESET_KEEP` keeps them.

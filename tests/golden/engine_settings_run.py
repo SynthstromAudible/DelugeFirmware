@@ -18,7 +18,7 @@ import sys
 from instrument_codec_run import sweep
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-COMMUNITY = os.path.join(HERE, "..", "integration", "golden", "presets", "community")
+COMMUNITY = os.path.join(HERE, "render", "presets", "community")
 
 
 def main(argv=None):

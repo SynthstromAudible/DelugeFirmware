@@ -39,7 +39,7 @@ def _render(gate, corpus: Path, where: Path, dump: Path | None) -> bytes | None:
 
 
 def run(gate):
-    corpus = gate.root / "tests" / "integration" / "golden" / "presets"
+    corpus = gate.root / "tests/golden/render/presets"
     dump_path = gate.tmp / "dump.params"
     plain = _render(gate, corpus, gate.tmp / "plain", None)
     dumped = _render(gate, corpus, gate.tmp / "dumped", dump_path)

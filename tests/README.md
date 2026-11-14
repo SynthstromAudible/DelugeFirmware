@@ -296,7 +296,7 @@ that fact anywhere a reader would look. The loader refuses a field it does not k
   template also sets must list it, `override = ["markers"]`; an undeclared difference, an override that changes
   nothing and an override of a field the entry does not set are all refused. Templates do not nest.
   A `render-song` entry adds its `gates` and the song it plays: `env = { RENDER_GENERATED = "<song>" }` for a song
-  `tests/integration/golden/songs/make_render_song.py` generates, or `RENDER_SONG` with its `GOLDEN_FIXTURE` card for
+  `tests/golden/render/songs/make_render_song.py` generates, or `RENDER_SONG` with its `GOLDEN_FIXTURE` card for
   a song from the corpus (with neither, it plays RS_STREAM); its explanation is a `## <name>` section in
   `tests/integration/checks/render_song_cases.md`, and `./dbt test --update <name>` records its output
   (`render_song.py`'s docstring has the rest).
