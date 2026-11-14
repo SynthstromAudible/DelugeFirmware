@@ -52,7 +52,8 @@ namespace deluge::bridge {
 [[nodiscard]] std::vector<deluge::project::ControllerMapping> controlsOf(::Sound& sound);
 
 /// @brief A sound's controls as the instrument's knob pairs, one per mod button: each knob's target is the param id
-/// the record holds (a cable's depth as its depth id). A knob @p controls does not name keeps the null target.
+/// the record holds (a cable's depth as its depth id). A knob @p controls does not name reads as param id 0
+/// (`kOscAVolume`); writeKnobPairs reads a record only when it names every knob.
 /// @param controls A sound's controls (as controlsOf gives them).
 /// @return The knobs, button by button.
 [[nodiscard]] deluge::instrument::KnobPairs
