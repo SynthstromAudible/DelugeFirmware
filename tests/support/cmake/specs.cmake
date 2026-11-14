@@ -1,4 +1,4 @@
-# The unit trees' shared CMake: the trees and how a test directory names the ones that build it, one CppSpec driver per
+# The test trees' shared CMake: the trees and how a test directory names the ones that build it, one CppSpec driver per
 # spec directory, the directories a tree builds, and argon's NEON backend for the specs that compile SIMD code.
 #
 # A tree's root sets DELUGE_TEST_TREE and its compile options, then includes this file: what it makes available is
@@ -82,14 +82,14 @@ endfunction()
 #
 # One executable holding the *_spec.cpp files under the calling directory, down to the next directory with its own
 # CMakeLists.txt, and one ctest test per spec, named after its file. TREES names the trees that build the directory's
-# specs; write it on the call's first line, where deluge_spec_directories reads it. A spec listed under ONLY_<TREE>
-# (its path below the calling directory) is built by that tree alone, whatever TREES says; a tree left with no spec
-# defines nothing. A spec's entry point is named after its file's stem (CPPSPEC_SPEC(<stem minus _spec>), or
-# DELUGE_SPEC(<stem>, ...) from spec_main.h) wherever below the directory the file sits, so a spec moves without an
-# edit. SOURCES are the code under test and any mocks; relative paths resolve against the calling directory. Every spec
-# includes against the calling directory and then tests/, so a header from another test directory is named by its
-# path there ("support/golden_update.h", "harness/ui_script.h", "dsp/raw_words.h"). NEON links argon as
-# deluge_test_neon() does.
+# specs; write it on the call's first line, where deluge_spec_directories reads it. A spec listed under ONLY_<TREE> (its
+# path below the calling directory) is built by that tree alone, whatever TREES says; a tree left with no spec defines
+# nothing, so a call on <name> after this one goes inside if(TARGET <name>). A spec's entry point is named after its
+# file's stem (CPPSPEC_SPEC(<stem minus _spec>), or DELUGE_SPEC(<stem>, ...) from spec_main.h) wherever below the
+# directory the file sits, so a spec moves without an edit. SOURCES are the code under test and any mocks; relative
+# paths resolve against the calling directory. Every spec includes against the calling directory and then tests/, so a
+# header from another test directory is named by its path there ("support/golden_update.h", "harness/ui_script.h",
+# "dsp/raw_words.h"). NEON links argon as deluge_test_neon() does.
 function(deluge_specs_driver name)
   cmake_parse_arguments(PARSE_ARGV 1 arg "NEON" "" "TREES;ONLY_HOST;ONLY_ARM;ONLY_UBSAN;SOURCES;LIBRARIES;INCLUDES")
   if(arg_UNPARSED_ARGUMENTS)
@@ -183,29 +183,51 @@ endfunction()
 
 # deluge_spec_directories(<dir>)
 #
-# Adds every directory below <dir> whose CMakeLists.txt names this tree, as a word after TREES on that line or as an
-# ONLY_<TREE> keyword, in path order, each built into <binary dir>/<dir's name>/<its path below dir>. A CMakeLists.txt
-# below <dir> that names no tree, or an unknown one, fails the configure: no tree would build it, and a test that
-# never runs looks like one that passed. Every file read is a configure dependency, so a directory that starts naming
-# this tree is picked up by the next build.
+# Adds every directory below <dir> whose CMakeLists.txt names this tree, in path order, each built into
+# <binary dir>/<dir's name>/<its path below dir>. A file names its trees in a deluge_specs_driver(<name> TREES ...) or
+# deluge_test_directory(TREES ...) call, as the words after TREES on that line, or with an ONLY_<TREE> keyword; comment
+# text is not read. Every CMakeLists.txt below <dir> must name its trees, whichever directory it belongs to, since all
+# of them are read: one that names no tree, or an unknown one, fails the configure, because no tree would build it and
+# a test that never runs looks like one that passed. So does a *_spec.cpp with no CMakeLists.txt between it and <dir>,
+# which no driver would compile. Every file read, and the set of spec files, is a configure dependency, so a directory
+# that starts naming this tree, or a new spec, is picked up by the next build.
 function(deluge_spec_directories base)
   get_filename_component(_base ${base} ABSOLUTE)
   get_filename_component(_base_name ${_base} NAME)
   string(TOUPPER ${DELUGE_TEST_TREE} _this_tree)
+  file(GLOB_RECURSE _specs CONFIGURE_DEPENDS ${_base}/*_spec.cpp)
+  foreach(_spec IN LISTS _specs)
+    cmake_path(GET _spec PARENT_PATH _dir)
+    set(_driven FALSE)
+    while(NOT _dir STREQUAL _base)
+      if(EXISTS ${_dir}/CMakeLists.txt)
+        set(_driven TRUE)
+        break()
+      endif()
+      cmake_path(GET _dir PARENT_PATH _dir)
+    endwhile()
+    if(NOT _driven)
+      message(FATAL_ERROR "${_spec}: no CMakeLists.txt in its directory or a parent below ${_base}, so no driver "
+                          "builds it: declare deluge_specs_driver(<name> TREES ...) in one")
+    endif()
+  endforeach()
   file(GLOB_RECURSE _list_files CONFIGURE_DEPENDS ${_base}/CMakeLists.txt)
   list(REMOVE_ITEM _list_files ${_base}/CMakeLists.txt)
   list(SORT _list_files)
   foreach(_list_file IN LISTS _list_files)
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_list_file})
     file(READ ${_list_file} _text)
-    string(REGEX MATCHALL "TREES( +[a-z]+)+" _declarations "${_text}")
-    string(REGEX MATCHALL "ONLY_[A-Z]+" _only "${_text}")
+    string(REGEX REPLACE "#[^\n]*" "" _text "${_text}")
+    string(REGEX MATCHALL "(deluge_specs_driver\\([A-Za-z0-9_]+ +|deluge_test_directory\\( *)TREES( +[a-z]+)+"
+           _declarations "${_text}")
+    string(REGEX MATCHALL "(^|[^A-Za-z0-9_])ONLY_[A-Z]+" _only "${_text}")
     if(NOT _declarations AND NOT _only)
       message(FATAL_ERROR "${_list_file} names no tree: declare deluge_specs_driver(<name> TREES ...) or "
                           "deluge_test_directory(TREES ...)")
     endif()
     set(_wanted FALSE)
     foreach(_declaration IN LISTS _declarations)
+      string(REGEX REPLACE "^.*TREES" "" _declaration "${_declaration}")
       string(REGEX MATCHALL "[a-z]+" _trees "${_declaration}")
       _deluge_check_trees(${_list_file} ${_trees})
       if(DELUGE_TEST_TREE IN_LIST _trees)
@@ -213,10 +235,10 @@ function(deluge_spec_directories base)
       endif()
     endforeach()
     foreach(_keyword IN LISTS _only)
-      string(REPLACE "ONLY_" "" _tree ${_keyword})
+      string(REGEX REPLACE "^.*ONLY_" "" _tree "${_keyword}")
       string(TOLOWER ${_tree} _tree)
       _deluge_check_trees(${_list_file} ${_tree})
-      if(_keyword STREQUAL "ONLY_${_this_tree}")
+      if(_tree STREQUAL DELUGE_TEST_TREE)
         set(_wanted TRUE)
       endif()
     endforeach()

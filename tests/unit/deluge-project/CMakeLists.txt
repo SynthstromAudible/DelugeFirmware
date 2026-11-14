@@ -6,4 +6,8 @@ deluge_specs_driver(model_specs TREES host arm
           ${CMAKE_CURRENT_LIST_DIR}/equality/equality.cpp
   LIBRARIES deluge_project deluge_instrument deluge_global_effectable deluge_effects
   INCLUDES ${DELUGE_REPO_ROOT}/tests/support/mocks)
-target_compile_definitions(model_specs PRIVATE DELUGE_MODEL_RECORDS="${CMAKE_CURRENT_LIST_DIR}/equality/model_records.XML")
+# A tree that builds none of these specs defines no model_specs.
+if(TARGET model_specs)
+  target_compile_definitions(model_specs PRIVATE
+    DELUGE_MODEL_RECORDS="${CMAKE_CURRENT_LIST_DIR}/equality/model_records.XML")
+endif()
