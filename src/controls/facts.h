@@ -25,6 +25,8 @@
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/instrument_slot.h"
 #include "deluge-project/param_address.h"
+#include "plugin-api/types/param.h"
+#include "plugin-api/types/plugin_id.h"
 
 #include <cstdint>
 #include <optional>
@@ -99,6 +101,13 @@ public:
 	/// it, or @p clip_id is none (the song never holds one).
 	[[nodiscard]] virtual std::optional<std::pair<int32_t, int32_t>>
 	step_region(std::optional<uint32_t> clip_id) const = 0;
+	/// @brief The descriptor row of the param @p target names on an owner of the plugin @p plugin: how its stored word
+	/// maps onto a knob position. The controls name params by id; the rows live in the owners' plugins, which the
+	/// host holds.
+	/// @return The row, or null for a cable's depth, an expression dimension, a MIDI CC, or an id the plugin has no
+	///         row for.
+	[[nodiscard]] virtual const plugin::ParamInfo* param_info(plugin::PluginId plugin,
+	                                                          const project::ParamTarget& target) const = 0;
 };
 
 } // namespace deluge::controls

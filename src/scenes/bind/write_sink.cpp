@@ -22,6 +22,11 @@ std::optional<uint32_t> RecordingSink::take_for(uint32_t output_id) {
 	return take_answer;
 }
 
+bool RecordingSink::make_param(const project::ParamAddress& address) {
+	made.push_back(address);
+	return true;
+}
+
 void RecordingSink::knob_absolute(const project::OwnerParamTarget& target, const project::MidiCommand& source) {
 	absolutes.emplace_back(target, source);
 }

@@ -8,6 +8,7 @@
 #include "model/voice/sound_voice.h"
 #include "model/voice/voice_sample.h"
 
+#include "controls/learned.h"
 #include "deluge-project/setting_group.h"
 #include "effects/plugin.h"
 #include "effects/settings.h"
@@ -26,6 +27,7 @@
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/words.h"
 #include "io/debug/log.h"
+#include "io/midi/mapping_index.h"
 #include "io/midi/midi_engine.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -183,6 +185,7 @@ public:
 	std::optional<uint32_t> take_for(uint32_t output_id) override {
 		return currentSong != nullptr ? deluge::bridge::takeFor(*currentSong, output_id) : std::nullopt;
 	}
+	bool make_param(const deluge::project::ParamAddress& address) override;
 	void knob_absolute(const deluge::project::OwnerParamTarget& target,
 	                   const deluge::project::MidiCommand& source) override {
 		if (currentSong != nullptr) {
@@ -644,6 +647,17 @@ bool ShellEditSink::write_param(const deluge::project::ParamAddress& address, in
 	                                  resolution == deluge::controls::Resolution::LEARNED ? Resolve::LEARNED
 	                                                                                      : Resolve::WRITE};
 	return applied(edit);
+}
+
+bool ShellEditSink::make_param(const deluge::project::ParamAddress& address) {
+	if (currentSong == nullptr) {
+		return false;
+	}
+	// Resolved as a learned write resolves it, which makes a missing cable and records it as an undo step.
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	deluge::project::ParamAddress landed = address;
+	const ModelStackWithAutoParam* stack = deluge::bridge::paramStackForWrite(*currentSong, landed, memory);
+	return stack != nullptr && stack->autoParam != nullptr;
 }
 
 void ShellEditSink::learned_written(const deluge::project::ParamAddress& address, int32_t knob_pos) {
@@ -1694,3 +1708,35 @@ const deluge::scenes::bind::RuntimeFacts& host_runtime_facts() {
 }
 
 } // namespace deluge::scenes::menu
+
+namespace deluge::midi {
+
+void learnedCcReceived(MIDICable& cable, uint8_t channel, uint8_t cc, uint8_t value, bool mpeMember) {
+	if (currentSong == nullptr) {
+		return;
+	}
+	KnobHitsOf hits{cable, channel, cc};
+	controls::dispatch_cc(hits, scenes::menu::host_runtime_facts(), scenes::menu::host_controls_sink(), takeoverStore(),
+	                      {.channel = channel,
+	                       .number = cc,
+	                       .value = value,
+	                       .mpe_member = mpeMember,
+	                       .cable_relative = cable.is_relative});
+}
+
+std::vector<uint32_t> learnedPitchBendReceived(MIDICable& cable, uint8_t channel, uint16_t value14, bool mpeMember) {
+	if (currentSong == nullptr) {
+		return {};
+	}
+	// 128 stands for pitch bend among a knob's CC numbers.
+	constexpr uint8_t kPitchBend = 128;
+	KnobHitsOf hits{cable, channel, kPitchBend};
+	return controls::dispatch_pitch_bend(hits, scenes::menu::host_runtime_facts(), scenes::menu::host_controls_sink(),
+	                                     {.channel = channel,
+	                                      .number = kPitchBend,
+	                                      .value = value14,
+	                                      .mpe_member = mpeMember,
+	                                      .cable_relative = cable.is_relative});
+}
+
+} // namespace deluge::midi

@@ -27,6 +27,10 @@ public:
 		take_asked = output_id;
 		return output_id + 1000;
 	}
+	bool make_param(const project::ParamAddress& address) override {
+		made = address;
+		return true;
+	}
 	void knob_absolute(const project::OwnerParamTarget& target, const project::MidiCommand& source) override {
 		absolute_target = target;
 		absolute_source = source;
@@ -63,6 +67,7 @@ public:
 	project::ParamAddress written{};
 	Resolution written_resolution{Resolution::KNOB};
 	project::ParamAddress followed{};
+	project::ParamAddress made{};
 	int32_t followed_pos{0};
 	uint32_t take_asked{0};
 	project::OwnerParamTarget absolute_target{};
@@ -98,6 +103,9 @@ public:
 	[[nodiscard]] bool allows_note_tails(project::SlotAddress, std::optional<project::ClipAddress>) const override {
 		return false;
 	}
+	[[nodiscard]] const plugin::ParamInfo* param_info(plugin::PluginId, const project::ParamTarget&) const override {
+		return nullptr;
+	}
 };
 } // namespace
 
@@ -125,6 +133,8 @@ describe sink("the controls' sink and facts", ${
 		expect(recording.followed.owner == project::OwnerId::instrument(3)).to_be_true();
 		expect(recording.followed_pos).to_equal(-12);
 		expect(sink.take_for(7) == std::optional<uint32_t>{1007}).to_be_true();
+		expect(sink.make_param(project::ParamAddress{.owner = project::OwnerId::instrument(4)})).to_be_true();
+		expect(recording.made.owner == project::OwnerId::instrument(4)).to_be_true();
 		const project::OwnerParamTarget target{{project::ControlsAddress::Kind::OUTPUT, 7}, {}};
 		const project::MidiCommand source{.channel_or_zone = 2, .note_or_cc = 5};
 		sink.knob_absolute(target, source);

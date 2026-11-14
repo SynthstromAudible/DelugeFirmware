@@ -707,33 +707,34 @@ describe learned_pitch_bend("a learned pitch bend through PlaybackHandler::pitch
 		expect(rig.steps()).to_equal(size_t{0});
 	});
 
-	it("writes a kit row's learned bend to the kit clip's own param at the row's index, the row's own untouched", _ {
-		// accepted difference: a kit row's learned bend will write the row's own param.
-		// Today a row's bend is handed the kit clip's params (note row index -1; a CC passes the row's own),
-		// so a row's unpatched target at index i moves the kit's global param i.
-		// A patched target has no patched set on a kit clip and freezes (E411), so it is not pinned.
+	it("writes a kit row's learned bend to the row's own param, as its CC does, the kit's untouched", _ {
+		// A row's bend and CC both reach the row's own params: an unpatched target and a patched one alike.
 		spec::SongFixture kit = addKit(spec::detail::make_bare_song());
 		SoundDrum* row = addSoundDrum(kit);
 		addRow(kit, row);
 		activate(*kit.song, *kit.instrument, *kit.clip);
 		const auto bass = [](params::Kind kind) { return unpatched(kind, params::UNPATCHED_BASS); };
 		const OwnerParamTarget learned{{Kind::DRUM, *row->id()}, bass(params::Kind::UNPATCHED_SOUND)};
+		const OwnerParamTarget patchedTarget{{Kind::DRUM, *row->id()}, patched(params::LOCAL_LPF_FREQ)};
 		deluge::edits::learnMappingFor(source(kChannel, kBend), learned);
+		deluge::edits::learnMappingFor(source(1, kBend), patchedTarget);
 		deluge::edits::learnMappingFor(source(kChannel, kCc), learned);
 		const ParamAddress rowOwn = addressOf(OwnerId::drum(*row->id()), learned.param, kit.clip);
+		const ParamAddress rowLpf = addressOf(OwnerId::drum(*row->id()), patchedTarget.param, kit.clip);
 		const ParamAddress kitGlobal =
 		    addressOf(OwnerId::instrument(*kit.instrument->id()), bass(params::Kind::UNPATCHED_GLOBAL), kit.clip);
 		Takeover takeover{MIDITakeoverMode::JUMP};
 		RootView root;
 		putKnobAt(*kit.song, rowOwn, 0);
 		putKnobAt(*kit.song, kitGlobal, 0);
-		const std::optional<int32_t> row_before = valueOf(*kit.song, rowOwn);
 		const std::optional<int32_t> kit_before = valueOf(*kit.song, kitGlobal);
 		sendBend(kChannel, 16383);
-		expect(valueOf(*kit.song, rowOwn) == row_before).to_be_true();
-		expect(valueOf(*kit.song, kitGlobal).value_or(0)).to_equal(2147221504);
+		expect(valueOf(*kit.song, rowOwn).value_or(0)).to_equal(2147221504);
+		expect(valueOf(*kit.song, kitGlobal) == kit_before).to_be_true();
+		sendBend(1, 0);
+		expect(valueOf(*kit.song, rowLpf).value_or(0)).to_equal(INT32_MIN);
 		// The same row's CC knob writes the row's own param.
-		putKnobAt(*kit.song, kitGlobal, 0);
+		putKnobAt(*kit.song, rowOwn, 0);
 		sendCc(kChannel, kCc, 100);
 		expect(knobPosOf(*kit.song, rowOwn)).to_equal(36);
 		expect(valueOf(*kit.song, kitGlobal) == kit_before).to_be_true();
@@ -790,6 +791,22 @@ describe learned_writes("how a learned write lands", $ {
 		expect(w.kitOut().editedByUser).to_be_false();
 	});
 
+	it("clones the clip into a take on a hit that leaves the knob where it is", _ {
+		Takeover takeover{MIDITakeoverMode::JUMP};
+		World w = makeWorld();
+		learnAll(w, SYNTH);
+		const ParamAddress synthLane = lanesOf(w)[1].address;
+		putKnobAt(*w.song, synthLane, 36);
+		RootView root;
+		const size_t arranged = w.song->live.clips.arrangement_only_clips.size();
+		ArrangementRecording recording{{w.synth}};
+		sendCc(kChannel, kCc, 100); // knob position 36, where the synth's param already is
+		Clip* const take = w.synth.instrument->getActiveClip();
+		expect(written(w)).to_equal(std::string{});
+		expect(w.song->live.clips.arrangement_only_clips.size()).to_equal(arranged + 1);
+		expect(take != nullptr && take != w.synth.clip && take->beingRecordedFromClip == w.synth.clip).to_be_true();
+	});
+
 	it("reads the held step region on the session clip before it clones, and writes it into the take", _ {
 		Takeover takeover{MIDITakeoverMode::JUMP};
 		Rig rig;
@@ -827,6 +844,23 @@ describe learned_writes("how a learned write lands", $ {
 		expect(valueOf(*f.song, address).has_value()).to_be_true();
 		expect(valueOf(*f.song, address).value_or(0) != 0).to_be_true();
 		expect(static_cast<Instrument*>(f.instrument)->editedByUser).to_be_false();
+	});
+
+	it("makes the cable depth a learned knob turns even when the message leaves it at 0, writing nothing", _ {
+		Takeover takeover{MIDITakeoverMode::JUMP};
+		spec::SongFixture f = spec::make_synth_song();
+		activate(*f.song, *f.instrument, *f.clip);
+		const deluge::project::ParamTarget depth = depthOf(params::LOCAL_LPF_FREQ, PatchSource::LFO_GLOBAL_1);
+		const OwnerParamTarget cable{{Kind::OUTPUT, *f.instrument->id()}, depth};
+		deluge::edits::learnMappingFor(source(kChannel, kCc), cable);
+		const ParamAddress address = addressOf(OwnerId::instrument(*f.instrument->id()), depth, f.clip);
+		RootView root;
+		expect(valueOf(*f.song, address).has_value()).to_be_false();
+		actionLogger.deleteAllLogs();
+		sendCc(kChannel, kCc, 0); // a fresh knob reads it as an offset of 0
+		expect(valueOf(*f.song, address) == std::optional<int32_t>{0}).to_be_true();
+		expect(writes().empty()).to_be_true();
+		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true(); // the cable's own undo step
 	});
 
 	it("marks no owner edited: a synth, a kit's own knob, or a kit's rows", _ {

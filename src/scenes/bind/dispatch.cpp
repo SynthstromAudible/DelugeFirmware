@@ -446,4 +446,14 @@ std::optional<WriteRequest> request_for(const Target& target, const project::Son
 	return WriteRequest{.target = target, .where = where, .menu_value = menu};
 }
 
+const plugin::ParamInfo* RuntimeFacts::param_info(plugin::PluginId plugin, const project::ParamTarget& target) const {
+	if (target.space != project::ParamSpace::ENGINE) {
+		return nullptr;
+	}
+	if (plugin == plugin::kDelugeInstrument) {
+		return plugin::find_param(params_of(ParamTable::SOUND), target.id);
+	}
+	return plugin == plugin::kGlobalEffectable ? plugin::find_param(params_of(ParamTable::CHAIN), target.id) : nullptr;
+}
+
 } // namespace deluge::scenes::bind

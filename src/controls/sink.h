@@ -75,6 +75,11 @@ public:
 	/// @return The id of the clip writes to the output now go to (the active clip itself where no take is made), or
 	///         nullopt where the song holds no such output or it has no active clip.
 	virtual std::optional<uint32_t> take_for(uint32_t output_id) = 0;
+	/// @brief Make the param at @p address where the song does not hold it yet, as a learned knob does before it reads
+	/// the param, whether or not it then moves it: a cable's depth is added at 0, in an undo step of its own when no
+	/// write follows. Nothing is written.
+	/// @return Whether the song holds the param now.
+	virtual bool make_param(const project::ParamAddress& address) = 0;
 	/// @brief A knob learned as relative was sent an absolute value (16..111): clear its relative flag in the table.
 	/// @param target The knob's target.
 	/// @param source The command the knob is learned to.

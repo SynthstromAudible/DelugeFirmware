@@ -256,6 +256,7 @@ public:
 	                 controls::Resolution resolution) override;
 	void learned_written(const project::ParamAddress& address, int32_t knob_pos) override;
 	std::optional<uint32_t> take_for(uint32_t output_id) override;
+	bool make_param(const project::ParamAddress& address) override;
 	void knob_absolute(const project::OwnerParamTarget& target, const project::MidiCommand& source) override;
 	bool delete_automation(const project::ParamAddress& address) override;
 	bool write_text(const Target& target, const Addresses& where, std::string_view text) override;
@@ -297,6 +298,7 @@ public:
 	std::vector<project::ParamAddress> deletes;
 	std::vector<std::pair<project::ParamAddress, int32_t>> learned_follows; ///< each learned_written, in order
 	std::vector<uint32_t> take_requests;                                    ///< each output take_for was asked about
+	std::vector<project::ParamAddress> made;                                ///< each param make_param was asked for
 	std::vector<std::pair<project::OwnerParamTarget, project::MidiCommand>> absolutes; ///< each knob_absolute
 	std::optional<uint32_t> take_answer;                                               ///< what take_for answers
 	std::vector<std::pair<project::ClipAddress, int32_t>> undo_scrolls; ///< each set_undo_scroll_after, in order

@@ -526,7 +526,7 @@ MIDIKnob* knobAt(std::span<MIDIKnob> knobs, const deluge::midi::IndexedEntry& hi
 	}
 	MIDIKnob& knob = knobs[hit.ordinal];
 #if !defined(NDEBUG)
-	if (!deluge::bridge::knobPlays(knob, hit.target, hit.note_or_cc)) {
+	if (!deluge::bridge::knobPlays(knob, hit.target, hit.source.note_or_cc)) {
 		FREEZE_WITH_ERROR("E467");
 	}
 #endif
