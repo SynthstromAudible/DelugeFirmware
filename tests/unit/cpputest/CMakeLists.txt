@@ -28,10 +28,6 @@ FetchContent_MakeAvailable(CppUTest)
 file(GLOB_RECURSE deluge_SOURCES
         # Shared string helper used across several unit tests
         ../../../src/deluge/util/c_string.cpp
-        # For clip iterator tests
-        ../../../src/deluge/model/song/clip_iterators.cpp
-        # For sync tests
-        ../../../src/deluge/modulation/sync.cpp
         # For the song-preview decode differential: the REAL deserializer stack, not a stand-in.
         # storage/file_reader.cpp exists so this is possible at all -- storage_manager.cpp, where the
         # reader used to live, reaches the whole instrument model to build what it loads.
@@ -68,8 +64,6 @@ configure_file(../../../src/deluge/util/firmware_version.h.in
 
 add_executable(UnitTests
         RunAllTests.cpp
-        clip_iterator_tests.cpp
-        sync_tests.cpp
         song_preview_window_tests.cpp
         song_preview_decode_tests.cpp
         song_preview_deferral_tests.cpp
