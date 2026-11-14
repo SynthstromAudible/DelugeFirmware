@@ -12,7 +12,7 @@ Gate ui-scripts:
     tests/ui-scripts/app runs on each card its `# card:` header names: on the first, each snapshot (the OLED panel as
     .pbm; the LEDs, pads and knob rings as .state) must match its golden in tests/golden/ui/app; on every further card
     it must reproduce the first card's snapshots, which is how a02-menu shows that two cards still saying a menu
-    setting this firmware no longer has, shellMenu=0 and legacyMenu=1, boot exactly as the fixture card does. A
+    setting this firmware does not have, shellMenu=0 and legacyMenu=1, boot exactly as the fixture card does. A
     script without a card header fails. The runner's self-tests pin a press due in a snapshot's own millisecond
     (shown in the next snapshot, not that one), a snapshot before the first frame (exit 2) and a script that never
     reaches its quit (exit 2 at its last step plus five seconds). A script with a board step needs more than one

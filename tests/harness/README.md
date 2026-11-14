@@ -116,7 +116,10 @@ audit.
 |---|---|---|
 | 1 -- toolkit | one widget/component directly (literal data + POD state -> golden frame); no script | `tests/unit/ui/*_spec.cpp` |
 | 2 -- shell + scenes | the real `Shell` over a fake `SurfaceSet` (`FakeSurfaceSet`), scripts may use every command including `model`/`notice` | `tests/unit/shell/scripts_spec.cpp` + `tests/ui-scripts/shell/*.txt`, goldens `tests/golden/ui/shell/` |
-| 3 -- whole app | the real app on `golden_vt_render`, injected on its virtual clock | `tests/ui-scripts/app/*.txt` on its `ui_script` scenario (the `ui-scripts` gate, `tests/integration/checks/ui_scripts.py`), goldens `tests/golden/ui/app/` |
+| 3 -- whole app | the real app on `golden_vt_render`, injected on its virtual clock | `tests/ui-scripts/app/*.txt`, goldens `tests/golden/ui/app/` |
+
+Level 3 runs on `golden_vt_render`'s `ui_script` scenario, through the `ui-scripts` gate
+(`tests/integration/checks/ui_scripts.py`).
 
 Levels 2-3 share the same script and snapshot format; that is the whole point of building both
 on top of level 0. A migrated scene's script is meant to run, unmodified, at level 2
@@ -219,24 +222,25 @@ snapshots.
 
 A level-3 run only ends when the script's own `quit` step fires; anything that stops the app polling for input also
 stops the pump. `host_script.c` therefore gives the run the script's last `at_ms` plus a 5 **virtual-second** margin
-(`HOST_SCRIPT_DEADLINE_MARGIN_S`). Passing it exits 2 with a message naming the time reached and the script's last
-step -- the useful diagnosis. A `quit` fires within a pump of the last step, so the margin is slack, not budget, and
-`tests/ui-scripts/selftest/t03-no-quit.txt` pins the failure.
+(`HOST_SCRIPT_DEADLINE_MARGIN_S`). Passing it exits 2 with a message ("the deadline passed") naming the time reached
+and the script's last step -- the useful diagnosis. A `quit` fires within a pump of the last step, so the margin is
+slack, not budget, and `tests/ui-scripts/selftest/t03-no-quit.txt` pins the failure.
 
 ## The first snapshot (level 3)
 
 The app's first OLED blit happens from inside its main loop, *after* its first input poll -- there is no frame to
-snapshot at `at_ms == 0`. A level-3 script's first `snapshot` waits until the app has drawn: the committed scripts
-take theirs at 50 ms or later. Snapshotting a panel that has never blitted is a hard failure (exit 2, "has never blitted"),
-not a black `.pbm` or a silently-missing file -- either of those would be a golden that cannot tell "blank screen"
-from "never drawn". `tests/ui-scripts/selftest/t02-early-snapshot.txt` pins it.
+snapshot at `at_ms == 0`. A level-3 script's first `snapshot` must come after the app has drawn: every script the
+gate expects to pass takes its first at 50 ms or later. Snapshotting a panel that has never blitted is a hard failure
+(exit 2, "has never blitted"), not a black `.pbm` or a silently-missing file -- either of those would be a golden that
+cannot tell "blank screen" from "never drawn". `tests/ui-scripts/selftest/t02-early-snapshot.txt` pins it.
 
 ## The fixture card
 
 `tests/fixtures/card/` is the card the level-3 scripts boot on unless their header names another: `KITS/`, `SONGS/`
-and `SYNTHS/` empty but for a `.keep`, `SAMPLES/` with `TONE.WAV` (`scripts/make_fixture_sample.py` computes it),
-and `SETTINGS/` with `MIDIFollow.XML` and `FAVOURITES/SAMPLES_Bank0.xml`. The app writes both settings files on its
-first boot when they are missing, so they are committed: the card is a fixed point and a run only reads it.
+and `SYNTHS/` empty but for a `.keep`, `SAMPLES/` with a `.keep` and `TONE.WAV` (`scripts/make_fixture_sample.py`
+computes it), and `SETTINGS/` with `MIDIFollow.XML` and `FAVOURITES/SAMPLES_Bank0.xml`. The app writes both
+settings files on its first boot when they are missing, so they are committed: the card is a fixed point and a run
+only reads it.
 
 The cards that differ from it by one file are card manifests over it (`tests/fixtures/card-<name>.card`, the format
 in `src/bsp/rust/src/storage/card_manifest.rs`): `base tests/fixtures/card` and the one difference.

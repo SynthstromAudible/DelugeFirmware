@@ -4,7 +4,7 @@ Level-3 UI scripts for the real Deluge on the probe rig, run with `tools/device_
 image (`tools/bench_image.py --no-bench --features rig-harness`). They also run in delugemu, so the device can be
 compared with the emulator running the same image. Scripts with a `midi` step run with `--record-only`.
 
-The rig's SD card must hold the card the scripts' `# card:` lines name.
+The rig's SD card must hold one of the cards a script's `# card:` lines name.
 
 ## The device checklist, by script
 

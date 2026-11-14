@@ -74,7 +74,7 @@ using deluge::ui::shell::ShellConfig;
 ///     built until the shell it serves already exists. This hook is where a caller closes that
 ///     loop: construct the three here over `shell.stack()`/`shell.lowering()` and install them
 ///     with `Shell::set_services`, which is what an application's own boot does. See
-///     `sim/scenes_spec/scene_scripts_spec.cpp`'s `RealServices` for the shape.
+///     `sim/scenes_spec/support/real_services.h`'s `RealServices` for the shape.
 ///   * `before_tick` -- run immediately before each `Shell::tick`, with that tick's clock. The
 ///     stand-in for a model that moves on its own: `overlay::CountInScene` is a **poll** of
 ///     `playbackHandler.count_in_visual()` (`scenes/overlay/count_in_scene.h`), and the only thing

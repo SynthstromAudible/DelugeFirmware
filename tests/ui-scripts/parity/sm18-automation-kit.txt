@@ -1,5 +1,5 @@
 # ShellMenu: the automation view on a kit. SHIFT + KIT makes the boot clip a fresh kit, SELECT loads TONE into its drum
-# and BACK leaves the menu the drum creator opened (the ShellMenu card has no kit presets); with drum row 0 selected,
+# and BACK leaves the menu the drum creator opened (neither card has kit presets); with drum row 0 selected,
 # CLIP opens the row's automation overview and SelectEnc its sound menu, where SHIFT + the LPF frequency shortcut
 # selects the row's param in the view. With AFFECT ENTIRE on the same steps reach the kit's own params. Then from the
 # clip view, the row's LPF page opened with AFFECT ENTIRE off, AFFECT ENTIRE turned on and CLIP: the view edits the
