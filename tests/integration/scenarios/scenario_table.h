@@ -69,9 +69,9 @@ struct ScenarioCard {
 		Empty,
 		/// The song-corpus fixture GOLDEN_FIXTURE names (default cordae), rebuilt from the maintainer's card backup.
 		CorpusFixture,
-		/// The directory the environment variable `arg` names ("none" for an empty card). `arg` may add, after a '|',
-		/// what to use when the variable is unset: a repo-relative directory, or `corpus` for the corpus fixture.
-		/// Without one the variable is required.
+		/// The directory or card manifest (`.card`) the environment variable `arg` names ("none" for an empty card).
+		/// `arg` may add, after a '|', what to use when the variable is unset: a repo-relative directory or manifest,
+		/// or `corpus` for the corpus fixture. Without one the variable is required.
 		FromEnv,
 		/// The card manifest at the repo-relative path `arg` (format: src/bsp/rust/src/storage/card_manifest.rs).
 		Manifest,

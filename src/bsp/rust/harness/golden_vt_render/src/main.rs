@@ -22,7 +22,7 @@
 //!
 //! # The card and the pacing come from the scenario's row, before any task is spawned
 //!
-//! Each row carries its card (`ScenarioCard`: empty, the corpus fixture, a directory an environment variable
+//! Each row carries its card (`ScenarioCard`: empty, the corpus fixture, a directory or card manifest an environment variable
 //! names, a card manifest, or one of [`BUILDERS`]) and its pacing (`ScenarioPacing`). `main` applies both before the
 //! executor exists. The BSP's host SD opens its disk once, lazily, on first access, and embassy does not order the
 //! first polls of tasks spawned together, so a card installed from a task could lose to [`boot_task`]'s SD bring-up
@@ -375,6 +375,21 @@ fn install_staged(root: &Path) {
     let _ = std::fs::remove_dir_all(root);
 }
 
+/// Installs the card at `path`: a directory as it stands, or a card manifest (`.card`) built into a staging
+/// directory first. Exits 2 when a manifest does not parse or build.
+fn install_tree(name: &str, path: &Path, repo_root: &Path) {
+    if path.extension().is_none_or(|e| e != "card") {
+        memory_card::install(Some(path));
+        return;
+    }
+    let root = staging_dir(&format!("deluge-{name}-card"));
+    if let Err(e) = card_manifest::build_file(repo_root, path, &root) {
+        eprintln!("golden_vt_render: {name}'s card: {e}");
+        std::process::exit(2);
+    }
+    install_staged(&root);
+}
+
 /// The cards whose contents a manifest cannot describe, by the name a `Builder` row gives. song_preview_ab's copies up
 /// to MAX_CORPUS_CASES songs from DELUGE_SONG_CORPUS (or DELUGE_BACKUP) at run time and derives its songs from
 /// constants the C++ scenario asserts against.
@@ -390,24 +405,19 @@ fn install_card(name: &str, card: Card, repo_root: &Path, fixture: &str) {
         }
         Card::FromEnv { var, fallback } => match (std::env::var_os(var), fallback) {
             (Some(value), _) if value == "none" => memory_card::install(None),
-            (Some(value), _) => memory_card::install(Some(Path::new(&value))),
+            (Some(value), _) => install_tree(name, Path::new(&value), repo_root),
             (None, Some("corpus")) => {
                 memory_card::install(Some(&corpus_fixture(name, repo_root, fixture)))
             }
-            (None, Some(dir)) => memory_card::install(Some(&repo_root.join(dir))),
+            (None, Some(dir)) => install_tree(name, &repo_root.join(dir), repo_root),
             (None, None) => {
-                eprintln!("golden_vt_render: {name} needs {var}: the directory its card holds");
+                eprintln!(
+                    "golden_vt_render: {name} needs {var}: the directory or card manifest its card is"
+                );
                 std::process::exit(2);
             }
         },
-        Card::Manifest(path) => {
-            let root = staging_dir(&format!("deluge-{name}-card"));
-            if let Err(e) = card_manifest::build_file(repo_root, &repo_root.join(path), &root) {
-                eprintln!("golden_vt_render: {name}'s card: {e}");
-                std::process::exit(2);
-            }
-            install_staged(&root);
-        }
+        Card::Manifest(path) => install_tree(name, &repo_root.join(path), repo_root),
         Card::Builder(builder) => {
             let Some((_, build)) = BUILDERS.iter().find(|(known, _)| *known == builder) else {
                 eprintln!(
