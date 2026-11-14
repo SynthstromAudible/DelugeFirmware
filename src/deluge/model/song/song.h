@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/colour/rgb.h"
 #include "gui/menu_item/reverb/model.h"
 #include "io/midi/learned_midi.h"
 #include "model/clip/clip.h"
@@ -73,8 +74,17 @@ class Section {
 public:
 	LearnedMIDI launchMIDICommand;
 	int16_t numRepetitions;
+	// Index into defaultClipSectionColours, so the colour can travel with the section when it's moved
+	uint8_t colourIndex;
 
-	Section() { numRepetitions = 0; }
+	Section() {
+		numRepetitions = 0;
+		// Song::resetSectionColours assigns each section its initial palette index.
+		colourIndex = 0;
+	}
+
+	// Resolve this section's colour independently of its current position in the song.
+	[[nodiscard]] RGB getColour() const;
 };
 
 struct BackedUpParamManager {
@@ -221,6 +231,8 @@ public:
 	uint8_t swingInterval;
 
 	Section sections[kMaxNumSections];
+	// Restore the default palette mapping for new songs and before loading saved colours.
+	void resetSectionColours();
 
 	MusicalKey key;
 	std::bitset<NUM_PRESET_SCALES> disabledPresetScales;
