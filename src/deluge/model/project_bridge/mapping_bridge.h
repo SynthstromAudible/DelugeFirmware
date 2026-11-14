@@ -148,6 +148,10 @@ enum class OverflowReconcile : uint8_t {
 /// @return Whether a reconcile was deferred: the index is to stay stale for it.
 bool applyPendingMappingOps(::Song& song, OverflowReconcile reconcile = OverflowReconcile::NOW);
 
+/// @brief [task] Whether the render holds table writes (or lost some) that no drain has applied yet: the table does not
+/// show them. Does not drain.
+[[nodiscard]] bool mappingOpsHeld();
+
 /// @brief [task] [audio] Drop the table writes the render held: the song they were for is no longer current.
 void discardPendingMappingOps();
 

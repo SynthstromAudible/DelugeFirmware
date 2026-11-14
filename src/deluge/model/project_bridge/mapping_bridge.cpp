@@ -580,6 +580,11 @@ void forgetDrumMappings(::Song& song, uint32_t drum) {
 	tableEdited(song);
 }
 
+bool mappingOpsHeld() {
+	const PendingOps& pending = pendingOps();
+	return pending.count.load(std::memory_order_acquire) != 0 || pending.overflowed.load(std::memory_order_acquire);
+}
+
 bool applyPendingMappingOps(::Song& song, OverflowReconcile reconcile) {
 	if (&song != currentSong) {
 		return false; // the render holds writes for the current song only
