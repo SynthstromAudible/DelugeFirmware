@@ -423,7 +423,7 @@ describe note_set_group("note set", ${
 		// Major scale in A, one less note in B
 		const NoteSet major{0, 2, 4, 5, 7, 9, 11};
 		a = major;
-		for (int i = 0; i < sizeof(major); i++) {
+		for (int i = 0; i < major.count(); i++) {
 			b = major;
 			b.remove(major[i]);
 			expect(a.highestNotIn(b)).to_equal(major[i]);
