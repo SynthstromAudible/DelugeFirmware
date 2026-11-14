@@ -24,11 +24,13 @@
 #include "effects/setting_params.h"
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/params.h"
+#include "instruments/deluge/words.h"
 #include "plugin-api/remote_controls_publisher.h"
 #include "plugin-api/types/remote_controls.h"
 
 #include <algorithm>
 #include <array>
+#include <span>
 
 namespace deluge::instrument {
 
@@ -130,6 +132,69 @@ inline constexpr std::array<plugin::RemotePage, 3> kFilterCycle{{
     detail::knob_page(1, 1, param::kHpfResonance, param::kHpfFrequency),
     detail::knob_page(1, 2, param::kBass, param::kTreble),
 }};
+
+/// @brief One mod button's two knobs, lower first. A cable's depth is its depth id (is_cable_depth), so no remap row,
+///        which names plain params only, matches it.
+struct KnobPair {
+	plugin::ParamId lower; ///< the lower knob's target
+	plugin::ParamId upper; ///< the upper knob's target
+	[[nodiscard]] constexpr bool operator==(const KnobPair&) const = default;
+};
+
+/// @brief One knob pair a synth mode change rewrites: a pair whose lower knob is in @c lower_from and whose upper
+///        knob is in @c upper_from becomes (@c lower_to, @c upper_to). Cable depths never match.
+struct KnobRemap {
+	std::span<const plugin::ParamId> lower_from;
+	std::span<const plugin::ParamId> upper_from;
+	plugin::ParamId lower_to;
+	plugin::ParamId upper_to;
+};
+
+namespace detail {
+inline constexpr std::array kLpfResonance{param::kLpfResonance};
+inline constexpr std::array kHpfResonance{param::kHpfResonance};
+inline constexpr std::array kBass{param::kBass};
+/// Every filter knob's upper knob: a resonance or the bass pairs with any of them, a mixed pair included.
+inline constexpr std::array kFilterUppers{param::kLpfFrequency, param::kHpfFrequency, param::kTreble};
+inline constexpr std::array kModulator2Volume{param::kModulator2Volume};
+inline constexpr std::array kModulator1Volume{param::kModulator1Volume};
+} // namespace detail
+
+/// @brief The rows applied going into FM: the filters' knobs lend themselves to the modulators' volumes (the second
+///        modulator's on the lower knob, the first's on the upper) while FM has no filters, one row per filter
+///        (low-pass, high-pass, EQ). Only the order with the resonance (or the bass) on the lower knob matches; a pair
+///        with the cutoff on the lower knob stays. Delete them (and give FM a modulator page) when FM gains filters.
+inline constexpr std::array kIntoFm{
+    KnobRemap{.lower_from = detail::kLpfResonance,
+              .upper_from = detail::kFilterUppers,
+              .lower_to = param::kModulator2Volume,
+              .upper_to = param::kModulator1Volume},
+    KnobRemap{.lower_from = detail::kHpfResonance,
+              .upper_from = detail::kFilterUppers,
+              .lower_to = param::kModulator2Volume,
+              .upper_to = param::kModulator1Volume},
+    KnobRemap{.lower_from = detail::kBass,
+              .upper_from = detail::kFilterUppers,
+              .lower_to = param::kModulator2Volume,
+              .upper_to = param::kModulator1Volume},
+};
+
+/// @brief The rows applied leaving FM: the modulators' volumes, on any button, go back to the low-pass filter. A
+///        high-pass or EQ pair that went into FM comes back as the low-pass pair.
+inline constexpr std::array kOutOfFm{
+    KnobRemap{.lower_from = detail::kModulator2Volume,
+              .upper_from = detail::kModulator1Volume,
+              .lower_to = param::kLpfResonance,
+              .upper_to = param::kLpfFrequency},
+};
+
+/// @brief @p knobs after a change from @p from to @p to: kIntoFm going into FM, kOutOfFm leaving it, nothing between
+///        the other modes. Each pair takes the first row that matches it.
+/// @param from  The synth mode before the change.
+/// @param to    The synth mode after it.
+/// @param knobs The sound's knobs, one pair per mod button.
+/// @return The knobs the sound takes.
+[[nodiscard]] std::array<KnobPair, 8> remap_for_mode(SynthMode from, SynthMode to, std::array<KnobPair, 8> knobs);
 
 /// @brief The instrument's remote-controls record. Its device pages come from get and count (kDevicePages), never from
 /// find. Its find serves the sound's filter cycle on any section: page ids 0 to 2 (group 0) are kFilterCycle, and ids 3

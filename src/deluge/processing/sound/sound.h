@@ -363,7 +363,7 @@ public:
 	/// @brief What this Sound's voices are made of, as far as their cost goes.
 	[[nodiscard]] VoiceKind voiceKind() const;
 	// Store the synth mode (bound: record, then reproject; unbound: the snapshot) without setSynthMode()'s gesture side
-	// effects (voice kill, mod-knob and filter swaps) — for the load path.
+	// effects (voice kill, filter modes, patching) — for the load path.
 	void assignSynthMode(SynthMode value);
 
 	virtual bool isDrum() { return false; }

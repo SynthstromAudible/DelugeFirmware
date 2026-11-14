@@ -63,6 +63,29 @@ std::vector<ControllerMapping> controlsOf(::Sound& sound) {
 	return controls;
 }
 
+static_assert(kNumModButtons == 8, "a knob pair per mod button");
+
+std::array<deluge::instrument::KnobPair, 8> knobPairsOf(const std::vector<ControllerMapping>& controls) {
+	std::array<deluge::instrument::KnobPair, 8> pairs{};
+	for (const ControllerMapping& mapping : controls) {
+		const ModKnobControl& knob = mapping.control;
+		if (knob.button < pairs.size() && knob.knob < kNumPhysicalModKnobs) {
+			(knob.knob == 0 ? pairs[knob.button].lower : pairs[knob.button].upper) = mapping.target;
+		}
+	}
+	return pairs;
+}
+
+std::vector<ControllerMapping> controlsOf(const std::array<deluge::instrument::KnobPair, 8>& pairs) {
+	std::vector<ControllerMapping> controls;
+	controls.reserve(pairs.size() * kNumPhysicalModKnobs);
+	for (uint8_t button = 0; button < pairs.size(); ++button) {
+		controls.push_back({ModKnobControl{button, 0}, pairs[button].lower});
+		controls.push_back({ModKnobControl{button, 1}, pairs[button].upper});
+	}
+	return controls;
+}
+
 void refreshControls(::Song& song) {
 	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
 		if (output->docOutput_ == nullptr) {

@@ -2557,7 +2557,8 @@ void Sound::calculateEffectiveVolume() {
 	volumeNeutralValueForUnison = deluge::dsp::from_float<31>(kNeutral / sqrtf(snapshot_.num_unison));
 }
 
-// May change mod knob functions. You must update mod knob levels after calling this
+// The filters go off into FM and come back on out of it. The knobs a mode change remaps are the caller's
+// (deluge::instrument::remap_for_mode, applied by the "mode" setting's bridge arm).
 void Sound::setSynthMode(SynthMode value, Song* song) {
 
 	killAllVoices(); // This saves a lot of potential problems, to do with samples playing. E002 was being caused
@@ -2566,38 +2567,14 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 	assignSynthMode(value);
 	const SynthMode synthMode = getSynthMode();
 
-	// Change mod knob functions over. Switching *to* FM...
+	// Switching *to* FM: switch the filters off so they don't render unless deliberately enabled
 	if (synthMode == SynthMode::FM && oldSynthMode != SynthMode::FM) {
-		for (int32_t f = 0; f < kNumModButtons; f++) {
-			if (deluge::modulation::knobWord(modKnobs[f][0].target).is_param()
-			    && deluge::modulation::knobWord(modKnobs[f][1].target).is_param()) {
-				int32_t p0 = deluge::modulation::knobWord(modKnobs[f][0].target).param_index();
-				int32_t p1 = deluge::modulation::knobWord(modKnobs[f][1].target).param_index();
-
-				if ((p0 == params::LOCAL_LPF_RESONANCE || p0 == params::LOCAL_HPF_RESONANCE
-				     || p0 == params::UNPATCHED_START + params::UNPATCHED_BASS)
-				    && (p1 == params::LOCAL_LPF_FREQ || p1 == params::LOCAL_HPF_FREQ
-				        || p1 == params::UNPATCHED_START + params::UNPATCHED_TREBLE)) {
-					modKnobs[f][0].target = deluge::modulation::knobParam(params::LOCAL_MODULATOR_1_VOLUME);
-					modKnobs[f][1].target = deluge::modulation::knobParam(params::LOCAL_MODULATOR_0_VOLUME);
-				}
-			}
-		}
-		// switch the filters off so they don't render unless deliberately enabled
 		setLpfMode(FilterMode::OFF);
 		setHpfMode(FilterMode::OFF);
 	}
 
-	// ... and switching *from* FM...
+	// ... and switching *from* FM: switch the filters back on if needed
 	if (synthMode != SynthMode::FM && oldSynthMode == SynthMode::FM) {
-		for (int32_t f = 0; f < kNumModButtons; f++) {
-			if ((modKnobs[f][0].target == deluge::modulation::knobParam(params::LOCAL_MODULATOR_1_VOLUME))
-			    && (modKnobs[f][1].target == deluge::modulation::knobParam(params::LOCAL_MODULATOR_0_VOLUME))) {
-				modKnobs[f][0].target = deluge::modulation::knobParam(params::LOCAL_LPF_RESONANCE);
-				modKnobs[f][1].target = deluge::modulation::knobParam(params::LOCAL_LPF_FREQ);
-			}
-		}
-		// switch the filters back on if needed
 		if (modControllableSnapshot().effects.filter.lpf_mode == FilterMode::OFF) {
 			setLpfMode(FilterMode::TRANSISTOR_24DB);
 		}

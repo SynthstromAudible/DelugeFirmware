@@ -18,10 +18,12 @@
 #pragma once
 
 #include "deluge-project/controller_mapping.h"
+#include "instruments/deluge/pages.h"
 #include "modulation/knob_target.h"
 #include "modulation/params/param.h"
 #include "plugin-api/types/param.h"
 
+#include <array>
 #include <optional>
 #include <vector>
 
@@ -47,6 +49,20 @@ namespace deluge::bridge {
 /// @param sound The sound.
 /// @return The sound's controls.
 [[nodiscard]] std::vector<deluge::project::ControllerMapping> controlsOf(::Sound& sound);
+
+/// @brief A sound's controls as the instrument's knob pairs, one per mod button: each knob's target is the param id
+/// the record holds (a cable's depth as its depth id). A knob @p controls does not name keeps the null target.
+/// @param controls A sound's controls (as controlsOf gives them).
+/// @return The knobs, button by button.
+[[nodiscard]] std::array<deluge::instrument::KnobPair, 8>
+knobPairsOf(const std::vector<deluge::project::ControllerMapping>& controls);
+
+/// @brief A sound's controls holding @p pairs: its 16 mod knobs in controlsOf's order (button by button, knob 0
+/// then 1). The inverse of knobPairsOf.
+/// @param pairs The knobs, button by button.
+/// @return The controls.
+[[nodiscard]] std::vector<deluge::project::ControllerMapping>
+controlsOf(const std::array<deluge::instrument::KnobPair, 8>& pairs);
 
 /// @brief Set every output's, sound kit row's and the song's controls in the song's model from the runtime's mod
 /// knobs (a kit, an audio track and the song have none). Run once a song is loaded and after each save, as the slots

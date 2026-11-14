@@ -20,6 +20,7 @@
 #include "instruments/deluge/plugin.h"
 
 #include <optional>
+#include <span>
 #include <utility>
 
 namespace deluge::instrument {
@@ -64,6 +65,26 @@ plugin::RemoteSlot decorate_slot(const plugin::PageContext& ctx, plugin::ParamId
 }
 
 } // namespace
+
+std::array<KnobPair, 8> remap_for_mode(SynthMode from, SynthMode to, std::array<KnobPair, 8> knobs) {
+	std::span<const KnobRemap> rows;
+	if (to == SynthMode::FM && from != SynthMode::FM) {
+		rows = kIntoFm;
+	}
+	else if (from == SynthMode::FM && to != SynthMode::FM) {
+		rows = kOutOfFm;
+	}
+	for (KnobPair& pair : knobs) {
+		const auto matches = [&pair](const KnobRemap& row) {
+			return std::ranges::contains(row.lower_from, pair.lower)
+			       && std::ranges::contains(row.upper_from, pair.upper);
+		};
+		if (const auto row = std::ranges::find_if(rows, matches); row != rows.end()) {
+			pair = {.lower = row->lower_to, .upper = row->upper_to};
+		}
+	}
+	return knobs;
+}
 
 const plugin::RemoteControls kRemoteControls{.plugin = plugin::kDelugeInstrument,
                                              .count = &count_pages,

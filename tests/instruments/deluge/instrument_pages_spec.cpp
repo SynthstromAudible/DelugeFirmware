@@ -4,8 +4,45 @@
 #include "instruments/deluge/plugin.h"
 #include <cppspec.hpp>
 
+#include <array>
+#include <utility>
+
 using namespace deluge;
 namespace ip = deluge::instrument::param;
+
+namespace {
+
+using Knobs = std::array<instrument::KnobPair, 8>;
+using instrument::SynthMode;
+
+/// @brief The device pages' knobs, the knobs a new sound starts with.
+Knobs device_knobs() {
+	Knobs knobs{};
+	for (size_t button = 0; button < knobs.size(); button++) {
+		knobs[button] = {.lower = *instrument::kDevicePages[button].slots[0].param,
+		                 .upper = *instrument::kDevicePages[button].slots[1].param};
+	}
+	return knobs;
+}
+
+/// @brief @p base with mod button @p button's knobs @p lower and @p upper.
+Knobs with_pair(Knobs base, size_t button, plugin::ParamId lower, plugin::ParamId upper) {
+	base[button] = {.lower = lower, .upper = upper};
+	return base;
+}
+
+/// The device knobs with the filter button lent to the modulators' volumes, as FM has them.
+const Knobs kFm = with_pair(device_knobs(), 1, ip::kModulator2Volume, ip::kModulator1Volume);
+
+Knobs into_fm(const Knobs& knobs) {
+	return instrument::remap_for_mode(SynthMode::SUBTRACTIVE, SynthMode::FM, knobs);
+}
+
+Knobs out_of_fm(const Knobs& knobs) {
+	return instrument::remap_for_mode(SynthMode::FM, SynthMode::SUBTRACTIVE, knobs);
+}
+
+} // namespace
 
 describe instrument_pages("the Deluge instrument's pages", ${
 	it("puts volume over pan on the first mod button", _{
@@ -137,6 +174,55 @@ describe instrument_pages("the Deluge instrument's pages", ${
 				}
 			}
 		}
+	});
+	context("remaps the knobs on a synth mode change, as the engine's FM swap does", _{
+		it("lends a new synth's filter button to the modulators' volumes, and gives it back", _{
+			expect(into_fm(device_knobs()) == kFm).to_be_true();
+			expect(out_of_fm(kFm) == device_knobs()).to_be_true();
+		});
+		it("brings a high-pass, an EQ and a mixed pair on the filter button back as the low-pass pair", _{
+			for (const auto& [lower, upper] : {std::pair{ip::kHpfResonance, ip::kHpfFrequency},
+			                                   std::pair{ip::kBass, ip::kTreble},
+			                                   std::pair{ip::kHpfResonance, ip::kLpfFrequency},
+			                                   std::pair{ip::kLpfResonance, ip::kTreble},
+			                                   std::pair{ip::kBass, ip::kHpfFrequency}}) {
+				const Knobs fm = into_fm(with_pair(device_knobs(), 1, lower, upper));
+				expect(fm == kFm).to_be_true();
+				expect(out_of_fm(fm) == device_knobs()).to_be_true();
+			}
+		});
+		it("leaves a pair with the cutoff on the lower knob, as the filter cycle's group 1 has it", _{
+			const Knobs cutoff_lower = with_pair(device_knobs(), 1, ip::kLpfFrequency, ip::kLpfResonance);
+			expect(into_fm(cutoff_lower) == cutoff_lower).to_be_true();
+		});
+		it("swaps a low-pass pair on any button, mod button 7 included", _{
+			const Knobs on_7 = with_pair(device_knobs(), 7, ip::kLpfResonance, ip::kLpfFrequency);
+			expect(into_fm(on_7) == with_pair(kFm, 7, ip::kModulator2Volume, ip::kModulator1Volume)).to_be_true();
+		});
+		it("passes over a button with a cable's depth on it, though the cable's param would match", _{
+			const auto depth = *instrument::cable_depth_id(instrument::PatchSource::LFO_LOCAL_1, ip::kLpfResonance);
+			const Knobs cable = with_pair(device_knobs(), 1, depth, ip::kLpfFrequency);
+			expect(into_fm(cable) == cable).to_be_true();
+		});
+		it("turns a modulator-volume pair learned in FM into the low-pass pair on the way out", _{
+			const Knobs learned = with_pair(kFm, 3, ip::kModulator2Volume, ip::kModulator1Volume);
+			expect(out_of_fm(learned) == with_pair(device_knobs(), 3, ip::kLpfResonance, ip::kLpfFrequency))
+			    .to_be_true();
+		});
+		it("changes nothing staying in FM, staying out of it, or between subtractive and ring modulation", _{
+			const Knobs learned = with_pair(kFm, 3, ip::kModulator2Volume, ip::kModulator1Volume);
+			for (const Knobs& knobs : {device_knobs(), learned}) {
+				expect(instrument::remap_for_mode(SynthMode::FM, SynthMode::FM, knobs) == knobs).to_be_true();
+				expect(instrument::remap_for_mode(SynthMode::SUBTRACTIVE, SynthMode::RINGMOD, knobs) == knobs)
+				    .to_be_true();
+				expect(instrument::remap_for_mode(SynthMode::RINGMOD, SynthMode::SUBTRACTIVE, knobs) == knobs)
+				    .to_be_true();
+			}
+		});
+		it("goes into FM from ring modulation and out to it as from and to subtractive", _{
+			expect(instrument::remap_for_mode(SynthMode::RINGMOD, SynthMode::FM, device_knobs()) == kFm).to_be_true();
+			expect(instrument::remap_for_mode(SynthMode::FM, SynthMode::RINGMOD, kFm) == device_knobs()).to_be_true();
+		});
 	});
 });
 // clang-format on
