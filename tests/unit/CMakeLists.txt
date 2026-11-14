@@ -15,7 +15,7 @@ endif ()
 
 # MAINTAINER_MODE, DELUGE_C_STANDARD / DELUGE_CXX_STANDARD and DELUGE_COMMON_COMPILE_OPTIONS,
 # also included by the device (top-level CMakeLists.txt) and host-sim (sim/CMakeLists.txt)
-# projects. The UI leaf libraries added below (../../src/gfx, ui, shell, notify) apply
+# projects. The UI leaf libraries libs.cmake adds (../../src/gfx, ui, shell, notify) apply
 # DELUGE_COMMON_COMPILE_OPTIONS themselves, so their warning set is identical wherever they build.
 include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/deluge_common_options.cmake)
 
@@ -70,6 +70,7 @@ endif ()
 
 set(DELUGE_TEST_TREE host)
 include(${CMAKE_CURRENT_LIST_DIR}/../support/cmake/specs.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../support/cmake/libs.cmake)
 
 if (UNIX AND NOT APPLE)
     # Build the deluge_rust umbrella staticlib (i686) ONCE and share it across the
@@ -164,19 +165,15 @@ elseif (APPLE)
     add_library(deluge_rust_rs STATIC IMPORTED GLOBAL)
     set_target_properties(deluge_rust_rs PROPERTIES IMPORTED_LOCATION ${RUST_LIB})
     add_dependencies(deluge_rust_rs deluge_rust_rs_build)
+else ()
+    # The app's specs link the umbrella staticlib (audio_file_format.cpp's header parse is its Rust decoder), and only
+    # the two branches above build it.
+    message(FATAL_ERROR "the host tree needs the deluge_rust staticlib (deluge_rust_rs), "
+                        "built here for Linux and macOS only")
 endif ()
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../serialization serialization)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../music-theory music-theory)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../bench bench)
-# The UI leaf libraries, added once here and shared by the test subdirectories below:
-# deluge_gfx_oled / deluge_gfx_grid (pure drawing primitives), deluge_ui_core / deluge_ui_oled /
-# deluge_ui_grid (the immediate-mode toolkit), deluge_ui_shell (surfaces, scene stack, input
-# lowering, services, tick, flush) and deluge_notify (the model->UI notification channel).
-cmake_path(SET SHARED_INCLUDE ${CMAKE_CURRENT_LIST_DIR}/../../src)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../src/gfx gfx)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../src/ui ui)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../src/shell shell)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../src/notify notify)
 
 add_subdirectory(spec)
 add_subdirectory(level3)

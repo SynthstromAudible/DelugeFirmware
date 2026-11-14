@@ -25,6 +25,7 @@ add_link_options(${CPU_OPTIONS})
 
 set(DELUGE_TEST_TREE arm)
 include(${CMAKE_CURRENT_LIST_DIR}/../support/cmake/specs.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../support/cmake/libs.cmake)
 
 enable_testing()
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../serialization serialization)

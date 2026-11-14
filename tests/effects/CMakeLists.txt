@@ -1,11 +1,5 @@
 # Specs for the effects (src/effects), added by both the x86 (tests/unit) and ARM (tests/unit-arm) test trees, built
 # with only the standalone libraries' include roots so a hidden dependency on the app fails this build.
-if(NOT TARGET deluge_plugin_api)
-  add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../src/plugin-api ${CMAKE_CURRENT_BINARY_DIR}/plugin-api-lib)
-endif()
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../src/effects ${CMAKE_CURRENT_BINARY_DIR}/effects-lib)
-# The sidechain reaches argon through the kernel core; on a host without NEON that needs SIMDe's backend.
-deluge_test_neon(deluge_effects)
 # This tree builds no dsp-next library (deluge_dsp_fixed), so the specs compile the filter set the effects' filter runs,
 # and the noise generator its ladders read, themselves; likewise the compressor, with the table interpolation and the
 # tanh table its saturation reads; the duck envelope, with the decay tables its curves read; and the delay's tape and

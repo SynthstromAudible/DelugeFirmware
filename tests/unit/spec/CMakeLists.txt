@@ -1,6 +1,3 @@
-add_subdirectory(../../../src/lib printf)
-add_subdirectory(../../../src/midi deluge_midi)
-
 add_library(deluge_spec STATIC
 # Audio-file header parser + its dependency-free byte/format helpers (file-loading regression net).
 ../../../src/deluge/storage/audio/audio_file_format.cpp
@@ -45,14 +42,8 @@ target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_seria
   deluge_gfx_oled deluge_gfx_grid deluge_ui_core deluge_ui_grid deluge_ui_shell deluge_notify)
 
 # audio_file_format.cpp's header parse IS the Rust decoder (deluge-sdk's deluge-audio-format, reached through
-# include/libdeluge/audio_format.h), so these specs need its C ABI on the link line. `deluge_rust_rs` is
-# the umbrella staticlib defined once in tests/unit/CMakeLists.txt -- i686 on Linux, host-native on macOS.
-# This subdirectory is added unconditionally, so fail loudly on a platform that defines neither rather
-# than at link time with six undefined `deluge_audio_header_*` symbols.
-if(NOT TARGET deluge_rust_rs)
-    message(FATAL_ERROR "tests/unit/spec needs the deluge_rust staticlib (deluge_rust_rs), which "
-                        "tests/unit/CMakeLists.txt only defines for Linux and macOS.")
-endif()
+# include/libdeluge/audio_format.h), so these specs need its C ABI on the link line: `deluge_rust_rs`, the
+# umbrella staticlib the tree's root defines (i686 on Linux, host-native on macOS).
 target_link_libraries(deluge_spec PUBLIC deluge_rust_rs)
 
 target_include_directories(deluge_spec PUBLIC ../../../src/deluge ../../../src ../../support/mocks/ ../../../include)
