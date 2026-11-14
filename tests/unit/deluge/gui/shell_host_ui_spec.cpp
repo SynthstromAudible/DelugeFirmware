@@ -701,7 +701,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// that honoured the board's 12 rows instead of legacy's 8 lands in memory this example owns
 		// and can assert about, rather than in whatever follows `image` in the fake's data segment.
 		// (The suite's sanitizers are opt-in, `DELUGE_TEST_SANITIZERS` defaulting OFF in
-		// `tests/CMakeLists.txt:23`, so an out-of-bounds write is otherwise silent here.)
+		// `tests/support/cmake/specs.cmake`, so an out-of-bounds write is otherwise silent here.)
 		RGB oversized[deluge::gfx::grid::kMaxGridRows][kDisplayWidth + kSideBarWidth]{};
 
 		const bool usedUp = r.guest.renderMainPads(0xFFFFFFFF, oversized, PadLEDs::occupancyMask, true);

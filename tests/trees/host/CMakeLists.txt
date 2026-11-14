@@ -110,7 +110,7 @@ if (UNIX AND NOT APPLE)
     # above, as the host sim does.
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../dsp dsp-next)
 elseif (APPLE)
-    # macOS gets the umbrella staticlib too, because the app's specs need it: audio_file_format.cpp's
+    # macOS gets the umbrella staticlib too, because deluge_spec needs it: audio_file_format.cpp's
     # header parse IS the Rust decoder (deluge-sdk's deluge-audio-format). Built for the DEFAULT host
     # target rather than i686 -- the specs are 64-bit native here (no -m32 above), and letting cargo
     # pick the host beats guessing an apple-darwin triple. The alloc/resource conformance specs stay
