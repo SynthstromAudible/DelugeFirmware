@@ -1,6 +1,6 @@
-"""The Deluge instrument's cable decoder against the app's reader, over every corpus song and every synth and kit
-preset beside the corpus. The cable_decode driver checks each file itself (exit 0 agree, 1 does not parse, 3 a cable
-differs) and prints one line per cable; those lines are fingerprinted per file in cable_decode_fixtures.json, so the
+"""The Deluge instrument's cable decoder against the app's reader, over every corpus song and every synth and kit preset
+beside the corpus. The cable_decode driver checks each file itself (exit 0 agree, 1 does not parse, 3 a cable differs)
+and prints one line per cable; those lines are fingerprinted per file in tests/golden/cable_decode/fixtures.json, so the
 check keeps its meaning once the app reads cables through the decoder.
 
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
@@ -26,7 +26,7 @@ import golden_update
 from presets_run import find_presets
 
 REPO = str(driver.REPO)
-FIXTURES = os.path.join(driver.GOLDEN, "cable_decode_fixtures.json")
+FIXTURES = os.path.join(driver.GOLDEN, "cable_decode", "fixtures.json")
 
 
 def main(argv=None):

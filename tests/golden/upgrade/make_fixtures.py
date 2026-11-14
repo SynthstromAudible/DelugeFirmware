@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Writes the upgrader's legacy fixtures: each a current-form preset given one old form (or one ordering of two), and
 stamped so that only the conversion it pins applies to it. Their round-trip hashes are in
-tests/golden/upgrade_fixtures.json. `./dbt test --update upgrade-differential` re-records only the hashes of fixtures
+tests/golden/upgrade/fixtures.json. `./dbt test --update upgrade-differential` re-records only the hashes of fixtures
 with an oracle (`<name>.oracle.xml`, the same content in the current form), from that oracle. The others are frozen:
 the firmware reads only the current forms, so nothing re-records them.
 
@@ -278,7 +278,7 @@ RENDER_CASES = {
 }
 
 
-SYNTHETIC = HERE.parent / "synthetic"
+SYNTHETIC = HERE.parent / "songs" / "synthetic"
 
 # Songs stamped as old official firmware: 1.4.0 (every song rule from before 1.5 up to community 1.3) and 1.1.0 (the
 # pre-1.2 rules too).

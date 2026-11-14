@@ -7,7 +7,7 @@ For every synth and kit preset, run the `preset_roundtrip` driver:
     gen2 = save(load(gen1))
 
 The driver asserts gen1 == gen2 (the canonical fixed point) and emits gen1. We hash gen1 (SHA-256) and compare against
-presets_fixtures.json. A hash change means what a preset saves as changed: justify it and re-record it
+tests/golden/presets/fixtures.json. A hash change means what a preset saves as changed: justify it and re-record it
 (`./dbt test --update preset-roundtrip`).
 
 The presets are the SYNTHS and KITS folders beside the song corpus ($DELUGE_SONG_CORPUS or --corpus; see
@@ -22,7 +22,7 @@ Usage:
 
 Gate preset-roundtrip:
     what a preset saves as must not change unexplained: each fixtured synth and kit preset
-    (tests/golden/presets_fixtures.json, from the SYNTHS and KITS folders beside DELUGE_SONG_CORPUS) is loaded, saved as
+    (tests/golden/presets/fixtures.json, from the SYNTHS and KITS folders beside DELUGE_SONG_CORPUS) is loaded, saved as
     a preset is saved, reloaded and saved again; the two saves must be identical and the first must hash to its fixture
     (./dbt test --update preset-roundtrip re-records, with evidence)
 """
@@ -40,7 +40,7 @@ import driver
 import golden_update
 
 REPO = str(driver.REPO)
-FIXTURES = os.path.join(driver.GOLDEN, "presets_fixtures.json")
+FIXTURES = os.path.join(driver.GOLDEN, "presets", "fixtures.json")
 FOLDERS = (("SYNTHS", "SYNTH"), ("KITS", "KIT"))
 
 EXIT_SETTLED = 0
@@ -84,8 +84,9 @@ def find_presets(root):
 
 
 def record(args, pre, presets, fixtures: dict[str, str]) -> int:
-    """Re-record presets_fixtures.json from this run: every preset here that settles gets its hash; a fixtured preset
-    this machine lacks keeps its hash; a fixtured preset that no longer settles records nothing and fails."""
+    """Re-record tests/golden/presets/fixtures.json from this run: every preset here that settles gets its hash; a
+    fixtured preset this machine lacks keeps its hash; a fixtured preset that no longer settles records nothing and
+    fails."""
     if not presets:
         print(
             "FAIL: no presets beside the song corpus to record (set DELUGE_SONG_CORPUS)"

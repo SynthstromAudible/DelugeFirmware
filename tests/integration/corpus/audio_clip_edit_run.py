@@ -2,7 +2,7 @@
 """Differential runner for the AudioClip descriptor edit/round-trip driver (audio_clip_edit_diff).
 
 For each song in SONGS, run the driver and byte-compare its stdout ('#' comment lines, which carry the absolute path,
-removed) with its baseline in audio_clip_edit_baselines/: each audio clip's descriptor after load, edit and round
+removed) with its baseline in tests/golden/audio_clip_edit/: each audio clip's descriptor after load, edit and round
 trip. Any difference is a regression, and so is a run that does not exit 0 (the driver also checks the document and
 the engine agree, to stderr). `./dbt test audio-clip-edit-diff` runs this; `./dbt test --update
 audio-clip-edit-diff` records the baselines from the run.
@@ -14,7 +14,7 @@ Exit: 0 = all baselines reproduced; 1 = a regression; 77 = skipped (no corpus).
 
 Gate audio-clip-edit-diff:
     an AudioClip's descriptor edits, their undo, and a save and reload must reproduce the committed baseline
-    (tests/golden/audio_clip_edit_baselines) byte for byte, with each clip's DocAudioClip matching the engine's cache
+    (tests/golden/audio_clip_edit) byte for byte, with each clip's DocAudioClip matching the engine's cache
     after every step
 """
 
@@ -23,7 +23,7 @@ import sys
 
 import driver
 
-BASELINE_DIR = os.path.join(driver.GOLDEN, "audio_clip_edit_baselines")
+BASELINE_DIR = os.path.join(driver.GOLDEN, "audio_clip_edit")
 # The corpus songs whose descriptor output is baselined, each as <name>.txt in BASELINE_DIR.
 SONGS = ["Sampling"]
 

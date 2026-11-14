@@ -2,8 +2,8 @@
 """An upgraded file must load to exactly what its original loaded.
 
 The upgrader (tools/deluge-upgrade) writes each song and preset as the firmware's JSON. The round-trip fixtures already
-record what the firmware saves after loading each original: tests/golden/songs_fixtures.json and
-tests/golden/presets_fixtures.json hash save(load(file)), and tests/golden/render/presets.json records each golden
+record what the firmware saves after loading each original: tests/golden/songs/fixtures.json and
+tests/golden/presets/fixtures.json hash save(load(file)), and tests/golden/render/presets.json records each golden
 preset's render. So the upgraded file's round trip must hash, and its render match, exactly what its original's did.
 
 The song corpus and the SYNTHS and KITS folders beside it are kept upgraded (their fixtures keyed by the upgraded,
@@ -12,7 +12,7 @@ original is upgraded again and must round-trip to its upgraded fixture's hash.
 
 Cases, in two parts (--part; both by default):
   committed  the committed synthetic songs and the upgrader's legacy fixtures (tests/golden/upgrade/<group>/
-             <name>.<kind>.XML, kind synth, kit or song; their hashes in tests/golden/upgrade_fixtures.json). They need
+             <name>.<kind>.XML, kind synth, kit or song; their hashes in tests/golden/upgrade/fixtures.json). They need
              nothing beyond the tree.
   corpus     each original song in DELUGE_LEGACY_CORPUS and each SYNTHS and KITS preset beside it, and the golden
              preset corpus upgraded and rendered (its factory presets upgraded from their originals in the backup's
@@ -33,8 +33,8 @@ Prints UPGRADE OK=<n> FAIL=<n> REPORTED=<n>, and UPGRADE-FAIL <case>: <why> per 
 
 Gate upgrade-differential:
     a file the upgrader (tools/deluge-upgrade) writes as JSON must load to exactly what its original loaded: each
-    committed synthetic song and legacy fixture (tests/golden/upgrade, hashes in upgrade_fixtures.json), upgraded, must
-    round-trip to its fixture hash
+    committed synthetic song and legacy fixture (tests/golden/upgrade, hashes in tests/golden/upgrade/fixtures.json),
+    upgraded, must round-trip to its fixture hash
 
 Gate upgrade-differential-corpus:
     the upgrader against a real card backup: each original corpus song and SYNTHS/KITS preset in DELUGE_LEGACY_CORPUS,
@@ -66,7 +66,7 @@ TOOL = ROOT / "tools" / "deluge-upgrade"
 GOLDEN = driver.GOLDEN / "render" / "presets"
 # The legacy fixtures; each one's key is its path under the golden root ("upgrade/<group>/<name>.<kind>.XML").
 LEGACY = driver.GOLDEN / "upgrade"
-LEGACY_FIXTURES = driver.GOLDEN / "upgrade_fixtures.json"
+LEGACY_FIXTURES = LEGACY / "fixtures.json"
 # The originals of the golden millisecond-zone cases, each beside its sample.
 RENDER_ORIGINALS = LEGACY / "render"
 # The committed cases the tree holds today. Shrinking them is a deliberate change to this number, reviewed.
@@ -172,9 +172,9 @@ def plan_record(cases, legacy: dict, flt: str):
 
 
 def record_legacy(binary: str, legacy: dict, args) -> int:
-    """Re-record upgrade_fixtures.json: the save(load(oracle)) hash of each legacy fixture that has an oracle. A
-    fixture without one keeps its frozen hash; a new fixture needs its oracle (`<name>.oracle.xml`) beside it. A round
-    trip that fails records nothing and fails."""
+    """Re-record tests/golden/upgrade/fixtures.json: the save(load(oracle)) hash of each legacy fixture that has an
+    oracle. A fixture without one keeps its frozen hash; a new fixture needs its oracle (`<name>.oracle.xml`) beside it.
+    A round trip that fails records nothing and fails."""
     paths = {key: (path, kind) for key, path, kind in legacy_cases()}
     record, kept, missing = plan_record(
         [(key, oracle_of(path).exists()) for key, (path, _) in paths.items()],

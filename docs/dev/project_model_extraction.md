@@ -356,12 +356,12 @@ once the extraction is underway.
 - [x] Round-trip driver (`tests/golden/song_roundtrip.cpp`, target
       `song_roundtrip`): in-memory load→save→reload→save fixed-point check,
       emits `gen1`.
-- [x] Runner `tests/integration/corpus/songs_run.py` + `songs_fixtures.json` (SHA-256 of
+- [x] Runner `tests/integration/corpus/songs_run.py` + `tests/golden/songs/fixtures.json` (SHA-256 of
       `gen1`); `./dbt test --update song-roundtrip` to re-baseline; fails only on a committed-hash
       `REGRESS`. Verified: detects a tampered fixture (exit 1), clean (exit 0).
 - [x] CTest registration (`ctest -R song_roundtrip`, `SKIP_RETURN_CODE 77`) +
       `tests/golden/README`.
-- [x] **Bring-your-own corpus:** only `songs_fixtures.json` (14 SHA-256 hashes,
+- [x] **Bring-your-own corpus:** only `tests/golden/songs/fixtures.json` (14 SHA-256 hashes,
       keyed by corpus-relative path) is in-repo; song `.XML` stays out-of-repo
       (privacy/licensing). Corpus via `$DELUGE_SONG_CORPUS`/`--corpus` (default
       gitignored `tests/golden/songs/`). No corpus → check SKIPs (exit 77, CTest

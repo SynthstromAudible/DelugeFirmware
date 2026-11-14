@@ -19,12 +19,12 @@ a spare or a staged snapshot was left once recording ended (RS-TAKE-LEFT), or a 
 its model's after the take (RS-TAKE-STALE).
 
 `./dbt test --update arrangement-take` records the baseline
-(tests/golden/arrangement_take_baselines/RS_ARRANGE_TAKE.txt) from a run whose other checks all passed, instead of
+(tests/golden/arrangement_take/RS_ARRANGE_TAKE.txt) from a run whose other checks all passed, instead of
 comparing with it.
 
 Gate arrangement-take:
     recording the session into the arrangement must make the takes it made when its baseline was recorded
-    (tests/golden/arrangement_take_baselines): the generated song RS_ARRANGE_TAKE (an automated synth, kit and audio
+    (tests/golden/arrangement_take): the generated song RS_ARRANGE_TAKE (an automated synth, kit and audio
     clip, a bar each) recorded from the start with a knob turned on each clip, cloning it into a take that repeats it at
     every loop end, must leave every take's length and lanes byte for byte as the baseline's and render the same output
     (RS-TAKE, RS-PCM); what the render plays across each repeat must be the take's appended lanes (RS-TAKE-PLAYED);
@@ -54,7 +54,7 @@ def _load_sibling(name: str):
 render_song = _load_sibling("render_song")
 
 SONG = "RS_ARRANGE_TAKE"
-BASELINE = Path("tests/golden/arrangement_take_baselines") / f"{SONG}.txt"
+BASELINE = Path("tests/golden/arrangement_take") / f"{SONG}.txt"
 
 
 def _pcm_line(pcm: bytes) -> str:

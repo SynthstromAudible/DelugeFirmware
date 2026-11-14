@@ -7,14 +7,14 @@ For every song, run the `song_roundtrip` driver:
     gen2 = save(load(gen1))
 
 The driver asserts gen1 == gen2 (the canonical fixed point) and emits gen1. We
-hash gen1 (SHA-256) and compare against songs_fixtures.json. A hash change means
+hash gen1 (SHA-256) and compare against tests/golden/songs/fixtures.json. A hash change means
 the serialized project model changed — a refactor in the extraction must justify
 and re-record it (`./dbt test --update song-roundtrip`). Mirrors the audio golden harness conventions.
 
 The driver is the song_roundtrip scenario of golden_vt_render (driver.py), and `./dbt test song-roundtrip` runs
 this runner as a corpus gate (scripts/tasks/corpus_gate.py).
 
-CORPUS IS BRING-YOUR-OWN. Only the hashes (songs_fixtures.json) live in the repo;
+CORPUS IS BRING-YOUR-OWN. Only the hashes (tests/golden/songs/fixtures.json) live in the repo;
 the song .XML files stay out-of-repo (privacy/licensing). Point the runner at a
 corpus via $DELUGE_SONG_CORPUS or --corpus (default: driver.default_corpus()).
 When none of the fixtured songs are present locally, the runner exits 77, which fails the song-roundtrip corpus gate
@@ -33,7 +33,7 @@ ARM-NEON oracle (must agree with x86 on the *same* fixtures): the qemu-arm build
         --wrapper 'qemu-arm -L /usr/arm-linux-gnueabihf -cpu cortex-a9'
 
 Gate song-roundtrip:
-    what a song saves as must not change unexplained: each fixtured song in tests/golden/songs_fixtures.json (the
+    what a song saves as must not change unexplained: each fixtured song in tests/golden/songs/fixtures.json (the
     committed synthetic songs always, the corpus songs when DELUGE_SONG_CORPUS has them) is loaded, saved, reloaded and
     saved again; the two saves must be identical (the canonical fixed point) and the first must hash to its fixture. A
     changed hash is a change to the saved project model, to justify and re-record (./dbt test --update song-roundtrip)
@@ -53,8 +53,8 @@ import golden_update
 
 REPO = str(driver.REPO)
 # Where the fixtures and the synthetic songs live; a synthetic song's fixture key is its path under DATA.
-DATA = str(driver.GOLDEN)
-FIXTURES = os.path.join(DATA, "songs_fixtures.json")
+DATA = os.path.join(driver.GOLDEN, "songs")
+FIXTURES = os.path.join(DATA, "fixtures.json")
 # Committed, privacy-clean synthetic songs that exercise rare structures the BYO corpus may lack
 # (e.g. a sync-scale clip). Their fixture keys are prefixed "synthetic/" and resolve against DATA,
 # not --corpus, so they are ALWAYS present -- giving real coverage even in CI with no corpus.
@@ -99,9 +99,9 @@ def find_songs(corpus):
 
 
 def record(args, pre, fixtures: dict[str, str]) -> int:
-    """Re-record songs_fixtures.json from this run: every corpus song (`--exclude` aside) and every committed
-    synthetic song that settles gets its hash; a fixtured song the corpus lacks keeps its hash; a fixtured song that
-    no longer settles records nothing and fails, since that is a regression, not a baseline."""
+    """Re-record tests/golden/songs/fixtures.json from this run: every corpus song (`--exclude` aside) and every
+    committed synthetic song that settles gets its hash; a fixtured song the corpus lacks keeps its hash; a fixtured
+    song that no longer settles records nothing and fails, since that is a regression, not a baseline."""
     songs = []
     if os.path.isdir(args.corpus):
         songs = [

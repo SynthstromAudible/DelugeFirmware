@@ -173,8 +173,8 @@ builds only `golden-vt-render`.
 | json-roundtrip | integration | corpus | property | gate | the JSON read path must be faithful to the JSON write path | nightly | model | ~10s |
 | model-decode-diff | integration | corpus | property | gate | decode reads a saved song's model records exactly as the engine loader does | pr | model | ~10s |
 | song-edit-roundtrip | integration | corpus | property | gate | a DOM-first edit must persist | nightly | model | ~10s |
-| param-record-diff | integration | corpus | regression | gate | the engine's live automation recording must reproduce its committed baselines (tests/golden/param_record_baselines) | nightly | model | ~5s |
-| arrangement-take | integration | scenario | regression | gate | recording the session into the arrangement must make the takes it made when its baseline was recorded (tests/golden/arrangement_take_baselines) | nightly | render | ~20s |
+| param-record-diff | integration | corpus | regression | gate | the engine's live automation recording must reproduce its committed baselines (tests/golden/param_record) | nightly | model | ~5s |
+| arrangement-take | integration | scenario | regression | gate | recording the session into the arrangement must make the takes it made when its baseline was recorded (tests/golden/arrangement_take) | nightly | render | ~20s |
 | audio-clip-edit-diff | integration | corpus | regression | gate | an AudioClip's descriptor edits, their undo, and a save and reload reproduce the committed baseline byte for byte | nightly | model | ~5s |
 | edit-undo-redo | integration | corpus | property | gate | every reified Edit applied to a corpus song resolves through a live DOM address and comes back exactly through the real undo and redo | nightly | model | ~10s |
 | clip-clone-roundtrip | integration | corpus | property | gate | InstrumentClip::clone() of a corpus song's clip is a distinct, deep-independent copy of its note rows, notes, param collections and stores | nightly | model | ~10s |

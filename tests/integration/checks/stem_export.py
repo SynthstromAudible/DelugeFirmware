@@ -5,7 +5,7 @@ export -- run through the stem_export row of golden_vt_render's table -- and che
 
   ST-BYTES    the export actually wrote audio, at the size recorded beside the hash (field 2 of the baseline). Checked
               before the hash so a zero-byte export reports what actually happened rather than an unhelpful mismatch.
-  ST-RENDER   the exported WAV's sha256 matches stem-export-<fixture>.sha256, beside this module (field 1).
+  ST-RENDER   the exported WAV's sha256 matches tests/golden/stem_export/<fixture>.sha256 (field 1).
 
 The scenario prints the ST-RESULT line itself; the gate judges it with the entry's markers.
 
@@ -13,12 +13,12 @@ The baseline is the Embassy render itself. It is not expected to move: a walk's 
 rendered audio is not. A red ST-RENDER is a finding to bisect, never a re-baseline, so the entry declares no `baseline`
 and `./dbt test --update stem-export` is refused. Once a bisect proves the change intended, re-record by hand: run the
 gate, take the sha256 from its ST-RENDER line and the byte count from its ST-BYTES line, write them as
-`<sha256>  <bytes>` to tests/integration/checks/stem-export-<fixture>.sha256, then run `./dbt test stem-export` and
+`<sha256>  <bytes>` to tests/golden/stem_export/<fixture>.sha256, then run `./dbt test stem-export` and
 confirm it passes, and say in the commit why the audio moved.
 
 Gate stem-export:
     an offline stem export must render byte-identical audio and write it. It compares the Embassy render against ITSELF,
-    recorded in tests/integration/checks/stem-export-cordae.sha256. ST-RENDER is the regression claim. ST-BYTES is not
+    recorded in tests/golden/stem_export/cordae.sha256. ST-RENDER is the regression claim. ST-BYTES is not
     redundant with it: an export can complete, report success and write a ZERO-BYTE file -- the recorder takes its
     stream-channel arm and the bytes never land -- and that failure must be reported as "the export wrote nothing"
     rather than as a hash mismatch. WARNING: this baseline is NOT expected to move. A walk's cadence is an
@@ -26,7 +26,6 @@ Gate stem-export:
 """
 
 import hashlib
-from pathlib import Path
 
 from scenario_gate import field, starting
 
@@ -34,7 +33,9 @@ from scenario_gate import field, starting
 def run(gate):
     fixture = gate.env.get("GOLDEN_FIXTURE") or "cordae"
     baseline = (
-        Path(__file__).with_name(f"stem-export-{fixture}.sha256").read_text().split()
+        (gate.root / "tests/golden/stem_export" / f"{fixture}.sha256")
+        .read_text()
+        .split()
     )
     want_hash, want_bytes = baseline[0], baseline[1]
     render = gate.tmp / "render"

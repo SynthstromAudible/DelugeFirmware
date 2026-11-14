@@ -139,7 +139,7 @@ build = []
 run = ["python3", "tests/integration/corpus/upgrade_run.py", "--part", "committed"]
 builds = ["golden-vt-render"]
 requires = ["cargo"]
-baseline = ["tests/golden/upgrade_fixtures.json"]
+baseline = ["tests/golden/upgrade/fixtures.json"]
 tier = "nightly"
 alone = true
 job = "storage"
@@ -1520,7 +1520,7 @@ template = "corpus"
 kind = "regression"
 gates = "what a song saves as must not change unexplained"
 corpus_runner = "songs"
-baseline = ["tests/golden/songs_fixtures.json"]
+baseline = ["tests/golden/songs/fixtures.json"]
 runtime_s = 10
 
 [[harness]]
@@ -1543,7 +1543,7 @@ template = "corpus"
 kind = "regression"
 gates = "what a preset saves as must not change unexplained"
 corpus_runner = "presets"
-baseline = ["tests/golden/presets_fixtures.json"]
+baseline = ["tests/golden/presets/fixtures.json"]
 runtime_s = 10
 
 [[harness]]
@@ -1560,7 +1560,7 @@ template = "corpus"
 kind = "property"
 gates = "the Deluge instrument decodes every song's and preset's patch cables as the app's reader does"
 corpus_runner = "cable_decode"
-baseline = ["tests/golden/cable_decode_fixtures.json"]
+baseline = ["tests/golden/cable_decode/fixtures.json"]
 runtime_s = 20
 
 [[harness]]
@@ -1643,22 +1643,22 @@ runtime_s = 10
 name = "param-record-diff"
 template = "corpus"
 kind = "regression"
-gates = "the engine's live automation recording must reproduce its committed baselines (tests/golden/param_record_baselines)"
+gates = "the engine's live automation recording must reproduce its committed baselines (tests/golden/param_record)"
 corpus_runner = "param_record"
-baseline = ["tests/golden/param_record_baselines"]
+baseline = ["tests/golden/param_record"]
 runtime_s = 5
 
 [[harness]]
 name = "arrangement-take"
 template = "scenario"
 kind = "regression"
-gates = "recording the session into the arrangement must make the takes it made when its baseline was recorded (tests/golden/arrangement_take_baselines)"
+gates = "recording the session into the arrangement must make the takes it made when its baseline was recorded (tests/golden/arrangement_take)"
 scenario = "render_song"
 markers = ["RS-LOADED", "RS-RENDER", "RS-TAKE", "RS-TAKE-PLAYED", "RS-TAKE-REPEATS", "RS-TAKE-LEFT", "RS-TAKE-STALE", "RS-KNOB", "RS-SNAPSHOT"]
 result = "RS-RESULT failures=0"
 check = "tests/integration/checks/arrangement_take.py"
 env = { RENDER_ARRANGE_RECORD = "1", RENDER_KNOB = "400:synth:lpf:268435456,500:kit:volume:-536870912,600:audio:lpf:536870912,1100:synth:volume:-1073741824,1360:synth:lpf:-1073741824,1370:kit:volume:536870912", RENDER_SOURCE_EDIT = "1500" }
-baseline = ["tests/golden/arrangement_take_baselines"]
+baseline = ["tests/golden/arrangement_take"]
 tier = "nightly"
 job = "render"
 runtime_s = 20
@@ -1669,7 +1669,7 @@ template = "corpus"
 kind = "regression"
 gates = "an AudioClip's descriptor edits, their undo, and a save and reload reproduce the committed baseline byte for byte"
 corpus_runner = "audio_clip_edit"
-baseline = ["tests/golden/audio_clip_edit_baselines"]
+baseline = ["tests/golden/audio_clip_edit"]
 runtime_s = 5
 
 [[harness]]

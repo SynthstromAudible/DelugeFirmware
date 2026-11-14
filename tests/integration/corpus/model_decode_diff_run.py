@@ -19,7 +19,7 @@ import sys
 
 import driver
 
-SYNTHETIC = os.path.join(driver.GOLDEN, "synthetic")
+SYNTHETIC = os.path.join(driver.GOLDEN, "songs", "synthetic")
 
 
 def main(argv=None):

@@ -22,7 +22,7 @@ fixed point, not "output == input":
 gen1 = save(load(original))
 gen2 = save(load(gen1))
 require gen1 == gen2            # the driver asserts this ("settled")
-fixture = sha256(gen1)          # committed in songs_fixtures.json
+fixture = sha256(gen1)          # committed in tests/golden/songs/fixtures.json
 ```
 
 The committed hash is the regression anchor: a refactor that changes serialized
@@ -34,7 +34,7 @@ output breaks it and must be justified + re-baselined.
 booted app as the `song_roundtrip` scenario, one song per run, from the state the driver's own process once
 started in (no current song, the random streams at their seeds, the settings unread). The song is read from the
 host file and loaded through the Value tree beside the booted one; view selection is cleared before save. It
-emits `gen1`; the runner hashes it (SHA-256) and compares to `songs_fixtures.json`.
+emits `gen1`; the runner hashes it (SHA-256) and compares to `tests/golden/songs/fixtures.json`.
 
 ```sh
 ./dbt test -n song-roundtrip                           # build golden_vt_render
@@ -53,7 +53,7 @@ mismatch.
 
 ### Corpus is bring-your-own (out-of-repo)
 
-Only the **hashes** (`songs_fixtures.json`) are committed; the song `.XML` files
+Only the **hashes** (`tests/golden/songs/fixtures.json`) are committed; the song `.XML` files
 stay out-of-repo (privacy/licensing). Point the runner at your songs via
 `$DELUGE_SONG_CORPUS` or `--corpus` (default `$DELUGE_BACKUP/SONGS`, else `~/Deluge Backup/SONGS`).
 Fixtures are keyed by path **relative to the corpus root**, so anyone with the
@@ -77,7 +77,7 @@ python3 tests/integration/corpus/songs_run.py --binary <that build's golden_vt_r
 
 ### Adding coverage
 
-`songs_fixtures.json` maps each settled song (path relative to the corpus root)
+`tests/golden/songs/fixtures.json` maps each settled song (path relative to the corpus root)
 to its `gen1` SHA-256. To add coverage: put songs in your corpus dir and run
 `./dbt test --update song-roundtrip` (it walks the corpus, runs the driver, and writes a fixture for every
 song that settles; songs that don't settle are skipped, a fixtured song your corpus lacks keeps its fixture, and a
@@ -90,8 +90,8 @@ scales). Re-recording after an intended change is the same command.
 
 Some structures never appear in a given BYO corpus (e.g. a **sync-scale clip**),
 so a read for them would be golden-blind. For those, commit a small,
-privacy-clean hand-authored song under `tests/golden/synthetic/`. Its fixture key
-is prefixed `synthetic/` and resolves against `tests/golden/` rather than the
+privacy-clean hand-authored song under `tests/golden/songs/synthetic/`. Its fixture key
+is prefixed `synthetic/` and resolves against `tests/golden/songs/` rather than the
 corpus, so it is **always present** — it runs (and gives real coverage) even in
 CI with no corpus, instead of *Skipped*. `./dbt test --update song-roundtrip` re-records these alongside
 the corpus. To make one: author a minimal song that exercises the structure, run
