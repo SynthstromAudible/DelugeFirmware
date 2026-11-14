@@ -356,7 +356,7 @@ once the extraction is underway.
 - [x] Round-trip driver (`tests/golden/song_roundtrip.cpp`, target
       `song_roundtrip`): in-memory load→save→reload→save fixed-point check,
       emits `gen1`.
-- [x] Runner `tests/golden/songs_run.py` + `songs_fixtures.json` (SHA-256 of
+- [x] Runner `tests/integration/corpus/songs_run.py` + `songs_fixtures.json` (SHA-256 of
       `gen1`); `./dbt test --update song-roundtrip` to re-baseline; fails only on a committed-hash
       `REGRESS`. Verified: detects a tampered fixture (exit 1), clean (exit 0).
 - [x] CTest registration (`ctest -R song_roundtrip`, `SKIP_RETURN_CODE 77`) +

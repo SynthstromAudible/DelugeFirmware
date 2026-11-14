@@ -979,7 +979,7 @@ class PlanLegacyRecordTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         sys.path.insert(
-            0, str(Path(__file__).resolve().parents[2] / "tests" / "golden")
+            0, str(Path(__file__).resolve().parents[2] / "tests/integration/corpus")
         )
         import upgrade_run
 

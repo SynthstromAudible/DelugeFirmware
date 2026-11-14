@@ -26,7 +26,9 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[2]
+REPO = Path(__file__).resolve().parents[3]
+# The golden root: every baseline and fixture a runner reads or records lives under it, in its consumer's directory.
+GOLDEN = REPO / "tests/golden"
 # golden_update (scripts/tasks): the switch and the writers every runner here records through.
 sys.path.insert(0, str(REPO / "scripts" / "tasks"))
 import golden_update

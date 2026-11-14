@@ -9,7 +9,7 @@ needs a live Song + ModelStack).
 The driver is the clip_clone_roundtrip scenario of golden_vt_render (driver.py); `./dbt test clip-clone-roundtrip`
 runs this.
 
-  DELUGE_SONG_CORPUS=/path/to/SONGS python3 tests/golden/clip_clone_run.py
+  DELUGE_SONG_CORPUS=/path/to/SONGS python3 tests/integration/corpus/clip_clone_run.py
 
 Per-song exit codes from the driver: 0=all clone assertions passed, 3=skip (no instrument clip with notes),
 1=song didn't load (skip — loader limitation, not a clone defect), 4=assertion failed. A run that ends the

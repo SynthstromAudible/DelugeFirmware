@@ -8,7 +8,7 @@ The driver is the song_edit_roundtrip scenario of golden_vt_render (driver.py); 
 runs this.
 
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
-    python3 tests/golden/song_edit_roundtrip_run.py
+    python3 tests/integration/corpus/song_edit_roundtrip_run.py
 
 Gate song-edit-roundtrip:
     a DOM-first edit must persist: for every corpus song, a sentinel value and automation written to a song-global

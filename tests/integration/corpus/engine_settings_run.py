@@ -3,7 +3,7 @@ community presets (which hold MIDI-learned knobs). The engine_settings driver ch
 1 does not load, 3 a check fails), so there is no baseline.
 
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
-    python3 tests/golden/engine_settings_run.py
+    python3 tests/integration/corpus/engine_settings_run.py
 
 Gate engine-settings:
     a sound's settings go through its slot: every sound of every corpus song, of every synth and kit preset beside the
@@ -15,10 +15,10 @@ Gate engine-settings:
 import os
 import sys
 
+import driver
 from instrument_codec_run import sweep
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-COMMUNITY = os.path.join(HERE, "render", "presets", "community")
+COMMUNITY = os.path.join(driver.GOLDEN, "render", "presets", "community")
 
 
 def main(argv=None):

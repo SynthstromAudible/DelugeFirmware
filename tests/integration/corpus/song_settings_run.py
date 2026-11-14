@@ -3,7 +3,7 @@
 values it applied per group and path; this runner sums them and fails when a group was never reached.
 
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
-    python3 tests/golden/song_settings_run.py
+    python3 tests/integration/corpus/song_settings_run.py
 
 Gate song-settings:
     a song's settings go through SetSetting: over every corpus song, for every setting group of every owner (the song,

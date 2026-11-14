@@ -22,7 +22,7 @@ re-records the legacy fixtures' hashes from their `<name>.oracle.xml` (the same 
 fixture without an oracle keeps its hash, frozen, because the firmware reads only the current forms. To add a case,
 commit the fixture and its oracle, then run the update. The corpus part records nothing.
 
-    python3 tests/golden/upgrade_run.py [--part P] [--filter S] [--no-render]
+    python3 tests/integration/corpus/upgrade_run.py [--part P] [--filter S] [--no-render]
 
 A whole run (no --filter) also fails when a part ran fewer cases than it owns: the default `--part all` fails without
 the legacy corpus (shortfall lines), as does `--part corpus`. A whole corpus run prints UPGRADE-ABSENT <n>, the fixtured
@@ -54,7 +54,6 @@ import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 
 import driver
@@ -62,10 +61,12 @@ import golden_update
 import presets_run
 import songs_run
 
+ROOT = driver.REPO
 TOOL = ROOT / "tools" / "deluge-upgrade"
-GOLDEN = ROOT / "tests/golden/render/presets"
-LEGACY = HERE / "upgrade"
-LEGACY_FIXTURES = HERE / "upgrade_fixtures.json"
+GOLDEN = driver.GOLDEN / "render" / "presets"
+# The legacy fixtures; each one's key is its path under the golden root ("upgrade/<group>/<name>.<kind>.XML").
+LEGACY = driver.GOLDEN / "upgrade"
+LEGACY_FIXTURES = driver.GOLDEN / "upgrade_fixtures.json"
 # The originals of the golden millisecond-zone cases, each beside its sample.
 RENDER_ORIGINALS = LEGACY / "render"
 # The committed cases the tree holds today. Shrinking them is a deliberate change to this number, reviewed.
@@ -79,7 +80,7 @@ def legacy_cases():
     for path in sorted(LEGACY.rglob("*.XML")):
         kind = path.name.split(".")[-2]
         if kind in KINDS:
-            out.append((str(path.relative_to(HERE)), path, KINDS[kind]))
+            out.append((str(path.relative_to(driver.GOLDEN)), path, KINDS[kind]))
     return out
 
 
@@ -250,8 +251,8 @@ def main(argv=None) -> int:
         print("UPGRADE OK=0 FAIL=1 REPORTED=0")
         return 1
     tool = build_tool()
-    songs = json.loads((HERE / "songs_fixtures.json").read_text())
-    presets = json.loads((HERE / "presets_fixtures.json").read_text())
+    songs = json.loads(Path(songs_run.FIXTURES).read_text())
+    presets = json.loads(Path(presets_run.FIXTURES).read_text())
 
     ok = fail = n_reported = 0
     work = Path(tempfile.mkdtemp(prefix="upgrade_run."))
@@ -278,7 +279,7 @@ def main(argv=None) -> int:
             if key.startswith(songs_run.SYNTHETIC_PREFIX):
                 if not committed:
                     continue
-                source = HERE / key
+                source = Path(songs_run.DATA) / key
             elif corpus and from_corpus:
                 source = original(Path(corpus), key)
             else:

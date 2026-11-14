@@ -4,8 +4,8 @@ differs) and prints one line per cable; those lines are fingerprinted per file i
 check keeps its meaning once the app reads cables through the decoder.
 
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
-    python3 tests/golden/cable_decode_run.py   # check
-    ./dbt test --update cable-decode           # re-record every file's fingerprint
+    python3 tests/integration/corpus/cable_decode_run.py  # check
+    ./dbt test --update cable-decode                      # re-record every file's fingerprint
 
 Gate cable-decode:
     the Deluge instrument decodes every song's and preset's patch cables as the app's reader does: the same cables,
@@ -25,9 +25,8 @@ import driver
 import golden_update
 from presets_run import find_presets
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
-FIXTURES = os.path.join(HERE, "cable_decode_fixtures.json")
+REPO = str(driver.REPO)
+FIXTURES = os.path.join(driver.GOLDEN, "cable_decode_fixtures.json")
 
 
 def main(argv=None):

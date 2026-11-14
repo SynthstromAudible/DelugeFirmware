@@ -1278,8 +1278,8 @@ def main(argv: list[str] | None = None) -> int:
     # `--update` runs one test at a time, so a corpus sweep it records has every CPU.
     args.jobs = 1 if args.update else default_jobs(args.jobs, tier, bool(args.capture))
 
-    # The corpus sweeps run songs in parallel (tests/golden/driver.py): a sweep run alongside other tests shares the
-    # CPUs among them, one run alone has them all.
+    # The corpus sweeps run songs in parallel (tests/integration/corpus/driver.py): a sweep run alongside other tests
+    # shares the CPUs among them, one run alone has them all.
     cpus = os.cpu_count() or 1
     ALONE_SWEEP_JOBS = os.environ.get("GOLDEN_SWEEP_JOBS", str(cpus))
     os.environ.setdefault("GOLDEN_SWEEP_JOBS", str(max(1, cpus // args.jobs)))

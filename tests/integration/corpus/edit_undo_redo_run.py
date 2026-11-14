@@ -5,7 +5,7 @@ self-checking (exit 0 = pass, 1 = load error, 3 = a check failed), so there is n
 The driver is the edit_undo_redo scenario of golden_vt_render (driver.py); `./dbt test edit-undo-redo` runs this.
 
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
-    python3 tests/golden/edit_undo_redo_run.py
+    python3 tests/integration/corpus/edit_undo_redo_run.py
 
 Gate edit-undo-redo:
     every reified Edit applied to a loaded corpus song must resolve through a live DOM address and come back exactly

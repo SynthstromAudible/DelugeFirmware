@@ -3,7 +3,7 @@ synth and kit preset beside the corpus; the drivers are self-checking (exit 0 = 
 differs), so there is no baseline to diff.
 
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
-    python3 tests/golden/instrument_codec_run.py              # the encode check
+    python3 tests/integration/corpus/instrument_codec_run.py  # the encode check
 
 Gate instrument-codec-encode:
     the Deluge instrument writes its own state: for every sound of every corpus song and every synth and kit preset

@@ -21,15 +21,15 @@ When none of the fixtured songs are present locally, the runner exits 77, which 
 (corpus_gate.py): an entry that requires the corpus and finds none has a broken setup.
 
 Usage:
-    ./dbt test -n song-roundtrip                      # build golden_vt_render
+    ./dbt test -n song-roundtrip                                 # build golden_vt_render
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
-    python3 tests/golden/songs_run.py                 # check fixtured songs (exit 1 on regression)
-    ./dbt test --update song-roundtrip                # re-record (builds first; see tests/README.md)
-    python3 tests/golden/songs_run.py --filter Bass   # subset (substring match)
+    python3 tests/integration/corpus/songs_run.py                # check fixtured songs (exit 1 on regression)
+    ./dbt test --update song-roundtrip                           # re-record (builds first; see tests/README.md)
+    python3 tests/integration/corpus/songs_run.py --filter Bass  # subset (substring match)
 
 ARM-NEON oracle (must agree with x86 on the *same* fixtures): the qemu-arm build of golden_vt_render.
     ./dbt test -n golden-synth-arm
-    python3 tests/golden/songs_run.py --binary <its golden_vt_render> \
+    python3 tests/integration/corpus/songs_run.py --binary <its golden_vt_render> \
         --wrapper 'qemu-arm -L /usr/arm-linux-gnueabihf -cpu cortex-a9'
 
 Gate song-roundtrip:
@@ -51,13 +51,14 @@ from pathlib import Path
 import driver
 import golden_update
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
-FIXTURES = os.path.join(HERE, "songs_fixtures.json")
+REPO = str(driver.REPO)
+# Where the fixtures and the synthetic songs live; a synthetic song's fixture key is its path under DATA.
+DATA = str(driver.GOLDEN)
+FIXTURES = os.path.join(DATA, "songs_fixtures.json")
 # Committed, privacy-clean synthetic songs that exercise rare structures the BYO corpus may lack
-# (e.g. a sync-scale clip). Their fixture keys are prefixed "synthetic/" and resolve against HERE,
+# (e.g. a sync-scale clip). Their fixture keys are prefixed "synthetic/" and resolve against DATA,
 # not --corpus, so they are ALWAYS present -- giving real coverage even in CI with no corpus.
-SYNTHETIC = os.path.join(HERE, "synthetic")
+SYNTHETIC = os.path.join(DATA, "synthetic")
 SYNTHETIC_PREFIX = "synthetic/"
 
 # Driver exit codes.
@@ -108,7 +109,7 @@ def record(args, pre, fixtures: dict[str, str]) -> int:
             for s in find_songs(args.corpus)
             if args.filter in s and (not args.exclude or args.exclude not in s)
         ]
-    songs += [(os.path.relpath(s, HERE), s) for s in find_songs(SYNTHETIC)]
+    songs += [(os.path.relpath(s, DATA), s) for s in find_songs(SYNTHETIC)]
     results = driver.map_ordered(
         lambda song: run_driver(pre, args.binary, song[1], args.timeout),
         songs,
@@ -179,10 +180,10 @@ def main(argv=None):
     n_ok = n_regress = n_absent = 0
     present = []
     for rel, want in items:
-        # Synthetic fixtures are committed under tests/golden/synthetic/ (resolved from HERE);
+        # Synthetic fixtures are committed under SYNTHETIC (resolved from DATA);
         # everything else is a BYO corpus song resolved against --corpus.
         if rel.startswith(SYNTHETIC_PREFIX):
-            song = os.path.join(HERE, rel)
+            song = os.path.join(DATA, rel)
         else:
             song = os.path.join(args.corpus, rel)
         if os.path.isfile(song):

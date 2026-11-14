@@ -4,7 +4,7 @@
 The driver is the serializer_check scenario of golden_vt_render (driver.py); `./dbt test serializer-check` runs this.
 
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
-    python3 tests/golden/serializer_check_run.py
+    python3 tests/integration/corpus/serializer_check_run.py
 
 Gate serializer-check:
     the serializers agree: for every output of every corpus song, the tree ValueSerializer builds equals the tree the

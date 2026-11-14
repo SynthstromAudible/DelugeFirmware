@@ -2,7 +2,7 @@
 preset beside the corpus (see instrument_codec_run.py).
 
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
-    python3 tests/golden/instrument_state_roundtrip_run.py
+    python3 tests/integration/corpus/instrument_state_roundtrip_run.py
 
 Gate instrument-state-roundtrip:
     the Deluge instrument's state round-trips through its codec: for every sound of every corpus song and every synth

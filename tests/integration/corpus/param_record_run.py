@@ -7,7 +7,7 @@ reads back. Any difference is a regression. `./dbt test param-record-diff` runs 
 param-record-diff` records the baselines from the run.
 
 Usage:
-  DELUGE_SONG_CORPUS=/path/to/SONGS python3 tests/golden/param_record_run.py
+  DELUGE_SONG_CORPUS=/path/to/SONGS python3 tests/integration/corpus/param_record_run.py
 
 Exit: 0 = all baselines reproduced; 1 = a regression; 77 = skipped (no corpus).
 
@@ -23,9 +23,7 @@ import sys
 
 import driver
 
-BASELINE_DIR = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "param_record_baselines"
-)
+BASELINE_DIR = os.path.join(driver.GOLDEN, "param_record_baselines")
 # The corpus songs whose record-playback output is baselined, each as <name>.txt in BASELINE_DIR.
 SONGS = [
     "241217 Midi To Deluge Test 9",

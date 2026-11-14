@@ -15,10 +15,10 @@ driver.default_corpus()). They stay out of the repo; only the hashes live here. 
 present the runner exits 77, which fails the preset-roundtrip corpus gate (corpus_gate.py).
 
 Usage:
-    ./dbt test -n preset-roundtrip                  # build golden_vt_render
-    python3 tests/golden/presets_run.py             # check (exit 1 on a regression)
-    ./dbt test --update preset-roundtrip            # re-record (builds first)
-    python3 tests/golden/presets_run.py --dump DIR  # also keep each settled gen1 in DIR
+    ./dbt test -n preset-roundtrip                              # build golden_vt_render
+    python3 tests/integration/corpus/presets_run.py             # check (exit 1 on a regression)
+    ./dbt test --update preset-roundtrip                        # re-record (builds first)
+    python3 tests/integration/corpus/presets_run.py --dump DIR  # also keep each settled gen1 in DIR
 
 Gate preset-roundtrip:
     what a preset saves as must not change unexplained: each fixtured synth and kit preset
@@ -39,9 +39,8 @@ from pathlib import Path
 import driver
 import golden_update
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
-FIXTURES = os.path.join(HERE, "presets_fixtures.json")
+REPO = str(driver.REPO)
+FIXTURES = os.path.join(driver.GOLDEN, "presets_fixtures.json")
 FOLDERS = (("SYNTHS", "SYNTH"), ("KITS", "KIT"))
 
 EXIT_SETTLED = 0

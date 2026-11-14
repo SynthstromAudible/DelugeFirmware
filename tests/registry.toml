@@ -8,7 +8,7 @@
 # runner: ctest    -- configured, built and run from `source` into `tree`
 #         cargo    -- a cargo test suite, run in `path`
 #         scenario -- a golden_vt_render scenario, judged by its markers, result and check
-#         corpus   -- a tests/golden/<corpus_runner>_run.py sweep, which judges itself
+#         corpus   -- a tests/integration/corpus/<corpus_runner>_run.py sweep, which judges itself
 #         script   -- anything else, run in `path`
 # kind:   unit | property | differential | regression | sanitizer | simulation | benchmark (harness_registry.KINDS)
 # path:   cargo and script entries only -- the directory their commands run in
@@ -74,7 +74,7 @@ runner = "scenario"
 status = "gate"
 builds = ["golden-vt-render"]
 
-# A tests/golden/<corpus_runner>_run.py sweep over the song corpus, alone so it has every CPU.
+# A tests/integration/corpus/<corpus_runner>_run.py sweep over the song corpus, alone so it has every CPU.
 [template.corpus]
 level = "integration"
 runner = "corpus"
@@ -136,7 +136,7 @@ kind = "differential"
 status = "gate"
 gates = "a file the upgrader (tools/deluge-upgrade) writes as JSON must load to exactly what its original loaded"
 build = []
-run = ["python3", "tests/golden/upgrade_run.py", "--part", "committed"]
+run = ["python3", "tests/integration/corpus/upgrade_run.py", "--part", "committed"]
 builds = ["golden-vt-render"]
 requires = ["cargo"]
 baseline = ["tests/golden/upgrade_fixtures.json"]
@@ -154,7 +154,7 @@ kind = "differential"
 status = "gate"
 gates = "the upgrader against a real card backup"
 build = []
-run = ["python3", "tests/golden/upgrade_run.py", "--part", "corpus"]
+run = ["python3", "tests/integration/corpus/upgrade_run.py", "--part", "corpus"]
 builds = ["golden-vt-render"]
 requires = ["cargo", "legacy-corpus"]
 tier = "nightly"
@@ -1398,7 +1398,7 @@ runtime_s = 60
 
 # The host drivers (tests/integration/scenarios/drivers/): whole-program checks of the project model, each run as a
 # golden_vt_render scenario on the booted app from the state its process once started in (driver.h). The corpus ones
-# (`runner = "corpus"`) run their tests/golden runner, named by `corpus_runner`.
+# (`runner = "corpus"`) run their tests/integration/corpus runner, named by `corpus_runner`.
 [[harness]]
 name = "param-projection"
 template = "scenario-driver"

@@ -1261,7 +1261,8 @@ class UpgradeRunGuardTest(unittest.TestCase):
     def _shortfalls(*args):
         spec = importlib.util.spec_from_file_location(
             "upgrade_run",
-            Path(__file__).resolve().parents[2] / "tests/golden/upgrade_run.py",
+            Path(__file__).resolve().parents[2]
+            / "tests/integration/corpus/upgrade_run.py",
         )
         module = importlib.util.module_from_spec(spec)
         sys.path.insert(0, str(Path(spec.origin).parent))
@@ -1524,7 +1525,9 @@ class CorpusGateTest(unittest.TestCase):
             tt.corpus_gate, "run_corpus_gate", return_value=True
         ) as gate:
             self.assertTrue(tt._run_one(self.root, h, [], False, None, log, products))
-        self.assertIn("==> d: run: tests/golden/fake_run.py", log.getvalue())
+        self.assertIn(
+            "==> d: run: tests/integration/corpus/fake_run.py", log.getvalue()
+        )
         self.assertEqual(gate.call_args.args[1], h)
 
 
@@ -1970,7 +1973,7 @@ class RetiredSwitchTest(unittest.TestCase):
         )
 
     def test_the_guard_reads_the_runners(self):
-        self.assertIn("tests/golden/songs_run.py", self.tracked_python())
+        self.assertIn("tests/integration/corpus/songs_run.py", self.tracked_python())
 
     def test_no_runner_defines_its_own_re_record_switch(self):
         hits = [
@@ -2144,8 +2147,8 @@ class ExplanationTest(unittest.TestCase):
             "render-kit-fx": "tests/integration/checks/render_song_cases.md",
             "effect-owners": "tests/integration/scenarios/drivers/effect_owners.cpp",
             "stale-ui": "tests/integration/scenarios/stale_ui_scenario.cpp",
-            "song-roundtrip": "tests/golden/songs_run.py",
-            "upgrade-differential": "tests/golden/upgrade_run.py",
+            "song-roundtrip": "tests/integration/corpus/songs_run.py",
+            "upgrade-differential": "tests/integration/corpus/upgrade_run.py",
             "registry-selftest": "scripts/tasks/test_harness_registry.py",
             "ptm-trace-tool": "tools/deluge_trace/deluge_trace.py",
             "snapshot-primitive-tsan": "tests/component/stress/run.sh",

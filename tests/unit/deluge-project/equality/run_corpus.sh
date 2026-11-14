@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The model-equality gate over the song corpus: builds the standalone driver in the host tree (configured by
-# `./dbt test unit`) and runs it. The corpus is found as tests/golden/driver.py finds it: $DELUGE_SONG_CORPUS, else
-# $DELUGE_BACKUP/SONGS, else ~/Deluge Backup/SONGS.
+# `./dbt test unit`) and runs it. The corpus is found as tests/integration/corpus/driver.py finds it:
+# $DELUGE_SONG_CORPUS, else $DELUGE_BACKUP/SONGS, else ~/Deluge Backup/SONGS.
 #
 # Gate model-equality-corpus:
 #     every corpus song's model records survive a JSON round trip unchanged, proven by a driver built from the model and

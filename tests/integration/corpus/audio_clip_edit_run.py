@@ -8,7 +8,7 @@ the engine agree, to stderr). `./dbt test audio-clip-edit-diff` runs this; `./db
 audio-clip-edit-diff` records the baselines from the run.
 
 Usage:
-  DELUGE_SONG_CORPUS=/path/to/SONGS python3 tests/golden/audio_clip_edit_run.py
+  DELUGE_SONG_CORPUS=/path/to/SONGS python3 tests/integration/corpus/audio_clip_edit_run.py
 
 Exit: 0 = all baselines reproduced; 1 = a regression; 77 = skipped (no corpus).
 
@@ -23,9 +23,7 @@ import sys
 
 import driver
 
-BASELINE_DIR = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "audio_clip_edit_baselines"
-)
+BASELINE_DIR = os.path.join(driver.GOLDEN, "audio_clip_edit_baselines")
 # The corpus songs whose descriptor output is baselined, each as <name>.txt in BASELINE_DIR.
 SONGS = ["Sampling"]
 

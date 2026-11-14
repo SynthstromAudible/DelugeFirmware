@@ -7,7 +7,7 @@ The driver is the host_effect_settings scenario of golden_vt_render (driver.py);
 this.
 
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
-    python3 tests/golden/host_effect_settings_run.py
+    python3 tests/integration/corpus/host_effect_settings_run.py
 
 Gate host-effect-settings:
     a host owner's effects go through its chain: for every kit, audio track and master of every corpus song, every legal

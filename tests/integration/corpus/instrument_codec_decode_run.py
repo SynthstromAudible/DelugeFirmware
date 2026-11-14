@@ -2,7 +2,7 @@
 beside the corpus (see instrument_codec_run.py).
 
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
-    python3 tests/golden/instrument_codec_decode_run.py
+    python3 tests/integration/corpus/instrument_codec_decode_run.py
 
 Gate instrument-codec-decode:
     the Deluge instrument reads its own state as the app's reader does: for every sound of every corpus song and every

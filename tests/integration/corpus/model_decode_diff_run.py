@@ -19,7 +19,7 @@ import sys
 
 import driver
 
-SYNTHETIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "synthetic")
+SYNTHETIC = os.path.join(driver.GOLDEN, "synthetic")
 
 
 def main(argv=None):

@@ -22,7 +22,7 @@ STATUSES = ("gate", "investigative", "unavailable")
 LEVELS = ("unit", "component", "integration")
 RUNNERS = ("ctest", "cargo", "scenario", "corpus", "script")
 # Where a corpus gate's runner lives: `corpus_runner = "<name>"` runs <CORPUS_RUNNERS>/<name>_run.py.
-CORPUS_RUNNERS = Path("tests/golden")
+CORPUS_RUNNERS = Path("tests/integration/corpus")
 # A corpus gate's runner names its scenario and judges its own runs, so these mean nothing on one.
 SCENARIO_ONLY = ("scenario", "markers", "result", "check")
 # Cumulative, in this order: selecting a tier selects every tier before it too.
@@ -156,7 +156,7 @@ class Harness:
     markers: list[str] = field(default_factory=list)
     result: str = ""
     check: str = ""
-    # runner = "corpus": the stem of the tests/golden runner it runs (<corpus_runner>_run.py).
+    # runner = "corpus": the stem of the runner it runs, CORPUS_RUNNERS/<corpus_runner>_run.py.
     corpus_runner: str = ""
     # Run on its own after the parallel set: the gate measures real time, or loads the machine enough to distort others.
     alone: bool = False
@@ -790,15 +790,15 @@ def probe(requirement: str, root: Path) -> bool:
             )
             return golden.is_dir() and any(golden.glob("*_proj"))
         case "song-xml-corpus":
-            # Where tests/golden/driver.py's default_corpus() looks.
+            # Where tests/integration/corpus/driver.py's default_corpus() looks.
             candidates = [os.environ.get("DELUGE_SONG_CORPUS")]
             if os.environ.get("DELUGE_BACKUP"):
                 candidates.append(str(Path(os.environ["DELUGE_BACKUP"]) / "SONGS"))
             candidates.append(str(Path.home() / "Deluge Backup" / "SONGS"))
             return any(c and Path(c).is_dir() for c in candidates)
         case "legacy-corpus":
-            # What tests/golden/upgrade_run.py's corpus part reads: the original songs, and the factory presets'
-            # originals in the SYNTHS folder beside them.
+            # What tests/integration/corpus/upgrade_run.py's corpus part reads: the original songs, and the factory
+            # presets' originals in the SYNTHS folder beside them.
             value = os.environ.get("DELUGE_LEGACY_CORPUS")
             return (
                 bool(value)
