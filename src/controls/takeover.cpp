@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace deluge::controls {
 
@@ -69,6 +70,61 @@ int32_t knob_pos_after(int32_t knob_pos, uint8_t value, TakeoverInputs inputs, T
 	}
 	state.previous = midi_pos;
 	return result;
+}
+
+std::vector<TakeoverStore::Held>::iterator TakeoverStore::find(const project::OwnerParamTarget& target,
+                                                               const project::MidiCommand& source) {
+	return std::ranges::find_if(states_, [&](const Held& h) { return h.target == target && h.source == source; });
+}
+
+TakeoverState& TakeoverStore::at(const project::OwnerParamTarget& target, const project::MidiCommand& source) {
+	auto held = find(target, source);
+	if (held == states_.end()) {
+		states_.push_back(Held{.target = target, .source = source, .state = TakeoverState{}});
+		return states_.back().state;
+	}
+	return held->state;
+}
+
+void TakeoverStore::relearn(const project::OwnerParamTarget& target, const project::MidiCommand& from,
+                            const project::MidiCommand& to) {
+	if (from == to) {
+		return;
+	}
+	const auto old = find(target, from);
+	if (old == states_.end()) {
+		return;
+	}
+	const TakeoverState state = old->state;
+	forget(target, from);
+	at(target, to) = state;
+}
+
+void TakeoverStore::clone_owner(project::ControlsAddress from, project::ControlsAddress to) {
+	if (from == to) {
+		return;
+	}
+	forget_owner(to);
+	const size_t held = states_.size();
+	for (size_t i = 0; i < held; i++) {
+		if (states_[i].target.owner == from) {
+			Held copy = states_[i];
+			copy.target.owner = to;
+			states_.push_back(std::move(copy));
+		}
+	}
+}
+
+void TakeoverStore::forget_owner(project::ControlsAddress owner) {
+	std::erase_if(states_, [&](const Held& h) { return h.target.owner == owner; });
+}
+
+void TakeoverStore::forget(const project::OwnerParamTarget& target, const project::MidiCommand& source) {
+	std::erase_if(states_, [&](const Held& h) { return h.target == target && h.source == source; });
+}
+
+void TakeoverStore::clear() {
+	states_.clear();
 }
 
 } // namespace deluge::controls

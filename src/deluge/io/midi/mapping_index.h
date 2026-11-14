@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "controls/takeover.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/mapping_table.h"
@@ -239,6 +240,11 @@ private:
 
 /// @brief The index of the current song's bindings.
 MappingIndex& mappingIndex();
+
+/// @brief The takeover state of the current song's learned knobs, kept beside its index. App loop only: the render's
+/// table writes reach it only when the app loop applies them (bridge::applyPendingMappingOps). Emptied when the index
+/// is rebuilt for a song other than the last it was built for, and when a song is loaded as the current one.
+controls::TakeoverStore& takeoverStore();
 
 /// @brief [task] Bring the index into line with @p song's mapping table, when @p song is the current song. Excludes the
 /// render only while it applies the table writes the render held (bridge::applyPendingMappingOps) and copies the

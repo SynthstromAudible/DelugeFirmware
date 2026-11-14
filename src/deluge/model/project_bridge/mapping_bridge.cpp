@@ -259,6 +259,20 @@ ProjectedKnobs projectOwnerKnobs(::Song& song, ControlsAddress address, Before&&
 	return found;
 }
 
+/// Drop the takeover state of @p owner's knobs: the store is the current song's, so another song's table leaves it be.
+void forgetTakeover(const ::Song& song, ControlsAddress owner) {
+	if (&song == currentSong) {
+		deluge::midi::takeoverStore().forget_owner(owner);
+	}
+}
+
+/// Give @p to the takeover state of @p from's knobs, as the table's copy gives it their entries.
+void cloneTakeover(const ::Song& song, ControlsAddress from, ControlsAddress to) {
+	if (&song == currentSong) {
+		deluge::midi::takeoverStore().clone_owner(from, to);
+	}
+}
+
 } // namespace
 
 void recordLoadedMapping(::Song& song, const Mapping& mapping) {
@@ -330,6 +344,7 @@ void cloneNow(::Song& song, uint32_t from, uint32_t to) {
 		return;
 	}
 	song.project.mappings.copy_params(from, to);
+	cloneTakeover(song, {ControlsAddress::Kind::OUTPUT, from}, {ControlsAddress::Kind::OUTPUT, to});
 	(void)projectMapping(song, deluge::project::OwnerParamTarget{{ControlsAddress::Kind::OUTPUT, to}, {}});
 }
 
@@ -441,9 +456,11 @@ void reconcileWithEngine(::Song& song) {
 	}
 	for (uint32_t id : outputs) {
 		mappings.forget_output(id);
+		forgetTakeover(song, {ControlsAddress::Kind::OUTPUT, id});
 	}
 	for (uint32_t id : drums) {
 		mappings.forget_drum(id);
+		forgetTakeover(song, {ControlsAddress::Kind::DRUM, id});
 	}
 	AudioExcludedSection section; // the bindings are read from the outputs and rows the tick can splice
 	for (Output* first :
@@ -561,6 +578,7 @@ void forgetOutputMappings(::Song& song, uint32_t output) {
 	}
 	applyPendingMappingOps(song);
 	song.project.mappings.forget_output(output);
+	forgetTakeover(song, {ControlsAddress::Kind::OUTPUT, output});
 	tableEdited(song);
 }
 
@@ -570,6 +588,7 @@ void forgetDrumMappings(::Song& song, uint32_t drum) {
 	}
 	applyPendingMappingOps(song);
 	song.project.mappings.forget_drum(drum);
+	forgetTakeover(song, {ControlsAddress::Kind::DRUM, drum});
 	tableEdited(song);
 }
 
@@ -607,9 +626,11 @@ bool applyPendingMappingOps(::Song& song, OverflowReconcile reconcile) {
 				break;
 			case PendingOp::Kind::FORGET_OUTPUT:
 				mappings.forget_output(op.id);
+				forgetTakeover(song, {ControlsAddress::Kind::OUTPUT, op.id});
 				break;
 			case PendingOp::Kind::FORGET_DRUM:
 				mappings.forget_drum(op.id);
+				forgetTakeover(song, {ControlsAddress::Kind::DRUM, op.id});
 				break;
 			case PendingOp::Kind::ARRIVING_OUTPUT:
 				if (Output* output = outputWithId(song, op.id)) {
@@ -651,6 +672,8 @@ void handOverInstrument(::Song& song, uint32_t from, uint32_t to, bool knobs) {
 	MappingTable& mappings = song.project.mappings;
 	if (knobs) {
 		mappings.retarget_output(from, to);
+		cloneTakeover(song, {ControlsAddress::Kind::OUTPUT, from}, {ControlsAddress::Kind::OUTPUT, to});
+		forgetTakeover(song, {ControlsAddress::Kind::OUTPUT, from});
 		return;
 	}
 	const Mapping* input = mappings.find(deluge::project::TrackInputTarget{from});
@@ -795,6 +818,9 @@ void recordLoadedMappings(::Song& song) {
 		}
 	}
 	song.project.mappings = std::move(read);
+	if (&song == currentSong) {
+		deluge::midi::takeoverStore().clear(); // a reload loses its knobs' states
+	}
 	recordKnobs({ControlsAddress::Kind::SONG, 0}, song.live.global_effectable, false, song);
 	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
 		recordOutputBindings(*output, song);

@@ -4,8 +4,12 @@
 /// @brief MIDI takeover: where a controller's value moves a knob, as a pure function of the knob, the value, the global
 ///        mode and what the controller last sent.
 
+#include "deluge-project/mapping_table.h"
+
+#include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <vector>
 
 namespace deluge::controls {
 
@@ -45,5 +49,48 @@ struct TakeoverState {
 /// @param state    The controller's remembered position, updated.
 /// @return The knob's new position, -64..64.
 [[nodiscard]] int32_t knob_pos_after(int32_t knob_pos, uint8_t value, TakeoverInputs inputs, TakeoverState& state);
+
+/// @brief The takeover state of every learned knob, by (owner, param, source): the same key as the mapping table's
+/// entry, so a table reorder, a flipped relative flag and an unchanged re-index all leave it where it is.
+///
+/// App loop only: it allocates, and the render never reaches it (the mapping table's writes the render makes are held
+/// for the app loop, which applies them here with the table). It holds the current song's knobs.
+class TakeoverStore {
+public:
+	/// @brief The state of the knob @p source plays on @p target, made empty when the knob has none yet.
+	/// @return The state, valid until the next call that adds or drops one.
+	[[nodiscard]] TakeoverState& at(const project::OwnerParamTarget& target, const project::MidiCommand& source);
+
+	/// @brief Move the state of the knob @p from plays on @p target to the knob @p to plays, as a relearn in place
+	/// does. A state the knob @p to had is replaced; nothing moves when @p from has none.
+	void relearn(const project::OwnerParamTarget& target, const project::MidiCommand& from,
+	             const project::MidiCommand& to);
+
+	/// @brief Make @p to's states copies of @p from's, as a cloned owner's knobs are: @p to's own are dropped first.
+	void clone_owner(project::ControlsAddress from, project::ControlsAddress to);
+
+	/// @brief Drop every state of @p owner's knobs.
+	void forget_owner(project::ControlsAddress owner);
+
+	/// @brief Drop the state of the knob @p source plays on @p target.
+	void forget(const project::OwnerParamTarget& target, const project::MidiCommand& source);
+
+	/// @brief Drop every state, as a song load does.
+	void clear();
+
+	/// @brief How many knobs hold a state.
+	[[nodiscard]] size_t size() const { return states_.size(); }
+
+private:
+	struct Held {
+		project::OwnerParamTarget target;
+		project::MidiCommand source;
+		TakeoverState state;
+	};
+	[[nodiscard]] std::vector<Held>::iterator find(const project::OwnerParamTarget& target,
+	                                               const project::MidiCommand& source);
+
+	std::vector<Held> states_; ///< a handful of learned knobs: a scan, with no allocation for one already held
+};
 
 } // namespace deluge::controls

@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <optional>
 #include <variant>
+#include <vector>
 
 namespace deluge::edits {
 
@@ -230,6 +231,9 @@ Error LearnMapping::apply(Context& ctx) {
 	                            : deluge::bridge::projectMapping(ctx.song, mapping_.target);
 	const Error result = project(ctx, projected, std::move(before));
 	if (result == Error::NONE) {
+		if (replacing && &ctx.song == currentSong) {
+			deluge::midi::takeoverStore().relearn(*param, *replaces_, mapping_.source);
+		}
 		inputLearned(ctx, mapping_.target, input_);
 	}
 	return result;
@@ -238,9 +242,24 @@ Error LearnMapping::apply(Context& ctx) {
 Error UnlearnMapping::apply(Context& ctx) {
 	deluge::bridge::applyPendingMappingOps(ctx.song); // a write the render made first lands first
 	deluge::project::MappingTable before = ctx.model.mappings;
+	// The sources the knobs of the param play from, which the unlearn forgets.
+	std::vector<deluge::project::MidiCommand> sources;
+	const auto* param = std::get_if<deluge::project::OwnerParamTarget>(&target_);
+	if (param != nullptr) {
+		for (const deluge::project::Mapping& entry : before.entries()) {
+			if (entry.target == target_) {
+				sources.push_back(entry.source);
+			}
+		}
+	}
 	ctx.model.mappings.unlearn(target_);
 	const Error result = project(ctx, deluge::bridge::projectMapping(ctx.song, target_), std::move(before));
 	if (result == Error::NONE) {
+		if (&ctx.song == currentSong) {
+			for (const deluge::project::MidiCommand& source : sources) {
+				deluge::midi::takeoverStore().forget(*param, source);
+			}
+		}
 		inputLearned(ctx, target_, std::nullopt);
 	}
 	return result;

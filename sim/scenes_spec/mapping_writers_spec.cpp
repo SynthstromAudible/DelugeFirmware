@@ -29,6 +29,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
 
+#include <optional>
 #include <vector>
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
@@ -194,6 +195,11 @@ void sawPosition(MIDIKnob& knob, int32_t position) {
 	knob.previousPosition = position;
 }
 
+/// @brief Whether the store holds @p position for the knob @p source plays on @p target.
+bool storeSaw(const OwnerParamTarget& target, const Command& source, int32_t position) {
+	return deluge::midi::takeoverStore().at(target, source).previous == std::optional<int32_t>{position};
+}
+
 /// @brief Whether @p knob still holds the takeover state sawPosition() gave it.
 bool stillSaw(const MIDIKnob& knob, int32_t position) {
 	return knob.previousPositionSaved && knob.previousPosition == position;
@@ -304,10 +310,16 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		const OwnerParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.output->id()},
 		                       unpatched(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME)};
+		deluge::midi::takeoverStore().clear();
 		deluge::edits::learnMappingFor(fromAbsentDevice(knobCc(0, 7)), knob);
+		deluge::midi::takeoverStore().at(knob, fromAbsentDevice(knobCc(0, 7))).previous = 515;
 		AudioOutput* clone = f.song->createNewAudioOutput();
 		clone->cloneFrom(f.output);
 		deluge::bridge::cloneOutputMappings(*f.output, *clone, *f.song);
+		OwnerParamTarget cloneKnob = knob;
+		cloneKnob.owner.id = *clone->id();
+		expect(storeSaw(cloneKnob, fromAbsentDevice(knobCc(0, 7)), 515)).to_be_true();
+		expect(storeSaw(knob, fromAbsentDevice(knobCc(0, 7)), 515)).to_be_true();
 		const auto knobs = f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *clone->id()});
 		expect(static_cast<int>(knobs.size())).to_equal(1);
 		expect(knobs.size() == 1 && knobs[0].source == fromAbsentDevice(knobCc(0, 7))).to_be_true();
@@ -362,7 +374,10 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		deluge::edits::learnMappingFor(knobCc(0, 70), OwnerParamTarget{{ControlsAddress::Kind::OUTPUT, id},
 		                                                            patched(params::LOCAL_VOLUME)});
 		deluge::edits::learnMappingFor(note(0, 60), TrackInputTarget{id});
+		const OwnerParamTarget knob{{ControlsAddress::Kind::OUTPUT, id}, patched(params::LOCAL_VOLUME)};
+		deluge::midi::takeoverStore().at(knob, knobCc(0, 70)).previous = 9;
 		f.song->deleteOutputThatIsInMainList(synth);
+		expect(storeSaw(knob, knobCc(0, 70), 9)).to_be_false();
 		expect(f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, id}).empty()).to_be_true();
 		expect(f.song->project.mappings.find(TrackInputTarget{id}) == nullptr).to_be_true();
 	});
@@ -491,7 +506,9 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		expect(sound.midi_knobs.size() == 1 && sound.midi_knobs[0].midiInput.cable == &MIDIDeviceManager::dinMIDIPorts)
 		    .to_be_true();
 
+		deluge::midi::takeoverStore().at(knob, source).previous = 31;
 		expect(deluge::edits::unlearnKnobsFor(sound, volume)).to_be_true();
+		expect(storeSaw(knob, source, 31)).to_be_false();
 		expect(f.song->project.mappings.find(knob) == nullptr).to_be_true();
 		expect(sound.midi_knobs.empty()).to_be_true();
 		expect(deluge::edits::unlearnKnobsFor(sound, volume)).to_be_false();
@@ -568,9 +585,16 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		spec::SongFixture f = spec::make_synth_song();
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
+		const OwnerParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.instrument->id()}, patched(params::LOCAL_VOLUME)};
+		Command fromDin = knobCc(1, 74);
+		fromDin.device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN};
+		Command fromUsb = knobCc(1, 74);
+		fromUsb.device = MidiDeviceRef{.port = MidiDeviceRef::Port::UPSTREAM_USB_1};
+		deluge::midi::takeoverStore().clear();
 		bool learned = deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1);
 		if (learned && sound.midi_knobs.size() == 1) {
 			sawPosition(sound.midi_knobs[0], 12345);
+			deluge::midi::takeoverStore().at(knob, fromDin).previous = 12345;
 		}
 		learned = learned
 		          && deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::upstreamUSBMIDICable1, 74, 1);
@@ -581,6 +605,8 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		       && sound.midi_knobs[0].midiInput.cable == &MIDIDeviceManager::upstreamUSBMIDICable1)
 		    .to_be_true();
 		expect(sound.midi_knobs.size() == 1 && stillSaw(sound.midi_knobs[0], 12345)).to_be_true();
+		expect(storeSaw(knob, fromUsb, 12345)).to_be_true();
+		expect(deluge::midi::takeoverStore().size()).to_equal(size_t{1});
 	});
 
 	it("keeps a menu knob's takeover state when it is learned again after it showed itself absolute", _ {
@@ -597,11 +623,16 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		deluge::bridge::knobNoLongerRelative(sound, sound.midi_knobs[0], *f.song);
 		expect(f.song->project.mappings.find(knob)->relative).to_be_false();
 		sawPosition(sound.midi_knobs[0], 777);
+		Command fromDin = knobCc(1, 74);
+		fromDin.device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN};
+		deluge::midi::takeoverStore().clear();
+		deluge::midi::takeoverStore().at(knob, fromDin).previous = 777;
 
 		expect(deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1)).to_be_true();
 		expect(f.song->project.mappings.find(knob)->relative).to_be_true();
 		expect(sound.midi_knobs.size() == 1 && sound.midi_knobs[0].relative).to_be_true();
 		expect(sound.midi_knobs.size() == 1 && stillSaw(sound.midi_knobs[0], 777)).to_be_true();
+		expect(storeSaw(knob, fromDin, 777)).to_be_true();
 	});
 
 	it("collapses a menu knob relearned onto a device another knob of the param already plays from", _ {
@@ -640,8 +671,11 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 			return;
 		}
 		sawPosition(sound.midi_knobs[0], 4242);
+		deluge::midi::takeoverStore().clear();
+		deluge::midi::takeoverStore().at(knob, source).previous = 4242;
 		deluge::bridge::projectDeviceMappings(*f.song); // the devices changed
 		expect(sound.midi_knobs.size() == 1 && stillSaw(sound.midi_knobs[0], 4242)).to_be_true();
+		expect(storeSaw(knob, source, 4242)).to_be_true();
 		expect(held(*f.song, knob) == source).to_be_true();
 	});
 
