@@ -7,7 +7,7 @@
 #     every corpus song's model records survive a JSON round trip unchanged, proven by a driver built from the model and
 #     serialization libraries only (the committed synthetic songs run in the unit trees)
 set -euo pipefail
-repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 tree="$repo/build/test-unit"
 if [[ ! -f "$tree/build.ninja" ]]; then
     echo "model-equality-corpus: configure the unit tree first (./dbt test unit)" >&2
@@ -25,4 +25,4 @@ if [[ -z "$corpus" ]]; then
     echo "model-equality-corpus: no song corpus (set DELUGE_SONG_CORPUS)" >&2
     exit 77
 fi
-exec "$tree/model/equality/Debug/model_equality" "$corpus"
+exec "$tree/unit/deluge-project/equality/Debug/model_equality" "$corpus"

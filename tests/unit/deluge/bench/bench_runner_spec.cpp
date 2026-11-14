@@ -1,4 +1,3 @@
-#include "../dsp/raw_words.h"
 #include "bench/cases.h"
 #include "bench/counters.h"
 #include "bench/reference_impulse_response.h"
@@ -18,6 +17,7 @@
 #include "dsp-next/fixed/noise/congruential_step.h"
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
 #include "dsp-next/fixed/shaping/tanh.h"
+#include "dsp/raw_words.h"
 #include "util/synth_noise.h"
 
 #include <algorithm>
@@ -35,8 +35,8 @@
 #include <utility>
 #include <vector>
 
-#include "../dsp/raw_frame.h"
-#include "../dsp/raw_shaping.h"
+#include "dsp/raw_frame.h"
+#include "dsp/raw_shaping.h"
 #include <cppspec.hpp>
 
 using namespace deluge::bench;

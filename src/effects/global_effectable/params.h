@@ -28,7 +28,7 @@
 /// effect declares its own table.
 namespace deluge::global_effectable {
 
-/// @brief The ids, pinned forever by tests/effects/global_effectable/params_spec.cpp.
+/// @brief The ids, pinned forever by tests/unit/effects/global_effectable/params_spec.cpp.
 namespace param {
 using plugin::ParamId;
 inline constexpr ParamId kStutterRate{90};

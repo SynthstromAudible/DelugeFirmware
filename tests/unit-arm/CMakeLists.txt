@@ -28,15 +28,10 @@ include(${CMAKE_CURRENT_LIST_DIR}/../support/cmake/specs.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/../support/cmake/libs.cmake)
 
 enable_testing()
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../serialization serialization)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../music-theory music-theory)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../bench bench)
 add_subdirectory(spec)
 add_subdirectory(codegen)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../plugin-api plugin-api)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../effects effects)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../instruments instruments)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../model model)
+# Every test directory under tests/unit that names this tree (tests/support/cmake/specs.cmake).
+deluge_spec_directories(${DELUGE_REPO_ROOT}/tests/unit)
 
 # dsp-next specs on real ARM NEON (run via qemu). DSP_SPEC_ARM tells the shared
 # tests/dsp build to skip the x86/SIMDe setup. Same specs as the x86 test project.

@@ -9,6 +9,10 @@
 # convert), which itself needs the REAL deluge::audio::stream::convert_word/stitch_boundaries C++
 # symbols -- so convert.cpp/stitch.cpp/audio_format_helpers.cpp are linked in here, with argon (NEON),
 # as tests/unit/audio_stream/CMakeLists.txt does for its own convert/stitch specs.
+# Linux only: the i686 umbrella staticlib these specs link is built there alone.
+if(NOT (UNIX AND NOT APPLE))
+  return()
+endif()
 deluge_specs_driver(sample_reader_specs TREES host NEON
   SOURCES
     mock_streaming_fill.cpp

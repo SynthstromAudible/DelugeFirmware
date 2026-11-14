@@ -99,13 +99,6 @@ if (UNIX AND NOT APPLE)
     set_target_properties(deluge_rust_rs PROPERTIES IMPORTED_LOCATION ${RUST_LIB})
     add_dependencies(deluge_rust_rs deluge_rust_rs_build)
 
-    # Rust core conformance: the umbrella staticlib linked into -m32 CppSpec drivers.
-    # (The legacy C++ MemoryRegion + its MemoryManagerTests / memory_specs targets were
-    # retired with the allocator; the shared conformance headers live in memory/,
-    # and the reusable mocks in support/mocks/ are pulled in directly by spec/.)
-    add_subdirectory(alloc)
-    add_subdirectory(resource)
-
     # A second umbrella build, with `sample_abi` on, for the sample_reader spec: the sample
     # crates export their C ABI on a host build only with their `c_abi` feature, which
     # `sample_abi` turns on. Its own --target-dir keeps the two feature sets' outputs apart.
@@ -133,8 +126,6 @@ if (UNIX AND NOT APPLE)
     add_library(deluge_rust_rs_sim STATIC IMPORTED GLOBAL)
     set_target_properties(deluge_rust_rs_sim PROPERTIES IMPORTED_LOCATION ${RUST_LIB_SIM})
     add_dependencies(deluge_rust_rs_sim deluge_rust_rs_sim_build)
-
-    add_subdirectory(sample_reader)
 
     # The synth library's specs (tests/dsp), shared with the ARM unit tree. Linux only: they assume the -m32 host build
     # above, as the host sim does.
@@ -171,23 +162,6 @@ else ()
     message(FATAL_ERROR "the host tree needs the deluge_rust staticlib (deluge_rust_rs), "
                         "built here for Linux and macOS only")
 endif ()
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../serialization serialization)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../music-theory music-theory)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../bench bench)
 
-add_subdirectory(spec)
-add_subdirectory(level3)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../plugin-api plugin-api)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../effects effects)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../instruments instruments)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../model model)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../scenes-bind scenes-bind)
-add_subdirectory(io)
-add_subdirectory(storage)
-add_subdirectory(audio_stream)
-add_subdirectory(sync)
-add_subdirectory(runtime)
-add_subdirectory(scenario_support)
-add_subdirectory(gui)
-add_subdirectory(cpputest)
-
+# Every test directory under tests/unit that names this tree (tests/support/cmake/specs.cmake).
+deluge_spec_directories(${CMAKE_CURRENT_LIST_DIR})

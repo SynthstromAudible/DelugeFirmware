@@ -77,7 +77,7 @@ enum class Polarity : uint8_t { UNIPOLAR, BIPOLAR };
 /// A depth id is `kCableDepthFlag | p | (s1+1) << 8 | (s2+1) << 14 | (s3+1) << 20`: `p` (8 bits) the destination
 /// param's id, `s1` the source of the cable nearest the param, `s2` and `s3` the sources of cables controlling the
 /// depth below them; each source field is 6 bits holding the source's value + 1, 0 when absent. Pinned forever by
-/// tests/instruments/deluge/cables_spec.cpp.
+/// tests/unit/instruments/deluge/cables_spec.cpp.
 inline constexpr uint32_t kCableDepthFlag = 0x4000'0000;
 
 /// @brief The destination of a cable whose destination name the instrument does not know. The runtime keeps such a

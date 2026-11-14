@@ -6,6 +6,10 @@
 # shared conformance suite (../memory) against the Rust allocator through its
 # C ABI (include/libdeluge/alloc.h).
 #
+# Linux only: the i686 umbrella staticlib these specs link is built there alone.
+if(NOT (UNIX AND NOT APPLE))
+  return()
+endif()
 deluge_specs_driver(alloc_specs TREES host
   LIBRARIES
     deluge_rust_rs

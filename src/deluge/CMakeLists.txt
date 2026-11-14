@@ -18,7 +18,7 @@ list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp/.*)
 list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp-next/.*)
 # The DSP benchmark (bench/) is in the app only on a device build with DELUGE_DSP_BENCH. Its boot hook,
 # app_bench.cpp, is always in, and is empty without the option. The host trees build the runner and the cases for
-# their spec only (tests/bench); the PMU counters program CP15, which only the device has.
+# their spec only (tests/unit/deluge/bench); the PMU counters program CP15, which only the device has.
 list(FILTER deluge_SOURCES EXCLUDE REGEX .*/bench/.*)
 list(APPEND deluge_SOURCES ${CMAKE_CURRENT_LIST_DIR}/bench/app_bench.cpp)
 # The streaming benchmark (bench/stream_bench.h) is in the app only on a device build with DELUGE_STREAM_BENCH.

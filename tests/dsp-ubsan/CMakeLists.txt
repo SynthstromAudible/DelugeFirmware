@@ -35,6 +35,8 @@ add_compile_options(${_ubsan})
 add_link_options(${_ubsan})
 
 enable_testing()
+# Every test directory under tests/unit that names this tree (tests/support/cmake/specs.cmake).
+deluge_spec_directories(${DELUGE_REPO_ROOT}/tests/unit)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../dsp dsp)
 
 # Every spec runs with every check: the shipping code each one builds is checked whole. The verbatim references the

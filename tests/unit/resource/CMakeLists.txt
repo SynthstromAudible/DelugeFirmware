@@ -8,6 +8,10 @@
 # deluge_resource's masking discipline calls the interrupt-masking C ABI on every
 # acquire/release, so the shared host bodies for it are linked in too.
 #
+# Linux only: the i686 umbrella staticlib these specs link is built there alone.
+if(NOT (UNIX AND NOT APPLE))
+  return()
+endif()
 deluge_specs_driver(resource_specs TREES host
   SOURCES
     ../../support/mocks/mock_critical_section.cpp
