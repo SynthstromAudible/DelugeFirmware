@@ -319,7 +319,8 @@ describe float_kernels_spec_body("float kernels", ${
 			const f32 nan = std::nanf("");
 			const auto mode = fp::Svf::Mode::LOW_PASS;
 			const auto cutoff = fp::Svf::coefficients({.cutoff = nan, .q = 1.f, .mode = mode});
-			expect(bits(cutoff)).to_equal(bits(fp::Svf::coefficients({.cutoff = 1.f / 48000.f, .q = 1.f, .mode = mode})));
+			expect(bits(cutoff))
+			    .to_equal(bits(fp::Svf::coefficients({.cutoff = 1.f / 48000.f, .q = 1.f, .mode = mode})));
 			const auto q = fp::Svf::coefficients({.cutoff = 0.1f, .q = nan, .mode = mode});
 			expect(bits(q)).to_equal(bits(fp::Svf::coefficients({.cutoff = 0.1f, .q = 0.5f, .mode = mode})));
 			for (const uint32_t v : bits(q)) {

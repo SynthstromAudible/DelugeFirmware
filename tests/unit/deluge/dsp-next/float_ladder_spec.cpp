@@ -247,7 +247,9 @@ describe float_ladder_spec_body("the float ladder", ${
 				const f32 x = static_cast<f32>(i) * 0.01F;
 				const double l2 = 1.875 * 1.875;
 				const double t = 1.0 - (static_cast<double>(x) * static_cast<double>(x)) / l2;
-				expect(static_cast<double>(fp::detail::soft_clip_slope(x))).to_be_within(std::nextafter(1e-6, 0.0)).of(t * t);
+				expect(static_cast<double>(fp::detail::soft_clip_slope(x)))
+				    .to_be_within(std::nextafter(1e-6, 0.0))
+				    .of(t * t);
 			}
 		});
 		it("packs lane by lane", _ {
@@ -302,7 +304,7 @@ describe float_ladder_spec_body("the float ladder", ${
 				std::vector<f32> in(kBlock * 64, 0.01F), out(in.size());
 				ladder.render_block(fp::Signal{in}, fp::Buffer{out});
 				const f32 tolerance = settings.compensate ? 0.02F : 1e-4F;
-				expect(out.back() / 0.01F).to_be_within(std::nextafter(tolerance, decltype(tolerance){})).of(1.F);
+				expect(out.back() / 0.01F).to_be_within(std::nextafter(tolerance, 0.0F)).of(1.F);
 			}
 		});
 		it("raises its peak at the cutoff as the resonance rises", _ {

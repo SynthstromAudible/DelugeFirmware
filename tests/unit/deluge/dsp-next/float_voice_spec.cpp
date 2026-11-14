@@ -436,7 +436,8 @@ describe float_voice_spec_body("float voice", ${
 				expect(same_fields(get_lane<BlepVoice::State>(packed_s, l), s[l])).to_be_true();
 			}
 			// Each lane's program differs, so a lane read from the wrong place could not match.
-			expect(bits(get<2>(c[0]).envelope.segments[0].rate)).not_().to_equal(bits(get<2>(c[2]).envelope.segments[0].rate));
+			expect(bits(get<2>(c[0]).envelope.segments[0].rate))
+			    .not_().to_equal(bits(get<2>(c[2]).envelope.segments[0].rate));
 		});
 	});
 

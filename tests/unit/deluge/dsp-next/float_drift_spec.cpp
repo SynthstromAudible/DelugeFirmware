@@ -119,8 +119,12 @@ describe float_drift_spec_body("fp::Drift", ${
 		fp::Drift drift;
 		drift.configure({.time_blocks = 64.F, .seed = 11});
 		const auto v = run({.time_blocks = 64.F, .seed = 11}, kLong);
-		expect(correlation(v, v, 1)).to_be_within(std::nextafter(0.02, 0.0)).of(1.0 - static_cast<double>(drift.coefficient()));
-		expect(static_cast<double>(drift.coefficient())).to_be_within(std::nextafter(1e-7, 0.0)).of(1.0 - std::exp(-1.0 / 64.0));
+		expect(correlation(v, v, 1))
+		    .to_be_within(std::nextafter(0.02, 0.0))
+		    .of(1.0 - static_cast<double>(drift.coefficient()));
+		expect(static_cast<double>(drift.coefficient()))
+		    .to_be_within(std::nextafter(1e-7, 0.0))
+		    .of(1.0 - std::exp(-1.0 / 64.0));
 	});
 	it("reproduces its stream from a seed, after reseed as after configure", _ {
 		fp::FlushToZero ftz;
