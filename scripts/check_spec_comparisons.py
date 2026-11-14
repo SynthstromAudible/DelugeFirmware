@@ -42,7 +42,7 @@ KINDS = {
     "ne": "expect(a).not_().to_equal(b)",
     "order": "to_be_less_than/to_be_greater_than, or to_be_at_most/to_be_at_least(expect(a), b)",
     "tolerance": "expect(a).to_be_within(t).of(b)",
-    "text": "to_contain_text(expect(s), needle), or to_contain_text(expect(s).not_(), needle)",
+    "text": "expect(s).to_contain(needle), or expect(s).not_().to_contain(needle)",
     "bytes": "to_equal_bytes(expect(std::span<const uint8_t>(a)), b)",
     "cstring": "expect(std::string_view(a)).to_equal(std::string_view(b))",
     "chain": "one expectation per comparison",
