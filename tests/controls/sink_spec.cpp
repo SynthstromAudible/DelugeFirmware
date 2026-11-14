@@ -91,6 +91,10 @@ public:
 		return static_cast<int32_t>(pos);
 	}
 	[[nodiscard]] bool param_automated(const project::ParamAddress&) const override { return false; }
+	[[nodiscard]] std::optional<int32_t> clip_param_value(const project::ParamAddress&,
+	                                                      std::optional<uint32_t>) const override {
+		return std::nullopt;
+	}
 	[[nodiscard]] bool stutter_active() const override { return true; }
 	[[nodiscard]] bool alt_delay() const override { return false; }
 	[[nodiscard]] std::span<const PlayingOutput> playing_outputs() const override { return {}; }

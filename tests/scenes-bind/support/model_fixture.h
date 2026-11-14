@@ -98,6 +98,10 @@ public:
 		return std::nullopt;
 	}
 	[[nodiscard]] bool param_automated(const project::ParamAddress& /*address*/) const override { return false; }
+	[[nodiscard]] std::optional<int32_t> clip_param_value(const project::ParamAddress& /*address*/,
+	                                                      std::optional<uint32_t> /*pos*/) const override {
+		return std::nullopt;
+	}
 	[[nodiscard]] std::optional<int32_t> param_value_at(const project::ParamAddress& /*address*/,
 	                                                    uint32_t /*pos*/) const override {
 		return std::nullopt;

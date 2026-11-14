@@ -96,6 +96,9 @@ public:
 		return value(address);
 	}
 	[[nodiscard]] bool param_automated(const ParamAddress&) const override { return false; }
+	[[nodiscard]] std::optional<int32_t> clip_param_value(const ParamAddress&, std::optional<uint32_t>) const override {
+		return std::nullopt;
+	}
 	[[nodiscard]] bool stutter_active() const override { return false; }
 	[[nodiscard]] bool allows_note_tails(project::SlotAddress, std::optional<project::ClipAddress>) const override {
 		return false;

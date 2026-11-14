@@ -94,6 +94,11 @@ namespace {
 
 static_assert(deluge::controls::kFollowRefusedOnKitRow == deluge::instrument::param::kPortamento.value);
 
+/// The tables of which param each CC follows, as the controls library reads them.
+controls::FollowTables followTablesOf(const MidiFollow& follow) {
+	return {.sound = follow.ccToSoundTarget, .global = follow.ccToGlobalTarget};
+}
+
 /// The runtime param a sound's target names, if any.
 std::optional<RuntimeParam> soundParamOf(const std::optional<ParamTarget>& target) {
 	return target ? deluge::bridge::runtimeParamOf(OwnerPlugin::INSTRUMENT, *target) : std::nullopt;
@@ -841,11 +846,6 @@ void MidiFollow::midiCCReceivedForSpecificTrack(MIDICable& cable, uint8_t channe
 	}
 }
 
-/// The tables of which param each CC follows, as the controls library reads them.
-controls::FollowTables MidiFollow::followTables() const {
-	return {.sound = ccToSoundTarget, .global = ccToGlobalTarget};
-}
-
 /// checks if the ccNumber received has been learned to any parameters in midi learning view
 /// if the cc has been learned, it sets the new value for that parameter
 /// this function works by first checking the active context to see if there is an active clip
@@ -879,7 +879,7 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, Clip* clip, int32_t ccNumber
 
 	const controls::KnobFocus focus = deluge::midi::followFocus(*clip);
 	const std::optional<deluge::project::ParamAddress> address =
-	    controls::resolve_follow(focus, followTables(), static_cast<uint8_t>(ccNumber));
+	    controls::resolve_follow(focus, followTablesOf(*this), static_cast<uint8_t>(ccNumber));
 	std::optional<int32_t> currentValue;
 	if (address) {
 		currentValue =
@@ -927,6 +927,7 @@ void MidiFollow::showWrittenParam(Clip* clip, const deluge::project::ParamAddres
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	const ModelStackWithAutoParam* stack = deluge::bridge::paramStackFollowingTake(*currentSong, address, memory);
 	if (stack == nullptr || stack->paramCollection == nullptr) {
+		// Not reached after a write: the lane was read through this same lookup.
 		return;
 	}
 	const int32_t id = stack->paramId;
@@ -1092,11 +1093,19 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation)
 	if (numChannelTypes == 0) {
 		return;
 	}
+	std::array<FollowFeedback, kMaxMIDIValue + 1> feedback;
+	const size_t count = collectFollowFeedback(isAutomation, feedback);
+	for (size_t i = 0; i < count; i++) {
+		// send midi feedback to the ccNumber learned to the param with the current knob position
+		sendCCForMidiFollowFeedback(feedbackChannelTypes, numChannelTypes, feedback[i].cc, feedback[i].knobPos);
+	}
+}
 
+size_t MidiFollow::collectFollowFeedback(bool isAutomation, std::array<FollowFeedback, kMaxMIDIValue + 1>& out) {
 	// obtain clip for active context
 	Clip* clip = getSelectedOrActiveClip();
 	if (clip == nullptr || currentSong == nullptr) {
-		return;
+		return 0;
 	}
 	const controls::Facts& facts = deluge::midi::followFacts();
 
@@ -1104,13 +1113,16 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation)
 	const std::optional<std::pair<int32_t, int32_t>> region = facts.step_region(clip->id());
 	// don't send automation feedback if you're step editing
 	if (region && isAutomation) {
-		return;
+		return 0;
 	}
+	const std::optional<uint32_t> regionStart =
+	    region ? std::optional{static_cast<uint32_t>(region->first)} : std::nullopt;
 
 	// loop through all params to see if any parameters have been learned
 	const controls::KnobFocus focus = deluge::midi::followFocus(*clip);
 	const plugin::PluginId plugin = controls::follow_plugin(focus);
-	const controls::FollowTables tables = followTables();
+	const controls::FollowTables tables = followTablesOf(*this);
+	size_t count = 0;
 	for (int32_t ccNumber = 0; ccNumber <= kMaxMIDIValue; ccNumber++) {
 		// the param that has been learned to this cc
 		const std::optional<deluge::project::ParamAddress> address =
@@ -1118,19 +1130,16 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation)
 		if (!address || (isAutomation && !facts.param_automated(*address))) {
 			continue;
 		}
-		// obtain current value of the learned parameter
-		const std::optional<int32_t> currentValue =
-		    region ? facts.param_value_at(*address, static_cast<uint32_t>(region->first)) : facts.param_value(*address);
+		// obtain current value of the learned parameter, in the clip itself: the arrangement's take is not reported
+		const std::optional<int32_t> currentValue = facts.clip_param_value(*address, regionStart);
 		if (!currentValue) {
 			continue;
 		}
 		// convert current value to a knob position
-		const int32_t knobPos =
-		    controls::knob_pos_of(*address, facts.param_info(plugin, address->target()), *currentValue);
-
-		// send midi feedback to the ccNumber learned to the param with the current knob position
-		sendCCForMidiFollowFeedback(feedbackChannelTypes, numChannelTypes, ccNumber, knobPos);
+		out[count++] = {static_cast<uint8_t>(ccNumber),
+		                controls::knob_pos_of(*address, facts.param_info(plugin, address->target()), *currentValue)};
 	}
+	return count;
 }
 
 /// Resolve the current MIDI Follow feedback configuration, then send this learned CC value to each target.

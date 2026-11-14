@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "controls/follow.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_address.h"
 #include "model/global_effectable/global_effectable.h"
@@ -109,6 +108,16 @@ public:
 	// public so it can be called from View::sendMidiFollowFeedback
 	bool isFeedbackEnabled();
 	void sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation = false);
+	/// One CC the feedback sends: the CC and the knob position of the param it follows.
+	struct FollowFeedback {
+		uint8_t cc;
+		int32_t knobPos;
+	};
+	/// @brief The CCs the feedback scan sends for the selected or active clip, in CC order: each followed param's knob
+	/// position, read in the clip itself (never its take), at the step region's start while one is held. Only automated
+	/// params for @p isAutomation, and none while a region is held then.
+	/// @return How many were written to @p out.
+	size_t collectFollowFeedback(bool isAutomation, std::array<FollowFeedback, kMaxMIDIValue + 1>& out);
 	/// Resolve the configured MIDI Follow feedback targets and send a learned CC value to each one.
 	void sendCCForMidiFollowFeedback(int32_t ccNumber, int32_t knobPos);
 
@@ -161,8 +170,6 @@ private:
 	Output* getTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack);
 
 	using Target = std::optional<deluge::project::ParamTarget>;
-	/// The CC assignments, as the controls library reads them.
-	[[nodiscard]] deluge::controls::FollowTables followTables() const;
 	/// A write follow made moved the param at @p address on @p clip: refresh the editor or view showing it, and show
 	/// its new value unless the view is editing it.
 	void showWrittenParam(Clip* clip, const deluge::project::ParamAddress& address, int32_t newKnobPos);

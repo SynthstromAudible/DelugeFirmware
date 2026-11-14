@@ -82,6 +82,10 @@ public:
 	[[nodiscard]] bool param_automated(const deluge::project::ParamAddress& address) const override {
 		return real_.param_automated(address);
 	}
+	[[nodiscard]] std::optional<int32_t> clip_param_value(const deluge::project::ParamAddress& address,
+	                                                      std::optional<uint32_t> pos) const override {
+		return real_.clip_param_value(address, pos);
+	}
 	[[nodiscard]] std::optional<int32_t> param_value_at(const deluge::project::ParamAddress& address,
 	                                                    uint32_t pos) const override {
 		return real_.param_value_at(address, pos);

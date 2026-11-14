@@ -7,9 +7,12 @@
 /// The writes are observed from outside: the undo log lists each param written, every value is read back through the
 /// param's address, and a feedback CC leaves the sample time it was sent at in `MidiFollow::timeLastCCSent`.
 
+#include "controls/knob_math.h"
+#include "deluge-project/mapping_table.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
+#include "instruments/deluge/params.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
@@ -20,6 +23,7 @@
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_stack.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
@@ -31,6 +35,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "scenes/menu/bind_host.h"
 
 #include <algorithm>
 #include <array>
@@ -206,6 +211,16 @@ struct Songs {
 		useSynth();
 	}
 	void useSynth() const { song->setCurrentClip(synth.clip); }
+	/// A second session clip of the synth, not its active one, made the current clip.
+	InstrumentClip* addInactiveClip() const {
+		InstrumentClip* other = spec::detail::make_session_clip(song);
+		ParamManagerForTimeline other_params;
+		other_params.setupWithPatching();
+		Sound::initParams(&other_params);
+		other->setAudioInstrument(synth.instrument, song, true, &other_params);
+		song->setCurrentClip(other);
+		return other;
+	}
 	/// The kit's clip current, with affect-entire @p entire and @p rowA the selected row.
 	void useKit(bool entire) const {
 		kit.clip->affectEntire = entire;
@@ -217,6 +232,9 @@ struct Songs {
 	}
 	[[nodiscard]] ParamAddress rowLpf(const SoundDrum& row) const {
 		return addressOf(OwnerId::drum(*row.id()), soundParam(params::LOCAL_LPF_FREQ), kit.clip);
+	}
+	[[nodiscard]] ParamAddress rowHpf(const SoundDrum& row) const {
+		return addressOf(OwnerId::drum(*row.id()), soundParam(params::LOCAL_HPF_FREQ), kit.clip);
 	}
 	[[nodiscard]] ParamAddress kitLpf() const {
 		return addressOf(OwnerId::instrument(*kit.instrument->id()),
@@ -314,6 +332,19 @@ describe midi_follow("a followed CC through PlaybackHandler::midiCCReceived", $ 
 		expect(take != nullptr && take != s.synth.clip && take->beingRecordedFromClip == s.synth.clip).to_be_true();
 	});
 
+	it("clones nothing for a selected clip that is not its output's active clip", _ {
+		FollowWorld follow;
+		Songs s;
+		const size_t arranged = s.song->live.clips.arrangement_only_clips.size();
+		ArrangementRecording recording{s.synth};
+		InstrumentClip* const other = s.addInactiveClip();
+		Clip* const active = s.synth.instrument->getActiveClip();
+		sendCc(kChannel, kOtherCc, kValue); // no root UI: the current clip is the one followed
+		expect(other != active).to_be_true();
+		expect(s.song->live.clips.arrangement_only_clips.size()).to_equal(arranged);
+		expect(s.synth.instrument->getActiveClip() == active).to_be_true();
+	});
+
 	it("writes a held step region into the take, the region read before the clone", _ {
 		FollowWorld follow;
 		Songs s;
@@ -336,6 +367,16 @@ describe midi_follow("a followed CC through PlaybackHandler::midiCCReceived", $ 
 });
 
 describe midi_follow_feedback("the feedback scan sends the CCs of the params the clip's owner follows", $ {
+	/// "cc:position" of each CC the scan sends, space separated.
+	auto fed = [](bool automation) {
+		std::array<MidiFollow::FollowFeedback, 128> out;
+		const size_t count = midiFollow.collectFollowFeedback(automation, out);
+		std::string text;
+		for (size_t i = 0; i < count; i++) {
+			text += (text.empty() ? "" : " ") + std::to_string(out[i].cc) + ":" + std::to_string(out[i].knobPos);
+		}
+		return text;
+	};
 	/// Follow channel A is the feedback channel, with two params followed, the first automated.
 	struct Scanned {
 		FollowWorld follow;
@@ -347,15 +388,22 @@ describe midi_follow_feedback("the feedback scan sends the CCs of the params the
 			midiFollow.ccToSoundTarget[kOtherCc] = soundParam(params::LOCAL_HPF_FREQ);
 			{
 				HeldRegion region{*s.synth.clip, 96, 48};
-				sendCc(kChannel, kCc, kValue); // writes the first into automation
+				sendCc(kChannel, kCc, kValue); // writes the first into automation, at knob position 36
 			}
 			AudioEngine::audioSampleTimer = 1234;
 		}
 		[[nodiscard]] static uint32_t sentAt(uint8_t cc) { return midiFollow.timeLastCCSent[cc]; }
+		[[nodiscard]] int32_t hpf() const {
+			return knobPosOf(*s.song, addressOf(OwnerId::instrument(*s.synth.instrument->id()),
+			                                    soundParam(params::LOCAL_HPF_FREQ), s.synth.clip));
+		}
 	};
 
-	it("sends every followed param", _ {
+	it("sends every followed param, as the knob position it is at", _ {
 		Scanned w;
+		const int32_t at = knobPosOf(*w.s.song, w.s.synthLpf());
+		expect(fed(false)).to_equal(std::to_string(kCc) + ":" + std::to_string(at) + " " + std::to_string(kOtherCc) + ":"
+		                            + std::to_string(w.hpf()));
 		midiFollow.sendCCWithoutModelStackForMidiFollowFeedback(false);
 		expect(Scanned::sentAt(kCc)).to_equal(1234u);
 		expect(Scanned::sentAt(kOtherCc)).to_equal(1234u);
@@ -364,34 +412,137 @@ describe midi_follow_feedback("the feedback scan sends the CCs of the params the
 
 	it("sends only the automated params for the automation feedback", _ {
 		Scanned w;
+		expect(fed(true)).to_equal(std::to_string(kCc) + ":" + std::to_string(knobPosOf(*w.s.song, w.s.synthLpf())));
 		midiFollow.sendCCWithoutModelStackForMidiFollowFeedback(true);
 		expect(Scanned::sentAt(kCc)).to_equal(1234u);
 		expect(Scanned::sentAt(kOtherCc)).to_equal(0u);
 	});
 
-	it("sends no automation feedback while a step region is held, and the values of the other feedback", _ {
+	it("sends no automation feedback while a step region is held, and the value at its start for the other feedback", _ {
 		Scanned w;
-		HeldRegion region{*w.s.synth.clip, 0, 48};
+		HeldRegion region{*w.s.synth.clip, 96, 48};
+		expect(fed(true)).to_equal(std::string{});
+		expect(fed(false)).to_equal(std::string{"5:36 6:"} + std::to_string(w.hpf()));
 		midiFollow.sendCCWithoutModelStackForMidiFollowFeedback(true);
 		expect(Scanned::sentAt(kCc)).to_equal(0u);
-		midiFollow.sendCCWithoutModelStackForMidiFollowFeedback(false);
-		expect(Scanned::sentAt(kCc)).to_equal(1234u);
 	});
 
 	it("sends a kit's chain params under affect-entire and a row's otherwise", _ {
 		Scanned w;
 		midiFollow.ccToGlobalTarget[7] = unpatched(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_FREQ);
+		const int32_t chain = knobPosOf(*w.s.song, w.s.kitLpf());
 		w.s.useKit(true);
-		midiFollow.sendCCWithoutModelStackForMidiFollowFeedback(false);
-		expect(Scanned::sentAt(7)).to_equal(1234u);
-		expect(Scanned::sentAt(kCc)).to_equal(0u);
+		expect(fed(false)).to_equal(std::string{"7:"} + std::to_string(chain));
 		w.s.useKit(false);
-		std::fill(std::begin(midiFollow.timeLastCCSent), std::end(midiFollow.timeLastCCSent), 0u);
-		midiFollow.sendCCWithoutModelStackForMidiFollowFeedback(false);
-		expect(Scanned::sentAt(7)).to_equal(0u);
-		expect(Scanned::sentAt(kCc)).to_equal(1234u);
+		expect(fed(false)).to_equal(std::string{"5:"} + std::to_string(knobPosOf(*w.s.song, w.s.rowLpf(*w.s.rowA)))
+		                            + " 6:" + std::to_string(knobPosOf(*w.s.song, w.s.rowHpf(*w.s.rowA))));
+	});
+
+	it("reports the clip it follows as it is while the arrangement records, not the take its CCs write to", _ {
+		FollowWorld follow;
+		Songs s;
+		midiEngine.midiFollowFeedbackChannelType = MIDIFollowFeedbackChannelType::A;
+		midiFollow.ccToSoundTarget[kCc] = soundParam(params::LOCAL_LPF_FREQ);
+		s.zero(s.synthLpf());
+		ArrangementRecording recording{s.synth};
+		{
+			RootView root;
+			HeldRegion region{*s.synth.clip, 96, 48};
+			sendCc(kChannel, kCc, kValue); // lands in the take, automated there
+		}
+		Clip* const take = s.synth.instrument->getActiveClip();
+		expect(take != nullptr && take != s.synth.clip).to_be_true();
+		if (take == nullptr || take == s.synth.clip) {
+			return;
+		}
+		ParamAddress onTake = s.synthLpf();
+		onTake.clip_id = take->id();
+		expect(automated(*s.song, onTake)).to_be_true();
+		expect(automated(*s.song, s.synthLpf())).to_be_false();
+		// With no root UI the followed clip is the current one: the session clip.
+		expect(fed(false)).to_equal(std::string{"5:0"});
+		expect(fed(true)).to_equal(std::string{});
+	});
+});
+
+describe midi_follow_descriptors("the controls' knob arithmetic for every param MIDI follow can map", $ {
+	/// What a descriptor mismatch reports: the param, and the value or position.
+	auto check = [](Song& song, const ParamAddress& address, plugin::PluginId plugin, const std::string& name,
+	                std::string& mismatches, int& compared) {
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithAutoParam* stack = deluge::bridge::paramStackExact(song, address, memory);
+		if (stack == nullptr || stack->autoParam == nullptr) {
+			mismatches += " [no lane: " + name + "]";
+			return;
+		}
+		const plugin::ParamInfo* info = deluge::scenes::menu::host_runtime_facts().param_info(plugin, address.target());
+		std::vector<int32_t> words{INT32_MIN, INT32_MIN + 1, -0x40000000, -1, 0, 1, 0x40000000, INT32_MAX - 1, INT32_MAX,
+		                           0x12345678, -0x12345678};
+		for (int32_t pos = -64; pos <= 64; pos++) {
+			words.push_back(stack->paramCollection->knobPosToParamValue(pos, stack));
+		}
+		for (const int32_t word : words) {
+			compared++;
+			const int32_t legacy = stack->paramCollection->paramValueToKnobPos(word, stack);
+			if (deluge::controls::knob_pos_of(address, info, word) != legacy) {
+				mismatches += " [" + name + " word " + std::to_string(word) + "]";
+			}
+		}
+		for (int32_t pos = -64; pos <= 64; pos++) {
+			compared++;
+			if (deluge::controls::value_of_knob(address, info, pos)
+			    != stack->paramCollection->knobPosToParamValue(pos, stack)) {
+				mismatches += " [" + name + " pos " + std::to_string(pos) + "]";
+			}
+		}
+	};
+
+	it("gives the legacy conversions, both ways, for every sound and global param a CC can be mapped to", _ {
+		Songs s;
+		std::string mismatches;
+		int compared = 0;
+		int params_checked = 0;
+		const auto each = [&](deluge::bridge::OwnerPlugin owner, params::Kind kind, int32_t count) {
+			for (int32_t index = 0; index < count; index++) {
+				const std::optional<project::ParamTarget> target = deluge::bridge::targetOf(owner, kind, index);
+				if (!target) {
+					continue;
+				}
+				const std::string name = std::to_string(static_cast<int>(kind)) + "/" + std::to_string(index);
+				params_checked++;
+				if (owner == deluge::bridge::OwnerPlugin::INSTRUMENT) {
+					check(*s.song, addressOf(OwnerId::instrument(*s.synth.instrument->id()), *target, s.synth.clip),
+					      plugin::kDelugeInstrument, "synth " + name, mismatches, compared);
+					check(*s.song, addressOf(OwnerId::drum(*s.rowA->id()), *target, s.kit.clip),
+					      plugin::kDelugeInstrument, "row " + name, mismatches, compared);
+				}
+				else {
+					check(*s.song, addressOf(OwnerId::instrument(*s.kit.instrument->id()), *target, s.kit.clip),
+					      plugin::kGlobalEffectable, "kit " + name, mismatches, compared);
+				}
+			}
+		};
+		each(deluge::bridge::OwnerPlugin::INSTRUMENT, params::Kind::PATCHED, params::GLOBAL_NONE);
+		each(deluge::bridge::OwnerPlugin::INSTRUMENT, params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SOUND_MAX_NUM);
+		each(deluge::bridge::OwnerPlugin::GLOBAL_EFFECTABLE, params::Kind::UNPATCHED_GLOBAL,
+		     params::UNPATCHED_GLOBAL_MAX_NUM);
+		expect(params_checked > 60).to_be_true();
+		expect(compared > 10000).to_be_true();
+		expect(mismatches).to_equal(std::string{});
+	});
+
+	it("maps no cable depth: a CC's targets are the sound's patched and unpatched params and the global effectable's", _ {
+		for (int32_t index = 0; index < params::GLOBAL_NONE; index++) {
+			const auto target = deluge::bridge::targetOf(deluge::bridge::OwnerPlugin::INSTRUMENT, params::Kind::PATCHED, index);
+			expect(!target || !deluge::instrument::is_cable_depth(target->id)).to_be_true();
+		}
+		for (int32_t index = 0; index < params::UNPATCHED_SOUND_MAX_NUM; index++) {
+			const auto target =
+			    deluge::bridge::targetOf(deluge::bridge::OwnerPlugin::INSTRUMENT, params::Kind::UNPATCHED_SOUND, index);
+			expect(!target || !deluge::instrument::is_cable_depth(target->id)).to_be_true();
+		}
 	});
 });
 // clang-format on
 
-DELUGE_SPEC(midi_follow_spec, midi_follow, midi_follow_feedback)
+DELUGE_SPEC(midi_follow_spec, midi_follow, midi_follow_feedback, midi_follow_descriptors)

@@ -356,6 +356,8 @@ public:
 	[[nodiscard]] uint8_t arp_preset(const deluge::project::SettingAddress& address) const override;
 	[[nodiscard]] std::optional<int32_t> param_value(const deluge::project::ParamAddress& address) const override;
 	[[nodiscard]] bool param_automated(const deluge::project::ParamAddress& address) const override;
+	[[nodiscard]] std::optional<int32_t> clip_param_value(const deluge::project::ParamAddress& address,
+	                                                      std::optional<uint32_t> pos) const override;
 	[[nodiscard]] std::optional<int32_t> param_value_at(const deluge::project::ParamAddress& address,
 	                                                    uint32_t pos) const override {
 		return currentSong != nullptr ? deluge::bridge::paramValueAt(*currentSong, address, pos) : std::nullopt;
@@ -1441,8 +1443,22 @@ bool ShellRuntimeFacts::param_automated(const deluge::project::ParamAddress& add
 		return false;
 	}
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	const ModelStackWithAutoParam* stack = deluge::bridge::paramStackFollowingTake(*currentSong, address, memory);
+	const ModelStackWithAutoParam* stack = deluge::bridge::paramStackAt(*currentSong, address, memory);
 	return stack != nullptr && stack->autoParam != nullptr && stack->autoParam->isAutomated(*stack->doc());
+}
+
+std::optional<int32_t> ShellRuntimeFacts::clip_param_value(const deluge::project::ParamAddress& address,
+                                                           std::optional<uint32_t> pos) const {
+	if (currentSong == nullptr) {
+		return std::nullopt;
+	}
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* stack = deluge::bridge::paramStackAt(*currentSong, address, memory);
+	if (stack == nullptr || stack->autoParam == nullptr) {
+		return std::nullopt;
+	}
+	return pos ? stack->autoParam->getValuePossiblyAtPos(static_cast<int32_t>(*pos), stack)
+	           : stack->autoParam->getCurrentValue();
 }
 
 std::span<const deluge::controls::PlayingOutput> ShellRuntimeFacts::playing_outputs() const {
