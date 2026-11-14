@@ -14,6 +14,7 @@
 #include <string>
 #include <string_view>
 
+#include "support/printers/rgb_printer.h"
 #include "support/spec_main.h"
 using namespace deluge::ui::shell;
 using deluge::notify::Dirty;

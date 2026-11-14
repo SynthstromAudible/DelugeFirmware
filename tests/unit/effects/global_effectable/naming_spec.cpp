@@ -3,6 +3,8 @@
 
 #include <cppspec.hpp>
 
+#include "support/printers/param_id_printer.h"
+
 using namespace deluge::global_effectable;
 
 // clang-format off

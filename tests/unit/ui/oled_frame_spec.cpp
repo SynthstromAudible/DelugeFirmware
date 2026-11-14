@@ -3,6 +3,7 @@
 
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"
+#include "support/printers/geometry_printer.h"
 #include "support/spec_main.h"
 
 #include <cstdint>

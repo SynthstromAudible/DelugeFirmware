@@ -1,5 +1,6 @@
 #include "cppspec.hpp"
 #include "gfx/oled/geometry.h"
+#include "support/printers/geometry_printer.h"
 #include "support/spec_main.h"
 
 using namespace deluge::gfx::oled;

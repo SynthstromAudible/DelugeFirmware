@@ -4,8 +4,10 @@
 #include "gui/ui_timer_manager.h"
 
 #include <cstdint>
+#include <format>
 #include <functional>
 #include <optional>
+#include <ostream>
 #include <vector>
 
 class MIDICable;
@@ -220,6 +222,10 @@ struct NoteButtonCall {
 	bool on = false;
 	bool operator==(const NoteButtonCall&) const = default;
 };
+/// @brief Prints a call's arguments, e.g. `{b 12, on 1}`, so a failed CppSpec comparison shows them.
+inline std::ostream& operator<<(std::ostream& os, const NoteButtonCall& c) {
+	return os << std::format("{{b {}, on {:d}}}", c.b, c.on);
+}
 /// How many times `forwardNoteButton()` was called.
 extern int note_button_forwards;
 /// The arguments of the last `forwardNoteButton()` call.
@@ -239,6 +245,10 @@ struct NoteVerticalCall {
 	int32_t offset = 0;
 	bool operator==(const NoteVerticalCall&) const = default;
 };
+/// @brief Prints a call's argument, e.g. `{offset -1}`, so a failed CppSpec comparison shows it.
+inline std::ostream& operator<<(std::ostream& os, const NoteVerticalCall& c) {
+	return os << std::format("{{offset {}}}", c.offset);
+}
 /// How many times `forwardNoteVerticalEncoder()` was called.
 extern int note_vertical_forwards;
 /// The arguments of the last `forwardNoteVerticalEncoder()` call.

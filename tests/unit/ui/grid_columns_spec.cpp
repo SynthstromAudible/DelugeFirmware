@@ -5,6 +5,7 @@
 #include "cppspec.hpp"
 
 #include "support/printers/pad_flash_printer.h"
+#include "support/printers/rgb_printer.h"
 #include "support/spec_main.h"
 #include <array>
 #include <cstdint>

@@ -5,6 +5,8 @@
 #include <cppspec.hpp>
 #include <limits>
 
+#include "support/printers/param_id_printer.h"
+
 using namespace deluge::plugin;
 
 namespace {

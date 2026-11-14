@@ -2,6 +2,7 @@
 
 #include "cppspec.hpp"
 
+#include "support/printers/rgb_printer.h"
 #include "support/spec_main.h"
 
 using namespace shell_host_ui_rig;

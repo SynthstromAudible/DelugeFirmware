@@ -1,4 +1,5 @@
 #include "support/mocks/fake_surfaces.h"
+#include "support/printers/column_pair_printer.h"
 
 #include "cppspec.hpp"
 

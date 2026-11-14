@@ -2,6 +2,7 @@
 #include "gfx/grid/tween.h"
 #include "support/golden.h"
 #include "support/grid_state.h"
+#include "support/printers/rgb_printer.h"
 #include "support/spec_main.h"
 #include "tween_oracle.h"
 #include <array>

@@ -4,6 +4,8 @@
 
 #include <cppspec.hpp>
 
+#include "support/printers/param_id_printer.h"
+
 using namespace deluge::instrument;
 using deluge::plugin::ParamId;
 using deluge::plugin::ParamRef;

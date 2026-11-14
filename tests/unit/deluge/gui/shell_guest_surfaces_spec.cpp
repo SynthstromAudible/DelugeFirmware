@@ -16,6 +16,7 @@
 #include <span>
 #include <vector>
 
+#include "support/printers/rgb_printer.h"
 #include "support/spec_main.h"
 
 using deluge::gui::ui::GuestSurfaceSet;

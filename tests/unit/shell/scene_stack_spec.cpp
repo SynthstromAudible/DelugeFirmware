@@ -9,6 +9,7 @@
 #include <span>
 #include <string>
 
+#include "support/printers/scene_printer.h"
 #include "support/spec_main.h"
 using namespace deluge::ui::shell;
 

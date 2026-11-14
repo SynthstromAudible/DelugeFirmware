@@ -4,6 +4,7 @@
 #include "unit/gfx/support/golden.h"
 
 #include "cppspec.hpp"
+#include "support/printers/geometry_printer.h"
 #include "support/spec_main.h"
 
 using namespace deluge::ui;

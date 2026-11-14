@@ -8,6 +8,9 @@
 #include "ui/oled/values.h"
 
 #include "cppspec.hpp"
+#include "support/printers/frame_context_printer.h"
+#include "support/printers/geometry_printer.h"
+#include "support/printers/rgb_printer.h"
 #include "support/spec_main.h"
 
 #include <span>
