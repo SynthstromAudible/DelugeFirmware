@@ -7,6 +7,7 @@
 #include <array>
 #include <cstdint>
 #include <span>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -45,6 +46,17 @@ constexpr uint32_t kBackpressureRetryMs = 20;
 /// Legacy's `UI_MS_PER_REFRESH` (`board_config.h:55`), the `Fade` tween's step cadence
 /// (`renderFade`, `pad_leds.cpp:1478`).
 constexpr uint32_t kFadeCadenceMs = 50;
+
+/// @brief @p flashes as `(x, y, colour)` tuples, field by field: a failed comparison prints them, which
+///        `PadFlash` itself cannot.
+std::vector<std::tuple<int, int, int>> flash_fields(std::span<const deluge::ui::grid::PadFlash> flashes) {
+	std::vector<std::tuple<int, int, int>> v;
+	v.reserve(flashes.size());
+	for (const auto& f : flashes) {
+		v.emplace_back(f.x, f.y, std::to_underlying(f.colour));
+	}
+	return v;
+}
 
 /// @brief `count` distinct colours, deterministic from `seed`, for a scroll-tween spec: a flat
 ///        fill would look identical at any offset, so shifting it could never be told apart from
@@ -297,8 +309,8 @@ describe shell_flush("shell::Shell::flush", $ {
 		// (`pad_leds.cpp:265-272`), which `read_column_pair` ports.
 		const ColumnPair& pair1 = r.fake.columns_sent.back().second;
 		for (uint8_t i = 0; i < 8; i++) {
-			expect(pair1.colours[i] == r.base.colour).to_be_true();
-			expect(pair1.colours[i + 8] == RGB{9, 9, 9}).to_be_true();
+			expect(pair1.colours[i]).to_equal(r.base.colour);
+			expect(pair1.colours[i + 8]).to_equal(RGB{9, 9, 9});
 		}
 
 		// The retry, with no dirty fact raised again: the backpressure branch re-armed the gate.
@@ -308,8 +320,8 @@ describe shell_flush("shell::Shell::flush", $ {
 		expect(r.fake.grid().dirty).to_be_false();
 		const ColumnPair& pair6 = r.fake.columns_sent.back().second;
 		for (uint8_t i = 0; i < 8; i++) {
-			expect(pair6.colours[i] == RGB{7, 7, 7}).to_be_true();
-			expect(pair6.colours[i + 8] == r.base.colour).to_be_true();
+			expect(pair6.colours[i]).to_equal(RGB{7, 7, 7});
+			expect(pair6.colours[i + 8]).to_equal(r.base.colour);
 		}
 	});
 
@@ -322,16 +334,16 @@ describe shell_flush("shell::Shell::flush", $ {
 		r.base.flashes = {{3, 2, FlashColour::Default}, {15, 6, FlashColour::Palette6}};
 		r.shell.tick(0);
 		const std::vector<PadFlash> expected{{3, 2, FlashColour::Default}, {15, 6, FlashColour::Palette6}};
-		expect(r.fake.flashes_sent == expected).to_be_true();
+		expect(flash_fields(r.fake.flashes_sent)).to_equal(flash_fields(expected));
 		expect(r.fake.columns_sent.size()).to_equal(size_t(9));
-		expect(r.fake.columns_before_flash == std::vector<size_t>{9, 9}).to_be_true();
+		expect(r.fake.columns_before_flash).to_equal(std::vector<size_t>{9, 9});
 		expect(r.fake.grid().flashes.flashes().empty()).to_be_true();
 
 		// The next render flashes nothing: nothing more is sent.
 		r.base.flashes.clear();
 		deluge::notify::dirty().raise(Dirty::GridMain);
 		r.shell.tick(10);
-		expect(r.fake.flashes_sent == expected).to_be_true();
+		expect(flash_fields(r.fake.flashes_sent)).to_equal(flash_fields(expected));
 	});
 
 	it("a tick whose only output is a flash still flushes once", _ {
@@ -464,15 +476,15 @@ describe shell_flush("shell::Shell::flush", $ {
 		}
 		deluge::gfx::grid::fade(from_grid, to_grid, 32768, expected);
 		const deluge::gfx::grid::PadGrid& live = r.fake.grid().grid();
-		expect(live.at(0, 0) == expected.at(0, 0)).to_be_true();
-		expect(live.at(17, 7) == expected.at(17, 7)).to_be_true();
+		expect(live.at(0, 0)).to_equal(expected.at(0, 0));
+		expect(live.at(17, 7)).to_equal(expected.at(17, 7));
 		// Halfway (t == 32768/65536), the blend must sit strictly between the two ends.
-		expect(live.at(0, 0) == kFrom).to_be_false();
-		expect(live.at(0, 0) == kTo).to_be_false();
+		expect(live.at(0, 0)).not_().to_equal(kFrom);
+		expect(live.at(0, 0)).not_().to_equal(kTo);
 
 		// Past the duration, the tween clears and the live grid shows through unblended.
 		r.shell.tick(250);
-		expect(r.fake.grid().grid().at(0, 0) == kTo).to_be_true();
+		expect(r.fake.grid().grid().at(0, 0)).to_equal(kTo);
 	});
 
 	it("a scroll-horizontal tween interpolates from the snapshot to the live grid over its duration", _ {
@@ -505,7 +517,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		const deluge::gfx::grid::PadGrid& live = r.fake.grid().grid();
 		for (uint8_t y = 0; y < dims.rows; y++) {
 			for (uint8_t x = 0; x < dims.cols(); x++) {
-				expect(live.at(x, y) == expected.at(x, y)).to_be_true();
+				expect(live.at(x, y)).to_equal(expected.at(x, y));
 			}
 		}
 
@@ -513,7 +525,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		// unblended -- equivalent to the scroll having completed.
 		r.shell.tick(250);
 		for (uint8_t x = 0; x < dims.cols(); x++) {
-			expect(r.fake.grid().grid().at(x, 0) == to_cols[x]).to_be_true();
+			expect(r.fake.grid().grid().at(x, 0)).to_equal(to_cols[x]);
 		}
 	});
 
@@ -545,13 +557,13 @@ describe shell_flush("shell::Shell::flush", $ {
 		const deluge::gfx::grid::PadGrid& live = r.fake.grid().grid();
 		for (uint8_t y = 0; y < dims.rows; y++) {
 			for (uint8_t x = 0; x < dims.cols(); x++) {
-				expect(live.at(x, y) == expected.at(x, y)).to_be_true();
+				expect(live.at(x, y)).to_equal(expected.at(x, y));
 			}
 		}
 
 		r.shell.tick(250); // past the duration: settles on the live (`to_rows`) grid, unblended
 		for (uint8_t y = 0; y < dims.rows; y++) {
-			expect(r.fake.grid().grid().at(0, y) == to_rows[y]).to_be_true();
+			expect(r.fake.grid().grid().at(0, y)).to_equal(to_rows[y]);
 		}
 	});
 
@@ -568,21 +580,21 @@ describe shell_flush("shell::Shell::flush", $ {
 		// Baseline: no tween is running, so the mask being in place (recomputed on this first,
 		// stack-changing tick) means the ordinary static pass already grades it at full strength.
 		const RGB full_grey = colour.greyOut(kGreyoutAmountFull);
-		expect(r.fake.grid().grid().at(0, 0) == full_grey).to_be_true();
+		expect(r.fake.grid().grid().at(0, 0)).to_equal(full_grey);
 
 		r.shell.start_tween(ActiveTween{ActiveTween::Kind::GreyOut, 0, 200, kGreyoutAmountFull});
 		r.shell.tick(100); // halfway: t == 32768, proportion == kGreyoutAmountFull / 2
 
 		const RGB half_grey = colour.greyOut(kGreyoutAmountFull / 2);
-		expect(r.fake.grid().grid().at(0, 0) == half_grey).to_be_true();
+		expect(r.fake.grid().grid().at(0, 0)).to_equal(half_grey);
 		// Not the static full-strength pass stacked underneath the ramp: if it were, this pad
 		// would already be at `full_grey` regardless of the ramp's own halfway proportion.
-		expect(r.fake.grid().grid().at(0, 0) == full_grey).to_be_false();
+		expect(r.fake.grid().grid().at(0, 0)).not_().to_equal(full_grey);
 
 		// Past the duration, the ramp settles back at full strength -- legacy's `amountDone > 1`
 		// snap (`pad_leds.cpp:984-987`), matching the ordinary static pass that resumes right after.
 		r.shell.tick(250);
-		expect(r.fake.grid().grid().at(0, 0) == full_grey).to_be_true();
+		expect(r.fake.grid().grid().at(0, 0)).to_equal(full_grey);
 	});
 
 	it("next_wake sees a declared blink, so the phase moves with no input at all", _ {
@@ -688,7 +700,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		r.base.oled_renders = 0;
 		r.base.colour = RGB{7, 8, 9};
 		r.shell.tick(360); // 300 + the 60 ms the service asked for
-		expect(r.base.oled_renders > 0).to_be_true();      // the OLED gate fired and the scene drew
+		expect(r.base.oled_renders).to_be_greater_than(0);      // the OLED gate fired and the scene drew
 		expect(r.fake.blits.empty()).to_be_false();        // …and the panels were blitted
 		expect(r.fake.columns_sent.empty()).to_be_true();  // the grid gate was NOT armed
 		// Both panels, not just the first: the loop arms every OLED surface a service claims,

@@ -424,9 +424,9 @@ describe shell_tick("shell::Shell::tick", $ {
 
 		r.shell.tick(0);
 		const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
-		expect(g.at(0, 0) == kOverlayColour).to_be_true();
-		expect(g.at(1, 0) == kBaseColour).to_be_true();
-		expect(g.at(17, 7) == kBaseColour).to_be_true();
+		expect(g.at(0, 0)).to_equal(kOverlayColour);
+		expect(g.at(1, 0)).to_equal(kBaseColour);
+		expect(g.at(17, 7)).to_equal(kBaseColour);
 	});
 
 	it("greyout mask from the stack is applied", _ {
@@ -444,11 +444,11 @@ describe shell_tick("shell::Shell::tick", $ {
 		RGB base = kBaseColour;
 		const RGB greyed = base.greyOut(kGreyoutAmountFull);
 		const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
-		expect(g.at(0, 1) == greyed).to_be_true();
-		expect(g.at(1, 1) == kBaseColour).to_be_true();
+		expect(g.at(0, 1)).to_equal(greyed);
+		expect(g.at(1, 1)).to_equal(kBaseColour);
 		// Greyout runs last, so even the overlay's own pad is tinted.
 		RGB overlay_colour = kOverlayColour;
-		expect(g.at(0, 0) == overlay_colour.greyOut(kGreyoutAmountFull)).to_be_true();
+		expect(g.at(0, 0)).to_equal(overlay_colour.greyOut(kGreyoutAmountFull));
 	});
 
 	it("greys the grid by the topmost non-empty mask, not the union", _ {
@@ -764,7 +764,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(lit(r.fake, 0, BaseScene::kAuxRectX, BaseScene::kAuxRectY)).to_be_false();
 		expect(lit(r.fake, 1, BaseScene::kAuxRectX, BaseScene::kAuxRectY)).to_be_true();
 		expect(lit(r.fake, 1, 0, 5 + BaseScene::kMainLineY)).to_be_false();
-		expect(r.fake.pbm(0) != r.fake.pbm(1)).to_be_true();
+		expect(r.fake.pbm(0)).not_().to_equal(r.fake.pbm(1));
 	});
 
 	it("derives the LED surface from the composed frame, top scene winning", _ {
@@ -828,8 +828,8 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(r.base.grid_renders).to_equal(1);
 		// And it is left exactly as the base painted it: legacy's popups have no grid effect at all.
 		const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
-		expect(g.at(3, 3) == kBaseColour).to_be_true();
-		expect(g.at(17, 7) == kBaseColour).to_be_true();
+		expect(g.at(3, 3)).to_equal(kBaseColour);
+		expect(g.at(17, 7)).to_equal(kBaseColour);
 	});
 
 	it("a passive overlay leaves the scene beneath focused and routed", _ {
@@ -857,7 +857,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		// turn the base's widgets owned.
 		r.shell.tick(31);
 		expect(r.base.events).to_equal(1);
-		expect(r.base.last_event_kind == UiEvent::Kind::Button).to_be_true();
+		expect(r.base.last_event_kind).to_equal(UiEvent::Kind::Button);
 	});
 
 	it("the frame clock is the tick's, not the feed's", _ {
@@ -956,7 +956,9 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(r.base.events_at_render).to_equal(1); // handled before this tick's frame
 		expect(r.base.events_at_after_render).to_equal(1);
 		// The Repaint it asked for was drawn this tick, so nothing is left waiting.
-		expect(r.shell.next_wake().has_value() && *r.shell.next_wake() == 30).to_be_false();
+		if (r.shell.next_wake().has_value()) {
+			expect(*r.shell.next_wake()).not_().to_equal(30);
+		}
 	});
 
 	it("events reach the scene in arrival order", _ {
@@ -1102,7 +1104,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.base.push_overlay_from_handle = true;
 		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, 2, 2, 64}, 15);
 		r.shell.tick(20);
-		expect(r.shell.stack().top().kind() == kOverlay).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(kOverlay);
 		expect(r.overlay.first_frame_shift).to_be_true();
 	});
 
@@ -1114,7 +1116,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.base.push_overlay_from_handle = true;
 		r.shell.on_board_event(button_ev(8, 3, true), 25);
 		r.shell.tick(30);
-		expect(r.shell.stack().top().kind() == kOverlay).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(kOverlay);
 		expect(r.overlay.ticks).to_equal(1);
 		expect(r.overlay.ticked_ms).to_equal(uint32_t(0)); // it was not up for the 30 ms this tick covers
 		r.shell.tick(40);
@@ -1131,7 +1133,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.shell.on_board_event(button_ev(8, 3, true), 25);
 		r.shell.tick(30);
 
-		expect(r.shell.stack().top().kind() == SceneKind::Popup).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(SceneKind::Popup);
 		expect(std::string(r.shell.notices().last_popup_text())).to_equal(std::string(kPopupText));
 		expect(r.shell.state_lines())
 		    .to_equal(std::string("scene Popup/General\nscene app16\nnotice Text SAVED\n"));
@@ -1194,7 +1196,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.shell.set_sd_busy(false);
 		r.shell.tick(40);
 		expect(r.base.events).to_equal(1);
-		expect(r.base.last_event_kind == UiEvent::Kind::Button).to_be_true();
+		expect(r.base.last_event_kind).to_equal(UiEvent::Kind::Button);
 		// The replay also counts as input, so the tick that delivers it renders a frame and, being
 		// unbusy, flush blits it straight away.
 		expect(r.fake.blits.size()).to_be_greater_than(blits_before);
@@ -1224,7 +1226,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.consume_pending();
 		deluge::notify::notice_text("SECOND");
 		r.shell.tick(20); // quiet: no pad, button or encoder, only the drain
-		expect(r.fake.pbm(0) != first).to_be_true();
+		expect(r.fake.pbm(0)).not_().to_equal(first);
 	});
 
 	it("a popup's timeout is a wake: the shell comes back when it expires and takes it down", _ {
@@ -1238,12 +1240,12 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.shell.tick(0);
 		deluge::notify::notice_text("LEARNED");
 		r.shell.tick(100);
-		expect(r.shell.stack().top().kind() == SceneKind::Popup).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(SceneKind::Popup);
 		expect(r.shell.next_wake().has_value()).to_be_true();
 		expect(*r.shell.next_wake()).to_equal(uint32_t(100 + 800));
 
 		r.shell.tick(900);
-		expect(r.shell.stack().top().kind() == SceneKind::Popup).to_be_false();
+		expect(r.shell.stack().top().kind()).not_().to_equal(SceneKind::Popup);
 	});
 
 	it("a notification banner's 2000 ms is a wake too", _ {
@@ -1255,7 +1257,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.shell.tick(0);
 		deluge::notify::notice_notification("Probability", "100%");
 		r.shell.tick(100);
-		expect(r.shell.stack().top().kind() == SceneKind::Notification).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(SceneKind::Notification);
 		expect(r.shell.next_wake().has_value()).to_be_true();
 		expect(*r.shell.next_wake()).to_equal(uint32_t(100 + 2000));
 	});
@@ -1270,12 +1272,12 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.shell.tick(0);
 		deluge::notify::notice_text("UNDO", deluge::notify::Notice::Kind::Console);
 		r.shell.tick(100);
-		expect(r.shell.stack().top().kind() == SceneKind::Console).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(SceneKind::Console);
 		expect(r.shell.next_wake().has_value()).to_be_true();
 		expect(*r.shell.next_wake()).to_equal(uint32_t(100 + 1179));
 
 		r.shell.tick(100 + 1179);
-		expect(r.shell.stack().top().kind() == SceneKind::Console).to_be_false();
+		expect(r.shell.stack().top().kind()).not_().to_equal(SceneKind::Console);
 	});
 
 	it("the earlier of two console lines is erased from the panel at its own expiry", _ {
@@ -1295,8 +1297,8 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(*r.shell.next_wake()).to_equal(uint32_t(100 + 1179));
 
 		r.shell.tick(100 + 1179);
-		expect(r.shell.stack().top().kind() == SceneKind::Console).to_be_true();
-		expect(r.fake.pbm(0) != both).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(SceneKind::Console);
+		expect(r.fake.pbm(0)).not_().to_equal(both);
 		expect(*r.shell.next_wake()).to_equal(uint32_t(600 + 1179));
 	});
 
@@ -1312,11 +1314,11 @@ describe shell_tick("shell::Shell::tick", $ {
 		deluge::notify::notice_text("SAVED");
 		r.shell.tick(10);
 		expect(deluge::notify::notices().size()).to_equal(size_t{1});
-		expect(r.shell.stack().top().kind() == SceneKind::Popup).to_be_false();
+		expect(r.shell.stack().top().kind()).not_().to_equal(SceneKind::Popup);
 		r.shell.set_owns_notices(true);
 		r.shell.tick(20);
 		expect(deluge::notify::notices().size()).to_equal(size_t{0});
-		expect(r.shell.stack().top().kind() == SceneKind::Popup).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(SceneKind::Popup);
 	});
 });
 // clang-format on

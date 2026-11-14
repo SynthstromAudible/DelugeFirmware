@@ -197,15 +197,15 @@ describe shell_notices("shell::Notices", $ {
 
 		r.notices.drain(r.queue, 0);
 
-		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+		expect(r.stack.top().kind()).to_equal(SceneKind::Popup);
 		expect(std::string(r.notices.last_popup_text())).to_equal(std::string("SAVED"));
 
 		// Not yet expired one ms before the deadline.
 		r.notices.tick(r.notices.timeout_for(1) - 1, 0);
-		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+		expect(r.stack.top().kind()).to_equal(SceneKind::Popup);
 
 		r.notices.tick(r.notices.timeout_for(1) + 1, 0);
-		expect(r.stack.top().kind() == SceneKind::Popup).to_be_false();
+		expect(r.stack.top().kind()).not_().to_equal(SceneKind::Popup);
 	});
 
 	it("a second notice replaces the popup's text without pushing twice", _ {
@@ -218,7 +218,7 @@ describe shell_notices("shell::Notices", $ {
 		r.notices.drain(r.queue, 10);
 
 		expect(r.stack.depth()).to_equal(size_t(1)); // still just the one popup, not pushed twice
-		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+		expect(r.stack.top().kind()).to_equal(SceneKind::Popup);
 		expect(std::string(r.notices.last_popup_text())).to_equal(std::string("SECOND"));
 	});
 
@@ -228,7 +228,7 @@ describe shell_notices("shell::Notices", $ {
 
 		r.notices.drain(r.queue, 0);
 
-		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+		expect(r.stack.top().kind()).to_equal(SceneKind::Popup);
 		expect(std::string(r.notices.last_popup_text())).to_equal(std::string("ERROR TEXT"));
 
 		// Popup_type 0 mapped to General (Framed): rendering shows a border, unlike Notification.
@@ -237,7 +237,7 @@ describe shell_notices("shell::Notices", $ {
 		deluge::ui::test::Rig48 notification;
 		r.popup.show("ERROR TEXT", /*popup_type=*/10, 0, r.notices.timeout_for(10));
 		r.popup.render_oled(SurfaceRole::Main, notification.frame);
-		expect(general.pbm() == notification.pbm()).to_be_false();
+		expect(general.pbm()).not_().to_equal(notification.pbm());
 	});
 
 	it("Error suppresses NONE and ABORTED_BY_USER, exactly as OLED::displayError does", _ {
@@ -255,7 +255,7 @@ describe shell_notices("shell::Notices", $ {
 		// A code that is neither still shows, through the same profile.error_text lookup.
 		(void)r.queue.push(make_notice(Notice::Kind::Error, {}, /*popup_type=*/0, /*error_code=*/7));
 		r.notices.drain(r.queue, 0);
-		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+		expect(r.stack.top().kind()).to_equal(SceneKind::Popup);
 		expect(std::string(r.notices.last_popup_text())).to_equal(std::string("ERROR TEXT"));
 	});
 
@@ -266,12 +266,12 @@ describe shell_notices("shell::Notices", $ {
 		Rig r;
 		(void)r.queue.push(make_notice(Notice::Kind::Text, "WARNING", 0, 0, Notice::Severity::Warn));
 		r.notices.drain(r.queue, 0);
-		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+		expect(r.stack.top().kind()).to_equal(SceneKind::Popup);
 		expect(std::string(r.notices.last_popup_text())).to_equal(std::string("WARNING"));
 
 		// Stays up across a tick far past the ordinary (non-persistent) timeout.
 		r.notices.tick(r.notices.timeout_for(1) * 100, 0);
-		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+		expect(r.stack.top().kind()).to_equal(SceneKind::Popup);
 		expect(std::string(r.notices.last_popup_text())).to_equal(std::string("WARNING"));
 
 		// A later, non-persistent notice replaces it and re-arms the ordinary timeout -- no
@@ -284,7 +284,7 @@ describe shell_notices("shell::Notices", $ {
 
 		const uint32_t now = r.notices.timeout_for(1) * 100;
 		r.notices.tick(now + r.notices.timeout_for(1) + 1, 0);
-		expect(r.stack.top().kind() == SceneKind::Popup).to_be_false(); // expires now that it isn't Warn
+		expect(r.stack.top().kind()).not_().to_equal(SceneKind::Popup); // expires now that it isn't Warn
 	});
 
 	it("CancelPopup ends a still-persistent (Warn) popup too", _ {
@@ -292,11 +292,11 @@ describe shell_notices("shell::Notices", $ {
 		(void)r.queue.push(make_notice(Notice::Kind::Text, "WARNING", 0, 0, Notice::Severity::Warn));
 		r.notices.drain(r.queue, 0);
 		r.notices.tick(1'000'000, 0); // would never expire on its own
-		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+		expect(r.stack.top().kind()).to_equal(SceneKind::Popup);
 
 		(void)r.queue.push(make_notice(Notice::Kind::CancelPopup));
 		r.notices.drain(r.queue, 1'000'000);
-		expect(r.stack.top().kind() == SceneKind::Popup).to_be_false();
+		expect(r.stack.top().kind()).not_().to_equal(SceneKind::Popup);
 	});
 
 	it("a null text/error lookup shows the id as digits, not an empty box", _ {
@@ -309,7 +309,7 @@ describe shell_notices("shell::Notices", $ {
 		text.string_id = 42;
 		(void)r.queue.push(text);
 		r.notices.drain(r.queue, 0);
-		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+		expect(r.stack.top().kind()).to_equal(SceneKind::Popup);
 		expect(std::string(r.notices.last_popup_text())).to_equal(std::string("42"));
 
 		(void)r.queue.push(make_notice(Notice::Kind::Error, {}, /*popup_type=*/0, /*error_code=*/7));
@@ -331,17 +331,17 @@ describe shell_notices("shell::Notices", $ {
 		Rig r;
 		(void)r.queue.push(make_notice(Notice::Kind::Text, "SAVED"));
 		r.notices.drain(r.queue, kNearWrap);
-		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+		expect(r.stack.top().kind()).to_equal(SceneKind::Popup);
 
 		// Ten milliseconds later -- across the wrap, well inside the 800 ms lifetime.
 		r.notices.tick(static_cast<uint32_t>(kNearWrap + 10), 0);
-		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+		expect(r.stack.top().kind()).to_equal(SceneKind::Popup);
 		// One millisecond short of the deadline, still up.
 		r.notices.tick(static_cast<uint32_t>(kNearWrap + r.notices.timeout_for(1) - 1), 0);
-		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+		expect(r.stack.top().kind()).to_equal(SceneKind::Popup);
 		// And it does still expire once the wrapped deadline is genuinely past.
 		r.notices.tick(static_cast<uint32_t>(kNearWrap + r.notices.timeout_for(1) + 1), 0);
-		expect(r.stack.top().kind() == SceneKind::Popup).to_be_false();
+		expect(r.stack.top().kind()).not_().to_equal(SceneKind::Popup);
 
 		// The console line appended just before the wrap draws on the tick after it.
 		(void)r.queue.push(make_notice(Notice::Kind::Console, "HELLO"));
@@ -349,7 +349,7 @@ describe shell_notices("shell::Notices", $ {
 		deluge::ui::test::Rig48 across_the_wrap;
 		across_the_wrap.begin_tick(static_cast<uint32_t>(kNearWrap + 10));
 		r.console.render_oled(SurfaceRole::Main, across_the_wrap.frame);
-		expect(across_the_wrap.pbm() != deluge::ui::test::Rig48{}.pbm()).to_be_true();
+		expect(across_the_wrap.pbm()).not_().to_equal(deluge::ui::test::Rig48{}.pbm());
 	});
 
 	it("an expired popup is removed in place, not everything above it", _ {
@@ -363,7 +363,7 @@ describe shell_notices("shell::Notices", $ {
 		(void)r.queue.push(make_notice(Notice::Kind::Text, "SAVED"));
 		r.notices.drain(r.queue, 0);
 		expect(r.stack.depth()).to_equal(size_t(2));
-		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+		expect(r.stack.top().kind()).to_equal(SceneKind::Popup);
 
 		// An application scene, pushed above the live popup -- legitimate, since the popup never took
 		// the input this Push responded to. `OtherScene`/`Boot`, not `Console`: `Console` now has its
@@ -374,8 +374,8 @@ describe shell_notices("shell::Notices", $ {
 
 		r.notices.tick(r.notices.timeout_for(1) + 1, 0);
 		expect(r.stack.depth()).to_equal(size_t(2));                          // only the popup is gone
-		expect(r.stack.top().kind() == SceneKind::FirstApp).to_be_true();         // the app scene is still on top
-		expect(r.stack.id_at(0) == SceneId{kBaseKind}).to_be_true();           // and the base survived
+		expect(r.stack.top().kind()).to_equal(SceneKind::FirstApp);         // the app scene is still on top
+		expect(r.stack.id_at(0)).to_equal(SceneId{kBaseKind});           // and the base survived
 	});
 
 	it("a second Text notice while a scene sits above the live popup updates it in place", _ {
@@ -388,7 +388,7 @@ describe shell_notices("shell::Notices", $ {
 		// same reason as the test just above.
 		expect(r.stack.push(SceneId{SceneKind::FirstApp})).to_be_true();
 		expect(r.stack.depth()).to_equal(size_t(2));
-		expect(r.stack.top().kind() == SceneKind::FirstApp).to_be_true();
+		expect(r.stack.top().kind()).to_equal(SceneKind::FirstApp);
 
 		// `show_popup_with_timeout` must find the popup by scanning the whole stack, not just `top()`
 		// (which now reads the stand-in scene) -- otherwise this pushes a second `SceneKind::Popup`
@@ -397,7 +397,7 @@ describe shell_notices("shell::Notices", $ {
 		r.notices.drain(r.queue, 10);
 
 		expect(r.stack.depth()).to_equal(size_t(2));                  // unchanged: no duplicate push
-		expect(r.stack.top().kind() == SceneKind::FirstApp).to_be_true(); // the scene above is undisturbed
+		expect(r.stack.top().kind()).to_equal(SceneKind::FirstApp); // the scene above is undisturbed
 		expect(std::string(r.notices.last_popup_text())).to_equal(std::string("SECOND")); // updated in place
 	});
 
@@ -443,7 +443,7 @@ describe shell_notices("shell::Notices", $ {
 			deluge::ui::FrameContext ctx{snap, gate};
 			deluge::ui::grid::GridFrame frame = deluge::ui::grid::root_grid_frame(grid, ctx);
 			scene->render_grid(frame);
-			expect(grid.at(3, 3) == RGB{9, 9, 9}).to_be_true();
+			expect(grid.at(3, 3)).to_equal(RGB{9, 9, 9});
 		}
 	});
 
@@ -457,20 +457,20 @@ describe shell_notices("shell::Notices", $ {
 		r.notices.drain(r.queue, 0);
 		deluge::ui::test::Rig48 after;
 		r.console.render_oled(SurfaceRole::Main, after.frame);
-		expect(before.pbm() == after.pbm()).to_be_false(); // the appended line actually drew something
+		expect(before.pbm()).not_().to_equal(after.pbm()); // the appended line actually drew something
 
 		(void)r.queue.push(make_notice(Notice::Kind::Working, "Loading"));
 		r.notices.drain(r.queue, 0);
-		expect(r.stack.top().kind() == SceneKind::Working).to_be_true();
+		expect(r.stack.top().kind()).to_equal(SceneKind::Working);
 		expect(r.working.armed()).to_be_true();
 
 		(void)r.queue.push(make_notice(Notice::Kind::ClearWorking));
 		r.notices.drain(r.queue, 0);
 		expect(r.working.armed()).to_be_false();
-		expect(r.stack.top().kind() == SceneKind::Working).to_be_true(); // drain() clears, doesn't pop
+		expect(r.stack.top().kind()).to_equal(SceneKind::Working); // drain() clears, doesn't pop
 
 		r.notices.tick(0, 0);
-		expect(r.stack.top().kind() == SceneKind::Working).to_be_false(); // tick() is what pops it
+		expect(r.stack.top().kind()).not_().to_equal(SceneKind::Working); // tick() is what pops it
 	});
 
 	it("a console line's glyphs are not clipped -- E and F must not render identically", _ {
@@ -491,7 +491,7 @@ describe shell_notices("shell::Notices", $ {
 		deluge::ui::test::Rig48 f_frame;
 		f.render_oled(SurfaceRole::Main, f_frame.frame);
 
-		expect(e_frame.pbm() != f_frame.pbm()).to_be_true();
+		expect(e_frame.pbm()).not_().to_equal(f_frame.pbm());
 
 		// And directly: the glyph's bottom row (the last row of the panel, where `render_oled`
 		// anchors the newest/only line) must carry ink for a character whose bottom row is part of
@@ -506,13 +506,13 @@ describe shell_notices("shell::Notices", $ {
 
 	it("a Notification with no sink pushes the banner: top-pinned, transparent, input-transparent, "
 	   "drawn with ui::oled::notification", _ {
-		expect(notification_sink() == nullptr).to_be_true();
+		expect(notification_sink()).to_be_null();
 		Rig r;
 		(void)r.queue.push(make_notification("Probability", "100%"));
 		r.notices.drain(r.queue, 0);
 
 		expect(r.stack.depth()).to_equal(size_t(1));
-		expect(r.stack.top().kind() == SceneKind::Notification).to_be_true();
+		expect(r.stack.top().kind()).to_equal(SceneKind::Notification);
 		expect(std::string(r.notification.title())).to_equal(std::string("Probability"));
 		expect(std::string(r.notification.value())).to_equal(std::string("100%"));
 		expect(std::string(notice_kind_name(Notice::Kind::Notification))).to_equal(std::string("Notification"));
@@ -530,8 +530,8 @@ describe shell_notices("shell::Notices", $ {
 		deluge::ui::test::Rig48 widget;
 		deluge::ui::oled::notification(widget.frame, "Probability", "100%");
 		deluge::ui::test::Rig48 blank;
-		expect(banner.pbm() != blank.pbm()).to_be_true();
-		expect(banner.pbm() == widget.pbm()).to_be_true();
+		expect(banner.pbm()).not_().to_equal(blank.pbm());
+		expect(banner.pbm()).to_equal(widget.pbm());
 
 		// Top-pinned: legacy's band is `OLED_MAIN_TOPMOST_PIXEL` to `+ kTextSpacingY + 1`
 		// (`oled.cpp:750-751`), so nothing below that band is lit.
@@ -725,7 +725,7 @@ describe shell_notices("shell::Notices", $ {
 		q.notices.drain(q.queue, 10);
 		expect(stacked(q, SceneKind::Notification)).to_be_false();
 		expect(stacked(q, SceneKind::Console)).to_be_true();
-		expect(q.stack.top().kind() == SceneKind::FirstApp).to_be_true();
+		expect(q.stack.top().kind()).to_equal(SceneKind::FirstApp);
 		expect(q.stack.depth()).to_equal(size_t(2));
 	});
 
@@ -740,7 +740,7 @@ describe shell_notices("shell::Notices", $ {
 		expect(SinkSpy::cancels).to_equal(1);
 		expect(SinkSpy::shows).to_equal(0);
 		expect(r.stack.depth()).to_equal(size_t(1));
-		expect(r.stack.top().kind() == SceneKind::Console).to_be_true();
+		expect(r.stack.top().kind()).to_equal(SceneKind::Console);
 	});
 
 	it("CancelPopup and ClearWorking with a sink also reach legacy's slot, and still take down the shell's scenes", _ {
@@ -813,17 +813,17 @@ describe shell_notices("shell::Notices", $ {
 		(void)r.queue.push(make_notice(Notice::Kind::CancelPopup));
 		r.notices.drain(r.queue, 0);
 		expect(r.stack.depth()).to_equal(size_t(1));
-		expect(r.stack.top().kind() == SceneKind::Working).to_be_true();
+		expect(r.stack.top().kind()).to_equal(SceneKind::Working);
 
 		// Now push a popup on top of it and cancel that.
 		(void)r.queue.push(make_notice(Notice::Kind::Text, "SAVED"));
 		r.notices.drain(r.queue, 0);
 		expect(r.stack.depth()).to_equal(size_t(2));
-		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+		expect(r.stack.top().kind()).to_equal(SceneKind::Popup);
 		(void)r.queue.push(make_notice(Notice::Kind::CancelPopup));
 		r.notices.drain(r.queue, 0);
 		expect(r.stack.depth()).to_equal(size_t(1));
-		expect(r.stack.top().kind() == SceneKind::Working).to_be_true();
+		expect(r.stack.top().kind()).to_equal(SceneKind::Working);
 	});
 
 	it("draws a popup tall enough to reach above the visible rows there, as legacy's does", _ {
@@ -859,7 +859,7 @@ describe shell_notices("shell::Notices", $ {
 		expect(saved48.lit(box48.x + 1, top48 + box48.y)).to_be_true();         // top edge
 		expect(saved48.lit(box48.x + 1, top48 + box48.y + box48.h)).to_be_true(); // bottom edge
 		expect(saved48.lit(box48.x, top48 + box48.y)).to_be_false();            // corner (SMALL rounding)
-		expect(saved48.pbm() != deluge::ui::test::Rig48{}.pbm()).to_be_true();  // not blank
+		expect(saved48.pbm()).not_().to_equal(deluge::ui::test::Rig48{}.pbm());  // not blank
 		expect_golden(self, "shell/popup_saved_48.pbm", saved48.pbm());
 
 		deluge::ui::test::Rig64 saved64;
@@ -874,7 +874,7 @@ describe shell_notices("shell::Notices", $ {
 		expect(saved64.lit(box64.x + 1, top64 + box64.y)).to_be_true();
 		expect(saved64.lit(box64.x + 1, top64 + box64.y + box64.h)).to_be_true();
 		expect(saved64.lit(box64.x, top64 + box64.y)).to_be_false();
-		expect(saved64.pbm() != deluge::ui::test::Rig64{}.pbm()).to_be_true();
+		expect(saved64.pbm()).not_().to_equal(deluge::ui::test::Rig64{}.pbm());
 		expect_golden(self, "shell/popup_saved_64.pbm", saved64.pbm());
 
 		// role != Main is a no-op.

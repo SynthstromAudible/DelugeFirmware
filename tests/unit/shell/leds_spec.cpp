@@ -89,8 +89,8 @@ describe shell_leds("shell::LedCompose", $ {
 		// The service declared Play On and the base overrode it; the base declared Song On and the
 		// overlay above it overrode that. Two ids declared, not four entries.
 		expect(out.entries().size()).to_equal(size_t(2));
-		expect(declared(out, kPlay).kind == LedState::Kind::Off).to_be_true();
-		expect(declared(out, kSong).kind == LedState::Kind::Blink).to_be_true();
+		expect(declared(out, kPlay).kind).to_equal(LedState::Kind::Off);
+		expect(declared(out, kSong).kind).to_equal(LedState::Kind::Blink);
 		expect(declared(out, kSong).period_ms).to_equal(uint16_t(200));
 	});
 
@@ -101,8 +101,8 @@ describe shell_leds("shell::LedCompose", $ {
 
 		LedFrame out;
 		LedCompose::compose(out, std::span<Service* const>{}, stack);
-		expect(declared(out, kPlay).kind == LedState::Kind::On).to_be_true();
-		expect(declared(out, kSong).kind == LedState::Kind::Off).to_be_true();
+		expect(declared(out, kPlay).kind).to_equal(LedState::Kind::On);
+		expect(declared(out, kSong).kind).to_equal(LedState::Kind::Off);
 	});
 
 	it("blink phase is shared and until_ms folds an alert back to On", _ {
@@ -140,7 +140,7 @@ describe shell_leds("shell::LedCompose", $ {
 		// On a boundary the answer is a full period, not zero: the flip AT `now_ms` is the one the
 		// caller has already rendered.
 		expect(*led_next_change(forever, 200)).to_equal(uint32_t(200));
-		expect(led_is_on(forever, 199) != led_is_on(forever, 199 + *led_next_change(forever, 199))).to_be_true();
+		expect(led_is_on(forever, 199)).not_().to_equal(led_is_on(forever, 199 + *led_next_change(forever, 199)));
 
 		// A bounded blink wakes at whichever comes first, its boundary or its deadline...
 		const LedState alert = blink(200, 350);

@@ -291,12 +291,12 @@ describe shell_scripts("shell script harness (level 2)", $ {
 		// step redraws the OLED (so no two of the three counter frames are the same image).
 		const std::string dir = std::string(UI_GOT_DIR) + "/shell/input/";
 		const std::string idle = read_text(dir + "idle.state");
-		expect(idle.find("pad 2 3") == std::string::npos).to_be_true();
+		expect(idle).not_().to_contain("pad 2 3");
 		// The declared LED states, not the levels `flush` resolved: `Play` is steady, `Record`
 		// blinks, and the fake's `set_led` shadow cannot tell those two apart.
-		expect(idle.find("led Play on\n") != std::string::npos).to_be_true();
-		expect(idle.find("led Record blink 500\n") != std::string::npos).to_be_true();
-		expect(read_text(dir + "pad-held.state").find("pad 2 3 255 255 255") != std::string::npos).to_be_true();
+		expect(idle).to_contain("led Play on\n");
+		expect(idle).to_contain("led Record blink 500\n");
+		expect(read_text(dir + "pad-held.state")).to_contain("pad 2 3 255 255 255");
 		expect(read_text(dir + "pad-released.state")).to_equal(idle);
 
 		const std::string before = read_text(dir + "idle.oled0.pbm");
@@ -304,9 +304,9 @@ describe shell_scripts("shell script harness (level 2)", $ {
 		const std::string down = read_text(dir + "turn-down.oled0.pbm");
 		const std::string model = read_text(dir + "model-changed.oled0.pbm");
 		expect(before.empty()).to_be_false();
-		expect(up == before).to_be_false();   // T0 -> T1
-		expect(down == up).to_be_false();     // T1 -> T-1
-		expect(model == down).to_be_false();  // M0 -> M1
+		expect(up).not_().to_equal(before);   // T0 -> T1
+		expect(down).not_().to_equal(up);     // T1 -> T-1
+		expect(model).not_().to_equal(down);  // M0 -> M1
 	});
 
 	it("refuses an encoder step it would have to narrow", _ {
@@ -467,9 +467,9 @@ describe shell_scripts("shell script harness (level 2)", $ {
 		expect(result.error.has_value()).to_be_true();
 		expect(result.error->line).to_equal(uint16_t(0)); // an I/O-class failure, not a script line
 		const std::string message(result.error->message);
-		expect(message.find("big") != std::string::npos).to_be_true();
-		expect(message.find(".state") != std::string::npos).to_be_true();
-		expect(message.find("256") != std::string::npos).to_be_true();
+		expect(message).to_contain("big");
+		expect(message).to_contain(".state");
+		expect(message).to_contain("256");
 	});
 });
 // clang-format on

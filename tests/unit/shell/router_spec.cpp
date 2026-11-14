@@ -164,7 +164,7 @@ describe shell_router("shell::Router", $ {
 		r.router.route(mod_event, make_ctx(r.lowering));
 
 		expect(r.log.size()).to_equal(size_t(1));
-		expect(r.log[0] == "scene").to_be_true();
+		expect(r.log[0]).to_equal("scene");
 		expect(r.scene_a.calls).to_equal(1);
 		expect(r.mod_knobs.calls).to_equal(0);        // never reached: the scene already handled it
 		expect(r.global_controls.calls).to_equal(0);  // nor this
@@ -198,7 +198,7 @@ describe shell_router("shell::Router", $ {
 		r.router.route(turn, make_ctx(r.lowering));
 
 		expect(r.log.size()).to_equal(size_t(1));
-		expect(r.log[0] == "scene").to_be_true();
+		expect(r.log[0]).to_equal("scene");
 		expect(r.mod_knobs.calls).to_equal(0);
 		expect(r.global_controls.calls).to_equal(0);
 
@@ -206,7 +206,7 @@ describe shell_router("shell::Router", $ {
 		r.log.clear();
 		r.router.route(button_event(ButtonId::Mod3, true), make_ctx(r.lowering));
 		expect(r.log.size()).to_equal(size_t(1));
-		expect(r.log[0] == "scene").to_be_true();
+		expect(r.log[0]).to_equal("scene");
 		expect(r.mod_knobs.calls).to_equal(0);
 	});
 
@@ -223,25 +223,25 @@ describe shell_router("shell::Router", $ {
 		r.router.route(turn, make_ctx(r.lowering));
 
 		expect(r.log.size()).to_equal(size_t(2));
-		expect(r.log[0] == "scene").to_be_true();      // asked first
-		expect(r.log[1] == "mod").to_be_true();        // and only then the View fallback
+		expect(r.log[0]).to_equal("scene");      // asked first
+		expect(r.log[1]).to_equal("mod");        // and only then the View fallback
 		expect(r.global_controls.calls).to_equal(0);   // mod_knobs claimed it
 
 		// Mod button, same order.
 		r.log.clear();
 		r.router.route(button_event(ButtonId::Mod7, true), make_ctx(r.lowering));
 		expect(r.log.size()).to_equal(size_t(2));
-		expect(r.log[0] == "scene").to_be_true();
-		expect(r.log[1] == "mod").to_be_true();
+		expect(r.log[0]).to_equal("scene");
+		expect(r.log[1]).to_equal("mod");
 
 		// And when nothing claims it, `global_controls` is still last and the event still drops.
 		r.log.clear();
 		r.mod_knobs.next_result = Result::unhandled();
 		r.router.route(turn, make_ctx(r.lowering));
 		expect(r.log.size()).to_equal(size_t(3));
-		expect(r.log[0] == "scene").to_be_true();
-		expect(r.log[1] == "mod").to_be_true();
-		expect(r.log[2] == "global").to_be_true();
+		expect(r.log[0]).to_equal("scene");
+		expect(r.log[1]).to_equal("mod");
+		expect(r.log[2]).to_equal("global");
 		expect(r.router.dropped_events()).to_equal(uint32_t(1));
 	});
 
@@ -263,9 +263,9 @@ describe shell_router("shell::Router", $ {
 
 		r.router.route(button_event(ButtonId::Play, true), make_ctx(r.lowering));
 		expect(r.log.size()).to_equal(size_t(3));
-		expect(r.log[0] == "scene").to_be_true();
-		expect(r.log[1] == "global").to_be_true();
-		expect(r.log[2] == "learn").to_be_true();
+		expect(r.log[0]).to_equal("scene");
+		expect(r.log[1]).to_equal("global");
+		expect(r.log[2]).to_equal("learn");
 		expect(r.mod_knobs.calls).to_equal(0); // Play is not a mod/gold-knob event
 		expect(r.router.dropped_events()).to_equal(uint32_t(1));
 
@@ -275,7 +275,7 @@ describe shell_router("shell::Router", $ {
 		r.global_controls.next_result = handled_no_actions();
 		r.router.route(button_event(ButtonId::Play, true), make_ctx(r.lowering));
 		expect(r.log.size()).to_equal(size_t(2));
-		expect(r.log[1] == "global").to_be_true();
+		expect(r.log[1]).to_equal("global");
 		expect(r.midi_learn.calls).to_equal(1); // still just the first route's call
 		expect(r.router.dropped_events()).to_equal(uint32_t(1));
 
@@ -285,7 +285,7 @@ describe shell_router("shell::Router", $ {
 		r.midi_learn.next_result = handled_no_actions();
 		r.router.route(button_event(ButtonId::Learn, true), make_ctx(r.lowering));
 		expect(r.log.size()).to_equal(size_t(3));
-		expect(r.log[2] == "learn").to_be_true();
+		expect(r.log[2]).to_equal("learn");
 		expect(r.router.dropped_events()).to_equal(uint32_t(1));
 	});
 
@@ -305,10 +305,10 @@ describe shell_router("shell::Router", $ {
 
 		expect(r.mod_knobs.calls).to_equal(0);          // Back is not a mod/gold-knob event
 		expect(r.log.size()).to_equal(size_t(2));
-		expect(r.log[0] == "scene").to_be_true();
-		expect(r.log[1] == "global").to_be_true();
+		expect(r.log[0]).to_equal("scene");
+		expect(r.log[1]).to_equal("global");
 		expect(r.stack.depth()).to_equal(size_t(2));    // Push applied even though the scene said unhandled
-		expect(r.stack.top().kind() == kB).to_be_true();
+		expect(r.stack.top().kind()).to_equal(kB);
 	});
 
 	it("Pop, ReplaceRoot, LockInput, and Repaint actions all take effect", _ {
@@ -339,7 +339,7 @@ describe shell_router("shell::Router", $ {
 		r.router.route(button_event(ButtonId::Back, true), make_ctx(r.lowering));
 
 		expect(r.stack.depth()).to_equal(size_t(1));
-		expect(r.stack.top().kind() == kA).to_be_true();       // kB popped off
+		expect(r.stack.top().kind()).to_equal(kA);       // kB popped off
 		expect(r.lowering.input_locked()).to_be_true();
 		expect(r.router.repaint_requested(SurfaceRole::Main)).to_be_true();
 		expect(r.router.repaint_requested(SurfaceRole::Aux)).to_be_false();
@@ -357,7 +357,7 @@ describe shell_router("shell::Router", $ {
 
 		r.router.route(button_event(ButtonId::Back, true), make_ctx(r.lowering));
 		expect(r.stack.depth()).to_equal(size_t(1));
-		expect(r.stack.top().kind() == kB).to_be_true();
+		expect(r.stack.top().kind()).to_equal(kB);
 	});
 
 	it("a scene that acts on Select's release uses the held press up the moment it takes the input", _ {
@@ -376,7 +376,7 @@ describe shell_router("shell::Router", $ {
 		res.actions.push_back(pop);
 		r.scene_b.next_result = res;
 		r.router.route(button_event(ButtonId::Back, true), make_ctx(r.lowering));
-		expect(r.stack.top().kind() == kA).to_be_true();
+		expect(r.stack.top().kind()).to_equal(kA);
 		expect(r.lowering.press_used_up(ButtonId::SelectEnc)).to_be_true();
 	});
 
@@ -414,7 +414,7 @@ describe shell_router("shell::Router", $ {
 		r.router.route(button_event(ButtonId::Back, true), make_ctx(r.lowering));
 
 		expect(r.stack.depth()).to_equal(size_t(1)); // only kA is gone
-		expect(r.stack.top().kind() == kB).to_be_true();
+		expect(r.stack.top().kind()).to_equal(kB);
 	});
 
 	it("a RepaintAll action marks every surface", _ {
@@ -474,16 +474,16 @@ describe shell_router("shell::Router", $ {
 		r.router.route(mod_enc_event, make_ctx(r.lowering));
 
 		expect(r.log.size()).to_equal(size_t(3));
-		expect(r.log[0] == "scene").to_be_true();       // the scene sees it first
-		expect(r.log[1] == "mod").to_be_true();         // then View's port
-		expect(r.log[2] == "global").to_be_true();      // and, unhandled by both, the tail
+		expect(r.log[0]).to_equal("scene");       // the scene sees it first
+		expect(r.log[1]).to_equal("mod");         // then View's port
+		expect(r.log[2]).to_equal("global");      // and, unhandled by both, the tail
 
 		// A scene that claims it -- one of the five overriding UIs -- ends the chain there.
 		r.log.clear();
 		r.scene_a.next_result = handled_no_actions();
 		r.router.route(mod_enc_event, make_ctx(r.lowering));
 		expect(r.log.size()).to_equal(size_t(1));
-		expect(r.log[0] == "scene").to_be_true();
+		expect(r.log[0]).to_equal("scene");
 		expect(r.mod_knobs.calls).to_equal(1);          // still just the one call, from before
 
 		// ModEnc1 (the other gold knob's push) follows the same rule.
@@ -495,8 +495,8 @@ describe shell_router("shell::Router", $ {
 		mod_enc1_event.on = true;
 		r.router.route(mod_enc1_event, make_ctx(r.lowering));
 		expect(r.log.size()).to_equal(size_t(3));
-		expect(r.log[0] == "scene").to_be_true();
-		expect(r.log[1] == "mod").to_be_true();
+		expect(r.log[0]).to_equal("scene");
+		expect(r.log[1]).to_equal("mod");
 
 		// `EncoderButton{SelectEnc}` is NOT one of these: legacy's tail handles it itself, and its
 		// hook has no `view` fallback at all. It must still go scene -> global_controls.
@@ -507,8 +507,8 @@ describe shell_router("shell::Router", $ {
 		select_press.on = true;
 		r.router.route(select_press, make_ctx(r.lowering));
 		expect(r.log.size()).to_equal(size_t(2));
-		expect(r.log[0] == "scene").to_be_true();
-		expect(r.log[1] == "global").to_be_true();
+		expect(r.log[0]).to_equal("scene");
+		expect(r.log[1]).to_equal("global");
 	});
 
 	it("Popup actions store both popup_string and popup_type, cleared together", _ {
@@ -542,8 +542,8 @@ describe shell_router("shell::Router", $ {
 		r.lowering.end_tick(0);
 		UiEvent shift_event;
 		expect(r.lowering.next(shift_event)).to_be_true();
-		expect(shift_event.kind == UiEvent::Kind::Button).to_be_true();
-		expect(shift_event.button == ButtonId::Shift).to_be_true();
+		expect(shift_event.kind).to_equal(UiEvent::Kind::Button);
+		expect(shift_event.button).to_equal(ButtonId::Shift);
 
 		UiContext ctx = make_ctx(r.lowering);
 		expect(ctx.shift).to_be_true();  // the lowering already latched the physical hold
@@ -559,7 +559,7 @@ describe shell_router("shell::Router", $ {
 		r.lowering.end_tick(10);
 		UiEvent synth_event;
 		expect(r.lowering.next(synth_event)).to_be_true();
-		expect(synth_event.button == ButtonId::Synth).to_be_true();
+		expect(synth_event.button).to_equal(ButtonId::Synth);
 
 		UiContext ctx2 = make_ctx(r.lowering);
 		expect(ctx2.shift).to_be_true();

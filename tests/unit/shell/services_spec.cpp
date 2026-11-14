@@ -352,8 +352,10 @@ describe shell_services("shell::Shell::set_services", $ {
 		expect(r.shell.route_lowered_turn(deluge::ui::EncoderRole::GoldUpper, 3, 5000)).to_be_true();
 		expect(knobs.seen.size()).to_equal(size_t(2));
 		for (const UiEvent& e : knobs.seen) {
-			expect(e.kind == UiEvent::Kind::Encoder && e.encoder == deluge::ui::EncoderRole::GoldUpper && e.delta == 3 && e.lowered)
-			    .to_be_true();
+			expect(e.kind).to_equal(UiEvent::Kind::Encoder);
+			expect(e.encoder).to_equal(deluge::ui::EncoderRole::GoldUpper);
+			expect(e.delta).to_equal(3);
+			expect(e.lowered).to_be_true();
 		}
 		r.shell.set_services(Services{});
 	});

@@ -141,8 +141,8 @@ describe shell_profiles("shell::board profiles", $ {
 		// a future wiring is a deliberate edit to this expectation rather than a silent change of
 		// what an error popup says.
 		const BoardProfile& profile = deluge_profile();
-		expect(profile.text == nullptr).to_be_true();
-		expect(profile.error_text == nullptr).to_be_true();
+		expect(profile.text).to_be_null();
+		expect(profile.error_text).to_be_null();
 
 		TextScratch scratch{};
 		expect(std::string(profile.text_or_digits(42, scratch))).to_equal(std::string("42"));

@@ -47,8 +47,8 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.end_tick(1000);
 		UiEvent e;
 		expect(in.next(e)).to_be_true();
-		expect(e.kind == UiEvent::Kind::Button).to_be_true();
-		expect(e.button == ButtonId::Play).to_be_true();
+		expect(e.kind).to_equal(UiEvent::Kind::Button);
+		expect(e.button).to_equal(ButtonId::Play);
 		expect(e.on).to_be_true();
 		expect(in.next(e)).to_be_false();
 		expect(in.held().has(ButtonId::Play)).to_be_true();
@@ -68,19 +68,19 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.end_tick(10);
 
 		UiEvent e;
-		expect(in.next(e)).to_be_true(); expect(e.button == ButtonId::Play).to_be_true();
+		expect(in.next(e)).to_be_true(); expect(e.button).to_equal(ButtonId::Play);
 		expect(is_widget_owned_shape(e)).to_be_false();
-		expect(in.next(e)).to_be_true(); expect(e.button == ButtonId::Back).to_be_true();
+		expect(in.next(e)).to_be_true(); expect(e.button).to_equal(ButtonId::Back);
 		expect(is_widget_owned_shape(e)).to_be_true();
-		expect(in.next(e)).to_be_true(); expect(e.kind == UiEvent::Kind::EncoderButton).to_be_true();
-		expect(e.button == ButtonId::SelectEnc).to_be_true();
+		expect(in.next(e)).to_be_true(); expect(e.kind).to_equal(UiEvent::Kind::EncoderButton);
+		expect(e.button).to_equal(ButtonId::SelectEnc);
 		expect(is_widget_owned_shape(e)).to_be_true();
-		expect(in.next(e)).to_be_true(); expect(e.button == ButtonId::TempoEnc).to_be_true();
+		expect(in.next(e)).to_be_true(); expect(e.button).to_equal(ButtonId::TempoEnc);
 		expect(is_widget_owned_shape(e)).to_be_false();
-		expect(in.next(e)).to_be_true(); expect(e.encoder == EncoderRole::Select).to_be_true();
+		expect(in.next(e)).to_be_true(); expect(e.encoder).to_equal(EncoderRole::Select);
 		expect(is_widget_owned_shape(e)).to_be_true();
-		expect(in.next(e)).to_be_true(); expect(e.kind == UiEvent::Kind::Encoder).to_be_true();
-		expect(e.encoder == EncoderRole::Tempo).to_be_true();
+		expect(in.next(e)).to_be_true(); expect(e.kind).to_equal(UiEvent::Kind::Encoder);
+		expect(e.encoder).to_equal(EncoderRole::Tempo);
 		expect(is_widget_owned_shape(e)).to_be_false();
 		expect(in.next(e)).to_be_false();
 	});
@@ -170,8 +170,8 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.on_encoder_edges(3, 2, 5);                     // select, `DetentedEncoder::applyEdges`
 		in.end_tick(5);
 		UiEvent e = only_queued(in);
-		expect(e.kind == UiEvent::Kind::Encoder).to_be_true();
-		expect(e.encoder == EncoderRole::Select).to_be_true();
+		expect(e.kind).to_equal(UiEvent::Kind::Encoder);
+		expect(e.encoder).to_equal(EncoderRole::Select);
 		expect(e.delta).to_equal(int8_t(1));
 		expect(in.snapshot().turn).to_equal(int8_t(1));
 
@@ -180,7 +180,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.on_encoder_edges(4, 3, 6);                     // gold knob: raw edges through
 		in.end_tick(6);
 		e = only_queued(in);
-		expect(e.encoder == EncoderRole::GoldUpper).to_be_true();
+		expect(e.encoder).to_equal(EncoderRole::GoldUpper);
 		expect(e.delta).to_equal(int8_t(3));
 		expect(in.snapshot().edit[0]).to_equal(int8_t(3));
 
@@ -189,7 +189,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.on_encoder_edges(5, -2, 7);
 		in.end_tick(7);
 		e = only_queued(in);
-		expect(e.encoder == EncoderRole::GoldLower).to_be_true();
+		expect(e.encoder).to_equal(EncoderRole::GoldLower);
 		expect(in.snapshot().edit[1]).to_equal(int8_t(-2));
 	});
 
@@ -311,7 +311,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.set_sd_busy(false);
 		for (uint8_t x = 2; x < 10; x++) {
 			expect(in.next(e)).to_be_true();
-			expect(e.kind == UiEvent::Kind::Pad).to_be_true();
+			expect(e.kind).to_equal(UiEvent::Kind::Pad);
 			expect(e.x).to_equal(x);
 		}
 		expect(in.next(e)).to_be_false();
@@ -323,7 +323,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.begin_tick(1);
 		in.on_host_pad(3, 4, 64, /*shortcut_without_shift=*/true, 1);
 		UiEvent e = only_queued(in);
-		expect(e.kind == UiEvent::Kind::Pad).to_be_true();
+		expect(e.kind).to_equal(UiEvent::Kind::Pad);
 		expect(e.shortcut_without_shift).to_be_true();
 		in.on_host_pad(3, 4, 0, true, 2);
 		expect(only_queued(in).shortcut_without_shift).to_be_false();
@@ -357,15 +357,15 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.on_board_event(DelugeInputEvent{DELUGE_EVENT_NO_PRESSES, 0, 0, 0}, 2);
 
 		expect(in.next(e)).to_be_true();
-		expect(e.kind == UiEvent::Kind::Button).to_be_true();
-		expect(e.button == ButtonId::Play).to_be_true();
+		expect(e.kind).to_equal(UiEvent::Kind::Button);
+		expect(e.button).to_equal(ButtonId::Play);
 		expect(e.on).to_be_false();
 		expect(in.next(e)).to_be_true();
-		expect(e.kind == UiEvent::Kind::Pad).to_be_true();
+		expect(e.kind).to_equal(UiEvent::Kind::Pad);
 		expect(e.x).to_equal(uint8_t(3)); expect(e.y).to_equal(uint8_t(5));
 		expect(e.velocity).to_equal(uint8_t(0));
 		expect(in.next(e)).to_be_true();
-		expect(e.kind == UiEvent::Kind::AllReleased).to_be_true();
+		expect(e.kind).to_equal(UiEvent::Kind::AllReleased);
 		expect(in.next(e)).to_be_false();
 		expect(in.held().any()).to_be_false();
 		expect(in.held_pads().test(3, 5)).to_be_false();
@@ -661,11 +661,11 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		expect(in.last_press_ms(ButtonId::Play).has_value()).to_be_false();
 		in.begin_tick(100);
 		in.on_board_event(button_ev(8, 3, true), 100);
-		expect(in.last_press_ms(ButtonId::Play) == std::optional<uint32_t>{100}).to_be_true();
+		expect(in.last_press_ms(ButtonId::Play)).to_equal(std::optional<uint32_t>{100});
 		in.on_board_event(button_ev(8, 3, false), 150);
-		expect(in.last_press_ms(ButtonId::Play) == std::optional<uint32_t>{100}).to_be_true();
+		expect(in.last_press_ms(ButtonId::Play)).to_equal(std::optional<uint32_t>{100});
 		in.on_board_event(button_ev(8, 3, true), 900);
-		expect(in.last_press_ms(ButtonId::Play) == std::optional<uint32_t>{900}).to_be_true();
+		expect(in.last_press_ms(ButtonId::Play)).to_equal(std::optional<uint32_t>{900});
 	});
 });
 // clang-format on

@@ -143,7 +143,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		// the port must not add UI the instrument did not have, and legacy's firmware draws nothing
 		// before its first root frame (`Shell::boot`'s doc). An empty stack reports the `Null` scene.
 		expect(r.shell.stack().depth()).to_equal(size_t(0));
-		expect(r.shell.stack().top().kind() == SceneKind::Null).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(SceneKind::Null);
 
 		r.shell.tick(0);
 		// `boot()` requested a repaint on every surface, so the very first tick draws and blits
@@ -160,21 +160,21 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 
 		// Idle counts from the first tick (no prior activity was ever noted).
 		r.shell.tick(0);
-		expect(r.shell.stack().top().kind() == kRoot).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(kRoot);
 		r.shell.tick(500);
-		expect(r.shell.stack().top().kind() == kRoot).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(kRoot);
 		r.shell.tick(999);
-		expect(r.shell.stack().top().kind() == kRoot).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(kRoot);
 
 		r.shell.tick(1000);
-		expect(r.shell.stack().top().kind() == SceneKind::Screensaver).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(SceneKind::Screensaver);
 		expect(r.screensaver.enters).to_equal(1);
 
 		// Activity pops it, and the very event that woke it is still lowered and routed normally --
 		// it is not swallowed by waking the screensaver.
 		r.shell.on_board_event(button_ev(8, 3, true), 1010);
 		r.shell.tick(1020);
-		expect(r.shell.stack().top().kind() == kRoot).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(kRoot);
 		expect(r.screensaver.exits).to_equal(1);
 		expect(r.root.events).to_equal(1);
 
@@ -184,7 +184,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		r2.shell.init(SceneId{kRoot, 0});
 		r2.shell.tick(0);
 		r2.shell.tick(1000);
-		expect(r2.shell.stack().top().kind() == SceneKind::Screensaver).to_be_true();
+		expect(r2.shell.stack().top().kind()).to_equal(SceneKind::Screensaver);
 		expect(r2.screensaver.last_arg).to_equal(r.screensaver.last_arg);
 	});
 
@@ -311,7 +311,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 
 		// The idle deadline: one refused push, counted, and then the service is done.
 		r.shell.tick(1000);
-		expect(r.shell.stack().top().kind() == kRoot).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(kRoot);
 		expect(r.shell.screensaver_push_refused()).to_equal(uint32_t(1));
 
 		// Ninety more ticks past the (permanently past) deadline. Nothing repaints: the refused
@@ -336,9 +336,9 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		r.shell.tick(10);
 		expect(r.fake.blits.size()).to_equal(blits); // nothing changed, nothing sent
 		r.shell.set_highlighting(deluge::ui::Highlighting::NoInversion);
-		expect(r.fake.oled()[0].style->highlighting == deluge::ui::Highlighting::NoInversion).to_be_true();
+		expect(r.fake.oled()[0].style->highlighting).to_equal(deluge::ui::Highlighting::NoInversion);
 		r.shell.tick(20);
-		expect(r.fake.blits.size() > blits).to_be_true();
+		expect(r.fake.blits.size()).to_be_greater_than(blits);
 	});
 
 	it("set_rounded restyles the surfaces and repaints them on the next tick", _ {
@@ -352,7 +352,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		r.shell.set_rounded(false);
 		expect(r.fake.oled()[0].style->rounded).to_be_false();
 		r.shell.tick(20);
-		expect(r.fake.blits.size() > blits).to_be_true();
+		expect(r.fake.blits.size()).to_be_greater_than(blits);
 	});
 
 	it("set_screensaver_idle_ms is the port of settingsChanged: it arms, re-arms and switches off", _ {
@@ -366,7 +366,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		r.shell.init(SceneId{kRoot, 0});
 		r.shell.tick(0);
 		r.shell.tick(100000); // a hundred seconds of idle at "off"
-		expect(r.shell.stack().top().kind() == kRoot).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(kRoot);
 		expect(r.screensaver.enters).to_equal(0);
 		expect(r.shell.next_wake().has_value()).to_be_false();
 
@@ -381,7 +381,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		expect(*r.shell.next_wake()).to_equal(uint32_t(101000));
 
 		r.shell.tick(101000);
-		expect(r.shell.stack().top().kind() == SceneKind::Screensaver).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(SceneKind::Screensaver);
 		expect(r.screensaver.enters).to_equal(1);
 
 		// The OFF arm (`:171-174`'s `unsetTimer`), and legacy's ordering: the wake is unconditional
@@ -389,7 +389,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		// takes it down rather than stranding the panel.
 		r.shell.set_screensaver_idle_ms(0);
 		expect(r.shell.screensaver_idle_ms()).to_equal(uint32_t(0));
-		expect(r.shell.stack().top().kind() == kRoot).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(kRoot);
 		expect(r.screensaver.exits).to_equal(1);
 		r.shell.tick(101010);
 		expect(r.shell.next_wake().has_value()).to_be_false();
@@ -434,18 +434,18 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		r.shell.tick(kNearWrap);
 		r.shell.on_board_event(button_ev(8, 3, true), kNearWrap + 10); // arms kNearWrap + 1010
 		r.shell.tick(kNearWrap + 20);
-		expect(r.shell.stack().top().kind() == kRoot).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(kRoot);
 		// The idle period is still 1000 ms away, so that is what the shell asks to be woken at --
 		// the wrapped value, not 0 and not the pre-wrap arithmetic's answer.
 		expect(r.shell.next_wake().has_value()).to_be_true();
 		expect(*r.shell.next_wake()).to_equal(static_cast<uint32_t>(kNearWrap + 1010));
 
 		r.shell.tick(static_cast<uint32_t>(kNearWrap + 500)); // past the wrap, short of the deadline
-		expect(r.shell.stack().top().kind() == kRoot).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(kRoot);
 		expect(r.screensaver.enters).to_equal(0);
 
 		r.shell.tick(static_cast<uint32_t>(kNearWrap + 1010)); // the deadline itself
-		expect(r.shell.stack().top().kind() == SceneKind::Screensaver).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(SceneKind::Screensaver);
 		expect(r.screensaver.enters).to_equal(1);
 	});
 
@@ -458,7 +458,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		expect(r.root.enters).to_equal(1);
 
 		r.shell.song_loading(true);
-		expect(r.shell.stack().top().kind() == SceneKind::Loading).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(SceneKind::Loading);
 		expect(r.shell.lowering().input_locked()).to_be_true();
 		expect(r.root.exits).to_equal(1);
 
@@ -468,7 +468,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		expect(r.root.events).to_equal(0);
 
 		r.shell.song_loading(false);
-		expect(r.shell.stack().top().kind() == kRoot).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(kRoot);
 		expect(r.shell.lowering().input_locked()).to_be_false();
 		expect(r.root.enters).to_equal(2);
 		expect(r.root.last_arg).to_equal(uint16_t(42));
@@ -481,7 +481,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		unhooked.shell.song_loading(true);
 		unhooked.shell.song_loading(false);
 		expect(unhooked.shell.stack().depth()).to_equal(size_t(0));
-		expect(unhooked.shell.stack().top().kind() == SceneKind::Null).to_be_true();
+		expect(unhooked.shell.stack().top().kind()).to_equal(SceneKind::Null);
 	});
 
 	it("Dirty::SongSwapped replaces the root", _ {
@@ -494,7 +494,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 
 		deluge::notify::dirty().raise(Dirty::SongSwapped);
 		r.shell.tick(10);
-		expect(r.shell.stack().top().kind() == kRoot).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(kRoot);
 		expect(r.root.exits).to_equal(1);
 		expect(r.root.enters).to_equal(2);
 		expect(r.root.last_arg).to_equal(uint16_t(42));
@@ -506,7 +506,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		unhooked.shell.tick(0);
 		deluge::notify::dirty().raise(Dirty::SongSwapped);
 		unhooked.shell.tick(10);
-		expect(unhooked.shell.stack().top().kind() == kRoot).to_be_true();
+		expect(unhooked.shell.stack().top().kind()).to_equal(kRoot);
 		expect(unhooked.root.exits).to_equal(0);
 	});
 });

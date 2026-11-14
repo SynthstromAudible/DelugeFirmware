@@ -171,21 +171,21 @@ describe shell_scene_stack("shell::SceneStack", $ {
 	it("push, pop, on_resume, refusal rollback", _ {
 		Rig r;
 		expect(r.st.depth()).to_equal(size_t(0));
-		expect(r.st.top().kind() == SceneKind::Null).to_be_true();   // NullScene swallows input
-		expect(r.st.root() == nullptr).to_be_true();
+		expect(r.st.top().kind()).to_equal(SceneKind::Null);   // NullScene swallows input
+		expect(r.st.root()).to_be_null();
 		expect(r.st.push({kA})).to_be_true();
 		expect(r.st.push({kB})).to_be_true();
 		expect(r.st.depth()).to_equal(size_t(2));
-		expect(r.st.top().kind() == kB).to_be_true();
+		expect(r.st.top().kind()).to_equal(kB);
 		expect(r.st.push({kA, 99})).to_be_false();
 		expect(r.st.depth()).to_equal(size_t(2));
 		expect(r.b.resumes).to_equal(1);                             // rolled back, previous top resumed
-		expect(r.st.top().kind() == kB).to_be_true();
+		expect(r.st.top().kind()).to_equal(kB);
 		r.st.pop();
 		expect(r.st.depth()).to_equal(size_t(1));
 		expect(r.b.exits).to_equal(1);
 		expect(r.a.resumes).to_equal(1);
-		expect(r.st.top().kind() == kA).to_be_true();
+		expect(r.st.top().kind()).to_equal(kA);
 	});
 
 	it("topmost_greyout answers the topmost non-empty mask and skips empty ones", _ {
@@ -227,7 +227,7 @@ describe shell_scene_stack("shell::SceneStack", $ {
 		expect(r.st.depth()).to_equal(size_t(3));
 		r.st.pop(kB);
 		expect(r.st.depth()).to_equal(size_t(1));
-		expect(r.st.top().kind() == kA).to_be_true();
+		expect(r.st.top().kind()).to_equal(kA);
 		expect(r.b.exits).to_equal(1);
 		expect(r.c.exits).to_equal(1);                               // the kC above kB, and it alone
 		expect(r.a.exits).to_equal(0);                               // never the root
@@ -249,16 +249,16 @@ describe shell_scene_stack("shell::SceneStack", $ {
 		expect(r.a.exits).to_equal(0);                               // neither A was touched
 		expect(r.a.saves).to_equal(0);
 		expect(r.a.resumes).to_equal(0);                             // kB was not the top: no on_resume
-		expect(r.st.id_at(0) == SceneId{kA, 1}).to_be_true();        // the root, untouched
-		expect(r.st.id_at(1) == SceneId{kA, 2}).to_be_true();        // the former top, shifted down intact
-		expect(r.st.top().kind() == kA).to_be_true();
+		expect(r.st.id_at(0)).to_equal(SceneId{kA, 1});        // the root, untouched
+		expect(r.st.id_at(1)).to_equal(SceneId{kA, 2});        // the former top, shifted down intact
+		expect(r.st.top().kind()).to_equal(kA);
 		expect(r.st.changed_since_last_query()).to_be_true();
 
 		// Absent: no scene of that kind is stacked any more.
 		expect(r.st.remove(kB)).to_be_false();
 		expect(r.st.depth()).to_equal(size_t(2));
-		expect(r.st.id_at(0) == SceneId{kA, 1}).to_be_true();
-		expect(r.st.id_at(1) == SceneId{kA, 2}).to_be_true();
+		expect(r.st.id_at(0)).to_equal(SceneId{kA, 1});
+		expect(r.st.id_at(1)).to_equal(SceneId{kA, 2});
 		expect(r.st.changed_since_last_query()).to_be_false();
 	});
 
@@ -270,7 +270,7 @@ describe shell_scene_stack("shell::SceneStack", $ {
 		expect(r.st.depth()).to_equal(size_t(1));
 		expect(r.b.exits).to_equal(1);
 		expect(r.a.resumes).to_equal(1);                             // the newly-exposed top is resumed
-		expect(r.st.top().kind() == kA).to_be_true();
+		expect(r.st.top().kind()).to_equal(kA);
 	});
 
 	// --- the input top is what `on_resume` is about ------------------------------------------
@@ -294,7 +294,7 @@ describe shell_scene_stack("shell::SceneStack", $ {
 		Rig r;
 		expect(r.st.push({kA})).to_be_true();
 		expect(r.st.push({kT})).to_be_true();
-		expect(&r.st.input_top() == &r.a).to_be_true();              // it never took the input top
+		expect(&r.st.input_top()).to_equal(&r.a);              // it never took the input top
 		expect(r.st.remove(kT)).to_be_true();
 		expect(r.t.exits).to_equal(1);
 		expect(r.st.depth()).to_equal(size_t(1));
@@ -316,8 +316,8 @@ describe shell_scene_stack("shell::SceneStack", $ {
 		expect(r.st.push({kT})).to_be_true();
 		expect(r.st.push({kB})).to_be_true();                        // [kA, kT, kB]
 		expect(r.st.remove(kB)).to_be_true();
-		expect(r.st.top().kind() == kT).to_be_true();                // the raw top is the overlay
-		expect(&r.st.input_top() == &r.a).to_be_true();              // the input top is kA
+		expect(r.st.top().kind()).to_equal(kT);                // the raw top is the overlay
+		expect(&r.st.input_top()).to_equal(&r.a);              // the input top is kA
 		expect(r.a.resumes).to_equal(1);                             // and kA is what gets told
 		expect(r.t.resumes).to_equal(0);                             // never the passive layer
 
@@ -339,8 +339,8 @@ describe shell_scene_stack("shell::SceneStack", $ {
 		expect(r.st.push({kT})).to_be_true();
 		expect(r.st.push({kA})).to_be_true();
 		expect(r.st.remove(kA)).to_be_true();
-		expect(r.st.top().kind() == kT).to_be_true();
-		expect(r.st.input_top().kind() == SceneKind::Null).to_be_true();
+		expect(r.st.top().kind()).to_equal(kT);
+		expect(r.st.input_top().kind()).to_equal(SceneKind::Null);
 		expect(r.t.resumes).to_equal(0);
 	});
 
@@ -374,7 +374,7 @@ describe shell_scene_stack("shell::SceneStack", $ {
 		expect(r.st.push({kT})).to_be_true();
 		expect(r.st.replace_top({kA, 99})).to_be_false();
 		expect(r.st.depth()).to_equal(size_t(2));
-		expect(r.st.top().kind() == kT).to_be_true();
+		expect(r.st.top().kind()).to_equal(kT);
 		expect(r.t.exits).to_equal(1);
 		expect(r.t.resumes).to_equal(1);                             // the exited scene is told
 		expect(r.b.resumes).to_equal(0);                             // and nothing else is
@@ -392,7 +392,7 @@ describe shell_scene_stack("shell::SceneStack", $ {
 		expect(r.a.restored).to_equal(uint16_t(5));
 		expect(r.a.restores).to_equal(1);
 		expect(r.st.depth()).to_equal(size_t(1));
-		expect(r.st.root() == &r.a).to_be_true();
+		expect(r.st.root()).to_equal(&r.a);
 	});
 
 	it("reset empties the stack and top() is the NullScene", _ {
@@ -400,7 +400,7 @@ describe shell_scene_stack("shell::SceneStack", $ {
 		expect(r.st.push({kA})).to_be_true();
 		r.st.reset();
 		expect(r.st.depth()).to_equal(size_t(0));
-		expect(r.st.top().kind() == SceneKind::Null).to_be_true();
+		expect(r.st.top().kind()).to_equal(SceneKind::Null);
 		expect(r.a.exits).to_equal(1);
 		expect(r.a.saves).to_equal(0);                               // reset is not a save point
 	});
@@ -421,7 +421,7 @@ describe shell_scene_stack("shell::SceneStack", $ {
 		expect(r.st.push({kA, 5})).to_be_true();
 		expect(r.st.replace_top({kB})).to_be_true();
 		expect(r.st.depth()).to_equal(size_t(1));
-		expect(r.st.top().kind() == kB).to_be_true();
+		expect(r.st.top().kind()).to_equal(kB);
 		expect(r.a.exits).to_equal(1);
 		expect(r.a.saves).to_equal(0);
 		// kA's slot was never written, so coming back to it does not restore.
@@ -435,7 +435,7 @@ describe shell_scene_stack("shell::SceneStack", $ {
 		expect(r.st.depth()).to_equal(size_t(0));
 		expect(r.st.replace_top({kA, 3})).to_be_true();
 		expect(r.st.depth()).to_equal(size_t(1));
-		expect(r.st.top().kind() == kA).to_be_true();
+		expect(r.st.top().kind()).to_equal(kA);
 		expect(r.a.enters).to_equal(1);
 		expect(r.a.arg).to_equal(uint16_t(3));
 		expect(r.a.exits).to_equal(0);                               // there was nothing to exit
@@ -448,8 +448,8 @@ describe shell_scene_stack("shell::SceneStack", $ {
 		expect(r.st.push({kB})).to_be_true();
 		expect(r.st.replace_top({kA, 99})).to_be_false();
 		expect(r.st.depth()).to_equal(size_t(2));
-		expect(r.st.top().kind() == kB).to_be_true();                // kB is back on top
-		expect(r.st.id_at(1) == SceneId{kB}).to_be_true();           // and so is its id
+		expect(r.st.top().kind()).to_equal(kB);                // kB is back on top
+		expect(r.st.id_at(1)).to_equal(SceneId{kB});           // and so is its id
 		expect(r.b.exits).to_equal(1);                               // it was exited before the swap
 		expect(r.b.resumes).to_equal(1);                             // and resumed by the rollback
 		expect(r.a.enters).to_equal(1);                              // only the original push entered
@@ -474,13 +474,13 @@ describe shell_scene_stack("shell::SceneStack", $ {
 		expect(r.st.replace_root({kB})).to_be_true();
 		expect(r.b.restores).to_equal(0);                            // kB's slot has never been saved
 		expect(r.st.depth()).to_equal(size_t(1));
-		expect(r.st.top().kind() == kB).to_be_true();
+		expect(r.st.top().kind()).to_equal(kB);
 	});
 
 	it("an unregistered kind cannot be pushed", _ {
 		Rig r;
-		expect(r.reg.find(kUnregistered) == nullptr).to_be_true();
-		expect(r.reg.find(SceneKind::Popup) == nullptr).to_be_true();
+		expect(r.reg.find(kUnregistered)).to_be_null();
+		expect(r.reg.find(SceneKind::Popup)).to_be_null();
 		expect(r.st.push({kUnregistered})).to_be_false();
 		expect(r.st.depth()).to_equal(size_t(0));
 		expect(r.st.replace_root({kUnregistered})).to_be_false();
@@ -513,16 +513,16 @@ describe shell_scene_stack("shell::SceneStack", $ {
 		expect(r.st.push({kA, 1})).to_be_true();
 		expect(r.st.push({kB, 2})).to_be_true();
 		expect(r.st.scenes().size()).to_equal(size_t(2));
-		expect(r.st.scenes()[0] == &r.a).to_be_true();
-		expect(r.st.scenes()[1] == &r.b).to_be_true();
-		expect(r.st.id_at(0) == SceneId{kA, 1}).to_be_true();
-		expect(r.st.id_at(1) == SceneId{kB, 2}).to_be_true();
-		expect(r.st.id_at(2) == SceneId{}).to_be_true();             // out of range
+		expect(r.st.scenes()[0]).to_equal(&r.a);
+		expect(r.st.scenes()[1]).to_equal(&r.b);
+		expect(r.st.id_at(0)).to_equal(SceneId{kA, 1});
+		expect(r.st.id_at(1)).to_equal(SceneId{kB, 2});
+		expect(r.st.id_at(2)).to_equal(SceneId{});             // out of range
 	});
 
 	it("NullScene swallows input and draws nothing", _ {
 		NullScene null;
-		expect(null.kind() == SceneKind::Null).to_be_true();
+		expect(null.kind()).to_equal(SceneKind::Null);
 
 		ButtonSet held;
 		deluge::ui::PadMask held_pads{};
@@ -539,12 +539,12 @@ describe shell_scene_stack("shell::SceneStack", $ {
 		deluge::ui::test::GridRig grid;
 		const std::string before_pads = grid.state();
 		null.render_grid(grid.frame);
-		expect(grid.state() == before_pads).to_be_true();
+		expect(grid.state()).to_equal(before_pads);
 
 		deluge::ui::test::Rig48 oled;
 		const std::string before_pixels = oled.pbm();
 		null.render_oled(SurfaceRole::Main, oled.frame);
-		expect(oled.pbm() == before_pixels).to_be_true();
+		expect(oled.pbm()).to_equal(before_pixels);
 	});
 });
 // clang-format on

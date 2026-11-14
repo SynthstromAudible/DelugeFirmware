@@ -12,9 +12,9 @@ describe shell_surfaces("shell::SurfaceSet", $ {
 		expect(s.oled().size()).to_equal(size_t(2));
 		expect(s.oled()[1].geometry.height).to_equal(uint16_t(64));
 		expect(s.oled()[0].geometry.visible_top).to_equal(uint8_t(5));
-		expect(s.oled(SurfaceRole::Main) != nullptr).to_be_true();
+		expect(s.oled(SurfaceRole::Main)).not_().to_be_null();
 		expect(s.oled(SurfaceRole::Aux)->index).to_equal(uint8_t(1));
-		expect(s.oled(SurfaceRole::Param0) == nullptr).to_be_true();
+		expect(s.oled(SurfaceRole::Param0)).to_be_null();
 		expect(s.grid().grid().dims().main_cols).to_equal(uint8_t(16));
 		expect(s.grid().grid().dims().sidebar_cols).to_equal(uint8_t(2));
 		expect(s.grid().pairs).to_equal(uint8_t(9));
@@ -23,15 +23,15 @@ describe shell_surfaces("shell::SurfaceSet", $ {
 		uitest::FakeSurfaceSet s(uitest::kBoard2, uitest::test_profile_two_oleds());
 		expect(s.oled()[0].style->menu_rows).to_equal(deluge::ui::kDelugeStyle48.menu_rows);
 		expect(s.oled()[1].style->menu_rows).to_equal(deluge::ui::kDelugeStyle64.menu_rows);
-		expect(s.oled()[0].style != &deluge::ui::kDelugeStyle48).to_be_true(); // a copy, which the shell may restyle
+		expect(s.oled()[0].style).not_().to_equal(&deluge::ui::kDelugeStyle48); // a copy, which the shell may restyle
 	});
 	it("set_highlighting restyles every surface's copy, not the profile's", _ {
 		// `FlashStorage::accessibilityMenuHighlighting`, which legacy's renderers read live (`horizontal_menu.cpp:268`).
 		uitest::FakeSurfaceSet s(uitest::kBoard2, uitest::test_profile_two_oleds());
 		s.set_highlighting(deluge::ui::Highlighting::FullInversion);
-		expect(s.oled()[0].style->highlighting == deluge::ui::Highlighting::FullInversion).to_be_true();
-		expect(s.oled()[1].style->highlighting == deluge::ui::Highlighting::FullInversion).to_be_true();
-		expect(deluge::ui::kDelugeStyle48.highlighting == deluge::ui::Highlighting::PartialInversion).to_be_true();
+		expect(s.oled()[0].style->highlighting).to_equal(deluge::ui::Highlighting::FullInversion);
+		expect(s.oled()[1].style->highlighting).to_equal(deluge::ui::Highlighting::FullInversion);
+		expect(deluge::ui::kDelugeStyle48.highlighting).to_equal(deluge::ui::Highlighting::PartialInversion);
 	});
 	it("falls back to display_width/height when the board lists no panels", _ {
 		DelugeBoard b = uitest::kBoard2;
@@ -54,15 +54,15 @@ describe shell_surfaces("shell::SurfaceSet", $ {
 		b.displays = nullptr;
 		b.display_count = 3;
 		uitest::FakeSurfaceSet s(b, uitest::test_profile_two_oleds());
-		expect(s.oled()[2].role == SurfaceRole::None).to_be_true();
-		expect(s.oled()[2].style == nullptr).to_be_true();
-		expect(s.oled(SurfaceRole::None) == nullptr).to_be_true();
+		expect(s.oled()[2].role).to_equal(SurfaceRole::None);
+		expect(s.oled()[2].style).to_be_null();
+		expect(s.oled(SurfaceRole::None)).to_be_null();
 	});
 	it("compares column pairs by value", _ {
 		ColumnPair a{}, b{};
-		expect(a == b).to_be_true();
+		expect(a).to_equal(b);
 		b.colours[7] = RGB{1, 2, 3};
-		expect(a == b).to_be_false();
+		expect(a).not_().to_equal(b);
 	});
 	it("records what the shell would flush", _ {
 		uitest::FakeSurfaceSet s(uitest::kBoard2, uitest::test_profile_two_oleds());
@@ -74,7 +74,7 @@ describe shell_surfaces("shell::SurfaceSet", $ {
 		s.flush();
 		expect(s.columns_sent.size()).to_equal(size_t(1));
 		expect(s.columns_sent[0].first).to_equal(uint8_t(4));
-		expect(s.columns_sent[0].second == p).to_be_true();
+		expect(s.columns_sent[0].second).to_equal(p);
 		expect(s.led_writes.size()).to_equal(size_t(1));
 		expect(s.indicator_writes.size()).to_equal(size_t(1));
 		expect(s.flushes).to_equal(1);
