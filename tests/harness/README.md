@@ -32,7 +32,7 @@ deluge-sdk's headless format, one step per line: `<at_ms> <command> <args…>`; 
 ```
 
 - Times are milliseconds on the harness clock: the shell's `now_ms` argument at level 2;
-  the deterministic frame-count clock at level 3 (`ms = frames * 1000 / sample_rate`).
+  golden_vt_render's virtual clock at level 3 (milliseconds since boot, the clock the app's timers run on).
 - Parsing is one dependency-free unit, `tests/harness/ui_script.{h,cpp}`
   (`parse_script(string_view) -> FixedVector<Step, 256>`; `Step{at_ms, kind, args}`),
   shared by levels 1-2 and compiled into the host BSP for level 3.
@@ -44,6 +44,26 @@ deluge-sdk's headless format, one step per line: `<at_ms> <command> <args…>`; 
   `ui_script.cpp` does not parse them.
 - Level-3 scripts also run on the real Deluge on the probe rig, through a `rig-harness` image and
   `tools/device_parity.py`, compared with delugemu (`docs/dev/device_benchmarking.md`).
+
+## Cards
+
+A script that runs on a card (every directory under `tests/ui-scripts` except `shell/`) is named
+`<letters><two digits>-<words>.txt` and names each card it runs on in a line of its own before its first step:
+
+    # card: tests/fixtures/card                     a directory in this repository
+    # card: tests/fixtures/card-dx-no-folder.card   a card manifest
+    # card: content/sweep-bare.img                  a content card: a directory or FAT image in DELUGE_CONTENT_CARDS
+                                                    (default .superpowers/emu-card), on a developer's machine only
+
+Every runner reads them through `tools/ui_script_cards.py` and plays the script once per card. The `ui-scripts` gate
+compares the first card's snapshots with the goldens and requires every further card to reproduce them, so its
+scripts (`app/`, `selftest/`) name repository cards only. `tools/emu_parity.py <dir>` compares main's image with this
+one on each card; `--card` or `--sd` runs every script on one card instead. `tools/ui_script_cards.py`'s test refuses
+a script without a numbered name or a header.
+
+Steps only the emulator runner takes: `load NAME` (opens the browser with Load, types NAME on the pad keyboard and
+presses Select) and `random_colour X Y` (from then on pad (X, Y) compares as lit or unlit only, for a pad drawn in a
+random row colour, DIFFERENCES.md D11). `ui_script.cpp` rejects both, so app scripts do not use them.
 
 ## Snapshot format
 
@@ -96,7 +116,7 @@ audit.
 |---|---|---|
 | 1 -- toolkit | one widget/component directly (literal data + POD state -> golden frame); no script | `tests/unit/ui/*_spec.cpp` |
 | 2 -- shell + scenes | the real `Shell` over a fake `SurfaceSet` (`FakeSurfaceSet`), scripts may use every command including `model`/`notice` | `tests/unit/shell/scripts_spec.cpp` + `tests/ui-scripts/shell/*.txt`, goldens `tests/golden/ui/shell/` |
-| 3 -- whole app | the real headless `deluge_host`, injected on its deterministic frame clock | `tests/ui-scripts/app/*.txt`, goldens `tests/golden/ui/app/`, ctest `ui_app_scripts_<name>` / `_diff` |
+| 3 -- whole app | the real app on `golden_vt_render`, injected on its virtual clock | `tests/ui-scripts/app/*.txt` on its `ui_script` scenario (the `ui-scripts` gate, `tests/integration/checks/ui_scripts.py`), goldens `tests/golden/ui/app/` |
 
 Levels 2-3 share the same script and snapshot format; that is the whole point of building both
 on top of level 0. A migrated scene's script is meant to run, unmodified, at level 2
@@ -104,17 +124,18 @@ against both the legacy adapter and the new scene -- see "Migration hook" below.
 
 ## Adding a script
 
-1. Write `tests/ui-scripts/shell/<name>.txt` (level 2) or `tests/ui-scripts/app/<name>.txt`
-   (level 3) in the format above. End it with `quit` -- level 3 has no other way to stop, and
+1. Write `tests/ui-scripts/shell/<name>.txt` (level 2) or `tests/ui-scripts/app/<aNN>-<name>.txt`
+   (level 3, numbered, with its `# card:` lines; see "Cards" above) in the format above.
+   End it with `quit` -- level 3 has no other way to stop, and
    level 2's last tick is the last step's `at_ms` either way, so a `quit` costs nothing and
    guards against a script that grows a later step by accident.
 2. **Level 2**: call `uitest::expect_script_goldens(self, "<name>", registry, services, opts)`
-   from an `it(...)` block in `tests/unit/shell/scripts_spec.cpp` (or a new `*_spec.cpp` nested
-   under `tests/unit/shell/`); it reads the script by name from `UI_SCRIPTS_DIR` and diffs
-   `UI_GOT_DIR` against `GOLDEN_ROOT`'s `ui/shell/` (`GOLDEN_ROOT` from `tests/support/cmake/golden.cmake`).
-   **Level 3**: nothing to wire up -- `sim/CMakeLists.txt` globs
-   `tests/ui-scripts/app/*.txt` (`CONFIGURE_DEPENDS`, so a fresh build picks up a new file with
-   no manual re-run) and creates the `ui_app_scripts_<name>` / `_diff` pair automatically.
+   from an `it(...)` block in `tests/unit/shell/scripts_spec.cpp` (or a spec beside it under
+   `tests/unit/shell/`); it reads the script by name from `UI_SCRIPTS_DIR` and diffs
+   `UI_GOT_DIR` against `GOLDEN_ROOT`'s `ui/shell/` (all three set in `tests/trees/host/CMakeLists.txt`;
+   `GOLDEN_ROOT` from `tests/support/cmake/golden.cmake`).
+   **Level 3**: nothing to wire up -- the `ui-scripts` gate runs every script in
+   `tests/ui-scripts/app` on each of its cards; record its goldens with `./dbt test --update ui-scripts`.
 3. Run once with no golden recorded -- it fails, naming the missing golden directory. That
    failure is the point: it proves the run itself succeeds (no parse/run error, the right
    number of snapshots) *before* any golden exists to hide behind.
@@ -149,7 +170,8 @@ will golden the wrong frame at whichever level and look correct doing it. Give a
 
 ## Reading a diff
 
-A failing `expect_script_goldens`/`ui_app_scripts_<name>_diff` assertion prints both sides of
+A failing `expect_script_goldens` assertion (level 2) or `ui-scripts` gate (level 3, through
+`scripts/ui_snapshot_diff.py`) prints both sides of
 the mismatching file under a `--- <script>/<file> ---` header (or the differ's own summary at
 level 3): a `.state` mismatch is two texts, directly comparable; a `.pbm` mismatch is two P1
 PBMs -- pipe either side through `scripts/pbm2png.py` to view it as an image, or diff them as
@@ -193,43 +215,28 @@ differs or is missing on either side. This is the acceptance test for a migrated
 the same script against `LegacySceneAdapter` and the new scene must produce identical
 snapshots.
 
-## Timeouts (level 3 only)
+## Deadline (level 3 only)
 
-A level-3 run only ends when the script's own `quit` step fires; anything that stops the app
-polling for input also stops the pump, so two backstops exist, deliberately in different
-units:
+A level-3 run only ends when the script's own `quit` step fires; anything that stops the app polling for input also
+stops the pump. `host_script.c` therefore gives the run the script's last `at_ms` plus a 5 **virtual-second** margin
+(`HOST_SCRIPT_DEADLINE_MARGIN_S`). Passing it exits 2 with a message naming the time reached and the script's last
+step -- the useful diagnosis. A `quit` fires within a pump of the last step, so the margin is slack, not budget, and
+`tests/ui-scripts/selftest/t03-no-quit.txt` pins the failure.
 
-- **In-process** (`host_script.c`): the offline audio capture's own deadline is moved to the
-  script's last `at_ms` plus a 5 **audio-second** margin. Expiring it exits 2 with a message
-  naming the last step reached -- the useful diagnosis.
-- **`ctest` `TIMEOUT`** (`sim/CMakeLists.txt`, computed per script from its own last `at_ms`):
-  `8 * (last_s + 5) + 30` **wall seconds**. The `8 ×` converts the in-process, audio-second
-  deadline into wall time at a render rate as slow as 0.125x (measured at ~0.26x on a
-  `-DDELUGE_SIM_X64=ON` build, so better than 2x of headroom), and the `+ 30` covers process
-  start-up and a cold CI runner. Scaling rather than adding keeps the in-process deadline
-  winning the race for scripts of any length -- a flat wall margin only dominates for a short
-  script and inverts past roughly 4-5 seconds of script timeline, at which point `ctest` would
-  kill the process first and replace the useful message with a bare "Timeout".
+## The first snapshot (level 3)
 
-Change `HOST_SCRIPT_DEADLINE_MARGIN_S` (currently 5) and the `8 * (last_s + 5)` in
-`sim/CMakeLists.txt` together -- the CMake expression is the C constant seen from the wall-clock
-side of the same conversion.
-
-## The 50 ms first-snapshot rule (level 3)
-
-The legacy app's first OLED blit happens from inside its main loop, *after* its first input
-poll -- there is no frame to snapshot at `at_ms == 0`. A level-3 script's first `snapshot`
-should be no earlier than **50 ms** (empirically 5-10x past the observed first blit on this
-build). Snapshotting a panel that has never blitted is a hard failure (exit 2, "snapshot taken
-before the app's first frame"), not a black `.pbm` or a silently-missing file -- either of
-those would be a golden that cannot tell "blank screen" from "never drawn".
+The app's first OLED blit happens from inside its main loop, *after* its first input poll -- there is no frame to
+snapshot at `at_ms == 0`. A level-3 script's first `snapshot` waits until the app has drawn: the committed scripts
+take theirs at 50 ms or later. Snapshotting a panel that has never blitted is a hard failure (exit 2, "has never blitted"),
+not a black `.pbm` or a silently-missing file -- either of those would be a golden that cannot tell "blank screen"
+from "never drawn". `tests/ui-scripts/selftest/t02-early-snapshot.txt` pins it.
 
 ## The fixture card
 
-`tests/fixtures/card/` (`DELUGE_SD_ROOT` for level 3) is committed with four empty directories
-(`KITS/`, `SAMPLES/`, `SONGS/`, `SYNTHS/`, each a `.keep`) plus one real file,
-`SETTINGS/MIDIFollow.XML`. The app boots to the session screen fine on the four empty
-directories alone; `MIDIFollow.XML` is committed anyway because the app *writes* its own
-built-in defaults there on first boot when it is absent (byte-identical every run) -- leaving
-it uncommitted would mean every `ctest` run dirties the working tree with a new untracked file,
-where committing it makes the card a fixed point and the run a read.
+`tests/fixtures/card/` is the card the level-3 scripts boot on unless their header names another: `KITS/`, `SONGS/`
+and `SYNTHS/` empty but for a `.keep`, `SAMPLES/` with `TONE.WAV` (`scripts/make_fixture_sample.py` computes it),
+and `SETTINGS/` with `MIDIFollow.XML` and `FAVOURITES/SAMPLES_Bank0.xml`. The app writes both settings files on its
+first boot when they are missing, so they are committed: the card is a fixed point and a run only reads it.
+
+The cards that differ from it by one file are card manifests over it (`tests/fixtures/card-<name>.card`, the format
+in `src/bsp/rust/src/storage/card_manifest.rs`): `base tests/fixtures/card` and the one difference.
