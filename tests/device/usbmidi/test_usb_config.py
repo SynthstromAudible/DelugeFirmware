@@ -1,5 +1,5 @@
-"""The Deluge's USB identity, read from this machine's USB bus: `python3 -m pytest test_usb_config.py` (from
-tests/device/usbmidi, with a Deluge plugged in).
+"""The Deluge's USB identity, read from this machine's USB bus. Run with a Deluge plugged in, from
+tests/device/usbmidi: `python3 -m pytest test_usb_config.py test_midi_config.py` (or `./dbt test usbmidi`).
 
 Gate usbmidi:
     a Deluge on this machine's USB enumerates as 16d0:0ce2 at high speed with one configuration whose interface is a
