@@ -1830,6 +1830,13 @@ gates = "emu_parity's script runner drives delugemu or the rig through the same 
 run = ["python3", "-m", "unittest", "test_emu_parity_session", "test_device_parity", "test_stamp_preset_versions"]
 
 [[harness]]
+name = "ui-script-cards"
+template = "unittest"
+path = "tools"
+gates = "the cards a UI script's header names, as the UI script runners read them"
+run = ["python3", "-m", "unittest", "test_ui_script_cards"]
+
+[[harness]]
 name = "run-parity-runner"
 template = "unittest"
 path = "tests/ui-scripts/parity"
