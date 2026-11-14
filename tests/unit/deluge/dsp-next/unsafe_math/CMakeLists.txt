@@ -6,9 +6,14 @@ if(DELUGE_TEST_TREE STREQUAL "host" AND NOT (UNIX AND NOT APPLE))
   return()
 endif()
 include(${CMAKE_CURRENT_LIST_DIR}/../dsp_specs.cmake)
+# No deluge_synth here: it links the plain deluge_dsp_next, whose objects would sit beside the variants' and the
+# archive order would decide which the specs ran.
 deluge_specs_driver(dsp_unsafe_math_specs TREES host arm ubsan NEON
   SOURCES ${DELUGE_DSP_SPEC_ASM}
   LIBRARIES deluge_dsp_fixed_unsafe_math deluge_dsp_float_unsafe_math deluge_test_dsp_closure etl::etl
   INCLUDES ${DELUGE_DSP_SPEC_INCLUDES})
-deluge_dsp_spec_flags(dsp_unsafe_math_specs)
-target_compile_options(dsp_unsafe_math_specs PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${DELUGE_TEST_UNSAFE_MATH_OPTIONS}>")
+if(TARGET dsp_unsafe_math_specs)
+  deluge_dsp_spec_flags(dsp_unsafe_math_specs)
+  target_compile_options(dsp_unsafe_math_specs PRIVATE
+    "$<$<COMPILE_LANGUAGE:CXX>:${DELUGE_TEST_UNSAFE_MATH_OPTIONS}>")
+endif()

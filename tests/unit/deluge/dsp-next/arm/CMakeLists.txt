@@ -5,4 +5,6 @@ deluge_specs_driver(dsp_arm_specs TREES arm NEON
   SOURCES ${DELUGE_DSP_SPEC_ASM}
   LIBRARIES etl::etl
   INCLUDES ${DELUGE_DSP_SPEC_INCLUDES})
-deluge_dsp_spec_flags(dsp_arm_specs)
+if(TARGET dsp_arm_specs)
+  deluge_dsp_spec_flags(dsp_arm_specs)
+endif()

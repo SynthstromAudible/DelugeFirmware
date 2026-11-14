@@ -29,7 +29,9 @@ deluge_specs_driver(dsp_specs TREES host arm ubsan NEON
   LIBRARIES deluge_synth $<LINK_ONLY:deluge_effects> deluge_dsp_fixed deluge_dsp_float deluge_test_dsp_closure
             etl::etl
   INCLUDES ${DELUGE_DSP_SPEC_INCLUDES})
-deluge_dsp_spec_flags(dsp_specs)
+if(TARGET dsp_specs)
+  deluge_dsp_spec_flags(dsp_specs)
+endif()
 
 # Standalone-link proof for the synth core (x86 only: the closure is arch-agnostic). The synth TUs and only their
 # gui-free dependency TUs link into an executable with nothing from the app; a successful link (no undefined symbols,
