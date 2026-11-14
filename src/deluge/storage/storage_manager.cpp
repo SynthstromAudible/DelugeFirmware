@@ -40,6 +40,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 
+#include "util/exceptions.h"
 #include "util/firmware_version.h"
 #include "util/functions.h"
 #include "util/try.h"
@@ -346,7 +347,16 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	error = newInstrument->readFromFile(smDeserializer, song, clip, 0);
+	try {
+		error = newInstrument->readFromFile(smDeserializer, song, clip, 0);
+	} catch (deluge::exception e) {
+		// Reading an instrument also allocates through the STL - drum names, for one - and that goes through
+		// the throwing operator new (memory/operators.cpp), not the checked allocator calls guarded below.
+		// Uncaught, running out of memory there reached std::terminate() and froze the device with
+		// "ERROR: TERM"; it was seen on hardware loading a kit with many variants while RAM was short. Report
+		// it like every other allocation failure in this function.
+		error = Error::INSUFFICIENT_RAM;
+	}
 
 	FRESULT fileSuccess = activeDeserializer->closeWriter();
 
@@ -574,7 +584,12 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 
-	error = newDrum->readFromFile(smDeserializer, song, clip, 0);
+	try {
+		error = newDrum->readFromFile(smDeserializer, song, clip, 0);
+	} catch (deluge::exception e) {
+		// Out of memory in an STL allocation while reading - see the catch in loadInstrumentFromFile() above.
+		error = Error::INSUFFICIENT_RAM;
+	}
 
 	// If that somehow didn't work...
 	if (activeDeserializer->closeWriter() != FR_OK && error == Error::NONE) {

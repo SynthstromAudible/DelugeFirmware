@@ -63,7 +63,20 @@ SampleHolder& getCurrentSampleHolder() {
 		return current->sampleHolder;
 	}
 
-	return getCurrentMultisampleRange().sampleHolder;
+	MultisampleRange& range = getCurrentMultisampleRange();
+	if (sampleMarkerEditor.targetRoundRobinSlot > 0) {
+		SampleHolderForVoice* holder = range.getVariantHolder(sampleMarkerEditor.targetRoundRobinSlot);
+		if (holder != nullptr) {
+			return *holder;
+		}
+	}
+	return range.sampleHolder;
+}
+
+// The selected slot's holder (slot 1 = the zone's own), for the loop fields that only a sample-for-voice
+// holder has. Not for audio clips, which have no loop markers here.
+SampleHolderForVoice& getCurrentVoiceSampleHolder() {
+	return static_cast<SampleHolderForVoice&>(getCurrentSampleHolder());
 }
 
 SampleControls* getCurrentSampleControls() {
@@ -75,7 +88,8 @@ SampleControls* getCurrentSampleControls() {
 }
 
 bool isLoopLocked() {
-	return getCurrentClip()->type != ClipType::AUDIO && getCurrentMultisampleRange().sampleHolder.loopLocked;
+	return getCurrentClip()->type != ClipType::AUDIO
+	       && static_cast<SampleHolderForVoice&>(getCurrentSampleHolder()).loopLocked;
 }
 
 MarkerType SampleMarkerEditor::reverseRemap(MarkerType type) const {
@@ -166,8 +180,7 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 		getCurrentSampleHolder().startPos = value;
 	}
 	else if (markerTypeNow == MarkerType::LOOP_START) {
-		auto& multiSampleRange = getCurrentMultisampleRange();
-		auto& sampleHolder = multiSampleRange.sampleHolder;
+		auto& sampleHolder = static_cast<SampleHolderForVoice&>(getCurrentSampleHolder());
 		if (sampleHolder.loopLocked) {
 			uint32_t intendedLoopEndPos = value + static_cast<uint32_t>(sampleHolder.loopLength());
 			if (uint64_t{intendedLoopEndPos} <= sampleHolder.endPos) {
@@ -180,8 +193,7 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 		}
 	}
 	else if (markerTypeNow == MarkerType::LOOP_END) {
-		auto& multiSampleRange = getCurrentMultisampleRange();
-		auto& sampleHolder = multiSampleRange.sampleHolder;
+		auto& sampleHolder = static_cast<SampleHolderForVoice&>(getCurrentSampleHolder());
 		if (sampleHolder.loopLocked) {
 			int32_t intendedLoopStartPos = static_cast<int32_t>(value) - sampleHolder.loopLength();
 			// pos == 0 would disable the loop, so the smallest legal start position is sample 1
@@ -240,13 +252,13 @@ void SampleMarkerEditor::getColsOnScreen(MarkerColumn* cols) {
 	    getStartColOnScreen(cols[util::to_underlying(MarkerType::START)].pos);
 
 	if (getCurrentClip()->type != ClipType::AUDIO) {
-		cols[util::to_underlying(MarkerType::LOOP_START)].pos = getCurrentMultisampleRange().sampleHolder.loopStartPos;
+		cols[util::to_underlying(MarkerType::LOOP_START)].pos = getCurrentVoiceSampleHolder().loopStartPos;
 		cols[util::to_underlying(MarkerType::LOOP_START)].colOnScreen =
 		    cols[util::to_underlying(MarkerType::LOOP_START)].pos
 		        ? getStartColOnScreen(cols[util::to_underlying(MarkerType::LOOP_START)].pos)
 		        : kInvalidColumn;
 
-		cols[util::to_underlying(MarkerType::LOOP_END)].pos = getCurrentMultisampleRange().sampleHolder.loopEndPos;
+		cols[util::to_underlying(MarkerType::LOOP_END)].pos = getCurrentVoiceSampleHolder().loopEndPos;
 		cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen =
 		    cols[util::to_underlying(MarkerType::LOOP_END)].pos
 		        ? getEndColOnScreen(cols[util::to_underlying(MarkerType::LOOP_END)].pos)
@@ -435,7 +447,7 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 						if (cols[util::to_underlying(MarkerType::START)].colOnScreen >= x) {
 							return ActionResult::DEALT_WITH;
 						}
-						if (getCurrentMultisampleRange().sampleHolder.loopEndPos
+						if (getCurrentVoiceSampleHolder().loopEndPos
 						    && cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen <= x) {
 							return ActionResult::DEALT_WITH;
 						}
@@ -485,7 +497,7 @@ ensureNotPastSampleLength:
 					}
 					else if (markerHeld == MarkerType::LOOP_START && markerPressed == MarkerType::LOOP_END) {
 						// Toggle loop lock
-						if (getCurrentMultisampleRange().sampleHolder.loopLocked) {
+						if (static_cast<SampleHolderForVoice&>(getCurrentSampleHolder()).loopLocked) {
 							this->loopUnlock();
 						}
 						else {
@@ -689,6 +701,7 @@ ActionResult SampleMarkerEditor::buttonAction(deluge::hid::Button b, bool on, bo
 }
 
 ActionResult SampleMarkerEditor::exitUI() {
+	targetRoundRobinSlot = 0;
 	display->setNextTransitionDirection(-1);
 	close();
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
@@ -698,7 +711,7 @@ static const uint32_t zoomUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON
 
 ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 	if (isLoopLocked() && Buttons::isShiftButtonPressed()) {
-		auto& sampleHolder = getCurrentMultisampleRange().sampleHolder;
+		auto& sampleHolder = getCurrentVoiceSampleHolder();
 
 		uint32_t proposedEnd = sampleHolder.loopEndPos;
 
@@ -1014,9 +1027,8 @@ void SampleMarkerEditor::graphicsRoutine() {
 		if (soundEditor.currentSound->hasActiveVoices()) {
 			auto valid_voices_view =
 			    soundEditor.currentSound->voices() | std::views::filter([](const Sound::ActiveVoice& voice) {
-				    // Ensure correct MultisampleRange.
-				    return voice->guides[soundEditor.currentSourceIndex].audioFileHolder
-				           == soundEditor.currentMultiRange->getAudioFileHolder();
+				    // Only voices playing the slot being edited.
+				    return voice->guides[soundEditor.currentSourceIndex].audioFileHolder == &getCurrentSampleHolder();
 			    });
 
 			if (!valid_voices_view.empty()) {
@@ -1235,14 +1247,12 @@ printSeconds:
 }
 
 void SampleMarkerEditor::loopUnlock() {
-	auto& multiSampleRange = getCurrentMultisampleRange();
-	multiSampleRange.sampleHolder.loopLocked = false;
+	static_cast<SampleHolderForVoice&>(getCurrentSampleHolder()).loopLocked = false;
 	display->displayPopup("FREE");
 }
 
 void SampleMarkerEditor::loopLock() {
-	auto& multiSampleRange = getCurrentMultisampleRange();
-	multiSampleRange.sampleHolder.loopLocked = true;
+	static_cast<SampleHolderForVoice&>(getCurrentSampleHolder()).loopLocked = true;
 	display->displayPopup("LOCK");
 }
 

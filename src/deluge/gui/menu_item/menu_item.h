@@ -119,10 +119,29 @@ public:
 	/// Double-check that this MenuItem will work with the currently selected sound range.
 	virtual MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                                     MultiRange** currentRange);
+
+	/// @brief The source (oscillator) whose per-zone data this item edits, or -1 for items that
+	/// aren't zone-scoped.
+	///
+	/// When entering an item returns MenuPermission::MUST_SELECT_RANGE, the sound editor opens the
+	/// note-range picker, which operates on soundEditor.currentSource. The shortcut-pad entry path
+	/// pins currentSource from the pad position before that happens, but menu-only navigation has no
+	/// pad to learn the source from - this accessor closes that gap so the picker always lists the
+	/// zones of the oscillator the item actually belongs to.
+	[[nodiscard]] virtual int32_t getSourceIndexForRangeSelection() const { return -1; }
+
+	/// @brief The item to actually open once the note range for this one is known.
+	///
+	/// Asked right after the note-range picker confirms a range for this item, and when the editor is set
+	/// up straight onto it with a range already settled. Almost every item is its own destination. An item
+	/// that only exists to ask a further question - which slot, say - can answer it here when there's
+	/// only one possible answer, so that the question is skipped.
+	virtual MenuItem* destinationOnceRangeIsKnown() { return this; }
 	/// @brief Begin an editing session with this menu item.
 	///
 	/// Should make sure the menu's internal state matches the system and redraw the display.
 	virtual void beginSession(MenuItem* navigatedBackwardFrom = nullptr) {};
+	virtual void deletePress() {}
 
 	/// @brief End an editing session with this menu item
 	virtual void endSession();

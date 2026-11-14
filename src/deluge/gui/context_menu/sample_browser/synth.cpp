@@ -49,7 +49,9 @@ bool Synth::isCurrentOptionAvailable() {
 
 	// Multisamples (load entire folder and auto-detect ranges). Will delete all previous Ranges.
 	if (currentOption == 0) {
-		return (soundEditor.currentSound->getSynthMode() != SynthMode::RINGMOD);
+		// Never from a variant slot's browser: it rebuilds every zone, and loads into slot 1 regardless.
+		return (soundEditor.currentSound->getSynthMode() != SynthMode::RINGMOD)
+		       && sampleBrowser.targetRoundRobinSlot == 0;
 	}
 
 	// Apart from that option, none of the other ones are valid if currently sitting on a folder-name.
@@ -71,7 +73,9 @@ bool Synth::isCurrentOptionAvailable() {
 		// in Sample or WaveTable mode. Although, the user could get an error after selecting the option - e.g. if
 		// we're locked to WaveTable mode, they've selected single-cycle, and it realises it can't do this
 		// combination of things because it's a stereo file.
-		return true;
+		// Neither, though, on an oscillator with variants: both switch the whole oscillator to WAVETABLE,
+		// which would throw them away.
+		return !sampleBrowser.mustLoadAsSample();
 
 	default:
 		__builtin_unreachable();
