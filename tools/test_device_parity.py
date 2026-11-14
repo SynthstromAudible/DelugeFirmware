@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Tests for device_parity.py's settings-flash image: `python3 -m unittest test_device_parity`."""
 
+import os
+import tempfile
 import unittest
+from pathlib import Path
+from unittest import mock
 
 import device_parity
 
@@ -76,6 +80,41 @@ class LinkFailures(unittest.TestCase):
                 stop=lambda h: calls.append(("stop", h)),
             )
         self.assertEqual(calls, [("park", "host"), ("stop", "host")])
+
+
+class HeaderCard(unittest.TestCase):
+    def _script(self, d, name, *cards):
+        path = Path(d) / name
+        path.write_text(
+            "".join(f"# card: {c}\n" for c in cards) + "100 snapshot boot\n"
+        )
+        return path
+
+    def test_scripts_sharing_a_first_card_run_on_it(self):
+        with (
+            tempfile.TemporaryDirectory() as d,
+            mock.patch.dict(os.environ, {"DELUGE_CONTENT_CARDS": "/cards"}),
+        ):
+            scripts = [
+                self._script(d, "d01-a.txt", "content/card.img"),
+                self._script(d, "d02-b.txt", "content/card.img"),
+            ]
+            self.assertEqual(
+                device_parity.header_card(scripts), Path("/cards/card.img")
+            )
+
+    def test_scripts_on_different_cards_or_none_are_refused(self):
+        with tempfile.TemporaryDirectory() as d:
+            a = self._script(d, "d01-a.txt", "content/card.img")
+            for other in (
+                self._script(d, "d02-b.txt", "content/bare.img"),
+                self._script(d, "d03-c.txt"),
+            ):
+                with (
+                    self.subTest(other.name),
+                    self.assertRaisesRegex(ValueError, "--card or --sd"),
+                ):
+                    device_parity.header_card([a, other])
 
 
 if __name__ == "__main__":
