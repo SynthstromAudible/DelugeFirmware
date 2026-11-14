@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "support/printers/fixed_point_printer.h"
+
 using namespace deluge::effects;
 using deluge::dsp::StereoSample;
 

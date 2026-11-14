@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "support/matchers/value_matchers.h"
+#include "support/printers/fixed_point_printer.h"
 #include "support/spec_main.h"
 
 using namespace deluge::dsp;

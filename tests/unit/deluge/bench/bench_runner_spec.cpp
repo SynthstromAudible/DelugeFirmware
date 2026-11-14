@@ -39,6 +39,8 @@
 #include "unit/deluge/dsp-next/raw_shaping.h"
 #include <cppspec.hpp>
 
+#include "support/printers/fixed_point_printer.h"
+
 using namespace deluge::bench;
 namespace dsp = deluge::dsp;
 

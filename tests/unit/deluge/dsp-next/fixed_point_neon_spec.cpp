@@ -24,6 +24,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "support/printers/fixed_point_printer.h"
 #include "support/spec_main.h"
 
 using namespace deluge::dsp;
@@ -420,7 +421,7 @@ describe fixed_point_neon("fixed_point NEON vectors", ${
 		const std::array<Q<31>, 4> in{Q<31>::min(), Q<31>::from_raw(-1), Q<31>::from_raw(7), Q<31>::max()};
 		std::array<Q<31>, 4> back{};
 		QVec<31>::load(in.data()).store(back.data());
-		expect(std::bit_cast<std::array<std::int32_t, 4>>(back)).to_equal(std::bit_cast<std::array<std::int32_t, 4>>(in));
+		expect(back).to_equal(in);
 		expect(QVec<31>::load(in.data()).lane(2).raw()).to_equal(7);
 	});
 	it("load the first lanes only, zeroing the rest", _ {

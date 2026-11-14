@@ -13,11 +13,11 @@
 #include "synth/engines/slot_engine.h"
 
 #include <array>
-#include <bit>
 #include <cppspec.hpp>
 #include <cstdint>
 #include <memory>
 
+#include "support/printers/fixed_point_printer.h"
 #include "support/spec_main.h"
 
 using namespace deluge::synth;
@@ -98,11 +98,6 @@ bool any_sound(const std::array<deluge::dsp::Q<31>, kBlock * 2>& out) {
 	return false;
 }
 
-/// The raw words of a rendered block: a sample has no printer, so a failed comparison prints these.
-std::array<int32_t, kBlock * 2> raws(const std::array<deluge::dsp::Q<31>, kBlock * 2>& out) {
-	return std::bit_cast<std::array<int32_t, kBlock * 2>>(out);
-}
-
 } // namespace
 
 // clang-format off
@@ -141,11 +136,11 @@ describe synth_engine_spec_body("synth engines", ${
 			const auto first = play(SynthMode::SUBTRACTIVE, false, 4);
 			const auto second = play(SynthMode::SUBTRACTIVE, false, 4);
 			expect(any_sound(first)).to_be_true();
-			expect(raws(first)).to_equal(raws(second));
+			expect(first).to_equal(second);
 		});
 
 		it("hard-syncs osc 2 to osc 1", _{
-			expect(raws(play(SynthMode::SUBTRACTIVE, true, 4))).not_().to_equal(raws(play(SynthMode::SUBTRACTIVE, false, 4)));
+			expect(play(SynthMode::SUBTRACTIVE, true, 4)).not_().to_equal(play(SynthMode::SUBTRACTIVE, false, 4));
 		});
 	});
 
@@ -153,7 +148,7 @@ describe synth_engine_spec_body("synth engines", ${
 		it("multiplies the sources rather than mixing them", _{
 			const auto ring_mod = play(SynthMode::RINGMOD, false, 4);
 			expect(any_sound(ring_mod)).to_be_true();
-			expect(raws(ring_mod)).not_().to_equal(raws(play(SynthMode::SUBTRACTIVE, false, 4)));
+			expect(ring_mod).not_().to_equal(play(SynthMode::SUBTRACTIVE, false, 4));
 		});
 	});
 
@@ -173,7 +168,7 @@ describe synth_engine_spec_body("synth engines", ${
 				render_block(*plain, without, cfg);
 			}
 			expect(any_sound(plain->out)).to_be_true();
-			expect(raws(modulated->out)).not_().to_equal(raws(plain->out));
+			expect(modulated->out).not_().to_equal(plain->out);
 		});
 	});
 

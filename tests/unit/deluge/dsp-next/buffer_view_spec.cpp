@@ -21,6 +21,7 @@
 #include <span>
 #include <type_traits>
 
+#include "support/printers/fixed_point_printer.h"
 #include "support/spec_main.h"
 
 using namespace deluge::dsp;

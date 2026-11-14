@@ -7,10 +7,10 @@
 #include <array>
 #include <cstdint>
 #include <span>
-#include <tuple>
 #include <utility>
 #include <vector>
 
+#include "support/printers/pad_flash_printer.h"
 #include "support/spec_main.h"
 using namespace deluge::ui::shell;
 using deluge::notify::Dirty;
@@ -46,17 +46,6 @@ constexpr uint32_t kBackpressureRetryMs = 20;
 /// Legacy's `UI_MS_PER_REFRESH` (`board_config.h:55`), the `Fade` tween's step cadence
 /// (`renderFade`, `pad_leds.cpp:1478`).
 constexpr uint32_t kFadeCadenceMs = 50;
-
-/// @brief @p flashes as `(x, y, colour)` tuples, field by field: a failed comparison prints them, which
-///        `PadFlash` itself cannot.
-std::vector<std::tuple<int, int, int>> flash_fields(std::span<const deluge::ui::grid::PadFlash> flashes) {
-	std::vector<std::tuple<int, int, int>> v;
-	v.reserve(flashes.size());
-	for (const auto& f : flashes) {
-		v.emplace_back(f.x, f.y, std::to_underlying(f.colour));
-	}
-	return v;
-}
 
 /// @brief `count` distinct colours, deterministic from `seed`, for a scroll-tween spec: a flat
 ///        fill would look identical at any offset, so shifting it could never be told apart from
@@ -334,7 +323,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		r.base.flashes = {{3, 2, FlashColour::Default}, {15, 6, FlashColour::Palette6}};
 		r.shell.tick(0);
 		const std::vector<PadFlash> expected{{3, 2, FlashColour::Default}, {15, 6, FlashColour::Palette6}};
-		expect(flash_fields(r.fake.flashes_sent)).to_equal(flash_fields(expected));
+		expect(r.fake.flashes_sent).to_equal(expected);
 		expect(r.fake.columns_sent.size()).to_equal(size_t(9));
 		expect(r.fake.columns_before_flash).to_equal(std::vector<size_t>{9, 9});
 		expect(r.fake.grid().flashes.flashes().empty()).to_be_true();
@@ -343,7 +332,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		r.base.flashes.clear();
 		deluge::notify::dirty().raise(Dirty::GridMain);
 		r.shell.tick(10);
-		expect(flash_fields(r.fake.flashes_sent)).to_equal(flash_fields(expected));
+		expect(r.fake.flashes_sent).to_equal(expected);
 	});
 
 	it("a tick whose only output is a flash still flushes once", _ {

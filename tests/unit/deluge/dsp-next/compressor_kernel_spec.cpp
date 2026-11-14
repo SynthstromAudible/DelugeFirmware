@@ -45,6 +45,7 @@
 #include <utility>
 #include <vector>
 
+#include "support/printers/fixed_point_printer.h"
 #include "support/spec_main.h"
 
 using deluge::dsp::Mono;
