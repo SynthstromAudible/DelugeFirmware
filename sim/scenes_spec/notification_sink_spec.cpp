@@ -10,7 +10,7 @@
 /// `deluge::hid::display::OLED`, and each is compared byte for byte against that direct call.
 ///
 /// This lives in the scenes spec rather than `tests/unit/deluge/gui/` because that suite does not build
-/// `notify_drain.cpp` (`tests/unit/CMakeLists.txt` compiles only `notify_drain_mapping.cpp`), while
+/// `notify_drain.cpp` (`tests/trees/host/CMakeLists.txt` compiles only `notify_drain_mapping.cpp`), while
 /// this executable links the real `deluge_app`, as `count_in_spec.cpp` already relies on.
 
 #include "gui/ui/notify_drain.h"

@@ -9,7 +9,7 @@
 /// @brief Test doubles for the legacy HID globals `GuestSurfaceSet` writes through.
 ///
 /// The host spec suite deliberately never builds legacy's `deluge_app` closure (see the long note
-/// in `tests/unit/CMakeLists.txt`), so `hid/display/oled.cpp`, `hid/led/pad_leds.cpp` and
+/// in `tests/trees/host/CMakeLists.txt`), so `hid/display/oled.cpp`, `hid/led/pad_leds.cpp` and
 /// `hid/led/indicator_leds.cpp` are not linked here. What IS linked -- and what the guest actually
 /// talks to -- is the handful of symbols those files define, so `fake_legacy_hid.cpp` defines those
 /// symbols itself: the real `OLED::main` and `PadLEDs::image` buffer types, at their real sizes,

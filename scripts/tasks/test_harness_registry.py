@@ -2149,7 +2149,7 @@ class ExplanationTest(unittest.TestCase):
             "ptm-trace-tool": "tools/deluge_trace/deluge_trace.py",
             "snapshot-primitive-tsan": "tests/component/stress/run.sh",
             "crates": "crates/Cargo.toml",
-            "unit": "tests/unit/CMakeLists.txt",
+            "unit": "tests/trees/host/CMakeLists.txt",
         }
         by_name = {h.name: h for h in hr.load_registry(self.ROOT)}
         for name, path in cases.items():

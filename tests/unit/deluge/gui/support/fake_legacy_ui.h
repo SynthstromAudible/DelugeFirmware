@@ -16,7 +16,7 @@ class UI;
 ///        all.
 ///
 /// The host spec suite deliberately never builds legacy's `deluge_app` closure (the note at the top
-/// of `tests/unit/CMakeLists.txt`), and `gui/ui/ui.cpp` is squarely inside it: its five out-of-line
+/// of `tests/trees/host/CMakeLists.txt`), and `gui/ui/ui.cpp` is squarely inside it: its five out-of-line
 /// `UI` virtuals forward to `view`, `getRootUI()` and `renderUIsForOled()`, which between them drag
 /// in the model, the playback engine and every legacy view. But a subclass's *vtable* names all
 /// five, so nothing deriving from `UI` links without them.

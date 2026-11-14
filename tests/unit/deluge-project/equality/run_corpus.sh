@@ -8,7 +8,7 @@
 #     serialization libraries only (the committed synthetic songs run in the unit trees)
 set -euo pipefail
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-tree="$repo/build/test-unit"
+tree="$repo/build/test-host"
 if [[ ! -f "$tree/build.ninja" ]]; then
     echo "model-equality-corpus: configure the unit tree first (./dbt test unit)" >&2
     exit 2

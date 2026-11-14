@@ -19,7 +19,7 @@ endif()
 FetchContent_MakeAvailable(CppSpec argon)
 deluge_argon_headers_are_system()
 
-# An ARM target has a real <arm_neon.h>: the arm-linux cross (tests/unit-arm, run under qemu) checks the A9's own
+# An ARM target has a real <arm_neon.h>: the arm-linux cross (tests/trees/arm, run under qemu) checks the A9's own
 # instructions, and an arm64 host its own; only other hosts reach NEON through SIMDe.
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|arm64|aarch64)$")
   set(DELUGE_TEST_NEON_NATIVE ON)

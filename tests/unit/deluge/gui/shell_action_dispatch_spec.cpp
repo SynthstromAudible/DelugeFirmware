@@ -7,7 +7,7 @@
 /// already is: the real one reads
 /// `deluge::scenes::menu_scene()` and its arms name `performanceView`, `audioClipView`, `stemExport`
 /// and two `gui/context_menu/` singletons, none of which exist in this suite's link closure
-/// (`tests/unit/CMakeLists.txt`). So **nothing here asserts that a request is performed, or
+/// (`tests/trees/host/CMakeLists.txt`). So **nothing here asserts that a request is performed, or
 /// even that the outbox is what gets read** -- that half is
 /// `sim/scenes_spec/menu_actions_spec.cpp`'s four `gui::ui::dispatchShellActions` groups (the drain,
 /// and one per verb body), in the binary that links the real scene.

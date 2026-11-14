@@ -413,7 +413,7 @@ void clearKnobIndicatorLevels() {
 // than performed. The real one constructs `services::ModKnobs`,
 // `services::GlobalControls` and `services::MidiLearn` -- concrete classes over
 // `model/` from the `deluge_scenes` closure this suite deliberately never builds
-// (`tests/unit/CMakeLists.txt`'s note, and `gui/ui/shell_guest_services.h`'s own
+// (`tests/trees/host/CMakeLists.txt`'s note, and `gui/ui/shell_guest_services.h`'s own
 // "why this is its own translation unit"). What a guest spec can say about it is
 // that `opened()` calls it, which is what the counter is for; that the services
 // it installs are the right ones is `sim/scenes_spec/boot_wiring_spec.cpp`'s,

@@ -3,7 +3,7 @@
 // the FLOAT case -- see convert.h's doc comment on convert_range_simd).
 //
 // This spec runs under qemu-arm with -mfpu=neon (cortex-a9), so argon compiles against a real
-// <arm_neon.h> backend (no SIMDe, no compat shim -- see tests/unit-arm/CMakeLists.txt). Two groups:
+// <arm_neon.h> backend (no SIMDe, no compat shim -- see tests/trees/arm/CMakeLists.txt). Two groups:
 //
 //  - FLOAT (the decision gate): Argon<float>::ConvertTo<int32_t,31>() (vcvtq_n_s32_f32) vs the scalar
 //    q31_from_float() from dsp-next/core/detail/raw_ops.h. Under this arm-linux cross build __arm__ is defined, so

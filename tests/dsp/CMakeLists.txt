@@ -1,8 +1,9 @@
 # dsp-next behavioural specs, registered as CTest tests.
 #
-# Built by BOTH test projects so the same specs run on both backends:
-#   tests/unit/CMakeLists.txt     -> x86 with the SIMDe NEON backend (-m32 host)
-#   tests/unit-arm/CMakeLists.txt -> ARM Cortex-A9, real NEON, run via qemu (sets DSP_SPEC_ARM)
+# Built by all three test trees, so the same specs run on each backend:
+#   tests/trees/host/CMakeLists.txt  -> x86 with the SIMDe NEON backend (-m32 host)
+#   tests/trees/arm/CMakeLists.txt   -> ARM Cortex-A9, real NEON, run via qemu (sets DSP_SPEC_ARM)
+#   tests/trees/ubsan/CMakeLists.txt -> the x86 build under UndefinedBehaviorSanitizer
 # Every assertion is therefore also an x86-vs-NEON cross-check of the vectorised
 # kernel. See tests/dsp/README.md and docs/dev/synth_phase1_l0_plan.md.
 

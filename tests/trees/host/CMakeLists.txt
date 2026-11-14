@@ -5,7 +5,7 @@
 
 cmake_minimum_required(VERSION 3.24)
 project(DelugeTests)
-include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/ccache.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/ccache.cmake)
 
 if (WIN32 AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Gcc")
     # CPPUTEST_PLATFORM defaults to Gcc, which causes the test binaries to
@@ -15,24 +15,24 @@ endif ()
 
 # MAINTAINER_MODE, DELUGE_C_STANDARD / DELUGE_CXX_STANDARD and DELUGE_COMMON_COMPILE_OPTIONS,
 # also included by the device (top-level CMakeLists.txt) and host-sim (sim/CMakeLists.txt)
-# projects. The UI leaf libraries libs.cmake adds (../../src/gfx, ui, shell, notify) apply
+# projects. The UI leaf libraries libs.cmake adds (src/gfx, ui, shell, notify) apply
 # DELUGE_COMMON_COMPILE_OPTIONS themselves, so their warning set is identical wherever they build.
-include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/deluge_common_options.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/deluge_common_options.cmake)
 
 enable_testing()
 
 find_package(Python3 COMPONENTS Interpreter)
 if (Python3_Interpreter_FOUND)
     add_test(NAME gfx_layer_check
-             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/../../scripts/check_gfx_layer.py
-                     --root ${CMAKE_CURRENT_LIST_DIR}/../../src/gfx)
+             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/../../../scripts/check_gfx_layer.py
+                     --root ${CMAKE_CURRENT_LIST_DIR}/../../../src/gfx)
     add_test(NAME layer_rules
-             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/../../scripts/check_layer_rules.py)
+             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/../../../scripts/check_layer_rules.py)
 endif ()
 
 # ETL (etl::string) is used by util/string helpers pulled in transitively via functions.h,
 # so make it available to every test target (spec, unit).
-include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/deps.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/deps.cmake)
 FetchContent_MakeAvailable(etl)
 link_libraries(etl::etl)
 
@@ -48,15 +48,15 @@ if (UNIX AND NOT APPLE)
 endif ()
 
 set(DELUGE_TEST_TREE host)
-include(${CMAKE_CURRENT_LIST_DIR}/../support/cmake/specs.cmake)
-include(${CMAKE_CURRENT_LIST_DIR}/../support/cmake/libs.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../../support/cmake/specs.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../../support/cmake/libs.cmake)
 
 if (UNIX AND NOT APPLE)
     # Build the deluge_rust umbrella staticlib (i686) ONCE and share it across the
     # conformance specs (it re-exports both the deluge_alloc and deluge_resource C
     # ABIs). Defining the build here avoids two subdirs emitting colliding rules for
     # the same output.
-    set(RUST_WS ${CMAKE_CURRENT_LIST_DIR}/../../crates)
+    set(RUST_WS ${CMAKE_CURRENT_LIST_DIR}/../../../crates)
     set(RUST_TARGET i686-unknown-linux-gnu)
     set(RUST_LIB ${RUST_WS}/target/${RUST_TARGET}/release/libdeluge_rust.a)
     file(GLOB_RECURSE RUST_SOURCES CONFIGURE_DEPENDS
@@ -108,14 +108,14 @@ if (UNIX AND NOT APPLE)
 
     # The synth library's specs (tests/dsp), shared with the ARM unit tree. Linux only: they assume the -m32 host build
     # above, as the host sim does.
-    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../dsp dsp-next)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../dsp dsp-next)
 elseif (APPLE)
-    # macOS gets the umbrella staticlib too, because tests/unit needs it: audio_file_format.cpp's
+    # macOS gets the umbrella staticlib too, because the app's specs need it: audio_file_format.cpp's
     # header parse IS the Rust decoder (deluge-sdk's deluge-audio-format). Built for the DEFAULT host
     # target rather than i686 -- the specs are 64-bit native here (no -m32 above), and letting cargo
     # pick the host beats guessing an apple-darwin triple. The alloc/resource conformance specs stay
     # Linux-only; this branch defines nothing but the shared archive.
-    set(RUST_WS ${CMAKE_CURRENT_LIST_DIR}/../../crates)
+    set(RUST_WS ${CMAKE_CURRENT_LIST_DIR}/../../../crates)
     set(RUST_LIB ${RUST_WS}/target/release/libdeluge_rust.a)
     file(GLOB_RECURSE RUST_SOURCES CONFIGURE_DEPENDS
         ${RUST_WS}/deluge_alloc/src/*.rs ${RUST_WS}/deluge_resource/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
@@ -206,4 +206,4 @@ target_compile_definitions(deluge_spec PUBLIC
 target_include_directories(deluge_spec PRIVATE ${_tests})
 
 # Every test directory under tests/unit that names this tree (tests/support/cmake/specs.cmake).
-deluge_spec_directories(${CMAKE_CURRENT_LIST_DIR})
+deluge_spec_directories(${DELUGE_REPO_ROOT}/tests/unit)

@@ -245,7 +245,8 @@ itself, so none can run against a stale one.
 | `host-app` | `build/host-app` | the C++ app's object files for x86-64, from `sim/`; nothing links here |
 | `golden-vt-render` | `build/cargo-harness` | the Embassy host harness binary every scenario gate runs; its `build.rs` archives `build/host-app`'s objects |
 
-A ctest entry's own tree (`build/test-unit`, `build/test-unit-arm`) is configured and built by its runner.
+A ctest entry's own tree (`build/test-host`, `build/test-arm`, `build/test-ubsan`) is configured and built by its
+runner.
 
 Every cargo-built test and product shares `build/cargo-harness`. Cargo namespaces artifacts by fingerprint, so
 packages with different `[patch]` sections coexist there safely, but cargo takes an exclusive lock per target
