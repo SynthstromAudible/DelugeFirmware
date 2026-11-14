@@ -22,7 +22,6 @@
 #include "support/printers/list_printer.h"
 #include "support/printers/optional_printer.h"
 
-#include <array>
 #include <cstddef>
 #include <format>
 #include <ostream>
@@ -63,19 +62,6 @@ inline std::ostream& operator<<(std::ostream& os, const DxPatchState& p) {
 	return os << std::format("], engine_mode {}, random_detune {}}}", p.engine_mode, p.random_detune);
 }
 
-/// @brief Prints an array of enums as their numbers in brackets, e.g. `[0 0 2 1]`.
-/// @param os The stream to print to.
-/// @param values The enums.
-/// @return @p os.
-template <typename E, std::size_t N>
-std::ostream& print_enums(std::ostream& os, const std::array<E, N>& values) {
-	os << '[';
-	for (std::size_t i = 0; i < N; ++i) {
-		os << (i == 0 ? "" : " ") << int{std::to_underlying(values[i])};
-	}
-	return os << ']';
-}
-
 /// @brief Prints a source field by field, an enum as its number, an absent DX7 patch as `none`, e.g.
 ///        `{osc_type 0, transpose 0, cents 0, repeat_mode 0, time_stretch_amount 0, interpolation 0,
 ///        pitch_and_speed_independent 0, reversed 0, dx_patch none, ranges [{top_note 60, …}]}`.
@@ -98,6 +84,7 @@ inline std::ostream& operator<<(std::ostream& os, const SourceState& s) {
 /// @param s The state.
 /// @return @p os.
 inline std::ostream& operator<<(std::ostream& os, const SoundState& s) {
+	using deluge::test::printers::print_enums;
 	using deluge::test::printers::print_list;
 	os << std::format("{{voice_priority {}, max_voice_count {}, side_chain_send_level {}, output_midi_channel {}, "
 	                  "output_midi_note_for_drum {}, oscillator_sync {}, polyphonic {}, synth_mode {}, transpose {}, "

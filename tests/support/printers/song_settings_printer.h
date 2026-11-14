@@ -53,7 +53,8 @@ inline std::ostream& operator<<(std::ostream& os, const Transport& t) {
 }
 
 /// @brief Prints the scale settings its `operator==` compares: the key, the disabled preset scales as bits and the
-///        user scale, e.g. `{key {root 0, mode [0 2 4 5 7 9 11]}, disabled_preset_scales 0000…, user_scale []}`.
+///        user scale, e.g.
+///        `{key {root 0, mode NoteSet(C, D, E, F, G, A, B)}, disabled_preset_scales 0000…, user_scale NoteSet()}`.
 /// @param os The stream to print to.
 /// @param s The settings.
 /// @return @p os.

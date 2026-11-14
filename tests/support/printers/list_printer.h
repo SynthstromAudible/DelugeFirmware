@@ -17,12 +17,17 @@
 
 #pragma once
 
+#include <array>
 #include <cstddef>
+#include <cstdint>
+#include <map>
 #include <ostream>
 #include <span>
+#include <utility>
 
 /// @file
-/// @brief Prints a list field inside a record's `operator<<`: its elements in brackets, a space between each.
+/// @brief Prints a list field inside a record's `operator<<`: its elements in brackets, a space between each, an
+///        array of enums as their numbers, or a map of records by id.
 ///
 /// A record printer calls it field by field, `print_list(os, std::span{v.controls}) << ", arp ";`. Each element prints
 /// through the `operator<<` argument-dependent lookup finds for its type, so a printer includes the header that
@@ -43,6 +48,34 @@ std::ostream& print_list(std::ostream& os, std::span<T, N> items) {
 		separator = " ";
 	}
 	return os << ']';
+}
+
+/// @brief Prints an array of enums as their numbers in brackets, e.g. `[0 0 2 1]`.
+/// @param os The stream to print to.
+/// @param values The enums.
+/// @return @p os.
+template <typename E, std::size_t N>
+std::ostream& print_enums(std::ostream& os, const std::array<E, N>& values) {
+	os << '[';
+	for (std::size_t i = 0; i < N; ++i) {
+		os << (i == 0 ? "" : " ") << int{std::to_underlying(values[i])};
+	}
+	return os << ']';
+}
+
+/// @brief Prints a map of records by id in braces, e.g. `{1: {…}, 4: {…}}`.
+/// @param os The stream to print to.
+/// @param records The records.
+/// @return @p os.
+template <typename T>
+std::ostream& print_by_id(std::ostream& os, const std::map<uint32_t, T>& records) {
+	os << '{';
+	const char* separator = "";
+	for (const auto& [id, record] : records) {
+		os << separator << id << ": " << record;
+		separator = ", ";
+	}
+	return os << '}';
 }
 
 } // namespace deluge::test::printers

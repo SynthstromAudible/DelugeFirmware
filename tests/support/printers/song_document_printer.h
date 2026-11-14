@@ -26,9 +26,7 @@
 #include "support/printers/mapping_printer.h"
 #include "support/printers/song_settings_printer.h"
 
-#include <cstdint>
 #include <format>
-#include <map>
 #include <ostream>
 #include <span>
 
@@ -68,27 +66,13 @@ inline std::ostream& operator<<(std::ostream& os, const SongDocument::OutputEntr
 	return deluge::test::printers::print_list(os, std::span{e.drums}) << "}";
 }
 
-/// @brief Prints a map of records by id in braces, e.g. `{1: {…}, 4: {…}}`.
-/// @param os The stream to print to.
-/// @param records The records.
-/// @return @p os.
-template <typename T>
-std::ostream& print_by_id(std::ostream& os, const std::map<uint32_t, T>& records) {
-	os << '{';
-	const char* separator = "";
-	for (const auto& [id, record] : records) {
-		os << separator << id << ": " << record;
-		separator = ", ";
-	}
-	return os << '}';
-}
-
 /// @brief Prints a song's document field by field, each record through its own printer, e.g.
 ///        `{transport {…}, groove {…}, scale {…}, mod_knob_mode 1, reverb {…}, arrangement {…}, clip_order […], …}`.
 /// @param os The stream to print to.
 /// @param d The document.
 /// @return @p os.
 inline std::ostream& operator<<(std::ostream& os, const SongDocument& d) {
+	using deluge::test::printers::print_by_id;
 	using deluge::test::printers::print_list;
 	os << "{transport " << d.transport << ", groove " << d.groove << ", scale " << d.scale << ", mod_knob_mode "
 	   << int{d.mod_knob_mode} << ", reverb " << d.reverb << ", arrangement " << d.arrangement << ", clip_order ";
