@@ -139,8 +139,8 @@ run:
   button 0 on the held arranger row (`arr_row_mod0*`: the upper ring and the OLED).
 - the layouts the engine changes on its own, on the kit after the keyboard: a row made from a sample through the drum
   creator's browser (`smp_*`: mod button 6, its lower knob the pitch adjust); a MIDI drum and a gate drum (`mdrum_*`,
-  `gdrum_*`: auditioned, the lower knob steps the channel and a MIDI drum's upper knob its note; with no audition both
-  knobs and mod button 2 move nothing); the clip made a synth and its synth mode set to FM and back
+  `gdrum_*`: auditioned, both knobs turned (the lower knob steps the channel and a MIDI drum's upper knob its note) and
+  mod button 2 pressed; with no audition both knobs and mod button 2 move nothing); the clip made a synth and its synth mode set to FM and back
   (`fm_*`, `sub_*`: mod button 1's knobs, the modulators' levels in FM and the filter's again after, turned and pushed);
   and the clip made a CV clip (`cv_*`: both knobs and mod button 2 move nothing). The new rows' audition pads show
   random colours. On the menu's second visit the first select turn leaves the value as it was, on `main` too. These

@@ -20,7 +20,8 @@
 /// channel, and `MIDIDrum::modEncoderAction`'s note) still happens while its row is auditioned.
 ///
 /// The wavetable claim's mode-7 knobs, and the slicer's and a folder import's sample rows, are pinned by the
-/// sample_claim scenario, which runs those claims against a card.
+/// sample_claim scenario, which runs those claims against a card. For those rows it pins mod button 6's lower knob and
+/// the record, not that the pitch adjust survives: that is pinned here, on the clip view's new row.
 
 #include "gui/ui/root_knobs.h"
 #include "gui/ui/ui.h"
@@ -369,8 +370,8 @@ int32_t record_mode(Song& song, Output& output) {
 
 /// @brief What a user sees of an owner with no knobs, @p f's clip in the clip view with the knobs on it: both knobs
 ///        turned through the clip view (`InstrumentClipView::modEncoderAction`), then mod button 2 pressed, write no
-///        param of the clip, the song or @p row_params, change no mode, show no popup, and leave the indicators at
-///        zero.
+///        param of the clip, the song or @p row_params, change no mode (the record's nor the engine's), show no popup,
+///        and leave the indicators at zero.
 void expect_no_knobs(auto& self, spec::SongFixture& f, ParamManager* row_params) {
 	StubDisplay stub;
 	display = &stub;
@@ -382,6 +383,8 @@ void expect_no_knobs(auto& self, spec::SongFixture& f, ParamManager* row_params)
 	view.setActiveModControllableTimelineCounter(f.clip, false);
 	(void)deluge::edits::modKnobModeFor(project::TrackAddress{*f.instrument->id()}, 3);
 	const int32_t mode = record_mode(*f.song, *f.instrument);
+	expect(mode).to_equal(3);
+	expect(static_cast<int32_t>(f.instrument->modKnobMode)).to_equal(mode);
 	const std::vector<int32_t> clip_before = param_snapshot(&f.clip->paramManager);
 	const std::vector<int32_t> song_before = param_snapshot(&f.song->paramManager);
 	const std::vector<int32_t> row_before = param_snapshot(row_params);
@@ -398,6 +401,7 @@ void expect_no_knobs(auto& self, spec::SongFixture& f, ParamManager* row_params)
 	expect(param_snapshot(&f.song->paramManager) == song_before).to_be_true();
 	expect(param_snapshot(row_params) == row_before).to_be_true();
 	expect(record_mode(*f.song, *f.instrument)).to_equal(mode);
+	expect(static_cast<int32_t>(f.instrument->modKnobMode)).to_equal(mode); // the engine's copy too
 	expect(stub.popups).to_equal(0);
 	expect(ring(0) == (std::array<uint8_t, 4>{})).to_be_true();
 	expect(ring(1) == (std::array<uint8_t, 4>{})).to_be_true();
@@ -596,6 +600,8 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			};
 			seed();
 			alignas(ModelStackWithAutoParam) char patch_memory[MODEL_STACK_MAX_SIZE];
+			// This pins only that the clip arm zeroes nothing; the minimal-details pass below is the assertion that tells
+			// a knobbed pitch adjust from one without a knob.
 			kit->setupPatching(setupModelStackWithTimelineCounter(patch_memory, f.song, f.clip));
 			expect(patched->getValue(params::LOCAL_PITCH_ADJUST)).to_equal(1 << 26);
 			expect(patched->getValue(params::LOCAL_OSC_A_PITCH_ADJUST)).to_equal(1 << 26);
