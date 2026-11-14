@@ -12,6 +12,12 @@ set(_deluge_src ${DELUGE_REPO_ROOT}/src)
 set(_deluge_libs ${CMAKE_BINARY_DIR}/libs)
 # The include root the src/ libraries name each other's headers from.
 cmake_path(SET SHARED_INCLUDE ${_deluge_src})
+# The firmware's standard and warning set (DELUGE_CXX_STANDARD, DELUGE_COMMON_COMPILE_OPTIONS), read by every library
+# below as the device build reads them, so each builds here at the standard and with the warnings it ships with. A root
+# that has already included them (the host tree) keeps its own.
+if(NOT DEFINED DELUGE_CXX_STANDARD)
+  include(${DELUGE_REPO_ROOT}/cmake/deluge_common_options.cmake)
+endif()
 
 # The standalone engine libraries, which the host and the ARM tree both test: serialization, music theory, the plugin
 # API and its types, the effects, the global-effectable table, the Deluge instrument and the model. Each is built with
@@ -49,9 +55,6 @@ endif()
 if(NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "arm")
   set(DELUGE_HOST ON)
 endif()
-if(NOT DEFINED DELUGE_CXX_STANDARD)
-  include(${DELUGE_REPO_ROOT}/cmake/deluge_common_options.cmake)
-endif()
 FetchContent_MakeAvailable(etl)
 add_subdirectory(${DELUGE_REPO_ROOT}/src/foundation ${CMAKE_BINARY_DIR}/libs/foundation EXCLUDE_FROM_ALL)
 add_subdirectory(${DELUGE_REPO_ROOT}/src/deluge/dsp-next ${CMAKE_BINARY_DIR}/libs/dsp-next EXCLUDE_FROM_ALL)
@@ -82,8 +85,9 @@ target_link_libraries(deluge_dsp_float PRIVATE $<LINK_ONLY:deluge_test_dsp_closu
 target_link_libraries(deluge_synth PRIVATE
   $<LINK_ONLY:deluge_test_synth_closure> $<LINK_ONLY:deluge_effects> $<LINK_ONLY:deluge_test_dsp_closure>)
 
-# Every library a spec reaches checks the standard library's preconditions, span bounds among them: a read past the end
-# of a span fails the spec instead of going unseen at the trees' optimisation levels. Each gets argon's backend
+# The dsp, synth and effects libraries and their closures check the standard library's preconditions, span bounds among
+# them: a read past the end of a span in their kernels fails the spec instead of going unseen at the trees' optimisation
+# levels. Each gets argon's backend
 # (deluge_test_neon): the effects' sidechain reaches argon through the kernel core, which a host without NEON reaches
 # through SIMDe.
 foreach(library deluge_dsp_fixed deluge_dsp_float deluge_synth deluge_effects deluge_test_dsp_closure
