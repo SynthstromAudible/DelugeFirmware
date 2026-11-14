@@ -50,6 +50,7 @@
 #include "unit/gfx/support/pbm.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/address_of.h"
 
 #include <array>
 #include <cstdint>
@@ -86,10 +87,7 @@ using deluge::ui::shell::UiEvent;
 
 namespace {
 
-/// @brief A function pointer as an address, so a failed comparison prints where it points rather than `1`.
-const void* address_of(auto* fn) {
-	return reinterpret_cast<const void*>(fn);
-}
+using deluge::test::matchers::address_of;
 
 /// `Action` unqualified is the model's own undo `Action`; the shell's is a different type with the
 /// same name (`rename_scene_spec.cpp` makes the same alias for the same reason).

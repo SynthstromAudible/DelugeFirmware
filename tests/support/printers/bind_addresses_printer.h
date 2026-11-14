@@ -18,6 +18,7 @@
 #pragma once
 
 #include "scenes/bind/target.h"
+#include "support/printers/optional_printer.h"
 #include "support/printers/project_address_printer.h"
 
 #include <optional>
@@ -33,26 +34,13 @@
 /// a spec linked with others that print the same type must agree with them.
 namespace deluge::scenes::bind {
 
-namespace printers_detail {
-
-/// @brief Prints @p v, or `none` where it is empty.
-/// @param os The stream to print to.
-/// @param v The value.
-/// @return @p os.
-template <typename T>
-std::ostream& print_optional(std::ostream& os, const std::optional<T>& v) {
-	return v ? os << *v : os << "none";
-}
-
-} // namespace printers_detail
-
 /// @brief Prints the addresses field by field, an empty one as `none` and an enum as its number, e.g.
 ///        `{slot {kind 0, id 2}, chain none, chain_owner 2, kit_output none, affect_entire 0, clip {clip 7}, …}`.
 /// @param os The stream to print to.
 /// @param a The addresses.
 /// @return @p os.
 inline std::ostream& operator<<(std::ostream& os, const Addresses& a) {
-	using printers_detail::print_optional;
+	using deluge::test::printers::print_optional;
 	os << "{slot ";
 	print_optional(os, a.slot) << ", chain ";
 	print_optional(os, a.chain) << ", chain_owner " << +std::to_underlying(a.chain_owner) << ", kit_output ";

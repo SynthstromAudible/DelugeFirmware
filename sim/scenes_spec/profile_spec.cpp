@@ -5,6 +5,7 @@
 #include "shell/profiles/deluge.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/address_of.h"
 
 #include <cstdint>
 #include <string>
@@ -15,10 +16,7 @@ using namespace deluge;
 
 namespace {
 
-/// @brief A function pointer as an address, so a failed comparison prints where it points rather than `1`.
-const void* address_of(auto* fn) {
-	return reinterpret_cast<const void*>(fn);
-}
+using deluge::test::matchers::address_of;
 
 /// @brief Do two spans view the same storage? Compared by `.data()` and `.size()` --
 ///        `std::span` has no `operator==`, and the shell's spans are supposed to be the SAME

@@ -69,6 +69,7 @@
 #include "unit/gfx/support/golden.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/address_of.h"
 #include "support/matchers/value_matchers.h"
 
 #include <algorithm>
@@ -92,10 +93,7 @@ namespace t2 = deluge::scenes::spec::tables2;
 
 namespace {
 
-/// @brief A function pointer as an address, so a failed comparison prints where it points rather than `1`.
-const void* address_of(auto* fn) {
-	return reinterpret_cast<const void*>(fn);
-}
+using deluge::test::matchers::address_of;
 
 namespace nodes = deluge::scenes::menu::nodes;
 namespace bindings = deluge::scenes::menu::bindings;

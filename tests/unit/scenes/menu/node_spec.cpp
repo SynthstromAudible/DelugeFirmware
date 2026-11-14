@@ -6,6 +6,7 @@
 #include "ui/oled/values.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/address_of.h"
 
 #include <type_traits>
 
@@ -113,10 +114,7 @@ static_assert(node_spec_range_dep.bind.param.index == 4);
 static_assert(!node_spec_a.range_dependent); // every builder leaves it false by default
 
 namespace {
-/// @brief A function pointer as an address, so a failed comparison prints where it points rather than `1`.
-const void* address_of(auto* fn) {
-	return reinterpret_cast<const void*>(fn);
-}
+using deluge::test::matchers::address_of;
 } // namespace
 
 describe scenes_node("scenes::menu::Node builders", $ {

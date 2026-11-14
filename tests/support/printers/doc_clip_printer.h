@@ -19,6 +19,7 @@
 
 #include "deluge-project/doc_clip.h"
 #include "support/printers/arp_record_printer.h"
+#include "support/printers/optional_printer.h"
 
 #include <format>
 #include <optional>
@@ -35,26 +36,13 @@
 /// a spec linked with others that print the same type must agree with them.
 namespace deluge::project {
 
-namespace doc_clip_printer_detail {
-
-/// @brief Prints @p v, or `none` where it is empty.
-/// @param os The stream to print to.
-/// @param v The value.
-/// @return @p os.
-template <typename T>
-std::ostream& print_optional(std::ostream& os, const std::optional<T>& v) {
-	return v ? os << *v : os << "none";
-}
-
-} // namespace doc_clip_printer_detail
-
 /// @brief Prints a clip's values field by field, an empty one as `none`, e.g.
 ///        `{midi_bank none, midi_sub none, midi_pgm 5, bend_range 2, bend_range_mpe 48, arp none}`.
 /// @param os The stream to print to.
 /// @param v The values.
 /// @return @p os.
 inline std::ostream& operator<<(std::ostream& os, const ClipValues& v) {
-	using doc_clip_printer_detail::print_optional;
+	using deluge::test::printers::print_optional;
 	os << "{midi_bank ";
 	print_optional(os, v.midi_bank) << ", midi_sub ";
 	print_optional(os, v.midi_sub) << ", midi_pgm ";

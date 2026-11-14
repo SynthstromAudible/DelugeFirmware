@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge-project/knob_focus.h"
+#include "support/printers/optional_printer.h"
 #include "support/printers/project_address_printer.h"
 
 #include <optional>
@@ -36,19 +37,6 @@
 /// a spec linked with others that print the same type must agree with them.
 namespace deluge::project {
 
-namespace knob_focus_printer_detail {
-
-/// @brief Prints @p v, or `none` where it is empty.
-/// @param os The stream to print to.
-/// @param v The value.
-/// @return @p os.
-template <typename T>
-std::ostream& print_optional(std::ostream& os, const std::optional<T>& v) {
-	return v ? os << *v : os << "none";
-}
-
-} // namespace knob_focus_printer_detail
-
 /// @brief Prints the song's own focus, `{song}`.
 /// @param os The stream to print to.
 /// @return @p os.
@@ -62,7 +50,7 @@ inline std::ostream& operator<<(std::ostream& os, const SongFocus&) {
 /// @param f The focus.
 /// @return @p os.
 inline std::ostream& operator<<(std::ostream& os, const SoundFocus& f) {
-	using knob_focus_printer_detail::print_optional;
+	using deluge::test::printers::print_optional;
 	os << "{sound " << f.slot << ", clip ";
 	print_optional(os, f.clip) << ", row ";
 	print_optional(os, f.row) << ", kit ";
@@ -75,7 +63,7 @@ inline std::ostream& operator<<(std::ostream& os, const SoundFocus& f) {
 /// @param f The focus.
 /// @return @p os.
 inline std::ostream& operator<<(std::ostream& os, const ChainFocus& f) {
-	using knob_focus_printer_detail::print_optional;
+	using deluge::test::printers::print_optional;
 	os << "{chain " << f.chain << ", owner " << +std::to_underlying(f.owner) << ", clip ";
 	return print_optional(os, f.clip) << "}";
 }
@@ -86,7 +74,7 @@ inline std::ostream& operator<<(std::ostream& os, const ChainFocus& f) {
 /// @return @p os.
 inline std::ostream& operator<<(std::ostream& os, const MidiFocus& f) {
 	os << "{midi " << f.track << ", clip ";
-	return knob_focus_printer_detail::print_optional(os, f.clip) << "}";
+	return deluge::test::printers::print_optional(os, f.clip) << "}";
 }
 
 /// @brief Prints the knobs' owner as the focus it holds, or `none`.

@@ -55,6 +55,7 @@
 #include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/address_of.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -75,10 +76,7 @@ using deluge::ui::shell::SurfaceRole;
 
 namespace {
 
-/// @brief A function pointer as an address, so a failed comparison prints where it points rather than `1`.
-const void* address_of(auto* fn) {
-	return reinterpret_cast<const void*>(fn);
-}
+using deluge::test::matchers::address_of;
 
 namespace nodes = deluge::scenes::menu::nodes;
 
