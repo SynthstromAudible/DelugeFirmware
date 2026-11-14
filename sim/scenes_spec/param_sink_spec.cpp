@@ -244,7 +244,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		const ParamAddress lpf = synth_lpf(synth);
 		bool taken = false;
 		const std::optional<uint32_t> sent =
-		    feedback_stamp(synth, [&] { taken = menu::host_controls_sink().write_param(lpf, 0x10000000, 0, 24); });
+		    feedback_stamp(synth, [&] { taken = menu::host_controls_sink().write_param(lpf, 0x10000000, 0, 24, deluge::controls::Resolution::KNOB); });
 		expect(taken).to_be_true();
 		expect(sent).to_equal(std::optional{0u});
 		const deluge::project::DocAutoParam* record = synth.song->project.resolveParam(lpf);
@@ -254,7 +254,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 	it("deletes a param's automation by address, one undo step", _ {
 		spec::SongFixture synth = spec::make_synth_song();
 		const ParamAddress lpf = synth_lpf(synth);
-		expect(menu::host_controls_sink().write_param(lpf, 0x10000000, 0, 24)).to_be_true();
+		expect(menu::host_controls_sink().write_param(lpf, 0x10000000, 0, 24, deluge::controls::Resolution::KNOB)).to_be_true();
 		changeRootUI(&sessionView); // an undo step opens only with a view as the current UI
 		actionLogger.deleteAllLogs();
 		expect(menu::host_write_sink().delete_automation(lpf)).to_be_true();
@@ -275,7 +275,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		lpf.owner.id += 1000;
 		const Target cable = cable_target(PatchSource::ENVELOPE_1, deluge::modulation::params::LOCAL_LPF_RESONANCE);
 		expect(menu::host_write_sink().write({.target = cable, .where = nowhere, .param_value = 1})).to_be_false();
-		expect(menu::host_controls_sink().write_param(lpf, 0x10000000, 0, 0)).to_be_false();
+		expect(menu::host_controls_sink().write_param(lpf, 0x10000000, 0, 0, deluge::controls::Resolution::KNOB)).to_be_false();
 		expect(menu::host_write_sink().delete_automation(lpf)).to_be_false();
 	});
 

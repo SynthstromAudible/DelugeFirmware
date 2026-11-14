@@ -775,6 +775,18 @@ void knobNoLongerRelative(::ModControllableAudio& owner, const ::MIDIKnob& knob,
 	tableEdited(song);
 }
 
+void mappingNoLongerRelative(const deluge::project::OwnerParamTarget& target, const MidiCommand& source, ::Song& song) {
+	requireAppLoop();
+	const std::span<const Mapping> entries = song.project.mappings.entries();
+	for (size_t i = 0; i < entries.size(); i++) {
+		if (entries[i].target == deluge::project::MappingTarget{target} && entries[i].source == source) {
+			song.project.mappings.set_relative(i, false);
+		}
+	}
+	// Run from the MIDI input path, maybe while it walks the index: the rebuild waits for the next message.
+	tableEdited(song);
+}
+
 void recordLoadedMappings(::Song& song) {
 	MappingTable read;
 	for (const Mapping& entry : song.project.mappings.entries()) {

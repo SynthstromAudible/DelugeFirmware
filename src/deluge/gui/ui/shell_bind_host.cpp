@@ -17,13 +17,16 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/output_replacement.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/words.h"
 #include "io/debug/log.h"
+#include "io/midi/midi_engine.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -62,6 +65,7 @@
 #include "model/output.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
+#include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/param_stack.h"
 #include "model/project_bridge/patch_cable_words.h"
 #include "model/project_bridge/setting_apply.h"
@@ -173,7 +177,18 @@ void kit_arp_note_off(Kit* kit) {
 class ShellEditSink final : public deluge::scenes::bind::WriteSink, public deluge::controls::Sink {
 public:
 	bool write(const WriteRequest& request) override;
-	bool write_param(const deluge::project::ParamAddress& address, int32_t value, int32_t pos, int32_t length) override;
+	bool write_param(const deluge::project::ParamAddress& address, int32_t value, int32_t pos, int32_t length,
+	                 deluge::controls::Resolution resolution) override;
+	void learned_written(const deluge::project::ParamAddress& address, int32_t knob_pos) override;
+	std::optional<uint32_t> take_for(uint32_t output_id) override {
+		return currentSong != nullptr ? deluge::bridge::takeFor(*currentSong, output_id) : std::nullopt;
+	}
+	void knob_absolute(const deluge::project::OwnerParamTarget& target,
+	                   const deluge::project::MidiCommand& source) override {
+		if (currentSong != nullptr) {
+			deluge::bridge::mappingNoLongerRelative(target, source, *currentSong);
+		}
+	}
 	bool delete_automation(const deluge::project::ParamAddress& address) override;
 	bool write_text(const deluge::scenes::bind::Target& target, const deluge::scenes::bind::Addresses& where,
 	                std::string_view text) override;
@@ -353,8 +368,28 @@ public:
 	[[nodiscard]] bool alt_delay() const override {
 		return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
 	}
+	[[nodiscard]] std::span<const deluge::controls::PlayingOutput> playing_outputs() const override;
+	[[nodiscard]] std::span<const deluge::controls::KitRow> sound_rows(uint32_t clip_id) const override;
+	[[nodiscard]] deluge::controls::TakeoverInputs takeover_inputs(bool cable_relative) const override {
+		return {.mode = static_cast<deluge::controls::TakeoverMode>(midiEngine.midiTakeover),
+		        .cable_relative = cable_relative,
+		        .recording = playbackHandler.isEitherClockActive() && playbackHandler.recording != RecordingMode::OFF};
+	}
+	[[nodiscard]] std::optional<std::pair<int32_t, int32_t>>
+	step_region(std::optional<uint32_t> clip_id) const override {
+		const ::Clip* clip = clip_id && currentSong != nullptr ? currentSong->clipForId(*clip_id) : nullptr;
+		if (clip == nullptr || !view.stepEditRegionHolds(*clip)) {
+			return std::nullopt;
+		}
+		return std::pair{static_cast<int32_t>(view.modPos()), static_cast<int32_t>(view.modLength())};
+	}
 	[[nodiscard]] std::pair<int64_t, int64_t> audio_clip_samples(deluge::project::ClipAddress clip, int32_t scroll,
 	                                                             int32_t zoom) const override;
+
+private:
+	/// What playing_outputs() and sound_rows() answer, rebuilt by each call.
+	mutable std::vector<deluge::controls::PlayingOutput> outputs_;
+	mutable std::vector<deluge::controls::KitRow> rows_;
 };
 
 /// The audio clip @p clip addresses in the current song, or null.
@@ -598,13 +633,49 @@ bool ShellEditSink::applied(deluge::edits::Edit& edit) {
 }
 
 bool ShellEditSink::write_param(const deluge::project::ParamAddress& address, int32_t value, int32_t pos,
-                                int32_t length) {
+                                int32_t length, deluge::controls::Resolution resolution) {
 	if (currentSong == nullptr) {
 		return false;
 	}
-	// A gold knob's write: what it turns is made, a take recording the clip is written, and the instrument is edited.
-	deluge::edits::SetParamValue edit{address, value, pos, length, deluge::edits::SetParamValue::Resolve::WRITE};
+	// What the knob turns is made and a take recording the clip is written; a gold knob's write also marks the
+	// instrument edited, a learned knob's does not.
+	using Resolve = deluge::edits::SetParamValue::Resolve;
+	deluge::edits::SetParamValue edit{address, value, pos, length,
+	                                  resolution == deluge::controls::Resolution::LEARNED ? Resolve::LEARNED
+	                                                                                      : Resolve::WRITE};
 	return applied(edit);
+}
+
+void ShellEditSink::learned_written(const deluge::project::ParamAddress& address, int32_t knob_pos) {
+	RootUI* rootUI = getRootUI();
+	const bool onAutomation = rootUI == &automationView;
+	if (currentSong == nullptr || (!onAutomation && rootUI != &performanceView)) {
+		return;
+	}
+	const bool ofSong = address.owner.kind == deluge::project::OwnerId::Kind::SONG;
+	// A clip's knob refreshes only the automation editor, and only on the clip it shows.
+	if (!ofSong && (!onAutomation || automationView.onArrangerView)) {
+		return;
+	}
+	const std::optional<uint32_t> clip_id =
+	    address.owner.kind == deluge::project::OwnerId::Kind::CLIP ? std::optional{address.owner.id} : address.clip_id;
+	::Clip* clip = clip_id ? currentSong->clipForId(*clip_id) : nullptr;
+	if (!ofSong && (clip == nullptr || clip != getCurrentClip())) {
+		return;
+	}
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* stack = deluge::bridge::paramStackFollowingTake(*currentSong, address, memory);
+	if (stack == nullptr || stack->paramCollection == nullptr) {
+		return;
+	}
+	const int32_t id = stack->paramId;
+	const deluge::modulation::params::Kind kind = stack->paramCollection->getParamKind();
+	if (onAutomation) {
+		automationView.possiblyRefreshAutomationEditorGrid(ofSong ? nullptr : clip, kind, id);
+	}
+	else {
+		performanceView.possiblyRefreshPerformanceViewDisplay(kind, id, knob_pos);
+	}
 }
 
 bool ShellEditSink::delete_automation(const deluge::project::ParamAddress& address) {
@@ -1335,7 +1406,59 @@ std::optional<int32_t> ShellRuntimeFacts::param_value(const deluge::project::Par
 	}
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* stack = deluge::bridge::paramStackFollowingTake(*currentSong, address, memory);
-	return stack != nullptr ? std::optional{stack->autoParam->getCurrentValue()} : std::nullopt;
+	// A param the owner does not hold yet (a cable not made) comes back as a stack with no lane.
+	return stack != nullptr && stack->autoParam != nullptr ? std::optional{stack->autoParam->getCurrentValue()}
+	                                                       : std::nullopt;
+}
+
+std::span<const deluge::controls::PlayingOutput> ShellRuntimeFacts::playing_outputs() const {
+	using Kind = deluge::controls::PlayingOutput::Kind;
+	outputs_.clear();
+	if (currentSong == nullptr) {
+		return outputs_;
+	}
+	for (const ::Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
+		const ::Clip* active = output->getActiveClip();
+		if (active == nullptr || !output->id()) {
+			continue;
+		}
+		Kind kind = Kind::OTHER;
+		deluge::project::OwnerId param_owner = deluge::project::OwnerId::instrument(*output->id());
+		switch (output->type) {
+		case OutputType::SYNTH:
+			kind = Kind::SYNTH;
+			break;
+		case OutputType::KIT:
+			kind = Kind::KIT;
+			break;
+		case OutputType::AUDIO:
+			kind = Kind::AUDIO;
+			param_owner = deluge::project::OwnerId::clip(active->id());
+			break;
+		default:
+			break;
+		}
+		outputs_.push_back({.owner = {deluge::project::ControlsAddress::Kind::OUTPUT, *output->id()},
+		                    .param_owner = param_owner,
+		                    .kind = kind,
+		                    .clip_id = active->id()});
+	}
+	return outputs_;
+}
+
+std::span<const deluge::controls::KitRow> ShellRuntimeFacts::sound_rows(uint32_t clip_id) const {
+	rows_.clear();
+	const ::Clip* found = currentSong != nullptr ? currentSong->clipForId(clip_id) : nullptr;
+	if (found == nullptr || found->type != ClipType::INSTRUMENT) {
+		return rows_;
+	}
+	for (const ::NoteRow& row : static_cast<const ::InstrumentClip*>(found)->noteRows) {
+		const ::Drum* drum = row.drum;
+		if (drum != nullptr && drum->type == DrumType::SOUND && drum->id()) {
+			rows_.push_back({.drum_id = *drum->id(), .param_owner = deluge::project::OwnerId::drum(*drum->id())});
+		}
+	}
+	return rows_;
 }
 
 std::optional<deluge::scenes::bind::AudioClipFact>

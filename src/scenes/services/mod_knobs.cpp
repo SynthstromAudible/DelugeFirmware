@@ -322,7 +322,8 @@ void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms,
 	const bool tails_before = sound != nullptr && sound->clip && facts.allows_note_tails(sound->slot, sound->clip);
 	const int32_t new_value = controls::value_of_knob(*address, info, turn.new_knob_pos);
 	const int32_t pos = at_region ? static_cast<int32_t>(focus_->region.pos) : 0;
-	if (!sink.write_param(*address, new_value, pos, static_cast<int32_t>(focus_->region.length))) {
+	if (!sink.write_param(*address, new_value, pos, static_cast<int32_t>(focus_->region.length),
+	                      controls::Resolution::KNOB)) {
 		return; // refused: nothing changed, so nothing is fed back
 	}
 	out.value_written();

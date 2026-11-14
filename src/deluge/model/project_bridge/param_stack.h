@@ -63,6 +63,14 @@ namespace deluge::bridge {
 /// @return The stack, or null where @p song holds no such owner or the param cannot be made.
 [[nodiscard]] ::ModelStackWithAutoParam* paramStackForWrite(::Song& song, project::ParamAddress& address, void* memory);
 
+/// @brief The clip a write to @p output's active clip lands in: the take the arrangement records it into, made on the
+/// first call (the clip cloned) and found by later ones; else the active clip itself.
+///
+/// @param song      The song holding the output.
+/// @param output_id The output's id.
+/// @return The clip's id, or nullopt where the song holds no such output or it has no active clip.
+[[nodiscard]] std::optional<uint32_t> takeFor(::Song& song, uint32_t output_id);
+
 /// @brief The engine stack a read of @p address shows: the clip's take while the arrangement records it, and an
 /// INSTRUMENT or DRUM owner with no clip id's backed-up params; else as paramStackAt. Nothing is made, the take
 /// included.

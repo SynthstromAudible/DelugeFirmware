@@ -92,6 +92,7 @@ ModelStackWithAutoParam* paramStackFor(::Song& song, project::ParamAddress& addr
 	case SetParamValue::Resolve::READ:
 		return bridge::paramStackAt(song, address, memory);
 	case SetParamValue::Resolve::WRITE:
+	case SetParamValue::Resolve::LEARNED:
 		return bridge::paramStackForWrite(song, address, memory);
 	case SetParamValue::Resolve::EXACT:
 		return bridge::paramStackExact(song, address, memory);
@@ -114,6 +115,7 @@ Error SetParamValue::apply(Context& ctx) {
 	if (error == Error::NONE && copiedByReverbSidechain(*stack)) {
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
+	// A learned knob's write marks nothing edited: only a gold knob's does.
 	if (error == Error::NONE && resolve_ == Resolve::WRITE) {
 		markOwnerEdited(ctx.song, address_);
 	}

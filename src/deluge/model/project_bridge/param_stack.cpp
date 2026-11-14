@@ -345,6 +345,20 @@ ModelStackWithAutoParam* paramStackForWrite(::Song& song, project::ParamAddress&
 	return paramInOwner(ownerOrBackedStack(song, address, memory), address, true, true);
 }
 
+std::optional<uint32_t> takeFor(::Song& song, uint32_t output_id) {
+	for (::Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
+		if (output->id() == output_id) {
+			::Clip* active = output->getActiveClip();
+			if (active == nullptr) {
+				return std::nullopt;
+			}
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+			return takeOf(song, *active, true, memory)->id();
+		}
+	}
+	return std::nullopt;
+}
+
 ModelStackWithAutoParam* paramStackExact(::Song& song, const project::ParamAddress& address, void* memory) {
 	return paramInOwner(ownerOrBackedStack(song, address, memory), address, true, false);
 }

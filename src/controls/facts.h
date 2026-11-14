@@ -20,14 +20,41 @@
 /// @file
 /// @brief What a control reads that the model does not hold: the engine's live values and runtime state.
 
+#include "controls/takeover.h"
 #include "deluge-project/clip_address.h"
+#include "deluge-project/controller_mapping.h"
 #include "deluge-project/instrument_slot.h"
 #include "deluge-project/param_address.h"
 
 #include <cstdint>
 #include <optional>
+#include <span>
+#include <utility>
 
 namespace deluge::controls {
+
+/// @brief An output a learned message is offered to: it plays an active clip.
+struct PlayingOutput {
+	/// What kind of output it is: which of its owners a learned message reaches.
+	enum class Kind : uint8_t {
+		SYNTH, ///< a sound
+		KIT,   ///< a kit: its own knobs, then each of its sound rows'
+		AUDIO, ///< an audio track
+		OTHER, ///< a MIDI or CV track: nothing is learned onto it
+	};
+	project::ControlsAddress owner; ///< {OUTPUT, id}: whose knobs a message is offered to
+	/// The owner a ParamAddress of its own params names: INSTRUMENT with its id for a synth or a kit, CLIP with the
+	/// active clip's id for an audio track.
+	project::OwnerId param_owner;
+	Kind kind{Kind::OTHER};
+	uint32_t clip_id{0}; ///< its active clip
+};
+
+/// @brief A kit's sound row a learned message is offered to.
+struct KitRow {
+	uint32_t drum_id{0};          ///< the row's drum
+	project::OwnerId param_owner; ///< the owner a ParamAddress of the row's own params names: DRUM with its id
+};
 
 /// @brief The facts a gold knob reads that the model does not hold, each answered by the host.
 class Facts {
@@ -53,6 +80,20 @@ public:
 	                                             std::optional<project::ClipAddress> clip) const = 0;
 	/// @brief The device's alternative delay-knob setting (a runtime feature setting).
 	[[nodiscard]] virtual bool alt_delay() const = 0;
+	/// @brief The outputs a learned message is offered to, in the song's play order: those with an active clip.
+	/// Valid until the next call to this or sound_rows().
+	[[nodiscard]] virtual std::span<const PlayingOutput> playing_outputs() const = 0;
+	/// @brief The sound rows of the kit clip @p clip_id, in note-row order: a row whose drum is a sound with an id.
+	/// Valid until the next call to this or playing_outputs().
+	[[nodiscard]] virtual std::span<const KitRow> sound_rows(uint32_t clip_id) const = 0;
+	/// @brief What a takeover reads from the app: the global mode, and whether a running clock records. The step
+	/// region and the knob's own flag are the caller's to set.
+	/// @param cable_relative Whether the cable the message came on sends relative values.
+	[[nodiscard]] virtual TakeoverInputs takeover_inputs(bool cable_relative) const = 0;
+	/// @brief The step-edit region held on the clip @p clip_id, as {start, length}: none where no region is held on
+	/// it, or @p clip_id is none (the song never holds one).
+	[[nodiscard]] virtual std::optional<std::pair<int32_t, int32_t>>
+	step_region(std::optional<uint32_t> clip_id) const = 0;
 };
 
 } // namespace deluge::controls

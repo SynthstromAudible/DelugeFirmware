@@ -175,7 +175,13 @@ struct DisplayAs {
 /// @brief A sink that refuses every request.
 struct RefusingSink final : bind::WriteSink, deluge::controls::Sink {
 	bool write(const bind::WriteRequest&) override { return false; }
-	bool write_param(const deluge::project::ParamAddress&, int32_t, int32_t, int32_t) override { return false; }
+	bool write_param(const deluge::project::ParamAddress&, int32_t, int32_t, int32_t,
+	                 deluge::controls::Resolution) override {
+		return false;
+	}
+	void learned_written(const deluge::project::ParamAddress&, int32_t) override {}
+	std::optional<uint32_t> take_for(uint32_t) override { return std::nullopt; }
+	void knob_absolute(const deluge::project::OwnerParamTarget&, const deluge::project::MidiCommand&) override {}
 	bool delete_automation(const deluge::project::ParamAddress&) override { return false; }
 	bool write_text(const bind::Target&, const bind::Addresses&, std::string_view) override { return false; }
 	bool write_ranges(deluge::project::SlotAddress, uint8_t, std::span<const deluge::instrument::RangeState>,

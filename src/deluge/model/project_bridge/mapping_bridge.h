@@ -196,6 +196,14 @@ void recordMovedDrumCommands(::Kit& kit, std::span<const deluge::project::Mappin
 /// @param song  The song @p owner belongs to.
 void knobNoLongerRelative(::ModControllableAudio& owner, const ::MIDIKnob& knob, ::Song& song);
 
+/// @brief Clear the relative flag of the entry that plays @p source onto @p target in @p song's table: a CC value only
+/// an absolute controller sends arrived on it. A plain table write, run from the MIDI input path.
+/// @param target The entry's target.
+/// @param source The entry's source.
+/// @param song   The song whose table holds it.
+void mappingNoLongerRelative(const deluge::project::OwnerParamTarget& target,
+                             const deluge::project::MidiCommand& source, ::Song& song);
+
 /// @brief Fill @p song's table from every binding its runtime read, once a load has read the song and given each
 /// output and drum its id: the sections' commands it already holds stay first, then the song's knobs, then each
 /// output's (its knobs, its input, and each of a kit's rows' knobs, mute and input) in output order, then each clip's
