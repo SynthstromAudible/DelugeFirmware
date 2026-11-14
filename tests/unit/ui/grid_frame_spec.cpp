@@ -1,4 +1,5 @@
 #include "support/frames.h"
+#include "support/printers/grid_rect_printer.h"
 #include "ui/grid/frame.h"
 
 #include <optional>

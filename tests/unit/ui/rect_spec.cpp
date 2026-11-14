@@ -1,3 +1,5 @@
+#include "support/printers/grid_rect_printer.h"
+
 #include "cppspec.hpp"
 #include "gfx/grid/rect.h"
 #include "support/spec_main.h"

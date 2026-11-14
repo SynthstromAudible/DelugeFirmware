@@ -1,3 +1,4 @@
+#include "support/printers/semver_printer.h"
 #include "util/semver.h"
 
 #include "cppspec.hpp"

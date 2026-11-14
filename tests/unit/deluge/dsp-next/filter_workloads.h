@@ -864,6 +864,11 @@ struct Parting {
 	bool operator==(const Parting&) const = default;
 };
 
+/// @brief Prints where two runs part, e.g. `{block 12, what "gain"}`.
+inline std::ostream& operator<<(std::ostream& out, const Parting& p) {
+	return out << "{block " << p.block << ", what \"" << p.what << "\"}";
+}
+
 /// @return Where @p workload, played through family @p A and through family @p B, first parts; nothing when they
 /// agree on every block's output, gain, draws and state.
 template <typename A, typename B>

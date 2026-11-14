@@ -16,6 +16,7 @@
  */
 
 #include "midi/usb_event.h"
+#include "support/printers/midi_message_printer.h"
 #include <cppspec.hpp>
 
 using namespace deluge::midi;

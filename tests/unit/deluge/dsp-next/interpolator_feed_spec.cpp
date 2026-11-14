@@ -25,6 +25,7 @@
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <ostream>
 #include <random>
 #include <vector>
 
@@ -40,6 +41,22 @@ struct Windows {
 	Window r{};
 	bool operator==(const Windows&) const = default;
 };
+
+/// @brief Prints both windows' samples, left then right, e.g. `{l [0 12 -3 …], r [0 0 …]}`.
+std::ostream& operator<<(std::ostream& os, const Windows& w) {
+	const auto samples = [&os](const Window& window) {
+		const char* separator = "";
+		for (const int16_t s : window) {
+			os << separator << s;
+			separator = " ";
+		}
+	};
+	os << "{l [";
+	samples(w.l);
+	os << "], r [";
+	samples(w.r);
+	return os << "]}";
+}
 
 std::mt19937& rng() {
 	static std::mt19937 generator(0xFEEDu); // fixed seed: x86 and ARM draw the same values

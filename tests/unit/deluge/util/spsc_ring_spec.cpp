@@ -2,6 +2,7 @@
 
 #include "cppspec.hpp"
 #include <cstddef>
+#include <ostream>
 #include <vector>
 
 using deluge::util::SpscRing;
@@ -16,6 +17,11 @@ struct Event {
 
 	bool operator==(const Event& other) const { return value == other.value; }
 };
+
+/// @brief Prints an event as its value, e.g. `{value 1}`.
+std::ostream& operator<<(std::ostream& os, const Event& e) {
+	return os << "{value " << e.value << "}";
+}
 
 } // namespace
 

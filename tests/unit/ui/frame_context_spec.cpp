@@ -1,4 +1,5 @@
 #include "support/frames.h"
+#include "support/printers/grid_rect_printer.h"
 #include "ui/core/frame_context.h"
 #include "ui/grid/effects.h"
 #include "ui/oled/columns.h"

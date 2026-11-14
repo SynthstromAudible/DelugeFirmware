@@ -36,7 +36,9 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <format>
 #include <memory>
+#include <ostream>
 #include <span>
 #include <string>
 #include <vector>
@@ -356,10 +358,21 @@ struct WorkloadRecord {
 	bool operator==(const WorkloadRecord&) const = default;
 };
 
+/// @brief Prints a record's digests in hex, e.g. `{outputs 0x9a3f…, state 0x51c0…, alive 0x3}`.
+inline std::ostream& operator<<(std::ostream& out, const WorkloadRecord& r) {
+	return out << std::format("{{outputs {:#x}, state {:#x}, alive {:#x}}}", r.outputs, r.state, r.alive);
+}
+
 struct TableRecord {
 	uint64_t exp2, sin, freq, sin_log, sin_exp;
 	bool operator==(const TableRecord&) const = default;
 };
+
+/// @brief Prints each table's digest in hex, e.g. `{exp2 0x…, sin 0x…, freq 0x…, sin_log 0x…, sin_exp 0x…}`.
+inline std::ostream& operator<<(std::ostream& out, const TableRecord& r) {
+	return out << std::format("{{exp2 {:#x}, sin {:#x}, freq {:#x}, sin_log {:#x}, sin_exp {:#x}}}", r.exp2, r.sin,
+	                          r.freq, r.sin_log, r.sin_exp);
+}
 
 /// @return Digests of each table of @p tables, by member name: the reference's (exp2tab, sintab, freq_lut,
 /// sinLogTable, sinExpTable) or the component's (exp2, sine, frequency, mki_sin_log, mki_sin_exp).

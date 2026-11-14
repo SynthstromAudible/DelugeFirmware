@@ -1,5 +1,6 @@
 #include "io/file.hpp"
 #include "mock_file_io.h"
+#include "support/printers/io_result_printer.h"
 
 #include "cppspec.hpp"
 
