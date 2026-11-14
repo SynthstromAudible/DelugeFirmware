@@ -1,0 +1,8 @@
+# The fixture card with the DX7 engine on and no DX7 folder, so the new FM synth's browse row has to make one.
+base tests/fixtures/card
+text SETTINGS/CommunityFeatures.XML <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<runtimeFeatureSettings>
+	<setting name="EnableDX7Engine" value="1"></setting>
+</runtimeFeatureSettings>
+EOF

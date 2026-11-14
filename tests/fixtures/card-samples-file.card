@@ -1,0 +1,6 @@
+# The fixture card with SAMPLES a file, so no sample browser can list.
+base tests/fixtures/card
+delete SAMPLES
+text SAMPLES <<EOF
+not a folder
+EOF

@@ -30,13 +30,13 @@ follow channel.
 `sm32-menu-value-follow` covers the open value following a change made behind the menu: a learned gold knob and a
 learned CC moving the LPF frequency that a page or a full screen shows, which `main` re-reads on the 25 ms
 `DISPLAY_AUTOMATION` timer, with no knob popup over the same param. Run it with Horizontal Menus on
-(`.superpowers/emu-card/shellmenu`: the page) and off (`tests/fixtures/card-shell-menu-vertical`: the full screen,
+(`.superpowers/emu-card/shellmenu`: the page) and off (`tests/fixtures/card-shell-menu-vertical.card`: the full screen,
 `--card` takes the directory).
 
-`sm33-full-screen-values` runs on the same `tests/fixtures/card-shell-menu-vertical` (the ShellMenu card with
+`sm33-full-screen-values` runs on the same `tests/fixtures/card-shell-menu-vertical.card` (the ShellMenu card with
 HorizontalMenus off), where a shortcut opens its item alone: a transpose's cursor, step and Horizontal move, the
 coming-soon popup inside the menu, and retrigger phase's cursor. Its popup is read 100 ms after the press. Run both with
-`tools/emu_parity.py --ref main.elf --test deluge.elf --card tests/fixtures/card-shell-menu-vertical`. For a ready-made
+`tools/emu_parity.py --ref main.elf --test deluge.elf --card tests/fixtures/card-shell-menu-vertical.card`. For a ready-made
 image, copy that card's `SETTINGS/CommunityFeatures.XML` in with mtools: `mcopy -i card.img -o CommunityFeatures.XML
 ::/SETTINGS/CommunityFeatures.XML`.
 
@@ -47,7 +47,7 @@ card's presets: run it on `.superpowers/emu-card/content-shellmenu` and on a cop
 is `.superpowers/emu-card/shellmenu-vertical`'s. The OLED, LEDs and UI stack agree at every snapshot; `claimed`, `back1`
 and `back2` differ only in the colour of the waveform row (y 4, 16 pads), the new audio clip's random hue (D11).
 
-`sm35-toggle-words` covers the words a toggle draws, on `tests/fixtures/card-shell-menu-vertical` (HorizontalMenus
+`sm35-toggle-words` covers the words a toggle draws, on `tests/fixtures/card-shell-menu-vertical.card` (HorizontalMenus
 off, where a shortcut opens its item alone): a Community Feature's row is a checkbox SELECT flips in place, OSC
 SYNC's page lists Off and On where `main`'s lists Disabled and Enabled (D134, accepted), and PING-PONG's lists its
 options.

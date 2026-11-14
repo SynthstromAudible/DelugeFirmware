@@ -1,0 +1,8 @@
+# The fixture card still saying legacyMenu=1, a setting this firmware no longer has.
+base tests/fixtures/card
+text SETTINGS/CommunityFeatures.XML <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<runtimeFeatureSettings>
+	<setting name="legacyMenu" value="1"></setting>
+</runtimeFeatureSettings>
+EOF

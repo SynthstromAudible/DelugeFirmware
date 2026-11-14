@@ -36,7 +36,7 @@ browser and the cartridge page: BACK from the cartridge page reopens the browser
 source". `c31` is the parameter page's own pad layout: Shift shows the DX colour map and Shift + a pad picks its
 parameter, since a bare pad leaves the menu for the clip.
 
-`c32-midi-linked` runs on its own card, `tests/fixtures/card-midi-definition` (`--card`): the ShellMenu card plus one
+`c32-midi-linked` runs on its own card, `tests/fixtures/card-midi-definition.card` (`--card`): the ShellMenu card plus one
 MIDI device definition, `MIDI_DEVICES/DEFINITION/BLOFELD.XML`. It turns the boot clip's track into a MIDI track, links
 that definition from DEVICE DEFINITION > LINKED (the file's name then shows two rows under LINKED), and walks SETTINGS >
 MIDI > DEVICES > DIN PORTS > MPE to the zone page, which has no title.
@@ -49,11 +49,11 @@ it.
 SELECT on `REC00003`, and a 25 ms window 90 ms later, while the working animation turns over the browser's list. The
 load takes about 400 ms on the emulator, so the window sits well inside it on both firmwares.
 
-`c36-drum-creator-refused` runs on its own card, `tests/fixtures/card-samples-file` (`--card`): the ShellMenu card
+`c36-drum-creator-refused` runs on its own card, `tests/fixtures/card-samples-file.card` (`--card`): the ShellMenu card
 with `SAMPLES` a file, so no sample browser can list. SHIFT + KIT's drum creator then falls back the way `main` does:
 the browser's error popup over the new kit's clip view.
 
-`c42-dx-browser-no-folder` runs on its own card, `tests/fixtures/card-dx-no-folder` (`--card`): the fixture card with
+`c42-dx-browser-no-folder` runs on its own card, `tests/fixtures/card-dx-no-folder.card` (`--card`): the fixture card with
 `EnableDX7Engine` on and no `DX7` folder. The new FM synth's browse row creates `DX7` and opens the `.syx` browser on
 it, empty; a Select turn and SELECT on the empty list do nothing, and BACK leaves it.
 

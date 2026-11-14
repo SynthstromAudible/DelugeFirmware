@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Generate `tests/fixtures/card*/SAMPLES/TONE.WAV` — the one sample the level-3 A/B loads.
+"""Generate `tests/fixtures/card/SAMPLES/TONE.WAV` — the one sample the level-3 A/B loads.
+
+The variants of the card are manifests over it, so they carry this sample too.
 
 **Why this exists rather than a file checked in from somewhere.** `tests/ui-scripts/app/menu.txt`'s
-file-selector arm drives a real `SampleBrowser`/`BrowserScene` over a real `DELUGE_SD_ROOT`, so the
+file-selector arm drives a real `SampleBrowser`/`BrowserScene` over a real `UI_CARD`, so the
 card has to hold an audio file the firmware can actually parse and load. A sample copied from a
 sound library — or from another repository — is a licensing question nobody can answer years later,
 and a binary whose provenance is "it was there" cannot be re-derived if it is ever corrupted. So the
@@ -23,7 +25,7 @@ Re-running this must produce the committed files byte for byte; `--check` assert
 is what a reviewer runs instead of trusting this docstring.
 
 Usage:
-    make_fixture_sample.py            # write both fixtures
+    make_fixture_sample.py            # write the fixture
     make_fixture_sample.py --check    # verify the committed bytes match the formula
 """
 
@@ -41,11 +43,7 @@ FREQ = 440
 AMPLITUDE = 16383.5
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-TARGETS = (
-    REPO_ROOT / "tests/fixtures/card/SAMPLES/TONE.WAV",
-    REPO_ROOT / "tests/fixtures/card-old-legacy-menu/SAMPLES/TONE.WAV",
-    REPO_ROOT / "tests/fixtures/card-old-shell-menu/SAMPLES/TONE.WAV",
-)
+TARGETS = (REPO_ROOT / "tests/fixtures/card/SAMPLES/TONE.WAV",)
 
 
 def _round_half_away_from_zero(x: float) -> int:
@@ -98,7 +96,7 @@ def main() -> int:
         path.write_bytes(want)
         print(f"wrote {path} ({len(want)} bytes)")
     if args.check and rc == 0:
-        print(f"make_fixture_sample: both fixtures match ({len(want)} bytes)")
+        print(f"make_fixture_sample: the fixture matches ({len(want)} bytes)")
     return rc
 
 
