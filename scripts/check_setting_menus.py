@@ -15,8 +15,9 @@ Nor may a file under src/deluge/gui or src/scenes write a song setting outside S
 interval and disabled scales, a track's name and MIDI or CV device fields, a kit lane's name, a note row's direction,
 an audio clip's descriptor. A gesture calls songSettingFor(), trackSettingFor(), laneSettingFor(),
 noteRowSettingFor() or audioClipSettingFor() (model/edits/setting_edit.h), which write the record and project it.
-Nor may it write a MIDI binding (a mute command, an input, a learned knob, a section's launch command) past the song's
-mapping table: a gesture calls the mapping Edits (model/edits/learn_mapping.h), which write the table and project it.
+Nor may it write a MIDI binding (a mute command, an input, a section's launch command) past the song's mapping table,
+or learn a mod knob past its Edit: a gesture calls the mapping Edits (model/edits/learn_mapping.h), which write the
+table and project it.
 
 The check reads a write by its text, so it does not follow an alias: `*target.thing = ...` through a pointer taken
 earlier, or `learnedThing->clear()` on a `LearnedMIDI*` a menu holds, is not found. They are legitimate today: the
@@ -29,8 +30,8 @@ Nor may a file under src/scenes write a param on its AutoParam: a param menu wri
 its automation through DeleteParamAutomation, nor set a cable's polarity on its set (SetCablePolarity) (model/edits/).
 
 Two gestures write the runtime themselves and record what they wrote, checked file by file: a file that writes a mod
-knob (a `modKnobs[...]` descriptor, or learnKnob()/learnModKnob()/unlearnKnobs() on what is not a menu item) also calls
-recordControlsOf(), and a file that writes a sample holder's file or zone also calls recordRanges() or rangesFor().
+knob (a `modKnobs[...]` descriptor, or learnModKnob()) also calls recordControlsOf(), and a file that writes a sample
+holder's file or zone also calls recordRanges() or rangesFor().
 
 Usage:
     scripts/check_setting_menus.py                    # check src/deluge/gui and src/scenes, exit 1 on a call
@@ -122,13 +123,11 @@ SUFFIXES = {".h", ".hpp", ".cpp"}
 
 #: The last name before a call or field, past any `()`, `[i]`, `*` or closing parenthesis: `(*item_)->x` names item_.
 LAST_NAME = re.compile(r"([A-Za-z_]\w*)[\s()\[\]*\w]*$")
-#: A mod knob written: its descriptor set, or a knob learned or unlearned.
+#: A mod knob written: its descriptor set, or a knob learned.
 KNOB_WRITE = re.compile(
     r"modKnobs\s*\[[^\]]*\]\s*\[[^\]]*\]\s*\.\s*paramDescriptor\s*\.\s*set\w*\s*\("
 )
-KNOB_LEARN = re.compile(r"(?:->|\.)\s*(learnKnob|learnModKnob|unlearnKnobs)\s*\(")
-#: Receivers of learnKnob() that are menu items, which hand the knob to the sound and record it themselves.
-MENU_ITEM_RECEIVERS = {"current_item_", "getCurrentMenuItem"}
+KNOB_LEARN = re.compile(r"(?:->|\.)\s*learnModKnob\s*\(")
 #: A sample holder's file or zone written; the holder is a receiver whose name ends in "holder", any case.
 HOLDER_WRITE = re.compile(
     r"(?:->|\.)\s*(filePath|startPos|endPos|loopStartPos|loopEndPos)\s*=(?!=)"
@@ -194,20 +193,11 @@ SONG_STATE_WRITES = (
         r"(?:->|\.)\s*(?:updateSettingsFromCurrentPreset|updatePresetFromCurrentSettings)\s*\("
     ),
     #: A MIDI binding written past the song's mapping table (model/edits/learn_mapping.h): a clip's or kit row's mute
-    #: command, a track's or kit row's input, an owner's learned knobs, a section's launch command.
+    #: command, a track's or kit row's input, a section's launch command; and a mod knob learned past its Edit.
     re.compile(
         r"(?:->|\.)\s*(?:muteMIDICommand|midiInput)\s*(?:=(?!=)|\.\s*(?:\w+\s*=(?!=)|clear\s*\())"
     ),
-    re.compile(
-        r"(?<!current_item_\))(?<!getCurrentMenuItem\(\))(?:->|\.)\s*(?:learnKnob|learnModKnob|unlearnKnobs)\s*\("
-    ),
-    re.compile(
-        r"(?<!\w)midi_knobs\s*(?:=(?!=)|\.\s*(?:push_back|emplace_back|insert|erase|clear|resize|pop_back|assign|swap)\s*\(|\[[^\]]*\]\s*(?:\.\s*\w+\s*)?=(?!=))"
-    ),
-    re.compile(
-        r"(?<!\w)std::(?:ranges::)?(?:erase_if|erase|sort|stable_sort|remove_if|remove|unique|reverse|rotate|shuffle"
-        r"|partition|stable_partition|fill|swap|move)\s*\([^;]*\bmidi_knobs\b"
-    ),
+    re.compile(r"(?:->|\.)\s*learnModKnob\s*\("),
     re.compile(r"(?<!\w)launch_midi_command\b"),
 )
 #: Song-state writes under the roots that are allowed, by file (relative to src/) and the text the write's line holds,
@@ -408,10 +398,8 @@ def unrecorded(root: Path) -> list[str]:
         for line in text.splitlines():
             if KNOB_WRITE.search(line):
                 writes.add("a mod knob")
-            for match in KNOB_LEARN.finditer(line):
-                receiver = LAST_NAME.search(line[: match.start()])
-                if receiver is None or receiver.group(1) not in MENU_ITEM_RECEIVERS:
-                    writes.add("a mod knob")
+            if KNOB_LEARN.search(line):
+                writes.add("a mod knob")
             for match in HOLDER_WRITE.finditer(line):
                 before = line[: match.start()]
                 receiver = LAST_NAME.search(before)
