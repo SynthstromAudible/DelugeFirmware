@@ -21,7 +21,9 @@
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/naming.h"
 #include "instruments/deluge/plugin.h"
+#include "io/debug/log.h"
 #include "model/drum/drum.h"
+#include "model/edits/set_controls.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
 #include "model/project_bridge/chain_bridge.h"
@@ -65,8 +67,8 @@ std::vector<ControllerMapping> controlsOf(::Sound& sound) {
 
 static_assert(kNumModButtons == 8, "a knob pair per mod button");
 
-std::array<deluge::instrument::KnobPair, 8> knobPairsOf(const std::vector<ControllerMapping>& controls) {
-	std::array<deluge::instrument::KnobPair, 8> pairs{};
+deluge::instrument::KnobPairs knobPairsOf(const std::vector<ControllerMapping>& controls) {
+	deluge::instrument::KnobPairs pairs{};
 	for (const ControllerMapping& mapping : controls) {
 		const ModKnobControl& knob = mapping.control;
 		if (knob.button < pairs.size() && knob.knob < kNumPhysicalModKnobs) {
@@ -76,7 +78,7 @@ std::array<deluge::instrument::KnobPair, 8> knobPairsOf(const std::vector<Contro
 	return pairs;
 }
 
-std::vector<ControllerMapping> controlsOf(const std::array<deluge::instrument::KnobPair, 8>& pairs) {
+std::vector<ControllerMapping> controlsOf(const deluge::instrument::KnobPairs& pairs) {
 	std::vector<ControllerMapping> controls;
 	controls.reserve(pairs.size() * kNumPhysicalModKnobs);
 	for (uint8_t button = 0; button < pairs.size(); ++button) {
@@ -86,12 +88,38 @@ std::vector<ControllerMapping> controlsOf(const std::array<deluge::instrument::K
 	return controls;
 }
 
-void remapUnboundKnobsForMode(::Sound& sound, deluge::instrument::SynthMode from, deluge::instrument::SynthMode to) {
-	const std::array<deluge::instrument::KnobPair, 8> knobs = knobPairsOf(controlsOf(sound));
-	const std::array<deluge::instrument::KnobPair, 8> remapped = deluge::instrument::remap_for_mode(from, to, knobs);
-	if (remapped != knobs) {
-		applyControls(sound, true, controlsOf(remapped));
+bool writeKnobPairs(::Sound& sound, ::Song& song,
+                    deluge::function_ref<deluge::instrument::KnobPairs(const deluge::instrument::KnobPairs&)> change) {
+	const std::optional<deluge::project::ControlsAddress> address = controlsAddressOf(sound);
+	std::vector<ControllerMapping>* record = address ? song.project.resolveControls(*address) : nullptr;
+	// A record not holding all the mod knobs would read the missing ones as param id 0: the engine's knobs stand in.
+	const bool whole = record != nullptr && record->size() == kNumModButtons * kNumPhysicalModKnobs;
+	const deluge::instrument::KnobPairs knobs = knobPairsOf(whole ? *record : controlsOf(sound));
+	const deluge::instrument::KnobPairs changed = change(knobs);
+	if (changed == knobs) {
+		return false;
 	}
+	std::vector<ControllerMapping> controls = controlsOf(changed);
+	if (record == nullptr) {
+		applyControls(sound, true, controls);
+		return true;
+	}
+	deluge::edits::Context ctx{song, song.project};
+	deluge::edits::SetControls edit{*address, controls};
+	if (deluge::edits::apply(ctx, edit) != Error::NONE) {
+		// The record resolved but its owner did not: write both copies, so they stay equal.
+		D_PRINTLN("controls refused: knobs written directly");
+		applyControls(sound, true, controls);
+		*record = std::move(controls);
+	}
+	return true;
+}
+
+void remapKnobsForMode(::Sound& sound, ::Song& song, deluge::instrument::SynthMode from,
+                       deluge::instrument::SynthMode to) {
+	writeKnobPairs(sound, song, [from, to](const deluge::instrument::KnobPairs& knobs) {
+		return deluge::instrument::remap_for_mode(from, to, knobs);
+	});
 }
 
 void refreshControls(::Song& song) {

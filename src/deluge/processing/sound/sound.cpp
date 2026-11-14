@@ -2564,7 +2564,8 @@ void Sound::calculateEffectiveVolume() {
 }
 
 // The filters go off into FM and come back on out of it. The knobs a mode change remaps are the caller's
-// (deluge::instrument::remap_for_mode, applied by the "mode" setting's bridge arm).
+// (deluge::instrument::remap_for_mode, applied by the mode Edit in commitEngineSetting, or by settingFor for a sound
+// with no slot).
 void Sound::setSynthMode(SynthMode value, Song* song) {
 
 	killAllVoices(); // This saves a lot of potential problems, to do with samples playing. E002 was being caused

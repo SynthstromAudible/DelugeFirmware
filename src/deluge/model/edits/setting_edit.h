@@ -86,7 +86,7 @@ inline void settingFor(::Sound& sound, std::string_view path, deluge::serializat
 	}
 	else if (path == "mode") {
 		// No record to remap through: the sound's own knobs follow the mode.
-		deluge::bridge::remapUnboundKnobsForMode(sound, from, sound.getSynthMode());
+		deluge::bridge::remapKnobsForMode(sound, *currentSong, from, sound.getSynthMode());
 	}
 }
 

@@ -456,6 +456,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			    {unpatched_knob(params::UNPATCHED_BASS), unpatched_knob(params::UNPATCHED_TREBLE)},
 			    {param_knob(params::LOCAL_HPF_RESONANCE), param_knob(params::LOCAL_LPF_FREQ)},
 			}};
+			// The pairs `Sound::setSynthMode` takes into FM: a resonance or the bass on the lower knob, any filter's upper.
 			constexpr std::array<Layout, 3> kBefore{with_button1(kDefaultSynth, "hpfResonance", "hpfFrequency"),
 			                                        with_button1(kDefaultSynth, "bass", "treble"),
 			                                        with_button1(kDefaultSynth, "hpfResonance", "lpfFrequency")};
@@ -475,6 +476,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			spec::SongFixture f = spec::make_synth_song();
 			auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 			set_pair(self, sound, *f.song, 1, param_knob(params::LOCAL_LPF_FREQ), param_knob(params::LOCAL_LPF_RESONANCE));
+			// `Sound::setSynthMode` only takes a resonance (or the bass) on the lower knob into FM.
 			constexpr Layout kCutoffLower = with_button1(kDefaultSynth, "lpfFrequency", "lpfResonance");
 			expect_synth_layout(self, f, kCutoffLower);
 			set_mode(sound, "fm");
@@ -488,8 +490,9 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			constexpr Layout kOn7 = with_knob(with_knob(kDefaultSynth, 7, 0, "lpfResonance"), 7, 1, "lpfFrequency");
 			expect_synth_layout(self, f, kOn7);
 			set_mode(sound, "fm");
-			expect_synth_layout(self, 
-			    f, with_knob(with_knob(kDefaultFm, 7, 0, "modulator2Volume"), 7, 1, "modulator1Volume"));
+			// `Sound::setSynthMode` swaps the pair on every button.
+			expect_synth_layout(
+			    self, f, with_knob(with_knob(kDefaultFm, 7, 0, "modulator2Volume"), 7, 1, "modulator1Volume"));
 		});
 
 		it("passes over a button with a cable's depth on it, though the cable's param would match", _ {
@@ -499,6 +502,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			         deluge::modulation::knobTargetOf(
 			             deluge::synth::CableTarget::depth_of(params::LOCAL_LPF_RESONANCE, PatchSource::LFO_LOCAL_1)),
 			         param_knob(params::LOCAL_LPF_FREQ));
+			// `Sound::setSynthMode` swaps a knob only when it is on the plain param, never on a cable's depth.
 			constexpr Layout kCable = with_button1(kDefaultSynth, "lpfResonance<lfo2", "lpfFrequency");
 			expect_synth_layout(self, f, kCable);
 			set_mode(sound, "fm");
@@ -511,11 +515,36 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			set_mode(sound, "fm");
 			set_pair(self, sound, *f.song, 3, param_knob(params::LOCAL_MODULATOR_1_VOLUME),
 			         param_knob(params::LOCAL_MODULATOR_0_VOLUME));
-			expect_synth_layout(self, 
-			    f, with_knob(with_knob(kDefaultFm, 3, 0, "modulator2Volume"), 3, 1, "modulator1Volume"));
+			expect_synth_layout(
+			    self, f, with_knob(with_knob(kDefaultFm, 3, 0, "modulator2Volume"), 3, 1, "modulator1Volume"));
+			// Out of FM, `Sound::setSynthMode` brings the modulators' volumes back as the low-pass pair.
 			set_mode(sound, "subtractive");
 			expect_synth_layout(self, f,
 			                    with_knob(with_knob(kDefaultSynth, 3, 0, "lpfResonance"), 3, 1, "lpfFrequency"));
+		});
+
+		it("writes the record and the engine both when the record resolves but its owner does not", _ {
+			spec::SongFixture f = spec::make_synth_song();
+			auto& sound = *static_cast<SoundInstrument*>(f.instrument);
+			// The record stays in the project while the song's output list no longer holds the sound, so the
+			// SetControls Edit finds no owner to apply to and refuses.
+			Output* const outputs = f.song->live.media.first_output;
+			f.song->live.media.first_output = nullptr;
+			const bool changed = deluge::bridge::writeKnobPairs(
+			    sound, *f.song, [](const deluge::instrument::KnobPairs& knobs) {
+				    deluge::instrument::KnobPairs out = knobs;
+				    out[2] = {.lower = deluge::instrument::param::kModulator2Volume,
+				              .upper = deluge::instrument::param::kModulator1Volume};
+				    return out;
+			    });
+			f.song->live.media.first_output = outputs;
+			expect(changed).to_be_true();
+			const auto* record = f.song->project.resolveControls(*deluge::bridge::controlsAddressOf(sound));
+			expect(record != nullptr).to_be_true();
+			const deluge::instrument::KnobPair want{.lower = deluge::instrument::param::kModulator2Volume,
+			                                        .upper = deluge::instrument::param::kModulator1Volume};
+			expect(deluge::bridge::knobPairsOf(*record)[2] == want).to_be_true();
+			expect(deluge::bridge::knobPairsOf(deluge::bridge::controlsOf(sound))[2] == want).to_be_true();
 		});
 
 		it("swaps the drums of a kit the mode's fan-out reaches, and passes over a sample row", _ {

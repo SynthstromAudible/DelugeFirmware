@@ -419,8 +419,8 @@ Error applySetting(::Sound& /*sound*/, std::string_view /*path*/, const deluge::
                    ::Song& /*song*/) {
 	return Error::NONE;
 }
-void remapUnboundKnobsForMode(::Sound& /*sound*/, deluge::instrument::SynthMode /*from*/,
-                              deluge::instrument::SynthMode /*to*/) {
+void remapKnobsForMode(::Sound& /*sound*/, ::Song& /*song*/, deluge::instrument::SynthMode /*from*/,
+                       deluge::instrument::SynthMode /*to*/) {
 }
 } // namespace deluge::bridge
 
