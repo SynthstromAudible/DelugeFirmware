@@ -1,11 +1,12 @@
 # Gate unit-arm:
-#     the fixed-point, VFP, NEON, model, effects, instrument, music-theory, serialization, plugin-api,
-#     global-effectable, bench and model-equality specs hold on ARM, cross-built with clang and run under qemu: the
-#     test directories under tests/unit that name this tree, and tests/dsp. The NEON conversion kernels must match
-#     their scalar references bit for bit, every fixed-point operation (and its portable twin) must match the A9
-#     instruction it stands for, and every fixed-point operation must compile, at the shipping image's ARM and Thumb-2
-#     codegen flags, to the instruction it names (tests/unit/deluge/dsp-next/core); model_equality_synthetic reads the
-#     synthetic songs and the model records on ARM as on the host
+#     the dsp-next, NEON, model, effects, instrument, music-theory, serialization, plugin-api, global-effectable and
+#     bench specs and model equality hold on ARM, cross-built with clang and run under qemu: tests/dsp and the test
+#     directories under tests/unit that name this tree, the fixed-point and VFP specs among them. The NEON conversion
+#     kernels must match their scalar references bit for bit, every fixed-point operation (and its portable twin) must
+#     match the A9 instruction it stands for, and every fixed-point operation must compile, at the shipping image's ARM
+#     and Thumb-2 codegen flags, to the instruction it names (tests/unit/deluge/dsp-next/core); model_equality_synthetic
+#     reads the synthetic songs and the model records on ARM as on the host
+
 cmake_minimum_required(VERSION 3.24)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 # This tree only ever cross-builds for ARM Linux, run under qemu: with clang, as the firmware is built.

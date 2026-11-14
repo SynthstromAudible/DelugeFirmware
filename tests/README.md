@@ -144,7 +144,7 @@ builds only `golden-vt-render`.
 | streaming-margin-sweep | integration | scenario | simulation | investigative | nothing: it prints the streaming margin curve, the underruns at each fill-task wait in MARGIN_SWEEP | manual | render | ~1m |
 | recorder-write | integration | scenario | property | gate | a real recording must still read back byte-correctly | nightly | app | ~10m |
 | unit | unit | ctest | unit | gate | the test directories under tests/unit that name the host tree, the dsp-next specs (tests/dsp), and the gfx-layer and layer-rules checks, on the -m32 host | pr | unit-cpp | ~5s |
-| unit-arm | unit | ctest | unit | gate | the fixed-point, VFP, NEON, model, effects, instrument, music-theory, serialization, plugin-api, global-effectable, bench and model-equality specs hold on ARM | pr | unit-cpp-variants | ~5s |
+| unit-arm | unit | ctest | unit | gate | the dsp-next, NEON, model, effects, instrument, music-theory, serialization, plugin-api, global-effectable and bench specs and model equality hold on ARM | pr | unit-cpp-variants | ~5s |
 | crates | unit | cargo | unit | gate | every #[test] in the crates/ workspace | pr | unit | ~20s |
 | bsp-host | unit | cargo | unit | gate | the Rust BSP's host tests and in-crate #[test]s | pr | unit | ~30s |
 | sample-convert | unit | cargo | unit | gate | deluge_sample_convert's sample format conversions agree with the app C++ its build.rs compiles | pr | storage | ~1m |
@@ -317,7 +317,7 @@ app's are by subsystem (`tests/unit/deluge/storage/`, `tests/unit/deluge/gui/`).
 path: `tests/unit/crates/<crate>/` for a crate's C ABI, `tests/unit/harness/` for `tests/harness/`,
 `tests/unit/integration/scenarios/support/` for the scenarios' shared support.
 
-A directory's `CMakeLists.txt` declares its driver and the trees that build it, on the call's first line:
+A directory's `CMakeLists.txt` declares its driver and its trees, the tree names on `TREES`'s own line:
 
     deluge_specs_driver(<name> TREES host arm [NEON] [ONLY_ARM <spec>...] [SOURCES ...] [LIBRARIES ...] [INCLUDES ...])
 
@@ -326,8 +326,9 @@ next directory with its own `CMakeLists.txt`, joins the driver as one ctest test
 point is named after the file's stem: `CPPSPEC_SPEC(<stem without _spec>)`, or `DELUGE_SPEC(<stem>, ...)` from
 `tests/support/spec_main.h`. The three trees (`tests/trees/host`, `tests/trees/arm`, `tests/trees/ubsan`) find spec
 directories by these declarations, so a directory with its own `CMakeLists.txt` needs no other edit. A directory
-holding specs needs that `CMakeLists.txt`, or a parent's below `tests/unit`: a `*_spec.cpp` with neither fails the
-configure, as does a `CMakeLists.txt` that names no tree. The trees read every `CMakeLists.txt` under `tests/unit`, so
+holding specs needs that `CMakeLists.txt`, or a parent's below `tests/unit`, declaring a `deluge_specs_driver`: a
+`*_spec.cpp` whose nearest `CMakeLists.txt` declares none, or that has none, fails the configure, as does a
+`CMakeLists.txt` that names no tree. The trees read every `CMakeLists.txt` under `tests/unit`, so
 each one declares its trees; a directory with no spec driver (a CppUTest executable, a standalone driver) declares them
 with `deluge_test_directory(TREES ...)`. A tree that builds none of a directory's specs gets no driver target from it,
 so a call on that target after `deluge_specs_driver` goes inside `if(TARGET <name>)`.
