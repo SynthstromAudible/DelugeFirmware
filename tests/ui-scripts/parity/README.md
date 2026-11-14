@@ -36,8 +36,8 @@ step and Horizontal move, the coming-soon popup inside the menu, and retrigger p
 after the press.
 
 `sm34-claim-back` covers a sample claim made from the audio clip's SAMPLE page (opened from the clip's root list) and
-the BACKs after it: the claim returns to the SAMPLE page and the first BACK leaves the menu, on both images, Horizontal
-Menus on and off. It converts the boot song's empty clip to audio (a held clip pad + SELECT), so it needs a content
+the BACKs after it: the claim returns to the SAMPLE page and the first BACK leaves the menu, on both images, with
+Horizontal Menus on. It converts the boot song's empty clip to audio (a held clip pad + SELECT), so it needs a content
 card's presets. The OLED, LEDs and UI stack agree at every snapshot; `claimed`, `back1` and `back2` differ only in the
 colour of the waveform row (y 4, 16 pads), the new audio clip's random hue (D11).
 
@@ -65,9 +65,14 @@ note-row editor. It stops on the note-row editor: BACK there sticks on `main` (D
 `sm22-sample-browser-favourites` cover the sample browser that SHIFT + BROWSE opens from the synth clip: the greyed root
 view and its BROWSE blink, the preview and its waveform, the horizontal scroll-in as the selection moves, the keyboard
 on demand and KEYBOARD, the X_ENC zoom and the waveform's scroll, LOAD's auto-load, SHIFT + SAVE's delete prompt and
-refusal, the audition column, RECORD's recorder, and the favourites row with its 500 ms flash. `sm19` runs with
-`--audio-wav` as well. Windows over a blink are at least 1 s; the scroll-in is read 100, 300 and 400 ms after the turn
-in short windows; a popup is read 100 ms after the press, before it times out.
+refusal, the audition column, RECORD's recorder, and the favourites row with its 500 ms flash. Windows over a blink are
+at least 1 s; the scroll-in is read 100, 300 and 400 ms after the turn in short windows; a popup is read 100 ms after
+the press, before it times out.
+
+`sm19`'s audio is checked by hand:
+`tools/emu_parity.py --audio-wav tests/ui-scripts/parity/sm19-sample-browser-preview.txt` writes each image's
+`audio.wav`/`raw.s32` for the envelope and spectrum comparison (DIFFERENCES.md Coverage); `ui-parity` does not capture
+audio.
 
 `sm23-select-in-place` covers SELECT on an item main does not enter: the arpeggiator's ENABLED row and USB AUDIO's
 INPUT toggle flip on their list, and a choice column (POLYPHONY on the VOICE page, set to MONO) stays on its page. Its

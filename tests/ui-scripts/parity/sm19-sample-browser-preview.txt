@@ -2,7 +2,7 @@
 # the BROWSE pad blinking); Select +1 onto CLIPS and SELECT into it previews its first file and shows the waveform;
 # Select +1 scrolls the next file's waveform in (snapshots 100 ms and 300 ms after the turn); BACK onto the folder
 # scrolls back to the root view; a main-pad press shows the keyboard, a move hides it, KEYBOARD keeps it shown; BACK
-# twice closes. Run it with --audio-wav as well.
+# twice closes.
 # card: content/sweep-bare.img
 100   snapshot boot
 300   button Shift down

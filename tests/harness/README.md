@@ -236,11 +236,10 @@ cannot tell "blank screen" from "never drawn". `tests/ui-scripts/selftest/t02-ea
 
 ## The fixture card
 
-`tests/fixtures/card/` is the card the level-3 scripts boot on unless their header names another: `KITS/`, `SONGS/`
-and `SYNTHS/` empty but for a `.keep`, `SAMPLES/` with a `.keep` and `TONE.WAV` (`scripts/make_fixture_sample.py`
-computes it), and `SETTINGS/` with `MIDIFollow.XML` and `FAVOURITES/SAMPLES_Bank0.xml`. The app writes both
-settings files on its first boot when they are missing, so they are committed: the card is a fixed point and a run
-only reads it.
+`tests/fixtures/card/` is the card the app and selftest scripts name in their headers: `KITS/`, `SONGS/` and `SYNTHS/`
+empty but for a `.keep`, `SAMPLES/` with a `.keep` and `TONE.WAV` (`scripts/make_fixture_sample.py` computes it), and
+`SETTINGS/` with `MIDIFollow.XML` and `FAVOURITES/SAMPLES_Bank0.xml`. The app writes both settings files on its first
+boot when they are missing, so they are committed: the card is a fixed point and a run only reads it.
 
 The cards that differ from it by one file are card manifests over it (`tests/fixtures/card-<name>.card`, the format
 in `src/bsp/rust/src/storage/card_manifest.rs`): `base tests/fixtures/card` and the one difference.

@@ -1,8 +1,7 @@
 # ShellMenu: a sample claim made from the audio clip's SAMPLE page, and the BACKs after it. From the boot song, HOLD a
 # clip pad and press SELECT to turn the empty clip into an audio clip, open it, SELECT into its root list and turn to
-# SAMPLE (eight turns: the first detent after boot is dropped), SELECT opens the SAMPLE page (the vertical card: its
-# list) on the file selector, SELECT opens the browser, Select +1 and SELECT enter CLIPS, SELECT on its first file
-# claims it, then BACK twice.
+# SAMPLE (eight turns: the first detent after boot is dropped), SELECT opens the SAMPLE page on the file selector,
+# SELECT opens the browser, Select +1 and SELECT enter CLIPS, SELECT on its first file claims it, then BACK twice.
 # card: content/content-shellmenu
 100 snapshot boot
 500 button Session down
