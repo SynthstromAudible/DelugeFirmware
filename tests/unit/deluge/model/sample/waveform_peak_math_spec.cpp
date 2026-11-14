@@ -53,13 +53,13 @@ describe waveform_peak_math_group("waveform peak math", ${
 	});
 
 	// firstFrameStartWithinCluster: 24-bit (frameSize 3) boundary that doesn't divide evenly.
-	it("first frame start misaligned24 bit", _ {
+	it("first frame start misaligned 24-bit", _ {
 		// (32769 - 44) % 3 == 1, so the first whole frame begins 3 - 1 == 2 bytes in.
 		expect(firstFrameStartWithinCluster(32769, 44, 3)).to_equal(2);
 	});
 
 	// scanClusterPeak: finds the min and max of the 32-bit values it samples.
-	it("scan cluster peak finds min max32 bit", _ {
+	it("scan cluster peak finds min and max 32-bit", _ {
 		// byteDepth 4 (32-bit), mono. Buffer of 8 int32 values; misalignment (byteDepth-4)==0.
 		std::vector<int32_t> samples = {5, -3, 100, -100, 42, 7, -1, 9};
 		const char* data = reinterpret_cast<const char*>(samples.data());
@@ -70,7 +70,7 @@ describe waveform_peak_math_group("waveform peak math", ${
 
 	// scanClusterPeak: 16-bit misalignment reads two bytes before the logical start,
 	// so the caller must provide valid padding there. Verify the negative-index read is exercised.
-	it("scan cluster peak16 bit misaligned read", _ {
+	it("scan cluster peak 16-bit misaligned read", _ {
 		// 6 int16 values laid out; provide 4 bytes of leading padding so start=4 with byteDepth-4=-2 is valid.
 		std::vector<int16_t> raw = {0, 0, 1000, -2000, 3000, -500, 750, 1};
 		const char* base = reinterpret_cast<const char*>(raw.data());

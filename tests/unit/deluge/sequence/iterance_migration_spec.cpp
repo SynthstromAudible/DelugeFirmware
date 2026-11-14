@@ -96,7 +96,7 @@ describe iterance_legacy_preset_index_group("iterance legacy preset index", ${
 	});
 
 	it("index1 decodes to 1of2", _ {
-		// Legacy index 1 is "1 of 2", at index 3 of iterancePresets[] after the +2 offset.
+		// Legacy index 1 is "1 of 2", at preset index 3 (iterancePresets[2]) after the +2 offset.
 		Iterance result = iteranceFromLegacyPresetIndex(1);
 		expect(result.divisor).to_equal(2u);
 		expect((unsigned)result.iteranceStep.to_ulong()).to_equal(0b1u);

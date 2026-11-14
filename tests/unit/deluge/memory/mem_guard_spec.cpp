@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <set>
+#include <utility>
 #include <vector>
 
 #include "cppspec.hpp"
@@ -54,7 +55,7 @@ describe mem_guard_table_group("MEM_GUARD's side table", ${
 		const uint32_t kKeys = 24000; // up to ~0.73 of the table's capacity
 		std::vector<uint32_t> notRemoved;
 		std::vector<uint32_t> misfound;
-		std::vector<uint32_t> missized;
+		std::vector<std::pair<uint32_t, uint32_t>> missized; // (key, requestedSize found)
 		std::vector<uint32_t> notRemovedAtEnd;
 		for (uint32_t step = 0; step < 200000; step++) {
 			x ^= x << 13;
@@ -79,7 +80,7 @@ describe mem_guard_table_group("MEM_GUARD's side table", ${
 						misfound.push_back(i);
 					}
 					if (found && info.requestedSize != i) {
-						missized.push_back(i);
+						missized.emplace_back(i, info.requestedSize);
 					}
 				}
 			}
@@ -91,15 +92,18 @@ describe mem_guard_table_group("MEM_GUARD's side table", ${
 		}
 		expect(notRemoved).to_equal(std::vector<uint32_t>{});
 		expect(misfound).to_equal(std::vector<uint32_t>{});
-		expect(missized).to_equal(std::vector<uint32_t>{});
+		expect(missized).to_equal(std::vector<std::pair<uint32_t, uint32_t>>{});
 		expect(notRemovedAtEnd).to_equal(std::vector<uint32_t>{});
 	});
 });
 
 DELUGE_SPEC(mem_guard_spec, mem_guard_table_group)
-#else
-// MEM_GUARD is off under a sanitizer (definitions.h): there is no side table to check.
+#elif defined(__SANITIZE_ADDRESS__) || defined(DELUGE_VALGRIND)
+// MEM_GUARD is off under a sanitizer (definitions.h), which owns heap-corruption detection there: there is no side
+// table to check.
 int mem_guard_spec(int, char**) {
 	return EXIT_SUCCESS;
 }
+#else
+#error "MEM_GUARD is off outside a sanitizer (ALPHA_OR_BETA_VERSION is 0): the side table's spec would check nothing"
 #endif
