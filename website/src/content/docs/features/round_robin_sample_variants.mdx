@@ -47,6 +47,8 @@ the same shape wherever you are, and is the same rule a Kit drum has always foll
   - `CYCLE` - play the loaded slots in order, wrapping around (classic round-robin).
   - `RANDOM` - pick any loaded slot at random.
   - `NO REPEAT` - pick a random slot, but never repeat the slot that just played.
+  - `VELOCITY` - pick the slot whose velocity range covers the incoming note's velocity, so the slots become
+    velocity layers rather than a rotation.
 - `SLOT 1` through `SLOT 4` - each opens a submenu for that slot:
   - `FILE` - opens the sample browser to load (or replace) that slot's sample. `SLOT 1` is the primary sample and
     can also be loaded via the regular `FILE` browser item; slots 2-4 are alternates and must be filled in order
@@ -61,6 +63,11 @@ the same shape wherever you are, and is the same rule a Kit drum has always foll
     holding `AFFECT ENTIRE` while turning it sets the same value on every slot of every sound drum, and the
     oscillator's own `TRANSPOSE` does the same. Pressing `SELECT` on it opens the oscillator's pitch modulation, as
     on the oscillator's own `TRANSPOSE`; modulation applies to the whole oscillator, not just this slot.
+  - `VMIN` and `VMAX` - the two ends of this slot's velocity range, 1-127. Shown only while `MODE` is `VELOCITY`,
+    since they mean nothing in the other modes. They sit in adjacent columns and are edited in place with the
+    select encoder, the same as `TRANSPOSE`; raising `VMIN` past `VMAX` pushes the other end along rather than
+    inverting the range. Slots default to the full 1-127, so an unconfigured slot always matches - give each slot
+    its own band to build a velocity-layered instrument.
   - `VOL` - a per-slot level trim on the familiar 0-50 scale, where 50 is unity and 0 is silence. Takes recorded
     at different levels rarely match, and this pulls the loud ones into line without touching the oscillator's
     own volume. It only attenuates - there is no boost - so it can never push a variant into clipping.
