@@ -100,7 +100,7 @@ describe tables("level-3 name tables cross-checked against deluge_profile()", $ 
 			}
 			const std::string name = kEncoderRoleNames[i];
 			const int got = ui_script_encoder_index(name.c_str());
-			expect(name + ": index " + std::to_string(got)).to_equal(name + ": index " + std::to_string(want_index));
+			expect(got).to_equal(int{want_index}, name + " encoder index");
 		}
 	});
 
@@ -127,13 +127,11 @@ describe tables("level-3 name tables cross-checked against deluge_profile()", $ 
 				}
 
 				if (!profile_has) {
-					expect(coord + ": " + (got_name == nullptr ? "no button" : std::string("button ") + got_name))
-					    .to_equal(coord + ": no button");
+					expect(got_name).to_be_null(coord + " has no button in the profile");
 					continue;
 				}
 				const std::string want_name = button_name(want_id);
-				expect(coord + ": " + (got_name == nullptr ? "no button" : std::string(got_name)))
-				    .to_equal(coord + ": " + want_name);
+				expect(got_name).to_equal(want_name, coord);
 			}
 		}
 	});
