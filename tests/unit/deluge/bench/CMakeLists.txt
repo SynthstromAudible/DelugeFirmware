@@ -1,6 +1,6 @@
 # Specs for the app's DSP benchmark (src/deluge/bench). The runner and the case list are portable: they reach the
-# counters only through the Counters interface, which the spec fakes, so they build from their own sources and the
-# dsp-next sources the cases' components use.
+# counters only through the Counters interface, which the spec fakes, so they build from their own sources and link
+# dsp-next, which the cases' components run.
 set(_app ${DELUGE_REPO_ROOT}/src/deluge)
 deluge_specs_driver(bench_specs TREES host arm NEON
   SOURCES
@@ -22,19 +22,5 @@ deluge_specs_driver(bench_specs TREES host arm NEON
     ${CMAKE_CURRENT_LIST_DIR}/va_shape_cases_host.cpp
     ${CMAKE_CURRENT_LIST_DIR}/fft_cases_host.cpp
     ${CMAKE_CURRENT_LIST_DIR}/chain_cases_host.cpp
-    ${_app}/dsp-next/fixed/delay/delay_processor.cpp
-    ${_app}/dsp-next/fixed/delay/delay_tape.cpp
-    ${_app}/dsp-next/float/osc/saw_bands.cpp
-    ${_app}/dsp-next/fixed/bandlimited/saw.cpp
-    ${_app}/dsp-next/fixed/bandlimited/square.cpp
-    ${_app}/dsp-next/fixed/dynamics/compressor_kernel.cpp
-    ${_app}/dsp-next/fixed/dynamics/duck_envelope.cpp
-    ${_app}/dsp-next/fixed/dynamics/rms_feedback_compressor.cpp
-    ${_app}/dsp-next/fixed/filter/filter_set.cpp
-    ${_app}/dsp-next/fixed/interpolation/table_interpolation.cpp
-    ${_app}/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp
-    ${_app}/dsp-next/fixed/osc/supersaw.cpp
-    ${_app}/dsp-next/fixed/interpolation/interpolator.cpp
-    ${_app}/util/lookuptables/lookuptables.cpp
-    ${_app}/util/synth_noise.cpp
+  LIBRARIES deluge_dsp_fixed deluge_dsp_float deluge_test_dsp_closure
   INCLUDES ${_app} ${DELUGE_REPO_ROOT}/src)

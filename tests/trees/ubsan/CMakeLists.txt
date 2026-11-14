@@ -34,6 +34,9 @@ set(_ubsan -fsanitize=signed-integer-overflow,shift,float-cast-overflow -fno-san
 add_compile_options(${_ubsan})
 add_link_options(${_ubsan})
 
+# The libraries the dsp specs link, built with the sanitizer options above like every source the specs compile.
+include(${DELUGE_REPO_ROOT}/tests/support/cmake/libs.cmake)
+
 enable_testing()
 # Every test directory under tests/unit that names this tree (tests/support/cmake/specs.cmake).
 deluge_spec_directories(${DELUGE_REPO_ROOT}/tests/unit)

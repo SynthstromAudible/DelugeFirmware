@@ -24,6 +24,9 @@ set(CPU_OPTIONS
   -mfpu=neon
 )
 add_compile_options(${CPU_OPTIONS} -Wno-psabi -static)
+# Assembly is preprocessed, as the device assembles it, so the compile definitions and include paths a library gives
+# its sources apply to its .s files too instead of failing the libraries' -Werror as unused arguments.
+add_compile_options($<$<COMPILE_LANGUAGE:ASM>:-x> $<$<COMPILE_LANGUAGE:ASM>:assembler-with-cpp>)
 add_link_options(${CPU_OPTIONS})
 
 set(DELUGE_TEST_TREE arm)
