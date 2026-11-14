@@ -93,9 +93,18 @@ describe mapping_codec("an owner's learned knobs as a file holds them", ${
 		const std::vector<uint32_t> params = sound_knob_params(R"(<sound><midiKnobs>
 			<midiKnob channel="0" ccNumber="1" relative="0" controlsParam="volumePostFX" patchAmountFromSource="lfo1" />
 			<midiKnob channel="0" ccNumber="2" relative="0" controlsParam="volumePostReverbSend" patchAmountFromSource="velocity" />
+			<midiKnob channel="0" ccNumber="3" relative="0" controlsParam="volumePostFX" patchAmountFromSource="lfo1" patchAmountFromSecondSource="velocity" />
+			<midiKnob channel="0" ccNumber="4" relative="0" controlsParam="volume" patchAmountFromSource="compressor" patchAmountFromSecondSource="lfo1" />
 			</midiKnobs></sound>)");
-		expect(params).to_equal(std::vector<uint32_t>{depth(PatchSource::LFO_GLOBAL_1, ip::kVolume),
-		                                              depth(PatchSource::VELOCITY, ip::kVolume)});
+		// A depth's depth follows the source nearest the param, as the runtime's fix-up reads it.
+		expect(params).to_equal(std::vector<uint32_t>{
+		    depth(PatchSource::LFO_GLOBAL_1, ip::kVolume), depth(PatchSource::VELOCITY, ip::kVolume),
+		    deluge::instrument::cable_depth_id(PatchSource::VELOCITY,
+		                                       *deluge::instrument::cable_depth_id(PatchSource::LFO_GLOBAL_1, ip::kVolume))
+		        ->value,
+		    deluge::instrument::cable_depth_id(
+		        PatchSource::LFO_GLOBAL_1, *deluge::instrument::cable_depth_id(PatchSource::SIDECHAIN, ip::kVolumePostReverbSend))
+		        ->value});
 	});
 
 	it("leaves a sound's knob on any other param as the file names it", _ {

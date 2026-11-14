@@ -40,7 +40,6 @@
 #include <optional>
 #include <span>
 #include <type_traits>
-#include <utility>
 #include <variant>
 
 namespace deluge::bridge {
@@ -377,38 +376,49 @@ void cloneNow(::Song& song, uint32_t from, uint32_t to) {
 	(void)projectMapping(song, deluge::project::OwnerParamTarget{{ControlsAddress::Kind::OUTPUT, to}, {}});
 }
 
+/// Make the copy of its source's knobs for each clone the render made whose table holds none (the render's held copy
+/// may be lost), while the source's entries are still there: before any held forget lands. Walks the song's outputs
+/// and writes their knob lists: run it with the render excluded.
+void copyMarkedClones(::Song& song) {
+	for (Output* first :
+	     {song.live.media.first_output, static_cast<Output*>(song.live.media.first_hibernating_instrument)}) {
+		for (Output* output = first; output != nullptr; output = output->next) {
+			::ModControllableAudio* knobs = knobsOwnerOf(*output);
+			if (knobs == nullptr || !knobs->knobs_cloned_from || !output->id()) {
+				continue;
+			}
+			const uint32_t from = *knobs->knobs_cloned_from;
+			knobs->knobs_cloned_from.reset();
+			if (song.project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *output->id()}).empty()) {
+				cloneNow(song, from, *output->id());
+			}
+		}
+	}
+}
+
 /// The ids of the outputs (playing or hibernating), kit rows and clips (session or arrangement) a song holds: collected
 /// with the render excluded, then sorted with it going.
 struct HeldIds {
 	std::vector<uint32_t> outputs;
 	std::vector<uint32_t> drums;
 	std::vector<uint32_t> clips;
-	/// The clones the render made whose copy of their source's knobs is still to be made: {source, clone}.
-	std::vector<std::pair<uint32_t, uint32_t>> clones;
 
 	/// Room for as many as @p like's lists held, and some more, so the collection does not allocate.
 	explicit HeldIds(const std::array<size_t, 3>& like) {
 		outputs.reserve(like[0] + 8);
 		drums.reserve(like[1] + 64);
 		clips.reserve(like[2] + 16);
-		clones.reserve(kPendingMappingOps); // at most one per clone the render held
 	}
 
 	[[nodiscard]] std::array<size_t, 3> sizes() const { return {outputs.size(), drums.size(), clips.size()}; }
 
-	/// Collect @p song's ids, and take the clones still to be copied. Only walks, copies and clears a clone's mark: run
-	/// it with the render excluded.
+	/// Collect @p song's ids. Only walks and copies: run it with the render excluded.
 	void collect(::Song& song) {
 		for (Output* first :
 		     {song.live.media.first_output, static_cast<Output*>(song.live.media.first_hibernating_instrument)}) {
 			for (Output* output = first; output != nullptr; output = output->next) {
 				if (output->id()) {
 					outputs.push_back(*output->id());
-					::ModControllableAudio* knobs = knobsOwnerOf(*output);
-					if (knobs != nullptr && knobs->knobs_cloned_from) {
-						clones.emplace_back(*knobs->knobs_cloned_from, *output->id());
-						knobs->knobs_cloned_from.reset();
-					}
 				}
 				if (output->type != OutputType::KIT) {
 					continue;
@@ -436,11 +446,11 @@ struct HeldIds {
 	}
 };
 
-/// Bring @p song's table into line with what the queue lost: copy the knobs of each clone the render made from its
-/// source (while the source's entries are still there), drop every entry whose owner the song no longer holds, then
-/// record what each output and kit row brings that the table holds nothing for (an arrival's bindings), as a load's
-/// sweep does. The render is excluded only while the song's lists are walked: it never writes the table, so the entries
-/// are matched against the ids the walk found with it going.
+/// Bring @p song's table into line with what the queue lost, once the clones' copies are made (copyMarkedClones): drop
+/// every entry whose owner the song no longer holds, then record what each output and kit row brings that the table
+/// holds nothing for (an arrival's bindings), as a load's sweep does. The render is excluded only while the song's
+/// lists are walked: it never writes the table, so the entries are matched against the ids the walk found with it
+/// going.
 void reconcileWithSong(::Song& song) {
 	// The sizes of the last reconcile's lists: written and read on the app loop only.
 	static std::array<size_t, 3> lastSizes{};
@@ -452,12 +462,6 @@ void reconcileWithSong(::Song& song) {
 	held->sort();
 	lastSizes = held->sizes();
 	MappingTable& mappings = song.project.mappings;
-	for (const auto& [from, to] : held->clones) {
-		if (mappings.params_of({ControlsAddress::Kind::OUTPUT, to}).empty()) {
-			AudioExcludedSection section; // the copy walks and projects onto what the song's tick can change
-			cloneNow(song, from, to);
-		}
-	}
 	std::vector<uint32_t> clips;
 	std::vector<uint32_t> outputs;
 	std::vector<uint32_t> drums;
@@ -659,6 +663,11 @@ bool applyPendingMappingOps(::Song& song, OverflowReconcile reconcile) {
 		AudioExcludedSection section;
 		const size_t n = pending.count.exchange(0, std::memory_order_acq_rel);
 		overflowed = pending.overflowed.exchange(false, std::memory_order_acq_rel);
+		if (overflowed) {
+			// A clone's held copy may be among the writes lost: it is made before the held forgets land, here and on
+			// each drain until the reconcile runs (a deferred one leaves the loss noted).
+			copyMarkedClones(song);
+		}
 		MappingTable& mappings = song.project.mappings;
 		for (size_t i = 0; i < n; i++) {
 			const PendingOp op = pending.ops[i];
@@ -998,13 +1007,13 @@ bool holdsDrum(::Song& song, const ::Drum& drum) {
 	return drum.id() && drumWithId(song, *drum.id()) == &drum;
 }
 
-std::vector<Mapping> loadedKnobsOf(const deluge::serialization::Value& midiKnobs, bool isSound) {
+std::vector<Mapping> loadedKnobsOf(const deluge::serialization::Value& midi_knobs, bool isSound) {
 	const deluge::plugin::ParamNaming* naming = deluge::plugin::naming_for(
 	    codecPlugins().namings, isSound ? deluge::plugin::kDelugeInstrument : deluge::plugin::kGlobalEffectable);
 	if (naming == nullptr) {
 		return {};
 	}
-	std::vector<Mapping> knobs = deluge::project::decode_knobs(midiKnobs, ControlsAddress{}, *naming);
+	std::vector<Mapping> knobs = deluge::project::decode_knobs(midi_knobs, ControlsAddress{}, *naming);
 	for (Mapping& knob : knobs) {
 		knob.source = command_of(field_of(knob.source));
 	}
@@ -1041,7 +1050,10 @@ bool learnedKnobTurns(::Song* song, const ::ModControllableAudio& owner, std::op
 	if (song == nullptr || !address) {
 		return false;
 	}
-	// The owner may not have joined the song's lists yet: a preset change hands it its knobs in the table first.
+	// The owner may not have joined the song's lists yet: a preset change hands it its knobs in the table first. With
+	// no owner at the address, the entries there are another's only when an owner that had the id has left the song and
+	// the render's forget of its entries is still held; the next drain drops them, and until then the zeroing at worst
+	// keeps a pitch adjust it would have zeroed.
 	bool isSound = false;
 	const ::ModControllableAudio* holder = controlsOwnerAt(*song, *address, &isSound);
 	return (holder == nullptr || holder == &owner)

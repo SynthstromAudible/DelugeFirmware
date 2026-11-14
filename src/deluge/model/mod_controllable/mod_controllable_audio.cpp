@@ -99,7 +99,8 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	next.delay = from.delay;
 	next.stutter = from.stutter;
 	setEffects(next);
-	midi_knobs = other->midi_knobs; // Could fail if no RAM... not too big a concern
+	midi_knobs = other->midi_knobs;     // Could fail if no RAM... not too big a concern
+	loaded_knobs = other->loaded_knobs; // an owner no song holds keeps its knobs here (empty for one a song holds)
 }
 
 void ModControllableAudio::initParams(ParamManager* paramManager, params::Kind defaults) {

@@ -274,6 +274,28 @@ describe mapping_save("a song's save of its MIDI bindings", $ {
 		expect(text(&*saved, "inputMidiChannel")).to_equal(std::string{"6"});
 	});
 
+	it("saves the knobs an owner no song holds keeps outside the table, in place of its engine list", _ {
+		spec::SongFixture saving = spec::make_synth_song();
+		spec::SongFixture other = spec::make_synth_song(); // its output is one the saving song does not hold
+		auto& sound = *static_cast<SoundInstrument*>(other.instrument);
+		sound.loaded_knobs.push_back(Mapping{.source = command(5, 99), // as its file read it, before a table took it
+		                                     .target = OwnerParamTarget{{}, patched(params::LOCAL_PITCH_ADJUST)},
+		                                     .relative = true});
+		sound.midi_knobs.clear();
+		MIDIKnob& engineKnob = sound.midi_knobs.emplace_back();
+		engineKnob.midiInput.channelOrZone = 6;
+		engineKnob.midiInput.noteOrCC = 55;
+		engineKnob.target = deluge::modulation::knobParam(params::LOCAL_PAN);
+		std::optional<Value> saved = savedOutput(*other.instrument, *saving.song);
+		expect(saved.has_value()).to_be_true();
+		const Value* knob = saved ? knobAt(*saved, 0) : nullptr;
+		expect(text(knob, "channel")).to_equal(std::string{"5"});
+		expect(text(knob, "ccNumber")).to_equal(std::string{"99"});
+		expect(text(knob, "relative")).to_equal(std::string{"1"});
+		expect(text(knob, "controlsParam")).to_equal(std::string{"pitch"});
+		expect(saved && knobAt(*saved, 1) == nullptr).to_be_true();
+	});
+
 	it("saves a synth's input zone and device", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		Command input = command(MIDI_CHANNEL_MPE_LOWER_ZONE, Command::kNone);

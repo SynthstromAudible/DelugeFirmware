@@ -924,6 +924,32 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		expect(clone->knobs_cloned_from.has_value()).to_be_false();
 	});
 
+	it("gives a lost clone its source's knobs when a forget of the source lands before the deferred reconcile", _ {
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		const uint32_t source = *f.output->id();
+		const OwnerParamTarget knob{{ControlsAddress::Kind::OUTPUT, source},
+		                            unpatched(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME)};
+		deluge::edits::learnMappingFor(knobCc(0, 7), knob);
+		AudioOutput* clone = f.song->createNewAudioOutput();
+		deluge::midi::refreshMappingIndex();
+		deluge::memory::noteRenderBlock(true); // the song's tick fills the queue's room, then clones
+		for (size_t i = 0; i < deluge::bridge::kPendingMappingOps; i++) {
+			deluge::bridge::forgetClipMappings(*f.song, 0xF00D);
+		}
+		clone->cloneFrom(f.output);
+		deluge::bridge::cloneOutputMappings(*f.output, *clone, *f.song);
+		deluge::memory::noteRenderBlock(false);
+		// A drain that holds the render off defers the reconcile; then the tick's forget of the source is held.
+		expect(deluge::bridge::applyPendingMappingOps(*f.song, deluge::bridge::OverflowReconcile::DEFER)).to_be_true();
+		deluge::memory::noteRenderBlock(true);
+		deluge::bridge::forgetOutputMappings(*f.song, source);
+		deluge::memory::noteRenderBlock(false);
+		(void)deluge::bridge::applyPendingMappingOps(*f.song);
+		const auto knobs = f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *clone->id()});
+		expect(knobs.size() == 1 && knobs[0].source == knobCc(0, 7)).to_be_true();
+		expect(f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, source}).empty()).to_be_true();
+	});
+
 	it("copies a clone's knobs once when the render's held copy lands", _ {
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		const OwnerParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.output->id()},

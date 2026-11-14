@@ -79,8 +79,7 @@ std::optional<plugin::ParamId> id_of(const plugin::ParamRef& ref) {
 	if (id && !ref.second_source.empty()) {
 		id = cable_depth_id(parse_patch_source(ref.second_source), *id);
 	}
-	// A knob a file points at a volume turns the one the runtime uses, whichever volume the file names.
-	return id ? std::optional{mod_knob_target(*id)} : std::nullopt;
+	return id;
 }
 
 } // namespace

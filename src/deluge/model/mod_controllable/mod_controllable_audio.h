@@ -252,8 +252,8 @@ public:
 	std::vector<deluge::project::Mapping> loaded_knobs{};
 
 	/// @brief The output whose learned knobs this one, a clone the render made, takes in the table, until the app loop
-	/// copies them there (bridge::cloneOutputMappings). Should the render's held copy be lost, the table's
-	/// reconcile copies them from it.
+	/// copies them there (bridge::cloneOutputMappings). Should the render's held copy be lost, the drain that finds the
+	/// loss copies them from it, before any held forget lands.
 	std::optional<uint32_t> knobs_cloned_from{};
 
 private:

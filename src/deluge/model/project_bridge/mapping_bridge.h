@@ -58,10 +58,10 @@ void recordLoadedMapping(::Song& song, const deluge::project::Mapping& mapping);
 /// owner's engine (the Deluge instrument's for a sound, the global effectable's otherwise), each target's owner a
 /// placeholder the table's taking re-addresses. Each device is named as the cable it resolves to names itself: one is
 /// found, or made, in the device list, as a load always has.
-/// @param midiKnobs The owner's `midiKnobs` element.
+/// @param midi_knobs The owner's `midiKnobs` element.
 /// @param isSound   Whether the owner is a sound.
 /// @return The knobs, in file order.
-[[nodiscard]] std::vector<deluge::project::Mapping> loadedKnobsOf(const deluge::serialization::Value& midiKnobs,
+[[nodiscard]] std::vector<deluge::project::Mapping> loadedKnobsOf(const deluge::serialization::Value& midi_knobs,
                                                                   bool isSound);
 
 /// @brief Whether output @p output has learned knobs a preset change hands over to the instrument replacing it: an

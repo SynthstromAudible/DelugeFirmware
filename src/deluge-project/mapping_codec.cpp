@@ -118,9 +118,9 @@ void encode_note(const MappingTable& table, const MappingTarget& target, std::st
 
 void decode_owner_knobs(const Value& element, ControlsAddress owner, MappingTable& table,
                         const deluge::plugin::ParamNaming* naming) {
-	const Value* midiKnobs = element.find("midiKnobs");
-	table.set_params(owner, midiKnobs != nullptr && naming != nullptr ? decode_knobs(*midiKnobs, owner, *naming)
-	                                                                  : std::vector<Mapping>{});
+	const Value* midi_knobs = element.find("midiKnobs");
+	table.set_params(owner, midi_knobs != nullptr && naming != nullptr ? decode_knobs(*midi_knobs, owner, *naming)
+	                                                                   : std::vector<Mapping>{});
 }
 
 void encode_knobs(const MappingTable& table, ControlsAddress owner, Value& element,
@@ -190,16 +190,19 @@ void encode_track_input(const MappingTable& table, uint32_t output_id, Value& el
 
 } // namespace
 
-std::vector<Mapping> decode_knobs(const Value& midiKnobs, ControlsAddress owner,
+std::vector<Mapping> decode_knobs(const Value& midi_knobs, ControlsAddress owner,
                                   const deluge::plugin::ParamNaming& naming) {
 	std::vector<Mapping> knobs;
-	for (const Value* knob : serialization::elements_named(midiKnobs, "midiKnob")) {
+	for (const Value* knob : serialization::elements_named(midi_knobs, "midiKnob")) {
 		if (!knob->isMap()) {
 			continue;
 		}
-		const std::optional<deluge::plugin::ParamId> param = naming.id_of(ref_in(*knob));
+		std::optional<deluge::plugin::ParamId> param = naming.id_of(ref_in(*knob));
 		if (!param) {
 			continue;
+		}
+		if (naming.mod_knob_target != nullptr) {
+			param = naming.mod_knob_target(*param); // a knob on a volume turns the one the runtime uses
 		}
 		Mapping& learned = knobs.emplace_back();
 		learned.target = OwnerParamTarget{owner, engine_target(param->value)};
