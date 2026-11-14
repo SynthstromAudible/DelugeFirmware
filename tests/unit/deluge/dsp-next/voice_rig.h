@@ -6,7 +6,7 @@
  */
 
 // One synth::Voice on the host with everything it plays through, and the sound's settings the specs play it with.
-// Included by one spec per executable (it defines the allocator seams the live input reaches).
+// The allocator seams the live input reaches are alloc_seams.cpp's, linked into the driver.
 
 #pragma once
 

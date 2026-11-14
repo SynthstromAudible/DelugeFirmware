@@ -26,8 +26,9 @@ the library code a spec reaches is held to the same flags as the spec. On the A9
 builds it: the DX7's modern operators run `fixed/dx7/neon_fm_kernel.s`.
 
 A spec in `fused/` or `unsafe_math/` that `#include`s a spec from this directory runs that spec again under its
-driver's flags (`float_voice_fused_spec.cpp` is `float_voice_spec.cpp` at `-mfma`). It defines `DELUGE_SPEC_TWIN` as 1 around the
-`#include`, so the included spec's `DELUGE_SPEC` defines no entry point and the twin's file defines only its own.
+driver's flags (`float_voice_fused_spec.cpp` is `float_voice_spec.cpp` at `-mfma`). It defines `DELUGE_SPEC_TWIN` as 1
+around the `#include`, so the included spec's `DELUGE_SPEC` defines no entry point and the twin's file defines only its
+own.
 
 `synth_link_test` links the synth core's sources, listed by hand, with `-Wl,--no-undefined`: the proof that the synth
 library's link closure holds nothing of the app.
@@ -35,7 +36,8 @@ library's link closure holds nothing of the app.
 ## Adding a spec
 
 1. Write `<name>_spec.cpp` in the directory whose flags it needs, with CppSpec (`// clang-format off` before the
-   first `describe`), and end it with `DELUGE_SPEC(<name>_spec, <describe>...)` from `"support/spec_main.h"`. A `describe`
+   first `describe`), and end it with `DELUGE_SPEC(<name>_spec, <describe>...)` from `"support/spec_main.h"`, included
+   after every project header (CppSpec's `context`, `_` and `$` macros break headers such as `kernel.h`). A `describe`
    cannot be named `<name>_spec` (that is the entry point); `<name>_spec_body` is the convention.
 2. Nothing to list: the driver picks the file up on the next build. A spec that reaches app code outside the linked
    libraries adds that source to its driver's `SOURCES`.
