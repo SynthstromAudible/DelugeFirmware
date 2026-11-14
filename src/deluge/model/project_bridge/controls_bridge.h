@@ -20,11 +20,9 @@
 #include "deluge-project/controller_mapping.h"
 #include "modulation/knob_target.h"
 #include "modulation/params/param.h"
-#include "plugin-api/remote_controls_publisher.h"
 #include "plugin-api/types/param.h"
 
 #include <optional>
-#include <span>
 #include <vector>
 
 class Drum;
@@ -113,9 +111,5 @@ void recordOutputControls(::Output& output, ::Song& song);
 /// @brief The engines the app's model codecs name params through.
 /// @return The engines.
 [[nodiscard]] deluge::project::CodecPlugins codecPlugins();
-
-/// @brief The owners' remote-controls records: the Deluge instrument's and the host chains'.
-/// @return The records, one per plugin id (see plugin::remote_controls_for).
-[[nodiscard]] std::span<const deluge::plugin::RemoteControls> remoteControls();
 
 } // namespace deluge::bridge

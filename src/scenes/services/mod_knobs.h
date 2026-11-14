@@ -285,8 +285,7 @@ private:
 	const effects::EffectStates* owner_effects() const;
 	/// @brief A stutter-rate knob on the focus's owner is quantized.
 	bool owner_stutter_quantized() const;
-	/// @brief What a push or a mod button's popup reads beyond the records: the owner's effects, FM, the alt delay
-	/// knobs.
+	/// @brief The gesture's context a push or a mod button's popup reads.
 	/// @param mode_held The knobs' mode's mod button is held.
 	PushInputs push_inputs(bool mode_held) const;
 

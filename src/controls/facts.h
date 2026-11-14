@@ -51,6 +51,8 @@ public:
 	///             drum always reads its own row's.
 	[[nodiscard]] virtual bool allows_note_tails(project::SlotAddress slot,
 	                                             std::optional<project::ClipAddress> clip) const = 0;
+	/// @brief The device's alternative delay-knob setting (a runtime feature setting).
+	[[nodiscard]] virtual bool alt_delay() const = 0;
 };
 
 } // namespace deluge::controls

@@ -302,8 +302,10 @@ The gold knobs and the mod buttons read pages, not tables. An owner publishes it
 the param a turn moves (a `ParamId` in the owner's `ENGINE` space), its `ParamKind`, and a `PressAction` with the
 setting it steps. `controls::page_of` (`src/controls/page.h`) turns a published page into targets in the owner's
 spaces; `SectionPages` holds the page the knobs are on, the section's cycle in `NEXT_PAGE` order, and the page each
-group enters at. `scenes::bind::current_page` builds the current page alone, with no allocation, for a turn and the
-knobs' indicators; `section_pages` adds the cycle for a press.
+group enters at. `controls::current_page` (`src/controls/pages.h`) builds the current page alone, with no allocation,
+for a turn and the knobs' indicators; `section_pages` adds the cycle for a press. Both read the owner's published
+`plugin::RemoteControls` record (`src/plugin-api/remote_controls_publisher.h`), handed the owner's state from the
+model song; the app collects the records in `scenes::bind::app_publishers`.
 
 The settings a press steps or the song's compressor knobs turn are setting params (`effects::kSettingParams`, ids from
 `effects::kFirstSettingId`, clear of both plugins' tables): each row carries `ParamFlag::SETTING` and its file name.

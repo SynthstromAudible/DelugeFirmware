@@ -46,6 +46,7 @@ struct Page {
 	uint32_t page_id{0}; ///< stable within the owner's section
 	uint8_t group{0};    ///< NEXT_PAGE stays within one group; TOGGLE_GROUP moves to the other
 	std::array<Slot, plugin::kRemoteControlsCount> slots{};
+	bool keeps_stutter{false}; ///< pressing this section's button leaves a playing stutter running
 	[[nodiscard]] constexpr bool operator==(const Page&) const = default;
 };
 

@@ -12,7 +12,6 @@
 #include "effects/state.h"
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/bind/knob_focus.h"
-#include "scenes/bind/section_pages.h"
 #include "scenes/bind/write_sink.h"
 #include "serialization/value.h"
 
@@ -26,9 +25,8 @@
 
 namespace deluge::scenes::services {
 
-/// @brief What a push reads beyond the song's records.
+/// @brief The gesture's context: what a push reads that neither the song's records nor the host's facts hold.
 struct PushInputs {
-	bind::PageInputs pages{}; ///< what changes the owner's pages: its effect settings, FM, the alt delay knobs
 	bool button_held{false};  ///< the mode's mod button is held, so the push re-shows its button's popup
 	bool clip_context{false}; ///< the knobs are on a clip, not the song (the stutter button's names)
 };
@@ -63,7 +61,7 @@ struct KnobPush {
 /// @param focus  What the knobs point at.
 /// @param knob   0 the lower, 1 the upper.
 /// @param on     Press (true) or release.
-/// @param inputs What the push reads beyond the records.
+/// @param inputs The gesture's context. The owner's effects and the device facts come from the host's runtime facts.
 [[nodiscard]] KnobPush knob_push(const project::Song& song, const bind::KnobFocus& focus, int32_t knob, bool on,
                                  const PushInputs& inputs);
 

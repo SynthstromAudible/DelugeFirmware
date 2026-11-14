@@ -103,6 +103,7 @@ public:
 		return real_.clip_recording_linearly(clip);
 	}
 	[[nodiscard]] bool stutter_active() const override { return real_.stutter_active(); }
+	[[nodiscard]] bool alt_delay() const override { return real_.alt_delay(); }
 	[[nodiscard]] std::pair<int64_t, int64_t> audio_clip_samples(deluge::project::ClipAddress clip, int32_t scroll,
 	                                                             int32_t zoom) const override {
 		return real_.audio_clip_samples(clip, scroll, zoom);

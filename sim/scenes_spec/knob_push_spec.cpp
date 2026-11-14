@@ -203,25 +203,9 @@ std::string last_notice() {
 }
 
 services::PushInputs inputs_of(const Side& side, bool held) {
+	// The push reads the owner's effects and the device facts from the host, which resolves in the current song.
 	currentSong = side.song;
-	services::PushInputs inputs;
-	const deluge::scenes::bind::RuntimeFacts& facts = deluge::scenes::menu::host_runtime_facts();
-	if (const std::optional<services::EffectOwner> owner = services::effect_owner(side.focus)) {
-		if (const auto* slot = std::get_if<deluge::project::SlotAddress>(&*owner)) {
-			if (const deluge::instrument::SoundState* state = facts.sound_state(*slot)) {
-				inputs.pages.effects = state->effects;
-				inputs.pages.fm = state->synth_mode == SynthMode::FM;
-			}
-		}
-		else if (const deluge::effects::EffectStates* states =
-		             facts.chain_effects(std::get<deluge::project::ChainAddress>(*owner))) {
-			inputs.pages.effects = *states;
-		}
-	}
-	inputs.pages.alt_delay = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
-	inputs.button_held = held;
-	inputs.clip_context = !std::holds_alternative<bind::SongFocus>(side.focus.owner);
-	return inputs;
+	return {.button_held = held, .clip_context = !std::holds_alternative<bind::SongFocus>(side.focus.owner)};
 }
 
 /// @brief Push knob @p knob on @p side (press and release), and where its outcome first differs from the recorded

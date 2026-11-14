@@ -349,6 +349,9 @@ public:
 	[[nodiscard]] bool stutter_active() const override {
 		return currentSong != nullptr && currentSong->live.stutter.active();
 	}
+	[[nodiscard]] bool alt_delay() const override {
+		return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
+	}
 	[[nodiscard]] std::pair<int64_t, int64_t> audio_clip_samples(deluge::project::ClipAddress clip, int32_t scroll,
 	                                                             int32_t zoom) const override;
 };

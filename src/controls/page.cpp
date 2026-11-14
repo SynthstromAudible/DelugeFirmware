@@ -22,7 +22,8 @@
 namespace deluge::controls {
 
 Page page_of(const plugin::RemotePage& page) {
-	Page out{.section = page.section, .page_id = page.page_id, .group = page.group};
+	Page out{
+	    .section = page.section, .page_id = page.page_id, .group = page.group, .keeps_stutter = page.keeps_stutter};
 	for (size_t i = 0; i < page.slots.size(); i++) {
 		const plugin::RemoteSlot& from = page.slots[i];
 		out.slots[i] = Slot{.target = from.param ? std::optional{project::ParamTarget{

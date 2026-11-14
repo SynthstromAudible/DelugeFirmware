@@ -41,7 +41,6 @@
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "model/project_bridge/param_ids.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "playback/playback_handler.h"
@@ -133,18 +132,7 @@ const effects::EffectStates* ModKnobs::owner_effects() const {
 }
 
 PushInputs ModKnobs::push_inputs(bool mode_held) const {
-	PushInputs inputs;
-	if (const effects::EffectStates* fx = owner_effects()) {
-		inputs.pages.effects = *fx;
-	}
-	if (const auto* sound = std::get_if<bind::SoundFocus>(&focus_->owner)) {
-		const instrument::SoundState* state = menu::host_runtime_facts().sound_state(sound->slot);
-		inputs.pages.fm = state != nullptr && state->synth_mode == SynthMode::FM;
-	}
-	inputs.pages.alt_delay = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
-	inputs.button_held = mode_held;
-	inputs.clip_context = is_clip_context(*focus_);
-	return inputs;
+	return {.button_held = mode_held, .clip_context = is_clip_context(*focus_)};
 }
 
 bool ModKnobs::owner_stutter_quantized() const {

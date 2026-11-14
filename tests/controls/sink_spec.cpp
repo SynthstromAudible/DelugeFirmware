@@ -66,6 +66,7 @@ public:
 		return static_cast<int32_t>(pos);
 	}
 	[[nodiscard]] bool stutter_active() const override { return true; }
+	[[nodiscard]] bool alt_delay() const override { return false; }
 	[[nodiscard]] bool allows_note_tails(project::SlotAddress, std::optional<project::ClipAddress>) const override {
 		return false;
 	}
