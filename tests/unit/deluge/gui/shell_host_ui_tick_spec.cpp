@@ -384,7 +384,7 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		r.guest.shell().set_services(Services{.mod_knobs = &svc});
 		expect(run_quiet(r.guest, now, 1).size()).to_equal(size_t(1));
 		expect(fakelegacy::indicator_writes.size()).to_equal(size_t(1));
-		// Read through a fallback for the same reason as `nth_or` above: a mutation that stops the
+		// Read through a fallback for the same reason as `nth_or` (`support/shell_host_ui_rig.h`): a mutation that stops the
 		// chain leaves this vector empty, and an out-of-range read is undefined behaviour rather than
 		// a failed expectation.
 		const fakelegacy::IndicatorWrite got =

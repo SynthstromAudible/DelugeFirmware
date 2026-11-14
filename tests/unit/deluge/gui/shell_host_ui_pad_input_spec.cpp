@@ -316,7 +316,7 @@ describe shell_host_ui_pad_input("gui::ui::ShellHostUI: pad input and the grid-p
 		// (`UITimerManager::routine`, `gui/ui_timer_manager.cpp`) -- the same hazard
 		// `rearmTimer`'s own guard exists for. `forwardGridPad` is faked in this suite (see
 		// `fake_legacy_ui.h`), so the test stands in for "the forward opened another UI" the same
-		// way the `rearmTimer` example above does: by setting `current_ui` directly rather than
+		// way `shell_host_ui_tick_spec.cpp`'s `rearmTimer` example does: by setting `current_ui` directly rather than
 		// reproducing a real `openUI`.
 		Rig r;
 		expect(r.open()).to_be_true();

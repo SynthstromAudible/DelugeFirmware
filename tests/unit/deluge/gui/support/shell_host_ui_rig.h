@@ -37,7 +37,7 @@ using namespace deluge::ui::shell;
 inline constexpr SceneKind kBase = SceneKind::FirstApp;
 inline constexpr SceneKind kOver = static_cast<SceneKind>(static_cast<uint8_t>(SceneKind::FirstApp) + 1);
 
-/// @brief Some other `UI`, for the one example that needs `getCurrentUI()` to answer "not the
+/// @brief Some other `UI`, for the examples that need `getCurrentUI()` to answer "not the
 ///        guest".
 ///
 /// A real `UI` rather than a cast pointer: `rearmTimer`'s guard only ever compares the address, but
@@ -223,7 +223,6 @@ inline const BoardProfile& profile_64() {
 	return p;
 }
 
-/// @brief A `ShellHostUI` over a two-entry table, with both sets of legacy fakes reset.
 /// @brief A `MIDICable` **address**, and deliberately nothing more.
 ///
 /// The two learn hooks take `MIDICable&` and this suite cannot build one: `MIDICable` is abstract
@@ -233,14 +232,16 @@ inline const BoardProfile& profile_64() {
 /// through the pointer**: `src/shell/**` may not include `io/`, so `UiEvent::cable` is a
 /// forward-declared type the shell only ever copies (`shell/scene.h`), and the one thing in the
 /// tree that dereferences it -- `services::MidiLearn` -- is in the closure this suite does not
-/// build. So the examples below assert the identity of the address that came out against the one
-/// that went in, which is the whole of what this layer transports.
+/// build. So the MIDI-learn examples (`shell_host_ui_buttons_spec.cpp`) assert the identity of the address that came
+/// out against the one that went in, which is the whole of what this layer transports.
 alignas(alignof(std::max_align_t)) inline std::byte cable_storage[sizeof(void*) * 4]{};
 
 inline MIDICable& fake_cable() {
 	return *reinterpret_cast<MIDICable*>(&cable_storage[0]);
 }
 
+/// @brief A `ShellHostUI` over a four-scene table (base, over, the context menu's kind, the marker's kind),
+/// with both sets of legacy fakes reset.
 struct Rig {
 	PatternScene base{kBase};
 	PatternScene over{kOver};
@@ -452,8 +453,8 @@ inline std::vector<uint32_t> run_quiet(ShellHostUI& guest, uint32_t& now_ms, int
 
 /// @brief `v[i]`, or a value no expectation here uses, when the sequence is shorter than that.
 ///
-/// Every assertion below is about *which* tick fired, so a mutation that stops the chain early must
-/// fail an expectation rather than index off the end of the vector -- an out-of-range read is
+/// Every assertion that reads a `run_quiet` result through this is about *which* tick fired, so a mutation that stops
+/// the chain early must fail an expectation rather than index off the end of the vector -- an out-of-range read is
 /// undefined behaviour, and `expect` does not abort the example the way an assert would.
 template <typename T>
 inline T nth_or(const std::vector<T>& v, size_t i, T fallback) {
