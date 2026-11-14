@@ -62,6 +62,10 @@ public:
 		bool flats_ = false;
 	};
 
+	/// Resolve a grid square using the same priority as rendering: the in-scale row
+	/// first, then any visible accidental. Returns the in-scale row for empty squares.
+	static ModelStackWithNoteRow* noteRowForPad(int32_t x, int32_t y, ModelStackWithTimelineCounter* modelStack);
+
 	/// The NoteRow of the current clip a held press is on: the hidden one it was routed to (EditPadPress::
 	/// yNoteOverride), else the one shown at its yDisplay. Null (or a model stack with no NoteRow) if there isn't one.
 	static NoteRow* noteRowForPress(const EditPadPress& press, int32_t* getIndex = nullptr);

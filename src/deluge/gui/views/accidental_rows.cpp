@@ -50,6 +50,34 @@ std::optional<YNoteRange> AccidentalRows::Layout::hiddenYNotes(int32_t yDisplay)
 	return range;
 }
 
+ModelStackWithNoteRow* AccidentalRows::noteRowForPad(int32_t x, int32_t y, ModelStackWithTimelineCounter* modelStack) {
+	auto* clip = getCurrentInstrumentClip();
+	auto* rowStack = clip->getNoteRowOnScreen(y, modelStack);
+	auto hidden = Layout().hiddenYNotes(y);
+	if (!hidden) {
+		return rowStack;
+	}
+	SquareInfo square{};
+	auto* row = rowStack->getNoteRowAllowNull();
+	if (row) {
+		row->getSquareInfo(x, rowStack->getLoopLength(), square);
+	}
+	if (!square.numNotes) {
+		for (int32_t pitch = hidden->first; pitch <= hidden->last; ++pitch) {
+			auto* hiddenRow = clip->getNoteRowForYNote(pitch);
+			if (!hiddenRow) {
+				continue;
+			}
+			hiddenRow->getSquareInfo(
+			    x, hiddenRow->loopLengthIfIndependent ? hiddenRow->loopLengthIfIndependent : clip->loopLength, square);
+			if (square.numNotes) {
+				return clip->getNoteRowForYNote(pitch, modelStack);
+			}
+		}
+	}
+	return rowStack;
+}
+
 NoteRow* AccidentalRows::noteRowForPress(const EditPadPress& press, int32_t* getIndex) {
 	if (press.yNoteOverride) {
 		return getCurrentInstrumentClip()->getNoteRowForYNote(*press.yNoteOverride, getIndex);
