@@ -174,6 +174,13 @@ repos:
         language: system
         pass_filenames: false
         files: ^(src/scenes/|src/shell/|src/ui/|sim/scenes_spec/|tests/unit/(shell|ui|scenes|harness|deluge/gui)/|tests/(ui-scripts|harness)/|src/deluge/gui/ui/(shell_|menu_view_of)|src/deluge/util/shell_menu_entry|scripts/check_doc_hygiene\.py)
+      - id: spec-comparisons
+        name: no spec judges a comparison with to_be_true() or to_be_false()
+        description: a staged spec may not add expect(a == b).to_be_true(), whose failure prints no value; use to_equal and the other value matchers (tests/README.md, "A unit spec")
+        entry: python3 scripts/check_spec_comparisons.py --staged
+        language: system
+        pass_filenames: false
+        files: ^(tests/|sim/scenes_spec/).*\.(cpp|h|hpp|inc)$|^scripts/check_spec_comparisons\.py$
 # - repo: local
 
 #   hooks:

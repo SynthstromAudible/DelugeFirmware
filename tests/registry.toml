@@ -1745,6 +1745,13 @@ gates = "the UI docs lint flags task, review and workstream breadcrumbs and rena
 run = ["python3", "-m", "unittest", "test_check_doc_hygiene", "test_check_citations"]
 
 [[harness]]
+name = "spec-comparisons-selftest"
+template = "unittest"
+path = "scripts"
+gates = "the spec-comparison check finds a comparison judged by to_be_true() or to_be_false() and nothing else, and refuses only the sites a commit adds"
+run = ["python3", "-m", "unittest", "test_check_spec_comparisons"]
+
+[[harness]]
 name = "fixed-point-raw-selftest"
 template = "unittest"
 path = "scripts"
