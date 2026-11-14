@@ -192,7 +192,7 @@ describe app_loop("deluge::runtime::Loop", $ {
 	it("reports an empty JobStats for an id never added", _ {
 		Loop loop{clock, waker};
 		expect(loop.stats(3).runs).to_equal(uint32_t{0});
-		expect(loop.stats(3).name == nullptr).to_be_truthy();
+		expect(loop.stats(3).name).to_be_null();
 	});
 
 	it("runs one job per call and resumes the pass where it left off", _ {

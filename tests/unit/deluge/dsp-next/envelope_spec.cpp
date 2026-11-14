@@ -61,7 +61,7 @@ describe envelope_spec_body("Envelope", ${
 	it("starts a note at the bottom of the attack stage", _ {
 		Envelope env;
 		env.note_on(false);
-		expect(env.stage() == Stage::ATTACK).to_be_truthy();
+		expect(env.stage()).to_equal(Stage::ATTACK);
 		expect(env.is_at_attack_start()).to_be_truthy();
 		expect(env.output_level().raw()).to_equal(0);
 	});
@@ -69,7 +69,7 @@ describe envelope_spec_body("Envelope", ${
 	it("can start straight in decay at full level", _ {
 		Envelope env;
 		env.note_on(true, deluge::dsp::Q<31>::from_raw(kFull)).raw();
-		expect(env.stage() == Stage::DECAY).to_be_truthy();
+		expect(env.stage()).to_equal(Stage::DECAY);
 		expect(env.output_level().raw()).to_equal(kFull);
 	});
 
@@ -78,7 +78,7 @@ describe envelope_spec_body("Envelope", ${
 		env.note_on(false);
 		int32_t first = render(env, kRate, kRate, kFull, kRate);
 		int32_t second = render(env, kRate, kRate, kFull, kRate);
-		expect(env.stage() == Stage::ATTACK).to_be_truthy(); // still attacking at this rate
+		expect(env.stage()).to_equal(Stage::ATTACK); // still attacking at this rate
 		expect(first).to_be_less_than(second);
 		expect(env.is_at_attack_start()).to_equal(false); // it has advanced
 	});
@@ -91,7 +91,7 @@ describe envelope_spec_body("Envelope", ${
 			env.note_on(false);
 			render(env, kRate, kRate, kFull, kRate); // the attack under way
 			render(env, fast, kRate, kFull, kRate);
-			expect(env.stage() == Stage::ATTACK).to_be_falsy();
+			expect(env.stage()).not_().to_equal(Stage::ATTACK);
 		}
 	});
 
@@ -104,7 +104,7 @@ describe envelope_spec_body("Envelope", ${
 		for (int32_t i = 0; i < 50; ++i) {
 			level = render(env, kRate, kRate, kFull, kRate);
 		}
-		expect(env.stage() == Stage::SUSTAIN).to_be_truthy();
+		expect(env.stage()).to_equal(Stage::SUSTAIN);
 		expect(level).to_be_greater_than(0);
 	});
 
@@ -113,7 +113,7 @@ describe envelope_spec_body("Envelope", ${
 		env.note_on(false);
 		driveUntil(env, Stage::SUSTAIN, kRate, kRate, kFull, kRate);
 		env.note_off(/*has_sustain=*/true);
-		expect(env.stage() == Stage::RELEASE).to_be_truthy();
+		expect(env.stage()).to_equal(Stage::RELEASE);
 		expect(driveUntil(env, Stage::OFF, kRate, kRate, kFull, kRate)).to_be_greater_than(0);
 		expect(render(env, kRate, kRate, kFull, kRate)).to_equal(kOff); // stays silent once off
 	});
@@ -123,7 +123,7 @@ describe envelope_spec_body("Envelope", ${
 		env.note_on(false);
 		env.note_off(/*has_sustain=*/false);
 		// The note-off is deferred, not acted on — we're still in the attack, not releasing.
-		expect(env.stage() == Stage::ATTACK).to_be_truthy();
+		expect(env.stage()).to_equal(Stage::ATTACK);
 	});
 
 	it("reports a stage change exactly once", _ {
@@ -137,7 +137,7 @@ describe envelope_spec_body("Envelope", ${
 		Envelope env;
 		env.note_on(false);
 		env.unconditional_release(Stage::FAST_RELEASE, 5000);
-		expect(env.stage() == Stage::FAST_RELEASE).to_be_truthy();
+		expect(env.stage()).to_equal(Stage::FAST_RELEASE);
 		expect(env.fast_release_rate()).to_equal(5000u);
 	});
 });

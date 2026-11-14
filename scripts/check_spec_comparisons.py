@@ -3,12 +3,13 @@
 #
 # This file is part of The Synthstrom Audible Deluge Firmware.
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
-"""Refuse a comparison that a C++ spec judges with to_be_true() or to_be_false().
+"""Refuse a comparison that a C++ spec judges with to_be_true(), to_be_false(), to_be_truthy() or to_be_falsy().
 
 `expect(a == b).to_be_true()` fails with "expected true, got false" and says nothing of a or b;
 `expect(a).to_equal(b)` fails with both values. A site is an `expect(<argument>)` followed directly by
 `.to_be_true(` or `.to_be_false(` (either may follow `.not_()`) whose argument holds, outside every bracket, a
-comparison (`==`, `!=`, `<`, `>`, `<=`, `>=`) or a `&&` or `||`. Parentheses wrapping the whole argument and a `!` or
+comparison (`==`, `!=`, `<`, `>`, `<=`, `>=`) or a `&&` or `||`; `.to_be_truthy(` judges as `.to_be_true(` and
+`.to_be_falsy(` as `.to_be_false(`. Parentheses wrapping the whole argument and a `!` or
 `not` applied to such parentheses are looked through, each negation (and `.not_()`) flipping the verdict, so
 `expect(!(a == b)).to_be_true()` is the site `a == b` judged false. Comments and the insides of string and character
 literals are not read, and a `<` that opens a template argument list (`static_cast<int*>(p)`, `std::get<1>(t)`) is
@@ -50,7 +51,10 @@ KINDS = {
     "or": "one expectation on the value the alternatives share, or to_satisfy with a named predicate",
 }
 START = re.compile(r"\bexpect\s*\(")
-VERDICT = re.compile(r"\s*(\.\s*not_\s*\(\s*\)\s*)?\.\s*to_be_(true|false)\s*\(")
+VERDICT = re.compile(
+    r"\s*(\.\s*not_\s*\(\s*\)\s*)?\.\s*to_be_(true|false|truthy|falsy)\s*\("
+)
+JUDGED = {"true": "true", "truthy": "true", "false": "false", "falsy": "false"}
 NEGATION = re.compile(r"!|\bnot\b")
 ABS_CALL = re.compile(r"(?:std::)?f?abs[fl]?\s*\(")
 FIND_CALL = re.compile(r"\.\s*r?find\s*\(")
@@ -66,7 +70,7 @@ class Site:
     arg: tuple[
         int, int
     ]  # offsets of the comparison: the argument with wrapping parentheses and negations peeled
-    end: int  # offset just past the `)` that closes to_be_true( or to_be_false(
+    end: int  # offset just past the `)` that closes the verdict's call
     verdict: str  # what the comparison is judged to be, "true" or "false", after every negation
     kind: str
     text: str  # the comparison with its whitespace collapsed
@@ -291,11 +295,9 @@ def sites(path: str, text: str) -> list[Site]:
         if not kind:
             continue
         flips += bool(verdict[1])
-        judged = (
-            verdict[2]
-            if flips % 2 == 0
-            else {"true": "false", "false": "true"}[verdict[2]]
-        )
+        judged = JUDGED[verdict[2]]
+        if flips % 2:
+            judged = {"true": "false", "false": "true"}[judged]
         call = " ".join(text[m.start() : arg_end + 1].split())
         call += "".join(text[arg_end + 1 : verdict.end()].split()) + ")"
         out.append(

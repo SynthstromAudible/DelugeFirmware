@@ -85,7 +85,7 @@ describe synced_oscillator("deluge::dsp::fixed SyncedOscillator", ${
 			expect(out[3]).to_equal(plain[3]);
 			expect(out[6]).to_equal(plain[6]);
 			// After the restart the synced wave diverges from the free-running one.
-			expect(out != plain).to_be_truthy();
+			expect(out).not_().to_equal(plain);
 		});
 	});
 });

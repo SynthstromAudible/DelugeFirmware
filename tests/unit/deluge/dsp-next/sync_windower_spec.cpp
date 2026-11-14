@@ -33,6 +33,7 @@
 #include <utility>
 #include <vector>
 
+#include "support/matchers/value_matchers.h"
 #include "support/spec_main.h"
 
 namespace {
@@ -126,11 +127,11 @@ describe sync_windower("deluge::dsp::fixed SyncWindower", ${
 
 	it("tiles the block with single-sample seam overlaps when it crosses over", _ {
 		std::vector<SyncWindower::Window> windows = collect(kFastResetter);
-		expect(windows.size() > 1).to_be_truthy();
+		expect(windows.size()).to_be_greater_than(std::size_t{1});
 		expect(windows.front().offset).to_equal(0);
 		for (std::size_t k = 0; k + 1 < windows.size(); ++k) {
 			int32_t length = static_cast<int32_t>(windows[k].output.size());
-			expect(length >= 1).to_be_truthy();
+			to_be_at_least(expect(length), 1);
 			// every non-final window ends on a crossover; the next overlaps it by exactly one sample
 			expect(windows[k + 1].offset).to_equal(windows[k].offset + length - 1);
 		}
@@ -166,7 +167,7 @@ describe sync_windower("deluge::dsp::fixed SyncWindower", ${
 	// Voice::adjustPitch only rejects increments at or above 2^32, so increments above 0xFFFF0000 are reachable.
 	it("tiles the block when the resetter increment is within 2^16 of a whole cycle", _ {
 		std::vector<SyncWindower::Window> windows = collect(0xFFFFFF00u);
-		expect(windows.size() > 1).to_be_truthy();
+		expect(windows.size()).to_be_greater_than(std::size_t{1});
 		expect(windows.back().offset + static_cast<int32_t>(windows.back().output.size())).to_equal(kBlock);
 	});
 	it("restarts at or before the exact phase, never behind the retrigger phase, at masters of 2^16 and slower", _ {

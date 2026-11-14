@@ -183,7 +183,7 @@ builds only `golden-vt-render`.
 | test-support-names | unit | script | unit | gate | no per-directory support/ folder under tests/ or sim/ holds a path tests/support/ also holds | pr | tooling | ~1s |
 | spec-discovery | unit | script | unit | gate | a test tree builds exactly the test directories that name it, and refuses a spec no driver builds or a CMakeLists.txt that names no tree or an unknown one | pr | tooling | ~1s |
 | doc-hygiene-selftest | unit | script | unit | gate | the UI docs lint flags task, review and workstream breadcrumbs and rename narration in comments and Markdown, and file:line citations to our own code | pr | tooling | ~1s |
-| spec-comparisons-selftest | unit | script | unit | gate | the spec-comparison check finds a comparison judged by to_be_true() or to_be_false() and nothing else, and refuses only the sites a commit adds | pr | tooling | ~1s |
+| spec-comparisons-selftest | unit | script | unit | gate | the spec-comparison check finds a comparison judged by a truth matcher and nothing else, and refuses only the sites a commit adds | pr | tooling | ~1s |
 | fixed-point-raw-selftest | unit | script | unit | gate | the fixed-point raw-arithmetic ratchet counts raw helper calls, DSP inline asm, seam views and typed-boundary crossings apart, outside comments | pr | tooling | ~1s |
 | fixed-point-raw | unit | script | unit | gate | raw fixed-point arithmetic, raw seam views and typed-boundary crossings outside the core fixed-point headers only shrink | pr | tooling | ~2s |
 | library-boundary-selftest | unit | script | unit | gate | each standalone library's boundary check rejects every way an undeclared header could slip in | pr | tooling | ~1s |

@@ -241,7 +241,7 @@ describe pulse_oscillator("deluge::dsp::fixed PulseOscillator", ${
 	context("duty cycle", _ {
 		it("produces different output for different pulse widths", _ {
 			// The phase offset is the duty cycle: different offsets must give different waves.
-			expect(renderOnce(0x40000000u) != renderOnce(0xC0000000u)).to_be_truthy();
+			expect(renderOnce(0x40000000u)).not_().to_equal(renderOnce(0xC0000000u));
 		});
 
 		it("is deterministic for a given width", _ {

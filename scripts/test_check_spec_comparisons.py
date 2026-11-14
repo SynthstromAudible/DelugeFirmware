@@ -5,12 +5,12 @@
 """Tests for check_spec_comparisons.py: what a site is, which kind it is, and which sites a commit adds.
 
 Gate spec-comparisons-selftest:
-    a site is an expect() of a comparison, `&&` or `||` judged by to_be_true() or to_be_false(), named by its kind,
-    seen through wrapping parentheses, `!`, `not` and `.not_()`, each negation flipping the verdict; comments, string
-    and character literals, digit separators, template argument lists and comparisons inside a call make no site; a
-    commit adds a site only beyond the copies HEAD (and, in a merge, MERGE_HEAD) holds, so an unchanged, moved,
-    rewrapped or respaced site passes and a second copy or a flipped verdict is refused; paths with spaces or
-    non-ASCII characters are read
+    a site is an expect() of a comparison, `&&` or `||` judged by to_be_true(), to_be_false(), to_be_truthy() or
+    to_be_falsy(), named by its kind, seen through wrapping parentheses, `!`, `not` and `.not_()`, each negation
+    flipping the verdict; comments, string and character literals, digit separators, template argument lists and
+    comparisons inside a call make no site; a commit adds a site only beyond the copies HEAD (and, in a merge,
+    MERGE_HEAD) holds, so an unchanged, moved, rewrapped or respaced site passes and a second copy or a flipped
+    verdict is refused; paths with spaces or non-ASCII characters are read
 """
 
 from __future__ import annotations
@@ -111,6 +111,21 @@ class SiteTest(unittest.TestCase):
         for body, want in cases.items():
             with self.subTest(body=body):
                 self.assertEqual(kinds(body), [want])
+
+    def test_to_be_truthy_and_to_be_falsy_judge_as_true_and_false(self):
+        cases = {
+            "expect(p != nullptr).to_be_truthy();": ("null", "true"),
+            "expect(a == b).to_be_falsy();": ("eq", "false"),
+            "expect(a < b).not_().to_be_truthy();": ("order", "false"),
+            "expect(!(a == b)).not_().to_be_falsy();": ("eq", "false"),
+            "expect(a && b).to_be_truthy();": ("and", "true"),
+        }
+        for body, want in cases.items():
+            with self.subTest(body=body):
+                self.assertEqual(kinds(body), [want])
+        self.assertEqual(kinds("expect(p).to_be_truthy();"), [])
+        (s,) = sites("tests/x_spec.cpp", "expect(a == b).not_().to_be_falsy();")
+        self.assertIn("expect(a == b).not_().to_be_falsy()", csc.describe(s))
 
     def test_a_peeled_site_names_the_inner_comparison_and_reports_what_is_written(self):
         text = "expect(!(a == b)).not_().to_be_false();"

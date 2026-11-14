@@ -87,7 +87,8 @@ describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 			expect(out[0]).to_equal(deluge::dsp::fixed::square(0x20000000u, 0x80000000u));
 			expect(out[2]).to_equal(deluge::dsp::fixed::square(0x60000000u, 0x80000000u));
 			expect(out[3]).to_equal(deluge::dsp::fixed::square(0x80000000u, 0x80000000u));
-			expect(out[0] > 0 && out[3] < 0).to_be_truthy();
+			expect(out[0]).to_be_greater_than(0);
+			expect(out[3]).to_be_less_than(0);
 		});
 	});
 

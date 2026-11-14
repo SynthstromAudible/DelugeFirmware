@@ -33,6 +33,7 @@
 #include <span>
 #include <vector>
 
+#include "support/matchers/value_matchers.h"
 #include "support/spec_main.h"
 
 namespace {
@@ -179,7 +180,7 @@ describe wavetable_cycle_chunker("deluge::dsp::fixed WavetableCycleChunker", ${
 		std::vector<CycleChunk> chunks = collect(table, std::span<int32_t>{buffer}, /*wave_index_increment=*/0);
 		expect(chunks.size()).to_equal(static_cast<std::size_t>(1));
 		expect(chunks[0].single_cycle).to_be_truthy();
-		expect(chunks[0].band != nullptr).to_be_truthy();
+		expect(chunks[0].band).not_().to_be_null();
 		expect(static_cast<int32_t>(chunks[0].output.size())).to_equal(kBlock);
 	});
 
@@ -198,15 +199,15 @@ describe wavetable_cycle_chunker("deluge::dsp::fixed WavetableCycleChunker", ${
 		WaveTableData table = make_table(/*num_cycles=*/4, /*transitions_magnitude=*/2, /*wave_index_multiplier=*/0x40000000);
 		// A wave-index sweep that crosses a couple of cycle boundaries within the block.
 		std::vector<CycleChunk> chunks = collect(table, std::span<int32_t>{buffer}, /*wave_index_increment=*/0x02000000);
-		expect(chunks.size() > 1).to_be_truthy();
+		expect(chunks.size()).to_be_greater_than(std::size_t{1});
 		int32_t total = 0;
 		for (std::size_t k = 0; k < chunks.size(); ++k) {
 			expect(chunks[k].single_cycle).to_be_false();
-			expect(chunks[k].band != nullptr).to_be_truthy();
-			expect(static_cast<int32_t>(chunks[k].output.size()) >= 1).to_be_truthy();
+			expect(chunks[k].band).not_().to_be_null();
+			to_be_at_least(expect(static_cast<int32_t>(chunks[k].output.size())), 1);
 			if (k > 0) {
 				// cycles only go up as the index sweeps, and the chunks tile the block contiguously
-				expect(chunks[k].first_cycle >= chunks[k - 1].first_cycle).to_be_truthy();
+				to_be_at_least(expect(chunks[k].first_cycle), chunks[k - 1].first_cycle);
 				expect(chunks[k].output.data())
 				    .to_equal(chunks[k - 1].output.data() + chunks[k - 1].output.size());
 			}

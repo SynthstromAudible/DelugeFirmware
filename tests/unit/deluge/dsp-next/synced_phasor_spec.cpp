@@ -20,6 +20,7 @@
 
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/sync/synced_phasor.h"
+#include "support/printers/fixed_point_printer.h"
 #include "sync_reference.h"
 #include <cppspec.hpp>
 #include <cstdint>
@@ -96,7 +97,7 @@ describe synced_phasor("deluge::dsp::fixed SyncedPhasor", ${
 			expect(synced.advance().raw()).to_equal(plain.advance().raw());
 			// Sample 3: resetter wraps -> phase snaps, diverging from the free-running ramp.
 			const UQ<32> reset_phase = synced.advance();
-			expect(reset_phase != plain.advance()).to_be_truthy();
+			expect(reset_phase).not_().to_equal(plain.advance());
 			// phase() reflects the post-reset value.
 			expect(synced.phase().raw()).to_equal(reset_phase.raw());
 		});
