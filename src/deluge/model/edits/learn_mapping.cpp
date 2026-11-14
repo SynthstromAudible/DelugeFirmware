@@ -68,8 +68,10 @@ std::optional<deluge::project::OwnerParamTarget> knobTargetIn(::ModControllableA
 	}
 	namespace params = deluge::modulation::params;
 	return deluge::project::OwnerParamTarget{
-	    *address, deluge::bridge::controlTargetOf(param, isSound ? params::Kind::UNPATCHED_SOUND
-	                                                             : params::Kind::UNPATCHED_GLOBAL)};
+	    *address,
+	    deluge::project::engine_target(deluge::bridge::controlTargetOf(param, isSound ? params::Kind::UNPATCHED_SOUND
+	                                                                                  : params::Kind::UNPATCHED_GLOBAL)
+	                                       .value)};
 }
 
 /// The kit whose row @p drum is.

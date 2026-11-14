@@ -281,11 +281,13 @@ Song* loadSong(std::string_view text, FILE* err) {
 
 /// The table's name for patched param @p p of a sound, or (when @p unpatchedKind is given) unpatched param @p p of that
 /// kind.
-deluge::plugin::ParamId knobParam(int32_t p, std::optional<params::Kind> unpatchedKind = std::nullopt) {
+deluge::project::ParamTarget knobParam(int32_t p, std::optional<params::Kind> unpatchedKind = std::nullopt) {
 	deluge::synth::CableTarget descriptor =
 	    deluge::synth::CableTarget::param(unpatchedKind ? params::UNPATCHED_START + p : p);
-	return deluge::bridge::controlTargetOf(deluge::modulation::knobTargetOf(descriptor),
-	                                       unpatchedKind.value_or(params::Kind::UNPATCHED_SOUND));
+	return deluge::project::engine_target(
+	    deluge::bridge::controlTargetOf(deluge::modulation::knobTargetOf(descriptor),
+	                                    unpatchedKind.value_or(params::Kind::UNPATCHED_SOUND))
+	        .value);
 }
 
 /// One match: what it reaches, and its position (a section's number, a clip's session index, a knob's place in its
@@ -487,7 +489,7 @@ MappingTable randomTable(std::mt19937& rng, const Fixture& f) {
 		switch (rng() % 6) {
 		case 0: {
 			const size_t o = rng() % f.owners.size();
-			const deluge::plugin::ParamId param =
+			const deluge::project::ParamTarget param =
 			    f.ownerIsSound[o] ? (rng() % 2 ? knobParam(params::LOCAL_PAN) : knobParam(params::LOCAL_LPF_FREQ))
 			                      : knobParam(rng() % 2 ? params::UNPATCHED_DELAY_AMOUNT : params::UNPATCHED_LPF_FREQ,
 			                                  params::Kind::UNPATCHED_GLOBAL);

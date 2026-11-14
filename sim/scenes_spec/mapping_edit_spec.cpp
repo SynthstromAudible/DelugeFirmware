@@ -63,13 +63,15 @@ Command held(::Song& song, const MappingTarget& target) {
 }
 
 /// @brief A patched param of a sound, as the table names it.
-deluge::plugin::ParamId patched(int32_t p) {
-	return deluge::bridge::controlTargetOf(deluge::modulation::knobParam(p), params::Kind::UNPATCHED_SOUND);
+deluge::project::ParamTarget patched(int32_t p) {
+	return deluge::project::engine_target(
+	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(p), params::Kind::UNPATCHED_SOUND).value);
 }
 
 /// @brief An unpatched param of @p kind (UNPATCHED_SOUND or UNPATCHED_GLOBAL), as the table names it.
-deluge::plugin::ParamId unpatched(params::Kind kind, int32_t p) {
-	return deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::UNPATCHED_START + p), kind);
+deluge::project::ParamTarget unpatched(params::Kind kind, int32_t p) {
+	return deluge::project::engine_target(
+	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::UNPATCHED_START + p), kind).value);
 }
 
 /// @brief @p command, told apart by the device on @p port.
@@ -235,7 +237,7 @@ describe mapping_edit("LearnMapping", $ {
 		// Some indices are shared by a sound's and a global's param (their ids coincide); the LPF frequency is a
 		// global's alone, so a sound's reading of its id finds no param.
 		const OwnerParamTarget target{owner, unpatched(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_FREQ)};
-		expect(deluge::bridge::runtimeIndexOf(params::Kind::UNPATCHED_SOUND, target.param).has_value()).to_be_false();
+		expect(deluge::bridge::runtimeIndexOf(params::Kind::UNPATCHED_SOUND, target.param.id).has_value()).to_be_false();
 		deluge::edits::learnMappingFor(cc(2, 7), target);
 		expect(held(*f.song, target) == cc(2, 7)).to_be_true();
 		auto& global = f.song->live.global_effectable;

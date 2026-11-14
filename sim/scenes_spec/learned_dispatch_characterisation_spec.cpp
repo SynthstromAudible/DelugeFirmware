@@ -85,27 +85,31 @@ Command source(uint8_t channel, uint8_t number) {
 }
 
 /// @brief A patched param of a sound, as the table names it.
-deluge::plugin::ParamId patched(int32_t p) {
-	return deluge::bridge::controlTargetOf(deluge::modulation::knobParam(p), params::Kind::UNPATCHED_SOUND);
+deluge::project::ParamTarget patched(int32_t p) {
+	return deluge::project::engine_target(
+	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(p), params::Kind::UNPATCHED_SOUND).value);
 }
 
 /// @brief An unpatched param of @p kind, as the table names it.
-deluge::plugin::ParamId unpatched(params::Kind kind, int32_t p) {
-	return deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::UNPATCHED_START + p), kind);
+deluge::project::ParamTarget unpatched(params::Kind kind, int32_t p) {
+	return deluge::project::engine_target(
+	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::UNPATCHED_START + p), kind).value);
 }
 
 /// @brief The depth of the cable from @p source onto patched param @p p, as the table names it.
-deluge::plugin::ParamId depthOf(int32_t p, PatchSource source) {
-	return deluge::bridge::controlTargetOf(
-	    deluge::modulation::knobTargetOf(deluge::synth::CableTarget::depth_of(static_cast<uint8_t>(p), source)),
-	    params::Kind::UNPATCHED_SOUND);
+deluge::project::ParamTarget depthOf(int32_t p, PatchSource source) {
+	return deluge::project::engine_target(
+	    deluge::bridge::controlTargetOf(
+	        deluge::modulation::knobTargetOf(deluge::synth::CableTarget::depth_of(static_cast<uint8_t>(p), source)),
+	        params::Kind::UNPATCHED_SOUND)
+	        .value);
 }
 
 /// @brief The address of @p id on @p owner, in @p clip's override (none: the owner's backed-up params).
-ParamAddress addressOf(OwnerId owner, deluge::plugin::ParamId id, const Clip* clip) {
+ParamAddress addressOf(OwnerId owner, deluge::project::ParamTarget target, const Clip* clip) {
 	return ParamAddress{.owner = owner,
-	                    .space = ParamSpace::ENGINE,
-	                    .id = id,
+	                    .space = target.space,
+	                    .id = target.id,
 	                    .clip_id = clip != nullptr ? std::optional<uint32_t>{clip->id()} : std::nullopt};
 }
 
@@ -917,7 +921,7 @@ describe learned_writes("how a learned write lands", $ {
 		Takeover takeover{MIDITakeoverMode::JUMP};
 		spec::SongFixture f = spec::make_synth_song();
 		activate(*f.song, *f.instrument, *f.clip);
-		const deluge::plugin::ParamId depth = depthOf(params::LOCAL_LPF_FREQ, PatchSource::LFO_GLOBAL_1);
+		const deluge::project::ParamTarget depth = depthOf(params::LOCAL_LPF_FREQ, PatchSource::LFO_GLOBAL_1);
 		const OwnerParamTarget cable{{Kind::OUTPUT, *f.instrument->id()}, depth};
 		deluge::edits::learnMappingFor(source(kChannel, kCc), cable);
 		const ParamAddress address = addressOf(OwnerId::instrument(*f.instrument->id()), depth, f.clip);

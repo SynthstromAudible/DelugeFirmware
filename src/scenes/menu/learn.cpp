@@ -125,8 +125,10 @@ std::optional<deluge::project::OwnerParamTarget> MenuLearn::target(const MenuCon
 		if (!from_item.is_null() && owner) {
 			return deluge::project::OwnerParamTarget{
 			    .owner = *owner,
-			    .param = deluge::bridge::controlTargetOf(deluge::modulation::knobTargetOf(from_item),
-			                                             deluge::modulation::params::Kind::UNPATCHED_SOUND)};
+			    .param = deluge::project::engine_target(
+			        deluge::bridge::controlTargetOf(deluge::modulation::knobTargetOf(from_item),
+			                                        deluge::modulation::params::Kind::UNPATCHED_SOUND)
+			            .value)};
 		}
 	}
 	return bindings::learn_target(*node, ctx);

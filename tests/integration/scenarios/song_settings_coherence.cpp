@@ -257,7 +257,7 @@ std::string knobsIncoherence(::Song& song, ControlsAddress address) {
 	bool same = table.size() == owner->midi_knobs.size();
 	for (size_t i = 0; same && i < table.size(); i++) {
 		const MIDIKnob& knob = owner->midi_knobs[i];
-		same = std::get<deluge::project::OwnerParamTarget>(table[i].target).param
+		same = std::get<deluge::project::OwnerParamTarget>(table[i].target).param.id
 		           == deluge::bridge::controlTargetOf(knob.target, unpatchedKind)
 		       && table[i].relative == knob.relative && playsTheSame(table[i].source, knob.midiInput);
 	}
@@ -267,7 +267,8 @@ std::string knobsIncoherence(::Song& song, ControlsAddress address) {
 	std::string a;
 	for (const Mapping& entry : table) {
 		a += (a.empty() ? "" : " ")
-		     + describe(std::get<deluge::project::OwnerParamTarget>(entry.target).param, entry.source, entry.relative);
+		     + describe(std::get<deluge::project::OwnerParamTarget>(entry.target).param.id, entry.source,
+		                entry.relative);
 	}
 	std::string b;
 	for (const MIDIKnob& knob : owner->midi_knobs) {

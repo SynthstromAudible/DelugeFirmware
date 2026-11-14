@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge-project/controller_mapping.h"
+#include "deluge-project/param_address.h"
 #include "foundation/function_ref.h"
 #include "instruments/deluge/pages.h"
 #include "modulation/knob_target.h"
@@ -99,6 +100,14 @@ void refreshControls(::Song& song);
 /// @param unpatchedKind The Kind that numbers an unpatched param.
 /// @return The knob's target; none if @p target names no runtime param.
 [[nodiscard]] deluge::modulation::KnobTarget knobOfControl(deluge::plugin::ParamId target,
+                                                           deluge::modulation::params::Kind unpatchedKind);
+
+/// @brief The runtime knob target of a learned param. Only an ENGINE-space param names a runtime knob; any other
+/// space has none.
+/// @param target        The learned param.
+/// @param unpatchedKind The Kind that numbers an unpatched param.
+/// @return The knob's target; none if @p target is not an ENGINE param naming a runtime param.
+[[nodiscard]] deluge::modulation::KnobTarget knobOfControl(deluge::project::ParamTarget target,
                                                            deluge::modulation::params::Kind unpatchedKind);
 
 /// @brief Whose controls @p sound's are: its synth track's or its kit row's; nullopt when it is not bound.

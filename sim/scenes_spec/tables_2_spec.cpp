@@ -385,7 +385,7 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 					continue;
 				}
 				const std::string at = e.path + " " + text_of(e.node->name) + " learns ";
-				expect(at + (got ? std::to_string(got->param.value) : std::string{"none"}))
+				expect(at + (got ? std::to_string(got->param.id.value) : std::string{"none"}))
 				    .to_equal(at + (want->empty() ? std::string{"<no value>"} : want->front()));
 				expect(!got || got->owner == menu::bindings::controls_owner(fx.ctx)).to_be_true();
 			}

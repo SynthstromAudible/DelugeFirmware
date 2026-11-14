@@ -266,10 +266,11 @@ std::vector<Mapping> knobsOf(ControlsAddress owner, const ::ModControllableAudio
 	const params::Kind unpatchedKind = isSound ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL;
 	std::vector<Mapping> entries;
 	for (const MIDIKnob& knob : knobs.midi_knobs) {
-		entries.push_back(
-		    Mapping{.source = command_of(knob.midiInput),
-		            .target = deluge::project::OwnerParamTarget{owner, controlTargetOf(knob.target, unpatchedKind)},
-		            .relative = knob.relative});
+		entries.push_back(Mapping{
+		    .source = command_of(knob.midiInput),
+		    .target = deluge::project::OwnerParamTarget{owner, deluge::project::engine_target(
+		                                                           controlTargetOf(knob.target, unpatchedKind).value)},
+		    .relative = knob.relative});
 	}
 	return entries;
 }
@@ -758,8 +759,9 @@ void knobNoLongerRelative(::ModControllableAudio& owner, const ::MIDIKnob& knob,
 	// The entry is the one the knob was projected from: same param, and its source plays as the knob does (a device's
 	// saved ids may not be the cable's own).
 	const deluge::project::MappingTarget target = deluge::project::OwnerParamTarget{
-	    *address,
-	    controlTargetOf(knob.target, isSound ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL)};
+	    *address, deluge::project::engine_target(controlTargetOf(knob.target, isSound ? params::Kind::UNPATCHED_SOUND
+	                                                                                  : params::Kind::UNPATCHED_GLOBAL)
+	                                                 .value)};
 	const std::span<const Mapping> entries = song.project.mappings.entries();
 	for (size_t i = 0; i < entries.size(); i++) {
 		if (entries[i].target == target && sameLearned(learned_of(entries[i].source), knob.midiInput)) {
@@ -887,10 +889,13 @@ bool knobPlays(const ::MIDIKnob& knob, const deluge::project::MappingTarget& tar
 	}
 	// An output's knobs turn a sound's unpatched params or a global effectable's, as the output is a synth or not.
 	const ControlsAddress::Kind owner = param->owner.kind;
+	if (param->param.space != deluge::project::ParamSpace::ENGINE) {
+		return false; // a knob turns an engine param
+	}
 	return (owner != ControlsAddress::Kind::SONG
-	        && controlTargetOf(knob.target, params::Kind::UNPATCHED_SOUND) == param->param)
+	        && controlTargetOf(knob.target, params::Kind::UNPATCHED_SOUND) == param->param.id)
 	       || (owner != ControlsAddress::Kind::DRUM
-	           && controlTargetOf(knob.target, params::Kind::UNPATCHED_GLOBAL) == param->param);
+	           && controlTargetOf(knob.target, params::Kind::UNPATCHED_GLOBAL) == param->param.id);
 }
 
 bool holdsOutput(::Song& song, const ::Output& output) {

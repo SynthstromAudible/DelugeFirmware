@@ -129,7 +129,7 @@ void decode_knobs(const Value& element, ControlsAddress owner, MappingTable& tab
 				continue;
 			}
 			Mapping& learned = knobs.emplace_back();
-			learned.target = OwnerParamTarget{owner, *param};
+			learned.target = OwnerParamTarget{owner, engine_target(param->value)};
 			learned.source.channel_or_zone = with_zone(byte_of(knob->find("channel")), knob->find("mpeZone"));
 			learned.source.note_or_cc = byte_of(knob->find("ccNumber"));
 			learned.relative = serialization::int_of(knob->find("relative")).value_or(0) != 0;
@@ -148,6 +148,10 @@ void encode_knobs(const MappingTable& table, ControlsAddress owner, Value& eleme
 	}
 	Value midiKnobs = Value::makeArray();
 	for (const Mapping& entry : table.params_of(owner)) {
+		const ParamTarget& param = std::get<OwnerParamTarget>(entry.target).param;
+		if (param.space != ParamSpace::ENGINE) {
+			continue; // the file names engine params only
+		}
 		Value knob = Value::makeMap();
 		const uint8_t channel = entry.source.channel_or_zone;
 		if (channel == kLowerZone || channel == kUpperZone) {
@@ -158,7 +162,7 @@ void encode_knobs(const MappingTable& table, ControlsAddress owner, Value& eleme
 		}
 		knob.set("ccNumber", Value::makeNumber(entry.source.note_or_cc));
 		knob.set("relative", Value::makeNumber(entry.relative ? 1 : 0));
-		set_ref(knob, naming->ref_of(std::get<OwnerParamTarget>(entry.target).param));
+		set_ref(knob, naming->ref_of(param.id));
 		if (entry.source.device) {
 			knob.set("device", encode_device(*entry.source.device));
 		}

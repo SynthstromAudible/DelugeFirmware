@@ -50,8 +50,9 @@ Command command(uint8_t channel, uint8_t noteOrCC) {
 }
 
 /// @brief A patched param of a sound, as the table names it.
-deluge::plugin::ParamId patched(int32_t p) {
-	return deluge::bridge::controlTargetOf(deluge::modulation::knobParam(p), params::Kind::UNPATCHED_SOUND);
+deluge::project::ParamTarget patched(int32_t p) {
+	return deluge::project::engine_target(
+	    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(p), params::Kind::UNPATCHED_SOUND).value);
 }
 
 /// @brief The element one write produced: the one item of the list it was written into, unboxed.

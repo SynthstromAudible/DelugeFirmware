@@ -20,6 +20,7 @@
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/midi_command.h"
 #include "deluge-project/model_memory.h"
+#include "deluge-project/param_address.h"
 #include "plugin-api/types/param.h"
 
 #include <cstddef>
@@ -30,10 +31,11 @@
 
 namespace deluge::project {
 
-/// @brief A param of an owner's controls: the knob turns that param.
+/// @brief A param of an owner's controls: the knob turns that param. The param names its space, so a learned
+/// expression dimension or CC number is a different target from the engine param with the same id.
 struct OwnerParamTarget {
 	ControlsAddress owner;
-	plugin::ParamId param{};
+	ParamTarget param{}; ///< ENGINE space for every knob a song file names
 	bool operator==(const OwnerParamTarget&) const = default;
 };
 /// @brief A clip's mute toggle, by the clip's id.

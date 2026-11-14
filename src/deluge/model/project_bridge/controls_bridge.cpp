@@ -169,6 +169,13 @@ deluge::modulation::KnobTarget knobOfControl(deluge::plugin::ParamId target, par
 	return std::nullopt;
 }
 
+deluge::modulation::KnobTarget knobOfControl(deluge::project::ParamTarget target, params::Kind unpatchedKind) {
+	if (target.space != deluge::project::ParamSpace::ENGINE) {
+		return std::nullopt;
+	}
+	return knobOfControl(target.id, unpatchedKind);
+}
+
 std::optional<deluge::project::ControlsAddress> controlsAddressOf(::Sound& sound) {
 	using Kind = deluge::project::ControlsAddress::Kind;
 	if (sound.isDrum()) {
