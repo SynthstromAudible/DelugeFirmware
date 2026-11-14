@@ -22,6 +22,8 @@
 
 #include "support/spec_main.h"
 
+#include <filesystem>
+#include <fstream>
 #include <string>
 
 using deluge::scenes::spec::no_sd_root_matches;
@@ -37,6 +39,28 @@ describe selftest_card_access(
 		        expect(sd_root_matches("/nonexistent-card")).to_be_false();
 		        expect(sd_root_matches(std::string(DELUGE_REPO_ROOT) + "/tests/fixtures/scenes_spec/browser_scene"))
 		            .to_be_false();
+	        });
+	    it(
+	        "refuses the card plus one extra file, and the card with one file resized", _ {
+		        namespace fs = std::filesystem;
+		        const fs::path card = fs::path(DELUGE_REPO_ROOT) / "tests/fixtures/card";
+		        const fs::path scratch = fs::temp_directory_path() / "card_access_spec_near_miss";
+		        fs::remove_all(scratch);
+		        fs::create_directories(scratch);
+
+		        fs::copy(card, scratch / "same", fs::copy_options::recursive);
+		        expect(sd_root_matches((scratch / "same").string())).to_be_true();
+
+		        fs::copy(card, scratch / "extra", fs::copy_options::recursive);
+		        fs::create_directories(scratch / "extra/SETTINGS");
+		        std::ofstream(scratch / "extra/SETTINGS/CommunityFeatures.XML") << "<settings/>";
+		        expect(sd_root_matches((scratch / "extra").string())).to_be_false();
+
+		        fs::copy(card, scratch / "resized", fs::copy_options::recursive);
+		        fs::resize_file(scratch / "resized/SAMPLES/TONE.WAV", 100);
+		        expect(sd_root_matches((scratch / "resized").string())).to_be_false();
+
+		        fs::remove_all(scratch);
 	        });
 	    it("does not take the installed card for no card", _ { expect(no_sd_root_matches()).to_be_false(); });
     });
