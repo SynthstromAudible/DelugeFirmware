@@ -10,6 +10,9 @@
 #include <cppspec.hpp>
 #include <limits>
 
+#include "support/printers/owner_id_printer.h"
+#include "support/printers/param_id_printer.h"
+
 using namespace deluge::scenes::bind;
 using deluge::plugin::MappingKind;
 using deluge::project::OwnerId;
@@ -82,8 +85,8 @@ describe bind_param("a param target", ${
 			const auto address = param_address(t, where);
 			return address ? std::optional{std::pair{address->owner, address->clip_id}} : std::nullopt;
 		};
-		expect(owner_of(kSoundLpf, kOnSynth)).to_equal(std::optional{std::pair{OwnerId::instrument(kSynth.id),
-		                                                                 std::optional{kSynthClip.clip_id}}});
+		expect(owner_of(kSoundLpf, kOnSynth))
+		    .to_equal(std::optional{std::pair{OwnerId::instrument(kSynth.id), std::optional{kSynthClip.clip_id}}});
 		expect(owner_of(kSoundLpf, kOnKitRow))
 		    .to_equal(std::optional{std::pair{OwnerId::drum(kDrum.id), std::optional{kKitClip.clip_id}}});
 		expect(owner_of(kChainLpf, kOnKitFx))
