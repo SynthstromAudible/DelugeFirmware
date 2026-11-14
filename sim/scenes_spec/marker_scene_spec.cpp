@@ -93,9 +93,14 @@
 #include "support/card_access.h"
 
 #include "support/mocks/fake_surfaces.h"
+#include "support/printers/project_address_printer.h"
+#include "support/printers/ranges_cause_printer.h"
+#include "support/printers/rgb_printer.h"
+#include "support/printers/sound_state_printer.h"
 #include "unit/gfx/support/golden.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
 #include <array>
 #include <cstdint>
@@ -272,14 +277,14 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// `SampleMarkerEditor::renderMainPads` fills the main pads and `renderSidebar` defers to the
 		// root (`SampleMarkerEditor::renderSidebar`); `getGreyoutColsAndRows` is `0b10`.
 		const deluge::ui::shell::Scene& s = marker_scene();
-		expect(s.pad_regions() == deluge::ui::shell::PadRegions::Main).to_be_true();
+		expect(s.pad_regions()).to_equal(deluge::ui::shell::PadRegions::Main);
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0b10});
 		expect(static_cast<uint64_t>(s.greyout_mask().rows)).to_equal(uint64_t{0});
 	});
 
 	it("claims every pad but the audition column, which the host hands to the clip view", _ {
 		// `SampleMarkerEditor::padAction`'s audition arm (`gui/ui/sample_marker_editor.cpp`).
-		expect(marker_scene().grid_pad_claim() == deluge::ui::shell::GridPadClaim::AllButClipAudition).to_be_true();
+		expect(marker_scene().grid_pad_claim()).to_equal(deluge::ui::shell::GridPadClaim::AllButClipAudition);
 	});
 
 	// --- opening ------------------------------------------------------------------------------
@@ -357,7 +362,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(0);
 		r.turn_select(1, 10);
 		r.tick(10);
-		expect(r.range->sampleHolder.startPos > start_before).to_be_true();
+		expect(r.range->sampleHolder.startPos).to_be_greater_than(start_before);
 		expect(deluge::harness::soundIncoherence(*r.sound, *r.song.song)).to_equal(std::string{});
 		expect(mf::markers_of(r.range->sampleHolder)).to_equal(frozen("record_one_turn", "markers"));
 	});
@@ -368,8 +373,8 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(0);
 		r.turn_select(1, 10);
 		r.tick(10);
-		expect(r.played().first > 0U).to_be_true();
-		expect(r.recorded() == r.played()).to_be_true();
+		expect(r.played().first).to_be_greater_than(0U);
+		expect(r.recorded()).to_equal(r.played());
 		expect(mf::clip_markers_of(r.played())).to_equal(frozen("audio_clip_turn", "clip_markers"));
 	});
 
@@ -380,15 +385,15 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.f.clip->activeIfNoSolo = true;
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		r.f.clip->resumePlayback(setupModelStackWithTimelineCounter(memory, r.f.song, r.f.clip), true);
-		expect(r.f.clip->voiceSample != nullptr).to_be_true(); // playing before the turn
+		expect(r.f.clip->voiceSample).not_().to_be_null(); // playing before the turn
 
 		r.open(MarkerType::START);
 		r.tick(0);
 		r.turn_select(1, 10);
 		r.tick(10);
-		expect(r.played().first > 0U).to_be_true();
-		expect(r.recorded() == r.played()).to_be_true();
-		expect(r.f.clip->voiceSample != nullptr).to_be_true();
+		expect(r.played().first).to_be_greater_than(0U);
+		expect(r.recorded()).to_equal(r.played());
+		expect(r.f.clip->voiceSample).not_().to_be_null();
 
 		// Opened again and turned again, where main's editor, opened over the playing clip, takes it.
 		while (r.shell.stack().depth() > 0) {
@@ -399,9 +404,9 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(20);
 		r.turn_select(1, 30);
 		r.tick(30);
-		expect(r.played().first > before).to_be_true();
-		expect(r.recorded() == r.played()).to_be_true();
-		expect(r.f.clip->voiceSample != nullptr).to_be_true();
+		expect(r.played().first).to_be_greater_than(before);
+		expect(r.recorded()).to_equal(r.played());
+		expect(r.f.clip->voiceSample).not_().to_be_null();
 		expect(mf::clip_markers_of(r.played())).to_equal(frozen("audio_playing_turn", "clip_markers"));
 
 		r.f.clip->unassignVoiceSample(false);
@@ -421,13 +426,13 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			return;
 		}
 		const bind::GestureRequest& g = recording.gestures[0];
-		expect(g.kind == bind::GestureRequest::Kind::RANGES).to_be_true();
-		expect(g.slot == *r.ctx().addresses.slot && g.source == 0).to_be_true();
+		expect(g.kind).to_equal(bind::GestureRequest::Kind::RANGES);
+		expect(g.slot).to_equal(*r.ctx().addresses.slot);
+		expect(g.source).to_equal(0);
 		expect(g.ranges.size()).to_equal(size_t{1});
 		expect(static_cast<int32_t>(g.ranges[0].start_pos)).to_equal(kZoomMax);
-		expect(g.cause == bind::RangesCause{.kind = bind::RangesCause::Kind::MARKER,
-		                                    .marker = static_cast<int8_t>(MarkerType::START)})
-		    .to_be_true();
+		expect(g.cause).to_equal(bind::RangesCause{.kind = bind::RangesCause::Kind::MARKER,
+		                                    .marker = static_cast<int8_t>(MarkerType::START)});
 		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(0); // nothing but the sink wrote
 	});
 
@@ -443,8 +448,8 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			return;
 		}
 		const bind::GestureRequest& g = recording.gestures[0];
-		expect(g.kind == bind::GestureRequest::Kind::MARKER).to_be_true();
-		expect(g.clip == deluge::project::ClipAddress{r.f.clip->id()}).to_be_true();
+		expect(g.kind).to_equal(bind::GestureRequest::Kind::MARKER);
+		expect(g.clip).to_equal(deluge::project::ClipAddress{r.f.clip->id()});
 		expect(g.text).to_equal(std::string{"endSamplePos"});
 		expect(static_cast<int64_t>(g.value)).to_equal(static_cast<int64_t>(kSampleLength - kZoomMax));
 		expect(r.played().second).to_equal(kSampleLength);
@@ -492,7 +497,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 				currentSong = saved;
 				return;
 			}
-			expect(recording.gestures[0].kind == bind::GestureRequest::Kind::RANGES).to_be_true();
+			expect(recording.gestures[0].kind).to_equal(bind::GestureRequest::Kind::RANGES);
 			expect(recording.gestures[0].ranges.size()).to_equal(size_t{1});
 			expect(recording.gestures[0].ranges[0].top_note).to_equal(deluge::instrument::kOpenTopNote);
 		}
@@ -508,7 +513,11 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		const std::vector<deluge::instrument::RangeState> legacy = deluge::bridge::rangesOf(sound->sources[1]);
 		const std::vector<deluge::instrument::RangeState>& first =
 		    menu::host_runtime_facts().sound_state(slot)->sources[0].ranges;
-		expect(!legacy.empty() && !first.empty() && first[0] == legacy[0]).to_be_true();
+		expect(legacy.empty()).to_be_false();
+		expect(first.empty()).to_be_false();
+		if (!legacy.empty() && !first.empty()) {
+			expect(first[0]).to_equal(legacy[0]);
+		}
 		expect(had_none).to_be_true();
 		currentSong = saved;
 	});
@@ -574,7 +583,10 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(10);
 		r.pad(7, 3, true, 20); // tap LOOP_END: locked
 		r.tick(20);
-		expect(r.view().has_value() && r.view()->loop_locked).to_be_true();
+		expect(r.view().has_value()).to_be_true();
+		if (r.view().has_value()) {
+			expect(r.view()->loop_locked).to_be_true();
+		}
 
 		// A range below it: the locked range is now the source's second, and the new first holds the same file.
 		expect(menu::host_write_sink().insert_range(r.slot(), 0, 0, 40, std::nullopt)).to_be_true();
@@ -626,7 +638,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// Deleting the range below moves the edited one down into its slot, by move-assignment.
 		expect(menu::host_write_sink().delete_range(r.slot(), 0, 0, std::nullopt)).to_be_true();
 		r.range = static_cast<MultisampleRange*>(r.source->ranges.getElement(0));
-		expect(r.range->identity() == identity).to_be_true();
+		expect(r.range->identity()).to_equal(identity);
 
 		r.reopen(MarkerType::LOOP_START, 0);
 		r.tick(30);
@@ -650,12 +662,16 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 		alignas(ModelStack) char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, r.f.song, r.f.clip);
-		expect(r.f.clip->clone(stack) == Error::NONE).to_be_true();
+		expect(r.f.clip->clone(stack)).to_equal(Error::NONE);
 		const auto* clone = static_cast<const AudioClip*>(stack->getTimelineCounter());
-		expect(clone != r.f.clip).to_be_true();
+		expect(clone).not_().to_equal(r.f.clip);
 		const std::optional<deluge::scenes::services::SampleView> view =
 		    deluge::scenes::services::view_state().sample_view(ViewKey{.kind = ViewKey::Kind::AUDIO_CLIP, .id = clone->id()});
-		expect(view.has_value() && view->scroll == 3 * kZoomMax && view->zoom == kZoomMax / 4).to_be_true();
+		expect(view.has_value()).to_be_true();
+		if (view.has_value()) {
+			expect(view->scroll).to_equal(3 * kZoomMax);
+			expect(view->zoom).to_equal(kZoomMax / 4);
+		}
 		r.f.clip->sampleHolder.audioFile = r.sample;
 	});
 
@@ -684,13 +700,14 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		r.f.clip->resumePlayback(setupModelStackWithTimelineCounter(memory, r.f.song, r.f.clip), true);
 		VoiceSample* const voice = r.f.clip->voiceSample;
-		expect(voice != nullptr).to_be_true();
+		expect(voice).not_().to_be_null();
 		voice->oscPos = 0x5EED; // a re-seat takes the voice off the sample, which loses this
 
 		deluge::edits::audioClipSettingFor(*r.f.clip, "endSamplePos",
 		                                   deluge::serialization::Value::makeNumber(kSampleLength - 100));
-		expect(r.recorded() == r.played()).to_be_true();
-		expect(r.f.clip->voiceSample == voice && voice->oscPos == 0x5EEDU).to_be_true();
+		expect(r.recorded()).to_equal(r.played());
+		expect(r.f.clip->voiceSample).to_equal(voice);
+		expect(voice->oscPos).to_equal(0x5EEDU);
 
 		r.f.clip->unassignVoiceSample(false);
 		r.f.clip->activeIfNoSolo = false;
@@ -840,7 +857,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(marker_scene().holding_xenc()).to_be_true();
 		r.turn_horizontal(1, 60); // zoom in
 		r.tick(60);
-		expect(static_cast<int32_t>(marker_scene().x_zoom()) < kZoomMax).to_be_true();
+		expect(static_cast<int32_t>(marker_scene().x_zoom())).to_be_less_than(kZoomMax);
 		const int32_t zoomed = static_cast<int32_t>(marker_scene().x_zoom());
 		for (uint32_t t = 70; t <= 70 + 150; t += 50) { // the slide runs out (110 ms, drawn every 50 ms)
 			r.tick(t);
@@ -859,17 +876,24 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(250);
 		currentUIMode = UI_MODE_NONE;
 		expect(static_cast<int32_t>(marker_scene().x_zoom())).to_equal(zoomed);
-		expect(r.view().has_value() && r.view()->scroll != scroll).to_be_true();
+		expect(r.view().has_value()).to_be_true();
+		if (r.view().has_value()) {
+			expect(r.view()->scroll).not_().to_equal(scroll);
+		}
 		// Zoomed in, with START held in view, a turn does not scroll.
 		const int64_t s = r.view().has_value() ? r.view()->scroll : 0;
 		const int32_t col = static_cast<int32_t>((2 * kZoomMax - s) / zoomed);
-		expect(col >= 0 && col < kDisplayWidth).to_be_true();
+		to_be_at_least(expect(col), 0);
+		expect(col).to_be_less_than(kDisplayWidth);
 		r.pad(col, 3, true, 260);
 		r.tick(260);
 		expect(marker_scene().holding_marker()).to_be_true();
 		r.turn_horizontal(1, 270);
 		r.tick(270);
-		expect(r.view().has_value() && r.view()->scroll == s).to_be_true();
+		expect(r.view().has_value()).to_be_true();
+		if (r.view().has_value()) {
+			expect(r.view()->scroll).to_equal(s);
+		}
 		r.pad(col, 3, false, 280);
 	});
 
@@ -904,7 +928,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(static_cast<int32_t>(marker_scene().x_zoom())).to_equal(kZoomMax / 2);
 		expect(marker_scene().holding_xenc()).to_be_false();
 		expect(marker_scene().holding_marker()).to_be_false();
-		expect(&r.shell.stack().input_top() == &marker_scene()).to_be_true();
+		expect(&r.shell.stack().input_top()).to_equal(&marker_scene());
 
 		// Halfway (the step at 70 ms), neither view.
 		r.tick(70);
@@ -915,7 +939,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(170);
 		expect(marker_scene().sliding()).to_be_false();
 		// The settled frame re-arms the blink's whole period, which the slide held still.
-		expect(marker_scene().next_timer() == std::optional<uint32_t>{200}).to_be_true();
+		expect(marker_scene().next_timer()).to_equal(std::optional<uint32_t>{200});
 		expect(marker_scene().holding_xenc()).to_be_false();
 		r.x_enc_button(false, 175);
 		const deluge::gfx::grid::PadGrid settled = r.fake.grid().grid();
@@ -939,10 +963,11 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// START, at 4 * kZoomMax, is column 8 at half the zoom, and is drawn again.
 		const int32_t col = static_cast<int32_t>((4 * kZoomMax - static_cast<int32_t>(marker_scene().x_scroll()))
 		                                         / static_cast<int32_t>(marker_scene().x_zoom()));
-		expect(settled.at(static_cast<uint8_t>(col), 0).g > settled.at(static_cast<uint8_t>(col), 0).r).to_be_true();
+		expect(settled.at(static_cast<uint8_t>(col), 0).g)
+		    .to_be_greater_than(settled.at(static_cast<uint8_t>(col), 0).r);
 		r.turn_select(1, 180);
 		r.tick(180);
-		expect(static_cast<int32_t>(r.range->sampleHolder.startPos) != 4 * kZoomMax).to_be_true();
+		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).not_().to_equal(4 * kZoomMax);
 	});
 
 	it("leaves no slide behind when it closes mid-slide, or when its waveform goes away", _ {
@@ -1015,7 +1040,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(100);
 		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(kMarkerSceneKind));
 		const std::array<uint64_t, 4> after{h.startPos, h.endPos, h.loopStartPos, h.loopEndPos};
-		expect(after == before).to_be_true();
+		expect(after).to_equal(before);
 		currentUIMode = UI_MODE_AUDITIONING;
 		r.pad(8, 7, true, 110); // LPF frequency while auditioning: the marker's own press
 		r.tick(110);
@@ -1031,8 +1056,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.shift(false, 175);
 		r.tick(180);
 		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(SceneKind::FirstApp));
-		expect(menu::focused_value(menu_scene().menu_context(), menu_scene().state()) == &menu::nodes::lpf_freq)
-		    .to_be_true();
+		expect(menu::focused_value(menu_scene().menu_context(), menu_scene().state())).to_equal(&menu::nodes::lpf_freq);
 	});
 
 	it("takes SHIFT + (0,7) and (0,6) over the automation view as its own presses, a marker held or not", _ {
@@ -1085,9 +1109,8 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.shift(false, 105);
 		r.tick(110);
 		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(SceneKind::FirstApp));
-		expect(menu::focused_value(menu_scene().menu_context(), menu_scene().state())
-		       == &menu::nodes::sample0_interpolation)
-		    .to_be_true();
+		expect(menu::focused_value(menu_scene().menu_context(), menu_scene().state()))
+		    .to_equal(&menu::nodes::sample0_interpolation);
 	});
 
 	it("jumps over the automation view to an item that is no param, as main's shortcut from outside the editor", _ {
@@ -1108,8 +1131,8 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.shift(false, 105);
 		r.tick(110);
 		expect(static_cast<int>(r.top())).to_equal(static_cast<int>(SceneKind::FirstApp));
-		expect(menu::focused_value(menu_scene().menu_context(), menu_scene().state()) == &menu::nodes::polyphony)
-		    .to_be_true();
+		expect(menu::focused_value(menu_scene().menu_context(), menu_scene().state()))
+		    .to_equal(&menu::nodes::polyphony);
 	});
 
 	it("hands a vertical turn to the instrument clip view under the editor, and keeps it with SHIFT or X_ENC held", _ {
@@ -1122,15 +1145,15 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		for (int32_t i = 0; i < 4; i++) {
 			(void)shellHostUI.timerCallback();
 		}
-		expect(&shellHostUI.shell().stack().input_top() == &marker_scene()).to_be_true();
+		expect(&shellHostUI.shell().stack().input_top()).to_equal(&marker_scene());
 		const int32_t before = r.song.clip->yScroll;
 		(void)shellHostUI.verticalEncoderAction(1);
-		expect(r.song.clip->yScroll != before).to_be_true();
+		expect(r.song.clip->yScroll).not_().to_equal(before);
 		const int32_t moved = r.song.clip->yScroll;
 		// With SHIFT or X_ENC held the clip view would move or transpose the notes on screen; the editor keeps the
 		// turn.
 		NoteRow* row = r.song.clip->createNewNoteRowForYVisual(moved + 2, r.song.song);
-		expect(row != nullptr).to_be_true();
+		expect(row).not_().to_be_null();
 		if (row == nullptr) {
 			return;
 		}
@@ -1150,15 +1173,19 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		}
 		expect(r.song.clip->yScroll).to_equal(moved);
 		expect(r.song.clip->colourOffset()).to_equal(colour); // the clip view would shift its colours
-		expect(r.song.clip->getNoteRowForYNote(note_y) != nullptr
-		       && !r.song.clip->getNoteRowForYNote(note_y)->hasNoNotes())
-		    .to_be_true();
+		expect(r.song.clip->getNoteRowForYNote(note_y)).not_().to_be_null();
+		if (r.song.clip->getNoteRowForYNote(note_y) != nullptr) {
+			expect(r.song.clip->getNoteRowForYNote(note_y)->hasNoNotes()).to_be_false();
+		}
 		const auto xy = deluge::hid::button::toXY(deluge::hid::button::X_ENC);
 		Buttons::buttonStates[xy.x][xy.y] = true;
 		(void)shellHostUI.verticalEncoderAction(1);
 		Buttons::buttonStates[xy.x][xy.y] = false;
 		NoteRow* still = r.song.clip->getNoteRowForYNote(note_y);
-		expect(still != nullptr && !still->hasNoNotes()).to_be_true();
+		expect(still).not_().to_be_null();
+		if (still != nullptr) {
+			expect(still->hasNoNotes()).to_be_false();
+		}
 	});
 
 	it("draws the playhead on every row with the flash cursor Slow, flashes it Fast, and shows nothing Off", _ {
@@ -1185,23 +1212,25 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.open(MarkerType::END);
 		r.tick(0);
-		expect(marker_scene().next_timer().has_value() && *marker_scene().next_timer() <= 15).to_be_false();
+		if (marker_scene().next_timer().has_value()) {
+			expect(*marker_scene().next_timer()).to_be_greater_than(15);
+		}
 		// A voice that starts after a render is found by the timer, with no other event (`graphicsRoutine` runs every
 		// pass).
 		playing.pos = 7 * kZoomMax;
-		expect(marker_scene().next_timer() == std::optional<uint32_t>{15}).to_be_true();
+		expect(marker_scene().next_timer()).to_equal(std::optional<uint32_t>{15});
 		r.tick(1);
 		r.tick(20);
 		const RGB tick = deluge::ui::grid::tick_colour(deluge::ui::grid::TickColour::Normal, RGB{});
 		for (uint8_t y = 0; y < 8; y++) {
-			expect(r.fake.grid().grid().at(7, y) == tick).to_be_true();
+			expect(r.fake.grid().grid().at(7, y)).to_equal(tick);
 		}
 		// Fast: nothing painted; the PIC flashes each row's square when it moves (`setTickSquares`' fast arm), and
 		// only then -- the square it is on was already handed over under Slow.
 		PadLEDs::flashCursor = FLASH_CURSOR_FAST;
 		size_t from = r.fake.flashes_sent.size();
 		r.tick(40);
-		expect(r.fake.grid().grid().at(7, 0) == tick).to_be_false();
+		expect(r.fake.grid().grid().at(7, 0)).not_().to_equal(tick);
 		expect(r.fake.flashes_sent.size()).to_equal(from);
 		playing.pos = 9 * kZoomMax;
 		r.tick(60);
@@ -1210,27 +1239,27 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			at_nine += r.fake.flashes_sent[i].x == 9 ? 1 : 0;
 		}
 		expect(at_nine).to_equal(size_t{8});
-		expect(r.fake.grid().grid().at(9, 0) == tick).to_be_false();
+		expect(r.fake.grid().grid().at(9, 0)).not_().to_equal(tick);
 		// Off: nothing, and nothing asked for.
 		PadLEDs::flashCursor = FLASH_CURSOR_OFF;
 		from = r.fake.flashes_sent.size();
 		playing.pos = 11 * kZoomMax;
 		r.tick(80);
-		expect(r.fake.grid().grid().at(11, 0) == tick).to_be_false();
+		expect(r.fake.grid().grid().at(11, 0)).not_().to_equal(tick);
 		expect(r.fake.flashes_sent.size()).to_equal(from);
-		expect(marker_scene().next_timer() == std::optional<uint32_t>{15}).to_be_false();
+		expect(marker_scene().next_timer()).not_().to_equal(std::optional<uint32_t>{15});
 		// The voice ends under Slow: one more frame, which clears the playhead, and then no more.
 		PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
 		playing.pos = 7 * kZoomMax;
 		r.tick(100);
 		r.tick(120);
-		expect(r.fake.grid().grid().at(7, 0) == tick).to_be_true();
+		expect(r.fake.grid().grid().at(7, 0)).to_equal(tick);
 		playing.pos.reset();
-		expect(marker_scene().next_timer() == std::optional<uint32_t>{15}).to_be_true();
+		expect(marker_scene().next_timer()).to_equal(std::optional<uint32_t>{15});
 		r.tick(140);
 		r.tick(160);
-		expect(r.fake.grid().grid().at(7, 0) == tick).to_be_false();
-		expect(marker_scene().next_timer() == std::optional<uint32_t>{15}).to_be_false();
+		expect(r.fake.grid().grid().at(7, 0)).not_().to_equal(tick);
+		expect(marker_scene().next_timer()).not_().to_equal(std::optional<uint32_t>{15});
 		PadLEDs::flashCursor = saved;
 		marker_scene().set_waveforms(nullptr);
 	});
@@ -1303,10 +1332,10 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		DirectEvents d;
 		(void)d.pad(4, 3, true); // hold LOOP_START
 		const std::vector<uint16_t> lock = popups_of(d.pad(7, 3, true)); // tap LOOP_END
-		expect(lock == std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_LOCKED)}).to_be_true();
+		expect(lock).to_equal(std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_LOCKED)});
 		(void)d.pad(7, 3, false);
 		const std::vector<uint16_t> free = popups_of(d.pad(7, 3, true));
-		expect(free == std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_FREE)}).to_be_true();
+		expect(free).to_equal(std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_FREE)});
 		(void)d.pad(7, 3, false);
 		(void)d.pad(4, 3, false);
 	});
@@ -1321,7 +1350,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		DirectEvents d;
 		(void)d.pad(2, 3, true); // hold START
 		const std::vector<uint16_t> p = popups_of(d.pad(4, 3, true)); // tap LOOP_START
-		expect(p == std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_FREE)}).to_be_true();
+		expect(p).to_equal(std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_FREE)});
 		expect(static_cast<int32_t>(r.range->sampleHolder.loopStartPos)).to_equal(0);
 	});
 
@@ -1336,7 +1365,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		DirectEvents d;
 		(void)d.pad(11, 3, true); // hold END
 		const std::vector<uint16_t> p = popups_of(d.pad(7, 3, true)); // tap LOOP_END
-		expect(p == std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_FREE)}).to_be_true();
+		expect(p).to_equal(std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_FREE)});
 		expect(static_cast<int32_t>(r.range->sampleHolder.loopEndPos)).to_equal(0);
 	});
 
@@ -1350,7 +1379,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		DirectEvents d;
 		(void)d.pad(4, 3, true); // hold LOOP_START
 		const std::vector<uint16_t> p = popups_of(d.pad(2, 3, true)); // tap START
-		expect(p == std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_FREE)}).to_be_true();
+		expect(p).to_equal(std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_FREE)});
 		expect(static_cast<int32_t>(r.range->sampleHolder.loopStartPos)).to_equal(0);
 	});
 
@@ -1365,7 +1394,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		DirectEvents d;
 		(void)d.pad(7, 3, true); // hold LOOP_END
 		const std::vector<uint16_t> p = popups_of(d.pad(11, 3, true)); // tap END
-		expect(p == std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_FREE)}).to_be_true();
+		expect(p).to_equal(std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_FREE)});
 		expect(static_cast<int32_t>(r.range->sampleHolder.loopEndPos)).to_equal(0);
 	});
 
@@ -1381,10 +1410,13 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(0);
 		DirectEvents d;
 		const std::vector<uint16_t> halved = popups_of(d.horizontal(-1, /*shift=*/true));
-		expect(halved == std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_HALVED)}).to_be_true();
+		expect(halved).to_equal(std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_HALVED)});
 		const std::vector<uint16_t> doubled = popups_of(d.horizontal(1, /*shift=*/true));
-		expect(doubled == std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_DOUBLED)}).to_be_true();
-		expect(r.view().has_value() && r.view()->loop_locked).to_be_true();
+		expect(doubled).to_equal(std::vector<uint16_t>{popup_id(deluge::l10n::String::STRING_FOR_LOOP_DOUBLED)});
+		expect(r.view().has_value()).to_be_true();
+		if (r.view().has_value()) {
+			expect(r.view()->loop_locked).to_be_true();
+		}
 		// ...and none is left queued for the next pad press to file.
 		expect(popups_of(d.pad(13, 3, true)).empty()).to_be_true();
 		(void)d.pad(13, 3, false);
@@ -1505,8 +1537,8 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// the selected marker is never dimmed. The flood only shows when the selected marker is
 		// SHARING its column, which no legal marker layout on this fixture does.
 		expect(phase0).to_equal(phase1);
-		expect(phase0 == phase3).to_be_false(); // phase 3 removes the selected marker
-		expect(phase1 == phase3).to_be_false();
+		expect(phase0).not_().to_equal(phase3); // phase 3 removes the selected marker
+		expect(phase1).not_().to_equal(phase3);
 
 		// Phase 3 leaves the END marker (which is not the selected one) exactly where phase 0 had
 		// it: only the SELECTED marker is suppressed.
@@ -1529,7 +1561,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.open(MarkerType::LOOP_START);
 		r.tick(10);
 		const std::string locked = r.oled();
-		expect(unlocked == locked).to_be_false();
+		expect(unlocked).not_().to_equal(locked);
 	});
 
 	it("labels a reversed sample's START marker 'End point', as reverseRemap does", _ {
@@ -1543,7 +1575,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.open(MarkerType::START);
 		r.tick(10);
 		const std::string reversed = r.oled();
-		expect(forwards == reversed).to_be_false();
+		expect(forwards).not_().to_equal(reversed);
 
 		// ...and it is the same picture the END marker draws forwards, which is the actual claim.
 		r.source->sampleControls.reversed = false;
@@ -1630,7 +1662,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			if (phase == 2) {
 				const std::optional<spec::OraclePads> suppressed = spec::OracleFiles::pads("marker_suppress_2");
 				expect(suppressed.has_value()).to_be_true();
-				expect(pad_diff(r, suppressed).count > 0).to_be_true();
+				expect(pad_diff(r, suppressed).count).to_be_greater_than(0);
 			}
 		}
 	});
@@ -1773,7 +1805,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			expect(std::to_string(slide.params.magnitude)).to_equal(main_slide[1]);
 			expect(std::string{slide.params.new_zoom < slide.params.old_zoom ? "1" : "0"}).to_equal(main_slide[2]);
 		}
-		expect(slide.params.pin_square_from != 0).to_be_true(); // a pin of 0 would match a port that forgot it
+		expect(slide.params.pin_square_from).not_().to_equal(0); // a pin of 0 would match a port that forgot it
 		const std::optional<spec::OraclePads> main_to = spec::OracleFiles::pads("marker_zoom_to");
 		bool to_matches = slide.to.has_value() && main_to.has_value();
 		for (uint8_t y = 0; to_matches && y < kDisplayHeight; y++) {

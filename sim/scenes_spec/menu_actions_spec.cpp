@@ -981,7 +981,7 @@ describe menu_action_seam("scenes::menu action seam", $ {
 		select_language();
 		Rig r;
 		const MenuActionRequest first = press_child(r, nodes::stem_export, nodes::start_stem_export);
-		expect(first.action == MenuAction::StartStemExport).to_be_true();
+		expect(first.action).to_equal(MenuAction::StartStemExport);
 		// Reading empties the slot -- a dispatcher that polls every tick must not see the same export
 		// request four times.
 		expect(scene().take_action().engaged()).to_be_false();
@@ -1003,7 +1003,7 @@ describe menu_action_seam("scenes::menu action seam", $ {
 		// `retarget` drops `MenuWalkState::pending_action`, but the drain has already moved this one into
 		// the scene's own outbox, which it must not drop -- see `MenuScene::taken_action_`.
 		menu_scene().open(nodes::root_song, ctx);
-		expect(scene().take_action().action == MenuAction::StartStemExport).to_be_true();
+		expect(scene().take_action().action).to_equal(MenuAction::StartStemExport);
 	});
 });
 
@@ -1037,7 +1037,7 @@ describe menu_action_items("scenes::menu the four pure verbs", $ {
 		(void)r.open(nodes::start_stem_export);
 		r.shell.tick(10);
 		expect(scene().take_action().engaged()).to_be_false();
-		expect(scene().focused() == &nodes::start_stem_export).to_be_true();
+		expect(scene().focused()).to_equal(&nodes::start_stem_export);
 		expect(static_cast<int>(scene().state().depth)).to_equal(0);
 		// And it stays quiet: nothing re-fires on later ticks either.
 		for (uint32_t t = 0; t < 5; t++) {
@@ -1065,7 +1065,7 @@ describe menu_action_items("scenes::menu the four pure verbs", $ {
 		std::vector<int> observed;
 		for (const Pairing& p : kVerbs) {
 			const auto* item = dynamic_cast<const nodes::ActionItem*>(p.node->custom);
-			expect(item != nullptr).to_be_true();
+			expect(item).not_().to_be_null();
 			observed.push_back(item != nullptr ? static_cast<int>(item->action()) : -1);
 		}
 		std::vector<int> expected;
@@ -1078,7 +1078,7 @@ describe menu_action_items("scenes::menu the four pure verbs", $ {
 		// be passing on an all-`None` list. The pad-colour example carries the same proof.
 		std::vector<int> swapped = observed;
 		std::swap(swapped[0], swapped[2]);
-		expect(swapped == expected).to_be_false();
+		expect(swapped).not_().to_equal(expected);
 
 		// The four actions are pairwise distinct, so "files the right one" is a real discriminator.
 		std::set<int> distinct(observed.begin(), observed.end());
@@ -1094,7 +1094,7 @@ describe menu_action_items("scenes::menu the four pure verbs", $ {
 			// Legacy's `shouldEnterSubmenu() == false` (`gui/ui/sound_editor.cpp:420-423`): the item
 			// is never navigated into. The port descends for the width of one `after_render` and
 			// ascends inside it, so by the time the tick is over the parent is focused again.
-			expect(scene().focused() == p.parent).to_be_true();
+			expect(scene().focused()).to_equal(p.parent);
 			expect(static_cast<int>(scene().state().depth)).to_equal(0);
 		}
 	});
@@ -1108,7 +1108,7 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 
 		// Main's list, frozen, and the port's: the names the item itself lists, in its order.
 		const std::vector<std::string>* frozen = table().find("perform", "options");
-		expect(frozen != nullptr).to_be_true();
+		expect(frozen).not_().to_be_null();
 		std::vector<std::string> port_names;
 		for (const std::string_view name : nodes::PerformEditorItem::option_names()) {
 			port_names.emplace_back(name);
@@ -1178,12 +1178,12 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 			r.shell.tick(110);
 
 			const MenuActionRequest got = scene().take_action();
-			expect(got.action == MenuAction::OpenPerformanceView).to_be_true();
+			expect(got.action).to_equal(MenuAction::OpenPerformanceView);
 			expect(static_cast<int>(got.arg)).to_equal(static_cast<int>(mode));
 			// `:55-60` -- the press is what writes the two bools legacy keeps on the view.
 			expect(static_cast<int>(menu::performance_editing_mode())).to_equal(static_cast<int>(mode));
 			// `:73` -- `NO_NAVIGATION`: legacy does not leave this page.
-			expect(scene().focused() == &nodes::perform_editor).to_be_true();
+			expect(scene().focused()).to_equal(&nodes::perform_editor);
 		}
 	});
 
@@ -1198,7 +1198,7 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 		r.shell.tick(5);
 		r.enter(10);
 		r.shell.tick(20);
-		expect(scene().focused() == &nodes::perform_editor).to_be_true();
+		expect(scene().focused()).to_equal(&nodes::perform_editor);
 		expect(scene().take_action().engaged()).to_be_false();
 
 		// Back to DISABLED, then press.
@@ -1210,7 +1210,7 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 		r.shell.tick(60);
 
 		expect(scene().take_action().engaged()).to_be_false();
-		expect(scene().focused() == &nodes::root_performance).to_be_true();
+		expect(scene().focused()).to_equal(&nodes::root_performance);
 		// And the mirror is untouched -- legacy's DISABLED arm writes nothing either.
 		expect(static_cast<int>(menu::performance_editing_mode()))
 		    .to_equal(static_cast<int>(PerformanceEditingMode::VALUE));
@@ -1255,7 +1255,7 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 			control.shell.tick(5);
 			control.enter(10);
 			control.shell.tick(20);
-			expect(scene().take_action().action == MenuAction::StartStemExport).to_be_true();
+			expect(scene().take_action().action).to_equal(MenuAction::StartStemExport);
 		}
 
 		Rig r;
@@ -1275,7 +1275,7 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 		menu::MenuState state{};
 		const menu::MenuContext ctx{};
 		nodes::file0_selector.custom->on_focus(ctx, state);
-		expect(state.walk.pending_action.action == MenuAction::FileSelectorOpened).to_be_true();
+		expect(state.walk.pending_action.action).to_equal(MenuAction::FileSelectorOpened);
 
 		UiStackGuard ui_guard;
 		setRootUILowLevel(&keyboardScreen);
@@ -1284,14 +1284,14 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 
 		(void)scene().after_render(); // the tick's after-render posts the filed action to the outbox
 		deluge::gui::ui::dispatchShellActions();
-		expect(currentUIMode == UI_MODE_AUDITIONING).to_be_false();
+		expect(currentUIMode).not_().to_equal(UI_MODE_AUDITIONING);
 
 		setRootUILowLevel(&instrumentClipView);
 		currentUIMode = UI_MODE_AUDITIONING;
 		scene().request_action(MenuActionRequest{.action = MenuAction::FileSelectorOpened});
 		(void)scene().after_render();
 		deluge::gui::ui::dispatchShellActions();
-		expect(currentUIMode == UI_MODE_AUDITIONING).to_be_true();
+		expect(currentUIMode).to_equal(UI_MODE_AUDITIONING);
 		currentUIMode = UI_MODE_NONE;
 	});
 
@@ -1309,7 +1309,7 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 		// rather than jamming it.
 		r.enter(300);
 		r.shell.tick(310);
-		expect(scene().take_action().action == MenuAction::StartStemExport).to_be_true();
+		expect(scene().take_action().action).to_equal(MenuAction::StartStemExport);
 	});
 
 	it("is reached BY the guest's own tick: press select, call timerCallback, outbox empty", _ {
@@ -1334,7 +1334,7 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 			control.ui.shell().tick(20);
 			// The press really files, on this exact path, through this exact guest. Without this the
 			// example below passes on a press that never filed anything.
-			expect(scene().take_action().action == MenuAction::StartStemExport).to_be_true();
+			expect(scene().take_action().action).to_equal(MenuAction::StartStemExport);
 		}
 
 		GuestRig r;
@@ -1413,7 +1413,7 @@ describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSe
 			// ...and the write really did file, so the subject's effect is about the arm and not
 			// about a turn that never reached the hook.
 			const MenuActionRequest filed = scene().take_action();
-			expect(filed.action == MenuAction::ScreensaverSettingsChanged).to_be_true();
+			expect(filed.action).to_equal(MenuAction::ScreensaverSettingsChanged);
 			expect(static_cast<int>(filed.arg)).to_equal(0);
 		}
 
@@ -1448,13 +1448,13 @@ describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSe
 			expect(choose_screensaver(control, nodes::screensaver_mode, true, kModeDelugeIndex))
 			    .to_equal(kModeDelugeIndex);
 
-			expect(FlashStorage::screensaverMode == ScreensaverMode::DELUGE).to_be_true();
+			expect(FlashStorage::screensaverMode).to_equal(ScreensaverMode::DELUGE);
 			expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(0));
 			expect(legacy_armed_ms()).to_equal(int32_t(-1));
 			// The same enumerator the timeout setter files, and the same empty payload. This is what
 			// "one enumerator, two setters" is asserted by rather than merely claimed.
 			const MenuActionRequest filed = scene().take_action();
-			expect(filed.action == MenuAction::ScreensaverSettingsChanged).to_be_true();
+			expect(filed.action).to_equal(MenuAction::ScreensaverSettingsChanged);
 			expect(static_cast<int>(filed.arg)).to_equal(0);
 		}
 
@@ -1477,7 +1477,7 @@ describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSe
 			expect(choose_screensaver(r, nodes::screensaver_mode, true, kModeOffIndex)).to_equal(kModeOffIndex);
 			deluge::gui::ui::dispatchShellActions();
 		}
-		expect(FlashStorage::screensaverMode == ScreensaverMode::OFF).to_be_true();
+		expect(FlashStorage::screensaverMode).to_equal(ScreensaverMode::OFF);
 		expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(0));
 		expect(legacy_armed_ms()).to_equal(int32_t(-1));
 		expect(scene().take_action().engaged()).to_be_false();
@@ -1498,7 +1498,7 @@ describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSe
 		// The first detent really applied, so the second one below is a second apply and not the
 		// first one arriving late.
 		expect(legacy_armed_ms()).to_equal(int32_t(420000));
-		expect(scene().focused() == &nodes::screensaver_timeout).to_be_true();
+		expect(scene().focused()).to_equal(&nodes::screensaver_timeout);
 		expect(static_cast<int>(scene().state().depth)).to_equal(1);
 
 		// And a second detent still lands, which an ascend would have made impossible. `int_value`
@@ -1509,7 +1509,7 @@ describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSe
 		expect(scene().state().edit_int).to_equal(int32_t(8));
 		expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(480000));
 		expect(legacy_armed_ms()).to_equal(int32_t(480000));
-		expect(scene().focused() == &nodes::screensaver_timeout).to_be_true();
+		expect(scene().focused()).to_equal(&nodes::screensaver_timeout);
 	});
 
 	it("files nothing at all until the value is turned -- opening and descending are quiet", _ {
@@ -1527,7 +1527,7 @@ describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSe
 		expect(visible_index_of(nodes::screensaver, nodes::screensaver_mode, ctx)).to_equal(int32_t(0));
 		r.enter(10);
 		r.shell.tick(20);
-		expect(scene().focused() == &nodes::screensaver_mode).to_be_true();
+		expect(scene().focused()).to_equal(&nodes::screensaver_mode);
 		expect(scene().take_action().engaged()).to_be_false();
 		// ...and it stays quiet across twenty ticks with the item open.
 		for (uint32_t t = 0; t < 20; t++) {
@@ -1535,7 +1535,7 @@ describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSe
 			deluge::gui::ui::dispatchShellActions();
 			expect(scene().take_action().engaged()).to_be_false();
 		}
-		expect(FlashStorage::screensaverMode == ScreensaverMode::DELUGE).to_be_true();
+		expect(FlashStorage::screensaverMode).to_equal(ScreensaverMode::DELUGE);
 		expect(static_cast<int>(FlashStorage::screensaverTimeoutMinutes)).to_equal(5);
 		expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(300000));
 		expect(legacy_armed_ms()).to_equal(armed);
@@ -1570,10 +1570,10 @@ describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSe
 			control.turn_select(1);
 			control.ui.shell().tick(20);
 
-			expect(FlashStorage::screensaverMode == ScreensaverMode::BLANK).to_be_true();
+			expect(FlashStorage::screensaverMode).to_equal(ScreensaverMode::BLANK);
 			expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(0));
 			expect(legacy_armed_ms()).to_equal(int32_t(-1));
-			expect(scene().take_action().action == MenuAction::ScreensaverSettingsChanged).to_be_true();
+			expect(scene().take_action().action).to_equal(MenuAction::ScreensaverSettingsChanged);
 		}
 
 		GuestRig r;
@@ -1586,7 +1586,7 @@ describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSe
 		r.turn_select(1);
 		(void)r.ui.timerCallback();
 
-		expect(FlashStorage::screensaverMode == ScreensaverMode::BLANK).to_be_true();
+		expect(FlashStorage::screensaverMode).to_equal(ScreensaverMode::BLANK);
 		expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t(300000));
 		expect(legacy_armed_ms()).to_equal(int32_t(300000));
 		expect(scene().take_action().engaged()).to_be_false();
@@ -1643,7 +1643,7 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 			// ...and the press really did file, so "nothing happened" is about the missing call and
 			// not about a press that never reached the item.
 			const MenuActionRequest filed = scene().take_action();
-			expect(filed.action == MenuAction::OpenPerformanceView).to_be_true();
+			expect(filed.action).to_equal(MenuAction::OpenPerformanceView);
 			expect(static_cast<int>(filed.arg)).to_equal(static_cast<int>(PerformanceEditingMode::VALUE));
 		}
 
@@ -1682,7 +1682,7 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 			expect(performanceView.lastPadPress.isActive).to_be_true();
 			expect(isUIOpen(&performanceView)).to_be_false();
 			const MenuActionRequest filed = scene().take_action();
-			expect(filed.action == MenuAction::OpenPerformanceView).to_be_true();
+			expect(filed.action).to_equal(MenuAction::OpenPerformanceView);
 			expect(static_cast<int>(filed.arg)).to_equal(static_cast<int>(PerformanceEditingMode::PARAM));
 		}
 
@@ -1731,7 +1731,7 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 
 			expect(performanceView.defaultEditingMode).to_be_false();
 			expect(isUIOpen(&performanceView)).to_be_false();
-			expect(scene().take_action().action == MenuAction::OpenPerformanceView).to_be_true();
+			expect(scene().take_action().action).to_equal(MenuAction::OpenPerformanceView);
 		}
 
 		GuestRig r;
@@ -1826,7 +1826,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		// reads it off the song's current clip (`model/song/song.cpp:136-138`) -- so the fixture is
 		// what varies between this example and the one below, not the root.
 		spec::SongFixture song = spec::make_kit_song();
-		expect(getCurrentOutputType() == OutputType::KIT).to_be_true();
+		expect(getCurrentOutputType()).to_equal(OutputType::KIT);
 
 		setRootUILowLevel(&instrumentClipView);
 
@@ -1840,7 +1840,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		UiStackGuard ui_guard;
 		StemExportGuard stem_guard;
 		spec::SongFixture song = spec::make_synth_song();
-		expect(getCurrentOutputType() == OutputType::SYNTH).to_be_true();
+		expect(getCurrentOutputType()).to_equal(OutputType::SYNTH);
 
 		setRootUILowLevel(&instrumentClipView);
 
@@ -1863,7 +1863,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		// (`gui/ui/ui.cpp:175-180`), which is legacy's "during song load / swap" (`:94`).
 		// `nullifyUIs()` (`:257-261`) is how legacy itself gets there.
 		nullifyUIs();
-		expect(getRootUI() == nullptr).to_be_true();
+		expect(getRootUI()).to_be_null();
 		expect(chosen_stem_export_type()).to_equal(-1);
 	});
 
@@ -1886,7 +1886,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 			control.shell.tick(5);
 			control.enter(10);
 			control.shell.tick(20);
-			expect(scene().take_action().action == MenuAction::StartStemExport).to_be_true();
+			expect(scene().take_action().action).to_equal(MenuAction::StartStemExport);
 		}
 
 		Rig r;
@@ -1948,7 +1948,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 			shellHostUI.shell().tick(20);
 
 			expect(shellHostUI.shell().stack().depth()).to_equal(size_t(1));
-			expect(scene().take_action().action == MenuAction::StartStemExport).to_be_true();
+			expect(scene().take_action().action).to_equal(MenuAction::StartStemExport);
 		}
 
 		GlobalGuestGuard guest_guard;
@@ -2060,7 +2060,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 
 			expect(f.clip->loopLength()).to_equal(seeded);
 			expect(static_cast<int>(control_display.recorder.popups.size())).to_equal(0);
-			expect(scene().take_action().action == MenuAction::SetClipLengthToSampleLength).to_be_true();
+			expect(scene().take_action().action).to_equal(MenuAction::SetClipLengthToSampleLength);
 		}
 
 		DisplayGuard display_guard;
@@ -2080,7 +2080,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		const int32_t from_sample = f.clip->sampleHolder.getLoopLengthAtSystemSampleRate(true);
 		// ...and the two differ, which is what stops the assertion below passing on a no-op. Without
 		// the tempo `seat_audio_clip_with_sample` writes, this is the line that goes red.
-		expect(from_sample == seeded).to_be_false();
+		expect(from_sample).not_().to_equal(seeded);
 
 		expect(press_child_leaving_request(r, nodes::audio_clip_actions, nodes::set_clip_length)).to_be_true();
 		deluge::gui::ui::dispatchShellActions();
@@ -2121,7 +2121,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 
 			expect(static_cast<int>(currentUIMode)).to_equal(static_cast<int>(UI_MODE_NONE));
 			expect(isUIOpen(&deluge::gui::context_menu::midiLearnMode)).to_be_false();
-			expect(scene().take_action().action == MenuAction::OpenSongMidiLearn).to_be_true();
+			expect(scene().take_action().action).to_equal(MenuAction::OpenSongMidiLearn);
 		}
 
 		Rig r;
@@ -2155,9 +2155,9 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 			control.song.song->persistentView.sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
 			expect(press_child_leaving_request(control, nodes::root_song, nodes::configure_song_macros)).to_be_true();
 
-			expect(currentSong->persistentView.sessionLayout == SessionLayoutType::SessionLayoutTypeRows).to_be_true();
+			expect(currentSong->persistentView.sessionLayout).to_equal(SessionLayoutType::SessionLayoutTypeRows);
 			expect(isUIOpen(&deluge::gui::context_menu::configureSongMacros)).to_be_false();
-			expect(scene().take_action().action == MenuAction::OpenSongMacros).to_be_true();
+			expect(scene().take_action().action).to_equal(MenuAction::OpenSongMacros);
 		}
 
 		Rig r;
@@ -2174,7 +2174,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		// whose one write to state this spec can read is
 		// `currentSong->persistentView.sessionLayout = ...Grid` (`:3062`). Its other two writes,
 		// `previousLayout` and `gridModeActive`, are private members of `SessionView`.
-		expect(currentSong->persistentView.sessionLayout == SessionLayoutType::SessionLayoutTypeGrid).to_be_true();
+		expect(currentSong->persistentView.sessionLayout).to_equal(SessionLayoutType::SessionLayoutTypeGrid);
 		// `configure_macros.h:29`.
 		expect(isUIOpen(&deluge::gui::context_menu::configureSongMacros)).to_be_true();
 		expect(scene().take_action().engaged()).to_be_false();
@@ -2209,7 +2209,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 			spec::SongFixture control_song = spec::make_synth_song();
 			setRootUILowLevel(&sessionView);
 			expect(open_global_guest_on_ui_stack(nodes::perform_editor, control_song)).to_be_true();
-			expect(getCurrentUI() == &shellHostUI).to_be_true();
+			expect(getCurrentUI()).to_equal(&shellHostUI);
 
 			// Cleared right before the tick, so the only thing that can set it is `rearmTimer`:
 			// `opened()` and every input hook arm it too, through `armTickSoon`
@@ -2217,7 +2217,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 			uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 			(void)shellHostUI.timerCallback();
 
-			expect(getCurrentUI() == &shellHostUI).to_be_true(); // nothing was opened over it
+			expect(getCurrentUI()).to_equal(&shellHostUI); // nothing was opened over it
 			expect(uiTimerManager.isTimerSet(TimerName::UI_SPECIFIC)).to_be_true();
 			(void)scene().take_action();
 		}
@@ -2244,7 +2244,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		expect(isUIOpen(&performanceView)).to_be_true();
 		// ...and the view, not the guest, is who `TimerName::UI_SPECIFIC` would now be delivered to.
 		// This is the guard's exact predicate, asserted rather than assumed.
-		expect(getCurrentUI() == &performanceView).to_be_true();
+		expect(getCurrentUI()).to_equal(&performanceView);
 
 		expect(uiTimerManager.isTimerSet(TimerName::UI_SPECIFIC)).to_be_false();
 
@@ -2419,7 +2419,7 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 		expect(performanceView.editingParam).to_be_false();
 		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
 		// ...and it really was the exit branch, not the cycle branch above it.
-		expect(getRootUI() == &sessionView).to_be_true();
+		expect(getRootUI()).to_equal(&sessionView);
 	});
 
 	it("releasing KEYBOARD after the hold time syncs the mirror, through releaseViewOnExit", _ {
@@ -2442,7 +2442,7 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 		expect(performanceView.defaultEditingMode).to_be_false();
 		expect(performanceView.editingParam).to_be_false();
 		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
-		expect(getRootUI() == &sessionView).to_be_true();
+		expect(getRootUI()).to_equal(&sessionView);
 	});
 
 	it("a grid mode pad syncs the mirror, through releaseViewOnExit", _ {
@@ -2473,7 +2473,7 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 		expect(performanceView.defaultEditingMode).to_be_false();
 		expect(performanceView.editingParam).to_be_false();
 		expect(mirror_and_view()).to_equal(both_at(PerformanceEditingMode::DISABLED));
-		expect(getRootUI() == &sessionView).to_be_true();
+		expect(getRootUI()).to_equal(&sessionView);
 	});
 });
 
@@ -2491,24 +2491,24 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		};
 		scene().request_action(MenuActionRequest{});
 		nodes::set_default_pad_brightness(ctx, 100);
-		expect(filed() == MenuAction::PadBrightnessChanged).to_be_true();
+		expect(filed()).to_equal(MenuAction::PadBrightnessChanged);
 		nodes::set_default_menu_highlighting(ctx, static_cast<int32_t>(MenuHighlighting::FULL_INVERSION));
-		expect(filed() == MenuAction::HighlightingChanged).to_be_true();
+		expect(filed()).to_equal(MenuAction::HighlightingChanged);
 		nodes::set_rounded_corners(ctx, 0);
-		expect(filed() == MenuAction::RoundedCornersChanged).to_be_true();
+		expect(filed()).to_equal(MenuAction::RoundedCornersChanged);
 		nodes::set_rounded_corners(ctx, 1);
-		expect(filed() == MenuAction::RoundedCornersChanged).to_be_true();
+		expect(filed()).to_equal(MenuAction::RoundedCornersChanged);
 		nodes::set_shift_is_sticky(ctx, 0);
-		expect(filed() == MenuAction::ShiftStickyChanged).to_be_true();
+		expect(filed()).to_equal(MenuAction::ShiftStickyChanged);
 		nodes::set_shift_is_sticky(ctx, 1);
-		expect(filed() == MenuAction::ShiftStickyChanged).to_be_true();
+		expect(filed()).to_equal(MenuAction::ShiftStickyChanged);
 		PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
 		nodes::set_flash_status(ctx, FLASH_CURSOR_FAST);
-		expect(filed() == MenuAction::FlashStatusLeftSlow).to_be_true();
+		expect(filed()).to_equal(MenuAction::FlashStatusLeftSlow);
 		nodes::set_flash_status(ctx, FLASH_CURSOR_OFF);
-		expect(filed() == MenuAction::FlashStatusLeftSlow).to_be_false();
+		expect(filed()).not_().to_equal(MenuAction::FlashStatusLeftSlow);
 		nodes::pad_colour_set(0, 3);
-		expect(filed() == MenuAction::PadColoursChanged).to_be_true();
+		expect(filed()).to_equal(MenuAction::PadColoursChanged);
 	});
 
 	it("closing the guest on the settings menu saves the settings, as SoundEditor::exitCompletely does", _ {
@@ -2524,7 +2524,7 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		deluge::gui::ui::saveSettingsBeforeClose();
 		FlashStorage::accessibilityMenuHighlighting = MenuHighlighting::FULL_INVERSION;
 		FlashStorage::readSettings(); // erased flash: the defaults, not what was set
-		expect(FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION).to_be_false();
+		expect(FlashStorage::accessibilityMenuHighlighting).not_().to_equal(MenuHighlighting::NO_INVERSION);
 
 		deluge::scenes::spec::GlobalGuestGuard::empty_guest_stack();
 		expect(deluge::scenes::spec::open_menu_on_global_guest_at(fx, menu::MenuContext::Root::Settings)).to_be_true();
@@ -2532,7 +2532,7 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		deluge::gui::ui::saveSettingsBeforeClose();
 		FlashStorage::accessibilityMenuHighlighting = MenuHighlighting::FULL_INVERSION;
 		FlashStorage::readSettings();
-		expect(FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION).to_be_true();
+		expect(FlashStorage::accessibilityMenuHighlighting).to_equal(MenuHighlighting::NO_INVERSION);
 		FlashStorage::accessibilityMenuHighlighting = was;
 	});
 
@@ -2540,8 +2540,8 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 		const MenuHighlighting was = FlashStorage::accessibilityMenuHighlighting;
 		FlashStorage::accessibilityMenuHighlighting = MenuHighlighting::NO_INVERSION;
 		deluge::gui::ui::pushShellHighlighting();
-		expect(shellHostUI.shell().surfaces().oled()[0].style->highlighting == deluge::ui::Highlighting::NoInversion)
-		    .to_be_true();
+		expect(shellHostUI.shell().surfaces().oled()[0].style->highlighting)
+		    .to_equal(deluge::ui::Highlighting::NoInversion);
 		FlashStorage::accessibilityMenuHighlighting = was;
 		deluge::gui::ui::pushShellHighlighting();
 	});
@@ -2631,7 +2631,7 @@ describe menu_action_reference_rows("scenes::menu actions: the reference rows", 
 	it("parses menu_actions.tsv clean and asks every row of it", _ {
 		spec::OracleTable& t = table();
 		expect(t.problems().size()).to_equal(size_t{0});
-		expect(t.size() > size_t{4}).to_be_true();
+		expect(t.size()).to_be_greater_than(size_t{4});
 		expect(t.unasked()).to_equal(std::string{});
 	});
 });

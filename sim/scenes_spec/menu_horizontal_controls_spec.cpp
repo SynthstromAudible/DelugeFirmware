@@ -60,6 +60,8 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <iterator>
+#include <ranges>
 #include <span>
 #include <string>
 #include <vector>
@@ -82,6 +84,11 @@ using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
 namespace {
+
+/// @brief A function pointer as an address, so a failed comparison prints where it points rather than `1`.
+const void* address_of(auto* fn) {
+	return reinterpret_cast<const void*>(fn);
+}
 
 using deluge::scenes::spec::NoNotificationSink;
 
@@ -638,8 +645,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 				badges += slot.art.badge;
 			}
 		}
-		expect(badges.find('A') != std::string::npos).to_be_true();
-		expect(badges.find('S') != std::string::npos).to_be_true();
+		expect(badges).to_contain('A');
+		expect(badges).to_contain('S');
 		menu::present_column(menu::nodes::osc0_type, ctx, 0, slot, col); // sine
 		expect(static_cast<int>(slot.art.badge)).to_equal(0);
 	});
@@ -653,9 +660,9 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		deluge::ui::oled::Column col;
 		menu::present_column(menu::nodes::stutter_direction, ctx, 0, slot, col);
 		expect(std::string(slot.art.text)).to_equal(std::string("song"));
-		expect(slot.art.icon == nullptr).to_be_true();
+		expect(slot.art.icon).to_be_null();
 		menu::present_column(menu::nodes::stutter_direction, ctx, 2, slot, col); // reversed
-		expect(slot.art.icon == &deluge::gfx::oled::icons::direction).to_be_true();
+		expect(slot.art.icon).to_equal(&deluge::gfx::oled::icons::direction);
 		expect(slot.art.reversed).to_be_true();
 		expect(slot.art.dots).to_be_false();
 		menu::present_column(menu::nodes::stutter_direction, ctx, 3, slot, col); // forward ping-pong
@@ -674,14 +681,14 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		menu::ColumnSlot slot;
 		deluge::ui::oled::Column col;
 		menu::present_column(menu::nodes::sequence_direction, ctx, 1, slot, col); // reverse
-		expect(col.render == deluge::ui::oled::art_column).to_be_true();
-		expect(slot.art.icon == &deluge::gfx::oled::icons::direction).to_be_true();
+		expect(address_of(col.render)).to_equal(address_of(deluge::ui::oled::art_column));
+		expect(slot.art.icon).to_equal(&deluge::gfx::oled::icons::direction);
 		expect(slot.art.reversed).to_be_true();
 		menu::present_column(menu::nodes::sequence_direction, ctx, 2, slot, col); // ping-pong
 		expect(static_cast<int>(slot.art.twin_dx)).to_equal(2);
 		slot = {};
 		menu::present_column(menu::nodes::sequence_direction, ctx, 3, slot, col); // obey parent: the option text
-		expect(col.render == deluge::ui::oled::art_column).to_be_false();
+		expect(address_of(col.render)).not_().to_equal(address_of(deluge::ui::oled::art_column));
 	});
 
 	it("the rhythm columns space main's pattern, zero as X, the MIDI/CV one a pixel left", _ {
@@ -693,7 +700,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		menu::ColumnSlot slot;
 		deluge::ui::oled::Column col;
 		menu::present_column(menu::nodes::arp_rhythm, ctx, 5, slot, col);
-		expect(col.render == deluge::ui::oled::art_column).to_be_true();
+		expect(address_of(col.render)).to_equal(address_of(deluge::ui::oled::art_column));
 		expect(std::string(slot.art.text)).to_equal(std::string(arpRhythmPatternNames[5]));
 		expect(static_cast<int>(slot.art.char_gap)).to_equal(2);
 		expect(slot.art.zero_as_x).to_be_true();
@@ -747,7 +754,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		menu::bindings::write(menu::nodes::stutter_rate, ctx, 25);
 		menu_scene().open(menu::nodes::stutter, ctx);
 		r.shell.tick(0);
-		expect(menu_scene().focused_value() == &menu::nodes::stutter_rate).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&menu::nodes::stutter_rate);
 		r.turn(1, 300);
 		r.shell.tick(310);
 		r.shell.tick(400);
@@ -762,7 +769,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.shell.tick(2000);
 		r.enter(2300);
 		r.shell.tick(2310);
-		expect(menu_scene().focused() == &menu::nodes::stutter_rate).to_be_true();
+		expect(menu_scene().focused()).to_equal(&menu::nodes::stutter_rate);
 		r.turn(-1, 2600);
 		r.shell.tick(2610);
 		r.shell.tick(2700);
@@ -798,19 +805,19 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 			return col.render == deluge::ui::oled::draw_column;
 		};
 		expect(drawn(menu::nodes::portamento, 20)).to_be_true();
-		expect(slot.draw.shape == Shape::Glide).to_be_true();
+		expect(slot.draw.shape).to_equal(Shape::Glide);
 		expect(slot.draw.norm).to_equal(0.4f);
 		expect(drawn(menu::nodes::unison_detune, 10)).to_be_true();
-		expect(slot.draw.shape == Shape::Detune).to_be_true();
+		expect(slot.draw.shape).to_equal(Shape::Detune);
 		expect(slot.draw.norm).to_equal(0.2f);
 		for (const Node* pw : {&menu::nodes::osc0_pulse_width, &menu::nodes::osc1_pulse_width}) {
 			expect(drawn(*pw, 31)).to_be_true();
-			expect(slot.draw.shape == Shape::PulseWidth).to_be_true();
+			expect(slot.draw.shape).to_equal(Shape::PulseWidth);
 			expect(static_cast<int>(slot.draw.raw)).to_equal(31);
 		}
 		for (const Node* amount : {&menu::nodes::delay_amount, &menu::nodes::global_delay_amount}) {
 			expect(drawn(*amount, 30)).to_be_true();
-			expect(slot.draw.shape == Shape::DelayAmount).to_be_true();
+			expect(slot.draw.shape).to_equal(Shape::DelayAmount);
 			expect(static_cast<int>(slot.draw.raw)).to_equal(30);
 		}
 	});
@@ -826,9 +833,9 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		menu::ColumnSlot slot;
 		deluge::ui::oled::Column col;
 		menu::present_column(menu::nodes::filter_routing, menu_scene().menu_context(), 0, slot, col);
-		expect(col.render == menu::option_list_column).to_be_true();
+		expect(address_of(col.render)).to_equal(address_of(menu::option_list_column));
 		menu::present_column(menu::nodes::mod_fx_type, menu_scene().menu_context(), 0, slot, col);
-		expect(col.render == menu::option_list_column).to_be_true();
+		expect(address_of(col.render)).to_equal(address_of(menu::option_list_column));
 
 		deluge::ui::test::Rig48 rig48;
 		rig48.begin_tick(100);
@@ -859,26 +866,26 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 			return col.render == deluge::ui::oled::draw_column;
 		};
 		expect(drawn(menu::nodes::sample0_recorder)).to_be_true();
-		expect(slot.draw.shape == Shape::Recorder).to_be_true();
+		expect(slot.draw.shape).to_equal(Shape::Recorder);
 		expect(static_cast<int>(slot.draw.raw)).to_equal(0);
 		expect(drawn(menu::nodes::sample1_recorder)).to_be_true();
 		expect(static_cast<int>(slot.draw.raw)).to_equal(1);
 
 		const std::string end3 = std::string(deluge::l10n::get(String::STRING_FOR_END_POINT)).substr(0, 3);
 		expect(drawn(menu::nodes::sample0_start)).to_be_true();
-		expect(slot.draw.shape == Shape::LoopStart).to_be_true();
+		expect(slot.draw.shape).to_equal(Shape::LoopStart);
 		expect(std::string(col.label)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_START_POINT_SHORT)));
 		expect(drawn(menu::nodes::sample1_end)).to_be_true();
-		expect(slot.draw.shape == Shape::LoopEnd).to_be_true();
+		expect(slot.draw.shape).to_equal(Shape::LoopEnd);
 		expect(std::string(col.label)).to_equal(end3);
 		expect(drawn(menu::nodes::audio_clip_waveform)).to_be_true();
-		expect(slot.draw.shape == Shape::ClipEnd).to_be_true();
+		expect(slot.draw.shape).to_equal(Shape::ClipEnd);
 		expect(std::string(col.label)).to_equal(end3);
 
 		slot = {};
 		menu::present_column(menu::nodes::file0_selector, ctx, 0, slot, col);
-		expect(col.render == deluge::ui::oled::art_column).to_be_true();
-		expect(slot.art.icon == &deluge::gfx::oled::icons::folderBig).to_be_true();
+		expect(address_of(col.render)).to_equal(address_of(deluge::ui::oled::art_column));
+		expect(slot.art.icon).to_equal(&deluge::gfx::oled::icons::folderBig);
 		expect(static_cast<int>(slot.art.dy)).to_equal(-3);
 
 		// `FileSelector::getLastFolderFromPath` (`file_selector.cpp:114-129`).
@@ -925,7 +932,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.shell.tick(310);
 		r.enter(5000);
 		r.shell.tick(5010);
-		expect(menu_scene().focused() == &menu::nodes::comp_attack).to_be_true();
+		expect(menu_scene().focused()).to_equal(&menu::nodes::comp_attack);
 		const int32_t before = menu::bindings::read(menu::nodes::comp_attack, ctx);
 		r.turn(1, 5300);
 		r.shell.tick(5310);
@@ -1035,7 +1042,10 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(menu::nodes::voice_usage.fixed_columns).to_be_true();
 		const auto& kids = menu::nodes::kSettingsRootChildren;
 		const auto at = std::ranges::find(kids, &menu::nodes::voice_usage);
-		expect(at != std::ranges::end(kids) && *(at + 1) == &menu::nodes::firmware_version).to_be_true();
+		expect(at).not_().to_equal(std::ranges::end(kids));
+		if (at != std::ranges::end(kids)) {
+			expect(*(at + 1)).to_equal(&menu::nodes::firmware_version);
+		}
 	});
 
 	it("with HorizontalMenus off a voice usage counter opened as a leaf keeps sampling every 500 ms", _ {
@@ -1052,7 +1062,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.enter(100);
 		r.shell.tick(110);
 		r.shell.tick(120);
-		expect(menu_scene().focused() == &menu::nodes::voice_usage_live).to_be_true();
+		expect(menu_scene().focused()).to_equal(&menu::nodes::voice_usage_live);
 		expect(static_cast<int>(menu_scene().voice_usage().samples())).to_equal(2); // the counter's own, no reset
 		expect(menu_scene().next_timer().has_value()).to_be_true();
 		expect(menu_scene().timer_repaints().oled).to_be_true();
@@ -1350,7 +1360,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
 		expect(static_cast<int>(menu_scene().state().depth)).to_equal(1);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
-		expect(menu_scene().focused() == &session_plain_col).to_be_true();
+		expect(menu_scene().focused()).to_equal(&session_plain_col);
 	});
 
 	it("the VIBRATO column spells its strength in the column face; DUCK draws the ducking meter over +/-50.00", _ {
@@ -1363,7 +1373,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		menu::ColumnSlot slot{};
 		deluge::ui::oled::Column col{};
 		menu::present_column(menu::nodes::vibrato, ctx, 0, slot, col);
-		expect(col.render == deluge::ui::oled::text_column).to_be_true();
+		expect(address_of(col.render)).to_equal(address_of(deluge::ui::oled::text_column));
 		expect(std::string(slot.text.value)).to_equal(std::string("0.00"));
 		menu::present_column(menu::nodes::vibrato, ctx, -50, slot, col);
 		expect(std::string(slot.text.value)).to_equal(std::string("-0.50"));
@@ -1371,8 +1381,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(std::string(slot.text.value)).to_equal(std::string("-10"));
 		menu::ColumnSlot duck{};
 		menu::present_column(menu::nodes::sidechain_volume, ctx, 2500, duck, col);
-		expect(col.render == deluge::ui::oled::meter_column).to_be_true();
-		expect(duck.meter.hint == deluge::ui::oled::Hint::Ducking).to_be_true();
+		expect(address_of(col.render)).to_equal(address_of(deluge::ui::oled::meter_column));
+		expect(duck.meter.hint).to_equal(deluge::ui::oled::Hint::Ducking);
 		expect(duck.meter.raw).to_equal(2500);
 		expect(duck.meter.raw_max).to_equal(5000);
 	});
@@ -1390,13 +1400,13 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.shell.tick(100);
 		r.enter(500);
 		r.shell.tick(600);
-		expect(menu_scene().focused() == &menu::nodes::vibrato).to_be_true();
+		expect(menu_scene().focused()).to_equal(&menu::nodes::vibrato);
 		expect(depth_of()).to_equal(1);
 		expect(static_cast<int>(menu_scene().state().walk.patch_source))
 		    .to_equal(static_cast<int>(PatchSource::LFO_GLOBAL_1));
 		r.enter(700);
 		r.shell.tick(800);
-		expect(menu_scene().focused() == &menu::nodes::source_selection_range).to_be_true();
+		expect(menu_scene().focused()).to_equal(&menu::nodes::source_selection_range);
 	});
 
 	it("a select on the SIDECHAIN page's DUCK column opens its strength page", _ {
@@ -1409,7 +1419,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.shell.tick(100);
 		r.enter(500);
 		r.shell.tick(600);
-		expect(menu_scene().focused() == &menu::nodes::sidechain_volume).to_be_true();
+		expect(menu_scene().focused()).to_equal(&menu::nodes::sidechain_volume);
 		expect(depth_of()).to_equal(1);
 		expect(static_cast<int>(menu_scene().state().walk.patch_source))
 		    .to_equal(static_cast<int>(PatchSource::SIDECHAIN));
@@ -1482,12 +1492,10 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		select_language();
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
-		expect(menu::nodes::sample0_reverse.bind.reverse_in_horizontal != nullptr
-		       && menu::nodes::sample0_reverse.bind.reverse_in_horizontal(ctx))
-		    .to_be_true();
-		expect(menu::nodes::audio_clip_reverse.bind.reverse_in_horizontal != nullptr
-		       && menu::nodes::audio_clip_reverse.bind.reverse_in_horizontal(ctx))
-		    .to_be_true();
+		expect(menu::nodes::sample0_reverse.bind.reverse_in_horizontal).not_().to_be_null();
+		expect(menu::nodes::sample0_reverse.bind.reverse_in_horizontal(ctx)).to_be_true();
+		expect(menu::nodes::audio_clip_reverse.bind.reverse_in_horizontal).not_().to_be_null();
+		expect(menu::nodes::audio_clip_reverse.bind.reverse_in_horizontal(ctx)).to_be_true();
 		expect(menu::nodes::osc0_type.bind.wrap_in_horizontal).to_be_true();
 	});
 
@@ -1502,7 +1510,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		menu::bindings::write(menu::nodes::osc0_type, ctx, range.max);
 		menu_scene().open(menu::nodes::source0, ctx);
 		r.shell.tick(0);
-		expect(menu_scene().focused_value() == &menu::nodes::osc0_type).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&menu::nodes::osc0_type);
 		r.turn(1, 300);
 		r.shell.tick(310);
 		r.shell.tick(400);
@@ -1539,7 +1547,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.shell.tick(310);
 		r.enter(400);
 		r.shell.tick(410);
-		expect(menu_scene().focused() == &menu::nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused()).to_equal(&menu::nodes::lpf_freq);
 
 		deluge::ui::test::Rig48 rig48;
 		rig48.begin_tick(500);
@@ -1578,7 +1586,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 			const uint8_t d = menu_scene().state().depth;
 			vertical_cursor = menu_scene().state().list[d].cursor;
 		}
-		expect(vertical_cursor > 0).to_be_true(); // the fixture's synth patches a source to the LPF frequency
+		expect(vertical_cursor).to_be_greater_than(0); // the fixture's synth patches a source to the LPF frequency
 
 		Rig r;
 		(void)r.open_real(menu::nodes::lpf);
@@ -1623,7 +1631,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 			r.shell.tick(0);
 			r.enter(300);
 			r.shell.tick(310);
-			expect(menu_scene().focused() == &menu::nodes::stutter_rate).to_be_true();
+			expect(menu_scene().focused()).to_equal(&menu::nodes::stutter_rate);
 			deluge::ui::test::Rig48 rig48;
 			rig48.begin_tick(400);
 			menu_scene().render_oled(uitest::SurfaceRole::Main, rig48.frame);
@@ -1663,9 +1671,9 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		MenuContext ctx = r.open(horiz_page);
 		ctx.horizontal_menus = false;
-		expect(menu::shortcut_landing_page(ctx, menu::nodes::lpf_freq) == nullptr).to_be_true();
+		expect(menu::shortcut_landing_page(ctx, menu::nodes::lpf_freq)).to_be_null();
 		ctx.horizontal_menus = true;
-		expect(menu::shortcut_landing_page(ctx, menu::nodes::lpf_freq) == &menu::nodes::filters_group).to_be_true();
+		expect(menu::shortcut_landing_page(ctx, menu::nodes::lpf_freq)).to_equal(&menu::nodes::filters_group);
 	});
 
 	it("reads HorizontalMenus at each open, not once", _ {
@@ -1684,11 +1692,11 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `EqMenu::ensureCorrectItemsOrderAndGetValues` (`eq/eq_menu.h:120-160`): bass, bass frequency, treble frequency,
 		// treble -- the order of the graph's four handles left to right.
 		expect(menu::nodes::eq.children.size()).to_equal(size_t{4});
-		expect(menu::nodes::eq.children[0] == &menu::nodes::eq_bass).to_be_true();
-		expect(menu::nodes::eq.children[1] == &menu::nodes::eq_bass_freq).to_be_true();
-		expect(menu::nodes::eq.children[2] == &menu::nodes::eq_treble_freq).to_be_true();
-		expect(menu::nodes::eq.children[3] == &menu::nodes::eq_treble).to_be_true();
-		expect(menu::nodes::eq.page_draw != nullptr).to_be_true();
+		expect(menu::nodes::eq.children[0]).to_equal(&menu::nodes::eq_bass);
+		expect(menu::nodes::eq.children[1]).to_equal(&menu::nodes::eq_bass_freq);
+		expect(menu::nodes::eq.children[2]).to_equal(&menu::nodes::eq_treble_freq);
+		expect(menu::nodes::eq.children[3]).to_equal(&menu::nodes::eq_treble);
+		expect(menu::nodes::eq.page_draw).not_().to_be_null();
 	});
 
 	it("the envelope group pages ENV1..ENV4 as 1/4..4/4, each drawn as main's envelope graph", _ {
@@ -1698,7 +1706,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		(void)r.open_real(menu::nodes::env_group);
 		r.shell.tick(0);
 		expect(static_cast<int>(menu_scene().horizontal_paging().total_pages)).to_equal(4);
-		expect(menu::nodes::env1.page_draw != nullptr).to_be_true();
+		expect(menu::nodes::env1.page_draw).not_().to_be_null();
 		r.press(kCrossScreenX, kCrossScreenY, 300);
 		r.shell.tick(400);
 		expect(static_cast<int>(menu_scene().horizontal_paging().page)).to_equal(1);
@@ -1715,14 +1723,14 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		const Node* listed[menu::kMaxDynamicChildren];
 		const size_t columns = menu::bindings::listed_children(menu::nodes::source_group, menu_scene().menu_context(),
 		                                                       listed, menu::bindings::ListFor::Columns);
-		expect(columns > 16).to_be_true();
+		expect(columns).to_be_greater_than(16);
 
 		// A shortcut to the last column lands on it (`focusChild` over every member, `HorizontalMenuGroup::focusChild`).
 		const Node* last = listed[columns - 1];
 		const uint16_t arg = menu_scene().arm_shortcut_landing(*last);
 		r.shell.init(SceneId{SceneKind::FirstApp, arg});
 		r.shell.tick(0);
-		expect(menu_scene().focused_value() == last).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(last);
 
 		const auto pages_of = [&r](const Node& page) {
 			menu_scene().open(page, menu_scene().menu_context());
@@ -1794,8 +1802,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		menu::ColumnSlot slot;
 		deluge::ui::oled::Column col;
 		menu::present_column(menu::nodes::lpf_freq, ctx, 25, slot, col);
-		expect(col.render == deluge::ui::oled::draw_column).to_be_true();
-		expect(slot.draw.shape == deluge::ui::oled::DrawColumn::Shape::FilterGraph).to_be_true();
+		expect(address_of(col.render)).to_equal(address_of(deluge::ui::oled::draw_column));
+		expect(slot.draw.shape).to_equal(deluge::ui::oled::DrawColumn::Shape::FilterGraph);
 		expect(static_cast<int>(col.span_next)).to_equal(1);
 		expect(slot.draw.filter.freq_raw).to_equal(25);
 		expect(slot.draw.filter.hpf).to_be_false();
@@ -1811,12 +1819,12 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		menu::bindings::write(menu::nodes::lpf_mode, ctx, 1); // 24 dB ladder
 		menu::present_column(menu::nodes::lpf_morph, ctx, 20, slot, col);
 		expect(std::string(col.label)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_DRIVE)));
-		expect(col.render == deluge::ui::oled::meter_column).to_be_true();
+		expect(address_of(col.render)).to_equal(address_of(deluge::ui::oled::meter_column));
 		menu::bindings::write(menu::nodes::lpf_mode, ctx, 3); // SVF band
 		menu::present_column(menu::nodes::lpf_morph, ctx, 20, slot, col);
 		expect(std::string(col.label)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_MORPH_SHORT)));
-		expect(col.render == deluge::ui::oled::draw_column).to_be_true();
-		expect(slot.draw.shape == deluge::ui::oled::DrawColumn::Shape::Slider).to_be_true();
+		expect(address_of(col.render)).to_equal(address_of(deluge::ui::oled::draw_column));
+		expect(slot.draw.shape).to_equal(deluge::ui::oled::DrawColumn::Shape::Slider);
 		expect(slot.draw.norm).to_equal(20.f / 50.f);
 	});
 
@@ -2065,14 +2073,14 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.shell.tick(110); // pump_input raises the notice (queued, not yet drained --
 		                   // `Shell::tick` drains what a PRIOR tick queued)
 		r.shell.tick(120); // this tick's step 2 drains it, pushing `SceneKind::Notification` (no sink)
-		expect(r.shell.state_lines().find("scene Notification") != std::string::npos).to_be_true();
-		expect(r.shell.state_lines().find("scene Console") != std::string::npos).to_be_false();
+		expect(r.shell.state_lines()).to_contain("scene Notification");
+		expect(r.shell.state_lines()).not_().to_contain("scene Console");
 
 		r.button(kBackX, kBackY, true, 200);
 		r.button(kBackX, kBackY, false, 220);
 		r.shell.tick(230); // pump_input runs the depth-0 Back arm, queuing `CancelNotification`
 		r.shell.tick(240); // this tick's step 2 drains it, removing `SceneKind::Notification`
-		expect(r.shell.state_lines().find("scene Notification") != std::string::npos).to_be_false();
+		expect(r.shell.state_lines()).not_().to_contain("scene Notification");
 	});
 
 	it("an unrelated Console notice survives a menu cancel", _ {
@@ -2091,19 +2099,19 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		(void)deluge::notify::notice_text("UNRELATED", deluge::notify::Notice::Kind::Console);
 		r.shell.tick(50); // queues it
 		r.shell.tick(60); // drains it -- pushes `SceneKind::Console`
-		expect(r.shell.state_lines().find("scene Console") != std::string::npos).to_be_true();
+		expect(r.shell.state_lines()).to_contain("scene Console");
 
 		r.turn(1, 100); // the menu's own notification
 		r.shell.tick(110);
 		r.shell.tick(120);
-		expect(r.shell.state_lines().find("scene Notification") != std::string::npos).to_be_true();
+		expect(r.shell.state_lines()).to_contain("scene Notification");
 
 		r.button(kBackX, kBackY, true, 200);
 		r.button(kBackX, kBackY, false, 220);
 		r.shell.tick(230); // queues `CancelNotification`
 		r.shell.tick(240); // drains it -- the banner goes, "UNRELATED" does not
-		expect(r.shell.state_lines().find("scene Notification") != std::string::npos).to_be_false();
-		expect(r.shell.state_lines().find("scene Console") != std::string::npos).to_be_true();
+		expect(r.shell.state_lines()).not_().to_contain("scene Notification");
+		expect(r.shell.state_lines()).to_contain("scene Console");
 	});
 
 	it("two navigation presses inside 140 ms: the second is ignored", _ {
@@ -2160,10 +2168,10 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.button(kShiftX, kShiftY, true, 250);
 		r.press(kCrossScreenX, kCrossScreenY, 300);
 		r.shell.tick(400);
-		expect(menu_scene().focused() == &menu::nodes::eq).to_be_true();
+		expect(menu_scene().focused()).to_equal(&menu::nodes::eq);
 		r.press(kScaleX, kScaleY, 600);
 		r.shell.tick(700);
-		expect(menu_scene().focused() == &menu::nodes::filters_group).to_be_true();
+		expect(menu_scene().focused()).to_equal(&menu::nodes::filters_group);
 		r.button(kShiftX, kShiftY, false, 800);
 	});
 
@@ -2179,7 +2187,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.press(kCrossScreenX, kCrossScreenY, 300);
 		r.shell.tick(400);
 		r.button(kShiftX, kShiftY, false, 450);
-		expect(menu_scene().focused() == &menu::nodes::mod_fx).to_be_true();
+		expect(menu_scene().focused()).to_equal(&menu::nodes::mod_fx);
 		expect(static_cast<int>(menu_scene().horizontal_paging().page)).to_equal(1);
 	});
 
@@ -2195,13 +2203,13 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.shell.tick(150);
 		r.enter(300);
 		r.shell.tick(400);
-		expect(menu_scene().focused() == &menu::nodes::filters_group).to_be_true();
+		expect(menu_scene().focused()).to_equal(&menu::nodes::filters_group);
 		expect(static_cast<int>(menu_scene().horizontal_paging().page)).to_equal(2);
 		r.button(kBackX, kBackY, true, 500);
 		r.shell.tick(510);
 		r.button(kBackX, kBackY, false, 520);
 		r.shell.tick(530);
-		expect(menu_scene().focused() == &menu::nodes::sound_filters).to_be_true();
+		expect(menu_scene().focused()).to_equal(&menu::nodes::sound_filters);
 	});
 
 	it("a select press on a value column follows its select_chain -- no notification either way",
@@ -2221,7 +2229,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.enter(500);
 		r.shell.tick(510);
 		expect(depth_of()).to_equal(1);
-		expect(menu_scene().focused() == &chain_target).to_be_true();
+		expect(menu_scene().focused()).to_equal(&chain_target);
 		expect(last_notice().empty()).to_be_true();
 
 		// Back to the page. Column focus at depth 0 is untouched by the descent -- `ascend()`
@@ -2258,7 +2266,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.enter(100);
 		r.shell.tick(110);
 		expect(depth_of()).to_equal(1);
-		expect(menu_scene().focused() == &stay_page).to_be_true();
+		expect(menu_scene().focused()).to_equal(&stay_page);
 		expect(static_cast<int>(menu_scene().state().columns[1].focused)).to_equal(0);
 
 		g_enum_col = 1;
@@ -2266,7 +2274,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.enter(300);
 		r.shell.tick(310);
 		expect(depth_of()).to_equal(1);
-		expect(menu_scene().focused() == &stay_page).to_be_true();
+		expect(menu_scene().focused()).to_equal(&stay_page);
 		expect(g_enum_col).to_equal(1);
 		expect(last_notice().empty()).to_be_true();
 	});
@@ -2303,13 +2311,13 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.enter(400);
 		r.shell.tick(410);
 		expect(depth_of()).to_equal(1);
-		expect(menu_scene().focused() == &stay_page).to_be_true();
+		expect(menu_scene().focused()).to_equal(&stay_page);
 
 		g_fallback_chain_open = true;
 		r.enter(500);
 		r.shell.tick(510);
 		expect(depth_of()).to_equal(2);
-		expect(menu_scene().focused() == &chain_target).to_be_true();
+		expect(menu_scene().focused()).to_equal(&chain_target);
 		r.button(kBackX, kBackY, true, 600);
 		r.button(kBackX, kBackY, false, 620);
 		r.shell.tick(630);
@@ -2466,7 +2474,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		const auto error = std::ranges::find_if(raised, [](const deluge::notify::Notice& n) {
 			return n.string_id == static_cast<uint16_t>(String::STRING_FOR_ERROR_INSUFFICIENT_RAM);
 		});
-		expect(error != raised.end()).to_be_true();
+		expect(std::ranges::distance(raised.begin(), error)).to_be_less_than(std::ranges::ssize(raised));
 		expect(std::any_of(error, raised.end(), [](const deluge::notify::Notice& n) {
 			return n.kind == deluge::notify::Notice::Kind::Notification;
 		})).to_be_true();

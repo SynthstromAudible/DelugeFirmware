@@ -106,7 +106,7 @@ describe menu_affect_entire("scenes::menu -- AFFECT ENTIRE in a kit row's menu",
 		menu_scene().set_affect_entire_hold(true);
 		k.shell.tick(10);
 		expect(declared(k.ae_led())).to_be_true();
-		expect(k.ae_led().rate == deluge::ui::BlinkRate::Fast).to_be_true();
+		expect(k.ae_led().rate).to_equal(deluge::ui::BlinkRate::Fast);
 		expect(menu::bindings::writes_whole_kit(menu_scene().menu_context())).to_be_true();
 		menu_scene().set_affect_entire_hold(false);
 		k.shell.tick(20);
@@ -134,7 +134,7 @@ describe menu_affect_entire("scenes::menu -- AFFECT ENTIRE in a kit row's menu",
 		KitMenu arp;
 		arp.open(nodes::arp); // the ARPEGGIATOR list, its cursor on MODE, a row that flips rather than entering
 		arp.shell.tick(0);
-		expect(menu_scene().focused() == &nodes::arp).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::arp);
 		expect(menu::uses_affect_entire(menu_scene().menu_context(), menu_scene().state())).to_be_true();
 	});
 
@@ -148,7 +148,7 @@ describe menu_affect_entire("scenes::menu -- AFFECT ENTIRE in a kit row's menu",
 		menu_scene().open(nodes::root_kit_global_fx, ctx);
 		k.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(nodes::lpf_freq)});
 		k.shell.tick(0);
-		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 		expect(menu_scene().takes_affect_entire()).to_be_false();
 	});
 });

@@ -183,7 +183,8 @@ describe menu_edited_guest("the ported menu marks the instrument it edits, as So
 		(void)spec::add_drum<SoundDrum>(fx);
 		activate(fx);
 		const menu::MenuContext ctx = spec::menu_context_at(fx, menu::MenuContext::Root::Drum);
-		expect(ctx.addresses.slot.has_value() && ctx.addresses.kit_output.has_value()).to_be_true();
+		expect(ctx.addresses.slot.has_value()).to_be_true();
+		expect(ctx.addresses.kit_output.has_value()).to_be_true();
 		expect(open_on_guest(nodes::delay_type, ctx)).to_be_true();
 		select_turn();
 		expect(fx.instrument->editedByUser).to_be_true();
@@ -200,7 +201,7 @@ describe menu_edited_guest("the ported menu marks the instrument it edits, as So
 		const menu::MenuContext ctx =
 		    menu::context_for(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, /*performance_view=*/false,
 		                      /*session_or_arranger_root=*/false, /*session_view_root=*/false, /*kit_global_fx=*/true);
-		expect(ctx.root == menu::MenuContext::Root::KitGlobalFx).to_be_true();
+		expect(ctx.root).to_equal(menu::MenuContext::Root::KitGlobalFx);
 		expect(ctx.addresses.slot.has_value()).to_be_false();
 		expect(open_on_guest(nodes::delay_type, ctx)).to_be_true();
 		select_turn();
@@ -263,8 +264,8 @@ describe menu_edited_guest("the ported menu marks the instrument it edits, as So
 		expect(open_on_guest(nodes::arp_mode, spec::menu_context_at(fx, menu::MenuContext::Root::Sound))).to_be_true();
 		select_turn();
 		auto* synth = static_cast<SoundInstrument*>(fx.instrument);
-		expect(fx.clip->arpSettings.mode != ArpMode::OFF).to_be_true();
-		expect(synth->defaultArpSettings.mode == fx.clip->arpSettings.mode).to_be_true();
+		expect(fx.clip->arpSettings.mode).not_().to_equal(ArpMode::OFF);
+		expect(synth->defaultArpSettings.mode).to_equal(fx.clip->arpSettings.mode);
 	});
 
 	it("keeps a synth edited only through the menu across a preset change: it hibernates, not deleted", _ {
@@ -279,7 +280,7 @@ describe menu_edited_guest("the ported menu marks the instrument it edits, as So
 		nullifyUIs();
 		Instrument* edited = fx.instrument;
 		fx.song->replaceInstrument(edited, loose_synth(*fx.song)); // `Song::replaceInstrument`, a preset scroll's
-		expect(fx.song->live.media.first_hibernating_instrument == edited).to_be_true();
+		expect(fx.song->live.media.first_hibernating_instrument).to_equal(edited);
 	});
 
 	it("deletes an unedited synth on a preset change, the control", _ {
@@ -292,7 +293,7 @@ describe menu_edited_guest("the ported menu marks the instrument it edits, as So
 		spec::GlobalGuestGuard::empty_guest_stack();
 		nullifyUIs();
 		fx.song->replaceInstrument(fx.instrument, loose_synth(*fx.song));
-		expect(fx.song->live.media.first_hibernating_instrument == nullptr).to_be_true();
+		expect(fx.song->live.media.first_hibernating_instrument).to_be_null();
 	});
 });
 describe menu_edited_rule("menu::select_turn_edits_instrument, MenuItem::selectEncoderActionEditsInstrument", $ {
@@ -312,17 +313,17 @@ describe menu_edited_rule("menu::select_turn_edits_instrument, MenuItem::selectE
 
 	it("answers false on a plain submenu, whatever row its cursor is on", _ {
 		const menu::MenuContext ctx{};
-		expect(menu::selected_child(ctx, on(plain_list, 1), plain_list) == &value_b).to_be_true();
+		expect(menu::selected_child(ctx, on(plain_list, 1), plain_list)).to_equal(&value_b);
 		expect(menu::select_turn_edits_instrument(ctx, on(plain_list, 1))).to_be_false();
 	});
 
 	it("asks a horizontal page's focused column", _ {
 		const menu::MenuContext ctx{};
-		expect(menu::selected_child(ctx, on(page, 0), page) == &value_a).to_be_true();
+		expect(menu::selected_child(ctx, on(page, 0), page)).to_equal(&value_a);
 		expect(menu::select_turn_edits_instrument(ctx, on(page, 0))).to_be_true();
-		expect(menu::selected_child(ctx, on(page, 1), page) == &plain_list).to_be_true();
+		expect(menu::selected_child(ctx, on(page, 1), page)).to_equal(&plain_list);
 		expect(menu::select_turn_edits_instrument(ctx, on(page, 1))).to_be_false(); // a plain submenu column
-		expect(menu::selected_child(ctx, on(page, 2), page) == &horizontal_column).to_be_true();
+		expect(menu::selected_child(ctx, on(page, 2), page)).to_equal(&horizontal_column);
 		expect(menu::select_turn_edits_instrument(ctx, on(page, 2))).to_be_true(); // its own current item, a value
 	});
 
@@ -338,7 +339,7 @@ describe menu_edited_rule("menu::select_turn_edits_instrument, MenuItem::selectE
 		expect(nested.empty()).to_be_false();
 		bool all_values = true;
 		for (const menu::Node* nested_page : nested) {
-			expect(nested_page->dynamic_children == nullptr).to_be_true();
+			expect(nested_page->dynamic_children).to_be_null();
 			for (const menu::Node* column : nested_page->children) {
 				all_values = all_values && menu::select_turn_edits_instrument(ctx, on(*column));
 			}
@@ -352,7 +353,7 @@ describe menu_edited_rule("menu::select_turn_edits_instrument, MenuItem::selectE
 		// The cursor and the column focus apart, so only the cursor's answer can pass: row 0 a value, column 1 not.
 		menu::MenuState st = on(page, 1);
 		st.list[0].cursor = 0;
-		expect(menu::selected_child(ctx, st, page) == &value_a).to_be_true();
+		expect(menu::selected_child(ctx, st, page)).to_equal(&value_a);
 		expect(menu::select_turn_edits_instrument(ctx, st)).to_be_true();
 		st.list[0].cursor = 1;
 		st.columns[0].focused = 0;
@@ -364,13 +365,13 @@ describe menu_edited_unlearn("MenuItemWithCCLearning::unlearnAction through the 
 		namespace params = deluge::modulation::params;
 		spec::SongFixture fx = spec::make_synth_song();
 		activate(fx);
-		expect(getCurrentInstrument() == fx.instrument).to_be_true();
+		expect(getCurrentInstrument()).to_equal(fx.instrument);
 		const deluge::project::OwnerParamTarget knob{
 		    {deluge::project::ControlsAddress::Kind::OUTPUT, *fx.instrument->id()},
 		    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::LOCAL_VOLUME),
 		                                    params::Kind::UNPATCHED_SOUND)};
 		deluge::edits::learnMappingFor(deluge::project::MidiCommand{.channel_or_zone = 1, .note_or_cc = 74}, knob);
-		expect(fx.song->project.mappings.find(knob) != nullptr).to_be_true();
+		expect(fx.song->project.mappings.find(knob)).not_().to_be_null();
 		fx.instrument->editedByUser = false;
 		expect(deluge::scenes::menu::host_write_sink().learn(knob, std::nullopt, std::nullopt)).to_be_true();
 		expect(fx.instrument->editedByUser).to_be_true();
@@ -381,7 +382,7 @@ describe menu_edited_unlearn("MenuItemWithCCLearning::unlearnAction through the 
 		// unlearns only a param's knob, so no Settings node may bind a param; one that did would need the gate.
 		std::set<const menu::Node*> seen;
 		collect_descendants(nodes::root_settings, seen);
-		expect(seen.size() > 1).to_be_true();
+		expect(seen.size()).to_be_greater_than(1);
 		bool any_param = false;
 		for (const menu::Node* node : seen) {
 			any_param = any_param || node->bind.param.valid();

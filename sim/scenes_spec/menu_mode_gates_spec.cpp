@@ -124,14 +124,14 @@ describe menu_mode_gates_horizontal("gui::ui::ShellHostUI::horizontalEncoderActi
 		spec::SongFixture fx = spec::make_synth_song();
 		seat_isomorphic(fx.clip);
 		expect(open_lpf_page_over(&keyboardScreen, fx.clip)).to_be_true();
-		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 		currentUIMode = UI_MODE_AUDITIONING;
 		(void)shellHostUI.horizontalEncoderAction(1);
 		expect(keyboard_scroll(fx.clip)).to_equal(61);
 		// The forward answers with the keyboard's own result, so the guest returns it and does not feed the menu.
 		const std::optional<ActionResult> taken = deluge::gui::ui::forwardMenuHorizontal(1, 0);
 		expect(taken.has_value()).to_be_true();
-		expect(taken.value_or(ActionResult::NOT_DEALT_WITH) == ActionResult::DEALT_WITH).to_be_true();
+		expect(taken.value_or(ActionResult::NOT_DEALT_WITH)).to_equal(ActionResult::DEALT_WITH);
 		expect(keyboard_scroll(fx.clip)).to_equal(62);
 	});
 
@@ -288,7 +288,7 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		// The turn writes flash byte 60, which the ported tables select on and the close then saves.
 		expect(static_cast<int>(FlashStorage::shortcutsVersion)).to_equal(FlashStorage::kShortcutsVersion1);
-		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V1).to_be_true();
+		expect(menu::shortcuts_version()).to_equal(menu::ShortcutsVersion::V1);
 		FlashStorage::shortcutsVersion = saved_byte;
 	});
 
@@ -312,12 +312,12 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 		});
 		// The BACK at the root closes the menu when it is routed; the long press then has nothing left to close.
 		(void)shellHostUI.buttonAction(deluge::hid::button::BACK, true);
-		expect(shellHostUI.exitUI() == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
+		expect(shellHostUI.exitUI()).to_equal(ActionResult::ACTIONED_AND_CAUSED_CHANGE);
 		(void)shellHostUI.buttonAction(deluge::hid::button::BACK, false);
 		deluge::gui::ui::ShellHostUI::setCloseHook(saved);
 		expect(closes).to_equal(1);
 		expect(isUIOpen(&shellHostUI)).to_be_false();
-		expect(getCurrentUI() == &instrumentClipView).to_be_true();
+		expect(getCurrentUI()).to_equal(&instrumentClipView);
 	});
 
 	it("a Shift + pad fed before a teardown that skips the close does not jump the next menu opened", _ {
@@ -345,7 +345,7 @@ describe menu_mode_gates_decimal("gui::ui::ShellHostUI::horizontalEncoderAction 
 		expect(open_transpose()).to_be_true();
 		(void)shellHostUI.timerCallback();
 		(void)shellHostUI.timerCallback();
-		expect(menu_scene().focused_value() == &nodes::source0_transpose).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::source0_transpose);
 		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, false);
 		::Buttons::shiftCurrentlyPressed = false;
 		(void)shellHostUI.padAction(9, 7, 0);
@@ -426,7 +426,7 @@ describe menu_mode_gates_buttons("gui::ui::ShellHostUI::buttonAction -- SoundEdi
 		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, true);
 		(void)shellHostUI.buttonAction(deluge::hid::button::LEARN, true);
 		(void)shellHostUI.timerCallback();
-		expect(ctx.model->mappings.find(*target) != nullptr).to_be_true();
+		expect(ctx.model->mappings.find(*target)).not_().to_be_null();
 		(void)shellHostUI.buttonAction(deluge::hid::button::LEARN, false);
 		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, false);
 		(void)shellHostUI.timerCallback();
@@ -459,7 +459,7 @@ describe menu_mode_gates_buttons("gui::ui::ShellHostUI::buttonAction -- SoundEdi
 		expect(currentUIMode).to_equal(uint32_t{UI_MODE_NONE});
 		(void)shellHostUI.buttonAction(deluge::hid::button::LEARN, true);
 		(void)shellHostUI.timerCallback();
-		expect(menu_scene().menu_context().model->mappings.find(*target) == nullptr).to_be_true();
+		expect(menu_scene().menu_context().model->mappings.find(*target)).to_be_null();
 		(void)shellHostUI.buttonAction(deluge::hid::button::LEARN, false);
 		(void)shellHostUI.padAction(8, 7, 0);
 		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, false);
