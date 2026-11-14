@@ -27,11 +27,7 @@ void checkLand(auto& self, const NavigationDecision& d, int32_t index, int32_t w
 	expect(land->index).to_equal(index);
 	expect(land->wraps).to_equal(wraps);
 }
-} // namespace
 
-// ── A pile of detents, moved from the landed entry as main's moveAgain does ───
-
-namespace {
 void checkPileLand(auto& self, const PileDecision& d, int32_t index) {
 	const Land* land = std::get_if<Land>(&d);
 	expect(land).not_().to_be_null();
@@ -44,7 +40,7 @@ void checkPileLand(auto& self, const PileDecision& d, int32_t index) {
 
 // clang-format off
 describe navigation_step_group("navigation step", ${
-	// ── Single gotos: one step to the nearest entry that may be landed on ─────────
+	// ── Single gotos, landing where main's doPresetNavigation lands ──────────────
 	it("forward lands on the first", _ {
 		const std::array items{F, F, F};
 		checkLand(self, decideNavigation(window(items), 1, false, true, 0), 0, 0);
@@ -121,7 +117,7 @@ describe navigation_step_group("navigation step", ${
 		                       NavigationItem{.inSong = true, .name = "NAV09.XML"}};
 		const auto d = decideNavigation(window(items, 0, 5), 1, true, true, 0);
 		expect(std::holds_alternative<PageOn>(d)).to_be_true();
-		expect(std::string_view{std::get<PageOn>(d).from.c_str()}).to_equal(std::string_view{"NAV09.XML"});
+		expect(std::get<PageOn>(d).from).to_equal(std::string{"NAV09.XML"});
 		expect(std::get<PageOn>(d).wraps).to_equal(0);
 	});
 
@@ -130,7 +126,7 @@ describe navigation_step_group("navigation step", ${
 		                       NavigationItem{.inSong = true, .name = "NAV23.XML"}};
 		const auto d = decideNavigation(window(items, 5, 0), -1, true, true, 0);
 		expect(std::holds_alternative<PageOn>(d)).to_be_true();
-		expect(std::string_view{std::get<PageOn>(d).from.c_str()}).to_equal(std::string_view{"NAV15.XML"});
+		expect(std::get<PageOn>(d).from).to_equal(std::string{"NAV15.XML"});
 	});
 
 	it("skipping stops once the walk has wrapped twice", _ {
@@ -149,6 +145,7 @@ describe navigation_step_group("navigation step", ${
 		checkLand(self, decideNavigation(window(items), -1, true, true, 0), 2, 2);
 	});
 
+	// ── A pile of detents, moved from the landed entry as main's moveAgain does ───
 	it("a pile moves by all its detents inside the window", _ {
 		const std::array items{F, F, F, F, F};
 		checkPileLand(self, movePile(window(items, 3, 4), 0 + 3, 3, false, 0), 3);

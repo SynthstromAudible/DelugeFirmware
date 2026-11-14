@@ -44,13 +44,13 @@ describe confirm_step_group("confirm step", ${
 		// read excludes it.
 		const auto d = decideConfirm(window(kThree, true, 0, 0, 5), false);
 		expect(std::holds_alternative<ConfirmPageOn>(d)).to_be_true();
-		expect(std::string_view{std::get<ConfirmPageOn>(d).from.c_str()}).to_equal(std::string_view{"NAV04.XML"});
+		expect(std::get<ConfirmPageOn>(d).from).to_equal(std::string{"NAV04.XML"});
 	});
 
 	it("nothing available nothing popped pages from the last", _ {
 		const auto d = decideConfirm(window(kThree, false, 0, 0, 5), false);
 		expect(std::holds_alternative<ConfirmPageOn>(d)).to_be_true();
-		expect(std::string_view{std::get<ConfirmPageOn>(d).from.c_str()}).to_equal(std::string_view{"NAV05.XML"});
+		expect(std::get<ConfirmPageOn>(d).from).to_equal(std::string{"NAV05.XML"});
 	});
 
 	it("nothing available trimmed at end pages even while grabbing", _ {
