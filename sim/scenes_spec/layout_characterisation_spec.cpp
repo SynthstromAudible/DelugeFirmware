@@ -634,7 +634,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			kit->setupPatching(setupModelStackWithTimelineCounter(patch_memory, f.song, f.clip));
 			expect(patched->getValue(params::LOCAL_PITCH_ADJUST)).to_equal(1 << 26);
 			expect(patched->getValue(params::LOCAL_OSC_A_PITCH_ADJUST)).to_equal(1 << 26);
-			drum->ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(&row->paramManager);
+			drum->ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(&row->paramManager, f.song);
 			expect(patched->getValue(params::LOCAL_PITCH_ADJUST)).to_equal(1 << 26);
 			expect(patched->getValue(params::LOCAL_OSC_A_PITCH_ADJUST)).to_equal(0);
 
@@ -642,7 +642,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			set_pair(self, *drum, *f.song, 6, unpatched_knob(params::UNPATCHED_PORTAMENTO),
 			         unpatched_knob(params::UNPATCHED_STUTTER_RATE));
 			seed();
-			drum->ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(&row->paramManager);
+			drum->ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(&row->paramManager, f.song);
 			expect(patched->getValue(params::LOCAL_PITCH_ADJUST)).to_equal(0);
 			display = nullptr;
 			currentSong = nullptr;

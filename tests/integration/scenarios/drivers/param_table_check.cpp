@@ -225,7 +225,9 @@ struct Checker {
 		}
 		const deluge::plugin::ParamNaming& naming =
 		    kind == params::Kind::UNPATCHED_GLOBAL ? deluge::global_effectable::kNaming : deluge::instrument::kNaming;
-		if (!unnamed && naming.id_of({name}) != std::optional<ParamId>{info.id}) {
+		// The naming names a knob's target, so a volume's name gives the volume a knob on it turns.
+		const ParamId knobTarget = naming.mod_knob_target != nullptr ? naming.mod_knob_target(info.id) : info.id;
+		if (!unnamed && naming.id_of({name}) != std::optional<ParamId>{knobTarget}) {
 			fail(table, info, "its naming does not give the runtime's name this id");
 		}
 	}

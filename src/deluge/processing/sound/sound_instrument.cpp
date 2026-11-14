@@ -242,7 +242,7 @@ void SoundInstrument::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 	}
 	else {
 		paramManager = (ParamManagerForTimeline*)modelStack->song->live.param_backup.getPreferablyWithClip(this, NULL);
-		ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(paramManager);
+		ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(paramManager, modelStack->song);
 	}
 
 	ModelStackWithParamCollection* modelStackWithParamCollection =

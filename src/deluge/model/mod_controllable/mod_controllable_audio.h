@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/controller_mapping.h"
+#include "deluge-project/mapping_table.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "effects/delay.h"
 #include "hid/button.h"
@@ -32,6 +33,7 @@
 #include "synth/modulation/lfo.h"
 #include "util/functions.h"
 #include <optional>
+#include <vector>
 
 #include "effects/chain_core.h"
 #include "effects/state.h"
@@ -242,6 +244,17 @@ public:
 	[[nodiscard]] virtual const deluge::effects::ChainCore& core() const = 0;
 
 	deluge::fast_vector<MIDIKnob> midi_knobs{};
+
+	/// @brief The learned knobs this owner holds outside a song's table: those its file's `midiKnobs` read (or a learn
+	/// made while no song held it), in file order, each target's owner a placeholder. The table takes them when the
+	/// owner joins a song (a song's load, an arrival, a preset change's hand-over), and they are emptied then; an owner
+	/// a song holds keeps its knobs in the table alone. A save of an owner no song holds writes these.
+	std::vector<deluge::project::Mapping> loaded_knobs{};
+
+	/// @brief The output whose learned knobs this one, a clone the render made, takes in the table, until the app loop
+	/// copies them there (bridge::cloneOutputMappings). Should the render's held copy be lost, the table's
+	/// reconcile copies them from it.
+	std::optional<uint32_t> knobs_cloned_from{};
 
 private:
 	/// The binding that holds this owner's settings and the render's copy; set first in each owner's constructor.

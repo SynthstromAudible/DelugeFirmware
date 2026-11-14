@@ -1146,7 +1146,7 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 				}
 
 				soundDrum->ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(
-				    (ParamManagerForTimeline*)paramManager);
+				    (ParamManagerForTimeline*)paramManager, modelStack->song);
 
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 				    modelStack->addOtherTwoThingsButNoNoteRow(soundDrum, paramManager);

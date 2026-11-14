@@ -270,12 +270,9 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		spec::SongFixture f = spec::make_synth_song();
 		activate(f);
 		SoundInstrument* preset = makeLooseSynth(*f.song);
-		const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
-		MIDIKnob& read = preset->midi_knobs.emplace_back(); // as the preset's file read it
-		read.midiInput.channelOrZone = 3;
-		read.midiInput.noteOrCC = 21;
-		read.relative = true;
-		read.target = volume;
+		preset->loaded_knobs.push_back(Mapping{.source = knobCc(3, 21), // as the preset's file read it
+		                                       .target = OwnerParamTarget{{}, patched(params::LOCAL_VOLUME)},
+		                                       .relative = true});
 		f.song->replaceInstrument(f.instrument, preset);
 		const auto knobs = f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *preset->id()});
 		expect(static_cast<int>(knobs.size())).to_equal(1);
@@ -287,18 +284,16 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		SoundInstrument* synth = makeLooseSynth(*f.song);
 		synth->midiInput.channelOrZone = 5; // as its preset's file read them
 		synth->midiInput.noteOrCC = 255;
-		const deluge::modulation::KnobTarget pan = deluge::modulation::knobParam(params::LOCAL_PAN);
-		MIDIKnob& read = synth->midi_knobs.emplace_back();
-		read.midiInput.channelOrZone = 4;
-		read.midiInput.noteOrCC = 10;
-		read.relative = true;
-		read.target = pan;
+		synth->loaded_knobs.push_back(
+		    Mapping{.source = knobCc(4, 10), .target = OwnerParamTarget{{}, patched(params::LOCAL_PAN)}, .relative = true});
 		f.song->addOutput(synth);
 		const uint32_t id = *synth->id();
 		expect(fieldMatches(*f.song, TrackInputTarget{id}, synth->midiInput)).to_be_true();
 		expect(f.song->project.mappings.find(TrackInputTarget{id}) != nullptr).to_be_true();
 		const auto knobs = f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, id});
 		expect(knobs.size() == 1 && knobs[0].source == knobCc(4, 10)).to_be_true();
+		expect(synth->loaded_knobs.empty()).to_be_true(); // the table holds them now
+		expect(static_cast<int>(synth->midi_knobs.size())).to_equal(1);
 	});
 
 	it("records the mute and input a kit row brings into a running song", _ {
@@ -904,30 +899,46 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		expect(storeHolds(outside, knobCc(1, 76))).to_be_false();
 	});
 
-	it("gives a clone the reconcile records from the engine the position its knobs last saw", _ {
+	it("gives a clone whose held copy the render lost its source's knobs and the position they last saw", _ {
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		const OwnerParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.output->id()},
 		                            unpatched(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME)};
 		deluge::edits::learnMappingFor(fromAbsentDevice(knobCc(0, 7)), knob);
+		deluge::midi::takeoverStore().at(knob, fromAbsentDevice(knobCc(0, 7))).previous = 321;
 		AudioOutput* clone = f.song->createNewAudioOutput();
-		clone->cloneFrom(f.output);
-		expect(clone->midi_knobs.size() == 1).to_be_true();
-		if (clone->midi_knobs.size() != 1) {
-			return;
-		}
-		sawPosition(clone->midi_knobs[0], 321);
 		deluge::midi::refreshMappingIndex();
-		deluge::memory::noteRenderBlock(true); // the song's tick loses writes past the queue's room, the clone's among them
-		for (size_t i = 0; i <= deluge::bridge::kPendingMappingOps; i++) {
+		deluge::memory::noteRenderBlock(true); // the song's tick fills the queue's room, then clones
+		for (size_t i = 0; i < deluge::bridge::kPendingMappingOps; i++) {
 			deluge::bridge::forgetClipMappings(*f.song, 0xF00D);
 		}
+		clone->cloneFrom(f.output);
+		deluge::bridge::cloneOutputMappings(*f.output, *clone, *f.song);
 		deluge::memory::noteRenderBlock(false);
-		(void)deluge::bridge::applyPendingMappingOps(*f.song);
+		(void)deluge::bridge::applyPendingMappingOps(*f.song); // the clone's copy is among those lost: the reconcile's
 		const auto knobs = f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *clone->id()});
 		expect(static_cast<int>(knobs.size())).to_equal(1);
 		OwnerParamTarget cloneKnob = knob;
 		cloneKnob.owner.id = *clone->id();
-		expect(knobs.size() == 1 && storeSaw(cloneKnob, knobs[0].source, 321)).to_be_true();
+		expect(knobs.size() == 1 && knobs[0].source == fromAbsentDevice(knobCc(0, 7))).to_be_true();
+		expect(storeSaw(cloneKnob, fromAbsentDevice(knobCc(0, 7)), 321)).to_be_true();
+		expect(clone->knobs_cloned_from.has_value()).to_be_false();
+	});
+
+	it("copies a clone's knobs once when the render's held copy lands", _ {
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		const OwnerParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.output->id()},
+		                            unpatched(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME)};
+		deluge::edits::learnMappingFor(knobCc(0, 7), knob);
+		AudioOutput* clone = f.song->createNewAudioOutput();
+		deluge::memory::noteRenderBlock(true);
+		clone->cloneFrom(f.output);
+		deluge::bridge::cloneOutputMappings(*f.output, *clone, *f.song);
+		deluge::memory::noteRenderBlock(false);
+		expect(clone->knobs_cloned_from == std::optional<uint32_t>{*f.output->id()}).to_be_true();
+		(void)deluge::bridge::applyPendingMappingOps(*f.song);
+		expect(clone->knobs_cloned_from.has_value()).to_be_false();
+		expect(static_cast<int>(f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *clone->id()}).size()))
+		    .to_equal(1);
 	});
 
 	it("starts a song's knobs over when another becomes the current song, whatever its address", _ {

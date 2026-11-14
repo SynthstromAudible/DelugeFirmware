@@ -27,21 +27,6 @@ namespace deluge::instrument {
 
 namespace {
 
-std::optional<plugin::ParamId> id_of(const plugin::ParamRef& ref) {
-	const plugin::ParamInfo* row = plugin::find_param(kParams, ref.param);
-	if (row == nullptr) {
-		return std::nullopt;
-	}
-	std::optional<plugin::ParamId> id = row->id;
-	if (!ref.source.empty()) {
-		id = cable_depth_id(parse_patch_source(ref.source), *id);
-	}
-	if (id && !ref.second_source.empty()) {
-		id = cable_depth_id(parse_patch_source(ref.second_source), *id);
-	}
-	return id;
-}
-
 plugin::ParamRef ref_of(plugin::ParamId id) {
 	std::array<PatchSource, 3> sources{};
 	size_t n = 0;
@@ -74,6 +59,28 @@ plugin::ParamId mod_knob_target(plugin::ParamId id) {
 	const uint32_t volume =
 	    nearest == PatchSource::SIDECHAIN ? param::kVolumePostReverbSend.value : param::kVolume.value;
 	return plugin::ParamId{(id.value & ~0xFFu) | volume};
+}
+
+/// The name a cable's range had before 3.2: it names no param a knob can turn.
+constexpr std::string_view kOldRangeName = "range";
+
+std::optional<plugin::ParamId> id_of(const plugin::ParamRef& ref) {
+	if (ref.param == kOldRangeName) {
+		return std::nullopt;
+	}
+	const plugin::ParamInfo* row = plugin::find_param(kParams, ref.param);
+	if (row == nullptr) {
+		return std::nullopt;
+	}
+	std::optional<plugin::ParamId> id = row->id;
+	if (!ref.source.empty()) {
+		id = cable_depth_id(parse_patch_source(ref.source), *id);
+	}
+	if (id && !ref.second_source.empty()) {
+		id = cable_depth_id(parse_patch_source(ref.second_source), *id);
+	}
+	// A knob a file points at a volume turns the one the runtime uses, whichever volume the file names.
+	return id ? std::optional{mod_knob_target(*id)} : std::nullopt;
 }
 
 } // namespace

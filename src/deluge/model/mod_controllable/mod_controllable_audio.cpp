@@ -62,6 +62,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
+#include "storage/value_tree_deserializer.h"
 #include "util/etl_string.h"
 #include "util/functions.h"
 #include "util/structural_edit_probe.h"
@@ -282,6 +283,9 @@ void ModControllableAudio::writeMidiKnobsToFile(Serializer& writer, Song* song,
                                                 std::optional<deluge::project::ControlsAddress> owner) {
 	std::optional<std::vector<deluge::project::Mapping>> saved =
 	    song != nullptr ? deluge::bridge::savedKnobsOf(*song, *this, owner) : std::nullopt;
+	if (!saved && !loaded_knobs.empty()) {
+		saved = loaded_knobs; // an owner no song holds keeps its knobs here
+	}
 	if (saved) {
 		// The file names engine params only.
 		std::erase_if(*saved, [](const deluge::project::Mapping& knob) {
@@ -352,97 +356,11 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 	}
 
 	else if (!strcmp(tagName, "midiKnobs")) {
-		reader.match('[');
-		// Standard array-of-boxes idiom (mirrors the noteRows/clips loops): match('{') enters the box, the
-		// name is read, then the value object is entered. Reading the name before match('{') would rely on XML
-		// implicit descent and read nothing in JSON mode. match('{')/match('}') are no-ops in XML.
-		while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "midiKnob")) {
-
-				MIDICable* cable = nullptr;
-				uint8_t channel = 0;
-				uint8_t ccNumber = 0;
-				bool relative = false;
-				uint8_t p = params::GLOBAL_NONE;
-				PatchSource s = PatchSource::NOT_AVAILABLE;
-				PatchSource s2 = PatchSource::NOT_AVAILABLE;
-
-				reader.match('{'); // enter the midiKnob value object
-				while (*(tagName = reader.readNextTagOrAttributeName())) {
-					if (!strcmp(tagName, "device")) {
-						cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
-					}
-					else if (!strcmp(tagName, "channel")) {
-						channel = reader.readTagOrAttributeValueInt();
-					}
-					else if (!strcmp(tagName, "mpeZone")) { // a knob learned on an MPE zone
-						const std::string_view zone = reader.readTagOrAttributeValue();
-						if (zone == "lower") {
-							channel = MIDI_CHANNEL_MPE_LOWER_ZONE;
-						}
-						else if (zone == "upper") {
-							channel = MIDI_CHANNEL_MPE_UPPER_ZONE;
-						}
-					}
-					else if (!strcmp(tagName, "ccNumber")) {
-						ccNumber = reader.readTagOrAttributeValueInt();
-					}
-					else if (!strcmp(tagName, "relative")) {
-						relative = reader.readTagOrAttributeValueInt();
-					}
-					else if (!strcmp(tagName, "controlsParam")) {
-						// if the unpatched kind for the current mod controllable is sound then we also want to check
-						// against patched params. Otherwise skip them to avoid a bug from patched volume params having
-						// the same name in files as unpatched global volumes
-						p = params::fileStringToParam(unpatchedParamKind_, reader.readTagOrAttributeValue(),
-						                              unpatchedParamKind_
-						                                  == deluge::modulation::params::Kind::UNPATCHED_SOUND);
-					}
-					else if (!strcmp(tagName, "patchAmountFromSource")) {
-						s = stringToSource(reader.readTagOrAttributeValue());
-					}
-					else if (!strcmp(tagName, "patchAmountFromSecondSource")) {
-						s2 = stringToSource(reader.readTagOrAttributeValue());
-					}
-					reader.exitTag();
-				}
-				reader.match('}'); // close the midiKnob value object.
-
-				if (p != params::GLOBAL_NONE && p != params::PLACEHOLDER_RANGE) {
-					try {
-						MIDIKnob& new_knob = midi_knobs.emplace_back();
-						new_knob.midiInput.cable = cable;
-						new_knob.midiInput.channelOrZone = channel;
-						new_knob.midiInput.noteOrCC = ccNumber;
-						new_knob.relative = relative;
-
-						if (s == PatchSource::NOT_AVAILABLE) {
-							new_knob.target = deluge::modulation::knobParam(p);
-						}
-						else if (s2 == PatchSource::NOT_AVAILABLE) {
-							new_knob.target =
-							    deluge::modulation::knobTargetOf(deluge::synth::CableTarget::depth_of(p, s));
-						}
-						else {
-							new_knob.target =
-							    deluge::modulation::knobTargetOf(deluge::synth::CableTarget::depth_of_depth(p, s, s2));
-						}
-					} catch (deluge::exception e) {
-						if (e == deluge::exception::BAD_ALLOC) {
-							// If we run out of memory, we just ignore the knob
-							// TODO(@stellar-aria): This is bad practice, we should handle this better, but it
-							//  currently follows the previous implementation
-						}
-						else {
-							throw e;
-						}
-					}
-				}
-			}
-			reader.match('}'); // close the box.
-			reader.exitTag(nullptr, true);
+		// The model's codec reads the learned knobs; the song's table takes them once a song holds this owner.
+		if (const deluge::storage::Value* knobs = deluge::storage::treeReaderOf(reader).currentValue()) {
+			loaded_knobs = deluge::bridge::loadedKnobsOf(
+			    *knobs, unpatchedParamKind_ == deluge::modulation::params::Kind::UNPATCHED_SOUND);
 		}
-		reader.match(']'); // close array.
 		reader.exitTag("midiKnobs");
 	}
 
@@ -903,19 +821,22 @@ bool ModControllableAudio::learnKnob(MIDICable* cable, deluge::modulation::KnobT
 		return false;
 	}
 
-	// Was there a MIDI knob already set to control this thing?
-	auto result = std::ranges::find_if(midi_knobs, [&](const MIDIKnob& knob) -> bool {
-		return knob.midiInput.equalsNoteOrCC(cable, midiChannel, whichKnob) && target == knob.target;
+	// A learn while no song holds this owner keeps the knob with those its file read, for the table to take.
+	LearnedMIDI learned;
+	learned.cable = cable;
+	learned.channelOrZone = midiChannel;
+	learned.noteOrCC = whichKnob;
+	const deluge::project::MidiCommand source = deluge::bridge::command_of(learned);
+	const deluge::project::ParamTarget param =
+	    deluge::project::engine_target(deluge::bridge::controlTargetOf(target, unpatchedParamKind_).value);
+	auto result = std::ranges::find_if(loaded_knobs, [&](const deluge::project::Mapping& knob) {
+		return knob.source == source && std::get<deluge::project::OwnerParamTarget>(knob.target).param == param;
 	});
 
 	try {
-		MIDIKnob& knob = result != midi_knobs.end()
-		                     ? *result                    // If it already exists, use that one
-		                     : midi_knobs.emplace_back(); // If it doesn't exist, create a new one
-		knob.midiInput.noteOrCC = whichKnob;
-		knob.midiInput.channelOrZone = midiChannel;
-		knob.midiInput.cable = cable;
-		knob.target = target;
+		deluge::project::Mapping& knob = result != loaded_knobs.end() ? *result : loaded_knobs.emplace_back();
+		knob.source = source;
+		knob.target = deluge::project::OwnerParamTarget{{}, param};
 		knob.relative = (whichKnob != 128); // Guess that it's relative, unless this is a pitch-bend "knob"
 		return true;
 
@@ -928,8 +849,10 @@ bool ModControllableAudio::learnKnob(MIDICable* cable, deluge::modulation::KnobT
 bool ModControllableAudio::unlearnKnobs(deluge::modulation::KnobTarget target, Song* song) {
 	// I've deactivated the unlearning of mod knobs, mainly because, if you want to unlearn a MIDI knob, you might not
 	// want to also deactivate a mod knob to the same param at the same time
-	size_t erased = std::erase_if(midi_knobs, [&](const MIDIKnob& knob) -> bool {
-		return knob.target == target; //<
+	const deluge::project::ParamTarget param =
+	    deluge::project::engine_target(deluge::bridge::controlTargetOf(target, unpatchedParamKind_).value);
+	size_t erased = std::erase_if(loaded_knobs, [&](const deluge::project::Mapping& knob) -> bool {
+		return std::get<deluge::project::OwnerParamTarget>(knob.target).param == param;
 	});
 
 	if (erased > 0) {
