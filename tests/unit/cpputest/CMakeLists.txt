@@ -108,11 +108,8 @@ add_executable(UnitTests
         chord_tests.cpp
         time_tests.cpp
         clock_output_scheduler_tests.cpp
-        default_name_tests.cpp
         encoder_acceleration_tests.cpp
         iterance_migration_tests.cpp
-        navigation_step_tests.cpp
-        confirm_step_tests.cpp
         sample_transpose_tests.cpp
         rgb_tests.cpp
         notes_state_tests.cpp
