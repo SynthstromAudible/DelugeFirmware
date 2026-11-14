@@ -62,7 +62,6 @@ RemotePage page(uint32_t section, uint32_t page_id, uint8_t group, RemoteSlot lo
 	RemotePage out{.section = section, .page_id = page_id, .group = group, .name = {}};
 	out.slots[0] = lower;
 	out.slots[1] = upper;
-	out.keeps_stutter = section == kCompressorSection;
 	return out;
 }
 
@@ -98,9 +97,14 @@ std::optional<RemotePage> single_page(uint32_t section, const PageInputs& in) {
 	case 3:
 		return page(3, 0, 0, step(ge::kDelayFeedback, in.alt_delay ? setting::kDelaySyncLevel : setting::kDelayType),
 		            step(ge::kDelayRate, in.alt_delay ? setting::kDelaySyncType : setting::kDelayPingPong));
-	case 4:
-		return page(4, 0, 0, knob(ge::kReverbAmount, PressAction::REVERB_PRESET),
-		            step(ge::kSidechainCompressorVolume, setting::kSidechainSyncLevel));
+	case kCompressorSection: {
+		// A clip chain's stutter outlives a press of its reverb button (`GlobalEffectableForClip::modButtonAction`);
+		// the song's reverb button has its own pages (song_reverb_page), which do not keep it.
+		RemotePage out = page(kCompressorSection, 0, 0, knob(ge::kReverbAmount, PressAction::REVERB_PRESET),
+		                      step(ge::kSidechainCompressorVolume, setting::kSidechainSyncLevel));
+		out.keeps_stutter = true;
+		return out;
+	}
 	case 6:
 		return page(6, 0, 0, in.song ? RemoteSlot{} : knob(ge::kPitchAdjust),
 		            knob(ge::kStutterRate, PressAction::HOLD_STUTTER));

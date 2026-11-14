@@ -47,7 +47,8 @@ struct PageInputs {
 
 /// @brief The filter button: its pages are low-pass, high-pass and EQ.
 inline constexpr uint32_t kFilterSection = 1;
-/// @brief The reverb button: the song's holds its compressor group, and its pages leave a playing stutter running.
+/// @brief The reverb button: the song's holds its compressor group, and a clip chain's page leaves a playing stutter
+///        running.
 inline constexpr uint32_t kCompressorSection = 4;
 /// @brief The mod FX button: its pages are the views the chain's mod FX type has.
 inline constexpr uint32_t kModFxSection = 5;

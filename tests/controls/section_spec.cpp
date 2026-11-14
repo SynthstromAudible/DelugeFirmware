@@ -37,10 +37,14 @@ describe section("a mod button's press and release", ${
 		expect(resolve_section(kChain, 0, 4, true, {}).end_stutter).to_be_true();
 		expect(resolve_section(kChain, 0, 3, false, kPerformance).end_stutter).to_be_false();
 	});
-	it("ends the song's stutter on every section, a keeping one too, except on performance view", _{
+	it("ends the song's stutter, except on performance view", _{
 		expect(resolve_section(kSong, 0, 4, true, {}).end_stutter).to_be_true();
-		expect(resolve_section(kSong, 0, 4, true, kKeeps).end_stutter).to_be_true();
 		expect(resolve_section(kSong, 0, 3, false, kPerformance).end_stutter).to_be_false();
+	});
+	it("ends no MIDI track's stutter: it has none", _{
+		const KnobFocus midi{.owner = MidiFocus{.track = {5}}};
+		expect(resolve_section(midi, 0, 3, true, {}).end_stutter).to_be_false();
+		expect(resolve_section(KnobFocus{}, 0, 3, false, {}).end_stutter).to_be_false();
 	});
 	it("toggles the VU meter on a press of button 0 when it is the mode, outside a clip minder", _{
 		expect(resolve_section(kSong, 0, 0, true, {}).toggle_vu_meter).to_be_true();

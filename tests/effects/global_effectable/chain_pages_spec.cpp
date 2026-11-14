@@ -107,11 +107,11 @@ describe chain_pages("the host chains' pages", ${
 		expect(*pages[0].slots[0].param == ge::kBitcrushAmount).to_be_true();
 		expect(*pages[0].slots[1].param == ge::kSampleRateReduction).to_be_true();
 	});
-	it("sets keeps_stutter on button 4's pages only", _{
+	it("sets keeps_stutter on a clip chain's button 4 page only, never the song's", _{
 		for (uint32_t section = 0; section < 8; section++) {
 			for (const bool song : {false, true}) {
 				for (const auto& page : section_pages(section, {.song = song})) {
-					expect(page.keeps_stutter).to_equal(section == 4);
+					expect(page.keeps_stutter).to_equal(section == 4 && !song);
 				}
 			}
 		}

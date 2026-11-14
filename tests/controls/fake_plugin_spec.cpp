@@ -10,10 +10,14 @@
 #include "plugin-api/plugin.h"
 #include "plugin-api/remote_controls_publisher.h"
 #include "plugin-api/state_handle.h"
+#include <algorithm>
 #include <array>
 #include <cppspec.hpp>
 #include <expected>
 #include <optional>
+#include <span>
+#include <string>
+#include <variant>
 
 using namespace deluge;
 using controls::Board;
@@ -52,10 +56,10 @@ constexpr plugin::ParamId kShapeKind{21};
 constexpr plugin::ParamId kWidth{22};
 constexpr plugin::ParamId kRepeat{30};
 
-RemoteSlot knob(plugin::ParamId id, PressAction press = PressAction::NONE) {
+constexpr RemoteSlot knob(plugin::ParamId id, PressAction press = PressAction::NONE) {
 	return {.param = id, .kind = plugin::ParamKind::UNPATCHED_SOUND, .press = press, .press_param = std::nullopt};
 }
-RemotePage fake_page(uint32_t section, uint32_t page_id, RemoteSlot lower, RemoteSlot upper, bool keeps = false) {
+constexpr RemotePage fake_page(uint32_t section, uint32_t page_id, RemoteSlot lower, RemoteSlot upper, bool keeps = false) {
 	RemotePage out{.section = section, .page_id = page_id, .name = {}};
 	out.slots[0] = lower;
 	out.slots[1] = upper;
@@ -64,7 +68,7 @@ RemotePage fake_page(uint32_t section, uint32_t page_id, RemoteSlot lower, Remot
 }
 
 /// The fake's 3 sections: two pages on NEXT_PAGE, a STEP_SETTING slot, and a stutter its section keeps running.
-const std::array<RemotePage, 4> kFakePages{
+constexpr std::array<RemotePage, 4> kFakePages{
     fake_page(0, 0, knob(kGain, PressAction::NEXT_PAGE), knob(kTone)),
     fake_page(0, 1, knob(kDrive, PressAction::NEXT_PAGE), knob(kColour)),
     fake_page(1, 0, RemoteSlot{.param = kShape, .kind = plugin::ParamKind::UNPATCHED_SOUND,
@@ -78,7 +82,7 @@ bool own_state(const plugin::PageContext& ctx) {
 	return ctx.state != nullptr && ctx.state->as<Fake>() != nullptr;
 }
 uint32_t fake_count(const plugin::PageContext& ctx) {
-	return own_state(ctx) ? kFakePages.size() : 0;
+	return own_state(ctx) ? static_cast<uint32_t>(kFakePages.size()) : 0;
 }
 bool fake_get(const plugin::PageContext& ctx, uint32_t index, RemotePage& out) {
 	if (!own_state(ctx) || index >= kFakePages.size()) {
@@ -106,21 +110,24 @@ RemoteSlot fake_decorate(const plugin::PageContext& /*ctx*/, plugin::ParamId par
 	}
 	return knob(param);
 }
-const plugin::RemoteControls kFakeControls{.plugin = Fake::descriptor().id,
+constexpr plugin::RemoteControls kFakeControls{.plugin = Fake::descriptor().id,
                                            .count = &fake_count,
                                            .get = &fake_get,
                                            .find = &fake_find,
                                            .decorate = &fake_decorate};
 
 /// The app's publishers and the fake's.
-const std::array<plugin::RemoteControls, 3> kPublishers{instrument::kRemoteControls, global_effectable::kRemoteControls,
-                                                        kFakeControls};
+std::span<const plugin::RemoteControls> publishers() {
+	static const std::array<plugin::RemoteControls, 3> kRecords{instrument::kRemoteControls,
+	                                                            global_effectable::kRemoteControls, kFakeControls};
+	return kRecords;
+}
 
 /// A board of 3 section buttons and one knob, slot 0: every action the fake publishes is on slot 0.
 constexpr Board kSmallBoard{.sections = 3, .slots = 1};
 
 controls::PageSources sources(const Board& board) {
-	return {.publishers = kPublishers, .board = board};
+	return {.publishers = publishers(), .board = board};
 }
 
 /// A song whose output 3 plays the fake in mode @p mode, its knobs mapped to the fake's sections' params.

@@ -86,10 +86,8 @@ Page sound_page(const project::Song& song, const SoundFocus& focus, uint8_t mode
 	return page_of(saved);
 }
 
-/// A sound's cycle on mod button @p mode: the pages its publisher finds there, from page id 0 to the first it does
-/// not serve. The Deluge instrument's are the filter knob's: low-pass, high-pass, EQ with the cutoff on the upper knob
-/// (group 0), then the same with it on the lower knob (group 1), as a sound may hold its filter knob on either knob of
-/// any button.
+/// A sound's cycle on section @p mode: the pages its publisher's find serves there, from page id 0 to the first it
+/// does not serve.
 std::vector<Page> sound_cycle(uint8_t mode, const Publisher& publisher) {
 	std::vector<Page> out;
 	if (publisher.record == nullptr || publisher.record->find == nullptr) {
@@ -104,11 +102,15 @@ std::vector<Page> sound_cycle(uint8_t mode, const Publisher& publisher) {
 }
 
 /// Where @p chain's view (a new chain's for none) and @p focus's compressor view put the knobs on @p mode, as the host
-/// reads them; page 0 of both groups with no reading.
+/// reads them.
 ChainView chain_view(const KnobFocus& focus, const project::FxChain* chain, uint8_t mode, const Publisher& publisher,
                      const PageSources& sources) {
-	return sources.chain_view != nullptr ? sources.chain_view(chain, focus.comp, publisher.context.song, mode)
-	                                     : ChainView{};
+	// No reading is a caller that never set `PageSources::chain_view`: no chain page would follow its view.
+	if (sources.chain_view == nullptr) {
+		freezeWithError("E-chainview");
+		return {};
+	}
+	return sources.chain_view(chain, focus.comp, publisher.context.song, mode);
 }
 
 /// A chain's page for @p mode: the page its view is on. The publisher's find may serve it outside its device pages (a

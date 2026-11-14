@@ -53,9 +53,8 @@ struct SectionResult {
 /// @param in     What the view tells the rules.
 /// @return Nothing for a press out of the button's UI modes off performance view. Else a press changes the mode of
 ///         an owner that has one and shows the popup, and a press of button 0 while it is the mode toggles the VU
-///         meter outside a clip's view. Press or release ends a sound's stutter unless the section keeps it, a clip
-///         chain's unless the section keeps it or on performance view, and the song's except on performance view
-///         (the song's stutter ends on every section).
+///         meter outside a clip's view. Press or release ends the owner's stutter unless the section keeps it, and a
+///         chain's (the song's or a clip's) on performance view neither.
 [[nodiscard]] SectionResult resolve_section(const KnobFocus& focus, uint8_t mode, int32_t button, bool on,
                                             const SectionInputs& in);
 

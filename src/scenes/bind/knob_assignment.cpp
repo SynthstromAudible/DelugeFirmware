@@ -11,14 +11,9 @@ KnobAssignment knob_assignment(const project::Song& song, const KnobFocus& focus
 	if (knob < 0 || knob >= board.slots) {
 		return {};
 	}
-	// A turn reads only the page the knobs are on: this runs for the knobs' indicators every tick. Only a press reads
-	// the alternative delay knobs, so the turn leaves them off.
+	// A turn reads only the page the knobs are on: this runs for the knobs' indicators every tick.
 	const controls::Target target = controls::resolve_turn(
-	    focus,
-	    controls::SectionPages{
-	        .current = controls::current_page(
-	            song, focus, {.publishers = app_publishers(), .board = board, .chain_view = &chain_view})},
-	    knob);
+	    focus, controls::SectionPages{.current = controls::current_page(song, focus, app_turn_sources(board))}, knob);
 	const auto* write = std::get_if<controls::ParamWrite>(&target);
 	if (write == nullptr) {
 		return {};

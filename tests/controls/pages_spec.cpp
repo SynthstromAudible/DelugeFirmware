@@ -6,17 +6,17 @@
 #include "effects/global_effectable/pages.h"
 #include "effects/global_effectable/params.h"
 #include "effects/plugin.h"
-#include "effects/setting_params.h"
 #include "instruments/deluge/pages.h"
 #include "instruments/deluge/params.h"
 #include "instruments/deluge/plugin.h"
-#include "scenes/bind/section_pages.h"
 #include <algorithm>
 #include <array>
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdlib>
 #include <new>
+#include <string>
+#include "mock_panic.h"
 
 using namespace deluge;
 namespace ip = deluge::instrument::param;
@@ -42,8 +42,22 @@ void operator delete(void* p, size_t /*bytes*/) noexcept { std::free(p); }
 namespace {
 /// The publishers the app collects: the Deluge instrument's and the global effectable's.
 const std::array<plugin::RemoteControls, 2> kPublishers{instrument::kRemoteControls, global_effectable::kRemoteControls};
-const controls::PageSources kSources{
-    .publishers = kPublishers, .board = kDelugeControls, .chain_view = &scenes::bind::chain_view};
+/// What the stand-in view reading last saw.
+struct ViewCall {
+	const project::FxChain* chain{nullptr};
+	controls::CompView comp;
+	bool song{false};
+	uint32_t section{0xFF};
+};
+ViewCall g_seen;
+/// What the stand-in view reading answers: the app's mapping is pinned in the scenes' chain_view_spec.
+controls::ChainView g_view;
+controls::ChainView view_stand_in(const project::FxChain* chain, const controls::CompView& comp, bool song,
+                                  uint32_t section) {
+	g_seen = {.chain = chain, .comp = comp, .song = song, .section = section};
+	return g_view;
+}
+const controls::PageSources kSources{.publishers = kPublishers, .board = kDelugeControls, .chain_view = &view_stand_in};
 
 /// A synth on output 3 in mode @p mode, its lower knob there the low-pass cutoff and its upper the resonance, playing a
 /// sound in @p synth_mode.
@@ -109,87 +123,62 @@ describe pages("the pages a press moves between, from the published records and 
 		    controls::resolve_press(midi, controls::section_pages(song, midi, kSources), 1, true);
 		expect(std::get<controls::HostCommand>(target) == controls::HostCommand::MIDI_CC_SELECT_ON).to_be_true();
 	});
-	it("puts a chain's filter knobs on the page of its filter view, a view past EQ on EQ", _{
+	it("puts a chain's knobs on the page its view reading names, found through its publisher", _{
 		project::Song song = song_in_mode(1);
-		song.master_effects.filter_type = 1;
-		expect(int(controls::section_pages(song, kSong, kSources).current.page_id)).to_equal(1);
-		song.master_effects.filter_type = 7;
+		g_view = {.current = 2, .group_entry = {0, 4}};
 		const controls::SectionPages pages = controls::section_pages(song, kSong, kSources);
 		expect(int(pages.current.page_id)).to_equal(2);
 		expect(turned(pages.current, 1) == ge::kTreble).to_be_true();
 		expect(pages.current == controls::current_page(song, kSong, kSources)).to_be_true();
+		expect(pages.group_entry == g_view.group_entry).to_be_true();
+		g_view = {};
 	});
-	it("puts a chain's mod FX knobs on the view its record holds, even one its type has no param for", _{
+	it("puts a chain's knobs on a page its publisher finds outside its device pages", _{
 		project::Song song = song_in_mode(5);
-		song.master_effects.mod_fx_param = 0;
 		effects::EffectStates flanger{};
 		flanger.mod_fx.type = effects::ModFXType::FLANGER;
 		song.master_effects.effects = plugin::StateHandle::of<effects::DelugeEffects>(flanger);
+		g_view = {.current = 0};
 		const controls::SectionPages pages = controls::section_pages(song, kSong, kSources);
 		expect(int(pages.current.page_id)).to_equal(0);
 		expect(turned(pages.current, 0) == ge::kModFXDepth).to_be_true();
 		expect(std::ranges::none_of(pages.cycle, [](const controls::Page& p) { return p.page_id == 0; })).to_be_true();
-		expect(pages.current == controls::current_page(song, kSong, kSources)).to_be_true();
+		g_view = {};
 	});
-	it("enters the song's compressor group at the setting its compressor view holds, and edits it while editing", _{
-		const project::Song song = song_in_mode(4);
-		controls::KnobFocus focus = kSong;
-		focus.comp = {.editing = false, .param = 2};
-		const controls::SectionPages reverb = controls::section_pages(song, focus, kSources);
-		expect(int(reverb.group_entry[1])).to_equal(3);
-		expect(int(reverb.current.page_id)).to_equal(0);
-		focus.comp.editing = true;
-		const controls::SectionPages comp = controls::section_pages(song, focus, kSources);
-		expect(int(comp.current.page_id)).to_equal(3);
-		expect(int(comp.current.group)).to_equal(1);
-		expect(comp.current == controls::current_page(song, focus, kSources)).to_be_true();
+	it("hands the view reading the chain's record, the compressor view, the song flag and the section", _{
+		project::Song song{};
+		project::DocOutput& kit = song.output_structure.getOrCreate(8);
+		kit.mod_knob_mode = 4;
+		kit.effects = project::FxChain{};
+		controls::KnobFocus focus = kKitChain;
+		focus.comp = {.editing = true, .param = 2};
+		g_seen = {};
+		(void)controls::section_pages(song, focus, kSources);
+		expect(g_seen.chain == &*song.output_structure.find(8)->effects).to_be_true();
+		expect(g_seen.comp == focus.comp).to_be_true();
+		expect(g_seen.song).to_be_false();
+		expect(int(g_seen.section)).to_equal(4);
+		(void)controls::section_pages(song_in_mode(1), kSong, kSources);
+		expect(g_seen.song).to_be_true();
+		expect(int(g_seen.section)).to_equal(1);
 	});
-	it("enters the compressor group at each setting's page of the chain's published group, and reaches every one", _{
-		namespace setting = effects::setting;
-		const std::array kSettings{setting::kCompRatio, setting::kCompAttack, setting::kCompRelease, setting::kCompHpf,
-		                           setting::kCompBlend};
-		const project::Song song = song_in_mode(4);
-		const controls::SectionPages pages = controls::section_pages(song, kSong, kSources);
-		const auto group_one = std::ranges::count_if(pages.cycle, [](const controls::Page& p) { return p.group == 1; });
-		expect(size_t(group_one)).to_equal(kSettings.size());
-		for (uint8_t param = 0; param < kSettings.size(); param++) {
-			controls::KnobFocus focus = kSong;
-			focus.comp = {.editing = false, .param = param};
-			const uint32_t entry = controls::section_pages(song, focus, kSources).group_entry[1];
-			const auto found = std::ranges::find_if(pages.cycle, [entry](const controls::Page& p) { return p.page_id == entry; });
-			expect(found != pages.cycle.end()).to_be_true();
-			expect(int(found->group)).to_equal(1);
-			expect(turned(*found, 0) == kSettings[param]).to_be_true();
-		}
-	});
-	it("puts a chain's knobs on each section's first page with no reading of its view", _{
-		project::Song song = song_in_mode(1);
-		song.master_effects.filter_type = 1;
+	it("freezes on a chain with no view reading", _{
 		controls::PageSources bare = kSources;
 		bare.chain_view = nullptr;
-		const controls::SectionPages pages = controls::section_pages(song, kSong, bare);
-		expect(int(pages.current.page_id)).to_equal(0);
-		expect(pages.group_entry == std::array<uint32_t, 2>{}).to_be_true();
+		test::clear_freeze();
+		(void)controls::current_page(song_in_mode(1), kSong, bare);
+		expect(test::last_freeze()).to_equal(std::string{"E-chainview"});
+		test::clear_freeze();
 	});
 	it("asks the pressed section's published pages whether it keeps a stutter", _{
 		project::Song song = filter_on_lower_knob(0);
 		expect(controls::section_keeps_stutter(song, kKitChain, 4, kSources)).to_be_true();
 		expect(controls::section_keeps_stutter(song, kKitChain, 3, kSources)).to_be_false();
-		expect(controls::section_keeps_stutter(song, kSong, 4, kSources)).to_be_true();
+		expect(controls::section_keeps_stutter(song, kSong, 4, kSources)).to_be_false();
 		for (uint32_t section = 0; section < kDelugeControls.sections; section++) {
 			expect(controls::section_keeps_stutter(song, kSynth, section, kSources)).to_be_false();
 		}
 		expect(controls::section_keeps_stutter(song, controls::KnobFocus{}, 4, kSources)).to_be_false();
-	});
-	it("keeps a clip's chain on its reverb page whatever the compressor view holds", _{
-		project::Song song{};
-		song.output_structure.getOrCreate(8).mod_knob_mode = 4;
-		controls::KnobFocus focus = kKitChain;
-		focus.comp = {.editing = true, .param = 2};
-		const controls::SectionPages pages = controls::section_pages(song, focus, kSources);
-		expect(int(pages.current.page_id)).to_equal(0);
-		expect(turned(pages.current, 0) == ge::kReverbAmount).to_be_true();
-		expect(pages.cycle.size()).to_equal(size_t{1});
 	});
 	it("has an empty page and no cycle on a chain's envelope button", _{
 		const project::Song song = song_in_mode(2);
@@ -206,10 +195,11 @@ describe pages("the pages a press moves between, from the published records and 
 		expect(std::ranges::none_of(bare.slots, [](const controls::Slot& s) { return s.target.has_value(); }))
 		    .to_be_true();
 	});
-	it("carries the reverb button's stutter rule onto a chain's pages", _{
-		const project::Song song = song_in_mode(4);
-		const controls::SectionPages pages = controls::section_pages(song, kSong, kSources);
-		expect(pages.cycle.size()).to_equal(size_t{6});
+	it("carries the reverb button's stutter rule onto a clip chain's pages", _{
+		project::Song song{};
+		song.output_structure.getOrCreate(8).mod_knob_mode = 4;
+		const controls::SectionPages pages = controls::section_pages(song, kKitChain, kSources);
+		expect(pages.cycle.size()).to_equal(size_t{1});
 		expect(pages.current.keeps_stutter).to_be_true();
 		expect(std::ranges::all_of(pages.cycle, [](const controls::Page& p) { return p.keeps_stutter; })).to_be_true();
 	});

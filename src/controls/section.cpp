@@ -32,11 +32,13 @@ SectionResult resolve_section(const KnobFocus& focus, uint8_t mode, int32_t butt
 		out.change_mode = knob_mode_owner(focus).has_value();
 		out.taken = true;
 	}
-	const bool chain = std::holds_alternative<ChainFocus>(focus.owner);
-	const bool song = std::holds_alternative<SongFocus>(focus.owner);
-	// A sound's or a clip chain's stutter outlives a press of a section its pages keep it on; the song's does not.
-	out.end_stutter = (std::holds_alternative<SoundFocus>(focus.owner) && !in.keeps_stutter)
-	                  || (chain && !in.keeps_stutter && !in.root_is_performance) || (song && !in.root_is_performance);
+	// A section whose pages keep a playing stutter leaves it running, and so does performance view, except for a
+	// sound's: legacy's `Sound::modButtonAction` ends it on every view, and nothing stops a sound's knobs holding the
+	// focus under a performance root (the root sets the song's only as it opens).
+	const bool sound = std::holds_alternative<SoundFocus>(focus.owner);
+	const bool has_owner =
+	    sound || std::holds_alternative<ChainFocus>(focus.owner) || std::holds_alternative<SongFocus>(focus.owner);
+	out.end_stutter = has_owner && !in.keeps_stutter && (sound || !in.root_is_performance);
 	return out;
 }
 

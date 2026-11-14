@@ -35,8 +35,14 @@ controls::ChainView chain_view(const project::FxChain* chain, const controls::Co
 	return out;
 }
 
+controls::PageSources app_turn_sources(const controls::Board& board) {
+	return {.publishers = app_publishers(), .alt_delay = false, .board = board, .chain_view = &chain_view};
+}
+
 controls::PageSources app_page_sources(const controls::Facts& facts, const controls::Board& board) {
-	return {.publishers = app_publishers(), .alt_delay = facts.alt_delay(), .board = board, .chain_view = &chain_view};
+	controls::PageSources out = app_turn_sources(board);
+	out.alt_delay = facts.alt_delay();
+	return out;
 }
 
 } // namespace deluge::scenes::bind

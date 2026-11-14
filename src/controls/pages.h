@@ -56,10 +56,9 @@ using ChainViewOf = ChainView (*)(const project::FxChain* chain, const CompView&
 struct PageSources {
 	std::span<const plugin::RemoteControls> publishers;
 	bool alt_delay = false;
-	Board board; ///< the board's sections and its slots per section; must be set (the mode panics on no section, a
-	             ///< MIDI page on no slot)
-	/// The host's reading of a chain's view; none puts a chain's knobs on each section's page 0, entering both groups
-	/// there.
+	Board board; ///< the board's sections and its slots per section; required (the mode panics on no section, a MIDI
+	             ///< page on no slot)
+	/// The host's reading of a chain's view; required (a chain's page panics on none).
 	ChainViewOf chain_view = nullptr;
 };
 

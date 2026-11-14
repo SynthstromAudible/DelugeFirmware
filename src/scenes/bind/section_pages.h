@@ -28,6 +28,12 @@ namespace deluge::scenes::bind {
 [[nodiscard]] controls::ChainView chain_view(const project::FxChain* chain, const controls::CompView& comp, bool song,
                                              uint32_t section);
 
+/// @brief The app's page sources for a turn: its publishers and its reading of a chain's view, the alternative delay
+///        knobs off (only a press reads them).
+/// @param board The board the knobs are on.
+/// @return The sources controls::current_page reads for a turn.
+[[nodiscard]] controls::PageSources app_turn_sources(const controls::Board& board);
+
 /// @brief The app's page sources: its publishers, its reading of a chain's view, and the device facts @p facts
 ///        answers.
 /// @param facts The host's facts, which hold the alternative delay-knob setting.

@@ -731,6 +731,32 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		currentSong = nullptr;
 	});
 
+	it("keeps a kit chain's stutter through its reverb button, and ends it on another, as GlobalEffectableForClip does", _ {
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_kit_song();
+		currentSong = f.song;
+		f.clip->affectEntire = true;
+		KnobRig rig;
+		rig.set_song(f.song);
+		rig.set_target_with_timeline(f.clip, false);
+		expect(std::holds_alternative<bind::ChainFocus>(rig.knobs.focus().owner)).to_be_true();
+		currentUIMode = UI_MODE_NONE;
+		(void)menu::host_controls_sink().stutter(rig.knobs.focus(), true);
+		expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_true();
+		// `GlobalEffectableForClip::modButtonAction`: the reverb button leaves the stutter playing.
+		rig.knobs.mod_button_action(4, true);
+		rig.knobs.mod_button_action(4, false);
+		expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_true();
+		// `GlobalEffectable::modButtonAction`: any other button ends it.
+		rig.knobs.mod_button_action(3, true);
+		expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_false();
+		rig.knobs.mod_button_action(3, false);
+		currentUIMode = UI_MODE_NONE;
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
 	it("writes an audio track's knob as the recorded View::modEncoderAction turn does", _ {
 		StubDisplay stub;
 		display = &stub;
