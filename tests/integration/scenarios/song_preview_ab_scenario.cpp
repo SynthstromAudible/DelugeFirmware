@@ -123,8 +123,8 @@ using deluge::storage::SongPreviewOutcome;
 
 /// Drives the real `LoadSongUI` preview path, including its private members.
 ///
-/// A `friend` of `LoadSongUI` (declared there), for the reason `SlicerPreviewProbe` is a friend of
-/// `Slicer`: a gate that restated the caller instead of calling it would not have caught the defect
+/// A `friend` of `LoadSongUI` (declared there), for the reason `slicer_preview_spec.cpp` drives the real
+/// `SliceCore`: a gate that restated the caller instead of calling it would not have caught the defect
 /// this exists for. Everything below goes through `drawSongPreview()` and `graphicsRoutine()` -- the
 /// two surfaces the browser itself uses -- and reads only what no out-of-process observer can see.
 class SongPreviewAbProbe {
