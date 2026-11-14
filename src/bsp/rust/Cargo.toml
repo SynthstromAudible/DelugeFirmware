@@ -24,6 +24,13 @@ name = "deluge-rust"
 path = "src/main.rs"
 test = false
 
+# Builds a card manifest into a directory, for the tools that image a card from one (tools/ui_script_cards.py).
+# Host only: device builds pass --no-default-features, which leaves it out.
+[[bin]]
+name = "card-manifest"
+path = "src/bin/card-manifest.rs"
+required-features = ["host-runtime"]
+
 [dependencies]
 embassy-sync = "0.8.0"
 embassy-futures = "0.1.2"

@@ -14,6 +14,12 @@
 //! | `raw <path> bytes=<n> fill=<byte>` | `bytes` bytes, each `fill`, with no header |
 //! | `copy <dst> from=<file>` | a copy of `<file>` |
 //! | `copyall <dir> from=<dir> ext=<ext>` | a copy of each file in `from` whose extension is exactly `ext` |
+//! | `base <dir>` | a copy of the repository tree `<dir>`, empty directories included; only as the first operation |
+//! | `text <path> <<MARK` | the lines after it up to the line `MARK`, as written, each ending in a newline |
+//! | `delete <path>` | nothing: removes the file or directory tree at `<path>`, which must exist |
+//!
+//! A `text` heredoc's lines are taken as they stand: a `#` in them is text, and a tab stays a tab. A manifest that
+//! starts from `base` states only how its card differs from that tree.
 //!
 //! A fill tells apart files that agree on every geometry field when the C++ side fingerprints the bytes it reads
 //! back; a sine is for the legs whose pitch detection must name a note, which a constant fill never does.
@@ -58,6 +64,12 @@ pub enum Op {
         from: PathBuf,
         extension: String,
     },
+    Base(PathBuf),
+    Text {
+        path: PathBuf,
+        bytes: Vec<u8>,
+    },
+    Delete(PathBuf),
 }
 
 /// A manifest line that does not parse.
@@ -79,7 +91,8 @@ impl std::error::Error for Error {}
 /// Parses manifest `text`; `file` names it in errors.
 pub fn parse(file: &Path, text: &str) -> Result<Vec<Op>, Error> {
     let mut ops = Vec::new();
-    for (index, raw) in text.lines().enumerate() {
+    let mut lines = text.lines().enumerate();
+    while let Some((index, raw)) = lines.next() {
         let fail = |message: String| Error {
             file: file.to_path_buf(),
             line: index + 1,
@@ -88,11 +101,46 @@ pub fn parse(file: &Path, text: &str) -> Result<Vec<Op>, Error> {
         let content = raw.split_once('#').map_or(raw, |(before, _)| before);
         let mut words = content.split_whitespace();
         let Some(name) = words.next() else { continue };
-        let op = parse_op(name, &words.collect::<Vec<_>>()).map_err(fail)?;
+        let words: Vec<&str> = words.collect();
+        let op = if name == "text" {
+            parse_text(&words, &mut lines).map_err(fail)?
+        } else {
+            parse_op(name, &words).map_err(fail)?
+        };
+        if matches!(op, Op::Base(_)) && !ops.is_empty() {
+            return Err(fail("`base` must be the first operation".into()));
+        }
         check_wav_size(name, &op).map_err(fail)?;
         ops.push(op);
     }
     Ok(ops)
+}
+
+/// `text <path> <<MARK`: the lines `lines` yields up to the line `MARK`, each with its newline.
+fn parse_text<'a>(
+    words: &[&str],
+    lines: &mut impl Iterator<Item = (usize, &'a str)>,
+) -> Result<Op, String> {
+    let usage = || "expected `text <path> <<MARK`".to_string();
+    let [path, open] = words else {
+        return Err(usage());
+    };
+    let mark = open
+        .strip_prefix("<<")
+        .filter(|m| !m.is_empty())
+        .ok_or_else(usage)?;
+    let mut bytes = Vec::new();
+    for (_, line) in lines.by_ref() {
+        if line == mark {
+            return Ok(Op::Text {
+                path: relative(path)?,
+                bytes,
+            });
+        }
+        bytes.extend_from_slice(line.as_bytes());
+        bytes.push(b'\n');
+    }
+    Err(format!("`text` never reaches its closing `{mark}` line"))
 }
 
 /// Fails when a WAV op's header fields would overflow: the block align (a `u16`), or the data size or the RIFF size
@@ -191,6 +239,14 @@ fn parse_op(name: &str, words: &[&str]) -> Result<Op, String> {
                 from: relative(fields.take_str("from")?)?,
                 extension: fields.take_str("ext")?.to_string(),
             }
+        }
+        "base" => {
+            let [dir] = fields.positional("base <dir>")?;
+            Op::Base(relative(dir)?)
+        }
+        "delete" => {
+            let [path] = fields.positional("delete <path>")?;
+            Op::Delete(relative(path)?)
         }
         other => return Err(format!("unknown operation `{other}`")),
     };
@@ -292,11 +348,30 @@ fn relative(text: &str) -> Result<PathBuf, String> {
     }
 }
 
+/// `e` with `path` named in its message.
+fn named(path: &Path, e: std::io::Error) -> std::io::Error {
+    std::io::Error::new(e.kind(), format!("{}: {e}", path.display()))
+}
+
+/// Copies the tree at `from` into `to`: every directory, empty ones too, and every file.
+fn copy_tree(from: &Path, to: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(to).map_err(|e| named(to, e))?;
+    for entry in std::fs::read_dir(from).map_err(|e| named(from, e))? {
+        let entry = entry.map_err(|e| named(from, e))?;
+        let (source, target) = (entry.path(), to.join(entry.file_name()));
+        if entry.file_type().map_err(|e| named(&source, e))?.is_dir() {
+            copy_tree(&source, &target)?;
+        } else {
+            std::fs::copy(&source, &target)
+                .map(drop)
+                .map_err(|e| named(&source, e))?;
+        }
+    }
+    Ok(())
+}
+
 /// Builds `ops` into the directory `into`, creating it; source paths are joined to `repo_root`.
 pub fn build(repo_root: &Path, ops: &[Op], into: &Path) -> std::io::Result<()> {
-    let named = |path: &Path, e: std::io::Error| {
-        std::io::Error::new(e.kind(), format!("{}: {e}", path.display()))
-    };
     let write = |path: &Path, bytes: &[u8]| -> std::io::Result<()> {
         let target = into.join(path);
         if let Some(parent) = target.parent() {
@@ -337,6 +412,18 @@ pub fn build(repo_root: &Path, ops: &[Op], into: &Path) -> std::io::Result<()> {
                 partials,
             } => write(path, &partials_wav(*frames, partials))?,
             Op::Raw { path, bytes, fill } => write(path, &vec![*fill; *bytes as usize])?,
+            Op::Base(from) => copy_tree(&repo_root.join(from), into)?,
+            Op::Text { path, bytes } => write(path, bytes)?,
+            Op::Delete(path) => {
+                let target = into.join(path);
+                let meta = std::fs::symlink_metadata(&target).map_err(|e| named(&target, e))?;
+                if meta.is_dir() {
+                    std::fs::remove_dir_all(&target)
+                } else {
+                    std::fs::remove_file(&target)
+                }
+                .map_err(|e| named(&target, e))?
+            }
             Op::Copy { to, from } => copy(&repo_root.join(from), &into.join(to))?,
             Op::CopyAll {
                 to,
@@ -682,22 +769,121 @@ mod tests {
     }
 
     #[test]
+    fn parses_base_text_and_delete() {
+        let ops = parse_ok(
+            "base tests/fixtures/card\n\
+             delete SAMPLES\n\
+             text SAMPLES <<EOF\n\
+             not a folder\n\
+             \t# kept, tab and all\n\
+             EOF\n\
+             dir KITS\n",
+        );
+        assert_eq!(
+            ops,
+            vec![
+                Op::Base(PathBuf::from("tests/fixtures/card")),
+                Op::Delete(PathBuf::from("SAMPLES")),
+                Op::Text {
+                    path: PathBuf::from("SAMPLES"),
+                    bytes: b"not a folder\n\t# kept, tab and all\n".to_vec()
+                },
+                Op::Dir(PathBuf::from("KITS")),
+            ]
+        );
+    }
+
+    #[test]
+    fn base_comes_first_or_not_at_all() {
+        assert_eq!(
+            parse_err("dir A\nbase tests/fixtures/card\n"),
+            "t.card:2: `base` must be the first operation"
+        );
+    }
+
+    #[test]
+    fn a_text_heredoc_must_end() {
+        assert_eq!(
+            parse_err("text A <<EOF\nline\n"),
+            "t.card:1: `text` never reaches its closing `EOF` line"
+        );
+        assert_eq!(
+            parse_err("text A\n"),
+            "t.card:1: expected `text <path> <<MARK`"
+        );
+        assert_eq!(
+            parse_err("text A <<\n"),
+            "t.card:1: expected `text <path> <<MARK`"
+        );
+    }
+
+    #[test]
+    fn an_empty_heredoc_writes_an_empty_file() {
+        assert_eq!(
+            parse_ok("text A <<END\nEND\n"),
+            vec![Op::Text {
+                path: PathBuf::from("A"),
+                bytes: Vec::new()
+            }]
+        );
+    }
+
+    #[test]
+    fn builds_a_base_tree_with_a_path_replaced() {
+        let repo = scratch("base-repo");
+        for (path, text) in [
+            ("card/KITS/.keep", ""),
+            ("card/SAMPLES/T.WAV", "t"),
+            ("card/SONGS/.keep", ""),
+        ] {
+            let file = repo.join(path);
+            std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+            std::fs::write(file, text).unwrap();
+        }
+        std::fs::create_dir_all(repo.join("card/EMPTY")).unwrap();
+        let card = scratch("base-card");
+        let ops = parse_ok("base card\ndelete SAMPLES\ntext SAMPLES <<EOF\nnot a folder\nEOF\n");
+        build(&repo, &ops, &card).unwrap();
+        assert_eq!(
+            std::fs::read(card.join("SAMPLES")).unwrap(),
+            b"not a folder\n"
+        );
+        assert_eq!(std::fs::read(card.join("KITS/.keep")).unwrap(), b"");
+        assert!(card.join("SONGS/.keep").is_file());
+        assert!(card.join("EMPTY").is_dir());
+        let _ = std::fs::remove_dir_all(&repo);
+        let _ = std::fs::remove_dir_all(&card);
+    }
+
+    #[test]
+    fn deleting_a_missing_path_names_it() {
+        let card = scratch("delete-missing");
+        let err = build(
+            Path::new("/nonexistent-repo"),
+            &parse_ok("delete GONE\n"),
+            &card,
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("GONE"), "{err}");
+        let _ = std::fs::remove_dir_all(&card);
+    }
+
+    #[test]
     fn every_committed_manifest_parses_and_builds() {
         let repo = Path::new(env!("CARGO_MANIFEST_DIR"))
             .ancestors()
             .nth(3)
             .expect("src/bsp/rust is 3 below the repo root");
-        let scenarios = repo.join("tests/integration/scenarios");
-        let mut manifests: Vec<PathBuf> = std::fs::read_dir(&scenarios)
-            .unwrap()
+        let mut manifests: Vec<PathBuf> = ["tests/integration/scenarios", "tests/fixtures"]
+            .into_iter()
+            .flat_map(|dir| std::fs::read_dir(repo.join(dir)).unwrap())
             .map(|entry| entry.unwrap().path())
             .filter(|path| path.extension().is_some_and(|e| e == "card"))
             .collect();
         manifests.sort();
         assert!(
             !manifests.is_empty(),
-            "no .card file under {}",
-            scenarios.display()
+            "no .card file under tests/integration/scenarios or tests/fixtures"
         );
         for manifest in manifests {
             let card = scratch(&format!(
