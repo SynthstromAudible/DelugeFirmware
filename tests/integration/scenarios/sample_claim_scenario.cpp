@@ -50,10 +50,13 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_holder_for_voice.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "modulation/knob_target.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
@@ -86,6 +89,7 @@
 #include "scenes/menu/nodes/sound_root.h"
 #include "scenes/registry.h"
 #include "scenes/slicing/slicer_scene.h"
+#include "util/functions.h"
 #include "util/shell_menu_entry.h"
 
 #include <cstdio>
@@ -282,6 +286,9 @@ enum class Leg : uint8_t {
 	WaveTableResident,
 	WaveTableConverted,
 	Fallback,
+	// Oscillator 2's wavetable claim and the sample load that undoes its knobs, asked for on the source directly.
+	WaveTableOsc2,
+	FallbackOsc2,
 	Gate,
 	Supersede,
 	SupersedeLoading,
@@ -428,6 +435,10 @@ const char* legName(Leg leg) {
 		return "wavetable";
 	case Leg::Fallback:
 		return "fallback";
+	case Leg::WaveTableOsc2:
+		return "wavetable-osc2";
+	case Leg::FallbackOsc2:
+		return "fallback-osc2";
 	case Leg::Gate:
 		return "gate";
 	case Leg::Stall:
@@ -782,6 +793,103 @@ bool openBrowserOnSynth(const char* leg, OscType osc) {
 	return openBrowser(leg, clip, &instrumentClipView);
 }
 
+/// Oscillator 2's type before its legs, put back after them so the legs after see the boot synth as it was.
+std::string g_osc2TypeBefore;
+
+/// Oscillator 2 of the boot synth on @p clip, as the menu's resolved sound target names it (`resolvedFor`).
+deluge::gui::SoundTarget osc2Target(Clip& clip) {
+	Source& source = g_synth->sources[1];
+	return {.sound = g_synth,
+	        .mod = g_synth,
+	        .params = &clip.paramManager,
+	        .arp = &static_cast<InstrumentClip&>(clip).arpSettings,
+	        .range = source.getOrCreateFirstRange(),
+	        .rangeIndex = 0,
+	        .sourceIndex = 1,
+	        .source = &source,
+	        .sampleControls = &source.sampleControls};
+}
+
+/// The boot synth's clip current under the clip view; for the wavetable leg, oscillator 2 a sample oscillator first,
+/// as oscillator 1 is for its own.
+bool openOsc2Claim() {
+	Clip* clip = (g_synth != nullptr) ? currentSong->getClipWithOutput(g_synth) : nullptr;
+	if (clip == nullptr) {
+		return fail(legName(g_leg), "the boot song has no synth clip");
+	}
+	frontClip(legName(g_leg), clip, &instrumentClipView, nullptr);
+	if (g_leg == Leg::WaveTableOsc2) {
+		g_osc2TypeBefore = std::string{deluge::instrument::to_string(g_synth->sources[1].oscType)};
+		deluge::edits::settingFor(*g_synth, "osc2/type", deluge::serialization::Value::makeScalar("sample"));
+	}
+	return true;
+}
+
+/// @p target named as a preset file names a knob: the param, then a cable's sources after `<`.
+std::string knobName(const deluge::modulation::KnobTarget& target) {
+	const deluge::synth::CableTarget word = deluge::modulation::knobWord(target);
+	std::string name = deluge::modulation::params::paramNameForFile(deluge::modulation::params::Kind::UNPATCHED_SOUND,
+	                                                                word.param_index());
+	if (!word.is_param()) {
+		name += std::string{"<"} + sourceToString(word.top_source());
+		if (word.has_second_source()) {
+			name += std::string{"+"} + sourceToString(word.second_source_from_top());
+		}
+	}
+	return name;
+}
+
+/// Whether @p sound's controls record holds what its engine knobs hold.
+bool recordMatches(Sound& sound) {
+	const std::optional<deluge::project::ControlsAddress> address = deluge::bridge::controlsAddressOf(sound);
+	const std::vector<deluge::project::ControllerMapping>* record =
+	    address ? currentSong->project.resolveControls(*address) : nullptr;
+	return record != nullptr && *record == deluge::bridge::controlsOf(sound);
+}
+
+/// The boot synth's mod button 7 after a wavetable claim or its undoing: its knobs, recorded from the claim
+/// (`SampleClaim::stepDecideWavetable`, `SampleClaim::removeWaveTableKnobs`), the record equal to them, and the knob
+/// mode the claim left.
+void checkWaveTableKnobs(std::string_view lower, std::string_view upper, int32_t mode) {
+	const std::string gotLower = knobName(g_synth->modKnobs[7][0].target);
+	const std::string gotUpper = knobName(g_synth->modKnobs[7][1].target);
+	const int32_t gotMode = currentSong->project.output_structure.find(*g_synth->id())->mod_knob_mode;
+	const bool record = recordMatches(*g_synth);
+	printf("SC-LAYOUT leg=%s mod7=%s,%s mode=%d record=%d\n", legName(g_leg), gotLower.c_str(), gotUpper.c_str(),
+	       gotMode, record ? 1 : 0);
+	if (gotLower != lower || gotUpper != upper || gotMode != mode || !record) {
+		printf("SC-LAYOUT FAIL leg=%s mod button 7 must be %.*s,%.*s in mode %d, its record equal to it\n",
+		       legName(g_leg), static_cast<int>(lower.size()), lower.data(), static_cast<int>(upper.size()),
+		       upper.data(), mode);
+		g_failures++;
+	}
+}
+
+/// Each sound row of @p kit, made from a sample (`Sound::setupAsSample`), holds the pitch adjust on mod button 6's
+/// lower knob, and its record equal to its knobs.
+void checkSampleRows(Kit& kit) {
+	int32_t rows = 0;
+	int32_t pinned = 0;
+	for (Drum* drum = kit.firstDrum; drum != nullptr; drum = drum->next) {
+		if (drum->type != DrumType::SOUND) {
+			continue;
+		}
+		auto& sound = *static_cast<SoundDrum*>(drum);
+		rows++;
+		if (sound.modKnobs[6][0].target == deluge::modulation::knobParam(deluge::modulation::params::LOCAL_PITCH_ADJUST)
+		    && recordMatches(sound)) {
+			pinned++;
+		}
+	}
+	printf("SC-LAYOUT leg=%s rows=%d pitchOnMod6=%d\n", legName(g_leg), rows, pinned);
+	if (rows == 0 || pinned != rows) {
+		printf("SC-LAYOUT FAIL leg=%s every sample row must hold the pitch adjust on mod button 6, its record equal "
+		       "to its knobs\n",
+		       legName(g_leg));
+		g_failures++;
+	}
+}
+
 // ── The legs ─────────────────────────────────────────────────────────────────
 
 /// The conversion counters, taken before a wavetable claim so a leg reads only its own.
@@ -1072,6 +1180,9 @@ bool openLeg() {
 	case Leg::Fallback:
 		// A wavetable oscillator: the claim tries the file as a wavetable first.
 		return openBrowserOnSynth("fallback", OscType::WAVETABLE);
+	case Leg::WaveTableOsc2:
+	case Leg::FallbackOsc2:
+		return openOsc2Claim();
 	case Leg::Gate:
 		deluge_audio_load_set_latency_ms(kGateHoldMs);
 		return openBrowserOnSynth("gate", OscType::SAMPLE);
@@ -1190,7 +1301,10 @@ const char* legFile() {
 	case Leg::WaveTableConverted:
 		return kFullWaveTableSample;
 	case Leg::Fallback:
+	case Leg::FallbackOsc2:
 		return kStereoSample;
+	case Leg::WaveTableOsc2:
+		return kCycleSample;
 	case Leg::Gate:
 		return kGateSample;
 	case Leg::Stall:
@@ -1253,6 +1367,11 @@ int32_t g_cancelLoadingTicks = 0;
 /// Whether the current leg is one of the two supersede legs.
 bool isSupersede() {
 	return g_leg == Leg::Supersede || g_leg == Leg::SupersedeLoading;
+}
+
+/// Whether the current leg claims for oscillator 2, by a request on the source with no browser.
+bool isOsc2Claim() {
+	return g_leg == Leg::WaveTableOsc2 || g_leg == Leg::FallbackOsc2;
 }
 
 /// The file a supersede leg's cursor moves on to.
@@ -1582,6 +1701,14 @@ void actLeg() {
 		actShellSlice();
 		return;
 	}
+	if (isOsc2Claim()) {
+		// The WaveTable option's claim (definitely a wavetable), then a plain claim of a stereo file on the wavetable
+		// oscillator, which falls back to a sample.
+		Clip* clip = currentSong->getClipWithOutput(g_synth);
+		deluge::gui::sampleClaim.request(
+		    {.path = legFile(), .mayDoWaveTable = (g_leg == Leg::WaveTableOsc2) ? 2 : 1, .target = osc2Target(*clip)});
+		return;
+	}
 	if (g_leg == Leg::WaveTableResident || g_leg == Leg::WaveTableConverted) {
 		g_convBefore = markConversions();
 	}
@@ -1740,6 +1867,9 @@ bool legEnded() {
 	}
 	if (isShellSlice()) {
 		return g_shellEnded;
+	}
+	if (isOsc2Claim()) {
+		return !deluge::gui::sampleClaim.inFlight();
 	}
 	if (g_leg == Leg::Stall) {
 		// A claim that gives up leaves the browser open and releases the gate; one that binds closes the browser.
@@ -1914,6 +2044,39 @@ void checkLeg() {
 			       wantWaveTable ? "wavetable" : "sample");
 			g_failures++;
 		}
+		// Oscillator 1's wave index on the upper knob and its LFO 2 depth on the lower; the sample load puts back the
+		// bitcrush and sample-rate reduction and mode 1.
+		if (wantWaveTable) {
+			checkWaveTableKnobs("oscAWavetablePosition<lfo2", "oscAWavetablePosition", 7);
+		}
+		else {
+			checkWaveTableKnobs("bitcrushAmount", "sampleRateReduction", 1);
+		}
+		break;
+	}
+	case Leg::WaveTableOsc2:
+	case Leg::FallbackOsc2: {
+		const bool wantWaveTable = (g_leg == Leg::WaveTableOsc2);
+		AudioFileHolder* holder = firstHolder(g_synth->sources[1]);
+		const bool bound = holder != nullptr && holder->audioFile != nullptr;
+		const OscType osc = g_synth->sources[1].oscType;
+		printf("SC-OSC2 leg=%s bound=%d osc=%d ticks=%d\n", legName(g_leg), bound ? 1 : 0, static_cast<int>(osc),
+		       g_waitTicks);
+		if (!bound || osc != (wantWaveTable ? OscType::WAVETABLE : OscType::SAMPLE)) {
+			printf("SC-OSC2 FAIL leg=%s the claim did not bind oscillator 2's file as a %s\n", legName(g_leg),
+			       wantWaveTable ? "wavetable" : "sample");
+			g_failures++;
+		}
+		// Oscillator 2's wave index on the lower knob, the upper left as the fallback leg left it; the sample load
+		// puts the bitcrush back and mode 1.
+		if (wantWaveTable) {
+			checkWaveTableKnobs("oscBWavetablePosition", "sampleRateReduction", 7);
+		}
+		else {
+			checkWaveTableKnobs("bitcrushAmount", "sampleRateReduction", 1);
+			deluge::edits::settingFor(*g_synth, "osc2/type",
+			                          deluge::serialization::Value::makeScalar(g_osc2TypeBefore));
+		}
 		break;
 	}
 	case Leg::CancelLoading:
@@ -2068,6 +2231,7 @@ void checkLeg() {
 	}
 	case Leg::ShellSlice:
 		checkRegionSlice("SC-SHELL-SLICE");
+		checkSampleRows(*static_cast<Kit*>(g_kitClip->output));
 		printf("SC-SHELL-SLICE teardown held=%d rootOnly=%d dropped=%d next held=%d noticed=%d heldThrough=%d "
 		       "pending=%d\n",
 		       g_teardownHeld ? 1 : 0, g_teardownRootKept ? 1 : 0, g_teardownDropped ? 1 : 0, g_nextHeld ? 1 : 0,
@@ -2097,6 +2261,7 @@ void checkLeg() {
 		break;
 	case Leg::ShellSliceManual:
 		checkManualSlice("SC-SHELL-SLICE-MANUAL");
+		checkSampleRows(*static_cast<Kit*>(g_kitClip->output));
 		break;
 	case Leg::ShellSliceBack:
 		printf("SC-SHELL-SLICE-BACK kept=%d noContextRefused=%d\n", g_shellBackKept ? 1 : 0,
@@ -2244,6 +2409,7 @@ void checkLeg() {
 					rowsWithDrum++;
 				}
 			}
+			checkSampleRows(*kit);
 			printf("IM-KIT drums=%d matched=%d rowsWithDrum=%d edited=%d browserClosed=%d ticks=%d\n", drums, matched,
 			       rowsWithDrum, kit->editedByUser ? 1 : 0, browserClosed ? 1 : 0, g_waitTicks);
 			if (drums != kImportKitCount || matched != kImportKitCount || rowsWithDrum < kImportKitCount
@@ -2615,7 +2781,7 @@ void runTick() {
 		if (openLeg()) {
 			// The randomizer legs press a pad in the clip view, and the ported slicer's host opens the file itself: no
 			// listing, no file to select, no preview to draw.
-			g_step = (isRandomize() || isShellSlice()) ? Step::Act : Step::Listing;
+			g_step = (isRandomize() || isShellSlice() || isOsc2Claim()) ? Step::Act : Step::Listing;
 		}
 		else {
 			nextLeg();

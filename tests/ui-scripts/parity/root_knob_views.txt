@@ -18,9 +18,14 @@
 # 6-9 An audio clip, a kit row and then the kit with affect-entire, the arranger (an output's audition pad held, then
 #   the song's knobs and the VU meter), and the keyboard screen over the kit's row: in each, mod button 1 and both
 #   knobs turned, each knob pushed, then mod button 0 and both knobs turned.
+# 10-13 On the kit after 9: a row made from a sample (mod button 6 and both knobs); a MIDI drum and a gate drum
+#   (auditioned with both knobs turned, then both knobs and mod button 2 with no audition); the clip made a synth, its
+#   synth mode set to FM and back to subtractive, mod button 1's knobs turned and pushed in each; and the clip made a CV
+#   clip, both knobs turned and mod button 2 pressed.
 #
-# The sections run in the order 4, 5, 1, 2, 3, 6, 7, 8, 9: the note tails need the boot synth clip's own view, the MIDI
-# clip replaces the synth clip, and the song view makes the audio and kit clips.
+# The sections run in the order 4, 5, 1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 13: the note tails need the boot synth clip's own
+# view, the MIDI clip replaces the synth clip, the song view makes the audio and kit clips, and the last kit becomes the
+# synth and then the CV clip.
 #
 # Section 4: note tails. The boot preset's envelope-1 sustain is at its maximum, which no gold knob changes, so
 # the sustain is brought to its minimum from the menu first; then the release knob (mod button 2, lower) decides the
@@ -504,3 +509,117 @@ turn LOWER 1
 snapshot kb_mod0_lower
 press KEYBOARD
 snapshot kb_closed
+#
+# Section 10: a kit row made from a sample. The audition pad of the empty row above the kit's last opens the drum
+# creator's browser; Select loads the file it is on into a new row, and BACK leaves the sound menu the creator opened.
+# The new row's mod button 6 lower knob is its pitch adjust.
+random_colour 17 1
+pad 17 1
+wait 2
+snapshot smp_browser
+press SELECT_ENC
+wait 3
+snapshot smp_menu
+press BACK
+wait 1
+snapshot smp_row
+press MOD6
+snapshot smp_mod6
+turn UPPER 1
+snapshot smp_mod6_upper
+turn LOWER 1
+snapshot smp_mod6_lower
+#
+# Section 11: a MIDI drum, then a gate drum: the next empty row's audition pad held with MIDI (then CV) makes one. While
+# the row auditions the lower knob steps its channel (and a MIDI drum's upper knob its note); with no audition the
+# knobs and mod button 2 move nothing.
+random_colour 17 2
+paddown 17 2
+press MIDI
+padup 17 2
+wait 1
+snapshot mdrum_made
+paddown 17 2
+turn LOWER 4
+snapshot mdrum_aud_lower
+turn UPPER 4
+snapshot mdrum_aud_upper
+padup 17 2
+turn UPPER 1
+snapshot mdrum_upper
+turn LOWER 1
+snapshot mdrum_lower
+press MOD2
+snapshot mdrum_mod2
+random_colour 17 3
+paddown 17 3
+press CV
+padup 17 3
+wait 1
+snapshot gdrum_made
+paddown 17 3
+turn LOWER 4
+snapshot gdrum_aud_lower
+padup 17 3
+turn UPPER 1
+snapshot gdrum_upper
+turn LOWER 1
+snapshot gdrum_lower
+press MOD2
+snapshot gdrum_mod2
+#
+# Section 12: the FM swap. SYNTH makes the clip a synth; the sound menu's synth mode (SHIFT + pad 6,4) set to FM swaps
+# mod button 1's filter knobs for the modulators' levels, which are turned and pushed. Back to subtractive they are the
+# filter's again. On the second visit the menu takes the first select turn without changing the value, on `main` too.
+random_colour 17 7
+press SYNTH
+wait 2
+snapshot fm_synth
+down SHIFT
+pad 6 4
+up SHIFT
+snapshot fm_menu
+turn SELECT 1
+snapshot fm_set
+press BACK
+snapshot fm_back
+press MOD1
+snapshot fm_mod1
+turn UPPER 1
+snapshot fm_upper
+turn LOWER 1
+snapshot fm_lower
+press MOD_ENCODER_1
+snapshot fm_upper_push
+press MOD_ENCODER_0
+snapshot fm_lower_push
+down SHIFT
+pad 6 4
+up SHIFT
+snapshot sub_menu
+turn SELECT -1
+snapshot sub_first_turn
+turn SELECT -1
+snapshot sub_set
+press BACK
+press MOD1
+snapshot sub_mod1
+turn UPPER 1
+snapshot sub_upper
+turn LOWER 1
+snapshot sub_lower
+press MOD_ENCODER_1
+snapshot sub_upper_push
+press MOD_ENCODER_0
+snapshot sub_lower_push
+#
+# Section 13: a CV track. CV makes the clip a CV clip: both knobs turned and mod button 2 pressed move nothing.
+press CV
+wait 2
+snapshot cv_clip
+turn UPPER 1
+snapshot cv_upper
+turn LOWER 1
+snapshot cv_lower
+press MOD2
+snapshot cv_mod2
