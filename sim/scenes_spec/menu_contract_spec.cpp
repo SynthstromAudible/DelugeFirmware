@@ -312,8 +312,9 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		(void)button(ButtonId::Learn, false);
 		const Result back_after = button(ButtonId::Back, true);
 		r.shell.tick(20);
-		expect(std::tuple{back_after.actions.empty(), int{menu_scene().state_for_spec().depth}})
-		    .not_().to_equal(std::tuple{true, int{depth}}, "Back neither acted nor changed the depth");
+		expect(std::tuple{back_after.actions.empty(), menu_scene().state_for_spec().depth})
+		    .not_()
+		    .to_equal(std::tuple{true, depth}, "Back neither acted nor changed the depth");
 	});
 
 	it("on a horizontal page, learns onto and unlearns the focused column's param", _ {

@@ -119,9 +119,6 @@ describe knob_records("the knob records, by Edit", ${
 		expect(four).not_().to_be_null();
 		if (four != nullptr) {
 			expect(four->project.mod_knob_mode).to_equal(4);
-		}
-		expect(four).not_().to_be_null();
-		if (four != nullptr) {
 			expect(four->live.global_effectable.modKnobMode).to_equal(4);
 		}
 		currentSong = before;
@@ -133,9 +130,6 @@ describe knob_records("the knob records, by Edit", ${
 		expect(nine).not_().to_be_null();
 		if (nine != nullptr) {
 			expect(nine->project.mod_knob_mode).to_equal(9);
-		}
-		expect(nine).not_().to_be_null();
-		if (nine != nullptr) {
 			expect(nine->live.global_effectable.modKnobMode).to_equal(kNumModButtons - 1);
 		}
 		currentSong = before;
@@ -341,8 +335,8 @@ describe knob_records("the knob records, by Edit", ${
 			currentSong = song;
 			const int32_t next = midi->changeControlNumberForModKnob(1, 0, 0);
 			expect(next).not_().to_equal(74);
-			expect(midi->docOutput_->mod_knob_ccs[0]).to_equal(ModKnobCc{.kind = ModKnobCc::Kind::NUMBER,
-			                                                        .number = static_cast<uint8_t>(next)});
+			expect(midi->docOutput_->mod_knob_ccs[0])
+			    .to_equal(ModKnobCc{.kind = ModKnobCc::Kind::NUMBER, .number = static_cast<uint8_t>(next)});
 		}
 		currentSong = before;
 	});

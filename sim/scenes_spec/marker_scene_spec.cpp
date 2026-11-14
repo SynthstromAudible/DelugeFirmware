@@ -432,7 +432,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(g.ranges.size()).to_equal(size_t{1});
 		expect(static_cast<int32_t>(g.ranges[0].start_pos)).to_equal(kZoomMax);
 		expect(g.cause).to_equal(bind::RangesCause{.kind = bind::RangesCause::Kind::MARKER,
-		                                    .marker = static_cast<int8_t>(MarkerType::START)});
+		                                           .marker = static_cast<int8_t>(MarkerType::START)});
 		expect(static_cast<int32_t>(r.range->sampleHolder.startPos)).to_equal(0); // nothing but the sink wrote
 	});
 

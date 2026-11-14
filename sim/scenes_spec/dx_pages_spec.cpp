@@ -760,8 +760,8 @@ describe dx_pages("the DX7 menu pages", ${
 		const std::optional<menu::ItemBlink> other = nodes::kDxParam.own_blink(r.menu_context(), r.state());
 		expect(other.has_value()).to_be_true();
 		if (other.has_value()) {
-			expect(other->valid).to_be_false();
-		} // the page opens with no blink
+			expect(other->valid).to_be_false(); // the page opens with no blink
+		}
 	});
 
 	it("flashes the edited operator's column row white for 100 ms in every 400 over the keyboard, from each change", _ {

@@ -1964,7 +1964,6 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		expect(browser_scene().awaiting_deferred_load()).to_be_true();
 		const std::optional<browser::BrowserChoice> choice = browser_scene().take_choice();
 		expect(choice.has_value()).to_be_true();
-		expect(choice.has_value()).to_be_true();
 		if (choice.has_value()) {
 			expect(choice->id).to_equal(BrowserId::MidiDeviceDefinition);
 		}
@@ -2697,9 +2696,6 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		expect(choice.has_value()).to_be_true();
 		if (choice.has_value()) {
 			expect(choice->op).to_equal(browser::BrowserChoice::Op::Slice);
-		}
-		expect(choice.has_value()).to_be_true();
-		if (choice.has_value()) {
 			expect(choice->is_folder).to_be_false();
 			expect(choice->path.empty()).to_be_false();
 		}
@@ -2953,7 +2949,6 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 		(void)browser_scene().take_preview();
 		browser_scene().preview_settled(true);
 		const std::optional<browser::BrowserChoice> choice = browser_scene().take_choice();
-		expect(choice.has_value()).to_be_true();
 		expect(choice.has_value()).to_be_true();
 		if (choice.has_value()) {
 			expect(choice->keep_open).to_be_true();

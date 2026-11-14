@@ -606,9 +606,6 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		expect(sound.midi_knobs.size()).to_equal(1);
 		if (sound.midi_knobs.size() == 1) {
 			expect(sound.midi_knobs[0].midiInput.cable).to_equal(&MIDIDeviceManager::upstreamUSBMIDICable1);
-		}
-		expect(sound.midi_knobs.size()).to_equal(1);
-		if (sound.midi_knobs.size() == 1) {
 			expect(stillSaw(sound.midi_knobs[0], 12345)).to_be_true();
 		}
 	});
@@ -633,9 +630,6 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		expect(sound.midi_knobs.size()).to_equal(1);
 		if (sound.midi_knobs.size() == 1) {
 			expect(sound.midi_knobs[0].relative).to_be_true();
-		}
-		expect(sound.midi_knobs.size()).to_equal(1);
-		if (sound.midi_knobs.size() == 1) {
 			expect(stillSaw(sound.midi_knobs[0], 777)).to_be_true();
 		}
 	});
@@ -771,8 +765,6 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		expect(kit->midi_knobs.size()).to_equal(1);
 		if (kit->midi_knobs.size() == 1) {
 			expect(deluge::bridge::knobPlays(kit->midi_knobs[0], kitParam, 21)).to_be_true();
-		}
-		if (kit->midi_knobs.size() == 1) {
 			expect(deluge::bridge::knobPlays(kit->midi_knobs[0], kitParam, 22)).to_be_false();
 		}
 	});

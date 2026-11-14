@@ -1493,9 +1493,13 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
 		expect(menu::nodes::sample0_reverse.bind.reverse_in_horizontal).not_().to_be_null();
-		expect(menu::nodes::sample0_reverse.bind.reverse_in_horizontal(ctx)).to_be_true();
+		if (menu::nodes::sample0_reverse.bind.reverse_in_horizontal != nullptr) {
+			expect(menu::nodes::sample0_reverse.bind.reverse_in_horizontal(ctx)).to_be_true();
+		}
 		expect(menu::nodes::audio_clip_reverse.bind.reverse_in_horizontal).not_().to_be_null();
-		expect(menu::nodes::audio_clip_reverse.bind.reverse_in_horizontal(ctx)).to_be_true();
+		if (menu::nodes::audio_clip_reverse.bind.reverse_in_horizontal != nullptr) {
+			expect(menu::nodes::audio_clip_reverse.bind.reverse_in_horizontal(ctx)).to_be_true();
+		}
 		expect(menu::nodes::osc0_type.bind.wrap_in_horizontal).to_be_true();
 	});
 
