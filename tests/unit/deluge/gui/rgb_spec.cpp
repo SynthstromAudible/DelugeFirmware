@@ -17,9 +17,6 @@ void expect_rgb_near(auto& self, RGB expected, RGB actual, int32_t tolerance) {
 }
 } // namespace
 
-// drawSquare() composites one animated source square onto a destination pad. Every pad animation - clip collapse and
-// expand, explode, fade, zoom, scroll - composites through it, so these pin the accumulation contract it relies on.
-
 // clang-format off
 describe rgb_group("RGB", ${
 	// blend(a, b, index) slides from b at index 0 to a at index 65535. Both endpoints must be a source colour: at
@@ -50,13 +47,15 @@ describe rgb_group("RGB", ${
 		int32_t previousR = -1;
 		for (uint32_t index = 0; index <= 65535; index += 257) {
 			RGB blended = RGB::blend(kRed, kGreen, index);
-			expect((int32_t)blended.r).not_().to_be_less_than(previousR);
-			expect((int32_t)blended.r + (int32_t)blended.g).not_().to_be_less_than(250);
+			expect(static_cast<int32_t>(blended.r)).not_().to_be_less_than(previousR);
+			expect(static_cast<int32_t>(blended.r) + static_cast<int32_t>(blended.g)).not_().to_be_less_than(250);
 			previousR = blended.r;
 		}
 	});
 });
 
+// drawSquare() composites one animated source square onto a destination pad. Every pad animation - clip collapse and
+// expand, explode, fade, zoom, scroll - composites through it, so these pin the accumulation contract it relies on.
 describe draw_square_group("draw square", ${
 	it("drawing onto an empty square gives the colour", _ {
 		uint8_t occupancy = 0;

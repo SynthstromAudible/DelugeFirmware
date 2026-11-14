@@ -8,16 +8,21 @@
 using deluge::l10n::shortForm;
 using enum deluge::l10n::String;
 
+namespace {
+// shortForm() returns an optional, which does not print; value_or() turns it into a string that does. No label equals
+// kNoShortForm, so an absent form fails and names itself.
+constexpr std::string_view kNoShortForm{"<no short form>"};
+} // namespace
+
 // clang-format off
 describe short_label_group("short label", ${
 	// The horizontal menus' column labels and short options read as main's do.
-	it("arp labels have mains short forms", _ {
-		// A missing short form reads as empty, which matches none of these labels, so a failure prints both strings.
-		expect(shortForm(STRING_FOR_REVERSE_PROBABILITY).value_or(std::string_view{})).to_equal(std::string_view{"RVRS"});
-		expect(shortForm(STRING_FOR_NOTE_PROBABILITY).value_or(std::string_view{})).to_equal(std::string_view{"NOTE"});
-		expect(shortForm(STRING_FOR_RANDOMIZER_LOCK).value_or(std::string_view{})).to_equal(std::string_view{"LOCK"});
-		expect(shortForm(STRING_FOR_UP_DOWN).value_or(std::string_view{})).to_equal(std::string_view{"UPDN"});
-		expect(shortForm(STRING_FOR_MODULATOR_1).value_or(std::string_view{})).to_equal(std::string_view{"Mod1"});
+	it("arp labels have main's short forms", _ {
+		expect(shortForm(STRING_FOR_REVERSE_PROBABILITY).value_or(kNoShortForm)).to_equal(std::string_view{"RVRS"});
+		expect(shortForm(STRING_FOR_NOTE_PROBABILITY).value_or(kNoShortForm)).to_equal(std::string_view{"NOTE"});
+		expect(shortForm(STRING_FOR_RANDOMIZER_LOCK).value_or(kNoShortForm)).to_equal(std::string_view{"LOCK"});
+		expect(shortForm(STRING_FOR_UP_DOWN).value_or(kNoShortForm)).to_equal(std::string_view{"UPDN"});
+		expect(shortForm(STRING_FOR_MODULATOR_1).value_or(kNoShortForm)).to_equal(std::string_view{"Mod1"});
 	});
 
 	// A string with no short form of its own has none here: the label is the string itself.
