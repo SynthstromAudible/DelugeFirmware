@@ -448,13 +448,13 @@ describe columns_w("ui::oled::columns", $ {
 		Page p{four_columns()};
 		ColumnsState state{};
 		matches_legacy(self, r, p, state, 0, 4, 1, "FILTER");
-		expect_golden(self, "../ui/widgets/columns_four_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/columns_four_48.pbm", r.pbm());
 
 		uitest::Rig64 r64;
 		Page p64{four_columns()};
 		ColumnsState state64{};
 		matches_legacy(self, r64, p64, state64, 0, 4, 1, "FILTER");
-		expect_golden(self, "../ui/widgets/columns_four_64.pbm", r64.pbm());
+		expect_golden(self, "ui/widgets/columns_four_64.pbm", r64.pbm());
 	});
 
 	it("puts the label row at the legacy base_y + box_height - label_height", _ {
@@ -637,7 +637,7 @@ describe columns_w("ui::oled::columns", $ {
 		uitest::Rig48 r;
 		ColumnsState state{};
 		matches_legacy(self, r, p, state, 0, 4, 2, "FILTER");
-		expect_golden(self, "../ui/widgets/columns_paged_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/columns_paged_48.pbm", r.pbm());
 
 		// renderPageCounters: "1/2" in the top right, the digits at canvas rows 6..14 and the
 		// separator a slanted two-pixel line from (116, 13) to (118, 7).
@@ -680,7 +680,7 @@ describe columns_w("ui::oled::columns", $ {
 		uitest::Rig48 r;
 		ColumnsState state{.focused = 4};
 		matches_legacy(self, r, p, state, 4, 6, 2, "FILTER");
-		expect_golden(self, "../ui/widgets/columns_page2_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/columns_page2_48.pbm", r.pbm());
 	});
 
 	it("finds the column under an instrument button on the focused page", _ {
@@ -818,7 +818,7 @@ describe columns_w("ui::oled::columns", $ {
 		Page p{wide};
 		ColumnsState state{};
 		matches_legacy(self, r, p, state, 0, 3, 1, nullptr);
-		expect_golden(self, "../ui/widgets/columns_wide_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/columns_wide_48.pbm", r.pbm());
 
 		// And with the wide column focused, where the ticks are suppressed.
 		uitest::Rig48 r2;
@@ -926,7 +926,7 @@ describe columns_w("ui::oled::columns", $ {
 		legacy::renderOLED(r.reference, "FILTER", std::span<const legacy::Item>{}, 0, 0, 0, 128, 48, r.frame.origin.y,
 		                   r.style.highlighting == Highlighting::FullInversion, r.style.rounded);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/columns_empty_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/columns_empty_48.pbm", r.pbm());
 
 		// The four frames, spelled out: each is drawn from `n * 32 + 7`, with dots along the top
 		// at base_y + 1 (canvas row 20) and along the sides from `start_x - 2` / `end_x + 2`.

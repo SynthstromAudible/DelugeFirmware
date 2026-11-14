@@ -48,7 +48,7 @@ describe pad_grid("gfx::grid::PadGrid", $ {
 		g.set(0, 0, RGB{255, 0, 0});
 		g.set(17, 7, RGB{0, 255, 0});
 		g.fill_rect(4, 3, 2, 2, RGB{10, 20, 30});
-		expect_golden(self, "grid/pad_grid_basic.state", grid_to_state(g));
+		expect_golden(self, "gfx/grid/pad_grid_basic.state", grid_to_state(g));
 	});
 });
 

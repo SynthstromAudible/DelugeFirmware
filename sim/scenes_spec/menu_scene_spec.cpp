@@ -3295,7 +3295,7 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 			expect(menu_scene().focused() == &lpf_page).to_be_true();
 			expect(static_cast<int>(menu_scene().state().columns[1].focused)).to_equal(0);
 			expect(static_cast<int>(menu_scene().state().columns[1].page)).to_equal(0);
-			expect_golden(self, "../ui/menu/menu_lpf_columns_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_lpf_columns_48.pbm", r.fake.pbm(0));
 		}
 		{
 			Rig r64{board_64(), profile_64()};
@@ -3305,7 +3305,7 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 			expect(menu_scene().focused() == &lpf_page).to_be_true();
 			expect(static_cast<int>(menu_scene().state().columns[1].focused)).to_equal(0);
 			expect(static_cast<int>(menu_scene().state().columns[1].page)).to_equal(0);
-			expect_golden(self, "../ui/menu/menu_lpf_columns_64.pbm", r64.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_lpf_columns_64.pbm", r64.fake.pbm(0));
 		}
 	});
 });
@@ -3320,7 +3320,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 			r.shell.tick(0);
 			expect(depth_of()).to_equal(0);
 			expect(cursor_of(0)).to_equal(0);
-			expect_golden(self, "../ui/menu/menu_settings_root_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_settings_root_48.pbm", r.fake.pbm(0));
 		}
 		{
 			Rig r64{board_64(), profile_64()};
@@ -3328,7 +3328,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 			r64.shell.tick(0);
 			expect(depth_of()).to_equal(0);
 			expect(cursor_of(0)).to_equal(0);
-			expect_golden(self, "../ui/menu/menu_settings_root_64.pbm", r64.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_settings_root_64.pbm", r64.fake.pbm(0));
 		}
 	});
 
@@ -3353,7 +3353,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 			// the next one (`MenuWalk::descend_to`'s `st.path[st.depth] = &child`, `scenes/menu/walk.cpp`;
 			// `open_lpf` above needs the identical extra tick for the same reason).
 			r.shell.tick(120);
-			expect_golden(self, "../ui/menu/menu_sync_level_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_sync_level_48.pbm", r.fake.pbm(0));
 		}
 		{
 			Rig r64{board_64(), profile_64()};
@@ -3368,7 +3368,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 			r64.shell.tick(110);
 			expect(menu_scene().focused() == &sync_leaf).to_be_true();
 			r64.shell.tick(120);
-			expect_golden(self, "../ui/menu/menu_sync_level_64.pbm", r64.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_sync_level_64.pbm", r64.fake.pbm(0));
 		}
 	});
 
@@ -3390,7 +3390,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 			r.shell.tick(110);
 			expect(menu_scene().focused() == &sync_leaf).to_be_true();
 			r.shell.tick(120); // same "entered leaf draws next tick" rule as the golden above
-			expect_golden(self, "../ui/menu/menu_sync_level_off_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_sync_level_off_48.pbm", r.fake.pbm(0));
 		}
 		{
 			Rig r64{board_64(), profile_64()};
@@ -3405,7 +3405,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 			r64.shell.tick(110);
 			expect(menu_scene().focused() == &sync_leaf).to_be_true();
 			r64.shell.tick(120);
-			expect_golden(self, "../ui/menu/menu_sync_level_off_64.pbm", r64.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_sync_level_off_64.pbm", r64.fake.pbm(0));
 		}
 	});
 });

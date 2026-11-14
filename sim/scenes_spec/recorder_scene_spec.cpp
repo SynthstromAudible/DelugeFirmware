@@ -1467,7 +1467,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		Rig r;
 		r.open();
 		r.tick(0);
-		expect_golden(self, "../ui/scenes/recorder_waiting_48.pbm", r.fake.pbm(0));
+		expect_golden(self, "ui/scenes/recorder_waiting_48.pbm", r.fake.pbm(0));
 	});
 
 	it("draws the recording screen on a 48-row panel", _ {
@@ -1477,7 +1477,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.tick(0);
 		recorder_scene().recorder()->numSamplesCaptured = 1;
 		r.tick(deluge::scenes::recorder::kRecorderPollMs);
-		expect_golden(self, "../ui/scenes/recorder_recording_48.pbm", r.fake.pbm(0));
+		expect_golden(self, "ui/scenes/recorder_recording_48.pbm", r.fake.pbm(0));
 		recorder_scene().recorder()->numSamplesCaptured = 0;
 	});
 
@@ -1488,7 +1488,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r64.tick(0);
 		recorder_scene().recorder()->numSamplesCaptured = 1;
 		r64.tick(deluge::scenes::recorder::kRecorderPollMs);
-		expect_golden(self, "../ui/scenes/recorder_recording_64.pbm", r64.fake.pbm(0));
+		expect_golden(self, "ui/scenes/recorder_recording_64.pbm", r64.fake.pbm(0));
 		recorder_scene().recorder()->numSamplesCaptured = 0;
 	});
 

@@ -480,7 +480,7 @@ describe grid_columns("ui::grid columns", $ {
 	it("records the whole grid for each component", _ {
 		uitest::GridRig r;
 		vu_meter(r.frame, 16, 16.7f, 12.8f);
-		expect_golden(self, "../ui/widgets/vu_meter.state", r.state());
+		expect_golden(self, "ui/widgets/vu_meter.state", r.state());
 	});
 
 	it("records the macro column", _ {
@@ -496,7 +496,7 @@ describe grid_columns("ui::grid columns", $ {
 		    {.kind = MacroKind::Section, .held = true},
 		};
 		macros(r.frame, 16, rows, 1);
-		expect_golden(self, "../ui/widgets/macros.state", r.state());
+		expect_golden(self, "ui/widgets/macros.state", r.state());
 	});
 
 	it("records the velocity and automation bars side by side", _ {
@@ -518,7 +518,7 @@ describe grid_columns("ui::grid columns", $ {
 			                                           .automated = true});
 			automation_column(main, 14, AutomationData{.knob_pos = 64, .automated = true, .pad_selected = true});
 		});
-		expect_golden(self, "../ui/widgets/columns_bars.state", r.state());
+		expect_golden(self, "ui/widgets/columns_bars.state", r.state());
 	});
 
 	it("records the tick-square overlay over a painted grid", _ {
@@ -539,7 +539,7 @@ describe grid_columns("ui::grid columns", $ {
 		    {.col = 14, .colour = TickColour::Red},
 		};
 		tick_squares(r.frame, per_row, RGB{255, 160, 0});
-		expect_golden(self, "../ui/widgets/tick_squares.state", r.state());
+		expect_golden(self, "ui/widgets/tick_squares.state", r.state());
 	});
 
 	it("flashes, with the cursor fast, each row's square that moved, red for a red row, and paints none", _ {

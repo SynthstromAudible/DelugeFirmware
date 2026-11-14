@@ -2139,7 +2139,7 @@ describe browser_goldens("scenes::browser::BrowserScene pixels", $ {
 			spec::AudioSongFixture f = spec::make_audio_clip_song();
 			Rig r;
 			r.open_and_land(context_of(f), BrowserId::Sample);
-			expect_golden(self, "../ui/scenes/browser_sample_list_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/scenes/browser_sample_list_48.pbm", r.fake.pbm(0));
 		}
 		{
 			CleanBrowser clean;
@@ -2150,7 +2150,7 @@ describe browser_goldens("scenes::browser::BrowserScene pixels", $ {
 			// Five rows on the taller panel where legacy's hard-coded
 			// `getNumBrowserAndMenuLines()` would still have drawn three -- the port follows
 			// `Style::menu_rows`, as `list` already does.
-			expect_golden(self, "../ui/scenes/browser_sample_list_64.pbm", r64.fake.pbm(0));
+			expect_golden(self, "ui/scenes/browser_sample_list_64.pbm", r64.fake.pbm(0));
 		}
 	});
 
@@ -2161,7 +2161,7 @@ describe browser_goldens("scenes::browser::BrowserScene pixels", $ {
 			spec::SongFixture f = spec::make_midi_song();
 			Rig r;
 			r.open_and_land(context_of(f), BrowserId::MidiDeviceDefinition);
-			expect_golden(self, "../ui/scenes/browser_midi_list_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/scenes/browser_midi_list_48.pbm", r.fake.pbm(0));
 		}
 		{
 			CleanBrowser clean;
@@ -2169,7 +2169,7 @@ describe browser_goldens("scenes::browser::BrowserScene pixels", $ {
 			spec::SongFixture f = spec::make_midi_song();
 			Rig r64{board_64(), profile_64()};
 			r64.open_and_land(context_of(f), BrowserId::MidiDeviceDefinition);
-			expect_golden(self, "../ui/scenes/browser_midi_list_64.pbm", r64.fake.pbm(0));
+			expect_golden(self, "ui/scenes/browser_midi_list_64.pbm", r64.fake.pbm(0));
 		}
 	});
 
@@ -2182,7 +2182,7 @@ describe browser_goldens("scenes::browser::BrowserScene pixels", $ {
 			r.open_and_land(context_of(f), BrowserId::Sample);
 			r.type('S');
 			r.settle();
-			expect_golden(self, "../ui/scenes/browser_typed_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/scenes/browser_typed_48.pbm", r.fake.pbm(0));
 		}
 		{
 			CleanBrowser clean;
@@ -2192,7 +2192,7 @@ describe browser_goldens("scenes::browser::BrowserScene pixels", $ {
 			r64.open_and_land(context_of(f), BrowserId::Sample);
 			r64.type('S');
 			r64.settle();
-			expect_golden(self, "../ui/scenes/browser_typed_64.pbm", r64.fake.pbm(0));
+			expect_golden(self, "ui/scenes/browser_typed_64.pbm", r64.fake.pbm(0));
 		}
 	});
 });

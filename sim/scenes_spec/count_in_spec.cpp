@@ -302,7 +302,7 @@ describe count_in_spec_body("scenes::overlay::CountInScene", $ {
 		r.open();
 		playbackHandler.currentVisualCountForCountIn = 4;
 		r.tick(kCountInPollMs);
-		expect_golden(self, "../ui/scenes/count_in_48.pbm", r.fake.pbm(0));
+		expect_golden(self, "ui/scenes/count_in_48.pbm", r.fake.pbm(0));
 
 		// Leave the singleton quiescent for later examples.
 		playbackHandler.currentVisualCountForCountIn = 0;

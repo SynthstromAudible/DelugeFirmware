@@ -284,22 +284,22 @@ describe routing_chain_w("ui::oled::routing_chain", $ {
 		{
 			uitest::Rig48 r;
 			routing_chain(r.frame, diagram_rect(), two_stage());
-			expect_golden(self, "../ui/widgets/routing_chain_two_48.pbm", r.pbm());
+			expect_golden(self, "ui/widgets/routing_chain_two_48.pbm", r.pbm());
 		}
 		{
 			uitest::Rig64 r;
 			routing_chain(r.frame, diagram_rect(), two_stage());
-			expect_golden(self, "../ui/widgets/routing_chain_two_64.pbm", r.pbm());
+			expect_golden(self, "ui/widgets/routing_chain_two_64.pbm", r.pbm());
 		}
 		{
 			uitest::Rig48 r;
 			routing_chain(r.frame, diagram_rect(), three_stage());
-			expect_golden(self, "../ui/widgets/routing_chain_three_48.pbm", r.pbm());
+			expect_golden(self, "ui/widgets/routing_chain_three_48.pbm", r.pbm());
 		}
 		{
 			uitest::Rig64 r;
 			routing_chain(r.frame, diagram_rect(), three_stage());
-			expect_golden(self, "../ui/widgets/routing_chain_three_64.pbm", r.pbm());
+			expect_golden(self, "ui/widgets/routing_chain_three_64.pbm", r.pbm());
 		}
 	});
 });
@@ -378,12 +378,12 @@ describe segmented_switch_w("ui::oled::segmented_switch", $ {
 		{
 			uitest::Rig48 r;
 			segmented_switch(r.frame, Rect{73, 2, 53, 9}, bi_uni(), bi_uni_widths(), 0);
-			expect_golden(self, "../ui/widgets/segmented_switch_bi_48.pbm", r.pbm());
+			expect_golden(self, "ui/widgets/segmented_switch_bi_48.pbm", r.pbm());
 		}
 		{
 			uitest::Rig64 r;
 			segmented_switch(r.frame, Rect{73, 2, 53, 9}, bi_uni(), bi_uni_widths(), 1);
-			expect_golden(self, "../ui/widgets/segmented_switch_uni_64.pbm", r.pbm());
+			expect_golden(self, "ui/widgets/segmented_switch_uni_64.pbm", r.pbm());
 		}
 	});
 });

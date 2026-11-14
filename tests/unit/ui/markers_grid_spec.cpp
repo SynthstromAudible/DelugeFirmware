@@ -234,7 +234,7 @@ describe markers_grid("ui/grid/markers", $ {
 			marker_column(main, 8, MarkerStack{.active = 0b0110, .selected = 2}, kMarkerColours);
 			marker_column(main, 13, MarkerStack{.active = 0b1000, .selected = 2}, kMarkerColours);
 		});
-		expect_golden(self, "../ui/widgets/markers_over_waveform.state", r.state());
+		expect_golden(self, "ui/widgets/markers_over_waveform.state", r.state());
 	});
 });
 // clang-format on

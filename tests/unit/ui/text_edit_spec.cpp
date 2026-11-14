@@ -85,7 +85,7 @@ describe text_edit_w("ui::oled::text_edit", $ {
 		r.reference.draw_string("HELLO", 0, r.frame.origin.y + 0, 6, 9, 0, 21 * 6);
 		r.reference.invert_area(30, 6, r.frame.origin.y + 5, r.frame.origin.y + 7);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/text_edit_short_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/text_edit_short_48.pbm", r.pbm());
 	});
 
 	it("matches the same short-string case on a 64-row, flush panel", _ {
@@ -96,7 +96,7 @@ describe text_edit_w("ui::oled::text_edit", $ {
 		r.reference.draw_string("HELLO", 0, r.frame.origin.y + 0, 6, 9, 0, 21 * 6);
 		r.reference.invert_area(30, 6, r.frame.origin.y + 5, r.frame.origin.y + 7);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/text_edit_short_64.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/text_edit_short_64.pbm", r.pbm());
 	});
 
 	it("matches qwerty_ui.cpp's mid-string cursor presentation: an inverted, rounded tail from "
@@ -121,7 +121,7 @@ describe text_edit_w("ui::oled::text_edit", $ {
 		r.reference.invert_area_rounded(107, 21, r.frame.origin.y + 0, r.frame.origin.y + 8, BorderRadius::Small,
 		                                 true);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/text_edit_scrolled_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/text_edit_scrolled_48.pbm", r.pbm());
 	});
 
 	it("matches the same mid-string case on a 64-row, flush panel", _ {
@@ -134,7 +134,7 @@ describe text_edit_w("ui::oled::text_edit", $ {
 		r.reference.invert_area_rounded(107, 21, r.frame.origin.y + 0, r.frame.origin.y + 8, BorderRadius::Small,
 		                                 true);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/text_edit_scrolled_64.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/text_edit_scrolled_64.pbm", r.pbm());
 	});
 
 	it("draws the left-edge rule instead of an inverted tail when highlighting is NoInversion, "

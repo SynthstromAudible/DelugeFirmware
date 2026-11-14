@@ -1410,7 +1410,7 @@ describe audio_clip_scene_spec_body(
 		        r.seed(Sentinel{});
 		        r.open();
 		        r.tick(0);
-		        expect_golden(self, "../ui/scenes/audio_clip_oled_48.pbm", r.oled());
+		        expect_golden(self, "ui/scenes/audio_clip_oled_48.pbm", r.oled());
 	        });
 
 	    it(
@@ -1422,7 +1422,7 @@ describe audio_clip_scene_spec_body(
 		        r.seed(Sentinel{});
 		        r.open();
 		        r.tick(0);
-		        expect_golden(self, "../ui/scenes/audio_clip_oled_64.pbm", r.oled());
+		        expect_golden(self, "ui/scenes/audio_clip_oled_64.pbm", r.oled());
 	        });
 
 	    // --- the UI-mode latch, which three arms below branch on -------------------------------------
@@ -2238,7 +2238,7 @@ describe audio_clip_scene_spec_body(
 		        // carry -- but a golden of a black grid would have recorded nothing and passed
 		        // forever, which is the same hazard, so the floor is asserted here too.
 		        expect_grid_has_content(self, r, 64 + 8);
-		        expect_golden(self, "../ui/scenes/audio_clip_pads.state", r.grid());
+		        expect_golden(self, "ui/scenes/audio_clip_pads.state", r.grid());
 		        playbackHandler.playbackState = 0;
 	        });
 

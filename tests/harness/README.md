@@ -111,7 +111,7 @@ against both the legacy adapter and the new scene -- see "Migration hook" below.
 2. **Level 2**: call `uitest::expect_script_goldens(self, "<name>", registry, services, opts)`
    from an `it(...)` block in `tests/unit/shell/scripts_spec.cpp` (or a new `*_spec.cpp` nested
    under `tests/unit/shell/`); it reads the script by name from `UI_SCRIPTS_DIR` and diffs
-   `UI_GOT_DIR` against `UI_GOLDEN_DIR` (both set in `tests/trees/host/CMakeLists.txt`).
+   `UI_GOT_DIR` against `GOLDEN_ROOT`'s `ui/shell/` (`GOLDEN_ROOT` from `tests/support/cmake/golden.cmake`).
    **Level 3**: nothing to wire up -- `sim/CMakeLists.txt` globs
    `tests/ui-scripts/app/*.txt` (`CONFIGURE_DEPENDS`, so a fresh build picks up a new file with
    no manual re-run) and creates the `ui_app_scripts_<name>` / `_diff` pair automatically.

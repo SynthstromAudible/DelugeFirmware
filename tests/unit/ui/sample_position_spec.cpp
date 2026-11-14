@@ -164,7 +164,7 @@ describe sample_position_widget("ui::oled sample_position & title_badge", $ {
 		// Both lines carry ink: the duration on the first, "(4410 smpl)" eleven rows below it.
 		expect(any_ink_on_line(r, kBodyY + 5)).to_be_true();
 		expect(any_ink_on_line(r, kBodyY + 5 + kSamplePositionLineGap)).to_be_true();
-		expect_golden(self, "../ui/widgets/sample_position_msec_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/sample_position_msec_48.pbm", r.pbm());
 	});
 
 	it("switches to three decimal places and 'sec' past a tenth of a second", _ {
@@ -174,7 +174,7 @@ describe sample_position_widget("ui::oled sample_position & title_badge", $ {
 		sample_position(r.frame, Rect{1, kBodyY, 127, 2 * kSamplePositionLineGap}, 220500, 44100);
 		legacy_render_body(r.reference, kBodyY + 5, 220500, 44100, true);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/sample_position_sec_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/sample_position_sec_48.pbm", r.pbm());
 	});
 
 	it("draws 0.00 msec at sample zero rather than nothing", _ {
@@ -205,7 +205,7 @@ describe sample_position_widget("ui::oled sample_position & title_badge", $ {
 		r.reference.clear();
 		legacy_render_body(r.reference, kBodyY + 5, samples, 44100, true);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/sample_position_minutes_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/sample_position_minutes_48.pbm", r.pbm());
 	});
 
 	it("omits the seconds past a minute when they are exactly zero", _ {
@@ -222,7 +222,7 @@ describe sample_position_widget("ui::oled sample_position & title_badge", $ {
 		sample_position(r.frame, Rect{1, kBodyY, 127, 2 * kSamplePositionLineGap}, samples, 44100);
 		legacy_render_body(r.reference, kBodyY + 5, samples, 44100, true);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/sample_position_hours_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/sample_position_hours_48.pbm", r.pbm());
 	});
 
 	it("draws only the sample count when the rate is zero", _ {
@@ -240,7 +240,7 @@ describe sample_position_widget("ui::oled sample_position & title_badge", $ {
 		// the SAME frame-local y, which is the point.
 		legacy_render_body(r.reference, kBodyY, 220500, 44100, true);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/sample_position_sec_64.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/sample_position_sec_64.pbm", r.pbm());
 	});
 
 	// --- title_badge --------------------------------------------------------------------------
@@ -261,7 +261,7 @@ describe sample_position_widget("ui::oled sample_position & title_badge", $ {
 		expect(r.lit(128 - 4, 5 + 9)).to_be_true();
 		expect(r.lit(128 - 11, 5 + 9)).to_be_false();
 		expect(r.lit(128 - 3, 5 + 9)).to_be_false();
-		expect_golden(self, "../ui/widgets/title_badge_lock_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/title_badge_lock_48.pbm", r.pbm());
 	});
 
 	it("right-aligns the badge on a wider panel rather than at OLED_MAIN_WIDTH_PIXELS", _ {

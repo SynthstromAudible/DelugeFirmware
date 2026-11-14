@@ -550,7 +550,7 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		Rig r;
 		r.open(nodes::midi_device_definition, rig.ctx());
 		r.tick(5);
-		expect_golden(self, "../ui/menu/menu_midi_device_definition_linked_48.pbm", r.fake.pbm(0));
+		expect_golden(self, "ui/menu/menu_midi_device_definition_linked_48.pbm", r.fake.pbm(0));
 	});
 
 	it("says nothing is linked when the output is not a MIDI instrument", _ {

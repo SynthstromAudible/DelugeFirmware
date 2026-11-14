@@ -860,7 +860,7 @@ describe shell_notices("shell::Notices", $ {
 		expect(saved48.lit(box48.x + 1, top48 + box48.y + box48.h)).to_be_true(); // bottom edge
 		expect(saved48.lit(box48.x, top48 + box48.y)).to_be_false();            // corner (SMALL rounding)
 		expect(saved48.pbm() != deluge::ui::test::Rig48{}.pbm()).to_be_true();  // not blank
-		expect_golden(self, "../shell/popup_saved_48.pbm", saved48.pbm());
+		expect_golden(self, "shell/popup_saved_48.pbm", saved48.pbm());
 
 		deluge::ui::test::Rig64 saved64;
 		PopupScene popup64;
@@ -875,7 +875,7 @@ describe shell_notices("shell::Notices", $ {
 		expect(saved64.lit(box64.x + 1, top64 + box64.y + box64.h)).to_be_true();
 		expect(saved64.lit(box64.x, top64 + box64.y)).to_be_false();
 		expect(saved64.pbm() != deluge::ui::test::Rig64{}.pbm()).to_be_true();
-		expect_golden(self, "../shell/popup_saved_64.pbm", saved64.pbm());
+		expect_golden(self, "shell/popup_saved_64.pbm", saved64.pbm());
 
 		// role != Main is a no-op.
 		deluge::ui::test::Rig48 untouched;

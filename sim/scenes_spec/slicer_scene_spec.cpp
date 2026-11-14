@@ -1344,41 +1344,41 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 			Rig r;
 			r.open();
 			r.tick(0);
-			expect_golden(self, "../ui/scenes/slicer_region_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/scenes/slicer_region_48.pbm", r.fake.pbm(0));
 		});
 	it("draws the REGION page on a 64-row panel", _ {
 			Rig r64{board_64(), profile_64()};
 			r64.open();
 			r64.tick(0);
-			expect_golden(self, "../ui/scenes/slicer_region_64.pbm", r64.fake.pbm(0));
+			expect_golden(self, "ui/scenes/slicer_region_64.pbm", r64.fake.pbm(0));
 		});
 	it("draws the MANUAL page on a 48-row panel", _ {
 			Rig r;
 			r.open();
 			slicer_scene().set_mode(Mode::Manual);
 			r.tick(0);
-			expect_golden(self, "../ui/scenes/slicer_manual_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/scenes/slicer_manual_48.pbm", r.fake.pbm(0));
 		});
 	it("draws the MANUAL page on a 64-row panel", _ {
 			Rig r64{board_64(), profile_64()};
 			r64.open();
 			slicer_scene().set_mode(Mode::Manual);
 			r64.tick(0);
-			expect_golden(self, "../ui/scenes/slicer_manual_64.pbm", r64.fake.pbm(0));
+			expect_golden(self, "ui/scenes/slicer_manual_64.pbm", r64.fake.pbm(0));
 		});
 
 	it("draws the REGION waveform on the pads", _ {
 		Rig r;
 		r.open();
 		r.tick(0);
-		expect_golden(self, "../ui/scenes/slicer_region_pads.state", r.fake.state());
+		expect_golden(self, "ui/scenes/slicer_region_pads.state", r.fake.state());
 	});
 	it("draws the MANUAL waveform and slot grid on the pads", _ {
 		Rig r;
 		r.open();
 		slicer_scene().set_mode(Mode::Manual);
 		r.tick(0);
-		expect_golden(self, "../ui/scenes/slicer_manual_pads.state", r.fake.state());
+		expect_golden(self, "ui/scenes/slicer_manual_pads.state", r.fake.state());
 	});
 });
 

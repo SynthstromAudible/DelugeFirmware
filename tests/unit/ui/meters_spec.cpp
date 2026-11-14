@@ -442,12 +442,12 @@ void both_geometries(Self& self, const std::string& name, Widget&& widget, Legac
 	uitest::Rig48 r;
 	three_slots(r, widget, legacy_draw);
 	expect(r.pbm()).to_equal(r.reference_pbm());
-	expect_golden(self, "../ui/widgets/" + name + "_48.pbm", r.pbm());
+	expect_golden(self, "ui/widgets/" + name + "_48.pbm", r.pbm());
 
 	uitest::Rig64 r64;
 	three_slots(r64, widget, legacy_draw);
 	expect(r64.pbm()).to_equal(r64.reference_pbm());
-	expect_golden(self, "../ui/widgets/" + name + "_64.pbm", r64.pbm());
+	expect_golden(self, "ui/widgets/" + name + "_64.pbm", r64.pbm());
 }
 
 /// One `meter` dispatch scene against the legacy dispatch: three slots carrying the same

@@ -320,7 +320,7 @@ describe keyboard_grid("ui/grid/keyboard", $ {
 		uitest::GridRig r;
 		TextKeyboardState state;
 		text_keyboard(r.frame, state, KeyboardLayoutKind::Qwerty);
-		expect_golden(self, "../ui/widgets/text_keyboard.state", r.state());
+		expect_golden(self, "ui/widgets/text_keyboard.state", r.state());
 	});
 
 	// --- adapters -----------------------------------------------------------------------------

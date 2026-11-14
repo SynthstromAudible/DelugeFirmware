@@ -318,7 +318,7 @@ describe rows("ui::grid rows", $ {
 		expect(r.grid.at(14, 0)).to_equal(RGB{0, 0, 0});   // the no-tail note's second column
 		expect(r.grid.at(6, 1)).to_equal(kPlayheadColour);
 		expect(r.grid.at(0, 3)).to_equal(RGB{10, 0, 0});
-		expect_golden(self, "../ui/widgets/clip_row_notes.state", r.state());
+		expect_golden(self, "ui/widgets/clip_row_notes.state", r.state());
 	});
 	it("matches the recorded pad state for a composited row", _ {
 		uitest::GridRig r;
@@ -349,7 +349,7 @@ describe rows("ui::grid rows", $ {
 		expect(r.grid.at(9, 0)).to_equal(kMid.forBlur());
 		expect(r.grid.at(12, 0)).to_equal(velocity_colour(kHigh, 32));
 		expect(r.grid.at(13, 0)).to_equal(kHigh.forTail());
-		expect_golden(self, "../ui/widgets/clip_row_composite.state", r.state());
+		expect_golden(self, "ui/widgets/clip_row_composite.state", r.state());
 	});
 });
 DELUGE_SPEC(rows_spec, rows)

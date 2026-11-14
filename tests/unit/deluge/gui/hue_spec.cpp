@@ -30,7 +30,7 @@ describe hue("RGB::fromHue / fromHuePastel golden", $ {
 		for (int32_t h = 0; h < kHueCount; h++) {
 			append_pastel_line(out, h);
 		}
-		expect_golden(self, "grid/hue.txt", out.str());
+		expect_golden(self, "gfx/grid/hue.txt", out.str());
 	});
 });
 

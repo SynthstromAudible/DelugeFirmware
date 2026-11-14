@@ -147,7 +147,7 @@ describe misc_oled_w("ui::oled::misc", $ {
 		// The two y positions, spelled out: OLED_MAIN_TOPMOST_PIXEL + 3 and + 17.
 		expect(r.frame.origin.y + kOutputTypeY48).to_equal(8);
 		expect(r.frame.origin.y + kOutputNameY48).to_equal(22);
-		expect_golden(self, "../ui/widgets/output_name_synth_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/output_name_synth_48.pbm", r.pbm());
 	});
 
 	it("uses the 64-row panel's own y positions", _ {
@@ -164,7 +164,7 @@ describe misc_oled_w("ui::oled::misc", $ {
 
 		expect(kOutputTypeY64).to_equal(12);
 		expect(kOutputNameY64).to_equal(30);
-		expect_golden(self, "../ui/widgets/output_name_synth_64.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/output_name_synth_64.pbm", r.pbm());
 
 		// The two panels really do lay the type text out differently.
 		uitest::Rig48 r48;
@@ -229,7 +229,7 @@ describe misc_oled_w("ui::oled::misc", $ {
 		segment_digits(r.frame, r.frame.bounds(), std::span<const uint8_t, 4>{kBriefBytes});
 		legacy::renderEmulated7Seg(r.reference, kBriefBytes);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/segment_digits_0123_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/segment_digits_0123_48.pbm", r.pbm());
 
 		// The shapes, against the panel's own "0123" codes. Digit n starts at 33n + 1; a top bar
 		// is a 15/17/15 stack from row 7, the middle bar the same stack from row 24 and the
@@ -283,7 +283,7 @@ describe misc_oled_w("ui::oled::misc", $ {
 		segment_digits(r64.frame, r64.frame.bounds(), std::span<const uint8_t, 4>{kBriefBytes});
 		legacy::renderEmulated7Seg(r64.reference, kBriefBytes);
 		expect(r64.pbm()).to_equal(r64.reference_pbm());
-		expect_golden(self, "../ui/widgets/segment_digits_0123_64.pbm", r64.pbm());
+		expect_golden(self, "ui/widgets/segment_digits_0123_64.pbm", r64.pbm());
 	});
 
 	it("lights the VU meter one segment at a time", _ {
@@ -321,11 +321,11 @@ describe misc_oled_w("ui::oled::misc", $ {
 		expect(half.lit(4 + 118, top + 13)).to_be_true();
 		expect(half.lit(4 + 119, top + 13)).to_be_false();
 		expect(half.lit(4 + 104, top + 13)).to_be_false(); // the gap before segment 7
-		expect_golden(self, "../ui/widgets/vu_half_full_48.pbm", half.pbm());
+		expect_golden(self, "ui/widgets/vu_half_full_48.pbm", half.pbm());
 
 		uitest::Rig64 r64;
 		vu(r64.frame, Rect{4, 4, 120, 18}, 200, 60);
-		expect_golden(self, "../ui/widgets/vu_64.pbm", r64.pbm());
+		expect_golden(self, "ui/widgets/vu_64.pbm", r64.pbm());
 	});
 
 	it("passes a graphic and an icon straight through to the canvas", _ {

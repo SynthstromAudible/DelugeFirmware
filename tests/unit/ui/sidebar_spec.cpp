@@ -259,7 +259,7 @@ describe sidebar("ui::grid sidebar", $ {
 			right[i] = audition_colour(auditions[i]);
 		}
 		sidebar_columns(r.frame, left, right);
-		expect_golden(self, "../ui/widgets/sidebar_columns.state", r.state());
+		expect_golden(self, "ui/widgets/sidebar_columns.state", r.state());
 	});
 });
 DELUGE_SPEC(sidebar_spec, sidebar)

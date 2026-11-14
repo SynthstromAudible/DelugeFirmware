@@ -577,7 +577,7 @@ describe screensaver_scene_spec_body("scenes::overlay::ScreensaverScene", $ {
 		Rig r;
 		r.open(0x7777);
 		r.tick(0);
-		expect_golden(self, "../ui/scenes/screensaver_rainfall_48.pbm", r.fake.pbm(0));
+		expect_golden(self, "ui/scenes/screensaver_rainfall_48.pbm", r.fake.pbm(0));
 	});
 
 	it("renders the starfield golden", _ {
@@ -585,7 +585,7 @@ describe screensaver_scene_spec_body("scenes::overlay::ScreensaverScene", $ {
 		Rig r;
 		r.open(0x7777);
 		r.tick(0);
-		expect_golden(self, "../ui/scenes/screensaver_starfield_48.pbm", r.fake.pbm(0));
+		expect_golden(self, "ui/scenes/screensaver_starfield_48.pbm", r.fake.pbm(0));
 	});
 });
 // clang-format on

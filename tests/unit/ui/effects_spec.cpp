@@ -130,7 +130,7 @@ describe effects_grid("ui/grid/effects", $ {
 	it("records a greyed-out grid", _ {
 		uitest::GridRig r = painted_rig();
 		greyout(r.frame, GreyoutMask{.cols = (1u << 17) | (1u << 0), .rows = 1u << 4}, 0x400000);
-		expect_golden(self, "../ui/widgets/greyout.state", r.state());
+		expect_golden(self, "ui/widgets/greyout.state", r.state());
 	});
 
 	// --- gesture ------------------------------------------------------------------------------

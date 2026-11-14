@@ -542,7 +542,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(lit(r.fake, 0, 0, top + BaseScene::kMainLineY)).to_be_true();
 		expect(lit(r.fake, 0, 40, top + BaseScene::kMainLineY)).to_be_true();
 		expect(lit(r.fake, 0, OverlayScene::kBoxX, top + OverlayScene::kBoxY)).to_be_true();
-		expect_golden(self, "../shell/overlay_48.pbm", r.fake.pbm(0));
+		expect_golden(self, "shell/overlay_48.pbm", r.fake.pbm(0));
 
 		// Made opaque, the same overlay stops the base being drawn at all.
 		deluge::notify::dirty().drain();

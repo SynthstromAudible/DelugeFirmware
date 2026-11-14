@@ -71,7 +71,7 @@ describe text_widgets("ui::oled text & title", $ {
 
 		r.reference.draw_screen_title("SOUND");
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/title_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/title_48.pbm", r.pbm());
 	});
 	it("draws the title in style.title_font rather than a fixed face", _ {
 		// title() draws in style.title_font rather than a fixed face. Both shipped profiles set
@@ -119,7 +119,7 @@ describe text_widgets("ui::oled text & title", $ {
 		r.reference.draw_string("C", 61, 15, 6, 9);
 		r.reference.draw_string("R", 122, 25, 6, 9);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/text_align_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/text_align_48.pbm", r.pbm());
 	});
 	it("centres an odd-width string the way drawStringCentred rounds it", _ {
 		// "SYNTH" in MetricBold9 is 45px, an odd width -- the case where `centre - (w >> 1)`
@@ -147,7 +147,7 @@ describe text_widgets("ui::oled text & title", $ {
 
 		r.reference.draw_string_centred_shrink_if_necessary("THIS TITLE IS FAR TOO LONG TO FIT", 25, 18, 20);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/text_shrink_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/text_shrink_48.pbm", r.pbm());
 	});
 	it("uses the 13px font's own 11px advance when deciding to shrink", _ {
 		// Isolates a shrink-decision regression: "1234567890123" is 13 chars, so maxTextWidth =
@@ -184,7 +184,7 @@ describe text_widgets("ui::oled text & title", $ {
 		r.reference.draw_string_centered("PORTAMENTO ON THE SLOT", 10, 25, 6, 9, 60);
 		r.reference.draw_string_centered("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123", 0, 10, 4, 5, 128);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/text_truncate_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/text_truncate_48.pbm", r.pbm());
 	});
 	it("renders the same widgets on a 128x64 panel", _ {
 		uitest::Rig64 r;
@@ -204,7 +204,7 @@ describe text_widgets("ui::oled text & title", $ {
 		r.reference.draw_screen_title("SOUND");
 		r.reference.draw_string("C", 61, 20, 6, 9);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/title_text_64.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/title_text_64.pbm", r.pbm());
 	});
 	it("aligns and shrinks on a 128x64 panel too", _ {
 		uitest::Rig64 r;
@@ -223,7 +223,7 @@ describe text_widgets("ui::oled text & title", $ {
 		r.reference.draw_string("R", 122, 16, 6, 9);
 		r.reference.draw_string_centred_shrink_if_necessary("THIS TITLE IS FAR TOO LONG TO FIT", 30, 18, 20);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/text_align_shrink_64.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/text_align_shrink_64.pbm", r.pbm());
 	});
 	it("draws a title without its separator when asked", _ {
 		uitest::Rig48 r;

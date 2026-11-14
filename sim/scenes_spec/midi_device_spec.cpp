@@ -849,7 +849,7 @@ describe midi_device_pixels("scenes::menu: the per-device page's pixels", $ {
 			uint32_t at = 10;
 			r.walk(rows, at);
 			r.shell.tick(at + 5);
-			expect_golden(self_ref, std::string{"../ui/menu/"} + name + "_48.pbm", r.fake.pbm(0));
+			expect_golden(self_ref, std::string{"ui/menu/"} + name + "_48.pbm", r.fake.pbm(0));
 		}
 		{
 			Rig r{board_64(), profile_64()};
@@ -858,7 +858,7 @@ describe midi_device_pixels("scenes::menu: the per-device page's pixels", $ {
 			uint32_t at = 10;
 			r.walk(rows, at);
 			r.shell.tick(at + 5);
-			expect_golden(self_ref, std::string{"../ui/menu/"} + name + "_64.pbm", r.fake.pbm(0));
+			expect_golden(self_ref, std::string{"ui/menu/"} + name + "_64.pbm", r.fake.pbm(0));
 		}
 	};
 

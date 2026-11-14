@@ -446,7 +446,7 @@ describe menu_scales_pixels("scenes::menu the two scale checklists: pixels", $ {
 		uint32_t at = 10;
 		r.walk_to(4, at);
 		r.shell.tick(at + 10);
-		expect_golden(self, "../ui/menu/menu_active_scales_48.pbm", r.fake.pbm(0));
+		expect_golden(self, "ui/menu/menu_active_scales_48.pbm", r.fake.pbm(0));
 
 		Rig r64{board_64(), profile_64()};
 		currentSong->project.scale.disabled_preset_scales = sentinel_bits();
@@ -455,7 +455,7 @@ describe menu_scales_pixels("scenes::menu the two scale checklists: pixels", $ {
 		uint32_t at64 = 10;
 		r64.walk_to(4, at64);
 		r64.shell.tick(at64 + 10);
-		expect_golden(self, "../ui/menu/menu_active_scales_64.pbm", r64.fake.pbm(0));
+		expect_golden(self, "ui/menu/menu_active_scales_64.pbm", r64.fake.pbm(0));
 	});
 
 	it("is byte-identical after twenty quiet ticks, and toggles nothing", _ {

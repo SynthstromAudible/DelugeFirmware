@@ -2398,37 +2398,37 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 			Rig r;
 			r.open(nodes::midi_devices, ctx);
 			r.shell.tick(0);
-			expect_golden(self, "../ui/menu/menu_midi_devices_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_midi_devices_48.pbm", r.fake.pbm(0));
 		}
 		{
 			Rig r{board_64(), profile_64()};
 			r.open(nodes::midi_devices, ctx);
 			r.shell.tick(0);
-			expect_golden(self, "../ui/menu/menu_midi_devices_64.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_midi_devices_64.pbm", r.fake.pbm(0));
 		}
 		{
 			Rig r;
 			r.open(nodes::gate_selection, ctx);
 			r.shell.tick(0);
-			expect_golden(self, "../ui/menu/menu_gate_selection_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_gate_selection_48.pbm", r.fake.pbm(0));
 		}
 		{
 			Rig r{board_64(), profile_64()};
 			r.open(nodes::gate_selection, ctx);
 			r.shell.tick(0);
-			expect_golden(self, "../ui/menu/menu_gate_selection_64.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_gate_selection_64.pbm", r.fake.pbm(0));
 		}
 		{
 			Rig r;
 			r.open(nodes::cv_selection, ctx);
 			r.shell.tick(0);
-			expect_golden(self, "../ui/menu/menu_cv_selection_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_cv_selection_48.pbm", r.fake.pbm(0));
 		}
 		{
 			Rig r{board_64(), profile_64()};
 			r.open(nodes::cv_selection, ctx);
 			r.shell.tick(0);
-			expect_golden(self, "../ui/menu/menu_cv_selection_64.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_cv_selection_64.pbm", r.fake.pbm(0));
 		}
 	});
 
@@ -2530,7 +2530,7 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 		Rig r;
 		r.open(nodes::root_settings, settings.ctx);
 		r.shell.tick(0);
-		expect_golden(self, "../ui/menu/menu_settings_tree_48.pbm", r.fake.pbm(0));
+		expect_golden(self, "ui/menu/menu_settings_tree_48.pbm", r.fake.pbm(0));
 	});
 
 	// `midi::Command::drawPixelsForOled` (`gui/menu_item/midi/command.cpp:33-87`) has exactly two
@@ -2555,7 +2555,7 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 		focus_command_row(r, settings.ctx, 0);
 		expect(menu_scene().focused() == &nodes::midi_command_play).to_be_true();
 		r.shell.tick(300);
-		expect_golden(self, "../ui/menu/menu_midi_command_unassigned_48.pbm", r.fake.pbm(0));
+		expect_golden(self, "ui/menu/menu_midi_command_unassigned_48.pbm", r.fake.pbm(0));
 		saved.restore();
 	});
 
@@ -2569,7 +2569,7 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 		// (1-based, with the CC band subtracted back off) and "CC 42".
 		expect(menu_scene().learn_cc(fake_cable(), 3, 42, 127)).to_be_true();
 		r.shell.tick(300);
-		expect_golden(self, "../ui/menu/menu_midi_command_learned_48.pbm", r.fake.pbm(0));
+		expect_golden(self, "ui/menu/menu_midi_command_learned_48.pbm", r.fake.pbm(0));
 		saved.restore();
 	});
 
@@ -2585,7 +2585,7 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 		focus_command_row(r, settings.ctx, 0);
 		expect(menu_scene().learn_note_on(fake_cable(), MIDI_CHANNEL_MPE_LOWER_ZONE, 64)).to_be_true();
 		r.shell.tick(300);
-		expect_golden(self, "../ui/menu/menu_midi_command_mpe_zone_48.pbm", r.fake.pbm(0));
+		expect_golden(self, "ui/menu/menu_midi_command_mpe_zone_48.pbm", r.fake.pbm(0));
 		saved.restore();
 	});
 
@@ -2597,7 +2597,7 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 		focus_command_row(r, settings.ctx, 0);
 		expect(menu_scene().learn_cc(fake_cable(), 3, 42, 127)).to_be_true();
 		r.shell.tick(300);
-		expect_golden(self, "../ui/menu/menu_midi_command_learned_64.pbm", r.fake.pbm(0));
+		expect_golden(self, "ui/menu/menu_midi_command_learned_64.pbm", r.fake.pbm(0));
 		saved.restore();
 	});
 
@@ -2626,14 +2626,14 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 			Rig r;
 			r.open(nodes::midi_follow_channel_a, settings.ctx);
 			r.shell.tick(0);
-			expect_golden(self, std::string{"../ui/menu/"} + c.golden + "_48.pbm", r.fake.pbm(0));
+			expect_golden(self, std::string{"ui/menu/"} + c.golden + "_48.pbm", r.fake.pbm(0));
 		}
 		midiEngine.midiFollowChannelType[0].clear();
 		midiEngine.midiFollowChannelType[0].channelOrZone = 0;
 		Rig r{board_64(), profile_64()};
 		r.open(nodes::midi_follow_channel_a, settings.ctx);
 		r.shell.tick(0);
-		expect_golden(self, "../ui/menu/menu_follow_channel_1_64.pbm", r.fake.pbm(0));
+		expect_golden(self, "ui/menu/menu_follow_channel_1_64.pbm", r.fake.pbm(0));
 	});
 
 	it("renders the settings root list on a 64-row panel", _ {
@@ -2641,7 +2641,7 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 		Rig r{board_64(), profile_64()};
 		r.open(nodes::root_settings, settings.ctx);
 		r.shell.tick(0);
-		expect_golden(self, "../ui/menu/menu_settings_tree_64.pbm", r.fake.pbm(0));
+		expect_golden(self, "ui/menu/menu_settings_tree_64.pbm", r.fake.pbm(0));
 	});
 });
 

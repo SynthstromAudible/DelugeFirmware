@@ -523,14 +523,14 @@ describe menu_range_pixels("scenes::menu Kind::Range -- pixels", $ {
 			(void)r.open(nodes::default_tempo);
 			r.shell.tick(5);   // enter_leaf seeds LEFT on a split pair
 			r.shell.tick(15);
-			expect_golden(self, "../ui/menu/menu_default_tempo_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_default_tempo_48.pbm", r.fake.pbm(0));
 
 			Rig r64{board_64(), profile_64()};
 			FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO] = {.lower = 90, .upper = 150};
 			(void)r64.open(nodes::default_tempo);
 			r64.shell.tick(5);
 			r64.shell.tick(15);
-			expect_golden(self, "../ui/menu/menu_default_tempo_64.pbm", r64.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_default_tempo_64.pbm", r64.fake.pbm(0));
 		}
 		{
 			RangeStorageGuard guard;
@@ -540,14 +540,14 @@ describe menu_range_pixels("scenes::menu Kind::Range -- pixels", $ {
 			(void)k.open(nodes::default_key);
 			k.shell.tick(5);
 			k.shell.tick(15);
-			expect_golden(self, "../ui/menu/menu_default_key_48.pbm", k.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_default_key_48.pbm", k.fake.pbm(0));
 
 			Rig k64{board_64(), profile_64()};
 			FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_KEY] = {.lower = 1, .upper = 4};
 			(void)k64.open(nodes::default_key);
 			k64.shell.tick(5);
 			k64.shell.tick(15);
-			expect_golden(self, "../ui/menu/menu_default_key_64.pbm", k64.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_default_key_64.pbm", k64.fake.pbm(0));
 		}
 	});
 

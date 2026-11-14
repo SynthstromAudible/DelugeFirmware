@@ -1853,14 +1853,14 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			r.range->sampleHolder.startPos = 3 * kZoomMax;
 			r.open(MarkerType::START);
 			r.tick(0);
-			expect_golden(self, "../ui/scenes/marker_start_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/scenes/marker_start_48.pbm", r.fake.pbm(0));
 		});
 	it("draws the start point on a 64-row panel", _ {
 			Rig r64{board_64(), profile_64()};
 			r64.range->sampleHolder.startPos = 3 * kZoomMax;
 			r64.open(MarkerType::START);
 			r64.tick(0);
-			expect_golden(self, "../ui/scenes/marker_start_64.pbm", r64.fake.pbm(0));
+			expect_golden(self, "ui/scenes/marker_start_64.pbm", r64.fake.pbm(0));
 		});
 		it("draws a locked loop end, badge and all, on a 48-row panel", _ {
 			Rig r;
@@ -1870,7 +1870,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			r.range->sampleHolder.loopLocked = true;
 			r.open(MarkerType::LOOP_END);
 			r.tick(0);
-			expect_golden(self, "../ui/scenes/marker_loop_locked_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/scenes/marker_loop_locked_48.pbm", r.fake.pbm(0));
 		});
 		it("draws a locked loop end, badge and all, on a 64-row panel", _ {
 			Rig r64{board_64(), profile_64()};
@@ -1880,7 +1880,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 			r64.range->sampleHolder.loopLocked = true;
 			r64.open(MarkerType::LOOP_END);
 			r64.tick(0);
-			expect_golden(self, "../ui/scenes/marker_loop_locked_64.pbm", r64.fake.pbm(0));
+			expect_golden(self, "ui/scenes/marker_loop_locked_64.pbm", r64.fake.pbm(0));
 		});
 
 	it("draws the waveform and every marker on the pads", _ {
@@ -1891,7 +1891,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.range->sampleHolder.endPos = 14 * kZoomMax;
 		r.open(MarkerType::LOOP_START);
 		r.tick(0);
-		expect_golden(self, "../ui/scenes/marker_pads.state", r.fake.state());
+		expect_golden(self, "ui/scenes/marker_pads.state", r.fake.state());
 	});
 });
 

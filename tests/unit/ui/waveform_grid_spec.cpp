@@ -124,7 +124,7 @@ describe waveform_grid("ui/grid/waveform", $ {
 			brightness[x] = (x * kWaveformMaxBrightness) / 15;
 		}
 		r.frame.region(kMainArea, [&](GridFrame& main) { waveform_row(main, 4, brightness, kBase, false); });
-		expect_golden(self, "../ui/widgets/waveform_row.state", r.state());
+		expect_golden(self, "ui/widgets/waveform_row.state", r.state());
 	});
 
 	// --- waveform_full ------------------------------------------------------------------------
@@ -203,7 +203,7 @@ describe waveform_grid("ui/grid/waveform", $ {
 		r.frame.region(kMainArea, [&](GridFrame& main) {
 			waveform_full(main, cols, kWaveformBarBrightnessColoured, kBase);
 		});
-		expect_golden(self, "../ui/widgets/waveform_full.state", r.state());
+		expect_golden(self, "ui/widgets/waveform_full.state", r.state());
 	});
 });
 DELUGE_SPEC(waveform_grid_spec, waveform_grid)

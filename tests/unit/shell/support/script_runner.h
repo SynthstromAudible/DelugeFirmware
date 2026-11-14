@@ -28,8 +28,8 @@
 #ifndef UI_SCRIPTS_DIR
 #error "UI_SCRIPTS_DIR must be defined by CMake"
 #endif
-#ifndef UI_GOLDEN_DIR
-#error "UI_GOLDEN_DIR must be defined by CMake"
+#ifndef GOLDEN_ROOT
+#error "GOLDEN_ROOT must be defined by CMake (deluge_golden_root, tests/support/cmake/golden.cmake)"
 #endif
 #ifndef UI_GOT_DIR
 #error "UI_GOT_DIR must be defined by CMake"
@@ -797,7 +797,7 @@ inline RunResult expect_script_goldens(Self& self, std::string_view script_name,
 	const std::string name{script_name};
 	const fs::path script = fs::path(UI_SCRIPTS_DIR) / (name + ".txt");
 	const fs::path got = fs::path(UI_GOT_DIR) / "shell" / name;
-	const fs::path golden = fs::path(UI_GOLDEN_DIR) / name;
+	const fs::path golden = fs::path(GOLDEN_ROOT) / "ui" / "shell" / name;
 
 	// Every assertion below compares *labelled strings* rather than passing cppspec's optional
 	// failure message: `Matchers::Equal` overrides `failure_message()` and never consults the

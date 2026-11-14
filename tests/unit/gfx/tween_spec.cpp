@@ -544,28 +544,28 @@ describe tween("gfx::grid tweens", $ {
 		PadGrid a = make_test_grid(1), b = make_test_grid(7), out(kDelugeGrid);
 
 		smear_scroll_horizontal(a, b, 3 * 65536 + 32768, out);
-		expect_golden(self, "grid/tween_smear_scroll_horizontal.state", grid_to_state(out));
+		expect_golden(self, "gfx/grid/tween_smear_scroll_horizontal.state", grid_to_state(out));
 		smear_scroll_vertical(a, b, 2 * 65536 + 16384, out);
-		expect_golden(self, "grid/tween_smear_scroll_vertical.state", grid_to_state(out));
+		expect_golden(self, "gfx/grid/tween_smear_scroll_vertical.state", grid_to_state(out));
 
 		zoom(a, b, ZoomParams{6, 3, 9 * 65536, 9 * 65536, 32768}, out);
-		expect_golden(self, "grid/tween_zoom_in.state", grid_to_state(out));
+		expect_golden(self, "gfx/grid/tween_zoom_in.state", grid_to_state(out));
 		zoom(a, b, ZoomParams{3, 6, 9 * 65536, 9 * 65536, 32768}, out);
-		expect_golden(self, "grid/tween_zoom_out.state", grid_to_state(out));
+		expect_golden(self, "gfx/grid/tween_zoom_out.state", grid_to_state(out));
 
 		explode(a, ExplodeParams{3 * 65536, 4 * 65536, 5 * 65536, false, 32768}, out);
-		expect_golden(self, "grid/tween_explode.state", grid_to_state(out));
+		expect_golden(self, "gfx/grid/tween_explode.state", grid_to_state(out));
 		// A different `t` from the explode above: at t == 32768 the implode branch computes the
 		// same explodedness, so the two frames would be identical.
 		explode(a, ExplodeParams{3 * 65536, 4 * 65536, 5 * 65536, true, 16384}, out);
-		expect_golden(self, "grid/tween_implode.state", grid_to_state(out));
+		expect_golden(self, "gfx/grid/tween_implode.state", grid_to_state(out));
 
 		expand_collapse(a, b, ExpandCollapseParams{0, 5, true, 32768}, out);
-		expect_golden(self, "grid/tween_collapse.state", grid_to_state(out));
+		expect_golden(self, "gfx/grid/tween_collapse.state", grid_to_state(out));
 		// Likewise: `collapsing` only flips `t`, so a mid-point `t` renders the same frame either
 		// way -- take the expand golden a quarter of the way through instead.
 		expand_collapse(a, b, ExpandCollapseParams{0, 5, false, 16384}, out);
-		expect_golden(self, "grid/tween_expand.state", grid_to_state(out));
+		expect_golden(self, "gfx/grid/tween_expand.state", grid_to_state(out));
 	});
 });
 

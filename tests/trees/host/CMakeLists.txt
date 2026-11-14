@@ -192,13 +192,12 @@ target_include_directories(deluge_spec PUBLIC ${_src}/deluge ${_src} ${_tests}/s
                                                   ${DELUGE_REPO_ROOT}/include)
 set_target_properties(deluge_spec PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES C_STANDARD 23
                                              C_STANDARD_REQUIRED YES)
-# The trees the UI specs read and write: gfx and level-2 goldens, the level-2 scripts, and the scratch the runner writes
-# its snapshots into before diffing them.
+# The trees the UI specs read and write besides the goldens (GOLDEN_ROOT, which every spec driver gets from
+# tests/support/cmake/golden.cmake): the level-2 scripts, and the scratch the runner writes its snapshots into before
+# diffing them.
 target_compile_definitions(deluge_spec PUBLIC
-  GFX_GOLDEN_DIR="${_tests}/golden/gfx"
   DELUGE_REPO_ROOT="${DELUGE_REPO_ROOT}"
   UI_SCRIPTS_DIR="${_tests}/ui-scripts/shell"
-  UI_GOLDEN_DIR="${_tests}/golden/ui/shell"
   UI_GOT_DIR="${CMAKE_CURRENT_BINARY_DIR}/got"
 )
 # tests/ for "harness/..." and "support/golden_update.h".

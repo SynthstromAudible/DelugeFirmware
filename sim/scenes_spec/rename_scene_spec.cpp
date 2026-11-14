@@ -1239,13 +1239,13 @@ describe rename_goldens("scenes::rename::RenameScene pixels", $ {
 			Rig r;
 			draw(r, f, "");
 			expect(std::string{rename_scene().entered_text()}).to_equal(std::string{""});
-			expect_golden(self, "../ui/scenes/rename_empty_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/scenes/rename_empty_48.pbm", r.fake.pbm(0));
 		}
 		{
 			spec::SongFixture f = kit_fixture();
 			Rig r64{board_64(), profile_64()};
 			draw(r64, f, "");
-			expect_golden(self, "../ui/scenes/rename_empty_64.pbm", r64.fake.pbm(0));
+			expect_golden(self, "ui/scenes/rename_empty_64.pbm", r64.fake.pbm(0));
 		}
 	});
 
@@ -1256,13 +1256,13 @@ describe rename_goldens("scenes::rename::RenameScene pixels", $ {
 			Rig r;
 			draw(r, f, "KICK");
 			expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Kick"});
-			expect_golden(self, "../ui/scenes/rename_typed_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/scenes/rename_typed_48.pbm", r.fake.pbm(0));
 		}
 		{
 			spec::SongFixture f = kit_fixture();
 			Rig r64{board_64(), profile_64()};
 			draw(r64, f, "KICK");
-			expect_golden(self, "../ui/scenes/rename_typed_64.pbm", r64.fake.pbm(0));
+			expect_golden(self, "ui/scenes/rename_typed_64.pbm", r64.fake.pbm(0));
 		}
 	});
 });

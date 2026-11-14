@@ -141,7 +141,7 @@ describe values_w("ui::oled::values", $ {
 
 		r.reference.draw_string_centred("42", 18 + 5, 18, 20);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/int_value_42_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/int_value_42_48.pbm", r.pbm());
 
 		// The 64-row panel has no hidden rows, so the same kValueY lands at canvas row 18.
 		uitest::Rig64 r64;
@@ -364,7 +364,7 @@ describe values_w("ui::oled::values", $ {
 		r.reference.draw_string("34", 23 + 2 * 18 + 9, 20, 18, 20, 0, 128, true);
 		r.reference.invert_area(87, 16, 41, 42);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/decimal_value_12_34_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/decimal_value_12_34_48.pbm", r.pbm());
 
 		// Same absolute rows on the 64-row panel, because the constants are canvas-absolute.
 		uitest::Rig64 r64;
@@ -638,7 +638,7 @@ describe values_w("ui::oled::values", $ {
 		}
 		r.reference.invert_area_rounded(0, 128, 28, 36, BorderRadius::Small, true);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/enum_value_window_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/enum_value_window_48.pbm", r.pbm());
 
 		// Five rows fit on the 64-row panel, so the same index 4 windows differently:
 		// nBefore 4, nAfter 2 -> tail 2, pos 3, first visible name is index 1.
@@ -833,7 +833,7 @@ describe values_w("ui::oled::values", $ {
 		r.reference.draw_string("ON", kTextSpacingX, 28, kTextSpacingX, kTextSpacingY);
 		r.reference.invert_area_rounded(0, 128, 28, 36, BorderRadius::Small, true);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/toggle_on_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/toggle_on_48.pbm", r.pbm());
 
 		uitest::Rig48 off;
 		bool off_value = false;
@@ -909,7 +909,7 @@ describe values_w("ui::oled::values", $ {
 		// is 3, stringWidth 54, stringStartX (128 - 54) >> 1 == 37.
 		r.reference.draw_string("120", 37, 18 + 5, kTextHugeSpacingX, kTextHugeSizeY);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/range_value_point_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/range_value_point_48.pbm", r.pbm());
 
 		uitest::Rig64 r64;
 		int32_t l64 = 120, u64 = 120;
@@ -918,7 +918,7 @@ describe values_w("ui::oled::values", $ {
 		            RangeClamp::Push);
 		r64.reference.draw_string("120", 37, 18 + 0, kTextHugeSpacingX, kTextHugeSizeY);
 		expect(r64.pbm()).to_equal(r64.reference_pbm());
-		expect_golden(self, "../ui/widgets/range_value_point_64.pbm", r64.pbm());
+		expect_golden(self, "ui/widgets/range_value_point_64.pbm", r64.pbm());
 	});
 
 	it("draws both ends with a hyphen once they differ, at both geometries", _ {
@@ -930,7 +930,7 @@ describe values_w("ui::oled::values", $ {
 		// leftLength 2 + rightLength 3 + 1 for the '-' == 6; stringWidth 108; startX (128-108)>>1 == 10.
 		r.reference.draw_string("90-150", 10, 18 + 5, kTextHugeSpacingX, kTextHugeSizeY);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/range_value_split_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/range_value_split_48.pbm", r.pbm());
 
 		uitest::Rig64 r64;
 		int32_t l64 = 90, u64 = 150;
@@ -939,7 +939,7 @@ describe values_w("ui::oled::values", $ {
 		            RangeClamp::Push);
 		r64.reference.draw_string("90-150", 10, 18 + 0, kTextHugeSpacingX, kTextHugeSizeY);
 		expect(r64.pbm()).to_equal(r64.reference_pbm());
-		expect_golden(self, "../ui/widgets/range_value_split_64.pbm", r64.pbm());
+		expect_golden(self, "ui/widgets/range_value_split_64.pbm", r64.pbm());
 	});
 
 	it("shows both ends even when they are equal, once an edge is selected", _ {
@@ -968,7 +968,7 @@ describe values_w("ui::oled::values", $ {
 		left.reference.draw_string("90-150", 10, 18 + 5, kTextHugeSpacingX, kTextHugeSizeY);
 		left.reference.invert_area(10, kTextHugeSpacingX * 2, 18 + 5 - 1, 18 + 5 - 1 + kTextHugeSizeY + 1);
 		expect(left.pbm()).to_equal(left.reference_pbm());
-		expect_golden(self, "../ui/widgets/range_value_left_48.pbm", left.pbm());
+		expect_golden(self, "ui/widgets/range_value_left_48.pbm", left.pbm());
 
 		uitest::Rig48 right;
 		int32_t l2 = 90, u2 = 150;
@@ -979,7 +979,7 @@ describe values_w("ui::oled::values", $ {
 		// stringEndX = (128 + 108) >> 1 == 118; the 3-digit right end starts at 118 - 54 == 64.
 		right.reference.invert_area(64, kTextHugeSpacingX * 3, 18 + 5 - 1, 18 + 5 - 1 + kTextHugeSizeY + 1);
 		expect(right.pbm()).to_equal(right.reference_pbm());
-		expect_golden(self, "../ui/widgets/range_value_right_48.pbm", right.pbm());
+		expect_golden(self, "ui/widgets/range_value_right_48.pbm", right.pbm());
 
 		uitest::Rig64 r64;
 		int32_t l64 = 90, u64 = 150;
@@ -989,7 +989,7 @@ describe values_w("ui::oled::values", $ {
 		r64.reference.draw_string("90-150", 10, 18 + 0, kTextHugeSpacingX, kTextHugeSizeY);
 		r64.reference.invert_area(64, kTextHugeSpacingX * 3, 18 + 0 - 1, 18 + 0 - 1 + kTextHugeSizeY + 1);
 		expect(r64.pbm()).to_equal(r64.reference_pbm());
-		expect_golden(self, "../ui/widgets/range_value_right_64.pbm", r64.pbm());
+		expect_golden(self, "ui/widgets/range_value_right_64.pbm", r64.pbm());
 	});
 
 	it("walks the edge with the horizontal encoder exactly as Range::horizontalEncoderAction does", _ {
@@ -1205,7 +1205,7 @@ describe values_w("ui::oled::values", $ {
 		// "C#-E": textLength 4, stringWidth 72, startX (128 - 72) >> 1 == 28.
 		r.reference.draw_string("C#-E", 28, 18 + 5, kTextHugeSpacingX, kTextHugeSizeY);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/range_value_notes_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/range_value_notes_48.pbm", r.pbm());
 	});
 });
 DELUGE_SPEC(values_spec, values_w)

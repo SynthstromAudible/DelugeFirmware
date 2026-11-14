@@ -610,32 +610,32 @@ describe popup_w("ui::oled::popup", $ {
 				expect(r.lit(x, y)).to_equal(reference_lit(r, x, y));
 			}
 		}
-		expect_golden(self, "../ui/widgets/popup_three_lines_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/popup_three_lines_48.pbm", r.pbm());
 	});
 
 	it("renders the popup goldens", _ {
 		uitest::Rig48 saved;
 		popup_text(saved.frame, "SAVED");
-		expect_golden(self, "../ui/widgets/popup_saved_48.pbm", saved.pbm());
+		expect_golden(self, "ui/widgets/popup_saved_48.pbm", saved.pbm());
 
 		uitest::Rig64 saved64;
 		popup_text(saved64.frame, "SAVED");
-		expect_golden(self, "../ui/widgets/popup_saved_64.pbm", saved64.pbm());
+		expect_golden(self, "ui/widgets/popup_saved_64.pbm", saved64.pbm());
 
 		uitest::Rig48 wrapped;
 		popup_text(wrapped.frame, "HELLO WORLD THIS WRAPS");
-		expect_golden(self, "../ui/widgets/popup_wrapped_48.pbm", wrapped.pbm());
+		expect_golden(self, "ui/widgets/popup_wrapped_48.pbm", wrapped.pbm());
 
 		uitest::Rig48 note;
 		popup_text(note.frame, "SAVED", PopupStyle::Notification);
-		expect_golden(self, "../ui/widgets/popup_notification_48.pbm", note.pbm());
+		expect_golden(self, "ui/widgets/popup_notification_48.pbm", note.pbm());
 
 		uitest::Rig48 perm;
 		popup_text(perm.frame, "SAVED", PopupStyle::Permanent);
-		expect_golden(self, "../ui/widgets/popup_permanent_48.pbm", perm.pbm());
+		expect_golden(self, "ui/widgets/popup_permanent_48.pbm", perm.pbm());
 		uitest::Rig64 perm64;
 		popup_text(perm64.frame, "SAVED", PopupStyle::Permanent);
-		expect_golden(self, "../ui/widgets/popup_permanent_64.pbm", perm64.pbm());
+		expect_golden(self, "ui/widgets/popup_permanent_64.pbm", perm64.pbm());
 	});
 
 	it("replays the working animation exactly as the persistent canvas accumulated it", _ {
@@ -719,14 +719,14 @@ describe popup_w("ui::oled::popup", $ {
 		working(save.frame, save.frame.bounds(), "Saving", bs);
 
 		expect(load.pbm() == save.pbm()).to_be_false();
-		expect_golden(self, "../ui/widgets/working_loading_48.pbm", load.pbm());
-		expect_golden(self, "../ui/widgets/working_saving_48.pbm", save.pbm());
+		expect_golden(self, "ui/widgets/working_loading_48.pbm", load.pbm());
+		expect_golden(self, "ui/widgets/working_saving_48.pbm", save.pbm());
 
 		uitest::Rig64 load64;
 		Blink b64{.period_ms = static_cast<uint16_t>(kWorkingStepMs), .until_ms = 0};
 		load64.input = uitest::null_input(working_time(1, 8));
 		working(load64.frame, load64.frame.bounds(), "Loading", b64);
-		expect_golden(self, "../ui/widgets/working_loading_64.pbm", load64.pbm());
+		expect_golden(self, "ui/widgets/working_loading_64.pbm", load64.pbm());
 	});
 
 	it("fills the progress bar by column, and matches drawHorizontalBar", _ {
@@ -756,10 +756,10 @@ describe popup_w("ui::oled::popup", $ {
 
 		uitest::Rig48 g;
 		progress(g.frame, bar, 1, 4);
-		expect_golden(self, "../ui/widgets/progress_quarter_48.pbm", g.pbm());
+		expect_golden(self, "ui/widgets/progress_quarter_48.pbm", g.pbm());
 		uitest::Rig64 g64;
 		progress(g64.frame, bar, 3, 4);
-		expect_golden(self, "../ui/widgets/progress_three_quarters_64.pbm", g64.pbm());
+		expect_golden(self, "ui/widgets/progress_three_quarters_64.pbm", g64.pbm());
 	});
 
 	it("clamps a progress numerator and survives a zero denominator", _ {

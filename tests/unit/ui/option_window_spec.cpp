@@ -356,13 +356,13 @@ describe option_window_w("ui::oled::option_window", $ {
 			uitest::Rig48 r;
 			ScrollText label;
 			option_window(r.frame, kAreYouSure, one(), 0, 0, label);
-			expect_golden(self, "../ui/widgets/option_window_confirm_48.pbm", r.pbm());
+			expect_golden(self, "ui/widgets/option_window_confirm_48.pbm", r.pbm());
 		}
 		{
 			uitest::Rig64 r;
 			ScrollText label;
 			option_window(r.frame, kAreYouSure, one(), 0, 0, label);
-			expect_golden(self, "../ui/widgets/option_window_confirm_64.pbm", r.pbm());
+			expect_golden(self, "ui/widgets/option_window_confirm_64.pbm", r.pbm());
 		}
 		{
 			// The scrolled window: three options, the window on {1, 2} with the cursor on the
@@ -370,13 +370,13 @@ describe option_window_w("ui::oled::option_window", $ {
 			uitest::Rig48 r;
 			ScrollText label;
 			option_window(r.frame, kAreYouSure, three(), 2, 1, label);
-			expect_golden(self, "../ui/widgets/option_window_scrolled_48.pbm", r.pbm());
+			expect_golden(self, "ui/widgets/option_window_scrolled_48.pbm", r.pbm());
 		}
 		{
 			uitest::Rig64 r;
 			ScrollText label;
 			option_window(r.frame, kAreYouSure, three(), 2, 1, label);
-			expect_golden(self, "../ui/widgets/option_window_scrolled_64.pbm", r.pbm());
+			expect_golden(self, "ui/widgets/option_window_scrolled_64.pbm", r.pbm());
 		}
 	});
 

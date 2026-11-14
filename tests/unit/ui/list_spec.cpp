@@ -93,7 +93,7 @@ describe list_w("ui::oled::list", $ {
 			}
 		}
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/list_first_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/list_first_48.pbm", r.pbm());
 	});
 
 	it("puts the same pixels on the panel through menu_rect as through the whole frame (D5)", _ {
@@ -217,7 +217,7 @@ describe list_w("ui::oled::list", $ {
 			}
 		}
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/list_last_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/list_last_48.pbm", r.pbm());
 	});
 
 	it("keeps the cursor visible at every position, per Selection's pos/tail rule", _ {
@@ -392,7 +392,7 @@ describe list_w("ui::oled::list", $ {
 		expect(r.lit(0, 20)).to_be_true();    expect(r.lit(127, 20)).to_be_true();
 		expect(r.lit(0, 26)).to_be_true();    expect(r.lit(127, 26)).to_be_true();
 		expect(r.lit(0, 28)).to_be_false();   // and the next row is untouched by any of it
-		expect_golden(self, "../ui/widgets/list_scrolling_48.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/list_scrolling_48.pbm", r.pbm());
 	});
 
 	it("scrolls the same label under the left-edge rule, with legacy's clear-only +4 pad", _ {
@@ -461,7 +461,7 @@ describe list_w("ui::oled::list", $ {
 			}
 		}
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/list_icons_64.pbm", r.pbm());
+		expect_golden(self, "ui/widgets/list_icons_64.pbm", r.pbm());
 	});
 
 	it("puts the icon column at the legacy x on an unselected row", _ {

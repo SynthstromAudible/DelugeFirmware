@@ -907,13 +907,13 @@ describe cm_pixels("scenes::context_menu::ContextMenuScene pixels", $ {
 			Rig r;
 			r.open(context_of(f), DescriptorId::ResetAll);
 			r.tick(0);
-			expect_golden(self, "../ui/scenes/context_menu_confirm_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/scenes/context_menu_confirm_48.pbm", r.fake.pbm(0));
 		}
 		{
 			Rig r64{board_64(), profile_64()};
 			r64.open(context_of(f), DescriptorId::ResetAll);
 			r64.tick(0);
-			expect_golden(self, "../ui/scenes/context_menu_confirm_64.pbm", r64.fake.pbm(0));
+			expect_golden(self, "ui/scenes/context_menu_confirm_64.pbm", r64.fake.pbm(0));
 		}
 		// The *scrolled* window -- two rows with the cursor on the bottom -- has no shipped
 		// descriptor that can reach it (every one has a single option), so it is recorded from the

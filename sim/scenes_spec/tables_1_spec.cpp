@@ -497,7 +497,7 @@ describe tables_1_pixels("scenes::menu batch-1 tables: pixels", $ {
 		const Node* filters = nodes::kSoundFiltersChildren[0];
 		r.open(*filters->children[0], f.ctx);
 		r.shell.tick(0);
-		expect_golden(self, "../ui/menu/tables1_lpf_48.pbm", r.fake.pbm(0));
+		expect_golden(self, "ui/menu/tables1_lpf_48.pbm", r.fake.pbm(0));
 	});
 });
 

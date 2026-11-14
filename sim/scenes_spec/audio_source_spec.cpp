@@ -547,7 +547,7 @@ describe audio_source_pixels("scenes::context_menu the audio-source descriptor: 
 			seed(r.song.output, AudioInputChannel::STEREO, nullptr);
 			r.open_selector();
 			r.shell.tick(5);
-			expect_golden(self, "../ui/scenes/context_menu_audio_source_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/scenes/context_menu_audio_source_48.pbm", r.fake.pbm(0));
 		}
 		{
 			Rig r64{board_64(), profile_64()};
@@ -555,7 +555,7 @@ describe audio_source_pixels("scenes::context_menu the audio-source descriptor: 
 			seed(r64.song.output, AudioInputChannel::SPECIFIC_OUTPUT, nullptr);
 			r64.open_selector();
 			r64.shell.tick(5);
-			expect_golden(self, "../ui/scenes/context_menu_audio_source_64.pbm", r64.fake.pbm(0));
+			expect_golden(self, "ui/scenes/context_menu_audio_source_64.pbm", r64.fake.pbm(0));
 		}
 	});
 

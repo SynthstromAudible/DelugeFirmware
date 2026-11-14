@@ -116,15 +116,15 @@ describe grid_composite("gfx::grid::composite", $ {
 
 		PadGrid replaced(kDelugeGrid);
 		composite(base, overlay, BlendMode::Replace, replaced);
-		expect_golden(self, "grid/composite_replace.state", grid_to_state(replaced));
+		expect_golden(self, "gfx/grid/composite_replace.state", grid_to_state(replaced));
 
 		PadGrid overlaid(kDelugeGrid);
 		composite(base, overlay, BlendMode::Overlay, overlaid);
-		expect_golden(self, "grid/composite_overlay.state", grid_to_state(overlaid));
+		expect_golden(self, "gfx/grid/composite_overlay.state", grid_to_state(overlaid));
 
 		PadGrid tinted(kDelugeGrid);
 		composite(base, overlay, BlendMode::Tint, tinted);
-		expect_golden(self, "grid/composite_tint.state", grid_to_state(tinted));
+		expect_golden(self, "gfx/grid/composite_tint.state", grid_to_state(tinted));
 	});
 });
 

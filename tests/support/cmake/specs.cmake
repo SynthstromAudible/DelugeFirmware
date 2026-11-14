@@ -4,6 +4,7 @@
 # A tree's root sets DELUGE_TEST_TREE and its compile options, then includes this file: what it makes available is
 # built with those options (the host tree is -m32 on Linux).
 include_guard(GLOBAL)
+include(${CMAKE_CURRENT_LIST_DIR}/golden.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/deps.cmake)
 
 get_filename_component(DELUGE_REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/../../.. ABSOLUTE)
@@ -90,6 +91,7 @@ endfunction()
 # relative paths resolve against the calling directory. Every spec includes against the calling directory and then
 # tests/, so a header from another test directory is named by its path there ("support/golden_update.h",
 # "harness/ui_script.h", "unit/deluge/dsp-next/raw_words.h"). NEON links argon as deluge_test_neon() does.
+# Every executable gets GOLDEN_ROOT (golden.cmake).
 function(deluge_specs_driver name)
   cmake_parse_arguments(PARSE_ARGV 1 arg "NEON" "" "TREES;ONLY_HOST;ONLY_ARM;ONLY_UBSAN;SOURCES;LIBRARIES;INCLUDES")
   if(arg_UNPARSED_ARGUMENTS)
@@ -157,6 +159,7 @@ function(deluge_specs_driver name)
   set(DELUGE_SPEC_ROWS "${rows}")
   configure_file(${DELUGE_SPECS_MAIN_IN} ${CMAKE_CURRENT_BINARY_DIR}/${name}_main.cpp @ONLY)
   add_executable(${name} ${CMAKE_CURRENT_BINARY_DIR}/${name}_main.cpp ${spec_sources} ${arg_SOURCES})
+  deluge_golden_root(${name})
   target_link_libraries(${name} PRIVATE c++spec ${arg_LIBRARIES})
   target_include_directories(${name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${DELUGE_REPO_ROOT}/tests ${arg_INCLUDES})
   set_target_properties(${name} PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES)

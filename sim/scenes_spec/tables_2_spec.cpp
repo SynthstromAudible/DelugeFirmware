@@ -1102,7 +1102,7 @@ describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 		Rig r;
 		r.open(nodes::sound_root, f.ctx);
 		r.shell.tick(0);
-		expect_golden(self, "../ui/menu/menu_sound_root_48.pbm", r.fake.pbm(0));
+		expect_golden(self, "ui/menu/menu_sound_root_48.pbm", r.fake.pbm(0));
 	});
 
 	it("renders the sound-editor root list on a 64-row panel", _ {
@@ -1111,7 +1111,7 @@ describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 		Rig r{board_64(), profile_64()};
 		r.open(nodes::sound_root, f.ctx);
 		r.shell.tick(0);
-		expect_golden(self, "../ui/menu/menu_sound_root_64.pbm", r.fake.pbm(0));
+		expect_golden(self, "ui/menu/menu_sound_root_64.pbm", r.fake.pbm(0));
 	});
 
 	it("renders the mod-matrix list and the cable-strength page, on both shipped panel geometries", _ {
@@ -1128,13 +1128,13 @@ describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 			Rig r;
 			r.open(nodes::patch_cables, f.ctx);
 			r.shell.tick(0);
-			expect_golden(self, "../ui/menu/menu_patch_cables_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_patch_cables_48.pbm", r.fake.pbm(0));
 		}
 		{
 			Rig r{board_64(), profile_64()};
 			r.open(nodes::patch_cables, f.ctx);
 			r.shell.tick(0);
-			expect_golden(self, "../ui/menu/menu_patch_cables_64.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_patch_cables_64.pbm", r.fake.pbm(0));
 		}
 		// The strength page, reached the way a user reaches it: a select press on the cable list.
 		{
@@ -1145,7 +1145,7 @@ describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 			r.shell.tick(30);
 			r.shell.tick(40);
 			expect(menu_scene().focused() == &nodes::patch_cable_strength_regular).to_be_true();
-			expect_golden(self, "../ui/menu/menu_cable_strength_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_cable_strength_48.pbm", r.fake.pbm(0));
 		}
 		{
 			Rig r{board_64(), profile_64()};
@@ -1154,7 +1154,7 @@ describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 			r.enter(20);
 			r.shell.tick(30);
 			r.shell.tick(40);
-			expect_golden(self, "../ui/menu/menu_cable_strength_64.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_cable_strength_64.pbm", r.fake.pbm(0));
 		}
 	});
 
@@ -1177,8 +1177,8 @@ describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 			r.shell.tick(60);
 			r.shell.tick(70);
 			expect(menu_scene().focused() == &nodes::patch_cable_strength_range).to_be_true();
-			expect_golden(self, tall ? "../ui/menu/menu_cable_strength_range_64.pbm"
-			                         : "../ui/menu/menu_cable_strength_range_48.pbm",
+			expect_golden(self, tall ? "ui/menu/menu_cable_strength_range_64.pbm"
+			                         : "ui/menu/menu_cable_strength_range_48.pbm",
 			              r.fake.pbm(0));
 		}
 	});
@@ -1195,7 +1195,7 @@ describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 			r.shell.tick(30);
 			r.shell.tick(40);
 			expect(menu_scene().focused() == &nodes::source_selection_regular).to_be_true();
-			expect_golden(self, "../ui/menu/menu_source_selection_48.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_source_selection_48.pbm", r.fake.pbm(0));
 		}
 		{
 			Rig r{board_64(), profile_64()};
@@ -1204,7 +1204,7 @@ describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 			r.enter(20);
 			r.shell.tick(30);
 			r.shell.tick(40);
-			expect_golden(self, "../ui/menu/menu_source_selection_64.pbm", r.fake.pbm(0));
+			expect_golden(self, "ui/menu/menu_source_selection_64.pbm", r.fake.pbm(0));
 		}
 	});
 });

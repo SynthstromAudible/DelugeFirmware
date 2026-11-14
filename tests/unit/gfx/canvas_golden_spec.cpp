@@ -87,7 +87,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		c.drawRectangle(2, 12, 30, 30);
 		c.drawCircle(100, 20, 7, false);
 		c.drawCircle(110, 38, 5, true);
-		expect_golden(self, "oled/primitives.pbm", pbm(c));
+		expect_golden(self, "gfx/oled/primitives.pbm", pbm(c));
 	});
 
 	it("text_all_fonts", _ {
@@ -98,7 +98,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		c.drawString("Ag10", 0, 16, 9, 10);  // metric 9
 		c.drawString("Ag13", 40, 16, 9, 13); // metric 13
 		c.drawString("Ag20", 0, 28, 18, 20); // metric 20
-		expect_golden(self, "oled/text_all_fonts.pbm", pbm(c));
+		expect_golden(self, "gfx/oled/text_all_fonts.pbm", pbm(c));
 	});
 
 	it("text_alignment", _ {
@@ -108,7 +108,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		c.drawStringCentered("MID", 10, 26, 6, 9, 60);
 		c.drawStringCentredShrinkIfNecessary("THIS TITLE IS FAR TOO LONG TO FIT", 36, 9, 10);
 		c.drawString("SCROLL", 0, 40, 6, 7, 3, 40, true);
-		expect_golden(self, "oled/text_alignment.pbm", pbm(c));
+		expect_golden(self, "gfx/oled/text_alignment.pbm", pbm(c));
 	});
 
 	it("icons", _ {
@@ -117,7 +117,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		c.drawIcon(kArrow, 20, 9, true);
 		c.drawIconCentered(kArrow, 40, 40, 20);
 		c.drawGraphicMultiLine(kArrowData, 100, 13, 8, 8, 1);
-		expect_golden(self, "oled/icons.pbm", pbm(c));
+		expect_golden(self, "gfx/oled/icons.pbm", pbm(c));
 	});
 
 	it("rounded_and_invert", _ {
@@ -137,7 +137,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		Canvas::roundedCornersEnabled = false;
 		c.drawRectangleRounded(2, 38, 40, 46);
 		Canvas::roundedCornersEnabled = true;
-		expect_golden(self, "oled/rounded_and_invert.pbm", pbm(c));
+		expect_golden(self, "gfx/oled/rounded_and_invert.pbm", pbm(c));
 	});
 
 	it("graphic_multiline", _ {
@@ -149,7 +149,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		c.drawGraphicMultiLine(g, 20, 9, 16, 16, 2);
 		c.drawGraphicMultiLine(g, 40, 15, 16, 12, 2);
 		c.drawGraphicMultiLine(g, 120, 20, 16, 16, 2); // clipped at right edge
-		expect_golden(self, "oled/graphic_multiline.pbm", pbm(c));
+		expect_golden(self, "gfx/oled/graphic_multiline.pbm", pbm(c));
 	});
 
 	it("line_options", _ {
@@ -157,7 +157,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		c.drawLine(0, 6, 127, 47, DrawLineOptions{.thick = true});
 		c.drawLine(0, 47, 127, 6, DrawLineOptions{.min_x = 20, .max_x = 100});
 		c.drawScreenTitle("TITLE");
-		expect_golden(self, "oled/line_options.pbm", pbm(c));
+		expect_golden(self, "gfx/oled/line_options.pbm", pbm(c));
 	});
 
 	it("clips a character half outside the rect on each edge", _ {
