@@ -2,7 +2,7 @@
 # engines' descriptors. The library links without the app, so these run against a project::Song and fake runtime
 # facts, with no engine runtime objects.
 deluge_specs_driver(scenes_bind_specs TREES host
-  SOURCES ${DELUGE_REPO_ROOT}/tests/unit/deluge-project/model_hooks_for_tests.cpp
+  SOURCES ${DELUGE_REPO_ROOT}/tests/support/mocks/model_hooks_for_tests.cpp
           ${CMAKE_CURRENT_LIST_DIR}/support/model_fixture.cpp
           # the name table's definitions; in the app they come from the app's own build of the file
           ${DELUGE_REPO_ROOT}/src/deluge/gui/l10n/setting_names.cpp
