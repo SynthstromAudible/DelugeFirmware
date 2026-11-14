@@ -19,6 +19,7 @@
 
 #include "controls/mod_buttons.h"
 #include "deluge-project/song.h"
+#include "foundation/panic.h"
 #include "plugin-api/types/plugin_id.h"
 
 #include <algorithm>
@@ -159,6 +160,10 @@ std::vector<Page> chain_cycle(uint8_t mode, const Publisher& publisher) {
 /// or without a clip (the host turns the selection down where it cannot take it).
 Page midi_page(const project::Song& song, const MidiFocus& focus, uint8_t mode, const Board& board) {
 	Page out{.section = mode};
+	// A board with no slots is a caller that never set `PageSources::board`: no page would name a CC.
+	if (board.slots == 0) {
+		freezeWithError("E-board");
+	}
 	const size_t knobs = std::min<size_t>(board.slots, out.slots.size());
 	for (size_t knob = 0; knob < knobs; knob++) {
 		out.slots[knob].press = plugin::PressAction::MIDI_CC_SELECT;

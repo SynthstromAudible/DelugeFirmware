@@ -39,7 +39,8 @@ namespace deluge::controls {
 struct PageSources {
 	std::span<const plugin::RemoteControls> publishers;
 	bool alt_delay = false;
-	Board board; ///< the board's slots per section: a MIDI track names a CC for each
+	Board board; ///< the board's slots per section: a MIDI track names a CC for each; must be set (a MIDI page panics
+	             ///< on none)
 };
 
 /// @brief The page the knobs are on now. Allocation-free: the indicators read it every tick.

@@ -39,6 +39,7 @@
 #include "scenes/services/mod_knobs.h"
 #include "util/functions.h"
 
+#include <cstdint>
 #include <string>
 #include <variant>
 
@@ -121,6 +122,9 @@ ModKnobs* knobs_now() {
 } // namespace
 
 void turn(int32_t knob, int32_t offset) {
+	if (knob < 0 || knob > UINT8_MAX) {
+		return;
+	}
 	const std::optional<controls::Logical> slot =
 	    controls::map_input(kDelugeControls, {controls::Physical::Kind::SLOT_ENCODER, static_cast<uint8_t>(knob)});
 	if (!slot) {
