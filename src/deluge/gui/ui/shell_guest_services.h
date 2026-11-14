@@ -36,7 +36,7 @@ class MIDICable;
 /// (`tests/trees/host/CMakeLists.txt`, which fakes `deluge::scenes::scene_registry()` for exactly
 /// that reason), and `services::ModKnobs`, `services::GlobalControls` and `services::MidiLearn` are
 /// concrete classes over `model/` that cannot be faked the way a free function can. Naming their
-/// types in `shell_host_ui.cpp` would take `shell_host_ui_spec`'s 52 examples off the board.
+/// types in `shell_host_ui.cpp` would take the `shell_host_ui_*_spec` examples off the board.
 ///
 /// So the guest keeps the `Shell` and this file keeps the services, joined by a single
 /// no-arguments function the host suite stubs in `tests/unit/deluge/gui/support/fake_legacy_ui.cpp`. The

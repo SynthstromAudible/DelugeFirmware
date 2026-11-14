@@ -4,7 +4,7 @@
 ///
 /// Three settings the ported tree and the guest's `Shell` cannot read for themselves, plus the
 /// three services the wiring installs. This is the spec level they
-/// can be checked at: the host suite (`tests/unit/deluge/gui/shell_host_ui_spec.cpp`) deliberately never
+/// can be checked at: the host suite (`tests/unit/deluge/gui/shell_host_ui_lifecycle_spec.cpp`) deliberately never
 /// builds the `deluge_scenes` closure, so it can see that `ShellHostUI::opened()` *calls* the wiring
 /// but not what the wiring installs; this executable links the real `deluge_scenes` **and** the real
 /// `deluge_app`, so `FlashStorage`, `view` and `shellHostUI` are all the shipped

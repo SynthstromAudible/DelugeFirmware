@@ -23,7 +23,7 @@
 /// widened to see the ported note mode, so it takes the in-editor arm.
 ///
 /// **Not covered here:** that a hook feeds the shell when a function answers `std::nullopt` and not
-/// when it answers a value -- `tests/unit/deluge/gui/shell_host_ui_spec.cpp`'s, against fakes.
+/// when it answers a value -- `tests/unit/deluge/gui/shell_host_ui_buttons_spec.cpp`'s, against fakes.
 
 #include "gui/ui/shell_note_mode.h"
 

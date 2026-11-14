@@ -572,7 +572,7 @@ void releaseShellSlicerBeforeClose() {
 // `gui/ui/shell_pad_forward.cpp`'s share, on exactly the same terms as the two above: the real one
 // names `keyboardScreen`, `instrumentClipView`, `performanceView`, `automationView` and
 // `deluge::scenes::menu_scene()` -- the `deluge_scenes` and legacy-view closures this suite never
-// builds. The counter and the recorded arguments are what let `shell_host_ui_spec.cpp` ask the only
+// builds. The counter and the recorded arguments are what let `shell_host_ui_pad_input_spec.cpp` ask the only
 // question that lives on this side of that seam: whether `ShellHostUI::padAction` forwards a pad the
 // scene did not claim, and with which coordinates and velocity -- not which arm the real decision
 // takes, which is `sim/scenes_spec/pad_forward_spec.cpp`'s, in the binary where the real legacy

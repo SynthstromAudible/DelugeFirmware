@@ -101,7 +101,7 @@ public:
 
 /// @brief A `ShellHostUI` over a one-entry table, with both sets of legacy fakes reset.
 ///
-/// The same shape as `shell_host_ui_spec.cpp`'s `Rig` and for the same reason -- `fill()` is a
+/// The same shape as `support/shell_host_ui_rig.h`'s `Rig` and for the same reason -- `fill()` is a
 /// member-function call in the initialiser list so the table is populated before the guest's
 /// constructor reads the registry.
 struct Rig {
