@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# The model-equality gate over the song corpus: builds the standalone driver in the unit tree (configured by
+# The model-equality gate over the song corpus: builds the standalone driver in the host tree (configured by
 # `./dbt test unit`) and runs it. The corpus is found as tests/golden/driver.py finds it: $DELUGE_SONG_CORPUS, else
 # $DELUGE_BACKUP/SONGS, else ~/Deluge Backup/SONGS.
 #
 # Gate model-equality-corpus:
 #     every corpus song's model records survive a JSON round trip unchanged, proven by a driver built from the model and
-#     serialization libraries only (the committed synthetic songs run in the unit trees)
+#     serialization libraries only (the committed synthetic songs run in the host and ARM trees)
 set -euo pipefail
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 tree="$repo/build/test-host"
 if [[ ! -f "$tree/build.ninja" ]]; then
-    echo "model-equality-corpus: configure the unit tree first (./dbt test unit)" >&2
+    echo "model-equality-corpus: configure the host tree first (./dbt test unit)" >&2
     exit 2
 fi
 cmake --build "$tree" --target model_equality --config Debug >/dev/null

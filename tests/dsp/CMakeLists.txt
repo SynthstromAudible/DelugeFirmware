@@ -360,7 +360,7 @@ if(DSP_SPEC_ARM)
   list(APPEND dx7_graph_unsafe_math_spec_DEFS DELUGE_DX7_NEON_KERNEL=reference_neon_fm_kernel)
 endif()
 
-# ETL for the synth headers that reach util/etl_string.h (modulation/sync.h, through the LFO). The x86 unit tree links it
+# ETL for the synth headers that reach util/etl_string.h (modulation/sync.h, through the LFO). The host tree links it
 # everywhere; the ARM tree does not, so the specs link it themselves.
 FetchContent_MakeAvailable(etl)
 

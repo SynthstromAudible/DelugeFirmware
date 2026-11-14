@@ -1,8 +1,8 @@
 # The src/ libraries the spec directories link, each added once per tree before any spec directory: a directory only
 # links, so no directory depends on another having been added first.
 #
-# A tree's root includes this after specs.cmake (deluge_test_neon) and after its compile options, which the libraries
-# are built with.
+# A tree's root include()s this after specs.cmake (deluge_test_neon) and after its compile options, which the libraries
+# are built with; never add_subdirectory() it, because it reads SHARED_INCLUDE from the root's scope.
 include_guard(GLOBAL)
 
 set(_deluge_src ${DELUGE_REPO_ROOT}/src)

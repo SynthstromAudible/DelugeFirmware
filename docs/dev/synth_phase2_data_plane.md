@@ -148,8 +148,8 @@ phase boundaries.
    envelope cull-timing shift): per-struct state means a *live local-LFO shape change
    between two stateful waves* resets the accumulators (an accidental cross-type state
    leak in the old shared-fields code), unobservable in the corpus. Added a dual-arch
-   `tests/dsp/lfo_spec.cpp` (exact per-waveform values ported from the retired x86-only
-   `tests/unit/lfo_tests.cpp`, which is deleted) — 12 cases green on x86 + ARM/qemu.
+   `tests/dsp/lfo_spec.cpp` (exact per-waveform values from the x86-only CppUTest LFO
+   suite it supersedes) — 12 cases green on x86 + ARM/qemu.
    Bit-exact: x86 golden 333/333, ARM oracle 8/8 LFO-exercising cases.
 4. **`ControlBlock` + patcher param source — DONE.** The audit showed the Patcher's
    only app-coupling is `sound.getSmoothedPatchedParamValue(p, pm)` (= `paramLPF`

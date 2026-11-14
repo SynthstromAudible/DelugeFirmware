@@ -33,7 +33,7 @@ if (Python3_Interpreter_FOUND)
 endif ()
 
 # ETL (etl::string) is used by util/string helpers pulled in transitively via functions.h,
-# so make it available to every test target (spec, unit).
+# so make it available to the spec drivers and UnitTests.
 include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/deps.cmake)
 FetchContent_MakeAvailable(etl)
 link_libraries(etl::etl)
@@ -43,8 +43,8 @@ add_compile_options(-Wno-unknown-warning-option)
 if (UNIX AND NOT APPLE)
     # -mfpmath=sse -msse2: do double math in SSE (64-bit IEEE) rather than the x87 stack (80-bit). x87 excess precision
     # makes exact float comparisons depend on when intermediates spill to memory, which sanitizer instrumentation
-    # perturbs (it caused a spurious failure in the Time double-conversion test). SSE has no excess precision and so also
-    # matches the ARM target's VFP behaviour, making host float results a better proxy for the firmware's.
+    # perturbs (it caused a spurious failure in the Time double-conversion test). SSE has no excess precision and so
+    # also matches the ARM target's VFP behaviour, making host float results a better proxy for the firmware's.
     add_compile_options(-m32 -mfpmath=sse -msse2 -Og -ggdb3)
     add_link_options(-m32)
 endif ()
@@ -108,8 +108,8 @@ if (UNIX AND NOT APPLE)
     set_target_properties(deluge_rust_rs_sim PROPERTIES IMPORTED_LOCATION ${RUST_LIB_SIM})
     add_dependencies(deluge_rust_rs_sim deluge_rust_rs_sim_build)
 
-    # The synth library's specs (tests/dsp), shared with the ARM unit tree. Linux only: they assume the -m32 host build
-    # above, as the host sim does.
+    # The synth library's specs (tests/dsp), shared with the ARM and UBSan trees. Linux only: they assume the -m32 host
+    # build above, as the host sim does.
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../dsp dsp-next)
 elseif (APPLE)
     # macOS gets the umbrella staticlib too, because deluge_spec needs it: audio_file_format.cpp's
@@ -192,7 +192,8 @@ add_library(deluge_spec STATIC
 # reached through include/libdeluge/audio_format.h).
 target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_serialization deluge_ui_oled deluge_gfx_oled
   deluge_gfx_grid deluge_ui_core deluge_ui_grid deluge_ui_shell deluge_notify deluge_rust_rs)
-target_include_directories(deluge_spec PUBLIC ${_src}/deluge ${_src} ${_tests}/support/mocks ${DELUGE_REPO_ROOT}/include)
+target_include_directories(deluge_spec PUBLIC ${_src}/deluge ${_src} ${_tests}/support/mocks
+                                                  ${DELUGE_REPO_ROOT}/include)
 set_target_properties(deluge_spec PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES C_STANDARD 23
                                              C_STANDARD_REQUIRED YES)
 # The trees the UI specs read and write: gfx and level-2 goldens, the level-2 scripts, and the scratch the runner writes

@@ -1,6 +1,5 @@
 // The entry point deluge_specs_driver generates for one spec executable. `<driver> <spec> [CppSpec options]` runs the
-// spec whose file stem is <spec>, handing it the remaining arguments with <spec> as its program name, as a
-// create_test_sourcelist driver does.
+// spec whose file stem is <spec>, handing it the remaining arguments with <spec> as its program name.
 #include <cstdio>
 #include <cstring>
 

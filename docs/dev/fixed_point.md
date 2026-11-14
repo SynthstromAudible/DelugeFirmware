@@ -73,11 +73,12 @@ Every operation is plain C or an ACLE intrinsic that clang 23 compiles to the in
 The app's files are Thumb-2; dsp-next's own libraries are ARM. Two kinds of inline asm remain: the high-word multiplies
 (below) and the fixed-point VFP `vcvt`, which clang does not form by itself.
 
-`tests/unit/deluge/dsp-next/core` disassembles each operation in both instruction sets, built with `-O2 -fno-inline-functions`,
-which inlines only always_inline functions: stricter than either of the image's inliners. It fails on any other
-instruction sequence, on a wrong immediate where one matters, and on any call. It also reports, without failing, which
-loop shapes the compiler auto-vectorizes; the multiply loops stay scalar. `tests/unit/deluge/dsp-next/core/fixed_point_isa_spec.cpp`
-compares every operation, and every portable form, against the real instruction under qemu.
+`tests/unit/deluge/dsp-next/core` disassembles each operation in both instruction sets, built with
+`-O2 -fno-inline-functions`, which inlines only always_inline functions: stricter than either of the image's inliners.
+It fails on any other instruction sequence, on a wrong immediate where one matters, and on any call. It also reports,
+without failing, which loop shapes the compiler auto-vectorizes; the multiply loops stay scalar.
+`tests/unit/deluge/dsp-next/core/fixed_point_isa_spec.cpp` compares every operation, and every portable form, against
+the real instruction under qemu.
 
 | Operation | A9 instruction |
 |---|---|

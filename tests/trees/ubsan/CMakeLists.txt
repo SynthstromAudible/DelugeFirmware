@@ -1,10 +1,10 @@
 # The dsp-next specs (tests/dsp) built with UndefinedBehaviorSanitizer's signed-overflow, shift and float-to-int
 # conversion checks, any finding fatal.
 #
-# The x86 unit tree builds the same specs, and on the host a plain signed `+` gives the values wrapping_add gives, so an
+# The host tree builds the same specs, and on the host a plain signed `+` gives the values wrapping_add gives, so an
 # overflow there passes unseen. Here the overflow itself fails the spec. A float-to-int conversion out of range is
 # likewise undefined, and the targets differ (x86 gives INT32_MIN where the A9's VCVT saturates): here it fails the
-# spec on the host, where the unit tree would see only a host-only value. The -m32 flags match tests/trees/host, so
+# spec on the host, where the host tree would see only a host-only value. The -m32 flags match tests/trees/host, so
 # these are the same specs at the same word size.
 #
 # Only the specs are instrumented: CppSpec and argon are made available (by specs.cmake) before the sanitizer flags are
@@ -13,7 +13,7 @@
 # Gate dsp-ubsan:
 #     the dsp-next specs (tests/dsp) must run without a signed overflow, an out-of-range shift or an out-of-range
 #     float-to-int conversion under UndefinedBehaviorSanitizer, any finding fatal: on the host a plain signed + gives
-#     the values wrapping_add gives, so the unit tree cannot see a kernel that overflows where it must wrap, and an
+#     the values wrapping_add gives, so the host tree cannot see a kernel that overflows where it must wrap, and an
 #     out-of-range conversion gives a host-only value where the A9 saturates. Every spec runs with every check; only the
 #     verbatim references' legacy sums are unchecked, per function
 cmake_minimum_required(VERSION 3.24)

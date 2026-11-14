@@ -1,9 +1,6 @@
-// tests/unit/deluge/storage/audio/stream/convert_cluster_spec.cpp
-//
-// Own file (not a second `describe` inside convert_spec.cpp): deluge_specs_driver
-// dispatches ctest -> driver by matching a function named after the *file's* stem, so a second
-// CPPSPEC_SPEC in convert_spec.cpp would compile but never actually run under ctest. A second
-// *_spec.cpp file is auto-picked-up by the existing glob in CMakeLists.txt with no build-file changes.
+// Its own file, not a second `describe` in convert_spec.cpp: deluge_specs_driver runs the function named after each
+// file's stem, so a second CPPSPEC_SPEC in convert_spec.cpp would compile and never run under ctest. A new *_spec.cpp
+// here joins the driver through deluge_specs_driver's glob (tests/support/cmake/specs.cmake) with no build-file edit.
 #include "storage/audio/stream/convert.h"
 
 #include "cppspec.hpp"

@@ -120,12 +120,9 @@
 /// not evidence that this is race-free on Embassy.** The `std::atomic` state below is written for
 /// that case regardless; it has never been observed doing its job.
 ///
-/// The repository is not *entirely* without such coverage, and the distinction matters to whoever
-/// closes this gap: `src/bsp/rust/tests/owner_host.rs` drives the real `deluge_worker_run` seam on
-/// a host, and shares its exercise with a ThreadSanitizer entry point
-/// (`src/bsp/rust/examples/owner_host_tsan.rs`, via `tests/support/owner_host_exercise.rs`). That
-/// is where concurrency coverage for the owner lives and where coverage *of this seam under a real
-/// worker* would have to be built -- not in a CppSpec that links the inline host `Owner`.
+/// No test drives the owner under a real worker either: coverage *of this seam under a real
+/// worker* has to be built against the BSP's worker, run under ThreadSanitizer, not in a CppSpec
+/// that links the inline host `Owner`.
 
 #include "definitions_cxx.hpp"
 #include "scenes/run_inline.h"

@@ -481,8 +481,8 @@ over it — `request()`, `poll()` on later ticks, `take_result()`.
 * The claim binds the two dispatch paths only: `emptyFileItems` and friends do not check it, and the
   leaf calls (`predictExtendedText`, `getUnusedSlot`, the save UIs' name search) do not claim.
 
-`Owner::run` is inline on the host, so no spec here exercises real concurrency across the seam;
-`src/bsp/rust/tests/owner_host.rs` and the TSan entry point drive the real worker.
+`Owner::run` is inline on the host, so no spec here exercises real concurrency across the seam, and
+no test drives the owner under a real worker.
 
 ### The sample marker editor (`marker/`)
 

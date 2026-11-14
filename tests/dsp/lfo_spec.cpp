@@ -16,9 +16,8 @@
  */
 
 // Drives the LFO and each individual lfo_wave generator as freestanding building blocks — no Sound/Voice/
-// ParamManager/engine context. The exact-value cases are ported verbatim from the retired x86-only CppUTest
-// suite (tests/unit/lfo_tests.cpp); freezing the same q31 outputs is the bit-exact proof that the
-// std::variant rewrite preserves behaviour. Runs on x86 (SIMDe) and ARM/QEMU via CTest.
+// ParamManager/engine context. The exact-value cases pin each waveform's q31 outputs bit for bit. Runs on
+// x86 (SIMDe) and ARM/QEMU via CTest.
 
 #include "dsp-next/fixed/bandlimited/waves.h" // triangle (the LFO's triangle shape)
 #include "dsp-next/fixed/osc/sine_table.h"    // kSineTable (the LFO's sine shape)
