@@ -20,7 +20,7 @@
 #include <cstdint>
 
 /// @file
-/// The world `gui/ui/slice_core.cpp` is compiled against in the unit-test binary.
+/// The world `gui/ui/slice_core.cpp` is compiled against in the slicer spec's binary.
 ///
 /// The point of this mock is that the REAL `SliceCore` translation unit links and runs: the audition
 /// specs drive `SliceCore::audition()` and `SliceCore::tick_audition()` themselves, the entry points

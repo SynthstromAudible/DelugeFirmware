@@ -17,10 +17,10 @@
 
 #include "CppUTest/TestHarness.h"
 
-#include "display_mock.h"
 #include "gui/ui/slice_core.h"
 #include "gui/waveform/waveform_basic_navigator.h"
-#include "slicer_env_mock.h"
+#include "mock_display.h"
+#include "mock_slicer_env.h"
 
 using deluge::test::LoadAnswer;
 

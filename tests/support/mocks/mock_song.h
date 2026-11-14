@@ -3,7 +3,7 @@
 #include "etl/string.h"
 #include "util/c_string.h"
 
-#include "clip_mocks.h"
+#include "mock_clip.h"
 
 class Song {
 public:

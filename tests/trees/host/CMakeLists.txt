@@ -157,6 +157,7 @@ add_library(deluge_spec STATIC
   ${_src}/deluge/util/c_string.cpp
   ${_src}/deluge/util/lookuptables/lookuptables.cpp
   ${_tests}/support/mocks/mock_display.cpp
+  ${_tests}/support/mocks/mock_display_c_abi.cpp
   ${_tests}/support/mocks/mock_print.cpp
   ${_tests}/support/mocks/mock_firmware_version.cpp
   # ObjectPool guards its free list with CriticalSectionGuard, whose C ABI the BSP owns; the specs have no BSP, and

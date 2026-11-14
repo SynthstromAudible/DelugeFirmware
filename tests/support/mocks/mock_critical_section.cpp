@@ -22,8 +22,7 @@
 // deluge_resource needs bodies for them even when the spec itself never contends.
 //
 // The no-op/false bodies are exact rather than merely adequate: these drivers are single-threaded
-// and never run in ISR context, so there is nothing to mask and no interrupt to report. Matches
-// tests/unit/cpputest/mocks/hal_mocks.cpp's own deluge_in_interrupt.
+// and never run in ISR context, so there is nothing to mask and no interrupt to report.
 
 #include "libdeluge/system.h"
 #include <cstdint>

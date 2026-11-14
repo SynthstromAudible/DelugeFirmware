@@ -1,11 +1,12 @@
 # Specs for deluge::io (src/deluge/io, the C++ wrapper over libdeluge/file_io.h) and the storage, favourites, recorder
 # and stem-export policies built on it. The wrapper links against a hand-written in-memory mock of file_io.h's C ABI
-# (mock_file_io.cpp), not the FatFS-backed adapter, so these specs get real open/read/write/seek/close and
-# directory-iteration round trips with no mounted filesystem. The pad-grid crash pattern has its own driver (debug/).
+# (tests/support/mocks/mock_file_io.cpp), not the FatFS-backed adapter, so these specs get real
+# open/read/write/seek/close and directory-iteration round trips with no mounted filesystem. The pad-grid crash pattern
+# has its own driver (debug/).
 set(_app ${DELUGE_REPO_ROOT}/src/deluge)
 deluge_specs_driver(io_specs TREES host
   SOURCES
-    mock_file_io.cpp
+    ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_file_io.cpp
     mock_stream_io.cpp
     ${_app}/io/file.cpp
     ${_app}/io/stream.cpp
@@ -23,5 +24,6 @@ deluge_specs_driver(io_specs TREES host
     ${DELUGE_REPO_ROOT}/include              # libdeluge/file_io.h, libdeluge/types.h
     ${_app}                                  # io/file.hpp
     ${DELUGE_REPO_ROOT}/src                  # definitions_cxx.hpp (storage/storage_manager.h's transitive include)
-    ${DELUGE_REPO_ROOT}/tests/support/mocks  # util/firmware_version.h host stub (the real one is generated at build)
+    # mock_file_io.h, and the util/firmware_version.h host stub (the real one is generated at build).
+    ${DELUGE_REPO_ROOT}/tests/support/mocks
 )

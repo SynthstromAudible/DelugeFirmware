@@ -6,8 +6,8 @@
 #include "definitions_cxx.hpp"
 
 #ifdef IN_UNIT_TESTS
-#include "clip_mocks.h"
-#include "song_mock.h"
+#include "mock_clip.h"
+#include "mock_song.h"
 #else
 #include "deluge.h"
 #include "model/clip/clip.h"

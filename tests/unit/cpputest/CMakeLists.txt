@@ -26,8 +26,6 @@ endif ()
 FetchContent_MakeAvailable(CppUTest)
 
 file(GLOB_RECURSE deluge_SOURCES
-        # Mock implementations
-        mocks/*
         # Shared string helper used across several unit tests
         ../../../src/deluge/util/c_string.cpp
         ../../../src/deluge/util/lookuptables.cpp
@@ -67,7 +65,6 @@ file(GLOB_RECURSE deluge_SOURCES
         # For the song-preview decode differential: the REAL deserializer stack, not a stand-in.
         # storage/file_reader.cpp exists so this is possible at all -- storage_manager.cpp, where the
         # reader used to live, reaches the whole instrument model to build what it loads.
-        # mock_file_io.cpp (borrowed from tests/unit/deluge/io) backs deluge::io::File with an in-memory card.
         ../../../src/deluge/storage/song_preview.cpp
         ../../../src/deluge/storage/file_reader.cpp
         # deluge::runtime::nowUs(), the clock behind the stall bounds file_reader.cpp and slice_core.cpp construct.
@@ -80,10 +77,9 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../../src/deluge/util/c_string.cpp
         ../../../src/serialization/firmware_version.cpp
         ../../../src/serialization/semver.cpp
-        ${DELUGE_REPO_ROOT}/tests/unit/deluge/io/mock_file_io.cpp
         # For the slicer audition specs: the REAL SliceCore translation unit, so the specs drive the
         # shipped audition()/tick_audition() instead of a restatement of them. Its world is
-        # mocks/slicer_env_mock.cpp (globbed above).
+        # tests/support/mocks/mock_slicer_env.cpp.
         ../../../src/deluge/gui/ui/slice_core.cpp
         # For the DX cartridge window spec: the REAL sysex parser, so the spec measures what
         # DX7Cartridge::load actually does with a truncated bank rather than restating arithmetic.
@@ -148,12 +144,10 @@ add_test(NAME UnitTests
 target_sources(UnitTests PRIVATE ${deluge_SOURCES})
 target_include_directories(UnitTests PRIVATE
         # include the non test project source
-        mocks
         ../../../include
         ../../../src
         ../../../src/deluge
         ../../../src/OSLikeStuff        # task_scheduler/clock_type.h (time_tests.cpp)
-        ${DELUGE_REPO_ROOT}/tests/unit/deluge/io  # mock_file_io.h, the in-memory card behind deluge::io::File
         ${CMAKE_CURRENT_BINARY_DIR}/generated # util/firmware_version.h, configured just above
 )
 
@@ -185,3 +179,17 @@ target_compile_options(UnitTests PUBLIC
 )
 
 deluge_apply_test_sanitizers(UnitTests)
+
+# The stand-ins these suites link, one copy each in tests/support/mocks.
+target_sources(UnitTests PRIVATE
+        ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_display.cpp
+        ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_print.cpp
+        ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_hal.cpp
+        ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_critical_section.cpp
+        ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_storage.cpp
+        ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_firmware_version.cpp
+        ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_song.cpp
+        ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_slicer_env.cpp
+        ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_file_io.cpp
+)
+target_include_directories(UnitTests PRIVATE ${DELUGE_REPO_ROOT}/tests/support/mocks)

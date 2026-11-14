@@ -1,4 +1,4 @@
-// tests/unit/deluge/io/mock_file_io.h
+// tests/support/mocks/mock_file_io.h
 #pragma once
 
 extern "C" {

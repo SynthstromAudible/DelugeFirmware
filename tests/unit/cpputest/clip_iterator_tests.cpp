@@ -1,8 +1,8 @@
 #include "CppUTest/TestHarness.h"
 #include "model/song/clip_iterators.h"
 
-#include "clip_mocks.h"
-#include "song_mock.h"
+#include "mock_clip.h"
+#include "mock_song.h"
 
 const int nSessionClips = 10;
 Clip sessionClips[nSessionClips];

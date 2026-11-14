@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "slicer_env_mock.h"
+#include "mock_slicer_env.h"
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/setting_group.h"
