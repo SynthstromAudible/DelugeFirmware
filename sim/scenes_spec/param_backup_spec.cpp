@@ -132,9 +132,6 @@ describe param_backup("the song's param backup, by owner and clip id", ${
 			expect(drum).not_().to_be_null();
 			if (drum != nullptr) {
 				expect(row->drum).to_equal(drum);
-			}
-			expect(drum).not_().to_be_null();
-			if (drum != nullptr) {
 				expect(drum->id().has_value()).to_be_true();
 			}
 			expect(row->paramManager.containsAnyMainParamCollections()).to_be_true();

@@ -147,9 +147,6 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		expect(state).not_().to_be_null();
 		if (state != nullptr) {
 			expect(state->effects.stutter.use_song_stutter).to_be_true();
-		}
-		expect(state).not_().to_be_null();
-		if (state != nullptr) {
 			expect(state->effects.stutter.quantized).to_be_true();
 			expect(state->effects.stutter.reversed).to_be_true();
 		}

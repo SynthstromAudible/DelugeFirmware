@@ -345,8 +345,8 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		if (recording.gestures.size() == 5) {
 			const auto& g = recording.gestures;
 			expect(g[0].kind).to_equal(GK::KNOB_MODE);
-			expect(g[0].knob_owner).to_equal(std::optional<deluge::project::KnobModeOwner>{
-			                                                             deluge::project::TrackAddress{id}});
+			expect(g[0].knob_owner)
+			    .to_equal(std::optional<deluge::project::KnobModeOwner>{deluge::project::TrackAddress{id}});
 			expect(g[0].value).to_equal(3);
 			expect(g[1].kind).to_equal(GK::CHAIN_VIEW);
 			expect(g[1].chain).to_equal(song_chain);

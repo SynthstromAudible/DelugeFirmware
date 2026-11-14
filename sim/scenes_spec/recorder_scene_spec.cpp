@@ -647,9 +647,6 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(state).not_().to_be_null();
 		if (state != nullptr) {
 			expect(state->sources[0].osc_type).to_equal(OscType::SAMPLE);
-		}
-		expect(state).not_().to_be_null();
-		if (state != nullptr) {
 			expect(state->sources[0].ranges.empty()).to_be_false();
 			if (!state->sources[0].ranges.empty()) {
 				expect(state->sources[0].ranges[0].file_path).to_equal("SAMPLES/RECORD/REC003.WAV");
