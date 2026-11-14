@@ -13,7 +13,11 @@ Gate spec-comparisons-selftest:
 
 from __future__ import annotations
 
+import os
+import subprocess
+import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 import check_spec_comparisons as csc
@@ -49,6 +53,15 @@ class SiteTest(unittest.TestCase):
             "expect(c == '<').to_be_true();": ("eq", "true"),
             'expect(s == "a && b || c").to_be_true();': ("eq", "true"),
             'expect(s == R"(x < y)").to_be_true();': ("eq", "true"),
+            "expect(1'000 == n).to_be_true();": ("eq", "true"),
+            "expect(a <=> b == 0).to_be_true();": ("eq", "true"),
+            "expect(fabsf(a - b) < t).to_be_true();": ("tolerance", "true"),
+            "expect(t > std::fabs(a - b)).to_be_true();": ("tolerance", "true"),
+            "expect(std::abs(a - b) <= t).to_be_true();": ("tolerance", "true"),
+            "expect(s.rfind(x) != std::string::npos).to_be_true();": ("text", "true"),
+            "expect(p == NULL).to_be_true();": ("null", "true"),
+            "expect(!a == b).to_be_true();": ("eq", "true"),
+            "expect((a) == (b)).to_be_true();": ("eq", "true"),
         }
         for body, want in cases.items():
             with self.subTest(body=body):
@@ -71,9 +84,39 @@ class SiteTest(unittest.TestCase):
             "// expect(a == b).to_be_true();",
             "/* expect(a == b).to_be_true(); */",
             "my_expect(a == b).to_be_true();",
+            "expect(!p).to_be_true();",
+            "expect(not ready).to_be_false();",
+            "expect(!f(a == b)).to_be_true();",
+            "expect((ready)).to_be_true();",
+            "expect(f(a == b)).not_().to_be_true();",
         ):
             with self.subTest(body=body):
                 self.assertEqual(kinds(body), [])
+
+    def test_peels_negations_and_wrapping_parentheses_flipping_the_verdict(self):
+        cases = {
+            "expect((a == b)).to_be_true();": ("eq", "true"),
+            "expect(!(a == b)).to_be_true();": ("eq", "false"),
+            "expect(not (a == b)).to_be_true();": ("eq", "false"),
+            "expect(not(a == b)).to_be_false();": ("eq", "true"),
+            "expect(!!(a == b)).to_be_true();": ("eq", "true"),
+            "expect( ! ( (a < b) ) ).to_be_false();": ("order", "true"),
+            "expect(a == b).not_().to_be_false();": ("eq", "true"),
+            "expect(a == b) . not_ ( ) . to_be_true();": ("eq", "false"),
+            "expect(!(a == b)).not_().to_be_true();": ("eq", "true"),
+            "expect(!(w.first == kLed && w.second)).to_be_true();": ("and", "false"),
+        }
+        for body, want in cases.items():
+            with self.subTest(body=body):
+                self.assertEqual(kinds(body), [want])
+
+    def test_a_peeled_site_names_the_inner_comparison_and_reports_what_is_written(self):
+        text = "expect(!(a == b)).not_().to_be_false();"
+        (s,) = sites("tests/x_spec.cpp", text)
+        self.assertEqual(text[s.arg[0] : s.arg[1]], "a == b")
+        self.assertEqual((s.text, s.verdict), ("a == b", "false"))
+        self.assertEqual(s.end, len(text) - 1)
+        self.assertIn("expect(!(a == b)).not_().to_be_false()", csc.describe(s))
 
     def test_a_site_spans_lines_and_is_reported_at_its_first(self):
         found = sites(
@@ -119,6 +162,36 @@ class AddedTest(unittest.TestCase):
             added({"tests/a_spec.cpp": ONE_SITE}, {"tests/a_spec.cpp": new}), []
         )
 
+    def test_a_rewrapped_respaced_or_recommented_site_is_not_added(self):
+        for old, new in (
+            (
+                "expect(f(a, b) == c).to_be_true();",
+                "expect(f(\n\t\ta, b) == c).to_be_true();",
+            ),
+            ("expect(a==b).to_be_true();", "expect(a == b).to_be_true();"),
+            (
+                "expect(a == /* x */ b).to_be_true();",
+                "expect(a == /* y */ b).to_be_true();",
+            ),
+            ("expect(a == b).to_be_true();", "expect(a == b) // why\n\t.to_be_true();"),
+        ):
+            with self.subTest(new=new):
+                self.assertEqual(
+                    added({"tests/a_spec.cpp": old}, {"tests/a_spec.cpp": new}), []
+                )
+
+    def test_spacing_that_joins_words_or_sits_in_a_literal_is_a_new_site(self):
+        for old, new in (
+            (
+                "expect(sizeof a == b).to_be_true();",
+                "expect(sizeofa == b).to_be_true();",
+            ),
+            ('expect(s == "a b").to_be_true();', 'expect(s == "ab").to_be_true();'),
+        ):
+            with self.subTest(new=new):
+                got = added({"tests/a_spec.cpp": old}, {"tests/a_spec.cpp": new})
+                self.assertEqual(len(got), 1)
+
     def test_flipping_the_verdict_is_a_new_site(self):
         new = ONE_SITE.replace("to_be_true", "to_be_false")
         self.assertEqual(
@@ -128,7 +201,7 @@ class AddedTest(unittest.TestCase):
 
 class StagedTest(unittest.TestCase):
     def test_compares_the_index_with_head_across_files(self):
-        diff = "M\ttests/a_spec.cpp\nA\ttests/b_spec.cpp\nD\ttests/c_spec.cpp\nM\ttests/notes.md\n"
+        diff = "M\0tests/a_spec.cpp\0A\0tests/b_spec.cpp\0D\0tests/c_spec.cpp\0M\0tests/notes.md\0"
         blobs = {
             "HEAD:tests/a_spec.cpp": ONE_SITE,
             ":tests/a_spec.cpp": "",
@@ -140,9 +213,74 @@ class StagedTest(unittest.TestCase):
             mock.patch.object(
                 csc, "_show", side_effect=lambda spec: blobs.get(spec, "")
             ),
+            mock.patch.object(csc, "_merging", return_value=False),
         ):
             got = csc.staged_sites()
         self.assertEqual([(s.path, s.line) for s in got], [("tests/b_spec.cpp", 5)])
+
+
+class RepoTest(unittest.TestCase):
+    """The staged and tree modes against a real repository in a temporary directory."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        env.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")
+        patcher = mock.patch.dict(os.environ, env, clear=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        repo = mock.patch.object(csc, "REPO", self.root)
+        repo.start()
+        self.addCleanup(repo.stop)
+        self.git("init", "-q", "-b", "main")
+        self.git("config", "user.name", "spec")
+        self.git("config", "user.email", "spec@example.invalid")
+        self.git("config", "commit.gpgsign", "false")
+        self.write("tests/a_spec.cpp", "void f() {}\n")
+        self.commit("base")
+
+    def git(self, *args: str) -> str:
+        return subprocess.run(
+            ["git", *args], cwd=self.root, capture_output=True, text=True, check=True
+        ).stdout
+
+    def write(self, path: str, text: str) -> None:
+        (self.root / path).parent.mkdir(parents=True, exist_ok=True)
+        (self.root / path).write_text(text)
+        self.git("add", "--", path)
+
+    def commit(self, subject: str) -> None:
+        self.git("commit", "-q", "--no-verify", "-m", subject)
+
+    def test_a_merge_budgets_the_sites_of_the_merged_branch(self):
+        self.git("checkout", "-q", "-b", "other")
+        self.write("tests/b_spec.cpp", ONE_SITE)
+        self.write("tests/a_spec.cpp", ONE_SITE.replace("a == b", "c == d"))
+        self.commit("other")
+        self.git("checkout", "-q", "main")
+        self.write("tests/z_spec.cpp", "void z() {}\n")
+        self.commit("main")
+        self.git("merge", "-q", "--no-ff", "--no-commit", "other")
+        self.assertEqual(csc.staged_sites(), [])
+        self.write("tests/b_spec.cpp", ONE_SITE + ONE_SITE)
+        got = csc.staged_sites()
+        self.assertEqual([(s.path, s.line) for s in got], [("tests/b_spec.cpp", 5)])
+
+    def test_without_a_merge_the_same_sites_are_added(self):
+        self.write("tests/b_spec.cpp", ONE_SITE)
+        self.assertEqual([s.path for s in csc.staged_sites()], ["tests/b_spec.cpp"])
+
+    def test_paths_with_spaces_and_non_ascii_characters_are_read(self):
+        paths = ["tests/with space_spec.cpp", "tests/\u00e9t\u00e9_spec.cpp"]
+        for path in paths:
+            self.write(path, ONE_SITE)
+        self.assertEqual(sorted(s.path for s in csc.staged_sites()), sorted(paths))
+        self.commit("sites")
+        self.assertEqual(
+            sorted(s.path for s in csc.tree_sites(("tests",))), sorted(paths)
+        )
 
 
 if __name__ == "__main__":

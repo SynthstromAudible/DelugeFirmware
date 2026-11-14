@@ -7,15 +7,18 @@
 
 `expect(a == b).to_be_true()` fails with "expected true, got false" and says nothing of a or b;
 `expect(a).to_equal(b)` fails with both values. A site is an `expect(<argument>)` followed directly by
-`.to_be_true(` or `.to_be_false(` whose argument holds, outside every bracket, a comparison (`==`, `!=`, `<`, `>`,
-`<=`, `>=`) or a `&&` or `||`. Comments and the insides of string and character literals are not read, and a `<`
-that opens a template argument list (`static_cast<int*>(p)`, `std::get<1>(t)`) is not a comparison. Each site is
-printed with the matcher that judges it instead (KINDS).
+`.to_be_true(` or `.to_be_false(` (either may follow `.not_()`) whose argument holds, outside every bracket, a
+comparison (`==`, `!=`, `<`, `>`, `<=`, `>=`) or a `&&` or `||`. Parentheses wrapping the whole argument and a `!` or
+`not` applied to such parentheses are looked through, each negation (and `.not_()`) flipping the verdict, so
+`expect(!(a == b)).to_be_true()` is the site `a == b` judged false. Comments and the insides of string and character
+literals are not read, and a `<` that opens a template argument list (`static_cast<int*>(p)`, `std::get<1>(t)`) is
+not a comparison. Each site is printed with the matcher that judges it instead (KINDS).
 
 Modes:
   (default)  every site in the tracked C++ files under ROOTS (or under the paths given); --strict exits 1 on any.
   --staged   the sites the index adds over HEAD across every staged C++ file under ROOTS, for pre-commit: a site
-             moved within a file or between files passes, a new one fails (exit 1).
+             moved within a file or between files passes, a new one fails (exit 1). During a merge a site is new
+             only beyond the copies either parent (HEAD or MERGE_HEAD) holds.
   --summary  site counts per directory, then per kind.
 """
 
@@ -47,7 +50,10 @@ KINDS = {
     "or": "one expectation on the value the alternatives share, or to_satisfy with a named predicate",
 }
 START = re.compile(r"\bexpect\s*\(")
-VERDICT = re.compile(r"\s*\.\s*to_be_(true|false)\s*\(")
+VERDICT = re.compile(r"\s*(\.\s*not_\s*\(\s*\)\s*)?\.\s*to_be_(true|false)\s*\(")
+NEGATION = re.compile(r"!|\bnot\b")
+ABS_CALL = re.compile(r"(?:std::)?f?abs[fl]?\s*\(")
+FIND_CALL = re.compile(r"\.\s*r?find\s*\(")
 RAW_STRING = re.compile(r'(?:u8|[uUL])?R"([^()\\\s]{0,16})\(')
 IDENT = re.compile(r"[A-Za-z0-9_]")
 
@@ -57,14 +63,20 @@ class Site:
     path: str
     line: int
     start: int  # offset of `expect`
-    arg: tuple[int, int]  # offsets of the argument, inside expect's parentheses
+    arg: tuple[
+        int, int
+    ]  # offsets of the comparison: the argument with wrapping parentheses and negations peeled
     end: int  # offset just past the `)` that closes to_be_true( or to_be_false(
-    verdict: str  # "true" or "false"
+    verdict: str  # what the comparison is judged to be, "true" or "false", after every negation
     kind: str
-    text: str  # the argument with its whitespace collapsed
+    text: str  # the comparison with its whitespace collapsed
+    written: str = (
+        ""  # the expectation as written, whitespace collapsed and the message left out
+    )
+    shape: str = ""  # the comparison with comments and layout dropped: what identifies the site across commits
 
     def key(self) -> tuple[str, str]:
-        return (self.verdict, self.text)
+        return (self.verdict, self.shape or self.text)
 
 
 def _is_separator(text: str, i: int) -> bool:
@@ -189,17 +201,33 @@ def kind_of(arg: str, b: str) -> str:
         return "chain"
     op, at = comparisons[0]
     lhs, rhs = arg[:at].strip(), arg[at + len(op) :].strip()
-    if "nullptr" in (lhs, rhs):
+    if {"nullptr", "NULL"} & {lhs, rhs}:
         return "null"
-    if re.search(r"\bnpos\b", lhs + " " + rhs) and ".find(" in lhs + rhs:
+    if re.search(r"\bnpos\b", lhs + " " + rhs) and FIND_CALL.search(lhs + rhs):
         return "text"
     if re.search(r"\bmemcmp\s*\(", lhs + rhs):
         return "bytes"
     if re.search(r"\bstrn?cmp\s*\(", lhs + rhs):
         return "cstring"
-    if op not in ("==", "!=") and re.match(r"(?:std::)?f?abs\s*\(", lhs):
+    if op not in ("==", "!=") and (ABS_CALL.match(lhs) or ABS_CALL.match(rhs)):
         return "tolerance"
     return {"==": "eq", "!=": "ne"}.get(op, "order")
+
+
+def shape(text: str, b: str) -> str:
+    """text with comments dropped and whitespace removed, except one space between two identifier characters;
+    whitespace inside a literal is kept. b is text blanked."""
+    held = "\0"  # stands in for a space that stays (in a literal, between words) while the rest is squeezed
+    out = []
+    for c, bc in zip(text, b):
+        if bc == " " and not c.isspace():
+            out.append(" ")  # a comment
+        elif bc == "_" and c.isspace():
+            out.append(held)
+        else:
+            out.append(c)
+    squeezed = re.sub(r"\s+", "", re.sub(r"(?<=\w)\s+(?=\w)", held, "".join(out)))
+    return squeezed.replace(held, " ")
 
 
 def close_paren(b: str, open_at: int) -> int:
@@ -215,6 +243,41 @@ def close_paren(b: str, open_at: int) -> int:
     return len(b)
 
 
+def _wrapped(b: str, lo: int, hi: int) -> bool:
+    """Whether b[lo:hi] is one pair of parentheses and what they hold."""
+    return lo < hi and b[lo] == "(" and close_paren(b, lo) == hi - 1
+
+
+def _skip_space(b: str, i: int) -> int:
+    while i < len(b) and b[i].isspace():
+        i += 1
+    return i
+
+
+def peel(b: str, lo: int, hi: int) -> tuple[int, int, int]:
+    """b[lo:hi] without the parentheses wrapping all of it and the negations applied to such parentheses, and how
+    many negations were peeled. A negation of anything else (`!p`, `!a == b`) stays: it binds tighter than a
+    comparison, so it does not negate the whole."""
+    flips = 0
+    while True:
+        lo = _skip_space(b, lo)
+        while hi > lo and b[hi - 1].isspace():
+            hi -= 1
+        if _wrapped(b, lo, hi):
+            lo, hi = lo + 1, hi - 1
+            continue
+        neg = NEGATION.match(b, lo)
+        if not neg:
+            return lo, hi, flips
+        operand = _skip_space(b, neg.end())
+        inner = operand
+        while m := NEGATION.match(b, inner):
+            inner = _skip_space(b, m.end())
+        if not _wrapped(b, inner, hi):
+            return lo, hi, flips
+        lo, flips = operand, flips + 1
+
+
 def sites(path: str, text: str) -> list[Site]:
     b = blank(text)
     out: list[Site] = []
@@ -223,29 +286,47 @@ def sites(path: str, text: str) -> list[Site]:
         verdict = VERDICT.match(b, arg_end + 1)
         if not verdict:
             continue
-        kind = kind_of(text[m.end() : arg_end], b[m.end() : arg_end])
+        lo, hi, flips = peel(b, m.end(), arg_end)
+        kind = kind_of(text[lo:hi], b[lo:hi])
         if not kind:
             continue
+        flips += bool(verdict[1])
+        judged = (
+            verdict[2]
+            if flips % 2 == 0
+            else {"true": "false", "false": "true"}[verdict[2]]
+        )
+        call = " ".join(text[m.start() : arg_end + 1].split())
+        call += "".join(text[arg_end + 1 : verdict.end()].split()) + ")"
         out.append(
             Site(
                 path=path,
                 line=text.count("\n", 0, m.start()) + 1,
                 start=m.start(),
-                arg=(m.end(), arg_end),
+                arg=(lo, hi),
                 end=close_paren(b, verdict.end() - 1) + 1,
-                verdict=verdict[1],
+                verdict=judged,
                 kind=kind,
-                text=" ".join(text[m.end() : arg_end].split()),
+                text=" ".join(text[lo:hi].split()),
+                written=call,
+                shape=shape(text[lo:hi], b[lo:hi]),
             )
         )
     return out
 
 
-def added(old: dict[str, str], new: dict[str, str]) -> list[Site]:
-    """The sites in `new` (path -> text) beyond those in `old`, matched by verdict and argument text."""
-    budget = collections.Counter(
-        s.key() for path, text in old.items() for s in sites(path, text)
+def _keys(files: dict[str, str]) -> collections.Counter[tuple[str, str]]:
+    return collections.Counter(
+        s.key() for path, text in files.items() for s in sites(path, text)
     )
+
+
+def added(
+    old: dict[str, str], new: dict[str, str], theirs: dict[str, str] | None = None
+) -> list[Site]:
+    """The sites in `new` (path -> text) beyond those in `old`, matched by verdict and comparison shape. With
+    `theirs` (a merged parent's files), a site is beyond only when it is beyond both parents' copies."""
+    budget = _keys(old) | _keys(theirs or {})
     out = []
     for path, text in sorted(new.items()):
         for s in sites(path, text):
@@ -269,35 +350,55 @@ def _show(spec: str) -> str:
     return done.stdout if done.returncode == 0 else ""
 
 
+def _merging() -> bool:
+    return (
+        subprocess.run(
+            ["git", "rev-parse", "-q", "--verify", "MERGE_HEAD"],
+            cwd=REPO,
+            capture_output=True,
+            check=False,
+        ).returncode
+        == 0
+    )
+
+
 def staged_sites() -> list[Site]:
     old: dict[str, str] = {}
     new: dict[str, str] = {}
-    for line in _git(
-        "diff", "--cached", "--name-status", "--no-renames", "--", *ROOTS
-    ).splitlines():
-        status, path = line.split("\t", 1)
+    fields = _git(
+        "diff", "--cached", "--name-status", "--no-renames", "-z", "--", *ROOTS
+    ).split("\0")
+    for status, path in zip(fields[0::2], fields[1::2]):
         if not path.endswith(SUFFIXES):
             continue
         if status != "A":
             old[path] = _show(f"HEAD:{path}")
         if status != "D":
             new[path] = _show(f":{path}")
-    return added(old, new)
+    theirs = (
+        {path: _show(f"MERGE_HEAD:{path}") for path in old.keys() | new.keys()}
+        if _merging()
+        else None
+    )
+    return added(old, new, theirs)
 
 
 def tree_sites(paths: tuple[str, ...]) -> list[Site]:
     out: list[Site] = []
-    for f in _git("ls-files", "--", *paths).split():
+    for f in filter(None, _git("ls-files", "-z", "--", *paths).split("\0")):
         if f.endswith(SUFFIXES):
             out.extend(sites(f, (REPO / f).read_text(errors="ignore")))
     return out
 
 
+def describe(s: Site) -> str:
+    written = s.written or f"expect({s.text}).to_be_{s.verdict}()"
+    return f"{s.path}:{s.line}: {s.kind}: {written} -- use {KINDS[s.kind]}"
+
+
 def report(found: list[Site]) -> None:
     for s in found:
-        print(
-            f"{s.path}:{s.line}: {s.kind}: expect({s.text}).to_be_{s.verdict}() -- use {KINDS[s.kind]}"
-        )
+        print(describe(s))
 
 
 def summary(found: list[Site]) -> None:
