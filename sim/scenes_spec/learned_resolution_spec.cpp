@@ -6,8 +6,11 @@
 
 #include "deluge-project/mapping_table.h"
 #include "gui/ui/ui.h"
+#include "gui/views/automation_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
+#include "hid/display/oled.h"
 #include "instruments/deluge/params.h"
 #include "io/midi/mapping_index.h"
 #include "io/midi/midi_engine.h"
@@ -40,6 +43,7 @@
 #include <vector>
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
+#include "support/learned_fixture.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -58,6 +62,9 @@ using project::ParamAddress;
 using project::ParamSpace;
 using Resolve = deluge::edits::SetParamValue::Resolve;
 using Kind = ControlsAddress::Kind;
+using namespace deluge::scenes::spec::learned;
+
+extern uint32_t whichMainRowsNeedRendering; // ui.cpp: the main pad rows marked for rendering
 
 namespace {
 
@@ -86,12 +93,6 @@ ParamAddress cableOf(const spec::SongFixture& f, const Clip& clip) {
 	    .owner = OwnerId::instrument(*f.instrument->id()), .space = depth.space, .id = depth.id, .clip_id = clip.id()};
 }
 
-/// @brief Make @p clip its @p output's active clip, as a song's own load does.
-void activate(Song& song, Output& output, Clip& clip) {
-	alignas(ModelStack) char memory[MODEL_STACK_MAX_SIZE];
-	(void)output.setActiveClip(setupModelStackWithSong(memory, &song)->addTimelineCounter(&clip), PgmChangeSend::NEVER);
-}
-
 /// @brief The lane's current value, or none where the song holds no such lane.
 std::optional<int32_t> valueOf(Song& song, const ParamAddress& address) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
@@ -106,30 +107,6 @@ bool write(Song& song, const ParamAddress& address, int32_t value, Resolve resol
 	deluge::edits::SetParamValue edit{address, value, 0, 0, resolve};
 	return deluge::edits::apply(ctx, edit) == Error::NONE;
 }
-
-/// @brief A view as the root UI, so an undo step can open, for one example.
-struct RootView {
-	RootView() { changeRootUI(&sessionView); }
-	~RootView() { nullifyUIs(); }
-	RootView(const RootView&) = delete;
-	RootView& operator=(const RootView&) = delete;
-};
-
-/// @brief The clock running, with @p mode recording, for as long as it lives.
-struct Transport {
-	RecordingMode saved_mode = playbackHandler.recording;
-	decltype(playbackHandler.playbackState) saved_state = playbackHandler.playbackState;
-	explicit Transport(RecordingMode mode) {
-		playbackHandler.recording = mode;
-		playbackHandler.playbackState = PLAYBACK_CLOCK_INTERNAL_ACTIVE;
-	}
-	~Transport() {
-		playbackHandler.recording = saved_mode;
-		playbackHandler.playbackState = saved_state;
-	}
-	Transport(const Transport&) = delete;
-	Transport& operator=(const Transport&) = delete;
-};
 
 /// @brief The arrangement recording @p f's clip at 0, for as long as it lives.
 struct ArrangementRecording {
@@ -152,74 +129,6 @@ struct TakeoverSetting {
 	TakeoverSetting(const TakeoverSetting&) = delete;
 	TakeoverSetting& operator=(const TakeoverSetting&) = delete;
 };
-
-/// @brief The step-edit region [@p pos, @p pos + @p length) held on @p clip, for as long as it lives.
-struct HeldRegion {
-	HeldRegion(Clip& clip, uint32_t pos, uint32_t length) {
-		view.setActiveModControllableTimelineCounter(&clip, false);
-		view.setModRegion(pos, length, 0);
-	}
-	~HeldRegion() {
-		view.setModRegion();
-		view.releaseActiveModControllable();
-	}
-	HeldRegion(const HeldRegion&) = delete;
-	HeldRegion& operator=(const HeldRegion&) = delete;
-};
-
-/// @brief A synth with a session clip of its own, in @p song.
-spec::SongFixture addSynth(Song* song) {
-	spec::SongFixture f{.song = song, .clip = spec::detail::make_session_clip(song)};
-	ParamManagerForTimeline params;
-	auto* synth = static_cast<SoundInstrument*>(StorageManager::createNewInstrument(OutputType::SYNTH, &params));
-	synth->setupAsDefaultSynth(&params);
-	spec::detail::attach(song, f.clip, synth, params);
-	f.instrument = synth;
-	return f;
-}
-
-/// @brief A kit with no rows and a session clip of its own, in @p song.
-spec::SongFixture addKit(Song* song) {
-	spec::SongFixture f{.song = song, .clip = spec::detail::make_session_clip(song)};
-	ParamManagerForTimeline params;
-	params.setupUnpatched();
-	GlobalEffectableForClip::initParams(&params);
-	auto* kit = static_cast<Kit*>(StorageManager::createNewInstrument(OutputType::KIT, &params));
-	kit->dirPath = "KITS";
-	kit->name = "0";
-	spec::detail::attach(song, f.clip, kit, params);
-	f.instrument = kit;
-	return f;
-}
-
-/// @brief A sound drum added to @p f's kit, its params backed up on the kit's clip, and no row yet.
-SoundDrum* addSoundDrum(spec::SongFixture& f) {
-	auto* drum = spec::detail::place<SoundDrum>();
-	ParamManagerForTimeline params;
-	params.setupWithPatching();
-	Sound::initParams(&params);
-	drum->setupAsSample(&params);
-	f.song->live.param_backup.backUp(drum, f.clip, &params, true);
-	static_cast<Kit*>(f.instrument)->addDrum(drum);
-	return drum;
-}
-
-/// @brief A drum of type @p T added to @p f's kit, with no row yet.
-template <typename T>
-T* addPlainDrum(spec::SongFixture& f) {
-	auto* drum = spec::detail::place<T>();
-	static_cast<Kit*>(f.instrument)->addDrum(drum);
-	return drum;
-}
-
-/// @brief A row for @p drum at the end of @p f's kit clip.
-void addRow(spec::SongFixture& f, Drum* drum) {
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, f.song, f.clip);
-	int32_t index = 0;
-	NoteRow* row = f.clip->createNewNoteRowForKit(stack, /*atStart=*/false, &index);
-	row->setDrum(drum, static_cast<Kit*>(f.instrument), stack->addNoteRow(index, row));
-}
 
 /// @brief The undo log's shape: the steps it holds, and the param changes in them, "steps/changes".
 std::string undoShape() {
@@ -436,14 +345,79 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		currentSong = saved;
 	});
 
-	it("takes a learned write's follow with no editor of that param open", _ {
+	it("follows a learned write in the views as legacy's handlers do: a song param in either, a clip's in the editor only", _ {
 		spec::SongFixture f = spec::make_synth_song();
+		spec::SongFixture other = addSynth(f.song);
 		Song* const saved = currentSong;
 		currentSong = f.song;
 		activate(*f.song, *f.instrument, *f.clip);
-		RootView root;
-		deluge::scenes::menu::host_controls_sink().learned_written(
-		    filterOf(f, deluge::instrument::param::kLpfFrequency, *f.clip), 12);
+		f.song->setCurrentClip(f.clip);
+		controls::Sink& sink = deluge::scenes::menu::host_controls_sink();
+		const ParamAddress lpf = filterOf(f, deluge::instrument::param::kLpfFrequency, *f.clip);
+		const project::ParamTarget volume = project::engine_target(
+		    deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_VOLUME),
+		                                    params::Kind::UNPATCHED_GLOBAL).value);
+		const ParamAddress songVolume{.owner = OwnerId::song(), .space = volume.space, .id = volume.id};
+		const auto lane = [&](const ParamAddress& address) {
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithAutoParam* stack = deluge::bridge::paramStackAt(*f.song, address, memory);
+			return stack != nullptr ? std::pair{stack->paramId, stack->paramCollection->getParamKind()}
+			                        : std::pair{-1, params::Kind::NONE};
+		};
+		const auto [lpfId, lpfKind] = lane(lpf);
+		const auto [volId, volKind] = lane(songVolume);
+		f.clip->lastSelectedParamID = lpfId;
+		f.clip->lastSelectedParamKind = lpfKind;
+		other.clip->lastSelectedParamID = lpfId;
+		other.clip->lastSelectedParamKind = lpfKind;
+		f.song->lastSelectedParamID = volId;
+		f.song->lastSelectedParamKind = volKind;
+		// What a follow does: the editor's grid marked for rendering, the performance display drawn.
+		struct Seen {
+			bool grid;
+			bool display;
+		};
+		const auto follow = [&](UI& root, const ParamAddress& address) {
+			setRootUILowLevel(&root);
+			whichMainRowsNeedRendering = 0;
+			const uint32_t drawn = deluge::hid::display::OLED::getMainImageGeneration();
+			sink.learned_written(address, 5);
+			const Seen seen{whichMainRowsNeedRendering != 0, deluge::hid::display::OLED::getMainImageGeneration() != drawn};
+			nullifyUIs();
+			return seen;
+		};
+		const bool savedArranger = automationView.onArrangerView;
+		const bool savedEditing = performanceView.defaultEditingMode;
+		const auto savedPress = performanceView.lastPadPress;
+		const bool savedParamEditing = performanceView.editingParam;
+		automationView.onArrangerView = false;
+		performanceView.defaultEditingMode = false;
+		performanceView.editingParam = false;
+		performanceView.lastPadPress.isActive = true;
+		performanceView.lastPadPress.param = volume.id;
+		// A clip's param: the editor's grid on the clip it shows, and nothing else.
+		expect(follow(automationView, lpf).grid).to_be_true();
+		expect(follow(automationView, lpf).display).to_be_false();
+		expect(follow(performanceView, lpf).grid).to_be_false();
+		expect(follow(performanceView, lpf).display).to_be_false();
+		f.song->setCurrentClip(other.clip);
+		expect(follow(automationView, lpf).grid).to_be_false(); // the editor shows another clip
+		f.song->setCurrentClip(f.clip);
+		automationView.onArrangerView = true;
+		expect(follow(automationView, lpf).grid).to_be_false(); // the arranger shows no clip's param
+		// The song's param: the arranger's grid, or off the arranger nothing in the editor; the performance display.
+		expect(follow(automationView, songVolume).grid).to_be_true();
+		automationView.onArrangerView = false;
+		expect(follow(automationView, songVolume).grid).to_be_false();
+		expect(follow(performanceView, songVolume).display).to_be_true();
+		expect(follow(performanceView, songVolume).grid).to_be_false();
+		// A session root follows nothing.
+		const Seen session = follow(sessionView, songVolume);
+		expect(session.grid || session.display).to_be_false();
+		automationView.onArrangerView = savedArranger;
+		performanceView.defaultEditingMode = savedEditing;
+		performanceView.editingParam = savedParamEditing;
+		performanceView.lastPadPress = savedPress;
 		currentSong = saved;
 	});
 });
@@ -484,6 +458,43 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 		}
 		expect(deluge::scenes::menu::host_runtime_facts().sound_rows(w.synth.clip->id()).empty()).to_be_true();
 		expect(deluge::scenes::menu::host_runtime_facts().sound_rows(0xFFFFFF).empty()).to_be_true();
+		currentSong = saved;
+	});
+
+	it("keeps each member's answer across the other's calls and a write that clones a take", _ {
+		World w = makeWorld();
+		Song* const saved = currentSong;
+		currentSong = w.song;
+		RootView root;
+		const controls::Facts& facts = deluge::scenes::menu::host_runtime_facts();
+		const auto outputs = facts.playing_outputs();
+		const std::vector<controls::PlayingOutput> before(outputs.begin(), outputs.end());
+		expect(before.size()).to_equal(size_t{3});
+		// A dispatcher's walk: each output's clip asked for its rows while the outputs are still read.
+		size_t rowCount = 0;
+		std::vector<controls::KitRow> kitRows;
+		for (const controls::PlayingOutput& output : outputs) {
+			const auto rows = facts.sound_rows(output.clip_id);
+			rowCount += rows.size();
+			if (output.kind == controls::PlayingOutput::Kind::KIT) {
+				kitRows.assign(rows.begin(), rows.end());
+			}
+		}
+		expect(rowCount).to_equal(size_t{2});
+		expect(std::vector<controls::PlayingOutput>(outputs.begin(), outputs.end()) == before).to_be_true();
+		// A write that clones the synth's clip into a take leaves both spans as they were.
+		const auto rows = facts.sound_rows(w.kit.clip->id());
+		{
+			ArrangementRecording recording{w.synth};
+			expect(write(*w.song, filterOf(w.synth, deluge::instrument::param::kLpfFrequency, *w.synth.clip), 1 << 26,
+			             Resolve::LEARNED)).to_be_true();
+			expect(w.synth.instrument->getActiveClip() != w.synth.clip).to_be_true();
+			expect(std::vector<controls::PlayingOutput>(outputs.begin(), outputs.end()) == before).to_be_true();
+			expect(std::vector<controls::KitRow>(rows.begin(), rows.end()) == kitRows).to_be_true();
+			// The next call answers the take.
+			const auto after = facts.playing_outputs();
+			expect(after.size() == 3 && after[0].clip_id == w.synth.instrument->getActiveClip()->id()).to_be_true();
+		}
 		currentSong = saved;
 	});
 

@@ -48,12 +48,14 @@ struct PlayingOutput {
 	project::OwnerId param_owner;
 	Kind kind{Kind::OTHER};
 	uint32_t clip_id{0}; ///< its active clip
+	[[nodiscard]] bool operator==(const PlayingOutput&) const = default;
 };
 
 /// @brief A kit's sound row a learned message is offered to.
 struct KitRow {
 	uint32_t drum_id{0};          ///< the row's drum
 	project::OwnerId param_owner; ///< the owner a ParamAddress of the row's own params names: DRUM with its id
+	[[nodiscard]] bool operator==(const KitRow&) const = default;
 };
 
 /// @brief The facts a gold knob reads that the model does not hold, each answered by the host.
@@ -80,11 +82,14 @@ public:
 	                                             std::optional<project::ClipAddress> clip) const = 0;
 	/// @brief The device's alternative delay-knob setting (a runtime feature setting).
 	[[nodiscard]] virtual bool alt_delay() const = 0;
-	/// @brief The outputs a learned message is offered to, in the song's play order: those with an active clip.
-	/// Valid until the next call to this or sound_rows().
+	/// @brief The outputs a learned message is offered to, in the song's play order: those with an active clip
+	/// and an id (a song member always has one).
+	/// The span holds plain values and is valid until the next call to this member: another member's call, and a
+	/// sink write (a take cloned), leave it as it was, so a dispatcher may walk it and ask sound_rows() of each
+	/// output's clip.
 	[[nodiscard]] virtual std::span<const PlayingOutput> playing_outputs() const = 0;
 	/// @brief The sound rows of the kit clip @p clip_id, in note-row order: a row whose drum is a sound with an id.
-	/// Valid until the next call to this or playing_outputs().
+	/// The span is valid until the next call to this member, as playing_outputs()'s is.
 	[[nodiscard]] virtual std::span<const KitRow> sound_rows(uint32_t clip_id) const = 0;
 	/// @brief What a takeover reads from the app: the global mode, and whether a running clock records. The step
 	/// region and the knob's own flag are the caller's to set.

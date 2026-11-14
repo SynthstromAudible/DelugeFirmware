@@ -87,18 +87,14 @@ public:
 	}
 	[[nodiscard]] bool stutter_active() const override { return true; }
 	[[nodiscard]] bool alt_delay() const override { return false; }
-	[[nodiscard]] std::span<const PlayingOutput> playing_outputs() const override { return outputs; }
-	[[nodiscard]] std::span<const KitRow> sound_rows(uint32_t clip_id) const override {
-		return clip_id == 9 ? std::span<const KitRow>{rows} : std::span<const KitRow>{};
-	}
+	[[nodiscard]] std::span<const PlayingOutput> playing_outputs() const override { return {}; }
+	[[nodiscard]] std::span<const KitRow> sound_rows(uint32_t) const override { return {}; }
 	[[nodiscard]] TakeoverInputs takeover_inputs(bool cable_relative) const override {
-		return {.mode = TakeoverMode::SCALE, .cable_relative = cable_relative, .recording = true};
+		return {.cable_relative = cable_relative};
 	}
-	[[nodiscard]] std::optional<std::pair<int32_t, int32_t>> step_region(std::optional<uint32_t> clip_id) const override {
-		return clip_id ? std::optional{std::pair{int32_t{96}, int32_t{48}}} : std::nullopt;
+	[[nodiscard]] std::optional<std::pair<int32_t, int32_t>> step_region(std::optional<uint32_t>) const override {
+		return std::nullopt;
 	}
-	std::vector<PlayingOutput> outputs;
-	std::vector<KitRow> rows;
 	[[nodiscard]] bool allows_note_tails(project::SlotAddress, std::optional<project::ClipAddress>) const override {
 		return false;
 	}
@@ -146,23 +142,6 @@ describe sink("the controls' sink and facts", ${
 		expect(recording.view).to_equal(std::string{"currentFilterType=hpf"});
 		expect(sink.write_controls(project::ControlsAddress{}, {project::ControllerMapping{}})).to_be_true();
 		expect(recording.control_count).to_equal(size_t{1});
-	});
-	it("answers a learned dispatch's reads through the interface", _{
-		FixedFacts fixed;
-		fixed.outputs.push_back({.owner = {project::ControlsAddress::Kind::OUTPUT, 4},
-		                         .param_owner = project::OwnerId::instrument(4),
-		                         .kind = PlayingOutput::Kind::KIT,
-		                         .clip_id = 9});
-		fixed.rows.push_back({.drum_id = 2, .param_owner = project::OwnerId::drum(2)});
-		const Facts& facts = fixed;
-		expect(facts.playing_outputs().size()).to_equal(size_t{1});
-		expect(facts.playing_outputs()[0].kind == PlayingOutput::Kind::KIT).to_be_true();
-		expect(facts.sound_rows(9).size()).to_equal(size_t{1});
-		expect(facts.sound_rows(8).empty()).to_be_true();
-		const TakeoverInputs inputs = facts.takeover_inputs(true);
-		expect(inputs.cable_relative && inputs.recording && !inputs.step_editing && !inputs.knob_relative).to_be_true();
-		expect(facts.step_region(9) == std::optional{std::pair{int32_t{96}, int32_t{48}}}).to_be_true();
-		expect(facts.step_region(std::nullopt).has_value()).to_be_false();
 	});
 	it("answers a knob's reads through the interface", _{
 		const FixedFacts fixed;

@@ -47,6 +47,7 @@
 #include <vector>
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
+#include "support/learned_fixture.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -64,6 +65,7 @@ using project::ParamAddress;
 using project::ParamSpace;
 using Command = project::MidiCommand;
 using Kind = ControlsAddress::Kind;
+using namespace deluge::scenes::spec::learned;
 
 namespace {
 
@@ -202,14 +204,6 @@ void sendBend(uint8_t channel, uint32_t value14) {
 	                                  static_cast<uint8_t>(value14 >> 7), &thru);
 }
 
-/// @brief A view as the root UI, so an undo step can open, for one example.
-struct RootView {
-	RootView() { changeRootUI(&sessionView); }
-	~RootView() { nullifyUIs(); }
-	RootView(const RootView&) = delete;
-	RootView& operator=(const RootView&) = delete;
-};
-
 /// @brief The takeover mode, and whether the cable sends relative values, for one example.
 struct Takeover {
 	MIDITakeoverMode saved_mode = midiEngine.midiTakeover;
@@ -224,36 +218,6 @@ struct Takeover {
 	static void cableIsRelative(bool relative) { din().is_relative = relative; }
 };
 
-/// @brief The clock running, with @p mode recording, for as long as it lives.
-struct Transport {
-	RecordingMode saved_mode = playbackHandler.recording;
-	decltype(playbackHandler.playbackState) saved_state = playbackHandler.playbackState;
-	explicit Transport(RecordingMode mode) {
-		playbackHandler.recording = mode;
-		playbackHandler.playbackState = PLAYBACK_CLOCK_INTERNAL_ACTIVE;
-	}
-	~Transport() {
-		playbackHandler.recording = saved_mode;
-		playbackHandler.playbackState = saved_state;
-	}
-	Transport(const Transport&) = delete;
-	Transport& operator=(const Transport&) = delete;
-};
-
-/// @brief The step-edit region [@p pos, @p pos + @p length) held on @p clip, for as long as it lives.
-struct HeldRegion {
-	HeldRegion(Clip& clip, uint32_t pos, uint32_t length) {
-		view.setActiveModControllableTimelineCounter(&clip, false);
-		view.setModRegion(pos, length, 0);
-	}
-	~HeldRegion() {
-		view.setModRegion();
-		view.releaseActiveModControllable();
-	}
-	HeldRegion(const HeldRegion&) = delete;
-	HeldRegion& operator=(const HeldRegion&) = delete;
-};
-
 /// @brief An MPE lower zone on DIN, channels 1..@p last its members, for one example.
 struct MpeZone {
 	MIDIPort& port = din().ports[MIDI_DIRECTION_INPUT_TO_DELUGE];
@@ -263,75 +227,6 @@ struct MpeZone {
 	MpeZone(const MpeZone&) = delete;
 	MpeZone& operator=(const MpeZone&) = delete;
 };
-
-/// @brief Make @p clip its @p output's active clip, as a song's own load does.
-void activate(Song& song, Output& output, Clip& clip) {
-	alignas(ModelStack) char memory[MODEL_STACK_MAX_SIZE];
-	(void)output.setActiveClip(setupModelStackWithSong(memory, &song)->addTimelineCounter(&clip), PgmChangeSend::NEVER);
-}
-
-/// @brief A synth built the way a preset load builds one, its params backed up with the song, not yet in it.
-SoundInstrument* makeLooseSynth(Song& song) {
-	ParamManagerForTimeline params;
-	auto* synth = static_cast<SoundInstrument*>(StorageManager::createNewInstrument(OutputType::SYNTH, &params));
-	synth->setupAsDefaultSynth(&params);
-	song.live.param_backup.backUp(synth, nullptr, &params, true);
-	return synth;
-}
-
-/// @brief A synth with a session clip of its own, in @p song.
-spec::SongFixture addSynth(Song* song) {
-	spec::SongFixture f{.song = song, .clip = spec::detail::make_session_clip(song)};
-	ParamManagerForTimeline params;
-	auto* synth = static_cast<SoundInstrument*>(StorageManager::createNewInstrument(OutputType::SYNTH, &params));
-	synth->setupAsDefaultSynth(&params);
-	spec::detail::attach(song, f.clip, synth, params);
-	f.instrument = synth;
-	return f;
-}
-
-/// @brief A kit with no rows and a session clip of its own, in @p song.
-spec::SongFixture addKit(Song* song) {
-	spec::SongFixture f{.song = song, .clip = spec::detail::make_session_clip(song)};
-	ParamManagerForTimeline params;
-	params.setupUnpatched();
-	GlobalEffectableForClip::initParams(&params);
-	auto* kit = static_cast<Kit*>(StorageManager::createNewInstrument(OutputType::KIT, &params));
-	kit->dirPath = "KITS";
-	kit->name = "0";
-	spec::detail::attach(song, f.clip, kit, params);
-	f.instrument = kit;
-	return f;
-}
-
-/// @brief A sound drum added to @p f's kit, with its params backed up on the kit's clip, and no row yet.
-SoundDrum* addSoundDrum(spec::SongFixture& f) {
-	auto* drum = spec::detail::place<SoundDrum>();
-	ParamManagerForTimeline params;
-	params.setupWithPatching();
-	Sound::initParams(&params);
-	drum->setupAsSample(&params);
-	f.song->live.param_backup.backUp(drum, f.clip, &params, true);
-	static_cast<Kit*>(f.instrument)->addDrum(drum);
-	return drum;
-}
-
-/// @brief A drum of type @p T added to @p f's kit, with no row yet.
-template <typename T>
-T* addPlainDrum(spec::SongFixture& f) {
-	auto* drum = spec::detail::place<T>();
-	static_cast<Kit*>(f.instrument)->addDrum(drum);
-	return drum;
-}
-
-/// @brief A row for @p drum at the end of @p f's kit clip.
-void addRow(spec::SongFixture& f, Drum* drum) {
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, f.song, f.clip);
-	int32_t index = 0;
-	NoteRow* row = f.clip->createNewNoteRowForKit(stack, /*atStart=*/false, &index);
-	row->setDrum(drum, static_cast<Kit*>(f.instrument), stack->addNoteRow(index, row));
-}
 
 /// @brief One learned knob of the world: who owns it, what it turns, and where its lane is.
 struct Lane {
