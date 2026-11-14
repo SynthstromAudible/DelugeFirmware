@@ -216,7 +216,7 @@ describe clock_schedule_ratio_math_group("clock schedule ratio math", ${
 		expect(std::to_underlying(result.action)).to_equal(std::to_underlying(ClockScheduleAction::EmitAndSchedule));
 	});
 
-	it("non power of two ratio", _ {
+	it("non-power-of-two ratio", _ {
 		auto result = computeExternalClockSchedule(2, 3, 3, 2, 3, 6, kDefaultTempo, kDefaultInputTickTime);
 
 		// currentInternalTick = 6

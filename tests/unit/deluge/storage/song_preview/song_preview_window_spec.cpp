@@ -104,7 +104,7 @@ describe song_preview_window_group("song preview window", ${
 	});
 
 	/// The committed JSON fixture pins the format where no corpus is mounted.
-	it("the json fixture carries its preview inside the window", _ {
+	it("the JSON fixture carries its preview inside the window", _ {
 		const long end = previewPayloadEnd(kJsonFixture);
 		expect(end).not_().to_be_less_than(0, std::string{"fixture must contain a preview"});
 		expect(static_cast<uint32_t>(end)).not_().to_be_greater_than(deluge::storage::kSongPreviewWindow);

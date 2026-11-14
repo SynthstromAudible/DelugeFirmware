@@ -18,7 +18,7 @@ describe tick_interpolation_group("tick interpolation", ${
 		expect((ticks - 1) * 3).to_be_less_than(kMinSamplesBetweenTickInterpolations);
 	});
 
-	it("handles sub sample ticks", _ {
+	it("handles sub-sample ticks", _ {
 		// Above ~27500 BPM a tick rounds down to 0 samples
 		expect(ticksTilNextTickInterpolation(0)).to_equal(kMinSamplesBetweenTickInterpolations);
 		expect(ticksTilNextTickInterpolation(1)).to_equal(kMinSamplesBetweenTickInterpolations);

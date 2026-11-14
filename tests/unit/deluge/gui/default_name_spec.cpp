@@ -202,14 +202,14 @@ describe default_name_group("default name", ${
 	});
 
 	// --- Extensions -------------------------------------------------------------------------
-	it("a json file also takes the name", _ {
+	it("a JSON file also takes the name", _ {
 		// The browser lists .XML and .json alike (any case), and songs save as either. Probing only .XML would hand back
 		// SONG185A when SONG185A.json already exists on the card, or the older SONG185A.Json.
 		Names files{"SONG185.XML", "SONG185A.Json"};
 		expect(nextIn("SONG185", "SONG", files)).to_equal(std::string{"SONG185B"});
 	});
 
-	it("a lowercase json file also takes the name", _ {
+	it("a lowercase JSON file also takes the name", _ {
 		Names files{"SONG185.XML", "SONG185A.json"};
 		expect(nextIn("SONG185", "SONG", files)).to_equal(std::string{"SONG185B"});
 	});

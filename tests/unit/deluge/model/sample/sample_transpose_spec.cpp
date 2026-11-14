@@ -17,15 +17,15 @@ void checkTranspose(auto& self, const SampleTranspose& t, int32_t semitones, int
 describe sample_transpose_group("sample transpose", ${
 	// A multisample range covering only key 58, its file detected 3 cents flat of it: snapped to exactly 58, so the file
 	// plays in tune on the one key it covers. Folder import passes the key as the range's top note.
-	it("one note range snaps small detune to its key", _ {
+	it("one-note range snaps small detune to its key", _ {
 		checkTranspose(self, transposeForNote(57.97f, false, true, 58), 2, 0);
 	});
 
-	it("one note range keeps detune beyond four cents", _ {
+	it("one-note range keeps detune beyond four cents", _ {
 		checkTranspose(self, transposeForNote(57.90f, false, true, 58), 2, 10);
 	});
 
-	it("one note range does not snap another key", _ {
+	it("one-note range does not snap another key", _ {
 		checkTranspose(self, transposeForNote(56.97f, false, true, 58), 3, 3);
 	});
 

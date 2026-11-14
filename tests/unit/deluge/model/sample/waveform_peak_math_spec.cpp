@@ -17,7 +17,7 @@ describe waveform_peak_math_group("waveform peak math", ${
 		expect(lastAudioClusterEndByte(numValidBytes, start, kSize)).to_equal(kSize);
 	});
 
-	it("last cluster end byte mid cluster is remainder", _ {
+	it("last cluster end byte mid-cluster is remainder", _ {
 		constexpr int32_t kSize = 32768;
 		uint32_t start = 44;
 		uint64_t numValidBytes = static_cast<uint64_t>(kSize) * 3 + 1000 - start; // ends 1000 bytes into cluster 3

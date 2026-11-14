@@ -147,7 +147,7 @@ describe song_preview_decode_group("song preview decode", ${
 	/// not the corpus is mounted -- otherwise the JSON arm of the buffer walk is never compared to anything.
 	/// Both walks read a copy whose preview has lit pixels (litJsonFixture), and the file walk's image is
 	/// checked to differ from a blank one, so the comparison covers pixels and not only the outcome.
-	it("the buffer walk matches the file walk on the json fixture", _ {
+	it("the buffer walk matches the file walk on the JSON fixture", _ {
 		std::array<Row, kDisplayHeight> fromBuffer{};
 		std::array<Row, kDisplayHeight> fromFile{};
 
