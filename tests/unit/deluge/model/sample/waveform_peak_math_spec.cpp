@@ -1,4 +1,5 @@
 #include "model/sample/waveform_peak_math.h"
+
 #include <cstdint>
 #include <vector>
 

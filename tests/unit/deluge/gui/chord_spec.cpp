@@ -13,8 +13,7 @@ namespace {
 struct ChordTests {
 	ChordList chordList;
 
-	template <class Self>
-	void getChordBoundsCheck(Self& self) {
+	void getChordBoundsCheck(auto& self) {
 		// For each chord, iterate through all voicing offsets and then some
 		for (int chordNo = 0; chordNo < kUniqueChords; chordNo++) {
 			// iterate through -5 to twice the number of possible voicings to check bounds
@@ -37,8 +36,7 @@ struct ChordTests {
 		}
 	}
 
-	template <class Self>
-	void adjustChordRowOffsetBoundsCheck(Self& self) {
+	void adjustChordRowOffsetBoundsCheck(auto& self) {
 		// Test that the chord row offset is bounded by 0 and kOffScreenChords
 		// Test the lower bound
 		chordList.chordRowOffset = 0;
@@ -66,8 +64,7 @@ struct ChordTests {
 		expect(chordList.chordRowOffset).to_equal(kOffScreenChords - 1);
 	}
 
-	template <class Self>
-	void adjustVoicingOffsetBoundsCheck(Self& self) {
+	void adjustVoicingOffsetBoundsCheck(auto& self) {
 		for (int chordNo = 0; chordNo < kUniqueChords; chordNo++) {
 			// Test that the voicing offset is bounded by 0 and kUniqueVoicings - 1
 			// Test the lower bound

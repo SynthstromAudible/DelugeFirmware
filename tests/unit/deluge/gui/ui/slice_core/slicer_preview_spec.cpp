@@ -17,8 +17,10 @@
 
 #include "gui/ui/slice_core.h"
 #include "gui/waveform/waveform_basic_navigator.h"
+
 #include "mock_display.h"
 #include "mock_slicer_env.h"
+
 #include <utility>
 
 #include "cppspec.hpp"

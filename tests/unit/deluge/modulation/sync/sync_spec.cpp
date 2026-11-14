@@ -1,6 +1,9 @@
+#include "modulation/sync.h"
+
 #include "mock_display.h"
 #include "mock_song.h"
-#include "modulation/sync.h"
+
+#include <utility>
 
 #include "cppspec.hpp"
 #include "support/spec_main.h"

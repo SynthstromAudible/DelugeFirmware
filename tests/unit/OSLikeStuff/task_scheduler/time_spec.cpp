@@ -11,19 +11,19 @@ describe clock_group("clock", ${
 	it("double conversion", _ {
 		Time one = 0.0;
 		Time two = Time(0, 0);
-		expect(double(two)).to_equal(double(one));
+		expect(static_cast<double>(two)).to_equal(static_cast<double>(one));
 	});
 
 	it("double double conversion", _ {
 		Time one = 123.5;
-		expect((double)one).to_equal(123.5);
+		expect(static_cast<double>(one)).to_equal(123.5);
 	});
 
 	it("convert with rolls", _ {
 		double base = 1234.123456; // 9 clock rollovers
 		Time one = base;
 		// Strictly within 0.00001: to_be_within is inclusive, so the tolerance is the largest double below 0.00001.
-		expect((double)one).to_be_within(std::nextafter(0.00001, 0.0)).of(base);
+		expect(static_cast<double>(one)).to_be_within(std::nextafter(0.00001, 0.0)).of(base);
 	});
 });
 

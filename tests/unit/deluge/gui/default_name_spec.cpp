@@ -1,5 +1,6 @@
 #include "gui/ui/browser/default_name.h"
 #include "util/name_compare.h"
+
 #include <cstdio>
 #include <string>
 #include <string_view>
@@ -10,6 +11,7 @@
 
 using deluge::gui::browser::NameFamilySurvey;
 using deluge::gui::browser::nextDefaultName;
+using deluge::gui::browser::nextSlotName;
 
 namespace {
 /// A folder's file names, as the browser's read passes them.
@@ -36,8 +38,6 @@ Names cardWithSongsUpTo(int32_t highest) {
 }
 } // namespace
 
-using deluge::gui::browser::nextSlotName;
-
 // clang-format off
 describe default_name_group("default name", ${
 	before_each([] {
@@ -46,12 +46,12 @@ describe default_name_group("default name", ${
 	});
 
 	// --- Issue #1069: a default-named song takes a letter suffix ----------------------------
-	it("issue1069 default named song gets a letter suffix", _ {
+	it("issue 1069: default named song gets a letter suffix", _ {
 		auto files = cardWithSongsUpTo(185);
 		expect(nextIn("SONG185", "SONG", files)).to_equal(std::string{"SONG185A"});
 	});
 
-	it("issue1069 never emits the slot number as a suffix", _ {
+	it("issue 1069: never emits the slot number as a suffix", _ {
 		// "185_186" would be the slot number leaking in through a wrong string offset.
 		auto files = cardWithSongsUpTo(185);
 		std::string result = nextIn("SONG185", "SONG", files);
@@ -138,7 +138,7 @@ describe default_name_group("default name", ${
 		expect(nextIn("MYTRACK", "SONG", files)).to_equal(std::string{"MYTRACK 2"});
 	});
 
-	it("numeric suffix ignores date suffixed neighbours", _ {
+	it("numeric suffix ignores date-suffixed neighbours", _ {
 		// The date-suffixed name below starts with "JAM " and a digit, but its number doesn't run to the extension, so it
 		// is not in the "JAM " family. Counted as one it would send the next save to "JAM 2025".
 		Names files{"JAM 3.XML", "JAM 2024-01-05.XML"};
@@ -169,7 +169,7 @@ describe default_name_group("default name", ${
 		expect(nextIn("TRACK_1", "SONG", files)).to_equal(std::string{"TRACK_2"});
 	});
 
-	it("non numeric name sharing the prefix is not treated as a slot", _ {
+	it("non-numeric name sharing the prefix is not treated as a slot", _ {
 		// "SONGIDEA" starts with SONG but has no digits - it is just a name.
 		Names files{"SONGIDEA.XML"};
 		expect(nextIn("SONGIDEA", "SONG", files)).to_equal(std::string{"SONGIDEA 2"});
@@ -239,7 +239,7 @@ describe next_slot_name_group("next slot name", ${
 		expect(nextSlotName("SYNT9", "SYNT")).to_equal(std::string{"SYNT10"});
 	});
 
-	it("non digit after prefix is slot one", _ {
+	it("non-digit after prefix is slot one", _ {
 		// nextSlotName's parse stops at the first non-digit, having read none: slot 0 + 1, no padding.
 		expect(nextSlotName("SYNTHY", "SYNT")).to_equal(std::string{"SYNT1"});
 	});

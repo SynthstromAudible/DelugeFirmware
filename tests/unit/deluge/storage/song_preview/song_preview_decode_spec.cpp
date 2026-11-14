@@ -1,6 +1,7 @@
-#include "mock_file_io.h"
 #include "storage/song_preview.h"
 #include "storage/storage_manager.h"
+
+#include "mock_file_io.h"
 
 #include <algorithm>
 #include <array>
@@ -92,11 +93,10 @@ std::vector<uint8_t> litJsonFixture(auto& self) {
 describe song_preview_decode_group("song preview decode", ${
 	/// The buffer walk must produce the SAME image as the file walk, for every song in the corpus.
 	///
-	/// Output equality is sufficient here even though a field-level differential was structurally
-	/// insufficient for the WAV/AIFF port: there the bugs were about what the walk DID on the way --
-	/// validations applied in the wrong mode, a shared byte-source cursor left past the audio start. Here
-	/// the image IS the entire product: nothing downstream reads a cursor the walk left behind, because
-	/// every open resets its reader before reading a byte.
+	/// Output equality is sufficient here. A field-level differential is needed where the walk's side
+	/// effects matter, as in the WAV/AIFF readers: validations applied by mode, a shared byte-source
+	/// cursor left past the audio start. Here the image IS the entire product: nothing downstream reads a
+	/// cursor the walk left behind, because every open resets its reader before reading a byte.
 	///
 	/// Two globals DO survive the call, and this comparison cannot see either: `song_firmware_version`,
 	/// which every open overwrites from the document it just read, and `activeDeserializer`, left pointing
@@ -176,7 +176,8 @@ describe song_preview_decode_group("song preview decode", ${
 	/// A borrowed buffer must not stay reachable through `activeDeserializer` after the call -- on ANY
 	/// path, the failed open included. Left there, the next thing to write through that global writes
 	/// Cluster::size bytes into a buffer that is smaller than that and by then usually gone. This asserts
-	/// the restore rather than trusting a comment: the caller that arms it is in another translation unit (load_song_ui.cpp).
+	/// the restore rather than trusting a comment: the caller that arms it is in another translation unit
+	/// (load_song_ui.cpp).
 	it("decode song preview leaves the global deserializer where it found it", _ {
 		std::array<Row, kDisplayHeight> image{};
 		FileDeserializer* const before = activeDeserializer;

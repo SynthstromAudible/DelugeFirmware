@@ -1,9 +1,10 @@
 #include "util/db_shift.h"
 
-#include "cppspec.hpp"
-#include "support/spec_main.h"
 #include <cstdint>
 #include <limits>
+
+#include "cppspec.hpp"
+#include "support/spec_main.h"
 
 // clang-format off
 describe db_shift_group("db shift", ${

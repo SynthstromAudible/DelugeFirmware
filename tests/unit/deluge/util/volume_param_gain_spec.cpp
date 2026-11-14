@@ -1,10 +1,11 @@
 #include "model/global_effectable/output_stage_gain.h"
 #include "util/volume_param_gain.h"
 
-#include "cppspec.hpp"
-#include "support/spec_main.h"
 #include <cstdint>
 #include <limits>
+
+#include "cppspec.hpp"
+#include "support/spec_main.h"
 
 namespace {
 constexpr int32_t kMinParam = std::numeric_limits<int32_t>::min();
@@ -97,7 +98,7 @@ describe volume_param_gain_group("volume param gain", ${
 		expect(finalGain(result.param)).to_be_within(volumePostFX / 10000).of(volumePostFX);
 	});
 
-	it("kit output stage is about minus six DB", _ {
+	it("kit output stage is about minus six dB", _ {
 		// The kit stage the preview must apply (issue #1591): about half the gain, i.e. 1/sqrt(2) in the pos domain.
 		int32_t pos = kitOutputStageGainPos();
 		expect(pos).to_be_greater_than(379000000);

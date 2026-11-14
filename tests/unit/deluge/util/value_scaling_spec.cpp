@@ -2,10 +2,11 @@
 #include "modulation/arpeggiator_rhythms.h"
 #include "util/value_scaling.h"
 
-#include "cppspec.hpp"
-#include "support/spec_main.h"
 #include <utility>
 #include <vector>
+
+#include "cppspec.hpp"
+#include "support/spec_main.h"
 
 // clang-format off
 describe value_scaling_group("value scaling", ${

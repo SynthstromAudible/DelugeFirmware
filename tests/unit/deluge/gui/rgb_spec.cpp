@@ -10,7 +10,7 @@ constexpr RGB kRed{255, 0, 0};
 constexpr RGB kGreen{0, 255, 0};
 constexpr RGB kBlack{0, 0, 0};
 
-void expect_rgb_near(auto& self, RGB expected, RGB actual, int32_t tolerance) {
+void expectRgbNear(auto& self, RGB expected, RGB actual, int32_t tolerance) {
 	expect(static_cast<int32_t>(actual.r)).to_be_within(tolerance).of(static_cast<int32_t>(expected.r));
 	expect(static_cast<int32_t>(actual.g)).to_be_within(tolerance).of(static_cast<int32_t>(expected.g));
 	expect(static_cast<int32_t>(actual.b)).to_be_within(tolerance).of(static_cast<int32_t>(expected.b));
@@ -23,23 +23,23 @@ describe rgb_group("RGB", ${
 	// index 0 the weight for b is 65536, which does not fit a uint16_t, and a truncated weight returns black, making
 	// transition animations flash black on any frame whose blend amount lands on zero.
 	it("blend at zero index returns source b", _ {
-		expect_rgb_near(self, kGreen, RGB::blend(kRed, kGreen, 0), 1);
+		expectRgbNear(self, kGreen, RGB::blend(kRed, kGreen, 0), 1);
 	});
 
 	it("blend at max index returns source a", _ {
-		expect_rgb_near(self, kRed, RGB::blend(kRed, kGreen, 65535), 1);
+		expectRgbNear(self, kRed, RGB::blend(kRed, kGreen, 65535), 1);
 	});
 
 	// blend2() takes the two weights separately, and drawSquare() passes it a weight of 65536 ("keep all of the colour
 	// already in this square"). That does not fit a uint16_t either; truncated, it wipes the square to black in exactly
 	// the case where every bit of it is meant to be kept.
 	it("blend2 keeps source a at full weight", _ {
-		expect_rgb_near(self, kRed, RGB::blend2(kRed, kGreen, 65536, 0), 1);
+		expectRgbNear(self, kRed, RGB::blend2(kRed, kGreen, 65536, 0), 1);
 	});
 
 	it("blend2 sums both sources at full weight", _ {
 		// Full weight on both is the saturating case: each channel clamps at its own max rather than wrapping.
-		expect_rgb_near(self, RGB(255, 255, 0), RGB::blend2(kRed, kGreen, 65536, 65536), 1);
+		expectRgbNear(self, RGB(255, 255, 0), RGB::blend2(kRed, kGreen, 65536, 65536), 1);
 	});
 
 	it("blend is monotonic across the range", _ {
@@ -59,7 +59,7 @@ describe rgb_group("RGB", ${
 describe draw_square_group("draw square", ${
 	it("drawing onto an empty square gives the colour", _ {
 		uint8_t occupancy = 0;
-		expect_rgb_near(self, kRed, drawSquare(kRed, 65535, kBlack, &occupancy), 1);
+		expectRgbNear(self, kRed, drawSquare(kRed, 65535, kBlack, &occupancy), 1);
 		expect(occupancy).to_equal(64);
 	});
 
@@ -67,7 +67,7 @@ describe draw_square_group("draw square", ${
 		// A source row landing exactly on a pad boundary contributes zero intensity to the neighbouring pad. That must
 		// leave the pad as it was, not wipe it to black.
 		uint8_t occupancy = 64;
-		expect_rgb_near(self, kRed, drawSquare(kGreen, 0, kRed, &occupancy), 1);
+		expectRgbNear(self, kRed, drawSquare(kGreen, 0, kRed, &occupancy), 1);
 	});
 
 	it("overlapping contributions accumulate", _ {
@@ -77,7 +77,7 @@ describe draw_square_group("draw square", ${
 		RGB square = drawSquare(kRed, 32768, kBlack, &occupancy);
 		square = drawSquare(kGreen, 32768, square, &occupancy);
 
-		expect_rgb_near(self, RGB(128, 128, 0), square, 1);
+		expectRgbNear(self, RGB(128, 128, 0), square, 1);
 		expect(occupancy).to_equal(64);
 	});
 
@@ -88,7 +88,7 @@ describe draw_square_group("draw square", ${
 			square = drawSquare(kRed, 65535, square, &occupancy);
 		}
 		expect(occupancy).to_equal(64);
-		expect_rgb_near(self, kRed, square, 1);
+		expectRgbNear(self, kRed, square, 1);
 	});
 });
 

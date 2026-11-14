@@ -1,4 +1,3 @@
-
 #include "hid/encoder_acceleration.h"
 #include "hid/encoders.h"
 
@@ -19,14 +18,12 @@ struct EncoderAccelerationTest {
 	EncoderAcceleration acceleration;
 
 	// A movement after idle must remain precise and apply no acceleration.
-	template <class Self>
-	void FirstMovementUsesUnitMultiplier(Self& self) {
+	void firstMovementUsesUnitMultiplier(auto& self) {
 		expect(acceleration.advance(1, 1.0)).to_be_within(0.000001).of(1.0);
 	}
 
 	// Rapid equal movements must follow the acceleration curve and stop at the configured cap.
-	template <class Self>
-	void RepeatedMovementAcceleratesAndClamps(Self& self) {
+	void repeatedMovementAcceleratesAndClamps(auto& self) {
 		expect(acceleration.advance(1, 1.0)).to_be_within(0.000001).of(1.0);
 		expect(acceleration.advance(1, 1.01)).to_be_within(0.000001).of(1.5);
 		expect(acceleration.advance(1, 1.02)).to_be_within(0.000001).of(2.85);
@@ -34,8 +31,7 @@ struct EncoderAccelerationTest {
 	}
 
 	// Reversing direction must discard momentum from the previous direction.
-	template <class Self>
-	void DirectionChangeResetsAcceleration(Self& self) {
+	void directionChangeResetsAcceleration(auto& self) {
 		acceleration.advance(1, 1.0);
 		acceleration.advance(1, 1.01);
 
@@ -43,8 +39,7 @@ struct EncoderAccelerationTest {
 	}
 
 	// A differently sized input batch must start a new acceleration run rather than inherit momentum.
-	template <class Self>
-	void ChangedTickCountInSameDirectionKeepsAccelerating(Self& self) {
+	void changedTickCountInSameDirectionKeepsAccelerating(auto& self) {
 		acceleration.advance(1, 1.0);
 		acceleration.advance(1, 1.01);
 
@@ -52,8 +47,7 @@ struct EncoderAccelerationTest {
 	}
 
 	// A pause at or beyond the reset threshold must return the multiplier to one.
-	template <class Self>
-	void InactivityResetsAcceleration(Self& self) {
+	void inactivityResetsAcceleration(auto& self) {
 		acceleration.advance(1, 1.0);
 		acceleration.advance(1, 1.01);
 
@@ -61,16 +55,14 @@ struct EncoderAccelerationTest {
 	}
 
 	// Duplicate or backward timestamps must not divide by zero or produce stale acceleration.
-	template <class Self>
-	void NonIncreasingTimeDoesNotProduceInvalidAcceleration(Self& self) {
+	void nonIncreasingTimeDoesNotProduceInvalidAcceleration(auto& self) {
 		acceleration.advance(1, 1.0);
 		expect(acceleration.advance(1, 1.0)).to_be_within(0.000001).of(1.0);
 		expect(acceleration.advance(1, 0.9)).to_be_within(0.000001).of(1.0);
 	}
 
 	// Activity on one physical encoder must not accelerate the other encoder.
-	template <class Self>
-	void EncodersHaveIndependentAccelerationHistory(Self& self) {
+	void encodersHaveIndependentAccelerationHistory(auto& self) {
 		EncoderAcceleration other;
 		acceleration.advance(1, 1.0);
 		acceleration.advance(1, 1.01);
@@ -80,8 +72,7 @@ struct EncoderAccelerationTest {
 	}
 
 	// Gold encoders must retain their 3x cap while horizontal-menu editing retains its 5x cap.
-	template <class Self>
-	void TuningProfilesPreserveDifferentMaximums(Self& self) {
+	void tuningProfilesPreserveDifferentMaximums(auto& self) {
 		EncoderAcceleration gold;
 		EncoderAcceleration horizontalMenu;
 		gold.advance(1, 1.0, kGoldEncoderAcceleration);
@@ -92,8 +83,7 @@ struct EncoderAccelerationTest {
 	}
 
 	// The horizontal-menu profile must accelerate below 300 ms and reset above that threshold.
-	template <class Self>
-	void HorizontalMenuProfileUsesItsConfiguredResetThreshold(Self& self) {
+	void horizontalMenuProfileUsesItsConfiguredResetThreshold(auto& self) {
 		acceleration.advance(1, 1.0, kHorizontalMenuAcceleration);
 		acceleration.advance(1, 1.01, kHorizontalMenuAcceleration);
 
@@ -102,8 +92,7 @@ struct EncoderAccelerationTest {
 	}
 
 	// Changing the selected horizontal-menu item must clear accumulated acceleration explicitly.
-	template <class Self>
-	void ExplicitResetClearsHorizontalMenuAcceleration(Self& self) {
+	void explicitResetClearsHorizontalMenuAcceleration(auto& self) {
 		acceleration.advance(1, 1.0, kHorizontalMenuAcceleration);
 		acceleration.advance(1, 1.01, kHorizontalMenuAcceleration);
 		acceleration.reset();
@@ -132,8 +121,7 @@ struct ContinuousEncoderTimedRunsTest {
 	// Edges the app takes in one batch, late, accelerate on the times the board decoded them: `main`'s encoder task
 	// takes each edge of a fast turn alone (`origin/main:src/deluge/hid/encoder_input.cpp`'s `interpretEncoders`), so
 	// eleven edges 3 ms apart give 1 and then ten at the 3x cap.
-	template <class Self>
-	void BatchedRunsAccelerateOnTheirOwnTimes(Self& self) {
+	void batchedRunsAccelerateOnTheirOwnTimes(auto& self) {
 		for (int32_t i = 0; i < 11; i++) {
 			encoder.applyEdges(1, 1.0 + 0.003 * i);
 		}
@@ -143,8 +131,7 @@ struct ContinuousEncoderTimedRunsTest {
 
 	// A reversal inside one batch starts the speed again from rest, as `main`'s `EncoderAcceleration::advance` does for
 	// a turn the other way, and then builds it on the reversed runs' own times.
-	template <class Self>
-	void AReversalMidBatchResetsTheSpeed(Self& self) {
+	void aReversalMidBatchResetsTheSpeed(auto& self) {
 		encoder.applyEdges(1, 1.000);
 		encoder.applyEdges(1, 1.003);
 		encoder.applyEdges(1, 1.006);
@@ -156,8 +143,7 @@ struct ContinuousEncoderTimedRunsTest {
 
 	// Runs past the queue's capacity fold into its newest run: no edge is lost, and the folded run goes out at its last
 	// time, its edges accelerated together.
-	template <class Self>
-	void RunsPastTheQueueFoldIntoTheNewest(Self& self) {
+	void runsPastTheQueueFoldIntoTheNewest(auto& self) {
 		constexpr size_t kRuns = deluge::hid::encoders::ContinuousEncoder::kMaxRuns + 2;
 		for (size_t i = 0; i < kRuns; i++) {
 			encoder.applyEdges(1, 1.0 + 0.003 * static_cast<double>(i));
@@ -171,8 +157,7 @@ struct ContinuousEncoderTimedRunsTest {
 	// A folded run whose edges add up to nothing is no turn: `main` acts on a gold knob only `if (offset != 0)`, so it
 	// neither reaches the UI nor moves the acceleration on. The queue is filled, the newest run folds back to 0, and
 	// the run after it accelerates as though the folded one had not come.
-	template <class Self>
-	void AFoldThatAddsUpToNothingIsNoTurn(Self& self) {
+	void aFoldThatAddsUpToNothingIsNoTurn(auto& self) {
 		constexpr size_t kRuns = deluge::hid::encoders::ContinuousEncoder::kMaxRuns;
 		for (size_t i = 0; i < kRuns; i++) {
 			encoder.applyEdges(1, 1.0 + 0.003 * static_cast<double>(i));
@@ -197,8 +182,7 @@ struct SplitIntoTurnsTest {
 
 	// Each run that completes a detent is a turn of its own, at that run's time; a run that completes none adds its
 	// edges to the next. The first click needs three edges, the next ones four.
-	template <class Self>
-	void EachRunThatCompletesADetentIsATurnAtItsTime(Self& self) {
+	void eachRunThatCompletesADetentIsATurnAtItsTime(auto& self) {
 		const std::array<Run, 4> runs{{{2, 100}, {1, 200}, {4, 300}, {2, 400}}};
 		const size_t n = deluge::hid::encoders::splitIntoTurns(encoder, std::span<const Run>{runs}, std::span{turns});
 		expect(n).to_equal(2);
@@ -210,8 +194,7 @@ struct SplitIntoTurnsTest {
 	}
 
 	// Detents already waiting in the encoder, put there without a time, go out first, as one turn with none.
-	template <class Self>
-	void DetentsAlreadyWaitingGoOutFirstWithNoTime(Self& self) {
+	void detentsAlreadyWaitingGoOutFirstWithNoTime(auto& self) {
 		encoder.applyEdges(3);
 		const std::array<Run, 1> runs{{{4, 500}}};
 		const size_t n = deluge::hid::encoders::splitIntoTurns(encoder, std::span<const Run>{runs}, std::span{turns});
@@ -226,41 +209,41 @@ struct SplitIntoTurnsTest {
 
 // clang-format off
 describe encoder_acceleration_group("encoder acceleration", ${
-	it("first movement uses unit multiplier", _ { EncoderAccelerationTest{}.FirstMovementUsesUnitMultiplier(self); });
+	it("first movement uses unit multiplier", _ { EncoderAccelerationTest{}.firstMovementUsesUnitMultiplier(self); });
 
-	it("repeated movement accelerates and clamps", _ { EncoderAccelerationTest{}.RepeatedMovementAcceleratesAndClamps(self); });
+	it("repeated movement accelerates and clamps", _ { EncoderAccelerationTest{}.repeatedMovementAcceleratesAndClamps(self); });
 
-	it("direction change resets acceleration", _ { EncoderAccelerationTest{}.DirectionChangeResetsAcceleration(self); });
+	it("direction change resets acceleration", _ { EncoderAccelerationTest{}.directionChangeResetsAcceleration(self); });
 
-	it("changed tick count in same direction keeps accelerating", _ { EncoderAccelerationTest{}.ChangedTickCountInSameDirectionKeepsAccelerating(self); });
+	it("changed tick count in same direction keeps accelerating", _ { EncoderAccelerationTest{}.changedTickCountInSameDirectionKeepsAccelerating(self); });
 
-	it("inactivity resets acceleration", _ { EncoderAccelerationTest{}.InactivityResetsAcceleration(self); });
+	it("inactivity resets acceleration", _ { EncoderAccelerationTest{}.inactivityResetsAcceleration(self); });
 
-	it("non increasing time does not produce invalid acceleration", _ { EncoderAccelerationTest{}.NonIncreasingTimeDoesNotProduceInvalidAcceleration(self); });
+	it("non-increasing time does not produce invalid acceleration", _ { EncoderAccelerationTest{}.nonIncreasingTimeDoesNotProduceInvalidAcceleration(self); });
 
-	it("encoders have independent acceleration history", _ { EncoderAccelerationTest{}.EncodersHaveIndependentAccelerationHistory(self); });
+	it("encoders have independent acceleration history", _ { EncoderAccelerationTest{}.encodersHaveIndependentAccelerationHistory(self); });
 
-	it("tuning profiles preserve different maximums", _ { EncoderAccelerationTest{}.TuningProfilesPreserveDifferentMaximums(self); });
+	it("tuning profiles preserve different maximums", _ { EncoderAccelerationTest{}.tuningProfilesPreserveDifferentMaximums(self); });
 
-	it("horizontal menu profile uses its configured reset threshold", _ { EncoderAccelerationTest{}.HorizontalMenuProfileUsesItsConfiguredResetThreshold(self); });
+	it("horizontal menu profile uses its configured reset threshold", _ { EncoderAccelerationTest{}.horizontalMenuProfileUsesItsConfiguredResetThreshold(self); });
 
-	it("explicit reset clears horizontal menu acceleration", _ { EncoderAccelerationTest{}.ExplicitResetClearsHorizontalMenuAcceleration(self); });
+	it("explicit reset clears horizontal menu acceleration", _ { EncoderAccelerationTest{}.explicitResetClearsHorizontalMenuAcceleration(self); });
 });
 
 describe continuous_encoder_timed_runs_group("continuous encoder timed runs", ${
-	it("batched runs accelerate on their own times", _ { ContinuousEncoderTimedRunsTest{}.BatchedRunsAccelerateOnTheirOwnTimes(self); });
+	it("batched runs accelerate on their own times", _ { ContinuousEncoderTimedRunsTest{}.batchedRunsAccelerateOnTheirOwnTimes(self); });
 
-	it("a reversal mid batch resets the speed", _ { ContinuousEncoderTimedRunsTest{}.AReversalMidBatchResetsTheSpeed(self); });
+	it("a reversal mid-batch resets the speed", _ { ContinuousEncoderTimedRunsTest{}.aReversalMidBatchResetsTheSpeed(self); });
 
-	it("runs past the queue fold into the newest", _ { ContinuousEncoderTimedRunsTest{}.RunsPastTheQueueFoldIntoTheNewest(self); });
+	it("runs past the queue fold into the newest", _ { ContinuousEncoderTimedRunsTest{}.runsPastTheQueueFoldIntoTheNewest(self); });
 
-	it("a fold that adds up to nothing is no turn", _ { ContinuousEncoderTimedRunsTest{}.AFoldThatAddsUpToNothingIsNoTurn(self); });
+	it("a fold that adds up to nothing is no turn", _ { ContinuousEncoderTimedRunsTest{}.aFoldThatAddsUpToNothingIsNoTurn(self); });
 });
 
 describe split_into_turns_group("split into turns", ${
-	it("each run that completes a detent is a turn at its time", _ { SplitIntoTurnsTest{}.EachRunThatCompletesADetentIsATurnAtItsTime(self); });
+	it("each run that completes a detent is a turn at its time", _ { SplitIntoTurnsTest{}.eachRunThatCompletesADetentIsATurnAtItsTime(self); });
 
-	it("detents already waiting go out first with no time", _ { SplitIntoTurnsTest{}.DetentsAlreadyWaitingGoOutFirstWithNoTime(self); });
+	it("detents already waiting go out first with no time", _ { SplitIntoTurnsTest{}.detentsAlreadyWaitingGoOutFirstWithNoTime(self); });
 });
 
 DELUGE_SPEC(encoder_acceleration_spec, encoder_acceleration_group, continuous_encoder_timed_runs_group, split_into_turns_group)

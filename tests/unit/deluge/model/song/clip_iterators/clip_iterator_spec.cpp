@@ -3,6 +3,8 @@
 #include "mock_clip.h"
 #include "mock_song.h"
 
+#include <utility>
+
 #include "cppspec.hpp"
 #include "support/spec_main.h"
 

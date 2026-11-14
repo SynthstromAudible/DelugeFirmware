@@ -4,16 +4,20 @@
 #include "music-theory/scale_change.h"
 #include "music-theory/scale_mapper.h"
 #include "music-theory/utils.h"
+
 #include "note_set_printing.h"
 
-#include "cppspec.hpp"
-#include "support/spec_main.h"
 #include <algorithm>
 #include <iostream>
 #include <random>
 #include <vector>
 
+#include "cppspec.hpp"
+#include "support/spec_main.h"
+
 using namespace deluge::music;
+
+namespace {
 
 std::uniform_int_distribution<int> randomNonRoot(1, 11);
 std::uniform_int_distribution<int> randomCoin(0, 1);
@@ -58,6 +62,8 @@ std::vector<int> randomWorklist(int start, int end, std::mt19937& engine) {
 	return worklist;
 }
 
+} // namespace
+
 // clang-format off
 describe note_set_group("note set", ${
 	it("init", _ {
@@ -68,7 +74,7 @@ describe note_set_group("note set", ${
 		}
 	});
 
-	it("list constructor", _ {
+	it("list constructor adds each listed note", _ {
 		NoteSet notes = NoteSet({0, 1, 4, 11});
 		expect(notes.count()).to_equal(4);
 		expect(notes[0]).to_equal(0);
@@ -215,7 +221,7 @@ describe note_set_group("note set", ${
 		expect(a).not_().to_equal(b);
 	});
 
-	it("check equal allowed", _ {
+	it("empty note sets compare equal", _ {
 		expect(NoteSet()).to_equal(NoteSet());
 	});
 
@@ -226,14 +232,14 @@ describe note_set_group("note set", ${
 		expect(a.isEmpty()).to_be_false();
 	});
 
-	it("subscript1", _ {
+	it("subscript of an empty set is minus one", _ {
 		NoteSet a;
 		for (int i = 0; i < NoteSet::size; i++) {
 			expect(a[i]).to_equal(-1);
 		}
 	});
 
-	it("subscript2", _ {
+	it("subscript keeps the notes in order as notes are added", _ {
 		NoteSet a;
 		a.add(0);
 		a.add(2);
@@ -260,7 +266,7 @@ describe note_set_group("note set", ${
 		expect(a[7]).to_equal(11);
 	});
 
-	it("subscript3", _ {
+	it("subscript gives the notes in order whatever order they were added in", _ {
 		NoteSet a;
 		a.add(0);
 		a.add(2);
@@ -280,7 +286,7 @@ describe note_set_group("note set", ${
 		expect(a[7]).to_equal(11);
 	});
 
-	it("subscript4", _ {
+	it("subscript of a set without the root starts at its lowest note", _ {
 		NoteSet a;
 		a.add(4);
 		a.add(7);
@@ -448,7 +454,7 @@ describe note_set_group("note set", ${
 });
 
 describe musical_key_group("musical key", ${
-	it("ctor", _ {
+	it("a default key is C with only the root", _ {
 		MusicalKey k;
 		expect(k.rootNote).to_equal(0);
 		expect(k.modeNotes.count()).to_equal(1);
@@ -594,7 +600,7 @@ describe scale_mapper_group("scale mapper", ${
 		expect(reverseNotes).to_equal(notes);
 	});
 
-	it("notes dont match target scale plus no root in use", _ {
+	it("notes don't match target scale plus no root in use", _ {
 		// Check that we're not counting root as used if it's not, and still get the right answer
 		ScaleMapper scaleMapper;
 		const NoteSet diatonicMajor =   NoteSet{0, 2, 4, 5, 7, 9, 11};
@@ -639,7 +645,7 @@ describe scale_mapper_group("scale mapper", ${
 		expect(reverseNotes).to_equal(notes);
 	});
 
-	it("random test", _ {
+	it("random scale changes map back to the source notes", _ {
 		std::random_device r;
 		int s1 = r();
 		int s2 = r();
@@ -682,7 +688,6 @@ describe scale_mapper_group("scale mapper", ${
 		for (auto& sourceScale : scales) {
 			ScaleChange changes;
 			NoteSet sourceNotes = randomNotesIn(sourceScale, engine);
-			// std::cerr << "TESTING SCALE " << sourceScale << " WITH " << sourceNotes << std::endl;
 			int size = sourceNotes.scaleSize();
 			int start = scaleRanges[size];
 			expect(start).not_().to_be_less_than(0);
@@ -695,7 +700,6 @@ describe scale_mapper_group("scale mapper", ${
 				expect(ok).to_be_true();
 				testNotes = changes.applyTo(testNotes);
 				testScale = targetScale;
-				// std::cerr << "-> " << testScale << " AS " << testNotes << " @" << n << std::endl << std::flush;
 				expect(testNotes.isSubsetOf(testScale)).to_be_true();
 				ok = scaleMapper.computeChangeFrom(testNotes, testScale, sourceScale, changes);
 				expect(ok).to_be_true();

@@ -1,5 +1,6 @@
 #include "model/sample/overview_cache_entry.h"
 #include "util/segmented_vector.h"
+
 #include <cstdint>
 
 #include "cppspec.hpp"
