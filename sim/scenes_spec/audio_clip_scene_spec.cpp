@@ -336,7 +336,8 @@ struct Rig {
 	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
 		ensure_display();
 		currentUIMode = UI_MODE_NONE;
-		currentSong = f.song;           // the app's sink and facts resolve the clip's address in the current song
+		deluge::scenes::spec::make_current(
+		    f.song);                    // the app's sink and facts resolve the clip's address in the current song
 		f.song->setCurrentClip(f.clip); // a length undo finds its clip as the current one
 
 		// The clip's sample, attached the way `AudioClip::setupPlaybackBounds` leaves it: the whole
@@ -378,7 +379,7 @@ struct Rig {
 		currentlyActioningSwungTickOrResettingPlayPos = saved_swung_latch;
 		currentUIMode = UI_MODE_NONE;
 		f.song->setCurrentClip(nullptr);
-		currentSong = saved_song;
+		deluge::scenes::spec::make_current(saved_song);
 	}
 
 	/// @brief The clip's address.

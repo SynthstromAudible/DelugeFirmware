@@ -197,7 +197,7 @@ describe menu_records("a menu's questions, answered from the record", ${
 		spec::SongFixture midi = spec::make_midi_song();
 		spec::AudioSongFixture audio = spec::make_audio_clip_song();
 		spec::SongFixture playing = spec::make_synth_song(); // the song the app plays: none of the above
-		currentSong = playing.song;
+		deluge::scenes::spec::make_current(playing.song);
 
 		struct Case {
 			Song* song;
@@ -233,7 +233,7 @@ describe menu_records("a menu's questions, answered from the record", ${
 			expect(c.song->project.groove.swing_interval == swing).to_be_true();
 		}
 		expect(written > size_t{100}).to_be_true();
-		currentSong = playing.song;
+		deluge::scenes::spec::make_current(playing.song);
 	});
 });
 

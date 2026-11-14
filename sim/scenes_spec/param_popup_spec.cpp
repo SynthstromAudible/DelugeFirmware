@@ -374,7 +374,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 			of_midi.cc_label.clear(); // CC 75 has no name
 			expect(shown(Kind::MIDI, 75, of_midi).first).to_equal(std::string{"CC 75"});
 		}
-		currentSong = before;
+		deluge::scenes::spec::make_current(before);
 	});
 
 	it("ports the patch-cable name form, source1->source2->name, against the real getPatchedParamShortName", _ {

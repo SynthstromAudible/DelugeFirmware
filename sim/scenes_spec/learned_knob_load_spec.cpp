@@ -30,6 +30,7 @@
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
 #include "scenes/menu/bind_host.h"
+#include "support/indexed_knobs.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -192,6 +193,15 @@ describe learned_knob_load("a sound's learned knobs as a load reads them", ${
 		expect(paramOf(knobs[2]) == patched(params::LOCAL_PITCH_ADJUST)).to_be_true();
 		expect(knobs[2].relative).to_be_true();
 		expect(synth->loaded_knobs.empty()).to_be_true(); // the table holds them now
+		// Incoming MIDI finds each, as its own param, once the song is the current one.
+		::Song* const before = currentSong;
+		spec::make_current(song);
+		for (const Mapping& knob : knobs) {
+			expect(spec::indexPlays(*song, std::get<OwnerParamTarget>(knob.target), knob.source.channel_or_zone,
+			                        knob.source.note_or_cc))
+			    .to_be_true();
+		}
+		spec::make_current(before);
 		const std::string text = saved(*song); // a song saves as JSON
 		expect(text.find(R"("controlsParam": "volumePostFX")") != std::string::npos).to_be_true();
 		expect(text.find(R"("controlsParam": "volume")") == std::string::npos).to_be_true();

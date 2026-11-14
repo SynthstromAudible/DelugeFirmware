@@ -375,7 +375,7 @@ int32_t record_mode(Song& song, Output& output) {
 void expect_no_knobs(auto& self, spec::SongFixture& f, ParamManager* row_params) {
 	StubDisplay stub;
 	display = &stub;
-	currentSong = f.song;
+	deluge::scenes::spec::make_current(f.song);
 	setRootUILowLevel(&instrumentClipView);
 	// Lit first, so zero is what the knobs' owner leaves them at.
 	indicator_leds::setKnobIndicatorLevel(0, 100, false);
@@ -409,7 +409,7 @@ void expect_no_knobs(auto& self, spec::SongFixture& f, ParamManager* row_params)
 	nullifyUIs();
 	view.releaseActiveModControllable();
 	display = nullptr;
-	currentSong = nullptr;
+	deluge::scenes::spec::make_current(nullptr);
 }
 
 /// @brief Make @p f's clip its output's active clip, as the clip a user has open is.
@@ -549,7 +549,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 
 		it("swaps the drums of a kit the mode's fan-out reaches, and passes over a sample row", _ {
 			spec::SongFixture f = spec::make_kit_song();
-			currentSong = f.song;
+			deluge::scenes::spec::make_current(f.song);
 			SoundDrum* sample = spec::add_drum<SoundDrum>(f);
 			SoundDrum* synth = spec::add_drum<SoundDrum>(f);
 			// The menu's fan-out for the mode (`fan_out::kRingable`) takes a drum whose oscillators are both
@@ -574,12 +574,12 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			expect(back.drums_written()).to_equal(1u);
 			expect_row_layout(self, f, *sample, kRow);
 			expect_row_layout(self, f, *synth, kRow);
-			currentSong = nullptr;
+			deluge::scenes::spec::make_current(nullptr);
 		});
 
 		it("swaps a sound with no slot in the song, which has no record", _ {
 			spec::SongFixture f = spec::make_synth_song();
-			currentSong = f.song;
+			deluge::scenes::spec::make_current(f.song);
 			ParamManagerForTimeline params;
 			auto* loose = static_cast<SoundInstrument*>(StorageManager::createNewInstrument(OutputType::SYNTH, &params));
 			loose->setupAsDefaultSynth(&params);
@@ -595,7 +595,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			expect_layout(self, *loose, nullptr, write_preset, kDefaultFm);
 			set_mode(*loose, "subtractive");
 			expect_layout(self, *loose, nullptr, write_preset, kDefaultSynth);
-			currentSong = nullptr;
+			deluge::scenes::spec::make_current(nullptr);
 		});
 	});
 
@@ -604,7 +604,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			StubDisplay stub;
 			display = &stub;
 			spec::SongFixture f = spec::make_kit_song();
-			currentSong = f.song;
+			deluge::scenes::spec::make_current(f.song);
 			auto* kit = static_cast<Kit*>(f.instrument);
 			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, f.song, f.clip);
@@ -645,7 +645,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			drum->ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(&row->paramManager, f.song);
 			expect(patched->getValue(params::LOCAL_PITCH_ADJUST)).to_equal(0);
 			display = nullptr;
-			currentSong = nullptr;
+			deluge::scenes::spec::make_current(nullptr);
 		});
 	});
 
@@ -664,7 +664,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 
 			StubDisplay stub;
 			display = &stub;
-			currentSong = f.song;
+			deluge::scenes::spec::make_current(f.song);
 			setRootUILowLevel(&instrumentClipView);
 			view.setActiveModControllableTimelineCounter(f.clip, false);
 			const uint8_t channel = drum->channel();
@@ -680,7 +680,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			nullifyUIs();
 			view.releaseActiveModControllable();
 			display = nullptr;
-			currentSong = nullptr;
+			deluge::scenes::spec::make_current(nullptr);
 		});
 
 		it("moves nothing on a kit's gate drum, and the drum's own channel still turns while it auditions", _ {
@@ -691,7 +691,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 
 			StubDisplay stub;
 			display = &stub;
-			currentSong = f.song;
+			deluge::scenes::spec::make_current(f.song);
 			setRootUILowLevel(&instrumentClipView);
 			view.setActiveModControllableTimelineCounter(f.clip, false);
 			const uint8_t channel = drum->channel();
@@ -705,7 +705,7 @@ describe layout_characterisation("the knob layouts the engine changes on its own
 			nullifyUIs();
 			view.releaseActiveModControllable();
 			display = nullptr;
-			currentSong = nullptr;
+			deluge::scenes::spec::make_current(nullptr);
 		});
 	});
 });

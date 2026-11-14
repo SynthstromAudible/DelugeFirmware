@@ -42,6 +42,7 @@
 #include "scenes/services/mod_knobs.h"
 
 #include "controls/knob_math.h"
+
 #include "gui/views/knob_focus_from_stack.h"
 #include "scenes/bind/knob_assignment.h"
 

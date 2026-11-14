@@ -517,7 +517,7 @@ describe learned_cc_order("a learned CC through PlaybackHandler::midiCCReceived:
 	});
 });
 
-describe learned_cc_takeover("a learned CC through MidiTakeover, one case at a time", $ {
+describe learned_cc_takeover("a learned CC through takeover (controls::knob_pos_after), one case at a time", $ {
 	it("follows a relative cable by its offset, clamped to the knob's range, in every mode", _ {
 		for (const MIDITakeoverMode mode : {MIDITakeoverMode::JUMP, MIDITakeoverMode::PICKUP, MIDITakeoverMode::SCALE}) {
 			Takeover takeover{mode};

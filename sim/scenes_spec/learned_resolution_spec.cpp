@@ -282,7 +282,7 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 	it("writes through write_param as LEARNED does, and as KNOB does for a gold knob", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		Song* const saved = currentSong;
-		currentSong = f.song;
+		deluge::scenes::spec::make_current(f.song);
 		activate(*f.song, *f.instrument, *f.clip);
 		const ParamAddress lpf = filterOf(f, deluge::instrument::param::kLpfFrequency, *f.clip);
 		const ParamAddress cable = cableOf(f, *f.clip);
@@ -293,13 +293,13 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		expect(static_cast<Instrument*>(f.instrument)->editedByUser).to_be_false();
 		expect(sink.write_param(lpf, 1 << 26, 0, 0, controls::Resolution::KNOB)).to_be_true();
 		expect(static_cast<Instrument*>(f.instrument)->editedByUser).to_be_true();
-		currentSong = saved;
+		deluge::scenes::spec::make_current(saved);
 	});
 
 	it("makes the take for an output once, and finds it after; an unknown output has none", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		Song* const saved = currentSong;
-		currentSong = f.song;
+		deluge::scenes::spec::make_current(f.song);
 		activate(*f.song, *f.instrument, *f.clip);
 		RootView root;
 		controls::Sink& sink = deluge::scenes::menu::host_controls_sink();
@@ -317,13 +317,13 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 			expect(sink.take_for(output) == take).to_be_true();
 			expect(f.song->live.clips.arrangement_only_clips.size()).to_equal(arranged + 1);
 		}
-		currentSong = saved;
+		deluge::scenes::spec::make_current(saved);
 	});
 
 	it("makes only a cable's depth for a learned knob: a param it holds is found, an expression lane is not made", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		Song* const saved = currentSong;
-		currentSong = f.song;
+		deluge::scenes::spec::make_current(f.song);
 		activate(*f.song, *f.instrument, *f.clip);
 		RootView root;
 		controls::Sink& sink = deluge::scenes::menu::host_controls_sink();
@@ -339,13 +339,13 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		expect(f.clip->paramManager.getExpressionParamSet() == nullptr).to_be_true();
 		expect(sink.make_param(bend)).to_be_false();
 		expect(f.clip->paramManager.getExpressionParamSet() == nullptr).to_be_true();
-		currentSong = saved;
+		deluge::scenes::spec::make_current(saved);
 	});
 
 	it("clears the relative flag of the entry that plays a command onto a target, and no other", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		Song* const saved = currentSong;
-		currentSong = f.song;
+		deluge::scenes::spec::make_current(f.song);
 		const OwnerParamTarget target{{Kind::OUTPUT, *f.instrument->id()},
 		                              project::ParamTarget{ParamSpace::ENGINE, deluge::instrument::param::kLpfFrequency}};
 		const OwnerParamTarget other{{Kind::OUTPUT, *f.instrument->id()},
@@ -365,14 +365,14 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		// A command the target is not learned to leaves it alone.
 		deluge::scenes::menu::host_controls_sink().knob_absolute(other, a);
 		expect(relative(other)).to_be_true();
-		currentSong = saved;
+		deluge::scenes::spec::make_current(saved);
 	});
 
 	it("follows a learned write in the views as legacy's handlers do: a song param in either, a clip's in the editor only", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		spec::SongFixture other = addSynth(f.song);
 		Song* const saved = currentSong;
-		currentSong = f.song;
+		deluge::scenes::spec::make_current(f.song);
 		activate(*f.song, *f.instrument, *f.clip);
 		f.song->setCurrentClip(f.clip);
 		controls::Sink& sink = deluge::scenes::menu::host_controls_sink();
@@ -441,7 +441,7 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		performanceView.defaultEditingMode = savedEditing;
 		performanceView.editingParam = savedParamEditing;
 		performanceView.lastPadPress = savedPress;
-		currentSong = saved;
+		deluge::scenes::spec::make_current(saved);
 	});
 });
 
@@ -449,7 +449,7 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 	it("lists the outputs with an active clip in play order, each with the owner its params are addressed by", _ {
 		World w = makeWorld();
 		Song* const saved = currentSong;
-		currentSong = w.song;
+		deluge::scenes::spec::make_current(w.song);
 		const auto outputs = deluge::scenes::menu::host_runtime_facts().playing_outputs();
 		expect(outputs.size()).to_equal(size_t{3});
 		if (outputs.size() == 3) {
@@ -466,13 +466,13 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 			       && outputs[2].param_owner == OwnerId::clip(w.audioClip->id())
 			       && outputs[2].clip_id == w.audioClip->id()).to_be_true();
 		}
-		currentSong = saved;
+		deluge::scenes::spec::make_current(saved);
 	});
 
 	it("lists a kit clip's sound rows in note-row order, leaving a row of another kind and a drum with no row", _ {
 		World w = makeWorld();
 		Song* const saved = currentSong;
-		currentSong = w.song;
+		deluge::scenes::spec::make_current(w.song);
 		const auto rows = deluge::scenes::menu::host_runtime_facts().sound_rows(w.kit.clip->id());
 		expect(rows.size()).to_equal(size_t{2});
 		if (rows.size() == 2) {
@@ -481,13 +481,13 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 		}
 		expect(deluge::scenes::menu::host_runtime_facts().sound_rows(w.synth.clip->id()).empty()).to_be_true();
 		expect(deluge::scenes::menu::host_runtime_facts().sound_rows(0xFFFFFF).empty()).to_be_true();
-		currentSong = saved;
+		deluge::scenes::spec::make_current(saved);
 	});
 
 	it("keeps each member's answer across the other's calls and a write that clones a take", _ {
 		World w = makeWorld();
 		Song* const saved = currentSong;
-		currentSong = w.song;
+		deluge::scenes::spec::make_current(w.song);
 		RootView root;
 		const controls::Facts& facts = deluge::scenes::menu::host_runtime_facts();
 		const auto outputs = facts.playing_outputs();
@@ -518,7 +518,7 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 			const auto after = facts.playing_outputs();
 			expect(after.size() == 3 && after[0].clip_id == w.synth.instrument->getActiveClip()->id()).to_be_true();
 		}
-		currentSong = saved;
+		deluge::scenes::spec::make_current(saved);
 	});
 
 	it("reads the takeover's mode, whether a running clock records, and the cable's relative flag", _ {
@@ -543,7 +543,7 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 	it("reads the step region held on a clip, and none for another clip or the song", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		Song* const saved = currentSong;
-		currentSong = f.song;
+		deluge::scenes::spec::make_current(f.song);
 		const controls::Facts& facts = deluge::scenes::menu::host_runtime_facts();
 		expect(facts.step_region(f.clip->id()).has_value()).to_be_false();
 		{
@@ -553,7 +553,7 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 			expect(facts.step_region(std::nullopt).has_value()).to_be_false();
 		}
 		expect(facts.step_region(f.clip->id()).has_value()).to_be_false();
-		currentSong = saved;
+		deluge::scenes::spec::make_current(saved);
 	});
 
 	it("names a sound's params by the instrument's rows and a chain's by the global effectable's", _ {
@@ -574,13 +574,13 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 	it("reads no value, and does not crash, for a param the owner does not hold yet", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		Song* const saved = currentSong;
-		currentSong = f.song;
+		deluge::scenes::spec::make_current(f.song);
 		activate(*f.song, *f.instrument, *f.clip);
 		const controls::Facts& facts = deluge::scenes::menu::host_runtime_facts();
 		expect(facts.param_value(cableOf(f, *f.clip)).has_value()).to_be_false();
 		expect(facts.param_value(filterOf(f, deluge::instrument::param::kLpfFrequency, *f.clip)).has_value())
 		    .to_be_true();
-		currentSong = saved;
+		deluge::scenes::spec::make_current(saved);
 	});
 });
 // clang-format on

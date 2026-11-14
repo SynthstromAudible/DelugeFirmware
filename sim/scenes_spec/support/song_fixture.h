@@ -60,6 +60,14 @@ struct SongFixture {
 	Instrument* instrument = nullptr;
 };
 
+/// @brief Make @p song the current song (or none), as the app does at every assignment: markSongChanged() drops what
+///        is kept for the song before it, the takeover states of its learned knobs, and marks the index stale.
+/// @param song The song, or null.
+inline void make_current(Song* song) {
+	currentSong = song;
+	deluge::markSongChanged();
+}
+
 namespace detail {
 
 template <typename T, typename... Args>
@@ -82,8 +90,7 @@ inline Song* make_bare_song() {
 	// helpers at `model/song/song.cpp:91-137`. Leaving it null would make those a latent crash for
 	// the first spec that touches one. The most recently built fixture wins, which is what a spec
 	// working with one song at a time wants.
-	currentSong = song;
-	deluge::markSongChanged(); // as the app does: no state kept for the song before it is this one's
+	make_current(song); // as the app does: no state kept for the song before it is this one's
 	return song;
 }
 

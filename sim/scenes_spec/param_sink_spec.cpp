@@ -99,9 +99,9 @@ std::optional<uint32_t> feedback_stamp(spec::SongFixture& synth, const std::func
 	midiEngine.midiFollowFeedbackChannelType = MIDIFollowFeedbackChannelType::A;
 	midiEngine.midiFollowChannelType[0].channelOrZone = 0;
 	Song* const saved_song = currentSong;
-	currentSong = synth.song;
+	deluge::scenes::spec::make_current(synth.song);
 	view.setActiveModControllableTimelineCounter(synth.clip, false);
-	currentSong = saved_song;
+	deluge::scenes::spec::make_current(saved_song);
 	const std::optional<deluge::project::ParamTarget> target =
 	    deluge::bridge::targetOf(deluge::bridge::OwnerPlugin::INSTRUMENT, deluge::modulation::params::Kind::PATCHED,
 	                             deluge::modulation::params::LOCAL_LPF_FREQ);
@@ -283,7 +283,7 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		spec::SongFixture a = spec::make_synth_song();
 		spec::SongFixture b = spec::make_synth_song();
 		Song* const saved = currentSong;
-		currentSong = a.song;
+		deluge::scenes::spec::make_current(a.song);
 		(void)menu::host_write_sink().write({.target = cable_target(PatchSource::ENVELOPE_1,
 		                                                            deluge::modulation::params::LOCAL_LPF_RESONANCE),
 		                                     .where = on_synth(a),
@@ -294,14 +294,14 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		for (const bind::CableFact& cable : first) {
 			held.push_back(cable.depth);
 		}
-		currentSong = b.song;
+		deluge::scenes::spec::make_current(b.song);
 		deluge::synth::CableTarget other = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_HPF_RESONANCE);
 		(void)menu::host_write_sink().write({.target = cable_target(PatchSource::RANDOM,
 		                                                            deluge::modulation::params::LOCAL_HPF_RESONANCE),
 		                                     .where = on_synth(b),
 		                                     .param_value = 0x01000000});
 		(void)facts.cables(synth_lpf(b));
-		currentSong = saved;
+		deluge::scenes::spec::make_current(saved);
 		expect(held.empty()).to_be_false();
 		expect(first.size()).to_equal(held.size());
 		bool same = first.size() == held.size();

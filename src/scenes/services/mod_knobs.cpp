@@ -21,10 +21,10 @@
 #include "scenes/services/mod_knobs.h"
 
 #include "controls/board.h"
+#include "controls/knob_math.h"
 #include "controls/pages.h"
 #include "controls/section.h"
 
-#include "controls/knob_math.h"
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/bind/page_sources.h"
 #include "scenes/bind/runtime_facts.h"

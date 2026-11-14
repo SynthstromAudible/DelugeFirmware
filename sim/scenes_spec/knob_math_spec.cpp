@@ -40,7 +40,7 @@ using deluge::plugin::ParamInfo;
 using deluge::project::OwnerId;
 using deluge::project::ParamAddress;
 using deluge::project::ParamSpace;
-namespace bind = deluge::controls;
+namespace controls = deluge::controls;
 
 constexpr std::array<int32_t, 7> kValues{std::numeric_limits<int32_t>::min(), -(1 << 30), -1, 0, 1, 1 << 30,
                                          std::numeric_limits<int32_t>::max()};
@@ -55,22 +55,22 @@ std::string disagreement(::Song& song, const ParamAddress& address, const ParamI
 	ParamCollection* collection = stack->paramCollection;
 	const std::string at = "id " + std::to_string(address.id.value) + ": ";
 	for (const int32_t value : kValues) {
-		if (collection->paramValueToKnobPos(value, stack) != bind::knob_pos_of(address, info, value)) {
+		if (collection->paramValueToKnobPos(value, stack) != controls::knob_pos_of(address, info, value)) {
 			return at + "knob position of " + std::to_string(value);
 		}
 	}
 	for (int32_t knob = -64; knob <= 64; knob++) {
-		if (collection->knobPosToParamValue(knob, stack) != bind::value_of_knob(address, info, knob)) {
+		if (collection->knobPosToParamValue(knob, stack) != controls::value_of_knob(address, info, knob)) {
 			return at + "value of knob " + std::to_string(knob);
 		}
 	}
 	const bool middle = collection->shouldParamIndicateMiddleValue(stack);
 	const bool stutter = address.space == ParamSpace::ENGINE && info != nullptr && info->file_name == "stutterRate";
-	if (!stutter && middle != bind::indicates_middle(address, info, false, false)) {
+	if (!stutter && middle != controls::indicates_middle(address, info, false, false)) {
 		return at + "indicates middle";
 	}
 	const bool bipolar = deluge::modulation::params::isParamBipolar(collection->getParamKind(), stack->paramId);
-	if (bipolar != bind::bipolar(address, info)) {
+	if (bipolar != controls::bipolar(address, info)) {
 		return at + "bipolar";
 	}
 	return {};
@@ -162,21 +162,21 @@ describe knob_math("the gold knob's position, from the param's descriptor", ${
 		const ParamInfo* rate =
 		    deluge::plugin::find_param(deluge::global_effectable::kParams, deluge::global_effectable::param::kStutterRate);
 		const ParamAddress address{.owner = OwnerId::song(), .space = ParamSpace::ENGINE, .id = rate->id};
-		expect(bind::indicates_middle(address, rate, false, false)).to_be_true();
-		expect(bind::indicates_middle(address, rate, true, false)).to_be_false();
-		expect(bind::indicates_middle(address, rate, true, true)).to_be_true();
+		expect(controls::indicates_middle(address, rate, false, false)).to_be_true();
+		expect(controls::indicates_middle(address, rate, true, false)).to_be_false();
+		expect(controls::indicates_middle(address, rate, true, true)).to_be_true();
 	});
 
 	it("turns as the gold knob does", _ {
-		using bind::KnobKind;
-		expect(bind::turn(KnobKind::PARAM, 0, 1)).to_equal(1);
-		expect(bind::turn(KnobKind::PARAM, 64, 1)).to_equal(64);
-		expect(bind::turn(KnobKind::PARAM, -64, -1)).to_equal(-64);
-		expect(bind::turn(KnobKind::MIDI_CC, 63, 1)).to_equal(63);
-		expect(bind::turn(KnobKind::CABLE, -192, -1)).to_equal(-192);
-		expect(bind::turn(KnobKind::CABLE, -100, -1)).to_equal(-101);
+		using controls::KnobKind;
+		expect(controls::turn(KnobKind::PARAM, 0, 1)).to_equal(1);
+		expect(controls::turn(KnobKind::PARAM, 64, 1)).to_equal(64);
+		expect(controls::turn(KnobKind::PARAM, -64, -1)).to_equal(-64);
+		expect(controls::turn(KnobKind::MIDI_CC, 63, 1)).to_equal(63);
+		expect(controls::turn(KnobKind::CABLE, -192, -1)).to_equal(-192);
+		expect(controls::turn(KnobKind::CABLE, -100, -1)).to_equal(-101);
 		const ParamAddress cc{.space = ParamSpace::MIDI_CC, .id = {74}};
-		expect(bind::knob_kind(cc) == KnobKind::MIDI_CC).to_be_true();
+		expect(controls::knob_kind(cc) == KnobKind::MIDI_CC).to_be_true();
 	});
 });
 // clang-format on
