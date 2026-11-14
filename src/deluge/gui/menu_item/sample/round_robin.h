@@ -20,7 +20,6 @@
 #include "gui/menu_item/decimal.h"
 #include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/integer.h"
-#include "gui/menu_item/range.h"
 #include "gui/menu_item/sample/loop_point.h"
 #include "gui/menu_item/sample/utils.h"
 #include "gui/menu_item/selection.h"
@@ -525,21 +524,35 @@ private:
 	uint8_t slotIndex_;
 };
 
-// Per-slot velocity range editor for RRMode::Velocity: edits the [min, max] (1-127) range that
-// determines which slot plays for a given note velocity, the same way MPC's Velocity layer-play
-// mode works. Modelled on gui::menu_item::IntegerRange's own lower/upper editing (turn the
-// horizontal encoder to pick an edge, the select encoder to change it), but reads/writes one
-// specific slot's range on the model instead of holding the value itself, following the same
+// One end of a slot's velocity range for RRMode::Velocity - the [min, max] (1-127) window that
+// decides which slot plays for a given note velocity, the way MPC's Velocity layer-play mode works.
+//
+// The two ends are two separate menu items sitting in adjacent columns (VMIN | VMAX), rather than
+// one two-ended Range. A Range picks which end you're editing with the horizontal encoder, and
+// inside a horizontal menu that encoder pages the menu instead of reaching the item - so a Range
+// placed here cannot be edited at all. A plain Integer per end is edited in place with the select
+// encoder, exactly as the slot's own Transpose is, and each column has room for its three digits.
+//
+// Values are read from and written to the zone on every access, following the same
 // per-(source, slot) pattern as VariantTranspose above.
-class VariantVelocityRange final : public Range {
+class VariantVelocityEdge final : public Integer {
 public:
-	VariantVelocityRange(l10n::String newName, uint8_t sourceId, uint8_t slotIndex)
-	    : Range(newName), sourceId_(sourceId), slotIndex_(slotIndex) {}
+	enum class Edge : uint8_t { Min, Max };
+
+	VariantVelocityEdge(l10n::String newName, uint8_t sourceId, uint8_t slotIndex, Edge edge)
+	    : Integer(newName), sourceId_(sourceId), slotIndex_(slotIndex), edge_(edge) {}
 
 	bool isRangeDependent() override { return true; }
 
+	// Only meaningful while the zone actually selects by velocity - in every other mode these two
+	// columns would be dead weight on a page that has to page at 5 items. Mode itself only appears
+	// once a zone has an alternate, so a plain single-sample slot shows neither.
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
-		return isSampleModeSample(modControllable, sourceId_) && variantHolderIsLoaded(sourceId_, slotIndex_);
+		if (!isSampleModeSample(modControllable, sourceId_) || !variantHolderIsLoaded(sourceId_, slotIndex_)) {
+			return false;
+		}
+		MultisampleRange* range = getRoundRobinRange(sourceId_);
+		return range != nullptr && range->rrMode == MultisampleRange::RRMode::Velocity;
 	}
 
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
@@ -547,98 +560,51 @@ public:
 		return checkVariantHolderPermission(modControllable, sourceId_, slotIndex_, currentRange);
 	}
 
-	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
+	[[nodiscard]] int32_t getMinValue() const override { return kMinVelocity; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxVelocity; }
+
+	// Integer defaults to a knob, which says nothing useful about a velocity threshold. Three digits
+	// at title spacing are 27px, inside the 31px a column gives us.
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
+
+	void getColumnLabel(StringBuf& label) override {
+		label.append(l10n::get(edge_ == Edge::Min ? l10n::String::STRING_FOR_VELOCITY_MIN_SHORT
+		                                          : l10n::String::STRING_FOR_VELOCITY_MAX_SHORT));
+	}
+
+	void readCurrentValue() override {
 		MultisampleRange* range = getRoundRobinRange(sourceId_);
 		if (range != nullptr) {
-			lower = range->getVelocityRangeMin(slotIndex_);
-			upper = range->getVelocityRangeMax(slotIndex_);
+			this->setValue(edge_ == Edge::Min ? range->getVelocityRangeMin(slotIndex_)
+			                                  : range->getVelocityRangeMax(slotIndex_));
 		}
-		Range::beginSession(navigatedBackwardFrom);
 	}
 
-	void selectEncoderAction(int32_t offset) override {
-		if (soundEditor.editingRangeEdge != RangeEdit::OFF) {
-			if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
-				lower = std::clamp(lower + offset, kMinVelocity, kMaxVelocity);
-				if (upper < lower) {
-					upper = lower;
-				}
-			}
-			else {
-				upper = std::clamp(upper + offset, kMinVelocity, kMaxVelocity);
-				if (upper < lower) {
-					lower = upper;
-				}
-			}
-			writeBack();
-			if (display->haveOLED()) {
-				renderUIsForOled();
-			}
-			else {
-				drawValueForEditingRange(false);
-			}
+	// setVelocityRange() takes both ends, so read the other one back off the model and push the
+	// pair. It keeps min <= max itself, and readCurrentValue() picks up any correction next time
+	// either column is drawn.
+	void writeCurrentValue() override {
+		MultisampleRange* range = getRoundRobinRange(sourceId_);
+		if (range == nullptr) {
 			return;
 		}
-
-		if (upper != lower) {
-			return;
-		}
-		lower = std::clamp(lower + offset, kMinVelocity, kMaxVelocity);
-		upper = lower;
-		writeBack();
-		if (display->haveOLED()) {
-			renderUIsForOled();
+		auto value = (uint8_t)this->getValue();
+		if (edge_ == Edge::Min) {
+			range->setVelocityRange(slotIndex_, value, std::max(value, range->getVelocityRangeMax(slotIndex_)));
 		}
 		else {
-			drawValue();
+			range->setVelocityRange(slotIndex_, std::min(value, range->getVelocityRangeMin(slotIndex_)), value);
 		}
-	}
-
-	void renderInHorizontalMenu(const SlotPosition& slot) override {
-		char buffer[12];
-		getText(buffer, nullptr, nullptr, true);
-		deluge::hid::display::OLED::main.drawStringCentered(buffer, slot.start_x,
-		                                                    slot.start_y + kHorizontalMenuSlotYOffset,
-		                                                    kTextTitleSpacingX, kTextTitleSizeY, slot.width);
-	}
-
-protected:
-	void getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLength, bool mayShowJustOne) override {
-		intToString(lower, buffer);
-		int32_t leftLength = strlen(buffer);
-		if (getLeftLength != nullptr) {
-			*getLeftLength = leftLength;
-		}
-		if (mayShowJustOne && lower == upper) {
-			if (getRightLength != nullptr) {
-				*getRightLength = 0;
-			}
-			return;
-		}
-		char* bufferPos = buffer + leftLength;
-		*(bufferPos++) = '-';
-		intToString(upper, bufferPos);
-		if (getRightLength != nullptr) {
-			*getRightLength = strlen(bufferPos);
-		}
+		getCurrentInstrument()->beenEdited();
 	}
 
 private:
 	static constexpr int32_t kMinVelocity = 1;
 	static constexpr int32_t kMaxVelocity = 127;
 
-	void writeBack() {
-		MultisampleRange* range = getRoundRobinRange(sourceId_);
-		if (range != nullptr) {
-			range->setVelocityRange(slotIndex_, (uint8_t)lower, (uint8_t)upper);
-			getCurrentInstrument()->beenEdited();
-		}
-	}
-
-	int32_t lower = kMinVelocity;
-	int32_t upper = kMaxVelocity;
 	uint8_t sourceId_;
 	uint8_t slotIndex_;
+	Edge edge_;
 };
 
 // Per-slot level trim, 0-50 with 50 as unity, stored on the slot's own holder right beside the
@@ -692,10 +658,11 @@ private:
 	uint8_t slotIndex_;
 };
 
-// Horizontal, icon-based menu for one round-robin slot: [File, Strt, End, Transpose, Velo, Vol] - the
-// same horizontal/paging mechanics OSC1/OSC2 (submenu::ActualSource) use one level up. Paging
+// Horizontal, icon-based menu for one round-robin slot: [File, Strt, End, Transpose, VMin, VMax, Vol] -
+// the same horizontal/paging mechanics OSC1/OSC2 (submenu::ActualSource) use one level up. Paging
 // overflows onto a second page automatically once a slot has more than 4 items (see
-// HorizontalMenu::preparePaging()), so adding Velo here needed no special-casing.
+// HorizontalMenu::preparePaging()), so the velocity columns needed no special-casing; outside
+// RRMode::Velocity they hide themselves and the slot fits back onto one page.
 // slotIndex 0 is the primary sample and is always accessible; slots 1-3 are alternates, guarded so
 // only loaded slots and the next empty slot can be opened.
 class RoundRobinSlot final : public menu_item::HorizontalMenu {
