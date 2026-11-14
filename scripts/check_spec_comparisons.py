@@ -44,7 +44,7 @@ KINDS = {
     "tolerance": "expect(a).to_be_within(t).of(b)",
     "text": "expect(s).to_contain(needle), or expect(s).not_().to_contain(needle)",
     "bytes": "to_equal_bytes(expect(std::span<const uint8_t>(a)), b)",
-    "cstring": "expect(std::string_view(a)).to_equal(std::string_view(b))",
+    "cstring": "expect(a).to_equal(b), which compares two C strings as text; std::string_view(a, n) for strncmp",
     "chain": "one expectation per comparison",
     "and": "one expectation per condition, guarded by an if where a later one dereferences",
     "or": "one expectation on the value the alternatives share, or to_satisfy with a named predicate",

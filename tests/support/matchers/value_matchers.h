@@ -20,11 +20,13 @@
 #include "cppspec.hpp"
 
 #include <algorithm>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <format>
 #include <span>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 /// @file
@@ -36,7 +38,54 @@
 /// `expect(s).to_contain(needle)`, which finds a substring when both are text.
 namespace deluge::test::matchers {
 
-/// @brief Matches a value no smaller than the bound: `actual >= bound`, so NaN never matches.
+namespace detail {
+
+/// @brief The integer types `std::cmp_less` and its kin accept: every integral type but `bool` and the character
+///        types (`int8_t` and `uint8_t` are in).
+template <typename T>
+concept cmp_integer =
+    std::integral<T> && !std::same_as<std::remove_cv_t<T>, bool> && !std::same_as<std::remove_cv_t<T>, char>
+    && !std::same_as<std::remove_cv_t<T>, wchar_t> && !std::same_as<std::remove_cv_t<T>, char8_t>
+    && !std::same_as<std::remove_cv_t<T>, char16_t> && !std::same_as<std::remove_cv_t<T>, char32_t>;
+
+/// @brief `a < b`, by value when both are integers: a signed side is not converted to unsigned.
+template <typename A, typename E>
+constexpr bool less(const A& a, const E& b) {
+	if constexpr (cmp_integer<A> && cmp_integer<E>) {
+		return std::cmp_less(a, b);
+	}
+	else {
+		return a < b;
+	}
+}
+
+/// @brief `a <= b`, by value when both are integers.
+template <typename A, typename E>
+constexpr bool less_equal(const A& a, const E& b) {
+	if constexpr (cmp_integer<A> && cmp_integer<E>) {
+		return std::cmp_less_equal(a, b);
+	}
+	else {
+		return a <= b;
+	}
+}
+
+/// @brief `a >= b`, by value when both are integers.
+template <typename A, typename E>
+constexpr bool greater_equal(const A& a, const E& b) {
+	if constexpr (cmp_integer<A> && cmp_integer<E>) {
+		return std::cmp_greater_equal(a, b);
+	}
+	else {
+		return a >= b;
+	}
+}
+
+} // namespace detail
+
+/// @brief Matches a value no smaller than the bound: `actual >= bound`, compared by value when both are integers
+///        (`-1` is below `0u`). Under `not_()` it matches `actual < bound`, so NaN, which neither holds for, fails both
+///        polarities.
 template <typename A, typename E>
 class BeAtLeast : public CppSpec::Matchers::MatcherBase<A, E> {
 public:
@@ -44,10 +93,12 @@ public:
 	    : CppSpec::Matchers::MatcherBase<A, E>(expectation, std::move(bound)) {}
 
 	std::string verb() override { return "be at least"; }
-	bool match() override { return this->actual() >= this->expected(); }
+	bool match() override { return detail::greater_equal(this->actual(), this->expected()); }
+	bool negated_match() override { return detail::less(this->actual(), this->expected()); }
 };
 
-/// @brief Matches a value no larger than the bound: `actual <= bound`, so NaN never matches.
+/// @brief Matches a value no larger than the bound: `actual <= bound`, compared by value when both are integers.
+///        Under `not_()` it matches `actual > bound`, so NaN fails both polarities.
 template <typename A, typename E>
 class BeAtMost : public CppSpec::Matchers::MatcherBase<A, E> {
 public:
@@ -55,7 +106,8 @@ public:
 	    : CppSpec::Matchers::MatcherBase<A, E>(expectation, std::move(bound)) {}
 
 	std::string verb() override { return "be at most"; }
-	bool match() override { return this->actual() <= this->expected(); }
+	bool match() override { return detail::less_equal(this->actual(), this->expected()); }
+	bool negated_match() override { return detail::less(this->expected(), this->actual()); }
 };
 
 /// @brief Matches a byte buffer equal to the expected one, naming the first byte that differs rather than printing

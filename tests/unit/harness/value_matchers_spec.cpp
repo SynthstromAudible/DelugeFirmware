@@ -22,6 +22,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <source_location>
 #include <span>
 #include <string>
@@ -57,6 +58,15 @@ describe value_matchers("the support value matchers", $ {
 			auto ex = ExpectationValue(std::nan(""), std::source_location::current());
 			expect(BeAtLeast<double, double>(ex, 0.0).run().is_failure()).to_be_true();
 		});
+		it("fails on NaN under not_() too", _ {
+			auto ex = ExpectationValue(std::nan(""), std::source_location::current());
+			ex.not_();
+			expect(BeAtLeast<double, double>(ex, 0.0).run().is_failure()).to_be_true();
+		});
+		it("compares signed and unsigned integers by value", _ {
+			to_be_at_least(expect(3u), -1);
+			to_be_at_least(expect(-1).not_(), 0u);
+		});
 		it("puts a custom message above both values", _ {
 			auto ex = ExpectationValue(4, std::source_location::current());
 			BeAtLeast<int, int> matcher(ex, 5);
@@ -78,6 +88,15 @@ describe value_matchers("the support value matchers", $ {
 		it("fails on NaN, which no bound admits", _ {
 			auto ex = ExpectationValue(std::nan(""), std::source_location::current());
 			expect(BeAtMost<double, double>(ex, 0.0).run().is_failure()).to_be_true();
+		});
+		it("fails on NaN under not_() too", _ {
+			auto ex = ExpectationValue(std::nan(""), std::source_location::current());
+			ex.not_();
+			expect(BeAtMost<double, double>(ex, 0.0).run().is_failure()).to_be_true();
+		});
+		it("compares signed and unsigned integers by value", _ {
+			to_be_at_most(expect(-1), 0u);
+			to_be_at_most(expect(3u).not_(), -1);
 		});
 	});
 
@@ -113,4 +132,6 @@ describe value_matchers("the support value matchers", $ {
 });
 // clang-format on
 
-CPPSPEC_SPEC(value_matchers)
+int value_matchers_spec(int argc, char** const argv) {
+	return CppSpec::parse(argc, argv).add_spec(value_matchers).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
+}
