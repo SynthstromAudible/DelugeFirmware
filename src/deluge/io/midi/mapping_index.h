@@ -164,6 +164,19 @@ public:
 		                      [&](const IndexedEntry& entry, const project::MidiCommand& /*source*/) { fn(entry); });
 	}
 
+	/// @brief Whether any owner has a learned knob that a CC (or, as 128, a pitch bend) @p cc from @p from on
+	/// @p channel moves, as forEachKnob matches it.
+	/// @param from    The cable the MIDI came from.
+	/// @param channel The incoming channel.
+	/// @param cc      The CC number, or 128 for pitch bend.
+	/// @return True if one does.
+	[[nodiscard]] bool anyKnob(MIDICable& from, int32_t channel, int32_t cc) const {
+		const auto [first, last] =
+		    std::ranges::equal_range(knobs_, channel, {}, [](const Knob& k) { return int32_t{k.channel}; });
+		return std::ranges::any_of(
+		    first, last, [&](const Knob& k) { return k.entry.note_or_cc == cc && fromDevice(k.entry, from); });
+	}
+
 	/// @brief As forEachKnob, with each hit's source too: what the knob is learned to, which its takeover state is kept
 	/// by.
 	/// @param fn Called with each IndexedEntry hit and its source, in order.

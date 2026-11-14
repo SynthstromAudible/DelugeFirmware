@@ -19,6 +19,7 @@
 #include "controls/facts.h"
 #include "controls/follow.h"
 #include "controls/knob_math.h"
+#include "controls/learned.h"
 #include "controls/sink.h"
 #include "controls/takeover.h"
 #include "definitions_cxx.hpp"
@@ -879,11 +880,8 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, Clip* clip, int32_t ccNumber
 	const controls::KnobFocus focus = deluge::midi::followFocus(*clip);
 	const std::optional<deluge::project::ParamAddress> address =
 	    controls::resolve_follow(focus, followTablesOf(*this), static_cast<uint8_t>(ccNumber));
-	std::optional<int32_t> currentValue;
-	if (address) {
-		currentValue =
-		    region ? facts.param_value_at(*address, static_cast<uint32_t>(region->first)) : facts.param_value(*address);
-	}
+	const std::optional<int32_t> currentValue =
+	    address ? controls::value_for_move(facts, *address, region) : std::nullopt;
 	if (!currentValue) {
 		if (midiEngine.midiFollowDisplayParam) {
 			displayParamControlError(sound, global);
@@ -891,46 +889,37 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, Clip* clip, int32_t ccNumber
 		return;
 	}
 
-	// convert current value to knobPos to compare to cc value being received
-	const plugin::ParamInfo* info = facts.param_info(controls::follow_plugin(focus), address->target());
-	const int32_t knobPos = controls::knob_pos_of(*address, info, *currentValue);
-
-	// calculate new knob position based on cc value received and deluge current value
-	controls::TakeoverInputs inputs = facts.takeover_inputs(cable.is_relative);
-	inputs.step_editing = region.has_value();
+	// Turn the knob through takeover from where this CC last left it, and write the param where its position moved.
 	controls::TakeoverState state;
 	if (previousKnobPos[ccNumber] != kNoSelection) {
 		state.previous = previousKnobPos[ccNumber];
 	}
-	const int32_t newKnobPos = controls::knob_pos_after(knobPos, static_cast<uint8_t>(ccValue), inputs, state);
+	const std::optional<int32_t> newKnobPos =
+	    controls::move_by_cc({.address = *address,
+	                          .info = facts.param_info(controls::follow_plugin(focus), address->target()),
+	                          .value = *currentValue,
+	                          .region = region,
+	                          .cc_value = static_cast<uint8_t>(ccValue),
+	                          .cable_relative = cable.is_relative},
+	                         state, facts, sink);
 	if (state.previous) {
 		previousKnobPos[ccNumber] = *state.previous;
 	}
-
-	// is the cc being received for the same value as the current knob pos? If so, do nothing
-	if (newKnobPos == knobPos) {
-		return;
+	if (newKnobPos) {
+		showWrittenParam(clip, *address, *newKnobPos);
 	}
-
-	// Set the new Parameter Value for the MIDI Learned Parameter
-	const auto [modPos, modLength] = region.value_or(std::pair<int32_t, int32_t>{0, 0});
-	(void)sink.write_param(*address, controls::value_of_knob(*address, info, newKnobPos), modPos, modLength,
-	                       controls::Resolution::LEARNED);
-	showWrittenParam(clip, *address, newKnobPos);
 }
 
 /// check if you're currently editing the same learned param in automation view or performance view; if so, you will
 /// need to refresh the automation editor grid or the performance view, and if you're not editing it, display the name
 /// of the parameter that was changed and the value that has been set
 void MidiFollow::showWrittenParam(Clip* clip, const deluge::project::ParamAddress& address, int32_t newKnobPos) {
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	const ModelStackWithAutoParam* stack = deluge::bridge::paramStackFollowingTake(*currentSong, address, memory);
-	if (stack == nullptr || stack->paramCollection == nullptr) {
+	const std::optional<deluge::bridge::ParamLane> lane = deluge::bridge::paramLaneFollowingTake(*currentSong, address);
+	if (!lane) {
 		// Not reached after a write: the lane was read through this same lookup.
 		return;
 	}
-	const int32_t id = stack->paramId;
-	const params::Kind kind = stack->paramCollection->getParamKind();
+	const auto [kind, id] = *lane;
 
 	bool editingParamInAutomationOrPerformanceView = false;
 	RootUI* rootUI = getRootUI();

@@ -31,6 +31,7 @@
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <utility>
 
 namespace deluge::controls {
 
@@ -57,6 +58,9 @@ using KnobHits = std::span<const LearnedHit>;
 class HitsOf {
 public:
 	virtual ~HitsOf() = default;
+	/// @brief Whether the message moves any knob at all, of any owner: with none, an output's dispatch reads nothing of
+	/// the song.
+	[[nodiscard]] virtual bool any() = 0;
 	/// @brief The hits of @p owner for the message, in its table order. They are copies: a write that changes the
 	/// table leaves them as they were.
 	/// @return The hits, valid until the next call.
@@ -74,12 +78,45 @@ public:
 [[nodiscard]] std::optional<project::ParamAddress>
 resolve_learned(const project::OwnerParamTarget& target, project::OwnerId param_owner, std::optional<uint32_t> clip_id);
 
+/// @brief The step region a knob's write covers: its start and length.
+using StepRegion = std::pair<int32_t, int32_t>;
+
+/// @brief The value of the param at @p address a CC's move reads: at @p region's start where a step region is held,
+/// else at the playhead.
+/// @return The value, or none where the song holds no such param.
+[[nodiscard]] std::optional<int32_t> value_for_move(const Facts& facts, const project::ParamAddress& address,
+                                                    const std::optional<StepRegion>& region);
+
+/// @brief A CC's move of one knob's param: the param, its value, the region a write covers and the CC.
+struct CcMove {
+	project::ParamAddress address;    ///< the param
+	const plugin::ParamInfo* info{};  ///< its descriptor row; null for a cable, an expression dimension or a CC
+	int32_t value{0};                 ///< its value (value_for_move)
+	std::optional<StepRegion> region; ///< the step region a write covers, or none for the playhead
+	uint8_t cc_value{0};              ///< the CC's 7-bit value
+	bool cable_relative{false};       ///< the cable it came on sends relative values
+	bool knob_relative{false};        ///< the knob is taken to send relative values
+};
+
+/// @brief Turn a knob over the param @p move names as its CC says, through takeover, and write the param as a learned
+/// or followed knob writes it (Resolution::LEARNED) where the knob's position moved. A learned knob and MIDI follow
+/// both move their param this way, each having found the param and read its value in its own order; each tells the UI
+/// of a write by its own rule.
+/// @param move  The param, its value and the CC.
+/// @param state The knob's takeover state, which the turn updates.
+/// @param facts The takeover inputs.
+/// @param sink  Where the write goes.
+/// @return The knob's new position, whether or not the sink took the write; none where it did not move and nothing
+///         was written.
+[[nodiscard]] std::optional<int32_t> move_by_cc(const CcMove& move, TakeoverState& state, const Facts& facts,
+                                                Sink& sink);
+
 /// @brief Move the params of the song's learned knobs a CC is learned to. The song's knobs hear a CC on any channel,
 /// an MPE member channel included; it hears no pitch bend.
 ///
-/// For each hit, in order: a value from 16 to 111 on a knob taken to be relative clears its flag; the param is made
-/// where missing and read; takeover turns the CC into a position; and a position that moved is written, as a learned
-/// write, the UI told.
+/// For each hit, in order: a knob over a param outside its owner's engine params is passed over; a value from 16 to
+/// 111 on a knob taken to be relative clears its flag; the param is made where missing and read; takeover turns the CC
+/// into a position; and a position that moved is written, as a learned write (move_by_cc), the UI told.
 /// @param hits      The knobs the CC moves.
 /// @param facts     The params' values and the takeover inputs.
 /// @param sink      Where the writes go.

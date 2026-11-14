@@ -412,6 +412,15 @@ ModelStackWithAutoParam* paramStackFollowingTake(::Song& song, const project::Pa
 	return paramInOwner(ownerOrBackedStack(song, followed, memory), followed, false, false);
 }
 
+std::optional<ParamLane> paramLaneFollowingTake(::Song& song, const project::ParamAddress& address) {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	const ModelStackWithAutoParam* stack = paramStackFollowingTake(song, address, memory);
+	if (stack == nullptr || stack->paramCollection == nullptr) {
+		return std::nullopt;
+	}
+	return ParamLane{.kind = stack->paramCollection->getParamKind(), .id = stack->paramId};
+}
+
 std::optional<int32_t> paramValueAt(::Song& song, const project::ParamAddress& address, uint32_t pos) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* stack = paramStackFollowingTake(song, address, memory);

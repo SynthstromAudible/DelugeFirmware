@@ -690,18 +690,15 @@ void ShellEditSink::learned_written(const deluge::project::ParamAddress& address
 	if (!ofSong && (clip == nullptr || clip != getCurrentClip())) {
 		return;
 	}
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithAutoParam* stack = deluge::bridge::paramStackFollowingTake(*currentSong, address, memory);
-	if (stack == nullptr || stack->paramCollection == nullptr) {
+	const std::optional<deluge::bridge::ParamLane> lane = deluge::bridge::paramLaneFollowingTake(*currentSong, address);
+	if (!lane) {
 		return;
 	}
-	const int32_t id = stack->paramId;
-	const deluge::modulation::params::Kind kind = stack->paramCollection->getParamKind();
 	if (onAutomation) {
-		automationView.possiblyRefreshAutomationEditorGrid(ofSong ? nullptr : clip, kind, id);
+		automationView.possiblyRefreshAutomationEditorGrid(ofSong ? nullptr : clip, lane->kind, lane->id);
 	}
 	else {
-		performanceView.possiblyRefreshPerformanceViewDisplay(kind, id, knob_pos);
+		performanceView.possiblyRefreshPerformanceViewDisplay(lane->kind, lane->id, knob_pos);
 	}
 }
 
@@ -1750,7 +1747,8 @@ namespace deluge::midi {
 namespace {
 
 /// The learned knobs one message moves, owner by owner, copied out of the index (a write the dispatch makes can rebuild
-/// it) into a list kept from message to message, so a message allocates only for more hits than any before it.
+/// it) into a list kept from message to message. Each hit is assigned over the one before it in its place, so a
+/// message reuses the list's room and its device names' storage, and allocates only where it outgrows them.
 class KnobHitsOf final : public controls::HitsOf {
 public:
 	/// @brief Aim at the knobs a message moves: @p number (a CC, or 128 for a pitch bend) from @p from on @p channel,
@@ -1761,15 +1759,27 @@ public:
 		number_ = number;
 		return *this;
 	}
+	[[nodiscard]] bool any() override { return mappingIndex().anyKnob(*from_, channel_, number_); }
 	[[nodiscard]] controls::KnobHits of(project::ControlsAddress owner) override {
-		hits_.clear();
+		size_t count = 0;
 		mappingIndex().forEachKnobWithSource(
 		    owner, *from_, channel_, number_, [&](const IndexedEntry& hit, const project::MidiCommand& source) {
-			    if (const auto* target = std::get_if<project::OwnerParamTarget>(&hit.target)) {
+			    const auto* target = std::get_if<project::OwnerParamTarget>(&hit.target);
+			    if (target == nullptr) {
+				    return;
+			    }
+			    if (count < hits_.size()) {
+				    controls::LearnedHit& kept = hits_[count];
+				    kept.target = *target;
+				    kept.source = source;
+				    kept.relative = hit.relative;
+			    }
+			    else {
 				    hits_.push_back({.target = *target, .source = source, .relative = hit.relative});
 			    }
+			    count++;
 		    });
-		return hits_;
+		return controls::KnobHits{hits_.data(), count};
 	}
 
 private:

@@ -46,7 +46,7 @@ using EffectOwner = std::variant<project::SlotAddress, project::ChainAddress>;
 enum class Resolution : uint8_t {
 	KNOB,    ///< as a gold knob writes it: what it turns is made, the take written while the arrangement records, and
 	         ///< the instrument marked edited
-	LEARNED, ///< as a learned MIDI knob writes it: the same, with no owner marked edited
+	LEARNED, ///< as a learned or followed MIDI knob writes it: the same, with no owner marked edited
 };
 
 /// @brief Takes the writes a gold knob makes. The app's sink applies each as the target's Edit or runtime command; a
@@ -54,8 +54,8 @@ enum class Resolution : uint8_t {
 class Sink {
 public:
 	virtual ~Sink() = default;
-	/// @brief Write the param at @p address over a region, as a gold knob turns it; no MIDI-follow feedback (the knob
-	/// sends its own).
+	/// @brief Write the param at @p address over a region, as a gold knob or a learned or followed MIDI knob writes it
+	/// (@p resolution says which); no MIDI-follow feedback (the caller sends its own).
 	/// @param address The param's address.
 	/// @param value   The new value, as the engine stores it.
 	/// @param pos     The region's start; with @p length 0, the value is set at the playhead.

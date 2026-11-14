@@ -104,7 +104,10 @@ public:
 		return false;
 	}
 	[[nodiscard]] bool alt_delay() const override { return false; }
-	[[nodiscard]] std::span<const PlayingOutput> playing_outputs() const override { return outputs_; }
+	[[nodiscard]] std::span<const PlayingOutput> playing_outputs() const override {
+		outputs_read++;
+		return outputs_;
+	}
 	[[nodiscard]] std::span<const KitRow> sound_rows(uint32_t clip_id) const override {
 		world_.events.push_back("rows " + std::to_string(clip_id));
 		rows_ = {{5, OwnerId::drum(5)}, {6, OwnerId::drum(6)}};
@@ -126,6 +129,7 @@ public:
 	}
 
 	std::vector<PlayingOutput> outputs_;
+	mutable int outputs_read{0}; ///< how many times playing_outputs() was read
 
 private:
 	[[nodiscard]] std::optional<int32_t> value(const ParamAddress& address) const {
@@ -195,6 +199,7 @@ private:
 /// The table's knobs, owner by owner, in table order, as the index hands them out; every one is hit.
 class FakeHits final : public HitsOf {
 public:
+	bool any() override { return !knobs.empty(); }
 	KnobHits of(ControlsAddress owner) override {
 		asked.push_back(owner);
 		answer_.clear();
@@ -206,7 +211,10 @@ public:
 		return answer_;
 	}
 	void add(ControlsAddress owner, uint32_t param, uint8_t number = kCc, bool relative = false) {
-		knobs.push_back({{owner, project::engine_target(param)}, {.channel_or_zone = 0, .note_or_cc = number}, relative});
+		add(owner, project::engine_target(param), number, relative);
+	}
+	void add(ControlsAddress owner, project::ParamTarget param, uint8_t number = kCc, bool relative = false) {
+		knobs.push_back({{owner, param}, {.channel_or_zone = 0, .note_or_cc = number}, relative});
 	}
 	std::vector<LearnedHit> knobs;
 	std::vector<ControlsAddress> asked;
@@ -285,6 +293,57 @@ context("resolve_learned", _{
 		const OwnerParamTarget expression{kSynth, {project::ParamSpace::EXPRESSION, plugin::ParamId{0}}};
 		expect(resolve_learned(cc, OwnerId::instrument(1), 11).has_value()).to_be_false();
 		expect(resolve_learned(expression, OwnerId::instrument(1), 11).has_value()).to_be_false();
+	});
+});
+
+context("move_by_cc", _{
+	it("writes the knob's new position over the region as a learned write, and answers the position", _{
+		World world;
+		FakeFacts facts{world};
+		FakeSink sink{world};
+		TakeoverState state;
+		const CcMove move{.address = ParamAddress::of(OwnerId::instrument(1), project::engine_target(kParam), 11),
+		                  .info = nullptr,
+		                  .value = 0,
+		                  .region = StepRegion{96, 48},
+		                  .cc_value = 100};
+		expect(move_by_cc(move, state, facts, sink) == std::optional<int32_t>{36}).to_be_true();
+		expect(joined(world.writes)).to_equal(std::string{"I1@11#7=1207959552 [96+48]"});
+		expect(state.previous == std::optional<int32_t>{36}).to_be_true();
+		expect(joined(world.follows)).to_equal(std::string{}); // each caller tells the UI by its own rule
+	});
+
+	it("writes nothing, and answers none, where the position does not move", _{
+		World world;
+		FakeFacts facts{world};
+		FakeSink sink{world};
+		TakeoverState state;
+		const CcMove move{.address = ParamAddress::of(OwnerId::song(), project::engine_target(kParam)),
+		                  .value = kWordAt36,
+		                  .cc_value = 100};
+		expect(move_by_cc(move, state, facts, sink).has_value()).to_be_false();
+		expect(joined(world.writes)).to_equal(std::string{});
+	});
+
+	it("reads the knob's and the cable's relative flags, and the step edit, into takeover", _{
+		World world;
+		FakeFacts facts{world};
+		FakeSink sink{world};
+		world.inputs.mode = TakeoverMode::PICKUP;
+		const ParamAddress address = ParamAddress::of(OwnerId::song(), project::engine_target(kParam));
+		const auto moved = [&](CcMove move) {
+			TakeoverState state{.previous = -30};
+			return move_by_cc(move, state, facts, sink);
+		};
+		// PICKUP holds a controller that has not met the param still, unless the knob or cable is relative or a step
+		// region is held.
+		expect(moved({.address = address, .value = 20 << 25, .cc_value = 0}).has_value()).to_be_false();
+		expect(moved({.address = address, .value = 20 << 25, .cc_value = 1, .knob_relative = true})
+		           == std::optional<int32_t>{21}).to_be_true();
+		expect(moved({.address = address, .value = 20 << 25, .cc_value = 1, .cable_relative = true})
+		           == std::optional<int32_t>{21}).to_be_true();
+		expect(moved({.address = address, .value = 20 << 25, .region = StepRegion{0, 1}, .cc_value = 0})
+		           == std::optional<int32_t>{-64}).to_be_true();
 	});
 });
 
@@ -474,6 +533,25 @@ context("dispatch_song_cc and dispatch_output_cc", _{
 		expect(rig.writes()).to_equal(std::string{"S#9=1073741824 | I2@12#9=1073741824 | C13#9=1073741824"});
 	});
 
+	it("reads nothing of the song for a CC no knob hears, nor of a playing output or a kit's rows", _{
+		Rig rig;
+		rig.recording();
+		rig.cc(100);
+		expect(rig.events()).to_equal(std::string{});
+		expect(rig.facts.outputs_read).to_equal(0);
+		expect(rig.asked()).to_equal(std::string{"S0"});
+	});
+
+	it("passes over a knob outside its owner's engine params: no flag cleared, no region read, no take made", _{
+		Rig rig;
+		rig.recording();
+		rig.hits.add(kSynth, project::ParamTarget{project::ParamSpace::MIDI_CC, plugin::ParamId{kParam}}, kCc,
+		             /*relative=*/true);
+		rig.cc(100);
+		expect(rig.events()).to_equal(std::string{"rows 12"});
+		expect(rig.writes()).to_equal(std::string{});
+	});
+
 	it("reads no step region on the song and makes it no take", _{
 		Rig rig;
 		rig.hits.add(kSong, kParam);
@@ -551,6 +629,23 @@ context("dispatch_output_bend", _{
 		rig.hits.add(kRow5, kParam, kBend);
 		rig.hits.add(kSong, kParam, kBend);
 		expect(rig.bend(16383) == std::vector<uint32_t>{1, 2}).to_be_true();
+	});
+
+	it("reads nothing of the song for a bend no knob hears, and lets every instrument bend", _{
+		Rig rig;
+		rig.recording();
+		expect(rig.bend(16383).empty()).to_be_true();
+		expect(rig.events()).to_equal(std::string{});
+		expect(rig.facts.outputs_read).to_equal(0);
+	});
+
+	it("passes over a bend knob outside its owner's engine params, asking for no take, though its output hears it", _{
+		Rig rig;
+		rig.recording();
+		rig.hits.add(kSynth, project::ParamTarget{project::ParamSpace::EXPRESSION, plugin::ParamId{0}}, kBend);
+		expect(rig.bend(16383) == std::vector<uint32_t>{1}).to_be_true();
+		expect(rig.events()).to_equal(std::string{"rows 12"});
+		expect(rig.writes()).to_equal(std::string{});
 	});
 
 	it("reads the step region before the take, writes over it, and asks for a take only on a hit", _{
