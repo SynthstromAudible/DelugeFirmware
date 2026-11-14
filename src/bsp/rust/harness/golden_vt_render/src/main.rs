@@ -22,11 +22,11 @@
 //!
 //! # The card and the pacing come from the scenario's row, before any task is spawned
 //!
-//! Each row carries its card (`ScenarioCard`: empty, the corpus fixture, a directory or card manifest an environment variable
-//! names, a card manifest, or one of [`BUILDERS`]) and its pacing (`ScenarioPacing`). `main` applies both before the
-//! executor exists. The BSP's host SD opens its disk once, lazily, on first access, and embassy does not order the
-//! first polls of tasks spawned together, so a card installed from a task could lose to [`boot_task`]'s SD bring-up
-//! and open the wrong backing, silently.
+//! Each row carries its card (`ScenarioCard`: empty, the corpus fixture, a directory or card manifest an environment
+//! variable names, a card manifest, or one of [`BUILDERS`]) and its pacing (`ScenarioPacing`). `main` applies both
+//! before the executor exists. The BSP's host SD opens its disk once, lazily, on first access, and embassy does not
+//! order the first polls of tasks spawned together, so a card installed from a task could lose to [`boot_task`]'s SD
+//! bring-up and open the wrong backing, silently.
 //!
 //! `GOLDEN_CARD_ONLY=1` installs the scenario's card and exits before anything runs, so `GOLDEN_SD_DUMP=<path>`
 //! writes out exactly the card the scenario boots with.
