@@ -351,7 +351,7 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		expect(fakelegacy::led_writes.back().on).to_be_true();
 	});
 
-	it("writes a knob indicator only when something declares one -- which nothing does in phase 4", _ {
+	it("writes a knob indicator only when something declares one", _ {
 		Rig r;
 		r.base.led_declared = true;
 		r.base.led_id = static_cast<deluge::ui::LedId>(ButtonId::Back);
@@ -373,8 +373,9 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		// writing indicators at all.** Installing a service that declares one -- which is exactly
 		// what the application does with `ModKnobs`, through `Shell::set_services` -- makes the very next tick write it. That write is the moment legacy's
 		// `knobIndicatorLevels[]` shadow starts diverging from the hardware, and
-		// `GuestSurfaceSet::set_indicator` cannot update it, so the guest's close path will need
-		// `indicator_leds::clearKnobIndicatorLevels()` (`hid/led/indicator_leds.h:88`).
+		// `GuestSurfaceSet::set_indicator` cannot update it, so the guest's close path has to call
+		// `indicator_leds::clearKnobIndicatorLevels()`, which "hands the knob indicator rings back on the close path"
+		// in `shell_host_ui_lifecycle_spec.cpp` pins (`hid/led/indicator_leds.h:88`).
 		//
 		// This example cannot fail when the real installation changes -- it builds its own `Services`
 		// and the real installation happens in `deluge.cpp` -- so it is a demonstration of the
