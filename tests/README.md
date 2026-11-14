@@ -323,13 +323,19 @@ that fact anywhere a reader would look. The loader refuses a field it does not k
 (`tests/unit/effects/`, `tests/unit/ui/`), a library nested in another has its own (`tests/unit/scenes/bind/`), and the
 app's are by subsystem (`tests/unit/deluge/storage/`, `tests/unit/deluge/gui/`). Specs of code outside `src/` keep its
 path: `tests/unit/crates/<crate>/` for a crate's C ABI, `tests/unit/harness/` for `tests/harness/`,
-`tests/unit/integration/scenarios/support/` for the scenarios' shared support.
+`tests/unit/integration/scenarios/support/` for the scenarios' shared support. A spec whose stand-ins cannot share a
+driver with its neighbours' (an `IN_UNIT_TESTS` world, a deserializer stack) gets a driver of its own in a directory
+named for its subject file, `tests/unit/<path>/<subject stem>/` (`tests/unit/deluge/modulation/sync/` for
+`src/deluge/modulation/sync.cpp`).
 
 A directory's `CMakeLists.txt` declares its driver and its trees, the tree names on `TREES`'s own line:
 
-    deluge_specs_driver(<name> TREES host arm [NEON] [ONLY_ARM <spec>...] [SOURCES ...] [LIBRARIES ...] [INCLUDES ...])
+    deluge_specs_driver(<name> TREES host arm [NEON] [ONLY_HOST|ONLY_ARM|ONLY_UBSAN <spec>...] [SOURCES ...]
+                        [LIBRARIES ...] [INCLUDES ...] [DEFINITIONS ...])
 
-(`tests/support/cmake/specs.cmake` documents every argument). Every `*_spec.cpp` below the directory, down to the
+(`tests/support/cmake/specs.cmake` documents every argument). A new driver is named after its directory under
+`tests/unit`, with `/` and `-` as `_`, plus `_specs` (`deluge_storage_song_preview_specs`). Every driver builds at
+C++26 with `_GLIBCXX_ASSERTIONS`, so a spec directory sets neither. Every `*_spec.cpp` below the directory, down to the
 next directory with its own `CMakeLists.txt`, joins the driver as one ctest test named after its file, and its entry
 point is named after the file's stem: `CPPSPEC_SPEC(<stem without _spec>)`, or `DELUGE_SPEC(<stem>, ...)` from
 `tests/support/spec_main.h`. The three trees (`tests/trees/host`, `tests/trees/arm`, `tests/trees/ubsan`) find spec
@@ -342,12 +348,12 @@ trees; a directory with no spec driver (a standalone driver) declares them with
 call on that target after `deluge_specs_driver` goes inside `if(TARGET <name>)`.
 `tests/support/cmake/libs.cmake` adds each `src/` library once per tree; a spec directory only links them.
 
-Support code shared between test directories lives in `tests/support/mocks/` and `tests/support/fixtures/`; code one
-directory's specs share lives in that directory's own `support/`. A spec includes a header from another test
-directory by its path under `tests/` (`"support/spec_main.h"`, `"unit/gfx/support/golden.h"`,
-`"harness/ui_script.h"`), never by `../`. A spec's own directory comes first on its include path, so a file in a
-per-directory `support/` named like one in `tests/support/` would shadow it; `scripts/check_test_support_names.py`
-refuses such a name.
+Support code shared between test directories lives in `tests/support/mocks/` (stand-ins for product code: the display,
+file I/O, the model hooks) and `tests/support/fixtures/`; code one directory's specs share lives in that directory's own
+`support/`. A spec includes a header from another test directory by its path under `tests/` (`"support/spec_main.h"`,
+`"unit/gfx/support/golden.h"`, `"harness/ui_script.h"`), never by `../`. A spec's own directory comes first on its
+include path, so a file in a per-directory `support/` named like one in `tests/support/` would shadow it;
+`scripts/check_test_support_names.py` refuses such a name.
 
 ### A scenario gate
 

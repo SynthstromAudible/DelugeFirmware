@@ -87,9 +87,8 @@ target_link_libraries(deluge_synth PRIVATE
 
 # The dsp, synth and effects libraries and their closures check the standard library's preconditions, span bounds among
 # them: a read past the end of a span in their kernels fails the spec instead of going unseen at the trees' optimisation
-# levels. Each gets argon's backend
-# (deluge_test_neon): the effects' sidechain reaches argon through the kernel core, which a host without NEON reaches
-# through SIMDe.
+# levels. Each gets argon's backend (deluge_test_neon): the effects' sidechain reaches argon through the kernel core,
+# which a host without NEON reaches through SIMDe.
 foreach(library deluge_dsp_fixed deluge_dsp_float deluge_synth deluge_effects deluge_test_dsp_closure
                 deluge_test_synth_closure)
   deluge_test_neon(${library})
