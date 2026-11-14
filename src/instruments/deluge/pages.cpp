@@ -66,7 +66,7 @@ plugin::RemoteSlot decorate_slot(const plugin::PageContext& ctx, plugin::ParamId
 
 } // namespace
 
-std::array<KnobPair, 8> remap_for_mode(SynthMode from, SynthMode to, std::array<KnobPair, 8> knobs) {
+KnobPairs remap_for_mode(SynthMode from, SynthMode to, KnobPairs knobs) {
 	std::span<const KnobRemap> rows;
 	if (to == SynthMode::FM && from != SynthMode::FM) {
 		rows = kIntoFm;
@@ -92,8 +92,8 @@ namespace {
 constexpr size_t kWavetableButton = 7;
 
 /// The depth of the first local LFO's cable to oscillator 1's wave index.
-constexpr plugin::ParamId kLfoOnWaveA =
-    cable_depth_id(PatchSource::LFO_LOCAL_1, param::kOscAWavetablePosition).value_or(param::kOscAWavetablePosition);
+static_assert(cable_depth_id(PatchSource::LFO_LOCAL_1, param::kOscAWavetablePosition).has_value());
+constexpr plugin::ParamId kLfoOnWaveA = *cable_depth_id(PatchSource::LFO_LOCAL_1, param::kOscAWavetablePosition);
 
 [[nodiscard]] plugin::ParamId wave_index_of(uint8_t osc) {
 	return osc == 0 ? param::kOscAWavetablePosition : param::kOscBWavetablePosition;
@@ -101,12 +101,12 @@ constexpr plugin::ParamId kLfoOnWaveA =
 
 /// Whether @p knob is @p param, or the depth of a cable (of any depth level) whose param is @p param.
 [[nodiscard]] bool targets_param(plugin::ParamId knob, plugin::ParamId param) {
-	return is_cable_depth(knob) ? (knob.value & 0xFFu) == param.value : knob == param;
+	return is_cable_depth(knob) ? detail::root_param_field(knob.value) == param.value : knob == param;
 }
 
 } // namespace
 
-std::array<KnobPair, 8> wavetable_claimed(std::array<KnobPair, 8> knobs, uint8_t osc) {
+KnobPairs wavetable_claimed(KnobPairs knobs, uint8_t osc) {
 	KnobPair& pair = knobs[kWavetableButton];
 	if (osc == 0) {
 		pair.upper = param::kOscAWavetablePosition;
@@ -120,7 +120,7 @@ std::array<KnobPair, 8> wavetable_claimed(std::array<KnobPair, 8> knobs, uint8_t
 	return knobs;
 }
 
-std::array<KnobPair, 8> wavetable_released(std::array<KnobPair, 8> knobs, uint8_t osc) {
+KnobPairs wavetable_released(KnobPairs knobs, uint8_t osc) {
 	KnobPair& pair = knobs[kWavetableButton];
 	const plugin::ParamId wave = wave_index_of(osc);
 	if (targets_param(pair.lower, wave)) {

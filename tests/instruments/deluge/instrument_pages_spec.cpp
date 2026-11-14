@@ -155,6 +155,23 @@ describe instrument_pages("the Deluge instrument's pages", ${
 		                                                                           .upper = ip::kSampleRateReduction})
 		    .to_be_true();
 	});
+	it("releases an upper knob on a cable's depth to its oscillator's wave index, and not the lower knob beside it", _{
+		const auto depth = *instrument::cable_depth_id(instrument::PatchSource::LFO_LOCAL_1, ip::kOscAWavetablePosition);
+		const Knobs held = with_pair(device_knobs(), 7, ip::kOscBWavetablePosition, depth);
+		expect(instrument::wavetable_released(held, 0)[7]
+		       == instrument::KnobPair{.lower = ip::kOscBWavetablePosition, .upper = ip::kSampleRateReduction})
+		    .to_be_true();
+		expect(instrument::wavetable_released(held, 1)[7]
+		       == instrument::KnobPair{.lower = ip::kBitcrushAmount, .upper = depth})
+		    .to_be_true();
+	});
+	it("gives oscillator 2's claim its wave index over a lower knob already on oscillator 1's LFO depth", _{
+		const auto depth = *instrument::cable_depth_id(instrument::PatchSource::LFO_LOCAL_1, ip::kOscAWavetablePosition);
+		const Knobs held = with_pair(device_knobs(), 7, depth, ip::kOscAWavetablePosition);
+		expect(instrument::wavetable_claimed(held, 1)[7]
+		       == instrument::KnobPair{.lower = ip::kOscBWavetablePosition, .upper = ip::kOscAWavetablePosition})
+		    .to_be_true();
+	});
 	it("cycles low-pass, high-pass, EQ on the first mod button", _{
 		expect(*instrument::kFilterCycle[1].slots[1].param == ip::kHpfFrequency).to_be_true();
 		expect(*instrument::kFilterCycle[2].slots[0].param == ip::kBass).to_be_true();

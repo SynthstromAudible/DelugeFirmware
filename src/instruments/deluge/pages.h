@@ -155,6 +155,10 @@ struct KnobPair {
 	[[nodiscard]] constexpr bool operator==(const KnobPair&) const = default;
 };
 
+/// @brief Every mod button's knob pair, button by button (one per page of kDevicePages).
+using KnobPairs = std::array<KnobPair, 8>;
+static_assert(KnobPairs{}.size() == kDevicePages.size());
+
 /// @brief One knob pair a synth mode change rewrites: a pair whose lower knob is in @c lower_from and whose upper
 ///        knob is in @c upper_from becomes (@c lower_to, @c upper_to). Cable depths never match.
 struct KnobRemap {
@@ -208,7 +212,7 @@ inline constexpr std::array kOutOfFm{
 /// @param to    The synth mode after it.
 /// @param knobs The sound's knobs, one pair per mod button.
 /// @return The knobs the sound takes.
-[[nodiscard]] std::array<KnobPair, 8> remap_for_mode(SynthMode from, SynthMode to, std::array<KnobPair, 8> knobs);
+[[nodiscard]] KnobPairs remap_for_mode(SynthMode from, SynthMode to, KnobPairs knobs);
 
 /// @brief Mode 7's knobs after oscillator @p osc (0 or 1) claims a wavetable. Oscillator 1 takes its wave index on the
 ///        upper knob and the first local LFO's depth on it on the lower knob, which keeps the second oscillator's wave
@@ -216,7 +220,7 @@ inline constexpr std::array kOutOfFm{
 /// @param knobs The sound's knobs, one pair per mod button.
 /// @param osc   The oscillator that claimed the wavetable, 0 or 1.
 /// @return The knobs the sound takes.
-[[nodiscard]] std::array<KnobPair, 8> wavetable_claimed(std::array<KnobPair, 8> knobs, uint8_t osc);
+[[nodiscard]] KnobPairs wavetable_claimed(KnobPairs knobs, uint8_t osc);
 
 /// @brief Mode 7's knobs after oscillator @p osc (0 or 1) loads a sample in place of its wavetable: a knob on that
 ///        oscillator's wave index (or the depth of a cable to it) goes back to the bitcrusher (lower) or the sample
@@ -224,7 +228,7 @@ inline constexpr std::array kOutOfFm{
 /// @param knobs The sound's knobs, one pair per mod button.
 /// @param osc   The oscillator that now holds a sample, 0 or 1.
 /// @return The knobs the sound takes.
-[[nodiscard]] std::array<KnobPair, 8> wavetable_released(std::array<KnobPair, 8> knobs, uint8_t osc);
+[[nodiscard]] KnobPairs wavetable_released(KnobPairs knobs, uint8_t osc);
 
 /// @brief The instrument's remote-controls record. Its device pages come from get and count (kDevicePages), never from
 /// find. Its find serves the sound's filter cycle on any section: page ids 0 to 2 (group 0) are kFilterCycle, and ids 3
