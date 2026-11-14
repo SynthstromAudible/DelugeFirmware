@@ -481,8 +481,8 @@ over it — `request()`, `poll()` on later ticks, `take_result()`.
 * The claim binds the two dispatch paths only: `emptyFileItems` and friends do not check it, and the
   leaf calls (`predictExtendedText`, `getUnusedSlot`, the save UIs' name search) do not claim.
 
-`Owner::run` is inline on the host, so no spec here exercises real concurrency across the seam, and
-no test drives the owner under a real worker.
+The shipped dispatcher, `scenes::run_inline`, runs the op on the interaction tier's own stack;
+`sim/scenes_spec/listing_spec.cpp` installs a deferring dispatcher to observe the in-flight state.
 
 ### The sample marker editor (`marker/`)
 

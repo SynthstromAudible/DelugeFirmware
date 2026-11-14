@@ -1,21 +1,21 @@
 #pragma once
 
 /// @file
-/// @brief `Listing` -- the async seam between a tick-driven scene and the storage owner's file
-///        listing.
+/// @brief `Listing` -- the async seam between a tick-driven scene and a file listing run through
+///        a dispatcher.
 ///
-/// **The problem.** Legacy dispatches a listing onto the storage-owner fiber and completes *on*
-/// that fiber: `Browser::beginListing` stores a
-/// request, sets `listingInProgress_`, shows a loading animation and calls
-/// `deluge::storage::Owner::run` (`storage/owner.h`); `Browser::runPendingListing`
-/// then switches on a `ListingAction` -- Open, IntoFolder,
+/// **The problem.** Legacy runs a listing as an op that calls the UI back from inside itself:
+/// `Browser::beginListing` stores a request, sets `listingInProgress_` and shows a loading
+/// animation; `Browser::runPendingListing` then switches on a `ListingAction` -- Open, IntoFolder,
 /// UpLevel, ByPath, Reload -- and calls the UI back from inside the op. The new shell is
 /// immediate-mode and tick-driven, so a scene cannot sit inside that call: it has to render
 /// something while the listing is in flight and repaint when it lands.
 ///
 /// **The shape.** Request / poll / collect. A scene calls `request()` once, renders whatever it
 /// wants while `in_flight()` is true, and calls `take_result()` on a later tick. The listing runs
-/// where legacy runs it -- on the owner -- and writes into `deluge::storage::FileCatalogue`
+/// where the seam's dispatcher puts it -- the shipped one, `deluge::scenes::run_inline`, runs it on
+/// the interaction tier's own stack, where legacy runs it too -- and writes into
+/// `deluge::storage::FileCatalogue`
 /// (`storage/file_catalogue.h`), which is where the scene reads
 /// its entries from afterwards.
 ///
@@ -109,20 +109,16 @@
 ///
 /// @par Honesty about what a host spec can prove
 ///
-/// **On the host, `storage::Owner::run` is inline.** `Owner::on_owner()` is always false there and
-/// `run()` executes the op on the caller's stack before returning (`storage/owner.h:55-59`), so
-/// with the default dispatcher `request()` returns with the state already `Ready` and no poll ever
-/// observes `InFlight`. `sim/scenes_spec/listing_spec.cpp` therefore installs its own deferring
-/// dispatcher (see `Dispatch` below) to exercise the state machine's ordering: dispatch returns,
-/// the caller polls, the op runs later. That models the *ordering* an Embassy fiber gives, and
-/// nothing else. **No spec exercises real fiber concurrency across this seam: not preemption, not
-/// memory visibility between two contexts, not an owner queue under contention. A green suite is
-/// not evidence that this is race-free on Embassy.** The `std::atomic` state below is written for
-/// that case regardless; it has never been observed doing its job.
-///
-/// No test drives the owner under a real worker either: coverage *of this seam under a real
-/// worker* has to be built against the BSP's worker, run under ThreadSanitizer, not in a CppSpec
-/// that links the inline host `Owner`.
+/// **The shipped dispatcher is inline.** `deluge::scenes::run_inline` (`scenes/run_inline.h`)
+/// runs the op on the caller's stack before returning, so with the default dispatcher `request()`
+/// returns with the state already `Ready` and no poll ever observes `InFlight`.
+/// `sim/scenes_spec/listing_spec.cpp` therefore installs its own deferring dispatcher (see
+/// `Dispatch` below) to exercise the state machine's ordering: dispatch returns, the caller polls,
+/// the op runs later. That models the *ordering* a deferred dispatch gives, and nothing else. **No
+/// spec exercises concurrency across this seam: not preemption, not memory visibility between two
+/// contexts, not a dispatch queue under contention. A green suite is not evidence that the seam is
+/// race-free under a dispatcher that runs the op in another context.** The `std::atomic` state
+/// below is written for that case regardless; nothing has put it under load.
 
 #include "definitions_cxx.hpp"
 #include "scenes/run_inline.h"
@@ -162,11 +158,11 @@ enum class ListingAction : uint8_t {
 /// legacy's separate `pendingReloadCatalogSearchDirection_` field is for (`browser.h:178`).
 inline constexpr int32_t kDeriveSearchDirection = -1;
 
-/// @brief One listing to run, copied whole because the op reads it later, on the owner.
+/// @brief One listing to run, copied whole because a deferred op reads it after `request()` returns.
 ///
 /// The `std::string`s are owning copies for the same reason legacy's `Browser::ListingRequest`
-/// makes them owning copies (`browser.h:162-168`): on Embassy the caller's buffers are long gone by
-/// the time the fiber runs the op.
+/// makes them owning copies (`browser.h:162-168`): the caller's buffers may be gone by the time a
+/// deferred op runs.
 struct ListingRequest {
 	ListingAction action = ListingAction::Open;
 
@@ -245,7 +241,7 @@ struct ListingResult {
 
 /// @brief What `Listing::request()` did with a request.
 enum class RequestOutcome : uint8_t {
-	/// Dispatched onto the owner. Exactly one `ListingResult` will follow.
+	/// Dispatched. Exactly one `ListingResult` will follow.
 	Accepted,
 	/// Refused: a listing is already in flight -- **this seam's or another `Listing`'s**, since the
 	/// guard is on the shared `FileCatalogue` rather than on the object. The running one is
@@ -253,9 +249,9 @@ enum class RequestOutcome : uint8_t {
 	Busy,
 	/// Refused: a completed result has not been collected. Call `take_result()` first.
 	ResultPending,
-	/// The owner dropped the dispatch (its queue was full, `storage/owner.h:43`). Nothing will
-	/// run and nothing was left in flight -- the seam is `Idle` again, so an immediate retry is
-	/// legitimate. Legacy handles the same return the same way (`browser.cpp:113-117`).
+	/// The dispatcher dropped the dispatch (it returned false, which `run_inline` never does).
+	/// Nothing will run and nothing was left in flight -- the seam is `Idle` again, so an immediate
+	/// retry is legitimate.
 	Dropped,
 };
 
@@ -289,10 +285,10 @@ enum class RequestOutcome : uint8_t {
 ///
 /// @par Lifetime -- READ THIS BEFORE PUTTING ONE ANYWHERE BUT A SCENE MEMBER
 ///
-/// **A `Listing` must outlive every dispatch it makes.** On Embassy the queued op holds `this`; it
-/// writes `result_`, raises notices and stores `Ready` when it eventually runs. A `Listing`
-/// destroyed while `in_flight()` therefore hands the storage fiber a dangling pointer, and there is
-/// **no cancel**: an op already handed to the owner cannot be withdrawn.
+/// **A `Listing` must outlive every dispatch it makes.** A deferred op holds `this`; it writes
+/// `result_`, raises notices and stores `Ready` when it eventually runs. A `Listing` destroyed
+/// while `in_flight()` therefore leaves the dispatcher a dangling pointer, and there is **no
+/// cancel**: an op already handed to the dispatcher cannot be withdrawn.
 ///
 /// The rule that makes this satisfiable rather than merely stated: **own a `Listing` as a member of
 /// a scene, and nothing else.** Scenes are long-lived singletons owned by the application and are
@@ -304,25 +300,26 @@ enum class RequestOutcome : uint8_t {
 /// `~Listing` asserts that the state is not `InFlight`, so a Debug build says which object it was
 /// rather than corrupting a heap. In a release build the destructor deliberately does **not**
 /// release the catalogue claim in that case: a jammed browser is a better outcome than a second
-/// listing racing a fiber that still holds a freed `this`.
+/// listing racing an op that still holds a freed `this`.
 ///
-/// (The alternative -- a heap-owned op context, so the fiber cannot outlive its target -- was
+/// (The alternative -- a heap-owned op context, so the op cannot outlive its target -- was
 /// rejected. It buys safety for an ownership pattern this layer forbids anyway, at the cost of an
 /// allocation per listing in a layer whose whole discipline is that it does not allocate, plus a
 /// new failure mode when that allocation fails mid-navigation. The rule plus the assert is the
 /// cheaper answer to the same question.)
 class Listing {
 public:
-	/// @brief Where a listing is dispatched: `storage::Owner::run`'s exact shape.
+	/// @brief Where a listing is dispatched: the shape of `deluge::scenes::run_inline`, the shipped
+	///        dispatcher.
 	///
 	/// A function pointer rather than a hardwired call so a spec can install a dispatcher that
-	/// *defers* the op -- the only way, on a host where `Owner::run` is inline, to observe the
-	/// in-flight state at all. See the honesty note in the file docstring for what that does and
-	/// does not model.
+	/// *defers* the op -- the only way, with the shipped dispatcher running the op inline, to
+	/// observe the in-flight state at all. See the honesty note in the file docstring for what that
+	/// does and does not model.
 	///
-	/// @warning **The contract is exactly-once-on-true, never-on-false** -- what `Owner::run`
-	///          promises (`storage/owner.h:43`: it ran, or it was queued and will run; false means
-	///          the dispatch was dropped and the op will NOT run). A dispatcher that returns true
+	/// @warning **The contract is exactly-once-on-true, never-on-false** -- what a dispatcher
+	///          promises (`scenes/run_inline.h`): true means the op ran or will run exactly once;
+	///          false means the dispatch was dropped and the op will NOT run. A dispatcher that returns true
 	///          and then never runs the op strands the seam in `InFlight` **forever**: there is no
 	///          cancel, no timeout and no escape, and a scene holding `LockInput` for the duration
 	///          would take the input lock down with it.
@@ -335,7 +332,7 @@ public:
 	/// @brief Asserts the seam is not `InFlight` (see the lifetime rule above) and, if it is not,
 	///        gives the catalogue claim back so a later listing is not refused forever.
 	~Listing();
-	/// @brief Construct with a dispatcher other than `storage::Owner::run`.
+	/// @brief Construct with a dispatcher other than `deluge::scenes::run_inline`.
 	/// @param dispatch The dispatcher; must run the op exactly once when it returns true and never
 	///                 when it returns false -- see the `Dispatch` warning above.
 	explicit Listing(Dispatch dispatch) : dispatch_(dispatch) {}
@@ -368,7 +365,7 @@ public:
 	///
 	/// The constructor overload above is enough for a `Listing` a spec creates itself; a `Listing`
 	/// that is a **member of an application scene singleton** is constructed before any spec can
-	/// reach it, and on the host `Owner::run` is inline (see the honesty note above), so without
+	/// reach it, and the shipped dispatcher is inline (see the honesty note above), so without
 	/// this there is no way to observe that scene's in-flight behaviour at all.
 	///
 	/// @warning Asserts the seam is `Idle`: swapping the dispatcher under a listing that is in
@@ -378,10 +375,10 @@ public:
 	void set_dispatch(Dispatch dispatch);
 
 private:
-	/// @brief The `Owner::run` C-ABI entry point; `self` is the `Listing`.
+	/// @brief The op handed to the dispatcher; `self` is the `Listing`.
 	static void trampoline(void* self);
-	/// @brief Runs on the owner: perform the request, fill `result_`, raise the completion
-	///        notices, and publish `Ready`.
+	/// @brief Runs where the dispatcher runs the op: perform the request, fill `result_`, raise the
+	///        completion notices, and publish `Ready`.
 	void perform();
 	/// @brief The action switch -- legacy's `runPendingListing` without the UI
 	///        callbacks.
@@ -397,9 +394,9 @@ private:
 	Dispatch dispatch_ = &deluge::scenes::run_inline;
 	ListingRequest request_{};
 	ListingResult result_{};
-	/// The seam's whole synchronisation. Written with release on the owner, read with acquire by
-	/// the poller, so a caller that sees `Ready` sees `result_` and the catalogue the op left
-	/// behind. Never observed doing that on the host -- see the file docstring.
+	/// The seam's whole synchronisation. Written with release by the op, read with acquire by the
+	/// poller, so a caller that sees `Ready` sees `result_` and the catalogue the op left behind.
+	/// Nothing exercises that across two contexts -- see the file docstring.
 	std::atomic<State> state_{State::Idle};
 };
 
