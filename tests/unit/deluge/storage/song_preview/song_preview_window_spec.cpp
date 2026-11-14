@@ -1,4 +1,3 @@
-#include "CppUTest/TestHarness.h"
 #include "storage/song_preview.h"
 
 #include <cstdio>
@@ -8,7 +7,11 @@
 #include <string_view>
 #include <vector>
 
+#include "cppspec.hpp"
+#include "support/spec_main.h"
+
 namespace {
+constexpr const char* kJsonFixture = DELUGE_REPO_ROOT "/tests/support/data/songs/JsonPreview.Json";
 
 /// Where the `preview` attribute's payload ENDS: the offset one past its closing quote, or -1 if the
 /// file has no preview attribute.
@@ -71,38 +74,41 @@ long previewPayloadEnd(const std::filesystem::path& path) {
 
 } // namespace
 
-TEST_GROUP(SongPreviewWindow){};
+// clang-format off
+describe song_preview_window_group("song preview window", ${
+	/// Every song that HAS a preview must carry the WHOLE of it inside the window, or the async path
+	/// would render blank where the synchronous one rendered artwork. Songs with no preview are skipped,
+	/// not failed: they render blank today, unchanged here.
+	it("every corpus song carries its preview inside the window", _ {
+		const char* corpus = std::getenv("DELUGE_SONG_CORPUS");
+		if (corpus == nullptr) {
+			return; // corpus not mounted in this environment
+		}
+		int32_t checked = 0;
+		for (const auto& entry : std::filesystem::recursive_directory_iterator(corpus)) {
+			if (!entry.is_regular_file()) {
+				continue;
+			}
+			const auto ext = entry.path().extension().string();
+			if (ext != ".XML" && ext != ".xml" && ext != ".json" && ext != ".JSON") {
+				continue;
+			}
+			const long end = previewPayloadEnd(entry.path());
+			if (end < 0) {
+				continue; // no preview in this song
+			}
+			checked++;
+			expect(static_cast<uint32_t>(end)).not_().to_be_greater_than(deluge::storage::kSongPreviewWindow, std::string{entry.path().c_str()});
+		}
+		expect(checked).to_be_greater_than(0, std::string{"corpus mounted but no song with a preview was examined"});
+	});
 
-/// Every song that HAS a preview must carry the WHOLE of it inside the window, or the async path
-/// would render blank where the synchronous one rendered artwork. Songs with no preview are skipped,
-/// not failed: they render blank today, unchanged here.
-TEST(SongPreviewWindow, everyCorpusSongCarriesItsPreviewInsideTheWindow) {
-	const char* corpus = std::getenv("DELUGE_SONG_CORPUS");
-	if (corpus == nullptr) {
-		return; // corpus not mounted in this environment
-	}
-	int32_t checked = 0;
-	for (const auto& entry : std::filesystem::recursive_directory_iterator(corpus)) {
-		if (!entry.is_regular_file()) {
-			continue;
-		}
-		const auto ext = entry.path().extension().string();
-		if (ext != ".XML" && ext != ".xml" && ext != ".json" && ext != ".JSON") {
-			continue;
-		}
-		const long end = previewPayloadEnd(entry.path());
-		if (end < 0) {
-			continue; // no preview in this song
-		}
-		checked++;
-		CHECK_TEXT(static_cast<uint32_t>(end) <= deluge::storage::kSongPreviewWindow, entry.path().c_str());
-	}
-	CHECK_TEXT(checked > 0, "corpus mounted but no song with a preview was examined");
-}
+	/// The committed JSON fixture pins the format where no corpus is mounted.
+	it("the json fixture carries its preview inside the window", _ {
+		const long end = previewPayloadEnd(kJsonFixture);
+		expect(end).not_().to_be_less_than(0, std::string{"fixture must contain a preview"});
+		expect(static_cast<uint32_t>(end)).not_().to_be_greater_than(deluge::storage::kSongPreviewWindow);
+	});
+});
 
-/// The committed JSON fixture pins the format where no corpus is mounted.
-TEST(SongPreviewWindow, theJsonFixtureCarriesItsPreviewInsideTheWindow) {
-	const long end = previewPayloadEnd("tests/support/data/songs/JsonPreview.Json");
-	CHECK_TEXT(end >= 0, "fixture must contain a preview");
-	CHECK(static_cast<uint32_t>(end) <= deluge::storage::kSongPreviewWindow);
-}
+DELUGE_SPEC(song_preview_window_spec, song_preview_window_group)

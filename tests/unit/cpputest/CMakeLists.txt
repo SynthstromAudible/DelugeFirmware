@@ -28,10 +28,8 @@ FetchContent_MakeAvailable(CppUTest)
 file(GLOB_RECURSE deluge_SOURCES
         # Shared string helper used across several unit tests
         ../../../src/deluge/util/c_string.cpp
-        # For the song-preview decode differential: the REAL deserializer stack, not a stand-in.
-        # storage/file_reader.cpp exists so this is possible at all -- storage_manager.cpp, where the
-        # reader used to live, reaches the whole instrument model to build what it loads.
-        ../../../src/deluge/storage/song_preview.cpp
+        # The deserializer stack whose global readers mock_storage.cpp constructs (mock_storage.cpp also
+        # supplies the freezeWithError and deluge::memory::dealloc the slicer sources reach).
         ../../../src/deluge/storage/file_reader.cpp
         # deluge::runtime::nowUs(), the clock behind the stall bounds file_reader.cpp and slice_core.cpp construct.
         ../../../src/deluge/runtime/app_loop.cpp
@@ -47,13 +45,10 @@ file(GLOB_RECURSE deluge_SOURCES
         # shipped audition()/tick_audition() instead of a restatement of them. Its world is
         # tests/support/mocks/mock_slicer_env.cpp.
         ../../../src/deluge/gui/ui/slice_core.cpp
-        # For the DX cartridge window spec: the REAL sysex parser, so the spec measures what
-        # DX7Cartridge::load actually does with a truncated bank rather than restating arithmetic.
-        ../../../src/deluge/storage/DX7Cartridge.cpp
 )
 
 # util/firmware_version.h is generated from a template at firmware-build time, and the deserializers
-# the song-preview tests link include it. Configure the REAL template here rather than adding another
+# linked above include it. Configure the REAL template here rather than adding another
 # hand-written stub: a stub would drift, and the firmware version this reports is what the parser
 # compares a song's earliestCompatibleFirmware against.
 set(PROJECT_VERSION_MAJOR 0)
@@ -64,19 +59,9 @@ configure_file(../../../src/deluge/util/firmware_version.h.in
 
 add_executable(UnitTests
         RunAllTests.cpp
-        song_preview_window_tests.cpp
-        song_preview_decode_tests.cpp
-        song_preview_deferral_tests.cpp
         slicer_preview_tests.cpp
-        dx_cartridge_window_tests.cpp
 )
-# WORKING_DIRECTORY: song_preview_window_tests.cpp reads a checked-in fixture by a path relative to
-# the repo root (tests/support/data/songs/...) and DELUGE_SONG_CORPUS points at a real directory on disk, so
-# the binary needs to run from the same place a developer invoking it by hand would, not ctest's
-# default (the build tree).
-add_test(NAME UnitTests
-        COMMAND UnitTests
-        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../../..)
+add_test(NAME UnitTests COMMAND UnitTests)
 target_sources(UnitTests PRIVATE ${deluge_SOURCES})
 target_include_directories(UnitTests PRIVATE
         # include the non test project source

@@ -1140,7 +1140,7 @@ void runCorpusTick() {
 	if (SongPreviewAbProbe::outcome() == SongPreviewOutcome::Truncated) {
 		// A real song whose preview falls outside the read window is not a fixture decision, it is the
 		// window being too small -- which is what `kSongPreviewWindow` was measured to avoid and what
-		// `song_preview_window_tests.cpp` asserts over the same corpus.
+		// `song_preview_window_spec.cpp` asserts over the same corpus.
 		g_report.fail("[%s]: a REAL song's preview fell past the read window (%u bytes), so the "
 		              "prefix backing draws it blank while the file backing draws its artwork",
 		              filename.c_str(), static_cast<unsigned>(deluge::storage::kSongPreviewWindow));

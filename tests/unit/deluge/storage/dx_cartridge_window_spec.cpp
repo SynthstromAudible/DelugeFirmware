@@ -24,14 +24,15 @@
 /// This drives the REAL parser, not a restatement of it, because the interesting question is what
 /// `DX7Cartridge::load` does with the truncation rather than what arithmetic says about 4104 > 4096.
 
-#include "CppUTest/TestHarness.h"
-
 #include "storage/DX7Cartridge.h"
 
 #include <array>
 #include <cstddef>
 #include <span>
 #include <vector>
+
+#include "cppspec.hpp"
+#include "support/spec_main.h"
 
 namespace {
 
@@ -51,32 +52,34 @@ std::vector<std::byte> makeBank() {
 
 } // namespace
 
-TEST_GROUP(DxCartridgeWindow){};
+// clang-format off
+describe dx_cartridge_window_group("dx cartridge window", ${
+	/// The whole bank parses, and reports the 32 patches that make it a cartridge rather than a single
+	/// voice. This is the reference the truncation below is measured against — without it, a truncation
+	/// that failed for some unrelated reason would look like proof.
+	it("a whole bank parses as thirty two patches", _ {
+		const auto bank = makeBank();
+		expect(bank.size()).to_equal(4104u);
+		DX7Cartridge cartridge;
+		auto mutableBank = bank; // load() takes a mutable span; it unpacks in place
+		expect(std::to_underlying(cartridge.load(std::span{mutableBank}))).to_equal(std::to_underlying(deluge::l10n::String::EMPTY_STRING));
+		expect(cartridge.numPatches()).to_equal(32);
+	});
 
-/// The whole bank parses, and reports the 32 patches that make it a cartridge rather than a single
-/// voice. This is the reference the truncation below is measured against — without it, a truncation
-/// that failed for some unrelated reason would look like proof.
-TEST(DxCartridgeWindow, aWholeBankParsesAsThirtyTwoPatches) {
-	const auto bank = makeBank();
-	CHECK_EQUAL(4104u, bank.size());
-	DX7Cartridge cartridge;
-	auto mutableBank = bank; // load() takes a mutable span; it unpacks in place
-	CHECK(cartridge.load(std::span{mutableBank}) == deluge::l10n::String::EMPTY_STRING);
-	CHECK_EQUAL(32, cartridge.numPatches());
-}
+	/// The same bank through a 4096-byte window does NOT parse, which is why the slot is 8192 bytes.
+	///
+	/// It is not a near miss or a degraded load: the eight bytes a 4096 slot drops include the F7
+	/// terminator, so the parser never finds the end of the message and refuses the file outright. A
+	/// cartridge read through a 4096-byte slot would put an error on screen for a file that is perfectly
+	/// good.
+	it("the same bank through a four k window does not parse", _ {
+		auto bank = makeBank();
+		std::span truncated{bank.data(), 4096};
+		DX7Cartridge cartridge;
+		const auto error = cartridge.load(truncated);
+		expect(std::to_underlying(error)).not_().to_equal(std::to_underlying(deluge::l10n::String::EMPTY_STRING), std::string{"a 4096-byte window must not silently accept a 4104-byte bank"});
+		expect(std::to_underlying(error)).to_equal(std::to_underlying(deluge::l10n::String::STRING_FOR_DX_ERROR_NO_SYSEX_END));
+	});
+});
 
-/// The same bank through a 4096-byte window does NOT parse, and this is what the slot growth bought.
-///
-/// It is not a near miss or a degraded load: the eight bytes a 4096 slot drops include the F7
-/// terminator, so the parser never finds the end of the message and refuses the file outright. A
-/// cartridge read through the old slot would have put an error on screen for a file that is
-/// perfectly good.
-TEST(DxCartridgeWindow, theSameBankThroughTheOldFourKWindowDoesNotParse) {
-	auto bank = makeBank();
-	std::span truncated{bank.data(), 4096};
-	DX7Cartridge cartridge;
-	const auto error = cartridge.load(truncated);
-	CHECK_TEXT(error != deluge::l10n::String::EMPTY_STRING,
-	           "a 4096-byte window must not silently accept a 4104-byte bank");
-	CHECK(error == deluge::l10n::String::STRING_FOR_DX_ERROR_NO_SYSEX_END);
-}
+DELUGE_SPEC(dx_cartridge_window_spec, dx_cartridge_window_group)
