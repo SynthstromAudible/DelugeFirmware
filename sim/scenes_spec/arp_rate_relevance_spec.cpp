@@ -36,7 +36,7 @@
 #include <cstring>
 #include <string>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace menu = deluge::scenes::menu;
 namespace spec = deluge::scenes::spec;

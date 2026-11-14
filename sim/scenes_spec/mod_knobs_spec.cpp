@@ -81,8 +81,8 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
 
-#include "spec/shell/support/fake_surfaces.h"
 #include "support/song_fixture.h"
+#include "unit/shell/support/fake_surfaces.h"
 
 #include "cppspec.hpp"
 
@@ -94,7 +94,7 @@
 #include <string>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::modulation::params::Kind;
@@ -1385,7 +1385,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 	it("accelerates a repeated turn through InputLowering::calc_next_knob_speed", _ {
 		// `calc_next_knob_speed` itself is pinned by
-		// `tests/spec/shell/input_lowering_spec.cpp` against the legacy arithmetic; what is checked
+		// `tests/unit/shell/input_lowering_spec.cpp` against the legacy arithmetic; what is checked
 		// here is that `ModKnobs` is the consumer legacy's `interpretEncoders` (`hid/encoder_input.cpp`) is -- i.e.
 		// that a fast repeat moves the model further than a slow one does.
 		StubDisplay stub;
@@ -1706,7 +1706,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// then `UI::modEncoderAction` in `gui/ui/ui.cpp`), `modButtonAction` (`Buttons::buttonAction`,
 		// then `UI::modButtonAction`) and `modEncoderButtonAction` (`Buttons::buttonAction`, then
 		// `UI::modEncoderButtonAction`). The scene gets each first and the service only after it
-		// declines; `tests/spec/shell/router_spec.cpp` holds the ordering proof
+		// declines; `tests/unit/shell/router_spec.cpp` holds the ordering proof
 		// with a shared call log; this example pins WHICH events reach the service at all.
 		//
 		// The pushes are built as `UiEvent::Kind::EncoderButton`, which is what `InputLowering`
@@ -2315,7 +2315,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// `view.cpp` and its two helpers. The push arrives as an `EncoderButton` event,
 		// which is what `InputLowering` actually emits for `ButtonId::ModEnc0`
 		// (`InputLowering::on_button`) -- and which the router routes here, after
-		// the scene (`tests/spec/shell/router_spec.cpp`).
+		// the scene (`tests/unit/shell/router_spec.cpp`).
 		StubDisplay stub;
 		display = &stub;
 		spec::SongFixture f = spec::make_synth_song();

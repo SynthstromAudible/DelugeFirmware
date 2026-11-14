@@ -63,8 +63,8 @@
 #include "support/song_fixture.h"
 #include "support/tables_2_fixtures.h"
 
-#include "spec/gfx/support/golden.h"
-#include "spec/shell/support/fake_surfaces.h"
+#include "unit/gfx/support/golden.h"
+#include "unit/shell/support/fake_surfaces.h"
 
 #include "cppspec.hpp"
 
@@ -78,7 +78,7 @@
 #include <type_traits>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::l10n::String;
@@ -1161,7 +1161,7 @@ describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 	it("renders the three-stage routing diagram, reached the way a user reaches it, on both panels", _ {
 		// `vibrato` -> `source_selection_range` -> `patch_cable_strength_range`: the page whose
 		// diagram has three stages, because the cable it edits modulates another cable's depth.
-		// Its own widget is pinned byte-for-byte against legacy in `tests/spec/ui/routing_spec.cpp`;
+		// Its own widget is pinned byte-for-byte against legacy in `tests/unit/ui/routing_spec.cpp`;
 		// this records what the whole page composes to.
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);

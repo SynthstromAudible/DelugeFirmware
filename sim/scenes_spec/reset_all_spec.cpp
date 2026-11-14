@@ -22,7 +22,7 @@
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace PadLEDs {
 /// The pad dimmer's live level (`hid/led/pad_leds.cpp`), which `pad_leds.h` does not declare.

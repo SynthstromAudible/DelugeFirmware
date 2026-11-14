@@ -59,7 +59,7 @@
 ///
 /// The whole of `renderOLED`: the routing diagram and the BI/UNI box are `ui::oled::routing_chain` and
 /// `ui::oled::segmented_switch`, the number is `ui::oled::cable_strength_value` (`ui/oled/routing.h`), transcribed
-/// coordinate for coordinate and pinned byte-for-byte against legacy in `tests/unit/spec/ui/routing_spec.cpp`. The
+/// coordinate for coordinate and pinned byte-for-byte against legacy in `tests/unit/ui/routing_spec.cpp`. The
 /// scenes layer may not call an `OledFrame` primitive (`scripts/check_layer_rules.py`'s
 /// `scenes-no-frame-primitives`), so the drawing lives in the toolkit and this page composes it. The number's digits
 /// are the exact value, where legacy's build truncates (DIFFERENCES.md D71, accepted).

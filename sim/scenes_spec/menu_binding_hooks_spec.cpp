@@ -37,8 +37,8 @@
 
 #include "support/song_fixture.h"
 
-#include "spec/shell/support/fake_surfaces.h"
-#include "spec/ui/support/frames.h"
+#include "unit/shell/support/fake_surfaces.h"
+#include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"
 
@@ -48,7 +48,7 @@
 #include <string>
 #include <string_view>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::l10n::String;

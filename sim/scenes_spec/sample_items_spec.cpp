@@ -65,7 +65,7 @@
 // headers this drags in (`audio_engine.h` -> `util/container/ordered_pos_vector.h`).
 #include "support/card_access.h"
 
-#include "spec/shell/support/fake_surfaces.h"
+#include "unit/shell/support/fake_surfaces.h"
 
 #include "cppspec.hpp"
 
@@ -78,7 +78,7 @@
 #include <string>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using namespace deluge::scenes::spec::sampleitems;

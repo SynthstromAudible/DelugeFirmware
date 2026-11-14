@@ -9,8 +9,8 @@
 /// `PopupType::NOTIFICATION` either way. Both consumers are driven here against a real
 /// `deluge::hid::display::OLED`, and each is compared byte for byte against that direct call.
 ///
-/// This lives in the scenes spec rather than `tests/spec/gui/` because that suite does not build
-/// `notify_drain.cpp` (`tests/spec/CMakeLists.txt` compiles only `notify_drain_mapping.cpp`), while
+/// This lives in the scenes spec rather than `tests/unit/deluge/gui/` because that suite does not build
+/// `notify_drain.cpp` (`tests/unit/CMakeLists.txt` compiles only `notify_drain_mapping.cpp`), while
 /// this executable links the real `deluge_app`, as `count_in_spec.cpp` already relies on.
 
 #include "gui/ui/notify_drain.h"
@@ -29,9 +29,9 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
-#include "spec/shell/support/fake_surfaces.h"
 #include "support/global_guest_menu.h"
 #include "support/song_fixture.h"
+#include "unit/shell/support/fake_surfaces.h"
 
 #include "cppspec.hpp"
 
@@ -39,7 +39,7 @@
 #include <string>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace {
 

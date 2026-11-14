@@ -96,7 +96,7 @@
 // headers this drags in (`audio_engine.h` -> `util/container/ordered_pos_vector.h`).
 #include "support/card_access.h"
 
-#include "spec/shell/support/fake_surfaces.h"
+#include "unit/shell/support/fake_surfaces.h"
 
 #include "cppspec.hpp"
 
@@ -109,7 +109,7 @@
 #include <string>
 #include <string_view>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 /// `Buttons::isButtonPressed` reads `buttonStates` (`hid/buttons.cpp`), which the header does not export.
 namespace Buttons {
@@ -869,7 +869,7 @@ describe browser_choice_dispatch(
     "gui::ui::dispatchShellChoices over the real outbox", $ {
 	    // The drain, in the binary that has every half: `deluge_scenes_spec` links the real
 	    // `browser_scene()`, the real `dispatchShellChoices` AND the real `ShellHostUI::timerCallback`.
-	    // The host suite (`tests/spec/gui/`) links only the last of those -- it stubs this dispatcher,
+	    // The host suite (`tests/unit/deluge/gui/`) links only the last of those -- it stubs this dispatcher,
 	    // because the real one belongs to the `deluge_scenes` closure that suite never builds -- so what
 	    // it could pin is the CALL SITE in isolation.
 	    //

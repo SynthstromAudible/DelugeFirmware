@@ -16,7 +16,7 @@
 //! `third_party/` at the revisions `cmake/deps.cmake` pins, so a clean checkout builds without any
 //! CMake build (it needs network the first time). The device mode needs only argon.
 //!
-//! Flags, defines and include dirs mirror `tests/unit/audio_stream/CMakeLists.txt`,
+//! Flags, defines and include dirs mirror `tests/unit/deluge/storage/audio/stream/CMakeLists.txt`,
 //! `sim/CMakeLists.txt` and `scripts/cmake/CMakeToolchainDeluge.cmake`.
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -147,7 +147,7 @@ fn main() {
         .file(&stitch_cpp)
         .file(&helpers_cpp)
         .file(&shim_cpp)
-        // App include roots, as in tests/unit/audio_stream/CMakeLists.txt.
+        // App include roots, as in tests/unit/deluge/storage/audio/stream/CMakeLists.txt.
         .include(&src) // definitions_cxx.hpp (SHARED_INCLUDE)
         .include(&src_deluge) // storage/..., util/...
         .include(&include) // libdeluge/types.h

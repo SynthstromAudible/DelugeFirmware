@@ -1,0 +1,673 @@
+#include "shell/input_lowering.h"
+#include "support/fake_surfaces.h"
+
+#include "cppspec.hpp"
+
+#include <utility>
+
+#include "support/spec_main.h"
+using namespace deluge::ui::shell;
+using deluge::ui::EncoderRole;
+
+namespace {
+/// A BUTTON event at matrix (x, y).
+DelugeInputEvent button_ev(uint8_t x, uint8_t y, bool on) {
+	return DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(on ? 255 : 0)};
+}
+/// A PAD event at (x, y); velocity 0 is a release.
+DelugeInputEvent pad_ev(uint8_t x, uint8_t y, uint8_t velocity) {
+	return DelugeInputEvent{DELUGE_EVENT_PAD, x, y, static_cast<int16_t>(velocity)};
+}
+/// The one queued event, or a default-constructed one if there is not exactly one. Drains the queue.
+UiEvent only_queued(InputLowering& in) {
+	UiEvent e{UiEvent::Kind::AllReleased};
+	UiEvent extra{UiEvent::Kind::AllReleased};
+	if (!in.next(e) || in.next(extra)) {
+		return UiEvent{UiEvent::Kind::AllReleased};
+	}
+	return e;
+}
+/// How many events are queued. Drains the queue.
+size_t drain_count(InputLowering& in) {
+	size_t n = 0;
+	UiEvent e{UiEvent::Kind::AllReleased};
+	while (in.next(e)) {
+		n++;
+	}
+	return n;
+}
+} // namespace
+
+// clang-format off
+describe shell_input_lowering("shell::InputLowering", $ {
+	it("lowers a matrix press to a ButtonId and tracks held/since", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(1000);
+		in.on_board_event(button_ev(8, 3, true), 1000);   // Play, definitions_cxx.hpp:68
+		in.end_tick(1000);
+		UiEvent e;
+		expect(in.next(e)).to_be_true();
+		expect(e.kind == UiEvent::Kind::Button).to_be_true();
+		expect(e.button == ButtonId::Play).to_be_true();
+		expect(e.on).to_be_true();
+		expect(in.next(e)).to_be_false();
+		expect(in.held().has(ButtonId::Play)).to_be_true();
+		expect(in.held_since(ButtonId::Play)).to_equal(uint32_t(1000));
+		expect(in.had_input_this_tick()).to_be_true();
+	});
+
+	it("queues every input in arrival order and names the widget-owned shapes", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(10);
+		in.on_board_event(button_ev(8, 3, true), 10);     // Play
+		in.on_board_event(button_ev(7, 1, true), 10);     // Back (widget-owned)
+		in.on_board_event(button_ev(4, 3, true), 10);     // SelectEnc (widget-owned)
+		in.on_board_event(button_ev(4, 1, true), 10);     // TempoEnc
+		in.on_encoder_edges(3, 2, 10);                    // Select turn (widget-owned)
+		in.on_encoder_edges(2, 2, 10);                    // Tempo turn
+		in.end_tick(10);
+
+		UiEvent e;
+		expect(in.next(e)).to_be_true(); expect(e.button == ButtonId::Play).to_be_true();
+		expect(is_widget_owned_shape(e)).to_be_false();
+		expect(in.next(e)).to_be_true(); expect(e.button == ButtonId::Back).to_be_true();
+		expect(is_widget_owned_shape(e)).to_be_true();
+		expect(in.next(e)).to_be_true(); expect(e.kind == UiEvent::Kind::EncoderButton).to_be_true();
+		expect(e.button == ButtonId::SelectEnc).to_be_true();
+		expect(is_widget_owned_shape(e)).to_be_true();
+		expect(in.next(e)).to_be_true(); expect(e.button == ButtonId::TempoEnc).to_be_true();
+		expect(is_widget_owned_shape(e)).to_be_false();
+		expect(in.next(e)).to_be_true(); expect(e.encoder == EncoderRole::Select).to_be_true();
+		expect(is_widget_owned_shape(e)).to_be_true();
+		expect(in.next(e)).to_be_true(); expect(e.kind == UiEvent::Kind::Encoder).to_be_true();
+		expect(e.encoder == EncoderRole::Tempo).to_be_true();
+		expect(is_widget_owned_shape(e)).to_be_false();
+		expect(in.next(e)).to_be_false();
+	});
+
+	it("shift press+release under hold time becomes sticky when enabled", _ {
+		InputLowering in(uitest::test_profile_input(), LoweringConfig{.shift_is_sticky = true});
+		in.begin_tick(0);
+		in.on_board_event(button_ev(8, 0, true), 0);      // Shift, definitions_cxx.hpp:67
+		expect(in.shift()).to_be_true();
+		in.on_board_event(button_ev(8, 0, false), 50);    // released inside hold_time_ms (100)
+		expect(in.sticky()).to_be_true();
+		expect(in.shift()).to_be_true();                  // buttons.cpp:273-276: stays on while stuck
+		// A second short press clears it (buttons.cpp:267).
+		in.on_board_event(button_ev(8, 0, true), 200);
+		in.on_board_event(button_ev(8, 0, false), 220);
+		expect(in.sticky()).to_be_false();
+		expect(in.shift()).to_be_false();
+	});
+
+	it("times a seeded held SHIFT's release from the seed, so a quick release of a latched one unlatches", _ {
+		// Latched, pressed again, then the shell takes over: the release that follows is the tap that unlatches it.
+		InputLowering in(uitest::test_profile_input(), LoweringConfig{.shift_is_sticky = true});
+		in.begin_tick(1000);
+		in.seed_shift(true, true, 1000);
+		expect(in.sticky()).to_be_true();
+		in.on_board_event(button_ev(8, 0, false), 1050);
+		expect(in.sticky()).to_be_false();
+		expect(in.shift()).to_be_false();
+	});
+
+	it("does not stick when the shift press outlasts hold_time_ms, or when sticky is off", _ {
+		InputLowering in(uitest::test_profile_input(), LoweringConfig{.shift_is_sticky = true});
+		in.begin_tick(0);
+		in.on_board_event(button_ev(8, 0, true), 0);
+		in.on_board_event(button_ev(8, 0, false), 400);   // flash_storage.cpp:349-350: 100 ms
+		expect(in.sticky()).to_be_false();
+		expect(in.shift()).to_be_false();
+
+		// Another button pressed while shift was held disarms the toggle (buttons.cpp:89-91).
+		InputLowering armed(uitest::test_profile_input(), LoweringConfig{.shift_is_sticky = true});
+		armed.begin_tick(0);
+		armed.on_board_event(button_ev(8, 0, true), 0);
+		armed.on_board_event(button_ev(8, 3, true), 10);
+		armed.on_board_event(button_ev(8, 0, false), 20);
+		expect(armed.sticky()).to_be_false();
+
+		InputLowering off(uitest::test_profile_input(), {});
+		off.begin_tick(0);
+		off.on_board_event(button_ev(8, 0, true), 0);
+		off.on_board_event(button_ev(8, 0, false), 10);
+		expect(off.sticky()).to_be_false();
+	});
+
+	it("set_hold_time_ms moves the tap threshold, and the same gesture lands either side of it", _ {
+		// `FlashStorage::holdTime` is a *setting* -- `defaultHoldTime` 1..20 times `kSampleRate/20`
+		// (`storage/flash_storage.cpp:730-733`), i.e. 50 ms to 1 s -- and `LoweringConfig` is
+		// construction-time, so a host built at static-init has no way to seat the user's value.
+		// This is the setter that lets it; the assertion is about the *threshold*, so the gesture is
+		// held fixed and only the threshold varies. A single-threshold example would pass on an
+		// implementation that ignored the setter.
+		const auto sticks_with_threshold = [](uint16_t ms) {
+			InputLowering in(uitest::test_profile_input(), LoweringConfig{.shift_is_sticky = true});
+			in.set_hold_time_ms(ms);
+			in.begin_tick(0);
+			in.on_board_event(button_ev(8, 0, true), 0);
+			in.on_board_event(button_ev(8, 0, false), 200); // the same 200 ms tap every time
+			return in.sticky();
+		};
+		expect(sticks_with_threshold(100)).to_be_false(); // the `LoweringConfig` default: 200 > 100
+		expect(sticks_with_threshold(1000)).to_be_true(); // the settings item's maximum: 200 < 1000
+		expect(sticks_with_threshold(50)).to_be_false();  // and its minimum
+
+		// The value is readable back, so a host can assert what it seated rather than infer it from
+		// a gesture.
+		InputLowering in(uitest::test_profile_input(), {});
+		expect(in.hold_time_ms()).to_equal(uint16_t(100)); // `LoweringConfig`'s documented default
+		in.set_hold_time_ms(250);
+		expect(in.hold_time_ms()).to_equal(uint16_t(250));
+		// It touches nothing else on the config: the sticky flag is the only other settable field
+		// and it is unmoved.
+		expect(in.shift_is_sticky()).to_be_false();
+	});
+
+	it("two edges make one detent; accelerating encoders pass edges through", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(5);
+		in.on_encoder_edges(3, 2, 5);                     // select, `DetentedEncoder::applyEdges`
+		in.end_tick(5);
+		UiEvent e = only_queued(in);
+		expect(e.kind == UiEvent::Kind::Encoder).to_be_true();
+		expect(e.encoder == EncoderRole::Select).to_be_true();
+		expect(e.delta).to_equal(int8_t(1));
+		expect(in.snapshot().turn).to_equal(int8_t(1));
+
+		// Index 4 is mod1, the upper gold knob (`encoders.h`'s `modEncoderAt`, `encoder_input.cpp`'s `interpretEncoders`).
+		in.begin_tick(6);
+		in.on_encoder_edges(4, 3, 6);                     // gold knob: raw edges through
+		in.end_tick(6);
+		e = only_queued(in);
+		expect(e.encoder == EncoderRole::GoldUpper).to_be_true();
+		expect(e.delta).to_equal(int8_t(3));
+		expect(in.snapshot().edit[0]).to_equal(int8_t(3));
+
+		// Index 5 is mod0, the lower gold knob, and lands in edit[1].
+		in.begin_tick(7);
+		in.on_encoder_edges(5, -2, 7);
+		in.end_tick(7);
+		e = only_queued(in);
+		expect(e.encoder == EncoderRole::GoldLower).to_be_true();
+		expect(in.snapshot().edit[1]).to_equal(int8_t(-2));
+	});
+
+	it("carries a partial detent across ticks", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(1);
+		in.on_encoder_edges(3, 3, 1);                     // 3 edges -> 1 detent, 1 carried
+		in.end_tick(1);
+		expect(in.snapshot().turn).to_equal(int8_t(1));
+		expect(drain_count(in)).to_equal(size_t(1));
+
+		in.begin_tick(2);
+		in.end_tick(2);
+		expect(in.snapshot().turn).to_equal(int8_t(0));
+		expect(drain_count(in)).to_equal(size_t(0));
+
+		in.begin_tick(3);
+		in.on_encoder_edges(3, 1, 3);                     // the carried edge completes a detent
+		in.end_tick(3);
+		expect(in.snapshot().turn).to_equal(int8_t(1));
+	});
+
+	it("keeps a tick's select turns apart, each with the time the board decoded it", _ {
+		// `interpretEncoders` hands the select encoder over a run of edges at a time, each with its decode time, and
+		// the horizontal menu accelerates each on its own: the snapshot keeps them apart rather than only their sum.
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(20);
+		in.on_encoder_edges(3, 2, 20, 600'000);
+		in.on_encoder_edges(3, 4, 20, 610'000);
+		in.on_encoder_edges(2, 2, 20, 615'000); // tempo: not a select turn
+		in.on_encoder_edges(3, 2, 20);          // a turn the host gave no time
+		in.end_tick(20);
+		expect(in.snapshot().turn).to_equal(int8_t(4));
+		const std::span<const deluge::ui::TimedTurn> turns = in.snapshot().turns;
+		expect(turns.size()).to_equal(size_t(3));
+		expect(turns[0].detents).to_equal(int8_t(1));
+		expect(turns[0].time_us).to_equal(uint64_t(600'000));
+		expect(turns[1].detents).to_equal(int8_t(2));
+		expect(turns[1].time_us).to_equal(uint64_t(610'000));
+		expect(turns[2].detents).to_equal(int8_t(1));
+		expect(turns[2].time_us).to_equal(uint64_t(0));
+
+		in.begin_tick(21);
+		in.end_tick(21);
+		expect(in.snapshot().turns.empty()).to_be_true();
+	});
+
+	it("takes a routed select turn from the front of the tick's turns and deferred ones from the back", _ {
+		// `withdraw` takes the event `next()` handed out, the oldest; `defer_rest` hands the rest to the next tick,
+		// which lists them again, so no turn is read by two ticks.
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(30);
+		in.on_encoder_edges(3, 2, 30, 100);
+		in.on_encoder_edges(3, 4, 30, 200);
+		in.on_encoder_edges(3, 6, 30, 300);
+		in.end_tick(30);
+		UiEvent e{UiEvent::Kind::AllReleased};
+		expect(in.next(e)).to_be_true();
+		in.withdraw(e);
+		std::span<const deluge::ui::TimedTurn> turns = in.snapshot().turns;
+		expect(turns.size()).to_equal(size_t(2));
+		expect(turns[0].time_us).to_equal(uint64_t(200));
+		expect(in.snapshot().turn).to_equal(int8_t(5));
+
+		expect(in.next(e)).to_be_true();
+		in.defer_rest(e);
+		expect(in.snapshot().turns.empty()).to_be_true();
+		expect(in.snapshot().turn).to_equal(int8_t(0));
+
+		in.begin_tick(31);
+		in.end_tick(31);
+		turns = in.snapshot().turns;
+		expect(turns.size()).to_equal(size_t(2));
+		expect(turns[0].time_us).to_equal(uint64_t(200));
+		expect(turns[1].time_us).to_equal(uint64_t(300));
+		expect(in.snapshot().turn).to_equal(int8_t(5));
+	});
+
+	it("reproduces the legacy gold-knob acceleration curve", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		// `EncoderAcceleration::advance`. First call: 1.0 s since the zero-initialised last time, past the
+		// 0.3 s reset threshold, so the speed resets and clamps up to min_speed.
+		expect(in.calc_next_knob_speed(EncoderRole::GoldUpper, 1, 1000)).to_be_within(1e-9).of(1.0);
+		// 10 ms later, same direction: speed = 0*0.9 + (1/0.01)*0.1 = 10; 10*0.15 = 1.5.
+		expect(in.calc_next_knob_speed(EncoderRole::GoldUpper, 1, 1010)).to_be_within(1e-9).of(1.5);
+		// 10 ms later again: speed = 10*0.9 + 100*0.1 = 19; 19*0.15 = 2.85.
+		expect(in.calc_next_knob_speed(EncoderRole::GoldUpper, 1, 1020)).to_be_within(1e-9).of(2.85);
+		// A direction change resets, and clamps back up to min_speed.
+		expect(in.calc_next_knob_speed(EncoderRole::GoldUpper, -1, 1030)).to_be_within(1e-9).of(1.0);
+		// The other gold knob keeps its own state, so it starts from the reset value too.
+		expect(in.calc_next_knob_speed(EncoderRole::GoldLower, 1, 1040)).to_be_within(1e-9).of(1.0);
+	});
+
+	it("keeps the speed for two turns in the same millisecond, as legacy's EncoderAcceleration does", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		expect(in.calc_next_knob_speed(EncoderRole::GoldUpper, 1, 1000)).to_be_within(1e-9).of(1.0);
+		// No time has passed: the speed is left as it was (`EncoderAcceleration::advance`).
+		expect(in.calc_next_knob_speed(EncoderRole::GoldUpper, 1, 1000)).to_be_within(1e-9).of(1.0);
+	});
+
+	it("keeps accelerating through turns of different sizes in one direction", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		expect(in.calc_next_knob_speed(EncoderRole::GoldUpper, 1, 1000)).to_be_within(1e-9).of(1.0);
+		// Only the sign of the turn counts: 10 ms later, speed = 0.1 / 0.01 = 10; 10 * 0.15 = 1.5.
+		expect(in.calc_next_knob_speed(EncoderRole::GoldUpper, 2, 1010)).to_be_within(1e-9).of(1.5);
+	});
+
+	it("defers events while sd_busy and replays them in order; drops oldest past 8", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(100);
+		in.set_sd_busy(true);
+		for (uint8_t x = 0; x < 10; x++) {
+			in.on_board_event(pad_ev(x, 0, 64), 100);
+		}
+		UiEvent e;
+		expect(in.next(e)).to_be_false();
+		expect(in.deferred_dropped()).to_equal(uint32_t(2));
+
+		in.set_sd_busy(false);
+		for (uint8_t x = 2; x < 10; x++) {
+			expect(in.next(e)).to_be_true();
+			expect(e.kind == UiEvent::Kind::Pad).to_be_true();
+			expect(e.x).to_equal(x);
+		}
+		expect(in.next(e)).to_be_false();
+		expect(in.queue_dropped()).to_equal(uint32_t(0));
+	});
+
+	it("carries the host's shortcut reason on a pad press, never on its release, and through a deferral", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(1);
+		in.on_host_pad(3, 4, 64, /*shortcut_without_shift=*/true, 1);
+		UiEvent e = only_queued(in);
+		expect(e.kind == UiEvent::Kind::Pad).to_be_true();
+		expect(e.shortcut_without_shift).to_be_true();
+		in.on_host_pad(3, 4, 0, true, 2);
+		expect(only_queued(in).shortcut_without_shift).to_be_false();
+		in.on_board_event(pad_ev(5, 4, 64), 3);
+		expect(only_queued(in).shortcut_without_shift).to_be_false();
+
+		in.set_sd_busy(true);
+		in.on_host_pad(6, 4, 64, true, 4);
+		expect(in.next(e)).to_be_false();
+		in.set_sd_busy(false);
+		expect(in.next(e)).to_be_true();
+		expect(e.x).to_equal(uint8_t(6));
+		expect(e.shortcut_without_shift).to_be_true();
+
+		in.set_input_lock(true);
+		in.on_host_pad(7, 4, 64, true, 5);
+		expect(in.next(e)).to_be_false(); // the lock drops it, as it drops a board pad
+		in.set_input_lock(false);
+	});
+
+	it("AllReleased releases everything held and reaches the queue even when locked", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(1);
+		in.on_board_event(button_ev(8, 3, true), 1);      // Play
+		in.on_board_event(pad_ev(3, 5, 90), 1);
+		UiEvent e;
+		while (in.next(e)) {}                             // drain the presses
+
+		in.set_input_lock(true);
+		in.on_board_event(button_ev(8, 2, true), 2);      // Record: dropped by the lock
+		in.on_board_event(DelugeInputEvent{DELUGE_EVENT_NO_PRESSES, 0, 0, 0}, 2);
+
+		expect(in.next(e)).to_be_true();
+		expect(e.kind == UiEvent::Kind::Button).to_be_true();
+		expect(e.button == ButtonId::Play).to_be_true();
+		expect(e.on).to_be_false();
+		expect(in.next(e)).to_be_true();
+		expect(e.kind == UiEvent::Kind::Pad).to_be_true();
+		expect(e.x).to_equal(uint8_t(3)); expect(e.y).to_equal(uint8_t(5));
+		expect(e.velocity).to_equal(uint8_t(0));
+		expect(in.next(e)).to_be_true();
+		expect(e.kind == UiEvent::Kind::AllReleased).to_be_true();
+		expect(in.next(e)).to_be_false();
+		expect(in.held().any()).to_be_false();
+		expect(in.held_pads().test(3, 5)).to_be_false();
+		expect(in.held().has(ButtonId::Record)).to_be_false();
+	});
+
+	it("builds the toolkit InputSnapshot from this tick's events", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(4242);
+		in.on_encoder_edges(3, 2, 4242);                  // one Select detent
+		in.on_board_event(button_ev(4, 3, true), 4242);   // SelectEnc press edge
+		in.on_board_event(button_ev(7, 1, true), 4242);   // Back press edge
+		in.on_board_event(button_ev(8, 0, true), 4242);   // Shift held
+		in.on_board_event(pad_ev(3, 5, 90), 4242);
+		in.end_tick(4242);
+
+		const deluge::ui::InputSnapshot& s = in.snapshot();
+		expect(s.turn).to_equal(int8_t(1));
+		expect(s.select_pressed).to_be_true();
+		expect(s.back_pressed).to_be_true();
+		expect(s.shift).to_be_true();
+		expect(s.pads.size()).to_equal(size_t(1));
+		expect(s.pads[0].velocity).to_equal(uint8_t(90));
+		expect(s.held_pads.test(3, 5)).to_be_true();
+		expect(s.now_ms).to_equal(uint32_t(4242));
+	});
+
+	it("select_pressed is an edge: false on the next tick while still held", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(2);
+		in.on_board_event(button_ev(4, 3, true), 2);
+		in.end_tick(2);
+		expect(in.snapshot().select_pressed).to_be_true();
+
+		in.begin_tick(3);
+		in.end_tick(3);
+		expect(in.snapshot().select_pressed).to_be_false();
+		expect(in.snapshot().pads.empty()).to_be_true();
+		expect(in.held().has(ButtonId::SelectEnc)).to_be_true();
+	});
+
+	it("drops matrix cells that are unmapped or out of range", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(1);
+		in.on_board_event(button_ev(4, 0, true), 1);      // ButtonId::None cell
+		in.on_board_event(button_ev(9, 0, true), 1);      // past button_cols
+		in.on_board_event(button_ev(0, 4, true), 1);      // past button_rows
+		in.on_board_event(pad_ev(40, 0, 64), 1);          // past PadMask bounds
+		in.end_tick(1);
+		UiEvent e;
+		expect(in.next(e)).to_be_false();
+		expect(in.held().any()).to_be_false();
+		expect(in.had_input_this_tick()).to_be_false();
+		expect(in.snapshot().pads.empty()).to_be_true();
+	});
+
+	it("clears the frame context's claims once per tick", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(1);
+		in.end_tick(1);
+		const uint32_t first = in.ctx().tick;
+		in.ctx().claims.turn = true;
+		in.ctx().claims.back = true;
+		expect(in.ctx().claims.any()).to_be_true();
+
+		in.begin_tick(2);
+		expect(in.ctx().claims.any()).to_be_false();
+		expect(in.ctx().claims.double_claim).to_be_false();
+		expect(in.ctx().tick).to_equal(first + 1);
+		expect(in.ctx().tick_ms).to_equal(uint32_t(2));
+	});
+
+	it("held_since follows the current press only", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(100);
+		in.on_board_event(button_ev(8, 3, true), 100);
+		expect(in.held_since(ButtonId::Play)).to_equal(uint32_t(100));
+		in.on_board_event(button_ev(8, 3, false), 150);
+		expect(in.held_since(ButtonId::Play)).to_equal(uint32_t(0));
+		expect(in.was_short_press(ButtonId::Play, 150)).to_be_true();
+		in.on_board_event(button_ev(8, 3, true), 900);
+		expect(in.held_since(ButtonId::Play)).to_equal(uint32_t(900));
+		expect(in.was_short_press(ButtonId::Play, 1500)).to_be_false();
+	});
+
+	it("tracks press-used-up per button and clears it on the next press", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(1);
+		in.on_board_event(button_ev(8, 2, true), 1);      // Record
+		expect(in.press_used_up(ButtonId::Record)).to_be_false();
+		in.mark_press_used_up(ButtonId::Record);
+		expect(in.press_used_up(ButtonId::Record)).to_be_true();
+		in.on_board_event(button_ev(8, 2, false), 2);
+		expect(in.press_used_up(ButtonId::Record)).to_be_true();  // buttons.cpp:172 buttonAction: cleared on press
+		in.on_board_event(button_ev(8, 2, true), 3);
+		expect(in.press_used_up(ButtonId::Record)).to_be_false();
+	});
+
+	it("a pad press disarms the pending sticky-shift toggle", _ {
+		InputLowering in(uitest::test_profile_input(), LoweringConfig{.shift_is_sticky = true});
+		in.begin_tick(0);
+		in.on_board_event(button_ev(8, 0, true), 0);      // shift down
+		in.on_board_event(pad_ev(3, 5, 90), 10);          // deluge.cpp:244-247
+		in.on_board_event(button_ev(8, 0, false), 20);    // released well inside hold_time_ms
+		expect(in.sticky()).to_be_false();
+		expect(in.shift()).to_be_false();
+
+		// A pad *release* is not a press and leaves the toggle armed.
+		InputLowering armed(uitest::test_profile_input(), LoweringConfig{.shift_is_sticky = true});
+		armed.begin_tick(0);
+		armed.on_board_event(button_ev(8, 0, true), 0);
+		armed.on_board_event(pad_ev(3, 5, 0), 10);
+		armed.on_board_event(button_ev(8, 0, false), 20);
+		expect(armed.sticky()).to_be_true();
+	});
+
+	it("clears a latched shift on demand and when the feature is switched off", _ {
+		InputLowering in(uitest::test_profile_input(), LoweringConfig{.shift_is_sticky = true});
+		in.begin_tick(0);
+		in.on_board_event(button_ev(8, 0, true), 0);
+		in.on_board_event(button_ev(8, 0, false), 20);
+		expect(in.sticky()).to_be_true();
+		in.clear_shift_sticky();                          // buttons.cpp:302-306
+		expect(in.sticky()).to_be_false();
+		expect(in.shift()).to_be_false();
+
+		// Turning the feature off clears a latch made while it was on.
+		in.on_board_event(button_ev(8, 0, true), 100);
+		in.on_board_event(button_ev(8, 0, false), 120);
+		expect(in.sticky()).to_be_true();
+		in.set_shift_is_sticky(false);                    // shift_is_sticky.cpp:25-27
+		expect(in.shift_is_sticky()).to_be_false();
+		expect(in.sticky()).to_be_false();
+		expect(in.shift()).to_be_false();
+
+		// ...and a tap no longer latches once it is off.
+		in.on_board_event(button_ev(8, 0, true), 200);
+		in.on_board_event(button_ev(8, 0, false), 220);
+		expect(in.sticky()).to_be_false();
+
+		// Switching it back on latches again, without clearing anything.
+		in.set_shift_is_sticky(true);
+		in.on_board_event(button_ev(8, 0, true), 300);
+		in.on_board_event(button_ev(8, 0, false), 320);
+		expect(in.sticky()).to_be_true();
+	});
+
+	it("adopts a sticky setting without touching the latch, as main's reset leaves Buttons' latch", _ {
+		// `RuntimeFeatureSettings::factoryReset` changes the setting under `Buttons::commandToggleShift` and calls no
+		// `clearShiftSticky()`: a SHIFT latched before it stays latched, and with sticky off no tap unlatches it.
+		InputLowering in(uitest::test_profile_input(), LoweringConfig{.shift_is_sticky = true});
+		in.begin_tick(0);
+		in.on_board_event(button_ev(8, 0, true), 0);
+		in.on_board_event(button_ev(8, 0, false), 20);
+		expect(in.sticky()).to_be_true();
+		in.adopt_shift_is_sticky(false);
+		expect(in.shift_is_sticky()).to_be_false();
+		expect(in.sticky()).to_be_true();
+		expect(in.shift()).to_be_true();
+		// A tap that would have unlatched it under sticky leaves it latched now (`buttons.cpp`'s release skips the
+		// latch arithmetic with sticky off and keeps the pressed flag while stuck).
+		in.on_board_event(button_ev(8, 0, true), 100);
+		in.on_board_event(button_ev(8, 0, false), 120);
+		expect(in.sticky()).to_be_true();
+		expect(in.shift()).to_be_true();
+		// Adopting sticky on again latches nothing new and releases nothing.
+		in.adopt_shift_is_sticky(true);
+		expect(in.sticky()).to_be_true();
+	});
+
+	it("acts on every gold-knob turn, after a pause and straight back, as main's interpretEncoders does", _ {
+		// `interpretEncoders` (`origin/main:src/deluge/hid/encoder_input.cpp`) acts unless the turn cancels
+		// `modEncoderInitialTurnDirection`, which nothing ever sets to anything but 0: every turn is acted on.
+		InputLowering in(uitest::test_profile_input(), {});
+
+		// The first turn after a pause longer than short_press_ms (500).
+		in.begin_tick(1000);
+		in.on_encoder_edges(4, 1, 1000);
+		in.end_tick(1000);
+		expect(drain_count(in)).to_equal(size_t(1));
+		expect(in.snapshot().edit[0]).to_equal(int8_t(1));
+
+		// Straight back the other way, inside the window.
+		in.begin_tick(1100);
+		in.on_encoder_edges(4, -1, 1100);
+		in.end_tick(1100);
+		expect(drain_count(in)).to_equal(size_t(1));
+		expect(in.snapshot().edit[0]).to_equal(int8_t(-1));
+
+		// The other gold knob, after its own pause.
+		in.begin_tick(2010);
+		in.on_encoder_edges(5, 1, 2010);
+		in.end_tick(2010);
+		expect(in.snapshot().edit[1]).to_equal(int8_t(1));
+	});
+
+	it("maps each widget-owned shape onto the claim that owns it", _ {
+		const auto turn = [](EncoderRole role) {
+			UiEvent e{UiEvent::Kind::Encoder};
+			e.encoder = role;
+			e.delta = 1;
+			return e;
+		};
+		UiEvent select_press{UiEvent::Kind::EncoderButton};
+		select_press.button = ButtonId::SelectEnc;
+		select_press.on = true;
+		UiEvent back{UiEvent::Kind::Button};
+		back.button = ButtonId::Back;
+		back.on = true;
+		const std::pair<UiEvent, bool deluge::ui::InputClaims::*> cases[] = {
+		    {turn(EncoderRole::Select), &deluge::ui::InputClaims::turn},
+		    {turn(EncoderRole::GoldUpper), &deluge::ui::InputClaims::edit0},
+		    {turn(EncoderRole::GoldLower), &deluge::ui::InputClaims::edit1},
+		    {turn(EncoderRole::Horizontal), &deluge::ui::InputClaims::horizontal},
+		    {turn(EncoderRole::Vertical), &deluge::ui::InputClaims::vertical},
+		    {select_press, &deluge::ui::InputClaims::select},
+		    {back, &deluge::ui::InputClaims::back},
+		};
+		for (const auto& [event, bit] : cases) {
+			deluge::ui::InputClaims c{};
+			expect(claim_covers(c, event)).to_be_false();
+			add_claim(c, event);
+			expect(c.*bit).to_be_true();
+			expect(claim_covers(c, event)).to_be_true();
+		}
+		deluge::ui::InputClaims all{};
+		add_claim(all, turn(EncoderRole::Tempo));
+		expect(claim_covers(all, turn(EncoderRole::Tempo))).to_be_false();
+	});
+
+	it("withdraws a routed event from the snapshot the frames read", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(1);
+		in.on_encoder_edges(3, 4, 1);                     // four edges: two Select detents
+		in.on_board_event(button_ev(7, 1, true), 1);      // Back
+		in.on_board_event(button_ev(4, 3, true), 1);      // SelectEnc press
+		in.end_tick(1);
+		expect(in.snapshot().turn).to_equal(int8_t(2));
+		UiEvent e;
+		while (in.next(e)) {
+			if (e.kind == UiEvent::Kind::Encoder) {
+				in.withdraw(e);
+			}
+			if (e.button == ButtonId::Back) {
+				in.withdraw(e);
+			}
+			if (e.button == ButtonId::SelectEnc) {
+				in.withdraw(e);
+			}
+		}
+		in.select_on_release(false);
+		expect(in.snapshot().turn).to_equal(int8_t(0));
+		expect(in.snapshot().back_pressed).to_be_false();
+		expect(in.snapshot().select_pressed).to_be_false();
+	});
+
+	it("reports an event fed after the snapshot was taken as outside it", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(1);
+		in.on_board_event(button_ev(7, 1, true), 1);
+		in.end_tick(1);
+		in.on_board_event(button_ev(8, 3, true), 2);      // fed while the tick routes
+		UiEvent e;
+		expect(in.next(e)).to_be_true();
+		expect(in.last_in_snapshot()).to_be_true();
+		expect(in.next(e)).to_be_true();
+		expect(in.last_in_snapshot()).to_be_false();
+	});
+
+	it("carries no Select release edge once the press is used up, even after the release was fed", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(1);
+		in.on_board_event(button_ev(4, 3, true), 1);      // SelectEnc down
+		in.on_board_event(button_ev(4, 3, false), 1);     // and up, in the same tick
+		in.end_tick(1);
+		in.select_on_release(true);
+		expect(in.snapshot().select_pressed).to_be_true();
+
+		// Routing the press took the input away and back, which uses the press up.
+		in.mark_press_used_up(ButtonId::SelectEnc);
+		in.select_on_release(true);
+		expect(in.snapshot().select_pressed).to_be_false();
+	});
+
+	it("does not call a button that was never pressed a short press", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		expect(in.was_short_press(ButtonId::Record, 0)).to_be_false();
+		expect(in.was_short_press(ButtonId::Record, 10)).to_be_false();
+	});
+
+	it("last_press_ms names the most recent press, held or released, and nothing before the first", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		expect(in.last_press_ms(ButtonId::Play).has_value()).to_be_false();
+		in.begin_tick(100);
+		in.on_board_event(button_ev(8, 3, true), 100);
+		expect(in.last_press_ms(ButtonId::Play) == std::optional<uint32_t>{100}).to_be_true();
+		in.on_board_event(button_ev(8, 3, false), 150);
+		expect(in.last_press_ms(ButtonId::Play) == std::optional<uint32_t>{100}).to_be_true();
+		in.on_board_event(button_ev(8, 3, true), 900);
+		expect(in.last_press_ms(ButtonId::Play) == std::optional<uint32_t>{900}).to_be_true();
+	});
+});
+// clang-format on
+
+DELUGE_SPEC(input_lowering_spec, shell_input_lowering)

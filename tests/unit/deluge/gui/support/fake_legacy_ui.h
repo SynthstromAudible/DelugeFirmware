@@ -1,0 +1,311 @@
+#pragma once
+#include "gui/ui/shell_note_mode.h"   // NoteModeKind, ActionResult, hid::Button
+#include "gui/ui/shell_pad_forward.h" // ShortcutPadGate
+#include "gui/ui_timer_manager.h"
+
+#include <cstdint>
+#include <functional>
+#include <optional>
+#include <vector>
+
+class MIDICable;
+
+class UI;
+
+/// @brief Test doubles for the parts of `gui/ui/ui.cpp` a legacy `UI` subclass needs to exist at
+///        all.
+///
+/// The host spec suite deliberately never builds legacy's `deluge_app` closure (the note at the top
+/// of `tests/unit/CMakeLists.txt`), and `gui/ui/ui.cpp` is squarely inside it: its five out-of-line
+/// `UI` virtuals forward to `view`, `getRootUI()` and `renderUIsForOled()`, which between them drag
+/// in the model, the playback engine and every legacy view. But a subclass's *vtable* names all
+/// five, so nothing deriving from `UI` links without them.
+///
+/// So this file defines exactly those five plus `UI::UI` and `UI::close`, the same arrangement as
+/// `gui/support/fake_legacy_hid.cpp` (the HID buffers) and `scenes/support/fake_shortcuts.cpp`
+/// (the menu shortcut tables). Each one records that it was called and does nothing else, which is
+/// what makes them observable: a spec can assert that `ShellHostUI::exitUI` closed the guest, which
+/// is a fact about `closeUI(this)` and cannot be seen from inside the shell.
+///
+/// It also defines `deluge::scenes::scene_registry()`, for the same reason and not the same shape:
+/// `shell_host_ui.cpp` defines the one `shellHostUI` global over the application's real scene table,
+/// and that table odr-uses every ported scene -- the whole `deluge_scenes` closure this suite does
+/// not build. The fake returns an empty registry, so the global exists and is inert; every example
+/// builds its own `ShellHostUI` over its own table.
+/// @brief Legacy's audio-sample counter, which `ShellHostUI::nowMs()` reads at 44 samples a millisecond. Defined
+///        here, as the engine that counts it is not built: a spec sets it, and `reset()` puts it back to 0.
+namespace AudioEngine {
+extern uint32_t audioSampleTimer;
+} // namespace AudioEngine
+
+namespace fakelegacyui {
+
+/// @name Recorders
+/// @{
+/// Every `closeUI(ui)` call, in order.
+extern std::vector<UI*> closed;
+/// How many times `renderUIsForOled()` was asked for a redraw.
+extern int oled_redraws;
+/// @brief Each UI mode `exitUIMode` was asked to leave, in order.
+extern std::vector<uint32_t> modes_exited;
+/// Every `UI::modEncoderAction` / `modButtonAction` / `modEncoderButtonAction` / `graphicsRoutine`
+/// call, as a running count -- the four base implementations a guest must not silently inherit
+/// without meaning to.
+extern int mod_encoder_actions;
+extern int mod_button_actions;
+extern int mod_encoder_button_actions;
+extern int graphics_routines;
+/// Every call of one of `UI`'s four base MIDI-learn offers.
+extern int base_learn_offers;
+/// @brief One recorded `uiNeedsRendering` call.
+struct RenderRequest {
+	UI* ui;
+	uint32_t main_rows;
+	uint32_t side_rows;
+};
+/// Every `uiNeedsRendering(ui, main, side)` call, in order.
+extern std::vector<RenderRequest> render_requests;
+/// @brief Which of the two hand-off calls a `ui_calls` entry records.
+enum class UiCall : uint8_t {
+	Render, ///< A `uiNeedsRendering` call.
+	Close,  ///< A `closeUI` call.
+};
+/// Every `uiNeedsRendering` and `closeUI` call, in one sequence, so a spec can pin their order.
+extern std::vector<UiCall> ui_calls;
+/// @}
+
+/// @brief One recorded `UITimerManager::setTimer` call.
+struct TimerArm {
+	TimerName which;
+	int32_t ms;
+};
+
+/// @name The `uiTimerManager` recorder
+///
+/// `ShellHostUI` is a *client* of legacy's timer manager: `timerCallback` is the
+/// shell's tick and `TimerName::UI_SPECIFIC` is what schedules it. The real manager
+/// (`gui/ui_timer_manager.cpp`) converts milliseconds to audio samples against
+/// `AudioEngine::audioSampleTimer` and dispatches through `getCurrentUI()`, neither of which this
+/// suite has -- so the fake keeps only the two facts a guest spec is about: which timer was armed,
+/// and for how long. `active` is modelled too, so `isTimerSet` answers the way legacy's does.
+/// @{
+/// Every `setTimer` call, in order. `setTimerSamples` is recorded here as well, in milliseconds.
+extern std::vector<TimerArm> timer_arms;
+/// Every `unsetTimer` call, in order.
+extern std::vector<TimerName> timer_unsets;
+/// @brief The `ms` of the last `TimerName::UI_SPECIFIC` arm, or -1 if it has never been armed or was
+///        unset since.
+int32_t ui_specific_armed_ms();
+/// @}
+
+/// @name The scheduler's two answers, made settable
+///
+/// `getSystemTime()` and `isSDRoutineActive()` are declared in `OSLikeStuff/scheduler_api.h` and defined
+/// in the task scheduler, which this suite does not build -- so they are defined here over these two
+/// variables. The guest reads only the second: its clock is `AudioEngine::audioSampleTimer` (above).
+/// @{
+/// What `getSystemTime()` returns, in seconds. The guest's clock is `AudioEngine::audioSampleTimer`, not this.
+extern double system_time_s;
+/// What `isSDRoutineActive()` returns.
+extern bool sd_routine_active;
+/// @}
+
+/// @name Legacy's own shift state, made settable
+///
+/// `ShellHostUI::claimsGridPad`'s `ShortcutsOnly` arm reads `Buttons::isShiftButtonPressed()`
+/// directly, exactly as `SoundEditor::potentialShortcutPadAction` does
+/// (`gui/ui/sound_editor.cpp`) -- not `ctx.shift`, which is the shell's own latch and a
+/// different fact. `hid/buttons.cpp`, where the real function reads a matrix-scan flag, is not in
+/// this suite's link closure (only `hid/button.cpp`, singular, is), so it is defined here over one
+/// settable bool, the same pattern as the scheduler's two answers above.
+/// @{
+/// What `Buttons::isShiftButtonPressed()` returns.
+extern bool shift_button_pressed;
+/// What `Buttons::isShiftStuck()` returns.
+extern bool shift_stuck;
+/// @}
+
+/// @name What the guest calls out to, on the two paths this suite cannot build
+/// @{
+/// How many times `indicator_leds::clearKnobIndicatorLevels()` was called -- the guest's close-path
+/// hand-back of the two gold-knob rings.
+extern int knob_indicator_clears;
+/// Whether `closeUI` had already run when `clearKnobIndicatorLevels()` was called. Must be false:
+/// the clear is only useful *before* the close, because `closeUI` runs the `focusRegained` that
+/// re-fills the rings.
+extern bool knob_clear_saw_close;
+/// How many times `deluge::gui::ui::wireShellGuestServices()` was called. The real one lives in the
+/// `deluge_scenes` closure this suite never builds; see its own header for why the seam is a free
+/// function rather than three members.
+extern int service_wirings;
+
+/// @brief How many times `deluge::gui::ui::dispatchShellActions()` was called.
+///
+/// Faked for the same reason as `wireShellGuestServices`: the real one reads `deluge::scenes::menu_scene()` and so
+/// belongs to the `deluge_scenes` closure this suite never builds (`gui/ui/shell_action_dispatch.h`
+/// says so in its own words). What that leaves assertable here is the half that lives in
+/// `ShellHostUI::timerCallback` and cannot be seen from anywhere else -- **that the poll happens,
+/// once per tick, on every path through the tick, and after `Shell::tick` has run**. That the poll
+/// then empties `MenuScene`'s real outbox is `sim/scenes_spec/menu_actions_spec.cpp`'s, in the
+/// binary where the real scene exists.
+extern int action_dispatches;
+/// @brief How many times `deluge::gui::ui::refreshShellRootFacts()` was called. The real one asks the root UI and
+///        writes the menu and the knobs, none of which this suite builds.
+extern int root_fact_refreshes;
+/// @brief What the fake `rootTakesAuditionPad` answers: whether the root is the instrument clip view.
+extern bool root_takes_audition;
+/// @brief How many times `deluge::gui::ui::dispatchMenuTransitions()` was called: the poll of the menu's transition
+///        record, on the same terms as `action_dispatches`.
+extern int transition_dispatches;
+
+/// @brief Called by the fake `dispatchShellActions()`, after it bumps `action_dispatches`.
+///
+/// The ordering questions this suite is about are all of the form "what had already happened when
+/// the poll ran", and the answers live in the example's own rig -- how many events its scene had
+/// been handed, whether `after_render` had run, whether the stack was still up. None of those is
+/// visible from this file, so instead of guessing which of them to record, the fake calls back and
+/// lets the example record whatever it is asking about. Empty by default; cleared by `reset()`.
+extern std::function<void()> on_action_dispatch;
+
+/// @brief How many times the fake `dispatchShellChoices()` has been called since `reset()`.
+///
+/// The sibling of `action_dispatches`, on identical terms: the real
+/// `gui/ui/shell_choice_dispatch.cpp` names `deluge::scenes::browser::browser_scene()` and so
+/// belongs to the `deluge_scenes` closure this suite never builds. What the drain then does with a
+/// real outbox is `sim/scenes_spec/browser_choice_spec.cpp`'s; this counter exists so the guest
+/// still links here, and so a spec can ask the one question that IS on this side -- whether
+/// the second poll happens on the same paths the first does.
+extern int choice_dispatches;
+
+/// @brief How many times `deluge::gui::ui::forwardGridPad()` was called.
+///
+/// The sibling of `action_dispatches` and `choice_dispatches`, on the same terms: the real
+/// `gui/ui/shell_pad_forward.cpp` names `keyboardScreen`, `instrumentClipView`, `performanceView`,
+/// `automationView` and `deluge::scenes::menu_scene()`, none of which this suite builds. What that
+/// leaves assertable here is the question that lives on `ShellHostUI`'s side of the seam --
+/// whether a pad the scene did not claim reaches the forward at all, and with which arguments --
+/// not which arm the real decision takes; that is `sim/scenes_spec/pad_forward_spec.cpp`'s, in the
+/// binary where the real legacy views exist.
+extern int pad_forwards;
+/// @brief The arguments of the last `forwardGridPad()` call.
+struct PadCall {
+	int32_t x, y, velocity;
+	bool operator==(const PadCall&) const = default;
+};
+/// @brief How many pads `forwardClipAuditionPad` was handed, and the last one.
+extern int clip_audition_forwards;
+extern PadCall last_clip_audition;
+extern PadCall last_pad_forward;
+
+/// How many times `deluge::gui::ui::renderClipViewSidebarUnderMarker()` was called. The real one
+/// reads `getRootUI()` and draws `instrumentClipView`'s sidebar, neither of which this suite builds.
+extern int marker_sidebar_requests;
+/// What `renderClipViewSidebarUnderMarker()` answers: whether the root is the keyboard screen.
+extern bool marker_sidebar_answer;
+/// @}
+
+/// @name `gui/ui/shell_note_mode.h`'s four guest-facing functions
+///
+/// The same terms as `forwardGridPad` above, with the difference the guest makes of the answer:
+/// `ShellHostUI`'s three input hooks **act** on what these return -- a value is returned in place of
+/// feeding the shell, `std::nullopt` feeds it -- so each fake answers a settable value rather than a
+/// fixed one. The real functions read `deluge::scenes::menu_scene()` and call `instrumentClipView`,
+/// neither of which this suite builds; which arm the real classification takes is
+/// `sim/scenes_spec/note_mode_spec.cpp`'s. What is assertable here is the guest's side: that each hook
+/// consults its function, with which arguments, and what it does with either answer.
+/// @{
+/// @brief The arguments of one `forwardNoteButton()` call.
+struct NoteButtonCall {
+	deluge::hid::Button b = 0;
+	bool on = false;
+	bool operator==(const NoteButtonCall&) const = default;
+};
+/// How many times `forwardNoteButton()` was called.
+extern int note_button_forwards;
+/// The arguments of the last `forwardNoteButton()` call.
+extern NoteButtonCall last_note_button;
+/// What `forwardNoteButton()` answers. `std::nullopt` -- "not the note mode's" -- by default.
+extern std::optional<ActionResult> note_button_answer;
+
+/// How many times `forwardNoteHorizontalEncoder()` was called.
+extern int note_horizontal_forwards;
+/// The `offset` of the last `forwardNoteHorizontalEncoder()` call.
+extern int32_t last_note_horizontal_offset;
+/// What `forwardNoteHorizontalEncoder()` answers. `std::nullopt` by default.
+extern std::optional<ActionResult> note_horizontal_answer;
+
+/// @brief The arguments of one `forwardNoteVerticalEncoder()` call.
+struct NoteVerticalCall {
+	int32_t offset = 0;
+	bool operator==(const NoteVerticalCall&) const = default;
+};
+/// How many times `forwardNoteVerticalEncoder()` was called.
+extern int note_vertical_forwards;
+/// The arguments of the last `forwardNoteVerticalEncoder()` call.
+extern NoteVerticalCall last_note_vertical;
+/// What `forwardNoteVerticalEncoder()` answers. `std::nullopt` by default.
+extern std::optional<ActionResult> note_vertical_answer;
+/// How many times `forwardMenuSaveButton()` was called, and what it answers (`std::nullopt` by default).
+extern int menu_save_forwards;
+extern std::optional<ActionResult> menu_save_answer;
+extern int menu_view_forwards;
+extern std::optional<ActionResult> menu_view_answer;
+extern std::optional<deluge::gui::ui::ShortcutPadGate> shortcut_gate; ///< nullopt: Shift with shift, else Forward
+extern bool sequence_direction_answer;
+extern int menu_affect_entire_forwards;
+extern std::optional<ActionResult> menu_affect_entire_answer;
+
+/// How many times `exitNoteModeBeforeClose()` was called.
+extern int note_mode_exits;
+/// How many times `saveSettingsBeforeClose()` was called.
+extern int settings_saves;
+/// What `shellSliceOut()` answers: whether a slice is out. False by default.
+extern bool slice_out;
+/// How many times `releaseShellSlicerBeforeClose()` was called.
+extern int slicer_releases;
+/// Whether `closeUI` had already run when `releaseShellSlicerBeforeClose()` was called. Must be false: a load the close
+/// leaves out is dropped before the UI beneath gets focus.
+extern bool slicer_release_saw_close;
+/// How many times `discardShellDrumCreatorBeforeClose()` was called.
+extern int drum_creator_discards;
+/// Whether `closeUI` had already run when `discardShellDrumCreatorBeforeClose()` was called. Must be false: legacy's
+/// `SampleBrowser::exitAction` deletes the drum before `Browser::exitAction` closes.
+extern bool drum_creator_discard_saw_close;
+/// Whether `closeUI` had already run when `saveSettingsBeforeClose()` was called. Must be false: legacy saves before
+/// `exitCompletely`'s `close()` (`gui/ui/sound_editor.cpp:952-962`).
+extern bool settings_save_saw_close;
+/// Whether `closeUI` had already run when `exitNoteModeBeforeClose()` was called. Must be false:
+/// legacy's note arms run before `exitCompletely`'s `close()` (`gui/ui/sound_editor.cpp:749-761`).
+extern bool note_exit_saw_close;
+/// Whether `clearKnobIndicatorLevels()` had already run when `exitNoteModeBeforeClose()` was called.
+/// Must be true: the exit goes below the existing indicator clear in `ShellHostUI::closeGuest`.
+extern bool note_exit_saw_knob_clear;
+/// @}
+
+/// @brief Which `UI` this suite's `getCurrentUI()` answers -- i.e. **who owns
+///        `TimerName::UI_SPECIFIC` right now**.
+///
+/// There is no `uiNavigationHierarchy` in this suite, which the timer-manager note above already
+/// records as the reason `routine()` cannot dispatch. `ShellHostUI::rearmTimer` nevertheless has to
+/// ask, because it refuses to arm `UI_SPECIFIC` for a UI that is no longer current
+/// (`ShellHostUI::rearmTimer`) -- the guard that stops an arm whose `openUI(...)` has just put
+/// something else on top from handing this guest's tick to that something else.
+///
+/// So each `Rig` sets this to its own `guest`, and that is not a convenience: it is the precondition
+/// under which the real `UITimerManager` would have called `timerCallback()` at all
+/// (`gui/ui_timer_manager.cpp:143-149`). A spec driving `timerCallback()` by hand is standing in for
+/// that dispatch, and saying so out loud is what makes the re-arm assertions mean what they claim.
+///
+/// @note **`reset()` deliberately does NOT clear this**, unlike every other field here. It describes
+///       the fixture's topology rather than something an example recorded, and several examples call
+///       `reset()` again mid-way to zero the counters -- clearing it there would silently disarm the
+///       guest for the rest of the example. Each `Rig`'s constructor sets it and its destructor
+///       clears it, so it never outlives the object it points at.
+extern UI* current_ui;
+
+/// @brief Clear every recorder, and put the clock and the SD lock back to 0 / false.
+///
+/// Everything except `current_ui` -- see its note.
+void reset();
+
+} // namespace fakelegacyui

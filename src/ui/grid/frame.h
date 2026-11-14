@@ -107,7 +107,7 @@ inline constexpr PadMask kNoPadsHeld{};
 ///       is likewise absolute. There is no `std::span<const PadEvent> events` member: a span
 ///       copied when the frame is built cannot see events the shell installs on the snapshot
 ///       afterwards, and a rig that holds one frame over a live snapshot (the `GridRig` in
-///       tests/spec/ui/support/frames.h) does exactly that. Every frame instead reads
+///       tests/unit/ui/support/frames.h) does exactly that. Every frame instead reads
 ///       `ctx.input.pads` through the reference it already holds -- a child region sees *the
 ///       same* event span as its parent, never a filtered copy, without the staleness.
 ///       `local_events()` does the filtering, per call, on demand.

@@ -16,7 +16,7 @@
  */
 
 /// The scenes_spec runner's own check: a file that crashes the process cannot be reported as passing.
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 describe selftest_crash(
     "scenes_spec runner self-test: crash", $ {

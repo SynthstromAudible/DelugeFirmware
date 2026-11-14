@@ -11,7 +11,7 @@
 #include "support/song_fixture.h"
 #include "support/ui_mode_guard.h"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <string>
 #include <string_view>

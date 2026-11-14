@@ -36,11 +36,11 @@
 #include "support/menu_over_root.h"
 #include "support/song_fixture.h"
 
-#include "spec/shell/support/fake_surfaces.h"
+#include "unit/shell/support/fake_surfaces.h"
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace params = deluge::modulation::params;
 namespace spec = deluge::scenes::spec;

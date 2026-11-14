@@ -48,9 +48,9 @@
 
 #include "support/song_fixture.h"
 
-#include "spec/gfx/support/golden.h"
-#include "spec/shell/support/fake_surfaces.h"
-#include "spec/ui/support/frames.h"
+#include "unit/gfx/support/golden.h"
+#include "unit/shell/support/fake_surfaces.h"
+#include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"
 
@@ -62,7 +62,7 @@
 #include <span>
 #include <string>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::l10n::String;
@@ -820,7 +820,7 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 	it("a SELECTED over-long row scrolls, held across quiet ticks", _ {
 		// `oled::list`'s selected row runs its label through `scroll_text`, which
 		// self-arms the panel's own gate (`request_repaint_after`) whenever the label overflows
-		// its row; `tests/spec/ui/list_spec.cpp`'s "scrolls a selected label..." already pins that
+		// its row; `tests/unit/ui/list_spec.cpp`'s "scrolls a selected label..." already pins that
 		// mechanics directly. What was untested is the OTHER half: does `MenuScene::render_vertical`
 		// actually reach it with a real, focused, over-long node? Every over-long row the goldens
 		// record is unselected -- legacy truncates that case too, so nothing was

@@ -28,7 +28,7 @@
 /// The pad overlay in particular is compared against the real `renderColumn`/`renderMarkerInCol`,
 /// reached through the public `renderMainPads` because both are private
 /// (`sample_marker_editor.h:90-94`). A transcription of those two bodies, as the host target
-/// `tests/spec/ui/markers_grid_spec.cpp` would have to keep (it cannot link `deluge_app`), would
+/// `tests/unit/ui/markers_grid_spec.cpp` would have to keep (it cannot link `deluge_app`), would
 /// drift from them.
 ///
 /// One divergence is **measured** here rather than only written down: `renderMainPads`'
@@ -92,8 +92,8 @@
 // headers this drags in.
 #include "support/card_access.h"
 
-#include "spec/gfx/support/golden.h"
-#include "spec/shell/support/fake_surfaces.h"
+#include "unit/gfx/support/golden.h"
+#include "unit/shell/support/fake_surfaces.h"
 
 #include "cppspec.hpp"
 
@@ -104,7 +104,7 @@
 #include <string_view>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 /// `Buttons::isButtonPressed` reads `buttonStates` (`hid/buttons.cpp`), which the header does not export.
 namespace Buttons {

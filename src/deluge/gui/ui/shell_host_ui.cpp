@@ -440,7 +440,7 @@ bool ShellHostUI::serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 	// (`hid/led/pad_leds.h:33`). So a profile with a taller or wider grid than legacy's is the case
 	// these two `min`s exist for, and dropping either writes past the end of legacy's buffer rather
 	// than merely painting a wrong pad. Both are mutation-covered by the tall/wide-grid board in
-	// `tests/spec/gui/shell_host_ui_spec.cpp`.
+	// `tests/unit/deluge/gui/shell_host_ui_spec.cpp`.
 	const int32_t rows = std::min<int32_t>(dims.rows, kDisplayHeight);
 	const int32_t last = std::min<int32_t>(x1, dims.cols());
 	for (int32_t y = 0; y < rows; y++) {

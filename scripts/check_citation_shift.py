@@ -45,7 +45,7 @@ them is a bug to be fixed later -- they are properties of comparing content acro
 
      The concrete instance, because this limitation went four plans without one. F1 task 12's
      `dim_grid` comment inserted 11 lines into `src/shell/shell.cpp`; the sweep that followed moved
-     `tests/spec/shell/services_spec.cpp`'s citation for
+     `tests/unit/shell/services_spec.cpp`'s citation for
      `Shell::derive_leds` -> `LedCompose::compose` from `:841` to `:852`, and this tool confirmed
      the shift. Both numbers are wrong: `LedCompose::compose` is called at **`:870`**, and `:841`
      was already ~18 lines into an unrelated function *before* the commit. **A content check

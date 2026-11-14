@@ -24,7 +24,7 @@ std::vector<uint8_t> prefixOf(const std::filesystem::path& p, uint32_t n) {
 }
 
 /// Copy a host-filesystem file into the mock card at the same path, so the file walk can open it
-/// through the ordinary deserializer. The mock (tests/unit/io/mock_file_io.cpp) backs deluge::io::File
+/// through the ordinary deserializer. The mock (tests/unit/deluge/io/mock_file_io.cpp) backs deluge::io::File
 /// with an in-memory map keyed by path, so any path string will do as a key.
 void stageOnCard(const std::filesystem::path& p) {
 	std::vector<uint8_t> whole;

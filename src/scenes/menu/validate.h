@@ -8,7 +8,7 @@
 ///
 /// The validator is deliberately **model-free**: it walks `Node` data, calls `RelevantFn`s with
 /// whatever `MenuContext`s the caller supplies, and consults `shortcuts.h`. That is what lets it
-/// run in the host suite (`tests/spec/scenes/validate_spec.cpp`, over fake trees and fake
+/// run in the host suite (`tests/unit/scenes/menu/validate_spec.cpp`, over fake trees and fake
 /// contexts) as well as against the real tables in the sim spec.
 
 #include "scenes/menu/context.h"

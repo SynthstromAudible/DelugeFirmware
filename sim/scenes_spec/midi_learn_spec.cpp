@@ -47,7 +47,7 @@
 ///   * **The grid repaint** `View::midiLearnFlash` asks for at `:800-802`
 ///     (`getRootUI()->midiLearnFlash()`). This layer has no `Shell`; what is asserted here is
 ///     `MidiLearn::timer_repaints()`'s claim, and the shell honouring a service's claim is
-///     `tests/spec/shell/flush_spec.cpp`'s.
+///     `tests/unit/shell/flush_spec.cpp`'s.
 ///
 /// @par Why a stub ROOT view, and why it must really be a `RootUI`
 ///
@@ -122,7 +122,7 @@
 #include <string>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::scenes::services::GlobalControls;

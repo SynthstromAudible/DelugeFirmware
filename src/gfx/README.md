@@ -83,7 +83,7 @@ SDK's `None` would have:
 | `Overlay` | `base` pad wins unless it is currently **black**, in which case the overlay pad shows through (regardless of the overlay's own colour) | verbatim (`layer.rs:94-99`) -- the SDK already treats a black *destination* cell as empty, so the substitution above changes nothing here |
 | `Tint` | each channel is `base * overlay / 255`, truncating (no rounding) | verbatim (`layer.rs:100-106`) |
 
-`tests/spec/gfx/composite_spec.cpp` hand-computes one cell per corner case for each mode (a black
+`tests/unit/gfx/composite_spec.cpp` hand-computes one cell per corner case for each mode (a black
 overlay pad, a black base pad, a full-white tint identity, and a truncating tint), pins the
 dirty-row marking and in-place aliasing, and freezes a golden `.state` per mode
 (`tests/golden/gfx/grid/composite_{replace,overlay,tint}.state`).

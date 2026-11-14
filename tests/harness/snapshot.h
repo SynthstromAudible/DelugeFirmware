@@ -13,8 +13,8 @@ namespace deluge::harness {
 
 /// @brief Convert a 1-bpp page-major OLED framebuffer to a P1 (plain-text) PBM image.
 ///
-/// A dependency-free re-implementation of tests/spec/gfx/support/pbm.h's
-/// `page_major_to_pbm` (tests/harness may not include tests/spec/ headers, since it is also
+/// A dependency-free re-implementation of tests/unit/gfx/support/pbm.h's
+/// `page_major_to_pbm` (tests/harness may not include tests/unit/ headers, since it is also
 /// compiled into the host BSP -- see tests/harness/README.md).
 /// @param page_major Page-major framebuffer: `page_major[page*w+col]`, bit `b` = row `page*8+b`.
 /// @param w Framebuffer width, in pixels.
@@ -37,7 +37,7 @@ std::string oled_pbm(std::span<const uint8_t> page_major, uint16_t w, uint16_t h
 /// numbers that could silently drift apart (I-3): both this constant and the C writer's line
 /// buffers are exactly that one macro's value, so widening one widens both, and this
 /// `static_assert` is only a belt-and-braces check that nothing redefines the macro underneath
-/// this file. `tests/spec/harness/identity_spec.cpp` is the automated check that the two writers
+/// this file. `tests/unit/harness/identity_spec.cpp` is the automated check that the two writers
 /// still agree byte-for-byte, for a fact set that exercises this width.
 inline constexpr size_t kStateLineBytes = 96;
 static_assert(kStateLineBytes == UI_SCRIPT_STATE_LINE_BYTES);

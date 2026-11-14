@@ -34,7 +34,7 @@
 // drags in.
 #include "support/card_access.h"
 
-#include "spec/shell/support/fake_surfaces.h"
+#include "unit/shell/support/fake_surfaces.h"
 
 #include <cstdint>
 #include <cstdio>

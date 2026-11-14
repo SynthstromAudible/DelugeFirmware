@@ -107,8 +107,8 @@
 #include "support/card_access.h" // before <cppspec.hpp> -- see its @warning
 #include "support/song_fixture.h"
 
-#include "spec/gfx/support/golden.h"
-#include "spec/shell/support/fake_surfaces.h"
+#include "unit/gfx/support/golden.h"
+#include "unit/shell/support/fake_surfaces.h"
 
 #include "cppspec.hpp"
 
@@ -118,7 +118,7 @@
 #include <cstring>
 #include <string>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 /// @brief `PlaybackHandler`'s "the swung-tick answer is zero" latch
 ///        (`currentlyActioningSwungTickOrResettingPlayPos` in `playback/playback_handler.cpp`, read at

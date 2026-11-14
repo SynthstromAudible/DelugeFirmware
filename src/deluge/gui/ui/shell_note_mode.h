@@ -35,8 +35,8 @@
 /// `shell_pad_forward.h`'s two reasons. **In `gui/ui/`** because the half that forwards gets to name
 /// `instrumentClipView`, which `src/scenes` may not. **Its own translation unit** because
 /// `activeNoteMode` reads `deluge::scenes::menu_scene()` -- the `deluge_scenes` closure the host
-/// spec suite never builds (`tests/spec/CMakeLists.txt`) -- so `shell_host_ui.cpp` names only the
-/// four functions, and `tests/spec/gui/support/fake_legacy_ui.cpp` fakes them. This header names no
+/// spec suite never builds (`tests/unit/CMakeLists.txt`) -- so `shell_host_ui.cpp` names only the
+/// four functions, and `tests/unit/deluge/gui/support/fake_legacy_ui.cpp` fakes them. This header names no
 /// `scenes/` or `shell/` type, so it is not a `LEGACY_PORT_SEAMS` entry; its `.cpp` is.
 
 #include "definitions_cxx.hpp" // ActionResult

@@ -29,13 +29,13 @@
 #include "support/fake_note_bridge.h"
 #include "support/song_fixture.h"
 
-#include "spec/ui/support/frames.h"
+#include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"
 
 #include <cstdint>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::scenes::menu::MenuContext;

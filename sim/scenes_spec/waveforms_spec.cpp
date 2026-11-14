@@ -24,8 +24,8 @@
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
-#include "spec/ui/support/frames.h"
+#include "support/spec_main.h"
+#include "unit/ui/support/frames.h"
 
 #include <algorithm>
 #include <new>

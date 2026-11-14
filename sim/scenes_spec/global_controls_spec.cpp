@@ -97,7 +97,7 @@
 #include <span>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::scenes::services::GlobalControls;

@@ -93,7 +93,7 @@ firmware.
 
 | tree | what it holds |
 |---|---|
-| `tests/unit/spec/scenes/` | the parts that need no model: the `Node` builders, the id registry, the validator over fake trees, view state |
+| `tests/unit/scenes/menu/`, `tests/unit/scenes/services/` | the parts that need no model: the `Node` builders, the id registry, the validator over fake trees, view state |
 | `tests/unit/scenes/bind/` | `deluge_scenes_bind` against a `project::Song` with no engine runtime |
 | `sim/scenes_spec/` | the model-backed specs, linked into the host app and run one file per process by the `ui-scenes-spec` harness (`tests/registry.toml`); the table cross-checks against legacy, every scene, every service, the level-2 scripts |
 | `tests/integration/scenarios/menu_dump.cpp` | the `ui-menu-dump` gate: the app dumps every root as JSON, which must equal `website/src/data/generated/menu-tree.json`; `./dbt test --update ui-menu-dump` regenerates it |

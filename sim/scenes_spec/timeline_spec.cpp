@@ -68,7 +68,7 @@
 // headers this drags in. See the warning at the top of support/card_access.h.
 #include "support/card_access.h"
 
-#include "spec/gfx/support/pbm.h"
+#include "unit/gfx/support/pbm.h"
 
 #include "cppspec.hpp"
 
@@ -76,7 +76,7 @@
 #include <cstdio>
 #include <string>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using deluge::scenes::timeline::BarsBeats;
 using deluge::scenes::timeline::TimelineState;

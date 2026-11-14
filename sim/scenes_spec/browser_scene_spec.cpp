@@ -83,8 +83,8 @@
 // headers this drags in (`audio_engine.h` -> `util/container/ordered_pos_vector.h`).
 #include "support/card_access.h"
 
-#include "spec/gfx/support/golden.h"
-#include "spec/shell/support/fake_surfaces.h"
+#include "unit/gfx/support/golden.h"
+#include "unit/shell/support/fake_surfaces.h"
 
 #include "cppspec.hpp"
 
@@ -96,7 +96,7 @@
 #include <string_view>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::l10n::String;

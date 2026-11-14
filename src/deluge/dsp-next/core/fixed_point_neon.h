@@ -30,10 +30,10 @@
 ///
 /// `FixedVec<Lane, N>` holds N lanes of one fixed_point.h type in one NEON register, with Argon as its storage. As
 /// with the scalars, there are no arithmetic operators: each operation has the name of the scalar operation with the
-/// same per-lane meaning, and compiles to the NEON instructions its comment names, mostly one (tests/unit-arm/codegen
-/// checks them). Kernels keep `Argon` at their interfaces and convert with from_raw() and raw(); helpers private to one
-/// family of kernels, such as the windowed sinc's SincWindow, may pass the vectors between themselves. load() and
-/// store() move lanes between a vector and an array of its lane type.
+/// same per-lane meaning, and compiles to the NEON instructions its comment names, mostly one
+/// (tests/unit/deluge/dsp-next/core checks them). Kernels keep `Argon` at their interfaces and convert with from_raw()
+/// and raw(); helpers private to one family of kernels, such as the windowed sinc's SincWindow, may pass the vectors
+/// between themselves. load() and store() move lanes between a vector and an array of its lane type.
 
 namespace deluge::dsp {
 

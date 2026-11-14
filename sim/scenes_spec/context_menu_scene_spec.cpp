@@ -10,7 +10,7 @@
 /// Each reset is checked by what it leaves behind: run from `kPerturbed`, it must leave the witness
 /// (`support/reset_witness.h`) the table's `reset/<action>` rows say main's leaves. The confirmation window is
 /// compared byte for byte, below the bezel, with main's panel for each action
-/// (`pixels/context_menu_reset_<action>.pbm`). `tests/spec/ui/option_window_spec.cpp` checks the window at option
+/// (`pixels/context_menu_reset_<action>.pbm`). `tests/unit/ui/option_window_spec.cpp` checks the window at option
 /// counts and positions no shipped descriptor reaches.
 ///
 /// @note The spec may include `gui/`; the library may not. Same rule `menu_scene_spec.cpp` and
@@ -44,9 +44,9 @@
 #include "support/reset_witness.h"
 #include "support/song_fixture.h"
 
-#include "spec/gfx/support/golden.h"
-#include "spec/gfx/support/pbm.h"
-#include "spec/shell/support/fake_surfaces.h"
+#include "unit/gfx/support/golden.h"
+#include "unit/gfx/support/pbm.h"
+#include "unit/shell/support/fake_surfaces.h"
 
 #include "cppspec.hpp"
 
@@ -61,7 +61,7 @@
 #include <utility>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::l10n::String;

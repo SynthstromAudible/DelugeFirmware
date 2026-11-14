@@ -19,27 +19,6 @@ endif ()
 # DELUGE_COMMON_COMPILE_OPTIONS themselves, so their warning set is identical wherever they build.
 include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/deluge_common_options.cmake)
 
-# Opt-in dynamic analysis for the host test binaries. Enable with -DDELUGE_TEST_SANITIZERS=ON.
-#
-# AddressSanitizer (heap/stack overflow, use-after-free, double-free) and UndefinedBehaviorSanitizer both work in the
-# -m32 host build (the i386 libasan/libubsan runtimes are required - on Arch that's `lib32-gcc-libs`). NOTE: LeakSanitizer
-# (ASan's leak-at-exit detector) is x86-64 only and silently does nothing under -m32, which is why host leak checking is
-# done explicitly via the TrackingAllocator's outstanding-allocation set (see tests/unit/spec/tracking_allocator_spec.cpp)
-# rather than via LSan.
-option(DELUGE_TEST_SANITIZERS "Build host tests with AddressSanitizer + UndefinedBehaviorSanitizer" OFF)
-
-# Apply the sanitizers to a single test target only. We deliberately do NOT instrument globally: the CppUTest / CppSpec /
-# etl dependencies are pulled in via FetchContent and have their own benign UB (e.g. CppUTest's millis*1000 timing
-# overflow) that would otherwise halt every run. ASan's runtime intercepts malloc/free process-wide regardless, so the
-# uninstrumented framework objects are still covered for heap errors.
-function(deluge_apply_test_sanitizers target)
-    if (DELUGE_TEST_SANITIZERS AND UNIX AND NOT APPLE)
-        target_compile_options(${target} PRIVATE
-            -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all)
-        target_link_options(${target} PRIVATE -fsanitize=address,undefined)
-    endif ()
-endfunction()
-
 enable_testing()
 
 find_package(Python3 COMPONENTS Interpreter)
@@ -131,7 +110,7 @@ if (UNIX AND NOT APPLE)
     # above, as the host sim does.
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../dsp dsp-next)
 elseif (APPLE)
-    # macOS gets the umbrella staticlib too, because tests/unit/spec needs it: audio_file_format.cpp's
+    # macOS gets the umbrella staticlib too, because tests/unit needs it: audio_file_format.cpp's
     # header parse IS the Rust decoder (deluge-sdk's deluge-audio-format). Built for the DEFAULT host
     # target rather than i686 -- the specs are 64-bit native here (no -m32 above), and letting cargo
     # pick the host beats guessing an apple-darwin triple. The alloc/resource conformance specs stay
@@ -162,6 +141,69 @@ else ()
     message(FATAL_ERROR "the host tree needs the deluge_rust staticlib (deluge_rust_rs), "
                         "built here for Linux and macOS only")
 endif ()
+
+# deluge_spec: the app code the host specs exercise outside the app's own libraries, built once and linked by every
+# directory whose specs test the app or the UI (app_specs, gfx_specs, ui_specs, shell_specs, notify_specs,
+# scenes_specs, midi_specs, foundation_specs, harness_specs, io_debug_specs).
+set(_src ${DELUGE_REPO_ROOT}/src)
+set(_tests ${DELUGE_REPO_ROOT}/tests)
+add_library(deluge_spec STATIC
+  # The audio-file header parser and its dependency-free byte and format helpers (the file-loading regression net).
+  ${_src}/deluge/storage/audio/audio_file_format.cpp
+  ${_src}/deluge/storage/build_value.cpp
+  ${_src}/deluge/storage/value_tree_deserializer.cpp
+  ${_src}/deluge/util/audio_format_helpers.cpp
+  ${_src}/deluge/util/string.cpp
+  # intToString and floatToString, from the dependency-free foundation library.
+  ${_src}/foundation/string_format.c
+  ${_src}/deluge/util/c_string.cpp
+  ${_src}/deluge/util/lookuptables/lookuptables.cpp
+  ${_tests}/support/mocks/mock_display.cpp
+  ${_tests}/support/mocks/mock_print.cpp
+  ${_tests}/support/mocks/mock_firmware_version.cpp
+  # ObjectPool guards its free list with CriticalSectionGuard, whose C ABI the BSP owns; the specs have no BSP, and
+  # single-threaded drivers have nothing to mask.
+  ${_tests}/support/mocks/mock_critical_section.cpp
+  # The pad-grid crash pattern, against fault_pattern_spec.cpp's recording board.
+  ${_src}/deluge/io/debug/fault_pattern.c
+  # The UI layers' code under test that is not in their own libraries: the guest's surfaces and host UI against fakes
+  # of the legacy symbols they touch, the hid button decode, the menu node ids and validator (model-free) against fake
+  # shortcuts and bindings, and the level-0 and level-3 harness writers and tables.
+  ${_src}/deluge/hid/display/oled_canvas/canvas.cpp
+  ${_src}/deluge/gui/ui/notify_drain_mapping.cpp
+  ${_src}/deluge/gui/ui/shell_guest_surfaces.cpp
+  ${_tests}/unit/deluge/gui/support/fake_legacy_hid.cpp
+  ${_src}/deluge/gui/ui/shell_host_ui.cpp
+  ${_tests}/unit/deluge/gui/support/fake_legacy_ui.cpp
+  ${_src}/deluge/hid/button.cpp
+  ${_src}/scenes/menu/node_id.cpp
+  ${_src}/scenes/menu/validate.cpp
+  ${_tests}/unit/scenes/menu/support/fake_shortcuts.cpp
+  ${_tests}/unit/scenes/menu/support/fake_bindings_relevant.cpp
+  ${_tests}/harness/ui_script.cpp
+  ${_tests}/harness/snapshot.cpp
+  ${_tests}/harness/level3/host_script_tables.c
+  ${_tests}/harness/level3/host_snapshot.c
+)
+# deluge_ui_oled: the starfield and rainfall animations the specs and previews drive. deluge_rust_rs: the umbrella
+# staticlib above, because audio_file_format.cpp's header parse is its Rust decoder (deluge-sdk's deluge-audio-format,
+# reached through include/libdeluge/audio_format.h).
+target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_serialization deluge_ui_oled deluge_gfx_oled
+  deluge_gfx_grid deluge_ui_core deluge_ui_grid deluge_ui_shell deluge_notify deluge_rust_rs)
+target_include_directories(deluge_spec PUBLIC ${_src}/deluge ${_src} ${_tests}/support/mocks ${DELUGE_REPO_ROOT}/include)
+set_target_properties(deluge_spec PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES C_STANDARD 23
+                                             C_STANDARD_REQUIRED YES)
+# The trees the UI specs read and write: gfx and level-2 goldens, the level-2 scripts, and the scratch the runner writes
+# its snapshots into before diffing them.
+target_compile_definitions(deluge_spec PUBLIC
+  GFX_GOLDEN_DIR="${_tests}/golden/gfx"
+  DELUGE_REPO_ROOT="${DELUGE_REPO_ROOT}"
+  UI_SCRIPTS_DIR="${_tests}/ui-scripts/shell"
+  UI_GOLDEN_DIR="${_tests}/golden/ui/shell"
+  UI_GOT_DIR="${CMAKE_CURRENT_BINARY_DIR}/got"
+)
+# tests/ for "harness/..." and "support/golden_update.h".
+target_include_directories(deluge_spec PRIVATE ${_tests})
 
 # Every test directory under tests/unit that names this tree (tests/support/cmake/specs.cmake).
 deluge_spec_directories(${CMAKE_CURRENT_LIST_DIR})

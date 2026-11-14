@@ -89,7 +89,7 @@
 #include <span>
 #include <string_view>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace menu = deluge::scenes::menu;
 using deluge::scenes::spec::open_note_mode_over_clip_view;

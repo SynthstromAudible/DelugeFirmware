@@ -113,7 +113,7 @@ HOST_SCRIPT_NORETURN void host_script_exit(int code);
 
 // `ui_script_button_xy` / `ui_script_encoder_index` are declared in `host_script_tables.h`
 // (included above) rather than here: that header/TU pair is dependency-free so it can compile
-// into `deluge_spec` for `tests/spec/harness/tables_spec.cpp`'s cross-check against
+// into `deluge_spec` for `tests/unit/harness/tables_spec.cpp`'s cross-check against
 // `deluge_profile()`, which this header cannot (it pulls in `<libdeluge/control_surface.h>` and
 // the BSP shadow accessors below).
 

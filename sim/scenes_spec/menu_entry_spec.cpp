@@ -4,7 +4,7 @@
 ///
 /// `gui/ui/shell_menu_entry.cpp` carries the fifteen-site table; this file drives the routed
 /// ones, one example per *argument shape*. It is at this level and not
-/// in `tests/spec/gui/` for the reason `boot_wiring_spec.cpp` gives: the host suite deliberately
+/// in `tests/unit/deluge/gui/` for the reason `boot_wiring_spec.cpp` gives: the host suite deliberately
 /// never builds the `deluge_scenes` closure, and everything under test here is the join between the
 /// two layers -- `menu::context_for`'s root against `MenuScene::roots()`, a stable node id against
 /// `SceneId::arg`, and `openUI(&shellHostUI)` against the real `uiNavigationHierarchy`.
@@ -97,8 +97,8 @@
 #include <optional>
 #include <string>
 
-#include "spec/support/spec_main.h"
-#include "spec/ui/support/frames.h"
+#include "support/spec_main.h"
+#include "unit/ui/support/frames.h"
 
 /// @name Legacy's shift state, reached by bare `extern`: `Buttons::isShiftButtonPressed` reads
 ///       these (`hid/buttons.cpp`) and the header does not export them.

@@ -38,9 +38,9 @@
 /// choice is exactly the half that gets to name the five symbols above. **Its own translation unit**
 /// because it also names `deluge::scenes::browser::browser_scene()`, and so belongs to the
 /// `deluge_scenes` closure the host spec suite deliberately never builds
-/// (`tests/spec/CMakeLists.txt`): naming it inside `gui/ui/shell_host_ui.cpp` would take that file's
+/// (`tests/unit/CMakeLists.txt`): naming it inside `gui/ui/shell_host_ui.cpp` would take that file's
 /// specs off the board. The host suite stubs this one symbol in
-/// `tests/spec/gui/support/fake_legacy_ui.cpp`, exactly as it stubs `dispatchShellActions` and
+/// `tests/unit/deluge/gui/support/fake_legacy_ui.cpp`, exactly as it stubs `dispatchShellActions` and
 /// `wireShellGuestServices`.
 
 #include "gui/ui/sound_target.h"

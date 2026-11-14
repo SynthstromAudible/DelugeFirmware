@@ -65,7 +65,7 @@ public:
 	///          so three things guard it, in this order of strength:
 	///          1. **The type.** `Scene::RepaintSurfaces`' members are `false`, so an override can
 	///             only arm what it names.
-	///          2. **`tests/spec/shell/flush_spec.cpp`**, whose two service legs are the only
+	///          2. **`tests/unit/shell/flush_spec.cpp`**, whose two service legs are the only
 	///             machine check on step 8c: one claims the OLED (so deleting step 8c's whole
 	///             `if (surfaces.oled)` block fails it), the other is "a service claiming
 	///             `{.grid = true}` arms no OLED gate", written in the dangerous spelling itself.

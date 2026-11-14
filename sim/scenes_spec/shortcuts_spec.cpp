@@ -56,8 +56,8 @@
 #include "support/song_fixture.h"
 #include "support/tables_3_fixtures.h"
 
-#include "spec/shell/support/fake_surfaces.h"
-#include "spec/ui/support/frames.h"
+#include "unit/shell/support/fake_surfaces.h"
+#include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"
 
@@ -70,7 +70,7 @@
 #include <string>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::scenes::menu::MenuContext;

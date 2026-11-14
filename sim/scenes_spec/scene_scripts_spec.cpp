@@ -152,8 +152,8 @@
 // directory runs under.
 #include "support/card_access.h"
 
-#include "spec/shell/support/script_runner.h"
 #include "support/real_services.h"
+#include "unit/shell/support/script_runner.h"
 
 #include "cppspec.hpp"
 
@@ -162,7 +162,7 @@
 #include <optional>
 #include <string>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::scenes::audio_clip::audio_clip_scene;

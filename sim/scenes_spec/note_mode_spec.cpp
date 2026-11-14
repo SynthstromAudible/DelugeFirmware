@@ -23,7 +23,7 @@
 /// widened to see the ported note mode, so it takes the in-editor arm.
 ///
 /// **Not covered here:** that a hook feeds the shell when a function answers `std::nullopt` and not
-/// when it answers a value -- `tests/spec/gui/shell_host_ui_spec.cpp`'s, against fakes.
+/// when it answers a value -- `tests/unit/deluge/gui/shell_host_ui_spec.cpp`'s, against fakes.
 
 #include "gui/ui/shell_note_mode.h"
 
@@ -54,7 +54,7 @@
 #include <cstdint>
 #include <optional>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 // `gui/ui/ui.cpp`: the pending-grid-render accumulators `uiNeedsRendering` writes, which
 // `ui.h` does not export. Declared here the way `file_catalogue_spec.cpp` reaches its own globals.

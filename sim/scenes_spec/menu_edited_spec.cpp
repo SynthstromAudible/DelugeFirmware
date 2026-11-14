@@ -47,7 +47,7 @@
 #include <set>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace {
 

@@ -80,7 +80,7 @@ is one of those, not a convenience.
     "only the legacy tree rots relative to these comments; a citation into `src/ui` or `src/scenes`
     is a citation into a file the same commit can fix" -- is right about a citation written from
     inside the port and wrong about one written from `sim/scenes_spec`, `tests/ui-scripts` or
-    `tests/spec`, which are scanned (`SCAN_ROOTS`) and which no commit to `src/scenes` touches.
+    `tests/unit`, which are scanned (`SCAN_ROOTS`) and which no commit to `src/scenes` touches.
     Five such citations, all naming `src/scenes/services/mod_knobs.cpp`, had drifted onto
     neighbouring *comment* lines -- one off by fourteen -- and `--strict` read clean over every one
     through a full task review. That was proved by experiment before anything was changed: putting
@@ -334,7 +334,7 @@ SCAN_ROOTS = (
     "src/scenes",
     "src/ui",
     "sim/scenes_spec",
-    "tests/unit/spec",
+    "tests/unit",
     "tests/ui-scripts",
     "tests/harness",
     "src/shell",

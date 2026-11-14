@@ -65,7 +65,7 @@ file(GLOB_RECURSE deluge_SOURCES
         # For the song-preview decode differential: the REAL deserializer stack, not a stand-in.
         # storage/file_reader.cpp exists so this is possible at all -- storage_manager.cpp, where the
         # reader used to live, reaches the whole instrument model to build what it loads.
-        # mock_file_io.cpp (borrowed from tests/unit/io) backs deluge::io::File with an in-memory card.
+        # mock_file_io.cpp (borrowed from tests/unit/deluge/io) backs deluge::io::File with an in-memory card.
         ../../../src/deluge/storage/song_preview.cpp
         ../../../src/deluge/storage/file_reader.cpp
         # deluge::runtime::nowUs(), the clock behind the stall bounds file_reader.cpp and slice_core.cpp construct.
@@ -78,7 +78,7 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../../src/deluge/util/c_string.cpp
         ../../../src/serialization/firmware_version.cpp
         ../../../src/serialization/semver.cpp
-        ../io/mock_file_io.cpp
+        ${DELUGE_REPO_ROOT}/tests/unit/deluge/io/mock_file_io.cpp
         # For the slicer audition specs: the REAL SliceCore translation unit, so the specs drive the
         # shipped audition()/tick_audition() instead of a restatement of them. Its world is
         # mocks/slicer_env_mock.cpp (globbed above).
@@ -151,7 +151,7 @@ target_include_directories(UnitTests PRIVATE
         ../../../src
         ../../../src/deluge
         ../../../src/OSLikeStuff        # task_scheduler/clock_type.h (time_tests.cpp)
-        ../io                   # mock_file_io.h, the in-memory card behind deluge::io::File
+        ${DELUGE_REPO_ROOT}/tests/unit/deluge/io  # mock_file_io.h, the in-memory card behind deluge::io::File
         ${CMAKE_CURRENT_BINARY_DIR}/generated # util/firmware_version.h, configured just above
 )
 

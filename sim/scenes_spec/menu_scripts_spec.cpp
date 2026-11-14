@@ -1,6 +1,6 @@
 /// @file
 /// @brief Level-2 acceptance scripts, driven through the real `Shell` over
-///        `uitest::FakeSurfaceSet` (`tests/spec/shell/support/script_runner.h`) against the REAL
+///        `uitest::FakeSurfaceSet` (`tests/unit/shell/support/script_runner.h`) against the REAL
 ///        declarative tables (`src/scenes/menu/nodes/`) -- not a synthetic tree.
 ///
 /// Three groups of script live here.
@@ -171,7 +171,7 @@
 // placement rule as `card_access.h` above, for the same kind of collision on a different keyword.
 #include "support/real_services.h"
 
-#include "spec/shell/support/script_runner.h"
+#include "unit/shell/support/script_runner.h"
 
 #include "cppspec.hpp"
 
@@ -181,7 +181,7 @@
 #include <fstream>
 #include <string>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::l10n::String;

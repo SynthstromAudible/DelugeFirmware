@@ -46,9 +46,9 @@
 
 #include "support/song_fixture.h"
 
-#include "spec/gfx/support/golden.h"
-#include "spec/gfx/support/pbm.h"
-#include "spec/shell/support/fake_surfaces.h"
+#include "unit/gfx/support/golden.h"
+#include "unit/gfx/support/pbm.h"
+#include "unit/shell/support/fake_surfaces.h"
 
 #include "cppspec.hpp"
 
@@ -58,7 +58,7 @@
 #include <string_view>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 /// `defaultAudioOutputInputChannel`, defined in `model/song/song.cpp`. Both sides write it
 /// (`AudioInputSelector::selectEncoderAction`), so an example that drives either half has to put it back.

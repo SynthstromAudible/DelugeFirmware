@@ -12,7 +12,7 @@
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
-#include "spec/shell/support/fake_surfaces.h"
+#include "unit/shell/support/fake_surfaces.h"
 
 #include "definitions_cxx.hpp"
 #include "memory/heaps.h"
@@ -30,7 +30,7 @@
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::scenes::menu::MenuContext;

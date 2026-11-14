@@ -139,7 +139,7 @@ resonance/morph`, `hpf.*`) and has special blocks (patch cables, MPE). So the co
   the real engine — `tests/projection/`, wired in `sim/CMakeLists.txt` beside `song_roundtrip`, runnable
   x86 (build-sim) and ARM (build-sim-arm/qemu). The bare CppSpec env cannot host them: `AutoParam` pulls
   in the whole app and the firmware containers don't build under the spec toolchain. Pure-value helpers
-  with no engine/allocator coupling may still use a CppSpec in `tests/spec`. (The projection itself is
+  with no engine/allocator coupling may still use a CppSpec in `tests/unit`. (The projection itself is
   integer/POD field copying with no arch-dependent behaviour, so the x86 run is the substantive gate;
   the ARM run is for parity once build-sim-arm's Rust staticlib is built for ARM.)
 

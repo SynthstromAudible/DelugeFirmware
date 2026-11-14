@@ -97,7 +97,7 @@
 #include "support/oracle_table.h"
 #include "support/song_fixture.h"
 
-#include "spec/shell/support/fake_surfaces.h"
+#include "unit/shell/support/fake_surfaces.h"
 
 #include "cppspec.hpp"
 
@@ -112,7 +112,7 @@
 #include <utility>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::l10n::String;
@@ -1233,7 +1233,7 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 	// The other side of the seam, in the binary that has every half: `deluge_scenes_spec` links the
 	// real `menu_scene()`, the real `dispatchShellActions` AND the real
 	// `ShellHostUI::timerCallback` (`nm -C` on the driver shows all three as `T`). The host suite's
-	// `tests/spec/gui/shell_action_dispatch_spec.cpp` links only the last of those -- it stubs the
+	// `tests/unit/deluge/gui/shell_action_dispatch_spec.cpp` links only the last of those -- it stubs the
 	// dispatcher, because the real one belongs to the `deluge_scenes` closure that suite never
 	// builds -- so what it pins is the CALL SITE in isolation.
 	//

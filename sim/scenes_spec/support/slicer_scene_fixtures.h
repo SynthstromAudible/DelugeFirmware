@@ -26,7 +26,7 @@
 
 #include "support/song_fixture.h"
 
-#include "spec/shell/support/fake_surfaces.h"
+#include "unit/shell/support/fake_surfaces.h"
 
 #include <cstdint>
 #include <cstring>

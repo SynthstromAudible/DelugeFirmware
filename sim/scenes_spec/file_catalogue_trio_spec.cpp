@@ -17,7 +17,7 @@
 #include <string>
 #include <tuple>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 namespace {
 

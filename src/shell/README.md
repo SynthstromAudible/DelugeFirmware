@@ -45,7 +45,7 @@ renders needs a non-null `style`. The sinks (`blit`, `oled_busy`, `send_columns`
 | backend | sinks go to |
 |---|---|
 | `BoardSurfaceSet` | libdeluge |
-| `uitest::FakeSurfaceSet` (`tests/unit/spec/shell/support/fake_surfaces.h`) | recorders, so a spec runs the exact flush path |
+| `uitest::FakeSurfaceSet` (`tests/unit/shell/support/fake_surfaces.h`) | recorders, so a spec runs the exact flush path |
 | `GuestSurfaceSet` (`gui/ui/shell_guest_surfaces.h`) | legacy's `OLED::main`, `PadLEDs::image`, `indicator_leds` |
 
 `GuestSurfaceSet` **copies; it does not alias**: `PadGrid` is wider than `PadLEDs::image`, and legacy
@@ -299,7 +299,7 @@ and both overwrite, so the host polls every tick:
 
 ## Testing
 
-The shell's specs are in `tests/unit/spec/shell/` (`./dbt test unit`). `uitest::FakeSurfaceSet`
+The shell's specs are in `tests/unit/shell/` (`./dbt test unit`). `uitest::FakeSurfaceSet`
 records every sink call; `tests/golden/shell/*.pbm` pin the popup at both panel heights and an
 overlay's composition. `Shell::state_lines()` is the shell's half of the UI scripts' `.state`
 snapshot. At firmware level,

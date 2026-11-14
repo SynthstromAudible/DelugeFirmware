@@ -39,7 +39,7 @@
 #include <utility>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 // The two file-scope globals `readFileItemsForFolder` sets and `getNewFileItem`/`cullSomeFileItems`
 // read (`maxNumFileItemsNow` and `catalogSearchDirection` in `storage/file_catalogue.cpp`). They

@@ -16,7 +16,7 @@
  */
 
 /// The scenes_spec runner's own check: a file with a failing example is reported as failing.
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 describe selftest_fail("scenes_spec runner self-test: fail", $ { it("fails", _ { expect(1).to_equal(2); }); });
 

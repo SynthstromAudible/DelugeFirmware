@@ -48,6 +48,26 @@ function(deluge_test_neon target)
   endif()
 endfunction()
 
+# Opt-in dynamic analysis for a tree's spec drivers: -DDELUGE_TEST_SANITIZERS=ON.
+#
+# AddressSanitizer (heap/stack overflow, use-after-free, double-free) and UndefinedBehaviorSanitizer both work in the
+# -m32 host build (the i386 libasan/libubsan runtimes are required: on Arch, `lib32-gcc-libs`). LeakSanitizer (ASan's
+# leak-at-exit detector) is x86-64 only and does nothing under -m32, so host leak checking is done through the
+# TrackingAllocator's outstanding-allocation set (tests/unit/deluge/memory/tracking_allocator_spec.cpp) instead.
+option(DELUGE_TEST_SANITIZERS "Build the spec drivers with AddressSanitizer + UndefinedBehaviorSanitizer" OFF)
+
+# Applies the sanitizers to one target. Nothing is instrumented globally: the CppUTest, CppSpec and etl dependencies
+# come through FetchContent with their own benign UB (CppUTest's millis*1000 timing overflow) that would halt every
+# run. ASan's runtime intercepts malloc/free process-wide regardless, so the uninstrumented framework objects are still
+# covered for heap errors.
+function(deluge_apply_test_sanitizers target)
+  if(DELUGE_TEST_SANITIZERS AND UNIX AND NOT APPLE)
+    target_compile_options(${target} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer
+                                             -fno-sanitize-recover=all)
+    target_link_options(${target} PRIVATE -fsanitize=address,undefined)
+  endif()
+endfunction()
+
 # Fails the configure unless every argument after `what` names a tree; `what` says which declaration.
 function(_deluge_check_trees what)
   foreach(tree IN LISTS ARGN)
@@ -143,6 +163,7 @@ function(deluge_specs_driver name)
   if(arg_NEON)
     deluge_test_neon(${name})
   endif()
+  deluge_apply_test_sanitizers(${name})
   foreach(stem IN LISTS stems)
     add_test(NAME ${stem} COMMAND ${name} ${stem} --verbose)
   endforeach()

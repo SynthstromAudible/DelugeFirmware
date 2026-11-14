@@ -12,7 +12,7 @@
 #include <string>
 #include <string_view>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 // getErrorMessage has external linkage (hid/display/display.cpp) but no header declares it -- oled.cpp
 // (hid/display/oled.cpp:1171) forward-declares it the same way, in the same namespace, to call it.

@@ -34,17 +34,17 @@
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 
-#include "spec/gfx/support/pbm.h"
-#include "spec/shell/support/fake_surfaces.h"
-#include "spec/ui/support/frames.h"
 #include "support/dx_pages_fixtures.h"
 #include "support/dx_rig.h"
 #include "support/oracle_table.h"
 #include "support/song_fixture.h"
+#include "unit/gfx/support/pbm.h"
+#include "unit/shell/support/fake_surfaces.h"
+#include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <array>
 #include <optional>

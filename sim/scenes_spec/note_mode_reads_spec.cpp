@@ -66,7 +66,7 @@
 #include <string>
 #include <vector>
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 /// @name Legacy's held-button state, reached by bare `extern`
 ///

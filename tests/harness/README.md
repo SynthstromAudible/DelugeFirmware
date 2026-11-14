@@ -50,8 +50,8 @@ deluge-sdk's headless format, one step per line: `<at_ms> <command> <args…>`; 
 Per `snapshot <name>`, written into the output directory:
 
 - `<name>.oled<N>.pbm` -- one **P1 PBM** per OLED surface, via `oled_pbm` (`snapshot.h`'s
-  dependency-free re-implementation of `tests/spec/gfx/support/pbm.h`'s `page_major_to_pbm` --
-  `tests/harness` may not include `tests/spec/` headers, since it is also compiled into the host
+  dependency-free re-implementation of `tests/unit/gfx/support/pbm.h`'s `page_major_to_pbm` --
+  `tests/harness` may not include `tests/unit/` headers, since it is also compiled into the host
   BSP). A deliberate deviation from the SDK's PNG: no image codec in C, text diffs read in PRs.
   `scripts/pbm2png.py` converts for viewing.
 - `<name>.state` -- text, one item per line, sorted so diffs are stable:
@@ -94,8 +94,8 @@ audit.
 
 | Level | Drives | Location |
 |---|---|---|
-| 1 -- toolkit | one widget/component directly (literal data + POD state -> golden frame); no script | `tests/spec/ui/*_spec.cpp` |
-| 2 -- shell + scenes | the real `Shell` over a fake `SurfaceSet` (`FakeSurfaceSet`), scripts may use every command including `model`/`notice` | `tests/spec/shell/scripts_spec.cpp` + `tests/ui-scripts/shell/*.txt`, goldens `tests/golden/ui/shell/` |
+| 1 -- toolkit | one widget/component directly (literal data + POD state -> golden frame); no script | `tests/unit/ui/*_spec.cpp` |
+| 2 -- shell + scenes | the real `Shell` over a fake `SurfaceSet` (`FakeSurfaceSet`), scripts may use every command including `model`/`notice` | `tests/unit/shell/scripts_spec.cpp` + `tests/ui-scripts/shell/*.txt`, goldens `tests/golden/ui/shell/` |
 | 3 -- whole app | the real headless `deluge_host`, injected on its deterministic frame clock | `tests/ui-scripts/app/*.txt`, goldens `tests/golden/ui/app/`, ctest `ui_app_scripts_<name>` / `_diff` |
 
 Levels 2-3 share the same script and snapshot format; that is the whole point of building both
@@ -109,9 +109,9 @@ against both the legacy adapter and the new scene -- see "Migration hook" below.
    level 2's last tick is the last step's `at_ms` either way, so a `quit` costs nothing and
    guards against a script that grows a later step by accident.
 2. **Level 2**: call `uitest::expect_script_goldens(self, "<name>", registry, services, opts)`
-   from an `it(...)` block in `tests/spec/shell/scripts_spec.cpp` (or a new `*_spec.cpp` nested
-   under `tests/spec/shell/`); it reads the script by name from `UI_SCRIPTS_DIR` and diffs
-   `UI_GOT_DIR` against `UI_GOLDEN_DIR` (both set in `tests/spec/CMakeLists.txt`).
+   from an `it(...)` block in `tests/unit/shell/scripts_spec.cpp` (or a new `*_spec.cpp` nested
+   under `tests/unit/shell/`); it reads the script by name from `UI_SCRIPTS_DIR` and diffs
+   `UI_GOT_DIR` against `UI_GOLDEN_DIR` (both set in `tests/unit/CMakeLists.txt`).
    **Level 3**: nothing to wire up -- `sim/CMakeLists.txt` globs
    `tests/ui-scripts/app/*.txt` (`CONFIGURE_DEPENDS`, so a fresh build picks up a new file with
    no manual re-run) and creates the `ui_app_scripts_<name>` / `_diff` pair automatically.
@@ -121,7 +121,7 @@ against both the legacy adapter and the new scene -- see "Migration hook" below.
 4. Asserting `snapshots == N` and diffing against the golden pins the *count*, but not what the
    golden actually says (M-10): a golden that was recorded wrong the first time then passes
    forever against itself. Where practical, also read a fact back out of the run's own `.state`/
-   `.pbm` output (`tests/spec/shell/scripts_spec.cpp`'s `"lowers pad, encoder and model steps"`
+   `.pbm` output (`tests/unit/shell/scripts_spec.cpp`'s `"lowers pad, encoder and model steps"`
    case is the pattern to follow -- it checks the pressed pad's colour, the two LEDs' declared
    states, and that each counter step actually redrew the OLED) rather than trusting the golden
    diff alone the way `"boots to the splash..."`/`"navigates, shows a popup..."` do.

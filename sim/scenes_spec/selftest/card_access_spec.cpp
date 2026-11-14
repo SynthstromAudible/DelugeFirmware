@@ -20,7 +20,7 @@
 
 #include "support/card_access.h" // before <cppspec.hpp> -- see its @warning
 
-#include "spec/support/spec_main.h"
+#include "support/spec_main.h"
 
 #include <string>
 

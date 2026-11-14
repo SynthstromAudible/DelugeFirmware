@@ -25,7 +25,7 @@ set(_support_sources
 add_library(deluge_scenes_spec STATIC ${_spec_sources} ${_support_sources} ${CMAKE_CURRENT_BINARY_DIR}/entries.cpp)
 target_link_libraries(deluge_scenes_spec PRIVATE deluge_app deluge_scenes c++spec)
 target_include_directories(deluge_scenes_spec PUBLIC ${CMAKE_CURRENT_LIST_DIR})
-target_include_directories(deluge_scenes_spec PRIVATE ${REPO_ROOT}/tests ${REPO_ROOT}/tests/unit)
+target_include_directories(deluge_scenes_spec PRIVATE ${REPO_ROOT}/tests)
 target_compile_definitions(deluge_scenes_spec PRIVATE
     GFX_GOLDEN_DIR="${REPO_ROOT}/tests/golden/gfx"
     DELUGE_REPO_ROOT="${REPO_ROOT}"
