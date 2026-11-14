@@ -1,5 +1,6 @@
-#include "cppspec.hpp"
 #include "playback/trigger_clock_input.h"
+
+#include "cppspec.hpp"
 #include "support/spec_main.h"
 
 using deluge::playback::TriggerClockEdges;

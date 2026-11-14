@@ -22,7 +22,7 @@ describe clock_group("clock", ${
 	it("convert with rolls", _ {
 		double base = 1234.123456; // 9 clock rollovers
 		Time one = base;
-		// Strictly closer than 0.00001: the largest tolerance below it, inclusive, is the same bound.
+		// Strictly within 0.00001: to_be_within is inclusive, so the tolerance is the largest double below 0.00001.
 		expect((double)one).to_be_within(std::nextafter(0.00001, 0.0)).of(base);
 	});
 });

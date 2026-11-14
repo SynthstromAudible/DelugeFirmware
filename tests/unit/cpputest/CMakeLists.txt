@@ -28,40 +28,10 @@ FetchContent_MakeAvailable(CppUTest)
 file(GLOB_RECURSE deluge_SOURCES
         # Shared string helper used across several unit tests
         ../../../src/deluge/util/c_string.cpp
-        ../../../src/deluge/util/lookuptables.cpp
-        ../../../src/deluge/util/synth_noise.cpp
-        # For value scaling
-        ../../../src/deluge/util/value_scaling.cpp
-        # For scale tests
-        ../../../src/music-theory/musical_key.cpp
-        ../../../src/music-theory/note_set.cpp
-        ../../../src/music-theory/preset_scales.cpp
-        ../../../src/music-theory/utils.cpp
-        ../../../src/music-theory/preset_scales.cpp
-        ../../../src/music-theory/scale_change.cpp
-        ../../../src/music-theory/scale_mapper.cpp
         # For clip iterator tests
         ../../../src/deluge/model/song/clip_iterators.cpp
         # For sync tests
         ../../../src/deluge/modulation/sync.cpp
-        # For chord tests
-        ../../../src/deluge/gui/ui/keyboard/chords.cpp
-        # For clock output scheduler tests
-        ../../../src/deluge/playback/clock_output_scheduler.cpp
-        # For name comparison / default naming tests
-        ../../../src/deluge/util/name_compare.cpp
-        ../../../src/deluge/gui/ui/browser/default_name.cpp
-        # For iterance migration tests (against the real iterancePresets[])
-        ../../../src/deluge/sequence/iterance_migration.cpp
-        ../../../src/deluge/util/lookuptables/preset_tables.cpp
-        ../../../src/deluge/gui/ui/load/navigation_step.cpp
-        ../../../src/deluge/gui/ui/load/confirm_step.cpp
-        # For sample transpose tests
-        ../../../src/deluge/model/sample/sample_transpose.cpp
-        # For waveform peak math tests
-        ../../../src/deluge/model/sample/waveform_peak_math.cpp
-        ../../../src/deluge/io/midi/midi_queue.cpp
-        # For FFT magnitude tests
         # For the song-preview decode differential: the REAL deserializer stack, not a stand-in.
         # storage/file_reader.cpp exists so this is possible at all -- storage_manager.cpp, where the
         # reader used to live, reaches the whole instrument model to build what it loads.
@@ -84,9 +54,6 @@ file(GLOB_RECURSE deluge_SOURCES
         # For the DX cartridge window spec: the REAL sysex parser, so the spec measures what
         # DX7Cartridge::load actually does with a truncated bank rather than restating arithmetic.
         ../../../src/deluge/storage/DX7Cartridge.cpp
-        # For the MEM_GUARD side-table spec: the REAL table, and the structural-edit probe its edits report to.
-        ../../../src/deluge/memory/alloc_metadata.cpp
-        ../../../src/deluge/util/structural_edit_probe.cpp
 )
 
 # util/firmware_version.h is generated from a template at firmware-build time, and the deserializers
@@ -122,7 +89,6 @@ target_include_directories(UnitTests PRIVATE
         ../../../include
         ../../../src
         ../../../src/deluge
-        ../../../src/OSLikeStuff        # task_scheduler/clock_type.h (time_tests.cpp)
         ${CMAKE_CURRENT_BINARY_DIR}/generated # util/firmware_version.h, configured just above
 )
 

@@ -1,5 +1,6 @@
-#include "cppspec.hpp"
 #include "modulation/params/tick_interpolation.h"
+
+#include "cppspec.hpp"
 #include "support/spec_main.h"
 
 // clang-format off
