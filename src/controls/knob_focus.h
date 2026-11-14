@@ -75,7 +75,8 @@ struct MidiFocus {
 struct NoControlsFocus {
 	enum class Kind : uint8_t { CV_TRACK, MIDI_DRUM, GATE_DRUM } kind{Kind::CV_TRACK};
 	project::TrackAddress track;                ///< the CV track, or the drum's kit
-	std::optional<project::KitRowAddress> drum; ///< a drum's kit and durable drum id; none for a CV track
+	std::optional<project::KitRowAddress> drum; ///< a drum's kit and durable drum id; none for a CV track. Only
+	                                            ///< operator== reads it: two drums of one kit are different focuses
 	std::optional<uint32_t> clip_id;            ///< the clip the view is on, if any
 	[[nodiscard]] constexpr bool operator==(const NoControlsFocus&) const = default;
 };

@@ -152,13 +152,13 @@ describe chain_pages("the host chains' pages", ${
 					expect(record.get(ctx, static_cast<uint32_t>(expected.size()), out)).to_be_false();
 					for (uint32_t section = 0; section < 8; section++) {
 						for (uint32_t page_id = 0; page_id < 8; page_id++) {
-							const auto want = section_page(section, page_id, in);
 							const bool lacking_view = section == 5; // mod_fx_page clamps a view past the last to feedback
 							if (lacking_view) {
 								expect(record.find(ctx, section, page_id, out)).to_be_true();
 								expect(out == global_effectable::mod_fx_page(page_id)).to_be_true();
 							}
 							else {
+								const auto want = section_page(section, page_id, in);
 								expect(record.find(ctx, section, page_id, out)).to_equal(want.has_value());
 								if (want) {
 									expect(out == *want).to_be_true();
@@ -172,17 +172,23 @@ describe chain_pages("the host chains' pages", ${
 	});
 	it("decorates a param with the slot its page gives it, and a bare knob otherwise", _{
 		const auto& record = global_effectable::kRemoteControls;
-		const plugin::PageContext ctx{.song = true};
-		for (uint32_t section = 0; section < 8; section++) {
-			for (const auto& page : section_pages(section, {.song = true})) {
-				for (const auto& slot : page.slots) {
-					if (slot.param) {
-						expect(record.decorate(ctx, *slot.param) == slot).to_be_true();
+		// A param on more than one page decorates as the first page that holds it, so every page of every context
+		// (a song's or a clip's chain, either delay) must give a param the one slot.
+		for (const bool song : {true, false}) {
+			for (const bool alt_delay : {false, true}) {
+				const plugin::PageContext ctx{.song = song, .alt_delay = alt_delay};
+				for (uint32_t section = 0; section < 8; section++) {
+					for (const auto& page : section_pages(section, {.song = song, .alt_delay = alt_delay})) {
+						for (const auto& slot : page.slots) {
+							if (slot.param) {
+								expect(record.decorate(ctx, *slot.param) == slot).to_be_true();
+							}
+						}
 					}
 				}
+				expect(record.decorate(ctx, ge::kModFXOffset).kind == plugin::ParamKind::UNPATCHED_GLOBAL).to_be_true();
 			}
 		}
-		expect(record.decorate(ctx, ge::kModFXOffset).kind == plugin::ParamKind::UNPATCHED_GLOBAL).to_be_true();
 	});
 });
 // clang-format on

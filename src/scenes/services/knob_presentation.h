@@ -6,7 +6,7 @@
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/services/mod_target.h"
 
-#include "definitions_cxx.hpp"
+#include "board_layout.hpp"
 #include "gui/l10n/strings.h"
 
 #include <cstdint>

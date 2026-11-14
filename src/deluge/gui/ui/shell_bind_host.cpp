@@ -1312,7 +1312,7 @@ bool ShellEditSink::midi_cc_select(const deluge::scenes::bind::KnobFocus& focus,
 	}
 	const size_t at =
 	    (static_cast<size_t>(deluge::scenes::bind::knob_mode(currentSong->project, focus, kDelugeControls))
-	     * kNumPhysicalModKnobs)
+	     * kDelugeControls.slots)
 	    + static_cast<size_t>(knob);
 	const deluge::project::ModKnobCc cc =
 	    at < output->mod_knob_ccs.size() ? output->mod_knob_ccs[at] : deluge::project::ModKnobCc{};

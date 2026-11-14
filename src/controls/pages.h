@@ -70,8 +70,8 @@ struct PageSources {
 ///                the device facts.
 /// @return A sound's saved knobs, each decorated by its publisher; a chain's page of the view its record holds (as
 ///         @p sources' chain_view reads it), even one the publisher serves outside its device pages; a MIDI track's
-///         CCs, each pressing to pick its CC, and with no clip nothing to move. No focus, a CV track or an owner with
-///         no publisher has an empty page.
+///         CCs, each pressing to pick its CC, and with no clip nothing to move. No focus, an owner with no controls
+///         (a CV track, a MIDI or gate drum) or an owner with no publisher has an empty page.
 [[nodiscard]] Page current_page(const project::Song& song, const KnobFocus& focus, const PageSources& sources);
 
 /// @brief The current section's pages, in NEXT_PAGE order, and each group's entry page.
@@ -80,8 +80,8 @@ struct PageSources {
 /// @param sources The publishers and the device facts.
 /// @return current_page and the section's cycle: a sound's cycle is the pages its publisher finds on the section (the
 ///         filter knob's two groups, on whichever knob holds the cutoff); a chain's is its publisher's device pages of
-///         the section, with the group entries @p sources' chain_view reads. A MIDI track, a CV track and no focus
-///         have no cycle.
+///         the section, with the group entries @p sources' chain_view reads. A MIDI track, an owner with no controls
+///         (a CV track, a MIDI or gate drum) and no focus have no cycle.
 [[nodiscard]] SectionPages section_pages(const project::Song& song, const KnobFocus& focus, const PageSources& sources);
 
 /// @brief Whether pressing section @p section keeps the focused owner's playing stutter running: one of its
@@ -90,7 +90,8 @@ struct PageSources {
 /// @param focus   What the knobs point at.
 /// @param section The pressed section.
 /// @param sources The publishers and the device facts.
-/// @return False for no focus, a MIDI or CV track, or an owner with no publisher.
+/// @return False for no focus, a MIDI track, an owner with no controls (a CV track, a MIDI or gate drum), or an owner
+///         with no publisher.
 [[nodiscard]] bool section_keeps_stutter(const project::Song& song, const KnobFocus& focus, uint32_t section,
                                          const PageSources& sources);
 

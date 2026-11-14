@@ -29,6 +29,7 @@ describe section("a mod button's press and release", ${
 	it("ends a sound's stutter on every section that does not keep it, on performance view too", _{
 		expect(resolve_section(kSound, 0, 4, true, {}).end_stutter).to_be_true();
 		expect(resolve_section(kSound, 0, 4, false, kPerformance).end_stutter).to_be_true();
+		expect(resolve_section(kSound, 0, 4, true, kPerformance).end_stutter).to_be_true();
 		expect(resolve_section(kSound, 0, 4, true, kKeeps).end_stutter).to_be_false();
 	});
 	it("ends a clip chain's stutter, except on a section that keeps it or on performance view", _{

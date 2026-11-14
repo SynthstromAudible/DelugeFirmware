@@ -30,8 +30,6 @@ namespace {
 
 /// The mod FX views: depth, feedback and offset.
 constexpr uint32_t kModFxViews = 3;
-/// The mod buttons.
-constexpr uint32_t kSections = 8;
 /// The highest page id of any section: the song's last compressor page.
 constexpr uint32_t kLastPageId = kCompPages;
 
@@ -92,10 +90,11 @@ namespace {
 /// The one page of a section that has a single page; none for the envelopes' button 2.
 std::optional<RemotePage> single_page(uint32_t section, const PageInputs& in) {
 	switch (section) {
-	case 0:
-		return page(0, 0, 0, knob(ge::kPan), knob(ge::kVolume));
-	case 3:
-		return page(3, 0, 0, step(ge::kDelayFeedback, in.alt_delay ? setting::kDelaySyncLevel : setting::kDelayType),
+	case kLevelSection:
+		return page(kLevelSection, 0, 0, knob(ge::kPan), knob(ge::kVolume));
+	case kDelaySection:
+		return page(kDelaySection, 0, 0,
+		            step(ge::kDelayFeedback, in.alt_delay ? setting::kDelaySyncLevel : setting::kDelayType),
 		            step(ge::kDelayRate, in.alt_delay ? setting::kDelaySyncType : setting::kDelayPingPong));
 	case kCompressorSection: {
 		// A clip chain's stutter outlives a press of its reverb button (`GlobalEffectableForClip::modButtonAction`);
@@ -105,11 +104,11 @@ std::optional<RemotePage> single_page(uint32_t section, const PageInputs& in) {
 		out.keeps_stutter = true;
 		return out;
 	}
-	case 6:
-		return page(6, 0, 0, in.song ? RemoteSlot{} : knob(ge::kPitchAdjust),
+	case kStutterSection:
+		return page(kStutterSection, 0, 0, in.song ? RemoteSlot{} : knob(ge::kPitchAdjust),
 		            knob(ge::kStutterRate, PressAction::HOLD_STUTTER));
-	case 7:
-		return page(7, 0, 0, knob(ge::kBitcrushAmount), knob(ge::kSampleRateReduction));
+	case kLofiSection:
+		return page(kLofiSection, 0, 0, knob(ge::kBitcrushAmount), knob(ge::kSampleRateReduction));
 	default:
 		return std::nullopt;
 	}

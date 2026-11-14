@@ -126,19 +126,31 @@ Page chain_page(const KnobFocus& focus, const project::FxChain* chain, uint8_t m
 	return Page{.section = mode};
 }
 
-/// A chain's cycle on mod button @p mode: its publisher's device pages of that section, in their order.
-std::vector<Page> chain_cycle(uint8_t mode, const Publisher& publisher) {
-	std::vector<Page> out;
+/// Call @p visit with each of @p publisher's device pages of @p section, in their order, until it answers true.
+/// Allocation-free.
+/// @return Whether @p visit answered true.
+template <typename Visit>
+bool for_each_device_page(const Publisher& publisher, uint32_t section, Visit visit) {
 	if (publisher.record == nullptr || publisher.record->count == nullptr || publisher.record->get == nullptr) {
-		return out;
+		return false;
 	}
 	const uint32_t count = publisher.record->count(publisher.context);
 	plugin::RemotePage found;
 	for (uint32_t index = 0; index < count && publisher.record->get(publisher.context, index, found); index++) {
-		if (found.section == mode) {
-			out.push_back(page_of(found));
+		if (found.section == section && visit(found)) {
+			return true;
 		}
 	}
+	return false;
+}
+
+/// A chain's cycle on mod button @p mode: its publisher's device pages of that section, in their order.
+std::vector<Page> chain_cycle(uint8_t mode, const Publisher& publisher) {
+	std::vector<Page> out;
+	for_each_device_page(publisher, mode, [&out](const plugin::RemotePage& found) {
+		out.push_back(page_of(found));
+		return false;
+	});
 	return out;
 }
 
@@ -206,8 +218,10 @@ bool on_chain(const KnobFocus& focus) {
 
 } // namespace
 
-Page current_page(const project::Song& song, const KnobFocus& focus, const PageSources& sources) {
-	const uint8_t mode = knob_mode(song, focus, sources.board);
+namespace {
+
+/// The page the knobs are on, @p mode being the focus's knob mode.
+Page page_on(const project::Song& song, const KnobFocus& focus, const PageSources& sources, uint8_t mode) {
 	if (const auto* sound = std::get_if<SoundFocus>(&focus.owner)) {
 		return sound_page(song, *sound, mode, sound_publisher(song, *sound, sources));
 	}
@@ -225,9 +239,15 @@ Page current_page(const project::Song& song, const KnobFocus& focus, const PageS
 	return {};
 }
 
+} // namespace
+
+Page current_page(const project::Song& song, const KnobFocus& focus, const PageSources& sources) {
+	return page_on(song, focus, sources, knob_mode(song, focus, sources.board));
+}
+
 SectionPages section_pages(const project::Song& song, const KnobFocus& focus, const PageSources& sources) {
-	SectionPages out{.current = current_page(song, focus, sources), .cycle = {}, .group_entry = {}};
 	const uint8_t mode = knob_mode(song, focus, sources.board);
+	SectionPages out{.current = page_on(song, focus, sources, mode), .cycle = {}, .group_entry = {}};
 	if (const auto* sound = std::get_if<SoundFocus>(&focus.owner)) {
 		out.cycle = sound_cycle(mode, sound_publisher(song, *sound, sources));
 	}
@@ -250,17 +270,8 @@ bool section_keeps_stutter(const project::Song& song, const KnobFocus& focus, ui
 		publisher =
 		    chain_publisher(focused_chain(song, focus), std::holds_alternative<SongFocus>(focus.owner), sources);
 	}
-	if (publisher.record == nullptr || publisher.record->count == nullptr || publisher.record->get == nullptr) {
-		return false;
-	}
-	const uint32_t count = publisher.record->count(publisher.context);
-	plugin::RemotePage found;
-	for (uint32_t index = 0; index < count && publisher.record->get(publisher.context, index, found); index++) {
-		if (found.section == section && found.keeps_stutter) {
-			return true;
-		}
-	}
-	return false;
+	return for_each_device_page(publisher, section,
+	                            [](const plugin::RemotePage& found) { return found.keeps_stutter; });
 }
 
 } // namespace deluge::controls

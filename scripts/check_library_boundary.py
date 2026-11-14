@@ -201,7 +201,8 @@ LIBRARIES: dict[str, Library] = {
         "effects/global_effectable/",
         (
             "plugin-api/types/",
-            # the library publishes the chains' remote-controls pages, so it reads plugin-api and the effect state it publishes
+            # the library publishes the chains' remote-controls pages, so it reads plugin-api and the effect state
+            # it publishes
             "plugin-api/remote_controls_publisher.h",
             "plugin-api/state_handle.h",
             "effects/plugin.h",

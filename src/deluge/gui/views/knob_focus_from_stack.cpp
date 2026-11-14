@@ -58,7 +58,8 @@ controls::KnobFocus drumFocus(::Kit& kit, ::SoundDrum& drum, const ::Clip* clip)
 	return {.owner = sound};
 }
 
-/// The focus on the MIDI or gate drum @p drum of @p kit, in @p clip: a drum with no knobs.
+/// The focus on the MIDI or gate drum @p drum of @p kit, in @p clip: a drum with no knobs. A stack names such a drum
+/// only when it is hand-built, as `InstrumentClip::getActiveModControllable` has no controllable for it.
 controls::KnobFocus nonAudioDrumFocus(::Kit& kit, const ::Drum& drum, const ::Clip* clip) {
 	if (!drum.id() || !kit.id()) {
 		return {};
@@ -98,6 +99,7 @@ controls::KnobFocus knobFocusFromStack(::Song& song, const ModelStackWithThreeMa
 						focus = drumFocus(kit, *static_cast<::SoundDrum*>(drum), clip);
 						break;
 					}
+					// Reached from hand-built stacks only (see nonAudioDrumFocus).
 					if (drum->type != DrumType::SOUND && drum->toModControllable() == controllable) {
 						focus = nonAudioDrumFocus(kit, *drum, clip);
 						break;

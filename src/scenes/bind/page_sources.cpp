@@ -1,4 +1,4 @@
-#include "scenes/bind/section_pages.h"
+#include "scenes/bind/page_sources.h"
 
 #include "deluge-project/fx_chain.h"
 #include "effects/global_effectable/pages.h"

@@ -1,7 +1,7 @@
 #include "scenes/services/knob_push.h"
 
 #include "scenes/bind/knob_assignment.h"
-#include "scenes/bind/section_pages.h"
+#include "scenes/bind/page_sources.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/services/source_names.h"
 
@@ -55,18 +55,8 @@ Reads reads_of(const bind::KnobFocus& focus, const PushInputs& gesture) {
 	Reads out{.pages = bind::app_page_sources(facts, gesture.board),
 	          .button_held = gesture.button_held,
 	          .clip_context = gesture.clip_context};
-	if (const std::optional<EffectOwner> owner = effect_owner(focus)) {
-		const effects::EffectStates* fx = nullptr;
-		if (const auto* slot = std::get_if<project::SlotAddress>(&*owner)) {
-			const instrument::SoundState* state = facts.sound_state(*slot);
-			fx = state != nullptr ? &state->effects : nullptr;
-		}
-		else {
-			fx = facts.chain_effects(std::get<project::ChainAddress>(*owner));
-		}
-		if (fx != nullptr) {
-			out.effects = *fx;
-		}
+	if (const effects::EffectStates* fx = owner_effects(focus, facts)) {
+		out.effects = *fx;
 	}
 	return out;
 }
@@ -483,6 +473,18 @@ std::optional<EffectOwner> effect_owner(const bind::KnobFocus& focus) {
 	return std::nullopt;
 }
 
+const effects::EffectStates* owner_effects(const bind::KnobFocus& focus, const bind::RuntimeFacts& facts) {
+	const std::optional<EffectOwner> owner = effect_owner(focus);
+	if (!owner) {
+		return nullptr;
+	}
+	if (const auto* slot = std::get_if<project::SlotAddress>(&*owner)) {
+		const instrument::SoundState* state = facts.sound_state(*slot);
+		return state != nullptr ? &state->effects : nullptr;
+	}
+	return facts.chain_effects(std::get<project::ChainAddress>(*owner));
+}
+
 KnobPush knob_push(const project::Song& song, const bind::KnobFocus& focus, int32_t knob, bool on,
                    const PushInputs& gesture) {
 	const Reads inputs = reads_of(focus, gesture);
@@ -547,7 +549,8 @@ std::string mod_button_popup(const project::Song& song, const bind::KnobFocus& f
 	}
 	if (const auto* midi = std::get_if<bind::MidiFocus>(&focus.owner)) {
 		const project::DocOutput* output = song.output_structure.find(midi->track.output_id);
-		const size_t at = static_cast<size_t>(bind::knob_mode(song, focus, inputs.pages.board)) * 2;
+		const size_t at =
+		    static_cast<size_t>(bind::knob_mode(song, focus, inputs.pages.board)) * inputs.pages.board.slots;
 		if (output == nullptr || at + 1 >= output->mod_knob_ccs.size()) {
 			return {};
 		}

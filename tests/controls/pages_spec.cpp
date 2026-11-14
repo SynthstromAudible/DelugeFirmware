@@ -213,17 +213,25 @@ describe pages("the pages a press moves between, from the published records and 
 		expect(pages.current.keeps_stutter).to_be_true();
 		expect(std::ranges::all_of(pages.cycle, [](const controls::Page& p) { return p.keeps_stutter; })).to_be_true();
 	});
-	it("builds the page the knobs are on with no allocation, for every owner", _{
-		project::Song song = filter_on_lower_knob(3);
-		song.output_structure.getOrCreate(5).mod_knob_ccs = {{}, {}, {}, {}, {}, {}, {}, {}};
+	it("builds the page the knobs are on with no allocation, for every owner and every mod button", _{
+		using Cc = project::ModKnobCc;
 		const controls::KnobFocus midi{.owner = controls::MidiFocus{.track = {5}, .clip = project::ClipAddress{}}};
+		const controls::KnobFocus none{.owner = controls::NoControlsFocus{.kind = controls::NoControlsFocus::Kind::CV_TRACK,
+		                                                                   .track = {6}}};
 		controls::KnobFocus comp = kSong;
 		comp.comp = {.editing = true, .param = 1};
-		for (const uint8_t mode : {uint8_t{1}, uint8_t{4}, uint8_t{5}}) {
+		for (uint8_t mode = 0; mode < 8; mode++) {
+			// A sound whose knobs on this button are saved (so its page decorates them), and a MIDI track whose CCs
+			// are of every kind.
+			project::Song song = filter_on_lower_knob(mode);
 			song.mod_knob_mode = mode;
-			song.output_structure.getOrCreate(3).mod_knob_mode = mode;
 			song.output_structure.getOrCreate(8).mod_knob_mode = mode;
-			for (const controls::KnobFocus& focus : {kSynth, kSong, comp, kKitChain, midi, controls::KnobFocus{}}) {
+			project::DocOutput& midi_output = song.output_structure.getOrCreate(5);
+			midi_output.mod_knob_mode = mode;
+			midi_output.mod_knob_ccs.assign(16, Cc{});
+			midi_output.mod_knob_ccs[(mode * 2) % 16] = {.kind = Cc::Kind::NUMBER, .number = 7};
+			midi_output.mod_knob_ccs[(mode * 2 + 1) % 16] = {.kind = Cc::Kind::BEND};
+			for (const controls::KnobFocus& focus : {kSynth, kSong, comp, kKitChain, midi, none, controls::KnobFocus{}}) {
 				expect(current_page_allocations(song, focus)).to_equal(size_t{0});
 			}
 		}

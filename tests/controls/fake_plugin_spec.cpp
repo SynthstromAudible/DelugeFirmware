@@ -59,7 +59,8 @@ constexpr plugin::ParamId kRepeat{30};
 constexpr RemoteSlot knob(plugin::ParamId id, PressAction press = PressAction::NONE) {
 	return {.param = id, .kind = plugin::ParamKind::UNPATCHED_SOUND, .press = press, .press_param = std::nullopt};
 }
-constexpr RemotePage fake_page(uint32_t section, uint32_t page_id, RemoteSlot lower, RemoteSlot upper, bool keeps = false) {
+constexpr RemotePage fake_page(uint32_t section, uint32_t page_id, RemoteSlot lower, RemoteSlot upper,
+                                bool keeps = false) {
 	RemotePage out{.section = section, .page_id = page_id, .name = {}};
 	out.slots[0] = lower;
 	out.slots[1] = upper;

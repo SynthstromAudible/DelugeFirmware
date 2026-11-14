@@ -26,8 +26,8 @@
 
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/bind/knob_math.h"
+#include "scenes/bind/page_sources.h"
 #include "scenes/bind/runtime_facts.h"
-#include "scenes/bind/section_pages.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/menu_scene.h"
@@ -125,16 +125,7 @@ bool ModKnobs::bound() const {
 }
 
 const effects::EffectStates* ModKnobs::owner_effects() const {
-	const std::optional<EffectOwner> owner = effect_owner(*focus_);
-	if (!owner) {
-		return nullptr;
-	}
-	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
-	if (const auto* slot = std::get_if<project::SlotAddress>(&*owner)) {
-		const instrument::SoundState* state = facts.sound_state(*slot);
-		return state != nullptr ? &state->effects : nullptr;
-	}
-	return facts.chain_effects(std::get<project::ChainAddress>(*owner));
+	return services::owner_effects(*focus_, menu::host_runtime_facts());
 }
 
 PushInputs ModKnobs::push_inputs(bool mode_held) const {

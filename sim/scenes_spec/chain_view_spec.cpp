@@ -3,7 +3,7 @@
 // reverb button on the compressor setting the knobs' compressor view edits, each a page the chain publishes.
 
 #include "board_controls.hpp"
-#include "scenes/bind/section_pages.h"
+#include "scenes/bind/page_sources.h"
 
 #include "controls/pages.h"
 #include "deluge-project/song.h"

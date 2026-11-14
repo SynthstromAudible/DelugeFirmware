@@ -51,6 +51,7 @@
 
 #include "controls/board.h"
 #include "effects/state.h"
+#include "foundation/panic.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/services/guest_knob_presentation.h"
@@ -95,7 +96,16 @@ public:
 	ModKnobs(overlay::ParamPopupScene& popup, deluge::ui::shell::SceneStack& stack,
 	         deluge::ui::shell::InputLowering& lowering, const deluge::controls::Board& board)
 	    : stack_(stack), lowering_(lowering), board_(board),
-	      guest_(popup, stack, now_ms_, view_.root_is_timeline_view) {}
+	      guest_(popup, stack, now_ms_, view_.root_is_timeline_view) {
+		if (board.slots > KnobPresentation::kKnobCount) {
+			freezeWithError("E-board");
+		}
+	}
+
+	/// @brief The board the knobs and mod buttons are on: a caller mapping a physical control for them maps it through
+	///        this one.
+	/// @return The board.
+	[[nodiscard]] const deluge::controls::Board& board() const { return board_; }
 
 	/// @name What the knobs point at
 	/// @{

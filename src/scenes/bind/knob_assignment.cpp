@@ -2,7 +2,7 @@
 
 #include "controls/resolve.h"
 #include "effects/setting_params.h"
-#include "scenes/bind/section_pages.h"
+#include "scenes/bind/page_sources.h"
 
 namespace deluge::scenes::bind {
 

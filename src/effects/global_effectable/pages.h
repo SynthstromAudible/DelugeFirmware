@@ -45,8 +45,14 @@ struct PageInputs {
 	bool alt_delay{false};                                    ///< the alternative delay knobs
 };
 
+/// @brief The chain's mod buttons: one section each.
+inline constexpr uint32_t kSections = 8;
+/// @brief The level button: its page is pan and volume.
+inline constexpr uint32_t kLevelSection = 0;
 /// @brief The filter button: its pages are low-pass, high-pass and EQ.
 inline constexpr uint32_t kFilterSection = 1;
+/// @brief The delay button: its page is the delay's feedback and rate.
+inline constexpr uint32_t kDelaySection = 3;
 /// @brief The reverb button: the song's holds its compressor group, and a clip chain's page leaves a playing stutter
 ///        running.
 inline constexpr uint32_t kCompressorSection = 4;
@@ -54,6 +60,9 @@ inline constexpr uint32_t kCompressorSection = 4;
 inline constexpr uint32_t kModFxSection = 5;
 /// @brief The stutter button: on the song its lower knob moves nothing.
 inline constexpr uint32_t kStutterSection = 6;
+
+/// @brief The lo-fi button: its page is the bitcrusher and the sample rate reduction.
+inline constexpr uint32_t kLofiSection = 7;
 
 /// @brief The filter button's last page, EQ: a filter view past it is EQ.
 inline constexpr uint32_t kEqPage = 2;

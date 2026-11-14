@@ -346,11 +346,13 @@ a `KnobPresentation` that shows each popup, indicator and blink as the view does
 keeps no gold-knob code, and the engine classes hold no knob overrides. param-target-check and the scenes specs hold the
 published pages to the engine's param layout.
 
-The instrument's layouts are data beside its device pages (`src/instruments/deluge/pages.h`): a sample row's mode 6 is
-`kSamplePages` (the device pages with the pitch on the lower knob of button 6), the FM knob swap is the `kIntoFm` and
-`kOutOfFm` remap rows that `remap_for_mode` applies, and a wavetable claim's knobs are `wavetable_claimed` and
-`wavetable_released`. Each takes the sound's saved knobs and returns the knobs the sound takes; they are written through
-the controls record (`SetControls` / `applyControls`), so the engine's knob array and the record stay equal.
+The instrument's layouts are data beside its device pages (`src/instruments/deluge/pages.h`): a sample row's mod
+button 6 is `kSamplePages` (the device pages with the pitch on the lower knob of mod button 6), the FM knob swap is the
+`kIntoFm` and `kOutOfFm` remap rows that `remap_for_mode` applies, and a wavetable claim's knobs are `wavetable_claimed`
+and `wavetable_released`. `remap_for_mode` takes the sound's saved knobs, the synth mode it leaves and the one it enters;
+the wavetable functions take the saved knobs and the oscillator (0 or 1) that claimed or released the wavetable. Each
+returns the knobs the sound takes. `writeKnobPairs` (`controls_bridge.h`) writes them through the controls record
+(`SetControls`, or both copies directly when it refuses), so the engine's knob array and the record stay equal.
 
 ## Instrument-private rules
 
