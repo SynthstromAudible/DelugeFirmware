@@ -16,8 +16,8 @@
  */
 
 // Behavioural spec for deluge::dsp::fixed sine kernel.
-// Runs on BOTH x86 (SIMDe) and ARM/QEMU (real NEON), in the unit and unit-arm trees (`./dbt test`) — the two
-// backends must agree, so every assertion here is also an x86-vs-NEON cross-check.
+// Runs on BOTH x86 (SIMDe) and ARM/QEMU (real NEON), in the unit, unit-arm and dsp-ubsan trees (`./dbt test`) — the
+// two backends must agree, so every assertion here is also an x86-vs-NEON cross-check.
 //
 // Reference values are computed from the table at fraction == 0 (phases that are
 // multiples of 2^24): there the result is exactly table[index] << 16, which makes
