@@ -8,6 +8,7 @@ test_harness_registry.py.
 
 import ast
 import dataclasses
+import importlib.util
 import json
 import os
 import re
@@ -87,11 +88,31 @@ PROBES = {
         "set DELUGE_LEGACY_CORPUS to the SONGS folder of a card backup as the firmware wrote it (not upgraded), with "
         "that backup's SYNTHS folder beside it -- the upgrade differential upgrades the originals"
     ),
+    "delugemu": (
+        "build delugemu (scripts/build.sh) in DELUGEMU_ROOT (default ~/GitHub/delugemu), and put main's RelWithDebInfo "
+        "deluge.elf at DELUGE_PARITY_REF (default .superpowers/estate/emu/main.elf)"
+    ),
+    "content-card": (
+        "put the content cards (directories and FAT images of cards with presets, kits, samples and songs) in "
+        "DELUGE_CONTENT_CARDS (default .superpowers/emu-card); a script's `# card: content/<name>` names one"
+    ),
+    "rig": "set DELUGE_PROBE_HOST to the probe rig's ssh destination (docs/dev/device_benchmarking.md)",
+    "deluge-usb": "plug a Deluge into this machine's USB, and pip install -r tests/device/usbmidi/requirements.txt",
 }
 
 # Requirements CI never has: a test that needs one runs only on a developer's machine. `--ci-matrix` leaves such
 # tests out, so a CI job never fails on a skip it cannot avoid; `--list` and `--doctor` still show them.
-LOCAL_ONLY = frozenset({"song-corpus", "song-xml-corpus", "legacy-corpus"})
+LOCAL_ONLY = frozenset(
+    {
+        "song-corpus",
+        "song-xml-corpus",
+        "legacy-corpus",
+        "delugemu",
+        "content-card",
+        "rig",
+        "deluge-usb",
+    }
+)
 
 
 def local_only(h: "Harness") -> bool:
@@ -772,6 +793,11 @@ def select(
     ]
 
 
+# Where the kernel lists USB devices, and the Deluge's vendor and product ids.
+USB_DEVICES = Path("/sys/bus/usb/devices")
+DELUGE_USB_ID = ("16d0", "0ce2")
+
+
 def probe(requirement: str, root: Path) -> bool:
     """Is `requirement` satisfied on this machine?"""
     match requirement:
@@ -835,6 +861,38 @@ def probe(requirement: str, root: Path) -> bool:
                 bool(value)
                 and Path(value).is_dir()
                 and (Path(value).parent / "SYNTHS").is_dir()
+            )
+        case "delugemu":
+            emu = Path(
+                os.environ.get("DELUGEMU_ROOT") or Path.home() / "GitHub/delugemu"
+            )
+            ref = Path(
+                os.environ.get("DELUGE_PARITY_REF")
+                or root / ".superpowers/estate/emu/main.elf"
+            )
+            return all(
+                p.is_file()
+                for p in (
+                    emu / "scripts/run.sh",
+                    emu / "qemu/build/qemu-system-arm",
+                    ref,
+                )
+            )
+        case "content-card":
+            return Path(
+                os.environ.get("DELUGE_CONTENT_CARDS") or root / ".superpowers/emu-card"
+            ).is_dir()
+        case "rig":
+            return bool(os.environ.get("DELUGE_PROBE_HOST"))
+        case "deluge-usb":
+            plugged = any(
+                tuple((d / f).read_text().strip() for f in ("idVendor", "idProduct"))
+                == DELUGE_USB_ID
+                for d in USB_DEVICES.glob("*")
+                if (d / "idVendor").is_file() and (d / "idProduct").is_file()
+            )
+            return plugged and all(
+                importlib.util.find_spec(m) for m in ("pytest", "rtmidi", "usb")
             )
         case _:
             return False

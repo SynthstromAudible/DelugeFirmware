@@ -21,6 +21,14 @@ host (--midi-port), and to delugemu's DIN MIDI input.
 
 Exit codes: 0 every snapshot matched (or, with --record-only, every script ran); 1 a snapshot differed or a run
 failed; 3 the rig failed; 4 usage, or a card that does not image.
+
+Gate ui-device:
+    tests/ui-scripts/device's compared scripts run on the real Deluge on the probe rig and in delugemu on the same
+    rig-harness image and the rig's settings, and every snapshot must match
+
+Gate ui-device-record:
+    tests/ui-scripts/device's record-only scripts run on the rig and keep its snapshots and debug output (the
+    playhead-move timings an ALPHA image prints) for reading by hand
 """
 
 from __future__ import annotations

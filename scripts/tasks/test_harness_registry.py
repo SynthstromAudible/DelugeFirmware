@@ -1249,6 +1249,35 @@ class GateShortfallTest(unittest.TestCase):
 
 
 class ProbeTest(unittest.TestCase):
+    def test_delugemu_needs_its_launcher_its_qemu_and_the_reference_image(self):
+        emu, ref = Path(tempfile.mkdtemp()), Path(tempfile.mkdtemp()) / "main.elf"
+        env = {"DELUGEMU_ROOT": str(emu), "DELUGE_PARITY_REF": str(ref)}
+        with mock.patch.dict(os.environ, env):
+            self.assertFalse(hr.probe("delugemu", Path.cwd()))
+            for f in ("scripts/run.sh", "qemu/build/qemu-system-arm"):
+                (emu / f).parent.mkdir(parents=True, exist_ok=True)
+                (emu / f).write_text("")
+            self.assertFalse(hr.probe("delugemu", Path.cwd()))
+            ref.write_text("")
+            self.assertTrue(hr.probe("delugemu", Path.cwd()))
+
+    def test_content_card_is_the_content_directory(self):
+        cards = Path(tempfile.mkdtemp())
+        with mock.patch.dict(os.environ, {"DELUGE_CONTENT_CARDS": str(cards)}):
+            self.assertTrue(hr.probe("content-card", Path.cwd()))
+        with mock.patch.dict(os.environ, {"DELUGE_CONTENT_CARDS": str(cards / "none")}):
+            self.assertFalse(hr.probe("content-card", Path.cwd()))
+
+    def test_rig_is_a_probe_host(self):
+        with mock.patch.dict(os.environ, {"DELUGE_PROBE_HOST": "rig"}):
+            self.assertTrue(hr.probe("rig", Path.cwd()))
+        with mock.patch.dict(os.environ, {"DELUGE_PROBE_HOST": ""}):
+            self.assertFalse(hr.probe("rig", Path.cwd()))
+
+    def test_deluge_usb_needs_the_device_on_this_machine(self):
+        with mock.patch.object(hr, "USB_DEVICES", Path(tempfile.mkdtemp())):
+            self.assertFalse(hr.probe("deluge-usb", Path.cwd()))
+
     def test_legacy_corpus_needs_synths_beside_it(self):
         backup = Path(tempfile.mkdtemp())
         songs = backup / "SONGS"
@@ -1296,7 +1325,16 @@ class CiMatrixTest(unittest.TestCase):
     def test_local_only_requirements_are_probes(self):
         self.assertLessEqual(hr.LOCAL_ONLY, set(hr.PROBES))
         self.assertEqual(
-            hr.LOCAL_ONLY, {"song-corpus", "song-xml-corpus", "legacy-corpus"}
+            hr.LOCAL_ONLY,
+            {
+                "song-corpus",
+                "song-xml-corpus",
+                "legacy-corpus",
+                "delugemu",
+                "content-card",
+                "rig",
+                "deluge-usb",
+            },
         )
 
     def test_ci_matrix_omits_local_only_tests(self):

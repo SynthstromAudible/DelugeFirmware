@@ -1844,6 +1844,84 @@ gates = "deluge_jlink's load script stops every DMA channel after the MMU is off
 run = ["python3", "-m", "unittest", "test_deluge_jlink"]
 
 [[harness]]
+name = "ui-parity"
+path = "."
+level = "integration"
+runner = "script"
+kind = "differential"
+status = "investigative"
+gates = "the parity scripts show the same panels on this image as on main's, in delugemu, on every card their headers name"
+build = ["./dbt", "build", "RelWithDebInfo"]
+run = ["python3", "tools/emu_parity.py", "-j", "4", "tests/ui-scripts/parity"]
+requires = ["delugemu", "content-card"]
+tier = "manual"
+alone = true
+job = "tooling"
+runtime_s = 1200
+
+[[harness]]
+name = "ui-parity-card"
+path = "."
+level = "integration"
+runner = "script"
+kind = "differential"
+status = "investigative"
+gates = "the content-card parity scripts show the same panels on this image as on main's, in delugemu"
+build = ["./dbt", "build", "RelWithDebInfo"]
+run = ["python3", "tools/emu_parity.py", "-j", "4", "tests/ui-scripts/parity-card"]
+requires = ["delugemu", "content-card"]
+tier = "manual"
+alone = true
+job = "tooling"
+runtime_s = 300
+
+[[harness]]
+name = "ui-parity-songs"
+path = "."
+level = "integration"
+runner = "script"
+kind = "differential"
+status = "investigative"
+gates = "eleven real songs load and play with the same panels on this image as on main's, in delugemu"
+build = ["./dbt", "build", "RelWithDebInfo"]
+run = ["python3", "tools/emu_parity.py", "-j", "4", "tests/ui-scripts/parity-songs"]
+requires = ["delugemu", "content-card"]
+tier = "manual"
+alone = true
+job = "tooling"
+runtime_s = 90
+
+[[harness]]
+name = "ui-device"
+path = "."
+level = "integration"
+runner = "script"
+kind = "differential"
+status = "investigative"
+gates = "the device scripts show the same panels on the Deluge on the probe rig as in delugemu running the same image"
+build = ["python3", "tools/bench_image.py", "--out", "build/rig-harness.elf", "--no-bench", "--features", "rig-harness"]
+run = ["python3", "tools/device_parity.py", "--emu-ref", "build/rig-harness.elf", "--device", "build/rig-harness.elf", "tests/ui-scripts/device/d01-open-close-stress.txt"]
+requires = ["delugemu", "content-card", "rig"]
+tier = "manual"
+job = "tooling"
+runtime_s = 180
+
+[[harness]]
+name = "ui-device-record"
+path = "."
+level = "integration"
+runner = "script"
+kind = "benchmark"
+status = "investigative"
+gates = "nothing: it records the device-only scripts' snapshots and debug output on the Deluge on the probe rig"
+build = ["python3", "tools/bench_image.py", "--out", "build/rig-harness.elf", "--no-bench", "--features", "rig-harness"]
+run = ["python3", "tools/device_parity.py", "--record-only", "--device", "build/rig-harness.elf", "tests/ui-scripts/device/d02-playhead-moves.txt"]
+requires = ["rig"]
+tier = "manual"
+job = "tooling"
+runtime_s = 180
+
+[[harness]]
 name = "audible-window-tooling"
 template = "unittest"
 path = "tools/audible_window"

@@ -196,6 +196,11 @@ builds only `golden-vt-render`.
 | device-parity | unit | script | unit | gate | emu_parity's script runner drives delugemu or the rig through the same steps and timings, and device_parity seeds delugemu's flash from the rig's settings | pr | tooling | ~1s |
 | ui-script-cards | unit | script | unit | gate | the cards a UI script's header names, as the UI script runners read them | pr | tooling | ~1s |
 | deluge-jlink | unit | script | unit | gate | deluge_jlink's load script stops every DMA channel after the MMU is off and before the load | pr | tooling | ~1s |
+| ui-parity | integration | script | differential | investigative | the parity scripts show the same panels on this image as on main's, in delugemu, on every card their headers name | manual | tooling | ~20m |
+| ui-parity-card | integration | script | differential | investigative | the content-card parity scripts show the same panels on this image as on main's, in delugemu | manual | tooling | ~5m |
+| ui-parity-songs | integration | script | differential | investigative | eleven real songs load and play with the same panels on this image as on main's, in delugemu | manual | tooling | ~90s |
+| ui-device | integration | script | differential | investigative | the device scripts show the same panels on the Deluge on the probe rig as in delugemu running the same image | manual | tooling | ~3m |
+| ui-device-record | integration | script | benchmark | investigative | nothing: it records the device-only scripts' snapshots and debug output on the Deluge on the probe rig | manual | tooling | ~3m |
 | audible-window-tooling | unit | script | unit | gate | the audible window's analyser and song set | pr | tooling | ~1s |
 | audible-window-identity | integration | script | regression | gate | the audible window's reference snapshot (.superpowers/estate/audible-window/reference/, or AUDIBLE_WINDOW_REFERENCE) compared with itself reports nothing moved | manual | tooling | ~1m |
 | bench-tooling | unit | script | unit | gate | the bench tools' host side | pr | tooling | ~1s |

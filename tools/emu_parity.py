@@ -32,6 +32,20 @@ step makes pad (X, Y) compare as lit or unlit only.
 Exit codes: 0 every snapshot matched, differed only in phase or by an accepted row; 1 a snapshot differed or a run
 failed; 4 a usage error: no reference image or image under test, a script that does not exist or names no card, two
 cards with one label, or a card that does not image.
+
+Gate ui-parity:
+    every script in tests/ui-scripts/parity runs on main's image and on this one in delugemu, on each card its
+    `# card:` header names, and every snapshot must MATCH, differ only in phase, or be an accepted D77 section line;
+    the accepted differences DIFFERENCES.md lists still read DIFF, so the run is read against that table, not by its
+    exit status
+
+Gate ui-parity-card:
+    the ui-parity comparison over tests/ui-scripts/parity-card: the browsers, kits, samples, DX7, recorder and
+    multisample scripts on content cards and on the fixture card's manifests
+
+Gate ui-parity-songs:
+    the ui-parity comparison over tests/ui-scripts/parity-songs: each of eleven real songs loaded through the browser,
+    stopped, playing and in a clip
 """
 
 import argparse
