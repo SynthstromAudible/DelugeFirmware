@@ -175,7 +175,7 @@ describe snapshot_tools("harness::snapshot_tools (ui_snapshot_diff.py, pbm2png.p
 		expect(rc).to_equal(0);
 		std::string png = read_file(tmp / "out.png");
 		std::string sig = std::string("\x89PNG\r\n\x1a\n", 8);
-		expect(png.size() > sig.size()).to_be_true();
+		expect(png.size()).to_be_greater_than(sig.size());
 		expect(png.substr(0, sig.size())).to_equal(sig);
 		fs::remove_all(tmp);
 	});

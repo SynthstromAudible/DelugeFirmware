@@ -23,10 +23,10 @@ describe shell_host_ui_encoders("gui::ui::ShellHostUI: encoders, and the input h
 		r.guest.shell().tick(1);
 
 		const PatternScene::Seen* turn = first_of(r.base, UiEvent::Kind::Encoder);
-		expect(turn != nullptr).to_be_true();
-		expect(turn->ev.encoder == deluge::ui::EncoderRole::Horizontal).to_be_true();
+		expect(turn).not_().to_be_null();
+		expect(turn->ev.encoder).to_equal(deluge::ui::EncoderRole::Horizontal);
 		expect(static_cast<int>(turn->ev.delta)).to_equal(3);
-		expect(result == ActionResult::DEALT_WITH).to_be_true();
+		expect(result).to_equal(ActionResult::DEALT_WITH);
 	});
 
 	it("keeps the three function encoders on their own roles", _ {
@@ -37,16 +37,16 @@ describe shell_host_ui_encoders("gui::ui::ShellHostUI: encoders, and the input h
 		(void)r.guest.verticalEncoderAction(-2);
 		r.guest.shell().tick(1);
 		const PatternScene::Seen* vertical = first_of(r.base, UiEvent::Kind::Encoder);
-		expect(vertical != nullptr).to_be_true();
-		expect(vertical->ev.encoder == deluge::ui::EncoderRole::Vertical).to_be_true();
+		expect(vertical).not_().to_be_null();
+		expect(vertical->ev.encoder).to_equal(deluge::ui::EncoderRole::Vertical);
 		expect(static_cast<int>(vertical->ev.delta)).to_equal(-2);
 
 		r.base.seen.clear();
 		r.guest.selectEncoderAction(4);
 		r.guest.shell().tick(2);
 		const PatternScene::Seen* select = first_of(r.base, UiEvent::Kind::Encoder);
-		expect(select != nullptr).to_be_true();
-		expect(select->ev.encoder == deluge::ui::EncoderRole::Select).to_be_true();
+		expect(select).not_().to_be_null();
+		expect(select->ev.encoder).to_equal(deluge::ui::EncoderRole::Select);
 		expect(static_cast<int>(select->ev.delta)).to_equal(4);
 	});
 
@@ -64,14 +64,14 @@ describe shell_host_ui_encoders("gui::ui::ShellHostUI: encoders, and the input h
 		(void)r.guest.verticalEncoderAction(63);
 		r.guest.shell().tick(1);
 		const PatternScene::Seen* atCeiling = first_of(r.base, UiEvent::Kind::Encoder);
-		expect(atCeiling != nullptr).to_be_true();
+		expect(atCeiling).not_().to_be_null();
 		expect(static_cast<int>(atCeiling->ev.delta)).to_equal(63);
 
 		r.base.seen.clear();
 		(void)r.guest.verticalEncoderAction(64);
 		r.guest.shell().tick(2);
 		const PatternScene::Seen* past = first_of(r.base, UiEvent::Kind::Encoder);
-		expect(past != nullptr).to_be_true();
+		expect(past).not_().to_be_null();
 		// Not -64, and not 0 either: saturated, the choice legacy makes for its own two narrowing
 		// encoders (`hid/encoder_input.cpp`'s `interpretEncoders`).
 		expect(static_cast<int>(past->ev.delta)).to_equal(63);
@@ -80,7 +80,7 @@ describe shell_host_ui_encoders("gui::ui::ShellHostUI: encoders, and the input h
 		(void)r.guest.verticalEncoderAction(-500);
 		r.guest.shell().tick(3);
 		const PatternScene::Seen* negative = first_of(r.base, UiEvent::Kind::Encoder);
-		expect(negative != nullptr).to_be_true();
+		expect(negative).not_().to_be_null();
 		expect(static_cast<int>(negative->ev.delta)).to_equal(-63);
 	});
 
@@ -96,8 +96,8 @@ describe shell_host_ui_encoders("gui::ui::ShellHostUI: encoders, and the input h
 
 		// Index 1 on this profile is Tempo, and index 2 is Horizontal.
 		const PatternScene::Seen* turn = first_of(r.base, UiEvent::Kind::Encoder);
-		expect(turn != nullptr).to_be_true();
-		expect(turn->ev.encoder == deluge::ui::EncoderRole::Horizontal).to_be_true();
+		expect(turn).not_().to_be_null();
+		expect(turn->ev.encoder).to_equal(deluge::ui::EncoderRole::Horizontal);
 		expect(static_cast<int>(turn->ev.delta)).to_equal(2);
 	});
 
@@ -108,14 +108,14 @@ describe shell_host_ui_encoders("gui::ui::ShellHostUI: encoders, and the input h
 
 		(void)r.guest.horizontalEncoderAction(5);
 		r.guest.shell().tick(1);
-		expect(first_of(r.base, UiEvent::Kind::Encoder) == nullptr).to_be_true();
+		expect(first_of(r.base, UiEvent::Kind::Encoder)).to_be_null();
 
 		// Vary the role, not the board: vertical is in this table and still arrives.
 		(void)r.guest.verticalEncoderAction(5);
 		r.guest.shell().tick(2);
 		const PatternScene::Seen* vertical = first_of(r.base, UiEvent::Kind::Encoder);
-		expect(vertical != nullptr).to_be_true();
-		expect(vertical->ev.encoder == deluge::ui::EncoderRole::Vertical).to_be_true();
+		expect(vertical).not_().to_be_null();
+		expect(vertical->ev.encoder).to_equal(deluge::ui::EncoderRole::Vertical);
 	});
 
 	it("feeds nothing for a zero turn", _ {
@@ -221,7 +221,9 @@ describe shell_host_ui_encoders("gui::ui::ShellHostUI: encoders, and the input h
 		expect(knobs.count(UiEvent::Kind::Encoder)).to_equal(size_t(1));
 		for (const UiEvent& e : knobs.seen) {
 			if (e.kind == UiEvent::Kind::Encoder) {
-				expect(e.encoder == deluge::ui::EncoderRole::GoldLower && e.delta == 3 && e.lowered).to_be_true();
+				expect(e.encoder).to_equal(deluge::ui::EncoderRole::GoldLower);
+				expect(e.delta).to_equal(3);
+				expect(e.lowered).to_be_true();
 			}
 		}
 		expect(knobs.count(UiEvent::Kind::Button)).to_equal(size_t(2));

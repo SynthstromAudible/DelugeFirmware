@@ -19,16 +19,16 @@ describe favourites_row("ui::grid favourites row colours", $ {
 		colours[0] = 4;
 		colours[15] = 0;
 		const std::array<RGB, kFavourites> row = favourite_row_colours(colours);
-		expect(row[0] == RGB::fromHue(4 * 12)).to_be_true();
-		expect(row[15] == RGB::fromHue(0)).to_be_true();
-		expect(row[1] == RGB::fromHue(8 * 12).dim(6)).to_be_true();
-		expect(row[1] == row[0]).to_be_false();
+		expect(row[0]).to_equal(RGB::fromHue(4 * 12));
+		expect(row[15]).to_equal(RGB::fromHue(0));
+		expect(row[1]).to_equal(RGB::fromHue(8 * 12).dim(6));
+		expect(row[1]).not_().to_equal(row[0]);
 	});
 
 	it("paints bank i in the hue of colour i", _ {
 		const std::array<RGB, kFavourites> banks = favourite_bank_colours();
 		for (int32_t i = 0; i < static_cast<int32_t>(kFavourites); i++) {
-			expect(banks[static_cast<size_t>(i)] == RGB::fromHue(i * 12)).to_be_true();
+			expect(banks[static_cast<size_t>(i)]).to_equal(RGB::fromHue(i * 12));
 		}
 	});
 });

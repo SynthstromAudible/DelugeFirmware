@@ -68,9 +68,9 @@ describe zoom_transition_grid("ui/grid/zoom_transition", $ {
 		at_half.t = 32768;
 		deluge::gfx::grid::zoom(from, to, at_half, half);
 		expect(shows(r, half)).to_be_true();
-		expect(r.gate.next_deadline() == std::optional<uint32_t>{1105}).to_be_true();
+		expect(r.gate.next_deadline()).to_equal(std::optional<uint32_t>{1105});
 		// The sidebar is the owner's.
-		expect(r.grid.at(16, 0) == RGB{}).to_be_true();
+		expect(r.grid.at(16, 0)).to_equal(RGB{});
 
 		r.grid.clear();
 		r.begin_tick(1109);
@@ -79,7 +79,7 @@ describe zoom_transition_grid("ui/grid/zoom_transition", $ {
 		r.begin_tick(1110);
 		expect(zoom_transition(r.frame, z)).to_be_false();
 		expect(z.active).to_be_false();
-		expect(r.grid.at(5, 3) == RGB{}).to_be_true();
+		expect(r.grid.at(5, 3)).to_equal(RGB{});
 		r.begin_tick(1111);
 		expect(zoom_transition(r.frame, z)).to_be_false();
 	});

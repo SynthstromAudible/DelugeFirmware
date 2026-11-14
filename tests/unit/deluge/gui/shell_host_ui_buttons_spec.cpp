@@ -43,11 +43,11 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 				break;
 			}
 			expect(r.base.seen.size()).to_equal(size_t(1));
-			expect(r.base.seen[0].ev.kind == c.kind).to_be_true();
+			expect(r.base.seen[0].ev.kind).to_equal(c.kind);
 			expect(r.base.seen[0].ev.channel).to_equal(uint8_t(9));
 			expect(r.base.seen[0].ev.data1).to_equal(c.data1);
 			expect(r.base.seen[0].ev.data2).to_equal(c.data2);
-			expect(r.base.seen[0].ev.cable == &fake_cable()).to_be_true();
+			expect(r.base.seen[0].ev.cable).to_equal(&fake_cable());
 			// `PatternScene` declines and this rig installs no services, so the base answer decides.
 			expect(fakelegacyui::base_learn_offers).to_equal(1);
 			expect(handled).to_be_false();
@@ -82,11 +82,9 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		r.guest.shell().tick(1);
 
 		expect(fakelegacyui::note_button_forwards).to_equal(1);
-		expect(fakelegacyui::last_note_button
-		       == fakelegacyui::NoteButtonCall{deluge::hid::button::LOAD, true})
-		    .to_be_true();
+		expect(fakelegacyui::last_note_button).to_equal(fakelegacyui::NoteButtonCall{deluge::hid::button::LOAD, true});
 		expect(r.base.seen.size()).to_equal(size_t(1));
-		expect(result == ActionResult::NOT_DEALT_WITH).to_be_true();
+		expect(result).to_equal(ActionResult::NOT_DEALT_WITH);
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
 	});
 
@@ -99,19 +97,16 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		fakelegacyui::reset();
 
 		fakelegacyui::note_button_answer = ActionResult::DEALT_WITH;
-		expect(r.guest.buttonAction(deluge::hid::button::LOAD, true) == ActionResult::DEALT_WITH)
-		    .to_be_true();
+		expect(r.guest.buttonAction(deluge::hid::button::LOAD, true)).to_equal(ActionResult::DEALT_WITH);
 		fakelegacyui::note_button_answer = ActionResult::ACTIONED_AND_CAUSED_CHANGE;
-		expect(r.guest.buttonAction(deluge::hid::button::LOAD, false)
-		       == ActionResult::ACTIONED_AND_CAUSED_CHANGE)
-		    .to_be_true();
+		expect(r.guest.buttonAction(deluge::hid::button::LOAD, false))
+		    .to_equal(ActionResult::ACTIONED_AND_CAUSED_CHANGE);
 		r.guest.shell().tick(1);
 		expect(r.base.seen.empty()).to_be_true();
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
 
 		expect(fakelegacyui::note_button_forwards).to_equal(2);
-		expect(fakelegacyui::last_note_button == fakelegacyui::NoteButtonCall{deluge::hid::button::LOAD, false})
-		    .to_be_true();
+		expect(fakelegacyui::last_note_button).to_equal(fakelegacyui::NoteButtonCall{deluge::hid::button::LOAD, false});
 	});
 
 	it("hands a button to the menu's SAVE arm before the shell, and takes its answer", _ {
@@ -121,7 +116,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		r.base.seen.clear();
 		fakelegacyui::reset();
 		fakelegacyui::menu_save_answer = ActionResult::DEALT_WITH;
-		expect(r.guest.buttonAction(deluge::hid::button::SAVE, true) == ActionResult::DEALT_WITH).to_be_true();
+		expect(r.guest.buttonAction(deluge::hid::button::SAVE, true)).to_equal(ActionResult::DEALT_WITH);
 		r.guest.shell().tick(1);
 		expect(r.base.seen.empty()).to_be_true();
 		expect(fakelegacyui::menu_save_forwards).to_equal(1);
@@ -137,7 +132,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		r.base.seen.clear();
 		fakelegacyui::reset();
 		fakelegacyui::menu_view_answer = ActionResult::DEALT_WITH;
-		expect(r.guest.buttonAction(deluge::hid::button::SESSION_VIEW, true) == ActionResult::DEALT_WITH).to_be_true();
+		expect(r.guest.buttonAction(deluge::hid::button::SESSION_VIEW, true)).to_equal(ActionResult::DEALT_WITH);
 		r.guest.shell().tick(1);
 		expect(fakelegacyui::menu_view_forwards).to_equal(1);
 		expect(r.base.seen.empty()).to_be_true();
@@ -149,12 +144,8 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		fakelegacyui::reset();
 		fakelegacyui::note_button_answer = ActionResult::DEALT_WITH;
 
-		expect(r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_0, true)
-		       == ActionResult::NOT_DEALT_WITH)
-		    .to_be_true();
-		expect(r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_1, false)
-		       == ActionResult::NOT_DEALT_WITH)
-		    .to_be_true();
+		expect(r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_0, true)).to_equal(ActionResult::NOT_DEALT_WITH);
+		expect(r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_1, false)).to_equal(ActionResult::NOT_DEALT_WITH);
 		expect(fakelegacyui::note_button_forwards).to_equal(0);
 	});
 
@@ -165,17 +156,20 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		r.base.seen.clear();
 		fakelegacyui::reset();
 
-		expect(r.guest.horizontalEncoderAction(3) == ActionResult::DEALT_WITH).to_be_true();
+		expect(r.guest.horizontalEncoderAction(3)).to_equal(ActionResult::DEALT_WITH);
 		r.guest.shell().tick(1);
 		expect(fakelegacyui::note_horizontal_forwards).to_equal(1);
 		expect(fakelegacyui::last_note_horizontal_offset).to_equal(int32_t(3));
 		const PatternScene::Seen* turn = first_of(r.base, UiEvent::Kind::Encoder);
-		expect(turn != nullptr).to_be_true();
-		expect(turn != nullptr && turn->ev.encoder == deluge::ui::EncoderRole::Horizontal).to_be_true();
+		expect(turn).not_().to_be_null();
+		expect(turn).not_().to_be_null();
+		if (turn != nullptr) {
+			expect(turn->ev.encoder).to_equal(deluge::ui::EncoderRole::Horizontal);
+		}
 
 		r.base.seen.clear();
 		fakelegacyui::note_horizontal_answer = ActionResult::ACTIONED_AND_CAUSED_CHANGE;
-		expect(r.guest.horizontalEncoderAction(-2) == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
+		expect(r.guest.horizontalEncoderAction(-2)).to_equal(ActionResult::ACTIONED_AND_CAUSED_CHANGE);
 		r.guest.shell().tick(2);
 		expect(fakelegacyui::note_horizontal_forwards).to_equal(2);
 		expect(fakelegacyui::last_note_horizontal_offset).to_equal(int32_t(-2));
@@ -188,18 +182,21 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		r.base.seen.clear();
 		fakelegacyui::reset();
 
-		expect(r.guest.verticalEncoderAction(-2) == ActionResult::DEALT_WITH).to_be_true();
+		expect(r.guest.verticalEncoderAction(-2)).to_equal(ActionResult::DEALT_WITH);
 		r.guest.shell().tick(1);
-		expect(fakelegacyui::last_note_vertical == fakelegacyui::NoteVerticalCall{-2}).to_be_true();
+		expect(fakelegacyui::last_note_vertical).to_equal(fakelegacyui::NoteVerticalCall{-2});
 		const PatternScene::Seen* turn = first_of(r.base, UiEvent::Kind::Encoder);
-		expect(turn != nullptr && turn->ev.encoder == deluge::ui::EncoderRole::Vertical).to_be_true();
+		expect(turn).not_().to_be_null();
+		if (turn != nullptr) {
+			expect(turn->ev.encoder).to_equal(deluge::ui::EncoderRole::Vertical);
+		}
 
 		r.base.seen.clear();
 		fakelegacyui::note_vertical_answer = ActionResult::DEALT_WITH;
-		expect(r.guest.verticalEncoderAction(4) == ActionResult::DEALT_WITH).to_be_true();
-		expect(fakelegacyui::last_note_vertical == fakelegacyui::NoteVerticalCall{4}).to_be_true();
+		expect(r.guest.verticalEncoderAction(4)).to_equal(ActionResult::DEALT_WITH);
+		expect(fakelegacyui::last_note_vertical).to_equal(fakelegacyui::NoteVerticalCall{4});
 		fakelegacyui::note_vertical_answer = ActionResult::ACTIONED_AND_CAUSED_CHANGE;
-		expect(r.guest.verticalEncoderAction(5) == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
+		expect(r.guest.verticalEncoderAction(5)).to_equal(ActionResult::ACTIONED_AND_CAUSED_CHANGE);
 		r.guest.shell().tick(2);
 		expect(fakelegacyui::note_vertical_forwards).to_equal(3);
 		expect(r.base.seen.empty()).to_be_true();
@@ -250,7 +247,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		fakelegacyui::reset();
 		fakelegacyui::sd_routine_active = true;
 
-		expect(r.guest.padAction(4, 2, 255) == ActionResult::DEALT_WITH).to_be_true();
+		expect(r.guest.padAction(4, 2, 255)).to_equal(ActionResult::DEALT_WITH);
 		r.guest.shell().tick(10);
 		expect(r.base.seen.size()).to_equal(size_t(1));
 		expect(static_cast<int>(r.base.seen[0].ev.x)).to_equal(4);
@@ -275,14 +272,14 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		r.guest.shell().tick(1);
 
 		expect(r.base.seen.size()).to_equal(size_t(2));
-		expect(r.base.seen[0].ev.kind == UiEvent::Kind::Button).to_be_true();
-		expect(r.base.seen[0].ev.button == ButtonId::Load).to_be_true();
-		expect(r.base.seen[1].ev.button == ButtonId::Save).to_be_true();
+		expect(r.base.seen[0].ev.kind).to_equal(UiEvent::Kind::Button);
+		expect(r.base.seen[0].ev.button).to_equal(ButtonId::Load);
+		expect(r.base.seen[1].ev.button).to_equal(ButtonId::Save);
 
 		// **`NOT_DEALT_WITH`, and it is what keeps `Buttons::buttonAction`'s tail running** --
 		// `commandToggleShift` (`hid/buttons.cpp`), the transport, and the mod-encoder
 		// button dispatch at `:226-231`. `DEALT_WITH` would `goto dealtWith` at `:139-141`.
-		expect(result == ActionResult::NOT_DEALT_WITH).to_be_true();
+		expect(result).to_equal(ActionResult::NOT_DEALT_WITH);
 	});
 
 	it("delivers an encoder button as an EncoderButton, not a Button", _ {
@@ -297,8 +294,8 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		// which is a fact about the id the matrix decode produced -- so this also proves the decode
 		// landed on the right cell rather than merely on *a* cell.
 		expect(r.base.seen.size()).to_equal(size_t(1));
-		expect(r.base.seen[0].ev.kind == UiEvent::Kind::EncoderButton).to_be_true();
-		expect(r.base.seen[0].ev.button == ButtonId::SelectEnc).to_be_true();
+		expect(r.base.seen[0].ev.kind).to_equal(UiEvent::Kind::EncoderButton);
+		expect(r.base.seen[0].ev.button).to_equal(ButtonId::SelectEnc);
 	});
 
 	it("seeds the shell's sticky-shift setting from runtimeFeatureSettings when it opens", _ {
@@ -334,7 +331,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		(void)sticky.guest.padAction(3, 3, 255);
 		sticky.guest.shell().tick(20);
 		const PatternScene::Seen* latched = first_of(sticky.base, UiEvent::Kind::Pad);
-		expect(latched != nullptr).to_be_true();
+		expect(latched).not_().to_be_null();
 		expect(latched->shift).to_be_true();
 		expect(latched->sticky).to_be_true();
 
@@ -353,7 +350,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		(void)plain.guest.padAction(3, 3, 255);
 		plain.guest.shell().tick(20);
 		const PatternScene::Seen* unlatched = first_of(plain.base, UiEvent::Kind::Pad);
-		expect(unlatched != nullptr).to_be_true();
+		expect(unlatched).not_().to_be_null();
 		expect(unlatched->shift).to_be_false();
 	});
 
@@ -405,7 +402,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		(void)r.guest.padAction(3, 3, 255);
 		r.guest.shell().tick(210);
 		const PatternScene::Seen* pad = first_of(r.base, UiEvent::Kind::Pad);
-		expect(pad != nullptr).to_be_true();
+		expect(pad).not_().to_be_null();
 		expect(pad->sticky).to_be_true();
 
 		FlashStorage::holdTime = (2 * kSampleRate) / 20;
@@ -452,8 +449,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		fakelegacyui::reset();
 		fakelegacyui::current_ui = &r.guest;
 		// `NOT_DEALT_WITH` keeps legacy's tail, and the shift and transport handling above it, running.
-		expect(r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_1, true) == ActionResult::NOT_DEALT_WITH)
-		    .to_be_true();
+		expect(r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_1, true)).to_equal(ActionResult::NOT_DEALT_WITH);
 		static_cast<::UI&>(r.guest).modEncoderButtonAction(1, true);
 		r.guest.shell().tick(10);
 		expect(knobs.count(UiEvent::Kind::EncoderButton)).to_equal(size_t(1));
@@ -472,7 +468,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		r.guest.shell().tick(2);
 
 		const PatternScene::Seen* withShift = first_of(r.base, UiEvent::Kind::Pad);
-		expect(withShift != nullptr).to_be_true();
+		expect(withShift).not_().to_be_null();
 		expect(withShift->shift).to_be_true();
 		// Not the sticky latch: `LoweringConfig::shift_is_sticky` is false here, which is the
 		// divergence from legacy recorded on the class (`@par Shift`, point 1).
@@ -486,7 +482,7 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		r.guest.shell().tick(4);
 
 		const PatternScene::Seen* withoutShift = first_of(r.base, UiEvent::Kind::Pad);
-		expect(withoutShift != nullptr).to_be_true();
+		expect(withoutShift).not_().to_be_null();
 		expect(withoutShift->shift).to_be_false();
 	});
 });

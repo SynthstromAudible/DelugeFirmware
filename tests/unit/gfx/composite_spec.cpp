@@ -91,8 +91,8 @@ describe grid_composite("gfx::grid::composite", $ {
 		composite(base, overlay, BlendMode::Replace, out);
 		// Row 0 already held Replace's result for both cells -> untouched -> not dirty.
 		// Row 1 goes from {0,0,0} (out's constructor default) to Replace's result -> dirty.
-		expect((out.dirty_rows() & (1u << 0)) != 0).to_be_false();
-		expect((out.dirty_rows() & (1u << 1)) != 0).to_be_true();
+		expect(out.dirty_rows() & (1u << 0)).to_equal(0);
+		expect(out.dirty_rows() & (1u << 1)).not_().to_equal(0);
 	});
 	it("composites in place when out aliases base", _ {
 		PadGrid g = make_base();

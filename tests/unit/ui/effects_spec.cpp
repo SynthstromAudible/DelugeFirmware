@@ -143,7 +143,7 @@ describe effects_grid("ui/grid/effects", $ {
 		Tick down{{{.x = 5, .y = 2, .velocity = 64, .pressed = true}}};
 		r.input.pads = down.pads;
 		r.input.now_ms = 0;
-		expect(step(r, hold, sx, sy) == GestureEvent::None).to_be_true();
+		expect(step(r, hold, sx, sy)).to_equal(GestureEvent::None);
 		expect(hold.held).to_be_true();
 		expect((int32_t)hold.x).to_equal(5);
 		expect((int32_t)hold.y).to_equal(2);
@@ -151,7 +151,7 @@ describe effects_grid("ui/grid/effects", $ {
 		Tick up{{{.x = 5, .y = 2, .velocity = 0, .pressed = false}}};
 		r.input.pads = up.pads;
 		r.input.now_ms = 100;
-		expect(step(r, hold, sx, sy) == GestureEvent::Tap).to_be_true();
+		expect(step(r, hold, sx, sy)).to_equal(GestureEvent::Tap);
 		expect(hold.held).to_be_false(); // the press is over
 	});
 
@@ -169,13 +169,13 @@ describe effects_grid("ui/grid/effects", $ {
 		// A tick before the deadline: nothing.
 		r.input.pads = {};
 		r.input.now_ms = 499;
-		expect(step(r, hold, sx, sy) == GestureEvent::None).to_be_true();
+		expect(step(r, hold, sx, sy)).to_equal(GestureEvent::None);
 
 		r.input.now_ms = 600;
-		expect(step(r, hold, sx, sy) == GestureEvent::Hold).to_be_true();
+		expect(step(r, hold, sx, sy)).to_equal(GestureEvent::Hold);
 		// One-shot, like legacy's short-press timer.
 		r.input.now_ms = 700;
-		expect(step(r, hold, sx, sy) == GestureEvent::None).to_be_true();
+		expect(step(r, hold, sx, sy)).to_equal(GestureEvent::None);
 		expect(hold.held).to_be_true();
 	});
 
@@ -206,13 +206,13 @@ describe effects_grid("ui/grid/effects", $ {
 
 		r.input.pads = {};
 		r.input.now_ms = 600;
-		expect(step(r, hold, sx, sy) == GestureEvent::Hold).to_be_true();
+		expect(step(r, hold, sx, sy)).to_equal(GestureEvent::Hold);
 
 		// Legacy's `>= kShortPressTime` exits the sub-mode with no action.
 		Tick up{{{.x = 5, .y = 2, .velocity = 0, .pressed = false}}};
 		r.input.pads = up.pads;
 		r.input.now_ms = 900;
-		expect(step(r, hold, sx, sy) == GestureEvent::Release).to_be_true();
+		expect(step(r, hold, sx, sy)).to_equal(GestureEvent::Release);
 		expect(hold.held).to_be_false();
 	});
 
@@ -231,7 +231,7 @@ describe effects_grid("ui/grid/effects", $ {
 		Tick second{{{.x = 9, .y = 6, .velocity = 64, .pressed = true}}};
 		r.input.pads = second.pads;
 		r.input.now_ms = 120;
-		expect(step(r, hold, sx, sy) == GestureEvent::SecondPad).to_be_true();
+		expect(step(r, hold, sx, sy)).to_equal(GestureEvent::SecondPad);
 		expect(sx).to_equal(9);
 		expect(sy).to_equal(6);
 		expect(hold.held).to_be_false();
@@ -250,7 +250,7 @@ describe effects_grid("ui/grid/effects", $ {
 		Tick other{{{.x = 1, .y = 1, .velocity = 0, .pressed = false}}};
 		r.input.pads = other.pads;
 		r.input.now_ms = 50;
-		expect(step(r, hold, sx, sy) == GestureEvent::None).to_be_true();
+		expect(step(r, hold, sx, sy)).to_equal(GestureEvent::None);
 		expect(hold.held).to_be_true();
 	});
 
@@ -266,7 +266,7 @@ describe effects_grid("ui/grid/effects", $ {
 		           {.x = 5, .y = 2, .velocity = 0, .pressed = false}}};
 		r.input.pads = both.pads;
 		r.input.now_ms = 0;
-		expect(step(r, hold, sx, sy) == GestureEvent::Tap).to_be_true();
+		expect(step(r, hold, sx, sy)).to_equal(GestureEvent::Tap);
 		expect(hold.held).to_be_false();
 	});
 
@@ -279,7 +279,7 @@ describe effects_grid("ui/grid/effects", $ {
 		          {.x = 9, .y = 6, .velocity = 64, .pressed = true}}};
 		r.input.pads = two.pads;
 		r.input.now_ms = 0;
-		expect(step(r, hold, sx, sy) == GestureEvent::SecondPad).to_be_true();
+		expect(step(r, hold, sx, sy)).to_equal(GestureEvent::SecondPad);
 		expect(sx).to_equal(9);
 		expect(sy).to_equal(6);
 		expect(hold.held).to_be_false(); // legacy ends the press when a second pad is pressed
@@ -301,7 +301,7 @@ describe effects_grid("ui/grid/effects", $ {
 		            {.x = 9, .y = 6, .velocity = 64, .pressed = true}}};
 		r.input.pads = mixed.pads;
 		r.input.now_ms = 100;
-		expect(step(r, hold, sx, sy) == GestureEvent::Tap).to_be_true();
+		expect(step(r, hold, sx, sy)).to_equal(GestureEvent::Tap);
 		expect(hold.held).to_be_true(); // B is now the tracked pad
 		expect((int32_t)hold.x).to_equal(9);
 		expect((int32_t)hold.y).to_equal(6);
@@ -311,7 +311,7 @@ describe effects_grid("ui/grid/effects", $ {
 		Tick up_b{{{.x = 9, .y = 6, .velocity = 0, .pressed = false}}};
 		r.input.pads = up_b.pads;
 		r.input.now_ms = 800;
-		expect(step(r, hold, sx, sy) == GestureEvent::Release).to_be_true();
+		expect(step(r, hold, sx, sy)).to_equal(GestureEvent::Release);
 	});
 
 	it("uses frame-local coordinates inside a region", _ {

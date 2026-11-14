@@ -110,7 +110,9 @@ describe bind_effect("an effect target on a sound or a chain", ${
 		const ChainReader kit{fixture.song, kKitChain, fixture.facts};
 		const ChainReader audio{fixture.song, kAudioChain, fixture.facts};
 		const ChainReader master{fixture.song, kMasterChain, fixture.facts};
-		expect(kit.resolved() && audio.resolved() && master.resolved()).to_be_true();
+		expect(kit.resolved()).to_be_true();
+		expect(audio.resolved()).to_be_true();
+		expect(master.resolved()).to_be_true();
 		expect(kit.read("delay/pingPong").value_or(-1)).to_equal(0);
 		expect(audio.read("delay/pingPong").value_or(-1)).to_equal(1);
 		expect(audio.read("clippingAmount").value_or(-1)).to_equal(9);
@@ -118,7 +120,10 @@ describe bind_effect("an effect target on a sound or a chain", ${
 		expect(kit.read("osc1/type").has_value()).to_be_false();
 		const auto shown = view(effect("clippingAmount"), fixture.song, on_chain(kAudioChain, ChainOwner::AUDIO_TRACK),
 		                        fixture.facts);
-		expect(shown.has_value() && shown->applies).to_be_true();
+		expect(shown.has_value()).to_be_true();
+		if (shown.has_value()) {
+			expect(shown->applies).to_be_true();
+		}
 		expect(shown->value).to_equal(9);
 	});
 
@@ -128,11 +133,15 @@ describe bind_effect("an effect target on a sound or a chain", ${
 		const auto kit = setting_context(kKitChain, ChainOwner::KIT);
 		const auto audio = setting_context(kAudioChain, ChainOwner::AUDIO_TRACK);
 		const auto master = setting_context(kMasterChain, ChainOwner::SONG);
-		expect(kit.owner == Owner::KIT && kit.instrument == Instrument::KIT).to_be_true();
-		expect(audio.owner == Owner::TRACK && audio.instrument == Instrument::AUDIO).to_be_true();
-		expect(master.owner == Owner::SONG && master.instrument == Instrument::NONE).to_be_true();
-		expect(deluge::plugin::context_is_coherent(kit) && deluge::plugin::context_is_coherent(audio)
-		       && deluge::plugin::context_is_coherent(master)).to_be_true();
+		expect(kit.owner).to_equal(Owner::KIT);
+		expect(kit.instrument).to_equal(Instrument::KIT);
+		expect(audio.owner).to_equal(Owner::TRACK);
+		expect(audio.instrument).to_equal(Instrument::AUDIO);
+		expect(master.owner).to_equal(Owner::SONG);
+		expect(master.instrument).to_equal(Instrument::NONE);
+		expect(deluge::plugin::context_is_coherent(kit)).to_be_true();
+		expect(deluge::plugin::context_is_coherent(audio)).to_be_true();
+		expect(deluge::plugin::context_is_coherent(master)).to_be_true();
 	});
 
 	it("does not apply saturation on a kit's chain, nor the sidechain on the master's", _ {
@@ -147,7 +156,10 @@ describe bind_effect("an effect target on a sound or a chain", ${
 		expect(attack->applies).to_be_false();
 		const auto kit_attack = view(effect("sidechain/attack"), fixture.song, on_chain(kKitChain, ChainOwner::KIT),
 		                             fixture.facts);
-		expect(kit_attack.has_value() && kit_attack->applies).to_be_true();
+		expect(kit_attack.has_value()).to_be_true();
+		if (kit_attack.has_value()) {
+			expect(kit_attack->applies).to_be_true();
+		}
 	});
 
 	it("names a chain's choices from the host chains' table and a sound's from the instrument's", _ {

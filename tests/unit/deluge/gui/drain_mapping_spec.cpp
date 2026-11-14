@@ -22,7 +22,9 @@ describe drain_mapping("legacy_redraw_for", $ {
 	it("is empty for an empty set", _ {
 		DirtySet s;
 		LegacyRedraw r = legacy_redraw_for(s.drain());
-		expect(r.main_rows || r.sidebar_rows || r.oled).to_be_false();
+		expect(r.main_rows).to_be_false();
+		expect(r.sidebar_rows).to_be_false();
+		expect(r.oled).to_be_false();
 	});
 });
 DELUGE_SPEC(drain_mapping_spec, drain_mapping)

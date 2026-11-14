@@ -97,7 +97,7 @@ describe canvas("gfx::oled::Canvas", $ {
 		neu.draw_rectangle_rounded(50, 6, 90, 20, g::BorderRadius::Big, true);
 		expect(std::memcmp(&old.hackGetImageStore()[0][0], neu.bytes().data(), kBytes)).to_equal(0);
 		// Non-vacuous: two blank buffers would also compare equal.
-		expect(lit_pixels(neu.bytes()) > 500).to_be_true();
+		expect(lit_pixels(neu.bytes())).to_be_greater_than(500);
 	});
 
 	// The seven scenes below replay tests/unit/gfx/canvas_golden_spec.cpp call for call, so the
@@ -117,7 +117,7 @@ describe canvas("gfx::oled::Canvas", $ {
 		old.drawCircle(100, 20, 7, false);          neu.draw_circle(100, 20, 7, false);
 		old.drawCircle(110, 38, 5, true);           neu.draw_circle(110, 38, 5, true);
 		expect(std::memcmp(&old.hackGetImageStore()[0][0], neu.bytes().data(), kBytes)).to_equal(0);
-		expect(lit_pixels(neu.bytes()) > 0).to_be_true();
+		expect(lit_pixels(neu.bytes())).to_be_greater_than(0);
 	});
 
 	it("matches the legacy canvas on the text_all_fonts scene", _ {
@@ -130,7 +130,7 @@ describe canvas("gfx::oled::Canvas", $ {
 		old.drawString("Ag13", 40, 16, 9, 13);      neu.draw_string("Ag13", 40, 16, 9, 13);
 		old.drawString("Ag20", 0, 28, 18, 20);      neu.draw_string("Ag20", 0, 28, 18, 20);
 		expect(std::memcmp(&old.hackGetImageStore()[0][0], neu.bytes().data(), kBytes)).to_equal(0);
-		expect(lit_pixels(neu.bytes()) > 0).to_be_true();
+		expect(lit_pixels(neu.bytes())).to_be_greater_than(0);
 	});
 
 	it("matches the legacy canvas on the text_alignment scene", _ {
@@ -147,7 +147,7 @@ describe canvas("gfx::oled::Canvas", $ {
 		old.drawString("SCROLL", 0, 40, 6, 7, 3, 40, true);
 		neu.draw_string("SCROLL", 0, 40, 6, 7, 3, 40, true);
 		expect(std::memcmp(&old.hackGetImageStore()[0][0], neu.bytes().data(), kBytes)).to_equal(0);
-		expect(lit_pixels(neu.bytes()) > 0).to_be_true();
+		expect(lit_pixels(neu.bytes())).to_be_greater_than(0);
 	});
 
 	it("matches the legacy canvas on the icons scene", _ {
@@ -159,7 +159,7 @@ describe canvas("gfx::oled::Canvas", $ {
 		old.drawGraphicMultiLine(kArrowData, 100, 13, 8, 8, 1);
 		neu.draw_graphic_multi_line(kArrowData, 100, 13, 8, 8, 1);
 		expect(std::memcmp(&old.hackGetImageStore()[0][0], neu.bytes().data(), kBytes)).to_equal(0);
-		expect(lit_pixels(neu.bytes()) > 0).to_be_true();
+		expect(lit_pixels(neu.bytes())).to_be_greater_than(0);
 	});
 
 	it("matches the legacy canvas on the rounded_and_invert scene", _ {
@@ -193,7 +193,7 @@ describe canvas("gfx::oled::Canvas", $ {
 		OldCanvas::roundedCornersEnabled = true;
 		OldCanvas::menuHighlightingInverts = true;
 		expect(std::memcmp(&old.hackGetImageStore()[0][0], neu.bytes().data(), kBytes)).to_equal(0);
-		expect(lit_pixels(neu.bytes()) > 0).to_be_true();
+		expect(lit_pixels(neu.bytes())).to_be_greater_than(0);
 	});
 
 	it("matches the legacy canvas on the graphic_multiline scene", _ {
@@ -211,7 +211,7 @@ describe canvas("gfx::oled::Canvas", $ {
 		old.drawGraphicMultiLine(graphic, 120, 20, 16, 16, 2); // clipped at right edge
 		neu.draw_graphic_multi_line(graphic, 120, 20, 16, 16, 2);
 		expect(std::memcmp(&old.hackGetImageStore()[0][0], neu.bytes().data(), kBytes)).to_equal(0);
-		expect(lit_pixels(neu.bytes()) > 0).to_be_true();
+		expect(lit_pixels(neu.bytes())).to_be_greater_than(0);
 	});
 
 	it("matches the legacy canvas on the line_options scene", _ {
@@ -223,7 +223,7 @@ describe canvas("gfx::oled::Canvas", $ {
 		neu.draw_line(0, 47, 127, 6, g::DrawLineOptions{.min_x = 20, .max_x = 100});
 		old.drawScreenTitle("TITLE");               neu.draw_screen_title("TITLE");
 		expect(std::memcmp(&old.hackGetImageStore()[0][0], neu.bytes().data(), kBytes)).to_equal(0);
-		expect(lit_pixels(neu.bytes()) > 0).to_be_true();
+		expect(lit_pixels(neu.bytes())).to_be_greater_than(0);
 	});
 });
 

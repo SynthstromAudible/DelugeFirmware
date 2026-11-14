@@ -348,7 +348,7 @@ describe keyboard_grid("ui/grid/keyboard", $ {
 		control_column(r.frame, 12, column, &opaque_layout);
 
 		expect(column.seen_column).to_equal(12);
-		expect(column.seen_layout == &opaque_layout).to_be_true();
+		expect(column.seen_layout).to_equal(&opaque_layout);
 		for (int32_t y = 0; y < 8; y++) {
 			expect(r.grid.at(12, y)).to_equal(RGB{(uint8_t)(y + 1), 0, 0});
 		}

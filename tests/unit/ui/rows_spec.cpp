@@ -69,8 +69,8 @@ describe rows("ui::grid rows", $ {
 		// Legacy scales "linearly from 0.25 to max brightness with velocity": a zero velocity
 		// is a quarter-ish of the row colour, never black, and never the full colour.
 		expect(int(r.grid.at(1, 0).r)).to_equal(int(kBase.r) * ((65 + 0) << 8) / (255 << 8));
-		expect(r.grid.at(1, 0) == kBase).to_be_false();
-		expect(r.grid.at(1, 0) == RGB{0, 0, 0}).to_be_false();
+		expect(r.grid.at(1, 0)).not_().to_equal(kBase);
+		expect(r.grid.at(1, 0)).not_().to_equal(RGB{0, 0, 0});
 	});
 	it("draws no tail when the note does not allow one", _ {
 		uitest::GridRig r;
@@ -130,7 +130,7 @@ describe rows("ui::grid rows", $ {
 		expect(r.grid.at(3, 2)).to_equal(RGB{0, 0, 0});   // the note ends before column 3
 		// The start colour appears nowhere: the start square is off the window, not clamped onto it.
 		for (uint8_t x = 0; x < 16; x++) {
-			expect(r.grid.at(x, 2) == velocity_colour(kBase, 127)).to_be_false();
+			expect(r.grid.at(x, 2)).not_().to_equal(velocity_colour(kBase, 127));
 		}
 		// A note with no tails and a negative start draws nothing at all.
 		const NoteCell no_tail[] = {{.start_col = -1, .len_cols = 4, .velocity = 127, .starts_within = false, .tail = false}};

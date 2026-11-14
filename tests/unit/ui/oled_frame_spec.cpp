@@ -2,9 +2,11 @@
 #include "ui/oled/frame.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 #include "support/spec_main.h"
 
-#include <cstring>
+#include <cstdint>
+#include <span>
 
 using namespace deluge::ui::oled;
 using deluge::gfx::oled::Point;
@@ -57,8 +59,9 @@ void expect_region_clips(Self& self, Rect region, Body&& body) {
 		}
 	}
 
-	expect(lit_pixels(got.canvas.bytes()) > 0).to_be_true(); // not vacuous: something landed inside
-	expect(std::memcmp(got.canvas.bytes().data(), want.canvas.bytes().data(), kW * kH / 8) == 0).to_be_true();
+	expect(lit_pixels(got.canvas.bytes())).to_be_greater_than(0); // not vacuous: something landed inside
+	to_equal_bytes(expect(std::span<const uint8_t>(got.canvas.bytes().data(), kW * kH / 8)),
+	               std::span<const uint8_t>(want.canvas.bytes().data(), kW * kH / 8));
 }
 
 /// A region deliberately straddling page boundaries (rows 12..30 = pages 1, 2, 3).
@@ -254,7 +257,7 @@ describe oled_frame("ui::oled::OledFrame", $ {
 		});
 		expect(lit_pixels(r.canvas.bytes())).to_equal(0);  // a region may not widen the canvas clip
 		expect(r.canvas.clip().has_value()).to_be_true();  // ...and it is still in force afterwards
-		expect(*r.canvas.clip() == Rect{0, 0, 64, 64}).to_be_true();
+		expect(*r.canvas.clip()).to_equal(Rect{0, 0, 64, 64});
 	});
 
 	it("lets a clip already on the canvas narrow what a region draws", _ {
@@ -284,7 +287,7 @@ describe oled_frame("ui::oled::OledFrame", $ {
 				r.canvas.draw_horizontal_line(12, 0, 127);
 			}
 			expect(r.canvas.clip().has_value()).to_be_true();
-			expect(*r.canvas.clip() == Rect{0, 0, 40, 40}).to_be_true();
+			expect(*r.canvas.clip()).to_equal(Rect{0, 0, 40, 40});
 			// The outer clip, not the inner one, must bound what is drawn after the inner scope
 			// closed -- this line lands outside the inner rect entirely.
 			r.canvas.draw_horizontal_line(20, 0, 127);
@@ -308,7 +311,7 @@ describe oled_frame("ui::oled::OledFrame", $ {
 		});
 		expect(r.lit(20, 12)).to_be_true();          // the inner invert
 		expect(r.lit(24, 12)).to_be_false();         // ...which stopped at the inner region's edge
-		expect(lit_pixels(r.canvas.bytes()) > 16).to_be_true(); // the text and icon after it drew
+		expect(lit_pixels(r.canvas.bytes())).to_be_greater_than(16); // the text and icon after it drew
 		expect(r.lit(34 + 3, 20 + 3)).to_be_true();  // icon column 3 (0x7E), row 20+3
 	});
 

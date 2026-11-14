@@ -102,7 +102,7 @@ describe waveform_grid("ui/grid/waveform", $ {
 		// is why the span is int32_t. 256 must not wrap to black.
 		expect(waveform_col_colour(kWaveformMaxBrightness, kBase))
 		    .to_equal(legacy_single_row_colour(256, kBase));
-		expect(waveform_col_colour(kWaveformMaxBrightness, kBase) == palette::black).to_be_false();
+		expect(waveform_col_colour(kWaveformMaxBrightness, kBase)).not_().to_equal(palette::black);
 	});
 
 	it("mirrors the source columns when reversed", _ {

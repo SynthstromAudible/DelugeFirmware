@@ -354,7 +354,7 @@ describe segmented_switch_w("ui::oled::segmented_switch", $ {
 		segmented_switch(r1.frame, Rect{73, 34 - 5, 53, 9}, bi_uni(), bi_uni_widths(), 1);
 		// Column 98 is the inversion's first column when UNI is selected and is outside it when BI
 		// is -- so it flips, while column 97 (still inside BI's slot) flips the other way.
-		expect(r0.lit(98, 38) != r1.lit(98, 38)).to_be_true();
+		expect(r0.lit(98, 38)).not_().to_equal(r1.lit(98, 38));
 		// Both agree with the legacy oracle for their own selection, which is what the byte-for-byte
 		// example above already showed; this one names the column that makes the offset visible.
 		legacy_switch(r1.reference, 34, true, true);
@@ -404,9 +404,15 @@ describe cable_strength_value_w("ui::oled::cable_strength_value", $ {
 		expect(r.pbm()).to_equal(r.reference_pbm());
 		// The tick: columns 102-103 (`OLED_MAIN_WIDTH_PIXELS - 2 * digitWidth - rightPadding` and the one left of it), the
 		// three rows under the digits' clear row.
-		expect(r.lit(102, 26) && r.lit(103, 26) && !r.lit(101, 26) && !r.lit(104, 26)).to_be_true();
+		expect(r.lit(102, 26)).to_be_true();
+		expect(r.lit(103, 26)).to_be_true();
+		expect(r.lit(101, 26)).to_be_false();
+		expect(r.lit(104, 26)).to_be_false();
 		// The cursor under the hundredths, columns 114-124 of row 24.
-		expect(r.lit(114, 24) && r.lit(124, 24) && !r.lit(113, 24) && !r.lit(114, 25)).to_be_true();
+		expect(r.lit(114, 24)).to_be_true();
+		expect(r.lit(124, 24)).to_be_true();
+		expect(r.lit(113, 24)).to_be_false();
+		expect(r.lit(114, 25)).to_be_false();
 	});
 
 	it("keeps a non-zero fraction place shown, and a hidden one only right of the cursor", _ {

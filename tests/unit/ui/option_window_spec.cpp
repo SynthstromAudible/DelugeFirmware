@@ -316,7 +316,7 @@ describe option_window_w("ui::oled::option_window", $ {
 		option_window(r.frame, kAreYouSure, {kLong, 1}, 0, 0, label);
 		expect(static_cast<int>(label.offset)).to_equal(1);
 		expect(static_cast<int>(label.next_step_ms)).to_equal(kScrollTime + kScrollStepForwardMs);
-		expect(r.pbm() == first_frame).to_be_false();
+		expect(r.pbm()).not_().to_equal(first_frame);
 
 		// ...and it keeps going on further quiet ticks.
 		uint32_t now = kScrollTime;
@@ -468,7 +468,7 @@ describe option_window_w("ui::oled::option_window", $ {
 		option_window(r.frame, kAreYouSure, one(), 0, 0, label, /*allow_motion=*/true, footer, &footer_label);
 		expect(static_cast<int>(footer_label.offset)).to_equal(1);
 		expect(static_cast<int>(label.offset)).to_equal(0);
-		expect(r.pbm() == first_frame).to_be_false();
+		expect(r.pbm()).not_().to_equal(first_frame);
 	});
 
 	it("draws nothing extra when the footer is empty, which is every other descriptor", _ {

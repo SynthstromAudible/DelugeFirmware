@@ -162,7 +162,7 @@ describe shell_action_dispatch("gui::ui::dispatchShellActions -- the poll in the
 		// satisfy for the wrong reason.
 		set_clock_ms(10);
 		(void)r.guest.timerCallback();
-		expect(r.base.renders > 0).to_be_true();
+		expect(r.base.renders).to_be_greater_than(0);
 
 		const int settled_renders = r.base.renders;
 		fakelegacyui::action_dispatches = 0;

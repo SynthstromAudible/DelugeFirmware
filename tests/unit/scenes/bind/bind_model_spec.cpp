@@ -84,10 +84,11 @@ describe bind_model("a model target", ${
 		const auto on_lane =
 		    view(arp, f.song, {.clip = kKitClip, .lane = kSoundLane, .instrument = Instrument::KIT}, f.facts);
 		const auto on_kit = view(arp, f.song, {.clip = kKitClip, .instrument = Instrument::KIT}, f.facts);
-		expect(on_lane.has_value() && on_kit.has_value()).to_be_true();
+		expect(on_lane.has_value()).to_be_true();
+		expect(on_kit.has_value()).to_be_true();
 		expect(on_lane->value).to_equal(record_menu(f, {SettingGroupId::LANE_ARP, kSoundLane}, "arpeggiator/numOctaves"));
 		expect(on_kit->value).to_equal(record_menu(f, {SettingGroupId::CLIP_ARP, kKitClip}, "arpeggiator/numOctaves"));
-		expect(on_lane->value != on_kit->value).to_be_true();
+		expect(on_lane->value).not_().to_equal(on_kit->value);
 	});
 
 	it("shows the device's default bend range for a bend a clip or kit row does not hold", _ {
@@ -136,7 +137,7 @@ describe bind_model("a model target", ${
 		const size_t count = choice_names(model(SettingGroupId::SONG, "reverb/model"), f.song, {}, f.facts, out);
 		const auto* names = deluge::l10n::setting_names(SettingGroupId::SONG, "reverb/model",
 		                                                SettingContext{.owner = SettingContext::Owner::SONG});
-		expect(names != nullptr).to_be_true();
+		expect(names).not_().to_be_null();
 		expect(count).to_equal(names->choices.size());
 		for (size_t i = 0; i < count; ++i) {
 			expect(out[i].name).to_equal(names->choices[i]);
@@ -181,7 +182,7 @@ describe bind_model("a model target", ${
 		const auto* names = deluge::l10n::setting_names(SettingGroupId::AUDIO_CLIP, "priority",
 		                                                SettingContext{.owner = SettingContext::Owner::CLIP,
 		                                                               .instrument = Instrument::AUDIO});
-		expect(names != nullptr).to_be_true();
+		expect(names).not_().to_be_null();
 		expect(count).to_equal(names->choices.size());
 	});
 

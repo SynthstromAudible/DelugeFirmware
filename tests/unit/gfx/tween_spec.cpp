@@ -297,7 +297,7 @@ describe tween("gfx::grid tweens", $ {
 		zoom(from, to, ZoomParams{2, 1, 9 * 65536, 9 * 65536, 32768}, powers);
 		zoom(from, to, ZoomParams{3000, 2048, 9 * 65536, 9 * 65536, 32768, 2}, wider);
 		expect(grid_to_state(given)).to_equal(grid_to_state(powers));
-		expect(grid_to_state(wider) == grid_to_state(given)).to_be_false();
+		expect(grid_to_state(wider)).not_().to_equal(grid_to_state(given));
 	});
 
 	// The oracle compares above all pass `pin_square_from == pin_square_to`, which is the case
@@ -310,7 +310,7 @@ describe tween("gfx::grid tweens", $ {
 		zoom(from, to, ZoomParams{6, 3, 9 * 65536, 5 * 65536, 32768}, split);
 		zoom(from, to, ZoomParams{6, 3, 9 * 65536, 9 * 65536, 32768}, also_aliased);
 		// Pinning the incoming image at a different square really does move it...
-		expect(grid_to_state(split) == grid_to_state(aliased)).to_be_false();
+		expect(grid_to_state(split)).not_().to_equal(grid_to_state(aliased));
 		// ...and the aliased call is deterministic, i.e. the difference is the pin, not noise.
 		expect(grid_to_state(also_aliased)).to_equal(grid_to_state(aliased));
 	});
@@ -449,7 +449,7 @@ describe tween("gfx::grid tweens", $ {
 		                per_row);
 		expand_collapse(src, dest, ExpandCollapseParams{.row_from = 0, .row_to = 3, .collapsing = true, .t = 32768},
 		                scalar);
-		expect(grid_to_state(per_row) == grid_to_state(scalar)).to_be_false();
+		expect(grid_to_state(per_row)).not_().to_equal(grid_to_state(scalar));
 	});
 
 	// `View::renderMacros` (view.cpp) paints an armed clip's macro pad black on the
@@ -485,7 +485,7 @@ describe tween("gfx::grid tweens", $ {
 		                unmasked);
 
 		// The mask must change the result: the black pad now darkens the two rows it straddles.
-		expect(grid_to_state(masked) == grid_to_state(unmasked)).to_be_false();
+		expect(grid_to_state(masked)).not_().to_equal(grid_to_state(unmasked));
 
 		// And it must change it the way legacy would, byte for byte.
 		RGB store[8][18];
@@ -533,7 +533,7 @@ describe tween("gfx::grid tweens", $ {
 		RGB image[8][18];
 		legacy::renderExplodeAnimation(store, occ_store, 32768, ox, w, oy, image);
 		expect(grid_to_state(masked)).to_equal(grid_to_state(image_to_grid(image)));
-		expect(grid_to_state(masked) == grid_to_state(unmasked)).to_be_false();
+		expect(grid_to_state(masked)).not_().to_equal(grid_to_state(unmasked));
 	});
 
 	// --- goldens ------------------------------------------------------------------------------

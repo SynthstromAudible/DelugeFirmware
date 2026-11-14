@@ -24,7 +24,7 @@ describe grid_frame("ui::grid::GridFrame", $ {
 		expect(r.grid.at(3, 5)).to_equal(RGB{255, 0, 0});
 		// cppspec's to_be_true() static_asserts on `bool`, and the masked uint32_t is not one,
 		// hence the `!= 0`.
-		expect((r.grid.dirty_rows() & (1u << 5)) != 0).to_be_true();
+		expect(r.grid.dirty_rows() & (1u << 5)).not_().to_equal(0);
 	});
 	it("routes events to exactly one region and translates them", _ {
 		uitest::GridRig r;
@@ -299,8 +299,8 @@ describe grid_frame("ui::grid::GridFrame", $ {
 		r.frame.flash(3, 2, FlashColour::Default);
 		r.frame.flash(15, 6, FlashColour::Palette6);
 		expect(int(r.flashes.count)).to_equal(2);
-		expect(r.flashes.flashes()[0] == PadFlash{3, 2, FlashColour::Default}).to_be_true();
-		expect(r.flashes.flashes()[1] == PadFlash{15, 6, FlashColour::Palette6}).to_be_true();
+		expect(r.flashes.flashes()[0]).to_equal(PadFlash{3, 2, FlashColour::Default});
+		expect(r.flashes.flashes()[1]).to_equal(PadFlash{15, 6, FlashColour::Palette6});
 		// A flash paints nothing.
 		expect(r.grid.at(3, 2)).to_equal(RGB{0, 0, 0});
 	});
@@ -311,12 +311,12 @@ describe grid_frame("ui::grid::GridFrame", $ {
 			inner.flash(9, 1, FlashColour::Yellow);
 		});
 		expect(int(r.flashes.count)).to_equal(1);
-		expect(r.flashes.flashes()[0] == PadFlash{5, 3, FlashColour::Yellow}).to_be_true();
+		expect(r.flashes.flashes()[0]).to_equal(PadFlash{5, 3, FlashColour::Yellow});
 	});
 	it("flash without a list does nothing", _ {
 		uitest::GridRig r;
 		GridFrame bare = root_grid_frame(r.grid, r.ctx);
-		expect(bare.flashes == nullptr).to_be_true();
+		expect(bare.flashes).to_be_null();
 		bare.flash(3, 2, FlashColour::Default);
 		expect(int(r.flashes.count)).to_equal(0);
 	});

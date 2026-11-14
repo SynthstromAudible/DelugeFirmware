@@ -40,21 +40,21 @@ constexpr const Node* node_id_spec_chain_roots[] = {&node_id_spec_chain_root};
 describe scenes_node_id("scenes::menu node-id registry", $ {
 	it("assigns every reachable node an id, depth-first in declaration order", _ {
 		uint16_t assigned = assign_node_ids(node_id_spec_roots);
-		expect(assigned == uint16_t(3)).to_be_true();
-		expect(node_id(node_id_spec_root) == uint16_t(1)).to_be_true();
-		expect(node_id(node_id_spec_child_a) == uint16_t(2)).to_be_true();
-		expect(node_id(node_id_spec_child_b) == uint16_t(3)).to_be_true();
+		expect(assigned).to_equal(uint16_t(3));
+		expect(node_id(node_id_spec_root)).to_equal(uint16_t(1));
+		expect(node_id(node_id_spec_child_a)).to_equal(uint16_t(2));
+		expect(node_id(node_id_spec_child_b)).to_equal(uint16_t(3));
 	});
 	it("node_by_id(node_id(x)) == &x for every assigned node", _ {
 		assign_node_ids(node_id_spec_roots);
-		expect(node_by_id(node_id(node_id_spec_root)) == &node_id_spec_root).to_be_true();
-		expect(node_by_id(node_id(node_id_spec_child_a)) == &node_id_spec_child_a).to_be_true();
-		expect(node_by_id(node_id(node_id_spec_child_b)) == &node_id_spec_child_b).to_be_true();
+		expect(node_by_id(node_id(node_id_spec_root))).to_equal(&node_id_spec_root);
+		expect(node_by_id(node_id(node_id_spec_child_a))).to_equal(&node_id_spec_child_a);
+		expect(node_by_id(node_id(node_id_spec_child_b))).to_equal(&node_id_spec_child_b);
 	});
 	it("an unassigned node has id 0, and id 0 maps to nullptr", _ {
 		assign_node_ids(node_id_spec_roots);
-		expect(node_id(node_id_spec_stray) == uint16_t(0)).to_be_true();
-		expect(node_by_id(0) == nullptr).to_be_true();
+		expect(node_id(node_id_spec_stray)).to_equal(uint16_t(0));
+		expect(node_by_id(0)).to_be_null();
 	});
 	it("a second call over the same roots yields identical ids", _ {
 		assign_node_ids(node_id_spec_roots);
@@ -63,9 +63,9 @@ describe scenes_node_id("scenes::menu node-id registry", $ {
 		uint16_t b_id_1 = node_id(node_id_spec_child_b);
 
 		assign_node_ids(node_id_spec_roots);
-		expect(node_id(node_id_spec_root) == root_id_1).to_be_true();
-		expect(node_id(node_id_spec_child_a) == a_id_1).to_be_true();
-		expect(node_id(node_id_spec_child_b) == b_id_1).to_be_true();
+		expect(node_id(node_id_spec_root)).to_equal(root_id_1);
+		expect(node_id(node_id_spec_child_a)).to_equal(a_id_1);
+		expect(node_id(node_id_spec_child_b)).to_equal(b_id_1);
 	});
 	it("stops at kMaxNodes on an oversize tree and reports the count assigned, not the true reachable count", _ {
 		// A flat chain of kMaxNodes + 2 nodes (chain[i]'s only child is chain[i + 1]) -- no real
@@ -82,19 +82,19 @@ describe scenes_node_id("scenes::menu node-id registry", $ {
 		const Node* roots[] = {&chain[0]};
 
 		uint16_t assigned = assign_node_ids(roots);
-		expect(assigned == uint16_t(kMaxNodes)).to_be_true();
-		expect(node_id(chain[kMaxNodes + 1]) == uint16_t(0)).to_be_true();
-		expect(node_by_id(uint16_t(kMaxNodes + 1)) == nullptr).to_be_true();
+		expect(assigned).to_equal(uint16_t(kMaxNodes));
+		expect(node_id(chain[kMaxNodes + 1])).to_equal(uint16_t(0));
+		expect(node_by_id(uint16_t(kMaxNodes + 1))).to_be_null();
 	});
 	it("numbers a chain target no children span names, after the static subtree", _ {
 		uint16_t assigned = assign_node_ids(node_id_spec_chain_roots);
-		expect(assigned == uint16_t(3)).to_be_true();
-		expect(node_id(node_id_spec_chain_root) == uint16_t(1)).to_be_true();
-		expect(node_id(node_id_spec_chain_leaf) == uint16_t(2)).to_be_true();
+		expect(assigned).to_equal(uint16_t(3));
+		expect(node_id(node_id_spec_chain_root)).to_equal(uint16_t(1));
+		expect(node_id(node_id_spec_chain_leaf)).to_equal(uint16_t(2));
 		// The point of the whole mechanism: without the `chain_targets` walk this is 0, and
 		// `SceneId::arg` could never address the page.
-		expect(node_id(node_id_spec_chain_only) == uint16_t(3)).to_be_true();
-		expect(node_by_id(3) == &node_id_spec_chain_only).to_be_true();
+		expect(node_id(node_id_spec_chain_only)).to_equal(uint16_t(3));
+		expect(node_by_id(3)).to_equal(&node_id_spec_chain_only);
 	});
 	it("terminates on a chain cycle instead of recursing forever", _ {
 		// `chain_targets` can loop where `children` cannot: two leaves may name each other. Nothing
@@ -112,9 +112,9 @@ describe scenes_node_id("scenes::menu node-id registry", $ {
 
 		// Returns at all -- the assertion the count carries is secondary to not hanging.
 		uint16_t assigned = assign_node_ids(roots);
-		expect(assigned == uint16_t(2)).to_be_true();
-		expect(node_id(a) == uint16_t(1)).to_be_true();
-		expect(node_id(b) == uint16_t(2)).to_be_true();
+		expect(assigned).to_equal(uint16_t(2));
+		expect(node_id(a)).to_equal(uint16_t(1));
+		expect(node_id(b)).to_equal(uint16_t(2));
 	});
 });
 // clang-format on

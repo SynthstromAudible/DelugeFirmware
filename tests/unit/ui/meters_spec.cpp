@@ -842,7 +842,7 @@ describe meters_w("ui::oled::meters", $ {
 		uitest::Rig48 plain;
 		meter(doubled.frame, slot_at(1), Hint::Percent, 0.5f, 25);
 		percent(plain.frame, slot_at(1), 25);
-		expect(doubled.pbm() == plain.pbm()).to_be_false();
+		expect(doubled.pbm()).not_().to_equal(plain.pbm());
 	});
 });
 DELUGE_SPEC(meters_spec, meters_w)

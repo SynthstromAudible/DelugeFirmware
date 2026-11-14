@@ -115,39 +115,39 @@ static_assert(!node_spec_a.range_dependent); // every builder leaves it false by
 describe scenes_node("scenes::menu::Node builders", $ {
 	it("toggle_item fills bind.get/set and nothing else", _ {
 		Node t = toggle_item(6, node_spec_get, node_spec_set);
-		expect(t.kind == Kind::Toggle).to_be_true();
-		expect(t.bind.get == node_spec_get).to_be_true();
-		expect(t.bind.set == node_spec_set).to_be_true();
+		expect(t.kind).to_equal(Kind::Toggle);
+		expect(t.bind.get).to_equal(node_spec_get);
+		expect(t.bind.set).to_equal(node_spec_set);
 		expect(t.bind.names.empty()).to_be_true();
 	});
 	it("enumeration fills bind.get/set/names", _ {
 		static constexpr uint16_t names[] = {10, 11, 12};
 		Node e = enumeration(7, names, node_spec_get, node_spec_set);
-		expect(e.kind == Kind::Enum).to_be_true();
-		expect(e.bind.get == node_spec_get).to_be_true();
-		expect(e.bind.set == node_spec_set).to_be_true();
-		expect(e.bind.names.size() == size_t(3)).to_be_true();
-		expect(e.bind.names[1] == uint16_t(11)).to_be_true();
+		expect(e.kind).to_equal(Kind::Enum);
+		expect(e.bind.get).to_equal(node_spec_get);
+		expect(e.bind.set).to_equal(node_spec_set);
+		expect(e.bind.names.size()).to_equal(size_t(3));
+		expect(e.bind.names[1]).to_equal(uint16_t(11));
 	});
 	it("dynamic_enumeration fills bind.dynamic_names instead of bind.names", _ {
 		auto names_fn = +[](const MenuContext&, std::span<std::string_view>) -> size_t { return 0; };
 		Node e = dynamic_enumeration(8, names_fn, node_spec_get, node_spec_set);
-		expect(e.kind == Kind::Enum).to_be_true();
-		expect(e.bind.dynamic_names == names_fn).to_be_true();
+		expect(e.kind).to_equal(Kind::Enum);
+		expect(e.bind.dynamic_names).to_equal(names_fn);
 		expect(e.bind.names.empty()).to_be_true();
 	});
 	it("custom fills the custom pointer", _ {
 		// (There is no `action()` builder or `Kind::Action`: no table declares one. See `node.h`'s
 		// `Kind`.)
 		Node c = custom(10, &node_spec_null_item);
-		expect(c.kind == Kind::Custom).to_be_true();
-		expect(c.custom == &node_spec_null_item).to_be_true();
+		expect(c.kind).to_equal(Kind::Custom);
+		expect(c.custom).to_equal(&node_spec_null_item);
 	});
 	it("dynamic_submenu has no static children", _ {
 		auto children_fn = +[](const MenuContext&, std::span<const Node*>) -> size_t { return 0; };
 		Node d = dynamic_submenu(11, children_fn);
-		expect(d.kind == Kind::Submenu).to_be_true();
-		expect(d.dynamic_children == children_fn).to_be_true();
+		expect(d.kind).to_equal(Kind::Submenu);
+		expect(d.dynamic_children).to_equal(children_fn);
 		expect(d.children.empty()).to_be_true();
 	});
 });

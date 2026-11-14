@@ -97,7 +97,7 @@ describe frame_context("ui::FrameContext", $ {
 		// own, so it neither reads nor claims anything. now_ms()/shift() are never masked and never
 		// claimed; they are not controls.
 		expect(r.frame.focused()).to_be_true();
-		expect(r.frame.mask == InputMask::all()).to_be_true();
+		expect(r.frame.mask).to_equal(InputMask::all());
 		expect(r.ctx.claims.turn).to_be_true();
 		expect(r.ctx.claims.edit0).to_be_true();
 		expect(r.ctx.claims.edit1).to_be_true();
@@ -157,7 +157,7 @@ describe frame_context("ui::FrameContext", $ {
 			});
 			// Nor can a child ask for one input back by name.
 			outer.region(Rect{0, 0, 32, 10}, InputMask::all(), [&](OledFrame& inner) {
-				expect(inner.mask == InputMask::none()).to_be_true();
+				expect(inner.mask).to_equal(InputMask::none());
 				expect(int(inner.edit(0))).to_equal(0);
 			});
 			// The default overload is the same "inherit".
@@ -337,7 +337,7 @@ describe frame_context("ui::FrameContext", $ {
 		expect(int(st.offset)).to_equal(0);          // the first tick only arms the pause
 		r.begin_tick(kScrollTime);
 		r.frame.region(r.frame.bounds(), false, [&](OledFrame& f) { scroll_text(f, box, label, FontId::Apple7, st); });
-		expect(int(st.offset) > 0).to_be_true();     // ... and the next one steps
+		expect(int(st.offset)).to_be_greater_than(0);     // ... and the next one steps
 	});
 
 	it("arms the gate from an unfocused region with a deadline in the future", _ {
@@ -349,7 +349,7 @@ describe frame_context("ui::FrameContext", $ {
 		r.begin_tick(100000);
 		r.frame.region(r.frame.bounds(), false, [&](OledFrame& f) { working(f, f.bounds(), "Loading", blink); });
 		expect(r.gate.next_deadline().has_value()).to_be_true();
-		expect(*r.gate.next_deadline() > uint32_t(100000)).to_be_true();
+		expect(*r.gate.next_deadline()).to_be_greater_than(uint32_t(100000));
 	});
 
 	it("reads pad gestures in an unfocused region exactly as in a focused one", _ {
@@ -379,9 +379,9 @@ describe frame_context("ui::FrameContext", $ {
 		const std::vector<GestureEvent> focused = script(true);
 		const std::vector<GestureEvent> unfocused = script(false);
 		expect(focused.size()).to_equal(size_t(4));
-		expect(focused[2] == GestureEvent::Hold).to_be_true();      // not vacuous: the clock ran
-		expect(focused[3] == GestureEvent::Release).to_be_true();
-		expect(unfocused == focused).to_be_true();
+		expect(focused[2]).to_equal(GestureEvent::Hold);      // not vacuous: the clock ran
+		expect(focused[3]).to_equal(GestureEvent::Release);
+		expect(unfocused).to_equal(focused);
 	});
 
 	it("clears claims at the tick boundary", _ {
@@ -398,7 +398,7 @@ describe frame_context("ui::FrameContext", $ {
 		// would withhold the encoder from the scene for ever after the first tick that claimed it.
 		r.begin_tick(20);
 		expect(r.ctx.claims.any()).to_be_false();
-		expect(r.ctx.claims == InputClaims{}).to_be_true();
+		expect(r.ctx.claims).to_equal(InputClaims{});
 		expect(r.ctx.tick).to_equal(uint32_t(2));
 		expect(r.ctx.tick_ms).to_equal(uint32_t(20));
 	});

@@ -1,6 +1,7 @@
 #include "support/shell_host_ui_rig.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
 #include "support/spec_main.h"
 
@@ -44,7 +45,7 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		// through would have armed 620 ms, and one that passed `now` would have armed 500.
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(120));
 		// The tick really ran on `nowMs()`, not on 0: `next_wake` is `now + 120`.
-		expect(fakelegacyui::timer_arms.back().which == TimerName::UI_SPECIFIC).to_be_true();
+		expect(fakelegacyui::timer_arms.back().which).to_equal(TimerName::UI_SPECIFIC);
 	});
 
 	it("wakes for a fact raised between ticks by a legacy callback, after the legacy drain took its own copy", _ {
@@ -165,8 +166,7 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		(void)far.guest.timerCallback();
 		expect(far.guest.shell().next_wake().value_or(0)).to_equal(uint32_t(100'000'500));
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMaxRearmMs));
-		expect(int64_t(ShellHostUI::kMaxRearmMs) * ShellHostUI::kTimerSamplesPerMs <= int64_t(2147483647))
-		    .to_be_true();
+		to_be_at_most(expect(int64_t(ShellHostUI::kMaxRearmMs) * ShellHostUI::kTimerSamplesPerMs), int64_t(2147483647));
 	});
 
 	it("arms nothing when the shell wants nothing, and input arms it again", _ {
@@ -188,7 +188,7 @@ describe shell_host_ui_tick("gui::ui::ShellHostUI: the tick: arming, its answer 
 		expect(r.base.seen.empty()).to_be_true(); // nothing routed yet: the tick has not run
 		const std::vector<uint32_t> after = run_quiet(r.guest, now, 2);
 		expect(after.empty()).to_be_false();
-		expect(first_of(r.base, UiEvent::Kind::Pad) != nullptr).to_be_true();
+		expect(first_of(r.base, UiEvent::Kind::Pad)).not_().to_be_null();
 	});
 
 	it("re-arms on focusRegained, because closeUI clears UI_SPECIFIC one line before calling it", _ {

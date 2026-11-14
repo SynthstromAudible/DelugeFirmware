@@ -6,6 +6,7 @@
 #include "unit/gfx/support/golden.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 #include "support/spec_main.h"
 
 using namespace deluge::ui;
@@ -230,8 +231,8 @@ describe list_w("ui::oled::list", $ {
 			st.cursor = c; st.rows_last = 5;
 			list(r.frame, menu_rect(r.frame), st, rows, sc);
 			expect(st.scroll).to_equal(want_scroll[c]);
-			expect(st.cursor - st.scroll >= 0).to_be_true();
-			expect(st.cursor - st.scroll < 3).to_be_true();  // always inside the window
+			to_be_at_least(expect(st.cursor - st.scroll), 0);
+			expect(st.cursor - st.scroll).to_be_less_than(3);  // always inside the window
 		}
 	});
 
@@ -381,7 +382,7 @@ describe list_w("ui::oled::list", $ {
 		r.input.now_ms = kScrollTime;   list(r.frame, m, st, rows, sc);  // first pixel step
 		r.input.now_ms = kScrollTime + kScrollStepForwardMs;
 		list(r.frame, m, st, rows, sc);
-		expect(sc.offset > 0).to_be_true();
+		expect(sc.offset).to_be_greater_than(0);
 		expect(sc.offset).to_equal(int16_t(2));
 
 		// The highlight is still the full, rounded row -- the point of D3. Legacy's scroller

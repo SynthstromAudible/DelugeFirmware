@@ -396,11 +396,11 @@ describe popup_w("ui::oled::popup", $ {
 		expect(w.longest).to_equal(102);
 
 		// The split really is at the space: line 0 ends with it and line 1 starts after it.
-		expect(w.lines[0].back() == ' ').to_be_true();
-		expect(w.lines[1].front() == 'W').to_be_true();
+		expect(w.lines[0].back()).to_equal(' ');
+		expect(w.lines[1].front()).to_equal('W');
 		// And both are views into the caller's string, not copies.
-		expect(w.lines[0].data() == s.data()).to_be_true();
-		expect(w.lines[1].data() == s.data() + 17).to_be_true();
+		expect(w.lines[0].data()).to_equal(s.data());
+		expect(w.lines[1].data()).to_equal(s.data() + 17);
 	});
 
 	it("agrees with breakStringIntoLines line for line", _ {
@@ -532,7 +532,7 @@ describe popup_w("ui::oled::popup", $ {
 		const int32_t top = square.frame.origin.y;
 		expect(square.lit(box.x, top + box.y)).to_be_true();
 		expect(round.lit(box.x, top + box.y)).to_be_false();
-		expect(square.pbm() == round.pbm()).to_be_false();
+		expect(square.pbm()).not_().to_equal(round.pbm());
 	});
 
 	it("matches popupText byte for byte, at both geometries, against verbatim legacy", _ {
@@ -718,7 +718,7 @@ describe popup_w("ui::oled::popup", $ {
 		save.input = uitest::null_input(working_time(1, 8));
 		working(save.frame, save.frame.bounds(), "Saving", bs);
 
-		expect(load.pbm() == save.pbm()).to_be_false();
+		expect(load.pbm()).not_().to_equal(save.pbm());
 		expect_golden(self, "ui/widgets/working_loading_48.pbm", load.pbm());
 		expect_golden(self, "ui/widgets/working_saving_48.pbm", save.pbm());
 

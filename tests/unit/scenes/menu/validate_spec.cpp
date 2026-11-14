@@ -167,9 +167,9 @@ describe scenes_validate("scenes::menu::validate_tree", $ {
 		set_shortcut_table_for_test({}, 0, 0);
 		const MenuContext contexts[] = {fake_context()};
 		(void)validate_tree(kGoodRoots, contexts);
-		expect(node_id(good_root) != uint16_t(0)).to_be_true();
-		expect(node_id(good_param) != uint16_t(0)).to_be_true();
-		expect(node_id(good_enum) != uint16_t(0)).to_be_true();
+		expect(node_id(good_root)).not_().to_equal(uint16_t(0));
+		expect(node_id(good_param)).not_().to_equal(uint16_t(0));
+		expect(node_id(good_enum)).not_().to_equal(uint16_t(0));
 	});
 
 	it("reports exactly the four rules the broken tree breaks, and no others", _ {
@@ -182,8 +182,7 @@ describe scenes_validate("scenes::menu::validate_tree", $ {
 		expect(count_of(issues, Issue::Kind::EnumWithoutNames)).to_equal(size_t(1));
 		expect(count_of(issues, Issue::Kind::TooManyCustom)).to_equal(size_t(1));
 		// One cell per (root, shift layer) the sweep visits, all naming the same stray node.
-		expect(count_of(issues, Issue::Kind::ShortcutToNothing)
-		       == size_t(2) * size_t(MenuContext::Root::Count)).to_be_true();
+		expect(count_of(issues, Issue::Kind::ShortcutToNothing)).to_equal(size_t(2) * size_t(MenuContext::Root::Count));
 
 		expect(count_of(issues, Issue::Kind::Unreachable)).to_equal(size_t(0));
 		expect(count_of(issues, Issue::Kind::BadParamRef)).to_equal(size_t(0));
@@ -203,7 +202,7 @@ describe scenes_validate("scenes::menu::validate_tree", $ {
 				named = i.node;
 			}
 		}
-		expect(named == &bad_empty).to_be_true();
+		expect(named).to_equal(&bad_empty);
 	});
 });
 
@@ -287,7 +286,7 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 		const auto issues = validate_tree(roots, {});
 		expect(count_of(issues, Issue::Kind::Unreachable)).to_equal(size_t(0));
 		expect(count_of(issues, Issue::Kind::EnumWithoutNames)).to_equal(size_t(1));
-		expect(node_id(chain_target) != uint16_t(0)).to_be_true();
+		expect(node_id(chain_target)).not_().to_equal(uint16_t(0));
 	});
 
 	it("flags a select_chain hook without targets, and targets without a hook", _ {
@@ -398,8 +397,8 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 			if (i.kind == Issue::Kind::FlagMismatch && i.detail == static_cast<uint16_t>(Flag::TargetWithHooks)) {
 				flagged.push_back(i.node->name);
 			}
-			expect(i.node != &bare).to_be_true();
-			expect(i.node != &narrowed).to_be_true();
+			expect(i.node).not_().to_equal(&bare);
+			expect(i.node).not_().to_equal(&narrowed);
 		}
 		expect(flagged).to_equal(std::vector<uint16_t>{445, 447});
 	});

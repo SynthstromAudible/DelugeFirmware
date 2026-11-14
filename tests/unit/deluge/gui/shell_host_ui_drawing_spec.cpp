@@ -33,7 +33,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		OLED::main.clear();
 		expect(any_ink(OLED::main.bytes())).to_be_false();
 		r.guest.renderOLED(OLED::main);
-		expect(copy_of(OLED::main.bytes()) == rendered).to_be_true();
+		expect(copy_of(OLED::main.bytes())).to_equal(rendered);
 
 		// It restores, it does not re-mark: legacy has already decided to send this frame by the
 		// time it calls here (`gui/ui/ui.cpp:395`).
@@ -54,7 +54,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 			legacy[i] = static_cast<uint8_t>(0xA5);
 		}
 		r.guest.renderOLED(OLED::main);
-		expect(copy_of(OLED::main.bytes()) == shellSide).to_be_true();
+		expect(copy_of(OLED::main.bytes())).to_equal(shellSide);
 	});
 
 	// ---- the pads -----------------------------------------------------------------------------
@@ -72,11 +72,11 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		expect(usedUp).to_be_true();
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			for (int32_t x = 0; x < kDisplayWidth; x++) {
-				expect(PadLEDs::image[y][x] == PatternScene::pad_for(x, y)).to_be_true();
+				expect(PadLEDs::image[y][x]).to_equal(PatternScene::pad_for(x, y));
 			}
 			// The sidebar is `renderSidebar`'s, and legacy asks the two questions separately.
-			expect(PadLEDs::image[y][kDisplayWidth] == RGB{0, 0, 0}).to_be_true();
-			expect(PadLEDs::image[y][kDisplayWidth + 1] == RGB{0, 0, 0}).to_be_true();
+			expect(PadLEDs::image[y][kDisplayWidth]).to_equal(RGB{0, 0, 0});
+			expect(PadLEDs::image[y][kDisplayWidth + 1]).to_equal(RGB{0, 0, 0});
 			// The occupancy map is untouched, and that is a stated gap rather than a feature:
 			// nothing in the shell populates one (as for `send_columns`),
 			// so the guest leaves legacy's alone rather than inventing values for it.
@@ -95,10 +95,10 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 
 		expect(r.guest.renderSidebar(0xFFFFFFFF, PadLEDs::image, PadLEDs::occupancyMask)).to_be_true();
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			expect(PadLEDs::image[y][kDisplayWidth] == PatternScene::pad_for(kDisplayWidth, y)).to_be_true();
-			expect(PadLEDs::image[y][kDisplayWidth + 1] == PatternScene::pad_for(kDisplayWidth + 1, y)).to_be_true();
-			expect(PadLEDs::image[y][0] == RGB{0, 0, 0}).to_be_true();
-			expect(PadLEDs::image[y][kDisplayWidth - 1] == RGB{0, 0, 0}).to_be_true();
+			expect(PadLEDs::image[y][kDisplayWidth]).to_equal(PatternScene::pad_for(kDisplayWidth, y));
+			expect(PadLEDs::image[y][kDisplayWidth + 1]).to_equal(PatternScene::pad_for(kDisplayWidth + 1, y));
+			expect(PadLEDs::image[y][0]).to_equal(RGB{0, 0, 0});
+			expect(PadLEDs::image[y][kDisplayWidth - 1]).to_equal(RGB{0, 0, 0});
 		}
 	});
 
@@ -145,18 +145,18 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			// Columns the board actually has: copied.
 			for (int32_t x = 0; x < 10; x++) {
-				expect(oversized[y][x] == PatternScene::pad_for(x, y)).to_be_true();
+				expect(oversized[y][x]).to_equal(PatternScene::pad_for(x, y));
 			}
 			// Columns it does not: left alone, rather than read out of the grid's range.
 			for (int32_t x = 10; x < kDisplayWidth + kSideBarWidth; x++) {
-				expect(oversized[y][x] == RGB{0, 0, 0}).to_be_true();
+				expect(oversized[y][x]).to_equal(RGB{0, 0, 0});
 			}
 		}
 		// Rows past legacy's eight: never written, however many rows the board's grid has. This is
 		// the assertion that would have caught a write past the end of `PadLEDs::image`.
 		for (int32_t y = kDisplayHeight; y < deluge::gfx::grid::kMaxGridRows; y++) {
 			for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
-				expect(oversized[y][x] == RGB{0, 0, 0}).to_be_true();
+				expect(oversized[y][x]).to_equal(RGB{0, 0, 0});
 			}
 		}
 	});
@@ -175,7 +175,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		expect(static_cast<::UI&>(r.guest).renderSidebar()).to_be_true();
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
-				expect(PadLEDs::image[y][x] == RGB{0, 0, 0}).to_be_true();
+				expect(PadLEDs::image[y][x]).to_equal(RGB{0, 0, 0});
 			}
 		}
 	});
@@ -224,10 +224,10 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		expect(r.guest.renderSidebar(0xFFFFFFFF, PadLEDs::image, PadLEDs::occupancyMask)).to_be_false();
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			for (int32_t x = 0; x < kDisplayWidth; x++) {
-				expect(PadLEDs::image[y][x] == PatternScene::pad_for(x, y)).to_be_true();
+				expect(PadLEDs::image[y][x]).to_equal(PatternScene::pad_for(x, y));
 			}
-			expect(PadLEDs::image[y][kDisplayWidth] == RGB{9, 8, 7}).to_be_true();
-			expect(PadLEDs::image[y][kDisplayWidth + 1] == RGB{9, 8, 7}).to_be_true();
+			expect(PadLEDs::image[y][kDisplayWidth]).to_equal(RGB{9, 8, 7});
+			expect(PadLEDs::image[y][kDisplayWidth + 1]).to_equal(RGB{9, 8, 7});
 		}
 		expect(fakelegacyui::marker_sidebar_requests).to_equal(0);
 	});
@@ -271,7 +271,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		    .to_be_false();
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
-				expect(PadLEDs::image[y][x] == RGB{9, 8, 7}).to_be_true();
+				expect(PadLEDs::image[y][x]).to_equal(RGB{9, 8, 7});
 			}
 		}
 		expect(fakelegacy::column_sends.empty()).to_be_true();
@@ -321,7 +321,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		expect(r.open()).to_be_true();
 		const fakelegacyui::RenderRequest none{nullptr, 0, 0xDEAD};
 		expect(fakelegacyui::render_requests.size()).to_equal(size_t(1));
-		expect(nth_or(fakelegacyui::render_requests, 0, none).ui == &r.guest).to_be_true();
+		expect(nth_or(fakelegacyui::render_requests, 0, none).ui).to_equal(&r.guest);
 		expect(nth_or(fakelegacyui::render_requests, 0, none).main_rows).to_equal(uint32_t(0xFFFFFFFF));
 		expect(nth_or(fakelegacyui::render_requests, 0, none).side_rows).to_equal(uint32_t(0));
 		expect(fakelegacy::greyout_reassessments).to_equal(1);
@@ -380,7 +380,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		(void)r.guest.timerCallback();
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
-				expect(PadLEDs::image[y][x] == RGB{0, 0, 0}).to_be_true();
+				expect(PadLEDs::image[y][x]).to_equal(RGB{0, 0, 0});
 			}
 		}
 		expect(fakelegacy::greyout_reassessments).to_equal(reassessed + 1);
@@ -417,7 +417,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		set_clock_ms(20);
 		(void)r.guest.timerCallback();
 		expect(fakelegacyui::render_requests.size()).to_equal(requests + 1);
-		expect(nth_or(fakelegacyui::render_requests, requests, none).ui == &r.guest).to_be_true();
+		expect(nth_or(fakelegacyui::render_requests, requests, none).ui).to_equal(&r.guest);
 		expect(nth_or(fakelegacyui::render_requests, requests, none).main_rows).to_equal(uint32_t(0xFFFFFFFF));
 		expect(nth_or(fakelegacyui::render_requests, requests, none).side_rows).to_equal(uint32_t(0));
 
@@ -431,7 +431,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		set_clock_ms(40);
 		(void)r.guest.timerCallback();
 		expect(fakelegacyui::render_requests.size()).to_equal(requests + 1);
-		expect(nth_or(fakelegacyui::render_requests, requests, none).ui == &r.guest).to_be_true();
+		expect(nth_or(fakelegacyui::render_requests, requests, none).ui).to_equal(&r.guest);
 		expect(nth_or(fakelegacyui::render_requests, requests, none).main_rows).to_equal(uint32_t(0));
 		expect(nth_or(fakelegacyui::render_requests, requests, none).side_rows).to_equal(uint32_t(0xFFFFFFFF));
 	});
@@ -460,10 +460,8 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		// Before `closeUI`: legacy's `uiNeedsRendering` files rows only for a UI it still finds on
 		// its stack (`gui/ui/ui.cpp:336-360`), so a request after the close would be dropped.
 		expect(fakelegacyui::ui_calls.size()).to_equal(size_t(2));
-		expect(nth_or(fakelegacyui::ui_calls, 0, fakelegacyui::UiCall::Close) == fakelegacyui::UiCall::Render)
-		    .to_be_true();
-		expect(nth_or(fakelegacyui::ui_calls, 1, fakelegacyui::UiCall::Render) == fakelegacyui::UiCall::Close)
-		    .to_be_true();
+		expect(nth_or(fakelegacyui::ui_calls, 0, fakelegacyui::UiCall::Close)).to_equal(fakelegacyui::UiCall::Render);
+		expect(nth_or(fakelegacyui::ui_calls, 1, fakelegacyui::UiCall::Render)).to_equal(fakelegacyui::UiCall::Close);
 	});
 
 	it("asks for the sidebar when a marker comes to answer for it, and again when it goes", _ {
@@ -484,7 +482,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		set_clock_ms(10);
 		(void)r.guest.timerCallback();
 		expect(fakelegacyui::render_requests.size()).to_equal(requests + 1);
-		expect(nth_or(fakelegacyui::render_requests, requests, none).ui == &r.guest).to_be_true();
+		expect(nth_or(fakelegacyui::render_requests, requests, none).ui).to_equal(&r.guest);
 		expect(nth_or(fakelegacyui::render_requests, requests, none).main_rows).to_equal(uint32_t(0));
 		expect(nth_or(fakelegacyui::render_requests, requests, none).side_rows).to_equal(uint32_t(0xFFFFFFFF));
 
@@ -655,7 +653,7 @@ describe shell_host_ui_drawing("gui::ui::ShellHostUI: what it draws into legacy'
 		r.guest.shell().tick(0);
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
-				expect(PadLEDs::image[y][x] == PatternScene::pad_for(x, y)).to_be_true();
+				expect(PadLEDs::image[y][x]).to_equal(PatternScene::pad_for(x, y));
 			}
 		}
 	});

@@ -94,7 +94,10 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 		const auto next = request_for(sound("osc1/type"), fixture.song, at(kDrum), fixture.facts, *shown->stale - 1);
 		expect(next.has_value()).to_be_true();
 		const auto stored = deluge::plugin::from_menu(row_at("osc1/type"), next->menu_value);
-		expect(stored.has_value() && stored->first != static_cast<int32_t>(OscType::INPUT_R)).to_be_true();
+		expect(stored.has_value()).to_be_true();
+		if (stored.has_value()) {
+			expect(stored->first).not_().to_equal(static_cast<int32_t>(OscType::INPUT_R));
+		}
 	});
 
 	it("reads a stored value the menu never writes as legacy shows it", _ {

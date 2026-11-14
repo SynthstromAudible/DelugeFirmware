@@ -198,7 +198,7 @@ describe sample_position_widget("ui::oled sample_position & title_badge", $ {
 		// Against legacy AS WRITTEN, the two must differ: that is the divergence, asserted rather
 		// than described.
 		legacy_render_body(r.reference, kBodyY + 5, samples, 44100, false);
-		expect(r.pbm() == r.reference_pbm()).to_be_false();
+		expect(r.pbm()).not_().to_equal(r.reference_pbm());
 
 		// Against legacy with only the x coordinate corrected, they are identical -- so nothing
 		// else about the minutes arm was changed while fixing it.

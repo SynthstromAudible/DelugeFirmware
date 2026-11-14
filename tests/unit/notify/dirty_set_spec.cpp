@@ -73,7 +73,9 @@ describe dirty_set("notify::DirtySet", $ {
 			// ClipContent's bit from the words it just took, so this must hold for every
 			// snapshot, not just on average. (The converse -- flag set, word not yet in this
 			// snapshot -- is fine: that is the documented "unknown, assume all" case.)
-			expect(!got.clips(Dirty::ClipContent).test(7) || got.has(Dirty::ClipContent)).to_be_true();
+			if (got.clips(Dirty::ClipContent).test(7)) {
+				expect(got.has(Dirty::ClipContent)).to_be_true();
+			}
 			if (got.has(Dirty::ClipContent)) seen_clip_flag++;
 		}
 		stop = true;

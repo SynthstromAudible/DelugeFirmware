@@ -23,7 +23,7 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 		// empty. An empty guest would swallow every pad while drawing nothing, so that is a refused
 		// open, not an open guest.
 		Rig r2;
-		expect(r2.guest.getInitialScene().kind == SceneKind::Null).to_be_true();
+		expect(r2.guest.getInitialScene().kind).to_equal(SceneKind::Null);
 		expect(r2.guest.opened()).to_be_false();
 		expect(r2.guest.shell().stack().depth()).to_equal(size_t(0));
 	});
@@ -57,7 +57,7 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 
 		// `top()` is the passive layer; `input_top()` is the scene that genuinely gets input back,
 		// and `Scene::on_resume`'s contract is about the latter.
-		expect(r.guest.shell().stack().top().kind() == kOver).to_be_true();
+		expect(r.guest.shell().stack().top().kind()).to_equal(kOver);
 		expect(r.base.resumes).to_equal(1);
 		expect(r.over.resumes).to_equal(0);
 	});
@@ -121,7 +121,7 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 		expect(r.over.exits).to_equal(1);
 		// Consumed, and the guest is still on legacy's hierarchy: closing here would pop it a level
 		// early, taking the whole guest down for a Back that only left one scene inside it.
-		expect(result == ActionResult::DEALT_WITH).to_be_true();
+		expect(result).to_equal(ActionResult::DEALT_WITH);
 		expect(fakelegacyui::closed.empty()).to_be_true();
 	});
 
@@ -132,9 +132,9 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 		expect(r.guest.shell().stack().push(SceneId{deluge::scenes::context_menu::kContextMenuSceneKind, 0}))
 		    .to_be_true();
 		const ActionResult result = r.guest.exitUI();
-		expect(result == ActionResult::DEALT_WITH).to_be_true();
-		expect(r.guest.shell().stack().input_top().kind() == deluge::scenes::context_menu::kContextMenuSceneKind)
-		    .to_be_true();
+		expect(result).to_equal(ActionResult::DEALT_WITH);
+		expect(r.guest.shell().stack().input_top().kind())
+		    .to_equal(deluge::scenes::context_menu::kContextMenuSceneKind);
 		expect(r.guest.shell().stack().depth()).to_equal(size_t(2));
 		expect(fakelegacyui::closed.empty()).to_be_true();
 	});
@@ -153,20 +153,20 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 		// same thing `SoundEditor::exitCompletely` does at `gui/ui/sound_editor.cpp`. Without
 		// it the user is trapped: neither reader of the return value closes anything.
 		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
-		expect(fakelegacyui::closed[0] == static_cast<::UI*>(&r.guest)).to_be_true();
+		expect(fakelegacyui::closed[0]).to_equal(static_cast<::UI*>(&r.guest));
 		// **The answer is `ACTIONED_AND_CAUSED_CHANGE`, not `NOT_DEALT_WITH`.** `ui.h`'s
 		// contract for this hook is "returns whether a UI exited" (`gui/ui/ui.h:181-182`), a UI
 		// did, and every legacy self-closing implementation answers this value -- including the
 		// tenant the guest stands in for, whose `exitUI` is `exitCompletely()`
 		// (`gui/ui/sound_editor.h`, returning at `gui/ui/sound_editor.cpp`).
-		expect(result == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
+		expect(result).to_equal(ActionResult::ACTIONED_AND_CAUSED_CHANGE);
 	});
 
 	it("is safe on an already-empty stack: it closes once and pops nothing", _ {
 		Rig r;
 		expect(r.guest.shell().stack().depth()).to_equal(size_t(0));
 		const ActionResult result = r.guest.exitUI();
-		expect(result == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
+		expect(result).to_equal(ActionResult::ACTIONED_AND_CAUSED_CHANGE);
 		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
 	});
 
@@ -202,7 +202,7 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 
 		expect(r.guest.shell().stack().depth()).to_equal(size_t(0));
 		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
-		expect(fakelegacyui::closed[0] == static_cast<::UI*>(&r.guest)).to_be_true();
+		expect(fakelegacyui::closed[0]).to_equal(static_cast<::UI*>(&r.guest));
 		// And no re-arm on the close path: `closeUI` unsets `TimerName::UI_SPECIFIC` itself
 		// (`gui/ui/ui.cpp:227`) before handing focus to the UI beneath, so a timer armed here would
 		// either be undone one line later or deliver this guest's `timerCallback` to that UI
@@ -323,7 +323,7 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 		expect(r.open(kBase)).to_be_true();
 		r.over.passive = true;
 		expect(r.guest.shell().stack().push(SceneId{kOver, 0})).to_be_true();
-		expect(r.guest.exitUI() == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
+		expect(r.guest.exitUI()).to_equal(ActionResult::ACTIONED_AND_CAUSED_CHANGE);
 		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
 		r.over.passive = false;
 	});
@@ -339,14 +339,14 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 		expect(r.guest.shell().stack().push(SceneId{kOver, 0})).to_be_true();
 
 		// The survive path: a UI did not exit, so nothing is handed back.
-		expect(r.guest.exitUI() == ActionResult::DEALT_WITH).to_be_true();
+		expect(r.guest.exitUI()).to_equal(ActionResult::DEALT_WITH);
 		expect(fakelegacyui::knob_indicator_clears).to_equal(0);
 		expect(fakelegacyui::closed.empty()).to_be_true();
 
 		// The close path: cleared, exactly once, and **before** `close()` -- `closeUI` hands focus
 		// to the UI beneath on the same call (`gui/ui/ui.cpp:229`) and that is what re-fills the
 		// rings, so a clear after it would blank rings nothing then refreshes.
-		expect(r.guest.exitUI() == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
+		expect(r.guest.exitUI()).to_equal(ActionResult::ACTIONED_AND_CAUSED_CHANGE);
 		expect(fakelegacyui::knob_indicator_clears).to_equal(1);
 		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
 		expect(fakelegacyui::knob_clear_saw_close).to_be_false();
@@ -362,10 +362,10 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 			expect(r.open(kBase)).to_be_true();
 			expect(r.guest.shell().stack().push(SceneId{kOver, 0})).to_be_true();
 
-			expect(r.guest.exitUI() == ActionResult::DEALT_WITH).to_be_true();
+			expect(r.guest.exitUI()).to_equal(ActionResult::DEALT_WITH);
 			expect(fakelegacyui::note_mode_exits).to_equal(0);
 
-			expect(r.guest.exitUI() == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
+			expect(r.guest.exitUI()).to_equal(ActionResult::ACTIONED_AND_CAUSED_CHANGE);
 			expect(fakelegacyui::note_mode_exits).to_equal(1);
 			expect(fakelegacyui::note_exit_saw_knob_clear).to_be_true();
 			expect(fakelegacyui::note_exit_saw_close).to_be_false();
@@ -406,12 +406,12 @@ describe shell_host_ui_lifecycle("gui::ui::ShellHostUI: opening, closing and exi
 		Rig r;
 		expect(r.open(kBase)).to_be_true();
 		fakelegacyui::slice_out = true;
-		expect(r.guest.exitUI() == ActionResult::DEALT_WITH).to_be_true();
+		expect(r.guest.exitUI()).to_equal(ActionResult::DEALT_WITH);
 		expect(r.guest.shell().stack().depth()).to_equal(size_t(1));
 		expect(fakelegacyui::closed.size()).to_equal(size_t(0));
 
 		fakelegacyui::slice_out = false;
-		expect(r.guest.exitUI() == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
+		expect(r.guest.exitUI()).to_equal(ActionResult::ACTIONED_AND_CAUSED_CHANGE);
 		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
 	});
 });

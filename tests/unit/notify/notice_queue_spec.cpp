@@ -100,7 +100,7 @@ describe notice_queue("notify::NoticeQueue", $ {
 		notice_notification("Probability", "100%");
 		Notice out{};
 		expect(notices().pop(out)).to_be_true();
-		expect(out.kind == Notice::Kind::Notification).to_be_true();
+		expect(out.kind).to_equal(Notice::Kind::Notification);
 		expect(std::string(out.notification_title())).to_equal("Probability");
 		expect(std::string(out.notification_value())).to_equal("100%");
 		expect(int(out.popup_type)).to_equal(0);

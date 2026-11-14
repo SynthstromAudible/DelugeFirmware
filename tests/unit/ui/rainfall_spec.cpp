@@ -40,7 +40,7 @@ describe rainfall("Rainfall", $ {
 			// and differ by dt = 8, so the true distance is 8/sqrt(2) and its square is 32.
 			const Rainfall::Streak a{.x = 0.0f, .y = 0.0f, .size = 3, .length = 3};
 			const Rainfall::Streak b{.x = 4.0f, .y = -4.0f, .size = 3, .length = 3};
-			expect(std::abs(Rainfall::separation_squared(a, b) - 32.0f) < 0.01f).to_be_true();
+			expect(Rainfall::separation_squared(a, b)).to_be_within(std::nextafter(0.01f, 0.0f)).of(32.0f);
 		});
 
 		it("adds the gap along travel when two streaks do not overlap along it", _ {
@@ -49,7 +49,7 @@ describe rainfall("Rainfall", $ {
 			// (8, 8), which are sqrt(128) apart.
 			const Rainfall::Streak a{.x = 0.0f, .y = 0.0f, .size = 1, .length = 3};
 			const Rainfall::Streak b{.x = 10.0f, .y = 10.0f, .size = 1, .length = 3};
-			expect(std::abs(Rainfall::separation_squared(a, b) - 128.0f) < 0.01f).to_be_true();
+			expect(Rainfall::separation_squared(a, b)).to_be_within(std::nextafter(0.01f, 0.0f)).of(128.0f);
 		});
 
 		it("reports no distance between a streak and itself", _ {
@@ -68,10 +68,10 @@ describe rainfall("Rainfall", $ {
 		for (int32_t frame = 0; frame < 500; frame++) {
 			for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
 				const size_t length = field.length_of(drop);
-				expect(length >= 3 && length <= 4).to_be_true();
+				expect(length).to_be_between(3, 4);
 
 				const Rainfall::Block head = field.cell_at(drop, 0);
-				expect(head.size >= 1 && head.size <= 3).to_be_true();
+				expect(head.size).to_be_between(1, 3);
 
 				for (size_t cell = 1; cell < length; cell++) {
 					const Rainfall::Block block = field.cell_at(drop, cell);
@@ -162,7 +162,7 @@ describe rainfall("Rainfall", $ {
 			for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
 				const float speed = field.speed_of(drop);
 				const float steps = speed / Rainfall::kSpeedStep;
-				expect(steps == std::floor(steps)).to_be_true();
+				expect(steps).to_equal(std::floor(steps));
 				expect(speed).to_be_greater_than(0.0f);
 			}
 			field.advance();
@@ -254,7 +254,7 @@ describe rainfall("Rainfall", $ {
 					cx++;
 					cy++;
 				}
-				expect(length >= 3 && length <= 4).to_be_true();
+				expect(length).to_be_between(3, 4);
 				runs++;
 			}
 			expect(runs).to_equal(7);
@@ -272,12 +272,12 @@ describe rainfall("Rainfall", $ {
 				}
 				const int32_t scale = field.logo_scale();
 				const float speed = field.logo_speed();
-				expect(scale >= 1 && scale <= 3).to_be_true();
+				expect(scale).to_be_between(1, 3);
 				expect(speed).to_be_greater_than(0.0f);
 				const float steps = speed / Rainfall::kSpeedStep;
-				expect(steps == std::floor(steps)).to_be_true();
+				expect(steps).to_equal(std::floor(steps));
 				// Larger scale is nearer, so never slower.
-				expect(speed >= Rainfall::kSpeedFar && speed <= Rainfall::kSpeedNear).to_be_true();
+				expect(speed).to_be_between(Rainfall::kSpeedFar, Rainfall::kSpeedNear);
 				while (field.logo_active()) {
 					field.advance();
 				}

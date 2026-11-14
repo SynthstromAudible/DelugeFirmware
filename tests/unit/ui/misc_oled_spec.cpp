@@ -169,7 +169,7 @@ describe misc_oled_w("ui::oled::misc", $ {
 		// The two panels really do lay the type text out differently.
 		uitest::Rig48 r48;
 		output_name(r48.frame, r48.frame.bounds(), data);
-		expect(r.pbm() == r48.pbm()).to_be_false();
+		expect(r.pbm()).not_().to_equal(r48.pbm());
 	});
 
 	it("prints the slot when the name is empty, as slotToString does", _ {
@@ -221,7 +221,7 @@ describe misc_oled_w("ui::oled::misc", $ {
 		output_name(r.frame, r.frame.bounds(), data);
 		legacy::drawOutputNameFromDetails(r.reference, "SYNTH", wide, 128, 48, 5);
 		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect(deluge::gfx::oled::string_width_px(wide, 10) > 128).to_be_true();
+		expect(deluge::gfx::oled::string_width_px(wide, 10)).to_be_greater_than(128);
 	});
 
 	it("draws the seven-segment digits exactly as renderEmulated7Seg did", _ {

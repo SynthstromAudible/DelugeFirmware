@@ -81,10 +81,10 @@ describe markers_grid("ui/grid/markers", $ {
 		// The exact value, derived by hand rather than by running the port: at (5, 3) the underlay
 		// is monochrome(8*5 + 4*3) = monochrome(52), so `value` is 52/4 = 13, and green's channels
 		// are (0, 255, 0) -> (13 + 0, 13 + 191, 13 + 0).
-		expect(r.grid.at(5, 3) == RGB{13, 204, 13}).to_be_true();
+		expect(r.grid.at(5, 3)).to_equal(RGB{13, 204, 13});
 		// Untouched rows keep the underlay exactly.
-		expect(r.grid.at(5, 1) == RGB::monochrome(44)).to_be_true();
-		expect(r.grid.at(5, 6) == RGB::monochrome(64)).to_be_true();
+		expect(r.grid.at(5, 1)).to_equal(RGB::monochrome(44));
+		expect(r.grid.at(5, 6)).to_equal(RGB::monochrome(64));
 	});
 
 	it("dims by three bits before blending, not after", _ {
@@ -97,7 +97,7 @@ describe markers_grid("ui/grid/markers", $ {
 
 		// green.dim(3) is (0, 31, 0); the blend then adds 13 (the underlay's quarter) to
 		// (31 * 3) / 4 = 23. Dimming *after* the blend would give (204 >> 3) = 25 instead.
-		expect(r.grid.at(5, 3) == RGB{13, 36, 13}).to_be_true();
+		expect(r.grid.at(5, 3)).to_equal(RGB{13, 36, 13});
 	});
 
 	it("reads the red channel alone, so a green-only underlay contributes nothing", _ {
@@ -108,7 +108,7 @@ describe markers_grid("ui/grid/markers", $ {
 			main.pad(2, 4, RGB{0, 200, 0});
 			marker_tint(main, 2, 4, 5, RGB{255, 0, 0}, false);
 		});
-		expect(r.grid.at(2, 4) == RGB{191, 0, 0}).to_be_true();
+		expect(r.grid.at(2, 4)).to_equal(RGB{191, 0, 0});
 	});
 
 	// --- marker_column ------------------------------------------------------------------------
@@ -123,10 +123,10 @@ describe markers_grid("ui/grid/markers", $ {
 		// Every row of column 4 is tinted -- the two halves meet in the middle.
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			// The underlay at (4, y) is monochrome(8*4 + 4*y); any tint at all changes it.
-			expect(r.grid.at(4, y) == RGB::monochrome(static_cast<uint8_t>(32 + 4 * y))).to_be_false();
+			expect(r.grid.at(4, y)).not_().to_equal(RGB::monochrome(static_cast<uint8_t>(32 + 4 * y)));
 		}
 		// ...and no neighbouring column moved.
-		expect(r.grid.at(3, 4) == RGB::monochrome(40)).to_be_true();
+		expect(r.grid.at(3, 4)).to_equal(RGB::monochrome(40));
 	});
 
 	it("stacks two markers two rows each, mirrored about the middle", _ {
@@ -142,10 +142,10 @@ describe markers_grid("ui/grid/markers", $ {
 		// from the bottom index up while walking the column from its bottom row up, so the lowest
 		// marker index ends up at the OUTSIDE of the column -- which is the thing a stacking port
 		// is most likely to get backwards.
-		expect(r.grid.at(7, 7).g > r.grid.at(7, 7).r).to_be_true(); // outer pair: green
-		expect(r.grid.at(7, 0).g > r.grid.at(7, 0).r).to_be_true();
-		expect(r.grid.at(7, 4).r > r.grid.at(7, 4).g).to_be_true(); // inner pair: red
-		expect(r.grid.at(7, 3).r > r.grid.at(7, 3).g).to_be_true();
+		expect(r.grid.at(7, 7).g).to_be_greater_than(r.grid.at(7, 7).r); // outer pair: green
+		expect(r.grid.at(7, 0).g).to_be_greater_than(r.grid.at(7, 0).r);
+		expect(r.grid.at(7, 4).r).to_be_greater_than(r.grid.at(7, 4).g); // inner pair: red
+		expect(r.grid.at(7, 3).r).to_be_greater_than(r.grid.at(7, 3).g);
 	});
 
 	it("gives the selected marker two rows and the others one when three share a column", _ {
@@ -158,10 +158,10 @@ describe markers_grid("ui/grid/markers", $ {
 
 		// START (not selected) gets one row, 7. LOOP_START (selected) gets two, 5..6. END fills
 		// 4 and the mirror. Swapping baseIncrement/selectedIncrement would put cyan on row 6 only.
-		expect(r.grid.at(9, 7).g > r.grid.at(9, 7).b).to_be_true();  // green, one row
-		expect(r.grid.at(9, 6).b > r.grid.at(9, 6).r).to_be_true();  // cyan
-		expect(r.grid.at(9, 5).b > r.grid.at(9, 5).r).to_be_true();  // cyan, second row
-		expect(r.grid.at(9, 4).r > r.grid.at(9, 4).g).to_be_true();  // red
+		expect(r.grid.at(9, 7).g).to_be_greater_than(r.grid.at(9, 7).b);  // green, one row
+		expect(r.grid.at(9, 6).b).to_be_greater_than(r.grid.at(9, 6).r);  // cyan
+		expect(r.grid.at(9, 5).b).to_be_greater_than(r.grid.at(9, 5).r);  // cyan, second row
+		expect(r.grid.at(9, 4).r).to_be_greater_than(r.grid.at(9, 4).g);  // red
 	});
 
 	it("stacks four markers one row each", _ {
@@ -176,20 +176,20 @@ describe markers_grid("ui/grid/markers", $ {
 		// magenta 5/2, red 4/3. Derived from legacy's arithmetic by hand -- with four markers
 		// `baseIncrement` and `selectedIncrement` are both 1, and the last marker walked takes
 		// `yStart = kDisplayHeight / 2`.
-		expect(r.grid.at(2, 7).g > r.grid.at(2, 7).b).to_be_true(); // green
-		expect(r.grid.at(2, 6).b > r.grid.at(2, 6).r).to_be_true(); // cyan
-		expect(r.grid.at(2, 6).g > r.grid.at(2, 6).r).to_be_true();
-		expect(r.grid.at(2, 5).r > r.grid.at(2, 5).g).to_be_true(); // magenta, selected
-		expect(r.grid.at(2, 5).b > r.grid.at(2, 5).g).to_be_true();
-		expect(r.grid.at(2, 4).r > r.grid.at(2, 4).g).to_be_true(); // red
-		expect(r.grid.at(2, 4).r > r.grid.at(2, 4).b).to_be_true();
+		expect(r.grid.at(2, 7).g).to_be_greater_than(r.grid.at(2, 7).b); // green
+		expect(r.grid.at(2, 6).b).to_be_greater_than(r.grid.at(2, 6).r); // cyan
+		expect(r.grid.at(2, 6).g).to_be_greater_than(r.grid.at(2, 6).r);
+		expect(r.grid.at(2, 5).r).to_be_greater_than(r.grid.at(2, 5).g); // magenta, selected
+		expect(r.grid.at(2, 5).b).to_be_greater_than(r.grid.at(2, 5).g);
+		expect(r.grid.at(2, 4).r).to_be_greater_than(r.grid.at(2, 4).g); // red
+		expect(r.grid.at(2, 4).r).to_be_greater_than(r.grid.at(2, 4).b);
 		// The mirror half carries the same four in the same order.
-		expect(r.grid.at(2, 0).g > r.grid.at(2, 0).b).to_be_true();
-		expect(r.grid.at(2, 1).b > r.grid.at(2, 1).r).to_be_true();
-		expect(r.grid.at(2, 2).r > r.grid.at(2, 2).g).to_be_true();
-		expect(r.grid.at(2, 3).r > r.grid.at(2, 3).b).to_be_true();
+		expect(r.grid.at(2, 0).g).to_be_greater_than(r.grid.at(2, 0).b);
+		expect(r.grid.at(2, 1).b).to_be_greater_than(r.grid.at(2, 1).r);
+		expect(r.grid.at(2, 2).r).to_be_greater_than(r.grid.at(2, 2).g);
+		expect(r.grid.at(2, 3).r).to_be_greater_than(r.grid.at(2, 3).b);
 		// Only the selected marker is undimmed, so its row is far brighter than its neighbour's.
-		expect(r.grid.at(2, 5).r > r.grid.at(2, 4).r).to_be_true();
+		expect(r.grid.at(2, 5).r).to_be_greater_than(r.grid.at(2, 4).r);
 	});
 
 	it("skips a suppressed marker and leaves the pads it would have drawn untouched", _ {
@@ -201,9 +201,9 @@ describe markers_grid("ui/grid/markers", $ {
 		r.frame.region(kMainArea, [&](GridFrame& main) { marker_column(main, 7, stack, kMarkerColours); });
 
 		// Rows 2..5 (END's own, and their mirror) keep the underlay; rows 0,1,6,7 still get START.
-		expect(r.grid.at(7, 4) == RGB::monochrome(72)).to_be_true();
-		expect(r.grid.at(7, 3) == RGB::monochrome(68)).to_be_true();
-		expect(r.grid.at(7, 7).g > 0).to_be_true();
+		expect(r.grid.at(7, 4)).to_equal(RGB::monochrome(72));
+		expect(r.grid.at(7, 3)).to_equal(RGB::monochrome(68));
+		expect(r.grid.at(7, 7).g).to_be_greater_than(0);
 	});
 
 	it("paints nothing at all for a column no marker lands on", _ {
@@ -212,7 +212,7 @@ describe markers_grid("ui/grid/markers", $ {
 		MarkerStack stack{.active = 0, .suppress = 0, .selected = 0};
 		r.frame.region(kMainArea, [&](GridFrame& main) { marker_column(main, 11, stack, kMarkerColours); });
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			expect(r.grid.at(11, y) == RGB::monochrome(static_cast<uint8_t>(88 + 4 * y))).to_be_true();
+			expect(r.grid.at(11, y)).to_equal(RGB::monochrome(static_cast<uint8_t>(88 + 4 * y)));
 		}
 	});
 

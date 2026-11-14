@@ -19,17 +19,17 @@ describe led_frame("ui::LedFrame", $ {
 		// call order (3 then 5), not id order or insertion-reversed -- an implementation that
 		// inserted at the front, or sorted by id, would fail these two index checks.
 		expect(f.entries().size()).to_equal(size_t(2));
-		expect(f.entries()[0].first == LedId{3}).to_be_true();
-		expect(f.entries()[0].second.kind == LedState::Kind::Blink).to_be_true();
-		expect(f.entries()[1].first == LedId{5}).to_be_true();
-		expect(f.entries()[1].second.kind == LedState::Kind::On).to_be_true();
+		expect(f.entries()[0].first).to_equal(LedId{3});
+		expect(f.entries()[0].second.kind).to_equal(LedState::Kind::Blink);
+		expect(f.entries()[1].first).to_equal(LedId{5});
+		expect(f.entries()[1].second.kind).to_equal(LedState::Kind::On);
 		expect(f.indicator_or_null(IndicatorId::Lower)->levels[2]).to_equal(uint8_t(3));
-		expect(f.indicator_or_null(IndicatorId::Upper) == nullptr).to_be_true();
+		expect(f.indicator_or_null(IndicatorId::Upper)).to_be_null();
 
 		f.clear();
 		expect(f.entries().empty()).to_be_true();
-		expect(f.indicator_or_null(IndicatorId::Lower) == nullptr).to_be_true(); // indicator reset too, not just entries
-		expect(f.indicator_or_null(IndicatorId::Upper) == nullptr).to_be_true();
+		expect(f.indicator_or_null(IndicatorId::Lower)).to_be_null(); // indicator reset too, not just entries
+		expect(f.indicator_or_null(IndicatorId::Upper)).to_be_null();
 	});
 
 	it("carries the tick's clock and the restarts its declarers asked for, which clear() forgets", _ {

@@ -4,9 +4,11 @@
 #include "support/pbm.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 #include "support/spec_main.h"
 
-#include <cstring>
+#include <cstdint>
+#include <span>
 
 using deluge::hid::display::Icon;
 using deluge::hid::display::oled_canvas::Canvas;
@@ -66,8 +68,9 @@ void expect_clipped_to(Self& self, g::Rect r, Body&& body) {
 	body(static_cast<g::Canvas&>(oracle));
 	mask_to(oracle, r);
 
-	expect(lit_pixels(clipped.bytes()) > 0).to_be_true();
-	expect(std::memcmp(clipped.bytes().data(), oracle.bytes().data(), clipped.bytes().size()) == 0).to_be_true();
+	expect(lit_pixels(clipped.bytes())).to_be_greater_than(0);
+	to_equal_bytes(expect(std::span<const uint8_t>(clipped.bytes().data(), clipped.bytes().size())),
+	               std::span<const uint8_t>(oracle.bytes().data(), clipped.bytes().size()));
 }
 
 /// The clip rect every case below is checked against. It deliberately starts and ends part-way
@@ -257,7 +260,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		expect(c.clip().has_value()).to_be_false();
 		c.set_clip(g::Rect{1, 2, 3, 4});
 		expect(c.clip().has_value()).to_be_true();
-		expect(*c.clip() == g::Rect{1, 2, 3, 4}).to_be_true();   // as passed, not as clamped
+		expect(*c.clip()).to_equal(g::Rect{1, 2, 3, 4});   // as passed, not as clamped
 		c.clear_clip();
 		expect(c.clip().has_value()).to_be_false();
 		c.draw_pixel(0, 0);

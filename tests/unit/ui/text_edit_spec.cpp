@@ -3,6 +3,7 @@
 #include "unit/gfx/support/golden.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 #include "support/spec_main.h"
 
 using namespace deluge::ui;
@@ -36,9 +37,9 @@ describe text_edit_w("ui::oled::text_edit", $ {
 		uitest::Rig48 r;
 		TextEditState st{.cursor = 30, .scroll = 0};
 		text_edit(r.frame, r.frame.bounds(), kLongString, st);
-		expect(st.scroll > 0).to_be_true();
-		expect(st.cursor - st.scroll >= 0).to_be_true();
-		expect(st.cursor - st.scroll < 21).to_be_true(); // inside the visible window
+		expect(st.scroll).to_be_greater_than(0);
+		to_be_at_least(expect(st.cursor - st.scroll), 0);
+		expect(st.cursor - st.scroll).to_be_less_than(21); // inside the visible window
 	});
 
 	it("draws nothing but the cursor for an empty string", _ {

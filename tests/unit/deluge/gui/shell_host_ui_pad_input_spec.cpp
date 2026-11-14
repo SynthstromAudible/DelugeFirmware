@@ -25,13 +25,13 @@ describe shell_host_ui_pad_input("gui::ui::ShellHostUI: pad input and the grid-p
 
 		r.guest.shell().tick(250);
 		expect(r.base.seen.size()).to_equal(size_t(1));
-		expect(r.base.seen[0].ev.kind == UiEvent::Kind::Pad).to_be_true();
+		expect(r.base.seen[0].ev.kind).to_equal(UiEvent::Kind::Pad);
 		expect(static_cast<int>(r.base.seen[0].ev.x)).to_equal(5);
 		expect(static_cast<int>(r.base.seen[0].ev.y)).to_equal(3);
 		expect(static_cast<int>(r.base.seen[0].ev.velocity)).to_equal(137);
 		expect(r.base.seen[0].ev.on).to_be_true();
 		// A fed pad is dealt with: the shell routes it on its next tick.
-		expect(result == ActionResult::DEALT_WITH).to_be_true();
+		expect(result).to_equal(ActionResult::DEALT_WITH);
 	});
 
 	it("carries a pad release through as a release rather than a second press", _ {

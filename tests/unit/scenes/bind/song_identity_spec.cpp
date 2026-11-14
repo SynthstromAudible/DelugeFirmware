@@ -13,7 +13,7 @@ describe song_identity("a song's identity", ${
 		const uint64_t first_identity = first->identity();
 		std::destroy_at(first);
 		auto* second = new (memory) deluge::project::Song();
-		expect(second->identity() != first_identity).to_be_true();
+		expect(second->identity()).not_().to_equal(first_identity);
 		std::destroy_at(second);
 	});
 });

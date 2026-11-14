@@ -82,43 +82,41 @@ describe bind_param("a param target", ${
 			const auto address = param_address(t, where);
 			return address ? std::optional{std::pair{address->owner, address->clip_id}} : std::nullopt;
 		};
-		expect(owner_of(kSoundLpf, kOnSynth) == std::optional{std::pair{OwnerId::instrument(kSynth.id),
-		                                                                 std::optional{kSynthClip.clip_id}}})
-		    .to_be_true();
-		expect(owner_of(kSoundLpf, kOnKitRow)
-		       == std::optional{std::pair{OwnerId::drum(kDrum.id), std::optional{kKitClip.clip_id}}})
-		    .to_be_true();
-		expect(owner_of(kChainLpf, kOnKitFx)
-		       == std::optional{std::pair{OwnerId::instrument(kKitChain.id), std::optional{kKitClip.clip_id}}})
-		    .to_be_true();
-		expect(owner_of(kChainLpf, kOnAudio)
-		       == std::optional{std::pair{OwnerId::clip(kAudioClip.clip_id), std::optional<uint32_t>{}}})
-		    .to_be_true();
-		expect(owner_of(kChainLpf, kOnSong) == std::optional{std::pair{OwnerId::song(), std::optional<uint32_t>{}}})
-		    .to_be_true();
+		expect(owner_of(kSoundLpf, kOnSynth)).to_equal(std::optional{std::pair{OwnerId::instrument(kSynth.id),
+		                                                                 std::optional{kSynthClip.clip_id}}});
+		expect(owner_of(kSoundLpf, kOnKitRow))
+		    .to_equal(std::optional{std::pair{OwnerId::drum(kDrum.id), std::optional{kKitClip.clip_id}}});
+		expect(owner_of(kChainLpf, kOnKitFx))
+		    .to_equal(std::optional{std::pair{OwnerId::instrument(kKitChain.id), std::optional{kKitClip.clip_id}}});
+		expect(owner_of(kChainLpf, kOnAudio))
+		    .to_equal(std::optional{std::pair{OwnerId::clip(kAudioClip.clip_id), std::optional<uint32_t>{}}});
+		expect(owner_of(kChainLpf, kOnSong))
+		    .to_equal(std::optional{std::pair{OwnerId::song(), std::optional<uint32_t>{}}});
 		expect(param_address(kSoundLpf, Addresses{}).has_value()).to_be_false();
-		expect(param_address(kSoundLpf, kOnSynth)->id == deluge::instrument::param::kLpfFrequency).to_be_true();
+		expect(param_address(kSoundLpf, kOnSynth)->id).to_equal(deluge::instrument::param::kLpfFrequency);
 	});
 
 	it("names a param on the other kind of owner only where that owner's table holds it by the same name", _ {
 		// A sound's and a chain's ids are their own tables': a sound's portamento has the id a chain's mod FX rate does.
-		expect(deluge::instrument::param::kPortamento == deluge::global_effectable::param::kModFXRate).to_be_true();
+		expect(deluge::instrument::param::kPortamento).to_equal(deluge::global_effectable::param::kModFXRate);
 		expect(param_address(kPortamento, kOnKitFx).has_value()).to_be_false();
 		ModelFixture f;
 		expect(view(kPortamento, f.song, kOnKitFx, f.facts).has_value()).to_be_false();
 		expect(request_for(kPortamento, f.song, kOnKitFx, f.facts, 10).has_value()).to_be_false();
 		expect(param_address(kChainTempo, kOnSynth).has_value()).to_be_false();
-		expect(param_address(kSoundBass, kOnSong)->id == deluge::global_effectable::param::kBass).to_be_true();
-		expect(param_address(kChainLpf, kOnSynth)->id == deluge::instrument::param::kLpfFrequency).to_be_true();
+		expect(param_address(kSoundBass, kOnSong)->id).to_equal(deluge::global_effectable::param::kBass);
+		expect(param_address(kChainLpf, kOnSynth)->id).to_equal(deluge::instrument::param::kLpfFrequency);
 	});
 
 	it("addresses a cable on a sound's slot and nowhere on a chain", _ {
 		constexpr deluge::plugin::ParamId depth{deluge::instrument::kCableDepthFlag | 24u | (1u << 8)};
 		const Target cable{.kind = Target::Kind::CABLE, .param = depth};
 		const auto on_synth = param_address(cable, kOnSynth);
-		expect(on_synth.has_value() && on_synth->id == depth
-		       && on_synth->owner == OwnerId::instrument(kSynth.id))
-		    .to_be_true();
+		expect(on_synth.has_value()).to_be_true();
+		if (on_synth.has_value()) {
+			expect(on_synth->id).to_equal(depth);
+			expect(on_synth->owner).to_equal(OwnerId::instrument(kSynth.id));
+		}
 		expect(param_address(cable, kOnKitRow).has_value()).to_be_true();
 		expect(param_address(cable, kOnKitFx).has_value()).to_be_false();
 		expect(param_address(cable, kOnSong).has_value()).to_be_false();
@@ -130,16 +128,32 @@ describe bind_param("a param target", ${
 		f.facts.param_values.push_back({*param_address(kPulseWidth, kOnSynth), kMax});
 		f.facts.param_values.push_back({*param_address(kChainLpf, kOnSong), kMin});
 		const auto pan = view(kSoundPan, f.song, kOnSynth, f.facts);
-		expect(pan.has_value() && pan->applies && pan->value == 25 && pan->least == -25 && pan->greatest == 25)
-		    .to_be_true();
+		expect(pan.has_value()).to_be_true();
+		if (pan.has_value()) {
+			expect(pan->applies).to_be_true();
+			expect(pan->value).to_equal(25);
+			expect(pan->least).to_equal(-25);
+			expect(pan->greatest).to_equal(25);
+		}
 		const auto width = view(kPulseWidth, f.song, kOnSynth, f.facts);
-		expect(width.has_value() && width->value == 50 && width->least == 0 && width->greatest == 50).to_be_true();
+		expect(width.has_value()).to_be_true();
+		if (width.has_value()) {
+			expect(width->value).to_equal(50);
+			expect(width->least).to_equal(0);
+			expect(width->greatest).to_equal(50);
+		}
 		const auto lpf = view(kChainLpf, f.song, kOnSong, f.facts);
-		expect(lpf.has_value() && lpf->value == 0).to_be_true();
+		expect(lpf.has_value()).to_be_true();
+		if (lpf.has_value()) {
+			expect(lpf->value).to_equal(0);
+		}
 		// A param the runtime does not hold shows the value a new owner starts with.
 		const auto unheld = view(kSoundLpf, f.song, kOnSynth, f.facts);
 		const auto* lpf_row = deluge::plugin::find_param(deluge::instrument::kParams, kSoundLpf.param);
-		expect(unheld.has_value() && unheld->value == menu_of(lpf_row->mapping, lpf_row->default_value)).to_be_true();
+		expect(unheld.has_value()).to_be_true();
+		if (unheld.has_value()) {
+			expect(unheld->value).to_equal(menu_of(lpf_row->mapping, lpf_row->default_value));
+		}
 	});
 
 	it("applies where its conditions hold over the owner's rows, and where its partner shows", _ {
@@ -168,7 +182,11 @@ describe bind_param("a param target", ${
 		ModelFixture f;
 		f.facts.param_values.push_back({*param_address(kSoundPan, kOnSynth), 0});
 		const auto request = request_for(kSoundPan, f.song, kOnSynth, f.facts, 10);
-		expect(request.has_value() && request->menu_value == 10 && request->param_value == 858993440).to_be_true();
+		expect(request.has_value()).to_be_true();
+		if (request.has_value()) {
+			expect(request->menu_value).to_equal(10);
+			expect(request->param_value).to_equal(858993440);
+		}
 		expect(request_for(kSoundPan, f.song, kOnSynth, f.facts, 26).has_value()).to_be_false();
 	});
 });

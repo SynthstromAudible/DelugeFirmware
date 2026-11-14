@@ -901,7 +901,7 @@ describe columns_w("ui::oled::columns", $ {
 		title_paged(shortened.frame, "MODULATION MATRIX", true);
 		uitest::Rig48 whole;
 		title_paged(whole.frame, "MODULATION MATRIX", false);
-		expect(shortened.pbm() == whole.pbm()).to_be_false();
+		expect(shortened.pbm()).not_().to_equal(whole.pbm());
 
 		// And no separator rule is drawn, unlike a plain menu title.
 		bool rule = false;

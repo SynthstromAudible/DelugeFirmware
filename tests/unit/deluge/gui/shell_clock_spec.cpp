@@ -29,7 +29,7 @@ describe shell_clock("deluge::gui::ui::SampleClockMs", ${
 		const uint32_t after = clock.advance(0x10u + 44);
 		// 0x10 samples to the wrap, 0x10 + 44 past it: 76 samples, one millisecond and the remainder before it
 		expect(after - before).to_equal((uint32_t{0xFFFFFFF0u} % 44 + 0x20 + 44) / 44);
-		expect(after > before).to_be_true();
+		expect(after).to_be_greater_than(before);
 	});
 	it("does not move when the counter has not", _ {
 		SampleClockMs clock;

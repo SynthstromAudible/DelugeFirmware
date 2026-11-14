@@ -9,6 +9,7 @@
 #include "shell/shell.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
 #include <array>
 #include <cstdint>
@@ -174,7 +175,7 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		expect(r.set.oled()[0].canvas.bytes().size()).to_equal(kLegacyPanelBytes);
 		// Different storage -- the half that is not. Painting the shell's canvas moves nothing in
 		// legacy's until a blit copies it.
-		expect(r.set.oled()[0].canvas.bytes().data() != OLED::main.bytes().data()).to_be_true();
+		expect(r.set.oled()[0].canvas.bytes().data()).not_().to_equal(OLED::main.bytes().data());
 		paint_panel(r.set, 1);
 		expect(OLED::main.bytes()[0]).to_equal(uint8_t(0));
 		expect(fakelegacy::oled_marked()).to_be_false();
@@ -189,7 +190,7 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		const ptrdiff_t legacy_stride = &PadLEDs::image[1][0] - &PadLEDs::image[0][0];
 		expect(port_stride).to_equal(ptrdiff_t(deluge::gfx::grid::kMaxGridCols));
 		expect(legacy_stride).to_equal(ptrdiff_t(kDisplayWidth + kSideBarWidth));
-		expect(port_stride != legacy_stride).to_be_true();
+		expect(port_stride).not_().to_equal(legacy_stride);
 		// And the whole-flush copy is exactly one legacy pad image.
 		expect(size_t(GuestSurfaceSet::kGridCopyBytesPerFullFlush)).to_equal(sizeof(PadLEDs::image));
 		expect(size_t(GuestSurfaceSet::kGridCopyBytesPerColumnPair)).to_equal(size_t(16 * sizeof(RGB)));
@@ -223,7 +224,7 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		tallBoard.displays = kTall;
 		GuestSurfaceSet set{tallBoard, deluge_profile()};
 		expect(set.canReachMainPanel()).to_be_false();
-		expect(set.oled()[0].canvas.bytes().size() != OLED::main.bytes().size()).to_be_true();
+		expect(set.oled()[0].canvas.bytes().size()).not_().to_equal(OLED::main.bytes().size());
 
 		std::span<uint8_t> bytes = set.oled()[0].canvas.bytes();
 		for (size_t i = 0; i < bytes.size(); i++) {
@@ -247,7 +248,7 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		GuestSurfaceSet set{squareBoard, deluge_profile()};
 		// The premise of the example, asserted rather than assumed: same bytes, different shape.
 		expect(set.oled()[0].canvas.bytes().size()).to_equal(OLED::main.bytes().size());
-		expect(set.oled()[0].geometry.width != uint16_t(OLED_MAIN_WIDTH_PIXELS)).to_be_true();
+		expect(set.oled()[0].geometry.width).not_().to_equal(uint16_t(OLED_MAIN_WIDTH_PIXELS));
 
 		expect(set.canReachMainPanel()).to_be_false();
 		std::span<uint8_t> bytes = set.oled()[0].canvas.bytes();
@@ -299,19 +300,19 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		r.set.send_columns(2, p); // columns 4 and 5
 
 		for (uint8_t y = 0; y < 8; y++) {
-			expect(PadLEDs::image[y][4] == RGB{static_cast<uint8_t>(y + 1), 0, 0}).to_be_true();
-			expect(PadLEDs::image[y][5] == RGB{0, static_cast<uint8_t>(y + 1), 0}).to_be_true();
+			expect(PadLEDs::image[y][4]).to_equal(RGB{static_cast<uint8_t>(y + 1), 0, 0});
+			expect(PadLEDs::image[y][5]).to_equal(RGB{0, static_cast<uint8_t>(y + 1), 0});
 		}
 		// One send, for the even column of the pair -- `sortLedsForCol`'s argument.
 		expect(fakelegacy::column_sends.size()).to_equal(size_t(1));
 		expect(fakelegacy::column_sends[0].x).to_equal(int32_t(4));
 		// And the image already held the new colours when legacy read it back.
 		expect(fakelegacy::raw_pad_column_writes[0].first).to_equal(uint8_t(2));
-		expect(fakelegacy::raw_pad_column_writes[0].second[0] == RGB{1, 0, 0}).to_be_true();
-		expect(fakelegacy::raw_pad_column_writes[0].second[8] == RGB{0, 1, 0}).to_be_true();
+		expect(fakelegacy::raw_pad_column_writes[0].second[0]).to_equal(RGB{1, 0, 0});
+		expect(fakelegacy::raw_pad_column_writes[0].second[8]).to_equal(RGB{0, 1, 0});
 		// Nothing else in the image moved.
-		expect(PadLEDs::image[0][3] == RGB{0, 0, 0}).to_be_true();
-		expect(PadLEDs::image[0][6] == RGB{0, 0, 0}).to_be_true();
+		expect(PadLEDs::image[0][3]).to_equal(RGB{0, 0, 0});
+		expect(PadLEDs::image[0][6]).to_equal(RGB{0, 0, 0});
 	});
 
 	it("unpacks a pair the way read_column_pair packed it, on a board with fewer rows than legacy", _ {
@@ -333,8 +334,8 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		// `read_column_pair` packs `rows` colours from x0 then `rows` from x1, so with rows == 4 the
 		// second column starts at index 4, not 8.
 		for (uint8_t y = 0; y < 4; y++) {
-			expect(PadLEDs::image[y][0] == RGB{static_cast<uint8_t>(y + 1), 0, 0}).to_be_true();
-			expect(PadLEDs::image[y][1] == RGB{static_cast<uint8_t>(y + 5), 0, 0}).to_be_true();
+			expect(PadLEDs::image[y][0]).to_equal(RGB{static_cast<uint8_t>(y + 1), 0, 0});
+			expect(PadLEDs::image[y][1]).to_equal(RGB{static_cast<uint8_t>(y + 5), 0, 0});
 		}
 		// KNOWN GAP, stated here rather than implied by an assertion that cannot see it.
 		// `send_columns` writes rows 0..rows-1, but `sortLedsForCol` reads
@@ -343,8 +344,8 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		// held. This example cannot cover that: `fakelegacy::reset()` zeroed the whole image, so
 		// asserting row 4 is black would pass for the wrong reason. What is asserted is only the
 		// narrow true thing -- the guest wrote none of those rows itself.
-		expect(PadLEDs::image[4][0] == RGB{0, 0, 0}).to_be_true();
-		expect(PadLEDs::image[4][1] == RGB{0, 0, 0}).to_be_true();
+		expect(PadLEDs::image[4][0]).to_equal(RGB{0, 0, 0});
+		expect(PadLEDs::image[4][1]).to_equal(RGB{0, 0, 0});
 		// The gap is hypothetical-board only: every board in the tree is 8 rows
 		// (`kDisplayHeight`), and the guest is only ever constructed for the Deluge. It is not
 		// fixed here because zeroing rows the shell does not own would be the guest inventing a
@@ -357,8 +358,8 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		p.colours[0] = RGB{5, 6, 7};
 		p.colours[8] = RGB{7, 6, 5};
 		r.set.send_columns(8, p); // the sidebar pair: columns 16 and 17
-		expect(PadLEDs::image[0][16] == RGB{5, 6, 7}).to_be_true();
-		expect(PadLEDs::image[0][17] == RGB{7, 6, 5}).to_be_true();
+		expect(PadLEDs::image[0][16]).to_equal(RGB{5, 6, 7});
+		expect(PadLEDs::image[0][17]).to_equal(RGB{7, 6, 5});
 		expect(fakelegacy::column_sends.size()).to_equal(size_t(1));
 		expect(fakelegacy::column_sends[0].x).to_equal(int32_t(16));
 
@@ -382,10 +383,10 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		}
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			for (int32_t x = 0; x < kDisplayWidth; x++) {
-				expect(PadLEDs::image[y][x] == RGB{1, 2, 3}).to_be_true();
+				expect(PadLEDs::image[y][x]).to_equal(RGB{1, 2, 3});
 			}
-			expect(PadLEDs::image[y][16] == RGB{9, 8, 7}).to_be_true();
-			expect(PadLEDs::image[y][17] == RGB{9, 8, 7}).to_be_true();
+			expect(PadLEDs::image[y][16]).to_equal(RGB{9, 8, 7});
+			expect(PadLEDs::image[y][17]).to_equal(RGB{9, 8, 7});
 		}
 		expect(fakelegacy::column_sends.size()).to_equal(size_t(8));
 		for (size_t i = 0; i < fakelegacy::column_sends.size(); i++) {
@@ -406,10 +407,10 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		r.set.take_grid();
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			for (int32_t x = 0; x < kDisplayWidth; x++) {
-				expect(PadLEDs::image[y][x] == r.base.colour).to_be_true();
+				expect(PadLEDs::image[y][x]).to_equal(r.base.colour);
 			}
-			expect(PadLEDs::image[y][16] == RGB{9, 8, 7}).to_be_true();
-			expect(PadLEDs::image[y][17] == RGB{9, 8, 7}).to_be_true();
+			expect(PadLEDs::image[y][16]).to_equal(RGB{9, 8, 7});
+			expect(PadLEDs::image[y][17]).to_equal(RGB{9, 8, 7});
 		}
 		expect(fakelegacy::column_sends.size()).to_equal(size_t(8));
 		for (size_t i = 0; i < fakelegacy::column_sends.size(); i++) {
@@ -434,16 +435,16 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		r.set.take_grid();
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			for (int32_t x = 0; x < kDisplayWidth; x++) {
-				expect(PadLEDs::image[y][x] == RGB{9, 8, 7}).to_be_true();
+				expect(PadLEDs::image[y][x]).to_equal(RGB{9, 8, 7});
 			}
-			expect(PadLEDs::image[y][16] == RGB{9, 8, 7}).to_be_false();
+			expect(PadLEDs::image[y][16]).not_().to_equal(RGB{9, 8, 7});
 		}
 		for (const auto& send : fakelegacy::column_sends) {
 			expect(send.x).to_equal(int32_t(16));
 		}
 		r.set.hold_main_columns(false);
 		r.set.take_grid();
-		expect(PadLEDs::image[0][0] == r.base.colour).to_be_true();
+		expect(PadLEDs::image[0][0]).to_equal(r.base.colour);
 	});
 
 	it("writes all nine pairs for a Main|Sidebar stack", _ {
@@ -458,7 +459,7 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		}
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
-				expect(PadLEDs::image[y][x] == RGB{1, 2, 3}).to_be_true();
+				expect(PadLEDs::image[y][x]).to_equal(RGB{1, 2, 3});
 			}
 		}
 		expect(fakelegacy::column_sends.size()).to_equal(size_t(9));
@@ -469,20 +470,20 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 
 	it("reports All with no stack watched, and the OR of the stack's pad_regions", _ {
 		Rig unwatched;
-		expect(unwatched.set.owned_regions() == PadRegions::All).to_be_true();
+		expect(unwatched.set.owned_regions()).to_equal(PadRegions::All);
 
 		ShellRig r;
 		r.set.observe(r.shell.stack());
-		expect(r.set.owned_regions() == PadRegions::None).to_be_true(); // an empty stack
+		expect(r.set.owned_regions()).to_equal(PadRegions::None); // an empty stack
 		r.base.regions = PadRegions::None;
 		r.upper.regions = PadRegions::Main;
 		expect(r.shell.stack().push({kBase, 0})).to_be_true();
 		expect(r.shell.stack().push({kUpper, 0})).to_be_true();
-		expect(r.set.owned_regions() == PadRegions::Main).to_be_true();
+		expect(r.set.owned_regions()).to_equal(PadRegions::Main);
 
 		r.base.regions = PadRegions::Main;
 		r.upper.regions = PadRegions::Sidebar;
-		expect(r.set.owned_regions() == PadRegions::All).to_be_true();
+		expect(r.set.owned_regions()).to_equal(PadRegions::All);
 	});
 
 	// ---- pad flashes ---------------------------------------------------------------------------
@@ -524,7 +525,7 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		}
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
-				expect(PadLEDs::image[y][x] == RGB{9, 8, 7}).to_be_true();
+				expect(PadLEDs::image[y][x]).to_equal(RGB{9, 8, 7});
 			}
 		}
 		expect(fakelegacy::column_sends.empty()).to_be_true();
@@ -677,11 +678,11 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		expect(fakelegacy::column_sends.size()).to_equal(size_t(9));
 		for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
-				expect(PadLEDs::image[y][x] == r.base.colour).to_be_true();
+				expect(PadLEDs::image[y][x]).to_equal(r.base.colour);
 			}
 		}
 		// LED and indicator went out too, and the whole tick ended in one control-surface flush.
-		expect(fakelegacy::led_writes.size() >= size_t(1)).to_be_true();
+		to_be_at_least(expect(fakelegacy::led_writes.size()), size_t(1));
 		expect(fakelegacy::indicator_writes.size()).to_equal(size_t(1));
 		expect(fakelegacy::indicator_writes[0].levels[0]).to_equal(uint8_t(1));
 		expect(fakelegacy::control_flushes).to_equal(1);
@@ -700,9 +701,9 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 
 		expect(fakelegacy::column_sends.size()).to_equal(size_t(1));
 		expect(fakelegacy::column_sends[0].x).to_equal(int32_t(4));
-		expect(legacy_column(5)[0] == r.base.override_colour).to_be_true();
-		expect(legacy_column(4)[0] == r.base.colour).to_be_true();
-		expect(legacy_column(6)[0] == r.base.colour).to_be_true();
+		expect(legacy_column(5)[0]).to_equal(r.base.override_colour);
+		expect(legacy_column(4)[0]).to_equal(r.base.colour);
+		expect(legacy_column(6)[0]).to_equal(r.base.colour);
 	});
 
 	it("holds the frame when legacy's OLED gate is shut, and delivers it when it opens", _ {
