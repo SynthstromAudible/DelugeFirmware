@@ -270,7 +270,7 @@ describe listing("the async listing seam", $ {
 
 		auto result = listing.take_result();
 		expect(result.has_value()).to_be_true();
-		expect(static_cast<int>(result->error) != static_cast<int>(Error::NONE)).to_be_true();
+		expect(static_cast<int>(result->error)).not_().to_equal(static_cast<int>(Error::NONE));
 		NoticeTally tally = drain_notices();
 		expect(tally.error).to_equal(0);
 		expect(tally.clear_working).to_equal(1);

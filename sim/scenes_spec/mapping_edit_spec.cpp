@@ -22,6 +22,9 @@
 #include "processing/sound/sound_instrument.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
+#include "support/printers/mapping_printer.h"
+#include "support/printers/param_id_printer.h"
+#include "support/printers/param_target_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -93,11 +96,11 @@ describe mapping_edit("LearnMapping", $ {
 		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
 		const OwnerParamTarget target{owner, patched(params::LOCAL_VOLUME)};
 		deluge::edits::learnMappingFor(cc(2, 74), target);
-		expect(held(*f.song, target) == cc(2, 74)).to_be_true();
+		expect(held(*f.song, target)).to_equal(cc(2, 74));
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		expect(static_cast<int>(sound.midi_knobs.size())).to_equal(1);
 		expect(sound.midi_knobs[0].midiInput.equalsNoteOrCC(nullptr, 2 + IS_A_CC, 74)).to_be_true();
-		expect(sound.midi_knobs[0].target == deluge::modulation::knobParam(params::LOCAL_VOLUME)).to_be_true();
+		expect(sound.midi_knobs[0].target).to_equal(deluge::modulation::knobParam(params::LOCAL_VOLUME));
 	});
 
 	it("keeps an unchanged knob whole, with its takeover state", _ {
@@ -118,7 +121,7 @@ describe mapping_edit("LearnMapping", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		const ClipMuteTarget target{f.clip->id()};
 		deluge::edits::learnMappingFor(note(3, 40), target);
-		expect(held(*f.song, target) == note(3, 40)).to_be_true();
+		expect(held(*f.song, target)).to_equal(note(3, 40));
 		expect(f.clip->muteMIDICommand.equalsNoteOrCC(nullptr, 3, 40)).to_be_true();
 	});
 
@@ -127,8 +130,8 @@ describe mapping_edit("LearnMapping", $ {
 		MIDIDrum* drum = spec::add_drum<MIDIDrum>(f);
 		deluge::edits::learnMappingFor(note(1, 50), DrumMuteTarget{*drum->id()});
 		deluge::edits::learnMappingFor(note(4, 51), LaneInputTarget{*drum->id()});
-		expect(held(*f.song, DrumMuteTarget{*drum->id()}) == note(1, 50)).to_be_true();
-		expect(held(*f.song, LaneInputTarget{*drum->id()}) == note(4, 51)).to_be_true();
+		expect(held(*f.song, DrumMuteTarget{*drum->id()})).to_equal(note(1, 50));
+		expect(held(*f.song, LaneInputTarget{*drum->id()})).to_equal(note(4, 51));
 		expect(drum->muteMIDICommand.equalsNoteOrCC(nullptr, 1, 50)).to_be_true();
 		expect(drum->midiInput.equalsNoteOrCC(nullptr, 4, 51)).to_be_true();
 	});
@@ -137,7 +140,7 @@ describe mapping_edit("LearnMapping", $ {
 		spec::SongFixture f = spec::make_kit_song();
 		const TrackInputTarget target{*f.instrument->id()};
 		deluge::edits::learnMappingFor(note(5, 36), target);
-		expect(held(*f.song, target) == note(5, 36)).to_be_true();
+		expect(held(*f.song, target)).to_equal(note(5, 36));
 		expect(f.instrument->midiInput.equalsNoteOrCC(nullptr, 5, 36)).to_be_true();
 	});
 
@@ -150,7 +153,7 @@ describe mapping_edit("LearnMapping", $ {
 	it("learns a section's launch command into the table alone", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		deluge::edits::learnMappingFor(note(0, 60), SectionLaunchTarget{3});
-		expect(held(*f.song, SectionLaunchTarget{3}) == note(0, 60)).to_be_true();
+		expect(held(*f.song, SectionLaunchTarget{3})).to_equal(note(0, 60));
 	});
 
 	it("learns a hibernating kit row's mute command", _ {
@@ -170,18 +173,18 @@ describe mapping_edit("LearnMapping", $ {
 		                               OwnerParamTarget{owner, patched(params::LOCAL_PAN)});
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		expect(static_cast<int>(sound.midi_knobs.size())).to_equal(2);
-		expect(sound.midi_knobs[0].midiInput.cable == &MIDIDeviceManager::dinMIDIPorts).to_be_true();
-		expect(sound.midi_knobs[1].midiInput.cable == &MIDIDeviceManager::upstreamUSBMIDICable1).to_be_true();
+		expect(sound.midi_knobs[0].midiInput.cable).to_equal(&MIDIDeviceManager::dinMIDIPorts);
+		expect(sound.midi_knobs[1].midiInput.cable).to_equal(&MIDIDeviceManager::upstreamUSBMIDICable1);
 		sound.midi_knobs[0].previousPositionSaved = true;
 		sound.midi_knobs[0].previousPosition = 111;
 		sound.midi_knobs[1].previousPositionSaved = true;
 		sound.midi_knobs[1].previousPosition = 222;
 		deluge::edits::learnMappingFor(cc(0, 12), OwnerParamTarget{owner, patched(params::LOCAL_OSC_A_VOLUME)});
 		expect(static_cast<int>(sound.midi_knobs.size())).to_equal(3);
-		expect(sound.midi_knobs[0].midiInput.cable == &MIDIDeviceManager::dinMIDIPorts).to_be_true();
+		expect(sound.midi_knobs[0].midiInput.cable).to_equal(&MIDIDeviceManager::dinMIDIPorts);
 		expect(sound.midi_knobs[0].previousPositionSaved).to_be_true();
 		expect(static_cast<int>(sound.midi_knobs[0].previousPosition)).to_equal(111);
-		expect(sound.midi_knobs[1].midiInput.cable == &MIDIDeviceManager::upstreamUSBMIDICable1).to_be_true();
+		expect(sound.midi_knobs[1].midiInput.cable).to_equal(&MIDIDeviceManager::upstreamUSBMIDICable1);
 		expect(sound.midi_knobs[1].previousPositionSaved).to_be_true();
 		expect(static_cast<int>(sound.midi_knobs[1].previousPosition)).to_equal(222);
 	});
@@ -192,9 +195,9 @@ describe mapping_edit("LearnMapping", $ {
 		deluge::edits::learnMappingFor(from(note(3, 40), MidiDeviceRef::Port::DIN), ClipMuteTarget{f.clip->id()});
 		deluge::edits::learnMappingFor(from(note(4, 41), MidiDeviceRef::Port::UPSTREAM_USB_2),
 		                               LaneInputTarget{*drum->id()});
-		expect(f.clip->muteMIDICommand.cable == &MIDIDeviceManager::dinMIDIPorts).to_be_true();
+		expect(f.clip->muteMIDICommand.cable).to_equal(&MIDIDeviceManager::dinMIDIPorts);
 		expect(f.clip->muteMIDICommand.equalsNoteOrCC(&MIDIDeviceManager::dinMIDIPorts, 3, 40)).to_be_true();
-		expect(drum->midiInput.cable == &MIDIDeviceManager::upstreamUSBMIDICable2).to_be_true();
+		expect(drum->midiInput.cable).to_equal(&MIDIDeviceManager::upstreamUSBMIDICable2);
 	});
 
 	it("projects a hosted device the Deluge does not know onto an unconnected entry made for it, keeping it in the "
@@ -206,13 +209,13 @@ describe mapping_edit("LearnMapping", $ {
 		       .port = MidiDeviceRef::Port::HOSTED, .name = "No Such Device", .vendor_id = 0x1234, .product_id = 0x5678};
 		   const ClipMuteTarget target{f.clip->id()};
 		   deluge::edits::learnMappingFor(command, target);
-		   expect(held(*f.song, target) == command).to_be_true();
+		   expect(held(*f.song, target)).to_equal(command);
 		   expect(f.clip->muteMIDICommand.containsSomething()).to_be_true();
 		   // Not no cable, which would match every device while inputs are told apart by device.
 		   MIDICable* entry = deluge::bridge::find_cable(*command.device);
-		   expect(entry != nullptr).to_be_true();
-		   expect(f.clip->muteMIDICommand.cable == entry).to_be_true();
-		   expect(entry->connectionFlags == 0).to_be_true();
+		   expect(entry).not_().to_be_null();
+		   expect(f.clip->muteMIDICommand.cable).to_equal(entry);
+		   expect(entry->connectionFlags).to_equal(0);
 	   });
 
 	it("learns a sound kit row's knob onto the drum's knob list, as a sound's param", _ {
@@ -221,11 +224,10 @@ describe mapping_edit("LearnMapping", $ {
 		const ControlsAddress owner{ControlsAddress::Kind::DRUM, *drum->id()};
 		const OwnerParamTarget target{owner, unpatched(params::Kind::UNPATCHED_SOUND, params::UNPATCHED_PORTAMENTO)};
 		deluge::edits::learnMappingFor(cc(1, 20), target);
-		expect(held(*f.song, target) == cc(1, 20)).to_be_true();
+		expect(held(*f.song, target)).to_equal(cc(1, 20));
 		expect(static_cast<int>(drum->midi_knobs.size())).to_equal(1);
-		expect(drum->midi_knobs[0].target == deluge::modulation::knobParam(params::UNPATCHED_START
-		                                                                    + params::UNPATCHED_PORTAMENTO))
-		    .to_be_true();
+		expect(drum->midi_knobs[0].target).to_equal(deluge::modulation::knobParam(params::UNPATCHED_START
+		                                                                    + params::UNPATCHED_PORTAMENTO));
 		expect(static_cast<int>(static_cast<Kit*>(f.instrument)->midi_knobs.size())).to_equal(0);
 	});
 
@@ -237,17 +239,16 @@ describe mapping_edit("LearnMapping", $ {
 		const OwnerParamTarget target{owner, unpatched(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_FREQ)};
 		expect(deluge::bridge::runtimeIndexOf(params::Kind::UNPATCHED_SOUND, target.param).has_value()).to_be_false();
 		deluge::edits::learnMappingFor(cc(2, 7), target);
-		expect(held(*f.song, target) == cc(2, 7)).to_be_true();
+		expect(held(*f.song, target)).to_equal(cc(2, 7));
 		auto& global = f.song->live.global_effectable;
 		expect(static_cast<int>(global.midi_knobs.size())).to_equal(1);
 		expect(global.midi_knobs[0].midiInput.equalsNoteOrCC(nullptr, 2 + IS_A_CC, 7)).to_be_true();
-		expect(global.midi_knobs[0].target == deluge::modulation::knobParam(params::UNPATCHED_START
-		                                                                     + params::UNPATCHED_LPF_FREQ))
-		    .to_be_true();
+		expect(global.midi_knobs[0].target).to_equal(deluge::modulation::knobParam(params::UNPATCHED_START
+		                                                                     + params::UNPATCHED_LPF_FREQ));
 		// Read back from the engine's knob, the entry names the global param.
 		const auto knobs = deluge::bridge::knobsOf(owner, global, false);
 		expect(static_cast<int>(knobs.size())).to_equal(1);
-		expect(std::get<OwnerParamTarget>(knobs[0].target).param == target.param).to_be_true();
+		expect(std::get<OwnerParamTarget>(knobs[0].target).param).to_equal(target.param);
 	});
 
 	it("refuses a target whose owner the song does not hold and leaves the table as it was", _ {
@@ -267,7 +268,7 @@ describe mapping_edit("LearnMapping", $ {
 		for (const MappingTarget& orphan : orphans) {
 			deluge::edits::LearnMapping edit{Mapping{.source = note(9, 9), .target = orphan}};
 			expect(static_cast<int>(applyEdit(*f.song, edit))).to_equal(static_cast<int>(Error::UNSPECIFIED));
-			expect(f.song->project.mappings == before).to_be_true();
+			expect(f.song->project.mappings).to_equal(before);
 		}
 	});
 
@@ -295,7 +296,7 @@ describe mapping_unlearn("UnlearnMapping", $ {
 		const ClipMuteTarget target{f.clip->id()};
 		deluge::edits::learnMappingFor(note(3, 40), target);
 		deluge::edits::unlearnMappingFor(target);
-		expect(f.song->project.mappings.find(target) == nullptr).to_be_true();
+		expect(f.song->project.mappings.find(target)).to_be_null();
 		expect(f.clip->muteMIDICommand.containsSomething()).to_be_false();
 	});
 
@@ -308,7 +309,7 @@ describe mapping_unlearn("UnlearnMapping", $ {
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		expect(static_cast<int>(sound.midi_knobs.size())).to_equal(2);
 		deluge::edits::unlearnMappingFor(target);
-		expect(f.song->project.mappings.find(target) == nullptr).to_be_true();
+		expect(f.song->project.mappings.find(target)).to_be_null();
 		expect(static_cast<int>(sound.midi_knobs.size())).to_equal(0);
 	});
 
@@ -325,7 +326,7 @@ describe mapping_unlearn("UnlearnMapping", $ {
 		const MappingTable before = f.song->project.mappings;
 		deluge::edits::UnlearnMapping edit{ClipMuteTarget{f.clip->id()}};
 		expect(static_cast<int>(applyEdit(*f.song, edit))).to_equal(static_cast<int>(Error::NONE));
-		expect(f.song->project.mappings == before).to_be_true();
+		expect(f.song->project.mappings).to_equal(before);
 	});
 
 	it("refuses an owner the song does not hold and leaves the table as it was", _ {
@@ -334,7 +335,7 @@ describe mapping_unlearn("UnlearnMapping", $ {
 		const MappingTable before = f.song->project.mappings;
 		deluge::edits::UnlearnMapping edit{ClipMuteTarget{9999}};
 		expect(static_cast<int>(applyEdit(*f.song, edit))).to_equal(static_cast<int>(Error::UNSPECIFIED));
-		expect(f.song->project.mappings == before).to_be_true();
+		expect(f.song->project.mappings).to_equal(before);
 	});
 });
 // clang-format on

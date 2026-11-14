@@ -26,6 +26,7 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
 #include "support/spec_main.h"
 
@@ -68,15 +69,15 @@ describe knob_writes("a gold knob's write by address", ${
 			                         .id = *depth, .clip_id = f.clip->id()};
 			expect(value_at(*f.song, cable).has_value()).to_be_false();
 			expect(turn(*f.song, cable, 1 << 28)).to_be_true();
-			expect(value_at(*f.song, cable) == std::optional<int32_t>{1 << 28}).to_be_true();
+			expect(value_at(*f.song, cable)).to_equal(std::optional<int32_t>{1 << 28});
 			deluge::synth::CableTarget destination;
 			PatchSource source{};
 			PatchCableSet::dissectParamId(deluge::bridge::cableWordOf(*depth), &destination, &source);
 			PatchCableSet* set = f.clip->paramManager.getPatchCableSetAllowJibberish();
 			const uint8_t index = set != nullptr ? set->getPatchCableIndex(source, destination) : 255;
-			expect(index != 255).to_be_true();
+			expect(index).not_().to_equal(255);
 			if (index != 255) {
-				expect(set->patchCables[index].polarity == PatchCable::getDefaultPolarity(source)).to_be_true();
+				expect(set->patchCables[index].polarity).to_equal(PatchCable::getDefaultPolarity(source));
 			}
 		}
 		currentSong = before;
@@ -89,7 +90,7 @@ describe knob_writes("a gold knob's write by address", ${
 		const ParamAddress cc{.owner = OwnerId::clip(f.clip->id()), .space = ParamSpace::MIDI_CC, .id = {20}};
 		expect(value_at(*f.song, cc).has_value()).to_be_false();
 		expect(turn(*f.song, cc, 1 << 29)).to_be_true();
-		expect(value_at(*f.song, cc) == std::optional<int32_t>{1 << 29}).to_be_true();
+		expect(value_at(*f.song, cc)).to_equal(std::optional<int32_t>{1 << 29});
 		currentSong = before;
 	});
 
@@ -107,10 +108,13 @@ describe knob_writes("a gold knob's write by address", ${
 		const ParamAddress address{.owner = OwnerId::instrument(*row->id()), .space = ParamSpace::ENGINE, .id = lpf};
 		expect(turn(*f.song, address, 1 << 27)).to_be_true();
 		ParamManager* backed = f.song->live.param_backup.getPreferablyWithClip(*row, nullptr);
-		expect(backed != nullptr).to_be_true();
+		expect(backed).not_().to_be_null();
 		if (backed != nullptr) {
 			const std::optional<int32_t> index = deluge::bridge::runtimeIndexOf(deluge::modulation::params::Kind::PATCHED, lpf);
-			expect(index.has_value() && backed->getPatchedParamSet()->getValue(*index) == (1 << 27)).to_be_true();
+			expect(index.has_value()).to_be_true();
+			if (index.has_value()) {
+				expect(backed->getPatchedParamSet()->getValue(*index)).to_equal(1 << 27);
+			}
 		}
 		currentSong = before;
 	});
@@ -122,7 +126,7 @@ describe knob_writes("a gold knob's write by address", ${
 		auto* synth = static_cast<SoundInstrument*>(f.instrument);
 		InstrumentClip* take = deluge::scenes::spec::detail::make_session_clip(f.song);
 		ParamManagerForTimeline params;
-		expect(params.cloneParamCollectionsFrom(&f.clip->paramManager, false) == Error::NONE).to_be_true();
+		expect(params.cloneParamCollectionsFrom(&f.clip->paramManager, false)).to_equal(Error::NONE);
 		take->setAudioInstrument(synth, f.song, true, &params);
 		take->beingRecordedFromClip = f.clip;
 		alignas(ModelStack) char memory[MODEL_STACK_MAX_SIZE];
@@ -146,9 +150,9 @@ describe knob_writes("a gold knob's write by address", ${
 		playbackHandler.recording = mode;
 		playbackHandler.playbackState = state;
 
-		expect(value_at(*f.song, on(*take)) == std::optional<int32_t>{1 << 26}).to_be_true();
-		expect(value_at(*f.song, on(*f.clip)) == session_before).to_be_true();
-		expect(read == std::optional<int32_t>{1 << 26}).to_be_true();
+		expect(value_at(*f.song, on(*take))).to_equal(std::optional<int32_t>{1 << 26});
+		expect(value_at(*f.song, on(*f.clip))).to_equal(session_before);
+		expect(read).to_equal(std::optional<int32_t>{1 << 26});
 		expect(f.song->live.clips.arrangement_only_clips.size()).to_equal(arranged_before);
 		currentSong = before;
 	});
@@ -165,8 +169,8 @@ describe knob_writes("a gold knob's write by address", ${
 		const ParamAddress address{.owner = OwnerId::instrument(*row->id()), .space = ParamSpace::ENGINE,
 		                           .id = deluge::instrument::param::kLpfFrequency};
 		expect(turn(*f.song, address, 1 << 27)).to_be_true();
-		expect(deluge::scenes::menu::host_runtime_facts().param_value(address) == std::optional<int32_t>{1 << 27})
-		    .to_be_true();
+		expect(deluge::scenes::menu::host_runtime_facts().param_value(address))
+		    .to_equal(std::optional<int32_t>{1 << 27});
 		currentSong = before;
 	});
 
@@ -177,7 +181,7 @@ describe knob_writes("a gold knob's write by address", ${
 		auto* synth = static_cast<SoundInstrument*>(f.instrument);
 		InstrumentClip* take = deluge::scenes::spec::detail::make_session_clip(f.song);
 		ParamManagerForTimeline params;
-		expect(params.cloneParamCollectionsFrom(&f.clip->paramManager, false) == Error::NONE).to_be_true();
+		expect(params.cloneParamCollectionsFrom(&f.clip->paramManager, false)).to_equal(Error::NONE);
 		take->setAudioInstrument(synth, f.song, true, &params);
 		take->beingRecordedFromClip = f.clip;
 		alignas(ModelStack) char memory[MODEL_STACK_MAX_SIZE];
@@ -195,7 +199,8 @@ describe knob_writes("a gold knob's write by address", ${
 			SetParamValue write{address, value, 0, 48};
 			return deluge::edits::apply(ctx, write) == Error::NONE;
 		};
-		expect(region(on(*f.clip, lpf), 1 << 24) && region(on(*take, lpf), 1 << 28)).to_be_true();
+		expect(region(on(*f.clip, lpf), 1 << 24)).to_be_true();
+		expect(region(on(*take, lpf), 1 << 28)).to_be_true();
 		expect(turn(*f.song, on(*f.clip, deluge::instrument::param::kStutterRate), -(1 << 29))).to_be_true();
 		expect(turn(*f.song, on(*take, deluge::instrument::param::kStutterRate), 1 << 29)).to_be_true();
 		const auto automated = [&](const ParamAddress& address) {
@@ -219,7 +224,7 @@ describe knob_writes("a gold knob's write by address", ${
 		playbackHandler.recording = mode;
 		playbackHandler.playbackState = state;
 
-		expect(at_pos == std::optional<int32_t>{1 << 28}).to_be_true(); // the take's automation
+		expect(at_pos).to_equal(std::optional<int32_t>{1 << 28}); // the take's automation
 		expect(before_stutter).to_equal(1 << 29);                       // the take's stutter rate
 		expect(deleted).to_be_true();
 		expect(automated(on(*take, lpf))).to_be_false();
@@ -235,7 +240,7 @@ describe knob_writes("a gold knob's write by address", ${
 		f.clip->activeIfNoSolo = true;
 		// The arrangement's instance of the session clip, where the recording is.
 		const int32_t at = synth->clipInstances.insertSorted(0).value_or(-1);
-		expect(at >= 0).to_be_true();
+		to_be_at_least(expect(at), 0);
 		if (at >= 0) {
 			synth->clipInstances[at].clip = f.clip;
 			synth->clipInstances[at].length = f.clip->loopLength();
@@ -262,13 +267,17 @@ describe knob_writes("a gold knob's write by address", ${
 		expect(after_read).to_equal(arranged);
 		expect(after_turn).to_equal(arranged + 1);
 		expect(after_second).to_equal(arranged + 1);
-		expect(recorded != nullptr && recorded != f.clip && recorded->beingRecordedFromClip == f.clip).to_be_true();
+		expect(recorded).not_().to_be_null();
+		if (recorded != nullptr) {
+			expect(recorded).not_().to_equal(f.clip);
+			expect(recorded->beingRecordedFromClip).to_equal(f.clip);
+		}
 		if (recorded != nullptr && recorded != f.clip) {
 			ParamAddress in_take = session;
 			in_take.clip_id = recorded->id();
-			expect(value_at(*f.song, in_take) == std::optional<int32_t>{1 << 25}).to_be_true();
+			expect(value_at(*f.song, in_take)).to_equal(std::optional<int32_t>{1 << 25});
 		}
-		expect(value_at(*f.song, session) == session_before).to_be_true();
+		expect(value_at(*f.song, session)).to_equal(session_before);
 		currentSong = before;
 	});
 

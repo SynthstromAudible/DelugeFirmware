@@ -30,6 +30,7 @@
 #include "support/dx_cartridge_fixtures.h"
 #include "support/dx_rig.h"
 #include "support/oracle_table.h"
+#include "support/printers/sound_state_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -253,7 +254,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 		const std::optional<bind::DxCartridgeNames> names = menu::host_runtime_facts().dx_cartridge();
 		expect(names.has_value()).to_be_true();
 		const std::vector<std::string>* want = table().find("bank", "names");
-		expect(want != nullptr).to_be_true();
+		expect(want).not_().to_be_null();
 		expect(names->count).to_equal(static_cast<int32_t>(want != nullptr ? want->size() : 0));
 		for (int32_t i = 0; want != nullptr && i < names->count && i < static_cast<int32_t>(want->size()); i++) {
 			expect(std::string{names->names[i].data()}).to_equal((*want)[static_cast<size_t>(i)]);
@@ -267,12 +268,15 @@ describe dx_cartridge("the DX7 cartridge", ${
 		s.song.instrument->mightExistOnCard = false;
 		deluge::instrument::DxPatchState want = s.patch();
 		const std::vector<std::string>* params = table().find("bank/5", "params");
-		expect(params != nullptr && params->size() == want.params.size()).to_be_true();
+		expect(params).not_().to_be_null();
+		if (params != nullptr) {
+			expect(params->size()).to_equal(want.params.size());
+		}
 		for (size_t i = 0; params != nullptr && i < params->size() && i < want.params.size(); i++) {
 			want.params[i] = static_cast<uint8_t>(std::stoi((*params)[i]));
 		}
 		expect(menu::host_write_sink().load_dx_program(s.slot(), 0, 5)).to_be_true();
-		expect(s.patch() == want).to_be_true();
+		expect(s.patch()).to_equal(want);
 		expect(s.song.instrument->name).to_equal(std::string{"PROG 5"});
 	});
 
@@ -299,21 +303,21 @@ describe dx_cartridge("the DX7 cartridge", ${
 		bank() = nullptr;
 		expect(menu::host_write_sink().load_dx_program(s.slot(), 0, 0)).to_be_false();
 		bank() = held;
-		expect(s.patch() == before).to_be_true();
+		expect(s.patch()).to_equal(before);
 	});
 
 	it("asks the channel for the file on the first collect and again on UNKNOWN, but not while it is PENDING", _ {
 		DxCartridgeRead read{FakeChannel::channel(), &FakeChannel::clock};
 		FakeChannel::script({DELUGE_CHANNEL_UNKNOWN, DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_UNKNOWN,
 		                     DELUGE_CHANNEL_PENDING});
-		expect(read.start("DX7/BANK.SYX") == DxCartridgeRead::Status::Pending).to_be_true();
+		expect(read.start("DX7/BANK.SYX")).to_equal(DxCartridgeRead::Status::Pending);
 		expect(FakeChannel::requests).to_equal(0);
-		expect(read.poll() == DxCartridgeRead::Status::Pending).to_be_true();
+		expect(read.poll()).to_equal(DxCartridgeRead::Status::Pending);
 		expect(FakeChannel::requests).to_equal(1);
 		expect(FakeChannel::last_request).to_equal(std::string{"DX7/BANK.SYX"});
-		expect(read.poll() == DxCartridgeRead::Status::Pending).to_be_true();
+		expect(read.poll()).to_equal(DxCartridgeRead::Status::Pending);
 		expect(FakeChannel::requests).to_equal(1);
-		expect(read.poll() == DxCartridgeRead::Status::Pending).to_be_true();
+		expect(read.poll()).to_equal(DxCartridgeRead::Status::Pending);
 		expect(FakeChannel::requests).to_equal(2);
 		expect(read.busy()).to_be_true();
 	});
@@ -323,11 +327,11 @@ describe dx_cartridge("the DX7 cartridge", ${
 		DxCartridgeRead read{FakeChannel::channel(), &FakeChannel::clock};
 		FakeChannel::script({DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY});
 		(void)read.start("DX7/BANK.SYX");
-		expect(read.poll() == DxCartridgeRead::Status::Pending).to_be_true();
-		expect(read.poll() == DxCartridgeRead::Status::Loaded).to_be_true();
+		expect(read.poll()).to_equal(DxCartridgeRead::Status::Pending);
+		expect(read.poll()).to_equal(DxCartridgeRead::Status::Loaded);
 		expect(read.busy()).to_be_false();
-		expect(read.poll() == DxCartridgeRead::Status::Idle).to_be_true();
-		expect(bank() != nullptr).to_be_true();
+		expect(read.poll()).to_equal(DxCartridgeRead::Status::Idle);
+		expect(bank()).not_().to_be_null();
 		char name[11];
 		bank()->getProgramName(7, name);
 		expect(std::string{name}).to_equal(std::string{"PROG 7"});
@@ -338,9 +342,9 @@ describe dx_cartridge("the DX7 cartridge", ${
 		FakeChannel::script({DELUGE_CHANNEL_FAILED});
 		Popups p;
 		(void)read.start("DX7/BANK.SYX");
-		expect(read.poll() == DxCartridgeRead::Status::Failed).to_be_true();
+		expect(read.poll()).to_equal(DxCartridgeRead::Status::Failed);
 		expect(read.busy()).to_be_false();
-		expect(p.mine.popups == std::vector<std::string>{Popups::read_error()}).to_be_true();
+		expect(p.mine.popups).to_equal(std::vector<std::string>{Popups::read_error()});
 	});
 
 	it("refuses a bank whose sysex ID is not Yamaha's, with main's unknown-ID popup", _ {
@@ -350,9 +354,8 @@ describe dx_cartridge("the DX7 cartridge", ${
 		std::array<std::byte, kSysexSize> bytes = spec::make_bank();
 		bytes[1] = std::byte{0x44}; // the manufacturer byte: Yamaha's is 0x43
 		expect(deluge::gui::loadDxCartridgeBytes(bytes)).to_be_false();
-		expect(p.mine.popups
-		       == std::vector<std::string>{deluge::l10n::get(deluge::l10n::String::STRING_FOR_DX_ERROR_SYSEX_ID)})
-		    .to_be_true();
+		expect(p.mine.popups)
+		    .to_equal(std::vector<std::string>{deluge::l10n::get(deluge::l10n::String::STRING_FOR_DX_ERROR_SYSEX_ID)});
 		delete bank();
 		bank() = saved;
 	});
@@ -362,26 +365,26 @@ describe dx_cartridge("the DX7 cartridge", ${
 		FakeChannel::script({DELUGE_CHANNEL_PENDING});
 		Popups p;
 		(void)read.start("DX7/BANK.SYX");
-		expect(read.poll() == DxCartridgeRead::Status::Pending).to_be_true();
+		expect(read.poll()).to_equal(DxCartridgeRead::Status::Pending);
 		FakeChannel::now_us = DxCartridgeRead::kStallUs - 1;
-		expect(read.poll() == DxCartridgeRead::Status::Pending).to_be_true();
+		expect(read.poll()).to_equal(DxCartridgeRead::Status::Pending);
 		expect(p.mine.popups.empty()).to_be_true();
 		FakeChannel::now_us = DxCartridgeRead::kStallUs;
-		expect(read.poll() == DxCartridgeRead::Status::Failed).to_be_true();
+		expect(read.poll()).to_equal(DxCartridgeRead::Status::Failed);
 		expect(read.give_ups()).to_equal(1);
 		expect(read.busy()).to_be_false();
-		expect(p.mine.popups == std::vector<std::string>{Popups::read_error()}).to_be_true();
+		expect(p.mine.popups).to_equal(std::vector<std::string>{Popups::read_error()});
 	});
 
 	it("starts nothing while a read is in flight or for an empty path, and forgets a cancelled read", _ {
 		DxCartridgeRead read{FakeChannel::channel(), &FakeChannel::clock};
 		FakeChannel::script({DELUGE_CHANNEL_PENDING});
-		expect(read.start("") == DxCartridgeRead::Status::Idle).to_be_true();
-		expect(read.start("DX7/A.SYX") == DxCartridgeRead::Status::Pending).to_be_true();
-		expect(read.start("DX7/B.SYX") == DxCartridgeRead::Status::Idle).to_be_true();
+		expect(read.start("")).to_equal(DxCartridgeRead::Status::Idle);
+		expect(read.start("DX7/A.SYX")).to_equal(DxCartridgeRead::Status::Pending);
+		expect(read.start("DX7/B.SYX")).to_equal(DxCartridgeRead::Status::Idle);
 		read.cancel();
 		expect(read.busy()).to_be_false();
-		expect(read.poll() == DxCartridgeRead::Status::Idle).to_be_true();
+		expect(read.poll()).to_equal(DxCartridgeRead::Status::Idle);
 	});
 
 	it("reads inline before boot finishes, when nothing answers the channel", _ {
@@ -390,7 +393,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 		                     &FakeChannel::clock};
 		FakeChannel::script({DELUGE_CHANNEL_READY});
 		Popups p;
-		expect(read.start("DX7/NO_SUCH_BANK.SYX") == DxCartridgeRead::Status::Failed).to_be_true();
+		expect(read.start("DX7/NO_SUCH_BANK.SYX")).to_equal(DxCartridgeRead::Status::Failed);
 		expect(read.busy()).to_be_false();
 		expect(FakeChannel::requests).to_equal(0);
 	});
@@ -416,7 +419,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 		r.back();
 		settle(r);
 		expect(browser_up(r)).to_be_false();
-		expect(r.focused() == &nodes::dx_menu).to_be_true();
+		expect(r.focused()).to_equal(&nodes::dx_menu);
 	});
 
 	it("offers to delete a .syx file on Shift+SAVE, and refuses a folder with main's popup", _ {
@@ -474,7 +477,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 		menu_scene().read_value_again();
 		expect(static_cast<int32_t>(r.cursor())).to_equal(3);
 		expect(r.song.instrument->name).to_equal(std::string{"PROG 3"});
-		expect(deluge::bridge::dxPatchOf(r.sound->sources[0]).value() == before).to_be_true();
+		expect(deluge::bridge::dxPatchOf(r.sound->sources[0]).value()).to_equal(before);
 	});
 
 	it("reads a bank and lands on the cartridge page under the browse row, whose BACK reopens the browser", _ {
@@ -491,17 +494,17 @@ describe dx_cartridge("the DX7 cartridge", ${
 		expect(browser_scene().awaiting_deferred_load()).to_be_true();
 		read_bank(r);
 		expect(browser_up(r)).to_be_false();
-		expect(r.focused() == &nodes::dx_cartridge).to_be_true();
-		expect(r.state().path[r.state().depth - 1] == &nodes::dx_browse).to_be_true();
+		expect(r.focused()).to_equal(&nodes::dx_cartridge);
+		expect(r.state().path[r.state().depth - 1]).to_equal(&nodes::dx_browse);
 		expect(r.song.instrument->name).to_equal(std::string{"PROG 0"}); // the first program, loaded on entry
 		r.back();
 		settle(r);
 		expect(browser_up(r)).to_be_true();
-		expect(r.focused() == &nodes::dx_browse).to_be_true();
+		expect(r.focused()).to_equal(&nodes::dx_browse);
 		r.back();
 		settle(r);
 		expect(browser_up(r)).to_be_false();
-		expect(r.focused() == &nodes::dx_menu).to_be_true();
+		expect(r.focused()).to_equal(&nodes::dx_menu);
 	});
 
 	it("leaves the browser up with the read error when the file is no bank", _ {
@@ -520,7 +523,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 		expect(p.mine.popups.empty()).to_be_false();
 		r.back();
 		settle(r);
-		expect(r.focused() == &nodes::dx_menu).to_be_true();
+		expect(r.focused()).to_equal(&nodes::dx_menu);
 	});
 
 	it("forgets the read when BACK leaves the browser before it ends", _ {
@@ -540,7 +543,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 		expect(browser_up(r)).to_be_false();
 		deluge::gui::ui::dispatchShellChoices(); // no browser waits for it: cancelled
 		expect(deluge::gui::ui::dxCartridgeRead().busy()).to_be_false();
-		expect(r.focused() == &nodes::dx_menu).to_be_true();
+		expect(r.focused()).to_equal(&nodes::dx_menu);
 	});
 
 	it("takes no second file while a read is out, as DxSyxBrowser's in-flight guard does", _ {
@@ -575,7 +578,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 		(void)read.start("DX7/BROKEN.SYX"); // a read already out, as legacy's browser could leave one
 		select_file(r, "BANK1");
 		r.select();
-		expect(read.start("DX7/BANK1.SYX") == DxCartridgeRead::Status::Idle).to_be_true();
+		expect(read.start("DX7/BANK1.SYX")).to_equal(DxCartridgeRead::Status::Idle);
 		deluge::gui::ui::dispatchShellChoices(); // `start` answers Idle: the browser must not wait for it
 		r.tick();
 		expect(browser_up(r)).to_be_true();
@@ -622,7 +625,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 		r.turn(3);
 		r.turn(40);
 		r.turn(1);
-		expect(programs() == std::vector<int64_t>{3, 31}).to_be_true();
+		expect(programs()).to_equal(std::vector<int64_t>{3, 31});
 		expect(static_cast<int32_t>(r.cursor())).to_equal(31);
 	});
 
@@ -651,7 +654,7 @@ describe dx_cartridge("the DX7 cartridge", ${
 		select_file(r, "BANK1");
 		r.select();
 		read_bank(r);
-		expect(r.focused() == &nodes::dx_cartridge).to_be_true();
+		expect(r.focused()).to_equal(&nodes::dx_cartridge);
 		r.select();
 		settle(r);
 		expect(r.shell.stack().depth()).to_equal(size_t{0});
@@ -662,7 +665,7 @@ describe dx_cartridge_reference_rows("the DX7 cartridge: the reference rows", ${
 	it("parses dx_cartridge.tsv clean and asks every row of it", _ {
 		spec::OracleTable& t = table();
 		expect(t.problems().size()).to_equal(size_t{0});
-		expect(t.size() > size_t{1}).to_be_true();
+		expect(t.size()).to_be_greater_than(size_t{1});
 		expect(t.unasked()).to_equal(std::string{});
 	});
 });
