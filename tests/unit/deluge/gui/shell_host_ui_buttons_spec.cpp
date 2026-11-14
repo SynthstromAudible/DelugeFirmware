@@ -162,7 +162,6 @@ describe shell_host_ui_buttons("gui::ui::ShellHostUI: buttons, MIDI learn, the n
 		expect(fakelegacyui::last_note_horizontal_offset).to_equal(int32_t(3));
 		const PatternScene::Seen* turn = first_of(r.base, UiEvent::Kind::Encoder);
 		expect(turn).not_().to_be_null();
-		expect(turn).not_().to_be_null();
 		if (turn != nullptr) {
 			expect(turn->ev.encoder).to_equal(deluge::ui::EncoderRole::Horizontal);
 		}

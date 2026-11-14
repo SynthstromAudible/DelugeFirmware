@@ -399,8 +399,8 @@ describe popup_w("ui::oled::popup", $ {
 		expect(w.lines[0].back()).to_equal(' ');
 		expect(w.lines[1].front()).to_equal('W');
 		// And both are views into the caller's string, not copies.
-		expect(w.lines[0].data()).to_equal(s.data());
-		expect(w.lines[1].data()).to_equal(s.data() + 17);
+		expect(static_cast<const void*>(w.lines[0].data())).to_equal(static_cast<const void*>(s.data()));
+		expect(static_cast<const void*>(w.lines[1].data())).to_equal(static_cast<const void*>(s.data() + 17));
 	});
 
 	it("agrees with breakStringIntoLines line for line", _ {

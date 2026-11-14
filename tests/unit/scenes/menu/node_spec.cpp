@@ -112,20 +112,27 @@ static_assert(node_spec_range_dep.name == 26 && node_spec_range_dep.kind == Kind
 static_assert(node_spec_range_dep.bind.param.index == 4);
 static_assert(!node_spec_a.range_dependent); // every builder leaves it false by default
 
+namespace {
+/// @brief A function pointer as an address, so a failed comparison prints where it points rather than `1`.
+const void* address_of(auto* fn) {
+	return reinterpret_cast<const void*>(fn);
+}
+} // namespace
+
 describe scenes_node("scenes::menu::Node builders", $ {
 	it("toggle_item fills bind.get/set and nothing else", _ {
 		Node t = toggle_item(6, node_spec_get, node_spec_set);
 		expect(t.kind).to_equal(Kind::Toggle);
-		expect(t.bind.get).to_equal(node_spec_get);
-		expect(t.bind.set).to_equal(node_spec_set);
+		expect(address_of(t.bind.get)).to_equal(address_of(node_spec_get));
+		expect(address_of(t.bind.set)).to_equal(address_of(node_spec_set));
 		expect(t.bind.names.empty()).to_be_true();
 	});
 	it("enumeration fills bind.get/set/names", _ {
 		static constexpr uint16_t names[] = {10, 11, 12};
 		Node e = enumeration(7, names, node_spec_get, node_spec_set);
 		expect(e.kind).to_equal(Kind::Enum);
-		expect(e.bind.get).to_equal(node_spec_get);
-		expect(e.bind.set).to_equal(node_spec_set);
+		expect(address_of(e.bind.get)).to_equal(address_of(node_spec_get));
+		expect(address_of(e.bind.set)).to_equal(address_of(node_spec_set));
 		expect(e.bind.names.size()).to_equal(size_t(3));
 		expect(e.bind.names[1]).to_equal(uint16_t(11));
 	});
@@ -133,7 +140,7 @@ describe scenes_node("scenes::menu::Node builders", $ {
 		auto names_fn = +[](const MenuContext&, std::span<std::string_view>) -> size_t { return 0; };
 		Node e = dynamic_enumeration(8, names_fn, node_spec_get, node_spec_set);
 		expect(e.kind).to_equal(Kind::Enum);
-		expect(e.bind.dynamic_names).to_equal(names_fn);
+		expect(address_of(e.bind.dynamic_names)).to_equal(address_of(names_fn));
 		expect(e.bind.names.empty()).to_be_true();
 	});
 	it("custom fills the custom pointer", _ {
@@ -147,7 +154,7 @@ describe scenes_node("scenes::menu::Node builders", $ {
 		auto children_fn = +[](const MenuContext&, std::span<const Node*>) -> size_t { return 0; };
 		Node d = dynamic_submenu(11, children_fn);
 		expect(d.kind).to_equal(Kind::Submenu);
-		expect(d.dynamic_children).to_equal(children_fn);
+		expect(address_of(d.dynamic_children)).to_equal(address_of(children_fn));
 		expect(d.children.empty()).to_be_true();
 	});
 });
