@@ -1727,6 +1727,14 @@ job = "tooling"
 runtime_s = 1
 
 [[harness]]
+name = "spec-discovery"
+template = "unittest"
+path = "scripts"
+gates = "a test tree builds exactly the test directories that name it, and refuses a spec no driver builds or a CMakeLists.txt that names no tree or an unknown one"
+run = ["python3", "-m", "unittest", "test_spec_discovery"]
+requires = ["cmake", "clang"]
+
+[[harness]]
 name = "doc-hygiene-selftest"
 template = "unittest"
 path = "scripts"

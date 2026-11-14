@@ -181,6 +181,7 @@ builds only `golden-vt-render`.
 | param-snapshot-bench | integration | scenario | benchmark | investigative | nothing: it times ParamSnapshot::applyPatch against the full projection rebuild for the same single-param edits | manual | app | ~2s |
 | setting-menus | unit | script | unit | gate | no gesture under src/deluge/gui or src/scenes sets a bound sound's instrument state outside its Edit | pr | tooling | ~1s |
 | test-support-names | unit | script | unit | gate | no per-directory support/ folder under tests/ or sim/ holds a path tests/support/ also holds | pr | tooling | ~1s |
+| spec-discovery | unit | script | unit | gate | a test tree builds exactly the test directories that name it, and refuses a spec no driver builds or a CMakeLists.txt that names no tree or an unknown one | pr | tooling | ~1s |
 | doc-hygiene-selftest | unit | script | unit | gate | the UI docs lint flags task, review and workstream breadcrumbs and rename narration in comments and Markdown, and file:line citations to our own code | pr | tooling | ~1s |
 | fixed-point-raw-selftest | unit | script | unit | gate | the fixed-point raw-arithmetic ratchet counts raw helper calls, DSP inline asm, seam views and typed-boundary crossings apart, outside comments | pr | tooling | ~1s |
 | fixed-point-raw | unit | script | unit | gate | raw fixed-point arithmetic, raw seam views and typed-boundary crossings outside the core fixed-point headers only shrink | pr | tooling | ~2s |
