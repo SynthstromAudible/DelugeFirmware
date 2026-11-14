@@ -88,9 +88,10 @@ PROBES = {
         "set DELUGE_LEGACY_CORPUS to the SONGS folder of a card backup as the firmware wrote it (not upgraded), with "
         "that backup's SYNTHS folder beside it -- the upgrade differential upgrades the originals"
     ),
-    "delugemu": (
-        "build delugemu (scripts/build.sh) in DELUGEMU_ROOT (default ~/GitHub/delugemu), and put main's RelWithDebInfo "
-        "deluge.elf at DELUGE_PARITY_REF (default .superpowers/estate/emu/main.elf)"
+    "delugemu": "build delugemu (scripts/build.sh) in DELUGEMU_ROOT (default ~/GitHub/delugemu)",
+    "parity-ref": (
+        "build main with ./dbt build RelWithDebInfo and put its deluge.elf at DELUGE_PARITY_REF (default "
+        ".superpowers/estate/emu/main.elf)"
     ),
     "content-card": (
         "put the content cards (directories and FAT images of cards with presets, kits, samples and songs) in "
@@ -108,6 +109,7 @@ LOCAL_ONLY = frozenset(
         "song-xml-corpus",
         "legacy-corpus",
         "delugemu",
+        "parity-ref",
         "content-card",
         "rig",
         "deluge-usb",
@@ -448,8 +450,10 @@ CHECK_NOTES = {
 
 def _script_source(h: Harness) -> Path:
     """The file a script entry's command runs, which holds its explanation: the program, the script after python3,
-    the module after `python3 -m`, for `python3 -m pytest` the first test file it names, or for `python3 -m unittest` the first module it names (with none named, or
-    `discover`, the module named after `path`'s last directory)."""
+    the module after `python3 -m`, for `python3 -m pytest` the first positional argument naming a .py file (less any
+    `::` node id), or for `python3 -m unittest` the first module it names (with none named, or `discover`, the module
+    named after `path`'s last directory). A pytest option whose .py value is a separate argument, such as
+    `-c conf.py`, reads as a test file: give such a value with `=` (`--config-file=conf.py`)."""
     run = h.run
     if run[0] != "python3":
         return Path(h.path) / run[0]
@@ -460,10 +464,15 @@ def _script_source(h: Harness) -> Path:
     if len(run) < 3:
         raise ValueError(f"{h.name}: run names no module after python3 -m")
     if run[2] == "pytest":
-        files = [arg for arg in run[3:] if arg.endswith(".py")]
+        files = [
+            arg.split("::", 1)[0]
+            for arg in run[3:]
+            if not arg.startswith("-") and arg.split("::", 1)[0].endswith(".py")
+        ]
         if not files:
             raise ValueError(
-                f"{h.name}: run names no test file after python3 -m pytest"
+                f"{h.name}: run names no test file after python3 -m pytest; name a .py file (not a directory), "
+                "since the explanation is read from the first"
             )
         return Path(h.path) / files[0]
     if run[2] != "unittest":
@@ -805,6 +814,17 @@ USB_DEVICES = Path("/sys/bus/usb/devices")
 DELUGE_USB_ID = ("16d0", "0ce2")
 
 
+def usb_device_id(device: Path) -> tuple[str, str] | None:
+    """`device`'s vendor and product ids, or None when it has none or goes away while they are read (an unplug, or a
+    hub enumerating again)."""
+    try:
+        return tuple(
+            (device / f).read_text().strip() for f in ("idVendor", "idProduct")
+        )
+    except OSError:
+        return None
+
+
 def probe(requirement: str, root: Path) -> bool:
     """Is `requirement` satisfied on this machine?"""
     match requirement:
@@ -873,18 +893,16 @@ def probe(requirement: str, root: Path) -> bool:
             emu = Path(
                 os.environ.get("DELUGEMU_ROOT") or Path.home() / "GitHub/delugemu"
             )
-            ref = Path(
-                os.environ.get("DELUGE_PARITY_REF")
-                or root / ".superpowers/estate/emu/main.elf"
-            )
             return all(
                 p.is_file()
-                for p in (
-                    emu / "scripts/run.sh",
-                    emu / "qemu/build/qemu-system-arm",
-                    ref,
-                )
+                for p in (emu / "scripts/run.sh", emu / "qemu/build/qemu-system-arm")
             )
+        case "parity-ref":
+            # Where tools/emu_parity.py's --ref looks.
+            return Path(
+                os.environ.get("DELUGE_PARITY_REF")
+                or root / ".superpowers/estate/emu/main.elf"
+            ).is_file()
         case "content-card":
             return Path(
                 os.environ.get("DELUGE_CONTENT_CARDS") or root / ".superpowers/emu-card"
@@ -893,10 +911,7 @@ def probe(requirement: str, root: Path) -> bool:
             return bool(os.environ.get("DELUGE_PROBE_HOST"))
         case "deluge-usb":
             plugged = any(
-                tuple((d / f).read_text().strip() for f in ("idVendor", "idProduct"))
-                == DELUGE_USB_ID
-                for d in USB_DEVICES.glob("*")
-                if (d / "idVendor").is_file() and (d / "idProduct").is_file()
+                usb_device_id(d) == DELUGE_USB_ID for d in USB_DEVICES.glob("*")
             )
             return plugged and all(
                 importlib.util.find_spec(m) for m in ("pytest", "rtmidi", "usb")
@@ -1012,5 +1027,6 @@ __all__ = [
     "markdown_table",
     "probe",
     "select",
+    "usb_device_id",
     "with_table",
 ]

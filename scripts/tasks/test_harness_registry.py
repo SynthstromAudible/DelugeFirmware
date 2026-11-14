@@ -756,6 +756,31 @@ runtime_s = 1
         self.assertTrue(all(h.job == "model" and h.alone for h in corpus))
 
 
+class RigAndParityEntryTest(unittest.TestCase):
+    def test_every_rig_entry_runs_alone(self):
+        # There is one rig: two entries driving it at once would load images over each other.
+        root = Path(__file__).resolve().parents[2]
+        rig = [h for h in hr.load_registry(root) if "rig" in h.requires]
+        self.assertTrue(rig)
+        for h in rig:
+            with self.subTest(h.name):
+                self.assertTrue(h.alone)
+
+    def test_every_parity_entry_keeps_its_own_artifacts(self):
+        # The parity tools default to one shared artifact directory; entries run one after another would overwrite
+        # each other's snapshots and logs, which are read by hand.
+        root = Path(__file__).resolve().parents[2]
+        tools = {"tools/emu_parity.py", "tools/device_parity.py"}
+        parity = [h for h in hr.load_registry(root) if tools.intersection(h.run)]
+        self.assertTrue(parity)
+        for h in parity:
+            with self.subTest(h.name):
+                self.assertIn("--out", h.run)
+                self.assertEqual(
+                    h.run[h.run.index("--out") + 1], f".superpowers/emu-runs/{h.name}"
+                )
+
+
 class ScenarioEntryTest(unittest.TestCase):
     SCENARIO = """
 [[harness]]
@@ -1249,24 +1274,49 @@ class GateShortfallTest(unittest.TestCase):
 
 
 class ProbeTest(unittest.TestCase):
-    def test_delugemu_needs_its_launcher_its_qemu_and_the_reference_image(self):
-        emu, ref = Path(tempfile.mkdtemp()), Path(tempfile.mkdtemp()) / "main.elf"
-        env = {"DELUGEMU_ROOT": str(emu), "DELUGE_PARITY_REF": str(ref)}
-        with mock.patch.dict(os.environ, env):
-            self.assertFalse(hr.probe("delugemu", Path.cwd()))
-            for f in ("scripts/run.sh", "qemu/build/qemu-system-arm"):
-                (emu / f).parent.mkdir(parents=True, exist_ok=True)
-                (emu / f).write_text("")
-            self.assertFalse(hr.probe("delugemu", Path.cwd()))
+    def test_delugemu_needs_its_launcher_and_its_qemu(self):
+        for files in (
+            ("scripts/run.sh", "qemu/build/qemu-system-arm"),
+            ("qemu/build/qemu-system-arm", "scripts/run.sh"),
+        ):
+            emu = Path(tempfile.mkdtemp())
+            with (
+                self.subTest(files),
+                mock.patch.dict(os.environ, {"DELUGEMU_ROOT": str(emu)}),
+            ):
+                self.assertFalse(hr.probe("delugemu", Path.cwd()))
+                for f in files:
+                    self.assertFalse(hr.probe("delugemu", Path.cwd()))
+                    (emu / f).parent.mkdir(parents=True, exist_ok=True)
+                    (emu / f).write_text("")
+                self.assertTrue(hr.probe("delugemu", Path.cwd()))
+
+    def test_parity_ref_is_mains_image(self):
+        ref = Path(tempfile.mkdtemp()) / "main.elf"
+        with mock.patch.dict(os.environ, {"DELUGE_PARITY_REF": str(ref.parent)}):
+            self.assertFalse(hr.probe("parity-ref", Path.cwd()))
+        with mock.patch.dict(os.environ, {"DELUGE_PARITY_REF": str(ref)}):
+            self.assertFalse(hr.probe("parity-ref", Path.cwd()))
             ref.write_text("")
-            self.assertTrue(hr.probe("delugemu", Path.cwd()))
+            self.assertTrue(hr.probe("parity-ref", Path.cwd()))
+        root = Path(tempfile.mkdtemp())
+        with mock.patch.dict(os.environ, {"DELUGE_PARITY_REF": ""}):
+            self.assertFalse(hr.probe("parity-ref", root))
+            (root / ".superpowers/estate/emu").mkdir(parents=True)
+            (root / ".superpowers/estate/emu/main.elf").write_text("")
+            self.assertTrue(hr.probe("parity-ref", root))
 
     def test_content_card_is_the_content_directory(self):
         cards = Path(tempfile.mkdtemp())
+        (cards / "a-file").write_text("")
         with mock.patch.dict(os.environ, {"DELUGE_CONTENT_CARDS": str(cards)}):
             self.assertTrue(hr.probe("content-card", Path.cwd()))
-        with mock.patch.dict(os.environ, {"DELUGE_CONTENT_CARDS": str(cards / "none")}):
-            self.assertFalse(hr.probe("content-card", Path.cwd()))
+        for path in (cards / "none", cards / "a-file"):
+            with (
+                self.subTest(path.name),
+                mock.patch.dict(os.environ, {"DELUGE_CONTENT_CARDS": str(path)}),
+            ):
+                self.assertFalse(hr.probe("content-card", Path.cwd()))
 
     def test_rig_is_a_probe_host(self):
         with mock.patch.dict(os.environ, {"DELUGE_PROBE_HOST": "rig"}):
@@ -1274,9 +1324,44 @@ class ProbeTest(unittest.TestCase):
         with mock.patch.dict(os.environ, {"DELUGE_PROBE_HOST": ""}):
             self.assertFalse(hr.probe("rig", Path.cwd()))
 
+    @staticmethod
+    def _usb_device(devices: Path, name: str, vendor: str, product: str) -> Path:
+        device = devices / name
+        device.mkdir()
+        (device / "idVendor").write_text(f"{vendor}\n")
+        (device / "idProduct").write_text(f"{product}\n")
+        return device
+
+    def _deluge_usb(self, devices: Path, modules: bool) -> bool:
+        spec = object() if modules else None
+        with (
+            mock.patch.object(hr, "USB_DEVICES", devices),
+            mock.patch.object(hr.importlib.util, "find_spec", return_value=spec),
+        ):
+            return hr.probe("deluge-usb", Path.cwd())
+
     def test_deluge_usb_needs_the_device_on_this_machine(self):
-        with mock.patch.object(hr, "USB_DEVICES", Path(tempfile.mkdtemp())):
-            self.assertFalse(hr.probe("deluge-usb", Path.cwd()))
+        devices = Path(tempfile.mkdtemp())
+        self.assertFalse(self._deluge_usb(devices, modules=True))
+        self._usb_device(devices, "1-1", "16d0", "0ce3")
+        self._usb_device(devices, "1-2", "16d1", "0ce2")
+        (devices / "usb1").mkdir()
+        self.assertFalse(self._deluge_usb(devices, modules=True))
+        self._usb_device(devices, "1-3", "16d0", "0ce2")
+        self.assertTrue(self._deluge_usb(devices, modules=True))
+
+    def test_deluge_usb_needs_the_python_modules(self):
+        devices = Path(tempfile.mkdtemp())
+        self._usb_device(devices, "1-1", "16d0", "0ce2")
+        self.assertFalse(self._deluge_usb(devices, modules=False))
+
+    def test_a_usb_device_that_goes_away_reads_as_no_device(self):
+        devices = Path(tempfile.mkdtemp())
+        self._usb_device(devices, "1-1", "16d0", "0ce2")
+        with mock.patch.object(Path, "read_text", side_effect=FileNotFoundError):
+            self.assertFalse(self._deluge_usb(devices, modules=True))
+        gone = devices / "1-2"
+        self.assertIsNone(hr.usb_device_id(gone))
 
     def test_legacy_corpus_needs_synths_beside_it(self):
         backup = Path(tempfile.mkdtemp())
@@ -1331,6 +1416,7 @@ class CiMatrixTest(unittest.TestCase):
                 "song-xml-corpus",
                 "legacy-corpus",
                 "delugemu",
+                "parity-ref",
                 "content-card",
                 "rig",
                 "deluge-usb",
@@ -2355,6 +2441,19 @@ class ExplanationTest(unittest.TestCase):
                 ],
                 "tools/probe/test_usb_config.py",
             ),
+            (["python3", "-m", "pytest", "test_a.py::test_x"], "tools/probe/test_a.py"),
+            (
+                ["python3", "-m", "pytest", "--ignore=test_b.py", "test_a.py"],
+                "tools/probe/test_a.py",
+            ),
+            (
+                ["python3", "-m", "pytest", "--config-file=conf.py", "test_a.py"],
+                "tools/probe/test_a.py",
+            ),
+            (
+                ["python3", "-m", "pytest", "-k", "usb", "test_a.py"],
+                "tools/probe/test_a.py",
+            ),
         ):
             with self.subTest(run):
                 self.assertEqual(
@@ -2366,9 +2465,15 @@ class ExplanationTest(unittest.TestCase):
             (["python3"], "probe: run names no script after python3"),
             (["python3", "-u", "probe.py"], "probe: run names no script after python3"),
             (["python3", "-m"], "probe: run names no module after python3 -m"),
-            (
-                ["python3", "-m", "pytest", "-q"],
-                "probe: run names no test file after python3 -m pytest",
+            *(
+                (
+                    ["python3", "-m", "pytest", *args],
+                    (
+                        "probe: run names no test file after python3 -m pytest; name a .py file (not a directory), "
+                        "since the explanation is read from the first"
+                    ),
+                )
+                for args in (["-q"], ["."])
             ),
             (
                 ["python3", "-m", "unittest", "-v", "test_a"],
