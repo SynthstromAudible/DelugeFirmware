@@ -3,7 +3,6 @@
 #include "cppspec.hpp"
 #include "support/spec_main.h"
 #include <cstdint>
-#include <cstdlib>
 #include <limits>
 
 // clang-format off
@@ -14,7 +13,7 @@ describe db_shift_group("db shift", ${
 	});
 
 	it("negative offset decreases value", _ {
-		// A negative offset attenuates: it must not pass through a float-to-uint32_t conversion (UB) and be discarded.
+		// A negative offset must attenuate, not be lost: converting a negative float to uint32_t is UB.
 		int32_t oldValue = 0;
 		expect(shiftVolumeByDB(oldValue, -3.0f)).to_be_less_than(oldValue);
 	});
@@ -25,8 +24,8 @@ describe db_shift_group("db shift", ${
 	});
 
 	it("intra interval position is preserved", _ {
-		// howFarUpIntervalFloat keeps a value's position partway up its interval rather than snapping it to the interval
-		// floor, so two values in the same interval stay ordered after a shift.
+		// shiftVolumeByDB keeps a value's fractional position up its interval (howFarUpInterval is a float fraction, not
+		// an integer quotient), so two values in the same interval stay ordered after a shift.
 		int32_t low = 0x50000000;
 		int32_t high = 0x5F000000;
 		expect(low).to_be_less_than(high);
@@ -49,8 +48,8 @@ describe db_shift_group("db shift", ${
 		expect(shifted).to_be_greater_than(oldValue);
 
 		int32_t restored = shiftVolumeByDB(shifted, -1.0f);
-		// Allow for fixed-point rounding across two conversions.
-		expect(std::abs(static_cast<int64_t>(restored) - oldValue)).to_be_less_than(1 << 20);
+		// Allow for fixed-point rounding across two conversions (strictly under 2^20).
+		expect(static_cast<int64_t>(restored)).to_be_within((1 << 20) - 1).of(oldValue);
 	});
 
 	it("saturates rather than wrapping near the top", _ {

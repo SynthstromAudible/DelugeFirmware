@@ -4,7 +4,6 @@
 #include "cppspec.hpp"
 #include "support/spec_main.h"
 #include <cstdint>
-#include <cstdlib>
 #include <limits>
 
 namespace {
@@ -95,7 +94,7 @@ describe volume_param_gain_group("volume param gain", ${
 		// Applied to a neutral LOCAL_VOLUME, the stage gain must deliver the same final gain as the kit chain.
 		VolumeParamGain result = applyGainToVolumeParam(0, kitOutputStageGainPos());
 		expect(result.remainingGainPos).to_equal(kVolumeParamUnityPos);
-		expect(std::abs(finalGain(result.param) - volumePostFX)).not_().to_be_greater_than(volumePostFX / 10000);
+		expect(finalGain(result.param)).to_be_within(volumePostFX / 10000).of(volumePostFX);
 	});
 
 	it("kit output stage is about minus six DB", _ {
@@ -109,7 +108,7 @@ describe volume_param_gain_group("volume param gain", ${
 		// Song::renderAudio() halves the song volume's gain. Applied to a neutral LOCAL_VOLUME, that must deliver half the
 		// neutral final gain.
 		VolumeParamGain result = applyGainToVolumeParam(0, songOutputStageGainPos());
-		expect(std::abs(finalGain(result.param) - (finalGain(0) >> 1))).not_().to_be_greater_than(finalGain(0) / 10000);
+		expect(finalGain(result.param)).to_be_within(finalGain(0) / 10000).of(finalGain(0) >> 1);
 	});
 
 	it("multiply gain pos multiplies linear gains", _ {
@@ -120,7 +119,7 @@ describe volume_param_gain_group("volume param gain", ${
 		int32_t combined = multiplyGainPos(songOutputStageGainPos(), kitOutputStageGainPos());
 		VolumeParamGain result = applyGainToVolumeParam(0, combined);
 		int64_t expected = finalGain(0) / 4;
-		expect(std::abs(finalGain(result.param) - expected)).not_().to_be_greater_than(expected / 500);
+		expect(finalGain(result.param)).to_be_within(expected / 500).of(expected);
 	});
 
 	it("multiply gain pos saturates", _ {

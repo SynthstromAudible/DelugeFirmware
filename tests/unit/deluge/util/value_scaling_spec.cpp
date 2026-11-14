@@ -4,6 +4,7 @@
 
 #include "cppspec.hpp"
 #include "support/spec_main.h"
+#include <utility>
 #include <vector>
 
 // clang-format off
@@ -30,15 +31,15 @@ describe value_scaling_group("value scaling", ${
 
 	it("transpose", _ {
 		// One expect over the values that fail to round-trip: CppSpec keeps a result per expect.
-		std::vector<int> unlike;
+		std::vector<std::pair<int, int>> unlike; // (input, round-tripped)
 		for (int i = -9600; i <= 9600; i++) {
 			int32_t transpose, cents;
 			computeFinalValuesForTranspose(i, &transpose, &cents);
-			if (computeCurrentValueForTranspose(transpose, cents) != i) {
-				unlike.push_back(i);
+			if (int32_t current = computeCurrentValueForTranspose(transpose, cents); current != i) {
+				unlike.emplace_back(i, current);
 			}
 		}
-		expect(unlike).to_equal(std::vector<int>{});
+		expect(unlike).to_equal(std::vector<std::pair<int, int>>{});
 		expect(computeCurrentValueForTranspose(0, 0)).to_equal(0);
 		expect(computeCurrentValueForTranspose(1, 10)).to_equal(110);
 		int32_t transpose, cents;
