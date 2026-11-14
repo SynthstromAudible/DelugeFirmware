@@ -301,8 +301,10 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		const auto knobs = f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *clone->id()});
 		expect(static_cast<int>(knobs.size())).to_equal(1);
 		expect(knobs.size() == 1 && knobs[0].source == fromAbsentDevice(knobCc(0, 7))).to_be_true();
+		// The clone's knob listens to an entry made for the device, which no message arrives on until it is plugged in.
+		MIDICable* entry = deluge::bridge::find_cable(*fromAbsentDevice(knobCc(0, 7)).device);
 		const std::vector<deluge::midi::IndexedEntry> played = indexedKnobs(*f.song, cloneKnob.owner, 0, 7);
-		expect(played.size() == 1 && played[0].cable == deluge::midi::MappingIndex::absentDevice()).to_be_true();
+		expect(entry != nullptr && played.size() == 1 && played[0].cable == entry).to_be_true();
 	});
 
 	it("copies a clip's mute command to the audio clip that replaces it", _ {
