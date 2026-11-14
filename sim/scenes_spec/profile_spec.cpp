@@ -15,6 +15,11 @@ using namespace deluge;
 
 namespace {
 
+/// @brief A function pointer as an address, so a failed comparison prints where it points rather than `1`.
+const void* address_of(auto* fn) {
+	return reinterpret_cast<const void*>(fn);
+}
+
 /// @brief Do two spans view the same storage? Compared by `.data()` and `.size()` --
 ///        `std::span` has no `operator==`, and the shell's spans are supposed to be the SAME
 ///        static storage the shell's own profile views, not merely equal-valued copies.
@@ -33,8 +38,8 @@ describe scenes_profile("scenes::deluge_profile", $ {
 
 	it("wires the l10n bridge the shell's own profile deliberately leaves null", _ {
 		const ui::shell::BoardProfile& p = scenes::deluge_profile();
-		expect(p.text == &scenes::text_lookup).to_be_true();
-		expect(p.error_text == &scenes::error_lookup).to_be_true();
+		expect(address_of(p.text)).to_equal(address_of(&scenes::text_lookup));
+		expect(address_of(p.error_text)).to_equal(address_of(&scenes::error_lookup));
 	});
 
 	it("copies every other field from ui::shell::deluge_profile(), unchanged", _ {

@@ -84,8 +84,14 @@ describe model_targets("a model target's write reaches the record its menu names
 	it("fills a synth clip's addresses and what plays it", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		const MenuContext ctx = clip_root(*f.song, f.clip);
-		expect(ctx.addresses.clip.has_value() && ctx.addresses.clip->clip_id == f.clip->id()).to_be_true();
-		expect(ctx.addresses.track.has_value() && ctx.addresses.track->output_id == *f.instrument->id()).to_be_true();
+		expect(ctx.addresses.clip.has_value()).to_be_true();
+		if (ctx.addresses.clip.has_value()) {
+			expect(ctx.addresses.clip->clip_id).to_equal(f.clip->id());
+		}
+		expect(ctx.addresses.track.has_value()).to_be_true();
+		if (ctx.addresses.track.has_value()) {
+			expect(ctx.addresses.track->output_id).to_equal(*f.instrument->id());
+		}
 		expect(ctx.addresses.instrument).to_equal(SettingContext::Instrument::SYNTH);
 		expect(ctx.addresses.lane.has_value()).to_be_false();
 	});
@@ -94,12 +100,16 @@ describe model_targets("a model target's write reaches the record its menu names
 		spec::SongFixture f = spec::make_kit_song();
 		auto* drum = spec::add_drum<SoundDrum>(f);
 		const MenuContext ctx = clip_root(*f.song, f.clip);
-		expect(ctx.addresses.lane.has_value() && ctx.addresses.lane->drum_id == *drum->id()
-		       && ctx.addresses.lane->kit_id == *f.instrument->id())
-		    .to_be_true();
-		expect(ctx.addresses.note_row.has_value() && ctx.addresses.note_row->is_kit
-		       && ctx.addresses.note_row->row_key == static_cast<int32_t>(*drum->id()))
-		    .to_be_true();
+		expect(ctx.addresses.lane.has_value()).to_be_true();
+		if (ctx.addresses.lane.has_value()) {
+			expect(ctx.addresses.lane->drum_id).to_equal(*drum->id());
+			expect(ctx.addresses.lane->kit_id).to_equal(*f.instrument->id());
+		}
+		expect(ctx.addresses.note_row.has_value()).to_be_true();
+		if (ctx.addresses.note_row.has_value()) {
+			expect(ctx.addresses.note_row->is_kit).to_be_true();
+			expect(ctx.addresses.note_row->row_key).to_equal(static_cast<int32_t>(*drum->id()));
+		}
 		expect(ctx.addresses.instrument).to_equal(SettingContext::Instrument::KIT);
 	});
 
@@ -235,7 +245,7 @@ describe model_targets("a model target's write reaches the record its menu names
 		const SettingAddress arp{SettingGroupId::CLIP_ARP, *ctx.addresses.clip};
 		deluge::edits::Context edits{*synth.song, synth.song->project};
 		deluge::edits::SetSetting custom{arp, "arpeggiator/preset", Value::makeScalar("custom")};
-		expect(deluge::edits::apply(edits, custom) == Error::NONE).to_be_true();
+		expect(deluge::edits::apply(edits, custom)).to_equal(Error::NONE);
 		expect(static_cast<int>(facts.arp_preset(arp))).to_equal(6);
 	});
 

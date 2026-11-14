@@ -76,11 +76,13 @@
 #include "support/menu_over_root.h"
 #include "support/song_fixture.h"
 
+#include "support/printers/rgb_printer.h"
 #include "synth/modulation/cable.h" // CableTarget -- a cable's id in the automation view's numbering
 #include "util/shell_menu_entry.h"  // openShellMenuAtShortcut
 #include "util/sound_menu_open.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
 #include "support/spec_main.h"
 
@@ -357,7 +359,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		expect(popped(15)).to_equal(std::to_string(deluge::memory::sram_size()));
 		expect(popped(14)).to_equal(std::to_string(AudioEngine::getNumVoices() + AudioEngine::getNumAudio()));
 		expect(popped(13)).to_equal(std::to_string(picFirmwareVersion));
-		expect(deluge::scenes::menu_scene().focused() == &nodes::firmware_version).to_be_true();
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::firmware_version);
 	});
 
 	it("does exit on the same three pads when a different node is focused", _ {
@@ -381,7 +383,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		GlobalGuestGuard guest_guard;
 		spec::SongFixture fx = spec::make_synth_song();
 		expect(open_menu_on_global_guest(*fx.song)).to_be_true();
-		expect(shellHostUI.shell().stack().depth() > 0u).to_be_true();
+		expect(shellHostUI.shell().stack().depth()).to_be_greater_than(0u);
 
 		setRootUILowLevel(&instrumentClipView);
 		currentUIMode = UI_MODE_NONE;
@@ -404,19 +406,18 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		setRootUILowLevel(&instrumentClipView);
 		currentUIMode = UI_MODE_NONE;
 
-		expect(deluge::gui::ui::forwardGridPad(3, 4, 64) == PadForwardTarget::NoteEditorEdit).to_be_true();
-		expect(seen == PadForwardTarget::NoteEditorEdit).to_be_true();
+		expect(deluge::gui::ui::forwardGridPad(3, 4, 64)).to_equal(PadForwardTarget::NoteEditorEdit);
+		expect(seen).to_equal(PadForwardTarget::NoteEditorEdit);
 		expect(seen_x).to_equal(3);
 		expect(seen_y).to_equal(4);
 		expect(seen_v).to_equal(64);
-		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth - 1, 7, 0) == PadForwardTarget::NoteEditorEdit)
-		    .to_be_true();
+		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth - 1, 7, 0)).to_equal(PadForwardTarget::NoteEditorEdit);
 
-		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth, 4, 64) == PadForwardTarget::Exit).to_be_true();
-		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth + 1, 4, 64) == PadForwardTarget::Exit).to_be_true();
-		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth, 4, 0) == PadForwardTarget::Exit).to_be_true();
+		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth, 4, 64)).to_equal(PadForwardTarget::Exit);
+		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth + 1, 4, 64)).to_equal(PadForwardTarget::Exit);
+		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth, 4, 0)).to_equal(PadForwardTarget::Exit);
 		currentUIMode = UI_MODE_AUDITIONING;
-		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth + 1, 2, 64) == PadForwardTarget::Exit).to_be_true();
+		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth + 1, 2, 64)).to_equal(PadForwardTarget::Exit);
 		currentUIMode = UI_MODE_NONE;
 	});
 
@@ -430,15 +431,13 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		setRootUILowLevel(&instrumentClipView);
 		currentUIMode = UI_MODE_NONE;
 
-		expect(deluge::gui::ui::forwardGridPad(3, 4, 64) == PadForwardTarget::NoteRowEditor).to_be_true();
+		expect(deluge::gui::ui::forwardGridPad(3, 4, 64)).to_equal(PadForwardTarget::NoteRowEditor);
 		expect(seen_x).to_equal(3);
-		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth, 4, 64) == PadForwardTarget::NoteRowEditor)
-		    .to_be_true();
-		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth + 1, 4, 64) == PadForwardTarget::NoteRowEditor)
-		    .to_be_true();
-		expect(deluge::gui::ui::forwardGridPad(3, 4, 0) == PadForwardTarget::NoteRowEditor).to_be_true();
+		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth, 4, 64)).to_equal(PadForwardTarget::NoteRowEditor);
+		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth + 1, 4, 64)).to_equal(PadForwardTarget::NoteRowEditor);
+		expect(deluge::gui::ui::forwardGridPad(3, 4, 0)).to_equal(PadForwardTarget::NoteRowEditor);
 		currentUIMode = UI_MODE_AUDITIONING;
-		expect(deluge::gui::ui::forwardGridPad(3, 4, 64) == PadForwardTarget::NoteRowEditor).to_be_true();
+		expect(deluge::gui::ui::forwardGridPad(3, 4, 64)).to_equal(PadForwardTarget::NoteRowEditor);
 		currentUIMode = UI_MODE_NONE;
 	});
 
@@ -451,13 +450,12 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		spec::SongFixture fx = spec::make_synth_song();
 		expect(open_menu_on_global_guest_at(fx, MenuContext::Root::NoteEditor)).to_be_true();
 		expect(shellHostUI.shell().stack().remove(SceneKind::FirstApp)).to_be_true();
-		expect(menu_scene().menu_context().root == MenuContext::Root::NoteEditor).to_be_true();
+		expect(menu_scene().menu_context().root).to_equal(MenuContext::Root::NoteEditor);
 		setRootUILowLevel(&instrumentClipView);
 		currentUIMode = UI_MODE_NONE;
 
-		expect(deluge::gui::ui::forwardGridPad(3, 4, 64) == PadForwardTarget::Exit).to_be_true(); // the tail
-		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth + 1, 4, 64) == PadForwardTarget::AuditionColumn)
-		    .to_be_true();
+		expect(deluge::gui::ui::forwardGridPad(3, 4, 64)).to_equal(PadForwardTarget::Exit); // the tail
+		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth + 1, 4, 64)).to_equal(PadForwardTarget::AuditionColumn);
 	});
 
 	it("keeps the note arms inside the clip view's case: another root takes its own arm", _ {
@@ -470,11 +468,11 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		currentUIMode = UI_MODE_NONE;
 
 		setRootUILowLevel(&keyboardScreen);
-		expect(deluge::gui::ui::forwardGridPad(3, 4, 64) == PadForwardTarget::Keyboard).to_be_true();
+		expect(deluge::gui::ui::forwardGridPad(3, 4, 64)).to_equal(PadForwardTarget::Keyboard);
 		setRootUILowLevel(&performanceView);
-		expect(deluge::gui::ui::forwardGridPad(3, 4, 64) == PadForwardTarget::Performance).to_be_true();
+		expect(deluge::gui::ui::forwardGridPad(3, 4, 64)).to_equal(PadForwardTarget::Performance);
 		setRootUILowLevel(&sessionView);
-		expect(deluge::gui::ui::forwardGridPad(3, 4, 64) == PadForwardTarget::Exit).to_be_true();
+		expect(deluge::gui::ui::forwardGridPad(3, 4, 64)).to_equal(PadForwardTarget::Exit);
 	});
 
 	it("the real performer hands a NoteEditorEdit pad to the note editor's edit action and leaves the "
@@ -583,7 +581,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		fx.clip->lastSelectedParamKind = params::Kind::PATCHED;
 		fx.clip->lastSelectedParamID = params::LOCAL_LPF_FREQ;
 		expect(open_shortcut_over_automation(fx.clip, 8, 7)).to_be_true();
-		expect(menu_scene().focused() == &nodes::filters_group).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::filters_group);
 		currentUIMode = UI_MODE_NONE;
 		expect(deluge::gui::ui::forwardGridPad(3, 2, 64)).to_equal(PadForwardTarget::Automation);
 	});
@@ -598,7 +596,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		fx.clip->lastSelectedParamKind = params::Kind::PATCH_CABLE;
 		fx.clip->lastSelectedParamID = kVibratoCableId;
 		expect(open_shortcut_over_automation(fx.clip, 6, 2)).to_be_true();
-		expect(menu_scene().focused_value() == &nodes::vibrato).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::vibrato);
 		currentUIMode = UI_MODE_NONE;
 		expect(deluge::gui::ui::forwardGridPad(3, 2, 64)).to_equal(PadForwardTarget::Automation);
 	});
@@ -631,7 +629,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		ShiftHeld shift;
 		(void)shellHostUI.padAction(0, 6, 64);
 		expect(seen).to_equal(PadForwardTarget::Automation);
-		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 		seen = PadForwardTarget::None;
 		(void)shellHostUI.padAction(0, 7, 64);
 		expect(seen).to_equal(PadForwardTarget::Automation);
@@ -693,24 +691,24 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		deluge::edits::recordRanges(*sound, 0);
 		// BROWSE, OSC1's file selector: range-dependent, so on a source of several ranges the picker opens first.
 		expect(open_shortcut_over(&instrumentClipView, fx.clip, 0, 5)).to_be_true();
-		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::multi_range);
 
 		currentUIMode = UI_MODE_AUDITIONING; // under a UI mode SAVE does nothing, and is still the menu's
 		{
 			ShiftHeld shift;
-			expect(shellHostUI.buttonAction(deluge::hid::button::SAVE, true) == ActionResult::DEALT_WITH).to_be_true();
+			expect(shellHostUI.buttonAction(deluge::hid::button::SAVE, true)).to_equal(ActionResult::DEALT_WITH);
 		}
 		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(3);
 		currentUIMode = UI_MODE_NONE;
 		{
 			ShiftHeld shift;
-			expect(shellHostUI.buttonAction(deluge::hid::button::SAVE, true) == ActionResult::DEALT_WITH).to_be_true();
+			expect(shellHostUI.buttonAction(deluge::hid::button::SAVE, true)).to_equal(ActionResult::DEALT_WITH);
 		}
 		expect(static_cast<int32_t>(std::ssize(sound->sources[0].ranges))).to_equal(2);
 		display->cancelPopup();
 
 		(void)shellHostUI.buttonAction(deluge::hid::button::SAVE, true);
-		expect(getCurrentUI() == &saveInstrumentPresetUI).to_be_true();
+		expect(getCurrentUI()).to_equal(&saveInstrumentPresetUI);
 	});
 
 	it("swaps the clip view and the keyboard screen under the menu on KEYBOARD, and lights KEYBOARD", _ {
@@ -721,16 +719,16 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		fx.clip->onAutomationClipView = false;
 		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 7)).to_be_true();
 		currentUIMode = UI_MODE_NONE;
-		expect(shellHostUI.buttonAction(deluge::hid::button::KEYBOARD, true) == ActionResult::DEALT_WITH).to_be_true();
-		expect(getRootUI() == &keyboardScreen).to_be_true();
+		expect(shellHostUI.buttonAction(deluge::hid::button::KEYBOARD, true)).to_equal(ActionResult::DEALT_WITH);
+		expect(getRootUI()).to_equal(&keyboardScreen);
 		expect(led_on(IndicatorLED::KEYBOARD)).to_be_true();
 		expect(menu_scene().menu_context().root_is_keyboard).to_be_true(); // the root facts were re-read
 		(void)shellHostUI.buttonAction(deluge::hid::button::KEYBOARD, false); // the release changes nothing
-		expect(getRootUI() == &keyboardScreen).to_be_true();
-		expect(shellHostUI.buttonAction(deluge::hid::button::KEYBOARD, true) == ActionResult::DEALT_WITH).to_be_true();
-		expect(getRootUI() == &instrumentClipView).to_be_true();
+		expect(getRootUI()).to_equal(&keyboardScreen);
+		expect(shellHostUI.buttonAction(deluge::hid::button::KEYBOARD, true)).to_equal(ActionResult::DEALT_WITH);
+		expect(getRootUI()).to_equal(&instrumentClipView);
 		expect(led_on(IndicatorLED::KEYBOARD)).to_be_false();
-		expect(shellHostUI.shell().stack().depth() > 0u).to_be_true(); // the menu stays open throughout
+		expect(shellHostUI.shell().stack().depth()).to_be_greater_than(0u); // the menu stays open throughout
 	});
 
 	it("takes KEYBOARD from the keyboard screen back to the automation view when the clip was on it", _ {
@@ -741,7 +739,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		expect(open_shortcut_over(&keyboardScreen, fx.clip, 8, 7)).to_be_true();
 		currentUIMode = UI_MODE_NONE;
 		(void)shellHostUI.buttonAction(deluge::hid::button::KEYBOARD, true);
-		expect(getRootUI() == &automationView).to_be_true();
+		expect(getRootUI()).to_equal(&automationView);
 		fx.clip->onAutomationClipView = false;
 	});
 
@@ -751,8 +749,8 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		spec::SongFixture fx = spec::make_synth_song();
 		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 7)).to_be_true();
 		currentUIMode = UI_MODE_AUDITIONING;
-		expect(shellHostUI.buttonAction(deluge::hid::button::KEYBOARD, true) == ActionResult::DEALT_WITH).to_be_true();
-		expect(getRootUI() == &instrumentClipView).to_be_true();
+		expect(shellHostUI.buttonAction(deluge::hid::button::KEYBOARD, true)).to_equal(ActionResult::DEALT_WITH);
+		expect(getRootUI()).to_equal(&instrumentClipView);
 		currentUIMode = UI_MODE_NONE;
 	});
 
@@ -763,10 +761,11 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		spec::SongFixture fx = spec::make_synth_song();
 		fx.song->persistentView.lastClipInstanceEnteredStartPos = -1;
 		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 7)).to_be_true();
-		expect(openUI(&shellHostUI) || isUIOpen(&shellHostUI)).to_be_true();
+		const bool open = openUI(&shellHostUI) || isUIOpen(&shellHostUI);
+		expect(open).to_be_true("shellHostUI neither opened nor was open");
 		currentUIMode = UI_MODE_NONE;
 		(void)shellHostUI.buttonAction(deluge::hid::button::SESSION_VIEW, true);
-		expect(getRootUI() == &sessionView).to_be_true();
+		expect(getRootUI()).to_equal(&sessionView);
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 		expect(shellHostUI.shell().stack().depth()).to_equal(0u); // closed now, not at the next tick
 
@@ -774,7 +773,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		fx.song->persistentView.lastClipInstanceEnteredStartPos = 0;
 		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 7)).to_be_true();
 		(void)shellHostUI.buttonAction(deluge::hid::button::SESSION_VIEW, true);
-		expect(getRootUI() == &arrangerView).to_be_true();
+		expect(getRootUI()).to_equal(&arrangerView);
 		fx.song->persistentView.lastClipInstanceEnteredStartPos = -1;
 	});
 
@@ -786,7 +785,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 7)).to_be_true();
 		currentUIMode = UI_MODE_AUDITIONING;
 		(void)shellHostUI.buttonAction(deluge::hid::button::SESSION_VIEW, true);
-		expect(getRootUI() == &instrumentClipView).to_be_true();
+		expect(getRootUI()).to_equal(&instrumentClipView);
 		expect(isUIOpen(&shellHostUI)).to_be_true();
 
 		GlobalGuestGuard::empty_guest_stack();
@@ -794,7 +793,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		expect(spec::open_note_mode_over_clip_view(fx, MenuContext::Root::NoteRowEditor)).to_be_true();
 		currentUIMode = UI_MODE_AUDITIONING; // the row the editor holds, and nothing else
 		(void)shellHostUI.buttonAction(deluge::hid::button::SESSION_VIEW, true);
-		expect(getRootUI() == &sessionView).to_be_true();
+		expect(getRootUI()).to_equal(&sessionView);
 		// `exitCompletely` exits the note-row editor before its close, which ends the row's audition: the guest's own
 		// close (`closeNow`), not a bare removal of the menu.
 		expect(isUIModeActive(UI_MODE_AUDITIONING)).to_be_false();
@@ -815,10 +814,10 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::SyncScalingAction,
 		                           RuntimeFeatureStateSyncScalingAction::Fill);
-		expect(shellHostUI.buttonAction(deluge::hid::button::SYNC_SCALING, true) == ActionResult::DEALT_WITH).to_be_true();
+		expect(shellHostUI.buttonAction(deluge::hid::button::SYNC_SCALING, true)).to_equal(ActionResult::DEALT_WITH);
 		expect(fx.song->runtimeView.fillModeActive).to_be_true();
 		expect(led_on(IndicatorLED::SYNC_SCALING)).to_be_true();
-		expect(shellHostUI.buttonAction(deluge::hid::button::SYNC_SCALING, false) == ActionResult::DEALT_WITH).to_be_true();
+		expect(shellHostUI.buttonAction(deluge::hid::button::SYNC_SCALING, false)).to_equal(ActionResult::DEALT_WITH);
 		expect(fx.song->runtimeView.fillModeActive).to_be_false();
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::SyncScalingAction, saved);
 	});
@@ -833,7 +832,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		currentUIMode = UI_MODE_NONE;
 		expect(deluge::gui::ui::forwardMenuViewButton(deluge::hid::button::KEYBOARD, true).has_value()).to_be_false();
 		expect(deluge::gui::ui::forwardMenuViewButton(deluge::hid::button::SESSION_VIEW, true).has_value()).to_be_false();
-		expect(getRootUI() == &instrumentClipView).to_be_true();
+		expect(getRootUI()).to_equal(&instrumentClipView);
 	});
 
 	it("opens the shortcut gate on shift or on an audition over the clip view, and swallows outside its two modes", _ {
@@ -844,18 +843,18 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		UiStackGuard ui_guard;
 		setRootUILowLevel(&instrumentClipView);
 		currentUIMode = UI_MODE_NONE;
-		expect(shortcutPadGate(false) == ShortcutPadGate::Forward).to_be_true();
-		expect(shortcutPadGate(true) == ShortcutPadGate::Shift).to_be_true();
+		expect(shortcutPadGate(false)).to_equal(ShortcutPadGate::Forward);
+		expect(shortcutPadGate(true)).to_equal(ShortcutPadGate::Shift);
 		currentUIMode = UI_MODE_AUDITIONING;
-		expect(shortcutPadGate(false) == ShortcutPadGate::Audition).to_be_true();
+		expect(shortcutPadGate(false)).to_equal(ShortcutPadGate::Audition);
 		setRootUILowLevel(&keyboardScreen);
-		expect(shortcutPadGate(false) == ShortcutPadGate::Forward).to_be_true();
+		expect(shortcutPadGate(false)).to_equal(ShortcutPadGate::Forward);
 		setRootUILowLevel(&automationView);
-		expect(shortcutPadGate(false) == ShortcutPadGate::Forward).to_be_true();
+		expect(shortcutPadGate(false)).to_equal(ShortcutPadGate::Forward);
 		currentUIMode = UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR;
-		expect(shortcutPadGate(true) == ShortcutPadGate::Shift).to_be_true();
+		expect(shortcutPadGate(true)).to_equal(ShortcutPadGate::Shift);
 		currentUIMode = UI_MODE_NOTES_PRESSED;
-		expect(shortcutPadGate(true) == ShortcutPadGate::Swallow).to_be_true();
+		expect(shortcutPadGate(true)).to_equal(ShortcutPadGate::Swallow);
 		currentUIMode = UI_MODE_NONE;
 	});
 
@@ -870,7 +869,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		(void)shellHostUI.padAction(8, 7, 0);
 		shellHostUI.shell().tick(2);
 		expect(seen).to_equal(PadForwardTarget::None); // not forwarded
-		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 		currentUIMode = UI_MODE_NONE;
 	});
 
@@ -888,7 +887,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		shellHostUI.shell().tick(2);
 		(void)shellHostUI.buttonAction(deluge::hid::button::SHIFT, false);
 		expect(seen).to_equal(PadForwardTarget::None);
-		expect(menu_scene().focused_value() == before).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(before);
 		currentUIMode = UI_MODE_NONE;
 	});
 
@@ -906,8 +905,8 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		(void)shellHostUI.padAction(4, 7, 64);
 		shellHostUI.shell().tick(2);
 		shellHostUI.shell().tick(3);
-		expect(menu_scene().menu_context().root == MenuContext::Root::NoteRowEditor).to_be_true();
-		expect(menu_scene().focused_value() == &nodes::sequence_direction).to_be_true();
+		expect(menu_scene().menu_context().root).to_equal(MenuContext::Root::NoteRowEditor);
+		expect(menu_scene().focused_value()).to_equal(&nodes::sequence_direction);
 		expect(shellHostUI.shell().stack().depth()).to_equal(1u); // re-rooted, not stacked twice
 		expect(numUIsOpen).to_equal(2);
 		(void)shellHostUI.padAction(4, 7, 0);
@@ -926,8 +925,8 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		(void)shellHostUI.padAction(4, 7, 64);
 		shellHostUI.shell().tick(2);
 		shellHostUI.shell().tick(3);
-		expect(menu_scene().menu_context().root == MenuContext::Root::Sound).to_be_true();
-		expect(menu_scene().focused_value() == &nodes::sequence_direction).to_be_true();
+		expect(menu_scene().menu_context().root).to_equal(MenuContext::Root::Sound);
+		expect(menu_scene().focused_value()).to_equal(&nodes::sequence_direction);
 		(void)shellHostUI.padAction(4, 7, 0);
 		(void)shellHostUI.padAction(kDisplayWidth + 1, 3, 0);
 		(void)shellHostUI.padAction(kDisplayWidth + 1, 4, 0);
@@ -943,12 +942,12 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		kit->selectedDrum = a;
 		setRootUILowLevel(&instrumentClipView);
 		instrumentClipView.setSelectedDrum(b, false); // no menu: the selection moves
-		expect(kit->selectedDrum == b).to_be_true();
+		expect(kit->selectedDrum).to_equal(b);
 		kit->selectedDrum = a;
 		expect(open_shortcut_over(&instrumentClipView, fx.clip, 8, 7)).to_be_true();
 		expect(deluge::gui::ui::menuCurrent()).to_be_true();
 		instrumentClipView.setSelectedDrum(b, false);
-		expect(kit->selectedDrum == a).to_be_true();
+		expect(kit->selectedDrum).to_equal(a);
 	});
 
 	it("freezes the selection under exactly the ported scenes of main's three UIs", _ {
@@ -989,7 +988,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		    .to_be_true();
 		expect(deluge::gui::ui::menuCurrent()).to_be_false();
 		instrumentClipView.setSelectedDrum(b, false);
-		expect(kit->selectedDrum == a).to_be_true();
+		expect(kit->selectedDrum).to_equal(a);
 
 		shellHostUI.shell().stack().pop(deluge::ui::shell::SceneKind::Null);
 		rename::rename_scene().open(menu_scene().menu_context());
@@ -997,7 +996,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		           SceneId{rename::kRenameSceneKind, static_cast<uint16_t>(rename::TargetId::Clip)}))
 		    .to_be_true();
 		instrumentClipView.setSelectedDrum(b, false);
-		expect(kit->selectedDrum == b).to_be_true();
+		expect(kit->selectedDrum).to_equal(b);
 	});
 
 	it("on a kit row's item that uses it, AFFECT ENTIRE holds; elsewhere it toggles the clip's affect-entire", _ {
@@ -1057,7 +1056,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		menu_scene().open(nodes::sound_root, menu_scene().menu_context());
 		shellHostUI.shell().tick(2);
 		deluge::gui::ui::refreshShellRangeDisplay(); // a new screen: the sidebar
-		expect(whichSideRowsNeedRendering != 0).to_be_true();
+		expect(whichSideRowsNeedRendering).not_().to_equal(0);
 	});
 
 	it("selects the played note's range under the picker, highlights the range's notes, and re-renders the root", _ {
@@ -1080,7 +1079,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		deluge::edits::recordRanges(*sound, 0);
 		expect(deluge::gui::ui::rangeDependentMenuOpen()).to_be_false(); // no menu: legacy's own answer
 		expect(open_shortcut_over(&instrumentClipView, fx.clip, 0, 5)).to_be_true();
-		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::multi_range);
 		shellHostUI.shell().tick(1);
 		expect(deluge::gui::ui::rangePickerOpen()).to_be_true();
 		expect(deluge::gui::ui::rangeDependentMenuOpen()).to_be_true();
@@ -1088,7 +1087,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		currentUIMode = UI_MODE_NONE;
 		whichSideRowsNeedRendering = 0;
 		deluge::gui::ui::refreshShellRangeDisplay(); // the range is new to the root: a sidebar render
-		expect(whichSideRowsNeedRendering != 0).to_be_true();
+		expect(whichSideRowsNeedRendering).not_().to_equal(0);
 		whichSideRowsNeedRendering = 0;
 		deluge::gui::ui::refreshShellRangeDisplay(); // unchanged: none
 		expect(whichSideRowsNeedRendering).to_equal(0u);
@@ -1099,12 +1098,12 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 			shellHostUI.shell().tick(1);
 			expect(deluge::gui::ui::rangeDependentMenuOpen()).to_be_false();
 			deluge::gui::ui::refreshShellRangeDisplay();
-			expect(whichSideRowsNeedRendering != 0).to_be_true();
+			expect(whichSideRowsNeedRendering).not_().to_equal(0);
 			whichSideRowsNeedRendering = 0;
 			menu_scene().open(nodes::multi_range, ctx);
 			shellHostUI.shell().tick(1);
 			deluge::gui::ui::refreshShellRangeDisplay(); // and comes back
-			expect(whichSideRowsNeedRendering != 0).to_be_true();
+			expect(whichSideRowsNeedRendering).not_().to_equal(0);
 			// `MenuItem::isRangeDependent` is true for the transposes and the loop points only: the file selector
 			// and the recorder check the range on open but do not highlight it.
 			for (const Node* item : {&nodes::file0_selector, &nodes::sample0_recorder}) {
@@ -1132,7 +1131,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 			deluge::edits::recordRanges(*sound, 0);
 			expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(before);
 			deluge::gui::ui::refreshShellRangeDisplay();
-			expect(whichSideRowsNeedRendering != 0).to_be_true();
+			expect(whichSideRowsNeedRendering).not_().to_equal(0);
 			(void)sound->sources[0].ranges.insertMultiRange(2);
 			sound->sources[0].ranges.getElement(1)->topNote = static_cast<int16_t>(row0 + 3);
 			sound->sources[0].ranges.getElement(2)->topNote = 32767;
@@ -1168,8 +1167,8 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 			RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
 			uint8_t occupancy[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
 			(void)instrumentClipView.renderSidebar(0xFF, image, occupancy);
-			expect(image[3][kDisplayWidth + 1] == RGB{30, 30, 30}).to_be_true(); // in range 2
-			expect(image[1][kDisplayWidth + 1] == RGB{0, 0, 0}).to_be_true();    // in range 1
+			expect(image[3][kDisplayWidth + 1]).to_equal(RGB{30, 30, 30}); // in range 2
+			expect(image[1][kDisplayWidth + 1]).to_equal(RGB{0, 0, 0});    // in range 1
 		}
 		expect(deluge::gui::ui::noteWithinCurrentRange(fx.clip->getYNoteFromYDisplay(6, fx.song))).to_be_true();
 		expect(deluge::gui::ui::noteWithinCurrentRange(fx.clip->getYNoteFromYDisplay(1, fx.song))).to_be_false();
@@ -1211,7 +1210,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		setRootUILowLevel(&keyboardScreen);
 		(void)keyboardScreen.renderMainPads(0xFF, plain, occupancy);
 		expect(open_shortcut_over(&keyboardScreen, fx.clip, 0, 5)).to_be_true();
-		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::multi_range);
 		shellHostUI.shell().tick(1);
 		currentUIMode = UI_MODE_NONE;
 		const int32_t start = static_cast<int32_t>(menu_scene().menu_context().range_index);
@@ -1228,7 +1227,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 				}
 			}
 		}
-		expect(pressed >= 0).to_be_true(); // some pad's note fell in the other range, and moved the picker
+		to_be_at_least(expect(pressed), 0); // some pad's note fell in the other range, and moved the picker
 		const int32_t now = static_cast<int32_t>(menu_scene().menu_context().range_index);
 
 		RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
@@ -1239,8 +1238,8 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 				brighter += image[y][x].r > plain[y][x].r ? 1 : 0;
 			}
 		}
-		expect(brighter > 0).to_be_true();
-		expect(now != start).to_be_true();
+		expect(brighter).to_be_greater_than(0);
+		expect(now).not_().to_equal(start);
 
 		// An edge moved: `MultiRange::selectEncoderAction`'s edge arm re-renders the keyboard.
 		deluge::gui::ui::refreshShellRangeDisplay();
@@ -1248,7 +1247,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		sound->sources[0].ranges.getElement(0)->topNote = 60;
 		deluge::edits::recordRanges(*sound, 0);
 		deluge::gui::ui::refreshShellRangeDisplay();
-		expect(whichMainRowsNeedRendering != 0).to_be_true();
+		expect(whichMainRowsNeedRendering).not_().to_equal(0);
 	});
 });
 // clang-format on

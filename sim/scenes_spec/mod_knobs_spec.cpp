@@ -82,15 +82,20 @@
 #include "storage/storage_manager.h"
 
 #include "support/mocks/fake_surfaces.h"
+#include "support/printers/fx_chain_printer.h"
+#include "support/printers/knob_focus_printer.h"
+#include "support/printers/param_id_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
 #include <algorithm>
 #include <array>
 #include <cstdint>
 #include <functional>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -257,6 +262,14 @@ struct LegacyLed {
 	bool blinking = false;
 	bool operator==(const LegacyLed&) const = default;
 };
+
+/// @brief Prints an LED's two facts, 1 for set, e.g. `{lit 1, blinking 0}`.
+/// @param os The stream to print to.
+/// @param led The LED.
+/// @return @p os.
+std::ostream& operator<<(std::ostream& os, const LegacyLed& led) {
+	return os << "{lit " << int{led.lit} << ", blinking " << int{led.blinking} << "}";
+}
 
 /// @brief Read mod button @p i's LED out of legacy's own output.
 /// @param i 0..7.
@@ -682,7 +695,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		poke_legacy_indicator(0);
 		view.setKnobIndicatorLevel(0);
 		const uint8_t* legacy = legacy_indicator(0);
-		expect(legacy != nullptr).to_be_true();
+		expect(legacy).not_().to_be_null();
 
 		// The port, the same four turns a few milliseconds apart: well inside one blink.
 		KnobRig rig;
@@ -705,7 +718,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		deluge::ui::LedFrame frame;
 		rig.knobs.leds(frame);
 		const deluge::ui::KnobIndicator* port = frame.indicator_or_null(deluge::ui::IndicatorId::Lower);
-		expect(port != nullptr).to_be_true();
+		expect(port).not_().to_be_null();
 		for (int32_t seg = 0; seg < 4; seg++) {
 			expect(static_cast<int>(port->levels[seg])).to_equal(static_cast<int>(legacy[seg]));
 		}
@@ -724,7 +737,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		SoundDrum* port_drum = spec::add_drum<SoundDrum>(f);
 		NoteRow* legacy_row = f.clip->getNoteRowForDrum(legacy_drum);
 		NoteRow* port_row = f.clip->getNoteRowForDrum(port_drum);
-		expect(legacy_row != nullptr && port_row != nullptr).to_be_true();
+		expect(legacy_row).not_().to_be_null();
+		expect(port_row).not_().to_be_null();
 		if (legacy_row != nullptr && port_row != nullptr) {
 			seed_params(legacy_row->paramManager, 0);
 			seed_params(port_row->paramManager, 0);
@@ -836,11 +850,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 		expect(rig.knobs.focus().comp.editing).to_equal(legacy_editing);
 		expect(rig.knobs.focus().comp.param).to_equal(legacy_param);
-		expect(legacy_editing && legacy_param == 2).to_be_true();
-		expect(port_song.song->project.master_effects == legacy_song.song->project.master_effects).to_be_true();
-		expect(legacy_song.song->live.global_effectable.effects().compressor.release
-		       != deluge::effects::CompressorState{}.release)
-		    .to_be_true();
+		expect(legacy_editing).to_be_true();
+		expect(legacy_param).to_equal(2);
+		expect(port_song.song->project.master_effects).to_equal(legacy_song.song->project.master_effects);
+		expect(legacy_song.song->live.global_effectable.effects().compressor.release)
+		    .not_().to_equal(deluge::effects::CompressorState{}.release);
 		display = nullptr;
 		currentSong = nullptr;
 	});
@@ -1007,7 +1021,10 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		f.clip->armedForRecording = armed;
 
 		const deluge::project::DocAutoParam* record = f.song->project.resolveParam(stutter);
-		expect(record != nullptr && !record->nodes.empty()).to_be_true();
+		expect(record).not_().to_be_null();
+		if (record != nullptr) {
+			expect(record->nodes.empty()).to_be_false();
+		}
 	});
 
 	it("writes a region turn as a region in the record", _ {
@@ -1027,7 +1044,10 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		DirectCtx c{1000};
 		(void)rig.knobs.handle(gold_turn(EncoderRole::GoldUpper, 5), c.ctx);
 		const deluge::project::DocAutoParam* record = f.song->project.resolveParam(lpf);
-		expect(record != nullptr && !record->nodes.empty()).to_be_true();
+		expect(record).not_().to_be_null();
+		if (record != nullptr) {
+			expect(record->nodes.empty()).to_be_false();
+		}
 		const bool at_region = record != nullptr && std::ranges::any_of(record->nodes, [](const auto& node) {
 			return node.pos == 24;
 		});
@@ -1061,7 +1081,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 5), c.ctx);
 		}
 		const std::optional<int32_t> vibrato_after = value_at(*synth.song, vibrato);
-		expect(vibrato_after.has_value() && vibrato_after != vibrato_before).to_be_true();
+		expect(vibrato_after.has_value()).to_be_true();
+		expect(vibrato_after).not_().to_equal(vibrato_before);
 
 		spec::SongFixture midi = spec::make_midi_song();
 		auto* instrument = static_cast<MIDIInstrument*>(midi.instrument);
@@ -1082,7 +1103,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 5), c.ctx);
 		}
 		const std::optional<int32_t> cc_after = value_at(*midi.song, cc74);
-		expect(cc_after.has_value() && cc_after != cc_before).to_be_true();
+		expect(cc_after.has_value()).to_be_true();
+		expect(cc_after).not_().to_equal(cc_before);
 		display = nullptr;
 	});
 
@@ -1120,7 +1142,10 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		(void)rig.knobs.handle(push, shifted.ctx);
 		expect(f.song->project.resolveParam(pan)->nodes.empty()).to_be_true();
 		Action* action = actionLogger.firstAction[BEFORE];
-		expect(action != nullptr && action->nextAction == nullptr).to_be_true();
+		expect(action).not_().to_be_null();
+		if (action != nullptr) {
+			expect(action->nextAction).to_be_null();
+		}
 		expect(actionLogger.revert(BEFORE, false, false)).to_be_true();
 		expect(f.song->project.resolveParam(pan)->nodes.empty()).to_be_false();
 		actionLogger.deleteAllLogs();
@@ -1172,7 +1197,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// The clip the arrangement records into: the synth's active clip, recording from the session clip.
 		InstrumentClip* recording = spec::detail::make_session_clip(f.song);
 		ParamManagerForTimeline params;
-		expect(params.cloneParamCollectionsFrom(&f.clip->paramManager, false) == Error::NONE).to_be_true();
+		expect(params.cloneParamCollectionsFrom(&f.clip->paramManager, false)).to_equal(Error::NONE);
 		recording->setAudioInstrument(synth, f.song, true, &params);
 		recording->beingRecordedFromClip = f.clip;
 		alignas(ModelStack) char memory[MODEL_STACK_MAX_SIZE];
@@ -1209,8 +1234,14 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 		// The knobs keep the session clip; the write lands in the take.
 		const auto* sound = std::get_if<deluge::scenes::bind::SoundFocus>(&rig.knobs.focus().owner);
-		expect(sound != nullptr && sound->clip && sound->clip->clip_id == f.clip->id()).to_be_true();
-		expect(value_at(lpf_on(*recording)) != recording_before).to_be_true();
+		expect(sound).not_().to_be_null();
+		if (sound != nullptr) {
+			expect(sound->clip.has_value()).to_be_true();
+			if (sound->clip) {
+				expect(sound->clip->clip_id).to_equal(f.clip->id());
+			}
+		}
+		expect(value_at(lpf_on(*recording))).not_().to_equal(recording_before);
 		expect(value_at(lpf_on(*f.clip))).to_equal(session_before);
 		currentSong = saved;
 		display = nullptr;
@@ -1260,11 +1291,16 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.set_target_with_timeline(clip, false);
 
 		// The owner legacy's view names, as addresses: the synth, on its clip.
-		expect(rig.knobs.focus().owner == view.knobFocus().owner).to_be_true();
+		expect(rig.knobs.focus().owner).to_equal(view.knobFocus().owner);
 		const auto* sound = std::get_if<deluge::scenes::bind::SoundFocus>(&rig.knobs.focus().owner);
-		expect(sound != nullptr && sound->slot.id == *f.instrument->id() && sound->clip
-		       && sound->clip->clip_id == clip->id())
-		    .to_be_true();
+		expect(sound).not_().to_be_null();
+		if (sound != nullptr) {
+			expect(sound->slot.id).to_equal(*f.instrument->id());
+			expect(sound->clip.has_value()).to_be_true();
+			if (sound->clip) {
+				expect(sound->clip->clip_id).to_equal(clip->id());
+			}
+		}
 
 		// `getModKnobMode` agrees too.
 		expect(rig.knobs.mode()).to_equal(view.getModKnobMode());
@@ -1287,10 +1323,13 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.set_song(f.song);
 		rig.set_target_without_timeline(controllable, params);
 
-		expect(View::KnobStack{view}.counter() == nullptr).to_be_true();
-		expect(rig.knobs.focus().owner == view.knobFocus().owner).to_be_true();
+		expect(View::KnobStack{view}.counter()).to_be_null();
+		expect(rig.knobs.focus().owner).to_equal(view.knobFocus().owner);
 		const auto* sound = std::get_if<deluge::scenes::bind::SoundFocus>(&rig.knobs.focus().owner);
-		expect(sound != nullptr && !sound->clip).to_be_true(); // no clip: an arranger row's backed params
+		expect(sound).not_().to_be_null();
+		if (sound != nullptr) {
+			expect(!sound->clip).to_be_true(); // no clip: an arranger row's backed params
+		}
 	});
 
 	it("records the mod region legacy records", _ {
@@ -1378,7 +1417,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		const std::vector<int32_t> untouched = param_snapshot(slow_clip->paramManager);
 		turn_four(split_clip, 10, 1000);
 		turn_four(slow_clip, 1000, 1000);
-		expect(differences(untouched, param_snapshot(slow_clip->paramManager)) > 0).to_be_true();
+		expect(differences(untouched, param_snapshot(slow_clip->paramManager))).to_be_greater_than(0);
 		expect(differences(param_snapshot(split_clip->paramManager), param_snapshot(slow_clip->paramManager)))
 		    .to_equal(int32_t{0});
 	});
@@ -1423,7 +1462,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 		const std::vector<int32_t> slow = param_snapshot(slow_clip->paramManager);
 		const std::vector<int32_t> fast = param_snapshot(fast_clip->paramManager);
-		expect(differences(slow, fast) > 0).to_be_true();
+		expect(differences(slow, fast)).to_be_greater_than(0);
 
 		// Both moved the same single param, and the accelerated side moved it further.
 		int32_t moved = -1;
@@ -1432,11 +1471,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 				moved = static_cast<int32_t>(i);
 			}
 		}
-		expect(moved >= 0).to_be_true();
+		to_be_at_least(expect(moved), 0);
 		// Guarded rather than indexed straight: a failure above must report as a failure, not as a
 		// libstdc++ bounds assertion that takes the whole process (and every later example) down.
 		if (moved >= 0) {
-			expect(fast[static_cast<size_t>(moved)] > slow[static_cast<size_t>(moved)]).to_be_true();
+			expect(fast[static_cast<size_t>(moved)]).to_be_greater_than(slow[static_cast<size_t>(moved)]);
 		}
 	});
 
@@ -1456,8 +1495,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 1), c.ctx);
 		}
 		expect(rig.stack.depth()).to_equal(size_t(1));
-		expect(rig.stack.id_at(0).kind == overlay::kParamPopupSceneKind).to_be_true();
-		expect(overlay::param_popup_scene().remaining_ms() > 0).to_be_true();
+		expect(rig.stack.id_at(0).kind).to_equal(overlay::kParamPopupSceneKind);
+		expect(overlay::param_popup_scene().remaining_ms()).to_be_greater_than(0);
 	});
 
 	it("takes the notification slot when its popup shows, as legacy's knob popup replaces a notification", _ {
@@ -1506,7 +1545,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(rig.stack.push(SceneId{SceneKind::FirstApp, menu::node_id(mod_knobs_spec_nodes::res_page)}))
 		    .to_be_true();
 		expect(rig.stack.depth()).to_equal(size_t(1));
-		expect(menu_scene().focused_value() == &mod_knobs_spec_nodes::res_col).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&mod_knobs_spec_nodes::res_col);
 
 		for (uint32_t i = 0; i < 5; i++) {
 			DirectCtx c{2000 + i * 200};
@@ -1542,7 +1581,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// therefore an arbitration that cannot refuse the first commit. Without it the leftover
 		// `last_display_value_` can make the first turn take the same-param-refresh arm and this
 		// example asserts about the previous one's state.
-		expect(overlay::param_popup_scene().remaining_ms() > 0).to_be_true();
+		expect(overlay::param_popup_scene().remaining_ms()).to_be_greater_than(0);
 		overlay::param_popup_scene().tick(0); // the tick after a show takes nothing off its lifetime
 		overlay::param_popup_scene().tick(3000);
 		expect(overlay::param_popup_scene().remaining_ms()).to_equal(uint32_t{0});
@@ -1628,7 +1667,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(port_named).to_equal(legacy_named);
 		// Not vacuous: the context really is what selects this name. Without it the port falls back
 		// to the mode-agnostic one, which is exactly the arm the context-less call cannot leave.
-		expect(port_unnamed == port_named).to_be_false();
+		expect(port_unnamed).not_().to_equal(port_named);
 	});
 
 	it("moves View's own view of the focus when it writes the store they share", _ {
@@ -1639,8 +1678,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.set_song(f.song);
 		rig.knobs.use_focus(view.knobFocus(), [] { view.knobFocusChanged(); });
 		rig.set_target_with_timeline(f.clip, false);
-		expect(View::KnobStack{view}.owner() == static_cast<ModControllable*>(static_cast<SoundInstrument*>(f.instrument)))
-		    .to_be_true();
+		expect(View::KnobStack{view}.owner())
+		    .to_equal(static_cast<ModControllable*>(static_cast<SoundInstrument*>(f.instrument)));
 		expect(view.knobsOnClipContext()).to_be_true();
 		rig.knobs.set_mod_region(96, 48, 3);
 		expect(view.modNoteRowId()).to_equal(3);
@@ -1723,7 +1762,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		r.router.route(encoder_button_event(ButtonId::ModEnc0, true), r.ctx());
 		expect(r.scene.calls).to_equal(2);
 		expect(r.mod_knobs.calls).to_equal(0);
-		expect(r.scene.last.button == ButtonId::ModEnc0).to_be_true();
+		expect(r.scene.last.button).to_equal(ButtonId::ModEnc0);
 
 		r.router.route(button_event(ButtonId::Mod0, true), r.ctx());
 		expect(r.scene.calls).to_equal(3);
@@ -1739,12 +1778,12 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		r.router.route(button_event(ButtonId::Mod0, true), r.ctx());
 		expect(r.scene.calls).to_equal(5);
 		expect(r.mod_knobs.calls).to_equal(2);
-		expect(r.mod_knobs.last.button == ButtonId::Mod0).to_be_true();
+		expect(r.mod_knobs.last.button).to_equal(ButtonId::Mod0);
 
 		r.router.route(encoder_button_event(ButtonId::ModEnc1, true), r.ctx());
 		expect(r.scene.calls).to_equal(6);
 		expect(r.mod_knobs.calls).to_equal(3);
-		expect(r.mod_knobs.last.button == ButtonId::ModEnc1).to_be_true();
+		expect(r.mod_knobs.last.button).to_equal(ButtonId::ModEnc1);
 
 		// And the SELECT encoder's push is still not one of these: legacy's tail handles it itself
 		// and its hook has no `view` fallback, so it must reach the scene and then `global_controls`,
@@ -1786,7 +1825,10 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.knobs.mod_button_action(5, true);
 		rig.knobs.mod_button_action(5, false);
 		const deluge::project::DocOutput* record = f.song->project.output_structure.find(*f.instrument->id());
-		expect(record != nullptr && record->mod_knob_mode == 5).to_be_true();
+		expect(record).not_().to_be_null();
+		if (record != nullptr) {
+			expect(record->mod_knob_mode).to_equal(5);
+		}
 
 		rig.set_target_without_timeline(&f.song->live.global_effectable, &f.song->paramManager);
 		rig.knobs.mod_button_action(3, true);
@@ -1825,8 +1867,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 				lower_target = mapping.target;
 			}
 		}
-		expect(upper_target == std::optional{deluge::instrument::param::kHpfFrequency}).to_be_true();
-		expect(lower_target == std::optional{deluge::instrument::param::kHpfResonance}).to_be_true();
+		expect(upper_target).to_equal(std::optional{deluge::instrument::param::kHpfFrequency});
+		expect(lower_target).to_equal(std::optional{deluge::instrument::param::kHpfResonance});
 
 		rig.set_target_without_timeline(&f.song->live.global_effectable, &f.song->paramManager);
 		const uint8_t before = f.song->project.master_effects.filter_type;
@@ -1952,7 +1994,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			deluge::ui::LedFrame frame;
 			currentSong = pf.song;
 			rig.knobs.leds(frame);
-			expect(port_mod_led(frame, 0).value() == legacy_mod_led(0)).to_be_true();
+			expect(port_mod_led(frame, 0).value()).to_equal(legacy_mod_led(0));
 		}
 
 		// Second press: already selected, button 0, not a clip minder -> the meter turns on, and
@@ -1969,10 +2011,10 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			rig.knobs.leds(frame);
 			const LegacyLed port = port_mod_led(frame, 0).value();
 			expect(port.blinking).to_be_true();
-			expect(port == legacy_mod_led(0)).to_be_true();
+			expect(port).to_equal(legacy_mod_led(0));
 			// And every other mod LED is still plain off -- by identity, not "at least one on".
 			for (int32_t i = 1; i < 8; i++) {
-				expect(port_mod_led(frame, i).value() == LegacyLed{false, false}).to_be_true();
+				expect(port_mod_led(frame, i).value()).to_equal(LegacyLed{false, false});
 			}
 		}
 
@@ -2025,8 +2067,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		{
 			deluge::ui::LedFrame frame;
 			rig.knobs.leds(frame);
-			expect(port_mod_led(frame, 3).value() == LegacyLed{true, false}).to_be_true();
-			expect(frame.indicator_or_null(deluge::ui::IndicatorId::Lower) != nullptr).to_be_true();
+			expect(port_mod_led(frame, 3).value()).to_equal(LegacyLed{true, false});
+			expect(frame.indicator_or_null(deluge::ui::IndicatorId::Lower)).not_().to_be_null();
 		}
 
 		ModKnobs::ViewState state;
@@ -2036,12 +2078,12 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			deluge::ui::LedFrame frame;
 			rig.knobs.leds(frame);
 			for (int32_t i = 0; i < 8; i++) {
-				expect(port_mod_led(frame, i).value() == LegacyLed{false, false}).to_be_true();
+				expect(port_mod_led(frame, i).value()).to_equal(LegacyLed{false, false});
 			}
 			// `:1386-1387`'s early return: legacy leaves both columns exactly as they were, which here
 			// is "declares nothing".
-			expect(frame.indicator_or_null(deluge::ui::IndicatorId::Lower) == nullptr).to_be_true();
-			expect(frame.indicator_or_null(deluge::ui::IndicatorId::Upper) == nullptr).to_be_true();
+			expect(frame.indicator_or_null(deluge::ui::IndicatorId::Lower)).to_be_null();
+			expect(frame.indicator_or_null(deluge::ui::IndicatorId::Upper)).to_be_null();
 		}
 
 		// `:1501-1505` -- and the mod button itself is ignored, so the mode does not move.
@@ -2284,8 +2326,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		for (int32_t k = 0; k < 2; k++) {
 			const uint8_t* legacy = legacy_indicator(k);
 			const deluge::ui::KnobIndicator* port = frame.indicator_or_null(static_cast<deluge::ui::IndicatorId>(k));
-			expect(legacy != nullptr).to_be_true();
-			expect(port != nullptr).to_be_true();
+			expect(legacy).not_().to_be_null();
+			expect(port).not_().to_be_null();
 			for (int32_t seg = 0; seg < 4; seg++) {
 				expect(static_cast<int32_t>(port->levels[seg])).to_equal(static_cast<int32_t>(legacy[seg]));
 			}
@@ -2305,8 +2347,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 		deluge::ui::LedFrame frame;
 		rig.knobs.leds(frame);
-		expect(frame.indicator_or_null(deluge::ui::IndicatorId::Lower) == nullptr).to_be_true();
-		expect(frame.indicator_or_null(deluge::ui::IndicatorId::Upper) == nullptr).to_be_true();
+		expect(frame.indicator_or_null(deluge::ui::IndicatorId::Lower)).to_be_null();
+		expect(frame.indicator_or_null(deluge::ui::IndicatorId::Upper)).to_be_null();
 		expect(port_mod_led(frame, 0).has_value()).to_be_true();
 		currentSong = nullptr;
 	});
@@ -2350,7 +2392,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		const Result deleted = rig.knobs.handle(push, shifted.ctx);
 		expect(deleted.handled).to_be_true();
 		expect(deleted.actions.size()).to_equal(size_t(1));
-		expect(deleted.actions[0].kind == ShellAction::Kind::Popup).to_be_true();
+		expect(deleted.actions[0].kind).to_equal(ShellAction::Kind::Popup);
 		expect(deleted.actions[0].popup_string)
 		    .to_equal(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED));
 

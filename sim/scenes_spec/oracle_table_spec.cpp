@@ -19,11 +19,17 @@ describe oracle_table("scenes spec reference tables: the reader", $ {
 		expect(t.size()).to_equal(size_t{3});
 		expect(t.value("sound/2/0", "read")).to_equal(std::string{"40"});
 		const auto* options = t.find("sound/5/1", "options");
-		expect(options != nullptr && options->size() == 2 && (*options)[1] == "Low").to_be_true();
+		expect(options).not_().to_be_null();
+		if (options != nullptr) {
+			expect(options->size()).to_equal(2);
+			if (options->size() == 2) {
+				expect((*options)[1]).to_equal("Low");
+			}
+		}
 	});
 	it("holds a row with no value, and tells it from a missing row", _ {
 		spec::OracleTable t = spec::OracleTable::parse("cell/sounds/v3/0,0\tempty\n");
-		expect(t.find("cell/sounds/v3/0,0", "empty") != nullptr).to_be_true();
+		expect(t.find("cell/sounds/v3/0,0", "empty")).not_().to_be_null();
 		expect(t.value("cell/sounds/v3/0,0", "empty")).to_equal(std::string{"<no value>"});
 		expect(t.value("cell/sounds/v3/0,1", "empty")).to_equal(std::string{"<no row>"});
 	});
@@ -60,7 +66,7 @@ describe oracle_table("scenes spec reference tables: the reader", $ {
 	it("reports a table that is not there, and finds nothing in it", _ {
 		spec::OracleTable& t = spec::OracleTable::named("no_such_table");
 		expect(t.problems().size()).to_equal(size_t{1});
-		expect(t.find("sound", "kids") == nullptr).to_be_true();
+		expect(t.find("sound", "kids")).to_be_null();
 	});
 });
 // clang-format on

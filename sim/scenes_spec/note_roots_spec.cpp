@@ -67,8 +67,8 @@ void closeGuest() {
 describe note_roots_table("scenes::menu MenuContext::Root::NoteEditor / NoteRowEditor: the tables", $ {
 	it("MenuScene::roots() maps both roots to their nodes", _ {
 		const std::span<const menu::Node* const> r = menu::MenuScene::roots();
-		expect(r[static_cast<size_t>(MenuContext::Root::NoteEditor)] == &nodes::note_editor_root).to_be_true();
-		expect(r[static_cast<size_t>(MenuContext::Root::NoteRowEditor)] == &nodes::note_row_editor_root).to_be_true();
+		expect(r[static_cast<size_t>(MenuContext::Root::NoteEditor)]).to_equal(&nodes::note_editor_root);
+		expect(r[static_cast<size_t>(MenuContext::Root::NoteRowEditor)]).to_equal(&nodes::note_row_editor_root);
 	});
 
 	it("both roots' shortcut layers are empty in both shortcut versions, and light no pad even for "
@@ -153,7 +153,7 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 		const int32_t read = menu::bindings::read_sequence_direction(ctx, &from_note_row);
 		expect(read).to_equal(static_cast<int32_t>(SequenceDirection::PINGPONG));
 		expect(from_note_row).to_be_true();
-		expect(bridge.fake.row_sequence_direction_calls > 0).to_be_true();
+		expect(bridge.fake.row_sequence_direction_calls).to_be_greater_than(0);
 
 		menu::bindings::write_sequence_direction(ctx, static_cast<int32_t>(SequenceDirection::REVERSE));
 		expect(bridge.fake.set_row_sequence_direction_calls).to_equal(1);
@@ -174,7 +174,7 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 		const int32_t read = menu::bindings::read_sequence_direction(ctx, &from_note_row);
 		expect(read).to_equal(static_cast<int32_t>(SequenceDirection::REVERSE));
 		expect(from_note_row).to_be_false();
-		expect(bridge.fake.row_sequence_direction_calls > 0).to_be_true();
+		expect(bridge.fake.row_sequence_direction_calls).to_be_greater_than(0);
 
 		menu::bindings::write_sequence_direction(ctx, static_cast<int32_t>(SequenceDirection::PINGPONG));
 		expect(bridge.fake.set_row_sequence_direction_calls).to_equal(0);
@@ -194,7 +194,7 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 		ctx.root = MenuContext::Root::NoteRowEditor;
 
 		NoteRow* row = fx.clip->getNoteRowForDrum(drum);
-		expect(row != nullptr).to_be_true();
+		expect(row).not_().to_be_null();
 		if (row == nullptr) {
 			return; // a broken fixture must fail loudly, not skip silently
 		}
@@ -217,7 +217,7 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 	it("under any other root, is unchanged: the bridge is never consulted", _ {
 		spec::SongFixture fx = spec::make_synth_song();
 		MenuContext ctx = menu::context_for(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, false, false, false, false);
-		expect(ctx.root == MenuContext::Root::NoteRowEditor).to_be_false();
+		expect(ctx.root).not_().to_equal(MenuContext::Root::NoteRowEditor);
 		deluge::edits::clipSettingFor(*fx.clip, "sequenceDirection", deluge::serialization::Value::makeScalar(std::string{deluge::project::to_string(SequenceDirection::REVERSE)}));
 
 		spec::FakeNoteBridgeGuard bridge;
@@ -242,8 +242,8 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 		expect(entry::openShellMenu(fx.clip, 0, false, false, false, false, entry::ShellMenuNode::ContextRoot,
 		                            entry::NoteMode::NoteEditor))
 		    .to_be_true();
-		expect(deluge::scenes::menu_scene().focused() == &nodes::note_editor_root).to_be_true();
-		expect(deluge::scenes::menu_scene().menu_context().root == MenuContext::Root::NoteEditor).to_be_true();
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::note_editor_root);
+		expect(deluge::scenes::menu_scene().menu_context().root).to_equal(MenuContext::Root::NoteEditor);
 		closeGuest();
 	});
 
@@ -253,8 +253,8 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 		expect(entry::openShellMenu(fx.clip, 0, false, false, false, false, entry::ShellMenuNode::ContextRoot,
 		                            entry::NoteMode::NoteRowEditor))
 		    .to_be_true();
-		expect(deluge::scenes::menu_scene().focused() == &nodes::note_row_editor_root).to_be_true();
-		expect(deluge::scenes::menu_scene().menu_context().root == MenuContext::Root::NoteRowEditor).to_be_true();
+		expect(deluge::scenes::menu_scene().focused()).to_equal(&nodes::note_row_editor_root);
+		expect(deluge::scenes::menu_scene().menu_context().root).to_equal(MenuContext::Root::NoteRowEditor);
 		closeGuest();
 	});
 
@@ -281,7 +281,7 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 		    .to_be_true();
 		expect(fx.clip->affectEntire).to_be_false();
 		expect(deluge::scenes::menu_scene().menu_context().affect_entire).to_be_false();
-		expect(deluge::scenes::menu_scene().menu_context().root == MenuContext::Root::NoteEditor).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root).to_equal(MenuContext::Root::NoteEditor);
 		closeGuest();
 	});
 
@@ -296,7 +296,7 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 		    .to_be_true();
 		expect(fx.clip->affectEntire).to_be_false();
 		expect(deluge::scenes::menu_scene().menu_context().affect_entire).to_be_false();
-		expect(deluge::scenes::menu_scene().menu_context().root == MenuContext::Root::NoteRowEditor).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().root).to_equal(MenuContext::Root::NoteRowEditor);
 		closeGuest();
 	});
 
@@ -313,7 +313,7 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 		SoundDrum* drum = spec::add_drum<SoundDrum>(fx);
 		fx.clip->affectEntire = true;
 		NoteRow* row = fx.clip->getNoteRowForDrum(drum);
-		expect(row != nullptr).to_be_true();
+		expect(row).not_().to_be_null();
 		if (row == nullptr) {
 			closeGuest();
 			return;
@@ -353,14 +353,14 @@ describe note_roots_undo_log("openShellMenu's NoteMode must not wipe the undo lo
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		actionLogger.deleteAllLogs();
 		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
-		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 		closeGuest();
 
 		// The note editor, opened on a real clip: the log must survive.
 		expect(entry::openShellMenu(fx.clip, 0, false, false, false, false, entry::ShellMenuNode::ContextRoot,
 		                            entry::NoteMode::NoteEditor))
 		    .to_be_true();
-		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 		closeGuest();
 	});
 
@@ -370,13 +370,13 @@ describe note_roots_undo_log("openShellMenu's NoteMode must not wipe the undo lo
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		actionLogger.deleteAllLogs();
 		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
-		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 		closeGuest();
 
 		expect(entry::openShellMenu(fx.clip, 0, false, false, false, false, entry::ShellMenuNode::ContextRoot,
 		                            entry::NoteMode::NoteRowEditor))
 		    .to_be_true();
-		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 		closeGuest();
 	});
 
@@ -388,11 +388,11 @@ describe note_roots_undo_log("openShellMenu's NoteMode must not wipe the undo lo
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		actionLogger.deleteAllLogs();
 		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
-		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 		closeGuest();
 
 		expect(entry::openShellMenu(fx.clip, 0, false, false, false, false)).to_be_true();
-		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).to_be_null();
 		closeGuest();
 	});
 });

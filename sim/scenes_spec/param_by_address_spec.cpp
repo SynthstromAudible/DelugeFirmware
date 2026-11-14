@@ -209,7 +209,10 @@ describe param_by_address("a param set by its address", ${
 		f.clip->armedForRecording = armed;
 		expect(error).to_equal(Error::NONE);
 		const deluge::project::DocAutoParam* record = f.song->project.resolveParam(lpf);
-		expect(record != nullptr && !record->nodes.empty()).to_be_true();
+		expect(record).not_().to_be_null();
+		if (record != nullptr) {
+			expect(record->nodes.empty()).to_be_false();
+		}
 	});
 
 	it("clears a param's automation by its address", _ {
@@ -218,7 +221,10 @@ describe param_by_address("a param set by its address", ${
 		                                    params::LOCAL_LPF_FREQ, f.clip->id());
 		expect(set(*f.song, lpf, 0x18000000, 0, 48)).to_equal(Error::NONE); // a region: automation
 		const deluge::project::DocAutoParam* record = f.song->project.resolveParam(lpf);
-		expect(record != nullptr && !record->nodes.empty()).to_be_true();
+		expect(record).not_().to_be_null();
+		if (record != nullptr) {
+			expect(record->nodes.empty()).to_be_false();
+		}
 		deluge::edits::Context ctx{*f.song, f.song->project};
 		deluge::edits::DeleteParamAutomation clear{lpf};
 		expect(deluge::edits::apply(ctx, clear)).to_equal(Error::NONE);
@@ -232,7 +238,10 @@ describe param_by_address("a param set by its address", ${
 		ModelStackWithAutoParam* cable =
 		    legacy_cable(*synth.song, synth.clip, sound, &synth.clip->paramManager, 0, nullptr, PatchSource::LFO_GLOBAL_1,
 		                 params::LOCAL_PITCH_ADJUST, true, memory);
-		expect(cable != nullptr && cable->autoParam != nullptr).to_be_true();
+		expect(cable).not_().to_be_null();
+		if (cable != nullptr) {
+			expect(cable->autoParam).not_().to_be_null();
+		}
 		expect(finds_again(*synth.song, *cable)).to_be_true();
 
 		spec::SongFixture kit = spec::make_kit_song();
@@ -241,7 +250,10 @@ describe param_by_address("a param set by its address", ${
 		NoteRow* row = kit.clip->getNoteRowForDrum(drum, &row_index);
 		ModelStackWithAutoParam* drum_cable = legacy_cable(*kit.song, kit.clip, drum, &row->paramManager, row_index, row,
 		                                                   PatchSource::ENVELOPE_0, params::LOCAL_LPF_FREQ, true, memory);
-		expect(drum_cable != nullptr && drum_cable->autoParam != nullptr).to_be_true();
+		expect(drum_cable).not_().to_be_null();
+		if (drum_cable != nullptr) {
+			expect(drum_cable->autoParam).not_().to_be_null();
+		}
 		expect(finds_again(*kit.song, *drum_cable)).to_be_true();
 	});
 
@@ -253,7 +265,10 @@ describe param_by_address("a param set by its address", ${
 			ModelStackWithThreeMainThings* stack = setupModelStackWithThreeMainThingsIncludingNoteRow(
 			    memory, f.song, f.clip, 0, nullptr, midi, &f.clip->paramManager);
 			ModelStackWithAutoParam* lane = midi->getParamToControlFromInputMIDIChannel(cc, stack);
-			expect(lane != nullptr && lane->autoParam != nullptr).to_be_true();
+			expect(lane).not_().to_be_null();
+			if (lane != nullptr) {
+				expect(lane->autoParam).not_().to_be_null();
+			}
 			expect(finds_again(*f.song, *lane)).to_be_true();
 		}
 	});
@@ -265,7 +280,7 @@ describe param_by_address("a param set by its address", ${
 		const ParamAddress absent = cable_address(OwnerId::instrument(*f.instrument->id()), PatchSource::LFO_GLOBAL_2,
 		                                          params::LOCAL_OSC_A_VOLUME, f.clip->id());
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-		expect(deluge::bridge::paramStackAt(*f.song, absent, memory) == nullptr).to_be_true();
+		expect(deluge::bridge::paramStackAt(*f.song, absent, memory)).to_be_null();
 		expect(set->numPatchCables).to_equal(cables);
 	});
 
@@ -278,16 +293,22 @@ describe param_by_address("a param set by its address", ${
 		    cable_address(OwnerId::instrument(*f.instrument->id()), source, params::LOCAL_LPF_RESONANCE, f.clip->id());
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithAutoParam* made = deluge::bridge::cableStackAt(*f.song, address, asked, memory);
-		expect(made != nullptr && made->autoParam != nullptr).to_be_true();
+		expect(made).not_().to_be_null();
+		if (made != nullptr) {
+			expect(made->autoParam).not_().to_be_null();
+		}
 		PatchCableSet* set = f.clip->paramManager.getPatchCableSet();
 		deluge::synth::CableTarget descriptor = deluge::synth::CableTarget::param(params::LOCAL_LPF_RESONANCE);
 		const uint8_t index = set->getPatchCableIndex(source, descriptor);
-		expect(index != 255).to_be_true();
-		expect(set->patchCables[index].polarity == asked).to_be_true();
+		expect(index).not_().to_equal(255);
+		expect(set->patchCables[index].polarity).to_equal(asked);
 		AutoParam* first = made->autoParam;
 		alignas(ModelStackWithAutoParam) char again_memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithAutoParam* again = deluge::bridge::cableStackAt(*f.song, address, asked, again_memory);
-		expect(again != nullptr && again->autoParam == first).to_be_true();
+		expect(again).not_().to_be_null();
+		if (again != nullptr) {
+			expect(again->autoParam).to_equal(first);
+		}
 	});
 
 	it("refuses a cable on a full set", _ {
@@ -306,7 +327,7 @@ describe param_by_address("a param set by its address", ${
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		const ParamAddress one_more =
 		    cable_address(owner, PatchSource::AFTERTOUCH, params::LOCAL_LPF_FREQ, f.clip->id());
-		expect(deluge::bridge::cableStackAt(*f.song, one_more, Polarity::UNIPOLAR, memory) == nullptr).to_be_true();
+		expect(deluge::bridge::cableStackAt(*f.song, one_more, Polarity::UNIPOLAR, memory)).to_be_null();
 		expect(set->numPatchCables).to_equal(static_cast<uint8_t>(kMaxNumPatchCables));
 	});
 

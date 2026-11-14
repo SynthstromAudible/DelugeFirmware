@@ -113,22 +113,22 @@ describe performance_view_knobs("the performance view's FX columns, on the song"
 		char const* name = params::getParamDisplayName(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_STUTTER_RATE);
 		performanceView.renderFXDisplay(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_STUTTER_RATE, -50);
 		const std::vector<uint8_t> fourths = oled();
-		expect(fourths == column_display(name, "4ths")).to_be_true();
+		expect(fourths).to_equal(column_display(name, "4ths"));
 		performanceView.renderFXDisplay(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_STUTTER_RATE, 50);
 		const std::vector<uint8_t> sixty_fourths = oled();
-		expect(sixty_fourths == column_display(name, "64ths")).to_be_true();
+		expect(sixty_fourths).to_equal(column_display(name, "64ths"));
 
 		rig.f.song->live.global_effectable.setStutterQuantized(false);
 		performanceView.renderFXDisplay(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_STUTTER_RATE, 12);
 		const std::vector<uint8_t> numbered = oled();
-		expect(numbered == column_display(name, "12")).to_be_true();
+		expect(numbered).to_equal(column_display(name, "12"));
 	});
 
 	it("stutters while a stutter column is held and ends it on release", _ {
 		PerformanceRig rig;
-		expect(performanceView.padAction(kStutterColumn, 3, 127) == ActionResult::DEALT_WITH).to_be_true();
+		expect(performanceView.padAction(kStutterColumn, 3, 127)).to_equal(ActionResult::DEALT_WITH);
 		expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_true();
-		expect(performanceView.padAction(kStutterColumn, 3, 0) == ActionResult::DEALT_WITH).to_be_true();
+		expect(performanceView.padAction(kStutterColumn, 3, 0)).to_equal(ActionResult::DEALT_WITH);
 		expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_false();
 	});
 

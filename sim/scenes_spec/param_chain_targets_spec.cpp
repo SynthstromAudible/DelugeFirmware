@@ -84,7 +84,7 @@ describe param_chain_targets("a param node a sound and a host chain share", ${
 		const auto row_before = row_bass();
 		(void)turn(nodes::eq_bass, on_fx);
 		expect(row_bass()).to_equal(row_before);
-		expect(kit_bass() != fx_before).to_be_true();
+		expect(kit_bass()).not_().to_equal(fx_before);
 	});
 
 	it("edits an audio track's clip and the song's own", _ {
@@ -102,14 +102,14 @@ describe param_chain_targets("a param node a sound and a host chain share", ${
 		const auto song_before = song_bass();
 		const auto clip_before = clip_bass();
 		(void)turn(nodes::eq_bass, on_audio);
-		expect(clip_bass() != clip_before).to_be_true();
+		expect(clip_bass()).not_().to_equal(clip_before);
 		expect(song_bass()).to_equal(song_before);
 
 		audio.song->setCurrentClip(nullptr);
 		const MenuContext on_song = menu::context_for(*audio.song, deluge::gui::menuViewOf(nullptr), 0, false, true, false, false);
 		const auto clip_now = clip_bass();
 		(void)turn(nodes::eq_bass, on_song);
-		expect(song_bass() != song_before).to_be_true();
+		expect(song_bass()).not_().to_equal(song_before);
 		expect(clip_bass()).to_equal(clip_now);
 	});
 

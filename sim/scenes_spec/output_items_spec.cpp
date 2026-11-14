@@ -382,13 +382,13 @@ describe output_items_mapping("scenes::menu the two output items: the mapping", 
 		// still called that, carrying the output picker.
 		std::vector<Wiring> crossed = observed_wiring();
 		std::swap(crossed[0].kind, crossed[1].kind);
-		expect(format_wiring(crossed) == format_wiring(expected_wiring())).to_be_false();
+		expect(format_wiring(crossed)).not_().to_equal(format_wiring(expected_wiring()));
 
 		// And the browser id is a real discriminator, not a constant: pointing the link arm at the
 		// *sample* browser (`BrowserId::Sample` == 0) must fail the table too.
 		std::vector<Wiring> wrong_browser = observed_wiring();
 		wrong_browser[0].browser = 0;
-		expect(format_wiring(wrong_browser) == format_wiring(expected_wiring())).to_be_false();
+		expect(format_wiring(wrong_browser)).not_().to_equal(format_wiring(expected_wiring()));
 	});
 
 	it("puts these items on those two nodes and on nothing else in the tree", _ {
@@ -463,8 +463,10 @@ describe output_items_milestone("scenes::menu the tree has no placeholders left"
 				continue;
 			}
 			custom_nodes++;
-			expect(n->custom != nullptr).to_be_true();
-			expect(n->custom != nullptr && n->custom->is_placeholder()).to_be_false();
+			expect(n->custom).not_().to_be_null();
+			if (n->custom != nullptr) {
+				expect(n->custom->is_placeholder()).to_be_false();
+			}
 		}
 		expect(custom_nodes).to_equal(menu::kShippedCustomNodes);
 	});
@@ -512,19 +514,18 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		MidiRig rig;
 
 		rig.instrument()->deviceDefinitionFileName.clear();
-		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx()) == &deluge::gfx::oled::icons::uncheckedBox)
-		    .to_be_true();
+		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx())).to_equal(&deluge::gfx::oled::icons::uncheckedBox);
 
 		rig.instrument()->setDeviceDefinitionFileName("MIDI_DEVICES/DEFINITION/DEVICE1.XML");
-		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx()) == &deluge::gfx::oled::icons::checkedBox).to_be_true();
+		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx())).to_equal(&deluge::gfx::oled::icons::checkedBox);
 
-		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx()) == &deluge::gfx::oled::icons::submenuArrow).to_be_false();
+		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx())).not_().to_equal(&deluge::gfx::oled::icons::submenuArrow);
 	});
 
 	it("names its two states with the words a toggle's own page lists, its row being a checkbox", _ {
 		// The page draws no words (its row is a checkbox, `row_icon` above), so the menu dump and the website's
 		// reference spell it as every toggle: the table `MenuView::render_leaf_toggle` draws, Disabled then Enabled.
-		expect(nodes::midi_device_linked.bind.names.data() == nodes::kToggleWords).to_be_true();
+		expect(nodes::midi_device_linked.bind.names.data()).to_equal(std::data(nodes::kToggleWords));
 		expect(nodes::midi_device_linked.bind.names.size()).to_equal(std::size(nodes::kToggleWords));
 		expect(std::string{deluge::scenes::text_lookup(nodes::midi_device_linked.bind.names[0])})
 		    .to_equal(std::string{"Disabled"});
@@ -648,7 +649,7 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 
 		Rig r;
 		press_child(r, nodes::midi_device_definition, nodes::midi_device_linked, rig.ctx());
-		expect(menu_scene().focused() == &nodes::midi_device_linked).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::midi_device_linked);
 
 		// What `BrowserScene`'s own `accept` does when the user picks a file
 		// (`midi_device_accept`, `browser/browser_scene.cpp`).
@@ -660,7 +661,7 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		menu_scene().save_state(saved);
 		menu_scene().restore_state(saved);
 
-		expect(menu_scene().focused() == &nodes::midi_device_linked).to_be_true(); // it did land here
+		expect(menu_scene().focused()).to_equal(&nodes::midi_device_linked); // it did land here
 		expect(std::string{rig.instrument()->deviceDefinitionFileName}).to_equal(loaded);
 	});
 
@@ -711,7 +712,7 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		expect(r.on_stack(browser::kBrowserSceneKind)).to_be_false();
 		// `Toggle::selectButtonPress` returns `NO_NAVIGATION` (`toggle.h:42`) -- the user is left on
 		// the parent list, which the port reaches by descending for one render and ascending out.
-		expect(menu_scene().focused() == &nodes::midi_device_definition).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::midi_device_definition);
 		expect(static_cast<int>(menu_scene().state().depth)).to_equal(0);
 	});
 });
@@ -740,7 +741,7 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 			       && w.target.path == "outputRecordingFrom"
 			       && w.menu_value == static_cast<int32_t>(*rig.synth_b->id());
 		});
-		expect(wrote != recording.requests.end()).to_be_true();
+		expect(std::distance(recording.requests.begin(), wrote)).to_be_less_than(std::ssize(recording.requests));
 	});
 
 	it("lands where SpecificSourceOutputSelector::beginSession lands, from an invalid stored source", _ {
@@ -772,7 +773,7 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 		const Walk& walk = walk_named("skip");
 		expect(port_walk(r, rig, walk)).to_equal(frozen_walk(walk));
 		expect(frozen_index("selector/skip/1", "at")).to_equal(rig.index_of(rig.synth_b));
-		expect(frozen_index("selector/skip/1", "at") != rig.index_of(rig.midi)).to_be_true();
+		expect(frozen_index("selector/skip/1", "at")).not_().to_equal(rig.index_of(rig.midi));
 	});
 
 	it("steps five outputs a click while shift is held, skipping those it cannot record from", _ {
@@ -822,7 +823,7 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 		const Walk& walk = walk_named("bottom");
 		expect(port_walk(r, rig, walk)).to_equal(frozen_walk(walk));
 		expect(rig.recording_from_index()).to_equal(rig.index_of(rig.synth_a)); // the first recordable one, not index 0
-		expect(rig.song.output->getOutputRecordingFrom() != nullptr).to_be_true();
+		expect(rig.song.output->getOutputRecordingFrom()).not_().to_be_null();
 	});
 
 	it("walks back down again, skipping the same output on the way", _ {
@@ -937,7 +938,7 @@ describe output_items_reference_rows("scenes::menu the two output items: the ref
 	it("parses output_items.tsv clean and asks every row of it", _ {
 		spec::OracleTable& t = table();
 		expect(t.problems().size()).to_equal(size_t{0});
-		expect(t.size() > size_t{20}).to_be_true();
+		expect(t.size()).to_be_greater_than(size_t{20});
 		expect(t.unasked()).to_equal(std::string{});
 	});
 });
