@@ -46,8 +46,8 @@ struct IndexedEntry {
 	/// The cable the binding listens to when inputs are told apart by device: nullptr for any device, and
 	/// MappingIndex::absentDevice() for a device the Deluge has no cable for, which no message arrives on.
 	MIDICable* cable{};
-	/// Its place: a section's number, a clip's index in the session, a knob's place in its owner's list of learned
-	/// knobs (table order, as the owner's knob list holds them), a row's place in its kit.
+	/// Its place: a section's number, a clip's index in the session, a knob's place among its owner's table entries
+	/// (table order, the order its hits are offered in), a row's place in its kit.
 	uint32_t ordinal{0};
 };
 

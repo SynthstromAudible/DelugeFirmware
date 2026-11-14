@@ -20,6 +20,8 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "instruments/deluge/params.h"
+#include "io/midi/learned_dispatch.h"
+#include "io/midi/mapping_index.h"
 #include "io/midi/midi_device_manager.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -96,17 +98,24 @@ spec::SongFixture add_synth_clip(const spec::SongFixture& f) {
 	return other;
 }
 
-/// @brief Learn CC 74 on channel 1 of DIN to @p f's synth's volume, and send it @p value on @p f's clip.
+/// @brief Make @p f's clip its instrument's active clip, as a song's own load does: the learned dispatch offers a CC to
+///        the outputs that have one.
+void activate(const spec::SongFixture& f) {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	(void)f.instrument->setActiveClip(setupModelStackWithTimelineCounter(memory, f.song, f.clip), PgmChangeSend::NEVER);
+}
+
+/// @brief Learn CC 74 on channel 1 of DIN to @p f's synth's volume, and send it @p value through the learned dispatch,
+///        @p f's clip active.
 void learnAndSendVolume(const spec::SongFixture& f, uint8_t value) {
 	auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 	const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
-	if (sound.midi_knobs.empty()) {
+	if (f.song->project.mappings.params_of({project::ControlsAddress::Kind::OUTPUT, *f.instrument->id()}).empty()) {
 		(void)deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1);
 	}
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	sound.offerReceivedCCToLearnedParamsForClip({project::ControlsAddress::Kind::OUTPUT, *f.instrument->id()},
-	                                            MIDIDeviceManager::dinMIDIPorts, 1, 74, value,
-	                                            setupModelStackWithTimelineCounter(memory, f.song, f.clip), -1);
+	activate(f);
+	deluge::midi::refreshMappingIndex();
+	deluge::midi::learnedCcToOutput(*f.instrument, MIDIDeviceManager::dinMIDIPorts, 1, 74, value);
 }
 
 /// @brief Is @p f's clip's synth volume automated?
@@ -818,12 +827,9 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		(void)deluge::edits::learnKnobFor(*drum, volume, &MIDIDeviceManager::dinMIDIPorts, 75, 1);
 		view.setActiveModControllableTimelineCounter(f.clip, false);
 		view.setModRegion(96, 48, static_cast<int32_t>(*drum->id()));
-		int32_t row_index = 0;
-		(void)f.clip->getNoteRowForDrum(drum, &row_index);
-		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-		drum->offerReceivedCCToLearnedParamsForClip({project::ControlsAddress::Kind::DRUM, *drum->id()},
-		                                            MIDIDeviceManager::dinMIDIPorts, 1, 75, 100,
-		                                            setupModelStackWithTimelineCounter(memory, f.song, f.clip), row_index);
+		activate(f);
+		deluge::midi::refreshMappingIndex();
+		deluge::midi::learnedCcToOutput(*f.instrument, MIDIDeviceManager::dinMIDIPorts, 1, 75, 100);
 		const deluge::project::DocAutoParam* param = f.song->project.resolveParam(
 		    {.owner = project::OwnerId::drum(*drum->id()), .space = project::ParamSpace::ENGINE,
 		     .id = deluge::instrument::param::kVolume, .clip_id = f.clip->id()});

@@ -16,6 +16,7 @@
 #include "modulation/params/param_manager.h"
 
 #include <array>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -234,52 +235,33 @@ std::string describe(const deluge::project::MidiCommand& source) {
 	return describe(learned);
 }
 
-/// One knob as a report shows it.
-std::string describe(deluge::plugin::ParamId param, const ::LearnedMIDI& learned, bool relative) {
-	return std::to_string(param.value) + "=" + describe(learned) + (relative ? "~" : "");
-}
-
 /// One table knob as a report shows it.
 std::string describe(deluge::plugin::ParamId param, const deluge::project::MidiCommand& source, bool relative) {
 	return std::to_string(param.value) + "=" + describe(source) + (relative ? "~" : "");
 }
 
-/// The first break between @p address's table knobs and its runtime owner's learned knob list, in order.
+/// The first break of @p address's learned knobs: its runtime owner holds none outside the song's table, whose entries
+/// are its knobs alone.
 std::string knobsIncoherence(::Song& song, ControlsAddress address) {
 	bool isSound = false;
 	::ModControllableAudio* owner = deluge::bridge::controlsOwnerAt(song, address, &isSound);
-	if (owner == nullptr) {
+	if (owner == nullptr || owner->loaded_knobs.empty()) {
 		return {};
 	}
-	namespace params = deluge::modulation::params;
-	const params::Kind unpatchedKind = isSound ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL;
-	const std::vector<Mapping> table = song.project.mappings.params_of(address);
-	bool same = table.size() == owner->midi_knobs.size();
-	for (size_t i = 0; same && i < table.size(); i++) {
-		const MIDIKnob& knob = owner->midi_knobs[i];
-		same = std::get<deluge::project::OwnerParamTarget>(table[i].target).param.id
-		           == deluge::bridge::controlTargetOf(knob.target, unpatchedKind)
-		       && table[i].relative == knob.relative && playsTheSame(table[i].source, knob.midiInput);
-	}
-	if (same) {
-		return {};
-	}
-	std::string a;
-	for (const Mapping& entry : table) {
-		a += (a.empty() ? "" : " ")
-		     + describe(std::get<deluge::project::OwnerParamTarget>(entry.target).param.id, entry.source,
-		                entry.relative);
-	}
-	std::string b;
-	for (const MIDIKnob& knob : owner->midi_knobs) {
-		b += (b.empty() ? "" : " ")
-		     + describe(deluge::bridge::controlTargetOf(knob.target, unpatchedKind), knob.midiInput, knob.relative);
-	}
+	const auto knobs = [](std::span<const Mapping> entries) {
+		std::string listed;
+		for (const Mapping& entry : entries) {
+			listed += (listed.empty() ? "" : " ")
+			          + describe(std::get<deluge::project::OwnerParamTarget>(entry.target).param.id, entry.source,
+			                     entry.relative);
+		}
+		return listed;
+	};
 	const char* kind = address.kind == ControlsAddress::Kind::SONG   ? "SONG_KNOBS"
 	                   : address.kind == ControlsAddress::Kind::DRUM ? "DRUM_KNOBS"
 	                                                                 : "OUTPUT_KNOBS";
-	return std::string{"MAPPINGS "} + kind + " " + std::to_string(address.id) + ": table=[" + a + "] engine=[" + b
-	       + "]";
+	return std::string{"MAPPINGS "} + kind + " " + std::to_string(address.id) + ": table=["
+	       + knobs(song.project.mappings.params_of(address)) + "] outside=[" + knobs(owner->loaded_knobs) + "]";
 }
 
 /// The first break between @p target's table entry and @p field, the engine field that plays it.

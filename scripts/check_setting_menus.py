@@ -29,7 +29,7 @@ Nor may a file under src/scenes write a param on its AutoParam: a param menu wri
 its automation through DeleteParamAutomation, nor set a cable's polarity on its set (SetCablePolarity) (model/edits/).
 
 Two gestures write the runtime themselves and record what they wrote, checked file by file: a file that writes a mod
-knob (a `modKnobs[...]` descriptor, or learnKnob()/unlearnKnobs() on what is not a menu item) also calls
+knob (a `modKnobs[...]` descriptor, or learnKnob()/learnModKnob()/unlearnKnobs() on what is not a menu item) also calls
 recordControlsOf(), and a file that writes a sample holder's file or zone also calls recordRanges() or rangesFor().
 
 Usage:
@@ -126,7 +126,7 @@ LAST_NAME = re.compile(r"([A-Za-z_]\w*)[\s()\[\]*\w]*$")
 KNOB_WRITE = re.compile(
     r"modKnobs\s*\[[^\]]*\]\s*\[[^\]]*\]\s*\.\s*paramDescriptor\s*\.\s*set\w*\s*\("
 )
-KNOB_LEARN = re.compile(r"(?:->|\.)\s*(learnKnob|unlearnKnobs)\s*\(")
+KNOB_LEARN = re.compile(r"(?:->|\.)\s*(learnKnob|learnModKnob|unlearnKnobs)\s*\(")
 #: Receivers of learnKnob() that are menu items, which hand the knob to the sound and record it themselves.
 MENU_ITEM_RECEIVERS = {"current_item_", "getCurrentMenuItem"}
 #: A sample holder's file or zone written; the holder is a receiver whose name ends in "holder", any case.
@@ -199,7 +199,7 @@ SONG_STATE_WRITES = (
         r"(?:->|\.)\s*(?:muteMIDICommand|midiInput)\s*(?:=(?!=)|\.\s*(?:\w+\s*=(?!=)|clear\s*\())"
     ),
     re.compile(
-        r"(?<!current_item_\))(?<!getCurrentMenuItem\(\))(?:->|\.)\s*(?:learnKnob|unlearnKnobs)\s*\("
+        r"(?<!current_item_\))(?<!getCurrentMenuItem\(\))(?:->|\.)\s*(?:learnKnob|learnModKnob|unlearnKnobs)\s*\("
     ),
     re.compile(
         r"(?<!\w)midi_knobs\s*(?:=(?!=)|\.\s*(?:push_back|emplace_back|insert|erase|clear|resize|pop_back|assign|swap)\s*\(|\[[^\]]*\]\s*(?:\.\s*\w+\s*)?=(?!=))"

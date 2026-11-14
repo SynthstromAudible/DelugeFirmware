@@ -21,6 +21,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
 #include "hid/button.h"
+#include "io/midi/learned_midi.h"
 #include "model/model_stack.h"
 #include "modulation/params/param.h"
 #include "processing/audio_output.h"

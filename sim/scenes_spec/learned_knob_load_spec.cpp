@@ -192,7 +192,6 @@ describe learned_knob_load("a sound's learned knobs as a load reads them", ${
 		expect(paramOf(knobs[2]) == patched(params::LOCAL_PITCH_ADJUST)).to_be_true();
 		expect(knobs[2].relative).to_be_true();
 		expect(synth->loaded_knobs.empty()).to_be_true(); // the table holds them now
-		expect(static_cast<int>(synth->midi_knobs.size())).to_equal(3); // and the engine's list plays them
 		const std::string text = saved(*song); // a song saves as JSON
 		expect(text.find(R"("controlsParam": "volumePostFX")") != std::string::npos).to_be_true();
 		expect(text.find(R"("controlsParam": "volume")") == std::string::npos).to_be_true();

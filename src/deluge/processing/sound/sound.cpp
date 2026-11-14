@@ -614,7 +614,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 }
 
 // Exists for the purpose of potentially correcting an incorrect file as it's loaded
-void Sound::ensureKnobReferencesCorrectVolume(Knob& knob) {
+void Sound::ensureKnobReferencesCorrectVolume(ModKnob& knob) {
 	int32_t p = deluge::modulation::knobWord(knob.target).param_index();
 
 	if (p == params::GLOBAL_VOLUME_POST_REVERB_SEND || p == params::GLOBAL_VOLUME_POST_FX
@@ -2327,31 +2327,17 @@ void Sound::resyncGlobalLFOs(bool reset_state) {
 // ModControllable implementation
 // ------------------------------------
 
-// whichKnob is either which physical mod knob, or which MIDI CC code.
-// For mod knobs, supply midiChannel as 255
-// Returns false if fail due to insufficient RAM.
-bool Sound::learnKnob(MIDICable* cable, deluge::modulation::KnobTarget target, uint8_t whichKnob, uint8_t modKnobMode,
-                      uint8_t midiChannel, Song* song) {
+bool Sound::learnModKnob(deluge::modulation::KnobTarget target, uint8_t whichKnob, uint8_t modKnobMode, Song* song) {
+	// If that knob was patched to something else...
+	bool overwroteExistingKnob = (modKnobs[modKnobMode][whichKnob].target != target);
 
-	// If a mod knob
-	if (midiChannel >= 16) {
+	modKnobs[modKnobMode][whichKnob].target = target;
 
-		// If that knob was patched to something else...
-		bool overwroteExistingKnob = (modKnobs[modKnobMode][whichKnob].target != target);
-
-		modKnobs[modKnobMode][whichKnob].target = target;
-
-		if (overwroteExistingKnob) {
-			ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(song);
-		}
-
-		return true;
+	if (overwroteExistingKnob) {
+		ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(song);
 	}
 
-	// If a MIDI knob
-	else {
-		return ModControllableAudio::learnKnob(cable, target, whichKnob, modKnobMode, midiChannel, song);
-	}
+	return true;
 }
 
 // Song may be NULL
@@ -3530,42 +3516,6 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 
 	// No stereo stuff found - we're rendering in mono.
 	return false;
-}
-
-ModelStackWithAutoParam* Sound::getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) {
-
-	ParamCollectionSummary* summary;
-	int32_t paramId;
-
-	if (deluge::modulation::knobWord(knob.target).is_param()) {
-
-		int32_t p = deluge::modulation::knobWord(knob.target).param_index();
-
-		// Unpatched parameter
-		if (p >= params::UNPATCHED_START) {
-			return ModControllableAudio::getParamFromMIDIKnob(knob, modelStack);
-		}
-
-		// Actual (patched) parameter
-		else {
-			summary = modelStack->paramManager->getPatchedParamSetSummary();
-			paramId = p;
-		}
-	}
-
-	// Patch cable strength
-	else {
-		summary = modelStack->paramManager->getPatchCableSetSummary();
-		paramId = deluge::modulation::knobWord(knob.target).word;
-	}
-
-	ModelStackWithParamId* modelStackWithParamId =
-	    modelStack->addParamCollectionAndId(summary->paramCollection, summary, paramId);
-
-	ModelStackWithAutoParam* modelStackWithAutoParam = summary->paramCollection->getAutoParamFromId(
-	    modelStackWithParamId, true); // Allow patch cable creation. TODO: think this through better...
-
-	return modelStackWithAutoParam;
 }
 
 // **** This is the main function that enacts the unassigning of the Voice

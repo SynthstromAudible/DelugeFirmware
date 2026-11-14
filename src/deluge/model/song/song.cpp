@@ -3637,7 +3637,6 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 			// Knobs the table does not hold yet (this song's own read) move here; the table's move below.
 			new_mca.loaded_knobs = std::move(old_mca->loaded_knobs);
 			old_mca->loaded_knobs.clear();
-			old_mca->midi_knobs.clear(); // its knob list plays what the table holds for it: nothing, once they move
 			handedOverFrom = old_mca;
 		}
 	}

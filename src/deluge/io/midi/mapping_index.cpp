@@ -146,7 +146,7 @@ void MappingIndex::clear() {
 void MappingIndex::rebuild(MappingSnapshot snapshot) {
 	clear();
 	const Awake awake{snapshot};
-	// Each owner's knobs in table order: the place of each in its owner's knob list. Sorted by owner.
+	// Each owner's knobs in table order: the place of each among its owner's entries. Sorted by owner.
 	std::vector<std::pair<ControlsAddress, uint32_t>> knobCounts;
 	const auto nextOrdinal = [&](ControlsAddress owner) {
 		const auto key = [](const std::pair<ControlsAddress, uint32_t>& count) {

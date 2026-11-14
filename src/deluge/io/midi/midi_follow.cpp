@@ -36,7 +36,6 @@
 #include "io/midi/follow_host.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
-#include "io/midi/midi_takeover.h"
 #include "model/clip/clip_array.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"

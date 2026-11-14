@@ -118,9 +118,9 @@ void encode_note(const MappingTable& table, const MappingTarget& target, std::st
 
 void decode_owner_knobs(const Value& element, ControlsAddress owner, MappingTable& table,
                         const deluge::plugin::ParamNaming* naming) {
-	const Value* midi_knobs = element.find("midiKnobs");
-	table.set_params(owner, midi_knobs != nullptr && naming != nullptr ? decode_knobs(*midi_knobs, owner, *naming)
-	                                                                   : std::vector<Mapping>{});
+	const Value* knobs = element.find("midiKnobs");
+	table.set_params(owner, knobs != nullptr && naming != nullptr ? decode_knobs(*knobs, owner, *naming)
+	                                                              : std::vector<Mapping>{});
 }
 
 void encode_knobs(const MappingTable& table, ControlsAddress owner, Value& element,
@@ -190,10 +190,10 @@ void encode_track_input(const MappingTable& table, uint32_t output_id, Value& el
 
 } // namespace
 
-std::vector<Mapping> decode_knobs(const Value& midi_knobs, ControlsAddress owner,
+std::vector<Mapping> decode_knobs(const Value& element, ControlsAddress owner,
                                   const deluge::plugin::ParamNaming& naming) {
 	std::vector<Mapping> knobs;
-	for (const Value* knob : serialization::elements_named(midi_knobs, "midiKnob")) {
+	for (const Value* knob : serialization::elements_named(element, "midiKnob")) {
 		if (!knob->isMap()) {
 			continue;
 		}

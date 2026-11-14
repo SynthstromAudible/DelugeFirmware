@@ -68,11 +68,11 @@ void decode_mappings(const serialization::Value& element, MappingOwner owner, Ma
 /// `channel` or `mpeZone`, `ccNumber`, `relative`, `device`, and the param @p naming gives its `controlsParam` and
 /// patch sources, moved by @p naming's mod-knob rule when it has one (a sound's knob on a volume turns the one the
 /// runtime uses). A knob @p naming names no param for is left out.
-/// @param midi_knobs The owner's `midiKnobs` element.
-/// @param owner      Whose knobs these are.
-/// @param naming     How the owner's engine names its params.
+/// @param element The owner's `midiKnobs` element.
+/// @param owner   Whose knobs these are.
+/// @param naming  How the owner's engine names its params.
 /// @return The knobs.
-[[nodiscard]] std::vector<Mapping> decode_knobs(const serialization::Value& midi_knobs, ControlsAddress owner,
+[[nodiscard]] std::vector<Mapping> decode_knobs(const serialization::Value& element, ControlsAddress owner,
                                                 const deluge::plugin::ParamNaming& naming);
 
 /// @brief Write @p owner's bindings in @p table into @p element as decode_mappings reads them.

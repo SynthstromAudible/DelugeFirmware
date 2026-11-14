@@ -288,7 +288,7 @@ context("resolve_learned", _{
 	});
 });
 
-context("dispatch_cc", _{
+context("dispatch_song_cc and dispatch_output_cc", _{
 	it("moves the song, then each playing output in play order, a kit's own knob before its rows in note-row order", _{
 		Rig rig;
 		for (const ControlsAddress owner : {kAudio, kRow6, kRow5, kKit, kSynth, kSong, kMidi}) {
@@ -482,7 +482,7 @@ context("dispatch_cc", _{
 	});
 });
 
-context("dispatch_pitch_bend", _{
+context("dispatch_output_bend", _{
 	it("writes (v << 18) - 2^31, with no takeover, no relative flag and no UI follow", _{
 		Rig rig;
 		rig.world.inputs.mode = TakeoverMode::PICKUP;

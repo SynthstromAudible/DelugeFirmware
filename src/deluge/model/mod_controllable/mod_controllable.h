@@ -31,7 +31,6 @@ class Sound;
 class TimelineCounter;
 class ModelStackWithAutoParam;
 class ModelStackWithThreeMainThings;
-class MIDIKnob;
 class ModelStackWithSoundFlags;
 
 /// Base class for things that the internal modulation engine knows how to control.
@@ -42,9 +41,6 @@ class ModControllable {
 public:
 	ModControllable() = default;
 	virtual ~ModControllable() = default;
-	/// Check that autoParam isn't NULL, after calling this
-	virtual ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack);
-
 	virtual bool isSong() { return false; }
 	virtual bool valueChangedEnoughToMatter(int32_t old_value, int32_t new_value, deluge::modulation::params::Kind kind,
 	                                        uint32_t paramID) {

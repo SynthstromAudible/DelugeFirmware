@@ -69,10 +69,6 @@ public:
 	void receivedCCForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                      MIDIMatchType match, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru,
 	                      Clip* clip);
-	void offerReceivedCCToModControllable(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
-	                                      ModelStackWithTimelineCounter* modelStack);
-	void offerReceivedCCToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
-	                                    ModelStackWithTimelineCounter* modelStack) override;
 
 	void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                            uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru) override;
@@ -82,8 +78,6 @@ public:
 	void receivedPitchBendForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                             MIDIMatchType match, uint8_t channel, uint8_t data1, uint8_t data2,
 	                             bool* doingMidiThru);
-	bool offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
-	                                           ModelStackWithTimelineCounter* modelStack) override;
 
 	// drums don't receive other CCs
 	void receivedMPEYForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,

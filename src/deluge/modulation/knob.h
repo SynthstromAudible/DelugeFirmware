@@ -17,35 +17,9 @@
 
 #pragma once
 
-#include "io/midi/learned_midi.h"
 #include "modulation/knob_target.h"
-#include <cstdint>
 
-class Knob {
-public:
-	Knob() = default;
-
-	virtual bool isRelative() = 0;
-	virtual bool is14Bit() = 0;
-	virtual bool topValueIs127() = 0;
+/// @brief One of a sound's mod (gold) knobs: the param it turns.
+struct ModKnob {
 	deluge::modulation::KnobTarget target;
-};
-
-class MIDIKnob : public Knob {
-public:
-	MIDIKnob() = default;
-	bool isRelative() override { return relative; }
-	bool is14Bit() override { return (midiInput.noteOrCC == 128); }
-	bool topValueIs127() override { return (midiInput.noteOrCC < 128 && !relative); }
-	LearnedMIDI midiInput;
-	bool relative{};
-	bool previousPositionSaved{};
-	int32_t previousPosition{};
-};
-
-class ModKnob : public Knob {
-public:
-	bool isRelative() override { return true; }
-	bool is14Bit() override { return false; }
-	bool topValueIs127() override { return false; }
 };
