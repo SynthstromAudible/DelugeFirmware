@@ -67,8 +67,8 @@ bool knobsCoherent(const ::ModControllableAudio& owner) {
 	return owner.loaded_knobs.empty();
 }
 
-/// The kits', audio tracks' and the song's own learned knobs checked to be the song's table's alone; each break
-/// printed. How many broke.
+/// The kits', audio tracks' and the song's own learned knobs checked to be the song's table's alone, and the index to
+/// play the table's knobs; each break printed. How many broke.
 int32_t ownControlsIncoherent(::Song& song, const char* leg, const char* label) {
 	int32_t failures = 0;
 	auto check = [&](::ModControllableAudio& owner, const std::string& name) {
@@ -93,6 +93,10 @@ int32_t ownControlsIncoherent(::Song& song, const char* leg, const char* label) 
 		visit(*sleeping);
 	}
 	check(song.live.global_effectable, "song");
+	if (const std::string what = knobIndexIncoherence(song); !what.empty()) {
+		std::printf("SLOT-COHERENT %s leg=%s %s\n", label, leg, what.c_str());
+		failures++;
+	}
 	return failures;
 }
 

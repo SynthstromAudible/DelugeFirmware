@@ -1,6 +1,9 @@
 #include "scenarios/slot_coherence.h"
 
+#include "io/midi/mapping_index.h"
+#include "io/midi/mapping_index_stale.h"
 #include "io/midi/midi_device.h"
+#include "io/midi/midi_device_manager.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
@@ -15,9 +18,11 @@
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 
+#include <algorithm>
 #include <array>
 #include <span>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace deluge::harness {
@@ -369,7 +374,91 @@ std::string mappingIncoherence(::Song& song) {
 			return what;
 		}
 	}
-	return {};
+	return knobIndexIncoherence(song);
+}
+
+std::string knobIndexIncoherence(::Song& song) {
+	if (&song != currentSong) {
+		return {};
+	}
+	// The owners whose knobs the index plays: the song, each output in the main list and those kits' rows.
+	std::vector<ControlsAddress> awake{{ControlsAddress::Kind::SONG, 0}};
+	for (::Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
+		if (!output->id()) {
+			continue;
+		}
+		awake.push_back({ControlsAddress::Kind::OUTPUT, *output->id()});
+		if (output->type == OutputType::KIT) {
+			for (::Drum* drum = static_cast<::Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next) {
+				if (drum->id()) {
+					awake.push_back({ControlsAddress::Kind::DRUM, *drum->id()});
+				}
+			}
+		}
+	}
+	// What the index plays for each table knob's owner and source, from any device, as text; and whether that holds
+	// the knob itself.
+	const auto played = [&](const Mapping& entry, bool* holdsIt) {
+		const auto& knob = std::get<deluge::project::OwnerParamTarget>(entry.target);
+		std::string hits;
+		deluge::midi::mappingIndex().forEachKnob(
+		    knob.owner, MIDIDeviceManager::dinMIDIPorts, entry.source.channel_or_zone, entry.source.note_or_cc,
+		    [&](const deluge::midi::IndexedEntry& hit) {
+			    const auto* target = std::get_if<deluge::project::OwnerParamTarget>(&hit.target);
+			    hits += " " + (target != nullptr ? std::to_string(target->param.id.value) : std::string{"?"})
+			            + (hit.relative ? "~" : "");
+			    if (holdsIt != nullptr && hit.target == entry.target && hit.relative == entry.relative) {
+				    *holdsIt = true;
+			    }
+		    });
+		return hits;
+	};
+	const auto isKnob = [](const Mapping& entry) {
+		return std::holds_alternative<deluge::project::OwnerParamTarget>(entry.target)
+		       && entry.source.contains_something();
+	};
+	const auto where = [](const Mapping& entry) {
+		const auto& knob = std::get<deluge::project::OwnerParamTarget>(entry.target);
+		const char* kind = knob.owner.kind == ControlsAddress::Kind::SONG   ? "SONG"
+		                   : knob.owner.kind == ControlsAddress::Kind::DRUM ? "DRUM"
+		                                                                    : "OUTPUT";
+		return std::string{kind} + " " + std::to_string(knob.owner.id) + " knob "
+		       + describe(knob.param.id, entry.source, entry.relative);
+	};
+	const bool differentiating = MIDIDeviceManager::differentiatingInputsByDevice;
+	MIDIDeviceManager::differentiatingInputsByDevice = false; // a knob from any device is heard
+	// An index not marked stale is the one the next message matches: it must play what a rebuild does.
+	std::vector<std::string> before;
+	const bool stale = deluge::mappingIndexStale();
+	if (!stale) {
+		for (const Mapping& entry : song.project.mappings.entries()) {
+			if (isKnob(entry)) {
+				before.push_back(played(entry, nullptr));
+			}
+		}
+	}
+	// A rebuild lands the table writes the render held, so the table is read again after it.
+	deluge::midi::rebuildMappingIndex(song);
+	std::string found;
+	size_t i = 0;
+	for (const Mapping& entry : song.project.mappings.entries()) {
+		if (!found.empty() || !isKnob(entry)) {
+			continue;
+		}
+		bool holdsIt = false;
+		const std::string after = played(entry, &holdsIt);
+		const auto& owner = std::get<deluge::project::OwnerParamTarget>(entry.target).owner;
+		if (!holdsIt && std::ranges::find(awake, owner) != awake.end()) {
+			found = "MAPPINGS KNOB_INDEX " + where(entry) + ": the rebuilt index plays [" + after + " ]";
+		}
+		else if (i < before.size() && before[i] != after) {
+			found = "MAPPINGS KNOB_INDEX " + where(entry) + ": stale, unmarked: index=[" + before[i] + " ] rebuilt=["
+			        + after + " ]";
+		}
+		i++;
+	}
+	MIDIDeviceManager::differentiatingInputsByDevice = differentiating;
+	return found;
 }
 
 std::string songSettingsIncoherence(::Song& song) {
