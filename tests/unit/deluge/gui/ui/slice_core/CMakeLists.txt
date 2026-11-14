@@ -1,7 +1,10 @@
 # Specs for src/deluge/gui/ui/slice_core.cpp: the slicer's audition through the real SliceCore, in the world
 # mock_slicer_env.cpp builds for it, so no other spec shares this binary. DEFINITIONS: libstdc++'s parallel backend
 # (oneTBB) pulls in <immintrin.h>, which collides with SIMDe's NEON names; the firmware has no TBB, so the serial
-# backend.
+# backend. mock_storage.cpp supplies the freezeWithError (it aborts, so a freeze fails the spec) and
+# deluge::memory::dealloc that slice_core.cpp reaches; it constructs the global XML/JSON deserializers, hence
+# file_reader, the deserializers, io/file, their channel, file-io and firmware-version stand-ins, and
+# deluge_serialization.
 deluge_specs_driver(deluge_gui_ui_slice_core_specs TREES host NEON
   SOURCES
     ${DELUGE_REPO_ROOT}/src/deluge/gui/ui/slice_core.cpp
@@ -9,9 +12,7 @@ deluge_specs_driver(deluge_gui_ui_slice_core_specs TREES host NEON
     ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_display.cpp
     ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_hal.cpp
     ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_critical_section.cpp
-    ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_print.cpp
     ${DELUGE_REPO_ROOT}/src/deluge/util/c_string.cpp
-    ${DELUGE_REPO_ROOT}/src/deluge/util/synth_noise.cpp
     ${DELUGE_REPO_ROOT}/src/deluge/runtime/app_loop.cpp
     ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_song.cpp
     ${DELUGE_REPO_ROOT}/tests/support/mocks/mock_storage.cpp
@@ -26,10 +27,6 @@ deluge_specs_driver(deluge_gui_ui_slice_core_specs TREES host NEON
     etl::etl
     deluge_gfx_oled
     deluge_gfx_grid
-    deluge_ui_core
-    deluge_ui_oled
-    deluge_ui_grid
-    deluge_notify
     deluge_serialization
   INCLUDES
     ${DELUGE_REPO_ROOT}/src
