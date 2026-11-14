@@ -726,7 +726,12 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		expect(deluge::bridge::knobOfControl(outside.param, params::Kind::UNPATCHED_SOUND).has_value()).to_be_false();
 		deluge::edits::learnMappingFor(knobCc(1, 74), volume);
 		expect(indexPlays(*f.song, volume, 1, 74)).to_be_true();
-		expect(indexPlays(*f.song, outside, 1, 74)).to_be_false();
+		f.song->project.mappings.learn(Mapping{.source = knobCc(1, 74), .target = outside});
+		// The index plays each knob as its own target: the one outside the engine's is not taken for volume.
+		const std::vector<deluge::midi::IndexedEntry> played = indexedKnobs(*f.song, owner, 1, 74);
+		expect(static_cast<int>(played.size())).to_equal(2);
+		expect(played.size() == 2 && played[0].target == MappingTarget{volume} && played[1].target == MappingTarget{outside})
+		    .to_be_true();
 	});
 
 	it("accepts a param outside the engine's in its owner, and lends it no other knob's takeover state", _ {
@@ -739,8 +744,13 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		deluge::midi::takeoverStore().at(volume, knobCc(1, 75)).previous = 77;
 		f.song->project.mappings.learn(Mapping{.source = knobCc(1, 75), .target = outside});
 		expect(static_cast<int>(deluge::bridge::projectMapping(*f.song, outside))).to_equal(static_cast<int>(Error::NONE));
-		expect(storeHolds(outside, knobCc(1, 75))).to_be_false();
 		expect(storeSaw(volume, knobCc(1, 75), 77)).to_be_true();
+		// A CC on the source moves volume's knob and passes over the one outside, which keeps no state of its own.
+		activate(f);
+		deluge::midi::refreshMappingIndex();
+		deluge::midi::learnedCcToOutput(*f.instrument, MIDIDeviceManager::dinMIDIPorts, 1, 75, 100);
+		expect(storeHolds(volume, knobCc(1, 75))).to_be_true();
+		expect(storeHolds(outside, knobCc(1, 75))).to_be_false();
 		OwnerParamTarget elsewhere = outside;
 		elsewhere.owner.id = 0xBEEF; // an output the song does not hold
 		expect(static_cast<int>(deluge::bridge::projectMapping(*f.song, elsewhere)))
@@ -892,6 +902,30 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		expect(clone->knobs_cloned_from.has_value()).to_be_false();
 		expect(static_cast<int>(f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *clone->id()}).size()))
 		    .to_equal(1);
+	});
+
+	it("copies nothing, and makes no device entry, for a clone that left the song before its held copy lands", _ {
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		const OwnerParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.output->id()},
+		                            unpatched(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME)};
+		Command source = knobCc(0, 7);
+		source.device = MidiDeviceRef{
+		    .port = MidiDeviceRef::Port::HOSTED, .name = "Gone Clone Device", .vendor_id = 0x4321, .product_id = 0x8765};
+		f.song->project.mappings.learn(Mapping{.source = source, .target = knob}); // no device entry made for it
+		deluge::midi::takeoverStore().at(knob, source).previous = 99;
+		AudioOutput* clone = f.song->createNewAudioOutput();
+		deluge::memory::noteRenderBlock(true);
+		clone->cloneFrom(f.output);
+		deluge::bridge::cloneOutputMappings(*f.output, *clone, *f.song);
+		deluge::memory::noteRenderBlock(false);
+		const uint32_t gone = *clone->id();
+		expect(f.song->removeOutputFromMainList(clone, false) >= 0).to_be_true();
+		(void)deluge::bridge::applyPendingMappingOps(*f.song);
+		expect(f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, gone}).empty()).to_be_true();
+		OwnerParamTarget cloneKnob = knob;
+		cloneKnob.owner.id = gone;
+		expect(storeHolds(cloneKnob, source)).to_be_false();
+		expect(deluge::bridge::find_cable(*source.device) == nullptr).to_be_true();
 	});
 
 	it("starts a song's knobs over when another becomes the current song, whatever its address", _ {

@@ -297,10 +297,12 @@ void requireAppLoop() {
 }
 
 void cloneNow(::Song& song, uint32_t from, uint32_t to) {
-	if (Output* clone = outputWithId(song, to)) {
-		if (::ModControllableAudio* knobs = knobsOwnerOf(*clone)) {
-			knobs->knobs_cloned_from.reset(); // the copy is made here
-		}
+	Output* clone = outputWithId(song, to);
+	if (clone == nullptr) {
+		return; // the clone left the song before its copy landed: there is no one to copy to
+	}
+	if (::ModControllableAudio* knobs = knobsOwnerOf(*clone)) {
+		knobs->knobs_cloned_from.reset(); // the copy is made here
 	}
 	if (song.project.mappings.params_of({ControlsAddress::Kind::OUTPUT, from}).empty()) {
 		return;
