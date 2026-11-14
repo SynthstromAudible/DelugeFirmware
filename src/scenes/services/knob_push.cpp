@@ -5,7 +5,6 @@
 #include "scenes/menu/bind_host.h"
 #include "scenes/services/source_names.h"
 
-#include "controls/mod_buttons.h"
 #include "controls/pages.h"
 #include "controls/resolve.h"
 #include "effects/chain.h"
@@ -27,6 +26,7 @@
 #include <array>
 #include <cstdlib>
 #include <limits>
+#include <utility>
 
 namespace deluge::scenes::services {
 
@@ -36,7 +36,6 @@ using deluge::l10n::String;
 using deluge::project::ControllerMapping;
 namespace ip = deluge::instrument::param;
 namespace params = deluge::modulation::params;
-namespace mod_button = deluge::controls::mod_button;
 
 /// The song compressor's lower-knob settings, by name, in the compressor view's order.
 constexpr std::array<const char*, 5> kCompParamNames{"ratio", "attack", "release", "hpf", "blend"};
@@ -326,14 +325,14 @@ void select_page_push(KnobPush& out, const project::Song& song, const bind::Knob
 		return;
 	}
 	switch (page.section) {
-	case mod_button::kFilter: {
+	case global_effectable::kFilterSection: {
 		const auto next = static_cast<FilterType>(page.page_id);
 		out.chain_view.emplace("currentFilterType", effects::kFilterTypeWords[page.page_id]);
 		say(out, inputs, filter_popup(next, fx), filter_type_name(next));
 		out.edited = true;
 		return;
 	}
-	case mod_button::kModFx: {
+	case global_effectable::kModFxSection: {
 		const auto param = static_cast<ModFXParam>(page.page_id);
 		if (page.page_id != mod_fx_view(song, focus)) {
 			out.chain_view.emplace("modFXCurrentParam", effects::kModFxParamWords[page.page_id]);
@@ -342,7 +341,7 @@ void select_page_push(KnobPush& out, const project::Song& song, const bind::Knob
 		out.edited = true;
 		return;
 	}
-	case mod_button::kCompressor: {
+	case global_effectable::kCompressorSection: {
 		// The song's compressor: its group 1 pages are its settings, one each after the reverb page.
 		const auto found =
 		    std::ranges::find_if(pages.cycle, [&](const controls::Page& p) { return p.page_id == page.page_id; });
@@ -462,7 +461,7 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 /// Both knobs' names, the upper first; the stutter button's lower knob has none on the song.
 std::string names_popup(const project::Song& song, const bind::KnobFocus& focus, int32_t button, const Reads& inputs) {
 	std::string out = knob_name(song, focus, 1, inputs.effects, inputs.pages.board);
-	if (!(button == mod_button::kStutter && !inputs.clip_context)) {
+	if (!(std::cmp_equal(button, global_effectable::kStutterSection) && !inputs.clip_context)) {
 		out += "\n";
 		out += knob_name(song, focus, 0, inputs.effects, inputs.pages.board);
 	}
@@ -548,7 +547,7 @@ std::string mod_button_popup(const project::Song& song, const bind::KnobFocus& f
 	}
 	if (const auto* midi = std::get_if<bind::MidiFocus>(&focus.owner)) {
 		const project::DocOutput* output = song.output_structure.find(midi->track.output_id);
-		const size_t at = static_cast<size_t>(bind::knob_mode(song, focus)) * 2;
+		const size_t at = static_cast<size_t>(bind::knob_mode(song, focus, inputs.pages.board)) * 2;
 		if (output == nullptr || at + 1 >= output->mod_knob_ccs.size()) {
 			return {};
 		}
@@ -560,15 +559,15 @@ std::string mod_button_popup(const project::Song& song, const bind::KnobFocus& f
 	}
 	const project::FxChain* chain = chain_of(song, focus);
 	switch (button) {
-	case mod_button::kFilter:
+	case global_effectable::kFilterSection:
 		return filter_popup(chain != nullptr ? static_cast<FilterType>(chain->filter_type) : FilterType::LPF, fx);
 	case 2: // the envelopes, which a chain has none of
 		return {};
 	case 3: // the delay
 		return delay_popup(song, fx, inputs.pages.alt_delay);
-	case mod_button::kCompressor:
+	case global_effectable::kCompressorSection:
 		return is_song ? comp_reverb_popup(song, focus.comp) : sidechain_reverb_popup(song, fx);
-	case mod_button::kModFx:
+	case global_effectable::kModFxSection:
 		return mod_fx_popup(fx.mod_fx.type,
 		                    chain != nullptr ? static_cast<ModFXParam>(chain->mod_fx_param) : ModFXParam::FEEDBACK);
 	default:

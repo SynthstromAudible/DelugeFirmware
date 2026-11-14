@@ -17,7 +17,6 @@
 
 #include "controls/pages.h"
 
-#include "controls/mod_buttons.h"
 #include "deluge-project/song.h"
 #include "foundation/panic.h"
 #include "plugin-api/types/plugin_id.h"
@@ -34,11 +33,6 @@ namespace {
 
 using project::ParamSpace;
 
-/// The filter view's last page, EQ: a view past it is EQ.
-constexpr uint32_t kEqPage = 2;
-/// The song compressor's settings the lower knob edits, one page each after the reverb page
-/// (global_effectable::kCompPages).
-constexpr uint32_t kCompPages = 5;
 /// The most pages a publisher's find serves on one section: a bound on the walk of a sound's cycle.
 constexpr uint32_t kMaxSectionPages = 16;
 
@@ -58,11 +52,15 @@ const std::vector<project::ControllerMapping>* sound_controls(const project::Son
 	return output != nullptr ? &output->controls : nullptr;
 }
 
-/// The Deluge instrument's publisher for the sound @p focus names, reading the state its slot holds.
+/// The publisher of the plugin the sound @p focus names plays (none: a sound with no slot), reading the state its slot
+/// holds.
 Publisher sound_publisher(const project::Song& song, const SoundFocus& focus, const PageSources& sources) {
 	const project::InstrumentSlot* slot = song.resolveSlot(focus.slot);
-	return {.record = plugin::remote_controls_for(sources.publishers, plugin::kDelugeInstrument),
-	        .context = {.state = slot != nullptr ? &slot->state : nullptr, .alt_delay = sources.alt_delay}};
+	if (slot == nullptr) {
+		return {};
+	}
+	return {.record = plugin::remote_controls_for(sources.publishers, plugin::PluginId{slot->plugin}),
+	        .context = {.state = &slot->state, .alt_delay = sources.alt_delay}};
 }
 
 /// The global effectable's publisher for @p chain (none: a chain that does not resolve), reading its effects' state.
@@ -105,33 +103,19 @@ std::vector<Page> sound_cycle(uint8_t mode, const Publisher& publisher) {
 	return out;
 }
 
-/// Which values a chain's knobs edit, as its record holds them; a new chain's by default.
-struct ChainView {
-	uint8_t mod_fx_param{project::FxChain{}.mod_fx_param};
-	uint8_t filter_type{project::FxChain{}.filter_type};
-};
-
-/// The song's compressor page the lower knob edits in @p focus's compressor view.
-uint32_t comp_page(const KnobFocus& focus) {
-	return 1 + (focus.comp.param % kCompPages);
+/// Where @p chain's view (a new chain's for none) and @p focus's compressor view put the knobs on @p mode, as the host
+/// reads them; page 0 of both groups with no reading.
+ChainView chain_view(const KnobFocus& focus, const project::FxChain* chain, uint8_t mode, const Publisher& publisher,
+                     const PageSources& sources) {
+	return sources.chain_view != nullptr ? sources.chain_view(chain, focus.comp, publisher.context.song, mode)
+	                                     : ChainView{};
 }
 
-/// A chain's page for @p mode: the page of the view @p chain holds (a new chain's for none) and, on the song, of
-/// @p focus's compressor view. The publisher's find serves a mod FX view the type has no param for too.
-Page chain_page(const KnobFocus& focus, const project::FxChain* chain, uint8_t mode, const Publisher& publisher) {
-	const ChainView view = chain != nullptr
-	                           ? ChainView{.mod_fx_param = chain->mod_fx_param, .filter_type = chain->filter_type}
-	                           : ChainView{};
-	uint32_t current = 0;
-	if (mode == mod_button::kModFx) {
-		current = view.mod_fx_param;
-	}
-	else if (mode == mod_button::kFilter) {
-		current = std::min<uint32_t>(view.filter_type, kEqPage);
-	}
-	else if (mode == mod_button::kCompressor && publisher.context.song && focus.comp.editing) {
-		current = comp_page(focus);
-	}
+/// A chain's page for @p mode: the page its view is on. The publisher's find may serve it outside its device pages (a
+/// mod FX view the type has no param for).
+Page chain_page(const KnobFocus& focus, const project::FxChain* chain, uint8_t mode, const Publisher& publisher,
+                const PageSources& sources) {
+	const uint32_t current = chain_view(focus, chain, mode, publisher, sources).current;
 	plugin::RemotePage found;
 	if (publisher.record != nullptr && publisher.record->find != nullptr
 	    && publisher.record->find(publisher.context, mode, current, found)) {
@@ -221,7 +205,7 @@ bool on_chain(const KnobFocus& focus) {
 } // namespace
 
 Page current_page(const project::Song& song, const KnobFocus& focus, const PageSources& sources) {
-	const uint8_t mode = knob_mode(song, focus);
+	const uint8_t mode = knob_mode(song, focus, sources.board);
 	if (const auto* sound = std::get_if<SoundFocus>(&focus.owner)) {
 		return sound_page(song, *sound, mode, sound_publisher(song, *sound, sources));
 	}
@@ -231,23 +215,47 @@ Page current_page(const project::Song& song, const KnobFocus& focus, const PageS
 	if (on_chain(focus)) {
 		const project::FxChain* chain = focused_chain(song, focus);
 		return chain_page(focus, chain, mode,
-		                  chain_publisher(chain, std::holds_alternative<SongFocus>(focus.owner), sources));
+		                  chain_publisher(chain, std::holds_alternative<SongFocus>(focus.owner), sources), sources);
 	}
 	return {};
 }
 
 SectionPages section_pages(const project::Song& song, const KnobFocus& focus, const PageSources& sources) {
 	SectionPages out{.current = current_page(song, focus, sources), .cycle = {}, .group_entry = {}};
-	const uint8_t mode = knob_mode(song, focus);
+	const uint8_t mode = knob_mode(song, focus, sources.board);
 	if (const auto* sound = std::get_if<SoundFocus>(&focus.owner)) {
 		out.cycle = sound_cycle(mode, sound_publisher(song, *sound, sources));
 	}
 	else if (on_chain(focus)) {
-		out.cycle = chain_cycle(
-		    mode, chain_publisher(focused_chain(song, focus), std::holds_alternative<SongFocus>(focus.owner), sources));
-		out.group_entry = {0, comp_page(focus)};
+		const project::FxChain* chain = focused_chain(song, focus);
+		const Publisher publisher = chain_publisher(chain, std::holds_alternative<SongFocus>(focus.owner), sources);
+		out.cycle = chain_cycle(mode, publisher);
+		out.group_entry = chain_view(focus, chain, mode, publisher, sources).group_entry;
 	}
 	return out;
+}
+
+bool section_keeps_stutter(const project::Song& song, const KnobFocus& focus, uint32_t section,
+                           const PageSources& sources) {
+	Publisher publisher;
+	if (const auto* sound = std::get_if<SoundFocus>(&focus.owner)) {
+		publisher = sound_publisher(song, *sound, sources);
+	}
+	else if (on_chain(focus)) {
+		publisher =
+		    chain_publisher(focused_chain(song, focus), std::holds_alternative<SongFocus>(focus.owner), sources);
+	}
+	if (publisher.record == nullptr || publisher.record->count == nullptr || publisher.record->get == nullptr) {
+		return false;
+	}
+	const uint32_t count = publisher.record->count(publisher.context);
+	plugin::RemotePage found;
+	for (uint32_t index = 0; index < count && publisher.record->get(publisher.context, index, found); index++) {
+		if (found.section == section && found.keeps_stutter) {
+			return true;
+		}
+	}
+	return false;
 }
 
 } // namespace deluge::controls

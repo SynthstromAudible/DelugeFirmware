@@ -21,11 +21,13 @@
 #include "scenes/services/mod_knobs.h"
 
 #include "controls/board.h"
+#include "controls/pages.h"
 #include "controls/section.h"
 
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/bind/knob_math.h"
 #include "scenes/bind/runtime_facts.h"
+#include "scenes/bind/section_pages.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/menu_scene.h"
@@ -176,7 +178,7 @@ int32_t ModKnobs::mode() const {
 	if (song_ == nullptr || std::holds_alternative<std::monostate>(focus_->owner)) {
 		return -1;
 	}
-	return bind::knob_mode(song_->project, *focus_);
+	return bind::knob_mode(song_->project, *focus_, board_);
 }
 
 void ModKnobs::notify_param_automation_occurred(const ParamAddress& owner, bool update_mod_levels) {
@@ -429,11 +431,13 @@ void ModKnobs::section_button(int32_t which_button, bool on, KnobPresentation& o
 
 	// The button's rules (`View::modButtonAction`, `ModControllable::modButtonAction`): the VU meter's toggle and the
 	// mode change come before the stutter's end, which the popup reads, and a press the rules ignore does nothing.
-	const controls::SectionResult section =
-	    controls::resolve_section(*focus_, static_cast<uint8_t>(mode()), which_button, on,
-	                              {.root_is_performance = view_.root_is_performance,
-	                               .mod_button_ui_mode_in_range = view_.mod_button_ui_mode_in_range,
-	                               .root_is_clip_minder = view_.root_is_clip_minder});
+	const controls::SectionResult section = controls::resolve_section(
+	    *focus_, static_cast<uint8_t>(mode()), which_button, on,
+	    {.root_is_performance = view_.root_is_performance,
+	     .mod_button_ui_mode_in_range = view_.mod_button_ui_mode_in_range,
+	     .root_is_clip_minder = view_.root_is_clip_minder,
+	     .keeps_stutter = controls::section_keeps_stutter(song_->project, *focus_, static_cast<uint32_t>(which_button),
+	                                                      bind::app_page_sources(menu::host_runtime_facts(), board_))});
 	if (on && !section.taken) {
 		return;
 	}

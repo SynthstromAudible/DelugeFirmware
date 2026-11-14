@@ -30,8 +30,6 @@ namespace {
 
 /// The mod FX views: depth, feedback and offset.
 constexpr uint32_t kModFxViews = 3;
-/// The reverb button, whose compressor pages leave a playing stutter running.
-constexpr uint32_t kCompressorSection = 4;
 /// The mod buttons.
 constexpr uint32_t kSections = 8;
 /// The highest page id of any section: the song's last compressor page.
@@ -86,7 +84,8 @@ RemotePage mod_fx_page(uint32_t mod_fx_param) {
 	constexpr std::array<ParamId, kModFxViews> kLower{ge::kModFXDepth, ge::kModFXFeedback, ge::kModFXOffset};
 	constexpr uint32_t kFeedback = 1;
 	const uint32_t view = mod_fx_param < kLower.size() ? mod_fx_param : kFeedback;
-	return page(5, view, 0, knob(kLower[view], PressAction::NEXT_PAGE), step(ge::kModFXRate, setting::kModFXType));
+	return page(kModFxSection, view, 0, knob(kLower[view], PressAction::NEXT_PAGE),
+	            step(ge::kModFXRate, setting::kModFXType));
 }
 
 namespace {
@@ -116,13 +115,13 @@ std::optional<RemotePage> single_page(uint32_t section, const PageInputs& in) {
 std::optional<RemotePage> filter_page(uint32_t page_id) {
 	switch (page_id) {
 	case 0:
-		return page(1, 0, 0, step(ge::kLpfResonance, setting::kLpfMode),
+		return page(kFilterSection, 0, 0, step(ge::kLpfResonance, setting::kLpfMode),
 		            knob(ge::kLpfFrequency, PressAction::NEXT_PAGE));
 	case 1:
-		return page(1, 1, 0, step(ge::kHpfResonance, setting::kHpfMode),
+		return page(kFilterSection, 1, 0, step(ge::kHpfResonance, setting::kHpfMode),
 		            knob(ge::kHpfFrequency, PressAction::NEXT_PAGE));
 	case 2:
-		return page(1, 2, 0, knob(ge::kBass), knob(ge::kTreble, PressAction::NEXT_PAGE));
+		return page(kFilterSection, 2, 0, knob(ge::kBass), knob(ge::kTreble, PressAction::NEXT_PAGE));
 	default:
 		return std::nullopt;
 	}
@@ -133,26 +132,26 @@ std::optional<RemotePage> filter_page(uint32_t page_id) {
 std::optional<RemotePage> song_reverb_page(uint32_t page_id) {
 	const RemoteSlot threshold = comp_knob(setting::kCompThreshold, PressAction::TOGGLE_GROUP);
 	if (page_id == 0) {
-		return page(4, 0, 0, knob(ge::kReverbAmount, PressAction::REVERB_PRESET), threshold);
+		return page(kCompressorSection, 0, 0, knob(ge::kReverbAmount, PressAction::REVERB_PRESET), threshold);
 	}
 	constexpr std::array<ParamId, kCompPages> kComp{setting::kCompRatio, setting::kCompAttack, setting::kCompRelease,
 	                                                setting::kCompHpf, setting::kCompBlend};
 	if (page_id > kComp.size()) {
 		return std::nullopt;
 	}
-	return page(4, page_id, 1, comp_knob(kComp[page_id - 1], PressAction::NEXT_PAGE), threshold);
+	return page(kCompressorSection, page_id, 1, comp_knob(kComp[page_id - 1], PressAction::NEXT_PAGE), threshold);
 }
 
 } // namespace
 
 std::optional<RemotePage> section_page(uint32_t section, uint32_t page_id, const PageInputs& in) {
-	if (section == 1) {
+	if (section == kFilterSection) {
 		return filter_page(page_id);
 	}
-	if (section == 4 && in.song) {
+	if (section == kCompressorSection && in.song) {
 		return song_reverb_page(page_id);
 	}
-	if (section == 5) {
+	if (section == kModFxSection) {
 		return page_id < kModFxViews && mod_fx_page_valid(in.mod_fx_type, page_id) ? std::optional{mod_fx_page(page_id)}
 		                                                                           : std::nullopt;
 	}
@@ -217,7 +216,6 @@ bool get_page(const plugin::PageContext& ctx, uint32_t index, RemotePage& out) {
 }
 
 bool find_page(const plugin::PageContext& ctx, uint32_t section, uint32_t page_id, RemotePage& out) {
-	constexpr uint32_t kModFxSection = 5;
 	if (section == kModFxSection) {
 		out = mod_fx_page(page_id);
 		return true;

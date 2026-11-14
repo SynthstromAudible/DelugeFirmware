@@ -10,6 +10,8 @@ const KnobFocus kSound{.owner = SoundFocus{.slot = {project::SlotAddress::Kind::
 const KnobFocus kChain{.owner = ChainFocus{.chain = {project::ChainAddress::Kind::OUTPUT, 4}}};
 const KnobFocus kSong{.owner = SongFocus{}};
 const SectionInputs kPerformance{.root_is_performance = true};
+/// A press of a section whose pages keep a playing stutter.
+const SectionInputs kKeeps{.keeps_stutter = true};
 } // namespace
 
 describe section("a mod button's press and release", ${
@@ -24,17 +26,20 @@ describe section("a mod button's press and release", ${
 	it("names no mode owner, and so changes no mode, with no focus", _{
 		expect(resolve_section(KnobFocus{}, 0, 3, true, {}).change_mode).to_be_false();
 	});
-	it("ends a sound's stutter on every button, on performance view too", _{
+	it("ends a sound's stutter on every section that does not keep it, on performance view too", _{
 		expect(resolve_section(kSound, 0, 4, true, {}).end_stutter).to_be_true();
 		expect(resolve_section(kSound, 0, 4, false, kPerformance).end_stutter).to_be_true();
+		expect(resolve_section(kSound, 0, 4, true, kKeeps).end_stutter).to_be_false();
 	});
-	it("ends a clip chain's stutter, except on its compressor button or on performance view", _{
+	it("ends a clip chain's stutter, except on a section that keeps it or on performance view", _{
 		expect(resolve_section(kChain, 0, 3, true, {}).end_stutter).to_be_true();
-		expect(resolve_section(kChain, 0, 4, true, {}).end_stutter).to_be_false();
+		expect(resolve_section(kChain, 0, 4, true, kKeeps).end_stutter).to_be_false();
+		expect(resolve_section(kChain, 0, 4, true, {}).end_stutter).to_be_true();
 		expect(resolve_section(kChain, 0, 3, false, kPerformance).end_stutter).to_be_false();
 	});
-	it("ends the song's stutter on every button, except on performance view", _{
+	it("ends the song's stutter on every section, a keeping one too, except on performance view", _{
 		expect(resolve_section(kSong, 0, 4, true, {}).end_stutter).to_be_true();
+		expect(resolve_section(kSong, 0, 4, true, kKeeps).end_stutter).to_be_true();
 		expect(resolve_section(kSong, 0, 3, false, kPerformance).end_stutter).to_be_false();
 	});
 	it("toggles the VU meter on a press of button 0 when it is the mode, outside a clip minder", _{

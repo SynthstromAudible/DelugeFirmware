@@ -16,7 +16,8 @@ KnobAssignment knob_assignment(const project::Song& song, const KnobFocus& focus
 	const controls::Target target = controls::resolve_turn(
 	    focus,
 	    controls::SectionPages{
-	        .current = controls::current_page(song, focus, {.publishers = app_publishers(), .board = board})},
+	        .current = controls::current_page(
+	            song, focus, {.publishers = app_publishers(), .board = board, .chain_view = &chain_view})},
 	    knob);
 	const auto* write = std::get_if<controls::ParamWrite>(&target);
 	if (write == nullptr) {

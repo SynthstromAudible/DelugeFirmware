@@ -17,8 +17,6 @@
 
 #include "controls/section.h"
 
-#include "controls/mod_buttons.h"
-
 #include <utility>
 #include <variant>
 
@@ -36,10 +34,9 @@ SectionResult resolve_section(const KnobFocus& focus, uint8_t mode, int32_t butt
 	}
 	const bool chain = std::holds_alternative<ChainFocus>(focus.owner);
 	const bool song = std::holds_alternative<SongFocus>(focus.owner);
-	// A clip chain's stutter outlives a press of its reverb button.
-	out.end_stutter = std::holds_alternative<SoundFocus>(focus.owner)
-	                  || (chain && button != mod_button::kCompressor && !in.root_is_performance)
-	                  || (song && !in.root_is_performance);
+	// A sound's or a clip chain's stutter outlives a press of a section its pages keep it on; the song's does not.
+	out.end_stutter = (std::holds_alternative<SoundFocus>(focus.owner) && !in.keeps_stutter)
+	                  || (chain && !in.keeps_stutter && !in.root_is_performance) || (song && !in.root_is_performance);
 	return out;
 }
 

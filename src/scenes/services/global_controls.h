@@ -260,7 +260,7 @@ public:
 		/// `getCurrentUI()->toClipMinder() != nullptr` (`View::buttonAction` and `View::setTimeBaseScaleLedState` in
 		/// `view.cpp`). Decides whether the SYNC_SCALING LED blinks and whether sync scaling may be started at all.
 		bool current_ui_is_clip_minder = false;
-		/// `getRootUI() == &performanceView` (`view.cpp:238`, `:283`) -- the fifth term of the
+		/// `getRootUI() == &performanceView` (`View::buttonAction`'s SAVE and LOAD arms) -- the fifth term of the
 		/// SAVE/LOAD guard, which lets KEYBOARD+SAVE through only in performance view.
 		bool root_is_performance = false;
 		/// `loadSongUI.isLoadingSong()` (`Buttons::buttonAction`). Suppresses the tempo popup while
@@ -475,7 +475,7 @@ private:
 	/// @param on  Press or release.
 	/// @param ctx The world around it.
 	void handle_load(bool on, const deluge::ui::shell::UiContext& ctx);
-	/// @brief The four-button guard both share (`view.cpp:235-238`, `:280-283`).
+	/// @brief The four-button guard both share (`View::buttonAction`'s SAVE and LOAD arms).
 	/// @param ctx The world around it.
 	/// @return True when neither SYNTH/KIT/MIDI/CV is held and KEYBOARD is not held in performance
 	///         view -- i.e. when the arm's body may run.

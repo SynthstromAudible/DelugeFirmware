@@ -20,6 +20,7 @@
 /// @file
 /// @brief What the gold knobs point at, as addresses into the model: the view's choice, never saved.
 
+#include "controls/board.h"
 #include "deluge-project/clip_address.h"
 #include "deluge-project/fx_chain.h"
 #include "deluge-project/instrument_slot.h"
@@ -101,9 +102,12 @@ struct KnobFocus {
 /// @return None for no focus, or a drum that names no kit: the owner knob_mode reads, so the two agree.
 [[nodiscard]] std::optional<project::KnobModeOwner> knob_mode_owner(const KnobFocus& focus);
 
-/// @brief The mod button the gold knobs of @p focus follow, from @p song's records: the song's, an output's, a kit
-///        row's kit's. Past the last button, the last.
+/// @brief The section the gold knobs of @p focus follow, from @p song's records: the song's, an output's, a kit row's
+///        kit's. Past @p board's last section, the last.
+/// @param song  The song, whose records hold the modes.
+/// @param focus What the knobs point at.
+/// @param board The board the knobs are on; it must have a section (none panics).
 /// @return The mode; 0 for no focus.
-[[nodiscard]] uint8_t knob_mode(const project::Song& song, const KnobFocus& focus);
+[[nodiscard]] uint8_t knob_mode(const project::Song& song, const KnobFocus& focus, const Board& board);
 
 } // namespace deluge::controls

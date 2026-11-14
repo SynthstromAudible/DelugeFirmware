@@ -6,9 +6,11 @@
 #include "effects/global_effectable/pages.h"
 #include "effects/global_effectable/params.h"
 #include "effects/plugin.h"
+#include "effects/setting_params.h"
 #include "instruments/deluge/pages.h"
 #include "instruments/deluge/params.h"
 #include "instruments/deluge/plugin.h"
+#include "scenes/bind/section_pages.h"
 #include <algorithm>
 #include <array>
 #include <cppspec.hpp>
@@ -40,7 +42,8 @@ void operator delete(void* p, size_t /*bytes*/) noexcept { std::free(p); }
 namespace {
 /// The publishers the app collects: the Deluge instrument's and the global effectable's.
 const std::array<plugin::RemoteControls, 2> kPublishers{instrument::kRemoteControls, global_effectable::kRemoteControls};
-const controls::PageSources kSources{.publishers = kPublishers, .board = kDelugeControls};
+const controls::PageSources kSources{
+    .publishers = kPublishers, .board = kDelugeControls, .chain_view = &scenes::bind::chain_view};
 
 /// A synth on output 3 in mode @p mode, its lower knob there the low-pass cutoff and its upper the resonance, playing a
 /// sound in @p synth_mode.
@@ -141,6 +144,43 @@ describe pages("the pages a press moves between, from the published records and 
 		expect(int(comp.current.group)).to_equal(1);
 		expect(comp.current == controls::current_page(song, focus, kSources)).to_be_true();
 	});
+	it("enters the compressor group at each setting's page of the chain's published group, and reaches every one", _{
+		namespace setting = effects::setting;
+		const std::array kSettings{setting::kCompRatio, setting::kCompAttack, setting::kCompRelease, setting::kCompHpf,
+		                           setting::kCompBlend};
+		const project::Song song = song_in_mode(4);
+		const controls::SectionPages pages = controls::section_pages(song, kSong, kSources);
+		const auto group_one = std::ranges::count_if(pages.cycle, [](const controls::Page& p) { return p.group == 1; });
+		expect(size_t(group_one)).to_equal(kSettings.size());
+		for (uint8_t param = 0; param < kSettings.size(); param++) {
+			controls::KnobFocus focus = kSong;
+			focus.comp = {.editing = false, .param = param};
+			const uint32_t entry = controls::section_pages(song, focus, kSources).group_entry[1];
+			const auto found = std::ranges::find_if(pages.cycle, [entry](const controls::Page& p) { return p.page_id == entry; });
+			expect(found != pages.cycle.end()).to_be_true();
+			expect(int(found->group)).to_equal(1);
+			expect(turned(*found, 0) == kSettings[param]).to_be_true();
+		}
+	});
+	it("puts a chain's knobs on each section's first page with no reading of its view", _{
+		project::Song song = song_in_mode(1);
+		song.master_effects.filter_type = 1;
+		controls::PageSources bare = kSources;
+		bare.chain_view = nullptr;
+		const controls::SectionPages pages = controls::section_pages(song, kSong, bare);
+		expect(int(pages.current.page_id)).to_equal(0);
+		expect(pages.group_entry == std::array<uint32_t, 2>{}).to_be_true();
+	});
+	it("asks the pressed section's published pages whether it keeps a stutter", _{
+		project::Song song = filter_on_lower_knob(0);
+		expect(controls::section_keeps_stutter(song, kKitChain, 4, kSources)).to_be_true();
+		expect(controls::section_keeps_stutter(song, kKitChain, 3, kSources)).to_be_false();
+		expect(controls::section_keeps_stutter(song, kSong, 4, kSources)).to_be_true();
+		for (uint32_t section = 0; section < kDelugeControls.sections; section++) {
+			expect(controls::section_keeps_stutter(song, kSynth, section, kSources)).to_be_false();
+		}
+		expect(controls::section_keeps_stutter(song, controls::KnobFocus{}, 4, kSources)).to_be_false();
+	});
 	it("keeps a clip's chain on its reverb page whatever the compressor view holds", _{
 		project::Song song{};
 		song.output_structure.getOrCreate(8).mod_knob_mode = 4;
@@ -162,7 +202,7 @@ describe pages("the pages a press moves between, from the published records and 
 	it("has an empty page with no focus or no publisher", _{
 		const project::Song song = filter_on_lower_knob(3);
 		expect(controls::current_page(song, controls::KnobFocus{}, kSources) == controls::Page{}).to_be_true();
-		const controls::Page bare = controls::current_page(song, kSynth, {});
+		const controls::Page bare = controls::current_page(song, kSynth, {.board = kDelugeControls});
 		expect(std::ranges::none_of(bare.slots, [](const controls::Slot& s) { return s.target.has_value(); }))
 		    .to_be_true();
 	});

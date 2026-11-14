@@ -1220,7 +1220,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		    {static_cast<uint8_t>(ButtonId::TapTempo), false},    // `PlaybackHandler::setLedStates`
 		    {static_cast<uint8_t>(ButtonId::SyncScaling), false}, // `View::setTimeBaseScaleLedState`
 		    {static_cast<uint8_t>(ButtonId::Save), false},        // `View::buttonAction`'s SAVE arm
-		    {static_cast<uint8_t>(ButtonId::Load), false},        // `view.cpp:325`
+		    {static_cast<uint8_t>(ButtonId::Load), false},        // `View::buttonAction`'s LOAD arm
 		};
 		expect(got == want).to_be_true();
 	});

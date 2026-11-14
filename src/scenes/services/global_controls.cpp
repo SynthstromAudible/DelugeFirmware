@@ -161,7 +161,7 @@ GlobalControls::UiMode GlobalControls::effective_ui_mode() const {
 // -- `View::buttonAction` ----------------------------------------------------------------------------
 
 bool GlobalControls::load_save_allowed(const UiContext& ctx) const {
-	// `view.cpp:235-238` and its identical twin at `:280-283`. Note the guard wraps the WHOLE arm
+	// `View::buttonAction`'s SAVE-arm guard and its identical twin in the LOAD arm. Note the guard wraps the WHOLE arm
 	// body: when it fails, legacy does nothing at all and still falls through to `:469`'s
 	// `return ActionResult::DEALT_WITH`, so the caller reports handled either way.
 	if (ctx.held.has(ButtonId::Synth) || ctx.held.has(ButtonId::Kit) || ctx.held.has(ButtonId::Midi)
