@@ -236,7 +236,7 @@ describe count_in_spec_body("scenes::overlay::CountInScene", $ {
 
 		// And the two canvases really do differ outside that band -- this is not a trivially
 		// blank match.
-		expect(r48.fake.pbm(0) == r64.fake.pbm(0)).to_be_false();
+		expect(r48.fake.pbm(0)).not_().to_equal(r64.fake.pbm(0));
 
 		// Leave the singleton quiescent for later examples.
 		playbackHandler.currentVisualCountForCountIn = 0;

@@ -45,6 +45,7 @@
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
+#include "support/printers/context_menu_printer.h"
 #include "unit/gfx/support/golden.h"
 #include "unit/gfx/support/pbm.h"
 
@@ -84,6 +85,11 @@ using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
 namespace {
+
+/// @brief A function pointer as an address, so a failed comparison prints where it points rather than `1`.
+const void* address_of(auto* fn) {
+	return reinterpret_cast<const void*>(fn);
+}
 
 /// `Action` unqualified is the model's own undo `Action`; the shell's is a different type with the
 /// same name (`rename_scene_spec.cpp` makes the same alias for the same reason).
@@ -322,8 +328,12 @@ describe cm_descriptors("scenes::context_menu descriptor table", $ {
 		}
 		// Both hand pads to the browser beneath, refuse input while the load they started runs, and offer what the
 		// browser holds: the kit's SLICE only on a file.
-		expect(kit.pad != nullptr && kit.busy != nullptr && kit.options_now != nullptr).to_be_true();
-		expect(synth.pad != nullptr && synth.busy != nullptr && synth.options_now != nullptr).to_be_true();
+		expect(kit.pad).not_().to_be_null();
+		expect(kit.busy).not_().to_be_null();
+		expect(kit.options_now).not_().to_be_null();
+		expect(synth.pad).not_().to_be_null();
+		expect(synth.busy).not_().to_be_null();
+		expect(synth.options_now).not_().to_be_null();
 	});
 
 	it("gives every one of them ResetSettings' own heading and single OK option", _ {
@@ -335,15 +345,17 @@ describe cm_descriptors("scenes::context_menu descriptor table", $ {
 			expect(static_cast<int>(d.title)).to_equal(static_cast<int>(String::STRING_FOR_ARE_YOU_SURE_QMARK));
 			expect(d.options.size()).to_equal(size_t(1));
 			expect(static_cast<int>(d.options[0])).to_equal(static_cast<int>(String::STRING_FOR_OK));
-			expect(d.accept != nullptr).to_be_true();
+			expect(d.accept).not_().to_be_null();
 			// The three hooks the sixth descriptor needs are null on all five of these,
 			// which is what "the five reset descriptors are unchanged" means concretely. Asserted, so
 			// a table edit that gave one of them a hook by accident is caught here rather than by a
 			// surprising screen.
-			expect(d.initial_option == nullptr).to_be_true();
-			expect(d.on_move == nullptr).to_be_true();
-			expect(d.footer == nullptr).to_be_true();
-			expect(d.options_now == nullptr && d.pad == nullptr && d.busy == nullptr).to_be_true();
+			expect(d.initial_option).to_be_null();
+			expect(d.on_move).to_be_null();
+			expect(d.footer).to_be_null();
+			expect(d.options_now).to_be_null();
+			expect(d.pad).to_be_null();
+			expect(d.busy).to_be_null();
 		}
 	});
 
@@ -353,17 +365,15 @@ describe cm_descriptors("scenes::context_menu descriptor table", $ {
 		// makes easy to make and impossible to see.
 		for (int i = 0; i < static_cast<int>(DescriptorId::Count); i++) {
 			for (int j = i + 1; j < static_cast<int>(DescriptorId::Count); j++) {
-				expect(context_menu::descriptor(static_cast<DescriptorId>(i)).accept
-				       == context_menu::descriptor(static_cast<DescriptorId>(j)).accept)
-				    .to_be_false();
+				expect(address_of(context_menu::descriptor(static_cast<DescriptorId>(i)).accept))
+				    .not_().to_equal(address_of(context_menu::descriptor(static_cast<DescriptorId>(j)).accept));
 			}
 		}
 	});
 
 	it("falls back to entry 0 for an out-of-range id", _ {
-		expect(context_menu::descriptor(DescriptorId::Count).accept
-		       == context_menu::descriptor(DescriptorId::ResetFlash).accept)
-		    .to_be_true();
+		expect(address_of(context_menu::descriptor(DescriptorId::Count).accept))
+		    .to_equal(address_of(context_menu::descriptor(DescriptorId::ResetFlash).accept));
 	});
 });
 
@@ -401,24 +411,24 @@ describe cm_window("scenes::context_menu window rule", $ {
 	it("refuses a turn off either end rather than clamping", _ {
 		// Legacy restores `oldCurrentOption` and returns: neither the cursor nor the window moves,
 		// and the cursor does NOT stick to the last option the way `list` would clamp it.
-		expect(context_menu::step(Selection{0, 0}, -1, 5) == Selection{0, 0}).to_be_true();
-		expect(context_menu::step(Selection{4, 3}, +1, 5) == Selection{4, 3}).to_be_true();
+		expect(context_menu::step(Selection{0, 0}, -1, 5)).to_equal(Selection{0, 0});
+		expect(context_menu::step(Selection{4, 3}, +1, 5)).to_equal(Selection{4, 3});
 		// An accelerated turn that would overshoot is refused whole, not partly applied.
-		expect(context_menu::step(Selection{0, 0}, +9, 5) == Selection{0, 0}).to_be_true();
+		expect(context_menu::step(Selection{0, 0}, +9, 5)).to_equal(Selection{0, 0});
 		// And an empty list moves nothing.
-		expect(context_menu::step(Selection{0, 0}, +1, 0) == Selection{0, 0}).to_be_true();
+		expect(context_menu::step(Selection{0, 0}, +1, 0)).to_equal(Selection{0, 0});
 	});
 
 	it("does not move a single-option menu, which is every shipped descriptor", _ {
-		expect(context_menu::step(Selection{0, 0}, +1, 1) == Selection{0, 0}).to_be_true();
-		expect(context_menu::step(Selection{0, 0}, -1, 1) == Selection{0, 0}).to_be_true();
+		expect(context_menu::step(Selection{0, 0}, +1, 1)).to_equal(Selection{0, 0});
+		expect(context_menu::step(Selection{0, 0}, -1, 1)).to_equal(Selection{0, 0});
 	});
 });
 
 describe cm_composition("scenes::context_menu::ContextMenuScene composition", $ {
 	it("registers at FirstApp + 2 and composes over the view underneath", _ {
 		const deluge::ui::shell::SceneRegistry reg = scene_registry();
-		expect(reg.find(context_menu::kContextMenuSceneKind) == &context_menu_scene()).to_be_true();
+		expect(reg.find(context_menu::kContextMenuSceneKind)).to_equal(&context_menu_scene());
 		expect(static_cast<int>(context_menu::kContextMenuSceneKind))
 		    .to_equal(static_cast<int>(SceneKind::FirstApp) + 2);
 
@@ -446,7 +456,7 @@ describe cm_open("scenes::context_menu::ContextMenuScene opening", $ {
 		r.tick(0);
 		expect(static_cast<int>(context_menu_scene().descriptor_id()))
 		    .to_equal(static_cast<int>(DescriptorId::ResetMidiFollow));
-		expect(context_menu_scene().selection() == Selection{0, 0}).to_be_true();
+		expect(context_menu_scene().selection()).to_equal(Selection{0, 0});
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 	});
 
@@ -527,13 +537,12 @@ describe cm_sidebar("scenes::context_menu::ContextMenuScene beneath a sample bro
 		{
 			Rig r;
 			r.open(context_of(f), DescriptorId::SampleBrowserKit);
-			expect(context_menu_scene().grid_pad_claim() == deluge::ui::shell::GridPadClaim::AllButAudition)
-			    .to_be_true();
+			expect(context_menu_scene().grid_pad_claim()).to_equal(deluge::ui::shell::GridPadClaim::AllButAudition);
 		}
 		{
 			Rig r;
 			r.open(context_of(f), DescriptorId::DeleteFile);
-			expect(context_menu_scene().grid_pad_claim() == deluge::ui::shell::GridPadClaim::All).to_be_true();
+			expect(context_menu_scene().grid_pad_claim()).to_equal(deluge::ui::shell::GridPadClaim::All);
 		}
 	});
 
@@ -563,7 +572,7 @@ describe cm_sidebar("scenes::context_menu::ContextMenuScene beneath a sample bro
 		for (uint32_t t = 1320; t <= 1540; t += 10) {
 			r.tick(t);
 		}
-		expect(r.shell.stack().input_top().kind() == context_menu::kContextMenuSceneKind).to_be_true();
+		expect(r.shell.stack().input_top().kind()).to_equal(context_menu::kContextMenuSceneKind);
 		expect(back_lit()).to_be_true(); // restarted on the resume, inside its lit 250 ms
 		for (uint32_t t = 1550; t <= 1600; t += 10) {
 			r.tick(t);
@@ -627,7 +636,7 @@ describe cm_input("scenes::context_menu::ContextMenuScene input", $ {
 		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Back}, d.ctx);
 		expect(back.handled).to_be_true();
 		const ShellAction* removal = find_action(back, ShellAction::Kind::Remove);
-		expect(removal != nullptr).to_be_true();
+		expect(removal).not_().to_be_null();
 		expect(static_cast<int>(removal->pop_to))
 		    .to_equal(static_cast<int>(context_menu::kContextMenuSceneKind));
 		// `Remove`, not `Pop`: the accept hooks raise notices, so an overlay can legitimately be
@@ -672,7 +681,7 @@ describe cm_input("scenes::context_menu::ContextMenuScene input", $ {
 		// swallowed, or it would reach the view underneath and scroll it.
 		r.turn(+1, 100);
 		r.tick(100);
-		expect(context_menu_scene().selection() == Selection{0, 0}).to_be_true();
+		expect(context_menu_scene().selection()).to_equal(Selection{0, 0});
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 
 		// And the swallow itself, where the `Result` can be read: `handle` reports handled for a
@@ -739,8 +748,8 @@ describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
 		const auto [ported, depth] = run_ported(f, DescriptorId::ResetFlash);
 
 		expect(depth).to_equal(size_t(0));              // `acceptCurrentOption` returns false -> exit
-		expect(ported == main_after).to_be_true();      // the same reset leaves the same globals
-		expect(main_after == kPerturbed).to_be_false(); // ...and it did something
+		expect(ported).to_equal(main_after);      // the same reset leaves the same globals
+		expect(main_after).not_().to_equal(kPerturbed); // ...and it did something
 
 		// Its own subsystem moved and no other did: a ResetFlash/ResetMidiFollow swap fails here rather than
 		// factory-resetting the wrong thing on the device.
@@ -768,8 +777,8 @@ describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
 		const auto [ported, depth] = run_ported(f, DescriptorId::ResetMidiFollow);
 
 		expect(depth).to_equal(size_t(0));
-		expect(ported == main_after).to_be_true();
-		expect(main_after == kPerturbed).to_be_false();
+		expect(ported).to_equal(main_after);
+		expect(main_after).not_().to_equal(kPerturbed);
 
 		expect(static_cast<int>(main_after.follow_root_note)).to_equal(36);
 		expect(main_after.follow_display_param).to_be_false();
@@ -792,8 +801,8 @@ describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
 		const auto [ported, depth] = run_ported(f, DescriptorId::ResetCommunityFeatures);
 
 		expect(depth).to_equal(size_t(0));
-		expect(ported == main_after).to_be_true();
-		expect(main_after == kPerturbed).to_be_false();
+		expect(ported).to_equal(main_after);
+		expect(main_after).not_().to_equal(kPerturbed);
 
 		expect(static_cast<int>(main_after.drum_randomizer))
 		    .to_equal(static_cast<int>(RuntimeFeatureStateToggle::On));
@@ -819,8 +828,8 @@ describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
 		const auto [ported, depth] = run_ported(f, DescriptorId::ResetMidiDevices);
 
 		expect(depth).to_equal(size_t(0));
-		expect(ported == main_after).to_be_true();
-		expect(main_after == kPerturbed).to_be_true(); // nothing in the witness moved
+		expect(ported).to_equal(main_after);
+		expect(main_after).to_equal(kPerturbed); // nothing in the witness moved
 
 		restore(entry);
 		reset_globals();
@@ -850,7 +859,7 @@ describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
 			                              == context_menu::descriptor(static_cast<DescriptorId>(i)).accept;
 		}
 		expect(matches_a_known_hook).to_be_false();
-		expect(context_menu::descriptor(DescriptorId::ResetAll).accept != nullptr).to_be_true();
+		expect(context_menu::descriptor(DescriptorId::ResetAll).accept).not_().to_be_null();
 	});
 });
 
@@ -984,9 +993,8 @@ describe cm_live_settings("scenes::context_menu resets re-apply on the guest wha
 		expect(shellHostUI.shell().screensaver_idle_ms()).to_equal(uint32_t{0});
 
 		(void)context_menu::descriptor(DescriptorId::ResetFlash).accept(ctx, 0);
-		expect(shellHostUI.shell().surfaces().oled()[0].style->highlighting
-		       == deluge::ui::Highlighting::PartialInversion)
-		    .to_be_true(); // `resetSettings`' default
+		expect(shellHostUI.shell().surfaces().oled()[0].style->highlighting)
+		    .to_equal(deluge::ui::Highlighting::PartialInversion); // `resetSettings`' default
 		expect(shellHostUI.shell().screensaver_idle_ms())
 		    .to_equal(static_cast<uint32_t>(kDefaultScreensaverTimeoutMinutes) * 60000u); // a minute, as `arm()` counts
 
@@ -1004,7 +1012,7 @@ describe cm_reference_rows("scenes::context_menu: the reference rows", $ {
 	it("parses context_menu_scene.tsv clean and asks every row of it", _ {
 		spec::OracleTable& t = table();
 		expect(t.problems().size()).to_equal(size_t{0});
-		expect(t.size() > size_t{23}).to_be_true();
+		expect(t.size()).to_be_greater_than(size_t{23});
 		expect(t.unasked()).to_equal(std::string{});
 	});
 });

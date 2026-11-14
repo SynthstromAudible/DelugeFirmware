@@ -40,9 +40,11 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
 
+#include "support/printers/project_address_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
 #include <cstdint>
 #include <optional>
@@ -117,18 +119,17 @@ describe boot_node_ids("scenes::assigned_node_ids at boot", $ {
 		// `scene_registry()`, which is exactly why the boot call is spelled out rather than left to
 		// static-initialisation order.
 		const uint16_t assigned = deluge::scenes::assigned_node_ids();
-		expect(assigned > 0).to_be_true();
+		expect(assigned).to_be_greater_than(0);
 
 		// Idempotent: a second call reports the same number rather than re-numbering.
 		expect(deluge::scenes::assigned_node_ids()).to_equal(assigned);
 
 		// And the ids are on the nodes, not merely counted. Two roots from different tables, so a
 		// walk that numbered only the first would fail.
-		expect(menu::node_id(deluge::scenes::menu::nodes::sound_root) != 0).to_be_true();
-		expect(menu::node_id(deluge::scenes::menu::nodes::root_settings) != 0).to_be_true();
-		expect(menu::node_id(deluge::scenes::menu::nodes::sound_root)
-		       != menu::node_id(deluge::scenes::menu::nodes::root_settings))
-		    .to_be_true();
+		expect(menu::node_id(deluge::scenes::menu::nodes::sound_root)).not_().to_equal(0);
+		expect(menu::node_id(deluge::scenes::menu::nodes::root_settings)).not_().to_equal(0);
+		expect(menu::node_id(deluge::scenes::menu::nodes::sound_root))
+		    .not_().to_equal(menu::node_id(deluge::scenes::menu::nodes::root_settings));
 	});
 });
 
@@ -145,26 +146,24 @@ describe boot_shortcuts_version("the shortcut layout follows flash byte 60", $ {
 		// Both values byte 60 can hold, in both directions -- a read that only ever followed one would pass a one-way
 		// check.
 		FlashStorage::shortcutsVersion = FlashStorage::kShortcutsVersion1;
-		expect(menu::shortcuts_version() == ShortcutsVersion::V1).to_be_true();
+		expect(menu::shortcuts_version()).to_equal(ShortcutsVersion::V1);
 		FlashStorage::shortcutsVersion = FlashStorage::kShortcutsVersion3;
-		expect(menu::shortcuts_version() == ShortcutsVersion::V3).to_be_true();
+		expect(menu::shortcuts_version()).to_equal(ShortcutsVersion::V3);
 		menu::set_shortcuts_version(ShortcutsVersion::V1);
-		expect(menu::shortcuts_version() == ShortcutsVersion::V1).to_be_true();
+		expect(menu::shortcuts_version()).to_equal(ShortcutsVersion::V1);
 
 		// The layout the port actually resolves moves with it -- the setting is not just recorded.
 		// `(0, 6)` of the sound table is interpolation under V3 and the sample end point under V1,
 		// which `shortcuts_spec.cpp` establishes is one of the only two cells that genuinely move.
-		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 0, 6)
-		       == &deluge::scenes::menu::nodes::sample0_end)
-		    .to_be_true();
+		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 0, 6))
+		    .to_equal(&deluge::scenes::menu::nodes::sample0_end);
 		menu::set_shortcuts_version(ShortcutsVersion::V3);
-		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 0, 6)
-		       == &deluge::scenes::menu::nodes::sample0_interpolation)
-		    .to_be_true();
+		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 0, 6))
+		    .to_equal(&deluge::scenes::menu::nodes::sample0_interpolation);
 
 		// And a byte that is neither enumerator takes the V3 layout, as legacy's own `default` does.
 		FlashStorage::shortcutsVersion = 7;
-		expect(menu::shortcuts_version() == ShortcutsVersion::V3).to_be_true();
+		expect(menu::shortcuts_version()).to_equal(ShortcutsVersion::V3);
 
 		FlashStorage::shortcutsVersion = saved;
 	});
@@ -208,25 +207,25 @@ describe boot_services("the three services, installed into the guest's own Shell
 		deluge::gui::ui::wireShellGuestServices();
 		const deluge::ui::shell::Services& slots = shellHostUI.shell().services();
 
-		expect(slots.mod_knobs != nullptr).to_be_true();
-		expect(slots.global_controls != nullptr).to_be_true();
-		expect(slots.midi_learn != nullptr).to_be_true();
+		expect(slots.mod_knobs).not_().to_be_null();
+		expect(slots.global_controls).not_().to_be_null();
+		expect(slots.midi_learn).not_().to_be_null();
 		// `Services`' own defaults are all three pointing at the one shared `null_service()`, which
 		// is what an application passes without `Shell::set_services`.
 		// Naming it is what makes "installed" mean something.
 		const deluge::ui::shell::Service* null_slot = &deluge::ui::shell::null_service();
-		expect(slots.mod_knobs != null_slot).to_be_true();
-		expect(slots.global_controls != null_slot).to_be_true();
-		expect(slots.midi_learn != null_slot).to_be_true();
-		expect(slots.mod_knobs != slots.global_controls).to_be_true();
-		expect(slots.mod_knobs != slots.midi_learn).to_be_true();
-		expect(slots.global_controls != slots.midi_learn).to_be_true();
+		expect(slots.mod_knobs).not_().to_equal(null_slot);
+		expect(slots.global_controls).not_().to_equal(null_slot);
+		expect(slots.midi_learn).not_().to_equal(null_slot);
+		expect(slots.mod_knobs).not_().to_equal(slots.global_controls);
+		expect(slots.mod_knobs).not_().to_equal(slots.midi_learn);
+		expect(slots.global_controls).not_().to_equal(slots.midi_learn);
 
 		// The same three objects on a second call: the services are built once and re-installed,
 		// so a `Shell::set_services` that leaked a new set per call would show up here.
 		const deluge::ui::shell::Service* knobs = slots.mod_knobs;
 		deluge::gui::ui::wireShellGuestServices();
-		expect(shellHostUI.shell().services().mod_knobs == knobs).to_be_true();
+		expect(shellHostUI.shell().services().mod_knobs).to_equal(knobs);
 	});
 
 	it("none of the three asks to be woken at rest, so the guest's 1 ms floor stays latent", _ {
@@ -260,18 +259,20 @@ describe boot_services("the three services, installed into the guest's own Shell
 		auto* knobs = static_cast<services::ModKnobs*>(shellHostUI.shell().services().mod_knobs);
 		// The focus is the synth on its clip: the owner legacy's stack resolved, as addresses.
 		const auto* sound = std::get_if<deluge::scenes::bind::SoundFocus>(&knobs->focus().owner);
-		expect(sound != nullptr).to_be_true();
+		expect(sound).not_().to_be_null();
 		if (sound != nullptr) {
-			expect(sound->slot.id == *f.instrument->id()).to_be_true();
-			expect(sound->clip.has_value() && sound->clip->clip_id == f.clip->id()).to_be_true();
+			expect(sound->slot.id).to_equal(*f.instrument->id());
+			expect(sound->clip.has_value()).to_be_true();
+			if (sound->clip.has_value()) {
+				expect(sound->clip->clip_id).to_equal(f.clip->id());
+			}
 		}
 		// Which is what makes the LEDs legacy's: -1 is the "no focus" answer that turns every mod LED off.
-		expect(knobs->mode() >= 0).to_be_true();
+		to_be_at_least(expect(knobs->mode()), 0);
 
 		// The other two take the song and nothing else this layer can check from outside.
-		expect(static_cast<services::GlobalControls*>(shellHostUI.shell().services().global_controls)->song()
-		       == f.song)
-		    .to_be_true();
+		expect(static_cast<services::GlobalControls*>(shellHostUI.shell().services().global_controls)->song())
+		    .to_equal(f.song);
 
 		// Vary it: with no timeline counter, legacy's view points at nothing, and so does the focus.
 		view.setActiveModControllableTimelineCounter(nullptr);
@@ -299,7 +300,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 		// Through the hook the wiring installs, as the guest's close runs it.
 		deluge::gui::ui::wireShellGuestServices();
 		const deluge::gui::ui::ShellHostUI::CloseHook hook = deluge::gui::ui::ShellHostUI::closeHook();
-		expect(hook != nullptr).to_be_true();
+		expect(hook).not_().to_be_null();
 		if (hook != nullptr) {
 			hook(5'000'800); // 800 ms after the show: 1200 ms left
 		}
@@ -338,7 +339,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 		(void)popup.show(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME, 30, PatchSource::NONE,
 		                 PatchSource::NONE, 6'000'000, {});
 		deluge::gui::ui::handOffGuestOverlays(6'000'000);
-		expect(stub.value == legacy_value).to_be_false();
+		expect(stub.value).not_().to_equal(legacy_value);
 
 		// Legacy turns back to where it last drew: a change from what is showing, so it draws.
 		AudioEngine::audioSampleTimer += 10 * 44'100;
@@ -380,7 +381,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 		view.knobFocus().vu_meter = false;
 		deluge::gui::ui::wireShellGuestServices();
 		auto* knobs = static_cast<services::ModKnobs*>(shellHostUI.shell().services().mod_knobs);
-		expect(&knobs->focus() == &view.knobFocus()).to_be_true();
+		expect(&knobs->focus()).to_equal(&view.knobFocus());
 
 		knobs->mod_button_action(1, true);
 		knobs->mod_button_action(1, false);
@@ -393,7 +394,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 		expect(view.knobFocus().vu_meter).to_be_true();
 
 		view.setModRegion(96, 48, 0);
-		expect(knobs->focus().region == deluge::project::ModRegion{.pos = 96, .length = 48}).to_be_true();
+		expect(knobs->focus().region).to_equal(deluge::project::ModRegion{.pos = 96, .length = 48});
 
 		view.setModRegion();
 		view.knobFocus().vu_meter = false;

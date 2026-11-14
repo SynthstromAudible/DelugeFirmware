@@ -108,14 +108,18 @@
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
+#include "support/printers/project_address_printer.h"
 #include "unit/gfx/support/golden.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
 #include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <format>
+#include <ostream>
 #include <string>
 
 #include "support/spec_main.h"
@@ -559,7 +563,7 @@ void expect_grid_has_content(Self& self, Rig& r, int32_t at_least) {
 			}
 		}
 	}
-	expect(lit >= at_least).to_be_true();
+	to_be_at_least(expect(lit), at_least);
 }
 
 /// @brief The colour the pad driver substitutes for a `Normal` tick square.
@@ -634,7 +638,7 @@ public:
 		// A floor of zero would be "compare these two grids and claim nothing", which is the thing
 		// this type exists to make unspellable. Asserted rather than `static_assert`ed because the
 		// factories take a runtime int.
-		expect(lit_at_least_ > 0).to_be_true();
+		expect(lit_at_least_).to_be_greater_than(0);
 		expect_grid_has_content(self, r, lit_at_least_);
 		if (cursor_pads_ >= 0) {
 			expect(cursor_pads(r)).to_equal(cursor_pads_);
@@ -698,6 +702,11 @@ struct ModelSnapshot {
 	bool operator==(const ModelSnapshot&) const = default;
 };
 
+/// @brief Prints the three fields by name, so a failed CppSpec comparison shows which one differs.
+std::ostream& operator<<(std::ostream& os, const ModelSnapshot& s) {
+	return os << std::format("{{loop_length {}, start_pos {}, end_pos {}}}", s.loop_length, s.start_pos, s.end_pos);
+}
+
 /// @param r The rig.
 /// @return The three fields, read straight off the model both sides share.
 ModelSnapshot model_snapshot(const Rig& r) {
@@ -718,11 +727,11 @@ void expect_edit_matches(Self& self, const ModelSnapshot& legacy, const ModelSna
                          const ModelSnapshot& seeded) {
 	// Field by field first, so a failure says which one.
 	expect(port.loop_length).to_equal(legacy.loop_length);
-	expect(port.start_pos == legacy.start_pos).to_be_true();
-	expect(port.end_pos == legacy.end_pos).to_be_true();
+	expect(port.start_pos).to_equal(legacy.start_pos);
+	expect(port.end_pos).to_equal(legacy.end_pos);
 	// ...and then that the comparison was worth making at all.
-	expect(legacy == seeded).to_be_false();
-	expect(port == seeded).to_be_false();
+	expect(legacy).not_().to_equal(seeded);
+	expect(port).not_().to_equal(seeded);
 }
 
 // --- driving input, both sides from the same button id ------------------------------------------
@@ -961,8 +970,8 @@ describe audio_clip_scene_spec_body(
 	        "is registered at FirstApp + 9 and reports that kind", _ {
 		        expect(static_cast<int32_t>(kAudioClipSceneKind))
 		            .to_equal(static_cast<int32_t>(deluge::ui::shell::SceneKind::FirstApp) + 9);
-		        expect(scene_registry().find(kAudioClipSceneKind) == &audio_clip_scene()).to_be_true();
-		        expect(audio_clip_scene().kind() == kAudioClipSceneKind).to_be_true();
+		        expect(scene_registry().find(kAudioClipSceneKind)).to_equal(&audio_clip_scene());
+		        expect(audio_clip_scene().kind()).to_equal(kAudioClipSceneKind);
 	        });
 
 	    it(
@@ -975,7 +984,7 @@ describe audio_clip_scene_spec_body(
 		        for (deluge::ui::shell::Scene* s : reg.by_kind) {
 			        if (s != nullptr && s->is_root()) {
 				        roots++;
-				        expect(s->kind() == kAudioClipSceneKind).to_be_true();
+				        expect(s->kind()).to_equal(kAudioClipSceneKind);
 			        }
 		        }
 		        expect(roots).to_equal(1);
@@ -1542,7 +1551,7 @@ describe audio_clip_scene_spec_body(
 		        r.reseed(Sentinel{});
 		        r.f.clip->name = "TAKE";
 		        r.open_scene_only();
-		        expect(r.f.clip->sampleHolder.audioFile != nullptr).to_be_true(); // the re-seed took
+		        expect(r.f.clip->sampleHolder.audioFile).not_().to_be_null(); // the re-seed took
 		        (void)in.press(ButtonId::XEnc, true);
 		        const Result cleared = in.press(ButtonId::Back, true);
 		        expect(r.f.clip->sampleHolder.audioFile == nullptr).to_equal(legacy_sample_gone);
@@ -1574,7 +1583,7 @@ describe audio_clip_scene_spec_body(
 		        currentUIMode = UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON | UI_MODE_HOLDING_SONG_BUTTON;
 		        (void)legacy_view.buttonAction(legacy_button(ButtonId::Back), true);
 		        currentUIMode = UI_MODE_NONE;
-		        expect(r.f.clip->sampleHolder.audioFile != nullptr).to_be_true(); // legacy did NOT clear
+		        expect(r.f.clip->sampleHolder.audioFile).not_().to_be_null(); // legacy did NOT clear
 
 		        r.reseed(Sentinel{});
 		        r.open_scene_only();
@@ -1584,7 +1593,7 @@ describe audio_clip_scene_spec_body(
 		            .to_equal(deluge::scenes::audio_clip::kUiModeHoldingSongButton
 		                      | deluge::scenes::audio_clip::kUiModeHoldingHorizontalEncoder);
 		        expect(in.press(ButtonId::Back, true).handled).to_be_false();
-		        expect(r.f.clip->sampleHolder.audioFile != nullptr).to_be_true();
+		        expect(r.f.clip->sampleHolder.audioFile).not_().to_be_null();
 		        (void)in.press(ButtonId::XEnc, false);
 		        (void)in.press(ButtonId::Session, false);
 	        });
@@ -1665,7 +1674,7 @@ describe audio_clip_scene_spec_body(
 		        expect(r.scene().timeline().scroll_before_following).to_equal(legacy_follow);
 		        // ...and the edit itself happened, so this is not passing because the turn did nothing.
 		        expect(r.f.clip->loopLength()).to_equal(legacy_length);
-		        expect(r.f.clip->loopLength() > 768).to_be_true();
+		        expect(r.f.clip->loopLength()).to_be_greater_than(768);
 	        });
 
 	    // --- the edits ---------------------------------------------------------------------------------
@@ -1698,8 +1707,8 @@ describe audio_clip_scene_spec_body(
 		        const ModelSnapshot port_undone = model_snapshot(r);
 
 		        expect_edit_matches(self, legacy, port, seeded);
-		        expect(port_undone == legacy_undone).to_be_true();
-		        expect(port_undone == seeded).to_be_true();
+		        expect(port_undone).to_equal(legacy_undone);
+		        expect(port_undone).to_equal(seeded);
 		        nullifyUIs();
 	        });
 
@@ -1726,7 +1735,7 @@ describe audio_clip_scene_spec_body(
 		        (void)in.press(ButtonId::XEnc, true);
 		        (void)in.press(ButtonId::Back, true);
 		        (void)in.press(ButtonId::XEnc, false);
-		        expect(r.f.clip->sampleHolder.audioFile == nullptr).to_be_true();
+		        expect(r.f.clip->sampleHolder.audioFile).to_be_null();
 		        (void)actionLogger.revert(BEFORE, false, false);
 		        expect(r.f.clip->sampleHolder.audioFile != nullptr).to_equal(legacy_sample_back);
 		        expect(r.f.clip->name).to_equal(legacy_name);
@@ -1773,9 +1782,9 @@ describe audio_clip_scene_spec_body(
 		        playbackHandler.playbackState = 0;
 
 		        expect(port_shortened).to_equal(legacy_shortened);
-		        expect(port_shortened < seeded.loop_length).to_be_true();
-		        expect(port == legacy).to_be_true();
-		        expect(port == seeded).to_be_true(); // the lengthen undid the shorten
+		        expect(port_shortened).to_be_less_than(seeded.loop_length);
+		        expect(port).to_equal(legacy);
+		        expect(port).to_equal(seeded); // the lengthen undid the shorten
 		        expect(port_steps).to_equal(legacy_steps);
 		        nullifyUIs();
 	        });
@@ -1788,11 +1797,11 @@ describe audio_clip_scene_spec_body(
 		        const ModelSnapshot seeded = model_snapshot(r);
 		        bind::WriteSink& sink = deluge::scenes::menu::host_write_sink();
 		        expect(sink.resize_audio_clip(r.address(), bind::ResizeKind::NO_STRETCH, 0, 768)).to_be_false();
-		        expect(model_snapshot(r) == seeded).to_be_true();
+		        expect(model_snapshot(r)).to_equal(seeded);
 		        expect(sink.resize_audio_clip(r.address(), bind::ResizeKind::NO_STRETCH,
 		                                      static_cast<int32_t>(kMaxSequenceLength) + 1, 768))
 		            .to_be_false();
-		        expect(model_snapshot(r) == seeded).to_be_true();
+		        expect(model_snapshot(r)).to_equal(seeded);
 	        });
 
 	    it(
@@ -1820,7 +1829,7 @@ describe audio_clip_scene_spec_body(
 
 		        expect(port_after).to_equal(legacy_after);
 		        expect(port_after).to_equal(r.scene().timeline().x_scroll);
-		        expect(port_after != s.x_scroll).to_be_true(); // the lengthen really scrolled
+		        expect(port_after).not_().to_equal(s.x_scroll); // the lengthen really scrolled
 		        nullifyUIs();
 	        });
 
@@ -1843,48 +1852,58 @@ describe audio_clip_scene_spec_body(
 		        if (recording.gestures.empty()) {
 			        return;
 		        }
-		        expect(last().kind == Kind::RESIZE && last().clip == r.address()).to_be_true();
-		        expect(last().resize == Resize::END && last().value == 480 && last().old_length == 768).to_be_true();
+		        expect(last().kind).to_equal(Kind::RESIZE);
+		        expect(last().clip).to_equal(r.address());
+		        expect(last().resize).to_equal(Resize::END);
+		        expect(last().value).to_equal(480);
+		        expect(last().old_length).to_equal(768);
 		        (void)in.pad(end_square_of(r), 0, true); // the marker back down
 
 		        (void)in.press(ButtonId::Shift, true);
 		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, -1);
-		        expect(last().resize == Resize::STRETCH && last().value == 720 && last().old_length == 768)
-		            .to_be_true();
+		        expect(last().resize).to_equal(Resize::STRETCH);
+		        expect(last().value).to_equal(720);
+		        expect(last().old_length).to_equal(768);
 		        (void)in.press(ButtonId::XEnc, true);
 		        (void)in.turn(deluge::ui::EncoderRole::Horizontal, 1);
-		        expect(last().resize == Resize::NO_STRETCH && last().value == 816).to_be_true();
+		        expect(last().resize).to_equal(Resize::NO_STRETCH);
+		        expect(last().value).to_equal(816);
 		        (void)in.press(ButtonId::XEnc, false);
 		        (void)in.turn(deluge::ui::EncoderRole::Vertical, 3);
-		        expect(last().kind == Kind::RECOLOUR && last().clip == r.address() && last().value == 3).to_be_true();
+		        expect(last().kind).to_equal(Kind::RECOLOUR);
+		        expect(last().clip).to_equal(r.address());
+		        expect(last().value).to_equal(3);
 		        (void)in.press(ButtonId::Shift, false);
 
 		        (void)in.press(ButtonId::YEnc, true);
 		        (void)in.press(ButtonId::XEnc, true);
-		        expect(last().kind == Kind::RESIZE && last().resize == Resize::TO_SAMPLE_LENGTH).to_be_true();
+		        expect(last().kind).to_equal(Kind::RESIZE);
+		        expect(last().resize).to_equal(Resize::TO_SAMPLE_LENGTH);
 		        (void)in.press(ButtonId::XEnc, false);
 		        (void)in.press(ButtonId::YEnc, false);
 
 		        (void)in.press(ButtonId::XEnc, true);
 		        (void)in.press(ButtonId::Back, true);
 		        (void)in.press(ButtonId::XEnc, false);
-		        expect(last().kind == Kind::CLEAR && last().clip == r.address()).to_be_true();
-		        expect(last().clear_automation == !FlashStorage::automationClear && last().clear_sequence_and_mpe)
-		            .to_be_true();
+		        expect(last().kind).to_equal(Kind::CLEAR);
+		        expect(last().clip).to_equal(r.address());
+		        expect(last().clear_automation).to_equal(!FlashStorage::automationClear);
+		        expect(last().clear_sequence_and_mpe).to_be_true();
 
 		        (void)in.turn(deluge::ui::EncoderRole::Select, 1);
 		        expect(recording.requests.size()).to_equal(size_t{1});
 		        if (!recording.requests.empty()) {
 			        const bind::WriteRequest& mode = recording.requests.back();
-			        expect(mode.target.path == "mode"
-			               && mode.target.group == deluge::project::SettingGroupId::AUDIO_INPUT)
-			            .to_be_true();
-			        expect(mode.where.track.has_value() && mode.where.track->output_id == *r.f.output->id())
-			            .to_be_true();
+			        expect(mode.target.path).to_equal("mode");
+			        expect(mode.target.group).to_equal(deluge::project::SettingGroupId::AUDIO_INPUT);
+			        expect(mode.where.track.has_value()).to_be_true();
+			        if (mode.where.track.has_value()) {
+				        expect(mode.where.track->output_id).to_equal(*r.f.output->id());
+			        }
 			        expect(mode.menu_value).to_equal(1);
 		        }
 		        // Only requests: nothing else wrote.
-		        expect(model_snapshot(r) == seeded).to_be_true();
+		        expect(model_snapshot(r)).to_equal(seeded);
 	        });
 
 	    it(
@@ -1909,8 +1928,8 @@ describe audio_clip_scene_spec_body(
 		        // --- the port, from the same re-seeded start ---
 		        r.reseed(s);
 		        r.open_scene_only();
-		        expect(model_snapshot(r) == seeded).to_be_true(); // the re-seed really put it back
-		        (void)in.pad(end_square_of(r), 0, true);          // raise, through the port's own gesture
+		        expect(model_snapshot(r)).to_equal(seeded); // the re-seed really put it back
+		        (void)in.pad(end_square_of(r), 0, true);    // raise, through the port's own gesture
 		        expect(r.scene().end_marker_visible()).to_be_true();
 		        (void)in.pad(kColumn, 0, true);
 		        const ModelSnapshot port = model_snapshot(r);
@@ -1990,8 +2009,8 @@ describe audio_clip_scene_spec_body(
 
 		        expect_edit_matches(self, legacy, port, seeded);
 		        // Reversed, it is the START pos that moved and the END pos that did not.
-		        expect(port.end_pos == seeded.end_pos).to_be_true();
-		        expect(port.start_pos != seeded.start_pos).to_be_true();
+		        expect(port.end_pos).to_equal(seeded.end_pos);
+		        expect(port.start_pos).not_().to_equal(seeded.start_pos);
 
 		        r.f.clip->sampleControls.reversed = false;
 	        });
@@ -2057,7 +2076,7 @@ describe audio_clip_scene_spec_body(
 
 		        r.reseed(s);
 		        r.open_scene_only();
-		        expect(model_snapshot(r) == seeded).to_be_true();
+		        expect(model_snapshot(r)).to_equal(seeded);
 		        r.scene().set_clip_length_equal_to_sample_length();
 		        const ModelSnapshot port = model_snapshot(r);
 
@@ -2107,12 +2126,12 @@ describe audio_clip_scene_spec_body(
 		        const AudioOutputMode start = r.f.output->mode;
 		        legacy_view.selectEncoderAction(1);
 		        const AudioOutputMode after_legacy = r.f.output->mode;
-		        expect(after_legacy == start).to_be_false(); // legacy really moved it
+		        expect(after_legacy).not_().to_equal(start); // legacy really moved it
 
 		        deluge::edits::audioModeFor(*r.f.output, start);
 		        r.open_scene_only();
 		        (void)in.turn(deluge::ui::EncoderRole::Select, 1);
-		        expect(r.f.output->mode == after_legacy).to_be_true();
+		        expect(r.f.output->mode).to_equal(after_legacy);
 
 		        deluge::edits::audioModeFor(*r.f.output, AudioOutputMode::player);
 	        });
@@ -2131,7 +2150,7 @@ describe audio_clip_scene_spec_body(
 		        (void)legacy_view.verticalEncoderAction(3);
 		        legacy_hold(ButtonId::Shift, false);
 		        const int16_t after_legacy = r.f.clip->colourOffset();
-		        expect(after_legacy == start).to_be_false();
+		        expect(after_legacy).not_().to_equal(start);
 
 		        r.f.clip->setColourOffset(start);
 		        r.open_scene_only();

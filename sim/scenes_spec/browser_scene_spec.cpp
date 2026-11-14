@@ -84,9 +84,12 @@
 #include "support/card_access.h"
 
 #include "support/mocks/fake_surfaces.h"
+#include "support/printers/browser_request_printer.h"
+#include "support/printers/rgb_printer.h"
 #include "unit/gfx/support/golden.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -213,7 +216,10 @@ spec::OracleTable& table() {
 template <typename Self>
 void expect_same(Self& self, const BrowserState& port, std::string_view name) {
 	const std::vector<std::string>* main = table().find("browse/" + std::string{name}, "state");
-	expect(main != nullptr && main->size() == size_t{5}).to_be_true();
+	expect(main).not_().to_be_null();
+	if (main != nullptr) {
+		expect(main->size()).to_equal(size_t{5});
+	}
 	if (main == nullptr || main->size() != size_t{5}) {
 		return;
 	}
@@ -426,19 +432,18 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 		// `DxSyxBrowser::DxSyxBrowser` and `opened` (`dx_browser.cpp`).
 		expect(std::string{syx.title}).to_equal(std::string{"DX7 syx files"});
 		expect(std::string{syx.extensions[0]}).to_equal(std::string{"SYX"});
-		expect(syx.extensions[1] == nullptr).to_be_true();
+		expect(syx.extensions[1]).to_be_null();
 		expect(std::string{syx.default_dir}).to_equal(std::string{"DX7"});
 		expect(syx.interpret_note_names).to_be_false();
 		expect(syx.allow_folders_sharing_name_with_file).to_be_true();
-		expect(syx.folder_refusal == nullptr).to_be_true();
+		expect(syx.folder_refusal).to_be_null();
 		std::string dir = "ELSEWHERE";
 		std::string name = "REMEMBERED";
 		syx.start_at(menu::MenuContext{}, dir, name);
 		expect(dir).to_equal(std::string{"DX7"});
 		expect(name.empty()).to_be_true();
 		Error error = Error::NONE;
-		expect(syx.accept(menu::MenuContext{}, "DX7/A.SYX", error) == browser::AcceptOutcome::DeferAndWait)
-		    .to_be_true();
+		expect(syx.accept(menu::MenuContext{}, "DX7/A.SYX", error)).to_equal(browser::AcceptOutcome::DeferAndWait);
 		expect(syx.can(menu::MenuContext{})).to_be_false(); // no sound to load a bank into
 	});
 
@@ -451,7 +456,7 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 		expect(std::string{sample.extensions[0]}).to_equal(std::string{"WAV"});
 		expect(std::string{sample.extensions[1]}).to_equal(std::string{"AIFF"});
 		expect(std::string{sample.extensions[2]}).to_equal(std::string{"AIF"});
-		expect(sample.extensions[3] == nullptr).to_be_true();
+		expect(sample.extensions[3]).to_be_null();
 		expect(std::string{midi.extensions[0]}).to_equal(std::string{"XML"});
 
 		expect(std::string{sample.default_dir}).to_equal(std::string{"SAMPLES"});
@@ -477,10 +482,10 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 		// OLED::midiIconPt2` at width 1 (`load_midi_device_definition_ui.cpp:87-90`).
 		const browser::Descriptor& sample = browser::descriptor(BrowserId::Sample);
 		const browser::Descriptor& midi = browser::descriptor(BrowserId::MidiDeviceDefinition);
-		expect(sample.file_icon == &deluge::gfx::oled::icons::browserWave).to_be_true();
-		expect(sample.file_icon_pt2 == nullptr).to_be_true();
-		expect(midi.file_icon == &deluge::gfx::oled::icons::browserMidi).to_be_true();
-		expect(midi.file_icon_pt2 == &deluge::gfx::oled::icons::browserMidiEdge).to_be_true();
+		expect(sample.file_icon).to_equal(&deluge::gfx::oled::icons::browserWave);
+		expect(sample.file_icon_pt2).to_be_null();
+		expect(midi.file_icon).to_equal(&deluge::gfx::oled::icons::browserMidi);
+		expect(midi.file_icon_pt2).to_equal(&deluge::gfx::oled::icons::browserMidiEdge);
 		expect(static_cast<int>(midi.file_icon_pt2->width)).to_equal(1);
 		expect(static_cast<int>(sample.file_icon->width)).to_equal(8);
 	});
@@ -510,7 +515,7 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 describe browser_composition("scenes::browser::BrowserScene composition", $ {
 	it("registers at FirstApp + 3 and covers the screen it draws", _ {
 		const deluge::ui::shell::SceneRegistry reg = scene_registry();
-		expect(reg.find(kBrowserSceneKind) == &browser_scene()).to_be_true();
+		expect(reg.find(kBrowserSceneKind)).to_equal(&browser_scene());
 		expect(static_cast<int>(kBrowserSceneKind)).to_equal(static_cast<int>(SceneKind::FirstApp) + 3);
 
 		const deluge::ui::shell::Scene& s = browser_scene();
@@ -536,8 +541,8 @@ describe browser_composition("scenes::browser::BrowserScene composition", $ {
 		r.pad(9, 7, 0, r.clock + 10);
 		r.step();
 		const deluge::ui::shell::Scene& s = browser_scene();
-		expect(browser_scene().pads() == BrowserPads::Keyboard).to_be_true();
-		expect(s.pad_regions() == deluge::ui::shell::PadRegions::Main).to_be_true();
+		expect(browser_scene().pads()).to_equal(BrowserPads::Keyboard);
+		expect(s.pad_regions()).to_equal(deluge::ui::shell::PadRegions::Main);
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0b10});
 		expect(static_cast<uint64_t>(s.greyout_mask().rows)).to_equal(uint64_t{0});
 	});
@@ -789,7 +794,7 @@ describe browser_in_flight("scenes::browser::BrowserScene while a listing is in 
 		// The scene must ask to be woken with nothing pending, or the landed listing is never seen.
 		const std::optional<uint32_t> armed = browser_scene().next_timer();
 		expect(armed.has_value()).to_be_true();
-		expect(armed.value() <= browser::kListingPollMs).to_be_true();
+		to_be_at_most(expect(armed.value()), browser::kListingPollMs);
 
 		// Run the op the way the owner fiber would -- from outside the UI entirely, with no event
 		// queued -- and then tick without touching a single control.
@@ -832,7 +837,7 @@ describe browser_in_flight("scenes::browser::BrowserScene while a listing is in 
 		// The scene owes a listing and says so.
 		const std::optional<uint32_t> armed = browser_scene().next_timer();
 		expect(armed.has_value()).to_be_true();
-		expect(armed.value() <= browser::kListingPollMs).to_be_true();
+		to_be_at_most(expect(armed.value()), browser::kListingPollMs);
 
 		// The other holder finishes. Now tick with no input and no notice at all: the scene's own
 		// gate arm is the only thing that can bring it back to retry.
@@ -877,7 +882,7 @@ describe browser_preview("scenes::browser::BrowserScene asking for previews", $ 
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::Sample);
 		const std::optional<PreviewRequest> request = browser_scene().take_preview();
-		expect(request == PreviewRequest{.id = BrowserId::Sample, .path = "SAMPLES/CLAP.WAV", .direction = 0}).to_be_true();
+		expect(request).to_equal(PreviewRequest{.id = BrowserId::Sample, .path = "SAMPLES/CLAP.WAV", .direction = 0});
 		expect(browser_scene().preview_outstanding()).to_be_true();
 		expect(browser_scene().take_preview().has_value()).to_be_false();
 	});
@@ -892,10 +897,10 @@ describe browser_preview("scenes::browser::BrowserScene asking for previews", $ 
 		r.turn(3, r.clock + 10);
 		r.step();
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"SNARE"});
-		expect(browser_scene().take_preview() == PreviewRequest{.path = "SAMPLES/SNARE.WAV", .direction = 1}).to_be_true();
+		expect(browser_scene().take_preview()).to_equal(PreviewRequest{.path = "SAMPLES/SNARE.WAV", .direction = 1});
 		r.turn(-3, r.clock + 10);
 		r.step();
-		expect(browser_scene().take_preview() == PreviewRequest{.path = "SAMPLES/CLAP.WAV", .direction = -1}).to_be_true();
+		expect(browser_scene().take_preview()).to_equal(PreviewRequest{.path = "SAMPLES/CLAP.WAV", .direction = -1});
 	});
 
 	it("files an empty-path request for a folder", _ {
@@ -908,7 +913,7 @@ describe browser_preview("scenes::browser::BrowserScene asking for previews", $ 
 		r.turn(1, r.clock + 10);
 		r.step();
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"CLIPS"});
-		expect(browser_scene().take_preview() == PreviewRequest{.path = "", .direction = 1}).to_be_true();
+		expect(browser_scene().take_preview()).to_equal(PreviewRequest{.path = "", .direction = 1});
 	});
 
 	it("files a request when a typed search lands on another file, direction 0", _ {
@@ -919,7 +924,7 @@ describe browser_preview("scenes::browser::BrowserScene asking for previews", $ 
 		r.open_and_land(context_of(f), BrowserId::Sample);
 		(void)browser_scene().take_preview();
 		r.type('T');
-		expect(browser_scene().take_preview() == PreviewRequest{.path = "SAMPLES/TOM.WAV", .direction = 0}).to_be_true();
+		expect(browser_scene().take_preview()).to_equal(PreviewRequest{.path = "SAMPLES/TOM.WAV", .direction = 0});
 	});
 
 	it("files an empty-path request on exit", _ {
@@ -930,7 +935,7 @@ describe browser_preview("scenes::browser::BrowserScene asking for previews", $ 
 		r.open_and_land(context_of(f), BrowserId::Sample);
 		(void)browser_scene().take_preview();
 		browser_scene().on_exit();
-		expect(browser_scene().take_preview() == PreviewRequest{.path = "", .direction = 0}).to_be_true();
+		expect(browser_scene().take_preview()).to_equal(PreviewRequest{.path = "", .direction = 0});
 	});
 
 	it("files none for the MIDI device definition browser", _ {
@@ -949,10 +954,10 @@ describe browser_preview("scenes::browser::BrowserScene asking for previews", $ 
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::Sample);
-		expect(browser_scene().next_timer() == std::optional<uint32_t>{kListingPollMs}).to_be_true();
+		expect(browser_scene().next_timer()).to_equal(std::optional<uint32_t>{kListingPollMs});
 		browser_scene().preview_settled(true);
 		expect(browser_scene().preview_outstanding()).to_be_false();
-		expect(browser_scene().next_timer() == std::optional<uint32_t>{kListingPollMs}).to_be_false();
+		expect(browser_scene().next_timer()).not_().to_equal(std::optional<uint32_t>{kListingPollMs});
 	});
 
 	it("opens beside the last sample loaded when the holder names none", _ {
@@ -976,20 +981,21 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
 		const deluge::ui::shell::Scene& s = browser_scene();
-		expect(browser_scene().pads() == BrowserPads::Root).to_be_true();
-		expect(s.pad_regions() == deluge::ui::shell::PadRegions::None).to_be_true();
+		expect(browser_scene().pads()).to_equal(BrowserPads::Root);
+		expect(s.pad_regions()).to_equal(deluge::ui::shell::PadRegions::None);
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0xFFFFFFFE});
 		const size_t from = r.fake.flashes_sent.size();
 		run_until(r, r.clock + 1000);
 		const std::vector<deluge::ui::grid::PadFlash> seen = flashes_since(r, from);
 		expect(seen.empty()).to_be_false();
 		for (const deluge::ui::grid::PadFlash& fl : seen) {
-			expect(fl.x == 0 && fl.y == 5).to_be_true();
+			expect(fl.x).to_equal(0);
+			expect(fl.y).to_equal(5);
 		}
 		// `updatePadLightsFor`'s `setupShortcutBlink(x, 5, 0)`, armed by `beginScreen` after the browser opened: every
 		// 200 ms cycle, so four or five flashes in a second.
-		expect(seen.size() >= 4 && seen.size() <= 5).to_be_true();
-		expect(browser_scene().browse_blink() == browser::BrowseBlink::Menu).to_be_true();
+		expect(seen.size()).to_be_between(4, 5);
+		expect(browser_scene().browse_blink()).to_equal(browser::BrowseBlink::Menu);
 	});
 
 	it("greys only the mute column over the keyboard screen", _ {
@@ -1000,7 +1006,7 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		ctx.root_is_keyboard = true;
 		Rig r;
 		r.open_and_land(ctx, BrowserId::Sample);
-		expect(browser_scene().pads() == BrowserPads::Root).to_be_true();
+		expect(browser_scene().pads()).to_equal(BrowserPads::Root);
 		expect(static_cast<uint64_t>(browser_scene().greyout_mask().cols)).to_equal(uint64_t{0b10});
 	});
 
@@ -1015,8 +1021,8 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		browser_scene().preview_settled(true);
 		run_until(r, r.clock + 50); // the settle asks for the repaint on the next tick
 		const deluge::ui::shell::Scene& s = browser_scene();
-		expect(browser_scene().pads() == BrowserPads::Waveform).to_be_true();
-		expect(s.pad_regions() == deluge::ui::shell::PadRegions::Main).to_be_true();
+		expect(browser_scene().pads()).to_equal(BrowserPads::Waveform);
+		expect(s.pad_regions()).to_equal(deluge::ui::shell::PadRegions::Main);
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0b10});
 		// `showPreview`'s `renderFullScreen`, zoomed all the way out.
 		deluge::sample::WaveformNav nav;
@@ -1034,7 +1040,7 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 				lit += legacy[y][x] == RGB{} ? 0 : 1;
 			}
 		}
-		expect(lit > 0).to_be_true();
+		expect(lit).to_be_greater_than(0);
 		expect(differ).to_equal(0);
 	});
 
@@ -1047,14 +1053,14 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		PreviewHeld held(sample);
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
-		expect(browser_scene().shown_waveform(sample) == nullptr).to_be_true(); // nothing drawn yet
+		expect(browser_scene().shown_waveform(sample)).to_be_null(); // nothing drawn yet
 		browser_scene().preview_settled(true);
 		run_until(r, r.clock + 50);
-		expect(browser_scene().shown_waveform(sample) == &browser_scene().waveform_nav()).to_be_true();
-		expect(browser_scene().waveform_nav().renderData.colStatus[0] == COL_STATUS_INVESTIGATED).to_be_true();
+		expect(browser_scene().shown_waveform(sample)).to_equal(&browser_scene().waveform_nav());
+		expect(browser_scene().waveform_nav().renderData.colStatus[0]).to_equal(COL_STATUS_INVESTIGATED);
 		Sample* other = make_overview_sample();
-		expect(browser_scene().shown_waveform(other) == nullptr).to_be_true();
-		expect(browser_scene().shown_waveform(nullptr) == nullptr).to_be_true();
+		expect(browser_scene().shown_waveform(other)).to_be_null();
+		expect(browser_scene().shown_waveform(nullptr)).to_be_null();
 	});
 
 	it("redraws a preview the card has not caught up with, and gives up 300 ms after its last progress", _ {
@@ -1068,10 +1074,15 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		r.open_and_land(sound_context(f), BrowserId::Sample);
 		browser_scene().preview_settled(true);
 		run_until(r, r.clock + 50);
-		expect(browser_scene().pads() == BrowserPads::Waveform).to_be_true();
-		expect(r.shell.next_wake().has_value() && *r.shell.next_wake() - r.clock <= kListingPollMs).to_be_true();
+		expect(browser_scene().pads()).to_equal(BrowserPads::Waveform);
+		expect(r.shell.next_wake().has_value()).to_be_true();
+		if (r.shell.next_wake().has_value()) {
+			to_be_at_most(expect(*r.shell.next_wake() - r.clock), kListingPollMs);
+		}
 		run_until(r, r.clock + 400);
-		expect(r.shell.next_wake().has_value() && *r.shell.next_wake() - r.clock <= kListingPollMs).to_be_false();
+		if (r.shell.next_wake().has_value()) {
+			expect(*r.shell.next_wake() - r.clock).to_be_greater_than(kListingPollMs);
+		}
 	});
 
 	it("counts one draw per previewed sample, a redraw per unfinished repaint, and the completed render", _ {
@@ -1094,7 +1105,7 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		run_until(r, r.clock + 50);
 		const browser::WaveformDrawStats& s = browser_scene().waveform_draw_stats();
 		expect(s.draws - before.draws).to_equal(1);
-		expect(s.redraws - before.redraws >= 1).to_be_true();
+		to_be_at_least(expect(s.redraws - before.redraws), 1);
 		expect(s.complete - before.complete).to_equal(1);
 		expect(s.give_ups - before.give_ups).to_equal(0);
 		expect(browser_scene().waveform_redraw_pending()).to_be_false();
@@ -1149,10 +1160,10 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		run_until(r, r.clock + 1000);
 		expect(flashes_since(r, from).empty()).to_be_true(); // no blink over the waveform
 		browser_scene().preview_settled(false);
-		expect(browser_scene().pads() == BrowserPads::Root).to_be_true();
+		expect(browser_scene().pads()).to_equal(BrowserPads::Root);
 		run_until(r, r.clock + 1000);
 		expect(flashes_since(r, from).empty()).to_be_false();
-		expect(browser_scene().browse_blink() == browser::BrowseBlink::Browser).to_be_true();
+		expect(browser_scene().browse_blink()).to_equal(browser::BrowseBlink::Browser);
 	});
 
 	it("keeps the sound editor's 200 ms BROWSE blink over the open's own preview", _ {
@@ -1166,13 +1177,14 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		(void)browser_scene().take_preview();
 		browser_scene().preview_settled(true);
 		run_until(r, r.clock + 50);
-		expect(browser_scene().pads() == BrowserPads::Waveform).to_be_true();
+		expect(browser_scene().pads()).to_equal(BrowserPads::Waveform);
 		const size_t from = r.fake.flashes_sent.size();
 		run_until(r, r.clock + 1000);
 		const std::vector<deluge::ui::grid::PadFlash> seen = flashes_since(r, from);
-		expect(seen.size() >= 4 && seen.size() <= 5).to_be_true();
+		expect(seen.size()).to_be_between(4, 5);
 		for (const deluge::ui::grid::PadFlash& fl : seen) {
-			expect(fl.x == 0 && fl.y == 5).to_be_true();
+			expect(fl.x).to_equal(0);
+			expect(fl.y).to_equal(5);
 		}
 	});
 
@@ -1190,17 +1202,17 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		run_until(r, r.clock + 50);
 		r.turn(1, r.clock + 10);
 		r.settle();
-		expect(browser_scene().browse_blink() == browser::BrowseBlink::Off).to_be_true();
+		expect(browser_scene().browse_blink()).to_equal(browser::BrowseBlink::Off);
 		size_t from = r.fake.flashes_sent.size();
 		run_until(r, r.clock + 1000);
 		expect(flashes_since(r, from).empty()).to_be_true();
 		(void)browser_scene().take_preview();
 		browser_scene().preview_settled(false);
-		expect(browser_scene().browse_blink() == browser::BrowseBlink::Browser).to_be_true();
+		expect(browser_scene().browse_blink()).to_equal(browser::BrowseBlink::Browser);
 		from = r.fake.flashes_sent.size();
 		run_until(r, r.clock + 1000);
 		const size_t n = flashes_since(r, from).size();
-		expect(n >= 2 && n <= 3).to_be_true();
+		expect(n).to_be_between(2, 3);
 	});
 
 	it("stops the BROWSE blink when a later preview lands", _ {
@@ -1212,11 +1224,11 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
 		select_folder(r, true); // a move onto a folder: no preview showed, so the blink runs on
-		expect(browser_scene().browse_blink() == browser::BrowseBlink::Menu).to_be_true();
+		expect(browser_scene().browse_blink()).to_equal(browser::BrowseBlink::Menu);
 		select_folder(r, false);
 		(void)browser_scene().take_preview();
 		browser_scene().preview_settled(true);
-		expect(browser_scene().browse_blink() == browser::BrowseBlink::Off).to_be_true();
+		expect(browser_scene().browse_blink()).to_equal(browser::BrowseBlink::Off);
 	});
 
 	it("stops the BROWSE blink when a pad reveals the keyboard, and KEYBOARD leaves it running", _ {
@@ -1230,7 +1242,7 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 			r.click(kKeyboardX, kKeyboardY);
 			r.settle();
 			expect(browser_scene().keyboard_always_visible()).to_be_true();
-			expect(browser_scene().browse_blink() == browser::BrowseBlink::Menu).to_be_true();
+			expect(browser_scene().browse_blink()).to_equal(browser::BrowseBlink::Menu);
 			const size_t from = r.fake.flashes_sent.size();
 			run_until(r, r.clock + 1000);
 			expect(flashes_since(r, from).empty()).to_be_false();
@@ -1240,7 +1252,7 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 			Rig r;
 			r.open_and_land(sound_context(f), BrowserId::Sample);
 			tap(r, 3, 3);
-			expect(browser_scene().browse_blink() == browser::BrowseBlink::Off).to_be_true();
+			expect(browser_scene().browse_blink()).to_equal(browser::BrowseBlink::Off);
 			const size_t from = r.fake.flashes_sent.size();
 			run_until(r, r.clock + 1000);
 			expect(flashes_since(r, from).empty()).to_be_true();
@@ -1250,7 +1262,7 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 			Rig r;
 			r.open_and_land(sound_context(f), BrowserId::Sample);
 			r.horizontal(1);
-			expect(browser_scene().browse_blink() == browser::BrowseBlink::Off).to_be_true();
+			expect(browser_scene().browse_blink()).to_equal(browser::BrowseBlink::Off);
 		}
 	});
 
@@ -1262,11 +1274,11 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		Rig r;
 		browser_scene().set_drum_creator_next(true);
 		r.open_and_land(sound_context(f), BrowserId::Sample);
-		expect(browser_scene().browse_blink() == browser::BrowseBlink::Browser).to_be_true();
+		expect(browser_scene().browse_blink()).to_equal(browser::BrowseBlink::Browser);
 		const size_t from = r.fake.flashes_sent.size();
 		run_until(r, r.clock + 1000);
 		const size_t n = flashes_since(r, from).size();
-		expect(n >= 2 && n <= 3).to_be_true();
+		expect(n).to_be_between(2, 3);
 	});
 
 	it("declares SYNTH and KIT from the context and turns CROSS_SCREEN, SESSION and SCALE off", _ {
@@ -1278,8 +1290,9 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 			r.open_and_land(sound_context(f), BrowserId::Sample);
 			expect(led_on(r, ButtonId::Synth)).to_be_true();
 			expect(led_on(r, ButtonId::Kit)).to_be_false();
-			expect(led_on(r, ButtonId::CrossScreen) || led_on(r, ButtonId::Session) || led_on(r, ButtonId::Scale))
-			    .to_be_false();
+			expect(led_on(r, ButtonId::CrossScreen)).to_be_false();
+			expect(led_on(r, ButtonId::Session)).to_be_false();
+			expect(led_on(r, ButtonId::Scale)).to_be_false();
 			expect(r.fake.leds().desired_declared[static_cast<size_t>(ButtonId::Scale)]).to_be_true();
 		}
 		CleanBrowser::reset();
@@ -1296,7 +1309,8 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 			spec::AudioSongFixture f = spec::make_audio_clip_song();
 			Rig r;
 			r.open_and_land(context_of(f), BrowserId::Sample);
-			expect(led_on(r, ButtonId::Synth) || led_on(r, ButtonId::Kit)).to_be_false();
+			expect(led_on(r, ButtonId::Synth)).to_be_false();
+			expect(led_on(r, ButtonId::Kit)).to_be_false();
 		}
 	});
 
@@ -1310,7 +1324,7 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		r.pad(kDisplayWidth, 0, 64, r.clock + 10);
 		r.step();
 		expect(r.browser_on_stack()).to_be_false();
-		expect(browser_scene().take_preview() == PreviewRequest{.path = "", .direction = 0}).to_be_true();
+		expect(browser_scene().take_preview()).to_equal(PreviewRequest{.path = "", .direction = 0});
 	});
 
 	it("keeps the MIDI definition browser on its keyboard", _ {
@@ -1319,10 +1333,10 @@ describe browser_pads("scenes::browser::BrowserScene pads, greyout and LEDs", $ 
 		spec::SongFixture f = spec::make_midi_song();
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::MidiDeviceDefinition);
-		expect(browser_scene().pads() == BrowserPads::Keyboard).to_be_true();
-		expect(browser_scene().pad_regions() == deluge::ui::shell::PadRegions::Main).to_be_true();
+		expect(browser_scene().pads()).to_equal(BrowserPads::Keyboard);
+		expect(browser_scene().pad_regions()).to_equal(deluge::ui::shell::PadRegions::Main);
 		browser_scene().preview_settled(false);
-		expect(browser_scene().pads() == BrowserPads::Keyboard).to_be_true();
+		expect(browser_scene().pads()).to_equal(BrowserPads::Keyboard);
 	});
 });
 
@@ -1435,7 +1449,7 @@ describe browser_navigation("scenes::browser::BrowserScene navigation", $ {
 		const Result refused = browser_scene().handle(
 		    UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::SelectEnc}, d.ctx);
 		const ShellAction* popup = find_action(refused, ShellAction::Kind::Popup);
-		expect(popup != nullptr).to_be_true();
+		expect(popup).not_().to_be_null();
 		expect(popup != nullptr ? static_cast<int>(popup->popup_string) : -1)
 		    .to_equal(static_cast<int>(String::STRING_FOR_TEMP_FOLDER_CANT_BE_BROWSED));
 		expect(browser_scene().listing_in_flight()).to_be_false();
@@ -1443,7 +1457,7 @@ describe browser_navigation("scenes::browser::BrowserScene navigation", $ {
 
 		// The MIDI descriptor has no folder refusal at all
 		// (`load_midi_device_definition_ui.cpp:150-154`).
-		expect(browser::descriptor(BrowserId::MidiDeviceDefinition).folder_refusal == nullptr).to_be_true();
+		expect(browser::descriptor(BrowserId::MidiDeviceDefinition).folder_refusal).to_be_null();
 	});
 
 	it("closes on BACK at the browser's own top level", _ {
@@ -1558,9 +1572,12 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::SelectEnc}, d.ctx);
 		const Result sidebar = browser_scene().handle(
 		    UiEvent{.kind = UiEvent::Kind::Pad, .x = kDisplayWidth, .y = 3, .velocity = 64}, d.ctx);
-		expect(back.handled && back.actions.empty()).to_be_true();
-		expect(select.handled && select.actions.empty()).to_be_true();
-		expect(sidebar.handled && sidebar.actions.empty()).to_be_true();
+		expect(back.handled).to_be_true();
+		expect(back.actions.empty()).to_be_true();
+		expect(select.handled).to_be_true();
+		expect(select.actions.empty()).to_be_true();
+		expect(sidebar.handled).to_be_true();
+		expect(sidebar.actions.empty()).to_be_true();
 		const Pad key = pad_for('A');
 		r.pad(static_cast<uint8_t>(key.x), static_cast<uint8_t>(key.y), 64, 1651);
 		r.tick(1651);
@@ -1621,11 +1638,11 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 		r.tick(1000);
 		const std::optional<uint32_t> first = browser_scene().next_timer();
 		expect(first.has_value()).to_be_true();
-		expect(first.value() <= deluge::ui::grid::kBackspaceRepeatDelayMs).to_be_true();
+		to_be_at_most(expect(first.value()), deluge::ui::grid::kBackspaceRepeatDelayMs);
 		r.tick(1500);
 		const std::optional<uint32_t> next = browser_scene().next_timer();
 		expect(next.has_value()).to_be_true();
-		expect(next.value() <= deluge::ui::grid::kBackspaceRepeatMs).to_be_true();
+		to_be_at_most(expect(next.value()), deluge::ui::grid::kBackspaceRepeatMs);
 		r.pad_backspace(false, 1520);
 		r.tick(1520);
 	});
@@ -1648,7 +1665,7 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 		r.tick(at);
 		browser_scene().preview_settled(true);
 		r.tick(at + 10);
-		expect(browser_scene().pads() == BrowserPads::Waveform).to_be_true();
+		expect(browser_scene().pads()).to_equal(BrowserPads::Waveform);
 		r.tick(at + 500);
 		expect(browser_scene().cursor()).to_equal(start - 2); // the waveform over the keys does not end the hold
 		r.pad_backspace(false, at + 520);
@@ -1670,7 +1687,7 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 		r.horizontal(5);
 		browser_scene().preview_settled(true);
 		r.step();
-		expect(browser_scene().pads() == BrowserPads::Waveform).to_be_true();
+		expect(browser_scene().pads()).to_equal(BrowserPads::Waveform);
 		const int32_t start = browser_scene().cursor();
 		const uint32_t at = r.clock + 1000;
 		r.pad_backspace(true, at);
@@ -1947,7 +1964,10 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		expect(browser_scene().awaiting_deferred_load()).to_be_true();
 		const std::optional<browser::BrowserChoice> choice = browser_scene().take_choice();
 		expect(choice.has_value()).to_be_true();
-		expect(choice.has_value() && choice->id == BrowserId::MidiDeviceDefinition).to_be_true();
+		expect(choice.has_value()).to_be_true();
+		if (choice.has_value()) {
+			expect(choice->id).to_equal(BrowserId::MidiDeviceDefinition);
+		}
 		expect(choice.has_value() ? choice->path : std::string{})
 		    .to_equal(std::string{"MIDI_DEVICES/DEFINITION/DEVICE1.XML"});
 		// What the drain then does with the choice is `browser_choice_spec.cpp`'s.
@@ -2208,7 +2228,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		const uint32_t down = press_select(r);
 		run_until(r, down + 390);
 		release_select(r, down + 399);
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).to_be_null();
 		expect(browser_scene().take_choice().has_value()).to_be_true();
 	});
 
@@ -2224,13 +2244,14 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		const uint32_t down = press_select(r);
 		run_until(r, down + 400);
 		release_select(r, down + 450);
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
 		const size_t from = r.fake.flashes_sent.size();
 		run_until(r, r.clock + 1000);
 		const std::vector<deluge::ui::grid::PadFlash> seen = flashes_since(r, from);
 		expect(seen.empty()).to_be_false();
 		for (const deluge::ui::grid::PadFlash& fl : seen) {
-			expect(fl.x == 0 && fl.y == 5).to_be_true();
+			expect(fl.x).to_equal(0);
+			expect(fl.y).to_equal(5);
 		}
 	});
 
@@ -2244,12 +2265,12 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		select_folder(r, false);
 		const uint32_t down = press_select(r);
 		run_until(r, down + 400);
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
 		expect(static_cast<int>(context_menu_scene().descriptor_id()))
 		    .to_equal(static_cast<int>(context_menu::DescriptorId::SampleBrowserSynth));
 		expect(browser_scene().holding()).to_be_false();
 		release_select(r, down + 450);
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
 		expect(r.browser_on_stack()).to_be_true();
 		expect(browser_scene().take_choice().has_value()).to_be_false();
 	});
@@ -2263,11 +2284,11 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		r.open_and_land(sound_context(f), BrowserId::Sample);
 		const uint32_t down = press_select(r);
 		run_until(r, down + 410);
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
 		r.pad(kDisplayWidth, 2, 64, r.clock + 10);
 		r.step();
 		run_until(r, r.clock + 20);
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).to_be_null();
 		expect(r.browser_on_stack()).to_be_false();
 	});
 
@@ -2284,7 +2305,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		r.open_and_land(ctx, BrowserId::Sample);
 		const uint32_t down = press_select(r);
 		run_until(r, down + 410);
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
 		facts.set({.auditioning = true});
 		r.button(kBackX, kBackY, true, r.clock + 10);
 		r.step();
@@ -2294,7 +2315,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		r.step();
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, r.clock + 10);
 		r.step();
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
 		expect(r.browser_on_stack()).to_be_true();
 		expect(browser_scene().take_choice().has_value()).to_be_false(); // the refused SELECT started no import
 		facts.set({.auditioning = false});
@@ -2313,7 +2334,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		r.open_and_land(ctx, BrowserId::Sample);
 		const uint32_t down = press_select(r);
 		run_until(r, down + 410);
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
 		facts.set({.auditioning = true});
 		DirectCtx d;
 		const Result play = context_menu_scene().handle(
@@ -2349,7 +2370,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		select_folder(r, false);
 		const uint32_t down = press_select(r);
 		run_until(r, down + 600);
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).to_be_null();
 		expect(browser_scene().holding()).to_be_false(); // the press was refused too
 		release_select(r, down + 610);
 		// `SampleBrowser::buttonAction`'s gate refuses every button while the load runs, the release included.
@@ -2416,7 +2437,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		// The tick routes its input before the scene answers the deadline, so the release unsets the hold first,
 		// as main's release unsets its timer when the button task runs before the timer's.
 		release_select(r, down + 400);
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).to_be_null();
 		expect(browser_scene().take_choice().has_value()).to_be_true();
 	});
 
@@ -2431,18 +2452,18 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		const uint32_t down = press_select(r);
 		run_until(r, down + 410);
 		release_select(r, down + 420);
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
 		r.enter();
 		expect(browser_scene().take_choice().has_value()).to_be_true();
 		// Both stay while the claim runs, as `claimCurrentFile` runs with them up ...
 		expect(r.browser_on_stack()).to_be_true();
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
 		// ... and the closing browser takes the menu above it, as `close()` does.
 		browser_scene().deferred_load_done(true);
 		r.step();
 		r.step();
 		expect(r.browser_on_stack()).to_be_false();
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).to_be_null();
 	});
 
 	it("ignores a load's end it did not start", _ {
@@ -2465,7 +2486,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		r.open_and_land(context_of(f), BrowserId::Sample);
 		const uint32_t down = press_select(r);
 		run_until(r, down + 410);
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).to_be_null();
 		expect(popup_text(r)).to_equal(
 		    std::string{deluge::l10n::get(String::STRING_FOR_CANT_IMPORT_WHOLE_FOLDER_INTO_AUDIO_CLIP)});
 	});
@@ -2480,7 +2501,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		r.open_and_land(sound_context(f), BrowserId::Sample);
 		const uint32_t down = press_select(r);
 		run_until(r, down + 410);
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).to_be_null();
 		expect(popup_text(r)).to_equal(
 		    std::string{deluge::l10n::get(String::STRING_FOR_CAN_ONLY_IMPORT_WHOLE_FOLDER_INTO_BRAND_NEW_KIT)});
 	});
@@ -2496,7 +2517,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		run_until(r, down + 410);
 		expect(static_cast<int>(context_menu_scene().descriptor_id()))
 		    .to_equal(static_cast<int>(context_menu::DescriptorId::SampleBrowserKit));
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
 	});
 
 	it("tells a kit's only drum edited on source 1 that only a brand-new kit takes a whole folder", _ {
@@ -2511,7 +2532,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		r.open_and_land(ctx, BrowserId::Sample);
 		const uint32_t down = press_select(r);
 		run_until(r, down + 410);
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).to_be_null();
 		expect(popup_text(r)).to_equal(
 		    std::string{deluge::l10n::get(String::STRING_FOR_CAN_ONLY_IMPORT_WHOLE_FOLDER_INTO_BRAND_NEW_KIT)});
 	});
@@ -2526,7 +2547,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		select_folder(r, true);
 		const uint32_t down = press_select(r);
 		run_until(r, down + 410);
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).to_be_null();
 		expect(popup_text(r)).to_equal(std::string{});
 		expect(browser_scene().holding()).to_be_false();
 	});
@@ -2540,7 +2561,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		select_folder(r, false);
 		const uint32_t down = press_select(r);
 		run_until(r, down + 410);
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
 		expect(context_menu_scene().available().size()).to_equal(size_t(2));
 		expect(static_cast<int>(context_menu_scene().selected_option())).to_equal(2);
 		release_select(r, down + 420);
@@ -2563,7 +2584,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		const int32_t before = browser_scene().cursor();
 		const std::string name{browser_scene().entered_text()};
 		r.type(name.empty() ? 'C' : name[static_cast<size_t>(before)]);
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).not_().to_be_null();
 		expect(browser_scene().cursor()).to_equal(before + 1);
 	});
 
@@ -2581,7 +2602,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		const std::string text{browser_scene().entered_text()};
 		r.type('C');
 		// `ContextMenu::padAction` closes on the press and deals with it, so the browser it uncovers does not type it.
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).to_be_null();
 		expect(browser_scene().cursor()).to_equal(before);
 		expect(std::string{browser_scene().entered_text()}).to_equal(text);
 	});
@@ -2617,7 +2638,7 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
 		const context_menu::Descriptor& kit = context_menu::descriptor(context_menu::DescriptorId::SampleBrowserKit);
-		expect(kit.options_now != nullptr).to_be_true();
+		expect(kit.options_now).not_().to_be_null();
 		std::array<uint8_t, context_menu::kMaxOptions> out{};
 		select_folder(r, false);
 		expect(kit.options_now != nullptr ? kit.options_now(sound_context(f), out) : 0).to_equal(size_t(2));
@@ -2635,7 +2656,7 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		PreviewHeld held{sample};
 		held.range->sampleHolder.filePath = "SAMPLES/HELD.WAV";
 		deluge::gui::ui::openShellSlice("SAMPLES/HELD.WAV");
-		expect(held.range->sampleHolder.audioFile == sample).to_be_true();
+		expect(held.range->sampleHolder.audioFile).to_equal(sample);
 		expect(deluge::gui::ui::shellSlicerBusy()).to_be_false();
 		expect(deluge::scenes::slicing::slicer_scene().has_sample()).to_be_true();
 		deluge::gui::ui::releaseShellSlicerBeforeClose();
@@ -2673,8 +2694,15 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		const context_menu::Descriptor& kit = context_menu::descriptor(context_menu::DescriptorId::SampleBrowserKit);
 		expect(kit.accept(sound_context(f), 1)).to_be_true();
 		const std::optional<browser::BrowserChoice> choice = browser_scene().take_choice();
-		expect(choice.has_value() && choice->op == browser::BrowserChoice::Op::Slice).to_be_true();
-		expect(choice.has_value() && !choice->is_folder && !choice->path.empty()).to_be_true();
+		expect(choice.has_value()).to_be_true();
+		if (choice.has_value()) {
+			expect(choice->op).to_equal(browser::BrowserChoice::Op::Slice);
+		}
+		expect(choice.has_value()).to_be_true();
+		if (choice.has_value()) {
+			expect(choice->is_folder).to_be_false();
+			expect(choice->path.empty()).to_be_false();
+		}
 	});
 
 	it("Shift+Select on a file in a fresh kit parks a slice and keeps the browser", _ {
@@ -2691,7 +2719,10 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		release_select(r, down + 20);
 		r.settle();
 		const std::optional<browser::BrowserChoice> choice = browser_scene().take_choice();
-		expect(choice.has_value() && choice->op == browser::BrowserChoice::Op::Slice).to_be_true();
+		expect(choice.has_value()).to_be_true();
+		if (choice.has_value()) {
+			expect(choice->op).to_equal(browser::BrowserChoice::Op::Slice);
+		}
 		expect(r.browser_on_stack()).to_be_true();
 		expect(popup_text(r)).to_equal(std::string{});
 	});
@@ -2728,7 +2759,10 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		release_select(r, down + 20);
 		r.settle();
 		const std::optional<browser::BrowserChoice> choice = browser_scene().take_choice();
-		expect(choice.has_value() && choice->op == browser::BrowserChoice::Op::Enter).to_be_true();
+		expect(choice.has_value()).to_be_true();
+		if (choice.has_value()) {
+			expect(choice->op).to_equal(browser::BrowserChoice::Op::Enter);
+		}
 	});
 
 	it("pushes the slicer the host opened, with SLICER on the Shift+Select door only", _ {
@@ -2749,7 +2783,7 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 			browser_scene().slice_ready(true);
 			r.step(); // arms the browser's timer
 			r.step(); // renders, and pushes
-			expect(on_stack(r, slicing::kSlicerSceneKind) != nullptr).to_be_true();
+			expect(on_stack(r, slicing::kSlicerSceneKind)).not_().to_be_null();
 			r.step(); // the popup the push filed
 			expect(popup_text(r)).to_equal(std::string{"SLICER"});
 		}
@@ -2763,7 +2797,7 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 			browser_scene().slice_ready(true);
 			r.step(); // arms the browser's timer
 			r.step(); // renders, and pushes
-			expect(on_stack(r, slicing::kSlicerSceneKind) != nullptr).to_be_true();
+			expect(on_stack(r, slicing::kSlicerSceneKind)).not_().to_be_null();
 			expect(popup_text(r)).to_equal(std::string{});
 		}
 	});
@@ -2778,13 +2812,13 @@ describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two do
 		(void)browser_scene().take_choice();
 		browser_scene().slice_ready(true); // nothing out
 		r.step();
-		expect(on_stack(r, slicing::kSlicerSceneKind) == nullptr).to_be_true();
+		expect(on_stack(r, slicing::kSlicerSceneKind)).to_be_null();
 		select_folder(r, false);
 		(void)context_menu::descriptor(context_menu::DescriptorId::SampleBrowserKit).accept(sound_context(f), 1);
 		(void)browser_scene().take_choice();
 		browser_scene().slice_ready(false);
 		r.step();
-		expect(on_stack(r, slicing::kSlicerSceneKind) == nullptr).to_be_true();
+		expect(on_stack(r, slicing::kSlicerSceneKind)).to_be_null();
 		expect(r.browser_on_stack()).to_be_true();
 	});
 });
@@ -2800,7 +2834,7 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 			r.open_and_land(context_of(f), BrowserId::Sample);
 			r.pad(9, 7, 64, r.clock + 10);
 			r.step();
-			expect(browser_scene().pads() == BrowserPads::Keyboard).to_be_true();
+			expect(browser_scene().pads()).to_equal(BrowserPads::Keyboard);
 			expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"CLAP"});
 			expect(browser_scene().cursor()).to_equal(0);
 		}
@@ -2809,10 +2843,10 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 			Rig r;
 			r.open_and_land(context_of(f), BrowserId::Sample);
 			const Pad t = pad_for('T');
-			expect(t.y < browser::kFavouriteRow).to_be_true();
+			expect(t.y).to_be_less_than(browser::kFavouriteRow);
 			r.pad(static_cast<uint8_t>(t.x), static_cast<uint8_t>(t.y), 64, r.clock + 10);
 			r.step();
-			expect(browser_scene().pads() == BrowserPads::Keyboard).to_be_true();
+			expect(browser_scene().pads()).to_equal(BrowserPads::Keyboard);
 			expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"TOM"});
 		}
 	});
@@ -2828,11 +2862,11 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 			r.open_and_land(context_of(f), BrowserId::Sample);
 			r.pad(9, 7, 64, r.clock + 10);
 			r.step();
-			expect(browser_scene().pads() == BrowserPads::Keyboard).to_be_true();
+			expect(browser_scene().pads()).to_equal(BrowserPads::Keyboard);
 			r.turn(1, r.clock + 10);
 			r.step();
 			browser_scene().preview_settled(false);
-			expect(browser_scene().pads() == BrowserPads::Root).to_be_true();
+			expect(browser_scene().pads()).to_equal(BrowserPads::Root);
 			expect(static_cast<uint64_t>(browser_scene().greyout_mask().cols)).to_equal(uint64_t{0xFFFFFFFE});
 		}
 		CleanBrowser::reset();
@@ -2843,7 +2877,7 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 			r.turn(1, r.clock + 10);
 			r.step();
 			browser_scene().preview_settled(false);
-			expect(browser_scene().pads() == BrowserPads::Keyboard).to_be_true();
+			expect(browser_scene().pads()).to_equal(BrowserPads::Keyboard);
 		}
 	});
 
@@ -2856,7 +2890,7 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 		r.open_and_land(sound_context(f), BrowserId::Sample);
 		r.type('T');
 		browser_scene().preview_settled(true);
-		expect(browser_scene().pads() == BrowserPads::Keyboard).to_be_true();
+		expect(browser_scene().pads()).to_equal(BrowserPads::Keyboard);
 	});
 
 	it("KEYBOARD toggles always-visible and its LED, on the press", _ {
@@ -2869,7 +2903,7 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 		r.button(kKeyboardX, kKeyboardY, true, r.clock + 10);
 		r.step();
 		expect(browser_scene().keyboard_always_visible()).to_be_true();
-		expect(browser_scene().pads() == BrowserPads::Keyboard).to_be_true();
+		expect(browser_scene().pads()).to_equal(BrowserPads::Keyboard);
 		expect(led_on(r, ButtonId::Keyboard)).to_be_true();
 		r.button(kKeyboardX, kKeyboardY, false, r.clock + 10);
 		r.step();
@@ -2920,7 +2954,11 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 		browser_scene().preview_settled(true);
 		const std::optional<browser::BrowserChoice> choice = browser_scene().take_choice();
 		expect(choice.has_value()).to_be_true();
-		expect(choice.has_value() && choice->keep_open && choice->op == browser::BrowserChoice::Op::Enter).to_be_true();
+		expect(choice.has_value()).to_be_true();
+		if (choice.has_value()) {
+			expect(choice->keep_open).to_be_true();
+			expect(choice->op).to_equal(browser::BrowserChoice::Op::Enter);
+		}
 		expect(choice.has_value() ? choice->path : std::string{}).to_equal(std::string{"SAMPLES/CLAP.WAV"});
 		expect(r.browser_on_stack()).to_be_true();
 		select_folder(r, true);
@@ -2945,14 +2983,14 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 		r.button(kXEncX, kXEncY, false, r.clock + 10);
 		r.step();
 		r.settle();
-		expect(browser_scene().pads() == BrowserPads::Waveform).to_be_true();
+		expect(browser_scene().pads()).to_equal(BrowserPads::Waveform);
 		expect(browser_scene().waveform_nav().is_zoomed_in()).to_be_true();
-		expect(r.fake.state() != zoomed_out).to_be_true();
+		expect(r.fake.state()).not_().to_equal(zoomed_out);
 		const int64_t scroll = browser_scene().waveform_nav().xScroll;
 		r.horizontal(1);
 		r.settle();
-		expect(browser_scene().waveform_nav().xScroll != scroll).to_be_true();
-		expect(browser_scene().pads() == BrowserPads::Waveform).to_be_true();
+		expect(browser_scene().waveform_nav().xScroll).not_().to_equal(scroll);
+		expect(browser_scene().pads()).to_equal(BrowserPads::Waveform);
 		r.button(kXEncX, kXEncY, true, r.clock + 10);
 		r.step();
 		r.horizontal(-8);
@@ -2960,7 +2998,7 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 		r.step();
 		expect(browser_scene().waveform_nav().is_zoomed_in()).to_be_false();
 		r.horizontal(1);
-		expect(browser_scene().pads() == BrowserPads::Keyboard).to_be_true();
+		expect(browser_scene().pads()).to_equal(BrowserPads::Keyboard);
 		expect(browser_scene().cursor()).to_equal(1);
 	});
 
@@ -2995,12 +3033,17 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 		r.open_and_land(sound_context(f), BrowserId::Sample);
 		browser_scene().preview_settled(true);
 		run_until(r, r.clock + 500);
-		expect(r.shell.next_wake().has_value() && *r.shell.next_wake() - r.clock <= kListingPollMs).to_be_false();
+		if (r.shell.next_wake().has_value()) {
+			expect(*r.shell.next_wake() - r.clock).to_be_greater_than(kListingPollMs);
+		}
 		r.button(kXEncX, kXEncY, true, r.clock + 10);
 		r.step();
 		r.horizontal(1);
 		r.settle();
-		expect(r.shell.next_wake().has_value() && *r.shell.next_wake() - r.clock <= kListingPollMs).to_be_true();
+		expect(r.shell.next_wake().has_value()).to_be_true();
+		if (r.shell.next_wake().has_value()) {
+			to_be_at_most(expect(*r.shell.next_wake() - r.clock), kListingPollMs);
+		}
 		r.button(kXEncX, kXEncY, false, r.clock + 10);
 		r.step();
 	});
@@ -3016,7 +3059,7 @@ describe browser_keyboard("scenes::browser::BrowserScene the keyboard on demand,
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"KICK2 WITH A LONG ROOM TAIL"});
 		const std::string still = r.fake.pbm(0);
 		run_until(r, r.clock + 1000);
-		expect(r.fake.pbm(0) != still).to_be_true();
+		expect(r.fake.pbm(0)).not_().to_equal(still);
 		r.horizontal(1); // the cursor off the start: the row stops scrolling
 		const std::string moved = r.fake.pbm(0);
 		run_until(r, r.clock + 1000);
@@ -3040,10 +3083,10 @@ describe browser_scroll("scenes::browser::BrowserScene asking for the horizontal
 		expect(browser_scene().scroll_pending()).to_be_true();
 		const Result oled_only = browser_scene().after_render(); // a tick that drew no pads
 		expect(browser_scene().take_scroll().has_value()).to_be_false(); // the waveform is not on the grid yet
-		expect(find_action(oled_only, ShellAction::Kind::RepaintAll) != nullptr).to_be_true();
+		expect(find_action(oled_only, ShellAction::Kind::RepaintAll)).not_().to_be_null();
 		deluge::notify::raise(deluge::notify::Dirty::GridMain); // the repaint that after_render asked for
 		run_until(r, r.clock + 30);
-		expect(browser_scene().take_scroll() == ScrollRequest{.direction = 1}).to_be_true();
+		expect(browser_scene().take_scroll()).to_equal(ScrollRequest{.direction = 1});
 		expect(browser_scene().scroll_pending()).to_be_false();
 	});
 
@@ -3067,7 +3110,7 @@ describe browser_scroll("scenes::browser::BrowserScene asking for the horizontal
 		(void)browser_scene().take_scroll();
 		r.turn(-1, r.clock + 10);
 		r.step();
-		expect(browser_scene().take_scroll() == ScrollRequest{.direction = -1, .into_nothing = true}).to_be_true();
+		expect(browser_scene().take_scroll()).to_equal(ScrollRequest{.direction = -1, .into_nothing = true});
 	});
 
 	it("hides the keyboard on entering a folder unless it is always visible", _ {
@@ -3084,7 +3127,7 @@ describe browser_scroll("scenes::browser::BrowserScene asking for the horizontal
 		release_select(r, down + 20);
 		r.land();
 		browser_scene().preview_settled(false);
-		expect(browser_scene().pads() == BrowserPads::Root).to_be_true();
+		expect(browser_scene().pads()).to_equal(BrowserPads::Root);
 	});
 
 	it("files a scroll to the root view when a move lands on nothing to show", _ {
@@ -3102,8 +3145,12 @@ describe browser_scroll("scenes::browser::BrowserScene asking for the horizontal
 		(void)browser_scene().take_scroll(); // the scroll out
 		browser_scene().preview_settled(false);
 		const std::optional<ScrollRequest> scroll = browser_scene().take_scroll();
-		expect(scroll.has_value() && scroll->to_root && !scroll->into_nothing).to_be_true();
-		expect(browser_scene().pads() == BrowserPads::Root).to_be_true();
+		expect(scroll.has_value()).to_be_true();
+		if (scroll.has_value()) {
+			expect(scroll->to_root).to_be_true();
+			expect(scroll->into_nothing).to_be_false();
+		}
+		expect(browser_scene().pads()).to_equal(BrowserPads::Root);
 	});
 
 	it("drops a waveform scroll the keyboard overtook before it was drawn", _ {
@@ -3144,7 +3191,7 @@ describe browser_scroll("scenes::browser::BrowserScene asking for the horizontal
 		expect(browser_scene().scroll_pending()).to_be_true();
 		browser_scene().file_deleted(std::string{"SAMPLES/"} + std::string{browser_scene().entered_text()} + ".WAV");
 		browser_scene().preview_settled(false);
-		expect(browser_scene().pads() == BrowserPads::Root).to_be_true();
+		expect(browser_scene().pads()).to_equal(BrowserPads::Root);
 		run_until(r, r.clock + 30);
 		expect(browser_scene().scroll_pending()).to_be_false();
 		expect(browser_scene().take_scroll().has_value()).to_be_false();
@@ -3183,11 +3230,18 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		expect(pressed.handled).to_be_true();
 		const ShellAction* removed = find_action(pressed, ShellAction::Kind::Remove);
 		const ShellAction* pushed = find_action(pressed, ShellAction::Kind::Push);
-		expect(removed != nullptr && removed->pop_to == kBrowserSceneKind).to_be_true();
-		expect(pushed != nullptr && pushed->id.kind == recorder::kRecorderSceneKind).to_be_true();
+		expect(removed).not_().to_be_null();
+		if (removed != nullptr) {
+			expect(removed->pop_to).to_equal(kBrowserSceneKind);
+		}
+		expect(pushed).not_().to_be_null();
+		if (pushed != nullptr) {
+			expect(pushed->id.kind).to_equal(recorder::kRecorderSceneKind);
+		}
 		const Result released = browser_scene().handle(
 		    UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::Record}, d.ctx);
-		expect(released.handled && released.actions.empty()).to_be_true();
+		expect(released.handled).to_be_true();
+		expect(released.actions.empty()).to_be_true();
 	});
 
 	it("takes RECORD and does nothing while an audition pad is held", _ {
@@ -3205,15 +3259,17 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		DirectCtx d;
 		const Result pressed = browser_scene().handle(
 		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Record}, d.ctx);
-		expect(pressed.handled && pressed.actions.empty()).to_be_true();
+		expect(pressed.handled).to_be_true();
+		expect(pressed.actions.empty()).to_be_true();
 		const Result released = browser_scene().handle(
 		    UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::Record}, d.ctx);
-		expect(released.handled && released.actions.empty()).to_be_true();
+		expect(released.handled).to_be_true();
+		expect(released.actions.empty()).to_be_true();
 		// The audition pad up, the same press opens the recorder.
 		facts.set({.auditioning = false});
 		const Result opened = browser_scene().handle(
 		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Record}, d.ctx);
-		expect(find_action(opened, ShellAction::Kind::Push) != nullptr).to_be_true();
+		expect(find_action(opened, ShellAction::Kind::Push)).not_().to_be_null();
 	});
 
 	it("takes no BACK, SELECT, Select turn, key or mute-column press while an audition pad is held", _ {
@@ -3241,10 +3297,14 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		taken[3] = browser_scene().handle(
 		    UiEvent{.kind = UiEvent::Kind::Pad, .x = kDisplayWidth, .y = 3, .velocity = 64}, d.ctx);
 		// BACK, SELECT, the Select turn and the mute column: each is claimed and does nothing.
-		expect(taken[0].handled && taken[0].actions.empty()).to_be_true();
-		expect(taken[1].handled && taken[1].actions.empty()).to_be_true();
-		expect(taken[2].handled && taken[2].actions.empty()).to_be_true();
-		expect(taken[3].handled && taken[3].actions.empty()).to_be_true();
+		expect(taken[0].handled).to_be_true();
+		expect(taken[0].actions.empty()).to_be_true();
+		expect(taken[1].handled).to_be_true();
+		expect(taken[1].actions.empty()).to_be_true();
+		expect(taken[2].handled).to_be_true();
+		expect(taken[2].actions.empty()).to_be_true();
+		expect(taken[3].handled).to_be_true();
+		expect(taken[3].actions.empty()).to_be_true();
 		expect(browser_scene().holding()).to_be_false();
 		const Result released = browser_scene().handle(
 		    UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::SelectEnc}, d.ctx);
@@ -3310,11 +3370,11 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 			} root;
 			actionLogger.deleteAllLogs();
 			(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
-			expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+			expect(actionLogger.firstAction[BEFORE]).not_().to_be_null();
 		}
 		Rig r;
 		r.open_and_land(sound_context(f), BrowserId::Sample);
-		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE]).to_be_null();
 	});
 
 	it("leaves KEYBOARD's and LOAD's LEDs as the view left them until each is pressed", _ {
@@ -3353,12 +3413,14 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		for (const ButtonId b : {ButtonId::Back, ButtonId::Record}) {
 			const Result pressed =
 			    browser_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = b}, d.ctx);
-			expect(pressed.handled && pressed.actions.empty()).to_be_true();
+			expect(pressed.handled).to_be_true();
+			expect(pressed.actions.empty()).to_be_true();
 		}
 		d.ctx.shift = true;
 		const Result saved = browser_scene().handle(
 		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Save}, d.ctx);
-		expect(saved.handled && saved.actions.empty()).to_be_true();
+		expect(saved.handled).to_be_true();
+		expect(saved.actions.empty()).to_be_true();
 		d.ctx.shift = false;
 		expect(browser_scene().listing_in_flight()).to_be_false();
 		expect(std::string{browser_scene().current_dir()}).to_equal(dir);
@@ -3406,7 +3468,10 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		r.step();
 		const auto* menu = static_cast<const context_menu::ContextMenuScene*>(
 		    on_stack(r, context_menu::kContextMenuSceneKind));
-		expect(menu != nullptr && menu->descriptor_id() == context_menu::DescriptorId::DeleteFile).to_be_true();
+		expect(menu).not_().to_be_null();
+		if (menu != nullptr) {
+			expect(menu->descriptor_id()).to_equal(context_menu::DescriptorId::DeleteFile);
+		}
 		r.shell.stack().pop(context_menu::kContextMenuSceneKind);
 		select_folder(r, true);
 		r.button(kSaveX, kSaveY, true, r.clock + 10);
@@ -3414,7 +3479,7 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		r.button(kSaveX, kSaveY, false, r.clock + 10);
 		r.step();
 		r.step();
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).to_be_null();
 		r.button(kShiftX, kShiftY, false, r.clock + 10);
 		r.step();
 	});
@@ -3435,7 +3500,7 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		r.button(kSaveX, kSaveY, true, r.clock + 10);
 		r.step();
 		r.step();
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind)).to_be_null();
 		expect(popup_text(r)).to_equal(std::string{deluge::l10n::get(String::STRING_FOR_AUDIO_FILE_IS_USED_IN_CURRENT_SONG)});
 		r.button(kSaveX, kSaveY, false, r.clock + 10);
 		r.button(kShiftX, kShiftY, false, r.clock + 10);
@@ -3461,7 +3526,7 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		held.range->sampleHolder.audioFile = nullptr;
 		deluge::notify::raise(deluge::notify::Dirty::GridMain);
 		run_until(r, r.clock + 50);
-		expect(browser_scene().pads() == BrowserPads::Waveform).to_be_true();
+		expect(browser_scene().pads()).to_equal(BrowserPads::Waveform);
 		expect(r.fake.state()).to_equal(shown);
 	});
 
@@ -3477,8 +3542,8 @@ describe browser_record_delete("scenes::browser::BrowserScene RECORD and Shift+S
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"CLAP"});
 		browser_scene().file_deleted("SAMPLES/CLAP.WAV");
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"CLIPS"});
-		expect(catalogue_order().find("CLAP.WAV") == std::string::npos).to_be_true();
-		expect(browser_scene().take_preview() == PreviewRequest{.path = "", .direction = 0}).to_be_true();
+		expect(catalogue_order()).not_().to_contain("CLAP.WAV");
+		expect(browser_scene().take_preview()).to_equal(PreviewRequest{.path = "", .direction = 0});
 	});
 });
 describe browser_favourites("scenes::browser::BrowserScene the favourites row", $ {
@@ -3492,12 +3557,12 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::Sample);
 		expect(fake.category).to_equal(std::string{"SAMPLES"});
-		expect(r.fake.grid().grid().at(2, 7) == RGB{}).to_be_true(); // no keyboard yet: the root view's
+		expect(r.fake.grid().grid().at(2, 7)).to_equal(RGB{}); // no keyboard yet: the root view's
 		tap(r, 9, 7);
 		r.settle();
 		const std::array<RGB, 16> want = deluge::ui::grid::favourite_row_colours(fake.slots);
 		for (uint8_t x = 0; x < 16; x++) {
-			expect(r.fake.grid().grid().at(x, 7) == want[x]).to_be_true();
+			expect(r.fake.grid().grid().at(x, 7)).to_equal(want[x]);
 		}
 		browser_scene().on_exit();
 		expect(fake.closes).to_equal(1);
@@ -3517,7 +3582,7 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		tap(r, 3, 7);
 		r.land();
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"TOM"});
-		expect(fake.current == std::optional<uint8_t>{3}).to_be_true();
+		expect(fake.current).to_equal(std::optional<uint8_t>{3});
 		tap(r, 5, 7); // the recall's listing hid the keyboard: this reveals it
 		tap(r, 5, 7);
 		r.step();
@@ -3561,7 +3626,7 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		d.ctx.shift = true;
 		(void)browser_scene().handle(
 		    UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = deluge::ui::EncoderRole::Vertical, .delta = 2}, d.ctx);
-		expect(fake.slots[1] == std::optional<uint8_t>{6}).to_be_true();
+		expect(fake.slots[1]).to_equal(std::optional<uint8_t>{6});
 	});
 
 	it("flashes the current favourite every 500 ms from the draw", _ {
@@ -3582,7 +3647,8 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		const std::vector<deluge::ui::grid::PadFlash> seen = flashes_since(r, from);
 		expect(seen.size()).to_equal(size_t(2));
 		for (const deluge::ui::grid::PadFlash& fl : seen) {
-			expect(fl.x == 4 && fl.y == 7).to_be_true();
+			expect(fl.x).to_equal(4);
+			expect(fl.y).to_equal(7);
 		}
 		r.turn(1, r.clock + 10); // a move hides the keyboard; the rows stay, the flash stops
 		r.step();
@@ -3623,7 +3689,7 @@ describe browser_favourites("scenes::browser::BrowserScene the favourites row", 
 		tap(r, 9, 7);
 		r.settle();
 		const std::array<RGB, 16> banks = deluge::ui::grid::favourite_bank_colours();
-		expect(r.fake.grid().grid().at(5, 7) == banks[5]).to_be_true();
+		expect(r.fake.grid().grid().at(5, 7)).to_equal(banks[5]);
 		tap(r, 5, 7);
 		expect(fake.bank).to_equal(uint8_t(5));
 	});

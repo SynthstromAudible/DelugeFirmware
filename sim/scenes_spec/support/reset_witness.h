@@ -21,7 +21,9 @@
 #include <array>
 #include <charconv>
 #include <cstdint>
+#include <format>
 #include <optional>
+#include <ostream>
 #include <string_view>
 #include <system_error>
 
@@ -37,6 +39,17 @@ struct ResetWitness {
 	uint32_t drum_randomizer;
 	bool operator==(const ResetWitness&) const = default;
 };
+
+/// @brief Prints the six globals by name, as numbers, so a failed CppSpec comparison shows which reset moved which.
+/// @param os The stream to print to.
+/// @param w The witness.
+/// @return @p os.
+inline std::ostream& operator<<(std::ostream& os, const ResetWitness& w) {
+	return os << std::format("{{midi_thru {:d}, analog_in_ppqn {}, use_sharps {:d}, follow_root_note {}, "
+	                         "follow_display_param {:d}, drum_randomizer {}}}",
+	                         w.midi_thru, w.analog_in_ppqn, w.use_sharps, w.follow_root_note, w.follow_display_param,
+	                         w.drum_randomizer);
+}
 
 /// @brief The six globals as they are now.
 inline ResetWitness witness() {

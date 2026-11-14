@@ -973,7 +973,7 @@ describe browser_choice_dispatch(
 			        // waiting for the claim, over the menu it was opened from.
 			        expect(control.browser_on_stack()).to_be_true();
 
-			        expect(control.ui.shell().stack().depth() > 0).to_be_true();
+			        expect(control.ui.shell().stack().depth()).to_be_greater_than(0);
 			        // The press really files, on this exact path, through this exact guest. Without this the
 			        // example below passes on a press that never filed anything.
 			        expect(browser::browser_scene().take_choice().has_value()).to_be_true();
@@ -1052,9 +1052,9 @@ describe browser_choice_claim(
 		        deluge::gui::ui::dispatchShellChoices();
 
 		        expect(spy.dispatches).to_equal(1);
-		        expect(ClaimSpy::last.target.sound == sound).to_be_true();
-		        expect(ClaimSpy::last.target.source == r.model.source).to_be_true();
-		        expect(ClaimSpy::last.target.range == static_cast<::MultiRange*>(r.model.range)).to_be_true();
+		        expect(ClaimSpy::last.target.sound).to_equal(sound);
+		        expect(ClaimSpy::last.target.source).to_equal(r.model.source);
+		        expect(ClaimSpy::last.target.range).to_equal(static_cast<::MultiRange*>(r.model.range));
 		        expect(static_cast<int32_t>(ClaimSpy::last.target.rangeIndex)).to_equal(0);
 		        expect(static_cast<int32_t>(ClaimSpy::last.target.sourceIndex)).to_equal(0);
 	        });
@@ -1172,7 +1172,7 @@ describe browser_choice_claim(
 		        expect(browser::browser_scene().awaiting_deferred_load()).to_be_true();
 
 		        // The completion the request carries, called as the claim calls it once the file is in.
-		        expect(ClaimSpy::last.completion != nullptr).to_be_true();
+		        expect(ClaimSpy::last.completion).not_().to_be_null();
 		        if (ClaimSpy::last.completion != nullptr) {
 			        ClaimSpy::last.completion(true);
 		        }
@@ -1181,7 +1181,7 @@ describe browser_choice_claim(
 		        expect(r.browser_on_stack()).to_be_false();
 		        // The menu beneath was moved onto the source page while the browser covered it, and resuming did not
 		        // step it back up off that page.
-		        expect(menu_scene().state().path[0] == &nodes::source_group).to_be_true();
+		        expect(menu_scene().state().path[0]).to_equal(&nodes::source_group);
 		        expect(menu_scene().state().depth).to_equal(0);
 	        });
 
@@ -1194,7 +1194,7 @@ describe browser_choice_claim(
 		        r.open_browser();
 		        r.enter();
 		        deluge::gui::ui::dispatchShellChoices();
-		        expect(ClaimSpy::last.completion != nullptr).to_be_true();
+		        expect(ClaimSpy::last.completion).not_().to_be_null();
 		        if (ClaimSpy::last.completion != nullptr) {
 			        ClaimSpy::last.completion(false);
 		        }
@@ -1202,7 +1202,7 @@ describe browser_choice_claim(
 		        r.step();
 		        expect(r.browser_on_stack()).to_be_true();
 		        expect(browser::browser_scene().awaiting_deferred_load()).to_be_false();
-		        expect(menu_scene().state().path[0] == &nodes::file0_selector).to_be_true();
+		        expect(menu_scene().state().path[0]).to_equal(&nodes::file0_selector);
 	        });
 
 	    it(
@@ -1227,7 +1227,7 @@ describe browser_choice_claim(
 		        expect(r.browser_on_stack()).to_be_true();
 		        r.enter();
 		        deluge::gui::ui::dispatchShellChoices();
-		        expect(ClaimSpy::last.completion != nullptr).to_be_true();
+		        expect(ClaimSpy::last.completion).not_().to_be_null();
 		        if (ClaimSpy::last.completion != nullptr) {
 			        ClaimSpy::last.completion(true);
 		        }
@@ -1282,7 +1282,7 @@ describe browser_choice_reroot(
 
 		        // Before the press: the menu IS the file selector, and it is the whole path.
 		        expect(menu_scene().state().depth).to_equal(0);
-		        expect(menu_scene().state().path[0] == &nodes::file0_selector).to_be_true();
+		        expect(menu_scene().state().path[0]).to_equal(&nodes::file0_selector);
 
 		        r.enter();
 		        deluge::gui::ui::dispatchShellChoices();
@@ -1292,12 +1292,12 @@ describe browser_choice_reroot(
 
 		        // The browser is up for the claim and the menu beneath is where the press left it: on the file
 		        // selector, at the root.
-		        expect(menu_scene().state().path[0] == &nodes::file0_selector).to_be_true();
+		        expect(menu_scene().state().path[0]).to_equal(&nodes::file0_selector);
 
 		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_true();
 
 		        // `menuItemNavigationRecord[0] = parentMenuHeadingTo` (`:1117`), the chain's `sourceMenuGroup` ...
-		        expect(menu_scene().state().path[0] == &nodes::source_group).to_be_true();
+		        expect(menu_scene().state().path[0]).to_equal(&nodes::source_group);
 		        // ... and `navigationDepth = 0` (`:1118`). This is the assertion the "one extra BACK
 		        // press" was: a re-root that left the page one level in would still satisfy the line
 		        // above.
@@ -1334,11 +1334,11 @@ describe browser_choice_reroot(
 		        deluge::gui::ui::dispatchShellChoices();
 
 		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_true();
-		        expect(menu_scene().state().path[0] == &nodes::source_group).to_be_true();
+		        expect(menu_scene().state().path[0]).to_equal(&nodes::source_group);
 
 		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_false();
 		        // And a refusal is a no-op, not a reset: the menu is exactly where the first call left it.
-		        expect(menu_scene().state().path[0] == &nodes::source_group).to_be_true();
+		        expect(menu_scene().state().path[0]).to_equal(&nodes::source_group);
 		        expect(menu_scene().state().depth).to_equal(0);
 	        });
 
@@ -1386,7 +1386,7 @@ describe browser_choice_reroot(
 		        expect(r.browser_on_stack()).to_be_false();
 
 		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_false();
-		        expect(menu_scene().state().path[0] == &nodes::sound_root).to_be_true();
+		        expect(menu_scene().state().path[0]).to_equal(&nodes::sound_root);
 		        expect(menu_scene().state().depth).to_equal(0);
 		        expect(spy.dispatches).to_equal(0);
 	        });
@@ -1450,11 +1450,11 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 		for (int32_t i = 0; i < 4; i++) {
 			(void)shellHostUI.timerCallback();
 		}
-		expect(&shellHostUI.shell().stack().input_top() == &browser::browser_scene()).to_be_true();
+		expect(&shellHostUI.shell().stack().input_top()).to_equal(&browser::browser_scene());
 		expect(deluge::gui::ui::samplePreviewUIOpen()).to_be_true();
 		// The audio tier reads what the guest's tick published, so the answer changes at the next tick.
 		shellHostUI.shell().stack().pop();
-		expect(&shellHostUI.shell().stack().input_top() == &menu_scene()).to_be_true();
+		expect(&shellHostUI.shell().stack().input_top()).to_equal(&menu_scene());
 		deluge::gui::ui::refreshShellSamplePreviewSounds();
 		expect(deluge::gui::ui::samplePreviewUIOpen()).to_be_false();
 	});
@@ -1476,13 +1476,13 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 		deluge::gui::ui::dispatchShellChoices();
 		expect(spy.dispatches).to_equal(1);
 		expect(ClaimSpy::last.path).to_equal(std::string{kChosenPath});
-		expect(ClaimSpy::last.origin == deluge::gui::ClaimOrigin::AutoLoad).to_be_true();
-		expect(ClaimSpy::last.completion == nullptr).to_be_true();
+		expect(ClaimSpy::last.origin).to_equal(deluge::gui::ClaimOrigin::AutoLoad);
+		expect(ClaimSpy::last.completion).to_be_null();
 		r.step();
 		r.step();
 		expect(r.browser_on_stack()).to_be_true();
 		expect(menu_scene().state().depth).to_equal(before.depth);
-		expect(menu_scene().state().path[before.depth] == before.path[before.depth]).to_be_true();
+		expect(menu_scene().state().path[before.depth]).to_equal(before.path[before.depth]);
 	});
 
 	it("cancels an auto-load claim whenever the selection asks for another preview", _ {
@@ -1545,11 +1545,11 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 				lit += c == RGB{} ? 0 : 1;
 			}
 		}
-		expect(lit > 0).to_be_true();
+		expect(lit).to_be_greater_than(0);
 		expect(differ).to_equal(0);
 		shellHostUI.scrollFinished();
 		expect(shellHostUI.surfaces().main_columns_held()).to_be_false();
-		expect(currentUIMode == UI_MODE_HORIZONTAL_SCROLL).to_be_false();
+		expect(currentUIMode).not_().to_equal(UI_MODE_HORIZONTAL_SCROLL);
 		preview->sampleHolder.audioFile = nullptr;
 		currentUIMode = UI_MODE_NONE;
 	});
@@ -1603,9 +1603,9 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 		deluge::gui::ui::shellFileDeleteDone(kChosenPath, deluge::gui::ui::FileDeleteOutcome::Failed);
 		expect(std::string{browser::browser_scene().entered_text()}).to_equal(before);
 		deluge::gui::ui::shellFileDeleteDone(kChosenPath, deluge::gui::ui::FileDeleteOutcome::Removed);
-		expect(std::string{browser::browser_scene().entered_text()} != before).to_be_true();
+		expect(std::string{browser::browser_scene().entered_text()}).not_().to_equal(before);
 		for (const FileItem& item : deluge::storage::FileCatalogue::fileItems) {
-			expect(std::string{"SAMPLES/OSC_A/"} + item.filename != std::string{kChosenPath}).to_be_true();
+			expect(std::string{"SAMPLES/OSC_A/"} + item.filename).not_().to_equal(std::string{kChosenPath});
 		}
 	});
 
@@ -1627,10 +1627,10 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 		for (int32_t i = 0; i < 4; i++) {
 			(void)shellHostUI.timerCallback();
 		}
-		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, false) == ActionResult::DEALT_WITH).to_be_true();
+		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, false)).to_equal(ActionResult::DEALT_WITH);
 		shellHostUI.shell().stack().pop();
-		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, false) == ActionResult::NOT_DEALT_WITH)
-		    .to_be_true(); // the menu beneath leaves it to the global RECORD
+		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, false))
+		    .to_equal(ActionResult::NOT_DEALT_WITH); // the menu beneath leaves it to the global RECORD
 	});
 
 	it("claims RECORD's press, and only its press, from the global RECORD while the recorder is frontmost", _ {
@@ -1654,16 +1654,15 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 			(void)shellHostUI.timerCallback();
 		}
 		expect(deluge::scenes::recorder::recorder_scene().recording()).to_be_true();
-		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, true) == ActionResult::DEALT_WITH).to_be_true();
-		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, false) == ActionResult::NOT_DEALT_WITH)
-		    .to_be_true();
+		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, true)).to_equal(ActionResult::DEALT_WITH);
+		expect(shellHostUI.buttonAction(deluge::hid::button::RECORD, false)).to_equal(ActionResult::NOT_DEALT_WITH);
 		// The press ended the take; tear the stack down so the recorder is ended rather than left armed, and settle it.
 		while (shellHostUI.shell().stack().depth() > 0) {
 			shellHostUI.shell().stack().pop(SceneKind::Null);
 		}
 		expect(deluge::scenes::recorder::recorder_scene().recording()).to_be_false();
 		spec::settle_torn_down_take();
-		expect(AudioEngine::foregroundRecorder() == nullptr).to_be_true();
+		expect(AudioEngine::foregroundRecorder()).to_be_null();
 	});
 
 	it("hands a vertical turn to the instrument clip view beneath, and keeps it with X_ENC held", _ {
@@ -1684,14 +1683,14 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 		for (int32_t i = 0; i < 4; i++) {
 			(void)shellHostUI.timerCallback();
 		}
-		expect(&shellHostUI.shell().stack().input_top() == &browser::browser_scene()).to_be_true();
+		expect(&shellHostUI.shell().stack().input_top()).to_equal(&browser::browser_scene());
 		const int32_t before = model.song.clip->yScroll;
 		(void)shellHostUI.verticalEncoderAction(1);
-		expect(model.song.clip->yScroll != before).to_be_true();
+		expect(model.song.clip->yScroll).not_().to_equal(before);
 		const int32_t moved = model.song.clip->yScroll;
 		// With X_ENC held the clip view would transpose the notes on screen; the browser keeps the turn.
 		NoteRow* row = model.song.clip->createNewNoteRowForYVisual(moved + 2, model.song.song);
-		expect(row != nullptr).to_be_true();
+		expect(row).not_().to_be_null();
 		if (row == nullptr) {
 			return;
 		}
@@ -1711,7 +1710,10 @@ describe browser_choice_preview("gui::ui::dispatchShellChoices and the ported br
 		Buttons::buttonStates[xy.x][xy.y] = false;
 		expect(model.song.clip->yScroll).to_equal(moved);
 		NoteRow* still = model.song.clip->getNoteRowForYNote(note_y);
-		expect(still != nullptr && !still->hasNoNotes()).to_be_true();
+		expect(still).not_().to_be_null();
+		if (still != nullptr) {
+			expect(still->hasNoNotes()).to_be_false();
+		}
 	});
 });
 // clang-format on
@@ -1780,8 +1782,8 @@ describe browser_choice_long_press(
 		        pick(r.shell, r.clock, 0);
 		        deluge::gui::ui::dispatchShellChoices();
 		        expect(spy.dispatches).to_equal(1);
-		        expect(ImportSpy::last.target.source == r.model.source).to_be_true();
-		        expect(ImportSpy::last.rangeChosen != nullptr).to_be_true();
+		        expect(ImportSpy::last.target.source).to_equal(r.model.source);
+		        expect(ImportSpy::last.rangeChosen).not_().to_be_null();
 	        });
 
 	    it(
@@ -1793,12 +1795,12 @@ describe browser_choice_long_press(
 		        give_three_ranges(r.model);
 		        import_from_picker(r);
 		        expect(spy.dispatches).to_equal(1);
-		        expect(menu_scene().state().path[0] == &nodes::multi_range).to_be_true();
+		        expect(menu_scene().state().path[0]).to_equal(&nodes::multi_range);
 		        expect(static_cast<int32_t>(menu_scene().state().depth)).to_equal(1);
 		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(0);
 
 		        // `FolderImport::finishMulti`: range 0 current while it builds, then `numSamples >> 1`.
-		        expect(ImportSpy::last.rangeChosen != nullptr).to_be_true();
+		        expect(ImportSpy::last.rangeChosen).not_().to_be_null();
 		        if (ImportSpy::last.rangeChosen != nullptr) {
 			        ImportSpy::last.rangeChosen(0);
 			        ImportSpy::last.rangeChosen(1);
@@ -1809,7 +1811,7 @@ describe browser_choice_long_press(
 		        }
 
 		        expect(r.browser_on_stack()).to_be_false();
-		        expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		        expect(menu_scene().focused()).to_equal(&nodes::multi_range);
 		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(1);
 		        expect(static_cast<int32_t>(menu_scene().state().list[0].cursor)).to_equal(1);
 	        });
@@ -1850,12 +1852,11 @@ describe browser_choice_long_press(
 
 		        expect(r.browser_on_stack()).to_be_false();
 		        expect(static_cast<int32_t>(menu_scene().state().depth)).to_equal(1);
-		        expect(menu_scene().state().path[1] == &nodes::source_group).to_be_true();
+		        expect(menu_scene().state().path[1]).to_equal(&nodes::source_group);
 		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(-1);
 		        // The transpose column's button then opens the picker first, as main's does.
-		        expect(menu::permission_for(nodes::source0_transpose, menu_scene().menu_context())
-		               == menu::Permission::MustSelectRange)
-		            .to_be_true();
+		        expect(menu::permission_for(nodes::source0_transpose, menu_scene().menu_context()))
+		            .to_equal(menu::Permission::MustSelectRange);
 	        });
 
 	    it(
@@ -1898,7 +1899,7 @@ describe browser_choice_long_press(
 		        leave_browser(r);
 
 		        expect(r.browser_on_stack()).to_be_false();
-		        expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		        expect(menu_scene().focused()).to_equal(&nodes::multi_range);
 		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(0);
 		        expect(static_cast<int32_t>(menu_scene().state().list[0].cursor)).to_equal(0);
 	        });
@@ -1920,7 +1921,7 @@ describe browser_choice_long_press(
 		        leave_browser(r);
 
 		        expect(r.browser_on_stack()).to_be_false();
-		        expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		        expect(menu_scene().focused()).to_equal(&nodes::multi_range);
 		        expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(0);
 	        });
 
@@ -1939,7 +1940,7 @@ describe browser_choice_long_press(
 		        press_button(r.shell, r.clock, kKitButtonX, kKitButtonY, /*shift=*/false);
 		        r.step();
 		        expect(r.browser_on_stack()).to_be_false();
-		        expect(menu_scene().focused() == &nodes::source_group).to_be_true();
+		        expect(menu_scene().focused()).to_equal(&nodes::source_group);
 		        expect(static_cast<int32_t>(menu_scene().state().columns[0].focused))
 		            .to_equal(visible_index_of(ctx, nodes::source_group, nodes::file0_selector));
 
@@ -1949,8 +1950,8 @@ describe browser_choice_long_press(
 		        }
 
 		        expect(r.browser_on_stack()).to_be_false();
-		        expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
-		        expect(menu_scene().state().walk.pending_after_range == &nodes::file0_selector).to_be_true();
+		        expect(menu_scene().focused()).to_equal(&nodes::multi_range);
+		        expect(menu_scene().state().walk.pending_after_range).to_equal(&nodes::file0_selector);
 	        });
 
 	    it(
@@ -1971,7 +1972,7 @@ describe browser_choice_long_press(
 		        }
 
 		        expect(r.browser_on_stack()).to_be_true();
-		        expect(menu_scene().state().path[1] == &nodes::file0_selector).to_be_true();
+		        expect(menu_scene().state().path[1]).to_equal(&nodes::file0_selector);
 	        });
 
 	    it(
@@ -2006,7 +2007,7 @@ describe browser_choice_long_press(
 			        const int32_t item = browser::browser_scene().file_index();
 			        pick(r.shell, r.clock, 0);
 			        deluge::gui::ui::dispatchShellChoices();
-			        expect(ImportSpy::last.completion != nullptr).to_be_true();
+			        expect(ImportSpy::last.completion).not_().to_be_null();
 			        if (ImportSpy::last.completion != nullptr) {
 				        ImportSpy::last.completion(success);
 			        }
@@ -2114,7 +2115,7 @@ describe browser_choice_submenu_range("menu::begin_submenu_range, Submenu::begin
 		   // `enter_child`'s shortcut arm enters the page for the oscillator type, which is not range-dependent.
 		   st = state_on(nodes::sound_root, 0);
 		   walk.descend_to(menu::MenuCore{ctx, st}, session, nodes::source_group, &nodes::osc0_type);
-		   expect(menu::selected_child(ctx, st, nodes::source_group) == &nodes::osc0_type).to_be_true();
+		   expect(menu::selected_child(ctx, st, nodes::source_group)).to_equal(&nodes::osc0_type);
 		   expect(static_cast<int32_t>(ctx.range_index)).to_equal(-1);
 	   });
 
@@ -2131,7 +2132,7 @@ describe browser_choice_submenu_range("menu::begin_submenu_range, Submenu::begin
 		st.path[1] = &nodes::modulator0;
 		st.path[2] = &nodes::source0_transpose;
 		st.depth = 2;
-		expect(menu::permission_for(nodes::modulator0, ctx) == menu::Permission::No).to_be_true();
+		expect(menu::permission_for(nodes::modulator0, ctx)).to_equal(menu::Permission::No);
 		walk.ascend(menu::MenuCore{ctx, st}, session);
 		expect(static_cast<int32_t>(st.depth)).to_equal(0);
 		expect(static_cast<int32_t>(ctx.range_index)).to_equal(-1);
@@ -2161,13 +2162,13 @@ describe browser_choice_submenu_range("menu::begin_submenu_range, Submenu::begin
 		MenuContext ctx = r.model.ctx();
 		ctx.range_index = 1; // picked through the transpose column's picker
 		open_page_at(r, nodes::source_group, nodes::source0_transpose, ctx);
-		expect(menu_scene().state().path[0] == &nodes::source_group).to_be_true();
+		expect(menu_scene().state().path[0]).to_equal(&nodes::source_group);
 		expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(1);
 
 		press_button(r.shell, r.clock, kCrossScreenButtonX, kCrossScreenButtonY, /*shift=*/true);
 		r.step();
 
-		expect(menu_scene().state().path[0] != &nodes::source_group).to_be_true();
+		expect(menu_scene().state().path[0]).not_().to_equal(&nodes::source_group);
 		expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(-1);
 	});
 
@@ -2179,17 +2180,16 @@ describe browser_choice_submenu_range("menu::begin_submenu_range, Submenu::begin
 		MenuContext ctx = r.model.ctx();
 		ctx.range_index = -1; // several ranges and none chosen: the shortcut opens the picker heading to transpose
 		r.open_menu_at(nodes::source0_transpose, ctx);
-		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::multi_range);
 		turn_detents(r.shell, r.clock, 3);
 		pick(r.shell, r.clock, 0);
 		r.step();
 
 		// `maybeGetParentMenu` -> `focusChild` -> `enterSubmenu(parent, newItem)`: the page begins having come back
 		// from transpose, so `HorizontalMenu::beginSession` keeps the range the picker chose.
-		expect(menu_scene().focused() == &nodes::source_group).to_be_true();
-		expect(menu::selected_child(menu_scene().menu_context(), menu_scene().state(), nodes::source_group)
-		       == &nodes::source0_transpose)
-		    .to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::source_group);
+		expect(menu::selected_child(menu_scene().menu_context(), menu_scene().state(), nodes::source_group))
+		    .to_equal(&nodes::source0_transpose);
 		expect(static_cast<int32_t>(menu_scene().menu_context().range_index)).to_equal(2);
 	});
 });

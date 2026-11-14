@@ -67,49 +67,49 @@ describe clip_shortcut_overview("the clip view's SHIFT shortcut overview paints 
 	it("for a synth clip", _ {
 		int32_t lit = 0;
 		expect(differences(clip_overview::Case::Synth, lit)).to_equal(std::string{});
-		expect(lit > 0).to_be_true();
+		expect(lit).to_be_greater_than(0);
 	});
 
 	it("for a kit with affect-entire on, latched by a press: the kit's own table", _ {
 		int32_t lit = 0;
 		expect(differences(clip_overview::Case::KitAffectEntire, lit)).to_equal(std::string{});
-		expect(lit > 0).to_be_true();
+		expect(lit).to_be_greater_than(0);
 	});
 
 	it("for a kit with affect-entire on, the latch clear: the kit's own table, asked of its selected row", _ {
 		int32_t lit = 0;
 		expect(differences(clip_overview::Case::KitAffectEntireUnlatched, lit)).to_equal(std::string{});
-		expect(lit > 0).to_be_true();
+		expect(lit).to_be_greater_than(0);
 	});
 
 	it("for a kit with affect-entire on and no row selected, the latch clear: the kit's own table", _ {
 		int32_t lit = 0;
 		expect(differences(clip_overview::Case::KitAffectEntireNoRowUnlatched, lit)).to_equal(std::string{});
-		expect(lit > 0).to_be_true();
+		expect(lit).to_be_greater_than(0);
 	});
 
 	it("for a kit with affect-entire on and a gate drum selected, the latch clear: the kit's own table", _ {
 		int32_t lit = 0;
 		expect(differences(clip_overview::Case::KitAffectEntireGateDrumUnlatched, lit)).to_equal(std::string{});
-		expect(lit > 0).to_be_true();
+		expect(lit).to_be_greater_than(0);
 	});
 
 	it("for a kit with affect-entire on and a gate drum selected, latched by a press: the kit's own table", _ {
 		int32_t lit = 0;
 		expect(differences(clip_overview::Case::KitAffectEntireGateDrum, lit)).to_equal(std::string{});
-		expect(lit > 0).to_be_true();
+		expect(lit).to_be_greater_than(0);
 	});
 
 	it("for a kit with affect-entire on and a MIDI drum selected, the latch clear: the kit's own table", _ {
 		int32_t lit = 0;
 		expect(differences(clip_overview::Case::KitAffectEntireMidiDrumUnlatched, lit)).to_equal(std::string{});
-		expect(lit > 0).to_be_true();
+		expect(lit).to_be_greater_than(0);
 	});
 
 	it("for a kit with affect-entire on and a MIDI drum selected, latched by a press: the kit's own table", _ {
 		int32_t lit = 0;
 		expect(differences(clip_overview::Case::KitAffectEntireMidiDrum, lit)).to_equal(std::string{});
-		expect(lit > 0).to_be_true();
+		expect(lit).to_be_greater_than(0);
 	});
 
 	it("lights the arp rate pad on a kit's own table right after a menu close and darkens it once a press latches", _ {
@@ -129,25 +129,25 @@ describe clip_shortcut_overview("the clip view's SHIFT shortcut overview paints 
 	it("for a kit row with a sound drum under a latch a press set, not since cleared: the row's table, asked as on the kit's own effects", _ {
 		int32_t lit = 0;
 		expect(differences(clip_overview::Case::KitSoundDrumLatched, lit)).to_equal(std::string{});
-		expect(lit > 0).to_be_true();
+		expect(lit).to_be_greater_than(0);
 	});
 
 	it("for a kit row with a sound drum", _ {
 		int32_t lit = 0;
 		expect(differences(clip_overview::Case::KitSoundDrum, lit)).to_equal(std::string{});
-		expect(lit > 0).to_be_true();
+		expect(lit).to_be_greater_than(0);
 	});
 
 	it("for a kit row with a MIDI drum", _ {
 		int32_t lit = 0;
 		expect(differences(clip_overview::Case::KitMidiDrum, lit)).to_equal(std::string{});
-		expect(lit > 0).to_be_true();
+		expect(lit).to_be_greater_than(0);
 	});
 
 	it("for a kit row with a gate drum", _ {
 		int32_t lit = 0;
 		expect(differences(clip_overview::Case::KitGateDrum, lit)).to_equal(std::string{});
-		expect(lit > 0).to_be_true();
+		expect(lit).to_be_greater_than(0);
 	});
 
 	it("for a kit with neither affect-entire nor a selected drum: nothing", _ {
@@ -159,19 +159,19 @@ describe clip_shortcut_overview("the clip view's SHIFT shortcut overview paints 
 	it("for a MIDI clip", _ {
 		int32_t lit = 0;
 		expect(differences(clip_overview::Case::Midi, lit)).to_equal(std::string{});
-		expect(lit > 0).to_be_true();
+		expect(lit).to_be_greater_than(0);
 	});
 
 	it("for a CV clip", _ {
 		int32_t lit = 0;
 		expect(differences(clip_overview::Case::Cv, lit)).to_equal(std::string{});
-		expect(lit > 0).to_be_true();
+		expect(lit).to_be_greater_than(0);
 	});
 
 	it("for an audio clip", _ {
 		int32_t lit = 0;
 		expect(differences(clip_overview::Case::Audio, lit)).to_equal(std::string{});
-		expect(lit > 0).to_be_true();
+		expect(lit).to_be_greater_than(0);
 	});
 });
 
