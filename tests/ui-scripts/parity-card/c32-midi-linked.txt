@@ -1,7 +1,7 @@
-# A MIDI track's device definition, and the MPE zone page. Runs on tests/fixtures/card-midi-definition.card (--card): the
-# ShellMenu card plus MIDI_DEVICES/DEFINITION/BLOFELD.XML. From the boot clip, MIDI makes the track a MIDI track; its
-# menu's DEVICE DEFINITION > LINKED opens the definition browser, and loading BLOFELD.XML leaves LINKED checked with the
-# file's name two rows under it. Then from the song view, SETTINGS > MIDI > DEVICES > DIN PORTS > MPE: the direction
+# A MIDI track's device definition, and the MPE zone page. Runs on tests/fixtures/card-midi-definition.card (--card):
+# the ShellMenu card plus MIDI_DEVICES/DEFINITION/BLOFELD.XML. From the boot clip, MIDI makes the track a MIDI track;
+# its menu's DEVICE DEFINITION > LINKED opens the definition browser, and loading BLOFELD.XML leaves LINKED checked with
+# the file's name two rows under it. Then from the song view, SETTINGS > MIDI > DEVICES > DIN PORTS > MPE: the direction
 # page, OUT, and the zone page, which main draws with no title.
 100   snapshot boot
 300   button Midi down

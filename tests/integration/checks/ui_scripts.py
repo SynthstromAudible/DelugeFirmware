@@ -1,9 +1,9 @@
 """The level-3 UI scripts on golden_vt_render.
 
 Every app script in tests/ui-scripts/app runs and each of its snapshots must match the golden in tests/golden/ui/app.
-The menu script runs again on two cards that still carry a menu setting this firmware no longer has
-(tests/fixtures/card-old-shell-menu.card says shellMenu=0, tests/fixtures/card-old-legacy-menu.card says legacyMenu=1): each is
-an unknown setting, so every snapshot must equal the default leg's. The runner's own self-tests
+The menu script runs again on two cards that still carry a menu setting this firmware does not have
+(tests/fixtures/card-old-shell-menu.card says shellMenu=0, tests/fixtures/card-old-legacy-menu.card says
+legacyMenu=1): each is an unknown setting, so every snapshot must equal the default leg's. The runner's own self-tests
 (tests/ui-scripts/selftest) pin what it does with a press due in a snapshot's millisecond, a snapshot before the first
 frame and a script that never quits. A script with a `board` step needs more panels than the Deluge has and is
 skipped, named. Under `./dbt test --update ui-scripts` each app script's snapshots are recorded as its golden instead.
@@ -12,7 +12,7 @@ Gate ui-scripts:
     the level-3 UI scripts drive the whole app through the BSP's own input path on the virtual clock. Every script in
     tests/ui-scripts/app runs, and each snapshot (the OLED panel as .pbm; the LEDs, pads and knob rings as .state) must
     match its golden in tests/golden/ui/app. The menu script runs again on two cards that still say a menu setting this
-    firmware no longer has, shellMenu=0 (tests/fixtures/card-old-shell-menu.card) and legacyMenu=1
+    firmware does not have, shellMenu=0 (tests/fixtures/card-old-shell-menu.card) and legacyMenu=1
     (tests/fixtures/card-old-legacy-menu.card); each must equal the default leg snapshot for snapshot. The runner's
     self-tests pin a press due in a snapshot's own millisecond (shown in the next snapshot, not that one), a snapshot
     before the first frame (exit 2) and a script that never reaches its quit (exit 2 at its last step plus five

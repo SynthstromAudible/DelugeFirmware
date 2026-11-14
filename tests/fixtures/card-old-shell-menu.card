@@ -1,4 +1,4 @@
-# The fixture card still saying shellMenu=0, a setting this firmware no longer has.
+# The fixture card still saying shellMenu=0, a setting this firmware does not have.
 base tests/fixtures/card
 text SETTINGS/CommunityFeatures.XML <<EOF
 <?xml version="1.0" encoding="UTF-8"?>

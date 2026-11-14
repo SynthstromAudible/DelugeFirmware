@@ -36,9 +36,9 @@ learned CC moving the LPF frequency that a page or a full screen shows, which `m
 `sm33-full-screen-values` runs on the same `tests/fixtures/card-shell-menu-vertical.card` (the ShellMenu card with
 HorizontalMenus off), where a shortcut opens its item alone: a transpose's cursor, step and Horizontal move, the
 coming-soon popup inside the menu, and retrigger phase's cursor. Its popup is read 100 ms after the press. Run both with
-`tools/emu_parity.py --ref main.elf --test deluge.elf --card tests/fixtures/card-shell-menu-vertical.card`. For a ready-made
-image, copy that card's `SETTINGS/CommunityFeatures.XML` in with mtools: `mcopy -i card.img -o CommunityFeatures.XML
-::/SETTINGS/CommunityFeatures.XML`.
+`tools/emu_parity.py --ref main.elf --test deluge.elf --card tests/fixtures/card-shell-menu-vertical.card`. For a
+ready-made image, write the `CommunityFeatures.XML` text from that manifest's `text` block in with mtools: `mcopy -i
+card.img -o CommunityFeatures.XML ::/SETTINGS/CommunityFeatures.XML`.
 
 `sm34-claim-back` covers a sample claim made from the audio clip's SAMPLE page (opened from the clip's root list) and
 the BACKs after it: the claim returns to the SAMPLE page and the first BACK leaves the menu, on both images, Horizontal

@@ -1,9 +1,9 @@
 # Level 3: **the acceptance test for the menu.** One script, run on three SD-card fixtures
 # (the `ui-scripts` gate, `tests/integration/checks/ui_scripts.py`):
 #
-#   menu         SD root tests/fixtures/card                  -> the golden
-#   (no golden)  SD root tests/fixtures/card-old-shell-menu.card   -> a stale `shellMenu=0`, unknown: equals `menu`
-#   (no golden)  SD root tests/fixtures/card-old-legacy-menu.card  -> a stale `legacyMenu=1`, unknown: equals `menu`
+#   menu         card tests/fixtures/card                         -> the golden
+#   (no golden)  card tests/fixtures/card-old-shell-menu.card     -> a stale `shellMenu=0`, unknown: equals `menu`
+#   (no golden)  card tests/fixtures/card-old-legacy-menu.card    -> a stale `legacyMenu=1`, unknown: equals `menu`
 #
 # The stale legs are a genuine boot-from-settings on the mechanism the device uses
 # (`RuntimeFeatureSettings::readSettingsFromFile`), not a test-only door.

@@ -21,7 +21,7 @@ would make the output depend on nothing visible in this text. The header is a pl
 canonical RIFF/WAVE (`RIFF` / `WAVE` / `fmt ` 16 / `data`) with no padding and no extra chunks, so
 the whole file is 8864 bytes and every one of them is determined by the four numbers above.
 
-Re-running this must produce the committed files byte for byte; `--check` asserts exactly that and
+Re-running this must produce the committed file byte for byte; `--check` asserts exactly that and
 is what a reviewer runs instead of trusting this docstring.
 
 Usage:

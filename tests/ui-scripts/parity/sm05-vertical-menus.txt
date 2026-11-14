@@ -1,6 +1,6 @@
-# ShellMenu with HorizontalMenus off (card-shell-menu-vertical.card): every horizontal page is a vertical list. Open the sound
-# menu, enter the LPF page from FILTERS, move and enter a row; then the instrument and page buttons on that list; then a
-# shortcut-pad jump, which opens the item alone. Run on card-shell-menu-vertical.card.
+# ShellMenu with HorizontalMenus off (card-shell-menu-vertical.card): every horizontal page is a vertical list. Open the
+# sound menu, enter the LPF page from FILTERS, move and enter a row; then the instrument and page buttons on that list;
+# then a shortcut-pad jump, which opens the item alone. Run on card-shell-menu-vertical.card.
 100   snapshot boot
 300   button SelectEnc down
 320   button SelectEnc up

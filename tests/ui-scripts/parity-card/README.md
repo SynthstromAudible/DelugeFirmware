@@ -36,10 +36,10 @@ browser and the cartridge page: BACK from the cartridge page reopens the browser
 source". `c31` is the parameter page's own pad layout: Shift shows the DX colour map and Shift + a pad picks its
 parameter, since a bare pad leaves the menu for the clip.
 
-`c32-midi-linked` runs on its own card, `tests/fixtures/card-midi-definition.card` (`--card`): the ShellMenu card plus one
-MIDI device definition, `MIDI_DEVICES/DEFINITION/BLOFELD.XML`. It turns the boot clip's track into a MIDI track, links
-that definition from DEVICE DEFINITION > LINKED (the file's name then shows two rows under LINKED), and walks SETTINGS >
-MIDI > DEVICES > DIN PORTS > MPE to the zone page, which has no title.
+`c32-midi-linked` runs on its own card, `tests/fixtures/card-midi-definition.card` (`--card`): the ShellMenu card plus
+one MIDI device definition, `MIDI_DEVICES/DEFINITION/BLOFELD.XML`. It turns the boot clip's track into a MIDI track,
+links that definition from DEVICE DEFINITION > LINKED (the file's name then shows two rows under LINKED), and walks
+SETTINGS > MIDI > DEVICES > DIN PORTS > MPE to the zone page, which has no title.
 
 `c33-kit-affect-entire` covers AFFECT ENTIRE in a kit row's menu: the clip's toggle on an item that does not use it (the
 root list, the kit's own root) and the fast-blinking hold on one that does (the row's LPF frequency), with a turn under
@@ -53,9 +53,9 @@ load takes about 400 ms on the emulator, so the window sits well inside it on bo
 with `SAMPLES` a file, so no sample browser can list. SHIFT + KIT's drum creator then falls back the way `main` does:
 the browser's error popup over the new kit's clip view.
 
-`c42-dx-browser-no-folder` runs on its own card, `tests/fixtures/card-dx-no-folder.card` (`--card`): the fixture card with
-`EnableDX7Engine` on and no `DX7` folder. The new FM synth's browse row creates `DX7` and opens the `.syx` browser on
-it, empty; a Select turn and SELECT on the empty list do nothing, and BACK leaves it.
+`c42-dx-browser-no-folder` runs on its own card, `tests/fixtures/card-dx-no-folder.card` (`--card`): the fixture card
+with `EnableDX7Engine` on and no `DX7` folder. The new FM synth's browse row creates `DX7` and opens the `.syx` browser
+on it, empty; a Select turn and SELECT on the empty list do nothing, and BACK leaves it.
 
 `c39-browser-record-audition` opens the sample browser with Shift + (0,5) and presses RECORD with the audition pad
 (17,3) held, which the browser refuses, then without it, which opens the recorder.
