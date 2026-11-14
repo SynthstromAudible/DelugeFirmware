@@ -3,6 +3,8 @@
 #include "music-theory/preset_scales.h"
 #include "music-theory/scale_mapper.h"
 
+#include "support/printers/note_set_printer.h"
+
 #include "mock_panic.h"
 
 #include <cppspec.hpp>
