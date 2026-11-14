@@ -26,6 +26,21 @@ describe knob_focus("the gold knobs' focus", ${
 		expect(controls::knob_owner(focus).has_value()).to_be_false();
 		expect(int{controls::knob_mode(song, focus, kDelugeControls)}).to_equal(0);
 	});
+	it("names no owner and no mode owner for an owner with no controls, and mode 0 though its output has one", _{
+		const controls::KnobFocus cv{.owner = controls::NoControlsFocus{
+		    .kind = controls::NoControlsFocus::Kind::CV_TRACK, .track = {2}, .clip_id = 7}};
+		const controls::KnobFocus drum{.owner = controls::NoControlsFocus{
+		    .kind = controls::NoControlsFocus::Kind::MIDI_DRUM, .track = {4}, .drum = project::KitRowAddress{4, 11}}};
+		for (const controls::KnobFocus& focus : {cv, drum}) {
+			expect(controls::knob_owner(focus).has_value()).to_be_false();
+			expect(controls::knob_mode_owner(focus).has_value()).to_be_false();
+			expect(int{controls::knob_mode(song_with_modes(), focus, kDelugeControls)}).to_equal(0);
+			expect(controls::has_no_knobs(focus)).to_be_true();
+		}
+		expect(controls::has_no_knobs(controls::KnobFocus{})).to_be_true();
+		expect(controls::has_no_knobs(controls::KnobFocus{.owner = controls::SongFocus{}})).to_be_false();
+		expect(cv.owner == drum.owner).to_be_false();
+	});
 	it("names the song as the owner of the song's knobs", _{
 		const controls::KnobFocus focus{.owner = controls::SongFocus{}};
 		expect(controls::knob_owner(focus)->owner == project::OwnerId::song()).to_be_true();

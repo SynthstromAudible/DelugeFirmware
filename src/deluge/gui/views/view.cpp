@@ -1567,8 +1567,7 @@ void View::releaseKnobsIfOn(const Clip& clip) {
 }
 
 int32_t View::knobMode() const {
-	if (std::holds_alternative<std::monostate>(knobFocus_.owner) || currentSong == nullptr
-	    || knobSong_ != currentSong) {
+	if (deluge::controls::has_no_knobs(knobFocus_) || currentSong == nullptr || knobSong_ != currentSong) {
 		return -1;
 	}
 	return deluge::controls::knob_mode(currentSong->project, knobFocus_, kDelugeControls);

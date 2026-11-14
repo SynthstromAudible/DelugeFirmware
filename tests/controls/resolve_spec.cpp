@@ -141,6 +141,9 @@ describe resolve("resolving a control", ${
 		expect(std::holds_alternative<std::monostate>(resolve_turn(KnobFocus{.owner = SongFocus{}}, pages, -1))).to_be_true();
 		expect(std::holds_alternative<std::monostate>(resolve_turn(KnobFocus{.owner = MidiFocus{.track = {5}}}, pages, 0))).to_be_true();
 		expect(std::holds_alternative<std::monostate>(resolve_turn(KnobFocus{}, pages, 0))).to_be_true();
+		const KnobFocus cv{.owner = NoControlsFocus{.kind = NoControlsFocus::Kind::CV_TRACK, .track = {5}, .clip_id = 3}};
+		expect(std::holds_alternative<std::monostate>(resolve_turn(cv, pages, 0))).to_be_true();
+		expect(std::holds_alternative<std::monostate>(resolve_press(cv, pages, 1, false))).to_be_true();
 	});
 	it("toggles to nothing where the other group has no entry page", _{
 		const KnobFocus song{.owner = SongFocus{}};

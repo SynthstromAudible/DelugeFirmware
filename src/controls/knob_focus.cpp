@@ -36,7 +36,8 @@ uint8_t capped(uint8_t mode, const Board& board) {
 }
 
 /// The output whose mode the focus's knobs follow: a synth's, a kit row's kit's, a kit's or audio track's, a MIDI
-/// track's. None for the song's, no focus, or a drum that names no kit.
+/// track's. None for the song's, no focus, an owner with no controls (a CV track has no mode), or a drum that names
+/// no kit.
 std::optional<uint32_t> mode_output(const KnobFocus& focus) {
 	if (const auto* sound = std::get_if<SoundFocus>(&focus.owner)) {
 		if (sound->kit) {
@@ -79,6 +80,7 @@ std::optional<project::ParamAddress> knob_owner(const KnobFocus& focus) {
 	if (const auto* midi = std::get_if<MidiFocus>(&focus.owner); midi != nullptr && midi->clip) {
 		return project::ParamAddress{.owner = project::OwnerId::clip(midi->clip->clip_id)};
 	}
+	// No focus and an owner with no controls have no param to write.
 	return std::nullopt;
 }
 

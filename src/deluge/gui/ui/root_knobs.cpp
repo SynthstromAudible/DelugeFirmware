@@ -19,6 +19,7 @@
 
 #include "board_controls.hpp"
 #include "controls/board.h"
+#include "controls/knob_focus.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/ui/load/load_song_ui.h"
@@ -168,7 +169,7 @@ void mod_button(uint8_t button, bool on) {
 
 void refresh_indicators() {
 	ModKnobs* knobs = knobs_now();
-	if (knobs == nullptr || std::holds_alternative<std::monostate>(knobs->focus().owner)) {
+	if (knobs == nullptr || deluge::controls::has_no_knobs(knobs->focus())) {
 		indicator_leds::clearKnobIndicatorLevels();
 		return;
 	}

@@ -116,6 +116,16 @@ describe pages("the pages a press moves between, from the published records and 
 		    controls::resolve_press(kSynth, controls::section_pages(song, kSynth, kSources), 0, true);
 		expect(std::holds_alternative<std::monostate>(target)).to_be_true();
 	});
+	it("gives an owner with no controls the empty layout: no pages, no cycle, no allocation", _{
+		const project::Song song = song_in_mode(1);
+		const controls::KnobFocus drum{.owner = controls::NoControlsFocus{
+		    .kind = controls::NoControlsFocus::Kind::GATE_DRUM, .track = {2}, .drum = project::KitRowAddress{2, 9}}};
+		const controls::SectionPages pages = controls::section_pages(song, drum, kSources);
+		expect(pages.current == controls::Page{}).to_be_true();
+		expect(pages.cycle.empty()).to_be_true();
+		expect(current_page_allocations(song, drum)).to_equal(size_t{0});
+		expect(std::holds_alternative<std::monostate>(controls::resolve_turn(drum, pages, 0))).to_be_true();
+	});
 	it("picks a MIDI knob's CC on a press, with no clip too", _{
 		const project::Song song{};
 		const controls::KnobFocus midi{.owner = controls::MidiFocus{.track = {5}}};

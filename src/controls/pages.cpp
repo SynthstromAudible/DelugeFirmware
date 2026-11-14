@@ -214,6 +214,9 @@ Page current_page(const project::Song& song, const KnobFocus& focus, const PageS
 	if (const auto* midi = std::get_if<MidiFocus>(&focus.owner)) {
 		return midi_page(song, *midi, mode, sources.board);
 	}
+	if (std::holds_alternative<NoControlsFocus>(focus.owner)) {
+		return {}; // the published empty layout: no pages, so no knob moves anything
+	}
 	if (on_chain(focus)) {
 		const project::FxChain* chain = focused_chain(song, focus);
 		return chain_page(focus, chain, mode,

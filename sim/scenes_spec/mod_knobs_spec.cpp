@@ -1938,6 +1938,18 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(view.knobsOnClipContext()).to_be_false();
 		// ...and it really is pointed at something, so shape 5 is not shape 1 in disguise.
 		expect(std::holds_alternative<deluge::scenes::bind::SongFocus>(rig.knobs.focus().owner)).to_be_true();
+
+		// 6. A CV track in its clip: its knobs have an empty layout, yet it is a clip context, as it is for View.
+		spec::SongFixture cv = spec::make_cv_song();
+		currentSong = cv.song;
+		rig.set_song(cv.song);
+		view.setActiveModControllableTimelineCounter(cv.clip, false);
+		rig.set_target_with_timeline(cv.clip, false);
+		expect(std::holds_alternative<deluge::scenes::bind::NoControlsFocus>(rig.knobs.focus().owner)).to_be_true();
+		expect(deluge::scenes::services::is_clip_context(rig.knobs.focus())).to_equal(view.knobsOnClipContext());
+		expect(view.knobsOnClipContext()).to_be_true();
+		view.releaseActiveModControllable();
+		currentSong = nullptr;
 	});
 
 	it("takes a gold turn, a mod button and a gold push only after the scene declines them", _ {
