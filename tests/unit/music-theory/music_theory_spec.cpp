@@ -81,7 +81,7 @@ describe note_set_group("note set", ${
 		NoteSet notes;
 		notes.add(7);
 		for (int i = 0; i < notes.size; i++) {
-			expect(notes.has(i)).to_equal((i == 7));
+			expect(notes.has(i)).to_equal(i == 7);
 		}
 	});
 
@@ -175,7 +175,7 @@ describe note_set_group("note set", ${
 		expect(a.degreeOf(4)).to_equal(2);
 	});
 
-	it("degree of not ascale", _ {
+	it("degree of not a scale", _ {
 		NoteSet a;
 		a.add(1);
 		a.add(2);
@@ -357,7 +357,7 @@ describe note_set_group("note set", ${
 		a.addMajorDependentModeNotes(1, true, NoteSet{1, 2});
 		expect(a).to_equal(NoteSet({1, 2}));
 
-		// Case 4: neither interval is not present -> prefer higher determines
+		// Case 4: neither interval is present -> prefer higher determines
 		a.clear();
 		a.addMajorDependentModeNotes(1, false, NoteSet{});
 		expect(a).to_equal(NoteSet({1}));
@@ -368,7 +368,7 @@ describe note_set_group("note set", ${
 
 	it("to implied scale", _ {
 		// There's thousands of combinations to test - for sake of making sense what's
-		// going on, just going through each semitone on it's own.
+		// going on, just going through each semitone on its own.
 
 		// Major scale is the default
 		expect(NoteSet({}).toImpliedScale()).to_equal(presetScaleNotes[MAJOR_SCALE]);
@@ -384,7 +384,7 @@ describe note_set_group("note set", ${
 		expect(NoteSet({5}).toImpliedScale()).to_equal(presetScaleNotes[MAJOR_SCALE]);
 		// Tritone gets us the lydian scale
 		expect(NoteSet({6}).toImpliedScale()).to_equal(presetScaleNotes[LYDIAN_SCALE]);
-		// Perfeft fifth gets us the major
+		// Perfect fifth gets us the major
 		expect(NoteSet({7}).toImpliedScale()).to_equal(presetScaleNotes[MAJOR_SCALE]);
 		// Minor sixth gets us the minor
 		expect(NoteSet({8}).toImpliedScale()).to_equal(presetScaleNotes[MINOR_SCALE]);
@@ -397,7 +397,7 @@ describe note_set_group("note set", ${
 	});
 
 	it("highest not in", _ {
-		// A is aways the receiver and B the argument in these tests.
+		// A is always the receiver and B the argument in these tests.
 		NoteSet a;
 		NoteSet b;
 		// First the edge cases: empty or full notesets
@@ -505,7 +505,7 @@ describe util_group("util", ${
 		std::vector<std::pair<int, int>> unlikeLegacy2;
 		for (int a = -200; a <= 200; a++) {
 			for (int b = -200; b <= 200; b++) {
-				// Different variations in the codebase that were replaced by isSameNote()
+				// Two hand-written same-note checks that isSameNote() stands in for.
 				int legacy1 = (int32_t)std::abs(a - b) % 12 == 0;
 				int legacy2 = (uint16_t)(a - b + 120) % (uint8_t)12 == 0;
 				bool same = isSameNote(a, b);
@@ -676,7 +676,7 @@ describe scale_mapper_group("scale mapper", ${
 		//      Transform back to original scale, verify that notes match.
 		//      Keep going using transformed notes.
 
-		// Having the same scale mapper for all cases is important: this tests the transitition
+		// Having the same scale mapper for all cases is important: this tests the transition
 		// scale flushing logic.
 		ScaleMapper scaleMapper;
 		for (auto& sourceScale : scales) {

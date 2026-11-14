@@ -1,6 +1,7 @@
 #pragma once
 
 #include "music-theory/note_set.h"
+#include "music-theory/preset_scales.h"
 
 #include <ostream>
 
@@ -19,6 +20,11 @@ inline std::ostream& operator<<(std::ostream& output, const NoteSet& set) {
 		}
 	}
 	return output << ")";
+}
+
+/// @brief A Scale by its name, e.g. "MAJOR": the enum is a uint8_t, which would otherwise print as a raw byte.
+inline std::ostream& operator<<(std::ostream& output, Scale scale) {
+	return output << getScaleName(scale);
 }
 
 } // namespace deluge::music
