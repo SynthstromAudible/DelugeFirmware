@@ -791,6 +791,34 @@ describe learned_writes("how a learned write lands", $ {
 		expect(w.kitOut().editedByUser).to_be_false();
 	});
 
+	it("offers each output its learned knobs and then its own input before the next output, so takes are made in that order", _ {
+		// The synth plays before the kit. Its own input makes its take on the CC or bend; the kit's learned knob makes
+		// the kit's. Each take goes to the front of the arrangement's clips, which a song saves in that order.
+		for (const bool bend : {false, true}) {
+			Takeover takeover{MIDITakeoverMode::JUMP};
+			World w = makeWorld();
+			const Lane kitLane = lanesOf(w)[2];
+			deluge::edits::learnMappingFor(source(kChannel, bend ? kBend : kCc), kitLane.target);
+			listensOnDin(*w.synth.instrument);
+			RootView root;
+			const size_t arranged = w.song->live.clips.arrangement_only_clips.size();
+			ArrangementRecording recording{{w.synth, w.kit}};
+			if (bend) {
+				sendBend(kChannel, 16383);
+			}
+			else {
+				sendCc(kChannel, kCc, 100);
+			}
+			const auto& clips = w.song->live.clips.arrangement_only_clips;
+			expect(clips.size()).to_equal(arranged + 2);
+			if (clips.size() < 2) {
+				continue;
+			}
+			expect(clips[0] == w.kit.instrument->getActiveClip() && clips[1] == w.synth.instrument->getActiveClip())
+			    .to_be_true();
+		}
+	});
+
 	it("clones the clip into a take on a hit that leaves the knob where it is", _ {
 		Takeover takeover{MIDITakeoverMode::JUMP};
 		World w = makeWorld();

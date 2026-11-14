@@ -219,14 +219,25 @@ struct Rig {
 	FakeHits hits;
 	TakeoverStore takeovers;
 
-	void cc(uint8_t value, bool mpe_member = false, bool cable_relative = false) {
-		dispatch_cc(hits, facts, sink, takeovers,
-		            {.channel = 0, .number = kCc, .value = value, .mpe_member = mpe_member,
-		             .cable_relative = cable_relative});
+	/// Offer a CC as the host does: the song, then each output in play order.
+	void cc(uint8_t value, bool cable_relative = false) {
+		const LearnedMessage message{.channel = 0, .number = kCc, .value = value, .cable_relative = cable_relative};
+		dispatch_song_cc(hits, facts, sink, takeovers, message);
+		for (const uint32_t output : {1u, 2u, 3u, 4u}) {
+			dispatch_output_cc(output, hits, facts, sink, takeovers, message);
+		}
 	}
-	std::vector<uint32_t> bend(uint16_t value, bool mpe_member = false) {
-		return dispatch_pitch_bend(hits, facts, sink,
-		                           {.channel = 0, .number = kBend, .value = value, .mpe_member = mpe_member});
+	/// Offer a bend as the host does, each output in play order.
+	/// @return The outputs whose instruments do not bend.
+	std::vector<uint32_t> bend(uint16_t value) {
+		const LearnedMessage message{.channel = 0, .number = kBend, .value = value};
+		std::vector<uint32_t> bent;
+		for (const uint32_t output : {1u, 2u, 3u, 4u}) {
+			if (dispatch_output_bend(output, hits, facts, sink, message)) {
+				bent.push_back(output);
+			}
+		}
+		return bent;
 	}
 	/// Put the param @p address names at knob position @p pos.
 	void at(const std::string& address, int32_t pos) { world.values[address] = pos << 25; }
@@ -287,13 +298,28 @@ context("dispatch_cc", _{
 		expect(rig.asked()).to_equal(std::string{"S0 O1 O2 D5 D6 O3"});
 	});
 
-	it("moves only the song's knobs on an MPE member channel", _{
+	it("moves the song's knobs in the song's step, and one output's knobs in that output's", _{
 		Rig rig;
 		rig.hits.add(kSong, kParam);
 		rig.hits.add(kSynth, kParam);
-		rig.cc(100, /*mpe_member=*/true);
+		rig.hits.add(kKit, kParam);
+		const LearnedMessage message{.channel = 0, .number = kCc, .value = 100};
+		dispatch_song_cc(rig.hits, rig.facts, rig.sink, rig.takeovers, message);
 		expect(rig.writes()).to_equal(std::string{"S#7=1207959552"});
-		expect(rig.asked()).to_equal(std::string{"S0"});
+		dispatch_output_cc(1, rig.hits, rig.facts, rig.sink, rig.takeovers, message);
+		expect(rig.writes()).to_equal(std::string{"S#7=1207959552 | I1@11#7=1207959552"});
+		expect(rig.asked()).to_equal(std::string{"S0 O1"});
+	});
+
+	it("moves nothing of an output that does not play, nor of a MIDI or CV track", _{
+		Rig rig;
+		rig.hits.add({Kind::OUTPUT, 9}, kParam);
+		rig.hits.add(kMidi, kParam);
+		const LearnedMessage message{.channel = 0, .number = kCc, .value = 100};
+		dispatch_output_cc(9, rig.hits, rig.facts, rig.sink, rig.takeovers, message);
+		dispatch_output_cc(4, rig.hits, rig.facts, rig.sink, rig.takeovers, message);
+		expect(rig.asked()).to_equal(std::string{});
+		expect(rig.writes()).to_equal(std::string{});
 	});
 
 	it("writes each output's params in the clip its take moved it to while the arrangement records", _{
@@ -374,7 +400,7 @@ context("dispatch_cc", _{
 		Rig rig;
 		rig.hits.add(kSynth, kParam);
 		rig.at("I1@11#7", 10);
-		rig.cc(5, false, /*cable_relative=*/true);
+		rig.cc(5, /*cable_relative=*/true);
 		expect(rig.writes()).to_equal("I1@11#7=" + std::to_string(15 << 25));
 	});
 
@@ -466,11 +492,13 @@ context("dispatch_pitch_bend", _{
 		expect(rig.takeovers.size()).to_equal(size_t{0});
 	});
 
-	it("never offers the song a bend, and offers nothing on an MPE member channel", _{
+	it("offers a bend to each playing output's knobs and rows, and to no output that does not play or MIDI track", _{
 		Rig rig;
-		rig.hits.add(kSong, kParam, kBend);
 		rig.hits.add(kSynth, kParam, kBend);
-		expect(rig.bend(16383, /*mpe_member=*/true).empty()).to_be_true();
+		rig.hits.add(kMidi, kParam, kBend);
+		const LearnedMessage message{.channel = 0, .number = kBend, .value = 16383};
+		expect(dispatch_output_bend(9, rig.hits, rig.facts, rig.sink, message)).to_be_false();
+		expect(dispatch_output_bend(4, rig.hits, rig.facts, rig.sink, message)).to_be_false();
 		expect(rig.asked()).to_equal(std::string{});
 		(void)rig.bend(16383);
 		expect(rig.writes()).to_equal(std::string{"I1@11#7=2147221504"});

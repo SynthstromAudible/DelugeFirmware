@@ -24,9 +24,11 @@
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "instruments/deluge/cables.h"
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/words.h"
 #include "io/debug/log.h"
+#include "io/midi/learned_dispatch.h"
 #include "io/midi/mapping_index.h"
 #include "io/midi/midi_engine.h"
 #include "model/action/action.h"
@@ -96,6 +98,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
+#include "util/containers.h"
 
 #include <algorithm>
 #include <array>
@@ -653,8 +656,13 @@ bool ShellEditSink::make_param(const deluge::project::ParamAddress& address) {
 	if (currentSong == nullptr) {
 		return false;
 	}
-	// Resolved as a learned write resolves it, which makes a missing cable and records it as an undo step.
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	// Only a cable's depth is made, as a learned knob that reads it makes it (resolved as a learned write resolves it,
+	// which records the cable as an undo step); any other param is only looked for.
+	if (address.space != deluge::project::ParamSpace::ENGINE || !deluge::instrument::is_cable_depth(address.id)) {
+		const ModelStackWithAutoParam* found = deluge::bridge::paramStackFollowingTake(*currentSong, address, memory);
+		return found != nullptr && found->autoParam != nullptr;
+	}
 	deluge::project::ParamAddress landed = address;
 	const ModelStackWithAutoParam* stack = deluge::bridge::paramStackForWrite(*currentSong, landed, memory);
 	return stack != nullptr && stack->autoParam != nullptr;
@@ -1711,32 +1719,76 @@ const deluge::scenes::bind::RuntimeFacts& host_runtime_facts() {
 
 namespace deluge::midi {
 
-void learnedCcReceived(MIDICable& cable, uint8_t channel, uint8_t cc, uint8_t value, bool mpeMember) {
+namespace {
+
+/// The learned knobs one message moves, owner by owner, copied out of the index (a write the dispatch makes can rebuild
+/// it) into a list kept from message to message, so a message allocates only for more hits than any before it.
+class KnobHitsOf final : public controls::HitsOf {
+public:
+	/// @brief Aim at the knobs a message moves: @p number (a CC, or 128 for a pitch bend) from @p from on @p channel,
+	/// raw (a knob learned on an MPE zone never matches it).
+	KnobHitsOf& aim(MIDICable& from, uint8_t channel, uint8_t number) {
+		from_ = &from;
+		channel_ = channel;
+		number_ = number;
+		return *this;
+	}
+	[[nodiscard]] controls::KnobHits of(project::ControlsAddress owner) override {
+		hits_.clear();
+		mappingIndex().forEachKnobWithSource(
+		    owner, *from_, channel_, number_, [&](const IndexedEntry& hit, const project::MidiCommand& source) {
+			    if (const auto* target = std::get_if<project::OwnerParamTarget>(&hit.target)) {
+				    hits_.push_back({.target = *target, .source = source, .relative = hit.relative});
+			    }
+		    });
+		return hits_;
+	}
+
+private:
+	MIDICable* from_{nullptr};
+	uint8_t channel_{0};
+	uint8_t number_{0};
+	deluge::fast_vector<controls::LearnedHit> hits_;
+};
+
+/// The one list of hits: the dispatch runs on the app loop only.
+KnobHitsOf& knobHits(MIDICable& from, uint8_t channel, uint8_t number) {
+	static KnobHitsOf hits;
+	return hits.aim(from, channel, number);
+}
+
+/// 128 stands for pitch bend among a knob's CC numbers.
+constexpr uint8_t kPitchBend = 128;
+
+} // namespace
+
+void learnedCcToSong(MIDICable& cable, uint8_t channel, uint8_t cc, uint8_t value) {
 	if (currentSong == nullptr) {
 		return;
 	}
-	KnobHitsOf hits{cable, channel, cc};
-	controls::dispatch_cc(hits, scenes::menu::host_runtime_facts(), scenes::menu::host_controls_sink(), takeoverStore(),
-	                      {.channel = channel,
-	                       .number = cc,
-	                       .value = value,
-	                       .mpe_member = mpeMember,
-	                       .cable_relative = cable.is_relative});
+	controls::dispatch_song_cc(knobHits(cable, channel, cc), scenes::menu::host_runtime_facts(),
+	                           scenes::menu::host_controls_sink(), takeoverStore(),
+	                           {.channel = channel, .number = cc, .value = value, .cable_relative = cable.is_relative});
 }
 
-std::vector<uint32_t> learnedPitchBendReceived(MIDICable& cable, uint8_t channel, uint16_t value14, bool mpeMember) {
-	if (currentSong == nullptr) {
-		return {};
+void learnedCcToOutput(const Output& output, MIDICable& cable, uint8_t channel, uint8_t cc, uint8_t value) {
+	if (currentSong == nullptr || !output.id()) {
+		return;
 	}
-	// 128 stands for pitch bend among a knob's CC numbers.
-	constexpr uint8_t kPitchBend = 128;
-	KnobHitsOf hits{cable, channel, kPitchBend};
-	return controls::dispatch_pitch_bend(hits, scenes::menu::host_runtime_facts(), scenes::menu::host_controls_sink(),
-	                                     {.channel = channel,
-	                                      .number = kPitchBend,
-	                                      .value = value14,
-	                                      .mpe_member = mpeMember,
-	                                      .cable_relative = cable.is_relative});
+	controls::dispatch_output_cc(
+	    *output.id(), knobHits(cable, channel, cc), scenes::menu::host_runtime_facts(),
+	    scenes::menu::host_controls_sink(), takeoverStore(),
+	    {.channel = channel, .number = cc, .value = value, .cable_relative = cable.is_relative});
+}
+
+bool learnedPitchBendToOutput(const Output& output, MIDICable& cable, uint8_t channel, uint16_t value14) {
+	if (currentSong == nullptr || !output.id()) {
+		return false;
+	}
+	return controls::dispatch_output_bend(
+	    *output.id(), knobHits(cable, channel, kPitchBend), scenes::menu::host_runtime_facts(),
+	    scenes::menu::host_controls_sink(),
+	    {.channel = channel, .number = kPitchBend, .value = value14, .cable_relative = cable.is_relative});
 }
 
 } // namespace deluge::midi

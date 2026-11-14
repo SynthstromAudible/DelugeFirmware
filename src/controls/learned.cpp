@@ -119,9 +119,14 @@ void offer_output(const PlayingOutput& output, HitsOf& hits, const Facts& facts,
 	}
 }
 
-/// Whether @p output's owners have knobs: a MIDI or CV track has none.
-bool learnable(const PlayingOutput& output) {
-	return output.kind != PlayingOutput::Kind::OTHER;
+/// The output @p output_id among the playing ones, with knobs of its own: a MIDI or CV track has none.
+std::optional<PlayingOutput> learnable(uint32_t output_id, const Facts& facts) {
+	for (const PlayingOutput& output : facts.playing_outputs()) {
+		if (output.owner.id == output_id) {
+			return output.kind != PlayingOutput::Kind::OTHER ? std::optional{output} : std::nullopt;
+		}
+	}
+	return std::nullopt;
 }
 
 } // namespace
@@ -147,53 +152,46 @@ std::optional<ParamAddress> resolve_learned(const project::OwnerParamTarget& tar
 	return ParamAddress::of(param_owner, target.param, clip_id);
 }
 
-void dispatch_cc(HitsOf& hits, const Facts& facts, Sink& sink, TakeoverStore& takeovers,
-                 const LearnedMessage& message) {
+void dispatch_song_cc(HitsOf& hits, const Facts& facts, Sink& sink, TakeoverStore& takeovers,
+                      const LearnedMessage& message) {
 	const ControlsAddress song{.kind = ControlsAddress::Kind::SONG, .id = 0};
 	const Owner song_owner{.knobs = song, .param_owner = OwnerId::song(), .plugin = plugin::kGlobalEffectable};
 	for (const LearnedHit& hit : hits.of(song)) {
 		move_knob(hit, song_owner, nullptr, facts, sink, takeovers, message);
 	}
-	if (message.mpe_member) {
-		return;
-	}
-	for (const PlayingOutput& output : facts.playing_outputs()) {
-		if (!learnable(output)) {
-			continue;
-		}
-		Playing playing{.output_id = output.owner.id, .clip_id = output.clip_id};
-		offer_output(output, hits, facts, playing, [&](const Owner& owner, KnobHits owner_hits) {
-			for (const LearnedHit& hit : owner_hits) {
-				move_knob(hit, owner, &playing, facts, sink, takeovers, message);
-			}
-		});
-	}
 }
 
-std::vector<uint32_t> dispatch_pitch_bend(HitsOf& hits, const Facts& facts, Sink& sink, const LearnedMessage& message) {
-	std::vector<uint32_t> bent;
-	if (message.mpe_member) {
-		return bent;
+void dispatch_output_cc(uint32_t output_id, HitsOf& hits, const Facts& facts, Sink& sink, TakeoverStore& takeovers,
+                        const LearnedMessage& message) {
+	const std::optional<PlayingOutput> output = learnable(output_id, facts);
+	if (!output) {
+		return;
 	}
-	for (const PlayingOutput& output : facts.playing_outputs()) {
-		if (!learnable(output)) {
-			continue;
+	Playing playing{.output_id = output_id, .clip_id = output->clip_id};
+	offer_output(*output, hits, facts, playing, [&](const Owner& owner, KnobHits owner_hits) {
+		for (const LearnedHit& hit : owner_hits) {
+			move_knob(hit, owner, &playing, facts, sink, takeovers, message);
 		}
-		Playing playing{.output_id = output.owner.id, .clip_id = output.clip_id};
-		bool heard = false;
-		offer_output(output, hits, facts, playing, [&](const Owner& owner, KnobHits owner_hits) {
-			heard = heard || !owner_hits.empty();
-			for (const LearnedHit& hit : owner_hits) {
-				if (move_bend(hit, owner, playing, facts, sink, message)) {
-					break;
-				}
+	});
+}
+
+bool dispatch_output_bend(uint32_t output_id, HitsOf& hits, const Facts& facts, Sink& sink,
+                          const LearnedMessage& message) {
+	const std::optional<PlayingOutput> output = learnable(output_id, facts);
+	if (!output) {
+		return false;
+	}
+	Playing playing{.output_id = output_id, .clip_id = output->clip_id};
+	bool heard = false;
+	offer_output(*output, hits, facts, playing, [&](const Owner& owner, KnobHits owner_hits) {
+		heard = heard || !owner_hits.empty();
+		for (const LearnedHit& hit : owner_hits) {
+			if (move_bend(hit, owner, playing, facts, sink, message)) {
+				break;
 			}
-		});
-		if (heard) {
-			bent.push_back(output.owner.id);
 		}
-	}
-	return bent;
+	});
+	return heard;
 }
 
 } // namespace deluge::controls

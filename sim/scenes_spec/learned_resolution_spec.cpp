@@ -5,6 +5,7 @@
 ///        inputs, the held step region, a param that does not exist yet).
 
 #include "deluge-project/mapping_table.h"
+#include "effects/global_effectable/params.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/performance_view.h"
@@ -319,6 +320,28 @@ describe learned_sink("the sink's learned members, as the app applies them", $ {
 		currentSong = saved;
 	});
 
+	it("makes only a cable's depth for a learned knob: a param it holds is found, an expression lane is not made", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		Song* const saved = currentSong;
+		currentSong = f.song;
+		activate(*f.song, *f.instrument, *f.clip);
+		RootView root;
+		controls::Sink& sink = deluge::scenes::menu::host_controls_sink();
+		const ParamAddress cable = cableOf(f, *f.clip);
+		expect(valueOf(*f.song, cable).has_value()).to_be_false();
+		expect(sink.make_param(cable)).to_be_true();
+		expect(valueOf(*f.song, cable) == std::optional<int32_t>{0}).to_be_true();
+		expect(sink.make_param(filterOf(f, deluge::instrument::param::kLpfFrequency, *f.clip))).to_be_true();
+		const ParamAddress bend{.owner = OwnerId::instrument(*f.instrument->id()),
+		                        .space = ParamSpace::EXPRESSION,
+		                        .id = deluge::plugin::ParamId{0},
+		                        .clip_id = f.clip->id()};
+		expect(f.clip->paramManager.getExpressionParamSet() == nullptr).to_be_true();
+		expect(sink.make_param(bend)).to_be_false();
+		expect(f.clip->paramManager.getExpressionParamSet() == nullptr).to_be_true();
+		currentSong = saved;
+	});
+
 	it("clears the relative flag of the entry that plays a command onto a target, and no other", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		Song* const saved = currentSong;
@@ -531,6 +554,21 @@ describe learned_facts("the facts a learned dispatch reads", $ {
 		}
 		expect(facts.step_region(f.clip->id()).has_value()).to_be_false();
 		currentSong = saved;
+	});
+
+	it("names a sound's params by the instrument's rows and a chain's by the global effectable's", _ {
+		const controls::Facts& facts = deluge::scenes::menu::host_runtime_facts();
+		const project::ParamTarget lpf{.space = ParamSpace::ENGINE, .id = deluge::instrument::param::kLpfFrequency};
+		const deluge::plugin::ParamInfo* sound = facts.param_info(deluge::plugin::kDelugeInstrument, lpf);
+		expect(sound != nullptr && sound->id == lpf.id).to_be_true();
+		const deluge::plugin::ParamInfo* chain = facts.param_info(
+		    deluge::plugin::kGlobalEffectable, {.space = ParamSpace::ENGINE, .id = deluge::global_effectable::kParams[0].id});
+		expect(chain == &deluge::global_effectable::kParams[0]).to_be_true();
+		expect(facts.param_info(deluge::plugin::kDelugeInstrument, depthOf(params::LOCAL_LPF_FREQ, PatchSource::LFO_GLOBAL_1)) == nullptr)
+		    .to_be_true();
+		expect(facts.param_info(deluge::plugin::kDelugeEffects, lpf) == nullptr).to_be_true();
+		expect(facts.param_info(deluge::plugin::kDelugeInstrument, {.space = ParamSpace::EXPRESSION, .id = lpf.id}) == nullptr)
+		    .to_be_true();
 	});
 
 	it("reads no value, and does not crash, for a param the owner does not hold yet", _ {

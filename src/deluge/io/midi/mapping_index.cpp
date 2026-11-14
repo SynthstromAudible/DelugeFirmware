@@ -91,7 +91,7 @@ MIDICable* cableOf(const Mapping& mapping) {
 /// @p mapping as the index holds it, at @p ordinal.
 IndexedEntry entryOf(const Mapping& mapping, uint32_t ordinal) {
 	return {.target = mapping.target,
-	        .source = mapping.source,
+	        .note_or_cc = mapping.source.note_or_cc,
 	        .relative = mapping.relative,
 	        .cable = cableOf(mapping),
 	        .ordinal = ordinal};
@@ -165,7 +165,8 @@ void MappingIndex::rebuild(MappingSnapshot snapshot) {
 			    if constexpr (std::is_same_v<T, project::OwnerParamTarget>) {
 				    const uint32_t ordinal = nextOrdinal(target.owner);
 				    if (mapping.source.contains_something() && awake.hasOwner(target.owner)) {
-					    knobs_.push_back({mapping.source.channel_or_zone, target.owner, entryOf(mapping, ordinal)});
+					    knobs_.push_back(
+					        {mapping.source.channel_or_zone, target.owner, entryOf(mapping, ordinal), mapping.source});
 				    }
 			    }
 			    else if constexpr (std::is_same_v<T, project::SectionLaunchTarget>) {
@@ -203,16 +204,6 @@ void MappingIndex::rebuild(MappingSnapshot snapshot) {
 		return std::tuple{int32_t{k.channel}, k.owner.kind, k.owner.id, k.entry.ordinal};
 	});
 	std::ranges::sort(lanes_, {}, [](const Lane& l) { return std::tuple{l.kit, l.channel, l.entry.ordinal, l.mute}; });
-}
-
-controls::KnobHits KnobHitsOf::of(ControlsAddress owner) {
-	hits_.clear();
-	mappingIndex().forEachKnob(owner, from_, channel_, number_, [&](const IndexedEntry& hit) {
-		if (const auto* target = std::get_if<project::OwnerParamTarget>(&hit.target)) {
-			hits_.push_back({.target = *target, .source = hit.source, .relative = hit.relative});
-		}
-	});
-	return hits_;
 }
 
 MappingIndex& mappingIndex() {

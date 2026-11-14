@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "controls/learned.h"
 #include "controls/takeover.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/controller_mapping.h"
@@ -42,8 +41,8 @@ namespace deluge::midi {
 /// the index never reads the table after a rebuild, so a table write before the next rebuild leaves it intact.
 struct IndexedEntry {
 	project::MappingTarget target;
-	project::MidiCommand source; ///< what it is learned to: a knob's takeover state is kept by it
-	bool relative{false};        ///< a knob's: it sends relative changes
+	uint8_t note_or_cc{0};
+	bool relative{false}; ///< a knob's: it sends relative changes
 	/// The cable the binding listens to when inputs are told apart by device: nullptr for any device, and
 	/// MappingIndex::absentDevice() for a device the Deluge has no cable for, which no message arrives on.
 	MIDICable* cable{};
@@ -109,6 +108,7 @@ private:
 		uint8_t channel;
 		project::ControlsAddress owner;
 		IndexedEntry entry;
+		project::MidiCommand source; ///< what it is learned to, which its takeover state is kept by
 	};
 	/// A kit row's input or mute. Sorted by kit, channel, the row's place, then input before mute.
 	struct Lane {
@@ -144,7 +144,7 @@ public:
 	void forEachCommand(MIDICable& from, int32_t channel, int32_t note, Fn&& fn) const {
 		const auto [first, last] = std::ranges::equal_range(commands_, channel, {}, &Command::channel);
 		for (auto it = first; it != last; ++it) {
-			if (it->entry.source.note_or_cc == note && fromDevice(it->entry, from)) {
+			if (it->entry.note_or_cc == note && fromDevice(it->entry, from)) {
 				fn(it->entry);
 			}
 		}
@@ -160,12 +160,22 @@ public:
 	template <class Fn>
 	void forEachKnob(const project::ControlsAddress& owner, MIDICable& from, int32_t channel, int32_t cc,
 	                 Fn&& fn) const {
+		forEachKnobWithSource(owner, from, channel, cc,
+		                      [&](const IndexedEntry& entry, const project::MidiCommand& /*source*/) { fn(entry); });
+	}
+
+	/// @brief As forEachKnob, with each hit's source too: what the knob is learned to, which its takeover state is kept
+	/// by.
+	/// @param fn Called with each IndexedEntry hit and its source, in order.
+	template <class Fn>
+	void forEachKnobWithSource(const project::ControlsAddress& owner, MIDICable& from, int32_t channel, int32_t cc,
+	                           Fn&& fn) const {
 		const auto key = std::tuple{channel, owner.kind, owner.id};
 		const auto [first, last] = std::ranges::equal_range(
 		    knobs_, key, {}, [](const Knob& k) { return std::tuple{int32_t{k.channel}, k.owner.kind, k.owner.id}; });
 		for (auto it = first; it != last; ++it) {
-			if (it->entry.source.note_or_cc == cc && fromDevice(it->entry, from)) {
-				fn(it->entry);
+			if (it->entry.note_or_cc == cc && fromDevice(it->entry, from)) {
+				fn(it->entry, it->source);
 			}
 		}
 	}
@@ -191,15 +201,14 @@ public:
 			// An input learned from any device sounds no row: LearnedMIDI::equalsChannelAllowMPE refuses a command with
 			// no cable.
 			while (it != inLast
-			       && (it->mute || it->entry.cable == nullptr || it->entry.source.note_or_cc != note
+			       && (it->mute || it->entry.cable == nullptr || it->entry.note_or_cc != note
 			           || !fromDevice(it->entry, from))) {
 				++it;
 			}
 			return it;
 		};
 		auto nextMute = [&](auto it) {
-			while (it != muteLast
-			       && (!it->mute || it->entry.source.note_or_cc != note || !fromDevice(it->entry, from))) {
+			while (it != muteLast && (!it->mute || it->entry.note_or_cc != note || !fromDevice(it->entry, from))) {
 				++it;
 			}
 			return it;
@@ -239,45 +248,6 @@ private:
 	std::vector<Knob> knobs_;
 	std::vector<Lane> lanes_;
 };
-
-/// @brief The learned knobs a CC (or, as 128, a pitch bend) from one cable moves, owner by owner, out of the current
-/// song's index: what controls::dispatch_cc and dispatch_pitch_bend ask it.
-class KnobHitsOf final : public controls::HitsOf {
-public:
-	/// @param from    The cable the message came from.
-	/// @param channel The incoming channel, raw: a knob learned on an MPE zone never matches it.
-	/// @param number  The CC number, or 128 for a pitch bend.
-	KnobHitsOf(MIDICable& from, uint8_t channel, uint8_t number) : from_{from}, channel_{channel}, number_{number} {}
-	/// @brief @p owner's hits, copied out of the index: a write the dispatch makes can rebuild it.
-	[[nodiscard]] controls::KnobHits of(project::ControlsAddress owner) override;
-
-private:
-	MIDICable& from_;
-	uint8_t channel_;
-	uint8_t number_;
-	std::vector<controls::LearnedHit> hits_;
-};
-
-/// @brief Move the params of the current song's learned knobs a CC moves (controls::dispatch_cc), through the app's
-/// facts and sink and the song's takeover states. Defined with the app's binding host (gui/ui/shell_bind_host.cpp),
-/// which holds the facts and the sink.
-/// @param cable     The cable it came on.
-/// @param channel   Its channel, raw.
-/// @param cc        The CC number.
-/// @param value     The CC's value.
-/// @param mpeMember Whether the channel is a member channel of an MPE zone of the cable's input: only the song's
-///                  knobs hear it.
-void learnedCcReceived(MIDICable& cable, uint8_t channel, uint8_t cc, uint8_t value, bool mpeMember);
-
-/// @brief Move the params of the current song's learned knobs a pitch bend moves (controls::dispatch_pitch_bend),
-/// through the app's facts and sink. Defined with the app's binding host, as learnedCcReceived().
-/// @param cable     The cable it came on.
-/// @param channel   Its channel, raw.
-/// @param value14   The bend's 14-bit value.
-/// @param mpeMember Whether the channel is a member channel of an MPE zone of the cable's input: no knob hears it.
-/// @return The ids of the outputs a learned knob hears the bend on, whose instruments do not bend.
-[[nodiscard]] std::vector<uint32_t> learnedPitchBendReceived(MIDICable& cable, uint8_t channel, uint16_t value14,
-                                                             bool mpeMember);
 
 /// @brief The index of the current song's bindings.
 MappingIndex& mappingIndex();

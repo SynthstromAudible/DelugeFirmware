@@ -31,7 +31,6 @@
 #include <cstdint>
 #include <optional>
 #include <span>
-#include <vector>
 
 namespace deluge::controls {
 
@@ -40,7 +39,6 @@ struct LearnedMessage {
 	uint8_t channel{0};         ///< raw 0-15: a knob learned on an MPE zone never matches it
 	uint8_t number{0};          ///< the CC number; 128 for a pitch bend
 	uint16_t value{0};          ///< 7-bit for a CC, 14-bit for a pitch bend
-	bool mpe_member{false};     ///< the channel is a member channel of an MPE zone of the input
 	bool cable_relative{false}; ///< the cable it came on sends relative values
 };
 
@@ -76,31 +74,47 @@ public:
 [[nodiscard]] std::optional<project::ParamAddress>
 resolve_learned(const project::OwnerParamTarget& target, project::OwnerId param_owner, std::optional<uint32_t> clip_id);
 
-/// @brief Move the params of every learned knob a CC is learned to: the song's (even on an MPE member channel), then,
-/// off one, each playing output's in play order (a kit's own, then each of its sound rows' in note-row order).
+/// @brief Move the params of the song's learned knobs a CC is learned to. The song's knobs hear a CC on any channel,
+/// an MPE member channel included; it hears no pitch bend.
 ///
-/// For each hit, in order: a value from 16 to 111 on a knob taken to be relative clears its flag; the step region held
-/// on the output's clip is read; the output's take is made while the arrangement records; the param is made where
-/// missing and read (at the region when one is held); takeover turns the CC into a position; and a position that
-/// moved is written over the region, as a learned write, the UI told.
+/// For each hit, in order: a value from 16 to 111 on a knob taken to be relative clears its flag; the param is made
+/// where missing and read; takeover turns the CC into a position; and a position that moved is written, as a learned
+/// write, the UI told.
+/// @param hits      The knobs the CC moves.
+/// @param facts     The params' values and the takeover inputs.
+/// @param sink      Where the writes go.
+/// @param takeovers Each knob's takeover state.
+/// @param message   The CC.
+void dispatch_song_cc(HitsOf& hits, const Facts& facts, Sink& sink, TakeoverStore& takeovers,
+                      const LearnedMessage& message);
+
+/// @brief Move the params of one output's learned knobs a CC is learned to: its own, then, for a kit, each of its sound
+/// rows' in note-row order. A host offers each output in play order, each before the next output hears the CC
+/// itself, as each takes its own take: an output that does not play (playing_outputs()) or is a MIDI or CV track has
+/// none.
+///
+/// For each hit, as dispatch_song_cc, with the step region held on the output's clip read first and then the take the
+/// arrangement records it into made, so the param is read and written in the take, over the region.
+/// @param output_id The output.
 /// @param hits      The knobs the CC moves.
 /// @param facts     The playing outputs, a kit's rows, the params' values and the takeover inputs.
 /// @param sink      Where the writes go.
 /// @param takeovers Each knob's takeover state.
 /// @param message   The CC.
-void dispatch_cc(HitsOf& hits, const Facts& facts, Sink& sink, TakeoverStore& takeovers, const LearnedMessage& message);
+void dispatch_output_cc(uint32_t output_id, HitsOf& hits, const Facts& facts, Sink& sink, TakeoverStore& takeovers,
+                        const LearnedMessage& message);
 
-/// @brief Move the params of the learned knobs a pitch bend is learned to: each playing output's, off an MPE member
-/// channel, in play order (a kit's own, then each of its sound rows'). The song hears no bend.
-///
-/// The bend's 14-bit value is the param's word ((v << 18) - 2^31), with no takeover: of each owner's hits, the first
-/// whose param is written takes it.
-/// @param hits    The knobs the bend moves.
-/// @param facts   The playing outputs and a kit's rows.
-/// @param sink    Where the writes go.
-/// @param message The bend.
-/// @return The ids of the outputs a learned knob hears the bend on: their instruments do not bend.
-[[nodiscard]] std::vector<uint32_t> dispatch_pitch_bend(HitsOf& hits, const Facts& facts, Sink& sink,
-                                                        const LearnedMessage& message);
+/// @brief Move the params of one output's learned knobs a pitch bend is learned to, offered as dispatch_output_cc
+/// offers a CC. The bend's 14-bit value is the param's word ((v << 18) - 2^31), with no takeover: of each owner's
+/// hits, the first whose param is written takes it.
+/// @param output_id The output.
+/// @param hits      The knobs the bend moves.
+/// @param facts     The playing outputs and a kit's rows.
+/// @param sink      Where the writes go.
+/// @param message   The bend.
+/// @return Whether a learned knob of the output hears the bend, whether or not its param was written: then its
+///         instrument does not bend.
+[[nodiscard]] bool dispatch_output_bend(uint32_t output_id, HitsOf& hits, const Facts& facts, Sink& sink,
+                                        const LearnedMessage& message);
 
 } // namespace deluge::controls
