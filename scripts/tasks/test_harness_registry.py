@@ -2344,6 +2344,17 @@ class ExplanationTest(unittest.TestCase):
                 "tools/probe/test_a.py",
             ),
             (["python3", "-m", "probe_main", "--fast"], "tools/probe/probe_main.py"),
+            (
+                [
+                    "python3",
+                    "-m",
+                    "pytest",
+                    "-q",
+                    "test_usb_config.py",
+                    "test_midi_config.py",
+                ],
+                "tools/probe/test_usb_config.py",
+            ),
         ):
             with self.subTest(run):
                 self.assertEqual(
@@ -2355,6 +2366,10 @@ class ExplanationTest(unittest.TestCase):
             (["python3"], "probe: run names no script after python3"),
             (["python3", "-u", "probe.py"], "probe: run names no script after python3"),
             (["python3", "-m"], "probe: run names no module after python3 -m"),
+            (
+                ["python3", "-m", "pytest", "-q"],
+                "probe: run names no test file after python3 -m pytest",
+            ),
             (
                 ["python3", "-m", "unittest", "-v", "test_a"],
                 (

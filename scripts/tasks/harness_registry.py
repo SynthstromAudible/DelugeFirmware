@@ -448,7 +448,7 @@ CHECK_NOTES = {
 
 def _script_source(h: Harness) -> Path:
     """The file a script entry's command runs, which holds its explanation: the program, the script after python3,
-    the module after `python3 -m`, or for `python3 -m unittest` the first module it names (with none named, or
+    the module after `python3 -m`, for `python3 -m pytest` the first test file it names, or for `python3 -m unittest` the first module it names (with none named, or
     `discover`, the module named after `path`'s last directory)."""
     run = h.run
     if run[0] != "python3":
@@ -459,6 +459,13 @@ def _script_source(h: Harness) -> Path:
         return Path(h.path) / run[1]
     if len(run) < 3:
         raise ValueError(f"{h.name}: run names no module after python3 -m")
+    if run[2] == "pytest":
+        files = [arg for arg in run[3:] if arg.endswith(".py")]
+        if not files:
+            raise ValueError(
+                f"{h.name}: run names no test file after python3 -m pytest"
+            )
+        return Path(h.path) / files[0]
     if run[2] != "unittest":
         return Path(h.path) / f"{run[2]}.py"
     if len(run) == 3 or run[3] == "discover":

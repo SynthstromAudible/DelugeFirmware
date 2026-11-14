@@ -1922,6 +1922,20 @@ job = "tooling"
 runtime_s = 180
 
 [[harness]]
+name = "usbmidi"
+path = "tests/device/usbmidi"
+level = "integration"
+runner = "script"
+kind = "property"
+status = "gate"
+gates = "a Deluge plugged into this machine enumerates as a USB-MIDI device with three MIDI ports each way"
+run = ["python3", "-m", "pytest", "test_usb_config.py", "test_midi_config.py"]
+requires = ["deluge-usb"]
+tier = "manual"
+job = "tooling"
+runtime_s = 5
+
+[[harness]]
 name = "audible-window-tooling"
 template = "unittest"
 path = "tools/audible_window"

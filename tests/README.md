@@ -201,6 +201,7 @@ builds only `golden-vt-render`.
 | ui-parity-songs | integration | script | differential | investigative | eleven real songs load and play with the same panels on this image as on main's, in delugemu | manual | tooling | ~90s |
 | ui-device | integration | script | differential | investigative | the device scripts show the same panels on the Deluge on the probe rig as in delugemu running the same image | manual | tooling | ~3m |
 | ui-device-record | integration | script | benchmark | investigative | nothing: it records the device-only scripts' snapshots and debug output on the Deluge on the probe rig | manual | tooling | ~3m |
+| usbmidi | integration | script | property | gate | a Deluge plugged into this machine enumerates as a USB-MIDI device with three MIDI ports each way | manual | tooling | ~5s |
 | audible-window-tooling | unit | script | unit | gate | the audible window's analyser and song set | pr | tooling | ~1s |
 | audible-window-identity | integration | script | regression | gate | the audible window's reference snapshot (.superpowers/estate/audible-window/reference/, or AUDIBLE_WINDOW_REFERENCE) compared with itself reports nothing moved | manual | tooling | ~1m |
 | bench-tooling | unit | script | unit | gate | the bench tools' host side | pr | tooling | ~1s |
