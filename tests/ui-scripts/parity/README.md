@@ -5,6 +5,11 @@ image under test in delugemu and requires identical panels at every snapshot. Ea
 and covers one surface, so a divergence in one cannot hide the others. Format: `tests/harness/README.md`; times are
 milliseconds after boot settles, and a snapshot waits for both panels to settle.
 
+`p16`–`p24` are longer walks on `.superpowers/emu-card/bare.img`: the automation view on a kit and the song
+(`p16`), a MIDI clip (`p17`) and a synth (`p18`), the cable menus (`p19`), learn (`p20`), MIDI follow's CCs (`p21`),
+the mod knobs (`p22`), the performance view (`p23`) and param undo (`p24`). They make an input every 250 ms (a press
+held 120 ms), and each snapshot is a 1 s window. Their results are in `DIFFERENCES.md`'s `p16`–`p24` section.
+
 Scripts named `sm*` are written for the ShellMenu card (`.superpowers/emu-card/shellmenu`): they enter the menus
 through SelectEnc, which opens the ported menu.
 

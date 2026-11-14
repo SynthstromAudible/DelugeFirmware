@@ -1,5 +1,6 @@
 # Undo and redo of param edits on the boot synth clip: a gold knob turn, a sound-menu value, an automation-editor pad,
-# a MIDI follow CC (follow on channel A, set up as midi_follow.txt does). BACK undoes outside a menu; SHIFT+BACK redoes.
+# a MIDI follow CC (follow on channel A, set up as `p21-midi-follow` does). BACK undoes outside a menu;
+# SHIFT+BACK redoes.
 100   button Mod0 down
 220   button Mod0 up
 470   encoder GoldUpper +3
