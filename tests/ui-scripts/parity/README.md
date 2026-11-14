@@ -120,9 +120,11 @@ with affect-entire, and the song's reverb amount; the first three close the menu
 knobs' rings, the song's keeps its page open, where the new value shows. A fresh CC knob is relative until a value from
 16 to 111 shows it is not, so the 0 moves nothing and the 64 that follows is the first absolute move.
 
-`midi_follow` plays every CC of MIDI follow on a synth clip, a kit row, a kit with affect-entire and the song, so the
-sound table, the global table and the affect-entire choice of `midi::followFocus` (`controls::resolve_follow`) all show
-in its popups, knob LEDs and the DIN bytes of the feedback. No script sends a pitch bend (the runner has no bend verb) or
+`midi_follow` plays every CC of MIDI follow on a synth clip, a kit row, a kit with affect-entire and the song. The
+synth, kit-row and song sections show the sound table and the global table in their popups, knob LEDs and the DIN
+bytes of the feedback; the kit affect-entire section shows only error-popup frames, on `main` too, with no feedback, so
+the script does not see the affect-entire choice of `midi::followFocus` (`controls::resolve_follow`). That choice is
+pinned by `tests/controls/follow_spec.cpp` and `sim/scenes_spec/midi_follow_spec.cpp`. No script sends a pitch bend (the runner has no bend verb) or
 unlearns a knob on a sound with a non-zero pitch adjust, so the two accepted learned-MIDI differences (D160, D161 in
 `DIFFERENCES.md`) are pinned by specs.
 

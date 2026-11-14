@@ -355,17 +355,19 @@ the wavetable functions take the saved knobs and the oscillator (0 or 1) that cl
 returns the knobs the sound takes. `writeKnobPairs` (`controls_bridge.h`) writes them through the controls record
 (`SetControls`, or both copies directly when it refuses), so the engine's knob array and the record stay equal.
 
-Learned MIDI and MIDI follow reach params by address through the same library; the engine holds no learned knobs and no
-dispatch of its own. A learned knob is an entry of the song's mapping table (`project::MappingTable`): the source it is
+Learned MIDI and MIDI follow reach params by address through the same library; the engine plays no learned knobs and
+has no dispatch of its own. An owner a song does not hold carries its file's knobs (`ModControllableAudio::loaded_knobs`)
+until a song's table takes them. A learned knob is an entry of the song's mapping table (`project::MappingTable`): the source it is
 learned to, the `OwnerParamTarget` it turns and whether it is relative. `controls::dispatch_song_cc` moves the song's
 knobs a CC is learned to; the host offers each output in play order, and `controls::dispatch_output_cc` and
 `controls::dispatch_output_bend` move that output's knobs, a kit's rows' after its own, each before the output hears
 the message itself, so a hit's take is made before the output reads its active clip. The outputs that play and a kit's
 sound rows come from `controls::Facts::playing_outputs` and `sound_rows`: an output with no active clip hears nothing.
-`controls::resolve_learned` turns a knob's target into the `ParamAddress` on the owner that plays it, and a hit writes
-through `controls::Sink::write_param` with `Resolution::LEARNED` (`SetParamValue::Resolve::LEARNED`): the take is made
-while the arrangement records and a missing cable is made, as a gold knob's, but no instrument or drum is marked
-edited. The write keeps the default `Write::USER`, so it makes an undo step and records automation. The app reaches
+`controls::resolve_learned` turns a knob's target into the `ParamAddress` on the owner that plays it (a target outside
+the owner's engine params moves nothing), and `controls::move_by_cc` turns the knob through takeover and writes through
+`controls::Sink::write_param` with `Resolution::LEARNED` (`SetParamValue::Resolve::LEARNED`). As with a gold knob's
+write, the take is made while the arrangement records and a missing cable is made; unlike a gold knob's write, no
+instrument or drum is marked edited. The write keeps the default `Write::USER`, so it makes an undo step and records automation. The app reaches
 the dispatch through `learnedCcToSong`, `learnedCcToOutput` and `learnedPitchBendToOutput`
 (`io/midi/learned_dispatch.h`), defined with the binding host.
 
@@ -383,7 +385,9 @@ the param the runtime uses, so the codec is the one place that rule lives.
 MIDI follow resolves the same way: `controls::resolve_follow` (`src/controls/follow.h`) turns a CC and the followed
 clip's `KnobFocus` (`midi::followFocus`, which reads `gui::knobFocusOfClip`: a kit's selected row unless the clip has
 affect-entire) into the address, from the sound table or the global one, and refuses portamento on a kit row. A
-followed write's position arithmetic is a gold knob's (`src/controls/knob_math.h`).
+followed CC moves its param through `controls::move_by_cc`, as a learned knob's does, after cloning the clip the
+arrangement records whether or not the CC follows anything; its position arithmetic is a gold knob's
+(`src/controls/knob_math.h`).
 
 ## Instrument-private rules
 
