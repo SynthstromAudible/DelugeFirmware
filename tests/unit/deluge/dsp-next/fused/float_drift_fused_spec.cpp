@@ -14,9 +14,11 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-// The float pack's spec under the firmware's float flags (-O2 -funsafe-math-optimizations, set in
-// tests/unit/deluge/dsp-next/CMakeLists.txt): the headers pin their own arithmetic, so every result must still match
-// bit for bit.
-#include "pack_f32_spec.cpp" // NOLINT(bugprone-suspicious-include)
 
-DELUGE_SPEC(pack_f32_unsafe_math_spec, pack_f32_spec_body)
+// The float drift spec under the fused policy (-mfma on the x86 host; tests/unit/deluge/dsp-next/fused/CMakeLists.txt
+// sets it).
+#define DELUGE_SPEC_TWIN 1
+#include "float_drift_spec.cpp" // NOLINT(bugprone-suspicious-include)
+#undef DELUGE_SPEC_TWIN
+
+DELUGE_SPEC(float_drift_fused_spec, float_drift_spec_body)

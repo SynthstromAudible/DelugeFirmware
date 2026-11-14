@@ -42,9 +42,19 @@ int run_specs(int argc, char** const argv, Specs&... specs) {
 ///
 /// The name is the one the executable running the file looks up: the file's stem under deluge_specs_driver
 /// (tests/support/cmake/specs.cmake), `<dir>_<stem>` under sim/scenes_spec's generated table.
+///
+/// A twin (a spec file that `#include`s another spec file to run its groups under other flags) defines
+/// `DELUGE_SPEC_TWIN` as 1 around that include, so the included file's DELUGE_SPEC defines nothing and the twin's TU
+/// defines its own entry point alone.
 /// @param fn  The entry-point function name to define.
 /// @param ... The `describe(...)` spec objects to run, in order.
-#define DELUGE_SPEC(fn, ...)                                                                                           \
+#define DELUGE_SPEC(fn, ...) DELUGE_SPEC_SELECT(DELUGE_SPEC_TWIN)(fn, __VA_ARGS__)
+
+// DELUGE_SPEC_TWIN expands (to 1) before the paste while a twin's include defines it, and stays a bare name otherwise.
+#define DELUGE_SPEC_SELECT(twin) DELUGE_SPEC_PASTE(DELUGE_SPEC_WHEN_, twin)
+#define DELUGE_SPEC_PASTE(a, b) a##b
+#define DELUGE_SPEC_WHEN_1(fn, ...)
+#define DELUGE_SPEC_WHEN_DELUGE_SPEC_TWIN(fn, ...)                                                                     \
 	int fn(int argc, char** const argv) {                                                                              \
 		return deluge_spec::run_specs(argc, argv, __VA_ARGS__);                                                        \
 	}

@@ -14,8 +14,11 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-// The float voice spec under the fused policy (-mfma on the x86 host; tests/unit/deluge/dsp-next/CMakeLists.txt sets
-// it).
-#include "float_voice_spec.cpp" // NOLINT(bugprone-suspicious-include)
+// Bank's spec under the firmware's float flags (-O2 -funsafe-math-optimizations, set in
+// tests/unit/deluge/dsp-next/unsafe_math/CMakeLists.txt): the headers pin their own arithmetic, so every result must
+// still match bit for bit.
+#define DELUGE_SPEC_TWIN 1
+#include "bank_spec.cpp" // NOLINT(bugprone-suspicious-include)
+#undef DELUGE_SPEC_TWIN
 
-DELUGE_SPEC(float_voice_fused_spec, float_voice_spec_body)
+DELUGE_SPEC(bank_unsafe_math_spec, bank_spec_body)

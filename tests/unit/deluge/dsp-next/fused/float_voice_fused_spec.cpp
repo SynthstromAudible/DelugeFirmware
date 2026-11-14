@@ -14,9 +14,10 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+// The float voice spec under the fused policy (-mfma on the x86 host; tests/unit/deluge/dsp-next/fused/CMakeLists.txt
+// sets it).
+#define DELUGE_SPEC_TWIN 1
+#include "float_voice_spec.cpp" // NOLINT(bugprone-suspicious-include)
+#undef DELUGE_SPEC_TWIN
 
-// The float drift spec under the fused policy (-mfma on the x86 host; tests/unit/deluge/dsp-next/CMakeLists.txt sets
-// it).
-#include "float_drift_spec.cpp" // NOLINT(bugprone-suspicious-include)
-
-DELUGE_SPEC(float_drift_fused_spec, float_drift_spec_body)
+DELUGE_SPEC(float_voice_fused_spec, float_voice_spec_body)

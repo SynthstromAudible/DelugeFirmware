@@ -14,8 +14,12 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-// The float oscillators' spec under the fused policy (-mfma on the x86 host; tests/unit/deluge/dsp-next/CMakeLists.txt
-// sets it).
-#include "float_oscillators_spec.cpp" // NOLINT(bugprone-suspicious-include)
 
-DELUGE_SPEC(float_oscillators_fused_spec, float_oscillators_spec_body)
+// The float pack's spec, built with -mfma so that kFusedMulAdd holds on the x86 host: the fused policy, which an
+// AArch64 or VFPv4 target runs, held to the same lane-for-lane equalities
+// (tests/unit/deluge/dsp-next/fused/CMakeLists.txt sets the flag).
+#define DELUGE_SPEC_TWIN 1
+#include "pack_f32_spec.cpp" // NOLINT(bugprone-suspicious-include)
+#undef DELUGE_SPEC_TWIN
+
+DELUGE_SPEC(pack_f32_fused_spec, pack_f32_spec_body)

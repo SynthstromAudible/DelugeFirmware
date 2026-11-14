@@ -20,7 +20,6 @@
 // classes' (pitch_shift_workload_records.h) only on the workloads its quirk fixes reach. `./dbt test --update unit`
 // re-records them.
 
-#include "alloc_seams.h"
 #include "pitch_shift_component_records.h"
 #include "pitch_shift_workload_records.h"
 #include "pitch_shift_workloads.h"

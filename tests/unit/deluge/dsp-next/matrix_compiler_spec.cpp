@@ -8,7 +8,6 @@
 // The matrix compiler against today's routing: every destination keeps its cables, in today's chain order, with the
 // conversion, depth, range link and depth shape today's patching gives each.
 
-#include "alloc_seams.h"
 #include "param_regions.h"
 #include "patch_cases.h"
 

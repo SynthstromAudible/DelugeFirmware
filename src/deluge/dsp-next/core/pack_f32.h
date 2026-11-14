@@ -49,7 +49,7 @@
 /// ignored on 32-bit ARM). It licenses only rewrites that treat a zero's sign as insignificant, and the operations here
 /// (+, −, ·, the comparisons, select; no division) carry a zero's sign into nothing but other zeros, so at worst a lane
 /// and its scalar reference could differ in the sign of a zero; the unsafe-math specs
-/// (tests/unit/deluge/dsp-next/*_unsafe_math_spec.cpp) hold them bit for bit under the device's flags.
+/// (tests/unit/deluge/dsp-next/unsafe_math/*_unsafe_math_spec.cpp) hold them bit for bit under the device's flags.
 ///
 /// A lane of a pack's result is then bit for bit the scalar result under flush-to-zero (fp::FlushToZero), which ARMv7
 /// NEON always applies. The scalar overloads here (mul_add, abs, sum) complete the set so that a kernel step written

@@ -9,7 +9,6 @@
 // draw from; and the frozen reference patcher (tests/unit/deluge/dsp-next/reference_patcher.*) the matrix is compared
 // against.
 
-#include "alloc_seams.h"
 #include "patch_cases.h"
 
 #include "raw_matrix.h"

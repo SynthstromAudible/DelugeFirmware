@@ -14,10 +14,11 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+// The float kernels' spec under the firmware's float flags (-O2 -funsafe-math-optimizations, set in
+// tests/unit/deluge/dsp-next/unsafe_math/CMakeLists.txt): the headers pin their own arithmetic, so every result must
+// still match bit for bit.
+#define DELUGE_SPEC_TWIN 1
+#include "float_kernels_spec.cpp" // NOLINT(bugprone-suspicious-include)
+#undef DELUGE_SPEC_TWIN
 
-// The float pack's spec, built with -mfma so that kFusedMulAdd holds on the x86 host: the fused policy, which an
-// AArch64 or VFPv4 target runs, held to the same lane-for-lane equalities (tests/unit/deluge/dsp-next/CMakeLists.txt
-// sets the flag).
-#include "pack_f32_spec.cpp" // NOLINT(bugprone-suspicious-include)
-
-DELUGE_SPEC(pack_f32_fused_spec, pack_f32_spec_body)
+DELUGE_SPEC(float_kernels_unsafe_math_spec, float_kernels_spec_body)

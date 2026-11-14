@@ -5,10 +5,10 @@
  * Licensed under the GNU General Public License v3 or later; see LICENSE.
  */
 
-// The allocator seam the live input's pitch shifter reaches (memory/memory_allocator_interface.h), from the host heap,
-// for specs that link the synth library. Included by one spec per executable.
+// The allocator seam the synth library reaches (the live input's pitch shifter and its histories), from the host
+// heap: one definition for the dsp_specs driver.
 
-#pragma once
+#include "memory/memory_allocator_interface.h"
 
 #include <cstdint>
 #include <cstdlib>
@@ -16,6 +16,7 @@
 void* allocMaxSpeed(uint32_t requiredSize) {
 	return std::malloc(requiredSize);
 }
+
 extern "C" void delugeDealloc(void* address) {
 	std::free(address);
 }

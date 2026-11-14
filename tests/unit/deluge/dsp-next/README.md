@@ -1,53 +1,51 @@
-# dsp-next unit specs (dual-architecture, CTest)
+# dsp specs
 
-Behavioural [CppSpec](https://github.com/toroidal-code/cppspec) specs for the
-`dsp-next` DSP library, run as **CTest** tests on **both** architectures the
-firmware targets:
+[CppSpec](https://github.com/toroidal-code/cppspec) specs for dsp-next (`src/deluge/dsp-next`), the synth library
+(`src/synth`) and the effect kernels they share, run as CTest tests in three trees: the x86 host, where NEON is
+SIMDe's (`unit`); the A9 under qemu, with real NEON (`unit-arm`); and the host under UndefinedBehaviorSanitizer
+(`dsp-ubsan`). Every assertion that holds on both architectures is also an x86-against-NEON check of a vector kernel.
 
-- **x86** with the SIMDe NEON backend (the host-sim ABI, `-m32`), via the
-  `tests/` project, and
-- **ARM Cortex-A9** with real NEON under `qemu`, via the `tests/qemu/` project.
+## Drivers
 
-The same `*_spec.cpp` files are built by both projects (this directory's
-`CMakeLists.txt` is `add_subdirectory`'d from each), so every assertion doubles
-as an x86-vs-NEON cross-check of the vectorised kernel — the guarantee the
-golden harness gives end-to-end, but fast and at the unit level. CI runs both in
-the `tests / unit` job of `.github/workflows/ci.yml`.
+Each directory is one executable (`deluge_specs_driver`, `tests/support/cmake/specs.cmake`) holding its specs, and
+one ctest test per spec file, named after the file. `core/` is the fixed-point core's A9 ISA spec and codegen probe
+(`dsp_next_core_specs`, ARM tree), outside this table's flag sets.
 
-This is the per-primitive safety net for the synth untangling
-([../../docs/dev/synth_phase1_l0_plan.md](../../docs/dev/synth_phase1_l0_plan.md)):
-a thorough spec is written for each kernel as it migrates (see
-[../../docs/dev/synth_untangling_plan.md](../../docs/dev/synth_untangling_plan.md)),
-locking its behaviour against future regressions.
+| Directory | Driver | Trees | Flags |
+| --- | --- | --- | --- |
+| `.` | `dsp_specs` | host, arm, ubsan (`triangle_distribution_spec`: host) | the tree's |
+| `fused/` | `dsp_fused_specs` | host, ubsan (x86 hosts) | `-mfma`: the fused policy an FMA target runs |
+| `unsafe_math/` | `dsp_unsafe_math_specs` | host, arm, ubsan | `-O2 -funsafe-math-optimizations`: the device's float flags |
+| `arm/` | `dsp_arm_specs` | arm | the A9's own assembly |
 
-## Running locally
+The drivers link the libraries as each tree builds them (`tests/support/cmake/libs.cmake`): `deluge_dsp_fixed`,
+`deluge_dsp_float`, `deluge_synth`, `deluge_effects`, and the archives of app code they reach
+(`deluge_test_dsp_closure`, `deluge_test_synth_closure`). `fused/` and `unsafe_math/` link variants of dsp-next built
+under their own flags (`deluge_dsp_float_fma`, `deluge_dsp_fixed_unsafe_math`, `deluge_dsp_float_unsafe_math`), so
+the library code a spec reaches is held to the same flags as the spec. On the A9, dsp-next is built as the device
+builds it: the DX7's modern operators run `fixed/dx7/neon_fm_kernel.s`.
 
-x86 (needs `libsimde-dev` + a multilib `-m32` toolchain):
+A spec in `fused/` or `unsafe_math/` that `#include`s a spec from this directory runs that spec again under its
+driver's flags (`float_voice_fused_spec.cpp` is `float_voice_spec.cpp` at `-mfma`). It defines `DELUGE_SPEC_TWIN` as 1 around the
+`#include`, so the included spec's `DELUGE_SPEC` defines no entry point and the twin's file defines only its own.
 
-```
-cmake -B build-tests -S tests -G Ninja
-cmake --build build-tests
-ctest --test-dir build-tests -R _spec --output-on-failure   # or -R sine_spec
-```
-
-ARM via QEMU (needs `arm-linux-gnueabihf-g++`, `qemu-user-static`,
-`binfmt-support`):
-
-```
-cmake -B build-tests-arm -S tests/qemu -G Ninja
-cmake --build build-tests-arm
-ctest --test-dir build-tests-arm --output-on-failure
-```
+`synth_link_test` links the synth core's sources, listed by hand, with `-Wl,--no-undefined`: the proof that the synth
+library's link closure holds nothing of the app.
 
 ## Adding a spec
 
-1. Write `tests/unit/deluge/dsp-next/<name>_spec.cpp` with CppSpec (`describe`/`context`/`it`/
-   `expect(...).to_equal(...)`, …), ending with `CPPSPEC_MAIN(<describe_obj>);`
-   so it builds as a standalone CTest executable.
-2. In `tests/unit/deluge/dsp-next/CMakeLists.txt`, set `<name>_spec_DEPS` to the dsp-next source
-   file(s) the spec exercises (compiled into the spec executable).
+1. Write `<name>_spec.cpp` in the directory whose flags it needs, with CppSpec (`// clang-format off` before the
+   first `describe`), and end it with `DELUGE_SPEC(<name>_spec, <describe>...)` from `"support/spec_main.h"`. A `describe`
+   cannot be named `<name>_spec` (that is the entry point); `<name>_spec_body` is the convention.
+2. Nothing to list: the driver picks the file up on the next build. A spec that reaches app code outside the linked
+   libraries adds that source to its driver's `SOURCES`.
 
-Prefer assertions that are **exact** where the maths allows (the sine spec uses
-fraction-zero phases, where the result is exactly `table[index] << 16`) — exact
-reference values are the strongest regression guard, and matching on both
-backends proves x86 ≡ ARM.
+Prefer exact expectations where the maths allows (the sine spec uses fraction-zero phases, where the result is
+exactly `table[index] << 16`): exact references are the strongest regression guard, and matching on both backends
+proves x86 ≡ ARM.
+
+## Running
+
+`./dbt test unit -- -R <name>_spec`, `./dbt test unit-arm -- -R <name>_spec`, `./dbt test dsp-ubsan`. The record
+headers (`*_records.h`) are re-recorded by `./dbt test --update unit` (and `--update unit-arm` for
+`dx7_asm_pin_records.h`); `tests/README.md` describes the update protocol.

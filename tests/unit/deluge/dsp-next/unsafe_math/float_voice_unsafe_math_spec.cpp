@@ -15,8 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 // The float voice spec under the firmware's float flags (-O2 -funsafe-math-optimizations, set in
-// tests/unit/deluge/dsp-next/CMakeLists.txt): the headers pin their own arithmetic, so every result must still match
-// bit for bit.
+// tests/unit/deluge/dsp-next/unsafe_math/CMakeLists.txt): the headers pin their own arithmetic, so every result must
+// still match bit for bit.
+#define DELUGE_SPEC_TWIN 1
 #include "float_voice_spec.cpp" // NOLINT(bugprone-suspicious-include)
+#undef DELUGE_SPEC_TWIN
 
 DELUGE_SPEC(float_voice_unsafe_math_spec, float_voice_spec_body)

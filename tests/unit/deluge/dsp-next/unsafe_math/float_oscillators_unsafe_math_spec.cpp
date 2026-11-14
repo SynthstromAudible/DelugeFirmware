@@ -14,9 +14,11 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-// Bank's spec under the firmware's float flags (-O2 -funsafe-math-optimizations, set in
-// tests/unit/deluge/dsp-next/CMakeLists.txt): the headers pin their own arithmetic, so every result must still match
-// bit for bit.
-#include "bank_spec.cpp" // NOLINT(bugprone-suspicious-include)
+// The float oscillators' spec under the firmware's float flags (-O2 -funsafe-math-optimizations, set in
+// tests/unit/deluge/dsp-next/unsafe_math/CMakeLists.txt): the headers pin their own arithmetic, so every result must
+// still match bit for bit.
+#define DELUGE_SPEC_TWIN 1
+#include "float_oscillators_spec.cpp" // NOLINT(bugprone-suspicious-include)
+#undef DELUGE_SPEC_TWIN
 
-DELUGE_SPEC(bank_unsafe_math_spec, bank_spec_body)
+DELUGE_SPEC(float_oscillators_unsafe_math_spec, float_oscillators_spec_body)

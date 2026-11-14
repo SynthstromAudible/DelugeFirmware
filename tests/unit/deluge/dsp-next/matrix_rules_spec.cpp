@@ -8,7 +8,6 @@
 // The matrix evaluator against the rules model (matrix_rules_model.h): the same final values on random cases, for the
 // rules landed so far; and one hand case per rule.
 
-#include "alloc_seams.h"
 #include "matrix_cases.h"
 #include "matrix_rules_model.h"
 #include "patch_cases.h"

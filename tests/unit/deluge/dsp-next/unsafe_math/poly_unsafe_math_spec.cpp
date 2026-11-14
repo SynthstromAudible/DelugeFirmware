@@ -14,9 +14,11 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+// Poly's spec under the firmware's float flags (-O2 -funsafe-math-optimizations, set in
+// tests/unit/deluge/dsp-next/unsafe_math/CMakeLists.txt): the headers pin their own arithmetic, so every result must
+// still match bit for bit.
+#define DELUGE_SPEC_TWIN 1
+#include "poly_spec.cpp" // NOLINT(bugprone-suspicious-include)
+#undef DELUGE_SPEC_TWIN
 
-// The float drift spec under the firmware's float flags (-O2 -funsafe-math-optimizations;
-// tests/unit/deluge/dsp-next/CMakeLists.txt).
-#include "float_drift_spec.cpp" // NOLINT(bugprone-suspicious-include)
-
-DELUGE_SPEC(float_drift_unsafe_math_spec, float_drift_spec_body)
+DELUGE_SPEC(poly_unsafe_math_spec, poly_spec_body)

@@ -86,3 +86,37 @@ foreach(library deluge_dsp_fixed deluge_dsp_float deluge_synth deluge_effects de
   deluge_test_neon(${library})
   target_compile_definitions(${library} PRIVATE _GLIBCXX_ASSERTIONS)
 endforeach()
+
+# deluge_test_library_variant(<library> <suffix> OPTIONS <option>...)
+#
+# <library>_<suffix>: <library> built again from its own sources, with its own properties and usage requirements, plus
+# OPTIONS. A spec driver that holds code to other compile flags links the variant, so the library code it reaches is
+# built under those flags too.
+function(deluge_test_library_variant library suffix)
+  cmake_parse_arguments(PARSE_ARGV 2 arg "" "" "OPTIONS")
+  set(variant ${library}_${suffix})
+  get_target_property(sources ${library} SOURCES)
+  get_target_property(source_dir ${library} SOURCE_DIR)
+  list(TRANSFORM sources PREPEND ${source_dir}/ REGEX "^[^/$]")
+  add_library(${variant} STATIC ${sources})
+  foreach(property COMPILE_DEFINITIONS COMPILE_OPTIONS COMPILE_FEATURES INCLUDE_DIRECTORIES LINK_LIBRARIES
+                   INTERFACE_COMPILE_DEFINITIONS INTERFACE_COMPILE_OPTIONS INTERFACE_INCLUDE_DIRECTORIES
+                   INTERFACE_LINK_LIBRARIES C_STANDARD C_STANDARD_REQUIRED CXX_STANDARD CXX_STANDARD_REQUIRED
+                   CXX_EXTENSIONS UNITY_BUILD)
+    get_target_property(value ${library} ${property})
+    if(NOT value STREQUAL "value-NOTFOUND")
+      set_property(TARGET ${variant} PROPERTY ${property} ${value})
+    endif()
+  endforeach()
+  target_compile_options(${variant} PRIVATE "$<$<COMPILE_LANGUAGE:C,CXX>:${arg_OPTIONS}>")
+endfunction()
+
+# The flag sets the dsp specs are held to beside the tree's own: the device's float flags, and the fused multiply-add an
+# FMA target runs (x86 only: the A9 has none and an arm64 host rejects -mfma).
+set(DELUGE_TEST_UNSAFE_MATH_OPTIONS -O2 -funsafe-math-optimizations)
+set(DELUGE_TEST_FMA_OPTIONS -mfma)
+deluge_test_library_variant(deluge_dsp_fixed unsafe_math OPTIONS ${DELUGE_TEST_UNSAFE_MATH_OPTIONS})
+deluge_test_library_variant(deluge_dsp_float unsafe_math OPTIONS ${DELUGE_TEST_UNSAFE_MATH_OPTIONS})
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i[3-6]86")
+  deluge_test_library_variant(deluge_dsp_float fma OPTIONS ${DELUGE_TEST_FMA_OPTIONS})
+endif()

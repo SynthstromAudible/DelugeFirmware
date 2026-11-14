@@ -15,7 +15,7 @@ if(NOT CMAKE_TOOLCHAIN_FILE)
 endif()
 project(DelugeTestsArm)
 include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/ccache.cmake)
-# The DX7 asm pin links a test-local copy of the device's NEON FM kernel.
+# dsp-next's DX7 kernel (fixed/dx7/neon_fm_kernel.s) and the dsp specs' test-local copy of it are assembled here.
 enable_language(ASM)
 
 set(CPU_OPTIONS
@@ -34,7 +34,5 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../support/cmake/specs.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/../../support/cmake/libs.cmake)
 
 enable_testing()
-# DSP_SPEC_ARM tells the dsp-next specs' build (tests/unit/deluge/dsp-next) to skip the x86/SIMDe setup.
-set(DSP_SPEC_ARM TRUE)
 # Every test directory under tests/unit that names this tree (tests/support/cmake/specs.cmake).
 deluge_spec_directories(${DELUGE_REPO_ROOT}/tests/unit)

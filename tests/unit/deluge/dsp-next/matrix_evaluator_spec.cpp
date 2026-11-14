@@ -8,7 +8,6 @@
 // The matrix evaluator's uncabled params against the frozen reference patcher: a param with no cables takes its preset
 // alone, as it always did. The cabled patching is matrix_rules_spec's, against the rules model.
 
-#include "alloc_seams.h"
 #include "matrix_cases.h"
 #include "patch_cases.h"
 

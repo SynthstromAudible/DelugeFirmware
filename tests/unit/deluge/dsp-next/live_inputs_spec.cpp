@@ -18,8 +18,6 @@
 // The live histories an input oscillator owns (synth/sources/input/live/live_inputs.h): what each type holds, kept or
 // remade on a type change, handed over by swap and freed with the store.
 
-#include "alloc_seams.h"
-
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "synth/sources/input/live/live_input.h"
