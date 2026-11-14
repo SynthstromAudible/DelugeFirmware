@@ -242,8 +242,8 @@ describe fixed_compressor("the compressor's fixed reference", ${
 			std::ignore = run.block(b, block);
 		}
 		// Past 31 on each side, at most 32: at the rails.
-		expect(run.compressor().view().current_volume_l.raw() > (31 << 26)).to_be_true();
-		expect(run.compressor().view().current_volume_r.raw() < -(31 << 26)).to_be_true();
+		expect(run.compressor().view().current_volume_l.raw()).to_be_greater_than(31 << 26);
+		expect(run.compressor().view().current_volume_r.raw()).to_be_less_than(-(31 << 26));
 		expect(cw::first_parting<ReferenceRmsFeedbackCompressor, FixedReferenceRmsFeedbackCompressor>(workload))
 		    .to_have_value();
 	});

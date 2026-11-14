@@ -344,7 +344,7 @@ describe typed_kernel("kernels written over Q<31>", ${
 		expect(lanes_mismatches(lanes, AccumulateByHand{.gain = kGain}, 7)).to_equal(std::size_t{0});
 		std::vector<Frame<Q<31>, 2>> in(5, Frame<Q<31>, 2>{{kBy, kGain}}), out(5);
 		lanes.render_block(in, out);
-		expect(lanes.state(1).acc == out[4].lane[1]).to_be_true();
+		expect(lanes.state(1).acc).to_equal(out[4].lane[1]);
 	});
 });
 // clang-format on

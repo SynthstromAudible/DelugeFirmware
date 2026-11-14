@@ -126,8 +126,8 @@ describe reference_granular("the granular reference", ${
 			grains += n;
 		}
 		expect(grains).to_be_greater_than(std::size_t{200});
-		expect(drawn[6] * 20 < grains).to_be_true(); // +3, octave reverse
-		expect(drawn[7] * 20 < grains).to_be_true(); // -4, octave and a fifth reverse
+		expect(drawn[6] * 20).to_be_less_than(grains); // +3, octave reverse
+		expect(drawn[7] * 20).to_be_less_than(grains); // -4, octave and a fifth reverse
 	});
 
 	it("wraps the reverb feed in FULL_SCALE", _ {

@@ -54,8 +54,8 @@ describe level_detector("the level detector", ${
 		for (int b = 0; b < 20; b++) {
 			level = detector.measure(test::typed_frames(std::span{frames}));
 		}
-		expect(level.l > 21.4f && level.l < 21.5f).to_be_true();
-		expect(level.r > 21.4f && level.r < 21.5f).to_be_true();
+		expect(level.l).to_be_between(21.4f, 21.5f, CppSpec::Matchers::RangeMode::exclusive);
+		expect(level.r).to_be_between(21.4f, 21.5f, CppSpec::Matchers::RangeMode::exclusive);
 	});
 
 	it("measures a block from the caller's means as from its frames", _ {

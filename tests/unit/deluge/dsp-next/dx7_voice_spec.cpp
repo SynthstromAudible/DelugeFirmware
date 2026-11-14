@@ -159,7 +159,7 @@ describe dx7_voice_spec_body("dx7::Voice", ${
 		for (const dw::Workload& w : dw::all_workloads()) {
 			dx7::PatchBytes p = w.patch;
 			dx7::sanitise(p);
-			expect(p == w.patch).to_be_true();
+			expect(p).to_equal(w.patch);
 		}
 	});
 

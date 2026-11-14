@@ -13,6 +13,7 @@
 #include "synth/engines/slot_engine.h"
 
 #include <array>
+#include <bit>
 #include <cppspec.hpp>
 #include <cstdint>
 #include <memory>
@@ -97,6 +98,11 @@ bool any_sound(const std::array<deluge::dsp::Q<31>, kBlock * 2>& out) {
 	return false;
 }
 
+/// The raw words of a rendered block: a sample has no printer, so a failed comparison prints these.
+std::array<int32_t, kBlock * 2> raws(const std::array<deluge::dsp::Q<31>, kBlock * 2>& out) {
+	return std::bit_cast<std::array<int32_t, kBlock * 2>>(out);
+}
+
 } // namespace
 
 // clang-format off
@@ -125,7 +131,7 @@ describe synth_engine_spec_body("synth engines", ${
 			DroneEngine engine;
 			DroneSource source{0};
 			expect(engine.owns_envelope()).to_be_false();
-			expect(engine.sound_stage() == nullptr).to_be_true();
+			expect(engine.sound_stage()).to_be_null();
 			expect(source.takes_input()).to_be_false();
 		});
 	});
@@ -135,11 +141,11 @@ describe synth_engine_spec_body("synth engines", ${
 			const auto first = play(SynthMode::SUBTRACTIVE, false, 4);
 			const auto second = play(SynthMode::SUBTRACTIVE, false, 4);
 			expect(any_sound(first)).to_be_true();
-			expect(first == second).to_be_true();
+			expect(raws(first)).to_equal(raws(second));
 		});
 
 		it("hard-syncs osc 2 to osc 1", _{
-			expect(play(SynthMode::SUBTRACTIVE, true, 4) == play(SynthMode::SUBTRACTIVE, false, 4)).to_be_false();
+			expect(raws(play(SynthMode::SUBTRACTIVE, true, 4))).not_().to_equal(raws(play(SynthMode::SUBTRACTIVE, false, 4)));
 		});
 	});
 
@@ -147,7 +153,7 @@ describe synth_engine_spec_body("synth engines", ${
 		it("multiplies the sources rather than mixing them", _{
 			const auto ring_mod = play(SynthMode::RINGMOD, false, 4);
 			expect(any_sound(ring_mod)).to_be_true();
-			expect(ring_mod == play(SynthMode::SUBTRACTIVE, false, 4)).to_be_false();
+			expect(raws(ring_mod)).not_().to_equal(raws(play(SynthMode::SUBTRACTIVE, false, 4)));
 		});
 	});
 
@@ -167,7 +173,7 @@ describe synth_engine_spec_body("synth engines", ${
 				render_block(*plain, without, cfg);
 			}
 			expect(any_sound(plain->out)).to_be_true();
-			expect(modulated->out == plain->out).to_be_false();
+			expect(raws(modulated->out)).not_().to_equal(raws(plain->out));
 		});
 	});
 

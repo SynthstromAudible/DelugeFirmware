@@ -42,7 +42,7 @@ int near_the_ends() {
 describe triangle_distribution("the arp's triangle-distributed random value", ${
 	it("reaches its ends about as rarely as a triangle does, not an eighth of the time each", _ {
 		// Saturating the two uniform draws' sum would put about 1/4 of the draws there
-		expect(near_the_ends() < kDraws / 1000).to_be_true();
+		expect(near_the_ends()).to_be_less_than(kDraws / 1000);
 	});
 	it("is the sum of its two draws' halves, each floored, so it never leaves the range", _ {
 		expect(triangle_of(INT32_MAX, INT32_MAX)).to_equal(INT32_MAX - 1);

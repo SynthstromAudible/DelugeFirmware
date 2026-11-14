@@ -105,13 +105,13 @@ describe float_drift_spec_body("fp::Drift", ${
 			var += (static_cast<double>(x) - m) * (static_cast<double>(x) - m);
 		}
 		var /= static_cast<double>(u.size());
-		expect(std::fabs(m) < 0.01).to_be_true();
-		expect(std::fabs(var - (1.0 / 3.0)) < 0.05 / 3.0).to_be_true();
+		expect(m).to_be_within(std::nextafter(0.01, 0.0)).of(0);
+		expect(var).to_be_within(std::nextafter(0.05 / 3.0, 0.0)).of(1.0 / 3.0);
 	});
 	it("stays within [−1, 1]", _ {
 		fp::FlushToZero ftz;
 		for (const f32 x : run({.time_blocks = 1.F, .seed = 3}, kLong)) {
-			expect(std::fabs(x) <= 1.F).to_be_true();
+			expect(x).to_be_within(1.F).of(0);
 		}
 	});
 	it("smooths with its time constant: the lag-1 autocorrelation at time 64 is 1 − a", _ {
@@ -119,10 +119,8 @@ describe float_drift_spec_body("fp::Drift", ${
 		fp::Drift drift;
 		drift.configure({.time_blocks = 64.F, .seed = 11});
 		const auto v = run({.time_blocks = 64.F, .seed = 11}, kLong);
-		expect(std::fabs(correlation(v, v, 1) - (1.0 - static_cast<double>(drift.coefficient()))) < 0.02)
-		    .to_be_true();
-		expect(std::fabs(static_cast<double>(drift.coefficient()) - (1.0 - std::exp(-1.0 / 64.0))) < 1e-7)
-		    .to_be_true();
+		expect(correlation(v, v, 1)).to_be_within(std::nextafter(0.02, 0.0)).of(1.0 - static_cast<double>(drift.coefficient()));
+		expect(static_cast<double>(drift.coefficient())).to_be_within(std::nextafter(1e-7, 0.0)).of(1.0 - std::exp(-1.0 / 64.0));
 	});
 	it("reproduces its stream from a seed, after reseed as after configure", _ {
 		fp::FlushToZero ftz;
@@ -146,7 +144,7 @@ describe float_drift_spec_body("fp::Drift", ${
 		fp::FlushToZero ftz;
 		const auto one = run({.time_blocks = 1.F, .seed = 1}, kLong);
 		const auto two = run({.time_blocks = 1.F, .seed = 2}, kLong);
-		expect(std::fabs(correlation(one, two)) < 0.05).to_be_true();
+		expect(correlation(one, two)).to_be_within(std::nextafter(0.05, 0.0)).of(0);
 	});
 	it("takes NaN and times below 1 as 1", _ {
 		fp::FlushToZero ftz;

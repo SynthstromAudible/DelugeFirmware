@@ -149,9 +149,8 @@ void expect_lanes_equal_mono(auto& self, SettingsFor settings_for, uint32_t seed
 			expect(poly.parked(l)).to_be_true();
 			// A parked lane is at rest.
 			const auto s = poly.state(l);
-			expect(std::bit_cast<std::array<uint32_t, sizeof(s) / 4>>(s)
-			       == std::bit_cast<std::array<uint32_t, sizeof(s) / 4>>(typename K::State{}))
-			    .to_be_true();
+			expect(std::bit_cast<std::array<uint32_t, sizeof(s) / 4>>(s))
+			    .to_equal(std::bit_cast<std::array<uint32_t, sizeof(s) / 4>>(typename K::State{}));
 			continue;
 		}
 		for (std::size_t i = 0; i < out[l].size(); ++i) {
@@ -159,9 +158,8 @@ void expect_lanes_equal_mono(auto& self, SettingsFor settings_for, uint32_t seed
 		}
 		const auto ps = poly.state(l);
 		const auto ms = mono[l].state();
-		expect(std::bit_cast<std::array<uint32_t, sizeof(ps) / 4>>(ps)
-		       == std::bit_cast<std::array<uint32_t, sizeof(ms) / 4>>(ms))
-		    .to_be_true();
+		expect(std::bit_cast<std::array<uint32_t, sizeof(ps) / 4>>(ps))
+		    .to_equal(std::bit_cast<std::array<uint32_t, sizeof(ms) / 4>>(ms));
 	}
 }
 
@@ -194,9 +192,8 @@ void expect_generator_lanes_equal_mono(auto& self, SettingsFor settings_for, std
 		}
 		const auto ps = poly.state(l);
 		const auto ms = mono[l].state();
-		expect(std::bit_cast<std::array<uint32_t, sizeof(ps) / 4>>(ps)
-		       == std::bit_cast<std::array<uint32_t, sizeof(ms) / 4>>(ms))
-		    .to_be_true();
+		expect(std::bit_cast<std::array<uint32_t, sizeof(ps) / 4>>(ps))
+		    .to_equal(std::bit_cast<std::array<uint32_t, sizeof(ms) / 4>>(ms));
 	}
 }
 
@@ -303,7 +300,7 @@ void expect_decay_equals_mono(auto& self, SettingsFor settings_for, std::size_t 
 			}
 		}
 		// The decay reached the range where a product of the state and a gain below 1 is subnormal.
-		expect(smallest < 1e-37f).to_be_true();
+		expect(smallest).to_be_less_than(1e-37f);
 		expect(same_bits(poly.state(l), mono[l].state())).to_be_true();
 	}
 }
@@ -660,11 +657,11 @@ void poly_specs(auto& self) {
 		poly.render_block(is, os);
 		for (std::size_t l = 0; l < N; ++l) {
 			expect(std::bit_cast<uint32_t>(poly.state(l).s)).to_equal(std::bit_cast<uint32_t>(mono[l].state().s));
-			expect(poly.state(l).s > 0.f).to_be_true();
+			expect(poly.state(l).s).to_be_greater_than(0.f);
 		}
 		poly.reset(1);
 		expect(poly.state(1).s).to_equal(0.f);
-		expect(poly.state(0).s > 0.f).to_be_true();
+		expect(poly.state(0).s).to_be_greater_than(0.f);
 	});
 	// clang-format on
 }

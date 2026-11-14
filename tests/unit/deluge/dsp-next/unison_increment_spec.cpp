@@ -21,8 +21,8 @@ PhaseIncrementFineTuner widest() {
 describe unison_increment("a unison part's increment", ${
 	it("is the base detuned, below 2^31", _ {
 		PhaseIncrementFineTuner none;
-		expect(detuned_increment(1 << 28, none) == std::optional<uint32_t>{1 << 28}).to_be_true();
-		expect(detuned_increment(1 << 30, widest()).value_or(0) > uint32_t{1} << 30).to_be_true();
+		expect(detuned_increment(1 << 28, none)).to_equal(std::optional<uint32_t>{1 << 28});
+		expect(detuned_increment(1 << 30, widest()).value_or(0)).to_be_greater_than(uint32_t{1} << 30);
 	});
 	it("is none where the detune takes it to 2^31 or above", _ {
 		// A 44056 Hz sample transposed up near its limit, at osc +49 and master +49 cents: the widest detune's top part

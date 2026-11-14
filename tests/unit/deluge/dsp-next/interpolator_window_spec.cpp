@@ -92,13 +92,13 @@ describe interpolator_window("deluge::dsp::fixed Interpolator tap-window shift",
 		interpolator.push_l(7);
 		reference_shift(expected_l, 1);
 		expected_l[0] = 7;
-		expect(interpolator.window_l() == expected_l).to_be_true();
-		expect(interpolator.window_r() == expected_r).to_be_true(); // untouched
+		expect(interpolator.window_l()).to_equal(expected_l);
+		expect(interpolator.window_r()).to_equal(expected_r); // untouched
 
 		interpolator.push_r(-7);
 		reference_shift(expected_r, 1);
 		expected_r[0] = -7;
-		expect(interpolator.window_r() == expected_r).to_be_true();
+		expect(interpolator.window_r()).to_equal(expected_r);
 	});
 
 	it("matches the reference over a long random shift-and-refill feed", _ {

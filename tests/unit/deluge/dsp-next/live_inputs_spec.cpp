@@ -44,27 +44,28 @@ std::optional<InputChannel> mono_channel(const LiveInputStore& store) {
 describe live_inputs("deluge::synth::LiveInputStore", ${
 	it("holds the left history for the left input", _ {
 		const LiveInputStore store = LiveInputStore::for_type(OscType::INPUT_L);
-		expect(mono_channel(store) == InputChannel::LEFT).to_be_true();
-		expect(store.inputs().stereo == nullptr).to_be_true();
+		expect(mono_channel(store)).to_equal(InputChannel::LEFT);
+		expect(store.inputs().stereo).to_be_null();
 	});
 
 	it("holds the right history for the right input", _ {
 		const LiveInputStore store = LiveInputStore::for_type(OscType::INPUT_R);
-		expect(mono_channel(store) == InputChannel::RIGHT).to_be_true();
-		expect(store.inputs().stereo == nullptr).to_be_true();
+		expect(mono_channel(store)).to_equal(InputChannel::RIGHT);
+		expect(store.inputs().stereo).to_be_null();
 	});
 
 	it("holds the stereo history and the left one for the stereo input", _ {
 		const LiveInputStore store = LiveInputStore::for_type(OscType::INPUT_STEREO);
-		expect(store.inputs().stereo != nullptr).to_be_true();
-		expect(store.inputs().stereo->channel() == InputChannel::STEREO).to_be_true();
-		expect(mono_channel(store) == InputChannel::LEFT).to_be_true();
+		expect(store.inputs().stereo).not_().to_be_null();
+		expect(store.inputs().stereo->channel()).to_equal(InputChannel::STEREO);
+		expect(mono_channel(store)).to_equal(InputChannel::LEFT);
 	});
 
 	it("holds nothing for a type that is not an input", _ {
 		for (const OscType type : {OscType::SAW, OscType::SAMPLE, OscType::DX7}) {
 			const LiveInputStore store = LiveInputStore::for_type(type);
-			expect(store.inputs().mono == nullptr && store.inputs().stereo == nullptr).to_be_true();
+			expect(store.inputs().mono).to_be_null();
+			expect(store.inputs().stereo).to_be_null();
 		}
 	});
 
@@ -88,22 +89,22 @@ describe live_inputs("deluge::synth::LiveInputStore", ${
 		LiveInputStore next = LiveInputStore::for_type(OscType::INPUT_R);
 		const auto* right = next.inputs().mono;
 		held.swap(next);
-		expect(held.inputs().mono == right).to_be_true();
-		expect(next.inputs().mono == left).to_be_true();
+		expect(held.inputs().mono).to_equal(right);
+		expect(next.inputs().mono).to_equal(left);
 	});
 
 	it("gives each frame its history", _ {
 		const LiveInputStore store = LiveInputStore::for_type(OscType::INPUT_STEREO);
-		expect(store.inputs().of<deluge::dsp::Q<31>>() == store.inputs().mono).to_be_true();
-		expect(store.inputs().of<deluge::dsp::StereoSample>() == store.inputs().stereo).to_be_true();
+		expect(store.inputs().of<deluge::dsp::Q<31>>()).to_equal(store.inputs().mono);
+		expect(store.inputs().of<deluge::dsp::StereoSample>()).to_equal(store.inputs().stereo);
 	});
 
 	it("moves its histories, leaving none behind", _ {
 		LiveInputStore from = LiveInputStore::for_type(OscType::INPUT_L);
 		const auto* left = from.inputs().mono;
 		const LiveInputStore to = std::move(from);
-		expect(to.inputs().mono == left).to_be_true();
-		expect(from.inputs().mono == nullptr).to_be_true(); // NOLINT(bugprone-use-after-move): moved-from is empty
+		expect(to.inputs().mono).to_equal(left);
+		expect(from.inputs().mono).to_be_null(); // NOLINT(bugprone-use-after-move): moved-from is empty
 	});
 });
 // clang-format on

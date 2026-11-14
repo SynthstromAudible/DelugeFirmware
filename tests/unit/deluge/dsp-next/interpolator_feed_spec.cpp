@@ -216,10 +216,10 @@ describe interpolator_feed("deluge::dsp::fixed Interpolator feeds", ${
 					// A mono feed leaves the right window's vacated slots as the shift left them, unspecified: compare the
 					// right window only where it is defined.
 					if (stereo) {
-						expect(held(interpolator) == expected).to_be_true();
+						expect(held(interpolator)).to_equal(expected);
 					}
 					else {
-						expect(interpolator.window_l() == expected.l).to_be_true();
+						expect(interpolator.window_l()).to_equal(expected.l);
 						for (int32_t i = n; i < kTaps; i++) {
 							expect(interpolator.window_r()[i]).to_equal(expected.r[i]);
 						}
@@ -247,7 +247,7 @@ describe interpolator_feed("deluge::dsp::fixed Interpolator feeds", ${
 							feed.put(l[k]);
 						}
 					}
-					expect(held(interpolator) == expected).to_be_true();
+					expect(held(interpolator)).to_equal(expected);
 				}
 			}
 		}
@@ -262,7 +262,7 @@ describe interpolator_feed("deluge::dsp::fixed Interpolator feeds", ${
 			while (feed.remaining() != 0) {
 				feed.silence();
 			}
-			expect(held(interpolator) == expected).to_be_true();
+			expect(held(interpolator)).to_equal(expected);
 		}
 	});
 
@@ -291,7 +291,7 @@ describe interpolator_feed("deluge::dsp::fixed Interpolator feeds", ${
 						feed.put(l0);
 					}
 					expect(feed.remaining()).to_equal(std::size_t{0});
-					expect(held(interpolator) == expected).to_be_true();
+					expect(held(interpolator)).to_equal(expected);
 				}
 			}
 		}
@@ -325,7 +325,7 @@ describe interpolator_feed("deluge::dsp::fixed Interpolator feeds", ${
 							feed.put(l[k]);
 						}
 					}
-					expect(held(interpolator) == expected).to_be_true();
+					expect(held(interpolator)).to_equal(expected);
 				}
 			}
 		}
@@ -343,21 +343,21 @@ describe interpolator_feed("deluge::dsp::fixed Interpolator feeds", ${
 						Interpolator interpolator = holding(expected);
 						reference_narrow(expected, offset, smaller, stereo);
 						interpolator.narrow(offset, smaller, channels);
-						expect(held(interpolator) == expected).to_be_true();
+						expect(held(interpolator)).to_equal(expected);
 					}
 					{
 						Windows expected = random_windows();
 						Interpolator interpolator = holding(expected);
 						reference_widen(expected, offset, smaller, stereo);
 						interpolator.widen(offset, smaller, channels);
-						expect(held(interpolator) == expected).to_be_true();
+						expect(held(interpolator)).to_equal(expected);
 					}
 					{
 						Windows expected = random_windows();
 						Interpolator interpolator = holding(expected);
 						reference_clear(expected, larger - offset, larger, stereo);
 						interpolator.clear(larger - offset, larger, channels);
-						expect(held(interpolator) == expected).to_be_true();
+						expect(held(interpolator)).to_equal(expected);
 					}
 				}
 			}

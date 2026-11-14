@@ -36,6 +36,7 @@
 #include <span>
 #include <vector>
 
+#include "support/matchers/value_matchers.h"
 #include "support/spec_main.h"
 
 using namespace deluge::dsp;
@@ -202,18 +203,17 @@ void expect_divergent_lanes_equal_mono(auto& self) {
 		}
 		const auto ps = poly.state(l);
 		const auto ms = mono[l].state();
-		expect(std::bit_cast<std::array<uint32_t, sizeof(ps) / 4>>(ps)
-		       == std::bit_cast<std::array<uint32_t, sizeof(ms) / 4>>(ms))
-		    .to_be_true();
+		expect(std::bit_cast<std::array<uint32_t, sizeof(ps) / 4>>(ps))
+		    .to_equal(std::bit_cast<std::array<uint32_t, sizeof(ms) / 4>>(ms));
 	}
 	// The scenario really diverges: transitions fall on several offsets within a block, lanes sit in different
 	// stages together, a lane retriggers during its release, and a lane that was gated on reaches rest.
-	expect(transition_offsets.size() >= 4).to_be_true();
+	to_be_at_least(expect(transition_offsets.size()), 4);
 	if constexpr (N == 4) {
 		expect(busiest).to_equal(std::set<int>{0, 1, 2, 3}); // attack, decay, hold and release at once
 	}
 	else {
-		expect(most_roles >= 2).to_be_true();
+		to_be_at_least(expect(most_roles), 2);
 	}
 	expect(gate_off_stage).to_equal(1);  // lane 1's gate-off lands mid-decay
 	expect(retrigger_stage).to_equal(3); // and its retrigger mid-release
@@ -306,9 +306,8 @@ void expect_vca_lanes_equal_mono(auto& self) {
 	for (std::size_t l = 0; l < N; ++l) {
 		const auto ps = poly.state(l);
 		const auto ms = mono[l].state();
-		expect(std::bit_cast<std::array<uint32_t, sizeof(ps) / 4>>(ps)
-		       == std::bit_cast<std::array<uint32_t, sizeof(ms) / 4>>(ms))
-		    .to_be_true();
+		expect(std::bit_cast<std::array<uint32_t, sizeof(ps) / 4>>(ps))
+		    .to_equal(std::bit_cast<std::array<uint32_t, sizeof(ms) / 4>>(ms));
 	}
 	expect(audible).to_be_true();
 }
@@ -325,16 +324,16 @@ describe float_envelope_spec_body("float envelope", ${
 			env.on<&fp::Envelope::gate_on>();
 			const auto up = run(env, 1000);
 			const std::size_t top = first_equal(up, 1.f);
-			expect(top < up.size()).to_be_true();
+			expect(top).to_be_less_than(up.size());
 			expect(std::ranges::all_of(std::span{up}.first(top), [](f32 y) { return y < 1.f && y >= 0.f; })).to_be_true();
 			// The sample k after the landing has had k decay steps: sustain + (1 - sustain) e^(-k/decay).
-			expect(std::fabs(up[top + 200] - (0.5f + (0.5f * std::exp(-1.f)))) < 1e-3f).to_be_true();
+			expect(up[top + 200]).to_be_within(std::nextafter(1e-3f, 0.0f)).of(0.5f + (0.5f * std::exp(-1.f)));
 			expect(run(env, 4000).back()).to_equal(sustain); // landed on the sustain exactly, and held it
 			env.on<&fp::Envelope::gate_off>();
 			const auto rel = run(env, 5000);
-			expect(std::fabs(rel[299] - (0.5f * std::exp(-1.f))) < 1e-3f).to_be_true();
+			expect(rel[299]).to_be_within(std::nextafter(1e-3f, 0.0f)).of(0.5f * std::exp(-1.f));
 			const std::size_t gone = first_equal(rel, 0.f);
-			expect(gone < rel.size()).to_be_true();
+			expect(gone).to_be_less_than(rel.size());
 			expect(std::ranges::all_of(std::span{rel}.subspan(gone), [](f32 y) { return y == 0.f; })).to_be_true();
 			expect(env.state().index).to_equal(-1.f);
 		});
@@ -347,8 +346,8 @@ describe float_envelope_spec_body("float envelope", ${
 			env.on<&fp::Envelope::gate_on>();
 			const f32 next = env.render();
 			const f32 step = (1.f - std::exp(-1.f / attack)) * 1.2f;
-			expect(next > rel.back()).to_be_true();
-			expect(next - rel.back() < step).to_be_true();
+			expect(next).to_be_greater_than(rel.back());
+			expect(next - rel.back()).to_be_less_than(step);
 		});
 	});
 	context("gate events", _ {
@@ -376,7 +375,7 @@ describe float_envelope_spec_body("float envelope", ${
 			const f32 last = run(env, 50).back();
 			env.on<&fp::Envelope::gate_off>();
 			const f32 next = env.render();
-			expect(std::fabs(next - (last * (1.f - (1.f - std::exp(-1.f / 100.f))))) < 1e-6f).to_be_true();
+			expect(next).to_be_within(std::nextafter(1e-6f, 0.0f)).of(last * (1.f - (1.f - std::exp(-1.f / 100.f))));
 		});
 		it("finishes a segment of zero time in one sample and stays finite", _ {
 			Env loop = make(fp::looping(0.2f, 0.9f, 0.f));
@@ -391,7 +390,7 @@ describe float_envelope_spec_body("float envelope", ${
 		it("computes a one-pole rate without the library, within 1e-14 of it", _ {
 			for (double time = 1.0; time < 1e5; time *= 1.37) {
 				const double want = 1.0 - std::exp(-1.0 / time);
-				expect(std::fabs((1.0 - fp::detail::exp_negative(1.0 / time)) - want) < 1e-14).to_be_true();
+				expect(1.0 - fp::detail::exp_negative(1.0 / time)).to_be_within(std::nextafter(1e-14, 0.0)).of(want);
 			}
 		});
 	});
@@ -418,11 +417,11 @@ describe float_envelope_spec_body("float envelope", ${
 			env.on<&fp::Envelope::gate_on>();
 			const auto up = run(env, 800);
 			const std::size_t top = first_equal(up, 1.f);
-			expect(top < up.size()).to_be_true();
+			expect(top).to_be_less_than(up.size());
 			expect(std::ranges::all_of(std::span{up}.subspan(top), [](f32 y) { return y == 1.f; })).to_be_true();
 			env.on<&fp::Envelope::gate_off>();
 			const auto rel = run(env, 1000);
-			expect(rel.front() < 1.f).to_be_true();
+			expect(rel.front()).to_be_less_than(1.f);
 			expect(rel.back()).to_equal(0.f);
 		});
 	});
@@ -434,14 +433,14 @@ describe float_envelope_spec_body("float envelope", ${
 			const std::size_t l1 = first_equal(up, 0.8f);
 			const std::size_t l2 = first_equal(up, 0.3f);
 			const std::size_t l3 = first_equal(up, 0.6f);
-			expect(l1 < l2).to_be_true();
-			expect(l2 < l3).to_be_true();
-			expect(l3 < up.size()).to_be_true();
+			expect(l1).to_be_less_than(l2);
+			expect(l2).to_be_less_than(l3);
+			expect(l3).to_be_less_than(up.size());
 			expect(std::ranges::all_of(std::span{up}.subspan(l3), [](f32 y) { return y == 0.6f; })).to_be_true();
 			env.on<&fp::Envelope::gate_off>();
 			const auto rel = run(env, 400);
 			const std::size_t l4 = first_equal(rel, 0.1f);
-			expect(l4 < rel.size()).to_be_true();
+			expect(l4).to_be_less_than(rel.size());
 			expect(std::ranges::all_of(std::span{rel}.subspan(l4), [](f32 y) { return y == 0.1f; })).to_be_true();
 		});
 	});
@@ -450,8 +449,8 @@ describe float_envelope_spec_body("float envelope", ${
 			Env env = make(fp::looping(0.2f, 0.9f, 40.f));
 			env.on<&fp::Envelope::gate_on>();
 			const auto out = run(env, 40 * 2 * 5);
-			expect(std::ranges::count(out, 0.9f) >= 3).to_be_true();
-			expect(std::ranges::count(out, 0.2f) >= 3).to_be_true();
+			to_be_at_least(expect(std::ranges::count(out, 0.9f)), 3);
+			to_be_at_least(expect(std::ranges::count(out, 0.2f)), 3);
 			expect(std::ranges::all_of(out, [](f32 y) { return y >= 0.f && y <= 0.9f; })).to_be_true();
 		});
 	});

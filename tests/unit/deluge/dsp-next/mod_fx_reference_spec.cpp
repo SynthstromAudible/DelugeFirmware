@@ -126,12 +126,12 @@ describe reference_mod_fx("the mod FX reference", ${
 		w.target_ = INT32_MIN + 1000;
 		uint32_t phase = 0;
 		std::ignore = w.render(phase, 1U << 20, 1);
-		expect(w.speed_ < 0).to_be_true();
+		expect(w.speed_).to_be_less_than(0);
 		w.held_value_ = INT32_MIN + 1000;
 		w.target_ = INT32_MAX - 1000;
 		w.speed_ = 0;
 		std::ignore = w.render(phase, 1U << 20, 1);
-		expect(w.speed_ > 0).to_be_true();
+		expect(w.speed_).to_be_greater_than(0);
 	});
 
 	it("wraps an add in FULL_SCALE", _ {

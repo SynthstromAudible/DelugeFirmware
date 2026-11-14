@@ -524,7 +524,7 @@ describe filter_set("FilterSet", ${
 		    .to_equal(fresh(kGain, kLow, kLow24, resonant_high));
 		expect(rig.set.configure(kGain, kLow, kLowBand, kHigh, kHighLadder, FilterRoute::HIGH_TO_LOW))
 		    .to_equal(fresh(kGain, kLow, kLowBand, kHigh));
-		expect(fresh(kGain / 2, kLow, kLow24, kHigh) != first).to_be_true();
+		expect(fresh(kGain / 2, kLow, kLow24, kHigh)).not_().to_equal(first);
 	});
 
 	it("takes a new route or high-pass mode with every other setting unchanged", _ {
@@ -541,7 +541,7 @@ describe filter_set("FilterSet", ${
 		expect(routed).to_equal(fresh.mono(kInput));
 
 		std::ignore = rig.configure(kLow24, kHighBand, FilterRoute::LOW_TO_HIGH);
-		expect(rig.set.view().high_slot.kind == HighPassSlot::Kind::SVF).to_be_true();
+		expect(rig.set.view().high_slot.kind).to_equal(HighPassSlot::Kind::SVF);
 	});
 
 	it("takes a new cutoff in either filter with every other setting unchanged", _ {
@@ -560,8 +560,8 @@ describe filter_set("FilterSet", ${
 		};
 		expect(after(kOpenLow, kHigh)).to_equal(fresh(kOpenLow, kHigh));
 		expect(after(kLow, kOpenHigh)).to_equal(fresh(kLow, kOpenHigh));
-		expect(fresh(kOpenLow, kHigh) != fresh(kLow, kHigh)).to_be_true();
-		expect(fresh(kLow, kOpenHigh) != fresh(kLow, kHigh)).to_be_true();
+		expect(fresh(kOpenLow, kHigh)).not_().to_equal(fresh(kLow, kHigh));
+		expect(fresh(kLow, kOpenHigh)).not_().to_equal(fresh(kLow, kHigh));
 	});
 
 	it("reports which filters are on", _ {

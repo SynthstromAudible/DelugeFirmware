@@ -271,7 +271,7 @@ describe lfo_spec_body("LFO", ${
 		warbler.target = deluge::dsp::Q<31>::from_raw(-2000000000);
 		uint32_t phase = 0;
 		const int32_t held = render(warbler, phase, 1 << 20, 16);
-		expect(held < 2000000000).to_be_true();
+		expect(held).to_be_less_than(2000000000);
 	});
 
 	// ---- The individual generators in isolation (the payoff of the decomposition) ----

@@ -1262,7 +1262,7 @@ describe mono("Mono", ${
 			std::vector<int32_t> want(n);
 			chained.render_block(typed(in), typed(got));
 			plain.render_block(typed(in), typed(want));
-			expect(got == want).to_be_true();
+			expect(got).to_equal(want);
 			expect(chained.state().groups).to_equal(static_cast<int>(n / (2 * lanes)));
 			expect(lanes_of(chained.state().value)).to_equal(lanes_of(plain.state().value));
 		}
@@ -1280,7 +1280,7 @@ describe mono("Mono", ${
 				std::vector<int32_t> want = got;
 				chained.render_block(typed(a), typed(got), typed(got));
 				plain.render_block(typed(a), typed(want), typed(want));
-				expect(got == want).to_be_true();
+				expect(got).to_equal(want);
 				expect(chained.state().groups).to_equal(static_cast<int>(n / (3 * lanes)));
 				expect(lanes_of(chained.state().value)).to_equal(lanes_of(plain.state().value));
 			}

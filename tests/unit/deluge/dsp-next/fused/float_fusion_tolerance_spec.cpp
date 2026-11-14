@@ -79,7 +79,7 @@ describe float_fusion_tolerance_spec_body("fused against unfused", ${
 		for (std::size_t i = 0; i < in.size(); ++i) {
 			worst = std::max(worst, std::fabs(out[i] - svf_unfused(c, s, in[i])));
 		}
-		expect(worst < 1e-5f).to_be_true();
+		expect(worst).to_be_less_than(1e-5f);
 	});
 	it("keeps the Smoother's exponential approach within 1e-6 of the unfused form over 64 blocks", _ {
 		fp::FlushToZero ftz;
@@ -94,7 +94,7 @@ describe float_fusion_tolerance_spec_body("fused against unfused", ${
 		for (std::size_t i = 0; i < in.size(); ++i) {
 			worst = std::max(worst, std::fabs(out[i] - smoother_unfused(c, s)));
 		}
-		expect(worst < 1e-6f).to_be_true();
+		expect(worst).to_be_less_than(1e-6f);
 	});
 });
 // clang-format on

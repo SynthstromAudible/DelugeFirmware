@@ -211,7 +211,7 @@ describe supersaw("the dsp-next supersaw", ${
 				for (int32_t saws : {1, 4, 7}) {
 					auto whole = render(incrementFor(hz), 0, saws, 4096, {128});
 					auto odd = render(incrementFor(hz), 0, saws, 4096, {4, 36, 128, 20, 8, 100});
-					expect(odd == whole).to_be_true();
+					expect(odd).to_equal(whole);
 				}
 			}
 		});
@@ -256,7 +256,7 @@ describe supersaw("the dsp-next supersaw", ${
 			for (int32_t pos = 0; pos < 1024; pos += 128) {
 				source.render_into(controls(false), UQ<32>::from_raw(inc), 0, 0, deluge::dsp::typed_view(std::span<int32_t>{got.data() + pos, 128}), deluge::dsp::typed_view(std::span<int32_t>{scratch}));
 			}
-			expect(got == render(inc, 0, 7, 1024, {128})).to_be_true();
+			expect(got).to_equal(render(inc, 0, 7, 1024, {128}));
 			expect(source.phase().raw()).to_equal(kStartPhase + inc * 1024);
 		});
 
@@ -286,7 +286,7 @@ describe supersaw("the dsp-next supersaw", ${
 			SupersawSource b{UQ<32>::from_raw(0), Supersaw::side_phases_from(0)};
 			a.render_into(controls(false), UQ<32>::from_raw(inc), 0, 0, deluge::dsp::typed_view(std::span<int32_t>{first}), deluge::dsp::typed_view(std::span<int32_t>{scratch}));
 			b.render_into(controls(false), UQ<32>::from_raw(inc), 0, 0, deluge::dsp::typed_view(std::span<int32_t>{second}), deluge::dsp::typed_view(std::span<int32_t>{scratch}));
-			expect(first == second).to_be_true();
+			expect(first).to_equal(second);
 		});
 	});
 });

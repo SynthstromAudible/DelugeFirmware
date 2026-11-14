@@ -225,7 +225,7 @@ void bank_specs(auto& self) {
 		    },
 		    impulse(kBlock * 4));
 		// The decay reached the range where a product of the state and a gain below 1 is subnormal.
-		expect(one_pole < 1e-37f).to_be_true();
+		expect(one_pole).to_be_less_than(1e-37f);
 		for (const auto mode : {fp::Svf::Mode::LOW_PASS, fp::Svf::Mode::BAND_PASS, fp::Svf::Mode::HIGH_PASS,
 		                        fp::Svf::Mode::NOTCH}) {
 			const f32 svf = expect_sum_equals_monos<fp::Svf, N>(self,
@@ -234,7 +234,7 @@ void bank_specs(auto& self) {
 				                             .q = 0.6f + (0.2f * static_cast<f32>(l)), .mode = mode};
 			    },
 			    impulse(kBlock * 8));
-			expect(svf < 1e-37f).to_be_true();
+			expect(svf).to_be_less_than(1e-37f);
 		}
 	});
 	it("sums Vca lanes, each with its own program and gain gated on, as the summed Monos", _ {

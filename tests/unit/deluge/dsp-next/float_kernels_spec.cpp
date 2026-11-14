@@ -169,11 +169,11 @@ describe float_kernels_spec_body("float kernels", ${
 			fp::FlushToZero ftz;
 			Mono<fp::OnePole> lp;
 			lp.configure({.cutoff = 0.01f, .mode = fp::OnePole::Mode::LOW_PASS});
-			expect(std::fabs(sine_gain(lp, 0.01f) - std::numbers::sqrt2_v<f32> / 2.f) < 0.01f).to_be_true();
+			expect(sine_gain(lp, 0.01f)).to_be_within(std::nextafter(0.01f, 0.0f)).of(std::numbers::sqrt2_v<f32> / 2.f);
 			lp.reset();
 			std::vector<f32> dc(kBlock * 64, 0.5f), out(dc.size());
 			lp.render_block(fp::Signal{dc}, fp::Buffer{out});
-			expect(std::fabs(out.back() - 0.5f) < 1e-5f).to_be_true();
+			expect(out.back()).to_be_within(std::nextafter(1e-5f, 0.0f)).of(0.5f);
 		});
 		it("high-passes as the input less the low-pass", _ {
 			fp::FlushToZero ftz;
@@ -233,7 +233,7 @@ describe float_kernels_spec_body("float kernels", ${
 			std::vector<f32> unused(kBlock, 0.f), out(kBlock);
 			s.render_block(fp::Signal{unused}, fp::Buffer{out});
 			expect(out.back()).to_equal(0.75f);
-			expect(out.front() > 0.f && out.front() < 0.75f).to_be_true();
+			expect(out.front()).to_be_between(0.f, 0.75f, CppSpec::Matchers::RangeMode::exclusive);
 		});
 		it("reaches 1 - 1/e of a step in its time constant, EXPONENTIAL", _ {
 			fp::FlushToZero ftz;
@@ -241,7 +241,7 @@ describe float_kernels_spec_body("float kernels", ${
 			s.configure({.target = 1.f, .time = 100.f, .mode = fp::Smoother::Mode::EXPONENTIAL});
 			std::vector<f32> unused(kBlock, 0.f), out(kBlock);
 			s.render_block(fp::Signal{unused}, fp::Buffer{out});
-			expect(std::fabs(out[99] - (1.f - std::exp(-1.f))) < 1e-3f).to_be_true();
+			expect(out[99]).to_be_within(std::nextafter(1e-3f, 0.0f)).of(1.f - std::exp(-1.f));
 		});
 		it("matches its record", _ {
 			fp::FlushToZero ftz;
@@ -282,7 +282,7 @@ describe float_kernels_spec_body("float kernels", ${
 			s.configure({.target = -0.25f, .time = 0.f, .mode = fp::Smoother::Mode::LINEAR});
 			s.render_block(fp::Signal{unused}, fp::Buffer{second});
 			expect(std::bit_cast<uint32_t>(first.back())).to_equal(std::bit_cast<uint32_t>(0.5f));
-			expect(second.front() < 0.5f && second.front() > 0.5f - 0.75f / 32.f).to_be_true();
+			expect(second.front()).to_be_between(0.5f - 0.75f / 32.f, 0.5f, CppSpec::Matchers::RangeMode::exclusive);
 			expect(std::bit_cast<uint32_t>(second.back())).to_equal(std::bit_cast<uint32_t>(-0.25f));
 		});
 		it("jumps to the target exactly when its time is zero or less, EXPONENTIAL", _ {
@@ -319,10 +319,9 @@ describe float_kernels_spec_body("float kernels", ${
 			const f32 nan = std::nanf("");
 			const auto mode = fp::Svf::Mode::LOW_PASS;
 			const auto cutoff = fp::Svf::coefficients({.cutoff = nan, .q = 1.f, .mode = mode});
-			expect(bits(cutoff) == bits(fp::Svf::coefficients({.cutoff = 1.f / 48000.f, .q = 1.f, .mode = mode})))
-			    .to_be_true();
+			expect(bits(cutoff)).to_equal(bits(fp::Svf::coefficients({.cutoff = 1.f / 48000.f, .q = 1.f, .mode = mode})));
 			const auto q = fp::Svf::coefficients({.cutoff = 0.1f, .q = nan, .mode = mode});
-			expect(bits(q) == bits(fp::Svf::coefficients({.cutoff = 0.1f, .q = 0.5f, .mode = mode}))).to_be_true();
+			expect(bits(q)).to_equal(bits(fp::Svf::coefficients({.cutoff = 0.1f, .q = 0.5f, .mode = mode})));
 			for (const uint32_t v : bits(q)) {
 				expect(std::isfinite(std::bit_cast<f32>(v))).to_be_true();
 			}
@@ -331,27 +330,27 @@ describe float_kernels_spec_body("float kernels", ${
 			fp::FlushToZero ftz;
 			Mono<fp::Svf> f;
 			f.configure({.cutoff = 0.01f, .q = std::numbers::sqrt2_v<f32> / 2.f, .mode = fp::Svf::Mode::LOW_PASS});
-			expect(std::fabs(sine_gain(f, 0.01f) - std::numbers::sqrt2_v<f32> / 2.f) < 0.01f).to_be_true();
+			expect(sine_gain(f, 0.01f)).to_be_within(std::nextafter(0.01f, 0.0f)).of(std::numbers::sqrt2_v<f32> / 2.f);
 			f.reset();
 			// Two octaves above fc the warped frequency ratio is s = tan(4*pi*fc)/tan(pi*fc), about 4.02, so
 			// |H| = 1/sqrt((1 - s^2)^2 + (s/Q)^2), about 0.062: -24 dB.
 			const f32 two_octaves = sine_gain(f, 0.04f);
-			expect(two_octaves < 0.08f && two_octaves > 0.05f).to_be_true();
+			expect(two_octaves).to_be_between(0.05f, 0.08f, CppSpec::Matchers::RangeMode::exclusive);
 		});
 		it("band-passes at a peak gain of Q at fc", _ {
 			fp::FlushToZero ftz;
 			Mono<fp::Svf> f;
 			f.configure({.cutoff = 0.02f, .q = 4.f, .mode = fp::Svf::Mode::BAND_PASS});
 			// v1 = g*s / (s^2 + k*g*s + g^2) with s = j*g at fc: |H| = g^2 / (k*g^2) = 1/k = Q.
-			expect(std::fabs(sine_gain(f, 0.02f) - 4.f) < 0.1f).to_be_true();
+			expect(sine_gain(f, 0.02f)).to_be_within(std::nextafter(0.1f, 0.0f)).of(4.f);
 		});
 		it("high-passes and notches", _ {
 			fp::FlushToZero ftz;
 			Mono<fp::Svf> hp, notch;
 			hp.configure({.cutoff = 0.02f, .q = 0.7071f, .mode = fp::Svf::Mode::HIGH_PASS});
 			notch.configure({.cutoff = 0.02f, .q = 2.f, .mode = fp::Svf::Mode::NOTCH});
-			expect(sine_gain(hp, 0.2f) > 0.98f).to_be_true();
-			expect(sine_gain(notch, 0.02f) < 0.02f).to_be_true();
+			expect(sine_gain(hp, 0.2f)).to_be_greater_than(0.98f);
+			expect(sine_gain(notch, 0.02f)).to_be_less_than(0.02f);
 		});
 		it("stays bounded under cutoff and Q sweeps to the clamps", _ {
 			fp::FlushToZero ftz;
@@ -364,7 +363,8 @@ describe float_kernels_spec_body("float kernels", ${
 				             .mode = fp::Svf::Mode::LOW_PASS});
 				f.render_block(fp::Signal{in}, fp::Buffer{out});
 				for (f32 y : out) {
-					expect(std::isfinite(y) && std::fabs(y) < 100.f).to_be_true();
+					expect(std::isfinite(y)).to_be_true();
+					expect(y).to_be_within(std::nextafter(100.f, 0.0f)).of(0);
 				}
 			}
 		});
@@ -460,9 +460,9 @@ describe float_kernels_spec_body("float kernels", ${
 			packed.mode = fp::OnePole::Mode::HIGH_PASS;
 			set_lane<fp::OnePole::Coefficients>(
 			    packed, 1, fp::OnePole::Coefficients{.G = 0.25f, .mode = fp::OnePole::Mode::LOW_PASS});
-			expect(packed.mode == fp::OnePole::Mode::HIGH_PASS).to_be_true();
+			expect(packed.mode).to_equal(fp::OnePole::Mode::HIGH_PASS);
 			expect(get_lane<fp::OnePole::Coefficients>(packed, 1).G).to_equal(0.25f);
-			expect(get_lane<fp::OnePole::Coefficients>(packed, 1).mode == fp::OnePole::Mode::LOW_PASS).to_be_true();
+			expect(get_lane<fp::OnePole::Coefficients>(packed, 1).mode).to_equal(fp::OnePole::Mode::LOW_PASS);
 		});
 	});
 });

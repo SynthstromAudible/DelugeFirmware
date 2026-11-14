@@ -43,11 +43,11 @@ double worst_exp_error(double lo, double hi, double ratio) {
 describe float_math_spec_body("float math", ${
 	context("exp_negative", _ {
 		it("matches std::exp within 1e-14 relative on (0, 1]", _ {
-			expect(worst_exp_error(1e-9, 1.0, 1.0007) < 1e-14).to_be_true();
-			expect(std::fabs(fp::detail::exp_negative(1.0) - std::exp(-1.0)) / std::exp(-1.0) < 1e-14).to_be_true();
+			expect(worst_exp_error(1e-9, 1.0, 1.0007)).to_be_less_than(1e-14);
+			expect(std::fabs(fp::detail::exp_negative(1.0) - std::exp(-1.0)) / std::exp(-1.0)).to_be_less_than(1e-14);
 		});
 		it("matches std::exp within 1e-14 relative on (1, 700)", _ {
-			expect(worst_exp_error(1.0000001, 699.9999, 1.0007) < 1e-14).to_be_true();
+			expect(worst_exp_error(1.0000001, 699.9999, 1.0007)).to_be_less_than(1e-14);
 		});
 		it("is exactly 1 at 0 and 0 from 700", _ {
 			expect(fp::detail::exp_negative(0.0)).to_equal(1.0);
@@ -57,7 +57,7 @@ describe float_math_spec_body("float math", ${
 		it("serves every time a Smoother can hold, down to the smallest positive f32", _ {
 			for (double time = 1e-30; time < 1e6; time *= 1.31) {
 				const double want = 1.0 - std::exp(-1.0 / time);
-				expect(std::fabs((1.0 - fp::detail::exp_negative(1.0 / time)) - want) < 1e-14).to_be_true();
+				expect(1.0 - fp::detail::exp_negative(1.0 / time)).to_be_within(std::nextafter(1e-14, 0.0)).of(want);
 			}
 		});
 	});
@@ -72,12 +72,12 @@ describe float_math_spec_body("float math", ${
 				const double want = std::tan(std::numbers::pi * fc);
 				worst = std::max(worst, std::fabs(fp::detail::tan_pi(fc) - want) / want);
 			}
-			expect(worst < 1e-14).to_be_true();
+			expect(worst).to_be_less_than(1e-14);
 		});
 		it("matches at the ends of its domain", _ {
 			for (const double fc : {0.25, 0.49, static_cast<double>(0.49f), 0.2500001, 0.2499999}) {
 				const double want = std::tan(std::numbers::pi * fc);
-				expect(std::fabs(fp::detail::tan_pi(fc) - want) / want < 1e-14).to_be_true();
+				expect(std::fabs(fp::detail::tan_pi(fc) - want) / want).to_be_less_than(1e-14);
 			}
 		});
 	});

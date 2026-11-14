@@ -78,7 +78,7 @@ describe synth_voice_spec_body("synth::Voice", ${
 		for (int32_t i = 0; i < 20; i++) {
 			render_block(*rig, setup, cfg, nullptr, false);
 		}
-		expect(rig->voice.envelope(0).stage() < Envelope::Stage::RELEASE).to_be_true();
+		expect(rig->voice.envelope(0).stage()).to_be_less_than(Envelope::Stage::RELEASE);
 	});
 
 	it("fast-releases to silence", _{

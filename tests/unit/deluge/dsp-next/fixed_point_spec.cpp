@@ -24,6 +24,7 @@
 #include <utility>
 #include <vector>
 
+#include "support/matchers/value_matchers.h"
 #include "support/spec_main.h"
 
 using namespace deluge::dsp;
@@ -184,15 +185,15 @@ describe fixed_point_types("fixed_point types", ${
 	it("orders values within one format", _ {
 		const auto lo = Q<31>::from_raw(-1);
 		const auto hi = Q<31>::from_raw(0);
-		expect(lo < hi).to_be_true();
-		expect(lo <= hi).to_be_true();
-		expect(hi > lo).to_be_true();
-		expect(hi >= lo).to_be_true();
-		expect(lo != hi).to_be_true();
-		expect(hi < lo).to_be_false();
-		expect(Q<31>::from_raw(5) == Q<31>::from_raw(5)).to_be_true();
-		expect(UQ<32>::from_raw(0x8000'0000u) > UQ<32>::from_raw(1u)).to_be_true();
-		expect(Q16x2<15>::from_raw(7u) != Q16x2<15>::from_raw(8u)).to_be_true();
+		expect(lo).to_be_less_than(hi);
+		to_be_at_most(expect(lo), hi);
+		expect(hi).to_be_greater_than(lo);
+		to_be_at_least(expect(hi), lo);
+		expect(lo).not_().to_equal(hi);
+		to_be_at_least(expect(hi), lo);
+		expect(Q<31>::from_raw(5)).to_equal(Q<31>::from_raw(5));
+		expect(UQ<32>::from_raw(0x8000'0000u)).to_be_greater_than(UQ<32>::from_raw(1u));
+		expect(Q16x2<15>::from_raw(7u)).not_().to_equal(Q16x2<15>::from_raw(8u));
 	});
 	it("packs and unpacks int16 pairs", _ {
 		const auto pair = Q16x2<15>::pack(Q16<15>::from_raw(-2), Q16<15>::from_raw(3));

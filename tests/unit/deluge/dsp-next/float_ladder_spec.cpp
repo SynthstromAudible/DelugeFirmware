@@ -42,6 +42,7 @@
 #include <span>
 #include <vector>
 
+#include "support/matchers/value_matchers.h"
 #include "support/spec_main.h"
 
 using namespace deluge::dsp;
@@ -217,15 +218,15 @@ describe float_ladder_spec_body("the float ladder", ${
 				const f32 y = fp::detail::soft_clip(x);
 				expect(bits(fp::detail::soft_clip(-x))).to_equal(bits(-y));
 				// Monotone to within one rounding step where the curve is flat near the knee.
-				expect(y >= last - 1.2e-7F).to_be_true();
-				expect(std::fabs(y) <= 1.F).to_be_true();
+				to_be_at_least(expect(y), last - 1.2e-7F);
+				expect(y).to_be_within(1.F).of(0);
 				last = y;
 			}
 		});
 		it("passes small signals with unity slope", _ {
 			fp::FlushToZero ftz;
 			for (const f32 x : {1e-6F, 1e-4F, 1e-3F}) {
-				expect(std::fabs(fp::detail::soft_clip(x) / x - 1.F) < 1e-5F).to_be_true();
+				expect(fp::detail::soft_clip(x) / x).to_be_within(std::nextafter(1e-5F, 0.0F)).of(1.F);
 			}
 			expect(fp::detail::soft_clip_slope(0.F)).to_equal(1.F);
 		});
@@ -237,8 +238,8 @@ describe float_ladder_spec_body("the float ladder", ${
 				expect(fp::detail::soft_clip_slope(x)).to_equal(0.F);
 			}
 			const f32 just_below = std::nextafter(fp::detail::kSoftClipLimit, 0.F);
-			expect(std::fabs(fp::detail::soft_clip(just_below) - 1.F) < 1e-6F).to_be_true();
-			expect(fp::detail::soft_clip_slope(just_below) < 1e-10F).to_be_true();
+			expect(fp::detail::soft_clip(just_below)).to_be_within(std::nextafter(1e-6F, 0.0F)).of(1.F);
+			expect(fp::detail::soft_clip_slope(just_below)).to_be_less_than(1e-10F);
 		});
 		it("matches the closed form's slope inside the knee", _ {
 			fp::FlushToZero ftz;
@@ -246,7 +247,7 @@ describe float_ladder_spec_body("the float ladder", ${
 				const f32 x = static_cast<f32>(i) * 0.01F;
 				const double l2 = 1.875 * 1.875;
 				const double t = 1.0 - (static_cast<double>(x) * static_cast<double>(x)) / l2;
-				expect(std::fabs(static_cast<double>(fp::detail::soft_clip_slope(x)) - t * t) < 1e-6).to_be_true();
+				expect(static_cast<double>(fp::detail::soft_clip_slope(x))).to_be_within(std::nextafter(1e-6, 0.0)).of(t * t);
 			}
 		});
 		it("packs lane by lane", _ {
@@ -271,13 +272,13 @@ describe float_ladder_spec_body("the float ladder", ${
 			const f32 lp24 = db(sine_gain({.cutoff = kFc}, 8 * kFc) / sine_gain({.cutoff = kFc}, 4 * kFc));
 			const f32 lp12 = db(sine_gain({.cutoff = kFc, .response = Response::LP12}, 8 * kFc) /
 			                    sine_gain({.cutoff = kFc, .response = Response::LP12}, 4 * kFc));
-			expect(std::fabs(lp24 + 24.F) < 2.F).to_be_true();
-			expect(std::fabs(lp12 + 12.F) < 2.F).to_be_true();
+			expect(lp24 + 24.F).to_be_within(std::nextafter(2.F, 0.0F)).of(0);
+			expect(lp12 + 12.F).to_be_within(std::nextafter(2.F, 0.0F)).of(0);
 		});
 		it("rises 24 dB per octave below the cutoff as HP", _ {
 			const Ladder::Settings hp{.cutoff = kFc, .response = Response::HP};
 			const f32 slope = db(sine_gain(hp, kFc / 8) / sine_gain(hp, kFc / 16));
-			expect(std::fabs(slope - 24.F) < 2.F).to_be_true();
+			expect(slope).to_be_within(std::nextafter(2.F, 0.0F)).of(24.F);
 		});
 		it("peaks near the cutoff as BP", _ {
 			const Ladder::Settings bp{.cutoff = kFc, .response = Response::BP};
@@ -291,7 +292,7 @@ describe float_ladder_spec_body("the float ladder", ${
 					at = f;
 				}
 			}
-			expect(std::fabs(at / kFc - 1.F) < 0.2F).to_be_true();
+			expect(at / kFc).to_be_within(std::nextafter(0.2F, 0.0F)).of(1.F);
 		});
 		it("passes DC at unity with no resonance, and with compensation at resonance 2", _ {
 			for (const Ladder::Settings settings : {Ladder::Settings{.cutoff = kFc},
@@ -301,14 +302,14 @@ describe float_ladder_spec_body("the float ladder", ${
 				std::vector<f32> in(kBlock * 64, 0.01F), out(in.size());
 				ladder.render_block(fp::Signal{in}, fp::Buffer{out});
 				const f32 tolerance = settings.compensate ? 0.02F : 1e-4F;
-				expect(std::fabs(out.back() / 0.01F - 1.F) < tolerance).to_be_true();
+				expect(out.back() / 0.01F).to_be_within(std::nextafter(tolerance, decltype(tolerance){})).of(1.F);
 			}
 		});
 		it("raises its peak at the cutoff as the resonance rises", _ {
 			f32 last = 0.F;
 			for (const f32 k : {0.F, 1.F, 2.F, 3.F, 3.5F}) {
 				const f32 gain = sine_gain({.cutoff = kFc, .resonance = k}, kFc);
-				expect(gain > last).to_be_true();
+				expect(gain).to_be_greater_than(last);
 				last = gain;
 			}
 		});
@@ -326,8 +327,9 @@ describe float_ladder_spec_body("the float ladder", ${
 				crossings += (out[i - 1] < 0.F) != (out[i] < 0.F) ? 1 : 0;
 			}
 			const f32 frequency = static_cast<f32>(crossings) / 2.F / 4800.F;
-			expect(peak > 0.05F && peak <= 1.F).to_be_true();
-			expect(std::fabs(frequency / kOsc - 1.F) < 0.05F).to_be_true();
+			expect(peak).to_be_greater_than(0.05F);
+			to_be_at_most(expect(peak), 1.F);
+			expect(frequency / kOsc).to_be_within(std::nextafter(0.05F, 0.0F)).of(1.F);
 		});
 		it("sustains an impulse at resonance 4 without growing or decaying", _ {
 			Mono<Ladder> ladder;
@@ -344,8 +346,8 @@ describe float_ladder_spec_body("the float ladder", ${
 			};
 			const f32 early = peak_of(4800);
 			const f32 late = peak_of(48000 - 4800);
-			expect(early > 0.F).to_be_true();
-			expect(std::fabs(late / early - 1.F) < 0.1F).to_be_true();
+			expect(early).to_be_greater_than(0.F);
+			expect(late / early).to_be_within(std::nextafter(0.1F, 0.0F)).of(1.F);
 		});
 		it("morphs linearly in its weights", _ {
 			const Ladder::Settings lp{.cutoff = 0.02F, .resonance = 1.F, .response = Response::LP24};
@@ -370,7 +372,7 @@ describe float_ladder_spec_body("the float ladder", ${
 			lb.render_block(fp::Signal{in}, fp::Buffer{b});
 			lm.render_block(fp::Signal{in}, fp::Buffer{m});
 			for (std::size_t i = 0; i < in.size(); ++i) {
-				expect(std::fabs(m[i] - 0.5F * (a[i] + b[i])) < 1e-6F).to_be_true();
+				expect(m[i]).to_be_within(std::nextafter(1e-6F, 0.0F)).of(0.5F * (a[i] + b[i]));
 			}
 		});
 		it("rejects DC in its high-pass, driven hard in CLEAN and at small signals in DRIVE", _ {
@@ -385,11 +387,11 @@ describe float_ladder_spec_body("the float ladder", ${
 				ladder.render_block(fp::Signal{in}, fp::Buffer{out});
 				return out.back();
 			};
-			expect(std::fabs(settled(Ladder::Mode::CLEAN, 8.F, 0.5F)) < 1e-3F).to_be_true();
-			expect(std::fabs(settled(Ladder::Mode::DRIVE, 1.F, 1e-3F)) < 1e-5F).to_be_true();
+			expect(settled(Ladder::Mode::CLEAN, 8.F, 0.5F)).to_be_within(std::nextafter(1e-3F, 0.0F)).of(0);
+			expect(settled(Ladder::Mode::DRIVE, 1.F, 1e-3F)).to_be_within(std::nextafter(1e-5F, 0.0F)).of(0);
 			// Driven hard, DRIVE's stages each compress their own input, so the taps no longer cancel exactly; the
 			// leak stays within the saturated taps' scale (measured −0.287), not the drive's.
-			expect(std::fabs(settled(Ladder::Mode::DRIVE, 8.F, 0.5F)) < 0.5F).to_be_true();
+			expect(settled(Ladder::Mode::DRIVE, 8.F, 0.5F)).to_be_within(std::nextafter(0.5F, 0.0F)).of(0);
 		});
 		it("stays finite and bounded at every setting", _ {
 			const auto in = noise(kBlock, 7);
@@ -418,7 +420,8 @@ describe float_ladder_spec_body("the float ladder", ${
 				ladder.configure(s);
 				ladder.render_block(fp::Signal{in}, fp::Buffer{out});
 				for (const f32 y : out) {
-					expect(std::isfinite(y) && std::fabs(y) <= 64.F).to_be_true();
+					expect(std::isfinite(y)).to_be_true();
+					expect(y).to_be_within(64.F).of(0);
 				}
 			}
 		});
@@ -437,7 +440,7 @@ describe float_ladder_spec_body("the float ladder", ${
 			a.render_block(fp::Signal{scaled}, fp::Buffer{clean});
 			b.render_block(fp::Signal{scaled}, fp::Buffer{drive});
 			for (std::size_t i = 0; i < in.size(); ++i) {
-				expect(std::fabs(clean[i] - drive[i]) < 1e-4F).to_be_true();
+				expect(clean[i]).to_be_within(std::nextafter(1e-4F, 0.0F)).of(drive[i]);
 			}
 		});
 		it("adds odd harmonics at high drive", _ {
@@ -452,8 +455,8 @@ describe float_ladder_spec_body("the float ladder", ${
 			ladder.render_block(fp::Signal{in}, fp::Buffer{out});
 			const std::vector<f32> settled(out.begin() + 100 * 32, out.end());
 			const f32 fundamental = bin(settled, kF0);
-			expect(db(bin(settled, 3 * kF0) / fundamental) > -40.F).to_be_true();
-			expect(db(bin(settled, 2 * kF0) / fundamental) < -80.F).to_be_true();
+			expect(db(bin(settled, 3 * kF0) / fundamental)).to_be_greater_than(-40.F);
+			expect(db(bin(settled, 2 * kF0) / fundamental)).to_be_less_than(-80.F);
 		});
 		it("keeps its state across a flavour switch", _ {
 			const auto in = noise(kBlock * 16, 13);
@@ -473,7 +476,7 @@ describe float_ladder_spec_body("the float ladder", ${
 					largest = std::max(largest, std::fabs(out[i] - out[i - 1]));
 				}
 			}
-			expect(std::fabs(out[half] - out[half - 1]) <= 2.F * largest).to_be_true();
+			expect(out[half]).to_be_within(2.F * largest).of(out[half - 1]);
 		});
 	});
 	context("aliasing", _ {
@@ -486,7 +489,9 @@ describe float_ladder_spec_body("the float ladder", ${
 				std::printf("ladder aliasing, saw at f0 %.4f into LP24 at 0.2: CLEAN k 0 %.1f dB, CLEAN k 3.5 %.1f dB, "
 				            "DRIVE k 3.5 drive 8 %.1f dB\n",
 				            static_cast<double>(f0), soft, clean, drive);
-				expect(std::isfinite(soft) && std::isfinite(clean) && std::isfinite(drive)).to_be_true();
+				expect(std::isfinite(soft)).to_be_true();
+				expect(std::isfinite(clean)).to_be_true();
+				expect(std::isfinite(drive)).to_be_true();
 			}
 		});
 	});

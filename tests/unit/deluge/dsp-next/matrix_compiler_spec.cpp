@@ -286,15 +286,15 @@ describe matrix_compiler_spec_body("the matrix compiler", ${
 	});
 
 	it("gives each param a curve and a chain by its scope's regions", _{
-		expect(curve_of(params::LOCAL_VOLUME) == CurveKind::SQUARE).to_be_true();
-		expect(curve_of(params::LOCAL_PAN) == CurveKind::BIPOLAR).to_be_true();
-		expect(curve_of(params::LOCAL_LPF_FREQ) == CurveKind::EXPONENTIAL).to_be_true();
-		expect(curve_of(params::LOCAL_ENV_0_ATTACK) == CurveKind::EXPONENTIAL_INVERTED).to_be_true();
-		expect(curve_of(params::LOCAL_ENV_0_RELEASE) == CurveKind::RELEASE_TABLE).to_be_true();
-		expect(curve_of(params::GLOBAL_VOLUME_POST_FX) == CurveKind::SQUARE).to_be_true();
-		expect(curve_of(params::GLOBAL_DELAY_RATE) == CurveKind::EXPONENTIAL).to_be_true();
-		expect(chain_of(params::LOCAL_VOLUME) == ChainKind::MULTIPLY).to_be_true();
-		expect(chain_of(params::LOCAL_PAN) == ChainKind::ADD).to_be_true();
+		expect(curve_of(params::LOCAL_VOLUME)).to_equal(CurveKind::SQUARE);
+		expect(curve_of(params::LOCAL_PAN)).to_equal(CurveKind::BIPOLAR);
+		expect(curve_of(params::LOCAL_LPF_FREQ)).to_equal(CurveKind::EXPONENTIAL);
+		expect(curve_of(params::LOCAL_ENV_0_ATTACK)).to_equal(CurveKind::EXPONENTIAL_INVERTED);
+		expect(curve_of(params::LOCAL_ENV_0_RELEASE)).to_equal(CurveKind::RELEASE_TABLE);
+		expect(curve_of(params::GLOBAL_VOLUME_POST_FX)).to_equal(CurveKind::SQUARE);
+		expect(curve_of(params::GLOBAL_DELAY_RATE)).to_equal(CurveKind::EXPONENTIAL);
+		expect(chain_of(params::LOCAL_VOLUME)).to_equal(ChainKind::MULTIPLY);
+		expect(chain_of(params::LOCAL_PAN)).to_equal(ChainKind::ADD);
 	});
 });
 // clang-format on

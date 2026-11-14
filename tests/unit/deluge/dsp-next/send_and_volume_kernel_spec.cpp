@@ -170,7 +170,7 @@ describe send_and_volume_kernel_spec_body("the send and the post-FX and post-rev
 		using Volume = Kernel::Volume;
 		const Volume held_gain = mul_as_wrap<Volume>(Volume::from_raw(1 << 27), Volume::from_raw(1 << 27));
 		const int32_t at_target = mul_as_wrap<deluge::dsp::Q<31>>(deluge::dsp::Q<31>::from_raw(1 << 30), held_gain).raw();
-		expect(ones[0].l.raw() > at_target).to_be_true();
+		expect(ones[0].l.raw()).to_be_greater_than(at_target);
 	});
 });
 // clang-format on

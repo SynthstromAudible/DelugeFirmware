@@ -131,7 +131,7 @@ describe freeverb_kernel("the Freeverb kernel", ${
 		const int32_t left_mixed = (left + multiply_32x32_rshift32_rounded(right, wet2)) << 1;
 		const int32_t right_from_updated = (right + multiply_32x32_rshift32_rounded(left_mixed, wet2)) << 1;
 		const int32_t right_from_stale = (right + multiply_32x32_rshift32_rounded(left, wet2)) << 1;
-		expect(right_from_updated != right_from_stale).to_be_true(); // the two orders are told apart
+		expect(right_from_updated).not_().to_equal(right_from_stale); // the two orders are told apart
 		expect(frame[0].l).to_equal(multiply_32x32_rshift32_rounded(left_mixed, kLevel));
 		expect(frame[0].r).to_equal(multiply_32x32_rshift32_rounded(right_from_updated, kLevel));
 	});

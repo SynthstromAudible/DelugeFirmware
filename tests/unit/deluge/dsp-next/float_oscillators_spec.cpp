@@ -35,6 +35,7 @@
 #include <span>
 #include <vector>
 
+#include "support/matchers/value_matchers.h"
 #include "support/spec_main.h"
 
 using namespace deluge::dsp;
@@ -81,7 +82,7 @@ describe float_oscillators_spec_body("float oscillators", ${
 			osc.render_block(fp::Buffer{out});
 			double mean = 0.0;
 			for (f32 y : out) { mean += y; }
-			expect(std::fabs(mean / static_cast<double>(out.size())) < 1e-3).to_be_true();
+			expect(mean / static_cast<double>(out.size())).to_be_within(std::nextafter(1e-3, 0.0)).of(0);
 		});
 		it("has a saw's harmonics, 1/k less the residual's sinc-squared droop, at a high pitch", _ {
 			// f0 = 0.09 fs: harmonics 1..5 lie below Nyquist. 0.09 = 9/100, so 100-sample windows hold whole cycles.
@@ -94,7 +95,7 @@ describe float_oscillators_spec_body("float oscillators", ${
 				const f32 x = std::numbers::pi_v<f32> * 0.09f * static_cast<f32>(k);
 				const f32 droop = (std::sin(x) / x) * (std::sin(x) / x);
 				const f32 expected = droop * 2.f / (std::numbers::pi_v<f32> * static_cast<f32>(k));
-				expect(std::fabs(bin(out, 0.09f * static_cast<f32>(k)) - expected) < 0.05f * expected).to_be_true();
+				expect(bin(out, 0.09f * static_cast<f32>(k))).to_be_within(std::nextafter(0.05f * expected, decltype(0.05f * expected){})).of(expected);
 			}
 		});
 		it("keeps aliased energy below the recorded bound", _ {
@@ -105,7 +106,7 @@ describe float_oscillators_spec_body("float oscillators", ${
 			std::vector<f32> out(100 * 64);
 			osc.render_block(fp::Buffer{out});
 			const f32 alias = bin(out, 0.39f);
-			expect(alias < records::kBlepAliasBound * bin(out, 0.09f)).to_be_true();
+			expect(alias).to_be_less_than(records::kBlepAliasBound * bin(out, 0.09f));
 		});
 		it("holds a pulse's duty", _ {
 			Mono<fp::BlepOscillator> osc;
@@ -113,7 +114,7 @@ describe float_oscillators_spec_body("float oscillators", ${
 			std::vector<f32> out(200 * 8);
 			osc.render_block(fp::Buffer{out});
 			const auto high = std::ranges::count_if(out, [](f32 y) { return y > 0.f; });
-			expect(std::abs(static_cast<double>(high) / static_cast<double>(out.size()) - 0.25) < 0.01).to_be_true();
+			expect(static_cast<double>(high) / static_cast<double>(out.size())).to_be_within(std::nextafter(0.01, 0.0)).of(0.25);
 		});
 		it("holds a pulse's mean and fundamental", _ {
 			// f0 = 0.04 fs, width 0.3: 25-sample windows hold whole cycles.
@@ -124,11 +125,11 @@ describe float_oscillators_spec_body("float oscillators", ${
 			osc.render_block(fp::Buffer{out});
 			double mean = 0.0;
 			for (f32 y : out) { mean += y; }
-			expect(std::fabs(mean / static_cast<double>(out.size()) - (2.0 * kWidth - 1.0)) < 1e-3).to_be_true();
+			expect(mean / static_cast<double>(out.size())).to_be_within(std::nextafter(1e-3, 0.0)).of(2.0 * kWidth - 1.0);
 			const f32 x = std::numbers::pi_v<f32> * 0.04f;
 			const f32 droop = (std::sin(x) / x) * (std::sin(x) / x);
 			const f32 expected = droop * 4.f / std::numbers::pi_v<f32> * std::sin(std::numbers::pi_v<f32> * kWidth);
-			expect(std::fabs(bin(out, 0.04f) - expected) < 0.05f * expected).to_be_true();
+			expect(bin(out, 0.04f)).to_be_within(std::nextafter(0.05f * expected, decltype(0.05f * expected){})).of(expected);
 		});
 		it("stays finite and bounded at the top of the frequency clamp", _ {
 			// At 0.45 fs the residual windows [0, inc) and (1 - inc, 1) are each under half a cycle, so they never
@@ -195,8 +196,8 @@ describe float_oscillators_spec_body("float oscillators", ${
 				phase = phase + kFrequency;
 				phase = phase >= 1.f ? phase - 1.f : phase;
 			}
-			expect(worst <= 1.02 * bound).to_be_true();
-			expect(worst >= 0.5 * bound).to_be_true(); // guards against a vacuous bound
+			to_be_at_most(expect(worst), 1.02 * bound);
+			to_be_at_least(expect(worst), 0.5 * bound); // guards against a vacuous bound
 		});
 		it("holds the naive saw away from its jump, within the partial sum's tail", _ {
 			// Band 0 sums 1024 harmonics. At a distance d (cycles) from the jump the tail beyond harmonic H is at most
@@ -211,14 +212,14 @@ describe float_oscillators_spec_body("float oscillators", ${
 					continue;
 				}
 				const double tolerance = (2.0 / std::numbers::pi) / ((kHarmonics + 1.0) * std::sin(std::numbers::pi * d)) + 1e-6;
-				expect(std::fabs(static_cast<double>(band[i]) - ((2.0 * x) - 1.0)) <= tolerance).to_be_true();
+				expect(static_cast<double>(band[i])).to_be_within(tolerance).of((2.0 * x) - 1.0);
 			}
 		});
 		it("rises across the interior of band 0's cycle", _ {
 			const f32* band = fp::saw_bands();
 			constexpr std::size_t kStep = fp::kSawBandSize / 16;
 			for (std::size_t i = fp::kSawBandSize / 5; i + kStep <= fp::kSawBandSize * 4 / 5; i += kStep) {
-				expect(band[i + kStep] > band[i]).to_be_true();
+				expect(band[i + kStep]).to_be_greater_than(band[i]);
 			}
 		});
 		it("holds each band's samples at the independently summed harmonics", _ {
@@ -232,8 +233,7 @@ describe float_oscillators_spec_body("float oscillators", ${
 						       / static_cast<double>(h);
 					}
 					const double want = -2.0 / std::numbers::pi * sum;
-					expect(std::fabs(static_cast<double>(fp::saw_bands()[(b * (fp::kSawBandSize + 1)) + i]) - want) < 1e-6)
-					    .to_be_true();
+					expect(static_cast<double>(fp::saw_bands()[(b * (fp::kSawBandSize + 1)) + i])).to_be_within(std::nextafter(1e-6, 0.0)).of(want);
 				}
 			}
 		});

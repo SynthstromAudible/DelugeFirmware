@@ -40,10 +40,10 @@ describe buffer_view("the raw seam view", ${
 		std::array<std::int32_t, 4> raw{INT32_MIN, -1, 0, INT32_MAX};
 		const auto typed = typed_view(std::span{raw});
 		expect(typed.size()).to_equal(std::size_t{4});
-		expect(typed[0] == Q<31>::min()).to_be_true();
+		expect(typed[0]).to_equal(Q<31>::min());
 		expect(typed[1].raw()).to_equal(-1);
 		expect(typed[2].raw()).to_equal(0);
-		expect(typed[3] == Q<31>::max()).to_be_true();
+		expect(typed[3]).to_equal(Q<31>::max());
 	});
 	it("writes through to the raw samples", _ {
 		std::array<std::int32_t, 2> raw{};
@@ -53,17 +53,17 @@ describe buffer_view("the raw seam view", ${
 	it("reads raw samples in another named format", _ {
 		std::array<std::int32_t, 2> raw{1 << 24, -(1 << 23)};
 		const auto typed = typed_view<Q<24>>(std::span{raw});
-		expect(typed[0] == Q<24>::one()).to_be_true();
+		expect(typed[0]).to_equal(Q<24>::one());
 		expect(typed[1].raw()).to_equal(-(1 << 23));
-		expect(raw_view(typed).data() == raw.data()).to_be_true();
+		expect(raw_view(typed).data()).to_equal(raw.data());
 	});
 	it("views the same storage both ways", _ {
 		std::array<std::int32_t, 3> raw{1, 2, 3};
 		const std::span<std::int32_t> s{raw};
-		expect(raw_view(typed_view(s)).data() == s.data()).to_be_true();
+		expect(raw_view(typed_view(s)).data()).to_equal(s.data());
 		expect(raw_view(typed_view(s)).size()).to_equal(std::size_t{3});
 		const std::span<const std::int32_t> c{raw};
-		expect(raw_view(typed_view(c)).data() == c.data()).to_be_true();
+		expect(raw_view(typed_view(c)).data()).to_equal(c.data());
 	});
 });
 // clang-format on
