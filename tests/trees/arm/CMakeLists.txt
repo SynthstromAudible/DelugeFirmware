@@ -1,9 +1,11 @@
 # Gate unit-arm:
-#     the fixed-point, VFP and NEON specs must hold on ARM, cross-built and run under qemu: the NEON conversion kernels
-#     must match their scalar references bit for bit, every fixed-point operation (and its portable twin) must match the
-#     A9 instruction it stands for, and every fixed-point operation must compile, at the shipping image's ARM and
-#     Thumb-2 codegen flags, to the instruction it names (tests/unit/deluge/dsp-next/core)
-
+#     the fixed-point, VFP, NEON, model, effects, instrument, music-theory, serialization, plugin-api,
+#     global-effectable, bench and model-equality specs hold on ARM, cross-built with clang and run under qemu: the
+#     test directories under tests/unit that name this tree, and tests/dsp. The NEON conversion kernels must match
+#     their scalar references bit for bit, every fixed-point operation (and its portable twin) must match the A9
+#     instruction it stands for, and every fixed-point operation must compile, at the shipping image's ARM and Thumb-2
+#     codegen flags, to the instruction it names (tests/unit/deluge/dsp-next/core); model_equality_synthetic reads the
+#     synthetic songs and the model records on ARM as on the host
 cmake_minimum_required(VERSION 3.24)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 # This tree only ever cross-builds for ARM Linux, run under qemu: with clang, as the firmware is built.
@@ -32,6 +34,6 @@ enable_testing()
 deluge_spec_directories(${DELUGE_REPO_ROOT}/tests/unit)
 
 # dsp-next specs on real ARM NEON (run via qemu). DSP_SPEC_ARM tells the shared
-# tests/dsp build to skip the x86/SIMDe setup. Same specs as the x86 test project.
+# tests/dsp build to skip the x86/SIMDe setup. Same specs as the host tree.
 set(DSP_SPEC_ARM TRUE)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../dsp dsp)

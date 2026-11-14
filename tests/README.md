@@ -144,7 +144,7 @@ builds only `golden-vt-render`.
 | streaming-margin-sweep | integration | scenario | simulation | investigative | nothing: it prints the streaming margin curve, the underruns at each fill-task wait in MARGIN_SWEEP | manual | render | ~1m |
 | recorder-write | integration | scenario | property | gate | a real recording must still read back byte-correctly | nightly | app | ~10m |
 | unit | unit | ctest | unit | gate | the test directories under tests/unit that name the host tree, the dsp-next specs (tests/dsp), and the gfx-layer and layer-rules checks, on the -m32 host | pr | unit-cpp | ~5s |
-| unit-arm | unit | ctest | unit | gate | the fixed-point, VFP and NEON specs must hold on ARM, cross-built and run under qemu | pr | unit-cpp-variants | ~5s |
+| unit-arm | unit | ctest | unit | gate | the fixed-point, VFP, NEON, model, effects, instrument, music-theory, serialization, plugin-api, global-effectable, bench and model-equality specs hold on ARM | pr | unit-cpp-variants | ~5s |
 | crates | unit | cargo | unit | gate | every #[test] in the crates/ workspace | pr | unit | ~20s |
 | bsp-host | unit | cargo | unit | gate | the Rust BSP's host tests and in-crate #[test]s | pr | unit | ~30s |
 | sample-convert | unit | cargo | unit | gate | deluge_sample_convert's sample format conversions agree with the app C++ its build.rs compiles | pr | storage | ~1m |
@@ -180,11 +180,12 @@ builds only `golden-vt-render`.
 | clip-clone-roundtrip | integration | corpus | property | gate | InstrumentClip::clone() of a corpus song's clip is a distinct, deep-independent copy of its note rows, notes, param collections and stores | nightly | model | ~10s |
 | param-snapshot-bench | integration | scenario | benchmark | investigative | nothing: it times ParamSnapshot::applyPatch against the full projection rebuild for the same single-param edits | manual | app | ~2s |
 | setting-menus | unit | script | unit | gate | no gesture under src/deluge/gui or src/scenes sets a bound sound's instrument state outside its Edit | pr | tooling | ~1s |
+| test-support-names | unit | script | unit | gate | no per-directory support/ folder under tests/ or sim/ holds a path tests/support/ also holds | pr | tooling | ~1s |
 | doc-hygiene-selftest | unit | script | unit | gate | the UI docs lint flags task, review and workstream breadcrumbs and rename narration in comments and Markdown, and file:line citations to our own code | pr | tooling | ~1s |
 | fixed-point-raw-selftest | unit | script | unit | gate | the fixed-point raw-arithmetic ratchet counts raw helper calls, DSP inline asm, seam views and typed-boundary crossings apart, outside comments | pr | tooling | ~1s |
 | fixed-point-raw | unit | script | unit | gate | raw fixed-point arithmetic, raw seam views and typed-boundary crossings outside the core fixed-point headers only shrink | pr | tooling | ~2s |
 | library-boundary-selftest | unit | script | unit | gate | each standalone library's boundary check rejects every way an undeclared header could slip in | pr | tooling | ~1s |
-| registry-selftest | unit | script | unit | gate | this registry's loader, validation, selection and probes, the SDRAM content packer's format, and the setting-menus and layer-rules checkers | pr | tooling | ~1s |
+| registry-selftest | unit | script | unit | gate | this registry's loader, validation, selection and probes, the SDRAM content packer's format, and the setting-menus, layer-rules and test-support-names checkers | pr | tooling | ~1s |
 | render-preset-selftest | unit | script | unit | gate | the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever the member stands | pr | tooling | ~1s |
 | dsp-bench-parser | unit | script | unit | gate | the DSP bench host script's parsing of device captures | pr | tooling | ~1s |
 | compare-codegen-selftest | unit | script | unit | gate | the machine-code comparison of two images names what an address points at instead of its value | pr | tooling | ~1s |
@@ -324,11 +325,20 @@ A directory's `CMakeLists.txt` declares its driver and the trees that build it, 
 next directory with its own `CMakeLists.txt`, joins the driver as one ctest test named after its file, and its entry
 point is named after the file's stem: `CPPSPEC_SPEC(<stem without _spec>)`, or `DELUGE_SPEC(<stem>, ...)` from
 `tests/support/spec_main.h`. The three trees (`tests/trees/host`, `tests/trees/arm`, `tests/trees/ubsan`) find spec
-directories by these declarations, so a new directory needs no other edit, and one that names no tree fails the
-configure. A directory with no spec driver (a CppUTest executable, a standalone driver) declares its trees with
-`deluge_test_directory(TREES ...)`. `tests/support/cmake/libs.cmake` adds each `src/` library once per tree; a spec
-directory only links them. A spec includes a header from another test directory by its path under `tests/`
-(`"support/spec_main.h"`, `"unit/gfx/support/golden.h"`, `"harness/ui_script.h"`), never by `../`.
+directories by these declarations, so a directory with its own `CMakeLists.txt` needs no other edit. A directory
+holding specs needs that `CMakeLists.txt`, or a parent's below `tests/unit`: a `*_spec.cpp` with neither fails the
+configure, as does a `CMakeLists.txt` that names no tree. The trees read every `CMakeLists.txt` under `tests/unit`, so
+each one declares its trees; a directory with no spec driver (a CppUTest executable, a standalone driver) declares them
+with `deluge_test_directory(TREES ...)`. A tree that builds none of a directory's specs gets no driver target from it,
+so a call on that target after `deluge_specs_driver` goes inside `if(TARGET <name>)`.
+`tests/support/cmake/libs.cmake` adds each `src/` library once per tree; a spec directory only links them.
+
+Support code shared between test directories lives in `tests/support/mocks/` and `tests/support/fixtures/`; code one
+directory's specs share lives in that directory's own `support/`. A spec includes a header from another test
+directory by its path under `tests/` (`"support/spec_main.h"`, `"unit/gfx/support/golden.h"`,
+`"harness/ui_script.h"`), never by `../`. A spec's own directory comes first on its include path, so a file in a
+per-directory `support/` named like one in `tests/support/` would shadow it; `scripts/check_test_support_names.py`
+refuses such a name.
 
 ### A scenario gate
 

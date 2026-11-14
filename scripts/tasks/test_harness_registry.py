@@ -7,7 +7,8 @@ Run directly with:
 Gate registry-selftest:
     the registry loader, validation, selection and probes, the SDRAM content packer's format (the pack the boot
     inflates, and the Rust decoder's fixture as such a pack), the setting-menus checker's planted song-state writes and
-    scene engine calls, and the layer rules' planted scenes rows
+    scene engine calls, the layer rules' planted scenes rows, and the per-directory support/ names that would shadow
+    tests/support/
 """
 
 import ast

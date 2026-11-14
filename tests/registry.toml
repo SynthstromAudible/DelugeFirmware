@@ -1340,7 +1340,7 @@ level = "unit"
 runner = "ctest"
 kind = "unit"
 status = "gate"
-gates = "the fixed-point, VFP and NEON specs must hold on ARM, cross-built and run under qemu"
+gates = "the fixed-point, VFP, NEON, model, effects, instrument, music-theory, serialization, plugin-api, global-effectable, bench and model-equality specs hold on ARM"
 source = "tests/trees/arm"
 tree = "build/test-arm"
 configure = ["-G", "Ninja"]
@@ -1714,6 +1714,19 @@ job = "tooling"
 runtime_s = 1
 
 [[harness]]
+name = "test-support-names"
+path = "."
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "no per-directory support/ folder under tests/ or sim/ holds a path tests/support/ also holds"
+run = ["python3", "scripts/check_test_support_names.py"]
+tier = "pr"
+job = "tooling"
+runtime_s = 1
+
+[[harness]]
 name = "doc-hygiene-selftest"
 template = "unittest"
 path = "scripts"
@@ -1751,8 +1764,8 @@ run = ["python3", "-m", "unittest", "test_check_library_boundary"]
 name = "registry-selftest"
 template = "unittest"
 path = "scripts/tasks"
-gates = "this registry's loader, validation, selection and probes, the SDRAM content packer's format, and the setting-menus and layer-rules checkers"
-run = ["python3", "-m", "unittest", "test_harness_registry", "test_golden_update", "test_sdram_pack", "test_check_setting_menus", "test_check_layer_rules"]
+gates = "this registry's loader, validation, selection and probes, the SDRAM content packer's format, and the setting-menus, layer-rules and test-support-names checkers"
+run = ["python3", "-m", "unittest", "test_harness_registry", "test_golden_update", "test_sdram_pack", "test_check_setting_menus", "test_check_layer_rules", "test_check_test_support_names"]
 
 [[harness]]
 name = "render-preset-selftest"
