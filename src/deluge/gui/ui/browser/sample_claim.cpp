@@ -24,6 +24,7 @@
 #include "gui/ui/ui.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
+#include "instruments/deluge/pages.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
 #include "model/edits/set_mod_knob_mode.h"
@@ -32,6 +33,7 @@
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/output.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
@@ -487,23 +489,11 @@ bool SampleClaim::stepDecideWavetable() {
 
 	// if oscillator wasn't already a wavetable, update custom knob assignments, otherwise leave as is
 	if (oldOscType_ != OscType::WAVETABLE) {
-		if (current_.target.sourceIndex == 0) { // Osc 1
-			current_.target.sound->modKnobs[7][1].target =
-			    deluge::modulation::knobParam(params::LOCAL_OSC_A_WAVE_INDEX);
-
-			if (!(current_.target.sound->modKnobs[7][0].target
-			      == deluge::modulation::knobParam(params::LOCAL_OSC_B_WAVE_INDEX))) {
-				current_.target.sound->modKnobs[7][0].target = deluge::modulation::knobTargetOf(
-				    deluge::synth::CableTarget::depth_of(params::LOCAL_OSC_A_WAVE_INDEX, PatchSource::LFO_LOCAL_1));
-			}
-		}
-		else { // Osc 2
-			current_.target.sound->modKnobs[7][0].target =
-			    deluge::modulation::knobParam(params::LOCAL_OSC_B_WAVE_INDEX);
-		}
+		const auto osc = static_cast<uint8_t>(current_.target.sourceIndex);
+		deluge::bridge::writeKnobPairs(*current_.target.sound, *currentSong,
+		                               [osc](auto knobs) { return deluge::instrument::wavetable_claimed(knobs, osc); });
 		(void)deluge::edits::modKnobModeFor(
 		    deluge::project::TrackAddress{currentSong->outputIdFor(*getCurrentOutput())}, 7);
-		deluge::edits::recordControlsOf(*current_.target.sound); // the wavetable knobs it assigned
 	}
 	view.setKnobIndicatorLevels(); // Visually update.
 	view.setModLedStates();
@@ -592,26 +582,15 @@ void SampleClaim::end(bool success, Error error) {
 
 void SampleClaim::removeWaveTableKnobs() {
 	// Anyway, by now we know we've loaded as a Sample, not a Wavetable. So remove WaveTable gold knob assignments.
-	bool anyChange = false;
-	int32_t p = params::LOCAL_OSC_A_WAVE_INDEX + current_.target.sourceIndex;
-	if (deluge::modulation::knobWord(current_.target.sound->modKnobs[7][0].target).param_index() == p) {
-		current_.target.sound->modKnobs[7][0].target =
-		    deluge::modulation::knobParam(params::UNPATCHED_BITCRUSHING + params::UNPATCHED_START);
-		anyChange = true;
-	}
-	if (deluge::modulation::knobWord(current_.target.sound->modKnobs[7][1].target).param_index() == p) {
-		current_.target.sound->modKnobs[7][1].target =
-		    deluge::modulation::knobParam(params::UNPATCHED_SAMPLE_RATE_REDUCTION + params::UNPATCHED_START);
-		anyChange = true;
-	}
-
+	const auto osc = static_cast<uint8_t>(current_.target.sourceIndex);
+	const bool anyChange = deluge::bridge::writeKnobPairs(*current_.target.sound, *currentSong, [osc](auto knobs) {
+		return deluge::instrument::wavetable_released(knobs, osc);
+	});
 	if (anyChange) {
 		(void)deluge::edits::modKnobModeFor(
 		    deluge::project::TrackAddress{currentSong->outputIdFor(*getCurrentOutput())}, 1);
 		view.setKnobIndicatorLevels(); // Visually update.
 		view.setModLedStates();
-		// The knobs it put back are its record's.
-		deluge::edits::recordControlsOf(*current_.target.sound);
 	}
 }
 

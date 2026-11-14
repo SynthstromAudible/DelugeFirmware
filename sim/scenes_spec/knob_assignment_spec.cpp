@@ -3,6 +3,7 @@
 // (support/recorded_knob_assignments.h) -- and, where it names none on the song's compressor button, the compressor
 // setting the knob edits instead.
 
+#include "board_controls.hpp"
 #include "scenes/bind/knob_assignment.h"
 
 #include "model/clip/audio_clip.h"
@@ -59,7 +60,7 @@ std::vector<std::string> disagreements(::Song& song, const bind::KnobFocus& focu
 	for (uint8_t mode = 0; mode < kNumModButtons; mode++) {
 		(void)deluge::edits::modKnobModeFor(mode_owner, mode);
 		for (int32_t knob = 0; knob < 2; knob++) {
-			const bind::KnobAssignment port = bind::knob_assignment(song.project, focus, knob);
+			const bind::KnobAssignment port = bind::knob_assignment(song.project, focus, knob, kDelugeControls);
 			const std::string at = label + " mode " + std::to_string(mode) + " knob " + std::to_string(knob) + ": ";
 			const knob_recorded::NamedParam want = recorded[next++];
 			if (const auto* named = std::get_if<deluge::project::ParamAddress>(&port.target)) {
@@ -220,7 +221,7 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 		(void)deluge::edits::modKnobModeFor(deluge::project::SongAddress{}, 4);
 		const auto arm = [&](bool editing, uint8_t param, int32_t knob) -> std::string {
 			const bind::KnobFocus focus{.owner = bind::SongFocus{}, .comp = {.editing = editing, .param = param}};
-			const bind::KnobAssignment a = bind::knob_assignment(f.song->project, focus, knob);
+			const bind::KnobAssignment a = bind::knob_assignment(f.song->project, focus, knob, kDelugeControls);
 			const auto* comp = std::get_if<bind::CompArm>(&a.target);
 			return comp != nullptr ? std::string{comp->path} : std::string{};
 		};
@@ -252,15 +253,15 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 		report(found);
 		expect(found.empty()).to_be_true();
 		const bind::KnobFocus no_clip{.owner = bind::MidiFocus{.track = track}};
-		expect(std::holds_alternative<std::monostate>(bind::knob_assignment(f.song->project, no_clip, 0).target)).to_be_true();
+		expect(std::holds_alternative<std::monostate>(bind::knob_assignment(f.song->project, no_clip, 0, kDelugeControls).target)).to_be_true();
 		currentSong = before;
 	});
 
 	it("names nothing for a CV track, a non-sound kit row or no focus", _ {
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		const bind::KnobFocus none{};
-		expect(std::holds_alternative<std::monostate>(bind::knob_assignment(f.song->project, none, 0).target)).to_be_true();
-		expect(std::holds_alternative<std::monostate>(bind::knob_assignment(f.song->project, none, 1).target)).to_be_true();
+		expect(std::holds_alternative<std::monostate>(bind::knob_assignment(f.song->project, none, 0, kDelugeControls).target)).to_be_true();
+		expect(std::holds_alternative<std::monostate>(bind::knob_assignment(f.song->project, none, 1, kDelugeControls).target)).to_be_true();
 	});
 });
 // clang-format on

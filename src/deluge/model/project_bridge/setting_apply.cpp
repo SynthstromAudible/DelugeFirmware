@@ -391,13 +391,6 @@ Error applySetting(::Sound& sound, std::string_view path, const deluge::serializ
 	}
 	else if (path == "mode") {
 		sound.setSynthMode(deluge::instrument::parse_synth_mode(text), &song);
-		// Switching to or from FM swaps the filter knobs for the modulators' and back: the sound's controls record
-		// follows.
-		if (const std::optional<deluge::project::ControlsAddress> address = controlsAddressOf(sound)) {
-			if (std::vector<deluge::project::ControllerMapping>* controls = song.project.resolveControls(*address)) {
-				*controls = controlsOf(sound);
-			}
-		}
 	}
 	else if (path == "transpose") {
 		sound.setTranspose(static_cast<int16_t>(number));

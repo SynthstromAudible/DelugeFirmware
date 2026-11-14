@@ -20,14 +20,17 @@
 // its recorded characterisation holds.
 // Exit: 0 agree; 3 a check disagrees (each printed).
 
+#include "board_controls.hpp"
 #include "controls/knob_focus.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/song.h"
 #include "effects/global_effectable/params.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/performance_view.h"
+#include "instruments/deluge/pages.h"
 #include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/song/song.h"
 #include "modulation/knob_target.h"
@@ -406,7 +409,7 @@ void checkChainKnobs(Checker& check) {
 							// song's alone), so the layout's comp cells for it are its plain cells.
 							const param_target_tables_reference::Cell cell =
 							    recordedCell(clip ? Table::GE_CLIP_KNOBS : Table::GE_KNOBS, clip ? n - comp : n);
-							const bind::KnobAssignment page = bind::knob_assignment(*song, focus, k);
+							const bind::KnobAssignment page = bind::knob_assignment(*song, focus, k, kDelugeControls);
 							const auto* address = std::get_if<project::ParamAddress>(&page.target);
 							const auto* arm = std::get_if<bind::CompArm>(&page.target);
 							checkCell(check, name, OwnerPlugin::GLOBAL_EFFECTABLE,
@@ -450,6 +453,15 @@ void checkKnobs(Checker& check) {
 		}
 	};
 	sound("sound knobs", Table::SOUND_KNOBS);
+	// The sample row's knobs are the instrument's sample pages; setupAsSample takes them.
+	for (const deluge::plugin::RemotePage& page : deluge::instrument::kSamplePages) {
+		for (int32_t k = 0; k < kNumPhysicalModKnobs; ++k) {
+			checkCell(
+			    check, "sample pages", OwnerPlugin::INSTRUMENT,
+			    deluge::bridge::knobOfControl(*page.slots[k].param, params::Kind::UNPATCHED_SOUND),
+			    recordedCell(Table::SOUND_KNOBS_SAMPLE, static_cast<int32_t>(page.section) * kNumPhysicalModKnobs + k));
+		}
+	}
 	synth->setupAsSample(&synthParams);
 	sound("sound knobs, sample", Table::SOUND_KNOBS_SAMPLE);
 	currentSong = previous;

@@ -65,6 +65,8 @@ struct RemotePage {
 	std::string_view name; ///< the page's name
 	std::array<RemoteSlot, kRemoteControlsCount> slots{};
 	bool for_preset{false}; ///< the sound's own page (its saved knobs), not the device's default
+	/// Pressing this section's button leaves a playing stutter running. A Deluge-side extension, like PressAction.
+	bool keeps_stutter{false};
 	/// @brief Whether two pages are the same page with the same slots: every field equal, the name by its text.
 	[[nodiscard]] constexpr bool operator==(const RemotePage&) const = default;
 };

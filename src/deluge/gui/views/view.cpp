@@ -16,6 +16,7 @@
  */
 
 #include "gui/views/view.h"
+#include "board_controls.hpp"
 #include "definitions_cxx.hpp"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "extern.h"
@@ -1566,11 +1567,10 @@ void View::releaseKnobsIfOn(const Clip& clip) {
 }
 
 int32_t View::knobMode() const {
-	if (std::holds_alternative<std::monostate>(knobFocus_.owner) || currentSong == nullptr
-	    || knobSong_ != currentSong) {
+	if (deluge::controls::has_no_knobs(knobFocus_) || currentSong == nullptr || knobSong_ != currentSong) {
 		return -1;
 	}
-	return deluge::controls::knob_mode(currentSong->project, knobFocus_);
+	return deluge::controls::knob_mode(currentSong->project, knobFocus_, kDelugeControls);
 }
 
 void View::endKnobsStutter() {

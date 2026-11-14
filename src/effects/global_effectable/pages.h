@@ -24,6 +24,7 @@
 #include "effects/global_effectable/params.h"
 #include "effects/setting_params.h"
 #include "effects/words.h"
+#include "plugin-api/remote_controls_publisher.h"
 #include "plugin-api/types/remote_controls.h"
 
 #include <algorithm>
@@ -43,6 +44,28 @@ struct PageInputs {
 	effects::ModFXType mod_fx_type{effects::ModFXType::NONE}; ///< the chain's mod FX type; which mod FX pages exist
 	bool alt_delay{false};                                    ///< the alternative delay knobs
 };
+
+/// @brief The chain's mod buttons: one section each.
+inline constexpr uint32_t kSections = 8;
+/// @brief The level button: its page is pan and volume.
+inline constexpr uint32_t kLevelSection = 0;
+/// @brief The filter button: its pages are low-pass, high-pass and EQ.
+inline constexpr uint32_t kFilterSection = 1;
+/// @brief The delay button: its page is the delay's feedback and rate.
+inline constexpr uint32_t kDelaySection = 3;
+/// @brief The reverb button: the song's holds its compressor group, and a clip chain's page leaves a playing stutter
+///        running.
+inline constexpr uint32_t kCompressorSection = 4;
+/// @brief The mod FX button: its pages are the views the chain's mod FX type has.
+inline constexpr uint32_t kModFxSection = 5;
+/// @brief The stutter button: on the song its lower knob moves nothing.
+inline constexpr uint32_t kStutterSection = 6;
+
+/// @brief The lo-fi button: its page is the bitcrusher and the sample rate reduction.
+inline constexpr uint32_t kLofiSection = 7;
+
+/// @brief The filter button's last page, EQ: a filter view past it is EQ.
+inline constexpr uint32_t kEqPage = 2;
 
 /// @brief The song's compressor settings the lower knob edits: one page each, ids 1 to kCompPages, after the reverb
 ///        page.
@@ -76,5 +99,11 @@ inline constexpr uint32_t kCompPages = 5;
 /// @param in      What changes the pages.
 /// @return The pages.
 [[nodiscard]] std::vector<plugin::RemotePage> section_pages(uint32_t section, const PageInputs& in);
+
+/// @brief The chains' remote-controls record: the pages in section order, the mod FX type read from the owner's
+/// DelugeEffects state (none without one). Its find reaches a mod FX view the type lacks; its decorate gives a param
+/// the slot the pages give it.
+extern const plugin::RemoteControls
+    kRemoteControls; // NOLINT(bugprone-dynamic-static-initializers): constant-initialized
 
 } // namespace deluge::global_effectable

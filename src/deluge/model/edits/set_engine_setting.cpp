@@ -4,6 +4,7 @@
 #include "instruments/deluge/codec.h"
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/words.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
@@ -47,6 +48,7 @@ settingChange(const ::Sound& sound, const deluge::project::InstrumentSlot& /*slo
 
 Error commitEngineSetting(::Sound& sound, deluge::project::InstrumentSlot& slot, std::string_view path,
                           const deluge::serialization::Value& value, ::Song& song) {
+	const SynthMode from = sound.boundState()->synth_mode;
 	const auto change = settingChange(sound, slot, path, value);
 	if (deluge::bridge::typedWriteAudit().enabled) {
 		const deluge::instrument::SoundState& before = *sound.boundState();
@@ -66,6 +68,11 @@ Error commitEngineSetting(::Sound& sound, deluge::project::InstrumentSlot& slot,
 	}
 	else {
 		error = Error::NONE; // what else the sound refused is not this Edit's
+	}
+	if (path == "mode") {
+		// The knobs' own SetControls nests inside this Edit on purpose: the record and the engine take the remap
+		// together, and lane publication counts nesting, so only the outermost Edit publishes.
+		deluge::bridge::remapKnobsForMode(sound, song, from, sound.boundState()->synth_mode);
 	}
 	// After the setters have projected the sound's render copy, which the reverb copies from: a render during the write
 	// would otherwise clear the flag before the new timing is there to read. Whatever landed, the reverb re-reads it.

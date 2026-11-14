@@ -3,6 +3,7 @@
 // backup with no clip), and a setter leaves the focus's own view state (the region, the compressor view, the VU meter)
 // as it was.
 
+#include "board_controls.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/root_knobs.h"
@@ -23,6 +24,8 @@
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/gate_drum.h"
+#include "model/drum/midi_drum.h"
 #include "model/edits/edit.h"
 #include "model/edits/learn_mapping.h"
 #include "model/edits/set_mod_knob_cc.h"
@@ -229,7 +232,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		currentSong = nullptr;
 	});
 
-	it("names the song, a MIDI track on its clip, and nothing for a CV track or a release", _ {
+	it("names the song, a MIDI track on its clip, an empty layout for a CV track, and nothing for a release", _ {
 		spec::SongFixture song = spec::make_synth_song();
 		currentSong = song.song;
 		song.song->persistentView.affectEntire = true;
@@ -248,9 +251,50 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		spec::SongFixture cv = spec::make_cv_song();
 		currentSong = cv.song;
 		view.setActiveModControllableTimelineCounter(cv.clip, false);
-		expect(std::holds_alternative<std::monostate>(focus().owner)).to_be_true();
+		const controls::KnobFocus empty{.owner = controls::NoControlsFocus{
+		    .kind = controls::NoControlsFocus::Kind::CV_TRACK,
+		    .track = project::TrackAddress{*cv.instrument->id()},
+		    .clip_id = cv.clip->id()}};
+		expect(focus().owner == empty.owner).to_be_true();
+		expect(controls::has_no_knobs(focus())).to_be_true();
+		expect(controls::knob_owner(focus()).has_value()).to_be_false();
+		expect(controls::knob_mode_owner(focus()).has_value()).to_be_false();
 		view.releaseActiveModControllable();
+		expect(std::holds_alternative<std::monostate>(focus().owner)).to_be_true();
 		currentSong = nullptr;
+	});
+
+	it("names an empty layout, with its kit and drum, for a MIDI drum and a gate drum the stack names", _ {
+		spec::SongFixture f = spec::make_kit_song();
+		MIDIDrum* midi = spec::add_drum<MIDIDrum>(f);
+		GateDrum* gate = spec::add_drum<GateDrum>(f);
+		const uint32_t kit = *f.instrument->id();
+		// The clip view's own stack names no controllable for these drums, so the stack is made by hand.
+		const auto focus_on = [&](Drum& drum, bool in_clip) {
+			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+			setupModelStackWithSong(memory, f.song)
+			    ->addTimelineCounter(in_clip ? static_cast<TimelineCounter*>(f.clip) : nullptr)
+			    ->addOtherTwoThingsButNoNoteRow(drum.toModControllable(), nullptr);
+			return deluge::gui::knobFocusFromStack(*f.song, *reinterpret_cast<ModelStackWithThreeMainThings*>(memory));
+		};
+		const controls::KnobFocus midi_in_clip = focus_on(*midi, true);
+		const controls::KnobFocus want_midi{.owner = controls::NoControlsFocus{
+		    .kind = controls::NoControlsFocus::Kind::MIDI_DRUM,
+		    .track = project::TrackAddress{kit},
+		    .drum = project::KitRowAddress{kit, *midi->id()},
+		    .clip_id = f.clip->id()}};
+		expect(midi_in_clip.owner == want_midi.owner).to_be_true();
+		const controls::KnobFocus want_gate{.owner = controls::NoControlsFocus{
+		    .kind = controls::NoControlsFocus::Kind::GATE_DRUM,
+		    .track = project::TrackAddress{kit},
+		    .drum = project::KitRowAddress{kit, *gate->id()}}};
+		const controls::KnobFocus gate_no_clip = focus_on(*gate, false);
+		expect(gate_no_clip.owner == want_gate.owner).to_be_true();
+		for (const controls::KnobFocus& found : {midi_in_clip, gate_no_clip}) {
+			expect(controls::has_no_knobs(found)).to_be_true();
+			expect(controls::knob_owner(found).has_value()).to_be_false();
+			expect(controls::knob_mode_owner(found).has_value()).to_be_false();
+		}
 	});
 
 	it("names an arranger row's backup with no clip", _ {
@@ -727,7 +771,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		const std::optional<project::ParamAddress> lower = deluge::gui::ui::root_knobs::knob_address(0);
 		expect(lower.has_value() && lower->id == deluge::global_effectable::param::kReverbAmount).to_be_true();
 		const deluge::scenes::bind::KnobAssignment port =
-		    deluge::scenes::bind::knob_assignment(f.song->project, view.knobFocus(), 0);
+		    deluge::scenes::bind::knob_assignment(f.song->project, view.knobFocus(), 0, kDelugeControls);
 		const auto* address = std::get_if<project::ParamAddress>(&port.target);
 		expect(address != nullptr && address->id == deluge::global_effectable::param::kReverbAmount).to_be_true();
 		view.knobFocus().comp = {};

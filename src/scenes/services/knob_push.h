@@ -4,6 +4,7 @@
 /// @brief What a gold knob's push and a mod button's press do, as functions of the song's records: the settings they
 ///        write, the knob views they change, and the popup text they show.
 
+#include "controls/board.h"
 #include "controls/sink.h"
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/fx_chain.h"
@@ -12,7 +13,7 @@
 #include "effects/state.h"
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/bind/knob_focus.h"
-#include "scenes/bind/section_pages.h"
+#include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/write_sink.h"
 #include "serialization/value.h"
 
@@ -26,11 +27,11 @@
 
 namespace deluge::scenes::services {
 
-/// @brief What a push reads beyond the song's records.
+/// @brief The gesture's context: what a push reads that neither the song's records nor the host's facts hold.
 struct PushInputs {
-	bind::PageInputs pages{}; ///< what changes the owner's pages: its effect settings, FM, the alt delay knobs
 	bool button_held{false};  ///< the mode's mod button is held, so the push re-shows its button's popup
 	bool clip_context{false}; ///< the knobs are on a clip, not the song (the stutter button's names)
+	controls::Board board;    ///< the board the knobs are on
 };
 
 using bind::EffectOwner;
@@ -58,19 +59,25 @@ struct KnobPush {
 /// @brief Whose effect settings @p focus's knobs push: a sound's slot, the song's chain, a kit's or audio track's.
 [[nodiscard]] std::optional<EffectOwner> effect_owner(const bind::KnobFocus& focus);
 
+/// @brief The effect settings of @p focus's owner, as the host's runtime facts hold them.
+/// @param focus What the knobs point at.
+/// @param facts The host's runtime facts.
+/// @return The owner's effects; nullptr for an owner with none, or one the facts do not resolve.
+[[nodiscard]] const effects::EffectStates* owner_effects(const bind::KnobFocus& focus, const bind::RuntimeFacts& facts);
+
 /// @brief What pressing (or releasing, @p on false) gold knob @p knob of @p focus does.
 /// @param song   The song's records.
 /// @param focus  What the knobs point at.
 /// @param knob   0 the lower, 1 the upper.
 /// @param on     Press (true) or release.
-/// @param inputs What the push reads beyond the records.
+/// @param gesture The gesture's context. The owner's effects and the device facts come from the host's runtime facts.
 [[nodiscard]] KnobPush knob_push(const project::Song& song, const bind::KnobFocus& focus, int32_t knob, bool on,
-                                 const PushInputs& inputs);
+                                 const PushInputs& gesture);
 
 /// @brief The popup a press of mod button @p button shows over @p focus's knobs, with the mode already @p button.
 /// @return The popup's text; empty for none.
 [[nodiscard]] std::string mod_button_popup(const project::Song& song, const bind::KnobFocus& focus, int32_t button,
-                                           const PushInputs& inputs);
+                                           const PushInputs& gesture);
 
 /// @brief Whether a stutter-rate knob on an owner with effects @p owner is quantized: the song's stutter's setting
 ///        (@p song) where the owner plays the song's stutter, else its own.

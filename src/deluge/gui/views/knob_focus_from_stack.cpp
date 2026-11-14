@@ -36,7 +36,11 @@ controls::KnobFocus outputFocus(::Output& output, const ::Clip* clip) {
 		                                      .clip = at}};
 	case OutputType::MIDI_OUT:
 		return {.owner = controls::MidiFocus{.track = project::TrackAddress{id}, .clip = at}};
-	default: // a CV track's knobs move nothing
+	case OutputType::CV:
+		return {.owner = controls::NoControlsFocus{.kind = controls::NoControlsFocus::Kind::CV_TRACK,
+		                                           .track = project::TrackAddress{id},
+		                                           .clip_id = at ? std::optional{at->clip_id} : std::nullopt}};
+	default:
 		return {};
 	}
 }
@@ -52,6 +56,20 @@ controls::KnobFocus drumFocus(::Kit& kit, ::SoundDrum& drum, const ::Clip* clip)
 		sound.row = project::NoteRowAddress{clip->id(), true, static_cast<int32_t>(*drum.id())};
 	}
 	return {.owner = sound};
+}
+
+/// The focus on the MIDI or gate drum @p drum of @p kit, in @p clip: a drum with no knobs. A stack names such a drum
+/// only when it is hand-built, as `InstrumentClip::getActiveModControllable` has no controllable for it.
+controls::KnobFocus nonAudioDrumFocus(::Kit& kit, const ::Drum& drum, const ::Clip* clip) {
+	if (!drum.id() || !kit.id()) {
+		return {};
+	}
+	const bool gate = drum.type == DrumType::GATE;
+	return {.owner = controls::NoControlsFocus{.kind = gate ? controls::NoControlsFocus::Kind::GATE_DRUM
+	                                                        : controls::NoControlsFocus::Kind::MIDI_DRUM,
+	                                           .track = project::TrackAddress{*kit.id()},
+	                                           .drum = project::KitRowAddress{*kit.id(), *drum.id()},
+	                                           .clip_id = clip != nullptr ? std::optional{clip->id()} : std::nullopt}};
 }
 
 } // namespace
@@ -79,6 +97,11 @@ controls::KnobFocus knobFocusFromStack(::Song& song, const ModelStackWithThreeMa
 					if (drum->type == DrumType::SOUND
 					    && static_cast<ModControllable*>(static_cast<::SoundDrum*>(drum)) == controllable) {
 						focus = drumFocus(kit, *static_cast<::SoundDrum*>(drum), clip);
+						break;
+					}
+					// Reached from hand-built stacks only (see nonAudioDrumFocus).
+					if (drum->type != DrumType::SOUND && drum->toModControllable() == controllable) {
+						focus = nonAudioDrumFocus(kit, *drum, clip);
 						break;
 					}
 				}

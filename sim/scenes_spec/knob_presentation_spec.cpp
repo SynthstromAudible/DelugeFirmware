@@ -5,6 +5,7 @@
 /// tagged entry, and each example asserts the exact sequence a turn, a push or a mod button produces. The values the
 /// gestures write are `mod_knobs_spec`'s subject, against legacy; this spec pins only the calls.
 
+#include "board_controls.hpp"
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
 #include "scenes/menu/menu_scene.h"
@@ -135,7 +136,7 @@ struct Rig {
 	SceneRegistry reg = scene_registry();
 	SceneStack stack{reg};
 	InputLowering lowering{deluge_profile(), {}};
-	ModKnobs knobs{overlay::param_popup_scene(), stack, lowering};
+	ModKnobs knobs{overlay::param_popup_scene(), stack, lowering, kDelugeControls};
 	Recording out;
 
 	Rig() {

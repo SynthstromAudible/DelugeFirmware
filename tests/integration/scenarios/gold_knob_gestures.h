@@ -21,6 +21,7 @@
 /// @brief The gold knobs' own service, driven by a scenario with nothing drawn: a turn, a push or a mod button writes
 ///        the song as the app's knobs do, and the scenario reads the song.
 
+#include "board_controls.hpp"
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/registry.h"
 #include "scenes/services/knob_presentation.h"
@@ -63,7 +64,7 @@ public:
 	/// @param song  The song the knobs act on (also the current song while they do).
 	/// @param focus The owner the knobs point at.
 	GoldKnobGestures(Song& song, const deluge::controls::KnobFocus& focus)
-	    : stack_(registry_), knobs_(deluge::scenes::overlay::param_popup_scene(), stack_, lowering_) {
+	    : stack_(registry_), knobs_(deluge::scenes::overlay::param_popup_scene(), stack_, lowering_, kDelugeControls) {
 		knobs_.set_song(&song);
 		knobs_.set_focus(focus, false);
 	}

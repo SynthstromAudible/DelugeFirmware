@@ -13,6 +13,11 @@ What the checks cover (tests/integration/scenarios/sample_claim_scenario.cpp wri
                the synth context menu's WaveTable claim of a single-cycle file: bound, as a wavetable oscillator.
     SC-FALLBACK
                a stereo file claimed into a wavetable oscillator: bound, as a sample oscillator instead.
+    SC-OSC2    the same two claims on the synth's second oscillator, asked for on the source: bound as a wavetable,
+               then as a sample.
+    SC-LAYOUT  the knobs a claim leaves, recorded from the engine: mod button 7 and the knob mode after each wavetable
+               claim and each sample load that follows one, and the pitch adjust on mod button 6 of every row the
+               slicer and the kit import make; each with the record equal to the engine's knobs.
     SC-GATE    the select encoder turned while an explicit claim's load is held: the selection must not move, and
                the gate must be released once the claim ends.
     SC-STALL   an explicit claim whose load is held past the stall bound: it must give up, leaving the holder

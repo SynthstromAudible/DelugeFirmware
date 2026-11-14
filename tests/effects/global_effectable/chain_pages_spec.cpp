@@ -1,6 +1,7 @@
 // clang-format off
 #include "effects/global_effectable/pages.h"
 #include "effects/global_effectable/params.h"
+#include "effects/plugin.h"
 #include "effects/setting_params.h"
 #include <cppspec.hpp>
 
@@ -105,6 +106,89 @@ describe chain_pages("the host chains' pages", ${
 		const auto pages = section_pages(7, {});
 		expect(*pages[0].slots[0].param == ge::kBitcrushAmount).to_be_true();
 		expect(*pages[0].slots[1].param == ge::kSampleRateReduction).to_be_true();
+	});
+	it("sets keeps_stutter on a clip chain's button 4 page only, never the song's", _{
+		for (uint32_t section = 0; section < 8; section++) {
+			for (const bool song : {false, true}) {
+				for (const auto& page : section_pages(section, {.song = song})) {
+					expect(page.keeps_stutter).to_equal(section == 4 && !song);
+				}
+			}
+		}
+		expect(global_effectable::mod_fx_page(1).keeps_stutter).to_be_false();
+	});
+	it("publishes its pages as a record keyed by the global effectable", _{
+		const auto& record = global_effectable::kRemoteControls;
+		expect(record.plugin == plugin::kGlobalEffectable).to_be_true();
+		const std::array<plugin::RemoteControls, 1> records{record};
+		expect(plugin::remote_controls_for(records, plugin::kGlobalEffectable) == &records[0]).to_be_true();
+		expect(plugin::remote_controls_for(records, plugin::kDelugeInstrument) == nullptr).to_be_true();
+	});
+	it("gets and finds exactly the pages section_page gives, for every chain state", _{
+		const auto& record = global_effectable::kRemoteControls;
+		const effects::ModFXType types[] = {effects::ModFXType::NONE,   effects::ModFXType::FLANGER,
+		                                    effects::ModFXType::CHORUS, effects::ModFXType::PHASER,
+		                                    effects::ModFXType::GRAIN,  effects::ModFXType::CHORUS_STEREO};
+		for (const effects::ModFXType type : types) {
+			effects::EffectStates states;
+			states.mod_fx.type = type;
+			const auto handle = plugin::StateHandle::of<effects::DelugeEffects>(states);
+			for (const bool song : {false, true}) {
+				for (const bool alt : {false, true}) {
+					const plugin::PageContext ctx{.state = &handle, .song = song, .alt_delay = alt};
+					const global_effectable::PageInputs in{.song = song, .mod_fx_type = type, .alt_delay = alt};
+					std::vector<plugin::RemotePage> expected;
+					for (uint32_t section = 0; section < 8; section++) {
+						for (const auto& page : section_pages(section, in)) {
+							expected.push_back(page);
+						}
+					}
+					expect(record.count(ctx)).to_equal(static_cast<uint32_t>(expected.size()));
+					plugin::RemotePage out;
+					for (uint32_t i = 0; i < expected.size(); i++) {
+						expect(record.get(ctx, i, out)).to_be_true();
+						expect(out == expected[i]).to_be_true();
+					}
+					expect(record.get(ctx, static_cast<uint32_t>(expected.size()), out)).to_be_false();
+					for (uint32_t section = 0; section < 8; section++) {
+						for (uint32_t page_id = 0; page_id < 8; page_id++) {
+							const bool lacking_view = section == 5; // mod_fx_page clamps a view past the last to feedback
+							if (lacking_view) {
+								expect(record.find(ctx, section, page_id, out)).to_be_true();
+								expect(out == global_effectable::mod_fx_page(page_id)).to_be_true();
+							}
+							else {
+								const auto want = section_page(section, page_id, in);
+								expect(record.find(ctx, section, page_id, out)).to_equal(want.has_value());
+								if (want) {
+									expect(out == *want).to_be_true();
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	});
+	it("decorates a param with the slot its page gives it, and a bare knob otherwise", _{
+		const auto& record = global_effectable::kRemoteControls;
+		// A param on more than one page decorates as the first page that holds it, so every page of every context
+		// (a song's or a clip's chain, either delay) must give a param the one slot.
+		for (const bool song : {true, false}) {
+			for (const bool alt_delay : {false, true}) {
+				const plugin::PageContext ctx{.song = song, .alt_delay = alt_delay};
+				for (uint32_t section = 0; section < 8; section++) {
+					for (const auto& page : section_pages(section, {.song = song, .alt_delay = alt_delay})) {
+						for (const auto& slot : page.slots) {
+							if (slot.param) {
+								expect(record.decorate(ctx, *slot.param) == slot).to_be_true();
+							}
+						}
+					}
+				}
+				expect(record.decorate(ctx, ge::kModFXOffset).kind == plugin::ParamKind::UNPATCHED_GLOBAL).to_be_true();
+			}
+		}
 	});
 });
 // clang-format on

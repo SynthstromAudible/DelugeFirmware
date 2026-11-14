@@ -199,7 +199,16 @@ LIBRARIES: dict[str, Library] = {
     "global-effectable": Library(
         REPO / "src" / "effects" / "global_effectable",
         "effects/global_effectable/",
-        ("plugin-api/types/", "effects/words.h", "effects/setting_params.h"),
+        (
+            "plugin-api/types/",
+            # the library publishes the chains' remote-controls pages, so it reads plugin-api and the effect state
+            # it publishes
+            "plugin-api/remote_controls_publisher.h",
+            "plugin-api/state_handle.h",
+            "effects/plugin.h",
+            "effects/words.h",
+            "effects/setting_params.h",
+        ),
     ),
     "serialization": Library(
         REPO / "src" / "serialization", "serialization/", ("foundation/panic.h",)

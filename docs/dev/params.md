@@ -302,8 +302,27 @@ The gold knobs and the mod buttons read pages, not tables. An owner publishes it
 the param a turn moves (a `ParamId` in the owner's `ENGINE` space), its `ParamKind`, and a `PressAction` with the
 setting it steps. `controls::page_of` (`src/controls/page.h`) turns a published page into targets in the owner's
 spaces; `SectionPages` holds the page the knobs are on, the section's cycle in `NEXT_PAGE` order, and the page each
-group enters at. `scenes::bind::current_page` builds the current page alone, with no allocation, for a turn and the
-knobs' indicators; `section_pages` adds the cycle for a press.
+group enters at. Any board's knobs come from the published records alone: `controls::current_page` and
+`section_pages` (`src/controls/pages.h`) assemble the focused owner's pages from `PageSources`, which names the
+publishers, the device facts, the `controls::Board` and the host's reading of a chain's view. `current_page` builds the
+current page alone, with no allocation, for a turn and the knobs' indicators; `section_pages` adds the cycle for a
+press. Both read the owner's published `plugin::RemoteControls` record (`src/plugin-api/remote_controls_publisher.h`),
+handed the owner's state from the model song; the app collects the records in `scenes::bind::app_publishers`. A
+publisher's `find` may serve pages its `get` does not list: the instrument's serves the sound's filter cycle on any
+section.
+
+`controls::Board` (`src/controls/board.h`) is what a board offers: its sections (mod buttons), its slots per section
+(gold knobs), whether a slot presses, and its pad grid. `controls::map_input` is the board's map from a `Physical`
+control to the `Logical` section or slot the rules name; a control the board lacks drives nothing. The Deluge's profile
+is `kDelugeControls` (`src/board_controls.hpp`), built from the board's own dimensions; its sections and slots are
+numbered as the hardware numbers them, so the map is the identity. A page's section count, a mode panic and a MIDI
+page's slots read the board, never a Deluge constant. `controls::section_keeps_stutter` answers whether pressing a
+section keeps a playing stutter running from the owner's published device pages, so the rule is the publisher's data.
+
+An owner with no knobs has an explicit empty layout: `NoControlsFocus` (`src/controls/knob_focus.h`) names a CV track,
+a MIDI drum or a gate drum, its page is empty, its knobs turn nothing and its mod buttons choose nothing. It is not
+the same as no focus (`std::monostate`): the focus still carries the track, drum and clip the view is on, and
+`controls::has_no_knobs` is true for both.
 
 The settings a press steps or the song's compressor knobs turn are setting params (`effects::kSettingParams`, ids from
 `effects::kFirstSettingId`, clear of both plugins' tables): each row carries `ParamFlag::SETTING` and its file name.
@@ -326,6 +345,14 @@ the root views call the same object through `deluge::gui::ui::root_knobs` (`turn
 a `KnobPresentation` that shows each popup, indicator and blink as the view does. No other knob path remains: `View`
 keeps no gold-knob code, and the engine classes hold no knob overrides. param-target-check and the scenes specs hold the
 published pages to the engine's param layout.
+
+The instrument's layouts are data beside its device pages (`src/instruments/deluge/pages.h`): a sample row's mod
+button 6 is `kSamplePages` (the device pages with the pitch on the lower knob of mod button 6), the FM knob swap is the
+`kIntoFm` and `kOutOfFm` remap rows that `remap_for_mode` applies, and a wavetable claim's knobs are `wavetable_claimed`
+and `wavetable_released`. `remap_for_mode` takes the sound's saved knobs, the synth mode it leaves and the one it enters;
+the wavetable functions take the saved knobs and the oscillator (0 or 1) that claimed or released the wavetable. Each
+returns the knobs the sound takes. `writeKnobPairs` (`controls_bridge.h`) writes them through the controls record
+(`SetControls`, or both copies directly when it refuses), so the engine's knob array and the record stay equal.
 
 ## Instrument-private rules
 

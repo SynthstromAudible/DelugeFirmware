@@ -33,3 +33,6 @@ constexpr int32_t kSideBarWidth = 2; // side-bar columns
 
 constexpr int32_t kNumericDisplayLength = 4; // 7-segment digit count
 constexpr size_t kNumGoldKnobIndicatorLEDs = 4;
+
+constexpr int32_t kNumModButtons = 8;       // mod (section) buttons
+constexpr int32_t kNumPhysicalModKnobs = 2; // gold knobs

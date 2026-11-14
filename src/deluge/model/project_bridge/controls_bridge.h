@@ -18,10 +18,13 @@
 #pragma once
 
 #include "deluge-project/controller_mapping.h"
+#include "foundation/function_ref.h"
+#include "instruments/deluge/pages.h"
 #include "modulation/knob_target.h"
 #include "modulation/params/param.h"
 #include "plugin-api/types/param.h"
 
+#include <array>
 #include <optional>
 #include <vector>
 
@@ -47,6 +50,42 @@ namespace deluge::bridge {
 /// @param sound The sound.
 /// @return The sound's controls.
 [[nodiscard]] std::vector<deluge::project::ControllerMapping> controlsOf(::Sound& sound);
+
+/// @brief A sound's controls as the instrument's knob pairs, one per mod button: each knob's target is the param id
+/// the record holds (a cable's depth as its depth id). A knob @p controls does not name reads as param id 0
+/// (`kOscAVolume`); writeKnobPairs reads a record only when it names every knob.
+/// @param controls A sound's controls (as controlsOf gives them).
+/// @return The knobs, button by button.
+[[nodiscard]] deluge::instrument::KnobPairs
+knobPairsOf(const std::vector<deluge::project::ControllerMapping>& controls);
+
+/// @brief A sound's controls holding @p pairs: its 16 mod knobs in controlsOf's order (button by button, knob 0
+/// then 1). The inverse of knobPairsOf.
+/// @param pairs The knobs, button by button.
+/// @return The controls.
+[[nodiscard]] std::vector<deluge::project::ControllerMapping> controlsOf(const deluge::instrument::KnobPairs& pairs);
+
+/// @brief Change @p sound's mod knobs, the one path every knob write takes: @p change maps the knobs (read from the
+/// sound's controls record when it resolves in @p song, else from the engine) to the knobs the sound takes. Nothing is
+/// written when it changes none. A sound with a record writes through a SetControls Edit, so the record and the
+/// engine's knobs take them together; when the Edit refuses, both copies are written directly. A sound with no record
+/// (one outside the song) has only its engine knobs to write. The Edit nests inside a running one, as lane publication
+/// counts nesting and only the outermost publishes.
+/// @param sound  The sound whose knobs change.
+/// @param song   The song whose project holds the sound's record.
+/// @param change Maps the sound's knobs, one pair per mod button, to the knobs it takes.
+/// @return Whether any knob changed.
+bool writeKnobPairs(::Sound& sound, ::Song& song,
+                    deluge::function_ref<deluge::instrument::KnobPairs(const deluge::instrument::KnobPairs&)> change);
+
+/// @brief Remap @p sound's mod knobs for a change of synth mode from @p from to @p to (the instrument's
+/// remap_for_mode), through writeKnobPairs.
+/// @param sound The sound whose mode changed.
+/// @param song  The song whose project holds the sound's record.
+/// @param from  The synth mode before the change.
+/// @param to    The synth mode after it.
+void remapKnobsForMode(::Sound& sound, ::Song& song, deluge::instrument::SynthMode from,
+                       deluge::instrument::SynthMode to);
 
 /// @brief Set every output's, sound kit row's and the song's controls in the song's model from the runtime's mod
 /// knobs (a kit, an audio track and the song have none). Run once a song is loaded and after each save, as the slots

@@ -16,6 +16,8 @@
  */
 
 #include "gui/ui/shell_guest_services.h"
+
+#include "board_controls.hpp"
 #include "gui/ui/shell_guest_knobs.h"
 
 #include "gui/ui/menu_view_of.h"
@@ -79,7 +81,8 @@ struct GuestServices {
 	deluge::scenes::services::GlobalControls controls;
 
 	explicit GuestServices(deluge::ui::shell::Shell& shell)
-	    : learn(shell.stack()), knobs(deluge::scenes::overlay::param_popup_scene(), shell.stack(), shell.lowering()),
+	    : learn(shell.stack()),
+	      knobs(deluge::scenes::overlay::param_popup_scene(), shell.stack(), shell.lowering(), kDelugeControls),
 	      controls(shell.stack(), shell.lowering(), learn) {
 		// One focus for the gold knobs: the legacy views set it, and the guest's knobs read and move it.
 		knobs.use_focus(view.knobFocus(), [] { view.knobFocusChanged(); });

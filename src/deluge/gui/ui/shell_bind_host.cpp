@@ -1,4 +1,5 @@
 #include "gui/ui/shell_bind_host.h"
+#include "board_controls.hpp"
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_slice_ops.h"
 #include "gui/ui/ui.h"
@@ -348,6 +349,9 @@ public:
 	}
 	[[nodiscard]] bool stutter_active() const override {
 		return currentSong != nullptr && currentSong->live.stutter.active();
+	}
+	[[nodiscard]] bool alt_delay() const override {
+		return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
 	}
 	[[nodiscard]] std::pair<int64_t, int64_t> audio_clip_samples(deluge::project::ClipAddress clip, int32_t scroll,
 	                                                             int32_t zoom) const override;
@@ -1307,7 +1311,8 @@ bool ShellEditSink::midi_cc_select(const deluge::scenes::bind::KnobFocus& focus,
 		return false;
 	}
 	const size_t at =
-	    (static_cast<size_t>(deluge::scenes::bind::knob_mode(currentSong->project, focus)) * kNumPhysicalModKnobs)
+	    (static_cast<size_t>(deluge::scenes::bind::knob_mode(currentSong->project, focus, kDelugeControls))
+	     * kDelugeControls.slots)
 	    + static_cast<size_t>(knob);
 	const deluge::project::ModKnobCc cc =
 	    at < output->mod_knob_ccs.size() ? output->mod_knob_ccs[at] : deluge::project::ModKnobCc{};

@@ -32,6 +32,8 @@ struct SectionInputs {
 	bool root_is_performance{false};        ///< the root UI is performance view
 	bool mod_button_ui_mode_in_range{true}; ///< the UI mode is one the mod buttons are offered in
 	bool root_is_clip_minder{false};        ///< the root UI is a clip's view
+	/// The owner's pages of the pressed section keep a playing stutter running (see section_keeps_stutter).
+	bool keeps_stutter{false};
 };
 
 /// @brief What a mod button's press or release does.
@@ -51,8 +53,8 @@ struct SectionResult {
 /// @param in     What the view tells the rules.
 /// @return Nothing for a press out of the button's UI modes off performance view. Else a press changes the mode of
 ///         an owner that has one and shows the popup, and a press of button 0 while it is the mode toggles the VU
-///         meter outside a clip's view. Press or release ends a sound's stutter, a clip chain's except on its
-///         compressor button (4) or on performance view, and the song's except on performance view.
+///         meter outside a clip's view. Press or release ends the owner's stutter unless the section keeps it, and a
+///         chain's (the song's or a clip's) on performance view neither.
 [[nodiscard]] SectionResult resolve_section(const KnobFocus& focus, uint8_t mode, int32_t button, bool on,
                                             const SectionInputs& in);
 

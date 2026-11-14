@@ -1,4 +1,5 @@
 // clang-format off
+#include "plugin-api/remote_controls_publisher.h"
 #include "plugin-api/types/remote_controls.h"
 #include <cppspec.hpp>
 
@@ -34,6 +35,20 @@ describe remote_controls("remote controls pages", ${
 		const ParamFlags flags = ParamFlag::STEPPED | ParamFlag::ENUM | ParamFlag::SETTING;
 		expect(flags.has(ParamFlag::SETTING)).to_be_true();
 		expect(flags.has(ParamFlag::CENTRED)).to_be_false();
+	});
+	it("starts a page leaving no stutter running", _{
+		expect(RemotePage{}.keeps_stutter).to_be_false();
+		RemotePage a;
+		RemotePage b;
+		b.keeps_stutter = true;
+		expect(a == b).to_be_false();
+	});
+	it("finds a record by plugin id, and none for an unknown id", _{
+		const std::array<RemoteControls, 2> records{RemoteControls{.plugin = kDelugeInstrument},
+		                                            RemoteControls{.plugin = kGlobalEffectable}};
+		expect(remote_controls_for(records, kGlobalEffectable) == &records[1]).to_be_true();
+		expect(remote_controls_for(records, kDelugeInstrument) == &records[0]).to_be_true();
+		expect(remote_controls_for(records, PluginId{"nobody"}) == nullptr).to_be_true();
 	});
 });
 // clang-format on

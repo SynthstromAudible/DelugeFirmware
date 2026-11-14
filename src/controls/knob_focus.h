@@ -20,9 +20,11 @@
 /// @file
 /// @brief What the gold knobs point at, as addresses into the model: the view's choice, never saved.
 
+#include "controls/board.h"
 #include "deluge-project/clip_address.h"
 #include "deluge-project/fx_chain.h"
 #include "deluge-project/instrument_slot.h"
+#include "deluge-project/kit_row_address.h"
 #include "deluge-project/note_address.h"
 #include "deluge-project/param_address.h"
 #include "deluge-project/setting_group.h"
@@ -69,6 +71,16 @@ struct MidiFocus {
 	bool operator==(const MidiFocus&) const = default;
 };
 
+/// @brief An owner with no knobs: its knobs turn nothing and its mod buttons choose nothing.
+struct NoControlsFocus {
+	enum class Kind : uint8_t { CV_TRACK, MIDI_DRUM, GATE_DRUM } kind{Kind::CV_TRACK};
+	project::TrackAddress track;                ///< the CV track, or the drum's kit
+	std::optional<project::KitRowAddress> drum; ///< a drum's kit and durable drum id; none for a CV track. Only
+	                                            ///< operator== reads it: two drums of one kit are different focuses
+	std::optional<uint32_t> clip_id;            ///< the clip the view is on, if any
+	[[nodiscard]] constexpr bool operator==(const NoControlsFocus&) const = default;
+};
+
 /// @brief The part of a clip a held pad names: knob turns write a region there.
 struct ModRegion {
 	uint32_t pos{0xFFFFFFFF}; ///< 0xFFFFFFFF: at the playhead
@@ -86,24 +98,33 @@ struct CompView {
 
 /// @brief What the gold knobs point at: the view's choice, as addresses. View state, never saved.
 struct KnobFocus {
-	std::variant<std::monostate, SongFocus, SoundFocus, ChainFocus, MidiFocus> owner;
+	std::variant<std::monostate, SongFocus, SoundFocus, ChainFocus, MidiFocus, NoControlsFocus> owner;
 	ModRegion region;
 	CompView comp;
 	bool vu_meter{false}; ///< the song's VU meter shows on the sidebar in place of the knobs' levels
 	bool operator==(const KnobFocus&) const = default;
 };
 
+/// @brief Whether @p focus has no knobs to turn: no focus, or an owner with an empty layout.
+[[nodiscard]] constexpr bool has_no_knobs(const KnobFocus& focus) {
+	return std::holds_alternative<std::monostate>(focus.owner) || std::holds_alternative<NoControlsFocus>(focus.owner);
+}
+
 /// @brief The owner @p focus's knobs move params of, as an address with no param: its owner id and clip id.
-/// @return None for no focus, or a MIDI track with no clip.
+/// @return None for no focus, an owner with no controls, or a MIDI track with no clip.
 [[nodiscard]] std::optional<project::ParamAddress> knob_owner(const KnobFocus& focus);
 
 /// @brief Whose gold-knob mode @p focus's knobs follow: the song's, or a track's (a kit row's kit's).
-/// @return None for no focus, or a drum that names no kit: the owner knob_mode reads, so the two agree.
+/// @return None for no focus, an owner with no controls (a CV track has no mode), or a drum that names no kit: the
+///         owner knob_mode reads, so the two agree.
 [[nodiscard]] std::optional<project::KnobModeOwner> knob_mode_owner(const KnobFocus& focus);
 
-/// @brief The mod button the gold knobs of @p focus follow, from @p song's records: the song's, an output's, a kit
-///        row's kit's. Past the last button, the last.
-/// @return The mode; 0 for no focus.
-[[nodiscard]] uint8_t knob_mode(const project::Song& song, const KnobFocus& focus);
+/// @brief The section the gold knobs of @p focus follow, from @p song's records: the song's, an output's, a kit row's
+///        kit's. Past @p board's last section, the last.
+/// @param song  The song, whose records hold the modes.
+/// @param focus What the knobs point at.
+/// @param board The board the knobs are on; it must have a section (none panics).
+/// @return The mode; 0 for no focus or an owner with no controls.
+[[nodiscard]] uint8_t knob_mode(const project::Song& song, const KnobFocus& focus, const Board& board);
 
 } // namespace deluge::controls

@@ -103,6 +103,10 @@ inline constexpr uint32_t kSourceShift[3] = {8, 14, 20};
 	}
 	return level;
 }
+/// The param a cable's depth id roots at: the low byte, whatever the cable's depth level.
+[[nodiscard]] constexpr uint32_t root_param_field(uint32_t id) {
+	return id & 0xFFu;
+}
 } // namespace detail
 
 /// @brief Whether @p id is a cable's depth.

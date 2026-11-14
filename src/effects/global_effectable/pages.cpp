@@ -18,6 +18,7 @@
 #include "effects/global_effectable/pages.h"
 
 #include "effects/global_effectable/params.h"
+#include "effects/plugin.h"
 #include "effects/setting_params.h"
 
 #include <array>
@@ -80,7 +81,8 @@ RemotePage mod_fx_page(uint32_t mod_fx_param) {
 	constexpr std::array<ParamId, kModFxViews> kLower{ge::kModFXDepth, ge::kModFXFeedback, ge::kModFXOffset};
 	constexpr uint32_t kFeedback = 1;
 	const uint32_t view = mod_fx_param < kLower.size() ? mod_fx_param : kFeedback;
-	return page(5, view, 0, knob(kLower[view], PressAction::NEXT_PAGE), step(ge::kModFXRate, setting::kModFXType));
+	return page(kModFxSection, view, 0, knob(kLower[view], PressAction::NEXT_PAGE),
+	            step(ge::kModFXRate, setting::kModFXType));
 }
 
 namespace {
@@ -88,19 +90,25 @@ namespace {
 /// The one page of a section that has a single page; none for the envelopes' button 2.
 std::optional<RemotePage> single_page(uint32_t section, const PageInputs& in) {
 	switch (section) {
-	case 0:
-		return page(0, 0, 0, knob(ge::kPan), knob(ge::kVolume));
-	case 3:
-		return page(3, 0, 0, step(ge::kDelayFeedback, in.alt_delay ? setting::kDelaySyncLevel : setting::kDelayType),
+	case kLevelSection:
+		return page(kLevelSection, 0, 0, knob(ge::kPan), knob(ge::kVolume));
+	case kDelaySection:
+		return page(kDelaySection, 0, 0,
+		            step(ge::kDelayFeedback, in.alt_delay ? setting::kDelaySyncLevel : setting::kDelayType),
 		            step(ge::kDelayRate, in.alt_delay ? setting::kDelaySyncType : setting::kDelayPingPong));
-	case 4:
-		return page(4, 0, 0, knob(ge::kReverbAmount, PressAction::REVERB_PRESET),
-		            step(ge::kSidechainCompressorVolume, setting::kSidechainSyncLevel));
-	case 6:
-		return page(6, 0, 0, in.song ? RemoteSlot{} : knob(ge::kPitchAdjust),
+	case kCompressorSection: {
+		// A clip chain's stutter outlives a press of its reverb button (`GlobalEffectableForClip::modButtonAction`);
+		// the song's reverb button has its own pages (song_reverb_page), which do not keep it.
+		RemotePage out = page(kCompressorSection, 0, 0, knob(ge::kReverbAmount, PressAction::REVERB_PRESET),
+		                      step(ge::kSidechainCompressorVolume, setting::kSidechainSyncLevel));
+		out.keeps_stutter = true;
+		return out;
+	}
+	case kStutterSection:
+		return page(kStutterSection, 0, 0, in.song ? RemoteSlot{} : knob(ge::kPitchAdjust),
 		            knob(ge::kStutterRate, PressAction::HOLD_STUTTER));
-	case 7:
-		return page(7, 0, 0, knob(ge::kBitcrushAmount), knob(ge::kSampleRateReduction));
+	case kLofiSection:
+		return page(kLofiSection, 0, 0, knob(ge::kBitcrushAmount), knob(ge::kSampleRateReduction));
 	default:
 		return std::nullopt;
 	}
@@ -110,13 +118,13 @@ std::optional<RemotePage> single_page(uint32_t section, const PageInputs& in) {
 std::optional<RemotePage> filter_page(uint32_t page_id) {
 	switch (page_id) {
 	case 0:
-		return page(1, 0, 0, step(ge::kLpfResonance, setting::kLpfMode),
+		return page(kFilterSection, 0, 0, step(ge::kLpfResonance, setting::kLpfMode),
 		            knob(ge::kLpfFrequency, PressAction::NEXT_PAGE));
 	case 1:
-		return page(1, 1, 0, step(ge::kHpfResonance, setting::kHpfMode),
+		return page(kFilterSection, 1, 0, step(ge::kHpfResonance, setting::kHpfMode),
 		            knob(ge::kHpfFrequency, PressAction::NEXT_PAGE));
 	case 2:
-		return page(1, 2, 0, knob(ge::kBass), knob(ge::kTreble, PressAction::NEXT_PAGE));
+		return page(kFilterSection, 2, 0, knob(ge::kBass), knob(ge::kTreble, PressAction::NEXT_PAGE));
 	default:
 		return std::nullopt;
 	}
@@ -127,26 +135,26 @@ std::optional<RemotePage> filter_page(uint32_t page_id) {
 std::optional<RemotePage> song_reverb_page(uint32_t page_id) {
 	const RemoteSlot threshold = comp_knob(setting::kCompThreshold, PressAction::TOGGLE_GROUP);
 	if (page_id == 0) {
-		return page(4, 0, 0, knob(ge::kReverbAmount, PressAction::REVERB_PRESET), threshold);
+		return page(kCompressorSection, 0, 0, knob(ge::kReverbAmount, PressAction::REVERB_PRESET), threshold);
 	}
 	constexpr std::array<ParamId, kCompPages> kComp{setting::kCompRatio, setting::kCompAttack, setting::kCompRelease,
 	                                                setting::kCompHpf, setting::kCompBlend};
 	if (page_id > kComp.size()) {
 		return std::nullopt;
 	}
-	return page(4, page_id, 1, comp_knob(kComp[page_id - 1], PressAction::NEXT_PAGE), threshold);
+	return page(kCompressorSection, page_id, 1, comp_knob(kComp[page_id - 1], PressAction::NEXT_PAGE), threshold);
 }
 
 } // namespace
 
 std::optional<RemotePage> section_page(uint32_t section, uint32_t page_id, const PageInputs& in) {
-	if (section == 1) {
+	if (section == kFilterSection) {
 		return filter_page(page_id);
 	}
-	if (section == 4 && in.song) {
+	if (section == kCompressorSection && in.song) {
 		return song_reverb_page(page_id);
 	}
-	if (section == 5) {
+	if (section == kModFxSection) {
 		return page_id < kModFxViews && mod_fx_page_valid(in.mod_fx_type, page_id) ? std::optional{mod_fx_page(page_id)}
 		                                                                           : std::nullopt;
 	}
@@ -162,5 +170,88 @@ std::vector<RemotePage> section_pages(uint32_t section, const PageInputs& in) {
 	}
 	return pages;
 }
+
+namespace {
+
+/// The inputs a chain's pages follow, read from the context.
+PageInputs inputs_of(const plugin::PageContext& ctx) {
+	PageInputs in{.song = ctx.song, .alt_delay = ctx.alt_delay};
+	if (ctx.state != nullptr) {
+		if (const effects::EffectStates* states = ctx.state->as<effects::DelugeEffects>()) {
+			in.mod_fx_type = states->mod_fx.type;
+		}
+	}
+	return in;
+}
+
+/// The device pages in section order, then page id: the one at @p index, or none past the end.
+std::optional<RemotePage> nth_page(const PageInputs& in, uint32_t index) {
+	for (uint32_t section = 0; section < kSections; section++) {
+		for (uint32_t page_id = 0; page_id <= kLastPageId; page_id++) {
+			if (const std::optional<RemotePage> p = section_page(section, page_id, in)) {
+				if (index == 0) {
+					return p;
+				}
+				index--;
+			}
+		}
+	}
+	return std::nullopt;
+}
+
+uint32_t count_pages(const plugin::PageContext& ctx) {
+	const PageInputs in = inputs_of(ctx);
+	uint32_t n = 0;
+	for (uint32_t section = 0; section < kSections; section++) {
+		for (uint32_t page_id = 0; page_id <= kLastPageId; page_id++) {
+			n += section_page(section, page_id, in).has_value() ? 1u : 0u;
+		}
+	}
+	return n;
+}
+
+bool get_page(const plugin::PageContext& ctx, uint32_t index, RemotePage& out) {
+	const std::optional<RemotePage> p = nth_page(inputs_of(ctx), index);
+	if (p) {
+		out = *p;
+	}
+	return p.has_value();
+}
+
+bool find_page(const plugin::PageContext& ctx, uint32_t section, uint32_t page_id, RemotePage& out) {
+	if (section == kModFxSection) {
+		out = mod_fx_page(page_id);
+		return true;
+	}
+	const std::optional<RemotePage> p = section_page(section, page_id, inputs_of(ctx));
+	if (p) {
+		out = *p;
+	}
+	return p.has_value();
+}
+
+RemoteSlot decorate_slot(const plugin::PageContext& ctx, ParamId param) {
+	const PageInputs in = inputs_of(ctx);
+	for (uint32_t section = 0; section < kSections; section++) {
+		for (uint32_t page_id = 0; page_id <= kLastPageId; page_id++) {
+			if (const std::optional<RemotePage> p = section_page(section, page_id, in)) {
+				for (const RemoteSlot& slot : p->slots) {
+					if (slot.param == param) {
+						return slot;
+					}
+				}
+			}
+		}
+	}
+	return knob(param);
+}
+
+} // namespace
+
+const plugin::RemoteControls kRemoteControls{.plugin = plugin::kGlobalEffectable,
+                                             .count = &count_pages,
+                                             .get = &get_page,
+                                             .find = &find_page,
+                                             .decorate = &decorate_slot};
 
 } // namespace deluge::global_effectable

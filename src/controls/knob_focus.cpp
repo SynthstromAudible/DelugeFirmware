@@ -17,8 +17,8 @@
 
 #include "controls/knob_focus.h"
 
-#include "controls/mod_buttons.h"
 #include "deluge-project/song.h"
+#include "foundation/panic.h"
 
 #include <algorithm>
 
@@ -26,13 +26,18 @@ namespace deluge::controls {
 
 namespace {
 
-/// @p mode, or the last mod button past it.
-uint8_t capped(uint8_t mode) {
-	return std::min(mode, mod_button::kLast);
+/// @p mode, or @p board's last section past it.
+uint8_t capped(uint8_t mode, const Board& board) {
+	// A board with no sections is a caller that never named its board: no mode would be a section of it.
+	if (board.sections == 0) {
+		freezeWithError("E-board");
+	}
+	return std::min<uint8_t>(mode, board.sections - 1);
 }
 
 /// The output whose mode the focus's knobs follow: a synth's, a kit row's kit's, a kit's or audio track's, a MIDI
-/// track's. None for the song's, no focus, or a drum that names no kit.
+/// track's. None for the song's, no focus, an owner with no controls (a CV track has no mode), or a drum that names
+/// no kit.
 std::optional<uint32_t> mode_output(const KnobFocus& focus) {
 	if (const auto* sound = std::get_if<SoundFocus>(&focus.owner)) {
 		if (sound->kit) {
@@ -75,6 +80,7 @@ std::optional<project::ParamAddress> knob_owner(const KnobFocus& focus) {
 	if (const auto* midi = std::get_if<MidiFocus>(&focus.owner); midi != nullptr && midi->clip) {
 		return project::ParamAddress{.owner = project::OwnerId::clip(midi->clip->clip_id)};
 	}
+	// No focus and an owner with no controls have no param to write.
 	return std::nullopt;
 }
 
@@ -88,13 +94,13 @@ std::optional<project::KnobModeOwner> knob_mode_owner(const KnobFocus& focus) {
 	return std::nullopt;
 }
 
-uint8_t knob_mode(const project::Song& song, const KnobFocus& focus) {
+uint8_t knob_mode(const project::Song& song, const KnobFocus& focus, const Board& board) {
 	if (std::holds_alternative<SongFocus>(focus.owner)) {
-		return capped(song.mod_knob_mode);
+		return capped(song.mod_knob_mode, board);
 	}
 	if (const std::optional<uint32_t> id = mode_output(focus)) {
 		const project::DocOutput* output = song.output_structure.find(*id);
-		return output != nullptr ? capped(output->mod_knob_mode) : 0;
+		return output != nullptr ? capped(output->mod_knob_mode, board) : 0;
 	}
 	return 0;
 }

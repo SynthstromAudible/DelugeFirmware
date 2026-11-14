@@ -2,17 +2,18 @@
 
 #include "controls/resolve.h"
 #include "effects/setting_params.h"
-#include "scenes/bind/section_pages.h"
+#include "scenes/bind/page_sources.h"
 
 namespace deluge::scenes::bind {
 
-KnobAssignment knob_assignment(const project::Song& song, const KnobFocus& focus, int32_t knob) {
-	if (knob < 0 || knob > 1) {
+KnobAssignment knob_assignment(const project::Song& song, const KnobFocus& focus, int32_t knob,
+                               const controls::Board& board) {
+	if (knob < 0 || knob >= board.slots) {
 		return {};
 	}
 	// A turn reads only the page the knobs are on: this runs for the knobs' indicators every tick.
-	const controls::Target target =
-	    controls::resolve_turn(focus, controls::SectionPages{.current = current_page(song, focus, {})}, knob);
+	const controls::Target target = controls::resolve_turn(
+	    focus, controls::SectionPages{.current = controls::current_page(song, focus, app_turn_sources(board))}, knob);
 	const auto* write = std::get_if<controls::ParamWrite>(&target);
 	if (write == nullptr) {
 		return {};
