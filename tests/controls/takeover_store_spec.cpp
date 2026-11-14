@@ -69,6 +69,13 @@ describe takeover_store("TakeoverStore", ${
 		store.relearn(knob(kSynth, 1), cc(40), cc(41));
 		expect(store.size()).to_equal(size_t{1});
 	});
+	it("starts the surviving knob over when the knob relearned onto it had no state", _{
+		TakeoverStore store;
+		store.at(knob(kSynth, 1), cc(12)) = saw(2);
+		store.relearn(knob(kSynth, 1), cc(10), cc(12));
+		expect(store.find(knob(kSynth, 1), cc(12)) == nullptr).to_be_true();
+		expect(store.size()).to_equal(size_t{0});
+	});
 	it("copies an owner's states to a clone, replacing the clone's own", _{
 		TakeoverStore store;
 		store.at(knob(kSynth, 1), cc(10)) = saw(1);

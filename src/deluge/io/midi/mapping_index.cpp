@@ -212,6 +212,13 @@ MappingIndex& mappingIndex() {
 
 controls::TakeoverStore& takeoverStore() {
 	static controls::TakeoverStore store;
+	static uint32_t generation = 0;
+	// Another song is current (the old one freed and the new built at its address, or not): its knobs' states are not
+	// the store's.
+	if (generation != songGeneration()) {
+		store.clear();
+		generation = songGeneration();
+	}
 	return store;
 }
 
@@ -242,12 +249,6 @@ void rebuildMappingIndex(::Song& song) {
 	// Only this tier writes the table, and nothing here has written it since the section: the copy matches the lists.
 	snapshot.copyEntries(song.project.mappings);
 	lastSizes = snapshot.sizes();
-	// A rebuild for another song than the last is a song change, whichever tier made it: the knobs' states were its.
-	static const ::Song* lastSong = nullptr;
-	if (lastSong != &song) {
-		takeoverStore().clear();
-		lastSong = &song;
-	}
 	MappingIndex built;
 	built.rebuild(std::move(snapshot));
 	// The index's only reader, the dispatch of an incoming message, runs on this tier.

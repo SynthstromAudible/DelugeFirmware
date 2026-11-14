@@ -61,7 +61,19 @@ void recordLearned(::Song& song, const LearnedMIDI& learned, deluge::project::Ma
 /// Record @p knobs' learned knobs as @p owner's, when the table holds none for @p owner.
 void recordKnobs(ControlsAddress owner, const ::ModControllableAudio& knobs, bool isSound, ::Song& song) {
 	if (song.project.mappings.params_of(owner).empty()) {
-		song.project.mappings.set_params(owner, knobsOf(owner, knobs, isSound));
+		const std::vector<Mapping> entries = knobsOf(owner, knobs, isSound);
+		song.project.mappings.set_params(owner, entries);
+		if (&song != currentSong) {
+			return;
+		}
+		// A knob recorded from the engine (a clone the render lost the held copy of) brings the position it last saw.
+		for (size_t i = 0; i < entries.size(); i++) {
+			const auto* target = std::get_if<deluge::project::OwnerParamTarget>(&entries[i].target);
+			if (target != nullptr && knobs.midi_knobs[i].previousPositionSaved) {
+				deluge::midi::takeoverStore().at(*target, entries[i].source).previous =
+				    knobs.midi_knobs[i].previousPosition;
+			}
+		}
 	}
 }
 

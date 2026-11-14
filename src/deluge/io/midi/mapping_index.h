@@ -242,8 +242,8 @@ private:
 MappingIndex& mappingIndex();
 
 /// @brief The takeover state of the current song's learned knobs, kept beside its index. App loop only: the render's
-/// table writes reach it only when the app loop applies them (bridge::applyPendingMappingOps). Emptied when the index
-/// is rebuilt for a song other than the last it was built for, and when a song is loaded as the current one.
+/// table writes reach it only when the app loop applies them (bridge::applyPendingMappingOps). Emptied at the first
+/// call after another song is made current (markSongChanged), and when the current song's mappings are loaded.
 controls::TakeoverStore& takeoverStore();
 
 /// @brief [task] Bring the index into line with @p song's mapping table, when @p song is the current song. Excludes the

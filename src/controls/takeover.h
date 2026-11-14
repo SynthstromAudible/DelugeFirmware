@@ -61,8 +61,13 @@ public:
 	/// @return The state, valid until the next call that adds or drops one.
 	[[nodiscard]] TakeoverState& at(const project::OwnerParamTarget& target, const project::MidiCommand& source);
 
+	/// @brief The state of the knob @p source plays on @p target, or null when it has none.
+	[[nodiscard]] const TakeoverState* find(const project::OwnerParamTarget& target,
+	                                        const project::MidiCommand& source) const;
+
 	/// @brief Move the state of the knob @p from plays on @p target to the knob @p to plays, as a relearn in place
-	/// does. A state the knob @p to had is replaced; nothing moves when @p from has none.
+	/// does. The state the knob @p to had is replaced: by @p from's, or by none when @p from has none (a knob that has
+	/// not seen a position takes the surviving knob's place whole).
 	void relearn(const project::OwnerParamTarget& target, const project::MidiCommand& from,
 	             const project::MidiCommand& to);
 
@@ -87,8 +92,8 @@ private:
 		project::MidiCommand source;
 		TakeoverState state;
 	};
-	[[nodiscard]] std::vector<Held>::iterator find(const project::OwnerParamTarget& target,
-	                                               const project::MidiCommand& source);
+	[[nodiscard]] std::vector<Held>::iterator locate(const project::OwnerParamTarget& target,
+	                                                 const project::MidiCommand& source);
 
 	std::vector<Held> states_; ///< a handful of learned knobs: a scan, with no allocation for one already held
 };

@@ -72,13 +72,13 @@ int32_t knob_pos_after(int32_t knob_pos, uint8_t value, TakeoverInputs inputs, T
 	return result;
 }
 
-std::vector<TakeoverStore::Held>::iterator TakeoverStore::find(const project::OwnerParamTarget& target,
-                                                               const project::MidiCommand& source) {
+std::vector<TakeoverStore::Held>::iterator TakeoverStore::locate(const project::OwnerParamTarget& target,
+                                                                 const project::MidiCommand& source) {
 	return std::ranges::find_if(states_, [&](const Held& h) { return h.target == target && h.source == source; });
 }
 
 TakeoverState& TakeoverStore::at(const project::OwnerParamTarget& target, const project::MidiCommand& source) {
-	auto held = find(target, source);
+	auto held = locate(target, source);
 	if (held == states_.end()) {
 		states_.push_back(Held{.target = target, .source = source, .state = TakeoverState{}});
 		return states_.back().state;
@@ -86,13 +86,21 @@ TakeoverState& TakeoverStore::at(const project::OwnerParamTarget& target, const 
 	return held->state;
 }
 
+const TakeoverState* TakeoverStore::find(const project::OwnerParamTarget& target,
+                                         const project::MidiCommand& source) const {
+	const auto held =
+	    std::ranges::find_if(states_, [&](const Held& h) { return h.target == target && h.source == source; });
+	return held != states_.end() ? &held->state : nullptr;
+}
+
 void TakeoverStore::relearn(const project::OwnerParamTarget& target, const project::MidiCommand& from,
                             const project::MidiCommand& to) {
 	if (from == to) {
 		return;
 	}
-	const auto old = find(target, from);
+	const auto old = locate(target, from);
 	if (old == states_.end()) {
+		forget(target, to);
 		return;
 	}
 	const TakeoverState state = old->state;

@@ -30,6 +30,7 @@
 /// and the UI globals this header exists to avoid.
 
 #include "definitions_cxx.hpp"
+#include "io/midi/mapping_index_stale.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
@@ -82,6 +83,7 @@ inline Song* make_bare_song() {
 	// the first spec that touches one. The most recently built fixture wins, which is what a spec
 	// working with one song at a time wants.
 	currentSong = song;
+	deluge::markSongChanged(); // as the app does: no state kept for the song before it is this one's
 	return song;
 }
 

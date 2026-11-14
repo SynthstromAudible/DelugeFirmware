@@ -219,6 +219,15 @@ Error LearnMapping::apply(Context& ctx) {
 	                       && std::ranges::any_of(before.entries(), [&](const deluge::project::Mapping& entry) {
 		                          return entry.target == mapping_.target && entry.source == *replaces_;
 	                          });
+	// The flag of the entry a plain learn finds already there: a learn that changes it makes the knob a new one.
+	std::optional<bool> relativeBefore;
+	if (!replacing && param != nullptr) {
+		for (const deluge::project::Mapping& entry : before.entries()) {
+			if (entry.target == mapping_.target && entry.source == mapping_.source) {
+				relativeBefore = entry.relative;
+			}
+		}
+	}
 	if (replaces_) {
 		ctx.model.mappings.relearn(*replaces_, mapping_);
 	}
@@ -231,8 +240,19 @@ Error LearnMapping::apply(Context& ctx) {
 	                            : deluge::bridge::projectMapping(ctx.song, mapping_.target);
 	const Error result = project(ctx, projected, std::move(before));
 	if (result == Error::NONE) {
-		if (replacing && &ctx.song == currentSong) {
-			deluge::midi::takeoverStore().relearn(*param, *replaces_, mapping_.source);
+		// Only an engine param has a runtime knob, so no other holds a state to carry or to lose.
+		if (param != nullptr && param->param.space == deluge::project::ParamSpace::ENGINE && &ctx.song == currentSong) {
+			if (replacing) {
+				deluge::midi::takeoverStore().relearn(*param, *replaces_, mapping_.source);
+			}
+			else if (relativeBefore) {
+				for (const deluge::project::Mapping& entry : ctx.model.mappings.entries()) {
+					if (entry.target == mapping_.target && entry.source == mapping_.source
+					    && entry.relative != *relativeBefore) {
+						deluge::midi::takeoverStore().forget(*param, mapping_.source);
+					}
+				}
+			}
 		}
 		inputLearned(ctx, mapping_.target, input_);
 	}

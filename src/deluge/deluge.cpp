@@ -363,7 +363,7 @@ void setupBlankSong() {
 	(void)deluge::modulation::publishSongLanes(*preLoadedSong);
 	currentSong = preLoadedSong;
 	preLoadedSong = nullptr;
-	deluge::markMappingIndexStale(); // the index is the current song's
+	deluge::markSongChanged(); // the index and the takeover states are the current song's
 
 	AudioEngine::getReverbParamsFromSong(currentSong);
 
@@ -793,7 +793,7 @@ void deleteOldSongBeforeLoadingNew() {
 	Song* toDelete = currentSong;
 	deluge::bridge::discardPendingMappingOps(); // the table writes the render held were for the song going
 	currentSong = nullptr;
-	deluge::markMappingIndexStale(); // the index is the current song's
+	deluge::markSongChanged(); // the index and the takeover states are the current song's
 	AudioEngine::retire(toDelete);
 	AudioEngine::awaitRetired();
 }

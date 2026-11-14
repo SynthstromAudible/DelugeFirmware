@@ -22,6 +22,7 @@
 // included; refreshMappingIndex() rebuilds on the app loop before the next incoming message is matched.
 
 #include <atomic>
+#include <cstdint>
 
 namespace deluge {
 
@@ -31,12 +32,28 @@ namespace mapping_index_detail {
 inline std::atomic<bool> mapping_index_stale{false};
 /// Set when the devices a source can name changed: a device entry made or renamed, or a device plugged in or out.
 inline std::atomic<bool> mapping_devices_changed{false};
+/// Counts the times another song was made current, or none: a song freed and its successor built at the same address
+/// are told apart by it.
+inline std::atomic<uint32_t> song_generation{0};
 } // namespace mapping_index_detail
 
 /// @brief [task] [audio] Note that the current song's bindings, or what they reach, changed: the index is rebuilt
 /// before the next incoming message is matched.
 inline void markMappingIndexStale() noexcept {
 	mapping_index_detail::mapping_index_stale.store(true, std::memory_order_release);
+}
+
+/// @brief [task] [audio] Note that the current song is another one (or none): what is kept per song, the takeover
+/// state of its learned knobs, is dropped before its next use, and the index is rebuilt. Called at every assignment of
+/// the current song.
+inline void markSongChanged() noexcept {
+	mapping_index_detail::song_generation.fetch_add(1, std::memory_order_acq_rel);
+	markMappingIndexStale();
+}
+
+/// @brief How many times markSongChanged() was called.
+[[nodiscard]] inline uint32_t songGeneration() noexcept {
+	return mapping_index_detail::song_generation.load(std::memory_order_acquire);
 }
 
 /// @brief [task] [audio] Note that the devices a binding's source can name changed: before the next incoming message

@@ -22,6 +22,7 @@
 #include "processing/sound/sound_instrument.h"
 
 #include <optional>
+#include <utility>
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with locals named `it` in the project headers.
 #include "support/song_fixture.h"
@@ -108,7 +109,6 @@ describe mapping_edit("LearnMapping", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
 		const OwnerParamTarget volume{owner, patched(params::LOCAL_VOLUME)};
-		deluge::midi::takeoverStore().clear();
 		deluge::edits::learnMappingFor(cc(0, 10), volume);
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		sound.midi_knobs[0].previousPositionSaved = true;
@@ -118,7 +118,9 @@ describe mapping_edit("LearnMapping", $ {
 		expect(static_cast<int>(sound.midi_knobs.size())).to_equal(2);
 		expect(sound.midi_knobs[0].previousPositionSaved).to_be_true();
 		expect(static_cast<int>(sound.midi_knobs[0].previousPosition)).to_equal(1234);
-		expect(deluge::midi::takeoverStore().at(volume, cc(0, 10)).previous == std::optional<int32_t>{1234}).to_be_true();
+		deluge::bridge::projectOutputMappings(*f.song, *f.instrument->id()); // projected again, nothing changed
+		const deluge::controls::TakeoverState* held = std::as_const(deluge::midi::takeoverStore()).find(volume, cc(0, 10));
+		expect(held != nullptr && held->previous == std::optional<int32_t>{1234}).to_be_true();
 		expect(sound.midi_knobs[1].midiInput.equalsNoteOrCC(nullptr, 0 + IS_A_CC, 11)).to_be_true();
 	});
 
@@ -174,7 +176,6 @@ describe mapping_edit("LearnMapping", $ {
 		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
 		const OwnerParamTarget volume{owner, patched(params::LOCAL_VOLUME)};
 		const OwnerParamTarget pan{owner, patched(params::LOCAL_PAN)};
-		deluge::midi::takeoverStore().clear();
 		deluge::edits::learnMappingFor(from(cc(0, 10), MidiDeviceRef::Port::DIN), volume);
 		deluge::edits::learnMappingFor(from(cc(0, 11), MidiDeviceRef::Port::UPSTREAM_USB_1), pan);
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
@@ -195,10 +196,11 @@ describe mapping_edit("LearnMapping", $ {
 		expect(sound.midi_knobs[1].midiInput.cable == &MIDIDeviceManager::upstreamUSBMIDICable1).to_be_true();
 		expect(sound.midi_knobs[1].previousPositionSaved).to_be_true();
 		expect(static_cast<int>(sound.midi_knobs[1].previousPosition)).to_equal(222);
-		expect(deluge::midi::takeoverStore().at(volume, from(cc(0, 10), MidiDeviceRef::Port::DIN)).previous
-		       == std::optional<int32_t>{111}).to_be_true();
-		expect(deluge::midi::takeoverStore().at(pan, from(cc(0, 11), MidiDeviceRef::Port::UPSTREAM_USB_1)).previous
-		       == std::optional<int32_t>{222}).to_be_true();
+		const auto& store = std::as_const(deluge::midi::takeoverStore());
+		const auto* first = store.find(volume, from(cc(0, 10), MidiDeviceRef::Port::DIN));
+		const auto* second = store.find(pan, from(cc(0, 11), MidiDeviceRef::Port::UPSTREAM_USB_1));
+		expect(first != nullptr && first->previous == std::optional<int32_t>{111}).to_be_true();
+		expect(second != nullptr && second->previous == std::optional<int32_t>{222}).to_be_true();
 	});
 
 	it("projects a command's device onto its cable", _ {

@@ -1575,8 +1575,9 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 	Song* const outgoing = currentSong;
 	deluge::bridge::discardPendingMappingOps(); // the table writes the render held were for the song going
 	currentSong = preLoadedSong;
-	// The index is the current song's. A swap may run on the song's tick, so the rebuild waits for the app loop.
-	deluge::markMappingIndexStale();
+	// The index and the takeover states are the current song's. A swap may run on the song's tick, so the app loop
+	// acts on it.
+	deluge::markSongChanged();
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	preLoadedSong = nullptr;
 
