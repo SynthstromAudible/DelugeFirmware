@@ -1,6 +1,7 @@
 #include "effects/compressor.h"
 
 #include "dsp-next/fixed/dynamics/rms_feedback_compressor.h"
+#include "support/printers/compressor_knobs_printer.h"
 
 #include <cppspec.hpp>
 #include <cstdint>

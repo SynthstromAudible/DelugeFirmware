@@ -1,6 +1,9 @@
 #include "effect_test_states.h"
 #include "effects/plugin.h"
 #include "plugin-api/state_handle.h"
+#include "support/printers/plugin_id_printer.h"
+#include "support/printers/state_handle_printer.h"
+#include "support/printers/value_printer.h"
 
 #include <cppspec.hpp>
 #include <ostream>

@@ -1,4 +1,5 @@
 #include "effects/settings.h"
+#include "support/printers/value_printer.h"
 
 #include <cppspec.hpp>
 #include <string>

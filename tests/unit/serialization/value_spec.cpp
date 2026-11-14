@@ -1,4 +1,5 @@
 #include "serialization/value.h"
+#include "support/printers/value_printer.h"
 #include <cppspec.hpp>
 
 // clang-format off

@@ -1,5 +1,6 @@
 #include "plugin-api/types/plugin_id.h"
 #include "plugin-api/types/sync.h"
+#include "support/printers/plugin_id_printer.h"
 
 #include <cppspec.hpp>
 

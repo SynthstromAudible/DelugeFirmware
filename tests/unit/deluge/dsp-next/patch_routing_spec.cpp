@@ -19,6 +19,7 @@
 #include "synth/modulation/patch_routing.h"
 
 #include "modulation/params/param.h"
+#include "support/printers/cable_target_printer.h"
 
 #include <cppspec.hpp>
 #include <utility>

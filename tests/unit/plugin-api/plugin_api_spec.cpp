@@ -1,4 +1,5 @@
 #include "plugin-api/plugin.h"
+#include "support/printers/plugin_result_printer.h"
 
 #include <cppspec.hpp>
 

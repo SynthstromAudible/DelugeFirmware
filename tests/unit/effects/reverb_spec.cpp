@@ -25,6 +25,7 @@
 #include "reverb_kernel_views.h"
 #include "reverb_workload_records.h"
 #include "reverb_workloads.h"
+#include "support/printers/reverb_knobs_printer.h"
 
 #include <algorithm>
 #include <array>

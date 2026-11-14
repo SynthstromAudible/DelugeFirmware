@@ -18,10 +18,10 @@
 #pragma once
 
 #include "plugin-api/state_handle.h"
-#include "serialization/write_json.h"
+#include "support/printers/plugin_id_printer.h"
+#include "support/printers/value_printer.h"
 
 #include <ostream>
-#include <string>
 
 /// @file
 /// @brief Prints a plugin's state in a failed CppSpec comparison, alone or as a field of a record that holds one.
@@ -42,19 +42,7 @@ inline std::ostream& operator<<(std::ostream& os, const StateHandle& h) {
 	if (!h.has_value()) {
 		return os << "empty";
 	}
-	std::string json;
-	for (const char c : serialization::write_json(h.encode(CodecContext{}))) {
-		if (c == '\n') {
-			json += ' ';
-		}
-		else if (c != '\t') {
-			json += c;
-		}
-	}
-	while (!json.empty() && json.back() == ' ') {
-		json.pop_back();
-	}
-	return os << "{plugin \"" << h.plugin().name << "\", state " << json << "}";
+	return os << "{plugin " << h.plugin() << ", state " << h.encode(CodecContext{}) << "}";
 }
 
 } // namespace deluge::plugin

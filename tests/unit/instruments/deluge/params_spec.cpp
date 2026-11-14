@@ -1,4 +1,5 @@
 #include "instruments/deluge/params.h"
+#include "support/printers/runtime_slot_printer.h"
 
 #include <algorithm>
 #include <array>

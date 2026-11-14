@@ -3,6 +3,7 @@
 #include "plugin-api/types/setting.h"
 #include "plugin-api/types/sync.h"
 #include "serialization/tree.h"
+#include "support/printers/sound_state_printer.h"
 #include "support/state_matrix.h"
 
 #include <algorithm>
@@ -15,19 +16,6 @@
 
 using namespace deluge::instrument;
 using deluge::serialization::Value;
-
-namespace deluge::instrument {
-/// A state, printed as its dump, so a failing comparison shows it.
-std::ostream& operator<<(std::ostream& out, const SoundState& state) {
-	return out << deluge::serialization::first_difference(dump_state(state), Value::makeMap());
-}
-
-/// A range, printed as its fields, so a failing comparison of range lists shows it.
-std::ostream& operator<<(std::ostream& out, const RangeState& range) {
-	return out << "{top " << range.top_note << " " << range.file_path << " " << range.start_pos << "-" << range.end_pos
-	           << "}";
-}
-} // namespace deluge::instrument
 
 namespace {
 
@@ -49,7 +37,7 @@ void set_leaf(Value& tree, std::string_view path, Value leaf) {
 
 /// The paths a menu reshapes more than its own leaf for (the bridge's stateWithSetting writes them).
 bool reshapes(std::string_view path) {
-	return path == "mode" || path.ends_with("/type") && path.starts_with("osc") || path.ends_with("/loopMode");
+	return path == "mode" || (path.ends_with("/type") && path.starts_with("osc")) || path.ends_with("/loopMode");
 }
 
 /// Where with_setting and the decode of the whole slot with the leaf changed disagree, over every state of the matrix,

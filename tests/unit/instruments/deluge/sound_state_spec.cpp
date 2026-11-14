@@ -1,4 +1,5 @@
 #include "instruments/deluge/sound_state.h"
+#include "support/printers/sound_state_printer.h"
 
 #include <cppspec.hpp>
 

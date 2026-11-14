@@ -5,6 +5,8 @@
 #include "plugin-api/types/setting.h"
 #include "plugin-api/types/voice_priority.h"
 #include "serialization/tree.h"
+#include "support/printers/plugin_result_printer.h"
+#include "support/printers/value_printer.h"
 
 #include <algorithm>
 #include <array>

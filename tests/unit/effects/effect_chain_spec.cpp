@@ -2,6 +2,7 @@
 #include "effects/chain.h"
 #include "serialization/parse_xml.h"
 #include "serialization/tree.h"
+#include "support/printers/chain_view_printer.h"
 
 #include <cppspec.hpp>
 #include <string>

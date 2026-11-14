@@ -1,4 +1,5 @@
 #include "instruments/deluge/cables.h"
+#include "support/printers/cable_route_printer.h"
 
 #include <cppspec.hpp>
 

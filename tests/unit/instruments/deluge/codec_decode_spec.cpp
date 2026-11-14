@@ -2,6 +2,7 @@
 #include "serialization/parse_json.h"
 #include "serialization/parse_xml.h"
 #include "serialization/tree.h"
+#include "support/printers/plugin_result_printer.h"
 
 #include <cppspec.hpp>
 #include <fstream>

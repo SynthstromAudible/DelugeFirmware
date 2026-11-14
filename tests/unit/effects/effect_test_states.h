@@ -4,7 +4,7 @@
 // failing comparison uses.
 
 #include "effects/codec.h"
-#include "serialization/tree.h"
+#include "support/printers/effect_states_printer.h"
 
 #include <ostream>
 
@@ -38,11 +38,6 @@ inline EffectStates busy() {
 } // namespace deluge::effects::testing
 
 namespace deluge::effects {
-/// States, printed as their encoding, so a failing comparison shows them.
-inline std::ostream& operator<<(std::ostream& out, const EffectStates& states) {
-	return out << serialization::first_difference(encode(states, testing::kAtOne), serialization::Value::makeMap());
-}
-
 /// A delay's state, printed field by field.
 inline std::ostream& operator<<(std::ostream& out, const DelayState& delay) {
 	return out << "{pingPong " << delay.ping_pong << " type " << to_string(delay.type) << " syncType "

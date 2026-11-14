@@ -2,6 +2,7 @@
 #include "instruments/deluge/params.h"
 #include "serialization/parse_xml.h"
 #include "serialization/tree.h"
+#include "support/printers/cable_route_printer.h"
 
 #include <cppspec.hpp>
 #include <fstream>
