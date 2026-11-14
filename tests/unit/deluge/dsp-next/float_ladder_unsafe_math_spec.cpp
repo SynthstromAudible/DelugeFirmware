@@ -18,3 +18,5 @@
 // The float ladder spec under the firmware's float flags (-O2 -funsafe-math-optimizations;
 // tests/unit/deluge/dsp-next/CMakeLists.txt).
 #include "float_ladder_spec.cpp" // NOLINT(bugprone-suspicious-include)
+
+DELUGE_SPEC(float_ladder_unsafe_math_spec, float_ladder_spec_body)

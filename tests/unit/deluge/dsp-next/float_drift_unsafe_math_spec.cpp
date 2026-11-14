@@ -18,3 +18,5 @@
 // The float drift spec under the firmware's float flags (-O2 -funsafe-math-optimizations;
 // tests/unit/deluge/dsp-next/CMakeLists.txt).
 #include "float_drift_spec.cpp" // NOLINT(bugprone-suspicious-include)
+
+DELUGE_SPEC(float_drift_unsafe_math_spec, float_drift_spec_body)

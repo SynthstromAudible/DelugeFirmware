@@ -28,6 +28,8 @@
 #include <cstdint>
 #include <random>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 // The spec's own float arithmetic rounds as written, as the pack's does, so its twin built with the device's float
@@ -193,7 +195,7 @@ void pack_specs(auto& self) {
 } // namespace
 
 // clang-format off
-describe pack_f32_spec("Pack<f32, N>", ${
+describe pack_f32_spec_body("Pack<f32, N>", ${
 	fp::FlushToZero ftz;
 	it("flushes a denormal to zero in the scalar reference", _ {
 		volatile f32 tiny = 1e-30f;
@@ -223,4 +225,4 @@ describe pack_f32_spec("Pack<f32, N>", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(pack_f32_spec);
+DELUGE_SPEC(pack_f32_spec, pack_f32_spec_body)

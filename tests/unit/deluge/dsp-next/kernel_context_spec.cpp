@@ -9,6 +9,8 @@
 #include <span>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 using deluge::dsp::fixed::Cong;
 
@@ -116,4 +118,4 @@ describe kernel_context("a kernel's per-block context", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(kernel_context);
+DELUGE_SPEC(kernel_context_spec, kernel_context)

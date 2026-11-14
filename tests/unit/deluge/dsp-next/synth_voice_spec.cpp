@@ -14,11 +14,13 @@
 #include <cstdint>
 #include <memory>
 
+#include "support/spec_main.h"
+
 using namespace deluge::synth;
 using namespace deluge::synth::test;
 
 // clang-format off
-describe synth_voice_spec("synth::Voice", ${
+describe synth_voice_spec_body("synth::Voice", ${
 	it("plays a virtual-analog note and releases it to silence", _{
 		auto rig = std::make_unique<Rig>();
 		const NoteSetup setup = note_setup(OscType::SAW);
@@ -109,4 +111,4 @@ describe synth_voice_spec("synth::Voice", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(synth_voice_spec);
+DELUGE_SPEC(synth_voice_spec, synth_voice_spec_body)

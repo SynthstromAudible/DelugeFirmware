@@ -25,12 +25,14 @@
 #include <cppspec.hpp>
 #include <cstdint>
 
+#include "support/spec_main.h"
+
 using deluge::dsp::Q;
 using deluge::dsp::fixed::kTanTable;
 using deluge::dsp::test::raw_curves::instant_tan;
 
 // clang-format off
-describe instant_tan_spec("instant_tan", ${
+describe instant_tan_spec_body("instant_tan", ${
 	it("gives a Q28 tangent of a Q31 angle", _ {
 		expect(deluge::dsp::fixed::instant_tan(Q<31>::from_raw(1 << 29)).raw()).to_equal(101039870);
 	});
@@ -58,4 +60,4 @@ describe instant_tan_spec("instant_tan", ${
 	});
 });
 
-CPPSPEC_MAIN(instant_tan_spec);
+DELUGE_SPEC(instant_tan_spec, instant_tan_spec_body)

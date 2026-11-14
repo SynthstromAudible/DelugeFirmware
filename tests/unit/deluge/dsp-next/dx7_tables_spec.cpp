@@ -8,10 +8,12 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "support/spec_main.h"
+
 namespace dx7 = deluge::dsp::fixed::dx7;
 
 // clang-format off
-describe dx7_tables_spec("dx7::Tables", ${
+describe dx7_tables_spec_body("dx7::Tables", ${
 	static dx7::Tables tables;
 	static dx7_reference::Tables reference;
 	dx7::generate(tables);
@@ -63,4 +65,4 @@ describe dx7_tables_spec("dx7::Tables", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(dx7_tables_spec);
+DELUGE_SPEC(dx7_tables_spec, dx7_tables_spec_body)

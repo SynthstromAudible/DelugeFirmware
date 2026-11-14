@@ -41,6 +41,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 // The spec's own float arithmetic rounds as written, as the kernels' does, so its twin built with the device's float
@@ -155,7 +157,7 @@ static_assert(processor_kernel<NoFields> && !poly_kernel<NoFields>);
 static_assert(!poly_kernel<fixed::OnePole>);
 
 // clang-format off
-describe float_kernels_spec("float kernels", ${
+describe float_kernels_spec_body("float kernels", ${
 	context("OnePole", _ {
 		it("clamps a NaN cutoff to the lowest one", _ {
 			const auto c = fp::OnePole::coefficients({.cutoff = std::nanf(""), .mode = fp::OnePole::Mode::LOW_PASS});
@@ -466,4 +468,4 @@ describe float_kernels_spec("float kernels", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(float_kernels_spec);
+DELUGE_SPEC(float_kernels_spec, float_kernels_spec_body)

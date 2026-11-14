@@ -27,6 +27,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using deluge::dsp::fixed::curve_frequency;
 
 namespace {
@@ -59,7 +61,7 @@ std::size_t partings(const std::vector<int32_t>& frequencies) {
 } // namespace
 
 // clang-format off
-describe curve_frequency_spec("curve_frequency", ${
+describe curve_frequency_spec_body("curve_frequency", ${
 	it("warps every 2^16th cutoff and the edges as the legacy warp does", _ {
 		expect(partings(cutoffs())).to_equal(std::size_t{0});
 	});
@@ -77,4 +79,4 @@ describe curve_frequency_spec("curve_frequency", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(curve_frequency_spec);
+DELUGE_SPEC(curve_frequency_spec, curve_frequency_spec_body)

@@ -35,6 +35,8 @@
 #include <span>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 // The spec's own float arithmetic rounds as written, as the kernels' does, so its twin built with the device's float
@@ -69,7 +71,7 @@ namespace {
 } // namespace
 
 // clang-format off
-describe float_oscillators_spec("float oscillators", ${
+describe float_oscillators_spec_body("float oscillators", ${
 	fp::FlushToZero ftz;
 	context("BlepOscillator", _ {
 		it("is DC-free over whole cycles", _ {
@@ -245,4 +247,4 @@ describe float_oscillators_spec("float oscillators", ${
 	});
 });
 // clang-format on
-CPPSPEC_MAIN(float_oscillators_spec);
+DELUGE_SPEC(float_oscillators_spec, float_oscillators_spec_body)

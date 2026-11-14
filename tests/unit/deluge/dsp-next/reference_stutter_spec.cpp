@@ -28,6 +28,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 
 namespace sw = stutter_workloads;
@@ -111,4 +113,4 @@ describe reference_stutter("the stutter reference", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(reference_stutter);
+DELUGE_SPEC(reference_stutter_spec, reference_stutter)

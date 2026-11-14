@@ -41,6 +41,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
 
@@ -182,4 +184,4 @@ describe fade_in("FadeIn", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(fade_in);
+DELUGE_SPEC(fade_in_spec, fade_in)

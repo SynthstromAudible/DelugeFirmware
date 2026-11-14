@@ -13,6 +13,8 @@
 #include <tuple>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace dx7 = deluge::dsp::fixed::dx7;
 using deluge::dsp::Control;
 
@@ -52,7 +54,7 @@ std::vector<dx7_reference::EnvParams> parameter_sets() {
 } // namespace
 
 // clang-format off
-describe dx7_envelope_spec("dx7::Envelope", ${
+describe dx7_envelope_spec_body("dx7::Envelope", ${
 	it("starts, retunes, releases and follows an edit as the reference over every block length", _ {
 		const auto expect_state = [&](const dx7::Envelope::State& s, const dx7_reference::Env& reference) {
 			expect(s.level.raw()).to_equal(reference.level_);
@@ -122,4 +124,4 @@ describe dx7_envelope_spec("dx7::Envelope", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(dx7_envelope_spec);
+DELUGE_SPEC(dx7_envelope_spec, dx7_envelope_spec_body)

@@ -18,3 +18,5 @@
 // tests/unit/deluge/dsp-next/CMakeLists.txt): the headers pin their own arithmetic, so every result must still match
 // bit for bit.
 #include "bank_spec.cpp" // NOLINT(bugprone-suspicious-include)
+
+DELUGE_SPEC(bank_unsafe_math_spec, bank_spec_body)

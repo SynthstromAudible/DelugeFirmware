@@ -42,6 +42,8 @@
 #include <utility>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 namespace {
@@ -878,7 +880,7 @@ std::size_t event_mismatches_at_every_width() {
 }
 
 // clang-format off
-describe linked_spec("Linked<K, N>", ${
+describe linked_spec_body("Linked<K, N>", ${
 	it("equals N Monos of a gain, bit for bit", _ {
 		const Mismatches m = at_every_width<Gain>({.gain = q31::from_raw(0x30000000)}, {.gain = q31::from_raw(0x7fffffff)});
 		expect(m.samples).to_equal(std::size_t{0});
@@ -1360,4 +1362,4 @@ describe lanes_events("Linked::on", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(linked_spec, lanes_events);
+DELUGE_SPEC(linked_spec, linked_spec_body, lanes_events)

@@ -20,6 +20,8 @@
 #include <limits>
 #include <span>
 
+#include "support/spec_main.h"
+
 namespace dx7 = deluge::dsp::fixed::dx7;
 namespace dp = dx7_asm_pin;
 using deluge::dsp::Q;
@@ -42,7 +44,7 @@ const dx7_reference::Tables& tables_as_reference() {
 } // namespace
 
 // clang-format off
-describe dx7_modern_vector_operator_spec("dx7::ModernVectorOperator", ${
+describe dx7_modern_vector_operator_spec_body("dx7::ModernVectorOperator", ${
 	static dx7::Tables tables;
 	dx7::generate(tables);
 
@@ -131,4 +133,4 @@ describe dx7_modern_vector_operator_spec("dx7::ModernVectorOperator", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(dx7_modern_vector_operator_spec);
+DELUGE_SPEC(dx7_modern_vector_operator_spec, dx7_modern_vector_operator_spec_body)

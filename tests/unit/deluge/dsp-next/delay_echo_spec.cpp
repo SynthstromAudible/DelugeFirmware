@@ -36,6 +36,8 @@
 #include <tuple>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::DelayBlock;
 using deluge::dsp::fixed::DelayTape;
@@ -218,4 +220,4 @@ describe delay_echo("Delay echoes", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(delay_echo);
+DELUGE_SPEC(delay_echo_spec, delay_echo)

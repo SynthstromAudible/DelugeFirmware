@@ -5,6 +5,8 @@
 #include <cppspec.hpp>
 #include <cstdint>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp::fixed;
 
 namespace {
@@ -43,4 +45,4 @@ describe dsp_tables("dsp-next's lookup tables", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(dsp_tables);
+DELUGE_SPEC(dsp_tables_spec, dsp_tables)

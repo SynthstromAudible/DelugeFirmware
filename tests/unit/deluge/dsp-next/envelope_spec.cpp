@@ -26,6 +26,8 @@
 #include <cppspec.hpp>
 #include <cstdint>
 
+#include "support/spec_main.h"
+
 namespace {
 using Stage = Envelope::Stage;
 
@@ -55,7 +57,7 @@ int32_t driveUntil(Envelope& env, Stage target, uint32_t attack, uint32_t decay,
 } // namespace
 
 // clang-format off
-describe envelope_spec("Envelope", ${
+describe envelope_spec_body("Envelope", ${
 	it("starts a note at the bottom of the attack stage", _ {
 		Envelope env;
 		env.note_on(false);
@@ -141,4 +143,4 @@ describe envelope_spec("Envelope", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(envelope_spec);
+DELUGE_SPEC(envelope_spec, envelope_spec_body)

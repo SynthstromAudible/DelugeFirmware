@@ -38,6 +38,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
 using namespace effects_workloads;
@@ -80,7 +82,7 @@ std::vector<int32_t> values() {
 } // namespace
 
 // clang-format off
-describe bitcrush_kernels_spec("the bitcrush as a bit-depth kernel and a sample-rate reducer", ${
+describe bitcrush_kernels_spec_body("the bitcrush as a bit-depth kernel and a sample-rate reducer", ${
 	it("equals the frozen bitcrush across both params", _ {
 		const std::vector<int32_t> vs = values();
 		for (const int32_t crush : vs) {
@@ -133,4 +135,4 @@ describe bitcrush_kernels_spec("the bitcrush as a bit-depth kernel and a sample-
 });
 // clang-format on
 
-CPPSPEC_MAIN(bitcrush_kernels_spec);
+DELUGE_SPEC(bitcrush_kernels_spec, bitcrush_kernels_spec_body)

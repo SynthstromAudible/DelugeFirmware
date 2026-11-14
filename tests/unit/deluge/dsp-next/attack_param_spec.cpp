@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <limits>
 
+#include "support/spec_main.h"
+
 namespace params = deluge::modulation::params;
 
 namespace {
@@ -31,4 +33,4 @@ describe attack_param("an envelope attack's final value", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(attack_param);
+DELUGE_SPEC(attack_param_spec, attack_param)

@@ -43,6 +43,8 @@
 #include <utility>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using deluge::dsp::Q;
 using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::DelayBlock;
@@ -614,4 +616,4 @@ describe delay_processor("DelayProcessor", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(delay_processor);
+DELUGE_SPEC(delay_processor_spec, delay_processor)

@@ -23,6 +23,8 @@
 #include <cppspec.hpp>
 #include <cstdint>
 
+#include "support/spec_main.h"
+
 using deluge::dsp::fixed::pan_amplitudes;
 
 namespace reference {
@@ -44,7 +46,7 @@ constexpr PanAmplitudes pan_amplitudes(int32_t pan) {
 } // namespace reference
 
 // clang-format off
-describe pan_spec("pan_amplitudes", ${
+describe pan_spec_body("pan_amplitudes", ${
 	it("leaves both channels at unity in the centre", _ {
 		expect(pan_amplitudes(deluge::dsp::Q<31>::from_raw(0)).left.raw()).to_equal(1073741823);
 		expect(pan_amplitudes(deluge::dsp::Q<31>::from_raw(0)).right.raw()).to_equal(1073741823);
@@ -77,4 +79,4 @@ describe pan_spec("pan_amplitudes", ${
 	});
 });
 
-CPPSPEC_MAIN(pan_spec);
+DELUGE_SPEC(pan_spec, pan_spec_body)

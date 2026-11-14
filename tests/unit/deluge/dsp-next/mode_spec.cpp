@@ -3,6 +3,8 @@
 #include <cppspec.hpp>
 #include <cstdint>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 namespace {
@@ -95,4 +97,4 @@ describe mode("per-block mode dispatch", ${
 	});
 });
 
-CPPSPEC_MAIN(mode);
+DELUGE_SPEC(mode_spec, mode)

@@ -45,6 +45,8 @@
 #include <utility>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 
 namespace fixed = deluge::dsp::fixed;
@@ -445,4 +447,4 @@ describe verbatim_filters("the filters' verbatim references", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(verbatim_filters);
+DELUGE_SPEC(filters_reference_spec, verbatim_filters)

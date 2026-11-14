@@ -37,6 +37,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
 
@@ -105,7 +107,7 @@ constexpr std::array<std::size_t, 6> kLengths{1, 2, 3, 7, 64, 129};
 } // namespace
 
 // clang-format off
-describe shift_tracker_spec("ShiftTracker", ${
+describe shift_tracker_spec_body("ShiftTracker", ${
 	it("takes the difference after the update", _ {
 		constexpr int32_t x = int32_t{1} << 20;
 		Blocker::State track{};
@@ -198,4 +200,4 @@ describe shift_tracker_spec("ShiftTracker", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(shift_tracker_spec);
+DELUGE_SPEC(shift_tracker_spec, shift_tracker_spec_body)

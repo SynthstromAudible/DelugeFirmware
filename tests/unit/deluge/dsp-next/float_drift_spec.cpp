@@ -29,6 +29,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 namespace {
@@ -83,7 +85,7 @@ constexpr std::size_t kLong = 100000;
 } // namespace
 
 // clang-format off
-describe float_drift_spec("fp::Drift", ${
+describe float_drift_spec_body("fp::Drift", ${
 	it("draws uniformly over [−1, 1] at time 1: mean 0, variance 1/3", _ {
 		fp::FlushToZero ftz;
 		fp::Drift drift;
@@ -159,4 +161,4 @@ describe float_drift_spec("fp::Drift", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(float_drift_spec);
+DELUGE_SPEC(float_drift_spec, float_drift_spec_body)

@@ -18,6 +18,8 @@
 #include <cstdint>
 #include <span>
 
+#include "support/spec_main.h"
+
 namespace dx7 = deluge::dsp::fixed::dx7;
 using deluge::dsp::Q;
 using deluge::dsp::typed_view;
@@ -200,7 +202,7 @@ struct AsmCores {
 } // namespace
 
 // clang-format off
-describe dx7_graph_spec("dx7::Graph", ${
+describe dx7_graph_spec_body("dx7::Graph", ${
 	it("renders every workload's every block as the reference core does from the same inputs", _ {
 		mismatches() = 0;
 		std::size_t blocks = 0;
@@ -252,4 +254,4 @@ describe dx7_graph_spec("dx7::Graph", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(dx7_graph_spec);
+DELUGE_SPEC(dx7_graph_spec, dx7_graph_spec_body)

@@ -24,6 +24,8 @@
 #include <cstdint>
 #include <type_traits>
 
+#include "support/spec_main.h"
+
 namespace matrix = deluge::synth::matrix;
 namespace params = deluge::modulation::params;
 using deluge::dsp::Q;
@@ -49,7 +51,7 @@ std::array<int32_t, params::kNumParams> numbered_words() {
 } // namespace
 
 // clang-format off
-describe param_format_spec("each param's format", ${
+describe param_format_spec_body("each param's format", ${
 	it("reads each param's own word, in its format", _ {
 		const auto words = numbered_words();
 		expect(matrix::param_value<params::LOCAL_PAN>(words).raw()).to_equal(words[params::LOCAL_PAN]);
@@ -76,4 +78,4 @@ describe param_format_spec("each param's format", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(param_format_spec);
+DELUGE_SPEC(param_format_spec, param_format_spec_body)

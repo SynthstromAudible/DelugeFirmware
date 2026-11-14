@@ -48,6 +48,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
 using deluge::bench::reference::ReferenceImpulseResponse;
@@ -307,4 +309,4 @@ describe feedback_shaper("FeedbackShaper", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(feedback_shaper);
+DELUGE_SPEC(feedback_shaper_spec, feedback_shaper)

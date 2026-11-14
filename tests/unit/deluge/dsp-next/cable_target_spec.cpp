@@ -15,6 +15,8 @@
 #include <cppspec.hpp>
 #include <cstdint>
 
+#include "support/spec_main.h"
+
 using deluge::synth::CableTarget;
 using deluge::synth::PatchSource;
 using Reference = param_descriptor_reference::ParamDescriptorReference;
@@ -73,7 +75,7 @@ int32_t read_mismatches(uint32_t word) {
 } // namespace
 
 // clang-format off
-describe cable_target_spec("synth::CableTarget", ${
+describe cable_target_spec_body("synth::CableTarget", ${
 	it("builds the words the reference's setters build", _ {
 		int32_t bad = 0;
 		for (uint32_t p = 0; p < 256; ++p) {
@@ -106,4 +108,4 @@ describe cable_target_spec("synth::CableTarget", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(cable_target_spec);
+DELUGE_SPEC(cable_target_spec, cable_target_spec_body)

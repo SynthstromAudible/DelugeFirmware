@@ -33,6 +33,8 @@
 #include <span>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 using deluge::dsp::Q;
 using deluge::dsp::Ramp;
@@ -289,4 +291,4 @@ describe supersaw("the dsp-next supersaw", ${
 	});
 });
 
-CPPSPEC_MAIN(supersaw);
+DELUGE_SPEC(supersaw_spec, supersaw)

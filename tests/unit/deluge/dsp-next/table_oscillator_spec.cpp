@@ -30,6 +30,8 @@
 #include <cstdint>
 #include <cstring>
 
+#include "support/spec_main.h"
+
 namespace reference {
 using deluge::dsp::Phasor;
 using deluge::dsp::UQ;
@@ -171,4 +173,4 @@ describe table_oscillator("deluge::dsp::fixed TableOscillator", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(table_oscillator);
+DELUGE_SPEC(table_oscillator_spec, table_oscillator)

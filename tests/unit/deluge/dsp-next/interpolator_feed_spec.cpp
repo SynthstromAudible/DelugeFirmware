@@ -28,6 +28,8 @@
 #include <random>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 using deluge::dsp::fixed::Interpolator;
 using Window = Interpolator::Window;
@@ -378,4 +380,4 @@ describe interpolator_feed("deluge::dsp::fixed Interpolator feeds", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(interpolator_feed);
+DELUGE_SPEC(interpolator_feed_spec, interpolator_feed)

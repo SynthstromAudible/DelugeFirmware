@@ -30,6 +30,8 @@
 #include <span>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 
 namespace sw = stutter_workloads;
@@ -131,4 +133,4 @@ describe stutter_kernel("the Stutter kernel", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(stutter_kernel);
+DELUGE_SPEC(stutter_kernel_spec, stutter_kernel)

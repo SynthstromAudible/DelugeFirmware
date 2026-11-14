@@ -17,3 +17,5 @@
 // The float envelope spec under the fused policy (-mfma on the x86 host; tests/unit/deluge/dsp-next/CMakeLists.txt sets
 // it).
 #include "float_envelope_spec.cpp" // NOLINT(bugprone-suspicious-include)
+
+DELUGE_SPEC(float_envelope_fused_spec, float_envelope_spec_body)

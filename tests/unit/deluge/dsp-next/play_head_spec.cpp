@@ -36,6 +36,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 namespace pw = pitch_shift_workloads;
 namespace ref = deluge::dsp::test::reference_pitch_shift;
@@ -184,4 +186,4 @@ describe play_head("deluge::dsp::fixed::pitch_shift::PlayHead", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(play_head);
+DELUGE_SPEC(play_head_spec, play_head)

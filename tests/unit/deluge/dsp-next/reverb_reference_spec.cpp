@@ -6,6 +6,8 @@
 #include <cppspec.hpp>
 #include <tuple>
 
+#include "support/spec_main.h"
+
 namespace {
 namespace rw = reverb_workloads;
 } // namespace
@@ -46,4 +48,4 @@ describe reverb_reference("the reverb reference", ${
 	});
 });
 // clang-format on
-CPPSPEC_MAIN(reverb_reference);
+DELUGE_SPEC(reverb_reference_spec, reverb_reference)

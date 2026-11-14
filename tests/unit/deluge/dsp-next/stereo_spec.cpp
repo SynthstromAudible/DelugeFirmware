@@ -16,6 +16,8 @@
 #include <utility>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 namespace {
@@ -411,4 +413,4 @@ describe stereo("stereo frames and Stereo<K>", ${
 	});
 });
 
-CPPSPEC_MAIN(stereo);
+DELUGE_SPEC(stereo_spec, stereo)

@@ -11,6 +11,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 using deluge::dsp::fp::PlateLfo;
 namespace ref = deluge::dsp::test::reverb_ref;
@@ -112,4 +114,4 @@ describe plate_lfo("the plate's LFO pair", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(plate_lfo);
+DELUGE_SPEC(plate_lfo_spec, plate_lfo)

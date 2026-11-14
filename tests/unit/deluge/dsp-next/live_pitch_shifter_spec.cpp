@@ -45,6 +45,8 @@
 #include <tuple>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 
 namespace golden = deluge::test::golden;
@@ -193,4 +195,4 @@ describe live_pitch_shifter("deluge::synth::LivePitchShifter", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(live_pitch_shifter);
+DELUGE_SPEC(live_pitch_shifter_spec, live_pitch_shifter)

@@ -28,6 +28,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 using deluge::dsp::fixed::kLinearTableInterpolator;
 using deluge::dsp::fixed::quick_log;
@@ -137,4 +139,4 @@ describe pitch_shift_tuning("deluge::dsp::fixed::pitch_shift::PitchShiftTuning",
 });
 // clang-format on
 
-CPPSPEC_MAIN(pitch_shift_tuning);
+DELUGE_SPEC(pitch_shift_tuning_spec, pitch_shift_tuning)

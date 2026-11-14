@@ -37,6 +37,8 @@
 #include <tuple>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp::fixed;
 using deluge::dsp::Q;
 using deluge::dsp::StereoSample;
@@ -922,4 +924,4 @@ describe rms_feedback_compressor("RmsFeedbackCompressor", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(rms_feedback_compressor);
+DELUGE_SPEC(rms_feedback_compressor_spec, rms_feedback_compressor)

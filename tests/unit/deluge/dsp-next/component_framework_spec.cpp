@@ -28,6 +28,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 namespace {
@@ -380,4 +382,4 @@ describe component_framework("the component mixins, AsBlock and control_generato
 	});
 });
 
-CPPSPEC_MAIN(component_framework);
+DELUGE_SPEC(component_framework_spec, component_framework)

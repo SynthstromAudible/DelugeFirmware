@@ -28,6 +28,8 @@
 #include <tuple>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using deluge::dsp::Q;
 using deluge::dsp::typed_view;
 using namespace deluge::dsp::fixed;
@@ -578,4 +580,4 @@ describe filter_set("FilterSet", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(filter_set);
+DELUGE_SPEC(filter_set_spec, filter_set)

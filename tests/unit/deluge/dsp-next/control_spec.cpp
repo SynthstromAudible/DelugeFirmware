@@ -28,6 +28,8 @@
 #include <type_traits>
 #include <utility>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 namespace {
@@ -311,4 +313,4 @@ describe control("Control", ${
 	});
 });
 
-CPPSPEC_MAIN(control);
+DELUGE_SPEC(control_spec, control)

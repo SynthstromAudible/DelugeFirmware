@@ -20,4 +20,6 @@
 #define TWIDDLES_SHIPPING 1
 #include "twiddles_body.h" // NOLINT(bugprone-suspicious-include)
 
-CPPSPEC_MAIN(twiddles);
+#include "support/spec_main.h"
+
+DELUGE_SPEC(twiddles_shipping_spec, twiddles)

@@ -47,6 +47,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
 using deluge::bench::reference::ReferenceImpulseResponse;
@@ -395,4 +397,4 @@ describe analog_impulse_response("AnalogImpulseResponse", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(analog_impulse_response);
+DELUGE_SPEC(analog_impulse_response_spec, analog_impulse_response)

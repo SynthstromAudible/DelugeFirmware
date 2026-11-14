@@ -19,6 +19,8 @@
 #include <cstdint>
 #include <type_traits>
 
+#include "support/spec_main.h"
+
 using deluge::dsp::Q;
 using deluge::dsp::Ramp;
 
@@ -36,4 +38,4 @@ describe ramp("deluge::dsp::Ramp", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(ramp);
+DELUGE_SPEC(ramp_spec, ramp)

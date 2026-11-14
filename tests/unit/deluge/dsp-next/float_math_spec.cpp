@@ -23,6 +23,8 @@
 #include <cppspec.hpp>
 #include <numbers>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 namespace {
@@ -38,7 +40,7 @@ double worst_exp_error(double lo, double hi, double ratio) {
 } // namespace
 
 // clang-format off
-describe float_math_spec("float math", ${
+describe float_math_spec_body("float math", ${
 	context("exp_negative", _ {
 		it("matches std::exp within 1e-14 relative on (0, 1]", _ {
 			expect(worst_exp_error(1e-9, 1.0, 1.0007) < 1e-14).to_be_true();
@@ -81,4 +83,4 @@ describe float_math_spec("float math", ${
 	});
 });
 // clang-format on
-CPPSPEC_MAIN(float_math_spec);
+DELUGE_SPEC(float_math_spec, float_math_spec_body)

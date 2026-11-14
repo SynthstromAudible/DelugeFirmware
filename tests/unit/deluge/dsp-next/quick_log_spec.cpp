@@ -23,10 +23,12 @@
 #include <cppspec.hpp>
 #include <cstdint>
 
+#include "support/spec_main.h"
+
 using deluge::dsp::fixed::quick_log;
 
 // clang-format off
-describe quick_log_spec("quick_log", ${
+describe quick_log_spec_body("quick_log", ${
 	it("steps by 2^25 per octave", _ {
 		expect(quick_log(1)).to_equal(67108864);
 		expect(quick_log(2)).to_equal(100663296);
@@ -41,4 +43,4 @@ describe quick_log_spec("quick_log", ${
 	});
 });
 
-CPPSPEC_MAIN(quick_log_spec);
+DELUGE_SPEC(quick_log_spec, quick_log_spec_body)

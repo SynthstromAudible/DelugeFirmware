@@ -25,11 +25,13 @@
 #include <cstdint>
 #include <limits>
 
+#include "support/spec_main.h"
+
 using deluge::dsp::Q;
 using deluge::dsp::test::raw_curves::exp_curve;
 
 // clang-format off
-describe exp_curve_spec("exp_curve", ${
+describe exp_curve_spec_body("exp_curve", ${
 	it("keeps the preset's format", _ {
 		expect(deluge::dsp::fixed::exp_curve(Q<24>::from_raw(4194304), Q<26>::from_raw(1 << 26)).raw()).to_equal(8388608);
 	});
@@ -92,4 +94,4 @@ describe exp_curve_spec("exp_curve", ${
 	});
 });
 
-CPPSPEC_MAIN(exp_curve_spec);
+DELUGE_SPEC(exp_curve_spec, exp_curve_spec_body)

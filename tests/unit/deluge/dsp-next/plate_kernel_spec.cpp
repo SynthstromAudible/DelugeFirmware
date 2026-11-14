@@ -20,6 +20,8 @@
 #include <span>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 namespace rw = reverb_workloads;
 using deluge::dsp::fp::Plate;
@@ -368,4 +370,4 @@ describe plate_kernel("the plate kernel", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(plate_kernel);
+DELUGE_SPEC(plate_kernel_spec, plate_kernel)

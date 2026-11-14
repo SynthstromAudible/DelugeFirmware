@@ -6,6 +6,8 @@
 #include <cppspec.hpp>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
 
@@ -64,4 +66,4 @@ describe noise("the synth's noise stream", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(noise);
+DELUGE_SPEC(noise_spec, noise)

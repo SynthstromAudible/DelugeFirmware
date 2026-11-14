@@ -37,6 +37,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
 using namespace effects_workloads;
@@ -57,7 +59,7 @@ constexpr std::array<std::size_t, 3> kTriggers{0, 700, 3000};
 } // namespace
 
 // clang-format off
-describe click_spec("the metronome's click as a kernel", ${
+describe click_spec_body("the metronome's click as a kernel", ${
 	it("equals the frozen metronome at its pitches and volumes", _ {
 		for (const uint32_t increment : kIncrements) {
 			for (const int32_t menu : {0, 25, 50}) {
@@ -126,4 +128,4 @@ describe click_spec("the metronome's click as a kernel", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(click_spec);
+DELUGE_SPEC(click_spec, click_spec_body)

@@ -18,3 +18,5 @@
 // tests/unit/deluge/dsp-next/CMakeLists.txt): the headers pin their own arithmetic, so every result must still match
 // bit for bit.
 #include "float_kernels_spec.cpp" // NOLINT(bugprone-suspicious-include)
+
+DELUGE_SPEC(float_kernels_unsafe_math_spec, float_kernels_spec_body)

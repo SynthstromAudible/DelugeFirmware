@@ -15,6 +15,8 @@
 #include <span>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 namespace rw = reverb_workloads;
 using deluge::dsp::fixed::Freeverb;
@@ -195,4 +197,4 @@ describe freeverb_kernel("the Freeverb kernel", ${
 	});
 });
 // clang-format on
-CPPSPEC_MAIN(freeverb_kernel);
+DELUGE_SPEC(freeverb_kernel_spec, freeverb_kernel)

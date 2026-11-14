@@ -26,6 +26,8 @@
 #include <type_traits>
 #include <utility>
 
+#include "support/spec_main.h"
+
 namespace {
 using deluge::dsp::Phasor;
 using deluge::dsp::UQ;
@@ -195,4 +197,4 @@ describe synced_phasor("deluge::dsp::fixed SyncedPhasor", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(synced_phasor);
+DELUGE_SPEC(synced_phasor_spec, synced_phasor)

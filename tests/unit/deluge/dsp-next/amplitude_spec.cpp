@@ -33,6 +33,8 @@
 #include <span>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace reference {
 // A raw-Argon reference of Amplitude (q31 spelt int32_t): the typed VCA must match it bit for bit.
 class Amplitude {
@@ -186,4 +188,4 @@ describe amplitude_vca("deluge::dsp::fixed Amplitude (VCA mixer)", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(amplitude_vca);
+DELUGE_SPEC(amplitude_spec, amplitude_vca)

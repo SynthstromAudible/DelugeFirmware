@@ -19,6 +19,8 @@
 #include <cstdint>
 #include <limits>
 
+#include "support/spec_main.h"
+
 using deluge::dsp::divide_by_small;
 
 namespace {
@@ -74,4 +76,4 @@ describe divide("deluge::dsp::divide_by_small", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(divide);
+DELUGE_SPEC(divide_spec, divide)

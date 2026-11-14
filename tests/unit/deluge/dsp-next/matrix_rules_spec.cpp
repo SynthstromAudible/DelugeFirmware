@@ -17,6 +17,8 @@
 #include <cstdint>
 #include <memory>
 
+#include "support/spec_main.h"
+
 using namespace deluge::synth;
 using namespace deluge::synth::test;
 
@@ -41,11 +43,11 @@ int32_t differing_cases(uint32_t seeds) {
 } // namespace
 
 // clang-format off
-describe matrix_rules_spec("the matrix rules", ${
+describe matrix_rules_spec_body("the matrix rules", ${
 	it("gives the rules model's final values on random cases", _{
 		expect(differing_cases(2000)).to_equal(0);
 	});
 });
 // clang-format on
 
-CPPSPEC_MAIN(matrix_rules_spec);
+DELUGE_SPEC(matrix_rules_spec, matrix_rules_spec_body)

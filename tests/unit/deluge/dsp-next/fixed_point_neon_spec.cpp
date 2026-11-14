@@ -24,6 +24,8 @@
 #include <type_traits>
 #include <utility>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 namespace {
@@ -450,4 +452,4 @@ describe fixed_point_neon("fixed_point NEON vectors", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(fixed_point_neon);
+DELUGE_SPEC(fixed_point_neon_spec, fixed_point_neon)

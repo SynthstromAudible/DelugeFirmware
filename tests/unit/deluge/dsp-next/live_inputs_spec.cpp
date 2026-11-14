@@ -29,6 +29,8 @@
 #include <optional>
 #include <utility>
 
+#include "support/spec_main.h"
+
 namespace {
 using deluge::synth::InputChannel;
 using deluge::synth::LiveInputStore;
@@ -108,4 +110,4 @@ describe live_inputs("deluge::synth::LiveInputStore", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(live_inputs);
+DELUGE_SPEC(live_inputs_spec, live_inputs)

@@ -33,6 +33,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 namespace ps = deluge::dsp::fixed::pitch_shift;
 namespace ph = pitch_shift_histories;
@@ -164,4 +166,4 @@ describe waveform_aligner("deluge::dsp::fixed::pitch_shift::WaveformAligner", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(waveform_aligner);
+DELUGE_SPEC(waveform_aligner_spec, waveform_aligner)

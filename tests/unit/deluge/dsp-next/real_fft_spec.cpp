@@ -18,4 +18,6 @@
 // fixed::fft::RealFft built with the host trees' float flags.
 #include "real_fft_body.h" // NOLINT(bugprone-suspicious-include)
 
-CPPSPEC_MAIN(real_fft);
+#include "support/spec_main.h"
+
+DELUGE_SPEC(real_fft_spec, real_fft)

@@ -47,6 +47,8 @@
 #include <utility>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using deluge::dsp::Q;
 using deluge::dsp::typed_view;
 using namespace deluge::dsp::fixed;
@@ -393,4 +395,4 @@ describe high_pass_ladder("HighPassLadder", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(high_pass_ladder);
+DELUGE_SPEC(high_pass_ladder_spec, high_pass_ladder)

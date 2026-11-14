@@ -28,6 +28,8 @@
 #include <cppspec.hpp>
 #include <cstdint>
 
+#include "support/spec_main.h"
+
 namespace {
 using deluge::dsp::fixed::Resetter;
 using deluge::dsp::fixed::SyncedOscillator;
@@ -89,4 +91,4 @@ describe synced_oscillator("deluge::dsp::fixed SyncedOscillator", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(synced_oscillator);
+DELUGE_SPEC(synced_oscillator_spec, synced_oscillator)

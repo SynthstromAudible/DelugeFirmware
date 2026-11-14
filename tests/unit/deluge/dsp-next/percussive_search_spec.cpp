@@ -30,6 +30,8 @@
 #include <cstdint>
 #include <random>
 
+#include "support/spec_main.h"
+
 namespace {
 namespace ps = deluge::dsp::fixed::pitch_shift;
 namespace ph = pitch_shift_histories;
@@ -85,4 +87,4 @@ describe percussive_search("deluge::dsp::fixed::pitch_shift::PercussiveSearch", 
 });
 // clang-format on
 
-CPPSPEC_MAIN(percussive_search);
+DELUGE_SPEC(percussive_search_spec, percussive_search)

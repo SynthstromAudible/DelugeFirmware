@@ -45,6 +45,8 @@
 #include <utility>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using deluge::dsp::Mono;
 using deluge::dsp::Q;
 using deluge::dsp::scale_shr_floor;
@@ -397,4 +399,4 @@ describe compressor_kernel("the Compressor kernel", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(compressor_kernel);
+DELUGE_SPEC(compressor_kernel_spec, compressor_kernel)

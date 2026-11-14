@@ -21,6 +21,8 @@
 #include <span>
 #include <type_traits>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 namespace {
@@ -66,4 +68,4 @@ describe buffer_view("the raw seam view", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(buffer_view);
+DELUGE_SPEC(buffer_view_spec, buffer_view)

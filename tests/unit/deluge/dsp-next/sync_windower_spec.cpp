@@ -33,6 +33,8 @@
 #include <utility>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 using deluge::dsp::UQ;
 using deluge::dsp::fixed::SyncWindower;
@@ -269,4 +271,4 @@ describe sync_windower("deluge::dsp::fixed SyncWindower", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(sync_windower);
+DELUGE_SPEC(sync_windower_spec, sync_windower)

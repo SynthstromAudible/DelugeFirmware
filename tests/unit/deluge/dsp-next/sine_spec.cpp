@@ -30,6 +30,8 @@
 #include <cppspec.hpp>
 #include <cstdint>
 
+#include "support/spec_main.h"
+
 namespace {
 using deluge::dsp::fixed::sine;
 using deluge::dsp::fixed::sine_fm_operator;
@@ -154,4 +156,4 @@ describe sine_kernel("deluge::dsp::fixed sine", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(sine_kernel);
+DELUGE_SPEC(sine_spec, sine_kernel)

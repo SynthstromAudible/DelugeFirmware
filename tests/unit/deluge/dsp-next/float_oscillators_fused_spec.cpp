@@ -17,3 +17,5 @@
 // The float oscillators' spec under the fused policy (-mfma on the x86 host; tests/unit/deluge/dsp-next/CMakeLists.txt
 // sets it).
 #include "float_oscillators_spec.cpp" // NOLINT(bugprone-suspicious-include)
+
+DELUGE_SPEC(float_oscillators_fused_spec, float_oscillators_spec_body)

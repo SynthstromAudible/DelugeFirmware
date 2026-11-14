@@ -31,6 +31,8 @@
 #include <utility>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using deluge::dsp::fixed::kTanhCentre;
 using deluge::dsp::fixed::kTanhSmallTable;
 using deluge::dsp::fixed::tanh;
@@ -128,7 +130,7 @@ void run_runtime(uint32_t drive, const std::vector<int32_t>& inputs, std::vector
 } // namespace
 
 // clang-format off
-describe tanh_spec("tanh", ${
+describe tanh_spec_body("tanh", ${
 	it("passes a signal undriven, at a quarter of its level", _ {
 		constexpr std::array<int32_t, 7> expected{0, 248250368, -248250368, 517898240, 12345600, -536854528, 536854527};
 		for (std::size_t i = 0; i < kInputs.size(); i++) {
@@ -216,4 +218,4 @@ describe tanh_spec("tanh", ${
 	});
 });
 
-CPPSPEC_MAIN(tanh_spec);
+DELUGE_SPEC(tanh_spec, tanh_spec_body)

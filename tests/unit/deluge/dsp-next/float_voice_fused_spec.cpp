@@ -17,3 +17,5 @@
 // The float voice spec under the fused policy (-mfma on the x86 host; tests/unit/deluge/dsp-next/CMakeLists.txt sets
 // it).
 #include "float_voice_spec.cpp" // NOLINT(bugprone-suspicious-include)
+
+DELUGE_SPEC(float_voice_fused_spec, float_voice_spec_body)

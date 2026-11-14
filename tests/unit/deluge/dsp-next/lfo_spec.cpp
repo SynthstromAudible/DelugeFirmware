@@ -26,6 +26,8 @@
 #include <cppspec.hpp>
 #include <cstdint>
 
+#include "support/spec_main.h"
+
 namespace {
 using deluge::dsp::UQ;
 
@@ -51,7 +53,7 @@ void seedRng() {
 } // namespace
 
 // clang-format off
-describe lfo_spec("LFO", ${
+describe lfo_spec_body("LFO", ${
 	// ---- Deterministic waveforms: exact q31 outputs ----
 	it("renders a global triangle from zero", _ {
 		LFO lfo;
@@ -301,4 +303,4 @@ describe lfo_spec("LFO", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(lfo_spec);
+DELUGE_SPEC(lfo_spec, lfo_spec_body)

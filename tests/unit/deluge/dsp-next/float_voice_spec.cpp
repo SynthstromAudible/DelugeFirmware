@@ -42,6 +42,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 // The spec's own float arithmetic rounds as written, as the kernels' does, so its twins built with the device's float
@@ -350,7 +352,7 @@ auto table(Svf::Mode svf) {
 } // namespace
 
 // clang-format off
-describe float_voice_spec("float voice", ${
+describe float_voice_spec_body("float voice", ${
 	fp::build_saw_bands();
 
 	context("on Mono", _ {
@@ -451,4 +453,4 @@ describe float_voice_spec("float voice", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(float_voice_spec);
+DELUGE_SPEC(float_voice_spec, float_voice_spec_body)

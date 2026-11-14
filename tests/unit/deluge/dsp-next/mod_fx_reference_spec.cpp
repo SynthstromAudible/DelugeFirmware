@@ -30,6 +30,8 @@
 #include <tuple>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 
 namespace mw = deluge::dsp::test::mod_fx_workloads;
@@ -200,4 +202,4 @@ describe reference_mod_fx("the mod FX reference", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(reference_mod_fx);
+DELUGE_SPEC(mod_fx_reference_spec, reference_mod_fx)

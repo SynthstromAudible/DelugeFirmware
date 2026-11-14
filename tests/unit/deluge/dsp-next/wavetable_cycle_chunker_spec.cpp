@@ -33,6 +33,8 @@
 #include <span>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 using deluge::dsp::Q;
 using deluge::dsp::fixed::CycleChunk;
@@ -215,4 +217,4 @@ describe wavetable_cycle_chunker("deluge::dsp::fixed WavetableCycleChunker", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(wavetable_cycle_chunker);
+DELUGE_SPEC(wavetable_cycle_chunker_spec, wavetable_cycle_chunker)

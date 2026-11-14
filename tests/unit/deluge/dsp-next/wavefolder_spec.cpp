@@ -8,6 +8,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
 
@@ -58,4 +60,4 @@ describe wavefolder("the wavefolder", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(wavefolder);
+DELUGE_SPEC(wavefolder_spec, wavefolder)

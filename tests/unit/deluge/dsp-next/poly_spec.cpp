@@ -24,6 +24,8 @@
 #include <tuple>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 // The spec's own float arithmetic rounds as written, as the kernels' does, so its twin built with the device's float
@@ -670,10 +672,10 @@ void poly_specs(auto& self) {
 } // namespace
 
 // clang-format off
-describe poly_spec("Poly<K, N>", ${
+describe poly_spec_body("Poly<K, N>", ${
 	context("at N = 2", _ { poly_specs<2>(self); });
 	context("at N = 4", _ { poly_specs<4>(self); });
 });
 // clang-format on
 
-CPPSPEC_MAIN(poly_spec);
+DELUGE_SPEC(poly_spec, poly_spec_body)

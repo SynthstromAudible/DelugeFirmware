@@ -37,6 +37,8 @@
 #include <utility>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
 using namespace effects_workloads;
@@ -87,7 +89,7 @@ std::vector<RawFrame> ring_read(const std::vector<RawFrame>& ring, std::size_t a
 } // namespace
 
 // clang-format off
-describe input_monitor_spec("the input folds monitoring adds to the output", ${
+describe input_monitor_spec_body("the input folds monitoring adds to the output", ${
 	it("folds as the output stage did, at each fold and shift", _ {
 		const std::vector<RawFrame> ring = frames(kRingFrames, 0x1A9E0001);
 		for (const auto [fold, action] : kOutputFolds) {
@@ -145,4 +147,4 @@ describe input_monitor_spec("the input folds monitoring adds to the output", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(input_monitor_spec);
+DELUGE_SPEC(input_monitor_spec, input_monitor_spec_body)

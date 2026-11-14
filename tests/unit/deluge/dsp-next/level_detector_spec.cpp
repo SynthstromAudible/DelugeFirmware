@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 namespace {
@@ -86,4 +88,4 @@ describe level_detector("the level detector", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(level_detector);
+DELUGE_SPEC(level_detector_spec, level_detector)

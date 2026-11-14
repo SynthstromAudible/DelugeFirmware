@@ -31,6 +31,8 @@
 #include <random>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 static_assert(kFusedMulAdd, "the tolerance spec builds with -mfma");
@@ -58,7 +60,7 @@ namespace {
 } // namespace
 
 // clang-format off
-describe float_fusion_tolerance_spec("fused against unfused", ${
+describe float_fusion_tolerance_spec_body("fused against unfused", ${
 	it("keeps the SVF low-pass within 1e-5 of the unfused form over 64 blocks at Q 10", _ {
 		fp::FlushToZero ftz;
 		const fp::Svf::Settings set{.cutoff = 0.005f, .q = 10.f, .mode = fp::Svf::Mode::LOW_PASS};
@@ -97,4 +99,4 @@ describe float_fusion_tolerance_spec("fused against unfused", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(float_fusion_tolerance_spec);
+DELUGE_SPEC(float_fusion_tolerance_spec, float_fusion_tolerance_spec_body)

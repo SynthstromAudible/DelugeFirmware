@@ -43,6 +43,8 @@
 #include <tuple>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 
 namespace fixed = deluge::dsp::fixed;
@@ -282,4 +284,4 @@ describe fixed_compressor("the compressor's fixed reference", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(verbatim_compressor, fixed_compressor);
+DELUGE_SPEC(compressor_reference_spec, verbatim_compressor, fixed_compressor)

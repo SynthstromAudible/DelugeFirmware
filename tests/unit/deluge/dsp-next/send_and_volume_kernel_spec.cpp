@@ -38,6 +38,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 using namespace effects_workloads;
 using deluge::dsp::test::RawFrame;
@@ -94,7 +96,7 @@ bool compare(reference::SendAndVolume& ref, Adapter& live, std::size_t frames_n,
 } // namespace
 
 // clang-format off
-describe send_and_volume_kernel_spec("the send and the post-FX and post-reverb volumes as a kernel", ${
+describe send_and_volume_kernel_spec_body("the send and the post-FX and post-reverb volumes as a kernel", ${
 	it("equals the frozen send and volume across its params", _ {
 		for (const int32_t post_fx_volume : {1 << 27, 0x7FFFFFFF}) {
 			for (const int32_t send : kSends) {
@@ -173,4 +175,4 @@ describe send_and_volume_kernel_spec("the send and the post-FX and post-reverb v
 });
 // clang-format on
 
-CPPSPEC_MAIN(send_and_volume_kernel_spec);
+DELUGE_SPEC(send_and_volume_kernel_spec, send_and_volume_kernel_spec_body)

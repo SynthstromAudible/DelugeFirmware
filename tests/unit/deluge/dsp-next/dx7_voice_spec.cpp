@@ -19,6 +19,8 @@
 #include <cstdint>
 #include <span>
 
+#include "support/spec_main.h"
+
 namespace dx7 = deluge::dsp::fixed::dx7;
 namespace dw = dx7_workloads;
 using Voice = dx7::Voice<dw::SeededStream>;
@@ -133,7 +135,7 @@ Run run_voice(const dw::Workload& w) {
 } // namespace
 
 // clang-format off
-describe dx7_voice_spec("dx7::Voice", ${
+describe dx7_voice_spec_body("dx7::Voice", ${
 	for (const dw::Workload& workload : dw::all_workloads()) {
 		it(dw::name(workload.id), _ {
 			const Run run = run_voice(workload);
@@ -240,4 +242,4 @@ describe dx7_voice_spec("dx7::Voice", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(dx7_voice_spec);
+DELUGE_SPEC(dx7_voice_spec, dx7_voice_spec_body)

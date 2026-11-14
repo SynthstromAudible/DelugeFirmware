@@ -18,3 +18,5 @@
 // The float drift spec under the fused policy (-mfma on the x86 host; tests/unit/deluge/dsp-next/CMakeLists.txt sets
 // it).
 #include "float_drift_spec.cpp" // NOLINT(bugprone-suspicious-include)
+
+DELUGE_SPEC(float_drift_fused_spec, float_drift_spec_body)

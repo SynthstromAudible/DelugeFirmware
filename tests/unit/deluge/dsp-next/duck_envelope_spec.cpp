@@ -36,6 +36,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
 using S = DuckEnvelope::Stage;
@@ -404,4 +406,4 @@ describe duck_envelope("DuckEnvelope", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(duck_envelope);
+DELUGE_SPEC(duck_envelope_spec, duck_envelope)

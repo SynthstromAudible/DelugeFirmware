@@ -32,6 +32,8 @@
 #include <cstdint>
 #include <span>
 
+#include "support/spec_main.h"
+
 namespace {
 using deluge::dsp::Phasor;
 using deluge::dsp::Q;
@@ -155,4 +157,4 @@ describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(crude_oscillators);
+DELUGE_SPEC(crude_oscillators_spec, crude_oscillators)

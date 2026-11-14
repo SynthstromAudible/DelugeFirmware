@@ -30,6 +30,8 @@
 #include <limits>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace reference {
 using deluge::dsp::Phasor;
 using deluge::dsp::UQ;
@@ -249,4 +251,4 @@ describe pulse_oscillator("deluge::dsp::fixed PulseOscillator", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(pulse_oscillator);
+DELUGE_SPEC(pulse_oscillator_spec, pulse_oscillator)

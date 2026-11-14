@@ -22,6 +22,8 @@
 #include <limits>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::synth;
 using namespace deluge::synth::matrix;
 namespace params = deluge::modulation::params;
@@ -141,7 +143,7 @@ int32_t region_differing(int32_t from, int32_t to, CurveKind kind, Vector vector
 } // namespace
 
 // clang-format off
-describe matrix_exactness_spec("the matrix core's four-lane forms", ${
+describe matrix_exactness_spec_body("the matrix core's four-lane forms", ${
 	it("saturates an add chain rather than wrapping it", _{
 		expect(MF::add_step(MF::Combination::max(), MF::kOne).raw()).to_equal(kMax);
 		expect(MF::add_step(MF::Combination::min(), MF::Combination::from_raw(-1)).raw()).to_equal(kMin);
@@ -172,4 +174,4 @@ describe matrix_exactness_spec("the matrix core's four-lane forms", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(matrix_exactness_spec);
+DELUGE_SPEC(matrix_exactness_spec, matrix_exactness_spec_body)

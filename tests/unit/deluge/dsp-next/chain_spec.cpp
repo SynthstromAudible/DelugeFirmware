@@ -48,6 +48,8 @@
 #include <utility>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 namespace {
@@ -1031,4 +1033,4 @@ describe chain("Chain", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(chain);
+DELUGE_SPEC(chain_spec, chain)

@@ -19,3 +19,5 @@
 // AArch64 or VFPv4 target runs, held to the same lane-for-lane equalities (tests/unit/deluge/dsp-next/CMakeLists.txt
 // sets the flag).
 #include "pack_f32_spec.cpp" // NOLINT(bugprone-suspicious-include)
+
+DELUGE_SPEC(pack_f32_fused_spec, pack_f32_spec_body)

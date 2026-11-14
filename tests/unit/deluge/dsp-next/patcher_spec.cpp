@@ -21,6 +21,8 @@
 #include <cstdint>
 #include <memory>
 
+#include "support/spec_main.h"
+
 using namespace deluge::synth;
 using namespace deluge::synth::test;
 using deluge::synth::test::raw_matrix::apply_range;
@@ -29,7 +31,7 @@ using deluge::synth::test::raw_matrix::to_polarity;
 namespace params = deluge::modulation::params;
 
 // clang-format off
-describe patcher_spec("today's patching", ${
+describe patcher_spec_body("today's patching", ${
 	context("polarity", _{
 		it("halves a bipolar source to unipolar with C's truncating division", _{
 			expect(to_polarity(PatchSource::ENVELOPE_0, CablePolarity::UNIPOLAR, -3)).to_equal(1073741822);
@@ -105,4 +107,4 @@ describe patcher_spec("today's patching", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(patcher_spec);
+DELUGE_SPEC(patcher_spec, patcher_spec_body)

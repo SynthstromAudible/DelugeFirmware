@@ -24,6 +24,8 @@
 #include <utility>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::synth;
 using deluge::instrument::CableRecords;
 namespace params = deluge::modulation::params;
@@ -146,4 +148,4 @@ describe patch_routing("the synth library's cable routing", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(patch_routing);
+DELUGE_SPEC(patch_routing_spec, patch_routing)

@@ -29,6 +29,8 @@
 #include <random>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 using deluge::dsp::Mono;
 using deluge::dsp::Q;
@@ -162,4 +164,4 @@ describe slope_follower("deluge::dsp::fixed::pitch_shift::SlopeFollower", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(slope_follower);
+DELUGE_SPEC(slope_follower_spec, slope_follower)

@@ -28,6 +28,8 @@
 #include <cstdint>
 #include <limits>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
 
@@ -50,7 +52,7 @@ constexpr int kNoise = 20000;
 } // namespace
 
 // clang-format off
-describe duck_gain_spec("the duck's squared level at the clip's and the reverb return's scales", ${
+describe duck_gain_spec_body("the duck's squared level at the clip's and the reverb return's scales", ${
 	it("is neutral at no duck", _ {
 		expect(raw_duck_gain<DuckScale::CLIP>(0, 0x20000000)).to_equal(134217728);
 		expect(raw_duck_gain<DuckScale::REVERB_RETURN>(0, 0x20000000)).to_equal(1 << 29);
@@ -76,4 +78,4 @@ describe duck_gain_spec("the duck's squared level at the clip's and the reverb r
 });
 // clang-format on
 
-CPPSPEC_MAIN(duck_gain_spec);
+DELUGE_SPEC(duck_gain_spec, duck_gain_spec_body)

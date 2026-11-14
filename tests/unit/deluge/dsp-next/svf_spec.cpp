@@ -40,6 +40,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
 
@@ -171,4 +173,4 @@ describe svf("Svf", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(svf);
+DELUGE_SPEC(svf_spec, svf)

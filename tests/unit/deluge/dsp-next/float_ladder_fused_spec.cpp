@@ -18,3 +18,5 @@
 // The float ladder spec under the fused policy (-mfma on the x86 host; tests/unit/deluge/dsp-next/CMakeLists.txt sets
 // it).
 #include "float_ladder_spec.cpp" // NOLINT(bugprone-suspicious-include)
+
+DELUGE_SPEC(float_ladder_fused_spec, float_ladder_spec_body)

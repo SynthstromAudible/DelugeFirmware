@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <limits>
 
+#include "support/spec_main.h"
+
 namespace {
 constexpr int32_t kMax = std::numeric_limits<int32_t>::max();
 constexpr uint32_t kRate = 44100;
@@ -47,4 +49,4 @@ describe clip_increment("an audio clip's phase increments", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(clip_increment);
+DELUGE_SPEC(clip_increment_spec, clip_increment)

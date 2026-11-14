@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <limits>
 
+#include "support/spec_main.h"
+
 using deluge::dsp::fixed::fft::Complex;
 using deluge::dsp::fixed::fft::magnitude;
 
@@ -50,4 +52,4 @@ describe fft_magnitude("an FFT bin's magnitude", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(fft_magnitude);
+DELUGE_SPEC(fft_magnitude_spec, fft_magnitude)

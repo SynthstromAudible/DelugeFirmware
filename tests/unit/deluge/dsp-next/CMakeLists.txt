@@ -449,7 +449,11 @@ foreach(_spec_path IN LISTS _specs)
     continue()
   endif()
 
-  add_executable(${_name} ${_spec_path} ${${_name}_DEPS})
+  # The spec defines the entry point its file is named after (DELUGE_SPEC, tests/support/spec_main.h); a one-spec
+  # test driver calls it.
+  create_test_sourcelist(_${_name}_sources ${_name}_main.cpp ${_name}.cpp)
+  add_executable(${_name} ${_${_name}_sources} ${${_name}_DEPS})
+  target_include_directories(${_name} PRIVATE ${_repo_root}/tests)
   target_link_libraries(${_name} PRIVATE c++spec etl::etl)
   if(DEFINED ${_name}_DEFS)
     target_compile_definitions(${_name} PRIVATE ${${_name}_DEFS})
@@ -468,7 +472,7 @@ foreach(_spec_path IN LISTS _specs)
   # read past its end fails the spec rather than going unseen at the trees' optimisation levels.
   target_compile_definitions(${_name} PRIVATE _GLIBCXX_ASSERTIONS)
 
-  add_test(NAME ${_name} COMMAND ${_name} --verbose)
+  add_test(NAME ${_name} COMMAND ${_name} ${_name} --verbose)
 endforeach()
 
 # Standalone-link proof for the synth core (x86 only — the closure is arch-agnostic). The synth TUs + ONLY

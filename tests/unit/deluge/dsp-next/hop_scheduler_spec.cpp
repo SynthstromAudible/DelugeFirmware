@@ -39,6 +39,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 namespace golden = deluge::test::golden;
 namespace pw = pitch_shift_workloads;
@@ -206,4 +208,4 @@ describe hop_scheduler("deluge::dsp::fixed::pitch_shift::HopScheduler", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(hop_scheduler);
+DELUGE_SPEC(hop_scheduler_spec, hop_scheduler)

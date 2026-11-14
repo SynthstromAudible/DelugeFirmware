@@ -42,6 +42,8 @@
 #include <span>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 namespace {
@@ -205,7 +207,7 @@ constexpr std::size_t kBlock = 128;
 } // namespace
 
 // clang-format off
-describe float_ladder_spec("the float ladder", ${
+describe float_ladder_spec_body("the float ladder", ${
 	context("soft_clip", _ {
 		it("is odd, monotone and bounded by 1", _ {
 			fp::FlushToZero ftz;
@@ -531,4 +533,4 @@ describe float_ladder_spec("the float ladder", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(float_ladder_spec);
+DELUGE_SPEC(float_ladder_spec, float_ladder_spec_body)

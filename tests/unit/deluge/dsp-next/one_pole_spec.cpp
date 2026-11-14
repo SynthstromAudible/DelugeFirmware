@@ -43,6 +43,8 @@
 #include <utility>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
 
@@ -220,7 +222,7 @@ constexpr std::array<Mode, 3> kModes{Mode::LOW_PASS, Mode::HIGH_PASS, Mode::ALL_
 } // namespace
 
 // clang-format off
-describe one_pole_spec("OnePole", ${
+describe one_pole_spec_body("OnePole", ${
 	context("the legacy one-pole, copied", _ {
 		it("low-passes a ramp exactly", _ {
 			constexpr std::array<int32_t, 16> expected{
@@ -416,4 +418,4 @@ describe one_pole_spec("OnePole", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(one_pole_spec);
+DELUGE_SPEC(one_pole_spec, one_pole_spec_body)

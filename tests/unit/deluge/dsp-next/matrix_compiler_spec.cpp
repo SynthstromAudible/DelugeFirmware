@@ -20,6 +20,8 @@
 #include <memory>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::synth;
 using namespace deluge::synth::matrix;
 using namespace deluge::synth::test;
@@ -259,7 +261,7 @@ bool region_bipolar(int32_t p) {
 } // namespace
 
 // clang-format off
-describe matrix_compiler_spec("the matrix compiler", ${
+describe matrix_compiler_spec_body("the matrix compiler", ${
 	it("keeps every destination's cables in today's order, read and scaled as today", _{
 		int32_t bad = 0;
 		for (uint32_t seed = 1; seed <= 2000; ++seed) {
@@ -298,4 +300,4 @@ describe matrix_compiler_spec("the matrix compiler", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(matrix_compiler_spec);
+DELUGE_SPEC(matrix_compiler_spec, matrix_compiler_spec_body)

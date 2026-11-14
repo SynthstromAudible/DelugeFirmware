@@ -22,12 +22,14 @@
 #include <memory>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::synth;
 using namespace deluge::synth::matrix;
 using namespace deluge::synth::test;
 
 // clang-format off
-describe matrix_evaluator_spec("the matrix evaluator", ${
+describe matrix_evaluator_spec_body("the matrix evaluator", ${
 	it("gives each uncabled param its preset's value alone", _{
 		auto compiled = std::make_unique<CompiledCase>();
 		const PatchCase c = random_case(7);
@@ -51,4 +53,4 @@ describe matrix_evaluator_spec("the matrix evaluator", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(matrix_evaluator_spec);
+DELUGE_SPEC(matrix_evaluator_spec, matrix_evaluator_spec_body)

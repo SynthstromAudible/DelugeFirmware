@@ -32,6 +32,8 @@
 #include <cppspec.hpp>
 #include <cstdint>
 
+#include "support/spec_main.h"
+
 namespace {
 using deluge::dsp::Phasor;
 using deluge::dsp::UQ;
@@ -150,4 +152,4 @@ describe stateful_oscillator("dsp-next stateful oscillators", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(stateful_oscillator);
+DELUGE_SPEC(stateful_oscillator_spec, stateful_oscillator)

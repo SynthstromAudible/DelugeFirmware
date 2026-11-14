@@ -20,6 +20,8 @@
 #include <cstdint>
 #include <type_traits>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 namespace {
@@ -305,4 +307,4 @@ describe fixed_point_lanes("fixed_point lane packs", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(fixed_point_lanes);
+DELUGE_SPEC(fixed_point_lanes_spec, fixed_point_lanes)

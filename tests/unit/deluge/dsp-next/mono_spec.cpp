@@ -39,6 +39,8 @@
 #include <utility>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 namespace {
@@ -1513,4 +1515,4 @@ describe mono_events("Mono::on", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(mono, mono_events);
+DELUGE_SPEC(mono_spec, mono, mono_events)

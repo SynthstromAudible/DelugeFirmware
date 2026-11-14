@@ -22,6 +22,8 @@
 #include <random>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 // The spec's own float arithmetic rounds as written, as the kernels' does, so its twin built with the device's float
@@ -311,10 +313,10 @@ void bank_specs(auto& self) {
 } // namespace
 
 // clang-format off
-describe bank_spec("Bank<K, N, Mix>", ${
+describe bank_spec_body("Bank<K, N, Mix>", ${
 	context("at N = 2", _ { bank_specs<2>(self); });
 	context("at N = 4", _ { bank_specs<4>(self); });
 });
 // clang-format on
 
-CPPSPEC_MAIN(bank_spec);
+DELUGE_SPEC(bank_spec, bank_spec_body)

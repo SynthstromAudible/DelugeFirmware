@@ -21,6 +21,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 namespace {
@@ -98,4 +100,4 @@ describe fixed_point_runtime_shift("the run-time shifts", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(fixed_point_runtime_shift);
+DELUGE_SPEC(fixed_point_runtime_shift_spec, fixed_point_runtime_shift)

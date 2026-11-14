@@ -28,6 +28,8 @@
 #include <cstdint>
 #include <random>
 
+#include "support/spec_main.h"
+
 namespace {
 using deluge::dsp::Q16Vec;
 using deluge::dsp::fixed::SincWindow;
@@ -114,4 +116,4 @@ describe sinc_interpolation("deluge::dsp::fixed windowed_sinc_apply", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(sinc_interpolation);
+DELUGE_SPEC(sinc_interpolation_spec, sinc_interpolation)

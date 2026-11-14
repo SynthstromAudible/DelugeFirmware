@@ -18,3 +18,5 @@
 // tests/unit/deluge/dsp-next/CMakeLists.txt): the headers pin their own arithmetic, so every result must still match
 // bit for bit.
 #include "float_oscillators_spec.cpp" // NOLINT(bugprone-suspicious-include)
+
+DELUGE_SPEC(float_oscillators_unsafe_math_spec, float_oscillators_spec_body)

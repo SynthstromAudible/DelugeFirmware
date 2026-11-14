@@ -29,6 +29,8 @@
 #include <utility>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 using deluge::dsp::fixed::Band;
 using deluge::dsp::fixed::BandlimitedTable;
@@ -159,4 +161,4 @@ describe band_limited_table("deluge::dsp::fixed BandlimitedTable", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(band_limited_table);
+DELUGE_SPEC(band_limited_table_spec, band_limited_table)

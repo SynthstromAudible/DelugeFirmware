@@ -28,6 +28,8 @@
 #include <cstdint>
 #include <cstdlib>
 
+#include "support/spec_main.h"
+
 namespace {
 
 namespace pw = pitch_shift_workloads;
@@ -74,4 +76,4 @@ describe reference_live_pitch_shifter("the live pitch shifter's oracle", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(reference_live_pitch_shifter);
+DELUGE_SPEC(reference_live_pitch_shifter_spec, reference_live_pitch_shifter)

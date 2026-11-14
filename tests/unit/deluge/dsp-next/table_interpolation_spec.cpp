@@ -27,6 +27,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 using deluge::dsp::fixed::get_decay4;
 using deluge::dsp::fixed::get_decay8;
@@ -115,4 +117,4 @@ describe bilinear_lookup("the bilinear table interpolator", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(decay_lookup, bilinear_lookup);
+DELUGE_SPEC(table_interpolation_spec, decay_lookup, bilinear_lookup)

@@ -18,4 +18,6 @@
 // fixed::fft's tables built with the host trees' float flags.
 #include "twiddles_body.h" // NOLINT(bugprone-suspicious-include)
 
-CPPSPEC_MAIN(twiddles);
+#include "support/spec_main.h"
+
+DELUGE_SPEC(twiddles_spec, twiddles)

@@ -17,3 +17,5 @@
 // The float kernels' spec under the fused policy (-mfma on the x86 host; tests/unit/deluge/dsp-next/CMakeLists.txt sets
 // it).
 #include "float_kernels_spec.cpp" // NOLINT(bugprone-suspicious-include)
+
+DELUGE_SPEC(float_kernels_fused_spec, float_kernels_spec_body)

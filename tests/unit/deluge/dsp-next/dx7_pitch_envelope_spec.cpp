@@ -10,6 +10,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace dx7 = deluge::dsp::fixed::dx7;
 using deluge::dsp::Control;
 
@@ -54,7 +56,7 @@ std::vector<Run> runs() {
 } // namespace
 
 // clang-format off
-describe dx7_pitch_envelope_spec("dx7::PitchEnvelope", ${
+describe dx7_pitch_envelope_spec_body("dx7::PitchEnvelope", ${
 	dx7_reference::PitchEnv::init(44100);
 
 	it("has the reference's unit at 44.1 kHz", _ {
@@ -97,4 +99,4 @@ describe dx7_pitch_envelope_spec("dx7::PitchEnvelope", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(dx7_pitch_envelope_spec);
+DELUGE_SPEC(dx7_pitch_envelope_spec, dx7_pitch_envelope_spec_body)

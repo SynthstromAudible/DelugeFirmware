@@ -31,6 +31,8 @@
 #include <cstdint>
 #include <tuple>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 namespace {
@@ -1063,4 +1065,4 @@ describe kernel_concepts("kernel concepts", ${
 	});
 });
 
-CPPSPEC_MAIN(kernel_concepts);
+DELUGE_SPEC(kernel_spec, kernel_concepts)

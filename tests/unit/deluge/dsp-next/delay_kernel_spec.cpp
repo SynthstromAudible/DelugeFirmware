@@ -47,6 +47,8 @@
 #include <tuple>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using deluge::dsp::Mono;
 using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::Delay;
@@ -376,4 +378,4 @@ describe delay_kernel("Delay kernel", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(delay_kernel);
+DELUGE_SPEC(delay_kernel_spec, delay_kernel)

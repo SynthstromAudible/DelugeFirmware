@@ -30,6 +30,8 @@
 #include <random>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 namespace ps = deluge::dsp::fixed::pitch_shift;
 namespace ph = pitch_shift_histories;
@@ -113,4 +115,4 @@ describe hop_planner("deluge::dsp::fixed::pitch_shift::HopPlanner", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(hop_planner);
+DELUGE_SPEC(hop_planner_spec, hop_planner)

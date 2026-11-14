@@ -35,6 +35,8 @@
 #include <type_traits>
 #include <utility>
 
+#include "support/spec_main.h"
+
 namespace {
 namespace pw = pitch_shift_workloads;
 namespace ref = deluge::dsp::test::reference_pitch_shift;
@@ -165,4 +167,4 @@ describe input_history("deluge::dsp::fixed::pitch_shift::InputHistory and deluge
 });
 // clang-format on
 
-CPPSPEC_MAIN(input_history);
+DELUGE_SPEC(input_history_spec, input_history)

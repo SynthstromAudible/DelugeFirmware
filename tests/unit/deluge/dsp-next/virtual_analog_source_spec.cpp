@@ -37,6 +37,8 @@
 #include <cstdint>
 #include <span>
 
+#include "support/spec_main.h"
+
 namespace {
 using deluge::dsp::Phasor;
 using deluge::dsp::Ramp;
@@ -209,4 +211,4 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(vae_spec);
+DELUGE_SPEC(virtual_analog_source_spec, vae_spec)

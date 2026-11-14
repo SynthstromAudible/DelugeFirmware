@@ -24,6 +24,8 @@
 #include <utility>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 namespace {
@@ -442,4 +444,5 @@ describe fixed_point_float("fixed_point float conversions", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(fixed_point_types, fixed_point_add, fixed_point_mul, fixed_point_format, fixed_point_float);
+DELUGE_SPEC(fixed_point_spec, fixed_point_types, fixed_point_add, fixed_point_mul, fixed_point_format,
+            fixed_point_float)

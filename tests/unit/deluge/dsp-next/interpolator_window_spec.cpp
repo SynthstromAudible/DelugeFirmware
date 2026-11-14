@@ -26,6 +26,8 @@
 #include <random>
 #include <tuple>
 
+#include "support/spec_main.h"
+
 namespace {
 using deluge::dsp::fixed::Interpolator;
 using Window = Interpolator::Window;
@@ -128,4 +130,4 @@ describe interpolator_window("deluge::dsp::fixed Interpolator tap-window shift",
 });
 // clang-format on
 
-CPPSPEC_MAIN(interpolator_window);
+DELUGE_SPEC(interpolator_window_spec, interpolator_window)

@@ -17,6 +17,8 @@
 #include <cstdint>
 #include <span>
 
+#include "support/spec_main.h"
+
 namespace dx7 = deluge::dsp::fixed::dx7;
 using deluge::dsp::Mono;
 using deluge::dsp::Q;
@@ -87,7 +89,7 @@ void run_reference(const dx7_reference::Tables& t, Engine engine, Input input, b
 } // namespace
 
 // clang-format off
-describe dx7_operator_spec("dx7::Operator", ${
+describe dx7_operator_spec_body("dx7::Operator", ${
 	static dx7::Tables tables;
 	static dx7_reference::Tables reference_tables;
 	dx7::generate(tables);
@@ -174,4 +176,4 @@ describe dx7_operator_spec("dx7::Operator", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(dx7_operator_spec);
+DELUGE_SPEC(dx7_operator_spec, dx7_operator_spec_body)

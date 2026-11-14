@@ -40,6 +40,8 @@
 #include <string>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using deluge::dsp::Mono;
 using deluge::dsp::Q;
 using deluge::dsp::StereoSample;
@@ -289,4 +291,4 @@ describe granular_kernel("the Granular kernel", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(granular_kernel);
+DELUGE_SPEC(granular_kernel_spec, granular_kernel)

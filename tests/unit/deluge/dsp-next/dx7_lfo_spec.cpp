@@ -12,6 +12,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "support/spec_main.h"
+
 namespace dx7 = deluge::dsp::fixed::dx7;
 using deluge::dsp::Control;
 
@@ -27,7 +29,7 @@ constexpr std::array<uint8_t, 4> kRates{0, 1, 35, 99};
 } // namespace
 
 // clang-format off
-describe dx7_lfo_spec("dx7::Lfo", ${
+describe dx7_lfo_spec_body("dx7::Lfo", ${
 	static dx7::Tables tables;
 	static dx7_reference::Tables reference_tables;
 	dx7::generate(tables);
@@ -77,4 +79,4 @@ describe dx7_lfo_spec("dx7::Lfo", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(dx7_lfo_spec);
+DELUGE_SPEC(dx7_lfo_spec, dx7_lfo_spec_body)

@@ -43,6 +43,8 @@
 #include <utility>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::DelayBlock;
 using deluge::dsp::fixed::DelayBlockResult;
@@ -370,4 +372,4 @@ describe delay_frame_order("Delay frame order", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(delay_frame_order);
+DELUGE_SPEC(delay_frame_order_spec, delay_frame_order)

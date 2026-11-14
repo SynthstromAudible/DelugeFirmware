@@ -27,6 +27,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "support/spec_main.h"
+
 using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::DelayProcessor;
 
@@ -61,4 +63,4 @@ describe delay_poisoned_storage("a delay tape over storage it hasn't written", $
 });
 // clang-format on
 
-CPPSPEC_MAIN(delay_poisoned_storage);
+DELUGE_SPEC(delay_poisoned_storage_spec, delay_poisoned_storage)

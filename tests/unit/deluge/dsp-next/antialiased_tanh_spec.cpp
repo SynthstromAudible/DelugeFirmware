@@ -49,6 +49,8 @@
 #include <utility>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
 
@@ -537,4 +539,5 @@ describe tanh_kernel("Tanh<Drive>", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(legacy_antialiased_tanh, antialiased_tanh_kernel, antialiased_tanh_reference, tanh_kernel);
+DELUGE_SPEC(antialiased_tanh_spec, legacy_antialiased_tanh, antialiased_tanh_kernel, antialiased_tanh_reference,
+            tanh_kernel)

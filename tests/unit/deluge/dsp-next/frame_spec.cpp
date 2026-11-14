@@ -30,6 +30,8 @@
 #include <limits>
 #include <type_traits>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 namespace {
@@ -60,7 +62,7 @@ static_assert(to_stereo(Frame<q31, 2>{{q31::min(), q31::max()}}).r.raw() == kMax
 } // namespace
 
 // clang-format off
-describe frame_spec("Frame", ${
+describe frame_spec_body("Frame", ${
 	it("indexes its lanes in order, for reading and for writing", _ {
 		Frame<q31, 4> f{{q31::from_raw(10), q31::from_raw(-20), q31::from_raw(30), q31::from_raw(-40)}};
 		expect(f[0].raw()).to_equal(10);
@@ -104,4 +106,4 @@ describe frame_spec("Frame", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(frame_spec);
+DELUGE_SPEC(frame_spec, frame_spec_body)

@@ -39,6 +39,8 @@
 #include <utility>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using deluge::dsp::Q;
 using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::DelayTape;
@@ -801,4 +803,4 @@ describe delay_tape("DelayTape", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(delay_tape);
+DELUGE_SPEC(delay_tape_spec, delay_tape)

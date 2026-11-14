@@ -18,3 +18,5 @@
 // tests/unit/deluge/dsp-next/CMakeLists.txt): the headers pin their own arithmetic, so every result must still match
 // bit for bit.
 #include "float_voice_spec.cpp" // NOLINT(bugprone-suspicious-include)
+
+DELUGE_SPEC(float_voice_unsafe_math_spec, float_voice_spec_body)

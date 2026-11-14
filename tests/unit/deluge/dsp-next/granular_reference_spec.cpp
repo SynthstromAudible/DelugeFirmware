@@ -31,6 +31,8 @@
 #include <tuple>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 
 namespace gw = deluge::dsp::test::granular_workloads;
@@ -245,4 +247,4 @@ describe reference_granular("the granular reference", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(reference_granular);
+DELUGE_SPEC(granular_reference_spec, reference_granular)

@@ -10,6 +10,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "support/spec_main.h"
+
 namespace dx7 = deluge::dsp::fixed::dx7;
 using deluge::dsp::Control;
 
@@ -21,7 +23,7 @@ constexpr std::size_t kLfoDelay = 138;
 } // namespace
 
 // clang-format off
-describe dx7_lfo_delay_spec("dx7::LfoDelay", ${
+describe dx7_lfo_delay_spec_body("dx7::LfoDelay", ${
 	static dx7_reference::Tables tables;
 	dx7_reference::init_tables(tables);
 
@@ -55,4 +57,4 @@ describe dx7_lfo_delay_spec("dx7::LfoDelay", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(dx7_lfo_delay_spec);
+DELUGE_SPEC(dx7_lfo_delay_spec, dx7_lfo_delay_spec_body)

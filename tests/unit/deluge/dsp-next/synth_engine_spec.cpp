@@ -17,6 +17,8 @@
 #include <cstdint>
 #include <memory>
 
+#include "support/spec_main.h"
+
 using namespace deluge::synth;
 using namespace deluge::synth::test;
 
@@ -98,7 +100,7 @@ bool any_sound(const std::array<deluge::dsp::Q<31>, kBlock * 2>& out) {
 } // namespace
 
 // clang-format off
-describe synth_engine_spec("synth engines", ${
+describe synth_engine_spec_body("synth engines", ${
 	context("the contracts", _{
 		it("start the voice's slots for an engine and a source the voice does not know, and render them", _{
 			auto rig = std::make_unique<Rig>();
@@ -195,4 +197,4 @@ describe synth_engine_spec("synth engines", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(synth_engine_spec);
+DELUGE_SPEC(synth_engine_spec, synth_engine_spec_body)

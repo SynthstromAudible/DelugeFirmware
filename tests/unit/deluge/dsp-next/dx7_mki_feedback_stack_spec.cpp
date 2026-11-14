@@ -17,6 +17,8 @@
 #include <cstdint>
 #include <span>
 
+#include "support/spec_main.h"
+
 namespace dx7 = deluge::dsp::fixed::dx7;
 using deluge::dsp::Mono;
 using deluge::dsp::Q;
@@ -61,7 +63,7 @@ DELUGE_REFERENCE_DX7_LEGACY_ARITHMETIC void reference_block(const dx7_reference:
 } // namespace
 
 // clang-format off
-describe dx7_mki_feedback_stack_spec("dx7::MkIFeedbackStack", ${
+describe dx7_mki_feedback_stack_spec_body("dx7::MkIFeedbackStack", ${
 	static dx7::Tables tables;
 	static dx7_reference::Tables reference_tables;
 	dx7::generate(tables);
@@ -128,4 +130,4 @@ describe dx7_mki_feedback_stack_spec("dx7::MkIFeedbackStack", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(dx7_mki_feedback_stack_spec);
+DELUGE_SPEC(dx7_mki_feedback_stack_spec, dx7_mki_feedback_stack_spec_body)

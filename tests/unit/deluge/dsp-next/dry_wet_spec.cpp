@@ -39,6 +39,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
 
@@ -133,7 +135,7 @@ constexpr std::array<std::size_t, 6> kLengths{1, 2, 3, 7, 64, 129};
 } // namespace
 
 // clang-format off
-describe dry_wet_spec("DryWetBlend", ${
+describe dry_wet_spec_body("DryWetBlend", ${
 	context("dry_wet_blend", _ {
 		it("blends full-scale and extreme samples to hand-computed values", _ {
 			// Full scale times full scale keeps the high word 2^30 - 1, doubled to 2^31 - 2.
@@ -259,4 +261,4 @@ describe dry_wet_spec("DryWetBlend", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(dry_wet_spec);
+DELUGE_SPEC(dry_wet_spec, dry_wet_spec_body)

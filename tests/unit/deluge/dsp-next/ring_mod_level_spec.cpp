@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <limits>
 
+#include "support/spec_main.h"
+
 using deluge::synth::RingModEngine;
 
 namespace {
@@ -33,4 +35,4 @@ describe ring_mod_level("the ring mod's level", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(ring_mod_level);
+DELUGE_SPEC(ring_mod_level_spec, ring_mod_level)

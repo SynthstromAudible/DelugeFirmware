@@ -36,6 +36,8 @@
 #include <span>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 // The spec's own float arithmetic rounds as written, as the kernels' does, so its twin built with the device's float
@@ -314,7 +316,7 @@ void expect_vca_lanes_equal_mono(auto& self) {
 } // namespace
 
 // clang-format off
-describe float_envelope_spec("float envelope", ${
+describe float_envelope_spec_body("float envelope", ${
 	fp::FlushToZero ftz;
 	context("ADSR", _ {
 		const f32 attack = 100.f, decay = 200.f, sustain = 0.5f, release = 300.f;
@@ -506,4 +508,4 @@ describe float_envelope_spec("float envelope", ${
 	});
 });
 // clang-format on
-CPPSPEC_MAIN(float_envelope_spec);
+DELUGE_SPEC(float_envelope_spec, float_envelope_spec_body)

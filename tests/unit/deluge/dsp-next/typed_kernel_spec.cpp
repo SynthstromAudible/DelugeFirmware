@@ -36,6 +36,8 @@
 #include <span>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 namespace {
@@ -347,4 +349,4 @@ describe typed_kernel("kernels written over Q<31>", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(typed_kernel);
+DELUGE_SPEC(typed_kernel_spec, typed_kernel)

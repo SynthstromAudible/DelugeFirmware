@@ -18,6 +18,8 @@
 #include <cppspec.hpp>
 #include <cstdint>
 
+#include "support/spec_main.h"
+
 using deluge::dsp::Q;
 using deluge::dsp::StereoSample;
 
@@ -48,4 +50,4 @@ describe stereo_sample("deluge::dsp::StereoSample", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(stereo_sample);
+DELUGE_SPEC(stereo_sample_spec, stereo_sample)

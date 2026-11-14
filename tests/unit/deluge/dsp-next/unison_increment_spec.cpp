@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <optional>
 
+#include "support/spec_main.h"
+
 using deluge::synth::detuned_increment;
 
 namespace {
@@ -32,4 +34,4 @@ describe unison_increment("a unison part's increment", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(unison_increment);
+DELUGE_SPEC(unison_increment_spec, unison_increment)

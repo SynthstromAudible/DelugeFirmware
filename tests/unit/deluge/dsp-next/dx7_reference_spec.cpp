@@ -10,6 +10,8 @@
 #include <string>
 #include <string_view>
 
+#include "support/spec_main.h"
+
 namespace dw = dx7_workloads;
 namespace golden = deluge::test::golden;
 
@@ -23,7 +25,7 @@ constexpr bool kRecordsHere = true;
 #endif
 
 // clang-format off
-describe dx7_reference_spec("the DX7 reference", ${
+describe dx7_reference_spec_body("the DX7 reference", ${
 	it("builds the tables as recorded", _ {
 		const bool updating = kRecordsHere && golden::updating();
 		const dw::TableRecord record = dw::table_record(dw::reference_tables());
@@ -94,4 +96,4 @@ describe dx7_reference_spec("the DX7 reference", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(dx7_reference_spec);
+DELUGE_SPEC(dx7_reference_spec, dx7_reference_spec_body)

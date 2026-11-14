@@ -26,6 +26,8 @@
 #include <cppspec.hpp>
 #include <cstdint>
 
+#include "support/spec_main.h"
+
 namespace {
 using deluge::dsp::fixed::kSincKernelPhaseSteps;
 using deluge::dsp::fixed::kSincKernelTaps;
@@ -78,7 +80,7 @@ static_assert(WindowedSincKernel::variant_for(32599202) == 3); // 11.5 semitones
 static_assert(WindowedSincKernel::variant_for(INT32_MAX) == 6);
 
 // clang-format off
-describe windowed_sinc_kernel_spec("deluge::dsp::fixed kWindowedSincKernel", ${
+describe windowed_sinc_kernel_spec_body("deluge::dsp::fixed kWindowedSincKernel", ${
 	// variant(0) is the base of the whole contiguous [7][17][16] table.
 	const int16_t* base = kWindowedSincKernel.variant(0);
 
@@ -131,4 +133,4 @@ describe windowed_sinc_kernel_spec("deluge::dsp::fixed kWindowedSincKernel", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(windowed_sinc_kernel_spec);
+DELUGE_SPEC(windowed_sinc_kernel_spec, windowed_sinc_kernel_spec_body)

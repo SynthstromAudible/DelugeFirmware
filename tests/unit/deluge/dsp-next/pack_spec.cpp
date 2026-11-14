@@ -45,6 +45,8 @@
 #include <utility>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 
 /// Each kernel step, written once over its value type V, as a kernel that opts in to op-major stepping writes it. They
@@ -229,7 +231,7 @@ constexpr std::size_t kLanesPerWidthSum = (kExtremes.size() * kExtremes.size() *
 } // namespace
 
 // clang-format off
-describe pack_spec("Pack", ${
+describe pack_spec_body("Pack", ${
 	it("broadcasts a scalar to every lane, and loads and stores a frame lane for lane", _ {
 		const Pack<int32_t, 3> b = Pack<int32_t, 3>::broadcast(kMin);
 		for (const int32_t x : b.lane) {
@@ -509,4 +511,4 @@ describe pack_spec("Pack", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(pack_spec);
+DELUGE_SPEC(pack_spec, pack_spec_body)

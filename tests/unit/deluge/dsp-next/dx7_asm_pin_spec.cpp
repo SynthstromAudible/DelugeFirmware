@@ -11,13 +11,15 @@
 #include <iterator>
 #include <string_view>
 
+#include "support/spec_main.h"
+
 namespace dp = dx7_asm_pin;
 namespace golden = deluge::test::golden;
 
 constexpr std::string_view kHeader = "tests/unit/deluge/dsp-next/dx7_asm_pin_records.h";
 
 // clang-format off
-describe dx7_asm_pin_spec("the NEON FM kernel, pinned", ${
+describe dx7_asm_pin_spec_body("the NEON FM kernel, pinned", ${
 	static dx7_reference::Tables tables;
 	dx7_reference::init_tables(tables);
 	for (std::size_t i = 0; i < dp::all_cases().size(); ++i) {
@@ -61,4 +63,4 @@ describe dx7_asm_pin_spec("the NEON FM kernel, pinned", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(dx7_asm_pin_spec);
+DELUGE_SPEC(dx7_asm_pin_spec, dx7_asm_pin_spec_body)

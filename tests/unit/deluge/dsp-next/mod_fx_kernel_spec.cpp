@@ -42,6 +42,8 @@
 #include <tuple>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using deluge::dsp::Mono;
 using deluge::dsp::StereoSample;
 using deluge::dsp::test::RawFrame;
@@ -304,4 +306,4 @@ describe mod_fx_kernel("the ModFx kernel", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(mod_fx_kernel);
+DELUGE_SPEC(mod_fx_kernel_spec, mod_fx_kernel)

@@ -25,6 +25,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace curves = deluge::dsp::fixed;
 namespace ref = param_curve_reference;
 using deluge::dsp::Q;
@@ -57,7 +59,7 @@ std::vector<int32_t> neutrals() {
 } // namespace
 
 // clang-format off
-describe param_curve_spec("the param curves", ${
+describe param_curve_spec_body("the param curves", ${
 	it("give the reference curves' final values for every neutral and combination", _ {
 		int32_t bad = 0;
 		for (int32_t n : neutrals()) {
@@ -112,4 +114,4 @@ describe param_curve_spec("the param curves", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(param_curve_spec);
+DELUGE_SPEC(param_curve_spec, param_curve_spec_body)

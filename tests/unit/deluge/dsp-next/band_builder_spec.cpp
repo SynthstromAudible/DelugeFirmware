@@ -35,6 +35,8 @@
 #include <span>
 #include <vector>
 
+#include "support/spec_main.h"
+
 namespace {
 
 using namespace deluge::dsp::fixed;
@@ -165,4 +167,4 @@ describe band_builder("fixed::BandBuilder", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(band_builder);
+DELUGE_SPEC(band_builder_spec, band_builder)

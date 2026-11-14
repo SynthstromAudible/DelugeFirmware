@@ -36,6 +36,8 @@
 #include <utility>
 #include <vector>
 
+#include "support/spec_main.h"
+
 using namespace deluge::dsp;
 using namespace deluge::dsp::fixed;
 using namespace effects_workloads;
@@ -63,7 +65,7 @@ reference::EqualizerParams as_reference(const ShelfPair::Settings& s) {
 } // namespace
 
 // clang-format off
-describe shelf_pair_spec("the EQ's bass and treble shelves as a kernel", ${
+describe shelf_pair_spec_body("the EQ's bass and treble shelves as a kernel", ${
 	it("equals the frozen EQ across its bands and frequencies", _ {
 		const std::array<std::pair<int32_t, int32_t>, 3> kFrequencies{{
 		    {0, 0}, {0x10000000, -0x10000000}, {std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max()}}};
@@ -133,4 +135,4 @@ describe shelf_pair_spec("the EQ's bass and treble shelves as a kernel", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(shelf_pair_spec);
+DELUGE_SPEC(shelf_pair_spec, shelf_pair_spec_body)
