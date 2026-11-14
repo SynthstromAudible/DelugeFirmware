@@ -3,8 +3,8 @@
 
 Gate deluge-jlink:
     deluge_jlink's load script turns the MMU off, then stops every one of the sixteen DMA channels, then loads, so a
-    firmware still running when the core halts cannot write into the image gdb is loading; the caller's extra
-    commands follow the load
+    firmware still running when the core halts cannot write into the image gdb is loading; the entry point, when
+    one is given, and the caller's extra commands follow the load
 """
 
 import unittest

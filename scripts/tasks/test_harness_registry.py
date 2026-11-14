@@ -2197,15 +2197,25 @@ class ExplanationTest(unittest.TestCase):
         path.write_text(text)
         return path
 
+    @staticmethod
+    def unittest_runs(h, module):
+        """Whether the entry's run is `python3 -m unittest` naming `module`, or discovering the directory's."""
+        return h.run[:3] == ["python3", "-m", "unittest"] and (
+            module in h.run[3:] or "discover" in h.run[3:]
+        )
+
     def test_every_tools_test_module_runs_under_an_entry(self):
-        run = {
-            arg
-            for h in hr.load_registry(self.ROOT)
-            if h.runner == "script" and Path(h.path) == Path("tools")
-            for arg in h.run
-        }
-        modules = {p.stem for p in (self.ROOT / "tools").glob("test_*.py")}
-        self.assertEqual(sorted(modules - run), [])
+        entries = [h for h in hr.load_registry(self.ROOT) if h.runner == "script"]
+        unrun = [
+            str(p.relative_to(self.ROOT))
+            for p in sorted((self.ROOT / "tools").rglob("test_*.py"))
+            if not any(
+                Path(h.path) == p.parent.relative_to(self.ROOT)
+                and self.unittest_runs(h, p.stem)
+                for h in entries
+            )
+        ]
+        self.assertEqual(unrun, [])
 
     def test_python_docstring_block(self):
         path = self._file(
