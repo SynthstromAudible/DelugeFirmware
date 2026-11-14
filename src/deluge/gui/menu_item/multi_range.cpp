@@ -390,7 +390,7 @@ void MultiRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRight
 }
 
 MenuItem* MultiRange::selectButtonPress() {
-	return menuItemHeadingTo;
+	return menuItemHeadingTo != nullptr ? menuItemHeadingTo->destinationOnceRangeIsKnown() : nullptr;
 }
 
 void MultiRange::noteOnToChangeRange(int32_t noteCode) {

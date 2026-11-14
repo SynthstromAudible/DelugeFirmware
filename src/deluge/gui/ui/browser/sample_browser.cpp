@@ -32,6 +32,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/multi_range.h"
+#include "gui/menu_item/sample/round_robin.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -57,6 +58,7 @@
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_manager.h"
@@ -74,6 +76,8 @@
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
 #include "util/functions.h"
+#include "util/sample_velocity_parse.h"
+#include <cmath>
 #include <cstring>
 
 namespace params = deluge::modulation::params;
@@ -138,7 +142,15 @@ sdError:
 	}
 
 	String currentPath;
-	currentPath.set(&soundEditor.getCurrentAudioFileHolder()->filePath);
+	if (getCurrentClip()->type == ClipType::AUDIO) {
+		currentPath.set(&soundEditor.getCurrentAudioFileHolder()->filePath);
+	}
+	else {
+		AudioFileHolder* targetHolder = getCurrentInstrumentTargetHolder(false);
+		if (targetHolder != nullptr) {
+			currentPath.set(&targetHolder->filePath);
+		}
+	}
 
 	char const* searchFilename;
 
@@ -513,8 +525,17 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 	return ActionResult::DEALT_WITH;
 }
 
+bool SampleBrowser::mustLoadAsSample() {
+	if (targetRoundRobinSlot > 0) {
+		return true;
+	}
+	return getCurrentClip()->type != ClipType::AUDIO && soundEditor.currentSource != nullptr
+	       && deluge::gui::menu_item::sample::sourceUsesVariants(*soundEditor.currentSource);
+}
+
 bool SampleBrowser::canImportWholeKit() {
-	return (soundEditor.editingKit() && soundEditor.currentSourceIndex == 0
+	// Folder-to-kit and slicing rebuild drums, so never from a variant slot's browser.
+	return (soundEditor.editingKit() && soundEditor.currentSourceIndex == 0 && targetRoundRobinSlot == 0
 	        && (SoundDrum*)getCurrentInstrumentClip()->noteRows.getElement(0)->drum == soundEditor.currentSound
 	        && (!getCurrentKit()->firstDrum->next));
 }
@@ -829,18 +850,61 @@ possiblyExit:
 	return ActionResult::DEALT_WITH;
 }
 
+AudioFileHolder* SampleBrowser::getCurrentInstrumentTargetHolder(bool createIfNeeded) {
+	if (getCurrentClip()->type == ClipType::AUDIO) {
+		return soundEditor.getCurrentAudioFileHolder();
+	}
+
+	MultisampleRange* range = static_cast<MultisampleRange*>(soundEditor.currentMultiRange);
+	if (range == nullptr) {
+		return nullptr;
+	}
+
+	if (targetRoundRobinSlot == 0) {
+		return range->getAudioFileHolder();
+	}
+
+	SampleHolderForVoice* holder = range->getVariantHolder(targetRoundRobinSlot);
+	if (holder == nullptr && createIfNeeded && range->canPopulateAlternateSlot(targetRoundRobinSlot - 1)) {
+		holder = range->ensureAlternateHolder(targetRoundRobinSlot - 1);
+		if (holder != nullptr && targetRoundRobinSlot > range->rrCount) {
+			range->rrCount = targetRoundRobinSlot;
+		}
+	}
+
+	return static_cast<AudioFileHolder*>(holder);
+}
+
 Error SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts) {
 	soundEditor.cutSound();
 
-	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
-	holder->setAudioFile(nullptr);
-	Error error = getCurrentFilePath(&holder->filePath);
-	if (error != Error::NONE) {
-		return error;
+	// Remember whether this claim is about to create a brand-new alternate slot, so a failed load
+	// can remove it again - an empty slot would otherwise silently mute every Nth trigger.
+	MultisampleRange* rangeForCleanup = nullptr;
+	if (targetRoundRobinSlot > 0 && getCurrentClip()->type != ClipType::AUDIO) {
+		auto* range = static_cast<MultisampleRange*>(soundEditor.currentMultiRange);
+		if (range != nullptr && !range->hasAlternateLoaded(targetRoundRobinSlot - 1)) {
+			rangeForCleanup = range;
+		}
 	}
 
-	return holder->loadFile(soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true, true,
-	                        CLUSTER_ENQUEUE, nullptr, makeWaveTableWorkAtAllCosts);
+	AudioFileHolder* holder = getCurrentInstrumentTargetHolder();
+	if (holder == nullptr) {
+		return Error::INSUFFICIENT_RAM;
+	}
+	holder->setAudioFile(nullptr);
+	Error error = getCurrentFilePath(&holder->filePath);
+	if (error == Error::NONE) {
+		error = holder->loadFile(soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true, true,
+		                         CLUSTER_ENQUEUE, nullptr, makeWaveTableWorkAtAllCosts);
+	}
+
+	if (error != Error::NONE && rangeForCleanup != nullptr
+	    && rangeForCleanup->hasAlternateLoaded(targetRoundRobinSlot - 1)) {
+		rangeForCleanup->clearAlternateSlot(targetRoundRobinSlot - 1);
+	}
+
+	return error;
 }
 
 Error SampleBrowser::claimAudioFileForAudioClip() {
@@ -928,6 +992,14 @@ removeLoadingAnimationAndGetOut:
 		bool makeWaveTableWorkAtAllCosts = (mayDoWaveTable == 2) || (mayDoSingleCycle == 2)
 		                                   || (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD);
 
+		// An oscillator with variants can only hold samples: forcing WAVETABLE would convert the whole
+		// oscillator and destroy them. The load menu hides those options; this catches any other route.
+		if (makeWaveTableWorkAtAllCosts && mustLoadAsSample()) {
+			display->removeLoadingAnimation();
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+			return false;
+		}
+
 		int32_t numTypesTried = 0;
 
 		// If we already know we want to try doing WaveTable...
@@ -1003,7 +1075,6 @@ doLoadAsWaveTable:
 		else {
 			numTypesTried++;
 doLoadAsSample:
-
 			/*
 			// If multiple Ranges, then forbid the changing from WaveTable to Sample.
 			if (soundEditor.currentSource->ranges.getNumElements() > 1
@@ -1022,11 +1093,22 @@ doLoadAsSample:
 				goto removeLoadingAnimationAndGetOut;
 			}
 
-			Sample* sample = (Sample*)soundEditor.getCurrentAudioFileHolder()->audioFile;
+			// Fetch the holder only after setOscType() and the claim - converting from WAVETABLE reallocates
+			// the ranges array, so any holder pointer taken earlier would dangle.
+			AudioFileHolder* targetHolder = getCurrentInstrumentTargetHolder();
+			if (targetHolder == nullptr) {
+				error = Error::INSUFFICIENT_RAM;
+				goto removeLoadingAnimationAndGetOut;
+			}
+			SampleHolderForVoice* targetSampleHolder = static_cast<SampleHolderForVoice*>(targetHolder);
+
+			Sample* sample = (Sample*)targetHolder->audioFile;
 
 			// If the file was actually clearly a wavetable file, and we're allowed to load one, then go do that
-			// instead.
-			if (mayDoWaveTable && numTypesTried <= 1 && sample->fileExplicitlySpecifiesSelfAsWaveTable) {
+			// instead. Never do this on an oscillator with variants though - converting the source to
+			// WAVETABLE would destroy them all.
+			if (mayDoWaveTable && numTypesTried <= 1 && !mustLoadAsSample()
+			    && sample->fileExplicitlySpecifiesSelfAsWaveTable) {
 				goto doLoadAsWaveTable;
 			}
 
@@ -1034,50 +1116,55 @@ doLoadAsSample:
 
 			int32_t mSec = sample->getLengthInMSec();
 
-			// If 20ms or less, and we're not a kit, then we'd like to be a single-cycle waveform.
-			if (!soundEditor.editingKit() && (mayDoSingleCycle == 2 || (mayDoSingleCycle == 1 && mSec <= 20))) {
+			// Skip repeat-mode inference for alternate round-robin slots — the mode was already set
+			// for the primary slot and should not be overwritten by loading an additional layer.
+			if (targetRoundRobinSlot == 0) {
+				// If 20ms or less, and we're not a kit, then we'd like to be a single-cycle waveform.
+				if (!soundEditor.editingKit() && (mayDoSingleCycle == 2 || (mayDoSingleCycle == 1 && mSec <= 20))) {
 
-				// Ideally, we'd like to use the wavetable engine for this single-cycle-ness
-				if (mayDoWaveTable && numTypesTried <= 1 && sample->numChannels == 1
-				    && sample->lengthInSamples >= kWavetableMinCycleSize
-				    && sample->lengthInSamples <= kWavetableMaxCycleSize) {
+					// Ideally, we'd like to use the wavetable engine for this single-cycle-ness - unless that
+					// would cost the oscillator its variants.
+					if (mayDoWaveTable && numTypesTried <= 1 && !mustLoadAsSample() && sample->numChannels == 1
+					    && sample->lengthInSamples >= kWavetableMinCycleSize
+					    && sample->lengthInSamples <= kWavetableMaxCycleSize) {
 
-					makeWaveTableWorkAtAllCosts = true; // So that the loading functions don't just chicken out when it
-					                                    // doesn't look all that wavetabley.
-					goto doLoadAsWaveTable;
+						makeWaveTableWorkAtAllCosts = true; // So that the loading functions don't just chicken out when
+						                                    // it doesn't look all that wavetabley.
+						goto doLoadAsWaveTable;
+					}
+
+					// Otherwise, set play mode to LOOP, and we'll just do single-cycle as a sample. (This is now pretty
+					// rare.)
+					soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
+					doingSingleCycleNow = true;
 				}
 
-				// Otherwise, set play mode to LOOP, and we'll just do single-cycle as a sample. (This is now pretty
-				// rare.)
-				soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
-				doingSingleCycleNow = true;
-			}
+				// If time stretching or looping on (or we just decided to do single-cycle, above), leave that the case
+				if (soundEditor.currentSource->repeatMode == SampleRepeatMode::STRETCH
+				    || soundEditor.currentSource->repeatMode == SampleRepeatMode::LOOP) {}
 
-			// If time stretching or looping on (or we just decided to do single-cycle, above), leave that the case
-			if (soundEditor.currentSource->repeatMode == SampleRepeatMode::STRETCH
-			    || soundEditor.currentSource->repeatMode == SampleRepeatMode::LOOP) {}
-
-			// Otherwise...
-			else {
-
-				// If source file had loop points set...
-				if (sample->fileLoopEndSamples) {
-
-					// If this led to an actual loop end pos, with more waveform after it, and the sample's not too
-					// long, we can do a ONCE.
-					if (((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.loopEndPos && mSec < 2002) {
-						soundEditor.currentSource->repeatMode = SampleRepeatMode::ONCE;
-					}
-					else {
-						soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
-					}
-				}
-
+				// Otherwise...
 				else {
 
-					// If 2 seconds or less, set play mode to ONCE. Otherwise, CUT.
-					soundEditor.currentSource->repeatMode =
-					    (mSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
+					// If source file had loop points set...
+					if (sample->fileLoopEndSamples) {
+
+						// If this led to an actual loop end pos, with more waveform after it, and the sample's not too
+						// long, we can do a ONCE.
+						if (targetSampleHolder->loopEndPos && mSec < 2002) {
+							soundEditor.currentSource->repeatMode = SampleRepeatMode::ONCE;
+						}
+						else {
+							soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
+						}
+					}
+
+					else {
+
+						// If 2 seconds or less, set play mode to ONCE. Otherwise, CUT.
+						soundEditor.currentSource->repeatMode =
+						    (mSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
+					}
 				}
 			}
 
@@ -1086,34 +1173,37 @@ doLoadAsSample:
 
 				SoundDrum* drum = (SoundDrum*)soundEditor.currentSound;
 
-				autoDetectSideChainSending(drum, soundEditor.currentSource, enteredText.get());
+				// Only rename the drum when loading the primary sample, not an alternate slot.
+				if (targetRoundRobinSlot == 0) {
+					autoDetectSideChainSending(drum, soundEditor.currentSource, enteredText.get());
 
-				// Give Drum no name, momentarily. We don't want it to show up when we're searching for duplicates
-				drum->drumName.clear();
+					// Give Drum no name, momentarily. We don't want it to show up when we're searching for duplicates
+					drum->drumName.clear();
 
-				String newName;
-				if (!numCharsInPrefix || display->haveOLED()) {
-					newName.set(&enteredText);
-				}
-				else {
-					error = newName.set(&enteredText.get()[numCharsInPrefix]);
-					if (error != Error::NONE) {
-						goto removeLoadingAnimationAndGetOut;
+					String newName;
+					if (!numCharsInPrefix || display->haveOLED()) {
+						newName.set(&enteredText);
 					}
-				}
-
-				Kit* kit = getCurrentKit();
-
-				// Ensure Drum name isn't a duplicate, and if need be, make a new name from the fileNamePostPrefix.
-				if (kit->getDrumFromName(newName.get())) {
-
-					error = kit->makeDrumNameUnique(&newName, 2);
-					if (error != Error::NONE) {
-						goto removeLoadingAnimationAndGetOut;
+					else {
+						error = newName.set(&enteredText.get()[numCharsInPrefix]);
+						if (error != Error::NONE) {
+							goto removeLoadingAnimationAndGetOut;
+						}
 					}
-				}
 
-				drum->drumName = newName.get();
+					Kit* kit = getCurrentKit();
+
+					// Ensure Drum name isn't a duplicate, and if need be, make a new name from the fileNamePostPrefix.
+					if (kit->getDrumFromName(newName.get())) {
+
+						error = kit->makeDrumNameUnique(&newName, 2);
+						if (error != Error::NONE) {
+							goto removeLoadingAnimationAndGetOut;
+						}
+					}
+
+					drum->drumName = newName.get();
+				}
 			}
 
 			// If a synth...
@@ -1123,15 +1213,14 @@ doLoadAsSample:
 				if (mayDoPitchDetection) {
 					bool shouldMinimizeOctaves = (soundEditor.currentSource->ranges.getNumElements() == 1);
 
-					((MultisampleRange*)soundEditor.currentMultiRange)
-					    ->sampleHolder.setTransposeAccordingToSamplePitch(shouldMinimizeOctaves, doingSingleCycleNow);
+					targetSampleHolder->setTransposeAccordingToSamplePitch(shouldMinimizeOctaves, doingSingleCycleNow);
 				}
 
 				else {
 					// Otherwise, reset pitch. Popular request, late 2022.
 					// https://forums.synthstrom.com/discussion/4814/v4-0-1-after-loading-a-non-c-sample-into-synth-reloading-the-sample-as-basic-doesnt-reset-pitch
-					((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.transpose = 0;
-					((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.setCents(0);
+					targetSampleHolder->transpose = 0;
+					targetSampleHolder->setCents(0);
 				}
 			}
 
@@ -1453,8 +1542,17 @@ removeReasonsFromSamplesAndGetOut:
 
 	D_PRINT("loaded from folder: %d", numSamples);
 
-	// If all samples were tagged with the same MIDI note, we get suspicious and delete them.
-	bool discardingMIDINoteFromFile = (numSamples > 1 && commonMIDINote >= 0);
+	// If all samples were tagged with the same MIDI note, we get suspicious and delete them - a
+	// keyboard-spanning library where every file claims the same root note means a broken exporter
+	// stamped them all identically. Exception: with round-robin variants available, a folder of at
+	// most kMaxRoundRobinSlots files all tagged with the same note is exactly the shape of a
+	// deliberately prepared round-robin set (up to 4 takes of one sound), so trust the tags - the
+	// grouping below then stacks them into one zone deterministically, without relying on DSP pitch
+	// detection of e.g. drum transients to land every take on the same note.
+	bool allTaggedWithSameNote = (numSamples > 1 && commonMIDINote >= 0);
+	bool keepingTagsForRoundRobin = allTaggedWithSameNote && numSamples <= kMaxRoundRobinSlots
+	                                && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants);
+	bool discardingMIDINoteFromFile = allTaggedWithSameNote && !keepingTagsForRoundRobin;
 
 	Sample** sortArea = (Sample**)GeneralMemoryAllocator::get().allocMaxSpeed(numSamples * sizeof(Sample*) * 2);
 	if (!sortArea) {
@@ -1844,11 +1942,8 @@ doReturnFalse:
 
 skipOctaveCorrection:
 
-	int32_t rangeIndex = 0; // Keep this different to the sample index, just in case we need to skip a sample because it
-	                        // has the same pitch as a previous one. Skipping a range would leave our rangeArray with
-	                        // unused space allocated, but that's ok
-
-	int32_t lastTopNote = MIDI_NOTE_ERROR;
+	int32_t rangeIndex = 0; // Keep this different to the sample index, since several samples sharing a note become
+	                        // round-robin alternates of one range rather than each getting their own.
 
 	int32_t totalMSec = 0;
 	int32_t numWithFileLoopPoints = 0;
@@ -1860,6 +1955,125 @@ skipOctaveCorrection:
 	}
 
 	D_PRINTLN("creating ranges");
+
+	// The first range may already carry round-robin alternates and a mode/velocity configuration
+	// from earlier manual use (only ranges[1..] got deleted above) - the loop below is about to
+	// repopulate it from the folder's contents, so start from a clean slate rather than mixing stale
+	// alternate data with the newly imported set.
+	static_cast<MultisampleRange*>(soundEditor.currentMultiRange)->clearAllAlternates();
+
+	// Samples that share a note become round-robin alternates of one shared range instead of each
+	// getting - or, as used to happen, silently losing - their own range. A group holds at most
+	// kMaxRoundRobinAlternates + 1 samples (one primary + up to 3 alternates); any further same-note
+	// sample is dropped, the same as every duplicate used to be before this existed.
+	constexpr int32_t kMaxGroupMembers = kMaxRoundRobinAlternates + 1;
+	// With the ROUND-ROBIN SAMPLE VARIANTS community feature off, a "group" holds just one sample:
+	// every additional same-note file is dropped exactly as before the feature existed, so no
+	// alternate data gets created here - and none gets persisted on save - that couldn't be seen,
+	// edited or heard while the feature is off. (Playback and the VARIANTS menu gate on this same
+	// setting; this closes the one remaining path that could create variant data while it's off.)
+	const int32_t maxGroupMembers =
+	    runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants) ? kMaxGroupMembers : 1;
+	Sample* groupMembers[kMaxGroupMembers];
+	uint8_t groupVelocities[kMaxGroupMembers];
+	bool groupHasVelocity[kMaxGroupMembers];
+	int32_t groupMemberCount = 0;
+	int32_t groupNote = 0;         // this group's own rounded note - valid once groupMemberCount > 0
+	float groupPrimaryNote = 0.0f; // the group's primary's own raw detected note, for boundary math
+	int32_t previousGroupTopNote = MIDI_NOTE_ERROR;
+
+	// Finalizes the currently-buffered group into one MultisampleRange (+ alternates for any extra
+	// members), now that `finalTopNote` - the true boundary against the *next* distinct group,
+	// exactly like the single-sample-per-note topNote this replaces - is known. No-op if no group is
+	// pending (e.g. immediately before the very first sample is seen).
+	auto flushGroup = [&](int32_t finalTopNote) {
+		if (groupMemberCount == 0) {
+			return;
+		}
+
+		MultisampleRange* range;
+		if (rangeIndex == 0) {
+			range = (MultisampleRange*)soundEditor.currentMultiRange;
+		}
+		else {
+			if (soundEditor.currentSource->ranges.elementSize != sizeof(MultisampleRange)) {
+				FREEZE_WITH_ERROR("E431");
+			}
+			range = (MultisampleRange*)soundEditor.currentSource->ranges.insertMultiRange(
+			    rangeIndex); // We know it's gonna succeed
+		}
+
+		D_PRINT("top note:  %d", finalTopNote);
+
+		range->topNote = finalTopNote;
+		bool rangeCoversJustOneNote = (finalTopNote == previousGroupTopNote + 1);
+
+		for (int32_t m = 0; m < groupMemberCount; m++) {
+			Sample* memberSample = groupMembers[m];
+
+			SampleHolderForVoice* holder =
+			    (m == 0) ? &range->sampleHolder : range->ensureAlternateHolder(range->rrCount);
+			if (holder == nullptr) {
+				// Out of memory partway through a group - drop this one, same as any other dropped sample.
+				memberSample->removeReason("E394");
+				continue;
+			}
+			if (m > 0) {
+				range->rrCount++;
+			}
+
+			holder->filePath.set(&memberSample->filePath);
+			holder->setAudioFile(memberSample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true);
+			holder->setTransposeAccordingToSamplePitch(false, doingSingleCycle, rangeCoversJustOneNote, finalTopNote);
+
+			// Only the primary feeds the folder-wide length/loop-point stats used below to guess a
+			// sensible repeat mode - matching how only one sample per note ever fed them before.
+			if (m == 0) {
+				totalMSec += memberSample->getLengthInMSec();
+				if (memberSample->fileLoopEndSamples) {
+					numWithFileLoopPoints++;
+				}
+				if (holder->loopEndPos) {
+					numWithResultingLoopEndPoints++;
+				}
+			}
+
+			if (ALPHA_OR_BETA_VERSION && memberSample->numReasonsToBeLoaded <= 0) {
+				FREEZE_WITH_ERROR("E216"); // I put this here to try and catch an E004 Luc got
+			}
+			memberSample->removeReason("E394"); // Remove that temporary reason we added above
+		}
+
+		// If every member of a multi-sample group carries an explicit "velNNN"-style velocity tag,
+		// split the full 1-127 range between them - boundaries at the midpoints between consecutive
+		// parsed values, mirroring how topNote boundaries above are derived from adjacent MIDI notes
+		// - and switch this zone to Velocity mode. A group with any untagged member is left at the
+		// Cycle default with every slot's velocity range at its own 1-127 default: a missing tag
+		// means "assume full velocity" for that one slot, which would match every velocity and make
+		// any split meaningless anyway, so there's no useful partial case to handle here.
+		if (groupMemberCount > 1) {
+			bool allHaveVelocity = true;
+			for (int32_t m = 0; m < groupMemberCount; m++) {
+				allHaveVelocity = allHaveVelocity && groupHasVelocity[m];
+			}
+
+			if (allHaveVelocity) {
+				uint8_t rangeMin[kMaxGroupMembers];
+				uint8_t rangeMax[kMaxGroupMembers];
+				// Files sharing a tag are takes of one layer and share its band. If they all share one, there
+				// is only the one layer and nothing for velocity to choose between: leave the zone cycling.
+				if (computeVelocityLayerBoundaries(groupVelocities, groupMemberCount, rangeMin, rangeMax) > 1) {
+					for (int32_t m = 0; m < groupMemberCount; m++) {
+						range->setVelocityRange(m, rangeMin[m], rangeMax[m]);
+					}
+					range->rrMode = MultisampleRange::RRMode::Velocity;
+				}
+			}
+		}
+
+		rangeIndex++;
+		previousGroupTopNote = finalTopNote;
+	};
 
 	for (int32_t s = 0; s < numSamples; s++) {
 
@@ -1875,59 +2089,38 @@ skipOctaveCorrection:
 			continue;
 		}
 
-		int32_t topNote = 32767;
+		int32_t thisNoteRounded = (int32_t)roundf(thisSample->midiNote);
+		bool startsNewGroup = (groupMemberCount == 0) || (thisNoteRounded != groupNote);
 
-		if (s < numSamples - 1) {
-			Sample* nextSample = sortArea[s + 1];
+		char const* fileNameOnly = getFileNameFromEndOfPath(thisSample->filePath.get());
 
-			float midPoint = (thisSample->midiNote + nextSample->midiNote) * 0.5;
-			topNote = midPoint; // Round down
-			if (topNote <= lastTopNote) {
-				D_PRINTLN("skipping sample cos %d <= %d", topNote, lastTopNote);
-				// TODO: shouldn't we remove a reason here?
-				continue;
+		if (startsNewGroup) {
+			if (groupMemberCount > 0) {
+				// The previous group now knows its true extent: up to the midpoint with this sample,
+				// exactly the boundary a single-sample-per-note zone would have gotten before.
+				int32_t finalTopNote = (int32_t)((groupPrimaryNote + thisSample->midiNote) * 0.5f);
+				flushGroup(finalTopNote);
 			}
-		}
 
-		MultisampleRange* range;
-		if (rangeIndex == 0) {
-			range = (MultisampleRange*)soundEditor.currentMultiRange;
+			groupNote = thisNoteRounded;
+			groupPrimaryNote = thisSample->midiNote;
+			groupMembers[0] = thisSample;
+			groupHasVelocity[0] = tryParseVelocityFromFilename(fileNameOnly, &groupVelocities[0]);
+			groupMemberCount = 1;
+		}
+		else if (groupMemberCount < maxGroupMembers) {
+			groupMembers[groupMemberCount] = thisSample;
+			groupHasVelocity[groupMemberCount] =
+			    tryParseVelocityFromFilename(fileNameOnly, &groupVelocities[groupMemberCount]);
+			groupMemberCount++;
 		}
 		else {
-			if (soundEditor.currentSource->ranges.elementSize != sizeof(MultisampleRange)) {
-				FREEZE_WITH_ERROR("E431");
-			}
-			range = (MultisampleRange*)soundEditor.currentSource->ranges.insertMultiRange(
-			    rangeIndex); // We know it's gonna succeed
+			D_PRINTLN("dropping sample beyond the %d-deep round-robin slot limit for this note", maxGroupMembers);
+			thisSample->removeReason("E394");
 		}
-
-		D_PRINT("top note:  %d", topNote);
-
-		range->topNote = topNote;
-
-		range->sampleHolder.filePath.set(&thisSample->filePath);
-		range->sampleHolder.setAudioFile(thisSample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(),
-		                                 true);
-		bool rangeCoversJustOneNote = (topNote == lastTopNote + 1);
-		range->sampleHolder.setTransposeAccordingToSamplePitch(false, doingSingleCycle, rangeCoversJustOneNote,
-		                                                       topNote);
-
-		totalMSec += thisSample->getLengthInMSec();
-		if (thisSample->fileLoopEndSamples) {
-			numWithFileLoopPoints++;
-		}
-		if (range->sampleHolder.loopEndPos) {
-			numWithResultingLoopEndPoints++;
-		}
-
-		if (ALPHA_OR_BETA_VERSION && thisSample->numReasonsToBeLoaded <= 0) {
-			FREEZE_WITH_ERROR("E216"); // I put this here to try and catch an E004 Luc got
-		}
-		thisSample->removeReason("E394"); // Remove that temporary reason we added above
-
-		rangeIndex++;
-		lastTopNote = topNote;
 	}
+
+	flushGroup(32767); // The very last group always extends to the top, same as a lone final sample did before.
 
 	numSamples = rangeIndex;
 
@@ -2041,6 +2234,12 @@ getOut:
 				}
 
 				drum->killAllVoices();
+
+				// This drum is reused for the first sample of the new kit. Any round-robin variants it had
+				// would otherwise stay, and it would alternate between the new sample and them.
+				if (source->hasMultisampleRanges()) {
+					static_cast<MultisampleRange*>(range)->clearAllAlternates();
+				}
 			}
 
 			// Or, for subsequent samples...

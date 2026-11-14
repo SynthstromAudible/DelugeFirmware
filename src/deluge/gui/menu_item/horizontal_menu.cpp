@@ -634,6 +634,15 @@ double HorizontalMenu::calcNextKnobSpeed(int8_t offset) {
 
 void HorizontalMenu::handleItemAction(MenuItem* menuItem) {
 	if (!menuItem->isSubmenu() && !menuItem->allowToBeginSessionFromHorizontalMenu()) {
+		// A value that needs a note range (e.g. sample transpose), pressed again while none is chosen: ask for
+		// one, as the first press does. It can be highlighted without one - by a page switch, or by coming back
+		// to the page - and would otherwise show and edit the first range without saying so.
+		if (menuItem->isRangeDependent() && initializeItem(menuItem) == MenuPermission::MUST_SELECT_RANGE) {
+			soundEditor.currentMultiRange = nullptr;
+			multiRangeMenu.menuItemHeadingTo = menuItem;
+			soundEditor.enterSubmenu(&multiRangeMenu);
+			return;
+		}
 		menuItem->selectButtonPress();
 		return displayNotification(menuItem);
 	}
