@@ -626,7 +626,12 @@ shell's; every model-aware implementation is here, as with `Scene`.
   both indicators at 0 every tick, so the application's reads and moves `View::knobFocus()`
   (`use_focus`), and the wiring re-seeds the song and the view state on every open. The root views reach
   the same service through `gui/ui/root_knobs` (`turn`, `section_button`, `push`), shown through the legacy
-  display; no engine object has a gold-knob path of its own.
+  display; no engine object has a gold-knob path of its own. `root_knobs` numbers each physical control through
+  `controls::map_input` and `kDelugeControls` before the service sees it, so the service speaks sections and slots.
+* **Pages are assembled in `src/controls`, not here.** The owners publish their pages (`plugin::RemoteControls`);
+  `scenes/bind` supplies the publishers (`app_publishers`), the focus a view names and the host's reading of a chain's
+  view, and `controls::current_page` / `section_pages` build the page the knobs are on. A CV track and a MIDI or gate
+  drum focus on `NoControlsFocus`, whose page is empty.
 
 ## Repaint and timers
 
