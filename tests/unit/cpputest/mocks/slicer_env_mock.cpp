@@ -29,6 +29,7 @@
 #include "model/edits/set_source_ranges.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
@@ -417,6 +418,9 @@ Error applyRanges(::Sound& /*sound*/, int32_t /*s*/, const std::vector<deluge::i
 Error applySetting(::Sound& /*sound*/, std::string_view /*path*/, const deluge::serialization::Value& /*value*/,
                    ::Song& /*song*/) {
 	return Error::NONE;
+}
+void remapUnboundKnobsForMode(::Sound& /*sound*/, deluge::instrument::SynthMode /*from*/,
+                              deluge::instrument::SynthMode /*to*/) {
 }
 } // namespace deluge::bridge
 

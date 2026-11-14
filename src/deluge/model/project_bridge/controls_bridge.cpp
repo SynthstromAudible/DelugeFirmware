@@ -86,6 +86,14 @@ std::vector<ControllerMapping> controlsOf(const std::array<deluge::instrument::K
 	return controls;
 }
 
+void remapUnboundKnobsForMode(::Sound& sound, deluge::instrument::SynthMode from, deluge::instrument::SynthMode to) {
+	const std::array<deluge::instrument::KnobPair, 8> knobs = knobPairsOf(controlsOf(sound));
+	const std::array<deluge::instrument::KnobPair, 8> remapped = deluge::instrument::remap_for_mode(from, to, knobs);
+	if (remapped != knobs) {
+		applyControls(sound, true, controlsOf(remapped));
+	}
+}
+
 void refreshControls(::Song& song) {
 	for (Output* output = song.live.media.first_output; output != nullptr; output = output->next) {
 		if (output->docOutput_ == nullptr) {

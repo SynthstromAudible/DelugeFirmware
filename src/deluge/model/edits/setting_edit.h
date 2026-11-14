@@ -80,8 +80,13 @@ inline void settingFor(::Sound& sound, std::string_view path, deluge::serializat
 		}
 		return;
 	}
+	const SynthMode from = sound.getSynthMode();
 	if (deluge::bridge::applySetting(sound, path, value, *currentSong) != Error::NONE) {
 		D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
+	}
+	else if (path == "mode") {
+		// No record to remap through: the sound's own knobs follow the mode.
+		deluge::bridge::remapUnboundKnobsForMode(sound, from, sound.getSynthMode());
 	}
 }
 

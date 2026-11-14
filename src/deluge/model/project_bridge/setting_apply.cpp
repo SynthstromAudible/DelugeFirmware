@@ -21,12 +21,9 @@
 #include "effects/settings.h"
 #include "effects/words.h"
 #include "instruments/deluge/dx7_init_voice.h"
-#include "instruments/deluge/pages.h"
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/words.h"
 #include "model/clip/instrument_clip.h"
-#include "model/edits/edit.h"
-#include "model/edits/set_controls.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
@@ -338,23 +335,6 @@ bool applyEffectValue(ModControllableAudio& owner, std::string_view path, const 
 	}
 	return true;
 }
-
-/// Give @p sound the knobs a change of synth mode from @p from to @p to makes of its own (the instrument's
-/// remap_for_mode, after the mode and the filter modes have changed): through SetControls when the sound has a
-/// controls record in @p song, so the record and the mod knobs both take them; to its mod knobs alone for a sound with
-/// no record.
-void remapControlsForMode(::Sound& sound, SynthMode from, SynthMode to, ::Song& song) {
-	const std::vector<deluge::project::ControllerMapping> controls =
-	    controlsOf(deluge::instrument::remap_for_mode(from, to, knobPairsOf(controlsOf(sound))));
-	if (const std::optional<deluge::project::ControlsAddress> address = controlsAddressOf(sound)) {
-		deluge::edits::Context ctx{song, song.project};
-		deluge::edits::SetControls edit{*address, controls};
-		if (deluge::edits::apply(ctx, edit) == Error::NONE) {
-			return;
-		}
-	}
-	applyControls(sound, true, controls);
-}
 } // namespace
 
 void retuneVoices(::Sound& sound, ::Song& song) {
@@ -410,10 +390,7 @@ Error applySetting(::Sound& sound, std::string_view path, const deluge::serializ
 		sound.setMaxVoiceCount(static_cast<uint8_t>(number));
 	}
 	else if (path == "mode") {
-		const SynthMode from = sound.getSynthMode();
-		const SynthMode to = deluge::instrument::parse_synth_mode(text);
-		sound.setSynthMode(to, &song);
-		remapControlsForMode(sound, from, to, song);
+		sound.setSynthMode(deluge::instrument::parse_synth_mode(text), &song);
 	}
 	else if (path == "transpose") {
 		sound.setTranspose(static_cast<int16_t>(number));

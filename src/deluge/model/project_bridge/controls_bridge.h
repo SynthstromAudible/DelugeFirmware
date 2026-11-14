@@ -64,6 +64,14 @@ knobPairsOf(const std::vector<deluge::project::ControllerMapping>& controls);
 [[nodiscard]] std::vector<deluge::project::ControllerMapping>
 controlsOf(const std::array<deluge::instrument::KnobPair, 8>& pairs);
 
+/// @brief Remap the mod knobs of @p sound, a sound with no controls record (one outside the song), for a change of
+/// synth mode from @p from to @p to (the instrument's remap_for_mode): its engine knobs only. A bound sound's knobs are
+/// remapped by its mode Edit, through its record.
+/// @param sound The sound whose mode changed.
+/// @param from  The synth mode before the change.
+/// @param to    The synth mode after it.
+void remapUnboundKnobsForMode(::Sound& sound, deluge::instrument::SynthMode from, deluge::instrument::SynthMode to);
+
 /// @brief Set every output's, sound kit row's and the song's controls in the song's model from the runtime's mod
 /// knobs (a kit, an audio track and the song have none). Run once a song is loaded and after each save, as the slots
 /// are filled and refreshed.

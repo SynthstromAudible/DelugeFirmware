@@ -4,6 +4,9 @@
 #include "instruments/deluge/codec.h"
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/words.h"
+#include "io/debug/log.h"
+#include "model/edits/set_controls.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
@@ -28,6 +31,33 @@ encodedChange(const ::Sound& sound, const deluge::instrument::SoundState& before
 	return deluge::instrument::with_setting(before, path, value, context);
 }
 
+/// The knobs of @p sound after its mode went from @p from to @p to (the instrument's remap_for_mode), read from its
+/// controls record and written through SetControls, so the record and the engine's knobs take them together. A sound
+/// whose record does not resolve has only its engine knobs to remap. Nothing is written when the remap changes no knob.
+void remapControlsForMode(::Sound& sound, SynthMode from, SynthMode to, ::Song& song) {
+	const std::optional<deluge::project::ControlsAddress> address = deluge::bridge::controlsAddressOf(sound);
+	std::vector<deluge::project::ControllerMapping>* record =
+	    address ? song.project.resolveControls(*address) : nullptr;
+	if (record == nullptr) {
+		deluge::bridge::remapUnboundKnobsForMode(sound, from, to);
+		return;
+	}
+	const std::array<deluge::instrument::KnobPair, 8> knobs = deluge::bridge::knobPairsOf(*record);
+	const std::array<deluge::instrument::KnobPair, 8> remapped = deluge::instrument::remap_for_mode(from, to, knobs);
+	if (remapped == knobs) {
+		return;
+	}
+	std::vector<deluge::project::ControllerMapping> controls = deluge::bridge::controlsOf(remapped);
+	Context ctx{song, song.project};
+	SetControls edit{*address, controls};
+	if (deluge::edits::apply(ctx, edit) != Error::NONE) {
+		// The record resolved but its owner did not: write both copies, so they stay equal.
+		D_PRINTLN("controls refused: mode remap written directly");
+		deluge::bridge::applyControls(sound, true, controls);
+		*record = std::move(controls);
+	}
+}
+
 } // namespace
 
 std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>
@@ -47,6 +77,7 @@ settingChange(const ::Sound& sound, const deluge::project::InstrumentSlot& /*slo
 
 Error commitEngineSetting(::Sound& sound, deluge::project::InstrumentSlot& slot, std::string_view path,
                           const deluge::serialization::Value& value, ::Song& song) {
+	const SynthMode from = sound.boundState()->synth_mode;
 	const auto change = settingChange(sound, slot, path, value);
 	if (deluge::bridge::typedWriteAudit().enabled) {
 		const deluge::instrument::SoundState& before = *sound.boundState();
@@ -66,6 +97,9 @@ Error commitEngineSetting(::Sound& sound, deluge::project::InstrumentSlot& slot,
 	}
 	else {
 		error = Error::NONE; // what else the sound refused is not this Edit's
+	}
+	if (path == "mode") {
+		remapControlsForMode(sound, from, sound.boundState()->synth_mode, song);
 	}
 	// After the setters have projected the sound's render copy, which the reverb copies from: a render during the write
 	// would otherwise clear the flag before the new timing is there to read. Whatever landed, the reverb re-reads it.
