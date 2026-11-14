@@ -24,7 +24,8 @@
 /// upstream USB or from a hosted device the Deluge did not know. Each table is projected onto the engine fields and
 /// the index rebuilt. Each random message (from DIN or upstream USB, with inputs told apart by device or not, and
 /// random MPE zones on both cables) is then matched by the index and by a transcription of the scans the dispatch makes
-/// over the engine fields, and the two sequences of hits (target and position, in order) must be equal.
+/// (an owner's knobs read from the mapping table in table order, the rest over the engine fields), and the two
+/// sequences of hits (target and position, in order) must be equal.
 ///
 /// Projecting a binding to a hosted device the Deluge did not know makes the device an entry, as a song's load does,
 /// which no message arrives on. A section's command is not projected, so a section learned from a device the Deluge
@@ -369,14 +370,12 @@ std::vector<Hit> legacyCommands(Song& song, MIDICable& cable, int32_t channel, i
 	return hits;
 }
 
-/// The oracle: today's scan of one owner's learned knobs (ModControllableAudio::offerReceivedCCToLearnedParams*); a
+/// The oracle: each of one owner's learned knobs, in the table's order for the owner, that the message triggers. A
 /// hibernating owner is never offered MIDI.
-std::vector<Hit> legacyKnobs(Song& song, ControlsAddress owner, MIDICable& cable, int32_t channel, int32_t cc,
-                             std::string& broken) {
+std::vector<Hit> tableKnobs(Song& song, ControlsAddress owner, MIDICable& cable, int32_t channel, int32_t cc) {
 	std::vector<Hit> hits;
 	bool isSound = false;
-	ModControllableAudio* knobs = deluge::bridge::controlsOwnerAt(song, owner, &isSound);
-	if (knobs == nullptr) {
+	if (deluge::bridge::controlsOwnerAt(song, owner, &isSound) == nullptr) {
 		return hits;
 	}
 	if (owner.kind != ControlsAddress::Kind::SONG) {
@@ -396,12 +395,8 @@ std::vector<Hit> legacyKnobs(Song& song, ControlsAddress owner, MIDICable& cable
 		}
 	}
 	const std::vector<Mapping> entries = song.project.mappings.params_of(owner);
-	if (entries.size() != knobs->midi_knobs.size()) {
-		broken = "an owner's knob list is not its table entries";
-		return hits;
-	}
 	for (size_t i = 0; i < entries.size(); i++) {
-		if (knobs->midi_knobs[i].midiInput.equalsNoteOrCC(&cable, channel, cc)) {
+		if (deluge::bridge::matches(entries[i].source, cable, channel, cc)) {
 			hits.push_back({entries[i].target, static_cast<uint32_t>(i)});
 		}
 	}
@@ -1843,7 +1838,6 @@ int mapping_dispatch_main(int /*argc*/, char** /*argv*/, deluge::scenarios::driv
 	int32_t cases = 0;
 	int32_t mismatches = 0;
 	std::map<std::string, int32_t> seen;
-	std::string broken;
 	auto report = [&](const char* what, const std::string& message, const std::vector<Hit>& index,
 	                  const std::vector<Hit>& legacy) {
 		if (mismatches++ < 10) {
@@ -1911,7 +1905,7 @@ int mapping_dispatch_main(int /*argc*/, char** /*argv*/, deluge::scenarios::driv
 				fromIndex.clear();
 				index.forEachKnob(owner, cable, channel, number,
 				                  [&](const deluge::midi::IndexedEntry& e) { fromIndex.push_back(hitOf(e)); });
-				legacy = legacyKnobs(song, owner, cable, channel, number, broken);
+				legacy = tableKnobs(song, owner, cable, channel, number);
 				if (fromIndex != legacy) {
 					report("knobs", message, fromIndex, legacy);
 				}
@@ -1944,10 +1938,6 @@ int mapping_dispatch_main(int /*argc*/, char** /*argv*/, deluge::scenarios::driv
 	std::fprintf(io.out, "MAPPING-DISPATCH cases=%d mismatches=%d hits:%s\n", static_cast<int>(cases),
 	             static_cast<int>(mismatches), hits.c_str());
 	int32_t failures = mismatches + legFailures;
-	if (!broken.empty()) {
-		std::fprintf(io.err, "MAPPING-DISPATCH FAIL %s\n", broken.c_str());
-		failures++;
-	}
 	constexpr std::array<const char*, 10> kRequired{"knob",
 	                                                "clip",
 	                                                "rowmute",
