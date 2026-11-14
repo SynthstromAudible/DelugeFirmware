@@ -79,7 +79,7 @@ function(_deluge_check_trees what)
 endfunction()
 
 # deluge_specs_driver(<name> TREES <tree>... [NEON] [ONLY_HOST <spec>...] [ONLY_ARM <spec>...] [ONLY_UBSAN <spec>...]
-#                     [SOURCES <file>...] [LIBRARIES <lib>...] [INCLUDES <dir>...])
+#                     [SOURCES <file>...] [LIBRARIES <lib>...] [INCLUDES <dir>...] [DEFINITIONS <def>...])
 #
 # One executable holding the *_spec.cpp files under the calling directory, down to the next directory with its own
 # CMakeLists.txt, and one ctest test per spec, named after its file. TREES names the trees that build the directory's
@@ -91,9 +91,11 @@ endfunction()
 # relative paths resolve against the calling directory. Every spec includes against the calling directory and then
 # tests/, so a header from another test directory is named by its path there ("support/golden_update.h",
 # "harness/ui_script.h", "unit/deluge/dsp-next/raw_words.h"). NEON links argon as deluge_test_neon() does.
+# DEFINITIONS are compile definitions for the driver's own sources (the specs and SOURCES).
 # Every executable gets GOLDEN_ROOT (golden.cmake).
 function(deluge_specs_driver name)
-  cmake_parse_arguments(PARSE_ARGV 1 arg "NEON" "" "TREES;ONLY_HOST;ONLY_ARM;ONLY_UBSAN;SOURCES;LIBRARIES;INCLUDES")
+  cmake_parse_arguments(PARSE_ARGV 1 arg "NEON" ""
+    "TREES;ONLY_HOST;ONLY_ARM;ONLY_UBSAN;SOURCES;LIBRARIES;INCLUDES;DEFINITIONS")
   if(arg_UNPARSED_ARGUMENTS)
     message(FATAL_ERROR "deluge_specs_driver(${name}): unexpected arguments: ${arg_UNPARSED_ARGUMENTS}")
   endif()
@@ -159,10 +161,14 @@ function(deluge_specs_driver name)
   set(DELUGE_SPEC_ROWS "${rows}")
   configure_file(${DELUGE_SPECS_MAIN_IN} ${CMAKE_CURRENT_BINARY_DIR}/${name}_main.cpp @ONLY)
   add_executable(${name} ${CMAKE_CURRENT_BINARY_DIR}/${name}_main.cpp ${spec_sources} ${arg_SOURCES})
+  # Every spec compiles at the standard the firmware's libraries build at, and checks the standard library's
+  # preconditions (span and container bounds among them), so a read past an end fails the spec rather than going unseen
+  # at the trees' optimisation levels.
+  set_target_properties(${name} PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES)
+  target_compile_definitions(${name} PRIVATE _GLIBCXX_ASSERTIONS ${arg_DEFINITIONS})
   deluge_golden_root(${name})
   target_link_libraries(${name} PRIVATE c++spec ${arg_LIBRARIES})
   target_include_directories(${name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${DELUGE_REPO_ROOT}/tests ${arg_INCLUDES})
-  set_target_properties(${name} PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES)
   if(arg_NEON)
     deluge_test_neon(${name})
   endif()

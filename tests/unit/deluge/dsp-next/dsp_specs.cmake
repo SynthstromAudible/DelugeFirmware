@@ -17,11 +17,8 @@ if(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm")
   set(DELUGE_DSP_SPEC_ASM ${CMAKE_CURRENT_LIST_DIR}/reference_neon_fm_kernel.s)
 endif()
 
-# deluge_dsp_spec_flags(<driver>): every dsp spec checks the standard library's preconditions, span bounds among them,
-# so a read past the end of a span fails the spec instead of going unseen at the trees' optimisation levels; and on the
-# A9 the DX7 specs also run the asm (DELUGE_DX7_ASM_PIN).
+# deluge_dsp_spec_flags(<driver>): on the A9 the DX7 specs also run the asm (DELUGE_DX7_ASM_PIN).
 function(deluge_dsp_spec_flags driver)
-  target_compile_definitions(${driver} PRIVATE _GLIBCXX_ASSERTIONS)
   if(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm")
     target_compile_definitions(${driver} PRIVATE DELUGE_DX7_ASM_PIN=1)
   endif()
