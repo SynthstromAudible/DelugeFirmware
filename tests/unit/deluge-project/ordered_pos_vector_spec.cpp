@@ -1,6 +1,7 @@
 #include "deluge-project/ordered_pos_vector.h"
 #include "deluge-project/param_node.h"
 #include "model_hooks_for_tests.h"
+#include "support/printers/project_result_printer.h"
 
 #include <cppspec.hpp>
 #include <utility>

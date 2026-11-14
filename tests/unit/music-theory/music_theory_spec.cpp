@@ -5,7 +5,7 @@
 #include "music-theory/scale_mapper.h"
 #include "music-theory/utils.h"
 
-#include "note_set_printing.h"
+#include "support/printers/note_set_printer.h"
 
 #include <algorithm>
 #include <iostream>

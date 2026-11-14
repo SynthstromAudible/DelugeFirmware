@@ -24,6 +24,8 @@
 #include "instruments/deluge/naming.h"
 #include "instruments/deluge/params.h"
 #include "serialization/parse_json.h"
+#include "support/printers/mapping_printer.h"
+#include "support/printers/value_printer.h"
 
 #include <cppspec.hpp>
 #include <type_traits>

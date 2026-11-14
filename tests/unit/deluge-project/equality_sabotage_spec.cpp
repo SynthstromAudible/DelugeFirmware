@@ -9,6 +9,7 @@
 #include <cppspec.hpp>
 #include <fstream>
 #include <sstream>
+#include <string>
 
 using namespace deluge::project;
 
@@ -55,7 +56,7 @@ deluge::serialization::Value without_first(const deluge::serialization::Value& n
 describe equality_sabotage("the model-equality gate", ${
 	it("passes the song holding every record", _ {
 		auto result = check_equality(fixture(), false);
-		expect(result).to_have_value();
+		expect(result.error_or("")).to_equal(std::string{});
 	});
 
 	it("fails, naming the record, when encode drops a field", _ {
@@ -71,23 +72,23 @@ describe equality_sabotage("the model-equality gate", ${
 			document.set("song", std::move(song));
 		};
 		auto result = check_equality(fixture(), false, faults);
-		expect(result).to_have_error();
-		expect(result.error_or("")).to_partially_match("groove");
+		expect(result.has_value()).to_be_false();
+		expect(result.error_or("")).to_contain("groove");
 	});
 
 	it("fails, naming the record, when decode misreads a field", _ {
 		EqualityFaults faults;
 		faults.on_decoded = [](SongDocument& document) { document.groove.swing_amount += 1; };
 		auto result = check_equality(fixture(), false, faults);
-		expect(result).to_have_error();
-		expect(result.error_or("")).to_partially_match("groove");
+		expect(result.has_value()).to_be_false();
+		expect(result.error_or("")).to_contain("groove");
 	});
 
 	it("finds an XML song and its JSON save the same song", _ {
 		const std::string json = deluge::serialization::write_json(
 		    encode_song(*decode_song(*deluge::serialization::parseXml(fixture()), deluge::project::test::test_plugins()), "c1.0.0", deluge::project::test::test_plugins()));
 		auto result = compare_songs(fixture(), false, json, true);
-		expect(result).to_have_value();
+		expect(result.error_or("")).to_equal(std::string{});
 	});
 
 	it("names the record when two saves are different songs", _ {
@@ -95,21 +96,21 @@ describe equality_sabotage("the model-equality gate", ${
 		changed->groove.swing_amount += 1;
 		const std::string json = deluge::serialization::write_json(encode_song(*changed, "c1.0.0", deluge::project::test::test_plugins()));
 		auto result = compare_songs(fixture(), false, json, true);
-		expect(result).to_have_error();
-		expect(result.error_or("")).to_partially_match("groove");
+		expect(result.has_value()).to_be_false();
+		expect(result.error_or("")).to_contain("groove");
 	});
 
 	it("finds two documents with the same tree the same, whatever their whitespace", _ {
 		auto result = compare_trees(R"(<sound a="1"><osc1 type="sine"/></sound>)", false,
 		                            "<sound\n  a=\"1\">\n<osc1\n type=\"sine\"></osc1></sound>", false);
-		expect(result).to_have_value();
+		expect(result.error_or("")).to_equal(std::string{});
 	});
 
 	it("names the first path where two trees differ", _ {
 		auto result = compare_trees(R"(<sound a="1"><osc1 type="sine"/></sound>)", false,
 		                            R"(<sound a="1"><osc1 type="saw"/></sound>)", false);
-		expect(result).to_have_error();
-		expect(result.error_or("")).to_partially_match("sound/osc1/type");
+		expect(result.has_value()).to_be_false();
+		expect(result.error_or("")).to_contain("sound/osc1/type");
 	});
 
 	it("names a kit's effects when a slot is dropped", _ {
@@ -123,8 +124,8 @@ describe equality_sabotage("the model-equality gate", ${
 			}
 		};
 		auto result = check_equality(fixture(), false, faults);
-		expect(result).to_have_error();
-		expect(result.error_or("")).to_partially_match("effects");
+		expect(result.has_value()).to_be_false();
+		expect(result.error_or("")).to_contain("effects");
 	});
 
 	it("names the master's effects when an effect setting changes", _ {
@@ -134,8 +135,8 @@ describe equality_sabotage("the model-equality gate", ${
 			    deluge::effects::ModFXType::CHORUS;
 		};
 		auto result = check_equality(fixture(), false, faults);
-		expect(result).to_have_error();
-		expect(result.error_or("")).to_partially_match("master effects");
+		expect(result.has_value()).to_be_false();
+		expect(result.error_or("")).to_contain("master effects");
 	});
 
 	it("fails, naming the output, when a synth track's sound changes", _ {
@@ -150,8 +151,8 @@ describe equality_sabotage("the model-equality gate", ${
 			}
 		};
 		auto result = check_equality(fixture(), false, faults);
-		expect(result).to_have_error();
-		expect(result.error_or("")).to_partially_match("output");
+		expect(result.has_value()).to_be_false();
+		expect(result.error_or("")).to_contain("output");
 	});
 
 	it("fails, naming the output, when a mod knob is pointed elsewhere", _ {
@@ -167,8 +168,8 @@ describe equality_sabotage("the model-equality gate", ${
 			}
 		};
 		auto result = check_equality(fixture(), false, faults);
-		expect(result).to_have_error();
-		expect(result.error_or("")).to_partially_match("output");
+		expect(result.has_value()).to_be_false();
+		expect(result.error_or("")).to_contain("output");
 	});
 
 	it("fails, naming the mappings, when a learned MIDI knob is lost", _ {
@@ -178,8 +179,8 @@ describe equality_sabotage("the model-equality gate", ${
 			document = without_first(document, "midiKnobs", dropped);
 		};
 		auto result = check_equality(fixture(), false, faults);
-		expect(result).to_have_error();
-		expect(result.error_or("")).to_partially_match("mappings");
+		expect(result.has_value()).to_be_false();
+		expect(result.error_or("")).to_contain("mappings");
 	});
 
 	it("fails, naming the drum, when a sound kit row's sound changes", _ {
@@ -194,8 +195,8 @@ describe equality_sabotage("the model-equality gate", ${
 			}
 		};
 		auto result = check_equality(fixture(), false, faults);
-		expect(result).to_have_error();
-		expect(result.error_or("")).to_partially_match("drum");
+		expect(result.has_value()).to_be_false();
+		expect(result.error_or("")).to_contain("drum");
 	});
 });
 

@@ -3,6 +3,7 @@
 #include "serialization/parse_json.h"
 #include "serialization/parse_xml.h"
 #include "serialization/write_json.h"
+#include "support/printers/song_document_printer.h"
 
 #include <cppspec.hpp>
 

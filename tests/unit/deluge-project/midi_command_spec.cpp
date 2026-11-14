@@ -1,4 +1,5 @@
 #include "deluge-project/midi_command.h"
+#include "support/printers/mapping_printer.h"
 
 #include <cppspec.hpp>
 

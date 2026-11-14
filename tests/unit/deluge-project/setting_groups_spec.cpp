@@ -3,6 +3,9 @@
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
 #include "deluge-project/structure_codec.h"
+#include "support/printers/arp_record_printer.h"
+#include "support/printers/doc_clip_printer.h"
+#include "support/printers/song_settings_printer.h"
 
 #include "cppspec.hpp"
 #include "support/matchers/value_matchers.h"

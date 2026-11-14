@@ -2,6 +2,9 @@
 #include "deluge-project/structure_codec.h"
 #include "instrument_test_plugins.h"
 #include "serialization/parse_xml.h"
+#include "support/printers/doc_clip_printer.h"
+#include "support/printers/doc_output_printer.h"
+#include "support/printers/project_result_printer.h"
 
 #include <cppspec.hpp>
 #include <string>

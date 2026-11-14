@@ -2,6 +2,9 @@
 #include "deluge-project/song_codec.h"
 #include "serialization/parse_json.h"
 #include "serialization/write_json.h"
+#include "support/printers/groove_printer.h"
+#include "support/printers/project_result_printer.h"
+#include "support/printers/song_settings_printer.h"
 
 #include <cppspec.hpp>
 
