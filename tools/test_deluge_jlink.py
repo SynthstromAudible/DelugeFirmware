@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Tests for deluge_jlink.py: `python3 -m unittest test_deluge_jlink` (from tools/)."""
+"""Tests for deluge_jlink.py: `python3 -m unittest test_deluge_jlink` (from tools/).
+
+Gate deluge-jlink:
+    deluge_jlink's load script turns the MMU off, then stops every one of the sixteen DMA channels, then loads, so a
+    firmware still running when the core halts cannot write into the image gdb is loading; the caller's extra
+    commands follow the load
+"""
 
 import unittest
 

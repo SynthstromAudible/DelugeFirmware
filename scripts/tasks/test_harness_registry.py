@@ -2197,6 +2197,16 @@ class ExplanationTest(unittest.TestCase):
         path.write_text(text)
         return path
 
+    def test_every_tools_test_module_runs_under_an_entry(self):
+        run = {
+            arg
+            for h in hr.load_registry(self.ROOT)
+            if h.runner == "script" and Path(h.path) == Path("tools")
+            for arg in h.run
+        }
+        modules = {p.stem for p in (self.ROOT / "tools").glob("test_*.py")}
+        self.assertEqual(sorted(modules - run), [])
+
     def test_python_docstring_block(self):
         path = self._file(
             "c.py",

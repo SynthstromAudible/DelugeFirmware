@@ -1837,6 +1837,13 @@ gates = "the cards a UI script's header names, as the UI script runners read the
 run = ["python3", "-m", "unittest", "test_ui_script_cards"]
 
 [[harness]]
+name = "deluge-jlink"
+template = "unittest"
+path = "tools"
+gates = "deluge_jlink's load script stops every DMA channel after the MMU is off and before the load"
+run = ["python3", "-m", "unittest", "test_deluge_jlink"]
+
+[[harness]]
 name = "run-parity-runner"
 template = "unittest"
 path = "tests/ui-scripts/parity"
