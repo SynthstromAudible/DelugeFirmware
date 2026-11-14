@@ -353,7 +353,7 @@ bool playing(Song& song, const Output* output) {
 }
 
 /// The oracle: today's scan of sections and session clips (PlaybackHandler::offerNoteToLearnedThings).
-std::vector<Hit> legacyCommands(Song& song, MIDICable& cable, int32_t channel, int32_t note) {
+std::vector<Hit> engineCommands(Song& song, MIDICable& cable, int32_t channel, int32_t note) {
 	std::vector<Hit> hits;
 	for (int32_t s = 0; s < kMaxNumSections; s++) {
 		if (deluge::bridge::matches(deluge::bridge::sectionCommand(song.project.mappings, s), cable, channel, note)) {
@@ -405,7 +405,7 @@ std::vector<Hit> tableKnobs(Song& song, ControlsAddress owner, MIDICable& cable,
 
 /// The oracle: today's scan of a kit's rows after its own input (Kit::offerReceivedNote): a row's input, or failing
 /// that its mute. A hibernating kit is never offered MIDI.
-std::vector<Hit> legacyLanes(Song& song, uint32_t kitId, MIDICable& cable, int32_t channel, int32_t note) {
+std::vector<Hit> engineLanes(Song& song, uint32_t kitId, MIDICable& cable, int32_t channel, int32_t note) {
 	std::vector<Hit> hits;
 	Kit* kit = nullptr;
 	for (Output* o = song.live.media.first_output; o != nullptr; o = o->next) {
@@ -1839,13 +1839,13 @@ int mapping_dispatch_main(int /*argc*/, char** /*argv*/, deluge::scenarios::driv
 	int32_t mismatches = 0;
 	std::map<std::string, int32_t> seen;
 	auto report = [&](const char* what, const std::string& message, const std::vector<Hit>& index,
-	                  const std::vector<Hit>& legacy) {
+	                  const std::vector<Hit>& expected) {
 		if (mismatches++ < 10) {
-			std::fprintf(io.err, "MAPPING-DISPATCH MISMATCH %s %s index=%s legacy=%s\n", what, message.c_str(),
-			             describe(index).c_str(), describe(legacy).c_str());
+			std::fprintf(io.err, "MAPPING-DISPATCH MISMATCH %s %s index=%s expected=%s\n", what, message.c_str(),
+			             describe(index).c_str(), describe(expected).c_str());
 		}
 	};
-	// Count what the legacy scan hit, so a run that never reaches a kind of match fails.
+	// Count what the expected scan hit, so a run that never reaches a kind of match fails.
 	auto tally = [&](const std::vector<Hit>& hits, bool zoned) {
 		for (const Hit& hit : hits) {
 			constexpr std::array<const char*, 6> kKinds{"knob", "clip", "rowmute", "section", "track", "rowinput"};
@@ -1895,32 +1895,32 @@ int mapping_dispatch_main(int /*argc*/, char** /*argv*/, deluge::scenarios::driv
 			std::vector<Hit> fromIndex;
 			index.forEachCommand(cable, commandChannel, number,
 			                     [&](const deluge::midi::IndexedEntry& e) { fromIndex.push_back(hitOf(e)); });
-			std::vector<Hit> legacy = legacyCommands(song, cable, commandChannel, number);
-			if (fromIndex != legacy) {
-				report("commands", message, fromIndex, legacy);
+			std::vector<Hit> expected = engineCommands(song, cable, commandChannel, number);
+			if (fromIndex != expected) {
+				report("commands", message, fromIndex, expected);
 			}
-			tally(legacy, false);
+			tally(expected, false);
 
 			for (const ControlsAddress& owner : f.owners) {
 				fromIndex.clear();
 				index.forEachKnob(owner, cable, channel, number,
 				                  [&](const deluge::midi::IndexedEntry& e) { fromIndex.push_back(hitOf(e)); });
-				legacy = tableKnobs(song, owner, cable, channel, number);
-				if (fromIndex != legacy) {
-					report("knobs", message, fromIndex, legacy);
+				expected = tableKnobs(song, owner, cable, channel, number);
+				if (fromIndex != expected) {
+					report("knobs", message, fromIndex, expected);
 				}
-				tally(legacy, false);
+				tally(expected, false);
 			}
 
 			for (uint32_t kit : f.kitIds) {
 				fromIndex.clear();
 				index.forEachLaneMatch(kit, cable, channel, number,
 				                       [&](const deluge::midi::IndexedEntry& e) { fromIndex.push_back(hitOf(e)); });
-				legacy = legacyLanes(song, kit, cable, channel, number);
-				if (fromIndex != legacy) {
-					report("lanes", message, fromIndex, legacy);
+				expected = engineLanes(song, kit, cable, channel, number);
+				if (fromIndex != expected) {
+					report("lanes", message, fromIndex, expected);
 				}
-				tally(legacy, port.channelToZone(channel) != channel);
+				tally(expected, port.channelToZone(channel) != channel);
 			}
 		}
 	}

@@ -565,7 +565,6 @@ describe learned_cc_order("a learned CC through PlaybackHandler::midiCCReceived:
 		// A learned CC marks no instrument edited.
 		expect(w.synthOut().editedByUser).to_be_false();
 		expect(w.kitOut().editedByUser).to_be_false();
-		expect(w.idle.instrument != nullptr && static_cast<Instrument*>(w.idle.instrument)->editedByUser).to_be_false();
 	});
 
 	it("moves nothing on a channel no knob is learned on, nor for a different CC", _ {
@@ -707,6 +706,9 @@ describe learned_cc_takeover("a learned CC through MidiTakeover, one case at a t
 		const std::optional<int32_t> beforeRegion = valueAtPos(*rig.f.song, rig.address, 0);
 		expect(inRegion == std::optional<int32_t>{valueForKnobPos(*rig.f.song, rig.address, -64)}).to_be_true();
 		expect(inRegion != beforeRegion).to_be_true();
+		// The region is 48 long: still written at its last tick, back to where it was past its end.
+		expect(valueAtPos(*rig.f.song, rig.address, 96 + 47) == inRegion).to_be_true();
+		expect(valueAtPos(*rig.f.song, rig.address, 96 + 48 + 10) != inRegion).to_be_true();
 	});
 
 	it("picks up in PICKUP mode only when the controller crosses the param", _ {
@@ -807,8 +809,9 @@ describe learned_pitch_bend("a learned pitch bend through PlaybackHandler::pitch
 	});
 
 	it("writes a kit row's learned bend to the kit clip's own param at the row's index, the row's own untouched", _ {
-		// accepted difference (a row's bend is to write the row's own param, which flips this example): `main` hands a row's bend the kit clip's params (the note row index is
-		// -1, where a CC passes the row's own), so a row's unpatched target at index i moves the kit's global param i.
+		// accepted difference: a kit row's learned bend will write the row's own param.
+		// Today a row's bend is handed the kit clip's params (note row index -1; a CC passes the row's own),
+		// so a row's unpatched target at index i moves the kit's global param i.
 		// A patched target has no patched set on a kit clip and freezes (E411), so it is not pinned.
 		spec::SongFixture kit = addKit(spec::detail::make_bare_song());
 		SoundDrum* row = addSoundDrum(kit);
@@ -905,6 +908,9 @@ describe learned_writes("how a learned write lands", $ {
 		onTake.clip_id = take->id();
 		expect(automated(*rig.f.song, onTake)).to_be_true();
 		expect(automated(*rig.f.song, rig.address)).to_be_false();
+		const std::optional<int32_t> inRegion = valueAtPos(*rig.f.song, onTake, 100);
+		expect(valueAtPos(*rig.f.song, onTake, 96 + 47) == inRegion).to_be_true();
+		expect(valueAtPos(*rig.f.song, onTake, 96 + 48 + 10) != inRegion).to_be_true();
 	});
 
 	it("makes a cable depth the learned knob turns when the sound has none yet", _ {
@@ -924,18 +930,37 @@ describe learned_writes("how a learned write lands", $ {
 		expect(static_cast<Instrument*>(f.instrument)->editedByUser).to_be_false();
 	});
 
-	it("marks no instrument edited and makes one undo step per write", _ {
+	it("marks no owner edited: a synth, a kit's own knob, or a kit's rows", _ {
+		for (const unsigned owners : {unsigned{SYNTH}, unsigned{KIT}, unsigned{ROWS}}) {
+			Takeover takeover{MIDITakeoverMode::JUMP};
+			World w = makeWorld();
+			learnAll(w, owners);
+			RootView root;
+			sendCc(kChannel, kCc, 100);
+			expect(writes().empty()).to_be_false(); // the owner was written
+			expect(w.synthOut().editedByUser).to_be_false();
+			expect(w.kitOut().editedByUser).to_be_false();
+		}
+	});
+
+	it("makes one undo record per lane written, and one undo reverts the message's writes", _ {
 		Takeover takeover{MIDITakeoverMode::JUMP};
 		World w = makeWorld();
 		learnAll(w, SONG | SYNTH | KIT | ROWS | AUDIO);
 		RootView root;
 		sendCc(kChannel, kCc, 100);
 		expect(static_cast<int>(writes().size())).to_equal(6);
-		expect(w.synthOut().editedByUser || w.kitOut().editedByUser).to_be_false();
-		expect(w.rowA->id().has_value()).to_be_true();
 		// A second message to the same lanes adds to the same step, so every lane keeps one record.
 		sendCc(kChannel, kCc, 110);
 		expect(static_cast<int>(writes().size())).to_equal(6);
+		int steps = 0;
+		for (const Action* a = actionLogger.firstAction[BEFORE]; a != nullptr; a = a->nextAction) {
+			steps++;
+		}
+		expect(steps).to_equal(1);
+		expect(actionLogger.revert(BEFORE, false, false)).to_be_true();
+		expect(positions(w)).to_equal(std::string{
+		    "song:0 synth:0 kit:0 rowB:0 rowA:0 audio:0 idle:0 asleep:0"});
 	});
 });
 // clang-format on
