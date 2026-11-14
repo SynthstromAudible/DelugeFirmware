@@ -143,8 +143,7 @@ describe output_time_group("output time", ${
 		OutputTime start = outputTimeAtWindowOffset(5000, 128, 0);
 		OutputTime later = outputTimeAtWindowOffset(5000, 128, 441);
 		// 441 samples later is 10ms, give or take the Q8 rounding of a sample's length
-		expect(static_cast<int32_t>(later - start)).not_().to_be_less_than(9'990);
-		expect(static_cast<int32_t>(later - start)).not_().to_be_greater_than(10'010);
+		expect(static_cast<int32_t>(later - start)).to_be_within(10).of(10'000);
 	});
 
 	it("never goes backwards across a window", _ {
