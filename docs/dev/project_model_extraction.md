@@ -326,7 +326,8 @@ conflation this effort targets, surfaced precisely at the load/save boundary.
 
 ### Corpus (tiers, sample-free first)
 
-Assemble `tests/golden/songs/` (real `SONGS/*.XML`, committed pristine):
+Assemble a private corpus of real `SONGS/*.XML` (only `fixtures.json` and `synthetic/` are committed under
+`tests/golden/songs/`; real songs stay private):
 
 - **Format coverage:** legacy tag-format songs *and* modern attribute-format
   songs (exercises the upgrade transforms — the riskiest serialization surface).
@@ -353,18 +354,18 @@ once the extraction is underway.
       audio yields were out of its way (see above).
 - [x] Take the in-load audio yields out of a headless load. Minimal song now
       loads headless, clean exit. Real-song validation pending corpus.
-- [x] Round-trip driver (`tests/golden/song_roundtrip.cpp`, target
+- [x] Round-trip driver (`tests/integration/scenarios/drivers/song_roundtrip.cpp`, target
       `song_roundtrip`): in-memory load→save→reload→save fixed-point check,
       emits `gen1`.
 - [x] Runner `tests/integration/corpus/songs_run.py` + `tests/golden/songs/fixtures.json` (SHA-256 of
       `gen1`); `./dbt test --update song-roundtrip` to re-baseline; fails only on a committed-hash
       `REGRESS`. Verified: detects a tampered fixture (exit 1), clean (exit 0).
 - [x] CTest registration (`ctest -R song_roundtrip`, `SKIP_RETURN_CODE 77`) +
-      `tests/golden/README`.
+      `tests/integration/corpus/README.md`.
 - [x] **Bring-your-own corpus:** only `tests/golden/songs/fixtures.json` (14 SHA-256 hashes,
       keyed by corpus-relative path) is in-repo; song `.XML` stays out-of-repo
-      (privacy/licensing). Corpus via `$DELUGE_SONG_CORPUS`/`--corpus` (default
-      gitignored `tests/golden/songs/`). No corpus → check SKIPs (exit 77, CTest
+      (privacy/licensing). Corpus via `$DELUGE_SONG_CORPUS`/`--corpus` (else `$DELUGE_BACKUP/SONGS`, else
+      `~/Deluge Backup/SONGS`). No corpus → check SKIPs (exit 77, CTest
       *Skipped*) so CI stays green; with the corpus the gate verifies the
       committed hashes. Verified against `~/Deluge Backup/SONGS`: OK=14.
 - [x] ARM/qemu oracle: built `build-sim-arm/song_roundtrip` (Cortex-A9/NEON,

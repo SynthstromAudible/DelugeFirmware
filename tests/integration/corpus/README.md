@@ -37,12 +37,12 @@ host file and loaded through the Value tree beside the booted one; view selectio
 emits `gen1`; the runner hashes it (SHA-256) and compares to `tests/golden/songs/fixtures.json`.
 
 ```sh
-./dbt test -n song-roundtrip                           # build golden_vt_render
-export DELUGE_SONG_CORPUS=~/path/to/SONGS              # your songs dir (BYO, see below)
-python3 tests/integration/corpus/songs_run.py          # check fixtured songs (exit 1 on regression)
-./dbt test --update song-roundtrip                    # re-record (builds first; tests/README.md)
+./dbt test -n song-roundtrip                                 # build golden_vt_render
+export DELUGE_SONG_CORPUS=~/path/to/SONGS                    # your songs dir (BYO, see below)
+python3 tests/integration/corpus/songs_run.py                # check fixtured songs (exit 1 on regression)
+./dbt test --update song-roundtrip                           # re-record (builds first; tests/README.md)
 python3 tests/integration/corpus/songs_run.py --filter Bass  # subset (substring on path)
-./dbt test song-roundtrip                              # same, as the registry gate
+./dbt test song-roundtrip                                    # same, as the registry gate
 ```
 
 In check mode the runner iterates the **committed fixtures** (the contract) and

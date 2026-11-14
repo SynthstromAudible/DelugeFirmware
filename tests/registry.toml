@@ -25,7 +25,8 @@
 #         only golden-vt-render
 # runtime_s: whole seconds a run takes with its build products already built (a comment gives a cold build's)
 # baseline: what `dbt test --update <name>` re-records: paths under tests/golden/<consumer>/, or any record header
-#         named tests/**/*_records.h, kept beside the spec it pins (harness_registry.baseline_problem)
+#         named tests/**/*_records.h, kept beside the spec it pins, or the website menu tree
+#         (website/src/data/generated/menu-tree.json, ui-menu-dump) (harness_registry.baseline_problem)
 # gates:  one sentence, at most 160 characters (harness_registry.gates_problem); the rest is a "Gate <name>:"
 #         block in the file that judges the test, or a `## <name>` section in its check's notes
 #         (harness_registry.CHECK_NOTES) -- ./dbt test --list --verbose <name> prints it
@@ -1774,7 +1775,7 @@ run = ["python3", "-m", "unittest", "test_check_library_boundary"]
 name = "registry-selftest"
 template = "unittest"
 path = "scripts/tasks"
-gates = "this registry's loader, validation, selection and probes, the SDRAM content packer's format, and the setting-menus, layer-rules and test-support-names checkers"
+gates = "this registry's loader, validation, selection and probes (golden data only under tests/golden), the SDRAM packer's format, and three source checkers"
 run = ["python3", "-m", "unittest", "test_harness_registry", "test_golden_update", "test_sdram_pack", "test_check_setting_menus", "test_check_layer_rules", "test_check_test_support_names"]
 
 [[harness]]

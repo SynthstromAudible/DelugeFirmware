@@ -132,7 +132,7 @@ resonance/morph`, `hpf.*`) and has special blocks (patch cables, MPE). So the co
 
 ## Verification methodology
 
-- **Golden song round-trip** (`tests/golden/song_roundtrip` + `songs_run.py`): all fixtures settle;
+- **Golden song round-trip** (`tests/integration/scenarios/drivers/song_roundtrip.cpp` + `songs_run.py`): all fixtures settle;
   any regroup re-baseline must pass the **sorted-diff = pure relocation** check (no value change).
 - **Per-value-type round-trip test, lands with each phase.** Engine-coupled projections (which touch
   `AutoParam` / the firmware containers + the SRAM/SDRAM allocator) run as a **sim executable** against

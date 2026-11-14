@@ -61,3 +61,7 @@ __pycache__/
 
 # Stems golden_vt_render copies out of its card image when GOLDEN_STEM_OUT is unset
 /golden_stems/
+
+# The bring-your-own private song corpus stays out of the repo (fixtures.json and synthetic/ are tracked)
+/tests/golden/songs/*.XML
+/tests/golden/songs/*.xml

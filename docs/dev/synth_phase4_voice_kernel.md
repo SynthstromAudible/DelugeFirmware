@@ -134,7 +134,7 @@ Virtual / port dispatch at **block granularity only**, never per-sample (Cortex-
 
 ## Verification & risks
 
-- **Bit-exact, every slice:** full x86 `tests/golden/run.py` → **byte-identical**, with targeted ARM/qemu on the
+- **Bit-exact, every slice:** full x86 the corpus runners in `tests/integration/corpus/` → **byte-identical**, with targeted ARM/qemu on the
   affected families (per `[[golden-arm-runs-targeted]]`). The lift (f) is mechanical once refs are gone.
 - **Largest risk = the source-port arc (e):** the sample/input/dx7/wavetable storage coupling is the deepest;
   it may stay a *port boundary* (kernel calls injected interfaces, impls app-side) rather than fully relocating
