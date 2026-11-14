@@ -75,6 +75,11 @@ protected:
 	virtual void switchVisiblePage(int32_t direction);
 	virtual void switchHorizontalMenu(int32_t direction, std::span<HorizontalMenu* const> chain);
 
+	/// Whether an item takes up a column on a page. preparePaging() and selectMenuItem() must agree
+	/// on this or selection lands on the wrong page, so both go through here. Takes the relevance
+	/// the caller has already computed rather than recomputing it.
+	[[nodiscard]] bool occupiesColumn(const MenuItem* item, bool isRelevant) const;
+
 private:
 	void updateSelectedMenuItemLED(int32_t itemNumber) const;
 	static void handleItemAction(MenuItem* menuItem);
