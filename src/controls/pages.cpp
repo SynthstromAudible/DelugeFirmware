@@ -40,8 +40,6 @@ constexpr uint32_t kEqPage = 2;
 constexpr uint32_t kCompPages = 5;
 /// The most pages a publisher's find serves on one section: a bound on the walk of a sound's cycle.
 constexpr uint32_t kMaxSectionPages = 16;
-/// The knobs a MIDI track's CCs name per mod button.
-constexpr size_t kMidiKnobs = 2;
 
 /// The owner a focus names, as its pages read it: its publisher, and what the publisher reads.
 struct Publisher {
@@ -159,18 +157,19 @@ std::vector<Page> chain_cycle(uint8_t mode, const Publisher& publisher) {
 
 /// A MIDI track's page: the CCs its record names for @p mode's knobs, in its clip; a press picks a knob's CC, with
 /// or without a clip (the host turns the selection down where it cannot take it).
-Page midi_page(const project::Song& song, const MidiFocus& focus, uint8_t mode) {
+Page midi_page(const project::Song& song, const MidiFocus& focus, uint8_t mode, const Board& board) {
 	Page out{.section = mode};
-	for (size_t knob = 0; knob < kMidiKnobs; knob++) {
+	const size_t knobs = std::min<size_t>(board.slots, out.slots.size());
+	for (size_t knob = 0; knob < knobs; knob++) {
 		out.slots[knob].press = plugin::PressAction::MIDI_CC_SELECT;
 	}
 	const project::DocOutput* output = song.output_structure.find(focus.track.output_id);
 	if (output == nullptr || !focus.clip) {
 		return out;
 	}
-	for (size_t knob = 0; knob < kMidiKnobs; knob++) {
+	for (size_t knob = 0; knob < knobs; knob++) {
 		Slot& slot = out.slots[knob];
-		const size_t at = (static_cast<size_t>(mode) * kMidiKnobs) + knob;
+		const size_t at = (static_cast<size_t>(mode) * knobs) + knob;
 		if (at >= output->mod_knob_ccs.size()) {
 			continue;
 		}
@@ -222,7 +221,7 @@ Page current_page(const project::Song& song, const KnobFocus& focus, const PageS
 		return sound_page(song, *sound, mode, sound_publisher(song, *sound, sources));
 	}
 	if (const auto* midi = std::get_if<MidiFocus>(&focus.owner)) {
-		return midi_page(song, *midi, mode);
+		return midi_page(song, *midi, mode, sources.board);
 	}
 	if (on_chain(focus)) {
 		const project::FxChain* chain = focused_chain(song, focus);

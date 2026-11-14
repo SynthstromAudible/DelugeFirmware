@@ -6,6 +6,7 @@
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/services/mod_target.h"
 
+#include "definitions_cxx.hpp"
 #include "gui/l10n/strings.h"
 
 #include <cstdint>
@@ -19,8 +20,9 @@ namespace deluge::scenes::services {
 /// (`GuestKnobPresentation`); the root views through the legacy display and LEDs (`gui/ui/root_knobs`).
 class KnobPresentation {
 public:
-	/// @brief How many gold knobs there are (`hid/encoders.h`'s `mod0`/`mod1`): 0 is the lower, 1 the upper.
-	static constexpr int32_t kKnobCount = 2;
+	/// @brief The most gold knobs a presentation keeps state for (the Deluge's `hid/encoders.h` `mod0`/`mod1`: 0 the
+	///        lower, 1 the upper). A board has at most this many slots.
+	static constexpr int32_t kKnobCount = kNumPhysicalModKnobs;
 
 	virtual ~KnobPresentation() = default;
 

@@ -17,6 +17,9 @@
 
 #include "gui/ui/root_knobs.h"
 
+#include "board_controls.hpp"
+#include "controls/board.h"
+
 #include "gui/l10n/l10n.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/shell_guest_knobs.h"
@@ -118,12 +121,22 @@ ModKnobs* knobs_now() {
 } // namespace
 
 void turn(int32_t knob, int32_t offset) {
+	const std::optional<controls::Logical> slot =
+	    controls::map_input(kDelugeControls, {controls::Physical::Kind::SLOT_ENCODER, static_cast<uint8_t>(knob)});
+	if (!slot) {
+		return;
+	}
 	if (ModKnobs* knobs = knobs_now()) {
-		knobs->turn(knob, offset, shellHostUI.nowMs(), root_presentation);
+		knobs->turn(slot->index, offset, shellHostUI.nowMs(), root_presentation);
 	}
 }
 
 void push(uint8_t knob, bool on) {
+	const std::optional<controls::Logical> slot =
+	    controls::map_input(kDelugeControls, {controls::Physical::Kind::SLOT_PRESS, knob});
+	if (!slot) {
+		return;
+	}
 	ModKnobs* knobs = knobs_now();
 	if (knobs == nullptr) {
 		return;
@@ -131,7 +144,7 @@ void push(uint8_t knob, bool on) {
 	const int32_t mode = knobs->mode();
 	const bool mode_held =
 	    mode >= 0 && Buttons::isButtonPressed(deluge::hid::button::fromXY(modButtonX[mode], modButtonY[mode]));
-	knobs->push(knob, on,
+	knobs->push(slot->index, on,
 	            {.shift = Buttons::isShiftButtonPressed(),
 	             .learn = Buttons::isButtonPressed(deluge::hid::button::LEARN),
 	             .mode_held = mode_held},
@@ -139,8 +152,13 @@ void push(uint8_t knob, bool on) {
 }
 
 void mod_button(uint8_t button, bool on) {
+	const std::optional<controls::Logical> section =
+	    controls::map_input(kDelugeControls, {controls::Physical::Kind::SECTION_BUTTON, button});
+	if (!section) {
+		return;
+	}
 	if (ModKnobs* knobs = knobs_now()) {
-		knobs->section_button(button, on, root_presentation);
+		knobs->section_button(section->index, on, root_presentation);
 	}
 }
 
@@ -151,7 +169,7 @@ void refresh_indicators() {
 		return;
 	}
 	const bool stuttering = isUIModeActive(UI_MODE_STUTTERING);
-	for (int32_t k = 0; k < ModKnobs::kKnobCount; k++) {
+	for (int32_t k = 0; k < kDelugeControls.slots; k++) {
 		if (indicator_leds::isKnobIndicatorBlinking(k)) {
 			continue;
 		}

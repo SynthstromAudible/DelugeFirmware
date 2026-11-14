@@ -94,8 +94,6 @@ constexpr Cartesian tripletsButtonCoord = {8, 1};
 
 constexpr int32_t kEditPadPressBufferSize = 8;
 
-constexpr int32_t kNumModButtons = 8;
-
 // Display information (actually pads, not the display proper). kDisplayHeight/Width
 // live in board_layout.hpp (shared with the BSP).
 constexpr int32_t kDisplayHeightMagnitude = 3;
@@ -376,8 +374,6 @@ constexpr auto kNumPolyphonyModes = util::to_underlying(PolyphonyMode::CHOKE) + 
 constexpr int32_t kMaxGoldKnobIndicatorLEDValue = kMaxKnobPos / 4;
 
 using deluge::project::kMaxNumSections;
-
-constexpr int32_t kNumPhysicalModKnobs = 2;
 
 constexpr int32_t kNumAllpassFiltersPhaser = 6;
 

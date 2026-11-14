@@ -3,6 +3,7 @@
 // backup with no clip), and a setter leaves the focus's own view state (the region, the compressor view, the VU meter)
 // as it was.
 
+#include "board_controls.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/root_knobs.h"
@@ -727,7 +728,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		const std::optional<project::ParamAddress> lower = deluge::gui::ui::root_knobs::knob_address(0);
 		expect(lower.has_value() && lower->id == deluge::global_effectable::param::kReverbAmount).to_be_true();
 		const deluge::scenes::bind::KnobAssignment port =
-		    deluge::scenes::bind::knob_assignment(f.song->project, view.knobFocus(), 0);
+		    deluge::scenes::bind::knob_assignment(f.song->project, view.knobFocus(), 0, kDelugeControls);
 		const auto* address = std::get_if<project::ParamAddress>(&port.target);
 		expect(address != nullptr && address->id == deluge::global_effectable::param::kReverbAmount).to_be_true();
 		view.knobFocus().comp = {};

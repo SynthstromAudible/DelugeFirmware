@@ -4,6 +4,7 @@
 // settings, knob mappings, chain views, reverb, stutter and text after every push. And the mod button's popup, as the
 // engine showed it.
 
+#include "board_controls.hpp"
 #include "scenes/services/knob_push.h"
 
 #include "scenes/bind/knob_assignment.h"
@@ -205,7 +206,9 @@ std::string last_notice() {
 services::PushInputs inputs_of(const Side& side, bool held) {
 	// The push reads the owner's effects and the device facts from the host, which resolves in the current song.
 	currentSong = side.song;
-	return {.button_held = held, .clip_context = !std::holds_alternative<bind::SongFocus>(side.focus.owner)};
+	return {.button_held = held,
+	        .clip_context = !std::holds_alternative<bind::SongFocus>(side.focus.owner),
+	        .board = kDelugeControls};
 }
 
 /// @brief Push knob @p knob on @p side (press and release), and where its outcome first differs from the recorded

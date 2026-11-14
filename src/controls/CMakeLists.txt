@@ -2,7 +2,7 @@
 # It includes only the model (and the serialization values a written setting carries) and the plugin API;
 # scripts/check_library_boundary.py holds it to that.
 
-add_library(deluge_controls STATIC knob_focus.cpp page.cpp pages.cpp resolve.cpp section.cpp)
+add_library(deluge_controls STATIC board.cpp knob_focus.cpp page.cpp pages.cpp resolve.cpp section.cpp)
 # Headers are included as "controls/..."; the include root is src/ (this directory's parent).
 target_include_directories(deluge_controls PUBLIC ${CMAKE_CURRENT_LIST_DIR}/..)
 target_compile_features(deluge_controls PUBLIC cxx_std_23)

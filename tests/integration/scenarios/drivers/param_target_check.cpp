@@ -20,6 +20,7 @@
 // its recorded characterisation holds.
 // Exit: 0 agree; 3 a check disagrees (each printed).
 
+#include "board_controls.hpp"
 #include "controls/knob_focus.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/song.h"
@@ -406,7 +407,7 @@ void checkChainKnobs(Checker& check) {
 							// song's alone), so the layout's comp cells for it are its plain cells.
 							const param_target_tables_reference::Cell cell =
 							    recordedCell(clip ? Table::GE_CLIP_KNOBS : Table::GE_KNOBS, clip ? n - comp : n);
-							const bind::KnobAssignment page = bind::knob_assignment(*song, focus, k);
+							const bind::KnobAssignment page = bind::knob_assignment(*song, focus, k, kDelugeControls);
 							const auto* address = std::get_if<project::ParamAddress>(&page.target);
 							const auto* arm = std::get_if<bind::CompArm>(&page.target);
 							checkCell(check, name, OwnerPlugin::GLOBAL_EFFECTABLE,

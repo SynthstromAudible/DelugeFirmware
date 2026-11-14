@@ -53,7 +53,7 @@ struct Reads {
 /// What a push on @p focus reads, in @p gesture's context.
 Reads reads_of(const bind::KnobFocus& focus, const PushInputs& gesture) {
 	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
-	Reads out{.pages = bind::app_page_sources(facts),
+	Reads out{.pages = bind::app_page_sources(facts, gesture.board),
 	          .button_held = gesture.button_held,
 	          .clip_context = gesture.clip_context};
 	if (const std::optional<EffectOwner> owner = effect_owner(focus)) {
@@ -418,8 +418,8 @@ std::string cc_name(const project::DocOutput& output, const project::ModKnobCc& 
 
 /// The name a mod button shows for knob @p knob: its param's, as the filter modes name morph.
 std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, int32_t knob,
-                      const effects::EffectStates& fx) {
-	const bind::KnobAssignment assignment = bind::knob_assignment(song, focus, knob);
+                      const effects::EffectStates& fx, const controls::Board& board) {
+	const bind::KnobAssignment assignment = bind::knob_assignment(song, focus, knob, board);
 	const auto* address = std::get_if<project::ParamAddress>(&assignment.target);
 	if (address == nullptr) {
 		return {};
@@ -461,10 +461,10 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 
 /// Both knobs' names, the upper first; the stutter button's lower knob has none on the song.
 std::string names_popup(const project::Song& song, const bind::KnobFocus& focus, int32_t button, const Reads& inputs) {
-	std::string out = knob_name(song, focus, 1, inputs.effects);
+	std::string out = knob_name(song, focus, 1, inputs.effects, inputs.pages.board);
 	if (!(button == mod_button::kStutter && !inputs.clip_context)) {
 		out += "\n";
-		out += knob_name(song, focus, 0, inputs.effects);
+		out += knob_name(song, focus, 0, inputs.effects, inputs.pages.board);
 	}
 	return out;
 }

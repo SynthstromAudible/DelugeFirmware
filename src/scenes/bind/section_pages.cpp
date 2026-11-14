@@ -13,8 +13,8 @@ std::span<const plugin::RemoteControls> app_publishers() {
 	return kRecords;
 }
 
-controls::PageSources app_page_sources(const controls::Facts& facts) {
-	return {.publishers = app_publishers(), .alt_delay = facts.alt_delay()};
+controls::PageSources app_page_sources(const controls::Facts& facts, const controls::Board& board) {
+	return {.publishers = app_publishers(), .alt_delay = facts.alt_delay(), .board = board};
 }
 
 } // namespace deluge::scenes::bind

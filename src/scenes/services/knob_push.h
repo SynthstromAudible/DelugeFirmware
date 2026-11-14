@@ -4,6 +4,7 @@
 /// @brief What a gold knob's push and a mod button's press do, as functions of the song's records: the settings they
 ///        write, the knob views they change, and the popup text they show.
 
+#include "controls/board.h"
 #include "controls/sink.h"
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/fx_chain.h"
@@ -29,6 +30,7 @@ namespace deluge::scenes::services {
 struct PushInputs {
 	bool button_held{false};  ///< the mode's mod button is held, so the push re-shows its button's popup
 	bool clip_context{false}; ///< the knobs are on a clip, not the song (the stutter button's names)
+	controls::Board board;    ///< the board the knobs are on
 };
 
 using bind::EffectOwner;

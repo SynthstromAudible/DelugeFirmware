@@ -6,14 +6,17 @@
 
 namespace deluge::scenes::bind {
 
-KnobAssignment knob_assignment(const project::Song& song, const KnobFocus& focus, int32_t knob) {
-	if (knob < 0 || knob > 1) {
+KnobAssignment knob_assignment(const project::Song& song, const KnobFocus& focus, int32_t knob,
+                               const controls::Board& board) {
+	if (knob < 0 || knob >= board.slots) {
 		return {};
 	}
 	// A turn reads only the page the knobs are on: this runs for the knobs' indicators every tick. Only a press reads
 	// the alternative delay knobs, so the turn leaves them off.
 	const controls::Target target = controls::resolve_turn(
-	    focus, controls::SectionPages{.current = controls::current_page(song, focus, {.publishers = app_publishers()})},
+	    focus,
+	    controls::SectionPages{
+	        .current = controls::current_page(song, focus, {.publishers = app_publishers(), .board = board})},
 	    knob);
 	const auto* write = std::get_if<controls::ParamWrite>(&target);
 	if (write == nullptr) {

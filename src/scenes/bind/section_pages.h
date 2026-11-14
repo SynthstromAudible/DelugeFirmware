@@ -18,7 +18,8 @@ namespace deluge::scenes::bind {
 
 /// @brief The app's page sources: its publishers, and the device facts @p facts answers.
 /// @param facts The host's facts, which hold the alternative delay-knob setting.
+/// @param board The board the knobs are on.
 /// @return The sources controls::current_page and controls::section_pages read.
-[[nodiscard]] controls::PageSources app_page_sources(const controls::Facts& facts);
+[[nodiscard]] controls::PageSources app_page_sources(const controls::Facts& facts, const controls::Board& board);
 
 } // namespace deluge::scenes::bind

@@ -20,6 +20,7 @@
 
 #include "scenes/services/mod_knobs.h"
 
+#include "controls/board.h"
 #include "controls/section.h"
 
 #include "scenes/bind/knob_assignment.h"
@@ -132,7 +133,7 @@ const effects::EffectStates* ModKnobs::owner_effects() const {
 }
 
 PushInputs ModKnobs::push_inputs(bool mode_held) const {
-	return {.button_held = mode_held, .clip_context = is_clip_context(*focus_)};
+	return {.button_held = mode_held, .clip_context = is_clip_context(*focus_), .board = board_};
 }
 
 bool ModKnobs::owner_stutter_quantized() const {
@@ -204,8 +205,12 @@ Result ModKnobs::handle(const deluge::ui::shell::UiEvent& event, const deluge::u
 	// A mod button: `Buttons::buttonAction`'s mod-button loop ends in `goto dealtWith`, so it is always claimed.
 	if (event.kind == UiEvent::Kind::Button) {
 		const int32_t which = static_cast<int32_t>(event.button) - static_cast<int32_t>(ButtonId::Mod0);
-		if (which >= 0 && which < kNumModButtons) {
-			section_button(which, event.on, guest_);
+		if (which >= 0 && event.button <= ButtonId::Mod7) {
+			// Claimed even when the board has no such section: the button is a mod button all the same.
+			if (const std::optional<controls::Logical> section = controls::map_input(
+			        board_, {controls::Physical::Kind::SECTION_BUTTON, static_cast<uint8_t>(which)})) {
+				section_button(section->index, event.on, guest_);
+			}
 			Result r = guest_.take_result();
 			r.handled = true;
 			return r;
@@ -216,11 +221,15 @@ Result ModKnobs::handle(const deluge::ui::shell::UiEvent& event, const deluge::u
 	// A gold knob's push: `buttonAction`'s tail (`hid/buttons.cpp`'s `buttonAction`).
 	if (event.kind == UiEvent::Kind::EncoderButton) {
 		if (event.button == ButtonId::ModEnc0 || event.button == ButtonId::ModEnc1) {
+			const uint8_t physical = event.button == ButtonId::ModEnc0 ? 0 : 1;
 			const int32_t current = mode();
 			const bool mode_held =
 			    current >= 0 && ctx.held.has(static_cast<ButtonId>(static_cast<uint8_t>(ButtonId::Mod0) + current));
-			push(event.button == ButtonId::ModEnc0 ? 0 : 1, event.on,
-			     {.shift = ctx.shift, .learn = ctx.held.has(ButtonId::Learn), .mode_held = mode_held}, guest_);
+			if (const std::optional<controls::Logical> slot =
+			        controls::map_input(board_, {controls::Physical::Kind::SLOT_PRESS, physical})) {
+				push(slot->index, event.on,
+				     {.shift = ctx.shift, .learn = ctx.held.has(ButtonId::Learn), .mode_held = mode_held}, guest_);
+			}
 			Result r = guest_.take_result();
 			r.handled = true;
 			return r;
@@ -231,12 +240,13 @@ Result ModKnobs::handle(const deluge::ui::shell::UiEvent& event, const deluge::u
 	if (event.kind != UiEvent::Kind::Encoder || event.delta == 0) {
 		return Result::unhandled();
 	}
-	int32_t which_encoder = 0;
+	// The board numbers its encoders as `mod0` (the lower) and `mod1` (the upper).
+	uint8_t physical = 0;
 	if (event.encoder == EncoderRole::GoldLower) {
-		which_encoder = 0;
+		physical = 0;
 	}
 	else if (event.encoder == EncoderRole::GoldUpper) {
-		which_encoder = 1;
+		physical = 1;
 	}
 	else {
 		return Result::unhandled();
@@ -249,7 +259,10 @@ Result ModKnobs::handle(const deluge::ui::shell::UiEvent& event, const deluge::u
 	    event.lowered ? 1.0 : lowering_.calc_next_knob_speed(event.encoder, event.delta, ctx.acceleration_clock_ms);
 	const int32_t offset = static_cast<int8_t>(static_cast<double>(event.delta) * speed);
 	// Legacy consumes a gold-knob turn unconditionally.
-	turn(which_encoder, offset, ctx.now_ms, guest_);
+	if (const std::optional<controls::Logical> slot =
+	        controls::map_input(board_, {controls::Physical::Kind::SLOT_ENCODER, physical})) {
+		turn(slot->index, offset, ctx.now_ms, guest_);
+	}
 	Result r = guest_.take_result();
 	r.handled = true;
 	return r;
@@ -270,7 +283,7 @@ void ModKnobs::turn(int32_t knob, int32_t offset, uint32_t now_ms, KnobPresentat
 void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms, KnobPresentation& out) {
 	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
 	controls::Sink& sink = menu::host_controls_sink();
-	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder);
+	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder, board_);
 
 	if (const auto* comp = std::get_if<bind::CompArm>(&assignment.target)) {
 		// The song's compressor knobs edit settings, not params (`modEncoderActionForNonExistentParam`).
@@ -367,7 +380,7 @@ void ModKnobs::show_popup(const ModTurn& turn, uint32_t now_ms, KnobPresentation
 void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, const ModTurn& turn,
                                                        KnobPresentation& out) {
 	// `View::potentiallyMakeItHarderToTurnKnob`.
-	if (which_encoder < 0 || which_encoder >= kKnobCount) {
+	if (which_encoder < 0 || which_encoder >= board_.slots) {
 		return;
 	}
 	int32_t knob_pos = turn.new_knob_pos;
@@ -493,7 +506,7 @@ std::optional<ParamAddress> ModKnobs::knob_address(int32_t which_encoder) const 
 	if (song_ == nullptr || std::holds_alternative<std::monostate>(focus_->owner)) {
 		return std::nullopt;
 	}
-	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder);
+	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder, board_);
 	if (const auto* address = std::get_if<ParamAddress>(&assignment.target)) {
 		return *address;
 	}
@@ -596,7 +609,7 @@ ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
 		return out; // no song: nothing to read, so nothing is declared
 	}
 	const bind::RuntimeFacts& facts = menu::host_runtime_facts();
-	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder);
+	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder, board_);
 	if (const auto* comp = std::get_if<bind::CompArm>(&assignment.target)) {
 		const effects::EffectStates* fx =
 		    facts.chain_effects(project::ChainAddress{.kind = project::ChainAddress::Kind::SONG});
@@ -647,13 +660,13 @@ void ModKnobs::declare_indicators(deluge::ui::LedFrame& frame) {
 	}
 	if (std::holds_alternative<std::monostate>(focus_->owner) || !bound()) {
 		// `indicator_leds::clearKnobIndicatorLevels()`.
-		for (int32_t k = 0; k < kKnobCount; k++) {
+		for (int32_t k = 0; k < board_.slots; k++) {
 			(void)frame.indicator(static_cast<deluge::ui::IndicatorId>(k), deluge::ui::knob_indicator_levels(0, false));
 		}
 		return;
 	}
 	const bool stuttering = menu::host_runtime_facts().stutter_active();
-	for (int32_t k = 0; k < kKnobCount; k++) {
+	for (int32_t k = 0; k < board_.slots; k++) {
 		if (indicator_blinking(k)) {
 			// A blinking knob is driven by its blink's phase.
 			(void)frame.indicator(
@@ -682,7 +695,7 @@ void ModKnobs::leds(deluge::ui::LedFrame& frame) {
 	// the normal blink every `blinkingType` 0 LED shares, MenuScene's BACK and LEARN among them.
 	constexpr deluge::ui::LedState kBlink = deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal);
 
-	for (int32_t i = 0; i < kNumModButtons; i++) {
+	for (int32_t i = 0; i < board_.sections; i++) {
 		const bool on = (i == mod_knob_mode);
 		deluge::ui::LedState state = kOff;
 		if (its_the_song && on && mod_knob_mode == 0 && focus_->vu_meter) {
@@ -767,7 +780,7 @@ std::optional<uint32_t> ModKnobs::next_timer() const {
 	consider(automation_feedback_ms_);
 	// A blinking indicator needs a frame every half-period, and one more when the flash ends and
 	// the ordinary level comes back (`indicator_leds::blinkKnobIndicatorLevelTimeout`'s 20 ms re-arm).
-	for (int32_t k = 0; k < kKnobCount; k++) {
+	for (int32_t k = 0; k < board_.slots; k++) {
 		if (indicator_blinking(k)) {
 			const uint32_t elapsed = now_ms_ - guest_.blink_start_ms(k);
 			const uint32_t to_next_half =

@@ -49,6 +49,7 @@
 /// @warning **No wall clock.** `Service::tick(now_ms, dt_ms)` is the only place a clock arrives; the `set_*` entry
 ///          points use the last `now_ms` the service was ticked with.
 
+#include "controls/board.h"
 #include "effects/state.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/overlay/param_popup_scene.h"
@@ -84,17 +85,17 @@ struct PushInputs;
 /// @brief The two gold knobs: what they point at, what turning, pushing and their mod buttons do, and how fast.
 class ModKnobs final : public deluge::ui::shell::Service {
 public:
-	/// @brief How many gold knobs there are: `KnobPresentation::kKnobCount`.
-	static constexpr int32_t kKnobCount = KnobPresentation::kKnobCount;
-
 	/// @param popup    The value popup the shell's presentation shows through.
 	/// @param stack    The scene stack it pushes that popup onto.
 	/// @param lowering The input lowering it reads acceleration from and backdates the "last turned" clock on.
+	/// @param board    The board the knobs and mod buttons are on: its map turns each physical control into the section
+	///                 or slot it drives, and its counts bound them. At most `KnobPresentation::kKnobCount` slots.
 	ModKnobs(const ModKnobs&) = delete;
 	ModKnobs& operator=(const ModKnobs&) = delete;
 	ModKnobs(overlay::ParamPopupScene& popup, deluge::ui::shell::SceneStack& stack,
-	         deluge::ui::shell::InputLowering& lowering)
-	    : stack_(stack), lowering_(lowering), guest_(popup, stack, now_ms_, view_.root_is_timeline_view) {}
+	         deluge::ui::shell::InputLowering& lowering, const deluge::controls::Board& board)
+	    : stack_(stack), lowering_(lowering), board_(board),
+	      guest_(popup, stack, now_ms_, view_.root_is_timeline_view) {}
 
 	/// @name What the knobs point at
 	/// @{
@@ -291,6 +292,7 @@ private:
 
 	deluge::ui::shell::SceneStack& stack_;
 	deluge::ui::shell::InputLowering& lowering_;
+	const deluge::controls::Board board_; ///< what the knobs and buttons are on
 	Song* song_ = nullptr;
 	/// The focus this service keeps when it is given no store.
 	bind::KnobFocus own_focus_{};

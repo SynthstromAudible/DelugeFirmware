@@ -1,4 +1,5 @@
 // clang-format off
+#include "board_controls.hpp"
 #include "controls/pages.h"
 #include "controls/resolve.h"
 #include "deluge-project/song.h"
@@ -39,7 +40,7 @@ void operator delete(void* p, size_t /*bytes*/) noexcept { std::free(p); }
 namespace {
 /// The publishers the app collects: the Deluge instrument's and the global effectable's.
 const std::array<plugin::RemoteControls, 2> kPublishers{instrument::kRemoteControls, global_effectable::kRemoteControls};
-const controls::PageSources kSources{.publishers = kPublishers};
+const controls::PageSources kSources{.publishers = kPublishers, .board = kDelugeControls};
 
 /// A synth on output 3 in mode @p mode, its lower knob there the low-pass cutoff and its upper the resonance, playing a
 /// sound in @p synth_mode.

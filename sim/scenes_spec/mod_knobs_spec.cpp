@@ -27,6 +27,7 @@
 ///     (`gui/ui_timer_manager.cpp:158-170`), both view-side and not ported; only the *arming* is
 ///     compared here.
 
+#include "board_controls.hpp"
 #include "gui/ui/menu_view_of.h"
 #include "modulation/automation/record_events.h"
 #include "notify/dirty_set.h"
@@ -477,7 +478,7 @@ struct KnobRig {
 	SceneRegistry reg = scene_registry();
 	SceneStack stack{reg};
 	InputLowering lowering{deluge_profile(), {}};
-	ModKnobs knobs{overlay::param_popup_scene(), stack, lowering};
+	ModKnobs knobs{overlay::param_popup_scene(), stack, lowering, kDelugeControls};
 	Song* song = nullptr;
 
 	void set_song(Song* s) {

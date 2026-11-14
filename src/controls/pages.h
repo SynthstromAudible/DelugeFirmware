@@ -21,6 +21,7 @@
 /// @brief The focused owner's pages, assembled from the records its owner publishes and the view the song's records
 ///        hold.
 
+#include "controls/board.h"
 #include "controls/knob_focus.h"
 #include "controls/page.h"
 #include "plugin-api/remote_controls_publisher.h"
@@ -33,10 +34,12 @@ class Song;
 
 namespace deluge::controls {
 
-/// @brief What assembling the focused owner's pages reads beyond the song: the publishers and the device facts.
+/// @brief What assembling the focused owner's pages reads beyond the song: the publishers, the device facts and the
+///        board.
 struct PageSources {
 	std::span<const plugin::RemoteControls> publishers;
 	bool alt_delay = false;
+	Board board; ///< the board's slots per section: a MIDI track names a CC for each
 };
 
 /// @brief The page the knobs are on now. Allocation-free: the indicators read it every tick.

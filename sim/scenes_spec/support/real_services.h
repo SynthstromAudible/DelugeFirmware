@@ -9,6 +9,7 @@
 /// `@par The twelve gold-turn scripts install the real three, UNSEEDED`), because two copies of
 /// "install exactly what the application installs" is the shape that lets the two drift.
 
+#include "board_controls.hpp"
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/services/global_controls.h"
 #include "scenes/services/midi_learn.h"
@@ -58,7 +59,7 @@ struct RealServices {
 		return [this](deluge::ui::shell::Shell& shell) {
 			// `MidiLearn` first: `GlobalControls` takes it by reference as its `LearnMode`.
 			learn.emplace(shell.stack());
-			knobs.emplace(overlay::param_popup_scene(), shell.stack(), shell.lowering());
+			knobs.emplace(overlay::param_popup_scene(), shell.stack(), shell.lowering(), kDelugeControls);
 			controls.emplace(shell.stack(), shell.lowering(), *learn);
 			learn->set_song(song);
 			knobs->set_song(song);
