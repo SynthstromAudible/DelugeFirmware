@@ -7,6 +7,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <span>
+#include <utility>
 #include <vector>
 
 #include "cppspec.hpp"
@@ -18,10 +20,11 @@ constexpr const char* kJsonFixture = DELUGE_REPO_ROOT "/tests/support/data/songs
 using Row = RGB[kDisplayWidth + kSideBarWidth];
 
 /// The offset of the first byte at which two images differ, or their size when they are the same.
-std::size_t firstDifference(const auto& a, const auto& b) {
-	const auto* x = reinterpret_cast<const uint8_t*>(a.data());
-	const auto* y = reinterpret_cast<const uint8_t*>(b.data());
-	return static_cast<std::size_t>(std::mismatch(x, x + sizeof(a), y).first - x);
+template <typename T>
+std::size_t firstDifference(const T& a, const T& b) {
+	const auto x = std::as_bytes(std::span{a});
+	const auto y = std::as_bytes(std::span{b});
+	return static_cast<std::size_t>(std::ranges::mismatch(x, y).in1 - x.begin());
 }
 
 std::vector<uint8_t> prefixOf(auto& self, const std::filesystem::path& p, uint32_t n) {
@@ -75,7 +78,7 @@ describe song_preview_decode_group("song preview decode", ${
 	///
 	/// Two globals DO survive the call, and this comparison cannot see either: `song_firmware_version`,
 	/// which every open overwrites from the document it just read, and `activeDeserializer`, left pointing
-	/// at whichever reader ran. Both are true of the browser's walk today, unchanged here -- but
+	/// at whichever reader ran. Both are true of the browser's walk too -- and
 	/// they are the reason "the reader is discarded" would be too strong a claim to rest on.
 	///
 	/// What this comparison also cannot catch is a change applied to BOTH walks: they share one decode
@@ -103,7 +106,7 @@ describe song_preview_decode_group("song preview decode", ${
 			auto buf = prefixOf(self, entry.path(), deluge::storage::kSongPreviewWindow);
 			const auto outcome = deluge::storage::decodeSongPreview(buf, isJson, fromBuffer.data());
 
-			// The reference: today's whole-file walk, reading through the ordinary file reader.
+			// The reference: the whole-file walk, reading through the ordinary file reader.
 			mock_file_io_reset();
 			stageOnCard(self, entry.path());
 			const auto reference = deluge::storage::decodeSongPreviewFromFile(entry.path().c_str(), fromFile.data());
@@ -129,8 +132,7 @@ describe song_preview_decode_group("song preview decode", ${
 
 		mock_file_io_reset();
 		stageOnCard(self, kJsonFixture);
-		const auto reference =
-		    deluge::storage::decodeSongPreviewFromFile(kJsonFixture, fromFile.data());
+		const auto reference = deluge::storage::decodeSongPreviewFromFile(kJsonFixture, fromFile.data());
 
 		expect(static_cast<int>(reference)).to_equal(static_cast<int>(deluge::storage::SongPreviewOutcome::Rendered));
 		expect(static_cast<int>(outcome)).to_equal(static_cast<int>(reference));
@@ -148,7 +150,7 @@ describe song_preview_decode_group("song preview decode", ${
 	/// A borrowed buffer must not stay reachable through `activeDeserializer` after the call -- on ANY
 	/// path, the failed open included. Left there, the next thing to write through that global writes
 	/// Cluster::size bytes into a buffer that is smaller than that and by then usually gone. This asserts
-	/// the restore rather than trusting a comment, because the caller that arms it is a task away.
+	/// the restore rather than trusting a comment: the caller that arms it is in another translation unit (load_song_ui.cpp).
 	it("decode song preview leaves the global deserializer where it found it", _ {
 		std::array<Row, kDisplayHeight> image{};
 		FileDeserializer* const before = activeDeserializer;
@@ -172,11 +174,11 @@ describe song_preview_decode_group("song preview decode", ${
 
 	/// An EMPTY buffer is an Error, and reports the same `Error` a failed open does.
 	///
-	/// This is what the prefix channel now hands the decoder for a genuinely empty FILE, and the caller
+	/// This is what the prefix channel hands the decoder for a genuinely empty FILE, and the caller
 	/// leans on it: since a failed READ is reported separately (DELUGE_CHANNEL_FAILED), zero bytes
 	/// reaching this function means an empty file, and an empty file is not a song. A decode that
 	/// answered NoPreview here would draw blank artwork for it while the file backing put an error on
-	/// screen for the same file -- the exact divergence the two backings were carrying.
+	/// screen for the same file -- a divergence between the two backings.
 	it("an empty buffer is an error with an error code", _ {
 		std::array<Row, kDisplayHeight> image{};
 		Error error = Error::NONE;

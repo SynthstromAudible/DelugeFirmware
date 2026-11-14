@@ -31,9 +31,6 @@ struct Target {
 	std::string path;
 	bool toStore;
 };
-} // namespace
-
-namespace {
 
 /// Read a repository source file, by a path under DELUGE_REPO_ROOT (the driver defines it).
 std::string readSource(auto& self, const char* path) {
@@ -64,10 +61,9 @@ int32_t countOf(const std::string& haystack, const char* needle) {
 
 // clang-format off
 describe song_preview_deferral_group("song preview deferral", ${
-	/// A preview that defers is armed for the per-tick surface, and the surface re-asks. For the sample
-	/// browser, only the A/B gate's own retry loop was driving that re-ask -- the real caller had no
-	/// handler of its own. This test drives only what the UI drives.
-	it("a deferred preview is re asked by the tick surface", _ {
+	/// A preview that defers is armed for the per-tick surface, and the surface re-asks. This drives only
+	/// what the UI drives, so a re-ask that only a test harness's retry loop performs does not pass it.
+	it("a deferred preview is re-asked by the tick surface", _ {
 		deluge::storage::DeferredLoad<Target> load;
 		const Target a{"SONGS/A.XML", true};
 		expect(load.request(a)).to_be_true();
@@ -101,7 +97,7 @@ describe song_preview_deferral_group("song preview deferral", ${
 	/// nothing about the scroll the cursor move set up, so if the target did not carry the flag the
 	/// re-drive would paint the live image while a scroll-in was still waiting on an unfilled store --
 	/// the first-two-columns-are-the-previous-song failure, arriving a few ticks later instead.
-	it("a re asked preview keeps the target it was dispatched with", _ {
+	it("a re-asked preview keeps the target it was dispatched with", _ {
 		deluge::storage::DeferredLoad<Target> load;
 		expect(load.request(Target{"SONGS/A.XML", /*toStore=*/false})).to_be_true();
 		const auto attempt = load.attempt();
@@ -162,7 +158,7 @@ describe song_preview_deferral_group("song preview deferral", ${
 	///
 	/// What it does NOT pin: an early return somewhere that skips `finishPreviewRender()` without
 	/// cancelling. Nothing structural forbids that, and the real fix would be folding the direction into
-	/// `previewLoad_`'s target -- per-attempt state living inside the attempt. Recorded, not done.
+	/// `previewLoad_`'s target -- per-attempt state living inside the attempt. Not done here.
 	it("every preview cancel drops the parked scroll direction", _ {
 		const std::string header = readSource(self, DELUGE_REPO_ROOT "/src/deluge/gui/ui/load/load_song_ui.h");
 		const std::string source = readSource(self, DELUGE_REPO_ROOT "/src/deluge/gui/ui/load/load_song_ui.cpp");
@@ -172,8 +168,8 @@ describe song_preview_deferral_group("song preview deferral", ${
 		expect(countOf(source, "previewLoad_.cancel()")).to_equal(0);
 
 		// 2. And it is inside cancelPreview(), whose body also drops the direction. Sliced from the
-		//    function's opening brace to the first closing brace at column 1 -- enough for a one-purpose
-		//    inline body, and it fails loudly rather than silently if the shape changes.
+		//    function's opening brace to the first closing brace indented one tab (where an in-class member's body
+		//    closes) -- enough for a one-purpose inline body, and it fails loudly rather than silently if the shape changes.
 		const size_t body = header.find("void cancelPreview() {");
 		expect(body).not_().to_equal(std::string::npos);
 		if (body == std::string::npos) {

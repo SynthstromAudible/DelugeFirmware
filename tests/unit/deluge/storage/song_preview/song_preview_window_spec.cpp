@@ -78,7 +78,7 @@ long previewPayloadEnd(const std::filesystem::path& path) {
 describe song_preview_window_group("song preview window", ${
 	/// Every song that HAS a preview must carry the WHOLE of it inside the window, or the async path
 	/// would render blank where the synchronous one rendered artwork. Songs with no preview are skipped,
-	/// not failed: they render blank today, unchanged here.
+	/// not failed: they render blank, which is correct for them.
 	it("every corpus song carries its preview inside the window", _ {
 		const char* corpus = std::getenv("DELUGE_SONG_CORPUS");
 		if (corpus == nullptr) {

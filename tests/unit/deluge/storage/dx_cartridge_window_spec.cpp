@@ -26,9 +26,11 @@
 
 #include "storage/DX7Cartridge.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <span>
+#include <utility>
 #include <vector>
 
 #include "cppspec.hpp"
