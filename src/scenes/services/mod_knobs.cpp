@@ -167,8 +167,7 @@ void ModKnobs::set_mod_region(uint32_t pos, uint32_t length, int32_t note_row_id
 		focus_changed_();
 	}
 	// Holding a note on a stopped clip grabs its params' values from there.
-	if (length != 0 && !bind::has_no_knobs(*focus_) && is_clip_context(*focus_)
-	    && !playbackHandler.isEitherClockActive() && bound()) {
+	if (length != 0 && is_clip_context(*focus_) && !playbackHandler.isEitherClockActive() && bound()) {
 		(void)menu::host_controls_sink().grab_region(*focus_, pos);
 	}
 	// Unless midi follow feedback automation is disabled.
@@ -276,7 +275,7 @@ Result ModKnobs::handle(const deluge::ui::shell::UiEvent& event, const deluge::u
 
 void ModKnobs::turn(int32_t knob, int32_t offset, uint32_t now_ms, KnobPresentation& out) {
 	// `View::modEncoderAction`.
-	if (!bound() || bind::has_no_knobs(*focus_)) {
+	if (!bound() || std::holds_alternative<std::monostate>(focus_->owner)) {
 		return;
 	}
 	turn_knob(knob, offset, now_ms, out);
@@ -511,7 +510,7 @@ void ModKnobs::push(int32_t which_encoder, bool on, const PushContext& ctx, Knob
 }
 
 std::optional<ParamAddress> ModKnobs::knob_address(int32_t which_encoder) const {
-	if (song_ == nullptr || bind::has_no_knobs(*focus_)) {
+	if (song_ == nullptr || std::holds_alternative<std::monostate>(focus_->owner)) {
 		return std::nullopt;
 	}
 	const bind::KnobAssignment assignment = bind::knob_assignment(song_->project, *focus_, which_encoder, board_);
@@ -666,7 +665,7 @@ void ModKnobs::declare_indicators(deluge::ui::LedFrame& frame) {
 	if (view_.in_automation_editor) {
 		return; // the automation editor's own display owns the columns
 	}
-	if (bind::has_no_knobs(*focus_) || !bound()) {
+	if (std::holds_alternative<std::monostate>(focus_->owner) || !bound()) {
 		// `indicator_leds::clearKnobIndicatorLevels()`.
 		for (int32_t k = 0; k < board_.slots; k++) {
 			(void)frame.indicator(static_cast<deluge::ui::IndicatorId>(k), deluge::ui::knob_indicator_levels(0, false));

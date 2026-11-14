@@ -59,6 +59,8 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "instruments/deluge/params.h"
+#include "io/midi/midi_engine.h"
+#include "io/midi/midi_follow.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -507,6 +509,45 @@ struct KnobRig {
 		menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	}
 };
+
+/// @brief A presentation that counts everything a gesture shows.
+class CountingPresentation final : public deluge::scenes::services::KnobPresentation {
+public:
+	int shown = 0;
+	bool suppress_value_popup(const deluge::scenes::services::ModTurn&) override { return false; }
+	void show_value_popup(const deluge::scenes::services::ModTurn&, PatchSource, PatchSource,
+	                      const deluge::scenes::overlay::PopupContext&, uint32_t) override {
+		shown++;
+	}
+	void value_written() override { shown++; }
+	void blink_indicator(int32_t, bool) override { shown++; }
+	void stop_blink_indicator(int32_t) override { shown++; }
+	void indicators_changed() override { shown++; }
+	void mode_changed() override { shown++; }
+	void vu_sidebar_changed() override { shown++; }
+	void note_tails_changed() override { shown++; }
+	void popup_text(std::string_view) override { shown++; }
+	void notice_text(std::string_view) override { shown++; }
+	void notification(std::string_view, std::string_view) override { shown++; }
+	void setting_indicator(int32_t, int32_t) override { shown++; }
+	void popup(deluge::l10n::String) override { shown++; }
+	void cancel_popup() override { shown++; }
+};
+
+/// @brief How many CCs MIDI follow has stamped as sent since @p clear_stamps.
+size_t stamped_ccs() {
+	size_t count = 0;
+	for (const uint32_t stamp : midiFollow.timeLastCCSent) {
+		count += stamp != 0 ? 1 : 0;
+	}
+	return count;
+}
+
+void clear_stamps() {
+	for (uint32_t& stamp : midiFollow.timeLastCCSent) {
+		stamp = 0;
+	}
+}
 
 /// @brief Both knob indicators, the port's against the levels `View::setKnobIndicatorLevel` was recorded putting up,
 ///        over every mode and a turn each way on each knob: where they first differ, by mode, offset and knob.
@@ -1950,6 +1991,116 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(view.knobsOnClipContext()).to_be_true();
 		view.releaseActiveModControllable();
 		currentSong = nullptr;
+	});
+
+	context("a CV track's empty layout", _ {
+		/// The knobs on @p f's clip, a scene up so indicators are declared, and a song that is current.
+		struct CvRig {
+			spec::SongFixture f = spec::make_cv_song();
+			KnobRig rig;
+			CvRig() {
+				currentSong = f.song;
+				rig.set_song(f.song);
+				(void)rig.stack.push({SceneKind::FirstApp});
+				rig.set_target_with_timeline(f.clip, false);
+			}
+			~CvRig() { currentSong = nullptr; }
+		};
+
+		it("sends no MIDI-follow CC for a CV clip, where a synth's focus sends", _ {
+			// `View::sendMidiFollowFeedback` reaches the send for a CV clip (`isClipContext`), and
+			// `MidiFollow::getModelStackWithParamForClip` returns no param for `OutputType::CV`: nothing is sent.
+			StubDisplay stub;
+			display = &stub;
+			const auto saved_type = midiEngine.midiFollowFeedbackChannelType;
+			const LearnedMIDI saved_a = midiEngine.midiFollowChannelType[0];
+			const uint32_t saved_timer = AudioEngine::audioSampleTimer;
+			midiEngine.midiFollowFeedbackChannelType = MIDIFollowFeedbackChannelType::A;
+			midiEngine.midiFollowChannelType[0].channelOrZone = 0;
+			AudioEngine::audioSampleTimer = 987654;
+
+			const auto sent = [&](spec::SongFixture& f, bool region) {
+				currentSong = f.song;
+				f.song->setCurrentClip(f.clip);
+				KnobRig rig;
+				rig.set_song(f.song);
+				clear_stamps();
+				rig.set_target_with_timeline(f.clip, true);
+				if (region) {
+					clear_stamps();
+					rig.knobs.set_mod_region(96, 48, 0);
+				}
+				const size_t count = stamped_ccs();
+				currentSong = nullptr;
+				return count;
+			};
+			spec::SongFixture synth = spec::make_synth_song();
+			expect(sent(synth, false) > 0u).to_be_true(); // the contrast: this setup does send
+			spec::SongFixture cv = spec::make_cv_song();
+			expect(sent(cv, false)).to_equal(size_t{0});
+			expect(sent(cv, true)).to_equal(size_t{0});
+
+			midiEngine.midiFollowFeedbackChannelType = saved_type;
+			midiEngine.midiFollowChannelType[0] = saved_a;
+			AudioEngine::audioSampleTimer = saved_timer;
+			clear_stamps();
+		});
+
+		it("has no mode in the service", _ {
+			CvRig r;
+			expect(std::holds_alternative<deluge::scenes::bind::NoControlsFocus>(r.rig.knobs.focus().owner)).to_be_true();
+			expect(r.rig.knobs.mode()).to_equal(-1);
+		});
+
+		it("has no mode in the view", _ {
+			CvRig r;
+			view.setActiveModControllableTimelineCounter(r.f.clip, false);
+			expect(view.knobMode()).to_equal(-1);
+			view.releaseActiveModControllable();
+		});
+
+		it("toggles no VU meter and shows nothing on mod button 0", _ {
+			CvRig r;
+			CountingPresentation out;
+			r.rig.knobs.section_button(0, true, out);
+			r.rig.knobs.section_button(0, false, out);
+			expect(r.rig.knobs.focus().vu_meter).to_be_false();
+			expect(out.shown).to_equal(0);
+		});
+
+		it("takes no turn", _ {
+			CvRig r;
+			CountingPresentation out;
+			r.rig.knobs.turn(0, 3, 1000, out);
+			r.rig.knobs.turn(1, -3, 1000, out);
+			expect(out.shown).to_equal(0);
+		});
+
+		it("takes no push", _ {
+			CvRig r;
+			CountingPresentation out;
+			r.rig.knobs.push(0, true, {}, out);
+			r.rig.knobs.push(1, true, {.shift = true}, out);
+			expect(out.shown).to_equal(0);
+		});
+
+		it("names no address for a knob", _ {
+			CvRig r;
+			expect(r.rig.knobs.knob_address(0).has_value()).to_be_false();
+		});
+
+		it("declares both indicators at zero", _ {
+			CvRig r;
+			deluge::ui::LedFrame frame;
+			r.rig.knobs.leds(frame);
+			for (int32_t k = 0; k < 2; k++) {
+				const deluge::ui::KnobIndicator* port = frame.indicator_or_null(static_cast<deluge::ui::IndicatorId>(k));
+				expect(port != nullptr).to_be_true();
+				for (int32_t seg = 0; seg < 4; seg++) {
+					expect(static_cast<int>(port->levels[seg])).to_equal(0);
+				}
+			}
+		});
 	});
 
 	it("takes a gold turn, a mod button and a gold push only after the scene declines them", _ {
