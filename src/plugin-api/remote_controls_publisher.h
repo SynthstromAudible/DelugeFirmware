@@ -44,8 +44,10 @@ struct RemoteControls {
 	uint32_t (*count)(const PageContext& ctx) = nullptr;
 	/// @brief Device page @p index into @p out. @return false past the end.
 	bool (*get)(const PageContext& ctx, uint32_t index, RemotePage& out) = nullptr;
-	/// @brief The page (@p section, @p page_id) into @p out, including a page the cycle does not list. @return false
-	///        for none.
+	/// @brief The page (@p section, @p page_id) into @p out. Which pages it serves is the owner's choice and need not
+	/// be
+	///        the device pages get lists (the instrument's serves its filter cycle on any section). @return false for
+	///        none.
 	bool (*find)(const PageContext& ctx, uint32_t section, uint32_t page_id, RemotePage& out) = nullptr;
 	/// @brief A preset page's slot for @p param: its kind and press.
 	RemoteSlot (*decorate)(const PageContext& ctx, ParamId param) = nullptr;

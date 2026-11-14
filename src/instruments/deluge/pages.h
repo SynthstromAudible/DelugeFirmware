@@ -131,9 +131,11 @@ inline constexpr std::array<plugin::RemotePage, 3> kFilterCycle{{
     detail::knob_page(1, 2, param::kBass, param::kTreble),
 }};
 
-/// @brief The instrument's remote-controls record. Its device pages are kDevicePages; its find serves the sound's
-/// filter cycle on any section: page ids 0 to 2 (group 0) are kFilterCycle, ids 3 to 5 (group 1) the same with the
-/// slots swapped. Each slot's press, by decorate, is slot_for with the sound's FM mode read from the owner's state.
+/// @brief The instrument's remote-controls record. Its device pages come from get and count (kDevicePages), never from
+/// find. Its find serves the sound's filter cycle on any section: page ids 0 to 2 (group 0) are kFilterCycle, and ids 3
+/// to 5 (group 1) are the same pages with the slots swapped, so find(s, 0) is the low-pass page on every section and
+/// never that section's device page. Each slot's press comes from decorate, which is slot_for with the sound's FM mode
+/// read from the owner's state.
 extern const plugin::RemoteControls
     kRemoteControls; // NOLINT(bugprone-dynamic-static-initializers): constant-initialized
 
