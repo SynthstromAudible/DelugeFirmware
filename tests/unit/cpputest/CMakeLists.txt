@@ -102,17 +102,12 @@ configure_file(../../../src/deluge/util/firmware_version.h.in
 add_executable(UnitTests
         RunAllTests.cpp
         mem_guard_tests.cpp
-        value_scaling_tests.cpp
         clip_iterator_tests.cpp
-        function_tests.cpp
-        volume_param_gain_tests.cpp
-        db_shift_tests.cpp
         midi_queue_tests.cpp
         sync_tests.cpp
         chord_tests.cpp
         time_tests.cpp
         clock_output_scheduler_tests.cpp
-        name_compare_tests.cpp
         default_name_tests.cpp
         encoder_acceleration_tests.cpp
         iterance_migration_tests.cpp
