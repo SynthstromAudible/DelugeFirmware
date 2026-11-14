@@ -23,6 +23,7 @@ set(CPU_OPTIONS
 add_compile_options(${CPU_OPTIONS} -Wno-psabi -static)
 add_link_options(${CPU_OPTIONS})
 
+set(DELUGE_TEST_TREE arm)
 include(${CMAKE_CURRENT_LIST_DIR}/../support/cmake/specs.cmake)
 
 enable_testing()

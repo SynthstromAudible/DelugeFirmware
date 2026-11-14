@@ -1,3 +1,4 @@
+deluge_test_directory(TREES host)
 FetchContent_MakeAvailable(etl)
 
 # Set this to ON if you want to have the CppUTest's internal tests in your

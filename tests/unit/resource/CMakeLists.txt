@@ -8,7 +8,7 @@
 # deluge_resource's masking discipline calls the interrupt-masking C ABI on every
 # acquire/release, so the shared host bodies for it are linked in too.
 #
-deluge_specs_driver(resource_specs
+deluge_specs_driver(resource_specs TREES host
   SOURCES
     ../../support/mocks/mock_critical_section.cpp
   LIBRARIES

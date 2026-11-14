@@ -13,7 +13,7 @@ deluge_test_neon(deluge_effects)
 set(_dsp_fixed ${CMAKE_CURRENT_LIST_DIR}/../../src/deluge/dsp-next/fixed)
 set(_dsp_filter ${_dsp_fixed}/filter)
 # NEON: the sidechain's duck envelope runs through Control, whose kernel core includes argon.
-deluge_specs_driver(effects_specs NEON
+deluge_specs_driver(effects_specs TREES host arm NEON
   SOURCES ${CMAKE_CURRENT_LIST_DIR}/../support/mocks/mock_panic.cpp
           ${_dsp_filter}/filter_set.cpp
           ${CMAKE_CURRENT_LIST_DIR}/../../src/deluge/util/synth_noise.cpp

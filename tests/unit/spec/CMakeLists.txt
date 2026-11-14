@@ -76,7 +76,7 @@ target_compile_definitions(deluge_spec PUBLIC
 # tests/ for "harness/..." and tests/unit/ for "spec/support/...".
 target_include_directories(deluge_spec PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../.. ${CMAKE_CURRENT_LIST_DIR}/..)
 
-deluge_specs_driver(all_specs INCLUDES ${CMAKE_CURRENT_LIST_DIR}/../.. ${CMAKE_CURRENT_LIST_DIR}/..)
+deluge_specs_driver(all_specs TREES host INCLUDES ${CMAKE_CURRENT_LIST_DIR}/../.. ${CMAKE_CURRENT_LIST_DIR}/..)
 target_link_libraries(all_specs PUBLIC deluge_spec deluge_midi)
 deluge_apply_test_sanitizers(all_specs)
 

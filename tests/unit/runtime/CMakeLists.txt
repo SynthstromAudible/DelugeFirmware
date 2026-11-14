@@ -1,7 +1,7 @@
 # tests/unit/runtime/CMakeLists.txt
 #
 # deluge::runtime specs: the app loop's job list, against the real app_loop.cpp, with a fake clock.
-deluge_specs_driver(runtime_specs
+deluge_specs_driver(runtime_specs TREES host
   SOURCES
     ../../../src/deluge/runtime/app_loop.cpp
   INCLUDES

@@ -2,7 +2,7 @@
 # only the standalone libraries' include roots, so a hidden dependency on the app fails this build. The model's host
 # hooks come from model_hooks_for_tests.cpp: ordinary heap memory and a recording edit guard.
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../src/deluge-project ${CMAKE_CURRENT_BINARY_DIR}/model-lib)
-deluge_specs_driver(model_specs
+deluge_specs_driver(model_specs TREES host arm
   SOURCES ${CMAKE_CURRENT_LIST_DIR}/model_hooks_for_tests.cpp ${CMAKE_CURRENT_LIST_DIR}/../support/mocks/mock_panic.cpp
           ${CMAKE_CURRENT_LIST_DIR}/equality/equality.cpp
   LIBRARIES deluge_project deluge_instrument deluge_global_effectable deluge_effects

@@ -5,7 +5,7 @@
 # NOT the real FatFS-backed adapter (that's tests/unit/spec/'s concern, for the adapter's
 # own tests) -- so these specs get real open/read/write/seek/close and
 # directory-iteration round-trip coverage with no mounted filesystem required.
-deluge_specs_driver(io_specs
+deluge_specs_driver(io_specs TREES host
   SOURCES
     mock_file_io.cpp
     mock_stream_io.cpp

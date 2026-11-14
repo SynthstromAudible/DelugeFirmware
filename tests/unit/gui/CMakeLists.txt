@@ -1,7 +1,7 @@
 # tests/unit/gui/CMakeLists.txt
 #
 # GUI specs that need no UI: the arithmetic the UI timer manager schedules its job with.
-deluge_specs_driver(gui_specs
+deluge_specs_driver(gui_specs TREES host
   INCLUDES
     ../../../src/deluge # gui/ui_timer_manager.h, runtime/app_loop.h
     ../../../src        # definitions_cxx.hpp

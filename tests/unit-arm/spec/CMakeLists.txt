@@ -14,5 +14,5 @@ set_target_properties(deluge_spec PROPERTIES
   CXX_STANDARD_REQUIRED YES
 )
 
-deluge_specs_driver(all_specs)
+deluge_specs_driver(all_specs TREES arm)
 target_link_libraries(all_specs PUBLIC deluge_spec)

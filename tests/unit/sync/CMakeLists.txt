@@ -2,7 +2,7 @@
 #
 # deluge::sync specs. Exercises sd_busy() directly against the real sd_access.cpp
 # translation unit -- no card, no FatFS, no resource manager.
-deluge_specs_driver(sync_specs
+deluge_specs_driver(sync_specs TREES host
   SOURCES
     ../../../src/deluge/sync/sd_access.cpp
   INCLUDES

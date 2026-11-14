@@ -6,7 +6,7 @@
 # shared conformance suite (../memory) against the Rust allocator through its
 # C ABI (include/libdeluge/alloc.h).
 #
-deluge_specs_driver(alloc_specs
+deluge_specs_driver(alloc_specs TREES host
   LIBRARIES
     deluge_rust_rs
     pthread dl m  # the Rust std staticlib's system libraries

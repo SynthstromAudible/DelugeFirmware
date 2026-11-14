@@ -3,6 +3,7 @@
 # inlines only always_inline functions: stricter than either of the image's inliners (the app's threshold of 5, the
 # libraries' default with -fno-lto), so an operation that inlines here inlines in both. The image is bare metal, so neither the
 # Linux toolchain's stack protector nor its PIC applies.
+deluge_test_directory(TREES arm)
 set(_fixed_point_probe_options
   -O2
   -mcpu=cortex-a9

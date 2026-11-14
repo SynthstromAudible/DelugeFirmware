@@ -27,6 +27,7 @@ endif()
 add_compile_options(-Wno-unknown-warning-option -m32 -mfpmath=sse -msse2 -Og -ggdb3)
 add_link_options(-m32)
 
+set(DELUGE_TEST_TREE ubsan)
 include(${CMAKE_CURRENT_LIST_DIR}/../support/cmake/specs.cmake)
 
 set(_ubsan -fsanitize=signed-integer-overflow,shift,float-cast-overflow -fno-sanitize-recover=all)

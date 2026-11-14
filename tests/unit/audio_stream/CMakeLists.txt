@@ -5,7 +5,7 @@
 #
 # NEON: convert.cpp's vectorised conversion loops go through argon, and testing them here is only worth it on the
 # backend the golden renders through.
-deluge_specs_driver(audio_stream_specs NEON
+deluge_specs_driver(audio_stream_specs TREES host NEON
   SOURCES
     # convert_spec.cpp exercises the real convert_word, and stitch_spec.cpp the real stitch_boundaries (which calls
     # convert_word), so both translation units are linked in.

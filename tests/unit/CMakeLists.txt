@@ -68,6 +68,7 @@ if (UNIX AND NOT APPLE)
     add_link_options(-m32)
 endif ()
 
+set(DELUGE_TEST_TREE host)
 include(${CMAKE_CURRENT_LIST_DIR}/../support/cmake/specs.cmake)
 
 if (UNIX AND NOT APPLE)

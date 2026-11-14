@@ -9,7 +9,7 @@
 # convert), which itself needs the REAL deluge::audio::stream::convert_word/stitch_boundaries C++
 # symbols -- so convert.cpp/stitch.cpp/audio_format_helpers.cpp are linked in here, with argon (NEON),
 # as tests/unit/audio_stream/CMakeLists.txt does for its own convert/stitch specs.
-deluge_specs_driver(sample_reader_specs NEON
+deluge_specs_driver(sample_reader_specs TREES host NEON
   SOURCES
     mock_streaming_fill.cpp
     ../../support/mocks/mock_critical_section.cpp

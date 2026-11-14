@@ -2,7 +2,7 @@
 # test trees. The runner and the case list are portable: they reach the counters only through the Counters interface,
 # which the spec fakes, so they build from their own sources and the dsp-next sources the cases' components use.
 set(_src ${CMAKE_CURRENT_LIST_DIR}/../../src/deluge)
-deluge_specs_driver(bench_specs NEON
+deluge_specs_driver(bench_specs TREES host arm NEON
   SOURCES
     ${_src}/bench/runner.cpp
     ${_src}/bench/cases.cpp
