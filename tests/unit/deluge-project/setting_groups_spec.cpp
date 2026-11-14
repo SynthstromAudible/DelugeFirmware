@@ -5,6 +5,7 @@
 #include "deluge-project/structure_codec.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
 #include <string>
 #include <vector>
@@ -82,7 +83,7 @@ describe setting_groups_song("the song settings group", $ {
 		const ReverbSettings before = song.reverb;
 		expect(write_setting(song, address, "reverb/model", Value::makeScalar("9"))).to_be_false();
 		expect(write_setting(song, address, "no/such/path", Value::makeScalar("1"))).to_be_false();
-		expect(song.reverb == before).to_be_true();
+		expect(song.reverb).to_equal(before);
 	});
 
 	it("keeps the reverb model in the record", _ {
@@ -113,8 +114,11 @@ describe setting_groups_owners("the owner setting groups", $ {
 		                                    std::pair{reverb, std::string_view{"reverb/roomSize"}}}) {
 			const auto mutable_read = read_setting(song, address, path);
 			const auto const_read = read_setting(held, address, path);
-			expect(const_read.has_value() && mutable_read.has_value() && const_read->str() == mutable_read->str())
-			    .to_be_true();
+			expect(const_read.has_value()).to_be_true();
+			expect(mutable_read.has_value()).to_be_true();
+			if (const_read.has_value() && mutable_read.has_value()) {
+				expect(const_read->str()).to_equal(mutable_read->str());
+			}
 			expect(holds_setting(held, address, path)).to_equal(holds_setting(song, address, path));
 		}
 	});
@@ -122,7 +126,7 @@ describe setting_groups_owners("the owner setting groups", $ {
 	it("gives a kit clip a sequence direction, as its row shortcut edits it, and an audio clip none", _ {
 		using deluge::plugin::SettingContext;
 		const SettingInfo* row = deluge::plugin::find_setting(table_of(SettingGroupId::CLIP), "sequenceDirection");
-		expect(row != nullptr).to_be_true();
+		expect(row).not_().to_be_null();
 		const auto on = [&](SettingContext::Instrument instrument) {
 			return deluge::plugin::setting_applies(*row, {.owner = SettingContext::Owner::CLIP, .instrument = instrument},
 			                                       {});
@@ -187,8 +191,8 @@ describe setting_groups_owners("the owner setting groups", $ {
 		DocClip back;
 		expect(decode(encode(clip), back).has_value()).to_be_true();
 		expect(back.name).to_equal(std::string{"VERSE"});
-		expect(back.sequence_direction == SequenceDirection::PINGPONG).to_be_true();
-		expect(back.values == clip.values).to_be_true();
+		expect(back.sequence_direction).to_equal(SequenceDirection::PINGPONG);
+		expect(back.values).to_equal(clip.values);
 	});
 
 	it("round-trips a clip's arp and a kit row's arp through their records", _ {
@@ -256,7 +260,7 @@ describe setting_groups_owners("the owner setting groups", $ {
 		for (const std::optional<int32_t> magnitude : {std::optional<int32_t>{}, std::optional<int32_t>{2}}) {
 			ArpRecord back;
 			decode(encode(record, magnitude), back, magnitude);
-			expect(back == record).to_be_true();
+			expect(back).to_equal(record);
 		}
 		expect(encode(record, 2).find("syncLevel")->str()).to_equal(std::string{"7"});
 		expect(encode(record, std::nullopt).find("syncLevel")->str()).to_equal(std::string{"6"});
@@ -264,13 +268,13 @@ describe setting_groups_owners("the owner setting groups", $ {
 
 	it("keeps an arp record small, its host values packed beside a mask of those it holds", _ {
 		// Every drum and instrument clip carries one, in the model's fast heap.
-		expect(sizeof(ArpRecord) <= size_t{84}).to_be_true();
+		to_be_at_most(expect(sizeof(ArpRecord)), size_t{84});
 		ArpRecord record;
 		set_host_value(record, "arpeggiator/gate", 0);
 		expect(host_value(record, "arpeggiator/gate")).to_equal(std::optional<int32_t>{0});
 		expect(host_value(record, "arpeggiator/rate").has_value()).to_be_false();
 		set_host_value(record, "arpeggiator/gate", std::nullopt);
-		expect(record == ArpRecord{}).to_be_true();
+		expect(record).to_equal(ArpRecord{});
 	});
 
 	it("decodes an arp's mode from the single mode word of older files", _ {
@@ -303,7 +307,7 @@ describe setting_groups_owners("the owner setting groups", $ {
 
 	it("offers an audio clip's priority as the sound's voice priority menu does: the numbers a file writes", _ {
 		const SettingInfo* row = deluge::plugin::find_setting(table_of(SettingGroupId::AUDIO_CLIP), "priority");
-		expect(row->kind == SettingKind::CHOICE).to_be_true();
+		expect(row->kind).to_equal(SettingKind::CHOICE);
 		std::vector<std::string> words;
 		for (std::string_view choice : row->choices) {
 			words.emplace_back(choice);

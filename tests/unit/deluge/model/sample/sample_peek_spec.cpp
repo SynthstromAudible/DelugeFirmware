@@ -118,7 +118,7 @@ describe sample_peek("deluge_sample_peek", $ {
 	it("returns the resident-and-ready cluster's frames, matching the ramp, forward to its end", _{
 		PeekFixture fx;
 		DelugeFrameWindow w = deluge_sample_peek(fx.asset(), /*start_frame=*/0, /*direction=*/1);
-		expect(w.frames != nullptr).to_be_true();
+		expect(w.frames).not_().to_be_null();
 		expect(w.frame_count).to_equal(kFramesPerCluster);
 		auto* bytes = static_cast<const uint8_t*>(w.frames);
 		for (uint32_t i = 0; i < kClusterSize; i++) {
@@ -130,7 +130,7 @@ describe sample_peek("deluge_sample_peek", $ {
 		PeekFixture fx;
 		// Cluster 2's first frame: abs byte pos 128 -> frame 64 (stride 2).
 		DelugeFrameWindow w = deluge_sample_peek(fx.asset(), /*start_frame=*/64, /*direction=*/1);
-		expect(w.frames == nullptr).to_be_true();
+		expect(w.frames).to_be_null();
 		expect(w.frame_count).to_equal(0u);
 	});
 
@@ -138,7 +138,7 @@ describe sample_peek("deluge_sample_peek", $ {
 		PeekFixture fx;
 		// Cluster 1's first frame: abs byte pos 64 -> frame 32 (stride 2).
 		DelugeFrameWindow w = deluge_sample_peek(fx.asset(), /*start_frame=*/32, /*direction=*/1);
-		expect(w.frames == nullptr).to_be_true();
+		expect(w.frames).to_be_null();
 		expect(w.frame_count).to_equal(0u);
 	});
 });

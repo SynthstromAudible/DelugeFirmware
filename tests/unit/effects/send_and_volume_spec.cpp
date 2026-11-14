@@ -50,7 +50,7 @@ describe send_and_volume("the reverb send, post-FX volume and pan", ${
 		const bool sent = s.process(block, deluge::dsp::typed_view(std::span{reverb}),
 		                            {.post_fx_volume = q27(kVolume), .post_reverb_volume = q27(kVolume), .reverb_send = q31(1 << 30)});
 		expect(sent).to_be_true();
-		expect(reverb[0] != 0).to_be_true();
+		expect(reverb[0]).not_().to_equal(0);
 	});
 	it("ignores pan when rendering in mono", _ {
 		SendAndVolume panned;
@@ -72,7 +72,7 @@ describe send_and_volume("the reverb send, post-FX volume and pan", ${
 		SendAndVolume right;
 		std::vector<StereoSample> panned = constant(16, 1 << 28, 1 << 28);
 		(void)right.process(panned, deluge::dsp::typed_view(std::span{reverb}), {.post_fx_volume = q27(kVolume), .post_reverb_volume = q27(kVolume), .pan = q31(1 << 29)});
-		expect(panned[0].r > panned[0].l).to_be_true();
+		expect(panned[0].r).to_be_greater_than(panned[0].l);
 	});
 	it("pans a stereo signal to exact gains at a mid pan", _ {
 		SendAndVolume s;
@@ -107,7 +107,7 @@ describe send_and_volume("the reverb send, post-FX volume and pan", ${
 		std::vector<StereoSample> block = constant(16, 1 << 28, 1 << 28);
 		std::vector<int32_t> reverb(16, 0);
 		(void)s.process(block, deluge::dsp::typed_view(std::span{reverb}), {.post_fx_volume = q27(kVolume), .post_reverb_volume = q27(kVolume), .ramp = true});
-		expect(block.front().l < block.back().l).to_be_true();
+		expect(block.front().l).to_be_less_than(block.back().l);
 	});
 	it("leaves a primed volume alone once it has one", _ {
 		SendAndVolume s{kVolume};

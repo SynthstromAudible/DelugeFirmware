@@ -222,7 +222,7 @@ describe settings("the Deluge instrument's settings schema", ${
 
 	it("offers voice priority as a choice whose words are the numbers a file writes, in the engine's order", _ {
 		const deluge::plugin::SettingInfo* row = deluge::plugin::find_setting(kSettings, "voicePriority");
-		expect(row->kind == SettingKind::CHOICE).to_be_true();
+		expect(row->kind).to_equal(SettingKind::CHOICE);
 		for (const auto priority : {deluge::plugin::VoicePriority::LOW, deluge::plugin::VoicePriority::MEDIUM,
 		                            deluge::plugin::VoicePriority::HIGH}) {
 			const std::string word = std::to_string(std::to_underlying(priority));
@@ -339,11 +339,14 @@ describe settings("the Deluge instrument's settings schema", ${
 		for (const std::string lfo : {"lfo1", "lfo2", "lfo3", "lfo4"}) {
 			const deluge::plugin::SettingInfo& row = *deluge::plugin::find_setting(kSettings, lfo + "/syncLevel");
 			const deluge::plugin::DisplayMapping& mapping = deluge::plugin::mapping_of(row);
-			expect(mapping.kind == DisplayMappingKind::COMBINED_SYNC).to_be_true();
+			expect(mapping.kind).to_equal(DisplayMappingKind::COMBINED_SYNC);
 			expect(std::string(mapping.partner)).to_equal(lfo + "/syncType");
 			const deluge::plugin::SettingInfo* partner = deluge::plugin::find_setting(kSettings, mapping.partner);
-			expect(partner != nullptr && partner->kind == SettingKind::CHOICE).to_be_true();
-			expect(row.units == SettingUnits::SYNC_LEVEL).to_be_true();
+			expect(partner).not_().to_be_null();
+			if (partner != nullptr) {
+				expect(partner->kind).to_equal(SettingKind::CHOICE);
+			}
+			expect(row.units).to_equal(SettingUnits::SYNC_LEVEL);
 			expect(deluge::plugin::to_menu(row, 3, 1)).to_equal(12); // the third triplet level
 			expect(deluge::plugin::from_menu(row, deluge::plugin::kMaxCombinedSync).value_or(kNone))
 			    .to_equal(std::pair<int32_t, int32_t>{9, 2});
@@ -397,14 +400,14 @@ describe settings("the Deluge instrument's settings schema", ${
 				++checked;
 			}
 		}
-		expect(checked > 60).to_be_true();
+		expect(checked).to_be_greater_than(60);
 	});
 
 	it("gives a clip its arp's settings as the instrument's clip-scoped rows, apart from its sound's", _ {
 		expect(kClipScopedSettings.size()).to_equal(deluge::plugin::kArpSettingRows.size());
 		for (const deluge::plugin::SettingInfo& row : kClipScopedSettings) {
-			expect(deluge::plugin::find_setting(deluge::plugin::kArpSettingRows, row.path) != nullptr).to_be_true();
-			expect(deluge::plugin::find_setting(kSettings, row.path) == nullptr).to_be_true();
+			expect(deluge::plugin::find_setting(deluge::plugin::kArpSettingRows, row.path)).not_().to_be_null();
+			expect(deluge::plugin::find_setting(kSettings, row.path)).to_be_null();
 		}
 	});
 

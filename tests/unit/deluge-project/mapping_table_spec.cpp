@@ -415,7 +415,7 @@ describe mapping_table("the song's mapping table", ${
 		table.learn(Mapping{.source = cc(0, 3), .target = DrumMuteTarget{1}});
 		auto clip = deluge::serialization::Value::makeMap();
 		encode_mappings(table, ClipOwner{2}, clip);
-		expect(clip == json(R"({"muteMidiCommand": {"channel": 0, "note": 2}})")).to_be_true();
+		expect(clip).to_equal(json(R"({"muteMidiCommand": {"channel": 0, "note": 2}})"));
 		MappingTable read;
 		decode_mappings(json(R"({"muteMidiCommand": {"note": 2}, "midiInput": {"channel": 1, "note": 3}})"), ClipOwner{1},
 		                read);

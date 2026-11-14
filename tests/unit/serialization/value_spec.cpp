@@ -18,7 +18,7 @@ describe value("deluge::serialization::Value", ${
 		expect(m.entries()[0].first).to_equal(std::string("id"));       // order, not sorted
 		expect(m.entries()[1].first).to_equal(std::string("section"));
 		expect(m.find("id")->str()).to_equal(std::string("7"));
-		expect(m.find("missing") == nullptr).to_be_true();
+		expect(m.find("missing")).to_be_null();
 	});
 	it("array appends in order", _{
 		Value a = Value::makeArray();
@@ -36,20 +36,20 @@ describe value("deluge::serialization::Value", ${
 		Value b = Value::makeMap();
 		b.set("x", Value::makeNumber(96));
 		b.set("y", Value::makeScalar("96"));
-		expect(a == b).to_be_true();
-		expect(a.find("x")->scalarKind() == ScalarKind::NUMBER).to_be_true();
-		expect(*a.find("x") == *a.find("y")).to_be_false();   // number 96 is not text "96"
+		expect(a).to_equal(b);
+		expect(a.find("x")->scalarKind()).to_equal(ScalarKind::NUMBER);
+		expect(*a.find("x")).not_().to_equal(*a.find("y"));   // number 96 is not text "96"
 		Value c = Value::makeMap();
 		c.set("y", Value::makeScalar("96"));
 		c.set("x", Value::makeNumber(96));
-		expect(a == c).to_be_false();                            // order matters
+		expect(a).not_().to_equal(c);                            // order matters
 	});
 	it("finds and erases nothing in a value that is not a map", _{
 		Value scalar = Value::makeNumber(3);
 		Value array = Value::makeArray();
-		expect(scalar.find_mut("a") == nullptr).to_be_true();
+		expect(scalar.find_mut("a")).to_be_null();
 		expect(scalar.erase("a")).to_be_false();
-		expect(array.find_mut("a") == nullptr).to_be_true();
+		expect(array.find_mut("a")).to_be_null();
 		expect(array.erase("a")).to_be_false();
 	});
 	it("replaces an entry in its place, appends a new one, and erases one", _{
@@ -68,7 +68,7 @@ describe value("deluge::serialization::Value", ${
 		m.set("d", Value::makeNumber(3));
 		m.replace_or_append("b", Value::makeNumber(9));
 		expect(keys(m)).to_equal(std::string("abd"));
-		expect(*m.find("b") == Value::makeNumber(9)).to_be_true();
+		expect(*m.find("b")).to_equal(Value::makeNumber(9));
 		m.replace_or_append("e", Value::makeNumber(4));
 		expect(keys(m)).to_equal(std::string("abde"));
 		expect(m.erase("b")).to_be_true();
@@ -77,8 +77,8 @@ describe value("deluge::serialization::Value", ${
 		expect(keys(m)).to_equal(std::string("ade"));
 		m.replace_or_append("b", child);
 		m.find_mut("b")->replace_or_append("c", Value::makeNumber(5));
-		expect(*m.find("b")->find("c") == Value::makeNumber(5)).to_be_true();
-		expect(m.find_mut("x") == nullptr).to_be_true();
+		expect(*m.find("b")->find("c")).to_equal(Value::makeNumber(5));
+		expect(m.find_mut("x")).to_be_null();
 	});
 });
 // clang-format on

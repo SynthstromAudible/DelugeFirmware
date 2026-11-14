@@ -15,9 +15,9 @@ describe deluge_instrument_plugin("the Deluge instrument as a plugin", ${
 		expect(read.decode(handle.encode({.input_tick_magnitude = 1}), {.input_tick_magnitude = 1}).has_value())
 		    .to_be_true();
 		// A file read normalises what it reads, so the state's encoding is what survives the round trip.
-		expect(read.encode({.input_tick_magnitude = 1}) == handle.encode({.input_tick_magnitude = 1})).to_be_true();
+		expect(read.encode({.input_tick_magnitude = 1})).to_equal(handle.encode({.input_tick_magnitude = 1}));
 		expect(read.as<deluge::instrument::DelugeInstrument>()->transpose).to_equal(5);
-		expect(handle.plugin() == deluge::plugin::kDelugeInstrument).to_be_true();
+		expect(handle.plugin()).to_equal(deluge::plugin::kDelugeInstrument);
 	});
 });
 // clang-format on

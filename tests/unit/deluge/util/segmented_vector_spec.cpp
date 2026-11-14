@@ -82,7 +82,7 @@ describe segmented_vector("SegmentedVector<T, N>", $ {
 		v[1].value = 99;
 		Tracked* addr = &v[1];
 		v.resize(1000); // many new segments
-		expect(&v[1] == addr).to_be_true();
+		expect(&v[1]).to_equal(addr);
 		expect(v[1].value).to_equal(99);
 	});
 
@@ -126,8 +126,8 @@ describe segmented_vector("SegmentedVector<T, N>", $ {
 		Tracked* addr0 = &v[0];
 		Tracked* addr1 = &v[1];
 		v.resize(1000);            // grow across many segments; index must not reallocate/move elements
-		expect(&v[0] == addr0).to_be_true();
-		expect(&v[1] == addr1).to_be_true();
+		expect(&v[0]).to_equal(addr0);
+		expect(&v[1]).to_equal(addr1);
 		expect(v[0].value).to_equal(7);
 		expect(v[1].value).to_equal(99);
 		expect(v.size()).to_equal(std::size_t{1000});

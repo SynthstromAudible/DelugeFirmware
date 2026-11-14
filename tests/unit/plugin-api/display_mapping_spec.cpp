@@ -263,8 +263,8 @@ describe display_mapping("A setting's display mapping", $ {
 		expect(from_menu(kSyncLevel, 28).has_value()).to_be_false();
 	});
 	it("names the sync partner row", _ {
-		expect(mapping_of(kSyncLevel).partner == std::string_view{"lfo1/syncType"}).to_be_true();
-		expect(kSyncTypes[static_cast<std::size_t>(stored_of(kSyncLevel, 19).second)] == std::string_view{"19"}).to_be_true();
+		expect(mapping_of(kSyncLevel).partner).to_equal(std::string_view{"lfo1/syncType"});
+		expect(kSyncTypes[static_cast<std::size_t>(stored_of(kSyncLevel, 19).second)]).to_equal(std::string_view{"19"});
 	});
 
 	it("combines transpose and cents as transpose*100+cents", _ {
@@ -322,7 +322,7 @@ describe display_mapping("A setting's display mapping", $ {
 	});
 
 	it("lists the MIDI channel's none first: menu 0 is \"255\", menu n is channel n-1", _ {
-		expect(kMidiChannels[static_cast<std::size_t>(stored_of(kMidiChannel, 0).first)] == std::string_view{"255"}).to_be_true();
+		expect(kMidiChannels[static_cast<std::size_t>(stored_of(kMidiChannel, 0).first)]).to_equal(std::string_view{"255"});
 		for (int32_t menu = 1; menu <= 16; ++menu) {
 			expect(stored_of(kMidiChannel, menu)).to_equal(Pair{menu - 1, 0});
 		}
@@ -354,7 +354,9 @@ describe display_mapping("A setting's display mapping", $ {
 		expect(menu_range(kNoteForDrum)).to_equal(Pair{0, 127});
 		for (int32_t menu = -1; menu <= 256; ++menu) {
 			const std::optional<Pair> stored = from_menu(kNoteForDrum, menu);
-			expect(!stored.has_value() || stored->first != 255).to_be_true();
+			if (stored.has_value()) {
+				expect(stored->first).not_().to_equal(255);
+			}
 		}
 	});
 

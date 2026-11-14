@@ -46,7 +46,7 @@ describe state_handle("a plugin's state, held without knowing its type", ${
 		expect(empty.has_value()).to_be_false();
 		const StateHandle held = StateHandle::of<CounterPlugin>({.value = 3});
 		expect(held.has_value()).to_be_true();
-		expect(held.plugin() == CounterPlugin::descriptor().id).to_be_true();
+		expect(held.plugin()).to_equal(CounterPlugin::descriptor().id);
 	});
 
 	it("copies deeply", _ {
@@ -61,24 +61,24 @@ describe state_handle("a plugin's state, held without knowing its type", ${
 		StateHandle a = StateHandle::of<CounterPlugin>({.value = 4});
 		CounterState* at = a.as<CounterPlugin>();
 		StateHandle b = std::move(a);
-		expect(b.as<CounterPlugin>() == at).to_be_true();
+		expect(b.as<CounterPlugin>()).to_equal(at);
 		StateHandle c;
 		c = std::move(b);
-		expect(c.as<CounterPlugin>() == at).to_be_true();
+		expect(c.as<CounterPlugin>()).to_equal(at);
 	});
 
 	it("compares its states", _ {
-		expect(StateHandle::of<CounterPlugin>({.value = 1}) == StateHandle::of<CounterPlugin>({.value = 1})).to_be_true();
-		expect(StateHandle::of<CounterPlugin>({.value = 1}) == StateHandle::of<CounterPlugin>({.value = 2})).to_be_false();
-		expect(StateHandle::of<CounterPlugin>({.value = 1}) == StateHandle::of<OtherPlugin>({.value = 1})).to_be_false();
-		expect(StateHandle{} == StateHandle{}).to_be_true();
+		expect(StateHandle::of<CounterPlugin>({.value = 1})).to_equal(StateHandle::of<CounterPlugin>({.value = 1}));
+		expect(StateHandle::of<CounterPlugin>({.value = 1})).not_().to_equal(StateHandle::of<CounterPlugin>({.value = 2}));
+		expect(StateHandle::of<CounterPlugin>({.value = 1})).not_().to_equal(StateHandle::of<OtherPlugin>({.value = 1}));
+		expect(StateHandle{}).to_equal(StateHandle{});
 	});
 
 	it("gives its state only to its own plugin", _ {
 		StateHandle a = StateHandle::of<CounterPlugin>({.value = 1});
-		expect(a.as<OtherPlugin>() == nullptr).to_be_true();
+		expect(a.as<OtherPlugin>()).to_be_null();
 		const StateHandle& c = a;
-		expect(c.as<CounterPlugin>() != nullptr).to_be_true();
+		expect(c.as<CounterPlugin>()).not_().to_be_null();
 	});
 
 	it("encodes and decodes its state through its plugin", _ {
@@ -86,7 +86,7 @@ describe state_handle("a plugin's state, held without knowing its type", ${
 		const deluge::serialization::Value v = a.encode({});
 		StateHandle b = StateHandle::of<CounterPlugin>({});
 		expect(b.decode(v, {}).has_value()).to_be_true();
-		expect(b == a).to_be_true();
+		expect(b).to_equal(a);
 	});
 });
 // clang-format on

@@ -79,9 +79,9 @@ describe parse_json("deluge::serialization::parseJson", ${
 	it("keeps whether a scalar was a number, text or a literal", _{
 		using deluge::serialization::ScalarKind;
 		auto v = parseJson(R"({"n": 96, "t": "96", "l": true})");
-		expect(v->find("n")->scalarKind() == ScalarKind::NUMBER).to_be_true();
-		expect(v->find("t")->scalarKind() == ScalarKind::TEXT).to_be_true();
-		expect(v->find("l")->scalarKind() == ScalarKind::LITERAL).to_be_true();
+		expect(v->find("n")->scalarKind()).to_equal(ScalarKind::NUMBER);
+		expect(v->find("t")->scalarKind()).to_equal(ScalarKind::TEXT);
+		expect(v->find("l")->scalarKind()).to_equal(ScalarKind::LITERAL);
 		expect(v->find("n")->str()).to_equal(std::string("96"));
 	});
 });

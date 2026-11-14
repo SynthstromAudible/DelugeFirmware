@@ -119,8 +119,7 @@ describe structure_codec("the structure records", ${
 		auto doc = deluge::serialization::parseXml(R"(<sound id="3" presetName="Bass" colour="5" polyphonic="poly")"
 		                                           R"( mode="fm"><osc1 type="sine"/><unison num="1"/></sound>)");
 		const deluge::plugin::StateHandle state = test::test_instrument_codec().decode(*doc->find("sound"), 2);
-		expect(state.as<deluge::instrument::DelugeInstrument>()->synth_mode == deluge::instrument::SynthMode::FM)
-		    .to_be_true();
+		expect(state.as<deluge::instrument::DelugeInstrument>()->synth_mode).to_equal(deluge::instrument::SynthMode::FM);
 		deluge::serialization::Value written = deluge::serialization::Value::makeMap();
 		test::test_instrument_codec().encode(state, written, 2);
 		expect(written.find("polyphonic")).not_().to_be_null();

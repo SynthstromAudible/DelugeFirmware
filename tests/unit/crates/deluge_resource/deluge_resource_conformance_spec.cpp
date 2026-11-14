@@ -1,6 +1,7 @@
 #include "mock_source.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
 // The Rust resource manager (crates/deluge_resource) driven through its C ABI
 // (deluge_resource.h) from C++ — the same cache invariants the Rust unit tests
@@ -18,11 +19,11 @@ describe deluge_resource_conformance("deluge_resource (Rust cache) conformance",
 		void* owner = reinterpret_cast<void*>(1);
 		uint32_t a = f.define_asset(owner);
 		void* p = f.acquire(a, 0, 4096);
-		expect(p != nullptr).to_be_true();
-		expect(reinterpret_cast<uintptr_t>(p) % 16 == 0).to_be_true();
+		expect(p).not_().to_be_null();
+		expect(reinterpret_cast<uintptr_t>(p) % 16).to_equal(0);
 		expect(ResourceFixture::pattern_ok(p, owner, 0, 4096)).to_be_true();
 		void* p2 = f.acquire(a, 0, 4096); // cache hit
-		expect(p == p2).to_be_true();
+		expect(p).to_equal(p2);
 	});
 
 	it("never evicts a leased chunk, and keeps its bytes under churn", _{
@@ -30,7 +31,7 @@ describe deluge_resource_conformance("deluge_resource (Rust cache) conformance",
 		void* owner = reinterpret_cast<void*>(7);
 		uint32_t a = f.define_asset(owner);
 		void* pinned = f.acquire(a, 0, kChunk); // lease held (not released)
-		expect(pinned != nullptr).to_be_true();
+		expect(pinned).not_().to_be_null();
 		f.churn(a, 1, 20, kChunk);
 		expect(ResourceFixture::pattern_ok(pinned, owner, 0, kChunk)).to_be_true();
 	});
@@ -42,9 +43,9 @@ describe deluge_resource_conformance("deluge_resource (Rust cache) conformance",
 		void* p0 = f.acquire(a, 0, kChunk);
 		f.release(p0);
 		f.churn(a, 1, 20, kChunk);
-		expect(evict_count() >= 1).to_be_true();
+		to_be_at_least(expect(evict_count()), 1);
 		void* again = f.acquire(a, 0, kChunk);
-		expect(again != nullptr).to_be_true();
+		expect(again).not_().to_be_null();
 		expect(ResourceFixture::pattern_ok(again, owner, 0, kChunk)).to_be_true();
 	});
 
@@ -57,7 +58,7 @@ describe deluge_resource_conformance("deluge_resource (Rust cache) conformance",
 		f.release(d); // unleased, but dirty
 		f.churn(a, 1, 20, kChunk);
 		void* d2 = f.acquire(a, 0, kChunk); // still resident → same pointer
-		expect(d == d2).to_be_true();
+		expect(d).to_equal(d2);
 	});
 
 	it("fails cleanly (null, no eviction) when everything is leased", _{
@@ -71,10 +72,10 @@ describe deluge_resource_conformance("deluge_resource (Rust cache) conformance",
 			}
 			held++; // leave leased
 		}
-		expect(held >= 1).to_be_true();
+		to_be_at_least(expect(held), 1);
 		evict_count() = 0;
 		void* p = f.acquire(a, 999, kChunk);
-		expect(p == nullptr).to_be_true();
+		expect(p).to_be_null();
 		expect(evict_count()).to_equal(0);
 	});
 
@@ -82,11 +83,11 @@ describe deluge_resource_conformance("deluge_resource (Rust cache) conformance",
 		ResourceFixture f;
 		uint32_t a = f.define_asset(reinterpret_cast<void*>(1), failing_materialize);
 		void* p = f.acquire(a, 0, 4096);
-		expect(p == nullptr).to_be_true();
+		expect(p).to_be_null();
 		// The slot was reclaimed — a working asset can still acquire afterwards.
 		uint32_t b = f.define_asset(reinterpret_cast<void*>(2));
 		void* q = f.acquire(b, 0, 4096);
-		expect(q != nullptr).to_be_true();
+		expect(q).not_().to_be_null();
 	});
 });
 

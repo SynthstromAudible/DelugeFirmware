@@ -13,10 +13,10 @@ describe typed_notify("notify typed raisers", $ {
 		notice(Error::INSUFFICIENT_RAM);
 		notice(deluge::l10n::String::STRING_FOR_ERROR_SD_CARD, Notice::Kind::Console);
 		expect(notices().pop(out)).to_be_true();
-		expect(error_of(out) == Error::INSUFFICIENT_RAM).to_be_true();
+		expect(error_of(out)).to_equal(Error::INSUFFICIENT_RAM);
 		expect(notices().pop(out)).to_be_true();
-		expect(string_of(out) == deluge::l10n::String::STRING_FOR_ERROR_SD_CARD).to_be_true();
-		expect(out.kind == Notice::Kind::Console).to_be_true();
+		expect(string_of(out)).to_equal(deluge::l10n::String::STRING_FOR_ERROR_SD_CARD);
+		expect(out.kind).to_equal(Notice::Kind::Console);
 	});
 });
 

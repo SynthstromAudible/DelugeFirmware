@@ -64,9 +64,9 @@ describe effect_settings("the effects' settings in an Edit's form", ${
 	it("shows the delay's sync as one menu value over all 28 of its level and type", _ {
 		const deluge::plugin::SettingInfo& row = *deluge::plugin::find_setting(kEffectSettings, "delay/syncLevel");
 		const deluge::plugin::DisplayMapping& mapping = deluge::plugin::mapping_of(row);
-		expect(mapping.kind == deluge::plugin::DisplayMappingKind::COMBINED_SYNC).to_be_true();
+		expect(mapping.kind).to_equal(deluge::plugin::DisplayMappingKind::COMBINED_SYNC);
 		expect(std::string(mapping.partner)).to_equal(std::string("delay/syncType"));
-		expect(row.units == deluge::plugin::SettingUnits::SYNC_LEVEL).to_be_true();
+		expect(row.units).to_equal(deluge::plugin::SettingUnits::SYNC_LEVEL);
 		expect(deluge::plugin::from_menu(row, 27).value_or(kNone)).to_equal(std::pair<int32_t, int32_t>{9, 2});
 		expect(deluge::plugin::from_menu(row, 28)).not_().to_have_value();
 	});
@@ -74,9 +74,9 @@ describe effect_settings("the effects' settings in an Edit's form", ${
 		const deluge::plugin::SettingInfo& row =
 		    *deluge::plugin::find_setting(kEffectSettings, "sidechain/syncLevel");
 		const deluge::plugin::DisplayMapping& mapping = deluge::plugin::mapping_of(row);
-		expect(mapping.kind == deluge::plugin::DisplayMappingKind::COMBINED_SYNC).to_be_true();
+		expect(mapping.kind).to_equal(deluge::plugin::DisplayMappingKind::COMBINED_SYNC);
 		expect(std::string(mapping.partner)).to_equal(std::string("sidechain/syncType"));
-		expect(row.units == deluge::plugin::SettingUnits::SYNC_LEVEL).to_be_true();
+		expect(row.units).to_equal(deluge::plugin::SettingUnits::SYNC_LEVEL);
 		expect(deluge::plugin::from_menu(row, 0).value_or(kNone)).to_equal(std::pair<int32_t, int32_t>{0, 0});
 		expect(deluge::plugin::from_menu(row, 9).value_or(kNone)).to_equal(std::pair<int32_t, int32_t>{9, 0});
 		expect(deluge::plugin::from_menu(row, 10)).not_().to_have_value();

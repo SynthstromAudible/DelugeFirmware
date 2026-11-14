@@ -36,7 +36,7 @@ describe sample_reader_bridge("deluge::sample::SampleFrameReader", $ {
 	it("opens, reports not-ok with an empty window, and closes cleanly over an unregistered asset", _{
 		SampleFrameReader reader(kUnregisteredSourceId, /*start_frame=*/0, /*direction=*/1, DELUGE_READ_CACHED);
 		DelugeFrameWindow w = reader.window();
-		expect(w.frames == nullptr).to_be_true();
+		expect(w.frames).to_be_null();
 		expect(w.frame_count).to_equal(0u);
 		expect(reader.ok()).to_be_false();
 		// advance()/seek() must stay safe no-ops over an unresolved cursor.

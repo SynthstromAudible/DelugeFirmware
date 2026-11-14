@@ -19,7 +19,7 @@ constexpr std::array<ParamInfo, 3> kTable{{
 describe param("a plugin's param words", ${
 	it("orders and compares ids by number", _ {
 		expect(ParamId{3}.value).to_equal(ParamId{3}.value);
-		expect(ParamId{3} < ParamId{90}).to_be_true();
+		expect(ParamId{3}).to_be_less_than(ParamId{90});
 	});
 
 	it("spans the whole stored word unless a row says otherwise", _ {

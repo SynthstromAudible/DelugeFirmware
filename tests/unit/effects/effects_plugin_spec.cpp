@@ -28,20 +28,20 @@ describe effects_plugin("a host chain's effects held through a state handle", ${
 		StateHandle copy = original;
 		copy.as<DelugeEffects>()->filter.lpf_mode = deluge::effects::FilterMode::SVF_BAND;
 		expect(*original.as<DelugeEffects>()).to_equal(busy());
-		expect(copy == original).to_be_false();
+		expect(copy).not_().to_equal(original);
 	});
 
 	it("keeps the state where it was when the handle moves", _ {
 		StateHandle handle = StateHandle::of<DelugeEffects>(busy());
 		const deluge::effects::EffectStates* before = handle.as<DelugeEffects>();
 		const StateHandle moved = std::move(handle);
-		expect(moved.as<DelugeEffects>() == before).to_be_true();
+		expect(moved.as<DelugeEffects>()).to_equal(before);
 	});
 
 	it("names the effects engine, and answers no other", _ {
 		const StateHandle handle = StateHandle::of<DelugeEffects>(busy());
-		expect(handle.plugin() == deluge::plugin::kDelugeEffects).to_be_true();
-		expect(handle.as<OtherEffects>() == nullptr).to_be_true();
+		expect(handle.plugin()).to_equal(deluge::plugin::kDelugeEffects);
+		expect(handle.as<OtherEffects>()).to_be_null();
 	});
 
 	it("encodes what it decodes", _ {
@@ -49,7 +49,7 @@ describe effects_plugin("a host chain's effects held through a state handle", ${
 		const deluge::serialization::Value encoded = handle.encode(kAtOne);
 		StateHandle read = StateHandle::of<DelugeEffects>({});
 		expect(read.decode(encoded, kAtOne).has_value()).to_be_true();
-		expect(read.encode(kAtOne) == encoded).to_be_true();
+		expect(read.encode(kAtOne)).to_equal(encoded);
 	});
 });
 

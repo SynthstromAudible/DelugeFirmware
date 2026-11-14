@@ -50,7 +50,7 @@ describe equalizer("the two-band shelving EQ", ${
 		Equalizer eq;
 		std::vector<StereoSample> block = sine(512);
 		eq.process(block, kBassBoost);
-		expect(level(block) > level(sine(512))).to_be_true();
+		expect(level(block)).to_be_greater_than(level(sine(512)));
 	});
 	it("keeps a band's filter memory while it is flat", _ {
 		Equalizer withFlatBlock;

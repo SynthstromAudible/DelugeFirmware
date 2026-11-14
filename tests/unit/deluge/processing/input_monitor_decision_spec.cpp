@@ -119,7 +119,7 @@ describe input_monitor_decision("the engine's input monitoring", ${
 					const MonitorDecision d = deluge::audio::decide(in);
 					expect(d.on).to_equal(on);
 					if (on) {
-						expect(d.fold == fold_of(action)).to_be_true();
+						expect(d.fold).to_equal(fold_of(action));
 					}
 					InputMonitor monitor;
 					monitor.decide(in);

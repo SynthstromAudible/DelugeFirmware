@@ -39,7 +39,7 @@ describe ordered_pos_vector("the model's sorted container", ${
 			(void)nodes.insertSorted(1);
 			(void)nodes.reserveExtra(16);
 		}
-		expect(test::counts.allocations > 0).to_be_true();
+		expect(test::counts.allocations).to_be_greater_than(0);
 		expect(test::counts.frees).to_equal(test::counts.allocations);
 	});
 

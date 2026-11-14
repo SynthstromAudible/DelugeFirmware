@@ -187,8 +187,8 @@ describe reverb("the reverb component", ${
 
 	it("starts at known settings", _ {
 		const auto reverb = std::make_unique<Reverb>();
-		expect(reverb->model() == ReverbModel::FREEVERB).to_be_true();
-		expect(Reverb::Settings{} == Reverb::Settings{.room_size = 0.5f, .damping = 0.5f, .width = 1.f, .hpf = 0.f, .lpf = 0.f}).to_be_true();
+		expect(reverb->model()).to_equal(ReverbModel::FREEVERB);
+		expect(Reverb::Settings{}).to_equal(Reverb::Settings{.room_size = 0.5f, .damping = 0.5f, .width = 1.f, .hpf = 0.f, .lpf = 0.f});
 
 		// Nothing published: the model takes the component's default settings, as the reference takes the knobs it
 		// caches at construction. Both leave the low-pass at 0, so a plate's block is the dry block in each; no knob
@@ -259,11 +259,14 @@ describe reverb("the reverb component", ${
 		expect(reverb.changing()).to_be_true();
 		reverb.request(ReverbModel::DIGITAL);
 		const std::optional<ReverbModel> requested = reverb.take_request();
-		expect(requested.has_value() && *requested == ReverbModel::DIGITAL).to_be_true();
+		expect(requested.has_value()).to_be_true();
+		if (requested.has_value()) {
+			expect(*requested).to_equal(ReverbModel::DIGITAL);
+		}
 		reverb.prepare(*requested);
 		expect(reverb.take_request().has_value()).to_be_false(); // taken once
 		reverb.commit();
-		expect(reverb.model() == ReverbModel::DIGITAL).to_be_true();
+		expect(reverb.model()).to_equal(ReverbModel::DIGITAL);
 
 		ReferenceRunner fresh;
 		fresh.set_model(rw::Model::DIGITAL);
@@ -289,9 +292,9 @@ describe reverb("the reverb component", ${
 		for (const ReverbModel m : {ReverbModel::DIGITAL, ReverbModel::MUTABLE, ReverbModel::FREEVERB}) {
 			reverb->begin_change();
 			reverb->prepare(m);
-			expect(reverb->model() == m).to_be_true();
+			expect(reverb->model()).to_equal(m);
 			reverb->commit();
-			expect(reverb->model() == m).to_be_true();
+			expect(reverb->model()).to_equal(m);
 		}
 	});
 

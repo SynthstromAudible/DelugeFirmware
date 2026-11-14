@@ -31,8 +31,8 @@ describe effect_chain("each home's chain of effect slots", ${
 	it("gives each effect the entries it owns, and the slots together the owner's whole encoding", _ {
 		const EffectStates s = busy();
 		const auto slots = encode_chain(s, Home::TRACK, kAtOne);
-		expect(slots[1].entries.find("lpfMode") != nullptr).to_be_true();
-		expect(slots[5].entries.find("delay") != nullptr).to_be_true();
+		expect(slots[1].entries.find("lpfMode")).not_().to_be_null();
+		expect(slots[5].entries.find("delay")).not_().to_be_null();
 		auto element = serialization::Value::makeMap();
 		write_chain(slots, serialization::Value::makeMap(), element);
 		expect(serialization::first_difference(element, encode(s, kAtOne))).to_equal(std::string{});
@@ -65,13 +65,13 @@ describe effect_chain("each home's chain of effect slots", ${
 				const serialization::Value words = view_value(view);
 				expect(words.find("modFXCurrentParam")->str()).to_equal(std::string(kModFxParamWords[param]));
 				expect(words.find("currentFilterType")->str()).to_equal(std::string(kFilterTypeWords[filter]));
-				expect(read_view(words) == view).to_be_true();
+				expect(read_view(words)).to_equal(view);
 			}
 		}
 	});
 	it("reads an owner without view entries as the default view, and an unknown word as the app's parse does", _ {
 		auto bare = serialization::parseXml(R"(<kit/>)");
-		expect(read_view(*bare->find("kit")) == ChainView{}).to_be_true();
+		expect(read_view(*bare->find("kit"))).to_equal(ChainView{});
 		auto odd = serialization::parseXml(R"(<kit modFXCurrentParam="wobble" currentFilterType="notch"/>)");
 		const ChainView view = read_view(*odd->find("kit"));
 		expect(static_cast<int>(view.mod_fx_param)).to_equal(2); // offset
