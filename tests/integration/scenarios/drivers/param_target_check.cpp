@@ -27,8 +27,10 @@
 #include "effects/global_effectable/params.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/performance_view.h"
+#include "instruments/deluge/pages.h"
 #include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
+#include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/song/song.h"
 #include "modulation/knob_target.h"
@@ -451,6 +453,15 @@ void checkKnobs(Checker& check) {
 		}
 	};
 	sound("sound knobs", Table::SOUND_KNOBS);
+	// The sample row's knobs are the instrument's sample pages; setupAsSample takes them.
+	for (const deluge::plugin::RemotePage& page : deluge::instrument::kSamplePages) {
+		for (int32_t k = 0; k < kNumPhysicalModKnobs; ++k) {
+			checkCell(
+			    check, "sample pages", OwnerPlugin::INSTRUMENT,
+			    deluge::bridge::knobOfControl(*page.slots[k].param, params::Kind::UNPATCHED_SOUND),
+			    recordedCell(Table::SOUND_KNOBS_SAMPLE, static_cast<int32_t>(page.section) * kNumPhysicalModKnobs + k));
+		}
+	}
 	synth->setupAsSample(&synthParams);
 	sound("sound knobs, sample", Table::SOUND_KNOBS_SAMPLE);
 	currentSong = previous;

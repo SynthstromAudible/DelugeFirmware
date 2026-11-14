@@ -101,6 +101,7 @@
 #include <limits>
 #include <optional>
 #include <ranges>
+#include <span>
 #include <utility>
 
 using deluge::synth::SourceSlot;
@@ -144,6 +145,18 @@ deluge::synth::NoteOnEvent noteOnEvent(int32_t noteCodePreArp, int32_t noteCodeP
 	    .mpe = mpeSpan(mpeValues),
 	};
 }
+
+/// @p sound's mod knobs, set to the knobs of @p pages (one page per mod button).
+void takeKnobsOf(Sound& sound, std::span<const deluge::plugin::RemotePage> pages) {
+	for (const deluge::plugin::RemotePage& page : pages) {
+		for (uint8_t knob = 0; knob < kNumPhysicalModKnobs; knob++) {
+			if (const auto& param = page.slots[knob].param) {
+				sound.modKnobs[page.section][knob].target =
+				    deluge::bridge::knobOfControl(*param, params::Kind::UNPATCHED_SOUND);
+			}
+		}
+	}
+}
 } // namespace
 
 Sound::Sound()
@@ -179,14 +192,7 @@ Sound::Sound()
 	setLpfMode(FilterMode::TRANSISTOR_24DB); // Good for samples, I think
 
 	// The default knobs: the instrument's published page for each mod button.
-	for (const deluge::plugin::RemotePage& page : deluge::instrument::kDevicePages) {
-		for (uint8_t knob = 0; knob < kNumPhysicalModKnobs; knob++) {
-			if (const auto& param = page.slots[knob].param) {
-				modKnobs[page.section][knob].target =
-				    deluge::bridge::knobOfControl(*param, params::Kind::UNPATCHED_SOUND);
-			}
-		}
-	}
+	takeKnobsOf(*this, deluge::instrument::kDevicePages);
 	expressionSourcesChangedAtSynthLevel.reset();
 
 	paramLPF.p = PARAM_LPF_OFF;
@@ -272,7 +278,7 @@ void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 	patchedParams->params[params::LOCAL_LPF_FREQ].setBase(*patchedParams->docForParam(params::LOCAL_LPF_FREQ),
 	                                                      2147483647);
 
-	modKnobs[6][0].target = deluge::modulation::knobParam(params::LOCAL_PITCH_ADJUST);
+	takeKnobsOf(*this, deluge::instrument::kSamplePages);
 
 	PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
 	patchCableSet->truncateCables(0);

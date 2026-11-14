@@ -104,6 +104,57 @@ describe instrument_pages("the Deluge instrument's pages", ${
 			}
 		}
 	});
+	it("makes a sample sound's pages the device pages with mode 6's lower knob on pitch adjust, and no other change", _{
+		int differing = 0;
+		for (size_t button = 0; button < 8; button++) {
+			for (size_t knob = 0; knob < 2; knob++) {
+				if (!(instrument::kSamplePages[button].slots[knob] == instrument::kDevicePages[button].slots[knob])) {
+					differing++;
+					expect(button).to_equal(size_t{6});
+					expect(knob).to_equal(size_t{0});
+				}
+			}
+			expect(instrument::kSamplePages[button].section).to_equal(static_cast<uint32_t>(button));
+		}
+		expect(differing).to_equal(1);
+		expect(*instrument::kSamplePages[6].slots[0].param == ip::kPitch).to_be_true();
+		expect(*instrument::kSamplePages[6].slots[1].param == ip::kStutterRate).to_be_true();
+	});
+	it("gives oscillator 1's wavetable claim its wave index on the upper knob and the LFO's depth on it below", _{
+		const auto lfo_depth = *instrument::cable_depth_id(instrument::PatchSource::LFO_LOCAL_1, ip::kOscAWavetablePosition);
+		const Knobs got = instrument::wavetable_claimed(device_knobs(), 0);
+		expect(got[7] == instrument::KnobPair{.lower = lfo_depth, .upper = ip::kOscAWavetablePosition}).to_be_true();
+		for (size_t button = 0; button < 7; button++) {
+			expect(got[button] == device_knobs()[button]).to_be_true();
+		}
+	});
+	it("keeps oscillator 2's wave index on oscillator 1's lower knob", _{
+		const Knobs held = with_pair(device_knobs(), 7, ip::kOscBWavetablePosition, ip::kSampleRateReduction);
+		const Knobs got = instrument::wavetable_claimed(held, 0);
+		expect(got[7] == instrument::KnobPair{.lower = ip::kOscBWavetablePosition, .upper = ip::kOscAWavetablePosition})
+		    .to_be_true();
+	});
+	it("gives oscillator 2's wavetable claim its wave index on the lower knob and leaves the upper knob", _{
+		const Knobs got = instrument::wavetable_claimed(device_knobs(), 1);
+		expect(got[7] == instrument::KnobPair{.lower = ip::kOscBWavetablePosition, .upper = ip::kSampleRateReduction})
+		    .to_be_true();
+	});
+	it("puts the bitcrusher and the sample rate reduction back when a sample replaces a wavetable", _{
+		const Knobs claimed = instrument::wavetable_claimed(device_knobs(), 0);
+		expect(instrument::wavetable_released(claimed, 0) == device_knobs()).to_be_true();
+		const Knobs two = instrument::wavetable_claimed(device_knobs(), 1);
+		expect(instrument::wavetable_released(two, 1) == device_knobs()).to_be_true();
+	});
+	it("releases a knob on a cable's depth to its oscillator's wave index, and no other oscillator's", _{
+		const auto depth = *instrument::cable_depth_id(instrument::PatchSource::LFO_LOCAL_1, ip::kOscBWavetablePosition);
+		const Knobs held = with_pair(device_knobs(), 7, depth, ip::kOscAWavetablePosition);
+		const Knobs got = instrument::wavetable_released(held, 1);
+		expect(got[7] == instrument::KnobPair{.lower = ip::kBitcrushAmount, .upper = ip::kOscAWavetablePosition})
+		    .to_be_true();
+		expect(instrument::wavetable_released(held, 0)[7] == instrument::KnobPair{.lower = depth,
+		                                                                           .upper = ip::kSampleRateReduction})
+		    .to_be_true();
+	});
 	it("cycles low-pass, high-pass, EQ on the first mod button", _{
 		expect(*instrument::kFilterCycle[1].slots[1].param == ip::kHpfFrequency).to_be_true();
 		expect(*instrument::kFilterCycle[2].slots[0].param == ip::kBass).to_be_true();

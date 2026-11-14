@@ -126,6 +126,20 @@ inline constexpr std::array<plugin::RemotePage, 8> kDevicePages{{
     detail::knob_page(7, 0, param::kBitcrushAmount, param::kSampleRateReduction),
 }};
 
+namespace detail {
+/// @brief @p pages with mod button 6's lower knob on @p lower (its press is that param's).
+[[nodiscard]] constexpr std::array<plugin::RemotePage, 8> with_button6_lower(std::array<plugin::RemotePage, 8> pages,
+                                                                             plugin::ParamId lower) {
+	pages[6].slots[0] = slot_for(lower, {});
+	return pages;
+}
+} // namespace detail
+
+/// @brief A sample sound's device pages: the synth's, with mode 6's lower knob on pitch adjust (which also keeps its
+///        value from being zeroed for having no knob).
+inline constexpr std::array<plugin::RemotePage, 8> kSamplePages =
+    detail::with_button6_lower(kDevicePages, param::kPitch);
+
 /// @brief The filter knob's cycle on mod button 1: low-pass, high-pass, EQ (page ids 0, 1, 2).
 inline constexpr std::array<plugin::RemotePage, 3> kFilterCycle{{
     detail::knob_page(1, 0, param::kLpfResonance, param::kLpfFrequency),
@@ -195,6 +209,22 @@ inline constexpr std::array kOutOfFm{
 /// @param knobs The sound's knobs, one pair per mod button.
 /// @return The knobs the sound takes.
 [[nodiscard]] std::array<KnobPair, 8> remap_for_mode(SynthMode from, SynthMode to, std::array<KnobPair, 8> knobs);
+
+/// @brief Mode 7's knobs after oscillator @p osc (0 or 1) claims a wavetable. Oscillator 1 takes its wave index on the
+///        upper knob and the first local LFO's depth on it on the lower knob, which keeps the second oscillator's wave
+///        index when it holds that; oscillator 2 takes its wave index on the lower knob.
+/// @param knobs The sound's knobs, one pair per mod button.
+/// @param osc   The oscillator that claimed the wavetable, 0 or 1.
+/// @return The knobs the sound takes.
+[[nodiscard]] std::array<KnobPair, 8> wavetable_claimed(std::array<KnobPair, 8> knobs, uint8_t osc);
+
+/// @brief Mode 7's knobs after oscillator @p osc (0 or 1) loads a sample in place of its wavetable: a knob on that
+///        oscillator's wave index (or the depth of a cable to it) goes back to the bitcrusher (lower) or the sample
+///        rate reduction (upper).
+/// @param knobs The sound's knobs, one pair per mod button.
+/// @param osc   The oscillator that now holds a sample, 0 or 1.
+/// @return The knobs the sound takes.
+[[nodiscard]] std::array<KnobPair, 8> wavetable_released(std::array<KnobPair, 8> knobs, uint8_t osc);
 
 /// @brief The instrument's remote-controls record. Its device pages come from get and count (kDevicePages), never from
 /// find. Its find serves the sound's filter cycle on any section: page ids 0 to 2 (group 0) are kFilterCycle, and ids 3
