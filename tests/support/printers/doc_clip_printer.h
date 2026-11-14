@@ -18,8 +18,8 @@
 #pragma once
 
 #include "deluge-project/doc_clip.h"
+#include "support/printers/arp_record_printer.h"
 
-#include <cstddef>
 #include <format>
 #include <optional>
 #include <ostream>
@@ -47,23 +47,6 @@ std::ostream& print_optional(std::ostream& os, const std::optional<T>& v) {
 }
 
 } // namespace doc_clip_printer_detail
-
-/// @brief Prints an arp record field by field, each byte as a number and the host values as a list, e.g.
-///        `{mode 1, octave_mode 0, …, kit_arp 1, host_held 0x3, host_values [12 0 …]}`.
-/// @param os The stream to print to.
-/// @param a The record.
-/// @return @p os.
-inline std::ostream& operator<<(std::ostream& os, const ArpRecord& a) {
-	os << std::format("{{mode {}, octave_mode {}, note_mode {}, mpe_velocity {}, num_octaves {}, step_repeat {}, "
-	                  "chord_type {}, sync_level {}, sync_type {}, randomizer_lock {}, kit_arp {}, host_held {:#x}, "
-	                  "host_values [",
-	                  a.mode, a.octave_mode, a.note_mode, a.mpe_velocity, a.num_octaves, a.step_repeat, a.chord_type,
-	                  a.sync_level, a.sync_type, int{a.randomizer_lock}, int{a.kit_arp}, a.host_held);
-	for (std::size_t i = 0; i < a.host_values.size(); ++i) {
-		os << (i == 0 ? "" : " ") << a.host_values[i];
-	}
-	return os << "]}";
-}
 
 /// @brief Prints a clip's values field by field, an empty one as `none`, e.g.
 ///        `{midi_bank none, midi_sub none, midi_pgm 5, bend_range 2, bend_range_mpe 48, arp none}`.

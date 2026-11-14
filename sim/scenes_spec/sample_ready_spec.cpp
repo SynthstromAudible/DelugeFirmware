@@ -84,7 +84,7 @@ describe sample_ready_redraws("a source's file finishing loading, or being taken
 		AudioFileHolder* holder = spec::menu_engine(ctx).sound->sources[0].getOrCreateFirstRange()->getAudioFileHolder();
 		holder->AudioFileHolder::setAudioFile(sample, false, false, CLUSTER_DONT_LOAD);
 		r.shell.tick(60);
-		expect(r.fake.blits.size() > settled).to_be_true();
+		expect(r.fake.blits.size()).to_be_greater_than(settled);
 		expect(bindings::relevant(menu::nodes::sample0_repeat, ctx)).to_be_true();
 
 		holder->audioFile = nullptr; // a fake file no project references: unload it as descriptor_legacy_spec does

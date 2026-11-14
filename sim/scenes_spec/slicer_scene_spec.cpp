@@ -83,6 +83,7 @@
 // audio routine nothing here needs.
 
 #include "support/mocks/fake_surfaces.h"
+#include "support/printers/rgb_printer.h"
 #include "unit/gfx/support/golden.h"
 
 #include "cppspec.hpp"
@@ -232,7 +233,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 	it("draws the main pads only, leaving the sidebar to the view beneath", _ {
 		// `Slicer` overrides `renderMainPads` but not `renderSidebar`, nor `getGreyoutColsAndRows`.
 		const deluge::ui::shell::Scene& s = slicer_scene();
-		expect(s.pad_regions() == deluge::ui::shell::PadRegions::Main).to_be_true();
+		expect(s.pad_regions()).to_equal(deluge::ui::shell::PadRegions::Main);
 		expect(static_cast<uint64_t>(s.greyout_mask().cols)).to_equal(uint64_t{0});
 		expect(static_cast<uint64_t>(s.greyout_mask().rows)).to_equal(uint64_t{0});
 	});
@@ -798,14 +799,14 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		const SceneId menu{deluge::scenes::context_menu::kContextMenuSceneKind,
 		                   static_cast<uint16_t>(deluge::scenes::context_menu::DescriptorId::ResetFlash)};
 		expect(r.shell.stack().push(menu)).to_be_true();
-		expect(&r.shell.stack().input_top() != &slicer_scene()).to_be_true();
+		expect(&r.shell.stack().input_top()).not_().to_equal(&slicer_scene());
 		r.shell.stack().pop();
-		expect(&r.shell.stack().input_top() == &slicer_scene()).to_be_true();
+		expect(&r.shell.stack().input_top()).to_equal(&slicer_scene());
 
 		// `Slicer::focusRegained` (`slicer.cpp:59-72`) again: one slice, slot 0, REGION.
 		expect(slicer_scene().num_manual_slices()).to_equal(1);
 		expect(slicer_scene().current_slice()).to_equal(0);
-		expect(slicer_scene().mode() == Mode::Region).to_be_true();
+		expect(slicer_scene().mode()).to_equal(Mode::Region);
 	});
 
 	it("swallows a REGION main pad, which main hands to the sample browser beneath", _ {
@@ -829,9 +830,9 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		// `SampleBrowser::padAction`'s audition arm hands x = 17 to the instrument clip view; MANUAL deals with it.
 		Rig r;
 		r.open();
-		expect(slicer_scene().grid_pad_claim() == deluge::ui::shell::GridPadClaim::AllButAudition).to_be_true();
+		expect(slicer_scene().grid_pad_claim()).to_equal(deluge::ui::shell::GridPadClaim::AllButAudition);
 		slicer_scene().set_mode(Mode::Manual);
-		expect(slicer_scene().grid_pad_claim() == deluge::ui::shell::GridPadClaim::All).to_be_true();
+		expect(slicer_scene().grid_pad_claim()).to_equal(deluge::ui::shell::GridPadClaim::All);
 	});
 
 	it("exits the slicer and the browser beneath on a REGION mute-column press, as SampleBrowser::padAction does", _ {
@@ -1111,7 +1112,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.select_enc(true, 10);
 		r.settle(10);
 		slicer_scene().commit_done(true);
-		expect(slicer_scene().next_timer() == std::optional<uint32_t>{0}).to_be_true();
+		expect(slicer_scene().next_timer()).to_equal(std::optional<uint32_t>{0});
 		r.settle(20);
 		expect(r.on_stack()).to_be_false();
 		expect(slicer_scene().committing()).to_be_false();
@@ -1131,7 +1132,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		expect(slicer_scene().committing()).to_be_false();
 		r.x_enc(true, 30);
 		r.settle(30);
-		expect(slicer_scene().mode() == Mode::Manual).to_be_true();
+		expect(slicer_scene().mode()).to_equal(Mode::Manual);
 	});
 
 	it("refuses buttons and pads while a commit is out", _ {
@@ -1151,7 +1152,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.pad(1, 0, 64, 40); // the second slot
 		r.settle(40);
 		expect(r.on_stack()).to_be_true();
-		expect(slicer_scene().mode() == Mode::Manual).to_be_true();
+		expect(slicer_scene().mode()).to_equal(Mode::Manual);
 		expect(static_cast<int32_t>(ops.auditions.size())).to_equal(0);
 		expect(slicer_scene().current_slice()).to_equal(0);
 		expect(static_cast<int32_t>(ops.commits.size())).to_equal(1);
@@ -1228,9 +1229,9 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 			at += 10;
 			const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
 			for (int32_t y = 4; y < 8; y++) {
-				expect(g.at(5, y) == tick).to_be_true();
+				expect(g.at(5, y)).to_equal(tick);
 			}
-			expect(g.at(5, 3) == tick).to_be_false();
+			expect(g.at(5, 3)).not_().to_equal(tick);
 		}
 	});
 
@@ -1266,8 +1267,8 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 				rows.push_back(r.fake.flashes_sent[i].y);
 			}
 		}
-		expect(rows == std::vector<int32_t>{4, 5, 6, 7}).to_be_true();
-		expect(r.fake.grid().grid().at(9, 7) == tick).to_be_false();
+		expect(rows).to_equal(std::vector<int32_t>{4, 5, 6, 7});
+		expect(r.fake.grid().grid().at(9, 7)).not_().to_equal(tick);
 		PadLEDs::flashCursor = saved;
 	});
 
@@ -1279,7 +1280,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.tick(0);
 		expect(slicer_scene().next_timer().has_value()).to_be_false();
 		ops.next_play_position = 1000;
-		expect(slicer_scene().next_timer() == std::optional<uint32_t>{15}).to_be_true();
+		expect(slicer_scene().next_timer()).to_equal(std::optional<uint32_t>{15});
 		r.settle(20);
 		r.settle(40);
 		// The voice ends: one more frame, the one that clears the playhead it left, and then none.
@@ -1335,7 +1336,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.x_enc(false, 20);
 		r.settle(20);
 		expect(r.on_stack()).to_be_true();
-		expect(slicer_scene().mode() == Mode::Region).to_be_true();
+		expect(slicer_scene().mode()).to_equal(Mode::Region);
 	});
 
 	// --- goldens, both geometries -------------------------------------------------------------

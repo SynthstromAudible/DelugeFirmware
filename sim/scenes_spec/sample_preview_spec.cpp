@@ -100,7 +100,7 @@ describe sample_preview_spec_body("gui/ui/browser SamplePreviewer", ${
 		    -536870912);
 		const int32_t lowered =
 		    deluge::gui::ui::targetPreviewVolume(PreviewSound{.sound = sound, .params = manager}).localVolume;
-		expect(lowered < neutral).to_be_true();
+		expect(lowered).to_be_less_than(neutral);
 	});
 
 	it("folds a kit's output stage in after the song's", _ {

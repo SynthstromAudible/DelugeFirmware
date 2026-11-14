@@ -432,10 +432,10 @@ describe sample_items_mapping("scenes::menu the sample items: the mapping", $ {
 		// only have shown that the table notices a reordering, which nothing can cause.
 		std::vector<Wiring> crossed_sources = observed_wiring();
 		std::swap(crossed_sources[2].source, crossed_sources[3].source); // sample0_start <-> sample1_start
-		expect(format_wiring(crossed_sources) == format_wiring(expected_wiring())).to_be_false();
+		expect(format_wiring(crossed_sources)).not_().to_equal(format_wiring(expected_wiring()));
 		std::vector<Wiring> crossed_markers = observed_wiring();
 		std::swap(crossed_markers[2].marker, crossed_markers[4].marker); // sample0_start <-> sample0_end
-		expect(format_wiring(crossed_markers) == format_wiring(expected_wiring())).to_be_false();
+		expect(format_wiring(crossed_markers)).not_().to_equal(format_wiring(expected_wiring()));
 	});
 
 	it("puts these items on those ten nodes and on nothing else in the tree", _ {
@@ -485,8 +485,10 @@ describe sample_items_mapping("scenes::menu the sample items: the mapping", $ {
 		                      &nodes::audio_clip_waveform, &nodes::sample0_recorder, &nodes::sample1_recorder}) {
 			// Two assertions, not one: `custom != nullptr && is_placeholder()` is also false for a
 			// null `custom`, which is a worse bug than a placeholder (`validate.h`'s `NullCustom`).
-			expect(n->custom != nullptr).to_be_true();
-			expect(n->custom != nullptr && n->custom->is_placeholder()).to_be_false();
+			expect(n->custom).not_().to_be_null();
+			if (n->custom != nullptr) {
+				expect(n->custom->is_placeholder()).to_be_false();
+			}
 		}
 		expect(menu::kPendingCustomNodes).to_equal(size_t(0));
 	});
@@ -696,8 +698,8 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		deluge::edits::recordRanges(*r.sound, 0);
 		MenuContext c = r.ctx();
 		c.range_index = -1; // oscillator 1 multisampled, no range picked
-		expect(menu::permission_for(nodes::sample0_recorder, c) == menu::Permission::MustSelectRange).to_be_true();
-		expect(menu::permission_for(nodes::sample1_recorder, c) == menu::Permission::Yes).to_be_true();
+		expect(menu::permission_for(nodes::sample0_recorder, c)).to_equal(menu::Permission::MustSelectRange);
+		expect(menu::permission_for(nodes::sample1_recorder, c)).to_equal(menu::Permission::Yes);
 
 		focus_in(r.shell, c, nodes::sample1_recorder);
 		expect(r.on_stack(recorder::kRecorderSceneKind)).to_be_true();
@@ -753,20 +755,20 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		CleanScenes clean;
 		SoundRig r{/*second_source=*/true};
 		MenuContext c = r.ctx();
-		expect(spec::menu_engine(c).range == r.range[0]).to_be_true();
+		expect(spec::menu_engine(c).range).to_equal(r.range[0]);
 
 		menu::select_source(c, 1);
 		expect(static_cast<int>(c.source_index)).to_equal(1);
 		const spec::MenuEngine engine = spec::menu_engine(c);
-		expect(engine.source == r.source[1]).to_be_true();
-		expect(engine.range == r.range[1]).to_be_true();
-		expect(engine.sample_controls == &r.source[1]->sampleControls).to_be_true();
+		expect(engine.source).to_equal(r.source[1]);
+		expect(engine.range).to_equal(r.range[1]);
+		expect(engine.sample_controls).to_equal(&r.source[1]->sampleControls);
 
 		// Re-selecting the source already named keeps the selected range -- `setCurrentSource`'s own
 		// `currentMultiRange == nullptr` guard (`sound_editor.cpp:247`), which is what stops a
 		// range the picker chose from being thrown away by the item that opens on it.
 		menu::select_source(c, 1);
-		expect(spec::menu_engine(c).range == r.range[1]).to_be_true();
+		expect(spec::menu_engine(c).range).to_equal(r.range[1]);
 
 		// A context with no `Sound` is left exactly as it is -- the audio-clip case.
 		MenuContext none{};
@@ -815,7 +817,7 @@ describe sample_items_relevance("scenes::menu the sample items: relevance agains
 		for (const std::string& row : want) {
 			answers.insert(row.substr(row.find(':') + 1));
 		}
-		expect(answers.size() > size_t(1)).to_be_true();
+		expect(answers.size()).to_be_greater_than(size_t(1));
 	});
 });
 
@@ -823,7 +825,7 @@ describe sample_items_reference_rows("scenes::menu the sample items: the referen
 	it("parses sample_items.tsv clean and asks every row of it", _ {
 		spec::OracleTable& t = table();
 		expect(t.problems().size()).to_equal(size_t{0});
-		expect(t.size() > size_t{15}).to_be_true();
+		expect(t.size()).to_be_greater_than(size_t{15});
 		expect(t.unasked()).to_equal(std::string{});
 	});
 });

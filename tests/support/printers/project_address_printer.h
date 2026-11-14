@@ -28,6 +28,7 @@
 #include <format>
 #include <ostream>
 #include <utility>
+#include <variant>
 
 /// @file
 /// @brief Prints the model's addresses and a held pad's region in a failed CppSpec comparison, alone or as container
@@ -95,6 +96,22 @@ inline std::ostream& operator<<(std::ostream& os, const NoteRowAddress& a) {
 /// @return @p os.
 inline std::ostream& operator<<(std::ostream& os, const ModRegion& r) {
 	return os << std::format("{{pos {}, length {}, note_row {}}}", r.pos, r.length, r.note_row_id);
+}
+
+/// @brief Prints the song's own address, `{song}`.
+/// @param os The stream to print to.
+/// @return @p os.
+inline std::ostream& operator<<(std::ostream& os, const SongAddress&) {
+	return os << "{song}";
+}
+
+/// @brief Prints whose mod-knob mode a gesture names as the address it holds, e.g. `{song}` or `{output 4}`.
+/// @param os The stream to print to.
+/// @param owner The owner.
+/// @return @p os.
+inline std::ostream& operator<<(std::ostream& os, const KnobModeOwner& owner) {
+	std::visit([&os](const auto& address) { os << address; }, owner);
+	return os;
 }
 
 } // namespace deluge::project

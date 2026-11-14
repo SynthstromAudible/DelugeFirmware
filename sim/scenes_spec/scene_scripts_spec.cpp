@@ -533,8 +533,8 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		// evidence rather than decoration: `services::GlobalControls` called
 		// `playbackHandler.recordButtonPressed()` and `playButtonPressed()` for real (the fixture
 		// holds `spec::QuietAudio`, which keeps the audio routine still, and stubs nothing else). Read back from `playbackHandler`, not from the service.
-		expect(playbackHandler.recording == RecordingMode::NORMAL).to_be_true();
-		expect(playbackHandler.playbackState != 0).to_be_true();
+		expect(playbackHandler.recording).to_equal(RecordingMode::NORMAL);
+		expect(playbackHandler.playbackState).not_().to_equal(0);
 	});
 
 	it("AudioClipScene: the same scene at 64 rows", _ {
@@ -584,7 +584,7 @@ describe scene_scripts("scenes level-2 acceptance scripts", $ {
 		// The gestures really landed, not merely drew: REGION's four detents, the mode toggle, the
 		// slot press and the thirty-detent start move, each read back from the scene's own state.
 		expect(slicer_scene().num_clips()).to_equal(int32_t{20});
-		expect(slicer_scene().mode() == Mode::Manual).to_be_true();
+		expect(slicer_scene().mode()).to_equal(Mode::Manual);
 		expect(slicer_scene().current_slice()).to_equal(int32_t{1});
 		expect(slicer_scene().slice(1).start_pos).to_equal(kSlice1Start + 30 * 100);
 	});

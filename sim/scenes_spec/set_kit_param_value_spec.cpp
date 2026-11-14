@@ -90,7 +90,10 @@ describe set_kit_param_value("a param written across a kit's sound drums", ${
 		deluge::edits::SetKitParamValue edit{r.kit(), r.f.clip->id(), kLpf, 0x33333333};
 		expect(deluge::edits::apply(ctx, edit)).to_equal(Error::NONE);
 		Action* action = actionLogger.firstAction[BEFORE];
-		expect(action != nullptr && action->nextAction == nullptr).to_be_true();
+		expect(action).not_().to_be_null();
+		if (action != nullptr) {
+			expect(action->nextAction).to_be_null();
+		}
 		expect(actionLogger.revert(BEFORE, false, false)).to_be_true();
 		expect(lpf_of(*r.f.song, *r.f.clip, *r.first)).to_equal(first);
 		expect(lpf_of(*r.f.song, *r.f.clip, *r.second)).to_equal(second);

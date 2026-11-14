@@ -56,6 +56,7 @@
 #include "support/tables_1_fixtures.h"
 
 #include "support/mocks/fake_surfaces.h"
+#include "support/printers/controller_mapping_printer.h"
 #include "unit/gfx/support/golden.h"
 
 #include "cppspec.hpp"
@@ -77,6 +78,11 @@ using deluge::scenes::menu::Node;
 namespace t1 = deluge::scenes::spec::tables1;
 
 namespace {
+
+/// @brief A function pointer as an address, so a failed comparison prints where it points rather than `1`.
+const void* address_of(auto* fn) {
+	return reinterpret_cast<const void*>(fn);
+}
 
 namespace nodes = deluge::scenes::menu::nodes;
 namespace bindings = deluge::scenes::menu::bindings;
@@ -182,7 +188,7 @@ describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 				submenus++;
 			}
 		}
-		expect(submenus > size_t(15)).to_be_true();
+		expect(submenus).to_be_greater_than(size_t(15));
 	});
 
 	it("gives every node main's own name", _ {
@@ -207,7 +213,7 @@ describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 			expect(e.path + " " + title).to_equal(e.path + " " + table().value(e.path, "title"));
 			compared++;
 		}
-		expect(compared > size_t(80)).to_be_true();
+		expect(compared).to_be_greater_than(size_t(80));
 	});
 
 	it("binds MIDI/CC learn to exactly the param main would have learned", _ {
@@ -227,11 +233,13 @@ describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 			const std::string at = e.path + " " + text_of(e.node->name) + " learns ";
 			expect(at + (got ? std::to_string(got->param.value) : std::string{"none"}))
 			    .to_equal(at + (want->empty() ? std::string{"<no value>"} : want->front()));
-			expect(!got || got->owner == menu::bindings::controls_owner(f.ctx)).to_be_true();
+			if (got) {
+				expect(got->owner).to_equal(menu::bindings::controls_owner(f.ctx));
+			}
 			learnable++;
 		}
 		// The four transposes plus every `ParamRef` leaf; a drop to 0 would make the loop vacuous.
-		expect(learnable > size_t(40)).to_be_true();
+		expect(learnable).to_be_greater_than(size_t(40));
 	});
 
 	it("gives every node main's own ParamRef, or none where main has none", _ {
@@ -241,8 +249,8 @@ describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 			// A submenu reports the kind of its first param child, not one of its own; a leaf with a hook or a
 			// non-param target owns its value, and its learn-only `ParamRef` is the learn rows' to check.
 			if (!spec::param_comparable(*e.node)) {
-				expect(table().find(e.path, "param_index") == nullptr).to_be_true();
-				expect(table().find(e.path, "param_kind") == nullptr).to_be_true();
+				expect(table().find(e.path, "param_index")).to_be_null();
+				expect(table().find(e.path, "param_kind")).to_be_null();
 				continue;
 			}
 			const std::optional<int32_t> index = spec::int_of(table().find(e.path, "param_index"));
@@ -262,16 +270,17 @@ describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 			const bool unpatched = want == deluge::modulation::params::Kind::UNPATCHED_SOUND
 			                       || want == deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
 			if (unpatched) {
-				expect(e.node->bind.param.kind == deluge::modulation::params::Kind::UNPATCHED_SOUND
-				       || e.node->bind.param.kind == deluge::modulation::params::Kind::UNPATCHED_GLOBAL)
-				    .to_be_true();
+				expect(e.node->bind.param.kind).to_satisfy([](auto kind) {
+					using deluge::modulation::params::Kind;
+					return kind == Kind::UNPATCHED_SOUND || kind == Kind::UNPATCHED_GLOBAL;
+				});
 			}
 			else {
-				expect(e.node->bind.param.kind == want).to_be_true();
+				expect(e.node->bind.param.kind).to_equal(want);
 			}
 			compared++;
 		}
-		expect(compared > size_t(30)).to_be_true();
+		expect(compared).to_be_greater_than(size_t(30));
 	});
 
 	it("says a node uses AFFECT ENTIRE exactly where main's item does", _ {
@@ -288,7 +297,7 @@ describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 			compared++;
 		}
 		expect(wrong).to_equal(std::string{});
-		expect(compared > size_t(80)).to_be_true();
+		expect(compared).to_be_greater_than(size_t(80));
 	});
 
 	it("marks the select turn as editing the instrument exactly where main's item does", _ {
@@ -305,7 +314,7 @@ describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 			    .to_equal(e.path + " edits " + table().value(e.path, "edits"));
 			edits += port ? 1 : 0;
 		}
-		expect(edits > size_t(30)).to_be_true();
+		expect(edits).to_be_greater_than(size_t(30));
 	});
 
 	it("marks exactly main's range-dependent items as range_dependent", _ {
@@ -344,7 +353,7 @@ describe tables_1_values("scenes::menu batch-1 tables: values", $ {
 			    .to_equal(at + (want->empty() ? std::string{"<no value>"} : want->front()));
 			compared++;
 		}
-		expect(compared > size_t(50)).to_be_true();
+		expect(compared).to_be_greater_than(size_t(50));
 	});
 
 	it("names every enum option exactly as main's list does", _ {
@@ -371,7 +380,7 @@ describe tables_1_values("scenes::menu batch-1 tables: values", $ {
 			expect(e.path + " " + port).to_equal(e.path + " " + joined(*want));
 			compared++;
 		}
-		expect(compared > size_t(10)).to_be_true();
+		expect(compared).to_be_greater_than(size_t(10));
 	});
 
 	it("shows each node exactly where main's menu shows it, on the fixture sound", _ {
@@ -383,7 +392,7 @@ describe tables_1_values("scenes::menu batch-1 tables: values", $ {
 			expect(at + (got ? "shows" : "hides")).to_equal(at + (table().value(e.path, "rel") == "1" ? "shows" : "hides"));
 			ever_true += got ? 1 : 0;
 		}
-		expect(ever_true > size_t(60)).to_be_true();
+		expect(ever_true).to_be_greater_than(size_t(60));
 	});
 
 	it("carries main's occupied-slot counts for every leaf", _ {
@@ -407,7 +416,7 @@ describe tables_1_values("scenes::menu batch-1 tables: values", $ {
 			if (e.node->relevant == nullptr) {
 				continue;
 			}
-			expect(menu::relevance::name_of(e.node->relevant) != std::string_view{"?"}).to_be_true();
+			expect(menu::relevance::name_of(e.node->relevant)).not_().to_equal(std::string_view{"?"});
 		}
 		// The registry is hand-maintained (see `relevance.cpp`'s note): C++ cannot enumerate a
 		// header's declarations, so what is checkable is that it has the documented number of rows,
@@ -418,11 +427,11 @@ describe tables_1_values("scenes::menu batch-1 tables: values", $ {
 		// deliberate). 21 + 16 = 37.
 		expect(registry.size()).to_equal(size_t(37));
 		for (size_t i = 0; i < registry.size(); i++) {
-			expect(registry[i].fn != nullptr).to_be_true();
+			expect(registry[i].fn).not_().to_be_null();
 			expect(registry[i].name.empty()).to_be_false();
 			for (size_t j = i + 1; j < registry.size(); j++) {
-				expect(registry[i].fn == registry[j].fn).to_be_false();
-				expect(registry[i].name == registry[j].name).to_be_false();
+				expect(address_of(registry[i].fn)).not_().to_equal(address_of(registry[j].fn));
+				expect(registry[i].name).not_().to_equal(registry[j].name);
 			}
 		}
 	});
@@ -470,7 +479,7 @@ describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
 			if (i.kind == menu::Issue::Kind::PlaceholderCustom) {
 				placeholders++;
 			}
-			expect(i.kind != menu::Issue::Kind::NullCustom).to_be_true();
+			expect(i.kind).not_().to_equal(menu::Issue::Kind::NullCustom);
 		}
 		expect(placeholders).to_equal(size_t(0));
 	});
@@ -481,9 +490,9 @@ describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
 		(void)menu::validate_tree(nodes::kBatch1Roots, contexts, {}, {},
 		                          menu::ValidateOptions{.skip_shortcut_sweep = true});
 		for (const Node* root : nodes::kBatch1Roots) {
-			expect(menu::node_id(*root) != uint16_t(0)).to_be_true();
+			expect(menu::node_id(*root)).not_().to_equal(uint16_t(0));
 			for (const Node* kid : root->children) {
-				expect(menu::node_id(*kid) != uint16_t(0)).to_be_true();
+				expect(menu::node_id(*kid)).not_().to_equal(uint16_t(0));
 			}
 		}
 	});
@@ -576,7 +585,9 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 		const std::string l0 = label_of(f.ctx, 0);
 		const std::string l1 = label_of(f.ctx, 1);
 		const std::string l2 = label_of(f.ctx, 2);
-		expect(l0 != l1 && l1 != l2 && l0 != l2).to_be_true();
+		expect(l0).not_().to_equal(l1);
+		expect(l1).not_().to_equal(l2);
+		expect(l0).not_().to_equal(l2);
 	});
 
 	it("labels a note below C-2 in the octave under it, as MultiRange::getText does", _ {
@@ -598,18 +609,16 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 		// `MenuWalkState::pending_after_range` and this hook.
 		RangeFixture f{2};
 		menu::MenuState st{};
-		expect(nodes::multi_range_chain(f.ctx, st) == nullptr).to_be_true(); // nothing pending -> ascend
+		expect(nodes::multi_range_chain(f.ctx, st)).to_be_null(); // nothing pending -> ascend
 		st.walk.pending_after_range = &nodes::source0_transpose;
-		expect(nodes::multi_range_chain(f.ctx, st) == &nodes::source0_transpose).to_be_true();
+		expect(nodes::multi_range_chain(f.ctx, st)).to_equal(&nodes::source0_transpose);
 
 		// The span has to be the whole `range_specific` set, because any one of them can be what
 		// `permission_for` refused. Asserted against `nodes::kRangeSpecificNodes` itself so the two
 		// lists cannot drift (`multi_range.h` says why it is spelled twice).
 		expect(nodes::kMultiRangeChain.size()).to_equal(nodes::kRangeSpecificNodes.size());
 		for (const Node* n : nodes::kRangeSpecificNodes) {
-			expect(std::find(nodes::kMultiRangeChain.begin(), nodes::kMultiRangeChain.end(), n)
-			       != nodes::kMultiRangeChain.end())
-			    .to_be_true();
+			expect(nodes::kMultiRangeChain).to_contain(n);
 		}
 		// And the picker itself is NOT range-specific -- see `multi_range.h`: it would recurse.
 		expect(nodes::multi_range.range_specific).to_be_false();
@@ -622,15 +631,15 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 		// `MenuScene::enter_child` is what calls it.
 		RangeFixture f{0};
 		expect(menu::range_count(f.ctx)).to_equal(int32_t(0));
-		expect(spec::menu_engine(f.ctx).range == nullptr).to_be_true();
+		expect(spec::menu_engine(f.ctx).range).to_be_null();
 
 		expect(menu::ensure_first_range(f.ctx)).to_be_true();
 		// One range now exists, and the context points at it, so a range-dependent item opens rather than
 		// bouncing to a one-row picker.
 		expect(menu::range_count(f.ctx)).to_equal(int32_t(1));
-		expect(spec::menu_engine(f.ctx).range != nullptr).to_be_true();
+		expect(spec::menu_engine(f.ctx).range).not_().to_be_null();
 		expect(static_cast<int>(f.ctx.range_index)).to_equal(0);
-		expect(menu::permission_for(nodes::source0_transpose, f.ctx) == menu::Permission::Yes).to_be_true();
+		expect(menu::permission_for(nodes::source0_transpose, f.ctx)).to_equal(menu::Permission::Yes);
 		// `Source::getOrCreateFirstRange` gives the new range the top of the keyboard.
 		expect(menu::range_top_note(f.ctx, 0)).to_equal(int32_t(32767));
 
@@ -748,7 +757,7 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 			std::vector<deluge::instrument::RangeState> ported = menu::ranges_of(f.ctx);
 			const std::optional<nodes::RangeDelete> plan = nodes::plan_range_delete(ported, index);
 			expect(path + (plan ? " deletes" : " refuses")).to_equal(path + " deletes");
-			expect(table().value(path, "ranges") != "refused").to_be_true();
+			expect(table().value(path, "ranges")).not_().to_equal("refused");
 			if (!plan) {
 				continue;
 			}
@@ -876,7 +885,7 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 		RangeFixture f{3};
 		menu::select_range(f.ctx, 2);
 		expect(static_cast<int>(f.ctx.range_index)).to_equal(2);
-		expect(spec::menu_engine(f.ctx).range == spec::menu_engine(f.ctx).source->ranges.getElement(2)).to_be_true();
+		expect(spec::menu_engine(f.ctx).range).to_equal(spec::menu_engine(f.ctx).source->ranges.getElement(2));
 		// Out of range is ignored rather than clamped -- every caller has clamped already.
 		menu::select_range(f.ctx, 7);
 		expect(static_cast<int>(f.ctx.range_index)).to_equal(2);
@@ -889,7 +898,7 @@ describe tables_1_reference_rows("tables_1: the reference rows", $ {
 	it("parses tables_1.tsv clean and asks every row of it", _ {
 		spec::OracleTable& t = spec::OracleTable::named("tables_1");
 		expect(t.problems().size()).to_equal(size_t{0});
-		expect(t.size() > size_t{800}).to_be_true();
+		expect(t.size()).to_be_greater_than(size_t{800});
 		expect(t.unasked()).to_equal(std::string{});
 	});
 });

@@ -39,6 +39,8 @@
 #include "scenes/bind/knob_assignment.h"
 #include "storage/storage_manager.h"
 
+#include "support/printers/knob_focus_printer.h"
+#include "support/printers/param_id_printer.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -155,7 +157,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		view.setActiveModControllableTimelineCounter(f.clip, false);
 		const project::KnobFocus want{.owner = project::SoundFocus{
 		    .slot = {project::SlotAddress::Kind::OUTPUT, *f.instrument->id()}, .clip = project::ClipAddress{f.clip->id()}}};
-		expect(focus().owner == want.owner).to_be_true();
+		expect(focus().owner).to_equal(want.owner);
 		view.releaseActiveModControllable();
 		currentSong = nullptr;
 	});
@@ -173,7 +175,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		    .clip = project::ClipAddress{f.clip->id()},
 		    .row = project::NoteRowAddress{f.clip->id(), true, static_cast<int32_t>(*drum->id())},
 		    .kit = *kit->id()}};
-		expect(focus().owner == row.owner).to_be_true();
+		expect(focus().owner).to_equal(row.owner);
 
 		f.clip->affectEntire = true;
 		view.setActiveModControllableTimelineCounter(f.clip, false);
@@ -181,7 +183,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		    .chain = {project::ChainAddress::Kind::OUTPUT, *kit->id()},
 		    .owner = project::ChainOwner::KIT,
 		    .clip = project::ClipAddress{f.clip->id()}}};
-		expect(focus().owner == chain.owner).to_be_true();
+		expect(focus().owner).to_equal(chain.owner);
 		view.releaseActiveModControllable();
 		currentSong = nullptr;
 	});
@@ -194,7 +196,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		    .chain = {project::ChainAddress::Kind::OUTPUT, *f.output->id()},
 		    .owner = project::ChainOwner::AUDIO_TRACK,
 		    .clip = project::ClipAddress{f.clip->id()}}};
-		expect(focus().owner == want.owner).to_be_true();
+		expect(focus().owner).to_equal(want.owner);
 		view.releaseActiveModControllable();
 		currentSong = nullptr;
 	});
@@ -213,7 +215,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		view.setActiveModControllableTimelineCounter(midi.clip, false);
 		const project::KnobFocus want{.owner = project::MidiFocus{
 		    .track = project::TrackAddress{*midi.instrument->id()}, .clip = project::ClipAddress{midi.clip->id()}}};
-		expect(focus().owner == want.owner).to_be_true();
+		expect(focus().owner).to_equal(want.owner);
 
 		spec::SongFixture cv = spec::make_cv_song();
 		currentSong = cv.song;
@@ -233,7 +235,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		f.song->addOutput(row);
 		view.setActiveModControllableWithoutTimelineCounter(row, f.song->live.param_backup.getPreferablyWithClip(*row, nullptr));
 		const project::KnobFocus want{.owner = project::SoundFocus{.slot = {project::SlotAddress::Kind::OUTPUT, *row->id()}}};
-		expect(focus().owner == want.owner).to_be_true();
+		expect(focus().owner).to_equal(want.owner);
 		view.releaseActiveModControllable();
 		currentSong = nullptr;
 	});
@@ -247,8 +249,8 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		view.knobFocus().vu_meter = true;
 		f.song->persistentView.affectEntire = true;
 		view.setActiveModControllableTimelineCounter(f.song, false);
-		expect(focus().region == project::ModRegion{.pos = 96, .length = 48}).to_be_true();
-		expect(focus().comp == project::CompView{.editing = true, .param = 2}).to_be_true();
+		expect(focus().region).to_equal(project::ModRegion{.pos = 96, .length = 48});
+		expect(focus().comp).to_equal(project::CompView{.editing = true, .param = 2});
 		expect(focus().vu_meter).to_be_true();
 		view.knobFocus().comp = {};
 		view.knobFocus().vu_meter = false;
@@ -338,7 +340,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		expect(std::holds_alternative<project::SoundFocus>(focus().owner)).to_be_true();
 		view.releaseKnobsIfOn(*f.clip);
 		expect(std::holds_alternative<std::monostate>(focus().owner)).to_be_true();
-		expect(View::KnobStack{view}.stack == nullptr).to_be_true();
+		expect(View::KnobStack{view}.stack).to_be_null();
 
 		view.setActiveModControllableTimelineCounter(f.clip, false);
 		spec::SongFixture elsewhere = spec::make_synth_song();
@@ -367,12 +369,16 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 			recorded = f.instrument->getActiveClip();
 		}
 		expect(f.song->live.clips.arrangement_only_clips.size()).to_equal(arranged + 1);
-		expect(recorded != nullptr && recorded != f.clip && recorded->beingRecordedFromClip == f.clip).to_be_true();
-		expect(panOn(f, f.clip->id()) == session_before).to_be_true();
-		if (recorded != nullptr && recorded != f.clip) {
-			expect(panOn(f, recorded->id()) != session_before).to_be_true();
+		expect(recorded).not_().to_be_null();
+		if (recorded != nullptr) {
+			expect(recorded).not_().to_equal(f.clip);
+			expect(recorded->beingRecordedFromClip).to_equal(f.clip);
 		}
-		expect(view.knobsClipId() == std::optional<uint32_t>{f.clip->id()}).to_be_true();
+		expect(panOn(f, f.clip->id())).to_equal(session_before);
+		if (recorded != nullptr && recorded != f.clip) {
+			expect(panOn(f, recorded->id())).not_().to_equal(session_before);
+		}
+		expect(view.knobsClipId()).to_equal(std::optional<uint32_t>{f.clip->id()});
 		view.releaseActiveModControllable();
 		currentSong = nullptr;
 	});
@@ -391,7 +397,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 			view.modButtonAction(2, false);
 		}
 		expect(f.song->live.clips.arrangement_only_clips.size()).to_equal(arranged);
-		expect(f.instrument->getActiveClip() == f.clip || f.instrument->getActiveClip() == nullptr).to_be_true();
+		expect(f.instrument->getActiveClip()).to_satisfy([&](auto* clip) { return clip == f.clip || clip == nullptr; });
 		*f.instrument->toModControllable()->getModKnobMode() = 0;
 		view.releaseActiveModControllable();
 		currentSong = nullptr;
@@ -414,7 +420,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		const std::optional<int32_t> before = panOn(row, std::nullopt);
 		view.modEncoderAction(0, 7);
 		expect(before.has_value()).to_be_true();
-		expect(panOn(row, std::nullopt) != before).to_be_true();
+		expect(panOn(row, std::nullopt)).not_().to_equal(before);
 		view.releaseActiveModControllable();
 		currentSong = nullptr;
 	});
@@ -430,10 +436,10 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 			ArrangementRecording recording{f};
 			view.modEncoderAction(0, 3);
 		}
-		expect(view.knobsClipId() == std::optional<uint32_t>{f.clip->id()}).to_be_true();
+		expect(view.knobsClipId()).to_equal(std::optional<uint32_t>{f.clip->id()});
 		const std::optional<int32_t> session_before = panOn(f, f.clip->id());
 		view.modEncoderAction(0, 3);
-		expect(panOn(f, f.clip->id()) != session_before).to_be_true();
+		expect(panOn(f, f.clip->id())).not_().to_equal(session_before);
 		view.releaseActiveModControllable();
 		currentSong = nullptr;
 	});
@@ -499,8 +505,8 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		arrangerView.outputsOnScreen[2] = row;
 		arrangerView.refresh_held_row_mod_target();
 		const project::KnobFocus want{.owner = project::SoundFocus{.slot = {project::SlotAddress::Kind::OUTPUT, *row->id()}}};
-		expect(view.knobFocus().owner == want.owner).to_be_true();
-		expect(View::KnobStack{view}.owner() == row->toModControllable()).to_be_true();
+		expect(view.knobFocus().owner).to_equal(want.owner);
+		expect(View::KnobStack{view}.owner()).to_equal(row->toModControllable());
 		arrangerView.outputsOnScreen[2] = saved;
 		currentUIMode = UI_MODE_NONE;
 		view.releaseActiveModControllable();
@@ -528,14 +534,15 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 
 		view.setActiveModControllableTimelineCounter(f.clip, false);
 		view.setActiveModControllableTimelineCounter(f.song, false);
-		expect(view.knobFocus().comp == project::CompView{.editing = true, .param = 2}).to_be_true();
-		expect(view.knobMode() == 4 && view.knobFocus().comp.editing).to_be_true(); // the gain-reduction meter's ask
+		expect(view.knobFocus().comp).to_equal(project::CompView{.editing = true, .param = 2});
+		expect(view.knobMode()).to_equal(4);
+		expect(view.knobFocus().comp.editing).to_be_true(); // the gain-reduction meter's ask
 
 		spec::SongFixture next = spec::make_synth_song();
 		currentSong = next.song;
 		next.song->persistentView.affectEntire = true;
 		view.setActiveModControllableTimelineCounter(next.song, false);
-		expect(view.knobFocus().comp == project::CompView{}).to_be_true();
+		expect(view.knobFocus().comp).to_equal(project::CompView{});
 		view.releaseActiveModControllable();
 		currentSong = nullptr;
 	});
@@ -563,7 +570,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		};
 		deluge::edits::Context ctx{*a.song, a.song->project};
 		deluge::edits::SetParamValue seed{pan_of(a), 1 << 28, 0, 48};
-		expect(deluge::edits::apply(ctx, seed) == Error::NONE).to_be_true();
+		expect(deluge::edits::apply(ctx, seed)).to_equal(Error::NONE);
 		expect(automated(a)).to_be_true();
 		expect(automated(b)).to_be_false();
 
@@ -577,7 +584,10 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		instrumentClipView.pasteAutomation(0);
 		expect(automated(b)).to_be_true();
 		Action* action = actionLogger.firstAction[BEFORE];
-		expect(action != nullptr && action->nextAction == nullptr).to_be_true();
+		expect(action).not_().to_be_null();
+		if (action != nullptr) {
+			expect(action->nextAction).to_be_null();
+		}
 		expect(actionLogger.revert(BEFORE, false, false)).to_be_true();
 		expect(automated(b)).to_be_false();
 		actionLogger.deleteAllLogs();
@@ -617,11 +627,17 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		view.setActiveModControllableTimelineCounter(f.clip, false);
 		expect(view.knobFocus().comp.editing).to_be_true(); // the song's view, kept for the song
 		const std::optional<project::ParamAddress> lower = view.knobAddress(0);
-		expect(lower.has_value() && lower->id == deluge::global_effectable::param::kReverbAmount).to_be_true();
+		expect(lower.has_value()).to_be_true();
+		if (lower.has_value()) {
+			expect(lower->id).to_equal(deluge::global_effectable::param::kReverbAmount);
+		}
 		const deluge::scenes::bind::KnobAssignment port =
 		    deluge::scenes::bind::knob_assignment(f.song->project, view.knobFocus(), 0);
 		const auto* address = std::get_if<project::ParamAddress>(&port.target);
-		expect(address != nullptr && address->id == deluge::global_effectable::param::kReverbAmount).to_be_true();
+		expect(address).not_().to_be_null();
+		if (address != nullptr) {
+			expect(address->id).to_equal(deluge::global_effectable::param::kReverbAmount);
+		}
 		view.knobFocus().comp = {};
 		view.releaseActiveModControllable();
 		currentSong = nullptr;
@@ -632,7 +648,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		spec::SongFixture elsewhere = spec::make_synth_song();
 		currentSong = f.song;
 		view.setActiveModControllableTimelineCounter(f.clip, false);
-		expect(elsewhere.clip->id() == f.clip->id()).to_be_true();
+		expect(elsewhere.clip->id()).to_equal(f.clip->id());
 		currentSong = elsewhere.song; // a clip of another song retires, with the same id
 		view.releaseKnobsIfOn(*elsewhere.clip);
 		currentSong = f.song;
@@ -675,7 +691,10 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		const deluge::project::DocAutoParam* param = f.song->project.resolveParam(
 		    {.owner = project::OwnerId::drum(*drum->id()), .space = project::ParamSpace::ENGINE,
 		     .id = deluge::instrument::param::kVolume, .clip_id = f.clip->id()});
-		expect(param != nullptr && !param->nodes.empty()).to_be_true();
+		expect(param).not_().to_be_null();
+		if (param != nullptr) {
+			expect(param->nodes.empty()).to_be_false();
+		}
 		view.setModRegion();
 		view.releaseActiveModControllable();
 		currentSong = nullptr;
@@ -711,7 +730,8 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		NoteRow* held = f.clip->noteRows.insertNoteRowAtY(60, &held_index);
 		int32_t other_index = 0;
 		NoteRow* other = f.clip->noteRows.insertNoteRowAtY(61, &other_index);
-		expect(held != nullptr && other != nullptr).to_be_true();
+		expect(held).not_().to_be_null();
+		expect(other).not_().to_be_null();
 		if (held != nullptr && other != nullptr) {
 			view.setActiveModControllableTimelineCounter(f.clip, false);
 			alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];

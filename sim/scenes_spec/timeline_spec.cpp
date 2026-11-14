@@ -375,7 +375,7 @@ describe timeline_spec_body(
 		        }
 		        // The arm exists for the columns that represent no time at all; if none of them showed up
 		        // this example would be comparing "true" against "true" sixteen times.
-		        expect(undefined > 0).to_be_true();
+		        expect(undefined).to_be_greater_than(0);
 	        });
 
 	    it(
@@ -492,7 +492,7 @@ describe timeline_spec_body(
 
 		        r.seed(s);
 		        audioClipView.horizontalEncoderAction(1);
-		        expect((currentUIMode & UI_MODE_HORIZONTAL_SCROLL) != 0).to_be_true();
+		        expect(currentUIMode & UI_MODE_HORIZONTAL_SCROLL).not_().to_equal(0);
 		        Rig::clear_scroll_transition();
 		        audioClipView.horizontalEncoderAction(1);
 		        expect(port.x_scroll).to_equal(r.song_scroll());
@@ -516,7 +516,7 @@ describe timeline_spec_body(
 		        audioClipView.horizontalEncoderAction(1);
 		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(static_cast<int32_t>(r.song_zoom()));
 		        expect(port.x_scroll).to_equal(r.song_scroll());
-		        expect(outcome == ZoomOutcome::Zoomed).to_be_true();
+		        expect(outcome).to_equal(ZoomOutcome::Zoomed);
 		        // ...and it really zoomed in, so a port that refused the turn could not pass this.
 		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(6);
 		        Rig::hold_x_enc(false);
@@ -540,7 +540,7 @@ describe timeline_spec_body(
 		        audioClipView.horizontalEncoderAction(-1);
 		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(static_cast<int32_t>(r.song_zoom()));
 		        expect(port.x_scroll).to_equal(r.song_scroll());
-		        expect(outcome == ZoomOutcome::Zoomed).to_be_true();
+		        expect(outcome).to_equal(ZoomOutcome::Zoomed);
 		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(24);
 		        expect(port.x_scroll).to_equal(0);
 		        Rig::hold_x_enc(false);
@@ -563,7 +563,7 @@ describe timeline_spec_body(
 		        audioClipView.horizontalEncoderAction(1);
 		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(static_cast<int32_t>(r.song_zoom()));
 		        expect(port.x_scroll).to_equal(r.song_scroll());
-		        expect(outcome == ZoomOutcome::Refused).to_be_true();
+		        expect(outcome).to_equal(ZoomOutcome::Refused);
 		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(3);
 		        Rig::hold_x_enc(false);
 		        currentUIMode = UI_MODE_NONE;
@@ -585,7 +585,7 @@ describe timeline_spec_body(
 		        Rig::hold_x_enc(true);
 		        audioClipView.horizontalEncoderAction(-1);
 		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(static_cast<int32_t>(r.song_zoom()));
-		        expect(outcome == ZoomOutcome::Refused).to_be_true();
+		        expect(outcome).to_equal(ZoomOutcome::Refused);
 		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(768);
 		        Rig::hold_x_enc(false);
 		        currentUIMode = UI_MODE_NONE;
@@ -613,16 +613,16 @@ describe timeline_spec_body(
 		        // by the `isUIModeActiveExclusively` gate (`:164`), or because `initiateXZoom` never
 		        // armed the mode at all -- so the example pins WHICH. The first detent really did
 		        // reach `initiateXZoom` (`:325`)...
-		        expect((currentUIMode & UI_MODE_HORIZONTAL_ZOOM) != 0).to_be_true();
+		        expect(currentUIMode & UI_MODE_HORIZONTAL_ZOOM).not_().to_equal(0);
 		        Rig::clear_zoom_transition();
 		        // ...and with that cleared, the mode gate at `:164` passes, so the only thing left that
 		        // can stop the second detent is the delay latch. Its `goto getOut` at `:176` returns
 		        // before `initiateXZoom`, so the mode must still be clear afterwards.
 		        audioClipView.horizontalEncoderAction(1);
-		        expect((currentUIMode & UI_MODE_HORIZONTAL_ZOOM) != 0).to_be_false();
+		        expect(currentUIMode & UI_MODE_HORIZONTAL_ZOOM).to_equal(0);
 		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(static_cast<int32_t>(r.song_zoom()));
-		        expect(first == ZoomOutcome::Zoomed).to_be_true();
-		        expect(second == ZoomOutcome::Delayed).to_be_true();
+		        expect(first).to_equal(ZoomOutcome::Zoomed);
+		        expect(second).to_equal(ZoomOutcome::Delayed);
 		        // The first detent landed on 48, the clip's own max zoom; the second was dropped.
 		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(48);
 		        Rig::hold_x_enc(false);
@@ -639,9 +639,9 @@ describe timeline_spec_body(
 		        const Sentinel s{.x_scroll = 0, .x_zoom = 96};
 		        r.seed(s);
 		        TimelineState port = r.port();
-		        expect(port.zoom(1, r.max_zoom(), 1000) == ZoomOutcome::Zoomed).to_be_true();
-		        expect(port.zoom(1, r.max_zoom(), 1000) == ZoomOutcome::Delayed).to_be_true();
-		        expect(port.zoom(1, r.max_zoom(), 1000 + 500) == ZoomOutcome::Zoomed).to_be_true();
+		        expect(port.zoom(1, r.max_zoom(), 1000)).to_equal(ZoomOutcome::Zoomed);
+		        expect(port.zoom(1, r.max_zoom(), 1000)).to_equal(ZoomOutcome::Delayed);
+		        expect(port.zoom(1, r.max_zoom(), 1000 + 500)).to_equal(ZoomOutcome::Zoomed);
 		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(24);
 	        });
 
@@ -652,8 +652,8 @@ describe timeline_spec_body(
 		        const Sentinel s{.x_scroll = 0, .x_zoom = 96};
 		        r.seed(s);
 		        TimelineState port = r.port();
-		        expect(port.zoom(1, r.max_zoom(), 1000) == ZoomOutcome::Zoomed).to_be_true();
-		        expect(port.zoom(-1, r.max_zoom(), 1000) == ZoomOutcome::Zoomed).to_be_true();
+		        expect(port.zoom(1, r.max_zoom(), 1000)).to_equal(ZoomOutcome::Zoomed);
+		        expect(port.zoom(-1, r.max_zoom(), 1000)).to_equal(ZoomOutcome::Zoomed);
 		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(96);
 	        });
 
@@ -729,7 +729,7 @@ describe timeline_spec_body(
 		        TickProbe::set_remembered_scroll(480);
 		        Rig::hold_x_enc(true);
 		        audioClipView.horizontalEncoderAction(1);
-		        expect(outcome == ZoomOutcome::Refused).to_be_true();
+		        expect(outcome).to_equal(ZoomOutcome::Refused);
 		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(static_cast<int32_t>(r.song_zoom()));
 		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(3);
 		        expect(port.scroll_before_following).to_equal(TickProbe::remembered_scroll());

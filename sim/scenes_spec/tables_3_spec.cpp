@@ -87,9 +87,11 @@
 #include "support/tables_3_fixtures.h"
 
 #include "support/mocks/fake_surfaces.h"
+#include "support/printers/controller_mapping_printer.h"
 #include "unit/gfx/support/golden.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
 #include <algorithm>
 #include <array>
@@ -115,6 +117,11 @@ using deluge::scenes::menu::Node;
 namespace t3 = deluge::scenes::spec::tables3;
 
 namespace {
+
+/// @brief A function pointer as an address, so a failed comparison prints where it points rather than `1`.
+const void* address_of(auto* fn) {
+	return reinterpret_cast<const void*>(fn);
+}
 
 namespace nodes = deluge::scenes::menu::nodes;
 namespace bindings = deluge::scenes::menu::bindings;
@@ -391,7 +398,7 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 				submenus++;
 			}
 		}
-		expect(submenus > size_t(120)).to_be_true();
+		expect(submenus).to_be_greater_than(size_t(120));
 	});
 
 	it("declares the settings root with the legacy child count", _ {
@@ -435,7 +442,7 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 			expect(models_seen).to_equal(size_t(2));
 			asked++;
 		}
-		expect(asked > size_t(0)).to_be_true();
+		expect(asked).to_be_greater_than(size_t(0));
 		AudioEngine::setReverbModel(saved);
 	});
 
@@ -452,7 +459,7 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 		};
 		expect(roots().size()).to_equal(std::size(want));
 		for (size_t i = 0; i < roots().size(); i++) {
-			expect(roots()[i].ctx.root == want[i]).to_be_true();
+			expect(roots()[i].ctx.root).to_equal(want[i]);
 			expect(roots()[i].ctx.resolved).to_be_true();
 		}
 	});
@@ -461,7 +468,7 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 		const std::span<const Node* const> r = menu::MenuScene::roots();
 		expect(r.size()).to_equal(size_t(menu::MenuContext::Root::Count));
 		for (const TablesRoot& root : roots()) {
-			expect(r[size_t(root.ctx.root)] == root.node).to_be_true();
+			expect(r[size_t(root.ctx.root)]).to_equal(root.node);
 		}
 	});
 
@@ -472,7 +479,8 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 		    .to_equal(std::string{deluge::l10n::get(String::STRING_FOR_MIDI_INST_MENU_TITLE)});
 		expect(text_of(nodes::root_cv.title))
 		    .to_equal(std::string{deluge::l10n::get(String::STRING_FOR_CV_INSTRUMENT)});
-		expect(nodes::root_cv.children.data() == nodes::root_midi_or_cv.children.data()).to_be_true();
+		expect(static_cast<const void*>(nodes::root_cv.children.data()))
+		    .to_equal(static_cast<const void*>(nodes::root_midi_or_cv.children.data()));
 
 		const TablesRoot* midi = nullptr;
 		for (const TablesRoot& root : roots()) {
@@ -480,11 +488,11 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 				midi = &root;
 			}
 		}
-		expect(midi != nullptr).to_be_true();
+		expect(midi).not_().to_be_null();
 		if (midi != nullptr) {
-			expect(&nodes::midi_or_cv_root(midi->ctx) == &nodes::root_midi_or_cv).to_be_true();
+			expect(&nodes::midi_or_cv_root(midi->ctx)).to_equal(&nodes::root_midi_or_cv);
 		}
-		expect(&nodes::midi_or_cv_root(cv_fixture().ctx) == &nodes::root_cv).to_be_true();
+		expect(&nodes::midi_or_cv_root(cv_fixture().ctx)).to_equal(&nodes::root_cv);
 	});
 
 	it("gives every node main's own name", _ {
@@ -516,7 +524,7 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 			expect(e.path + " " + title).to_equal(e.path + " " + table().value(e.path, "title"));
 			compared++;
 		}
-		expect(compared > size_t(800)).to_be_true(); // 934 today, across the ten roots
+		expect(compared).to_be_greater_than(size_t(800)); // 934 today, across the ten roots
 	});
 
 	it("gives every leaf main's own param, AFFECT ENTIRE use, edit marking, slot count and range dependence", _ {
@@ -543,14 +551,16 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 				    menu::bindings::learn_target(*e.node, root->ctx);
 				expect(at + " learns " + (got ? std::to_string(got->param.value) : std::string{"none"}))
 				    .to_equal(at + " learns " + (want->empty() ? std::string{"<no value>"} : want->front()));
-				expect(!got || got->owner == menu::bindings::controls_owner(root->ctx)).to_be_true();
+				if (got) {
+					expect(got->owner).to_equal(menu::bindings::controls_owner(root->ctx));
+				}
 				learned++;
 			}
 			// A leaf with its own param has main's index and kind; one with a hook or a non-param target owns its value,
 			// its `ParamRef` is learn-only, and it is checked as the learn target above -- every such leaf shown here
 			// has a learn row.
 			if (!spec::param_comparable(*e.node)) {
-				expect(table().find(e.path, "param_index") == nullptr).to_be_true();
+				expect(table().find(e.path, "param_index")).to_be_null();
 				if (e.node->kind != menu::Kind::Custom && e.node->bind.param.valid()
 				    && (e.parent == nullptr || t3::relevant_here(*root, *e.parent)) && t3::relevant_here(*root, *e.node)) {
 					expect(e.path + (table().find(e.path, "learn") != nullptr ? " has a learn row" : " has none"))
@@ -569,12 +579,17 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 			const bool unpatched = want == deluge::modulation::params::Kind::UNPATCHED_SOUND
 			                       || want == deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
 			const auto got = e.node->bind.param.kind;
-			expect(unpatched ? (got == deluge::modulation::params::Kind::UNPATCHED_SOUND
-			                    || got == deluge::modulation::params::Kind::UNPATCHED_GLOBAL)
-			                 : got == want)
-			    .to_be_true();
+			if (unpatched) {
+				expect(got).to_satisfy([](auto kind) {
+					using deluge::modulation::params::Kind;
+					return kind == Kind::UNPATCHED_SOUND || kind == Kind::UNPATCHED_GLOBAL;
+				});
+			}
+			else {
+				expect(got).to_equal(want);
+			}
 		}
-		expect(learned > size_t(0)).to_be_true();
+		expect(learned).to_be_greater_than(size_t(0));
 	});
 });
 
@@ -593,7 +608,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 			compared++;
 		}
 		// 581 today. A drop would mean the loop stopped reaching the leaves.
-		expect(compared > size_t(500)).to_be_true();
+		expect(compared).to_be_greater_than(size_t(500));
 	});
 
 	it("names every enum option exactly as main's list does", _ {
@@ -625,7 +640,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 			expect(e.path + " " + port).to_equal(e.path + " " + frozen);
 			compared++;
 		}
-		expect(compared > size_t(100)).to_be_true(); // 129 today
+		expect(compared).to_be_greater_than(size_t(100)); // 129 today
 	});
 
 	it("shows each node exactly where main's menu shows it, in every root's own context", _ {
@@ -646,7 +661,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 			expect(label + (got ? "1" : "0")).to_equal(label + want->front());
 			ever_true += got ? 1 : 0;
 		}
-		expect(ever_true > size_t(700)).to_be_true(); // 845 today -- the loop cannot go vacuous
+		expect(ever_true).to_be_greater_than(size_t(700)); // 845 today -- the loop cannot go vacuous
 	});
 
 	it("hides the song root's two session-only items in the arranger and the automation view", _ {
@@ -674,7 +689,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 			// All three views take the same root: the port must differ on relevance, not on routing.
 			expect(static_cast<int>(ctx.root)).to_equal(static_cast<int>(MenuContext::Root::Song));
 			expect(ctx.is_song_view).to_be_true();
-			expect(ctx.is_session_view == c.session_view_root).to_be_true();
+			expect(ctx.is_session_view).to_equal(c.session_view_root);
 
 			install(ctx, song.song);
 			for (const Node* node : guarded) {
@@ -684,7 +699,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 				const std::string want = table().value(path, c.session_view_root ? "rel" : std::string{"rel@"} + c.name);
 				const bool got = node->relevant != nullptr && node->relevant(ctx);
 				expect(want).to_equal(std::string{c.expected ? "1" : "0"});
-				expect(got == c.expected).to_be_true();
+				expect(got).to_equal(c.expected);
 			}
 		}
 	});
@@ -693,8 +708,8 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 		// By identity in BOTH directions: the two nodes carry the predicate, and no third node anywhere in the tree
 		// does. A count would pass while the pair silently drifted.
 		for (const Node* n : {&nodes::configure_song_macros, &nodes::song_midi_learn}) {
-			expect(n->relevant == &menu::relevance::is_session_view).to_be_true();
-			expect(menu::relevance::name_of(n->relevant) == std::string_view{"is_session_view"}).to_be_true();
+			expect(address_of(n->relevant)).to_equal(address_of(&menu::relevance::is_session_view));
+			expect(menu::relevance::name_of(n->relevant)).to_equal(std::string_view{"is_session_view"});
 		}
 		size_t others = 0;
 		for (const auto& [root, e] : every_entry()) {
@@ -708,7 +723,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 		for (const auto& [root, e] : every_entry()) {
 			if (t3::relevance_reads_root_ui(*e.node)) {
 				reached++;
-				expect(root->node == &nodes::root_song).to_be_true();
+				expect(root->node).to_equal(&nodes::root_song);
 			}
 		}
 		expect(reached).to_equal(size_t(2));
@@ -739,12 +754,13 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 				sound = &root;
 			}
 		}
-		expect(midi != nullptr && sound != nullptr).to_be_true();
+		expect(midi).not_().to_be_null();
+		expect(sound).not_().to_be_null();
 		if (midi == nullptr || sound == nullptr) {
 			return;
 		}
 		// The fixture really is a MIDI param manager, and it really does look servable structurally.
-		expect(spec::menu_engine(midi->ctx).params != nullptr).to_be_true();
+		expect(spec::menu_engine(midi->ctx).params).not_().to_be_null();
 		expect(spec::menu_engine(midi->ctx).params->containsAnyParamCollectionsIncludingExpression()).to_be_true();
 
 		// `summaries[1]` being non-null is NOT proof of a `PatchedParamSet`:
@@ -754,8 +770,8 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 		// (`gui/menu_item/bend_range/main.h:30`) from `bendMenu`, which is a child of this very root.
 		// So the scenario is reproduced here rather than assumed away: create the expression set the
 		// way a user editing bend range would, then assert a PATCHED `ParamRef` is *still* refused.
-		expect(spec::menu_engine(midi->ctx).params->getOrCreateExpressionParamSet() != nullptr).to_be_true();
-		expect(spec::menu_engine(midi->ctx).params->summaries[1].paramCollection != nullptr).to_be_true();
+		expect(spec::menu_engine(midi->ctx).params->getOrCreateExpressionParamSet()).not_().to_be_null();
+		expect(spec::menu_engine(midi->ctx).params->summaries[1].paramCollection).not_().to_be_null();
 
 		install(midi->ctx, midi->song);
 		static constexpr Node kPatchedProbe =
@@ -777,7 +793,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 		}
 		// Every unpatched param node the MIDI/CV root reaches -- fourteen randomizer and arpeggiator
 		// leaves. A drop to zero would make the example vacuous.
-		expect(refused.size() > size_t(10)).to_be_true(); // 14 today
+		expect(refused.size()).to_be_greater_than(size_t(10)); // 14 today
 
 		// The positive control: the very same nodes DO read and write on a context whose
 		// `summaries[0]` really is an `UnpatchedParamSet`, so the refusal above is about the MIDI
@@ -792,7 +808,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 			expect(menu::bindings::read(*e.node, sound->ctx)).to_equal(42);
 			served++;
 		}
-		expect(served > size_t(10)).to_be_true(); // the same 14
+		expect(served).to_be_greater_than(size_t(10)); // the same 14
 	});
 
 	it("has a registered name for every predicate the tables use", _ {
@@ -800,7 +816,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 			if (e.node->relevant == nullptr) {
 				continue;
 			}
-			expect(menu::relevance::name_of(e.node->relevant) != std::string_view{"?"}).to_be_true();
+			expect(menu::relevance::name_of(e.node->relevant)).not_().to_equal(std::string_view{"?"});
 		}
 	});
 });
@@ -856,7 +872,7 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 		(void)menu::validate_tree(nodes::kAllRoots, contexts, {}, {},
 		                          menu::ValidateOptions{});
 		for (const auto& [root, e] : every_entry()) {
-			expect(menu::node_id(*e.node) != uint16_t(0)).to_be_true();
+			expect(menu::node_id(*e.node)).not_().to_equal(uint16_t(0));
 		}
 	});
 
@@ -877,7 +893,7 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 			counts[static_cast<size_t>(e.node->kind)]++;
 		}
 		for (size_t i = 0; i < counts.size(); i++) {
-			expect(counts[i] >= size_t(3)).to_be_true();
+			to_be_at_least(expect(counts[i]), size_t(3));
 		}
 	});
 
@@ -959,9 +975,9 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			spec::menu_engine(sound.ctx).sound->sources[0].setOscType(OscType::SAW);
 			spec::menu_engine(sound.ctx).sound->sources[1].setOscType(OscType::SAW);
 			menu::bindings::write(nodes::synth_mode, sound.ctx, static_cast<int32_t>(SynthMode::RINGMOD));
-			expect(spec::menu_engine(sound.ctx).sound->getSynthMode() == SynthMode::RINGMOD).to_be_true();
+			expect(spec::menu_engine(sound.ctx).sound->getSynthMode()).to_equal(SynthMode::RINGMOD);
 			menu::bindings::write(nodes::synth_mode, sound.ctx, static_cast<int32_t>(SynthMode::SUBTRACTIVE));
-			expect(spec::menu_engine(sound.ctx).sound->getSynthMode() == SynthMode::SUBTRACTIVE).to_be_true();
+			expect(spec::menu_engine(sound.ctx).sound->getSynthMode()).to_equal(SynthMode::SUBTRACTIVE);
 			spec::menu_engine(sound.ctx).sound->setSynthMode(before, sound.ctx.song);
 			spec::menu_engine(sound.ctx).sound->sources[0].setOscType(before_osc[0]);
 			spec::menu_engine(sound.ctx).sound->sources[1].setOscType(before_osc[1]);
@@ -975,12 +991,12 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			// would leave this suite green without a direct check.
 			const TablesRoot& sound = installed_root("sound");
 			ArpeggiatorSettings* arp = spec::menu_engine(sound.ctx).arp;
-			expect(arp != nullptr).to_be_true();
+			expect(arp).not_().to_be_null();
 			// The toggle's silencing only fires on a clip that is actually sounding
 			// (legacy `arpeggiator/mode.h`). `song_fixture.h` builds the clip without
 			// making it its output's active one -- nothing in the fixture plays -- so this is the
 			// one bit of state the example has to arrange for itself.
-			expect(spec::menu_engine(sound.ctx).clip != nullptr).to_be_true();
+			expect(spec::menu_engine(sound.ctx).clip).not_().to_be_null();
 			Clip* const saved_active = OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx).output);
 			OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx).output) = spec::menu_engine(sound.ctx).clip;
 			expect(spec::menu_engine(sound.ctx).clip->isActiveOnOutput()).to_be_true();
@@ -995,10 +1011,10 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 
 			menu::bindings::write(nodes::arp_mode, sound.ctx, static_cast<int32_t>(ArpMode::ARP));
 
-			expect(arp->mode == ArpMode::ARP).to_be_true();
+			expect(arp->mode).to_equal(ArpMode::ARP);
 			// DOWN/DOWN maps to `ArpPreset::DOWN` (`arpeggiator.cpp:1944-1946`) -- so this is false
 			// unless `updatePresetFromCurrentSettings()` actually ran.
-			expect(arp->preset == ArpPreset::DOWN).to_be_true();
+			expect(arp->preset).to_equal(ArpPreset::DOWN);
 			// ... and this is true only if `silence_for_arp_toggle` reached the synth arm.
 			expect(spec::menu_engine(sound.ctx).sound->invertReversed).to_be_false();
 			OutputPeek::active_clip_of(*spec::menu_engine(sound.ctx).output) = saved_active;
@@ -1020,12 +1036,12 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 
 			menu::bindings::write(nodes::arp_preset, sound.ctx, static_cast<int32_t>(ArpPreset::DOWN));
 
-			expect(arp->preset == ArpPreset::DOWN).to_be_true();
+			expect(arp->preset).to_equal(ArpPreset::DOWN);
 			// `ArpeggiatorSettings::updateSettingsFromCurrentPreset()` is the only thing
 			// that moves these three; delete its call from `set_arp_preset` and all three fail.
-			expect(arp->mode == ArpMode::ARP).to_be_true();
-			expect(arp->octaveMode == ArpOctaveMode::DOWN).to_be_true();
-			expect(arp->noteMode == ArpNoteMode::DOWN).to_be_true();
+			expect(arp->mode).to_equal(ArpMode::ARP);
+			expect(arp->octaveMode).to_equal(ArpOctaveMode::DOWN);
+			expect(arp->noteMode).to_equal(ArpNoteMode::DOWN);
 			expect(arp->flagForceArpRestart).to_be_true();
 			expect(spec::menu_engine(sound.ctx).sound->invertReversed).to_be_false();
 
@@ -1040,9 +1056,9 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			const TablesRoot& sound = installed_root("sound");
 			const ModFXType before = deluge::scenes::spec::menu_engine(sound.ctx).mod->getModFXType();
 			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::NONE));
-			expect(deluge::scenes::spec::menu_engine(sound.ctx).mod->getModFXType() == ModFXType::NONE).to_be_true();
+			expect(deluge::scenes::spec::menu_engine(sound.ctx).mod->getModFXType()).to_equal(ModFXType::NONE);
 			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::FLANGER));
-			expect(deluge::scenes::spec::menu_engine(sound.ctx).mod->getModFXType() == ModFXType::FLANGER).to_be_true();
+			expect(deluge::scenes::spec::menu_engine(sound.ctx).mod->getModFXType()).to_equal(ModFXType::FLANGER);
 			(void)deluge::scenes::spec::menu_engine(sound.ctx).mod->setModFXType(before);
 			covered.insert(&nodes::mod_fx_type);
 		}
@@ -1050,7 +1066,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 		{ // --- audio_clip_reverse: the clip's own sample controls --------------------------------
 			const TablesRoot& audio = installed_root("audio clip");
 			auto* clip = static_cast<AudioClip*>(spec::menu_engine(audio.ctx).clip);
-			expect(clip != nullptr).to_be_true();
+			expect(clip).not_().to_be_null();
 			const bool before = clip->sampleControls.reversed;
 			menu::bindings::write(nodes::audio_clip_reverse, audio.ctx, 1);
 			expect(clip->sampleControls.reversed).to_be_true();
@@ -1097,17 +1113,17 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 		{ // default_menu_highlighting
 			menu::bindings::write(nodes::default_menu_highlighting, settings.ctx,
 			                      static_cast<int32_t>(MenuHighlighting::PARTIAL_INVERSION));
-			expect(FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::PARTIAL_INVERSION).to_be_true();
+			expect(FlashStorage::accessibilityMenuHighlighting).to_equal(MenuHighlighting::PARTIAL_INVERSION);
 			menu::bindings::write(nodes::default_menu_highlighting, settings.ctx,
 			                      static_cast<int32_t>(MenuHighlighting::NO_INVERSION));
-			expect(FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION).to_be_true();
+			expect(FlashStorage::accessibilityMenuHighlighting).to_equal(MenuHighlighting::NO_INVERSION);
 			covered.insert(&nodes::default_menu_highlighting);
 		}
 		{ // screensaver_mode
 			menu::bindings::write(nodes::screensaver_mode, settings.ctx, static_cast<int32_t>(ScreensaverMode::OFF));
-			expect(FlashStorage::screensaverMode == ScreensaverMode::OFF).to_be_true();
+			expect(FlashStorage::screensaverMode).to_equal(ScreensaverMode::OFF);
 			menu::bindings::write(nodes::screensaver_mode, settings.ctx, static_cast<int32_t>(ScreensaverMode::STARSCAPE));
-			expect(FlashStorage::screensaverMode == ScreensaverMode::STARSCAPE).to_be_true();
+			expect(FlashStorage::screensaverMode).to_equal(ScreensaverMode::STARSCAPE);
 			covered.insert(&nodes::screensaver_mode);
 		}
 		{ // screensaver_timeout
@@ -1186,7 +1202,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 				exercised++;
 			}
 		}
-		expect(exercised > size_t(400)).to_be_true(); // 462 today
+		expect(exercised).to_be_greater_than(size_t(400)); // 462 today
 
 		std::set<const Node*> reverb;
 		for (const auto& [root, e] : every_entry()) {
@@ -1211,7 +1227,8 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 		install(settings.ctx, settings.song);
 		const std::string cv_path = spec::first_path_of(settings_entries(), nodes::cv_selection);
 		const std::string gate_path = spec::first_path_of(settings_entries(), nodes::gate_selection);
-		expect(cv_path.empty() || gate_path.empty()).to_be_false();
+		expect(cv_path.empty()).to_be_false();
+		expect(gate_path.empty()).to_be_false();
 
 		for (int32_t which = 0; which <= NUM_GATE_CHANNELS; which++) {
 			MenuContext ctx = settings.ctx;
@@ -1232,7 +1249,7 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 
 		expect(nodes::cv_submenu.children.size()).to_equal(size_t(2));
 		expect(std::to_string(nodes::cv_submenu.children.size())).to_equal(table().value("chain/cv_submenu", "kids"));
-		expect(nodes::cv_submenu.kind == menu::Kind::Submenu).to_be_true();
+		expect(nodes::cv_submenu.kind).to_equal(menu::Kind::Submenu);
 		for (size_t i = 0; i < nodes::cv_submenu.children.size(); i++) {
 			expect(text_of(nodes::cv_submenu.children[i]->name))
 			    .to_equal(table().value("chain/cv_submenu/" + std::to_string(i), "name"));
@@ -1263,7 +1280,7 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 			std::array<std::string_view, menu::kMaxDynamicNames> names{};
 			const size_t n = nodes::gate_mode.bind.dynamic_names(ctx, std::span<std::string_view>{names});
 			const std::vector<std::string>* want = table().find("chain/gate_mode", "options/" + std::to_string(which));
-			expect(want != nullptr).to_be_true();
+			expect(want).not_().to_be_null();
 			if (want == nullptr) {
 				continue;
 			}
@@ -1289,8 +1306,8 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 		for (const Node* n : {&nodes::cv_submenu, &nodes::cv_volts, &nodes::cv_transpose, &nodes::gate_mode,
 		                      &nodes::gate_off_time}) {
 			const uint16_t id = menu::node_id(*n);
-			expect(id != uint16_t(0)).to_be_true();
-			expect(menu::node_by_id(id) == n).to_be_true();
+			expect(id).not_().to_equal(uint16_t(0));
+			expect(menu::node_by_id(id)).to_equal(n);
 		}
 		// And they really are chain-only: the settings root's thirteen children do not name them,
 		// and neither does anything else's `children`.
@@ -1363,7 +1380,7 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 				expect(std::string{contained ? "in chain_targets: " : "ESCAPED chain_targets: "} + text_of(got->name))
 				    .to_equal(std::string{"in chain_targets: "} + text_of(got->name));
 				// And the consequence the containment exists to guarantee.
-				expect(menu::node_id(*got) != uint16_t(0)).to_be_true();
+				expect(menu::node_id(*got)).not_().to_equal(uint16_t(0));
 			}
 		}
 		// The chaining nodes of the shipped tree; a chain added without a spec fails here.
@@ -1383,7 +1400,7 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 		// two oscillator types into "DX7 source" (`osc/type.h`), "DX7 parameters" and "DX7 operator N"
 		// (`nodes/dx.h`).
 		expect(chaining_nodes).to_equal(size_t(77));
-		expect(answers > size_t(0)).to_be_true();
+		expect(answers).to_be_greater_than(size_t(0));
 	});
 
 	it("has exactly one chain edge that closes a cycle, and it is the legacy one", _ {
@@ -1524,7 +1541,7 @@ describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* ite
 
 			// `CustomItem::on_focus` fired from `enter_leaf`, and this tick's `after_render` turned
 			// the resulting `MenuWalkState::pending_scene` into a `Push` -- the context menu is on top.
-			expect(&r.shell.stack().input_top() == &context_menu::context_menu_scene()).to_be_true();
+			expect(&r.shell.stack().input_top()).to_equal(&context_menu::context_menu_scene());
 			expect(r.shell.stack().depth()).to_equal(size_t(2));
 			expect(static_cast<int>(context_menu::context_menu_scene().descriptor_id()))
 			    .to_equal(static_cast<int>(kOrder[i]));
@@ -1556,7 +1573,7 @@ describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* ite
 		   r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
 		   r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		   r.shell.tick(110);
-		   expect(&r.shell.stack().input_top() == &context_menu::context_menu_scene()).to_be_true();
+		   expect(&r.shell.stack().input_top()).to_equal(&context_menu::context_menu_scene());
 		   expect(static_cast<int>(context_menu::context_menu_scene().descriptor_id()))
 		       .to_equal(static_cast<int>(context_menu::DescriptorId::ResetCommunityFeatures));
 
@@ -1571,14 +1588,14 @@ describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* ite
 		   // and `go_up_on_resume` (set alongside the push, `EditNameItem`'s own mechanism) steps the
 		   // menu back out of the item it does not linger on -- back to the row it was entered from.
 		   expect(r.shell.stack().depth()).to_equal(size_t(1));
-		   expect(menu_scene().focused() == &nodes::reset_settings).to_be_true();
+		   expect(menu_scene().focused()).to_equal(&nodes::reset_settings);
 
 		   // Main's community-features reset from the same sentinel, as `context_menu_scene.tsv` holds it
 		   // (`context_menu_scene_spec` asks every row of that table; this example reads one).
 		   expect(std::to_string(ported))
 		       .to_equal(spec::OracleTable::named("context_menu_scene")
 		                     .value("reset/community_features", "drum_randomizer"));
-		   expect(ported != spec::reset::kPerturbed.drum_randomizer).to_be_true(); // the reset ran
+		   expect(ported).not_().to_equal(spec::reset::kPerturbed.drum_randomizer); // the reset ran
 	   });
 });
 
@@ -1596,7 +1613,7 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 		expect(std::size(nodes::kMidiCommandsChildren)).to_equal(size_t(12));
 		for (const Node* node : nodes::kMidiCommandsChildren) {
 			const auto* port = dynamic_cast<const nodes::MidiCommandItem*>(node->custom);
-			expect(port != nullptr).to_be_true(); // the node really is a MidiCommandItem now
+			expect(port).not_().to_be_null(); // the node really is a MidiCommandItem now
 			if (port == nullptr) {
 				continue;
 			}
@@ -1616,11 +1633,11 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 			   CommandSlots::clear_all();
 			   Rig r;
 			   focus_command_row(r, settings.ctx, i);
-			   expect(menu_scene().focused() == nodes::kMidiCommandsChildren[i]).to_be_true();
+			   expect(menu_scene().focused()).to_equal(nodes::kMidiCommandsChildren[i]);
 			   expect(menu_scene().learn_cc(fake_cable(), 3, cc, 127)).to_be_true();
 			   const std::string got = CommandSlots::capture().describe();
 			   expect(got).to_equal(table().value("learn_cc/" + std::to_string(i), "slot"));
-			   expect(got != std::string{"(all clear)"}).to_be_true(); // a no-op would match vacuously
+			   expect(got).not_().to_equal(std::string{"(all clear)"}); // a no-op would match vacuously
 		   }
 		   saved.restore();
 	   });
@@ -1635,11 +1652,11 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 		CommandSlots::clear_all();
 		Rig note_rig;
 		cursor_on_command_row(note_rig, settings.ctx, play);
-		expect(menu_scene().focused() == &nodes::midi_commands).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::midi_commands);
 		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, 5, 61, 100)).to_be_true();
 		const std::string note_got = CommandSlots::capture().describe();
 		expect(note_got).to_equal(table().value("learn_list/0/note", "slot"));
-		expect(note_got != std::string{"(all clear)"}).to_be_true();
+		expect(note_got).not_().to_equal(std::string{"(all clear)"});
 
 		CommandSlots::clear_all();
 		Rig pc_rig;
@@ -1664,7 +1681,7 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiCc, 3, 42, 127)).to_be_true();
 		const std::string got = CommandSlots::capture().describe();
 		expect(got).to_equal(table().value("learn_list/0/cc", "slot"));
-		expect(got != std::string{"(all clear)"}).to_be_true();
+		expect(got).not_().to_equal(std::string{"(all clear)"});
 		saved.restore();
 	});
 
@@ -1820,7 +1837,9 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 			   plain.shell.tick(t);
 		   }
 		   for (const auto& w : plain.fake.led_writes) {
-			   expect(!(w.first == kLearnBoardLed && w.second)).to_be_true();
+			   if (w.first == kLearnBoardLed) {
+				   expect(w.second).to_be_false();
+			   }
 		   }
 
 		   // And the submenu the twelve hang off does not blink LEARN itself; its learn goes to the row under the
@@ -1863,7 +1882,7 @@ describe tables_3_midi_follow_learn("scenes::menu batch-3 tables: MIDI follow le
 				                                           ? "learned/note"
 				                                           : "learned/cc");
 				expect(got).to_equal(want);
-				expect(want != std::string{"-/"} + std::to_string(MIDI_CHANNEL_NONE)).to_be_true();
+				expect(want).not_().to_equal(std::string{"-/"} + std::to_string(MIDI_CHANNEL_NONE));
 
 				shift_learn();
 				expect(follow_state(which)).to_equal(std::string{"-/"} + std::to_string(MIDI_CHANNEL_NONE));
@@ -1979,8 +1998,8 @@ describe tables_3_midi_follow_learn("scenes::menu batch-3 tables: MIDI follow le
 
 	it("every follow channel draws its own screen and turns its own way", _ {
 		for (const Node* node : nodes::kMidiFollowChannelChildren) {
-			expect(node->bind.leaf_draw != nullptr).to_be_true();
-			expect(node->bind.turn != nullptr).to_be_true();
+			expect(node->bind.leaf_draw).not_().to_be_null();
+			expect(node->bind.turn).not_().to_be_null();
 		}
 	});
 });
@@ -2008,7 +2027,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		MIDICable* got[deluge::scenes::menu::nodes::kMaxDeviceRows];
 		const size_t n = nodes::connected_cables(got);
 		const std::vector<std::string>* want = table().find("devices/all", "list");
-		expect(want != nullptr).to_be_true();
+		expect(want).not_().to_be_null();
 
 		expect(n).to_equal(size_t(5)); // DIN, upstream 1, upstream 2, ALPHA, BETA
 		expect(want == nullptr ? size_t(0) : want->size()).to_equal(n);
@@ -2016,7 +2035,10 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 			expect(std::string{got[i]->getDisplayName()}).to_equal((*want)[i]);
 		}
 		// DIN really is first, and it is first because `lowestDeviceNum` is -3.
-		expect(n > 0 && got[0] == &MIDIDeviceManager::dinMIDIPorts).to_be_true();
+		expect(n).to_be_greater_than(0);
+		if (n > 0) {
+			expect(got[0]).to_equal(&MIDIDeviceManager::dinMIDIPorts);
+		}
 		expect(std::string{got[0]->getDisplayName()})
 		    .to_equal(std::string{MIDIDeviceManager::dinMIDIPorts.getDisplayName()});
 	});
@@ -2028,9 +2050,12 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		MIDICable* got[deluge::scenes::menu::nodes::kMaxDeviceRows];
 		size_t n = nodes::connected_cables(got);
 		const std::vector<std::string>* din_only = table().find("devices/din_only", "list");
-		expect(din_only != nullptr && din_only->size() == n).to_be_true();
+		expect(din_only).not_().to_be_null();
+		if (din_only != nullptr) {
+			expect(din_only->size()).to_equal(n);
+		}
 		expect(n).to_equal(size_t(1));
-		expect(got[0] == &MIDIDeviceManager::dinMIDIPorts).to_be_true();
+		expect(got[0]).to_equal(&MIDIDeviceManager::dinMIDIPorts);
 
 		// A disconnected *hosted* device is dropped too -- main's own "Disconnected devices aren't drawn, so they
 		// don't take up a row". Adding one must not move the count.
@@ -2041,7 +2066,10 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		MIDIDeviceManager::hostedMIDIDevices.push_back(ghost.get());
 		n = nodes::connected_cables(got);
 		const std::vector<std::string>* with_ghost = table().find("devices/ghost", "list");
-		expect(with_ghost != nullptr && with_ghost->size() == n).to_be_true();
+		expect(with_ghost).not_().to_be_null();
+		if (with_ghost != nullptr) {
+			expect(with_ghost->size()).to_equal(n);
+		}
 		expect(n).to_equal(size_t(1));
 		MIDIDeviceManager::hostedMIDIDevices.clear();
 	});
@@ -2115,7 +2143,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, at);
 		r.shell.tick(at + 5);
 		at += 10;
-		expect(menu_scene().focused() == &nodes::midi_devices).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::midi_devices);
 		expect(int(menu_scene().state().list[1].cursor)).to_equal(0);
 
 		// Two detents down the device list, then out and back in.
@@ -2134,25 +2162,25 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, at);
 		r.shell.tick(at + 5);
 		at += 10;
-		expect(menu_scene().focused() == &nodes::midi_device).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::midi_device);
 		at += 10;
 		r.button(kBackX, kBackY, true, at);
 		r.shell.tick(at + 5);
 		at += 10;
 		r.button(kBackX, kBackY, false, at);
 		at += 10;
-		expect(menu_scene().focused() == &nodes::midi_devices).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::midi_devices);
 		r.button(kBackX, kBackY, true, at);
 		r.shell.tick(at + 5);
 		at += 10;
 		r.button(kBackX, kBackY, false, at);
 		at += 10;
-		expect(menu_scene().focused() == &nodes::midi_settings).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::midi_settings);
 
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, at);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, at);
 		r.shell.tick(at + 5);
-		expect(menu_scene().focused() == &nodes::midi_devices).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::midi_devices);
 		// `on_focus` found the cable the move published, not DIN.
 		expect(int(menu_scene().state().list[1].cursor)).to_equal(2);
 	});
@@ -2178,7 +2206,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		ctx.midi_cable = &MIDIDeviceManager::upstreamUSBMIDICable2; // the stale one
 		Rig r;
 		r.open(nodes::midi_devices, ctx);
-		expect(menu_scene().state().walk.midi_cable_choice == &MIDIDeviceManager::dinMIDIPorts).to_be_true();
+		expect(menu_scene().state().walk.midi_cable_choice).to_equal(&MIDIDeviceManager::dinMIDIPorts);
 	});
 
 	it("does not move the source index just because the selector was opened", _ {
@@ -2206,7 +2234,10 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
 		const std::vector<std::string>* options = table().find("cv_selection", "options");
-		expect(options != nullptr && options->size() == size_t(NUM_PHYSICAL_CV_CHANNELS)).to_be_true();
+		expect(options).not_().to_be_null();
+		if (options != nullptr) {
+			expect(options->size()).to_equal(size_t(NUM_PHYSICAL_CV_CHANNELS));
+		}
 
 		const uint8_t saved0 = cvEngine.cvChannels[0].voltsPerOctave;
 		const uint8_t saved1 = cvEngine.cvChannels[1].voltsPerOctave;
@@ -2227,14 +2258,14 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 			// `cv::Selection::selectButtonPress` returns the CV page unconditionally.
 			expect(t3::chain_name(menu_scene().focused()))
 			    .to_equal(table().value("cv_selection", "chain/" + std::to_string(which)));
-			expect(menu_scene().focused() == &nodes::cv_submenu).to_be_true();
+			expect(menu_scene().focused()).to_equal(&nodes::cv_submenu);
 
 			// ... and it wrote the output on the way. The proof is which output `cv_volts` now reads: `enter_leaf`
 			// loads `bindings::read` into `MenuState::edit_int`.
 			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
 			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 130);
 			r.shell.tick(140);
-			expect(menu_scene().focused() == &nodes::cv_volts).to_be_true();
+			expect(menu_scene().focused()).to_equal(&nodes::cv_volts);
 			expect(menu_scene().state().edit_int).to_equal(which == 0 ? 11 : 77);
 		}
 
@@ -2248,7 +2279,10 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
 		const std::vector<std::string>* options = table().find("gate_selection", "options");
-		expect(options != nullptr && options->size() == size_t(NUM_GATE_CHANNELS + 1)).to_be_true();
+		expect(options).not_().to_be_null();
+		if (options != nullptr) {
+			expect(options->size()).to_equal(size_t(NUM_GATE_CHANNELS + 1));
+		}
 
 		GateType saved[NUM_GATE_CHANNELS];
 		for (int32_t g = 0; g < NUM_GATE_CHANNELS; g++) {
@@ -2271,7 +2305,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 			r.shell.tick(110);
 
 			const std::string want = table().value("gate_selection", "chain/" + std::to_string(which));
-			expect(want == "gate_off_time" || want == "gate_mode").to_be_true();
+			expect(want).to_satisfy([](const auto& w) { return w == "gate_off_time" || w == "gate_mode"; });
 			expect(t3::chain_name(menu_scene().focused())).to_equal(want);
 
 			if (which < NUM_GATE_CHANNELS) {
@@ -2315,7 +2349,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
 			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 			r.shell.tick(110);
-			expect(menu_scene().focused() == &nodes::gate_mode).to_be_true();
+			expect(menu_scene().focused()).to_equal(&nodes::gate_mode);
 			expect(int(menu_scene().state().walk.source_choice)).to_equal(-1); // drained, not merely read
 		}
 
@@ -2334,7 +2368,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 300);
 			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 300);
 			r.shell.tick(310);
-			expect(menu_scene().focused() == &nodes::gate_off_time).to_be_true();
+			expect(menu_scene().focused()).to_equal(&nodes::gate_off_time);
 			expect(int(menu_scene().state().walk.source_choice)).to_equal(-1);
 		}
 	});
@@ -2359,10 +2393,10 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 			   r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
 			   r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 			   r.shell.tick(110);
-			   expect(menu_scene().focused() == &nodes::gate_mode).to_be_true();
+			   expect(menu_scene().focused()).to_equal(&nodes::gate_mode);
 
 			   const std::vector<std::string>* want = table().find("gate_mode/" + std::to_string(which), "options");
-			   expect(want != nullptr).to_be_true();
+			   expect(want).not_().to_be_null();
 
 			   MenuContext ctx = settings.ctx;
 			   ctx.source_index = static_cast<int8_t>(which);
@@ -2435,9 +2469,9 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 	it("is not a placeholder any more, and reports nothing under a strict validation", _ {
 		const TablesRoot& settings = roots().back();
 		install(settings.ctx, settings.song);
-		expect(nodes::cv_selection.custom == &nodes::kCvSelectionItem).to_be_true();
-		expect(nodes::gate_selection.custom == &nodes::kGateSelectionItem).to_be_true();
-		expect(nodes::midi_devices.custom == &nodes::kMidiDevicesItem).to_be_true();
+		expect(nodes::cv_selection.custom).to_equal(&nodes::kCvSelectionItem);
+		expect(nodes::gate_selection.custom).to_equal(&nodes::kGateSelectionItem);
+		expect(nodes::midi_devices.custom).to_equal(&nodes::kMidiDevicesItem);
 		expect(nodes::kCvSelectionItem.is_placeholder()).to_be_false();
 		expect(nodes::kGateSelectionItem.is_placeholder()).to_be_false();
 		expect(nodes::kMidiDevicesItem.is_placeholder()).to_be_false();
@@ -2470,13 +2504,13 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 
 		MIDIDeviceManager::notePeripheralConnected(0, true);
 		expect(nodes::connected_cables(rows)).to_equal(size_t{3});
-		expect(rows[1] == &MIDIDeviceManager::upstreamUSBMIDICable1).to_be_true();
-		expect(rows[2] == &MIDIDeviceManager::upstreamUSBMIDICable2).to_be_true();
-		expect(connectedUSBMIDIDevices[0][0].cable[0] == &MIDIDeviceManager::upstreamUSBMIDICable1).to_be_true();
+		expect(rows[1]).to_equal(&MIDIDeviceManager::upstreamUSBMIDICable1);
+		expect(rows[2]).to_equal(&MIDIDeviceManager::upstreamUSBMIDICable2);
+		expect(connectedUSBMIDIDevices[0][0].cable[0]).to_equal(&MIDIDeviceManager::upstreamUSBMIDICable1);
 
 		MIDIDeviceManager::notePeripheralConnected(0, false);
 		expect(nodes::connected_cables(rows)).to_equal(size_t{1});
-		expect(connectedUSBMIDIDevices[0][0].cable[0] == nullptr).to_be_true();
+		expect(connectedUSBMIDIDevices[0][0].cable[0]).to_be_null();
 	});
 
 	it("acts on a change of the configured state only, as the USB stack's two callbacks did", _ {
@@ -2498,7 +2532,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		const uint8_t saved = usbCurrentlyInitialized;
 		usbCurrentlyInitialized = false;
 		deluge::usb_audio::startDevice();
-		expect(usbCurrentlyInitialized != 0).to_be_true();
+		expect(usbCurrentlyInitialized).not_().to_equal(0);
 		usbCurrentlyInitialized = saved;
 	});
 });
@@ -2553,7 +2587,7 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 		CommandSlots::clear_all();
 		Rig r;
 		focus_command_row(r, settings.ctx, 0);
-		expect(menu_scene().focused() == &nodes::midi_command_play).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::midi_command_play);
 		r.shell.tick(300);
 		expect_golden(self, "ui/menu/menu_midi_command_unassigned_48.pbm", r.fake.pbm(0));
 		saved.restore();
@@ -2668,7 +2702,7 @@ describe tables_4_items("scenes::menu batch-4 items: the last placeholders that 
 			expect(count).to_equal(size_t(kNumPadColours));
 			// The same nine for every item, so each path's row is the oracle.
 			const std::vector<std::string>* want = table().find(spec::first_path_of(settings_entries(), *n), "options");
-			expect(want != nullptr).to_be_true();
+			expect(want).not_().to_be_null();
 			if (want == nullptr) {
 				continue;
 			}
@@ -2743,7 +2777,10 @@ describe tables_4_items("scenes::menu batch-4 items: the last placeholders that 
 		// option names are the generic options row; each value is driven from a sentinel that is not itself.
 		const std::vector<std::string>* options =
 		    table().find(spec::first_path_of(settings_entries(), nodes::flash_status), "options");
-		expect(options != nullptr && options->size() == size_t(3)).to_be_true();
+		expect(options).not_().to_be_null();
+		if (options != nullptr) {
+			expect(options->size()).to_equal(size_t(3));
+		}
 		for (int32_t v = 0; v <= 2; v++) {
 			PadLEDs::flashCursor = static_cast<uint8_t>(v == 0 ? 2 : 0);
 			menu::bindings::write(nodes::flash_status, settings.ctx, v);
@@ -2772,12 +2809,12 @@ describe tables_4_items("scenes::menu batch-4 items: the last placeholders that 
 		menu::set_shortcuts_version(menu::ShortcutsVersion::V3);
 		menu::bindings::write(nodes::shortcuts_version, settings.ctx, 0);
 		expect(menu::bindings::read(nodes::shortcuts_version, settings.ctx)).to_equal(int32_t(0));
-		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V1).to_be_true();
+		expect(menu::shortcuts_version()).to_equal(menu::ShortcutsVersion::V1);
 
 		menu::set_shortcuts_version(menu::ShortcutsVersion::V1);
 		menu::bindings::write(nodes::shortcuts_version, settings.ctx, 1);
 		expect(menu::bindings::read(nodes::shortcuts_version, settings.ctx)).to_equal(int32_t(1));
-		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V3).to_be_true();
+		expect(menu::shortcuts_version()).to_equal(menu::ShortcutsVersion::V3);
 
 		covered.insert(&nodes::shortcuts_version);
 		menu::set_shortcuts_version(saved);
@@ -2845,9 +2882,12 @@ describe tables_4_items("scenes::menu batch-4 items: the last placeholders that 
 		// By identity, not by count: this is the whole point of `covered`.
 		expect(covered).to_equal(kBatch4);
 		for (const Node* n : kBatch4) {
-			expect(n->kind == menu::Kind::Enum).to_be_true();
-			expect(n->custom == nullptr).to_be_true();
-			expect(n->bind.get != nullptr && n->bind.set != nullptr).to_be_true();
+			expect(n->kind).to_equal(menu::Kind::Enum);
+			expect(n->custom).to_be_null();
+			expect(n->bind.get).not_().to_be_null();
+			if (n->bind.get != nullptr) {
+				expect(n->bind.set).not_().to_be_null();
+			}
 		}
 	});
 });
@@ -2858,7 +2898,7 @@ describe tables_3_reference_rows("tables_3: the reference rows", $ {
 	it("parses tables_3.tsv clean and asks every row of it", _ {
 		spec::OracleTable& t = spec::OracleTable::named("tables_3");
 		expect(t.problems().size()).to_equal(size_t{0});
-		expect(t.size() > size_t{9000}).to_be_true();
+		expect(t.size()).to_be_greater_than(size_t{9000});
 		expect(t.unasked()).to_equal(std::string{});
 	});
 });

@@ -15,6 +15,7 @@
 #include "gui/l10n/setting_names.h"
 #include "instruments/deluge/params.h"
 #include "model/project_bridge/param_ids.h"
+#include "support/matchers/value_matchers.h"
 
 namespace {
 
@@ -148,7 +149,7 @@ void check_names(auto& self, const Case& c, std::string_view variant = {}) {
 			    .to_equal(std::string{c.path} + " lists 0");
 			continue;
 		}
-		expect(shortened != nullptr).to_be_true(std::string{c.path} + " has short options");
+		expect(shortened).not_().to_be_null(std::string{c.path} + " has short options");
 		if (shortened == nullptr) {
 			continue;
 		}
@@ -216,7 +217,7 @@ std::string param_text(plugin::PluginId which, deluge::plugin::ParamId id, const
 void check_params(auto& self, std::span<const deluge::plugin::ParamInfo> table, plugin::PluginId which) {
 	for (const deluge::plugin::ParamInfo& row : table) {
 		const Legacy legacy = legacy_of(row.id, which);
-		expect(legacy.index >= 0).to_be_true();
+		to_be_at_least(expect(legacy.index), 0);
 		// Legacy's plain name is the SVF one: the default filter modes are ladders, which rename the morph params.
 		const ParamNameContext state{.lpf_mode = deluge::effects::FilterMode::SVF_NOTCH,
 		                             .hpf_mode = deluge::effects::FilterMode::SVF_BAND};
@@ -308,7 +309,7 @@ describe setting_names_spec_body("The host's name table", $ {
 		expect(text_of(SettingGroupId::CLIP_VALUES, "bendRange")).to_equal(std::string{"Normal"});
 		expect(text_of(SettingGroupId::AUDIO_INPUT, "mode")).to_equal(std::string{"Audio source"});
 		expect(text_of(plugin::kDelugeInstrument, "mode")).to_equal(std::string{"Synth Mode"});
-		expect(setting_names(SettingGroupId::TRACK, "mode") == nullptr).to_be_true();
+		expect(setting_names(SettingGroupId::TRACK, "mode")).to_be_null();
 	});
 	it("gives a CHOICE row with a list one name per choice", _ {
 		for (const Case* c : all_name_cases()) {
@@ -318,7 +319,7 @@ describe setting_names_spec_body("The host's name table", $ {
 			}
 			for (const NamesOwner& owner : owners_of(c->family)) {
 				const SettingNames* names = setting_names(owner, c->path);
-				expect(names != nullptr).to_be_true();
+				expect(names).not_().to_be_null();
 				if (names == nullptr) {
 					continue;
 				}
@@ -366,22 +367,20 @@ describe setting_names_spec_body("The host's name table", $ {
 		using deluge::plugin::ParamId;
 		const auto none = deluge::l10n::String::STRING_FOR_NONE;
 		const ParamNameContext state{};
-		expect(deluge::l10n::param_name(plugin::kGlobalEffectable, ParamId{0}, state) == none).to_be_true();
-		expect(deluge::l10n::param_name(plugin::kGlobalEffectable, ParamId{89}, state) == none).to_be_true();
-		expect(deluge::l10n::param_name(plugin::kGlobalEffectable, ParamId{133}, state) == none).to_be_true();
+		expect(deluge::l10n::param_name(plugin::kGlobalEffectable, ParamId{0}, state)).to_equal(none);
+		expect(deluge::l10n::param_name(plugin::kGlobalEffectable, ParamId{89}, state)).to_equal(none);
+		expect(deluge::l10n::param_name(plugin::kGlobalEffectable, ParamId{133}, state)).to_equal(none);
 		for (uint32_t id = 117; id <= 132; ++id) {
-			expect(deluge::l10n::param_name(plugin::kDelugeInstrument, ParamId{id}, state) == none).to_be_true();
+			expect(deluge::l10n::param_name(plugin::kDelugeInstrument, ParamId{id}, state)).to_equal(none);
 		}
 		for (uint32_t id = 55; id < 90; ++id) {
-			expect(deluge::l10n::param_name(plugin::kDelugeInstrument, ParamId{id}, state) == none).to_be_true();
+			expect(deluge::l10n::param_name(plugin::kDelugeInstrument, ParamId{id}, state)).to_equal(none);
 		}
-		expect(deluge::l10n::param_name(plugin::kDelugeInstrument, ParamId{116}, state)
-		       == deluge::l10n::String::STRING_FOR_PORTAMENTO)
-		    .to_be_true();
-		expect(deluge::l10n::param_name(plugin::kGlobalEffectable, ParamId{116}, state)
-		       == deluge::l10n::String::STRING_FOR_MOD_FX_RATE)
-		    .to_be_true();
-		expect(deluge::l10n::param_name(plugin::PluginId{"other.engine"}, ParamId{90}, state) == none).to_be_true();
+		expect(deluge::l10n::param_name(plugin::kDelugeInstrument, ParamId{116}, state))
+		    .to_equal(deluge::l10n::String::STRING_FOR_PORTAMENTO);
+		expect(deluge::l10n::param_name(plugin::kGlobalEffectable, ParamId{116}, state))
+		    .to_equal(deluge::l10n::String::STRING_FOR_MOD_FX_RATE);
+		expect(deluge::l10n::param_name(plugin::PluginId{"other.engine"}, ParamId{90}, state)).to_equal(none);
 	});
 });
 
@@ -389,7 +388,7 @@ describe setting_names_reference_rows("setting_names_spec: the reference rows", 
 	it("parses descriptors.tsv clean and asks every row of its title, name and options columns", _ {
 		spec::OracleTable& t = spec::OracleTable::named("descriptors");
 		expect(t.problems().size()).to_equal(size_t{0});
-		expect(t.size() > size_t{3000}).to_be_true();
+		expect(t.size()).to_be_greater_than(size_t{3000});
 		expect(t.unasked({"title", "name", "options/"})).to_equal(std::string{});
 	});
 });

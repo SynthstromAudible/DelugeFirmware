@@ -64,9 +64,12 @@
 #include "support/tables_2_fixtures.h"
 
 #include "support/mocks/fake_surfaces.h"
+#include "support/printers/controller_mapping_printer.h"
+#include "support/printers/param_id_printer.h"
 #include "unit/gfx/support/golden.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
 #include <algorithm>
 #include <array>
@@ -88,6 +91,11 @@ using deluge::scenes::menu::Node;
 namespace t2 = deluge::scenes::spec::tables2;
 
 namespace {
+
+/// @brief A function pointer as an address, so a failed comparison prints where it points rather than `1`.
+const void* address_of(auto* fn) {
+	return reinterpret_cast<const void*>(fn);
+}
 
 namespace nodes = deluge::scenes::menu::nodes;
 namespace bindings = deluge::scenes::menu::bindings;
@@ -273,7 +281,7 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 				submenus++;
 			}
 		}
-		expect(submenus > size_t(20)).to_be_true();
+		expect(submenus).to_be_greater_than(size_t(20));
 	});
 
 	it("gives every node main's own name", _ {
@@ -296,7 +304,7 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 			// `sidechain_volume`) report a patch cable descriptor, not a param index. A leaf with a hook or a non-param
 			// target owns its value, and its learn-only `ParamRef` is the learn rows' to check.
 			if (!spec::param_comparable(*e.node)) {
-				expect(table().find(e.path, "param_index") == nullptr).to_be_true();
+				expect(table().find(e.path, "param_index")).to_be_null();
 				continue;
 			}
 			const std::optional<int32_t> index = spec::int_of(table().find(e.path, "param_index"));
@@ -314,17 +322,18 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 				const bool unpatched = want == deluge::modulation::params::Kind::UNPATCHED_SOUND
 				                       || want == deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
 				if (unpatched) {
-					expect(e.node->bind.param.kind == deluge::modulation::params::Kind::UNPATCHED_SOUND
-					       || e.node->bind.param.kind == deluge::modulation::params::Kind::UNPATCHED_GLOBAL)
-					    .to_be_true();
+					expect(e.node->bind.param.kind).to_satisfy([](auto kind) {
+						using deluge::modulation::params::Kind;
+						return kind == Kind::UNPATCHED_SOUND || kind == Kind::UNPATCHED_GLOBAL;
+					});
 				}
 				else {
-					expect(e.node->bind.param.kind == want).to_be_true();
+					expect(e.node->bind.param.kind).to_equal(want);
 				}
 			}
 			compared++;
 		}
-		expect(compared > size_t(50)).to_be_true();
+		expect(compared).to_be_greater_than(size_t(50));
 	});
 
 	it("says a node uses AFFECT ENTIRE exactly where main's item does", _ {
@@ -364,7 +373,7 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 			    .to_equal(e.path + " edits " + table().value(e.path, "edits"));
 			edits += port ? 1 : 0;
 		}
-		expect(edits > size_t(50)).to_be_true();
+		expect(edits).to_be_greater_than(size_t(50));
 	});
 
 	it("binds MIDI/CC learn to exactly the param main would have learned", _ {
@@ -387,7 +396,9 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 				const std::string at = e.path + " " + text_of(e.node->name) + " learns ";
 				expect(at + (got ? std::to_string(got->param.value) : std::string{"none"}))
 				    .to_equal(at + (want->empty() ? std::string{"<no value>"} : want->front()));
-				expect(!got || got->owner == menu::bindings::controls_owner(fx.ctx)).to_be_true();
+				if (got) {
+					expect(got->owner).to_equal(menu::bindings::controls_owner(fx.ctx));
+				}
 			}
 		}
 		// Every `ParamRef` leaf in the root tree plus the four transposes.
@@ -428,7 +439,7 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 				compared++;
 			}
 		}
-		expect(compared > size_t(150)).to_be_true();
+		expect(compared).to_be_greater_than(size_t(150));
 	});
 
 	it("names every enum option exactly as main's list does", _ {
@@ -467,7 +478,7 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 				compared++;
 			}
 		}
-		expect(compared > size_t(30)).to_be_true();
+		expect(compared).to_be_greater_than(size_t(30));
 		install(fixture().ctx, fixture().song.song);
 	});
 
@@ -489,7 +500,7 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 				ever_true += got ? 1 : 0;
 			}
 		}
-		expect(ever_true > size_t(150)).to_be_true();
+		expect(ever_true).to_be_greater_than(size_t(150));
 		install(fixture().ctx, fixture().song.song);
 	});
 
@@ -499,9 +510,12 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 		// so legacy always draws it on the Bend Range page, including on a synth where
 		// `editingKit()` is false. The node must agree, or the page loses one of its two items.
 		Rigged& synth = fixture();
-		expect(nodes::bend_range_per_finger.relevant == nullptr).to_be_true();
+		expect(nodes::bend_range_per_finger.relevant).to_be_null();
 		expect(menu::bindings::relevant(nodes::bend_range_per_finger, synth.ctx)).to_be_true(); // a melodic track's row
-		expect(nodes::bend.relevant != nullptr && nodes::bend.relevant(synth.ctx)).to_be_true();
+		expect(nodes::bend.relevant).not_().to_be_null();
+		if (nodes::bend.relevant != nullptr) {
+			expect(nodes::bend.relevant(synth.ctx)).to_be_true();
+		}
 		// ... while `drumBendRangeMenu`, the same class as a *root child* at depth 0, is kit-only.
 		// Its row applies on a kit row's sound drum alone (`kOnSoundDrum`).
 		expect(menu::bindings::relevant(nodes::drum_bend_range, synth.ctx)).to_be_false();
@@ -531,7 +545,7 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 			expect(e.path + " " + title).to_equal(e.path + " " + table().value(e.path, "title"));
 			compared++;
 		}
-		expect(compared > size_t(120)).to_be_true();
+		expect(compared).to_be_greater_than(size_t(120));
 	});
 
 	it("has a registered name for every predicate the tables use", _ {
@@ -539,15 +553,15 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 			if (e.node->relevant == nullptr) {
 				continue;
 			}
-			expect(menu::relevance::name_of(e.node->relevant) != std::string_view{"?"}).to_be_true();
+			expect(menu::relevance::name_of(e.node->relevant)).not_().to_equal(std::string_view{"?"});
 		}
 		const auto registry = menu::relevance::registry();
 		for (size_t i = 0; i < registry.size(); i++) {
-			expect(registry[i].fn != nullptr).to_be_true();
+			expect(registry[i].fn).not_().to_be_null();
 			expect(registry[i].name.empty()).to_be_false();
 			for (size_t j = i + 1; j < registry.size(); j++) {
-				expect(registry[i].fn == registry[j].fn).to_be_false();
-				expect(registry[i].name == registry[j].name).to_be_false();
+				expect(address_of(registry[i].fn)).not_().to_equal(address_of(registry[j].fn));
+				expect(registry[i].name).not_().to_equal(registry[j].name);
 			}
 		}
 	});
@@ -586,7 +600,7 @@ describe tables_2_validation("scenes::menu batch-2 tables: validation", $ {
 		    nodes::kSoundRootRoots, contexts, {}, {},
 		    menu::ValidateOptions{.skip_shortcut_sweep = true});
 		for (const spec::TreeEntry& e : entries()) {
-			expect(menu::node_id(*e.node) != uint16_t(0)).to_be_true();
+			expect(menu::node_id(*e.node)).not_().to_equal(uint16_t(0));
 		}
 	});
 });
@@ -630,7 +644,9 @@ describe tables_2_chaining("scenes::menu batch-2 tables: selectButtonPress chain
 			// names is unnumbered, unaddressable by `SceneId::arg` and absent from the dump, silently. `validate_tree`
 			// can only check both-set-or-neither (the hook is opaque to a static walk), so the containment half is
 			// checked on exercised answers.
-			expect(got == nullptr || chain_targets_contain(*c.node, got)).to_be_true();
+			if (got != nullptr) {
+				expect(chain_targets_contain(*c.node, got)).to_be_true();
+			}
 			compared++;
 		}
 		expect(compared).to_equal(std::size(cases));
@@ -646,15 +662,13 @@ describe tables_2_chaining("scenes::menu batch-2 tables: selectButtonPress chain
 		const Node* got = nodes::arp_preset.select_chain(ctx, menu_scene().state());
 		expect(chain_name(got)).to_equal(
 		    table().value(chain_path(nodes::arp_preset), "chain@kit row/" + std::to_string(int32_t(ArpPreset::CUSTOM))));
-		expect(got == &nodes::arp_octave_mode_to_note_mode_drums).to_be_true();
+		expect(got).to_equal(&nodes::arp_octave_mode_to_note_mode_drums);
 
 		// And the drum twin chains on to the drum note mode, not the plain one.
-		expect(nodes::arp_octave_mode_to_note_mode_drums.select_chain(ctx, menu_scene().state())
-		       == &nodes::arp_note_mode_from_octave_mode_drums)
-		    .to_be_true();
-		expect(nodes::arp_octave_mode_to_note_mode.select_chain(ctx, menu_scene().state())
-		       == &nodes::arp_note_mode_from_octave_mode)
-		    .to_be_true();
+		expect(nodes::arp_octave_mode_to_note_mode_drums.select_chain(ctx, menu_scene().state()))
+		    .to_equal(&nodes::arp_note_mode_from_octave_mode_drums);
+		expect(nodes::arp_octave_mode_to_note_mode.select_chain(ctx, menu_scene().state()))
+		    .to_equal(&nodes::arp_note_mode_from_octave_mode);
 		install(fixture().ctx, fixture().song.song);
 	});
 
@@ -678,12 +692,13 @@ describe tables_2_chaining("scenes::menu batch-2 tables: selectButtonPress chain
 			expect(t.chained->name).to_equal(t.plain->name);
 			expect(t.chained->title).to_equal(t.plain->title);
 			expect(static_cast<int>(t.chained->kind)).to_equal(static_cast<int>(t.plain->kind));
-			expect(t.chained->relevant == t.plain->relevant).to_be_true();
-			expect(t.chained->bind.get == t.plain->bind.get).to_be_true();
-			expect(t.chained->bind.set == t.plain->bind.set).to_be_true();
-			expect(t.chained->bind.names.data() == t.plain->bind.names.data()).to_be_true();
+			expect(address_of(t.chained->relevant)).to_equal(address_of(t.plain->relevant));
+			expect(address_of(t.chained->bind.get)).to_equal(address_of(t.plain->bind.get));
+			expect(address_of(t.chained->bind.set)).to_equal(address_of(t.plain->bind.set));
+			expect(static_cast<const void*>(t.chained->bind.names.data()))
+			    .to_equal(static_cast<const void*>(t.plain->bind.names.data()));
 			// ... and is a page in its own right, not one of the plain ones under another name.
-			expect(t.chained != t.plain).to_be_true();
+			expect(t.chained).not_().to_equal(t.plain);
 		}
 	});
 
@@ -699,8 +714,8 @@ describe tables_2_chaining("scenes::menu batch-2 tables: selectButtonPress chain
 		};
 		for (const Node* n : chained) {
 			const uint16_t id = menu::node_id(*n);
-			expect(id != uint16_t(0)).to_be_true();
-			expect(menu::node_by_id(id) == n).to_be_true();
+			expect(id).not_().to_equal(uint16_t(0));
+			expect(menu::node_by_id(id)).to_equal(n);
 		}
 		// The four arp pages are reachable ONLY through a chain -- no span in the tree names them.
 		const Node* chain_only[] = {&nodes::arp_octave_mode_to_note_mode,
@@ -750,8 +765,8 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		};
 		for (const Case& c : cases) {
 			expect(text_of(c.node->name)).to_equal(table().value(c.row, "name"));
-			expect(c.node->kind == menu::Kind::Custom).to_be_true();
-			expect(c.node->custom == c.expected).to_be_true();
+			expect(c.node->kind).to_equal(menu::Kind::Custom);
+			expect(c.node->custom).to_equal(c.expected);
 			expect(c.node->custom->is_placeholder()).to_be_false();
 		}
 		// The two `Fixed` items differ ONLY in their baked-in param and source, so a swapped pair would be invisible to
@@ -795,7 +810,10 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		for (const Case& c : cases) {
 			const Node* got = c.node->select_chain != nullptr ? c.node->select_chain(f.ctx, st) : nullptr;
 			expect(chain_name(got)).to_equal(table().value(c.row, "chain"));
-			expect(got != nullptr && chain_targets_contain(*c.node, got)).to_be_true();
+			expect(got).not_().to_be_null();
+			if (got != nullptr) {
+				expect(chain_targets_contain(*c.node, got)).to_be_true();
+			}
 			compared++;
 		}
 		expect(compared).to_equal(std::size(cases));
@@ -900,12 +918,11 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		constexpr PatchSource kSource = PatchSource::ENVELOPE_3;
 		deluge::synth::CableTarget learn = deluge::synth::CableTarget::depth_of(deluge::modulation::params::LOCAL_HPF_RESONANCE, kSource);
 		PatchCableSet* set = spec::menu_engine(f.ctx).params->getPatchCableSetAllowJibberish();
-		expect(set != nullptr).to_be_true();
+		expect(set).not_().to_be_null();
 		expect(set->getPatchCableIndex(kSource, [] {
 			deluge::synth::CableTarget d = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_HPF_RESONANCE);
 			return d;
-		}()) == kNoSelection)
-		    .to_be_true(); // no such cable yet
+		}())).to_equal(kNoSelection); // no such cable yet
 
 		// The page, in the polarity opposite to what a fresh cable would be given.
 		const Polarity fresh = PatchCable::getDefaultPolarity(kSource);
@@ -921,14 +938,14 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 
 		deluge::synth::CableTarget destination = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_HPF_RESONANCE);
 		const uint8_t created = set->getPatchCableIndex(kSource, destination);
-		expect(created != kNoSelection).to_be_true(); // the write created it
+		expect(created).not_().to_equal(kNoSelection); // the write created it
 		expect(static_cast<int>(set->patchCables[created].polarity)).to_equal(static_cast<int>(chosen));
 		// The cable's record, which a save writes, holds the same polarity.
 		const std::optional<size_t> record = set->records().find(kSource, destination);
 		expect(record.has_value()).to_be_true();
 		expect(static_cast<int>(set->records()[*record].polarity)).to_equal(static_cast<int>(chosen));
 		// ... and that really is a different answer from the one creation alone would have given.
-		expect(static_cast<int>(chosen) != static_cast<int>(fresh)).to_be_true();
+		expect(static_cast<int>(chosen)).not_().to_equal(static_cast<int>(fresh));
 
 		// `on_focus` reads it back off the cable, which is `beginSession`'s own arm (`:61-63`).
 		menu::MenuState reopened{};
@@ -948,7 +965,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 			}
 			automation += legacy ? 1 : 0;
 		}
-		expect(automation > size_t(50)).to_be_true();
+		expect(automation).to_be_greater_than(size_t(50));
 	});
 
 	it("names its own cable's address as the strength page's automation", _ {
@@ -960,8 +977,10 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		deluge::synth::CableTarget destination = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_LPF_FREQ);
 		const auto address = nodes::kPatchCableStrengthRegularItem.automation_address(f.ctx, st);
 		expect(nodes::kPatchCableStrengthRegularItem.is_automation_item()).to_be_true();
-		expect(address.has_value() && address->id == deluge::bridge::cable_depth(PatchSource::ENVELOPE_1, destination))
-		    .to_be_true();
+		expect(address.has_value()).to_be_true();
+		if (address.has_value()) {
+			expect(address->id).to_equal(deluge::bridge::cable_depth(PatchSource::ENVELOPE_1, destination));
+		}
 		expect(nodes::kPatchCablesItem.is_automation_item()).to_be_false();
 	});
 
@@ -983,7 +1002,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		PatchCableSet* set = spec::menu_engine(f.ctx).params->getPatchCableSetAllowJibberish();
 		deluge::synth::CableTarget destination = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_HPF_MORPH);
 		const uint8_t created = set->getPatchCableIndex(kSource, destination);
-		expect(created != kNoSelection).to_be_true();
+		expect(created).not_().to_equal(kNoSelection);
 		expect(static_cast<int>(set->patchCables[created].polarity)).to_equal(static_cast<int>(fresh));
 	});
 
@@ -996,7 +1015,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		PatchCableSet* set = spec::menu_engine(f.ctx).params->getPatchCableSetAllowJibberish();
 		deluge::synth::CableTarget destination = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_OSC_A_PITCH_ADJUST);
 		const uint8_t index = set->getPatchCableIndex(kSource, destination);
-		expect(index != kNoSelection).to_be_true();
+		expect(index).not_().to_equal(kNoSelection);
 		const Polarity flipped = set->patchCables[index].polarity == Polarity::BIPOLAR ? Polarity::UNIPOLAR
 		                                                                              : Polarity::BIPOLAR;
 
@@ -1008,7 +1027,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		const uint8_t after = set->getPatchCableIndex(kSource, destination);
 		expect(static_cast<int>(set->patchCables[after].polarity)).to_equal(static_cast<int>(flipped));
 		expect(static_cast<int>(set->records()[after].polarity)).to_equal(static_cast<int>(flipped));
-		expect(set->patchCables[after].param.getCurrentValue() != 0).to_be_true(); // the strength stays
+		expect(set->patchCables[after].param.getCurrentValue()).not_().to_equal(0); // the strength stays
 	});
 
 	it("refuses a strength write on a full cable set, creating nothing", _ {
@@ -1031,7 +1050,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		st.edit_int = 2000;
 		nodes::kPatchCableStrengthRegularItem.commit(ctx, st);
 		deluge::synth::CableTarget destination = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_LPF_FREQ);
-		expect(set->getPatchCableIndex(PatchSource::AFTERTOUCH, destination) == kNoSelection).to_be_true();
+		expect(set->getPatchCableIndex(PatchSource::AFTERTOUCH, destination)).to_equal(kNoSelection);
 		expect(set->numPatchCables).to_equal(static_cast<uint8_t>(kMaxNumPatchCables));
 		install(fixture().ctx, fixture().song.song);
 	});
@@ -1040,7 +1059,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
 		PatchCableSet* set = spec::menu_engine(f.ctx).params->getPatchCableSetAllowJibberish();
-		expect(set != nullptr).to_be_true();
+		expect(set).not_().to_be_null();
 
 		// Two cables: one to a bare param, one to another cable's depth. The page picks a different strength page for
 		// each.
@@ -1049,7 +1068,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		const deluge::synth::CableTarget ranged = deluge::synth::CableTarget::depth_of_depth(
 		    deluge::modulation::params::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1, PatchSource::LFO_GLOBAL_1);
 		expect(seed_cable(f.ctx, ranged, 900)).to_be_true();
-		expect(set->numPatchCables >= 2).to_be_true();
+		to_be_at_least(expect(set->numPatchCables), 2);
 
 		size_t compared = 0;
 		for (int32_t i = 0; i < set->numPatchCables; i++) {
@@ -1060,7 +1079,8 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 			st.list[0].cursor = static_cast<int16_t>(i);
 			const Node* got = nodes::patch_cables.select_chain(f.ctx, st);
 			expect(chain_name(got)).to_equal(table().value(row, "page"));
-			expect(got != nullptr && chain_targets_contain(nodes::patch_cables, got)).to_be_true();
+			expect(got).not_().to_be_null();
+			expect(chain_targets_contain(nodes::patch_cables, got)).to_be_true();
 
 			// And the state main's own press installed on the way out -- which the port installs on the way *in*, from
 			// the strength page's `on_focus`: the param, the source, and (for a depth-of-depth cable) the range source.
@@ -1070,7 +1090,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 			const auto* item = static_cast<const nodes::PatchCableStrengthItem*>(got->custom);
 			item->on_focus(f.ctx, arrived);
 			const std::vector<std::string>* sources = table().find(row, "sources");
-			expect(sources != nullptr).to_be_true();
+			expect(sources).not_().to_be_null();
 			if (sources != nullptr) {
 				expect(std::to_string(int(arrived.walk.patching_param))).to_equal(sources->at(0));
 				expect(std::to_string(int(arrived.walk.patch_source))).to_equal(sources->at(1));
@@ -1083,9 +1103,9 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 			}
 			compared++;
 		}
-		expect(compared >= size_t(2)).to_be_true();
+		to_be_at_least(expect(compared), size_t(2));
 		// The rows are exactly the stored cables: the next row is the end of the list.
-		expect(table().find("cables/row/" + std::to_string(set->numPatchCables), "page") == nullptr).to_be_true();
+		expect(table().find("cables/row/" + std::to_string(set->numPatchCables), "page")).to_be_null();
 
 		// With no cable under the cursor at all, the page falls through to `MenuItem::selectButtonPress` -- "there were
 		// no items ... take them back there" -- which is `nullptr`, i.e. ascend.
@@ -1144,7 +1164,7 @@ describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 			r.enter(20);
 			r.shell.tick(30);
 			r.shell.tick(40);
-			expect(menu_scene().focused() == &nodes::patch_cable_strength_regular).to_be_true();
+			expect(menu_scene().focused()).to_equal(&nodes::patch_cable_strength_regular);
 			expect_golden(self, "ui/menu/menu_cable_strength_48.pbm", r.fake.pbm(0));
 		}
 		{
@@ -1176,7 +1196,7 @@ describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 			r.enter(50);
 			r.shell.tick(60);
 			r.shell.tick(70);
-			expect(menu_scene().focused() == &nodes::patch_cable_strength_range).to_be_true();
+			expect(menu_scene().focused()).to_equal(&nodes::patch_cable_strength_range);
 			expect_golden(self, tall ? "ui/menu/menu_cable_strength_range_64.pbm"
 			                         : "ui/menu/menu_cable_strength_range_48.pbm",
 			              r.fake.pbm(0));
@@ -1194,7 +1214,7 @@ describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 			r.enter(20);
 			r.shell.tick(30);
 			r.shell.tick(40);
-			expect(menu_scene().focused() == &nodes::source_selection_regular).to_be_true();
+			expect(menu_scene().focused()).to_equal(&nodes::source_selection_regular);
 			expect_golden(self, "ui/menu/menu_source_selection_48.pbm", r.fake.pbm(0));
 		}
 		{
@@ -1383,7 +1403,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		// false when envelope 0's sustain is at the bottom of its range and its decay does not
 		// exceed its release, and `allowNoteTails` returns false outright when it is.
 		NoteRow* row_b = k.song.clip->getNoteRowForDrum(k.drum_b);
-		expect(row_b != nullptr).to_be_true();
+		expect(row_b).not_().to_be_null();
 		if (row_b != nullptr) {
 			PatchedParamSet* params_b = row_b->paramManager.getPatchedParamSet();
 			namespace mp = deluge::modulation::params;
@@ -1423,7 +1443,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		const MenuContext kit_ctx = select_drum(k, k.drum_a);
 		expect(k.song.clip->affectEntire).to_be_false(); // the precondition of the kit-row arm
 		NoteRow* row = k.song.clip->getNoteRowForDrum(k.drum_a);
-		expect(row != nullptr).to_be_true();
+		expect(row).not_().to_be_null();
 		const auto want_row = static_cast<int32_t>(SequenceDirection::PINGPONG);
 		const auto clip_before = static_cast<int32_t>(k.song.clip->sequenceDirectionMode);
 		menu::bindings::write(nodes::sequence_direction, kit_ctx, want_row);
@@ -1453,9 +1473,9 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			spec::menu_engine(f.ctx).sound->sources[1].setOscType(OscType::SAW);
 			const SynthMode before = spec::menu_engine(f.ctx).sound->getSynthMode();
 			menu::bindings::write(nodes::synth_mode, f.ctx, static_cast<int32_t>(SynthMode::RINGMOD));
-			expect(spec::menu_engine(f.ctx).sound->getSynthMode() == SynthMode::RINGMOD).to_be_true();
+			expect(spec::menu_engine(f.ctx).sound->getSynthMode()).to_equal(SynthMode::RINGMOD);
 			menu::bindings::write(nodes::synth_mode, f.ctx, static_cast<int32_t>(SynthMode::SUBTRACTIVE));
-			expect(spec::menu_engine(f.ctx).sound->getSynthMode() == SynthMode::SUBTRACTIVE).to_be_true();
+			expect(spec::menu_engine(f.ctx).sound->getSynthMode()).to_equal(SynthMode::SUBTRACTIVE);
 			spec::menu_engine(f.ctx).sound->setSynthMode(before, f.ctx.song);
 			spec::menu_engine(f.ctx).sound->sources[0].setOscType(osc_before[0]);
 			spec::menu_engine(f.ctx).sound->sources[1].setOscType(osc_before[1]);
@@ -1465,9 +1485,9 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		{ // --- mod_fx_type -------------------------------------------------------------------
 			const ModFXType before = deluge::scenes::spec::menu_engine(f.ctx).mod->getModFXType();
 			menu::bindings::write(nodes::mod_fx_type, f.ctx, static_cast<int32_t>(ModFXType::NONE));
-			expect(deluge::scenes::spec::menu_engine(f.ctx).mod->getModFXType() == ModFXType::NONE).to_be_true();
+			expect(deluge::scenes::spec::menu_engine(f.ctx).mod->getModFXType()).to_equal(ModFXType::NONE);
 			menu::bindings::write(nodes::mod_fx_type, f.ctx, static_cast<int32_t>(ModFXType::FLANGER));
-			expect(deluge::scenes::spec::menu_engine(f.ctx).mod->getModFXType() == ModFXType::FLANGER).to_be_true();
+			expect(deluge::scenes::spec::menu_engine(f.ctx).mod->getModFXType()).to_equal(ModFXType::FLANGER);
 			(void)deluge::scenes::spec::menu_engine(f.ctx).mod->setModFXType(before);
 			covered++;
 		}
@@ -1481,7 +1501,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 
 		{ // --- arp_mode: the silence block and the preset re-derivation ----------------------
 			ArpeggiatorSettings* arp = spec::menu_engine(f.ctx).arp;
-			expect(arp != nullptr).to_be_true();
+			expect(arp).not_().to_be_null();
 			arp->mode = ArpMode::OFF;
 			arp->preset = ArpPreset::OFF;
 			arp->octaveMode = ArpOctaveMode::DOWN;
@@ -1492,10 +1512,10 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 
 			menu::bindings::write(nodes::arp_mode, f.ctx, static_cast<int32_t>(ArpMode::ARP));
 
-			expect(arp->mode == ArpMode::ARP).to_be_true();
+			expect(arp->mode).to_equal(ArpMode::ARP);
 			// DOWN/DOWN is `ArpPreset::DOWN` (`arpeggiator.cpp:1944-1946`) -- false unless
 			// `updatePresetFromCurrentSettings()` ran.
-			expect(arp->preset == ArpPreset::DOWN).to_be_true();
+			expect(arp->preset).to_equal(ArpPreset::DOWN);
 			expect(spec::menu_engine(f.ctx).sound->invertReversed).to_be_false();
 			covered++;
 		}
@@ -1511,12 +1531,12 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 
 			menu::bindings::write(nodes::arp_preset, f.ctx, static_cast<int32_t>(ArpPreset::DOWN));
 
-			expect(arp->preset == ArpPreset::DOWN).to_be_true();
+			expect(arp->preset).to_equal(ArpPreset::DOWN);
 			// `ArpeggiatorSettings::updateSettingsFromCurrentPreset()` is the only thing
 			// that moves these three.
-			expect(arp->mode == ArpMode::ARP).to_be_true();
-			expect(arp->octaveMode == ArpOctaveMode::DOWN).to_be_true();
-			expect(arp->noteMode == ArpNoteMode::DOWN).to_be_true();
+			expect(arp->mode).to_equal(ArpMode::ARP);
+			expect(arp->octaveMode).to_equal(ArpOctaveMode::DOWN);
+			expect(arp->noteMode).to_equal(ArpNoteMode::DOWN);
 			expect(arp->flagForceArpRestart).to_be_true();
 			expect(spec::menu_engine(f.ctx).sound->invertReversed).to_be_false();
 
@@ -1545,10 +1565,10 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		}
 		menu::bindings::write(nodes::arp_preset, held, static_cast<int32_t>(ArpPreset::UP));
 		for (SoundDrum* drum : {k.drum_a, k.drum_b}) {
-			expect(drum->arpSettings.preset == ArpPreset::UP).to_be_true();
-			expect(drum->arpSettings.mode == ArpMode::ARP).to_be_true();
-			expect(drum->arpSettings.octaveMode == ArpOctaveMode::UP).to_be_true();
-			expect(drum->arpSettings.noteMode == ArpNoteMode::UP).to_be_true();
+			expect(drum->arpSettings.preset).to_equal(ArpPreset::UP);
+			expect(drum->arpSettings.mode).to_equal(ArpMode::ARP);
+			expect(drum->arpSettings.octaveMode).to_equal(ArpOctaveMode::UP);
+			expect(drum->arpSettings.noteMode).to_equal(ArpNoteMode::UP);
 			expect(drum->arpSettings.flagForceArpRestart).to_be_true();
 			drum->arpSettings.mode = ArpMode::OFF;
 			drum->arpSettings.preset = ArpPreset::OFF;
@@ -1564,7 +1584,7 @@ describe tables_2_reference_rows("tables_2: the reference rows", $ {
 	it("parses tables_2.tsv clean and asks every row of it", _ {
 		spec::OracleTable& t = spec::OracleTable::named("tables_2");
 		expect(t.problems().size()).to_equal(size_t{0});
-		expect(t.size() > size_t{2400}).to_be_true();
+		expect(t.size()).to_be_greater_than(size_t{2400});
 		expect(t.unasked()).to_equal(std::string{});
 	});
 });

@@ -201,9 +201,8 @@ describe sound_settings_listed("the menu lists a target node only where its sett
 		deluge::edits::settingFor(*spec::menu_engine(ctx).sound, "polyphonic", deluge::serialization::Value::makeScalar("mono"));
 		std::array<const Node*, menu::kMaxDynamicChildren> listed{};
 		const size_t n = bindings::listed_children(menu::nodes::voice, ctx, listed);
-		expect(std::find(listed.begin(), listed.begin() + static_cast<std::ptrdiff_t>(n), &menu::nodes::voice_count)
-		       == listed.begin() + static_cast<std::ptrdiff_t>(n))
-		    .to_be_true();
+		expect(std::find(listed.begin(), listed.begin() + static_cast<std::ptrdiff_t>(n), &menu::nodes::voice_count))
+		    .to_equal(listed.begin() + static_cast<std::ptrdiff_t>(n));
 	});
 });
 

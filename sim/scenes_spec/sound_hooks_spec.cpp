@@ -25,6 +25,7 @@
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
 #include "support/spec_main.h"
 
@@ -71,13 +72,16 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		menu::bindings::write(nodes::source0_transpose, recorded, 250);
 		expect(recording.gestures.size()).to_equal(size_t{1});
 		if (!recording.gestures.empty()) {
-			expect(recording.gestures[0].kind == bind::GestureRequest::Kind::TRANSPOSE).to_be_true();
+			expect(recording.gestures[0].kind).to_equal(bind::GestureRequest::Kind::TRANSPOSE);
 			expect(recording.gestures[0].value).to_equal(int64_t{250});
 		}
 
 		menu::bindings::write(nodes::source0_transpose, ctx, 250);
 		const deluge::instrument::SoundState* state = state_of(ctx);
-		expect(state != nullptr && state->sources[0].ranges.size() == 1).to_be_true();
+		expect(state).not_().to_be_null();
+		if (state != nullptr) {
+			expect(state->sources[0].ranges.size()).to_equal(1);
+		}
 		if (state != nullptr && !state->sources[0].ranges.empty()) {
 			// 250 cents up is legacy's 3 semitones less 50 cents (`computeFinalValuesForTranspose`).
 			expect(static_cast<int32_t>(state->sources[0].ranges[0].transpose)).to_equal(3);
@@ -101,8 +105,17 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		const deluge::project::SlotAddress synth_slot{deluge::project::SlotAddress::Kind::DRUM, *synth->id()};
 		const deluge::instrument::SoundState* a = state_at(sampled_slot);
 		const deluge::instrument::SoundState* b = state_at(synth_slot);
-		expect(a != nullptr && !a->sources[0].ranges.empty() && a->sources[0].ranges[0].transpose == 3).to_be_true();
-		expect(b != nullptr && b->sources[0].transpose == 3).to_be_true();
+		expect(a).not_().to_be_null();
+		if (a != nullptr) {
+			expect(a->sources[0].ranges.empty()).to_be_false();
+			if (!a->sources[0].ranges.empty()) {
+				expect(a->sources[0].ranges[0].transpose).to_equal(3);
+			}
+		}
+		expect(b).not_().to_be_null();
+		if (b != nullptr) {
+			expect(b->sources[0].transpose).to_equal(3);
+		}
 	});
 
 	it("writes interpolation as oscN/linearInterpolation through the sink", _ {
@@ -114,7 +127,7 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		menu::bindings::write(nodes::sample0_interpolation, ctx, 0); // LINEAR
 		expect(recording.requests.size()).to_equal(size_t{1});
 		if (!recording.requests.empty()) {
-			expect(recording.requests[0].target.path == "osc1/linearInterpolation").to_be_true();
+			expect(recording.requests[0].target.path).to_equal("osc1/linearInterpolation");
 		}
 	});
 
@@ -127,12 +140,19 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		MenuContext recorded = ctx;
 		recorded.sink = &recording;
 		menu::bindings::write(nodes::stutter_direction, recorded, 0); // "use song", offered on a sound
-		expect(recording.requests.size() >= size_t{3}).to_be_true();
+		to_be_at_least(expect(recording.requests.size()), size_t{3});
 
 		menu::bindings::write(nodes::stutter_direction, ctx, 0);
 		const deluge::instrument::SoundState* state = state_of(ctx);
-		expect(state != nullptr && state->effects.stutter.use_song_stutter).to_be_true();
-		expect(state != nullptr && state->effects.stutter.quantized && state->effects.stutter.reversed).to_be_true();
+		expect(state).not_().to_be_null();
+		if (state != nullptr) {
+			expect(state->effects.stutter.use_song_stutter).to_be_true();
+		}
+		expect(state).not_().to_be_null();
+		if (state != nullptr) {
+			expect(state->effects.stutter.quantized).to_be_true();
+			expect(state->effects.stutter.reversed).to_be_true();
+		}
 	});
 
 	it("refuses stutter quantize under affect-entire on a row that uses the song's stutter", _ {
@@ -156,7 +176,7 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		menu::bindings::write(nodes::sequence_direction, on_row, 2);
 		expect(recording.requests.size()).to_equal(size_t{1});
 		if (!recording.requests.empty()) {
-			expect(recording.requests[0].target.group == deluge::project::SettingGroupId::NOTE_ROW).to_be_true();
+			expect(recording.requests[0].target.group).to_equal(deluge::project::SettingGroupId::NOTE_ROW);
 			expect(recording.requests[0].menu_value).to_equal(2);
 		}
 
@@ -167,7 +187,7 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		menu::bindings::write(nodes::sequence_direction, on_clip, 1);
 		expect(clip_recording.requests.size()).to_equal(size_t{1});
 		if (!clip_recording.requests.empty()) {
-			expect(clip_recording.requests[0].target.group == deluge::project::SettingGroupId::CLIP).to_be_true();
+			expect(clip_recording.requests[0].target.group).to_equal(deluge::project::SettingGroupId::CLIP);
 		}
 	});
 
@@ -178,7 +198,10 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		bind::RecordingSink recording;
 		ctx.sink = &recording;
 		menu::bindings::write(nodes::source0_transpose, ctx, 100);
-		expect(recording.gestures.size() == 1 && !recording.gestures[0].range.has_value()).to_be_true();
+		expect(recording.gestures.size()).to_equal(1);
+		if (recording.gestures.size() == 1) {
+			expect(recording.gestures[0].range.has_value()).to_be_false();
+		}
 
 		spec::SongFixture sampled = spec::make_synth_song();
 		give_sample_range(*static_cast<SoundInstrument*>(sampled.instrument));
@@ -186,9 +209,10 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		bind::RecordingSink range_recording;
 		on_range.sink = &range_recording;
 		menu::bindings::write(nodes::source0_transpose, on_range, 100);
-		expect(range_recording.gestures.size() == 1
-		       && range_recording.gestures[0].range == std::optional<uint16_t>{0})
-		    .to_be_true();
+		expect(range_recording.gestures.size()).to_equal(1);
+		if (range_recording.gestures.size() == 1) {
+			expect(range_recording.gestures[0].range).to_equal(std::optional<uint16_t>{0});
+		}
 	});
 
 	it("sets a whole kit's interpolation on each sound drum that takes it", _ {
@@ -209,11 +233,15 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		menu::bindings::write(nodes::sample0_interpolation, ctx, 0);                  // LINEAR
 		const deluge::instrument::SoundState* a = state_at(sampled_slot);
 		const deluge::instrument::SoundState* b = state_at(synth_slot);
-		expect(a != nullptr && a->sources[0].interpolation_mode == deluge::plugin::InterpolationMode::LINEAR)
-		    .to_be_true();
+		expect(a).not_().to_be_null();
+		if (a != nullptr) {
+			expect(a->sources[0].interpolation_mode).to_equal(deluge::plugin::InterpolationMode::LINEAR);
+		}
 		// A synth source takes no interpolation: legacy's per-drum setting write refuses it too.
-		expect(b != nullptr && b->sources[0].interpolation_mode == deluge::plugin::InterpolationMode::SMOOTH)
-		    .to_be_true();
+		expect(b).not_().to_be_null();
+		if (b != nullptr) {
+			expect(b->sources[0].interpolation_mode).to_equal(deluge::plugin::InterpolationMode::SMOOTH);
+		}
 	});
 
 	it("sets a whole kit's stutter direction on each sound drum", _ {
@@ -233,8 +261,16 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		menu::bindings::write(nodes::stutter_direction, ctx, 2); // reversed
 		const deluge::instrument::SoundState* a = state_at(sampled_slot);
 		const deluge::instrument::SoundState* b = state_at(synth_slot);
-		expect(a != nullptr && a->effects.stutter.reversed && !a->effects.stutter.use_song_stutter).to_be_true();
-		expect(b != nullptr && b->effects.stutter.reversed && !b->effects.stutter.use_song_stutter).to_be_true();
+		expect(a).not_().to_be_null();
+		if (a != nullptr) {
+			expect(a->effects.stutter.reversed).to_be_true();
+			expect(a->effects.stutter.use_song_stutter).to_be_false();
+		}
+		expect(b).not_().to_be_null();
+		if (b != nullptr) {
+			expect(b->effects.stutter.reversed).to_be_true();
+			expect(b->effects.stutter.use_song_stutter).to_be_false();
+		}
 	});
 
 	it("offers 'use song' on a sound's stutter and not on the song's own", _ {

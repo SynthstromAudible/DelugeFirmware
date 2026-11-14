@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge-project/mapping_table.h"
+#include "support/printers/controller_mapping_printer.h"
 #include "support/printers/param_id_printer.h"
 
 #include <format>
@@ -59,14 +60,6 @@ inline std::ostream& operator<<(std::ostream& os, const MidiCommand& c) {
 		os << "any";
 	}
 	return os << "}";
-}
-
-/// @brief Prints a controls owner as its kind's number and its id, e.g. `{kind 0, id 3}`.
-/// @param os The stream to print to.
-/// @param a The owner.
-/// @return @p os.
-inline std::ostream& operator<<(std::ostream& os, const ControlsAddress& a) {
-	return os << std::format("{{kind {}, id {}}}", std::to_underlying(a.kind), a.id);
 }
 
 /// @brief Prints a param target as its owner and its param, e.g. `{owner {kind 0, id 3}, param ParamId 12}`.

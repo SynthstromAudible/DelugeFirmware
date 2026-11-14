@@ -63,7 +63,7 @@ describe stale_menu_setting("a card that still says legacyMenu=1", $ {
 	it("writes no legacyMenu of its own: a fresh init knows no such setting", _ {
 		SettingsGuard guard;
 		runtimeFeatureSettings.init();
-		expect(written().find("legacyMenu") == std::string::npos).to_be_true();
+		expect(written()).not_().to_contain("legacyMenu");
 	});
 
 	it("writes the stored entry back once, after every setting it knows, which keep their values", _ {
@@ -73,11 +73,11 @@ describe stale_menu_setting("a card that still says legacyMenu=1", $ {
 		parse(R"(<setting name="legacyMenu" value="1" />)" "\n");
 		const std::string after = written();
 		const size_t at = after.find(kStaleLine);
-		expect(at != std::string::npos).to_be_true();
-		expect(after.find(kStaleLine, at + 1) == std::string::npos).to_be_true();
+		expect(after).to_contain(kStaleLine);
+		expect(after.substr(at + 1)).not_().to_contain(kStaleLine);
 		// Everything before the unknown entry is what a fresh init writes, up to its closing tag.
 		const size_t close = before.rfind("</runtimeFeatureSettings>");
-		expect(after.substr(0, close) == before.substr(0, close)).to_be_true();
+		expect(after.substr(0, close)).to_equal(before.substr(0, close));
 	});
 
 	it("opens the menu from the clip view's SELECT all the same", _ {
@@ -89,7 +89,7 @@ describe stale_menu_setting("a card that still says legacyMenu=1", $ {
 		setRootUILowLevel(&instrumentClipView);
 		(void)instrumentClipView.buttonAction(deluge::hid::button::SELECT_ENC, true);
 		(void)instrumentClipView.buttonAction(deluge::hid::button::SELECT_ENC, false);
-		expect(getCurrentUI() == &shellHostUI).to_be_true();
+		expect(getCurrentUI()).to_equal(&shellHostUI);
 		nullifyUIs();
 	});
 });

@@ -23,7 +23,7 @@
 describe selftest_pass(
     "scenes_spec runner self-test: pass", $ {
 	    it("passes", _ { expect(1).to_equal(1); });
-	    it("runs before boot installs a root UI", _ { expect(getRootUI() == nullptr).to_be_true(); });
+	    it("runs before boot installs a root UI", _ { expect(getRootUI()).to_be_null(); });
     });
 
 DELUGE_SPEC(selftest_pass_spec, selftest_pass)

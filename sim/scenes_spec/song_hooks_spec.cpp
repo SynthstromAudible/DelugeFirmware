@@ -65,8 +65,10 @@ describe song_hooks("the song's hook-built items, by address", ${
 		expect(one_song_request(recording, "reverb/compressor/volume", 10 * 21474836)).to_be_true();
 		recording.requests.clear();
 		menu::bindings::write(nodes::reverb_sidechain_sync, ctx, 2);
-		expect(recording.requests.size() == 1 && recording.requests[0].target.path == "reverb/compressor/syncLevel")
-		    .to_be_true();
+		expect(recording.requests.size()).to_equal(1);
+		if (recording.requests.size() == 1) {
+			expect(recording.requests[0].target.path).to_equal("reverb/compressor/syncLevel");
+		}
 	});
 
 	it("hands a song scale's toggle to the sink as a SONG request, and the record holds it", _ {
