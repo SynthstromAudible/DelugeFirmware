@@ -21,6 +21,11 @@ Modes:
              moved within a file or between files passes, a new one fails (exit 1). During a merge a site is new
              only beyond the copies either parent (HEAD or MERGE_HEAD) holds.
   --summary  site counts per directory, then per kind.
+
+Gate spec-comparisons:
+    --strict over every tracked spec file under ROOTS: no site anywhere, so a failed comparison in any spec names
+    the values it compared rather than "expected true"; the pre-commit hook refuses only the sites a commit adds,
+    and this gate catches any that reach the tree another way
 """
 
 from __future__ import annotations

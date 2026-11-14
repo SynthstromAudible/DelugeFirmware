@@ -1772,6 +1772,19 @@ job = "tooling"
 runtime_s = 2
 
 [[harness]]
+name = "spec-comparisons"
+path = "."
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "no C++ spec judges a comparison with to_be_true(), to_be_false(), to_be_truthy() or to_be_falsy(), so every failed comparison prints its values"
+run = ["python3", "scripts/check_spec_comparisons.py", "--strict"]
+tier = "pr"
+job = "tooling"
+runtime_s = 2
+
+[[harness]]
 name = "library-boundary-selftest"
 template = "unittest"
 path = "scripts"

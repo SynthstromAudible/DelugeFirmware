@@ -186,6 +186,7 @@ builds only `golden-vt-render`.
 | spec-comparisons-selftest | unit | script | unit | gate | the spec-comparison check finds a comparison judged by a truth matcher and nothing else, and refuses only the sites a commit adds | pr | tooling | ~1s |
 | fixed-point-raw-selftest | unit | script | unit | gate | the fixed-point raw-arithmetic ratchet counts raw helper calls, DSP inline asm, seam views and typed-boundary crossings apart, outside comments | pr | tooling | ~1s |
 | fixed-point-raw | unit | script | unit | gate | raw fixed-point arithmetic, raw seam views and typed-boundary crossings outside the core fixed-point headers only shrink | pr | tooling | ~2s |
+| spec-comparisons | unit | script | unit | gate | no C++ spec judges a comparison with to_be_true(), to_be_false(), to_be_truthy() or to_be_falsy(), so every failed comparison prints its values | pr | tooling | ~2s |
 | library-boundary-selftest | unit | script | unit | gate | each standalone library's boundary check rejects every way an undeclared header could slip in | pr | tooling | ~1s |
 | registry-selftest | unit | script | unit | gate | this registry's loader, validation, selection and probes (golden data only under tests/golden), the SDRAM packer's format, and three source checkers | pr | tooling | ~1s |
 | render-preset-selftest | unit | script | unit | gate | the golden preset render's staging removes a JSON preset's own MIDI learn and leaves the preset valid JSON, wherever the member stands | pr | tooling | ~1s |
@@ -357,6 +358,38 @@ specs share lives in that directory's own `support/`. A spec includes a header f
 under `tests/` (`"support/spec_main.h"`, `"unit/gfx/support/golden.h"`, `"harness/ui_script.h"`),
 never by `../`. A spec's own directory comes first on its include path, so a file in a per-directory `support/` named
 like one in `tests/support/` would shadow it; `scripts/check_test_support_names.py` refuses such a name.
+
+A spec judges a value with the matcher that prints it when it fails: `expect(a).to_equal(b)`, never
+`expect(a == b).to_be_true()`, which fails with "expected true" and nothing about `a` or `b`.
+
+| Condition | Matcher |
+| --- | --- |
+| `a == b`, `a != b` | `expect(a).to_equal(b)`, `expect(a).not_().to_equal(b)` |
+| `p == nullptr`, `p != nullptr` | `expect(p).to_be_null()`, `expect(p).not_().to_be_null()` |
+| `a < b`, `a > b` | `expect(a).to_be_less_than(b)`, `expect(a).to_be_greater_than(b)` |
+| `a <= b`, `a >= b` | `to_be_at_most(expect(a), b)`, `to_be_at_least(expect(a), b)` |
+| `lo <= a && a <= hi` | `expect(a).to_be_between(lo, hi)` |
+| `abs(a - b) <= t` | `expect(a).to_be_within(t).of(b)` |
+| `s.find(x) != npos`, `== npos` | `expect(s).to_contain(x)`, `expect(s).not_().to_contain(x)` |
+| `memcmp(a, b, n) == 0` | `to_equal_bytes(expect(std::span<const uint8_t>(a, n)), std::span<const uint8_t>(b, n))` |
+| `c1 && c2` | one expectation each, one that reads through a pointer an earlier one checks inside `if` |
+| one of several values | `expect(a).to_satisfy([&](auto v) { return v == x \|\| v == y; })` |
+
+`to_be_at_most`, `to_be_at_least` and `to_equal_bytes` are free functions, which argument-dependent lookup finds from
+`expect(...)`, in `#include "support/matchers/value_matchers.h"`; the others, `to_contain` among them, are CppSpec's
+members. A matcher's last argument is a message naming the subject,
+which a failure prints on the line above the matcher's own: `expect(x).to_equal(want, "the row count")`.
+Two function pointers compare as addresses through `address_of` (`tests/support/matchers/address_of.h`):
+`expect(address_of(node.get)).to_equal(address_of(&get_level))`, since `std::ostream` prints one as `1`.
+
+A type CppSpec cannot print shows as its address. A type a spec compares gets an inline `operator<<` in its own
+namespace: beside the type when the type is the spec's own, or in a `tests/support/printers/<type>_printer.h` when
+specs share it (`optional_printer.h` prints an optional field as its value or `none`). Every spec that compares a
+type with a shared printer includes that header: one that does not instantiates CppSpec's printing of the type
+without the `operator<<`, the binary then holds two definitions of one template, and the link keeps either.
+
+The `spec-comparisons` pre-commit hook refuses a commit that adds a comparison judged by `to_be_true()`,
+`to_be_false()`, `to_be_truthy()` or `to_be_falsy()`; `./dbt test spec-comparisons` checks the whole tree.
 
 ### A scenario gate
 

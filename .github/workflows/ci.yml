@@ -102,6 +102,11 @@ jobs:
             tests/unit/shell tests/unit/ui tests/unit/deluge/gui tests/unit/scenes tests/unit/harness tests/ui-scripts tests/harness \
             src/deluge/gui/ui/shell_ src/deluge/gui/ui/menu_view_of src/deluge/util/shell_menu_entry
 
+      - name: No spec judges a comparison with to_be_true(), to_be_false(), to_be_truthy() or to_be_falsy()
+        run: |
+          python3 scripts/check_spec_comparisons.py --strict
+          (cd scripts && python3 -m unittest test_check_spec_comparisons)
+
   lint-rust:
     name: lint (Rust)
     needs: changes
