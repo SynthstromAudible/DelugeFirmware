@@ -9,8 +9,12 @@ Gate device-parity:
 """
 
 import contextlib
+import io
 import json
+import socket
+import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -140,7 +144,7 @@ class SessionSeam(unittest.TestCase):
             {json.dumps(p["pads"][0][0]) for p in snaps["s"]}, {"[1, 1, 1]"}
         )
 
-    def test_a_rig_run_carries_no_din_midi(self):
+    def test_a_run_without_din_out_carries_no_din_midi(self):
         fake = FakeSession()
         with tempfile.TemporaryDirectory() as tmp:
             snaps = emu_parity.run_image(
@@ -151,8 +155,91 @@ class SessionSeam(unittest.TestCase):
                 Path(tmp),
                 emu_parity.button_table(),
                 session=lambda _out: contextlib.nullcontext(fake),
+                din_out=False,
             )
         self.assertFalse(any("midi" in p for panels in snaps.values() for p in panels))
+
+    def test_din_midi_is_what_the_image_sent_since_the_previous_window(self):
+        fake = FakeSession()
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            mock.patch.object(
+                emu_parity.DinListener,
+                "take",
+                side_effect=[b"\xf8", b"\xb0\x07\x64", b""],
+            ),
+        ):
+            path = Path(tmp) / "din.txt"
+            path.write_text("100 snapshot first\n300 snapshot second\n500 quit\n")
+            snaps = emu_parity.run_image(
+                None,
+                None,
+                None,
+                path,
+                Path(tmp) / "out",
+                emu_parity.button_table(),
+                session=lambda _out: contextlib.nullcontext(fake),
+            )
+        # Boot's f8 belongs to no window.
+        self.assertEqual({p["midi"] for p in snaps["first"]}, {"b0 07 64"})
+        self.assertEqual({p["midi"] for p in snaps["second"]}, {""})
+
+    def _run_script(self, text):
+        fake = FakeSession()
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "bad.txt"
+            path.write_text(text)
+            return emu_parity.run_image(
+                None,
+                None,
+                None,
+                path,
+                Path(tmp) / "out",
+                emu_parity.button_table(),
+                session=lambda _out: contextlib.nullcontext(fake),
+            )
+
+    def test_an_unknown_command_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "unknown command 'random_color'"):
+            self._run_script("100 random_color 0 0\n200 snapshot s\n")
+
+    def test_a_repeated_snapshot_name_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "snapshot 's' twice"):
+            self._run_script("100 snapshot s\n200 snapshot s\n")
+
+    def test_every_parity_script_parses(self):
+        scripts = [
+            path
+            for d in ("parity", "parity-card", "parity-songs", "device")
+            for path in sorted(
+                (emu_parity.REPO / "tests/ui-scripts" / d).rglob("*.txt")
+            )
+        ]
+        self.assertTrue(scripts)
+        for path in scripts:
+            with self.subTest(path.name):
+                emu_parity.check_steps(path, emu_parity.parse_script(path))
+
+
+class DinOutput(unittest.TestCase):
+    """delugemu sends each DIN byte as a datagram of its own, more than a socket's receive queue holds."""
+
+    def test_a_long_gap_of_dense_output_loses_nothing(self):
+        with (
+            socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as rx,
+            socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as tx,
+        ):
+            rx.bind(("127.0.0.1", 0))
+            rx.setblocking(False)
+            # Far more datagrams than the receive queue holds, in bursts it does.
+            sent = bytes(i % 128 for i in range(5000))
+            with emu_parity.DinListener(rx) as din:
+                for i, b in enumerate(sent):
+                    tx.sendto(bytes([b]), rx.getsockname())
+                    if i % 50 == 49:
+                        time.sleep(0.002)
+                self.assertEqual(din.take(), sent)
+                self.assertEqual(din.take(), b"")
 
 
 class MidiSteps(unittest.TestCase):
@@ -371,6 +458,12 @@ class SectionLine(unittest.TestCase):
             with self.subTest(what):
                 self.assertEqual(emu_parity.classify(ref, test, None), "DIFF")
 
+    def test_a_section_line_with_a_frame_caught_at_another_moment_is_d77(self):
+        # Without the line, ours ends the window as main does: PHASE. With it, D77.
+        ref = screens(screen({2: "#" + "." * 127}), screen(NAME))
+        test = screens(screen({**NAME, **text_rows("SECTION 1")}))
+        self.assertEqual(emu_parity.classify(ref, test, None), "D77")
+
     def test_a_difference_beyond_the_oled_is_not_d77(self):
         ref = screens(screen(NAME))
         test = screens(screen({**NAME, **text_rows("SECTION 1")}), pads=9)
@@ -424,11 +517,119 @@ class Legs(unittest.TestCase):
         # A Unix socket's path is at most 107 bytes.
         self.assertLess(len(emu_parity.qmp_socket(Path("/" + "x" * 300))), 108)
 
+    def test_two_cards_with_one_label_are_refused(self):
+        with (
+            tempfile.TemporaryDirectory() as d,
+            self.assertRaisesRegex(ValueError, "card: one label for"),
+        ):
+            a = self._script(d, "p01-a.txt", "tests/fixtures/card")
+            b = self._script(d, "p02-b.txt", f"{d}/card")
+            emu_parity.legs([a, b], None, None)
+
     def test_an_image_is_its_own_sd(self):
         self.assertEqual(
             emu_parity.sd_image(Path("/x/a.img"), Path("/unused"), Path("/unused")),
             (Path("/x/a.img"), False),
         )
+
+
+class Main(unittest.TestCase):
+    """main(): usage errors exit 4, and the SD images it builds go, whatever the run does."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.d = Path(tmp.name)
+        for name in ("ref.elf", "test.elf"):
+            (self.d / name).write_bytes(b"")
+        self.script = self.d / "p01-a.txt"
+        self.script.write_text("100 snapshot boot\n")
+        self.out = self.d / "out"
+
+    def main(self, *extra, ref="ref.elf", test="test.elf", script=None):
+        argv = [
+            "emu_parity.py",
+            "--ref",
+            str(self.d / ref),
+            "--test",
+            str(self.d / test),
+            "--delugemu",
+            str(self.d),
+            "--out",
+            str(self.out),
+            *extra,
+            str(script or self.script),
+        ]
+        err = io.StringIO()
+        with (
+            mock.patch("sys.argv", argv),
+            contextlib.redirect_stderr(err),
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            return emu_parity.main(), err.getvalue()
+
+    def made(self, label):
+        """An sd_image that builds the image and its card tree, as mksd.sh and card-manifest do."""
+
+        def build(card, at, delugemu):
+            at.parent.mkdir(parents=True, exist_ok=True)
+            at.write_bytes(b"img")
+            at.with_suffix(".tree").mkdir()
+            (at.with_suffix(".tree") / "SONGS").write_text("")
+            return at, True
+
+        return build
+
+    def legs(self, *labels):
+        return mock.patch.object(
+            emu_parity,
+            "legs",
+            return_value=[(label, self.d / label, [self.script]) for label in labels],
+        )
+
+    def test_a_missing_image_under_test_is_a_usage_error(self):
+        code, err = self.main(test="absent.elf")
+        self.assertEqual(code, 4)
+        self.assertIn("no image under test", err)
+
+    def test_a_missing_script_is_a_usage_error(self):
+        code, err = self.main(script=self.d / "p99-absent.txt")
+        self.assertEqual(code, 4)
+        self.assertIn("no such script", err)
+
+    def test_a_card_that_does_not_image_is_a_usage_error_and_leaves_no_image(self):
+        failing = self.made("a")
+
+        def sd_image(card, at, delugemu):
+            if card.name == "b":
+                raise subprocess.CalledProcessError(1, ["mksd.sh"])
+            return failing(card, at, delugemu)
+
+        with self.legs("a", "b"), mock.patch.object(emu_parity, "sd_image", sd_image):
+            code, err = self.main()
+        self.assertEqual(code, 4)
+        self.assertIn("b", err)
+        self.assertEqual(list((self.out / "cards").iterdir()), [])
+
+    def test_the_built_images_go_when_a_run_is_interrupted(self):
+        with (
+            self.legs("a"),
+            mock.patch.object(emu_parity, "sd_image", self.made("a")),
+            mock.patch.object(emu_parity, "run_image", side_effect=KeyboardInterrupt),
+            self.assertRaises(KeyboardInterrupt),
+        ):
+            self.main()
+        self.assertEqual(list((self.out / "cards").iterdir()), [])
+
+    def test_the_built_images_and_trees_go_after_a_run(self):
+        with (
+            self.legs("a"),
+            mock.patch.object(emu_parity, "sd_image", self.made("a")),
+            mock.patch.object(emu_parity, "run_image", return_value={}),
+        ):
+            code, _ = self.main()
+        self.assertEqual(code, 0)
+        self.assertEqual(list((self.out / "cards").iterdir()), [])
 
 
 if __name__ == "__main__":

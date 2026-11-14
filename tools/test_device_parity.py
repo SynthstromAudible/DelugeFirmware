@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Tests for device_parity.py's settings-flash image: `python3 -m unittest test_device_parity`."""
 
+import argparse
+import contextlib
+import io
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -115,6 +119,77 @@ class HeaderCard(unittest.TestCase):
                     self.assertRaisesRegex(ValueError, "--card or --sd"),
                 ):
                     device_parity.header_card([a, other])
+
+
+class Run(unittest.TestCase):
+    """run(): the device side, and the SD image it builds for delugemu."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.d = Path(tmp.name)
+        script = self.d / "d01-a.txt"
+        script.write_text("100 snapshot boot\n")
+        flash = self.d / "flash.bin"
+        flash.write_bytes(b"")
+        self.args = argparse.Namespace(
+            record_only=False,
+            emu_ref=self.d / "ref.elf",
+            device=self.d / "device.elf",
+            card=self.d / "card",
+            sd=None,
+            flash=flash,
+            delugemu=self.d,
+            out=self.d / "out",
+            jobs=1,
+            host="probe",
+            midi_port=None,
+            scripts=[script],
+        )
+
+    def run_quietly(self):
+        with (
+            contextlib.redirect_stderr(io.StringIO()) as err,
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            return device_parity.run(self.args), err.getvalue()
+
+    @staticmethod
+    def sd_image(card, at, delugemu):
+        at.parent.mkdir(parents=True, exist_ok=True)
+        at.write_bytes(b"img")
+        at.with_suffix(".tree").mkdir()
+        return at, True
+
+    def test_the_device_side_captures_no_din_midi(self):
+        # The rig's MIDI is USB: delugemu's DIN output has nothing to compare against.
+        self.args.record_only = True
+        with mock.patch.object(
+            device_parity.emu_parity, "run_image", return_value={}
+        ) as run_image:
+            self.run_quietly()
+        self.assertIs(run_image.call_args.kwargs.get("din_out"), False)
+
+    def test_a_card_that_does_not_image_is_a_usage_error(self):
+        with mock.patch.object(
+            device_parity.emu_parity,
+            "sd_image",
+            side_effect=subprocess.CalledProcessError(1, ["mksd.sh"]),
+        ):
+            code, err = self.run_quietly()
+        self.assertEqual(code, 4)
+        self.assertIn("card", err)
+
+    def test_the_built_image_and_tree_go_when_a_run_is_interrupted(self):
+        with (
+            mock.patch.object(device_parity.emu_parity, "sd_image", self.sd_image),
+            mock.patch.object(
+                device_parity.emu_parity, "run_image", side_effect=KeyboardInterrupt
+            ),
+            self.assertRaises(KeyboardInterrupt),
+        ):
+            self.run_quietly()
+        self.assertEqual(sorted(p.name for p in self.args.out.iterdir()), [])
 
 
 if __name__ == "__main__":

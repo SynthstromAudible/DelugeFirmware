@@ -6,10 +6,10 @@ Usage:
                            [--flash FILE] [--out DIR] [-j N] scripts...
 
 The device side boots HARNESS_ELF (a `rig-harness` build: tools/bench_image.py --features rig-harness) once per
-script through tools/rig_session.py and drives it in real time; the reference side runs --emu-ref in delugemu,
-on the card the scripts' `# card:` header names, or --card/--sd, which must hold what the rig's SD card holds. Both go through
-tools/emu_parity.py's script runner and its comparison, so the output is emu_parity's: one MATCH/DIFF line per
-snapshot and DIR/report.json.
+script through tools/rig_session.py and drives it in real time; the reference side runs --emu-ref in delugemu, on the
+card the scripts' `# card:` header names, or --card/--sd, which must hold what the rig's SD card holds. Both go
+through tools/emu_parity.py's script runner and its comparison, so the output is emu_parity's: one MATCH/DIFF line
+per snapshot and DIR/report.json.
 
 Settings: unless --flash names a flash image, the rig's own settings sector is read (read only: the core is
 halted for the copy, and QSPI is never written) and delugemu starts from it, so a difference in saved settings
@@ -19,7 +19,8 @@ during a PIC scroll animation (the PIC moves them itself; tools/rig_session.py r
 MIDI script steps (`note`, `cc`, `midi <hex bytes>`, ...) go to the Deluge's USB-MIDI through `amidi` on the probe
 host (--midi-port), and to delugemu's DIN MIDI input.
 
-Exit codes: 0 every snapshot matched (or, with --record-only, every script ran); 1 a snapshot differed or a run failed; 3 the rig failed; 4 usage.
+Exit codes: 0 every snapshot matched (or, with --record-only, every script ran); 1 a snapshot differed or a run
+failed; 3 the rig failed; 4 usage, or a card that does not image.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ import base64
 import concurrent.futures
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -82,8 +84,8 @@ def parked_after(host: str, run, *args, park=None, stop=None):
 
 
 def retried(run, *args, tries: int = 2, **kwargs):
-    """`run(*args, **kwargs)`, again when it fails on the link (the probe server not restarting, the device going silent):
-    those come and go with the network to the probe host. Any other failure is the device's answer."""
+    """`run(*args, **kwargs)`, again when it fails on the link (the probe server not restarting, the device going
+    silent): those come and go with the network to the probe host. Any other failure is the device's answer."""
     for attempt in range(tries):
         try:
             return run(*args, **kwargs)
@@ -216,6 +218,8 @@ def run(args: argparse.Namespace) -> int:
             out / script.stem / "test",
             buttons,
             session=session,
+            # The rig's MIDI is USB; the device has no DIN output to read.
+            din_out=False,
         )
 
     if args.record_only:
@@ -247,11 +251,27 @@ def run(args: argparse.Namespace) -> int:
         flash = out / "flash.bin"
         flash.write_bytes(image)
 
-    sd, made = (
-        (args.sd, False)
-        if args.sd
-        else emu_parity.sd_image(args.card, out / "card.img", args.delugemu)
-    )
+    if args.sd:
+        sd, made = args.sd, False
+    else:
+        try:
+            sd, made = emu_parity.sd_image(args.card, out / "card.img", args.delugemu)
+        except subprocess.CalledProcessError as exc:
+            emu_parity.remove_card(out / "card.img")
+            print(
+                f"device_parity: card {args.card} did not image: {exc}", file=sys.stderr
+            )
+            return 4
+    try:
+        return compare(args, sd, flash, device, buttons)
+    finally:
+        if made:
+            emu_parity.remove_card(sd)
+
+
+def compare(args: argparse.Namespace, sd: Path, flash: Path, device, buttons) -> int:
+    """Runs every script on the device (`device`) and in delugemu on `sd`, and reports the differences."""
+    out = args.out
 
     def reference(script: Path):
         # The device's MIDI is USB, so the reference's DIN output has nothing to compare against.
@@ -307,8 +327,6 @@ def run(args: argparse.Namespace) -> int:
                     flush=True,
                 )
                 failed |= bool(diff)
-    if made:
-        sd.unlink()
     (out / "report.json").write_text(json.dumps(report, indent=1))
     print(f"device_parity: artifacts in {out}")
     return 1 if failed else 0

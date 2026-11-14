@@ -30,20 +30,24 @@ stands; --card or --sd runs every script on one card instead. A script that runs
 step makes pad (X, Y) compare as lit or unlit only.
 
 Exit codes: 0 every snapshot matched, differed only in phase or by an accepted row; 1 a snapshot differed or a run
-failed; 4 a usage error: no reference image, or a script without a card.
+failed; 4 a usage error: no reference image or image under test, a script that does not exist or names no card, two
+cards with one label, or a card that does not image.
 """
 
 import argparse
 import concurrent.futures
+import contextlib
 import functools
 import hashlib
 import json
 import os
 import re
+import select
 import shutil
 import socket
 import subprocess
 import sys
+import threading
 import time
 from collections import Counter
 from pathlib import Path
@@ -101,6 +105,35 @@ def parse_script(path: Path) -> list[tuple[int, str, list[str]]]:
         tok = line.split()
         steps.append((int(tok[0]), tok[1], tok[2:]))
     return steps
+
+
+# Script commands that are not panel input on a real Deluge, which the runner passes over.
+NOT_INPUT = {"board", "released", "model", "notice"}
+
+
+def check_steps(script: Path, steps: list[tuple[int, str, list[str]]]) -> None:
+    """Refuses a command the runner does not know, which would otherwise do nothing and leave the snapshots after it
+    differing with no hint why, and a snapshot name used twice, whose second window would hide the first."""
+    known = {
+        "button",
+        "pad",
+        "midi",
+        *MIDI_STATUS,
+        "random_colour",
+        "encoder",
+        "load",
+        "snapshot",
+        "quit",
+        *NOT_INPUT,
+    }
+    named = set()
+    for _, cmd, args in steps:
+        if cmd not in known:
+            raise ValueError(f"{script.name}: unknown command {cmd!r}")
+        if cmd == "snapshot":
+            if args[0] in named:
+                raise ValueError(f"{script.name}: snapshot {args[0]!r} twice")
+            named.add(args[0])
 
 
 def monitor_errors() -> tuple[type[BaseException], ...]:
@@ -252,6 +285,41 @@ def drain(sock: socket.socket) -> bytes:
             return got
 
 
+class DinListener:
+    """The DIN MIDI bytes an emulator sends to the non-blocking `sock`, received on a thread as they arrive. delugemu
+    sends each byte as a datagram of its own, and a socket's receive queue holds a few hundred of those, so a long
+    stretch of dense output (clock, MIDI follow's feedback) between two reads would overflow it."""
+
+    def __init__(self, sock: socket.socket):
+        self.sock = sock
+        self.got = bytearray()
+        self.lock = threading.Lock()
+        self.done = threading.Event()
+        self.thread = threading.Thread(target=self._receive, daemon=True)
+
+    def __enter__(self):
+        self.thread.start()
+        return self
+
+    def __exit__(self, *exc):
+        self.done.set()
+        self.thread.join()
+
+    def _receive(self):
+        while not self.done.is_set():
+            select.select([self.sock], [], [], 0.05)
+            with self.lock:
+                self.got += drain(self.sock)
+
+    def take(self) -> bytes:
+        """Everything received since the previous call. Called with the emulator stopped, so every byte it sent before
+        it stopped is here or still in the socket."""
+        with self.lock:
+            got = bytes(self.got + drain(self.sock))
+            self.got.clear()
+        return got
+
+
 def qmp_socket(out: Path) -> str:
     """The QMP socket of the emulator whose artifacts go to `out`. There is one per emulator: they all run in this
     process, and delugemu's default name is per process. The name hashes `out`, which names the card, the script and
@@ -366,6 +434,7 @@ def run_image(
         extra += ["-global", f"rza1l-spibsc.flash-file={run_flash}"]
     sock = qmp_socket(out)
     steps = parse_script(script)
+    check_steps(script, steps)
     snaps = {}
     random_pads: set[tuple[int, int]] = set()
     times = {}
@@ -379,7 +448,7 @@ def run_image(
     din.bind(("127.0.0.1", 0))
     din.setblocking(False)
     din_port = free_udp_port()
-    compare_din = din_out and session is None
+    compare_din = din_out
 
     def emulator(out: Path):
         nonlocal din_port
@@ -409,7 +478,8 @@ def run_image(
         else:
             din.sendto(message, ("127.0.0.1", din_port))
 
-    with din, (session or emulator)(out) as dz:
+    listener = DinListener(din) if compare_din else contextlib.nullcontext()
+    with din, listener, (session or emulator)(out) as dz:
         run_until = dz.run_until
         reached = 0
 
@@ -432,7 +502,8 @@ def run_image(
 
         dz.run_until = run_until_or_record
         t0 = boot(dz)
-        drain(din)  # boot's output belongs to no snapshot
+        if compare_din:
+            listener.take()  # boot's output belongs to no snapshot
         for i, (at_ms, cmd, args) in enumerate(steps):
             at = t0 + at_ms * MS
             dz.run_until(at)
@@ -475,7 +546,7 @@ def run_image(
                     seen.setdefault(key(p), p)
                     dz.run_until(t)
                 if compare_din:
-                    sent = drain(din).hex(" ")
+                    sent = listener.take().hex(" ")
                     for p in seen.values():
                         p["midi"] = sent
                 snaps[args[0]] = list(seen.values())
@@ -483,7 +554,6 @@ def run_image(
                 dz.screenshot(str(out / f"{args[0]}.png"))
             elif cmd == "quit":
                 break
-            # `board`, `released`, `model`, `notice`: not panel input on a real Deluge.
         (out / "snapshots.json").write_text(json.dumps(snaps))
         (out / "times.json").write_text(json.dumps(times))
         try:
@@ -662,30 +732,51 @@ def section_line_only(ref: list[str], test: list[str], font) -> bool:
     return False
 
 
+def phase(ref: list[dict], test: list[dict]) -> bool:
+    """Whether two windows end the same: every part of the panel (the OLED, the pads, the knob rings, each LED, each
+    PIC setting and the DIN MIDI out) is the same in both last panels, so any difference is in the panels before the
+    last (a scroll frame or a blink caught at another moment), and both images flashed the same pads, as a flash is an
+    event rather than a state the window ends in."""
+    last_ref, last_test = ref[-1], test[-1]
+    return all(
+        json.dumps(last_ref.get(name)) == json.dumps(last_test.get(name))
+        for name in ("oled", "pads", "gold", "leds", "pic", "midi")
+    ) and parts(ref).get("flashes") == parts(test).get("flashes")
+
+
 def accepted(ref: list[dict], test: list[dict]) -> str | None:
     """The accepted DIFFERENCES.md row a snapshot's difference is, or None.
 
     D77: `main`'s `View::drawOutputNameFromDetails` draws the section line only when its caller passes a clip, and
-    several callers pass none, so its first frame of a kit's name lacks the line ours draws from the model. Such a
-    snapshot differs on the OLED alone; every panel of ours in the window shows one of `main`'s OLED frames, or one of
-    them with only the section line added over the same pads, LEDs and knob rings; and every OLED frame of `main`'s
-    is one ours shows, or one ours shows with the line added. A window of ours that lacks a frame `main` shows is a
-    difference of its own, not D77."""
-    a, b = parts(ref), parts(test)
-    if {name for name in a.keys() | b.keys() if a.get(name) != b.get(name)} != {"oled"}:
-        return None
+    several callers pass none, so its first frame of a kit's name lacks the line ours draws from the model. A
+    snapshot is D77 when, with the section line taken out of ours, it reads MATCH or PHASE (`phase`): a panel of ours
+    that shows one of `main`'s OLED frames with only `SECTION n` added in the line's rows, over the same pads, LEDs
+    and knob rings, reads as that frame. A window of ours with no such panel is not D77, whatever else differs."""
     font = font_columns()
-
-    def covers(r: dict, p: dict) -> bool:
-        """Whether ours shows `p` where `main` shows `r`: the same OLED, or `r`'s with the section line added."""
-        return r["oled"] == p["oled"] or (
-            all(p[k] == r[k] for k in ("pads", "leds", "gold"))
-            and section_line_only(oled_rows(r["oled"]), oled_rows(p["oled"]), font)
+    oleds = [r["oled"] for r in ref]
+    stripped, any_stripped = [], False
+    for p in test:
+        under = (
+            None
+            if p["oled"] in oleds
+            else next(
+                (
+                    r
+                    for r in ref
+                    if all(p[k] == r[k] for k in ("pads", "leds", "gold"))
+                    and section_line_only(
+                        oled_rows(r["oled"]), oled_rows(p["oled"]), font
+                    )
+                ),
+                None,
+            )
         )
-
-    if all(any(covers(r, p) for r in ref) for p in test) and all(
-        any(covers(r, p) for p in test) for r in ref
-    ):
+        if under is None:
+            stripped.append(p)
+        else:
+            stripped.append({**p, "oled": under["oled"]})
+            any_stripped = True
+    if any_stripped and (not differences(ref, stripped) or phase(ref, stripped)):
         return "D77"
     return None
 
@@ -697,21 +788,15 @@ def classify(
     test2: list[dict] | None = None,
 ) -> str:
     """A snapshot's verdict: MATCH when the windows show the same values; PHASE when they differ only in when they
-    showed them, which needs one of two things to be true: every part of the panel ends the window the same on both
-    (the OLED, the pads, the knob rings, each LED and each PIC setting, so the difference is in the panels before the
-    last: a scroll frame or a blink caught at another moment) and both images flashed the same pads, as a flash is an
-    event rather than a state the window ends in; or a second run of either image (@p ref2, @p test2)
-    differs from its first here too, so that image cannot repeat itself at this snapshot. A difference
-    DIFFERENCES.md accepts by rule (`accepted`: D77) reads as that row; it is not a failure. Anything else is DIFF."""
+    showed them, which needs one of two things to be true: the windows end the same (`phase`); or a second run of
+    either image (@p ref2, @p test2) differs from its first here too, so that image cannot repeat itself at this
+    snapshot. A difference DIFFERENCES.md accepts by rule (`accepted`: D77) reads as that row; it is not a failure.
+    Anything else is DIFF."""
     if not differences(ref, test):
         return "MATCH"
     if row := accepted(ref, test):
         return row
-    last_ref, last_test = ref[-1], test[-1]
-    if all(
-        json.dumps(last_ref.get(name)) == json.dumps(last_test.get(name))
-        for name in ("oled", "pads", "gold", "leds", "pic", "midi")
-    ) and parts(ref).get("flashes") == parts(test).get("flashes"):
+    if phase(ref, test):
         return "PHASE"
     if ref2 is not None and differences(ref, ref2):
         return "PHASE"
@@ -732,19 +817,23 @@ def legs(
     scripts: list[Path], card: Path | None, sd: Path | None
 ) -> list[tuple[str, Path, list[Path]]]:
     """(label, card, scripts) for each card the scripts run on, in first-seen order: `card` or `sd` for every script
-    when given, else each script's `# card:` header (tools/ui_script_cards.py). A script with no header is an error."""
+    when given, else each script's `# card:` header (tools/ui_script_cards.py). A script with no header, and two
+    cards with one label, are errors."""
     if card or sd:
         chosen = card or sd
         return [(ui_script_cards.label(str(chosen)), chosen, list(scripts))]
     grouped: dict[Path, tuple[str, list[Path]]] = {}
+    # The images and the artifacts are named by label, so two cards with one label would run on one image.
+    paths: dict[str, Path] = {}
     for script in scripts:
         named = ui_script_cards.cards(script)
         if not named:
             raise ValueError(f"{script}: no `# card:` header; give --card or --sd")
         for text in named:
-            grouped.setdefault(
-                ui_script_cards.resolve(text), (ui_script_cards.label(text), [])
-            )[1].append(script)
+            path, name = ui_script_cards.resolve(text), ui_script_cards.label(text)
+            if paths.setdefault(name, path) != path:
+                raise ValueError(f"{name}: one label for {paths[name]} and {path}")
+            grouped.setdefault(path, (name, []))[1].append(script)
     return [(label, path, group) for path, (label, group) in grouped.items()]
 
 
@@ -761,6 +850,12 @@ def sd_image(card: Path, at: Path, delugemu: Path) -> tuple[Path, bool]:
         stdout=subprocess.DEVNULL,
     )
     return at, True
+
+
+def remove_card(sd: Path) -> None:
+    """An SD image sd_image made, and the card tree it built the image from."""
+    sd.unlink(missing_ok=True)
+    shutil.rmtree(sd.with_suffix(".tree"), ignore_errors=True)
 
 
 def main() -> int:
@@ -817,7 +912,8 @@ def main() -> int:
     ap.add_argument(
         "--audio-wav",
         action="store_true",
-        help="write each image's audio to raw.s32 (bit-exact, as its TX ring held it) and audio.wav beside its snapshots",
+        help="write each image's audio to raw.s32 (bit-exact, as its TX ring held it) and audio.wav beside its "
+        "snapshots",
     )
     ap.add_argument(
         "--keep-card",
@@ -849,20 +945,47 @@ def main() -> int:
             file=sys.stderr,
         )
         return 4
+    if not args.test.is_file():
+        print(f"emu_parity: no image under test at {args.test}", file=sys.stderr)
+        return 4
     sys.path.insert(0, str(args.delugemu / "pylib"))
-    out = args.out
-    out.mkdir(parents=True, exist_ok=True)
+    args.out.mkdir(parents=True, exist_ok=True)
+    scripts = expand(args.scripts)
+    missing = [str(s) for s in scripts if not s.is_file()]
+    if missing:
+        print(f"emu_parity: no such script {', '.join(missing)}", file=sys.stderr)
+        return 4
     try:
-        plan = legs(expand(args.scripts), args.card, args.sd)
+        plan = legs(scripts, args.card, args.sd)
     except ValueError as e:
         print(f"emu_parity: {e}", file=sys.stderr)
         return 4
-    images = {
-        label: (args.sd, False)
-        if args.sd
-        else sd_image(card, out / "cards" / f"{label}.img", args.delugemu)
-        for label, card, _ in plan
-    }
+    images: dict[str, tuple[Path, bool]] = {}
+    try:
+        return run_legs(args, plan, images)
+    finally:
+        if not args.keep_card:
+            for sd, made in images.values():
+                if made:
+                    remove_card(sd)
+
+
+def run_legs(args, plan, images: dict[str, tuple[Path, bool]]) -> int:
+    """Images each card of `plan` into `images` (the caller removes those made here) and compares every script on
+    it; the exit code."""
+    out = args.out
+    for label, card, _ in plan:
+        at = out / "cards" / f"{label}.img"
+        try:
+            images[label] = (
+                (args.sd, False) if args.sd else sd_image(card, at, args.delugemu)
+            )
+        except subprocess.CalledProcessError as e:
+            remove_card(at)
+            print(
+                f"emu_parity: card {label} ({card}) did not image: {e}", file=sys.stderr
+            )
+            return 4
     buttons = button_table()
 
     sides = [("ref", args.ref), ("test", args.test)] + (
@@ -920,10 +1043,6 @@ def main() -> int:
     jobs = [(label, script) for label, _, group in plan for script in group]
     with concurrent.futures.ThreadPoolExecutor(args.jobs) as pool:
         results = dict(zip(jobs, pool.map(compare, jobs)))
-    if not args.keep_card:
-        for sd, made in images.values():
-            if made:
-                sd.unlink()
     runs = Counter(script for _, script in jobs)
     report, failed = {}, False
     for (label, script), snaps in results.items():
