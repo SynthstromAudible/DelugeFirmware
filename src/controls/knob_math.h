@@ -1,11 +1,18 @@
 #pragma once
 
+/// @file
+/// @brief The gold knob's arithmetic: position (-64..64) to stored word and back, and the turn.
+
 #include "deluge-project/param_address.h"
 #include "plugin-api/types/param.h"
 
 #include <cstdint>
 
-namespace deluge::scenes::bind {
+namespace deluge::controls {
+
+/// @brief The bit an instrument's cable-depth param ids carry and its other param ids do not; a knob over such an id is
+/// a cable's, whose stored word is a Q30 depth.
+inline constexpr uint32_t kCableDepthFlag = 0x4000'0000;
 
 /// @brief How far a gold knob turns: a cable's depth reaches further down, a MIDI CC stops short of the top.
 enum class KnobKind : uint8_t { PARAM, CABLE, MIDI_CC };
@@ -47,4 +54,4 @@ enum class KnobKind : uint8_t { PARAM, CABLE, MIDI_CC };
 /// @brief A cable's knob position (-192..64) folded onto its indicator, centred on 64 and reaching it only at 0.
 [[nodiscard]] int32_t fold_cable(int32_t knob_pos);
 
-} // namespace deluge::scenes::bind
+} // namespace deluge::controls

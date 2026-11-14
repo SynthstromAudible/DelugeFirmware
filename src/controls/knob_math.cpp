@@ -1,11 +1,9 @@
-#include "scenes/bind/knob_math.h"
-
-#include "instruments/deluge/cables.h"
+#include "controls/knob_math.h"
 
 #include <algorithm>
 #include <limits>
 
-namespace deluge::scenes::bind {
+namespace deluge::controls {
 
 namespace {
 
@@ -17,7 +15,7 @@ constexpr int32_t kKnobSpan = 128;
 constexpr uint32_t kPitchBend = 0;
 
 bool cable(const project::ParamAddress& address) {
-	return address.space == project::ParamSpace::ENGINE && instrument::is_cable_depth(address.id);
+	return address.space == project::ParamSpace::ENGINE && (address.id.value & kCableDepthFlag) != 0;
 }
 
 /// A word that is never negative (0..INT32_MAX) onto -64..64: a half-precision param or an expression dimension past
@@ -100,4 +98,4 @@ int32_t fold_cable(int32_t knob_pos) {
 	return folded;
 }
 
-} // namespace deluge::scenes::bind
+} // namespace deluge::controls

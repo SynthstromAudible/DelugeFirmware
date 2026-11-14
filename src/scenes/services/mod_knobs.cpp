@@ -24,8 +24,8 @@
 #include "controls/pages.h"
 #include "controls/section.h"
 
+#include "controls/knob_math.h"
 #include "scenes/bind/knob_assignment.h"
-#include "scenes/bind/knob_math.h"
 #include "scenes/bind/page_sources.h"
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/write_sink.h"
@@ -307,8 +307,8 @@ void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms,
 	ModTurn turn;
 	turn.kind = assignment.kind;
 	turn.param_id = legacy_id(*address, assignment.kind);
-	turn.old_knob_pos = bind::knob_pos_of(*address, info, value.value_or(0));
-	turn.new_knob_pos = bind::turn(bind::knob_kind(*address), turn.old_knob_pos, offset);
+	turn.old_knob_pos = controls::knob_pos_of(*address, info, value.value_or(0));
+	turn.new_knob_pos = controls::turn(controls::knob_kind(*address), turn.old_knob_pos, offset);
 
 	// The popup, unless the presentation shows the value its own way.
 	if (!out.suppress_value_popup(turn)) {
@@ -320,7 +320,7 @@ void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms,
 
 	const auto* sound = std::get_if<bind::SoundFocus>(&focus_->owner);
 	const bool tails_before = sound != nullptr && sound->clip && facts.allows_note_tails(sound->slot, sound->clip);
-	const int32_t new_value = bind::value_of_knob(*address, info, turn.new_knob_pos);
+	const int32_t new_value = controls::value_of_knob(*address, info, turn.new_knob_pos);
 	const int32_t pos = at_region ? static_cast<int32_t>(focus_->region.pos) : 0;
 	if (!sink.write_param(*address, new_value, pos, static_cast<int32_t>(focus_->region.length))) {
 		return; // refused: nothing changed, so nothing is fed back
@@ -331,7 +331,7 @@ void ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_ms,
 	    sound != nullptr && sound->clip && tails_before != facts.allows_note_tails(sound->slot, sound->clip);
 
 	turn.should_indicate_middle_value =
-	    bind::indicates_middle(*address, info, owner_stutter_quantized(), facts.stutter_active());
+	    controls::indicates_middle(*address, info, owner_stutter_quantized(), facts.stutter_active());
 
 	send_midi_follow_feedback(turn.kind, turn.param_id, turn.new_knob_pos, true, false);
 	if (turn.note_tails_changed) {
@@ -383,7 +383,7 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 	if (turn.kind == Kind::PATCH_CABLE) {
 		// A patch cable is -128..+128; fold it into the indicator's range so "the
 		// middle" is the same number the indicator blinks at.
-		knob_pos = bind::fold_cable(knob_pos + kKnobPosOffset) - kKnobPosOffset;
+		knob_pos = controls::fold_cable(knob_pos + kKnobPosOffset) - kKnobPosOffset;
 	}
 
 	if (knob_pos == 0 && turn.should_indicate_middle_value) {
@@ -547,7 +547,7 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 		knob_pos += kKnobPosOffset;
 
 		if (info.kind == Kind::PATCH_CABLE) {
-			knob_pos = bind::fold_cable(knob_pos);
+			knob_pos = controls::fold_cable(knob_pos);
 		}
 		out.declared = true;
 		// **The `uint8_t` is legacy's, not a narrowing this port introduces**, and the E4 final
@@ -639,8 +639,8 @@ ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
 	out.has_auto_param = true;
 	out.kind = assignment.kind;
 	out.param_id = legacy_id(*address, assignment.kind);
-	out.knob_pos = bind::knob_pos_of(*address, info, value.value_or(0));
-	out.bipolar = bind::bipolar(*address, info);
+	out.knob_pos = controls::knob_pos_of(*address, info, value.value_or(0));
+	out.bipolar = controls::bipolar(*address, info);
 	if (info != nullptr && info->file_name == "stutterRate") {
 		out.quantized_stutter = owner_stutter_quantized();
 	}

@@ -14,10 +14,10 @@
 /// The knobs point at a `bind::KnobFocus`: addresses into the song's records, and the view's knob state (the mod
 /// region, the song compressor's view). What a knob moves is `bind::knob_assignment` over the records; a value is the
 /// `controls::Facts::param_value` fact, or the record's automation at a held region; the position is
-/// `bind/knob_math`'s. A turn is a `controls::Sink::write_param` request (the Edit makes what the knob turns and writes
-/// a take being recorded); a push and a mod button resolve through the controls library (`controls::resolve_press`,
-/// `controls::resolve_section`) into `services/knob_push`'s requests, sent to the sink. The service holds no engine
-/// object.
+/// `controls/knob_math`'s. A turn is a `controls::Sink::write_param` request (the Edit makes what the knob turns and
+/// writes a take being recorded); a push and a mod button resolve through the controls library
+/// (`controls::resolve_press`, `controls::resolve_section`) into `services/knob_push`'s requests, sent to the sink. The
+/// service holds no engine object.
 ///
 /// @par Why a service in `src/scenes/` and not in `src/shell/`
 ///
