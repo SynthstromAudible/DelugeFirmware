@@ -4,7 +4,9 @@
 # app-provided accessors that ABI reaches (that file says why they are needed although this spec's scenario never runs
 # them). The sim-feature reader pulls in deluge_sample_fill's `app_convert` shim (deluge_sample_convert), which needs
 # the real deluge::audio::stream::convert_word and stitch_boundaries, so convert.cpp, stitch.cpp and
-# audio_format_helpers.cpp are linked in with argon (NEON), as tests/unit/deluge/storage/audio/stream links them.
+# audio_format_helpers.cpp are linked in with argon (NEON), as tests/unit/deluge/storage/audio/stream links them. The
+# same driver specs the sample's transpose snapping (sample_transpose.cpp), waveform peak math
+# (waveform_peak_math.cpp) and the overview cache's container (overview_cache_entry.h over util/segmented_vector.h).
 #
 # Linux only: the i686 umbrella staticlib these specs link is built there alone.
 if(NOT (UNIX AND NOT APPLE))
@@ -19,6 +21,8 @@ deluge_specs_driver(sample_reader_specs TREES host NEON
     ${_app}/storage/audio/stream/convert.cpp
     ${_app}/storage/audio/stream/stitch.cpp
     ${_app}/util/audio_format_helpers.cpp
+    ${_app}/model/sample/sample_transpose.cpp
+    ${_app}/model/sample/waveform_peak_math.cpp
   LIBRARIES
     deluge_rust_rs_sim
     pthread dl m  # the Rust std staticlib's system libraries

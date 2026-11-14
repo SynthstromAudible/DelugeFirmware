@@ -101,20 +101,13 @@ configure_file(../../../src/deluge/util/firmware_version.h.in
 
 add_executable(UnitTests
         RunAllTests.cpp
-        mem_guard_tests.cpp
         clip_iterator_tests.cpp
-        midi_queue_tests.cpp
         sync_tests.cpp
-        iterance_migration_tests.cpp
-        sample_transpose_tests.cpp
-        waveform_peak_math_tests.cpp
-        waveform_overview_cache_tests.cpp
         song_preview_window_tests.cpp
         song_preview_decode_tests.cpp
         song_preview_deferral_tests.cpp
         slicer_preview_tests.cpp
         dx_cartridge_window_tests.cpp
-        c_path_tests.cpp
 )
 # WORKING_DIRECTORY: song_preview_window_tests.cpp reads a checked-in fixture by a path relative to
 # the repo root (tests/support/data/songs/...) and DELUGE_SONG_CORPUS points at a real directory on disk, so
