@@ -38,6 +38,7 @@
 #include "gui/l10n/strings.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/address_of.h"
 #include "support/matchers/value_matchers.h"
 
 #include <algorithm>
@@ -59,6 +60,7 @@ using deluge::scenes::menu::ValueTextUse;
 using deluge::scenes::spec::FakeNoteBridge;
 using deluge::scenes::spec::FakeNoteBridgeGuard;
 using String = deluge::l10n::String;
+using deluge::test::matchers::address_of;
 
 namespace {
 
@@ -195,24 +197,15 @@ describe note_nodes_guards("scenes::menu note editor/note-row editor: the two gu
 	   "the step toggles", _ {
 		// The exact function, not merely non-null: a leaf gated on the wrong family's guard would
 		// still pass a `!= nullptr` check.
-		expect(reinterpret_cast<const void*>(nodes::note_velocity.bind.permitted))
-		    .to_equal(reinterpret_cast<const void*>(&nodes::permitted_note));
-		expect(reinterpret_cast<const void*>(nodes::note_editor_probability.bind.permitted))
-		    .to_equal(reinterpret_cast<const void*>(&nodes::permitted_note));
-		expect(reinterpret_cast<const void*>(nodes::note_iterance.bind.permitted))
-		    .to_equal(reinterpret_cast<const void*>(&nodes::permitted_note));
-		expect(reinterpret_cast<const void*>(nodes::note_fill.bind.permitted))
-		    .to_equal(reinterpret_cast<const void*>(&nodes::permitted_note));
-		expect(reinterpret_cast<const void*>(nodes::note_iterance_divisor.bind.permitted))
-		    .to_equal(reinterpret_cast<const void*>(&nodes::permitted_note));
-		expect(reinterpret_cast<const void*>(nodes::note_row_probability.bind.permitted))
-		    .to_equal(reinterpret_cast<const void*>(&nodes::permitted_row));
-		expect(reinterpret_cast<const void*>(nodes::note_row_iterance.bind.permitted))
-		    .to_equal(reinterpret_cast<const void*>(&nodes::permitted_row));
-		expect(reinterpret_cast<const void*>(nodes::note_row_fill.bind.permitted))
-		    .to_equal(reinterpret_cast<const void*>(&nodes::permitted_row));
-		expect(reinterpret_cast<const void*>(nodes::note_row_iterance_divisor.bind.permitted))
-		    .to_equal(reinterpret_cast<const void*>(&nodes::permitted_row));
+		expect(address_of(nodes::note_velocity.bind.permitted)).to_equal(address_of(&nodes::permitted_note));
+		expect(address_of(nodes::note_editor_probability.bind.permitted)).to_equal(address_of(&nodes::permitted_note));
+		expect(address_of(nodes::note_iterance.bind.permitted)).to_equal(address_of(&nodes::permitted_note));
+		expect(address_of(nodes::note_fill.bind.permitted)).to_equal(address_of(&nodes::permitted_note));
+		expect(address_of(nodes::note_iterance_divisor.bind.permitted)).to_equal(address_of(&nodes::permitted_note));
+		expect(address_of(nodes::note_row_probability.bind.permitted)).to_equal(address_of(&nodes::permitted_row));
+		expect(address_of(nodes::note_row_iterance.bind.permitted)).to_equal(address_of(&nodes::permitted_row));
+		expect(address_of(nodes::note_row_fill.bind.permitted)).to_equal(address_of(&nodes::permitted_row));
+		expect(address_of(nodes::note_row_iterance_divisor.bind.permitted)).to_equal(address_of(&nodes::permitted_row));
 
 		expect(nodes::note_iterance_step_1.bind.permitted).to_be_null();
 		expect(nodes::note_iterance_step_8.bind.permitted).to_be_null();
@@ -281,9 +274,11 @@ describe note_nodes_value_text("scenes::menu note editor/note-row editor: value_
 	});
 
 	it("gives note_row's probability/iterance/fill the identical value_text hooks", _ {
-		expect(nodes::note_row_probability.bind.value_text).to_equal(nodes::note_editor_probability.bind.value_text);
-		expect(nodes::note_row_iterance.bind.value_text).to_equal(nodes::note_iterance.bind.value_text);
-		expect(nodes::note_row_fill.bind.value_text).to_equal(nodes::note_fill.bind.value_text);
+		expect(address_of(nodes::note_row_probability.bind.value_text))
+		    .to_equal(address_of(nodes::note_editor_probability.bind.value_text));
+		expect(address_of(nodes::note_row_iterance.bind.value_text))
+		    .to_equal(address_of(nodes::note_iterance.bind.value_text));
+		expect(address_of(nodes::note_row_fill.bind.value_text)).to_equal(address_of(nodes::note_fill.bind.value_text));
 	});
 });
 

@@ -39,9 +39,11 @@
 #include "unit/deluge/dsp-next/raw_shaping.h"
 #include <cppspec.hpp>
 
+#include "support/matchers/address_of.h"
 #include "support/printers/fixed_point_printer.h"
 
 using namespace deluge::bench;
+using deluge::test::matchers::address_of;
 namespace dsp = deluge::dsp;
 
 namespace deluge::dsp::fixed {
@@ -1088,10 +1090,10 @@ describe bench_runner("The DSP benchmark runner", ${
 		// the calibration's very functions.
 		EmptyComponent other;
 		const Case same_type = make_case("other", other);
-		expect(c.block).to_equal(same_type.block);
-		expect(c.setup).to_equal(same_type.setup);
+		expect(address_of(c.block)).to_equal(address_of(same_type.block));
+		expect(address_of(c.setup)).to_equal(address_of(same_type.setup));
 		FlatCost flat;
-		expect(c.block).not_().to_equal(make_case("flat", flat).block);
+		expect(address_of(c.block)).not_().to_equal(address_of(make_case("flat", flat).block));
 	});
 
 	it("restarts the counters for every measurement", _ {
