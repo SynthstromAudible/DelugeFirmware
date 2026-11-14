@@ -6,13 +6,8 @@
 if(DELUGE_TEST_TREE STREQUAL "host" AND NOT (UNIX AND NOT APPLE))
   # The specs assume the -m32 host build the Linux host tree is, as the host sim's DSP does. The triangle distribution
   # spec (dsp-next/core's header alone) assumes nothing of it, so a host tree off Linux builds that one by itself.
-  create_test_sourcelist(_triangle_sources triangle_distribution_main.cpp triangle_distribution_spec.cpp)
-  add_executable(triangle_distribution_spec ${_triangle_sources})
-  target_link_libraries(triangle_distribution_spec PRIVATE c++spec)
-  target_include_directories(triangle_distribution_spec PRIVATE
-    ${DELUGE_REPO_ROOT}/src/deluge ${DELUGE_REPO_ROOT}/src ${DELUGE_REPO_ROOT}/tests)
-  set_target_properties(triangle_distribution_spec PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES)
-  add_test(NAME triangle_distribution_spec COMMAND triangle_distribution_spec triangle_distribution_spec --verbose)
+  deluge_specs_driver(dsp_specs ONLY_HOST triangle_distribution_spec.cpp
+    INCLUDES ${DELUGE_REPO_ROOT}/src/deluge ${DELUGE_REPO_ROOT}/src)
   return()
 endif()
 include(${CMAKE_CURRENT_LIST_DIR}/dsp_specs.cmake)
