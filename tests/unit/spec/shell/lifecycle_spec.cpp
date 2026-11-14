@@ -512,4 +512,4 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(shell_lifecycle_spec, shell_lifecycle)
+DELUGE_SPEC(lifecycle_spec, shell_lifecycle)

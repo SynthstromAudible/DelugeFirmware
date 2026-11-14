@@ -484,4 +484,4 @@ describe option_window_w("ui::oled::option_window", $ {
 	});
 });
 // clang-format on
-DELUGE_SPEC(ui_option_window_spec, option_window_w)
+DELUGE_SPEC(option_window_spec, option_window_w)

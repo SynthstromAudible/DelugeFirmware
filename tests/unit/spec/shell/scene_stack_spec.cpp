@@ -549,4 +549,4 @@ describe shell_scene_stack("shell::SceneStack", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(shell_scene_stack_spec, shell_scene_stack)
+DELUGE_SPEC(scene_stack_spec, shell_scene_stack)

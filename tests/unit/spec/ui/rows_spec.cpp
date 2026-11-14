@@ -352,4 +352,4 @@ describe rows("ui::grid rows", $ {
 		expect_golden(self, "../ui/widgets/clip_row_composite.state", r.state());
 	});
 });
-DELUGE_SPEC(ui_rows_spec, rows)
+DELUGE_SPEC(rows_spec, rows)

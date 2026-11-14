@@ -60,7 +60,7 @@ constexpr int32_t kShortPressMs = 500; // legacy's kShortPressTime
 } // namespace
 
 // clang-format off
-describe effects_spec("ui/grid/effects", $ {
+describe effects_grid("ui/grid/effects", $ {
 
 	// --- greyout ------------------------------------------------------------------------------
 
@@ -328,4 +328,4 @@ describe effects_spec("ui/grid/effects", $ {
 		expect((int32_t)hold.y).to_equal(1); // 3 - 2
 	});
 });
-DELUGE_SPEC(ui_effects_spec, effects_spec)
+DELUGE_SPEC(effects_spec, effects_grid)

@@ -578,4 +578,4 @@ describe frame_context("ui::FrameContext", $ {
 		expect(g.ctx.claims.any()).to_be_false();
 	});
 });
-DELUGE_SPEC(ui_frame_context_spec, frame_context)
+DELUGE_SPEC(frame_context_spec, frame_context)

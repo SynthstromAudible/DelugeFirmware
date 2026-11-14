@@ -1,8 +1,8 @@
 // tests/unit/audio_stream/stitch_spec.cpp
 //
-// Own file (not folded into convert_spec.cpp / convert_cluster_spec.cpp): the harness's
-// create_test_sourcelist dispatches ctest -> driver by matching a function named after the *file's*
-// stem, so a second CPPSPEC_SPEC elsewhere would compile but never actually run under ctest.
+// Own file (not folded into convert_spec.cpp / convert_cluster_spec.cpp): deluge_specs_driver
+// dispatches ctest -> driver by matching a function named after the *file's* stem, so a second
+// CPPSPEC_SPEC elsewhere would compile but never actually run under ctest.
 #include "storage/audio/stream/stitch.h"
 
 #include "cppspec.hpp"

@@ -34,4 +34,4 @@ describe hue("RGB::fromHue / fromHuePastel golden", $ {
 	});
 });
 
-DELUGE_SPEC(gfx_hue_spec, hue)
+DELUGE_SPEC(hue_spec, hue)

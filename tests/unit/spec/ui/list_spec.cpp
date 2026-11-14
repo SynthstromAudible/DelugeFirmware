@@ -613,4 +613,4 @@ describe list_w("ui::oled::list", $ {
 		scrollbar(r3.frame, Rect{124, 14, 4, 27}, 0, 3, 0);  // total 0 draws nothing at all
 	});
 });
-DELUGE_SPEC(ui_list_spec, list_w)
+DELUGE_SPEC(list_spec, list_w)

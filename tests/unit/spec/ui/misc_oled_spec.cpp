@@ -344,4 +344,4 @@ describe misc_oled_w("ui::oled::misc", $ {
 		expect(g.pbm()).to_equal(r.pbm()); // draw_icon is draw_graphic_multi_line
 	});
 });
-DELUGE_SPEC(ui_misc_oled_spec, misc_oled_w)
+DELUGE_SPEC(misc_oled_spec, misc_oled_w)

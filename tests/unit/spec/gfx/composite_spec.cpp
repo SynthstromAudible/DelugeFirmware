@@ -128,4 +128,4 @@ describe grid_composite("gfx::grid::composite", $ {
 	});
 });
 
-DELUGE_SPEC(gfx_composite_spec, grid_composite)
+DELUGE_SPEC(composite_spec, grid_composite)

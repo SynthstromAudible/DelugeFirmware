@@ -272,4 +272,4 @@ describe column_drawings_w("ui::oled::column_drawings", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(ui_column_drawings_spec, column_drawings_w)
+DELUGE_SPEC(column_drawings_spec, column_drawings_w)

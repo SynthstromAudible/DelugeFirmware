@@ -34,4 +34,4 @@ describe favourites_row("ui::grid favourites row colours", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(ui_favourites_spec, favourites_row)
+DELUGE_SPEC(favourites_spec, favourites_row)

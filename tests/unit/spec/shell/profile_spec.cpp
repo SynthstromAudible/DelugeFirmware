@@ -49,4 +49,4 @@ describe shell_profile("shell::profile", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(shell_profile_spec, shell_profile)
+DELUGE_SPEC(profile_spec, shell_profile)

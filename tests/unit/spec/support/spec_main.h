@@ -37,12 +37,12 @@ int run_specs(int argc, char** const argv, Specs&... specs) {
 
 } // namespace deluge_spec
 
-/// @brief Define this spec TU's entry point, named `<dir>_<stem>` as tests/spec/CMakeLists.txt's
-///        create_specs_driver expects, and have it run the file's `describe` groups.
+/// @brief Define this spec TU's entry point and have it run the file's `describe` groups, printing
+///        `SPEC-EXAMPLES <n>`.
 ///
-/// CppSpec's own CPPSPEC_SPEC macro cannot spell that name for nested directories, so this macro
-/// does.
-/// @param fn  The entry-point function name to define (`<dir>_<stem>`).
+/// The name is the one the executable running the file looks up: the file's stem under deluge_specs_driver
+/// (tests/support/cmake/specs.cmake), `<dir>_<stem>` under sim/scenes_spec's generated table.
+/// @param fn  The entry-point function name to define.
 /// @param ... The `describe(...)` spec objects to run, in order.
 #define DELUGE_SPEC(fn, ...)                                                                                           \
 	int fn(int argc, char** const argv) {                                                                              \

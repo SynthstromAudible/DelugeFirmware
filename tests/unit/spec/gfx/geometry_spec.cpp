@@ -34,4 +34,4 @@ describe geometry("gfx::oled geometry", $ {
 	});
 });
 
-DELUGE_SPEC(gfx_geometry_spec, geometry)
+DELUGE_SPEC(geometry_spec, geometry)

@@ -56,4 +56,4 @@ describe scenes_view_state("a scene's view state", ${
 
 // clang-format on
 
-DELUGE_SPEC(scenes_view_state_spec, scenes_view_state)
+DELUGE_SPEC(view_state_spec, scenes_view_state)

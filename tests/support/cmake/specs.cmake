@@ -7,6 +7,7 @@ include_guard(GLOBAL)
 include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/deps.cmake)
 
 set(DELUGE_REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/../../..)
+set(DELUGE_SPECS_MAIN_IN ${CMAKE_CURRENT_LIST_DIR}/specs_main.cpp.in)
 
 FetchContent_MakeAvailable(CppSpec argon)
 deluge_argon_headers_are_system()
@@ -43,7 +44,9 @@ endfunction()
 # deluge_specs_driver(<name> [NEON] [SOURCES <file>...] [LIBRARIES <lib>...] [INCLUDES <dir>...])
 #
 # One executable holding every *_spec.cpp under the calling directory, and one ctest test per spec, named after its
-# file. SOURCES are the code under test and any mocks; relative paths resolve against the calling directory. NEON
+# file. A spec's entry point is named after its file's stem (CPPSPEC_SPEC(<stem minus _spec>), or
+# DELUGE_SPEC(<stem>, ...) from spec_main.h) wherever below the directory the file sits, so a spec moves without an
+# edit. SOURCES are the code under test and any mocks; relative paths resolve against the calling directory. NEON
 # links argon as deluge_test_neon() does.
 function(deluge_specs_driver name)
   cmake_parse_arguments(PARSE_ARGV 1 arg "NEON" "" "SOURCES;LIBRARIES;INCLUDES")
@@ -62,19 +65,31 @@ function(deluge_specs_driver name)
       cmake_path(GET dir PARENT_PATH dir)
     endwhile()
   endforeach()
-  create_test_sourcelist(specs ${name}.cpp ${spec_sources})
-  add_executable(${name} ${specs} ${arg_SOURCES})
+  # The entry table: one row per spec, keyed by its stem. Two specs with one stem would be one ctest name and one
+  # symbol, so they are refused here rather than at link time.
+  set(stems "")
+  set(declarations "")
+  set(rows "")
+  foreach(spec IN LISTS spec_sources)
+    cmake_path(GET spec STEM LAST_ONLY stem)
+    if(stem IN_LIST stems)
+      message(FATAL_ERROR "deluge_specs_driver(${name}): two specs named ${stem} under ${CMAKE_CURRENT_SOURCE_DIR}")
+    endif()
+    list(APPEND stems ${stem})
+    string(APPEND declarations "int ${stem}(int, char**);\n")
+    string(APPEND rows "\t{\"${stem}\", &${stem}},\n")
+  endforeach()
+  set(DELUGE_SPEC_DECLARATIONS "${declarations}")
+  set(DELUGE_SPEC_ROWS "${rows}")
+  configure_file(${DELUGE_SPECS_MAIN_IN} ${CMAKE_CURRENT_BINARY_DIR}/${name}_main.cpp @ONLY)
+  add_executable(${name} ${CMAKE_CURRENT_BINARY_DIR}/${name}_main.cpp ${spec_sources} ${arg_SOURCES})
   target_link_libraries(${name} PRIVATE c++spec ${arg_LIBRARIES})
   target_include_directories(${name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${arg_INCLUDES})
   set_target_properties(${name} PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES)
   if(arg_NEON)
     deluge_test_neon(${name})
   endif()
-  foreach(spec IN LISTS spec_sources)
-    cmake_path(GET spec STEM LAST_ONLY spec_name)
-    # create_test_sourcelist registers a spec in a subdirectory under its relative path minus extension
-    # ("gfx/canvas_spec"), so that is what the driver is asked for; the ctest name stays the bare stem.
-    cmake_path(REMOVE_EXTENSION spec OUTPUT_VARIABLE spec_id)
-    add_test(NAME ${spec_name} COMMAND ${name} ${spec_id} --verbose)
+  foreach(stem IN LISTS stems)
+    add_test(NAME ${stem} COMMAND ${name} ${stem} --verbose)
   endforeach()
 endfunction()

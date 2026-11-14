@@ -124,4 +124,4 @@ describe shell_surfaces("shell::SurfaceSet", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(shell_surfaces_spec, shell_surfaces)
+DELUGE_SPEC(surfaces_spec, shell_surfaces)

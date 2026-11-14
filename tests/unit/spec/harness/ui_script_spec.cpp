@@ -47,6 +47,6 @@ describe ui_script("harness::ui_script", $ {
 	});
 });
 // clang-format on
-int harness_ui_script_spec(int argc, char** const argv) {
+int ui_script_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv).add_spec(ui_script).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
 }

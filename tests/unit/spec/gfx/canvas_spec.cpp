@@ -227,4 +227,4 @@ describe canvas("gfx::oled::Canvas", $ {
 	});
 });
 
-DELUGE_SPEC(gfx_canvas_spec, canvas)
+DELUGE_SPEC(canvas_spec, canvas)

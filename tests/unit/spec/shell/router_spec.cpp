@@ -578,4 +578,4 @@ describe shell_router("shell::Router", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(shell_router_spec, shell_router)
+DELUGE_SPEC(router_spec, shell_router)

@@ -51,7 +51,7 @@ bool shows(const uitest::GridRig& r, const PadGrid& g) {
 } // namespace
 
 // clang-format off
-describe zoom_transition_spec("ui/grid/zoom_transition", $ {
+describe zoom_transition_grid("ui/grid/zoom_transition", $ {
 	it("paints the zoom's step at the clock's progress, every 50 ms, until 110 ms have passed", _ {
 		const PadGrid from = pattern(1);
 		const PadGrid to = pattern(77);
@@ -107,4 +107,4 @@ describe zoom_transition_spec("ui/grid/zoom_transition", $ {
 	});
 });
 // clang-format on
-DELUGE_SPEC(ui_zoom_transition_spec, zoom_transition_spec)
+DELUGE_SPEC(zoom_transition_spec, zoom_transition_grid)

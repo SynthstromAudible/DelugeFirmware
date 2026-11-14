@@ -33,4 +33,4 @@ describe font("gfx::oled fonts", $ {
 	});
 });
 
-DELUGE_SPEC(gfx_font_spec, font)
+DELUGE_SPEC(font_spec, font)

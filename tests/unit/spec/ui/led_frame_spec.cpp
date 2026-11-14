@@ -61,4 +61,4 @@ describe led_frame("ui::LedFrame", $ {
 		expect(f.indicator(IndicatorId{2}, KnobIndicator{{9, 9, 9, 9}})).to_be_false();
 	});
 });
-DELUGE_SPEC(ui_led_frame_spec, led_frame)
+DELUGE_SPEC(led_frame_spec, led_frame)

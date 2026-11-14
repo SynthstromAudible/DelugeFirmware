@@ -151,4 +151,4 @@ describe shell_profiles("shell::board profiles", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(shell_profiles_spec, shell_profiles)
+DELUGE_SPEC(profiles_spec, shell_profiles)

@@ -236,4 +236,4 @@ describe text_edit_w("ui::oled::text_edit", $ {
 		expect(r.lit(20, band_y0 + 3)).to_be_false(); // nothing below the band
 	});
 });
-DELUGE_SPEC(ui_text_edit_spec, text_edit_w)
+DELUGE_SPEC(text_edit_spec, text_edit_w)

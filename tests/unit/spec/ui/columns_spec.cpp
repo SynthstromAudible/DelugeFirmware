@@ -1056,4 +1056,4 @@ describe columns_w("ui::oled::columns", $ {
 		}
 	});
 });
-DELUGE_SPEC(ui_columns_spec, columns_w)
+DELUGE_SPEC(columns_spec, columns_w)

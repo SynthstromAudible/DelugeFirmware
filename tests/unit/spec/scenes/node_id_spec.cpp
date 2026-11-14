@@ -119,4 +119,4 @@ describe scenes_node_id("scenes::menu node-id registry", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(scenes_node_id_spec, scenes_node_id)
+DELUGE_SPEC(node_id_spec, scenes_node_id)

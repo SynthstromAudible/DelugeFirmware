@@ -47,4 +47,4 @@ describe repaint_gate("ui::RepaintGate", $ {
 		expect(in.pads.empty()).to_be_true();
 	});
 });
-DELUGE_SPEC(ui_repaint_gate_spec, repaint_gate)
+DELUGE_SPEC(repaint_gate_spec, repaint_gate)

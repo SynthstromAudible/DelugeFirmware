@@ -807,4 +807,4 @@ describe shell_flush("shell::Shell::flush", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(shell_flush_spec, shell_flush)
+DELUGE_SPEC(flush_spec, shell_flush)

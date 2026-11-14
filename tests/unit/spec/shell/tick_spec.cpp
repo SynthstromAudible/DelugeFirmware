@@ -1321,4 +1321,4 @@ describe shell_tick("shell::Shell::tick", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(shell_tick_spec, shell_tick)
+DELUGE_SPEC(tick_spec, shell_tick)

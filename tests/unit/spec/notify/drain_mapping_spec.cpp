@@ -25,4 +25,4 @@ describe drain_mapping("legacy_redraw_for", $ {
 		expect(r.main_rows || r.sidebar_rows || r.oled).to_be_false();
 	});
 });
-DELUGE_SPEC(notify_drain_mapping_spec, drain_mapping)
+DELUGE_SPEC(drain_mapping_spec, drain_mapping)

@@ -408,7 +408,7 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 
 /// Two `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out here
 /// with `add_specs` instead -- as `sim/scenes_spec/menu_scene_spec.cpp` does.
-int scenes_validate_spec(int argc, char** const argv) {
+int validate_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv).add_specs(scenes_validate, scenes_validate_rules).exec().is_success()
 	           ? EXIT_SUCCESS
 	           : EXIT_FAILURE;

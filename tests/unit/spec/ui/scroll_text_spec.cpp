@@ -112,4 +112,4 @@ describe scroll_text_w("ui::oled::scroll_text", $ {
 		expect(st.offset).to_equal(int16_t(0));                       // the pad never touches the text/scroll math
 	});
 });
-DELUGE_SPEC(ui_scroll_text_spec, scroll_text_w)
+DELUGE_SPEC(scroll_text_spec, scroll_text_w)

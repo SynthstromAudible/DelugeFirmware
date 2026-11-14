@@ -279,4 +279,4 @@ describe shell_action_dispatch("gui::ui::dispatchShellActions -- the poll in the
 });
 // clang-format on
 
-DELUGE_SPEC(gui_shell_action_dispatch_spec, shell_action_dispatch)
+DELUGE_SPEC(shell_action_dispatch_spec, shell_action_dispatch)

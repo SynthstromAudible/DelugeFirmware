@@ -153,4 +153,4 @@ describe scenes_node("scenes::menu::Node builders", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(scenes_node_spec, scenes_node)
+DELUGE_SPEC(node_spec, scenes_node)

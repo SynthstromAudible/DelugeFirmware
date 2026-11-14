@@ -265,4 +265,4 @@ describe canvas_golden("Canvas golden frames", $ {
 	});
 });
 
-DELUGE_SPEC(gfx_canvas_golden_spec, canvas_golden)
+DELUGE_SPEC(canvas_golden_spec, canvas_golden)

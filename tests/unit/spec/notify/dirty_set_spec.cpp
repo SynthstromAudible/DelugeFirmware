@@ -88,4 +88,4 @@ describe dirty_set("notify::DirtySet", $ {
 	});
 });
 
-DELUGE_SPEC(notify_dirty_set_spec, dirty_set)
+DELUGE_SPEC(dirty_set_spec, dirty_set)

@@ -569,4 +569,4 @@ describe tween("gfx::grid tweens", $ {
 	});
 });
 
-DELUGE_SPEC(gfx_tween_spec, tween)
+DELUGE_SPEC(tween_spec, tween)

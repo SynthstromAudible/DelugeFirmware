@@ -331,4 +331,4 @@ describe grid_frame("ui::grid::GridFrame", $ {
 		expect(r.flashes.flashes().empty()).to_be_true();
 	});
 });
-DELUGE_SPEC(ui_grid_frame_spec, grid_frame)
+DELUGE_SPEC(grid_frame_spec, grid_frame)

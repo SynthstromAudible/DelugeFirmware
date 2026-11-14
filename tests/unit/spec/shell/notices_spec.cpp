@@ -900,4 +900,4 @@ describe shell_notices("shell::Notices", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(shell_notices_spec, shell_notices)
+DELUGE_SPEC(notices_spec, shell_notices)

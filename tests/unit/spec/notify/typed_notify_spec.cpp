@@ -20,4 +20,4 @@ describe typed_notify("notify typed raisers", $ {
 	});
 });
 
-DELUGE_SPEC(notify_typed_notify_spec, typed_notify)
+DELUGE_SPEC(typed_notify_spec, typed_notify)

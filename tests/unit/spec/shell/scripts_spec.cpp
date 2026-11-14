@@ -474,4 +474,4 @@ describe shell_scripts("shell script harness (level 2)", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(shell_scripts_spec, shell_scripts)
+DELUGE_SPEC(scripts_spec, shell_scripts)

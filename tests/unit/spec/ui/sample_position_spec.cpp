@@ -276,4 +276,4 @@ describe sample_position_widget("ui::oled sample_position & title_badge", $ {
 	});
 });
 // clang-format on
-DELUGE_SPEC(ui_sample_position_spec, sample_position_widget)
+DELUGE_SPEC(sample_position_spec, sample_position_widget)

@@ -52,4 +52,4 @@ describe pad_grid("gfx::grid::PadGrid", $ {
 	});
 });
 
-DELUGE_SPEC(gfx_pad_grid_spec, pad_grid)
+DELUGE_SPEC(pad_grid_spec, pad_grid)

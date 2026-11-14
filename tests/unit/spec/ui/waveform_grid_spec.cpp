@@ -206,4 +206,4 @@ describe waveform_grid("ui/grid/waveform", $ {
 		expect_golden(self, "../ui/widgets/waveform_full.state", r.state());
 	});
 });
-DELUGE_SPEC(ui_waveform_grid_spec, waveform_grid)
+DELUGE_SPEC(waveform_grid_spec, waveform_grid)

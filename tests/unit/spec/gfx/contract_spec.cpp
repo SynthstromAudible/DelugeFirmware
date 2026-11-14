@@ -130,4 +130,4 @@ describe contract("gfx::DELUGE_GFX_CONTRACT", $ {
 	});
 #endif
 });
-DELUGE_SPEC(gfx_contract_spec, contract)
+DELUGE_SPEC(contract_spec, contract)

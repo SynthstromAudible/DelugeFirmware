@@ -360,4 +360,4 @@ describe shell_services("shell::Shell::set_services", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(shell_services_spec, shell_services)
+DELUGE_SPEC(services_spec, shell_services)

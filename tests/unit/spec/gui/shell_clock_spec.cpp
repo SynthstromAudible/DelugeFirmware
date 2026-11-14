@@ -39,4 +39,4 @@ describe shell_clock("deluge::gui::ui::SampleClockMs", ${
 });
 // clang-format on
 
-DELUGE_SPEC(gui_shell_clock_spec, shell_clock)
+DELUGE_SPEC(shell_clock_spec, shell_clock)

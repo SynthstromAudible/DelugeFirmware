@@ -1208,4 +1208,4 @@ describe values_w("ui::oled::values", $ {
 		expect_golden(self, "../ui/widgets/range_value_notes_48.pbm", r.pbm());
 	});
 });
-DELUGE_SPEC(ui_values_spec, values_w)
+DELUGE_SPEC(values_spec, values_w)

@@ -724,4 +724,4 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(gui_shell_guest_surfaces_spec, guest_surfaces)
+DELUGE_SPEC(shell_guest_surfaces_spec, guest_surfaces)

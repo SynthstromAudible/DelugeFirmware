@@ -227,4 +227,4 @@ describe shell_leds("shell::LedCompose", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(shell_leds_spec, shell_leds)
+DELUGE_SPEC(leds_spec, shell_leds)

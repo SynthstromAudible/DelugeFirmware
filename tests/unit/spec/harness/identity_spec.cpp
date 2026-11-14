@@ -150,4 +150,4 @@ describe identity("snapshot writer identity: C++ vs C", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(harness_identity_spec, identity)
+DELUGE_SPEC(identity_spec, identity)

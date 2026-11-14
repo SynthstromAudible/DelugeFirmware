@@ -234,4 +234,4 @@ describe text_widgets("ui::oled text & title", $ {
 		expect(r.pbm()).to_equal(r.reference_pbm());
 	});
 });
-DELUGE_SPEC(ui_text_spec, text_widgets)
+DELUGE_SPEC(text_spec, text_widgets)

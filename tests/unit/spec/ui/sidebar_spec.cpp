@@ -262,4 +262,4 @@ describe sidebar("ui::grid sidebar", $ {
 		expect_golden(self, "../ui/widgets/sidebar_columns.state", r.state());
 	});
 });
-DELUGE_SPEC(ui_sidebar_spec, sidebar)
+DELUGE_SPEC(sidebar_spec, sidebar)

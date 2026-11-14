@@ -845,4 +845,4 @@ describe meters_w("ui::oled::meters", $ {
 		expect(doubled.pbm() == plain.pbm()).to_be_false();
 	});
 });
-DELUGE_SPEC(ui_meters_spec, meters_w)
+DELUGE_SPEC(meters_spec, meters_w)

@@ -238,4 +238,4 @@ describe markers_grid("ui/grid/markers", $ {
 	});
 });
 // clang-format on
-DELUGE_SPEC(ui_markers_grid_spec, markers_grid)
+DELUGE_SPEC(markers_grid_spec, markers_grid)

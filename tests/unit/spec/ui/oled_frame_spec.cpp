@@ -322,4 +322,4 @@ describe oled_frame("ui::oled::OledFrame", $ {
 		expect(r.canvas.clip().has_value()).to_be_false(); // nothing left a clip behind on the canvas
 	});
 });
-DELUGE_SPEC(ui_oled_frame_spec, oled_frame)
+DELUGE_SPEC(oled_frame_spec, oled_frame)

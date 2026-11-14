@@ -102,7 +102,7 @@ struct FakeColumn {
 } // namespace
 
 // clang-format off
-describe keyboard_spec("ui/grid/keyboard", $ {
+describe keyboard_grid("ui/grid/keyboard", $ {
 
 	// --- text_keyboard_char_at ----------------------------------------------------------------
 
@@ -365,4 +365,4 @@ describe keyboard_spec("ui/grid/keyboard", $ {
 		expect(r.grid.at(16, 2)).to_equal(palette::black);
 	});
 });
-DELUGE_SPEC(ui_keyboard_spec, keyboard_spec)
+DELUGE_SPEC(keyboard_spec, keyboard_grid)

@@ -156,4 +156,4 @@ describe tables("level-3 name tables cross-checked against deluge_profile()", $ 
 });
 // clang-format on
 
-DELUGE_SPEC(harness_tables_spec, tables)
+DELUGE_SPEC(tables_spec, tables)

@@ -39,4 +39,4 @@ describe grid_rect("gfx::grid::Rect", $ {
 	});
 });
 
-DELUGE_SPEC(ui_rect_spec, grid_rect)
+DELUGE_SPEC(rect_spec, grid_rect)

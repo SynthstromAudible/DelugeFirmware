@@ -1,6 +1,6 @@
 // tests/unit/audio_stream/convert_cluster_spec.cpp
 //
-// Own file (not a second `describe` inside convert_spec.cpp): the harness's create_test_sourcelist
+// Own file (not a second `describe` inside convert_spec.cpp): deluge_specs_driver
 // dispatches ctest -> driver by matching a function named after the *file's* stem, so a second
 // CPPSPEC_SPEC in convert_spec.cpp would compile but never actually run under ctest. A second
 // *_spec.cpp file is auto-picked-up by the existing glob in CMakeLists.txt with no build-file changes.

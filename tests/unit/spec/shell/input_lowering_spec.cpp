@@ -670,4 +670,4 @@ describe shell_input_lowering("shell::InputLowering", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(shell_input_lowering_spec, shell_input_lowering)
+DELUGE_SPEC(input_lowering_spec, shell_input_lowering)

@@ -36,4 +36,4 @@ describe cursor_blink("ui::Blink", $ {
 	});
 });
 
-DELUGE_SPEC(ui_blink_spec, cursor_blink)
+DELUGE_SPEC(blink_spec, cursor_blink)

@@ -2947,4 +2947,4 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 });
 // clang-format on
 
-DELUGE_SPEC(gui_shell_host_ui_spec, shell_host_ui)
+DELUGE_SPEC(shell_host_ui_spec, shell_host_ui)

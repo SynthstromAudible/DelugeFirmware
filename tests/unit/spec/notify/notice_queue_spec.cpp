@@ -134,4 +134,4 @@ describe notice_queue("notify::NoticeQueue", $ {
 	});
 });
 
-DELUGE_SPEC(notify_notice_queue_spec, notice_queue)
+DELUGE_SPEC(notice_queue_spec, notice_queue)

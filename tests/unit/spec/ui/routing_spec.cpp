@@ -485,7 +485,7 @@ describe cable_strength_value_w("ui::oled::cable_strength_value", $ {
 /// Three `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out here
 /// with `add_specs` instead -- the shape `sim/scenes_spec/tables_1_spec.cpp` uses for the same
 /// reason.
-int ui_routing_spec(int argc, char** const argv) {
+int routing_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
 	               .add_specs(routing_chain_w, segmented_switch_w, cable_strength_value_w)
 	               .exec()

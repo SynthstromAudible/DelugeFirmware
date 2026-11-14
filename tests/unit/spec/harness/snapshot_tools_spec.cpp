@@ -194,6 +194,6 @@ describe snapshot_tools("harness::snapshot_tools (ui_snapshot_diff.py, pbm2png.p
 	});
 });
 // clang-format on
-int harness_snapshot_tools_spec(int argc, char** const argv) {
+int snapshot_tools_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv).add_spec(snapshot_tools).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
 }

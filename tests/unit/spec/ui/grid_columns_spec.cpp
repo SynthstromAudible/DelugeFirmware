@@ -567,4 +567,4 @@ describe grid_columns("ui::grid columns", $ {
 		expect(last == std::array<uint8_t, 3>{7, 5, 1}).to_be_true();
 	});
 });
-DELUGE_SPEC(ui_grid_columns_spec, grid_columns)
+DELUGE_SPEC(grid_columns_spec, grid_columns)

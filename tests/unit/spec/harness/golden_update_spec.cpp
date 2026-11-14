@@ -89,7 +89,7 @@ int exit_status_of(F body) {
 } // namespace
 
 // clang-format off
-describe golden_update_spec("deluge::test::golden", $ {
+describe golden_update("deluge::test::golden", $ {
 	it("is off unless the switch is exactly 1", _ {
 		const fs::path dir = fresh_dir();
 		const Switch on{dir / "log"};
@@ -267,6 +267,6 @@ describe golden_update_spec("deluge::test::golden", $ {
 });
 // clang-format on
 
-int harness_golden_update_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(golden_update_spec).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
+int golden_update_spec(int argc, char** const argv) {
+	return CppSpec::parse(argc, argv).add_spec(golden_update).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
 }

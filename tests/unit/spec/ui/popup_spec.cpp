@@ -831,4 +831,4 @@ describe popup_w("ui::oled::popup", $ {
 		expect(any_text).to_be_true();
 	});
 });
-DELUGE_SPEC(ui_popup_spec, popup_w)
+DELUGE_SPEC(popup_spec, popup_w)
