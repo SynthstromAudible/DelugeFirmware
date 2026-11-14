@@ -105,9 +105,6 @@ add_executable(UnitTests
         clip_iterator_tests.cpp
         midi_queue_tests.cpp
         sync_tests.cpp
-        time_tests.cpp
-        clock_output_scheduler_tests.cpp
-        encoder_acceleration_tests.cpp
         iterance_migration_tests.cpp
         sample_transpose_tests.cpp
         waveform_peak_math_tests.cpp
@@ -117,9 +114,7 @@ add_executable(UnitTests
         song_preview_deferral_tests.cpp
         slicer_preview_tests.cpp
         dx_cartridge_window_tests.cpp
-        trigger_clock_input_tests.cpp
         c_path_tests.cpp
-        tick_interpolation_tests.cpp
 )
 # WORKING_DIRECTORY: song_preview_window_tests.cpp reads a checked-in fixture by a path relative to
 # the repo root (tests/support/data/songs/...) and DELUGE_SONG_CORPUS points at a real directory on disk, so

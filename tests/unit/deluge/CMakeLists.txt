@@ -2,8 +2,8 @@
 # ...), against deluge_spec's app sources and fakes. A subsystem directory with its own CMakeLists.txt builds its own
 # driver.
 # SOURCES: the app files only these specs reach (value scaling, name order, load steps, default names, chord
-# voicings), compiled here rather than in deluge_spec, so the other drivers do not carry them. The chord voicings are
-# note sets, so the driver links deluge_music_theory.
+# voicings, the external clock's output schedule), compiled here rather than in deluge_spec, so the other drivers do
+# not carry them. The chord voicings are note sets, so the driver links deluge_music_theory.
 deluge_specs_driver(app_specs TREES host
   SOURCES
     ${DELUGE_REPO_ROOT}/src/deluge/util/value_scaling.cpp
@@ -12,4 +12,5 @@ deluge_specs_driver(app_specs TREES host
     ${DELUGE_REPO_ROOT}/src/deluge/gui/ui/load/navigation_step.cpp
     ${DELUGE_REPO_ROOT}/src/deluge/gui/ui/browser/default_name.cpp
     ${DELUGE_REPO_ROOT}/src/deluge/gui/ui/keyboard/chords.cpp
+    ${DELUGE_REPO_ROOT}/src/deluge/playback/clock_output_scheduler.cpp
   LIBRARIES deluge_spec deluge_midi deluge_music_theory)
