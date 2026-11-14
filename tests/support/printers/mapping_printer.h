@@ -117,14 +117,21 @@ inline std::ostream& operator<<(std::ostream& os, const LaneInputTarget& t) {
 	return os << std::format("{{lane_input {}}}", t.drum_id);
 }
 
+/// @brief Prints a mapping target as the target it holds, e.g. `{drum_mute 9}`.
+/// @param os The stream to print to.
+/// @param t The target.
+/// @return @p os.
+inline std::ostream& operator<<(std::ostream& os, const MappingTarget& t) {
+	std::visit([&os](const auto& target) { os << target; }, t);
+	return os;
+}
+
 /// @brief Prints a mapping as its source, its target and its relative flag, 1 for set.
 /// @param os The stream to print to.
 /// @param m The mapping.
 /// @return @p os.
 inline std::ostream& operator<<(std::ostream& os, const Mapping& m) {
-	os << "{source " << m.source << ", target ";
-	std::visit([&os](const auto& target) { os << target; }, m.target);
-	return os << ", relative " << int{m.relative} << "}";
+	return os << "{source " << m.source << ", target " << m.target << ", relative " << int{m.relative} << "}";
 }
 
 /// @brief Prints a mapping table as its entries, in table order.

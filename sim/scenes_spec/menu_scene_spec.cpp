@@ -49,10 +49,13 @@
 #include "support/song_fixture.h"
 
 #include "support/mocks/fake_surfaces.h"
+#include "support/printers/pad_flash_printer.h"
+#include "support/printers/rgb_printer.h"
 #include "unit/gfx/support/golden.h"
 #include "unit/ui/support/frames.h"
 
 #include "cppspec.hpp"
+#include "support/matchers/value_matchers.h"
 
 #include <version.h> // kFirmwareVersionString -- the real firmware_version CustomItem's own draw
 
@@ -480,7 +483,7 @@ describe menu_scene_row_icons("scenes::menu::row_icon", $ {
 		Rig r;
 		const MenuContext ctx = r.open(settings_root);
 		for (const Node* n : {&int_leaf, &decimal_leaf, &enum_leaf, &sync_leaf, &lpf_page}) {
-			expect(menu::row_icon(*n, ctx) == &deluge::gfx::oled::icons::submenuArrow).to_be_true();
+			expect(menu::row_icon(*n, ctx)).to_equal(&deluge::gfx::oled::icons::submenuArrow);
 		}
 	});
 
@@ -490,9 +493,9 @@ describe menu_scene_row_icons("scenes::menu::row_icon", $ {
 		const MenuContext ctx = r.open(settings_root);
 		constexpr Node toggle_enum = menu::with_selection_is_toggle(enum_leaf);
 		g_enum = 0;
-		expect(menu::row_icon(toggle_enum, ctx) == &deluge::gfx::oled::icons::uncheckedBox).to_be_true();
+		expect(menu::row_icon(toggle_enum, ctx)).to_equal(&deluge::gfx::oled::icons::uncheckedBox);
 		g_enum = 1;
-		expect(menu::row_icon(toggle_enum, ctx) == &deluge::gfx::oled::icons::checkedBox).to_be_true();
+		expect(menu::row_icon(toggle_enum, ctx)).to_equal(&deluge::gfx::oled::icons::checkedBox);
 	});
 
 	it("marks the arpeggiator's mode and kit-arp rows toggle-style, as their isToggle() does", _ {
@@ -531,14 +534,14 @@ describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
-		expect(menu_scene().pad_regions() == deluge::ui::shell::PadRegions::None).to_be_true();
+		expect(menu_scene().pad_regions()).to_equal(deluge::ui::shell::PadRegions::None);
 	});
 
 	it("registers itself as the one application scene, at SceneKind::FirstApp", _ {
 		const deluge::ui::shell::SceneRegistry reg = scene_registry();
-		expect(reg.find(SceneKind::FirstApp) == &menu_scene()).to_be_true();
-		expect(reg.find(SceneKind::Popup) == nullptr).to_be_true();
-		expect(reg.find(SceneKind::Loading) == nullptr).to_be_true();
+		expect(reg.find(SceneKind::FirstApp)).to_equal(&menu_scene());
+		expect(reg.find(SceneKind::Popup)).to_be_null();
+		expect(reg.find(SceneKind::Loading)).to_be_null();
 	});
 
 	it("greys the whole main grid for a clip-minder context, sparing the sidebar", _ {
@@ -575,15 +578,14 @@ describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 		(void)r.open(settings_root);
 
 		expect(menu_scene().on_enter(SceneId{SceneKind::FirstApp, menu::node_id(int_leaf)})).to_be_true();
-		expect(menu_scene().focused() == &int_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&int_leaf);
 		expect(menu_scene().on_enter(SceneId{SceneKind::FirstApp, 60000})).to_be_false();
 		// Arg 0 means "the root this context chose". With `MenuScene::roots()` filled it lands on the application's own root for the
 		// context the fixture resolved -- a synth clip, so `Root::Sound` -- which is a different node
 		// from this spec's hand-built `settings_root`, and that is the point of the check.
 		expect(menu_scene().on_enter(SceneId{SceneKind::FirstApp, 0})).to_be_true();
-		expect(menu_scene().focused() == menu::MenuScene::roots()[size_t(menu::MenuContext::Root::Sound)])
-		    .to_be_true();
-		expect(menu_scene().focused() != &settings_root).to_be_true();
+		expect(menu_scene().focused()).to_equal(menu::MenuScene::roots()[size_t(menu::MenuContext::Root::Sound)]);
+		expect(menu_scene().focused()).not_().to_equal(&settings_root);
 	});
 });
 
@@ -595,7 +597,7 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		const MenuContext ctx = r.open(settings_root);
 		g_custom_consumes.handled = 0;
 		menu_scene().open(custom_consumes_leaf, ctx);
-		expect(menu_scene().focused() == &custom_consumes_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&custom_consumes_leaf);
 
 		// `Back` at depth 0 would otherwise be the scene's own root-close case (`Remove`,
 		// `handle()`'s case (b)) -- the custom item sees it first, and its own `Pop` wins.
@@ -630,8 +632,8 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		deluge::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open(settings_root);
-		expect(nodes::firmware_version.kind == menu::Kind::Custom).to_be_true();
-		expect(nodes::firmware_version.custom != nullptr).to_be_true();
+		expect(nodes::firmware_version.kind).to_equal(menu::Kind::Custom);
+		expect(nodes::firmware_version.custom).not_().to_be_null();
 		menu_scene().open(nodes::firmware_version, ctx);
 
 		deluge::ui::test::Rig48 rig;
@@ -655,8 +657,8 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		deluge::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open(settings_root);
-		expect(nodes::battery_level.kind == menu::Kind::Custom).to_be_true();
-		expect(nodes::battery_level.custom != nullptr).to_be_true();
+		expect(nodes::battery_level.kind).to_equal(menu::Kind::Custom);
+		expect(nodes::battery_level.custom).not_().to_be_null();
 		menu_scene().open(nodes::battery_level, ctx);
 
 		deluge::ui::test::Rig48 rig;
@@ -789,7 +791,7 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 30);
 		r.shell.tick(40);
 		expect(depth_of()).to_equal(1);
-		expect(menu_scene().focused() == &nodes::gate_mode).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::gate_mode);
 
 		// Back out: no divergence yet -- row 2 is exactly what `currentSourceIndex` now holds too,
 		// so "keep the cursor" and "restore from `currentSourceIndex`" agree.
@@ -808,7 +810,7 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 110);
 		r.shell.tick(120);
 		expect(depth_of()).to_equal(1);
-		expect(menu_scene().focused() == &nodes::gate_off_time).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::gate_off_time);
 
 		// Back out: the cursor snaps to 2 -- the last REAL output -- not to 4, the row just left.
 		r.button(kBackX, kBackY, true, 140);
@@ -855,7 +857,7 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		expect(menu_scene().state().scroll[0].offset).to_equal(int16_t(0)); // not yet -- the pause
 		r.shell.tick(460);
 		r.shell.tick(475);
-		expect(menu_scene().state().scroll[0].offset > 0).to_be_true();
+		expect(menu_scene().state().scroll[0].offset).to_be_greater_than(0);
 	});
 });
 
@@ -890,12 +892,12 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 10);
 		r.shell.tick(20);
 		expect(depth_of()).to_equal(1);
-		expect(menu_scene().focused() == &lpf_page).to_be_true();
+		expect(menu_scene().focused()).to_equal(&lpf_page);
 
 		r.button(kBackX, kBackY, true, 30);
 		r.shell.tick(40);
 		expect(depth_of()).to_equal(0);
-		expect(menu_scene().focused() == &settings_root).to_be_true();
+		expect(menu_scene().focused()).to_equal(&settings_root);
 	});
 
 	it("a Back that ascends to the root is delivered once, and the next Back closes the menu", _ {
@@ -997,7 +999,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.shell.tick(60);
 		r.shell.tick(70);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
-		expect(menu_scene().focused() == &int_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&int_leaf);
 	});
 
 	it("the release of the press that opened the menu does not act", _ {
@@ -1059,12 +1061,12 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(ctx.sink->learn(*target, deluge::project::MidiCommand{.channel_or_zone = 18, .note_or_cc = 20},
 		                       std::nullopt))
 		    .to_be_true();
-		expect(ctx.model->mappings.find(*target) != nullptr).to_be_true();
+		expect(ctx.model->mappings.find(*target)).not_().to_be_null();
 		r.button(kShiftX, kShiftY, true, 100);
 		r.button(kLearnX, kLearnY, true, 110);
 		r.shell.tick(120);
 		r.shell.tick(130);
-		expect(ctx.model->mappings.find(*target) == nullptr).to_be_true();
+		expect(ctx.model->mappings.find(*target)).to_be_null();
 		expect(std::string(r.shell.notices().last_popup_text()))
 		    .to_equal(std::string(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNLEARNED)));
 	});
@@ -1090,8 +1092,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		const auto lit = [&r] { return r.fake.leds().desired_on[static_cast<size_t>(ButtonId::Learn)]; };
 		r.button(kLearnX, kLearnY, true, 10);
 		r.shell.tick(15);
-		expect(learn_led().kind == deluge::ui::LedState::Kind::Shared).to_be_true();
-		expect(learn_led().rate == deluge::ui::BlinkRate::Fast).to_be_true();
+		expect(learn_led().kind).to_equal(deluge::ui::LedState::Kind::Shared);
+		expect(learn_led().rate).to_equal(deluge::ui::BlinkRate::Fast);
 		// `ledBlinkState[1] = initialState` with the timer armed from the press (`indicator_leds.cpp:77-84`): lit
 		// for its first 60 ms from the press, as routed at 15, then toggling every 60.
 		expect(lit()).to_be_true();
@@ -1103,7 +1105,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(lit()).to_be_true();
 		r.button(kLearnX, kLearnY, false, 150);
 		r.shell.tick(155);
-		expect(learn_led().rate == deluge::ui::BlinkRate::Fast).to_be_false();
+		expect(learn_led().rate).not_().to_equal(deluge::ui::BlinkRate::Fast);
 	});
 
 	it("LEARN enters no learn mode with Shift held, a pad held, or on an item that refuses learn", _ {
@@ -1179,7 +1181,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.shell.tick(70);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 		expect(depth_of()).to_equal(0);
-		expect(menu_scene().focused() == &nodes::cv_selection).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::cv_selection);
 	});
 
 	it("back at the root removes the scene off the stack", _ {
@@ -1253,7 +1255,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 70);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 70);
 		r.shell.tick(80);
-		expect(menu_scene().focused() == &lpf_page).to_be_true();
+		expect(menu_scene().focused()).to_equal(&lpf_page);
 		r.button(kBackX, kBackY, true, 90);
 		r.shell.tick(100);
 		const int8_t lpf_column = menu_scene().state().columns[1].focused;
@@ -1299,7 +1301,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kBackX, kBackY, true, 10);
 		r.shell.tick(20);
 		expect(r.shell.stack().depth()).to_equal(size_t(1)); // only the menu is gone
-		expect(r.shell.stack().top().kind() == deluge::ui::shell::SceneKind::Popup).to_be_true();
+		expect(r.shell.stack().top().kind()).to_equal(deluge::ui::shell::SceneKind::Popup);
 	});
 
 	it("routes a horizontal turn as legacy's item does: a page keeps it, a param leaf passes it on", _ {
@@ -1308,12 +1310,12 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		Rig r;
 		(void)r.open(nodes::lpf);
 		r.shell.tick(0);
-		expect(menu_scene().route_horizontal_turn(1, false, 10) == HorizontalTurn::Menu).to_be_true();
+		expect(menu_scene().route_horizontal_turn(1, false, 10)).to_equal(HorizontalTurn::Menu);
 		Rig r2;
 		(void)r2.open(nodes::lpf_freq);
 		r2.shell.tick(0);
-		expect(menu_scene().route_horizontal_turn(1, false, 10) == HorizontalTurn::Root).to_be_true();
-		expect(menu_scene().route_horizontal_turn(-1, true, 20) == HorizontalTurn::Root).to_be_true();
+		expect(menu_scene().route_horizontal_turn(1, false, 10)).to_equal(HorizontalTurn::Root);
+		expect(menu_scene().route_horizontal_turn(-1, true, 20)).to_equal(HorizontalTurn::Root);
 	});
 
 	it("passes a patch cable page's horizontal turn on only after its cursor has stood at an edge half a second", _ {
@@ -1324,13 +1326,13 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		(void)r.open(nodes::vibrato);
 		r.shell.tick(0);
 		menu_scene().state_for_spec().decimal_pos = 1;
-		expect(menu_scene().route_horizontal_turn(1, false, 100) == HorizontalTurn::Menu).to_be_true(); // moves
+		expect(menu_scene().route_horizontal_turn(1, false, 100)).to_equal(HorizontalTurn::Menu); // moves
 		menu_scene().state_for_spec().decimal_pos = 0;
-		expect(menu_scene().route_horizontal_turn(1, false, 200) == HorizontalTurn::Menu).to_be_true(); // arms
-		expect(menu_scene().route_horizontal_turn(1, false, 600) == HorizontalTurn::Menu).to_be_true();
-		expect(menu_scene().route_horizontal_turn(1, false, 701) == HorizontalTurn::Root).to_be_true();
-		expect(menu_scene().route_horizontal_turn(-1, false, 800) == HorizontalTurn::Menu).to_be_true(); // moves
-		expect(menu_scene().route_horizontal_turn(1, false, 900) == HorizontalTurn::Menu).to_be_true(); // re-arms
+		expect(menu_scene().route_horizontal_turn(1, false, 200)).to_equal(HorizontalTurn::Menu); // arms
+		expect(menu_scene().route_horizontal_turn(1, false, 600)).to_equal(HorizontalTurn::Menu);
+		expect(menu_scene().route_horizontal_turn(1, false, 701)).to_equal(HorizontalTurn::Root);
+		expect(menu_scene().route_horizontal_turn(-1, false, 800)).to_equal(HorizontalTurn::Menu); // moves
+		expect(menu_scene().route_horizontal_turn(1, false, 900)).to_equal(HorizontalTurn::Menu); // re-arms
 	});
 
 	it("holds a patch cable page's cursor still while X_ENC is held, and passes the turn on after the delay", _ {
@@ -1339,8 +1341,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		(void)r.open(nodes::vibrato);
 		r.shell.tick(0);
 		menu_scene().state_for_spec().decimal_pos = 1;
-		expect(menu_scene().route_horizontal_turn(1, true, 100) == HorizontalTurn::Neither).to_be_true();
-		expect(menu_scene().route_horizontal_turn(1, true, 700) == HorizontalTurn::Root).to_be_true();
+		expect(menu_scene().route_horizontal_turn(1, true, 100)).to_equal(HorizontalTurn::Neither);
+		expect(menu_scene().route_horizontal_turn(1, true, 700)).to_equal(HorizontalTurn::Root);
 	});
 
 	it("over the automation view swallows a shortcut to an item with no param, and still takes a param's", _ {
@@ -1356,10 +1358,10 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.pad(8, 5, 64, 20);
 		r.pad(8, 5, 0, 25);
 		r.shell.tick(30);
-		expect(menu_scene().focused() == &settings_root).to_be_true();
+		expect(menu_scene().focused()).to_equal(&settings_root);
 		r.pad(kLpfFreqX, kLpfFreqY, 64, 40);
 		r.shell.tick(50);
-		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 	});
 
 	it("takes a shortcut to an item with no param over any other root", _ {
@@ -1371,7 +1373,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kShiftX, kShiftY, true, 10);
 		r.pad(8, 5, 64, 20);
 		r.shell.tick(30);
-		expect(menu_scene().focused_value() == &nodes::lpf_mode).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::lpf_mode);
 	});
 
 	it("a shift-held shortcut pad replaces the scene at that node, and state_lines says so", _ {
@@ -1380,8 +1382,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
-		expect(r.shell.state_lines().find("app16/" + std::to_string(menu::node_id(settings_root))) != std::string::npos)
-		    .to_be_true();
+		expect(r.shell.state_lines()).to_contain("app16/" + std::to_string(menu::node_id(settings_root)));
 
 		// Shift held, then the pad: `handle()` answers with a Replace naming the node to open, the
 		// router applies it, and `on_enter` re-targets on the way back in -- so `SceneId::arg`, and
@@ -1391,20 +1392,18 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kShiftX, kShiftY, true, 10);
 		r.pad(kLpfFreqX, kLpfFreqY, 64, 20);
 		r.shell.tick(30);
-		expect(menu_scene().focused() == &nodes::filters_group).to_be_true();
-		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::filters_group);
+		expect(menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 		expect(depth_of()).to_equal(0);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
-		expect(r.shell.state_lines().find("app16/" + std::to_string(menu::node_id(nodes::filters_group)))
-		       != std::string::npos)
-		    .to_be_true();
+		expect(r.shell.state_lines()).to_contain("app16/" + std::to_string(menu::node_id(nodes::filters_group)));
 
 		// Without shift the pad is not a shortcut (`SoundEditor::potentialShortcutPadAction`'s
 		// `Buttons::isShiftButtonPressed()` gate), and nothing moves.
 		r.button(kShiftX, kShiftY, false, 40);
 		r.pad(kHpfFreqX, kHpfFreqY, 64, 50);
 		r.shell.tick(60);
-		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 	});
 
 	it("takes a shortcut pad without shift when the press says an audition holds it, and not otherwise", _ {
@@ -1418,13 +1417,13 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.shell.on_host_pad(kLpfFreqX, kLpfFreqY, 64, /*shortcut_without_shift=*/false, 10);
 		r.shell.on_host_pad(kLpfFreqX, kLpfFreqY, 0, false, 12);
 		r.shell.tick(20);
-		expect(menu_scene().focused() == &nodes::sound_root).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::sound_root);
 
 		r.shell.on_host_pad(kLpfFreqX, kLpfFreqY, 64, /*shortcut_without_shift=*/true, 30);
 		r.shell.on_host_pad(kLpfFreqX, kLpfFreqY, 0, false, 32);
 		r.shell.tick(40);
-		expect(menu_scene().focused() == &nodes::filters_group).to_be_true();
-		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::filters_group);
+		expect(menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 	});
 
 	it("handles each of two shortcut presses in one tick by its own reason, SHIFT's and an audition's", _ {
@@ -1446,7 +1445,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.shell.tick(20);
 		r.shell.tick(30);
 		// The audition's jump is the last one taken; the unflagged third press moved nothing.
-		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 	});
 
 	it("re-roots the open menu at another root, landed on a column, through one Replace", _ {
@@ -1462,9 +1461,9 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		menu_scene().reroot(nodes::note_row_editor_root, row, nodes::note_row_iterance);
 		r.shell.tick(10);
 		r.shell.tick(20);
-		expect(menu_scene().menu_context().root == MenuContext::Root::NoteRowEditor).to_be_true();
-		expect(menu_scene().focused() == &nodes::note_row_editor_root).to_be_true();
-		expect(menu_scene().focused_value() == &nodes::note_row_iterance).to_be_true();
+		expect(menu_scene().menu_context().root).to_equal(MenuContext::Root::NoteRowEditor);
+		expect(menu_scene().focused()).to_equal(&nodes::note_row_editor_root);
+		expect(menu_scene().focused_value()).to_equal(&nodes::note_row_iterance);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 	});
 
@@ -1500,20 +1499,20 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kShiftX, kShiftY, true, 0);
 		r.pad(kEnv1RelX, kEnv1RelY, 64, 10);
 		r.shell.tick(20);
-		expect(menu_scene().focused_value() == &nodes::env1_release).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::env1_release);
 
 		// Same pad again: the second layer's `&env3ReleaseMenu`.
 		r.pad(kEnv1RelX, kEnv1RelY, 64, 30);
 		r.shell.tick(40);
-		expect(menu_scene().focused_value() == &nodes::env3_release).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::env3_release);
 
 		// A different pad clears the toggle, so the pad after it is first-layer again.
 		r.pad(kLpfFreqX, kLpfFreqY, 64, 50);
 		r.shell.tick(60);
-		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 		r.pad(kEnv1RelX, kEnv1RelY, 64, 70);
 		r.shell.tick(80);
-		expect(menu_scene().focused_value() == &nodes::env1_release).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::env1_release);
 	});
 
 	it("returns one Replace action naming the page that lists the target", _ {
@@ -1533,13 +1532,13 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		};
 		expect(std::ranges::count_if(res.actions, is_replace)).to_equal(1);
 		const auto replace = std::ranges::find_if(res.actions, is_replace);
-		expect(replace != res.actions.end()).to_be_true();
+		expect(std::distance(res.actions.begin(), replace)).to_be_less_than(std::ssize(res.actions));
 		if (replace != res.actions.end()) {
 			expect(static_cast<int>(replace->id.kind)).to_equal(static_cast<int>(SceneKind::FirstApp));
 			expect(static_cast<int>(replace->id.arg)).to_equal(static_cast<int>(menu::node_id(nodes::filters_group)));
 		}
 		// `handle()` itself moves nothing: the router's Replace does, through `on_enter`.
-		expect(menu_scene().focused() == &settings_root).to_be_true();
+		expect(menu_scene().focused()).to_equal(&settings_root);
 	});
 
 	it("a pad whose node does not apply stays put and says PARAMETER NOT APPLICABLE", _ {
@@ -1562,13 +1561,13 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 				}
 			}
 		}
-		expect(px != 255).to_be_true();
+		expect(px).not_().to_equal(255);
 
 		r.button(kShiftX, kShiftY, true, 10);
 		r.pad(px, py, 64, 20);
 		r.shell.tick(30);
 		r.shell.tick(40);
-		expect(menu_scene().focused() == &settings_root).to_be_true();
+		expect(menu_scene().focused()).to_equal(&settings_root);
 		expect(r.shell.notices().last_popup_text())
 		    .to_equal(std::string{deluge::l10n::get(String::STRING_FOR_PARAMETER_NOT_APPLICABLE)});
 	});
@@ -1585,7 +1584,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.pad(4, 2, 64, 20);
 		r.shell.tick(30);
 		r.shell.tick(40);
-		expect(menu_scene().focused() == &settings_root).to_be_true();
+		expect(menu_scene().focused()).to_equal(&settings_root);
 		expect(r.shell.notices().last_popup_text())
 		    .to_equal(std::string{deluge::l10n::get(String::STRING_FOR_UNIMPLEMENTED)});
 	});
@@ -1650,15 +1649,15 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		(void)r.open(settings_root);
 		r.shell.tick(0);
 		const Node* target = menu::shortcut_node(menu_scene().menu_context().root, false, 2, 1);
-		expect(target == &nodes::source0_transpose).to_be_true();
+		expect(target).to_equal(&nodes::source0_transpose);
 
 		r.button(kShiftX, kShiftY, true, 10);
 		r.pad(2, 1, 64, 20);
 		r.shell.tick(30);
 		r.button(kShiftX, kShiftY, false, 40);
 		r.shell.tick(50);
-		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
-		expect(menu_scene().state().walk.pending_after_range == &nodes::source0_transpose).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::multi_range);
+		expect(menu_scene().state().walk.pending_after_range).to_equal(&nodes::source0_transpose);
 
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 60);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 60);
@@ -1666,9 +1665,12 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.shell.tick(90);
 		expect(depth_of()).to_equal(1);
 		const Node* page = menu_scene().focused();
-		expect(page != nullptr && page->kind == menu::Kind::Submenu && page->layout == menu::Layout::Horizontal)
-		    .to_be_true();
-		expect(menu_scene().focused_value() == &nodes::source0_transpose).to_be_true();
+		expect(page).not_().to_be_null();
+		if (page != nullptr) {
+			expect(page->kind).to_equal(menu::Kind::Submenu);
+			expect(page->layout).to_equal(menu::Layout::Horizontal);
+		}
+		expect(menu_scene().focused_value()).to_equal(&nodes::source0_transpose);
 	});
 
 	it("a jump to a page whose column is not range-dependent drops the picked range, as main's beginSession", _ {
@@ -1693,20 +1695,20 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 			r.shell.tick(at + 40);
 		};
 		jump(2, 1, 10);
-		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::multi_range);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 60);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 60);
 		r.shell.tick(70);
 		r.shell.tick(90);
-		expect(menu_scene().focused_value() == &nodes::source0_transpose).to_be_true();
-		expect(menu_scene().menu_context().range_index >= 0).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::source0_transpose);
+		to_be_at_least(expect(menu_scene().menu_context().range_index), 0);
 
 		jump(kLpfFreqX, kLpfFreqY, 200);
-		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 		expect(menu_scene().menu_context().range_index).to_equal(-1);
 
 		jump(2, 1, 400);
-		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::multi_range);
 	});
 
 	it("lands on the leaf itself with the HorizontalMenus feature off", _ {
@@ -1724,10 +1726,10 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kShiftX, kShiftY, true, 10);
 		r.pad(kLpfFreqX, kLpfFreqY, 64, 20);
 		r.shell.tick(30);
-		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::lpf_freq);
 		r.pad(kHpfFreqX, kHpfFreqY, 64, 40);
 		r.shell.tick(50);
-		expect(menu_scene().focused() == &nodes::hpf_freq).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::hpf_freq);
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus,
 		                           was_on ? RuntimeFeatureStateToggle::On : RuntimeFeatureStateToggle::Off);
 	});
@@ -1748,7 +1750,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		for (uint32_t t = 120; t < 1000; t += 10) {
 			r.shell.tick(t);
 		}
-		expect(r.fake.flashes_sent.size() > flashes).to_be_true();
+		expect(r.fake.flashes_sent.size()).to_be_greater_than(flashes);
 		expect(r.fake.blits.size()).to_equal(blits);
 	});
 
@@ -1792,9 +1794,9 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// `multiRangeMenu.menuItemHeadingTo = newItem; newItem = &multiRangeMenu;`
 		// (`SoundEditor::setup`). So the *picker* is entered, not the leaf.
 		expect(depth_of()).to_equal(1);
-		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::multi_range);
 		expect(menu_scene().state().walk.range_picker_pending).to_be_true();
-		expect(menu_scene().state().walk.pending_after_range == &transpose_leaf).to_be_true();
+		expect(menu_scene().state().walk.pending_after_range).to_equal(&transpose_leaf);
 
 		// Both ranges are on screen, and the picker has selected one -- `SoundEditor::setCurrentMultiRange`, applied by `after_render` from `MenuWalkState::range_choice`.
 		// `MultiRange::beginSession` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`): a `defaultRangeI` of -1
@@ -1815,7 +1817,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 130);
 		r.shell.tick(140);
 		expect(depth_of()).to_equal(2);
-		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&transpose_leaf);
 		expect(menu_scene().state().walk.range_picker_pending).to_be_false();
 	});
 
@@ -1839,26 +1841,26 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		r.shell.tick(110);
-		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::multi_range);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 130);
 		r.shell.tick(140);
-		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
-		expect(menu_scene().state().walk.pending_after_range == &transpose_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&transpose_leaf);
+		expect(menu_scene().state().walk.pending_after_range).to_equal(&transpose_leaf);
 
 		r.button(kBackX, kBackY, true, 150);
 		r.shell.tick(160);
 		r.button(kBackX, kBackY, false, 170);
 		r.shell.tick(180);
 		expect(depth_of()).to_equal(1);
-		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
-		expect(menu_scene().state().walk.pending_after_range == &transpose_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::multi_range);
+		expect(menu_scene().state().walk.pending_after_range).to_equal(&transpose_leaf);
 
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 190);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 190);
 		r.shell.tick(200);
 		expect(depth_of()).to_equal(2);
-		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&transpose_leaf);
 	});
 
 	it("remembers a flick in the source, and a note played under the open picker moves the memory and not the cursor", _ {
@@ -1885,7 +1887,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		r.shell.tick(110);
-		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::multi_range);
 		expect(cursor_of(1)).to_equal(1);
 
 		r.turn(1, 120);
@@ -1924,7 +1926,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		r.shell.tick(110);
-		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::multi_range);
 		expect(cursor_of(1)).to_equal(1); // range 1, 41..60
 
 		r.edges(1, -2, 120); // one detent of the horizontal encoder (`shell/profiles/deluge.cpp`)
@@ -1951,7 +1953,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(7, 1, false, 140);
 		r.shell.tick(145);
 		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
-		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::multi_range);
 
 		r.edges(1, 2, 146); // the right edge: from x = 10 * kTextSpacingX to the panel's edge
 		r.shell.tick(147);
@@ -1997,7 +1999,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		r.shell.tick(110);
-		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::multi_range);
 		expect(cursor_of(1)).to_equal(1);
 
 		r.edges(1, -2, 120);
@@ -2007,13 +2009,13 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 130);
 		r.shell.tick(140);
-		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&transpose_leaf);
 		sound->sources[0].defaultRangeI = 0; // a note played meanwhile
 
 		r.button(7, 1, true, 150);
 		r.button(7, 1, false, 150);
 		r.shell.tick(160);
-		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::multi_range);
 		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Off));
 		expect(menu_scene().state().list[1].hide_cursor).to_be_false();
 		// The window opens afresh, the range on its last row as far as it can be (`ListState::keep_scroll`'s -1).
@@ -2039,7 +2041,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		const MenuContext ctx = r.open(settings_root);
 		menu_scene().open(nodes::multi_range, ctx);
 		r.shell.tick(0);
-		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::multi_range);
 		r.edges(1, -2, 10);
 		r.shell.tick(15);
 		expect(static_cast<int>(menu_scene().state().edit_edge)).to_equal(static_cast<int>(deluge::ui::oled::RangeEdge::Left));
@@ -2159,7 +2161,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 		// The leaf itself is on screen -- no picker in between -- and the range it needs now exists.
 		expect(depth_of()).to_equal(1);
-		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&transpose_leaf);
 		expect(menu_scene().state().walk.range_picker_pending).to_be_false();
 		expect(static_cast<int>(std::ssize(sound->sources[0].ranges))).to_equal(1);
 		// `Source::getOrCreateFirstRange` gives it the top of the keyboard (`source.cpp:165`).
@@ -2197,7 +2199,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.shell.tick(0);
 
 		expect(depth_of()).to_equal(0);
-		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&transpose_leaf);
 		expect(static_cast<int>(std::ssize(sound->sources[0].ranges))).to_equal(1);
 		expect(static_cast<int>(sound->sources[0].ranges.getElement(0)->topNote)).to_equal(32767);
 	});
@@ -2228,9 +2230,9 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// The picker is what is on screen, at depth 0 -- `retarget`, not `descend_to`, because a
 		// deep link has no path to descend from -- and the item it stood in for is remembered.
 		expect(depth_of()).to_equal(0);
-		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::multi_range);
 		expect(menu_scene().state().walk.range_picker_pending).to_be_true();
-		expect(menu_scene().state().walk.pending_after_range == &transpose_leaf).to_be_true();
+		expect(menu_scene().state().walk.pending_after_range).to_equal(&transpose_leaf);
 		// And the two ranges are still the source's own: nothing was allocated on top of them.
 		expect(static_cast<int>(std::ssize(sound->sources[0].ranges))).to_equal(2);
 	});
@@ -2250,7 +2252,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		(void)r.open(toggle_leaf);
 		r.shell.tick(0);
 
-		expect(menu_scene().focused() == &toggle_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&toggle_leaf);
 		expect(sound->sources[0].ranges.empty()).to_be_true();
 	});
 
@@ -2275,7 +2277,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.enter(160);
 		r.shell.tick(170);
 		expect(depth_of()).to_equal(3);
-		expect(menu_scene().focused() == &deep_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&deep_leaf);
 
 		deluge::ui::shell::SceneState saved{};
 		menu_scene().save_state(saved);
@@ -2285,7 +2287,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 		menu_scene().restore_state(saved);
 		expect(depth_of()).to_equal(3);
-		expect(menu_scene().focused() == &deep_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&deep_leaf);
 		// Every level on the way down is seeded with the row it was left on, not row 0.
 		expect(cursor_of(0)).to_equal(6);
 		expect(cursor_of(1)).to_equal(0);
@@ -2311,7 +2313,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		r.shell.tick(110);
-		expect(menu_scene().focused() == &chain_source_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&chain_source_leaf);
 		expect(depth_of()).to_equal(1);
 
 		// Odd value -> the hook names `chain_target_leaf`, so the press descends rather than
@@ -2320,7 +2322,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 250);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 250);
 		r.shell.tick(260);
-		expect(menu_scene().focused() == &chain_target_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&chain_target_leaf);
 		expect(depth_of()).to_equal(2);
 
 		// And the chained page chains on again -- two hops, the shape `arp_preset` ->
@@ -2328,7 +2330,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 280);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 280);
 		r.shell.tick(290);
-		expect(menu_scene().focused() == &chain_target_hop2).to_be_true();
+		expect(menu_scene().focused()).to_equal(&chain_target_hop2);
 		expect(depth_of()).to_equal(3);
 
 		// `chain_target_hop2` has no chain, so its press ascends -- back to the page that chained
@@ -2336,7 +2338,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 310);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 310);
 		r.shell.tick(320);
-		expect(menu_scene().focused() == &chain_target_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&chain_target_leaf);
 		expect(depth_of()).to_equal(2);
 	});
 
@@ -2356,14 +2358,14 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		r.shell.tick(110);
-		expect(menu_scene().focused() == &chain_source_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&chain_source_leaf);
 
 		g_int = 4; // even
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 130);
 		r.shell.tick(140);
 		expect(depth_of()).to_equal(0);
-		expect(menu_scene().focused() == &settings_root).to_be_true();
+		expect(menu_scene().focused()).to_equal(&settings_root);
 	});
 
 	it("gives a chain-only page an id, so on_enter can restore one", _ {
@@ -2376,12 +2378,12 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.shell.tick(0);
 
 		const uint16_t id = menu::node_id(chain_target_leaf);
-		expect(id != uint16_t(0)).to_be_true();
-		expect(menu::node_by_id(id) == &chain_target_leaf).to_be_true();
-		expect(menu::node_id(chain_target_hop2) != uint16_t(0)).to_be_true();
+		expect(id).not_().to_equal(uint16_t(0));
+		expect(menu::node_by_id(id)).to_equal(&chain_target_leaf);
+		expect(menu::node_id(chain_target_hop2)).not_().to_equal(uint16_t(0));
 
 		expect(menu_scene().on_enter(SceneId{SceneKind::FirstApp, id})).to_be_true();
-		expect(menu_scene().focused() == &chain_target_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&chain_target_leaf);
 	});
 });
 
@@ -2400,7 +2402,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 30);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 30);
 		r.shell.tick(40);
-		expect(menu_scene().focused() == &int_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&int_leaf);
 		expect(menu::bindings::read(int_leaf, ctx)).to_equal(3);
 
 		// `int_value` edits on the select encoder now, not the gold knobs
@@ -2474,7 +2476,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		r.enter(150);
 		r.shell.tick(160);
 		expect(depth_of()).to_equal(1);
-		expect(menu_scene().focused() == &page_enum).to_be_true();
+		expect(menu_scene().focused()).to_equal(&page_enum);
 		expect(menu::bindings::read(page_enum, ctx)).to_equal(0);
 	});
 
@@ -2504,7 +2506,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		r.shell.tick(110);
-		expect(menu_scene().focused() == &enum_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&enum_leaf);
 
 		r.turn(1, 120);
 		r.shell.tick(130);
@@ -2526,7 +2528,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		r.shell.tick(110);
-		expect(menu_scene().focused() == &decimal_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&decimal_leaf);
 
 		// `decimal_value`'s select-detent amount is 10^edit_pos, and `edit_pos` starts on
 		// `Binding::default_edit_pos` (2, `Decimal::getDefaultEditPos`): one detent is 1.00.
@@ -2552,7 +2554,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		r.shell.tick(110);
-		expect(menu_scene().focused() == &sync_leaf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&sync_leaf);
 		expect(menu::bindings::read(sync_leaf, ctx)).to_equal(0);
 
 		// `SyncLevel` derives from `Enumeration` (`sync_level.h:27`), not `Integer`, so the SELECT
@@ -2586,7 +2588,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 10);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 10);
 		r.shell.tick(20);
-		expect(menu_scene().focused() == &lpf_page).to_be_true();
+		expect(menu_scene().focused()).to_equal(&lpf_page);
 
 		const int32_t before = menu::bindings::read(lpf_freq, ctx);
 		r.turn(-1, 30);
@@ -2624,11 +2626,14 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 			r.button(kShiftX, kShiftY, false, 40);
 			r.shell.tick(50);
 			expect(r.song.song->project.resolveParam(lpf)->nodes.empty()).to_be_true();
-			expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
+			expect(menu_scene().focused()).to_equal(&nodes::lpf_freq);
 			expect(depth_of()).to_equal(0);
 			expect(r.shell.notices().last_popup_text()).to_equal(deleted);
 			Action* action = actionLogger.firstAction[BEFORE];
-			expect(action != nullptr && action->nextAction == nullptr).to_be_true();
+			expect(action).not_().to_be_null();
+			if (action != nullptr) {
+				expect(action->nextAction).to_be_null();
+			}
 			expect(actionLogger.revert(BEFORE, false, false)).to_be_true();
 			expect(r.song.song->project.resolveParam(lpf)->nodes.empty()).to_be_false();
 			actionLogger.deleteAllLogs();
@@ -2652,7 +2657,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 			r.button(kShiftX, kShiftY, false, 260);
 			r.shell.tick(270);
 			expect(r.song.song->project.resolveParam(lpf)->nodes.empty()).to_be_true();
-			expect(menu_scene().focused() == &nodes::lpf).to_be_true(); // not the source picker FREQ chains to
+			expect(menu_scene().focused()).to_equal(&nodes::lpf); // not the source picker FREQ chains to
 			expect(r.shell.notices().last_popup_text()).to_equal(deleted);
 		}
 		{
@@ -2665,7 +2670,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 			r.shell.tick(30);
 			r.button(kShiftX, kShiftY, false, 40);
 			r.shell.tick(50);
-			expect(r.shell.notices().last_popup_text() != deleted).to_be_true(); // not an automation item
+			expect(r.shell.notices().last_popup_text()).not_().to_equal(deleted); // not an automation item
 		}
 		currentSong = saved_song;
 	});
@@ -2724,7 +2729,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		menu_scene().state_for_spec().edit_int = 12345;
 		menu_scene().read_value_again();
 		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(0);
-		expect(menu_scene().state().edit_int != 12345).to_be_true(); // the strength is read again
+		expect(menu_scene().state().edit_int).not_().to_equal(12345); // the strength is read again
 	});
 
 	it("a re-read on a horizontal page writes no edit storage: Submenu::readValueAgain only redraws", _ {
@@ -2911,7 +2916,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		r.button(kShiftX, kShiftY, true, 0);
 		r.pad(kLpfFreqX, kLpfFreqY, 64, 1);
 		r.shell.tick(2);
-		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 
 		// The cycle is anchored at the first render of the newly focused node (legacy's
 		// `shortcutBlinkCounter = 0`), so steps are counted from there, not from t = 0.
@@ -2923,7 +2928,9 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 			for (int32_t y = 0; y < grid.grid.dims().rows; y++) {
 				for (int32_t x = 0; x < grid.grid.dims().cols(); x++) {
 					const RGB& c = grid.grid.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
-					expect(c.r == 0 && c.g == 0 && c.b == 0).to_be_true();
+					expect(c.r).to_equal(0);
+					expect(c.g).to_equal(0);
+					expect(c.b).to_equal(0);
 				}
 			}
 			expect(grid.ctx.claims.any()).to_be_false();
@@ -2933,14 +2940,20 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		// Step 1, the param phase: `blinkShortcut` flashes the pad once as it enters it.
 		const std::vector<PadFlash> first = render_at(menu::kSourceBlinkMs);
 		expect(first.size()).to_equal(size_t(1));
-		expect(!first.empty() && first[0] == PadFlash{kLpfFreqX, kLpfFreqY, FlashColour::Default}).to_be_true();
+		expect(first.empty()).to_be_false();
+		if (!first.empty()) {
+			expect(first[0]).to_equal(PadFlash{kLpfFreqX, kLpfFreqY, FlashColour::Default});
+		}
 		// Still step 1: no second flash.
 		expect(render_at(30).empty()).to_be_true();
 		// Step 2, the next source phase, has no sources to flash; step 3 flashes the pad again.
 		expect(render_at(menu::kBlinkCycleMs).empty()).to_be_true();
 		const std::vector<PadFlash> next = render_at(menu::kBlinkCycleMs + menu::kSourceBlinkMs);
 		expect(next.size()).to_equal(size_t(1));
-		expect(!next.empty() && next[0] == PadFlash{kLpfFreqX, kLpfFreqY, FlashColour::Default}).to_be_true();
+		expect(next.empty()).to_be_false();
+		if (!next.empty()) {
+			expect(next[0]).to_equal(PadFlash{kLpfFreqX, kLpfFreqY, FlashColour::Default});
+		}
 	});
 
 	it("flashes a second-layer item's pad yellow", _ {
@@ -2955,7 +2968,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		r.shell.tick(20);
 		r.pad(kEnv1RelX, kEnv1RelY, 64, 30);
 		r.shell.tick(40);
-		expect(menu_scene().focused_value() == &nodes::env3_release).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::env3_release);
 
 		const auto flash_at_param_phase = [&]() {
 			deluge::ui::test::GridRig grid;
@@ -2965,15 +2978,15 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 			return got.size() == 1 ? got[0] : PadFlash{255, 255, FlashColour::Default};
 		};
 		// `setupShortcutBlink(x, y, 0, 0b00000011 /* yellow */)` (`SoundEditor::setupShortcutBlink`).
-		expect(flash_at_param_phase() == PadFlash{kEnv1RelX, kEnv1RelY, FlashColour::Yellow}).to_be_true();
+		expect(flash_at_param_phase()).to_equal(PadFlash{kEnv1RelX, kEnv1RelY, FlashColour::Yellow});
 
 		// The first-layer item on the same pad flashes the default colour.
 		r.pad(kLpfFreqX, kLpfFreqY, 64, 50);
 		r.shell.tick(60);
 		r.pad(kEnv1RelX, kEnv1RelY, 64, 70);
 		r.shell.tick(80);
-		expect(menu_scene().focused_value() == &nodes::env1_release).to_be_true();
-		expect(flash_at_param_phase() == PadFlash{kEnv1RelX, kEnv1RelY, FlashColour::Default}).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::env1_release);
+		expect(flash_at_param_phase()).to_equal(PadFlash{kEnv1RelX, kEnv1RelY, FlashColour::Default});
 	});
 
 	it("flashes no pad for the name editors and the sample-marker editors", _ {
@@ -2984,7 +2997,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 			deluge::notify::dirty().drain();
 			Rig r;
 			(void)r.open(*node);
-			expect(menu_scene().focused() == node).to_be_true();
+			expect(menu_scene().focused()).to_equal(node);
 			expect(menu::shortcut_pos(MenuContext::Root::Sound, *node).valid).to_be_true();
 			expect(menu_scene().next_timer().has_value()).to_be_false();
 
@@ -2997,7 +3010,9 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 				for (int32_t y = 0; y < grid.grid.dims().rows; y++) {
 					for (int32_t x = 0; x < grid.grid.dims().cols(); x++) {
 						const RGB& c = grid.grid.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
-						expect(c.r == 0 && c.g == 0 && c.b == 0).to_be_true();
+						expect(c.r).to_equal(0);
+						expect(c.g).to_equal(0);
+						expect(c.b).to_equal(0);
 					}
 				}
 			}
@@ -3027,9 +3042,9 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		// free-run and a freshly focused pad could flash mid-cycle.
 		r.pad(kHpfFreqX, kHpfFreqY, 64, 600);
 		r.shell.tick(601);
-		expect(menu_scene().focused_value() == &nodes::hpf_freq).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::hpf_freq);
 		const uint32_t second = menu_scene().state().blink_anchor_ms;
-		expect(second != first).to_be_true();
+		expect(second).not_().to_equal(first);
 
 		// The new cycle starts on its source step: no flash at its own anchor ...
 		deluge::ui::test::GridRig fresh;
@@ -3041,9 +3056,10 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		param.begin_tick(second + menu::kSourceBlinkMs);
 		menu_scene().render_grid(param.frame);
 		expect(param.flashes.flashes().size()).to_equal(size_t(1));
-		expect(!param.flashes.flashes().empty()
-		       && param.flashes.flashes()[0] == PadFlash{kHpfFreqX, kHpfFreqY, FlashColour::Default})
-		    .to_be_true();
+		expect(param.flashes.flashes().empty()).to_be_false();
+		if (!param.flashes.flashes().empty()) {
+			expect(param.flashes.flashes()[0]).to_equal(PadFlash{kHpfFreqX, kHpfFreqY, FlashColour::Default});
+		}
 	});
 
 	it("arms the grid gate for the next step edge", _ {
@@ -3058,7 +3074,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		r.pad(kLpfFreqX, kLpfFreqY, 64, 1);
 		r.shell.tick(2);
 		r.button(kShiftX, kShiftY, false, 3);
-		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 		const uint32_t anchor = menu_scene().state().blink_anchor_ms;
 		const PadFlash pad{kLpfFreqX, kLpfFreqY, FlashColour::Default};
 		// The sources patched to the cutoff flash on the source steps; the param pad is this example's subject.
@@ -3081,7 +3097,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		r.shell.tick(anchor + menu::kBlinkCycleMs + menu::kSourceBlinkMs);
 		expect(param_flashes()).to_equal(size_t(2));
 		// No pad of the shell's grid was ever lit for it.
-		expect(r.pad_colour(kLpfFreqX, kLpfFreqY) == RGB{0, 0, 0}).to_be_true();
+		expect(r.pad_colour(kLpfFreqX, kLpfFreqY)).to_equal(RGB{0, 0, 0});
 	});
 
 	it("the source-pad blink cadence never blits the OLED panels", _ {
@@ -3118,7 +3134,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		r.pad(kLpfFreqX, kLpfFreqY, 64, 1);
 		r.shell.tick(2);
 		r.button(kShiftX, kShiftY, false, 3);
-		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 
 		// Settle past both confounds: the "entered leaf draws next tick" one-shot repaint, the
 		// decimal cursor's own first arm, AND the source -> param step edge at `kSourceBlinkMs` --
@@ -3154,8 +3170,8 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 			}
 		}
 		expect(saw_back_blink).to_be_true();
-		expect(frame.indicator_or_null(deluge::ui::IndicatorId::Lower) == nullptr).to_be_true();
-		expect(frame.indicator_or_null(deluge::ui::IndicatorId::Upper) == nullptr).to_be_true();
+		expect(frame.indicator_or_null(deluge::ui::IndicatorId::Lower)).to_be_null();
+		expect(frame.indicator_or_null(deluge::ui::IndicatorId::Upper)).to_be_null();
 	});
 });
 
@@ -3220,7 +3236,7 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 		(void)r.open(settings_root);
 		open_lpf(r, 0, 10);
 
-		expect(menu_scene().focused() == &lpf_page).to_be_true();
+		expect(menu_scene().focused()).to_equal(&lpf_page);
 		expect(depth_of()).to_equal(1);
 		expect(static_cast<int>(menu_scene().state().columns[1].focused)).to_equal(0);
 		expect(static_cast<int>(menu_scene().state().columns[1].page)).to_equal(0);
@@ -3274,7 +3290,7 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 			// so a second tick here (the button's release) would consume it
 			// before this can.
 			const deluge::notify::Notice notice = last_raised_notice();
-			expect(notice.kind == deluge::notify::Notice::Kind::Notification).to_be_true();
+			expect(notice.kind).to_equal(deluge::notify::Notice::Kind::Notification);
 			expect(std::string(notice.notification_value())).to_equal(std::string(c.text));
 			r.button(kCvX, kCvY, false, at + 20);
 			r.shell.tick(at + 30);
@@ -3292,7 +3308,7 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 			(void)r.open(settings_root);
 			open_lpf(r, 0, 10);
 			expect(depth_of()).to_equal(1);
-			expect(menu_scene().focused() == &lpf_page).to_be_true();
+			expect(menu_scene().focused()).to_equal(&lpf_page);
 			expect(static_cast<int>(menu_scene().state().columns[1].focused)).to_equal(0);
 			expect(static_cast<int>(menu_scene().state().columns[1].page)).to_equal(0);
 			expect_golden(self, "ui/menu/menu_lpf_columns_48.pbm", r.fake.pbm(0));
@@ -3302,7 +3318,7 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 			(void)r64.open(settings_root);
 			open_lpf(r64, 0, 10);
 			expect(depth_of()).to_equal(1);
-			expect(menu_scene().focused() == &lpf_page).to_be_true();
+			expect(menu_scene().focused()).to_equal(&lpf_page);
 			expect(static_cast<int>(menu_scene().state().columns[1].focused)).to_equal(0);
 			expect(static_cast<int>(menu_scene().state().columns[1].page)).to_equal(0);
 			expect_golden(self, "ui/menu/menu_lpf_columns_64.pbm", r64.fake.pbm(0));
@@ -3347,7 +3363,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
 			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 			r.shell.tick(110);
-			expect(menu_scene().focused() == &sync_leaf).to_be_true();
+			expect(menu_scene().focused()).to_equal(&sync_leaf);
 			// `after_render` moves the path only *after* the render that entered it, so the panel
 			// still shows the old (list) screen this same tick -- the entered leaf is only drawn on
 			// the next one (`MenuWalk::descend_to`'s `st.path[st.depth] = &child`, `scenes/menu/walk.cpp`;
@@ -3366,7 +3382,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 			r64.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
 			r64.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 			r64.shell.tick(110);
-			expect(menu_scene().focused() == &sync_leaf).to_be_true();
+			expect(menu_scene().focused()).to_equal(&sync_leaf);
 			r64.shell.tick(120);
 			expect_golden(self, "ui/menu/menu_sync_level_64.pbm", r64.fake.pbm(0));
 		}
@@ -3388,7 +3404,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
 			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 			r.shell.tick(110);
-			expect(menu_scene().focused() == &sync_leaf).to_be_true();
+			expect(menu_scene().focused()).to_equal(&sync_leaf);
 			r.shell.tick(120); // same "entered leaf draws next tick" rule as the golden above
 			expect_golden(self, "ui/menu/menu_sync_level_off_48.pbm", r.fake.pbm(0));
 		}
@@ -3403,7 +3419,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 			r64.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
 			r64.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 			r64.shell.tick(110);
-			expect(menu_scene().focused() == &sync_leaf).to_be_true();
+			expect(menu_scene().focused()).to_equal(&sync_leaf);
 			r64.shell.tick(120);
 			expect_golden(self, "ui/menu/menu_sync_level_off_64.pbm", r64.fake.pbm(0));
 		}

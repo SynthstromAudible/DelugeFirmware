@@ -89,6 +89,11 @@ using deluge::ui::shell::ShellConfig;
 
 namespace {
 
+/// @brief A function pointer as an address, so a failed comparison prints where it points rather than `1`.
+const void* address_of(auto* fn) {
+	return reinterpret_cast<const void*>(fn);
+}
+
 namespace nodes = deluge::scenes::menu::nodes;
 namespace bindings = deluge::scenes::menu::bindings;
 using spec::mididev::baseline;
@@ -271,7 +276,7 @@ describe midi_device_shape("scenes::menu: the per-device MIDI page's shape and c
 		select_language();
 		expect(table().value("device", "kids")).to_equal(std::string{"6"});
 		expect(std::to_string(nodes::midi_device.children.size())).to_equal(table().value("device", "kids"));
-		expect(nodes::midi_device.kind == menu::Kind::Submenu).to_be_true();
+		expect(nodes::midi_device.kind).to_equal(menu::Kind::Submenu);
 
 		for (size_t i = 0; i < nodes::midi_device.children.size(); i++) {
 			const Node* n = nodes::midi_device.children[i];
@@ -285,33 +290,35 @@ describe midi_device_shape("scenes::menu: the per-device MIDI page's shape and c
 		// names together. This names each node's own identity: which `CustomItem` (or which pair of
 		// hooks) it carries. A hook table shuffled between two of the three `Kind::Toggle` leaves is
 		// caught here and again, behaviourally, in the write comparison below.
-		expect(nodes::mpe_direction.custom == &nodes::kMpeDirectionItem).to_be_true();
-		expect(nodes::mpe_zone.custom == &nodes::kMpeZoneItem).to_be_true();
-		expect(nodes::mpe_zone_num_member_channels.custom == &nodes::kMpeZoneChannelsItem).to_be_true();
+		expect(nodes::mpe_direction.custom).to_equal(&nodes::kMpeDirectionItem);
+		expect(nodes::mpe_zone.custom).to_equal(&nodes::kMpeZoneItem);
+		expect(nodes::mpe_zone_num_member_channels.custom).to_equal(&nodes::kMpeZoneChannelsItem);
 		expect(nodes::kMpeDirectionItem.is_placeholder()).to_be_false();
 		expect(nodes::kMpeZoneItem.is_placeholder()).to_be_false();
 		expect(nodes::kMpeZoneChannelsItem.is_placeholder()).to_be_false();
 
-		expect(nodes::device_default_velocity_to_level.bind.get == &nodes::get_device_velocity_to_level).to_be_true();
-		expect(nodes::device_default_velocity_to_level.bind.set == &nodes::set_device_velocity_to_level).to_be_true();
-		expect(nodes::device_send_clock.bind.get == &nodes::get_device_send_clock).to_be_true();
-		expect(nodes::device_send_clock.bind.set == &nodes::set_device_send_clock).to_be_true();
-		expect(nodes::device_receive_clock.bind.get == &nodes::get_device_receive_clock).to_be_true();
-		expect(nodes::device_receive_clock.bind.set == &nodes::set_device_receive_clock).to_be_true();
-		expect(nodes::device_is_relative.bind.get == &nodes::get_device_is_relative).to_be_true();
-		expect(nodes::device_is_relative.bind.set == &nodes::set_device_is_relative).to_be_true();
-		expect(nodes::device_send_thru.bind.get == &nodes::get_device_send_thru).to_be_true();
-		expect(nodes::device_send_thru.bind.set == &nodes::set_device_send_thru).to_be_true();
+		expect(address_of(nodes::device_default_velocity_to_level.bind.get))
+		    .to_equal(address_of(&nodes::get_device_velocity_to_level));
+		expect(address_of(nodes::device_default_velocity_to_level.bind.set))
+		    .to_equal(address_of(&nodes::set_device_velocity_to_level));
+		expect(address_of(nodes::device_send_clock.bind.get)).to_equal(address_of(&nodes::get_device_send_clock));
+		expect(address_of(nodes::device_send_clock.bind.set)).to_equal(address_of(&nodes::set_device_send_clock));
+		expect(address_of(nodes::device_receive_clock.bind.get)).to_equal(address_of(&nodes::get_device_receive_clock));
+		expect(address_of(nodes::device_receive_clock.bind.set)).to_equal(address_of(&nodes::set_device_receive_clock));
+		expect(address_of(nodes::device_is_relative.bind.get)).to_equal(address_of(&nodes::get_device_is_relative));
+		expect(address_of(nodes::device_is_relative.bind.set)).to_equal(address_of(&nodes::set_device_is_relative));
+		expect(address_of(nodes::device_send_thru.bind.get)).to_equal(address_of(&nodes::get_device_send_thru));
+		expect(address_of(nodes::device_send_thru.bind.set)).to_equal(address_of(&nodes::set_device_send_thru));
 
 		// The three toggles are `Kind::Toggle` because their legacy items are `Toggle`s
 		// (`midi/device_send_clock.h:24`, `device_receive_clock.h:24`, `device_is_relative.h:24`);
 		// the velocity one is an `IntegerWithOff` (`default_velocity_to_level.h:24`), so it is
 		// `Kind::Int` with `off_at_zero` and `kMaxMenuValue` bounds (`:28`).
-		expect(nodes::device_send_clock.kind == menu::Kind::Toggle).to_be_true();
-		expect(nodes::device_receive_clock.kind == menu::Kind::Toggle).to_be_true();
-		expect(nodes::device_is_relative.kind == menu::Kind::Toggle).to_be_true();
-		expect(nodes::device_send_thru.kind == menu::Kind::Toggle).to_be_true();
-		expect(nodes::device_default_velocity_to_level.kind == menu::Kind::Int).to_be_true();
+		expect(nodes::device_send_clock.kind).to_equal(menu::Kind::Toggle);
+		expect(nodes::device_receive_clock.kind).to_equal(menu::Kind::Toggle);
+		expect(nodes::device_is_relative.kind).to_equal(menu::Kind::Toggle);
+		expect(nodes::device_send_thru.kind).to_equal(menu::Kind::Toggle);
+		expect(nodes::device_default_velocity_to_level.kind).to_equal(menu::Kind::Int);
 		expect(nodes::device_default_velocity_to_level.bind.style.off_at_zero).to_be_true();
 		expect(bindings::range(nodes::device_default_velocity_to_level, fixture().ctx).max).to_equal(kMaxMenuValue);
 	});
@@ -330,7 +337,7 @@ describe midi_device_shape("scenes::menu: the per-device MIDI page's shape and c
 		r.shell.tick(0);
 		uint32_t at = 10;
 		r.press(at);
-		expect(menu_scene().focused() == &nodes::midi_device).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::midi_device);
 		expect(chain_name(menu_scene().focused())).to_equal(table().value("devices", "chain"));
 	});
 
@@ -346,12 +353,12 @@ describe midi_device_shape("scenes::menu: the per-device MIDI page's shape and c
 		r.shell.tick(0);
 		uint32_t at = 10;
 		r.press(at); // row 0 is `mpe_direction`
-		expect(menu_scene().focused() == &nodes::mpe_direction).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::mpe_direction);
 		r.press(at);
-		expect(menu_scene().focused() == &nodes::mpe_zone).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::mpe_zone);
 		expect(chain_name(menu_scene().focused())).to_equal(table().value("mpe_direction", "chain"));
 		r.press(at);
-		expect(menu_scene().focused() == &nodes::mpe_zone_num_member_channels).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::mpe_zone_num_member_channels);
 		expect(chain_name(menu_scene().focused())).to_equal(table().value("mpe_zone", "chain"));
 	});
 
@@ -435,7 +442,7 @@ describe midi_device_per_cable("scenes::menu: the per-cable binding family", $ {
 		bindings::write(nodes::device_default_velocity_to_level, ctx, 25);
 
 		const int32_t want = cable.defaultVelocityToLevel;
-		expect(want != 0).to_be_true();
+		expect(want).not_().to_equal(0);
 		deluge::synth::CableTarget volume = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_VOLUME);
 		const deluge::plugin::ParamId depth = deluge::bridge::cable_depth(PatchSource::VELOCITY, volume);
 		const auto recorded = [&](deluge::project::OwnerId owner, const Clip& clip) -> std::optional<int32_t> {
@@ -443,10 +450,9 @@ describe midi_device_per_cable("scenes::menu: the per-cable binding family", $ {
 			    {.owner = owner, .space = deluge::project::ParamSpace::ENGINE, .id = depth, .clip_id = clip.id()});
 			return param != nullptr ? std::optional{param->current_value} : std::nullopt;
 		};
-		expect(recorded(deluge::project::OwnerId::instrument(*synth->id()), *synth_clip) == std::optional{want})
-		    .to_be_true();
-		expect(recorded(deluge::project::OwnerId::drum(*drum->id()), *f.clip) == std::optional{want}).to_be_true();
-		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
+		expect(recorded(deluge::project::OwnerId::instrument(*synth->id()), *synth_clip)).to_equal(std::optional{want});
+		expect(recorded(deluge::project::OwnerId::drum(*drum->id()), *f.clip)).to_equal(std::optional{want});
+		expect(actionLogger.firstAction[BEFORE]).to_be_null();
 		currentSong = before;
 	});
 
@@ -590,14 +596,14 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 		expect(int(menu_scene().state().walk.mpe_direction)).to_equal(MIDI_DIRECTION_OUTPUT_FROM_DELUGE);
 
 		r.press(at); // into `mpe_zone`; the direction stays where the user left it
-		expect(menu_scene().focused() == &nodes::mpe_zone).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::mpe_zone);
 		expect(int(menu_scene().state().walk.mpe_direction)).to_equal(MIDI_DIRECTION_OUTPUT_FROM_DELUGE);
 		expect(int(menu_scene().state().walk.mpe_zone)).to_equal(MPE_ZONE_LOWER_NUMBERED_FROM_0);
 
 		r.walk(1, at); // UPPER ZONE
 		expect(int(menu_scene().state().walk.mpe_zone)).to_equal(1);
 		r.press(at); // into the member-channel page: both selections survive the descent
-		expect(menu_scene().focused() == &nodes::mpe_zone_num_member_channels).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::mpe_zone_num_member_channels);
 		expect(int(menu_scene().state().walk.mpe_direction)).to_equal(MIDI_DIRECTION_OUTPUT_FROM_DELUGE);
 		expect(int(menu_scene().state().walk.mpe_zone)).to_equal(1);
 	});
@@ -637,7 +643,7 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 		r.press(at); // into `mpe_direction`
 		r.press(at); // into `mpe_zone`
 		r.press(at); // into the member-channel page
-		expect(menu_scene().focused() == &nodes::mpe_zone_num_member_channels).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::mpe_zone_num_member_channels);
 		menu_scene().state_for_spec().edit_int = 99;
 		menu_scene().read_value_again();
 		expect(menu_scene().state().edit_int)
@@ -738,9 +744,8 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 			    .to_equal("direction " + std::to_string(direction) + ": " + want);
 		}
 		// ... and the two answers really are different, so the example above is not vacuous.
-		expect(text_of(static_cast<uint16_t>(String::STRING_FOR_MPE_INPUT))
-		       != text_of(static_cast<uint16_t>(String::STRING_FOR_MPE_OUTPUT)))
-		    .to_be_true();
+		expect(text_of(static_cast<uint16_t>(String::STRING_FOR_MPE_INPUT)))
+		    .not_().to_equal(text_of(static_cast<uint16_t>(String::STRING_FOR_MPE_OUTPUT)));
 		// The static fallback the dump and the parent row carry is `Node::title`.
 		expect(text_of(nodes::mpe_direction.name)).to_equal(text_of(static_cast<uint16_t>(String::STRING_FOR_MPE)));
 	});
@@ -791,13 +796,13 @@ describe midi_device_mpe("scenes::menu: the MPE direction, zone and member-chann
 		guest_select(); // into the direction (IN)
 		guest_select(); // into the zone (LOWER)
 		guest_select(); // into the member channels
-		expect(menu_scene().focused() == &nodes::mpe_zone_num_member_channels).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::mpe_zone_num_member_channels);
 		const int32_t before = member_channels(ctx, MIDI_DIRECTION_INPUT_TO_DELUGE, MPE_ZONE_LOWER_NUMBERED_FROM_0);
 		expect(menu_scene().state().edit_int).to_equal(before);
 
 		f.a->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel = 7;
 		const int32_t after = member_channels(ctx, MIDI_DIRECTION_INPUT_TO_DELUGE, MPE_ZONE_LOWER_NUMBERED_FROM_0);
-		expect(after != before).to_be_true();
+		expect(after).not_().to_equal(before);
 		deluge::gui::ui::mpeZonesPotentiallyUpdated();
 		expect(menu_scene().state().edit_int).to_equal(after);
 	});
@@ -885,7 +890,7 @@ describe midi_device_reference_rows("scenes::menu: the per-device page: the refe
 	it("parses midi_device.tsv clean and asks every row of it", _ {
 		spec::OracleTable& t = table();
 		expect(t.problems().size()).to_equal(size_t{0});
-		expect(t.size() > size_t{40}).to_be_true();
+		expect(t.size()).to_be_greater_than(size_t{40});
 		expect(t.unasked()).to_equal(std::string{});
 	});
 });

@@ -534,7 +534,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// not `nodes::saturation.name` -- comparing a node's own field against itself cannot fail
 		// once the pointer-identity check just above already holds; this is the independent
 		// value that has to be pinned.
-		expect(menu_scene().focused() == &nodes::saturation).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::saturation);
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_SATURATION)));
 		// `int_value` edits on the select encoder, not the gold knobs (`ui/oled/values.cpp`'s
 		// `select_delta`): the script's `100 encoder Select +1` step -- once a claimed-and-ignored
@@ -578,7 +578,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// opens the source picker rather than ascending (`patched_param.cpp:32-40`). The script's
 		// first GoldUpper turn therefore lands on that picker and edits nothing; the Back brings the
 		// leaf back and the script's closing select turn is the one that moves the value a second time.
-		expect(menu_scene().focused() == &nodes::source0_transpose).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::source0_transpose);
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_TRANSPOSE)));
 		// `decimal_value` edits on the select encoder (`ui/oled/values.cpp`'s `select_delta`), by
 		// `10^edit_pos` per detent. `edit_pos` starts on 2 (`Decimal::getDefaultEditPos`), so the
@@ -621,7 +621,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// proof: either one moving the value too would show up in that total.
 		expect(result.snapshots).to_equal(uint32_t{3});
 
-		expect(menu_scene().focused() == &nodes::lpf_mode).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::lpf_mode);
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_MODE)));
 		// `enum_value` owns the Select turn itself: one detent moves the option index by one, and it
 		// commits on the same tick (`Response::changed`). The later SelectEnc press/release and
@@ -657,7 +657,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// exactly once, not twice) is their proof.
 		expect(result.snapshots).to_equal(uint32_t{3});
 
-		expect(menu_scene().focused() == &nodes::osc_sync).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::osc_sync);
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_OSCILLATOR_SYNC)));
 		// `toggle`'s turn selects the row in the turn's direction: one detent toward ON flips it.
 		// The later SelectEnc press reports `entered` and leaves `changed` false (`ui/oled/values.h`),
@@ -701,7 +701,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// The select press on FREQ followed its patch-chain into the source-selection page, so the
 		// path is one level deeper than the page itself; `after_back` returns to it with FREQ still
 		// the focused column.
-		expect(menu_scene().focused() == &nodes::lpf).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::lpf);
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_LPF)));
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1); // FREQ
 
@@ -747,8 +747,8 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// The real pad (8, 7) of `paramShortcutsForSounds` -- `&lpfFreqMenu` -- proven in
 		// `menu_scene_spec.cpp`'s own shortcut tests. `setup()` opens it on the LPF page, focused on
 		// it (`SoundEditor::maybeGetParentMenu`, `parent->focusChild`).
-		expect(menu_scene().focused() == &nodes::filters_group).to_be_true();
-		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::filters_group);
+		expect(menu_scene().focused_value()).to_equal(&nodes::lpf_freq);
 		expect(static_cast<uint32_t>(menu_scene().focused_value()->name))
 		    .to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_FREQUENCY)));
 		// `int_value` edits on the select encoder (`ui/oled/values.cpp`'s `select_delta`), so the
@@ -797,13 +797,13 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// is the REAL range picker (its two rows, named by `MultiRange::getText`), not the
 		// refused-entry no-op. (No GoldUpper snapshot follows it: the picker reads no edit encoder, so
 		// it would be byte-identical.)
-		expect(menu_scene().focused() == &range_perm_root).to_be_true();
+		expect(menu_scene().focused()).to_equal(&range_perm_root);
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_TRANSPOSE)));
 		expect(cursor0()).to_equal(1); // the Select detent landed the cursor on row 1
 		// The substitution happened and is still recorded: `enter_child` set both, and `ascend` has no
 		// business dropping them -- the item is still the one the picker was standing in for.
 		expect(menu_scene().state().walk.range_picker_pending).to_be_true();
-		expect(menu_scene().state().walk.pending_after_range == &nodes::source0_transpose).to_be_true();
+		expect(menu_scene().state().walk.pending_after_range).to_equal(&nodes::source0_transpose);
 		// And the picker really ran `MultiRange::beginSession` on this source: nothing was remembered,
 		// so it took `numRanges >> 1` (`origin/main:src/deluge/gui/menu_item/multi_range.cpp`
 		// `MultiRange::beginSession`), which the picker writes back to `Source::defaultRangeI`.
@@ -848,8 +848,8 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// the two select turns, the following clamp would make this assertion true whatever the gold
 		// turn had done.)
 		expect(bindings::read(nodes::delay_sync, ctx)).to_equal(sync_range.max);
-		expect(sync_range.max > int32_t{4}).to_be_true(); // the -4 really could have shown, had it acted
-		expect(menu_scene().focused() == &nodes::delay_sync).to_be_true();
+		expect(sync_range.max).to_be_greater_than(int32_t{4}); // the -4 really could have shown, had it acted
+		expect(menu_scene().focused()).to_equal(&nodes::delay_sync);
 	});
 
 	it("select_chain: a select press on nodes::unison_count opens nodes::unison_spread, and edits it", _ {
@@ -877,7 +877,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// `CountToStereoSpread::selectButtonPress` (`gui/menu_item/unison/count.h`) navigates
 		// *into* the spread, so the press must not have ascended -- and the second select turn, after
 		// the Back, must have landed on the count again.
-		expect(menu_scene().focused() == &nodes::unison_count).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::unison_count);
 		// `int_value` edits on the select encoder, not the gold knobs (`ui/oled/values.cpp`'s
 		// `select_delta`); a `GoldUpper` turn here would test nothing, since `int_value` claims no
 		// gold input. The script's three turns (on the count, on the spread the select press opens, on
@@ -952,7 +952,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// `selectButtonPress` returns NO_NAVIGATION (`gui/menu_item/active_scales.cpp:108-112`), so
 		// the two presses must not have ascended; the Back at the end is what leaves, and it leaves to
 		// the root with its own cursor still on the row the descent came from.
-		expect(menu_scene().focused() == &nodes::root_song).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::root_song);
 		expect(cursor_now()).to_equal(4);
 	});
 
@@ -969,8 +969,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 
 		// Row 0 of `kResetSettingsChildren` is `reset_flash`, so that is the descriptor the push
 		// named. The scene keeps `id_` after it closes, which is what lets this be checked at all.
-		expect(context_menu::context_menu_scene().descriptor_id() == context_menu::DescriptorId::ResetFlash)
-		    .to_be_true();
+		expect(context_menu::context_menu_scene().descriptor_id()).to_equal(context_menu::DescriptorId::ResetFlash);
 		// The Select detent inside the window moved nothing: `ResetSettings::getOptions()` is a single
 		// `STRING_FOR_OK` (not a NO/YES pair), and `step()` clamps.
 		expect(static_cast<int>(context_menu::context_menu_scene().selection().option)).to_equal(0);
@@ -978,7 +977,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// `MenuWalkState::go_up_on_resume`: the resume ascends OUT of the item the press descended into,
 		// so the list is on screen again rather than the item that opened the window. (`reset_settings`
 		// is this run's path root, so that ascend lands back on it -- one level up from `reset_flash`.)
-		expect(menu_scene().focused() == &nodes::reset_settings).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::reset_settings);
 	});
 
 	it("ContextMenuScene: the audio-source descriptor opens on its own initial row and walks", _ {
@@ -993,14 +992,13 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		                                  deluge::ui::shell::Services{}, opts_for(nodes::root_audio_clip));
 		expect(result.snapshots).to_equal(uint32_t{5});
 
-		expect(context_menu::context_menu_scene().descriptor_id() == context_menu::DescriptorId::AudioSource)
-		    .to_be_true();
+		expect(context_menu::context_menu_scene().descriptor_id()).to_equal(context_menu::DescriptorId::AudioSource);
 		// `initial_audio_source` (`gui/context_menu/audio_input_selector.cpp:87-127`
 		// setupAndCheckAvailability) opened it on the output's own `inputChannel`, and the two Select
 		// detents walked from there -- `step()`'s clamp is at 7, which this does not reach.
 		expect(static_cast<int>(context_menu::context_menu_scene().selection().option)).to_equal(3);
 		// Backed out without accepting, so the menu is back where the press left it.
-		expect(menu_scene().focused() == &nodes::root_audio_clip).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::root_audio_clip);
 		expect(cursor_now()).to_equal(1);
 	});
 
@@ -1030,7 +1028,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// The enter pad committed and popped the editor, so the menu owns the screen again -- one level
 		// up from the item that opened it, `EditNameItem` being a `pending_scene` opener like the five
 		// reset items.
-		expect(menu_scene().focused() == &nodes::edit_name).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::edit_name);
 	});
 
 	it("MidiCommandItem: the learned readout, the LEARN blink, and a select turn that unlearns", _ {
@@ -1062,7 +1060,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// And it cleared the right one of the twelve.
 		expect(midiEngine.globalMIDICommands[static_cast<int32_t>(GlobalMIDICommand::RECORD)].containsSomething())
 		    .to_be_false();
-		expect(menu_scene().focused() == &nodes::midi_commands).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::midi_commands);
 		saved.restore();
 	});
 
@@ -1080,7 +1078,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 
 		// The press navigated (`cv_selection_chain`), so it did not ascend; the Back brought the
 		// selector back with its cursor intact, which is `MenuState::list[depth]` surviving a descend.
-		expect(menu_scene().focused() == &nodes::cv_selection).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::cv_selection);
 		expect(cursor_now()).to_equal(1);
 	});
 
@@ -1099,11 +1097,11 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		deluge::synth::CableTarget plain = deluge::synth::CableTarget::depth_of(deluge::modulation::params::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1);
 		expect(seed_cable(ctx, plain, 1234)).to_be_true();
 		PatchCableSet* const set = spec::menu_engine(ctx).params->getPatchCableSetAllowJibberish();
-		expect(set != nullptr).to_be_true();
+		expect(set).not_().to_be_null();
 		deluge::synth::CableTarget destination = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_LPF_FREQ);
 		const uint8_t added = set->getPatchCableIndex(PatchSource::ENVELOPE_1, destination);
-		expect(added != kNoSelection).to_be_true();
-		expect(added != uint8_t{0}).to_be_true(); // not the row the cursor opens on
+		expect(added).not_().to_equal(kNoSelection);
+		expect(added).not_().to_equal(uint8_t{0}); // not the row the cursor opens on
 		const int32_t added_before = set->patchCables[added].param.getCurrentValue();
 		// `PatchCablesItem` builds one row per `patchCables` entry in array order, so the cursor's
 		// own row -- the one a select press with no turn before it opens -- is entry 0.
@@ -1131,11 +1129,11 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// `decimal_value` claims no gold input. The script's two turns are `encoder Select` turns
 		// sized `+4` and `-64` -- a select detent is not doubled by `edges_per_detent` the way an
 		// `Accelerating` gold knob's magnitude is, so the cable the press selected moves.
-		expect(set->patchCables[0].param.getCurrentValue() != selected_before).to_be_true();
+		expect(set->patchCables[0].param.getCurrentValue()).not_().to_equal(selected_before);
 		// The other cable never had a turn aimed at it either way, which is still worth pinning: a
 		// port that somehow wrote through the wrong `patch_cables_chain` entry would show up here.
 		expect(set->patchCables[added].param.getCurrentValue()).to_equal(added_before);
-		expect(menu_scene().focused() == &nodes::patch_cables).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::patch_cables);
 		currentSong = previous_song;
 	});
 
@@ -1156,12 +1154,12 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// point of `shouldEnterSubmenu() == false` (`gui/ui/sound_editor.cpp:420-423`). This is where
 		// it is visible instead.
 		const MenuActionRequest taken = menu_scene().take_action();
-		expect(taken.action == MenuAction::StartStemExport).to_be_true();
+		expect(taken.action).to_equal(MenuAction::StartStemExport);
 		expect(static_cast<int>(taken.arg)).to_equal(0);
 		// And the ascend was exactly one level: the EXPORT AUDIO list is focused again, not something
 		// above it. (This run's path is rooted on that list, so a second ascend would have been a
 		// visible no-op rather than a wrong page -- which is why the *cursor* is checked too.)
-		expect(menu_scene().focused() == &nodes::stem_export).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::stem_export);
 		expect(cursor_now()).to_equal(1);
 	});
 
@@ -1189,11 +1187,11 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// DISABLED press that follows files nothing (`editing_mode.h:51-53` returns nullptr), so this
 		// one-slot outbox still holds the first one.
 		const MenuActionRequest taken = menu_scene().take_action();
-		expect(taken.action == MenuAction::OpenPerformanceView).to_be_true();
+		expect(taken.action).to_equal(MenuAction::OpenPerformanceView);
 		expect(static_cast<int>(taken.arg)).to_equal(static_cast<int>(PerformanceEditingMode::VALUE));
 		// The DISABLED arm ascended, which is the half a golden alone could not distinguish from a
 		// page that merely redrew.
-		expect(menu_scene().focused() == &nodes::root_performance).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::root_performance);
 		menu::set_performance_editing_mode(saved_mode);
 	});
 
@@ -1258,7 +1256,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(static_cast<int>(menu_scene().state().walk.mpe_zone)).to_equal(1);
 		// The Back at the end left the zone selector, not the device list: the chain descended twice
 		// and only one level came back.
-		expect(menu_scene().focused() == &nodes::mpe_zone).to_be_true();
+		expect(menu_scene().focused()).to_equal(&nodes::mpe_zone);
 		saved.restore();
 	});
 
@@ -1282,7 +1280,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// top-of-tree arm) closed it. `MenuWalkState::go_up_on_resume` (`nodes/sample.h`,
 		// legacy's `shouldGoUpOneLevelOnBegin`) then went up from the item the jump re-rooted onto, at
 		// depth 0, which closed the menu too: `after_close.state` names no menu scene.
-		expect(browser::browser_scene().browser_id() == browser::BrowserId::Sample).to_be_true();
+		expect(browser::browser_scene().browser_id()).to_equal(browser::BrowserId::Sample);
 		// `on_exit` -> `FileCatalogue::emptyFileItems()` really ran. `browser_scene.h`'s own note
 		// says an uncollected result holds the catalogue's claim and refuses every later listing --
 		// this layer's or a legacy `Browser`'s -- for the life of the process, so this is the one
@@ -1377,7 +1375,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// `RecorderStatus::ABORTED`, so the range's holder is still empty. A port that attached
 		// unconditionally would have hung `recorder_->sample` -- a `Sample` with no captured frames
 		// and a file that `abort()` deletes -- on the oscillator.
-		expect(range->sampleHolder.audioFile == nullptr).to_be_true();
+		expect(range->sampleHolder.audioFile).to_be_null();
 		// The scene closed itself both times, and both doors opened it from the SAMPLE RECORDER page, so both
 		// closes land on the source page with the file selector focused (`after_stop`, `after_shortcut_stop`).
 	});
