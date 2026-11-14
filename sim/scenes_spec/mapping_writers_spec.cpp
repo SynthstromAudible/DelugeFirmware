@@ -724,6 +724,62 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		    .to_be_false();
 	});
 
+	it("gives a param outside the engine's no runtime knob, and no knob plays it", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
+		const OwnerParamTarget volume{owner, patched(params::LOCAL_VOLUME)};
+		OwnerParamTarget outside = volume;
+		outside.param.space = deluge::project::ParamSpace::MIDI_CC;
+		expect(deluge::bridge::knobOfControl(volume.param, params::Kind::UNPATCHED_SOUND).has_value()).to_be_true();
+		expect(deluge::bridge::knobOfControl(outside.param, params::Kind::UNPATCHED_SOUND).has_value()).to_be_false();
+		deluge::edits::learnMappingFor(knobCc(1, 74), volume);
+		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
+		expect(static_cast<int>(sound.midi_knobs.size())).to_equal(1);
+		if (sound.midi_knobs.size() != 1) {
+			return;
+		}
+		expect(deluge::bridge::knobPlays(sound.midi_knobs[0], volume, 74)).to_be_true();
+		expect(deluge::bridge::knobPlays(sound.midi_knobs[0], outside, 74)).to_be_false();
+	});
+
+	it("projects no runtime knob for a param outside the engine's, and lends it no other knob's state", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
+		OwnerParamTarget outside{owner, patched(params::LOCAL_VOLUME)};
+		outside.param.space = deluge::project::ParamSpace::MIDI_CC;
+		f.song->project.mappings.learn(Mapping{.source = knobCc(1, 75), .target = outside});
+		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
+		sound.midi_knobs.clear();
+		MIDIKnob& stray = sound.midi_knobs.emplace_back(); // no target: as an unnamed param's knob is
+		stray.midiInput.channelOrZone = 1;
+		stray.midiInput.noteOrCC = 75;
+		stray.relative = true;
+		stray.previousPositionSaved = true;
+		stray.previousPosition = 77;
+		expect(static_cast<int>(deluge::bridge::projectMapping(*f.song, outside))).to_equal(static_cast<int>(Error::NONE));
+		expect(static_cast<int>(sound.midi_knobs.size())).to_equal(0);
+	});
+
+	it("carries no knob's state for a relearned param outside the engine's", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
+		OwnerParamTarget outside{owner, patched(params::LOCAL_VOLUME)};
+		outside.param.space = deluge::project::ParamSpace::MIDI_CC;
+		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
+		sound.midi_knobs.clear();
+		MIDIKnob& stray = sound.midi_knobs.emplace_back();
+		stray.midiInput.channelOrZone = 1;
+		stray.midiInput.noteOrCC = 75;
+		stray.relative = true;
+		stray.previousPositionSaved = true;
+		stray.previousPosition = 77;
+		expect(static_cast<int>(deluge::bridge::projectRelearnedKnob(*f.song, outside, knobCc(1, 75), knobCc(1, 76))))
+		    .to_equal(static_cast<int>(Error::NONE));
+		expect(static_cast<int>(sound.midi_knobs.size())).to_equal(1);
+		expect(sound.midi_knobs[0].midiInput.noteOrCC).to_equal(uint8_t{75});
+		expect(sound.midi_knobs[0].previousPosition).to_equal(int32_t{77});
+	});
+
 	it("leaves the index fresh when a song that is not current gains a session clip or a kit row", _ {
 		spec::SongFixture background = spec::make_kit_song();
 		const spec::SongFixture f = spec::make_synth_song();

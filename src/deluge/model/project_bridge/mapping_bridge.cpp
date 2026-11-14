@@ -215,8 +215,11 @@ void projectKnobs(const MappingTable& mappings, ControlsAddress address, ::ModCo
 	const params::Kind unpatchedKind = isSound ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL;
 	deluge::fast_vector<MIDIKnob> knobs;
 	for (const Mapping& entry : mappings.params_of(address)) {
-		const deluge::modulation::KnobTarget target =
-		    knobOfControl(std::get<deluge::project::OwnerParamTarget>(entry.target).param, unpatchedKind);
+		const deluge::project::ParamTarget& param = std::get<deluge::project::OwnerParamTarget>(entry.target).param;
+		if (param.space != deluge::project::ParamSpace::ENGINE) {
+			continue; // only an engine param has a runtime knob
+		}
+		const deluge::modulation::KnobTarget target = knobOfControl(param, unpatchedKind);
 		const auto kept = std::ranges::find_if(owner.midi_knobs, [&](const MIDIKnob& old) {
 			return playsAs(entry.source, old.midiInput) && old.relative == entry.relative && old.target == target;
 		});
@@ -850,6 +853,9 @@ Error projectMapping(::Song& song, const deluge::project::MappingTarget& target)
 
 Error projectRelearnedKnob(::Song& song, const deluge::project::OwnerParamTarget& target, const MidiCommand& replaced,
                            const MidiCommand& source) {
+	if (target.param.space != deluge::project::ParamSpace::ENGINE) {
+		return Error::NONE; // only an engine param has a runtime knob, so none holds state to carry
+	}
 	bool found = false;
 	bool saved = false;
 	int32_t position = 0;

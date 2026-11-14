@@ -136,6 +136,22 @@ describe mapping_save("a song's save of its MIDI bindings", $ {
 		expect(text(knob, "controlsParam")).to_equal(std::string{"volume"});
 	});
 
+	it("saves no knob for a param outside the engine's, and no empty list when it is the only one", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
+		OwnerParamTarget outside{owner, patched(params::LOCAL_VOLUME)};
+		outside.param.space = deluge::project::ParamSpace::MIDI_CC;
+		f.song->project.mappings.learn(Mapping{.source = command(2, 74), .target = outside});
+		std::optional<Value> saved = savedOutput(*f.instrument, *f.song);
+		expect(saved.has_value()).to_be_true();
+		expect(saved->find("midiKnobs") == nullptr).to_be_true();
+		f.song->project.mappings.learn(
+		    Mapping{.source = command(0, 10), .target = OwnerParamTarget{owner, patched(params::LOCAL_PAN)}});
+		saved = savedOutput(*f.instrument, *f.song);
+		expect(saved.has_value()).to_be_true();
+		expect(saved->find("midiKnobs") != nullptr && saved->find("midiKnobs")->items().size() == 1).to_be_true();
+	});
+
 	it("saves an owner's knobs in table order, and none the engine holds alone", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);

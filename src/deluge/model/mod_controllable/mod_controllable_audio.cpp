@@ -283,15 +283,16 @@ void ModControllableAudio::writeMidiKnobsToFile(Serializer& writer, Song* song,
 	std::optional<std::vector<deluge::project::Mapping>> saved =
 	    song != nullptr ? deluge::bridge::savedKnobsOf(*song, *this, owner) : std::nullopt;
 	if (saved) {
+		// The file names engine params only.
+		std::erase_if(*saved, [](const deluge::project::Mapping& knob) {
+			return std::get<deluge::project::OwnerParamTarget>(knob.target).param.space
+			       != deluge::project::ParamSpace::ENGINE;
+		});
 		if (saved->empty()) {
 			return;
 		}
 		writer.writeArrayStart("midiKnobs");
 		for (const deluge::project::Mapping& knob : *saved) {
-			if (std::get<deluge::project::OwnerParamTarget>(knob.target).param.space
-			    != deluge::project::ParamSpace::ENGINE) {
-				continue; // the file names engine params only
-			}
 			const LearnedMIDI attributes = deluge::bridge::learned_of(
 			    {.channel_or_zone = knob.source.channel_or_zone, .note_or_cc = knob.source.note_or_cc});
 			const deluge::synth::CableTarget descriptor = deluge::modulation::knobWord(deluge::bridge::knobOfControl(
