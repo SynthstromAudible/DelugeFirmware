@@ -5,10 +5,12 @@
 """Tests for check_spec_comparisons.py: what a site is, which kind it is, and which sites a commit adds.
 
 Gate spec-comparisons-selftest:
-    a site is an expect() of a comparison, `&&` or `||` judged by to_be_true() or to_be_false(), named by its kind;
-    comments, string and character literals, digit separators, template argument lists and bracketed comparisons
-    make no site; a commit adds a site only beyond the copies HEAD holds, so an unchanged or moved site passes and a
-    second copy or a flipped verdict is refused
+    a site is an expect() of a comparison, `&&` or `||` judged by to_be_true() or to_be_false(), named by its kind,
+    seen through wrapping parentheses, `!`, `not` and `.not_()`, each negation flipping the verdict; comments, string
+    and character literals, digit separators, template argument lists and comparisons inside a call make no site; a
+    commit adds a site only beyond the copies HEAD (and, in a merge, MERGE_HEAD) holds, so an unchanged, moved,
+    rewrapped or respaced site passes and a second copy or a flipped verdict is refused; paths with spaces or
+    non-ASCII characters are read
 """
 
 from __future__ import annotations
