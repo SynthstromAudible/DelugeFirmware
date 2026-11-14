@@ -24,6 +24,7 @@
 #include "effects/global_effectable/params.h"
 #include "effects/setting_params.h"
 #include "effects/words.h"
+#include "plugin-api/remote_controls_publisher.h"
 #include "plugin-api/types/remote_controls.h"
 
 #include <algorithm>
@@ -76,5 +77,11 @@ inline constexpr uint32_t kCompPages = 5;
 /// @param in      What changes the pages.
 /// @return The pages.
 [[nodiscard]] std::vector<plugin::RemotePage> section_pages(uint32_t section, const PageInputs& in);
+
+/// @brief The chains' remote-controls record: the pages in section order, the mod FX type read from the owner's
+/// DelugeEffects state (none without one). Its find reaches a mod FX view the type lacks; its decorate gives a param
+/// the slot the pages give it.
+extern const plugin::RemoteControls
+    kRemoteControls; // NOLINT(bugprone-dynamic-static-initializers): constant-initialized
 
 } // namespace deluge::global_effectable

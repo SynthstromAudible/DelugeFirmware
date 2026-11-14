@@ -18,8 +18,10 @@
 #include "model/project_bridge/controls_bridge.h"
 
 #include "effects/global_effectable/naming.h"
+#include "effects/global_effectable/pages.h"
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/naming.h"
+#include "instruments/deluge/pages.h"
 #include "instruments/deluge/plugin.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -33,6 +35,7 @@
 #include "processing/sound/sound_instrument.h"
 
 #include <array>
+#include <span>
 
 namespace deluge::bridge {
 
@@ -280,6 +283,12 @@ deluge::project::CodecPlugins codecPlugins() {
 	return {.namings = namings,
 	        .chains = chainCodec(),
 	        .instruments = {.decode = &decodeInstrument, .encode = &encodeInstrument}};
+}
+
+std::span<const deluge::plugin::RemoteControls> remoteControls() {
+	static const std::array<deluge::plugin::RemoteControls, 2> records{deluge::instrument::kRemoteControls,
+	                                                                   deluge::global_effectable::kRemoteControls};
+	return records;
 }
 
 } // namespace deluge::bridge

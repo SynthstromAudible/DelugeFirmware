@@ -24,6 +24,7 @@
 #include "effects/setting_params.h"
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/params.h"
+#include "plugin-api/remote_controls_publisher.h"
 #include "plugin-api/types/remote_controls.h"
 
 #include <algorithm>
@@ -129,5 +130,10 @@ inline constexpr std::array<plugin::RemotePage, 3> kFilterCycle{{
     detail::knob_page(1, 1, param::kHpfResonance, param::kHpfFrequency),
     detail::knob_page(1, 2, param::kBass, param::kTreble),
 }};
+
+/// @brief The instrument's remote-controls record: kDevicePages and kFilterCycle, each slot's press from slot_for with
+/// the sound's FM mode read from the owner's state.
+extern const plugin::RemoteControls
+    kRemoteControls; // NOLINT(bugprone-dynamic-static-initializers): constant-initialized
 
 } // namespace deluge::instrument

@@ -1,6 +1,7 @@
 // clang-format off
 #include "instruments/deluge/pages.h"
 #include "effects/setting_params.h"
+#include "instruments/deluge/plugin.h"
 #include <cppspec.hpp>
 
 using namespace deluge;
@@ -70,6 +71,63 @@ describe instrument_pages("the Deluge instrument's pages", ${
 		expect(*instrument::kFilterCycle[1].slots[1].param == ip::kHpfFrequency).to_be_true();
 		expect(*instrument::kFilterCycle[2].slots[0].param == ip::kBass).to_be_true();
 		expect(instrument::kFilterCycle[2].page_id).to_equal(2u);
+	});
+	it("publishes its pages as a record keyed by its plugin id", _{
+		const auto& record = instrument::kRemoteControls;
+		expect(record.plugin == plugin::kDelugeInstrument).to_be_true();
+		const std::array<plugin::RemoteControls, 1> records{record};
+		expect(plugin::remote_controls_for(records, plugin::kDelugeInstrument) == &records[0]).to_be_true();
+		expect(plugin::remote_controls_for(records, plugin::kGlobalEffectable) == nullptr).to_be_true();
+	});
+	it("gets the device pages in order, and none past the end", _{
+		const auto& record = instrument::kRemoteControls;
+		const plugin::PageContext ctx;
+		expect(record.count(ctx)).to_equal(uint32_t{8});
+		plugin::RemotePage out;
+		for (uint32_t i = 0; i < 8; i++) {
+			expect(record.get(ctx, i, out)).to_be_true();
+			expect(out == instrument::kDevicePages[i]).to_be_true();
+		}
+		expect(record.get(ctx, 8, out)).to_be_false();
+	});
+	it("finds every device page and filter-cycle page, and nothing else", _{
+		const auto& record = instrument::kRemoteControls;
+		const plugin::PageContext ctx;
+		plugin::RemotePage out;
+		for (const auto& page : instrument::kDevicePages) {
+			expect(record.find(ctx, page.section, page.page_id, out)).to_be_true();
+			expect(out == page).to_be_true();
+		}
+		for (const auto& page : instrument::kFilterCycle) {
+			expect(record.find(ctx, page.section, page.page_id, out)).to_be_true();
+			expect(out == page).to_be_true();
+		}
+		expect(record.find(ctx, 1, 3, out)).to_be_false();
+		expect(record.find(ctx, 2, 1, out)).to_be_false();
+		expect(record.find(ctx, 8, 0, out)).to_be_false();
+	});
+	it("decorates a param as slot_for does, reading FM from the owner's state and alt delay from the context", _{
+		const auto& record = instrument::kRemoteControls;
+		instrument::SoundState fm_state;
+		fm_state.synth_mode = instrument::SynthMode::FM;
+		const auto fm = plugin::StateHandle::of<instrument::DelugeInstrument>(fm_state);
+		const auto subtractive = plugin::StateHandle::of<instrument::DelugeInstrument>({});
+		const auto lfo_pitch = *instrument::cable_depth_id(instrument::PatchSource::LFO_GLOBAL_1, ip::kPitch);
+		const auto sidechain = *instrument::cable_depth_id(instrument::PatchSource::SIDECHAIN, ip::kVolumePostReverbSend);
+		const plugin::ParamId params[] = {ip::kPan,           ip::kLpfFrequency,  ip::kHpfFrequency,
+		                                  ip::kTreble,        ip::kLpfResonance,  ip::kHpfResonance,
+		                                  ip::kDelayRate,     ip::kDelayFeedback, ip::kReverbAmount,
+		                                  ip::kStutterRate,   ip::kBitcrushAmount, lfo_pitch, sidechain};
+		for (const plugin::StateHandle* state : {static_cast<const plugin::StateHandle*>(nullptr), &fm, &subtractive}) {
+			for (const bool alt : {false, true}) {
+				const plugin::PageContext ctx{.state = state, .alt_delay = alt};
+				const bool is_fm = state == &fm;
+				for (const plugin::ParamId id : params) {
+					expect(record.decorate(ctx, id) == instrument::slot_for(id, {.fm = is_fm, .alt_delay = alt}))
+					    .to_be_true();
+				}
+			}
+		}
 	});
 });
 // clang-format on

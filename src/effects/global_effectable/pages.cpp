@@ -18,6 +18,7 @@
 #include "effects/global_effectable/pages.h"
 
 #include "effects/global_effectable/params.h"
+#include "effects/plugin.h"
 #include "effects/setting_params.h"
 
 #include <array>
@@ -29,6 +30,10 @@ namespace {
 
 /// The mod FX views: depth, feedback and offset.
 constexpr uint32_t kModFxViews = 3;
+/// The reverb button, whose compressor pages leave a playing stutter running.
+constexpr uint32_t kCompressorSection = 4;
+/// The mod buttons.
+constexpr uint32_t kSections = 8;
 /// The highest page id of any section: the song's last compressor page.
 constexpr uint32_t kLastPageId = kCompPages;
 
@@ -59,6 +64,7 @@ RemotePage page(uint32_t section, uint32_t page_id, uint8_t group, RemoteSlot lo
 	RemotePage out{.section = section, .page_id = page_id, .group = group, .name = {}};
 	out.slots[0] = lower;
 	out.slots[1] = upper;
+	out.keeps_stutter = section == kCompressorSection;
 	return out;
 }
 
@@ -162,5 +168,92 @@ std::vector<RemotePage> section_pages(uint32_t section, const PageInputs& in) {
 	}
 	return pages;
 }
+
+namespace {
+
+/// The inputs a chain's pages follow, read from the context.
+PageInputs inputs_of(const plugin::PageContext& ctx) {
+	PageInputs in{.song = ctx.song, .alt_delay = ctx.alt_delay};
+	if (ctx.state != nullptr) {
+		if (const effects::EffectStates* states = ctx.state->as<effects::DelugeEffects>()) {
+			in.mod_fx_type = states->mod_fx.type;
+		}
+	}
+	return in;
+}
+
+/// The device pages in section order, then page id: the one at @p index, or none past the end.
+std::optional<RemotePage> nth_page(const PageInputs& in, uint32_t index) {
+	for (uint32_t section = 0; section < kSections; section++) {
+		for (uint32_t page_id = 0; page_id <= kLastPageId; page_id++) {
+			if (const std::optional<RemotePage> p = section_page(section, page_id, in)) {
+				if (index == 0) {
+					return p;
+				}
+				index--;
+			}
+		}
+	}
+	return std::nullopt;
+}
+
+uint32_t count_pages(const plugin::PageContext& ctx) {
+	const PageInputs in = inputs_of(ctx);
+	uint32_t n = 0;
+	for (uint32_t section = 0; section < kSections; section++) {
+		for (uint32_t page_id = 0; page_id <= kLastPageId; page_id++) {
+			n += section_page(section, page_id, in).has_value() ? 1u : 0u;
+		}
+	}
+	return n;
+}
+
+bool get_page(const plugin::PageContext& ctx, uint32_t index, RemotePage& out) {
+	const std::optional<RemotePage> p = nth_page(inputs_of(ctx), index);
+	if (p) {
+		out = *p;
+	}
+	return p.has_value();
+}
+
+bool find_page(const plugin::PageContext& ctx, uint32_t section, uint32_t page_id, RemotePage& out) {
+	constexpr uint32_t kModFxSection = 5;
+	if (section == kModFxSection) {
+		if (page_id >= kModFxViews) {
+			return false;
+		}
+		out = mod_fx_page(page_id);
+		return true;
+	}
+	const std::optional<RemotePage> p = section_page(section, page_id, inputs_of(ctx));
+	if (p) {
+		out = *p;
+	}
+	return p.has_value();
+}
+
+RemoteSlot decorate_slot(const plugin::PageContext& ctx, ParamId param) {
+	const PageInputs in = inputs_of(ctx);
+	for (uint32_t section = 0; section < kSections; section++) {
+		for (uint32_t page_id = 0; page_id <= kLastPageId; page_id++) {
+			if (const std::optional<RemotePage> p = section_page(section, page_id, in)) {
+				for (const RemoteSlot& slot : p->slots) {
+					if (slot.param == param) {
+						return slot;
+					}
+				}
+			}
+		}
+	}
+	return knob(param);
+}
+
+} // namespace
+
+const plugin::RemoteControls kRemoteControls{.plugin = plugin::kGlobalEffectable,
+                                             .count = &count_pages,
+                                             .get = &get_page,
+                                             .find = &find_page,
+                                             .decorate = &decorate_slot};
 
 } // namespace deluge::global_effectable
