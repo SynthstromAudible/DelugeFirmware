@@ -23,7 +23,7 @@
 #include "dsp-next/fixed/stutter/stutter_kernel.h"
 #include "effects/delay.h"  // TapeShape
 #include "effects/mod_fx.h" // RingAllocator
-#include "effects/param_fragment.h"
+#include "effects/params.h"
 #include "effects/state.h"
 
 #include <cstdint>
@@ -50,8 +50,7 @@ struct StutterChange {
 class Stutter {
 public:
 	/// @brief The rate param, on the delay's rate scale (neutral 2^24).
-	static constexpr EffectParam kRate{
-	    .name = "stutterRate", .curve = dsp::fixed::ParamCurve::EXPONENTIAL, .neutral = 16777216};
+	static constexpr EffectParam kRate = params::kStutterRate;
 
 	using Kernel = dsp::fixed::Stutter;
 

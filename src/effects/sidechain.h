@@ -20,6 +20,7 @@
 #include "dsp-next/core/control.h"
 #include "dsp-next/fixed/dynamics/duck_envelope.h"
 #include "dsp-next/fixed/dynamics/duck_gain.h"
+#include "effects/params.h"
 #include "effects/state.h"
 
 #include <cassert>
@@ -44,6 +45,9 @@ struct DuckBlock {
 /// change takes effect from the next block, while the duck's position carries over.
 class Sidechain {
 public:
+	/// @brief The shape param, Q31: the release's curve, used as stored.
+	static constexpr EffectParam kShape = params::kSidechainShape;
+
 	/// @brief The attack param's minimum (attackRateTable[0] << 2): a hit at it skips the attack.
 	///
 	/// An attack rate in position steps per sample on the envelope's 2^23 stage scale.

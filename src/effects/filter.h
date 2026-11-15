@@ -19,7 +19,7 @@
 
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/filter/filter_set.h"
-#include "effects/param_fragment.h"
+#include "effects/params.h"
 #include "effects/state.h"
 
 #include <array>
@@ -80,14 +80,7 @@ public:
 
 	/// @brief The filters' params, in @ref Words order. Neutrals: the cutoffs Q31 of the filter's frequency scale, the
 	/// resonances and morphs Q29 (2^29 is 1).
-	static constexpr std::array<EffectParam, 6> kParams{{
-	    {.name = "lpfFrequency", .curve = dsp::fixed::ParamCurve::EXPONENTIAL, .neutral = 2000000},
-	    {.name = "lpfResonance", .curve = dsp::fixed::ParamCurve::LINEAR, .neutral = 268435450},
-	    {.name = "lpfMorph", .curve = dsp::fixed::ParamCurve::LINEAR, .neutral = 268435450},
-	    {.name = "hpfFrequency", .curve = dsp::fixed::ParamCurve::EXPONENTIAL, .neutral = 2672947},
-	    {.name = "hpfResonance", .curve = dsp::fixed::ParamCurve::LINEAR, .neutral = 268435450},
-	    {.name = "hpfMorph", .curve = dsp::fixed::ParamCurve::LINEAR, .neutral = 268435450},
-	}};
+	static constexpr std::array<EffectParam, 6> kParams = params::kFilterParams;
 
 	/// @brief The block's param values from the params' words.
 	/// @param words The stored words.

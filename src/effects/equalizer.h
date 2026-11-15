@@ -20,7 +20,7 @@
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/filter/shelf_pair.h"
-#include "effects/param_fragment.h"
+#include "effects/params.h"
 
 #include <array>
 #include <span>
@@ -34,12 +34,7 @@ using EqualizerParams = dsp::fixed::ShelfPair::Settings;
 class Equalizer {
 public:
 	/// @brief The EQ's params, in EqualizerParams order: their words are used as stored.
-	static constexpr std::array<EffectParam, 4> kParams{{
-	    {.name = "bass", .flags = plugin::ParamFlag::MIDDLE_DETENT},
-	    {.name = "treble", .flags = plugin::ParamFlag::MIDDLE_DETENT},
-	    {.name = "bassFreq"},
-	    {.name = "trebleFreq"},
-	}};
+	static constexpr std::array<EffectParam, 4> kParams = params::kEqualizerParams;
 
 	/// @brief Applies the bass and treble shelves to @p block in place; does nothing while both bands are flat.
 	/// @param block The stereo block to process.
