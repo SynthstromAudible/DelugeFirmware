@@ -9,8 +9,10 @@ Items marked **(proposed)** are placements that no recorded plan or ruling fixes
 
 - The model line (P0 to P3c) and the UI line are merged into `next`; the legacy menu is deleted (3d, 06008dfab).
 - `next` is 5,938 commits ahead of `main`. `main` is PR-only; local merges go into `next`.
-- Next actions: P3d-1c step 4 (delete `ModControllableAudio` and `GlobalEffectable`, with params C4), which is also
-  synth Track A step 1; the C2 spec and the R1 ratchet; the float instrument's voice pool (Track B).
+- `ModControllableAudio` and `GlobalEffectable` are deleted (synth Track A step 1, the controls layer and
+  `feat/mca-ge-deletion`): an owner's effects are a `model::EffectsOwner`.
+- Next actions: the P3d-1d per-effect param tables with params C4; instrument events (Track A step 1b); the C2 spec and
+  the R1 ratchet; the float instrument's voice pool (Track B).
 
 ## Target architecture
 
@@ -54,7 +56,7 @@ at language seams). That unlocks per-component language choice, CLAP, fault isol
 | P1 | Standalone model, JSON default save format | Done |
 | P2 | Engine boundary: the Deluge instrument | Done |
 | P3a to c | Effect components: filters, compressor, sidechain, delay, mod FX, granular, stutter | Done |
-| P3d | Host-chain flip, UI on addresses, param tables, delete MCA/GE | 1b done; 1c steps 1 to 3 done, step 4 next |
+| P3d | Host-chain flip, UI on addresses, param tables, delete MCA/GE | 1b done; 1c done (MCA/GE deleted); 1d next |
 | P4 | Clip player (live input is one mode) | Not started |
 | P5 | Topology + reconciler: track = chain, kit = rack of lanes, clip-scoped values, one mapping table | Step 1 records done |
 | P6 | Interface | Read half begun: `scenes/bind` readers (P3d-1c step 2); see the UI read interface below |
@@ -70,7 +72,7 @@ at language seams). That unlocks per-component language choice, CLAP, fault isol
    - 3c, ShellMenu on by default: done.
    - 3d, delete the legacy menu: done. The legacy oracles were frozen to data first; the ported menu is the only
      menu.
-4. Delete `ModControllableAudio` and `GlobalEffectable`, then the P3d-1d per-effect param tables.
+4. Delete `ModControllableAudio` and `GlobalEffectable`: done. Then the P3d-1d per-effect param tables.
 
 ### UI read interface
 
@@ -114,7 +116,7 @@ budget.
 
 | Step | Delivers | Needs first |
 | --- | --- | --- |
-| 1 | The controls layer, then the `ModControllableAudio` / `GlobalEffectable` deletion: `src/controls` (one resolver for knobs, presses, mod buttons, learned MIDI and MIDI follow; owners publish CLAP remote-controls pages through `plugin-api`; board profiles), then the classes go. Branches: `controls-library`, `controls-root-views` (the root views' knobs, presses and mod buttons go through the library; the legacy knob path is gone), `controls-shape` (owners publish their pages, the library assembles them for any board, CV tracks and MIDI and gate drums have an empty layout, and the instrument's layouts are data) and `controls-learn` (learned MIDI knobs and MIDI follow reach params by address through the library, with takeover state kept by table entry; learned knobs load through the model's codec and the engine plays none) are done; `mca-ge-deletion` is next. Then P3d-1d / C4 (per-effect tables) on its own spec. Strips `Sound` of its FX base | 3d (done) |
+| 1 | The controls layer, then the `ModControllableAudio` / `GlobalEffectable` deletion: `src/controls` (one resolver for knobs, presses, mod buttons, learned MIDI and MIDI follow; owners publish CLAP remote-controls pages through `plugin-api`; board profiles), then the classes go. Branches: `controls-library`, `controls-root-views` (the root views' knobs, presses and mod buttons go through the library; the legacy knob path is gone), `controls-shape` (owners publish their pages, the library assembles them for any board, CV tracks and MIDI and gate drums have an empty layout, and the instrument's layouts are data) and `controls-learn` (learned MIDI knobs and MIDI follow reach params by address through the library, with takeover state kept by table entry; learned knobs load through the model's codec and the engine plays none) and `mca-ge-deletion` (the classes deleted; an owner's effects are a `model::EffectsOwner`, reached from a ModelStack through the `ModControllable::effectsOwner()` bridge until ModelStack stage 1) are done. Then P3d-1d / C4 (per-effect tables) on its own spec. Strips `Sound` of its FX base | 3d (done) |
 | 1b | Instrument events: expression routing, note tails and a MIDI instrument's CC output move into the instruments; the ModelStack owner slot goes; `ModControllable` is deleted | 1; ModelStack stage 1 |
 | 2 | Params C2 (UI param reads by address: R1 inventory and ratchet, spec, conversion), C3 (one store per instance; `ParamBackup` retires), C5 (`Kind` and the enums stop being identity); the synth vocabulary leaves `definitions_cxx.hpp` and `check_synth_boundary.py` forbids `instruments/` | 1 for C3 to C5 |
 | 3 | `Patch` extracted from `Sound`: `VoiceConfig` and `SoundSnapshot` reconciled; the delay, sidechain, stutter and compressor settings ("5b") out of their DSP objects. `Patch` is the state L3 serializes | 1, 2 |
@@ -178,7 +180,7 @@ until the legacy menus are gone; they are deleted, so the model deletions are un
 | Replacement | Wave | Needs first | State |
 | --- | --- | --- | --- |
 | Legacy menus (SoundEditor, menu_item) | 2 | 3b closed, 3a flash-tested, oracle specs frozen | Deleted |
-| `ModControllableAudio`, `GlobalEffectable` | 2 | Legacy menus gone | Unblocked |
+| `ModControllableAudio`, `GlobalEffectable` | 2 | Legacy menus gone | Deleted |
 | ModelStack stage 1: params and undo by address | 2 | MCA/GE gone; `Consequence::revert`, automation recording and AutoParam projection re-keyed | `bridge::paramStackAt` bridge exists; stage placement (proposed) |
 | ModelStack stage 2: clip, note-row, sequencer chain on ids | 3 | P5 topology and reconciler | (proposed) |
 | Scenes' direct runtime reads (54 files) | 2 | 3d; R1 ratchet in place | Readers exist for settings, slots and chains; (proposed) |
@@ -193,7 +195,7 @@ until the legacy menus are gone; they are deleted, so the model deletions are un
 | Lane | Worktrees | Directories owned | Collision risk |
 | --- | --- | --- | --- |
 | UI shell | Off `next`; R1 and R2 | `src/scenes`, `src/shell`, `gui/ui` | Scene binding tables |
-| Model | One worktree off `next`: MCA/GE deletion (Track A step 1), then the params C line | `src/deluge-project`, model bridges, `processing/sound` | Shares Song code with every lane; merge first |
+| Model | One worktree off `next`: the params C line (MCA/GE deletion done) | `src/deluge-project`, model bridges, `processing/sound` | Shares Song code with every lane; merge first |
 | Synth | The float instrument (Track B), beside Track A | `src/synth`, `dsp-next/float` | Golden baselines and the test registry |
 | Platform, storage | Two: tier B sync callers; FS-lock and streaming | Storage, Rust BSP crates | Low; the device flash-test queue is the bottleneck |
 | Release | The main checkout, merges only | n/a | Local merges go into `next`, never `main` |

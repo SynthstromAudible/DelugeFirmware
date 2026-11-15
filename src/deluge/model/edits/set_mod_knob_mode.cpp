@@ -13,7 +13,6 @@ Error SetModKnobMode::apply(Context& ctx) {
 	}
 	if (std::holds_alternative<project::SongAddress>(owner_)) {
 		ctx.model.mod_knob_mode = mode_;
-		ctx.song.live.global_effectable.modKnobMode = mode_;
 		return Error::NONE;
 	}
 	Output* output = deluge::bridge::outputWithId(ctx.song, std::get<project::TrackAddress>(owner_).output_id);

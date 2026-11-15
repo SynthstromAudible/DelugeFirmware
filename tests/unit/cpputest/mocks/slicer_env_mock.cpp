@@ -287,7 +287,7 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 // `SoundDrum::killAllVoices()` IS entered (SliceCore::unbind_first_drum calls it) but is stubbed under
 // its mangled name rather than written out as a member definition: defining a member of `SoundDrum`
 // here makes this the translation unit that emits `SoundDrum`'s vtable, and that vtable names every
-// virtual in the Sound/ModControllableAudio hierarchy -- i.e. the whole synth. The vtable is stubbed
+// virtual in the Sound hierarchy -- i.e. the whole synth. The vtable is stubbed
 // as data below instead; nothing in these specs ever dispatches through it.
 DELUGE_STUB_FN(stub_soundDrumKillAllVoices, "_ZN9SoundDrum13killAllVoicesEv")
 
@@ -305,11 +305,10 @@ DELUGE_STUB_FN(stub_sampleHolderSetAudioFile, "_ZN12SampleHolder12setAudioFileEP
 DELUGE_STUB_FN(stub_instrumentClipAssignDrums,
                "_ZN14InstrumentClip21assignDrumsToNoteRowsEP29ModelStackWithTimelineCounterbi")
 DELUGE_STUB_FN(stub_instrumentClipViewRecalculateColours, "_ZN18InstrumentClipView18recalculateColoursEv")
-DELUGE_STUB_FN(stub_modControllableAudioDtor, "_ZN20ModControllableAudioD2Ev")
 // ~Sound gives its delay's tapes back, ends the song's stutter if its chain plays it, and destroys its chain, whose mod
 // FX and granular free their blocks.
-DELUGE_STUB_FN(stub_modControllableAudioReleaseChainMemory, "_ZN20ModControllableAudio18releaseChainMemoryEv")
-DELUGE_STUB_FN(stub_modControllableAudioEndStutterIfStuttering, "_ZN20ModControllableAudio22endStutterIfStutteringEv")
+DELUGE_STUB_FN(stub_releaseDelayMemory, "_ZN6deluge5model18releaseDelayMemoryERNS_7effects5DelayE")
+DELUGE_STUB_FN(stub_endStutterIfStuttering, "_ZN6deluge5model22endStutterIfStutteringERKNS_7effects9ChainCoreE")
 DELUGE_STUB_FN(stub_modFxDtor, "_ZN6deluge7effects5ModFxD1Ev")
 DELUGE_STUB_FN(stub_granularDtor, "_ZN6deluge7effects8GranularD1Ev")
 DELUGE_STUB_FN(stub_sampleHolderForVoiceClaimClusterReasons, "_ZN20SampleHolderForVoice19claimClusterReasonsEbi")

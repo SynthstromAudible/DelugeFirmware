@@ -101,7 +101,7 @@ bool writeKnobPairs(::Sound& sound, ::Song& song,
 	}
 	std::vector<ControllerMapping> controls = controlsOf(changed);
 	if (record == nullptr) {
-		applyControls(sound, true, controls);
+		applyControls(sound, controls);
 		return true;
 	}
 	deluge::edits::Context ctx{song, song.project};
@@ -109,7 +109,7 @@ bool writeKnobPairs(::Sound& sound, ::Song& song,
 	if (deluge::edits::apply(ctx, edit) != Error::NONE) {
 		// The record resolved but its owner did not: write both copies, so they stay equal.
 		D_PRINTLN("controls refused: knobs written directly");
-		applyControls(sound, true, controls);
+		applyControls(sound, controls);
 		*record = std::move(controls);
 	}
 	return true;
@@ -192,16 +192,13 @@ std::optional<deluge::project::ControlsAddress> controlsAddressOf(::Sound& sound
 
 namespace {
 
-/// The owner of @p output's own controls and whether it is a sound: a synth's sound, a kit's or an audio track's.
-::ModControllableAudio* ownControlsOf(Output& output, bool* isSound) {
-	*isSound = output.type == OutputType::SYNTH;
+/// The owner of @p output's own controls: a synth's sound, a kit or an audio track; null for any other output.
+::ModControllable* ownControlsOf(Output& output) {
 	switch (output.type) {
 	case OutputType::SYNTH:
-		return static_cast<SoundInstrument*>(&output);
 	case OutputType::KIT:
-		return static_cast<Kit*>(&output);
 	case OutputType::AUDIO:
-		return static_cast<AudioOutput*>(&output);
+		return output.toModControllable();
 	default:
 		return nullptr;
 	}
@@ -226,15 +223,13 @@ void forEachOutput(::Song& song, Visit visit) {
 
 std::optional<deluge::project::ControlsAddress> controlsAddressOf(::ModControllable& owner, ::Song& song) {
 	using Kind = deluge::project::ControlsAddress::Kind;
-	if (&owner == static_cast<::ModControllable*>(&song.live.global_effectable)) {
+	if (&owner == static_cast<::ModControllable*>(&song.live.master_channel)) {
 		return deluge::project::ControlsAddress{Kind::SONG, 0};
 	}
 	std::optional<deluge::project::ControlsAddress> found;
 	forEachOutput(song, [&](Output& output) {
-		bool isSound = false;
-		::ModControllableAudio* own = ownControlsOf(output, &isSound);
-		if (own != nullptr && static_cast<::ModControllable*>(own) == &owner && output.docOutput_ != nullptr
-		    && output.id()) {
+		::ModControllable* own = ownControlsOf(output);
+		if (own != nullptr && own == &owner && output.docOutput_ != nullptr && output.id()) {
 			found = deluge::project::ControlsAddress{Kind::OUTPUT, *output.id()};
 			return true;
 		}
@@ -274,35 +269,53 @@ Drum* drumWithId(::Song& song, uint32_t id) {
 	return found;
 }
 
-::ModControllableAudio* controlsOwnerAt(::Song& song, deluge::project::ControlsAddress address, bool* isSound) {
+::Sound* soundAt(::Song& song, deluge::project::ControlsAddress address) {
 	using Kind = deluge::project::ControlsAddress::Kind;
-	*isSound = false;
 	switch (address.kind) {
 	case Kind::SONG:
-		return &song.live.global_effectable;
+		return nullptr;
 	case Kind::OUTPUT: {
 		Output* output = outputWithId(song, address.id);
-		return output != nullptr ? ownControlsOf(*output, isSound) : nullptr;
+		return output != nullptr && output->type == OutputType::SYNTH ? static_cast<SoundInstrument*>(output) : nullptr;
 	}
 	case Kind::DRUM:
 		break;
 	}
 	Drum* drum = drumWithId(song, address.id);
-	if (drum == nullptr || drum->type != DrumType::SOUND) {
-		return nullptr;
-	}
-	*isSound = true;
-	return static_cast<SoundDrum*>(drum);
+	return drum != nullptr && drum->type == DrumType::SOUND ? static_cast<SoundDrum*>(drum) : nullptr;
 }
 
-void applyControls(::ModControllableAudio& owner, bool isSound, const std::vector<ControllerMapping>& controls) {
-	if (!isSound) {
-		return;
+std::optional<deluge::model::EffectsOwner> effectsOwnerAt(::Song& song, deluge::project::ControlsAddress address) {
+	using Kind = deluge::project::ControlsAddress::Kind;
+	if (address.kind == Kind::SONG) {
+		return song.live.master_channel.effectsOwner();
 	}
+	if (address.kind == Kind::OUTPUT) {
+		Output* output = outputWithId(song, address.id);
+		::ModControllable* own = output != nullptr ? ownControlsOf(*output) : nullptr;
+		return own != nullptr ? own->effectsOwner() : std::nullopt;
+	}
+	::Sound* sound = soundAt(song, address);
+	return sound != nullptr ? sound->effectsOwner() : std::nullopt;
+}
+
+::ModControllable* controlsSlotAt(::Song& song, deluge::project::ControlsAddress address) {
+	using Kind = deluge::project::ControlsAddress::Kind;
+	if (address.kind == Kind::SONG) {
+		return &song.live.master_channel;
+	}
+	if (address.kind == Kind::OUTPUT) {
+		Output* output = outputWithId(song, address.id);
+		return output != nullptr ? ownControlsOf(*output) : nullptr;
+	}
+	return soundAt(song, address);
+}
+
+void applyControls(::Sound& sound, const std::vector<ControllerMapping>& controls) {
 	for (const ControllerMapping& mapping : controls) {
 		const ModKnobControl& knob = mapping.control;
 		if (knob.button < kNumModButtons && knob.knob < kNumPhysicalModKnobs) {
-			static_cast<::Sound&>(owner).modKnobs[knob.button][knob.knob].target =
+			sound.modKnobs[knob.button][knob.knob].target =
 			    knobOfControl(mapping.target, params::Kind::UNPATCHED_SOUND);
 		}
 	}
@@ -312,14 +325,13 @@ void recordOutputControls(::Output& output, ::Song& song) {
 	if (output.docOutput_ == nullptr || !output.id()) {
 		return;
 	}
-	bool isSound = false;
-	::ModControllableAudio* own = ownControlsOf(output, &isSound);
 	std::vector<ControllerMapping>* record =
 	    song.project.resolveControls({deluge::project::ControlsAddress::Kind::OUTPUT, *output.id()});
-	if (own == nullptr || record == nullptr) {
+	if (ownControlsOf(output) == nullptr || record == nullptr) {
 		return;
 	}
-	*record = isSound ? controlsOf(static_cast<::Sound&>(*own)) : std::vector<ControllerMapping>{};
+	*record = output.type == OutputType::SYNTH ? controlsOf(*static_cast<SoundInstrument*>(&output))
+	                                           : std::vector<ControllerMapping>{};
 }
 
 namespace {

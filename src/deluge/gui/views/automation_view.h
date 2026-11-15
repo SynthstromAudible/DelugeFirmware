@@ -22,7 +22,6 @@
 #include "gui/views/clip_view.h"
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/owner_plugin.h"
 #include "modulation/automation/copied_param_automation.h"

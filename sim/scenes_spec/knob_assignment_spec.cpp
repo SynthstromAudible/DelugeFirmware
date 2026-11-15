@@ -12,7 +12,6 @@
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_mod_knob_cc.h"
 #include "model/edits/set_mod_knob_mode.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
@@ -86,7 +85,7 @@ void report(const std::vector<std::string>& found) {
 }
 
 /// @brief Each filter view and mod-FX view of @p ge's chain, each run through @p check.
-std::vector<std::string> over_views(GlobalEffectable& ge,
+std::vector<std::string> over_views(ModControllable& ge,
                                     const std::function<std::vector<std::string>(std::string)>& check) {
 	std::vector<std::string> found;
 	for (const FilterType filter : {FilterType::LPF, FilterType::HPF, FilterType::EQ}) {
@@ -194,7 +193,7 @@ describe knob_assignment("what a gold knob moves, from the records", ${
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
-		GlobalEffectable& ge = f.song->live.global_effectable;
+		ModControllable& ge = f.song->live.master_channel;
 		std::vector<std::string> found;
 		size_t next = 0;
 		for (const bool editing : {false, true}) {

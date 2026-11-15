@@ -989,7 +989,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			arp->preset = ArpPreset::OFF;
 			arp->octaveMode = ArpOctaveMode::DOWN;
 			arp->noteMode = ArpNoteMode::DOWN;
-			// `Sound::allNotesOff` clears this first thing (`sound.cpp:1761-1763`) -- the one effect
+			// `Sound::allNotesOff` clears this first thing -- the one effect
 			// of `silenceArp`'s synth arm that survives in model state a spec can read.
 			spec::menu_engine(sound.ctx).sound->invertReversed = true;
 
@@ -1036,14 +1036,14 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			covered.insert(&nodes::arp_preset);
 		}
 
-		{ // --- mod_fx_type: `ModControllableAudio::setModFXType` on the target -------------------
+		{ // --- mod_fx_type: the type set on the target directly ------------------------------------
 			const TablesRoot& sound = installed_root("sound");
-			const ModFXType before = deluge::scenes::spec::menu_engine(sound.ctx).mod->getModFXType();
+			const ModFXType before = deluge::scenes::spec::menu_engine(sound.ctx).mod->effectsOwner()->binding->snapshot().effects.mod_fx.type;
 			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::NONE));
-			expect(deluge::scenes::spec::menu_engine(sound.ctx).mod->getModFXType() == ModFXType::NONE).to_be_true();
+			expect(deluge::scenes::spec::menu_engine(sound.ctx).mod->effectsOwner()->binding->snapshot().effects.mod_fx.type == ModFXType::NONE).to_be_true();
 			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::FLANGER));
-			expect(deluge::scenes::spec::menu_engine(sound.ctx).mod->getModFXType() == ModFXType::FLANGER).to_be_true();
-			(void)deluge::scenes::spec::menu_engine(sound.ctx).mod->setModFXType(before);
+			expect(deluge::scenes::spec::menu_engine(sound.ctx).mod->effectsOwner()->binding->snapshot().effects.mod_fx.type == ModFXType::FLANGER).to_be_true();
+			deluge::model::changeEffects(*deluge::scenes::spec::menu_engine(sound.ctx).mod->effectsOwner(), [&](deluge::effects::EffectStates& e) { e.mod_fx.type = before; });
 			covered.insert(&nodes::mod_fx_type);
 		}
 

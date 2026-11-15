@@ -19,7 +19,6 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_address.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/project_bridge/owner_plugin.h"
 #include "modulation/params/param.h"
 #include "storage/byte_channel.h"
@@ -34,6 +33,8 @@ class InstrumentClip;
 class Clip;
 class Kit;
 class Drum;
+class MIDICable;
+class Output;
 class ModelStack;
 class ModelStackWithThreeMainThings;
 class ModelStackWithAutoParam;

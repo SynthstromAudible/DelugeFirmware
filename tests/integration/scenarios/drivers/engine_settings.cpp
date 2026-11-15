@@ -33,7 +33,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/edits/set_source_ranges.h"
-#include "model/global_effectable/global_effectable.h"
+#include "model/fx/chain_params.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -80,7 +80,7 @@ Song* freshSong() {
 	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (memory) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 	return song;
 }
 

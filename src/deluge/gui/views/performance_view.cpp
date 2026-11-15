@@ -107,7 +107,7 @@ bool knobsOnSong() {
 
 /// @p paramID of @p kind's name, as the song's filter modes name it.
 char const* songParamName(params::Kind kind, int32_t paramID) {
-	const deluge::effects::FilterState& filter = currentSong->live.global_effectable.effects().filter;
+	const deluge::effects::FilterState& filter = currentSong->live.master_channel.binding().effects().filter;
 	return params::getParamDisplayName(kind, paramID, filter.lpf_mode, filter.hpf_mode);
 }
 
@@ -115,7 +115,7 @@ char const* songParamName(params::Kind kind, int32_t paramID) {
 bool isSongQuantizedStutter(params::Kind kind, int32_t paramID) {
 	return knobsOnSong() && (kind == params::Kind::UNPATCHED_GLOBAL || kind == params::Kind::UNPATCHED_SOUND)
 	       && paramID == params::UNPATCHED_STUTTER_RATE
-	       && currentSong->live.global_effectable.effects().stutter.quantized;
+	       && currentSong->live.master_channel.binding().effects().stutter.quantized;
 }
 
 /// Begin, or end, the song's stutter.

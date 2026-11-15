@@ -37,8 +37,8 @@
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
 #include "model/fx/song_stutter.h"
+#include "model/fx/stutter_gesture.h"
 #include "model/mod_controllable/delay_arena_app.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/output.h"
 #include "model/song/song.h"
@@ -201,11 +201,11 @@ void readStutter() {
 }
 
 /// @return The stutter owner @p name names, and its param manager and timeline counter in @p params and @p clip.
-ModControllableAudio* stutterOwner(const std::string& name, ParamManagerForTimeline*& params, TimelineCounter*& clip) {
+ModControllable* stutterOwner(const std::string& name, ParamManagerForTimeline*& params, TimelineCounter*& clip) {
 	if (name == "master") {
 		params = &currentSong->paramManager;
 		clip = nullptr;
-		return &currentSong->live.global_effectable;
+		return &currentSong->live.master_channel;
 	}
 	const OutputType type = name == "kit" ? OutputType::KIT : name == "synth" ? OutputType::SYNTH : OutputType::AUDIO;
 	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
@@ -215,14 +215,13 @@ ModControllableAudio* stutterOwner(const std::string& name, ParamManagerForTimel
 		Clip* active = output->getActiveClip();
 		params = &active->paramManager;
 		clip = active;
-		return static_cast<ModControllableAudio*>(output->toModControllable());
+		return output->toModControllable();
 	}
 	return nullptr;
 }
 
 /// @brief Sets @p owner's stutter-rate param to @p value as the gold knob does, by its SetParamValue Edit.
-void turnStutterRate(ModControllableAudio& owner, TimelineCounter* clip, ParamManagerForTimeline& params,
-                     int32_t value) {
+void turnStutterRate(ModControllable& owner, TimelineCounter* clip, ParamManagerForTimeline& params, int32_t value) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* ms =
 	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, &owner, clip, &params);
@@ -243,8 +242,8 @@ void runStutters(uint64_t block) {
 	TimelineCounter* clip = nullptr;
 	for (StutterSpan& span : g_stutterAt) {
 		if (span.begun && !span.ended && block >= span.end) {
-			if (ModControllableAudio* owner = stutterOwner(span.owner, params, clip)) {
-				owner->endStutter(params);
+			if (ModControllable* owner = stutterOwner(span.owner, params, clip)) {
+				deluge::model::endStutter(params);
 				g_stutterApplied++;
 				printf("RS-STUTTER block=%llu end owner=%s\n", static_cast<unsigned long long>(block),
 				       span.owner.c_str());
@@ -254,8 +253,8 @@ void runStutters(uint64_t block) {
 	}
 	for (StutterSpan& span : g_stutterAt) {
 		if (!span.begun && block >= span.begin) {
-			if (ModControllableAudio* owner = stutterOwner(span.owner, params, clip)) {
-				owner->beginStutter(params);
+			if (ModControllable* owner = stutterOwner(span.owner, params, clip)) {
+				deluge::model::beginStutter(*owner->effectsOwner(), *params);
 				g_stutterApplied++;
 				printf("RS-STUTTER block=%llu begin owner=%s\n", static_cast<unsigned long long>(block),
 				       span.owner.c_str());
@@ -265,8 +264,8 @@ void runStutters(uint64_t block) {
 	}
 	bool stuttering = false;
 	for (StutterSpan& span : g_stutterAt) {
-		ModControllableAudio* owner = stutterOwner(span.owner, params, clip);
-		const bool now = owner != nullptr && currentSong->live.stutter.isStuttering(owner->core());
+		ModControllable* owner = stutterOwner(span.owner, params, clip);
+		const bool now = owner != nullptr && currentSong->live.stutter.isStuttering(*owner->effectsOwner()->core);
 		if (now && g_stutterRateAsked && !g_stutterRateDone && block >= g_stutterRateAt) {
 			turnStutterRate(*owner, clip, *params, g_stutterRateValue);
 			g_stutterRateDone = true;
@@ -296,18 +295,18 @@ void switchDelays(uint64_t block) {
 		if (output->type != OutputType::AUDIO) {
 			continue;
 		}
-		auto* owner = static_cast<ModControllableAudio*>(output->toModControllable());
+		auto* owner = output->toModControllable();
 		if (owner == nullptr) {
 			continue;
 		}
-		const bool analog = owner->effects().delay.type == deluge::effects::DelayType::ANALOG;
+		const bool analog = owner->effectsOwner()->effects().delay.type == deluge::effects::DelayType::ANALOG;
 		deluge::edits::changeEffect(
 		    *owner, "delay/type",
 		    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(
 		        analog ? deluge::effects::DelayType::DIGITAL : deluge::effects::DelayType::ANALOG))));
 		g_tracksSwitched++;
 		printf("RS-DELAY-SWITCH block=%llu analog=%d\n", static_cast<unsigned long long>(block),
-		       owner->effects().delay.type == deluge::effects::DelayType::ANALOG ? 1 : 0);
+		       owner->effectsOwner()->effects().delay.type == deluge::effects::DelayType::ANALOG ? 1 : 0);
 	}
 }
 
@@ -316,14 +315,14 @@ void switchDelays(uint64_t block) {
 template <typename Visit>
 void forEachModFxOwner(const std::string& name, Visit visit) {
 	if (name == "master") {
-		visit(static_cast<ModControllableAudio&>(currentSong->live.global_effectable), name);
+		visit(currentSong->live.master_channel, name);
 		return;
 	}
 	for (Output* output = currentSong->live.media.first_output; output != nullptr; output = output->next) {
 		if (name.empty() ? output->type != OutputType::AUDIO : output->name != name) {
 			continue;
 		}
-		auto* owner = static_cast<ModControllableAudio*>(output->toModControllable());
+		auto* owner = output->toModControllable();
 		if (owner != nullptr) {
 			visit(*owner, output->name);
 		}
@@ -372,12 +371,12 @@ void readModFxSwitches() {
 /// Set the mod FX type of the owners @p switched names to its type, as the mod FX type menu does, at render block
 /// @p block.
 void switchModFx(uint64_t block, const ModFxSwitch& switched) {
-	forEachModFxOwner(switched.owner, [&](ModControllableAudio& owner, const std::string& name) {
+	forEachModFxOwner(switched.owner, [&](ModControllable& owner, const std::string& name) {
 		deluge::edits::changeEffect(owner, "modFXType", deluge::serialization::Value::makeScalar(switched.type));
 		g_tracksModFxSwitched++;
-		const std::string now(deluge::effects::to_string(owner.effects().mod_fx.type));
-		const bool ring = owner.core().mod_fx().holdsRing();
-		const bool grain = owner.core().granular().holdsRing();
+		const std::string now(deluge::effects::to_string(owner.effectsOwner()->effects().mod_fx.type));
+		const bool ring = owner.effectsOwner()->core->mod_fx().holdsRing();
+		const bool grain = owner.effectsOwner()->core->granular().holdsRing();
 		g_modFxSwitchedTypes += (g_modFxSwitchedTypes.empty() ? "" : ",") + now;
 		(ring ? g_modFxSwitchedRing : grain ? g_modFxSwitchedGrain : g_modFxSwitchedNoRing)++;
 		printf("RS-MODFX-SWITCH block=%llu type=%s ring=%d grain=%d owner=%s\n", static_cast<unsigned long long>(block),
@@ -778,7 +777,7 @@ void dumpTakes() {
 
 /// RENDER_MODFX_CLEAR: `<block>[:<owner>],...`, ascending; empty by default. At each block, counted from playback's
 /// start, the mod FX memory of every audio track (or of the owner named, see forEachModFxOwner) is cleared by
-/// ModControllableAudio::clearModFXMemory, which a sound's cut tail calls: for a comb type the mod FX component's
+/// model::clearModFXMemory, which a sound's cut tail calls: for a comb type the mod FX component's
 /// clearMemory, which zeroes the ring when one is held and the phaser's memories otherwise; for the grain the granular
 /// component's clear, which stops its grains and starts its ring over. An owner whose type is none is not cleared, nor
 /// is a grain with no State (one whose allocation failed).
@@ -810,13 +809,14 @@ void readModFxClears() {
 
 /// Clear the mod FX memory of the owners @p cleared names at render block @p block.
 void clearModFx(uint64_t block, const ModFxClear& cleared) {
-	forEachModFxOwner(cleared.owner, [&](ModControllableAudio& owner, const std::string& name) {
-		const ModFXType type = owner.effects().mod_fx.type;
-		if (type == ModFXType::NONE || (type == ModFXType::GRAIN && owner.core().granular().state() == nullptr)) {
+	forEachModFxOwner(cleared.owner, [&](ModControllable& owner, const std::string& name) {
+		const ModFXType type = owner.effectsOwner()->effects().mod_fx.type;
+		if (type == ModFXType::NONE
+		    || (type == ModFXType::GRAIN && owner.effectsOwner()->core->granular().state() == nullptr)) {
 			return;
 		}
-		const bool ring = owner.core().mod_fx().holdsRing();
-		owner.clearModFXMemory();
+		const bool ring = owner.effectsOwner()->core->mod_fx().holdsRing();
+		deluge::model::clearModFXMemory(*owner.effectsOwner());
 		g_tracksModFxCleared++;
 		const std::string word(deluge::effects::to_string(type));
 		if (type == ModFXType::GRAIN) {

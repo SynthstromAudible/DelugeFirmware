@@ -7,6 +7,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/edits/edit.h"
+#include "model/fx/chain_params.h"
 #include <cstdio>
 
 #include "deluge-project/param_edit.h" // setNodeAtPos
@@ -22,7 +23,6 @@
 #include "model/edits/param_address_for.h"
 #include "model/edits/paste_param_automation.h"
 #include "model/edits/set_param_value.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/snapshot/param_snapshot.h"
@@ -57,6 +57,7 @@
 #include "model/edits/set_source_ranges.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
+#include "model/mod_controllable/filters/filter_config.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/mapping_bridge.h"
@@ -79,6 +80,8 @@
 #include "storage/tree_document.h"
 #include "storage/value_serializer.h"
 #include "storage/value_tree_deserializer.h"
+
+using namespace deluge;
 
 namespace {
 
@@ -1155,13 +1158,13 @@ void testSetEffectSetting(deluge::edits::Context& ctx) {
 	Instrument* kit = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
 	ctx.song.addOutput(kit);
 	struct Owner {
-		ModControllableAudio* owner;
+		ModControllable* owner;
 		ChainAddress address;
 		const char* name;
 	};
 	const Owner owners[] = {
 	    {static_cast<Kit*>(kit), {.kind = ChainAddress::Kind::OUTPUT, .id = kit->id().value_or(0)}, "a kit"},
-	    {&ctx.song.live.global_effectable, {.kind = ChainAddress::Kind::SONG}, "the master"},
+	    {&ctx.song.live.master_channel, {.kind = ChainAddress::Kind::SONG}, "the master"},
 	};
 	for (const Owner& o : owners) {
 		const std::string name = o.name;
@@ -1170,8 +1173,10 @@ void testSetEffectSetting(deluge::edits::Context& ctx) {
 			return deluge::edits::apply(ctx, edit);
 		};
 		check(applied("lpfMode", Value::makeScalar("SVF_Notch")) == Error::NONE, (name + ": lpfMode applied").c_str());
-		check(o.owner->effects().filter.lpf_mode == FilterMode::SVF_NOTCH, (name + ": the owner's filter").c_str());
-		check(o.owner->modControllableSnapshot().effects == o.owner->effects(), (name + ": its render copy").c_str());
+		check(o.owner->effectsOwner()->effects().filter.lpf_mode == FilterMode::SVF_NOTCH,
+		      (name + ": the owner's filter").c_str());
+		check(o.owner->effectsOwner()->binding->snapshot().effects == o.owner->effectsOwner()->effects(),
+		      (name + ": its render copy").c_str());
 		deluge::project::FxChain* chain = ctx.model.resolveChain(o.address);
 		const deluge::effects::EffectStates* held =
 		    chain != nullptr ? chain->effects.as<deluge::effects::DelugeEffects>() : nullptr;
@@ -1179,20 +1184,21 @@ void testSetEffectSetting(deluge::edits::Context& ctx) {
 		      (name + ": the chain record holds it").c_str());
 		check(deluge::harness::chainIncoherence(ctx.song).empty(), (name + ": the chain is coherent").c_str());
 
-		const deluge::effects::EffectStates before = o.owner->effects();
+		const deluge::effects::EffectStates before = o.owner->effectsOwner()->effects();
 		check(applied("lpfMode", Value::makeScalar("sideways")) != Error::NONE, (name + ": a refused value").c_str());
-		check(o.owner->effects() == before, (name + ": a refused value changes nothing").c_str());
+		check(o.owner->effectsOwner()->effects() == before, (name + ": a refused value changes nothing").c_str());
 
 		const std::optional<deluge::project::FxChain> chainBefore =
 		    chain != nullptr ? std::optional{*chain} : std::nullopt;
-		const int32_t level = static_cast<int32_t>(o.owner->effects().delay.sync_level);
+		const int32_t level = static_cast<int32_t>(o.owner->effectsOwner()->effects().delay.sync_level);
 		check(applied("delay/syncLevel", Value::makeNumber(level)) == Error::NONE,
 		      (name + ": the delay's sync level applied").c_str());
 		check(chain != nullptr && chainBefore && *chain == *chainBefore,
 		      (name + ": the same sync level leaves the chain as it was").c_str());
 
 		check(applied("modFXType", Value::makeScalar("chorus")) == Error::NONE, (name + ": modFXType applied").c_str());
-		check(o.owner->effects().mod_fx.type == ModFXType::CHORUS, (name + ": the owner renders chorus").c_str());
+		check(o.owner->effectsOwner()->effects().mod_fx.type == ModFXType::CHORUS,
+		      (name + ": the owner renders chorus").c_str());
 		check(deluge::harness::chainIncoherence(ctx.song).empty(), (name + ": coherent after mod FX").c_str());
 	}
 }
@@ -1217,7 +1223,7 @@ Song* readFixtureSong(const char* path) {
 	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (memory) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 	deluge::storage::ValueTreeDeserializer adapter(*tree, deluge::storage::SourceFormat::Xml);
 	Error e = openTreeFile(adapter, "song", deluge::storage::DocumentFormat::XML);
 	if (e == Error::NONE) {
@@ -1271,51 +1277,57 @@ void testChainRecordOwnsState(deluge::edits::Context& ctx) {
 	ParamManagerForTimeline kitParams;
 	Instrument* kitOutput = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
 	auto& kit = *static_cast<Kit*>(kitOutput);
-	deluge::effects::EffectStates seeded = kit.effects();
+	deluge::effects::EffectStates seeded = kit.effectsOwner()->effects();
 	seeded.filter.lpf_mode = FilterMode::SVF_BAND;
-	kit.setEffects(seeded); // what it plays before it joins the song
+	deluge::model::storeEffects(*kit.effectsOwner(), seeded); // what it plays before it joins the song
 	ctx.song.addOutput(kitOutput);
 	const ChainAddress kitChain{.kind = ChainAddress::Kind::OUTPUT, .id = kitOutput->id().value_or(0)};
-	check(recordEffects(ctx, kitChain) == &kit.effects(), "chain ownership: a kit plays its record's effects");
-	check(kit.effects().filter.lpf_mode == FilterMode::SVF_BAND, "chain ownership: its record took what it played");
+	check(recordEffects(ctx, kitChain) == &kit.effectsOwner()->effects(),
+	      "chain ownership: a kit plays its record's effects");
+	check(kit.effectsOwner()->effects().filter.lpf_mode == FilterMode::SVF_BAND,
+	      "chain ownership: its record took what it played");
 
 	AudioOutput* audio = ctx.song.createNewAudioOutput();
 	const ChainAddress audioChain{.kind = ChainAddress::Kind::OUTPUT, .id = audio->id().value_or(0)};
-	check(recordEffects(ctx, audioChain) == &audio->effects(),
+	check(recordEffects(ctx, audioChain) == &audio->effectsOwner()->effects(),
 	      "chain ownership: an audio track plays its record's effects");
-	check(recordEffects(ctx, {.kind = ChainAddress::Kind::SONG}) == &ctx.song.live.global_effectable.effects(),
+	check(recordEffects(ctx, {.kind = ChainAddress::Kind::SONG}) == &ctx.song.live.master_channel.binding().effects(),
 	      "chain ownership: the master plays its record's effects");
 
 	deluge::edits::SetChainView view{kitChain, "currentFilterType", deluge::serialization::Value::makeScalar("hpf")};
-	check(deluge::edits::apply(ctx, view) == Error::NONE && kit.filterType() == FilterType::HPF
+	check(deluge::edits::apply(ctx, view) == Error::NONE && kit.effectsOwner()->view->filterType() == FilterType::HPF
 	          && ctx.model.resolveChain(kitChain)->filter_type == util::to_underlying(FilterType::HPF),
 	      "chain ownership: the knobs' view is the record's");
 
 	AudioOutput* clone = ctx.song.createNewAudioOutput();
-	deluge::effects::EffectStates notch = audio->effects();
+	deluge::effects::EffectStates notch = audio->effectsOwner()->effects();
 	notch.filter.lpf_mode = FilterMode::SVF_NOTCH;
-	audio->setEffects(notch);
+	deluge::model::storeEffects(*audio->effectsOwner(), notch);
 	clone->cloneFrom(audio);
 	const ChainAddress cloneChain{.kind = ChainAddress::Kind::OUTPUT, .id = clone->id().value_or(0)};
-	check(recordEffects(ctx, cloneChain) == &clone->effects() && &clone->effects() != &audio->effects()
-	          && clone->effects().filter.lpf_mode == FilterMode::SVF_NOTCH,
+	check(recordEffects(ctx, cloneChain) == &clone->effectsOwner()->effects()
+	          && &clone->effectsOwner()->effects() != &audio->effectsOwner()->effects()
+	          && clone->effectsOwner()->effects().filter.lpf_mode == FilterMode::SVF_NOTCH,
 	      "chain ownership: a cloned audio track plays its own record, holding what it cloned");
 
 	// Deleted as a track is: the record goes now, the owner when the render lets go of it.
-	const deluge::effects::EffectStates* kitRecord = &kit.effects();
+	const deluge::effects::EffectStates* kitRecord = &kit.effectsOwner()->effects();
 	ctx.song.deleteOutputThatIsInMainList(&kit, false);
-	check(&kit.effects() != kitRecord && kit.effects().filter.lpf_mode == FilterMode::SVF_BAND
-	          && kit.filterType() == FilterType::HPF,
+	check(&kit.effectsOwner()->effects() != kitRecord
+	          && kit.effectsOwner()->effects().filter.lpf_mode == FilterMode::SVF_BAND
+	          && kit.effectsOwner()->view->filterType() == FilterType::HPF,
 	      "chain ownership: a kit whose record goes keeps its effects and view");
-	deluge::effects::EffectStates after = kit.effects();
+	deluge::effects::EffectStates after = kit.effectsOwner()->effects();
 	after.filter.lpf_mode = FilterMode::SVF_NOTCH;
-	kit.setEffects(after);
-	check(kit.effects().filter.lpf_mode == FilterMode::SVF_NOTCH, "chain ownership: and its setters still write them");
+	deluge::model::storeEffects(*kit.effectsOwner(), after);
+	check(kit.effectsOwner()->effects().filter.lpf_mode == FilterMode::SVF_NOTCH,
+	      "chain ownership: and a direct store still writes them");
 	AudioEngine::retire(&kit);
 
-	const deluge::effects::EffectStates* audioRecord = &audio->effects();
+	const deluge::effects::EffectStates* audioRecord = &audio->effectsOwner()->effects();
 	ctx.song.deleteOutputThatIsInMainList(audio, false);
-	check(&audio->effects() != audioRecord && audio->effects().filter.lpf_mode == FilterMode::SVF_NOTCH,
+	check(&audio->effectsOwner()->effects() != audioRecord
+	          && audio->effectsOwner()->effects().filter.lpf_mode == FilterMode::SVF_NOTCH,
 	      "chain ownership: an audio track whose record goes keeps its effects");
 	AudioEngine::retire(audio);
 }
@@ -1329,7 +1341,8 @@ void testGestureOnUndoHeldOwner(deluge::edits::Context& ctx) {
 	ctx.song.addOutput(kitOutput);
 	ctx.song.removeOutputFromMainList(kitOutput); // as an undo of its creation removes it
 	deluge::edits::changeEffect(ctx.song, kit, "lpfMode", deluge::serialization::Value::makeScalar("SVF_Notch"));
-	check(kit.effects().filter.lpf_mode == FilterMode::SVF_NOTCH, "undo-held owner: a gesture still reaches it");
+	check(kit.effectsOwner()->effects().filter.lpf_mode == FilterMode::SVF_NOTCH,
+	      "undo-held owner: a gesture still reaches it");
 	ctx.song.addOutput(kitOutput, true); // as its redo puts it back
 	check(deluge::harness::chainIncoherence(ctx.song).empty(), "undo-held owner: put back, it plays its record");
 }
@@ -1358,10 +1371,7 @@ void testTwoHostOwnersOneIdInFile() {
 	}
 	check(ids.size() == owners.size(), "read host ids: a second host owner on one id takes an id of its own");
 	const auto lpf = [](Output* owner) {
-		const GlobalEffectable* effectable =
-		    owner->type == OutputType::KIT ? static_cast<const GlobalEffectable*>(static_cast<Kit*>(owner))
-		                                   : static_cast<const GlobalEffectable*>(static_cast<AudioOutput*>(owner));
-		return effectable->effects().filter.lpf_mode;
+		return owner->toModControllable()->effectsOwner()->effects().filter.lpf_mode;
 	};
 	if (owners.size() == 4) {
 		check(lpf(owners[0]) != lpf(owners[1]) && lpf(owners[2]) != lpf(owners[3]),
@@ -1491,7 +1501,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (mem) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 	currentSong = song;
 
 	// ActionLogger::getNewAction snapshots an ActionClipState per clip and sizes that allocation to the clip
@@ -1502,7 +1512,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	audioClip->setLoopLength(128); // give the region-edit timeline counter a loop length (getLoopLength())
 	(void)song->live.clips.session_clips.insertClipAt(audioClip, 0);
 	audioClip->paramManager.setupUnpatched();
-	GlobalEffectable::initParamsForAudioClip(&audioClip->paramManager);
+	deluge::model::initAudioClipParams(&audioClip->paramManager);
 	audioClip->output = song->createNewAudioOutput(); // a clip's params are found through its output, as in a song
 	g_audioClip = audioClip;
 

@@ -6,6 +6,7 @@
 #include "gui/ui/ui.h"
 #include "model/clip/instrument_clip.h"
 #include "model/fx/song_stutter.h"
+#include "model/fx/stutter_gesture.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
@@ -53,15 +54,17 @@ describe stutter_automation("a quantized stutter's rate, with the stutter-rate p
 		currentSong = f.song;
 		f.song->setCurrentClip(f.clip);
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
-		sound.setUseSongStutter(false);
-		sound.setStutterQuantized(true);
+		deluge::model::changeEffects(*sound.effectsOwner(), [](deluge::effects::EffectStates& e) {
+			e.stutter.use_song_stutter = false;
+			e.stutter.quantized = true;
+		});
 		UnpatchedParamSet* unpatched = f.clip->paramManager.getUnpatchedParamSet();
 		AutoParam& rate = unpatched->params[params::UNPATCHED_STUTTER_RATE];
 		const int32_t began_at = unpatched->knobPosToParamValue(20, nullptr); // snaps to 32nds: knob position 8
 		rate.setPlayed(began_at);
 
 		enterUIMode(UI_MODE_AUDITIONING);
-		sound.beginStutter(&f.clip->paramManager);
+		deluge::model::beginStutter(*sound.effectsOwner(), f.clip->paramManager);
 		expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_true();
 		expect(stutter_rate(f)).to_equal(rate_at(f, 8));
 
@@ -72,7 +75,7 @@ describe stutter_automation("a quantized stutter's rate, with the stutter-rate p
 		rate.setPlayed(unpatched->knobPosToParamValue(24, nullptr));
 		expect(stutter_rate(f)).to_equal(rate_at(f, 12));
 
-		sound.endStutter(&f.clip->paramManager);
+		deluge::model::endStutter(&f.clip->paramManager);
 		exitUIMode(UI_MODE_AUDITIONING);
 		expect(unpatched->getValue(params::UNPATCHED_STUTTER_RATE)).to_equal(began_at);
 		currentSong = saved;

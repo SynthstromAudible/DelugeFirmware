@@ -42,7 +42,7 @@ namespace deluge::scenes::menu::relevance {
 ///        `ModulatorLevel` (`modulator_level.h:31-34`), `submenu::Modulator` (`submenu/modulator.h:25-28`)
 ///        and `modulator::Destination` (`modulator/destination.h:65-68`) -- the last two spell it
 ///        `sound->synthMode`, the first three `sound->getSynthMode()`, which is the same member
-///        (`processing/sound/sound.h:229`).
+///        (`Sound::getSynthMode`).
 bool is_fm(const MenuContext& ctx);
 /// @brief Is the sound in subtractive mode? `osc::AudioRecorder::isRelevant`
 ///        (`osc/audio_recorder.h`).

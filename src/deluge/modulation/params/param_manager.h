@@ -75,7 +75,7 @@ public:
 	/// Binds unpatched always, patched if present, and expression (MPE) if present. Idempotent. Audio/kit
 	/// clip-level managers bind their unpatched set only; synth/drum managers add patched (+ expression).
 	///
-	/// @pre Only call on a Sound / GlobalEffectable manager (summaries[0] is an UnpatchedParamSet).
+	/// @pre Only call on a Sound or host chain manager (summaries[0] is an UnpatchedParamSet).
 	/// @warning A MIDI manager also reports containsAnyMainParamCollections()==true but holds a
 	///          MIDIParamCollection at summaries[0] (not a ParamSet) -- binding it would corrupt it. Callers gate
 	///          on SYNTH/KIT clips + SoundDrum.

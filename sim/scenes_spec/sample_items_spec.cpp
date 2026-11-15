@@ -233,7 +233,7 @@ struct SoundRig {
 	explicit SoundRig(bool second_source)
 	    : fake(deluge::ui::shell::kDelugeBoard, deluge_profile()),
 	      shell(fake, deluge_profile(), reg, deluge::ui::shell::Services{}, ShellConfig{}) {
-		sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
+		sound = song.instrument->toModControllable()->effectsOwner()->sound;
 		setup_source(0, 32);
 		if (second_source) {
 			setup_source(1, 64);
@@ -784,7 +784,7 @@ describe sample_items_relevance("scenes::menu the sample items: relevance agains
 		// port is asked through a freshly built `MenuContext`.
 		select_language();
 		spec::SongFixture song = spec::make_synth_song();
-		auto* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
+		auto* sound = song.instrument->toModControllable()->effectsOwner()->sound;
 		Sample* sample = make_sample(32);
 
 		std::vector<std::string> observed;

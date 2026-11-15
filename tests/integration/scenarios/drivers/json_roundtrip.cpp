@@ -16,7 +16,7 @@
 // trip; 1 = load error; 2 = usage/IO; 3 = JSON fixed-point mismatch.
 
 #include "memory/general_memory_allocator.h"
-#include "model/global_effectable/global_effectable.h"
+#include "model/fx/chain_params.h"
 #include "model/output.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
@@ -64,7 +64,7 @@ static Song* freshSong() {
 	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (mem) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 	return song;
 }
 

@@ -29,6 +29,8 @@
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
+#include "model/fx/chain_codec.h"
+#include "model/fx/stutter_gesture.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -63,7 +65,6 @@ char const* aoModeToString(AudioOutputMode mode) {
 	return aoModeStringMap(mode);
 }
 AudioOutput::AudioOutput() : Output(OutputType::AUDIO) {
-	bindBinding(channel_.binding());
 	modKnobMode = 0;
 	inputChannel = AudioInputChannel::LEFT;
 	mode = AudioOutputMode::player;
@@ -77,7 +78,7 @@ AudioOutput::~AudioOutput() {
 		currentSong->removeDocOutput(this);
 		docOutput_ = nullptr;
 	}
-	endStutterIfStuttering();
+	deluge::model::endStutterIfStuttering(channel_.core());
 }
 
 void AudioOutput::setMode(AudioOutputMode newMode) {
@@ -138,34 +139,33 @@ void AudioOutput::seedDocOutputIdentity() {
 	}
 }
 
-void AudioOutput::cloneFrom(ModControllableAudio* other) {
-	GlobalEffectableForClip::cloneFrom(other);
-	auto ao = ((AudioOutput*)other);
-	setInputChannel(ao->inputChannel);
+void AudioOutput::cloneFrom(AudioOutput* other) {
+	channel_.cloneFrom(other->channel_);
+	setInputChannel(other->inputChannel);
 
-	auto modeInt = util::to_underlying(ao->mode);
+	auto modeInt = util::to_underlying(other->mode);
 
 	mode = static_cast<AudioOutputMode>(std::clamp<int>(modeInt, 0, kNumAudioOutputModes - 1));
 	outputRecordingFrom = nullptr;
 	// old style cloning overdubs
 	if (mode == AudioOutputMode::looper || mode == AudioOutputMode::sampler) {
 		// if the original track hasn't been recorded into then we'll just be a player. Avoids doubling monitoring
-		if (ao->isEmpty()) {
+		if (other->isEmpty()) {
 			mode = AudioOutputMode::player;
 		}
 		else {
 			// otherwise we'll become the new sampler/looper and the og will become a player; the clone takes the
 			// monitoring over below
-			ao->mode = AudioOutputMode::player;
-			if (ao->docOutput_ != nullptr) {
-				ao->docOutput_->audio_mode = static_cast<uint8_t>(util::to_underlying(AudioOutputMode::player));
+			other->mode = AudioOutputMode::player;
+			if (other->docOutput_ != nullptr) {
+				other->docOutput_->audio_mode = static_cast<uint8_t>(util::to_underlying(AudioOutputMode::player));
 			}
 		}
 	}
 	setMode(mode);
 
 	if (inputChannel == AudioInputChannel::SPECIFIC_OUTPUT) {
-		outputRecordingFrom = ao->outputRecordingFrom;
+		outputRecordingFrom = other->outputRecordingFrom;
 		recordRecordingFrom();
 		// now steal the monitoring of the original track if necessary (i.e. we're a looper or sampler)
 		updateMonitoringClaim();
@@ -429,7 +429,7 @@ bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputO
 	}
 	Output::writeDataToFile(writer, clipForSavingOutputOnly, song);
 
-	GlobalEffectableForClip::writeAttributesToFile(writer, clipForSavingOutputOnly == nullptr);
+	deluge::model::writeChainAttributes(writer, *effectsOwner());
 
 	writer.writeOpeningTagEnd();
 
@@ -440,7 +440,7 @@ bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputO
 		paramManager = song->live.param_backup.getPreferablyWithClip(this, NULL);
 	}
 
-	GlobalEffectableForClip::writeTagsToFile(writer, paramManager, true, song, ownControlsAddress());
+	deluge::model::writeEffectTags(writer, *effectsOwner(), paramManager, true, song, ownControlsAddress());
 
 	return true;
 }
@@ -483,7 +483,8 @@ Error AudioOutput::readFromFile(Deserializer& reader, Song* song, Clip* clip, in
 
 		else {
 
-			Error result = GlobalEffectableForClip::readTagFromFile(reader, tagName, &paramManager, 0, nullptr, song);
+			Error result = deluge::model::readEffectTag(reader, tagName, *effectsOwner(), &paramManager, 0, nullptr,
+			                                            nullptr, song);
 			if (result == Error::NONE) {}
 			else if (result == Error::RESULT_TAG_UNUSED) {
 				reader.exitTag();
@@ -494,7 +495,7 @@ Error AudioOutput::readFromFile(Deserializer& reader, Song* song, Clip* clip, in
 		}
 	}
 
-	readEffectsFromElement(*element, song->getInputTickMagnitude());
+	deluge::model::readEffectsFromElement(*effectsOwner(), *element, song->getInputTickMagnitude());
 
 	if (paramManager.containsAnyMainParamCollections()) {
 		song->live.param_backup.backUp(this, NULL, &paramManager);

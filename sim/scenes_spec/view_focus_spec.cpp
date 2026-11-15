@@ -62,6 +62,8 @@
 #include <optional>
 #include <string>
 
+using namespace deluge;
+
 /// The host BSP's shadow of the knob indicator columns, four segment brightnesses each; declared rather than included
 /// because `host_script.h` is not on this target's include path.
 extern "C" const uint8_t* host_script_ring_shadow(uint8_t which);

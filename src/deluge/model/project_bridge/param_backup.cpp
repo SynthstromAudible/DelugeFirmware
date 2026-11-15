@@ -85,42 +85,6 @@ BackupOwner backupOwnerOf(::Sound& sound) {
 	return BackupOwner{static_cast<::Output&>(static_cast<::SoundInstrument&>(sound))};
 }
 
-std::optional<BackupOwner> backupOwnerOf(::ModControllableAudio& owner, ::Song& song) {
-	const auto mine = [&](::ModControllableAudio* candidate) { return candidate == &owner; };
-	for (::Output* list :
-	     {song.live.media.first_output, static_cast<::Output*>(song.live.media.first_hibernating_instrument)}) {
-		for (::Output* output = list; output != nullptr; output = output->next) {
-			switch (output->type) {
-			case OutputType::SYNTH:
-				if (mine(static_cast<::SoundInstrument*>(output))) {
-					return BackupOwner{output};
-				}
-				break;
-			case OutputType::AUDIO:
-				if (mine(static_cast<::AudioOutput*>(output))) {
-					return BackupOwner{output};
-				}
-				break;
-			case OutputType::KIT: {
-				auto* kit = static_cast<::Kit*>(output);
-				if (mine(kit)) {
-					return BackupOwner{output};
-				}
-				for (::Drum* drum = kit->firstDrum; drum != nullptr; drum = drum->next) {
-					if (drum->type == DrumType::SOUND && mine(static_cast<::SoundDrum*>(drum))) {
-						return BackupOwner{drum};
-					}
-				}
-				break;
-			}
-			default:
-				break;
-			}
-		}
-	}
-	return std::nullopt;
-}
-
 ParamManager* ParamBackup::getForExactClip(BackupOwner owner, const ::Clip* clip, ParamManager* stealInto) {
 	const std::optional<uint32_t> clipId = clipIdOf(clip);
 	if (!owner.adopted()) {

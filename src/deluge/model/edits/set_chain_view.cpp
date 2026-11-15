@@ -1,7 +1,6 @@
 #include "model/edits/set_chain_view.h"
 
 #include "effects/chain.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/song/song.h"
 
@@ -13,8 +12,8 @@ namespace deluge::edits {
 
 Error SetChainView::apply(Context& ctx) {
 	deluge::project::FxChain* chain = ctx.model.resolveChain(chain_);
-	::GlobalEffectable* owner = deluge::bridge::chainOwnerAt(chain_, ctx.song);
-	if (chain == nullptr || owner == nullptr || owner->boundChain() != chain || !value_.isScalar()) {
+	const std::optional<deluge::model::EffectsOwner> owner = deluge::bridge::chainAt(chain_, ctx.song);
+	if (chain == nullptr || !owner || owner->view->bound() != chain || !value_.isScalar()) {
 		return Error::UNSPECIFIED;
 	}
 	// A word is taken only when it names a value.
@@ -28,14 +27,14 @@ Error SetChainView::apply(Context& ctx) {
 		if (!index) {
 			return Error::UNSPECIFIED;
 		}
-		owner->setView(static_cast<ModFXParam>(*index), owner->filterType());
+		deluge::model::setChainView(*owner, static_cast<ModFXParam>(*index), owner->view->filterType());
 	}
 	else if (key_ == "currentFilterType") {
 		const std::optional<size_t> index = index_of(deluge::effects::kFilterTypeWords);
 		if (!index) {
 			return Error::UNSPECIFIED;
 		}
-		owner->setView(owner->modFXParam(), static_cast<FilterType>(*index));
+		deluge::model::setChainView(*owner, owner->view->modFXParam(), static_cast<FilterType>(*index));
 	}
 	else {
 		return Error::UNSPECIFIED;

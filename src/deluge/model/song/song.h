@@ -25,7 +25,6 @@
 #include "io/midi/learned_midi.h"
 #include "model/clip/clip.h"
 #include "model/clip/clip_array.h"
-#include "model/global_effectable/global_effectable_for_song.h"
 #include "model/instrument/instrument.h"
 #include "model/output.h"
 #include "model/project_bridge/song_live.h"

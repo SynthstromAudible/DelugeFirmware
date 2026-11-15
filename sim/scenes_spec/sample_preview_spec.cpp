@@ -8,7 +8,7 @@
 #include "gui/ui/browser/sample_preview.h"
 
 #include "model/clip/instrument_clip.h"
-#include "model/global_effectable/output_stage_gain.h"
+#include "model/fx/output_stage_gain.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -34,7 +34,7 @@ namespace {
 const std::string kCard = std::string(DELUGE_REPO_ROOT) + "/tests/fixtures/scenes_spec/browser_scene";
 
 Sound* sound_of(const deluge::scenes::spec::SongFixture& f) {
-	return static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
+	return f.instrument->toModControllable()->effectsOwner()->sound;
 }
 
 /// The song's volume stage at the fixture song's volume, as the preview folds it in.

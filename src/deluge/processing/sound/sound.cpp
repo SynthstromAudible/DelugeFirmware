@@ -44,8 +44,11 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/change_effect.h"
+#include "model/fx/chain_codec.h"
+#include "model/fx/chain_params.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/delay_arena_app.h"
+#include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/arp_bridge.h"
@@ -106,6 +109,8 @@
 #include <span>
 #include <utility>
 
+using namespace deluge;
+
 using deluge::synth::SourceSlot;
 using deluge::synth::VoiceConfig;
 
@@ -163,8 +168,6 @@ void takeKnobsOf(Sound& sound, std::span<const deluge::plugin::RemotePage> pages
 
 Sound::Sound()
     : chain_{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena()} {
-	bindBinding(effectsBinding_);
-	unpatchedParamKind_ = params::Kind::UNPATCHED_SOUND;
 
 	// CONTAINMENT for the cross-tier race on voices_. The audio render runs on a
 	// preemptive interrupt executor and iterates every Sound's voices_ while culling; an
@@ -189,9 +192,12 @@ Sound::Sound()
 	// audio-engine overhaul introduces, and that work is expected to delete this reserve.
 	voices_.reserve(AudioEngine::VoicePool::get().capacity());
 
-	assignModFXType(ModFXType::NONE);
+	deluge::model::changeEffects(*effectsOwner(),
+	                             [](deluge::effects::EffectStates& e) { e.mod_fx.type = ModFXType::NONE; });
 
-	setLpfMode(FilterMode::TRANSISTOR_24DB); // Good for samples, I think
+	deluge::model::changeEffects(*effectsOwner(), [](deluge::effects::EffectStates& e) {
+		e.filter.lpf_mode = FilterMode::TRANSISTOR_24DB;
+	}); // Good for samples, I think
 
 	// The default knobs: the instrument's published page for each mod button.
 	takeKnobsOf(*this, deluge::instrument::kDevicePages);
@@ -205,7 +211,7 @@ Sound::Sound()
 
 void Sound::initParams(ParamManager* paramManager) {
 
-	ModControllableAudio::initParams(paramManager, params::Kind::UNPATCHED_SOUND);
+	deluge::model::initSharedParams(paramManager, params::Kind::UNPATCHED_SOUND);
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 	unpatchedParams->kind = params::Kind::UNPATCHED_SOUND;
@@ -257,7 +263,8 @@ void Sound::initParams(ParamManager* paramManager) {
 void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 
 	polyphonic = PolyphonyMode::AUTO;
-	setLpfMode(FilterMode::TRANSISTOR_24DB);
+	deluge::model::changeEffects(
+	    *effectsOwner(), [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::TRANSISTOR_24DB; });
 
 	sources[0].oscType = OscType::SAMPLE;
 	sources[1].oscType = OscType::SAMPLE;
@@ -336,7 +343,9 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 
 	setupDefaultExpressionPatching(paramManager);
 
-	setLpfMode(FilterMode::TRANSISTOR_24DB); // Good for samples, I think
+	deluge::model::changeEffects(*effectsOwner(), [](deluge::effects::EffectStates& e) {
+		e.filter.lpf_mode = FilterMode::TRANSISTOR_24DB;
+	}); // Good for samples, I think
 
 	sources[0].oscType = OscType::SAW;
 	sources[1].transpose = -12;
@@ -399,10 +408,6 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 	setupDefaultExpressionPatching(paramManager);
 
 	doneReadingFromFile();
-}
-
-ModFXType Sound::getModFXType() {
-	return modControllableSnapshot().effects.mod_fx.type;
 }
 
 void Sound::patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,
@@ -594,8 +599,8 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 		reader.exitTag("defaultParams");
 	}
 	else {
-		Error result = ModControllableAudio::readTagFromFile(reader, tagName, paramManager, readAutomationUpToPos,
-		                                                     arpSettings, song);
+		Error result = deluge::model::readEffectTag(reader, tagName, *effectsOwner(), nullptr, readAutomationUpToPos,
+		                                            arpSettings, &arp_read_, song);
 		if (result == Error::NONE) {}
 		else if (result != Error::RESULT_TAG_UNUSED) {
 			return result;
@@ -1556,7 +1561,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 					// But wait, first, maybe we actually have just been instructed to cut the MODFX tail
 					if (shouldJustCutModFX) {
 doCutModFXTail:
-						clearModFXMemory();
+						deluge::model::clearModFXMemory(*effectsOwner());
 						goto yupStartSkipping;
 					}
 
@@ -2370,7 +2375,7 @@ bool Sound::learnedKnobTurns(Song* song, int32_t p) {
 	    isDrum() ? static_cast<SoundDrum*>(this)->id() : static_cast<SoundInstrument*>(this)->id();
 	const std::optional<deluge::project::ControlsAddress> address =
 	    id ? std::optional{deluge::project::ControlsAddress{isDrum() ? Kind::DRUM : Kind::OUTPUT, *id}} : std::nullopt;
-	return deluge::bridge::learnedKnobTurns(song, *this, address, param);
+	return deluge::bridge::learnedKnobTurns(song, *effectsOwner(), address, param);
 }
 
 const uint8_t patchedParamsWhichShouldBeZeroIfNoKnobAssigned[] = {
@@ -2569,17 +2574,22 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 
 	// Switching *to* FM: switch the filters off so they don't render unless deliberately enabled
 	if (synthMode == SynthMode::FM && oldSynthMode != SynthMode::FM) {
-		setLpfMode(FilterMode::OFF);
-		setHpfMode(FilterMode::OFF);
+		deluge::model::changeEffects(*effectsOwner(),
+		                             [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::OFF; });
+		deluge::model::changeEffects(*effectsOwner(),
+		                             [](deluge::effects::EffectStates& e) { e.filter.hpf_mode = FilterMode::OFF; });
 	}
 
 	// ... and switching *from* FM: switch the filters back on if needed
 	if (synthMode != SynthMode::FM && oldSynthMode == SynthMode::FM) {
 		if (modControllableSnapshot().effects.filter.lpf_mode == FilterMode::OFF) {
-			setLpfMode(FilterMode::TRANSISTOR_24DB);
+			deluge::model::changeEffects(*effectsOwner(), [](deluge::effects::EffectStates& e) {
+				e.filter.lpf_mode = FilterMode::TRANSISTOR_24DB;
+			});
 		}
 		if (modControllableSnapshot().effects.filter.hpf_mode == FilterMode::OFF) {
-			setHpfMode(FilterMode::HPLADDER);
+			deluge::model::changeEffects(
+			    *effectsOwner(), [](deluge::effects::EffectStates& e) { e.filter.hpf_mode = FilterMode::HPLADDER; });
 		}
 	}
 
@@ -2750,7 +2760,7 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 	                                {.input_tick_magnitude = modelStack->song->getInputTickMagnitude()})) {
 		return Error::FILE_CORRUPTED;
 	}
-	delayTypePending = !deluge::effects::saves_delay_type(*element);
+	effectsBinding_.delay_type_pending = !deluge::effects::saves_delay_type(*element);
 
 	char const* tagName;
 
@@ -2774,8 +2784,10 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 
 	// old FM patches can have a filter mode saved in them even though it wouldn't have rendered at the time
 	if (getSynthMode() == SynthMode::FM && song_firmware_version < FirmwareVersion::community({1, 2, 0})) {
-		setHpfMode(FilterMode::OFF);
-		setLpfMode(FilterMode::OFF);
+		deluge::model::changeEffects(*effectsOwner(),
+		                             [](deluge::effects::EffectStates& e) { e.filter.hpf_mode = FilterMode::OFF; });
+		deluge::model::changeEffects(*effectsOwner(),
+		                             [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::OFF; });
 	}
 
 	// A sound with params files them with the Song
@@ -2807,7 +2819,7 @@ Error Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManager)
 
 void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation) {
 	// Serialize from the value DOM (deluge::project). serializeSoundParams emits the patched + unpatched flat attrs,
-	// the shared ModControllableAudio block, the mid-block writeOpeningTagEnd, the <envelope*> groups, the
+	// the shared effects param block, the mid-block writeOpeningTagEnd, the <envelope*> groups, the
 	// <patchCables> block and the shared tags.
 	deluge::project::DocParamManager doc = deluge::bridge::toDocParamManagerFromStore(*paramManager);
 	deluge::bridge::serializeSoundParams(**deluge::bridge::storeFor(doc, params::Kind::PATCHED),
@@ -2855,8 +2867,8 @@ void Sound::seedDocSoundScalars() {
 }
 
 void Sound::projectSnapshot() {
-	// Re-derive the engine's hot-field read-view from the authoritative SoundState. No-op when unbound (preview /
-	// GlobalEffectable): those sounds write snapshot_ directly and have no record to project from.
+	// Re-derive the engine's hot-field read-view from the authoritative SoundState. No-op when unbound (a preview
+	// sound): those sounds write snapshot_ directly and have no record to project from.
 	if (state_ == nullptr) {
 		return;
 	}
@@ -2918,11 +2930,13 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 	}
 	resyncGlobalLFOs();
 
-	// The mod-FX type through its setter. A ring type whose ring cannot be allocated keeps its
-	// type and passes the audio through; the next effects edit on this sound retries.
+	// The mod-FX type first, on its own. A ring type whose ring cannot be allocated keeps its type and passes the audio
+	// through; the next effects edit on this sound retries.
 	deluge::effects::EffectStates effects = state.effects;
-	if (effects.mod_fx.type != this->effects().mod_fx.type && !setModFXType(effects.mod_fx.type)) {
-		deluge::notify::notice(Error::INSUFFICIENT_RAM);
+	if (effects.mod_fx.type != this->effects().mod_fx.type) {
+		const ModFXType type = effects.mod_fx.type;
+		deluge::model::changeEffects(*effectsOwner(),
+		                             [type](deluge::effects::EffectStates& e) { e.mod_fx.type = type; });
 	}
 	effects.mod_fx.type = this->effects().mod_fx.type;
 	setEffects(effects);
@@ -3111,7 +3125,7 @@ void Sound::assignSynthMode(SynthMode value) {
 
 void Sound::setTranspose(int16_t value) {
 	// Bound → write the authoritative record then reproject the read-view (a derivation, not a dual-write);
-	// unbound (preview / GlobalEffectable) → write the snapshot directly (no record).
+	// unbound (a preview sound) → write the snapshot directly (no record).
 	if (state_ != nullptr) {
 		state_->transpose = value;
 		snapshot_.transpose = state_->transpose;
@@ -3224,8 +3238,10 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		unbound = seededState(); // a sound under preview or audition saves what its runtime fields hold
 	}
 	const deluge::instrument::SoundState& state = state_ != nullptr ? *state_ : *unbound;
-	const deluge::instrument::SoundPieces pieces = deluge::instrument::encode_pieces(
-	    state, {.input_tick_magnitude = currentSong->getInputTickMagnitude()}, savedCompressorThreshold());
+	const deluge::instrument::SoundPieces pieces =
+	    deluge::instrument::encode_pieces(state, {.input_tick_magnitude = currentSong->getInputTickMagnitude()},
+	                                      // the threshold the render last applied, its param's
+	                                      core().compressor().dsp().threshold().raw());
 
 	writer.writeValue(pieces.head);
 	writer.writeValue(pieces.effect_attributes);
@@ -3274,7 +3290,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 
 	writer.writeValue(pieces.midi_output);
 	writer.writeValue(pieces.delay);
-	writeMidiKnobsToFile(writer, knobsSong, deluge::bridge::controlsAddressOf(*this));
+	deluge::model::writeMidiKnobs(writer, *effectsOwner(), knobsSong, deluge::bridge::controlsAddressOf(*this));
 	writer.writeValue(pieces.effect_tags);
 }
 
@@ -3388,7 +3404,7 @@ void Sound::prepareForHibernation() {
 
 // This can get called either for hibernation, or because drum now has no active noteRow
 void Sound::wontBeRenderedForAWhile() {
-	ModControllableAudio::wontBeRenderedForAWhile();
+	deluge::model::chainWontRender(*effectsOwner());
 
 	killAllVoices(); // Can't remember if this is always necessary, but it is when this is called from
 	                 // Instrumentclip::detachFromInstrument()

@@ -20,6 +20,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/edits/param_address_for.h"
+#include "model/fx/chain_params.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note.h"
@@ -150,7 +151,7 @@ static Song* load_song(char* xml, size_t xmlLen, deluge::storage::DocumentFormat
 	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (mem) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 
 	// Through the Value tree, as a song load is: parse the whole XML, then replay it.
 	std::optional<deluge::storage::Value> tree =

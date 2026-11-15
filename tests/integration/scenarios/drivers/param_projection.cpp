@@ -14,9 +14,8 @@
 #include "deluge-project/param_automation.h"
 #include "deluge-project/param_edit.h"
 #include "memory/general_memory_allocator.h"
-#include "model/global_effectable/global_effectable.h"
+#include "model/fx/chain_codec.h"
 #include "model/mod_controllable/filters/filter_config.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/param_backup.h"
@@ -182,7 +181,7 @@ void roundTrip(const char* name, int32_t currentValue, const std::vector<Node>& 
 	}
 }
 
-// The engine save wrappers (Sound/GlobalEffectable/ExpressionParamSet::writeToFile) read
+// The engine save wrappers (the Sound, host chain and ExpressionParamSet writers) read
 // the DOM store's scalar, not the engine cursor. A test that authors state via params[p].played() must seed
 // the store to match — exactly as a real read/edit does. (docForParam resolves the set's own store here.)
 void authorStoreFromEngine(ParamSet& s) {
@@ -1020,11 +1019,11 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		}
 	}
 
-	// The ModControllableAudio shared param block (flat attrs + <equalizer>) serializes
-	// byte-identical to the engine's static writeParamAttributesToFile / writeParamTagsToFile.
+	// The shared effects param block (flat attrs + <equalizer>) serializes
+	// byte-identical to the shared-block serializers over the engine set (`bridge::toDocParamSet`).
 	{
 		ParamManagerForTimeline pm;
-		check(pm.setupWithPatching() == Error::NONE, "mca setup");
+		check(pm.setupWithPatching() == Error::NONE, "shared params setup");
 		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
 		unp->params[params::UNPATCHED_STUTTER_RATE].setPlayed(111);
 		unp->params[params::UNPATCHED_BITCRUSHING].setPlayed(222);
@@ -1038,28 +1037,34 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 
 		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
 		smSerializer.reset();
-		ModControllableAudio::writeParamAttributesToFile(smSerializer, &pm, true);
+		{
+			deluge::project::DocParamSet engine = deluge::bridge::toDocParamSet(*pm.getUnpatchedParamSet());
+			deluge::bridge::serializeModControllableParamAttributes(engine, smSerializer, true);
+		}
 		int32_t engAttrLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
 		deluge::bridge::serializeModControllableParamAttributes(*unpatchedStore(doc), smSerializer, true);
 		int32_t domAttrLen = smSerializer.bytesWritten();
 		check(engAttrLen == domAttrLen && std::memcmp(engBuf, domBuf, engAttrLen) == 0,
-		      "ModControllableAudio attributes byte-identical");
+		      "shared param attributes byte-identical");
 
 		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
 		smSerializer.reset();
-		ModControllableAudio::writeParamTagsToFile(smSerializer, &pm, true);
+		{
+			deluge::project::DocParamSet engine = deluge::bridge::toDocParamSet(*pm.getUnpatchedParamSet());
+			deluge::bridge::serializeModControllableParamTags(engine, smSerializer, true);
+		}
 		int32_t engTagLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
 		deluge::bridge::serializeModControllableParamTags(*unpatchedStore(doc), smSerializer, true);
 		int32_t domTagLen = smSerializer.bytesWritten();
 		check(engTagLen == domTagLen && std::memcmp(engBuf, domBuf, engTagLen) == 0,
-		      "ModControllableAudio tags byte-identical");
+		      "shared param tags byte-identical");
 	}
 
-	// The ModControllableAudio block round-trips through the DOM reader — serialize via the DOM
+	// The shared effects block round-trips through the DOM reader — serialize via the DOM
 	// into a wrapped <params> element, DOM-read it back into a fresh manager, and confirm values + the
 	// automation summary flag match.
 	{
@@ -1110,9 +1115,9 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		    "mca-rt automation flag set");
 	}
 
-	// The GlobalEffectable param block (global flat attrs wrapping the shared ModControllableAudio
+	// The host chain param block (global flat attrs wrapping the shared effects
 	// attrs + the <delay>/<lpf>/<hpf> groups) serializes byte-identical to the engine's static
-	// GlobalEffectable::writeParamAttributesToFile / writeParamTagsToFile, including the conditional
+	// model::writeGlobalParamAttributes / writeGlobalParamTags, including the conditional
 	// pitchAdjust / sidechainCompressorVolume attrs.
 	{
 		ParamManagerForTimeline pm;
@@ -1135,29 +1140,28 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 
 		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
 		smSerializer.reset();
-		GlobalEffectable::writeParamAttributesToFile(smSerializer, &pm, true);
+		deluge::model::writeGlobalParamAttributes(smSerializer, &pm, true);
 		int32_t engAttrLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
 		deluge::bridge::serializeGlobalEffectableParamAttributes(*unpatchedStore(doc), smSerializer, true);
 		int32_t domAttrLen = smSerializer.bytesWritten();
 		check(engAttrLen == domAttrLen && std::memcmp(engBuf, domBuf, engAttrLen) == 0,
-		      "GlobalEffectable attributes byte-identical");
+		      "host chain attributes byte-identical");
 
 		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
 		smSerializer.reset();
-		GlobalEffectable::writeParamTagsToFile(smSerializer, &pm, true);
+		deluge::model::writeGlobalParamTags(smSerializer, &pm, true);
 		int32_t engTagLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
 		deluge::bridge::serializeGlobalEffectableParamTags(*unpatchedStore(doc), smSerializer, true);
 		int32_t domTagLen = smSerializer.bytesWritten();
-		check(engTagLen == domTagLen && std::memcmp(engBuf, domBuf, engTagLen) == 0,
-		      "GlobalEffectable tags byte-identical");
+		check(engTagLen == domTagLen && std::memcmp(engBuf, domBuf, engTagLen) == 0, "host chain tags byte-identical");
 	}
 
-	// The GlobalEffectable param block round-trips through the DOM reader (flat attrs +
-	// delay/lpf/hpf groups + shared MCA), and the read path still accepts the legacy nested <lpf morph>.
+	// The host chain param block round-trips through the DOM reader (flat attrs +
+	// delay/lpf/hpf groups + shared effects), and the read path still accepts the legacy nested <lpf morph>.
 	{
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "ge-rt setup");
@@ -1168,7 +1172,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		unp->params[params::UNPATCHED_DELAY_RATE].setPlayed(222);                // <delay> group
 		unp->params[params::UNPATCHED_HPF_RES].setPlayed(-55);                   // <hpf> group
 		unp->params[params::UNPATCHED_LPF_MORPH].setPlayed(444);                 // flat community attr
-		unp->params[params::UNPATCHED_STUTTER_RATE].setPlayed(333);              // shared MCA attr
+		unp->params[params::UNPATCHED_STUTTER_RATE].setPlayed(333);              // shared effects attr
 		unp->params[params::UNPATCHED_BASS].setPlayed(-333);                     // equalizer group
 
 		deluge::project::DocParamSet doc = deluge::bridge::toDocParamSet(*unp);
@@ -1328,7 +1332,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	}
 
 	// The Sound param block serializes byte-identical to the engine's Sound::writeParamsToFile
-	// (patched + unpatched flat attrs, the shared ModControllableAudio attrs, the four <envelope*> groups,
+	// (patched + unpatched flat attrs, the shared effects attrs, the four <envelope*> groups,
 	// the <patchCables> block, and the shared tags — including the mid-block writeOpeningTagEnd).
 	{
 		ParamManagerForTimeline pm;
@@ -1373,7 +1377,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	}
 
 	// The Sound param block round-trips through the DOM reader (patched + unpatched flat attrs,
-	// the <envelope*> groups, the shared MCA block). Patch cables are excluded here — they keep the engine
+	// the <envelope*> groups, the shared effects block). Patch cables are excluded here — they keep the engine
 	// reader (pre-V3.2 back-compat) — so no cables are set.
 	{
 		ParamManagerForTimeline pm;
@@ -1386,7 +1390,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		pp->params[params::LOCAL_LPF_MORPH].setPlayed(111); // community attr
 		pp->params[params::LOCAL_PITCH_ADJUST].setPlayed(678);
 		up->params[params::UNPATCHED_PORTAMENTO].setPlayed(222);
-		up->params[params::UNPATCHED_STUTTER_RATE].setPlayed(333); // shared MCA attr
+		up->params[params::UNPATCHED_STUTTER_RATE].setPlayed(333); // shared effects attr
 
 		deluge::project::DocParamManager doc = deluge::bridge::toDocParamManager(pm);
 
@@ -1438,11 +1442,12 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		setNodeIn(*up->docForParam(params::UNPATCHED_VOLUME), 0, 4242, true); // automated ⇒ override applies
 		up->params[params::UNPATCHED_PAN].setPlayed(555);                     // not automated ⇒ override ignored
 		setNodeIn(*up->docForParam(params::UNPATCHED_BASS), 0, 7, false);     // automated, equalizer group
-		// An automated ModControllableAudio arp attr: the engine writes it WITHOUT the override (only the
-		// first six MCA attrs honour valuesForOverride), so the override value must be ignored here.
+		// An automated shared arp attr: the engine writes it WITHOUT the override (only the
+		// first six shared effects attrs honour valuesForOverride), so the override value must be ignored here.
 		setNodeIn(*up->docForParam(params::UNPATCHED_ARP_GATE), 0, 13, true);
-		setNodeIn(*up->docForParam(params::UNPATCHED_STUTTER_RATE), 0, 21, true); // override-eligible MCA attr
-		authorStoreFromEngine(pm); // the GlobalEffectable::writeParamAttributesToFile reads the store
+		setNodeIn(*up->docForParam(params::UNPATCHED_STUTTER_RATE), 0, 21,
+		          true);           // override-eligible shared effects attr
+		authorStoreFromEngine(pm); // model::writeGlobalParamAttributes reads the store
 
 		deluge::project::DocParamManager doc = deluge::bridge::toDocParamManager(pm);
 		check(unpatchedStore(doc).has_value(), "override unpatched present");
@@ -1452,41 +1457,41 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		ovr[params::UNPATCHED_PAN] = 999;        // would differ, but PAN isn't automated ⇒ must be ignored
 		ovr[params::UNPATCHED_BASS] = -77;
 		ovr[params::UNPATCHED_ARP_GATE] = -555;     // must be ignored (arp attr, no override)
-		ovr[params::UNPATCHED_STUTTER_RATE] = -999; // must apply (override-eligible MCA attr)
+		ovr[params::UNPATCHED_STUTTER_RATE] = -999; // must apply (override-eligible shared effects attr)
 
 		static char engBuf[16384];
 		static char domBuf[16384];
 
 		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
 		smSerializer.reset();
-		GlobalEffectable::writeParamAttributesToFile(smSerializer, &pm, true, ovr.data());
+		deluge::model::writeGlobalParamAttributes(smSerializer, &pm, true, ovr.data());
 		int32_t engAttrLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
 		deluge::bridge::serializeGlobalEffectableParamAttributes(*unpatchedStore(doc), smSerializer, true, ovr.data());
 		int32_t domAttrLen = smSerializer.bytesWritten();
 		check(engAttrLen == domAttrLen && std::memcmp(engBuf, domBuf, engAttrLen) == 0,
-		      "GlobalEffectable override attributes byte-identical");
+		      "host chain override attributes byte-identical");
 		// Both writers go through the same serializer, so byte equality cannot see an override taken from the wrong
 		// slot: the volume attribute must carry its own override (-123456 = 0xFFFE1DC0), which sits at the set's
 		// position 39, not at its id.
 		domBuf[domAttrLen] = '\0';
 		check(std::strstr(domBuf, "volume=\"0xFFFE1DC0") != nullptr,
-		      "GlobalEffectable override: volume takes its own override value");
+		      "host chain override: volume takes its own override value");
 
 		smSerializer.setMemoryBuffer(engBuf, sizeof(engBuf));
 		smSerializer.reset();
-		GlobalEffectable::writeParamTagsToFile(smSerializer, &pm, true, ovr.data());
+		deluge::model::writeGlobalParamTags(smSerializer, &pm, true, ovr.data());
 		int32_t engTagLen = smSerializer.bytesWritten();
 		smSerializer.setMemoryBuffer(domBuf, sizeof(domBuf));
 		smSerializer.reset();
 		deluge::bridge::serializeGlobalEffectableParamTags(*unpatchedStore(doc), smSerializer, true, ovr.data());
 		int32_t domTagLen = smSerializer.bytesWritten();
 		check(engTagLen == domTagLen && std::memcmp(engBuf, domBuf, engTagLen) == 0,
-		      "GlobalEffectable override tags byte-identical");
+		      "host chain override tags byte-identical");
 	}
 
-	// The DOM-target reader lands the GlobalEffectable block in a DocParamSet (the
+	// The DOM-target reader lands the host chain block in a DocParamSet (the
 	// persistent DOM store); projecting that store into an engine must be identical to reading the same XML
 	// straight into the engine. This proves the read-into-DOM → reproject-DOM→engine loop.
 	{
@@ -1500,7 +1505,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		unp->params[params::UNPATCHED_DELAY_RATE].setPlayed(222);   // <delay> group
 		unp->params[params::UNPATCHED_HPF_RES].setPlayed(-55);      // <hpf> group
 		unp->params[params::UNPATCHED_LPF_MORPH].setPlayed(444);    // flat community attr
-		unp->params[params::UNPATCHED_STUTTER_RATE].setPlayed(333); // shared MCA attr
+		unp->params[params::UNPATCHED_STUTTER_RATE].setPlayed(333); // shared effects attr
 		unp->params[params::UNPATCHED_BASS].setPlayed(-333);        // equalizer group
 
 		deluge::project::DocParamSet src = deluge::bridge::toDocParamSet(*unp);

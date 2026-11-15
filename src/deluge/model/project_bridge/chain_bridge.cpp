@@ -23,7 +23,6 @@
 #include "effects/codec.h"
 #include "effects/plugin.h"
 #include "effects/settings.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
 #include "model/project_bridge/slot_bridge.h"
@@ -87,15 +86,15 @@ void encodeChain(const FxChain& chain, deluge::serialization::Value& element, in
 	    deluge::effects::view_value({.mod_fx_param = chain.mod_fx_param, .filter_type = chain.filter_type}), element);
 }
 
-/// The output's own effects owner, when it runs a host chain (a kit, an audio track).
-::GlobalEffectable* ownerOf(::Output& output) {
+/// The output's own effects, when it runs a host chain (a kit, an audio track).
+[[nodiscard]] std::optional<deluge::model::EffectsOwner> ownerOf(::Output& output) {
 	switch (output.type) {
 	case OutputType::KIT:
-		return static_cast<::Kit*>(&output);
+		return static_cast<::Kit&>(output).effectsOwner();
 	case OutputType::AUDIO:
-		return static_cast<::AudioOutput*>(&output);
+		return static_cast<::AudioOutput&>(output).effectsOwner();
 	default:
-		return nullptr;
+		return std::nullopt;
 	}
 }
 
@@ -117,24 +116,36 @@ const deluge::project::ChainCodec& chainCodec() {
 	return codec;
 }
 
-::GlobalEffectable* chainOwnerAt(ChainAddress address, ::Song& song) {
+std::optional<deluge::model::EffectsOwner> chainAt(ChainAddress address, ::Song& song) {
 	if (address.kind == ChainAddress::Kind::SONG) {
-		return &song.live.global_effectable;
+		return song.live.master_channel.effectsOwner();
 	}
-	::GlobalEffectable* found = nullptr;
+	std::optional<deluge::model::EffectsOwner> found;
 	forEachOutput(song, [&](::Output& output) {
-		if (found == nullptr && output.id() == address.id) {
+		if (!found && output.id() == address.id) {
 			found = ownerOf(output);
 		}
 	});
 	return found;
 }
 
-std::optional<ChainAddress> chainAddressOf(const ::ModControllableAudio& owner, ::Song& song) {
+::ModControllable* chainSlotAt(ChainAddress address, ::Song& song) {
+	if (address.kind == ChainAddress::Kind::SONG) {
+		return &song.live.master_channel;
+	}
+	::ModControllable* found = nullptr;
+	forEachOutput(song, [&](::Output& output) {
+		if (found == nullptr && output.id() == address.id && ownerOf(output)) {
+			found = output.toModControllable();
+		}
+	});
+	return found;
+}
+
+std::optional<ChainAddress> chainAddressOf(deluge::model::EffectsOwner owner, ::Song& song) {
 	// The chain the owner plays names it: the master's, or the one an output's record of this song holds (an owner of
 	// another song plays that song's record, and gets nothing here).
-	const ::GlobalEffectable* effectable = owner.asGlobalEffectable();
-	const FxChain* bound = effectable != nullptr ? effectable->boundChain() : nullptr;
+	const FxChain* bound = owner.view != nullptr ? owner.view->bound() : nullptr;
 	if (bound == nullptr) {
 		return std::nullopt;
 	}
@@ -144,16 +155,17 @@ std::optional<ChainAddress> chainAddressOf(const ::ModControllableAudio& owner, 
 	for (const auto& [id, record] : song.project.output_structure.by_id) {
 		if (record.effects && &*record.effects == bound) {
 			// An output out of the song's lists (one an undo holds for its redo) plays its record but is not one of
-			// the song's owners: a gesture on it goes to its setters.
+			// the song's owners: a gesture on it goes to its own settings (bridge::applyEffectSetting).
 			const ChainAddress address{.kind = ChainAddress::Kind::OUTPUT, .id = id};
-			return chainOwnerAt(address, song) == effectable ? std::optional{address} : std::nullopt;
+			const std::optional<deluge::model::EffectsOwner> found = chainAt(address, song);
+			return found && found->core == owner.core ? std::optional{address} : std::nullopt;
 		}
 	}
 	return std::nullopt;
 }
 
-void adoptChainState(::GlobalEffectable& owner, FxChain& chain, ChainHome home) {
-	if (owner.boundChain() == &chain) {
+void adoptChainState(deluge::model::EffectsOwner owner, FxChain& chain, ChainHome home) {
+	if (owner.view->bound() == &chain) {
 		return;
 	}
 	chain.slots.clear();
@@ -161,12 +173,12 @@ void adoptChainState(::GlobalEffectable& owner, FxChain& chain, ChainHome home) 
 		chain.slots.push_back(FxSlot{.effect = std::string(effect)});
 	}
 	chain.reverb_return = deluge::effects::reverb_return(homeOf(home));
-	owner.bindChain(chain);
+	deluge::model::bindChain(owner, chain);
 }
 
 void recordOutputChain(::Output& output, ::Song& song) {
-	::GlobalEffectable* owner = ownerOf(output);
-	if (owner == nullptr || !output.id()) {
+	const std::optional<deluge::model::EffectsOwner> owner = ownerOf(output);
+	if (!owner || !output.id()) {
 		return;
 	}
 	deluge::project::DocOutput* record = song.project.output_structure.find(*output.id());
@@ -212,7 +224,7 @@ void auditEffectWrite(const deluge::effects::EffectStates& before, deluge::effec
 	}
 }
 
-::GlobalEffectable* chainOwnerOf(::Output& output) {
+std::optional<deluge::model::EffectsOwner> chainOwnerOf(::Output& output) {
 	return ownerOf(output);
 }
 

@@ -7,12 +7,12 @@ namespace deluge::edits {
 
 Error SetControls::apply(Context& ctx) {
 	std::vector<deluge::project::ControllerMapping>* record = ctx.model.resolveControls(owner_);
-	bool isSound = false;
-	::ModControllableAudio* owner = deluge::bridge::controlsOwnerAt(ctx.song, owner_, &isSound);
-	if (record == nullptr || owner == nullptr) {
+	if (record == nullptr || !deluge::bridge::effectsOwnerAt(ctx.song, owner_)) {
 		return Error::UNSPECIFIED;
 	}
-	deluge::bridge::applyControls(*owner, isSound, controls_);
+	if (::Sound* sound = deluge::bridge::soundAt(ctx.song, owner_)) { // only a sound has mod knobs
+		deluge::bridge::applyControls(*sound, controls_);
+	}
 	*record = controls_;
 	return Error::NONE;
 }

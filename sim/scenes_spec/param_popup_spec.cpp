@@ -13,7 +13,7 @@
 /// Three of legacy's arms need model context, and this spec drives none of them: it calls `show()`
 /// with a default `PopupContext`, which is the "no context" case those arms fall back from --
 ///
-///   * the `ModControllableAudio*`-aware LPF/HPF-morph name and the stutter-quantization bucket
+///   * the owner-aware (`EffectsOwner`) LPF/HPF-morph name and the stutter-quantization bucket
 ///     text (`isParamQuantizedStutter` has no context-free overload at all); and
 ///   * the MIDI-clip CC/expression-axis naming (`knobsOnClipContext() && getCurrentOutputType() ==
 ///     OutputType::MIDI_OUT`).
@@ -31,7 +31,7 @@
 /// No `SongFixture` (unlike every other file in this directory): every code path this spec
 /// reaches is one `View`'s knobs never resolve an owner for -- its focus is none by construction
 /// (`View::knobFocus()`), which is exactly what makes
-/// `knobsOnClipContext()` false and every `ModControllableAudio*`-taking call fall back -- so nothing
+/// `knobsOnClipContext()` false and every `EffectsOwner`-taking call fall back -- so nothing
 /// here reads `currentSong`.
 
 #include "scenes/overlay/param_popup_scene.h"
@@ -43,7 +43,6 @@
 
 #include "gui/views/view.h"
 #include "hid/display/oled.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
@@ -316,34 +315,34 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		// A sound's ladder filters rename its morphs, as the engine-pointer overloads name them.
 		spec::SongFixture synth = spec::make_synth_song();
 		auto* sound = static_cast<SoundInstrument*>(synth.instrument);
-		sound->setLpfMode(FilterMode::TRANSISTOR_24DB);
-		ModControllableAudio* mca = sound;
+		deluge::model::changeEffects(*sound->effectsOwner(), [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::TRANSISTOR_24DB; });
+		const deluge::model::EffectsOwner sound_fx = *sound->effectsOwner();
 		overlay::PopupContext of_sound;
-		of_sound.filter = mca->effects().filter;
+		of_sound.filter = sound->effects().filter;
 		for (const int32_t morph : {static_cast<int32_t>(params::LOCAL_LPF_MORPH), static_cast<int32_t>(params::LOCAL_HPF_MORPH)}) {
 			expect(shown(Kind::PATCHED, morph, of_sound).first)
-			    .to_equal(std::string{params::getParamDisplayName(Kind::PATCHED, morph, mca)});
+			    .to_equal(std::string{params::getParamDisplayName(Kind::PATCHED, morph, &sound_fx)});
 		}
-		expect(std::string{params::getPatchedParamShortName(params::LOCAL_LPF_MORPH, mca)})
+		expect(std::string{params::getPatchedParamShortName(params::LOCAL_LPF_MORPH, &sound_fx)})
 		    .to_equal(std::string{params::getPatchedParamShortName(params::LOCAL_LPF_MORPH, of_sound.filter->lpf_mode,
 		                                                           of_sound.filter->hpf_mode)});
 
 		// A chain's: the song's own, its high-pass a ladder.
-		GlobalEffectable& master = synth.song->live.global_effectable;
+		const deluge::model::EffectsOwner master_fx = *synth.song->live.master_channel.effectsOwner();
 		overlay::PopupContext of_chain;
-		of_chain.filter = master.effects().filter;
+		of_chain.filter = master_fx.effects().filter;
 		expect(shown(Kind::UNPATCHED_GLOBAL, params::UNPATCHED_HPF_MORPH, of_chain).first)
 		    .to_equal(std::string{params::getParamDisplayName(Kind::UNPATCHED_GLOBAL, params::UNPATCHED_HPF_MORPH,
-		                                                      static_cast<ModControllableAudio*>(&master))});
+		                                                      &master_fx)});
 
 		// The song's stutter: a sound playing the song's stutter is quantized as the song's is, as the engine says.
 		for (const bool song_quantized : {false, true}) {
 			for (const bool own_quantized : {false, true}) {
 				for (const bool use_song : {false, true}) {
-					deluge::effects::EffectStates own = mca->effects();
+					deluge::effects::EffectStates own = sound->effects();
 					own.stutter.use_song_stutter = use_song;
 					own.stutter.quantized = own_quantized;
-					deluge::effects::EffectStates song = master.effects();
+					deluge::effects::EffectStates song = master_fx.effects();
 					song.stutter.quantized = song_quantized;
 					const bool port = services::stutter_quantized(own, song);
 					const bool legacy = use_song ? song_quantized : own_quantized;
@@ -352,7 +351,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 			}
 		}
 		overlay::PopupContext quantized = of_sound;
-		quantized.stutter_quantized = params::isParamQuantizedStutter(Kind::UNPATCHED_SOUND, params::UNPATCHED_STUTTER_RATE, mca);
+		quantized.stutter_quantized = params::isParamQuantizedStutter(Kind::UNPATCHED_SOUND, params::UNPATCHED_STUTTER_RATE, &sound_fx);
 		overlay::PopupContext unquantized = of_sound;
 		expect(quantized.stutter_quantized).to_be_true(); // the default song stutter is quantized
 		expect(shown(Kind::UNPATCHED_SOUND, params::UNPATCHED_STUTTER_RATE, quantized).second)

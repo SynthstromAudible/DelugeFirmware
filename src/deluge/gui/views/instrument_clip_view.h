@@ -426,8 +426,6 @@ public:
 	/// @return The drum, or nullptr where it could not be made (the error is shown).
 	SoundDrum* createDrumForRow(ModelStackWithNoteRow* modelStack, bool doRecording);
 
-	ModControllableAudio* getModControllableAudioOrNone() override;
-
 private:
 	bool doneAnyNudgingSinceFirstEditPadPress{};
 	bool offsettingNudgeNumberDisplay{};

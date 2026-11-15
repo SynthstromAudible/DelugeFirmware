@@ -37,6 +37,7 @@
 #include "model/drum/drum.h"
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
+#include "model/fx/chain_params.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
@@ -81,7 +82,7 @@ inline T* place(Args&&... args) {
 inline Song* make_bare_song() {
 	Song* song = place<Song>();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 	song->setupDefault();
 
 	// `setupBlankSong()`'s `currentSong = preLoadedSong`. The scenes layer itself never reads this global
@@ -170,7 +171,7 @@ inline SongFixture make_cv_song() {
 ///
 /// The audio-clip root's fixture. `Song::createNewAudioOutput` is the
 /// model's own recipe and already adds the output to the song; the clip is placed and attached the
-/// way `make_session_clip` places an `InstrumentClip`, with the `GlobalEffectableForClip` param set
+/// way `make_session_clip` places an `InstrumentClip`, with the host chain param set (`model::initGlobalParams`)
 /// the audio-clip menus read.
 struct AudioSongFixture {
 	Song* song = nullptr;
@@ -185,7 +186,7 @@ inline AudioSongFixture make_audio_clip_song() {
 	f.clip = detail::place<AudioClip>(*f.song);
 	f.clip->setLoopLength(kDefaultClipLength << f.song->project.transport.inside_world_tick_magnitude);
 	f.clip->paramManager.setupUnpatched();
-	GlobalEffectableForClip::initParams(&f.clip->paramManager);
+	deluge::model::initGlobalParams(&f.clip->paramManager);
 	(void)f.song->live.clips.session_clips.insertClipAt(f.clip, 0);
 
 	f.output = f.song->createNewAudioOutput();
@@ -202,7 +203,7 @@ inline SongFixture make_kit_song() {
 
 	ParamManagerForTimeline params;
 	params.setupUnpatched();
-	GlobalEffectableForClip::initParams(&params);
+	deluge::model::initGlobalParams(&params);
 	auto* kit = static_cast<Kit*>(StorageManager::createNewInstrument(OutputType::KIT, &params));
 	kit->dirPath = "KITS";
 	kit->name = "0";

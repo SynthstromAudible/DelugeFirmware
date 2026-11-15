@@ -564,46 +564,28 @@ RULES = [
         "2026-10-18-scenes-bind-to-model-design.md",
     ),
     (
-        # A view acts on the knobs' owner by address (bridge::stutterAt, the focus's comp view, knobMode), not through
-        # an engine cast of an owner it resolves (any `->modControllable` / `.owner()` read). Two are outside it until
-        # the scenes ship on the device: View itself, whose value popup names the owner, and the automation view with
-        # its editor layout, which still read the stack.
-        "views-no-knob-owner-cast",
-        (
-            "src/deluge/gui/views/**",
-            "src/deluge/gui/views/view.cpp",
-            "src/deluge/gui/views/automation_view.cpp",
-            "src/deluge/gui/views/automation/**",
-        ),
-        "symbol",
-        r"\(\s*ModControllableAudio\s*\*\s*\)\s*[\w.]+(->|\.)(modControllable|owner\(\))",
-        "2026-10-18-scenes-bind-to-model-design.md",
-    ),
-    (
-        # The param backup is keyed by its owner's address and clip id. The old (ModControllableAudio*, Clip*) key names
-        # the engine object the address replaced. (A cast at a call site no longer compiles, so it needs no row.)
-        "param-backup-by-address",
-        "src/deluge/**",
-        "symbol",
-        r"std::pair<\s*ModControllableAudio\s*\*\s*,\s*Clip\s*\*\s*>",
-        "2026-10-18-scenes-bind-to-model-design.md",
-    ),
-    (
-        # The effect channels and the song-wide effect couplings know an owner by its chain core or its channel, never
-        # by the legacy knob classes, which hold only knob, display and file code until they are deleted.
-        "fx-no-legacy-owners",
-        "src/deluge/model/fx/**",
+        # Code names none of ModControllableAudio and the GlobalEffectable classes: an owner's effects are an
+        # EffectsOwner value (model/fx/effects_owner.h), found by address or, from a ModelStack, through
+        # ModControllable::effectsOwner(). One row per tree: the checker matches one glob per row.
+        "no-legacy-effects-owners",
+        "src/**",
         "symbol",
         r"\b(ModControllableAudio|GlobalEffectable(ForClip|ForSong)?)\b",
-        "2026-11-01-chain-ownership-design.md",
+        "2026-11-13-controls-layer-design.md",
     ),
     (
-        # The engine's master render and reverb auto duck, as above.
-        "engine-no-legacy-owners",
-        "src/deluge/processing/engines/audio_engine.cpp",
+        "no-legacy-effects-owners",
+        "sim/**",
         "symbol",
         r"\b(ModControllableAudio|GlobalEffectable(ForClip|ForSong)?)\b",
-        "2026-11-01-chain-ownership-design.md",
+        "2026-11-13-controls-layer-design.md",
+    ),
+    (
+        "no-legacy-effects-owners",
+        "tests/**",
+        "symbol",
+        r"\b(ModControllableAudio|GlobalEffectable(ForClip|ForSong)?)\b",
+        "2026-11-13-controls-layer-design.md",
     ),
     (
         # A scene holds no engine object: a menu's context and the gold knobs' focus hold addresses into the model,
@@ -612,7 +594,7 @@ RULES = [
         "src/scenes/**",
         "symbol",
         (
-            r"\b(Sound|ModControllableAudio|ParamManager\w*|Output|ArpeggiatorSettings|Source|MultiRange|AudioClip"
+            r"\b(Sound|ParamManager\w*|Output|ArpeggiatorSettings|Source|MultiRange|AudioClip"
             r"|InstrumentClip)\s*\*"
         ),
         "2026-10-18-scenes-bind-to-model-design.md",
@@ -1004,9 +986,14 @@ def count_file(path: Path) -> dict[str, int]:
     return counts
 
 
+# The trees the rules are counted over: the firmware, and the specs and tests that drive it (only
+# `no-legacy-effects-owners` has rows outside `src/`).
+SCAN_ROOTS = ("src", "sim", "tests")
+
+
 def current() -> dict[tuple[str, str], int]:
     out = {}
-    for p in sorted((REPO / "src").rglob("*")):
+    for p in sorted(p for root in SCAN_ROOTS for p in (REPO / root).rglob("*")):
         if p.suffix in SUFFIXES and p.is_file():
             for rule, n in count_file(p).items():
                 out[(str(p.relative_to(REPO)), rule)] = n

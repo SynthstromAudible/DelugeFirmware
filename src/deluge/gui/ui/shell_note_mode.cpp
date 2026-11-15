@@ -162,9 +162,9 @@ std::optional<ActionResult> forwardNoteButton(deluge::hid::Button b, bool on) {
 
 	// **SYNTH, KIT, MIDI and CV: the column focus, which is the ported menu's.** Both handlers send
 	// these to `soundEditor.getCurrentMenuItem()->buttonAction(...)`
-	// (`gui/views/instrument_clip_view.cpp:3769-3771`, `:4056-4058`), whose target is the horizontal
-	// menu's column focus, which `MenuScene` carries. Forwarding them would also
-	// dereference that navigation record, which no guest path writes.
+	// (`InstrumentClipView::handleNoteEditorButtonAction`, `handleNoteRowEditorButtonAction`), whose target is the
+	// horizontal menu's column focus, which `MenuScene` carries. Forwarding them would also dereference that navigation
+	// record, which no guest path writes.
 	if (b == SYNTH || b == KIT || b == MIDI || b == CV) {
 		return std::nullopt;
 	}

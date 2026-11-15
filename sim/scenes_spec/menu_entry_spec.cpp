@@ -596,7 +596,7 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 	it("site 11 opens DX7 source on the new FM synth, keeping the undo log", _ {
 		// `InstrumentClipMinder::createNewInstrument`'s `soundEditor.setup(clip, &dxMenu, 0)`: a named item, so no wipe.
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
-		Sound* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
+		Sound* sound = f.instrument->toModControllable()->effectsOwner()->sound;
 		sound->sources[0].setOscType(OscType::DX7);
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		actionLogger.deleteAllLogs();
@@ -614,7 +614,7 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 	it("site 15 opens the DX7 parameter page on the column's operator, its pad blinking, keeping the undo log", _ {
 		// `DXColumn::handlePad`'s Shift arm: `openForOpOrGlobal`'s `setup(getCurrentClip(), &dxParam, 0)`.
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
-		Sound* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
+		Sound* sound = f.instrument->toModControllable()->effectsOwner()->sound;
 		sound->sources[0].setOscType(OscType::DX7);
 		f.song->setCurrentClip(f.clip);
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
@@ -759,7 +759,7 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 		// `potentialShortcutPadAction`'s fallback: modulator 1's volume does not apply to a sound that is not FM, so
 		// `setup()` refuses it, and on a DX7 source `setup(clip, &dxParam, 0)` opens the page as `dxParam.param` stands.
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
-		Sound* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
+		Sound* sound = f.instrument->toModControllable()->effectsOwner()->sound;
 		sound->sources[0].setOscType(OscType::DX7);
 		deluge::scenes::menu_scene().land_dx(menu::DxState{.param = 3 * 21 + 2});
 		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 4, 0) == &nodes::modulator0_volume).to_be_true();
@@ -1839,7 +1839,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 		PopupSpy spy;
 		DisplayGuard shown{spy};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
-		Sound* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
+		Sound* sound = f.instrument->toModControllable()->effectsOwner()->sound;
 		sound->sources[0].setOscType(OscType::SAW);
 		sound->sources[1].setOscType(OscType::DX7);
 		setRootUILowLevel(&instrumentClipView);
@@ -2005,7 +2005,7 @@ describe menu_entry_shortcut_whole("site 9: the port answers the press whole, an
 	it("a range-dependent pad on a multisampled source opens the range picker first, as setup() does", _ {
 		// `setup()`'s MUST_SELECT_RANGE arm: `multiRangeMenu.menuItemHeadingTo = item; newItem = &multiRangeMenu`.
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
-		auto* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
+		auto* sound = f.instrument->toModControllable()->effectsOwner()->sound;
 		sound->sources[0].ranges.insertMultiRange(0);
 		sound->sources[0].ranges.insertMultiRange(1);
 		deluge::edits::recordRanges(*sound, 0);
@@ -2063,7 +2063,7 @@ describe menu_entry_published_target("the ported menu's owner and params, which 
 		NoteRow* row = static_cast<InstrumentClip*>(kit.clip)->getNoteRowForDrum(drum);
 		setRootUILowLevel(&instrumentClipView);
 		expect(entry::openShellMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_true();
-		expect(entry::soundMenuModControllable() == static_cast<ModControllableAudio*>(drum)).to_be_true();
+		expect(entry::soundMenuModControllable() == static_cast<ModControllable*>(drum)).to_be_true();
 		expect(entry::soundMenuParamManager() == &row->paramManager).to_be_true();
 		closeGuest();
 	});
@@ -2084,7 +2084,7 @@ describe menu_entry_published_target("the ported menu's owner and params, which 
 		expect(param != nullptr).to_be_true();
 		if (param != nullptr) {
 			expect(param->paramManager == &row->paramManager).to_be_true();
-			expect(param->modControllable == static_cast<ModControllableAudio*>(drum)).to_be_true();
+			expect(param->modControllable == static_cast<ModControllable*>(drum)).to_be_true();
 		}
 		closeGuest();
 	});
@@ -2233,7 +2233,7 @@ describe menu_entry_audition_end("a scene opened over an audition ends it, as ma
 		deluge::scenes::spec::UiModeGuard mode;
 		(void)quiet_audio();
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
-		Sound* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
+		Sound* sound = f.instrument->toModControllable()->effectsOwner()->sound;
 		give_drum_a_sample(f, *sound, make_marker_sample());
 		setRootUILowLevel(&keyboardScreen);
 		currentUIMode = UI_MODE_AUDITIONING;
@@ -2247,7 +2247,7 @@ describe menu_entry_audition_end("a scene opened over an audition ends it, as ma
 		deluge::scenes::spec::UiModeGuard mode;
 		(void)quiet_audio();
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
-		Sound* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(f.instrument->toModControllable()));
+		Sound* sound = f.instrument->toModControllable()->effectsOwner()->sound;
 		give_drum_a_sample(f, *sound, make_marker_sample());
 		setRootUILowLevel(&instrumentClipView);
 		currentUIMode = UI_MODE_AUDITIONING;

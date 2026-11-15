@@ -43,7 +43,7 @@
 ///     outputs of that name: a synth, a kit, an audio track), is set to it by the Edit the mod FX type menu makes. None
 ///     by default.
 ///   - `RENDER_MODFX_CLEAR`: `<block>[:<owner>],...`, ascending: at each block, the mod FX memory of every audio
-///     track, or of the owner named as for the switch, is cleared by ModControllableAudio::clearModFXMemory, as a
+///     track, or of the owner named as for the switch, is cleared by model::clearModFXMemory, as a
 ///     sound's cut tail clears it (a chain's grain only once the render has made its processor). None by default.
 ///
 /// Lines:

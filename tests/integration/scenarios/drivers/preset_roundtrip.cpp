@@ -23,7 +23,7 @@
 // this firmware's version.
 
 #include "memory/general_memory_allocator.h"
-#include "model/global_effectable/global_effectable.h"
+#include "model/fx/chain_params.h"
 #include "model/instrument/instrument.h"
 #include "model/song/song.h"
 #include "scenarios/drivers/driver.h"
@@ -125,7 +125,7 @@ Song* freshSong() {
 	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (memory) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 	return song;
 }
 

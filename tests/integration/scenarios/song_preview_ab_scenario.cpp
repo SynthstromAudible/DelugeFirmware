@@ -36,19 +36,18 @@
 #include "libdeluge/file_directory.h"   // deluge_file_directory_set_latency_ms
 #include "libdeluge/file_prefix.h"      // deluge_file_prefix_set_latency_ms
 #include "model/clip/instrument_clip.h" // the boot song's session clip, driven by the View gestures
-#include "model/mod_controllable/mod_controllable_audio.h" // the cast writeToFile's backed-up-paramManager lookup needs
-#include "model/model_stack.h"                             // setupModelStackWithTimelineCounter
-#include "model/output.h"                                  // Output::name, read by the acquire stage
-#include "model/song/song.h"                               // currentSong, getNonAudioInstrumentToSwitchTo
-#include "modulation/params/param_manager.h"               // ParamManagerForTimeline, for the preset fixture writer
-#include "processing/sound/sound_instrument.h"             // setupAsBlankSynth(), for the preset fixture writer
-#include "processing/source.h"                             // the DX7 oscillator the stage gives the clip
-#include "runtime/app_loop.h"                              // nowUs, the stall bounds' clock
-#include "scenarios/guest_drive.h"                         // the guest's tick, input and what it has on top
-#include "scenes/menu/menu_scene.h"                        // the cartridge page the read lands on
-#include "scenes/menu/nodes/nodes.h"                       // nodes::dx_cartridge
-#include "scenes/registry.h"                               // menu_scene()
-#include "storage/DX7Cartridge.h"                          // the bank's layout and checksum
+#include "model/model_stack.h"          // setupModelStackWithTimelineCounter
+#include "model/output.h"               // Output::name, read by the acquire stage
+#include "model/song/song.h"            // currentSong, getNonAudioInstrumentToSwitchTo
+#include "modulation/params/param_manager.h"   // ParamManagerForTimeline, for the preset fixture writer
+#include "processing/sound/sound_instrument.h" // setupAsBlankSynth(), for the preset fixture writer
+#include "processing/source.h"                 // the DX7 oscillator the stage gives the clip
+#include "runtime/app_loop.h"                  // nowUs, the stall bounds' clock
+#include "scenarios/guest_drive.h"             // the guest's tick, input and what it has on top
+#include "scenes/menu/menu_scene.h"            // the cartridge page the read lands on
+#include "scenes/menu/nodes/nodes.h"           // nodes::dx_cartridge
+#include "scenes/registry.h"                   // menu_scene()
+#include "storage/DX7Cartridge.h"              // the bank's layout and checksum
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h"
 #include "storage/file_item.h"
@@ -3352,7 +3351,7 @@ Clip* makeDxClip() {
 	if (clip == nullptr || clip->output == nullptr || clip->output->type != OutputType::SYNTH) {
 		return nullptr;
 	}
-	auto* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(clip->output->toModControllable()));
+	auto* sound = clip->output->toModControllable()->effectsOwner()->sound;
 	sound->sources[0].setOscType(OscType::DX7);
 	currentSong->setCurrentClip(clip);
 	return clip;

@@ -19,7 +19,6 @@
 #include "model/clip/instrument_clip.h"
 #include "model/edits/set_mod_knob_mode.h"
 #include "model/edits/setting_edit.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"

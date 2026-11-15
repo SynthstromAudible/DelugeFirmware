@@ -160,7 +160,7 @@ struct Rig {
 	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
 		deluge::scenes::spec::make_current(
 		    song.song); // the app's sink and waveforms resolve addresses in the current song
-		sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
+		sound = song.instrument->toModControllable()->effectsOwner()->sound;
 		source = &sound->sources[0];
 		source->oscType = OscType::SAMPLE;
 		source->repeatMode = SampleRepeatMode::ONCE;

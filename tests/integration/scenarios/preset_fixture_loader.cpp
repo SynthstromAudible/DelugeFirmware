@@ -19,7 +19,6 @@
 
 #include "gui/views/session_view.h"
 #include "model/instrument/instrument.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_instrument.h"

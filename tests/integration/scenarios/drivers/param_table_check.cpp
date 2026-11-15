@@ -33,7 +33,7 @@
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/naming.h"
 #include "instruments/deluge/params.h"
-#include "model/global_effectable/global_effectable.h"
+#include "model/fx/chain_params.h"
 #include "model/project_bridge/param_ids.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
@@ -397,7 +397,7 @@ void checkDefaults(Checker& check) {
 	}
 	ParamManagerForTimeline global;
 	global.setupUnpatched();
-	GlobalEffectable::initParams(&global);
+	deluge::model::initGlobalParams(&global);
 	for (const ParamInfo& info : deluge::global_effectable::kParams) {
 		int32_t value = global.getUnpatchedParamSet()
 		                    ->docForParam(*deluge::global_effectable::runtime_index(info.id))

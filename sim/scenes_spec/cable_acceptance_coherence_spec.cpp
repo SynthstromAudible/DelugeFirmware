@@ -68,9 +68,11 @@ int32_t disagreements_everywhere(Sound& sound, Song& song, ParamManager& manager
 	for (const SynthMode mode : {SynthMode::SUBTRACTIVE, SynthMode::FM, SynthMode::RINGMOD}) {
 		sound.setSynthMode(mode, &song);
 		for (const FilterMode lpf : {FilterMode::TRANSISTOR_24DB, FilterMode::OFF}) {
-			sound.setLpfMode(lpf);
+			deluge::model::changeEffects(*sound.effectsOwner(),
+			                             [&](deluge::effects::EffectStates& e) { e.filter.lpf_mode = lpf; });
 			for (const FilterMode hpf : {FilterMode::HPLADDER, FilterMode::OFF}) {
-				sound.setHpfMode(hpf);
+				deluge::model::changeEffects(*sound.effectsOwner(),
+				                             [&](deluge::effects::EffectStates& e) { e.filter.hpf_mode = hpf; });
 				for (const SyncLevel lfo1 : {SyncLevel::NONE, SyncLevel::QUARTER}) {
 					sound.setLfoSync(LFO1_ID, SyncType::EVEN, lfo1);
 					for (const SyncLevel lfo3 : {SyncLevel::NONE, SyncLevel::QUARTER}) {

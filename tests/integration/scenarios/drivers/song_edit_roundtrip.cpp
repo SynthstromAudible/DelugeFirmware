@@ -24,7 +24,7 @@
 #include "model/clip/clip_array.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
-#include "model/global_effectable/global_effectable.h"
+#include "model/fx/chain_params.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -49,6 +49,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "model/mod_controllable/filters/filter_config.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/patch_cable_words.h"
@@ -61,6 +62,8 @@
 #include <regex>
 #include <string>
 #include <string_view>
+
+using namespace deluge;
 
 namespace {
 
@@ -406,23 +409,22 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 		sound.setNumUnison(before.num_unison, nullptr);
 		{
 			const deluge::effects::EffectStates effectsBefore = sound.effects();
-			sound.setClippingAmount(static_cast<uint8_t>(effectsBefore.saturation.clipping_amount == 3 ? 4 : 3));
-			sound.setLpfMode(effectsBefore.filter.lpf_mode == FilterMode::SVF_BAND ? FilterMode::SVF_NOTCH
-			                                                                       : FilterMode::SVF_BAND);
-			sound.setHpfMode(effectsBefore.filter.hpf_mode == FilterMode::HPLADDER ? FilterMode::SVF_BAND
-			                                                                       : FilterMode::HPLADDER);
-			sound.setFilterRoute(effectsBefore.filter.route == FilterRoute::PARALLEL ? FilterRoute::HIGH_TO_LOW
-			                                                                         : FilterRoute::PARALLEL);
+			deluge::model::changeEffects(*sound.effectsOwner(), [&](deluge::effects::EffectStates& e) {
+				e.saturation.clipping_amount = effectsBefore.saturation.clipping_amount == 3 ? 4 : 3;
+				e.filter.lpf_mode = effectsBefore.filter.lpf_mode == FilterMode::SVF_BAND ? FilterMode::SVF_NOTCH
+				                                                                          : FilterMode::SVF_BAND;
+				e.filter.hpf_mode =
+				    effectsBefore.filter.hpf_mode == FilterMode::HPLADDER ? FilterMode::SVF_BAND : FilterMode::HPLADDER;
+				e.filter.route = effectsBefore.filter.route == FilterRoute::PARALLEL ? FilterRoute::HIGH_TO_LOW
+				                                                                     : FilterRoute::PARALLEL;
+			});
 			const deluge::effects::EffectStates& ms = sound.modControllableSnapshot().effects;
 			roundTrip(ms == sound.effects() && ms.saturation != effectsBefore.saturation
 			              && ms.filter.lpf_mode != effectsBefore.filter.lpf_mode
 			              && ms.filter.hpf_mode != effectsBefore.filter.hpf_mode
 			              && ms.filter.route != effectsBefore.filter.route,
-			          "setClippingAmount/setLpfMode/setHpfMode/setFilterRoute");
-			sound.setFilterRoute(effectsBefore.filter.route);
-			sound.setHpfMode(effectsBefore.filter.hpf_mode);
-			sound.setLpfMode(effectsBefore.filter.lpf_mode);
-			sound.setClippingAmount(effectsBefore.saturation.clipping_amount);
+			          "the saturation and filter settings");
+			deluge::model::storeEffects(*sound.effectsOwner(), effectsBefore);
 		}
 	}
 	std::fprintf(io.err, "M4b snapshot coherence %s: %d bound sounds, %d mismatches\n", label, sounds, bad);
@@ -435,7 +437,7 @@ static Song* load_song(char* xml, size_t xmlLen, deluge::storage::DocumentFormat
 	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (mem) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 
 	// Through the Value tree, as a song load is: parse the whole XML, then replay it.
 	std::optional<deluge::storage::Value> tree =

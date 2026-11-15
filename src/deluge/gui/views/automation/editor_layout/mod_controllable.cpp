@@ -38,6 +38,8 @@
 #include "playback/playback_handler.h"
 #include "util/etl_string.h"
 
+using namespace deluge;
+
 // namespace deluge::gui::views::automation::editor_layout {
 
 namespace params = deluge::modulation::params;
@@ -46,11 +48,12 @@ using namespace deluge::gui;
 
 namespace {
 
-/// @brief The gold knobs' owner, or null.
-ModControllableAudio* knobOwner() {
+/// @brief The gold knobs' owner's effects, or nullopt.
+std::optional<deluge::model::EffectsOwner> knobOwner() {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* stack = view.knobOwnerStack(memory);
-	return stack != nullptr ? static_cast<ModControllableAudio*>(stack->modControllable) : nullptr;
+	return stack != nullptr && stack->modControllable != nullptr ? stack->modControllable->effectsOwner()
+	                                                             : std::nullopt;
 }
 
 } // namespace
@@ -385,11 +388,13 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 				parameterName.append(" -> ");
 			}
 
-			parameterName.append(params::getPatchedParamShortName(lastSelectedParamID, knobOwner()));
+			const std::optional<deluge::model::EffectsOwner> owner = knobOwner();
+			parameterName.append(params::getPatchedParamShortName(lastSelectedParamID, owner ? &*owner : nullptr));
 		}
 		else {
-			parameterName.append(deluge::modulation::params::getParamDisplayName(lastSelectedParamKind,
-			                                                                     lastSelectedParamID, knobOwner()));
+			const std::optional<deluge::model::EffectsOwner> owner = knobOwner();
+			parameterName.append(deluge::modulation::params::getParamDisplayName(
+			    lastSelectedParamKind, lastSelectedParamID, owner ? &*owner : nullptr));
 		}
 	}
 	else {

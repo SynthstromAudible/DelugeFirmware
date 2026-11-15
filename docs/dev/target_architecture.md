@@ -635,7 +635,7 @@ all welded to a single hand-partitioned `uint8_t`:
    sidechain, MPE X/Y, …) with `uint32_t sourcesChanged` sized to it. Adding
    LFO3 touches enum, masks, file names, shortcuts, automation.
 6. **Exactly one synth** — `Sound` *is* the engine; effects are hardcoded
-   `ModControllableAudio` members. Runtime-discovered param spaces (CLAP, a
+   chain members. Runtime-discovered param spaces (CLAP, a
    second internal engine) have nowhere to exist.
 
 ### 7.2 Target design

@@ -15,7 +15,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/drum/midi_drum.h"
 #include "model/edits/learn_mapping.h"
-#include "model/global_effectable/global_effectable.h"
+#include "model/fx/chain_params.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
@@ -114,7 +114,7 @@ SoundInstrument* makeLooseSynth(::Song& song) {
 Kit* makeLooseKit(::Song& song) {
 	ParamManagerForTimeline params;
 	params.setupUnpatched();
-	GlobalEffectableForClip::initParams(&params);
+	deluge::model::initGlobalParams(&params);
 	auto* kit = static_cast<Kit*>(StorageManager::createNewInstrument(OutputType::KIT, &params));
 	song.live.param_backup.backUp(kit, nullptr, &params, true);
 	return kit;
@@ -245,7 +245,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		spec::SongFixture f = spec::make_synth_song();
 		activate(f);
 		SoundInstrument* preset = makeLooseSynth(*f.song);
-		preset->loaded_knobs.push_back(Mapping{.source = knobCc(3, 21), // as the preset's file read it
+		preset->effectsOwner()->knobs->loaded.push_back(Mapping{.source = knobCc(3, 21), // as the preset's file read it
 		                                       .target = OwnerParamTarget{{}, patched(params::LOCAL_VOLUME)},
 		                                       .relative = true});
 		f.song->replaceInstrument(f.instrument, preset);
@@ -259,7 +259,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		SoundInstrument* synth = makeLooseSynth(*f.song);
 		synth->midiInput.channelOrZone = 5; // as its preset's file read them
 		synth->midiInput.noteOrCC = 255;
-		synth->loaded_knobs.push_back(
+		synth->effectsOwner()->knobs->loaded.push_back(
 		    Mapping{.source = knobCc(4, 10), .target = OwnerParamTarget{{}, patched(params::LOCAL_PAN)}, .relative = true});
 		f.song->addOutput(synth);
 		const uint32_t id = *synth->id();
@@ -267,7 +267,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		expect(f.song->project.mappings.find(TrackInputTarget{id}) != nullptr).to_be_true();
 		const auto knobs = f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, id});
 		expect(knobs.size() == 1 && knobs[0].source == knobCc(4, 10)).to_be_true();
-		expect(synth->loaded_knobs.empty()).to_be_true(); // the table holds them now
+		expect(synth->effectsOwner()->knobs->loaded.empty()).to_be_true(); // the table holds them now
 		expect(indexPlays(*f.song, OwnerParamTarget{{ControlsAddress::Kind::OUTPUT, id}, patched(params::LOCAL_PAN)}, 4, 10))
 		    .to_be_true();
 	});
@@ -858,7 +858,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		cloneKnob.owner.id = *clone->id();
 		expect(knobs.size() == 1 && knobs[0].source == fromAbsentDevice(knobCc(0, 7))).to_be_true();
 		expect(storeSaw(cloneKnob, fromAbsentDevice(knobCc(0, 7)), 321)).to_be_true();
-		expect(clone->knobs_cloned_from.has_value()).to_be_false();
+		expect(clone->effectsOwner()->knobs->cloned_from.has_value()).to_be_false();
 	});
 
 	it("gives a lost clone its source's knobs when a forget of the source lands before the deferred reconcile", _ {
@@ -897,9 +897,9 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		clone->cloneFrom(f.output);
 		deluge::bridge::cloneOutputMappings(*f.output, *clone, *f.song);
 		deluge::memory::noteRenderBlock(false);
-		expect(clone->knobs_cloned_from == std::optional<uint32_t>{*f.output->id()}).to_be_true();
+		expect(clone->effectsOwner()->knobs->cloned_from == std::optional<uint32_t>{*f.output->id()}).to_be_true();
 		(void)deluge::bridge::applyPendingMappingOps(*f.song);
-		expect(clone->knobs_cloned_from.has_value()).to_be_false();
+		expect(clone->effectsOwner()->knobs->cloned_from.has_value()).to_be_false();
 		expect(static_cast<int>(f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *clone->id()}).size()))
 		    .to_equal(1);
 	});

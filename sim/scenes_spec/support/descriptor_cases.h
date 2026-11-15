@@ -571,7 +571,8 @@ inline std::optional<int32_t> get_stored(Family family, const MenuContext& ctx, 
 		value = deluge::instrument::setting_value(*spec::menu_engine(ctx).sound->boundState(), row.path);
 		break;
 	case Family::EFFECT:
-		value = deluge::effects::effect_setting_value(deluge::scenes::spec::menu_engine(ctx).mod->effects(), row.path);
+		value = deluge::effects::effect_setting_value(
+		    deluge::scenes::spec::menu_engine(ctx).mod->effectsOwner()->effects(), row.path);
 		break;
 	case Family::ARP:
 	case Family::ARP_HOST:

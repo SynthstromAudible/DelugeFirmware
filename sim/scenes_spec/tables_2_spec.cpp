@@ -1463,12 +1463,12 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		}
 
 		{ // --- mod_fx_type -------------------------------------------------------------------
-			const ModFXType before = deluge::scenes::spec::menu_engine(f.ctx).mod->getModFXType();
+			const ModFXType before = deluge::scenes::spec::menu_engine(f.ctx).mod->effectsOwner()->binding->snapshot().effects.mod_fx.type;
 			menu::bindings::write(nodes::mod_fx_type, f.ctx, static_cast<int32_t>(ModFXType::NONE));
-			expect(deluge::scenes::spec::menu_engine(f.ctx).mod->getModFXType() == ModFXType::NONE).to_be_true();
+			expect(deluge::scenes::spec::menu_engine(f.ctx).mod->effectsOwner()->binding->snapshot().effects.mod_fx.type == ModFXType::NONE).to_be_true();
 			menu::bindings::write(nodes::mod_fx_type, f.ctx, static_cast<int32_t>(ModFXType::FLANGER));
-			expect(deluge::scenes::spec::menu_engine(f.ctx).mod->getModFXType() == ModFXType::FLANGER).to_be_true();
-			(void)deluge::scenes::spec::menu_engine(f.ctx).mod->setModFXType(before);
+			expect(deluge::scenes::spec::menu_engine(f.ctx).mod->effectsOwner()->binding->snapshot().effects.mod_fx.type == ModFXType::FLANGER).to_be_true();
+			deluge::model::changeEffects(*deluge::scenes::spec::menu_engine(f.ctx).mod->effectsOwner(), [&](deluge::effects::EffectStates& e) { e.mod_fx.type = before; });
 			covered++;
 		}
 
@@ -1486,7 +1486,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			arp->preset = ArpPreset::OFF;
 			arp->octaveMode = ArpOctaveMode::DOWN;
 			arp->noteMode = ArpNoteMode::DOWN;
-			// `Sound::allNotesOff` clears this first thing (`sound.cpp:1761-1763`): the one effect
+			// `Sound::allNotesOff` clears this first thing: the one effect
 			// of `silenceArp`'s synth arm that lands in readable model state.
 			spec::menu_engine(f.ctx).sound->invertReversed = true;
 

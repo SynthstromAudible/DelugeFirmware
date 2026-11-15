@@ -19,9 +19,14 @@
 
 #include "definitions_cxx.hpp"
 #include "libdeluge/system.h"
+#include "model/fx/channel_setup.h"
+#include "model/fx/effects_owner.h"
+#include "model/fx/knob_carrier.h"
 #include "model/fx/reverb_candidate.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/fx/stutter_gesture.h"
+#include "model/mod_controllable/mod_controllable.h"
 #include "model/sample/sample_recorder.h"
+#include "model/snapshot/mod_controllable_snapshot.h"
 #include "model/voiced.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/knob.h"
@@ -57,7 +62,6 @@ class Kit;
 class ParamManagerForTimeline;
 class TimelineCounter;
 class Clip;
-class GlobalEffectableForClip;
 class ModelStackWithThreeMainThings;
 class ModelStackWithSoundFlags;
 class ModelStackWithModControllable;
@@ -108,7 +112,7 @@ enum class VoiceKind : uint8_t {
 };
 inline constexpr size_t kNumVoiceKinds = 4;
 
-class Sound : public ModControllableAudio, public virtual Voiced {
+class Sound : public ModControllable, public virtual Voiced {
 public:
 	using ActiveVoice = AudioEngine::VoicePool::pointer_type;
 
@@ -118,15 +122,35 @@ public:
 			noteDestroyedWithLiveVoices();
 		}
 		AudioEngine::sounds.remove(this);
-		releaseChainMemory();
-		endStutterIfStuttering();
+		deluge::model::releaseDelayMemory(core().delay());
+		deluge::model::endStutterIfStuttering(core());
 	}
 
 	/// @brief The sound's effects after its voices.
 	/// @return The sound's chain.
 	[[nodiscard]] deluge::effects::SoundChain& chain() { return chain_; }
-	[[nodiscard]] deluge::effects::ChainCore& core() final { return chain_.core(); }
-	[[nodiscard]] const deluge::effects::ChainCore& core() const final { return chain_.core(); }
+	[[nodiscard]] deluge::effects::ChainCore& core() { return chain_.core(); }
+	[[nodiscard]] const deluge::effects::ChainCore& core() const { return chain_.core(); }
+	/// @brief The sound's effect settings: its bound record's, else its binding's own.
+	/// @return The effect settings.
+	[[nodiscard]] const deluge::effects::EffectStates& effects() const { return effectsBinding_.effects(); }
+	/// @brief The render's copy of the effect settings: it reads nothing else of them.
+	/// @return The render's copy.
+	[[nodiscard]] const deluge::snapshot::ModControllableSnapshot& modControllableSnapshot() const {
+		return effectsBinding_.snapshot();
+	}
+	/// @brief Make @p next the sound's effect settings and project them (model::storeEffects).
+	/// @param next The new effect settings.
+	void setEffects(const deluge::effects::EffectStates& next) { deluge::model::storeEffects(*effectsOwner(), next); }
+	/// @brief Keep the sound's effect settings in @p record, or in its binding again (model::bindEffects).
+	/// @param record The record that holds the settings, or nullptr.
+	void bindEffects(deluge::effects::EffectStates* record) { deluge::model::bindEffects(*effectsOwner(), record); }
+	/// @brief Copy the settings into the render's copy, with the render excluded (model::projectEffects).
+	void projectModControllableSnapshot() { deluge::model::projectEffects(*effectsOwner()); }
+	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() override {
+		return deluge::model::EffectsOwner{
+		    .core = &chain_.core(), .binding = &effectsBinding_, .sound = this, .knobs = &knobs_};
+	}
 
 	/// @brief How many Sounds have been destroyed while they still had live voices, since boot.
 	/// @note A destruction that finds live voices does not survive itself: once this body returns, the voices_
@@ -293,9 +317,6 @@ public:
 	virtual ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr) = 0;
 	virtual void setSkippingRendering(bool newSkipping);
 
-	ModFXType getModFXType() override;
-	[[nodiscard]] ::Sound* asSound() override { return this; }
-
 	void patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,
 	                                    int32_t newValue);
 	void render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output,
@@ -303,7 +324,7 @@ public:
 	            bool shouldLimitDelayFeedback = false, deluge::dsp::Q<24> pitchAdjust = deluge::dsp::Q<24>::one(),
 	            SampleRecorder* recorder = nullptr);
 
-	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) final; // Song may be NULL
+	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song); // Song may be NULL
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(ModelStackWithThreeMainThings* modelStack);
 	/// @param song The song whose table holds this sound's learned knobs, or null for none.
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(ParamManager* paramManager,
@@ -312,7 +333,7 @@ public:
 	void ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManager* paramManager, int32_t p, Song* song);
 	/// @brief Whether a learned MIDI knob of this sound turns patched param @p p: one @p song's table holds at this
 	/// sound's id, or, before the table takes them, one it holds outside the table
-	/// (ModControllableAudio::loaded_knobs).
+	/// (model::KnobCarrier::loaded).
 	/// @param song The song, or null for none.
 	/// @param p    The patched param.
 	/// @return True if one does.
@@ -324,7 +345,17 @@ public:
 
 	int8_t getKnobPos(uint8_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
 	int32_t getKnobPosBig(int32_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
-	bool learnModKnob(deluge::modulation::KnobTarget target, uint8_t whichKnob, uint8_t modKnobMode, Song* song) final;
+	/// @return Whether the last read of this sound's element held an arpeggiator (a synth track's own, which its record
+	/// then keeps).
+	[[nodiscard]] bool arpRead() const { return arp_read_; }
+
+	/// @brief Learn mod knob @p whichKnob of mode @p modKnobMode to @p target.
+	/// @param target      The param the knob turns.
+	/// @param whichKnob   The mod knob: 0 lower, 1 upper.
+	/// @param modKnobMode The mod knob mode it is learned in.
+	/// @param song        The song the sound belongs to, or nullptr.
+	/// @return Whether the knob was learned.
+	bool learnModKnob(deluge::modulation::KnobTarget target, uint8_t whichKnob, uint8_t modKnobMode, Song* song);
 
 	bool hasFilters();
 
@@ -441,7 +472,7 @@ public:
 	void notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, ModelStackWithThreeMainThings const* modelStack,
 	                             int32_t oldValue, int32_t newValue, bool fromAutomation);
 	void deleteMultiRange(int32_t s, int32_t r);
-	void wontBeRenderedForAWhile() override;
+	void wontBeRenderedForAWhile();
 	virtual ArpeggiatorBase* getArp() = 0;
 
 	deluge::dsp::UQ<32> getSyncedLFOPhaseIncrement(const LFOConfig& config);
@@ -519,6 +550,10 @@ private:
 	deluge::model::EffectsBinding effectsBinding_;
 	/// @brief The sound's effects after its voices; outlives voices_, whose teardown reads its delay.
 	deluge::effects::SoundChain chain_;
+	/// @brief The learned knobs the sound holds outside a song's table.
+	deluge::model::KnobCarrier knobs_;
+	/// @brief Set by a read whose element held an arpeggiator.
+	bool arp_read_{false};
 
 	/// @brief the list of active voices for this sound
 	// O(n) lookup is fine when most of the time we're iterating over all voices anyways.

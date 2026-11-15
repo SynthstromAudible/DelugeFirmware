@@ -62,6 +62,8 @@
 #include <cstring>
 #include <string.h>
 
+using namespace deluge;
+
 int16_t InstrumentClipMinder::defaultRootNote;
 bool InstrumentClipMinder::toggleScaleModeOnButtonRelease;
 uint32_t InstrumentClipMinder::scaleButtonPressTime;

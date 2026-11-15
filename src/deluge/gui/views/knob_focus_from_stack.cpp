@@ -78,7 +78,7 @@ controls::KnobFocus nonAudioDrumFocus(::Kit& kit, const ::Drum& drum, const ::Cl
 controls::KnobFocus knobFocusFromStack(::Song& song, const ModelStackWithThreeMainThings& stack) {
 	controls::KnobFocus focus;
 	ModControllable* controllable = stack.modControllable;
-	if (controllable != nullptr && controllable != static_cast<ModControllable*>(&song.live.global_effectable)) {
+	if (controllable != nullptr && controllable != static_cast<ModControllable*>(&song.live.master_channel)) {
 		TimelineCounter* counter = stack.getTimelineCounterAllowNull();
 		::Clip* clip = counter != nullptr && counter != static_cast<TimelineCounter*>(&song)
 		                   ? static_cast<::Clip*>(counter)

@@ -39,6 +39,8 @@
 #include "playback/playback_handler.h"
 #include "util/shell_menu_entry.h"
 
+using namespace deluge;
+
 uint32_t ClipView::getMaxZoom() {
 	return getCurrentClip()->getMaxZoom();
 }
@@ -424,7 +426,6 @@ bool ClipView::maybeRenderShortcutsOverview(uint32_t whichRows, RGB image[][kDis
 	}
 	if (shouldRenderShortcutsOverview()) {
 		renderedShortcutOverview = true;
-		D_PRINTLN("rendering shortcuts for %x", getModControllableAudioOrNone());
 		deluge::gui::ui::renderClipShortcutsOverview(image, occupancyMask);
 		return true;
 	}

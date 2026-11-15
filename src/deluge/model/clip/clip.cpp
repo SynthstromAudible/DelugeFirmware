@@ -48,6 +48,8 @@
 #include <initializer_list>
 #include <new>
 
+using namespace deluge;
+
 namespace params = deluge::modulation::params;
 
 uint32_t loopRecordingCandidateRecentnessNextValue = 1;

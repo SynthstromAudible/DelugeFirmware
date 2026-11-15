@@ -25,6 +25,7 @@
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/mapping_table.h"
 #include "deluge-project/midi_command.h"
+#include "model/fx/effects_owner.h"
 #include "serialization/value.h"
 
 #include <cstdint>
@@ -34,7 +35,6 @@
 
 class Drum;
 class Kit;
-class ModControllableAudio;
 class Output;
 class Song;
 
@@ -71,12 +71,12 @@ void recordLoadedMapping(::Song& song, const deluge::project::Mapping& mapping);
 /// @param address The owner's own address (its id's), if it has one.
 /// @param param   The param.
 /// @return True if one does.
-[[nodiscard]] bool learnedKnobTurns(::Song* song, const ::ModControllableAudio& owner,
+[[nodiscard]] bool learnedKnobTurns(::Song* song, deluge::model::EffectsOwner owner,
                                     std::optional<deluge::project::ControlsAddress> address,
                                     const deluge::project::ParamTarget& param);
 
 /// @brief Put into @p song's table each binding @p output brings into it that the table holds nothing for: the learned
-/// knobs it and a kit's rows hold outside the table (ModControllableAudio::loaded_knobs, emptied then), its input, and
+/// knobs it and a kit's rows hold outside the table (model::KnobCarrier::loaded, emptied then), its input, and
 /// a kit's rows' mutes and inputs, as the runtime read them.
 /// @param output An output joining @p song, with its id.
 /// @param song   The song it joins.
@@ -91,7 +91,7 @@ void recordArrivingDrum(::Drum& drum, ::Song& song);
 /// @brief [task] [audio] Give output @p to copies of output @p from's learned knobs in @p song's table (in place of its
 /// own) and their takeover states, as an audio track cloned from another takes its knobs: at once on the app loop, held
 /// for it on the render (an auto-overdub's clone on the song's tick), which marks @p to with @p from
-/// (ModControllableAudio::knobs_cloned_from) so a reconcile can make the copy should the held one be lost.
+/// (model::KnobCarrier::cloned_from) so a reconcile can make the copy should the held one be lost.
 /// @param from The output cloned from.
 /// @param to   The clone.
 /// @param song The song both belong to.
@@ -230,7 +230,7 @@ void mappingNoLongerRelative(const deluge::project::OwnerParamTarget& target,
 /// drum its id: the sections' commands it already holds stay first, then the song's knobs, then each output's (its
 /// knobs, its input, and each of a kit's rows' knobs, mute and input) in output order, then each clip's mute, session
 /// clips before arrangement-only ones. Each owner's knobs come from those the codec read onto it
-/// (ModControllableAudio::loaded_knobs), emptied then.
+/// (model::KnobCarrier::loaded), emptied then.
 /// @param song The song just read.
 void recordLoadedMappings(::Song& song);
 
@@ -277,7 +277,6 @@ Error projectMapping(::Song& song, const deluge::project::MappingTarget& target)
 /// @param address Whose controls @p owner's are, if known.
 /// @return The knobs, or nullopt when @p song does not hold @p owner at @p address (a save then has no table to read).
 [[nodiscard]] std::optional<std::vector<deluge::project::Mapping>>
-savedKnobsOf(::Song& song, const ::ModControllableAudio& owner,
-             std::optional<deluge::project::ControlsAddress> address);
+savedKnobsOf(::Song& song, deluge::model::EffectsOwner owner, std::optional<deluge::project::ControlsAddress> address);
 
 } // namespace deluge::bridge

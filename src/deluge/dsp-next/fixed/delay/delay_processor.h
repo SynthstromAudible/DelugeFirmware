@@ -60,8 +60,8 @@ struct DelayBlockResult {
 /// low-pass (a 1/2048 step per sample) out of it, so repeats don't build up sub-bass; the corner settles near 40 Hz
 /// after many repeats. The processor owns the chain's state in the kernel's State: each channel's impulse-response
 /// history and high-pass memory, the history 50 words and an index per channel, mirrored so its tap loop stores
-/// nothing. Every ModControllableAudio (a Sound, a kit drum, a kit, an audio clip) carries one through its Delay, and
-/// a kit drum is allocated by `alloc_fast`, which tries the 44 KB internal SRAM heap first.
+/// nothing. Every effects owner (a sound, a kit row, a kit, an audio track, the master) carries one through its Delay,
+/// and a kit drum is allocated by `alloc_fast`, which tries the 44 KB internal SRAM heap first.
 ///
 /// **Where it is built.** The kernel is instantiated only in this component's source, which builds with the DSP
 /// library's flags, so the steady-state frame loops make no out-of-line call (the one cold call is taken only while a

@@ -104,7 +104,7 @@ describe waveforms("a waveform by its address", ${
 		const services::Waveforms& waveforms = menu::host_waveforms();
 		expect(waveforms.info(range).has_value()).to_be_false();
 
-		auto* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(synth.instrument->toModControllable()));
+		auto* sound = synth.instrument->toModControllable()->effectsOwner()->sound;
 		Source& source = sound->sources[0];
 		source.oscType = OscType::SAMPLE;
 		auto* multisample = static_cast<MultisampleRange*>(source.getOrCreateFirstRange());
@@ -131,7 +131,7 @@ describe waveforms("a waveform by its address", ${
 		spec::SongFixture synth = spec::make_synth_song();
 		Song* const saved = currentSong;
 		currentSong = synth.song;
-		auto* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(synth.instrument->toModControllable()));
+		auto* sound = synth.instrument->toModControllable()->effectsOwner()->sound;
 		Source& source = sound->sources[0];
 		source.oscType = OscType::SAMPLE;
 		auto* multisample = static_cast<MultisampleRange*>(source.getOrCreateFirstRange());

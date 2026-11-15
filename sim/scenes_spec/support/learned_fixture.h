@@ -7,6 +7,7 @@
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
+#include "model/fx/chain_params.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -90,7 +91,7 @@ inline SongFixture addKit(Song* song) {
 	SongFixture f{.song = song, .clip = detail::make_session_clip(song)};
 	ParamManagerForTimeline params;
 	params.setupUnpatched();
-	GlobalEffectableForClip::initParams(&params);
+	deluge::model::initGlobalParams(&params);
 	auto* kit = static_cast<Kit*>(StorageManager::createNewInstrument(OutputType::KIT, &params));
 	kit->dirPath = "KITS";
 	kit->name = "0";

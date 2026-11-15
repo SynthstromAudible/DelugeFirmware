@@ -42,7 +42,7 @@ racing tiers; its trailing index groups the sites by shared state. Every open si
 - **The recorder list and monitoring** — `AudioEngine::firstRecorder`, `audioRecorder`.
 - **Arpeggiator settings** — written or cloned by the UI while the render reads them.
 - **Memory the render read, then freed and reused by the interaction tier** — reported as a constructor writing
-  heap-arena memory (`Song::Song`, `ModControllableAudio`, `AutoParam`, filter/delay/compressor constructors). These
+  heap-arena memory (`Song::Song`, the effects owners, `AutoParam`, filter/delay/compressor constructors). These
   are object-lifetime races (freed with no handover from the render), not field races.
 - **The debug log buffer** — `printf`'s `_out_buffer`.
 

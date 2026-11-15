@@ -11,6 +11,7 @@
 // std::chrono is fine here: the Date.now/Math.random restriction is a Workflow-script rule, not a C++ one.
 
 #include "definitions_cxx.hpp"
+#include "model/fx/chain_params.h"
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
@@ -26,7 +27,6 @@
 
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/song/song.h"
 
 #include "scenarios/drivers/driver.h"
@@ -69,7 +69,7 @@ int param_snapshot_bench_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (mem) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 	currentSong = song;
 
 	auto* audioClip = new AudioClip(*song);

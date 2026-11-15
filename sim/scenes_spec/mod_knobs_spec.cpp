@@ -69,11 +69,9 @@
 #include "model/clip/instrument_clip_minder.h"
 #include "model/edits/set_mod_knob_cc.h"
 #include "model/edits/set_mod_knob_mode.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/mod_controllable/filters/filter_config.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_stack.h"
@@ -773,7 +771,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		currentSong = nullptr;
 	});
 
-	it("keeps a kit chain's stutter through its reverb button, and ends it on another, as GlobalEffectableForClip does", _ {
+	it("keeps a kit chain's stutter through its reverb button, and ends it on another, as main's kit chain does", _ {
 		StubDisplay stub;
 		display = &stub;
 		spec::SongFixture f = spec::make_kit_song();
@@ -786,11 +784,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		currentUIMode = UI_MODE_NONE;
 		(void)menu::host_controls_sink().stutter(rig.knobs.focus(), true);
 		expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_true();
-		// `GlobalEffectableForClip::modButtonAction`: the reverb button leaves the stutter playing.
+		// main's `GlobalEffectableForClip::modButtonAction`: the reverb button leaves the stutter playing.
 		rig.knobs.mod_button_action(4, true);
 		rig.knobs.mod_button_action(4, false);
 		expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_true();
-		// `GlobalEffectable::modButtonAction`: any other button ends it.
+		// main's `GlobalEffectable::modButtonAction`: any other button ends it.
 		rig.knobs.mod_button_action(3, true);
 		expect(isUIModeActive(UI_MODE_STUTTERING)).to_be_false();
 		rig.knobs.mod_button_action(3, false);
@@ -855,7 +853,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// 167772160.
 		expect(rig.knobs.focus().comp.editing).to_be_true();
 		expect(rig.knobs.focus().comp.param).to_equal(uint8_t{2});
-		expect(song.song->live.global_effectable.effects().compressor.release).to_equal(167772160);
+		expect(song.song->live.master_channel.binding().effects().compressor.release).to_equal(167772160);
 		const auto* recorded = song.song->project.master_effects.effects.as<deluge::effects::DelugeEffects>();
 		expect(recorded != nullptr).to_be_true();
 		if (recorded != nullptr) {
@@ -1861,7 +1859,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	it("gives the popup the model context legacy reads off View, so its filter-morph name can fire", _ {
 		// `ParamPopupScene::show()` takes legacy's five value-conversion arguments and, optionally, a
 		// model context (`overlay::PopupContext`). Without the context three of legacy's arms -- the
-		// `ModControllableAudio*`-aware LPF/HPF-morph rename (`modulation/params/param.cpp:356-381`),
+		// owner-aware LPF/HPF-morph rename (`modulation::params::getParamDisplayName`),
 		// the stutter rate-bucket text, and the MIDI-clip CC naming -- cannot fire. `ModKnobs` is the
 		// class that HAS that context, so it passes it. This drives the path with the context and the
 		// one without and compares BOTH against the real
@@ -1873,7 +1871,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		auto* sound = static_cast<SoundInstrument*>(f.instrument);
 		// A ladder LPF is what makes the rename fire; an SVF or a filter that is off keeps the
 		// default name (`param.cpp:365-372`'s own comment).
-		sound->setLpfMode(FilterMode::TRANSISTOR_24DB);
+		deluge::model::changeEffects(*sound->effectsOwner(), [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::TRANSISTOR_24DB; });
 
 		constexpr int32_t kMorph = deluge::modulation::params::LOCAL_LPF_MORPH;
 
@@ -2193,7 +2191,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		const deluge::project::DocOutput* record = f.song->project.output_structure.find(*f.instrument->id());
 		expect(record != nullptr && record->mod_knob_mode == 5).to_be_true();
 
-		rig.set_target_without_timeline(&f.song->live.global_effectable, &f.song->paramManager);
+		rig.set_target_without_timeline(&f.song->live.master_channel, &f.song->paramManager);
 		rig.knobs.mod_button_action(3, true);
 		rig.knobs.mod_button_action(3, false);
 		expect(f.song->project.mod_knob_mode).to_equal(uint8_t{3});
@@ -2233,7 +2231,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(upper_target == std::optional{deluge::instrument::param::kHpfFrequency}).to_be_true();
 		expect(lower_target == std::optional{deluge::instrument::param::kHpfResonance}).to_be_true();
 
-		rig.set_target_without_timeline(&f.song->live.global_effectable, &f.song->paramManager);
+		rig.set_target_without_timeline(&f.song->live.master_channel, &f.song->paramManager);
 		const uint8_t before = f.song->project.master_effects.filter_type;
 		rig.knobs.mod_button_action(1, true);
 		rig.knobs.mod_button_action(1, false);
@@ -2303,8 +2301,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		StubDisplay stub;
 		display = &stub;
 
-		// `itsTheSong` requires the knobs to point at a *song*, and a song's mod-knob mode lives on its one
-		// `GlobalEffectable`.
+		// `itsTheSong` requires the knobs to point at a *song*, and a song's mod-knob mode lives in its record
+		// (`project.mod_knob_mode`).
 		spec::SongFixture pf = spec::make_synth_song();
 		currentSong = pf.song;
 		pf.song->persistentView.affectEntire = true; // so the SONG resolves a mod controllable (`song.cpp:5548-5555`)

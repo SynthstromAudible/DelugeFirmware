@@ -260,4 +260,20 @@ ReverbCandidate TrackChannel::reverbCandidate(ReverbCandidate best, ParamManager
 	};
 }
 
+void TrackChannel::cloneFrom(const TrackChannel& other) {
+	const EffectsOwner mine = asEffectsOwner();
+	const effects::EffectStates& from = other.binding_.effects();
+	effects::EffectStates next = mine.effects();
+	next.filter = from.filter;
+	next.saturation = from.saturation;
+	next.mod_fx = from.mod_fx;
+	next.sidechain = from.sidechain;
+	next.delay = from.delay;
+	next.stutter = from.stutter;
+	storeEffects(mine, next);
+	// An owner no song holds keeps its knobs here (empty for one a song holds).
+	knobs_.loaded = other.knobs_.loaded;
+	setChainView(mine, other.view_.modFXParam(), other.view_.filterType());
+}
+
 } // namespace deluge::model

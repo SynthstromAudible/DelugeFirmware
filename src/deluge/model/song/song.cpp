@@ -56,12 +56,13 @@
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
 #include "model/edits/setting_edit.h"
+#include "model/fx/chain_codec.h"
 #include "model/fx/chain_inputs.h"
+#include "model/fx/chain_params.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/mod_controllable/delay_type.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/project_bridge/arp_bridge.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/controls_bridge.h"
@@ -251,7 +252,7 @@ Song::Song() {
 	project.reverb.model = deluge::project::ReverbModel::MUTABLE;
 
 	// setup base compressor gain to match 1.0
-	live.global_effectable.core().compressor().dsp().set_base_gain(0.85f);
+	live.master_channel.core().compressor().dsp().set_base_gain(0.85f);
 
 	// initialize automation arranger view variables
 	lastSelectedParamID = params::kNoParamID;
@@ -268,7 +269,8 @@ Song::Song() {
 
 	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
 	// The master plays its chain record from the start: a read of its effects lands in the record.
-	deluge::bridge::adoptChainState(live.global_effectable, project.master_effects, deluge::project::ChainHome::MASTER);
+	deluge::bridge::adoptChainState(*live.master_channel.effectsOwner(), project.master_effects,
+	                                deluge::project::ChainHome::MASTER);
 }
 
 namespace {
@@ -1205,7 +1207,7 @@ weAreInArrangementEditorOrInClipInstance:
 		writer.writeAttribute("lastSelectedParamArrayPosition", lastSelectedParamArrayPosition);
 	}
 
-	live.global_effectable.writeAttributesToFile(writer, false);
+	deluge::model::writeChainAttributes(writer, *live.master_channel.effectsOwner());
 
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	writer.writeAttribute("songGridScrollX", persistentView.songGridScrollX);
@@ -1220,8 +1222,8 @@ weAreInArrangementEditorOrInClipInstance:
 	members.set("reverb", deluge::project::encode(project.reverb, getInputTickMagnitude()));
 	writer.writeValue(members);
 
-	live.global_effectable.writeTagsToFile(
-	    writer, NULL, false, this, deluge::project::ControlsAddress{deluge::project::ControlsAddress::Kind::SONG, 0});
+	deluge::model::writeEffectTags(writer, *live.master_channel.effectsOwner(), nullptr, false, this,
+	                               deluge::project::ControlsAddress{deluge::project::ControlsAddress::Kind::SONG, 0});
 
 	int32_t* valuesForOverride = runtimeView.paramsInAutomationMode ? live.unautomated_param_values.data() : nullptr;
 
@@ -1238,9 +1240,9 @@ weAreInArrangementEditorOrInClipInstance:
 		deluge::bridge::serializeGlobalEffectableParamTags(*songStore, writer, true, valuesForOverride);
 	}
 	else {
-		GlobalEffectableForClip::writeParamAttributesToFile(writer, &paramManager, true, valuesForOverride);
+		deluge::model::writeGlobalParamAttributes(writer, &paramManager, true, valuesForOverride);
 		writer.writeOpeningTagEnd();
-		GlobalEffectableForClip::writeParamTagsToFile(writer, &paramManager, true, valuesForOverride);
+		deluge::model::writeGlobalParamTags(writer, &paramManager, true, valuesForOverride);
 	}
 	writer.writeClosingTag("songParams");
 
@@ -1439,7 +1441,7 @@ void Song::adoptOutput(Output* output) {
 		Sound* sound = static_cast<Sound*>(static_cast<SoundInstrument*>(output));
 		deluge::bridge::adoptSoundState(*sound, d.instrument, *this);
 		// The track's own arp, which a new clip on it starts from, is its record's when its element held one.
-		if (sound->arpRead) {
+		if (sound->arpRead()) {
 			d.arp = deluge::bridge::arpRecordOf(static_cast<SoundInstrument*>(output)->defaultArpSettings, false);
 		}
 	}
@@ -1466,8 +1468,8 @@ void Song::removeDocOutput(Output* output) {
 			// It plays its record's state, which goes now. The double static_cast lands on the Sound base subobject.
 			static_cast<Sound*>(static_cast<SoundInstrument*>(output))->unbindState();
 		}
-		else if (::GlobalEffectable* owner = deluge::bridge::chainOwnerOf(*output)) {
-			owner->unbindChain(); // a kit or an audio track plays its chain record, which goes now
+		else if (const std::optional<deluge::model::EffectsOwner> owner = deluge::bridge::chainOwnerOf(*output)) {
+			deluge::model::unbindChain(*owner); // a kit or an audio track plays its chain record, which goes now
 		}
 		project.output_structure.remove(*output->id());
 		deluge::bridge::forgetOutputMappings(*this, *output->id());
@@ -1734,10 +1736,8 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "activeModFunction")) {
-				// The record keeps what the song says; the engine uses it capped at its last mod button.
+				// The record keeps what the song says; the knobs use it capped at the board's last section.
 				project.mod_knob_mode = static_cast<uint8_t>(reader.readTagOrAttributeValueInt());
-				live.global_effectable.modKnobMode =
-				    std::min(project.mod_knob_mode, static_cast<uint8_t>(kNumModButtons - 1));
 				reader.exitTag("activeModFunction");
 			}
 
@@ -1919,11 +1919,11 @@ loadOutput:
 					if (error != Error::NONE) {
 						return error;
 					}
-					GlobalEffectable::initParams(&paramManager);
+					deluge::model::initGlobalParams(&paramManager);
 				}
-				// initParams wrote each default straight into the set's own DOM store (via docForParam), so it holds
-				// the authoritative defaults with no engine-to-store copy. Relocate that store into the project tree
-				// and re-bind the engine set to the tree copy; the reader then lands the present params on top of
+				// initGlobalParams wrote each default straight into the set's own DOM store (via docForParam), so it
+				// holds the authoritative defaults with no engine-to-store copy. Relocate that store into the project
+				// tree and re-bind the engine set to the tree copy; the reader then lands the present params on top of
 				// the defaults, and nodes are never copied out (avoids a projection self-copy).
 				UnpatchedParamSet* songUnpatched = paramManager.getUnpatchedParamSet();
 				songUnpatched->bindDomStore(); // ensure a store exists (init normally created it) before relocating
@@ -1962,8 +1962,8 @@ loadOutput:
 			}
 
 			else {
-				Error result =
-				    live.global_effectable.readTagFromFile(reader, tagName, &paramManager, 2147483647, nullptr, this);
+				Error result = deluge::model::readEffectTag(reader, tagName, *live.master_channel.effectsOwner(),
+				                                            &paramManager, 2147483647, nullptr, nullptr, this);
 				if (result == Error::NONE) {}
 				else if (result != Error::RESULT_TAG_UNUSED) {
 					return result;
@@ -1981,7 +1981,7 @@ loadOutput:
 			}
 		}
 	}
-	live.global_effectable.readEffectsFromElement(*element, getInputTickMagnitude());
+	deluge::model::readEffectsFromElement(*live.master_channel.effectsOwner(), *element, getInputTickMagnitude());
 
 	setTimePerTimerTick(timePerTimerTick);
 
@@ -2033,7 +2033,7 @@ loadOutput:
 	// Bind each AudioClip's unpatched automation node storage to a DOM-owned store, like the song-global one below.
 	// Every edit and undo then operates on DOM-owned data and save reads it directly. The store lives on the
 	// heap-stable, never-relocating ParamSet, so it survives the clip through ParamBackup steal/restore. AudioClips
-	// carry a single unpatched set (GlobalEffectableForClip); instrument clips are bound further below.
+	// carry a single unpatched set (a host chain's); instrument clips are bound further below.
 	for (ClipArray* clipArray : arrays) {
 		for (int32_t c = 0; c < std::ssize(*clipArray); c++) {
 			Clip* thisClip = (*clipArray)[c];
@@ -2050,7 +2050,7 @@ loadOutput:
 			}
 			// Relocate instrument-shared clip-level automation into the persistent tree, keyed by
 			// (instrument(output), clip), the persistent form of ParamBackup. Synth = unpatched + patched; kit
-			// clip-level FX = unpatched only (GlobalEffectableForClip). Expression (MPE) is relocated too. Because
+			// clip-level FX = unpatched only (a host chain's). Expression (MPE) is relocated too. Because
 			// stealParamCollectionsFrom moves only collection pointers, this external binding rides the ParamSet
 			// through every park / restore / clip-death re-key, so resolution survives all of it. MIDI CC stores stay
 			// inline until the per-clip binding below.
@@ -2149,7 +2149,7 @@ loadOutput:
 			ParamManagerForTimeline paramManager{};
 
 			paramManager.setupUnpatched();
-			GlobalEffectable::initParams(&paramManager);
+			deluge::model::initGlobalParams(&paramManager);
 
 			this->live.param_backup.backUp(*thisOutput, nullptr, &paramManager);
 		}
@@ -3628,24 +3628,24 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 	// A synth or kit replaced by a preset of its own type hands its learned knobs to the preset, which drops its own
 	// (a kit's are its affect-entire knobs): a knob learned to the clip's params keeps controlling the same params
 	// through the preset change. One with none leaves the preset's own.
-	ModControllableAudio* handedOverFrom = nullptr;
+	std::optional<deluge::model::EffectsOwner> handedOverFrom;
 	if (newOutput->type == oldOutput->type
 	    && (newOutput->type == OutputType::SYNTH || newOutput->type == OutputType::KIT)) {
-		auto* old_mca = static_cast<ModControllableAudio*>(oldOutput->toModControllable());
-		if (old_mca != nullptr && deluge::bridge::handsOverKnobs(*this, *oldOutput)) {
-			auto& new_mca = static_cast<ModControllableAudio&>(*newOutput->toModControllable());
+		const std::optional<deluge::model::EffectsOwner> old = oldOutput->toModControllable()->effectsOwner();
+		if (old && deluge::bridge::handsOverKnobs(*this, *oldOutput)) {
+			const deluge::model::EffectsOwner incoming = *newOutput->toModControllable()->effectsOwner();
 			// Knobs the table does not hold yet (this song's own read) move here; the table's move below.
-			new_mca.loaded_knobs = std::move(old_mca->loaded_knobs);
-			old_mca->loaded_knobs.clear();
-			handedOverFrom = old_mca;
+			incoming.knobs->loaded = std::move(old->knobs->loaded);
+			old->knobs->loaded.clear();
+			handedOverFrom = old;
 		}
 	}
 
 	if (tableFollows) {
-		deluge::bridge::handOverInstrument(*this, *oldOutput->id(), *newOutput->id(), handedOverFrom != nullptr);
+		deluge::bridge::handOverInstrument(*this, *oldOutput->id(), *newOutput->id(), handedOverFrom.has_value());
 	}
-	if (handedOverFrom != nullptr) {
-		handedOverFrom->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this);
+	if (handedOverFrom && handedOverFrom->sound != nullptr) { // a kit's presets have no knob-less params to zero
+		handedOverFrom->sound->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this);
 	}
 	// A kit's rows give their commands up to the clips' rows, and a new kit's rows take them: the table as it was names
 	// their devices. The handover above leaves every row's entry as it was.
@@ -5261,7 +5261,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 
 	newOutput->setInputChannel(defaultAudioOutputInputChannel);
 
-	GlobalEffectableForClip::initParamsForAudioClip(&newParamManager);
+	deluge::model::initAudioClipParams(&newParamManager);
 
 	live.param_backup.backUp(*newOutput, nullptr, &newParamManager, true);
 
@@ -5871,7 +5871,7 @@ int32_t Song::getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* 
 void Song::getActiveModControllable(ModelStackWithTimelineCounter* modelStack) {
 	if (persistentView.affectEntire) {
 		modelStack->setTimelineCounter(this);
-		modelStack->addOtherTwoThingsButNoNoteRow(&live.global_effectable, &paramManager);
+		modelStack->addOtherTwoThingsButNoNoteRow(&live.master_channel, &paramManager);
 	}
 	else {
 		modelStack->setTimelineCounter(nullptr);
@@ -6097,7 +6097,7 @@ void Song::displayMasterTransposeInterval() {
 }
 
 ModelStackWithThreeMainThings* Song::setupModelStackWithSongAsTimelineCounter(void* memory) {
-	return setupModelStackWithThreeMainThingsButNoNoteRow(memory, this, &live.global_effectable, this, &paramManager);
+	return setupModelStackWithThreeMainThingsButNoNoteRow(memory, this, &live.master_channel, this, &paramManager);
 }
 
 ModelStackWithTimelineCounter* Song::setupModelStackWithCurrentClip(void* memory) {
@@ -6105,7 +6105,7 @@ ModelStackWithTimelineCounter* Song::setupModelStackWithCurrentClip(void* memory
 }
 
 ModelStackWithThreeMainThings* Song::addToModelStack(ModelStack* modelStack) {
-	return modelStack->addTimelineCounter(this)->addOtherTwoThingsButNoNoteRow(&live.global_effectable, &paramManager);
+	return modelStack->addTimelineCounter(this)->addOtherTwoThingsButNoNoteRow(&live.master_channel, &paramManager);
 }
 
 ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID) {

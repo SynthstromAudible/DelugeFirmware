@@ -160,7 +160,7 @@ describe mapping_save("a song's save of its MIDI bindings", $ {
 		    Mapping{.source = command(0, 11), .target = OwnerParamTarget{owner, patched(params::LOCAL_PAN)}});
 		f.song->project.mappings.learn(
 		    Mapping{.source = command(0, 10), .target = OwnerParamTarget{owner, patched(params::LOCAL_VOLUME)}});
-		sound.loaded_knobs.push_back(Mapping{.source = command(5, 99), // as a file read it, which no table took
+		sound.effectsOwner()->knobs->loaded.push_back(Mapping{.source = command(5, 99), // as a file read it, which no table took
 		                                     .target = OwnerParamTarget{{}, patched(params::LOCAL_PITCH_ADJUST)}});
 		std::optional<Value> saved = savedOutput(*f.instrument, *f.song);
 		expect(saved.has_value()).to_be_true();
@@ -257,7 +257,7 @@ describe mapping_save("a song's save of its MIDI bindings", $ {
 		saving.song->project.mappings.learn(
 		    Mapping{.source = command(0, 11), .target = OwnerParamTarget{owner, patched(params::LOCAL_PAN)}});
 		saving.song->project.mappings.learn(Mapping{.source = command(3, 36), .target = TrackInputTarget{owner.id}});
-		expect(sound.loaded_knobs.empty()).to_be_true(); // it holds no knob outside a table
+		expect(sound.effectsOwner()->knobs->loaded.empty()).to_be_true(); // it holds no knob outside a table
 		other.instrument->midiInput.channelOrZone = 6;
 		std::optional<Value> saved = savedOutput(*other.instrument, *saving.song);
 		expect(saved.has_value()).to_be_true();
@@ -269,7 +269,7 @@ describe mapping_save("a song's save of its MIDI bindings", $ {
 		spec::SongFixture saving = spec::make_synth_song();
 		spec::SongFixture other = spec::make_synth_song(); // its output is one the saving song does not hold
 		auto& sound = *static_cast<SoundInstrument*>(other.instrument);
-		sound.loaded_knobs.push_back(Mapping{.source = command(5, 99), // as its file read it, before a table took it
+		sound.effectsOwner()->knobs->loaded.push_back(Mapping{.source = command(5, 99), // as its file read it, before a table took it
 		                                     .target = OwnerParamTarget{{}, patched(params::LOCAL_PITCH_ADJUST)},
 		                                     .relative = true});
 		std::optional<Value> saved = savedOutput(*other.instrument, *saving.song);

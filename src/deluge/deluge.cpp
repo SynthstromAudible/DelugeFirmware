@@ -56,6 +56,7 @@
 #include "io/usb/usb_audio.h"
 #include "lib/printf.h" // IWYU pragma: keep this over rides printf with a non allocating version
 #include "libdeluge/app.h"
+#include "model/fx/chain_params.h"
 #if DELUGE_STREAM_BENCH
 #include "bench/stream_bench.h"
 #endif
@@ -353,7 +354,7 @@ void setupBlankSong() {
 	preLoadedSong = new (songMemory) Song();
 
 	preLoadedSong->paramManager.setupUnpatched(); // TODO: error checking
-	GlobalEffectable::initParams(&preLoadedSong->paramManager);
+	deluge::model::initGlobalParams(&preLoadedSong->paramManager);
 	preLoadedSong->setupDefault();
 
 	setRootUILowLevel(&instrumentClipView); // Prevents crash. (Wait, I'd like to know more about what crash...)

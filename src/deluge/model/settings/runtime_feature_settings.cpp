@@ -179,10 +179,10 @@ void RuntimeFeatureSettings::init() {
 	overlay.xmlName = "shortcutOverlay";
 	overlay.value = static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuOnly);
 	overlay.options = {
-	    {l10n::getView(STRING_FOR_OFF), static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::Off)},
-	    {l10n::getView(STRING_FOR_SHORTCUT_OVERLAY_MENU_ONLY),
+	    {deluge::l10n::getView(STRING_FOR_OFF), static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::Off)},
+	    {deluge::l10n::getView(STRING_FOR_SHORTCUT_OVERLAY_MENU_ONLY),
 	     static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuOnly)},
-	    {l10n::getView(STRING_FOR_SHORTCUT_OVERLAY_MENU_AND_CLIP),
+	    {deluge::l10n::getView(STRING_FOR_SHORTCUT_OVERLAY_MENU_AND_CLIP),
 	     static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuAndClip)},
 	};
 
@@ -192,7 +192,7 @@ void RuntimeFeatureSettings::init() {
 
 void RuntimeFeatureSettings::factoryReset(bool showPopup) {
 	if (showPopup) {
-		deluge::notify::notice(l10n::String::STRING_FOR_RESET_COMMUNITY_FEATURES);
+		deluge::notify::notice(deluge::l10n::String::STRING_FOR_RESET_COMMUNITY_FEATURES);
 	}
 
 	// May give an error (e.g. no such file), but there is no real consequence from that.

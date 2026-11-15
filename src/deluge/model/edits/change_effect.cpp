@@ -17,12 +17,11 @@
 
 #include "model/edits/change_effect.h"
 
+#include "foundation/panic.h"
 #include "io/debug/log.h"
 #include "model/edits/set_chain_view.h"
 #include "model/edits/set_effect_setting.h"
 #include "model/edits/set_engine_setting.h"
-#include "model/global_effectable/global_effectable.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/slot_bridge.h"
@@ -35,22 +34,41 @@
 
 namespace deluge::edits {
 
-void changeEffect(ModControllableAudio& owner, std::string_view path, deluge::serialization::Value value) {
+namespace {
+/// @brief @p owner's effects; an owner a gesture edits the effects of always has them.
+[[nodiscard]] deluge::model::EffectsOwner effectsOf(ModControllable& owner) {
+	const std::optional<deluge::model::EffectsOwner> effects = owner.effectsOwner();
+	if (!effects) {
+		FREEZE_WITH_ERROR("E475");
+	}
+	return *effects;
+}
+} // namespace
+
+void changeEffect(ModControllable& owner, std::string_view path, deluge::serialization::Value value) {
+	changeEffect(effectsOf(owner), path, std::move(value));
+}
+
+void changeEffect(::Song& song, ModControllable& owner, std::string_view path, deluge::serialization::Value value) {
+	changeEffect(song, effectsOf(owner), path, std::move(value));
+}
+
+void changeEffect(deluge::model::EffectsOwner effects, std::string_view path, deluge::serialization::Value value) {
 	if (currentSong == nullptr) {
 		// An owner outside any song holds its effects itself.
-		if (deluge::bridge::applyEffectSetting(owner, path, value) != Error::NONE) {
+		if (deluge::bridge::applyEffectSetting(effects, path, value) != Error::NONE) {
 			D_PRINTLN("effect setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(),
 			          value.str().c_str());
 		}
 		return;
 	}
-	changeEffect(*currentSong, owner, path, std::move(value));
+	changeEffect(*currentSong, effects, path, std::move(value));
 }
 
-void changeEffect(::Song& song, ModControllableAudio& owner, std::string_view path,
+void changeEffect(::Song& song, deluge::model::EffectsOwner effects, std::string_view path,
                   deluge::serialization::Value value) {
 	Error error = Error::NONE;
-	::Sound* sound = owner.asSound();
+	::Sound* sound = effects.sound;
 	const std::optional<deluge::project::SlotAddress> slot =
 	    sound != nullptr ? deluge::bridge::slotAddressOf(*sound) : std::nullopt;
 	if (slot && deluge::bridge::soundAt(song, *slot) == sound) {
@@ -59,14 +77,14 @@ void changeEffect(::Song& song, ModControllableAudio& owner, std::string_view pa
 		error = apply(ctx, edit);
 	}
 	else if (const std::optional<deluge::project::ChainAddress> chain =
-	             sound == nullptr ? deluge::bridge::chainAddressOf(owner, song) : std::nullopt) {
+	             sound == nullptr ? deluge::bridge::chainAddressOf(effects, song) : std::nullopt) {
 		Context ctx{song, song.project};
 		SetEffectSetting edit{*chain, std::string(path), value};
 		error = apply(ctx, edit);
 	}
 	else {
 		// An owner outside the song's chains (a sound not bound, a preview) holds its effects itself.
-		error = deluge::bridge::applyEffectSetting(owner, path, value);
+		error = deluge::bridge::applyEffectSetting(effects, path, value);
 	}
 	if (error != Error::NONE) {
 		// A gesture offers only what the setting takes; a refusal here is a gesture and schema out of step.
@@ -74,10 +92,16 @@ void changeEffect(::Song& song, ModControllableAudio& owner, std::string_view pa
 	}
 }
 
-void changeView(GlobalEffectable& owner, std::string_view key, std::string_view word) {
+void changeView(ModControllable& owner, std::string_view key, std::string_view word) {
+	const deluge::model::EffectsOwner effects = effectsOf(owner);
+	if (effects.view == nullptr) {
+		// Only a host chain has a view; a gesture offering one on a sound is a gesture and its owner out of step.
+		D_PRINTLN("view refused: %.*s on an owner without a chain view", static_cast<int>(key.size()), key.data());
+		return;
+	}
 	if (currentSong != nullptr) {
 		if (const std::optional<deluge::project::ChainAddress> chain =
-		        deluge::bridge::chainAddressOf(owner, *currentSong)) {
+		        deluge::bridge::chainAddressOf(effects, *currentSong)) {
 			Context ctx{*currentSong, currentSong->project};
 			SetChainView edit{*chain, std::string(key), deluge::serialization::Value::makeScalar(std::string(word))};
 			if (apply(ctx, edit) != Error::NONE) {
@@ -88,10 +112,10 @@ void changeView(GlobalEffectable& owner, std::string_view key, std::string_view 
 	}
 	const std::string text(word);
 	if (key == "modFXCurrentParam") {
-		owner.setView(stringToModFXParam(text.c_str()), owner.filterType());
+		deluge::model::setChainView(effects, stringToModFXParam(text.c_str()), effects.view->filterType());
 	}
 	else if (key == "currentFilterType") {
-		owner.setView(owner.modFXParam(), stringToFilterType(text.c_str()));
+		deluge::model::setChainView(effects, effects.view->modFXParam(), stringToFilterType(text.c_str()));
 	}
 }
 

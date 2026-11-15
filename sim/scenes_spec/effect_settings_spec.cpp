@@ -11,7 +11,6 @@
 #include "scenes/menu/nodes/nodes.h"
 
 #include "effects/settings.h"
-#include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/song/song.h"
@@ -83,9 +82,9 @@ const deluge::effects::EffectStates* owner_effects(const MenuContext& ctx) {
 	if (::Sound* sound = spec::menu_engine(ctx).sound; sound != nullptr) {
 		return &sound->effects();
 	}
-	::GlobalEffectable* owner =
-	    ctx.addresses.chain ? deluge::bridge::chainOwnerAt(*ctx.addresses.chain, *ctx.song) : nullptr;
-	return owner != nullptr ? &owner->effects() : nullptr;
+	const std::optional<deluge::model::EffectsOwner> owner =
+	    ctx.addresses.chain ? deluge::bridge::chainAt(*ctx.addresses.chain, *ctx.song) : std::nullopt;
+	return owner ? &owner->effects() : nullptr;
 }
 
 /// Where an EFFECT node disagrees with the binding library on @p ctx: its read, its range, or a write at its ends and

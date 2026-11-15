@@ -28,7 +28,6 @@
 #include "model/fx/song_stutter.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/melodic_instrument.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/param_ids.h"
@@ -621,9 +620,8 @@ bool UnpatchedParamSet::shouldInterpolateWithFloat(ModelStackWithParamId const* 
 
 bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
 	if (modelStack->paramId == params::UNPATCHED_STUTTER_RATE) {
-		return deluge::model::stutterRateIndicatesMiddle(
-		    static_cast<ModControllableAudio*>(modelStack->modControllable)->effects().stutter,
-		    isUIModeActive(UI_MODE_STUTTERING));
+		return deluge::model::stutterRateIndicatesMiddle(modelStack->modControllable->effectsOwner()->effects().stutter,
+		                                                 isUIModeActive(UI_MODE_STUTTERING));
 	}
 	return params::hasParamFlag(getParamKind(), modelStack->paramId, deluge::plugin::ParamFlag::MIDDLE_DETENT);
 }

@@ -10,9 +10,8 @@
 #include "memory/general_memory_allocator.h"
 #include "model/edits/change_effect.h"
 #include "model/edits/set_mod_knob_mode.h"
-#include "model/global_effectable/global_effectable.h"
+#include "model/fx/chain_params.h"
 #include "model/instrument/kit.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/song/song.h"
@@ -25,10 +24,13 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 
+#include "model/mod_controllable/filters/filter_config.h"
 #include <cstdio>
 #include <new>
 #include <span>
 #include <string>
+
+using namespace deluge;
 
 namespace {
 
@@ -46,7 +48,7 @@ void check(bool ok, const char* what) {
 
 /// Every effect setting set on @p owner, as a gesture sets it (by its Edit when the owner is in the song), lands in its
 /// state, and the render's copy holds the same.
-void checkOwner(ModControllableAudio& owner, const char* name) {
+void checkOwner(ModControllable& owner, const char* name) {
 	using deluge::serialization::Value;
 	deluge::edits::changeEffect(owner, "delay/pingPong", Value::makeNumber(0));
 	deluge::edits::changeEffect(owner, "delay/syncLevel", Value::makeNumber(static_cast<int32_t>(SyncLevel::EIGHTH)));
@@ -54,17 +56,18 @@ void checkOwner(ModControllableAudio& owner, const char* name) {
 	deluge::edits::changeEffect(owner, "audioCompressor/ratio", Value::makeNumber(7 << 24));
 	deluge::edits::changeEffect(owner, "stutter/reverse", Value::makeNumber(1));
 	deluge::edits::changeEffect(owner, "lpfMode", Value::makeScalar("SVF_Band"));
-	const deluge::effects::EffectStates& record = owner.effects();
+	const deluge::effects::EffectStates& record = owner.effectsOwner()->effects();
 	check(!record.delay.ping_pong && record.delay.sync_level == SyncLevel::EIGHTH && record.sidechain.release == 4242
 	          && record.compressor.ratio == (7 << 24) && record.stutter.reversed
 	          && record.filter.lpf_mode == FilterMode::SVF_BAND,
 	      name);
-	check(owner.modControllableSnapshot().effects == record, name);
+	check(owner.effectsOwner()->binding->snapshot().effects == record, name);
 }
 
 /// The chain of @p owner (a kit or the master) in @p song, or null.
-const deluge::project::FxChain* chainOf(GlobalEffectable& owner, Song& song) {
-	const std::optional<deluge::project::ChainAddress> address = deluge::bridge::chainAddressOf(owner, song);
+const deluge::project::FxChain* chainOf(ModControllable& owner, Song& song) {
+	const std::optional<deluge::project::ChainAddress> address =
+	    deluge::bridge::chainAddressOf(*owner.effectsOwner(), song);
 	return address ? song.project.resolveChain(*address) : nullptr;
 }
 
@@ -90,14 +93,14 @@ struct Expected {
 };
 
 /// @p owner's effects and view now.
-Expected stateOf(GlobalEffectable& owner) {
-	const deluge::effects::EffectStates& state = owner.effects();
+Expected stateOf(ModControllable& owner) {
+	const deluge::effects::EffectStates& state = owner.effectsOwner()->effects();
 	return {state.compressor.threshold,
 	        state.compressor.attack,
 	        static_cast<int32_t>(state.sidechain.sync_level),
 	        static_cast<int32_t>(state.mod_fx.type),
-	        static_cast<int32_t>(owner.modFXParam()),
-	        static_cast<int32_t>(owner.filterType())};
+	        static_cast<int32_t>(owner.effectsOwner()->view->modFXParam()),
+	        static_cast<int32_t>(owner.effectsOwner()->view->filterType())};
 }
 
 /// @p state as text.
@@ -113,7 +116,7 @@ std::string describe(const Expected& state) {
 /// @param expected The state after each gesture in order: the compressor button's upper knob turn, its lower knob
 ///                 turn, the sidechain sync push (a clip chain's only; the song's has none), the mod-FX type push,
 ///                 the mod-FX param push and the filter type push.
-void checkGestures(GlobalEffectable& owner, Song& song, const deluge::scenes::bind::KnobFocus& focus,
+void checkGestures(ModControllable& owner, Song& song, const deluge::scenes::bind::KnobFocus& focus,
                    const deluge::edits::KnobModeOwner& modeOwner, const char* name, bool clipChain,
                    std::span<const Expected> expected) {
 	const std::string who = name;
@@ -161,13 +164,15 @@ void checkGestures(GlobalEffectable& owner, Song& song, const deluge::scenes::bi
 	coherent("the mod-FX type button");
 	knobs.push(0, true);
 	coherent("the mod-FX param button");
-	check(viewHolds(chainOf(owner, song), "modFXCurrentParam", modFXParamToString(owner.modFXParam())),
+	check(viewHolds(chainOf(owner, song), "modFXCurrentParam",
+	                modFXParamToString(owner.effectsOwner()->view->modFXParam())),
 	      (who + ": the view holds the mod-FX param").c_str());
 
 	(void)deluge::edits::modKnobModeFor(modeOwner, 1);
 	knobs.push(1, true);
 	coherent("the filter type button");
-	check(viewHolds(chainOf(owner, song), "currentFilterType", filterTypeToString(owner.filterType())),
+	check(viewHolds(chainOf(owner, song), "currentFilterType",
+	                filterTypeToString(owner.effectsOwner()->view->filterType())),
 	      (who + ": the view holds the filter type").c_str());
 	(void)deluge::edits::modKnobModeFor(modeOwner, 0);
 }
@@ -178,7 +183,7 @@ int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (memory) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 	currentSong = song;
 
 	ParamManagerForTimeline synthParams;
@@ -206,7 +211,8 @@ int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	if (kit != nullptr) {
 		// The render takes a clip chain's threshold from its param each block: the chain holds the owner's state,
 		// which that does not move.
-		static_cast<Kit*>(kit)->core().compressor().dsp().set_threshold(deluge::dsp::Q<31>::from_raw(0x12345678));
+		static_cast<Kit*>(kit)->effectsOwner()->core->compressor().dsp().set_threshold(
+		    deluge::dsp::Q<31>::from_raw(0x12345678));
 		const std::string afterRender = deluge::harness::chainIncoherence(*song);
 		if (!afterRender.empty()) {
 			std::fprintf(io.err, "FAIL: a kit after a render moved its threshold: %s\n", afterRender.c_str());
@@ -217,7 +223,7 @@ int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		        deluge::scenes::bind::ChainFocus{.chain = {deluge::project::ChainAddress::Kind::OUTPUT, *kit->id()},
 		                                         .owner = deluge::scenes::bind::ChainOwner::KIT}};
 		// The sidechain sync step (7 to 9), the mod-FX type (none to the first type) and the filter view (low-pass to
-		// high-pass) are recorded from `GlobalEffectableForClip::modEncoderButtonAction` and
+		// high-pass) are recorded from main's `GlobalEffectableForClip::modEncoderButtonAction` and
 		// `GlobalEffectable::modEncoderButtonAction` on the same kit. The compressor setting columns are not from the
 		// engine: no production path turns its compressor-setting arm for a kit (its compressor button's knobs are
 		// chain params), so these are what the gold knobs leave, the setting where it was.
@@ -227,14 +233,14 @@ int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		              kKit);
 	}
 	{
-		// Recorded from `GlobalEffectable::modEncoderActionForNonExistentParam` and `modEncoderButtonAction` on the
-		// song master.
+		// Recorded from main's `GlobalEffectable::modEncoderActionForNonExistentParam` and `modEncoderButtonAction` on
+		// the song master.
 		constexpr Expected kSong[] = {{83886080, 83886080, 7, 0, 1, 0},
 		                              {83886080, 167772160, 7, 0, 1, 0},
 		                              {83886080, 167772160, 7, 1, 1, 0},
 		                              {83886080, 167772160, 7, 1, 1, 0},
 		                              {83886080, 167772160, 7, 1, 1, 1}};
-		checkGestures(song->live.global_effectable, *song, {.owner = deluge::scenes::bind::SongFocus{}},
+		checkGestures(song->live.master_channel, *song, {.owner = deluge::scenes::bind::SongFocus{}},
 		              deluge::project::SongAddress{}, "the song master", false, kSong);
 	}
 
@@ -247,7 +253,7 @@ int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	if (audio != nullptr) {
 		checkOwner(*audio, "an audio track");
 	}
-	checkOwner(song->live.global_effectable, "the song master");
+	checkOwner(song->live.master_channel, "the song master");
 
 	if (failures == 0) {
 		std::fprintf(io.out, "effect_owners: OK\n");

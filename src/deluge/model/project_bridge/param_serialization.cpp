@@ -87,17 +87,17 @@ void writeDocParamAsAttribute(const DocParamSet& doc, char const* name, ParamId 
 }
 
 namespace {
-// The ModControllableAudio shared param block (mod_controllable_audio.cpp): the flat attribute
+// The shared effects param block: the flat attribute
 // sequence + the <equalizer> group, in file order. All written unconditionally (onlyIfContainsSomething
 // is false in the engine for every one).
-// The first six ModControllableAudio attrs honour the value-override array; the engine passes
-// valuesForOverride only to these (mod_controllable_audio.cpp).
+// The first six shared effects attrs honour the value-override array; the engine passes
+// valuesForOverride only to these (serializeModControllableParamAttributes's callers).
 constexpr DocParamAttr kModControllableOverrideAttrs[] = {
     {"stutterRate", ip::kStutterRate},     {"sampleRateReduction", ip::kSampleRateReduction},
     {"bitCrush", ip::kBitcrushAmount},     {"modFXOffset", ip::kModFXOffset},
     {"modFXFeedback", ip::kModFXFeedback}, {"compressorThreshold", ip::kCompressorThreshold},
 };
-// The remaining ModControllableAudio attrs (arp / probability / spread) are written without override —
+// The remaining shared effects attrs (arp / probability / spread) are written without override —
 // the engine omits valuesForOverride for these.
 constexpr DocParamAttr kModControllableArpAttrs[] = {
     {"arpeggiatorGate", ip::kArpGate},           {"noteProbability", ip::kNoteProbability},
@@ -144,11 +144,11 @@ void serializeModControllableParamTags(const DocParamSet& unpatched, Serializer&
 
 namespace {
 // containsSomething(neutral): automated, or currentValue != neutral (unsigned compare) — the engine's
-// AutoParam::containsSomething. Used for GlobalEffectable's bespoke conditional attrs.
+// AutoParam::containsSomething. Used for the host chain block's bespoke conditional attrs.
 bool docContainsSomething(const DocAutoParam& param, uint32_t neutral) {
 	return !param.nodes.empty() || static_cast<uint32_t>(param.current_value) != neutral;
 }
-// The GlobalEffectable <delay> / <lpf> / <hpf> nested groups (global_effectable.cpp), in file order.
+// The host chain block's <delay> / <lpf> / <hpf> nested groups, in file order.
 constexpr DocParamAttr kGlobalDelayGroup[] = {
     {"rate", gp::kDelayRate},
     {"feedback", gp::kDelayFeedback},
@@ -165,9 +165,9 @@ constexpr DocParamAttr kGlobalHpfGroup[] = {
 
 void serializeGlobalEffectableParamAttributes(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
                                               const int32_t* ovr) {
-	// Byte-for-byte reproduction of GlobalEffectable::writeParamAttributesToFile. The flat global attrs
-	// wrap the shared ModControllableAudio attrs; pitchAdjust and sidechainCompressorVolume are written
-	// only when they contain something (with their own neutral values), the rest unconditionally.
+	// Byte-for-byte what main's `GlobalEffectable::writeParamAttributesToFile` writes (the file format). The flat
+	// global attrs wrap the shared effects attrs; pitchAdjust and sidechainCompressorVolume are written only when they
+	// contain something (with their own neutral values), the rest unconditionally.
 	writeDocParamAsAttribute(unpatched, "reverbAmount", gp::kReverbAmount, out, writeAutomation, false, ovr);
 	writeDocParamAsAttribute(unpatched, "volume", gp::kVolume, out, writeAutomation, false, ovr);
 	writeDocParamAsAttribute(unpatched, "pan", gp::kPan, out, writeAutomation, false, ovr);
@@ -196,8 +196,8 @@ void serializeGlobalEffectableParamAttributes(const DocParamSet& unpatched, Seri
 
 void serializeGlobalEffectableParamTags(const DocParamSet& unpatched, Serializer& out, bool writeAutomation,
                                         const int32_t* ovr) {
-	// Byte-for-byte reproduction of GlobalEffectable::writeParamTagsToFile: the <delay>/<lpf>/<hpf>
-	// groups, then the shared ModControllableAudio tags (<equalizer>).
+	// Byte-for-byte what main's `GlobalEffectable::writeParamTagsToFile` writes: the <delay>/<lpf>/<hpf>
+	// groups, then the shared effects tags (<equalizer>).
 	writeDocParamGroup(out, "delay", kGlobalDelayGroup, unpatched, writeAutomation, ovr);
 	writeDocParamGroup(out, "lpf", kGlobalLpfGroup, unpatched, writeAutomation, ovr);
 	writeDocParamGroup(out, "hpf", kGlobalHpfGroup, unpatched, writeAutomation, ovr);
@@ -268,7 +268,7 @@ void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatch
                           std::span<const deluge::synth::CableRecord> cables,
                           const std::vector<DocCableDepth>& cableDepths, Serializer& out, bool writeAutomation) {
 	// Byte-for-byte reproduction of Sound::writeParamsToFile. Two unpatched flat attrs lead, then the
-	// patched flat attrs; the pitchAdjust family is onlyIfContainsSomething; the shared ModControllableAudio
+	// patched flat attrs; the pitchAdjust family is onlyIfContainsSomething; the shared effects
 	// attrs sit before the community attrs (lpfMorph/hpfMorph/waveFold).
 	writeDocParamAsAttribute(unpatched, "portamento", ip::kPortamento, out, writeAutomation);
 	writeDocParamAsAttribute(unpatched, "compressorShape", ip::kCompressorShape, out, writeAutomation);
@@ -517,7 +517,7 @@ bool readModControllableParamTag(Deserializer& in, char const* tagName, ParamSet
 }
 
 namespace {
-// All GlobalEffectable flat attr names (read lookup — order-independent). The writer emits some of these
+// All host chain block flat attr names (read lookup — order-independent). The writer emits some of these
 // conditionally (pitchAdjust / sidechainCompressorVolume), but on read every present tag is read.
 constexpr DocParamAttr kGlobalEffectableFlatAttrs[] = {
     {"reverbAmount", gp::kReverbAmount},

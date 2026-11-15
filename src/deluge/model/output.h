@@ -42,7 +42,6 @@ struct StereoSample;
 using StereoSample = deluge::dsp::StereoSample;
 class TimelineCounter;
 class ModControllable;
-class GlobalEffectableForClip;
 class ModelStack;
 class ModelStackWithTimelineCounter;
 class ModelStackWithAutoParam;

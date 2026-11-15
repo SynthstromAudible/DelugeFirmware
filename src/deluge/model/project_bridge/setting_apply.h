@@ -19,12 +19,12 @@
 
 #include "definitions_cxx.hpp" // Error
 #include "instruments/deluge/sound_state.h"
+#include "model/fx/effects_owner.h"
 #include "serialization/value.h"
 
 #include <optional>
 #include <string_view>
 
-class ModControllableAudio;
 class Song;
 class Sound;
 
@@ -55,13 +55,14 @@ void zoneMoved(::Sound& sound, int32_t s, MarkerType marker, ::Song& song);
 Error applySetting(::Sound& sound, std::string_view path, const deluge::serialization::Value& value, ::Song& song);
 
 /// @brief Change @p owner's effect setting at @p path (a path of the effects' schema) to @p value, as its menu does:
-/// for a kit, an audio track or the song master, whose effects have no slot yet.
+/// for an owner outside the song's slots and chains (a sound not bound, a preview), which holds its effects itself.
 ///
 /// @param owner The effects' owner.
 /// @param path  A path of the effects' schema.
 /// @param value The new value.
 /// @return Error::UNSPECIFIED when the schema does not allow @p value at @p path.
-Error applyEffectSetting(ModControllableAudio& owner, std::string_view path, const deluge::serialization::Value& value);
+Error applyEffectSetting(deluge::model::EffectsOwner owner, std::string_view path,
+                         const deluge::serialization::Value& value);
 
 /// @brief The state @p sound reaches when its setting at @p path becomes @p value, where the setting's menu reshapes
 /// more than the one value: an oscillator's type (its ranges keep only their top notes when they become the other

@@ -183,6 +183,8 @@
 
 #include "spec/support/spec_main.h"
 
+using namespace deluge;
+
 using namespace deluge::scenes;
 using deluge::l10n::String;
 using deluge::scenes::menu::MenuAction;
@@ -426,7 +428,7 @@ Sample* make_sample() {
 /// @param sample The sample to hang on the range, or null to leave the holder empty.
 /// @return The range, so a caller can read the marker positions back.
 MultisampleRange* install_sample_source(spec::SongFixture& song, Sample* sample) {
-	auto* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
+	auto* sound = song.instrument->toModControllable()->effectsOwner()->sound;
 	Source& source = sound->sources[0];
 	source.oscType = OscType::SAMPLE;
 	source.repeatMode = SampleRepeatMode::ONCE;

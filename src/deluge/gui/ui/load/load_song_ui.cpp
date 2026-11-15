@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/load/load_song_ui.h"
+#include "model/fx/chain_params.h"
 #if DELUGE_STREAM_BENCH
 #include "bench/stream_bench.h"
 #endif
@@ -790,7 +791,7 @@ gotErrorAfterCreatingSong:
 		goto someError;
 	}
 
-	GlobalEffectable::initParams(&preLoadedSong->paramManager);
+	deluge::model::initGlobalParams(&preLoadedSong->paramManager);
 
 	AudioEngine::logAction("initialized new song");
 

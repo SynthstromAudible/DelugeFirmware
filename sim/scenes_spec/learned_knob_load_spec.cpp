@@ -7,7 +7,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/learn_mapping.h"
-#include "model/global_effectable/global_effectable.h"
+#include "model/fx/chain_params.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/controls_bridge.h"
 #include "model/project_bridge/mapping_bridge.h"
@@ -129,7 +129,7 @@ Song* load_song(std::string_view xml) {
 	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (memory) Song();
 	song->paramManager.setupUnpatched();
-	GlobalEffectable::initParams(&song->paramManager);
+	deluge::model::initGlobalParams(&song->paramManager);
 	std::optional<deluge::storage::Value> tree = parseDocument(xml, deluge::storage::DocumentFormat::XML);
 	if (!tree) {
 		return nullptr;
@@ -192,7 +192,7 @@ describe learned_knob_load("a sound's learned knobs as a load reads them", ${
 		                                params::Kind::UNPATCHED_SOUND).value)).to_be_true();
 		expect(paramOf(knobs[2]) == patched(params::LOCAL_PITCH_ADJUST)).to_be_true();
 		expect(knobs[2].relative).to_be_true();
-		expect(synth->loaded_knobs.empty()).to_be_true(); // the table holds them now
+		expect(synth->effectsOwner()->knobs->loaded.empty()).to_be_true(); // the table holds them now
 		// Incoming MIDI finds each, as its own param, once the song is the current one.
 		::Song* const before = currentSong;
 		spec::make_current(song);
@@ -234,14 +234,14 @@ describe learned_knob_load("a sound's learned knobs as a load reads them", ${
 		preset->ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(&presetParams, f.song);
 		expect(valueOf(presetParams, params::LOCAL_PITCH_ADJUST)).to_equal(0); // no knob turns it yet
 
-		preset->loaded_knobs.push_back(pitchKnobRead());
+		preset->effectsOwner()->knobs->loaded.push_back(pitchKnobRead());
 		seedPitch(presetParams);
 		preset->ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(&presetParams, f.song);
 		expect(valueOf(presetParams, params::LOCAL_PITCH_ADJUST)).to_equal(kSeeded);
 		expect(valueOf(presetParams, params::LOCAL_OSC_A_PITCH_ADJUST)).to_equal(0);
 
 		f.song->addOutput(preset);
-		expect(preset->loaded_knobs.empty()).to_be_true();
+		expect(preset->effectsOwner()->knobs->loaded.empty()).to_be_true();
 		seedPitch(presetParams);
 		preset->ensureInaccessibleParamPresetValuesWithoutKnobsAreZeroWithMinimalDetails(&presetParams, f.song);
 		expect(valueOf(presetParams, params::LOCAL_PITCH_ADJUST)).to_equal(kSeeded);

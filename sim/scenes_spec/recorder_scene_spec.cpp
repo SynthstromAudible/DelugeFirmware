@@ -36,6 +36,7 @@
 #include "gui/ui/shell_drum_creator.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
+#include "model/fx/chain_params.h"
 #include "scenes/bind/target.h"
 #include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h"
@@ -65,7 +66,6 @@
 #include "memory/heaps.h"
 #include "model/action/action_logger.h"
 #include "model/edits/setting_edit.h"
-#include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/instrument/kit.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
@@ -412,7 +412,7 @@ bool drained_notice(deluge::notify::Notice::Kind kind, std::string_view text = {
 Kit* loose_kit(::Song& song) {
 	ParamManagerForTimeline params;
 	params.setupUnpatched();
-	GlobalEffectableForClip::initParams(&params);
+	deluge::model::initGlobalParams(&params);
 	auto* kit = static_cast<Kit*>(StorageManager::createNewInstrument(OutputType::KIT, &params));
 	song.live.param_backup.backUp(kit, nullptr, &params, true);
 	return kit;
@@ -1262,7 +1262,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		const Take take{*rec, "SAMPLES/RECORD/REC023.WAV"};
 		spec::SongFixture other = spec::make_synth_song();
 		other.instrument->setId(r.slot().id); // another song's first track can have the same output id
-		auto* other_sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(other.instrument->toModControllable()));
+		auto* other_sound = other.instrument->toModControllable()->effectsOwner()->sound;
 		(void)other_sound->sources[0].getOrCreateFirstRange();
 		const OscType before = other_sound->sources[0].oscType;
 		currentSong = other.song;

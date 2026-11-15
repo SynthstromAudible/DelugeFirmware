@@ -86,16 +86,17 @@ public:
 			uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0);
 		}
 	}
-	/// @brief A mod button's popup, or a push's with its button held (`ModControllableAudio::displayFilterSettings`
+	/// @brief A mod button's popup, or a push's with its button held (main's
+	/// `ModControllableAudio::displayFilterSettings`
 	///        and its siblings): up until the release cancels it.
 	void popup_text(std::string_view text) override { display->popupText(std::string{text}.c_str()); }
 	/// @brief A push's setting change (`Sound::modEncoderButtonAction`'s `deluge::notify::notice`).
 	void notice_text(std::string_view text) override { deluge::notify::notice_text(text); }
-	/// @brief The song compressor's setting (`GlobalEffectable::modEncoderActionForNonExistentParam`).
+	/// @brief The song compressor's setting (main's `GlobalEffectable::modEncoderActionForNonExistentParam`).
 	void notification(std::string_view title, std::string_view value) override {
 		display->displayNotification(title, value);
 	}
-	/// @brief The song compressor knob's new position (`GlobalEffectable::modEncoderActionForNonExistentParam`'s
+	/// @brief The song compressor knob's new position (main's `GlobalEffectable::modEncoderActionForNonExistentParam`'s
 	///        `indicator_leds::setKnobIndicatorLevel`).
 	void setting_indicator(int32_t knob, int32_t knob_pos) override {
 		// Legacy hands its `int` level to the `uint8_t` parameter as it is; 0..128 fits.

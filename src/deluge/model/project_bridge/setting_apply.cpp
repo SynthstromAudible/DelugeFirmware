@@ -25,6 +25,7 @@
 #include "instruments/deluge/words.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
+#include "model/mod_controllable/filters/filter_config.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "plugin-api/types/sync.h"
@@ -254,86 +255,86 @@ bool applyModulatorSetting(::Sound& sound, int32_t m, std::string_view rest, int
 	return true;
 }
 
-/// Apply an effect's setting as its menu does, through the owner's setter: false when @p path is no effect's. A mod-FX
-/// type whose ring cannot be allocated keeps its type and passes the audio through until the next effects edit.
-bool applyEffectValue(ModControllableAudio& owner, std::string_view path, const std::string& text, int32_t number) {
+/// The settings @p from with the effect setting at @p path made @p text / @p number, as its menu sets it; nullopt when
+/// @p path is no effect's. A mod-FX type whose ring cannot be allocated keeps its type and passes the audio through
+/// until the next effects edit (the ring is taken where the type reaches the render).
+std::optional<deluge::effects::EffectStates> withEffectValue(deluge::effects::EffectStates e, std::string_view path,
+                                                             const std::string& text, int32_t number) {
 	namespace fx = deluge::effects;
 	const bool on = number != 0;
 	if (path == "modFXType") {
-		if (!owner.setModFXType(fx::parse_mod_fx_type(text))) {
-			deluge::notify::notice(Error::INSUFFICIENT_RAM);
-		}
+		e.mod_fx.type = fx::parse_mod_fx_type(text);
 	}
 	else if (path == "lpfMode") {
-		owner.setLpfMode(fx::parse_filter_mode(text));
+		e.filter.lpf_mode = fx::parse_filter_mode(text);
 	}
 	else if (path == "hpfMode") {
-		owner.setHpfMode(fx::parse_filter_mode(text));
+		e.filter.hpf_mode = fx::parse_filter_mode(text);
 	}
 	else if (path == "filterRoute") {
-		owner.setFilterRoute(fx::parse_filter_route(text));
+		e.filter.route = fx::parse_filter_route(text);
 	}
 	else if (path == "clippingAmount") {
-		owner.setClippingAmount(deluge::effects::clipping_amount_from(number));
+		e.saturation.clipping_amount = fx::clipping_amount_from(number);
 	}
 	else if (path == "delay/pingPong") {
-		owner.setDelayPingPong(on);
+		e.delay.ping_pong = on;
 	}
 	else if (path == "delay/type") {
-		owner.setDelayType(fx::parse_delay_type(text));
+		e.delay.type = fx::parse_delay_type(text);
 	}
 	else if (path == "delay/syncType") {
-		owner.setDelaySyncType(static_cast<SyncType>(number));
+		e.delay.sync_type = static_cast<SyncType>(number);
 	}
 	else if (path == "delay/syncLevel") {
-		owner.setDelaySyncLevel(deluge::plugin::sync_level_from_index(number));
+		e.delay.sync_level = deluge::plugin::sync_level_from_index(number);
 	}
 	else if (path == "sidechain/attack") {
-		owner.setSidechainAttack(number);
+		e.sidechain.attack = number;
 	}
 	else if (path == "sidechain/release") {
-		owner.setSidechainRelease(number);
+		e.sidechain.release = number;
 	}
 	else if (path == "sidechain/syncType") {
-		owner.setSidechainSyncType(static_cast<SyncType>(number));
+		e.sidechain.sync_type = static_cast<SyncType>(number);
 	}
 	else if (path == "sidechain/syncLevel") {
-		owner.setSidechainSyncLevel(deluge::plugin::sync_level_from_index(number));
+		e.sidechain.sync_level = deluge::plugin::sync_level_from_index(number);
 	}
 	else if (path == "audioCompressor/attack") {
-		owner.setCompressorAttack(number);
+		e.compressor.attack = number;
 	}
 	else if (path == "audioCompressor/release") {
-		owner.setCompressorRelease(number);
+		e.compressor.release = number;
 	}
 	else if (path == "audioCompressor/thresh") {
-		owner.setCompressorThreshold(number);
+		e.compressor.threshold = number;
 	}
 	else if (path == "audioCompressor/ratio") {
-		owner.setCompressorRatio(number);
+		e.compressor.ratio = number;
 	}
 	else if (path == "audioCompressor/compHPF") {
-		owner.setCompressorSidechainHpf(number);
+		e.compressor.sidechain_hpf = number;
 	}
 	else if (path == "audioCompressor/compBlend") {
-		owner.setCompressorBlend(number);
+		e.compressor.blend = number;
 	}
 	else if (path == "stutter/quantized") {
-		owner.setStutterQuantized(on);
+		e.stutter.quantized = on;
 	}
 	else if (path == "stutter/reverse") {
-		owner.setStutterReversed(on);
+		e.stutter.reversed = on;
 	}
 	else if (path == "stutter/pingPong") {
-		owner.setStutterPingPong(on);
+		e.stutter.ping_pong = on;
 	}
 	else if (path == "stutter/useSongStutter") {
-		owner.setUseSongStutter(on);
+		e.stutter.use_song_stutter = on;
 	}
 	else {
-		return false;
+		return std::nullopt;
 	}
-	return true;
+	return e;
 }
 } // namespace
 
@@ -357,7 +358,9 @@ Error applySetting(::Sound& sound, std::string_view path, const deluge::serializ
 	}
 	const std::string& text = *deluge::serialization::text_of(&value);
 	const int32_t number = deluge::serialization::int_of(&value).value_or(0);
-	if (applyEffectValue(sound, path, text, number)) {
+	if (const std::optional<deluge::effects::EffectStates> next =
+	        withEffectValue(sound.effects(), path, text, number)) {
+		deluge::model::storeEffects(*sound.effectsOwner(), *next);
 		return Error::NONE;
 	}
 	std::string_view rest;
@@ -415,15 +418,19 @@ Error applySetting(::Sound& sound, std::string_view path, const deluge::serializ
 	return Error::NONE;
 }
 
-Error applyEffectSetting(ModControllableAudio& owner, std::string_view path,
+Error applyEffectSetting(deluge::model::EffectsOwner owner, std::string_view path,
                          const deluge::serialization::Value& value) {
 	if (!deluge::effects::check_effect_setting(path, value)) {
 		return Error::UNSPECIFIED;
 	}
-	return applyEffectValue(owner, path, *deluge::serialization::text_of(&value),
-	                        deluge::serialization::int_of(&value).value_or(0))
-	           ? Error::NONE
-	           : Error::UNSPECIFIED;
+	const std::optional<deluge::effects::EffectStates> next =
+	    withEffectValue(owner.effects(), path, *deluge::serialization::text_of(&value),
+	                    deluge::serialization::int_of(&value).value_or(0));
+	if (!next) {
+		return Error::UNSPECIFIED;
+	}
+	deluge::model::storeEffects(owner, *next);
+	return Error::NONE;
 }
 
 std::optional<deluge::instrument::SoundState> stateWithSetting(const ::Sound& sound, std::string_view path,

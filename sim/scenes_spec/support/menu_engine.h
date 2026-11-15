@@ -34,7 +34,7 @@ struct MenuEngine {
 	Source* source = nullptr;                  ///< the sound's source at the context's index
 	MultiRange* range = nullptr;               ///< the source's range at the context's index
 	SampleControls* sample_controls = nullptr; ///< the source's, or the audio clip's
-	ModControllableAudio* mod = nullptr;       ///< the sound, or the chain's owner (the song, a kit, an audio track)
+	ModControllable* mod = nullptr;            ///< the sound, or the chain's owner (the song, a kit, an audio track)
 };
 
 /// @brief Resolve @p ctx's addresses in its song.
@@ -75,7 +75,7 @@ inline MenuEngine menu_engine(const deluge::scenes::menu::MenuContext& ctx) {
 		}
 	}
 	if (ctx.addresses.chain) {
-		e.mod = deluge::bridge::chainOwnerAt(*ctx.addresses.chain, song);
+		e.mod = deluge::bridge::chainSlotAt(*ctx.addresses.chain, song);
 	}
 	if (ctx.addresses.slot) {
 		e.sound = deluge::bridge::soundAt(song, *ctx.addresses.slot);

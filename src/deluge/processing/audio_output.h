@@ -18,7 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "model/global_effectable/global_effectable_for_clip.h"
+#include "model/fx/track_channel.h"
+#include "model/mod_controllable/mod_controllable.h"
 #include "model/output.h"
 #include "synth/modulation/envelope.h"
 #include "util/container/enum_to_string_map.hpp"
@@ -34,13 +35,20 @@ constexpr int kNumAudioOutputModes = 3;
 AudioOutputMode stringToAOMode(char const* string);
 char const* aoModeToString(AudioOutputMode mode);
 
-class AudioOutput final : public Output, public GlobalEffectableForClip {
+class AudioOutput final : public Output, public ModControllable {
 public:
 	AudioOutput();
 	~AudioOutput() override;
-	void cloneFrom(ModControllableAudio* other) override;
-	[[nodiscard]] deluge::model::TrackChannel& channel() override { return channel_; }
-	[[nodiscard]] const deluge::model::TrackChannel& channel() const override { return channel_; }
+	/// @brief Takes @p other's channel strip (TrackChannel::cloneFrom), input and mode, as a cloned audio track does.
+	/// @param other The audio track cloned from.
+	void cloneFrom(AudioOutput* other);
+	/// @brief The track's channel strip: its chain, the chain's settings and its view.
+	/// @return The channel.
+	[[nodiscard]] deluge::model::TrackChannel& channel() { return channel_; }
+	[[nodiscard]] const deluge::model::TrackChannel& channel() const { return channel_; }
+	[[nodiscard]] std::optional<deluge::model::EffectsOwner> effectsOwner() override {
+		return channel_.asEffectsOwner();
+	}
 
 	void renderOutput(ModelStack* modelStack, std::span<StereoSample> buffer, deluge::dsp::Q<31>* reverbBuffer,
 	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,

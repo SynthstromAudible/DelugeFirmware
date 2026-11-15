@@ -109,7 +109,7 @@ struct PerformanceRig {
 describe performance_view_knobs("the performance view's FX columns, on the song", ${
 	it("shows a column's param name and its 4ths...64ths value text", _ {
 		PerformanceRig rig;
-		rig.f.song->live.global_effectable.setStutterQuantized(true);
+		deluge::model::changeEffects(*rig.f.song->live.master_channel.effectsOwner(), [](deluge::effects::EffectStates& e) { e.stutter.quantized = true; });
 		char const* name = params::getParamDisplayName(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_STUTTER_RATE);
 		performanceView.renderFXDisplay(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_STUTTER_RATE, -50);
 		const std::vector<uint8_t> fourths = oled();
@@ -118,7 +118,7 @@ describe performance_view_knobs("the performance view's FX columns, on the song"
 		const std::vector<uint8_t> sixty_fourths = oled();
 		expect(sixty_fourths == column_display(name, "64ths")).to_be_true();
 
-		rig.f.song->live.global_effectable.setStutterQuantized(false);
+		deluge::model::changeEffects(*rig.f.song->live.master_channel.effectsOwner(), [](deluge::effects::EffectStates& e) { e.stutter.quantized = false; });
 		performanceView.renderFXDisplay(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_STUTTER_RATE, 12);
 		const std::vector<uint8_t> numbered = oled();
 		expect(numbered == column_display(name, "12")).to_be_true();

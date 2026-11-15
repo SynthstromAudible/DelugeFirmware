@@ -22,6 +22,7 @@
 #include "hid/led/indicator_leds.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "model/fx/chain_params.h"
 #include "model/song/song.h"
 #include "modulation/params/lane_publication.h"
 #include "modulation/params/param_manager.h"
@@ -73,7 +74,7 @@ void runAccept() {
 	}
 	preLoadedSong = new (songMemory) Song();
 	preLoadedSong->paramManager.setupUnpatched(); // TODO: error checking
-	GlobalEffectable::initParams(&preLoadedSong->paramManager);
+	deluge::model::initGlobalParams(&preLoadedSong->paramManager);
 	preLoadedSong->setupDefault();
 
 	Song* toDelete = currentSong;

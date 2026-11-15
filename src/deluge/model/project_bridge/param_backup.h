@@ -27,7 +27,6 @@
 
 class Clip;
 class Drum;
-class ModControllableAudio;
 class Song;
 class Output;
 class ParamManagerForTimeline;
@@ -65,12 +64,6 @@ private:
 /// @param sound A SoundInstrument or a SoundDrum.
 /// @return The typed owner.
 [[nodiscard]] BackupOwner backupOwnerOf(::Sound& sound);
-
-/// @brief The backup owner whose engine @p owner is, among @p song's outputs, hibernating instruments and kit rows.
-/// @param owner A synth's or a kit row's sound, a kit, or an audio track.
-/// @param song  The song it is in.
-/// @return The typed owner, or nullopt for one that backs nothing up (the song's master).
-[[nodiscard]] std::optional<BackupOwner> backupOwnerOf(::ModControllableAudio& owner, ::Song& song);
 
 /// @brief Parked ParamManagers, keyed by owner and clip id.
 ///

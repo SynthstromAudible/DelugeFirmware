@@ -346,7 +346,7 @@ struct SongRig {
 	SongRig& operator=(const SongRig&) = delete;
 
 	SongRig() {
-		auto* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
+		auto* sound = song.instrument->toModControllable()->effectsOwner()->sound;
 		source = &sound->sources[0];
 		source->oscType = OscType::SAMPLE;
 		source->repeatMode = SampleRepeatMode::ONCE;
@@ -703,7 +703,7 @@ void leave_browser(ShellRig& r) {
 /// @brief Give @p model's oscillator 0 three ranges, each on a sample at `kChosenPath`, recorded as a load records
 ///        them: the shape a MULTISAMPLES import of three pitches leaves.
 void give_three_ranges(SongRig& model) {
-	auto* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(model.song.instrument->toModControllable()));
+	auto* sound = model.song.instrument->toModControllable()->effectsOwner()->sound;
 	model.range->topNote = 59;
 	for (int32_t i = 1; i < 3; i++) {
 		auto* range = static_cast<MultisampleRange*>(model.source->ranges.insertMultiRange(i));
@@ -1047,8 +1047,7 @@ describe browser_choice_claim(
 		        ShellRig r;
 		        r.open_browser();
 		        r.enter();
-		        Sound* const sound = static_cast<Sound*>(
-		            static_cast<ModControllableAudio*>(r.model.song.instrument->toModControllable()));
+		        Sound* const sound = r.model.song.instrument->toModControllable()->effectsOwner()->sound;
 		        deluge::gui::ui::dispatchShellChoices();
 
 		        expect(spy.dispatches).to_equal(1);
