@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated 2026-11-15 (P3d-1d / params C4 done on `feat/effect-param-tables`; 3d done; the synth line re-planned as Track A and Track B; the UI read interface as of 2026-11-07). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
+Last updated 2026-11-15 (P3d-1d / params C4 merged into `next`, 77a23d631; 3d done; the synth line re-planned as Track A and Track B; the UI read interface as of 2026-11-07). Status marks come from the local specs, ledgers and estate captures as last recorded, not from a fresh code audit. The same material, with diagrams, is in
 the Claude Doc "Deluge Firmware Roadmap".
 
 Items marked **(proposed)** are placements that no recorded plan or ruling fixes yet.
@@ -12,7 +12,7 @@ Items marked **(proposed)** are placements that no recorded plan or ruling fixes
 - `ModControllableAudio` and `GlobalEffectable` are deleted (synth Track A step 1, the controls layer and
   `feat/mca-ge-deletion`): an owner's effects are a `model::EffectsOwner`.
 - Each effect param is declared once (`effects/params.h`); the host chain's table (`effects/host_chain`) and the
-  instrument's effect rows are built from them (P3d-1d / params C4, `feat/effect-param-tables`).
+  instrument's effect rows are built from them (P3d-1d / params C4, merged 77a23d631).
 - Next actions: instrument events (Track A step 1b); the arpeggiator's params vs settings (D7) spec; the C2 spec and
   the R1 ratchet; the float instrument's voice pool (Track B).
 
