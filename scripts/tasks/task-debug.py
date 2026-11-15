@@ -6,9 +6,14 @@ from pathlib import Path
 import util
 
 TARGET_DEVICE = "R7S721020"
-OPENOCD_PREFIX = "toolchain/win32-x64/openocd/openocd/scripts/"
-OPENOCD_TARGET_DEVICE_SWD = "scripts/debug/openocd/deluge-swj-swd.cfg"
-OPENOCD_TARGET_DEVICE_JTAG = "scripts/debug/openocd/deluge-swj-jtag.cfg"
+# The Deluge's OpenOCD configs (OpenOCD 0.12 or newer). The binary is whichever `openocd` is first
+# on PATH: dbt appends the toolchain's, so a system-wide install takes precedence.
+OPENOCD_SCRIPT_DIR = Path(__file__).resolve().parents[1] / "debug" / "openocd"
+OPENOCD_DEVICE_CFG = {"swd": "deluge-swj-swd.cfg", "jtag": "deluge-swj-jtag.cfg"}
+OPENOCD_INSTALL_HINT = (
+    "openocd not found on PATH. Run this through ./dbt (its toolchain bundles one), install "
+    "OpenOCD 0.12 or newer, or pass --command."
+)
 
 
 def find_cmd_with_fallback(cmd, fallback):
@@ -17,10 +22,6 @@ def find_cmd_with_fallback(cmd, fallback):
         return which_result
     else:
         return fallback
-
-
-def absolute_path_str(path: str):
-    return str(Path(path).absolute())
 
 
 def jlink_gdb(cmd, device: str, endian: str, protocol: str, gdb_port: int):
@@ -46,22 +47,31 @@ def jlink_gdb(cmd, device: str, endian: str, protocol: str, gdb_port: int):
 
 def openocd_gdb(cmd, interface: str, target: str, protocol: str, gdb_port: int):
     if not cmd:
-        cmd = find_cmd_with_fallback("openocd", "openocd")
+        cmd = shutil.which("openocd")
+        if not cmd:
+            raise FileNotFoundError(OPENOCD_INSTALL_HINT)
+        print(f"Using OpenOCD: {cmd}", flush=True)
 
-    # if we haven't gotten an interface with a path already, qualify it
-    if len(target.split("/")) == 1:
-        target = f"target/{target}.cfg"
+    if target == TARGET_DEVICE:
+        # The Deluge config selects the transport itself.
+        target_args = ["-f", OPENOCD_DEVICE_CFG[protocol]]
+    else:
+        # Another chip: an OpenOCD target name (e.g. "stm32f4x") or a path to a .cfg.
+        if "/" not in target and not target.endswith(".cfg"):
+            target = f"target/{target}.cfg"
+        target_args = ["-c", f"transport select {protocol}", "-f", target]
 
+    # No shell runs this, so each -c is passed as one argv entry without quotes.
+    # -s puts the repo's configs (and interface/delugeprobe.cfg) ahead of OpenOCD's own scripts.
     return [
         cmd,
+        "-s",
+        str(OPENOCD_SCRIPT_DIR),
         "-f",
-        absolute_path_str(OPENOCD_PREFIX + f"interface/{interface}.cfg"),
-        "-f",
-        absolute_path_str(target),
+        f"interface/{interface}.cfg",
+        *target_args,
         "-c",
-        f'"transport select {protocol}"',
-        "-c",
-        f'"gdb_port {gdb_port}"',
+        f"gdb_port {gdb_port}",
     ]
 
 
@@ -111,18 +121,6 @@ def argparser() -> argparse.ArgumentParser:
     return parser
 
 
-def get_openocd_target(target: str, protocol: str) -> str:
-    if target == TARGET_DEVICE:
-        if protocol == "jtag":
-            target = OPENOCD_TARGET_DEVICE_JTAG
-        else:
-            target = OPENOCD_TARGET_DEVICE_SWD
-            if protocol != "swd":
-                print("Warning! Interface unsupported, falling back to SWD")
-
-    return target
-
-
 def main() -> int:
     args = argparser().parse_args()
     if args.jlink:
@@ -130,10 +128,17 @@ def main() -> int:
             args.command, args.target_device, "little", args.protocol, args.gdb_port
         )
     else:
-        target = get_openocd_target(args.target_device, args.protocol)
-        cmd = openocd_gdb(
-            args.command, args.interface, target, args.protocol, args.gdb_port
-        )
+        try:
+            cmd = openocd_gdb(
+                args.command,
+                args.interface,
+                args.target_device,
+                args.protocol,
+                args.gdb_port,
+            )
+        except FileNotFoundError as e:
+            print(f"ERROR: {e}", file=sys.stderr)
+            return 1
 
     if args.verbose:
         print(" ".join(cmd))
