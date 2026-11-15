@@ -28,5 +28,5 @@ FetchContent_Declare(simde
         GIT_SHALLOW TRUE
 )
 FetchContent_Declare(CppSpec
-        URL https://github.com/toroidal-code/cppspec/archive/8fc585ca23288a8aa489ab6593f15651535771a9.tar.gz
+        URL https://github.com/toroidal-code/cppspec/archive/refs/tags/v1.1.0.tar.gz
 )
