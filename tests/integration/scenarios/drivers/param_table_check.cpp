@@ -322,7 +322,8 @@ void checkNames(Checker& check) {
 }
 
 /// Each effect's params against the runtime: a curved param's neutral and curve are the instrument's for the same
-/// param (the patched one a sound's chain uses), and a host chain's row has the fragment's mapping and flags.
+/// param (the patched one a sound's chain uses). The tables' rows are built from the effects' params, checked by
+/// effects::built_from where each table names them.
 void checkEffectFragments(Checker& check) {
 	using deluge::effects::EffectParam;
 	struct Curved {
@@ -346,30 +347,6 @@ void checkEffectFragments(Checker& check) {
 			             static_cast<int>(c.fragment.name.size()), c.fragment.name.data(), c.fragment.neutral);
 			++check.disagreements;
 		}
-	}
-	auto published = [&](const EffectParam& fragment) {
-		const ParamInfo* row = deluge::plugin::find_param(deluge::host_chain::kParams, fragment.name);
-		if (row == nullptr || row->mapping != fragment.mapping || row->flags != fragment.flags) {
-			std::fprintf(check.io.err, "effect param %.*s: the host chain's row differs from the effect's\n",
-			             static_cast<int>(fragment.name.size()), fragment.name.data());
-			++check.disagreements;
-		}
-	};
-	for (const EffectParam& p : fx::Filter::kParams) {
-		published(p);
-	}
-	for (const EffectParam& p : fx::ModFx::kParams) {
-		published(p);
-	}
-	for (const EffectParam& p : fx::Equalizer::kParams) {
-		published(p);
-	}
-	for (const EffectParam& p : fx::Bitcrush::kParams) {
-		published(p);
-	}
-	for (const EffectParam* p : {&fx::Compressor::kThreshold, &fx::Delay::kRate, &fx::Delay::kFeedback,
-	                             &fx::Stutter::kRate, &fx::Reverb::kSend}) {
-		published(*p);
 	}
 }
 

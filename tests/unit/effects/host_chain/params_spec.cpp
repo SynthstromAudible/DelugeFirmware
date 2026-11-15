@@ -196,6 +196,16 @@ describe params("the host chain's param table", ${
 			expect(same_row(kParams[i], kRecordedRows[i])).to_equal(true);
 		}
 	});
+
+	it("names each effect's params by their ids, in the effect's order", _ {
+		expect(kFilterIds[0].value).to_equal(122U);
+		expect(kFilterIds[5].value).to_equal(127U);
+		expect(kModFxIds[0].value).to_equal(116U);
+		expect(kModFxIds[2].value).to_equal(97U);
+		expect(kEqIds[3].value).to_equal(94U);
+		expect(kBitcrushIds[0].value).to_equal(96U);
+		expect(kBitcrushIds[1].value).to_equal(95U);
+	});
 });
 
 CPPSPEC_SPEC(params)

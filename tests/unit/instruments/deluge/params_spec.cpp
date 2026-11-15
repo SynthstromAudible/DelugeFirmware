@@ -246,6 +246,13 @@ describe params("the Deluge instrument's param table", ${
 			expect(same_row(*row, recorded)).to_equal(true);
 		}
 	});
+
+	it("names each unpatched effect's params by their ids, in the effect's order", _ {
+		expect(kEqIds[0].value).to_equal(91U);
+		expect(kEqIds[3].value).to_equal(94U);
+		expect(kBitcrushIds[0].value).to_equal(96U);
+		expect(kBitcrushIds[1].value).to_equal(95U);
+	});
 });
 
 CPPSPEC_SPEC(params)

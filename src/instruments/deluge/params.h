@@ -323,6 +323,15 @@ inline constexpr std::array<plugin::ParamInfo, 82> kParams{{
     {.id = param::kPortamento, .file_name = "portamento", .default_value = std::numeric_limits<int32_t>::min()},
 }};
 
+/// @brief The EQ's ids, in its param order (effects::params::kEqualizerParams).
+inline constexpr std::array<plugin::ParamId, 4> kEqIds{param::kBass, param::kTreble, param::kBassFreq,
+                                                       param::kTrebleFreq};
+/// @brief The bitcrush's ids, in its param order (effects::params::kBitcrushParams).
+inline constexpr std::array<plugin::ParamId, 2> kBitcrushIds{param::kBitcrushAmount, param::kSampleRateReduction};
+
+static_assert(effects::built_from(kParams, kEqIds, effects::params::kEqualizerParams));
+static_assert(effects::built_from(kParams, kBitcrushIds, effects::params::kBitcrushParams));
+
 /// @brief The two runs of ids the instrument's params are stored in: its patched params, then its unpatched ones.
 inline constexpr std::array<plugin::ParamBlock, 2> kParamBlocks{{
     {plugin::ParamId{0}, 55},

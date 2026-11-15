@@ -156,6 +156,24 @@ inline constexpr std::array<plugin::ParamInfo, 43> kParams{{
      .flags = plugin::ParamFlag::NO_UNDO | plugin::ParamFlag::FLOAT_INTERPOLATION},
 }};
 
+/// @brief The filters' ids, in the filter's param order (effects::params::kFilterParams).
+inline constexpr std::array<plugin::ParamId, 6> kFilterIds{param::kLpfFrequency, param::kLpfResonance,
+                                                           param::kLpfMorph,     param::kHpfFrequency,
+                                                           param::kHpfResonance, param::kHpfMorph};
+/// @brief The mod FX's ids, in its param order (effects::params::kModFxParams).
+inline constexpr std::array<plugin::ParamId, 4> kModFxIds{param::kModFXRate, param::kModFXDepth, param::kModFXOffset,
+                                                          param::kModFXFeedback};
+/// @brief The EQ's ids, in its param order (effects::params::kEqualizerParams).
+inline constexpr std::array<plugin::ParamId, 4> kEqIds{param::kBass, param::kTreble, param::kBassFreq,
+                                                       param::kTrebleFreq};
+/// @brief The bitcrush's ids, in its param order (effects::params::kBitcrushParams).
+inline constexpr std::array<plugin::ParamId, 2> kBitcrushIds{param::kBitcrushAmount, param::kSampleRateReduction};
+
+static_assert(effects::built_from(kParams, kFilterIds, effects::params::kFilterParams));
+static_assert(effects::built_from(kParams, kModFxIds, effects::params::kModFxParams));
+static_assert(effects::built_from(kParams, kEqIds, effects::params::kEqualizerParams));
+static_assert(effects::built_from(kParams, kBitcrushIds, effects::params::kBitcrushParams));
+
 /// @brief The one run of ids the params are stored in.
 inline constexpr plugin::ParamBlock kParamBlock{plugin::ParamId{kFirstId}, 43};
 
