@@ -1,4 +1,4 @@
-#include "effects/global_effectable/params.h"
+#include "effects/host_chain/params.h"
 #include "instruments/deluge/params.h"
 
 #include <array>
@@ -6,7 +6,7 @@
 #include <limits>
 #include <string_view>
 
-using namespace deluge::global_effectable;
+using namespace deluge::host_chain;
 using deluge::plugin::ParamId;
 using deluge::plugin::ParamScope;
 
@@ -146,7 +146,7 @@ bool same_row(const plugin::ParamInfo& a, const plugin::ParamInfo& b) {
 } // namespace
 
 // clang-format off
-describe params("the provisional global-effectable param table", ${
+describe params("the host chain's param table", ${
 	it("pins every row's id and file name, in id order", _ {
 		for (size_t i = 0; i < kPinned.size(); ++i) {
 			expect(kParams[i].id.value).to_equal(kPinned[i].id);

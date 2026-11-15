@@ -9,7 +9,7 @@
 #include "scenes/menu/bind_host.h"
 
 #include "deluge-project/param_address.h"
-#include "effects/global_effectable/params.h"
+#include "effects/host_chain/params.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -56,7 +56,7 @@ namespace {
 
 constexpr Target kSoundLpf{.kind = Target::Kind::PARAM, .param = deluge::instrument::param::kLpfFrequency};
 constexpr Target kChainLpf{.kind = Target::Kind::PARAM,
-                           .param = deluge::global_effectable::param::kLpfFrequency,
+                           .param = deluge::host_chain::param::kLpfFrequency,
                            .param_table = bind::ParamTable::CHAIN};
 
 /// The value the engine's param at @p address plays.

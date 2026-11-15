@@ -196,9 +196,9 @@ LIBRARIES: dict[str, Library] = {
             "synth/modulation/cable.h",
         ),
     ),
-    "global-effectable": Library(
-        REPO / "src" / "effects" / "global_effectable",
-        "effects/global_effectable/",
+    "host-chain": Library(
+        REPO / "src" / "effects" / "host_chain",
+        "effects/host_chain/",
         (
             "plugin-api/types/",
             # the library publishes the chains' remote-controls pages, so it reads plugin-api and the effect state
@@ -243,7 +243,7 @@ LIBRARIES: dict[str, Library] = {
             "plugin-api/",
             "instruments/deluge/",
             "effects/",
-            "effects/global_effectable/",
+            "effects/host_chain/",
             "serialization/",
             "music-theory/",
             "foundation/panic.h",

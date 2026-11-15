@@ -24,11 +24,10 @@
 #include <limits>
 #include <optional>
 
-/// @brief The params the song master, a kit's affect-entire and an audio track share. Provisional: it goes when each
-/// effect declares its own table.
-namespace deluge::global_effectable {
+/// @brief The params a host chain has: the song master's, a kit's affect-entire's and an audio track's.
+namespace deluge::host_chain {
 
-/// @brief The ids, pinned forever by tests/unit/effects/global_effectable/params_spec.cpp.
+/// @brief The ids, pinned forever by tests/unit/effects/host_chain/params_spec.cpp.
 namespace param {
 using plugin::ParamId;
 inline constexpr ParamId kStutterRate{90};
@@ -172,4 +171,4 @@ inline constexpr plugin::ParamBlock kParamBlock{plugin::ParamId{kFirstId}, 43};
 
 static_assert(kParams.size() == kParamBlock.count);
 
-} // namespace deluge::global_effectable
+} // namespace deluge::host_chain

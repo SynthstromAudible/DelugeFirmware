@@ -22,7 +22,7 @@
 namespace deluge::bridge {
 
 /// @brief Whose param table an owner's ENGINE ids are in: a sound's (a synth, a kit row) the Deluge instrument's, a
-/// global effectable's (the song, a kit's affect-entire, an audio clip) the global-effectable table's.
+/// global effectable's (the song, a kit's affect-entire, an audio clip) the host chain's table's.
 enum class OwnerPlugin : uint8_t { INSTRUMENT, GLOBAL_EFFECTABLE };
 
 } // namespace deluge::bridge

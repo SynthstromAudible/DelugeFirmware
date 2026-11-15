@@ -19,7 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_address.h"
-#include "effects/global_effectable/params.h"
+#include "effects/host_chain/params.h"
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/params.h"
 
@@ -29,13 +29,13 @@
 
 /// @file The param shortcuts of the pad grid and the automation view's param orders, as targets. A sound's tables hold
 /// the Deluge instrument's ids (a patch cable's as its depth id) and MPE expression targets; a global effectable's hold
-/// the global-effectable table's ids.
+/// the host chain's table's ids.
 
 namespace deluge::modulation::params {
 
 namespace shortcuts_detail {
 namespace ip = deluge::instrument::param;
-namespace gp = deluge::global_effectable::param;
+namespace gp = deluge::host_chain::param;
 using deluge::project::ParamTarget;
 [[nodiscard]] constexpr ParamTarget sound(deluge::plugin::ParamId id) {
 	return deluge::project::engine_target(id.value);

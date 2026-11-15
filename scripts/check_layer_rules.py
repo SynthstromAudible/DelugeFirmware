@@ -588,6 +588,29 @@ RULES = [
         "2026-11-13-controls-layer-design.md",
     ),
     (
+        # The host chain's param table and pages are the deluge_host_chain library (effects/host_chain), named for
+        # what they serve. One row per tree: the checker matches one glob per row.
+        "no-global-effectable-table",
+        "src/**",
+        "symbol",
+        r"\bglobal_effectable\b|\bdeluge_global_effectable\b",
+        "2026-11-15-effect-param-tables-design.md",
+    ),
+    (
+        "no-global-effectable-table",
+        "sim/**",
+        "symbol",
+        r"\bglobal_effectable\b|\bdeluge_global_effectable\b",
+        "2026-11-15-effect-param-tables-design.md",
+    ),
+    (
+        "no-global-effectable-table",
+        "tests/**",
+        "symbol",
+        r"\bglobal_effectable\b|\bdeluge_global_effectable\b",
+        "2026-11-15-effect-param-tables-design.md",
+    ),
+    (
         # A scene holds no engine object: a menu's context and the gold knobs' focus hold addresses into the model,
         # and their reads come from the records and the runtime facts.
         "scenes-no-engine-pointers",

@@ -3,8 +3,8 @@
 #include "controls/pages.h"
 #include "controls/resolve.h"
 #include "deluge-project/song.h"
-#include "effects/global_effectable/pages.h"
-#include "effects/global_effectable/params.h"
+#include "effects/host_chain/pages.h"
+#include "effects/host_chain/params.h"
 #include "effects/plugin.h"
 #include "instruments/deluge/pages.h"
 #include "instruments/deluge/params.h"
@@ -23,7 +23,7 @@
 
 using namespace deluge;
 namespace ip = deluge::instrument::param;
-namespace ge = deluge::global_effectable::param;
+namespace ge = deluge::host_chain::param;
 using deluge::instrument::SynthMode;
 
 namespace {
@@ -44,7 +44,7 @@ void operator delete(void* p, size_t /*bytes*/) noexcept { std::free(p); }
 
 namespace {
 /// The publishers the app collects: the Deluge instrument's and the global effectable's.
-const std::array<plugin::RemoteControls, 2> kPublishers{instrument::kRemoteControls, global_effectable::kRemoteControls};
+const std::array<plugin::RemoteControls, 2> kPublishers{instrument::kRemoteControls, host_chain::kRemoteControls};
 /// What the stand-in view reading last saw.
 struct ViewCall {
 	const project::FxChain* chain{nullptr};

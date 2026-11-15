@@ -6,7 +6,7 @@ q31 instrument and any later instrument publish through the same model; only the
 ## Identity
 
 A param is a `plugin::ParamId` in its plugin's table: `instrument::kParams` (`src/instruments/deluge/params.h`) for a
-sound, `global_effectable::kParams` (`src/effects/global_effectable/params.h`) for the song, a kit's affect-entire and
+sound, `host_chain::kParams` (`src/effects/host_chain/params.h`) for the song, a kit's affect-entire and
 an audio track. Ids are pinned forever by the tables' specs. The runtime's own numbering (the `params::` enums, a
 collection `Kind` and index) maps to ids through `model/project_bridge/param_ids.cpp`, and
 `params::paramInfoFor(kind, index)` returns a runtime param's row.
@@ -294,7 +294,7 @@ the curves. The curves are dsp-next's (`dsp-next/fixed/curves/param_curve.h`); t
 and stay param-free.
 
 param_table_check holds the fragments to the runtime: a curved fragment's neutral and curve are the instrument's for
-the same param, and a global-effectable row's mapping and flags are its fragment's.
+the same param, and a host chain row's mapping and flags are its fragment's.
 
 ## Controls
 
@@ -399,4 +399,4 @@ combine.
 
 Display names (l10n, the menus), the codec's attribute names (`model/project_bridge/param_serialization.cpp`, grouped
 by element), the identity enums and `Kind` below the bridge, edits and undo by address, ModelStack, and composing the
-global-effectable rows from the fragments (its library may include only `plugin-api/types/`).
+host chain rows from the fragments (its library may include only `plugin-api/types/`).

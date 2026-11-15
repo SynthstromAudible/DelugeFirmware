@@ -29,7 +29,7 @@
 #include "controls/knob_focus.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/song.h"
-#include "effects/global_effectable/params.h"
+#include "effects/host_chain/params.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/performance_view.h"
 #include "instruments/deluge/pages.h"

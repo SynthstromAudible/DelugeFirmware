@@ -47,7 +47,7 @@ CPP_TARGETS = [
     "deluge_controls",
     "deluge_instrument",
     "deluge_effects",
-    "deluge_global_effectable",
+    "deluge_host_chain",
     "deluge_midi",
     "deluge_gfx_oled",
     "deluge_gfx_grid",

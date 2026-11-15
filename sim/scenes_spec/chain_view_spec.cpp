@@ -7,8 +7,8 @@
 
 #include "controls/pages.h"
 #include "deluge-project/song.h"
-#include "effects/global_effectable/pages.h"
-#include "effects/global_effectable/params.h"
+#include "effects/host_chain/pages.h"
+#include "effects/host_chain/params.h"
 #include "effects/plugin.h"
 #include "effects/setting_params.h"
 
@@ -26,7 +26,7 @@ namespace {
 namespace bind = deluge::scenes::bind;
 namespace controls = deluge::controls;
 namespace project = deluge::project;
-namespace ge = deluge::global_effectable::param;
+namespace ge = deluge::host_chain::param;
 
 const controls::KnobFocus kSong{.owner = controls::SongFocus{}};
 const controls::KnobFocus kKitChain{.owner = controls::ChainFocus{.chain = {project::ChainAddress::Kind::OUTPUT, 8}}};
@@ -57,7 +57,7 @@ describe chain_view("the Deluge's reading of a chain's view", ${
 		expect(int(pages_of(song, kSong).current.page_id)).to_equal(1);
 		song.master_effects.filter_type = 7;
 		const controls::SectionPages pages = pages_of(song, kSong);
-		expect(int(pages.current.page_id)).to_equal(int(deluge::global_effectable::kEqPage));
+		expect(int(pages.current.page_id)).to_equal(int(deluge::host_chain::kEqPage));
 		expect(turned(pages.current, 1)).to_equal(ge::kTreble, "the EQ page's second knob");
 	});
 	it("puts a chain's mod FX knobs on the view its record holds, even one its type has no param for", _ {

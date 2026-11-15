@@ -1,14 +1,14 @@
-#include "effects/global_effectable/naming.h"
-#include "effects/global_effectable/params.h"
+#include "effects/host_chain/naming.h"
+#include "effects/host_chain/params.h"
 
 #include <cppspec.hpp>
 
 #include "support/printers/param_id_printer.h"
 
-using namespace deluge::global_effectable;
+using namespace deluge::host_chain;
 
 // clang-format off
-describe naming("the provisional global-effectable table's names for its params", ${
+describe naming("the host chain's names for its params", ${
 	it("names a param by its file name, and back", _ {
 		expect(kNaming.id_of({"volume"})->value).to_equal(param::kVolume.value);
 		expect(kNaming.ref_of(param::kTempo).param).to_equal(std::string_view("tempo"));

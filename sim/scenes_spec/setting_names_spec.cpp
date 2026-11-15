@@ -11,7 +11,7 @@
 #include "support/descriptor_cases.h"
 #include "support/menu_engine.h"
 
-#include "effects/global_effectable/params.h"
+#include "effects/host_chain/params.h"
 #include "gui/l10n/setting_names.h"
 #include "instruments/deluge/params.h"
 #include "model/project_bridge/param_ids.h"
@@ -236,8 +236,8 @@ void check_morphs(auto& self) {
 	const Morph morphs[] = {
 	    {deluge::instrument::param::kLpfMorph, plugin::kDelugeInstrument},
 	    {deluge::instrument::param::kHpfMorph, plugin::kDelugeInstrument},
-	    {deluge::global_effectable::param::kLpfMorph, plugin::kGlobalEffectable},
-	    {deluge::global_effectable::param::kHpfMorph, plugin::kGlobalEffectable},
+	    {deluge::host_chain::param::kLpfMorph, plugin::kGlobalEffectable},
+	    {deluge::host_chain::param::kHpfMorph, plugin::kGlobalEffectable},
 	};
 	using deluge::effects::FilterMode;
 	const FilterMode lpf_modes[] = {
@@ -358,7 +358,7 @@ describe setting_names_spec_body("The host's name table", $ {
 		check_params(self, deluge::instrument::kParams, plugin::kDelugeInstrument);
 	});
 	it("names every global effectable param as getParamDisplayName does", _ {
-		check_params(self, deluge::global_effectable::kParams, plugin::kGlobalEffectable);
+		check_params(self, deluge::host_chain::kParams, plugin::kGlobalEffectable);
 	});
 	it("names the morph params as legacy does under each pair of filter modes", _ {
 		check_morphs(self);

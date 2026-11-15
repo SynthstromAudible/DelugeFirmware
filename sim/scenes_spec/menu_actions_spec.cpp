@@ -775,7 +775,7 @@ PerformExitStubUI& perform_exit_stub() {
 /// `PerformViewGuard` above owns the two bools and the mirror; this owns the rest of the state the
 /// four legacy sites are reached through. Each field is named with the site that needs it:
 ///
-///   * `currentUIMode` -- the CLIP_VIEW arm tests it (`performance_view.cpp:743`), and `close()`
+///   * `currentUIMode` -- the CLIP_VIEW arm of `PerformanceView::buttonAction` tests it, and `close()`
 ///     and `changeRootUI` both unset `TimerName::UI_SPECIFIC` on the way past.
 ///   * `lastClipInstanceEnteredStartPos` -- picks which root a KEYBOARD exit changes to
 ///     (`:960-971`), and is what lets the CLIP_VIEW arm skip `transitionToViewForClip()` (`:750-752`).

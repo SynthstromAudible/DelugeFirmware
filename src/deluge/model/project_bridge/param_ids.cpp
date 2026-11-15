@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "modulation/patch/patch_cable.h"
 
-#include "effects/global_effectable/params.h"
+#include "effects/host_chain/params.h"
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/params.h"
 
@@ -33,7 +33,7 @@ namespace deluge::bridge {
 
 namespace params = deluge::modulation::params;
 namespace instrument = deluge::instrument;
-namespace global_effectable = deluge::global_effectable;
+namespace host_chain = deluge::host_chain;
 
 // The runtime's numbering may move only with the engines' maps; these anchor each run's ends and sizes.
 static_assert(instrument::param::kOscAVolume.value == params::LOCAL_OSC_A_VOLUME);
@@ -45,12 +45,12 @@ static_assert(instrument::kUnpatchedFirstId == params::UNPATCHED_START);
 static_assert(instrument::param::kStutterRate.value == params::UNPATCHED_START + params::UNPATCHED_STUTTER_RATE);
 static_assert(instrument::param::kPortamento.value == params::UNPATCHED_START + params::UNPATCHED_PORTAMENTO);
 static_assert(instrument::kParamBlocks[1].count == params::UNPATCHED_SOUND_MAX_NUM);
-static_assert(global_effectable::kFirstId == params::UNPATCHED_START);
-static_assert(global_effectable::param::kTempo.value == params::UNPATCHED_START + params::UNPATCHED_TEMPO);
-static_assert(global_effectable::kParamBlock.count == params::UNPATCHED_GLOBAL_MAX_NUM);
+static_assert(host_chain::kFirstId == params::UNPATCHED_START);
+static_assert(host_chain::param::kTempo.value == params::UNPATCHED_START + params::UNPATCHED_TEMPO);
+static_assert(host_chain::kParamBlock.count == params::UNPATCHED_GLOBAL_MAX_NUM);
 static_assert(instrument::kParamBlocks.size() <= deluge::project::kEngineParamBlocks);
 // An unpatched set not yet named (kind NONE) is numbered and stored the same whichever kind it becomes.
-static_assert(instrument::kUnpatchedFirstId == global_effectable::kFirstId);
+static_assert(instrument::kUnpatchedFirstId == host_chain::kFirstId);
 
 static_assert(static_cast<int>(instrument::Polarity::UNIPOLAR) == static_cast<int>(::Polarity::UNIPOLAR));
 static_assert(static_cast<int>(instrument::Polarity::BIPOLAR) == static_cast<int>(::Polarity::BIPOLAR));
@@ -91,7 +91,7 @@ deluge::plugin::ParamId paramIdOf(params::Kind kind, int32_t index) {
 	case params::Kind::UNPATCHED_SOUND:
 		return instrument::param_id({instrument::RuntimeSet::UNPATCHED, at});
 	case params::Kind::UNPATCHED_GLOBAL:
-		return global_effectable::param_id(at);
+		return host_chain::param_id(at);
 	case params::Kind::PATCH_CABLE: // the index is the runtime's packed cable word
 		return cableDepthIdOf(static_cast<uint32_t>(index));
 	default:
@@ -118,7 +118,7 @@ std::optional<int32_t> runtimeIndexOf(params::Kind kind, deluge::plugin::ParamId
 		}
 		return runtimeIndexOf(params::Kind::UNPATCHED_GLOBAL, id);
 	case params::Kind::UNPATCHED_GLOBAL:
-		if (std::optional<uint8_t> index = global_effectable::runtime_index(id)) {
+		if (std::optional<uint8_t> index = host_chain::runtime_index(id)) {
 			return *index;
 		}
 		return std::nullopt;
@@ -139,7 +139,7 @@ std::optional<RuntimeParam> runtimeParamOf(OwnerPlugin owner, deluge::project::P
 		break;
 	}
 	if (owner == OwnerPlugin::GLOBAL_EFFECTABLE) {
-		std::optional<uint8_t> index = global_effectable::runtime_index(target.id);
+		std::optional<uint8_t> index = host_chain::runtime_index(target.id);
 		if (!index) {
 			return std::nullopt;
 		}
@@ -187,7 +187,7 @@ std::optional<deluge::project::ParamTarget> targetOf(OwnerPlugin owner, params::
 	if (kind != params::Kind::PATCH_CABLE) {
 		std::span<const deluge::plugin::ParamInfo> table =
 		    owner == OwnerPlugin::INSTRUMENT ? std::span<const deluge::plugin::ParamInfo>{instrument::kParams}
-		                                     : std::span<const deluge::plugin::ParamInfo>{global_effectable::kParams};
+		                                     : std::span<const deluge::plugin::ParamInfo>{host_chain::kParams};
 		if (deluge::plugin::find_param(table, id) == nullptr) {
 			return std::nullopt;
 		}

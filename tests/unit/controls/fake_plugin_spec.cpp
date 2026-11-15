@@ -5,7 +5,7 @@
 #include "controls/resolve.h"
 #include "controls/section.h"
 #include "deluge-project/song.h"
-#include "effects/global_effectable/pages.h"
+#include "effects/host_chain/pages.h"
 #include "instruments/deluge/pages.h"
 #include "plugin-api/plugin.h"
 #include "plugin-api/remote_controls_publisher.h"
@@ -123,7 +123,7 @@ constexpr plugin::RemoteControls kFakeControls{.plugin = Fake::descriptor().id,
 /// The app's publishers and the fake's.
 std::span<const plugin::RemoteControls> publishers() {
 	static const std::array<plugin::RemoteControls, 3> kRecords{instrument::kRemoteControls,
-	                                                            global_effectable::kRemoteControls, kFakeControls};
+	                                                            host_chain::kRemoteControls, kFakeControls};
 	return kRecords;
 }
 

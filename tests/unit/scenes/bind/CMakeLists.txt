@@ -6,5 +6,5 @@ deluge_specs_driver(scenes_bind_specs TREES host
           ${CMAKE_CURRENT_LIST_DIR}/support/model_fixture.cpp
           # the name table's definitions; in the app they come from the app's own build of the file
           ${DELUGE_REPO_ROOT}/src/deluge/gui/l10n/setting_names.cpp
-  LIBRARIES deluge_scenes_bind deluge_global_effectable
+  LIBRARIES deluge_scenes_bind deluge_host_chain
   INCLUDES ${DELUGE_REPO_ROOT}/tests/support/mocks)

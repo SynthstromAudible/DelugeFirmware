@@ -42,7 +42,7 @@
 #include <cstring>
 #include <vector>
 
-#include "effects/global_effectable/params.h"
+#include "effects/host_chain/params.h"
 #include "model/project_bridge/cable_bridge.h"
 #include "model/project_bridge/param_projection.h"
 #include "model/project_bridge/param_serialization.h"
@@ -1224,7 +1224,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		smSerializer.reset();
 		smSerializer.writeOpeningTagBeginning("params");
 		smSerializer.writeOpeningTagEnd();
-		const deluge::bridge::DocParamAttr lpfMorphMember[] = {{"morph", deluge::global_effectable::param::kLpfMorph}};
+		const deluge::bridge::DocParamAttr lpfMorphMember[] = {{"morph", deluge::host_chain::param::kLpfMorph}};
 		deluge::bridge::writeDocParamGroup(smSerializer, "lpf", lpfMorphMember, morphDoc, true);
 		smSerializer.writeClosingTag("params");
 		int32_t legacyLen = smSerializer.bytesWritten();
