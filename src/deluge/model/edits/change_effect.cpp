@@ -71,8 +71,7 @@ void changeEffect(::Song& song, ModControllable& owner, std::string_view path, d
 		error = apply(ctx, edit);
 	}
 	else if (const std::optional<deluge::project::ChainAddress> chain =
-	             sound == nullptr ? deluge::bridge::chainAddressOf(static_cast<ModControllableAudio&>(owner), song)
-	                              : std::nullopt) {
+	             sound == nullptr ? deluge::bridge::chainAddressOf(effects, song) : std::nullopt) {
 		Context ctx{song, song.project};
 		SetEffectSetting edit{*chain, std::string(path), value};
 		error = apply(ctx, edit);
@@ -87,10 +86,11 @@ void changeEffect(::Song& song, ModControllable& owner, std::string_view path, d
 	}
 }
 
-void changeView(GlobalEffectable& owner, std::string_view key, std::string_view word) {
+void changeView(ModControllable& owner, std::string_view key, std::string_view word) {
+	const deluge::model::EffectsOwner effects = effectsOf(owner);
 	if (currentSong != nullptr) {
 		if (const std::optional<deluge::project::ChainAddress> chain =
-		        deluge::bridge::chainAddressOf(owner, *currentSong)) {
+		        deluge::bridge::chainAddressOf(effects, *currentSong)) {
 			Context ctx{*currentSong, currentSong->project};
 			SetChainView edit{*chain, std::string(key), deluge::serialization::Value::makeScalar(std::string(word))};
 			if (apply(ctx, edit) != Error::NONE) {
@@ -101,10 +101,10 @@ void changeView(GlobalEffectable& owner, std::string_view key, std::string_view 
 	}
 	const std::string text(word);
 	if (key == "modFXCurrentParam") {
-		owner.setView(stringToModFXParam(text.c_str()), owner.filterType());
+		deluge::model::setChainView(effects, stringToModFXParam(text.c_str()), effects.view->filterType());
 	}
 	else if (key == "currentFilterType") {
-		owner.setView(owner.modFXParam(), stringToFilterType(text.c_str()));
+		deluge::model::setChainView(effects, effects.view->modFXParam(), stringToFilterType(text.c_str()));
 	}
 }
 

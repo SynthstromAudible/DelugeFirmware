@@ -251,8 +251,8 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 		for (int32_t d = 0; d < kKitDrums; ++d) {
 			spec::add_drum<SoundDrum>(f);
 		}
-		expect(deluge::bridge::chainAddressOf(*static_cast<Kit*>(f.instrument), *f.song).has_value()).to_be_true();
-		expect(deluge::bridge::chainAddressOf(f.song->live.global_effectable, *f.song).has_value()).to_be_true();
+		expect(deluge::bridge::chainAddressOf(*static_cast<Kit*>(f.instrument)->effectsOwner(), *f.song).has_value()).to_be_true();
+		expect(deluge::bridge::chainAddressOf(*f.song->live.global_effectable.effectsOwner(), *f.song).has_value()).to_be_true();
 		const Value low = Value::makeNumber(64 << 24);
 		const Value high = Value::makeNumber(96 << 24);
 		report("master", 0, "audioCompressor/ratio",

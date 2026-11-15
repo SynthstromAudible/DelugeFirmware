@@ -1287,7 +1287,7 @@ void testChainRecordOwnsState(deluge::edits::Context& ctx) {
 	      "chain ownership: the master plays its record's effects");
 
 	deluge::edits::SetChainView view{kitChain, "currentFilterType", deluge::serialization::Value::makeScalar("hpf")};
-	check(deluge::edits::apply(ctx, view) == Error::NONE && kit.filterType() == FilterType::HPF
+	check(deluge::edits::apply(ctx, view) == Error::NONE && kit.effectsOwner()->view->filterType() == FilterType::HPF
 	          && ctx.model.resolveChain(kitChain)->filter_type == util::to_underlying(FilterType::HPF),
 	      "chain ownership: the knobs' view is the record's");
 
@@ -1305,7 +1305,7 @@ void testChainRecordOwnsState(deluge::edits::Context& ctx) {
 	const deluge::effects::EffectStates* kitRecord = &kit.effects();
 	ctx.song.deleteOutputThatIsInMainList(&kit, false);
 	check(&kit.effects() != kitRecord && kit.effects().filter.lpf_mode == FilterMode::SVF_BAND
-	          && kit.filterType() == FilterType::HPF,
+	          && kit.effectsOwner()->view->filterType() == FilterType::HPF,
 	      "chain ownership: a kit whose record goes keeps its effects and view");
 	deluge::effects::EffectStates after = kit.effects();
 	after.filter.lpf_mode = FilterMode::SVF_NOTCH;

@@ -2,11 +2,13 @@
 /// @brief `deluge::model::EffectsOwner` and the functions over it: what each owner kind's `effectsOwner()` names, and
 ///        how a store, a bind and a projection reach the settings and the render's copy.
 
+#include "effects/plugin.h"
 #include "effects/state.h"
 #include "effects/words.h"
 #include "model/fx/effects_owner.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/project_bridge/chain_bridge.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/song/song.h"
 #include "plugin-api/types/sync.h"
@@ -141,6 +143,67 @@ describe effects_owner("an owner's EffectsOwner", ${
 				    .to_equal(c.path + " ok");
 				expect(c.path + (owner.effects() == expected ? " matches" : " differs")).to_equal(c.path + " matches");
 			}
+		});
+	});
+
+	context("a host chain's view and record", _ {
+		it("sets the view in the bound record and the render's copy", _ {
+			spec::SongFixture f = spec::make_kit_song();
+			const EffectsOwner owner = *static_cast<Kit*>(f.instrument)->effectsOwner();
+			const deluge::project::FxChain* record = owner.view->bound();
+			expect(record != nullptr).to_be_true();
+			deluge::model::setChainView(owner, ModFXParam::OFFSET, FilterType::HPF);
+			expect(record->mod_fx_param == util::to_underlying(ModFXParam::OFFSET)).to_be_true();
+			expect(record->filter_type == util::to_underlying(FilterType::HPF)).to_be_true();
+			expect(owner.binding->snapshot().mod_fx_param == ModFXParam::OFFSET).to_be_true();
+		});
+
+		it("seeds a record it binds from what it plays, and takes it back when unbound", _ {
+			spec::SongFixture f = spec::make_kit_song();
+			const EffectsOwner owner = *static_cast<Kit*>(f.instrument)->effectsOwner();
+			deluge::model::unbindChain(owner);
+			expect(owner.view->bound() == nullptr).to_be_true();
+			deluge::model::setChainView(owner, ModFXParam::DEPTH, FilterType::LPF);
+			deluge::model::changeEffects(owner, [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::SVF_BAND; });
+
+			deluge::project::FxChain chain{};
+			deluge::model::bindChain(owner, chain);
+			expect(owner.view->bound() == &chain).to_be_true();
+			expect(chain.mod_fx_param == util::to_underlying(ModFXParam::DEPTH)).to_be_true();
+			expect(chain.effects.as<deluge::effects::DelugeEffects>()->filter.lpf_mode == FilterMode::SVF_BAND).to_be_true();
+			deluge::model::changeEffects(owner, [](deluge::effects::EffectStates& e) { e.filter.lpf_mode = FilterMode::SVF_NOTCH; });
+			deluge::model::setChainView(owner, ModFXParam::FEEDBACK, FilterType::HPF);
+
+			deluge::model::unbindChain(owner);
+			expect(owner.view->bound() == nullptr).to_be_true();
+			expect(owner.effects().filter.lpf_mode == FilterMode::SVF_NOTCH).to_be_true();
+			expect(owner.view->modFXParam() == ModFXParam::FEEDBACK).to_be_true();
+			expect(owner.view->filterType() == FilterType::HPF).to_be_true();
+		});
+	});
+
+	context("chains by address", _ {
+		it("finds the master, a kit's and an audio track's chain, and nothing for a synth or a missing id", _ {
+			spec::SongFixture kit = spec::make_kit_song();
+			using deluge::project::ChainAddress;
+			const auto song = deluge::bridge::chainAt({.kind = ChainAddress::Kind::SONG}, *kit.song);
+			expect(song.has_value() && song->core == &kit.song->live.master_channel.core()).to_be_true();
+			auto& k = *static_cast<Kit*>(kit.instrument);
+			const auto ofKit = deluge::bridge::chainAt({.kind = ChainAddress::Kind::OUTPUT, .id = *k.id()}, *kit.song);
+			expect(ofKit.has_value() && ofKit->core == &k.channel().core()).to_be_true();
+			expect(deluge::bridge::chainAt({.kind = ChainAddress::Kind::OUTPUT, .id = 0xFFFFFF}, *kit.song).has_value())
+			    .to_be_false();
+
+			spec::AudioSongFixture audio = spec::make_audio_clip_song();
+			const auto ofAudio =
+			    deluge::bridge::chainAt({.kind = ChainAddress::Kind::OUTPUT, .id = *audio.output->id()}, *audio.song);
+			expect(ofAudio.has_value() && ofAudio->core == &audio.output->channel().core()).to_be_true();
+
+			spec::SongFixture synth = spec::make_synth_song();
+			expect(deluge::bridge::chainAt({.kind = ChainAddress::Kind::OUTPUT, .id = *synth.instrument->id()},
+			                               *synth.song)
+			           .has_value())
+			    .to_be_false();
 		});
 	});
 

@@ -64,7 +64,8 @@ void checkOwner(ModControllableAudio& owner, const char* name) {
 
 /// The chain of @p owner (a kit or the master) in @p song, or null.
 const deluge::project::FxChain* chainOf(GlobalEffectable& owner, Song& song) {
-	const std::optional<deluge::project::ChainAddress> address = deluge::bridge::chainAddressOf(owner, song);
+	const std::optional<deluge::project::ChainAddress> address =
+	    deluge::bridge::chainAddressOf(*owner.effectsOwner(), song);
 	return address ? song.project.resolveChain(*address) : nullptr;
 }
 
@@ -96,8 +97,8 @@ Expected stateOf(GlobalEffectable& owner) {
 	        state.compressor.attack,
 	        static_cast<int32_t>(state.sidechain.sync_level),
 	        static_cast<int32_t>(state.mod_fx.type),
-	        static_cast<int32_t>(owner.modFXParam()),
-	        static_cast<int32_t>(owner.filterType())};
+	        static_cast<int32_t>(owner.effectsOwner()->view->modFXParam()),
+	        static_cast<int32_t>(owner.effectsOwner()->view->filterType())};
 }
 
 /// @p state as text.
@@ -161,13 +162,15 @@ void checkGestures(GlobalEffectable& owner, Song& song, const deluge::scenes::bi
 	coherent("the mod-FX type button");
 	knobs.push(0, true);
 	coherent("the mod-FX param button");
-	check(viewHolds(chainOf(owner, song), "modFXCurrentParam", modFXParamToString(owner.modFXParam())),
+	check(viewHolds(chainOf(owner, song), "modFXCurrentParam",
+	                modFXParamToString(owner.effectsOwner()->view->modFXParam())),
 	      (who + ": the view holds the mod-FX param").c_str());
 
 	(void)deluge::edits::modKnobModeFor(modeOwner, 1);
 	knobs.push(1, true);
 	coherent("the filter type button");
-	check(viewHolds(chainOf(owner, song), "currentFilterType", filterTypeToString(owner.filterType())),
+	check(viewHolds(chainOf(owner, song), "currentFilterType",
+	                filterTypeToString(owner.effectsOwner()->view->filterType())),
 	      (who + ": the view holds the filter type").c_str());
 	(void)deluge::edits::modKnobModeFor(modeOwner, 0);
 }

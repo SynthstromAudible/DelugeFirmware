@@ -1399,7 +1399,7 @@ void editLeg() {
 		    ->params[deluge::modulation::params::UNPATCHED_MOD_FX_DEPTH]
 		    .setPlayed(0);
 		// Which mod FX parameter gates the effect on: the song's default names feedback, which sits at its minimum.
-		const ModFXParam paramBefore = fx.modFXParam();
+		const ModFXParam paramBefore = fx.effectsOwner()->view->modFXParam();
 		deluge::edits::changeView(fx, "modFXCurrentParam", modFXParamToString(ModFXParam::DEPTH));
 		if (fx.effects().mod_fx.type != ModFXType::NONE) {
 			fail("the master's mod FX is not off");
@@ -1477,7 +1477,7 @@ void editLeg() {
 		currentSong->paramManager.getUnpatchedParamSet()
 		    ->params[deluge::modulation::params::UNPATCHED_MOD_FX_DEPTH]
 		    .setPlayed(0);
-		const ModFXParam paramBefore = fx.modFXParam();
+		const ModFXParam paramBefore = fx.effectsOwner()->view->modFXParam();
 		deluge::edits::changeView(fx, "modFXCurrentParam", modFXParamToString(ModFXParam::DEPTH));
 		if (fx.effects().mod_fx.type != ModFXType::NONE) {
 			fail("the master's mod FX is not off");

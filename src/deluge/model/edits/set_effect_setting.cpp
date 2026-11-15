@@ -18,12 +18,12 @@ Error SetEffectSetting::apply(Context& ctx) {
 		return Error::UNSPECIFIED;
 	}
 	deluge::project::FxChain* chain = ctx.model.resolveChain(chain_);
-	::GlobalEffectable* owner = deluge::bridge::chainOwnerAt(chain_, ctx.song);
+	const std::optional<deluge::model::EffectsOwner> owner = deluge::bridge::chainAt(chain_, ctx.song);
 	const std::optional<std::string_view> effect = deluge::effects::effect_of_setting(path_);
-	if (chain == nullptr || owner == nullptr || !effect) {
+	if (chain == nullptr || !owner || !effect) {
 		return Error::UNSPECIFIED;
 	}
-	if (owner->boundChain() != chain
+	if (owner->view->bound() != chain
 	    || std::ranges::none_of(chain->slots, [&](const auto& s) { return s.effect == *effect; })) {
 		return Error::UNSPECIFIED;
 	}
@@ -39,7 +39,7 @@ Error SetEffectSetting::apply(Context& ctx) {
 		    owner->effects(), chain->reverb_return ? deluge::effects::Home::MASTER : deluge::effects::Home::TRACK,
 		    path_, value_, ctx.song.getInputTickMagnitude(), next);
 	}
-	owner->setEffects(next);
+	deluge::model::storeEffects(*owner, next);
 	if (deluge::effects::shapes_reverb_sidechain(path_)) {
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}

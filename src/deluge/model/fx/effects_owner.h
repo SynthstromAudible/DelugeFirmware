@@ -61,6 +61,26 @@ void storeEffects(EffectsOwner owner, const effects::EffectStates& next);
 /// @param record The record that holds the settings, or nullptr.
 void bindEffects(EffectsOwner owner, effects::EffectStates* record);
 
+/// @brief Sets which mod FX value and filter a host chain's knobs edit, in its bound record while there is one, and
+/// projects the settings with it.
+/// @pre owner.view != nullptr.
+/// @param owner The host chain's owner.
+/// @param param Which mod FX value.
+/// @param type  Which filter.
+void setChainView(EffectsOwner owner, ModFXParam param, FilterType type);
+
+/// @brief The host chain plays @p chain from now on: the record takes the settings and the view played now. Nothing
+/// when it already plays @p chain.
+/// @pre owner.view != nullptr.
+/// @param owner The host chain's owner.
+/// @param chain Its chain record, which outlives the binding (unbindChain() runs before it goes).
+void bindChain(EffectsOwner owner, project::FxChain& chain);
+
+/// @brief Takes back the settings and the view the bound record holds, before the record goes; nothing when unbound.
+/// @pre owner.view != nullptr.
+/// @param owner The host chain's owner.
+void unbindChain(EffectsOwner owner);
+
 /// @brief Makes the owner's settings its current ones with @p change applied to a copy of them, and projects them: a
 /// direct change, for an owner whose settings are its own to set (no Edit, no record hand-over).
 /// @param owner  The owner.

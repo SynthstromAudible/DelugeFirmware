@@ -63,45 +63,7 @@ void GlobalEffectable::cloneFrom(ModControllableAudio* other) {
 	ModControllableAudio::cloneFrom(other);
 
 	const auto& from = static_cast<GlobalEffectable&>(*other);
-	setView(from.modFXParam(), from.filterType());
-}
-
-ModFXParam GlobalEffectable::modFXParam() const {
-	return chainView().modFXParam();
-}
-
-FilterType GlobalEffectable::filterType() const {
-	return chainView().filterType();
-}
-
-void GlobalEffectable::bindChain(deluge::project::FxChain& chain) {
-	if (chainView().bound() == &chain) {
-		return;
-	}
-	chain.effects = deluge::plugin::StateHandle::of<deluge::effects::DelugeEffects>(effects());
-	chainView().bind(chain);
-	bindEffects(chain.effects.as<deluge::effects::DelugeEffects>());
-}
-
-void GlobalEffectable::unbindChain() {
-	if (chainView().bound() == nullptr) {
-		return;
-	}
-	chainView().unbind();
-	bindEffects(nullptr); // copies the record's effects in
-}
-
-void GlobalEffectable::setView(ModFXParam param, FilterType type) {
-	writeView(param, type);
-	projectModControllableSnapshot();
-}
-
-void GlobalEffectable::writeView(ModFXParam param, FilterType type) {
-	chainView().write(param, type);
-}
-
-std::optional<ModFXParam> GlobalEffectable::projectedModFXParam() const {
-	return modFXParam();
+	deluge::model::setChainView(*effectsOwner(), from.chainView().modFXParam(), from.chainView().filterType());
 }
 
 void GlobalEffectable::initParams(ParamManager* paramManager) {
@@ -128,8 +90,8 @@ void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramMana
 
 void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutomation) {
 	// Its record's, while it plays one.
-	writer.writeAttribute("modFXCurrentParam", modFXParamToString(modFXParam()));
-	writer.writeAttribute("currentFilterType", filterTypeToString(filterType()));
+	writer.writeAttribute("modFXCurrentParam", modFXParamToString(chainView().modFXParam()));
+	writer.writeAttribute("currentFilterType", filterTypeToString(chainView().filterType()));
 	ModControllableAudio::writeAttributesToFile(writer, effects());
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	// <--
@@ -238,15 +200,15 @@ void GlobalEffectable::readEffectsFromElement(const deluge::serialization::Value
 	deluge::effects::EffectStates next = effects();
 	deluge::effects::decode(element, next, {.input_tick_magnitude = tickMagnitude});
 	delayTypePending = !deluge::effects::saves_delay_type(element);
-	ModFXParam param = modFXParam();
-	FilterType type = filterType();
+	ModFXParam param = chainView().modFXParam();
+	FilterType type = chainView().filterType();
 	if (const deluge::serialization::Value* word = element.find("modFXCurrentParam"); word && word->isScalar()) {
 		param = stringToModFXParam(word->str().c_str());
 	}
 	if (const deluge::serialization::Value* word = element.find("currentFilterType"); word && word->isScalar()) {
 		type = stringToFilterType(word->str().c_str());
 	}
-	writeView(param, type);
+	chainView().write(param, type);
 	setEffects(next); // projects the view with the effects
 }
 

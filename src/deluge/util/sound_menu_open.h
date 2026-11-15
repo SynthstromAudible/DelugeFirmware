@@ -22,7 +22,7 @@
 #include <cstdint>
 #include <optional>
 
-class ModControllableAudio;
+class ModControllable;
 class ParamManagerForTimeline;
 
 /// @file
@@ -39,7 +39,7 @@ bool soundMenuOpen();
 bool soundMenuKitGlobalFx();
 
 /// @brief The owner the sound menu edits (`shellMenuModControllable`). Read only while `soundMenuOpen()`.
-ModControllableAudio* soundMenuModControllable();
+ModControllable* soundMenuModControllable();
 
 /// @brief The params the sound menu edits (`shellMenuParamManager`). Safe on the audio tier.
 ParamManagerForTimeline* soundMenuParamManager();

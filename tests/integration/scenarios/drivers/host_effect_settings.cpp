@@ -143,8 +143,8 @@ std::vector<Value> legalValues(const deluge::plugin::SettingInfo& row, const std
 
 /// Every legal value of every effect setting on @p owner, each restored after.
 void settingLegs(Song& song, const HostOwner& owner) {
-	GlobalEffectable* runtime = deluge::bridge::chainOwnerAt(owner.address, song);
-	if (runtime == nullptr) {
+	std::optional<deluge::model::EffectsOwner> runtime = deluge::bridge::chainAt(owner.address, song);
+	if (!runtime) {
 		fail(owner, "-", Value::makeScalar("-"), "no owner at its address");
 		return;
 	}
@@ -162,7 +162,7 @@ void settingLegs(Song& song, const HostOwner& owner) {
 			else if (const std::string what = deluge::harness::chainIncoherence(song); !what.empty()) {
 				fail(owner, row.path, value, what);
 			}
-			else if (!(runtime->modControllableSnapshot().effects == runtime->effects())) {
+			else if (!(runtime->binding->snapshot().effects == runtime->effects())) {
 				fail(owner, row.path, value, "the render copy differs");
 			}
 			else {
@@ -193,7 +193,7 @@ std::vector<HostOwner> kitAndMaster(const std::vector<HostOwner>& owners) {
 void magnitudeLeg(Song& song, const std::vector<HostOwner>& owners) {
 	song.project.transport.inside_world_tick_magnitude++;
 	for (const HostOwner& owner : kitAndMaster(owners)) {
-		GlobalEffectable* runtime = deluge::bridge::chainOwnerAt(owner.address, song);
+		std::optional<deluge::model::EffectsOwner> runtime = deluge::bridge::chainAt(owner.address, song);
 		const deluge::effects::EffectStates before = runtime->effects();
 		const Value level = Value::makeNumber(static_cast<int32_t>(before.delay.sync_level));
 		const Value sidechain = Value::makeNumber(static_cast<int32_t>(before.sidechain.sync_level));
@@ -253,10 +253,10 @@ int roundTripLeg(Song& song, const std::vector<HostOwner>& owners) {
 	// The kit's render threshold moved off its setting, as the render moves it to the param each block.
 	std::vector<std::pair<HostOwner, int32_t>> thresholds;
 	for (const HostOwner& owner : edited) {
-		GlobalEffectable* runtime = deluge::bridge::chainOwnerAt(owner.address, song);
-		if (owner.address.kind == ChainAddress::Kind::OUTPUT && runtime != nullptr) {
+		std::optional<deluge::model::EffectsOwner> runtime = deluge::bridge::chainAt(owner.address, song);
+		if (owner.address.kind == ChainAddress::Kind::OUTPUT && runtime.has_value()) {
 			const int32_t setting = runtime->effects().compressor.threshold;
-			runtime->core().compressor().dsp().set_threshold(
+			runtime->core->compressor().dsp().set_threshold(
 			    deluge::dsp::Q<31>::from_raw(setting == 0x40000000 ? 0x20000000 : 0x40000000));
 			thresholds.emplace_back(owner, setting);
 		}
@@ -266,8 +266,8 @@ int roundTripLeg(Song& song, const std::vector<HostOwner>& owners) {
 		return 3;
 	}
 	for (const HostOwner& owner : edited) {
-		GlobalEffectable* runtime = deluge::bridge::chainOwnerAt(owner.address, *reloaded);
-		if (runtime == nullptr) {
+		std::optional<deluge::model::EffectsOwner> runtime = deluge::bridge::chainAt(owner.address, *reloaded);
+		if (!runtime) {
 			fail(owner, "round trip", Value::makeScalar("-"), "gone after the reload");
 		}
 		else if (runtime->effects().filter.lpf_mode != FilterMode::SVF_NOTCH
@@ -279,8 +279,8 @@ int roundTripLeg(Song& song, const std::vector<HostOwner>& owners) {
 		}
 	}
 	for (const auto& [owner, setting] : thresholds) {
-		GlobalEffectable* runtime = deluge::bridge::chainOwnerAt(owner.address, *reloaded);
-		if (runtime == nullptr || runtime->effects().compressor.threshold != setting) {
+		std::optional<deluge::model::EffectsOwner> runtime = deluge::bridge::chainAt(owner.address, *reloaded);
+		if (!runtime || runtime->effects().compressor.threshold != setting) {
 			fail(owner, "round trip", Value::makeNumber(setting), "the compressor threshold saved is not its setting");
 		}
 		else {
@@ -428,10 +428,9 @@ void hibernationLeg(Song& song) {
 		return;
 	}
 	Song* reloaded = savedAndReloaded(song);
-	const GlobalEffectable* read =
-	    reloaded == nullptr ? nullptr : deluge::bridge::chainOwnerAt(owner.address, *reloaded);
-	if (read == nullptr || read->effects().filter.lpf_mode != FilterMode::SVF_NOTCH
-	    || read->effects().delay.ping_pong) {
+	const std::optional<deluge::model::EffectsOwner> read =
+	    reloaded == nullptr ? std::nullopt : deluge::bridge::chainAt(owner.address, *reloaded);
+	if (!read || read->effects().filter.lpf_mode != FilterMode::SVF_NOTCH || read->effects().delay.ping_pong) {
 		fail(owner, "saved", Value::makeScalar("-"), "the revived kit's edits did not survive a save");
 		return;
 	}
@@ -442,12 +441,13 @@ void hibernationLeg(Song& song) {
 /// tempo change or a rate edit would set it), not the neutral tape's.
 void reserveLeg(Song& song, const std::vector<HostOwner>& owners) {
 	for (const HostOwner& owner : owners) {
-		GlobalEffectable* runtime = deluge::bridge::chainOwnerAt(owner.address, song);
-		if (runtime == nullptr || !runtime->core().delay().counted()) {
+		std::optional<deluge::model::EffectsOwner> runtime = deluge::bridge::chainAt(owner.address, song);
+		if (!runtime || !runtime->core->delay().counted()) {
 			continue;
 		}
-		const deluge::effects::Delay& delay = runtime->core().delay();
-		const std::size_t want = delay.reserveFor(deluge::model::delayReserveFrames(song, *runtime));
+		const deluge::effects::Delay& delay = runtime->core->delay();
+		const std::size_t want =
+		    delay.reserveFor(deluge::model::delayReserveFrames(song, *runtime->core, runtime->effects().delay, false));
 		if (delay.reserve() != want) {
 			fail(owner, "delay reserve", Value::makeNumber(static_cast<int32_t>(want)),
 			     "the load left reserve " + std::to_string(delay.reserve()));

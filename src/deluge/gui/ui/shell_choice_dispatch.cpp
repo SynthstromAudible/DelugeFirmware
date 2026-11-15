@@ -160,7 +160,7 @@ deluge::gui::SoundTarget resolvedFor(const deluge::scenes::menu::MenuContext& me
 	}
 	// The sound, or the chain's owner, by address.
 	if (menuCtx.addresses.chain) {
-		resolved.mod = deluge::bridge::chainOwnerAt(*menuCtx.addresses.chain, *currentSong);
+		resolved.mod = deluge::bridge::chainSlotAt(*menuCtx.addresses.chain, *currentSong);
 	}
 	::Clip* clip = menuCtx.addresses.clip ? currentSong->clipForId(menuCtx.addresses.clip->clip_id) : nullptr;
 	auto* instrumentClip =
@@ -459,7 +459,7 @@ void setShellBrowserFromDrumCreator(bool fromCreator) {
 
 namespace {
 /// What `publishShellMenuTarget` last published. Read by playback automation on the audio tier, hence atomic.
-std::atomic<ModControllableAudio*> publishedMod{nullptr};
+std::atomic<ModControllable*> publishedMod{nullptr};
 std::atomic<ParamManagerForTimeline*> publishedParams{nullptr};
 } // namespace
 
@@ -469,7 +469,7 @@ void publishShellMenuTarget() {
 	publishedParams.store(target.params, std::memory_order_relaxed);
 }
 
-ModControllableAudio* shellMenuModControllable() {
+ModControllable* shellMenuModControllable() {
 	return publishedMod.load(std::memory_order_relaxed);
 }
 

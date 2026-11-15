@@ -190,7 +190,7 @@ void setFolderImportDispatch(FolderImportDispatch dispatch);
 void publishShellMenuTarget();
 
 /// @brief The owner the ported menu edits, as last published.
-ModControllableAudio* shellMenuModControllable();
+ModControllable* shellMenuModControllable();
 
 /// @brief The params the ported menu edits, as last published. Safe on the audio tier.
 ParamManagerForTimeline* shellMenuParamManager();

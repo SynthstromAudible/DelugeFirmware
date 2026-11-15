@@ -21,7 +21,6 @@
 
 #include <string_view>
 
-class GlobalEffectable;
 class ModControllable;
 class Song;
 
@@ -49,6 +48,6 @@ void changeEffect(::Song& song, ModControllable& owner, std::string_view path, d
 /// @param owner The effect owner being edited.
 /// @param key   `modFXCurrentParam` or `currentFilterType`.
 /// @param word  The new selection, by name.
-void changeView(GlobalEffectable& owner, std::string_view key, std::string_view word);
+void changeView(ModControllable& owner, std::string_view key, std::string_view word);
 
 } // namespace deluge::edits

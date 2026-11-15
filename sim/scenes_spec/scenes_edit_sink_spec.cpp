@@ -270,7 +270,7 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		                               .where = ctx.addresses,
 		                               .menu_value = deluge::plugin::to_menu(row, 4)}); // SVF_Notch
 		const auto chain = deluge::project::ChainAddress{.id = kit->id().value_or(0)};
-		expect(deluge::bridge::chainOwnerAt(chain, *f.song)->effects().filter.lpf_mode
+		expect(deluge::bridge::chainAt(chain, *f.song)->effects().filter.lpf_mode
 		       == deluge::effects::FilterMode::SVF_NOTCH).to_be_true();
 		expect(drum->effects().filter.lpf_mode == row_before).to_be_true();
 	});

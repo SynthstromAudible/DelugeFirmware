@@ -174,10 +174,10 @@ namespace {
 
 /// Where @p owner, playing @p record, is out of step with it, or empty: it plays the record's effects and view (bound),
 /// the record's effects decode to what they encode (decode), and the render's copy is what it plays.
-std::string chainDifference(const ::GlobalEffectable& owner, const deluge::project::FxChain& record,
+std::string chainDifference(const deluge::model::EffectsOwner& owner, const deluge::project::FxChain& record,
                             int32_t tick_magnitude) {
 	const deluge::effects::EffectStates* held = record.effects.as<deluge::effects::DelugeEffects>();
-	if (owner.boundChain() != &record || held != &owner.effects()) {
+	if (owner.view->bound() != &record || held != &owner.effects()) {
 		return "the owner does not play its record";
 	}
 	const deluge::plugin::CodecContext context{.input_tick_magnitude = tick_magnitude};
@@ -189,10 +189,10 @@ std::string chainDifference(const ::GlobalEffectable& owner, const deluge::proje
 	if (const std::string d = deluge::serialization::first_difference(decoded.encode(context), encoded); !d.empty()) {
 		return "decode at " + d;
 	}
-	if (owner.modControllableSnapshot().effects != owner.effects()) {
+	if (owner.binding->snapshot().effects != owner.effects()) {
 		return "render copy";
 	}
-	if (owner.modControllableSnapshot().mod_fx_param != owner.modFXParam()) {
+	if (owner.binding->snapshot().mod_fx_param != owner.view->modFXParam()) {
 		return "render copy's mod FX knob";
 	}
 	return {};
@@ -215,9 +215,9 @@ std::string chainIncoherence(::Song& song) {
 			if (!record->effects) {
 				return where + "no chain";
 			}
-			const ::GlobalEffectable* owner = deluge::bridge::chainOwnerAt(
+			const std::optional<deluge::model::EffectsOwner> owner = deluge::bridge::chainAt(
 			    {.kind = deluge::project::ChainAddress::Kind::OUTPUT, .id = *output->id()}, song);
-			if (owner == nullptr) {
+			if (!owner) {
 				return where + "no owner";
 			}
 			if (const std::string d = chainDifference(*owner, *record->effects, song.getInputTickMagnitude());
@@ -226,8 +226,8 @@ std::string chainIncoherence(::Song& song) {
 			}
 		}
 	}
-	if (const std::string d =
-	        chainDifference(song.live.global_effectable, song.project.master_effects, song.getInputTickMagnitude());
+	if (const std::string d = chainDifference(*song.live.global_effectable.effectsOwner(), song.project.master_effects,
+	                                          song.getInputTickMagnitude());
 	    !d.empty()) {
 		return "master effects: " + d;
 	}

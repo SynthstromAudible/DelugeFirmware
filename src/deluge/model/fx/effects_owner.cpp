@@ -16,6 +16,7 @@
  */
 
 #include "model/fx/effects_owner.h"
+#include "effects/plugin.h"
 #include "model/mod_controllable/delay_type.h"
 #include "model/song/song.h"
 
@@ -41,6 +42,28 @@ void storeEffects(EffectsOwner owner, const effects::EffectStates& next) {
 void bindEffects(EffectsOwner owner, effects::EffectStates* record) {
 	owner.binding->bind(record);
 	projectEffects(owner);
+}
+
+void setChainView(EffectsOwner owner, ModFXParam param, FilterType type) {
+	owner.view->write(param, type);
+	projectEffects(owner);
+}
+
+void bindChain(EffectsOwner owner, project::FxChain& chain) {
+	if (owner.view->bound() == &chain) {
+		return;
+	}
+	chain.effects = plugin::StateHandle::of<effects::DelugeEffects>(owner.effects());
+	owner.view->bind(chain);
+	bindEffects(owner, chain.effects.as<effects::DelugeEffects>());
+}
+
+void unbindChain(EffectsOwner owner) {
+	if (owner.view->bound() == nullptr) {
+		return;
+	}
+	owner.view->unbind();
+	bindEffects(owner, nullptr); // copies the record's effects in
 }
 
 } // namespace deluge::model

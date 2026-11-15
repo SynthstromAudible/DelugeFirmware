@@ -34,7 +34,7 @@ bool soundMenuKitGlobalFx() {
 	return shellKitGlobalFx();
 }
 
-ModControllableAudio* soundMenuModControllable() {
+ModControllable* soundMenuModControllable() {
 	return shellMenuModControllable();
 }
 

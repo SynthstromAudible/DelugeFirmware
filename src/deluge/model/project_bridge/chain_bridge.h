@@ -20,12 +20,12 @@
 #include "deluge-project/fx_chain.h"
 #include "effects/chain.h"
 #include "effects/state.h"
+#include "model/fx/effects_owner.h"
 
 #include <cstdint>
 #include <optional>
 
-class GlobalEffectable;
-class ModControllableAudio;
+class ModControllable;
 class Output;
 class Song;
 
@@ -35,17 +35,24 @@ namespace deluge::bridge {
 /// @return The codec.
 [[nodiscard]] const deluge::project::ChainCodec& chainCodec();
 
-/// @brief The owner whose effects @p address names (a kit, an audio output, or the song's global effectable), or null.
+/// @brief The effects of the chain @p address names (a kit's, an audio output's, or the song master's).
 /// @param address Which chain.
 /// @param song    The song to look in.
-/// @return The owner, or null if @p address names none.
-[[nodiscard]] ::GlobalEffectable* chainOwnerAt(deluge::project::ChainAddress address, ::Song& song);
+/// @return The chain's effects, or nullopt if @p address names none.
+[[nodiscard]] std::optional<deluge::model::EffectsOwner> chainAt(deluge::project::ChainAddress address, ::Song& song);
+
+/// @brief The owner of the chain @p address names, as a ModelStack's owner slot holds it (a kit, an audio output, or
+/// the song's own owner); null if @p address names none. A bridge: it goes with the slot.
+/// @param address Which chain.
+/// @param song    The song to look in.
+/// @return The owner, or null.
+[[nodiscard]] ::ModControllable* chainSlotAt(deluge::project::ChainAddress address, ::Song& song);
 
 /// @brief The address of @p owner's chain in @p song, or nothing (a sound, or an owner not in the song).
 /// @param owner The effects owner.
 /// @param song  The song to look in.
 /// @return The chain's address, or nullopt.
-[[nodiscard]] std::optional<deluge::project::ChainAddress> chainAddressOf(const ::ModControllableAudio& owner,
+[[nodiscard]] std::optional<deluge::project::ChainAddress> chainAddressOf(const deluge::model::EffectsOwner& owner,
                                                                           ::Song& song);
 
 /// @brief @p owner plays @p chain from now on: the chain takes @p home's slots and what the owner plays. Nothing when
@@ -53,7 +60,8 @@ namespace deluge::bridge {
 /// @param owner The host owner.
 /// @param chain Its chain record.
 /// @param home  Whether the chain is a clip's or the master's.
-void adoptChainState(::GlobalEffectable& owner, deluge::project::FxChain& chain, deluge::project::ChainHome home);
+void adoptChainState(deluge::model::EffectsOwner owner, deluge::project::FxChain& chain,
+                     deluge::project::ChainHome home);
 
 /// @brief A host owner that joined the song (adopted, created, a preset read over it) plays its own chain record, made
 /// when it has none. Nothing for another output, or one whose record is not its own.
@@ -76,9 +84,9 @@ void auditEffectWrite(const deluge::effects::EffectStates& before, deluge::effec
                       const deluge::serialization::Value& value, int32_t tick_magnitude,
                       const deluge::effects::EffectStates& got);
 
-/// @brief @p output's effects owner when it runs a host chain (a kit, an audio track), else null.
+/// @brief @p output's effects when it runs a host chain (a kit, an audio track), else nullopt.
 /// @param output The output.
-/// @return The owner, or null.
-[[nodiscard]] ::GlobalEffectable* chainOwnerOf(::Output& output);
+/// @return The chain's effects, or nullopt.
+[[nodiscard]] std::optional<deluge::model::EffectsOwner> chainOwnerOf(::Output& output);
 
 } // namespace deluge::bridge

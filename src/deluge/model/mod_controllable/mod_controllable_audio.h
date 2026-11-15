@@ -105,10 +105,6 @@ public:
 	}
 	/// @brief Copy the settings into the render's copy, with the render excluded.
 	void projectModControllableSnapshot();
-	/// @brief The view projectModControllableSnapshot copies into the render's copy: a host chain's selected mod FX
-	/// knob, which its soft off reads; nullopt for a sound.
-	/// @return The selected mod FX knob, or nullopt.
-	[[nodiscard]] virtual std::optional<ModFXParam> projectedModFXParam() const { return std::nullopt; }
 	virtual Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                              int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
 	static void writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,

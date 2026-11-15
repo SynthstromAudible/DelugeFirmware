@@ -70,36 +70,9 @@ public:
 	                                       int32_t readAutomationUpToPos);
 	static bool readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
-	/// @brief Sets which value the mod FX knob and which filter the filter knobs edit, in the bound record while there
-	/// is one, and projects the render copy.
-	/// @param param Which mod FX value.
-	/// @param type  Which filter.
-	void setView(ModFXParam param, FilterType type);
-	/// @brief Plays the effects and view @p chain holds from now on, @p chain taking what this owner plays now.
-	/// Binding to the chain already bound does nothing.
-	/// @param chain The owner's chain record, which outlives the binding (unbindChain() runs before it goes).
-	void bindChain(deluge::project::FxChain& chain);
-	/// @brief Takes back the effects and view the bound record holds, before the record goes; nothing when unbound.
-	void unbindChain();
-	/// @brief The chain record this owner plays, or null when it plays its own.
-	/// @return The bound record.
-	[[nodiscard]] const deluge::project::FxChain* boundChain() const { return chainView().bound(); }
 	/// @brief Which values the chain's knobs edit: the view the chain's owner holds.
 	/// @return The chain's view.
 	[[nodiscard]] virtual deluge::model::ChainView& chainView() = 0;
 	[[nodiscard]] virtual const deluge::model::ChainView& chainView() const = 0;
 	[[nodiscard]] const ::GlobalEffectable* asGlobalEffectable() const override { return this; }
-	/// @return Which value the mod FX knob edits.
-	[[nodiscard]] ModFXParam modFXParam() const;
-	/// @return Which filter the filter knobs edit.
-	[[nodiscard]] FilterType filterType() const;
-
-	[[nodiscard]] std::optional<ModFXParam> projectedModFXParam() const override;
-
-private:
-	/// @brief Sets which mod FX value and filter the knobs edit, in the bound record while there is one, without
-	/// projecting the render copy.
-	/// @param param Which mod FX value.
-	/// @param type  Which filter.
-	void writeView(ModFXParam param, FilterType type);
 };
